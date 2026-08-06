@@ -6,7 +6,7 @@ cost-per-customer view to defend gross margin on outcome-based pricing.
 LiteLLM gives every customer a virtual key + tracks spend per key — once
 activated, this module is what turns that data into a board-room number.
 
-LiteLLM is already on the VPS via docker-compose.edge.yml (--profile gateway).
+LiteLLM is already on the VPS via deploy/compose/docker-compose.edge.yml (--profile gateway).
 This module talks to the gateway's /metrics endpoint (Prometheus exposition
 format) and the /spend/calculate proxy endpoint to compute:
 - spend per virtual-key in the last N hours / today / month-to-date
@@ -21,7 +21,7 @@ degrade gracefully rather than 500.
 
 Activation runbook (operator):
 1. .env: LITELLM_MASTER_KEY=<random>, LITELLM_GATEWAY_URL=http://litellm:4000
-2. docker compose -f docker-compose.edge.yml --profile gateway up -d
+2. docker compose -f deploy/compose/docker-compose.edge.yml --profile gateway up -d
 3. Curl http://litellm:4000/health -> should be 200
 4. Issue per-tenant virtual keys via the LiteLLM admin UI / API and store
    the (virtual-key -> client_id) mapping in data/litellm_keymap.jsonl

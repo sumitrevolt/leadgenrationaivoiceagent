@@ -198,7 +198,7 @@ def _cloudflare_tunnel() -> dict[str, Any]:
         "checks": checks,
         "action": (
             "Zero-Trust -> Tunnels -> create -> token in .env -> "
-            "`docker compose -f docker-compose.edge.yml --profile edge up -d`"
+            "`docker compose -f deploy/compose/docker-compose.edge.yml --profile edge up -d`"
             if not checks["token_set"]
             else ""
         ),
@@ -345,7 +345,7 @@ def _litellm_costs() -> dict[str, Any]:
         "env_vars": ["LITELLM_COSTS", "LITELLM_MASTER_KEY", "LITELLM_GATEWAY_URL"],
         "checks": {"flag": on, "master_key": master, "gateway_url": gateway},
         "action": (
-            "Set LITELLM_COSTS=1 + LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL (after docker compose -f docker-compose.edge.yml --profile gateway up)"
+            "Set LITELLM_COSTS=1 + LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL (after docker compose -f deploy/compose/docker-compose.edge.yml --profile gateway up)"
             if not fully_armed and not on
             else (
                 "LITELLM_COSTS on but MASTER_KEY or GATEWAY_URL missing — Vidya will report unavailable"
@@ -609,8 +609,8 @@ def _compliance_env() -> dict[str, Any]:
 _FIRST_PAID_TTL_S = 60
 _FIRST_PAID_CACHE: dict[str, Any] = {"at": 0.0, "result": None}
 
-_GRACE_H = 24            # < 24h: no requirement
-_GEN_REQUIRED_H = 24     # ≥ 24h: require generated
+_GRACE_H = 24  # < 24h: no requirement
+_GEN_REQUIRED_H = 24  # ≥ 24h: require generated
 _VISIBLE_REQUIRED_H = 72  # ≥ 72h: require customer-visible
 _COMPLETED_REQUIRED_H = 24 * 7  # ≥ 7d: require evidence-backed
 
@@ -625,8 +625,8 @@ _EMPTY_CHECKS: dict[str, Any] = {
     # item — this is ITEM-LEVEL only. It does NOT indicate the plan's contract
     # entitlements are complete. See `plan_completion_by_customer` +
     # `entitlement_progress_by_type` for plan/deliverable-level truth.
-    "with_evidence_backed_delivery": 0,   # item-level: ≥1 published item
-    "with_completed_plan": 0,             # plan-level: all 10 deliverables done
+    "with_evidence_backed_delivery": 0,  # item-level: ≥1 published item
+    "with_completed_plan": 0,  # plan-level: all 10 deliverables done
     "zero_generated_after_grace": 0,
     "zero_visible_after_sla": 0,
     "zero_completed_after_sla": 0,
@@ -638,7 +638,12 @@ _EMPTY_CHECKS: dict[str, Any] = {
     # 26-50% / 51-75% / 76-99% / 100%. Lets admins see plan-level progress
     # distribution without exposing individual customer IDs or percentages.
     "plan_completion_distribution": {
-        "0%": 0, "1-25%": 0, "26-50%": 0, "51-75%": 0, "76-99%": 0, "100%": 0,
+        "0%": 0,
+        "1-25%": 0,
+        "26-50%": 0,
+        "51-75%": 0,
+        "76-99%": 0,
+        "100%": 0,
     },
 }
 
@@ -762,7 +767,7 @@ def _client_has_payment_evidence(client: dict[str, Any]) -> bool:
     try:
         ids = {str(client.get("id") or "").strip()}
         aliases = client.get("billing_client_ids") or []
-        if isinstance(aliases, (list, tuple, set)):
+        if isinstance(aliases, (list, tuple, set)):  # noqa: UP038 (pre-existing, keep tuple form)
             ids.update(str(x or "").strip() for x in aliases)
         ids.discard("")
         if not ids:
@@ -786,6 +791,7 @@ def _first_paid_delivery() -> dict[str, Any]:
         return cached
 
     import copy
+
     checks: dict[str, Any] = copy.deepcopy(_EMPTY_CHECKS)
 
     try:
@@ -866,6 +872,7 @@ def _first_paid_delivery() -> dict[str, Any]:
     except Exception as exc:
         # Wholesale eval failure — WARN with sanitized type-only diagnostic.
         import copy as _copy
+
         result = {
             "key": "first_paid_delivery",
             "label": "First paid customer delivery signal",
@@ -982,7 +989,19 @@ _PROBES = (
 _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
     # `first_paid_delivery` sits in Survival: no point chasing Visibility/Sellable
     # levers if the very first paid customer's deliverables never shipped.
-    (1, "Survival", ("sentry", "posthog", "turnstile", "cloudflare_tunnel", "upi", "first_paid_delivery", "qdrant_rag")),
+    (
+        1,
+        "Survival",
+        (
+            "sentry",
+            "posthog",
+            "turnstile",
+            "cloudflare_tunnel",
+            "upi",
+            "first_paid_delivery",
+            "qdrant_rag",
+        ),
+    ),
     (2, "Visibility", ("track_b_admin", "agent_memory", "eval_gate")),
     (3, "AI staff", ("engineer_agents", "ops_alerts")),
     (4, "Sellable", ("customer_webhooks", "mcp_product")),

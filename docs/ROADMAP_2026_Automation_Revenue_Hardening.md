@@ -29,7 +29,7 @@ Tumhara code **already prod-grade** hai (FastAPI + Postgres + Redis + Docker liv
 Yeh sab confirmed hai (code survey + CLAUDE.md). Inhe dobara mat banao:
 
 - **Infra:** Dockerized live — `leadgen_app:8000` + Postgres `leadgen_db` + Redis `leadgen_redis`, Caddy TLS host-proxy, `restart: unless-stopped`. Rollback 2-level (systemd + SQLite). Nightly `pg_backup.sh` cron.
-- **Observability (partial):** Sentry wired (FastAPI/Celery/Redis/SQLAlchemy integrations), Prometheus `/metrics`, `/health/ready` (db+redis). `docker-compose.observability.yml` (Prometheus+Grafana+Uptime Kuma) opt-in.
+- **Observability (partial):** Sentry wired (FastAPI/Celery/Redis/SQLAlchemy integrations), Prometheus `/metrics`, `/health/ready` (db+redis). `deploy/compose/docker-compose.observability.yml` (Prometheus+Grafana+Uptime Kuma) opt-in.
 - **AI stack (free):** Cerebras→Groq→OpenRouter→Gemini LLM chain + circuit-breaker; EdgeTTS; Groq Whisper STT; Qdrant RAG (multi-model embed fallback); faster-whisper local.
 - **Automation built:** Celery `app/worker.py` exists; APScheduler in-process (8 AI-staff jobs IST-scheduled); reply-agent, ops-watchdog, auto-onboard, growth-pulse all coded + gated.
 - **Revenue built (dormant):** `app/api/billing.py` (Stripe 8 refs + Razorpay 11 refs, webhooks), `usage.py` minute-metering + enforcement, packages ₹999/2499/5999, customer-auth JWT portal, mini-site builder.
@@ -100,7 +100,7 @@ Yeh sab confirmed hai (code survey + CLAUDE.md). Inhe dobara mat banao:
 ### B. Observability (3 pillars) — tumhare Sentry/Prometheus ke upar
 
 - **OTel auto-instrumentation** → FastAPI request→DB→LLM→TTS end-to-end trace. Deps: `opentelemetry-instrumentation-fastapi`, `-sqlalchemy`, `-redis`, `-httpx`.
-- **LGTM stack** (Loki logs + Grafana + Tempo traces + Prometheus) — tumhare `docker-compose.observability.yml` me Loki+Tempo add karo, ya light `grafana/otel-lgtm` all-in-one image.
+- **LGTM stack** (Loki logs + Grafana + Tempo traces + Prometheus) — tumhare `deploy/compose/docker-compose.observability.yml` me Loki+Tempo add karo, ya light `grafana/otel-lgtm` all-in-one image.
 - **Reference repos (copy-paste grade):** `blueswen/fastapi-observability`, `googollee/fastapi-observability-otel`, `TechWithTy/fastapi-loki-observability`. Grafana dashboard ID **16110** (FastAPI Observability).
 - **Alerting:** Prometheus **Alertmanager** rules (error-rate >2%, p95 >2s, Celery queue-depth, payment-webhook-fail, disk >80%) → email/Telegram. Uptime Kuma already hai (uptime).
 - **VPS-light alternative:** Grafana Cloud free tier (10k series, 50GB logs) — self-host RAM bachega.
@@ -147,7 +147,7 @@ Yeh ROI-multiplier hai: iske bina automation + revenue dono unreliable rahenge.
 1. **CI auto-deploy ON** *(S)* — `DEPLOY_ENABLED=true` repo-var + secrets (VPS_HOST/USER/SSH_KEY/GHCR_PAT). `deploy-vps.yml` already GHCR→SSH ready. **Stale-`.pyc` fix build-step me bake karo** (deploy ke baad `find app -name __pycache__ -prune -exec rm -rf` + hard restart) — manual gotcha khatam.
 2. **Durable scheduler** *(M)* — APScheduler in-process se **Celery Beat** pe move (worker already hai). `acks_late=True`, `task_autoretry_for`, max-retries + exponential backoff, **dead-letter queue**. `RUN_IN_PROCESS_SCHEDULER=0` + dedicated beat container (`--profile celery` already compose me). Single-point khatam.
 3. **Postgres PITR** *(M)* — Barman ya WAL-G se WAL-archiving + nightly base-backup → R2/B2 (rclone hook hai). **Monthly restore-drill** script (alag container, row-count assert).
-4. **OTel + Alerting** *(M)* — `opentelemetry-instrumentation-fastapi/-sqlalchemy/-redis` add → traces. Loki+Tempo `docker-compose.observability.yml` me. **Alertmanager** rules: error-rate, p95, queue-depth, payment-fail, disk. → Telegram/email.
+4. **OTel + Alerting** *(M)* — `opentelemetry-instrumentation-fastapi/-sqlalchemy/-redis` add → traces. Loki+Tempo `deploy/compose/docker-compose.observability.yml` me. **Alertmanager** rules: error-rate, p95, queue-depth, payment-fail, disk. → Telegram/email.
 
 **Exit:** `git push` → auto test→build→deploy→verify, zero manual SSH. Koi job miss nahi. 24h se kam data-loss window. Problem alert customer-se-pehle.
 

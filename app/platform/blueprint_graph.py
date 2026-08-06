@@ -432,20 +432,22 @@ def _n(nid, title, layer, domain, ntype, status, files, desc, **extra) -> dict[s
     # --- v4 hierarchy (backward compatible: existing nodes default to L0) ---
     depth = int(extra.get("depth_level", 0) or 0)
     parent_node_id = extra.get("parent_node_id")
-    node.update({
-        "depth_level": depth,
-        # a node belongs to its domain unless it explicitly hangs elsewhere
-        "parent_domain_id": extra.get("parent_domain_id", domain),
-        "parent_flow_id": extra.get("parent_flow_id"),
-        "parent_node_id": parent_node_id,
-        "group_id": extra.get("group_id") or parent_node_id or domain,
-        # only the curated overview renders eagerly; deeper detail is lazy
-        "default_visibility": extra.get(
-            "default_visibility", "visible" if depth == 0 else "collapsed"
-        ),
-        "legacy_node_id": extra.get("legacy_node_id"),
-        "source_provenance": extra.get("source_provenance", "canonical"),
-    })
+    node.update(
+        {
+            "depth_level": depth,
+            # a node belongs to its domain unless it explicitly hangs elsewhere
+            "parent_domain_id": extra.get("parent_domain_id", domain),
+            "parent_flow_id": extra.get("parent_flow_id"),
+            "parent_node_id": parent_node_id,
+            "group_id": extra.get("group_id") or parent_node_id or domain,
+            # only the curated overview renders eagerly; deeper detail is lazy
+            "default_visibility": extra.get(
+                "default_visibility", "visible" if depth == 0 else "collapsed"
+            ),
+            "legacy_node_id": extra.get("legacy_node_id"),
+            "source_provenance": extra.get("source_provenance", "canonical"),
+        }
+    )
 
     # --- v4 harness controls (absent = honestly "not represented yet") ---
     for _cf in HARNESS_CONTROL_FIELDS:
@@ -464,7 +466,7 @@ NODES: list[dict[str, Any]] = [
         "security_compliance",
         "edge",
         "PRODUCTION-PROVEN",
-        ["docker-compose.edge.yml", "docker-compose.vps.yml"],
+        ["deploy/compose/docker-compose.edge.yml", "docker-compose.vps.yml"],
         "Host TLS for leadsgenai.in → app:8080.",
     ),
     # L2 App core
@@ -774,7 +776,10 @@ NODES: list[dict[str, Any]] = [
         "— no executed coordination runs yet.",
         runtime="coordinator",
         process="Dispatch a goal to STAFF agents via supervisor + worker pool.",
-        io={"input": "goal + optional team/agents filters", "output": "coordination run (jsonl journal)"},
+        io={
+            "input": "goal + optional team/agents filters",
+            "output": "coordination run (jsonl journal)",
+        },
         triggers=["/api/agents/coordinate", "Boss daily standup (staff job)", "council"],
         feedback_loop="_RUNS journal (data/coordination_runs.jsonl) feeds recent_runs back into /api/agents/roster.",
         guards=["supervisor-only tool access", "COORDINATOR_LLM_CAP_PER_MIN (per-min LLM cap)"],
@@ -832,7 +837,12 @@ NODES: list[dict[str, Any]] = [
         "owner_os_copilot",
         "app",
         "CODE-PRESENT",
-        ["app/api/owner_copilot.py", "app/integrations/openclaw/policies.py", "app/integrations/openclaw/automation_commands.py", "app/integrations/openclaw/owner_os_adapter.py"],
+        [
+            "app/api/owner_copilot.py",
+            "app/integrations/openclaw/policies.py",
+            "app/integrations/openclaw/automation_commands.py",
+            "app/integrations/openclaw/owner_os_adapter.py",
+        ],
         "OpenClaw Admin Stage A (PR #105). Owner OS = sole action authority; "
         "GREEN-only structural (allowed_commands strip); edge layer gated "
         "OPENCLAW_ENABLED (default off); workforce stays 31 — Boss/OpenClaw is "
@@ -846,7 +856,11 @@ NODES: list[dict[str, Any]] = [
         "owner_os_copilot",
         "integration",
         "LOCAL-ONLY",
-        ["app/platform/omniroute_client.py", "app/dev_control/governed_omniroute.py", "app/voice_agent/omniroute_voice.py"],
+        [
+            "app/platform/omniroute_client.py",
+            "app/dev_control/governed_omniroute.py",
+            "app/voice_agent/omniroute_voice.py",
+        ],
         "Local WSL dev gateway for sanitized operator/coding review (Responses "
         "API). NOT part of the prod customer/voice/billing path — inert until "
         "OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key.",
@@ -956,7 +970,7 @@ NODES: list[dict[str, Any]] = [
         "observability_ops",
         "observability",
         "PRODUCTION-PROVEN",
-        ["docker-compose.observability.yml"],
+        ["deploy/compose/docker-compose.observability.yml"],
         "~13 obs containers + Sentry.",
     ),
     # Domain 18 — Security & compliance
@@ -1435,13 +1449,9 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
         if n.get("parent_domain_id") not in _DOMAIN_KEYS:
             errors.append(f"{n['id']}: bad parent_domain_id {n.get('parent_domain_id')}")
         if n.get("default_visibility") not in ("visible", "collapsed"):
-            errors.append(
-                f"{n['id']}: bad default_visibility {n.get('default_visibility')}"
-            )
+            errors.append(f"{n['id']}: bad default_visibility {n.get('default_visibility')}")
         if n.get("source_provenance") not in ("canonical", "legacy-migrated", "derived"):
-            errors.append(
-                f"{n['id']}: bad source_provenance {n.get('source_provenance')}"
-            )
+            errors.append(f"{n['id']}: bad source_provenance {n.get('source_provenance')}")
         if n.get("parent_node_id") == n["id"]:
             errors.append(f"{n['id']}: parent_node_id points at itself")
         # --- "no unreachable detail" gate, per depth ------------------------
@@ -1492,19 +1502,22 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             if parent.get("depth_level", 0) >= n.get("depth_level", 0):
                 errors.append(
                     f"{n['id']}: parent {p} depth {parent.get('depth_level')} is not "
-                    f"above child depth {n.get('depth_level')}")
+                    f"above child depth {n.get('depth_level')}"
+                )
             # an L2 detail node must hang off an L1 group, never straight off an
             # L0 aggregate — that skips the domain/flow layer entirely
             if n.get("depth_level", 0) >= 2 and parent.get("depth_level", 0) != 1:
                 errors.append(
                     f"{n['id']}: L2 node parented on depth-"
                     f"{parent.get('depth_level')} node {p}; an L2 node needs an L1 "
-                    "group parent (or a flow parent)")
+                    "group parent (or a flow parent)"
+                )
             # node-parented children must agree on domain
             if parent.get("domain") != n.get("domain"):
                 errors.append(
                     f"{n['id']}: cross-domain parent {p} "
-                    f"({parent.get('domain')} != {n.get('domain')})")
+                    f"({parent.get('domain')} != {n.get('domain')})"
+                )
         pf = n.get("parent_flow_id")
         if pf and pf not in _flow_id_set:
             errors.append(f"{n['id']}: parent_flow_id {pf} is not a flow")

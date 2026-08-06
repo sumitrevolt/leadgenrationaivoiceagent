@@ -64,10 +64,10 @@ scrape_configs:
     static_configs:
       - targets: ["leadgen_redis_exporter_cache:9121"]
 
-  # --- Celery exporters (docker-compose.addons.yml) — DISABLED 2026-07-14 ------
+  # --- Celery exporters (deploy/compose/docker-compose.addons.yml) — DISABLED 2026-07-14 ------
   # Purana comment ("graceful: missing target = Prometheus bas warn karta") GALAT
   # tha: `alert_rules.yml` ka PrometheusTargetMissing `up == 0` pe fire karta hai,
-  # job exist kare ya na kare. `docker-compose.addons.yml` VPS pe deploy NAHI hai,
+  # job exist kare ya na kare. `deploy/compose/docker-compose.addons.yml` VPS pe deploy NAHI hai,
   # isliye leadgen_celery_exporter/leadgen_flower kabhi up nahi hue -> 2 alert
   # 2026-07-09 se PERMANENTLY firing -> alert fatigue (asli alert dab jata).
   # Addons deploy karo tab in dono blocks ko wapas uncomment kar dena.

@@ -116,7 +116,7 @@ Pre-flight: `GET /api/admin/leads/ready`
 | USE metrics | Prometheus `:9090` |
 | Uptime | Uptime Kuma / Gatus |
 
-Enable: `docker compose -f docker-compose.observability.yml up -d`
+Enable: `docker compose -f deploy/compose/docker-compose.observability.yml up -d`
 
 ---
 

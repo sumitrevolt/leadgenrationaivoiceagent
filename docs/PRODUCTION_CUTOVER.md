@@ -162,7 +162,7 @@ Manual SSH + "stale .pyc / hard reload" drama KHATAM (har deploy fresh immutable
 
 **Monitoring (optional, free):**
 ```bash
-docker compose -f docker-compose.observability.yml up -d   # Prometheus+Grafana+Uptime Kuma
+docker compose -f deploy/compose/docker-compose.observability.yml up -d   # Prometheus+Grafana+Uptime Kuma
 ```
 Uptime Kuma me `https://leadsgenai.in/health` ka monitor + email/Telegram alert lagao.
 

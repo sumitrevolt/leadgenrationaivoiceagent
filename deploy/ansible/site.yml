@@ -22,8 +22,8 @@
     git_ref: main
     compose_files:
       - docker-compose.vps.yml
-      - docker-compose.observability.yml
-      - docker-compose.tools.yml
+      - deploy/compose/docker-compose.observability.yml
+      - deploy/compose/docker-compose.tools.yml
 
   tasks:
     - name: Base packages

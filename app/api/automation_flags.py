@@ -247,7 +247,7 @@ AUTOMATION_FLAGS = [
     "PLAN_RATE_LIMIT",  # tier-based API rpm limits
     "CIRCUIT_BREAKER",  # external-service breaker (Pollinations etc.) — OFF default, fast-fail on outage
     # Edge protection (Cloudflare) — URL-valued flags become ON when set.
-    "CLOUDFLARE_TUNNEL_TOKEN",  # docker-compose.edge.yml cloudflared — origin-hide + WAF/DDoS
+    "CLOUDFLARE_TUNNEL_TOKEN",  # deploy/compose/docker-compose.edge.yml cloudflared — origin-hide + WAF/DDoS
     "TURNSTILE_SITE_KEY",  # public site-key (safe to expose) — widget renders only when set
     "TURNSTILE_SECRET_KEY",  # server secret — present = bot-check armed on /audit /site-audit /demo /inquiry
     # F.3 eval_gate close-the-loop reward signal for self_improve + DeepEval CI

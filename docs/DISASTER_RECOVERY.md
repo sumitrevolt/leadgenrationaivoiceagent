@@ -105,7 +105,7 @@ systemd `leadgen` service installed but **disabled** — emergency rollback path
 | App health | Gatus `/health/ready` body assert |
 | Dead-man jobs | `ops_watchdog` + ntfy |
 
-Activate obs stack: `docker compose -f docker-compose.observability.yml up -d`
+Activate obs stack: `docker compose -f deploy/compose/docker-compose.observability.yml up -d`
 
 ---
 

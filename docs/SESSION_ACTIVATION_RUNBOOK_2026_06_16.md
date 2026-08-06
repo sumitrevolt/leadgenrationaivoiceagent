@@ -50,7 +50,7 @@ TURNSTILE_SECRET_KEY=0x4AAA...   # .env only
 ```
 1. Cloudflare → Zero Trust → Tunnels → create → copy token.
 2. Cloudflare → Turnstile → create widget → copy both keys.
-3. `docker compose -f docker-compose.edge.yml --profile edge up -d`
+3. `docker compose -f deploy/compose/docker-compose.edge.yml --profile edge up -d`
 4. Point tunnel hostname → `http://127.0.0.1:8000`, move DNS to Cloudflare (proxied).
 5. **Verify:**
    - `curl -I https://leadsgenai.in` shows `server: cloudflare`
@@ -192,7 +192,7 @@ LITELLM_MASTER_KEY=<32-char random>
 LITELLM_GATEWAY_URL=http://litellm:4000
 LITELLM_COSTS=1
 ```
-1. `docker compose -f docker-compose.edge.yml --profile gateway up -d`
+1. `docker compose -f deploy/compose/docker-compose.edge.yml --profile gateway up -d`
 2. `curl http://litellm:4000/health` → 200.
 3. Issue virtual keys per customer via LiteLLM admin UI.
 4. Populate `/opt/leadgen/data/litellm_keymap.jsonl`:
@@ -205,7 +205,7 @@ LITELLM_COSTS=1
 
 ### 5.2 Warm-DR replica (Postgres logical replication to free PG)
 ```
-DR_REPLICA_URL=postgres://user:pass@neon.tech/dbname
+DR_REPLICA_URL=postgres://user:pass@neon.tech/dbname  # pragma: allowlist secret (placeholder sample)
 DR_LAG_WARN_S=60
 DR_LAG_FAIL_S=600
 ```

@@ -1,7 +1,7 @@
 """Self-hosted SearXNG meta-search client (FREE unlimited web search).
 
 Paid search APIs (Brave $5/mo ≈ 1k queries) ki jagah apna SearXNG container —
-70+ engines aggregate, JSON API, zero per-query cost. `docker-compose.tools.yml`
+70+ engines aggregate, JSON API, zero per-query cost. `deploy/compose/docker-compose.tools.yml`
 me `searxng` service (app ke SAME docker network pe).
 
 GATED: `SEARXNG_URL` env (e.g. http://searxng:8080). Unset = inert (callers

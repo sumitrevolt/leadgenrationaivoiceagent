@@ -90,6 +90,6 @@ No database migration was introduced, so rollback is configuration only:
 2. Remove the tenant from `CREATIVE_HYPERFRAMES_CANARY_TENANTS`
 3. Future generations route to `deterministic` (the registry's declared
    `rollback_provider`)
-4. Redeploy `worker-video` **without** `docker-compose.video.yml` to drop the
+4. Redeploy `worker-video` **without** `deploy/compose/docker-compose.video.yml` to drop the
    toolchain image
 5. Previously approved media and their immutable snapshots are untouched

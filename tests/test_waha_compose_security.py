@@ -5,19 +5,20 @@ security boundary before the WAHA container starts, so missing credentials must
 not silently become known fallback strings.
 """
 
-from pathlib import Path
 import re
+from pathlib import Path
 
-
-COMPOSE_FILE = Path(__file__).resolve().parents[1] / "docker-compose.waha.yml"
+COMPOSE_FILE = (
+    Path(__file__).resolve().parents[1] / "deploy" / "compose" / "docker-compose.waha.yml"
+)
 ACTIVATION_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "activate_waha_vps.sh"
 
 
 def test_waha_compose_requires_real_secrets_and_keeps_internal_app_port():
     content = COMPOSE_FILE.read_text(encoding="utf-8")
 
-    assert '${WAHA_API_KEY:?WAHA_API_KEY must be set before starting WAHA}' in content
-    assert '${WAHA_WEBHOOK_TOKEN:?WAHA_WEBHOOK_TOKEN must be set before starting WAHA}' in content
+    assert "${WAHA_API_KEY:?WAHA_API_KEY must be set before starting WAHA}" in content
+    assert "${WAHA_WEBHOOK_TOKEN:?WAHA_WEBHOOK_TOKEN must be set before starting WAHA}" in content
     assert "change-me-strong-key" not in content
     assert "change-me-token" not in content
     assert "http://app:8080/api/wa/selfhost/webhook?token=" in content

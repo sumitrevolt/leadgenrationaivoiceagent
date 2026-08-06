@@ -41,8 +41,14 @@ from typing import Iterable
 # Items per phase - matches docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md.
 # Each item: (key, label, env_pairs, description, post_activate_curl)
 _PLACEHOLDER_MARKERS = (
-    "your-", "your_", "change-me", "change_me", "xxxxxxxx",
-    "rzp_test_you", "rzp_live_xxxxx", "placeholder",
+    "your-",
+    "your_",
+    "change-me",
+    "change_me",
+    "xxxxxxxx",
+    "rzp_test_you",
+    "rzp_live_xxxxx",
+    "placeholder",
 )
 
 
@@ -82,8 +88,11 @@ _PHASES: dict[int, dict] = {
                 "label": "PostHog product analytics (cloud free tier)",
                 "env": [
                     ("POSTHOG_API_KEY", "Project API key (phc_...)"),
-                    ("POSTHOG_HOST", "us or eu - defaults to us.i.posthog.com",
-                     "https://us.i.posthog.com"),
+                    (
+                        "POSTHOG_HOST",
+                        "us or eu - defaults to us.i.posthog.com",
+                        "https://us.i.posthog.com",
+                    ),
                 ],
                 "validator": None,
             },
@@ -100,12 +109,14 @@ _PHASES: dict[int, dict] = {
                 "key": "cloudflare_tunnel",
                 "label": "Cloudflare Tunnel (origin-hide + WAF)",
                 "env": [
-                    ("CLOUDFLARE_TUNNEL_TOKEN",
-                     "Tunnel token from Zero Trust -> Tunnels -> create"),
+                    (
+                        "CLOUDFLARE_TUNNEL_TOKEN",
+                        "Tunnel token from Zero Trust -> Tunnels -> create",
+                    ),
                 ],
                 "validator": None,
                 "post_command": (
-                    "docker compose -f docker-compose.edge.yml --profile edge up -d"
+                    "docker compose -f deploy/compose/docker-compose.edge.yml --profile edge up -d"
                 ),
             },
         ],
@@ -145,8 +156,11 @@ _PHASES: dict[int, dict] = {
                 "label": "ops_alerts ntfy fan-out",
                 "env": [
                     ("OPS_ALERTS", "1", "1"),
-                    ("NTFY_URL", "http://ntfy:80 (self-hosted) or https://ntfy.sh",
-                     "http://ntfy:80"),
+                    (
+                        "NTFY_URL",
+                        "http://ntfy:80 (self-hosted) or https://ntfy.sh",
+                        "http://ntfy:80",
+                    ),
                     ("NTFY_TOPIC", "Topic name (random for privacy)"),
                 ],
                 "validator": None,
@@ -178,23 +192,26 @@ _PHASES: dict[int, dict] = {
                 "label": "LiteLLM gateway + per-tenant cost attribution",
                 "env": [
                     ("LITELLM_COSTS", "1", "1"),
-                    ("LITELLM_MASTER_KEY",
-                     "32+ char random (bearer for /spend/keys)"),
-                    ("LITELLM_GATEWAY_URL",
-                     "http://litellm:4000 (in-network)",
-                     "http://litellm:4000"),
+                    ("LITELLM_MASTER_KEY", "32+ char random (bearer for /spend/keys)"),
+                    (
+                        "LITELLM_GATEWAY_URL",
+                        "http://litellm:4000 (in-network)",
+                        "http://litellm:4000",
+                    ),
                 ],
                 "validator": None,
                 "post_command": (
-                    "docker compose -f docker-compose.edge.yml --profile gateway up -d"
+                    "docker compose -f deploy/compose/docker-compose.edge.yml --profile gateway up -d"
                 ),
             },
             {
                 "key": "warm_dr",
                 "label": "Warm-DR replica (Neon/Supabase free tier)",
                 "env": [
-                    ("DR_REPLICA_URL",
-                     "postgres://user:pass@neon.tech/dbname (read-only replica)"),
+                    (
+                        "DR_REPLICA_URL",
+                        "postgres://user:pass@neon.tech/dbname (read-only replica)",  # pragma: allowlist secret (placeholder sample)
+                    ),
                     ("DR_LAG_WARN_S", "Default 60", "60"),
                     ("DR_LAG_FAIL_S", "Default 600", "600"),
                 ],
@@ -258,7 +275,9 @@ def _atomic_write_env(path: Path, raw_lines: list[str], updates: dict[str, str])
 # --------------------------------------------------------------------------- #
 def _verify_health(base: str = "http://127.0.0.1:8000") -> tuple[bool, str]:
     try:
-        with urllib.request.urlopen(f"{base}/health", timeout=5) as r:
+        with urllib.request.urlopen(
+            f"{base}/health", timeout=5
+        ) as r:  # nosec B310 (localhost health check)
             body = r.read().decode("utf-8", "ignore")
             return r.status == 200 and '"environment":"production"' in body, body[:200]
     except Exception as exc:
@@ -367,7 +386,11 @@ def walk_phase(phase_n: int) -> None:
     print("\nReady to write the following to .env:")
     for k in updates:
         v = updates[k]
-        masked = v if k.endswith("_HOST") or k == "ENVIRONMENT" else (v[:6] + "..." + v[-4:] if len(v) > 14 else "***")
+        masked = (
+            v
+            if k.endswith("_HOST") or k == "ENVIRONMENT"
+            else (v[:6] + "..." + v[-4:] if len(v) > 14 else "***")
+        )
         print(f"   {k}={masked}")
     confirm = input("\nWrite changes (haan/nahi)? ").strip().lower()
     if confirm not in {"haan", "yes", "y"}:
@@ -382,7 +405,9 @@ def walk_phase(phase_n: int) -> None:
     print("  2. Verify health:")
     print("     curl -fsS http://127.0.0.1:8000/health")
     print("  3. Verify readiness regression:")
-    print("     curl -s http://127.0.0.1:8000/api/activation/readiness -H 'Authorization: Bearer $TOKEN'")
+    print(
+        "     curl -s http://127.0.0.1:8000/api/activation/readiness -H 'Authorization: Bearer $TOKEN'"
+    )
 
 
 def _resolve_env_path() -> Path:
@@ -398,10 +423,8 @@ def _resolve_env_path() -> Path:
 # --------------------------------------------------------------------------- #
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--phase", type=int, default=1,
-                   help="Phase number to walk (default 1)")
-    p.add_argument("--status", action="store_true",
-                   help="Show current state, don't prompt")
+    p.add_argument("--phase", type=int, default=1, help="Phase number to walk (default 1)")
+    p.add_argument("--status", action="store_true", help="Show current state, don't prompt")
     args = p.parse_args()
 
     print("LeadGen AI - interactive activation walker")

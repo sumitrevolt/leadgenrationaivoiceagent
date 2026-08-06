@@ -194,6 +194,7 @@ _scratch/
 source.tar.gz
 *.tar.gz
 *.db-journal
+pytest_*.log
 pytest_run.log
 smoke_test.log
 uvicorn_smoke.log
