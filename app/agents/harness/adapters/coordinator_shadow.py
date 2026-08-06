@@ -34,11 +34,14 @@ except Exception:  # pragma: no cover
 _SOURCE_LOOP = "coordinator"
 
 # Explicit, deterministic delegated-agent -> canonical (tool, version) map. Only
-# ONE honestly-safe delegation is mapped: dev -> agent.delegate.dev (downstream
-# _tool_dev = hashtags.research, read-only). Every other delegated agent stays
+# TWO honestly-safe delegations are mapped: dev -> agent.delegate.dev (downstream
+# _tool_dev = hashtags.research, read-only) and isha -> agent.delegate.isha
+# (_tool_isha = post_generator.generate_post, pure content-gen, read-only).
+# Every other delegated agent (kavya/arjun/meera + side-effect agents) stays
 # legacy => UNREGISTERED_TOOL. No wildcard, no auto-registration, no model identity.
 COORDINATOR_TOOL_MAP: dict[str, tuple[str, str]] = {
     "dev": ("agent.delegate.dev", "1.0.0"),
+    "isha": ("agent.delegate.isha", "1.0.0"),
 }
 
 
