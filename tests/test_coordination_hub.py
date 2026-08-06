@@ -88,9 +88,9 @@ def test_page_has_no_inline_secrets():
         assert leak not in html, f"secret value leaked into page: {leak}"
     import re
 
-    assert not re.search(
-        r"COORD_HUB_[A-Z0-9_]+_SECRET\s*=\s*[A-Za-z0-9]{8,}", html
-    ), "env secret value assigned in page"
+    assert not re.search(r"COORD_HUB_[A-Z0-9_]+_SECRET\s*=\s*[A-Za-z0-9]{8,}", html), (
+        "env secret value assigned in page"
+    )
 
 
 def test_mutations_refused_surface_present():

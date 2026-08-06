@@ -827,13 +827,17 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
         for name in os.listdir(root):
             if name.startswith("_") or name == "equipments.json":
                 continue
-            scopes: list[tuple[str, str]] = [("", os.path.join(root, name, "entries.jsonl"))]
+            scope_ids = [""]
             tenants_dir = os.path.join(root, name, "tenants")
             if os.path.isdir(tenants_dir):
                 for tenant in os.listdir(tenants_dir):
                     if _safe_tenant(tenant):
-                        scopes.append((tenant, os.path.join(tenants_dir, tenant, "entries.jsonl")))
-            for tenant_id, prune_path in scopes:
+                        scope_ids.append(tenant)
+            for tenant_id in scope_ids:
+                if tenant_id:
+                    prune_path = os.path.join(root, name, "tenants", tenant_id, "entries.jsonl")
+                else:
+                    prune_path = os.path.join(root, name, "entries.jsonl")
                 if not os.path.isfile(prune_path):
                     continue
                 keep: list[dict[str, Any]] = []
@@ -890,7 +894,7 @@ def canvas_mermaid(agent_id: str, *, limit: int = 10, tenant_id: str = "") -> st
         safe = re.sub(r"[^A-Za-z0-9_]", "_", str(nid))[:20]
         lines.append(f'  {safe}["{label}"]')
         if i > 0:
-            prev_raw = rows[i - 1].get("node_id") or rows[i - 1].get("id") or f"n{i-1}"
+            prev_raw = rows[i - 1].get("node_id") or rows[i - 1].get("id") or f"n{i - 1}"
             prev = re.sub(r"[^A-Za-z0-9_]", "_", str(prev_raw))[:20]
             lines.append(f"  {prev} --> {safe}")
     return "\n".join(lines)

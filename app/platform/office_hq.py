@@ -2648,7 +2648,7 @@ def _ask_heuristic_route(q: str) -> dict[str, str]:
 async def _ask_route(q: str) -> dict[str, str]:
     """Free-LLM intent+staff router (strict-JSON) — fail/timeout = heuristic."""
     roster = "\n".join(
-        f"- {k}: {v.get('title','')} — {str(v.get('duties',''))[:90]}" for k, v in STAFF.items()
+        f"- {k}: {v.get('title', '')} — {str(v.get('duties', ''))[:90]}" for k, v in STAFF.items()
     )
     system = (
         "Tum ek AI-office router ho. User (admin) ka message classify karo.\n"
@@ -2794,13 +2794,13 @@ async def hq_ask(q: str) -> dict[str, Any]:
                 "kind": "task",
                 "member": route["member"],
                 "scope": route["scope"],
-                "text": f"❌ {name} ko dispatch fail hua: {res.get('error','?')}",
+                "text": f"❌ {name} ko dispatch fail hua: {res.get('error', '?')}",
                 "error": res.get("error", ""),
             }
         if res.get("status") == "timeout":
             text = f"⏳ {name} ko kaam de diya — time-limit me poora nahi hua, jitna hua woh events/ticker me hai."
         else:
-            text = f"📨 {name} ({route['scope']}) ne kaam kiya:\n{res.get('summary','')}".strip()
+            text = f"📨 {name} ({route['scope']}) ne kaam kiya:\n{res.get('summary', '')}".strip()
         return {
             "ok": True,
             "kind": "task",

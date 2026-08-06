@@ -8,6 +8,7 @@ Catches "declared-but-not-connected" automation gaps:
   3. Celery beat staff-* tasks referencing a job not in STAFF_JOBS.
 Exit 0 = all automation wired, 1 = gaps.
 """
+
 from __future__ import annotations
 
 import pathlib
