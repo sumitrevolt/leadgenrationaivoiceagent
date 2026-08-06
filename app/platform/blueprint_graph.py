@@ -1541,9 +1541,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             hops += 1
 
     # edges resolve + degree
-    deg = {
-        i: 0 for i in idset
-    }  # noqa: C420 (pre-existing; dict.fromkeys loses explicit 0 semantics readability)
+    deg = dict.fromkeys(idset, 0)
     for e in EDGES:
         s, t = e.get("source"), e.get("target")
         if s not in idset or t not in idset:
