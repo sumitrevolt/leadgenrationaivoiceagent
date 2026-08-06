@@ -45,6 +45,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # skill CI compares the complete PR/push range
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -57,6 +59,10 @@ jobs:
         run: python scripts/check_secrets.py
       - name: Security misconfig scan     # MUST-PASS — no misconfigurations in commit
         run: python scripts/security_scan.py
+      - name: Skill quality + security ratchet  # MUST-PASS — strict on added/modified skills
+        env:
+          SKILL_CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+        run: python scripts/skill_evals/check_repo_skills.py --base-ref "$SKILL_CI_BASE"
       - name: Queue idempotency audit     # RATCHET — static-scan gaps > baseline = fail (naye tasks bina dedup na aayen)
         env:
           # 2026-07-06 baseline: 117 static gaps (kai tasks ka dedup scheduler/
