@@ -129,7 +129,9 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # offer may quote, so it is the same billing authority, not a new domain.
     # 2026-08-05 +3 entries / +1 family: platform.memory_governance (ADR-158/161
     # do-not-remember rules + governance audit). CLASSIFIED, not tolerated.
-    assert len(entries) == 50
+    # 2026-08-06 +2 entries / +0 families: tenant-aware workforce-memory reads
+    # (_entries_path and tenants_dir) stay in platform.workforce_memory.
+    assert len(entries) == 52
     assert len(families) == 15, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}

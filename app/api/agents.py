@@ -173,7 +173,9 @@ async def council_members(user: User = Depends(require_admin)) -> dict[str, Any]
 
 
 @router.post("/council", dependencies=[Depends(rate_limit("agents", 5, 60))])
-async def council_agents(req: CouncilRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
+async def council_agents(
+    req: CouncilRequest, user: User = Depends(require_admin)
+) -> dict[str, Any]:
     """LLM Council — parallel multi-model opinions → anonymized peer rank → Chairman synthesis."""
     return await coordinator.council(req.question)
 
@@ -195,7 +197,7 @@ class HierRequest(BaseModel):
 async def coordinate_hierarchical_agents(
     req: HierRequest, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Hierarchical: Boss -> domain sub-teams (growth/ops/sales, PARALLEL) -> members -> unified merge."""
+    """Hierarchical: Boss -> canonical domain teams (PARALLEL) -> STAFF -> Boss verdict."""
     return await coordinator.coordinate_hierarchical(req.goal, execute=req.execute)
 
 

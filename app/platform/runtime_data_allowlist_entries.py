@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-VERSION = "2026-07-26.1"
+VERSION = "2026-08-06.1"
 
 ENTRIES: list[dict[str, Any]] = [
     {
@@ -306,6 +306,46 @@ ENTRIES: list[dict[str, Any]] = [
         "review_condition": (
             "Must stay agent-scoped (STAFF id sanitised). Never write customer lead PII "
             "by default; DPDP erase uses purge_agent. Chat/L0 visibility forced private."
+        ),
+    },
+    {
+        "allowlist_id": "platform.workforce_memory.entries_helper_read",
+        "file": "app/platform/workforce_memory.py",
+        "line_or_symbol": "_entries_path",
+        "path_pattern": "entries.jsonl",
+        "store_id": "platform.workforce_memory",
+        "access_modes": ["READ"],
+        "reason": (
+            "Tenant-aware _read_entries delegates to _read_entries_path using the same "
+            "per-agent entries.jsonl authority."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "The resolved path must remain under the validated agent and tenant scope; "
+            "never fall back across tenants."
+        ),
+    },
+    {
+        "allowlist_id": "platform.workforce_memory.tenant_scope_directory_read",
+        "file": "app/platform/workforce_memory.py",
+        "line_or_symbol": "tenants_dir",
+        "path_pattern": "tenants",
+        "store_id": "platform.workforce_memory",
+        "access_modes": ["READ"],
+        "reason": (
+            "Retention and status traversal enumerate hashed tenant-scope directories "
+            "inside each STAFF memory root."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Directory names stay hashed/validated scope identifiers; traversal must not "
+            "read another agent root or expose tenant identifiers."
         ),
     },
     {
