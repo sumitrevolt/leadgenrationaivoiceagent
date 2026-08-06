@@ -36,6 +36,8 @@ jobs:
     timeout-minutes: 15  # hang guard (full pytest team_pulse area can stall â€” CLAUDE.md)
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # skill CI compares this push with github.event.before
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -58,6 +60,10 @@ jobs:
         run: python -c "import app.main; print('import OK')"
       - name: Production check
         run: python scripts/prod_check.py
+      - name: Skill quality + security ratchet
+        env:
+          SKILL_CI_BASE: ${{ github.event.before || '' }}
+        run: python scripts/skill_evals/check_repo_skills.py --base-ref "$SKILL_CI_BASE"
       - name: Lint (ruff, non-blocking warnings)
         run: ruff check app || true
       - name: Contract tests (billing/pricing truth â€” BLOCKING)
