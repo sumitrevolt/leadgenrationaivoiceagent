@@ -243,6 +243,7 @@ AUTOMATION_FLAGS = [
     "REPLY_AUTO_SEND_HARD_OFF",  # emergency precedence override; 1 always blocks sends
     "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
     "AGENT_RUNTIME",  # Agent-OS Phase-B shared runtime master gate — OFF default (pilots kavya/isha/zara only; RED lane hamesha blocked)
+    "AGENT_MATURITY_CONTEXT",  # ADR-164: bounded role/agent-KB context; OFF default, profiles remain read-only visible
     "AGENT_RUNTIME_LLM",  # isha pilot draft-brief me free-stack LLM allow (OFF = deterministic template)
     "REQUEST_GUARD",  # per-request timeout + load-shed middleware
     "PLAN_RATE_LIMIT",  # tier-based API rpm limits

@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/workforce-memory", tags=["Infrastructure"])
 
 class RememberIn(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=40)
+    tenant_id: str = Field("", max_length=120)
     content: str = Field(..., min_length=1, max_length=8000)
     layer: str = Field("l1_atom", max_length=32)
     asset: str = Field("chat", max_length=16)
@@ -61,14 +62,17 @@ async def bindings(agent_id: str, _user=Depends(require_admin)) -> dict[str, Any
 @router.get("/inspect")
 async def inspect(
     agent_id: str = Query(..., min_length=1, max_length=40),
+    tenant_id: str = Query("", max_length=120),
     limit: int = 50,
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
     from app.platform import workforce_memory as wm
 
-    rows = wm.list_entries(agent_id, limit=max(1, min(int(limit), 500)))
+    rows = wm.list_entries(agent_id, limit=max(1, min(int(limit), 500)), tenant_id=tenant_id)
     return {
         "agent_id": agent_id.strip().lower(),
+        "tenant_id": tenant_id,
+        "namespace": wm.memory_namespace(agent_id, tenant_id),
         "count": len(rows),
         "entries": rows,
         "enabled": wm.is_enabled(),
@@ -79,20 +83,23 @@ async def inspect(
 @router.get("/recall")
 async def recall(
     agent_id: str = Query(..., min_length=1, max_length=40),
+    tenant_id: str = Query("", max_length=120),
     q: str = Query("", max_length=400),
     limit: int = 8,
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
     from app.platform import workforce_memory as wm
 
-    rows = wm.recall(agent_id, q, limit=max(1, min(int(limit), 50)))
+    rows = wm.recall(agent_id, q, limit=max(1, min(int(limit), 50)), tenant_id=tenant_id)
     return {
         "agent_id": agent_id.strip().lower(),
+        "tenant_id": tenant_id,
+        "namespace": wm.memory_namespace(agent_id, tenant_id),
         "query": q,
         "count": len(rows),
         "entries": rows,
-        "brief": wm.recall_brief(agent_id, q),
-        "canvas": wm.canvas_mermaid(agent_id),
+        "brief": wm.recall_brief(agent_id, q, tenant_id=tenant_id),
+        "canvas": wm.canvas_mermaid(agent_id, tenant_id=tenant_id),
         "enabled": wm.is_enabled(),
     }
 
@@ -101,14 +108,20 @@ async def recall(
 async def drilldown(
     agent_id: str = Query(..., min_length=1, max_length=40),
     node_id: str = Query(..., min_length=4, max_length=32),
+    tenant_id: str = Query("", max_length=120),
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
     from app.platform import workforce_memory as wm
 
-    text = wm.drilldown(agent_id, node_id)
+    text = wm.drilldown(agent_id, node_id, tenant_id=tenant_id)
     if text is None:
         raise HTTPException(status_code=404, detail="node_id not found")
-    return {"agent_id": agent_id.strip().lower(), "node_id": node_id, "content": text}
+    return {
+        "agent_id": agent_id.strip().lower(),
+        "tenant_id": tenant_id,
+        "node_id": node_id,
+        "content": text,
+    }
 
 
 @router.post("/remember")
@@ -124,6 +137,7 @@ async def remember(body: RememberIn, _user=Depends(require_admin)) -> dict[str, 
         offload=body.offload,
         visibility=body.visibility,
         parent_id=body.parent_id,
+        tenant_id=body.tenant_id,
     )
 
 
@@ -158,11 +172,12 @@ async def prune(
 @router.post("/purge")
 async def purge(
     agent_id: str = Query(..., min_length=1, max_length=40),
+    tenant_id: str = Query("", max_length=120),
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
     from app.platform import workforce_memory as wm
 
-    return wm.purge_agent(agent_id)
+    return wm.purge_agent(agent_id, tenant_id=tenant_id)
 
 
 __all__ = ["router"]

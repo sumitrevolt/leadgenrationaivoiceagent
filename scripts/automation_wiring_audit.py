@@ -8,11 +8,14 @@ Catches "declared-but-not-connected" automation gaps:
   3. Celery beat staff-* tasks referencing a job not in STAFF_JOBS.
 Exit 0 = all automation wired, 1 = gaps.
 """
+
 from __future__ import annotations
 
 import pathlib
 import re
 import sys
+from collections import Counter
+from collections.abc import Iterable
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -79,11 +82,27 @@ def _all_app_text() -> str:
     return "\n".join(chunks)
 
 
+def _reference_counts(blob: str, flags: Iterable[str]) -> Counter[str]:
+    """Count exact env symbols in one source scan.
+
+    The old implementation ran one full-blob ``re.findall`` per flag. With a
+    ~12 MB app corpus and 350+ flags that multiplied into gigabytes of repeated
+    scanning on every prod check. A single alternation preserves the exact
+    word-boundary semantics while making the cost proportional to corpus size.
+    """
+    names = sorted({str(flag) for flag in flags if flag}, key=len, reverse=True)
+    if not names:
+        return Counter()
+    pattern = re.compile(r"\b(?:" + "|".join(re.escape(name) for name in names) + r")\b")
+    return Counter(pattern.findall(blob))
+
+
 def audit_flags(blob: str) -> None:
     from app.api.growth import AUTOMATION_FLAGS
 
     dead = []
     reserved = 0
+    references = _reference_counts(blob, AUTOMATION_FLAGS)
     for flag in AUTOMATION_FLAGS:
         if flag in KNOWN_INDIRECT:
             continue
@@ -91,7 +110,7 @@ def audit_flags(blob: str) -> None:
             reserved += 1
             continue
         # Count references OUTSIDE the registry literal (registry has it once per line).
-        refs = len(re.findall(r"\b" + re.escape(flag) + r"\b", blob))
+        refs = references.get(flag, 0)
         # registry line itself counts as 1; need >=2 to prove a real read.
         if refs < 2:
             dead.append(flag)

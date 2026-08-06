@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1272 operations)
+## Endpoint Index — auto-generated from OpenAPI (1289 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -472,7 +472,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/billing/usage` — Get Current Usage
 - `GET   ` `/api/billing/usage/history` — Get Usage History
 - `POST  ` `/api/billing/webhook` — Unified Payment Webhook
-- `POST  ` `/api/billing/webhooks/stripe` — Stripe Webhook
+- `POST  ` `/api/billing/webhooks/stripe` — Stripe Webhook Removed
 
 ### Blueprint  (5)
 
@@ -949,7 +949,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (72)
+### Frontend  (73)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
@@ -967,6 +967,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/command-center` — Command Center Page
 - `GET   ` `/app/control-center` — Control Center Page
 - `GET   ` `/app/conversations` — Conversations Page
+- `GET   ` `/app/coordination` — Coordination Hub Page
 - `GET   ` `/app/customer` — Customer Dashboard Page
 - `GET   ` `/app/customer/billing` — Customer View Alias Billing
 - `GET   ` `/app/customer/calendar` — Customer View Alias Calendar
@@ -1266,7 +1267,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/impersonate/stop` — Impersonation Stop
 - `GET   ` `/api/impersonate/targets` — Impersonation Targets
 
-### Infrastructure  (32)
+### Infrastructure  (43)
 
 - `GET   ` `/api/activation/readiness` — Activation Readiness
 - `GET   ` `/api/activation/summary` — Activation Summary Public
@@ -1286,6 +1287,17 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/h4/litellm-health` — Litellm Health
 - `GET   ` `/api/h4/litellm-spend` — Litellm Spend
 - `GET   ` `/api/h4/margin-alerts` — Margin Alerts
+- `POST  ` `/api/memory-stack/assemble` — Assemble
+- `GET   ` `/api/memory-stack/diagnostics` — Diagnostics
+- `GET   ` `/api/memory-stack/governance` — Governance
+- `POST  ` `/api/memory-stack/governance/forget` — Governance Forget
+- `POST  ` `/api/memory-stack/governance/suppress` — Governance Suppress
+- `GET   ` `/api/memory-stack/prospective` — Prospective
+- `POST  ` `/api/memory-stack/prospective` — Prospective Add
+- `POST  ` `/api/memory-stack/prospective/drain` — Prospective Drain
+- `POST  ` `/api/memory-stack/prospective/{entry_id}/cancel` — Prospective Cancel
+- `POST  ` `/api/memory-stack/purge` — Purge
+- `GET   ` `/api/memory-stack/stats` — Stats
 - `GET   ` `/api/rl/arms` — Rl Arms
 - `GET   ` `/api/rl/dev` — Rl Dev
 - `GET   ` `/api/rl/recent` — Rl Recent
@@ -1510,6 +1522,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/niche/stats` — Niche prospects stats
 - `GET   ` `/api/niche/voice-niches` — All voice niches list
 
+### OKF  (4)
+
+- `POST  ` `/api/admin/okf/dry-run` — Okf Dry Run
+- `POST  ` `/api/admin/okf/ingest` — Okf Ingest Route
+- `GET   ` `/api/admin/okf/recall` — Okf Recall
+- `GET   ` `/api/admin/okf/status` — Okf Status
+
 ### Operating HQ  (15)
 
 - `GET   ` `/api/platform/office/agent-os-status` — Office Agent Os Status
@@ -1551,7 +1570,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/owner-email-canary/preflight` — Owner Email Canary Preflight
 - `POST  ` `/api/admin/owner-email-canary/send` — Owner Email Canary Send
 
-### Owner OS  (36)
+### Owner OS  (37)
 
 - `GET   ` `/api/admin/owner-os/agents` — Owner Agents
 - `GET   ` `/api/admin/owner-os/agents/{agent_id}` — Owner Agent Detail
@@ -1578,6 +1597,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/owner-os/inventory` — Owner Inventory
 - `GET   ` `/api/admin/owner-os/kill-switches` — Owner Kills
 - `POST  ` `/api/admin/owner-os/kill-switches` — Owner Set Kill
+- `GET   ` `/api/admin/owner-os/maturity` — Owner Agent Maturity
 - `GET   ` `/api/admin/owner-os/missions` — Owner Missions
 - `POST  ` `/api/admin/owner-os/missions/chat` — Owner Mission Chat
 - `GET   ` `/api/admin/owner-os/missions/{mission_id}` — Owner Mission One

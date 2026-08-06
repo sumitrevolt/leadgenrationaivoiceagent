@@ -2480,3 +2480,23 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 **Rejected:** Vibe Kanban / Parallel Code as primary · floating Spec Kit latest · auto-deploy from factory · 100-PR/hour claims.
 
 **Consequence:** Docs `docs/PR_FACTORY.md` + `docs/adr/ADR-163-pr-factory.md`. Prod flags stay OFF in Wave 1. Honest target after enablement = 10-20 verified PRs/wave.
+
+## ADR-164 (2026-08-06) — 31 STAFF enterprise profiles inside the shared Agent-OS [CODE-PRESENT, CONTEXT CANARY OFF]
+
+**Context:** The workforce had a canonical governance registry, 31 runtime capability adapters and an ADR-154 memory hub, but Owner OS did not expose one complete answer for each agent's own memory namespace, knowledge namespace, role competencies and SaaS controls. The runtime semantic-memory path also passed only `agent_id`, so customer-scoped tasks could land in one agent-global lane even though the newer Memory Stack required `tenant_id` everywhere.
+
+**Decision:** Keep one Agent-OS and shared stores. Add a derived `agent_maturity` profile for all 31 STAFF: agent+tenant-private memory namespace, agent+tenant-private KB namespace, agent role KB, eight common SaaS engineering controls, at least three role-specific competencies, runtime capabilities, and the existing autonomy/lane/budget/retry/idempotency/kill/escalation contract. Tenant identifiers are hashed in storage/vector namespace names. Extend workforce memory with an optional tenant scope and pass the runtime task tenant through memory injection/outcome recording and Memory Stack semantic/shared delegates. Customer-scoped memory cannot be mirrored into the global team-equipment lane. Owner OS displays `enterprise_profile_ready` separately from the existing rollout state.
+
+**Rollout truth:** A complete profile is setup evidence, not live-execution evidence. The runtime rollout remains 12 canary-ready, 17 rollout-hold and 2 intentionally disabled unless its existing governed rollout changes. `AGENT_MATURITY_CONTEXT` is OFF by default; when explicitly enabled it lazily seeds only the deterministic role document and performs bounded, no-LLM reads from that agent's private and role KB namespaces. It does not create a second scheduler, database, mission ledger or control plane.
+
+**Safety:** Swara/voice implementation files, payment gates, compliance gates, environment values and production were not changed. Tenant purge targets only that agent+tenant directory; other tenants survive. New read-only Owner OS endpoint: `/api/admin/owner-os/maturity`.
+
+## ADR-165 (2026-08-06) — Boss coordination coverage and visible evidence for all 31 STAFF [CODE-PRESENT, LOCAL-ONLY]
+
+**Context:** The ordinary coordinator planner accepted all STAFF keys, but its hierarchical path used three hand-authored teams covering only seven unique workers. The Coordination Hub projected old coordinator rows, yet those rows collapsed away assignments and handoffs; its standalone page also returned early when no coding-tool heartbeat existed, hiding workforce coordination behind an unrelated presence signal.
+
+**Decision:** Derive one Boss → seven domain teams → 30 workers topology from the existing `office_hq.MEMBER_ROOM` map, with `manager`/Boss as the 31st member and sole supervisor. `coordinate_hierarchical` selects relevant domain teams, preserves existing safe draft/execute behaviour, and persists mission assignments, per-agent handoffs, coverage and a final Boss verdict. Owner OS shows every profile's Boss route and 31/31 coordination coverage. Coordination Hub remains a thin projection and renders these records separately from health pulse/tool presence. No new mission store, scheduler, queue or mutation authority is introduced.
+
+**Authority:** Normal decisions belong to Boss only within each agent's existing runtime contract. The only declared human business gate is manual UPI bank-credit confirmation. DND/TRAI/consent/DPDP, kill switches, budgets, RED lanes and prohibited actions remain system-enforced refusals—not owner-approval prompts and never bypassable by Boss.
+
+**Rollout truth:** Coordination-ready is routing/setup truth, not execution-live truth. Runtime remains 12 canary-ready, 17 rollout-hold and 2 intentionally disabled; Swara/Ananya stay RED and appear advisory/status-only in this projection. Hub and maturity-context flags remain unchanged and OFF by default; no production state changed.

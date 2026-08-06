@@ -46,6 +46,8 @@ def test_page_route_serves_200():
     html = _page()
     assert "Coordination Hub" in html
     assert "owner-os/coordination-hub" in html
+    assert "Boss → STAFF coordination evidence" in html
+    assert "assignments" in html and "handoffs" in html and "Boss verdict" in html
 
 
 def test_page_does_not_reference_my_dead_prefix():

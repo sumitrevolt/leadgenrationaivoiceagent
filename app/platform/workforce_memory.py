@@ -115,9 +115,9 @@ def _l0_l1_retention_days() -> int:
     return max(0, min(_env_int("WORKFORCE_MEMORY_L0_L1_DAYS", 90), 3650))
 
 
-def _content_hash(agent_id: str, asset: str, layer: str, content: str) -> str:
+def _content_hash(agent_id: str, asset: str, layer: str, content: str, tenant_id: str = "") -> str:
     norm = " ".join((content or "").strip().lower().split())
-    raw = f"{agent_id}|{asset}|{layer}|{norm}".encode()
+    raw = f"{agent_id}|{tenant_id}|{asset}|{layer}|{norm}".encode()
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
@@ -152,20 +152,43 @@ def _safe_agent(agent_id: str) -> str | None:
     return aid
 
 
-def _agent_dir(agent_id: str) -> str:
+def _safe_tenant(tenant_id: str) -> str | None:
+    tid = (tenant_id or "").strip()
+    if not tid or len(tid) > 120 or any(ord(ch) < 32 for ch in tid):
+        return None
+    return tid
+
+
+def _tenant_key(tenant_id: str) -> str:
+    tid = _safe_tenant(tenant_id)
+    return hashlib.sha256(tid.encode("utf-8")).hexdigest()[:16] if tid else "platform"
+
+
+def memory_namespace(agent_id: str, tenant_id: str = "") -> str:
+    """Stable logical namespace. Blank tenant retains the legacy platform lane."""
+    aid = _safe_agent(agent_id)
+    if not aid:
+        return ""
+    return f"staff/{aid}/tenant/{_tenant_key(tenant_id)}"
+
+
+def _agent_dir(agent_id: str, tenant_id: str = "") -> str:
+    tid = _safe_tenant(tenant_id)
+    if tid:
+        return os.path.join(_root(), agent_id, "tenants", _tenant_key(tid))
     return os.path.join(_root(), agent_id)
 
 
-def _entries_path(agent_id: str) -> str:
-    return os.path.join(_agent_dir(agent_id), "entries.jsonl")
+def _entries_path(agent_id: str, tenant_id: str = "") -> str:
+    return os.path.join(_agent_dir(agent_id, tenant_id), "entries.jsonl")
 
 
-def _refs_dir(agent_id: str) -> str:
-    return os.path.join(_agent_dir(agent_id), "refs")
+def _refs_dir(agent_id: str, tenant_id: str = "") -> str:
+    return os.path.join(_agent_dir(agent_id, tenant_id), "refs")
 
 
-def _persona_path(agent_id: str) -> str:
-    return os.path.join(_agent_dir(agent_id), "persona.md")
+def _persona_path(agent_id: str, tenant_id: str = "") -> str:
+    return os.path.join(_agent_dir(agent_id, tenant_id), "persona.md")
 
 
 def _shared_dir() -> str:
@@ -201,17 +224,19 @@ def _allowed(agent_id: str, asset: str) -> bool:
     return (asset or "").strip().lower() in set(agent_bindings(agent_id))
 
 
-def _append_entry(agent_id: str, rec: dict[str, Any]) -> bool:
+def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bool:
     try:
-        agent_dir = _agent_dir(agent_id)
+        agent_dir = _agent_dir(agent_id, tenant_id)
         os.makedirs(agent_dir, exist_ok=True)
-        entries_path = _entries_path(agent_id)
+        entries_path = _entries_path(agent_id, tenant_id)
         with open(entries_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         # Soft trim — keep last N lines if file grows huge
         try:
             if os.path.getsize(entries_path) > 4_000_000:
-                rows = _read_entries(agent_id, limit=_MAX_ENTRIES_PER_AGENT + 200)
+                rows = _read_entries(
+                    agent_id, limit=_MAX_ENTRIES_PER_AGENT + 200, tenant_id=tenant_id
+                )
                 keep = rows[:_MAX_ENTRIES_PER_AGENT]
                 with open(entries_path, "w", encoding="utf-8") as f:
                     for r in reversed(keep):
@@ -224,10 +249,14 @@ def _append_entry(agent_id: str, rec: dict[str, Any]) -> bool:
         return False
 
 
-def _read_entries(agent_id: str, limit: int = 200) -> list[dict[str, Any]]:
+def _read_entries(agent_id: str, limit: int = 200, tenant_id: str = "") -> list[dict[str, Any]]:
     """Latest-first."""
+    return _read_entries_path(_entries_path(agent_id, tenant_id), limit=limit)
+
+
+def _read_entries_path(entries_path: str, *, limit: int = 200) -> list[dict[str, Any]]:
+    """Latest-first reader used by both logical scopes and retention traversal."""
     out: list[dict[str, Any]] = []
-    entries_path = _entries_path(agent_id)
     try:
         if not os.path.exists(entries_path):
             return []
@@ -243,7 +272,7 @@ def _read_entries(agent_id: str, limit: int = 200) -> list[dict[str, Any]]:
     return out[-limit:][::-1]
 
 
-def offload_ref(agent_id: str, text: str, *, label: str = "ref") -> str | None:
+def offload_ref(agent_id: str, text: str, *, label: str = "ref", tenant_id: str = "") -> str | None:
     """Write bulky evidence to refs/{node_id}.md; return node_id (or None)."""
     if not is_enabled():
         _STATS["disabled"] = _STATS.get("disabled", 0) + 1
@@ -254,10 +283,15 @@ def offload_ref(agent_id: str, text: str, *, label: str = "ref") -> str | None:
         return None
     try:
         node_id = uuid.uuid4().hex[:12]
-        rd = _refs_dir(aid)
+        if tenant_id and not _safe_tenant(tenant_id):
+            return None
+        rd = _refs_dir(aid, tenant_id)
         os.makedirs(rd, exist_ok=True)
         ref_path = os.path.join(rd, f"{node_id}.md")
-        header = f"# {label[:80]}\n\nagent: {aid}\nat: {_now()}\nnode_id: {node_id}\n\n"
+        header = (
+            f"# {label[:80]}\n\nagent: {aid}\ntenant_scope: {_tenant_key(tenant_id)}\n"
+            f"at: {_now()}\nnode_id: {node_id}\n\n"
+        )
         with open(ref_path, "w", encoding="utf-8") as f:
             f.write(header + body[:_MAX_OFFLOAD_CHARS])
         _STATS["offloaded"] = _STATS.get("offloaded", 0) + 1
@@ -268,14 +302,16 @@ def offload_ref(agent_id: str, text: str, *, label: str = "ref") -> str | None:
         return None
 
 
-def drilldown(agent_id: str, node_id: str) -> str | None:
+def drilldown(agent_id: str, node_id: str, *, tenant_id: str = "") -> str | None:
     """Recover offloaded evidence by node_id (TencentDB drill-down)."""
     aid = _safe_agent(agent_id)
     nid = re.sub(r"[^a-f0-9]", "", (node_id or "").lower())[:32]
     if not aid or not nid:
         return None
     try:
-        rd = _refs_dir(aid)
+        if tenant_id and not _safe_tenant(tenant_id):
+            return None
+        rd = _refs_dir(aid, tenant_id)
         ref_path = os.path.join(rd, f"{nid}.md")
         if not os.path.exists(ref_path):
             return None
@@ -298,6 +334,7 @@ def remember(
     visibility: str = _VIS_PRIVATE,
     parent_id: str | None = None,
     source_refs: list[str] | None = None,
+    tenant_id: str = "",
 ) -> dict[str, Any]:
     """Append a layered memory entry for a STAFF agent. Never raises.
 
@@ -329,6 +366,35 @@ def remember(
         body = (content or "").strip()
         if not aid or not body:
             return {"ok": False, "error": "agent_id and content required"}
+        if tenant_id and not _safe_tenant(tenant_id):
+            return {"ok": False, "error": "invalid_tenant_id"}
+        try:
+            from app.platform.memory_governance import guard_durable_write
+
+            decision = guard_durable_write(tenant_id or "platform", text=body)
+            if decision.get("decision") != "allow":
+                counter = "deferred" if decision.get("decision") == "deferred" else "denied"
+                _STATS[counter] = _STATS.get(counter, 0) + 1
+                return {
+                    "ok": False,
+                    "deferred": decision.get("decision") == "deferred",
+                    "error": decision.get("reason") or "memory write refused",
+                    "code": decision.get("code") or "MEMORY_WRITE_REFUSED",
+                }
+        except Exception as _e:
+            logger.debug("[workforce_memory] tenant governance gate unavailable: %s", _e)
+            if (os.getenv("MEMORY_STACK_ENABLED") or "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }:
+                return {
+                    "ok": False,
+                    "deferred": True,
+                    "error": "governance module unavailable",
+                    "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
+                }
         ly = (layer or LAYER_L1).strip().lower()
         asst = (asset or ASSET_CHAT).strip().lower()
         vis = (visibility or _VIS_PRIVATE).strip().lower()
@@ -343,6 +409,8 @@ def remember(
             vis = _VIS_PRIVATE
         if vis == _VIS_TEAM and asst not in {ASSET_SKILL, ASSET_WIKI}:
             return {"ok": False, "error": "team_visibility_only_skill_or_wiki"}
+        if tenant_id and vis == _VIS_TEAM:
+            return {"ok": False, "error": "tenant_memory_cannot_be_team_visible"}
         if not _allowed(aid, asst):
             _STATS["denied"] = _STATS.get("denied", 0) + 1
             return {
@@ -353,20 +421,24 @@ def remember(
                 "allowed": agent_bindings(aid),
             }
 
-        ch = _content_hash(aid, asst, ly, body)
-        for prev in _read_entries(aid, limit=80):
+        ch = _content_hash(aid, asst, ly, body, tenant_id)
+        for prev in _read_entries(aid, limit=80, tenant_id=tenant_id):
             if prev.get("content_hash") == ch:
                 _STATS["deduped"] = _STATS.get("deduped", 0) + 1
                 return {"ok": True, "deduped": True, "entry": prev}
 
         node_id: str | None = None
         if offload and str(offload).strip():
-            node_id = offload_ref(aid, str(offload), label=(topic or "offload")[:80])
+            node_id = offload_ref(
+                aid, str(offload), label=(topic or "offload")[:80], tenant_id=tenant_id
+            )
 
         # Auto-offload oversized content — keep short index in the entry.
         index_body = body[:_MAX_ENTRY_CHARS]
         if len(body) > _MAX_ENTRY_CHARS and not node_id:
-            node_id = offload_ref(aid, body, label=(topic or "auto_offload")[:80])
+            node_id = offload_ref(
+                aid, body, label=(topic or "auto_offload")[:80], tenant_id=tenant_id
+            )
 
         refs = [str(x)[:32] for x in (source_refs or []) if x][:8]
         if node_id and node_id not in refs:
@@ -375,6 +447,7 @@ def remember(
         rec: dict[str, Any] = {
             "id": uuid.uuid4().hex[:16],
             "agent_id": aid,
+            "tenant_id": tenant_id or "platform",
             "layer": ly,
             "asset": asst,
             "topic": (topic or "")[:120],
@@ -389,7 +462,7 @@ def remember(
             "at": _now(),
             "source": "workforce_memory",
         }
-        if not _append_entry(aid, rec):
+        if not _append_entry(aid, rec, tenant_id):
             _STATS["error"] = _STATS.get("error", 0) + 1
             return {"ok": False, "error": "write_failed"}
 
@@ -397,7 +470,7 @@ def remember(
             _mirror_shared(rec)
 
         if ly == LAYER_L3:
-            _maybe_update_persona(aid, index_body, topic)
+            _maybe_update_persona(aid, index_body, topic, tenant_id=tenant_id)
 
         _STATS["stored"] = _STATS.get("stored", 0) + 1
         return {"ok": True, "entry": rec}
@@ -506,10 +579,10 @@ def list_equipments(agent_id: str | None = None) -> dict[str, Any]:
     return {"equipments": eq}
 
 
-def _maybe_update_persona(agent_id: str, content: str, topic: str) -> None:
+def _maybe_update_persona(agent_id: str, content: str, topic: str, *, tenant_id: str = "") -> None:
     """Human-readable L3 persona.md (upper layer = structure, inspectable)."""
     try:
-        persona_path = _persona_path(agent_id)
+        persona_path = _persona_path(agent_id, tenant_id)
         os.makedirs(os.path.dirname(persona_path), exist_ok=True)
         stamp = _now()
         block = f"\n## {topic or 'insight'} ({stamp})\n\n{content}\n"
@@ -542,6 +615,7 @@ def recall(
     layers: list[str] | None = None,
     assets: list[str] | None = None,
     limit: int = 8,
+    tenant_id: str = "",
 ) -> list[dict[str, Any]]:
     """Keyword-lite recall with progressive layer preference. Never raises."""
     if not is_enabled():
@@ -552,14 +626,20 @@ def recall(
         aid = _safe_agent(agent_id)
         if not aid:
             return []
+        if tenant_id and not _safe_tenant(tenant_id):
+            return []
         allow_layers = {x.lower() for x in (layers or list(LAYERS)) if x}
         allow_assets = {x.lower() for x in (assets or list(ASSETS)) if x}
-        rows = list(_read_entries(aid, limit=400))
+        rows = list(_read_entries(aid, limit=400, tenant_id=tenant_id))
         # Equipped team-shared skill/wiki (Tencent Agent Loadout)
         try:
             eq_ids = set(_load_equipments().get(aid) or [])
             if eq_ids:
                 for r in _read_shared(limit=300):
+                    # Tenant runs may read only explicitly platform-scoped shared
+                    # skills/wiki. Legacy rows without a scope fail closed here.
+                    if tenant_id and str(r.get("tenant_id") or "") != "platform":
+                        continue
                     if r.get("id") in eq_ids:
                         rows.append(r)
         except Exception:
@@ -596,17 +676,23 @@ def recall(
         return []
 
 
-def recall_brief(agent_id: str, query: str = "", *, max_chars: int | None = None) -> str:
+def recall_brief(
+    agent_id: str,
+    query: str = "",
+    *,
+    max_chars: int | None = None,
+    tenant_id: str = "",
+) -> str:
     """Compact progressive-disclosure brief for prompt injection (budgeted)."""
     if not is_enabled():
         return ""
     try:
         budget = int(max_chars) if max_chars is not None else _max_total_chars()
         per = _max_chars_per()
-        rows = recall(agent_id, query, limit=6)
+        rows = recall(agent_id, query, limit=6, tenant_id=tenant_id)
         if not rows:
             aid = _safe_agent(agent_id)
-            persona_path = _persona_path(aid) if aid else ""
+            persona_path = _persona_path(aid, tenant_id) if aid else ""
             if persona_path and os.path.exists(persona_path):
                 with open(persona_path, encoding="utf-8") as f:
                     return f.read()[:budget]
@@ -640,11 +726,12 @@ def composite_brief(
     *,
     max_chars: int | None = None,
     include_external: bool = True,
+    tenant_id: str = "",
 ) -> str:
     """Hub brief = workforce entries + skill lessons + vault snippet (fail-open)."""
     budget = int(max_chars) if max_chars is not None else _max_total_chars()
     parts: list[str] = []
-    core = recall_brief(agent_id, query, max_chars=max(200, budget // 2))
+    core = recall_brief(agent_id, query, max_chars=max(200, budget // 2), tenant_id=tenant_id)
     if core:
         parts.append("## Workforce memory\n" + core)
 
@@ -681,15 +768,17 @@ def composite_brief(
     return out[:budget]
 
 
-def inject_for_runtime(agent_id: str, action: str = "") -> str:
+def inject_for_runtime(agent_id: str, action: str = "", *, tenant_id: str = "") -> str:
     """Bounded labeled brief for agent_runtime pilots. Never raises; "" when off/timeout."""
     if not is_enabled():
         return ""
     try:
         # Prefer action overlap; fall back to recent progressive brief (empty query).
-        brief = composite_brief(agent_id, action or "", max_chars=_max_total_chars())
+        brief = composite_brief(
+            agent_id, action or "", max_chars=_max_total_chars(), tenant_id=tenant_id
+        )
         if not brief.strip():
-            brief = composite_brief(agent_id, "", max_chars=_max_total_chars())
+            brief = composite_brief(agent_id, "", max_chars=_max_total_chars(), tenant_id=tenant_id)
         if brief.strip():
             _STATS["injected"] = _STATS.get("injected", 0) + 1
             return brief.strip()
@@ -704,6 +793,7 @@ def remember_runtime_outcome(
     *,
     ok: bool,
     detail: str = "",
+    tenant_id: str = "",
 ) -> dict[str, Any]:
     """L0 outcome crumb after a runtime run (fail-open, private chat)."""
     status = "ok" if ok else "fail"
@@ -714,6 +804,7 @@ def remember_runtime_outcome(
         layer=LAYER_L0,
         asset=ASSET_CHAT,
         topic=f"runtime:{action}"[:120],
+        tenant_id=tenant_id,
         meta={"source": "agent_runtime"},
         visibility=_VIS_PRIVATE,
     )
@@ -736,31 +827,43 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
         for name in os.listdir(root):
             if name.startswith("_") or name == "equipments.json":
                 continue
-            prune_path = os.path.join(root, name, "entries.jsonl")
-            if not os.path.isfile(prune_path):
-                continue
-            keep: list[dict[str, Any]] = []
-            removed = 0
-            for r in reversed(_read_entries(name, limit=_MAX_ENTRIES_PER_AGENT)):
-                ly = str(r.get("layer", ""))
-                if ly in {LAYER_L0, LAYER_L1}:
-                    try:
-                        at = datetime.fromisoformat(str(r.get("at", "")).replace("Z", "+00:00"))
-                        if at.tzinfo is None:
-                            at = at.replace(tzinfo=timezone.utc)
-                        if at < cutoff:
-                            removed += 1
-                            continue
-                    except Exception:
-                        pass
-                keep.append(r)
-            if removed and not dry_run:
-                with open(prune_path, "w", encoding="utf-8") as f:
-                    for r in reversed(keep):
-                        f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
-            if removed:
-                pruned += removed
-                touched.append(name)
+            scope_ids = [""]
+            tenants_dir = os.path.join(root, name, "tenants")
+            if os.path.isdir(tenants_dir):
+                for tenant in os.listdir(tenants_dir):
+                    if _safe_tenant(tenant):
+                        scope_ids.append(tenant)
+            for tenant_id in scope_ids:
+                if tenant_id:
+                    prune_path = os.path.join(root, name, "tenants", tenant_id, "entries.jsonl")
+                else:
+                    prune_path = os.path.join(root, name, "entries.jsonl")
+                if not os.path.isfile(prune_path):
+                    continue
+                keep: list[dict[str, Any]] = []
+                removed = 0
+                for r in reversed(_read_entries_path(prune_path, limit=_MAX_ENTRIES_PER_AGENT)):
+                    ly = str(r.get("layer", ""))
+                    if ly in {LAYER_L0, LAYER_L1}:
+                        try:
+                            at = datetime.fromisoformat(str(r.get("at", "")).replace("Z", "+00:00"))
+                            if at.tzinfo is None:
+                                at = at.replace(tzinfo=timezone.utc)
+                            if at < cutoff:
+                                removed += 1
+                                continue
+                        except Exception:
+                            pass
+                    keep.append(r)
+                if removed and not dry_run:
+                    with open(prune_path, "w", encoding="utf-8") as f:
+                        for r in reversed(keep):
+                            f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+                if removed:
+                    pruned += removed
+                    touched.append(
+                        f"staff/{name}/tenant/{tenant_id}" if tenant_id else memory_namespace(name)
+                    )
         if not dry_run:
             _STATS["pruned"] = _STATS.get("pruned", 0) + pruned
         return {
@@ -775,13 +878,13 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
         return {"ok": False, "error": type(e).__name__, "pruned": 0, "dry_run": dry_run}
 
 
-def canvas_mermaid(agent_id: str, *, limit: int = 10) -> str:
+def canvas_mermaid(agent_id: str, *, limit: int = 10, tenant_id: str = "") -> str:
     """Symbolic short-term canvas — recent L2 scenarios as Mermaid (token-light)."""
     if not is_enabled():
         return ""
-    rows = recall(agent_id, layers=[LAYER_L2], limit=limit)
+    rows = recall(agent_id, layers=[LAYER_L2], limit=limit, tenant_id=tenant_id)
     if not rows:
-        rows = recall(agent_id, limit=limit)
+        rows = recall(agent_id, limit=limit, tenant_id=tenant_id)
     if not rows:
         return ""
     lines = ["graph LR"]
@@ -791,37 +894,47 @@ def canvas_mermaid(agent_id: str, *, limit: int = 10) -> str:
         safe = re.sub(r"[^A-Za-z0-9_]", "_", str(nid))[:20]
         lines.append(f'  {safe}["{label}"]')
         if i > 0:
-            prev_raw = rows[i - 1].get("node_id") or rows[i - 1].get("id") or f"n{i-1}"
+            prev_raw = rows[i - 1].get("node_id") or rows[i - 1].get("id") or f"n{i - 1}"
             prev = re.sub(r"[^A-Za-z0-9_]", "_", str(prev_raw))[:20]
             lines.append(f"  {prev} --> {safe}")
     return "\n".join(lines)
 
 
-def list_entries(agent_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+def list_entries(agent_id: str, *, limit: int = 50, tenant_id: str = "") -> list[dict[str, Any]]:
     if not is_enabled():
         return []
     aid = _safe_agent(agent_id)
     if not aid:
         return []
-    return _read_entries(aid, limit=max(1, min(int(limit), 500)))
+    if tenant_id and not _safe_tenant(tenant_id):
+        return []
+    return _read_entries(aid, limit=max(1, min(int(limit), 500)), tenant_id=tenant_id)
 
 
-def purge_agent(agent_id: str) -> dict[str, Any]:
-    """DPDP / ops erase for one agent's workforce memory files."""
+def purge_agent(agent_id: str, *, tenant_id: str = "") -> dict[str, Any]:
+    """DPDP / ops erase for one agent scope; tenant narrows the deletion target."""
     aid = _safe_agent(agent_id)
     if not aid:
         return {"ok": False, "error": "bad_agent", "purged": 0}
+    if tenant_id and not _safe_tenant(tenant_id):
+        return {"ok": False, "error": "invalid_tenant_id", "purged": 0}
     purged = 0
     try:
         import shutil
 
-        agent_dir = _agent_dir(aid)
+        agent_dir = _agent_dir(aid, tenant_id)
         if os.path.isdir(agent_dir):
             # Count entries before wipe
-            purged = len(_read_entries(aid, limit=_MAX_ENTRIES_PER_AGENT))
+            purged = len(_read_entries(aid, limit=_MAX_ENTRIES_PER_AGENT, tenant_id=tenant_id))
             shutil.rmtree(agent_dir, ignore_errors=True)
         _STATS["purged"] = _STATS.get("purged", 0) + purged
-        return {"ok": True, "agent_id": aid, "purged": purged}
+        return {
+            "ok": True,
+            "agent_id": aid,
+            "tenant_id": tenant_id or "platform",
+            "namespace": memory_namespace(aid, tenant_id),
+            "purged": purged,
+        }
     except Exception as e:
         _STATS["error"] = _STATS.get("error", 0) + 1
         return {"ok": False, "error": type(e).__name__, "purged": purged}
@@ -834,13 +947,32 @@ def hub_snapshot(*, max_agents: int = 8) -> dict[str, Any]:
     try:
         root = _root()
         agents_present: list[str] = []
+        tenant_scope_count = 0
         if os.path.isdir(root):
             for name in sorted(os.listdir(root))[:80]:
-                if os.path.isfile(os.path.join(root, name, "entries.jsonl")):
+                platform_path = os.path.join(root, name, "entries.jsonl")
+                tenants_dir = os.path.join(root, name, "tenants")
+                scoped_paths = []
+                if os.path.isdir(tenants_dir):
+                    scoped_paths = [
+                        os.path.join(tenants_dir, scope, "entries.jsonl")
+                        for scope in os.listdir(tenants_dir)
+                        if os.path.isfile(os.path.join(tenants_dir, scope, "entries.jsonl"))
+                    ]
+                tenant_scope_count += len(scoped_paths)
+                if os.path.isfile(platform_path) or scoped_paths:
                     agents_present.append(name)
         briefs = []
         for aid in agents_present[:max_agents]:
             n = len(_read_entries(aid, limit=5))
+            tenants_dir = os.path.join(root, aid, "tenants")
+            if os.path.isdir(tenants_dir):
+                for scope in os.listdir(tenants_dir):
+                    n += len(
+                        _read_entries_path(
+                            os.path.join(tenants_dir, scope, "entries.jsonl"), limit=5
+                        )
+                    )
             briefs.append(
                 {
                     "agent_id": aid,
@@ -851,6 +983,7 @@ def hub_snapshot(*, max_agents: int = 8) -> dict[str, Any]:
         return {
             "enabled": True,
             "agents_with_memory": len(agents_present),
+            "tenant_scopes": tenant_scope_count,
             "sample": briefs,
             "taxonomy": {
                 "assets": sorted(ASSETS),
@@ -917,6 +1050,7 @@ __all__ = [
     "is_enabled",
     "known_staff_ids",
     "agent_bindings",
+    "memory_namespace",
     "remember",
     "recall",
     "recall_brief",

@@ -108,6 +108,7 @@ def _office_coordination_slice() -> dict[str, Any]:
         rows = office_hq.build_coordination(limit=8)
         return {
             "ok": True,
+            "topology": office_hq.coordination_topology(),
             "rows": rows,
             "note": "Projected from office_hq / coordination_runs.jsonl",
         }
