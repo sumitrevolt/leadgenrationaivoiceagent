@@ -123,6 +123,30 @@ def test_platform_price_uses_package_source_of_truth() -> None:
     assert f"Rs {price:,}" in ans
 
 
+def test_paid_vs_free_beats_feature_pitch() -> None:
+    """Live 2026-08-06: paid/free asks that also say service/feature must get
+    price facts, NOT the canned product pitch (customer heard pitch twice)."""
+    from app.marketing.packages import get_packages
+
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    starter = next(p["price_inr_month"] for p in get_packages() if p["key"] == "starter")
+    utterances = (
+        "पेड है की फ्री है? ये सब सर्विस जो तुम प्रोवाइड कर रहा हो वो फ्री है की पेड है?",
+        "तो paid है की free है ये feature तो?",
+        "paid hai ya free",
+        "ye service free hai kya",
+    )
+    for ut in utterances:
+        ans = TelecallerBrain._customer_qa_reply(b, ut)
+        assert ans, ut
+        low = ans.lower()
+        assert f"{starter:,}" in ans or str(starter) in ans, ut
+        assert "instagram-facebook pe roz posts" not in low, ut
+        fp = TelecallerBrain._fast_path_reply(b, [{"role": "user", "content": "hello"}], ut)
+        assert f"{starter:,}" in fp or str(starter) in fp, ut
+
+
 def test_fast_path_discloses_ai_identity() -> None:
     b = _brain("ai_marketing")
     b._interest_confirmed = False

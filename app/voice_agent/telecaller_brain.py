@@ -1170,9 +1170,7 @@ class TelecallerBrain:
                     {
                         "id": f"voice-{_digits}",
                         "phone": self.caller_phone,
-                        "business_name": (
-                            self.client_name if self.niche != "ai_marketing" else ""
-                        ),
+                        "business_name": (self.client_name if self.niche != "ai_marketing" else ""),
                         "niche": self.niche,
                         "status": _ap.STATUS_NEW,
                         "consent_basis": "verbal_call_close",
@@ -1678,7 +1676,48 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return self._clean(self._ai_disclosure_qa_line())
         platform = self.niche == "ai_marketing" or self._interest_confirmed
         if platform:
-            if any(
+            # Paid-vs-free MUST beat feature/service keywords. Live call 2026-08-06
+            # (sid 4b15d7e1): "paid hai ki free hai … service/feature" matched the
+            # product-pitch branch twice → customer heard the same pitch, then
+            # "ratta laga ke baithi ho" + hangup. Whisper often keeps पेड/फ्री in
+            # Devanagari while romanizing the rest — match both scripts.
+            _paid_free_ask = any(
+                w in low
+                for w in (
+                    "paid",
+                    "पेड",
+                    "charges",
+                    "charge hai",
+                    "kitna charge",
+                    "paid hai",
+                    "paid or free",
+                    "free or paid",
+                    "paid ya free",
+                    "free ya paid",
+                    "hai ki free",
+                    "hai ke free",
+                    "free hai ki",
+                    "free he ki",
+                )
+            ) or (
+                any(w in low for w in ("free", "फ्री", "फ्री"))
+                and any(
+                    w in low
+                    for w in (
+                        "paid",
+                        "पेड",
+                        "feature",
+                        "service",
+                        "plan",
+                        "hai ki",
+                        "hai ke",
+                        "ya ",
+                        " or ",
+                    )
+                )
+                and "trial" not in low
+            )
+            if _paid_free_ask or any(
                 w in low
                 for w in (
                     "kitne ka",
