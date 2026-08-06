@@ -619,6 +619,49 @@ def _register_builtins() -> None:
     except Exception:
         pass
     try:
+        # 4b. Sixth family (coordinator continue): agent.delegate.isha. Honest
+        # classification: _tool_isha -> post_generator.generate_post = PURE
+        # read-only content generation (LLM caption/hashtags/image_idea, no
+        # file/DB write, no external send). GREEN/READ_ONLY, same as dev.
+        # kavya/arjun/meera stay UNREGISTERED_TOOL by design: _tool_kavya ->
+        # staff.run_ops() has data-retention PRUNING (DELETE side-effect),
+        # _tool_arjun -> run_qa writes eval records, _tool_meera -> run_trainer
+        # writes. Registry classification is authoritative; NOT enforcement-wired.
+        REGISTRY.register(
+            ToolDefinition(
+                name="agent.delegate.isha",
+                version="1.0.0",
+                description=(
+                    "Coordinator delegation to Isha (marketing content). Downstream "
+                    "executor = app.agents.coordinator._tool_isha -> post_generator.generate_post "
+                    "(pure content-gen, read-only, no publish/mutate/exec/external-send)."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {"task": {"type": "string", "maxLength": 2000}},
+                    "required": [],
+                    "additionalProperties": True,
+                },
+                output_schema={"type": "object"},
+                risk_class=RiskLane.GREEN,
+                side_effect_class=SideEffectClass.READ_ONLY,
+                authority=AuthorityClass.INTERNAL_AUTONOMOUS,
+                allowed_agents=frozenset({"isha"}),
+                allowed_tenant_scopes=frozenset({"__system__"}),
+                requires_approval=False,
+                requires_idempotency=False,
+                timeout_seconds=30,
+                cost_class="free",
+                budget_scope="coordinator",
+                sandbox_required=False,
+                network_policy="restricted",
+                executor_ref="app.agents.coordinator._tool_isha (post_generator.generate_post, read-only)",
+                enabled_by_default=True,
+            )
+        )
+    except Exception:
+        pass
+    try:
         # Fifth family: supervisor/staff_supervisor. The data route REUSES the
         # existing agent.delegate.dev (GREEN, read-only) — one canonical capability
         # invoked from multiple orchestrators, no duplicate policy. The leads route
