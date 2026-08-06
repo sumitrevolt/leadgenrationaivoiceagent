@@ -253,6 +253,14 @@ class StreamCallRequest(BaseModel):
         description="'transactional' (consented/known) or 'promotional' (cold — "
         "DND + 10-19 IST window + DLT/140 enforced)",
     )
+    lead_id: str | None = Field(
+        None,
+        max_length=64,
+        description="CRM leads.id, when the caller dialed a known lead. Threads to "
+        "the CallLog written at WS teardown so the call attributes back to the "
+        "lead and post-call status transition can run. Optional — the admin "
+        "manual-call form may dial a raw number with no lead behind it.",
+    )
 
 
 def _wss_host() -> str:
@@ -345,12 +353,18 @@ async def place_stream_call(
     token = _sign_stream_token(uuid.uuid4().hex[:10])
     niche_key = (request.niche or "general").strip() or "general"
     await _store_pending(
-        token, {"niche": niche_key, "client_id": request.client_id, "lead_phone": request.to}
+        token,
+        {
+            "niche": niche_key,
+            "client_id": request.client_id,
+            "lead_phone": request.to,
+            "crm_lead_id": request.lead_id or "",
+        },
     )
 
     answer_url = (
         f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-        f"?{_answer_stream_qs(niche_key, request.client_id, lead_phone=request.to)}"
+        f"?{_answer_stream_qs(niche_key, request.client_id, lead_phone=request.to, lead_id=request.lead_id)}"
     )
     hangup_url = f"{settings.public_base_url}/api/webhooks/vobiz/status"
     result = await client.place_call(

@@ -621,8 +621,15 @@ async def finalize_stream_session(
     extra_transcript: dict[str, Any] | None = None,
     campaign_variant_id: str = "",
     turn_metrics: list[dict[str, Any]] | None = None,
+    lead_id: str = "",
 ) -> None:
-    """Meter + transcript + qualify — one call for WS stream cleanup paths."""
+    """Meter + transcript + qualify — one call for WS stream cleanup paths.
+
+    ``lead_id`` mirrors ``persist_call_log``: this helper currently has no
+    callers in-tree, but it wraps the same writer, so leaving it without the
+    parameter would silently reintroduce the ``lead_id=NULL`` bug the moment a
+    cleanup path starts using it.
+    """
     ended = ended_at or datetime.now(timezone.utc)
     started = started_at or ended
     dur = max(0.0, (ended - started).total_seconds())
@@ -670,6 +677,7 @@ async def finalize_stream_session(
         started_at=started,
         ended_at=ended,
         q=q,
+        lead_id=lead_id,
     )
     if campaign_variant_id:
         try:

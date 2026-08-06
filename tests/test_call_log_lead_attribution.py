@@ -185,3 +185,99 @@ def test_stream_session_crm_lead_id_optional():
 
     s = VobizStreamSession(websocket=None, niche="salon", lead_phone="+919812345678")
     assert s._crm_lead_id is None
+
+
+# --------------------------------------------------------------------------- #
+# persist_call_log — FK safety. A stale/unknown lead id must NOT abort the
+# analytics INSERT; it must degrade to NULL and keep the raw value in
+# qualification_data. Same contract client_id already had.
+# --------------------------------------------------------------------------- #
+class _FakeSession:
+    """Records what would be committed; `get` decides whether the FK 'exists'."""
+
+    def __init__(self, known_ids: set[str] | None = None):
+        self.known = known_ids or set()
+        self.added: list = []
+
+    def get(self, _model, pk):
+        return object() if pk in self.known else None
+
+    def query(self, *_a, **_k):
+        return self
+
+    def filter(self, *_a, **_k):
+        return self
+
+    def first(self):
+        return None  # no existing row for this call_sid -> not a duplicate
+
+    def add(self, row):
+        self.added.append(row)
+
+
+def _patch_session(monkeypatch, session):
+    import contextlib
+
+    import app.models.base as mb
+
+    @contextlib.contextmanager
+    def _fake_ctx():
+        yield session
+
+    monkeypatch.setattr(mb, "get_db_session", _fake_ctx, raising=False)
+
+
+def test_persist_call_log_keeps_known_lead_id(monkeypatch):
+    monkeypatch.setenv("CALL_LOG_DB", "1")
+    sess = _FakeSession(known_ids={"lead-real"})
+    _patch_session(monkeypatch, sess)
+
+    asyncio.run(
+        pch.persist_call_log(
+            call_id="sid-fk-1",
+            provider="vobiz",
+            phone="+919812345678",
+            lead_id="lead-real",
+            outcome="completed",
+        )
+    )
+    assert len(sess.added) == 1
+    assert sess.added[0].lead_id == "lead-real"
+
+
+def test_persist_call_log_blanks_unknown_lead_id_and_still_inserts(monkeypatch):
+    """The row is analytics data — losing it because of a stale FK would be a
+    worse bug than the missing attribution it was meant to fix."""
+    monkeypatch.setenv("CALL_LOG_DB", "1")
+    sess = _FakeSession(known_ids=set())  # lead does NOT exist
+    _patch_session(monkeypatch, sess)
+
+    asyncio.run(
+        pch.persist_call_log(
+            call_id="sid-fk-2",
+            provider="vobiz",
+            phone="+919812345678",
+            lead_id="lead-ghost",
+            outcome="completed",
+        )
+    )
+    assert len(sess.added) == 1, "row must still be written"
+    assert sess.added[0].lead_id is None, "unknown FK must degrade to NULL"
+    # attribution intent is not lost — raw id survives for later backfill
+    assert "lead-ghost" in (sess.added[0].qualification_data or "")
+
+
+# --------------------------------------------------------------------------- #
+# Regression: the OTHER CallLog writer (call_manager, context-based) already
+# set lead_id and must keep doing so — this fix threads a second rail, it does
+# not replace that one.
+# --------------------------------------------------------------------------- #
+def test_call_manager_writer_still_sets_lead_id_from_context():
+    import inspect
+
+    from app.telephony import call_manager as cm
+
+    src = inspect.getsource(cm)
+    assert (
+        'lead_id=getattr(context, "lead_id", None)' in src
+    ), "call_manager's CallLog writer must keep sourcing lead_id from CallContext"
