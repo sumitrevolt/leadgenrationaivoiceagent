@@ -1795,10 +1795,14 @@ class VobizStreamSession:
 
     @staticmethod
     def _processing_ack_delay_s() -> float:
+        # 2026-08-06: 2.0s -> 1.2s default. 3s p95 first-audio (transcript
+        # analysis) meant the ack fired AFTER the caller already heard silence;
+        # a 1.2s bridge hides the free-LLM first-token wait without the ack
+        # becoming a mid-speech interruptor. Still env-tunable.
         try:
-            return max(0.5, float(os.environ.get("VOICE_PROCESSING_ACK_DELAY_S", "2.0") or "2.0"))
+            return max(0.5, float(os.environ.get("VOICE_PROCESSING_ACK_DELAY_S", "1.2") or "1.2"))
         except (TypeError, ValueError):
-            return 2.0
+            return 1.2
 
     def _cancel_processing_ack(self, task: asyncio.Task | None = None) -> None:
         t = task or self._processing_ack_task

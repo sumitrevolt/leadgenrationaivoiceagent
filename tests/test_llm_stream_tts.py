@@ -168,8 +168,23 @@ async def test_clause_flush_first_chunk_only(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_clause_flush_off_by_default(monkeypatch):
+async def test_clause_flush_on_by_default(monkeypatch):
+    """Clause-flush is DEFAULT ON (2026-08-06 latency fix: cut first-audio on
+    long opening sentences) unless STREAM_TTS_CLAUSE_FLUSH=0 disables it."""
     monkeypatch.delenv("STREAM_TTS_CLAUSE_FLUSH", raising=False)
+    monkeypatch.setenv("STREAM_TTS_CLAUSE_MIN", "20")
+
+    async def _tok():
+        yield "dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."
+
+    out = [s async for s in iter_sentences_from_tokens(_tok())]
+    assert out[0] == "dekhiye sir yeh ek lambi shuruaat hai"
+    assert out[-1].endswith("hoti hai.")
+
+
+@pytest.mark.asyncio
+async def test_clause_flush_disabled_explicitly(monkeypatch):
+    monkeypatch.setenv("STREAM_TTS_CLAUSE_FLUSH", "0")
 
     async def _tok():
         yield "dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."

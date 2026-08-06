@@ -23,11 +23,18 @@ _SENT_END = re.compile(r"(?<=[.!?؟।॥])\s+|\n+")
 _CLAUSE_END = re.compile(r"(?<=[,;:।،])\s+|\s[—–-]\s")
 
 
-def _env_flag(name: str) -> bool:
-    return (os.getenv(name, "") or "").strip().lower() in ("1", "true", "yes", "on")
+def _env_flag(name: str, default_on: bool = False) -> bool:
+    """Read a boolean env flag. When ``default_on`` is True the flag is enabled
+    unless explicitly set to a false value (0/false/no/off) — used for latency
+    features that should be ON for the shipped voice path but stay disable-able
+    per deploy without a redeploy."""
+    raw = (os.getenv(name, "") or "").strip().lower()
+    if not raw:
+        return default_on
+    return raw in ("1", "true", "yes", "on")
 
 
-def _clause_min_chars(default: int = 60) -> int:
+def _clause_min_chars(default: int = 45) -> int:
     """First-chunk clause flush only fires once the buffer reaches this many chars
     (avoids choppy 2-word fragments). Env: STREAM_TTS_CLAUSE_MIN."""
     try:
@@ -82,14 +89,15 @@ async def iter_sentences_from_tokens(
 ) -> AsyncIterator[str]:
     """Buffer token deltas; yield on sentence boundaries.
 
-    With STREAM_TTS_CLAUSE_FLUSH=1 (default OFF) the FIRST chunk may also flush
-    early at a clause boundary once it reaches STREAM_TTS_CLAUSE_MIN chars — this
-    cuts time-to-first-audio on a long opening sentence without making the rest of
-    the reply choppy (only the first chunk is eligible). Default OFF = unchanged.
+    With STREAM_TTS_CLAUSE_FLUSH=1 (default ON since 2026-08-06) the FIRST chunk
+    may also flush early at a clause boundary once it reaches STREAM_TTS_CLAUSE_MIN
+    chars — this cuts time-to-first-audio on a long opening sentence without making
+    the rest of the reply choppy (only the first chunk is eligible). Set
+    STREAM_TTS_CLAUSE_FLUSH=0 to restore wait-for-full-sentence (default OFF legacy).
     """
     buf = ""
     first_done = False
-    clause_flush = _env_flag("STREAM_TTS_CLAUSE_FLUSH")
+    clause_flush = _env_flag("STREAM_TTS_CLAUSE_FLUSH", default_on=True)
     clause_min = _clause_min_chars()
     async for tok in token_stream:
         if not tok:
