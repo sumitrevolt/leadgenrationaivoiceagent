@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-06 (Free-stack upgrade audit — 6 me se 2 invalid, 4 wiring gaps shipped)
+Goal: "Sab karo one by one" for the 6 free-stack improvements; audit first, ship only genuine gaps.
+Inspected: safe_ai_payload._UNSAFE_PROVIDERS; vobiz_stream STT chain; harness registry + shadow adapter + manifest determinism tests; coordinator.py (_TOOLS, _llm, coordinate, _run_agent); guardrails.py (check_input/check_output/get_guardrails); observability_llm.py + harness/audit.py dead-call.
+Problems Found: (1) DeepSeek primary impossible — §5 security gate (Chinese provider PII block). (2) whisper.cpp duplicate — local STT exists. (3) isha delegation honest-registrable; kavya/arjun/meera NOT (run_ops prunes DELETES, run_qa/run_trainer write). (4) handoff = raw dict, no redaction. (5) coordinator _llm() unguarded (voice path already guarded). (6) audit.py:46 calls set_current_attributes/annotate that DON'T EXIST = gen_ai.run.id never stamped; _otel_start span not current.
+Changed: registry +agent.delegate.isha (GREEN/READ_ONLY) + COORDINATOR_TOOL_MAP isha + GOLDEN_MANIFEST bf2b6a08→b4009738 + CANONICAL_TOOLS; coordinator _build_handoff_meta (bounded redacted handoff metadata, additive) + _llm() COORD_GUARDRAILS flag (check_input/check_output, fail-open, OFF=byte-identical); automation_flags +COORD_GUARDRAILS; observability_llm +set_current_attributes/annotate + llm_span parenting fix (start_span + use_span end_on_exit=False).
+Tests Run: manifest determinism (39) + coordinator registry (54) + coordinator helpers (4) + coordinator guardrails (5, new) + observability_llm (6, new) + budget/plan-node (9) = 117 green. ruff 0. check_secrets OK (32 files). app import OK (202 routes).
+Verification Evidence: prod_check.py ALL CHECKS PASSED (1266 routes, 49 pages 0 gaps, automation 0 gaps). Plan doc docs/plans/2026-08-06-free-stack-upgrades.md. ADR-164 in memory/decisions.md.
+Risks: GOLDEN_MANIFEST hash change = registry conformance fingerprint intentionally updated (test documents this workflow). COORD_GUARDRAILS OFF default = INERT until owner enables.
+Remaining: Owner review/commit/PR/deploy (not done without ask). kavya/arjun/meera registration stays out (side-effectful). Prod unchanged.
+Next Highest Priority: Owner decides COORD_GUARDRAILS enable + deploy; else next GTM Hot Queue slice.
+
+## Loop Run
 Date: 2026-08-03 (Wave 3 scheduler + flag truth + Hot Queue SLA)
 Goal: Multi-registry scheduler contract; explicit flag kinds/governance; one HQ GTM visibility slice.
 Inspected: STAFF_JOBS/JOB_META/_last_ran/EXPECTED_GAP_MIN/JOB_INFO/beat; automation_flag_manifest; reply_agent.hot_queue + inbox.html.
