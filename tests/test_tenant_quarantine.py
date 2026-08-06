@@ -254,10 +254,10 @@ def test_backup_failure_aborts_without_mutating(monkeypatch):
     sess = _Sess(_prod_shaped_rows())
     _patch(monkeypatch, sess)
 
-    def _boom():
+    def _boom(_rows):
         raise OSError("disk full")
 
-    monkeypatch.setattr(tq, "_backup_path", _boom)
+    monkeypatch.setattr(tq, "_write_backup", _boom)
     out = tq.quarantine_fixture_tenants(dry_run=False)
     assert "backup_failed" in str(out.get("error", ""))
     assert out["pg_updated"] == 0

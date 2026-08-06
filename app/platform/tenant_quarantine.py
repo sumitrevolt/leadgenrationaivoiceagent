@@ -86,10 +86,40 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _backup_path() -> Path:
-    d = Path("data/backups")
-    d.mkdir(parents=True, exist_ok=True)
-    return d / f"tenant_quarantine_{_now().strftime('%Y%m%d_%H%M%S')}.csv"
+def _write_backup(rows: list[dict[str, Any]]) -> str:
+    """Resolve + write the pre-mutation backup in ONE place. Returns the path.
+
+    Resolve and write are deliberately not split. CI's runtime-data debt ratchet
+    classifies a write by the path expression at the `open()` site: straight
+    from `resolve_store_path` it is CANONICAL, via a helper's return value it
+    reads as an undeclared mutable path and fails the gate. A hardcoded
+    `data/backups` is genuinely wrong here anyway — several stores were cut over
+    to `/var/lib/leadgen/runtime/` and the stale `data/` copies were left in the
+    checkout, so a backup written there could land where nothing reads it.
+
+    Store is `customers.identity`: this is a snapshot of customer identity rows
+    taken immediately before they are mutated, so it belongs to that store's
+    family rather than a new manifest entry.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    target = (
+        _auth.resolve_store_path(
+            store_id="customers.identity",
+            legacy_path=Path("data") / "marketing_clients.jsonl",
+            target_segments=("customers", "marketing_clients.jsonl"),
+        ).parent
+        / f"tenant_quarantine_{_now().strftime('%Y%m%d_%H%M%S')}.csv"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "w", encoding="utf-8", newline="") as fh:
+        w = csv.DictWriter(
+            fh, fieldnames=["id", "business_name", "contact_email", "status", "monthly_amount"]
+        )
+        w.writeheader()
+        for r in rows:
+            w.writerow(r)
+    return str(target)
 
 
 def _looks_like_fixture(email: str) -> bool:
@@ -220,15 +250,7 @@ def quarantine_fixture_tenants(limit: int = 50, dry_run: bool = True) -> dict[st
     # Backup BEFORE mutating — the previous status is not recoverable from the
     # row once overwritten.
     try:
-        p = _backup_path()
-        with open(p, "w", encoding="utf-8", newline="") as fh:
-            w = csv.DictWriter(
-                fh, fieldnames=["id", "business_name", "contact_email", "status", "monthly_amount"]
-            )
-            w.writeheader()
-            for r in cands:
-                w.writerow(r)
-        out["backup"] = str(p)
+        out["backup"] = _write_backup(cands)
     except Exception as be:
         out["error"] = f"backup_failed: {str(be)[:120]}"
         return out
