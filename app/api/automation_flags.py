@@ -449,4 +449,11 @@ AUTOMATION_FLAGS = [
     # (these wrap platform_dial/email_outreach — a re-run would place real calls).
     # OFF default.
     "AGENT_TASK_ORPHAN_REAP",
+    # Scheduler routine-ledger switch. DEFAULT ON — this is the only flag in this
+    # block that is not INERT by default, because it preserves existing behaviour.
+    # The bridge writes one agent_tasks row per job invocation (~700/day) and nothing
+    # in the codebase prunes this table, so even once the rows close correctly the
+    # ledger grows ~255k/year. The authoritative job record is automation_logs; this
+    # is a duplicate audit trail. Set 0 to stop writing it without touching the jobs.
+    "ROUTINE_TASK_LEDGER",
 ]

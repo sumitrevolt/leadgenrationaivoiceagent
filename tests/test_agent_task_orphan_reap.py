@@ -80,6 +80,28 @@ def test_orphan_reap_flag_is_independent_of_lease_reap(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# routine ledger switch — growth control. begin() stops the LEAK; this stops the
+# GROWTH. ~700 rows/day with no prune anywhere = ~255k/year even once correct.
+# --------------------------------------------------------------------------- #
+def test_routine_ledger_defaults_on(monkeypatch):
+    """Turning an existing audit trail off must be an owner decision, never a
+    side effect of deploying a bug fix."""
+    monkeypatch.delenv("ROUTINE_TASK_LEDGER", raising=False)
+    assert atq.routine_ledger_enabled() is True
+
+
+def test_routine_ledger_can_be_disabled(monkeypatch):
+    for off in ("0", "false", "no", "off", "OFF"):
+        monkeypatch.setenv("ROUTINE_TASK_LEDGER", off)
+        assert atq.routine_ledger_enabled() is False, off
+
+
+def test_routine_ledger_explicit_on(monkeypatch):
+    monkeypatch.setenv("ROUTINE_TASK_LEDGER", "1")
+    assert atq.routine_ledger_enabled() is True
+
+
+# --------------------------------------------------------------------------- #
 # reap_orphan_routines — classifier + dry-run + bounded close
 # --------------------------------------------------------------------------- #
 class _Row:

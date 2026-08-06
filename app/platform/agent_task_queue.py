@@ -555,6 +555,31 @@ def lease_reap_enabled() -> bool:
     return os.environ.get("AGENT_TASK_LEASE_REAP", "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def routine_ledger_enabled() -> bool:
+    """`ROUTINE_TASK_LEDGER` gate — **default ON** (current behaviour preserved).
+
+    The scheduler routine bridge writes one `agent_tasks` row per job
+    invocation, unconditionally: ~700/day, and nothing in the codebase ever
+    prunes this table (no `AGENT_TASK_RETENTION` / TTL exists). `begin()` stops
+    those rows leaking as `pending`, but they are still written — so the fix
+    converts an unbounded leak into unbounded *correct* growth, ~255k rows/year.
+
+    The authoritative record of every one of these jobs already lives in
+    `automation_logs` (matched running/success pairs), so this ledger is a
+    duplicate audit trail, not the source of truth. Set `ROUTINE_TASK_LEDGER=0`
+    to stop writing it without touching the jobs themselves.
+
+    Default ON deliberately: turning an existing audit trail off is an owner
+    decision, not a side effect of deploying a bug fix.
+    """
+    return os.environ.get("ROUTINE_TASK_LEDGER", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
 def orphan_reap_enabled() -> bool:
     """`AGENT_TASK_ORPHAN_REAP` gate — unset/0 = INERT (default).
 
