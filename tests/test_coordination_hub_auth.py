@@ -183,3 +183,40 @@ def test_header_builder_never_returns_secret(monkeypatch, tmp_path):
         "X-CoordHub-Signature",
     }
     assert CURSOR_SECRET not in repr(headers)
+
+
+def test_frontend_known_tools_verify_with_own_secret(monkeypatch, tmp_path):
+    """Frontend TOOLMETA (monkeycode/opencode/bolt) backend me bhi verify hone
+    chahiye — warna un tools ke heartbeats tool_unknown se reject hote hain."""
+    for tool_id, secret in (
+        ("opencode", "o" * 40),
+        ("bolt", "t" * 40),
+        ("monkeycode", "m" * 40),
+    ):
+        monkeypatch.setenv(f"COORD_HUB_TOOL_{tool_id.upper()}_SECRET", secret)
+        _nonce_tmp(monkeypatch, tmp_path)
+        nonce = f"nonce_{tool_id}_abcdef12"
+        sig = _sig(secret=secret, tool_id=tool_id, nonce=nonce)
+        result = verify_tool_attestation(
+            tool_id=tool_id,
+            event_type="heartbeat",
+            body=BODY,
+            issued_at=str(NOW),
+            nonce=nonce,
+            signature=sig,
+            now=NOW,
+        )
+        assert result["ok"] is True, f"{tool_id}: {result}"
+        monkeypatch.delenv(f"COORD_HUB_TOOL_{tool_id.upper()}_SECRET", raising=False)
+
+
+def test_frontend_known_tools_listed_in_status(monkeypatch):
+    for tool_id in ("opencode", "bolt", "monkeycode"):
+        monkeypatch.setenv(f"COORD_HUB_TOOL_{tool_id.upper()}_SECRET", "z" * 40)
+    st = tool_auth_status()
+    for tool_id in ("opencode", "bolt", "monkeycode"):
+        assert tool_id in st["known_tools"], f"{tool_id} missing from known_tools"
+        assert st["tools_configured"][tool_id] is True
+    monkeypatch.delenv("COORD_HUB_TOOL_OPENCODE_SECRET", raising=False)
+    monkeypatch.delenv("COORD_HUB_TOOL_BOLT_SECRET", raising=False)
+    monkeypatch.delenv("COORD_HUB_TOOL_MONKEYCODE_SECRET", raising=False)
