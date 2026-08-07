@@ -158,16 +158,38 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.jwt_refresh_token_expire_days
 
 
 def create_access_token(user_id: str, email: str, role: str) -> str:
-    """Create JWT access token"""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": user_id, "email": email, "role": role, "exp": expire, "type": "access"}
+    """Create JWT access token.
+
+    ``jti`` + ``iat`` are required for ``admin_sessions`` revocation (logout /
+    password-reset epoch bump). Tokens without them cannot be killed server-side
+    before natural expiry — that gap made deploy-window 401 handling the only
+    real "logout" path for many sessions.
+    """
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "role": role,
+        "exp": expire,
+        "iat": int(now.timestamp()),
+        "jti": str(uuid.uuid4()),
+        "type": "access",
+    }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def create_refresh_token(user_id: str) -> str:
-    """Create JWT refresh token"""
-    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    payload = {"sub": user_id, "exp": expire, "type": "refresh"}
+    """Create JWT refresh token (also carries jti/iat for revocation parity)."""
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {
+        "sub": user_id,
+        "exp": expire,
+        "iat": int(now.timestamp()),
+        "jti": str(uuid.uuid4()),
+        "type": "refresh",
+    }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 

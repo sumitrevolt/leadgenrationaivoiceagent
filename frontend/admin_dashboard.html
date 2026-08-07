@@ -4072,15 +4072,26 @@ async function adminAuthBoot(){
   }
   if(!t){ showLoggedOut(); return; }
   showLoggedIn("");
+  // Deploy recreate briefly returns 401/5xx while the new container is coming
+  // up. Wiping localStorage on the FIRST 401 was the root cause of
+  // "deploy ke baad admin logout" — JWT secret is stable across recreate
+  // (proved 2026-08-07); the token was fine, the boot race wiped it.
+  async function fetchMe(){
+    return fetch("/api/admin/me", {headers: abAuthHdr(), cache: "no-store"});
+  }
   try{
-    const r = await fetch("/api/admin/me", {headers: abAuthHdr(), cache: "no-store"});
+    let r = await fetchMe();
+    if(r.status === 401){
+      await new Promise(function(res){ setTimeout(res, 1500); });
+      r = await fetchMe();
+    }
     if(r.status === 401){
       localStorage.removeItem("accessToken");
       localStorage.removeItem("adminToken");
       showLoggedOut();
       return;
     }
-    if(!r.ok) return;
+    if(!r.ok) return; // 5xx/network-adjacent: keep token, UI stays tentatively logged-in
     const u = await r.json();
     const name = (u.full_name || u.first_name || u.email || "Admin").trim();
     const initial = (name[0] || "A").toUpperCase();
@@ -4091,7 +4102,7 @@ async function adminAuthBoot(){
     if(sbName) sbName.textContent = name;
     if(sbRole) sbRole.textContent = (u.role || "admin").replace(/_/g, " ");
     if(sbAv) sbAv.textContent = initial;
-  }catch(e){ /* fail-open — logout button still works */ }
+  }catch(e){ /* fail-open — logout button still works; token kept */ }
 }
 
 async function adminLogout(){
