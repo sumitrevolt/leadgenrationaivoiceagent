@@ -1796,6 +1796,10 @@ async def _record_auto_reply_interaction(
 
     Never raises. Never affects send / ``out["sent"]``. Failures log with
     ``exc_info`` — silent ``pass`` is what made interactions blind before.
+
+    Also warns when ``interaction_log.record`` returns ``skipped`` (e.g.
+    ``INTERACTION_LOG=0``) — that path does not raise, so without this check
+    the operator-view stays blind with a green send counter.
     """
     if not _reply_agent_interaction_log_enabled():
         return
@@ -1805,7 +1809,20 @@ async def _record_auto_reply_interaction(
         from app.platform import interaction_log
 
         p = prospect or {}
-        await interaction_log.record(
+        # Only pass an explicit lead_id — never fall back to prospect ``id``.
+        # Prospect ids are not always rows in ``leads`` (no-phone / dedupe miss);
+        # stuffing them here recreates the dual-identity trap. Email resolution
+        # inside interaction_log.record can still attach a real lead.
+        lead_id = str(p.get("lead_id") or "").strip()
+        prospect_id = str(p.get("id") or "").strip()
+        meta: dict[str, Any] = {
+            "source": "reply_agent",
+            "delivery_key": delivery_key,
+            "auto_send_reason": reason,
+        }
+        if prospect_id and prospect_id != lead_id:
+            meta["prospect_id"] = prospect_id
+        res = await interaction_log.record(
             channel="email",
             direction="out",
             phone=str(p.get("phone") or ""),
@@ -1813,13 +1830,15 @@ async def _record_auto_reply_interaction(
             body_summary=(body or "")[:200],
             outcome=str(intent or "auto_reply")[:50],
             campaign_variant_id=str(p.get("campaign_variant_id") or ""),
-            lead_id=str(p.get("lead_id") or p.get("id") or ""),
-            meta={
-                "source": "reply_agent",
-                "delivery_key": delivery_key,
-                "auto_send_reason": reason,
-            },
+            lead_id=lead_id,
+            meta=meta,
         )
+        if isinstance(res, dict) and res.get("skipped"):
+            logger.warning(
+                "[reply_agent] auto-reply interaction_log skipped (%s) delivery_key=%s",
+                res.get("skipped"),
+                delivery_key[:16],
+            )
     except Exception:
         logger.warning(
             "[reply_agent] auto-reply interaction_log failed (delivery_key=%s)",

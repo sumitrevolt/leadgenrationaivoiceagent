@@ -883,7 +883,13 @@ async def test_auto_sent_writes_outbound_interaction_with_delivery_key(tmp_path,
     monkeypatch.setattr(
         reply_agent,
         "_full_prospect_map",
-        lambda: {"owner@biz.in": {"emailed_at": "2026-07-01T00:00:00Z", "phone": "919999999999"}},
+        lambda: {
+            "owner@biz.in": {
+                "emailed_at": "2026-07-01T00:00:00Z",
+                "phone": "919999999999",
+                "id": "prospect-only-id",
+            }
+        },
     )
     records = []
 
@@ -908,8 +914,10 @@ async def test_auto_sent_writes_outbound_interaction_with_delivery_key(tmp_path,
     assert rec["channel"] == "email"
     assert rec["direction"] == "out"
     assert rec["email"] == "owner@biz.in"
+    assert rec["lead_id"] == ""  # never stuff prospect id as lead_id
     assert rec["meta"]["source"] == "reply_agent"
     assert rec["meta"]["delivery_key"] == row["delivery_key"]
+    assert rec["meta"]["prospect_id"] == "prospect-only-id"
     assert rec["meta"]["delivery_key"]
 
 
@@ -997,3 +1005,34 @@ async def test_reply_agent_interaction_log_opt_out_skips_record(tmp_path, monkey
     assert out["sent"] == 1
     assert records == []
     assert _read_rows(path)[0]["auto_sent_at"]
+
+
+@pytest.mark.asyncio
+async def test_interaction_log_skipped_emits_warning_keeps_sent(tmp_path, monkeypatch, caplog):
+    """INTERACTION_LOG off returns skipped dict — must warn, must not undo send."""
+    import logging
+
+    path = tmp_path / "reply_drafts.jsonl"
+    _write_rows(path, [_fresh_verified_draft()])
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
+    monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {"owner@biz.in": {"emailed_at": "2026-07-01T00:00:00Z"}},
+    )
+
+    async def skipped(**_kwargs):
+        return {"skipped": "INTERACTION_LOG off"}
+
+    monkeypatch.setattr("app.platform.interaction_log.record", skipped)
+
+    async def sender(*_a):
+        return True
+
+    with caplog.at_level(logging.WARNING, logger="app.platform.reply_agent"):
+        out = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+
+    assert out["sent"] == 1
+    assert _read_rows(path)[0]["auto_sent_at"]
+    assert any("interaction_log skipped" in r.message for r in caplog.records)
