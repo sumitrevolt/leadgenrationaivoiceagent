@@ -1768,6 +1768,66 @@ async def _reply_auto_send_enabled() -> bool:
         return False
 
 
+def _reply_agent_interaction_log_enabled() -> bool:
+    """Auto-reply OUT interaction row — default ON (observability).
+
+    Opt-out only: ``REPLY_AGENT_INTERACTION_LOG=0``. Same shape as
+    ``ROUTINE_TASK_LEDGER`` — a default-OFF gate here would leave the
+    operator-view blind again on the common path.
+    """
+    return os.environ.get("REPLY_AGENT_INTERACTION_LOG", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+async def _record_auto_reply_interaction(
+    *,
+    frm: str,
+    body: str,
+    intent: str,
+    delivery_key: str,
+    reason: str,
+    prospect: dict | None = None,
+) -> None:
+    """Write outbound auto-reply to interaction_log after a successful send.
+
+    Never raises. Never affects send / ``out["sent"]``. Failures log with
+    ``exc_info`` — silent ``pass`` is what made interactions blind before.
+    """
+    if not _reply_agent_interaction_log_enabled():
+        return
+    if not delivery_key:
+        return
+    try:
+        from app.platform import interaction_log
+
+        p = prospect or {}
+        await interaction_log.record(
+            channel="email",
+            direction="out",
+            phone=str(p.get("phone") or ""),
+            email=frm,
+            body_summary=(body or "")[:200],
+            outcome=str(intent or "auto_reply")[:50],
+            campaign_variant_id=str(p.get("campaign_variant_id") or ""),
+            lead_id=str(p.get("lead_id") or p.get("id") or ""),
+            meta={
+                "source": "reply_agent",
+                "delivery_key": delivery_key,
+                "auto_send_reason": reason,
+            },
+        )
+    except Exception:
+        logger.warning(
+            "[reply_agent] auto-reply interaction_log failed (delivery_key=%s)",
+            delivery_key[:16],
+            exc_info=True,
+        )
+
+
 async def _claim_reply_auto_send(key: str, daily_cap: int) -> int:
     """Atomically reserve message + daily attempt slot on REAL Redis only.
 
@@ -2078,13 +2138,14 @@ async def run_auto_reply_backlog(
                 ok = False
             if ok:
                 sent_at = datetime.now(timezone.utc).isoformat()
+                _reason = "stale_reengagement" if stale else "fresh_reply"
                 _update_draft_fields(
                     hq_id,
                     {
                         "auto_send_status": "sent",
                         "auto_sent_at": sent_at,
                         "auto_send_attempts": attempts,
-                        "auto_send_reason": "stale_reengagement" if stale else "fresh_reply",
+                        "auto_send_reason": _reason,
                         "hq_status": "done",
                         "hq_done_at": sent_at,
                     },
@@ -2092,6 +2153,17 @@ async def run_auto_reply_backlog(
                 out["sent"] += 1
                 out["stale_reengagement"] += int(stale)
                 logger.info("[reply_agent] safe auto-reply sent (intent=%s)", row.get("intent"))
+                # Observability (WI-CP2-AUTO-REPLY): inbound already records via
+                # interaction_log; outbound auto-send must too — same chokepoint
+                # as auto_sent_at so draft truth and operator-view cannot drift.
+                await _record_auto_reply_interaction(
+                    frm=frm,
+                    body=body,
+                    intent=str(row.get("intent") or ""),
+                    delivery_key=delivery_key,
+                    reason=_reason,
+                    prospect=prospect,
+                )
             else:
                 _update_draft_fields(
                     hq_id,
