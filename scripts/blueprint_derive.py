@@ -363,12 +363,32 @@ def derive() -> dict[str, Any]:
                 "votes alone; no reviewed ownership backs that placement")
 
         # harness policy: critical domains never auto-accept on AST alone.
-        # Reviewed ownership counts as ONE non-AST signal; a second independent
-        # one (route/task/scheduler/agent-registry/flag) is still required.
-        if conf == "HIGH" and is_critical and non_ast < 2:
+        # Reviewed ownership is NOT one of the two — it is the thing being
+        # corroborated, so counting it toward its own corroboration is circular.
+        # Two INDEPENDENT current-source signals (route/task/scheduler/agent-
+        # registry/flag) are required, which is what
+        # test_critical_domains_never_auto_accept_on_ast_alone has always asserted.
+        #
+        # Caught 2026-08-07: adding ONE env flag to app/telephony/post_call_hooks.py
+        # promoted four legacy entries (post_call_hooks, post_call_pipe, rm_postcall,
+        # v_stack) straight to HIGH/IMPORTED_CANONICAL — on 0 graph edges and 0
+        # domain votes — because `own_domain` supplied the second "signal" itself.
+        # A canonical blueprint placement must not be purchasable with an env var.
+        if conf == "HIGH" and is_critical and corr["count"] < 2:
             conf, why = "MEDIUM", (
-                f"critical domain '{parent_domain}' — needs >=2 non-AST signals "
-                f"(has {non_ast})")
+                f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
+                f"current-source signals (has {corr['count']}; reviewed ownership "
+                "does not corroborate itself)")
+
+        # A dependency claim is only as good as the dependency evidence behind it.
+        # With no graph loaded, `edges_used` is 0 for everything, so HIGH here
+        # would rest on AST/ownership alone — exactly what
+        # test_high_confidence_requires_evidence_and_corroboration forbids.
+        if conf == "HIGH" and edges_used < MIN_DISTINCT_EDGES:
+            conf, why = "MEDIUM", (
+                f"only {edges_used} distinct Graphify edge(s) — HIGH requires "
+                f">={MIN_DISTINCT_EDGES} (graph "
+                f"{'unavailable' if not prov['available'] else 'has no path'})")
 
         depth = 2 if e["kind"] == "subnode" else 1
 
