@@ -169,6 +169,66 @@ _LEGACY_DB_DELIVERABLE_TYPES = {
 }
 
 
+def _deliverable_type_candidates(did: str) -> list[str]:
+    """Current type + every legacy alias that maps to it.
+
+    `_LEGACY_DB_DELIVERABLE_TYPES` is only applied in-place when
+    `initialize_deliverables_for_client` re-runs for the same client+cycle. Rows
+    seeded before the rename and never re-seeded still hold the OLD names, so a
+    writer passing the current name (`social_posts`) misses a row stored as
+    `social_post_draft`. Matching both is read-side only — no data is rewritten.
+    """
+    key = str(did or "").strip()
+    if not key:
+        return []
+    out = [key]
+    for legacy, current in _LEGACY_DB_DELIVERABLE_TYPES.items():
+        if current == key and legacy not in out:
+            out.append(legacy)
+    return out
+
+
+def _deliverable_client_id_candidates(cid: str) -> list[str]:
+    """Every id this customer's deliverable rows could legitimately be keyed on.
+
+    The two stores use different ids on purpose (`clients_store.resolve_client`
+    docstring). `customer_deliverables.client_id` is an FK to Postgres
+    `clients.id`, so rows are seeded under the BILLING id — while every writer
+    that advances them (`auto_content`, admin actions) passes the MARKETING id.
+    Exact-match therefore returns 0 rows and `sync_customer_deliverable_status`
+    silently returns False; production showed 24 successful content runs against
+    20 rows still reading `not_started`.
+
+    Every other marketing-domain consumer already got the canonicalisation
+    retrofit (`customer_delivery_status`, `customer_auth`, `_billing_client_ids`);
+    this writer is the one that was missed. Expanding the match — rather than
+    re-keying rows or moving the seed to the marketing id (which would violate
+    the FK) — keeps the fix read-side and reversible.
+
+    Never raises: an unresolvable id degrades to exact-match, i.e. today's
+    behaviour.
+    """
+    key = str(cid or "").strip()
+    if not key:
+        return []
+    out = [key]
+    try:
+        from app.marketing import clients_store
+
+        rec = clients_store.resolve_client(key)
+        if rec:
+            mid = str(rec.get("id") or "").strip()
+            if mid and mid not in out:
+                out.append(mid)
+            for alias in rec.get("billing_client_ids") or []:
+                a = str(alias or "").strip()
+                if a and a not in out:
+                    out.append(a)
+    except Exception:
+        pass
+    return out
+
+
 def initialize_deliverables_for_client(
     db, client_id: str, plan_code: str | None, billing_cycle_month: str
 ) -> None:
@@ -271,12 +331,17 @@ def sync_customer_deliverable_status(
     if not cid or not did:
         return False
 
+    # Alias-expand BOTH keys before querying — see the two helpers above for why
+    # exact-match silently lost every update on the dual-id / pre-rename path.
+    cid_candidates = _deliverable_client_id_candidates(cid)
+    did_candidates = _deliverable_type_candidates(did)
+
     def _apply(db) -> bool:
         from app.models.customer_deliverable import CustomerDeliverable, DeliverableStatus
 
         q = db.query(CustomerDeliverable).filter(
-            CustomerDeliverable.client_id == cid,
-            CustomerDeliverable.deliverable_type == did,
+            CustomerDeliverable.client_id.in_(cid_candidates),
+            CustomerDeliverable.deliverable_type.in_(did_candidates),
         )
         if billing_cycle_month:
             q = q.filter(CustomerDeliverable.billing_cycle_month == billing_cycle_month)
