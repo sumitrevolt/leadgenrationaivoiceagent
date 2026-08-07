@@ -227,6 +227,7 @@ def quarantine_fixture_tenants(limit: int = 50, dry_run: bool = True) -> dict[st
     status flip does not change row identity so no FK is affected.
 
     `dry_run=True` reports what it WOULD do and mutates nothing. Never raises.
+    Mutating (`dry_run=False`) requires `TENANT_QUARANTINE=1` — otherwise refuse.
     """
     scan = find_fixture_tenants()
     cands = list(scan.get("candidates") or [])[: max(0, int(limit))]
@@ -240,10 +241,15 @@ def quarantine_fixture_tenants(limit: int = 50, dry_run: bool = True) -> dict[st
         "status_applied": QUARANTINE_STATUS,
         "refused": scan.get("refused", []),
         "at": _now().isoformat(),
+        "flag_enabled": quarantine_enabled(),
     }
     if not cands:
         return out
     if dry_run:
+        out["would_quarantine"] = cands
+        return out
+    if not quarantine_enabled():
+        out["error"] = "TENANT_QUARANTINE_off"
         out["would_quarantine"] = cands
         return out
 
