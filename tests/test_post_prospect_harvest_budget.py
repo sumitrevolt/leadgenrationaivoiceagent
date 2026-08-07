@@ -44,6 +44,16 @@ def test_budget_hard_clamp_300(monkeypatch):
     assert post_prospect_harvest_timeout(400.0) == 300.0
 
 
+def test_garbage_budget_falls_back_to_240(monkeypatch):
+    monkeypatch.setenv("PROSPECT_POST_HARVEST_BUDGET_S", "abc")
+    assert post_prospect_harvest_timeout(400.0) == 240.0
+
+
+def test_budget_lower_clamp_30(monkeypatch):
+    monkeypatch.setenv("PROSPECT_POST_HARVEST_BUDGET_S", "5")
+    assert post_prospect_harvest_timeout(400.0) == 30.0
+
+
 def test_flags_registered():
     from app.api.automation_flags import AUTOMATION_FLAGS
 
