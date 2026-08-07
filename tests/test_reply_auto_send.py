@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import email.utils
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -62,7 +62,13 @@ async def test_auto_reply_fails_closed_for_injection_suppression_and_unknown_sen
     _write_rows(
         path,
         [
-            {"from": "inject@biz.in", "intent": "question", "draft": "x", "at": now, "injection_flag": ["ignore"]},
+            {
+                "from": "inject@biz.in",
+                "intent": "question",
+                "draft": "x",
+                "at": now,
+                "injection_flag": ["ignore"],
+            },
             {"from": "optout@biz.in", "intent": "interested", "draft": "x", "at": now},
             {"from": "unknown@biz.in", "intent": "interested", "draft": "x", "at": now},
         ],
@@ -102,7 +108,15 @@ async def test_stale_known_reply_gets_honest_reengagement_and_is_idempotent(tmp_
     old = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
     _write_rows(
         path,
-        [{"from": "owner@biz.in", "subject": "Pricing?", "intent": "question", "draft": "abhi demo karte hain", "at": old}],
+        [
+            {
+                "from": "owner@biz.in",
+                "subject": "Pricing?",
+                "intent": "question",
+                "draft": "abhi demo karte hain",
+                "at": old,
+            }
+        ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
@@ -137,11 +151,18 @@ async def test_ambiguous_provider_failure_is_never_auto_retried(tmp_path, monkey
     now = datetime.now(timezone.utc).isoformat()
     _write_rows(
         path,
-        [{
-            "from": "owner@biz.in", "subject": "Demo?", "intent": "interested",
-            "draft": "Sure", "at": now, "source_at": now, "scan_status": "clean",
-            "message_id": "<demo-question@biz.in>",
-        }],
+        [
+            {
+                "from": "owner@biz.in",
+                "subject": "Demo?",
+                "intent": "interested",
+                "draft": "Sure",
+                "at": now,
+                "source_at": now,
+                "scan_status": "clean",
+                "message_id": "<demo-question@biz.in>",
+            }
+        ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
@@ -172,17 +193,19 @@ async def test_fresh_reply_preserves_draft_and_thread_headers(tmp_path, monkeypa
     now = datetime.now(timezone.utc).isoformat()
     _write_rows(
         path,
-        [{
-            "from": "owner@biz.in",
-            "subject": "Re: audit",
-            "intent": "interested",
-            "draft": "Namaste, bilkul.",
-            "at": now,
-            "source_at": now,
-            "scan_status": "clean",
-            "message_id": "<inbound-1@biz.in>",
-            "references": "<outbound-1@leadsgenai.in>",
-        }],
+        [
+            {
+                "from": "owner@biz.in",
+                "subject": "Re: audit",
+                "intent": "interested",
+                "draft": "Namaste, bilkul.",
+                "at": now,
+                "source_at": now,
+                "scan_status": "clean",
+                "message_id": "<inbound-1@biz.in>",
+                "references": "<outbound-1@leadsgenai.in>",
+            }
+        ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
@@ -214,8 +237,26 @@ async def test_only_newest_reply_per_sender_is_sent(tmp_path, monkeypatch):
     _write_rows(
         path,
         [
-            {"from": "owner@biz.in", "subject": "Old", "intent": "question", "draft": "old draft", "at": old, "source_at": old, "scan_status": "clean", "message_id": "<old@biz.in>"},
-            {"from": "owner@biz.in", "subject": "New", "intent": "question", "draft": "new draft", "at": new, "source_at": new, "scan_status": "clean", "message_id": "<new@biz.in>"},
+            {
+                "from": "owner@biz.in",
+                "subject": "Old",
+                "intent": "question",
+                "draft": "old draft",
+                "at": old,
+                "source_at": old,
+                "scan_status": "clean",
+                "message_id": "<old@biz.in>",
+            },
+            {
+                "from": "owner@biz.in",
+                "subject": "New",
+                "intent": "question",
+                "draft": "new draft",
+                "at": new,
+                "source_at": new,
+                "scan_status": "clean",
+                "message_id": "<new@biz.in>",
+            },
         ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
@@ -348,10 +389,16 @@ async def test_fresh_reply_without_explicit_clean_scan_is_blocked(tmp_path, monk
     now = datetime.now(timezone.utc).isoformat()
     _write_rows(
         path,
-        [{
-            "from": "owner@biz.in", "subject": "Demo?", "intent": "interested",
-            "draft": "Sure", "at": now, "source_at": now,
-        }],
+        [
+            {
+                "from": "owner@biz.in",
+                "subject": "Demo?",
+                "intent": "interested",
+                "draft": "Sure",
+                "at": now,
+                "source_at": now,
+            }
+        ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
@@ -380,11 +427,17 @@ async def test_source_message_date_controls_expiry_not_processing_time(tmp_path,
     source = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
     _write_rows(
         path,
-        [{
-            "from": "owner@biz.in", "subject": "Old", "intent": "question",
-            "draft": "fresh-looking", "at": now, "source_at": source,
-            "scan_status": "clean",
-        }],
+        [
+            {
+                "from": "owner@biz.in",
+                "subject": "Old",
+                "intent": "question",
+                "draft": "fresh-looking",
+                "at": now,
+                "source_at": source,
+                "scan_status": "clean",
+            }
+        ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
@@ -422,9 +475,7 @@ async def test_batch_budget_counts_failed_provider_attempts(tmp_path, monkeypatc
         calls.append(args)
         return False
 
-    out = await reply_agent.run_auto_reply_backlog(
-        limit=2, send_fn=sender, claim_fn=_claimed
-    )
+    out = await reply_agent.run_auto_reply_backlog(limit=2, send_fn=sender, claim_fn=_claimed)
 
     assert len(calls) == 2
     assert out["failed"] == 2
@@ -452,8 +503,12 @@ async def test_same_inbound_message_id_cannot_send_twice_across_runs(tmp_path, m
     path = tmp_path / "reply_drafts.jsonl"
     now = datetime.now(timezone.utc)
     base = {
-        "from": "owner@biz.in", "subject": "Audit", "intent": "question",
-        "draft": "Reply", "source_at": now.isoformat(), "scan_status": "clean",
+        "from": "owner@biz.in",
+        "subject": "Audit",
+        "intent": "question",
+        "draft": "Reply",
+        "source_at": now.isoformat(),
+        "scan_status": "clean",
         "message_id": "<stable-inbound@biz.in>",
     }
     _write_rows(path, [{**base, "at": now.isoformat()}])
@@ -494,11 +549,18 @@ async def test_pre_send_lock_failure_releases_claim_and_recovers_once(tmp_path, 
     now = datetime.now(timezone.utc).isoformat()
     _write_rows(
         path,
-        [{
-            "from": "owner@biz.in", "subject": "Audit", "intent": "question",
-            "draft": "Reply", "at": now, "source_at": now, "scan_status": "clean",
-            "message_id": "<stable@biz.in>",
-        }],
+        [
+            {
+                "from": "owner@biz.in",
+                "subject": "Audit",
+                "intent": "question",
+                "draft": "Reply",
+                "at": now,
+                "source_at": now,
+                "scan_status": "clean",
+                "message_id": "<stable@biz.in>",
+            }
+        ],
     )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
@@ -529,6 +591,7 @@ async def test_pre_send_lock_failure_releases_claim_and_recovers_once(tmp_path, 
     async def release(key):
         claims.discard(key)
         return True
+
     calls = []
 
     async def sender(*args):
@@ -551,7 +614,10 @@ async def test_pre_send_lock_failure_releases_claim_and_recovers_once(tmp_path, 
 async def test_hard_off_is_rechecked_before_each_claim(tmp_path, monkeypatch):
     path = tmp_path / "reply_drafts.jsonl"
     old = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
-    _write_rows(path, [{"from": "owner@biz.in", "subject": "Q", "intent": "question", "draft": "x", "at": old}])
+    _write_rows(
+        path,
+        [{"from": "owner@biz.in", "subject": "Q", "intent": "question", "draft": "x", "at": old}],
+    )
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
     states = [True, False]
 
@@ -742,15 +808,28 @@ async def test_llm_draft_failure_uses_safe_fallback_then_sends_exactly_once(tmp_
     class Mailbox:
         seen = False
 
-        def login(self, *_args): return None
-        def select(self, *_args): return None
-        def search(self, *_args): return "OK", [b"" if self.seen else b"1"]
+        def login(self, *_args):
+            return None
+
+        def select(self, *_args):
+            return None
+
+        def search(self, *_args):
+            return "OK", [b"" if self.seen else b"1"]
+
         def fetch(self, _id, _spec):
             internal = datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M:%S %z")
             return "OK", [(f'1 (INTERNALDATE "{internal}" BODY[] {{1}}'.encode(), msg.as_bytes())]
-        def store(self, *_args): self.seen = True; return "OK", []
-        def close(self): return None
-        def logout(self): return None
+
+        def store(self, *_args):
+            self.seen = True
+            return "OK", []
+
+        def close(self):
+            return None
+
+        def logout(self):
+            return None
 
     monkeypatch.setattr(reply_agent.imaplib, "IMAP4_SSL", lambda *_a, **_k: Mailbox())
     first = await reply_agent.run_reply_triage()
@@ -771,3 +850,189 @@ async def test_llm_draft_failure_uses_safe_fallback_then_sends_exactly_once(tmp_
     assert second["sent"] == 1
     assert third["sent"] == 0
     assert len(calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# WI-CP2-AUTO-REPLY: auto_sent_at ⇒ interaction_log OUT row (observability)
+# ---------------------------------------------------------------------------
+
+
+def _fresh_verified_draft(**extra):
+    now = datetime.now(timezone.utc).isoformat()
+    row = {
+        "from": "owner@biz.in",
+        "subject": "Demo?",
+        "intent": "interested",
+        "draft": "Haanji, demo book karte hain",
+        "at": now,
+        "source_at": now,
+        "scan_status": "clean",
+        "message_id": "<demo-observe@biz.in>",
+    }
+    row.update(extra)
+    return row
+
+
+@pytest.mark.asyncio
+async def test_auto_sent_writes_outbound_interaction_with_delivery_key(tmp_path, monkeypatch):
+    """Invariant: auto_sent_at set ⇒ exactly one interaction_log.record(direction=out)."""
+    path = tmp_path / "reply_drafts.jsonl"
+    _write_rows(path, [_fresh_verified_draft()])
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
+    monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {
+            "owner@biz.in": {
+                "emailed_at": "2026-07-01T00:00:00Z",
+                "phone": "919999999999",
+                "id": "prospect-only-id",
+            }
+        },
+    )
+    records = []
+
+    async def capture_record(**kwargs):
+        records.append(kwargs)
+        return {"id": "ix-1"}
+
+    monkeypatch.setattr("app.platform.interaction_log.record", capture_record)
+
+    async def sender(*_a):
+        return True
+
+    first = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+    second = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+
+    assert first["sent"] == 1
+    assert second["sent"] == 0
+    row = _read_rows(path)[0]
+    assert row["auto_sent_at"]
+    assert len(records) == 1
+    rec = records[0]
+    assert rec["channel"] == "email"
+    assert rec["direction"] == "out"
+    assert rec["email"] == "owner@biz.in"
+    assert rec["lead_id"] == ""  # never stuff prospect id as lead_id
+    assert rec["meta"]["source"] == "reply_agent"
+    assert rec["meta"]["delivery_key"] == row["delivery_key"]
+    assert rec["meta"]["prospect_id"] == "prospect-only-id"
+    assert rec["meta"]["delivery_key"]
+
+
+@pytest.mark.asyncio
+async def test_failed_send_does_not_write_interaction(tmp_path, monkeypatch):
+    path = tmp_path / "reply_drafts.jsonl"
+    _write_rows(path, [_fresh_verified_draft()])
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
+    monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {"owner@biz.in": {"emailed_at": "2026-07-01T00:00:00Z"}},
+    )
+    records = []
+
+    async def capture_record(**kwargs):
+        records.append(kwargs)
+        return {}
+
+    monkeypatch.setattr("app.platform.interaction_log.record", capture_record)
+
+    async def sender(*_a):
+        return False
+
+    out = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+    assert out["sent"] == 0
+    assert out["failed"] == 1
+    assert records == []
+    assert not _read_rows(path)[0].get("auto_sent_at")
+
+
+@pytest.mark.asyncio
+async def test_interaction_log_failure_does_not_undo_sent(tmp_path, monkeypatch):
+    path = tmp_path / "reply_drafts.jsonl"
+    _write_rows(path, [_fresh_verified_draft()])
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
+    monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {"owner@biz.in": {"emailed_at": "2026-07-01T00:00:00Z"}},
+    )
+
+    async def boom(**_kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr("app.platform.interaction_log.record", boom)
+
+    async def sender(*_a):
+        return True
+
+    out = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+    assert out["sent"] == 1
+    assert out.get("error") is None
+    row = _read_rows(path)[0]
+    assert row["auto_send_status"] == "sent"
+    assert row["auto_sent_at"]
+
+
+@pytest.mark.asyncio
+async def test_reply_agent_interaction_log_opt_out_skips_record(tmp_path, monkeypatch):
+    path = tmp_path / "reply_drafts.jsonl"
+    _write_rows(path, [_fresh_verified_draft()])
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
+    monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
+    monkeypatch.setenv("REPLY_AGENT_INTERACTION_LOG", "0")
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {"owner@biz.in": {"emailed_at": "2026-07-01T00:00:00Z"}},
+    )
+    records = []
+
+    async def capture_record(**kwargs):
+        records.append(kwargs)
+        return {}
+
+    monkeypatch.setattr("app.platform.interaction_log.record", capture_record)
+
+    async def sender(*_a):
+        return True
+
+    out = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+    assert out["sent"] == 1
+    assert records == []
+    assert _read_rows(path)[0]["auto_sent_at"]
+
+
+@pytest.mark.asyncio
+async def test_interaction_log_skipped_emits_warning_keeps_sent(tmp_path, monkeypatch, caplog):
+    """INTERACTION_LOG off returns skipped dict — must warn, must not undo send."""
+    import logging
+
+    path = tmp_path / "reply_drafts.jsonl"
+    _write_rows(path, [_fresh_verified_draft()])
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(path))
+    monkeypatch.setattr(reply_agent, "_reply_auto_send_enabled", _enabled)
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {"owner@biz.in": {"emailed_at": "2026-07-01T00:00:00Z"}},
+    )
+
+    async def skipped(**_kwargs):
+        return {"skipped": "INTERACTION_LOG off"}
+
+    monkeypatch.setattr("app.platform.interaction_log.record", skipped)
+
+    async def sender(*_a):
+        return True
+
+    with caplog.at_level(logging.WARNING, logger="app.platform.reply_agent"):
+        out = await reply_agent.run_auto_reply_backlog(send_fn=sender, claim_fn=_claimed)
+
+    assert out["sent"] == 1
+    assert _read_rows(path)[0]["auto_sent_at"]
+    assert any("interaction_log skipped" in r.message for r in caplog.records)
