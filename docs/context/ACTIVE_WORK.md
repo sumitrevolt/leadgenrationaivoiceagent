@@ -2,21 +2,21 @@
 
 ---
 
-## WS-PRF1 PR Factory Wave 1 - MERGE+DEPLOY IN FLIGHT
-- **ID:** WS-PRF1
-- **Business outcome:** Spec Kit constitution + thin `tools/pr_factory` dispatcher onto existing Owner OS `external_agents` (no second control plane); draft CI-repair Action + non-required Gate A
-- **Current state:** Fixing Gate A pin contract (`pip install --upgrade pip` refused); rebase onto `main` @ `084cd990`
-- **Next exact action:** CI green → undraft #248 → merge → kill-fence deploy; flags stay OFF
-- **Out of scope:** vendoring openai/symphony · 100-PR claims · Merge Queue · auto-deploy · prod flag flips
+## WS-CONTAIN1 REPLY_AUTO_SEND_HARD_OFF Option A - IN FLIGHT (owner-locked)
+- **ID:** WS-CONTAIN1
+- **Business outcome:** Restore SAFETY_INVARIANT kill switch — stop live auto-sends; Redis `reply_auto_send` can stay but HARD_OFF must win
+- **Current state:** Owner verdict Option A locked. Prod `/health`=`a08dd5e9`. Cloud has **no VPS SSH**. Local Cursor executing `.env` HARD_OFF=1 + recreate app+worker @ `APP_VERSION=a08dd5e9`. PR #276 deploy **blocked** until `enabled=False` evidence.
+- **Next exact action:** Local Cursor posts HARD_OFF proof (`_reply_auto_send_enabled()` → False) → then merge+deploy #276 via `deploy_vps.sh` + VOICE_LAUNCH_KILL dance
+- **Out of scope:** Option B · flipping `REPLY_AUTO_SEND` · WI-CP2 tonight · side-effect run-now · secrets in chat
 
 ---
 
-## WS-GTM2 Admin Manual Call + Voice Dead-Air Fix - LIVE
-- **ID:** WS-GTM2
-- **Business outcome:** Owner `/app/admin` manual AI call + OmniRoute dead-air breaker
-- **Current state:** Prod `/health`=`084cd990`
-- **Next exact action:** admin login canary → optional real call `llm_first` verify
-- **Out of scope:** env flips · compliance bypass
+## WS-NAV1 PR #276 Master Blueprint admin nav - GATED ON CONTAINMENT
+- **ID:** WS-NAV1
+- **Business outcome:** Admin System nav + quick action door to Master Blueprint (`/app/explorer?view=master`)
+- **Current state:** OPEN MERGEABLE · commit `8b36b795` · branch `fix/admin-master-blueprint-nav` · acceptance currently `grep -c -i "master blueprint"` = 0 on `/app/admin`
+- **Next exact action:** AFTER HARD_OFF evidence only — merge + `deploy_vps.sh` with APP_VERSION pin (rides #275 safe_settings on main tip)
+- **Out of scope:** deploy before containment · env flips inside this PR
 
 ---
 
@@ -29,5 +29,8 @@
 ---
 
 ## Parked
+- WS-PRF1 PR Factory (was in-flight; parked behind containment)
+- WS-GTM2 Admin Manual Call canary
 - WS-AM1 Safe Pack (after LEDGER_PAID)
+- WI-CP2 interaction-log (when auto-send re-armed)
 - Estique `removed`
