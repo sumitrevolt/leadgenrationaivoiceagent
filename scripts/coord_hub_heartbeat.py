@@ -79,9 +79,7 @@ def _send(tool_id: str, secret: str, base: str) -> int:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(
-            req, timeout=15
-        ) as resp:  # nosec B310 - base URL is a fixed env/default, not user input
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310
             text = resp.read().decode("utf-8", "replace")
             print(f"[coord-hub] {tool_id}: http={resp.status} {text[:160]}")
             return 0 if resp.status == 200 else 1
