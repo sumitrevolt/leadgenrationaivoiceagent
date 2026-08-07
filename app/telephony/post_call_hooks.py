@@ -418,6 +418,107 @@ def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns:
     return None
 
 
+def crm_sync_enabled() -> bool:
+    """CALL_LEAD_CRM_SYNC — write the call outcome back onto the lead row.
+
+    Default OFF. Read at call time, never frozen at import.
+    """
+    return os.getenv("CALL_LEAD_CRM_SYNC", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+
+# CallOutcome enum name -> niche_database.update_after_call outcome code.
+# Deliberately derived from the SAME classifier that fills call_logs.outcome
+# (_map_call_outcome) so the analytics row and the lead row can never disagree.
+_NICHE_OUTCOME_BY_CALL_OUTCOME = {
+    "APPOINTMENT": "qualified",
+    "INTERESTED": "qualified",
+    "NOT_INTERESTED": "not_interested",
+    "NO_ANSWER": "voicemail",
+    "FAILED": "voicemail",
+}
+
+
+def niche_outcome_for(
+    *,
+    stream_outcome: str,
+    q: dict[str, Any] | None,
+    user_turns: int,
+    phone: str = "",
+) -> str:
+    """Pick the lead bucket for a finished call.
+
+    Ordering matters:
+
+    1. **DND wins over everything.** Read from ``consent_ledger`` — the
+       authoritative cross-channel suppression store written by the agent's own
+       ``_handle_opt_out``. Never inferred from LLM output.
+    2. Otherwise defer to ``_map_call_outcome``.
+    3. ``None`` from that classifier means "unknown / bot-suspected", and maps
+       to ``voicemail`` — a RETRYABLE bucket, never a terminal one. Marking an
+       IVR tree ``not_interested`` would silently burn the lead (2026-07-05).
+    """
+    if phone:
+        try:
+            from app.telephony import consent_ledger
+
+            if consent_ledger.is_suppressed(phone):
+                return "dnd"
+        except Exception:
+            pass
+    mapped = _map_call_outcome(stream_outcome, q, user_turns)
+    name = getattr(mapped, "name", "") if mapped is not None else ""
+    return _NICHE_OUTCOME_BY_CALL_OUTCOME.get(name, "voicemail")
+
+
+async def sync_lead_after_call(
+    *,
+    lead_id: str,
+    phone: str = "",
+    outcome: str = "",
+    q: dict[str, Any] | None = None,
+    user_turns: int = 0,
+) -> dict[str, Any]:
+    """Apply the call result to the lead row (status / hot flag / next_call_at).
+
+    Thin adapter over the already-built ``niche_database.update_after_call``,
+    which owns every actual mutation:
+
+        qualified      -> QUALIFIED + is_hot_lead + score+20   ("important")
+        callback       -> CALLBACK + next_call_at
+        not_interested -> NOT_INTERESTED
+        dnd            -> DND + tag
+        voicemail      -> CONTACTED + retry in 24h             ("old lead")
+
+    GATED ``CALL_LEAD_CRM_SYNC`` (default OFF). Never raises.
+    """
+    lid = (lead_id or "").strip()
+    if not lid:
+        return {"ok": False, "skipped": "no_lead_id"}
+    if not crm_sync_enabled():
+        return {"ok": False, "skipped": "flag_off"}
+
+    bucket = niche_outcome_for(stream_outcome=outcome, q=q, user_turns=user_turns, phone=phone)
+    try:
+        from app.platform.niche_database import update_after_call
+
+        res = await update_after_call(
+            lead_id=lid,
+            outcome=bucket,
+            notes=str((q or {}).get("summary") or ""),
+            niche_data=q or None,
+        )
+        logger.info(
+            "[post_call] lead %s -> bucket=%s status=%s",
+            lid,
+            bucket,
+            (res or {}).get("status"),
+        )
+        return {"ok": bool((res or {}).get("ok")), "bucket": bucket, "result": res}
+    except Exception as e:
+        logger.debug("[post_call] sync_lead_after_call skip: %s", e)
+        return {"ok": False, "error": str(e), "bucket": bucket}
+
+
 def build_call_log(
     *,
     call_id: str,
@@ -568,16 +669,20 @@ async def persist_call_log(
     if row is None:
         return
 
-    def _insert_sync() -> None:
+    def _insert_sync() -> str:
+        """Insert the row; return the FK-verified lead id, or "" when there is
+        nothing new to sync (duplicate call_sid, or unknown/absent lead)."""
         from app.models.base import get_db_session
         from app.models.call_log import CallLog
 
         with get_db_session() as db:
             # Idempotency: skip if a row for this call_sid already exists.
+            # Returning "" here is what makes the CRM sync idempotent too — a
+            # replayed status callback must not re-apply a status transition.
             if row.call_sid:
                 exists = db.query(CallLog.id).filter(CallLog.call_sid == row.call_sid).first()
                 if exists:
-                    return
+                    return ""
             # FK-safe: link client_id only when it really exists in `clients`,
             # else leave NULL (raw id is already in qualification_data).
             cid = (client_id or "").strip()
@@ -601,11 +706,29 @@ async def persist_call_log(
                 except Exception:
                     row.lead_id = None
             db.add(row)  # get_db_session commits on context exit
+            return str(row.lead_id or "")
 
     try:
-        await asyncio.to_thread(_insert_sync)
+        synced_lead_id = await asyncio.to_thread(_insert_sync)
     except Exception as e:
         logger.debug("[post_call] persist_call_log skip: %s", e)
+        return
+
+    # CRM bucket sync — the lead row itself (status / next_call_at / hot flag).
+    # Lives HERE and not in call_manager because CallManager.active_calls is an
+    # in-process dict: campaign calls are placed by the Celery worker while the
+    # status callback lands on the web container, so handle_call_completed()
+    # always logs "No context found for call X" and its niche_database update
+    # never runs. persist_call_log is the one hook the live stream path does
+    # reach, and (since the lead_id rail landed) the one that knows which lead.
+    if synced_lead_id:
+        await sync_lead_after_call(
+            lead_id=synced_lead_id,
+            phone=phone or "",
+            outcome=outcome,
+            q=q,
+            user_turns=user_turns,
+        )
 
 
 async def finalize_stream_session(
@@ -743,4 +866,7 @@ __all__ = [
     "finalize_stream_session",
     "build_call_log",
     "persist_call_log",
+    "crm_sync_enabled",
+    "niche_outcome_for",
+    "sync_lead_after_call",
 ]
