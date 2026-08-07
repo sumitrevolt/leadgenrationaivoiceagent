@@ -241,6 +241,7 @@ AUTOMATION_FLAGS = [
     "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
     "REPLY_AUTO_SEND",  # guarded known-prospect email auto-reply; default OFF
     "REPLY_AUTO_SEND_HARD_OFF",  # emergency precedence override; 1 always blocks sends
+    "REPLY_AGENT_INTERACTION_LOG",  # auto-reply OUT → interaction_log; default ON (opt-out=0); mirrors ROUTINE_TASK_LEDGER
     "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
     "AGENT_RUNTIME",  # Agent-OS Phase-B shared runtime master gate — OFF default (pilots kavya/isha/zara only; RED lane hamesha blocked)
     "AGENT_MATURITY_CONTEXT",  # ADR-164: bounded role/agent-KB context; OFF default, profiles remain read-only visible
