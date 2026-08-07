@@ -457,6 +457,12 @@ AUTOMATION_FLAGS = [
     # clients.status, so quarantined fixtures are excluded by construction. Seeds under
     # the BILLING id (FK to clients.id). Idempotent; DB rows only — no content, no sends.
     "DELIVERABLE_CYCLE_SEED",
+    # Post-prospect nested harvest (websearch/opendata). Default ON. Set 0 to skip
+    # the morning nest and rely on midday/evening_prospect (D2 SoftTimeLimit, 2026-08-07).
+    "PROSPECT_INLINE_HARVEST",
+    # Wall-clock budget seconds for that nest (default 240, clamp 30..300). Replaces the
+    # old hard min(remain, 120) that starved harvest after D1 raised Places fan-out.
+    "PROSPECT_POST_HARVEST_BUDGET_S",
     # Scheduler routine-ledger switch. DEFAULT ON — this is the only flag in this
     # block that is not INERT by default, because it preserves existing behaviour.
     # The bridge writes one agent_tasks row per job invocation (~700/day) and nothing

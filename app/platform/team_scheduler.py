@@ -14,6 +14,41 @@ logger = setup_logger(__name__)
 _IST = timezone(timedelta(hours=5, minutes=30))
 _TICK_S = 60
 
+# Soft-limit headroom for the Celery staff-job that runs ``prospect`` (~540s soft).
+# Keep this in sync with the 480s wall used below when computing post-prospect remain.
+_PROSPECT_SOFT_BUDGET_S = 480.0
+
+
+def post_prospect_harvest_timeout(remain_s: float) -> float | None:
+    """Seconds to give the inline post-prospect harvest, or None to skip.
+
+    WS3 (2026-08-07): after D1 raised Places query fan-out, the nested harvest
+    still died under a hard ``min(remain-20, 120)`` outer wait_for while
+    ``run_harvest_loop_safe`` independently defaulted ``HARVEST_LOOP_TIMEOUT_S``
+    to 120 — websearch/opendata (the bulk of 08-05 lead yield) never finished.
+    Midday/evening harvest jobs still run; this only fixes the morning nest.
+
+    Env:
+      PROSPECT_INLINE_HARVEST — default ON; set 0 to skip (midday covers).
+      PROSPECT_POST_HARVEST_BUDGET_S — default 240, clamped 30..300.
+    """
+    if os.environ.get("PROSPECT_INLINE_HARVEST", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        return None
+    if remain_s < 45.0:
+        return None
+    try:
+        budget = float(os.environ.get("PROSPECT_POST_HARVEST_BUDGET_S", "240") or "240")
+    except Exception:
+        budget = 240.0
+    budget = max(30.0, min(budget, 300.0))
+    return min(max(0.0, remain_s - 30.0), budget)
+
+
 # Active wall-clock budget for mega-jobs that fan out via `_run_content_engine`.
 _active_job_budget: ContextVar[Any] = ContextVar("active_job_budget", default=None)
 
@@ -961,36 +996,51 @@ async def _run_job_inner(job: str) -> bool:
             # Multi-source harvest sweep (websearch/opendata/enrich) — gated
             # LEAD_HARVESTER=1. MUST stay inside Celery soft-limit (~540s).
             # 2026-07-20: unbounded GTM×niche_prospector after niche scrape → SoftTimeLimit.
+            # 2026-08-07 D2: hard outer 120s + inner HARVEST_LOOP_TIMEOUT_S=120 starved
+            # opendata/websearch after Places; align one budget (default 240) under remain.
             try:
                 _elapsed = _time_prospect.monotonic() - _prospect_t0
-                _remain = max(0.0, 480.0 - _elapsed)
-                if _remain < 45.0:
+                _remain = max(0.0, _PROSPECT_SOFT_BUDGET_S - _elapsed)
+                _harvest_timeout = post_prospect_harvest_timeout(_remain)
+                if _harvest_timeout is None:
                     logger.warning(
-                        f"[team-scheduler] skip harvest after prospect — "
-                        f"only {_remain:.0f}s left under SoftTimeLimit margin"
+                        "[team-scheduler] skip harvest after prospect — "
+                        f"remain={_remain:.0f}s inline="
+                        f"{os.environ.get('PROSPECT_INLINE_HARVEST', '1')!r}"
                     )
                 else:
                     from scripts import harvest_safety_wrapper
 
                     # Avoid nested niche_prospector inside harvest (already scraped above).
                     _prev_skip = os.environ.get("SKIP_HARVEST_PROSPECTOR_SRC")
+                    _prev_hlt = os.environ.get("HARVEST_LOOP_TIMEOUT_S")
                     os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = "1"
+                    # Drive the wrapper's own wait_for — do not double-cap below it.
+                    os.environ["HARVEST_LOOP_TIMEOUT_S"] = str(int(_harvest_timeout))
                     try:
-                        await asyncio.wait_for(
-                            harvest_safety_wrapper.run_harvest_loop_safe(),
-                            timeout=min(_remain - 20.0, 120.0),
+                        _h = await harvest_safety_wrapper.run_harvest_loop_safe()
+                        _hr = _h if isinstance(_h, dict) else {}
+                        logger.info(
+                            "[team-scheduler] post-prospect harvest "
+                            f"timeout={_harvest_timeout:.0f}s "
+                            f"truncated={bool(_hr.get('truncated'))} "
+                            f"leads_total={_hr.get('leads_total', _hr.get('new_leads', '?'))} "
+                            f"error={str(_hr.get('error') or '')[:80]!r}"
                         )
                     finally:
                         if _prev_skip is None:
                             os.environ.pop("SKIP_HARVEST_PROSPECTOR_SRC", None)
                         else:
                             os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = _prev_skip
-            except asyncio.TimeoutError:
-                logger.warning(
-                    "[team-scheduler] harvest truncated after prospect (SoftTimeLimit margin)"
-                )
+                        if _prev_hlt is None:
+                            os.environ.pop("HARVEST_LOOP_TIMEOUT_S", None)
+                        else:
+                            os.environ["HARVEST_LOOP_TIMEOUT_S"] = _prev_hlt
             except Exception:
-                pass
+                logger.warning(
+                    "[team-scheduler] harvest after prospect failed",
+                    exc_info=True,
+                )
         elif job == "email_outreach":
             from app.platform import auto_outreach
 
