@@ -334,7 +334,9 @@ def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
 
     monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", _FakeVobizClient)
 
-    async def _fake_start(to, niche="general", call_type="promotional", client_id=None):
+    async def _fake_start(
+        to, niche="general", call_type="promotional", client_id=None, lead_id=None
+    ):
         return {"placed": True}
 
     monkeypatch.setattr("app.api.telephony_vobiz.start_stream_call", _fake_start)
@@ -373,7 +375,9 @@ def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
 
     call_n = {"n": 0}
 
-    async def _fake_start(to, niche="general", call_type="promotional", client_id=None):
+    async def _fake_start(
+        to, niche="general", call_type="promotional", client_id=None, lead_id=None
+    ):
         call_n["n"] += 1
         if call_n["n"] == 2:
             raise RuntimeError("simulated mid-run kill")
@@ -447,7 +451,9 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
 
         monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", _FakeVobizClient)
 
-        async def _fake_start(to, niche="general", call_type="promotional", client_id=None):
+        async def _fake_start(
+            to, niche="general", call_type="promotional", client_id=None, lead_id=None
+        ):
             return {"placed": True}
 
         monkeypatch.setattr("app.api.telephony_vobiz.start_stream_call", _fake_start)
