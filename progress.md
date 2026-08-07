@@ -1540,3 +1540,15 @@ Partial pytest slices that first-touch TestClient can hang forever in portal.cal
 - **Risks:** Race if Local Cursor and another tool both edit `.env` — Local owns the flip; Cloud will not attempt. Deploy of #276 before HARD_OFF proof would ship nav while sends still live — explicitly gated. Recreate must pin `APP_VERSION=a08dd5e9` (no accidental `:latest` / main tip pull in the containment step).
 - **Remaining:** Local Cursor: `.env` backup → HARD_OFF=1 → recreate app+worker @ `a08dd5e9` → prove enabled=False → post Evidence. Then merge+deploy #276 via `deploy_vps.sh` + VOICE_LAUNCH_KILL dance. WI-CP2 later.
 - **Next Highest Priority:** Wait for Local HARD_OFF evidence line; do not deploy #276 until then.
+
+## Loop Run — 2026-08-07 (sync: Option A + #276 DONE — ADR-170 — no re-flip / no redeploy)
+
+- **Goal:** Sync Cloud worktree to Local owner-exec DONE evidence; align handoff to ADR-170; abandon any re-flip/redeploy.
+- **Inspected:** Live `/health`, PR #276/#277 state, origin/main tip `7ab5fe55`, prior Cloud containment handoff.
+- **Problems Found:** origin/main SESSION_HANDOFF still stale (ADR-164 era) — Local exec evidence not yet written to main tip docs.
+- **Changed:** SESSION_HANDOFF + ACTIVE_WORK rewritten to DONE/ADR-170; this Loop Run. **No prod mutation. No flag flip. No deploy.**
+- **Tests Run:** N/A. Probes: health=`7ab5fe55`; #276 MERGED; admin unauth grep master-blueprint=3 (Local auth count 4 = acceptance).
+- **Verification Evidence:** Local reported HARD_OFF=1 MASTER=1 enabled=False on `7ab5fe55` + backups named; Cloud health matches tip.
+- **Risks:** None for runtime — containment already live. Docs PR #277 is docs-only align.
+- **Remaining:** Optional merge of docs PR #277; WI-CP2 later.
+- **Next Highest Priority:** Stop. Do not fight Local. GTM 2nd paid remains business priority.

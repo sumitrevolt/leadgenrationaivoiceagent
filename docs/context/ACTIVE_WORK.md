@@ -2,21 +2,21 @@
 
 ---
 
-## WS-CONTAIN1 REPLY_AUTO_SEND_HARD_OFF Option A - IN FLIGHT (owner-locked)
+## WS-CONTAIN1 REPLY_AUTO_SEND_HARD_OFF Option A - DONE (ADR-170)
 - **ID:** WS-CONTAIN1
-- **Business outcome:** Restore SAFETY_INVARIANT kill switch — stop live auto-sends; Redis `reply_auto_send` can stay but HARD_OFF must win
-- **Current state:** Owner verdict Option A locked. Prod `/health`=`a08dd5e9`. Cloud has **no VPS SSH**. Local Cursor executing `.env` HARD_OFF=1 + recreate app+worker @ `APP_VERSION=a08dd5e9`. PR #276 deploy **blocked** until `enabled=False` evidence.
-- **Next exact action:** Local Cursor posts HARD_OFF proof (`_reply_auto_send_enabled()` → False) → then merge+deploy #276 via `deploy_vps.sh` + VOICE_LAUNCH_KILL dance
-- **Out of scope:** Option B · flipping `REPLY_AUTO_SEND` · WI-CP2 tonight · side-effect run-now · secrets in chat
+- **Business outcome:** SAFETY_INVARIANT kill restored; live auto-sends stopped
+- **Current state:** PRODUCTION-PROVEN on `7ab5fe55` — HARD_OFF=1, enabled()=False. ADR-170 supersedes ADR-169. Matrix row 22 = HARD-OFF RESTORED. **Do not re-flip.**
+- **Next exact action:** None for containment. WI-CP2 only if/when auto-send re-armed later.
+- **Out of scope:** Option B · REPLY_AUTO_SEND flip · redeploy · secrets
 
 ---
 
-## WS-NAV1 PR #276 Master Blueprint admin nav - GATED ON CONTAINMENT
+## WS-NAV1 PR #276 Master Blueprint admin nav - DONE LIVE
 - **ID:** WS-NAV1
-- **Business outcome:** Admin System nav + quick action door to Master Blueprint (`/app/explorer?view=master`)
-- **Current state:** OPEN MERGEABLE · commit `8b36b795` · branch `fix/admin-master-blueprint-nav` · acceptance currently `grep -c -i "master blueprint"` = 0 on `/app/admin`
-- **Next exact action:** AFTER HARD_OFF evidence only — merge + `deploy_vps.sh` with APP_VERSION pin (rides #275 safe_settings on main tip)
-- **Out of scope:** deploy before containment · env flips inside this PR
+- **Business outcome:** Admin System nav door to Master Blueprint
+- **Current state:** MERGED+DEPLOYED `/health`=`7ab5fe55`; 5/5 skew 0; VOICE_LAUNCH_KILL=0 restored; admin Master Blueprint count **4** (PASS)
+- **Next exact action:** None
+- **Out of scope:** re-deploy
 
 ---
 
@@ -29,8 +29,8 @@
 ---
 
 ## Parked
-- WS-PRF1 PR Factory (was in-flight; parked behind containment)
+- WI-CP2 interaction-log (when auto-send re-armed)
+- WS-PRF1 PR Factory
 - WS-GTM2 Admin Manual Call canary
 - WS-AM1 Safe Pack (after LEDGER_PAID)
-- WI-CP2 interaction-log (when auto-send re-armed)
 - Estique `removed`

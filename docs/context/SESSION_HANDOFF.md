@@ -1,90 +1,43 @@
-# SESSION_HANDOFF — 2026-08-07 Option A containment (REPLY_AUTO_SEND_HARD_OFF)
+# SESSION_HANDOFF — 2026-08-07 Option A DONE (ADR-170)
 
-## OWNER DECISION (LOCKED — do not re-litigate)
+## OWNER DECISION (LOCKED — COMPLETE)
 
-**Verdict: Option A containment — restore kill switch to declared SAFETY_INVARIANT default.**
+**Verdict: Option A containment — DONE. ADR-170 SUPERSEDES ADR-169 (OWNER-ARMED withdrawn).**
 
-1. Set `REPLY_AUTO_SEND_HARD_OFF=1` on prod (manifest default already `"1"`; prod drifted to `0`).
-2. Do **NOT** flip `REPLY_AUTO_SEND` itself.
-3. Do **NOT** choose Option B (docs saying "owner-armed forever") — that would leave SAFETY_INVARIANT contradictory to §5.
-4. `REPLY_AGENT` stays ON (draft/triage only — fine).
-5. After HARD_OFF proven (`_reply_auto_send_enabled()` → False), then merge+deploy PR #276 Master Blueprint admin nav (`8b36b795`, branch `fix/admin-master-blueprint-nav`).
-6. WI-CP2 interaction-log = follow-up when auto-send is re-armed later — **not** a blocker for containment tonight.
-7. No side-effect run-now. No secrets in chat. Never print token/DATABASE_URL/settings values.
+Matrix row 22 = **HARD-OFF RESTORED**. Do **not** re-flip flags. Do **not** redeploy for this workstream.
 
-## Coordination status (Cloud Cursor)
-
-| Plane | Status |
+| Item | Result |
 |---|---|
-| Cloud VPS/SSH | **NO** — `root@72.61.245.204` Permission denied (publickey). Local Cursor owns the flip. |
-| Prod `/health` (Cloud probe 2026-08-07) | `version=a08dd5e9` · `environment=production` · `status=healthy` |
-| PR #276 | OPEN · MERGEABLE · 1 commit `8b36b795` · **DO NOT deploy until HARD_OFF evidence posted** |
-| main tip | `34836739` (#275 safe_settings) — ahead of prod `a08dd5e9`; deploy rides this too |
-| Option B | **REJECTED** |
+| `REPLY_AUTO_SEND_HARD_OFF` | `=1` PRODUCTION-PROVEN |
+| `_reply_auto_send_enabled()` | `False` on prod SHA `7ab5fe55` |
+| `REPLY_AUTO_SEND` | Not flipped (correct) |
+| `REPLY_AGENT` | Stays ON (draft/triage) |
+| Option B | REJECTED / withdrawn via ADR-170 |
+| PR #276 | MERGED + DEPLOYED |
+| Prod `/health` | `7ab5fe55` · production · healthy |
+| App-image skew | 5/5 = 0 |
+| `VOICE_LAUNCH_KILL` | `0` restored post-deploy |
+| Admin Master Blueprint | count **4** (acceptance ≥1 PASS) |
+| Backups | `.env.bak-reply-hardoff-20260807_150617` · `.env.bak-postdeploy276-killrestore-20260807_151859` |
 
-## Exact VPS commands for Local Cursor (HARD_OFF flip ONLY)
+## Cloud re-probe (2026-08-07, sync pass — no mutation)
 
-Pin recreate to current prod SHA. Do **not** deploy #276 in this step.
+- `/health` → `version=7ab5fe55` · `environment=production` · `status=healthy`
+- PR #276 → MERGED at `7ab5fe55` (2026-08-07T15:09:17Z)
+- Unauthenticated `/app/admin` grep "master blueprint" → 3 (login shell may hide 4th; Local authenticated count **4** is acceptance truth)
+- Cloud VPS SSH still absent — no flag flip attempted this pass
 
-```bash
-# on VPS as root, from /opt/leadgen
-TS=$(date -u +%Y%m%d%H%M%S)
-cp -a .env ".env.bak-hardoff-${TS}"
+## [CURSOR Cloud] HANDOFF → idle / Local
 
-# surgical: set HARD_OFF=1 only — do NOT touch REPLY_AUTO_SEND / REPLY_AGENT
-# Prefer a known sed/awk pattern; verify with grep -E '^REPLY_AUTO_SEND' .env
-# (print names only — never dump full .env)
+- **Goal:** Sync Cloud docs to Local owner-exec DONE (ADR-170); abandon re-flip / redeploy
+- **Done:** SESSION_HANDOFF + ACTIVE_WORK aligned to PRODUCTION-PROVEN containment + #276 live
+- **Evidence:** Local in-container HARD_OFF=1 MASTER=1 enabled=False on `7ab5fe55`; Cloud `/health`=`7ab5fe55`; #276 MERGED
+- **Left:** WI-CP2 interaction-log only when auto-send re-armed later; merge docs PR #277 if desired (docs-only, no fight)
+- **Touched:** `docs/context/SESSION_HANDOFF.md`, `docs/context/ACTIVE_WORK.md`, `progress.md` (docs-only)
 
-grep -E '^REPLY_AUTO_SEND(_HARD_OFF)?=' .env | sed 's/=.*/=<redacted-len-check>/'
-# expect to see HARD_OFF line present; after edit it must be =1
-
-# If line exists:
-sed -i 's/^REPLY_AUTO_SEND_HARD_OFF=.*/REPLY_AUTO_SEND_HARD_OFF=1/' .env
-# If missing, append:
-# echo 'REPLY_AUTO_SEND_HARD_OFF=1' >> .env
-
-# Recreate app+worker ONLY at pinned prod SHA (no code deploy):
-export APP_VERSION=a08dd5e9
-docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps --force-recreate app worker
-
-# Prove kill works (names/bool only — no settings dump):
-docker compose -f docker-compose.vps.yml exec -T app \
-  python -c "import asyncio; from app.platform.reply_agent import _reply_auto_send_enabled; print('enabled=', asyncio.run(_reply_auto_send_enabled()))"
-# ACCEPTANCE: enabled= False
-
-# Container env name check (value presence only):
-docker compose -f docker-compose.vps.yml exec -T app \
-  python -c "import os; v=os.getenv('REPLY_AUTO_SEND_HARD_OFF'); print('HARD_OFF_set=', v is not None, 'HARD_OFF_is_one=', v=='1')"
-```
-
-### After HARD_OFF evidence posted → PR #276 deploy (separate step)
-
-```bash
-# ONLY after enabled=False proven and posted in handoff
-# VOICE_LAUNCH_KILL=1 dance + deploy_vps.sh with APP_VERSION pin
-# Acceptance: curl -s https://leadsgenai.in/app/admin | grep -c -i "master blueprint"  ≥ 1
-# Canonical: scripts/deploy_vps.sh (never hand-rolled compose without APP_VERSION)
-```
-
-## Evidence already proven (local session — carried)
-
-- Prod `/health` = `a08dd5e9` (cache-bust curl, uptime advancing) — **Cloud re-confirmed**
-- Auth pass: 43 jobs, 0 disabled, 0 unhealthy, 60 runs 0 failures; 5 families ran today
-- HARD_OFF=0 + REPLY_AUTO_SEND=ON → sends live; content scan is only remaining guard
-- Env `REPLY_AUTO_SEND=0` alone insufficient (falls through to Redis `reply_auto_send`)
-- PR #276 OPEN MERGEABLE, 2 files only
-
-## [CURSOR Cloud] HANDOFF → Local Cursor
-
-- **Goal:** Option A — `REPLY_AUTO_SEND_HARD_OFF=1` on prod; prove `_reply_auto_send_enabled()` False; then (only then) merge+deploy #276
-- **Done:** Decision locked in SESSION_HANDOFF + progress Loop Run; Cloud confirmed no VPS key; prod health `a08dd5e9` re-probed; #276 deploy gated
-- **Evidence:** Cloud `/health` JSON version=`a08dd5e9` environment=production; SSH to VPS = Permission denied; PR #276 mergeable=MERGEABLE oid=`8b36b795`; manifest HARD_OFF default=`1`
-- **Left:** Local Cursor executes HARD_OFF=.env backup + recreate app+worker @ `APP_VERSION=a08dd5e9` + prove enabled=False; post Evidence; then #276 kill-fence deploy via `deploy_vps.sh`
-- **Touched:** `docs/context/SESSION_HANDOFF.md`, `docs/context/ACTIVE_WORK.md`, `progress.md` (docs-only; no prod mutation from Cloud)
-
-## Out of scope tonight
-- Option B docs rewrite
-- Flipping `REPLY_AUTO_SEND`
-- WI-CP2 interaction-log
-- Side-effect run-now / scheduler fire
-- Swara/voice edits (FROZEN)
+## Out of scope / do not touch
+- Re-flip HARD_OFF or REPLY_AUTO_SEND
+- Redeploy for this stream
+- WI-CP2 tonight
+- Swara/voice (FROZEN)
+- Secrets in chat
