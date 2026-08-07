@@ -570,8 +570,16 @@ async def _dial_vobiz_campaign(
                 logger.info(f"[voice_launch] lead {p.id} already dispatched this session — skip")
                 continue
 
+        # lead_id threads the CRM id to the WS teardown that writes the CallLog
+        # (2026-08-06). Without it every campaign row was lead_id=NULL, so calls
+        # were unattributable AND niche_database.update_after_call() — the only
+        # DND / NOT_INTERESTED / QUALIFIED / CALLBACK transition — never ran.
         result = await start_stream_call(
-            to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
+            to="+91" + p10,
+            niche=niche,
+            call_type=call_type,
+            client_id=cid or None,
+            lead_id=str(p.id or ""),
         )
         if result.get("placed"):
             ok += 1
