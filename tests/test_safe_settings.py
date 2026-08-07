@@ -63,3 +63,18 @@ def test_names_only_lists_attrs_without_values():
     names = settings_names_only(fake)
     assert "public_base_url" in names
     assert "vobiz_auth_token" in names
+
+
+def test_unknown_field_is_default_denied():
+    """Design power of safe_settings_probe: not on allowlist => dropped entirely."""
+    marker = "SHOULD_NOT_APPEAR_" + ("e" * 12)
+    fake = SimpleNamespace(
+        public_base_url="https://example.invalid",
+        some_brand_new_debug_field=marker,
+    )
+    probe = safe_settings_probe(fake)
+    assert "some_brand_new_debug_field" not in probe["fields"]
+    assert marker not in str(probe)
+    # Allowlisted field still present as fingerprint only.
+    assert "public_base_url" in probe["fields"]
+    assert probe["fields"]["public_base_url"]["present"] is True
