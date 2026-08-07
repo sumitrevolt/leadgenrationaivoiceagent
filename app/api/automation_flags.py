@@ -449,6 +449,14 @@ AUTOMATION_FLAGS = [
     # (these wrap platform_dial/email_outreach — a re-run would place real calls).
     # OFF default.
     "AGENT_TASK_ORPHAN_REAP",
+    # Monthly billing-cycle deliverable seed, riding the product_one_health sweep.
+    # OFF default. initialize_deliverables_for_client fires ONLY on plan activation
+    # (billing/usage.py), so nothing creates the NEXT month's rows: prod held 20 rows,
+    # all cycle 2026-07, newest created 2026-07-18, while the paying customer was 30+
+    # days into a paid month. Selector is the SUBSCRIPTION (non-terminal) not
+    # clients.status, so quarantined fixtures are excluded by construction. Seeds under
+    # the BILLING id (FK to clients.id). Idempotent; DB rows only — no content, no sends.
+    "DELIVERABLE_CYCLE_SEED",
     # Scheduler routine-ledger switch. DEFAULT ON — this is the only flag in this
     # block that is not INERT by default, because it preserves existing behaviour.
     # The bridge writes one agent_tasks row per job invocation (~700/day) and nothing

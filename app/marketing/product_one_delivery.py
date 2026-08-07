@@ -229,6 +229,143 @@ def _deliverable_client_id_candidates(cid: str) -> list[str]:
     return out
 
 
+def cycle_seed_enabled() -> bool:
+    """`DELIVERABLE_CYCLE_SEED` gate — unset/0 = INERT (default)."""
+    return os.environ.get("DELIVERABLE_CYCLE_SEED", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def current_cycle_month() -> str:
+    """Billing cycle key `YYYY-MM` in IST — these are Indian-business cycles, and
+    a UTC month boundary would flip 5h30m early for the customer."""
+    return (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m")
+
+
+# Subscription states that mean "this tenant is no longer paying". Anything NOT
+# in here is treated as live, so an unknown/new status fails SAFE (seeds a row)
+# rather than silently withholding a paying customer's deliverables.
+_DEAD_SUBSCRIPTION_STATES = frozenset({"cancelled", "canceled", "expired", "ended"})
+
+
+def seed_current_cycle_deliverables(
+    month: str | None = None, limit: int = 200, dry_run: bool = True
+) -> dict[str, Any]:
+    """Create the CURRENT billing cycle's deliverable rows for every live tenant.
+
+    WHY THIS EXISTS (2026-08-07). `initialize_deliverables_for_client` is called
+    from exactly one place — `app/billing/usage.py` on plan activation. Nothing
+    re-seeds when the month rolls over. Production proof: `customer_deliverables`
+    held 20 rows, ALL `billing_cycle_month = '2026-07'`, newest created
+    2026-07-18, and no scheduler job referenced deliverables at all. The one
+    paying customer was 30+ days into a paid month with no current-cycle ledger,
+    so `sync_customer_deliverable_status` had nothing to attach to no matter how
+    much content was generated.
+
+    Selector is the SUBSCRIPTION, not `clients.status`: a subscription that is
+    not in a terminal state is the only honest definition of "still paying".
+    This also keeps quarantined fixture tenants out by construction — they have
+    no subscription rows at all.
+
+    Seeds under the BILLING id (Postgres `clients.id`) because
+    `customer_deliverables.client_id` is an FK to that table. The marketing-id
+    side is handled read-side by `_deliverable_client_id_candidates`.
+
+    Idempotent — `initialize_deliverables_for_client` already skips existing
+    types for the same client+cycle, so re-running is a no-op. Never raises.
+    """
+    out: dict[str, Any] = {
+        "cycle": month or current_cycle_month(),
+        "clients_scanned": 0,
+        "rows_created": 0,
+        "skipped_existing": 0,
+        "skipped_dead_subscription": 0,
+        "skipped_no_db_client": 0,
+        "errors": 0,
+        "dry_run": bool(dry_run),
+        "seeded_clients": [],
+    }
+    cycle = out["cycle"]
+    try:
+        from app.models.base import get_db_session
+        from app.models.client import Client
+        from app.models.customer_deliverable import CustomerDeliverable
+        from app.models.payment import Subscription
+
+        with get_db_session() as db:
+            subs = db.query(Subscription).limit(max(1, int(limit))).all()
+            for sub in subs:
+                cid = str(getattr(sub, "client_id", "") or "").strip()
+                if not cid:
+                    continue
+                out["clients_scanned"] += 1
+                try:
+                    st = (
+                        str(
+                            getattr(getattr(sub, "status", ""), "value", getattr(sub, "status", ""))
+                            or ""
+                        )
+                        .strip()
+                        .lower()
+                    )
+                    if st in _DEAD_SUBSCRIPTION_STATES:
+                        out["skipped_dead_subscription"] += 1
+                        continue
+
+                    # FK guard — seeding against a missing client row would raise.
+                    client = db.get(Client, cid)
+                    if client is None:
+                        out["skipped_no_db_client"] += 1
+                        continue
+
+                    before = (
+                        db.query(CustomerDeliverable)
+                        .filter(
+                            CustomerDeliverable.client_id == cid,
+                            CustomerDeliverable.billing_cycle_month == cycle,
+                        )
+                        .count()
+                    )
+                    if before and dry_run:
+                        out["skipped_existing"] += 1
+                        continue
+                    if dry_run:
+                        out["seeded_clients"].append({"client_id": cid, "would_create": True})
+                        continue
+
+                    plan = str(
+                        getattr(sub, "plan_name", "") or getattr(client, "plan", "") or "starter"
+                    )
+                    initialize_deliverables_for_client(db, cid, plan, cycle)
+                    db.commit()
+
+                    after = (
+                        db.query(CustomerDeliverable)
+                        .filter(
+                            CustomerDeliverable.client_id == cid,
+                            CustomerDeliverable.billing_cycle_month == cycle,
+                        )
+                        .count()
+                    )
+                    created = max(0, after - before)
+                    out["rows_created"] += created
+                    if created == 0:
+                        out["skipped_existing"] += 1
+                    else:
+                        out["seeded_clients"].append({"client_id": cid, "created": created})
+                except Exception as inner:
+                    out["errors"] += 1
+                    logger.warning("[cycle-seed] client %s failed: %s", cid, inner)
+    except Exception as e:
+        out["errors"] += 1
+        out["error"] = str(e)[:200]
+        logger.warning("[cycle-seed] sweep failed: %s", e)
+    return out
+
+
 def initialize_deliverables_for_client(
     db, client_id: str, plan_code: str | None, billing_cycle_month: str
 ) -> None:

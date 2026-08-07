@@ -1282,6 +1282,22 @@ async def _run_job_inner(job: str) -> bool:
             # ledger writes only, never sends WhatsApp/email. Ungated
             # safety-net (same convention as watchdog/onboard).
             await product_one_delivery.run_health_and_recovery_sweep()
+            # Monthly billing-cycle deliverable seed (2026-08-07). Rides this
+            # existing per-client sweep instead of adding a job: the work is
+            # idempotent, cheap, and belongs to the same Product-1 delivery
+            # surface. INERT unless DELIVERABLE_CYCLE_SEED=1.
+            #
+            # WHY: initialize_deliverables_for_client is called ONLY from
+            # billing/usage.py on plan activation, so nothing ever creates the
+            # NEXT month's rows. Prod held 20 rows, all 2026-07, newest created
+            # 2026-07-18 — the paying customer was 30+ days into a paid month
+            # with no current-cycle ledger for sync_customer_deliverable_status
+            # to attach to. DB rows only; no content generation, no sends.
+            if product_one_delivery.cycle_seed_enabled():
+                _seed = await asyncio.to_thread(
+                    product_one_delivery.seed_current_cycle_deliverables, None, 200, False
+                )
+                logger.info(f"[team-scheduler] deliverable_cycle_seed: {_seed}")
         elif job == "approval_email_sweep":
             from app.platform import approval_notifier
 
