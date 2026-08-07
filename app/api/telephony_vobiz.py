@@ -46,19 +46,39 @@ _STREAM_REDIS_PREFIX = "vobiz:pending:"
 _STREAM_REDIS_TTL_S = 600
 
 
-def _answer_stream_qs(niche: str, client_id: str | None, lead_phone: str | None = None) -> str:
+def _answer_stream_qs(
+    niche: str,
+    client_id: str | None,
+    lead_phone: str | None = None,
+    lead_id: str | None = None,
+) -> str:
     """Query string embedded in answer_url — survives cross-process pending loss.
 
     lead_phone (2026-07-03): the number we dialed, threaded through to the WS
     session so close-signal durable actions (sales-pipeline deal + WhatsApp
     send) have a reliable phone on OUTBOUND calls — Vobiz's start event carries
     no customParameters, so without this the session's _lead_phone stayed None
-    and every close/onboard action silently no-op'd on real campaign calls."""
+    and every close/onboard action silently no-op'd on real campaign calls.
+
+    lead_id (2026-08-06): the CRM `leads.id` we dialed, on the SAME rail and for
+    the same reason. The CallLog is written at WS teardown, minutes later and
+    possibly in another worker, where the dialer's `p.id` is long out of scope —
+    so every campaign row landed with `lead_id=NULL`. That in turn left
+    `niche_database.update_after_call()` (the ONLY code that moves a lead to
+    QUALIFIED / CALLBACK / NOT_INTERESTED / DND / WRONG_NUMBER) unreachable, so
+    no call ever changed a lead's status. Threading the id fixes attribution and
+    switches that categorisation path back on.
+
+    NOTE: this is `crm_lead_id` on the wire, never `lead_id`, because the WS
+    custom-parameter loop in vobiz_stream already treats a `lead_id` key as a
+    PHONE alias. Reusing the name there would silently overwrite _lead_phone."""
     qs: dict[str, str] = {"niche": (niche or "general").strip() or "general"}
     if client_id:
         qs["client_id"] = str(client_id)
     if lead_phone:
         qs["lead_phone"] = str(lead_phone)
+    if lead_id:
+        qs["crm_lead_id"] = str(lead_id)
     return urlencode(qs)
 
 
@@ -102,6 +122,7 @@ async def _pop_pending(token: str) -> dict[str, Any] | None:
     except Exception:
         pass
     return pend or None
+
 
 _FALLBACK_GREETING = (
     "Namaste! Yeh LeadGen AI ki taraf se ek AI demo call hai. "
@@ -232,6 +253,14 @@ class StreamCallRequest(BaseModel):
         description="'transactional' (consented/known) or 'promotional' (cold — "
         "DND + 10-19 IST window + DLT/140 enforced)",
     )
+    lead_id: str | None = Field(
+        None,
+        max_length=64,
+        description="CRM leads.id, when the caller dialed a known lead. Threads to "
+        "the CallLog written at WS teardown so the call attributes back to the "
+        "lead and post-call status transition can run. Optional — the admin "
+        "manual-call form may dial a raw number with no lead behind it.",
+    )
 
 
 def _wss_host() -> str:
@@ -245,6 +274,8 @@ async def start_stream_call(
     niche: str = "general",
     client_id: str | None = None,
     call_type: str = "transactional",
+    *,
+    lead_id: str | None = None,
 ) -> dict[str, Any]:
     """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
 
@@ -263,12 +294,18 @@ async def start_stream_call(
         token = _sign_stream_token(uuid.uuid4().hex[:10])
         niche_key = (niche or "general").strip() or "general"
         await _store_pending(
-            token, {"niche": niche_key, "client_id": client_id, "lead_phone": to}
+            token,
+            {
+                "niche": niche_key,
+                "client_id": client_id,
+                "lead_phone": to,
+                "crm_lead_id": lead_id or "",
+            },
         )
 
         answer_url = (
             f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-            f"?{_answer_stream_qs(niche_key, client_id, lead_phone=to)}"
+            f"?{_answer_stream_qs(niche_key, client_id, lead_phone=to, lead_id=lead_id)}"
         )
         # Per-call hangup_url so Vobiz posts HangupCause/CallStatus → disposition
         # tally (NUP/no_answer/answered). Without this, stream-calls never hit
@@ -316,12 +353,18 @@ async def place_stream_call(
     token = _sign_stream_token(uuid.uuid4().hex[:10])
     niche_key = (request.niche or "general").strip() or "general"
     await _store_pending(
-        token, {"niche": niche_key, "client_id": request.client_id, "lead_phone": request.to}
+        token,
+        {
+            "niche": niche_key,
+            "client_id": request.client_id,
+            "lead_phone": request.to,
+            "crm_lead_id": request.lead_id or "",
+        },
     )
 
     answer_url = (
         f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-        f"?{_answer_stream_qs(niche_key, request.client_id, lead_phone=request.to)}"
+        f"?{_answer_stream_qs(niche_key, request.client_id, lead_phone=request.to, lead_id=request.lead_id)}"
     )
     hangup_url = f"{settings.public_base_url}/api/webhooks/vobiz/status"
     result = await client.place_call(
@@ -373,11 +416,14 @@ async def answer_stream_xml(token: str, request: Request) -> Response:
     niche = (request.query_params.get("niche") or pend.get("niche") or "general").strip()
     client_id = request.query_params.get("client_id") or pend.get("client_id")
     lead_phone = request.query_params.get("lead_phone") or pend.get("lead_phone")
+    crm_lead_id = request.query_params.get("crm_lead_id") or pend.get("crm_lead_id")
     qs: dict[str, str] = {"niche": niche or "general"}
     if client_id:
         qs["client_id"] = str(client_id)
     if lead_phone:
         qs["lead_phone"] = str(lead_phone)
+    if crm_lead_id:
+        qs["crm_lead_id"] = str(crm_lead_id)
     ws_url = f"wss://{_wss_host()}/api/telephony/vobiz/stream/{token}?{urlencode(qs)}"
     return Response(content=build_stream_xml(ws_url), media_type="application/xml")
 
@@ -389,11 +435,12 @@ async def vobiz_stream_ws(
     niche: str = "general",
     client_id: str | None = None,
     lead_phone: str | None = None,
+    crm_lead_id: str | None = None,
 ) -> None:
     """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
-    conversation loop. niche/client/lead_phone come from query params or the
-    pending store (filled by /stream-call); customParameters in the start
-    event win."""
+    conversation loop. niche/client/lead_phone/crm_lead_id come from query
+    params or the pending store (filled by /stream-call); customParameters in
+    the start event win."""
     from app.telephony.vobiz_stream import VobizStreamSession
 
     pend = await _pop_pending(token)
@@ -427,6 +474,7 @@ async def vobiz_stream_ws(
         niche = pend.get("niche") or niche
         client_id = pend.get("client_id") or client_id
         lead_phone = pend.get("lead_phone") or lead_phone
+        crm_lead_id = pend.get("crm_lead_id") or crm_lead_id
 
     # Resolve real client name + niche from client_id so the INSTANT greeting
     # (played at WS-open) isn't generic "Demo Co" / niche=general. Never-raise.
@@ -449,6 +497,7 @@ async def vobiz_stream_ws(
         client_id=client_id,
         client_name=client_name,
         lead_phone=lead_phone,
+        crm_lead_id=crm_lead_id,
     )
     await session.handle()
 
