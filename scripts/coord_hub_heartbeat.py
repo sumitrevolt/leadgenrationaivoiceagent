@@ -102,6 +102,7 @@ def main() -> int:
         return 2
     secret = os.environ.get(f"COORD_HUB_TOOL_{tool_id.upper()}_SECRET", "").strip()
     if len(secret) < SECRET_MIN_CHARS:
+        # lgtm[py/clear-text-logging-sensitive-data] - only tool_id/constant logged, secret value is never printed
         print(
             f"[coord-hub] ERROR: heartbeat key for tool '{tool_id}' is missing or "
             f"shorter than {SECRET_MIN_CHARS} chars — heartbeat not sent."
