@@ -31,5 +31,5 @@
 ## Parked
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
-- **ADR-172 Agent Teams C1** — PR #283 tip `437d26fa`: setup **FROZEN/GO** (reviewer: no open findings). Execution = Windows only (prune → baseline → paste → Observed → **then** merge). Cloud agent must not merge #283 early.
+- **ADR-172 Agent Teams C1** — tip `d1042e69` FROZEN/GO; P1 window OPEN (`main=5ae5a4b9`, deliverables absent). **Sumit-only:** prune / Usage baseline / Claude Code paste. **Agents forbidden** to merge #283 or fake those steps. After Observed: agents may interpret + write handoff.
 - **ADR-173 claw-orchestrator** — REJECT full vendor.
