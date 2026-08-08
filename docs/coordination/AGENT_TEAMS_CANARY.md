@@ -73,6 +73,9 @@ If `docs/coordination/AGENT_TEAMS_CANARY.md` is missing, TM2's contract test mus
 - Cursor **PROTOCOL-PASS** ≠ Claude Code Agent Teams CANARY-PASS.
 - Pre-registered Claude AT predictions: [`C1_CLAUDE_AT_PREDICTION.md`](C1_CLAUDE_AT_PREDICTION.md) — fill Observed after that run only.
 
-## Claude Code AT run (next)
+## Claude Code AT run (next) — validity
 
-Before pasting the lead prompt: note usage baseline + clock. After: usage delta + wall clock + whether **CANARY-SIGNAL** fired again. Interpret SIGNAL yes/no using the **pre-locked** table in `C1_CLAUDE_AT_PREDICTION.md` — no post-hoc rewrite.
+**Run before merging PR #283.** Worktrees `--base origin/main` while C1 doc+contract are
+still absent on main. Record `base_ref` + `p1_validity` in
+[`C1_CLAUDE_AT_PREDICTION.md`](C1_CLAUDE_AT_PREDICTION.md) Observed. If #283 already
+merged, P1 is contaminated — do not read “no SIGNAL” as task-list success.

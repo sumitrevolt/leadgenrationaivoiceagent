@@ -1,26 +1,22 @@
-# SESSION_HANDOFF — 2026-08-08 C1 Cursor done · Claude AT prediction LOCKED
+# SESSION_HANDOFF — 2026-08-08 P1 confound locked · canary BEFORE #283 merge
 
 ## Source boundary
-- Branch: `cursor/claude-agent-teams-worktrees-63d4` · PR #283 · tip `96bba2b2`+
-- Cursor C1 = protocol proof. Claude Code Agent Teams = **NOT-RUN**.
+- Branch: `cursor/claude-agent-teams-worktrees-63d4` · PR #283 · tip ~`4c151bde`
+- `origin/main` @ `5ae5a4b9` — C1 doc+contract **absent** (verified). P1 valid only if canary uses that clean base.
 
 ## Labels
-
 | Label | Status |
 |-------|--------|
-| **PROTOCOL-PASS (Cursor)** | Done — SSOT/merge/F4/F1; SIGNAL handled without weakening test |
-| **CANARY-SIGNAL (Cursor)** | Fired (`branch_prefix` / `agent/tm` miss) — expected under non-AT harness |
+| **PROTOCOL-PASS (Cursor)** | Done |
+| **PREDICTION-LOCKED** | `docs/coordination/C1_CLAUDE_AT_PREDICTION.md` (+ confound gate) |
 | **CLAUDE-CODE-AGENT-TEAMS-CANARY** | **NOT-RUN** |
-| **PREDICTION-LOCKED** | `docs/coordination/C1_CLAUDE_AT_PREDICTION.md` — fill Observed only after Windows run |
+| **P1-VALID-ONLY-IF** | Canary **before** #283 merge · `--base origin/main` · record `base_ref` |
 
-## Framing (do not blur)
+## Decisive confound
+If #283 merges first, remediated doc+test land on main → no disagreement left → “no SIGNAL” would be **false** task-list success. Do **not** merge #283 until Claude AT canary Observed is filled (or mark `p1_validity=contaminated`).
 
-Cursor run proved **harness-agnostic protocol**. It did **not** prove Agent Teams shared task list prevents disagreement (no AT task list was in the loop).
-
-## Next (Windows owner)
-
+## Windows sequence
 1. `git worktree prune`
-2. Read + leave untouched the Predictions in `C1_CLAUDE_AT_PREDICTION.md`
-3. **Before paste:** write P2 baseline (plan_tier + usage UI note + clock_start)
-4. Paste `CANARY_LEAD_PROMPT.md` → TM1→TM2 → verify
-5. Fill Observed (P1 signal yes/no + P2 delta). Do not edit prediction table.
+2. Confirm #283 unmerged; main lacks both C1 artifacts
+3. P2 baseline → paste lead prompt (`--base origin/main`) → fill Observed incl. **`base_ref`** + **`p1_validity`**
+4. Then merge #283

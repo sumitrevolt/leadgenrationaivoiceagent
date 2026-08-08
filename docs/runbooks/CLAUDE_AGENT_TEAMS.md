@@ -92,9 +92,9 @@ Merge conflicts in **>1 file** on first canary → **FAIL** → single-agent. No
 
 Cursor ~56s + `per_teammate_burn_available=false` does **not** decide 2 vs 3 teammates.
 
-Claude Code run: **baseline before paste**, **delta after verify** (total usage + wall clock).
-Per-teammate split optional. Predictions for SIGNAL vs task-list:
-`docs/coordination/C1_CLAUDE_AT_PREDICTION.md` (**PREDICTION-LOCKED** — fill Observed only).
+Claude Code run: **before merging PR #283**, `--base origin/main` (C1 artifacts absent),
+**baseline before paste**, **delta after verify**. Record `base_ref` + `p1_validity` in
+`docs/coordination/C1_CLAUDE_AT_PREDICTION.md`. Contaminated base ⇒ no P1 conclusion.
 
 ### C1 deliverables
 

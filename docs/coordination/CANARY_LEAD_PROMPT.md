@@ -15,9 +15,23 @@ Lead owns merge + frozen check + verify + honest quota note.
 Spawn exactly 2 Agent Teams teammates (NOT subagents). Require plan approval before any write.
 
 SETUP (lead runs first, then each teammate cds into their worktree):
+  # VALIDITY: PR #283 must NOT be merged yet. Base must be origin/main where
+  # AGENT_TEAMS_CANARY.md and test_agent_teams_canary_contract.py are ABSENT.
+  # If those files already exist on base → P1 contaminated — stop or mark void.
+  git fetch origin main
+  git rev-parse origin/main   # record as base_ref in C1_CLAUDE_AT_PREDICTION.md Observed
+  git cat-file -e origin/main:docs/coordination/AGENT_TEAMS_CANARY.md && echo CONTAMINATED && exit 1
+  git cat-file -e origin/main:tests/test_agent_teams_canary_contract.py && echo CONTAMINATED && exit 1
+
   python3 scripts/agent_team_worktree.py create --canary --name c1-doc --teammate 1 --base origin/main
   python3 scripts/agent_team_worktree.py create --canary --name c1-test --teammate 2 --base origin/main
 Branches MUST be agent/tm1/c1-doc and agent/tm2/c1-test (--canary refuses other shapes).
+
+  # Seed SSOT+loader ONLY (never the canary doc/test) from this PR tip into each worktree:
+  python3 scripts/canary_seed_tooling.py --worktree <tm1-wt> --from-ref <pr-tip-sha>
+  python3 scripts/canary_seed_tooling.py --worktree <tm2-wt> --from-ref <pr-tip-sha>
+  # Exit 2 if deliverables already present = contaminated.
+
 buzzlock claim before edit.
 
 SSOT (single source — DO NOT paste frozen paths into docs or tests):
