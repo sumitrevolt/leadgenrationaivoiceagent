@@ -141,6 +141,28 @@ def _root() -> str:
     return _ROOT_DEFAULT
 
 
+def _contained_under(root: str, target: str) -> bool:
+    """Canonical containment proof (CodeQL #578 py/path-injection barrier).
+
+    True only when the fully-resolved `target` sits STRICTLY below the resolved
+    `root`. realpath() strips dot/dot-dot and follows existing symlinks, so this
+    kills: `..` traversal, absolute-path escape, separator injection, prefix
+    collision (staff/agentX vs staff/agentX_evil can never be confused — the
+    prefix test is on the exact root+sep boundary) and symlink-escape (a link
+    inside root pointing outside resolves away from root -> rejected).
+    """
+    try:
+        root_r = os.path.realpath(root)
+        tgt_r = os.path.realpath(target)
+    except Exception:
+        return False
+    if not root_r or not tgt_r:
+        return False
+    if root_r == tgt_r or not tgt_r.startswith(root_r + os.sep):
+        return False
+    return True
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -173,10 +195,21 @@ def memory_namespace(agent_id: str, tenant_id: str = "") -> str:
 
 
 def _agent_dir(agent_id: str, tenant_id: str = "") -> str:
+    # Canonical path-containment barrier (CodeQL #578). agent_id reaches
+    # os.path.join RAW here, so THIS helper — not the caller — must prove the
+    # final path stays under _root(). On rejection we collapse to _root()
+    # (never-raise, str return preserved): callers already re-validate via
+    # _safe_agent / _safe_tenant, so a rejected id can never produce a real
+    # read/write at the root itself (writers additionally refuse root == dir).
+    root = _root()
     tid = _safe_tenant(tenant_id)
     if tid:
-        return os.path.join(_root(), agent_id, "tenants", _tenant_key(tid))
-    return os.path.join(_root(), agent_id)
+        candidate = os.path.join(root, agent_id, "tenants", _tenant_key(tid))
+    else:
+        candidate = os.path.join(root, agent_id)
+    if not _contained_under(root, candidate):
+        return root
+    return candidate
 
 
 def _entries_path(agent_id: str, tenant_id: str = "") -> str:
@@ -226,8 +259,10 @@ def _allowed(agent_id: str, asset: str) -> bool:
 
 def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bool:
     # Sink-side validation (defense in depth): callers already run _safe_agent /
-    # _safe_tenant, but this module boundary must not trust them — agent_id lands
-    # RAW in the filesystem path below, so re-validate here (CodeQL py/path-injection).
+    # _safe_tenant, but this module boundary must not trust them. The canonical
+    # containment barrier lives in _agent_dir (CodeQL #578 py/path-injection) and
+    # every open() below funnels through it; this re-validates + refuses a
+    # collapsed-to-root write.
     aid = _safe_agent(agent_id)
     if not aid:
         return False
@@ -235,6 +270,11 @@ def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bo
         return False
     try:
         agent_dir = _agent_dir(aid, tenant_id)
+        # Collapsed-to-root = containment barrier rejected the path (e.g.
+        # symlink-escape or a caller bypassing _safe_agent). Never write at the
+        # root itself — refuse and keep the documented False default.
+        if os.path.normpath(agent_dir) == os.path.normpath(_root()):
+            return False
         os.makedirs(agent_dir, exist_ok=True)
         entries_path = _entries_path(aid, tenant_id)
         with open(entries_path, "a", encoding="utf-8") as f:
@@ -836,7 +876,10 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
         pruned = 0
         touched: list[str] = []
         for name in os.listdir(root):
-            if name.startswith("_") or name == "equipments.json":
+            # Only _safe_agent-charset scopes are ours; anything else (stray
+            # dirs, symlinks, foreign names) is skipped — a name can never be
+            # joined into a write path here.
+            if name.startswith("_") or name == "equipments.json" or not _AGENT_RE.match(name):
                 continue
             scope_ids = [""]
             tenants_dir = os.path.join(root, name, "tenants")
@@ -849,6 +892,8 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
                     prune_path = os.path.join(root, name, "tenants", tenant_id, "entries.jsonl")
                 else:
                     prune_path = os.path.join(root, name, "entries.jsonl")
+                if not _contained_under(root, prune_path):
+                    continue
                 if not os.path.isfile(prune_path):
                     continue
                 keep: list[dict[str, Any]] = []
@@ -934,6 +979,10 @@ def purge_agent(agent_id: str, *, tenant_id: str = "") -> dict[str, Any]:
         import shutil
 
         agent_dir = _agent_dir(aid, tenant_id)
+        # Collapsed-to-root = barrier rejected (symlink-escape etc.). NEVER let
+        # purge_agent wipe the whole memory root — refuse with bad_agent.
+        if os.path.normpath(agent_dir) == os.path.normpath(_root()):
+            return {"ok": False, "error": "bad_agent", "purged": 0}
         if os.path.isdir(agent_dir):
             # Count entries before wipe
             purged = len(_read_entries(aid, limit=_MAX_ENTRIES_PER_AGENT, tenant_id=tenant_id))
@@ -974,6 +1023,9 @@ def hub_snapshot(*, max_agents: int = 8) -> dict[str, Any]:
                         os.path.join(tenants_dir, scope, "entries.jsonl")
                         for scope in os.listdir(tenants_dir)
                         if os.path.isfile(os.path.join(tenants_dir, scope, "entries.jsonl"))
+                        and _contained_under(
+                            root, os.path.join(tenants_dir, scope, "entries.jsonl")
+                        )
                     ]
                 tenant_scope_count += len(scoped_paths)
                 if os.path.isfile(platform_path) or scoped_paths:
@@ -984,11 +1036,10 @@ def hub_snapshot(*, max_agents: int = 8) -> dict[str, Any]:
             tenants_dir = os.path.join(root, aid, "tenants")
             if os.path.isdir(tenants_dir):
                 for scope in os.listdir(tenants_dir):
-                    n += len(
-                        _read_entries_path(
-                            os.path.join(tenants_dir, scope, "entries.jsonl"), limit=5
-                        )
-                    )
+                    scope_path = os.path.join(tenants_dir, scope, "entries.jsonl")
+                    if not _contained_under(root, scope_path):
+                        continue
+                    n += len(_read_entries_path(scope_path, limit=5))
             briefs.append(
                 {
                     "agent_id": aid,
