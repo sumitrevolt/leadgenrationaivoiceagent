@@ -520,6 +520,28 @@ actually ships) from its own venv via `--path`. `security-scan.yml` was **not
 touched** — it is uncommitted-dirty in the primary checkout with an in-flight owner
 CRITICAL gate.
 
+### The gate is proven on CI, not asserted
+
+```
+auditing installed environment at:
+  /opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/site-packages
+Found 1 known vulnerability, ignored 4 in 1 package
+scrapy 2.17.0   PYSEC-2017-83   (no fix versions)
+```
+
+Two things matter in those lines. `--path` resolved to the **real 3.12 environment**,
+so the audit describes the shipped closure rather than a re-resolved fiction. And
+**not one of the eight remediated packages appears** — independent confirmation, from
+a *different vulnerability database* than the one the fixes were derived from, that
+the bumps landed and the CVEs are gone from the installed set.
+
+The one finding is new: OSV carries `PYSEC-2017-83`, the Dependabot list did not. No
+upstream fix exists; nothing imports `scrapy` (transitive via `advertools`) and the
+advisory needs a files/images pipeline — no `S3FilesStore`, `FILES_STORE` or
+`IMAGES_STORE` is configured anywhere in `app/` or `scripts/`. It is therefore a
+**third** documented exception dated 2026-11-08, not a bump. Security-lane head is
+now `150ce4a5`.
+
 ### CP5-4 `VERIFIED_BROKEN` (data integrity) — the test suite writes to a real customer's ledger
 
 Found while verifying, unrelated to dependencies. Running the suite appended
