@@ -70,4 +70,9 @@ If `docs/coordination/AGENT_TEAMS_CANARY.md` is missing, TM2's contract test mus
 ## Labels (do not confuse)
 
 - Scaffolding green (SSOT/loader helpers) ≠ canary PASS.
-- C1 PASS only after live TM1→TM2 merge + lead verify + honest quota note (SSOT `pass_rule` / `quota`).
+- Cursor **PROTOCOL-PASS** ≠ Claude Code Agent Teams CANARY-PASS.
+- Pre-registered Claude AT predictions: [`C1_CLAUDE_AT_PREDICTION.md`](C1_CLAUDE_AT_PREDICTION.md) — fill Observed after that run only.
+
+## Claude Code AT run (next)
+
+Before pasting the lead prompt: note usage baseline + clock. After: usage delta + wall clock + whether **CANARY-SIGNAL** fired again. Interpret SIGNAL yes/no using the **pre-locked** table in `C1_CLAUDE_AT_PREDICTION.md` — no post-hoc rewrite.

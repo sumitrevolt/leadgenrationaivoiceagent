@@ -41,8 +41,10 @@ def test_loader_structure_no_pasted_path_twin():
     assert data["max_teammates"] == 2
     assert data["merge_order"] == ["TM1", "TM2"]
     assert "scaffolding" in data["evidence_labels"]
-    assert "canary_pass" in data["evidence_labels"]
+    assert "prediction_locked" in data["evidence_labels"]
+    assert "claude_at_canary_pass" in data["evidence_labels"]
     assert "canary_not_run" in data["evidence_labels"]
+    assert data["quota"].get("require_baseline_before_run") is True
     requires = data["pass_rule"]["requires"]
     assert "tm1_merged_before_tm2" in requires
     assert "frozen_diff_check_clean" in requires

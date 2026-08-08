@@ -88,12 +88,13 @@ Merge conflicts in **>1 file** on first canary → **FAIL** → single-agent. No
 | **CANARY-PASS** | TM1→TM2 + frozen checks + verify + 0 skipped + quota note | Scaffolding greens |
 | **CANARY-SIGNAL** | TM2 RED vs TM1 after correct merge order | Excuse to weaken asserts |
 
-### Quota (honest measure)
+### Quota (honest measure — F7 still open until Claude AT)
 
-Pre-run estimate ≈ 3×. After run, record only fields you can actually observe
-(`plan_tier`, `wall_clock_minutes`, `operator_total_burn_note`,
-`per_teammate_burn_available`, `decision_for_next_run`). If the UI does not split
-per-teammate burn, set `per_teammate_burn_available: false` — do not fabricate.
+Cursor ~56s + `per_teammate_burn_available=false` does **not** decide 2 vs 3 teammates.
+
+Claude Code run: **baseline before paste**, **delta after verify** (total usage + wall clock).
+Per-teammate split optional. Predictions for SIGNAL vs task-list:
+`docs/coordination/C1_CLAUDE_AT_PREDICTION.md` (**PREDICTION-LOCKED** — fill Observed only).
 
 ### C1 deliverables
 

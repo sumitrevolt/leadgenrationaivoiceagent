@@ -76,11 +76,22 @@ Do NOT edit docs/coordination/AGENT_TEAMS_CANARY.md. Do NOT edit the SSOT YAML.
 
 ## After-run quota note template (lead fills)
 
+**Before paste — baseline (required; F7 still open):**
 ```text
-Canary C1 quota (measured):
+Claude AT baseline:
 - plan_tier:
+- account_usage_note:
+- clock_start_iso:
+```
+
+**After verify — delta only (do not invent per-tm splits):**
+```text
+Canary C1 Claude AT quota (measured):
+- clock_end_iso:
 - wall_clock_minutes:
-- operator_total_burn_note:
+- usage_delta_note:
 - per_teammate_burn_available: false|true
 - decision_for_next_run: keep_2 | try_3_on_max | abort_parallel
 ```
+
+**P1 prediction** is locked in `docs/coordination/C1_CLAUDE_AT_PREDICTION.md` — record Observed there after the run; do not rewrite Predictions.

@@ -31,5 +31,5 @@
 ## Parked
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
-- **ADR-172 Agent Teams C1** — PR #283: **CANARY-SIGNAL** proven (TM1 omitted `agent/tm`; TM2 fail-not-skip). Lead remediated doc → PROTOCOL-PASS (Cursor Task harness). **CLAUDE-CODE-AGENT-TEAMS-CANARY = NOT-RUN** (Windows paste still needed for real quota). F4 gate script added.
+- **ADR-172 Agent Teams C1** — PR #283: Cursor **PROTOCOL-PASS** + **CANARY-SIGNAL** (handled correctly). Claude Code AT canary **NOT-RUN**. Predictions pre-locked in `docs/coordination/C1_CLAUDE_AT_PREDICTION.md` (P1 task-list vs SIGNAL; P2 burn baseline→delta). Windows: prune + baseline before paste.
 - **ADR-173 claw-orchestrator** — REJECT full vendor.

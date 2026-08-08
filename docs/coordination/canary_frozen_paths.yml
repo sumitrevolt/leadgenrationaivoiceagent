@@ -53,19 +53,26 @@ pass_rule:
       (shared task list failed to keep semantic consistency) — lead surfaces it;
       do not silently weaken the test to green.
 
-# Label discipline — do not confuse scaffolding green with canary PASS.
+# Label discipline — do not confuse scaffolding / Cursor protocol with Claude AT canary.
 evidence_labels:
   scaffolding: "SSOT/loader/worktree helper tests green = SETUP only, never quote as canary PASS"
-  canary_pass: "Only after live TM1→TM2 merge + lead verify + measured quota recorded"
-  canary_not_run: "Default until live Claude Code session completes C1"
+  protocol_pass_cursor: "Cursor TM1/TM2 proved harness-agnostic protocol — NOT Agent Teams task-list mediation"
+  canary_signal: "TM2 RED after TM1 merge on semantic miss — do not weaken test"
+  prediction_locked: "docs/coordination/C1_CLAUDE_AT_PREDICTION.md — fill Observed after Claude AT run only"
+  claude_at_canary_pass: "Only after Windows Claude Code Agent Teams run + P1 Observed + P2 baseline→delta"
+  canary_not_run: "Claude Code Agent Teams C1 not executed yet"
 
 quota:
-  estimate_multiplier: 3  # lead + 2 teammates; REPLACE with measured note after run
+  estimate_multiplier: 3  # lead + 2 teammates; REPLACE with measured delta after Claude AT run
   measure_after_run: true
-  # Honest fields Claude Code can actually fill (per-teammate tokens often unavailable).
+  require_baseline_before_run: true
+  # Honest fields — baseline before paste; delta after. Per-tm split optional.
   record_fields:
     - plan_tier  # Pro | Max | other — owner-reported
+    - account_usage_baseline_note  # BEFORE paste
+    - clock_start_iso
+    - clock_end_iso
     - wall_clock_minutes
-    - operator_total_burn_note  # single session/window note; "unknown" allowed if UI lacks split
+    - usage_delta_note  # AFTER − baseline; total session burn
     - per_teammate_burn_available  # true|false — do not invent splits if false
     - decision_for_next_run  # keep_2 | try_3_on_max | abort_parallel
