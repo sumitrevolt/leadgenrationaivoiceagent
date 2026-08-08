@@ -32,4 +32,5 @@
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
 - **ADR-172 Agent Teams C1** — tip `d1042e69` FROZEN/GO; P1 window OPEN (`main=5ae5a4b9`, deliverables absent). **Sumit-only:** prune / Usage baseline / Claude Code paste. **Agents forbidden** to merge #283 or fake those steps. After Observed: agents may interpret + write handoff.
-- **ADR-173 claw-orchestrator** — REJECT full vendor.
+- **ADR-173 claw-orchestrator** — REJECT full vendor; patterns-only.
+- **ADR-174 candidate (parked)** — Cloudflare OS vendor REJECT · Gatekeeper deferred-approval + capability-intro patterns. Full ADR **after** C1 Observed — see `memory/backlog.md`. Do not open mid-canary.
