@@ -54,15 +54,15 @@ Graphify-first, phir raw source verify. Map banao:
 **Windows = source of truth.** `.venv\Scripts\python.exe` use karo. Exact repo commands:
 
 ```bat
-.venv\Scripts\python.exe scripts\prod_check.py
-.venv\Scripts\python.exe scripts\explorer_sync.py --check
-.venv\Scripts\python.exe scripts\cross_path_audit.py
-.venv\Scripts\python.exe scripts\deep_wiring_audit.py
-.venv\Scripts\python.exe scripts\automation_wiring_audit.py
-.venv\Scripts\python.exe scripts\automation_health_audit.py --daily-check
-.venv\Scripts\python.exe scripts\automation_health_audit.py --weekly-audit
-.venv\Scripts\python.exe scripts\check_html_js.py
-.venv\Scripts\python.exe scripts\check_secrets.py
+.venv\Scripts\python.exe scripts/prod_check.py
+.venv\Scripts\python.exe scripts/explorer_sync.py --check
+.venv\Scripts\python.exe scripts/cross_path_audit.py
+.venv\Scripts\python.exe scripts/deep_wiring_audit.py
+.venv\Scripts\python.exe scripts/automation_wiring_audit.py
+.venv\Scripts\python.exe scripts/automation_health_audit.py --daily-check
+.venv\Scripts\python.exe scripts/automation_health_audit.py --weekly-audit
+.venv\Scripts\python.exe scripts/check_html_js.py
+.venv\Scripts\python.exe scripts/check_secrets.py
 ```
 
 Targeted tests (billing/tenant/security/route/admin — pick real suites present in `tests/`, e.g.):
@@ -70,8 +70,9 @@ Targeted tests (billing/tenant/security/route/admin — pick real suites present
 .venv\Scripts\python.exe -m pytest tests\test_billing_truth_2026.py -q
 .venv\Scripts\python.exe -m pytest tests\test_cross_path_telephony.py tests\test_explorer_sync.py -q
 .venv\Scripts\python.exe -m pytest tests\test_2026_features.py -q
+.venv\Scripts\python.exe scripts/run_tests.bat   # full suite
 ```
-(Full: `scripts\run_tests.bat` → phir **`pytest_run.log` Read karo**, console truncate hota hai.)
+(Phir **`pytest_run.log` Read karo** — console truncate hota hai.)
 
 **LIVE claims = separate evidence (kabhi assume mat karo):**
 - `curl.exe -fsS https://leadsgenai.in/health` → `environment:production`, `status:healthy`, aur `version` field note karo (`"latest"` = UNKNOWN-provenance prod, §7 ADR-097).
@@ -96,7 +97,7 @@ Targeted tests (billing/tenant/security/route/admin — pick real suites present
 ### Phase D — TEST (regression + gate)
 - Naye/badle behaviour ke targeted tests green.
 - `prod_check.py` PASS + `check_secrets.py` clean diff + duplicate-route grep clean.
-- Voice-path change → `scripts/agent_tester.py` scorecard.
+- Voice-path change → agent-tester scorecard chalao (repo `scripts/` me — `agent_tester.py`).
 **Stop rule:** koi red test rehte hue Phase E/verdict mat do.
 
 ### Phase E — BROWSER PROOF (real clicks, every visible control)
@@ -111,7 +112,7 @@ Har VISIBLE button/tab/form pe:
 - **Auth/RBAC** — unauth = redirect/401; wrong-tenant = no leak.
 - **Destructive-action confirmations** present (delete/purge/disable = confirm gate).
 Old Explorer fallback still works jab Control Center graphs test kar rahe ho.
-**Stop rule:** button matrix (pass/fail per control) bina verdict mat do. Screenshot/console/network = evidence.
+**Stop rule:** button matrix (pass/fail per control) bina verdict mat do. Screenshot/console/network = evidence. Template: `references/BROWSER_EVIDENCE_TEMPLATE.md`.
 
 ### Phase F — SCORE & VERDICT
 §3 rubrics se score karo, §4 deliverable structure me output do. Evidence ke bina score = us domain me 0 ("hona chahiye" ≠ "hai").
@@ -177,7 +178,7 @@ Also emit the **Loop Engineer 9-field block** (`docs/LOOP_ENGINEER.md`): Goal / 
 
 ## 5. DEPLOY (only if user explicitly approves)
 
-Approval mile to hi: **ONLY** `scripts/deploy_vps.sh` (canonical — haath se docker mat likho), **pinned `APP_VERSION=<sha>`**, **5 app-image services skew check**, **`/health.version` == deployed sha**, **post-deploy browser smoke**. `DRY_RUN=1` = plan print. Bina approval = deploy FORBIDDEN.
+Approval mile to hi: **ONLY** canonical deploy script (repo `scripts/` me — `deploy_vps.sh`), haath se docker mat likho, **pinned `APP_VERSION=<sha>`**, **5 app-image services skew check**, **`/health.version` == deployed sha**, **post-deploy browser smoke**. `DRY_RUN=1` = plan print. Bina approval = deploy FORBIDDEN.
 
 ---
 
