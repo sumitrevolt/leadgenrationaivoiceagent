@@ -225,10 +225,18 @@ def _allowed(agent_id: str, asset: str) -> bool:
 
 
 def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bool:
+    # Sink-side validation (defense in depth): callers already run _safe_agent /
+    # _safe_tenant, but this module boundary must not trust them — agent_id lands
+    # RAW in the filesystem path below, so re-validate here (CodeQL py/path-injection).
+    aid = _safe_agent(agent_id)
+    if not aid:
+        return False
+    if tenant_id and not _safe_tenant(tenant_id):
+        return False
     try:
-        agent_dir = _agent_dir(agent_id, tenant_id)
+        agent_dir = _agent_dir(aid, tenant_id)
         os.makedirs(agent_dir, exist_ok=True)
-        entries_path = _entries_path(agent_id, tenant_id)
+        entries_path = _entries_path(aid, tenant_id)
         with open(entries_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         # Soft trim — keep last N lines if file grows huge
@@ -285,6 +293,9 @@ def offload_ref(agent_id: str, text: str, *, label: str = "ref", tenant_id: str 
         node_id = uuid.uuid4().hex[:12]
         if tenant_id and not _safe_tenant(tenant_id):
             return None
+        # tenant_id is NEVER interpolated raw into a path: _agent_dir ->
+        # _tenant_key() sha256-hexdigests it (safe charset, no separators), so
+        # this join cannot traverse. agent_id above passed _safe_agent.
         rd = _refs_dir(aid, tenant_id)
         os.makedirs(rd, exist_ok=True)
         ref_path = os.path.join(rd, f"{node_id}.md")
@@ -950,6 +961,11 @@ def hub_snapshot(*, max_agents: int = 8) -> dict[str, Any]:
         tenant_scope_count = 0
         if os.path.isdir(root):
             for name in sorted(os.listdir(root))[:80]:
+                # Root-level dirs are agent scopes, all created via _agent_dir with
+                # _safe_agent-validated ids. Skip anything else (shared/foreign)
+                # rather than letting a stray name reach a filesystem join.
+                if not _AGENT_RE.match(name):
+                    continue
                 platform_path = os.path.join(root, name, "entries.jsonl")
                 tenants_dir = os.path.join(root, name, "tenants")
                 scoped_paths = []

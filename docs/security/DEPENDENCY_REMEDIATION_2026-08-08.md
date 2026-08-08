@@ -220,3 +220,29 @@ customer ledgers), which is its own slice. Raised in the Owner packet.
   path this project does not configure, now the third documented exception.
 - Nothing here was deployed. The production image still runs the pre-upgrade lock
   until the Owner approves a build.
+
+---
+
+## 8. Follow-up (same day): the image-level scan was run — and found 2 HIGH
+
+§4 row 8 and §5 item 3 recorded the gap: the GHCR `Trivy image scan` is SKIPPED
+on PR runs, so the built image was never scanned. Closed here with a read-only
+image scan of the live production image `ghcr.io/sumitrevolt/
+leadgenrationaivoiceagent:822cae0b` (Trivy v0.72.0, `--severity HIGH,CRITICAL`):
+
+| vuln | pkg (in image) | fixed in | reachable? | disposition |
+|---|---|---|---|---|
+| GHSA-6v7p-g79w-8964 (HIGH) | msgpack 1.1.2 | 1.2.1 | no `msgpack` import anywhere in `app/` — transitive of the non-locked bakes (pipecat/kokoro/rembg chains in `Dockerfile.lock`) | **fixed** — floor `msgpack>=1.2.1` in `Dockerfile.lock` |
+| CVE-2025-47273 (HIGH, CVSS 8.8) | setuptools 70.3.0 | 78.1.1 | build-time only (`PackageIndex`); app runtime never invokes setuptools | **fixed** — floor `setuptools>=78.1.1` in `Dockerfile.lock` |
+
+**Root cause is the same class as §1:** the lock pins `setuptools==83.0.0` and
+`ormsgpack==1.12.2` (both clean), but the *non-locked* bakes re-resolve their own
+closure and **downgrade** setuptools (to 70.3.0) while pulling msgpack 1.1.2 —
+so a lock-only fix never reaches the image. Fix = one fail-closed hardening RUN
+after all bakes in `Dockerfile.lock` (no `|| echo WARN` — a silently-failed
+security floor would re-ship the vulnerable image). Verified by a local rebuild
+of the image from this commit's `Dockerfile.lock` (`BAKE_HINGLISH_STT=0`):
+final layer carries `msgpack >= 1.2.1` and `setuptools >= 78.1.1`, and the
+ABI-critical set (`numpy/pandas/scipy/sklearn`) is untouched. The four CodeQL
+path-injection alerts from the same window are investigated in
+`docs/security/CODEQL_PATH_INJECTION_2026-08-08.md`.

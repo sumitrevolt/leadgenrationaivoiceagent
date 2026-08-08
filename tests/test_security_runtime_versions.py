@@ -51,13 +51,11 @@ def test_cryptography_runtime_version_fixed() -> None:
 def test_lockfile_matches_runtime() -> None:
     """The shipped lockfile must agree with what is actually importable."""
     lock = importlib.metadata.version("starlette")
-    assert (
-        lock == starlette.__version__
-    ), f"lockfile starlette {lock} != runtime {starlette.__version__}"
+    starlette_msg = f"lockfile starlette {lock} != runtime {starlette.__version__}"
+    assert lock == starlette.__version__, starlette_msg
     lock = importlib.metadata.version("cryptography")
-    assert (
-        lock == cryptography.__version__
-    ), f"lockfile cryptography {lock} != runtime {cryptography.__version__}"
+    crypto_msg = f"lockfile cryptography {lock} != runtime {cryptography.__version__}"
+    assert lock == cryptography.__version__, crypto_msg
 
 
 def test_openssl_runtime_inspectable() -> None:
