@@ -1,0 +1,53 @@
+# Single source of truth for Agent Teams canary frozen paths / conventions.
+# ADR-172 · docs/runbooks/CLAUDE_AGENT_TEAMS.md
+#
+# TM1 docs MUST reference this file (do not re-list paths as a second truth).
+# TM2 tests MUST load this file via scripts/canary_frozen.py (do not paste paths).
+# Editing this file is lead/owner only during a live canary.
+
+schema_version: 1
+canary_id: C1
+branch_prefix: "agent/tm"
+teammate_ids: [1, 2]
+max_teammates: 2
+
+# Globs / path prefixes teammates must not modify.
+frozen_paths:
+  - app/voice_agent/
+  - app/telephony/
+  - scripts/deploy_vps.sh
+  - app/billing/packages.py
+  - ".env"
+  - ".env.*"
+
+# Extra refuse classes (not always single paths).
+frozen_classes:
+  - compliance_gates_section_5  # DND / TRAI window / consent / DPDP — no weaken
+  - fastapi_route_registration  # @router / @app.get|post|… — lead-only if ever
+
+# Stop / pass (machine-readable for the contract test + lead checklist).
+stop_rule:
+  id: merge_conflict_gt_1_file
+  description: "If first canary merge conflicts in more than 1 file → FAIL → single-agent"
+
+pass_rule:
+  id: c1_pass
+  requires:
+    - both_deliverables_merged_by_lead
+    - verify_green_after_merge  # targeted pytest + prod_check + check_secrets + duplicate-route
+    - tm2_test_reads_this_ssot  # never a pasted path copy
+  disagreement:
+    description: >
+      If TM2 test is RED against TM1 doc after merge, that is a canary SIGNAL
+      (shared task list failed to keep semantic consistency) — lead surfaces it;
+      do not silently weaken the test to green.
+
+quota:
+  estimate_multiplier: 3  # lead + 2 teammates; REPLACE with measured burn after run
+  measure_after_run: true
+  record_fields:
+    - lead_session_tokens_or_cost
+    - tm1_tokens_or_cost
+    - tm2_tokens_or_cost
+    - wall_clock_minutes
+    - plan_tier  # Pro | Max | other — owner-reported

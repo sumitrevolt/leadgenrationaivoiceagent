@@ -65,13 +65,13 @@ offline state — the stale case is the one that otherwise goes unnoticed.
 ## Claude Code Agent Teams (coding plane)
 
 Native Claude Code multi-session coordination (ADR-172). Opt-in via
-`.claude/settings.json` → `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Start with
-**2–3 teammates**. Each editing teammate uses an isolated git worktree
-(`scripts/agent_team_worktree.py`) — do not share the dirty primary checkout.
-Agent Teams' task list does **not** replace buzzlock across Cursor/OpenCode/Monkey.
+`.claude/settings.json` → `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Canary: **2 teammates**,
+worktrees `agent/tm{N}/<slug>`, frozen paths from **SSOT**
+`docs/coordination/canary_frozen_paths.yml` (loader `scripts/canary_frozen.py` — never paste
+twins). Lead prompt: `docs/coordination/CANARY_LEAD_PROMPT.md`.
 
-Runbook: `docs/runbooks/CLAUDE_AGENT_TEAMS.md`. Deferred: claw-orchestrator.
-Rejected as primary: Vibe Kanban, Conductor, Claude Squad.
+Runbook: `docs/runbooks/CLAUDE_AGENT_TEAMS.md`. claw-orchestrator: REJECT vendor (ADR-173).
+
 
 ## Hard rules (all tools)
 

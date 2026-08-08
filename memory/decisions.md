@@ -2613,3 +2613,11 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 **Evidence:** `/tmp/claw_orch_eval/claw-orchestrator` README + `openclaw.plugin.json` + `install.sh` + `council.md`.
 
 **Consequence:** ADR-172 path unchanged. No prod/OpenClaw allowlist change.
+
+## 2026-08-08 — Agent Teams C1 amendments (SSOT frozen paths + pass rule + measure quota)
+
+**Context:** Owner green-lit C1 with three amendments: (1) frozen list must be one machine-readable SSOT — doc renders, test reads, no paste twin; (2) pass rule in addition to stop rule; TM2 RED vs TM1 = SIGNAL; (3) replace ~3× quota guess with measured burn after run.
+
+**Decision:** Ship SSOT `docs/coordination/canary_frozen_paths.yml` + `scripts/canary_frozen.py` + lead prompt before live Agent Teams session. TM1/TM2 files remain for the live canary.
+
+**Evidence:** `tests/test_canary_frozen_ssot.py`; runbook + ADR-172 updated.

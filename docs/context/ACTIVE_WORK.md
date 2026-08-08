@@ -31,5 +31,5 @@
 ## Parked
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
-- **ADR-172 Agent Teams + worktrees** — CODE-PRESENT on branch `cursor/claude-agent-teams-worktrees-63d4` (PR #283); canary protocol locked in runbook (2 teammates, C1 recommended). Live canary = owner Claude session — not started in this cloud run.
+- **ADR-172 Agent Teams + worktrees** — PR #283; **C1 owner setup READY** (SSOT yml + loader + lead prompt). Live canary = next Claude Code session using `docs/coordination/CANARY_LEAD_PROMPT.md`. TM1/TM2 deliverables not written yet (intentional).
 - **ADR-173 claw-orchestrator** — REJECT full vendor (eval complete). Do not `install.sh` into LeadGen OpenClaw; patterns-only.

@@ -49,8 +49,10 @@ def test_adr_and_runbook_present():
     runbook = (REPO / "docs" / "runbooks" / "CLAUDE_AGENT_TEAMS.md").read_text(encoding="utf-8")
     assert "Shared task list ≠ file lock" in runbook or "Shared task list" in runbook
     assert "First-route-wins" in runbook
-    assert "C1 (recommended)" in runbook
+    assert "canary_frozen_paths.yml" in runbook
+    assert "Pass rule" in runbook
     assert "agent/tm" in runbook
+    assert (REPO / "docs" / "coordination" / "CANARY_LEAD_PROMPT.md").is_file()
     text = (REPO / "docs" / "adr" / "ADR-173-claw-orchestrator-eval.md").read_text(encoding="utf-8")
     assert "REJECT full install" in text or "REJECT full vendor" in text
     assert "patterns-only" in text.lower() or "FEATURE_HARVEST" in text
