@@ -354,6 +354,40 @@ def _mark_deal_won(phone: str) -> None:
         logger.debug("upi_payments mark_deal_won skipped: %s", e)
 
 
+def _close_order(record: dict, by: str = "system") -> None:
+    """Money for this record is confirmed → flip its bound offer to ``paid``.
+
+    ``submit_payment`` already refuses a reference that is not payable right now,
+    and its own comment (see the order gate) relies on the offer leaving `issued`
+    "once the owner approves". Nothing performed that transition, so an order
+    stayed payable forever: a second submission under the SAME order_ref with a
+    different upi_ref slips past the (upi_ref, client, plan) duplicate guard,
+    lands as a fresh pending row, and on approve runs `_try_activate` again —
+    re-zeroing a metered client's usage period and firing a second GST invoice.
+
+    Called on approve and on auto-activation. NOT called on reject: a rejected
+    claim means the money never arrived, so the order must stay payable for the
+    prospect who really does pay. `offers.mark_status` is idempotent, so a
+    re-approve of an already-closed order is a no-op. Best-effort — a failure
+    here never affects a payment that has already been persisted.
+    """
+    ref = str(record.get("order_ref") or "").strip()
+    if not ref:
+        return
+    try:
+        from app.marketing import offers
+
+        if not offers.mark_status(ref, offers.STATUS_PAID, by=(by or "system")[:80]):
+            logger.warning(
+                "upi_payments could not close order %s for payment %s — "
+                "it stays payable; reconcile manually",
+                ref,
+                record.get("id"),
+            )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_payments close_order failed for %s: %s", ref, e)
+
+
 def submit_payment(
     client_id: str,
     plan: str,
@@ -490,6 +524,8 @@ def submit_payment(
                 record["decided_by"] = "auto"
                 # Persist the updated status (record is the same object in rows).
                 _write_store(rows)
+                # Order is settled — stop it being payable a second time (#240).
+                _close_order(record, by="auto")
                 # Just activated → per-client day-1 onboard (not AUTO_ONBOARD sweep).
                 _trigger_onboarding(cid)
                 _mark_deal_won(record.get("payer_contact", ""))
@@ -552,6 +588,13 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
         record["status"] = "approved" if approve else "rejected"
         record["decided_at"] = _now_iso()
         record["decided_by"] = (decided_by or "admin")[:80]
+
+        # The owner confirming the bank credit IS the payment event (#240). Close
+        # the order here, BEFORE the activation branches below: activation can
+        # legitimately fail or be deferred (unbound client), but the money has
+        # still arrived, so the order must stop being payable either way.
+        if approve:
+            _close_order(record, by=record["decided_by"])
 
         # Fail-closed: empty client_id cannot activate — bind client first.
         if approve and not (record.get("client_id") or "").strip():
