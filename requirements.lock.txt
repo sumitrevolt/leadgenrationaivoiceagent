@@ -176,7 +176,7 @@ prompt_toolkit==3.0.53
 propcache==0.5.2
 Protego==0.6.2
 proto-plus==1.28.2
-protobuf==5.29.6
+protobuf==6.33.5
 psutil==7.2.2
 psycopg2-binary==2.9.12
 ptyprocess==0.7.0
@@ -193,7 +193,7 @@ PyDispatcher==2.0.7
 pydub==0.25.1
 Pygments==2.20.0
 PyJWT==2.13.0
-pyOpenSSL==26.3.0
+pyOpenSSL==26.4.0
 pyparsing==3.3.2
 pypinyin==0.55.0
 pytest==7.4.4

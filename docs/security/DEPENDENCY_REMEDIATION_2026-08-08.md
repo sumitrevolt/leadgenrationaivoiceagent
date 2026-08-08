@@ -52,7 +52,7 @@ the check `tests/test_dependency_security_floors.py` now performs.
 
 Every open alert. `reachable` = is there a code path in this application?
 
-### Fixed — 7 pins raised
+### Fixed — 8 pins raised
 
 | GHSA | sev | package | was | now | source | reachable in prod? | advisory |
 |---|---|---|---|---|---|---|---|
@@ -67,15 +67,23 @@ Every open alert. `reachable` = is there a code path in this application?
 | GHSA-jwv3-5hgf-82ww | high | cryptography | 48.0.0 | **50.0.0** | direct | **yes** | PKCS#7 `EnvelopedData` Bleichenbacher oracle |
 | GHSA-g6cj-pr64-35w5 | high | cryptography | 48.0.0 | **50.0.0** | direct | **yes** | vulnerable OpenSSL in the wheels |
 | GHSA-m2h6-j472-rp4c | med | cryptography | 48.0.0 | **50.0.0** | direct | **yes** | — |
-| GHSA-7gcm-g887-7qv7 | high | protobuf | 4.25.9 | **5.29.6** | transitive (google-*) | low — no `google.protobuf` import in `app/`, `ENABLE_OTEL` unset | JSON recursion-depth bypass |
+| GHSA-7gcm-g887-7qv7 | high | protobuf | 4.25.9 | **6.33.5** | transitive (google-*) | low — no `google.protobuf` import in `app/`, `ENABLE_OTEL` unset | JSON recursion-depth bypass |
+| — (constraint, not a CVE) | — | pyOpenSSL | 26.3.0 | **26.4.0** | direct | **yes** — TLS in the runtime | 26.3.0 declares `cryptography<50,>=49.0.0`, breaking the `cryptography==50.0.0` fix above |
 | GHSA-6hr6-w5qg-qmwg | med | h2 | 4.4.0 | **4.4.1** | transitive (httpx/Twisted) | low — HTTP/2 not enabled on outbound clients | — |
 | GHSA-h35f-9h28-mq5c | med | setuptools | 82.0.1 | **83.0.0** | transitive | build-time | — |
 | GHSA-v3q9-hj7j-63hq | med | aiosmtplib | 3.0.1 | **5.1.1** | direct | **yes** — live cold-email outreach | — |
 | GHSA-g92j-qhmh-64v2 | low | sentry-sdk | 1.39.2 | **1.45.1** | direct | **yes** — Sentry is armed in prod | — |
 | GHSA-fj7x-q9j7-g6q6 | med | black | 24.1.1 | **24.3.0** | dev manifest only | no | — |
 
-`protobuf 4.25.9 -> 5.29.6` also repairs a broken constraint:
-`google-api-core==2.31.0` already required `protobuf>=5.29.6`.
+`protobuf 4.25.9 -> 5.29.6` also repaired a broken constraint:
+`google-api-core==2.31.0` already required `protobuf>=5.29.6` — and the gate's
+second CI run surfaced the rest of that class: `grpcio-status==1.83.0`,
+`google-cloud-logging==3.16.1` and `google-cloud-secret-manager==2.30.0` all
+declare `protobuf>=6.33.5,<8`. Raised to **6.33.5** (satisfies all three and
+stays above the 5.29.6 floor). `pyOpenSSL` followed the same pattern:
+`pyOpenSSL==26.3.0` declares `cryptography<50,>=49.0.0` and blocked the
+`cryptography==50.0.0` fix; **26.4.0** declares `cryptography<51,>=49.0.0`
+(PyPI-verified) and resolves with the 50.0.0 pin.
 
 `starlette` target is **1.3.1**, not latest. 1.3.1 (2026-06-12) is the *lowest*
 version that clears all seven advisories — the minimum compatible upgrade.
