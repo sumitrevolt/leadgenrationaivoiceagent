@@ -355,7 +355,7 @@ production automation health.**
 | 5 | SLO / monitoring / alerting | `WORKING_AND_PROVEN` (config) | `monitoring/alert_rules.yml` carries `HostMemoryHigh`, `HostDiskLow`, `ContainerHighMemory`, `RedisMainNearFull` etc. |
 | 6 | Capacity / cost | `OPTIONAL_IMPROVEMENT` / RISK | see CP5-1 — one sample, alert not fired |
 | 7 | Migrations / rollback | `WORKING_AND_PROVEN` | **single** alembic head `023_add_prospective_memory` across 23 revisions — no fork, no ambiguous `upgrade head`; `migrations.yml` CI green |
-| 8 | Dependency / supply chain | `WORKING_AND_PROVEN` | `security-scan.yml` success on `origin/main` tip (`5ae5a4b9`, 2026-08-07); `requirements.lock.txt` is the single pinned source |
+| 8 | Dependency / supply chain | **`VERIFIED_BROKEN`** | see CP5-3 — `security-scan.yml` is green but **29 Dependabot alerts are open** (8 high) |
 | 9 | Privacy / DPDP retention | `WORKING_BUT_UNVERIFIED` | see CP5-2 |
 | 10 | Billing / invoice / reconciliation | `VERIFIED_BROKEN` → 1 fixed, 1 open | CP2-1 (fixed) + CP2-2 (open) |
 | 11 | Comms / consent / voice compliance | `WORKING_AND_PROVEN` (code path) | CP3-2 |
@@ -383,6 +383,40 @@ host that also runs Postgres, Redis, Qdrant, FreeSWITCH, five app-image services
 container `mem_limit` tuning is a production change requiring Owner approval. Flagged
 for the Owner with the two candidate levers already named in the alert's own
 description (container mem_limits, or leak check).
+
+### CP5-3 `VERIFIED_BROKEN` (supply chain) — a green CI scan is hiding 29 open Dependabot alerts
+
+Surfaced by the push itself, not by any gate this session ran:
+
+```
+remote: GitHub found 29 vulnerabilities on ...'s default branch
+        (8 high, 16 moderate, 5 low)
+```
+
+Confirmed via `gh api .../dependabot/alerts` → **8 high, 16 medium, 5 low, all `open`**.
+The high ones sit in the request path and the crypto path:
+
+| package | advisory |
+|---|---|
+| `starlette` | SSRF + NTLM credential theft via UNC paths in `StaticFiles` |
+| `starlette` | DoS via `multipart/form-data` |
+| `starlette` | `request.form()` limits silently ignored for `x-www-form-urlencoded` |
+| `cryptography` | vulnerable OpenSSL shipped in the wheels |
+| `cryptography` | PKCS#7 `EnvelopedData` Bleichenbacher oracle |
+| `cryptography` | duplicate self-signed intermediates → chain-building expense |
+| `protobuf` | JSON recursion-depth bypass |
+| `ecdsa` | Minerva timing attack on P-256 |
+
+**Why the gates missed it.** `security-scan.yml` passing is a *different* assertion
+from "no known-vulnerable dependency is pinned". `requirements.lock.txt` being the
+single pinned source is exactly what makes the alerts actionable **and** what keeps
+them frozen until someone bumps the lock. I originally scored this domain
+`WORKING_AND_PROVEN` on the CI signal alone — that was wrong, and it is the same
+"green dashboard hides the failure" shape this brief asks to hunt.
+
+Not fixed here: bumping pins in `requirements.lock.txt` is a full-suite-revalidation
+change and collides with nobody's branch but needs its own slice and its own test
+budget. Added to the Owner packet as item 9.
 
 ### CP5-2 `WORKING_BUT_UNVERIFIED` (DPDP) — 90-day recording purge is report-only by default
 
@@ -492,6 +526,12 @@ regression, or a `could not close order` warning appearing in production logs.
    these files are held by Cursor / PR #283. Assign the refresh to their owner.
 8. **Optional:** revoke the burned `GEMINI_API_KEY` in the Google console (voice
    already moved off Gemini, so revocation is now zero-impact).
+9. **Dependency bump slice (CP5-3).** 29 open Dependabot alerts, 8 high — `starlette`
+   (SSRF via UNC paths in `StaticFiles`, multipart DoS, ignored form limits),
+   `cryptography` (vulnerable bundled OpenSSL, PKCS#7 Bleichenbacher), `protobuf`,
+   `ecdsa`. `starlette` is on the live request path, so this is the highest-severity
+   *unfixed* finding in this report. Needs its own slice with a full revalidation
+   budget, since `requirements.lock.txt` is the single pinned source.
 
 ### Not done, and why
 
@@ -515,7 +555,7 @@ Evidence base: candidate `5ae5a4b9` + `e10a34c9`; deployed `42493e3f`; probes 20
 | **Product 2** | **WAIT** | Session/daily caps, atomicity, idempotency and the fail-closed compliance spine are TEST-PROVEN at this HEAD (CP3-1/2). No provider-side proof: no call placed, no cost/outcome/recording evidence, prod flag values unread. | Owner-approved allowlisted canary + packet item 4 |
 | **Revenue readiness** | **WAIT** | Manual UPI is the canonical rail and is armed; CP2-1 closes a double-activation + duplicate-invoice hole. Reconciliation is still a name match until #240 has a producer. **1 paying customer, MRR ₹1,999 — revenue-ready ≠ revenue-generated.** | packet items 2, 6 |
 | **Automation readiness** | **WAIT** | 364 flags / 43 jobs / 44 beat tasks wired with zero drift, semantically typed, machine-verified (CP4-1). Held back only because the local health-audit green is N/A rather than proof, and prod DLQ/flag state is unread (CP4-2/3). | packet item 4 |
-| **Enterprise readiness** | **WAIT** | 9 of 12 domains proven or config-proven: single alembic head, green supply-chain scan, hardened exact-SHA deploy with auto-rollback, fail-closed compliance, clean secret gates. Blocked by capacity headroom (CP5-1) and unverified DPDP purge (CP5-2). | packet items 4, 5 |
+| **Enterprise readiness** | **NO-GO** | 8 of 12 domains proven or config-proven: single alembic head, hardened exact-SHA deploy with auto-rollback, fail-closed compliance, clean secret gates, 140 auth/isolation tests. Downgraded from WAIT to **NO-GO** on CP5-3: **8 high-severity dependency CVEs are open, including `starlette` SSRF and multipart DoS on the live request path.** Also open: DPDP purge unverified (CP5-2), capacity headroom (CP5-1). | packet item 9 first, then 4, 5 |
 | **Production release** | **NO-GO** | Not the code — the **coordination state**. Two branches including the primary checkout's 35 uncommitted files sit on a rewritten-away lineage (CP0-F1). Releasing before that is resolved risks re-introducing purged history. Independently, no deploy may proceed without explicit Owner approval. | packet item 1, then 2, then 3 |
 
 **Containment status:** production untouched by this session — no flag flip, no env
