@@ -87,6 +87,21 @@ EXCEPTIONS: dict[str, dict[str, str]] = {
         ),
         "expires": "2026-11-08",
     },
+    "scrapy": {
+        "ghsa": "PYSEC-2017-83",
+        "severity": "medium",
+        "fixed_version": "NONE - no upstream fix listed",
+        "reachability": (
+            "DoS by reading arbitrarily many files into memory, via the interaction "
+            "between dataReceived and S3FilesStore. Surfaced by the new pip-audit "
+            "gate on its first run (OSV carries it; the Dependabot list did not). "
+            "Nothing imports scrapy - it arrives transitively through advertools - "
+            "and the advisory's code path needs a files/images pipeline: no "
+            "S3FilesStore, FILES_STORE or IMAGES_STORE is configured anywhere in "
+            "app/ or scripts/."
+        ),
+        "expires": "2026-11-08",
+    },
     "pytest": {
         "ghsa": "GHSA-6w46-j5rx-g56g",
         "severity": "medium",

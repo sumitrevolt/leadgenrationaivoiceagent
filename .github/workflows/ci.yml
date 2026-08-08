@@ -143,6 +143,11 @@ jobs:
         # test_exceptions_have_not_expired turns the build RED once they lapse.
         #   GHSA-wj6h-64fc-37mp  ecdsa    no upstream fix exists; unreachable on HS256
         #   GHSA-6w46-j5rx-g56g  pytest   test runner, never imported by app code
+        #   PYSEC-2017-83        scrapy   no upstream fix; transitive via advertools,
+        #                                 and no FILES_STORE/S3FilesStore pipeline is
+        #                                 configured, so the code path does not exist
+        #                                 here. Found by THIS gate on its first run —
+        #                                 OSV carries it, the Dependabot list did not.
         #
         # pip-audit lives in its OWN venv and reaches the audited environment via
         # `--path`. Installing it into the audited env would let its own dependency
@@ -160,7 +165,8 @@ jobs:
             --desc on \
             --progress-spinner off \
             --ignore-vuln GHSA-wj6h-64fc-37mp \
-            --ignore-vuln GHSA-6w46-j5rx-g56g
+            --ignore-vuln GHSA-6w46-j5rx-g56g \
+            --ignore-vuln PYSEC-2017-83
 
       - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
         # Schema + allowlist coherence: no stale entries, no unknown store ids,

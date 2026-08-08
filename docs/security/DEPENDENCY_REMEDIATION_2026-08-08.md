@@ -91,6 +91,7 @@ RED the day one lapses, so neither can quietly become permanent.
 |---|---|---|---|---|---|
 | GHSA-wj6h-64fc-37mp | **high** | ecdsa 0.19.2 | **none exists** | Minerva timing attack on P-256. Reaches the app only through `python-jose`, and `settings.jwt_algorithm` defaults to **HS256** (`app/config.py:261`) — a symmetric MAC that never touches an EC curve. Pinned by `test_jwt_algorithm_is_symmetric`, which fails if JWT ever moves to ES256/384/512. | 2026-11-08 |
 | GHSA-6w46-j5rx-g56g | med | pytest 7.4.4 | 9.0.3 | tmpdir symlink pre-creation. pytest is never imported by app code, so it is on no request path. 7.4.4 → 9.0.3 is a two-major bump across 750+ test files — the opposite of a minimum compatible upgrade. Own slice. | 2026-11-08 |
+| PYSEC-2017-83 | med | scrapy 2.17.0 | **none listed** | **Found by this gate on its first successful run** — OSV carries it, the Dependabot list did not. DoS by reading arbitrarily many files into memory via `dataReceived` ↔ `S3FilesStore`. Nothing imports scrapy (transitive via `advertools`), and the advisory needs a files/images pipeline: no `S3FilesStore`, `FILES_STORE` or `IMAGES_STORE` is configured anywhere in `app/` or `scripts/`. | 2026-11-08 |
 
 ### Out of scope — not this runtime
 
@@ -193,8 +194,21 @@ customer ledgers), which is its own slice. Raised in the Owner packet.
 
 - `import app.main` under the amended lock is verified by CI, not locally (§4 row 7).
   If CI goes red on this PR, that is the finding — do not re-mute the gate.
-- `pip-audit` could not be dry-run locally (`uvloop` is Linux-only), so the first CI
-  run is the first real execution of the now-blocking step. If it surfaces vulns
-  beyond this ledger, fix them or add them here with a justification and expiry.
+- ~~`pip-audit` could not be dry-run locally~~ — **resolved.** The gate ran on CI and
+  worked exactly as designed:
+
+  ```
+  auditing installed environment at: /opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/site-packages
+  Found 1 known vulnerability, ignored 4 in 1 package
+  scrapy 2.17.0  PYSEC-2017-83  (no fix versions)
+  ```
+
+  Two things that matter in those three lines. First, **`--path` resolved to the real
+  3.12 environment**, so the audit describes the shipped closure rather than a
+  re-resolved fiction. Second, **not one of the eight remediated packages appears** —
+  that is independent confirmation, from a different vulnerability database than the
+  one the fixes were derived from, that the bumps landed and the CVEs are gone from
+  the installed set. The single finding is a fixless transitive advisory on a code
+  path this project does not configure, now the third documented exception.
 - Nothing here was deployed. The production image still runs the pre-upgrade lock
   until the Owner approves a build.
