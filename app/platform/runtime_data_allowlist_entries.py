@@ -331,13 +331,13 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "platform.workforce_memory.tenant_scope_directory_read",
         "file": "app/platform/workforce_memory.py",
-        "line_or_symbol": "tenants_dir",
-        "path_pattern": "tenants",
+        "line_or_symbol": "scope_path",
+        "path_pattern": "entries.jsonl",
         "store_id": "platform.workforce_memory",
         "access_modes": ["READ"],
         "reason": (
-            "Retention and status traversal enumerate hashed tenant-scope directories "
-            "inside each STAFF memory root."
+            "Status traversal (hub_snapshot) reads tenant-scope entries.jsonl inside "
+            "each STAFF memory root, gated by _contained_under."
         ),
         "migration_tier": 2,
         "target_change_set": "runtime-data-cutover-wave-2",
@@ -408,7 +408,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "platform.workforce_memory.agent_dir",
         "file": "app/platform/workforce_memory.py",
         "line_or_symbol": "agent_dir",
-        "path_pattern": "_root()",
+        "path_pattern": "agent_id",
         "store_id": "platform.workforce_memory",
         "access_modes": ["DELETE", "CREATE"],
         "reason": (
