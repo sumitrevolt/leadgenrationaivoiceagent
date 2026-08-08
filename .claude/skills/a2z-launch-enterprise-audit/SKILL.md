@@ -13,7 +13,7 @@ description: LeadGen "A-to-Z Launch & Enterprise Audit" master prompt — does N
 
 ## 0. HARD ASSUMPTIONS (NEVER weaken — abort > weaken)
 
-- `platform_dial` = **three-layer HARD OFF** rehta hai (`PLATFORM_DIAL_DAILY=0` + `data/platform_dial.json enabled:false` + scheduler override paused). Re-enable = out of scope.
+- `platform_dial` = **FULL CAMPAIGN LIVE (owner go-ahead 2026-08-02)** — `PLATFORM_DIAL_DAILY=1` (boolean ON/OFF, count NAHI) · `PLATFORM_DIAL_LIMIT=100` (per-run cap) · `VOICE_LAUNCH_KILL=0` · `DIAL_TEST_MODE=0` · `VOICE_DAILY_CALL_CAP=100`; daily 11:30 IST scheduler auto-dials up to per-run cap (niche=all). Compliance spine UNTOUCHED: DND fail-closed · TRAI window · AI-disclosure · consent · `DLT_APPROVED=1`. Kill-switch: hamesha **running-container** `VOICE_LAUNCH_KILL` verify karo (host `.env` ≠ container env; `1` = web/revenue live but calling gated). Rollback: `.env.bak-fullcampaign-20260802075851` (restore + recreate).
 - TRAI/DND/AI-disclosure gates INTACT: DND scrub **fail-CLOSED**, promo window 9am–7pm, "ek AI assistant" disclosure at call start, consent opt-out = instant cross-channel suppression. Foreign trunks India-domestic = ILLEGAL.
 - DPDP: purpose limitation + data minimisation + 90-din recording retention + purge API + cross-tenant leak KABHI nahi.
 - **Free AI-provider stack only** — koi paid STT/TTS/LLM add mat karo.
@@ -129,7 +129,7 @@ Score Marketing product AUR standalone Voice product **separately**. Money-path 
 - `activation/summary` → `ready_for_first_paid_customer:true`, `blocker_count:0`.
 - No open **P0** in the money path.
 Verdict: **GO** = all green + 0 P0/P1 in money path · **CONDITIONAL GO** = green with named owner/external blocker (env/creds/DLT) · **HOLD** = P0 in money path or journey break.
-(Repo truth baseline: Marketing = sellable; Voice standalone = code-ready, cold-outbound commercial-blocked by DLT + `platform_dial` HARD OFF.)
+(Repo truth baseline: Marketing = sellable; Voice standalone = code-ready, cold-outbound **FULL CAMPAIGN LIVE** since 2026-08-02 — DLT approved (`DLT_APPROVED=1`), bounded caps + compliance spine active; treat any "HARD OFF" claim as stale unless re-probed.)
 
 ### 3.2 Production Ready (per product: GO / CONDITIONAL GO / HOLD)
 - `prod_check.py` ALL PASSED + `/health` `environment:production` + `version` ≠ `"latest"`.
