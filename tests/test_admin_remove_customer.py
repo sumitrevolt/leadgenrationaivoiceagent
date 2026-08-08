@@ -76,7 +76,7 @@ def _seed(client, *, login=True, schedule=3, prospect=True, brand=True, derived=
             content_schedule.schedule(
                 business_name="Estique Salon & Spa",
                 niche="beauty_salon",
-                date_iso=f"2026-08-{10+i:02d}",
+                date_iso=f"2026-08-{10 + i:02d}",
                 occasion=f"occasion{i}",
                 channel="instagram",
                 client_id=CID,
