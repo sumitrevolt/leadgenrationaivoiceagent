@@ -492,6 +492,12 @@ found by the new gate on its own first CI run — `google-cloud-bigquery→packa
 starlette symbols, all present in 1.3.1, which is why a 0.35→1.3 jump is far
 smaller than it looks.
 
+`packaging==25.0` was the one pin derived from a resolver error rather than an
+advisory, so it was verified separately: a **resolving** (not `--no-deps`) dry-run
+install of `packaging==25.0` together with all five packages the resolver named
+(`google-cloud-aiplatform`, `google-cloud-bigquery`, `huggingface_hub`,
+`marshmallow`, `onnxruntime`) exits 0 with no conflict.
+
 ### Accepted: 2 exceptions, justified and dated 2026-11-08
 
 `ecdsa` (GHSA-wj6h-64fc-37mp, **no upstream fix**; unreachable because
@@ -539,12 +545,23 @@ documented `team_pulse` hang could not hide the rest.
 
 | shard | files | result |
 |---|---|---|
-| 00 | 120 | **0 failures**, 10 declared skips, exit 0 |
-| 01 | 119 | **11 failures — all expected**: only `test_dependency_security_floors.py`'s environment-dependent assertions, failing because the *primary venv is the vulnerable stack* (starlette 0.35.1). No other failure. |
-| 02–05 | 507 | see the run log; **no timeouts observed in completed shards** |
+| 00 | 120 | **completed** — 0 failures, 10 declared skips, exit 0 |
+| 01 | 119 | **completed** — 11 failures, **all expected**: only `test_dependency_security_floors.py`'s environment-dependent assertions, failing because the *primary venv is the vulnerable stack* (starlette 0.35.1). No other failure. |
+| 02 | 127 | **completed** — 0 failures, exit 0 |
+| 03 | 132 | **partial** — 0 failures at 68 %; still running when this session closed |
+| 04 | 121 | **NOT EXECUTED** |
+| 05 | 127 | **NOT EXECUTED** |
 
-A timeout is not a pass: none of the completed shards recorded one, and any that do
-are reported as timeouts, not skips.
+**Honest coverage: 366 of 746 files completed, ~90 in progress, 248 unexecuted.**
+Unexecuted is its own category — it is neither a pass nor a skip, and the shards
+that did not run are not evidence of anything. A timeout is likewise not a pass:
+**zero timeouts** were recorded in the completed shards, and any that appear would
+be reported as timeouts.
+
+The shard design is the deliverable here regardless of how far it got: the
+documented `team_pulse` hang can no longer swallow the whole suite, because a hang
+is now bounded to one 90 s test inside one 1500 s shard and the other five still
+report.
 
 ## PHASE D — CP2-2 handoff (no file conflict)
 
