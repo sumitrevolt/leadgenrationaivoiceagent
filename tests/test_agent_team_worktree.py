@@ -46,7 +46,11 @@ def test_settings_enable_agent_teams_flag():
 def test_adr_and_runbook_present():
     assert (REPO / "docs" / "adr" / "ADR-172-claude-agent-teams-worktrees.md").is_file()
     assert (REPO / "docs" / "adr" / "ADR-173-claw-orchestrator-eval.md").is_file()
-    assert (REPO / "docs" / "runbooks" / "CLAUDE_AGENT_TEAMS.md").is_file()
+    runbook = (REPO / "docs" / "runbooks" / "CLAUDE_AGENT_TEAMS.md").read_text(encoding="utf-8")
+    assert "Shared task list ≠ file lock" in runbook or "Shared task list" in runbook
+    assert "First-route-wins" in runbook
+    assert "C1 (recommended)" in runbook
+    assert "agent/tm" in runbook
     text = (REPO / "docs" / "adr" / "ADR-173-claw-orchestrator-eval.md").read_text(encoding="utf-8")
     assert "REJECT full install" in text or "REJECT full vendor" in text
     assert "patterns-only" in text.lower() or "FEATURE_HARVEST" in text
@@ -67,6 +71,27 @@ def test_outside_root_refused(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as ei:
         atw._assert_under_root(outside)
     assert "REFUSED" in str(ei.value)
+
+
+def test_teammate_branch_naming(tmp_path):
+    root = tmp_path / "wt-root"
+    root.mkdir()
+    env = {**os.environ, "AGENT_TEAM_WORKTREE_ROOT": str(root)}
+    slug = "canary-docs"
+    create = _run(["create", "--name", slug, "--teammate", "1", "--base", "HEAD"], env=env)
+    assert create.returncode == 0, create.stderr + create.stdout
+    assert "agent/tm1/" in create.stdout
+    wt = root / f"agent-team-tm1-{slug}"
+    assert wt.is_dir()
+    head = subprocess.run(
+        ["git", "-C", str(wt), "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert head.stdout.strip() == f"agent/tm1/{slug}"
+    removed = _run(["remove", "--name", slug, "--teammate", "1", "--force"], env=env)
+    assert removed.returncode == 0, removed.stderr + removed.stdout
 
 
 def test_create_list_remove_roundtrip(tmp_path):

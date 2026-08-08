@@ -1,6 +1,6 @@
 # Runbook — Claude Code Agent Teams + worktrees
 
-Decision: `docs/adr/ADR-172-claude-agent-teams-worktrees.md`
+Decision: `docs/adr/ADR-172-claude-agent-teams-worktrees.md` · eval reject: `docs/adr/ADR-173-claw-orchestrator-eval.md`
 Upstream: https://code.claude.com/docs/en/agent-teams
 
 ## What this is / is not
@@ -13,6 +13,17 @@ Upstream: https://code.claude.com/docs/en/agent-teams
 
 Workforce stays **31 STAFF**. OpenClaw stays Owner Copilot edge. Agent Teams teammates
 are **Claude Code sessions**, not STAFF agents.
+
+## Two landmines (read before any canary)
+
+1. **Shared task list ≠ file lock.** Agent Teams coordination is advisory — it reduces
+   duplicate *task claiming*, it does **not** enforce exclusive file writes. Real
+   isolation = **git worktree per teammate** (ADR-172) + buzzlock. **Merge order stays
+   with the lead.**
+2. **First-route-wins = silent death.** Two teammates can each add a route in separate
+   worktrees, both green locally; after merge one route is shadowed. Canary tasks must
+   be **docs/tests-only** or additive **non-route** modules — or route registration is
+   **lead-only**.
 
 ## Enable (local operator)
 
@@ -29,63 +40,85 @@ Project settings already set the experimental flag (ADR-172):
 File: `.claude/settings.json`. To disable for one machine, override in
 `~/.claude/settings.json` or unset the env var in the shell before `claude`.
 
-Requires Claude Code **≥ v2.1.178** (teammate spawn without TeamCreate/TeamDelete).
+Requires Claude Code **≥ v2.1.178**. Display: prefer **in-process** on Windows.
 
-Display: prefer **in-process** on Windows (default). Split-pane needs tmux/iTerm —
-not the primary path here.
+## Canary protocol (first live run)
 
-## First team (2–3 teammates only)
+| Rule | Value |
+|------|--------|
+| Teammates | **2 max** (not 3 — learn coordination overhead first) |
+| Worktree | 1 per teammate via `scripts/agent_team_worktree.py --teammate {1,2}` |
+| Branch | `agent/tm{1,2}/<slug>` |
+| Lead owns | merge order · any route registration · final `/verify` |
+| Teammate "done" | **not** evidence — lead exit codes are DoD |
+| Quota | ~3× burn (lead + 2) on the same Claude pool as Cowork/chat |
 
-Start small. Example lead prompt:
+### Frozen (no teammate may touch)
+
+- `app/voice_agent/**`, `app/telephony/**` (Swara/voice FROZEN)
+- Compliance / §5 gates (DND, TRAI window, consent, DPDP code paths)
+- `scripts/deploy_vps.sh`, `.env*`, `app/billing/packages.py`
+- Any new `@router` / `@app.(get|post|…)` registration (lead-only if ever needed)
+
+### DoD (lead only)
+
+1. Targeted pytest (exit 0)
+2. `scripts/prod_check.py` (exit 0)
+3. `scripts/check_secrets.py` (clean)
+4. Duplicate-route grep / prod_check route collision = 0
+
+### Stop rule
+
+If the first canary merge has **conflict in >1 file** → canary **FAIL** → revert to
+single-agent. Do not “push through” with a third teammate.
+
+### Lead spawn prompt (copy)
 
 ```text
-Spawn exactly 2 teammates for disjoint work. Each must operate only inside its
-own git worktree (see scripts/agent_team_worktree.py). Claim files with
-buzzlock before edit. Never touch Swara/voice, deploy_vps.sh, billing packages,
-or compliance gates. Require plan approval before any write.
+Spawn exactly 2 Agent Teams teammates (not subagents). Require plan approval
+before any write.
 
-Teammate A: investigate X and write findings only under docs/ or tests/.
-Teammate B: investigate Y on a different path set.
-Synthesize when both idle.
+Each teammate works ONLY inside its own git worktree:
+  python3 scripts/agent_team_worktree.py create --name <slug> --teammate 1|2 --base origin/main
+Branch must be agent/tm{1,2}/<slug>. buzzlock claim before edit.
+
+FROZEN for teammates: app/voice_agent/**, app/telephony/**, compliance gates,
+scripts/deploy_vps.sh, .env*, app/billing/packages.py, and ANY new FastAPI route
+registration (lead-only).
+
+Teammate 1 / Teammate 2: see assigned disjoint paths below.
+I (lead) own merge order, route registration if any, and final verify
+(pytest + prod_check + check_secrets + duplicate-route). Your "done" is not evidence.
 ```
 
-If Claude spawns **subagents** instead of a team, ask again and say **agent team**
-explicitly (subagents and teammates share the same panel UI).
+## Canary task candidates (pick ONE — coordination test, not a feature sprint)
 
-## Worktree isolation (mandatory)
+Open GH issues `#240` (payment seam) and `#185` (Jiya creative brief) are **wrong** for
+canary 1 — revenue / customer / Creative OS risk. Prefer docs/tests-only:
 
-Primary checkout is chronically dirty. Parallel teammates must not share it.
+| ID | Shape | Teammate 1 | Teammate 2 | Why safe |
+|----|--------|------------|------------|----------|
+| **C1 (recommended)** | Docs + contract test | Add `docs/coordination/AGENT_TEAMS_CANARY.md` (checklist + stop rule + frozen list) | Add `tests/test_agent_teams_canary_contract.py` asserting frozen globs + branch prefix `agent/tm` appear in runbook/ADR | Zero app code; tests coordination merge only |
+| **C2** | Disjoint docs | Expand R7 Agent Teams note examples in `docs/AGENT_WORK_RULES.md` only | Expand Operator FAQ section in `docs/coordination/README.md` only | Two files, no routes, no scripts |
+| **C3** | Additive non-route helper | `scripts/agent_team_canary_status.py` — print worktree list + frozen reminder (stdout only) | `tests/test_agent_team_canary_status.py` — CLI `--help` / exit 0 smoke | No FastAPI; lead still runs prod_check |
+
+**Vote:** start with **C1**. First run proves Agent Teams + worktree + lead-merge, not product value.
+
+## Worktree commands
 
 ```bash
-# Create (allowlisted root; default EXTERNAL_AGENT_WORKTREE_ROOT or sibling _leadgen_worktrees)
-python3 scripts/agent_team_worktree.py create --name review-auth --base origin/main
-
-# List
+python3 scripts/agent_team_worktree.py create --name canary-docs --teammate 1 --base origin/main
+python3 scripts/agent_team_worktree.py create --name canary-tests --teammate 2 --base origin/main
 python3 scripts/agent_team_worktree.py list
-
-# Remove when done
-python3 scripts/agent_team_worktree.py remove --name review-auth
+python3 scripts/agent_team_worktree.py remove --name canary-docs --teammate 1 --force
 ```
 
-Env overrides (names only — never commit values):
-
-| Env | Purpose |
-|-----|---------|
-| `AGENT_TEAM_WORKTREE_ROOT` | Preferred root for agent-team worktrees |
-| `EXTERNAL_AGENT_WORKTREE_ROOT` | Fallback (same as external_agents runner) |
-
-Branch created: `claude/agent-team-<slug>`.
-
-Each teammate session should `cd` into its worktree before editing.
+Env: `AGENT_TEAM_WORKTREE_ROOT` (preferred) or `EXTERNAL_AGENT_WORKTREE_ROOT`.
 
 ## buzzlock still required
 
-Agent Teams' shared task list prevents *some* collisions; it does **not** replace
-cross-tool locks (Cursor/OpenCode/Monkey on the same paths).
-
 ```bash
 python3 scripts/buzzlock.py claim <paths> --tool CLAUDE --reason "<one line>"
-# ... work ...
 python3 scripts/buzzlock.py release <paths> --tool CLAUDE --evidence "<exit code / tests>"
 ```
 
@@ -98,15 +131,14 @@ Exit 2 on claim = stop; pick different files.
 - `scripts/deploy_vps.sh` or manual compose on VPS
 - Swara / voice path edits (FROZEN)
 - Weakening DND / TRAI window / consent / DPDP
+- New route registration (canary: lead-only / prefer none)
 - Routing Claude subscription OAuth into OpenCode
-- Vendoring claw-orchestrator / Vibe Kanban as control plane
+- Vendoring claw-orchestrator / Vibe Kanban as control plane (ADR-173)
 
 ## Quota
 
-Each teammate is a separate Claude instance on the **same subscription pool**.
-2–3 teammates is the default ceiling until the owner confirms plan headroom.
-Cursor implementation waves do not burn Claude Code quota — use that when
-Claude quota is the bottleneck.
+2 teammates ≈ **3×** token burn (lead + 2) on the same Claude subscription pool as
+Cowork/chat. Cursor waves do not burn that pool — use Cursor when quota is the bottleneck.
 
 ## Relation to PR Factory
 
@@ -115,18 +147,13 @@ Claude quota is the bottleneck.
 | Interactive Claude Code parallel work | Agent Teams + this runbook |
 | Owner OS–governed Cursor/Claude missions | `tools/pr_factory` → `external_agents` (flags OFF by default) |
 
-Do not invent a third mission store.
-
 ## Later
 
-- **claw-orchestrator** — **REJECT full vendor** (ADR-173). Diagram match is real;
-  authority model is inverted (65-tool `childProcess` plugin + `bypassPermissions`
-  council vs Owner OS sole authority). Patterns-only into `external_agents` / Agent Teams.
-  Revisit only under ADR-173 “When to revisit” gates.
+- **claw-orchestrator** — REJECT full vendor (ADR-173). Patterns-only.
 - **Vibe Kanban** — avoid as production dependency.
 
 ## Rollback
 
 1. `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0`
-2. `python3 scripts/agent_team_worktree.py remove --name <slug>` for each leftover
-3. Resume single-session + buzzlock workflow
+2. `python3 scripts/agent_team_worktree.py remove --name <slug> [--teammate N] --force`
+3. Single-agent + buzzlock

@@ -31,22 +31,27 @@ free-stack mandate already covers OpenCode keys).
    **2–3 teammates** (Anthropic guidance).
 3. **Worktree isolation is mandatory** for every teammate that edits code. Use
    `scripts/agent_team_worktree.py` (allowlisted root, same family as
-   `EXTERNAL_AGENT_WORKTREE_ROOT` / `_leadgen_worktrees`). Never edit the chronically
-   dirty primary checkout from parallel teammates.
+   `EXTERNAL_AGENT_WORKTREE_ROOT` / `_leadgen_worktrees`). Canary branches:
+   `agent/tm{1,2}/<slug>` via `--teammate`. Never edit the chronically dirty primary
+   checkout from parallel teammates.
 4. **buzzlock still applies** inside each worktree for shared paths; Agent Teams' task
-   list does not replace `docs/coordination/LOCKS.json`.
+   list is **advisory** — it does not enforce exclusive file writes. Merge order = lead.
 5. **Frozen / RED surfaces stay RED:** Swara/voice, `deploy_vps.sh`, TRAI/DND/consent/DPDP,
    billing truth — teammates must not mutate these without owner "haan" (R8/R10).
-6. **claw-orchestrator** — evaluated in **ADR-173**: reject full vendor / OpenClaw plugin
+   First canary: **no teammate route registration** (FastAPI first-route-wins landmine).
+6. **Canary shape (first live run):** 2 teammates max; docs/tests-only or non-route module;
+   lead owns merge + `/verify`; stop if merge conflicts touch **>1 file**. See runbook
+   candidates C1–C3 (`docs/runbooks/CLAUDE_AGENT_TEAMS.md`).
+7. **claw-orchestrator** — evaluated in **ADR-173**: reject full vendor / OpenClaw plugin
    install; patterns-only harvest. Revisit only after Agent Teams proves useful *and* an
    Owner-OS-gated adapter design exists (never raw 65-tool gateway dump).
-7. **Reject Vibe Kanban / Conductor / Claude Squad as primary** coordination for this repo.
-8. **OpenCode stays on free-stack keys** (Groq/Mistral/Cerebras). Do not route Claude
+8. **Reject Vibe Kanban / Conductor / Claude Squad as primary** coordination for this repo.
+9. **OpenCode stays on free-stack keys** (Groq/Mistral/Cerebras). Do not route Claude
    subscription OAuth into non-native harnesses.
-9. **Cursor remains a first-class implementer** on its own subscription (does not consume
-   Claude Code quota). Prefer Cursor for heavy implementation waves when Claude quota is
-   the bottleneck.
-10. **PR Factory / `external_agents` remain the mission ledger** for Owner OS–governed
+10. **Cursor remains a first-class implementer** on its own subscription (does not consume
+    Claude Code quota). Prefer Cursor for heavy implementation waves when Claude quota is
+    the bottleneck.
+11. **PR Factory / `external_agents` remain the mission ledger** for Owner OS–governed
     Cursor+Claude missions (ADR-163). Agent Teams is the *interactive Claude Code* plane —
     not a replacement for `create_mission` / leases / GREEN-AMBER-RED.
 
