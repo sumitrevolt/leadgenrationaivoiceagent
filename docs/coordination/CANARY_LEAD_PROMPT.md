@@ -64,6 +64,7 @@ Do NOT edit docs/coordination/AGENT_TEAMS_CANARY.md. Do NOT edit the SSOT YAML.
 - Verify AFTER both merges:
     pytest tests/test_canary_frozen_ssot.py tests/test_agent_teams_canary_contract.py -q -rs
   Assert summary shows **0 skipped**. Any skip on the canary contract = FAIL.
+  Also: python3 scripts/canary_f4_no_skip.py  (exit 2 if skip/xfail patterns present)
   + scripts/prod_check.py + scripts/check_secrets.py + duplicate-route clean
 - PASS only if TM1→TM2 merged + frozen checks clean + verify green + 0 skipped + SSOT-backed TM2
 - RED TM2 vs TM1 after merge = SIGNAL (record in SESSION_HANDOFF), not a silent pass

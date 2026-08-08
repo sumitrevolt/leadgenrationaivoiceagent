@@ -8,6 +8,13 @@ Frozen paths, merge order, stop rule, and pass rule live **only** in that YAML. 
 
 Loader / check: `scripts/canary_frozen.py` · Protocol: `docs/runbooks/CLAUDE_AGENT_TEAMS.md`
 
+**Branch convention (SSOT `branch_prefix`):** `agent/tm` — canary worktrees use
+`agent/tm{1,2}/<slug>` via `scripts/agent_team_worktree.py create --canary --teammate {1,2}`.
+
+> Lead note (CANARY-SIGNAL remediation): after TM1→TM2 merge, TM2 contract was RED because
+> this doc omitted `branch_prefix` / `agent/tm`. Test was **not** weakened; doc updated to
+> cite SSOT. That miss is the coupling signal working.
+
 ---
 
 ## Frozen
