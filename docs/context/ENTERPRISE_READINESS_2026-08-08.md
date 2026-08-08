@@ -149,7 +149,15 @@ Product 1 recovered from source, not from the brief: `app/marketing/packages.py`
 "Marketing + AI Voice" ₹5,999**; `Growth` is `public: False` (legacy hidden) and
 is correctly filtered by `get_public_packages()` (`packages.py:291`).
 
-### CP2-1 `VERIFIED_BROKEN` → **FIXED IN THIS BRANCH** — an approved UPI payment never closed its order (double-activation hole)
+### CP2-1 `VERIFIED_BROKEN` (latent) → **FIXED IN THIS BRANCH** — an approved UPI payment never closed its order (double-activation hole)
+
+> **Reachability, stated up front so this is not misread.** Because nothing
+> currently issues an offer (CP2-2), `order_ref` is never recorded in production,
+> so this path has **never fired and is not firing today — no invoice has been
+> duplicated**. It is a latent defect: the moment anyone wires issuance (packet
+> item 6, the obvious next step) it becomes live. Fixed first, deliberately, so
+> that wiring cannot open the hole. Merge urgency is "land before #240 gets a
+> producer", not "stop a leak".
 
 **Root cause.** `app/platform/upi_payments.py` consumes an offer reference but
 never performs the terminal transition its own logic depends on. The order gate
@@ -345,7 +353,7 @@ production automation health.**
 | 3 | Secrets / rotation | `WORKING_BUT_UNVERIFIED` | `check_secrets.py` exit 0; pre-commit runs `detect-secrets`, `bandit`, `detect private key` and a `no tracked personal-data CSV exports` hook — all Passed on this commit. **Open owner item:** the historically leaked `GEMINI_API_KEY` was scrubbed but deliberately **not rotated** (voice moved off Gemini); the burned key is still revocable in the Google console |
 | 4 | Backups / restore / DR | `WORKING_BUT_UNVERIFIED` | `docs/DISASTER_RECOVERY.md` + rclone→Drive documented and previously restore-proven; **no drill run in this session** |
 | 5 | SLO / monitoring / alerting | `WORKING_AND_PROVEN` (config) | `monitoring/alert_rules.yml` carries `HostMemoryHigh`, `HostDiskLow`, `ContainerHighMemory`, `RedisMainNearFull` etc. |
-| 6 | Capacity / cost | `VERIFIED_BROKEN` (headroom) | see CP5-1 |
+| 6 | Capacity / cost | `OPTIONAL_IMPROVEMENT` / RISK | see CP5-1 — one sample, alert not fired |
 | 7 | Migrations / rollback | `WORKING_AND_PROVEN` | **single** alembic head `023_add_prospective_memory` across 23 revisions — no fork, no ambiguous `upgrade head`; `migrations.yml` CI green |
 | 8 | Dependency / supply chain | `WORKING_AND_PROVEN` | `security-scan.yml` success on `origin/main` tip (`5ae5a4b9`, 2026-08-07); `requirements.lock.txt` is the single pinned source |
 | 9 | Privacy / DPDP retention | `WORKING_BUT_UNVERIFIED` | see CP5-2 |
@@ -353,7 +361,11 @@ production automation health.**
 | 11 | Comms / consent / voice compliance | `WORKING_AND_PROVEN` (code path) | CP3-2 |
 | 12 | Incident response / runbooks | `WORKING_AND_PROVEN` | `scripts/deploy_vps.sh` exact-SHA-mandatory; staging compose fail-closed on `APP_VERSION`; hardened GitHub deploy path with auto-rollback |
 
-### CP5-1 `VERIFIED_BROKEN` (capacity) — production is 0.5 percentage points from its own memory alert
+### CP5-1 `OPTIONAL_IMPROVEMENT` / **RISK** (capacity) — production is 0.5 percentage points from its own memory alert
+
+> **One sample, no trend.** This is a single point-in-time reading taken 1h07m
+> after a container restart. `HostMemoryHigh` has **not** fired. It is not
+> classified broken — it is a headroom risk worth an Owner decision.
 
 `/health/ready` at 2026-08-08 07:09 UTC: `memory.used_percent = 89.5`,
 `available_mb = 1686`. `app/api/health.py:425` uses `psutil.virtual_memory()`, so on
@@ -499,7 +511,7 @@ Evidence base: candidate `5ae5a4b9` + `e10a34c9`; deployed `42493e3f`; probes 20
 
 | scope | verdict | why | next action |
 |---|---|---|---|
-| **Product 1** | **WAIT** | Public plans, entitlements, delivery and invoicing are coherent and their suites pass; one real defect found and fixed (CP2-1). But the payment→deal reconciliation seam is inert (CP2-2) and no authenticated browser proof exists. | Merge `e10a34c9`, then assign #240 producer slice (packet item 6) |
+| **Product 1** | **WAIT** | Public plans, entitlements, delivery and invoicing are coherent; 127 revenue/billing tests pass. One defect found and fixed (CP2-1) — **latent, not active: it cannot fire today because nothing issues an offer**. The payment→deal reconciliation seam is inert (CP2-2) and no authenticated browser proof exists. | Merge `e10a34c9` **before** anyone wires #240's producer, then assign that slice (packet item 6) |
 | **Product 2** | **WAIT** | Session/daily caps, atomicity, idempotency and the fail-closed compliance spine are TEST-PROVEN at this HEAD (CP3-1/2). No provider-side proof: no call placed, no cost/outcome/recording evidence, prod flag values unread. | Owner-approved allowlisted canary + packet item 4 |
 | **Revenue readiness** | **WAIT** | Manual UPI is the canonical rail and is armed; CP2-1 closes a double-activation + duplicate-invoice hole. Reconciliation is still a name match until #240 has a producer. **1 paying customer, MRR ₹1,999 — revenue-ready ≠ revenue-generated.** | packet items 2, 6 |
 | **Automation readiness** | **WAIT** | 364 flags / 43 jobs / 44 beat tasks wired with zero drift, semantically typed, machine-verified (CP4-1). Held back only because the local health-audit green is N/A rather than proof, and prod DLQ/flag state is unread (CP4-2/3). | packet item 4 |
