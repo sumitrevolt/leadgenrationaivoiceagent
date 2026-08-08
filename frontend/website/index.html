@@ -9,10 +9,7 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" /></noscript>
+<!-- Fonts self-hosted via /design-system/styles.css + tokens/fonts.css (no external CDN). -->
 <link rel="canonical" href="https://leadsgenai.in/" />
 <meta name="robots" content="index,follow,max-image-preview:large" />
 <meta name="keywords" content="AI marketing India, AI voice agent Hindi, local business marketing, Google Business Profile audit, lead generation, WhatsApp marketing, festival posters, small business" />
@@ -1100,8 +1097,9 @@
   }
 </script>
 
-<!-- Lucide icons (jsDelivr — CSP-allowed). Graceful: if it fails, .ic stays empty. -->
-<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+<!-- Lucide icons — self-hosted from design-system/vendor (offline-first, pinned v0.469.0);
+     CDN fallback only if the local file is missing. Graceful: if it fails, .ic stays empty. -->
+<script src="/design-system/vendor/lucide.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js';"></script>
 <script>try{window.lucide&&lucide.createIcons();}catch(e){}</script>
 
 <!-- SEO: structured data → Google rich results (Organization, Service, FAQ) -->
