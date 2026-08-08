@@ -73,10 +73,32 @@ jobs:
       # They import app.platform (-> pydantic) and this job installs only ruff,
       # so here they could never do anything but ModuleNotFoundError.
 
-      - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in dependencies
+      - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in what SHIPS
+        # 2026-08-08: this step was labelled MUST-PASS but ended in `|| true`, and it
+        # audited requirements.txt — a REFERENCE manifest. The image installs
+        # requirements.lock.txt (Dockerfile.lock:25). So the green tick meant "the
+        # audit ran against a file we do not ship", while 29 Dependabot alerts
+        # (8 high) sat open. Now it audits the lock and it actually blocks.
+        #
+        # --no-deps mirrors how the lock is installed everywhere (Dockerfile.lock,
+        # this workflow's `tests` job, tests.yml): the lock IS the full closure, so
+        # resolving it again would audit a different set than production runs.
+        #
+        # Exceptions are explicit, justified and time-limited in
+        # docs/security/DEPENDENCY_REMEDIATION_2026-08-08.md, and mirrored in
+        # tests/test_dependency_security_floors.py::EXCEPTIONS, where
+        # test_exceptions_have_not_expired turns the build RED once they lapse.
+        #   GHSA-wj6h-64fc-37mp  ecdsa    no upstream fix exists; unreachable on HS256
+        #   GHSA-6w46-j5rx-g56g  pytest   test runner, never imported by app code
         run: |
           pip install pip-audit
-          pip-audit --requirement requirements.txt --format=json || true  # advisory until lock file refreshed
+          pip-audit \
+            --requirement requirements.lock.txt \
+            --no-deps \
+            --vulnerability-service osv \
+            --desc on \
+            --ignore-vuln GHSA-wj6h-64fc-37mp \
+            --ignore-vuln GHSA-6w46-j5rx-g56g
       - name: Type check (mypy)            # advisory — 1522 pre-existing errors (2026-07-06); type-debt visible, merge-gate nahi
         run: |
           pip install mypy
