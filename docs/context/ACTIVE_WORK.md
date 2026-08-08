@@ -31,5 +31,5 @@
 ## Parked
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
-- **ADR-172 Agent Teams C1** — PR #283: Cursor PROTOCOL-PASS. Claude AT canary **NOT-RUN**. **Do not merge #283 before Claude AT canary** or P1 is contaminated (remediated doc+test already on base). Predictions + confound gate: `docs/coordination/C1_CLAUDE_AT_PREDICTION.md`. Record `base_ref` in Observed. Windows: prune → baseline → paste on clean `origin/main`.
+- **ADR-172 Agent Teams C1** — PR #283 tip `437d26fa`: setup **FROZEN/GO** (reviewer: no open findings). Execution = Windows only (prune → baseline → paste → Observed → **then** merge). Cloud agent must not merge #283 early.
 - **ADR-173 claw-orchestrator** — REJECT full vendor.

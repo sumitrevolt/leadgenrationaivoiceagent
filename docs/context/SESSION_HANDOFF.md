@@ -1,22 +1,22 @@
-# SESSION_HANDOFF — 2026-08-08 P1 confound locked · canary BEFORE #283 merge
+# SESSION_HANDOFF — 2026-08-08 setup FROZEN · execution = Windows owner
 
 ## Source boundary
-- Branch: `cursor/claude-agent-teams-worktrees-63d4` · PR #283 · tip ~`4c151bde`
-- `origin/main` @ `5ae5a4b9` — C1 doc+contract **absent** (verified). P1 valid only if canary uses that clean base.
+- Branch: `cursor/claude-agent-teams-worktrees-63d4` · PR #283 · tip `437d26fa`
+- Reviewer: no open findings (seeder refuse-path R1 false-positive cleared; prediction Observed fields complete)
 
-## Labels
+## Status
 | Label | Status |
 |-------|--------|
-| **PROTOCOL-PASS (Cursor)** | Done |
-| **PREDICTION-LOCKED** | `docs/coordination/C1_CLAUDE_AT_PREDICTION.md` (+ confound gate) |
-| **CLAUDE-CODE-AGENT-TEAMS-CANARY** | **NOT-RUN** |
-| **P1-VALID-ONLY-IF** | Canary **before** #283 merge · `--base origin/main` · record `base_ref` |
+| Setup | **FROZEN / GO** — do not add more scaffolding unless live run breaks |
+| **CLAUDE-CODE-AGENT-TEAMS-CANARY** | **NOT-RUN** — owner execution only |
+| **#283 merge** | **BLOCKED until** Observed filled (or `p1_validity=contaminated` recorded) |
 
-## Decisive confound
-If #283 merges first, remediated doc+test land on main → no disagreement left → “no SIGNAL” would be **false** task-list success. Do **not** merge #283 until Claude AT canary Observed is filled (or mark `p1_validity=contaminated`).
-
-## Windows sequence
+## Owner execution only (this agent cannot paste Claude Code AT)
 1. `git worktree prune`
-2. Confirm #283 unmerged; main lacks both C1 artifacts
-3. P2 baseline → paste lead prompt (`--base origin/main`) → fill Observed incl. **`base_ref`** + **`p1_validity`**
-4. Then merge #283
+2. Confirm `#283` unmerged; main lacks C1 doc+contract
+3. P2 baseline (plan_tier + usage note + clock_start)
+4. Paste `docs/coordination/CANARY_LEAD_PROMPT.md`
+5. Fill Observed in `docs/coordination/C1_CLAUDE_AT_PREDICTION.md` (`base_ref`, `p1_validity`, signal, burn delta)
+6. **Then** merge #283
+
+Signal fire = answer, not failure. Contaminated base = no P1 conclusion.
