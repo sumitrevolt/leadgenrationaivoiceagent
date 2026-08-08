@@ -305,3 +305,110 @@ def test_remove_by_billing_alias_resolves_to_canonical_id(client):
     assert d["brand_kit_deleted"] is True
     assert d["content_cancelled"] == 3
     assert clients_store.get_client(CID) is None
+
+
+def test_remove_customer_cancels_billing_subscription(client, db):
+    """MRR truth: remove-customer must CANCELL the DB Subscription row.
+
+    Regression (audit 2026-08-08): the endpoint cleaned the clients_store
+    record + derived stores but left ACTIVE/TRIAL ``subscriptions`` rows, so
+    admin MRR (subscriptions-active) kept counting a removed customer as
+    revenue and the portal still showed an active plan.
+    """
+    from app.models.payment import Subscription, SubscriptionStatus
+    from tests.conftest import TestingSessionLocal
+
+    _seed(client)
+
+    # Real DB row on the shared test engine (same table the endpoint reaches
+    # through the get_async_db dependency override).
+    with TestingSessionLocal() as s:
+        s.add(
+            Subscription(
+                id="sub_rm_1",
+                client_id=CID,
+                plan_id="starter",
+                plan_name="Starter",
+                status=SubscriptionStatus.ACTIVE,
+                base_price=1999,
+            )
+        )
+        s.commit()
+
+    r = client.post(
+        "/api/admin/clients/" + CID + "/remove-customer",
+        json={"confirm": True, "reason": "churn test"},
+    )
+    assert r.status_code == 200
+    d = r.json()
+    assert d["subscriptions_cancelled"] == 1
+    assert d["subscription_ids"] == ["sub_rm_1"]
+
+    with TestingSessionLocal() as s:
+        sub = s.query(Subscription).filter(Subscription.id == "sub_rm_1").one()
+        assert sub.status == SubscriptionStatus.CANCELLED
+        assert sub.cancel_reason == "churn test"
+        assert sub.cancelled_at is not None
+
+
+def test_remove_customer_cancels_alias_and_trial_subscriptions(client, db):
+    """Alias-owned + TRIAL Subscription rows must cancel too (real Jiya shape).
+
+    The only real paying customer's Subscription/Invoice rows live under the
+    legacy billing id (e.g. ``d79d690f61b3``) while the marketing record is the
+    slug — so cancellation MUST be alias-aware or it silently misses the one
+    customer it matters for. TRIAL rows are in the cancel filter, so prove both.
+    """
+    from app.models.payment import Subscription, SubscriptionStatus
+    from tests.conftest import TestingSessionLocal
+
+    alias = "d79d690f61b3"  # pragma: allowlist secret - billing client id, not a credential
+    _seed(client, clients=False)
+    clients_store._append(
+        {
+            "id": CID,
+            "business_name": "Estique Salon & Spa",
+            "niche": "beauty_salon",
+            "phone": "+919812345678",
+            "status": "active",
+            "product": "marketing",
+            "billing_client_ids": [alias],
+        }
+    )
+
+    with TestingSessionLocal() as s:
+        s.add_all(
+            [
+                Subscription(
+                    id="sub_alias_1",
+                    client_id=alias,  # legacy billing id owns the row
+                    plan_id="starter",
+                    plan_name="Starter",
+                    status=SubscriptionStatus.ACTIVE,
+                    base_price=1999,
+                ),
+                Subscription(
+                    id="sub_trial_1",
+                    client_id=CID,
+                    plan_id="starter",
+                    plan_name="Starter",
+                    status=SubscriptionStatus.TRIAL,
+                    base_price=0,
+                ),
+            ]
+        )
+        s.commit()
+
+    r = client.post(
+        "/api/admin/clients/" + alias + "/remove-customer",
+        json={"confirm": True, "reason": "alias churn"},
+    )
+    assert r.status_code == 200
+    d = r.json()
+    assert d["subscriptions_cancelled"] == 2
+    assert set(d["subscription_ids"]) == {"sub_alias_1", "sub_trial_1"}
+
+    with TestingSessionLocal() as s:
+        for sid in ("sub_alias_1", "sub_trial_1"):
+            sub = s.query(Subscription).filter(Subscription.id == sid).one()
+            assert sub.status == SubscriptionStatus.CANCELLED

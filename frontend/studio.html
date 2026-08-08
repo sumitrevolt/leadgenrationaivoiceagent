@@ -292,11 +292,20 @@
     if(window.fabric){ cb(); return; }
     if(fabricLoading) return;
     fabricLoading=true;
-    var s=document.createElement("script");
-    s.src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js";
-    s.onload=function(){ fabricLoading=false; cb(); };
-    s.onerror=function(){ fabricLoading=false; edMsg(false,"fabric.js load nahi hua — internet/CDN check karo."); };
-    document.head.appendChild(s);
+    // Self-hosted first (design-system/vendor, offline-first), CDN fallback.
+    var sources=[
+      "/design-system/vendor/fabric.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"
+    ];
+    function load(index){
+      if(index>=sources.length){ fabricLoading=false; edMsg(false,"fabric.js load nahi hua — internet/CDN check karo."); return; }
+      var s=document.createElement("script");
+      s.src=sources[index];
+      s.onload=function(){ if(window.fabric){ fabricLoading=false; cb(); } else { load(index+1); } };
+      s.onerror=function(){ load(index+1); };
+      document.head.appendChild(s);
+    }
+    load(0);
   }
   function initEditor(){
     ensureFabric(function(){
