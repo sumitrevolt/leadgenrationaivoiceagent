@@ -126,8 +126,8 @@ jobs:
     name: Trivy image scan (build | explicit ref)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # Doc-only churn pe heavy image build na chalaye (workflow-level set jaisa hi).
-    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+    # NOTE: no job-level paths-ignore — GitHub Actions only supports that key
+    # under on.push/on.pull_request (workflow-level above already filters docs/*).
     permissions:
       contents: read
       packages: read
