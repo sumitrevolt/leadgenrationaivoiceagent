@@ -44,7 +44,8 @@ free-stack mandate already covers OpenCode keys).
    merge + `/verify` + **measured** quota note; stop if merge conflicts touch **>1 file**.
    Frozen paths live in **one** machine-readable SSOT
    (`docs/coordination/canary_frozen_paths.yml`) — TM1 renders it, TM2 reads it (no pasted
-   twin). Pass = TM1→TM2 merged + verify green + SSOT-backed TM2 test; TM2 RED vs TM1 =
+   twin). Pass = TM1→TM2 merged + **frozen_diff_check_clean** on each tm branch + verify
+   green + **0 skipped** + SSOT-backed TM2 fail-not-skip + honest quota note; TM2 RED vs TM1 =
    canary SIGNAL, not a silent weaken. Scaffolding helper-test greens are
    **SCAFFOLDING-EVIDENCE only** — never quote as CANARY-PASS. Lead prompt:
    `docs/coordination/CANARY_LEAD_PROMPT.md`.

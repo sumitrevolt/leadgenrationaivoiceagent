@@ -89,6 +89,10 @@ def cmd_create(args: argparse.Namespace) -> int:
         print("usage: --name must be 2–41 chars [a-z0-9-] (start alnum)", file=sys.stderr)
         return 1
     teammate = getattr(args, "teammate", None)
+    canary = bool(getattr(args, "canary", False))
+    if canary and teammate not in (1, 2):
+        print("REFUSED: --canary requires --teammate 1|2 (agent/tmN/<slug>)", file=sys.stderr)
+        return 2
     if teammate is not None and teammate not in (1, 2):
         print("usage: --teammate must be 1 or 2 (canary max)", file=sys.stderr)
         return 1
@@ -150,9 +154,18 @@ def cmd_remove(args: argparse.Namespace) -> int:
         err = (completed.stderr or completed.stdout or "").strip()[:300]
         print(f"worktree_remove_failed: {err}", file=sys.stderr)
         return 1
-    # Best-effort delete local branch (may be checked out elsewhere — ignore fail)
-    if branch and branch != "HEAD":
-        _run_git(["branch", "-D", branch])
+    # Safe branch delete only when asked — never force-drop unmerged work by default.
+    if branch and branch != "HEAD" and getattr(args, "delete_branch", False):
+        flag = "-D" if args.force else "-d"
+        deleted = _run_git(["branch", flag, branch])
+        if deleted.returncode != 0:
+            print(
+                f"note: left branch {branch} (not deleted — unmerged or in use); "
+                "pass --delete-branch after merge, or delete manually",
+                file=sys.stderr,
+            )
+    elif branch and branch != "HEAD":
+        print(f"note: worktree removed; branch {branch} kept (use --delete-branch when safe)")
     print(f"REMOVED worktree={wt} branch={branch}")
     return 0
 
@@ -171,6 +184,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Canary teammate id → branch agent/tm{N}/<name> (max 2)",
     )
+    p_create.add_argument(
+        "--canary",
+        action="store_true",
+        help="Refuse unless --teammate 1|2 (blocks claude/agent-team-* fallback)",
+    )
     p_create.set_defaults(func=cmd_create)
 
     p_list = sub.add_parser("list", help="List agent-team-* worktrees under allowed root")
@@ -180,6 +198,11 @@ def main(argv: list[str] | None = None) -> int:
     p_remove.add_argument("--name", required=True)
     p_remove.add_argument("--teammate", type=int, choices=(1, 2), default=None)
     p_remove.add_argument("--force", action="store_true")
+    p_remove.add_argument(
+        "--delete-branch",
+        action="store_true",
+        help="Also delete local branch (-d, or -D with --force). Default: keep branch.",
+    )
     p_remove.set_defaults(func=cmd_remove)
 
     args = parser.parse_args(argv)

@@ -75,12 +75,21 @@ def test_outside_root_refused(tmp_path, monkeypatch):
     assert "REFUSED" in str(ei.value)
 
 
+def test_canary_requires_teammate():
+    r = _run(["create", "--canary", "--name", "nope-no-tm"])
+    assert r.returncode == 2
+    assert "requires --teammate" in (r.stderr + r.stdout)
+
+
 def test_teammate_branch_naming(tmp_path):
     root = tmp_path / "wt-root"
     root.mkdir()
     env = {**os.environ, "AGENT_TEAM_WORKTREE_ROOT": str(root)}
     slug = "canary-docs"
-    create = _run(["create", "--name", slug, "--teammate", "1", "--base", "HEAD"], env=env)
+    create = _run(
+        ["create", "--canary", "--name", slug, "--teammate", "1", "--base", "HEAD"],
+        env=env,
+    )
     assert create.returncode == 0, create.stderr + create.stdout
     assert "agent/tm1/" in create.stdout
     wt = root / f"agent-team-tm1-{slug}"
@@ -92,7 +101,10 @@ def test_teammate_branch_naming(tmp_path):
         check=False,
     )
     assert head.stdout.strip() == f"agent/tm1/{slug}"
-    removed = _run(["remove", "--name", slug, "--teammate", "1", "--force"], env=env)
+    removed = _run(
+        ["remove", "--name", slug, "--teammate", "1", "--force", "--delete-branch"],
+        env=env,
+    )
     assert removed.returncode == 0, removed.stderr + removed.stdout
 
 
@@ -111,6 +123,6 @@ def test_create_list_remove_roundtrip(tmp_path):
     assert listed.returncode == 0
     assert f"agent-team-{slug}" in listed.stdout
 
-    removed = _run(["remove", "--name", slug, "--force"], env=env)
+    removed = _run(["remove", "--name", slug, "--force", "--delete-branch"], env=env)
     assert removed.returncode == 0, removed.stderr + removed.stdout
     assert not wt.exists()

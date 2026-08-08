@@ -43,20 +43,27 @@ Prefer **in-process** display on Windows.
 | Context docs | teammates do **not** write `CURRENT_STATE` / `ACTIVE_WORK` / `SESSION_HANDOFF` |
 | Prod probe | teammates do **not** hit production |
 
-### Frozen = SSOT only (no pasted twin)
+### Frozen = SSOT + observance gate
 
 Machine-readable truth: **`docs/coordination/canary_frozen_paths.yml`**.
 
-- TM1 doc **references / renders** via `python3 scripts/canary_frozen.py` — does not invent a second path list.
-- TM2 test **loads** the YAML through `scripts/canary_frozen.py` — never pastes paths into the test.
-- A test that asserts against its own hardcoded copy is a **tautology** and fails the canary design
-  (`packages.py`-class dual-truth bug).
+- TM1 doc **references / renders** via `python3 scripts/canary_frozen.py render`.
+- TM2 test **loads** YAML through `scripts/canary_frozen.py` — never pastes paths.
+- Lead **enforces** before each merge:
+
+```bash
+python3 scripts/canary_frozen.py check --base origin/main --head HEAD
+# exit 0 = clean · exit 2 = frozen path touched → refuse merge
+```
+
+- `.env` / `.env.*` live under **`frozen_classes`** (`env_files_gitignored`) — gitignored,
+  so they cannot be diff-gated; hooks/write_guard remain the real control.
+- A test that asserts against its own hardcoded path copy is a **tautology** (R4).
 
 ### Merge order (fixed)
 
-**TM1 first, then TM2.** TM2 may finish authoring early while only SSOT+loader exist —
-merging the test before the doc means the semantic-coupling signal never fires.
-RED/GREEN is only meaningful once TM1's doc is merged and TM2's test runs against it.
+**TM1 first, then TM2.** TM2 may finish authoring early — hold the merge. Without the doc,
+TM2 RED/GREEN is noise; with `skipif(not exists)` the coupling signal dies forever.
 
 ### Stop rule
 
@@ -65,38 +72,39 @@ Merge conflicts in **>1 file** on first canary → **FAIL** → single-agent. No
 ### Pass rule (all required)
 
 1. Lead merged deliverables in order **TM1 → TM2**.
-2. Post-merge `/verify` green: targeted pytest + `prod_check.py` + `check_secrets.py` + duplicate-route clean.
-3. TM2 test reads the **SSOT** (not a paste). If TM2 is RED because TM1 disagrees with SSOT,
-   that is a **canary SIGNAL** (shared task list failed semantic consistency) — lead records it;
-   do **not** weaken the test to force green.
+2. `canary_frozen.py check` clean on each teammate branch before merge.
+3. Post-merge verify green: targeted pytest with **0 skipped** + `prod_check.py` +
+   `check_secrets.py` + duplicate-route clean.
+4. TM2 test reads the **SSOT**; missing doc → `pytest.fail` (never skip/skipif).
+5. Honest quota note recorded (see `quota.record_fields` — no invented per-tm splits).
+6. If TM2 is RED because TM1 disagrees with SSOT → **CANARY-SIGNAL** (do not weaken).
 
 ### Evidence labels (anti label-drift)
 
 | Label | Means | Does NOT mean |
 |-------|--------|----------------|
-| **SCAFFOLDING-EVIDENCE** | SSOT / loader / worktree helper tests green | Canary PASS |
+| **SCAFFOLDING-EVIDENCE** | SSOT / loader / worktree / check-helper tests green | Canary PASS |
 | **CANARY-NOT-RUN** | Live Agent Teams C1 not executed yet | Failure |
-| **CANARY-PASS** | TM1→TM2 merged + lead verify green + measured quota recorded | Scaffolding greens |
+| **CANARY-PASS** | TM1→TM2 + frozen checks + verify + 0 skipped + quota note | Scaffolding greens |
 | **CANARY-SIGNAL** | TM2 RED vs TM1 after correct merge order | Excuse to weaken asserts |
 
-Never quote scaffolding `N passed` as canary PASS in `CURRENT_STATE` / handoff.
+### Quota (honest measure)
 
-### Quota (measure, do not guess)
+Pre-run estimate ≈ 3×. After run, record only fields you can actually observe
+(`plan_tier`, `wall_clock_minutes`, `operator_total_burn_note`,
+`per_teammate_burn_available`, `decision_for_next_run`). If the UI does not split
+per-teammate burn, set `per_teammate_burn_available: false` — do not fabricate.
 
-Pre-run estimate ≈ 3× (lead + 2). **After the run**, lead records actual burn in
-`SESSION_HANDOFF` (lead / tm1 / tm2 tokens-or-cost, wall clock, plan tier). Next teammate-count
-decision uses that evidence. Max may afford 3 later; Pro may exhaust a window in one canary.
-
-### C1 deliverables (semantically coupled, file-disjoint)
+### C1 deliverables
 
 | Role | File | Job |
 |------|------|-----|
-| TM1 | `docs/coordination/AGENT_TEAMS_CANARY.md` | Checklist + landmines; Frozen section **from SSOT render** |
-| TM2 | `tests/test_agent_teams_canary_contract.py` | Asserts doc ↔ SSOT coupling by **reading** YAML |
-| Lead | merge **TM1→TM2** + verify + quota note | Owns PASS/FAIL/SIGNAL |
+| TM1 | `docs/coordination/AGENT_TEAMS_CANARY.md` | Render frozen from SSOT |
+| TM2 | `tests/test_agent_teams_canary_contract.py` | Load SSOT; fail-not-skip if doc missing |
+| Lead | merge TM1→TM2 + `check` + verify + quota | Owns PASS/FAIL/SIGNAL |
 
-Owner setup already shipped: SSOT + loader + `tests/test_canary_frozen_ssot.py` + lead prompt
-(**SCAFFOLDING-EVIDENCE** only). Live canary still creates TM1 doc + TM2 contract test.
+Worktrees: always `create --canary --teammate {1,2}`. Lead prompt:
+`docs/coordination/CANARY_LEAD_PROMPT.md`.
 
 **Not for C1:** GH `#240` (payment), `#185` (Jiya creative).
 
@@ -107,9 +115,10 @@ Copy from `docs/coordination/CANARY_LEAD_PROMPT.md` (canonical paste block).
 ## Worktree commands
 
 ```bash
-python3 scripts/agent_team_worktree.py create --name c1-doc --teammate 1 --base origin/main
-python3 scripts/agent_team_worktree.py create --name c1-test --teammate 2 --base origin/main
-python3 scripts/canary_frozen.py   # render frozen bullets from SSOT
+python3 scripts/agent_team_worktree.py create --canary --name c1-doc --teammate 1 --base origin/main
+python3 scripts/agent_team_worktree.py create --canary --name c1-test --teammate 2 --base origin/main
+python3 scripts/canary_frozen.py render
+python3 scripts/canary_frozen.py check --base origin/main --head HEAD
 python3 scripts/agent_team_worktree.py list
 ```
 

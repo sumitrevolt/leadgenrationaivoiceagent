@@ -1,26 +1,26 @@
-# SESSION_HANDOFF — 2026-08-08 C1 owner setup ready · CANARY-NOT-RUN
+# SESSION_HANDOFF — 2026-08-08 C1 pre-flight fixes · CANARY-NOT-RUN
 
 ## Source boundary
 - Branch: `cursor/claude-agent-teams-worktrees-63d4` · PR #283
-- Live Agent Teams canary: **CANARY-NOT-RUN** (needs owner Claude Code session + prompt paste).
+- Reviewed tip was `5992b32c`; this commit adds F1–F7 hygiene before live canary.
+- Live Agent Teams canary: **CANARY-NOT-RUN**.
 
-## Owner setup completed
-- SSOT: `docs/coordination/canary_frozen_paths.yml` (frozen + merge_order TM1→TM2 + stop/pass/quota + evidence_labels)
-- Loader: `scripts/canary_frozen.py`
-- Lead paste prompt: `docs/coordination/CANARY_LEAD_PROMPT.md` (merge order fixed TM1 then TM2)
-- Runbook: pass rule, SSOT rule, measure quota, evidence-label table
+## Review kill-facts addressed
+- **F1** `canary_frozen.py check --base … --head HEAD` (exit 2 on frozen touch) + pass_rule
+- **F2** scaffolding test no longer pastes frozen path strings (render round-trip instead)
+- **F3** `.env*` moved to `frozen_classes` (gitignore → not diff-gateable)
+- **F4** lead prompt: TM2 fail-not-skip; lead verify requires **0 skipped**
+- **F5** `create --canary` requires `--teammate 1|2`
+- **F6** remove keeps branch by default; `--delete-branch` opt-in (no silent `-D`)
+- **F7** quota fields honest (no fake per-tm token requirement)
 
 ## Still for live canary
-- TM1 → `docs/coordination/AGENT_TEAMS_CANARY.md` (merge **first**)
-- TM2 → `tests/test_agent_teams_canary_contract.py` (merge **second**, after TM1)
-- Lead verify + measured quota → only then may anyone write **CANARY-PASS**
+- TM1 → doc (merge first) · TM2 → contract test (merge second; RED in own wt expected)
+- Lead: check each branch → merge TM1→TM2 → verify + 0 skipped → quota note
 
-## Evidence labels (do not drift)
-
+## Evidence labels
 | Label | Status |
 |-------|--------|
-| **SCAFFOLDING-EVIDENCE** | `pytest tests/test_canary_frozen_ssot.py tests/test_agent_team_worktree.py` → 9 passed (exit 0). Setup/helpers only. |
-| **CANARY-NOT-RUN** | Current. No TM1/TM2 deliverables. No measured burn. |
-| **CANARY-PASS** | Forbidden to claim until live C1 completes under runbook pass rule. |
-
-Do **not** quote the scaffolding 9 passed as canary PASS in `CURRENT_STATE` or chat.
+| **SCAFFOLDING-EVIDENCE** | Helper/SSOT/check tests green after this commit — SETUP only |
+| **CANARY-NOT-RUN** | Current |
+| **CANARY-PASS** | Forbidden until live C1 under pass_rule |
