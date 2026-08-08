@@ -430,6 +430,142 @@ are being reported, not purged.
 
 ---
 
+---
+
+# SESSION 2 — revalidation, CP5-3 remediation, CP2-2 handoff
+
+## PHASE A — the reported checkpoint revalidated (independently, not trusted)
+
+| claim | probe | verdict |
+|---|---|---|
+| PR #285 exists, draft, base `main` | `gh pr view 285` | confirmed — 3 files, `OPEN`, `isDraft: true` |
+| PR head `b2a839f3` | `gh pr view` vs `git rev-parse HEAD` | **match** |
+| `origin/main` = `5ae5a4b9` | `git fetch --prune; git rev-parse origin/main` | confirmed; branch 0 behind |
+| production `42493e3f` | `curl /health` 07:53 UTC | confirmed, uptime 1h48m |
+| worktree clean | `git status --porcelain` | clean |
+| dead-lineage branches | `merge-base --is-ancestor` sweep | **unchanged** — `main` and `cursor/swara-paid-free-faq-fix` still on the 2026-06-17 base, primary checkout still 35 files dirty |
+
+Nothing in the reported checkpoint had drifted, so its SHAs remain usable.
+
+**PR #285 checks:** 11 SUCCESS, 1 IN_PROGRESS, and **`Trivy image scan (GHCR)` =
+SKIPPED** — recorded under CP5-3 as a second reason the security badge was hollow.
+
+**The eight payment/order tests re-verified** against the six properties named in
+the brief: payment-confirmed offer closure ✅ · no closure on rejection ✅ ·
+duplicate payment prevention ✅ (`test_paid_order_cannot_be_submitted_again` — the
+replay is refused with `already_paid`) · no repeated `_try_activate` ✅ (only one
+payment row survives for the order, so there is no second activation candidate) ·
+no metered-usage reset ✅ and no duplicate Rule-46 GST invoice ✅ (both are
+downstream of that single `_try_activate`, guarded by the same assertion).
+
+## PHASE B — CP5-3 remediated in an isolated lane → **PR #286**
+
+Branch `fix/dep-cve-2026-08-08`, worktree `C:\Users\Ratanshila\Documents\leadgen-secfix`,
+base `origin/main` `5ae5a4b9`, head **`fb2aad72`**. Full ledger in
+`docs/security/DEPENDENCY_REMEDIATION_2026-08-08.md` on that branch.
+
+Kept out of PR #285 deliberately: different blast radius (every dependency vs one
+function), different reviewer, and PR #285 must be mergeable on its own.
+
+### CP5-3 root cause — the lock is not installable by a resolving pip
+
+```
+$ pip install "fastapi==0.141.1" "starlette==0.35.1"
+ERROR: ResolutionImpossible
+```
+
+`fastapi==0.141.1` declares `starlette>=0.46.0`; the lock pinned **`starlette==0.35.1`,
+released 2024-01-11**. `Dockerfile.lock:25` and both CI workflows install with
+`--no-deps`, so pip never checked. **Four** declared constraints were violated:
+`fastapi→starlette`, `sse-starlette→starlette`, `google-api-core→protobuf`, and —
+found by the new gate on its own first CI run — `google-cloud-bigquery→packaging`
+(`>=24.2.0` vs pinned `23.2`).
+
+### Fixed: 8 pins, 7 of 8 highs cleared
+
+`starlette 0.35.1→1.3.1` · `cryptography 48.0.0→50.0.0` · `protobuf 4.25.9→5.29.6` ·
+`aiosmtplib 3.0.1→5.1.1` · `h2 4.4.0→4.4.1` · `setuptools 82.0.1→83.0.0` ·
+`sentry-sdk 1.39.2→1.45.1` · `packaging 23.2→25.0`.
+
+`starlette 1.3.1` is the **lowest** version clearing all seven of its advisories —
+1.5.0 shipped the same day and was declined. `app/` imports only four long-lived
+starlette symbols, all present in 1.3.1, which is why a 0.35→1.3 jump is far
+smaller than it looks.
+
+### Accepted: 2 exceptions, justified and dated 2026-11-08
+
+`ecdsa` (GHSA-wj6h-64fc-37mp, **no upstream fix**; unreachable because
+`jwt_algorithm` is HS256, pinned by `test_jwt_algorithm_is_symmetric`) and `pytest`
+(never imported by app code; two-major bump). `test_exceptions_have_not_expired`
+turns the build RED when either lapses.
+
+### Reachability distinction
+
+GHSA-wqp7-x3pw-xc5r (UNC SSRF in `StaticFiles`) is **Windows-scoped**. Production
+is `python:3.12-slim`, so it is not reachable there — but it is on the Windows dev
+machines this repo is worked on daily. Fixed either way.
+
+### Signal repaired without a second dashboard
+
+`ci.yml`'s dependency scan was labelled `MUST-PASS` while ending in `|| true` and
+auditing `requirements.txt` — a *reference* manifest. It now blocks, and moved to
+the `tests` job to audit the **installed environment** (the `--no-deps` closure that
+actually ships) from its own venv via `--path`. `security-scan.yml` was **not
+touched** — it is uncommitted-dirty in the primary checkout with an in-flight owner
+CRITICAL gate.
+
+### CP5-4 `VERIFIED_BROKEN` (data integrity) — the test suite writes to a real customer's ledger
+
+Found while verifying, unrelated to dependencies. Running the suite appended
+real-looking events to `data/delivery_ledger/jiya-makeover.jsonl` — a **tracked**
+file for the only paying customer:
+
+```
+{"at": "2026-08-08T08:39:49+00:00", "client_id": "jiya-makeover", "event": "post_approved", ...}
+{"at": "2026-08-08T08:41:15+00:00", "client_id": "jiya-makeover", "event": "plan_activated", "detail": "starter", "actor": "backfill", ...}
+```
+
+`.gitignore` does not cover already-tracked files, so a `git add -A` after any test
+run commits fabricated delivery events for a paying customer — corrupting the
+customer-visible delivery proof Product 1 sells. Reverted, not committed. This is
+the concrete mechanism behind `AGENT_WORK_RULES` R7. Needs its own slice
+(`tmp_path`-scoped ledger fixture, or untrack the customer ledgers) — Owner item.
+
+## PHASE C — bounded verification
+
+The full suite was partitioned into **6 shards over 746 test files**, each with
+`--timeout=90 --timeout-method=thread` and a 1500 s wall clock, specifically so the
+documented `team_pulse` hang could not hide the rest.
+
+| shard | files | result |
+|---|---|---|
+| 00 | 120 | **0 failures**, 10 declared skips, exit 0 |
+| 01 | 119 | **11 failures — all expected**: only `test_dependency_security_floors.py`'s environment-dependent assertions, failing because the *primary venv is the vulnerable stack* (starlette 0.35.1). No other failure. |
+| 02–05 | 507 | see the run log; **no timeouts observed in completed shards** |
+
+A timeout is not a pass: none of the completed shards recorded one, and any that do
+are reported as timeouts, not skips.
+
+## PHASE D — CP2-2 handoff (no file conflict)
+
+Independently re-verified on fresh `origin/main`: `offers.issue_offer()` still has
+**zero** production callers. `reply_agent.py` and `admin_dashboard.html` remain
+Cursor-owned, so **nothing was edited**.
+
+`docs/missions/CP2-2_OFFER_PRODUCER_HANDOFF.md` carries a mission payload for the
+**existing** Owner OS external-agent mechanism (`app/dev_control/external_agents`) —
+no second ledger, no competing branch. It was validated against the canonical
+schema locally: `Mission(**payload).validate()` → valid, state `CREATED`, risk
+**`AMBER`** so it cannot self-advance without Owner approval. It carries the fresh
+base SHA, isolated-worktree requirement, exclusive `allowed_paths` /
+`prohibited_paths`, pricing/consent/idempotency/tenant constraints, required tests
+and checks, rollback plan, the prohibition list, and the required finish state.
+
+**Ordering constraint stated in the mission:** PR #285 must land first, or wiring
+issuance re-opens the double-activation hole the moment it starts working.
+
+---
+
 ## EVIDENCE LEDGER
 
 Fingerprint = HEAD · command · exit code · result · time. Nothing below was re-run
@@ -561,3 +697,53 @@ Evidence base: candidate `5ae5a4b9` + `e10a34c9`; deployed `42493e3f`; probes 20
 **Containment status:** production untouched by this session — no flag flip, no env
 change, no deploy, no external message, no payment, no customer contact. All work is
 isolated in one worktree on one branch, one commit, revertible with `git revert`.
+
+---
+
+# FINAL VERDICTS — after session 2
+
+Evidence base: PR #285 head `8d527a3e` · PR #286 head `fb2aad72` · both based on
+`origin/main` `5ae5a4b9` · production **still `42493e3f`, unchanged**.
+
+| scope | verdict | why | next action |
+|---|---|---|---|
+| **Product 1** | **WAIT** | 127 revenue/billing tests green; the double-activation defect is fixed (latent, never fired). The reconciliation seam is still inert — but CP2-2 is now a schema-valid `AMBER` mission awaiting one Owner assignment rather than an open question. No authenticated browser proof. | merge #285, then assign the CP2-2 mission |
+| **Product 2** | **WAIT** | Session/daily caps atomic + idempotent + fail-closed, 187 voice/compliance tests green. **Provider acceptance held at WAIT deliberately: no real call was placed or authorized.** No provider outcome, cost or recording evidence. | Owner-approved allowlisted canary |
+| **Revenue readiness** | **WAIT** | Manual UPI armed; replay/duplicate-invoice hole closed. Reconciliation stays a name match until CP2-2 has a producer. 1 paying customer, MRR ₹1,999 — revenue-ready ≠ revenue-generated. | merge #285 → CP2-2 |
+| **Automation readiness** | **WAIT** | 364 flags / 43 jobs / 44 beat tasks, zero drift, semantically typed. Held only because the local health-audit green is N/A rather than proof and prod DLQ/flag state is unread. | packet item 4 |
+| **Enterprise readiness** | **NO-GO** | Unchanged verdict, changed reason. 7 of 8 high CVEs are **fixed in draft PR #286, not in production** — `42493e3f` still runs `starlette 0.35.1` with three live highs. The brief permits movement only when reachable high/criticals are fixed *or contained with evidence*; a branch is neither. New CP5-4 (tests writing to a paying customer's tracked ledger) is also open. | **merge + deploy #286** — that single act is what moves this to WAIT |
+| **Production release** | **NO-GO** | Two branches, including the primary checkout's 35 uncommitted files, remain on the rewritten-away lineage. Nothing is merged or deployed, and no deploy may proceed without explicit Owner approval. | packet item 1, then 2/3, then 5 |
+
+---
+
+# CONSOLIDATED OWNER ACTION PACKET
+
+Only decisions that now genuinely require Owner authority. Nothing below was executed.
+
+| # | decision | why it needs you | risk if deferred |
+|---|---|---|---|
+| 1 | **Salvage the dead-lineage checkouts.** Re-point local `main` to `origin/main`; export Cursor's 35 uncommitted files and re-apply them onto a fresh `origin/main` base. | Someone else's working tree — never cleaned by this session | a PR from there carries ~1801 phantom commits and can re-introduce purged history |
+| 2 | **Review / merge PR #285** (`fix(billing)` + readiness report + CP2-2 mission). | merge authority | the double-activation hole re-opens the moment CP2-2 is wired |
+| 3 | **Review / merge PR #286** (dependency remediation). ⚠️ Its CI is the first real run of the now-blocking audit — it already caught the `packaging` conflict. If it goes red again, that is a finding: fix it, do not re-mute the gate. | merge authority | 3 high starlette CVEs stay live on the request path |
+| 4 | **Run one in-container probe** and paste the result: `RECORDING_RETENTION` (DPDP purge active or report-only), the five protected-flag values, `dlq:failed_tasks` / `dlq:dead` / `celery` depths. | prod env access | DPDP retention and automation health stay unverifiable |
+| 5 | **Deploy approval** — separate from merge. `bash scripts/deploy_vps.sh <full-sha>` under the `VOICE_LAUNCH_KILL=1` fence, requiring `DEPLOYED <full-sha> OK`. Reject `latest` / partial restarts. | production change | prod stays on the vulnerable lock |
+| 6 | **Assign the CP2-2 mission to Cursor** — payload in `docs/missions/CP2-2_OFFER_PRODUCER_HANDOFF.md`, `AMBER` so it cannot self-advance. Requires a **fresh worktree off `origin/main`**, not the dirty checkout. | executor assignment + AMBER approval | #240 stays open; revenue reconciliation stays a name match |
+| 7 | **Allowlisted canary approval** — Product 1 (real ₹1,999 UPI → LEDGER_PAID) and/or Product 2 (one real outbound call). | real money / real customer contact | both products stay at WAIT on provider acceptance |
+| 8 | **Memory headroom (CP5-1)** — prod 89.5 % used, 0.5 pp from `HostMemoryHigh`. Container `mem_limit` tuning or leak check. Do **not** raise the threshold. | production change | OOM-kill risk on a single VPS |
+| 9 | **CP5-4 slice** — stop the test suite writing to `data/delivery_ledger/jiya-makeover.jsonl`. | scope/priority call | a `git add -A` commits fabricated delivery events for a paying customer |
+| 10 | **`Trivy image scan (GHCR)` is SKIPPED** on PR runs — the base-OS/system-package layer is unscanned. | CI/infra decision | image-layer CVEs invisible |
+| 11 | **Context-doc SHA drift** — `CURRENT_STATE`, `ACTIVE_WORK`, `SESSION_HANDOFF`, `PRODUCTION_TRUTH` all disagree with live `42493e3f`; `PRODUCTION_TRUTH` still says `PLATFORM_DIAL_DAILY = HARD OFF` when it is `1`. Files held by Cursor / PR #283. | owner of those files | an agent acts on a dangerously stale calling-posture claim |
+| 12 | *Optional:* revoke the burned `GEMINI_API_KEY` (voice already moved off Gemini — zero impact). | credential | — |
+
+### Not done, and why
+
+- **No browser/authenticated UI proof** — no admin credentials in this environment;
+  driving prod admin flows is an Owner boundary. Dashboard flows stay
+  `WORKING_BUT_UNVERIFIED`, not upgraded.
+- **No real call, email, WhatsApp or payment.** No protected flag flipped.
+- **No runtime-image scan** — the image build pulls torch/pipecat/kokoro/rembg, and
+  `Trivy image scan (GHCR)` is skipped in CI. The amended-lock venv is the substitute;
+  image parity is **not** claimed.
+- **No full-tree local import under the amended lock** — repo `.venv` is Python 3.11,
+  the image is `python:3.12-slim`, and the lock is 3.12-built. CI covers it.
+- **Nothing merged, deployed, or cleaned in anyone else's checkout.**
