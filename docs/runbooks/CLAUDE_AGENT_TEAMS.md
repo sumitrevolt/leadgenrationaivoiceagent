@@ -52,17 +52,34 @@ Machine-readable truth: **`docs/coordination/canary_frozen_paths.yml`**.
 - A test that asserts against its own hardcoded copy is a **tautology** and fails the canary design
   (`packages.py`-class dual-truth bug).
 
+### Merge order (fixed)
+
+**TM1 first, then TM2.** TM2 may finish authoring early while only SSOT+loader exist —
+merging the test before the doc means the semantic-coupling signal never fires.
+RED/GREEN is only meaningful once TM1's doc is merged and TM2's test runs against it.
+
 ### Stop rule
 
 Merge conflicts in **>1 file** on first canary → **FAIL** → single-agent. No third teammate.
 
 ### Pass rule (all required)
 
-1. Lead merged **both** deliverables (TM1 doc + TM2 test).
+1. Lead merged deliverables in order **TM1 → TM2**.
 2. Post-merge `/verify` green: targeted pytest + `prod_check.py` + `check_secrets.py` + duplicate-route clean.
 3. TM2 test reads the **SSOT** (not a paste). If TM2 is RED because TM1 disagrees with SSOT,
    that is a **canary SIGNAL** (shared task list failed semantic consistency) — lead records it;
    do **not** weaken the test to force green.
+
+### Evidence labels (anti label-drift)
+
+| Label | Means | Does NOT mean |
+|-------|--------|----------------|
+| **SCAFFOLDING-EVIDENCE** | SSOT / loader / worktree helper tests green | Canary PASS |
+| **CANARY-NOT-RUN** | Live Agent Teams C1 not executed yet | Failure |
+| **CANARY-PASS** | TM1→TM2 merged + lead verify green + measured quota recorded | Scaffolding greens |
+| **CANARY-SIGNAL** | TM2 RED vs TM1 after correct merge order | Excuse to weaken asserts |
+
+Never quote scaffolding `N passed` as canary PASS in `CURRENT_STATE` / handoff.
 
 ### Quota (measure, do not guess)
 
@@ -76,10 +93,10 @@ decision uses that evidence. Max may afford 3 later; Pro may exhaust a window in
 |------|------|-----|
 | TM1 | `docs/coordination/AGENT_TEAMS_CANARY.md` | Checklist + landmines; Frozen section **from SSOT render** |
 | TM2 | `tests/test_agent_teams_canary_contract.py` | Asserts doc ↔ SSOT coupling by **reading** YAML |
-| Lead | merge + verify + quota note | Owns PASS/FAIL/SIGNAL |
+| Lead | merge **TM1→TM2** + verify + quota note | Owns PASS/FAIL/SIGNAL |
 
-Owner setup already shipped: SSOT + loader + `tests/test_canary_frozen_ssot.py` + lead prompt.
-Live canary still creates TM1 doc + TM2 contract test under Agent Teams.
+Owner setup already shipped: SSOT + loader + `tests/test_canary_frozen_ssot.py` + lead prompt
+(**SCAFFOLDING-EVIDENCE** only). Live canary still creates TM1 doc + TM2 contract test.
 
 **Not for C1:** GH `#240` (payment), `#185` (Jiya creative).
 

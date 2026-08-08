@@ -26,6 +26,10 @@ frozen_classes:
   - fastapi_route_registration  # @router / @app.get|post|… — lead-only if ever
 
 # Stop / pass (machine-readable for the contract test + lead checklist).
+merge_order:
+  - TM1  # doc first — otherwise TM2 has nothing to couple against
+  - TM2  # test second — RED/GREEN only meaningful after TM1 is merged
+
 stop_rule:
   id: merge_conflict_gt_1_file
   description: "If first canary merge conflicts in more than 1 file → FAIL → single-agent"
@@ -33,6 +37,7 @@ stop_rule:
 pass_rule:
   id: c1_pass
   requires:
+    - tm1_merged_before_tm2
     - both_deliverables_merged_by_lead
     - verify_green_after_merge  # targeted pytest + prod_check + check_secrets + duplicate-route
     - tm2_test_reads_this_ssot  # never a pasted path copy
@@ -41,6 +46,12 @@ pass_rule:
       If TM2 test is RED against TM1 doc after merge, that is a canary SIGNAL
       (shared task list failed to keep semantic consistency) — lead surfaces it;
       do not silently weaken the test to green.
+
+# Label discipline — do not confuse scaffolding green with canary PASS.
+evidence_labels:
+  scaffolding: "SSOT/loader/worktree helper tests green = SETUP only, never quote as canary PASS"
+  canary_pass: "Only after live TM1→TM2 merge + lead verify + measured quota recorded"
+  canary_not_run: "Default until live Claude Code session completes C1"
 
 quota:
   estimate_multiplier: 3  # lead + 2 teammates; REPLACE with measured burn after run

@@ -39,12 +39,15 @@ free-stack mandate already covers OpenCode keys).
 5. **Frozen / RED surfaces stay RED:** Swara/voice, `deploy_vps.sh`, TRAI/DND/consent/DPDP,
    billing truth — teammates must not mutate these without owner "haan" (R8/R10).
    First canary: **no teammate route registration** (FastAPI first-route-wins landmine).
-6. **Canary shape (C1, owner green-light):** 2 teammates max; docs/tests-only; lead owns
+6. **Canary shape (C1, owner green-light):** 2 teammates max; docs/tests-only; merge order
+   **TM1 then TM2** (fixed — TM2-before-TM1 kills the coupling signal); lead owns
    merge + `/verify` + **measured** quota note; stop if merge conflicts touch **>1 file**.
    Frozen paths live in **one** machine-readable SSOT
    (`docs/coordination/canary_frozen_paths.yml`) — TM1 renders it, TM2 reads it (no pasted
-   twin). Pass = both merged + verify green + SSOT-backed TM2 test; TM2 RED vs TM1 =
-   canary SIGNAL, not a silent weaken. Lead prompt: `docs/coordination/CANARY_LEAD_PROMPT.md`.
+   twin). Pass = TM1→TM2 merged + verify green + SSOT-backed TM2 test; TM2 RED vs TM1 =
+   canary SIGNAL, not a silent weaken. Scaffolding helper-test greens are
+   **SCAFFOLDING-EVIDENCE only** — never quote as CANARY-PASS. Lead prompt:
+   `docs/coordination/CANARY_LEAD_PROMPT.md`.
 7. **claw-orchestrator** — evaluated in **ADR-173**: reject full vendor / OpenClaw plugin
    install; patterns-only harvest. Revisit only after Agent Teams proves useful *and* an
    Owner-OS-gated adapter design exists (never raw 65-tool gateway dump).

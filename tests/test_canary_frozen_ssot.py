@@ -39,6 +39,11 @@ def test_loader_reads_ssot_not_paste():
     assert data["schema_version"] == 1
     assert data["branch_prefix"] == "agent/tm"
     assert data["max_teammates"] == 2
+    assert data["merge_order"] == ["TM1", "TM2"]
+    assert "scaffolding" in data["evidence_labels"]
+    assert "canary_pass" in data["evidence_labels"]
+    assert "canary_not_run" in data["evidence_labels"]
+    assert "tm1_merged_before_tm2" in data["pass_rule"]["requires"]
     paths = mod.frozen_paths()
     assert "app/voice_agent/" in paths
     assert "app/telephony/" in paths

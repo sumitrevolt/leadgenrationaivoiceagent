@@ -31,5 +31,5 @@
 ## Parked
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
-- **ADR-172 Agent Teams + worktrees** — PR #283; **C1 owner setup READY** (SSOT yml + loader + lead prompt). Live canary = next Claude Code session using `docs/coordination/CANARY_LEAD_PROMPT.md`. TM1/TM2 deliverables not written yet (intentional).
+- **ADR-172 Agent Teams + worktrees** — PR #283; C1 owner setup READY; status **CANARY-NOT-RUN**. Scaffolding pytest greens ≠ canary PASS. Live = paste `docs/coordination/CANARY_LEAD_PROMPT.md`; merge **TM1 then TM2**; record measured burn.
 - **ADR-173 claw-orchestrator** — REJECT full vendor (eval complete). Do not `install.sh` into LeadGen OpenClaw; patterns-only.

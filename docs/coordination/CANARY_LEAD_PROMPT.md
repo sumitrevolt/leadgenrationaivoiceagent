@@ -50,13 +50,17 @@ do not weaken asserts. Lead will surface the disagreement.
 Do NOT edit docs/coordination/AGENT_TEAMS_CANARY.md. Do NOT edit the SSOT YAML.
 
 === Lead ===
-- Merge TM1 then TM2 (or order you choose); resolve conflicts. Stop if >1 conflict file.
-- Verify: pytest tests/test_canary_frozen_ssot.py tests/test_agent_teams_canary_contract.py -q
+- MERGE ORDER IS FIXED: **TM1 first, then TM2**. Do not merge TM2 before TM1 —
+  without the doc, TM2 cannot fire the semantic-coupling signal (RED/GREEN is noise).
+- TM2 may finish writing its test early; still hold the merge until TM1 is in.
+- Resolve conflicts. Stop if >1 conflict file.
+- Verify AFTER both merges: pytest tests/test_canary_frozen_ssot.py tests/test_agent_teams_canary_contract.py -q
   + scripts/prod_check.py + scripts/check_secrets.py + duplicate-route clean
-- PASS only if both merged + verify green + TM2 reads SSOT (not a paste)
+- PASS only if TM1→TM2 merged + verify green + TM2 reads SSOT (not a paste)
 - RED TM2 vs TM1 after merge = SIGNAL (record in SESSION_HANDOFF), not a silent pass
 - After run: record ACTUAL quota burn (lead+tm1+tm2 tokens/cost + wall clock + plan tier)
   into SESSION_HANDOFF — replace the ~3× estimate with measured numbers
+- Label discipline: scaffolding pytest greens from setup are NOT "canary PASS"
 ```
 
 ## After-run quota note template (lead fills)
