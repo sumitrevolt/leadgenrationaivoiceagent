@@ -280,6 +280,7 @@ AUTOMATION_FLAGS = [
     "OPS_ALERT_EVAL_REJECT_BURST",  # default 3 (rejects-per-window before paging)
     "OPS_ALERT_EVAL_REJECT_WINDOW",  # default 86400s (window for burst count)
     "OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD",  # default 3 (consecutive failures before page)
+    "UPI_PENDING_ALERT_HOURS",  # default 6 — stale pending UPI → readiness digest BLOCKER
     # H.1 customer-facing webhooks (Svix-style HMAC-SHA256 fan-out)
     "CUSTOMER_WEBHOOKS",  # master gate for emit()
     "CUSTOMER_WEBHOOK_DENY_PRIVATE",  # default 1; set 0 only for dev SSRF tests

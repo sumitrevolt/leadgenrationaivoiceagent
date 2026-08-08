@@ -58,6 +58,7 @@ def test_fresh_pending_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_stale_pending_is_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.platform import upi_payments
 
+    monkeypatch.delenv("UPI_PENDING_ALERT_HOURS", raising=False)
     monkeypatch.setattr(
         upi_payments,
         "list_payments",
@@ -65,7 +66,7 @@ def test_stale_pending_is_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
             {
                 "id": "upi_stale",
                 "status": "pending",
-                "created_at": _iso_hours_ago(ax._UPI_PENDING_ALERT_HOURS + 1),
+                "created_at": _iso_hours_ago(ax._UPI_PENDING_ALERT_HOURS_DEFAULT + 1),
             }
         ],
     )
@@ -73,6 +74,35 @@ def test_stale_pending_is_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r["status"] == "BLOCKER"
     assert r["checks"]["stale_pending"] == 1
     assert "UPI pending" in r["action"] or "approve" in r["action"].lower()
+
+
+def test_env_threshold_overrides_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """2h-old pending is OK at default 6h, BLOCKER when threshold=1."""
+    from app.platform import upi_payments
+
+    monkeypatch.setattr(
+        upi_payments,
+        "list_payments",
+        lambda status=None: [
+            {
+                "id": "upi_mid",
+                "status": "pending",
+                "created_at": _iso_hours_ago(2),
+            }
+        ],
+    )
+    monkeypatch.delenv("UPI_PENDING_ALERT_HOURS", raising=False)
+    assert ax._upi_pending_unactioned()["status"] == "OK"
+    monkeypatch.setenv("UPI_PENDING_ALERT_HOURS", "1")
+    assert ax._upi_pending_unactioned()["status"] == "BLOCKER"
+    assert ax._upi_pending_unactioned()["checks"]["alert_hours"] == 1.0
+
+
+def test_bad_env_threshold_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("UPI_PENDING_ALERT_HOURS", "nope")
+    assert ax._upi_pending_alert_hours() == float(ax._UPI_PENDING_ALERT_HOURS_DEFAULT)
+    monkeypatch.setenv("UPI_PENDING_ALERT_HOURS", "0")
+    assert ax._upi_pending_alert_hours() == float(ax._UPI_PENDING_ALERT_HOURS_DEFAULT)
 
 
 def test_corrupt_timestamp_counts_as_stale(monkeypatch: pytest.MonkeyPatch) -> None:
