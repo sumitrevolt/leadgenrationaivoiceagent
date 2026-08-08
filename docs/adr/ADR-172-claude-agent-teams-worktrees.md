@@ -37,9 +37,9 @@ free-stack mandate already covers OpenCode keys).
    list does not replace `docs/coordination/LOCKS.json`.
 5. **Frozen / RED surfaces stay RED:** Swara/voice, `deploy_vps.sh`, TRAI/DND/consent/DPDP,
    billing truth — teammates must not mutate these without owner "haan" (R8/R10).
-6. **Defer claw-orchestrator** until Agent Teams is proven useful *and* OpenClaw needs to
-   dispatch coding tasks. When evaluated, patterns-only harvest first (ADR-155 class) —
-   do not vendor as a second Owner OS.
+6. **claw-orchestrator** — evaluated in **ADR-173**: reject full vendor / OpenClaw plugin
+   install; patterns-only harvest. Revisit only after Agent Teams proves useful *and* an
+   Owner-OS-gated adapter design exists (never raw 65-tool gateway dump).
 7. **Reject Vibe Kanban / Conductor / Claude Squad as primary** coordination for this repo.
 8. **OpenCode stays on free-stack keys** (Groq/Mistral/Cerebras). Do not route Claude
    subscription OAuth into non-native harnesses.

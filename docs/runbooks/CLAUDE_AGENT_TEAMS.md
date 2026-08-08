@@ -117,10 +117,12 @@ Claude quota is the bottleneck.
 
 Do not invent a third mission store.
 
-## Later (deferred)
+## Later
 
-- **claw-orchestrator** — only if OpenClaw must dispatch coding tasks after Agent Teams
-  is proven. Patterns-first; no vendor second OS (ADR-155).
+- **claw-orchestrator** — **REJECT full vendor** (ADR-173). Diagram match is real;
+  authority model is inverted (65-tool `childProcess` plugin + `bypassPermissions`
+  council vs Owner OS sole authority). Patterns-only into `external_agents` / Agent Teams.
+  Revisit only under ADR-173 “When to revisit” gates.
 - **Vibe Kanban** — avoid as production dependency.
 
 ## Rollback

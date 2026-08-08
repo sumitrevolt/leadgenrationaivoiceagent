@@ -45,7 +45,12 @@ def test_settings_enable_agent_teams_flag():
 
 def test_adr_and_runbook_present():
     assert (REPO / "docs" / "adr" / "ADR-172-claude-agent-teams-worktrees.md").is_file()
+    assert (REPO / "docs" / "adr" / "ADR-173-claw-orchestrator-eval.md").is_file()
     assert (REPO / "docs" / "runbooks" / "CLAUDE_AGENT_TEAMS.md").is_file()
+    text = (REPO / "docs" / "adr" / "ADR-173-claw-orchestrator-eval.md").read_text(encoding="utf-8")
+    assert "REJECT full install" in text or "REJECT full vendor" in text
+    assert "patterns-only" in text.lower() or "FEATURE_HARVEST" in text
+
 
 
 def test_invalid_slug_refused():

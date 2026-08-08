@@ -2601,3 +2601,15 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 **Evidence:** `tests/test_agent_team_worktree.py`; docs `docs/adr/ADR-172-claude-agent-teams-worktrees.md` + `docs/runbooks/CLAUDE_AGENT_TEAMS.md`.
 
 **Consequence:** No prod flag / deploy. Start 2–3 teammates. Quota = same Claude subscription pool. Owner plan (Pro vs Max) is a money decision outside this ADR.
+
+## ADR-173 (2026-08-08) — claw-orchestrator (Enderfga): REJECT full vendor; patterns-only [EVAL]
+
+**Context:** Package `@enderfga/claw-orchestrator` v4.11.0 looks diagram-similar (multi-engine CLIs + OpenClaw plugin + worktrees + MCP). Eval clone outside tree.
+
+**Decision:** Do not install plugin / `clawo serve` / replace external_agents. OpenClaw stays inbound Copilot edge; coding missions stay Owner OS + external_agents. Kill facts: 65 tools into gateway, `childProcess: true`, council default `bypassPermissions`, separate dashboard/ledger, Node island.
+
+**Allow:** harvest session/worktree/MCP-allowlist *ideas* into existing runners (ADR-172, ADR-148).
+
+**Evidence:** `/tmp/claw_orch_eval/claw-orchestrator` README + `openclaw.plugin.json` + `install.sh` + `council.md`.
+
+**Consequence:** ADR-172 path unchanged. No prod/OpenClaw allowlist change.
