@@ -8,7 +8,7 @@ Quick map of the compose/Dockerfile files in the repo root (verify against your 
 | docker-compose.vps.yml | **Canonical production** — app + Postgres + Redis (+ worker/beat via `--profile celery`) | Live VPS (`/opt/leadgen`) |
 | deploy/compose/docker-compose.observability.yml | Prometheus + Grafana + Alertmanager + Loki + Tempo + Uptime Kuma + Gatus | Opt-in monitoring stack |
 | deploy/compose/docker-compose.tools.yml | Self-hosted SearXNG + ntfy + changedetection.io | Opt-in tools |
-| deploy/compose/docker-compose.staging.yml | Staging (separate DB+Redis, port 8001, automation OFF) | Pre-prod testing |
+| deploy/compose/docker-compose.staging.yml | Staging (separate DB+Redis, port 8001, automation OFF, profile-gated since 2026-08-08) | Pre-prod testing — `docker compose -f deploy/compose/docker-compose.staging.yml --profile staging --env-file .env.staging up -d` |
 | deploy/compose/docker-compose.ollama.yml | Local Ollama LLM | Optional local-LLM experiments |
 | docker-compose.prod.yml | Likely legacy (Cloud-Run-era). **Verify / consider removing** if superseded by vps.yml | — |
 | docker-compose.yml | Base/dev default | Local dev |
