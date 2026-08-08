@@ -38,6 +38,13 @@ inside the range of three separate high-severity advisories. `sse-starlette==3.4
 (`starlette>=0.49.1`) and `google-api-core==2.31.0` (`protobuf>=5.29.6`, lock had
 `4.25.9`) were violated the same way.
 
+**A fourth violation was found by the new gate itself**, on its first CI run:
+`packaging==23.2` against `google-cloud-bigquery==3.42.3`'s `packaging>=24.2.0`.
+Nothing in this slice touched `packaging` — the resolver surfaced it the moment a
+resolution was attempted for the first time. Bumped to `packaging==25.0`. That is
+the gate doing its job on day one, and it is the reason the drift is best described
+as a class of defect rather than a list of CVEs.
+
 An install "succeeding" under `--no-deps` therefore proves nothing at all. That is
 the check `tests/test_dependency_security_floors.py` now performs.
 
@@ -131,8 +138,19 @@ Two hollow gates, one fixed here and one left alone on purpose:
 1. **`ci.yml` "Dependency vulnerability scan"** — labelled `MUST-PASS — no known
    CVEs in dependencies`, but the command ended in `|| true` and audited
    `requirements.txt`, a *reference* manifest, not the `requirements.lock.txt` the
-   image installs. Now audits the lock with `--no-deps`, blocks, and carries the two
-   exceptions as explicit `--ignore-vuln` flags. Same step, same workflow.
+   image installs. It now **blocks**, and carries the two exceptions as explicit
+   `--ignore-vuln` flags.
+
+   It also **moved from the lint job to the `tests` job**, and audits the *installed
+   environment* rather than a requirements file. That was forced by evidence, not
+   preference: the first blocking run failed with `ResolutionImpossible` on
+   `packaging==23.2`, because auditing a requirements *file* makes pip-audit
+   re-resolve the lock — producing a set that nothing in this project ever installs,
+   since every real install passes `--no-deps`. The `tests` job already installs the
+   lock exactly as `Dockerfile.lock` does, so auditing that environment needs no
+   resolver and describes precisely what ships. pip-audit runs from its own venv and
+   reaches the environment via `--path`, so its own dependencies cannot silently
+   upgrade the packages being audited.
 2. **`security-scan.yml`** — **not touched.** It is uncommitted-dirty in the primary
    checkout with an in-flight owner-approved CRITICAL gate of its own, and that
    checkout is on the dead pre-rewrite lineage (CP0-F1). Editing it would break the
@@ -147,7 +165,31 @@ workflow not being marked required, and asserts the lock, the installed set, the
 `--no-deps` constraint blind spot, the reachable behaviours, and the exception
 expiries.
 
-## 6. Residual risk
+## 6. Unrelated defect found while verifying — test suite writes to a real customer's ledger
+
+Running the suite left `data/delivery_ledger/jiya-makeover.jsonl` modified — a
+**tracked** file belonging to the only paying customer. The appended rows are
+indistinguishable from real delivery events:
+
+```
+{"at": "2026-08-08T08:39:49+00:00", "client_id": "jiya-makeover", "event": "post_approved", ...}
+{"at": "2026-08-08T08:41:15+00:00", "client_id": "jiya-makeover", "event": "plan_activated", "detail": "starter", "actor": "backfill", ...}
+```
+
+Timestamps match this session's shard run. `data/*` is in `.gitignore`, but ignore
+rules do not apply to already-tracked files, so these show up as ordinary
+modifications. Reverted here (`git checkout --`) and **not** committed.
+
+Why it matters: the delivery ledger *is* the customer-visible proof Product 1
+sells. Any agent that runs the suite and then does `git add -A` commits fabricated
+delivery events for a paying customer. This is the concrete mechanism behind
+`AGENT_WORK_RULES` R7 ("never `git add -A`") — the rule is not hygiene advice, it
+is protecting this file.
+
+Not fixed here: it needs a `tmp_path`-scoped ledger fixture (or untracking the
+customer ledgers), which is its own slice. Raised in the Owner packet.
+
+## 7. Residual risk
 
 - `import app.main` under the amended lock is verified by CI, not locally (§4 row 7).
   If CI goes red on this PR, that is the finding — do not re-mute the gate.
