@@ -127,10 +127,12 @@ def test_lockfile_meets_advisory_floor(pkg: str) -> None:
     floor, why = FLOORS[pkg]
     pins = _lock_pins()
     assert pkg in pins, f"{pkg} vanished from requirements.lock.txt"
-    assert _tuple(pins[pkg]) >= _tuple(floor), (
-        f"requirements.lock.txt pins {pkg}=={pins[pkg]}, below the advisory floor "
-        f"{floor}.\n{why}"
-    )
+    # Message hoisted to a local: this repo runs three formatters that disagree
+    # about how to wrap a long assert (pre-commit black, pre-commit ruff v0.1.14,
+    # Gate A's ruff format 0.16.1). A short assert takes the choice away from all
+    # three, so this line stops ping-ponging between them.
+    msg = f"lock pins {pkg}=={pins[pkg]}, below advisory floor {floor}.\n{why}"
+    assert _tuple(pins[pkg]) >= _tuple(floor), msg
 
 
 def test_lockfile_has_no_unpinned_or_duplicate_entries() -> None:
