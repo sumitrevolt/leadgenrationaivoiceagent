@@ -340,8 +340,8 @@ production automation health.**
 
 | # | domain | class | evidence |
 |---|---|---|---|
-| 1 | Security / authn / authz / RBAC | `WORKING_AND_PROVEN` | targeted auth+RBAC suites green (below); `/api/activation/readiness` + `/wizard` return 401 unauthenticated while only the coarse `/summary` is public |
-| 2 | Tenant isolation | `WORKING_AND_PROVEN` | targeted isolation suites green (below) |
+| 1 | Security / authn / authz / RBAC | `WORKING_AND_PROVEN` | E19: 140 passed across 15 auth/RBAC/isolation suites; `/api/activation/readiness` + `/wizard` return 401 unauthenticated while only the coarse `/summary` is public |
+| 2 | Tenant isolation | `WORKING_AND_PROVEN` (unit/HTTP) + 1 `WORKING_BUT_UNVERIFIED` | E19; but `test_live_tenant_isolation_proof.py` **skipped** — needs a real DB, so the live proof is not in evidence |
 | 3 | Secrets / rotation | `WORKING_BUT_UNVERIFIED` | `check_secrets.py` exit 0; pre-commit runs `detect-secrets`, `bandit`, `detect private key` and a `no tracked personal-data CSV exports` hook — all Passed on this commit. **Open owner item:** the historically leaked `GEMINI_API_KEY` was scrubbed but deliberately **not rotated** (voice moved off Gemini); the burned key is still revocable in the Google console |
 | 4 | Backups / restore / DR | `WORKING_BUT_UNVERIFIED` | `docs/DISASTER_RECOVERY.md` + rclone→Drive documented and previously restore-proven; **no drill run in this session** |
 | 5 | SLO / monitoring / alerting | `WORKING_AND_PROVEN` (config) | `monitoring/alert_rules.yml` carries `HostMemoryHigh`, `HostDiskLow`, `ContainerHighMemory`, `RedisMainNearFull` etc. |
@@ -386,11 +386,45 @@ are being reported, not purged.
 
 ## EVIDENCE LEDGER
 
-| # | HEAD | command | exit | when (UTC) | artifact |
+Fingerprint = HEAD · command · exit code · result · time. Nothing below was re-run
+once recorded; a re-run happens only if HEAD, command, config or environment changes.
+Interpreter for every Python row: `C:\…\leadgenrationaiagent\.venv\Scripts\python.exe`
+(the primary checkout's venv, used read-only). cwd for every row: this worktree.
+
+| # | HEAD | command | exit | result | when (IST) |
 |---|---|---|---|---|---|
-| E1 | `5ae5a4b9` | `curl https://leadsgenai.in/health` | 0 | 2026-08-08 07:09 | CP0-F3 |
-| E2 | `5ae5a4b9` | `curl https://leadsgenai.in/health/ready` | 0 | 2026-08-08 07:09 | CP0-F3 |
-| E3 | `5ae5a4b9` | `git merge-base --is-ancestor HEAD origin/main` | 0 | 2026-08-08 07:1x | CP0-F1 |
+| E1 | `5ae5a4b9` | `curl https://leadsgenai.in/health` | 0 | `version=42493e3f` `environment=production` `uptime=1h7m` | 12:39 |
+| E2 | `5ae5a4b9` | `curl https://leadsgenai.in/health/ready` | 0 | db/redis healthy · llm groq · disk 25.7 % free · **mem 89.5 % used** | 12:39 |
+| E3 | `5ae5a4b9` | `git merge-base --is-ancestor HEAD origin/main` | 0 | branch re-pointed, ancestry restored | 12:41 |
+| E4 | `5ae5a4b9` | `git diff --stat a42d869c b5b61231` | 0 | **empty** — history-rewrite twins proven | 12:38 |
+| E5 | `5ae5a4b9` | `scripts/prod_check.py` | 0 | 1267 routes · 49 pages 0 gaps · 1289 API ops in sync | 12:44 |
+| E6 | `5ae5a4b9` | `scripts/check_secrets.py` | 0 | no secrets detected | 12:44 |
+| E7 | `5ae5a4b9` | `scripts/check_html_js.py` | 0 | clean | 12:44 |
+| E8 | `5ae5a4b9` | `scripts/cross_path_audit.py` | 0 | clean | 12:45 |
+| E9 | `5ae5a4b9` | `scripts/deep_wiring_audit.py` | 0 | handlers=0 apis=0 anchors=0 gaps | 12:45 |
+| E10 | `5ae5a4b9` | `scripts/automation_health_audit.py` | 0 | ALL GREEN — **local stores, N/A not proof** (CP4-3) | 12:45 |
+| E11 | `5ae5a4b9` | `scripts/automation_wiring_audit.py` | 0 | 364 flags · 0 never read · 43 jobs · 44 beat tasks | 12:46 |
+| E12 | `5ae5a4b9` | `scripts/explorer_sync.py --check` | 0 | 89/89 engines · 0 orphans · 0 dangling | 12:46 |
+| E13 | `5ae5a4b9` | alembic head scan over `alembic/versions/*.py` | 0 | 23 revisions, **1 head** `023_add_prospective_memory` | 12:52 |
+| E14 | `5ae5a4b9` | `gh run list --workflow {ci,tests,security-scan,migrations}.yml --branch main` | 0 | all `success` on tip `5ae5a4b9` | 12:53 |
+| E15 | pre-fix | `pytest tests/test_upi_order_close.py` (with `app/platform/upi_payments.py` stashed) | 1 | **5 failed, 3 passed** — defect reproduced | 12:56 |
+| E16 | `e10a34c9` | `pytest test_upi_order_close + test_upi_order_ref_binding + test_offers_order_ref + test_offers_commercial_authority` | 0 | **57 passed** | 12:55 |
+| E17 | `e10a34c9` | `pytest tests/test_voice_session.py tests/test_voice_launch.py` | 0 | **49 passed** — session cap, concurrency, 31st-blocked-pre-provider | 12:58 |
+| E18 | `e10a34c9` | CP2 batch — 15 billing/UPI/invoice/webhook suites | 0 | **127 passed, 0 failed, 0 skipped** | 13:05 |
+| E19 | `e10a34c9` | CP5 batch — 15 tenant-isolation/RBAC/auth suites | 0 | **140 passed, 0 failed, 2 skipped** (see note) | 13:08 |
+| E20 | `e10a34c9` | CP3 batch — 13 voice/telephony/compliance suites | 0 | **187 passed, 0 failed, 0 skipped** | 13:09 |
+| E21 | `e10a34c9` | `ruff check` + pre-commit (black, isort, bandit, detect-secrets, private-key, PII-CSV) | 0 | all Passed on both commits | 12:59 / 13:07 |
+
+**Targeted total: 560 tests, 0 failures, 2 skips.** The full suite was deliberately
+NOT run (documented `team_pulse` hang; a hang reported as a pass is the exact failure
+mode this brief forbids).
+
+**The 2 skips are declared, not hidden** — both self-report their reason:
+- `test_live_tenant_isolation_proof.py:13` — *"Admin endpoints require DB tables not
+  available in test env"*. So the **live** tenant-isolation proof did not execute;
+  isolation is proven by the other 14 suites (unit/HTTP level), and this one stays
+  `WORKING_BUT_UNVERIFIED` until run against a real DB.
+- `test_runtime_data_isolation.py:252` — POSIX path semantics, skipped on Windows.
 
 ---
 
