@@ -1,35 +1,26 @@
-# SESSION_HANDOFF — 2026-08-06 ADR-164/165 31-agent maturity + Boss coordination
+# SESSION_HANDOFF — 2026-08-08 ADR-172 Claude Agent Teams + worktrees
 
 ## Source boundary
-- Isolated worktree: `C:\Users\Ratanshila\Documents\_leadgen_worktrees\leadgen-agent-maturity-20260806`
-- Branch: `codex/agent-maturity-31-20260806`, base `origin/main` `31169c7`
-- Current `origin/main` advanced by one infra-only commit (`57c9839`); it overlaps `app/api/automation_flags.py` only in a nearby compose-path comment, while this slice adds a separate flag line. Integrate on a fresh base during the authorized commit/PR step.
-- LOCAL-ONLY: no commit, push, PR, deploy or production flag/env change.
+- Branch: `cursor/claude-agent-teams-worktrees-63d4` (from `main`)
+- Cloud agent run: Claude agent teams worktrees
+- No prod env / flag / deploy touch. Swara/voice untouched.
 
 ## Implemented
-- `agent_maturity.py`: all 31 STAFF get derived enterprise profiles, private agent+tenant memory/KB namespaces, role KB, common SaaS controls and role-specific competencies.
-- Workforce memory storage/recall/purge/retention is tenant-scoped; customer memory cannot enter global team sharing.
-- Agent Runtime passes tenant into memory and carries maturity/skill/KB context fields. Bounded role/KB context is inert unless `AGENT_MATURITY_CONTEXT=1`.
-- Owner OS Agents UI and read-only `/api/admin/owner-os/maturity` expose profile readiness separately from rollout truth.
-- Canonical Office map now derives Boss → 7 domain teams → 30 workers, covering all 31 STAFF exactly once. Hierarchical runs persist assignments, handoffs, coverage and Boss verdict; Owner OS and Coordination Hub render them separately from health/tool pulse.
-- Decision authority is Boss within the existing agent contract. Owner business gate is manual UPI confirmation only; compliance, kill, budget, RED-lane and prohibited-action refusals remain system-enforced.
-- Automation wiring audit now counts exact flag references in one corpus pass instead of rescanning the full source blob once per flag; audit strictness is unchanged.
-- Generated API inventory is refreshed and in sync.
+- **ADR-172:** native Claude Code Agent Teams + mandatory git worktree isolation as the coding-plane multi-agent path; claw-orchestrator deferred; Vibe Kanban/Conductor/Claude Squad rejected as primary; OpenCode stays free-stack (no Claude OAuth route).
+- `.claude/settings.json` → `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (local Claude Code only).
+- `scripts/agent_team_worktree.py` — create/list/remove under allowlisted root (`AGENT_TEAM_WORKTREE_ROOT` / `EXTERNAL_AGENT_WORKTREE_ROOT`).
+- Runbook `docs/runbooks/CLAUDE_AGENT_TEAMS.md`; pointers in coordination README, AGENT_WORK_RULES R7, PR_FACTORY.md.
+- Contract tests `tests/test_agent_team_worktree.py`.
 
 ## Honest status
-- Setup profiles: 31/31 `enterprise_profile_ready`.
-- Boss coordination routes: 31/31 ready; actual mission execution remains policy/rollout gated.
-- Runtime rollout unchanged: 12 canary-ready, 17 rollout-hold, 2 intentionally disabled.
-- Swara/voice code, compliance, payment, env and production untouched.
+- Docs + opt-in local tooling = CODE-PRESENT.
+- Not a second control plane; PR Factory / external_agents mission ledger unchanged.
+- Owner Pro vs Max quota choice = money decision (not coded).
 
 ## Evidence
-- 170 coordination/maturity/Owner OS/Office/runtime/memory tests passed; ruff and compile passed.
-- Tenant cross-recall/purge, DNR scope, namespace opacity and rollout-honesty contracts pass.
-- Profile projection benchmark: 41.2ms cold / 2.0ms warm.
-- Standalone `scripts/automation_wiring_audit.py`: exit 0 in 66.0s; 357 flags, 2 reserved-future, 0 never read; 43 STAFF jobs and 44 beat tasks clean.
-- Latest canonical `scripts/prod_check.py`: exit 0 in 56.1s; 1807 sources parsed, 1267 routes, 49 pages with 0 wiring gaps, 0 automation gaps, explorer graph clean, and 1289 API operations in sync. Owner OS and Coordination Hub JavaScript parse clean.
+- `.venv/bin/python -m pytest tests/test_agent_team_worktree.py -q` → 5 passed (exit 0).
 
 ## Next
-- Local release-review gates are closed. Only after owner request: commit, push and PR.
-- At that authorized step, integrate the one newer `origin/main` commit and rerun the focused flag/readiness gates.
-- Deploy/enablement is separate; keep `AGENT_MATURITY_CONTEXT` OFF until canary approval and retain the staged 12/17/2 rollout truth.
+- Owner: confirm Claude plan headroom (2–3 teammates default).
+- First live canary: spawn 2 teammates on disjoint paths inside agent-team worktrees + buzzlock.
+- Only later: evaluate claw-orchestrator if OpenClaw coding dispatch is needed (patterns-first, ADR-155).

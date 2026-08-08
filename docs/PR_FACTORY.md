@@ -37,6 +37,13 @@
 - Parallel Code as primary
 - “awesome-orchestrators” style dependency harvest as product control plane
 - Vendoring `openai/symphony`
+- claw-orchestrator as a second Owner OS (deferred patterns-only; see ADR-172)
+
+## Related coding plane (not a factory replacement)
+
+Interactive Claude Code parallel work uses **native Agent Teams + worktrees**
+(ADR-172, `docs/runbooks/CLAUDE_AGENT_TEAMS.md`). That plane does not own missions;
+PR Factory remains the only TaskYAML → `create_mission` path.
 
 ## Install Spec Kit (dev only)
 

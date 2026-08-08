@@ -31,3 +31,4 @@
 ## Parked
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
+- **ADR-172 Agent Teams + worktrees** — CODE-PRESENT on branch `cursor/claude-agent-teams-worktrees-63d4` (docs/settings/script/tests); no prod flip. Live canary = owner Claude session with 2–3 teammates + `scripts/agent_team_worktree.py`.
