@@ -396,9 +396,7 @@ def _async_engine_teardown_guard():
         )
 
         asyncio.run(drain_inquiry_bg_tasks(timeout=5.0))
-        assert (
-            pending_inquiry_bg_count() == 0
-        ), "inquiry_hooks owned tasks still pending after drain"
+        assert pending_inquiry_bg_count() == 0, "inquiry tasks pending after drain"
         # Leave accept gate open for any late imports in other session fixtures.
         resume_accepting_inquiry_bg()
     except AssertionError:
