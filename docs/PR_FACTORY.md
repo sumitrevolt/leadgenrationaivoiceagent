@@ -1,6 +1,6 @@
 # PR Factory (Wave 1)
 
-**Status:** CODE-PRESENT · flags default OFF · ADR-163
+**Status:** CODE-PRESENT · flags default OFF · ADR-163 · ADR-166
 **Branch intent:** factory spine only — honest target after enablement = **10–20 verified PRs per wave**, not “100 PRs in hours.”
 
 ## Stack (locked)
@@ -26,6 +26,7 @@
 | Flag | Default | Notes |
 |------|---------|-------|
 | `PR_FACTORY_ENABLED` | `0` | Factory CLI inert unless also `EXTERNAL_AGENT_ORCHESTRATOR=1` |
+| `PR_FACTORY_PILOT_ENABLED` | `0` | Bounded PR-orchestration pilot (ADR-166); requires `PR_FACTORY_ENABLED` + `EXTERNAL_AGENT_ORCHESTRATOR` too — see `docs/PR_ORCHESTRATION_PILOT.md` |
 | `EXTERNAL_AGENT_ORCHESTRATOR` | `0` | Canonical mission ledger |
 | `EXTERNAL_AGENT_RUNNER` | `0` | Dual-gate for real CLI invocation |
 
@@ -73,6 +74,15 @@ Never invent a second mission store — always call `app.dev_control.external_ag
 1. **Wave 2:** live issue→task intake, dependency graph, wave scheduler, Gate B required on path filters
 2. **Wave 3:** CI repair loop wired to Action + merge_train dry-run
 3. **Wave 4:** org Merge Queue + `merge_group` triggers
+
+## Orchestration pilot (ADR-166)
+
+A bounded, fail-closed repair/verify/cleanup orchestrator (Bernstein-inspired,
+**not** vendored Bernstein) ships alongside the factory spine:
+`tools/pr_factory/pilot/`. Triple-gated (`PR_FACTORY_PILOT_ENABLED` +
+`PR_FACTORY_ENABLED` + `EXTERNAL_AGENT_ORCHESTRATOR`), never merges/deploys,
+pins the head SHA, requires fresh CI, caps repair attempts, and owns exactly one
+task worktree. Runbook: `docs/PR_ORCHESTRATION_PILOT.md`.
 
 ## Runbooks
 
