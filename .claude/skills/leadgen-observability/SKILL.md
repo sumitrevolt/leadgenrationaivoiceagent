@@ -19,6 +19,7 @@ Failures customer-report se PEHLE dikhao. Sirf useful signals — revenue, autom
 - **Wired-but-OFF**: PostHog (`POSTHOG_API_KEY`), LiteLLM, OTel — sirf .env keys chahiye.
 
 ## Workflow
+Fill-in catalogue (per-flow table, log-field contract, alert thresholds, scoring) → `references/SIGNAL_CATALOGUE.md`.
 1. Critical flows identify: P1 signup/payment/onboarding/content, automations, lead pipeline, email, infra, P2 compliance gates.
 2. Har flow ke liye logs/metrics/traces/events/dashboards define.
 3. Har job + request ko correlation-id (jahan practical).

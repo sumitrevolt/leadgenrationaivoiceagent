@@ -17,6 +17,7 @@ Scheduler = Celery durable (LIVE), so Celery visibility zaroori hai:
 - Same addons file me **minio** (`leadgen_minio` :9000 S3 API / :9001 console) — object store (AI images/client assets), abhi opt-in (app code `data/ai_images/` bind-mount pe graceful fallback; `app/storage/minio_client.py`).
 
 ## Add an alert
+Full procedure (reload, validate, verify table, rollback, the two bind-mount traps) → `references/ALERT_RUNBOOK.md`.
 1. Rule → `monitoring/alert_rules.yml` (PromQL `expr`, `for:`, `labels: {severity: critical}`, `annotations`).
 2. Prometheus reload: `up -d --force-recreate prometheus` (ya `kill -HUP 1`).
 3. Route → `monitoring/alertmanager.yml` (`severity="critical"` → `email-admin`, 1h repeat). Validate: `docker exec leadgen_alertmanager amtool check-config /etc/alertmanager/alertmanager.yml`.
@@ -47,7 +48,7 @@ PostHog (`POSTHOG_API_KEY`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDF
 - **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me: rule/route/container already exists kya (`monitoring/alert_rules.yml`, prometheus scrape targets) + config bind-mount hai ya image-baked.
 - **Change-risk tier: Standard** (alert rule / dashboard add) → **High-risk** jab alertmanager SMTP secret, public-expose, ya core scrape-config touch ho.
 - **Operating gates:**
-  - **Secret-safe** — SMTP password committed config me KABHI nahi: `smtp_auth_password_file: /etc/alertmanager/smtp_pass`, file `monitoring/alertmanager_smtp_pass` gitignored, VPS pe `.env` `SMTP_PASSWORD` se likhi. `FLOWER_USER/PASSWORD`, Grafana creds = `.env`. `scripts/check_secrets.py`.
+  - **Secret-safe** — SMTP password committed config me KABHI nahi: `smtp_auth_password_file: /etc/alertmanager/smtp_pass`, file `monitoring/alertmanager_smtp_pass` gitignored, VPS pe `.env` `SMTP_PASSWORD` se likhi. `FLOWER_USER/PASSWORD`, Grafana creds = `.env`. Diff pe repo ka secret-scan gate (`check_secrets.py`) chalao.
   - **No public expose** — flower (:5555) / celery-exporter (:9808) / Grafana SSH-tunnel ya internal only; internet pe mat kholo.
   - **Don't break the watcher** — alert change ke baad alertmanager/prometheus self-monitoring intact; `automation_health` + `ops_watchdog` (app-level) + Alertmanager (infra-level) dono layers chahiye (ek down to dusra catch kare).
   - **Alert noise/cooldown** — naya critical rule ko `for:` + repeat-interval (1h) do, warna alert-storm. Severity-route sahi (`severity="critical"` → `email-admin`).
