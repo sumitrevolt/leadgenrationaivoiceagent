@@ -6,6 +6,14 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 ## Last verified timestamp
 2026-08-04 — direct `/health` probe = `e06687c7`. See `docs/context/SESSION_HANDOFF.md`.
 
+## DEPLOYED 2026-08-09 — `d1b106b2` (PR #294 merged + shipped)
+Prod `/health` = `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
+Kill-fence procedure executed as documented: backup `.env.bak-dailyvideo-20260809` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh` → reverted to `0` → recreate → proven `0` in all 5 containers. `.env` is byte-identical to the pre-deploy backup (md5 `ec9db158d99269cc463e97923970b50f`).
+**Every new flag stayed unset** (`DAILY_VIDEO_ENABLED`, `DAILY_VIDEO_CLIENTS`, `DAILY_VIDEO_ENGINE`, `CELERY_VIDEO_QUEUE`, `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED`) — the producer is INERT in prod. Calling flags unchanged (`PLATFORM_DIAL_DAILY=1`, `PLATFORM_DIAL_LIMIT=100`, `DIAL_TEST_MODE=0`, `VIDEO_AD_CYCLE=1`).
+Rollback ref = `3cd95ba2` (prior prod).
+⚠️ **Operator error during this deploy, recorded so it is not repeated:** the fence-closing recreate was run as a bare `docker compose up -d` **without `APP_VERSION`**, so compose fell back to `${APP_VERSION:-latest}` and prod ran the `:latest` image (`266d772a…`) for ~55s before it was caught by the `/health.version` check and corrected with `APP_VERSION=d1b106b2 docker compose … up -d`. This is exactly the ADR-097 landmine. **Any manual recreate — including the one that closes the kill fence — MUST carry `APP_VERSION=<sha>`.** `deploy_vps.sh` itself was never the problem; it pinned correctly.
+Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes)
+
 ## Daily video — diagnosis + new producer (2026-08-09)
 Prod `/health` re-probed 2026-08-09 = **`3cd95ba2`**, equal to `origin/main` (the `33651cfc` / `084cd990` values elsewhere in these docs are stale).
 Owner report "daily videos not set up, advanced not running, old not running" — probed, all three had different causes:

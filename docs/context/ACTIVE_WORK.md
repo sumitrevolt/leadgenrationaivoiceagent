@@ -23,8 +23,8 @@
 ## WS-DV1 Daily video producer - CODE READY, OWNER FLAGS PENDING
 - **ID:** WS-DV1
 - **Business outcome:** marketing customer ko ROZ 1 video (classic ab, HyperFrames-advanced toolchain deploy ke baad)
-- **Current state:** **PR #294 open** (5 commits) — ADR-166 producer + 2 systemic observability fixes (budget-skips, customer-approval backlog) + runtime-data + explorer-graph compliance. CI green except pre-existing non-required Gate A. Flags default OFF, NOT deployed.
-- **Next exact action:** merge #294 → deploy → then Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md` (`DAILY_VIDEO_ENABLED=1`, `DAILY_VIDEO_CLIENTS=jiya-makeover`, `ENGINE=classic`) + clear the 32 pending reviews
+- **Current state:** **MERGED + DEPLOYED** — PR #294 → prod `/health`=`d1b106b2`, 5/5 zero skew, kill-fence closed, queues at baseline. All `DAILY_VIDEO_*` flags **unset** so the producer is INERT; deploy produced zero behaviour change by design.
+- **Next exact action:** Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md` — `DAILY_VIDEO_ENABLED=1`, `DAILY_VIDEO_CLIENTS=jiya-makeover`, `DAILY_VIDEO_ENGINE=classic`, then recreate **with `APP_VERSION=d1b106b2`**. Also clear the 32 pending reviews or the producer will (correctly) refuse that client.
 - **Out of scope:** auto-publish · daily WA blast · pricing copy "daily" claim before a week of proven delivery
 
 ---

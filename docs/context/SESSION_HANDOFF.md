@@ -29,8 +29,17 @@ old setup not running either." All three had *different* causes — verified on 
 `daily-status`/`daily-run` + `run_cycle` cadence-ownership deferral + 4 missing flags registered.
 122 targeted tests green, `prod_check.py` PASS, `check_secrets.py` clean, ruff clean on changed files.
 
+**MERGED + DEPLOYED 2026-08-09:** PR #294 -> prod `/health` = `d1b106b2`, 5/5 services zero skew,
+kill-fence opened and closed cleanly (`.env` byte-identical to its backup), queues at baseline.
+All `DAILY_VIDEO_*` flags stayed unset, so the producer is INERT and the deploy changed nothing.
+
+**Operator error worth remembering:** the fence-closing recreate was run without `APP_VERSION`,
+so compose used `${APP_VERSION:-latest}` and prod sat on the `:latest` image (`266d772a`) for
+~55s until `/health.version` exposed it. Corrected with `APP_VERSION=d1b106b2 docker compose ... up -d`.
+ANY manual recreate needs an explicit `APP_VERSION` - the runbook now spells this out.
+
 **Next agent, start here:**
-- Owner action = Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md`. Nothing is deployed.
+- Owner action = Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md` (code IS deployed, flags OFF).
 - The advanced engine needs an **image build + compose overlay + `CELERY_VIDEO_QUEUE=1`**, not a
   flag flip. Do not promise "advanced is on" from a flag alone.
 - Clearing the 32 pending reviews is a prerequisite — `DAILY_VIDEO_MAX_PENDING=2` will correctly
