@@ -251,6 +251,7 @@ def test_dry_run_mutates_nothing(monkeypatch):
 
 
 def test_backup_failure_aborts_without_mutating(monkeypatch):
+    monkeypatch.setenv("TENANT_QUARANTINE", "1")
     sess = _Sess(_prod_shaped_rows())
     _patch(monkeypatch, sess)
 
@@ -262,6 +263,18 @@ def test_backup_failure_aborts_without_mutating(monkeypatch):
     assert "backup_failed" in str(out.get("error", ""))
     assert out["pg_updated"] == 0
     assert sess.committed == 0
+
+
+def test_mutate_refused_when_flag_off(monkeypatch):
+    monkeypatch.delenv("TENANT_QUARANTINE", raising=False)
+    sess = _Sess(_prod_shaped_rows())
+    _patch(monkeypatch, sess)
+    out = tq.quarantine_fixture_tenants(dry_run=False)
+    assert out["error"] == "TENANT_QUARANTINE_off"
+    assert out["flag_enabled"] is False
+    assert out["pg_updated"] == 0
+    assert sess.committed == 0
+    assert "would_quarantine" in out
 
 
 def test_limit_bounds_the_batch(monkeypatch):
