@@ -1035,6 +1035,7 @@ const VIEWS = {
       {id:'owner_agent_execution', type:'platform', badge:'V1.1', cx:'moderate', sched:'live', title:'Owner Agent Execution', desc:'Per-agent scheduled-pause / stop-claims / drain / cooperative abort + running-task lease (owner_agent_controls table, ADR-120) · /app/owner Isha strip', files:'owner_agent_execution.py', x:340, y:2200, w:290, h:100},
       {id:'agent_task_queue', type:'platform', badge:'AUDIT QUEUE', cx:'moderate', sched:'every cron run', title:'Agent Task Queue', desc:'Paperclip-style AgentTask bridge · atomic claim · parent delegation/cost roll-up · scheduler run start/done/fail audit', files:'agent_task_queue.py · agent_task.py', x:660, y:2200, w:290, h:100},
       {id:'sales_autopilot', type:'platform', badge:'SALES', cx:'moderate', sched:'hourly :25', title:'Sales Autopilot', desc:'Policy-driven autonomous sales canary tick · dry-run default · calling HARD OFF · INERT unless SALES_AUTOPILOT_ENABLED · fail-closed eligibility', files:'sales_autopilot_admin.py · team_scheduler.py · staff_jobs.py', flag:'SALES_AUTOPILOT_ENABLED', x:980, y:2200, w:290, h:100},
+      {id:'daily_video', type:'platform', badge:'DAILY VIDEO', cx:'moderate', sched:'daily 09:45', title:'Daily Video Producer', desc:'ADR-166 · per-client daily video · ENQUEUE-ONLY (never renders here, so it cannot be budget-starved like the content chain was) · engine auto|advanced|classic · fail-closed DAILY_VIDEO_CLIENTS allowlist · open-review backpressure · INERT unless DAILY_VIDEO_ENABLED', files:'daily_video.py · video_jobs.py', flag:'DAILY_VIDEO_ENABLED', x:1300, y:2200, w:300, h:100},
     ],
     edges: [
       {f:'scheduler_config', t:'beat', lbl:'gates run', style:'sync'},
@@ -1054,6 +1055,8 @@ const VIEWS = {
       {f:'worker', t:'customer_autopilot', lbl:'daily', style:'async'},
       {f:'worker', t:'platform_dial', lbl:'hourly', style:'async'},
       {f:'worker', t:'sales_autopilot', lbl:'hourly :25', style:'async'},
+      {f:'worker', t:'daily_video', lbl:'daily 09:45', style:'async'},
+      {f:'daily_video', t:'worker', lbl:'enqueue render (video queue)', style:'async'},
       {f:'worker', t:'voice_followup', lbl:'min:25', style:'async'},
       {f:'worker', t:'approval_notifier', lbl:'daily gated', style:'async'},
       {f:'approval_notifier', t:'content_approve', lbl:'remind', style:'sync'},

@@ -52,7 +52,7 @@ _Date: 2026-07-19 · Source: `app/platform/team.py` STAFF (31 personas) + flag m
 ## VOICE team (8) — telephony
 | Agent | Role | Run24/7 | Autonomous | Guarded | Observed | Lane | Tested |
 |---|---|:--:|:--:|:--:|:--:|:--:|:--:|
-| Swara | Telecaller | ❌ on-demand; cold=`platform_dial` HARD-OFF | ✅ LLM convo | ✅ | ⚠️ call logs | 🔴 calling | ✅ agent_tester |
+| Swara | Telecaller | ✅ on-demand; cold=`platform_dial` LIVE (supersedes HARD-OFF, 2026-08-02 — `PLATFORM_DIAL_LIMIT`=100 cap) | ✅ LLM convo | ✅ | ⚠️ call logs | 🔴 calling | ✅ agent_tester |
 | Ananya | Appointment Booker | ❌ on-demand | ⚠️ | ✅ | ⚠️ | 🔴/🟡 outbound | ⚠️ |
 | Riya | AI Receptionist | ⚠️ inbound event (always-ready) | ✅ LLM | ✅ | ⚠️ | 🟡 inbound | ⚠️ |
 | Arjun | Voice QA | ✅ daily 2:30 | ⚠️ | ✅ | ✅ qa | 🟢 | ✅ |
@@ -75,7 +75,7 @@ Hermes, Vikram, Guru, Pranav, Vidya, Arnav, Kabir, Diya, Aryan, Arya. → Ek `.e
 Rohan, Isha, Kiran, Priya, Zara, Anika, Ira. → Built, gated. Enable karo GREEN stable hone ke baad; email 25/day cap + bounce/complaint watch. Mostly draft/own-channel = manageable.
 
 **🔴 RED — calling/HITL (mandate + human-in-loop): ~4**
-Swara, Ananya, Riya, Raksha. → Cold outbound `platform_dial` HARD-OFF (§5 mandate). Inbound (Riya/Raksha) safe. **"24/7 autonomous cold-calling" = intentionally NAHI.**
+Swara, Ananya, Riya, Raksha. → Cold outbound `platform_dial` LIVE since 2026-08-02 (supersedes this file's 2026-07-19 HARD-OFF; per-run cap `PLATFORM_DIAL_LIMIT`=100, TRAI window + DND fail-closed still enforced in `run_campaign_task`). Inbound (Riya/Raksha) safe. **"24/7 autonomous cold-calling" = ab LIVE par gated (caps + compliance spine), intentionally naive nahi.**
 
 **Boss (coordinator)** = orchestrator; on-demand + `AGENT_STANDUP`-gated daily. Ye tera ekmatra genuine autonomous-reasoning agent hai.
 

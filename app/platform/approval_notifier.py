@@ -132,6 +132,61 @@ async def _notification_scope(feature_service=None) -> tuple[bool, set[str]]:
         return False, set()
 
 
+def _client_backlog(client_id: str) -> dict:
+    """`{count, oldest_days}` of this client's OPEN approvals. Never raises.
+
+    Falls back to a bare count of 0 on any read failure, which degrades the mail
+    to its old singular wording rather than blocking a send.
+    """
+    out = {"count": 0, "oldest_days": 0}
+    try:
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
+
+        from app.marketing import content_approval
+
+        rows = content_approval.pending(str(client_id or "")) or []
+        out["count"] = len(rows)
+        now = _dt.now(_tz.utc)
+        oldest = 0
+        for r in rows:
+            raw = str(r.get("created_at") or "").strip()
+            if not raw:
+                continue
+            try:
+                d = _dt.fromisoformat(raw.replace("Z", "+00:00"))
+                if d.tzinfo is None:
+                    d = d.replace(tzinfo=_tz.utc)
+                oldest = max(oldest, int((now - d).total_seconds() // 86400))
+            except Exception:
+                continue
+        out["oldest_days"] = oldest
+    except Exception as e:
+        logger.debug(f"[approval_notifier] backlog read skip: {e}")
+    return out
+
+
+def _backlog_phrase(backlog: dict) -> str:
+    n = int(backlog.get("count") or 0)
+    days = int(backlog.get("oldest_days") or 0)
+    if n <= 1:
+        return "You have content awaiting your approval."
+    if days >= 2:
+        return (
+            f"You have {n} items awaiting your approval "
+            f"— the oldest has been waiting {days} days."
+        )
+    return f"You have {n} items awaiting your approval."
+
+
+def _backlog_text(backlog: dict, link: str) -> str:
+    return f"{_backlog_phrase(backlog)} Review and approve here: {link}"
+
+
+def _backlog_html(backlog: dict, link: str) -> str:
+    return f"<p>{_backlog_phrase(backlog)}</p>" f'<p><a href="{link}">Review &amp; approve</a></p>'
+
+
 def deep_link(approval_id: str = "") -> str:
     """Authenticated in-app deep link to the approvals card (customer must log in)."""
     base = (os.getenv("SITE_BASE_URL") or "https://leadsgenai.in").rstrip("/")
@@ -326,11 +381,18 @@ async def notify_approval(
             return _finalize(row, "skipped", cat or "no_consent")
 
         link = deep_link(approval_id)
-        text = f"You have content awaiting your approval. Review and approve here: {link}"
-        html = (
-            "<p>You have content awaiting your approval.</p>"
-            f'<p><a href="{link}">Review &amp; approve</a></p>'
-        )
+        # Queue-aware wording. The idempotency key is per (approval, version,
+        # channel), so an item is announced EXACTLY ONCE and never followed up;
+        # a customer who ignores that single mail is never told about it again
+        # and the queue grows in silence. Prod 2026-08-09: 36 mails sent to the
+        # one paying customer over four weeks, all delivered, 20 items still
+        # pending — the mails were arriving, they just each said "you have
+        # content" and never "you have 20 waiting, oldest 17 days".
+        # This does not add sends or change cadence; it makes the sends that
+        # already happen carry the state of the queue.
+        backlog = _client_backlog(client_id)
+        text = _backlog_text(backlog, link)
+        html = _backlog_html(backlog, link)
         ok, pmid, fcat = await send_fn(email, _SUBJECT, html, text)
         if ok:
             row.provider_message_id = pmid

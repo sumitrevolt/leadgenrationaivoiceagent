@@ -411,6 +411,54 @@ async def video_production_ops(
     return cell.ops_summary(client_id)
 
 
+@router.get("/video-production/daily-status")
+async def video_daily_status(_user=Depends(require_admin)):
+    """Why is (or isn't) the DAILY video producer generating?
+
+    One call answers the whole question: master flag, engine preference, the
+    fail-closed tenant allowlist, and per-client engine choice + open-review
+    backlog + last generated date. Without this the only symptom of a stalled
+    daily video is "no new file appeared", which is what let a 15-day generation
+    gap sit unnoticed in prod.
+    """
+    from app.marketing import daily_video
+
+    return daily_video.status()
+
+
+@router.post("/video-production/daily-run")
+async def video_daily_run(_user=Depends(require_admin)):
+    """Manually fire one daily-video producer pass (enqueue-only, no ffmpeg here).
+
+    Safe to call from the web process precisely because the producer never
+    renders — it dispatches to the video Celery queue. Same-day duplicates are
+    refused by the producer's state file and the task's Redis idempotency key.
+    """
+    from app.marketing import daily_video
+
+    return await daily_video.run_daily()
+
+
+@router.post("/video-production/daily-clear-block")
+async def video_daily_clear_block(
+    client_id: str = Query("", max_length=60), _user=Depends(require_admin)
+):
+    """Un-park a tenant whose ADVANCED engine was blocked by a brief refusal.
+
+    A `needs_customer_input` / `blocked` refusal from Creative OS will not fix
+    itself, and retrying it daily burns CREATIVE_TENANT_DAILY_BUDGET on records
+    that never render — so the producer parks the tenant on the classic engine.
+    Call this after completing the customer's offer/brand facts. Blocks also
+    auto-expire after DAILY_VIDEO_ADVANCED_BLOCK_DAYS.
+    """
+    from app.marketing import daily_video
+
+    cid = (client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id zaroori hai."}
+    return daily_video.clear_advanced_block(cid)
+
+
 class VideoCellGenIn(BaseModel):
     client_id: str
     note: str | None = ""

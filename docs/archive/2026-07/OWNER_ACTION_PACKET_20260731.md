@@ -16,6 +16,10 @@ release verdict is `WAIT` and not `GO`.
 | Protected actions bounded — `PLATFORM_DIAL_DAILY=10` (owner re-enabled 2026-07-31, TEST-MODE allowlist + bot/IVR detection, cap 10/day, no live call fired), `WHATSAPP_AUTO_SEND=0`, `UPI_AUTO_ACTIVATE=0`, `AUTO_EMAIL_OUTREACH=1` (email outreach LIVE, brevo sends verified) | DIRECT_HOST_VERIFIED 2026-08-01, `docker exec printenv` |
 | Queues clean — `celery=0`, `dlq:failed_tasks=0`, `dlq:dead=0` | DIRECT_HOST_VERIFIED 05:41Z |
 
+> **SUPERSEDED 2026-08-02 (historical snapshot):** `PLATFORM_DIAL_DAILY` is the boolean
+> ON/OFF switch (=`1` prod), NOT a count; per-run cap = `PLATFORM_DIAL_LIMIT=100` after
+> platform_dial went FULL CAMPAIGN LIVE. See `docs/context/CURRENT_STATE.md`.
+
 ---
 
 ## A1 — Owner inbox email canary (one shot)
@@ -79,6 +83,8 @@ sales-autopilot live channels. Each needs its own separate authorization and can
 `SALES_AUTOPILOT_DRY_RUN=0` (REAL execution), `SALES_AUTOPILOT_EMAIL_ENABLED=1` (email live),
 `OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER=0` (Boss autonomy). WhatsApp `WHATSAPP_AUTO_SEND=0`
 remains 1-click human + `platform_dial` test-mode cap 10 (legal/ban gates — do NOT flip).
+> **SUPERSEDED 2026-08-02 (historical snapshot):** platform_dial went FULL CAMPAIGN LIVE —
+> cap 10 → `PLATFORM_DIAL_LIMIT=100`, `PLATFORM_DIAL_DAILY`=boolean `1`. See `docs/context/CURRENT_STATE.md`.
 Prod `48f0577`, last tick 2026-08-01T14:55Z `dry_run:false` processed 0 (single prospect
 `converted`). Prior dry-run posture (from PR #194 canary) superseded by this owner action.
 `DIRECT_HOST_VERIFIED 2026-07-31T05:41Z`.

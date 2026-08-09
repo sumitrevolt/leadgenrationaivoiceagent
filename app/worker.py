@@ -99,6 +99,7 @@ def _route_video_task(name, args, kwargs, options, task=None, **kw):
             in (
                 "app.tasks.video_jobs.build_creative_video_task",
                 "app.tasks.video_jobs.render_creative_os_task",
+                "app.tasks.video_jobs.daily_video_client_task",
             )
             and _video_queue_enabled()
         ):
@@ -626,6 +627,16 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=11, minute=30),
         "args": ("platform_dial",),
+    },
+    "staff-daily-video-daily": {
+        # 09:45 IST: per-client DAILY video producer. Deliberately NOT inside the
+        # `content` mega-job — that chain runs auto_content first under
+        # CONTENT_TIME_BUDGET_S and silently skipped video_ad_cycle for 15 days
+        # in prod (see app/marketing/daily_video.py docstring). This job only
+        # ENQUEUES to the video queue; job body no-ops unless DAILY_VIDEO_ENABLED=1.
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=9, minute=45),
+        "args": ("daily_video",),
     },
     "staff-midday-prospect-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",

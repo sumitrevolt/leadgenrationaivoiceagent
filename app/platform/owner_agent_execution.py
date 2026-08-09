@@ -31,7 +31,20 @@ RUNNING_KEY_PREFIX = "owner_os:agent_running:"
 
 # Jobs owned by Isha (scheduler_config.JOB_META owner=isha) — slice focus.
 AGENT_JOBS: dict[str, frozenset[str]] = {
-    "isha": frozenset({"content", "blog", "afternoon_content", "weekly_marketing", "social_drain"}),
+    # Must stay in sync with scheduler_config.JOB_META owners — a job owned by
+    # Isha there but missing here would keep running after the owner pauses her,
+    # i.e. a silent hole in the Owner OS control plane (guarded by
+    # tests/test_owner_agent_execution.py::test_isha_job_registry_drift_guard).
+    "isha": frozenset(
+        {
+            "content",
+            "blog",
+            "afternoon_content",
+            "weekly_marketing",
+            "social_drain",
+            "daily_video",
+        }
+    ),
 }
 
 CONTROL_FIELDS = (
