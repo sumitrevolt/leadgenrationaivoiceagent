@@ -39,29 +39,35 @@ def test_overlay_touches_only_worker_video():
 
 
 def test_base_compose_is_unchanged_for_app_services():
-    """Default deploy path stays byte-identical: no service opts into the video image."""
+    """Every runtime role resolves to one canonical app image."""
     base = _load(_BASE)
+    images = set()
     for svc in _APP_IMAGE_SERVICES:
         image = base["services"][svc]["image"]
         assert "-video:" not in image, f"{svc} must not use the video image by default"
-        assert image.startswith("ghcr.io/sumitrevolt/leadgenrationaivoiceagent:")
-    assert base["services"]["worker-video"]["build"]["dockerfile"] == "Dockerfile.lock"
+        assert "APP_IMAGE_REPOSITORY" in image
+        assert "APP_VERSION:?" in image
+        images.add(image)
+    assert len(images) == 1
+    assert base["services"]["app"]["build"]["dockerfile"] == "Dockerfile.lock"
+    for svc in set(_APP_IMAGE_SERVICES) - {"app"}:
+        assert "build" not in base["services"][svc], f"{svc} must reuse app's one build"
 
 
 def test_overlay_image_tag_still_satisfies_deploy_skew_check():
     """deploy_vps.sh refuses any image whose tag is not :$APP_VERSION."""
     overlay = _load(_OVERLAY)
     image = overlay["services"]["worker-video"]["image"]
-    assert image.endswith(":${APP_VERSION:-latest}")
+    assert image.endswith(":${APP_VERSION:?set APP_VERSION to the immutable git SHA}")
     args = overlay["services"]["worker-video"]["build"]["args"]
     assert args["APP_IMAGE"].endswith(
-        ":${APP_VERSION:-latest}"
+        ":${APP_VERSION:?set APP_VERSION to the immutable git SHA}"
     ), "video image must be built FROM the same-sha app image, not a floating tag"
 
 
 def test_video_dockerfile_derives_from_app_image():
     text = _DOCKERFILE.read_text(encoding="utf-8")
-    assert "ARG APP_IMAGE=" in text
+    assert "ARG APP_IMAGE\n" in text
     assert "FROM ${APP_IMAGE}" in text
     assert "npm ci" in text, "must install the committed lockfile, not `npm install`"
     assert "browser ensure" in text, "Chrome must be fetched at BUILD time, not render time"

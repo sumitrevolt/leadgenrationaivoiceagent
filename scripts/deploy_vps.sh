@@ -3,9 +3,8 @@
 #
 # WHY THIS EXISTS (2026-07-14, ADR-097): the deploy runbook was hand-typed, and
 # two real production faults came straight out of that:
-#   1. APP_VERSION forgotten -> compose falls back to `${APP_VERSION:-latest}` ->
-#      prod runs an image whose provenance nobody can establish (/health says
-#      "latest"), indistinguishable from running stale code.
+#   1. APP_VERSION forgotten -> prod ran an image whose provenance nobody could
+#      establish. Compose now fails closed when APP_VERSION is absent.
 #   2. Only `app worker scheduler` recreated -> worker_heavy/worker_video were
 #      left on an older `:latest` for DAYS = live version skew across containers
 #      that share one image tag.
@@ -27,7 +26,8 @@ set -uo pipefail
 
 REPO=/opt/leadgen
 COMPOSE=docker-compose.vps.yml
-# Every service built from the app image. Miss one -> version skew.
+# Every service runs the same app image. Only `app` builds it; miss one during
+# recreation and version skew can still occur.
 SERVICES="app worker scheduler worker-heavy worker-video"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -81,7 +81,7 @@ fi
 CANDIDATE_SHA="$(candidate_resolve "$REPO" "$CANDIDATE_REF")" || exit 2
 VER="$(git -C "$REPO" rev-parse --short "$CANDIDATE_SHA")"
 
-# Hard refusal: never let the compose `:-latest` fallback decide for us.
+# Hard refusal: never allow a mutable/provenance-less version.
 case "$(printf '%s' "$VER" | tr '[:upper:]' '[:lower:]')" in
   ""|latest|dev|1.0.0)
     echo "FATAL: refusing to deploy with APP_VERSION='$VER' — that is the"
@@ -443,9 +443,9 @@ docker exec leadgen_redis redis-cli llen dlq:failed_tasks
 # Every deploy adds a ~7GB app image. With no retention the disk filled to 92%
 # (16G free = ~2 deploys from Postgres/Docker dying); a one-off cleanup freed
 # 60GB. Retention runs ONLY after a fully verified deploy, keeps the newest
-# $KEEP_IMAGES tags (current + rollbacks), and never uses `rmi -f` — docker
+# $KEEP_IMAGES tags (current by default), and never uses `rmi -f` — docker
 # itself refuses to delete an image a container still references.
-KEEP_IMAGES="${KEEP_IMAGES:-3}"
+KEEP_IMAGES="${KEEP_IMAGES:-1}"
 echo "=== RETENTION (keep newest $KEEP_IMAGES app image tags) ==="
 IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
 OLD_TAGS="$(docker images "$IMG" --format '{{.CreatedAt}}\t{{.Tag}}' \
@@ -494,7 +494,9 @@ BUILD_CACHE_KEEP_STORAGE="${BUILD_CACHE_KEEP_STORAGE:-20GB}"
 echo "=== BUILD CACHE (before) ==="
 docker system df | grep -E "TYPE|Build Cache" || true
 if docker builder prune -f --filter "unused-for=$BUILD_CACHE_MAX_AGE" \
-    --max-used-space "$BUILD_CACHE_KEEP_STORAGE" > /tmp/deploy_buildcache_prune.log 2>&1; then
+    > /tmp/deploy_buildcache_prune.log 2>&1 \
+    && docker builder prune -f --max-used-space "$BUILD_CACHE_KEEP_STORAGE" \
+    >> /tmp/deploy_buildcache_prune.log 2>&1; then
   echo "=== BUILD CACHE (after, unused-for>=$BUILD_CACHE_MAX_AGE reclaimed, capped at $BUILD_CACHE_KEEP_STORAGE) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
 else

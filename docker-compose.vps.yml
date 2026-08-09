@@ -9,7 +9,7 @@
 # 127.0.0.1:8000 (this stack's published app port) — so NO TLS change needed.
 #
 # Quick start (build locally / on VPS from source):
-#   docker compose -f docker-compose.vps.yml up -d --build
+#   APP_VERSION=<git-sha> docker compose -f docker-compose.vps.yml up -d --build
 #   docker compose -f docker-compose.vps.yml run --rm app alembic upgrade head
 #
 # CI/pull-based deploy (image already on GHCR):
@@ -36,8 +36,8 @@ services:
       context: .
       dockerfile: Dockerfile.lock
       args:
-        APP_VERSION: ${APP_VERSION:-latest}
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+        APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     container_name: leadgen_app
     # Resource caps (audit P1-1) — VPS 16GB/4-core. App = embedder+torch loaded per
     # uvicorn worker (×2); cap rok-ta hai ki leak/spike db/redis ko OOM-kill kare.
@@ -246,10 +246,8 @@ services:
   # ---------------------------------------------------------------------------
   worker:
     profiles: ["celery"]
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.lock
+    # Built once by `app`; all runtime roles share the exact same image/tag.
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     container_name: leadgen_worker
     mem_limit: 2g
     mem_reservation: 512m
@@ -313,10 +311,7 @@ services:
   # ---------------------------------------------------------------------------
   worker-heavy:
     profiles: ["celery"]
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.lock
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     container_name: leadgen_worker_heavy
     mem_limit: 2500m   # heavy ML/LLM/bulk jobs — thoda zyada headroom
     mem_reservation: 512m
@@ -369,10 +364,7 @@ services:
   # ---------------------------------------------------------------------------
   worker-video:
     profiles: ["celery"]
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.lock
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     container_name: leadgen_worker_video
     mem_limit: 2000m
     mem_reservation: 512m
@@ -415,10 +407,7 @@ services:
 
   scheduler:
     profiles: ["celery"]
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.lock
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     container_name: leadgen_scheduler
     mem_limit: 512m
     cpus: "0.5"

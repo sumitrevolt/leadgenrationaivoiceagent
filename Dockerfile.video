@@ -18,11 +18,9 @@
 # This image is OPT-IN. docker-compose.vps.yml is unchanged; the overlay
 # docker-compose.video.yml is what switches worker-video onto it.
 # =============================================================================
-ARG APP_IMAGE=ghcr.io/sumitrevolt/leadgenrationaivoiceagent:latest
-# DL3006 wants an explicit tag, but the tag lives in the ARG default above
-# (":latest" here, ":$APP_VERSION" in real builds) and hadolint cannot evaluate
-# ARG substitution. Pinning a literal here would DEFEAT the point: the video
-# image must be built from the same sha as the app image.
+ARG APP_IMAGE
+# No mutable default is allowed: callers must provide the exact immutable app
+# image used by the other runtime roles.
 # hadolint ignore=DL3006
 FROM ${APP_IMAGE}
 

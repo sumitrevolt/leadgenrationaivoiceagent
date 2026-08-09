@@ -5,18 +5,19 @@ description: Operate and extend the LeadGen AI monitoring stack — Prometheus, 
 
 # Observability Ops (monitoring stack)
 
-`docker-compose.observability.yml` — 6 containers: Prometheus (:9090), Grafana (:3000), Alertmanager (:9093, email), Loki (:3100), Tempo (:4317 traces), Uptime Kuma (:3001). App side: `/metrics` (Prometheus) + Sentry (errors, gated `SENTRY_DSN`) + `/health` `/health/ready` + `ops_watchdog` (app-level email). Bring up: `docker compose -f docker-compose.observability.yml up -d`.
+`deploy/compose/docker-compose.observability.yml` — 6 containers: Prometheus (:9090), Grafana (:3000), Alertmanager (:9093, email), Loki (:3100), Tempo (:4317 traces), Uptime Kuma (:3001). App side: `/metrics` (Prometheus) + Sentry (errors, gated `SENTRY_DSN`) + `/health` `/health/ready` + `ops_watchdog` (app-level email). Bring up: `docker compose -f deploy/compose/docker-compose.observability.yml up -d`.
 
 > **KYA measure + kab freeze →** `slo-error-budget` (SLO table, burn-rate rules, error-budget policy). Yeh skill = stack HOW; woh = targets WHAT.
 
-## Celery observability (addons — `docker-compose.addons.yml`)
+## Celery observability (addons — `deploy/compose/docker-compose.addons.yml`)
 Scheduler = Celery durable (LIVE), so Celery visibility zaroori hai:
 - **celery-exporter** (`leadgen_celery_exporter` :9808) — Prometheus Celery metrics (task counts/states/runtimes, `celery_workers_online`, `celery_queue_length` incl. DLQ watch). Bina iske 14 AI-staff tasks Grafana me DARK the.
 - **flower** (`leadgen_flower` :5555, HTTP Basic `FLOWER_USER`/`FLOWER_PASSWORD`) — real-time task UI (state/retry/ETA/worker health). SSH tunnel se access: `ssh -L 5555:127.0.0.1:5555 ...` → http://localhost:5555. Public expose mat karo.
-- prometheus.yml me dono scrape targets ALREADY hain (`celery` :9808 + `flower` :5555). Bring up: `docker compose -f docker-compose.addons.yml up -d`. Grafana Celery dashboard auto-provisioned (`monitoring/grafana/dashboards/celery_tasks.json`).
+- prometheus.yml me dono scrape targets ALREADY hain (`celery` :9808 + `flower` :5555). Bring up: `docker compose -f deploy/compose/docker-compose.addons.yml up -d`. Grafana Celery dashboard auto-provisioned (`monitoring/grafana/dashboards/celery_tasks.json`).
 - Same addons file me **minio** (`leadgen_minio` :9000 S3 API / :9001 console) — object store (AI images/client assets), abhi opt-in (app code `data/ai_images/` bind-mount pe graceful fallback; `app/storage/minio_client.py`).
 
 ## Add an alert
+Full procedure (reload, validate, verify table, rollback, the two bind-mount traps) → `references/ALERT_RUNBOOK.md`.
 1. Rule → `monitoring/alert_rules.yml` (PromQL `expr`, `for:`, `labels: {severity: critical}`, `annotations`).
 2. Prometheus reload: `up -d --force-recreate prometheus` (ya `kill -HUP 1`).
 3. Route → `monitoring/alertmanager.yml` (`severity="critical"` → `email-admin`, 1h repeat). Validate: `docker exec leadgen_alertmanager amtool check-config /etc/alertmanager/alertmanager.yml`.
@@ -47,7 +48,7 @@ PostHog (`POSTHOG_API_KEY`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDF
 - **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me: rule/route/container already exists kya (`monitoring/alert_rules.yml`, prometheus scrape targets) + config bind-mount hai ya image-baked.
 - **Change-risk tier: Standard** (alert rule / dashboard add) → **High-risk** jab alertmanager SMTP secret, public-expose, ya core scrape-config touch ho.
 - **Operating gates:**
-  - **Secret-safe** — SMTP password committed config me KABHI nahi: `smtp_auth_password_file: /etc/alertmanager/smtp_pass`, file `monitoring/alertmanager_smtp_pass` gitignored, VPS pe `.env` `SMTP_PASSWORD` se likhi. `FLOWER_USER/PASSWORD`, Grafana creds = `.env`. `scripts/check_secrets.py`.
+  - **Secret-safe** — SMTP password committed config me KABHI nahi: `smtp_auth_password_file: /etc/alertmanager/smtp_pass`, file `monitoring/alertmanager_smtp_pass` gitignored, VPS pe `.env` `SMTP_PASSWORD` se likhi. `FLOWER_USER/PASSWORD`, Grafana creds = `.env`. Diff pe repo ka secret-scan gate (`check_secrets.py`) chalao.
   - **No public expose** — flower (:5555) / celery-exporter (:9808) / Grafana SSH-tunnel ya internal only; internet pe mat kholo.
   - **Don't break the watcher** — alert change ke baad alertmanager/prometheus self-monitoring intact; `automation_health` + `ops_watchdog` (app-level) + Alertmanager (infra-level) dono layers chahiye (ek down to dusra catch kare).
   - **Alert noise/cooldown** — naya critical rule ko `for:` + repeat-interval (1h) do, warna alert-storm. Severity-route sahi (`severity="critical"` → `email-admin`).

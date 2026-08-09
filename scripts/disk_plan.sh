@@ -3,7 +3,6 @@
 set +e
 KEEP_CURRENT=$(docker inspect --format '{{.Config.Image}}' leadgen_app 2>/dev/null | sed 's#.*:##')
 echo "CURRENT_PROD_TAG=$KEEP_CURRENT"
-echo "ROLLBACK_TAG=71c346f2 (previous good deploy)"
 echo
 echo "===ALL app-image tags (newest first)==="
 docker images ghcr.io/sumitrevolt/leadgenrationaivoiceagent --format '{{.Tag}}|{{.ID}}|{{.Size}}|{{.CreatedSince}}'
@@ -11,11 +10,11 @@ echo
 echo "===TAGS IN USE BY A RUNNING CONTAINER (never delete these)==="
 docker ps -a --format '{{.Image}}' | sort -u
 echo
-echo "===CANDIDATE DELETIONS (app-image tags that are NOT current, NOT rollback, NOT running)==="
+echo "===CANDIDATE DELETIONS (app-image tags that are NOT current and NOT container-referenced)==="
 INUSE=$(docker ps -a --format '{{.Image}}' | sed 's#.*:##' | sort -u)
 for t in $(docker images ghcr.io/sumitrevolt/leadgenrationaivoiceagent --format '{{.Tag}}'); do
   case "$t" in
-    "$KEEP_CURRENT"|71c346f2) echo "  KEEP   $t (current/rollback)"; continue ;;
+    "$KEEP_CURRENT") echo "  KEEP   $t (current production)"; continue ;;
   esac
   if echo "$INUSE" | grep -qx "$t"; then echo "  KEEP   $t (running container)"; else echo "  DELETE $t"; fi
 done
