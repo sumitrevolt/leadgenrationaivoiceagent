@@ -277,6 +277,11 @@ def _append_entry(agent_id: str, rec: dict[str, Any], tenant_id: str = "") -> bo
             return False
         os.makedirs(agent_dir, exist_ok=True)
         entries_path = _entries_path(aid, tenant_id)
+        # Sink-side containment (defense in depth, CodeQL #578): even after
+        # _agent_dir/_contained_under, re-prove the FINAL file path resolves
+        # under root (realpath, symlink-safe) immediately before open().
+        if not _contained_under(_root(), os.path.realpath(entries_path)):
+            return False
         with open(entries_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         # Soft trim — keep last N lines if file grows huge
