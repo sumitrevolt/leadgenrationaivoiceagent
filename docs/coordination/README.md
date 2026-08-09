@@ -34,7 +34,15 @@ python scripts/buzzlock.py claim app/api/growth_revenue.py --tool CLAUDE --reaso
 python scripts/buzzlock.py release app/api/growth_revenue.py --tool CLAUDE --evidence "3 tests green, exit 0"
 ```
 
-`--tool` is one of `CURSOR` `CLAUDE` `OPENCODE` `MONKEY`.
+`--tool` is one of `CURSOR` `CLAUDE` `CODEX` `GOOSE` `OPENCODE` `FREEBUFF` `MONKEY`.
+
+A tool missing from that list cannot claim, so it edits the tree with no lock at
+all — which is the failure the registry exists to prevent. Add new harnesses to
+`TOOLS` in `scripts/buzzlock.py` *before* pointing them at this checkout.
+
+`LOCKS.json` is gitignored and per-checkout; `buzzlock` creates it on first use.
+(Until 2026-08-09 a fresh worktree raised `FileNotFoundError` on `status`, so the
+protocol was quietly skipped on every new tree.)
 
 **Exit codes matter:** `0` ok · `1` usage error · `2` refused. A `2` on claim means
 another tool holds the file — stop and pick different work. The CLI posts your
