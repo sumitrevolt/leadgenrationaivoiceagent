@@ -150,6 +150,10 @@ credentials/
 *.json
 !package.json
 !.mcp.json
+# The skill CI ratchet requires trigger-cases.json for newly-added skills
+# (scripts/skill_evals/check_repo_skills.py); the blanket `*.json` above
+# silently excluded it, making that gate unsatisfiable.
+!scripts/skill_evals/cases/**/trigger-cases.json
 # The renderer lockfile MUST be tracked: `npm ci` in Dockerfile.video refuses to
 # run without it, and an untracked lockfile means the image is not reproducible.
 # The blanket `*.json` above silently excluded it.
