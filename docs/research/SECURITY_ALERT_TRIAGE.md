@@ -13,10 +13,10 @@
 | 31 | hono | medium | package-lock.json | **FIXED-AND-PR (#299)** | GHSA-54fx-42gc-7vw4; same override |
 | 28 | hono | medium | package-lock.json | **FIXED-AND-PR (#299)** | GHSA-f23p-vx2j-j53r; same override |
 | 30 | black | high | requirements-dev.txt | **FIXED-AND-PR (#300)** | GHSA-3936-cmfr-pm3m (<26.3.1); pin 26.3.1; dev-only, not in CI |
-| 26 | pytest | medium | requirements.txt | **FIXED-AND-PR (#300)** | CVE-2025-71176 / GHSA-6w46-j5rx-g56g (<9.0.3); pin 9.0.3 |
-| 13 | pytest | medium | requirements.lock.txt | **FIXED-AND-PR (#300)** | same advisory; pin 9.0.3 |
-| 6 | pytest | medium | requirements-filtered.txt | **FIXED-AND-PR (#300)** | same advisory; pin 9.0.3 |
-| 3 | pytest | medium | requirements-dev.txt | **FIXED-AND-PR (#300)** | same advisory; pin 9.0.3 |
+| 26 | pytest | medium | requirements.txt | **OWNER-BLOCKED (documented exception)** | CVE-2025-71176 / GHSA-6w46-j5rx-g56g; repo exception expiry 2026-11-08 (DEPENDENCY_REMEDIATION_2026-08-08.md + test_dependency_security_floors EXCEPTIONS + expiry test); ci.yml documents pytest-asyncio 1.x + aiosqlite 0.22.x segfault (exit-139) — pytest 9 attempt reverted |
+| 13 | pytest | medium | requirements.lock.txt | **OWNER-BLOCKED (documented exception)** | same advisory + same exception evidence |
+| 6 | pytest | medium | requirements-filtered.txt | **OWNER-BLOCKED (documented exception)** | same advisory + same exception evidence |
+| 3 | pytest | medium | requirements-dev.txt | **OWNER-BLOCKED (documented exception)** | same advisory + same exception evidence |
 | 11 | ecdsa | high | requirements.lock.txt | **NO-FIX-AVAILABLE (UPSTREAM)** | CVE-2024-23342 / GHSA-wj6h-64fc-37mp Minerva P-256 timing; python-ecdsa declares side-channel out of scope, no patched version (Dependabot patched range empty); installed 0.19.2 == latest; transitive via python-jose 3.5.0 |
 
 ### ecdsa containment note (no dismissal)
@@ -64,7 +64,7 @@
 **Fix pattern (per alert):** replace vulnerable regex with linear parse, add length cap before match (e.g., `text[:2000]`), or use `re` with bounded alternation; add adversarial-input test with runtime bound. Not bundled here — separate focused PR after owner prioritisation (all are non-blocking warnings; CodeQL gate green).
 
 ## 3. Net position
-- Dependabot: 10/11 fixed via PR #299 (JS, 5 alerts) + #300 (Python, 5 alerts); ecdsa = no-fix upstream, documented, kept open.
+- Dependabot: **6/11 fixed** — PR #299 (JS, 5 alerts) + black via #300; pytest x4 + ecdsa = owner-tracked documented exceptions (expiry 2026-11-08, CI-enforced); no alert dismissed.
 - CodeQL: 1 path-injection fixed; 3 url-redirect + 2 test-substring = proven false-positive/test-only; 82 stack-trace mitigated-by-global-handler (log-only) + backlog; 12 redos backlog with fix pattern.
 - No suppression comments, no scanner weakening, no dismissals without evidence.
 
