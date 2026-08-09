@@ -98,7 +98,7 @@ RED the day one lapses, so neither can quietly become permanent.
 | GHSA | sev | package | fix | why accepted | expires |
 |---|---|---|---|---|---|
 | GHSA-wj6h-64fc-37mp | **high** | ecdsa 0.19.2 | **none exists** | Minerva timing attack on P-256. Reaches the app only through `python-jose`, and `settings.jwt_algorithm` defaults to **HS256** (`app/config.py:261`) — a symmetric MAC that never touches an EC curve. Pinned by `test_jwt_algorithm_is_symmetric`, which fails if JWT ever moves to ES256/384/512. | 2026-11-08 |
-| GHSA-6w46-j5rx-g56g | med | pytest 7.4.4 | 9.0.3 | tmpdir symlink pre-creation. pytest is never imported by app code, so it is on no request path. 7.4.4 → 9.0.3 is a two-major bump across 750+ test files — the opposite of a minimum compatible upgrade. Own slice. | 2026-11-08 |
+| GHSA-6w46-j5rx-g56g | med | pytest 7.4.4 | 9.0.3 | **RESOLVED 2026-08-10** — pytest 9.0.3 + pytest-asyncio 1.4.0 + pytest-cov 7.1.0 migrated (conftest session event_loop removed; teardown drain via asyncio.run; exit-139 constraint closed). Exception removed; floor added. | — |
 | PYSEC-2017-83 | med | scrapy 2.17.0 | **none listed** | **Found by this gate on its first successful run** — OSV carries it, the Dependabot list did not. DoS by reading arbitrarily many files into memory via `dataReceived` ↔ `S3FilesStore`. Nothing imports scrapy (transitive via `advertools`), and the advisory needs a files/images pipeline: no `S3FilesStore`, `FILES_STORE` or `IMAGES_STORE` is configured anywhere in `app/` or `scripts/`. | 2026-11-08 |
 
 ### Out of scope — not this runtime

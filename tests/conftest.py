@@ -326,17 +326,6 @@ def _resume_inquiry_bg_accept_gate():
 # =============================================================================
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests (session-scoped for performance)"""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest.fixture(autouse=True)
 def _ensure_policy_event_loop():
     """ORDER-DEPENDENT FLAKE FIX (2026-07-18): sync tests that call asyncio.run()
@@ -378,12 +367,13 @@ async def async_db():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _async_engine_teardown_guard(event_loop):
+def _async_engine_teardown_guard():
     """Session-end: call app drain, dispose engines, assert no aiosqlite workers.
 
-    Ownership/lifecycle lives in app.platform.inquiry_hooks — harness only
-    invokes the canonical drain then verifies (NullPool/StaticPool already set
-    for cross-loop safety). No parallel all-tasks cancel that hides app bugs.
+    pytest-asyncio 1.x manages per-test loops, so session teardown must NOT
+    reuse a shared event loop — the cross-loop aiosqlite worker leak was the
+    intermittent Linux exit-139 source (SQLAlchemy #13039 / aiosqlite #369).
+    Each async step runs on its own fresh loop via asyncio.run().
     """
     yield
 
@@ -398,34 +388,33 @@ def _async_engine_teardown_guard(event_loop):
             and "aiosqlite" in (getattr(getattr(t, "_target", None), "__module__", "") or "")
         ]
 
-    if not event_loop.is_closed():
-        try:
-            from app.platform.inquiry_hooks import (
-                drain_inquiry_bg_tasks,
-                pending_inquiry_bg_count,
-                resume_accepting_inquiry_bg,
-            )
+    try:
+        from app.platform.inquiry_hooks import (
+            drain_inquiry_bg_tasks,
+            pending_inquiry_bg_count,
+            resume_accepting_inquiry_bg,
+        )
 
-            event_loop.run_until_complete(drain_inquiry_bg_tasks(timeout=5.0))
-            assert (
-                pending_inquiry_bg_count() == 0
-            ), "inquiry_hooks owned tasks still pending after drain"
-            # Leave accept gate open for any late imports in other session fixtures.
-            resume_accepting_inquiry_bg()
-        except AssertionError:
-            raise
-        except Exception:
-            pass
+        asyncio.run(drain_inquiry_bg_tasks(timeout=5.0))
+        assert (
+            pending_inquiry_bg_count() == 0
+        ), "inquiry_hooks owned tasks still pending after drain"
+        # Leave accept gate open for any late imports in other session fixtures.
+        resume_accepting_inquiry_bg()
+    except AssertionError:
+        raise
+    except Exception:
+        pass
 
     disposed = True
     try:
-        event_loop.run_until_complete(async_engine.dispose())
+        asyncio.run(async_engine.dispose())
     except Exception:
         disposed = False
     try:
         from app.models.base import close_async_db
 
-        event_loop.run_until_complete(close_async_db())
+        asyncio.run(close_async_db())
     except Exception:
         pass
 
