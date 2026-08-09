@@ -59,6 +59,36 @@ def _render_soft_limit() -> int:
 
 
 @celery_app.task(
+    name="app.tasks.video_jobs.daily_video_client_task",
+    bind=True,
+    max_retries=1,
+    soft_time_limit=_render_soft_limit(),
+    time_limit=_render_soft_limit() + 120,
+)
+def daily_video_client_task(self, *, client_id: str) -> dict[str, Any]:
+    """One client's DAILY classic (deterministic ffmpeg) video ad.
+
+    Enqueued by ``app.marketing.daily_video.run_daily`` with
+    ``task_id=daily_video:{client_id}:{YYYY-MM-DD}`` so a re-fired beat cannot
+    render the same client twice in a day. HEAVY — never called from the web
+    process; the producer only dispatches.
+    """
+    from app.tasks.idempotency import idempotent_task
+
+    @idempotent_task("daily_video_client", ttl=20 * 3600)
+    def _guarded(task_self, cid: str) -> dict[str, Any]:
+        from app.marketing import video_ad_cycle
+
+        return asyncio.run(video_ad_cycle.generate_for_client(cid))
+
+    try:
+        return _guarded(self, str(client_id))
+    except Exception as e:
+        logger.warning(f"[video_jobs] daily_video_client_task failed: {e}")
+        return {"ok": False, "error": str(e)[:200]}
+
+
+@celery_app.task(
     name="app.tasks.video_jobs.render_creative_os_task",
     bind=True,
     max_retries=1,

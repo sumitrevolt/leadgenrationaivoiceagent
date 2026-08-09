@@ -96,6 +96,8 @@ EXPECTED_GAP_MIN = {
     "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
     "platform_dial": 30
     * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
+    "daily_video": 30
+    * 60,  # daily 09:45 IST: per-client video producer (gated DAILY_VIDEO_ENABLED; beat heartbeats regardless)
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
@@ -103,6 +105,115 @@ EXPECTED_GAP_MIN = {
     "task_lease_reap": 180,  # hourly :05 expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP); 3h grace like meter_watch
     "sales_autopilot": 180,  # hourly :25 Sales Autopilot (gated SALES_AUTOPILOT_ENABLED); RUN_DUE_EXCLUDE; 3h dead-man grace
 }
+
+
+def _SKIPS() -> str:
+    """Budget-skip ledger — SAME store family as job_runs.
+
+    Deliberately resolved through ``runtime_data_authority`` like its siblings:
+    a hardcoded ``data/...`` path would be written to the LEGACY location while
+    live automation state lives under the runtime root, so the new signal would
+    be invisible in prod for exactly the reason a stale ``data/job_heartbeats.json``
+    fooled an audit on 2026-08-09.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.job_runs",
+            legacy_path=Path("data") / "job_engine_skips.jsonl",
+            target_segments=("automation", "job_engine_skips.jsonl"),
+        )
+    )
+
+
+def record_engine_skip(
+    job: str, engine: str, reason: str = "budget_exhausted", **extra: Any
+) -> None:
+    """Record that a mega-job SKIPPED one of its engines. Never raises.
+
+    Why this exists: `team_scheduler._run_content_engine` closes the coroutine and
+    returns False when the wall-clock budget is gone — with no exception and no
+    line naming the engine. Prod evidence 2026-08-09: the `content` job exceeded
+    its 420s budget on **15 consecutive daily runs** (2026-07-18 → 2026-08-01,
+    452–530s each), silently dropping every engine queued behind the overrun, and
+    nothing anywhere recorded which ones. That is an entire class of "automation
+    quietly stopped" that no dashboard could show.
+
+    The warning is emitted BEFORE any persistence attempt on purpose: the write
+    path below is best-effort, and a storage failure must not also swallow the
+    signal we are adding precisely to stop silent loss.
+    """
+    job_s = str(job or "?")[:40]
+    engine_s = str(engine or "?")[:40]
+    reason_s = str(reason or "")[:60]
+    logger.warning(
+        "[automation-health] job '%s' SKIPPED engine '%s' (%s) - work did not run",
+        job_s,
+        engine_s,
+        reason_s,
+    )
+    try:
+        rec: dict[str, Any] = {
+            "job": job_s,
+            "engine": engine_s,
+            "reason": reason_s,
+            "at": _now().isoformat(timespec="seconds"),
+        }
+        for k, v in (extra or {}).items():
+            rec[str(k)[:24]] = v if isinstance(v, int | float | bool) else str(v)[:120]
+        path = _SKIPS()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.warning("[automation-health] engine-skip record failed: %s", e)
+
+
+def recent_engine_skips(hours: int = 48, limit: int = 200) -> list[dict[str, Any]]:
+    """Engine skips within the window, newest last. Never raises."""
+    out: list[dict[str, Any]] = []
+    try:
+        cutoff = _now() - timedelta(hours=max(1, int(hours or 48)))
+        for line in _tail_lines(_SKIPS(), max(1, min(int(limit or 200), 2000))):
+            line = (line or "").strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            try:
+                at = datetime.fromisoformat(str(rec.get("at") or ""))
+                if at.tzinfo is None:
+                    at = at.replace(tzinfo=timezone.utc)
+                if at < cutoff:
+                    continue
+            except Exception:
+                pass
+            out.append(rec)
+    except Exception as e:
+        logger.debug("[automation-health] recent_engine_skips skip: %s", e)
+    return out
+
+
+def engine_skip_summary(hours: int = 48) -> dict[str, Any]:
+    """`{engine: count}` rollup an operator can act on. Never raises."""
+    rows = recent_engine_skips(hours=hours)
+    by_engine: dict[str, int] = {}
+    by_job: dict[str, int] = {}
+    for r in rows:
+        e = str(r.get("engine") or "?")
+        j = str(r.get("job") or "?")
+        by_engine[e] = by_engine.get(e, 0) + 1
+        by_job[j] = by_job.get(j, 0) + 1
+    return {
+        "window_hours": int(hours),
+        "total": len(rows),
+        "by_engine": by_engine,
+        "by_job": by_job,
+        "latest": rows[-5:],
+    }
 
 
 def _now() -> datetime:
@@ -435,8 +546,21 @@ def health() -> dict[str, Any]:
                 _obs_detail = "staging dir missing"
     except Exception as e:
         _obs_detail = str(e)[:100]
-    unhealthy = bool(overdue or backlogged or dead_present or retryable_failed_present)
+    # Engines silently dropped by a mega-job's wall-clock budget. This is a REAL
+    # outage class (work simply did not run) that no previous field exposed, so it
+    # counts toward `unhealthy` — otherwise the dashboard keeps saying "healthy"
+    # while an engine has been skipped every day for two weeks.
+    try:
+        skips = engine_skip_summary(hours=48)
+    except Exception:
+        skips = {"total": 0, "by_engine": {}, "by_job": {}, "latest": []}
+    engines_skipped = bool(skips.get("total"))
+    unhealthy = bool(
+        overdue or backlogged or dead_present or retryable_failed_present or engines_skipped
+    )
     return {
+        "engine_skips": skips,
+        "engines_skipped_recently": engines_skipped,
         "status": ("degraded" if unhealthy else ("warming_up" if never_ran else "healthy")),
         # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
         # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha

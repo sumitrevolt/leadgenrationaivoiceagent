@@ -20,6 +20,15 @@
 
 ---
 
+## WS-DV1 Daily video producer - CODE READY, OWNER FLAGS PENDING
+- **ID:** WS-DV1
+- **Business outcome:** marketing customer ko ROZ 1 video (classic ab, HyperFrames-advanced toolchain deploy ke baad)
+- **Current state:** **PR #294 open** (5 commits) — ADR-166 producer + 2 systemic observability fixes (budget-skips, customer-approval backlog) + runtime-data + explorer-graph compliance. CI green except pre-existing non-required Gate A. Flags default OFF, NOT deployed.
+- **Next exact action:** merge #294 → deploy → then Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md` (`DAILY_VIDEO_ENABLED=1`, `DAILY_VIDEO_CLIENTS=jiya-makeover`, `ENGINE=classic`) + clear the 32 pending reviews
+- **Out of scope:** auto-publish · daily WA blast · pricing copy "daily" claim before a week of proven delivery
+
+---
+
 ## WS-GTM1 Hot Queue → 2nd paid - REVENUE PENDING
 - **ID:** WS-GTM1
 - **Current state:** HQ empty; owner prospect pick
