@@ -9,9 +9,9 @@
 # =============================================================================
 # Testing
 # =============================================================================
-pytest==7.4.4
-pytest-asyncio==0.23.4
-pytest-cov==4.1.0
+pytest==9.0.3
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
 pytest-mock==3.15.1
 pytest-xdist==3.8.0  # Parallel test execution
 httpx==0.28.1  # For async test client

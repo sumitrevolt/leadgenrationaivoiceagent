@@ -68,6 +68,10 @@ FLOORS: dict[str, tuple[str, str]] = {
     "setuptools": ("83.0.0", "GHSA-h35f-9h28-mq5c (medium)"),
     "sentry-sdk": ("1.45.1", "GHSA-g92j-qhmh-64v2 (low) - Sentry is armed in prod"),
     "aiosmtplib": ("5.1.1", "GHSA-v3q9-hj7j-63hq (medium) - live email outreach path"),
+    "pytest": (
+        "9.0.3",
+        "GHSA-6w46-j5rx-g56g tmpdir symlink pre-creation (medium) - fixed in 9.0.3; exception removed 2026-08-10 after pytest 9 migration",
+    ),
 }
 
 # Documented, deliberate exceptions. Each MUST carry a reachability argument and
@@ -99,18 +103,6 @@ EXCEPTIONS: dict[str, dict[str, str]] = {
             "and the advisory's code path needs a files/images pipeline: no "
             "S3FilesStore, FILES_STORE or IMAGES_STORE is configured anywhere in "
             "app/ or scripts/."
-        ),
-        "expires": "2026-11-08",
-    },
-    "pytest": {
-        "ghsa": "GHSA-6w46-j5rx-g56g",
-        "severity": "medium",
-        "fixed_version": "9.0.3",
-        "reachability": (
-            "tmpdir symlink pre-creation. pytest is a test runner: it is never "
-            "imported by app code, so it is not on any request path. 7.4.4 -> 9.0.3 "
-            "is a two-major bump across 750+ test files and would be the opposite of "
-            "a minimum compatible upgrade. Deferred to its own slice."
         ),
         "expires": "2026-11-08",
     },
