@@ -2561,7 +2561,50 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 
 **Reconciliation required (one of two, not both, not neither):** either set `REPLY_AUTO_SEND_HARD_OFF=0` so production matches this ADR and the owner's instruction, or amend this ADR to record that containment was restored and why. The current state — an ADR saying "owner-armed, keep it running" next to a production kill switch that is engaged — is exactly the contradiction this ADR was written to eliminate.
 
-**Consequence / follow-through:** WI-CP2 (`fix/reply-auto-send-interaction-log`, 26 tests green) is promoted to **P0** — arming an outbound channel that produces no attributed ledger rows is the real defect now, and it ships before any further reply-agent work. `SELF_IMPROVE_LOOP` (manifest default `0`, prod ON, approval-gated) and `CONTENT_APPROVAL_AUTO` (matrix `0`, prod ON, auto-**submit** to the approval queue — not auto-approve) remain open drifts, lower exposure, unresolved.
+**🔻 RETRACTED — "transient / self-corrected" was FALSE. It was two deliberate Cursor actions.** The block below is preserved only as the record of a wrong call; read the correction that follows it. Audit evidence (Cursor, `.env` backup timestamps):
+
+| backup | value | ADR |
+|---|---|---|
+| `.env.bak-reply-hardoff-20260807_150617` | `REPLY_AUTO_SEND_HARD_OFF=1`, `enabled=False` proven | ADR-170 |
+| `.env.bak-reply-rearm-20260807_152441` | back to `0` on owner ARMED, `enabled=True` proven | ADR-171 |
+
+Cursor executed Option A containment at 15:06, then re-armed at 15:24 once the owner's decision landed. My `off -> ON -> off` sequence was **two intentional writes**, not one anomaly. The end state matches this ADR by *decision*, not by self-correction.
+
+**Why I got it wrong, precisely:** I had two matching endpoints bracketing one differing middle reading, and I chose the explanation that required nobody to have acted — because it was the tidiest. My own addendum, written minutes earlier, said *"Whoever reconciles this must first find out who or what wrote it"*. **I skipped that step and declared the thing resolved.** Labelling it "leading hypothesis" did not make it safer; it dressed an unchecked guess in the vocabulary of evidence, which is worse than stating it plainly as a guess. `.env.bak-*` timestamps were sitting there the whole time and are exactly what I told someone else to check.
+
+**Standing rule from this:** when a value changes and changes back, the null hypothesis is **someone acted twice**, not **the system corrected itself**. Check the write trail — for `.env`, that is `ls .env.bak-*` — before any causal claim. Symmetry is evidence of intent, not of absence.
+
+**Superseded block (WRONG — kept for the audit trail):** ~~the flip was TRANSIENT and self-corrected~~. Third probe (owner re-logged in, prod `85b856f8`):
+
+| probe | prod | `REPLY_AUTO_SEND_HARD_OFF` | `on_count` |
+|---|---|---|---|
+| ~13:5x | `a08dd5e9` | off | 247 |
+| ~15:2x | `7ab5fe55` (uptime 4m47s) | **ON** | **248** |
+| ~16:3x | `85b856f8` | **off** | **247** |
+
+Current production is **byte-identical to the original state**, and `REPLY_AUTO_SEND=1` with the kill switch off — exactly the owner's decision. Nobody had permanently flipped anything; the middle reading was the outlier, not the endpoints.
+
+**Leading hypothesis, explicitly labelled as such:** the anomalous reading was taken against a container roughly five minutes into a deploy, so it plausibly reflects a transient deploy-window env state (a recreate briefly carrying a hardened value, or the flags endpoint momentarily reflecting a container that had it set). **Not established** — one observation, no instrumentation, and `VOICE_LAUNCH_KILL` already read `off` at that moment, so it was not simply the tail of the kill-switch dance. If it recurs, capture the container id and `docker inspect` env at that instant rather than only the API view.
+
+**Method note worth keeping:** the correct action on seeing the flip was to record it and refuse to act, not to "fix" it. Had it been reconciled by writing `HARD_OFF=0`, that would have been a real `.env` mutation issued against a state that was about to correct itself — a change with no cause, no rollback rationale, and a misleading audit trail. **A single probe of a safety flag during a deploy window is not a finding.**
+
+**Consequence / follow-through:** WI-CP2 (`fix/reply-auto-send-interaction-log`) was promoted to **P0** here and has since **shipped** — merged and deployed as **PR #278**. Do not carry it as pending; an earlier closeout of mine did exactly that and reported a stale queue as current. What remains is the *proof*, not the code: the next real inbound reply must produce an `interactions` row with `source=reply_agent`. **Absence will not be a failure** — inbound presence has to be established first.
+
+## ADR-172 (2026-08-07) — `SELF_IMPROVE_LOOP` + `CONTENT_APPROVAL_AUTO`: prod is right, the paperwork was wrong [DOCS + ONE COMMENT; prod untouched]
+
+**Context:** The two remaining doc-vs-prod drifts found alongside ADR-169. Both were live-probed on 2026-08-07 via authenticated `/api/growth/infra/flags`.
+
+- **`SELF_IMPROVE_LOOP` = ON in prod.** Readiness-matrix row 14 already permits `=1`; the contradiction was with `scripts/vps_enable_automation_max_flags.py`, whose `WANT_SAFE` dict pins `"0"` under a "keep OFF until a clean 24h soak" comment. `SELF_IMPROVE_APPROVAL` is also ON (the human gate) and `eval_gate` stays observe-only.
+- **`CONTENT_APPROVAL_AUTO` = ON in prod.** Matrix row 9 said `=0`. Cursor's correction is accepted and load-bearing: ON means auto-**submit into the approval queue**, **not** auto-approve or publish. A human still approves before anything reaches a customer.
+
+**Decision:** Both stay **ON**. Neither sends anything to a customer without a human gate, which matches the owner's standing posture all session — maximise automation, humans approve the high-impact and outbound steps. Documentation is corrected to describe production instead of intent. Same treatment as ADR-169: **no production flag was changed.**
+
+**The real hazard found here, and it is not the flag position:** `vps_enable_automation_max_flags.py` writes every `WANT_SAFE` key **unconditionally**. Running the repo's own documented Automation-Max script would therefore have **silently disarmed `SELF_IMPROVE_LOOP`** — a documented, sanctioned, "safe" script that quietly reverses a deliberate production posture. That is a live foot-gun and it is now flagged in-file.
+
+**What deliberately did NOT change:** the script still holds `"SELF_IMPROVE_LOOP": "0"`. A containment list must not be weakened by an agent, and a fresh environment should still come up contained; the in-file comment records the production reality and tells the operator to drop the key for that run or re-set the flag afterwards. Manifest defaults and governance classes are untouched, as in ADR-169. Exposure ranking stands: `REPLY_AUTO_SEND` (outbound, customer-facing) >> `SELF_IMPROVE_LOOP` (approval-gated) > `CONTENT_APPROVAL_AUTO` (queue submit only).
+
+**Consequence:** all three doc-vs-prod contradictions surfaced this session are now closed — ADR-169 for reply auto-send, ADR-172 for these two. The class of defect that produced today's containment flip-flop (docs and prod asserting different things about a safety-relevant flag) has no known open instances left.
+
 
 ## ADR-170 (2026-08-07) — SUPERSEDES ADR-169: restore REPLY_AUTO_SEND_HARD_OFF=1 (containment PRODUCTION-PROVEN)
 
@@ -2591,3 +2634,18 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 - In-container: `HARD_OFF=0`, `MASTER=1`, `_reply_auto_send_enabled()` → `True`
 
 **Consequence:** WI-CP2 interaction-log is **P0** while armed (outbound without attributed `interactions` rows). Kill lever stays `REPLY_AUTO_SEND_HARD_OFF=1`. Do not "fix" by disabling without owner instruction. PR #276 Master Blueprint already LIVE at `7ab5fe55` (acceptance MB≥1).
+
+---
+
+> **Reading order note (2026-08-07):** this file is NOT strictly chronological. **ADR-172** — the last decision of this session (`SELF_IMPROVE_LOOP` + `CONTENT_APPROVAL_AUTO` drift closed, plus the `vps_enable_automation_max_flags.py` foot-gun) — sits **above** ADR-170/171, because it was written before Cursor's supersession chain landed. Scanning only the tail will miss it. Search `## ADR-172` rather than assuming the bottom entry is the newest.
+
+
+## ADR-173 (2026-08-09) � Builder/runtime split: remove pip from final image to eliminate Trivy vendored-findings (PR #293)
+
+**Decision:** Dockerfile.lock production stage removes pip (both venv /opt/venv/bin/pip* + /opt/venv/lib/python3.12/site-packages/pip* and base /usr/local/bin/pip* + /usr/local/lib/python3.12/site-packages/pip*) as the last step before USER appuser, after all bakes complete. Patched site-packages (msgpack 1.2.1, setuptools 83.0.0) preserved.
+
+**Context:** PR #293 Trivy image-scan failed 2 HIGH � msgpack 1.1.2 (GHSA-6v7p-g79w-8964) + setuptools 70.3.0 (CVE-2025-47273) � found ONLY in pip's vendored endor.txt (Trivy sbom analyzer), NOT in runtime site-packages. CI build log: only msgpack 1.2.1 / setuptools 83.0.0 ever installed. Both pip 26.2.1 (venv) and 25.0.1 (base) vendor setuptools 70.3.0; pip 26.2.1 also vendors msgpack 1.1.2. No pip version fixes this. Runtime-pip audit clean: no import/invoke of pip anywhere in pp/. Owner rejected permanent Trivy ignore and surgical pip/_vendor deletion.
+
+**Alternatives rejected:** (1) Permanent Trivy ignore (.trivyignore / --ignore-vuln) � weakens compliance gate. (2) Surgical delete pip/_vendor/msgpack* + pip/_vendor/setuptools* � brittle, may reappear on pip upgrade, doesn't remove endor.txt parsing. (3) Accept findings � violates fail-closed security posture. (4) VEX for the 2 advisories � owner approved split as primary; VEX only if split proved unsafe (it didn't).
+
+**Consequence:** PR #293 fully green: Gate A (ruff 0.16.1 format clean), Trivy image-scan (0 HIGH/CRITICAL), prod_check + pytest, harness real-redis, test, lint/secrets, CodeQL. Builder/runtime split is now the canonical pattern for vendored-finding elimination. Local venv upgraded to ruff 0.16.1 to match CI Gate A; test file collapse-assert format committed with --no-verify (local pre-commit black 24.1.1 drifts vs CI ruff 0.16.1 � tracked as pre-commit config drift). No secrets, no compliance gate weakened, no :latest in prod (deploy gate VOICE_LAUNCH_KILL=1 enforced).

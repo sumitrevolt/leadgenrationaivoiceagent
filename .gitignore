@@ -290,3 +290,6 @@ _recovery/
 tests/fixtures/external_agent_runner/_captured_argv_*.json
 .external_agent_result_manifest.json
 .external_agent_runner_prompt.txt
+
+# business/compliance PDFs + brand assets consolidated from Desktop (GST/Udyam/PTEC/QR) - never commit
+_business_docs/

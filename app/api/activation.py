@@ -500,6 +500,93 @@ def _upi() -> dict[str, Any]:
     }
 
 
+# Hours a customer's UPI submission may sit in `pending` before it counts as a
+# revenue blocker. Manual UPI is the ONLY rail, so an unactioned submission is a
+# customer who paid and is waiting.
+_UPI_PENDING_ALERT_HOURS = 6
+
+
+def _upi_pending_unactioned() -> dict[str, Any]:
+    """Revenue: a paid customer stuck in `pending` with nobody notified.
+
+    `_upi()` only proves a VPA is *configured*. It cannot see money that has
+    already arrived. Discovery of a new submission rides on ONE best-effort
+    ntfy push (`upi_payments._notify_admin` -> `ops_alerts._ntfy`), which
+    swallows every failure at three nested levels and has no email fallback.
+    If that push is lost, the record stays durable but silent: the customer
+    sees "Verify ho raha hai, jaldi activate" and waits indefinitely.
+
+    This probe gives the already-scheduled 08:30 IST readiness digest a way to
+    surface that case, so discovery no longer depends on the operator
+    remembering to open the admin dashboard.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        from app.platform import upi_payments
+
+        rows = upi_payments.list_payments("pending")
+        now = datetime.now(timezone.utc)
+        stale: list[dict[str, Any]] = []
+        for r in rows:
+            try:
+                created = datetime.fromisoformat(str(r.get("created_at") or ""))
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                age_h = (now - created).total_seconds() / 3600.0
+            except Exception:
+                # Unparseable timestamp — treat as stale rather than hide it.
+                age_h = float(_UPI_PENDING_ALERT_HOURS + 1)
+            if age_h >= _UPI_PENDING_ALERT_HOURS:
+                stale.append(r)
+        pending_n = len(rows)
+        stale_n = len(stale)
+        oldest_h = 0.0
+        if stale:
+            try:
+                oldest = min(
+                    datetime.fromisoformat(str(r.get("created_at"))).replace(tzinfo=timezone.utc)
+                    for r in stale
+                )
+                oldest_h = round((now - oldest).total_seconds() / 3600.0, 1)
+            except Exception:
+                oldest_h = -1.0
+    except Exception:
+        # Store unreadable — do NOT invent a blocker from an infra hiccup.
+        return {
+            "key": "upi_pending_unactioned",
+            "label": "UPI submissions waiting for approval",
+            "category": "revenue",
+            "status": _NEUTRAL,
+            "env_vars": [],
+            "checks": {"store_readable": False},
+            "action": "",
+            "doc": "docs/ACTIVATION_RUNBOOK_2026_06_16.md#payments",
+        }
+
+    return {
+        "key": "upi_pending_unactioned",
+        "label": "UPI submissions waiting for approval",
+        "category": "revenue",
+        "status": _BLOCKER if stale_n else _OK,
+        "env_vars": [],
+        "checks": {
+            "pending_total": pending_n,
+            "stale_over_hours": _UPI_PENDING_ALERT_HOURS,
+            "stale_count": stale_n,
+            "oldest_stale_hours": oldest_h,
+        },
+        "action": (
+            f"{stale_n} customer payment(s) {_UPI_PENDING_ALERT_HOURS}h+ se pending hain "
+            f"(sabse purana ~{oldest_h}h). Admin dashboard → UPI queue → verify bank "
+            f"credit → approve. Customer ko 'jaldi activate' dikh raha hai."
+            if stale_n
+            else ""
+        ),
+        "doc": "docs/ACTIVATION_RUNBOOK_2026_06_16.md#payments",
+    }
+
+
 def _compliance_env() -> dict[str, Any]:
     """TRAI/DPDP compliance-env readiness — an ADVISORY section only.
 
@@ -951,6 +1038,7 @@ _PROBES = (
     _turnstile,
     _cloudflare_tunnel,
     _upi,
+    _upi_pending_unactioned,
     _first_paid_delivery,
     _qdrant_rag,
     # Phase 2: AI safety + memory + admin UX

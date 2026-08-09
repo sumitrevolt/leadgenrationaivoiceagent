@@ -16,11 +16,22 @@ import pytest
 
 @pytest.fixture
 def cfg(tmp_path, monkeypatch):
-    """upi_config pointed at a tmp store, env VPA cleared."""
+    """upi_config pointed at a tmp store, with ALL THREE resolver sources cleared.
+
+    ``get_vpa()`` resolves ``UPI_VPA`` env → ``settings.upi_vpa`` → data file.
+    Clearing only env + file left the middle link live: ``app.config.settings`` is
+    built by pydantic from the ``.env`` FILE at import time, so ``delenv`` cannot
+    reach it. On any checkout whose ``.env`` carries a real VPA the "unarmed"
+    precondition was never actually established and the store-armed VPA was
+    shadowed — the absence-asserting tests failed for an environment reason, not
+    a code reason (AGENT_WORK_RULES R4). Neutralise the whole chain here.
+    """
+    from app.config import settings
     from app.platform import upi_config as mod
 
     monkeypatch.setattr(mod, "_STORE", lambda: str(tmp_path / "platform_upi.json"))
     monkeypatch.delenv("UPI_VPA", raising=False)
+    monkeypatch.setattr(settings, "upi_vpa", "", raising=False)
     return mod
 
 
@@ -48,6 +59,43 @@ def test_env_vpa_still_wins(cfg, block, monkeypatch):
     out = block("Sharma Salon")
 
     assert "envvpa@ybl" in out
+
+
+def test_settings_vpa_is_honoured_between_env_and_file(cfg, block, monkeypatch):
+    """Locks the middle resolver link, which previously had NO coverage.
+
+    ``get_vpa()`` documents ``env → settings → file``. Only env and file were
+    exercised, so the settings branch was free to shadow a dashboard-armed VPA
+    without any test noticing. Pin it: settings ships when env is absent.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "upi_vpa", "settingsvpa@ybl", raising=False)
+
+    out = block("Sharma Salon")
+
+    assert "settingsvpa@ybl" in out
+    assert cfg.source() == "settings"
+
+
+def test_settings_vpa_shadows_dashboard_armed_vpa(cfg, block, monkeypatch):
+    """Documents a real operator trap so it cannot regress silently.
+
+    ``set_vpa()`` writes the FILE, which is last in the chain. When a VPA also
+    arrives via settings (a ``.env`` file entry that never reached the process
+    environment), an admin can arm a new VPA, get ``ok: true`` back, and still
+    have every payment surface serve the OLD one. Asserted as current behaviour,
+    not endorsed — see the owner note in SESSION_HANDOFF.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "upi_vpa", "settingsvpa@ybl", raising=False)
+    cfg.set_vpa("dashboard@okhdfcbank", set_by="test")
+
+    out = block("Sharma Salon")
+
+    assert "settingsvpa@ybl" in out
+    assert "dashboard@okhdfcbank" not in out
 
 
 def test_unarmed_upi_appends_nothing(cfg, block):

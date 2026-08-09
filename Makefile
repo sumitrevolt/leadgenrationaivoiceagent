@@ -109,37 +109,40 @@ db-revision:
 # DOCKER
 # ============================================================================
 
+APP_VERSION ?= $(shell git rev-parse --short=8 HEAD)
+LOCAL_IMAGE_REPOSITORY ?= leadgen-local/app
+
 docker-build:
-	docker build -t leadgen-ai:latest -f Dockerfile.lock .
+	docker build --build-arg APP_VERSION=$(APP_VERSION) -t $(LOCAL_IMAGE_REPOSITORY):$(APP_VERSION) -f Dockerfile.lock .
 
 docker-build-dev:
-	docker build -t leadgen-ai:dev -f Dockerfile.lock --target development .
+	docker build --build-arg APP_VERSION=$(APP_VERSION) -t $(LOCAL_IMAGE_REPOSITORY):$(APP_VERSION) -f Dockerfile.lock .
 
 # docker-compose.vps.yml is the CANONICAL production stack (AUDIT 2026-08-05);
 # root docker-compose.yml was quarantined to deploy/legacy/ (bare `up` = prod-502).
 COMPOSE := -f docker-compose.vps.yml
 
 docker-up:
-	docker compose $(COMPOSE) --profile celery up -d
+	APP_VERSION=$(APP_VERSION) APP_IMAGE_REPOSITORY=$(LOCAL_IMAGE_REPOSITORY) docker compose $(COMPOSE) --profile celery up -d
 
 docker-up-prod:
-	docker compose $(COMPOSE) --profile celery up -d
+	APP_VERSION=$(APP_VERSION) docker compose $(COMPOSE) --profile celery up -d
 
 docker-down:
-	docker compose $(COMPOSE) down
+	APP_VERSION=$(APP_VERSION) docker compose $(COMPOSE) down
 
 docker-logs:
-	docker compose $(COMPOSE) logs -f
+	APP_VERSION=$(APP_VERSION) docker compose $(COMPOSE) logs -f
 
 docker-logs-app:
-	docker compose $(COMPOSE) logs -f app
+	APP_VERSION=$(APP_VERSION) docker compose $(COMPOSE) logs -f app
 
 docker-shell:
-	docker compose $(COMPOSE) exec app /bin/bash
+	APP_VERSION=$(APP_VERSION) docker compose $(COMPOSE) exec app /bin/bash
 
 docker-clean:
-	docker compose $(COMPOSE) down -v --remove-orphans
-	docker system prune -f
+	docker image prune -f
+	docker builder prune -f --filter "unused-for=168h"
 
 # ============================================================================
 # PRODUCTION DEPLOYMENT
@@ -243,21 +246,5 @@ setup-secrets-dry-run:
 	python scripts/setup_secrets.py --project-id $$project --env production --dry-run  # pragma: allowlist secret
 
 deploy-full:
-	@echo "Full production deployment..."
-	@echo "Step 1: Validating..."
-	python scripts/validate_deployment.py --env production --skip-tests
-	@echo "Step 2: Running tests..."
-	pytest tests/test_production_ready.py -v
-	@echo "Step 3: Building Docker image..."
-	docker build -t leadgen-ai:latest -f deploy/legacy/Dockerfile.production .
-	@echo "Step 4: Pushing to registry..."
-	docker tag leadgen-ai:latest asia-south1-docker.pkg.dev/$(GCP_PROJECT_ID)/leadgen-ai/leadgen-ai-voice-agent:latest
-	docker push asia-south1-docker.pkg.dev/$(GCP_PROJECT_ID)/leadgen-ai/leadgen-ai-voice-agent:latest
-	@echo "Step 5: Deploying to Cloud Run..."
-	gcloud run deploy leadgen-ai-voice-agent \
-		--image asia-south1-docker.pkg.dev/$(GCP_PROJECT_ID)/leadgen-ai/leadgen-ai-voice-agent:latest \
-		--region asia-south1 \
-		--platform managed \
-		--min-instances 1 \
-		--max-instances 100
-	@echo "✅ Deployment complete!"
+	@echo "Retired: use scripts/deploy_vps.sh so production deploys one immutable SHA image."
+	@exit 1

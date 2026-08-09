@@ -2,41 +2,32 @@
 
 ---
 
-## WS-PRF1 PR Factory Wave 1 - MERGE+DEPLOY IN FLIGHT
-- **ID:** WS-PRF1
-- **Business outcome:** Spec Kit constitution + thin `tools/pr_factory` dispatcher onto existing Owner OS `external_agents` (no second control plane); draft CI-repair Action + non-required Gate A
-- **Current state:** Fixing Gate A pin contract (`pip install --upgrade pip` refused); rebase onto `main` @ `084cd990`
-- **Next exact action:** CI green → undraft #248 → merge → kill-fence deploy; flags stay OFF
-- **Out of scope:** vendoring openai/symphony · 100-PR claims · Merge Queue · auto-deploy · prod flag flips
+## WS-SEC1 Vobiz credential rotation (OWNER BLOCKER)
+- **ID:** WS-SEC1
+- **Business outcome:** Rotate leaked `VOBIZ_AUTH_TOKEN` + `VOBIZ_SIP_PASS` (2026-08-07 settings-dump)
+- **Current state:** `/root/rotate_vobiz.sh` ready (mode 700); `/root/vobiz_new.env` **missing**. Prod `a08dd5e9`. main `34836739` (#275) not required for rotate.
+- **Next exact action:** Owner → Vobiz Console new token+SIP → `/root/vobiz_new.env` (0600) → Cursor `bash /root/rotate_vobiz.sh` → portal **revoke old**
+- **Out of scope:** API half-rotate with leaked token · chat secrets · Postgres tonight · hangup GET “fix”
 
 ---
 
-## WS-GTM2 Admin Manual Call + Voice Dead-Air Fix - LIVE
-- **ID:** WS-GTM2
-- **Business outcome:** Owner `/app/admin` manual AI call + OmniRoute dead-air breaker
-- **Current state:** Prod `/health`=`084cd990`
-- **Next exact action:** admin login canary → optional real call `llm_first` verify
-- **Out of scope:** env flips · compliance bypass
+## WS-MORNING B1 D2 + B2 CRM (time-gated)
+- **ID:** WS-MORNING
+- **Business outcome:** Numbered PRODUCTION verdicts for D2 harvest budget + CRM lead sync
+- **Current state:** D2 code LIVE on `a08dd5e9`; cron `03:48Z`/`03:50Z` armed. CRM flag ON; no answered-call proof yet. Midday 163 leads = **D1 only**.
+- **Next exact action:** After 04:00Z/06:00Z `prospect` → read `/root/d2_morning_<date>.log` (B1 table). After ~11:30 dial → CRM prove only if answered (B2). Write verdicts into SESSION_HANDOFF + AUTOMATION_VERIFY_CHECKPOINTS.md
+- **Out of scope:** LOOKUPS bump · extra canary dials tonight · declaring B13 broken on no-answer
 
 ---
 
-## WS-DV1 Daily video producer - CODE READY, OWNER FLAGS PENDING
-- **ID:** WS-DV1
-- **Business outcome:** marketing customer ko ROZ 1 video (classic ab, HyperFrames-advanced toolchain deploy ke baad)
-- **Current state:** **PR #294 open** (5 commits) — ADR-166 producer + 2 systemic observability fixes (budget-skips, customer-approval backlog) + runtime-data + explorer-graph compliance. CI green except pre-existing non-required Gate A. Flags default OFF, NOT deployed.
-- **Next exact action:** merge #294 → deploy → then Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md` (`DAILY_VIDEO_ENABLED=1`, `DAILY_VIDEO_CLIENTS=jiya-makeover`, `ENGINE=classic`) + clear the 32 pending reviews
-- **Out of scope:** auto-publish · daily WA blast · pricing copy "daily" claim before a week of proven delivery
-
----
-
-## WS-GTM1 Hot Queue → 2nd paid - REVENUE PENDING
-- **ID:** WS-GTM1
-- **Current state:** HQ empty; owner prospect pick
-- **Next exact action:** Real ₹1999 UPI → LEDGER_PAID
-- **Out of scope:** fake PAID
+## WS-VERIFY Automation ladder CP0–CP8
+- **ID:** WS-VERIFY
+- **Business outcome:** Gated inventory + verify-only automation coverage; CP8 only for proven FAILs
+- **Current state:** Peer review **CLEAR** on `fix/reply-auto-send-interaction-log` (`7d3b1448`+`72d772be`). Merge-ready; **WI-CP2 stays CLAIMED** until deploy + prod `interactions` out+`source=reply_agent`. B+C UNPROVEN. Sequence: **D2/CRM before** this PR (revenue + wall-clock).
+- **Next exact action:** Hold merge until morning O2/B1 + O3/B2 (or owner says merge now). Owner: Vobiz portal. No deploy of WI-CP2 ahead of D2/CRM without haan.
+- **Out of scope:** full-repo rewrite · Swara/voice edits · bundling D3/LOOKUPS/trainer/example.com into one PR
 
 ---
 
 ## Parked
-- WS-AM1 Safe Pack (after LEDGER_PAID)
-- Estique `removed`
+- CP-A3 Postgres rotate · CP-A4 DATABASE_URL split · D3 cursor · LOOKUPS owner decision · trainer DLQ · `@example.com` domain-suffix

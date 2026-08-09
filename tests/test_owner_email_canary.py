@@ -1135,17 +1135,32 @@ def test_cross_process_os_lock_blocks_second_claim(tmp_path, monkeypatch):
 
     monkeypatch.setattr(fl, "file_lock", _short_lock)
 
+    # "spawn" starts a FRESH interpreter, so the child pays the full `app`
+    # import cost before it can take the lock. Alone that is a couple of
+    # seconds; inside a batch run on a loaded Windows box it repeatedly
+    # exceeded a 10s budget, so this test failed for machine speed rather than
+    # for lock behaviour. Budget the startup generously and hold the lock for
+    # longer than the parent can possibly need, so the assertions below still
+    # measure contention and nothing here is weakened.
     ctx = multiprocessing.get_context("spawn")
     child = ctx.Process(
         target=_child_hold_canary_lock,
-        args=(str(ledger), str(ready), 8.0),
+        args=(str(ledger), str(ready), 60.0),
     )
     child.start()
     try:
-        deadline = time.time() + 10
-        while time.time() < deadline and not ready.exists():
+        deadline = time.time() + 120
+        while time.time() < deadline and not ready.exists() and child.is_alive():
             time.sleep(0.05)
-        assert ready.exists() and ready.read_text(encoding="utf-8") == "ready"
+        assert ready.exists(), (
+            "lock-holding child never signalled ready "
+            f"(alive={child.is_alive()}, exitcode={child.exitcode}) — "
+            "child startup budget exceeded, not a locking failure"
+        )
+        assert ready.read_text(encoding="utf-8") == "ready", (
+            "child could not acquire the sidecar lock; contention below would "
+            "not be measuring what this test claims"
+        )
 
         res = asyncio.run(
             canary.send_canary(
@@ -1159,9 +1174,13 @@ def test_cross_process_os_lock_blocks_second_claim(tmp_path, monkeypatch):
         assert res["provider_called"] is False
         assert called["n"] == 0
     finally:
-        child.join(timeout=15)
+        # The child now deliberately outlives the assertions, so reclaim it
+        # directly instead of waiting out its hold.
         if child.is_alive():
             child.terminate()
+        child.join(timeout=15)
+        if child.is_alive():  # pragma: no cover - terminate did not take
+            child.kill()
             child.join(timeout=5)
 
 

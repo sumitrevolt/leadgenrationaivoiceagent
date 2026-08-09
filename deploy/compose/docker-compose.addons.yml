@@ -12,7 +12,7 @@
 #
 # Prereq: main stack up (network leadgen_leadgen_net exists).
 # Usage:
-#   docker compose -f docker-compose.addons.yml up -d
+#   docker compose -f deploy/compose/docker-compose.addons.yml up -d   (from /opt/leadgen)
 #
 # NOTE: celery-exporter sirf broker pe listen karta; APP container restart ki
 # zaroorat NAHI. Flower bhi broker-only (no app connection needed).

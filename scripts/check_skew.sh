@@ -7,9 +7,8 @@ for c in leadgen_app leadgen_worker leadgen_scheduler leadgen_worker_heavy leadg
   up=$(docker ps --filter "name=^${c}$" --format '{{.Status}}' 2>/dev/null)
   printf '%-24s %-58s %s\n' "$c" "${img:-<absent>}" "$up"
 done
-echo "===WHAT DOES :latest ACTUALLY POINT AT?==="
-docker image inspect ghcr.io/sumitrevolt/leadgenrationaivoiceagent:latest --format 'latest created: {{.Created}}' 2>/dev/null
-docker image inspect ghcr.io/sumitrevolt/leadgenrationaivoiceagent:3c5a248 --format '3c5a248 created: {{.Created}}' 2>/dev/null
+echo "===CANONICAL PRODUCTION IMAGE==="
+docker inspect --format '{{.Config.Image}} id={{.Image}}' leadgen_app 2>/dev/null
 echo "===APP_VERSION INSIDE EACH RUNNING CONTAINER==="
 for c in leadgen_app leadgen_worker leadgen_scheduler leadgen_worker_heavy leadgen_worker_video; do
   v=$(docker exec "$c" printenv APP_VERSION 2>/dev/null)

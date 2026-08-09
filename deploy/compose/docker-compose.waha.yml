@@ -12,7 +12,7 @@
 # Prereq: main stack up (network `leadgen_leadgen_net` exists).
 # Setup (VPS):
 #   1) In .env set:  WAHA_API_KEY=<random>  WAHA_WEBHOOK_TOKEN=<random>
-#   2) docker compose -f docker-compose.waha.yml up -d
+#   2) docker compose -f deploy/compose/docker-compose.waha.yml up -d   (from /opt/leadgen)
 #   3) In app .env:  WHATSAPP_PROVIDER=waha  WAHA_BASE_URL=http://waha:3000
 #                    WAHA_SESSION=default  WHATSAPP_BUSINESS_NUMBER=918261030181
 #      (WAHA_API_KEY / WAHA_WEBHOOK_TOKEN same as step 1) -> recreate app container.

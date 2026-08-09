@@ -124,6 +124,7 @@ def test_build_cache_prune_never_uses_bare_dash_a():
 
 def test_image_retention_never_removes_the_just_deployed_tag():
     t = _text()
+    assert 'KEEP_IMAGES="${KEEP_IMAGES:-1}"' in t
     # both the real retention loop and the dry-run preview loop must guard this
     assert t.count('[ "$t" = "$VER" ] && continue') == 2
 
