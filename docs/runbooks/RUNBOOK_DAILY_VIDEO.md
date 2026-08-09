@@ -35,12 +35,20 @@ Classic = the proven deterministic ffmpeg path. It needs **no new image and no n
    DAILY_VIDEO_MAX_PER_RUN=10
    ```
 
-3. Recreate the containers that read it (`restart` does NOT reload env):
+3. Recreate the containers that read it (`restart` does NOT reload env).
+   **`APP_VERSION` is mandatory** — a bare `docker compose up -d` falls back to
+   `${APP_VERSION:-latest}` and silently moves prod onto the `:latest` image. That happened
+   during the 2026-08-09 deploy (~55s on an unknown build before `/health.version` caught it),
+   so it is written here rather than left to memory:
 
    ```
-   cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery \
+   cd /opt/leadgen
+   APP_VERSION=$(curl -fsS http://127.0.0.1:8000/health | sed 's/.*"version":"\([^"]*\)".*/\1/') \
+     docker compose -f docker-compose.vps.yml --profile celery \
      up -d --no-deps app worker scheduler
    ```
+
+   Then re-check `/health.version` is unchanged. If it moved, you just deployed something else.
 
 4. Verify the flag actually landed: `docker exec leadgen_scheduler printenv DAILY_VIDEO_ENABLED`
 5. Verify the producer's own view (admin token required):

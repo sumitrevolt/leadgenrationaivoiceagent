@@ -20,12 +20,20 @@
 
 ---
 
-## WS-VERIFY Automation ladder CP0–CP8
-- **ID:** WS-VERIFY
-- **Business outcome:** Gated inventory + verify-only automation coverage; CP8 only for proven FAILs
-- **Current state:** Peer review **CLEAR** on `fix/reply-auto-send-interaction-log` (`7d3b1448`+`72d772be`). Merge-ready; **WI-CP2 stays CLAIMED** until deploy + prod `interactions` out+`source=reply_agent`. B+C UNPROVEN. Sequence: **D2/CRM before** this PR (revenue + wall-clock).
-- **Next exact action:** Hold merge until morning O2/B1 + O3/B2 (or owner says merge now). Owner: Vobiz portal. No deploy of WI-CP2 ahead of D2/CRM without haan.
-- **Out of scope:** full-repo rewrite · Swara/voice edits · bundling D3/LOOKUPS/trainer/example.com into one PR
+## WS-DV1 Daily video producer - CODE READY, OWNER FLAGS PENDING
+- **ID:** WS-DV1
+- **Business outcome:** marketing customer ko ROZ 1 video (classic ab, HyperFrames-advanced toolchain deploy ke baad)
+- **Current state:** **MERGED + DEPLOYED** — PR #294 → prod `/health`=`d1b106b2`, 5/5 zero skew, kill-fence closed, queues at baseline. All `DAILY_VIDEO_*` flags **unset** so the producer is INERT; deploy produced zero behaviour change by design.
+- **Next exact action:** Stage 1 of `docs/runbooks/RUNBOOK_DAILY_VIDEO.md` — `DAILY_VIDEO_ENABLED=1`, `DAILY_VIDEO_CLIENTS=jiya-makeover`, `DAILY_VIDEO_ENGINE=classic`, then recreate **with `APP_VERSION=d1b106b2`**. Also clear the 32 pending reviews or the producer will (correctly) refuse that client.
+- **Out of scope:** auto-publish · daily WA blast · pricing copy "daily" claim before a week of proven delivery
+
+---
+
+## WS-GTM1 Hot Queue → 2nd paid - REVENUE PENDING
+- **ID:** WS-GTM1
+- **Current state:** HQ empty; owner prospect pick
+- **Next exact action:** Real ₹1999 UPI → LEDGER_PAID
+- **Out of scope:** fake PAID
 
 ---
 

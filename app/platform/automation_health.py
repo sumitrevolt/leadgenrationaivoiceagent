@@ -107,6 +107,98 @@ EXPECTED_GAP_MIN = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# PRODUCTIVITY dead-man (as opposed to the LIVENESS dead-man above)
+#
+# `record_run` captures that a job RAN and did not raise: {job, ok, s,
+# duration_ms, note, at, trigger, started_at}. It captures nothing about whether
+# the job DID anything. A job can therefore run daily, take 154s, report
+# ok=True, produce zero output, and every dashboard stays green.
+#
+# That is not hypothetical. 2026-08-09 postmortem: `video_ad_cycle` was gated
+# inert by a flag-alias bug for 15 days (2026-07-22 -> 2026-08-06) while the
+# `content` job it rides heartbeat green throughout. What actually gave it away
+# was that `video_ads.jsonl` stopped growing.
+#
+# So this registry watches the OUTPUT, not the job — which needs no change to
+# any of the 44 staff jobs. Adding a producer here is how you make its silent
+# death visible; that is deliberately a one-line change.
+#
+# `resolver` is a callable so it re-resolves at check time and uses the SAME
+# path the producer writes (runtime root vs legacy `data/` differ per store).
+# --------------------------------------------------------------------------- #
+def _video_ads_store() -> str:
+    from app.marketing import video_ad_cycle
+
+    return str(video_ad_cycle._FILE)
+
+
+def _content_approvals_store() -> str:
+    from app.marketing import content_approval
+
+    return str(content_approval._FILE())
+
+
+OUTPUT_FRESHNESS: dict[str, dict[str, Any]] = {
+    "video_ad_cycle": {
+        "resolver": _video_ads_store,
+        "max_stale_days": 8,  # 5-day cadence + grace; the real outage ran to 15
+        "why": "per-client AI video ads — the 2026-08-09 silent 15-day outage",
+        "owner_hint": "Video engine chup ho gaya — /app/automation ka video tab dekho",
+    },
+    "content_approvals": {
+        "resolver": _content_approvals_store,
+        "max_stale_days": 3,  # daily content engine; 3 days = two missed passes
+        "why": "content engine output — nothing to approve means nothing was generated",
+        "owner_hint": "Content banna band ho gaya — Isha ka daily job check karo",
+    },
+}
+
+
+def stale_outputs() -> list[dict[str, Any]]:
+    """Producers whose output store has not moved within its budget.
+
+    A missing store counts as stale ONLY if it was expected to exist; an
+    unreadable/absent path yields `age_days: None` and is reported as
+    `unknown` rather than raising a false alarm, because a fresh deployment
+    legitimately has no file yet. Never raises.
+    """
+    out: list[dict[str, Any]] = []
+    now = _now()
+    for name, spec in OUTPUT_FRESHNESS.items():
+        try:
+            path = spec["resolver"]()
+            if not path or not os.path.isfile(path):
+                out.append(
+                    {
+                        "producer": name,
+                        "store": str(path or "?"),
+                        "age_days": None,
+                        "status": "unknown",
+                        "max_stale_days": spec["max_stale_days"],
+                        "why": spec["why"],
+                        "owner_hint": spec.get("owner_hint", ""),
+                    }
+                )
+                continue
+            age_days = (now.timestamp() - os.path.getmtime(path)) / 86400.0
+            if age_days > float(spec["max_stale_days"]):
+                out.append(
+                    {
+                        "producer": name,
+                        "store": path,
+                        "age_days": round(age_days, 1),
+                        "status": "stale",
+                        "max_stale_days": spec["max_stale_days"],
+                        "why": spec["why"],
+                        "owner_hint": spec.get("owner_hint", ""),
+                    }
+                )
+        except Exception as e:
+            logger.debug("[automation-health] freshness check skip for %s: %s", name, e)
+    return out
+
+
 def _SKIPS() -> str:
     """Budget-skip ledger — SAME store family as job_runs.
 
@@ -555,12 +647,27 @@ def health() -> dict[str, Any]:
     except Exception:
         skips = {"total": 0, "by_engine": {}, "by_job": {}, "latest": []}
     engines_skipped = bool(skips.get("total"))
+    # A producer that is green but has stopped producing is an outage the
+    # liveness dead-man cannot see (2026-08-09: 15 days of it). Only genuinely
+    # STALE entries degrade health — "unknown" (store absent yet) must not.
+    try:
+        outputs = stale_outputs()
+    except Exception:
+        outputs = []
+    outputs_stale = any(o.get("status") == "stale" for o in outputs)
     unhealthy = bool(
-        overdue or backlogged or dead_present or retryable_failed_present or engines_skipped
+        overdue
+        or backlogged
+        or dead_present
+        or retryable_failed_present
+        or engines_skipped
+        or outputs_stale
     )
     return {
         "engine_skips": skips,
         "engines_skipped_recently": engines_skipped,
+        "stale_outputs": outputs,
+        "outputs_stale": outputs_stale,
         "status": ("degraded" if unhealthy else ("warming_up" if never_ran else "healthy")),
         # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
         # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha
