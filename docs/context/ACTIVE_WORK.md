@@ -39,3 +39,8 @@
 
 ## Parked
 - CP-A3 Postgres rotate · CP-A4 DATABASE_URL split · D3 cursor · LOOKUPS owner decision · trainer DLQ · `@example.com` domain-suffix
+- WS-AM1 Safe Pack (after LEDGER_PAID)
+- Estique `removed`
+- **ADR-172 Agent Teams C1 — canary needs RE-BASELINE.** The hold named `base_ref = 5ae5a4b9` and forbade merging #283 while the P1 window was open. That window closed on its own: `origin/main` advanced ~61 commits (PRs #290–#297) before #283 was touched, so `p1_validity` was already `contaminated` by main, not by the merge. #283 was subsequently merged under explicit owner authorisation (2026-08-09 PR sweep). **The Sumit-only steps were never attempted and are still outstanding** — prune / Usage baseline / Claude Code paste — and they now need a fresh `base_ref` before any P1 conclusion is drawn.
+- **ADR-173 claw-orchestrator** — REJECT full vendor; patterns-only.
+- **ADR-174 candidate (parked)** — Cloudflare OS vendor REJECT · Gatekeeper deferred-approval + capability-intro patterns. Full ADR **after** C1 re-baselined + Observed — see `memory/backlog.md`.

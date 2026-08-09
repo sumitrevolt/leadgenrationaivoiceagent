@@ -70,6 +70,17 @@ writes, no deploy. Runs hourly via the Windows scheduled task
 It flags an agent `warn` when it has been silent over 24h and `fail` on errors or an
 offline state — the stale case is the one that otherwise goes unnoticed.
 
+## Claude Code Agent Teams (coding plane)
+
+Native Claude Code multi-session coordination (ADR-172). Opt-in via
+`.claude/settings.json` → `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Canary: **2 teammates**,
+worktrees `agent/tm{N}/<slug>`, frozen paths from **SSOT**
+`docs/coordination/canary_frozen_paths.yml` (loader `scripts/canary_frozen.py` — never paste
+twins). Lead prompt: `docs/coordination/CANARY_LEAD_PROMPT.md`.
+
+Runbook: `docs/runbooks/CLAUDE_AGENT_TEAMS.md`. claw-orchestrator: REJECT vendor (ADR-173).
+
+
 ## Hard rules (all tools)
 
 - Read before Edit — never edit off stale content.
@@ -83,6 +94,7 @@ offline state — the stale case is the one that otherwise goes unnoticed.
 - Swara / voice path is FROZEN — propose, do not edit.
 - Compliance gates (DND, TRAI window, consent, DPDP) are RED. Weakening one is an
   abort, not a fix.
+- Parallel Claude teammates = worktree isolation mandatory (ADR-172).
 
 ## Related
 
@@ -90,3 +102,5 @@ offline state — the stale case is the one that otherwise goes unnoticed.
 - Canonical 31-agent routing: `~/.buzz/GUIDES/STAFF_ROUTING_MAP.md`
 - Coding-agent protocol in full: `~/.buzz/GUIDES/CODING_AGENT_PROTOCOL.md`
 - Buzz operating model: `~/.buzz/GUIDES/BUZZ_OPERATING_MODEL.md`
+- Claude Agent Teams runbook: `docs/runbooks/CLAUDE_AGENT_TEAMS.md`
+- ADR-172: `docs/adr/ADR-172-claude-agent-teams-worktrees.md`

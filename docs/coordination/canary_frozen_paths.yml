@@ -1,0 +1,78 @@
+# Single source of truth for Agent Teams canary frozen paths / conventions.
+# ADR-172 · docs/runbooks/CLAUDE_AGENT_TEAMS.md
+#
+# TM1 docs MUST reference this file (do not re-list paths as a second truth).
+# TM2 tests MUST load this file via scripts/canary_frozen.py (do not paste paths).
+# Editing this file is lead/owner only during a live canary.
+#
+# Enforcement: `python3 scripts/canary_frozen.py check --base <base> --head HEAD`
+# (exit 2 on frozen path touch). Lead runs on each teammate branch before merge.
+
+schema_version: 1
+canary_id: C1
+branch_prefix: "agent/tm"
+teammate_ids: [1, 2]
+max_teammates: 2
+
+# Diff-gated prefixes/files (observance via canary_frozen.py check).
+# Do NOT put gitignored-only secrets here — git diff never sees them (see frozen_classes).
+frozen_paths:
+  - app/voice_agent/
+  - app/telephony/
+  - scripts/deploy_vps.sh
+  - app/billing/packages.py
+
+# Policy classes — not all are visible to `git diff` (e.g. .env is gitignored).
+frozen_classes:
+  - env_files_gitignored  # .env / .env.* — tracked via hooks/write_guard + never commit; not diff-gateable
+  - compliance_gates_section_5  # DND / TRAI window / consent / DPDP — no weaken
+  - fastapi_route_registration  # @router / @app.get|post|… — lead-only if ever
+
+# Stop / pass (machine-readable for the contract test + lead checklist).
+merge_order:
+  - TM1  # doc first — otherwise TM2 has nothing to couple against
+  - TM2  # test second — RED/GREEN only meaningful after TM1 is merged
+
+stop_rule:
+  id: merge_conflict_gt_1_file
+  description: "If first canary merge conflicts in more than 1 file → FAIL → single-agent"
+
+pass_rule:
+  id: c1_pass
+  requires:
+    - tm1_merged_before_tm2
+    - both_deliverables_merged_by_lead
+    - frozen_diff_check_clean  # canary_frozen.py check on each tm branch before merge
+    - verify_green_after_merge  # targeted pytest + 0 skipped + prod_check + check_secrets + duplicate-route
+    - tm2_test_reads_this_ssot  # never a pasted path copy
+    - tm2_fail_not_skip_on_missing_doc  # missing AGENT_TEAMS_CANARY.md → pytest.fail, never skipif
+    - quota_note_recorded  # honest operator fields — see quota.record_fields
+  disagreement:
+    description: >
+      If TM2 test is RED against TM1 doc after merge, that is a canary SIGNAL
+      (shared task list failed to keep semantic consistency) — lead surfaces it;
+      do not silently weaken the test to green.
+
+# Label discipline — do not confuse scaffolding / Cursor protocol with Claude AT canary.
+evidence_labels:
+  scaffolding: "SSOT/loader/worktree helper tests green = SETUP only, never quote as canary PASS"
+  protocol_pass_cursor: "Cursor TM1/TM2 proved harness-agnostic protocol — NOT Agent Teams task-list mediation"
+  canary_signal: "TM2 RED after TM1 merge on semantic miss — do not weaken test"
+  prediction_locked: "docs/coordination/C1_CLAUDE_AT_PREDICTION.md — fill Observed after Claude AT run only"
+  claude_at_canary_pass: "Only after Windows Claude Code Agent Teams run + P1 Observed + P2 baseline→delta"
+  canary_not_run: "Claude Code Agent Teams C1 not executed yet"
+
+quota:
+  estimate_multiplier: 3  # lead + 2 teammates; REPLACE with measured delta after Claude AT run
+  measure_after_run: true
+  require_baseline_before_run: true
+  # Honest fields — baseline before paste; delta after. Per-tm split optional.
+  record_fields:
+    - plan_tier  # Pro | Max | other — owner-reported
+    - account_usage_baseline_note  # BEFORE paste
+    - clock_start_iso
+    - clock_end_iso
+    - wall_clock_minutes
+    - usage_delta_note  # AFTER − baseline; total session burn
+    - per_teammate_burn_available  # true|false — do not invent splits if false
+    - decision_for_next_run  # keep_2 | try_3_on_max | abort_parallel
