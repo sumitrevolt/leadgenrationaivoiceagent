@@ -196,9 +196,9 @@ PyJWT==2.13.0
 pyOpenSSL==26.4.0
 pyparsing==3.3.2
 pypinyin==0.55.0
-pytest==7.4.4
-pytest-asyncio==0.23.4
-pytest-cov==4.1.0
+pytest==9.0.3
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-jose==3.5.0
