@@ -189,6 +189,6 @@ fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 # =============================================================================
 # Testing (dev only - move to dev requirements for production)
 # =============================================================================
-pytest==9.0.3
-pytest-asyncio==1.4.0
-pytest-cov==7.1.0
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
