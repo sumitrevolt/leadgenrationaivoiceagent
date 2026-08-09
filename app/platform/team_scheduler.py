@@ -206,6 +206,7 @@ _last_ran: dict[str, str | None] = {
     "afternoon_content": None,  # daily 15:00: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
+    "daily_video": None,  # daily 09:45 IST: per-client video producer, enqueue-only (gated DAILY_VIDEO_ENABLED)
     "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
     "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
     "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
@@ -474,6 +475,24 @@ async def _run_content_engine(name: str, coro, budget=None) -> bool:
                 coro.close()
             except Exception:
                 pass
+            # Until 2026-08-09 this returned False with NO exception and NO line
+            # naming the engine — so an engine could stop running for weeks and
+            # nothing anywhere said so. Prod proof: `content` blew its 420s budget
+            # on 15 consecutive daily runs (2026-07-18 → 2026-08-01, 452–530s),
+            # silently dropping every engine queued behind the overrun.
+            try:
+                from app.platform import automation_health
+
+                snap = b.snapshot() if hasattr(b, "snapshot") else {}
+                automation_health.record_engine_skip(
+                    str(getattr(b, "label", "") or "job"),
+                    name,
+                    "budget_exhausted",
+                    elapsed_s=snap.get("elapsed_s"),
+                    limit_s=snap.get("limit_s"),
+                )
+            except Exception as e:
+                logger.warning("[team-scheduler] engine-skip record failed for '%s': %s", name, e)
             return False
         await coro
         return True
@@ -1383,6 +1402,15 @@ async def _run_job_inner(job: str) -> bool:
             # returns {enabled:False} immediately). Dry-run default; calling
             # HARD OFF; Estique/manual_owner_confirmed fail-closed in eligibility.
             await _sales_ap.run_tick()
+        elif job == "daily_video":
+            # DAILY per-client video producer. Its own job on purpose: inside the
+            # `content` chain it sat behind auto_content under CONTENT_TIME_BUDGET_S
+            # and got silently budget-skipped (prod: 15-day generation gap on a
+            # 5-day interval). LIGHT — enqueues to the video queue, never renders.
+            # Gated DAILY_VIDEO_ENABLED + fail-closed DAILY_VIDEO_CLIENTS allowlist.
+            from app.marketing import daily_video
+
+            await daily_video.run_daily()
         elif job == "social_drain":
             from app.social_engine import engine as _social_engine
 

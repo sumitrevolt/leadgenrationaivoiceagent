@@ -240,6 +240,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Call KPI digest (raat 02:30)",
         "kya": "AI calls ke conversions/dispositions analysis",
     },
+    "daily_video": {
+        "label": "Roz ka video (09:45)",
+        "kya": "Har marketing client ke liye roz 1 naya AI video ad banata hai (approval ke liye bhejta hai)",
+    },
     "platform_dial": {
         "label": "Platform auto-dialer (11:30)",
         "kya": "Outbound campaign auto-dial loop",
@@ -431,6 +435,27 @@ def build() -> dict[str, Any]:
         # "Aaj" snapshot (feeds BOTH /app/control-center's Problems panel AND
         # /app/automation's Aaj tab) could say "Koi problem nahi mili" while
         # dlq:dead held retry-exhausted tasks.
+        # 2026-08-09: a mega-job that runs out of its wall-clock budget DROPS the
+        # engines queued behind it. Prod ran `content` over its 420s budget on 15
+        # consecutive days with zero visible signal — the "Aaj" tab happily said
+        # sab theek while engines behind it never ran. Surface it in the owner's
+        # own words, with the actual engine names.
+        _skips = h.get("engine_skips") or {}
+        if _skips.get("total"):
+            _names = ", ".join(sorted((_skips.get("by_engine") or {}).keys())[:4]) or "kuch engines"
+            problems.append(
+                {
+                    "kya": (
+                        f"{_skips.get('total')} baar kaam chhoda gaya — time khatam hone se yeh "
+                        f"engines chale hi nahi: {_names}"
+                    ),
+                    "fix": (
+                        "Job ka time budget badhao (CONTENT_TIME_BUDGET_S) ya bhaari engine ko "
+                        "apne alag job me nikalo — jaise daily video ke liye kiya gaya"
+                    ),
+                    "href": "/app/automation",
+                }
+            )
         if h.get("dead_tasks_present"):
             problems.append(
                 {
