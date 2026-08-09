@@ -145,7 +145,9 @@ class GoogleMapsScraper:
                             pass
                         if resp.status_code == 429:
                             try:
-                                from app.platform.integration_health import start_places_quota_cooldown
+                                from app.platform.integration_health import (
+                                    start_places_quota_cooldown,
+                                )
 
                                 start_places_quota_cooldown()
                             except Exception:
@@ -355,9 +357,7 @@ class GoogleMapsScraper:
             if data.get("status") != "OK":
                 # status log = triage-able (ZERO_RESULTS vs OVER_QUERY_LIMIT vs
                 # REQUEST_DENIED alag-alag fix maangte)
-                logger.warning(
-                    f"Geocode non-OK for {location!r}: {data.get('status')}"
-                )
+                logger.warning(f"Geocode non-OK for {location!r}: {data.get('status')}")
             if data.get("status") == "OK" and data.get("results"):
                 geometry = data["results"][0].get("geometry", {})
                 location_data = geometry.get("location", {})
@@ -526,3 +526,8 @@ class GoogleMapsScraper:
 
         logger.info(f"Total leads collected: {len(all_leads)}")
         return all_leads
+
+
+# Legacy / pipeline alias — udyam_pipeline imports GoogleMapsClient.
+# Without this, UDYAM Maps enrich ImportError'd forever and silently fell through to OSM.
+GoogleMapsClient = GoogleMapsScraper
