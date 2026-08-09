@@ -1,0 +1,71 @@
+{
+  "skill": "automation-opportunity-discovery",
+  "cases": [
+    {
+      "id": "which-process-next",
+      "prompt": "Which manual process should we automate next on LeadGen? Score our automation opportunities by frequency, effort, risk and revenue impact before we build anything.",
+      "should_trigger": true,
+      "lexical": true
+    },
+    {
+      "id": "scoring-next-opportunity",
+      "prompt": "Scoring automation opportunities by frequency, effort, risk and revenue impact — which manual process should we automate next, and what canary-kill plan do we need?",
+      "should_trigger": true,
+      "lexical": true
+    },
+    {
+      "id": "map-score-slice",
+      "prompt": "Map our recurring manual workflow, score it, and tell me which automation slice to build with a canary and kill criteria.",
+      "should_trigger": true,
+      "lexical": true
+    },
+    {
+      "id": "pre-build-discovery",
+      "prompt": "Koi manual process automate karne se pehle — opportunity discovery karo, frequency effort risk revenue score karo, canary plan aur kill criteria banao.",
+      "should_trigger": true,
+      "lexical": true
+    },
+    {
+      "id": "is-this-worth-automating",
+      "prompt": "Is this manual step worth automating? Score the opportunity and give me the risk, effort and revenue impact with a rollback and owner gate plan.",
+      "should_trigger": true,
+      "lexical": true
+    },
+    {
+      "id": "semantic-canary-review",
+      "prompt": "Humara naya automation do hafte se chalta hai par koi signal nahi — kya ise band karna chahiye?",
+      "should_trigger": true,
+      "lexical": false
+    },
+    {
+      "id": "fix-email-bug",
+      "prompt": "Fix the email sending bug — messages are failing with 429 errors right now.",
+      "should_trigger": false,
+      "lexical": true
+    },
+    {
+      "id": "deploy-production",
+      "prompt": "Deploy the latest changes to production using the exact-SHA process.",
+      "should_trigger": false,
+      "lexical": true
+    },
+    {
+      "id": "write-copy",
+      "prompt": "Write Hinglish landing page copy for our pricing page.",
+      "should_trigger": false,
+      "lexical": true
+    },
+    {
+      "id": "review-pr",
+      "prompt": "Review this pull request for bugs, security issues and test coverage.",
+      "should_trigger": false,
+      "lexical": true
+    },
+    {
+      "id": "design-dashboard",
+      "prompt": "Design a KPI dashboard tracking MRR, churn and LTV metrics.",
+      "should_trigger": false,
+      "lexical": true
+    }
+  ]
+}
