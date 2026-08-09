@@ -1,5 +1,20 @@
 # SESSION_HANDOFF
 
+## 2026-08-09 — all-worktrees integration PR #295
+
+- Branch `integration/all-worktrees-20260809` was created fresh from `origin/main` and pushed.
+- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/295
+- Integrated clean active branches: capacity containment, dial/DLQ truth, CodeQL/image security, daily video, admin hardening, and PR-factory pilot.
+- Preserved dirty tracked/staged work through backup refs:
+  - `refs/backup/pre-merge-all-1786262374-current`
+  - `refs/backup/pre-merge-all-1786262374-admin-nav`
+  - `refs/backup/pre-merge-all-1786262374-buzz`
+- Generated DB/WAL files and nested repository copies were excluded and remain untouched in their source worktrees.
+- Evidence: targeted 18-file regression command exit 0 (one Windows symlink privilege skip); `prod_check.py` ALL PASSED; redacted scan 97 changed files / 0 findings; lints clean.
+- No deploy or production flag change. Original worktrees and backup refs remain available.
+
+---
+
 ## Last session — 2026-08-09: daily video producer (ADR-166)
 
 **Prod probed live:** `/health` = `3cd95ba2`, equal to `origin/main`. Any `33651cfc` / `084cd990`
