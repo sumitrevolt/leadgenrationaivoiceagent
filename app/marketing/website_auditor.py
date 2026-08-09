@@ -62,6 +62,22 @@ def _safe_audit_target(u: str) -> bool:
     return _resolve_is_public(p.hostname)
 
 
+def _normalize_safe_audit_url(u: str) -> str | None:
+    """Return canonical URL if safe for audit, else None."""
+    try:
+        p = urlparse((u or "").strip())
+    except Exception:
+        return None
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return None
+    # Reject credentialed URLs and fragments to reduce parser/bypass edge-cases.
+    if p.username is not None or p.password is not None or p.fragment:
+        return None
+    if not _resolve_is_public(p.hostname):
+        return None
+    return p.geturl()
+
+
 def analyze_html(html_text: str, final_url: str = "") -> dict[str, Any]:
     """Pure function — HTML string par checks + 0-100 score. Testable."""
     h = html_text or ""
@@ -120,7 +136,12 @@ async def audit_url(url: str) -> dict[str, Any]:
 
         html_text = ""
         final_url = u
-        cur = u
+        cur = _normalize_safe_audit_url(u)
+        if not cur:
+            return {
+                "ok": False,
+                "error": "Yeh URL allowed nahi — sirf public website audit hoti hai",
+            }
         # SSRF guard: redirects manually follow karo aur HAR hop ka host validate karo
         # (warna public->internal redirect se metadata/DB/redis hit ho sakta).
         async with httpx.AsyncClient(
@@ -128,15 +149,16 @@ async def audit_url(url: str) -> dict[str, Any]:
             headers={"User-Agent": "Mozilla/5.0 (LeadsGenAI-Audit)"},
         ) as client:
             for _hop in range(5):
-                if not await asyncio.to_thread(_safe_audit_target, cur):
-                    return {
-                        "ok": False,
-                        "error": "Yeh URL allowed nahi — sirf public website audit hoti hai",
-                    }
                 resp = await client.get(cur, timeout=12.0)
                 loc = resp.headers.get("location")
                 if resp.is_redirect and loc:
-                    cur = urljoin(cur, loc)
+                    nxt = _normalize_safe_audit_url(urljoin(cur, loc))
+                    if not nxt:
+                        return {
+                            "ok": False,
+                            "error": "Yeh URL allowed nahi — sirf public website audit hoti hai",
+                        }
+                    cur = nxt
                     continue
                 html_text = resp.text[:800_000]
                 final_url = str(resp.url)
