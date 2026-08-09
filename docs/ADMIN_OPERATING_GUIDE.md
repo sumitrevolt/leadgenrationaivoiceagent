@@ -141,7 +141,7 @@ How to use (5 minutes):
    different page (do not trust a wrong `active` highlight — fixed in ADR-110).
 
 What is *not* “missing setup” on this page: OmniRoute on VPS (flags OFF until a gateway
-exists), platform_dial (HARD OFF by mandate), Unity 3D office (local artifacts only).
+exists), platform_dial (LIVE — supersedes this file's 2026-07-15 "HARD OFF" claim, 2026-08-02; `PLATFORM_DIAL_DAILY`=boolean, per-run cap `PLATFORM_DIAL_LIMIT`=100 — see `docs/context/CURRENT_STATE.md`), Unity 3D office (local artifacts only).
 
 ### 3.3 Automation Mission Control — `/app/automation`
 Left nav: Aaj / Flow Explorer / Launch / Schedule / Agents / Training / Scraping /
@@ -333,7 +333,7 @@ the exact record IDs, never a blanket approval request. Example:
 
 ## 7b. Agent OS + OmniRoute (operator slice — 2026-07-16)
 
-Full runbook (20 checklists): `docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md`.  
+Full runbook (20 checklists): `docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md`.
 Local OmniRoute start/check: `docs/OMNIROUTE_ADMIN_GUIDE_HINGLISH.md`.
 
 **Hinglish quick training (safe, read-only pehle):**
