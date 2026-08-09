@@ -68,6 +68,12 @@ def test_automation_max_safe_keys_exclude_never():
     assert overlap == set()
 
 
+def test_automation_max_does_not_footgun_self_improve():
+    """ADR-172: default WANT_SAFE must not clobber SELF_IMPROVE_LOOP=1."""
+    mod = _load_automation_max()
+    assert "SELF_IMPROVE_LOOP" not in mod.WANT_SAFE
+
+
 def test_stale_canary_pause_matcher():
     path = SCRIPTS / "vps_clear_stale_canary_pauses.py"
     spec = importlib.util.spec_from_file_location("vps_clear_stale_canary_pauses", path)

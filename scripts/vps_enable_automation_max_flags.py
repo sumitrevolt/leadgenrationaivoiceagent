@@ -41,8 +41,9 @@ WANT_SAFE = {
     "SALES_ENGINE": "1",
     "GROWTH_OPTIMIZER": "1",
     "CHANNEL_EXPERIMENTS": "1",
-    # Containment: keep OFF until a named candidate completes clean 24h soak.
-    "SELF_IMPROVE_LOOP": "0",
+    # ADR-172: do NOT force SELF_IMPROVE_LOOP=0 here. Prod may be OWNER-ARMED=1
+    # with approval gate; unconditional write was a foot-gun that clobbered live
+    # posture. Use --force-self-improve-off only for deliberate containment.
     "LEAD_HARVESTER": "1",
     "DUNNING_ENGINE": "1",
     "HOT_QUEUE_BRIEF_DAILY": "1",
@@ -101,11 +102,18 @@ def main() -> int:
         action="store_true",
         help="Print planned changes; do not write .env or recreate",
     )
+    ap.add_argument(
+        "--force-self-improve-off",
+        action="store_true",
+        help="Deliberately set SELF_IMPROVE_LOOP=0 (containment). Default: leave untouched.",
+    )
     args = ap.parse_args()
 
     want = dict(WANT_SAFE)
     if args.with_email:
         want.update(WANT_EMAIL)
+    if args.force_self_improve_off:
+        want["SELF_IMPROVE_LOOP"] = "0"
 
     text = _read_env()
     changed = False
