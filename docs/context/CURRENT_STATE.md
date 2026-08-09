@@ -14,6 +14,14 @@ Rollback ref = `3cd95ba2` (prior prod).
 ⚠️ **Operator error during this deploy, recorded so it is not repeated:** the fence-closing recreate was run as a bare `docker compose up -d` **without `APP_VERSION`**, so compose fell back to `${APP_VERSION:-latest}` and prod ran the `:latest` image (`266d772a…`) for ~55s before it was caught by the `/health.version` check and corrected with `APP_VERSION=d1b106b2 docker compose … up -d`. This is exactly the ADR-097 landmine. **Any manual recreate — including the one that closes the kill fence — MUST carry `APP_VERSION=<sha>`.** `deploy_vps.sh` itself was never the problem; it pinned correctly.
 Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes)
 
+## Approval backlog — real numbers + retirement tool (2026-08-09, PR #297)
+"32 stuck approvals" was only the `video_ad` slice. Real queue = **422** `content_approval` pendings: **321** belong to client ids ABSENT from `clients_store` (8 dead ids — un-actionable forever), **101** belong to the 3 live clients (`leadgenai-self` 53 · `0511a69b900e` 28 · `jiya-makeover` 20).
+**The 101 are NOT technically stuck.** `token_is_expired` is consulted in exactly ONE place (`approval_principal.from_approval_token` = the public emailed link); the authenticated dashboard resolves by id and never checks it, and the customer video path is fully wired (`customer_dashboard.py` → `from_customer_session` → `approval_saga`, UI supplies `expected_content_sha256`). Customers can complete them today.
+**Why they don't:** the mail is announced once per item (`idempotency_key`) and says "You have content awaiting your approval" — singular, no count, no age. Prod `approval_notifications`: **36 mails sent to jiya-makeover 2026-07-14→08-09, all `sent`, zero failures**, 20 still open. Delivery was never the problem.
+Shipped: `content_approval.retire_orphaned_pending()` (orphans only · append-only terminal `expired` · `dry_run=True` default · fail-CLOSED if the live-client set can't resolve · retiring ≠ approving) + queue-aware reminder wording (no extra sends). **Sweep NOT yet run against prod** — dry-run reported scanned 422 / would-retire 321 / skipped-live 101, nothing written.
+⚠️ Backpressure check: `daily_video.open_review_count` counts `video_ad_cycle`, NOT `content_approval` — measured on prod jiya=1, Kamal dar=1, leadgenai-self=4 against `DAILY_VIDEO_MAX_PENDING=2`. So the paying customer is **not** blocked by this backlog; only own-brand would be.
+Label: DIRECT_HOST_VERIFIED (2026-08-09) | CODE-PRESENT (PR #297, not deployed)
+
 ## Daily video — diagnosis + new producer (2026-08-09)
 Prod `/health` re-probed 2026-08-09 = **`3cd95ba2`**, equal to `origin/main` (the `33651cfc` / `084cd990` values elsewhere in these docs are stale).
 Owner report "daily videos not set up, advanced not running, old not running" — probed, all three had different causes:
