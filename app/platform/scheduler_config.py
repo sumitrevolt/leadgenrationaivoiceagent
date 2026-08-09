@@ -133,6 +133,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 11:00",
         "owner": "neha",
     },
+    "daily_video": {
+        "label": "Daily per-client video producer (gated DAILY_VIDEO_ENABLED; enqueue-only)",
+        "cadence": "daily 09:45",
+        "owner": "isha",
+    },
     "platform_dial": {
         "label": "Self-sale AI cold-call batch",
         "cadence": "daily 11:30",

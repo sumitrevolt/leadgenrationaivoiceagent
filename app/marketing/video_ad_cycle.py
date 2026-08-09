@@ -1227,11 +1227,28 @@ async def run_cycle() -> dict[str, Any]:
         st = _load_state()
         gen = 0
         cap = _max_per_run()
+        # Cadence ownership: when the DAILY producer manages a client, this
+        # every-N-day loop must NOT also generate for them — otherwise the client
+        # gets two videos (and two approval requests) on every 5th day. regen,
+        # publish and the stuck-row repair above still run for ALL clients; only
+        # the *generation* step defers.
+        try:
+            from app.marketing import daily_video as _daily
+
+            _daily_on = _daily.enabled()
+        except Exception as e:
+            logger.debug(f"[video_ad] daily_video ownership check skip: {e}")
+            _daily = None
+            _daily_on = False
+        deferred_to_daily = 0
         for c in _eligible_clients():
             if gen >= cap:
                 break
             cid = str(c.get("id") or "")
             if not cid:
+                continue
+            if _daily_on and _daily is not None and _daily.client_allowed(cid):
+                deferred_to_daily += 1
                 continue
             last = st.get(cid)
             due = True
@@ -1246,6 +1263,7 @@ async def run_cycle() -> dict[str, Any]:
                 if r.get("ok"):
                     gen += 1
         out["generated"] = gen
+        out["deferred_to_daily_video"] = deferred_to_daily
         out["publish"] = await publish_due()
         # durable social-engine queue bhi drain karo (gated SOCIAL_ENGINE; off = inert)
         try:
