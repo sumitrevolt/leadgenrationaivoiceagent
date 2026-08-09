@@ -21,9 +21,19 @@ _CID = "test-daily-video-client"
 
 @pytest.fixture(autouse=True)
 def _isolated_state(tmp_path, monkeypatch):
-    """Point the producer's state files at tmp so runs never touch data/."""
-    monkeypatch.setattr(daily_video, "_STATE", str(tmp_path / ".daily_video.json"))
-    monkeypatch.setattr(daily_video, "_BLOCKS", str(tmp_path / ".daily_video_block.json"))
+    """Point the producer's state files at tmp so runs never touch real stores.
+
+    Both are RESOLVERS, not constants — the runtime-data ratchet rejects a store
+    frozen to `data/...` at import, so they go through runtime_data_authority.
+    """
+    monkeypatch.setattr(daily_video, "_STATE", lambda: str(tmp_path / "daily_video.json"))
+    monkeypatch.setattr(daily_video, "_STATE_TMP", lambda: str(tmp_path / "daily_video.json.tmp"))
+    monkeypatch.setattr(
+        daily_video, "_BLOCKS", lambda: str(tmp_path / "daily_video_advanced_block.json")
+    )
+    monkeypatch.setattr(
+        daily_video, "_BLOCKS_TMP", lambda: str(tmp_path / "daily_video_advanced_block.json.tmp")
+    )
     for key in (
         "DAILY_VIDEO_ADVANCED_BLOCK_DAYS",
         "DAILY_VIDEO_ENABLED",
@@ -55,7 +65,7 @@ def test_disabled_by_default_is_inert(monkeypatch):
     assert out["ran"] is False
     assert "DAILY_VIDEO_ENABLED" in out["reason"]
     assert called == []
-    assert not os.path.exists(daily_video._STATE)
+    assert not os.path.exists(daily_video._STATE())
 
 
 def test_empty_allowlist_refuses_every_client(monkeypatch):
@@ -106,7 +116,7 @@ def test_enqueues_classic_once_per_day(monkeypatch):
     assert len(calls) == 1
     assert any(s.get("reason") == "already_generated_today" for s in second["skipped"])
 
-    with open(daily_video._STATE, encoding="utf-8") as f:
+    with open(daily_video._STATE(), encoding="utf-8") as f:
         assert json.load(f)[_CID] == daily_video._today()
 
 

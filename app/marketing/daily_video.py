@@ -62,14 +62,62 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_STATE = os.path.join("data", ".daily_video.json")
-_BLOCKS = os.path.join("data", ".daily_video_advanced_block.json")
+
+# Both stores resolve through runtime_data_authority at CALL time rather than
+# being frozen to `data/...` at import. A brand-new store must not be born as
+# legacy debt: live automation state already lives under the runtime root, and a
+# hardcoded `data/` path is how `data/job_heartbeats.json` ended up a stale
+# leftover that briefly fooled the 2026-08-09 audit. The repo's runtime-data
+# ratchet enforces exactly this and caught the first draft of this module.
+_STATE_STORE: dict[str, Any] = {
+    "store_id": "marketing.daily_video",
+    "legacy_path": Path("data") / ".daily_video.json",
+    "target_segments": ("marketing", "daily_video.json"),
+}
+_BLOCKS_STORE: dict[str, Any] = {
+    "store_id": "marketing.daily_video",
+    "legacy_path": Path("data") / ".daily_video_advanced_block.json",
+    "target_segments": ("marketing", "daily_video_advanced_block.json"),
+}
+
+
+def _STATE() -> str:
+    """Per-client 'generated on this date' map."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(_auth.resolve_store_path(**_STATE_STORE))
+
+
+def _STATE_TMP() -> str:
+    """Atomic-write companion, resolved beside the ACTIVE state target.
+
+    `os.replace` is only atomic within one filesystem, so the temp file must
+    never be resolved against a different root than its destination.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return str(_auth.resolve_temp_path(**_STATE_STORE))
+
+
+def _BLOCKS() -> str:
+    """Tenants parked off the advanced engine by a permanent brief refusal."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(_auth.resolve_store_path(**_BLOCKS_STORE))
+
+
+def _BLOCKS_TMP() -> str:
+    from app.platform import runtime_data_authority as _auth
+
+    return str(_auth.resolve_temp_path(**_BLOCKS_STORE))
+
 
 # Creative OS statuses that still occupy the customer's review attention.
 _OPEN_CREATIVE_STATUSES = frozenset({"queued", "generating", "approval_pending", "qa_failed"})
@@ -160,7 +208,7 @@ def _today() -> str:
 # --------------------------------- state ----------------------------------- #
 def _load_state() -> dict[str, str]:
     try:
-        with open(_STATE, encoding="utf-8") as f:
+        with open(_STATE(), encoding="utf-8") as f:
             return json.load(f) or {}
     except Exception:
         return {}
@@ -169,11 +217,15 @@ def _load_state() -> dict[str, str]:
 def _save_state(state: dict[str, str]) -> None:
     """Atomic replace — a torn state file would re-generate for every client."""
     try:
-        os.makedirs(os.path.dirname(_STATE) or ".", exist_ok=True)
-        tmp = _STATE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
+        # Re-resolve at each I/O site — binding to a local would defeat the
+        # authority resolver, and os.replace is only atomic within one filesystem
+        # so the temp file must share the destination's root.
+        # Re-resolve at each I/O site — binding to a local would defeat the
+        # authority resolver.
+        os.makedirs(os.path.dirname(_STATE()) or ".", exist_ok=True)
+        with open(_STATE_TMP(), "w", encoding="utf-8") as f:
             json.dump(state, f)
-        os.replace(tmp, _STATE)
+        os.replace(_STATE_TMP(), _STATE())
     except Exception as e:
         logger.warning(f"[daily_video] state save failed: {e}")
 
@@ -181,7 +233,7 @@ def _save_state(state: dict[str, str]) -> None:
 # -------------------------- advanced-block registry ------------------------- #
 def _load_blocks() -> dict[str, dict[str, Any]]:
     try:
-        with open(_BLOCKS, encoding="utf-8") as f:
+        with open(_BLOCKS(), encoding="utf-8") as f:
             data = json.load(f) or {}
         return data if isinstance(data, dict) else {}
     except Exception:
@@ -190,11 +242,10 @@ def _load_blocks() -> dict[str, dict[str, Any]]:
 
 def _save_blocks(blocks: dict[str, dict[str, Any]]) -> None:
     try:
-        os.makedirs(os.path.dirname(_BLOCKS) or ".", exist_ok=True)
-        tmp = _BLOCKS + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(_BLOCKS()) or ".", exist_ok=True)
+        with open(_BLOCKS_TMP(), "w", encoding="utf-8") as f:
             json.dump(blocks, f)
-        os.replace(tmp, _BLOCKS)
+        os.replace(_BLOCKS_TMP(), _BLOCKS())
     except Exception as e:
         logger.warning(f"[daily_video] block save failed: {e}")
 
