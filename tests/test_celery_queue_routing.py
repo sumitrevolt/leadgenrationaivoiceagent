@@ -247,13 +247,39 @@ def test_worker_process_init_warmup_never_raises_on_failure(monkeypatch):
     time.sleep(0.2)
 
 
-def test_vps_heavy_worker_marker_is_exclusive():
-    """Only worker-heavy may run the memory-heavy Qdrant/ONNX warm-up."""
-    data = yaml.safe_load((REPO_ROOT / "docker-compose.vps.yml").read_text(encoding="utf-8"))
-    services = data["services"]
-    marked = {
-        name
-        for name, service in services.items()
-        if service.get("environment", {}).get("CELERY_HEAVY_WORKER") == "1"
-    }
-    assert marked == {"worker-heavy"}
+def _all_compose_files() -> list[Path]:
+    """Every tracked compose file that defines services (vps + legacy + deploy/compose)."""
+    paths = [REPO_ROOT / "docker-compose.vps.yml"]
+    paths += sorted((REPO_ROOT / "deploy" / "legacy").glob("docker-compose*.yml"))
+    paths += sorted((REPO_ROOT / "deploy" / "compose").glob("docker-compose*.yml"))
+    return paths
+
+
+def _env_map(service: dict) -> dict:
+    """Compose `environment` accepts a dict OR a list of KEY=VALUE strings."""
+    env = service.get("environment") or {}
+    if isinstance(env, dict):
+        return {str(k): str(v) for k, v in env.items()}
+    out: dict[str, str] = {}
+    for item in env:
+        key, _, value = str(item).partition("=")
+        out[key] = value
+    return out
+
+
+def test_heavy_worker_marker_is_exclusive_across_all_compose_files():
+    """Only worker-heavy may run the memory-heavy Qdrant/ONNX warm-up.
+
+    incidents.md rule (2026-07-16): CELERY_HEAVY_QUEUE is a SEND-side routing flag
+    shared by app/scheduler/worker/heavy — using it as process-role identity made
+    every default-worker fork pay the ~1.2-1.4 GiB warm-up. The fix introduced the
+    exclusive CELERY_HEAVY_WORKER=1 marker on worker-heavy; this test proves the
+    marker appears in EXACTLY ONE service across EVERY compose file, so a future
+    file cannot silently re-introduce a duplicate warm-up path."""
+    marked: list[tuple[str, str]] = []
+    for path in _all_compose_files():
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for name, service in (data.get("services") or {}).items():
+            if _env_map(service).get("CELERY_HEAVY_WORKER") == "1":
+                marked.append((path.name, name))
+    assert marked == [("docker-compose.vps.yml", "worker-heavy")], marked

@@ -47,9 +47,12 @@ Yeh guide tumhare single-VPS Docker stack (leadsgenai.in) ke liye. Solo-scale ke
 - **Staging**: `deploy/compose/docker-compose.staging.yml` bana (prod mirror, alag DB+Redis+port 8001, automation OFF). Use:
   ```bash
   cp .env .env.staging   # test values
-  docker compose -f deploy/compose/docker-compose.staging.yml --env-file .env.staging up -d
+  docker compose -f deploy/compose/docker-compose.staging.yml --profile staging --env-file .env.staging up -d
   # Caddy: staging.leadsgenai.in -> 127.0.0.1:8001 (basic-auth)
   ```
+  ⚠️ Saare staging services `profiles: ["staging"]` pe hain (2026-08-08) — bina
+  `--profile staging` ke `up -d` staging start KABHI nahi karta. Staging pe prod jaisi
+  `mem_limit`/`pids_limit`/`oom_score_adj` caps hain (OOM containment) — `down` = `--profile staging down`.
 - **Zero-downtime** (2 options):
   - **CI already health-gated + auto-rollback** (`deploy-vps.yml`) — recreate downtime ~3-5s, acceptable.
   - **True blue-green** (optional): naya container `:8002` pe → health-check → Caddy upstream `:8002` pe swap (Caddy admin API `/load`) → old stop. OR **Coolify** (self-hosted PaaS) jo yeh sab auto karta — bada migration, abhi zaroori nahi.
