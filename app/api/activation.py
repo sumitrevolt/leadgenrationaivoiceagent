@@ -500,6 +500,122 @@ def _upi() -> dict[str, Any]:
     }
 
 
+# Default hours a pending UPI submission may sit before readiness digest pages.
+# Override at call-time via ``UPI_PENDING_ALERT_HOURS`` (same shape as
+# ``OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD``).
+_UPI_PENDING_ALERT_HOURS_DEFAULT = 6
+
+
+def _upi_pending_alert_hours() -> float:
+    """Call-time threshold (env wins; bad/≤0 → default). Never raises."""
+    raw = _v("UPI_PENDING_ALERT_HOURS")
+    if not raw:
+        return float(_UPI_PENDING_ALERT_HOURS_DEFAULT)
+    try:
+        hours = float(raw)
+        if hours <= 0:
+            return float(_UPI_PENDING_ALERT_HOURS_DEFAULT)
+        return hours
+    except Exception:
+        return float(_UPI_PENDING_ALERT_HOURS_DEFAULT)
+
+
+# Back-compat alias for tests/imports that read the default constant name.
+_UPI_PENDING_ALERT_HOURS = _UPI_PENDING_ALERT_HOURS_DEFAULT
+
+
+def _upi_pending_age_hours(created_at: Any) -> float | None:
+    """Hours since pending submission; None if missing/unparseable."""
+    from datetime import datetime, timezone
+
+    raw = str(created_at or "").strip()
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0)
+    except Exception:
+        return None
+
+
+def _upi_pending_unactioned() -> dict[str, Any]:
+    """Revenue ops: stale pending UPI = money waiting with no owner action.
+
+    Submit path notifies via best-effort ntfy only (nested try/except + async
+    fire-and-forget). If that push misses, the already-scheduled 08:30 IST
+    ``daily_readiness_digest`` is the backup page — this probe is what makes
+    the digest notice stuck payments (``_upi`` only checks VPA configured).
+
+    - pending older than ``UPI_PENDING_ALERT_HOURS`` (default 6) → BLOCKER
+    - only fresh pendings / none → OK (avoid teaching operators to ignore digest)
+    - store/list failure → NEUTRAL, never BLOCKER (infra hiccup ≠ fake alarm)
+    - corrupt/missing ``created_at`` → count as stale (false page > silent drown)
+    """
+    alert_hours = _upi_pending_alert_hours()
+    try:
+        from app.platform import upi_payments
+
+        pending = upi_payments.list_payments(status="pending")
+    except Exception:
+        return {
+            "key": "upi_pending_unactioned",
+            "label": "UPI pending payments (unactioned)",
+            "category": "revenue",
+            "status": _NEUTRAL,
+            "env_vars": ["UPI_PENDING_ALERT_HOURS"],
+            "checks": {"store_ok": False, "pending_total": 0, "stale_pending": 0},
+            "action": "",
+            "doc": "app/platform/upi_payments.py",
+        }
+
+    if not isinstance(pending, list):
+        pending = []
+
+    stale_ids: list[str] = []
+    for row in pending:
+        if not isinstance(row, dict):
+            continue
+        age_h = _upi_pending_age_hours(row.get("created_at"))
+        # Unparseable timestamp → treat as stale (prefer page over silent drown).
+        if age_h is None or age_h >= alert_hours:
+            stale_ids.append(str(row.get("id") or "?")[:40])
+
+    stale_n = len(stale_ids)
+    checks = {
+        "store_ok": True,
+        "pending_total": len(pending),
+        "stale_pending": stale_n,
+        "alert_hours": alert_hours,
+        "stale_ids_sample": stale_ids[:5],
+    }
+    if stale_n > 0:
+        return {
+            "key": "upi_pending_unactioned",
+            "label": "UPI pending payments (unactioned)",
+            "category": "revenue",
+            "status": _BLOCKER,
+            "env_vars": ["UPI_PENDING_ALERT_HOURS"],
+            "checks": checks,
+            "action": (
+                f"{stale_n} UPI payment(s) pending ≥{alert_hours:g}h — "
+                "Admin → /app/admin → UPI pending queue → approve/reject"
+            ),
+            "doc": "app/platform/upi_payments.py",
+        }
+    return {
+        "key": "upi_pending_unactioned",
+        "label": "UPI pending payments (unactioned)",
+        "category": "revenue",
+        "status": _OK,
+        "env_vars": ["UPI_PENDING_ALERT_HOURS"],
+        "checks": checks,
+        "action": "",
+        "doc": "app/platform/upi_payments.py",
+    }
+
+
 def _compliance_env() -> dict[str, Any]:
     """TRAI/DPDP compliance-env readiness — an ADVISORY section only.
 
@@ -951,6 +1067,7 @@ _PROBES = (
     _turnstile,
     _cloudflare_tunnel,
     _upi,
+    _upi_pending_unactioned,
     _first_paid_delivery,
     _qdrant_rag,
     # Phase 2: AI safety + memory + admin UX
@@ -998,6 +1115,7 @@ _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
             "turnstile",
             "cloudflare_tunnel",
             "upi",
+            "upi_pending_unactioned",
             "first_paid_delivery",
             "qdrant_rag",
         ),
@@ -1016,6 +1134,7 @@ _PROBE_BY_KEY = {
     "turnstile": _turnstile,
     "cloudflare_tunnel": _cloudflare_tunnel,
     "upi": _upi,
+    "upi_pending_unactioned": _upi_pending_unactioned,
     "first_paid_delivery": _first_paid_delivery,
     "qdrant_rag": _qdrant_rag,
     "track_b_admin": _track_b_admin,
