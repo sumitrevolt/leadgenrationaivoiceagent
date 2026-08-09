@@ -15,7 +15,16 @@ old setup not running either." All three had *different* causes — verified on 
    only in the un-applied `Dockerfile.video` image, and **no scheduler producer existed at all**.
 3. 32/39 records stuck at `pending` review with no backpressure on generation.
 
-**Shipped (local only, flags OFF):** `app/marketing/daily_video.py` + own beat job
+**Bonus decisions made under owner authority (both evidence-driven, both shipped):**
+1. *Budget-skipped engines are now observable.* `_run_content_engine` swallowed budget exhaustion
+   with no exception and no log naming the engine. Prod: `content` blew its 420s budget on 15
+   CONSECUTIVE daily runs (2026-07-18 -> 2026-08-01). Now logged-before-persisted, folded into
+   `health().ok`, and shown in the Aaj tab.
+2. *The CUSTOMER approval backlog is now owner-visible.* `approvals_bridge` (source of
+   `needs_decision`) has zero reference to `content_approval`, so the queue that decides whether a
+   video ever reaches a customer was counted by nothing - hence 32 pending, 4 published, page green.
+
+**Shipped (PR #294, flags OFF):** `app/marketing/daily_video.py` + own beat job
 `staff-daily-video-daily` (09:45 IST) + `daily_video_client_task` on the video queue + admin
 `daily-status`/`daily-run` + `run_cycle` cadence-ownership deferral + 4 missing flags registered.
 122 targeted tests green, `prod_check.py` PASS, `check_secrets.py` clean, ruff clean on changed files.

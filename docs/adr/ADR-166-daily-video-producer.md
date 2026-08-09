@@ -84,7 +84,18 @@ queue and the dedicated `worker-video` container sits idle.
    exact trap a stale `data/job_heartbeats.json` set during this audit. Surfaced as
    `health().engine_skips`, counted into `ok`/`status` (un-run work is not "healthy"), and rendered
    in the owner-facing "Aaj" tab in Hinglish with an actionable fix.
-8. **Every new store resolves through `runtime_data_authority`, none are born as legacy debt.**
+8. **The CUSTOMER approval backlog becomes an owner-facing problem.** Generation is only half the
+   delivery: a video the customer never approves is never delivered. Nothing on the owner's "Aaj"
+   page counted that queue — `_pending_decisions()` reads `approvals_bridge`, which contains **no
+   reference to `content_approval` at all** — which is how 32 of 39 records sat `pending` with only
+   4 ever published while the page reported no problem. `today_overview` now reports count, oldest
+   age and per-type breakdown, with the two queues kept deliberately separate
+   (`needs_decision` = what the OWNER must decide; `customer_approvals_pending` = what the CUSTOMER
+   has not). Threshold is 3 items **or** 3 days, so normal same-day review stays quiet while a
+   single item ignored for days still surfaces — that is the shape the 32-pile started as. This
+   also prevents the backpressure in decision 5 from *looking* like "the daily video stopped
+   working" when it is in fact correctly refusing a backlogged client.
+9. **Every new store resolves through `runtime_data_authority`, none are born as legacy debt.**
    The producer's day-state and advanced-block files, and the budget-skip ledger, are all
    *resolvers* called at I/O time — not module constants frozen to `data/...` at import. The repo's
    runtime-data ratchet (`scripts/runtime_data_path_scan.py ratchet`, MUST-PASS in CI) caught the
@@ -92,15 +103,15 @@ queue and the dedicated `worker-video` container sits idle.
    outcome: `data/` is the LEGACY root, live automation state lives under the runtime root, and a
    store written to the wrong one is invisible in prod — the same trap a stale
    `data/job_heartbeats.json` set during this audit.
-9. **Day-level idempotency, twice.** Producer day-state store plus a Celery
+10. **Day-level idempotency, twice.** Producer day-state store plus a Celery
    `task_id = daily_video:{client_id}:{YYYY-MM-DD}` behind `@idempotent_task` (20h TTL). A failed
    enqueue does **not** mark the day — it stays retryable on the next tick.
-10. **Operator visibility.** `GET /api/clientops/video-production/daily-status` answers "why is the
+11. **Operator visibility.** `GET /api/clientops/video-production/daily-status` answers "why is the
    daily video not running" in one call (flags, allowlist, per-client engine + reason + open-review
    count + last generated). `POST .../daily-run` fires one pass manually (safe from the web process
    precisely because the producer does not render). `daily_video` is registered in `STAFF_JOBS`,
    `JOB_META`, `_last_ran`, `JOB_INFO` and `automation_health.EXPECTED_GAP_MIN` (dead-man).
-11. **Permanent advanced refusals are parked, not retried.** `enqueue_generate` calls
+12. **Permanent advanced refusals are parked, not retried.** `enqueue_generate` calls
    `record_attempt()` *before* dispatch, so a brief that fails `resolve_brief`
    (`needs_customer_input` / `blocked` — e.g. missing offer or unverified brand fact) would be
    retried every single day, burning `CREATIVE_TENANT_DAILY_BUDGET` on records that never render,
@@ -113,7 +124,7 @@ queue and the dedicated `worker-video` container sits idle.
    `POST /api/clientops/video-production/daily-clear-block`. Under `DAILY_VIDEO_ENGINE=advanced`
    the block is still recorded but there is **no** classic fallback — strict mode means advanced
    or nothing.
-12. **Flag registry gap closed.** `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED`,
+13. **Flag registry gap closed.** `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED`,
    `CREATIVE_HYPERFRAMES_CANARY_TENANTS`, `CREATIVE_HYPERFRAMES_DEFAULT_TEMPLATE`,
    `CELERY_VIDEO_QUEUE` and `VIDEO_AD_INTERVAL_DAYS` were **missing** from `AUTOMATION_FLAGS`, so
    `/api/growth/infra/flags` reported Creative OS healthy while its only enterprise-grade provider
