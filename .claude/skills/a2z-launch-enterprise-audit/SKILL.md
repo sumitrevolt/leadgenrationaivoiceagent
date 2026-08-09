@@ -13,7 +13,7 @@ description: LeadGen "A-to-Z Launch & Enterprise Audit" master prompt — does N
 
 ## 0. HARD ASSUMPTIONS (NEVER weaken — abort > weaken)
 
-- `platform_dial` = **three-layer HARD OFF** rehta hai (`PLATFORM_DIAL_DAILY=0` + `data/platform_dial.json enabled:false` + scheduler override paused). Re-enable = out of scope.
+- `platform_dial` = **FULL CAMPAIGN LIVE (owner go-ahead 2026-08-02)** — `PLATFORM_DIAL_DAILY=1` (boolean ON/OFF, count NAHI) · `PLATFORM_DIAL_LIMIT=100` (per-run cap) · `VOICE_LAUNCH_KILL=0` · `DIAL_TEST_MODE=0` · `VOICE_DAILY_CALL_CAP=100`; daily 11:30 IST scheduler auto-dials up to per-run cap (niche=all). Compliance spine UNTOUCHED: DND fail-closed · TRAI window · AI-disclosure · consent · `DLT_APPROVED=1`. Kill-switch: hamesha **running-container** `VOICE_LAUNCH_KILL` verify karo (host `.env` ≠ container env; `1` = web/revenue live but calling gated). Rollback: `.env.bak-fullcampaign-20260802075851` (restore + recreate).
 - TRAI/DND/AI-disclosure gates INTACT: DND scrub **fail-CLOSED**, promo window 9am–7pm, "ek AI assistant" disclosure at call start, consent opt-out = instant cross-channel suppression. Foreign trunks India-domestic = ILLEGAL.
 - DPDP: purpose limitation + data minimisation + 90-din recording retention + purge API + cross-tenant leak KABHI nahi.
 - **Free AI-provider stack only** — koi paid STT/TTS/LLM add mat karo.
@@ -54,15 +54,15 @@ Graphify-first, phir raw source verify. Map banao:
 **Windows = source of truth.** `.venv\Scripts\python.exe` use karo. Exact repo commands:
 
 ```bat
-.venv\Scripts\python.exe scripts\prod_check.py
-.venv\Scripts\python.exe scripts\explorer_sync.py --check
-.venv\Scripts\python.exe scripts\cross_path_audit.py
-.venv\Scripts\python.exe scripts\deep_wiring_audit.py
-.venv\Scripts\python.exe scripts\automation_wiring_audit.py
-.venv\Scripts\python.exe scripts\automation_health_audit.py --daily-check
-.venv\Scripts\python.exe scripts\automation_health_audit.py --weekly-audit
-.venv\Scripts\python.exe scripts\check_html_js.py
-.venv\Scripts\python.exe scripts\check_secrets.py
+.venv\Scripts\python.exe scripts/prod_check.py
+.venv\Scripts\python.exe scripts/explorer_sync.py --check
+.venv\Scripts\python.exe scripts/cross_path_audit.py
+.venv\Scripts\python.exe scripts/deep_wiring_audit.py
+.venv\Scripts\python.exe scripts/automation_wiring_audit.py
+.venv\Scripts\python.exe scripts/automation_health_audit.py --daily-check
+.venv\Scripts\python.exe scripts/automation_health_audit.py --weekly-audit
+.venv\Scripts\python.exe scripts/check_html_js.py
+.venv\Scripts\python.exe scripts/check_secrets.py
 ```
 
 Targeted tests (billing/tenant/security/route/admin — pick real suites present in `tests/`, e.g.):
@@ -70,8 +70,9 @@ Targeted tests (billing/tenant/security/route/admin — pick real suites present
 .venv\Scripts\python.exe -m pytest tests\test_billing_truth_2026.py -q
 .venv\Scripts\python.exe -m pytest tests\test_cross_path_telephony.py tests\test_explorer_sync.py -q
 .venv\Scripts\python.exe -m pytest tests\test_2026_features.py -q
+.venv\Scripts\python.exe scripts/run_tests.bat   # full suite
 ```
-(Full: `scripts\run_tests.bat` → phir **`pytest_run.log` Read karo**, console truncate hota hai.)
+(Phir **`pytest_run.log` Read karo** — console truncate hota hai.)
 
 **LIVE claims = separate evidence (kabhi assume mat karo):**
 - `curl.exe -fsS https://leadsgenai.in/health` → `environment:production`, `status:healthy`, aur `version` field note karo (`"latest"` = UNKNOWN-provenance prod, §7 ADR-097).
@@ -96,7 +97,7 @@ Targeted tests (billing/tenant/security/route/admin — pick real suites present
 ### Phase D — TEST (regression + gate)
 - Naye/badle behaviour ke targeted tests green.
 - `prod_check.py` PASS + `check_secrets.py` clean diff + duplicate-route grep clean.
-- Voice-path change → `scripts/agent_tester.py` scorecard.
+- Voice-path change → agent-tester scorecard chalao (repo `scripts/` me — `agent_tester.py`).
 **Stop rule:** koi red test rehte hue Phase E/verdict mat do.
 
 ### Phase E — BROWSER PROOF (real clicks, every visible control)
@@ -111,7 +112,7 @@ Har VISIBLE button/tab/form pe:
 - **Auth/RBAC** — unauth = redirect/401; wrong-tenant = no leak.
 - **Destructive-action confirmations** present (delete/purge/disable = confirm gate).
 Old Explorer fallback still works jab Control Center graphs test kar rahe ho.
-**Stop rule:** button matrix (pass/fail per control) bina verdict mat do. Screenshot/console/network = evidence.
+**Stop rule:** button matrix (pass/fail per control) bina verdict mat do. Screenshot/console/network = evidence. Template: `references/BROWSER_EVIDENCE_TEMPLATE.md`.
 
 ### Phase F — SCORE & VERDICT
 §3 rubrics se score karo, §4 deliverable structure me output do. Evidence ke bina score = us domain me 0 ("hona chahiye" ≠ "hai").
@@ -129,7 +130,7 @@ Score Marketing product AUR standalone Voice product **separately**. Money-path 
 - `activation/summary` → `ready_for_first_paid_customer:true`, `blocker_count:0`.
 - No open **P0** in the money path.
 Verdict: **GO** = all green + 0 P0/P1 in money path · **CONDITIONAL GO** = green with named owner/external blocker (env/creds/DLT) · **HOLD** = P0 in money path or journey break.
-(Repo truth baseline: Marketing = sellable; Voice standalone = code-ready, cold-outbound commercial-blocked by DLT + `platform_dial` HARD OFF.)
+(Repo truth baseline: Marketing = sellable; Voice standalone = code-ready, cold-outbound **FULL CAMPAIGN LIVE** since 2026-08-02 — DLT approved (`DLT_APPROVED=1`), bounded caps + compliance spine active; treat any "HARD OFF" claim as stale unless re-probed.)
 
 ### 3.2 Production Ready (per product: GO / CONDITIONAL GO / HOLD)
 - `prod_check.py` ALL PASSED + `/health` `environment:production` + `version` ≠ `"latest"`.
@@ -177,7 +178,7 @@ Also emit the **Loop Engineer 9-field block** (`docs/LOOP_ENGINEER.md`): Goal / 
 
 ## 5. DEPLOY (only if user explicitly approves)
 
-Approval mile to hi: **ONLY** `scripts/deploy_vps.sh` (canonical — haath se docker mat likho), **pinned `APP_VERSION=<sha>`**, **5 app-image services skew check**, **`/health.version` == deployed sha**, **post-deploy browser smoke**. `DRY_RUN=1` = plan print. Bina approval = deploy FORBIDDEN.
+Approval mile to hi: **ONLY** canonical deploy script (repo `scripts/` me — `deploy_vps.sh`), haath se docker mat likho, **pinned `APP_VERSION=<sha>`**, **5 app-image services skew check**, **`/health.version` == deployed sha**, **post-deploy browser smoke**. `DRY_RUN=1` = plan print. Bina approval = deploy FORBIDDEN.
 
 ---
 

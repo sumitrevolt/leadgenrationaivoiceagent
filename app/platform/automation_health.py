@@ -96,6 +96,8 @@ EXPECTED_GAP_MIN = {
     "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
     "platform_dial": 30
     * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
+    "daily_video": 30
+    * 60,  # daily 09:45 IST: per-client video producer (gated DAILY_VIDEO_ENABLED; beat heartbeats regardless)
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
@@ -103,6 +105,207 @@ EXPECTED_GAP_MIN = {
     "task_lease_reap": 180,  # hourly :05 expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP); 3h grace like meter_watch
     "sales_autopilot": 180,  # hourly :25 Sales Autopilot (gated SALES_AUTOPILOT_ENABLED); RUN_DUE_EXCLUDE; 3h dead-man grace
 }
+
+
+# --------------------------------------------------------------------------- #
+# PRODUCTIVITY dead-man (as opposed to the LIVENESS dead-man above)
+#
+# `record_run` captures that a job RAN and did not raise: {job, ok, s,
+# duration_ms, note, at, trigger, started_at}. It captures nothing about whether
+# the job DID anything. A job can therefore run daily, take 154s, report
+# ok=True, produce zero output, and every dashboard stays green.
+#
+# That is not hypothetical. 2026-08-09 postmortem: `video_ad_cycle` was gated
+# inert by a flag-alias bug for 15 days (2026-07-22 -> 2026-08-06) while the
+# `content` job it rides heartbeat green throughout. What actually gave it away
+# was that `video_ads.jsonl` stopped growing.
+#
+# So this registry watches the OUTPUT, not the job — which needs no change to
+# any of the 44 staff jobs. Adding a producer here is how you make its silent
+# death visible; that is deliberately a one-line change.
+#
+# `resolver` is a callable so it re-resolves at check time and uses the SAME
+# path the producer writes (runtime root vs legacy `data/` differ per store).
+# --------------------------------------------------------------------------- #
+def _video_ads_store() -> str:
+    from app.marketing import video_ad_cycle
+
+    return str(video_ad_cycle._FILE)
+
+
+def _content_approvals_store() -> str:
+    from app.marketing import content_approval
+
+    return str(content_approval._FILE())
+
+
+OUTPUT_FRESHNESS: dict[str, dict[str, Any]] = {
+    "video_ad_cycle": {
+        "resolver": _video_ads_store,
+        "max_stale_days": 8,  # 5-day cadence + grace; the real outage ran to 15
+        "why": "per-client AI video ads — the 2026-08-09 silent 15-day outage",
+        "owner_hint": "Video engine chup ho gaya — /app/automation ka video tab dekho",
+    },
+    "content_approvals": {
+        "resolver": _content_approvals_store,
+        "max_stale_days": 3,  # daily content engine; 3 days = two missed passes
+        "why": "content engine output — nothing to approve means nothing was generated",
+        "owner_hint": "Content banna band ho gaya — Isha ka daily job check karo",
+    },
+}
+
+
+def stale_outputs() -> list[dict[str, Any]]:
+    """Producers whose output store has not moved within its budget.
+
+    A missing store counts as stale ONLY if it was expected to exist; an
+    unreadable/absent path yields `age_days: None` and is reported as
+    `unknown` rather than raising a false alarm, because a fresh deployment
+    legitimately has no file yet. Never raises.
+    """
+    out: list[dict[str, Any]] = []
+    now = _now()
+    for name, spec in OUTPUT_FRESHNESS.items():
+        try:
+            path = spec["resolver"]()
+            if not path or not os.path.isfile(path):
+                out.append(
+                    {
+                        "producer": name,
+                        "store": str(path or "?"),
+                        "age_days": None,
+                        "status": "unknown",
+                        "max_stale_days": spec["max_stale_days"],
+                        "why": spec["why"],
+                        "owner_hint": spec.get("owner_hint", ""),
+                    }
+                )
+                continue
+            age_days = (now.timestamp() - os.path.getmtime(path)) / 86400.0
+            if age_days > float(spec["max_stale_days"]):
+                out.append(
+                    {
+                        "producer": name,
+                        "store": path,
+                        "age_days": round(age_days, 1),
+                        "status": "stale",
+                        "max_stale_days": spec["max_stale_days"],
+                        "why": spec["why"],
+                        "owner_hint": spec.get("owner_hint", ""),
+                    }
+                )
+        except Exception as e:
+            logger.debug("[automation-health] freshness check skip for %s: %s", name, e)
+    return out
+
+
+def _SKIPS() -> str:
+    """Budget-skip ledger — SAME store family as job_runs.
+
+    Deliberately resolved through ``runtime_data_authority`` like its siblings:
+    a hardcoded ``data/...`` path would be written to the LEGACY location while
+    live automation state lives under the runtime root, so the new signal would
+    be invisible in prod for exactly the reason a stale ``data/job_heartbeats.json``
+    fooled an audit on 2026-08-09.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.job_runs",
+            legacy_path=Path("data") / "job_engine_skips.jsonl",
+            target_segments=("automation", "job_engine_skips.jsonl"),
+        )
+    )
+
+
+def record_engine_skip(
+    job: str, engine: str, reason: str = "budget_exhausted", **extra: Any
+) -> None:
+    """Record that a mega-job SKIPPED one of its engines. Never raises.
+
+    Why this exists: `team_scheduler._run_content_engine` closes the coroutine and
+    returns False when the wall-clock budget is gone — with no exception and no
+    line naming the engine. Prod evidence 2026-08-09: the `content` job exceeded
+    its 420s budget on **15 consecutive daily runs** (2026-07-18 → 2026-08-01,
+    452–530s each), silently dropping every engine queued behind the overrun, and
+    nothing anywhere recorded which ones. That is an entire class of "automation
+    quietly stopped" that no dashboard could show.
+
+    The warning is emitted BEFORE any persistence attempt on purpose: the write
+    path below is best-effort, and a storage failure must not also swallow the
+    signal we are adding precisely to stop silent loss.
+    """
+    job_s = str(job or "?")[:40]
+    engine_s = str(engine or "?")[:40]
+    reason_s = str(reason or "")[:60]
+    logger.warning(
+        "[automation-health] job '%s' SKIPPED engine '%s' (%s) - work did not run",
+        job_s,
+        engine_s,
+        reason_s,
+    )
+    try:
+        rec: dict[str, Any] = {
+            "job": job_s,
+            "engine": engine_s,
+            "reason": reason_s,
+            "at": _now().isoformat(timespec="seconds"),
+        }
+        for k, v in (extra or {}).items():
+            rec[str(k)[:24]] = v if isinstance(v, int | float | bool) else str(v)[:120]
+        path = _SKIPS()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.warning("[automation-health] engine-skip record failed: %s", e)
+
+
+def recent_engine_skips(hours: int = 48, limit: int = 200) -> list[dict[str, Any]]:
+    """Engine skips within the window, newest last. Never raises."""
+    out: list[dict[str, Any]] = []
+    try:
+        cutoff = _now() - timedelta(hours=max(1, int(hours or 48)))
+        for line in _tail_lines(_SKIPS(), max(1, min(int(limit or 200), 2000))):
+            line = (line or "").strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            try:
+                at = datetime.fromisoformat(str(rec.get("at") or ""))
+                if at.tzinfo is None:
+                    at = at.replace(tzinfo=timezone.utc)
+                if at < cutoff:
+                    continue
+            except Exception:
+                pass
+            out.append(rec)
+    except Exception as e:
+        logger.debug("[automation-health] recent_engine_skips skip: %s", e)
+    return out
+
+
+def engine_skip_summary(hours: int = 48) -> dict[str, Any]:
+    """`{engine: count}` rollup an operator can act on. Never raises."""
+    rows = recent_engine_skips(hours=hours)
+    by_engine: dict[str, int] = {}
+    by_job: dict[str, int] = {}
+    for r in rows:
+        e = str(r.get("engine") or "?")
+        j = str(r.get("job") or "?")
+        by_engine[e] = by_engine.get(e, 0) + 1
+        by_job[j] = by_job.get(j, 0) + 1
+    return {
+        "window_hours": int(hours),
+        "total": len(rows),
+        "by_engine": by_engine,
+        "by_job": by_job,
+        "latest": rows[-5:],
+    }
 
 
 def _now() -> datetime:
@@ -435,8 +638,36 @@ def health() -> dict[str, Any]:
                 _obs_detail = "staging dir missing"
     except Exception as e:
         _obs_detail = str(e)[:100]
-    unhealthy = bool(overdue or backlogged or dead_present or retryable_failed_present)
+    # Engines silently dropped by a mega-job's wall-clock budget. This is a REAL
+    # outage class (work simply did not run) that no previous field exposed, so it
+    # counts toward `unhealthy` — otherwise the dashboard keeps saying "healthy"
+    # while an engine has been skipped every day for two weeks.
+    try:
+        skips = engine_skip_summary(hours=48)
+    except Exception:
+        skips = {"total": 0, "by_engine": {}, "by_job": {}, "latest": []}
+    engines_skipped = bool(skips.get("total"))
+    # A producer that is green but has stopped producing is an outage the
+    # liveness dead-man cannot see (2026-08-09: 15 days of it). Only genuinely
+    # STALE entries degrade health — "unknown" (store absent yet) must not.
+    try:
+        outputs = stale_outputs()
+    except Exception:
+        outputs = []
+    outputs_stale = any(o.get("status") == "stale" for o in outputs)
+    unhealthy = bool(
+        overdue
+        or backlogged
+        or dead_present
+        or retryable_failed_present
+        or engines_skipped
+        or outputs_stale
+    )
     return {
+        "engine_skips": skips,
+        "engines_skipped_recently": engines_skipped,
+        "stale_outputs": outputs,
+        "outputs_stale": outputs_stale,
         "status": ("degraded" if unhealthy else ("warming_up" if never_ran else "healthy")),
         # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
         # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha

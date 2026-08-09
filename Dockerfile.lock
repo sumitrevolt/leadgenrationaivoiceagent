@@ -60,6 +60,16 @@ RUN (pip install --no-cache-dir --retries 10 "rembg>=2.0.50,<2.1" "onnxruntime==
          "numpy==1.26.3" "pandas==2.2.0" "scipy==1.16.3" "scikit-learn==1.9.0" \
     && python -c "from rembg import new_session; new_session('u2net')") \
     || echo "WARN: rembg bake failed — img-bgremove stays inert"
+# Image-level CVE hardening (2026-08-08 Trivy image scan): the non-locked bakes
+# above (pipecat/kokoro/rembg chains) pull transitive msgpack, and one of them
+# downgrades setuptools — the shipped image carried msgpack 1.1.2 (GHSA-6v7p-
+# g79w-8964, Unpacker-reuse SEGV DoS, fixed 1.2.1) + setuptools 70.3.0
+# (CVE-2025-47273, PackageIndex path traversal, fixed 78.1.1). Floor both to
+# fixed versions AFTER all bakes so the final image state is clean. FAIL-CLOSED
+# (no `|| echo WARN`): a security floor that silently fails would ship a
+# vulnerable image again. Pip --upgrade (no version cap) resolves latest
+# compatible; floors are the hard minimum.
+RUN pip install --no-cache-dir --retries 10 "msgpack>=1.2.1" "setuptools>=78.1.1"
 
 FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS production
 ARG APP_VERSION=latest
@@ -112,6 +122,23 @@ RUN if [ "${BAKE_HINGLISH_STT}" = "1" ]; then \
         (sh scripts/build_hinglish_stt.sh && echo "[hinglish-stt] baked") \
         || echo "WARN: hinglish STT bake failed — whisper-base fallback"; \
     else echo "[hinglish-stt] bake skipped (BAKE_HINGLISH_STT=${BAKE_HINGLISH_STT})"; fi
+# Builder/runtime split (2026-08-09, PR #293): pip is BUILD-ONLY tooling. No
+# runtime code path imports or invokes pip (audited: no `import pip`, no
+# `python -m pip`, no ensurepip/venv at runtime; the engineer_agents pip-audit
+# call is flag-gated + fail-open + pip-audit is NOT in the lockfile). pip ships
+# VENDORED copies of msgpack 1.1.2 (GHSA-6v7p-g79w-8964) + setuptools 70.3.0
+# (CVE-2025-47273) inside pip/_vendor/ — Trivy reports these as HIGH even though
+# the REAL site-packages copies are patched (msgpack 1.2.1, setuptools 83.0.0
+# via the floor above). Remove pip + its vendored deps from the FINAL runtime
+# image (venv pip 26.2.1 AND base-image pip 25.0.1 both vendor setuptools
+# 70.3.0). Patched site-packages remain untouched.
+RUN rm -rf /opt/venv/bin/pip* \
+        /opt/venv/lib/python3.12/site-packages/pip* \
+        /usr/local/bin/pip* \
+        /usr/local/lib/python3.12/site-packages/pip* \
+    && test ! -e /opt/venv/bin/pip \
+    && test ! -e /usr/local/bin/pip \
+    && echo "[runtime-split] pip removed from final runtime image"
 USER appuser
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
