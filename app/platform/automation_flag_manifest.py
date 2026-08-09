@@ -299,6 +299,18 @@ _OVERRIDES: dict[str, FlagMeta] = {
         kill="PR_FACTORY_ENABLED=0",
         evidence="CODE-PRESENT",
     ),
+    "PR_FACTORY_PILOT_ENABLED": _m(
+        "PR_FACTORY_PILOT_ENABLED",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.CANARY_ONLY,
+        notes="ADR-166 bounded PR-orchestration pilot (triple-gate, task manifest, max 2 repair attempts, no merge/deploy); prod OFF",
+        risk="dev_control",
+        companions=("EXTERNAL_AGENT_ORCHESTRATOR", "PR_FACTORY_ENABLED"),
+        default="0",
+        canary="local/Windows",
+        kill="PR_FACTORY_PILOT_ENABLED=0",
+        evidence="CODE-PRESENT",
+    ),
     "COORDINATION_HUB_ENABLED": _m(
         "COORDINATION_HUB_ENABLED",
         FlagValueKind.BOOLEAN,

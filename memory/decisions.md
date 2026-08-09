@@ -2591,3 +2591,33 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 - In-container: `HARD_OFF=0`, `MASTER=1`, `_reply_auto_send_enabled()` → `True`
 
 **Consequence:** WI-CP2 interaction-log is **P0** while armed (outbound without attributed `interactions` rows). Kill lever stays `REPLY_AUTO_SEND_HARD_OFF=1`. Do not "fix" by disabling without owner instruction. PR #276 Master Blueprint already LIVE at `7ab5fe55` (acceptance MB≥1).
+
+## ADR-172 (2026-08-08) — Claude Code Agent Teams + mandatory worktree isolation [CODE-PRESENT, LOCAL OPT-IN]
+
+**Context:** Ready-made multi-agent coding harnesses evaluated against this repo's dirty-tree + buzzlock + free-stack constraints. Native Claude Code Agent Teams is lowest risk; claw-orchestrator deferred; Vibe Kanban / Conductor / Claude Squad rejected as primary.
+
+**Decision:** (1) Enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json` (local Claude Code only). (2) Editing teammates must use isolated git worktrees via `scripts/agent_team_worktree.py` (allowlisted root). (3) buzzlock stays mandatory across tools. (4) Do not vendor claw-orchestrator yet; OpenCode stays on free-stack keys (no Claude OAuth route). (5) PR Factory / external_agents remain the mission ledger — Agent Teams is the interactive Claude plane only.
+
+**Evidence:** `tests/test_agent_team_worktree.py`; docs `docs/adr/ADR-172-claude-agent-teams-worktrees.md` + `docs/runbooks/CLAUDE_AGENT_TEAMS.md`.
+
+**Consequence:** No prod flag / deploy. Start 2–3 teammates. Quota = same Claude subscription pool. Owner plan (Pro vs Max) is a money decision outside this ADR.
+
+## ADR-173 (2026-08-08) — claw-orchestrator (Enderfga): REJECT full vendor; patterns-only [EVAL]
+
+**Context:** Package `@enderfga/claw-orchestrator` v4.11.0 looks diagram-similar (multi-engine CLIs + OpenClaw plugin + worktrees + MCP). Eval clone outside tree.
+
+**Decision:** Do not install plugin / `clawo serve` / replace external_agents. OpenClaw stays inbound Copilot edge; coding missions stay Owner OS + external_agents. Kill facts: 65 tools into gateway, `childProcess: true`, council default `bypassPermissions`, separate dashboard/ledger, Node island.
+
+**Allow:** harvest session/worktree/MCP-allowlist *ideas* into existing runners (ADR-172, ADR-148).
+
+**Evidence:** `/tmp/claw_orch_eval/claw-orchestrator` README + `openclaw.plugin.json` + `install.sh` + `council.md`.
+
+**Consequence:** ADR-172 path unchanged. No prod/OpenClaw allowlist change.
+
+## 2026-08-08 — Agent Teams C1 amendments (SSOT frozen paths + pass rule + measure quota)
+
+**Context:** Owner green-lit C1 with three amendments: (1) frozen list must be one machine-readable SSOT — doc renders, test reads, no paste twin; (2) pass rule in addition to stop rule; TM2 RED vs TM1 = SIGNAL; (3) replace ~3× quota guess with measured burn after run.
+
+**Decision:** Ship SSOT `docs/coordination/canary_frozen_paths.yml` + `scripts/canary_frozen.py` + lead prompt before live Agent Teams session. TM1/TM2 files remain for the live canary.
+
+**Evidence:** `tests/test_canary_frozen_ssot.py`; runbook + ADR-172 updated.
