@@ -487,6 +487,23 @@ def build() -> dict[str, Any]:
         # consecutive days with zero visible signal — the "Aaj" tab happily said
         # sab theek while engines behind it never ran. Surface it in the owner's
         # own words, with the actual engine names.
+        # A producer that still reports green but has stopped producing. The
+        # liveness dead-man cannot see this — it only knows the job ran and did
+        # not raise, which stayed true for all 15 days of the video outage.
+        for _o in h.get("stale_outputs") or []:
+            if _o.get("status") != "stale":
+                continue
+            problems.append(
+                {
+                    "kya": (
+                        f"{_o.get('producer')} chal to raha hai par {_o.get('age_days')} din se "
+                        f"kuch bana hi nahi ({_o.get('why')})"
+                    ),
+                    "fix": _o.get("owner_hint")
+                    or "Engine ka flag aur uska last output dono check karo",
+                    "href": "/app/automation",
+                }
+            )
         _skips = h.get("engine_skips") or {}
         if _skips.get("total"):
             _names = ", ".join(sorted((_skips.get("by_engine") or {}).keys())[:4]) or "kuch engines"
