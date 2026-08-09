@@ -66,10 +66,31 @@ def test_canary_want_never_live_overlap_are_off():
         assert mod.WANT_CANARY[k] not in ("1", "true", "yes", "on")
 
 
-def test_automation_max_self_improve_containment():
+def _load_automation_max():
     path = SCRIPTS / "vps_enable_automation_max_flags.py"
     spec = importlib.util.spec_from_file_location("vps_enable_automation_max_flags", path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    assert mod.WANT_SAFE.get("SELF_IMPROVE_LOOP") == "0"
+    return mod
+
+
+def test_automation_max_self_improve_not_clobbered_by_default():
+    """ADR-172: the default run must leave a live SELF_IMPROVE_LOOP posture alone."""
+    mod = _load_automation_max()
+    assert "SELF_IMPROVE_LOOP" not in mod.WANT_SAFE
+
+
+def test_automation_max_self_improve_containment(tmp_path, monkeypatch, capsys):
+    """Containment is still reachable — deliberately, via --force-self-improve-off."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("SELF_IMPROVE_LOOP=1\n", encoding="utf-8")
+    monkeypatch.setenv("LEADGEN_ENV", str(env_file))
+    mod = _load_automation_max()
+    monkeypatch.setattr(
+        sys, "argv", ["vps_enable_automation_max_flags.py", "--dry-run", "--force-self-improve-off"]
+    )
+    assert mod.main() == 0
+    assert "SET SELF_IMPROVE_LOOP=0" in capsys.readouterr().out
+    # --dry-run must not have written the containment value through to disk.
+    assert env_file.read_text(encoding="utf-8") == "SELF_IMPROVE_LOOP=1\n"
