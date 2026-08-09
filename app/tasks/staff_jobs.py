@@ -146,6 +146,7 @@ STAFF_JOBS = (
     "social_drain",  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); Celery+in-process (audit 2026-07-17)
     "sales_autopilot",  # hourly :25 Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
     "task_lease_reap",  # hourly :05 expired agent-task lease close-out (gated AGENT_TASK_LEASE_REAP; INERT off)
+    "daily_video",  # daily 09:45 IST per-client video producer — ENQUEUE-only (gated DAILY_VIDEO_ENABLED; INERT off)
 )
 
 

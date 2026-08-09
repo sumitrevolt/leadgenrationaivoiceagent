@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1289 operations)
+## Endpoint Index — auto-generated from OpenAPI (1292 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -536,7 +536,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (31)
+### ClientOps  (34)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -566,6 +566,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientops/video-ads` — Video Ads List
 - `POST  ` `/api/clientops/video-ads/generate` — Video Ads Generate
 - `POST  ` `/api/clientops/video-ads/{approval_id}/request-changes` — Video Ads Request Changes
+- `POST  ` `/api/clientops/video-production/daily-clear-block` — Video Daily Clear Block
+- `POST  ` `/api/clientops/video-production/daily-run` — Video Daily Run
+- `GET   ` `/api/clientops/video-production/daily-status` — Video Daily Status
 - `POST  ` `/api/clientops/video-production/generate` — Video Production Generate
 - `GET   ` `/api/clientops/video-production/ops` — Video Production Ops
 - `POST  ` `/api/clientops/video-production/{video_ad_id}/approve` — Video Production Approve

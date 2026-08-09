@@ -59,7 +59,7 @@ fail-closed to OFF. No wildcard (`*`) is accepted in agents/loops/tools for the 
 5. Full harness suite green (187), touched-loop regressions green (41).
 6. Redis reachable (kill switch live): `harness.status.kill_switch.redis == true`.
 7. `AGENT_HARNESS_ENFORCE_TOOLS` contains EXACTLY `batch.internal.safe_calculation@1.0.0`.
-8. STAFF=31, calling HARD OFF, platform_dial HARD OFF, `CODE_EXEC=0`.
+8. STAFF=31, calling = FULL CAMPAIGN LIVE (owner-approved 2026-08-02; bounded caps + compliance spine active — this canary has no calling/code-execution effect), `CODE_EXEC=0`.
 
 ## 4. Run (owner-approved only)
 

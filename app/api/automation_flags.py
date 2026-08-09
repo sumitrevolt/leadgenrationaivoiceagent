@@ -96,6 +96,15 @@ AUTOMATION_FLAGS = [
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
+    "VIDEO_AD_INTERVAL_DAYS",  # video_ad_cycle cadence in days (default 5) — set 1 for daily
+    "DAILY_VIDEO_ENABLED",  # daily per-client video producer, own beat job, enqueue-only (default OFF)
+    "DAILY_VIDEO_CLIENTS",  # comma tenant allowlist; EMPTY = no client (fail-closed), '*' = all eligible
+    "DAILY_VIDEO_ENGINE",  # auto|advanced|classic (default auto: advanced when gated+healthy, else classic)
+    "DAILY_VIDEO_MAX_PENDING",  # per-client open-review backpressure cap (default 2)
+    "DAILY_VIDEO_MAX_PER_RUN",  # per-run enqueue cap (default 10)
+    "DAILY_VIDEO_ADVANCED_FAIL_WINDOW",  # consecutive advanced failures before auto-downgrade (default 2)
+    "DAILY_VIDEO_ADVANCED_BLOCK_DAYS",  # how long a permanent brief refusal parks a tenant on classic (default 7)
+    "DAILY_VIDEO_RECIPE",  # Creative OS recipe for the advanced path (default offer_announcement)
     "VIDEO_PRODUCTION_ENABLED",  # OpenClaw Video Production Cell master (default OFF)
     "VIDEO_DAILY_SCHEDULER_ENABLED",  # daily video planning job (aliases VIDEO_AD_CYCLE when on)
     "VIDEO_CUSTOMER_REVIEW_ENABLED",  # customer dashboard + WA feedback ingest
@@ -106,6 +115,14 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
     "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
+    # HyperFrames = the "advanced" animated deliverable. It was MISSING from this
+    # registry, so /api/growth/infra/flags reported Creative OS healthy while the
+    # only enterprise-grade provider sat unset and every advanced render fell
+    # through (hyperframes is in providers.NO_SILENT_FALLBACK — no quiet downgrade).
+    "CREATIVE_PROVIDER_HYPERFRAMES_ENABLED",  # HyperFrames render provider (default OFF)
+    "CREATIVE_HYPERFRAMES_CANARY_TENANTS",  # comma tenant allowlist; EMPTY = no tenant (fail-closed)
+    "CREATIVE_HYPERFRAMES_DEFAULT_TEMPLATE",  # template id (default beauty_luxury_offer_v1)
+    "CELERY_VIDEO_QUEUE",  # route video render tasks to the dedicated 'video' queue/worker (default OFF)
     "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
     "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
     "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)

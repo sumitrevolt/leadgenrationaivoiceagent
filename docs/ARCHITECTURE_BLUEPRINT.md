@@ -196,7 +196,7 @@
 | **call_analytics** | Voice | daily | Call KPIs (Lekha) |
 | **voice_followup** | Voice | on-demand | Post-call follow-up workflows |
 | **voice_launch** | Voice | gated | Controlled outbound call campaign |
-| **platform_dial** | Voice | HARD OFF | Self-sale daily campaign |
+| **platform_dial** | Voice | LIVE (supersedes HARD OFF — 2026-08-02; per-run cap `PLATFORM_DIAL_LIMIT`=100, boolean `PLATFORM_DIAL_DAILY`) | Self-sale daily campaign |
 
 ---
 

@@ -39,6 +39,10 @@ Owner edited `/opt/leadgen/.env` at **13:23:24Z** today (stat mtime), then deplo
 | `SALES_AUTOPILOT_CANARY_BATCH` | 1 | 1 | max 1 item/tick |
 | `OPENCLAW_ENABLED` / `ALLOW_RED` | 1 / 0 | 1 / 0 | Stage A GREEN-only |
 
+> **SUPERSEDED 2026-08-02 (historical snapshot):** `PLATFORM_DIAL_DAILY` is the boolean
+> ON/OFF switch (=`1` prod), NOT a count; the per-run cap moved to `PLATFORM_DIAL_LIMIT=100`
+> when platform_dial went FULL CAMPAIGN LIVE. See `docs/context/CURRENT_STATE.md`.
+
 **Behavioural evidence:** `sales_autopilot/last_tick.json` at 13:55:00Z = `{enabled:true, dry_run:false, processed:0, items:[]}` — engine LIVE but **zero customer-facing actions so far**; worker/scheduler logs 6-12h: 0 sales/outreach/smtp lines. This session changed NO flag.
 
 ## 2. Reliability evidence (read-only)
