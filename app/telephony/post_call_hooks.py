@@ -418,6 +418,107 @@ def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns:
     return None
 
 
+def crm_sync_enabled() -> bool:
+    """CALL_LEAD_CRM_SYNC — write the call outcome back onto the lead row.
+
+    Default OFF. Read at call time, never frozen at import.
+    """
+    return os.getenv("CALL_LEAD_CRM_SYNC", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+
+# CallOutcome enum name -> niche_database.update_after_call outcome code.
+# Deliberately derived from the SAME classifier that fills call_logs.outcome
+# (_map_call_outcome) so the analytics row and the lead row can never disagree.
+_NICHE_OUTCOME_BY_CALL_OUTCOME = {
+    "APPOINTMENT": "qualified",
+    "INTERESTED": "qualified",
+    "NOT_INTERESTED": "not_interested",
+    "NO_ANSWER": "voicemail",
+    "FAILED": "voicemail",
+}
+
+
+def niche_outcome_for(
+    *,
+    stream_outcome: str,
+    q: dict[str, Any] | None,
+    user_turns: int,
+    phone: str = "",
+) -> str:
+    """Pick the lead bucket for a finished call.
+
+    Ordering matters:
+
+    1. **DND wins over everything.** Read from ``consent_ledger`` — the
+       authoritative cross-channel suppression store written by the agent's own
+       ``_handle_opt_out``. Never inferred from LLM output.
+    2. Otherwise defer to ``_map_call_outcome``.
+    3. ``None`` from that classifier means "unknown / bot-suspected", and maps
+       to ``voicemail`` — a RETRYABLE bucket, never a terminal one. Marking an
+       IVR tree ``not_interested`` would silently burn the lead (2026-07-05).
+    """
+    if phone:
+        try:
+            from app.telephony import consent_ledger
+
+            if consent_ledger.is_suppressed(phone):
+                return "dnd"
+        except Exception:
+            pass
+    mapped = _map_call_outcome(stream_outcome, q, user_turns)
+    name = getattr(mapped, "name", "") if mapped is not None else ""
+    return _NICHE_OUTCOME_BY_CALL_OUTCOME.get(name, "voicemail")
+
+
+async def sync_lead_after_call(
+    *,
+    lead_id: str,
+    phone: str = "",
+    outcome: str = "",
+    q: dict[str, Any] | None = None,
+    user_turns: int = 0,
+) -> dict[str, Any]:
+    """Apply the call result to the lead row (status / hot flag / next_call_at).
+
+    Thin adapter over the already-built ``niche_database.update_after_call``,
+    which owns every actual mutation:
+
+        qualified      -> QUALIFIED + is_hot_lead + score+20   ("important")
+        callback       -> CALLBACK + next_call_at
+        not_interested -> NOT_INTERESTED
+        dnd            -> DND + tag
+        voicemail      -> CONTACTED + retry in 24h             ("old lead")
+
+    GATED ``CALL_LEAD_CRM_SYNC`` (default OFF). Never raises.
+    """
+    lid = (lead_id or "").strip()
+    if not lid:
+        return {"ok": False, "skipped": "no_lead_id"}
+    if not crm_sync_enabled():
+        return {"ok": False, "skipped": "flag_off"}
+
+    bucket = niche_outcome_for(stream_outcome=outcome, q=q, user_turns=user_turns, phone=phone)
+    try:
+        from app.platform.niche_database import update_after_call
+
+        res = await update_after_call(
+            lead_id=lid,
+            outcome=bucket,
+            notes=str((q or {}).get("summary") or ""),
+            niche_data=q or None,
+        )
+        logger.info(
+            "[post_call] lead %s -> bucket=%s status=%s",
+            lid,
+            bucket,
+            (res or {}).get("status"),
+        )
+        return {"ok": bool((res or {}).get("ok")), "bucket": bucket, "result": res}
+    except Exception as e:
+        logger.debug("[post_call] sync_lead_after_call skip: %s", e)
+        return {"ok": False, "error": str(e), "bucket": bucket}
+
+
 def build_call_log(
     *,
     call_id: str,
@@ -434,10 +535,15 @@ def build_call_log(
     q: dict[str, Any] | None = None,
     caller_id: str = "",
     direction: str = "outbound",
+    lead_id: str = "",
 ) -> Any | None:
     """Construct an UNSAVED ``CallLog`` row from call metadata + optional
     qualification. Pure (no DB/session) so the score/outcome mapping is unit
     testable. Returns None when CALL_LOG_DB is off or the model is unavailable.
+
+    ``lead_id`` (2026-08-06) is the CRM ``leads.id`` threaded down from the
+    dialer. Set optimistically here; ``persist_call_log`` re-checks the row
+    actually exists before committing the FK, same as ``client_id``.
 
     ``q`` is the ``call_qualifier.qualify_transcript`` dict (interest_score 1-5,
     qualified, appointment_requested, summary, ...) or None when qualification
@@ -465,7 +571,12 @@ def build_call_log(
         appt = bool(q.get("appointment_requested"))
     try:
         qual_json = json.dumps(
-            {**(q or {}), "raw_client_id": client_id or "", "raw_phone": phone or ""},
+            {
+                **(q or {}),
+                "raw_client_id": client_id or "",
+                "raw_phone": phone or "",
+                "raw_lead_id": lead_id or "",
+            },
             ensure_ascii=False,
         )
     except Exception:
@@ -493,6 +604,7 @@ def build_call_log(
         ),
         to_number=(str(phone or "").strip()[:20] or "unknown"),  # column is NOT NULL
         from_number=(str(caller_id or "").strip()[:20] or None),
+        lead_id=(str(lead_id or "").strip() or None),
         initiated_at=started,
         answered_at=(started if int(user_turns or 0) > 0 else None),
         ended_at=ended,
@@ -526,6 +638,7 @@ async def persist_call_log(
     q: dict[str, Any] | None = None,
     caller_id: str = "",
     direction: str = "outbound",
+    lead_id: str = "",
 ) -> None:
     """Write ONE structured ``call_logs`` row so the (already-built) DB-backed
     analytics dashboard (`/api/analytics/*`, /app/analytics) lights up with real
@@ -551,20 +664,25 @@ async def persist_call_log(
         q=q,
         caller_id=caller_id,
         direction=direction,
+        lead_id=lead_id,
     )
     if row is None:
         return
 
-    def _insert_sync() -> None:
+    def _insert_sync() -> str:
+        """Insert the row; return the FK-verified lead id, or "" when there is
+        nothing new to sync (duplicate call_sid, or unknown/absent lead)."""
         from app.models.base import get_db_session
         from app.models.call_log import CallLog
 
         with get_db_session() as db:
             # Idempotency: skip if a row for this call_sid already exists.
+            # Returning "" here is what makes the CRM sync idempotent too — a
+            # replayed status callback must not re-apply a status transition.
             if row.call_sid:
                 exists = db.query(CallLog.id).filter(CallLog.call_sid == row.call_sid).first()
                 if exists:
-                    return
+                    return ""
             # FK-safe: link client_id only when it really exists in `clients`,
             # else leave NULL (raw id is already in qualification_data).
             cid = (client_id or "").strip()
@@ -576,12 +694,41 @@ async def persist_call_log(
                         row.client_id = cid
                 except Exception:
                     pass
+            # Same FK-safety for lead_id: build_call_log set it optimistically,
+            # but a stale/unknown id must NOT abort the whole analytics INSERT.
+            # Raw value survives in qualification_data.raw_lead_id either way.
+            lid = (lead_id or "").strip()
+            if lid:
+                try:
+                    from app.models.lead import Lead
+
+                    row.lead_id = lid if db.get(Lead, lid) is not None else None
+                except Exception:
+                    row.lead_id = None
             db.add(row)  # get_db_session commits on context exit
+            return str(row.lead_id or "")
 
     try:
-        await asyncio.to_thread(_insert_sync)
+        synced_lead_id = await asyncio.to_thread(_insert_sync)
     except Exception as e:
         logger.debug("[post_call] persist_call_log skip: %s", e)
+        return
+
+    # CRM bucket sync — the lead row itself (status / next_call_at / hot flag).
+    # Lives HERE and not in call_manager because CallManager.active_calls is an
+    # in-process dict: campaign calls are placed by the Celery worker while the
+    # status callback lands on the web container, so handle_call_completed()
+    # always logs "No context found for call X" and its niche_database update
+    # never runs. persist_call_log is the one hook the live stream path does
+    # reach, and (since the lead_id rail landed) the one that knows which lead.
+    if synced_lead_id:
+        await sync_lead_after_call(
+            lead_id=synced_lead_id,
+            phone=phone or "",
+            outcome=outcome,
+            q=q,
+            user_turns=user_turns,
+        )
 
 
 async def finalize_stream_session(
@@ -597,8 +744,15 @@ async def finalize_stream_session(
     extra_transcript: dict[str, Any] | None = None,
     campaign_variant_id: str = "",
     turn_metrics: list[dict[str, Any]] | None = None,
+    lead_id: str = "",
 ) -> None:
-    """Meter + transcript + qualify — one call for WS stream cleanup paths."""
+    """Meter + transcript + qualify — one call for WS stream cleanup paths.
+
+    ``lead_id`` mirrors ``persist_call_log``: this helper currently has no
+    callers in-tree, but it wraps the same writer, so leaving it without the
+    parameter would silently reintroduce the ``lead_id=NULL`` bug the moment a
+    cleanup path starts using it.
+    """
     ended = ended_at or datetime.now(timezone.utc)
     started = started_at or ended
     dur = max(0.0, (ended - started).total_seconds())
@@ -646,6 +800,7 @@ async def finalize_stream_session(
         started_at=started,
         ended_at=ended,
         q=q,
+        lead_id=lead_id,
     )
     if campaign_variant_id:
         try:
@@ -711,4 +866,7 @@ __all__ = [
     "finalize_stream_session",
     "build_call_log",
     "persist_call_log",
+    "crm_sync_enabled",
+    "niche_outcome_for",
+    "sync_lead_after_call",
 ]

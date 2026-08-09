@@ -31,8 +31,10 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth_deps import require_admin
+from app.models.base import get_async_db
 from app.platform import admin_idempotency
 from app.platform.admin_audit import record_admin_action
 
@@ -845,11 +847,16 @@ class ClientRemoveIn(BaseModel):
 
 @router.post("/clients/{client_id}/remove-customer")
 async def admin_remove_customer(
-    client_id: str, body: ClientRemoveIn, request: Request, admin=Depends(require_admin)
+    client_id: str,
+    body: ClientRemoveIn,
+    request: Request,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict:
     """Full customer removal — NOT just the clients_store record.
 
-    Revokes the portal login, cancels scheduled content, marks any autopilot
+    Revokes the portal login, cancels scheduled content, CANCELLS DB billing
+    subscriptions (MRR truth — audit 2026-08-08), marks any autopilot
     prospects that converted to this client as terminal ``removed`` (so they
     stop counting as customers AND are never re-contacted), deletes the brand
     kit + per-client derived stores (delivery ledger, blogs, crm, content
@@ -902,6 +909,8 @@ async def admin_remove_customer(
         "reason": body.reason,
         "auth_logins_revoked": 0,
         "auth_emails": [],
+        "subscriptions_cancelled": 0,
+        "subscription_ids": [],
         "content_cancelled": 0,
         "prospects_removed": 0,
         "prospect_ids": [],
@@ -932,7 +941,41 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] auth revoke failed: %s", e)
 
-    # 2. Scheduled content → cancelled (never published later).
+    # 2. Billing subscriptions → CANCELLED (MRR/revenue truth — audit 2026-08-08:
+    #    before this, remove-customer deleted the client record but left ACTIVE
+    #    Subscription rows, so admin MRR/subscriptions-active still counted a
+    #    removed customer as revenue). Alias-aware like billing.cancel_subscription.
+    try:
+        from sqlalchemy import and_, select
+
+        from app.models.payment import Subscription, SubscriptionStatus
+
+        _sub_ids = [cid]
+        try:
+            from app.api.billing import _billing_client_ids
+
+            _sub_ids = _billing_client_ids(cid) or _sub_ids
+        except Exception:
+            pass
+        result = await db.execute(
+            select(Subscription).where(
+                and_(
+                    Subscription.client_id.in_(_sub_ids),
+                    Subscription.status.in_([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]),
+                )
+            )
+        )
+        for _sub in result.scalars().all():
+            _sub.status = SubscriptionStatus.CANCELLED
+            _sub.cancelled_at = datetime.utcnow()
+            _sub.cancel_reason = body.reason or "customer_removed"
+            summary["subscriptions_cancelled"] += 1
+            summary["subscription_ids"].append(_sub.id)
+        await db.commit()
+    except Exception as e:
+        logger.warning("[admin remove-customer] billing cancel failed: %s", e)
+
+    # 3. Scheduled content → cancelled (never published later).
     try:
         from app.marketing import content_schedule
 
@@ -940,7 +983,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] content cancel failed: %s", e)
 
-    # 3. Autopilot prospects that converted to this client → terminal removed.
+    # 4. Autopilot prospects that converted to this client → terminal removed.
     try:
         from app.platform.sales_autopilot import store as _ap
 
@@ -958,7 +1001,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] autopilot sweep failed: %s", e)
 
-    # 4. Brand kit + per-client derived stores.
+    # 5. Brand kit + per-client derived stores.
     try:
         from app.marketing import brand_kit
 
@@ -992,7 +1035,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] content-queue delete failed: %s", e)
 
-    # 5. clients_store record (the old delete path, folded in).
+    # 6. clients_store record (the old delete path, folded in).
     try:
         from app.marketing import clients_store
 
@@ -1003,6 +1046,7 @@ async def admin_remove_customer(
     ok = any(
         [
             summary["auth_logins_revoked"] > 0,
+            summary["subscriptions_cancelled"] > 0,
             summary["content_cancelled"] > 0,
             summary["prospects_removed"] > 0,
             summary["brand_kit_deleted"],

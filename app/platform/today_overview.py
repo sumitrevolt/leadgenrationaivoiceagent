@@ -240,6 +240,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Call KPI digest (raat 02:30)",
         "kya": "AI calls ke conversions/dispositions analysis",
     },
+    "daily_video": {
+        "label": "Roz ka video (09:45)",
+        "kya": "Har marketing client ke liye roz 1 naya AI video ad banata hai (approval ke liye bhejta hai)",
+    },
     "platform_dial": {
         "label": "Platform auto-dialer (11:30)",
         "kya": "Outbound campaign auto-dial loop",
@@ -326,6 +330,53 @@ def _pending_decisions() -> int:
     except Exception as e:
         logger.debug(f"[today] pending_decisions failed: {e}")
         return 0
+
+
+def _customer_approval_backlog() -> dict[str, Any]:
+    """Work the CUSTOMER has not decided on yet — a DIFFERENT queue from
+    ``_pending_decisions()``.
+
+    `approvals_bridge` (the source of `needs_decision`) covers the agentic-draft
+    queue and contains no reference to `content_approval` at all, so customer-
+    facing content/video approvals were counted by nothing on this page. That is
+    how 32 of 39 video records sat at `pending` on prod for weeks with only 4 ever
+    published, while the Aaj tab reported no problem (verified 2026-08-09).
+
+    Delivery only happens after the customer clicks approve, so an ageing pile
+    here means the product is generating work nobody ever receives. Never raises;
+    an unreadable store contributes nothing rather than a false alarm.
+    """
+    out: dict[str, Any] = {"total": 0, "oldest_days": 0, "by_type": {}, "oldest_client": ""}
+    try:
+        from datetime import datetime as _dt
+
+        from app.marketing import content_approval
+
+        rows = content_approval.pending() or []
+        out["total"] = len(rows)
+        oldest_days = 0
+        oldest_client = ""
+        for r in rows:
+            kind = str(((r.get("content") or {}) or {}).get("type") or "content")
+            out["by_type"][kind] = out["by_type"].get(kind, 0) + 1
+            raw = str(r.get("created_at") or "").strip()
+            if not raw:
+                continue
+            try:
+                created = _dt.fromisoformat(raw.replace("Z", "+00:00"))
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                age = int((datetime.now(timezone.utc) - created).total_seconds() // 86400)
+                if age > oldest_days:
+                    oldest_days = age
+                    oldest_client = str(r.get("client_id") or "")
+            except Exception:
+                continue
+        out["oldest_days"] = oldest_days
+        out["oldest_client"] = oldest_client
+    except Exception as e:
+        logger.debug(f"[today] customer approval backlog skip: {e}")
+    return out
 
 
 def _ago_minutes(iso: str | None) -> int | None:
@@ -431,6 +482,68 @@ def build() -> dict[str, Any]:
         # "Aaj" snapshot (feeds BOTH /app/control-center's Problems panel AND
         # /app/automation's Aaj tab) could say "Koi problem nahi mili" while
         # dlq:dead held retry-exhausted tasks.
+        # 2026-08-09: a mega-job that runs out of its wall-clock budget DROPS the
+        # engines queued behind it. Prod ran `content` over its 420s budget on 15
+        # consecutive days with zero visible signal — the "Aaj" tab happily said
+        # sab theek while engines behind it never ran. Surface it in the owner's
+        # own words, with the actual engine names.
+        # A producer that still reports green but has stopped producing. The
+        # liveness dead-man cannot see this — it only knows the job ran and did
+        # not raise, which stayed true for all 15 days of the video outage.
+        for _o in h.get("stale_outputs") or []:
+            if _o.get("status") != "stale":
+                continue
+            problems.append(
+                {
+                    "kya": (
+                        f"{_o.get('producer')} chal to raha hai par {_o.get('age_days')} din se "
+                        f"kuch bana hi nahi ({_o.get('why')})"
+                    ),
+                    "fix": _o.get("owner_hint")
+                    or "Engine ka flag aur uska last output dono check karo",
+                    "href": "/app/automation",
+                }
+            )
+        _skips = h.get("engine_skips") or {}
+        if _skips.get("total"):
+            _names = ", ".join(sorted((_skips.get("by_engine") or {}).keys())[:4]) or "kuch engines"
+            problems.append(
+                {
+                    "kya": (
+                        f"{_skips.get('total')} baar kaam chhoda gaya — time khatam hone se yeh "
+                        f"engines chale hi nahi: {_names}"
+                    ),
+                    "fix": (
+                        "Job ka time budget badhao (CONTENT_TIME_BUDGET_S) ya bhaari engine ko "
+                        "apne alag job me nikalo — jaise daily video ke liye kiya gaya"
+                    ),
+                    "href": "/app/automation",
+                }
+            )
+        # Customer-side approval pile. Nothing on this page counted it before
+        # (see _customer_approval_backlog), which is how 32 of 39 video records
+        # sat pending on prod while the tab said sab theek. A generated video the
+        # customer never approves is never delivered — so it is a REVENUE problem,
+        # not a queue statistic. Threshold 3 keeps normal same-day review quiet.
+        _appr = _customer_approval_backlog()
+        if _appr.get("total", 0) >= 3 or _appr.get("oldest_days", 0) >= 3:
+            _kinds = ", ".join(f"{k}×{v}" for k, v in sorted((_appr.get("by_type") or {}).items()))
+            _age = _appr.get("oldest_days") or 0
+            problems.append(
+                {
+                    "kya": (
+                        f"{_appr.get('total')} cheezein customer ki approval ka intezaar kar rahi "
+                        f"hain{f' (sabse purani {_age} din se)' if _age else ''}"
+                        f"{f' — {_kinds}' if _kinds else ''}. Approve nahi hui to customer tak "
+                        f"kuch nahi pahunchta."
+                    ),
+                    "fix": (
+                        "Customer ko yaad dilao ya unki taraf se approve karo — "
+                        "roz ka video bhi backlog wale client ke liye ruk jayega"
+                    ),
+                    "href": "/app/automation",
+                }
+            )
         if h.get("dead_tasks_present"):
             problems.append(
                 {
@@ -523,6 +636,12 @@ def build() -> dict[str, Any]:
     # events_today = auto ho-CHUKA kaam; needs_decision = boss pe atka kaam.
     # Isse admin ka "841 pending?" wala confusion door hota hai (truth: 841 done).
     totals["needs_decision"] = _pending_decisions()
+    # Separate counter on purpose: needs_decision is what the OWNER must decide,
+    # this is what the CUSTOMER has not decided. Collapsing them would hide a
+    # delivery blocker inside an ops number.
+    _appr_totals = _customer_approval_backlog()
+    totals["customer_approvals_pending"] = _appr_totals.get("total", 0)
+    totals["customer_approvals_oldest_days"] = _appr_totals.get("oldest_days", 0)
 
     # ---- Headline ----
     if problems:

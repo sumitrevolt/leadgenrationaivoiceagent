@@ -73,10 +73,16 @@ jobs:
       # They import app.platform (-> pydantic) and this job installs only ruff,
       # so here they could never do anything but ModuleNotFoundError.
 
-      - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in dependencies
-        run: |
-          pip install pip-audit
-          pip-audit --requirement requirements.txt --format=json || true  # advisory until lock file refreshed
+      # NOTE: the dependency vulnerability scan moved to the `tests` job (2026-08-08).
+      # It used to live here, labelled `MUST-PASS — no known CVEs in dependencies`,
+      # while ending in `|| true` and auditing requirements.txt — a REFERENCE
+      # manifest. The image installs requirements.lock.txt (Dockerfile.lock:25). So
+      # the green tick meant "an audit ran against a file we do not ship", and 29
+      # Dependabot alerts (8 high) sat open behind it.
+      # It cannot be fixed in place: this job installs only ruff, so auditing a
+      # requirements FILE makes pip-audit re-resolve the lock — a set nothing ever
+      # installs, since every real install uses --no-deps. It now audits the
+      # installed environment in `tests`, which is the closure that actually ships.
       - name: Type check (mypy)            # advisory — 1522 pre-existing errors (2026-07-06); type-debt visible, merge-gate nahi
         run: |
           pip install mypy
@@ -122,6 +128,46 @@ jobs:
           # pydantic-core forward (2.47.0), past what pydantic 2.13.4 needs (==2.46.4),
           # breaking app.main import in prod_check. Re-pin to the lock version.
           pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
+      - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in what SHIPS
+        # Audits the INSTALLED ENVIRONMENT, not a requirements file. That matters:
+        # every real install of this project uses `--no-deps` (Dockerfile.lock:25,
+        # the step above, tests.yml:35), so the lock IS the shipped closure. Asking
+        # pip-audit to resolve the file instead audits a set nothing ever installs —
+        # and on 2026-08-08 that resolution failed outright (`packaging==23.2` vs
+        # `google-cloud-bigquery`'s `packaging>=24.2.0`), which is exactly the class
+        # of drift `--no-deps` hides. Auditing the environment needs no resolver.
+        #
+        # Exceptions are explicit, justified and time-limited in
+        # docs/security/DEPENDENCY_REMEDIATION_2026-08-08.md, and mirrored in
+        # tests/test_dependency_security_floors.py::EXCEPTIONS, where
+        # test_exceptions_have_not_expired turns the build RED once they lapse.
+        #   GHSA-wj6h-64fc-37mp  ecdsa    no upstream fix exists; unreachable on HS256
+        #   GHSA-6w46-j5rx-g56g  pytest   test runner, never imported by app code
+        #   PYSEC-2017-83        scrapy   no upstream fix; transitive via advertools,
+        #                                 and no FILES_STORE/S3FilesStore pipeline is
+        #                                 configured, so the code path does not exist
+        #                                 here. Found by THIS gate on its first run —
+        #                                 OSV carries it, the Dependabot list did not.
+        #
+        # pip-audit lives in its OWN venv and reaches the audited environment via
+        # `--path`. Installing it into the audited env would let its own dependency
+        # resolution quietly upgrade packages, so the audit would no longer describe
+        # what pytest and prod_check just ran against.
+        run: |
+          python -m venv /tmp/auditvenv
+          /tmp/auditvenv/bin/pip install --quiet --upgrade pip
+          /tmp/auditvenv/bin/pip install --quiet pip-audit
+          SITE="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+          echo "auditing installed environment at: $SITE"
+          /tmp/auditvenv/bin/pip-audit \
+            --path "$SITE" \
+            --vulnerability-service osv \
+            --desc on \
+            --progress-spinner off \
+            --ignore-vuln GHSA-wj6h-64fc-37mp \
+            --ignore-vuln GHSA-6w46-j5rx-g56g \
+            --ignore-vuln PYSEC-2017-83
+
       - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
         # Schema + allowlist coherence: no stale entries, no unknown store ids,
         # no operation mismatch, no writer filed against an immutable store.

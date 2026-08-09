@@ -1336,3 +1336,91 @@ def _save(action: str, client_id: str, approval_id: str, rec: dict, **extra) -> 
             )
     except Exception:
         pass
+
+
+# --------------------------------------------------------------------------- #
+# Retirement of un-actionable pending rows
+#
+# `pending` is the only non-terminal state and nothing ever ages out of it, so
+# the queue can only grow. Prod on 2026-08-09 held 422 pending rows, of which
+# 321 belonged to client ids that no longer exist in `clients_store` — work
+# literally nobody can ever decide. They inflate every backlog count, drown the
+# real items, and make the owner-facing "waiting on customer" number meaningless.
+#
+# This retires ONLY those orphans, and only by APPENDING a terminal row —
+# consistent with this store's append-on-update contract, so the original
+# submission stays readable forever. Nothing is deleted and no decision is
+# fabricated: retiring is explicitly NOT approving. A live customer's pending
+# work is never touched, whatever its age, because they can still complete it
+# from the authenticated dashboard (which does not enforce the 7-day token TTL).
+# --------------------------------------------------------------------------- #
+
+STATUS_EXPIRED = "expired"
+
+
+def retire_orphaned_pending(
+    *,
+    dry_run: bool = True,
+    limit: int = 1000,
+    live_client_ids: set[str] | None = None,
+) -> dict[str, Any]:
+    """Retire pending rows whose client no longer exists. Never raises.
+
+    ``dry_run=True`` (the default) reports what WOULD change and writes nothing —
+    this mutates live customer records, so the counts get reviewed before the
+    write. Returns per-client counts either way.
+
+    ``live_client_ids`` is injectable for tests; production resolves it from
+    ``clients_store``. If that resolution fails the sweep refuses outright rather
+    than treating an empty set as "every client is dead" — the fail-closed
+    direction, since the open one would retire the entire queue.
+    """
+    out: dict[str, Any] = {
+        "ok": True,
+        "dry_run": bool(dry_run),
+        "scanned": 0,
+        "retired": 0,
+        "by_client": {},
+        "skipped_live": 0,
+    }
+    try:
+        if live_client_ids is None:
+            from app.marketing import clients_store
+
+            rows = clients_store.list_clients() or []
+            live_client_ids = {str(c.get("id") or "").strip() for c in rows if c.get("id")}
+            if not live_client_ids:
+                return {
+                    "ok": False,
+                    "error": "no_live_clients_resolved",
+                    "detail": "refusing to retire anything — an empty client set would retire the whole queue",
+                }
+
+        cap = max(1, min(int(limit or 1000), 20000))
+        for rec in pending():
+            out["scanned"] += 1
+            cid = str(rec.get("client_id") or "").strip()
+            if cid in live_client_ids:
+                out["skipped_live"] += 1
+                continue
+            if out["retired"] >= cap:
+                break
+            out["by_client"][cid] = out["by_client"].get(cid, 0) + 1
+            out["retired"] += 1
+            if not dry_run:
+                _append(
+                    {
+                        "id": rec.get("id"),
+                        "client_id": cid,
+                        "status": STATUS_EXPIRED,
+                        "retired_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                        "retired_reason": "client_no_longer_exists",
+                        # Explicitly NOT an approval. Anything reading this row
+                        # must never treat it as consent to publish.
+                        "decided_by": "system:retire_orphaned_pending",
+                    }
+                )
+        return out
+    except Exception as e:
+        logger.warning(f"[content_approval] retire_orphaned_pending failed: {e}")
+        return {"ok": False, "error": str(e)[:200]}

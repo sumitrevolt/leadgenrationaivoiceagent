@@ -305,6 +305,11 @@
         <a href="/app/team" role="menuitem" aria-label="AI staff team"><span class="ic" aria-hidden="true">👥</span> AI Staff Team</a>
         <a href="/app/office" role="menuitem" aria-label="Virtual office"><span class="ic" aria-hidden="true">🏢</span> Virtual Office</a>
         <a href="/app/explorer" role="menuitem" aria-label="Architecture Explorer"><span class="ic" aria-hidden="true">🗺</span> Architecture Explorer</a>
+        <!-- Master Blueprint (2026-08-07): canonical /api/blueprint graph mode. Feature
+             already shipped inside /app/explorer as a sub-mode toggle, but had NO admin
+             nav entry — so an admin who did not know the ?view=master deep-link could not
+             reach it. Additive link only; the Explorer entry above is untouched. -->
+        <a href="/app/explorer?view=master" role="menuitem" aria-label="Master Blueprint canonical architecture graph"><span class="ic" aria-hidden="true">🏛</span> Master Blueprint</a>
         <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">—</span></a>
         <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability &amp; Eval</a>
         <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
@@ -4067,15 +4072,26 @@ async function adminAuthBoot(){
   }
   if(!t){ showLoggedOut(); return; }
   showLoggedIn("");
+  // Deploy recreate briefly returns 401/5xx while the new container is coming
+  // up. Wiping localStorage on the FIRST 401 was the root cause of
+  // "deploy ke baad admin logout" — JWT secret is stable across recreate
+  // (proved 2026-08-07); the token was fine, the boot race wiped it.
+  async function fetchMe(){
+    return fetch("/api/admin/me", {headers: abAuthHdr(), cache: "no-store"});
+  }
   try{
-    const r = await fetch("/api/admin/me", {headers: abAuthHdr(), cache: "no-store"});
+    let r = await fetchMe();
+    if(r.status === 401){
+      await new Promise(function(res){ setTimeout(res, 1500); });
+      r = await fetchMe();
+    }
     if(r.status === 401){
       localStorage.removeItem("accessToken");
       localStorage.removeItem("adminToken");
       showLoggedOut();
       return;
     }
-    if(!r.ok) return;
+    if(!r.ok) return; // 5xx/network-adjacent: keep token, UI stays tentatively logged-in
     const u = await r.json();
     const name = (u.full_name || u.first_name || u.email || "Admin").trim();
     const initial = (name[0] || "A").toUpperCase();
@@ -4086,7 +4102,7 @@ async function adminAuthBoot(){
     if(sbName) sbName.textContent = name;
     if(sbRole) sbRole.textContent = (u.role || "admin").replace(/_/g, " ");
     if(sbAv) sbAv.textContent = initial;
-  }catch(e){ /* fail-open — logout button still works */ }
+  }catch(e){ /* fail-open — logout button still works; token kept */ }
 }
 
 async function adminLogout(){
@@ -4786,6 +4802,7 @@ function renderGodMode(sys, camp){
       <a href="#sec-recordings" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#6366f1">🎙 Recordings</a>
       <a href="/app/automation" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#334155" target="_blank">🎛 Automation</a>
       <a href="/app/explorer" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#1e293b" target="_blank">🗺 Explorer</a>
+      <a href="/app/explorer?view=master" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#1e293b" target="_blank">🏛 Master Blueprint</a>
       <a href="/app/team" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#1e293b" target="_blank">👥 Staff Team</a>
     </div>
   </div>`;

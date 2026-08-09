@@ -14,6 +14,41 @@ logger = setup_logger(__name__)
 _IST = timezone(timedelta(hours=5, minutes=30))
 _TICK_S = 60
 
+# Soft-limit headroom for the Celery staff-job that runs ``prospect`` (~540s soft).
+# Keep this in sync with the 480s wall used below when computing post-prospect remain.
+_PROSPECT_SOFT_BUDGET_S = 480.0
+
+
+def post_prospect_harvest_timeout(remain_s: float) -> float | None:
+    """Seconds to give the inline post-prospect harvest, or None to skip.
+
+    WS3 (2026-08-07): after D1 raised Places query fan-out, the nested harvest
+    still died under a hard ``min(remain-20, 120)`` outer wait_for while
+    ``run_harvest_loop_safe`` independently defaulted ``HARVEST_LOOP_TIMEOUT_S``
+    to 120 — websearch/opendata (the bulk of 08-05 lead yield) never finished.
+    Midday/evening harvest jobs still run; this only fixes the morning nest.
+
+    Env:
+      PROSPECT_INLINE_HARVEST — default ON; set 0 to skip (midday covers).
+      PROSPECT_POST_HARVEST_BUDGET_S — default 240, clamped 30..300.
+    """
+    if os.environ.get("PROSPECT_INLINE_HARVEST", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        return None
+    if remain_s < 45.0:
+        return None
+    try:
+        budget = float(os.environ.get("PROSPECT_POST_HARVEST_BUDGET_S", "240") or "240")
+    except Exception:
+        budget = 240.0
+    budget = max(30.0, min(budget, 300.0))
+    return min(max(0.0, remain_s - 30.0), budget)
+
+
 # Active wall-clock budget for mega-jobs that fan out via `_run_content_engine`.
 _active_job_budget: ContextVar[Any] = ContextVar("active_job_budget", default=None)
 
@@ -171,6 +206,7 @@ _last_ran: dict[str, str | None] = {
     "afternoon_content": None,  # daily 15:00: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
+    "daily_video": None,  # daily 09:45 IST: per-client video producer, enqueue-only (gated DAILY_VIDEO_ENABLED)
     "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
     "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
     "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
@@ -439,6 +475,24 @@ async def _run_content_engine(name: str, coro, budget=None) -> bool:
                 coro.close()
             except Exception:
                 pass
+            # Until 2026-08-09 this returned False with NO exception and NO line
+            # naming the engine — so an engine could stop running for weeks and
+            # nothing anywhere said so. Prod proof: `content` blew its 420s budget
+            # on 15 consecutive daily runs (2026-07-18 → 2026-08-01, 452–530s),
+            # silently dropping every engine queued behind the overrun.
+            try:
+                from app.platform import automation_health
+
+                snap = b.snapshot() if hasattr(b, "snapshot") else {}
+                automation_health.record_engine_skip(
+                    str(getattr(b, "label", "") or "job"),
+                    name,
+                    "budget_exhausted",
+                    elapsed_s=snap.get("elapsed_s"),
+                    limit_s=snap.get("limit_s"),
+                )
+            except Exception as e:
+                logger.warning("[team-scheduler] engine-skip record failed for '%s': %s", name, e)
             return False
         await coro
         return True
@@ -961,36 +1015,51 @@ async def _run_job_inner(job: str) -> bool:
             # Multi-source harvest sweep (websearch/opendata/enrich) — gated
             # LEAD_HARVESTER=1. MUST stay inside Celery soft-limit (~540s).
             # 2026-07-20: unbounded GTM×niche_prospector after niche scrape → SoftTimeLimit.
+            # 2026-08-07 D2: hard outer 120s + inner HARVEST_LOOP_TIMEOUT_S=120 starved
+            # opendata/websearch after Places; align one budget (default 240) under remain.
             try:
                 _elapsed = _time_prospect.monotonic() - _prospect_t0
-                _remain = max(0.0, 480.0 - _elapsed)
-                if _remain < 45.0:
+                _remain = max(0.0, _PROSPECT_SOFT_BUDGET_S - _elapsed)
+                _harvest_timeout = post_prospect_harvest_timeout(_remain)
+                if _harvest_timeout is None:
                     logger.warning(
-                        f"[team-scheduler] skip harvest after prospect — "
-                        f"only {_remain:.0f}s left under SoftTimeLimit margin"
+                        "[team-scheduler] skip harvest after prospect — "
+                        f"remain={_remain:.0f}s inline="
+                        f"{os.environ.get('PROSPECT_INLINE_HARVEST', '1')!r}"
                     )
                 else:
                     from scripts import harvest_safety_wrapper
 
                     # Avoid nested niche_prospector inside harvest (already scraped above).
                     _prev_skip = os.environ.get("SKIP_HARVEST_PROSPECTOR_SRC")
+                    _prev_hlt = os.environ.get("HARVEST_LOOP_TIMEOUT_S")
                     os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = "1"
+                    # Drive the wrapper's own wait_for — do not double-cap below it.
+                    os.environ["HARVEST_LOOP_TIMEOUT_S"] = str(int(_harvest_timeout))
                     try:
-                        await asyncio.wait_for(
-                            harvest_safety_wrapper.run_harvest_loop_safe(),
-                            timeout=min(_remain - 20.0, 120.0),
+                        _h = await harvest_safety_wrapper.run_harvest_loop_safe()
+                        _hr = _h if isinstance(_h, dict) else {}
+                        logger.info(
+                            "[team-scheduler] post-prospect harvest "
+                            f"timeout={_harvest_timeout:.0f}s "
+                            f"truncated={bool(_hr.get('truncated'))} "
+                            f"leads_total={_hr.get('leads_total', _hr.get('new_leads', '?'))} "
+                            f"error={str(_hr.get('error') or '')[:80]!r}"
                         )
                     finally:
                         if _prev_skip is None:
                             os.environ.pop("SKIP_HARVEST_PROSPECTOR_SRC", None)
                         else:
                             os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = _prev_skip
-            except asyncio.TimeoutError:
-                logger.warning(
-                    "[team-scheduler] harvest truncated after prospect (SoftTimeLimit margin)"
-                )
+                        if _prev_hlt is None:
+                            os.environ.pop("HARVEST_LOOP_TIMEOUT_S", None)
+                        else:
+                            os.environ["HARVEST_LOOP_TIMEOUT_S"] = _prev_hlt
             except Exception:
-                pass
+                logger.warning(
+                    "[team-scheduler] harvest after prospect failed",
+                    exc_info=True,
+                )
         elif job == "email_outreach":
             from app.platform import auto_outreach
 
@@ -1282,6 +1351,22 @@ async def _run_job_inner(job: str) -> bool:
             # ledger writes only, never sends WhatsApp/email. Ungated
             # safety-net (same convention as watchdog/onboard).
             await product_one_delivery.run_health_and_recovery_sweep()
+            # Monthly billing-cycle deliverable seed (2026-08-07). Rides this
+            # existing per-client sweep instead of adding a job: the work is
+            # idempotent, cheap, and belongs to the same Product-1 delivery
+            # surface. INERT unless DELIVERABLE_CYCLE_SEED=1.
+            #
+            # WHY: initialize_deliverables_for_client is called ONLY from
+            # billing/usage.py on plan activation, so nothing ever creates the
+            # NEXT month's rows. Prod held 20 rows, all 2026-07, newest created
+            # 2026-07-18 — the paying customer was 30+ days into a paid month
+            # with no current-cycle ledger for sync_customer_deliverable_status
+            # to attach to. DB rows only; no content generation, no sends.
+            if product_one_delivery.cycle_seed_enabled():
+                _seed = await asyncio.to_thread(
+                    product_one_delivery.seed_current_cycle_deliverables, None, 200, False
+                )
+                logger.info(f"[team-scheduler] deliverable_cycle_seed: {_seed}")
         elif job == "approval_email_sweep":
             from app.platform import approval_notifier
 
@@ -1317,6 +1402,15 @@ async def _run_job_inner(job: str) -> bool:
             # returns {enabled:False} immediately). Dry-run default; calling
             # HARD OFF; Estique/manual_owner_confirmed fail-closed in eligibility.
             await _sales_ap.run_tick()
+        elif job == "daily_video":
+            # DAILY per-client video producer. Its own job on purpose: inside the
+            # `content` chain it sat behind auto_content under CONTENT_TIME_BUDGET_S
+            # and got silently budget-skipped (prod: 15-day generation gap on a
+            # 5-day interval). LIGHT — enqueues to the video queue, never renders.
+            # Gated DAILY_VIDEO_ENABLED + fail-closed DAILY_VIDEO_CLIENTS allowlist.
+            from app.marketing import daily_video
+
+            await daily_video.run_daily()
         elif job == "social_drain":
             from app.social_engine import engine as _social_engine
 

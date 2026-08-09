@@ -2,7 +2,27 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
-## ADR-166 (2026-08-06) — Voice latency defaults: clause-flush ON + faster processing-ack [LOCAL-ONLY, NOT deployed]
+## ADR-168 (2026-08-06) — Swara paid/free FAQ priority + OmniRoute voice OFF until gateway healthy
+
+**Decision:** (1) `_customer_qa_reply` treats paid/free / पेड/फ्री intent as **price** before feature/service pitch keywords. (2) Prod env: `OMNIROUTE_VOICE=0`, `USE_THINKING_FILLER=1`, `VOICE_PROCESSING_ACK_DELAY_S=0.8` (backup `.env.bak-swara-setup-20260806134035`); app recreate at `56aef0fb`.
+
+**Context:** Live call `4b15d7e1` (2026-08-06): customer asked paid-vs-free twice; STT OK (Groq×8) but FAQ routed to product pitch because `service`/`feature`/`प्रोवाइड` matched first. Same call: OmniRoute gateway `RemoteDisconnected`, llm_first p50≈7s / spikes 22s, barge cancel death-spiral, customer "sun pa rahe ho" / "ratta" then hangup.
+
+**Alternatives rejected:** (1) Keep OmniRoute on with breaker — first 2 fails still burn ~1.2s+/candidate before open. (2) Prompt-only fix — deterministic fast-path never reached LLM. (3) Blame STT — all turns groq-ok.
+
+**Consequence:** Env latency bridge LIVE now. FAQ code fix **LOCAL until owner deploy**. Re-enable `OMNIROUTE_VOICE` only after app-network `/v1/models` healthy.
+
+## ADR-167 (2026-08-06) — USE_SILERO_VAD forced back to 0 (documented safe) after deaf-call incident [DEPLOYED prod 56aef0fb env-only]
+
+**Decision:** `.env` `USE_SILERO_VAD=1 -> 0`; app recreated (`APP_VERSION=56aef0fb`). No code change. Keeps §7 landmine invariant: silero's ~64ms rolling window deafens real speech; RMS fallback (`rms >= _vad_rms`) is the trusted gate.
+
+**Context:** Post-deploy 56aef0fb, a real call was deaf (user_turns=0, stt all 0, `had_speech=False`) despite `caller_rms_max=5334` (threshold 300). Replay of 3 real 08-06 recordings through SileroSpeechGate: 0% speech windows on all; RMS path detects 4-19%. `USE_SILERO_VAD=1` was pre-existing (all `.env` backups) — not introduced by the deploy — but becomes active whenever silero loads, and both b5fc2dea and 56aef0fb images load it.
+
+**Alternatives rejected:** (1) Raise `SILERO_VAD_THRESHOLD` — doesn't fix a gate that returns False on real speech windows. (2) Widen silero window in code — voice surface is FROZEN, env fix is the documented remedy. (3) Leave =1 — deaf calls recur.
+
+**Consequence:** Voice hearing restored via RMS. Rollback = set `USE_SILERO_VAD=1` + recreate app. Follow-up: add a recorded-audio replay regression check (voice_call_analysis.py pattern) so any future voice env/code change is verified against known-good call recordings before trusting.
+
+## ADR-166 (2026-08-06) — Voice latency defaults: clause-flush ON + faster processing-ack [DEPLOYED prod 56aef0fb]
 
 **Decision:** `STREAM_TTS_CLAUSE_FLUSH` is DEFAULT ON (first chunk may flush at a clause boundary once `STREAM_TTS_CLAUSE_MIN` chars, now 45 default) and `VOICE_PROCESSING_ACK_DELAY_S` default drops 2.0s → 1.2s. Both env-tunable; OFF restores legacy.
 
@@ -10,7 +30,9 @@ Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Cons
 
 **Alternatives rejected:** (1) Keep clause-flush OFF — p95 3s first-audio stays, dead-air complaints persist. (2) Instant ack (<0.5s) — ack becomes mid-speech interruptor on fast LLM turns. (3) Prompt rewrite for "enterprise" — prompt already 19-rule enterprise-grade; the scripted feel is the by-design self-pitch fast-path (LLM latency fallback), not prompt quality.
 
-**Consequence:** Local code + tests only; prod UNCHANGED (33651cfc). Deploy needs re-test on real openers. No compliance gate touched; no secrets. Rollback = set both envs back (no code revert needed).
+**Consequence:** **Deployed 2026-08-06 prod `56aef0fb`** (PR #264 merge, deploy_vps.sh, 5/5 app-image services zero skew). Envs `STREAM_TTS_CLAUSE_FLUSH`/`VOICE_PROCESSING_ACK_DELAY_S` UNSET in containers → new code defaults active (clause-flush ON, ack 1.2s). No compliance gate touched; no secrets. Rollback = set both envs back (no code revert needed).
+
+**Follow-up (same ADR, deploy session 2026-08-06):** One manual `docker compose up -d app` (restore step) WITHOUT `APP_VERSION` pulled stale `:latest` and put app on unknown-provenance image — caught via `/health` version mismatch (`266d772...` ≠ sha), fixed by `APP_VERSION=56aef0fb docker compose up -d app`; then recreated worker/scheduler/heavy/video with same explicit version because deploy-time `VOICE_LAUNCH_KILL=1` still held in their env. Lesson re-confirms §7 `:latest` landmine + workers also need kill-restore recreation, not just app.
 
 **Follow-up (same ADR, 2026-08-06):** `scripts/agent_tester.py` became the voice-engine tester: `--record` persists driven test-call transcripts into `data/call_transcripts/YYYY-MM-DD.jsonl` (vobiz schema) + audio into `data/call_recordings/YYYY-MM-DD/webcall_test_*.mp3` — the SAME store `voice_call_analysis.py`/`live_eval`/`campaign_optimizer` read, so synthetic test calls feed the improvement loop like real calls; `--baseline` prints before/after latency+quality diff.
 
@@ -2520,3 +2542,52 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 **Rejected:** Registering kavya/arjun/meera as GREEN (side-effectful — dishonest classification); adding any paid/new LLM provider (free stack stays).
 
 **Consequence:** Local verified — manifest determinism (39) + coordinator registry (54) + coordinator helpers (4) + guardrails (5) + observability (6) + budget/plan-node (9) green; ruff 0; secrets OK; prod_check ALL PASSED (1266 routes, 0 gaps); app import OK (202 routes). Prod unchanged — deploy pending owner. Manifest GOLDEN_HASH moved `bf2b6a08`→`b4009738` (intentional registry addition).
+
+## ADR-169 (2026-08-07) — Reply auto-send is an OWNER-ARMED production path, not HARD-OFF [DOCS-ONLY; prod unchanged]
+
+**Context:** An authenticated live probe of `/api/growth/infra/flags` found `REPLY_AUTO_SEND=1` **and** `REPLY_AUTO_SEND_HARD_OFF=0` in production. Both are inverted from their manifest defaults (`"0"` and `"1"` respectively), and both are classified `FlagGovernance.SAFETY_INVARIANT`, `risk="outbound"`, `customer=True`. Four in-code sources said keep-OFF: `automation_flag_manifest.py:125-145`, `mission_control._PROTECTED_OFF`, `automation_flags.py:242`, and readiness-matrix row 22. Precedence in `reply_agent.py:1757` is `HARD_OFF` → `REPLY_AUTO_SEND` → Redis `reply_auto_send`, so with the kill switch off and the master on the function returns `True`: **auto-replies to prospects were, and are, genuinely sending.**
+
+**Decision:** The owner, told the exposure explicitly, chose to keep the reply auto agent running. Reply auto-send is therefore reclassified from **HARD-OFF** to **OWNER-ARMED production path** — the same category as platform dial and sales-autopilot email — effective 2026-08-07. Readiness-matrix row 22 and the "must stay policy-gated" list are updated to match. **No production flag was changed; no containment was executed.** Agents must not "fix" this by disabling it.
+
+**What deliberately did NOT change:** `automation_flag_manifest.py` keeps `REPLY_AUTO_SEND default="0"`, `REPLY_AUTO_SEND_HARD_OFF default="1"`, and the `SAFETY_INVARIANT` governance class on both. A fresh deploy must still come up fail-closed; only this environment carries the owner's override. Weakening the code-level classification to match one environment would have been a §5 violation, and was refused.
+
+**Trap recorded (this is the load-bearing part):** the obvious containment — setting env `REPLY_AUTO_SEND=0` — **does not disable auto-send.** Control falls through to the Redis runtime flag `reply_auto_send`, whose value is currently UNVERIFIED (needs prod shell). CLAUDE.md's hot facts already record this ("env sirf short-circuit; Redis jeetta hai"). **The only reliable revert lever is `REPLY_AUTO_SEND_HARD_OFF=1`**, which short-circuits before both env and Redis. Anyone reverting this decision must use that lever and prove `_reply_auto_send_enabled()` is `False` in-container.
+
+**Accepted risk, stated plainly:** deliverability/inbox placement remains UNPROVEN, and auto-sends are **not yet attributed** in `interactions` — an armed outbound path that cannot currently be observed. Remaining protections are known-prospect-only scoping, the suppression/injection scan (observed holding on a PayU inbound on 2026-08-07), a Redis idempotency claim, and a daily cap.
+
+**⚠️ ADDENDUM (2026-08-07, ~90 min after the above, post-deploy `7ab5fe55`) — PROD NOW CONTRADICTS THIS ADR.** A re-probe of the same authenticated endpoint shows `REPLY_AUTO_SEND_HARD_OFF` = **ON** (it was **off** in the probe this ADR was written from), and `on_count` moved **247 → 248** — a delta of exactly one flag. By the `reply_agent.py:1757` precedence, `HARD_OFF` short-circuits first, so `_reply_auto_send_enabled()` now returns **False**: **auto-send is currently DISABLED**, which is the opposite of the owner's decision recorded above.
+
+**Cause NOT established — do not guess.** The deploy `a08dd5e9 → 7ab5fe55` falls inside the observation window, but a deploy does not spontaneously invert an env value; a `.env` edit, a recreate picking up a previously-unloaded value, or a separate agent executing the containment that was explicitly cancelled are all live candidates. Two probes and a container recreate in between is not enough to attribute. Whoever reconciles this must first find out **who or what wrote it**, then decide — do not simply flip it back and move on.
+
+**Reconciliation required (one of two, not both, not neither):** either set `REPLY_AUTO_SEND_HARD_OFF=0` so production matches this ADR and the owner's instruction, or amend this ADR to record that containment was restored and why. The current state — an ADR saying "owner-armed, keep it running" next to a production kill switch that is engaged — is exactly the contradiction this ADR was written to eliminate.
+
+**Consequence / follow-through:** WI-CP2 (`fix/reply-auto-send-interaction-log`, 26 tests green) is promoted to **P0** — arming an outbound channel that produces no attributed ledger rows is the real defect now, and it ships before any further reply-agent work. `SELF_IMPROVE_LOOP` (manifest default `0`, prod ON, approval-gated) and `CONTENT_APPROVAL_AUTO` (matrix `0`, prod ON, auto-**submit** to the approval queue — not auto-approve) remain open drifts, lower exposure, unresolved.
+
+## ADR-170 (2026-08-07) — SUPERSEDES ADR-169: restore REPLY_AUTO_SEND_HARD_OFF=1 (containment PRODUCTION-PROVEN)
+
+**Context:** ADR-169 recorded a premature "owner-armed" docs reclassification while prod still had HARD_OFF=0. Owner then authorized Cursor to decide and execute as admin (no ask loop). Admin verdict = Option A: restore the kill switch to its declared SAFETY_INVARIANT default (`"1"`), not Option B docs-as-armed.
+
+**Decision:** Set prod `REPLY_AUTO_SEND_HARD_OFF=1`. Leave `REPLY_AUTO_SEND` unchanged (still ON in env — irrelevant under HARD_OFF). `REPLY_AGENT` stays ON (draft/triage). ADR-169 OWNER-ARMED label is **withdrawn**; matrix row 22 returns to HARD-OFF / kill restored.
+
+**Evidence (PRODUCTION-PROVEN, 2026-08-07):**
+- Backup: `/opt/leadgen/.env.bak-reply-hardoff-20260807_150617`
+- Recreate app+worker pinned `APP_VERSION=a08dd5e9`
+- In-container: `HARD_OFF=1`, `MASTER=1`, `_reply_auto_send_enabled()` → `False`
+- `/health` healthy `a08dd5e9` after recreate
+
+**Trap (still load-bearing):** env `REPLY_AUTO_SEND=0` alone does NOT contain — falls through to Redis `reply_auto_send`. Only HARD_OFF wins.
+
+**Consequence:** Manifest SAFETY_INVARIANT defaults unchanged. WI-CP2 still useful if/when auto-send is re-armed later with observability. SELF_IMPROVE_LOOP / CONTENT_APPROVAL_AUTO drifts remain open, lower priority.
+
+## ADR-171 (2026-08-07) — SUPERSEDES ADR-170: owner reaffirms reply auto-send ARMED
+
+**Context:** After ADR-170 briefly set prod `REPLY_AUTO_SEND_HARD_OFF=1` (admin Option A under "decide yourself"), the owner clarified intent: **reply auto-send stays ARMED** ("reply auto agent start" / chalu rakho). ADR-169's OWNER-ARMED classification is restored as the standing policy. ADR-170 remains historical record of the short containment window, not current posture.
+
+**Decision:** Prod `REPLY_AUTO_SEND_HARD_OFF=0` again. `REPLY_AUTO_SEND` left ON. `REPLY_AGENT` stays ON. Manifest SAFETY_INVARIANT defaults (`0` / `1`) unchanged — fresh deploy still fail-closed; this environment carries the owner override.
+
+**Evidence (PRODUCTION-PROVEN, 2026-08-07):**
+- Backup: `/opt/leadgen/.env.bak-reply-rearm-20260807_152441`
+- Recreate app+worker pinned `APP_VERSION=7ab5fe55`
+- In-container: `HARD_OFF=0`, `MASTER=1`, `_reply_auto_send_enabled()` → `True`
+
+**Consequence:** WI-CP2 interaction-log is **P0** while armed (outbound without attributed `interactions` rows). Kill lever stays `REPLY_AUTO_SEND_HARD_OFF=1`. Do not "fix" by disabling without owner instruction. PR #276 Master Blueprint already LIVE at `7ab5fe55` (acceptance MB≥1).

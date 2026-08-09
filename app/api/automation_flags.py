@@ -96,6 +96,15 @@ AUTOMATION_FLAGS = [
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
+    "VIDEO_AD_INTERVAL_DAYS",  # video_ad_cycle cadence in days (default 5) — set 1 for daily
+    "DAILY_VIDEO_ENABLED",  # daily per-client video producer, own beat job, enqueue-only (default OFF)
+    "DAILY_VIDEO_CLIENTS",  # comma tenant allowlist; EMPTY = no client (fail-closed), '*' = all eligible
+    "DAILY_VIDEO_ENGINE",  # auto|advanced|classic (default auto: advanced when gated+healthy, else classic)
+    "DAILY_VIDEO_MAX_PENDING",  # per-client open-review backpressure cap (default 2)
+    "DAILY_VIDEO_MAX_PER_RUN",  # per-run enqueue cap (default 10)
+    "DAILY_VIDEO_ADVANCED_FAIL_WINDOW",  # consecutive advanced failures before auto-downgrade (default 2)
+    "DAILY_VIDEO_ADVANCED_BLOCK_DAYS",  # how long a permanent brief refusal parks a tenant on classic (default 7)
+    "DAILY_VIDEO_RECIPE",  # Creative OS recipe for the advanced path (default offer_announcement)
     "VIDEO_PRODUCTION_ENABLED",  # OpenClaw Video Production Cell master (default OFF)
     "VIDEO_DAILY_SCHEDULER_ENABLED",  # daily video planning job (aliases VIDEO_AD_CYCLE when on)
     "VIDEO_CUSTOMER_REVIEW_ENABLED",  # customer dashboard + WA feedback ingest
@@ -106,6 +115,14 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
     "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
+    # HyperFrames = the "advanced" animated deliverable. It was MISSING from this
+    # registry, so /api/growth/infra/flags reported Creative OS healthy while the
+    # only enterprise-grade provider sat unset and every advanced render fell
+    # through (hyperframes is in providers.NO_SILENT_FALLBACK — no quiet downgrade).
+    "CREATIVE_PROVIDER_HYPERFRAMES_ENABLED",  # HyperFrames render provider (default OFF)
+    "CREATIVE_HYPERFRAMES_CANARY_TENANTS",  # comma tenant allowlist; EMPTY = no tenant (fail-closed)
+    "CREATIVE_HYPERFRAMES_DEFAULT_TEMPLATE",  # template id (default beauty_luxury_offer_v1)
+    "CELERY_VIDEO_QUEUE",  # route video render tasks to the dedicated 'video' queue/worker (default OFF)
     "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
     "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
     "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)
@@ -242,6 +259,7 @@ AUTOMATION_FLAGS = [
     "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
     "REPLY_AUTO_SEND",  # guarded known-prospect email auto-reply; default OFF
     "REPLY_AUTO_SEND_HARD_OFF",  # emergency precedence override; 1 always blocks sends
+    "REPLY_AGENT_INTERACTION_LOG",  # auto-reply OUT → interaction_log; default ON (opt-out=0); mirrors ROUTINE_TASK_LEDGER
     "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
     "AGENT_RUNTIME",  # Agent-OS Phase-B shared runtime master gate — OFF default (pilots kavya/isha/zara only; RED lane hamesha blocked)
     "AGENT_MATURITY_CONTEXT",  # ADR-164: bounded role/agent-KB context; OFF default, profiles remain read-only visible
@@ -450,6 +468,20 @@ AUTOMATION_FLAGS = [
     # (these wrap platform_dial/email_outreach — a re-run would place real calls).
     # OFF default.
     "AGENT_TASK_ORPHAN_REAP",
+    # Monthly billing-cycle deliverable seed, riding the product_one_health sweep.
+    # OFF default. initialize_deliverables_for_client fires ONLY on plan activation
+    # (billing/usage.py), so nothing creates the NEXT month's rows: prod held 20 rows,
+    # all cycle 2026-07, newest created 2026-07-18, while the paying customer was 30+
+    # days into a paid month. Selector is the SUBSCRIPTION (non-terminal) not
+    # clients.status, so quarantined fixtures are excluded by construction. Seeds under
+    # the BILLING id (FK to clients.id). Idempotent; DB rows only — no content, no sends.
+    "DELIVERABLE_CYCLE_SEED",
+    # Post-prospect nested harvest (websearch/opendata). Default ON. Set 0 to skip
+    # the morning nest and rely on midday/evening_prospect (D2 SoftTimeLimit, 2026-08-07).
+    "PROSPECT_INLINE_HARVEST",
+    # Wall-clock budget seconds for that nest (default 240, clamp 30..300). Replaces the
+    # old hard min(remain, 120) that starved harvest after D1 raised Places fan-out.
+    "PROSPECT_POST_HARVEST_BUDGET_S",
     # Scheduler routine-ledger switch. DEFAULT ON — this is the only flag in this
     # block that is not INERT by default, because it preserves existing behaviour.
     # The bridge writes one agent_tasks row per job invocation (~700/day) and nothing

@@ -598,6 +598,7 @@ class VobizStreamSession:
         client_name: str = "Demo Co",
         voice: str = "hi-IN-SwaraNeural",
         lead_phone: str | None = None,
+        crm_lead_id: str | None = None,
     ) -> None:
         self.ws = websocket
         self.niche = (niche or "general").strip() or "general"
@@ -612,6 +613,14 @@ class VobizStreamSession:
         # this None on every outbound call and close-signal actions silently
         # no-op'd. customParameters (if ever present) still win in _on_event.
         self._lead_phone: str | None = (lead_phone or "").strip() or None
+        # CRM `leads.id` of the dialed prospect (2026-08-06). Threaded on the same
+        # rail as _lead_phone because the CallLog is written at teardown, where the
+        # dialer's `p.id` is out of scope — every campaign row landed lead_id=NULL,
+        # which left niche_database.update_after_call() (the only DND /
+        # NOT_INTERESTED / QUALIFIED / CALLBACK transition) permanently unreachable.
+        # Deliberately NOT named `lead_id`: the customParameters loop in _on_event
+        # treats a `lead_id` key as a PHONE alias and would clobber _lead_phone.
+        self._crm_lead_id: str | None = (crm_lead_id or "").strip() or None
         self.voice = voice
 
         self.stream_sid: str | None = None
@@ -3322,6 +3331,7 @@ class VobizStreamSession:
                 started_at=self._started_at,
                 ended_at=ended,
                 q=self._call_log_qual(stream_outcome),
+                lead_id=getattr(self, "_crm_lead_id", "") or "",
             )
         except Exception as e:
             logger.debug(f"[vobiz-stream] persist_call_log skip: {e}")
