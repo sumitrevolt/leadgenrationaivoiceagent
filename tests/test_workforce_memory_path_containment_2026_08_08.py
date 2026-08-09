@@ -126,7 +126,7 @@ def test_entries_path_never_escapes_root(wfm_env):
 
 def test_append_entry_adversarial_no_escape(wfm_env):
     wm = wfm_env
-    before = {f: True for f in _listdir_under_root(wm._root())}
+    before = dict.fromkeys(_listdir_under_root(wm._root()))
     for payload in TRAVERSALS:
         assert (
             wm._append_entry(payload, _entry(payload)) is False
