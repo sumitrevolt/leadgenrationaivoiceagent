@@ -4,7 +4,7 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-04 — direct `/health` probe = `e06687c7`. See `docs/context/SESSION_HANDOFF.md`.
+2026-08-09 — direct `/health` probe = `d1b106b2` (see the `DEPLOYED 2026-08-09` section immediately below, which is the current truth). See `docs/context/SESSION_HANDOFF.md`.
 
 ## DEPLOYED 2026-08-09 — `d1b106b2` (PR #294 merged + shipped)
 Prod `/health` = `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
@@ -40,11 +40,28 @@ Label: CODE-PRESENT | TEST-PROVEN (122 targeted tests + `prod_check` PASS) | LOC
 ## Sprint goal (LOCKED)
 **GTM 0→1** — pehle paid customers on Marketing product; mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint); 2nd paying customer target.
 
-## Production SHA
-`33651cfc` — merge of PR #236 (interested-reply offer footer: canonical UPI resolver + NPCI deep-link, no amount prefill). Deployed 2026-08-04 via `scripts/deploy_vps.sh` under the `VOICE_LAUNCH_KILL=1` fence; `/health` = `{"version":"33651cfc","environment":"production","status":"healthy"}`.
-5/5 app-image services equal (`app`/`worker`/`scheduler`/`worker-heavy`/`worker-video`), all healthy; celery + `dlq:failed_tasks` + `dlq:dead` = 0; `.env` restored byte-identical to pre-deploy backup (md5 `1bb0dac0f6d522d130f9843cfa8e2625`, backup `.env.bak-upifooter-20260804`); `VOICE_LAUNCH_KILL=0` restored in all 5 containers.
-Rollback reference: `e06687c7` (prior) / `33651cfc` current.
-Label: DIRECT_HOST_VERIFIED (2026-08-04) + GIT_VERIFIED.
+## Production SHA — SUPERSEDED (historical, 2026-08-06)
+> Current prod SHA lives in the `DEPLOYED 2026-08-09 — d1b106b2` section above. Everything in this
+> section is the 2026-08-06 reading, kept only because the probe-discipline note below was learned
+> here. Do **not** quote `b5fc2dea` as current.
+
+`b5fc2dea` — was exact parity with `origin/main` as fetched on 2026-08-06.
+`/health` = `{"status":"healthy","version":"b5fc2dea","environment":"production"}` (direct HTTPS, 2026-08-06 10:56 UTC, uptime 2h 35m).
+
+**Prod and `origin/main` were in exact SHA parity ON 2026-08-06.** The `31169c78..b5fc2dea` delta was deployed by another authorized operator/session; this checkout did not perform that deployment.
+
+**It was NOT deployed "since" the earlier report — it was already live when that report was written.** Uptime arithmetic: at 11:03:02 UTC uptime was `2h 42m 38s`, so the `b5fc2dea` container started ≈ **08:20 UTC**. The session that claimed "prod is 10 commits behind" did its work from ≈10:10 UTC — about **1.8 hours after** `b5fc2dea` was already serving. That claim was **false when asserted**, not overtaken by events. Root cause in the note below.
+Previous deployed rollback reference: `31169c78` (confirm the canonical deploy rollback state on-host before using it).
+Label: DIRECT_HOST_VERIFIED (2026-08-06) + GIT_VERIFIED (2026-08-06).
+
+> **Correction chain:** this file has recorded prod as `33651cfc` → `31169c78` → `b5fc2dea` (2026-08-06) → `3cd95ba2` → `d1b106b2` (2026-08-09, current). Every one of those was "fresh truth" when written. Re-probe `/health` before quoting any SHA.
+
+> 🚨 **HOW TO PROBE `/health` — the 2026-08-06 cached-probe trap.**
+> An agent probed `/health` once via a fetch tool, got `31169c78`, and propagated "prod is 10 commits behind" into three context docs. The payload was **~6.5 hours stale**: it carried `timestamp` `03:37:42Z` and `uptime 1h 6m 28s` (a container started 02:31Z) while the wall clock was ≈10:10Z and the real container had been up since 08:20Z. A later identical fetch returned the **byte-identical** body — same timestamp, same uptime — which is the tell.
+> **The origin is ruled out.** It correctly serves `cache-control: no-store, no-cache, must-revalidate, max-age=0` (header-verified 2026-08-06), and `curl` against the same origin returned live, advancing values. The stale copy therefore entered somewhere in the **fetch path** used by that probe. **Which component cached was never instrumented**, so no specific implementation is named here — asserting one would repeat the same unevidenced-cause mistake this note exists to prevent.
+> **Rule:** probe with `curl` and a unique cache-buster —
+> `curl -sS -H 'Cache-Control: no-cache' "https://leadsgenai.in/health?cb=$(date +%s)"`
+> — and **sanity-check `timestamp`/`uptime` against the wall clock before believing `version`**. Two probes returning an identical `timestamp` means you are reading a cache, not production. One probe is never evidence.
 
 ## ⚠️ UPI auto-activate — documentation drift found 2026-08-04
 Docs (this file, CLAUDE.md, AGENTS.md) recorded `UPI_AUTO_ACTIVATE=0` as the 2026-07-18 containment state. **Prod `.env` actually has `UPI_AUTO_ACTIVATE=1`.**
@@ -52,14 +69,15 @@ Containment is still effective — the master flag alone is never enough (`upi_p
 Not changed by this session — flipping it is an owner money decision. Recorded so the next agent does not quote `=0` from docs.
 Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe)
 
-## Origin/main
-`33651cf` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks.
-Open PRs: **#238** (this docs-only truth refresh). Open issues: **#237** (`tests` workflow red on main — pydantic-core drift).
-Label: GIT_VERIFIED (2026-08-04)
+## Origin/main — SUPERSEDED (historical, 2026-08-06)
+`b5fc2dea` — was exact parity with production (`git fetch origin`, `git rev-parse origin/main`, and direct HTTPS `/health`, 2026-08-06). `origin/main` has since advanced well past this; re-derive it, do not quote this line.
+Open issues: **#237** (`tests` workflow red on main — pydantic-core drift; `07bafd40` added a non-failing diagnostic, root cause still open).
+Label: GIT_VERIFIED (2026-08-06, STALE)
 
-## Production health
-`status: healthy`, `environment: production` at `e06687c7` (2026-08-04, direct HTTPS).
-Label: DIRECT_HOST_VERIFIED (2026-08-04)
+## Production health — SUPERSEDED (historical, 2026-08-06)
+`status: healthy`, `environment: production` at `b5fc2dea` (2026-08-06 10:56 UTC, direct HTTPS).
+Public funnel smoke **re-run on deployed `b5fc2dea`** (2026-08-06 11:04 UTC, cache-busted `curl`): `/` `/pricing` `/start` `/audit` `/site-audit` `/demo` `/privacy` `/health/ready` — all **200**, with `/health` re-confirming `b5fc2dea` immediately after the sweep. (An earlier identical 8/8 sweep was recorded against `31169c78`; that reading is now superseded, see the cached-probe note above.)
+Label: DIRECT_HOST_VERIFIED (2026-08-06)
 
 ## Sales Autopilot (live, REAL email — owner 2026-08-03 refill arm)
 - `SALES_AUTOPILOT_ENABLED=1` · `DRY_RUN=0` · `EMAIL_ENABLED=1` · `WHATSAPP_ENABLED=0` · `REFILL=1` · `REFILL_CAP=25` · `REFILL_MIN_SCORE=0`.

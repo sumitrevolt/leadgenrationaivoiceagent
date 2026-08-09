@@ -5,13 +5,19 @@
 # SAFETY:
 #  - `docker rmi` WITHOUT -f: docker itself refuses to delete an image that any
 #    container references, so an in-use image cannot be removed by accident.
-#  - explicit KEEP list: current prod tag + rollback tags are never listed.
+#  - dynamic KEEP tag: the image used by leadgen_app is never listed.
 #  - `docker builder prune -f` only removes UNUSED build cache.
 #  - nothing here touches volumes, containers, or data. No `-a`, no `system prune`.
-set +e
+set -uo pipefail
 
-KEEP_TAGS="latest 2cda6d91 71c346f2"   # latest = running now; 2cda6d91/71c346f2 = rollback targets
 IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
+KEEP_TAG="$(docker inspect --format '{{.Config.Image}}' leadgen_app 2>/dev/null | sed 's#.*:##')"
+case "$KEEP_TAG" in
+  ""|latest|dev|"<none>")
+    echo "FATAL: cannot establish an immutable current production tag; refusing cleanup"
+    exit 2
+    ;;
+esac
 
 echo "===BEFORE==="
 df -h / | tail -1
@@ -22,11 +28,9 @@ echo "===1. BUILD CACHE (unused only)==="
 docker builder prune -f 2>&1 | tail -3
 
 echo
-echo "===2. OLD APP IMAGE TAGS (keeping: $KEEP_TAGS)==="
+echo "===2. OLD APP IMAGE TAGS (keeping current production: $KEEP_TAG)==="
 for t in $(docker images "$IMG" --format '{{.Tag}}'); do
-  skip=0
-  for k in $KEEP_TAGS; do [ "$t" = "$k" ] && skip=1; done
-  if [ "$skip" = "1" ]; then
+  if [ "$t" = "$KEEP_TAG" ]; then
     echo "  KEEP   $t"
     continue
   fi

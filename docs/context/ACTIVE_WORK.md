@@ -2,21 +2,21 @@
 
 ---
 
-## WS-PRF1 PR Factory Wave 1 - MERGE+DEPLOY IN FLIGHT
-- **ID:** WS-PRF1
-- **Business outcome:** Spec Kit constitution + thin `tools/pr_factory` dispatcher onto existing Owner OS `external_agents` (no second control plane); draft CI-repair Action + non-required Gate A
-- **Current state:** Fixing Gate A pin contract (`pip install --upgrade pip` refused); rebase onto `main` @ `084cd990`
-- **Next exact action:** CI green → undraft #248 → merge → kill-fence deploy; flags stay OFF
-- **Out of scope:** vendoring openai/symphony · 100-PR claims · Merge Queue · auto-deploy · prod flag flips
+## WS-SEC1 Vobiz credential rotation (OWNER BLOCKER)
+- **ID:** WS-SEC1
+- **Business outcome:** Rotate leaked `VOBIZ_AUTH_TOKEN` + `VOBIZ_SIP_PASS` (2026-08-07 settings-dump)
+- **Current state:** `/root/rotate_vobiz.sh` ready (mode 700); `/root/vobiz_new.env` **missing**. Prod `a08dd5e9`. main `34836739` (#275) not required for rotate.
+- **Next exact action:** Owner → Vobiz Console new token+SIP → `/root/vobiz_new.env` (0600) → Cursor `bash /root/rotate_vobiz.sh` → portal **revoke old**
+- **Out of scope:** API half-rotate with leaked token · chat secrets · Postgres tonight · hangup GET “fix”
 
 ---
 
-## WS-GTM2 Admin Manual Call + Voice Dead-Air Fix - LIVE
-- **ID:** WS-GTM2
-- **Business outcome:** Owner `/app/admin` manual AI call + OmniRoute dead-air breaker
-- **Current state:** Prod `/health`=`084cd990`
-- **Next exact action:** admin login canary → optional real call `llm_first` verify
-- **Out of scope:** env flips · compliance bypass
+## WS-MORNING B1 D2 + B2 CRM (time-gated)
+- **ID:** WS-MORNING
+- **Business outcome:** Numbered PRODUCTION verdicts for D2 harvest budget + CRM lead sync
+- **Current state:** D2 code LIVE on `a08dd5e9`; cron `03:48Z`/`03:50Z` armed. CRM flag ON; no answered-call proof yet. Midday 163 leads = **D1 only**.
+- **Next exact action:** After 04:00Z/06:00Z `prospect` → read `/root/d2_morning_<date>.log` (B1 table). After ~11:30 dial → CRM prove only if answered (B2). Write verdicts into SESSION_HANDOFF + AUTOMATION_VERIFY_CHECKPOINTS.md
+- **Out of scope:** LOOKUPS bump · extra canary dials tonight · declaring B13 broken on no-answer
 
 ---
 
@@ -38,8 +38,9 @@
 ---
 
 ## Parked
+- CP-A3 Postgres rotate · CP-A4 DATABASE_URL split · D3 cursor · LOOKUPS owner decision · trainer DLQ · `@example.com` domain-suffix
 - WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
-- **ADR-172 Agent Teams C1** — tip `d1042e69` FROZEN/GO; P1 window OPEN (`main=5ae5a4b9`, deliverables absent). **Sumit-only:** prune / Usage baseline / Claude Code paste. **Agents forbidden** to merge #283 or fake those steps. After Observed: agents may interpret + write handoff.
+- **ADR-172 Agent Teams C1 — canary needs RE-BASELINE.** The hold named `base_ref = 5ae5a4b9` and forbade merging #283 while the P1 window was open. That window closed on its own: `origin/main` advanced ~61 commits (PRs #290–#297) before #283 was touched, so `p1_validity` was already `contaminated` by main, not by the merge. #283 was subsequently merged under explicit owner authorisation (2026-08-09 PR sweep). **The Sumit-only steps were never attempted and are still outstanding** — prune / Usage baseline / Claude Code paste — and they now need a fresh `base_ref` before any P1 conclusion is drawn.
 - **ADR-173 claw-orchestrator** — REJECT full vendor; patterns-only.
-- **ADR-174 candidate (parked)** — Cloudflare OS vendor REJECT · Gatekeeper deferred-approval + capability-intro patterns. Full ADR **after** C1 Observed — see `memory/backlog.md`. Do not open mid-canary.
+- **ADR-174 candidate (parked)** — Cloudflare OS vendor REJECT · Gatekeeper deferred-approval + capability-intro patterns. Full ADR **after** C1 re-baselined + Observed — see `memory/backlog.md`.

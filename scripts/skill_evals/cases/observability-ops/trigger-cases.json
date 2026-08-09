@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "id": "prometheus_rule_and_alertmanager_email",
+      "prompt": "prometheus alert rule add karo aur alertmanager ko email pe route karo grafana dashboard ke saath",
+      "should_trigger": true
+    },
+    {
+      "id": "celery_flower_exporter_stack_up",
+      "prompt": "flower aur celery exporter container up karo loki tempo uptime kuma monitoring stack ke saath",
+      "should_trigger": true
+    },
+    {
+      "id": "customer_journey_signal_catalogue",
+      "prompt": "customer journey instrumentation aur product analytics ka audit karo taaki failure customer report se pehle dikhe",
+      "should_trigger": false,
+      "lexical": false
+    }
+  ]
+}

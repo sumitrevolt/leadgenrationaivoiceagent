@@ -3,7 +3,7 @@
 #
 # Flow on every push to main:
 #   1) gate     : fast deterministic checks (import smoke + prod_check + ruff)
-#   2) build    : build Docker image, push to GHCR (tagged :latest and :<sha>)
+#   2) build    : build Docker image, push to GHCR (immutable :<sha> only)
 #   3) deploy   : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
 #
 # One-time GitHub repo secrets required (Settings > Secrets and variables > Actions):
@@ -149,9 +149,7 @@ jobs:
           push: true
           build-args: |
             APP_VERSION=${{ github.sha }}
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

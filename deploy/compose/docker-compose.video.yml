@@ -24,12 +24,12 @@
 # =============================================================================
 services:
   worker-video:
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent-video:${APP_VERSION:-latest}
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent-video:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     build:
       context: .
       dockerfile: Dockerfile.video
       args:
-        APP_IMAGE: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+        APP_IMAGE: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
     environment:
       # Renderer lives at /opt so the ./data and code bind-mounts cannot shadow it.
       CREATIVE_HYPERFRAMES_ROOT: /opt/video_renderer/hyperframes

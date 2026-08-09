@@ -109,12 +109,30 @@ jobs:
             sbom.cdx.json
           retention-days: 30
 
-      # === GATE BANANE KE LIYE (jab ek baar results clean dekh lo) ===
-      # Niche wala step uncomment karo -> CRITICAL fixable Python CVE pe build RED:
-      # - name: Fail on CRITICAL (enforce)
-      #   run: |
-      #     trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed \
-      #       --no-progress --exit-code 1 .sec
+      # === ENFORCING GATE (armed 2026-08-06, owner-approved) ===
+      # Ab tak har scan `--exit-code 0` pe tha, isliye is workflow ka green sirf
+      # "scan CHALA" matlab rakhta tha — "clean hai" nahi. Ye step wahi gate hai
+      # jo is file me pehle se likha tha, ab armed.
+      #
+      # Scope jaan-boojh kar CRITICAL + --ignore-unfixed hai:
+      #   - CRITICAL only  -> HIGH abhi blocking NAHI (repo pe already HIGH findings
+      #                       maujood hain; unhe ek jhatke me blocking karna owner ka
+      #                       kaam rok deta. Unke liye ratchet chahiye, neeche.)
+      #   - --ignore-unfixed -> sirf wahi fail kare jiska upstream fix MAUJOOD hai.
+      #                       Jo fix ho hi nahi sakta uspe build rokna bekaar shor hai.
+      #
+      # ⚠️ Pehla run hi asli proof hai. Agar ye RED hota hai to ek REAL fixable
+      # CRITICAL CVE hai — tab gate wapas mat comment karo, CVE fix karo.
+      - name: Fail on fixable CRITICAL (enforce)
+        run: |
+          trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 1 .sec
+
+      # TODO(owner): HIGH ratchet — current HIGH findings ko time-limited
+      # `.trivyignore` exceptions me baseline karo, phir HIGH ko bhi `--exit-code 1`
+      # kar do taaki NAYE HIGH block hon aur purane visible rahen. Saath hi is
+      # workflow ko `main` ruleset me required check banao — abhi required nahi hai,
+      # isliye enforcement bypass ho sakta hai.
 
   # ---------------------------------------------------------------------------
   # 2) IMAGE SCAN — PR/push pe Dockerfile.lock image BUILD karke scan (FAIL-CLOSED,
