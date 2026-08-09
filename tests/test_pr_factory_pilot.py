@@ -381,7 +381,23 @@ def real_repo(tmp_path, monkeypatch):
     (repo / "a.txt").write_text("hello", encoding="utf-8")
     subprocess.run(["git", "-C", str(repo), "add", "a.txt"], check=True, capture_output=True)
     subprocess.run(
-        ["git", "-C", str(repo), "commit", "-m", "init", "--no-verify"],
+        [
+            "git",
+            "-C",
+            str(repo),
+            # CI runners have no git identity and no signing key; supply both inline
+            # so the throwaway repo never depends on machine-level git config.
+            "-c",
+            "user.name=pilot-test",
+            "-c",
+            "user.email=pilot-test@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-m",
+            "init",
+            "--no-verify",
+        ],
         check=True,
         capture_output=True,
     )
