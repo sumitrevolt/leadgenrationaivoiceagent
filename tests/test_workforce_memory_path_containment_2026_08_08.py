@@ -106,9 +106,9 @@ def test_agent_dir_collapses_on_traversal(wfm_env):
     root = wm._root()
     for payload in TRAVERSALS:
         d = wm._agent_dir(payload)
-        assert os.path.normpath(d) == os.path.normpath(root) or wm._contained_under(
-            root, d
-        ), f"_agent_dir({payload!r}) must collapse to root or stay contained"
+        assert os.path.normpath(d) == os.path.normpath(root) or wm._contained_under(root, d), (
+            f"_agent_dir({payload!r}) must collapse to root or stay contained"
+        )
 
 
 def test_entries_path_never_escapes_root(wfm_env):
@@ -128,9 +128,9 @@ def test_append_entry_adversarial_no_escape(wfm_env):
     wm = wfm_env
     before = dict.fromkeys(_listdir_under_root(wm._root()))
     for payload in TRAVERSALS:
-        assert (
-            wm._append_entry(payload, _entry(payload)) is False
-        ), f"_append_entry should refuse {payload!r}"
+        assert wm._append_entry(payload, _entry(payload)) is False, (
+            f"_append_entry should refuse {payload!r}"
+        )
     after = _listdir_under_root(wm._root())
     assert set(after) == set(before)  # nothing new created at all
     root = wm._root()
