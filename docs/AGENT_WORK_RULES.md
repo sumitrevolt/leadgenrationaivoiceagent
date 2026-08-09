@@ -91,6 +91,11 @@ Ek `_FakeRedis` fix unhone daala jo galat tha (`lambda: _FakeRedis()` — har ca
 **Rule:** Edit se turant pehle Read. `git add -A` kabhi nahi — files **naam se** stage karo.
 Doosre agent ka kaam mile to use **verify** karo, blindly trust nahi — aur uske uncommitted kaam ko apne commit me mat kheencho.
 
+**Agent Teams (ADR-172):** Claude Code teammates ke liye shared primary checkout mana.
+Har editing teammate = isolated `git worktree` (`scripts/agent_team_worktree.py`) + buzzlock
+claim. Shared task list buzzlock ko replace nahi karti. Start 2–3 teammates; quota same
+Claude pool se jati hai.
+
 ---
 
 ## R8. Compliance gate / frozen surface = merge se pehle human "haan"
