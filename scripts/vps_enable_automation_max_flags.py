@@ -31,6 +31,8 @@ from app_version_pin import resolve_app_version_pin  # noqa: E402
 ENV_PATH = os.environ.get("LEADGEN_ENV", "/opt/leadgen/.env")
 
 # SAFE — draft / schedule / ops / health. Channel auto-send still gated per-channel.
+# Issue #307 (2026-08-10 owner): DUNNING_ENGINE stays OFF / dormant — NOT in WANT_SAFE.
+# ADR-172: do NOT force SELF_IMPROVE_LOOP here (prod may be OWNER-ARMED=1).
 WANT_SAFE = {
     "OPS_WATCHDOG": "1",
     "CADENCE_ENGINE": "1",
@@ -41,11 +43,7 @@ WANT_SAFE = {
     "SALES_ENGINE": "1",
     "GROWTH_OPTIMIZER": "1",
     "CHANNEL_EXPERIMENTS": "1",
-    # ADR-172: do NOT force SELF_IMPROVE_LOOP=0 here. Prod may be OWNER-ARMED=1
-    # with approval gate; unconditional write was a foot-gun that clobbered live
-    # posture. Use --force-self-improve-off only for deliberate containment.
     "LEAD_HARVESTER": "1",
-    "DUNNING_ENGINE": "1",
     "HOT_QUEUE_BRIEF_DAILY": "1",
     "AUTOMATION_HEALTH_ALERTS": "1",
     "APPROVAL_EMAIL_NOTIFY": "1",
@@ -55,6 +53,16 @@ WANT_SAFE = {
 WANT_EMAIL = {
     "AUTO_EMAIL_OUTREACH": "true",
 }
+
+# Capability remains in code; this enabler must not arm it. Owner must flip .env
+# manually after #307 prerequisites (money-path proof, dry-run ledger, canary).
+OWNER_GATED = frozenset(
+    {
+        "DUNNING_ENGINE",
+    }
+)
+
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 NEVER = frozenset(
     {
@@ -79,6 +87,11 @@ def _read_env() -> str:
 def set_kv(text: str, key: str, val: str) -> tuple[str, bool]:
     if key in NEVER:
         raise SystemExit(f"REFUSED: {key} is on the NEVER list")
+    if key in OWNER_GATED and str(val).strip().lower() in _TRUTHY:
+        raise SystemExit(
+            f"REFUSED: {key} is OWNER_GATED (issue #307) — "
+            "Automation-Max safe script cannot enable it"
+        )
     pat = re.compile(rf"^{re.escape(key)}=.*$", re.M)
     line = f"{key}={val}"
     if pat.search(text):
@@ -126,6 +139,7 @@ def main() -> int:
             print(f"OK  {k} already {v}")
 
     print("NEVER (left untouched): " + ", ".join(sorted(NEVER)))
+    print("OWNER_GATED (not in WANT_SAFE; enable refused): " + ", ".join(sorted(OWNER_GATED)))
 
     if not changed:
         print("No .env changes needed")

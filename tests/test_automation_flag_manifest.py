@@ -100,3 +100,11 @@ def test_high_risk_classifications_locked():
         == FlagGovernance.SAFETY_INVARIANT
     )
     assert describe_flag("REPLY_AUTO_SEND").governance == FlagGovernance.SAFETY_INVARIANT
+
+
+def test_dunning_engine_is_owner_gated_not_safe_default():
+    """Issue #307: retention dunning stays owner-gated / dormant."""
+    meta = describe_flag("DUNNING_ENGINE")
+    assert meta.kind == FlagValueKind.BOOLEAN
+    assert meta.governance == FlagGovernance.OWNER_APPROVAL_REQUIRED
+    assert meta.default_hint == "0"
