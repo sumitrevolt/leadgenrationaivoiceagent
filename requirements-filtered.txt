@@ -101,7 +101,7 @@ celery==5.6.3
 # Logging & Monitoring
 # =============================================================================
 loguru==0.7.3
-sentry-sdk==1.45.1
+sentry-sdk==2.66.1
 psutil>=5.9.0
 # --- OpenTelemetry distributed tracing (OPTIONAL — app/observability_otel.py) ---
 # Commented so the locked Docker build (requirements.lock.txt) stays unchanged.
