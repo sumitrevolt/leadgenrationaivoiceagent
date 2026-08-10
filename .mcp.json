@@ -12,6 +12,12 @@
         "Authorization": "Bearer ${OMNIROUTE_MANAGEMENT_API_KEY}"
       },
       "_status": "ACTIVE — verified 2026-07-12 via real MCP JSON-RPC (initialize + tools/list + tools/call omniroute_get_health/check_quota/list_combos all succeeded). Key is a 'Manage'-type OmniRoute key stored ONLY as the Windows User env var OMNIROUTE_MANAGEMENT_API_KEY (never committed). NOTE: OmniRoute's MCP transport requires Management Access on the key — a 'Standard'/read-only key (see OMNIROUTE_API_KEY) gets 403 AUTH_001 on MCP calls, there is no finer-grained MCP scope in this dashboard version despite the per-tool scope labels."
+    },
+    "buzz": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["scripts/buzz_mcp.py"],
+      "env": {},
+      "_status": "LIVE 2026-08-10 — stdio MCP (stdlib-only). Tools: buzz_channels / buzz_send / buzz_lock_status. Owner flipped BUZZ_RELAY=ws://127.0.0.1:3000 (user env). Local workspace CHANNEL_IDS regenerated + duplicates archived. Verified: initialize + tools/list + buzz_channels + buzz_lock_status against local relay."
     }
   }
 }

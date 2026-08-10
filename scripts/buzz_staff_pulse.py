@@ -11,6 +11,7 @@ Usage:
 Protocol: ~/.buzz/GUIDES/AUTONOMY_POLICY.md (Stage 1 = read-only canary).
 Commands never flow the other way — Buzz is an interface, not a control plane.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,7 +30,9 @@ VPS = "root@72.61.245.204"
 CONTAINER = "leadgen_app"
 
 BUZZ = Path(os.environ["LOCALAPPDATA"]) / "Buzz" / "buzz.exe"
-RELAY = "https://leadsgenai.communities.buzz.xyz"
+# Local-first relay migration (owner 2026-08-10): BUZZ_RELAY env overrides once
+# the local relay is up; hosted default keeps the current workspace working.
+RELAY = os.environ.get("BUZZ_RELAY", "https://leadsgenai.communities.buzz.xyz")
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
 
 IST = timezone(timedelta(hours=5, minutes=30))

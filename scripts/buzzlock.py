@@ -19,6 +19,7 @@ contract; the chat post is the human-readable mirror.
 
 Protocol: ~/.buzz/GUIDES/CODING_AGENT_PROTOCOL.md
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,7 +33,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 LOCKS = REPO / "docs" / "coordination" / "LOCKS.json"
-RELAY = "https://leadsgenai.communities.buzz.xyz"
+# Local-first relay migration (owner 2026-08-10): BUZZ_RELAY env overrides once
+# the local relay is up; hosted default keeps the current workspace working.
+RELAY = os.environ.get("BUZZ_RELAY", "https://leadsgenai.communities.buzz.xyz")
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
 TOOLS = ("CURSOR", "CLAUDE", "CODEX", "GOOSE", "OPENCODE", "FREEBUFF", "MONKEY")
 
