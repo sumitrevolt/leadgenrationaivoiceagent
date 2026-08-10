@@ -5,7 +5,17 @@
 set -euo pipefail
 OUT="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/buzz}"
 
-if [ -x "$OUT" ] && "$OUT" channels list >/dev/null 2>&1; then
+# The built binary is a Linux ELF (built via Docker): on a Linux host it runs
+# natively; on Windows/Git Bash it must run inside the same rust image.
+smoke() {
+    if "$OUT" --help >/dev/null 2>&1; then return 0; fi
+    local win_out
+    win_out="$(cygpath -w "$OUT" 2>/dev/null || echo "$OUT")"
+    MSYS_NO_PATHCONV=1 docker run --rm -v "$win_out:/usr/local/bin/buzz" \
+        rust:1.88-bookworm buzz --help >/dev/null 2>&1
+}
+
+if [ -f "$OUT" ] && smoke; then
     echo "buzz-cli already built at $OUT"
     exit 0
 fi
@@ -23,4 +33,5 @@ docker run --rm -e MSYS_NO_PATHCONV=1 -v "$WIN_OUT:/out" rust:1.88-bookworm bash
     chmod +x /out/buzz
 '
 echo "buzz-cli built at $OUT"
-"$OUT" --help >/dev/null 2>&1 || { echo "buzz-cli smoke failed" >&2; exit 1; }
+smoke || { echo "buzz-cli smoke failed" >&2; exit 1; }
+echo "buzz-cli smoke OK"

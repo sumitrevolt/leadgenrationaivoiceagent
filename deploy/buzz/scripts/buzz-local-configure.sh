@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KIT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PORT="${BUZZ_HTTP_PORT:-3100}"
+PORT="${BUZZ_HTTP_PORT:-3000}"
 CHANNELS_FILE="$KIT_DIR/env/channels.local"
 WORKFLOWS_DIR="$KIT_DIR/workflows"
 
@@ -36,7 +36,7 @@ done
 source "$CHANNELS_FILE" 2>/dev/null || true
 echo "channels: general=${CHAN_GENERAL:-?} engineering=${CHAN_ENGINEERING:-?} office=${CHAN_OFFICE:-?} agents=${CHAN_AGENTS:-?} incidents=${CHAN_INCIDENTS:-?}"
 
-# --- workflows ---
+# --- workflows (local-only: schedule / message_posted / local webhook trigger) ---
 for wf in "$WORKFLOWS_DIR"/*.yml; do
     [ -f "$wf" ] || continue
     base="$(basename "$wf")"

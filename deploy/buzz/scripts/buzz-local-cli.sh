@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Run buzz-cli against the LOCAL relay (Docker).
 # Why a container: the built buzz binary is a Linux ELF (built via Docker), and
-# --network host makes 127.0.0.1:3100 resolve to the host relay so the Host
-# header matches the community key (RELAY_URL=ws://127.0.0.1:3100).
+# --network host makes 127.0.0.1:3000 resolve to the host relay so the Host
+# header matches the community key (RELAY_URL=ws://127.0.0.1:3000).
 # Why rust:1.88-bookworm: debian-slim lacks the system cert store → reqwest
 # client build fails with "builder error".
 #
 # Usage:
-#   BUZZ_RELAY_URL=ws://127.0.0.1:3100 \
+#   BUZZ_RELAY_URL=ws://127.0.0.1:3000 \
 #   BUZZ_PRIVATE_KEY=<nsec-or-hex> \
 #   bash deploy/buzz/scripts/buzz-local-cli.sh channels list
 set -euo pipefail
@@ -15,7 +15,7 @@ set -euo pipefail
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$KIT_DIR/bin/buzz"
 NSEC_FILE="$KIT_DIR/env/.env.local.owner"
-PORT="${BUZZ_HTTP_PORT:-3100}"
+PORT="${BUZZ_HTTP_PORT:-3000}"
 
 RELAY_URL="${BUZZ_RELAY_URL:-ws://127.0.0.1:$PORT}"
 PRIV_KEY="${BUZZ_PRIVATE_KEY:-}"

@@ -9,7 +9,7 @@ through Owner OS/OpenClaw → the 31 runtime STAFF. Buzz is never a control plan
 
 | Path | Purpose |
 |------|---------|
-| `scripts/buzz-local-up.sh` | Idempotent bootstrap + start: clones `block/buzz`, generates `.env` + owner keypair, starts Docker stack, adds owner member, provisions channels/workflows |
+| `scripts/buzz-local-up.sh` | Idempotent bootstrap + start: clones `block/buzz`, generates `.env` + owner keypair, starts Docker stack (project `buzz-local`, port pinned to loopback), adds owner member, provisions channels/workflows |
 | `scripts/buzz-local-down.sh` | Stop the stack (volumes + data kept) |
 | `scripts/buzz-local-cli.sh` | Run `buzz` CLI against the local relay (Docker, Linux binary) |
 | `scripts/buzz-local-configure.sh` | Idempotent channels + workflow install via CLI |
@@ -25,9 +25,13 @@ through Owner OS/OpenClaw → the 31 runtime STAFF. Buzz is never a control plan
 bash deploy/buzz/scripts/buzz-local-up.sh
 ```
 
-- Relay + web UI: `http://127.0.0.1:3100` (loopback only; `RELAY_URL=ws://127.0.0.1:3100`)
+- Relay + web UI: `http://127.0.0.1:3000` (loopback only; `RELAY_URL=ws://127.0.0.1:3000`)
+- Compose project is pinned to the deterministic `buzz-local` — it never manages
+  or collides with another stack (`buzz-prod` is upstream's name, untouched).
+- If port 3000 is already held by a non-Buzz process the script aborts with a
+  clear error — pick a free port with `BUZZ_HTTP_PORT=<port>`.
 - Owner keypair (nsec) lands in `deploy/buzz/env/.env.local.owner` — gitignored.
-  Import the nsec into the Buzz desktop app and point it at `ws://127.0.0.1:3100`.
+  Import the nsec into the Buzz desktop app and point it at `ws://127.0.0.1:3000`.
 - Channels (`#general #engineering #office #agents #incidents`) + the 3 local
   workflows are provisioned automatically.
 
