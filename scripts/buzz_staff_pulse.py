@@ -29,7 +29,7 @@ VPS = "root@72.61.245.204"
 CONTAINER = "leadgen_app"
 
 BUZZ = Path(os.environ["LOCALAPPDATA"]) / "Buzz" / "buzz.exe"
-RELAY = "https://leadsgenai.communities.buzz.xyz"
+RELAY = os.environ.get("BUZZ_RELAY", "https://leadsgenai.communities.buzz.xyz")
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
 
 IST = timezone(timedelta(hours=5, minutes=30))

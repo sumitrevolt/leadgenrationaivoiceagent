@@ -293,3 +293,11 @@ tests/fixtures/external_agent_runner/_captured_argv_*.json
 
 # business/compliance PDFs + brand assets consolidated from Desktop (GST/Udyam/PTEC/QR) - never commit
 _business_docs/
+
+# Buzz local workspace artifacts (keys/channels/response/binaries — never commit)
+deploy/buzz/bin/
+!deploy/buzz/env/
+deploy/buzz/env/.env.local.owner
+deploy/buzz/env/channels.local
+deploy/buzz/env/gh-events.response
+!deploy/buzz/env/.env.local.template
