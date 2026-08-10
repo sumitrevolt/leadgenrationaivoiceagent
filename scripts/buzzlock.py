@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """buzzlock — claim-before-edit file locks for coding agents.
 
-Cursor, Claude Code, OpenCode and Monkey Code all edit this checkout. This is the
-registry that stops them overwriting each other, plus the matching #build post.
+Cursor, Claude Code, Codex, OpenCode and Monkey Code all edit this checkout. This
+is the registry that stops them overwriting each other, plus the matching #build
+post.
 
     python scripts/buzzlock.py status
     python scripts/buzzlock.py claim app/api/growth_revenue.py --tool CLAUDE --reason "ADR-159 canary"
@@ -31,12 +32,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 LOCKS = REPO / "docs" / "coordination" / "LOCKS.json"
-# Local-first relay migration (owner 2026-08-10): point BUZZ_RELAY at the local
-# relay (ws://localhost:3000) once scripts/buzz_local_setup.ps1 is up. Hosted
-# default keeps existing workspace working until the local relay is proven.
+# Local-first relay migration (owner 2026-08-10): BUZZ_RELAY env overrides once
+# the local relay is up; hosted default keeps the current workspace working.
 RELAY = os.environ.get("BUZZ_RELAY", "https://leadsgenai.communities.buzz.xyz")
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
-TOOLS = ("CURSOR", "CLAUDE", "OPENCODE", "MONKEY")
+TOOLS = ("CURSOR", "CLAUDE", "CODEX", "GOOSE", "OPENCODE", "FREEBUFF", "MONKEY")
 
 
 def _now() -> datetime:
@@ -55,7 +55,19 @@ def _parse(ts: str) -> datetime | None:
 
 
 def load() -> dict:
-    data = json.loads(LOCKS.read_text(encoding="utf-8"))
+    """LOCKS.json is gitignored and per-checkout, so a fresh tree has none yet.
+
+    Self-initialise instead of raising — a missing registry means "no claims",
+    not a broken tool. Every worktree used to crash on the first status call.
+    """
+    try:
+        data = json.loads(LOCKS.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        data = {}
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"LOCKS.json is corrupt ({exc}) — fix or delete it: {LOCKS}") from exc
+    if not isinstance(data, dict):
+        raise SystemExit(f"LOCKS.json must be a JSON object: {LOCKS}")
     data.setdefault("locks", [])
     data.setdefault("stale_after_minutes", 240)
     return data
@@ -288,8 +300,23 @@ def cmd_break(args) -> int:
     return 0
 
 
+class _Parser(argparse.ArgumentParser):
+    """argparse exits 2 on usage errors — the same code we use for REFUSED.
+
+    A caller branching on `rc == 2` would read a typo'd `--tool` as "another tool
+    holds this file" and quietly take different work. Found by an independent
+    review of this file (Buzz canary GRID-CANARY-20260809-104317, 2026-08-09).
+    Usage errors now exit 1, which is what the docstring always claimed.
+    """
+
+    def error(self, message: str):  # noqa: D102 - argparse override
+        self.print_usage(sys.stderr)
+        print(f"{self.prog}: error: {message}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(
+    ap = _Parser(
         prog="buzzlock", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = ap.add_subparsers(dest="cmd", required=True)

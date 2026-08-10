@@ -16,6 +16,7 @@ without the Buzz toolchain keep working).
 Stdlib only — no new dependency (supply-chain discipline). Protocol: MCP over
 stdio (JSON-RPC 2.0, line-delimited).
 """
+
 from __future__ import annotations
 
 import json

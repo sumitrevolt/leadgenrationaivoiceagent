@@ -22,6 +22,7 @@ Usage:
     python scripts/buzz_local_workspace.py --archive-dupes
     BUZZ_RELAY=ws://127.0.0.1:3000 python scripts/buzz_local_workspace.py
 """
+
 from __future__ import annotations
 
 import ctypes
