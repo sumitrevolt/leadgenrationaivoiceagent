@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-10 (Launch+revenue+automation+architecture certification — CURSOR)
+Goal: Owner-authorized A2Z cert; Graphify refresh on fresh main; safe P0–P2 fixes; Draft PR; no deploy.
+Inspected: origin/main `64bbe869`; Graphify refresh (built commit=`64bbe869`); source-to-cash callers (submit_inquiry/hot_queue/upi/activate_plan); packages.py Advanced naming; growth infra_flags; prod `/health`=`d1b106b2`; activation summary; ACTIVE_WORK streams.
+Problems Found: (1) Public Advanced still Combo/bundle USP vs product-truth ban. (2) REPLY_AUTO_SEND env=0 can be Redis-effective True — flags API lied. (3) Guest UPI `approved_but_unbound` P1. (4) DUNNING_ENGINE OFF. (5) prod SHA ≠ main tip. (6) test_upi_payments hung locally.
+Changed: packages+pricing+home Advanced rename; infra_flags effective_on/overrides; tests/test_product_truth_public_advanced.py; ACTIVE_WORK→3 streams (SEC1/LAUNCH1/GTM1); SESSION_HANDOFF overwrite; issues #304/#306/#307; Draft PR #305.
+Tests Run: billing_truth+flags+campaign+stripe+pricing_cta EXIT 0; product_truth+flags EXIT 0; hot_queue EXIT 0; prod_check EXIT 0; check_secrets EXIT 0; diff --check EXIT 0; upi_payments HUNG/killed.
+Verification Evidence: PR https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/305 head `fe8eb9fe`; Gate A pass after format isolation; CI prod_check+pytest pending at handoff write.
+Risks: Deploy WAIT; revenue-generated WAIT; Voice frozen/read-only; black vs ruff thrash mitigated by moving contract test.
+Remaining: CI green → undraft → merge #305; owner Hot Queue/UPI #2; unbound UPI fix; dunning canary design; no deploy until authorized.
+Next Highest Priority: Merge #305 when required checks green; owner closes WS-GTM1 with real UPI ledger.
+
+## Loop Run
 Date: 2026-08-06 (Swara enterprise RCA + paid/free FAQ fix + prod voice setup)
 Goal: Deep-analyze Swara "7-8s gap / doesn't understand / no proper Hindi" complaints; apply enterprise setup.
 Inspected: LIVE call sid `4b15d7e1` (2026-08-06 13:24Z, 8 user turns, recipient_hangup); turn_metrics 2026-08-06 (12 turns); omniroute_voice logs; telecaller_brain `_customer_qa_reply` / `_fast_path_reply`; prod env via in-container printenv (safe keys only).
