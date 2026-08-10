@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-10 (Automation-Max live — DUNNING safe-enabler + truth — CURSOR)
+Goal: Evidence-backed AMAX correction (#307) + truth docs on isolated worktree; no prod mutate.
+Inspected: origin/main+prod `a3fbc8bb`; open PRs=0; issues #304/#306/#307; Graphify refresh EXIT0; `vps_enable_automation_max_flags.py` WANT_SAFE; flag manifest; bind_client; growth infra effective_on; dual `/health` advancing.
+Problems Found: (1) Automation-Max WANT_SAFE incorrectly armed `DUNNING_ENGINE=1` vs owner #307 OFF. (2) CURRENT_STATE/ACTIVE_WORK/SESSION_HANDOFF drifted (d1b106b2 / PR#305). (3) #304/#306 live proofs still WAIT.
+Changed: remove DUNNING from WANT_SAFE + OWNER_GATED refuse; manifest owner_approval_required; tests; ACTIVE_WORK 3-stream; matrix/lane; SESSION_HANDOFF; CURRENT_STATE tip.
+Tests Run: automation_max+safe_launch+flag_manifest+safe_pack+scheduler_parity+growth_infra_flags EXIT **0** (50); wiring_audit_counts+upi_guest_bind+submit_idempotency+subscription+invoice+order_ref EXIT **0** (45); prod_check EXIT **0**; check_secrets EXIT **0**; automation_wiring_audit EXIT **0**; git diff --check EXIT **0**. test_upi_payments.py NOT re-run (prior hang risk — marked UNVERIFIED this loop).
+Verification Evidence: Graphify CLI BFS hit `bind_client`/`_reply_auto_send_enabled`/`infra_flags`; single bind route `POST /upi/pending/{pid}/bind`; primary dirty `.freebuff/` preserved; worktree HEAD still based on `a3fbc8bb`.
+Risks: Parallel Cursor sessions on same mission — reviewed handoff before commit. Deploy/flag apply WAIT. Revenue-generated WAIT without UPI #2.
+Remaining: PR → Checkpoint 4 AUTH packet; #304 live UPI proof; #306 auth flags probe; no deploy.
+Next Highest Priority: Open focused PR; stop for owner AUTH-MERGE (no deploy).
+
+## Loop Run
 Date: 2026-08-10 (Launch+revenue+automation+architecture certification — CURSOR)
 Goal: Owner-authorized A2Z cert; Graphify refresh on fresh main; safe P0–P2 fixes; Draft PR; no deploy.
 Inspected: origin/main `64bbe869`; Graphify refresh (built commit=`64bbe869`); source-to-cash callers (submit_inquiry/hot_queue/upi/activate_plan); packages.py Advanced naming; growth infra_flags; prod `/health`=`d1b106b2`; activation summary; ACTIVE_WORK streams.
