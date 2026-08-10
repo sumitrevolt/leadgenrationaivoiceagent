@@ -13,6 +13,7 @@ Run ON the VPS:
 Idempotent. Backs up .env before write. Recreates app + celery stack so env reloads.
 ADR-097: recreate ALWAYS pins APP_VERSION (never compose default :latest).
 """
+
 from __future__ import annotations
 
 import argparse
