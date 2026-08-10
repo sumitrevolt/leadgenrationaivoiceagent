@@ -1,0 +1,11 @@
+# P1/SEV1 echo — lives in #engineering, echoes into #incidents (channel UUID filled by buzz-local-configure.sh)
+name: Incident Alert
+description: Echo P1/SEV1 mentions into #incidents
+trigger:
+  on: message_posted
+  filter: 'str_contains(trigger_text, "P1") || str_contains(trigger_text, "SEV1")'
+steps:
+  - id: alert
+    action: send_message
+    channel: '{{CHAN_INCIDENTS}}'
+    text: '🚨 Incident keyword in #engineering: {{trigger.text}}'
