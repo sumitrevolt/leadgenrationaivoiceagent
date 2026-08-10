@@ -1491,9 +1491,8 @@ async def infra_flags(_user=Depends(require_admin)):
         except Exception:
             _eff = bool(out["REPLY_AUTO_SEND"].get("on"))
         out["REPLY_AUTO_SEND"]["effective_on"] = _eff
-        out["REPLY_AUTO_SEND"][
-            "effective_note"
-        ] = "env OR Redis runtime reply_auto_send; REPLY_AUTO_SEND_HARD_OFF wins"
+        _eff_note = "env OR Redis runtime reply_auto_send; REPLY_AUTO_SEND_HARD_OFF wins"
+        out["REPLY_AUTO_SEND"]["effective_note"] = _eff_note
 
     on = [k for k, d in out.items() if d["on"]]
     boolean_on = [
