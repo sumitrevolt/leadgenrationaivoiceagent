@@ -32,3 +32,16 @@
 {"at": "2026-08-06T00:50:18+00:00", "client_id": "jiya-makeover", "event": "sla_breached", "detail": "no_deliverable_24h, approval_critical_stale, setup_incomplete, pending_approval, manual_publish_mode", "actor": "product_one_health", "key": "sla_breach:2026-08-06", "meta": {"reasons": ["no_deliverable_24h", "approval_critical_stale", "setup_incomplete", "pending_approval", "manual_publish_mode"], "health_score": 0}}
 {"at": "2026-08-09T10:23:02+00:00", "client_id": "jiya-makeover", "event": "post_approved", "detail": "Festive offer", "actor": "system"}
 {"at": "2026-08-09T10:37:34+00:00", "client_id": "jiya-makeover", "event": "post_approved", "detail": "Festive offer", "actor": "system"}
+{"at": "2026-08-10T05:34:37+00:00", "client_id": "jiya-makeover", "event": "post_approved", "detail": "Festive offer", "actor": "system"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "plan_activated", "detail": "starter", "actor": "backfill", "key": "lc:activated"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Tip / Gyaan", "actor": "backfill", "key": "cq:0:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Offer / Deal", "actor": "backfill", "key": "cq:1:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Brand Poster", "actor": "backfill", "key": "cq:2:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Reel Idea", "actor": "backfill", "key": "cq:3:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Festival / Fun", "actor": "backfill", "key": "cq:4:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Product Spotlight", "actor": "backfill", "key": "cq:5:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Engagement Question", "actor": "backfill", "key": "cq:6:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "WhatsApp Promo Message", "actor": "backfill", "key": "cq:7:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Local Offer Campaign Suggestion", "actor": "backfill", "key": "cq:8:draft"}
+{"at": "2026-08-10T05:35:47+00:00", "client_id": "jiya-makeover", "event": "post_draft_created", "detail": "Reel Idea", "actor": "backfill", "key": "cq:9:draft"}
+{"at": "2026-08-10T05:51:50+00:00", "client_id": "jiya-makeover", "event": "post_approved", "detail": "Festive offer", "actor": "system"}

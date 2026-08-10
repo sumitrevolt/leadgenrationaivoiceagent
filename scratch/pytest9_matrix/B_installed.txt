@@ -1,0 +1,33 @@
+Name: pytest
+Version: 9.0.3
+Summary: pytest: simple powerful testing with Python
+Home-page: https://docs.pytest.org/en/latest/
+Author: Holger Krekel, Bruno Oliveira, Ronny Pfannschmidt, Floris Bruynooghe, Brianna Laugher, Freya Bruhin, Others (See AUTHORS)
+Author-email:
+License-Expression: MIT
+Location: /usr/local/lib/python3.12/site-packages
+Requires: iniconfig, packaging, pluggy, pygments
+Required-by: pytest-asyncio, pytest-cov, pytest-split, pytest-timeout
+---
+Name: pytest-asyncio
+Version: 1.4.0
+Summary: Pytest support for asyncio
+Home-page: https://github.com/pytest-dev/pytest-asyncio
+Author:
+Author-email: Tin Tvrtković <tinchester@gmail.com>
+License-Expression: Apache-2.0
+Location: /usr/local/lib/python3.12/site-packages
+Requires: pytest, typing-extensions
+Required-by:
+---
+Name: greenlet
+Version: 3.5.4
+Summary: Lightweight in-process concurrent programming
+Home-page: https://greenlet.readthedocs.io
+Author:
+Author-email: Alexey Borzenkov <snaury@gmail.com>
+License-Expression: MIT AND PSF-2.0
+Location: /usr/local/lib/python3.12/site-packages
+Requires:
+Required-by: SQLAlchemy
+pip_check_exit=1

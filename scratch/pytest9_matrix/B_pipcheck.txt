@@ -1,0 +1,4 @@
+azure-cognitiveservices-speech 1.51.1 requires azure-core, which is not installed.
+google-generativeai 0.8.6 has requirement google-ai-generativelanguage==0.6.15, but you have google-ai-generativelanguage 0.12.0.
+instructor 1.15.4 has requirement jiter<0.15,>=0.6.1, but you have jiter 0.16.0.
+langchain-openai 1.4.1 has requirement openai<3.0.0,>=2.45.0, but you have openai 2.41.0.

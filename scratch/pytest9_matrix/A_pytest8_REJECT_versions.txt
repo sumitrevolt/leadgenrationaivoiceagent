@@ -1,0 +1,5 @@
+pytest 8.4.2
+advisory_ok False
+pytest_asyncio 0.26.0
+greenlet 3.5.4
+pytest_cov 6.0.0

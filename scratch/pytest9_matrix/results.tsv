@@ -1,0 +1,7 @@
+A_secure903|install=0
+A_latest911|install=0
+A_pytest8_REJECT|install=0
+B0_function_loops|1
+B0_function_loops|segfault_signature=no
+B1_session_loops|1
+B1_session_loops|segfault_signature=no

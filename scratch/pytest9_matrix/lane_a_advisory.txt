@@ -1,0 +1,12 @@
+=== LANE A ADVISORY MATRIX ===
+GHSA-6w46-j5rx-g56g / CVE-2025-71176
+vulnerable_range: < 9.0.3
+first_patched_version: 9.0.3
+lowest_secure=9.0.3 advisory_ok=True ALLOW=YES
+latest_8x=8.4.2 advisory_ok=False ALLOW=NO_INSECURE
+latest_9x=9.1.1 advisory_ok=True ALLOW=YES
+greenlet_latest 3.5.4
+greenlet_py312_compatible_recent ['3.3.1', '3.3.2', '3.4.0', '3.5.0', '3.5.1', '3.5.2', '3.5.3', '3.5.4']
+pytest_asyncio_latest 1.4.0
+pytest_asyncio_for_pytest9 1.4.0
+INSECURE_DOWNGRADE_FORBIDDEN: pytest 8.x path rejected

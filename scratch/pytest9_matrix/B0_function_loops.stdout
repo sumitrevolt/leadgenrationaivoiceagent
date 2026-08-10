@@ -1,0 +1,759 @@
+
+[pytest-split] No test durations found. Pytest-split will split tests evenly when no durations are found.
+[pytest-split] You can expect better results in consequent runs, when test timings have been documented.
+
+
+
+[pytest-split] Splitting tests with algorithm: duration_based_chunks
+[pytest-split] Running group 1/4 (estimated duration: 2114.00s)
+
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+........................................................................ [ 27%]
+...............................................................FF....... [ 30%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+...........ss.............s.........ss.............s.........ss......... [ 40%]
+....s...........................................s....................... [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+...........FFFFFF....................................................... [ 57%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+......................................................F.FF.............. [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+........................................s............................... [ 88%]
+..................................................................s..... [ 91%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+..........................                                               [100%]
+=================================== FAILURES ===================================
+_________________________ test_teammate_branch_naming __________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_teammate_branch_naming0')
+
+    def test_teammate_branch_naming(tmp_path):
+        root = tmp_path / "wt-root"
+        root.mkdir()
+        env = {**os.environ, "AGENT_TEAM_WORKTREE_ROOT": str(root)}
+        slug = "canary-docs"
+        create = _run(
+            ["create", "--canary", "--name", slug, "--teammate", "1", "--base", "HEAD"],
+            env=env,
+        )
+>       assert create.returncode == 0, create.stderr + create.stdout
+E       AssertionError: Traceback (most recent call last):
+E           File "/work/scripts/agent_team_worktree.py", line 219, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/work/scripts/agent_team_worktree.py", line 210, in main
+E             return int(args.func(args))
+E                        ^^^^^^^^^^^^^^^
+E           File "/work/scripts/agent_team_worktree.py", line 108, in cmd_create
+E             completed = _run_git(["worktree", "add", "-b", branch, str(wt), base])
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/work/scripts/agent_team_worktree.py", line 73, in _run_git
+E             return subprocess.run(
+E                    ^^^^^^^^^^^^^^^
+E           File "/usr/local/lib/python3.12/subprocess.py", line 548, in run
+E             with Popen(*popenargs, **kwargs) as process:
+E                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/local/lib/python3.12/subprocess.py", line 1026, in __init__
+E             self._execute_child(args, executable, preexec_fn, close_fds,
+E           File "/usr/local/lib/python3.12/subprocess.py", line 1955, in _execute_child
+E             raise child_exception_type(errno_num, err_msg, err_filename)
+E         FileNotFoundError: [Errno 2] No such file or directory: 'git'
+E
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/python', '/work/scripts/agent_team_worktree.py', 'create', '--canary', '--name'...d_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: \'git\'\n').returncode
+
+tests/test_agent_team_worktree.py:93: AssertionError
+______________________ test_create_list_remove_roundtrip _______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_create_list_remove_roundt0')
+
+    def test_create_list_remove_roundtrip(tmp_path):
+        root = tmp_path / "wt-root"
+        root.mkdir()
+        env = {**os.environ, "AGENT_TEAM_WORKTREE_ROOT": str(root)}
+        slug = "adr172-smoke"
+        create = _run(["create", "--name", slug, "--base", "HEAD"], env=env)
+>       assert create.returncode == 0, create.stderr + create.stdout
+E       AssertionError: Traceback (most recent call last):
+E           File "/work/scripts/agent_team_worktree.py", line 219, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/work/scripts/agent_team_worktree.py", line 210, in main
+E             return int(args.func(args))
+E                        ^^^^^^^^^^^^^^^
+E           File "/work/scripts/agent_team_worktree.py", line 108, in cmd_create
+E             completed = _run_git(["worktree", "add", "-b", branch, str(wt), base])
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/work/scripts/agent_team_worktree.py", line 73, in _run_git
+E             return subprocess.run(
+E                    ^^^^^^^^^^^^^^^
+E           File "/usr/local/lib/python3.12/subprocess.py", line 548, in run
+E             with Popen(*popenargs, **kwargs) as process:
+E                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/local/lib/python3.12/subprocess.py", line 1026, in __init__
+E             self._execute_child(args, executable, preexec_fn, close_fds,
+E           File "/usr/local/lib/python3.12/subprocess.py", line 1955, in _execute_child
+E             raise child_exception_type(errno_num, err_msg, err_filename)
+E         FileNotFoundError: [Errno 2] No such file or directory: 'git'
+E
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/python', '/work/scripts/agent_team_worktree.py', 'create', '--name', 'adr172-sm...d_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: \'git\'\n').returncode
+
+tests/test_agent_team_worktree.py:117: AssertionError
+_______________ test_existing_checkout_denied_with_zero_mutation _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0')
+
+    @requires_bash
+    def test_existing_checkout_denied_with_zero_mutation(tmp_path: pathlib.Path) -> None:
+        """The headline case: reset must never be reached on an existing install."""
+        target = tmp_path / "install"
+        (target / ".git").mkdir(parents=True)
+        script, log, binmock = _sandbox(tmp_path)
+
+        proc = _run(script, tmp_path, str(target), binmock)
+        assert proc.returncode not in (126, 127), f"HARNESS BROKEN: {proc.stderr}"
+>       assert proc.returncode == bt.EXIT_REFUSED, proc.stdout + proc.stderr
+E       AssertionError: ===== Hostinger Hermes bootstrap (read-only Phase-1) =====
+E         Target dir: /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/install
+E
+E         Config:     /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/home/.hermes
+E         /config.env
+E
+E
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 6: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 7: set: -
+E         : invalid option
+E         set: usage: set [-abefhkmnptuvxBCEHPT] [-o option-name] [--] [-] [arg ...]
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 8: set: pipefail
+E         : invalid option name
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 9: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 14: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 19: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 74: syntax error near unexpected token `elif'
+E         /tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then
+E         '
+E
+E       assert 2 == 92
+E        +  where 2 = CompletedProcess(args=['/bin/bash', '/tmp/pytest-of-root/pytest-0/test_existing_checkout_denied_0/scripts/hostinger_he..._checkout_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then\n'\n").returncode
+E        +  and   92 = bt.EXIT_REFUSED
+
+tests/test_bootstrap_guard.py:248: AssertionError
+_______________ test_existing_data_dir_denied_with_zero_mutation _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_existing_data_dir_denied_0')
+
+    @requires_bash
+    def test_existing_data_dir_denied_with_zero_mutation(tmp_path: pathlib.Path) -> None:
+        target = tmp_path / "install"
+        (target / "data").mkdir(parents=True)
+        script, log, binmock = _sandbox(tmp_path)
+
+        proc = _run(script, tmp_path, str(target), binmock)
+>       assert proc.returncode == bt.EXIT_REFUSED, proc.stdout
+E       AssertionError: ===== Hostinger Hermes bootstrap (read-only Phase-1) =====
+E         Target dir: /tmp/pytest-of-root/pytest-0/test_existing_data_dir_denied_0/install
+E
+E         Config:     /tmp/pytest-of-root/pytest-0/test_existing_data_dir_denied_0/home/.hermes
+E         /config.env
+E
+E
+E
+E       assert 2 == 92
+E        +  where 2 = CompletedProcess(args=['/bin/bash', '/tmp/pytest-of-root/pytest-0/test_existing_data_dir_denied_0/scripts/hostinger_he..._data_dir_denied_0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then\n'\n").returncode
+E        +  and   92 = bt.EXIT_REFUSED
+
+tests/test_bootstrap_guard.py:259: AssertionError
+____________ test_fresh_target_reaches_the_first_intended_mutation _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_fresh_target_reaches_the_0')
+
+    @requires_bash
+    def test_fresh_target_reaches_the_first_intended_mutation(tmp_path: pathlib.Path) -> None:
+        """Anti-vacuity control.
+
+        Without this, every denial test above would still pass on a script that
+        exits early for some unrelated reason and never reaches anything at all.
+        """
+        target = tmp_path / "brand-new"
+        script, log, binmock = _sandbox(tmp_path)
+
+        proc = _run(script, tmp_path, str(target), binmock)
+        assert proc.returncode not in (126, 127), f"HARNESS BROKEN: {proc.stderr}"
+        recorded = log.read_text(encoding="utf-8")
+>       assert "git clone" in recorded, (
+            f"fresh target never reached the clone — denial tests may be vacuous.\n"
+            f"rc={proc.returncode}\nSTDOUT:\n{proc.stdout}\nlog:\n{recorded}"
+        )
+E       AssertionError: fresh target never reached the clone — denial tests may be vacuous.
+E         rc=2
+E         STDOUT:
+E         ===== Hostinger Hermes bootstrap (read-only Phase-1) =====
+E         Target dir: /tmp/pytest-of-root/pytest-0/test_fresh_target_reaches_the_0/brand-new
+E
+E         Config:     /tmp/pytest-of-root/pytest-0/test_fresh_target_reaches_the_0/home/.hermes
+E         /config.env
+E
+E
+E
+E         log:
+E
+E       assert 'git clone' in ''
+
+tests/test_bootstrap_guard.py:276: AssertionError
+_____________ test_local_dir_override_cannot_bypass_classification _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_local_dir_override_cannot0')
+
+    @requires_bash
+    def test_local_dir_override_cannot_bypass_classification(tmp_path: pathlib.Path) -> None:
+        """The original defect, tested directly: LOCAL_DIR pointing at a real
+        checkout must be classified on what it RESOLVES to."""
+        victim = tmp_path / "opt" / "leadgen"
+        (victim / ".git").mkdir(parents=True)
+        (victim / "data").mkdir(parents=True)
+        script, log, binmock = _sandbox(tmp_path)
+
+        proc = _run(script, tmp_path, str(victim), binmock)
+>       assert proc.returncode == bt.EXIT_REFUSED
+E       assert 2 == 92
+E        +  where 2 = CompletedProcess(args=['/bin/bash', '/tmp/pytest-of-root/pytest-0/test_local_dir_override_cannot0/scripts/hostinger_he...r_override_cannot0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then\n'\n").returncode
+E        +  and   92 = bt.EXIT_REFUSED
+
+tests/test_bootstrap_guard.py:292: AssertionError
+_____________________ test_missing_preflight_fails_closed ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0')
+
+    @requires_bash
+    def test_missing_preflight_fails_closed(tmp_path: pathlib.Path) -> None:
+        target = tmp_path / "brand-new"
+        script, log, binmock = _sandbox(tmp_path, with_preflight=False)
+
+        proc = _run(script, tmp_path, str(target), binmock)
+>       assert proc.returncode == bt.EXIT_PREFLIGHT_UNAVAILABLE, proc.stdout + proc.stderr
+E       AssertionError: ===== Hostinger Hermes bootstrap (read-only Phase-1) =====
+E         Target dir: /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/brand-new
+E
+E         Config:     /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/home/.hermes
+E         /config.env
+E
+E
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 6: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 7: set: -
+E         : invalid option
+E         set: usage: set [-abefhkmnptuvxBCEHPT] [-o option-name] [--] [-] [arg ...]
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 8: set: pipefail
+E         : invalid option name
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 9: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 14: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 19: $'\r': command not found
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 74: syntax error near unexpected token `elif'
+E         /tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then
+E         '
+E
+E       assert 2 == 94
+E        +  where 2 = CompletedProcess(args=['/bin/bash', '/tmp/pytest-of-root/pytest-0/test_missing_preflight_fails_c0/scripts/hostinger_he...preflight_fails_c0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then\n'\n").returncode
+E        +  and   94 = bt.EXIT_PREFLIGHT_UNAVAILABLE
+
+tests/test_bootstrap_guard.py:302: AssertionError
+__________________________ test_no_environment_bypass __________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_no_environment_bypass0')
+
+    @requires_bash
+    def test_no_environment_bypass(tmp_path: pathlib.Path) -> None:
+        target = tmp_path / "install"
+        (target / ".git").mkdir(parents=True)
+        script, log, binmock = _sandbox(tmp_path)
+
+        proc = _run(
+            script,
+            tmp_path,
+            str(target),
+            binmock,
+            FORCE="1",
+            SKIP_PREFLIGHT="1",
+            BOOTSTRAP_FORCE="1",
+            RUNTIME_DATA_GUARD_BYPASS="1",
+        )
+>       assert proc.returncode == bt.EXIT_REFUSED
+E       assert 2 == 92
+E        +  where 2 = CompletedProcess(args=['/bin/bash', '/tmp/pytest-of-root/pytest-0/test_no_environment_bypass0/scripts/hostinger_hermes...nvironment_bypass0/scripts/hostinger_hermes_bootstrap.sh: line 74: `elif command -v python >/dev/null 2>&1; then\n'\n").returncode
+E        +  and   92 = bt.EXIT_REFUSED
+
+tests/test_bootstrap_guard.py:322: AssertionError
+____________________________ test_ssot_file_tracked ____________________________
+
+    def test_ssot_file_tracked():
+        assert SSOT.is_file()
+>       ignored = subprocess.run(
+            ["git", "check-ignore", "-v", str(SSOT.relative_to(REPO))],
+            cwd=str(REPO),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+tests/test_canary_frozen_ssot.py:25:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/usr/local/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: 255 args: ['git', 'check-ignore', '-v', 'docs/coordinati...>
+args = ['git', 'check-ignore', '-v', 'docs/coordination/canary_frozen_paths.yml']
+executable = b'git', preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = '/work', env = None, startupinfo = None, creationflags = 0, shell = False
+p2cread = -1, p2cwrite = -1, c2pread = 41, c2pwrite = 42, errread = 43
+errwrite = 44, restore_signals = True, gid = None, gids = None, uid = None
+umask = -1, start_new_session = False, process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+
+        if executable is None:
+            executable = args[0]
+
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+
+        orig_executable = executable
+
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: 'git'
+
+/usr/local/lib/python3.12/subprocess.py:1955: FileNotFoundError
+____________________ test_path_match_and_check_enforcement _____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-root/pytest-0/test_path_match_and_check_enfo0')
+
+    def test_path_match_and_check_enforcement(tmp_path):
+        mod = _load()
+        assert mod.path_matches_frozen("app/voice_agent/foo.py", ["app/voice_agent/"]) == "app/voice_agent/"
+        assert mod.path_matches_frozen("app/billing/packages.py", ["app/billing/packages.py"]) == "app/billing/packages.py"
+        assert mod.path_matches_frozen("docs/x.md", ["app/voice_agent/"]) is None
+
+        # Isolated git repo: touch a frozen-shaped path and expect check exit 2
+        repo = tmp_path / "r"
+        repo.mkdir()
+>       subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+
+tests/test_canary_frozen_ssot.py:77:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/usr/local/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: 255 args: ['git', 'init']>, args = ['git', 'init']
+executable = b'git', preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = PosixPath('/tmp/pytest-of-root/pytest-0/test_path_match_and_check_enfo0/r')
+env = None, startupinfo = None, creationflags = 0, shell = False, p2cread = -1
+p2cwrite = -1, c2pread = 41, c2pwrite = 42, errread = 43, errwrite = 44
+restore_signals = True, gid = None, gids = None, uid = None, umask = -1
+start_new_session = False, process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+
+        if executable is None:
+            executable = args[0]
+
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+
+        orig_executable = executable
+
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: 'git'
+
+/usr/local/lib/python3.12/subprocess.py:1955: FileNotFoundError
+______________________ test_cli_check_clean_on_self_docs _______________________
+
+    def test_cli_check_clean_on_self_docs():
+        """This PR's docs-only tip vs itself for a known-clean path set — check plumbing works."""
+        r = subprocess.run(
+            [sys.executable, str(SCRIPT), "check", "--base", "HEAD", "--head", "HEAD"],
+            cwd=str(REPO),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+>       assert r.returncode == 0, r.stderr + r.stdout
+E       AssertionError: Traceback (most recent call last):
+E           File "/work/scripts/canary_frozen.py", line 196, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/work/scripts/canary_frozen.py", line 187, in main
+E             return int(args.func(args))
+E                        ^^^^^^^^^^^^^^^
+E           File "/work/scripts/canary_frozen.py", line 158, in cmd_check
+E             hits = check_diff_against_frozen(base=base, head=head)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/work/scripts/canary_frozen.py", line 121, in check_diff_against_frozen
+E             for path in changed_files(base=base, head=head, cwd=cwd):
+E                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/work/scripts/canary_frozen.py", line 88, in changed_files
+E             completed = subprocess.run(
+E                         ^^^^^^^^^^^^^^^
+E           File "/usr/local/lib/python3.12/subprocess.py", line 548, in run
+E             with Popen(*popenargs, **kwargs) as process:
+E                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/local/lib/python3.12/subprocess.py", line 1026, in __init__
+E             self._execute_child(args, executable, preexec_fn, close_fds,
+E           File "/usr/local/lib/python3.12/subprocess.py", line 1955, in _execute_child
+E             raise child_exception_type(errno_num, err_msg, err_filename)
+E         FileNotFoundError: [Errno 2] No such file or directory: 'git'
+E
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/local/bin/python', '/work/scripts/canary_frozen.py', 'check', '--base', 'HEAD', '--head',...d_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: \'git\'\n').returncode
+
+tests/test_canary_frozen_ssot.py:111: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/test_jiya_dashboard_playwright.py:59: could not import 'playwright.sync_api': No module named 'playwright'
+SKIPPED [1] tests/load/test_load.py:23: load tests off by default — set RUN_LOAD_TESTS=1 to run
+SKIPPED [3] tests/test_automation_health_clock_injection.py:83: job is not scheduled on this weekday
+SKIPPED [3] tests/test_automation_health_clock_injection.py:92: job is not scheduled on this weekday
+SKIPPED [3] tests/test_automation_health_clock_injection.py:101: crosses midnight or not scheduled today
+SKIPPED [1] tests/test_automation_runs_panel.py:49: node not on PATH
+SKIPPED [1] tests/test_customer_dashboard_frontend.py:39: node not on PATH
+SKIPPED [1] tests/test_customer_logout.py:19: Test account not available
+FAILED tests/test_agent_team_worktree.py::test_teammate_branch_naming - Asser...
+FAILED tests/test_agent_team_worktree.py::test_create_list_remove_roundtrip
+FAILED tests/test_bootstrap_guard.py::test_existing_checkout_denied_with_zero_mutation
+FAILED tests/test_bootstrap_guard.py::test_existing_data_dir_denied_with_zero_mutation
+FAILED tests/test_bootstrap_guard.py::test_fresh_target_reaches_the_first_intended_mutation
+FAILED tests/test_bootstrap_guard.py::test_local_dir_override_cannot_bypass_classification
+FAILED tests/test_bootstrap_guard.py::test_missing_preflight_fails_closed - A...
+FAILED tests/test_bootstrap_guard.py::test_no_environment_bypass - assert 2 =...
+FAILED tests/test_canary_frozen_ssot.py::test_ssot_file_tracked - FileNotFoun...
+FAILED tests/test_canary_frozen_ssot.py::test_path_match_and_check_enforcement
+FAILED tests/test_canary_frozen_ssot.py::test_cli_check_clean_on_self_docs - ...

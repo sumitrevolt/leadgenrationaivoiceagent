@@ -1,0 +1,2 @@
+session_loop_stress_exit=0
+SESS_RC=0
