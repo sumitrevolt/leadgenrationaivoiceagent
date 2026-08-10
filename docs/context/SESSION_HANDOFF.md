@@ -17,16 +17,18 @@
 - CLI query packet: `submit_inquiry` / `hot_queue` / `upi_submit` / `activate_plan` → public_site + billing + reply_agent + product_one_delivery neighborhood (162 nodes @ BFS2)
 - Graph = navigation only; source verified for money-path + flags honesty
 
-### Shipped (PR #305)
+### Shipped (PR #305) — **MERGED**
 1. Public Advanced rename: `Advanced Marketing` / badge `ADVANCED` — no Combo/bundle USP in `packages.py` + `frontend/pricing.html` + `frontend/website/index.html`
 2. `/api/growth/infra/flags` → `effective_on` + `effective_overrides` for `REPLY_AUTO_SEND`
 3. Tests: `tests/test_product_truth_public_advanced.py` + `tests/test_growth_infra_flags_contract.py`
+4. Context: ACTIVE_WORK 3-stream trim + SESSION_HANDOFF + progress Loop Run
 
-Commits: `37d8cece` · `fe8eb9fe`
+Commits: `37d8cece` · `fe8eb9fe` · `1e617350` → merge **`098c0da4`** on `origin/main` (2026-08-10T07:37:19Z)
+CI: `prod_check + pytest` pass · Gate A pass · Lint pass · Trivy pass · Code scanning AI findings = infra model unsupported (non-blocking; mergeState CLEAN)
 
 ### Issues opened
 - #304 P1 guest UPI `approved_but_unbound`
-- #306 P2 REPLY_AUTO_SEND env vs Redis (honesty in PR; prod runtime WAIT)
+- #306 P2 REPLY_AUTO_SEND env vs Redis (honesty in #305; prod runtime WAIT)
 - #307 P2 `DUNNING_ENGINE` OFF
 
 ### Evidence (local, worktree)
@@ -39,19 +41,20 @@ Commits: `37d8cece` · `fe8eb9fe`
 | check_secrets.py | **0** |
 | git diff --check | **0** |
 | test_upi_payments.py | **HUNG** (~10m) — killed, no exit proof |
+| CI prod_check + pytest (PR #305) | **pass** (~15m52s) |
 
 ### Automation opportunity (scored, no new control plane)
 1. **Hot Queue owner actionability** (freq×revenue high) — keep human gate; improve queue bind / unbound UPI (#304)
-2. **Flags effective honesty** — canary shipped in #305 (read-path)
+2. **Flags effective honesty** — shipped + merged in #305 (read-path; deploy WAIT)
 3. **Dunning reminders for manual-UPI** — owner-gated canary only (#307); no auto-charge
 4. SoftTimeLimit→SUCCESS/no-DLQ — reliability P2 (not shipped)
 5. Outbound WA/email — already gated; do NOT expand cold auto
 
 ### Verdict snapshot (detail in chat)
-Marketing launch **WAIT** (money-path P1 unbound + prod≠main) · Voice **WAIT** (frozen/audit-only; campaign live but cert incomplete) · Revenue-ready **WAIT** · Automation-ready **WAIT** · Architecture **WAIT** (gaps remain) · Enterprise ~**/120** provisional · main tip **GO** for merge of safe slice · Deploy **WAIT — NOT AUTHORIZED** · Revenue generated **WAIT**
+Marketing launch **WAIT** · Voice **WAIT** · Revenue-ready **WAIT** · Automation-ready **WAIT** · Architecture **WAIT** · Enterprise **~79/120** · main tip **GO** (`098c0da4`) · Deploy **WAIT — NOT AUTHORIZED** · Revenue generated **WAIT**
 
 ### Rollback for #305
-Revert PR / restore prior Advanced strings + remove `effective_on` block from `infra_flags`.
+`git revert -m 1 098c0da4` (or restore prior Advanced strings + remove `effective_on` block from `infra_flags`).
 
 ### Untouched
 No deploy · no `.env` · no real email/call/WA/social/UPI confirm · no Swara · no force-push · no Dependabot dismiss · no greenlet upstream submit
