@@ -3134,19 +3134,21 @@ async function bulkDelete(){
 async function removeCustomer(cid, company){
   if(!cid){ adminToast("Client id missing","error"); return; }
   const name = (company||cid||"").replace(/</g,"&lt;");
-  if(!confirm("Remove customer '"+name+"'?\n\nThis revokes the portal login, cancels scheduled content, marks converted autopilot prospects as removed (never re-contacted), and deletes the brand kit + derived stores. IRREVERSIBLE.")) return;
+  // Default SOFT disable — brand kit / ledgers kept. Hard purge is owner-gated
+  // (API mode=purge + confirm_purge + ADMIN_CUSTOMER_PURGE_ENABLED=1).
+  if(!confirm("Disable customer '"+name+"'?\n\nSOFT disable (default):\n• revoke portal login\n• cancel subscription + scheduled content\n• mark client cancelled (never re-contacted)\n• brand kit / delivery ledgers are KEPT\n\nHard purge is a separate owner-gated API (not this button).")) return;
   const reason = prompt("Reason (optional, recorded in audit):")||"";
   const btn=document.querySelector('[onclick="removeCustomer(\''+cid+'\',\''+name+'\')"]');
-  if(btn){ btn.disabled=true; const t=btn.textContent; btn.textContent="Removing…"; btn.dataset.prevText=t; }
+  if(btn){ btn.disabled=true; const t=btn.textContent; btn.textContent="Disabling…"; btn.dataset.prevText=t; }
   try{
-    const r=await fetch("/api/admin/clients/"+encodeURIComponent(cid)+"/remove-customer",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr(),idemHdr()),body:JSON.stringify({confirm:true,reason:reason})});
+    const r=await fetch("/api/admin/clients/"+encodeURIComponent(cid)+"/remove-customer",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr(),idemHdr()),body:JSON.stringify({confirm:true,mode:"soft",reason:reason})});
     const d=await r.json().catch(()=>({}));
     if(r.ok && d && d.ok){
-      adminToast("Removed "+name+" · "+Object.entries(d).filter(([k,v])=>typeof v==="number"&&v>0||v===true).map(([k,v])=>(k+":"+v)).join(", "),"success");
+      adminToast("Disabled "+name+" · "+Object.entries(d).filter(([k,v])=>typeof v==="number"&&v>0||v===true).map(([k,v])=>(k+":"+v)).join(", "),"success");
     } else {
-      adminToast((d&&d.error)||"Remove failed","error");
+      adminToast((d&&d.error)||"Disable failed","error");
     }
-  }catch(e){ adminToast("Remove failed: "+e,"error"); }
+  }catch(e){ adminToast("Disable failed: "+e,"error"); }
   if(btn){ btn.disabled=false; btn.textContent=btn.dataset.prevText||"Remove"; }
   loadDashboard();
 }
