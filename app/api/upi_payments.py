@@ -40,6 +40,12 @@ class UpiSubmitIn(BaseModel):
     order_ref: str = ""
 
 
+class UpiBindIn(BaseModel):
+    """Admin-only bind payload — client_id for an unbound (guest) submission."""
+
+    client_id: str = ""
+
+
 @router.post(
     "/upi/submit",
     summary="Customer self-serve: maine pay kiya (UPI ref submit)",
@@ -114,6 +120,26 @@ async def upi_approve(pid: str, _user=Depends(require_admin)):
         return {"ok": rec.get("ok", True), "record": rec}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_approve failed: %s", e)
+        return {"ok": False, "error": "internal"}
+
+
+@router.post("/upi/pending/{pid}/bind", summary="Admin: bind a client to an unbound UPI submission")
+async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
+    """Admin-only — resolve a guest (unbound) submission (#304).
+
+    Guest "maine pay kiya" submissions carry no client_id; approving one fails
+    closed with ``approved_but_unbound``. This operator queue action binds the
+    verified marketing client (fail-closed: unknown client / cross-tenant
+    re-point refused), then Approve activates — the owner's Approve stays the
+    single activation gate.
+    """
+    try:
+        from app.platform import upi_payments
+
+        rec = upi_payments.bind_client(pid, (body.client_id or "").strip(), decided_by="admin")
+        return {"ok": rec.get("ok", True), "record": rec}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_bind failed: %s", e)
         return {"ok": False, "error": "internal"}
 
 

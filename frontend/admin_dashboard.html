@@ -5040,7 +5040,7 @@ async function loadUpiSelfServe(){
     el.innerHTML=rows.map(function(p){
       const hasClient = !!(p.client_id||'').trim();
       const noClientNote = hasClient ? '' :
-        '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Koi account nahi — payer_contact pe manually reach out karo, approve se auto-activate nahi hoga</div>';
+        '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Koi account nahi — pehle Bind client se jodo, phir Approve activate karega</div>';
       return '<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px">'
         + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
         + '<span style="flex:1;color:#e2e8f0"><b>'+escH(p.plan||'')+'</b> · ref: '+escH(p.upi_ref||'')
@@ -5051,6 +5051,7 @@ async function loadUpiSelfServe(){
         + '</span>'
         + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',true,this)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Approve</button>'
         + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',false,this)" style="font-size:10px;padding:4px 8px;background:#dc2626">✕ Reject</button>'
+        + (!hasClient ? '<button class="btn" onclick="upiSelfServeBind(\''+escH(p.id)+'\',this)" style="font-size:10px;padding:4px 8px;background:#3b82f6">🔗 Bind client</button>' : '')
         + '</div>' + noClientNote + '</div>';
     }).join('');
   }catch(e){
@@ -5082,6 +5083,37 @@ async function upiSelfServeDecide(pid, approve, btn){
       adminToast((approve?"Approve":"Reject")+" fail — "+msg,"error");
     }
   }catch(e){ adminToast("Network/error — "+(e.message||e),"error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
+}
+
+
+// #304 (2026-08-10): guest "maine pay kiya" submissions carry no client_id and
+// approving one fails closed (approved_but_unbound). This operator action binds
+// the verified client; Approve (after bind) then activates.
+async function upiSelfServeBind(pid, btn){
+  var cid=prompt('Client id (marketing id ya billing alias) — UPI payment isse bind karein:');
+  if(cid===null) return;
+  cid=(cid||'').trim();
+  if(!cid){ adminToast('Client id required','error'); return; }
+  if(!confirm('Is client se bind karein: '+cid+'? Approve ke baad hi activate hoga.')) return;
+  var origText;
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent='Binding…'; }
+  try{
+    const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/bind',{
+      method:'POST', headers:abAuthHdr(), body:JSON.stringify({client_id:cid})
+    });
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok && d && d.ok!==false){
+      var rec=(d.record||{});
+      var warn=(rec.warning||rec.activation_blocked||'');
+      adminToast('✅ Client bound — ab Approve karke activate karein'+(warn?(' ('+warn+')'):''),'success');
+      loadUpiSelfServe();
+    } else {
+      var msg=(d&&(d.error||d.detail||d.message))||('HTTP '+r.status);
+      if(typeof msg==='object') msg=JSON.stringify(msg);
+      adminToast('Bind fail — '+msg,'error');
+    }
+  }catch(e){ adminToast('Network/error — '+(e.message||e),'error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
