@@ -11,6 +11,7 @@ Usage:
 Protocol: ~/.buzz/GUIDES/AUTONOMY_POLICY.md (Stage 1 = read-only canary).
 Commands never flow the other way — Buzz is an interface, not a control plane.
 """
+
 from __future__ import annotations
 
 import argparse

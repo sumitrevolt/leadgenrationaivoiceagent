@@ -19,6 +19,7 @@ contract; the chat post is the human-readable mirror.
 
 Protocol: ~/.buzz/GUIDES/CODING_AGENT_PROTOCOL.md
 """
+
 from __future__ import annotations
 
 import argparse

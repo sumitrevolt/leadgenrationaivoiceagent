@@ -8,6 +8,7 @@ Usage:
 Used by buzz-keys.sh so identities work in the Buzz web/desktop app (which
 accepts nsec/npub) and in buzz-cli (BUZZ_PRIVATE_KEY=nsec1...).
 """
+
 import sys
 
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"  # pragma: allowlist secret
