@@ -118,6 +118,61 @@ def stats(code: str | None = None) -> dict[str, Any]:
         "paid_conversions": len(paid),
         "commission_earned": round(earned),
         "commission_pct": COMMISSION_PCT,
+        "detail": affiliate_detail(),
+    }
+
+
+def affiliate_detail() -> list[dict[str, Any]]:
+    """Per-affiliate admin rows: referrals, paid conversions, earned (₹)."""
+    affs = _read(_AFFILIATES)
+    refs = _read(_REFERRALS)
+    out: list[dict[str, Any]] = []
+    for a in reversed(affs):
+        mine = [r for r in refs if r.get("code") == a.get("code")]
+        paid = [r for r in mine if r.get("status") == "paid"]
+        earned = sum(float(r.get("amount", 0) or 0) * COMMISSION_PCT / 100 for r in paid)
+        out.append(
+            {
+                "id": a.get("id"),
+                "name": a.get("name"),
+                "email": a.get("email", ""),
+                "phone": a.get("phone", ""),
+                "code": a.get("code"),
+                "link": f"{BASE_URL}/?ref={a.get('code')}",
+                "created_at": a.get("created_at", ""),
+                "referrals": len(mine),
+                "paid_conversions": len(paid),
+                "earned": round(earned),
+            }
+        )
+    return out
+
+
+def referral_kit(name: str, email: str = "", phone: str = "") -> dict[str, Any]:
+    """Affiliate ka shareable kit — link + WhatsApp-ready text (owner 1-tap send).
+
+    Reward framing Hinglish + honest: referral code se jo naya customer pays
+    usse affiliate ko first-month ka 20% commission milta hai.
+    """
+    reg = register_affiliate(name, email, phone)
+    link = reg["link"]
+    text = (
+        f"Namaste! 🙏 Maine LeadGen AI use karke results dekh liye — ab aapke liye "
+        f"bhi ek special referral link hai.\n\n"
+        f"LeadGen AI aapki business ke liye AI se marketing, leads aur follow-ups "
+        f"automate karta hai — bina jhol ke. Mera referral code use karke signup "
+        f"karo: {link}\n\n"
+        f"Jab aap subscribe karo ge, mujhe first month ka 20% referral reward "
+        f"milta hai — aur aapko market-best AI marketing automation ₹1999/month me. "
+        f"Try karo, free audit pehle: https://leadsgenai.in/audit"
+    )
+    return {
+        "ok": True,
+        "existing": bool(reg.get("existing")),
+        "code": reg["code"],
+        "link": link,
+        "whatsapp_text": text,
+        "commission": f"{COMMISSION_PCT}% of first month per paying customer",
     }
 
 
@@ -125,4 +180,12 @@ def list_affiliates(limit: int = 100) -> list[dict[str, Any]]:
     return _read(_AFFILIATES)[-limit:]
 
 
-__all__ = ["register_affiliate", "record_referral", "stats", "list_affiliates", "COMMISSION_PCT"]
+__all__ = [
+    "register_affiliate",
+    "record_referral",
+    "stats",
+    "list_affiliates",
+    "referral_kit",
+    "affiliate_detail",
+    "COMMISSION_PCT",
+]

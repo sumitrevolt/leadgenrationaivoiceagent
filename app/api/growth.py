@@ -441,6 +441,15 @@ async def affiliate_stats(code: str | None = None, _user=Depends(require_admin))
     return {"stats": affiliate.stats(code), "affiliates": affiliate.list_affiliates(50)}
 
 
+@router.post("/affiliate/kit")
+async def affiliate_kit(body: AffiliateIn, _user=Depends(require_admin)):
+    """ADMIN: affiliate register/update + shareable kit (link + WhatsApp-ready
+    text) ek hi call me — Jiya jaisi referral pakdo (owner 1-tap send)."""
+    from app.marketing import affiliate
+
+    return affiliate.referral_kit(body.name, body.email or "", body.phone or "")
+
+
 # ---------------- Community / Q&A content drafter -------------------- #
 class CommunityIn(BaseModel):
     platform: str = "quora"

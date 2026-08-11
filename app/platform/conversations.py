@@ -128,7 +128,14 @@ def _collect_messages() -> list[dict[str, Any]]:
 
     # 1) reply_agent drafts (email + whatsapp replies, AI draft saath me)
     try:
+        # Legacy noise (status/@broadcast, DMARC, auto-ack, case-closure, spam)
+        # ko conversation tab me bhi hide karo — same guard jo Hot Queue use
+        # karti hai (2026-08-11 retro-hide; drafts write-path pe already drop).
+        from app.platform.reply_agent import _is_noise_row
+
         for r in _read_jsonl(_REPLY_DRAFTS):
+            if _is_noise_row(r):
+                continue
             k = thread_key(r)
             if not k:
                 continue

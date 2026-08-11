@@ -2,6 +2,16 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## ADR-178 (2026-08-11) — Guest UPI `#304` bind path (CODE-PRESENT, deploy WAIT)
+
+**Decision:** Guest / empty-`client_id` UPI approve is no longer a dead-end. Add `list_actionable()` (pending + approved-but-unbound), `bind_client()`, optional `client_id` on approve, `POST /api/upi/pending/{pid}/bind`, Self-Serve + God Mode Bind UI, and route Admin Office + 08:30 digest through `list_actionable`.
+
+**Context:** Approve on guest pay set `needs_client_bind` + warning "re-approve", then the row left `list_payments("pending")` so operators lost the only money-rail activation path. Issue #304.
+
+**Alternatives rejected:** (1) Force client login before submit — breaks home-page guest pay. (2) Auto-create client on approve — too much identity/billing risk. (3) Fake re-approve as the only recovery — no bind surface.
+
+**Consequence:** CODE-PRESENT on working tree; pytest UNVERIFIED this session (shell blocked). Deploy WAIT on owner ask. Does not create 2nd paid customer — WS-GTM1 still needs real ₹1999.
+
 ## ADR-168 (2026-08-06) ? Swara paid/free FAQ priority + OmniRoute voice OFF until gateway healthy
 
 **Decision:** (1) `_customer_qa_reply` treats paid/free / ???/???? intent as **price** before feature/service pitch keywords. (2) Prod env: `OMNIROUTE_VOICE=0`, `USE_THINKING_FILLER=1`, `VOICE_PROCESSING_ACK_DELAY_S=0.8` (backup `.env.bak-swara-setup-20260806134035`); app recreate at `56aef0fb`.
@@ -2733,3 +2743,13 @@ Current production is **byte-identical to the original state**, and `REPLY_AUTO_
 **Decision:** Ship SSOT `docs/coordination/canary_frozen_paths.yml` + `scripts/canary_frozen.py` + lead prompt before live Agent Teams session. TM1/TM2 files remain for the live canary.
 
 **Evidence:** `tests/test_canary_frozen_ssot.py`; runbook + ADR-172 updated.
+
+## 2026-08-11 ? ADR-177 GSC rank tracking + referral launch (Phase A/B of openalternative research)
+
+**Context:** Programmatic SEO pages untracked (~0 inbound visibility); reply_drafts legacy noise (594 status, 501 adityabirla ticketing, 391 self-mail, 64 DMARC rows) fake-hot dikha rahi thi; referral loop code me maujood tha par admin UI + kit nahi.
+
+**Decision:** (A1) app/integrations/gsc.py — FREE Search Console API service-account (GSC_ENABLED=0 INERT; creds = GSC_SERVICE_ACCOUNT_JSON else google_sheets_credentials reuse; sc-domain:leadsgenai.in), daily 00:30 IST beat (staff-gsc-rank-daily), data/gsc_daily.jsonl + gsc_state.json, admin GET /api/clientops/gsc/overview. (B2) _is_noise_row extended: case-closure regex + draft-field scan + DMARC sender; conversations tab wahi guard. (B1) affiliate.referral_kit() + POST /api/growth/affiliate/kit + /app/affiliates panel page. GSC = 2nd-highest-index page (start with blog + 2 slugs), 5-15 min/wk.
+
+**Evidence:** 13 GSC contract tests + 10 affiliate contract tests + 89 reply-noise/closure tests; scheduler multi-registry parity updated (staff count 44→45); prod_check PASS (1273 effective routes); check_secrets clean; API.md synced (1295 endpoints).
+
+**Consequence:** GSC creds verification runbook needed (GCP SA + Search Console property + DNS TXT). Jiya kit owner 1-tap se /app/affiliates pe ready. New flags registry: GSC_ENABLED / GSC_SERVICE_ACCOUNT_JSON / GSC_SITE_URL.

@@ -556,6 +556,14 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=0, minute=15),  # B1 MRR snapshot (gated REVENUE_TRENDS)
         "args": ("revenue_snapshot",),
     },
+    "staff-gsc-rank-daily": {
+        # 00:30 IST: Google Search Console rank/impression snapshot — SEO
+        # observability (programmatic pages abhi untracked the). Job body
+        # no-ops unless GSC_ENABLED=1 + service-account creds (INERT off).
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=0, minute=30),
+        "args": ("gsc_rank",),
+    },
     # Boss daily standup — in-process loop ke saath parity (gated AGENT_STANDUP;
     # flag OFF = run_staff_job no-op early return, zero behaviour change).
     "staff-standup-daily": {

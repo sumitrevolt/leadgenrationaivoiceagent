@@ -119,3 +119,15 @@ Prod OpenClaw (Stage A, in-app) is unrelated to this: it rides the `leadgen_app`
 ## Documents folder hygiene (2026-08-02)
 `C:\Users\Ratanshila\Documents` had 3 orphaned git worktrees (`leadgen-admin-ux-pr`, `leadgen-oc-enter-fix`, `leadgen-openclaw-release`) whose gitdirs were gone. Proved safe to archive: 9,685 files hashed with `git hash-object` + `cat-file --batch-check` -> only 9 blobs absent from the object DB, all of them `_tmp_*.txt` scratch or gitignored runtime `data/*.jsonl`. Zero source lost; OpenClaw work already merged (PR #65/#105/#114/#122/#146/#198), loop27/28 19/20 files in HEAD.
 Layout now: `_archive_2026-08-02` (worktrees + backups + loop27/28 patch), `_trading` (MT5/crypto), `_personal` (docx), `_secrets_DO_NOT_COMMIT` (API-key txt â€” deliberately OUTSIDE the repo, never commit).
+
+## GSC rank-tracking verification runbook (2026-08-11, ADR-177)
+- **What:** daily Google Search Console snapshot (clicks/impressions/avg-position) for programmatic-SEO observability. Code INERT until creds set.
+- **Enable (prod, once, owner):**
+  1. GCP: naya project ya existing → Search Console API enable → service account + JSON key
+  2. Search Console: add property sc-domain:leadsgenai.in → DNS TXT verification (Caddy/DNS provider)
+  3. Property pe service-account email ko FULL access
+  4. VPS .env: GSC_ENABLED=1, GSC_SERVICE_ACCOUNT_JSON=<json path/file content> (fallback google_sheets_credentials reuse), GSC_SITE_URL=sc-domain:leadsgenai.in
+  5. docker compose -f docker-compose.vps.yml restart leadgen_app leadgen_worker leadgen_scheduler (bina rebuild)
+- **Verify:** /api/clientops/gsc/overview admin → data block filled (na ki error) · data/gsc_daily.jsonl rows after 00:30 IST run · automation Mission Control me staff-gsc-rank-daily last_run fresh · ntfy page expected (staff job hooks)
+- **Troubleshoot:** creds bad → module logs + never raises (graceful no-op). Google libs missing in image → google-api-python-client add karke rebuild; ImportError is CAUGHT so prod safe.
+- **Rollback:** GSC_ENABLED=0 + restart — beat entry stays but job exits early; files data/gsc_daily.jsonl safe to delete.
