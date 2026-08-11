@@ -16,8 +16,10 @@
     "buzz": {
       "command": ".venv/Scripts/python.exe",
       "args": ["scripts/buzz_mcp.py"],
-      "env": {},
-      "_status": "LIVE 2026-08-11 — stdio MCP (stdlib-only). Tools: buzz_channels / buzz_send / buzz_lock_status. BUZZ_RELAY=ws://127.0.0.1:3100 (user env; relay community host + port mapping + owner pubkey + fresh workspace fixed 2026-08-11). Verified: initialize + tools/list + buzz_channels + buzz_send (posted to #build) + buzz_lock_status against local relay."
+      "env": {
+        "BUZZ_RELAY": "ws://127.0.0.1:3100"
+      },
+      "_status": "LIVE 2026-08-11 — stdio MCP (stdlib-only). Tools: buzz_channels / buzz_send / buzz_lock_status. BUZZ_RELAY=ws://127.0.0.1:3100 (pinned in env; MCP spawn-time env was stale 3000 → 404 no community; user env via setx also 3100). Verified: initialize + tools/list + buzz_channels + buzz_send (posted to #build) + buzz_lock_status against local relay."
     }
   }
 }
