@@ -739,6 +739,8 @@ def _transition(
 
 
 def request_advice(decision_id: str) -> dict[str, Any]:
+    if not enabled():
+        return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
@@ -836,6 +838,14 @@ def verify_boss_authority(
         run_id = str(ev.get("run_id") or "").strip()
         if not run_id:
             return {"ok": False, "error": "boss_run_id_required", "fail_closed": True}
+        # Evidence must bind the exact decision hash — run_id alone is not enough.
+        ev_sha = str(ev.get("content_sha256") or "").strip()
+        if not ev_sha or ev_sha != content_sha256:
+            return {
+                "ok": False,
+                "error": "boss_run_hash_mismatch",
+                "fail_closed": True,
+            }
         try:
             from app.agents.coordinator import recent_runs
 
@@ -846,6 +856,13 @@ def verify_boss_authority(
                     continue
                 if str(run.get("pattern") or "") != "hierarchical":
                     continue
+                run_sha = str(run.get("content_sha256") or "").strip()
+                if run_sha and run_sha != content_sha256:
+                    return {
+                        "ok": False,
+                        "error": "boss_run_hash_mismatch",
+                        "fail_closed": True,
+                    }
                 return {"ok": True, "actor_id": _BOSS_ID, "via": "boss_run", "run_id": run_id}
         except Exception as e:
             logger.warning("[boss_gov] boss_run lookup failed: %s", type(e).__name__)
@@ -1158,11 +1175,36 @@ def boss_approve(
             },
         )
 
-    # GREEN
-    if actor_id != _BOSS_ID and state != "needs_owner":
+    # GREEN — needs_owner still requires verified one-time Owner OS binding
+    if state == "needs_owner":
+        oid = (owner_decision_id or cur.get("owner_decision_id") or "").strip()
+        if not oid:
+            return {"ok": False, "error": "owner_decision_id_required"}
+        verified = verify_and_consume_owner_decision(
+            oid,
+            tenant_id=str(cur.get("tenant_id") or ""),
+            agent_id=str(cur.get("agent_id") or ""),
+            decision_type=str(cur.get("decision_type") or ""),
+            content_sha256=str(cur.get("content_sha256") or ""),
+            decision_id=decision_id,
+            lane=lane or "GREEN",
+        )
+        if not verified.get("ok"):
+            return verified
+        return _transition(
+            decision_id,
+            "boss_approved",
+            {
+                "owner_decision_id": oid,
+                "approved_by": actor_id,
+                "approved_at": _now_iso(),
+                "authority_via": auth.get("via"),
+                "owner_verified": True,
+            },
+        )
+
+    if actor_id != _BOSS_ID:
         return {"ok": False, "error": "boss_or_owner_required"}
-    if state == "needs_owner" and not (owner_decision_id or cur.get("owner_decision_id")):
-        return {"ok": False, "error": "owner_decision_id_required"}
 
     return _transition(
         decision_id,
@@ -1181,27 +1223,48 @@ def boss_reject(
     *,
     actor_id: str = _BOSS_ID,
     reason: str = "",
+    authority_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if not enabled():
+        return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
     if str(cur.get("state")) not in ("boss_reviewed", "needs_owner", "advice_recorded"):
         return {"ok": False, "error": "bad_state", "state": cur.get("state")}
+    auth = verify_boss_authority(
+        decision_id=decision_id,
+        content_sha256=str(cur.get("content_sha256") or ""),
+        evidence=authority_evidence,
+    )
+    if not auth.get("ok"):
+        return auth
+    actor_id = str(auth.get("actor_id") or _BOSS_ID)
     # from advice_recorded, must pass boss_reviewed first for reject? Allow reject from reviewed/needs_owner.
     if str(cur.get("state")) == "advice_recorded":
         br = boss_review_decision(
-            decision_id, reviewer_id=actor_id, verdict="reject", reason=reason
+            decision_id,
+            reviewer_id=actor_id,
+            verdict="reject",
+            reason=reason,
+            authority_evidence=authority_evidence,
         )
         if not br.get("ok"):
             return br
     return _transition(
         decision_id,
         "boss_rejected",
-        {"rejected_by": actor_id, "reject_reason": (reason or "")[:200]},
+        {
+            "rejected_by": actor_id,
+            "reject_reason": (reason or "")[:200],
+            "authority_via": auth.get("via"),
+        },
     )
 
 
 def mark_needs_owner(decision_id: str, *, owner_decision_id: str = "") -> dict[str, Any]:
+    if not enabled():
+        return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
@@ -1290,11 +1353,17 @@ def consume_or_execute(
                         "[boss_gov] consume audit mirror failed decision_id=%s",
                         decision_id,
                     )
+                    out["ok"] = False
+                    out["error"] = "audit_mirror_failed"
+                    out["fail_closed"] = True
                     out["audit_mirror_ok"] = False
                 else:
                     out["audit_mirror_ok"] = True
         except Exception as e:
             logger.error("[boss_gov] consume audit mirror exception: %s", type(e).__name__)
+            out["ok"] = False
+            out["error"] = "audit_mirror_failed"
+            out["fail_closed"] = True
             out["audit_mirror_ok"] = False
     return out
 

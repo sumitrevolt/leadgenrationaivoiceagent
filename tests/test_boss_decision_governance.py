@@ -633,6 +633,94 @@ def test_flag_off_zero_governance_records(gov_root, monkeypatch):
     assert out.get("inert") is True
     assert len(bdg._latest_by_id()) == before
     assert bdg.propose_from_hierarchical_run({"run_id": "x", "teams": []}).get("inert")
+    assert bdg.request_advice("missing").get("inert") is True
+    assert bdg.boss_reject("missing").get("inert") is True
+    assert bdg.mark_needs_owner("missing").get("inert") is True
+
+
+def test_boss_run_requires_bound_hash(gov_root, monkeypatch):
+    did, sha = _green_flow(gov_root, monkeypatch)
+
+    def _runs(_n):
+        return [
+            {
+                "run_id": "run-bound",
+                "boss": "manager",
+                "pattern": "hierarchical",
+                "content_sha256": sha,
+            }
+        ]
+
+    monkeypatch.setattr("app.agents.coordinator.recent_runs", _runs)
+    bad = bdg.boss_approve(
+        did,
+        expected_sha256=sha,
+        authority_evidence={"kind": "boss_run", "run_id": "run-bound"},
+    )
+    assert bad["ok"] is False
+    assert bad["error"] == "boss_run_hash_mismatch"
+    ok = bdg.boss_approve(
+        did,
+        expected_sha256=sha,
+        authority_evidence={
+            "kind": "boss_run",
+            "run_id": "run-bound",
+            "content_sha256": sha,
+        },
+    )
+    assert ok["ok"] is True, ok
+
+
+def test_green_needs_owner_rejects_arbitrary_owner_id(gov_root, monkeypatch):
+    did, sha = _green_flow(gov_root, monkeypatch)
+    assert bdg.mark_needs_owner(did, owner_decision_id="oosv_arbitrary")["ok"]
+    denied = bdg.boss_approve(
+        did,
+        expected_sha256=sha,
+        owner_decision_id="oosv_arbitrary",
+        authority_evidence=_auth(did, sha),
+    )
+    assert denied["ok"] is False
+    assert denied["error"] in {
+        "owner_decision_not_found",
+        "owner_decision_not_approved",
+        "owner_binding_mismatch:content_sha256",
+        "owner_binding_mismatch:tenant_id",
+        "owner_binding_mismatch:decision_id",
+        "owner_binding_mismatch:agent_id",
+        "owner_binding_mismatch:decision_type",
+        "owner_binding_mismatch:lane",
+        "owner_binding_mismatch:mission_id",
+        "owner_binding_mismatch:action",
+    }
+
+
+def test_boss_reject_requires_authority(gov_root, monkeypatch):
+    did, sha = _green_flow(gov_root, monkeypatch)
+    denied = bdg.boss_reject(did, reason="nope")
+    assert denied["ok"] is False
+    assert denied["error"] == "boss_authority_required"
+    ok = bdg.boss_reject(did, reason="nope", authority_evidence=_auth(did, sha))
+    assert ok["ok"] is True, ok
+
+
+def test_audit_mirror_failure_fail_closed(gov_root, monkeypatch):
+    did, sha = _green_flow(gov_root, monkeypatch)
+    # Attach a verification mirror id so consume attempts audit write.
+    cur = bdg.get_decision(did)
+    assert cur
+    patched = dict(cur)
+    patched["verification_item_id"] = "oosv_mirror_fail"
+    bdg._append_jsonl(bdg._ledger_path(), patched)
+    assert bdg.boss_approve(did, authority_evidence=_auth(did, sha), expected_sha256=sha)["ok"]
+    monkeypatch.setattr(
+        "app.platform.approvals_bridge.decide",
+        lambda *a, **k: {"ok": False, "error": "mirror_down"},
+    )
+    out = bdg.consume_or_execute(did, expected_sha256=sha)
+    assert out["ok"] is False
+    assert out["error"] == "audit_mirror_failed"
+    assert out.get("fail_closed") is True
 
 
 def test_flag_off_blocks_execute(gov_root, monkeypatch):
