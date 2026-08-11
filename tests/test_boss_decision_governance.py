@@ -749,6 +749,90 @@ def test_stale_advice_fail_closed(gov_root, monkeypatch):
     assert bad["error"] == "advice_stale"
 
 
+def test_owner_os_governed_consumer_flag_off(gov_root, monkeypatch):
+    did, sha = _green_flow(gov_root, monkeypatch)
+    assert bdg.mark_needs_owner(did)["ok"]
+    monkeypatch.setenv("BOSS_DECISION_GOVERNANCE", "0")
+    from app.platform import owner_os
+
+    denied = owner_os.decide_approval("boss_decision_governance", did, "approve", actor="admin")
+    assert denied["ok"] is False
+    assert denied["error"] == "flag_off"
+    assert denied.get("fail_closed") is True
+
+
+def test_owner_os_governed_consumer_approve_consume(gov_root, monkeypatch):
+    """Real Owner OS adapter invokes create→stamp→boss_approve→consume once."""
+    amber = bdg.propose_decision(
+        tenant_id="t1",
+        agent_id="isha",
+        decision_type="customer_content_publish",
+        payload={"caption": "hi"},
+        proposed_by="isha",
+    )
+    did = amber["decision"]["decision_id"]
+    sha = amber["decision"]["content_sha256"]
+    bdg.request_advice(did)
+    _patch_advice(monkeypatch, sha, "t1")
+    bdg.record_second_brain_advice(did)
+    bdg.boss_review_decision(did, authority_evidence=_auth(did, sha))
+    # First approve without owner id parks at needs_owner
+    parked = bdg.boss_approve(did, authority_evidence=_auth(did, sha), expected_sha256=sha)
+    assert parked["decision"]["state"] == "needs_owner"
+
+    store: dict = {}
+
+    def _create(**kwargs):
+        oid = "oosv_ownerpath01"
+        store[oid] = {"id": oid, "status": "pending", "meta": dict(kwargs.get("meta") or {})}
+        return {"ok": True, "id": oid, "draft": store[oid]}
+
+    def _decide(source, item_id, decision, by="admin", reason=""):
+        row = store.get(item_id)
+        if row is not None:
+            row["status"] = "approved" if decision == "approve" else "rejected"
+            return {"ok": True, "status": row["status"]}
+        # Propose-time mirror ids (fixture / unrelated) — stamp ok, no side effects.
+        return {"ok": True, "status": "approved", "noop": True}
+
+    monkeypatch.setattr("app.platform.approvals_bridge.create_verification_approval", _create)
+    monkeypatch.setattr("app.platform.approvals_bridge.decide", _decide)
+    monkeypatch.setattr(
+        "app.platform.approvals_bridge.get_verification_draft",
+        lambda oid: store.get(oid),
+    )
+    monkeypatch.setattr(
+        "app.platform.approvals_bridge._status_for",
+        lambda source, item_id, smap=None: (store.get(item_id) or {}).get("status") or "pending",
+    )
+
+    from app.platform import owner_os
+
+    out = owner_os.decide_approval(
+        "boss_decision_governance", did, "approve", actor="admin", reason="ok"
+    )
+    assert out["ok"] is True, out
+    assert out.get("consumer") == "owner_os_decide_governed"
+    assert out.get("side_effects") is False
+    cur = bdg.get_decision(did)
+    assert cur and cur["state"] == "consumed"
+    # replay refused
+    again = owner_os.decide_approval("boss_decision_governance", did, "approve")
+    assert again["ok"] is False
+
+
+def test_owner_os_governed_reject(gov_root, monkeypatch):
+    did, sha = _green_flow(gov_root, monkeypatch)
+    assert bdg.mark_needs_owner(did)["ok"]
+    from app.platform import owner_os
+
+    out = owner_os.decide_approval(
+        "boss_decision_governance", did, "reject", actor="admin", reason="nope"
+    )
+    assert out["ok"] is True, out
+    assert bdg.get_decision(did)["state"] == "refused"
+
+
 def test_hierarchical_adapter_wiring_inert_when_flag_off(gov_root, monkeypatch):
     monkeypatch.setenv("BOSS_DECISION_GOVERNANCE", "0")
     run = {

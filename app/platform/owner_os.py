@@ -923,6 +923,32 @@ def decide_approval(
             "open_in": "/app/automation#approvals",
             "reason": "Customer publish path — decide in Mission Control",
         }
+    if source in ("boss_decision_governance", "governed_decision"):
+        # Hash-bound Boss+Second-Brain consumer — flag-gated inside adapter.
+        try:
+            from app.platform import boss_decision_governance as _bdg
+
+            out = _bdg.owner_os_decide_governed(
+                item_id,
+                decision=decision,
+                actor=actor,
+                reason=reason[:200],
+            )
+            audit(
+                actor,
+                "governed_decision_decide",
+                {
+                    "source": "boss_decision_governance",
+                    "item_id": item_id,
+                    "decision": decision,
+                    "ok": bool(out.get("ok")),
+                    "error": out.get("error"),
+                    "state": out.get("state"),
+                },
+            )
+            return out
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"[:200], "fail_closed": True}
     if decision not in ("approve", "reject", "request_changes"):
         return {"ok": False, "error": "decision must be approve|reject|request_changes"}
     if decision == "request_changes":

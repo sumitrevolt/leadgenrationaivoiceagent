@@ -1408,6 +1408,155 @@ def metrics_snapshot() -> dict[str, Any]:
     }
 
 
+def owner_os_decide_governed(
+    decision_id: str,
+    *,
+    decision: str,
+    actor: str = "admin",
+    reason: str = "",
+    expected_sha256: str = "",
+) -> dict[str, Any]:
+    """Real Owner OS consumer for hash-bound governed decisions.
+
+    Flag OFF → fail-closed refuse (existing non-governed paths untouched).
+    Approve on ``needs_owner``: create bound verification → stamp approve →
+    ``boss_approve`` → one-time ``consume`` (no customer/prod side effects).
+    Reject: Owner refuse transition (not spoofed Boss authority).
+    """
+    if not enabled():
+        return {
+            "ok": False,
+            "error": "flag_off",
+            "flag": _FLAG,
+            "fail_closed": True,
+            "inert": True,
+            "note": "Governed execute path INERT until BOSS_DECISION_GOVERNANCE=1",
+        }
+    did = (decision_id or "").strip()
+    verdict = (decision or "").strip().lower()
+    if verdict == "request_changes":
+        verdict = "reject"
+        reason = (reason or "request_changes").strip() or "request_changes"
+    if verdict not in ("approve", "reject"):
+        return {"ok": False, "error": "decision must be approve|reject", "fail_closed": True}
+    cur = get_decision(did)
+    if not cur:
+        return {"ok": False, "error": "not_found", "fail_closed": True}
+    sha = str(cur.get("content_sha256") or "")
+    if expected_sha256 and expected_sha256 != sha:
+        return {"ok": False, "error": "stale_hash", "fail_closed": True}
+    if str(cur.get("decision_type") or "") in _OWNER_ONLY_TYPES:
+        return {"ok": False, "error": "upi_owner_only", "fail_closed": True}
+    if str(cur.get("lane") or "") == "RED":
+        return {"ok": False, "error": "red_lane_owner_refuse_only", "fail_closed": True}
+    state = str(cur.get("state") or "")
+
+    if verdict == "reject":
+        if state not in ("needs_owner", "boss_reviewed", "advice_recorded", "boss_approved"):
+            return {"ok": False, "error": "bad_state", "state": state, "fail_closed": True}
+        return _transition(
+            did,
+            "refused",
+            {
+                "refuse_reason": (reason or "owner_rejected")[:200],
+                "refused_by": (actor or "admin")[:80],
+                "owner_os": True,
+            },
+        )
+
+    # approve
+    if state == "boss_approved":
+        return consume_or_execute(
+            did, expected_sha256=sha or expected_sha256, mode="consume", actor_id=actor
+        )
+    if state != "needs_owner":
+        return {
+            "ok": False,
+            "error": "not_decidable_here",
+            "state": state,
+            "fail_closed": True,
+            "note": "Owner OS only decides needs_owner; Boss GREEN path stays Boss-gated.",
+        }
+
+    lane = str(cur.get("lane") or "AMBER")
+    meta = {
+        "content_sha256": sha,
+        "tenant_id": str(cur.get("tenant_id") or ""),
+        "agent_id": str(cur.get("agent_id") or ""),
+        "decision_type": str(cur.get("decision_type") or ""),
+        "decision_id": did,
+        "lane": lane,
+        "mission_id": did,
+        "action": str(cur.get("decision_type") or ""),
+    }
+    try:
+        from app.platform import approvals_bridge
+    except Exception as e:
+        logger.error("[boss_gov] approvals_bridge import failed: %s", type(e).__name__)
+        return {"ok": False, "error": "owner_verifier_unavailable", "fail_closed": True}
+
+    created = approvals_bridge.create_verification_approval(
+        by=actor,
+        title=f"Governed decision {did[:12]}",
+        note="Hash-bound Owner OS gate — no customer/outbound side effects",
+        meta=meta,
+    )
+    if not isinstance(created, dict) or not created.get("ok"):
+        return {
+            "ok": False,
+            "error": "owner_verification_create_failed",
+            "fail_closed": True,
+            "detail": created if isinstance(created, dict) else None,
+        }
+    oid = str(created.get("id") or "").strip()
+    if not oid:
+        return {"ok": False, "error": "owner_verification_id_missing", "fail_closed": True}
+
+    # Persist audit evidence (verification stamp) BEFORE consume side-effect.
+    stamped = approvals_bridge.decide(
+        "owner_os_verification",
+        oid,
+        "approve",
+        by=actor,
+        reason=(reason or "owner_os_governed")[:200],
+    )
+    if not isinstance(stamped, dict) or not stamped.get("ok"):
+        return {
+            "ok": False,
+            "error": "owner_verification_stamp_failed",
+            "fail_closed": True,
+            "owner_decision_id": oid,
+        }
+
+    # Boss HMAC authority still required for the approve transition itself.
+    secret = (os.getenv("BOSS_GOV_AUTHORITY_KEY") or "").strip()
+    if not secret:
+        return {"ok": False, "error": "authority_key_unset", "fail_closed": True}
+    sig = hmac.new(secret.encode("utf-8"), f"{did}|{sha}".encode(), hashlib.sha256).hexdigest()
+    approved = boss_approve(
+        did,
+        expected_sha256=sha,
+        owner_decision_id=oid,
+        authority_evidence={"kind": "hmac", "sig": sig},
+    )
+    if not approved.get("ok"):
+        return approved
+
+    consumed = consume_or_execute(did, expected_sha256=sha, mode="consume", actor_id=actor)
+    if not consumed.get("ok"):
+        return consumed
+    return {
+        "ok": True,
+        "decision_id": did,
+        "owner_decision_id": oid,
+        "state": (consumed.get("decision") or {}).get("state"),
+        "content_sha256": sha,
+        "consumer": "owner_os_decide_governed",
+        "side_effects": False,
+        "note": "Consumed via hash-bound adapter; no customer/outbound mutation.",
+    }
+
+
 __all__ = [
     "STATES",
     "DECISION_TYPE_REGISTRY",
@@ -1428,6 +1577,7 @@ __all__ = [
     "boss_reject",
     "mark_needs_owner",
     "consume_or_execute",
+    "owner_os_decide_governed",
     "verify_boss_authority",
     "verify_and_consume_owner_decision",
     "get_decision",
