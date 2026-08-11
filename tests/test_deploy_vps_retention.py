@@ -77,9 +77,8 @@ def test_dry_run_exits_zero_before_any_build_or_up_command():
         "docker image prune",
         "docker system prune",
     ):
-        assert (
-            mutating not in preview_block
-        ), f"DRY_RUN preview must stay read-only, found {mutating!r}"
+        msg = f"DRY_RUN preview must stay read-only, found {mutating!r}"
+        assert mutating not in preview_block, msg
 
 
 def test_build_cache_retention_present_with_age_and_storage_floor():
