@@ -4,15 +4,22 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-10 — dual cache-busted `/health` probes = `a3fbc8bb` (timestamps + uptime advanced). See `docs/context/SESSION_HANDOFF.md`.
+2026-08-11 — dual cache-busted `/health` probes = `9b09a808` (timestamps + uptime advanced). See `docs/context/SESSION_HANDOFF.md`.
 
-## DEPLOYED 2026-08-10 — `a3fbc8bb` (PR #320 guest UPI bind + tip of main)
-Prod `/health` = `{"version":"a3fbc8bb","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-10; two probes ~2s apart with unique `cb=` — timestamp/uptime advanced). Exact SHA = `a3fbc8bb33187f8d5d9eb1489f1acc3b698fef64` = `origin/main` tip. Open PRs = **0**.
-**#304:** bind API + admin Bind UI LIVE on this SHA; issue stays OPEN until owner-authorized guest→bind→approve money-path proof.
-**#306:** flags API `effective_on` / `effective_overrides` CODE-PRESENT on main; authenticated runtime proof WAIT; do not mutate reply posture.
-**#307:** `DUNNING_ENGINE` stays OFF (owner). Automation-Max enabler must not arm it (`OWNER_GATED` — fix in flight on `cursor/automation-max-live-20260810`).
-Rollback ref for prior prod = `76348926`.
-Label: DIRECT_HOST_VERIFIED (2026-08-10) | GIT_VERIFIED
+## MERGED not deployed — 2026-08-11 — `6052b533` (PR #329 rollback image retention)
+`origin/main` tip = `6052b533f59e8ab533ab629427fa869d83931a9a` (normal merge of PR head `72d9bc1226ca0d431d24237cc16876f273543c8a`). **Prod `/health` still `9b09a808`** (DIRECT_HOST_VERIFIED 2026-08-11 dual probes pre+post merge). No AUTH-DEPLOY executed. Owner line when ready: `AUTH-DEPLOY 6052b533f59e8ab533ab629427fa869d83931a9a`.
+**#307:** stays OPEN; dunning stays OFF (merge evidence comment only).
+Label: GIT_VERIFIED (merge) | DIRECT_HOST_VERIFIED (prod still prior SHA)
+
+## DEPLOYED 2026-08-11 — `9b09a808` (prod live; pre-#329 tip)
+Prod `/health` = `{"version":"9b09a808","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-11; two probes with unique `cb=` — timestamp/uptime advanced). Exact SHA = `9b09a80825389983829b1c0b4de6caf3789d16bf`.
+**#304 / #306:** still WAIT live proofs. **#307:** dunning OFF.
+Label: DIRECT_HOST_VERIFIED (2026-08-11)
+
+## SUPERSEDED — DEPLOYED 2026-08-10 — `a3fbc8bb`
+> Historical. Replaced as prod tip by later deploys; do not quote as current without re-probe.
+Rollback ref chain includes `76348926`.
+Label: STALE vs 2026-08-11 prod
 
 ## SUPERSEDED — DEPLOYED 2026-08-09 — `d1b106b2` (PR #294)
 > Historical only. Do not quote as current. Replaced by `a3fbc8bb` above.

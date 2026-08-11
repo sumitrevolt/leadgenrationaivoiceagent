@@ -1,38 +1,24 @@
-# SESSION_HANDOFF — 2026-08-10 (Cursor: Automation-Max live / DUNNING safe-enabler)
+# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #330 Boss Cursor ACP Ready)
 
 ## Done this session
-- Isolated worktree `C:\Users\Ratanshila\Documents\leadgen-automation-max-live-20260810` · branch `cursor/automation-max-live-20260810` · base `origin/main` = **`a3fbc8bb`**
-- Primary checkout LEFT UNTOUCHED (Buzz branch `cursor/split-B-buzz-local-relay-20260810` + dirty `.freebuff/` only)
-- Graphify refreshed in worktree: `app/graphify-out` ~19.5k nodes, EXIT=0; CLI query verified navigation to UPI/reply/flags (source re-verified)
-- Dual cache-busted `/health`: version **`a3fbc8bb`**, `environment=production`, `status=healthy`, timestamp+uptime advanced
-- Open PRs at Checkpoint 0 = **0**
-- **WS-AMAX:** `DUNNING_ENGINE` removed from Automation-Max `WANT_SAFE`; `OWNER_GATED` refuse-on-truthy; manifest `owner_approval_required`; regression tests; matrix/lane/ACTIVE_WORK reconciled
-- Issue #307 owner decision preserved: dunning stays OFF / dormant (not deleted)
+- **PR #330** head **`8f5a2e2d504186cbc11ed7da1be4693f4508911c`** · base **`6052b533f59e8ab533ab629427fa869d83931a9a`** · Draft→Ready (no merge).
+- Boss identity reconciled: Desktop card **`1b13cecc…`** (rebind from non-operable `20b69265`); NIP-OA `auth_tag` minted; `#admin` member.
+- Boss runtime = **Cursor ACP** (`agent.cmd acp` · `2026.08.04-aaa8809`); not Claude/Goose/Codex.
+- Live correlated canary **GO**: `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4` · mention `1b13cecc` · reply from `1b13cecc` · nonce `54b3cbb4`.
+- Comb-style review findings fixed: advice state guard + Redis `_atomic_claim` tests; CI all required checks **pass** on exact head.
+- Second Brain vault path (owner): `C:\Users\Ratanshila\Documents\leadsgenai-brain` via `obsidian_sync.recall` (advisory only).
+- Flag `BOSS_DECISION_GOVERNANCE` remains **OFF** default / Owner-approval-required. Prod untouched.
 
-## origin/main tip / prod
-- `origin/main` = `a3fbc8bb33187f8d5d9eb1489f1acc3b698fef64`
-- Prod `/health` = **`a3fbc8bb`** (parity with main)
-- Rollback prior prod = `76348926`
-
-## Active issues
-- **#304 OPEN** — bind LIVE on prod SHA; close only after AUTH-UPI-LIVE-PROOF (guest→bind→approve)
-- **#306 OPEN** — `effective_on` CODE-PRESENT; authenticated runtime proof WAIT; do not change reply posture
-- **#307 OPEN** — intentional dormant; stays OFF
-
-## Workstreams (max 3)
-1. WS-TRUTH — source/runtime/docs + auth packet
-2. WS-REV — #304 / #306 evidence honesty
-3. WS-AMAX — safe-enabler DUNNING correction (this PR)
+## WAIT (owner)
+- **AUTH-MERGE** `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330 — normal merge only; no squash/bypass/deploy.
+- Prod flag arm for `BOSS_DECISION_GOVERNANCE` = separate AUTH (not this packet).
 
 ## Do not
-- Deploy / flip `.env` / Redis / reply / dial / UPI auto without Checkpoint 4 AUTH-*
-- Enable `DUNNING_ENGINE` via Automation-Max script (refused)
-- Touch primary Buzz checkout / `.freebuff/`
-- Close #304 without live bind money-path proof
-- Claim revenue from readiness
+- Merge/deploy without AUTH-MERGE
+- Arm governance flag in prod without owner
+- Create duplicate Boss / re-key
+- Touch UPI/WA/email/calling/voice
 
 ## Next
-1. PR open + required checks green → AUTH-MERGE
-2. Checkpoint 4 owner auth packet (AUTH-MERGE / AUTH-DEPLOY / AUTH-SAFE-FLAGS / AUTH-UPI-LIVE-PROOF)
-3. No production mutation until explicit owner lines
-4. Evidence already local-green: 50+45 pytest EXIT0 · prod_check EXIT0 · secrets EXIT0 · wiring_audit EXIT0
+1. Owner AUTH-MERGE PR #330 exact SHA above
+2. Separate AUTH only if/when flag arm needed

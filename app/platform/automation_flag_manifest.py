@@ -389,6 +389,21 @@ _OVERRIDES: dict[str, FlagMeta] = {
         default="1",
         parser="int_clamp",
     ),
+    "BOSS_DECISION_GOVERNANCE": _m(
+        "BOSS_DECISION_GOVERNANCE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Boss+Second-Brain hash-bound decision approvals "
+            "(propose→advice→boss→consume); OFF default; "
+            "execute fail-closed; Owner OS AMBER verify+one-time consume"
+        ),
+        owner="rohan",
+        risk="ops",
+        default="0",
+        evidence="CODE-PRESENT",
+        canary="coordinator.coordinate_hierarchical adapter + Owner OS inbox",
+    ),
     "SALES_AUTOPILOT_ENABLED": _m(
         "SALES_AUTOPILOT_ENABLED",
         FlagValueKind.BOOLEAN,

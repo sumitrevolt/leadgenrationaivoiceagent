@@ -1,6 +1,30 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-11 (PR #330 Cursor ACP Boss canary + Comb fixes + Ready — CURSOR)
+Goal: Bind Boss `1b13cecc` to Cursor ACP; live correlated canary; Comb findings; CI green; Draft→Ready; no merge/deploy.
+Inspected: `agent`/`agent.cmd` ACP preflight; managed-agents Boss card; harness-boss-cursor.log; `#admin` canary; Comb review F1–F3; PR checks on `8f5a2e2d`; Second Brain path `leadsgenai-brain`.
+Problems Found: (1) Claude/Goose Boss backends blocked — fixed by Cursor ACP. (2) Comb: dead advice-state branch + ignored `request_advice` return + zero Redis claim tests — fixed.
+Changed: Boss→Cursor ACP bind (local Desktop); canary evidence; `record_second_brain_advice` guard; Redis `_atomic_claim` tests; SESSION_HANDOFF/ACTIVE_WORK/progress.
+Tests Run: `tests/test_boss_decision_governance.py` green (incl. Redis claim + advice fail prop); CI on head `8f5a2e2d` all required **pass** (lint, test, prod_check+pytest, real-redis, CodeQL, Trivy repo+image, GitGuardian, Gate A).
+Verification Evidence: Canary `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4`; origin `5171eaeb…`; reply `e4b0530e…` from `1b13cecc`; nonce `54b3cbb4`; relay `owner resolved from BUZZ_AUTH_TAG`; child `agent.cmd acp` (not claude/goose/codex).
+Risks: Flag still OFF — correct. Comb Desktop agent card absent — review done via code-reviewer proxy; live Comb harness still optional.
+Remaining: Owner AUTH-MERGE only; no deploy; no flag arm.
+Next Highest Priority: Owner AUTH-MERGE `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330.
+
+## Loop Run
+Date: 2026-08-11 (PR #329 merge + Boss Second Brain governance — CURSOR)
+Goal: AUTH-MERGE #329 exact SHA; local Buzz/OpenCode setup; prove Boss approval gap; implement governed decisions on isolated worktree; Draft PR; no deploy.
+Inspected: PR #329 head/checks/draft; origin/main `9b09a808`→`6052b533`; dual `/health`; `coordinate_hierarchical` verdict; `office_hq.boss_review`; `boss_council`; `brain.py` GET-only; buzz-prod ports/volumes; Desktop managed-agents Boss prefixes; OpenCode procs; approvals_bridge/owner_os.
+Problems Found: (1) Aggregate hier verdict + recommend-only boss_review ≠ per-decision approval. (2) Desktop expected `:3000` while healthy relay published `:3100`. (3) Boss harness historically failed remote membership (`1b13cecc`); LIVE Desktop Boss prefix `20b69265`. (4) No hash-bound advice→approve→consume path before this PR.
+Changed: merge #329; remap buzz-prod HTTP 3000 (backup); `boss_decision_governance.py` + Owner OS inbox wire + `BOSS_DECISION_GOVERNANCE` flag + runbook + tests + `opencode.json` + context/progress.
+Tests Run: `tests/test_boss_decision_governance.py` **14 passed EXIT 0**; `prod_check.py` EXIT **0**; `check_secrets.py` EXIT **0**; ruff check EXIT **0**; ruff format EXIT **0**; `git diff --check` EXIT **0**; duplicate new API routes = none.
+Verification Evidence: merge commit `6052b533` parents `9b09a808`+`72d9bc12`; #307 comment; relay liveness/readiness 200 on :3000; volumes unchanged; RO buzz locks/channels; gap falsification via assert_aggregate_is_not_approval.
+Risks: Boss `@` correlated response WAIT owner Desktop harness on local relay; governance flag must stay OFF in prod until separate AUTH; worktree has no local `.venv` (OpenCode MCP uses relative path — open repo with venv or primary tooling).
+Remaining: Draft PR; owner AUTH-DEPLOY for #329; owner interactive Buzz Boss proof; separate AUTH-MERGE for governance.
+Next Highest Priority: Owner Desktop Boss harness + `AUTH-DEPLOY 6052b533…` when ready (not under current AUTH).
+
+## Loop Run
 Date: 2026-08-10 (Automation-Max live — DUNNING safe-enabler + truth — CURSOR)
 Goal: Evidence-backed AMAX correction (#307) + truth docs on isolated worktree; no prod mutate.
 Inspected: origin/main+prod `a3fbc8bb`; open PRs=0; issues #304/#306/#307; Graphify refresh EXIT0; `vps_enable_automation_max_flags.py` WANT_SAFE; flag manifest; bind_client; growth infra effective_on; dual `/health` advancing.

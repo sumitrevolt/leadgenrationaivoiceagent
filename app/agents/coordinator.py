@@ -1072,6 +1072,13 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
     except Exception:
         pass
     _heartbeat("hierarchical", bool(summary), t0, goal[:60])
+    # Governed decision adapters (INERT unless BOSS_DECISION_GOVERNANCE=1)
+    try:
+        from app.platform import boss_decision_governance as _bdg
+
+        out["governance"] = _bdg.propose_from_hierarchical_run(out)
+    except Exception as e:
+        out["governance"] = {"ok": False, "error": type(e).__name__, "inert_safe": True}
     return out
 
 
