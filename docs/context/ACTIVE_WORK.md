@@ -5,18 +5,18 @@
 ## WS-GOV Boss + Second Brain decision governance (CURSOR)
 - **ID:** WS-GOV
 - **Business outcome:** Decision-bearing STAFF outputs require Second Brain advice + Boss/Owner gates before execute; no parallel approval plane
-- **Current state:** Worktree `C:\Users\Ratanshila\Documents\leadgen-boss-second-brain-governance-20260811` · branch `cursor/boss-second-brain-governance-20260811` · base merge SHA **`6052b533`** (PR #329). Module + 14 tests + Owner OS visibility + Buzz RO + runbook. Flag `BOSS_DECISION_GOVERNANCE` OFF default.
-- **Next exact action:** Draft PR green → owner AUTH-MERGE (separate); no prod flag arm; no deploy
+- **Current state:** PR #330 Ready · head **`8f5a2e2d`** · base **`6052b533`**. Cursor ACP Boss canary GO · Comb findings fixed · CI green. Flag `BOSS_DECISION_GOVERNANCE` OFF. Second Brain vault `C:\Users\Ratanshila\Documents\leadsgenai-brain`.
+- **Next exact action:** Owner AUTH-MERGE `8f5a2e2d…` PR #330 (normal merge only); no prod flag arm; no deploy
 - **Out of scope:** Voice/Swara · UPI auto · provider canaries · second Boss/ledger
 
 ---
 
 ## WS-BUZZ Local Buzz Desktop + relay (CURSOR)
 - **ID:** WS-BUZZ
-- **Business outcome:** Owner→Boss visibility plane on local `ws://127.0.0.1:3000`; Buzz never prod mutation executor
-- **Current state:** `buzz-prod` relay healthy on **:3000** (remapped from 3100; volumes unchanged). Desktop running. LIVE Boss prefix **`20b69265`**. Correlated `@Boss` response **WAIT — OWNER INTERACTIVE BUZZ AUTH** (harness/membership on local relay).
-- **Next exact action:** Owner Desktop Save/start Boss harness on local relay; ≥600s mention proof
-- **Out of scope:** `-ResetData` · history wipe · Comb before Boss proof · prod/#admin mutation
+- **Business outcome:** Owner→Boss visibility plane; Buzz never prod mutation executor
+- **Current state:** Canonical Boss **`1b13cecc…`** · runtime **Cursor ACP** · relay auth + correlated canary **GO** (`BOSS-CURSOR-ACP-CANARY-…54b3cbb4`).
+- **Next exact action:** Keep Cursor ACP as Boss harness; no duplicate Boss
+- **Out of scope:** `-ResetData` · history wipe · Claude/Goose/Codex Boss fallback · prod flag arm
 
 ---
 

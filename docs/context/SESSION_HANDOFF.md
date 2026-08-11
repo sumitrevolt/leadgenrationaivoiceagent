@@ -1,31 +1,24 @@
-# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #329 merge + Boss governance Draft)
+# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #330 Boss Cursor ACP Ready)
 
 ## Done this session
-- **AUTH-MERGE PR #329** exact head `72d9bc1226ca0d431d24237cc16876f273543c8a` → normal merge SHA **`6052b533f59e8ab533ab629427fa869d83931a9a`** (no squash/rebase). Issue #307 comment posted; issue stays OPEN.
-- Prod dual cache-busted `/health` pre+post merge = **`9b09a808`** healthy (unchanged — no AUTH-DEPLOY).
-- Isolated worktree `C:\Users\Ratanshila\Documents\leadgen-boss-second-brain-governance-20260811` · branch `cursor/boss-second-brain-governance-20260811` · base post-merge `origin/main` = `6052b533`.
-- Implemented `boss_decision_governance` (INERT flag `BOSS_DECISION_GOVERNANCE`) + Owner OS visibility + Buzz RO projection + runbook + 14 contract tests.
-- Local Buzz relay repaired: `buzz-prod` host port **3100→3000** (backup `.env.bak-port3000-20260811`); volumes unchanged; `/_liveness`+`/_readiness`=200 on `127.0.0.1:3000`.
-- OpenCode Desktop processes live; `opencode.json` Buzz MCP preserved (relative `.venv` + `scripts/buzz_mcp.py` + `BUZZ_RELAY` user env). RO lock/channel smoke OK.
-- Gap proof: hierarchical aggregate + `boss_review` recommend-only ≠ per-decision approval; `brain.py` GET-only.
+- **PR #330** head **`8f5a2e2d504186cbc11ed7da1be4693f4508911c`** · base **`6052b533f59e8ab533ab629427fa869d83931a9a`** · Draft→Ready (no merge).
+- Boss identity reconciled: Desktop card **`1b13cecc…`** (rebind from non-operable `20b69265`); NIP-OA `auth_tag` minted; `#admin` member.
+- Boss runtime = **Cursor ACP** (`agent.cmd acp` · `2026.08.04-aaa8809`); not Claude/Goose/Codex.
+- Live correlated canary **GO**: `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4` · mention `1b13cecc` · reply from `1b13cecc` · nonce `54b3cbb4`.
+- Comb-style review findings fixed: advice state guard + Redis `_atomic_claim` tests; CI all required checks **pass** on exact head.
+- Second Brain vault path (owner): `C:\Users\Ratanshila\Documents\leadsgenai-brain` via `obsidian_sync.recall` (advisory only).
+- Flag `BOSS_DECISION_GOVERNANCE` remains **OFF** default / Owner-approval-required. Prod untouched.
 
-## WAIT (owner interactive)
-- **Boss correlated `@Boss` response** — Desktop LIVE Boss pubkey prefix **`20b69265`** (matches `~/.buzz/GUIDES/BOSS_PUBKEY.txt`); harness log historically used `1b13cecc` against remote relay → `Auth failed: restricted: not a relay member`. Needs Desktop Save/harness start on local `ws://127.0.0.1:3000` → `WAIT — OWNER INTERACTIVE BUZZ AUTH`.
-- Comb gated behind Boss proof.
-
-## origin/main tip / prod
-- `origin/main` = `6052b533f59e8ab533ab629427fa869d83931a9a` (PR #329 merge)
-- Prod `/health` = **`9b09a808`** (parity with pre-merge tip; **not** merge SHA)
-- Next deploy line (do not run): `AUTH-DEPLOY 6052b533f59e8ab533ab629427fa869d83931a9a`
+## WAIT (owner)
+- **AUTH-MERGE** `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330 — normal merge only; no squash/bypass/deploy.
+- Prod flag arm for `BOSS_DECISION_GOVERNANCE` = separate AUTH (not this packet).
 
 ## Do not
-- Deploy #329 or governance PR without new AUTH
-- Arm `BOSS_DECISION_GOVERNANCE` in prod without owner
-- Edit dirty primary `leadgenrationaiagent` for implementation
-- Wipe Buzz history / `-ResetData` / `down -v`
-- Close #307 / enable dunning
+- Merge/deploy without AUTH-MERGE
+- Arm governance flag in prod without owner
+- Create duplicate Boss / re-key
+- Touch UPI/WA/email/calling/voice
 
 ## Next
-1. Owner: Desktop Boss harness on local relay → correlated mention ≥600s
-2. Owner: `AUTH-DEPLOY 6052b533…` when ready for #329
-3. Separate AUTH-MERGE for Boss-governance Draft PR when green
+1. Owner AUTH-MERGE PR #330 exact SHA above
+2. Separate AUTH only if/when flag arm needed
