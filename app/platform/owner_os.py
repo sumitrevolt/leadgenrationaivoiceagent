@@ -852,10 +852,42 @@ def approvals_inbox() -> dict[str, Any]:
             )
     except Exception:
         pass
+    # Governed Boss+Second-Brain decisions (same Owner OS surface; no parallel SPA)
+    governed_pending = 0
+    try:
+        from app.platform import boss_decision_governance as _bdg
+
+        gov = _bdg.owner_os_visibility(limit=40) or {}
+        governed_pending = int(gov.get("pending") or 0)
+        for row in gov.get("items") or []:
+            items.append(
+                {
+                    "source": "boss_decision_governance",
+                    "item_id": row.get("decision_id"),
+                    "title": row.get("title") or "governed decision",
+                    "risk": "high" if row.get("lane") in ("AMBER", "RED") else "medium",
+                    "status": row.get("state") or "pending",
+                    "customer": row.get("tenant_id") or "",
+                    "tenant_id": row.get("tenant_id") or "",
+                    "requesting_agent": row.get("agent_id") or "",
+                    "action_type": row.get("decision_type") or "governed_decision",
+                    "expected_impact": f"lane={row.get('lane')} sha={(row.get('content_sha256') or '')[:12]}",
+                    "category": "agent_permission",
+                    "decidable_here": bool(row.get("decidable_here")),
+                    "ui_state": row.get("ui_state") or "view_only",
+                    "open_in": "/app/owner",
+                    "open_reason": "Boss+Second-Brain governed decision (hash-bound)",
+                }
+            )
+    except Exception as e:
+        logger.debug("[owner_os] boss_decision_governance: %s", e)
+    by_source = dict((counts or {}).get("by_source") or {})
+    if governed_pending:
+        by_source["boss_decision_governance"] = governed_pending
     return {
         "ok": True,
-        "pending": int((counts or {}).get("pending") or len(items)),
-        "by_source": (counts or {}).get("by_source") or {},
+        "pending": int((counts or {}).get("pending") or 0) + governed_pending,
+        "by_source": by_source,
         "items": items[:80],
         "categories": [
             "customer_content",
@@ -867,8 +899,9 @@ def approvals_inbox() -> dict[str, Any]:
             "agent_permission",
             "workflow_change",
         ],
-        "note": "Decisions reuse approvals_bridge.decide — same as Mission Control. Calling HARD OFF.",
+        "note": "Decisions reuse approvals_bridge.decide + boss_decision_governance visibility. Calling HARD OFF.",
         "bridge": "approvals_bridge",
+        "governance": "boss_decision_governance",
     }
 
 

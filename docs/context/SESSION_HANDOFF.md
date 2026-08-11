@@ -1,38 +1,31 @@
-# SESSION_HANDOFF — 2026-08-10 (Cursor: Automation-Max live / DUNNING safe-enabler)
+# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #329 merge + Boss governance Draft)
 
 ## Done this session
-- Isolated worktree `C:\Users\Ratanshila\Documents\leadgen-automation-max-live-20260810` · branch `cursor/automation-max-live-20260810` · base `origin/main` = **`a3fbc8bb`**
-- Primary checkout LEFT UNTOUCHED (Buzz branch `cursor/split-B-buzz-local-relay-20260810` + dirty `.freebuff/` only)
-- Graphify refreshed in worktree: `app/graphify-out` ~19.5k nodes, EXIT=0; CLI query verified navigation to UPI/reply/flags (source re-verified)
-- Dual cache-busted `/health`: version **`a3fbc8bb`**, `environment=production`, `status=healthy`, timestamp+uptime advanced
-- Open PRs at Checkpoint 0 = **0**
-- **WS-AMAX:** `DUNNING_ENGINE` removed from Automation-Max `WANT_SAFE`; `OWNER_GATED` refuse-on-truthy; manifest `owner_approval_required`; regression tests; matrix/lane/ACTIVE_WORK reconciled
-- Issue #307 owner decision preserved: dunning stays OFF / dormant (not deleted)
+- **AUTH-MERGE PR #329** exact head `72d9bc1226ca0d431d24237cc16876f273543c8a` → normal merge SHA **`6052b533f59e8ab533ab629427fa869d83931a9a`** (no squash/rebase). Issue #307 comment posted; issue stays OPEN.
+- Prod dual cache-busted `/health` pre+post merge = **`9b09a808`** healthy (unchanged — no AUTH-DEPLOY).
+- Isolated worktree `C:\Users\Ratanshila\Documents\leadgen-boss-second-brain-governance-20260811` · branch `cursor/boss-second-brain-governance-20260811` · base post-merge `origin/main` = `6052b533`.
+- Implemented `boss_decision_governance` (INERT flag `BOSS_DECISION_GOVERNANCE`) + Owner OS visibility + Buzz RO projection + runbook + 14 contract tests.
+- Local Buzz relay repaired: `buzz-prod` host port **3100→3000** (backup `.env.bak-port3000-20260811`); volumes unchanged; `/_liveness`+`/_readiness`=200 on `127.0.0.1:3000`.
+- OpenCode Desktop processes live; `opencode.json` Buzz MCP preserved (relative `.venv` + `scripts/buzz_mcp.py` + `BUZZ_RELAY` user env). RO lock/channel smoke OK.
+- Gap proof: hierarchical aggregate + `boss_review` recommend-only ≠ per-decision approval; `brain.py` GET-only.
+
+## WAIT (owner interactive)
+- **Boss correlated `@Boss` response** — Desktop LIVE Boss pubkey prefix **`20b69265`** (matches `~/.buzz/GUIDES/BOSS_PUBKEY.txt`); harness log historically used `1b13cecc` against remote relay → `Auth failed: restricted: not a relay member`. Needs Desktop Save/harness start on local `ws://127.0.0.1:3000` → `WAIT — OWNER INTERACTIVE BUZZ AUTH`.
+- Comb gated behind Boss proof.
 
 ## origin/main tip / prod
-- `origin/main` = `a3fbc8bb33187f8d5d9eb1489f1acc3b698fef64`
-- Prod `/health` = **`a3fbc8bb`** (parity with main)
-- Rollback prior prod = `76348926`
-
-## Active issues
-- **#304 OPEN** — bind LIVE on prod SHA; close only after AUTH-UPI-LIVE-PROOF (guest→bind→approve)
-- **#306 OPEN** — `effective_on` CODE-PRESENT; authenticated runtime proof WAIT; do not change reply posture
-- **#307 OPEN** — intentional dormant; stays OFF
-
-## Workstreams (max 3)
-1. WS-TRUTH — source/runtime/docs + auth packet
-2. WS-REV — #304 / #306 evidence honesty
-3. WS-AMAX — safe-enabler DUNNING correction (this PR)
+- `origin/main` = `6052b533f59e8ab533ab629427fa869d83931a9a` (PR #329 merge)
+- Prod `/health` = **`9b09a808`** (parity with pre-merge tip; **not** merge SHA)
+- Next deploy line (do not run): `AUTH-DEPLOY 6052b533f59e8ab533ab629427fa869d83931a9a`
 
 ## Do not
-- Deploy / flip `.env` / Redis / reply / dial / UPI auto without Checkpoint 4 AUTH-*
-- Enable `DUNNING_ENGINE` via Automation-Max script (refused)
-- Touch primary Buzz checkout / `.freebuff/`
-- Close #304 without live bind money-path proof
-- Claim revenue from readiness
+- Deploy #329 or governance PR without new AUTH
+- Arm `BOSS_DECISION_GOVERNANCE` in prod without owner
+- Edit dirty primary `leadgenrationaiagent` for implementation
+- Wipe Buzz history / `-ResetData` / `down -v`
+- Close #307 / enable dunning
 
 ## Next
-1. PR open + required checks green → AUTH-MERGE
-2. Checkpoint 4 owner auth packet (AUTH-MERGE / AUTH-DEPLOY / AUTH-SAFE-FLAGS / AUTH-UPI-LIVE-PROOF)
-3. No production mutation until explicit owner lines
-4. Evidence already local-green: 50+45 pytest EXIT0 · prod_check EXIT0 · secrets EXIT0 · wiring_audit EXIT0
+1. Owner: Desktop Boss harness on local relay → correlated mention ≥600s
+2. Owner: `AUTH-DEPLOY 6052b533…` when ready for #329
+3. Separate AUTH-MERGE for Boss-governance Draft PR when green
