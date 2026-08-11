@@ -1,24 +1,32 @@
-# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #330 Boss Cursor ACP Ready)
+﻿# SESSION_HANDOFF — 2026-08-11 (Cursor: "continue" → #304 list_actionable harden)
 
 ## Done this session
-- **PR #330** head **`8f5a2e2d504186cbc11ed7da1be4693f4508911c`** · base **`6052b533f59e8ab533ab629427fa869d83931a9a`** · Draft→Ready (no merge).
-- Boss identity reconciled: Desktop card **`1b13cecc…`** (rebind from non-operable `20b69265`); NIP-OA `auth_tag` minted; `#admin` member.
-- Boss runtime = **Cursor ACP** (`agent.cmd acp` · `2026.08.04-aaa8809`); not Claude/Goose/Codex.
-- Live correlated canary **GO**: `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4` · mention `1b13cecc` · reply from `1b13cecc` · nonce `54b3cbb4`.
-- Comb-style review findings fixed: advice state guard + Redis `_atomic_claim` tests; CI all required checks **pass** on exact head.
-- Second Brain vault path (owner): `C:\Users\Ratanshila\Documents\leadsgenai-brain` via `obsidian_sync.recall` (advisory only).
-- Flag `BOSS_DECISION_GOVERNANCE` remains **OFF** default / Owner-approval-required. Prod untouched.
+- User chain: analyze → revenue-ready → jo best hai → continue ×N
+- #304 guest UPI bind end-to-end CODE-PRESENT (API/UI/Office/digest/God Mode)
+- **This turn:** `list_actionable` widened — any `approved` + not live stays visible
+  - legacy unbound (no `needs_client_bind` flag)
+  - failed activation (client set, `activated` falsy)
+  - Self-Serve: "Retry Activate"; God Mode: "activate retry" label
+  - tests: `test_list_actionable_includes_legacy_unbound_without_flag` + `…_failed_activation`
 
-## WAIT (owner)
-- **AUTH-MERGE** `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330 — normal merge only; no squash/bypass/deploy.
-- Prod flag arm for `BOSS_DECISION_GOVERNANCE` = separate AUTH (not this packet).
+## Not done / blocked
+- Shell + network **still rejected this harness** — pytest / `prod_check` / `/health` **UNVERIFIED**
+- No commit/push/deploy (owner did not ask)
+
+## Verdict
+- #304 money-path operator holes closed in code (bind + queue truth + failed-activate visibility)
+- **2nd paid customer** still OWNER ACTION (WS-GTM1 Hot Queue + real ₹1999)
+
+## Next exact actions
+1. Allow shell once, run:
+   ```
+   .venv\Scripts\python.exe -m pytest tests/test_upi_order_close.py tests/test_pending_upi_queue_truth.py tests/test_upi_pending_unactioned_probe.py tests/test_upi_pending_digest_probe.py -q
+   ```
+2. Owner: commit explicit UPI paths → PR; **deploy WAIT**
+3. Owner GTM: `/app/inbox` → ₹1999 → confirm; guest → Bind & Activate
+4. Re-probe cache-busted `/health` when network allowed
 
 ## Do not
-- Merge/deploy without AUTH-MERGE
-- Arm governance flag in prod without owner
-- Create duplicate Boss / re-key
-- Touch UPI/WA/email/calling/voice
-
-## Next
-1. Owner AUTH-MERGE PR #330 exact SHA above
-2. Separate AUTH only if/when flag arm needed
+- Fake PAID / widen `UPI_AUTO_ACTIVATE_CLIENTS`
+- Deploy without owner ask
+- Quote prod SHA without fresh curl

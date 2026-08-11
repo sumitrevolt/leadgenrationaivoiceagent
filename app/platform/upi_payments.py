@@ -567,10 +567,135 @@ def list_payments(status: str | None = None) -> list[dict]:
         return []
 
 
-def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
+def list_actionable() -> list[dict]:
+    """Admin queue: pending + approved-but-not-live (bind or retry activate).
+
+    Guest approve used to flip status to ``approved`` and vanish from
+    ``list_payments("pending")`` — owner then had no UI path to attach
+    ``client_id`` (#304). Also include:
+    - legacy approved rows with empty ``client_id`` but no ``needs_client_bind``
+      flag (pre-#304 store rows)
+    - approved + client bound but ``activated`` still falsy (failed activate,
+      re-approve / bind retry path)
+
+    Never raises.
+    """
+    try:
+        out: list[dict] = []
+        for r in _read_store():
+            st = str(r.get("status") or "")
+            if st == "pending":
+                out.append(r)
+                continue
+            if st != "approved":
+                continue
+            if r.get("activated") or r.get("auto_activated"):
+                continue
+            # Money confirmed, plan not live yet — operator must act.
+            out.append(r)
+        return out
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("list_actionable failed: %s", e)
+        return []
+
+
+def _activate_if_ready(record: dict) -> bool:
+    """Run activation side-effects when approve/bind left a bound, unpaid activation.
+
+    Returns True when activation succeeded this call. Never raises.
+    """
+    try:
+        if (
+            not record.get("activated")
+            and not record.get("auto_activated")
+            and (record.get("client_id") or "").strip()
+        ):
+            if _try_activate(
+                record.get("client_id", ""),
+                record.get("plan", ""),
+                record.get("amount", 0),
+                enforce_floor=False,
+            ):
+                record["activated"] = True
+                _trigger_onboarding(str(record.get("client_id") or ""))
+                _mark_deal_won(record.get("payer_contact", ""))
+                _fire_gst_invoice(
+                    record.get("client_id", ""),
+                    record.get("plan", ""),
+                    record.get("amount", 0),
+                )
+                return True
+            try:
+                from app.platform import ops_alerts
+
+                ops_alerts.maybe_alert_payment_failed(
+                    f"UPI activation FAILED — client={record.get('client_id')} "
+                    f"plan={record.get('plan')} pid={record.get('id')}"
+                )
+            except Exception:
+                pass
+        return False
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("_activate_if_ready failed: %s", e)
+        return False
+
+
+def bind_client(
+    payment_id: str, client_id: str, decided_by: str = "admin"
+) -> dict:
+    """Attach ``client_id`` to a guest UPI row; activate if already approved (#304).
+
+    Fail-closed: empty client_id, missing payment, rejected row, or conflicting
+    different client_id. Idempotent when the same client is already bound.
+    Never raises.
+    """
+    try:
+        pid = (payment_id or "").strip()
+        cid = (client_id or "").strip()
+        if not cid:
+            return {"ok": False, "error": "client_id_required"}
+        rows = _read_store()
+        record = None
+        for r in rows:
+            if r.get("id") == pid:
+                record = r
+                break
+        if record is None:
+            return {"ok": False, "error": "not_found"}
+        if record.get("status") == "rejected":
+            return {"ok": False, "error": "rejected"}
+
+        existing = (record.get("client_id") or "").strip()
+        if existing and existing != cid:
+            return {"ok": False, "error": "client_id_conflict"}
+
+        record["client_id"] = cid
+        record["needs_client_bind"] = False
+        record.pop("activation_blocked", None)
+        record["bound_at"] = _now_iso()
+        record["bound_by"] = (decided_by or "admin")[:80]
+
+        # Already approved (money confirmed) → activate now without a fake re-approve.
+        if record.get("status") == "approved" and not record.get("activated"):
+            _activate_if_ready(record)
+
+        _write_store(rows)
+        return {"ok": True, **record}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("bind_client failed: %s", e)
+        return {"ok": False, "error": "bind_failed"}
+
+
+def decide(
+    payment_id: str,
+    approve: bool,
+    decided_by: str = "admin",
+    client_id: str | None = None,
+) -> dict:
     """Admin approve/reject a pending submission.
 
     On approve (and not already auto-activated) + client_id → activate the plan.
+    Optional ``client_id`` binds a guest row in the same approve call (#304).
     Returns the updated record, or ``{"ok": False, "error": "not_found"}``.
     Never raises.
     """
@@ -584,6 +709,19 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                 break
         if record is None:
             return {"ok": False, "error": "not_found"}
+
+        # Bind-on-approve: guest pay → owner pastes client_id while confirming credit.
+        if approve and client_id is not None:
+            cid_in = (client_id or "").strip()
+            if cid_in:
+                existing = (record.get("client_id") or "").strip()
+                if existing and existing != cid_in:
+                    return {"ok": False, "error": "client_id_conflict"}
+                record["client_id"] = cid_in
+                record["needs_client_bind"] = False
+                record.pop("activation_blocked", None)
+                record["bound_at"] = _now_iso()
+                record["bound_by"] = (decided_by or "admin")[:80]
 
         record["status"] = "approved" if approve else "rejected"
         record["decided_at"] = _now_iso()
@@ -604,7 +742,7 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
             return {
                 "ok": True,
                 **record,
-                "warning": "approved_but_unbound — client_id bind karo phir re-approve",
+                "warning": "approved_but_unbound — client_id bind karo (POST /api/upi/pending/{id}/bind)",
             }
 
         # Idempotency: only activate if NOT already SUCCESSFULLY activated. _try_activate
@@ -612,43 +750,8 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
         # already-activated submission would hand out free minutes. We guard on a success
         # flag (not on status) so a FAILED activation stays retryable: first approve sets
         # status=approved but leaves `activated` falsy → admin can re-approve to recover.
-        if (
-            approve
-            and not record.get("activated")
-            and not record.get("auto_activated")
-            and record.get("client_id")
-        ):
-            if _try_activate(
-                record.get("client_id", ""),
-                record.get("plan", ""),
-                record.get("amount", 0),
-                # Human admin approving = payment already verified in the UPI app;
-                # frontends record amount:0, so enforcing the floor here made every
-                # real approval silently fail to activate (audit 2026-07-04).
-                enforce_floor=False,
-            ):
-                record["activated"] = True
-                # Activation succeeded → per-client day-1 onboard (signup parity).
-                _trigger_onboarding(str(record.get("client_id") or ""))
-                _mark_deal_won(record.get("payer_contact", ""))
-                # GST invoice parity with Stripe path (best-effort, never-raise).
-                _fire_gst_invoice(
-                    record.get("client_id", ""),
-                    record.get("plan", ""),
-                    record.get("amount", 0),
-                )
-            else:
-                # Approved but activation did NOT succeed (unknown plan / activation
-                # error) → revenue-critical SILENT failure: alert ops (best-effort).
-                try:
-                    from app.platform import ops_alerts
-
-                    ops_alerts.maybe_alert_payment_failed(
-                        f"UPI approve activation FAILED — client={record.get('client_id')} "
-                        f"plan={record.get('plan')} pid={pid}"
-                    )
-                except Exception:
-                    pass
+        if approve:
+            _activate_if_ready(record)
 
         _write_store(rows)
         return record

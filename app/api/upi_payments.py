@@ -40,10 +40,14 @@ class UpiSubmitIn(BaseModel):
     order_ref: str = ""
 
 
-class UpiBindIn(BaseModel):
-    """Admin-only bind payload — client_id for an unbound (guest) submission."""
+class UpiApproveIn(BaseModel):
+    """Optional bind-on-approve for guest UPI (#304)."""
 
     client_id: str = ""
+
+
+class UpiBindIn(BaseModel):
+    client_id: str
 
 
 @router.post(
@@ -100,46 +104,33 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
 
 @router.get("/upi/pending", summary="Admin: pending UPI submissions queue")
 async def upi_pending_list(_user=Depends(require_admin)):
-    """Admin-only — saare pending self-serve submissions."""
+    """Admin-only — pending + approved-but-unbound (needs client bind)."""
     try:
         from app.platform import upi_payments
 
-        return {"ok": True, "pending": upi_payments.list_payments("pending")}
+        return {"ok": True, "pending": upi_payments.list_actionable()}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_pending_list failed: %s", e)
         return {"ok": False, "pending": []}
 
 
 @router.post("/upi/pending/{pid}/approve", summary="Admin: approve a UPI submission")
-async def upi_approve(pid: str, _user=Depends(require_admin)):
-    """Admin-only — approve + activate plan (if client_id present)."""
+async def upi_approve(
+    pid: str,
+    body: UpiApproveIn | None = None,
+    _user=Depends(require_admin),
+):
+    """Admin-only — approve + activate plan (if client_id present or supplied)."""
     try:
         from app.platform import upi_payments
 
-        rec = upi_payments.decide(pid, True, decided_by="admin")
+        cid = ((body.client_id if body else "") or "").strip()
+        rec = upi_payments.decide(
+            pid, True, decided_by="admin", client_id=cid if cid else None
+        )
         return {"ok": rec.get("ok", True), "record": rec}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_approve failed: %s", e)
-        return {"ok": False, "error": "internal"}
-
-
-@router.post("/upi/pending/{pid}/bind", summary="Admin: bind a client to an unbound UPI submission")
-async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
-    """Admin-only — resolve a guest (unbound) submission (#304).
-
-    Guest "maine pay kiya" submissions carry no client_id; approving one fails
-    closed with ``approved_but_unbound``. This operator queue action binds the
-    verified marketing client (fail-closed: unknown client / cross-tenant
-    re-point refused), then Approve activates — the owner's Approve stays the
-    single activation gate.
-    """
-    try:
-        from app.platform import upi_payments
-
-        rec = upi_payments.bind_client(pid, (body.client_id or "").strip(), decided_by="admin")
-        return {"ok": rec.get("ok", True), "record": rec}
-    except Exception as e:  # pragma: no cover - defensive
-        logger.warning("upi_bind failed: %s", e)
         return {"ok": False, "error": "internal"}
 
 
@@ -153,4 +144,20 @@ async def upi_reject(pid: str, _user=Depends(require_admin)):
         return {"ok": rec.get("ok", True), "record": rec}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_reject failed: %s", e)
+        return {"ok": False, "error": "internal"}
+
+
+@router.post(
+    "/upi/pending/{pid}/bind",
+    summary="Admin: bind client_id on guest UPI + activate if approved",
+)
+async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
+    """Admin-only — close #304 approved_but_unbound gap (bind then activate)."""
+    try:
+        from app.platform import upi_payments
+
+        rec = upi_payments.bind_client(pid, body.client_id, decided_by="admin")
+        return {"ok": bool(rec.get("ok")), "record": rec}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_bind failed: %s", e)
         return {"ok": False, "error": "internal"}

@@ -4896,17 +4896,43 @@ function renderGodMode(sys, camp){
   if(pending.length){
     html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
     pending.slice(0,8).forEach(p=>{
-      html += `<div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:6px">
-        <span style="flex:1;color:#e2e8f0">${escH(p.business_name||p.client_id)} · ${escH(p.phone||'')}</span>
-        <select id="upiPlan_${escH(p.client_id)}" aria-label="Plan to activate for ${escH(p.business_name||p.client_id)}" style="font-size:10px;padding:3px 6px;border-radius:4px">
-          <option value="starter">Starter</option><option value="growth">Growth</option><option value="advanced">Advanced</option>
-        </select>
-        <button class="btn" onclick="upiActivate('${escH(p.client_id)}',this)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Activate</button>
-      </div>`;
+      const pid = String(p.payment_id||'');
+      const cid = String(p.client_id||'');
+      const needsBind = !cid || !!p.needs_client_bind;
+      const approvedUnbound = String(p.status||'')==='approved' && needsBind;
+      const approvedNotLive = String(p.status||'')==='approved' && !!cid && !needsBind;
+      const label = escH(p.business_name||cid||p.payer_name||'guest')
+        + (p.phone?(' · '+escH(p.phone)):'')
+        + (p.upi_ref?(' · ref '+escH(p.upi_ref)):'')
+        + (p.amount!=null?(' · ₹'+escH(String(p.amount))):'')
+        + (approvedUnbound?' · <span style="color:#fbbf24">approved — bind baaki</span>':'')
+        + (approvedNotLive?' · <span style="color:#fbbf24">approved — activate retry</span>':'');
+      // #304: guest/unbound rows must not call Activate with empty client_id.
+      if(pid && needsBind){
+        html += `<div style="font-size:11px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:6px">
+          <div style="color:#e2e8f0;margin-bottom:4px">${label}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input id="upiOfficeBind_${escH(pid)}" placeholder="client_id" aria-label="Bind client_id for payment ${escH(pid)}"
+              style="flex:1;min-width:120px;font-size:10px;padding:3px 6px;border-radius:4px;border:1px solid #334155;background:#0f172a;color:#e2e8f0">
+            <button class="btn" onclick="${approvedUnbound?('upiOfficeBind(\''+escH(pid)+'\',this)'):('upiOfficeApproveBind(\''+escH(pid)+'\',this)')}" style="font-size:10px;padding:4px 8px;background:#0ea5e9">${approvedUnbound?'Bind &amp; Activate':'Bind + Approve'}</button>
+            <a href="#sec-upi-selfserve" style="font-size:10px;color:#93c5fd">Self-serve queue →</a>
+          </div>
+        </div>`;
+      } else if(cid){
+        html += `<div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:6px">
+          <span style="flex:1;color:#e2e8f0">${label}</span>
+          <select id="upiPlan_${escH(cid)}" aria-label="Plan to activate for ${escH(p.business_name||cid)}" style="font-size:10px;padding:3px 6px;border-radius:4px">
+            <option value="starter">Starter</option><option value="growth">Growth</option><option value="advanced">Advanced</option>
+          </select>
+          <button class="btn" onclick="upiActivate('${escH(cid)}',this)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Activate</button>
+        </div>`;
+      } else {
+        html += `<div style="font-size:11px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:6px;color:#fbbf24">${label} — open <a href="#sec-upi-selfserve" style="color:#93c5fd">UPI Self-Serve</a></div>`;
+      }
     });
     html += '</div>';
   } else {
-    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">Koi pending trial client nahi — naya signup aane par yahan dikhega.</div>';
+    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">Koi actionable UPI nahi — pending ya approved-but-unbound yahan dikhega.</div>';
   }
   html += '</div>';
 
@@ -5039,20 +5065,39 @@ async function loadUpiSelfServe(){
     }
     el.innerHTML=rows.map(function(p){
       const hasClient = !!(p.client_id||'').trim();
-      const noClientNote = hasClient ? '' :
-        '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Koi account nahi — pehle Bind client se jodo, phir Approve activate karega</div>';
+      const needsBind = !hasClient || (!!p.needs_client_bind && !p.activated);
+      const isApprovedUnbound = (p.status==='approved') && needsBind;
+      const isApprovedNotLive = (p.status==='approved') && hasClient && !p.activated && !needsBind;
+      const noClientNote = !needsBind
+        ? (isApprovedNotLive
+          ? '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Approved — activate fail / retry Approve</div>'
+          : '')
+        : '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Client bind zaroori — neeche client_id daalo, phir '+(isApprovedUnbound?'Bind &amp; Activate':'Approve')+'</div>';
+      const bindRow = needsBind
+        ? ('<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">'
+          + '<input id="upiBind_'+escH(p.id)+'" placeholder="client_id (jaise jiya-makeover)" '
+          + 'style="flex:1;min-width:140px;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #334155;background:#0f172a;color:#e2e8f0">'
+          + (isApprovedUnbound
+            ? '<button class="btn" onclick="upiSelfServeBind(\''+escH(p.id)+'\',this)" style="font-size:10px;padding:4px 8px;background:#0ea5e9">Bind &amp; Activate</button>'
+            : '')
+          + '</div>')
+        : '';
+      const approveBtn = isApprovedUnbound ? '' :
+        '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',true,this)" style="font-size:10px;padding:4px 8px;background:#10b981">'+(isApprovedNotLive?'↻ Retry Activate':'✓ Approve')+'</button>';
+      const rejectBtn = isApprovedUnbound || isApprovedNotLive ? '' :
+        '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',false,this)" style="font-size:10px;padding:4px 8px;background:#dc2626">✕ Reject</button>';
       return '<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px">'
         + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
         + '<span style="flex:1;color:#e2e8f0"><b>'+escH(p.plan||'')+'</b> · ref: '+escH(p.upi_ref||'')
         + (p.amount?(' · ₹'+escH(String(p.amount))):'')
         + (p.payer_name?(' · '+escH(p.payer_name)):'')
         + (p.payer_contact?(' · '+escH(p.payer_contact)):'')
-        + (hasClient?(' · client: '+escH(p.client_id)):' · client: none (lead only)')
+        + (hasClient?(' · client: '+escH(p.client_id)):' · client: none (guest)')
+        + (isApprovedUnbound?' · <span style="color:#fbbf24">approved — needs bind</span>':'')
+        + (isApprovedNotLive?' · <span style="color:#fbbf24">approved — not live</span>':'')
         + '</span>'
-        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',true,this)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Approve</button>'
-        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',false,this)" style="font-size:10px;padding:4px 8px;background:#dc2626">✕ Reject</button>'
-        + (!hasClient ? '<button class="btn" onclick="upiSelfServeBind(\''+escH(p.id)+'\',this)" style="font-size:10px;padding:4px 8px;background:#3b82f6">🔗 Bind client</button>' : '')
-        + '</div>' + noClientNote + '</div>';
+        + approveBtn + rejectBtn
+        + '</div>' + noClientNote + bindRow + '</div>';
     }).join('');
   }catch(e){
     el.innerHTML='<div style="font-size:11px;color:#f87171">Load fail: '+escH(e.message)+'</div>';
@@ -5070,15 +5115,27 @@ async function upiSelfServeDecide(pid, approve, btn){
   var origText;
   if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent=approve?"Approving…":"Rejecting…"; }
   try{
+    var payload = undefined;
+    if(approve){
+      var inp=document.getElementById('upiBind_'+pid);
+      var cid=inp && inp.value ? String(inp.value).trim() : '';
+      if(cid) payload={client_id:cid};
+    }
     const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/'+(approve?'approve':'reject'),{
-      method:'POST', headers:abAuthHdr()
+      method:'POST', headers:Object.assign({'Content-Type':'application/json'}, abAuthHdr()),
+      body: payload ? JSON.stringify(payload) : undefined
     });
     var d={}; try{ d=await r.json(); }catch(e){}
     if(r.ok && d && d.ok!==false){
-      adminToast(approve?"✅ UPI approved & plan activated":"✕ Submission rejected","success");
+      var rec=(d&&d.record)||{};
+      if(approve && (rec.warning || rec.activation_blocked==='empty_client_id')){
+        adminToast("Approved — client bind baaki (queue me Bind & Activate)","warn");
+      } else {
+        adminToast(approve?"✅ UPI approved & plan activated":"✕ Submission rejected","success");
+      }
       loadUpiSelfServe();
     } else {
-      var msg=(d&&(d.detail||d.error||d.message))||("HTTP "+r.status);
+      var msg=(d&&(d.detail||d.error||d.message||(d.record&&d.record.error)))||("HTTP "+r.status);
       if(typeof msg==="object") msg=JSON.stringify(msg);
       adminToast((approve?"Approve":"Reject")+" fail — "+msg,"error");
     }
@@ -5086,34 +5143,27 @@ async function upiSelfServeDecide(pid, approve, btn){
   finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
-
-// #304 (2026-08-10): guest "maine pay kiya" submissions carry no client_id and
-// approving one fails closed (approved_but_unbound). This operator action binds
-// the verified client; Approve (after bind) then activates.
 async function upiSelfServeBind(pid, btn){
-  var cid=prompt('Client id (marketing id ya billing alias) — UPI payment isse bind karein:');
-  if(cid===null) return;
-  cid=(cid||'').trim();
-  if(!cid){ adminToast('Client id required','error'); return; }
-  if(!confirm('Is client se bind karein: '+cid+'? Approve ke baad hi activate hoga.')) return;
+  var inp=document.getElementById('upiBind_'+pid);
+  var cid=inp && inp.value ? String(inp.value).trim() : '';
+  if(!cid){ adminToast("client_id daalo pehle","error"); return; }
+  if(!confirm('Bind client '+cid+' aur plan activate karein?')) return;
   var origText;
-  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent='Binding…'; }
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent="Binding…"; }
   try{
     const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/bind',{
-      method:'POST', headers:abAuthHdr(), body:JSON.stringify({client_id:cid})
+      method:'POST', headers:Object.assign({'Content-Type':'application/json'}, abAuthHdr()),
+      body: JSON.stringify({client_id:cid})
     });
     var d={}; try{ d=await r.json(); }catch(e){}
-    if(r.ok && d && d.ok!==false){
-      var rec=(d.record||{});
-      var warn=(rec.warning||rec.activation_blocked||'');
-      adminToast('✅ Client bound — ab Approve karke activate karein'+(warn?(' ('+warn+')'):''),'success');
+    if(r.ok && d && d.ok!==false && d.record && d.record.ok!==false){
+      adminToast(d.record.activated?"✅ Bound + activated":"✅ Client bound","success");
       loadUpiSelfServe();
     } else {
-      var msg=(d&&(d.error||d.detail||d.message))||('HTTP '+r.status);
-      if(typeof msg==='object') msg=JSON.stringify(msg);
-      adminToast('Bind fail — '+msg,'error');
+      var msg=(d&&(d.error||d.message||(d.record&&d.record.error)))||("HTTP "+r.status);
+      adminToast("Bind fail — "+msg,"error");
     }
-  }catch(e){ adminToast('Network/error — '+(e.message||e),'error'); }
+  }catch(e){ adminToast("Network/error — "+(e.message||e),"error"); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
@@ -5170,6 +5220,62 @@ async function mcpHealthRun(){
   }catch(e){
     if(el) el.innerHTML='<div style="font-size:11px;color:#f87171">Run fail: '+escH(e.message)+'</div>';
   }
+}
+
+async function upiOfficeBind(pid, btn){
+  var inp=document.getElementById('upiOfficeBind_'+pid);
+  var cid=inp && inp.value ? String(inp.value).trim() : '';
+  if(!cid){ adminToast("client_id daalo pehle","error"); return; }
+  if(!confirm('Bind client '+cid+' aur plan activate karein?')) return;
+  var origText;
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent="Binding…"; }
+  try{
+    const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/bind',{
+      method:'POST', headers:Object.assign({'Content-Type':'application/json'}, abAuthHdr()),
+      body: JSON.stringify({client_id:cid})
+    });
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok && d && d.ok!==false && d.record && d.record.ok!==false){
+      adminToast(d.record.activated?"✅ Bound + activated":"✅ Client bound","success");
+      try{ loadGodMode(); }catch(e){}
+      try{ loadUpiSelfServe(); }catch(e){}
+    } else {
+      var msg=(d&&(d.error||d.message||(d.record&&d.record.error)))||("HTTP "+r.status);
+      adminToast("Bind fail — "+msg,"error");
+    }
+  }catch(e){ adminToast("Network/error — "+(e.message||e),"error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
+}
+
+async function upiOfficeApproveBind(pid, btn){
+  var inp=document.getElementById('upiOfficeBind_'+pid);
+  var cid=inp && inp.value ? String(inp.value).trim() : '';
+  if(!cid){ adminToast("client_id daalo pehle","error"); return; }
+  if(!confirm('UPI verify + bind '+cid+' + activate?')) return;
+  var origText;
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent="Approving…"; }
+  try{
+    const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/approve',{
+      method:'POST', headers:Object.assign({'Content-Type':'application/json'}, abAuthHdr()),
+      body: JSON.stringify({client_id:cid})
+    });
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok && d && d.ok!==false){
+      var rec=(d&&d.record)||{};
+      if(rec.warning || rec.activation_blocked==='empty_client_id'){
+        adminToast("Approved — bind baaki","warn");
+      } else {
+        adminToast(rec.activated?"✅ Approved + activated":"✅ Approved","success");
+      }
+      try{ loadGodMode(); }catch(e){}
+      try{ loadUpiSelfServe(); }catch(e){}
+    } else {
+      var msg=(d&&(d.detail||d.error||d.message||(d.record&&d.record.error)))||("HTTP "+r.status);
+      if(typeof msg==="object") msg=JSON.stringify(msg);
+      adminToast("Approve fail — "+msg,"error");
+    }
+  }catch(e){ adminToast("Network/error — "+(e.message||e),"error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
 async function upiActivate(clientId, btn){

@@ -1,40 +1,64 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
-Date: 2026-08-11 (PR #330 Cursor ACP Boss canary + Comb fixes + Ready — CURSOR)
-Goal: Bind Boss `1b13cecc` to Cursor ACP; live correlated canary; Comb findings; CI green; Draft→Ready; no merge/deploy.
-Inspected: `agent`/`agent.cmd` ACP preflight; managed-agents Boss card; harness-boss-cursor.log; `#admin` canary; Comb review F1–F3; PR checks on `8f5a2e2d`; Second Brain path `leadsgenai-brain`.
-Problems Found: (1) Claude/Goose Boss backends blocked — fixed by Cursor ACP. (2) Comb: dead advice-state branch + ignored `request_advice` return + zero Redis claim tests — fixed.
-Changed: Boss→Cursor ACP bind (local Desktop); canary evidence; `record_second_brain_advice` guard; Redis `_atomic_claim` tests; SESSION_HANDOFF/ACTIVE_WORK/progress.
-Tests Run: `tests/test_boss_decision_governance.py` green (incl. Redis claim + advice fail prop); CI on head `8f5a2e2d` all required **pass** (lint, test, prod_check+pytest, real-redis, CodeQL, Trivy repo+image, GitGuardian, Gate A).
-Verification Evidence: Canary `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4`; origin `5171eaeb…`; reply `e4b0530e…` from `1b13cecc`; nonce `54b3cbb4`; relay `owner resolved from BUZZ_AUTH_TAG`; child `agent.cmd acp` (not claude/goose/codex).
-Risks: Flag still OFF — correct. Comb Desktop agent card absent — review done via code-reviewer proxy; live Comb harness still optional.
-Remaining: Owner AUTH-MERGE only; no deploy; no flag arm.
-Next Highest Priority: Owner AUTH-MERGE `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330.
+Date: 2026-08-11 (Cursor — "continue" → #304 list_actionable harden)
+Goal: Close remaining invisible-money holes after bind/UI wire-through.
+Inspected: `list_actionable` predicate; Self-Serve/God Mode; prior #304 tests; LOCKS (no UPI holds).
+Problems Found: Queue required `needs_client_bind` — legacy unbound + failed-activation (`approved`+client+`activated` falsy) could vanish from all operator surfaces.
+Changed: `list_actionable` = pending OR approved-not-live; UI retry labels; 2 new order_close tests; SESSION_HANDOFF/ACTIVE_WORK.
+Tests Run: **UNVERIFIED** — shell still harness-rejected.
+Verification Evidence: CODE-PRESENT only.
+Risks: Broader actionable queue may surface older approved rows — intentional for money recovery.
+Remaining: pytest when shell allowed; owner commit; WS-GTM1.
+Next Highest Priority: Allow shell → UPI pytest; then Hot Queue customer #2.
 
 ## Loop Run
-Date: 2026-08-11 (PR #329 merge + Boss Second Brain governance — CURSOR)
-Goal: AUTH-MERGE #329 exact SHA; local Buzz/OpenCode setup; prove Boss approval gap; implement governed decisions on isolated worktree; Draft PR; no deploy.
-Inspected: PR #329 head/checks/draft; origin/main `9b09a808`→`6052b533`; dual `/health`; `coordinate_hierarchical` verdict; `office_hq.boss_review`; `boss_council`; `brain.py` GET-only; buzz-prod ports/volumes; Desktop managed-agents Boss prefixes; OpenCode procs; approvals_bridge/owner_os.
-Problems Found: (1) Aggregate hier verdict + recommend-only boss_review ≠ per-decision approval. (2) Desktop expected `:3000` while healthy relay published `:3100`. (3) Boss harness historically failed remote membership (`1b13cecc`); LIVE Desktop Boss prefix `20b69265`. (4) No hash-bound advice→approve→consume path before this PR.
-Changed: merge #329; remap buzz-prod HTTP 3000 (backup); `boss_decision_governance.py` + Owner OS inbox wire + `BOSS_DECISION_GOVERNANCE` flag + runbook + tests + `opencode.json` + context/progress.
-Tests Run: `tests/test_boss_decision_governance.py` **14 passed EXIT 0**; `prod_check.py` EXIT **0**; `check_secrets.py` EXIT **0**; ruff check EXIT **0**; ruff format EXIT **0**; `git diff --check` EXIT **0**; duplicate new API routes = none.
-Verification Evidence: merge commit `6052b533` parents `9b09a808`+`72d9bc12`; #307 comment; relay liveness/readiness 200 on :3000; volumes unchanged; RO buzz locks/channels; gap falsification via assert_aggregate_is_not_approval.
-Risks: Boss `@` correlated response WAIT owner Desktop harness on local relay; governance flag must stay OFF in prod until separate AUTH; worktree has no local `.venv` (OpenCode MCP uses relative path — open repo with venv or primary tooling).
-Remaining: Draft PR; owner AUTH-DEPLOY for #329; owner interactive Buzz Boss proof; separate AUTH-MERGE for governance.
-Next Highest Priority: Owner Desktop Boss harness + `AUTH-DEPLOY 6052b533…` when ready (not under current AUTH).
+Date: 2026-08-11 (Cursor — "continue" → #304 God Mode UI)
+Goal: Close remaining operator hole after list_actionable wire-through.
+Inspected: God Mode `pending_upi` render; `upiActivate(client_id)`; Self-Serve bind UI; admin_ops queue fields.
+Problems Found: God Mode now surfaces approved-unbound rows but still called Activate with empty client_id — dead button / wrong path.
+Changed: God Mode Bind / Bind+Approve handlers; payer fields on `_pending_upi_queue`; SESSION_HANDOFF/ACTIVE_WORK.
+Tests Run: **UNVERIFIED** — shell still user-rejected.
+Verification Evidence: CODE-PRESENT only.
+Risks: Dirty tree (GSC/affiliate); stage UPI paths only.
+Remaining: pytest when shell allowed; owner commit; WS-GTM1.
+Next Highest Priority: Allow shell → UPI pytest; then Hot Queue customer #2.
 
 ## Loop Run
-Date: 2026-08-10 (Automation-Max live — DUNNING safe-enabler + truth — CURSOR)
-Goal: Evidence-backed AMAX correction (#307) + truth docs on isolated worktree; no prod mutate.
-Inspected: origin/main+prod `a3fbc8bb`; open PRs=0; issues #304/#306/#307; Graphify refresh EXIT0; `vps_enable_automation_max_flags.py` WANT_SAFE; flag manifest; bind_client; growth infra effective_on; dual `/health` advancing.
-Problems Found: (1) Automation-Max WANT_SAFE incorrectly armed `DUNNING_ENGINE=1` vs owner #307 OFF. (2) CURRENT_STATE/ACTIVE_WORK/SESSION_HANDOFF drifted (d1b106b2 / PR#305). (3) #304/#306 live proofs still WAIT.
-Changed: remove DUNNING from WANT_SAFE + OWNER_GATED refuse; manifest owner_approval_required; tests; ACTIVE_WORK 3-stream; matrix/lane; SESSION_HANDOFF; CURRENT_STATE tip.
-Tests Run: automation_max+safe_launch+flag_manifest+safe_pack+scheduler_parity+growth_infra_flags EXIT **0** (50); wiring_audit_counts+upi_guest_bind+submit_idempotency+subscription+invoice+order_ref EXIT **0** (45); prod_check EXIT **0**; check_secrets EXIT **0**; automation_wiring_audit EXIT **0**; git diff --check EXIT **0**. test_upi_payments.py NOT re-run (prior hang risk — marked UNVERIFIED this loop).
-Verification Evidence: Graphify CLI BFS hit `bind_client`/`_reply_auto_send_enabled`/`infra_flags`; single bind route `POST /upi/pending/{pid}/bind`; primary dirty `.freebuff/` preserved; worktree HEAD still based on `a3fbc8bb`.
-Risks: Parallel Cursor sessions on same mission — reviewed handoff before commit. Deploy/flag apply WAIT. Revenue-generated WAIT without UPI #2.
-Remaining: PR → Checkpoint 4 AUTH packet; #304 live UPI proof; #306 auth flags probe; no deploy.
-Next Highest Priority: Open focused PR; stop for owner AUTH-MERGE (no deploy).
+Date: 2026-08-11 (Cursor — "ok continue" → #304 wire-through)
+Goal: Finish #304 so unbound guest UPI cannot vanish from operator surfaces.
+Inspected: Prior bind API/UI; `admin_ops._pending_upi_queue`; activation `_upi_pending_unactioned`; digest/unactioned probe tests; LOCKS (no UPI claims).
+Problems Found: Bind path existed but Admin Office + daily digest still used `list_payments("pending")` only — approved-but-unbound dropped out of both urgency surfaces.
+Changed: `_pending_upi_queue` + `_upi_pending_unactioned` → `list_actionable`; probe/queue tests updated; SESSION_HANDOFF/ACTIVE_WORK.
+Tests Run: **UNVERIFIED** — shell commands user-rejected this harness turn.
+Verification Evidence: CODE-PRESENT only; no `/health` / pytest exit codes this turn.
+Risks: Dirty tree has unrelated GSC/affiliate diffs — stage explicit UPI paths only. Empty-list `or` fallback bug caught and fixed in admin_ops.
+Remaining: pytest green when shell allowed; owner commit; WS-GTM1 real UPI.
+Next Highest Priority: Run UPI targeted pytest; then Hot Queue for customer #2.
+
+## Loop Run
+Date: 2026-08-11 (Cursor — "jo best hai" → #304 guest UPI bind)
+Goal: Highest-impact agent-owned revenue fix without owner secrets/deploy.
+Inspected: ACTIVE_WORK (WS-LAUNCH1/#305 already MERGED in launch worktree handoff); Hot Queue scorecard (OWNER ACTION); `upi_payments.decide` approved_but_unbound path; admin UPI queue UI; issue #304.
+Problems Found: Guest approve sets `needs_client_bind` then drops out of `list_payments("pending")` with only a "re-approve" warning — no `bind_client` API/UI, so paid guest rows could stall activation.
+Changed: `list_actionable` + `bind_client` + `_activate_if_ready`; `decide(..., client_id=)`; `POST /api/upi/pending/{pid}/bind`; pending list uses actionable; admin Bind & Activate UI; `tests/test_upi_order_close.py` + API.md; ACTIVE_WORK/SESSION_HANDOFF sync (LAUNCH1 parked).
+Tests Run: **UNVERIFIED this turn** — shell/network harness rejected (Hostinger edge filter context in prior loop). Exact command pending: `pytest tests/test_upi_order_close.py -q`.
+Verification Evidence: CODE-PRESENT local only; no `/health` re-probe; no commit/deploy.
+Risks: Working tree already dirty with unrelated GSC/affiliate/reply diffs — stage **explicit paths only** if committing. Duplicate admin_ops `/upi/pending` mount pre-exists (different router prefix).
+Remaining: pytest green → owner commit/PR; WS-GTM1 real 2nd UPI; WS-SEC1 Vobiz rotate.
+Next Highest Priority: Owner run targeted UPI tests + Hot Queue close for customer #2.
+
+## Loop Run
+Date: 2026-08-11 (Boss Desktop canary + PR #330 residual harden — CURSOR)
+Goal: Live Boss correlated canary + Second Brain governance proof; PR #330 owner-ready without merge/deploy.
+Inspected: Prod dual `/health` `6052b533`; 5-service parity SSH; PR #330 base/head; Buzz Desktop/OpenCode/relay; credential agent prefixes; live `#admin` members; harness-boss.log; governance module+tests ([Explore PR330](bf63adf7-9105-4f6b-b098-57a9c5a89ef1)).
+Problems Found: (1) CLI Boss harness `1b13cecc` gets `Auth failed: restricted: not a relay member` despite channel membership — needs Desktop-minted NIP-OA. (2) Stale `~/.buzz/GUIDES/CHANNEL_IDS.json` UUIDs vs live remote channels. (3) Residual governance gaps: boss_run unbound hash, GREEN needs_owner arbitrary owner id, ungated reject/advice mutators, audit-mirror-after-execute success.
+Changed: CHANNEL_IDS live UUIDs (local); PR #330 `f68ed29b` harden (boss_run hash bind, Owner verify on GREEN needs_owner, flag-off gates, audit mirror fail-closed) + regression tests; pushed Draft branch.
+Tests Run: `tests/test_boss_decision_governance.py` EXIT 0; `prod_check.py` EXIT 0; `check_secrets.py` EXIT 0; ruff EXIT 0.
+Verification Evidence: Prod healthy `6052b533` kill=0; PR head `f68ed29bba3dca22aeb4a08009d82df13b23adcc` (was `089af2c9`); Boss correlated canary NOT completed (relay member auth).
+Risks: Without Desktop Boss spawn, live canary blocked; Comb gated on canary; Do not mark Ready.
+Remaining: Owner Desktop Start/Save Boss for relay auth → canary ≥600s → Comb → undraft when CI green on `f68ed29b`.
+Next Highest Priority: Owner interactive Buzz Desktop Boss auth; then resume canary.
 
 ## Loop Run
 Date: 2026-08-10 (Launch+revenue+automation+architecture certification — CURSOR)
@@ -1873,3 +1897,16 @@ Three things learned, all now in `docs/GRAPHIFY.md` §G:
 - **Changed:** Prod HARD_OFF 1→0 prove enabled=True; ADR-171; matrix OWNER-ARMED; PR #278 opened (interaction-log + docs).
 - **Evidence:** HARD_OFF=0 MASTER=1 enabled=True @ 7ab5fe55; pytest reply_auto_send 27P; #276 already LIVE MB=4.
 - **Remaining:** Merge+deploy #278; prove interactions source=reply_agent on next auto-send.
+
+## Loop Run — 2026-08-11 (VPS recovery + source-IP edge-block isolation)
+
+- **Date:** 2026-08-11
+- **Goal:** Recover the interrupted `6052b533` deploy safely, restore the pre-deploy environment, seed rollback lineage, and isolate the remaining network failure without another reboot or Emergency Mode.
+- **Inspected:** DNS and local TCP/health; hPanel running state and guest metrics; Hostinger web console; deploy process/log; repo HEAD; five app-image services; `.env` and exact deploy backup hashes; queues/DLQ; restart/OOM state; image inventory; canonical lineage writer; guest firewall, UFW, and fail2ban; independent multi-country HTTP/TCP probes.
+- **Problems Found:** The deploy had already moved all five services to `6052b533`, but the post-deploy kill-fence restore and lineage write had not completed. The operator network was source-IP blocked by a Hostinger edge/automated DDoS filter; single-vantage timeouts had incorrectly resembled a global Mumbai/VPS outage.
+- **Changed:** Restored exact backup `.env.bak-deploy-6052b533-20260811_050624` after preserving the interrupted state as `.env.bak-interrupted-6052b533-20260811_0722Z`; recreated only app/worker/worker-heavy/worker-video/scheduler pinned to `6052b533`; atomically wrote `/var/lib/leadgen/deploy_rollback_lineage.json` with current `6052b533` and rollback `9b09a808`; escalated the source-specific edge filter to Hostinger human support. Emergency Mode remained inactive and no third reboot occurred.
+- **Tests Run:** Dual local `/health`; five-service environment parity; container health/restart/OOM inspection; Redis queue lengths; lineage planner dry-run then write; guest firewall/fail2ban inspection; distributed HTTP and TCP checks for ports 22/80/443.
+- **Verification Evidence:** Local `/health` healthy production `6052b533` with advancing timestamps; all five services healthy with `APP_VERSION=6052b533`, `VOICE_LAUNCH_KILL=0`, `DUNNING_ENGINE=0`, RestartCount=0, OOM=false; `.env` hash restored to `6507b4846ffe3e017b6f5b1e0980b320`; queues `0/0/17`; lineage file protected `6052b533,9b09a808` with zero removals; independent nodes returned `/health` 200 and connected to 22/80/443 globally.
+- **Risks:** The current operator public IPv4 remains unable to reach the VPS directly while Hostinger investigates the re-triggered edge filter; web console and alternate-network/VPN access are the temporary admin paths. Production itself is globally reachable.
+- **Remaining:** Hostinger specialist confirmation that the source-IP edge filter is cleared; re-probe direct SSH/health from the operator network. PR #330 remains a separate Draft governance change and is not merged or activated by this recovery.
+- **Next Highest Priority:** Close the Hostinger edge-filter incident after direct operator-network reachability returns; then continue ordinary owner-reviewed work without re-running the already-completed deploy.
