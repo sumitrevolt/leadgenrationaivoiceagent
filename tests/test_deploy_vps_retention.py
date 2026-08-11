@@ -125,11 +125,27 @@ def test_build_cache_prune_never_uses_bare_dash_a():
 def test_image_retention_never_removes_the_just_deployed_tag():
     t = _text()
     assert 'KEEP_IMAGES="${KEEP_IMAGES:-1}"' in t
-    # Lineage planner + shell loop both refuse removing $VER / PREV_PROD_TAG
+    # Lineage planner + shell loop both refuse removing $VER / rollback tags
     assert "PREV_PROD_TAG" in t
+    assert "ROLLBACK_TAG" in t
     assert "deploy_image_retention.py" in t
+    assert "LINEAGE_STATE" in t
+    assert "ZERO images removed (fail-closed)" in t
     assert '[ "$t" = "$VER" ] && continue' in t
     assert '[ "$t" = "$PREV_PROD_TAG" ] && continue' in t
+    assert '[ "$t" = "$ROLLBACK_TAG" ] && continue' in t
+
+
+def test_lineage_state_write_only_after_health_verification():
+    t = _text()
+    health_fail_idx = t.index('if [ "$LIVE_VER" != "$VER" ]; then')
+    exit3_idx = t.index("exit 3", health_fail_idx)
+    write_idx = t.index("--write-lineage")
+    retention_idx = t.index("=== RETENTION (lineage-aware")
+    assert health_fail_idx < exit3_idx < retention_idx
+    assert exit3_idx < write_idx
+    # Failed health exits before lineage write / retention
+    assert "exit 3" in t[health_fail_idx:write_idx]
 
 
 def test_retention_never_uses_rmi_force_flag():

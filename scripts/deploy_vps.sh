@@ -160,9 +160,10 @@ if [ "$DRY_RUN" = "1" ]; then
   echo "=== BUILD CACHE (current — read-only preview, nothing deleted) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
   echo "=== IMAGE RETENTION preview (lineage-aware; KEEP_IMAGES=${KEEP_IMAGES:-1}) ==="
-  echo "  would protect: newly deployed tag + consistent pre-deploy production tag"
-  echo "  would refuse retention/deploy on skewed pre-deploy service tags"
-  echo "  CreatedAt-newest alone cannot displace the previous-production tag"
+  echo "  would protect: newly deployed tag + durable rollback (LINEAGE_STATE or pre-deploy tag)"
+  echo "  would refuse retention/deploy on skewed/missing/malformed pre-deploy service tags"
+  echo "  same-SHA redeploy without durable rollback lineage = fail-closed (no prune)"
+  echo "  CreatedAt-newest alone cannot displace the lineage rollback tag"
   _KEEP="${KEEP_IMAGES:-1}"
   _IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
   echo "  planner keep_images=$_KEEP (floor expands to protected lineage size)"
@@ -329,9 +330,14 @@ _cleanup_recreate_ghosts() {
 }
 
 # Capture consistent running production tag BEFORE replace (lineage retention).
+# Durable state survives same-SHA redeploy (PREV==VER); CreatedAt is never lineage.
 PREV_PROD_TAG=""
+RUNNING_JSON=""
+ROLLBACK_TAG=""
+LINEAGE_STATE="${LINEAGE_STATE:-$REPO/.deploy_rollback_lineage.json}"
 echo "=== PRE-DEPLOY production tag capture (lineage) ==="
-_prev_tags=""
+echo "LINEAGE_STATE=$LINEAGE_STATE"
+_running_pairs=""
 for _svc in $SERVICES; do
   _c="$(_resolve_compose_container "$_svc")" || {
     echo "FATAL: cannot resolve running service '$_svc' before UP — refusing deploy."
@@ -344,20 +350,28 @@ for _svc in $SERVICES; do
     exit 2
   fi
   echo "  pre-deploy $_svc -> $_tag"
-  case " $_prev_tags " in
-    *" $_tag "*) ;;
-    *) _prev_tags="${_prev_tags} ${_tag}" ;;
-  esac
+  _running_pairs="${_running_pairs}${_svc}=${_tag}"$'\n'
 done
-_prev_tags="$(echo "$_prev_tags" | awk '{$1=$1;print}')"
-_prev_count="$(echo "$_prev_tags" | awk '{print NF}')"
-if [ "$_prev_count" -ne 1 ]; then
-  echo "FATAL: inconsistent pre-deploy app-image tags (skew:$_prev_tags) — refusing deploy."
-  echo "       Fix skew first; retention cannot invent a rollback lineage."
+RUNNING_JSON="$(printf '%s' "$_running_pairs" | python3 -c '
+import json, sys
+out = {}
+for line in sys.stdin:
+    line = line.strip()
+    if not line or "=" not in line:
+        continue
+    k, v = line.split("=", 1)
+    out[k] = v
+print(json.dumps(out, sort_keys=True))
+')"
+PREV_PROD_TAG="$(python3 "$_script_dir/deploy_image_retention.py" \
+  --assert-running-only \
+  --running-json "$RUNNING_JSON")" || {
+  echo "FATAL: inconsistent/missing/malformed pre-deploy app-image tags — refusing deploy."
+  echo "       RUNNING_JSON=$RUNNING_JSON"
   exit 2
-fi
-PREV_PROD_TAG="$_prev_tags"
+}
 echo "PREV_PROD_TAG=$PREV_PROD_TAG"
+echo "RUNNING_JSON=$RUNNING_JSON"
 
 _compose_up > /tmp/deploy_up.log 2>&1
 UP_RC=$?
@@ -468,52 +482,72 @@ docker exec leadgen_redis redis-cli llen dlq:failed_tasks
 # ------------------------------------------------------------------ retention
 # Every deploy adds a ~7GB app image. Retention runs ONLY after a fully verified
 # deploy. Policy is deployment-LINEAGE aware (not CreatedAt newest-N alone):
-# always protect the exact new tag AND the exact immediate previous production
-# tag captured before UP. KEEP_IMAGES=1 must not silently delete the sole
-# rollback artifact. A rebuilt older SHA with a newer CreatedAt must not
-# displace the previous-production tag. Never uses `rmi -f`.
+# protect exact new tag + durable immediate rollback tag. Same-SHA redeploy
+# (PREV_PROD_TAG==VER) reads rollback from LINEAGE_STATE — missing state
+# fail-closes (no destructive prune). Lineage state is written ONLY after
+# exact-SHA /health verification above; failed deploys never overwrite it.
+# Never uses `rmi -f`.
 KEEP_IMAGES="${KEEP_IMAGES:-1}"
 echo "=== RETENTION (lineage-aware; keep>=protected; KEEP_IMAGES=$KEEP_IMAGES) ==="
 IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
-if [ -z "${PREV_PROD_TAG:-}" ]; then
-  echo "FATAL: PREV_PROD_TAG unset — refusing retention without lineage capture."
+if [ -z "${PREV_PROD_TAG:-}" ] || [ -z "${RUNNING_JSON:-}" ]; then
+  echo "FATAL: PREV_PROD_TAG/RUNNING_JSON unset — refusing retention without lineage capture."
   exit 2
 fi
+# Persist lineage ONLY after exact-SHA health+skew above passed. Failed deploys
+# exit earlier and never reach this write — last-known-good rollback stays intact.
 _IMAGES_JSON="$(docker images "$IMG" --format '{"tag":"{{.Tag}}","created_at":"{{.CreatedAt}}"}' \
   | python3 -c 'import sys,json; print(json.dumps([json.loads(l) for l in sys.stdin if l.strip()]))')"
+_PLAN_RC=0
 _PLAN_OUT="$(python3 "$_script_dir/deploy_image_retention.py" \
   --current "$VER" \
   --previous "$PREV_PROD_TAG" \
   --keep-images "$KEEP_IMAGES" \
-  --images-json "$_IMAGES_JSON")" || {
-  echo "FATAL: lineage retention planner refused — see above."
-  exit 2
-}
-echo "$_PLAN_OUT"
-_REMOVED_ANY=0
-while IFS= read -r _line; do
-  case "$_line" in
-    REMOVE=)
-      ;;
-    REMOVE=*)
-      t="${_line#REMOVE=}"
-      [ -z "$t" ] && continue
-      [ "$t" = "$VER" ] && continue
-      [ "$t" = "$PREV_PROD_TAG" ] && continue
-      [ "$t" = "<none>" ] && continue
-      if docker rmi "$IMG:$t" >/dev/null 2>&1; then
-        echo "  removed $t"
-        _REMOVED_ANY=1
-      else
-        echo "  kept    $t (still referenced or missing)"
-      fi
-      ;;
-  esac
-done <<EOF
+  --images-json "$_IMAGES_JSON" \
+  --running-json "$RUNNING_JSON" \
+  --require-running-json \
+  --lineage-state "$LINEAGE_STATE" \
+  --write-lineage "$LINEAGE_STATE")" || _PLAN_RC=$?
+if [ "$_PLAN_RC" -ne 0 ]; then
+  # Health already verified — refuse destructive prune, do not abort the release.
+  echo "WARN: lineage retention planner refused (rc=$_PLAN_RC) — ZERO images removed (fail-closed)."
+  echo "       Same-SHA / missing durable rollback lineage cannot silently delete artifacts."
+  echo "       LINEAGE_STATE=$LINEAGE_STATE was NOT overwritten."
+else
+  echo "$_PLAN_OUT"
+  ROLLBACK_TAG="$(printf '%s\n' "$_PLAN_OUT" | sed -n 's/^ROLLBACK_TAG=//p' | head -1)"
+  if [ -z "$ROLLBACK_TAG" ]; then
+    echo "WARN: planner omitted ROLLBACK_TAG — skipping removals (fail-closed)."
+  else
+    echo "ROLLBACK_TAG=$ROLLBACK_TAG"
+    _REMOVED_ANY=0
+    while IFS= read -r _line; do
+      case "$_line" in
+        REMOVE=)
+          ;;
+        REMOVE=*)
+          t="${_line#REMOVE=}"
+          [ -z "$t" ] && continue
+          [ "$t" = "$VER" ] && continue
+          [ "$t" = "$PREV_PROD_TAG" ] && continue
+          [ "$t" = "$ROLLBACK_TAG" ] && continue
+          [ "$t" = "<none>" ] && continue
+          [ "$t" = "latest" ] && continue
+          if docker rmi "$IMG:$t" >/dev/null 2>&1; then
+            echo "  removed $t"
+            _REMOVED_ANY=1
+          else
+            echo "  kept    $t (still referenced or missing)"
+          fi
+          ;;
+      esac
+    done <<EOF
 $_PLAN_OUT
 EOF
-if [ "$_REMOVED_ANY" -eq 0 ]; then
-  echo "  nothing to reclaim (or only protected lineage tags present)"
+    if [ "$_REMOVED_ANY" -eq 0 ]; then
+      echo "  nothing to reclaim (or only protected lineage tags present)"
+    fi
+  fi
 fi
 docker image prune -f >/dev/null 2>&1     # untagged leftovers only
 echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
