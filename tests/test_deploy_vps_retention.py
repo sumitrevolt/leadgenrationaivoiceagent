@@ -124,15 +124,43 @@ def test_build_cache_prune_never_uses_bare_dash_a():
 def test_image_retention_never_removes_the_just_deployed_tag():
     t = _text()
     assert 'KEEP_IMAGES="${KEEP_IMAGES:-1}"' in t
-    # Lineage planner + shell loop both refuse removing $VER / rollback tags
     assert "PREV_PROD_TAG" in t
     assert "ROLLBACK_TAG" in t
     assert "deploy_image_retention.py" in t
     assert "LINEAGE_STATE" in t
-    assert "ZERO images removed (fail-closed)" in t
+    assert "/var/lib/leadgen/deploy_rollback_lineage.json" in t
+    assert "zero destructive cleanup executed" in t
+    assert "_CLEANUP_OK=1" in t
     assert '[ "$t" = "$VER" ] && continue' in t
     assert '[ "$t" = "$PREV_PROD_TAG" ] && continue' in t
     assert '[ "$t" = "$ROLLBACK_TAG" ] && continue' in t
+
+
+def test_planner_refusal_skips_image_and_build_cache_prune():
+    t = _text()
+    assert "BUILD CACHE skipped — zero destructive cleanup executed" in t
+    retention_to_deployed = t[
+        t.index("=== RETENTION (lineage-aware") : t.index('echo "=== DEPLOYED $VER OK ===')
+    ]
+    assert 'if [ "$_CLEANUP_OK" -eq 1 ]; then' in retention_to_deployed
+    assert "zero destructive cleanup executed" in retention_to_deployed
+    prune_lines = [
+        ln
+        for ln in retention_to_deployed.splitlines()
+        if "docker image prune" in ln and not ln.strip().startswith("#")
+    ]
+    assert len(prune_lines) == 1
+    # Success-path only: prune precedes _CLEANUP_OK=1, both before BUILD CACHE gate.
+    assert retention_to_deployed.index("docker image prune") < retention_to_deployed.index(
+        "_CLEANUP_OK=1"
+    )
+    assert retention_to_deployed.index("_CLEANUP_OK=1") < retention_to_deployed.index(
+        'if [ "$_CLEANUP_OK" -eq 1 ]; then'
+    )
+    assert (
+        "docker builder prune"
+        in retention_to_deployed[retention_to_deployed.index('if [ "$_CLEANUP_OK" -eq 1 ]; then') :]
+    )
 
 
 def test_lineage_state_write_only_after_health_verification():

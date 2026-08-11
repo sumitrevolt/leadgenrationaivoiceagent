@@ -160,9 +160,9 @@ if [ "$DRY_RUN" = "1" ]; then
   echo "=== BUILD CACHE (current — read-only preview, nothing deleted) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
   echo "=== IMAGE RETENTION preview (lineage-aware; KEEP_IMAGES=${KEEP_IMAGES:-1}) ==="
-  echo "  would protect: newly deployed tag + durable rollback (LINEAGE_STATE or pre-deploy tag)"
-  echo "  would refuse retention/deploy on skewed/missing/malformed pre-deploy service tags"
-  echo "  same-SHA redeploy without durable rollback lineage = fail-closed (no prune)"
+  echo "  would protect: newly deployed tag + durable rollback (/var/lib/leadgen lineage state)"
+  echo "  would refuse retention cleanup on skewed/missing/malformed tags or missing artifacts"
+  echo "  same-SHA without durable present rollback = zero destructive cleanup"
   echo "  CreatedAt-newest alone cannot displace the lineage rollback tag"
   _KEEP="${KEEP_IMAGES:-1}"
   _IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
@@ -334,7 +334,7 @@ _cleanup_recreate_ghosts() {
 PREV_PROD_TAG=""
 RUNNING_JSON=""
 ROLLBACK_TAG=""
-LINEAGE_STATE="${LINEAGE_STATE:-$REPO/.deploy_rollback_lineage.json}"
+LINEAGE_STATE="${LINEAGE_STATE:-/var/lib/leadgen/deploy_rollback_lineage.json}"
 echo "=== PRE-DEPLOY production tag capture (lineage) ==="
 echo "LINEAGE_STATE=$LINEAGE_STATE"
 _running_pairs=""
@@ -483,9 +483,10 @@ docker exec leadgen_redis redis-cli llen dlq:failed_tasks
 # Every deploy adds a ~7GB app image. Retention runs ONLY after a fully verified
 # deploy. Policy is deployment-LINEAGE aware (not CreatedAt newest-N alone):
 # protect exact new tag + durable immediate rollback tag. Same-SHA redeploy
-# (PREV_PROD_TAG==VER) reads rollback from LINEAGE_STATE — missing state
-# fail-closes (no destructive prune). Lineage state is written ONLY after
-# exact-SHA /health verification above; failed deploys never overwrite it.
+# (PREV_PROD_TAG==VER) reads rollback from LINEAGE_STATE — missing state or
+# missing inventory artifacts fail-close with TRUE zero destructive cleanup
+# (no rmi, no image prune, no build-cache prune). Lineage state lives OUTSIDE
+# the git checkout and is written ONLY after exact-SHA /health verification.
 # Never uses `rmi -f`.
 KEEP_IMAGES="${KEEP_IMAGES:-1}"
 echo "=== RETENTION (lineage-aware; keep>=protected; KEEP_IMAGES=$KEEP_IMAGES) ==="
@@ -494,8 +495,6 @@ if [ -z "${PREV_PROD_TAG:-}" ] || [ -z "${RUNNING_JSON:-}" ]; then
   echo "FATAL: PREV_PROD_TAG/RUNNING_JSON unset — refusing retention without lineage capture."
   exit 2
 fi
-# Persist lineage ONLY after exact-SHA health+skew above passed. Failed deploys
-# exit earlier and never reach this write — last-known-good rollback stays intact.
 _IMAGES_JSON="$(docker images "$IMG" --format '{"tag":"{{.Tag}}","created_at":"{{.CreatedAt}}"}' \
   | python3 -c 'import sys,json; print(json.dumps([json.loads(l) for l in sys.stdin if l.strip()]))')"
 _PLAN_RC=0
@@ -508,16 +507,16 @@ _PLAN_OUT="$(python3 "$_script_dir/deploy_image_retention.py" \
   --require-running-json \
   --lineage-state "$LINEAGE_STATE" \
   --write-lineage "$LINEAGE_STATE")" || _PLAN_RC=$?
+_CLEANUP_OK=0
 if [ "$_PLAN_RC" -ne 0 ]; then
-  # Health already verified — refuse destructive prune, do not abort the release.
-  echo "WARN: lineage retention planner refused (rc=$_PLAN_RC) — ZERO images removed (fail-closed)."
-  echo "       Same-SHA / missing durable rollback lineage cannot silently delete artifacts."
+  echo "WARN: lineage retention planner refused (rc=$_PLAN_RC) — zero destructive cleanup executed."
+  echo "       No docker rmi / image prune / build-cache prune on this path."
   echo "       LINEAGE_STATE=$LINEAGE_STATE was NOT overwritten."
 else
   echo "$_PLAN_OUT"
   ROLLBACK_TAG="$(printf '%s\n' "$_PLAN_OUT" | sed -n 's/^ROLLBACK_TAG=//p' | head -1)"
   if [ -z "$ROLLBACK_TAG" ]; then
-    echo "WARN: planner omitted ROLLBACK_TAG — skipping removals (fail-closed)."
+    echo "WARN: planner omitted ROLLBACK_TAG — zero destructive cleanup executed."
   else
     echo "ROLLBACK_TAG=$ROLLBACK_TAG"
     _REMOVED_ANY=0
@@ -547,48 +546,33 @@ EOF
     if [ "$_REMOVED_ANY" -eq 0 ]; then
       echo "  nothing to reclaim (or only protected lineage tags present)"
     fi
+    docker image prune -f >/dev/null 2>&1     # untagged leftovers only (success path)
+    _CLEANUP_OK=1
   fi
 fi
-docker image prune -f >/dev/null 2>&1     # untagged leftovers only
 echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
 
 # ------------------------------------------------------- build-cache retention
-# Phase C (2026-07-15): buildx's build cache is a SEPARATE store from tagged
-# images (nothing above touches it) — it can grow unbounded across many
-# deploys with zero relationship to how many image tags are kept. Bounded by
-# BOTH age (a layer still reused every build never ages out — only genuinely
-# stale/orphaned cache is a target) AND a size cap (so this never nukes cache
-# that would just slow the NEXT build back down for no disk benefit, EXCEPT
-# when total cache genuinely exceeds the cap — see flag note below). Never
-# touches running containers, the image just deployed, rollback images,
-# volumes, or app/customer data — `docker builder prune` is scoped strictly
-# to buildx's own cache namespace, disjoint from `docker images`/`docker
-# volume`. Runs only after the verified deploy above, same as image retention.
-#
-# FLAG NOTE (verified live on this VPS, Docker 29.4.3): the classic
-# `--keep-storage` flag is deprecated on this buildx version and silently
-# reclaimed 0B in a live test even with 40GB genuinely reclaimable — it does
-# NOT error, it just doesn't do what the name implies anymore, which would
-# have been a silent no-op every single deploy. `--max-used-space` is the
-# correct successor for "cap total cache at N, prune oldest-first beyond
-# that" (confirmed via `docker builder prune --help`): unlike `--filter
-# unused-for=`, it is NOT age-gated — if total cache exceeds the cap, buildx
-# prunes down to it regardless of age. That is the intended ceiling
-# behavior here, not a bug.
+# Only after a successful validated retention plan. Planner refusal / malformed
+# output skips build-cache prune entirely (true zero destructive cleanup).
 BUILD_CACHE_MAX_AGE="${BUILD_CACHE_MAX_AGE:-168h}"        # 7 days unused
 BUILD_CACHE_KEEP_STORAGE="${BUILD_CACHE_KEEP_STORAGE:-20GB}"
-echo "=== BUILD CACHE (before) ==="
-docker system df | grep -E "TYPE|Build Cache" || true
-if docker builder prune -f --filter "unused-for=$BUILD_CACHE_MAX_AGE" \
-    > /tmp/deploy_buildcache_prune.log 2>&1 \
-    && docker builder prune -f --max-used-space "$BUILD_CACHE_KEEP_STORAGE" \
-    >> /tmp/deploy_buildcache_prune.log 2>&1; then
-  echo "=== BUILD CACHE (after, unused-for>=$BUILD_CACHE_MAX_AGE reclaimed, capped at $BUILD_CACHE_KEEP_STORAGE) ==="
+if [ "$_CLEANUP_OK" -eq 1 ]; then
+  echo "=== BUILD CACHE (before) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
+  if docker builder prune -f --filter "unused-for=$BUILD_CACHE_MAX_AGE" \
+      > /tmp/deploy_buildcache_prune.log 2>&1 \
+      && docker builder prune -f --max-used-space "$BUILD_CACHE_KEEP_STORAGE" \
+      >> /tmp/deploy_buildcache_prune.log 2>&1; then
+    echo "=== BUILD CACHE (after, unused-for>=$BUILD_CACHE_MAX_AGE reclaimed, capped at $BUILD_CACHE_KEEP_STORAGE) ==="
+    docker system df | grep -E "TYPE|Build Cache" || true
+  else
+    echo "WARN: build-cache prune failed (non-fatal — deploy already verified). Tail:"
+    tail -8 /tmp/deploy_buildcache_prune.log
+  fi
+  echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
 else
-  echo "WARN: build-cache prune failed (non-fatal — deploy already verified). Tail:"
-  tail -8 /tmp/deploy_buildcache_prune.log
+  echo "=== BUILD CACHE skipped — zero destructive cleanup executed (retention refuse) ==="
 fi
-echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
 
 echo "=== DEPLOYED $VER OK ==="

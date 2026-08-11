@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Lineage-aware app-image retention planner for scripts/deploy_vps.sh.
 
-Rollback artifacts must follow *deployment lineage*, not CreatedAt / newest-N.
-A rebuilt older SHA can have a newer CreatedAt and must never displace the
-immediate previous production tag. KEEP_IMAGES=1 must not silently delete the
-sole rollback artifact. Same-SHA redeploy must preserve durable rollback state.
+Rollback artifacts follow *deployment lineage*, not CreatedAt / newest-N.
+Same-SHA redeploy preserves durable rollback state outside the git checkout.
+Protected current + rollback tags must exist in the local image inventory
+before any lineage write or removal plan is emitted.
 """
 
 from __future__ import annotations
@@ -26,6 +26,9 @@ _FORBIDDEN_TAGS: frozenset[str] = frozenset({"", "MISSING", "latest", "<none>"})
 # Short or full hex SHA tags only (deploy APP_VERSION form).
 _TAG_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
+# Host-runtime path — never inside the git worktree (/opt/leadgen).
+DEFAULT_LINEAGE_STATE_PATH = "/var/lib/leadgen/deploy_rollback_lineage.json"
+
 
 @dataclass(frozen=True)
 class ImageTag:
@@ -39,33 +42,6 @@ class LineageState:
     rollback_tag: str
     verified_sha: str
     updated_at: str
-
-
-def _agent_dbg(hypothesis_id: str, location: str, message: str, data: dict) -> None:
-    # #region agent log
-    if os.environ.get("LEADGEN_DEBUG_SESSION") != "3b0972":
-        return
-    try:
-        payload = {
-            "sessionId": "3b0972",
-            "runId": "retention-lineage-v2",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data,
-            "timestamp": int(time.time() * 1000),
-        }
-        log_path = Path(
-            os.environ.get(
-                "LEADGEN_DEBUG_LOG_PATH",
-                str(Path(__file__).resolve().parents[1] / "debug-3b0972.log"),
-            )
-        )
-        with log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, ensure_ascii=True) + "\n")
-    except Exception:
-        pass
-    # #endregion
 
 
 def is_valid_deploy_tag(tag: str) -> bool:
@@ -106,25 +82,9 @@ def assert_consistent_running_tags(
         values.add(tag)
 
     if bad:
-        # #region agent log
-        _agent_dbg(
-            "H3",
-            "deploy_image_retention.py:assert_consistent_running_tags",
-            "invalid_or_missing_tag_refuse",
-            {"bad": bad, "service_tags": dict(service_tags)},
-        )
-        # #endregion
         raise ValueError("invalid/missing/malformed service tag(s): " + ", ".join(bad))
 
     if len(values) != 1:
-        # #region agent log
-        _agent_dbg(
-            "H3",
-            "deploy_image_retention.py:assert_consistent_running_tags",
-            "inconsistent_tags_refuse",
-            {"service_tags": dict(service_tags), "values": sorted(values)},
-        )
-        # #endregion
         raise ValueError(
             "inconsistent pre-deploy app-image tags: "
             + ", ".join(f"{k}={v}" for k, v in sorted(service_tags.items()))
@@ -133,6 +93,7 @@ def assert_consistent_running_tags(
 
 
 def load_lineage_state(path: str | Path) -> LineageState | None:
+    """Return valid state, or None if absent. Corrupt files are refused as None."""
     p = Path(path)
     if not p.is_file():
         return None
@@ -151,6 +112,7 @@ def load_lineage_state(path: str | Path) -> LineageState | None:
         and is_valid_deploy_tag(rollback)
         and is_valid_deploy_tag(verified)
         and rollback != current
+        and verified == current
     ):
         return None
     return LineageState(
@@ -162,7 +124,7 @@ def load_lineage_state(path: str | Path) -> LineageState | None:
 
 
 def write_lineage_state(path: str | Path, state: LineageState) -> None:
-    """Atomic replace — never leave a half-written lineage file."""
+    """Atomic replace under a host-runtime directory (not the git checkout)."""
     if not is_valid_deploy_tag(state.current_tag):
         raise ValueError(f"refusing to write invalid current_tag={state.current_tag!r}")
     if not is_valid_deploy_tag(state.rollback_tag):
@@ -173,7 +135,12 @@ def write_lineage_state(path: str | Path, state: LineageState) -> None:
         raise ValueError("verified_sha must equal current_tag after exact-SHA health")
 
     p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        os.chmod(p.parent, 0o700)
+    except OSError:
+        pass
+
     payload = json.dumps(asdict(state), indent=2, sort_keys=True) + "\n"
     fd, tmp_name = tempfile.mkstemp(prefix=".lineage_", dir=str(p.parent))
     try:
@@ -181,7 +148,15 @@ def write_lineage_state(path: str | Path, state: LineageState) -> None:
             f.write(payload)
             f.flush()
             os.fsync(f.fileno())
+        try:
+            os.chmod(tmp_name, 0o640)
+        except OSError:
+            pass
         os.replace(tmp_name, p)
+        try:
+            os.chmod(p, 0o640)
+        except OSError:
+            pass
     except Exception:
         try:
             os.unlink(tmp_name)
@@ -207,35 +182,11 @@ def resolve_rollback_tag(
     if running and running != current:
         if not is_valid_deploy_tag(running):
             raise ValueError(f"invalid/malformed previous tag: {running!r}")
-        # #region agent log
-        _agent_dbg(
-            "H2",
-            "deploy_image_retention.py:resolve_rollback_tag",
-            "upgrade_path_uses_running_before",
-            {"current": current, "rollback": running},
-        )
-        # #endregion
         return running
 
     # Same-SHA redeploy (or empty running): require durable stored rollback.
     if not stored or not is_valid_deploy_tag(stored) or stored == current:
-        # #region agent log
-        _agent_dbg(
-            "H1",
-            "deploy_image_retention.py:resolve_rollback_tag",
-            "same_sha_missing_lineage_refuse",
-            {"current": current, "running": running, "stored": stored},
-        )
-        # #endregion
         raise ValueError("same-SHA redeploy missing durable rollback lineage — refusing retention")
-    # #region agent log
-    _agent_dbg(
-        "H1",
-        "deploy_image_retention.py:resolve_rollback_tag",
-        "same_sha_uses_stored_rollback",
-        {"current": current, "rollback": stored},
-    )
-    # #endregion
     return stored
 
 
@@ -252,6 +203,24 @@ def protected_tags(*, current_tag: str, rollback_tag: str) -> set[str]:
     return {current, rollback}
 
 
+def assert_protected_artifacts_present(
+    images: list[ImageTag],
+    *,
+    current_tag: str,
+    rollback_tag: str,
+) -> None:
+    """Both protected tags must exist in the docker images inventory."""
+    protected = protected_tags(current_tag=current_tag, rollback_tag=rollback_tag)
+    present = {
+        (img.tag or "").strip()
+        for img in images
+        if (img.tag or "").strip() and (img.tag or "").strip() not in _FORBIDDEN_TAGS
+    }
+    missing = sorted(t for t in protected if t not in present)
+    if missing:
+        raise ValueError("protected artifact(s) missing from image inventory: " + ",".join(missing))
+
+
 def plan_removals(
     images: list[ImageTag],
     *,
@@ -263,10 +232,11 @@ def plan_removals(
 
     Protected lineage tags are never removed — even when KEEP_IMAGES=1 and a
     rebuilt older tag has the newest CreatedAt. Creation time is never used as
-    a lineage substitute.
+    a lineage substitute. Callers must assert_protected_artifacts_present first.
     """
     if keep_images < 1:
         raise ValueError("keep_images must be >= 1")
+    assert_protected_artifacts_present(images, current_tag=current_tag, rollback_tag=rollback_tag)
     protected = protected_tags(current_tag=current_tag, rollback_tag=rollback_tag)
     keep_floor = max(int(keep_images), len(protected))
 
@@ -278,11 +248,6 @@ def plan_removals(
         by_tag[tag] = img
 
     ordered = sorted(by_tag.values(), key=lambda i: i.created_at, reverse=True)
-
-    # Legacy CreatedAt-only policy (bug): keep newest N by age, ignore lineage.
-    legacy_keep = {img.tag for img in ordered[: int(keep_images)]}
-    legacy_remove = [img.tag for img in ordered if img.tag not in legacy_keep]
-    legacy_would_kill_protected = sorted(set(legacy_remove) & protected)
 
     keep: set[str] = set(protected)
     for img in ordered:
@@ -300,25 +265,6 @@ def plan_removals(
         if img.tag == current_tag:
             continue
         remove.append(img.tag)
-
-    # #region agent log
-    _agent_dbg(
-        "H1",
-        "deploy_image_retention.py:plan_removals",
-        "lineage_vs_legacy_plan",
-        {
-            "keep_images": keep_images,
-            "keep_floor": keep_floor,
-            "current_tag": current_tag,
-            "rollback_tag": rollback_tag,
-            "protected": sorted(protected),
-            "ordered_tags": [i.tag for i in ordered],
-            "legacy_would_kill_protected": legacy_would_kill_protected,
-            "lineage_remove": list(remove),
-            "lineage_protects_rollback": rollback_tag not in remove,
-        },
-    )
-    # #endregion
     return remove
 
 
@@ -432,6 +378,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     prev = args.previous.strip() or None
+    write_path = (args.write_lineage or "").strip()
+    before_bytes: bytes | None = None
+    if write_path:
+        wp = Path(write_path)
+        if wp.is_file():
+            before_bytes = wp.read_bytes()
+
     try:
         rollback = resolve_rollback_tag(
             current_tag=args.current,
@@ -442,6 +395,8 @@ def main(argv: list[str] | None = None) -> int:
         images = [
             ImageTag(tag=str(r["tag"]), created_at=str(r.get("created_at") or "")) for r in raw
         ]
+        # Inventory presence BEFORE removals plan and BEFORE lineage write.
+        assert_protected_artifacts_present(images, current_tag=args.current, rollback_tag=rollback)
         removals = plan_removals(
             images,
             current_tag=args.current,
@@ -460,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
     if not removals:
         print("REMOVE=")
 
-    if args.write_lineage:
+    if write_path:
         try:
             prev_state = load_lineage_state(args.lineage_state) if args.lineage_state else None
             state = next_lineage_state(
@@ -468,17 +423,22 @@ def main(argv: list[str] | None = None) -> int:
                 running_before_tag=prev or args.current,
                 previous=prev_state,
             )
-            # Prefer resolved rollback (handles upgrade + same-SHA).
             state = LineageState(
                 current_tag=args.current.strip(),
                 rollback_tag=rollback,
                 verified_sha=args.current.strip(),
                 updated_at=state.updated_at,
             )
-            write_lineage_state(args.write_lineage, state)
-            print(f"LINEAGE_WRITTEN={args.write_lineage}")
+            write_lineage_state(write_path, state)
+            print(f"LINEAGE_WRITTEN={write_path}")
         except ValueError as e:
             print(f"REFUSED: lineage write failed: {e}", file=sys.stderr)
+            # Leave prior bytes untouched on failed write attempts that raise
+            # before replace; if file was absent it stays absent.
+            if before_bytes is not None:
+                wp = Path(write_path)
+                if wp.is_file() and wp.read_bytes() != before_bytes:
+                    wp.write_bytes(before_bytes)
             return 2
 
     return 0
