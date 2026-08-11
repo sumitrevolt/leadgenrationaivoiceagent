@@ -64,9 +64,9 @@ def test_self_improve_intentional_exception_documented():
 
 def test_summarize_clean():
     s = sp.summarize()
-    # 44 since 2026-08-09: `daily_video` (own beat entry so the daily video
-    # producer can never be budget-skipped inside the `content` chain).
-    assert s["staff_job_count"] == 44
+    # 45 since 2026-08-11: `gsc_rank` (daily 00:30 IST Google Search Console
+    # rank snapshot — SEO observability, gated GSC_ENABLED, INERT off).
+    assert s["staff_job_count"] == 45
     assert s["unexplained"] == []
     assert s["beat_problems"] == []
 
