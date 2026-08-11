@@ -22,11 +22,14 @@ Fail-closed if advice unavailable / stale / malformed / cross-tenant.
 from __future__ import annotations
 
 import hashlib
+import hmac
+import importlib
 import json
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Callable
 
 from app.utils.logger import setup_logger
 
@@ -35,6 +38,8 @@ logger = setup_logger(__name__)
 _FLAG = "BOSS_DECISION_GOVERNANCE"
 _LEDGER_SEGMENTS = ("boss_decision_governance", "decisions.jsonl")
 _AUDIT_SEGMENTS = ("boss_decision_governance", "audit.jsonl")
+_CLAIM_SEGMENTS = ("boss_decision_governance", "claims")
+_ADVICE_FUTURE_SKEW_S = 60  # reject recorded_at more than 60s in the future
 
 # Terminal + intermediate states
 STATES = frozenset(
@@ -98,6 +103,24 @@ _AMBER_TYPES = frozenset(
     }
 )
 
+# Explicit GREEN catalog — unknown types NEVER default to GREEN
+_GREEN_TYPES = frozenset(
+    {
+        "internal_plan",
+        "ops_report",
+        "staff_task_complete",
+        "hierarchical_member_output",
+    }
+)
+
+# Typed decision registry (lane + owner-only). Unknown = absent = fail-closed.
+DECISION_TYPE_REGISTRY: dict[str, dict[str, Any]] = {
+    **{t: {"lane": "GREEN", "owner_only": False} for t in _GREEN_TYPES},
+    **{t: {"lane": "AMBER", "owner_only": False} for t in _AMBER_TYPES},
+    **{t: {"lane": "AMBER", "owner_only": True} for t in _OWNER_ONLY_TYPES},
+    **{t: {"lane": "RED", "owner_only": False} for t in _RED_TYPES},
+}
+
 # Non-decision noise — refuse to govern as approval objects
 _NON_DECISION_KINDS = frozenset(
     {
@@ -114,6 +137,178 @@ _NON_DECISION_KINDS = frozenset(
 
 _ADVICE_MAX_AGE_S = 6 * 3600  # 6h — stale advice fail-closed
 _BOSS_ID = "manager"
+_PRODUCER_PATH = "app.platform.boss_decision_governance.adapter_propose_for_agent"
+_CONSUMER_PATH = "app.platform.boss_decision_governance.consume_or_execute"
+
+
+@dataclass(frozen=True)
+class DecisionAdapter:
+    """Explicit typed adapter — roster presence alone is NOT governance coverage."""
+
+    agent_id: str
+    producer: str
+    consumer: str
+    default_decision_type: str
+    role: str = "staff"
+
+
+def _redis_client():
+    """Only when REDIS_URL is explicitly set — never silently share localhost state."""
+    url = (os.environ.get("REDIS_URL") or "").strip()
+    if not url:
+        return None
+    try:
+        import redis as _redis
+
+        return _redis.from_url(url, decode_responses=True, socket_connect_timeout=1.5)
+    except Exception:
+        return None
+
+
+def _atomic_claim(claim_key: str, *, ttl_s: int = 86400) -> bool:
+    """Cross-process one-time claim. Redis SET NX when REDIS_URL set; else O_EXCL file."""
+    key = (claim_key or "").strip()
+    if not key or "/" in key or "\\" in key or ".." in key:
+        return False
+    r = _redis_client()
+    if r is not None:
+        try:
+            return bool(r.set(f"bdg:claim:{key}", "1", nx=True, ex=max(60, int(ttl_s))))
+        except Exception as e:
+            logger.warning(
+                "[boss_gov] redis claim failed key=%s err=%s", key[:48], type(e).__name__
+            )
+            # Explicit REDIS_URL + failure = fail closed (no silent dual-consume).
+            return False
+    try:
+        from app.platform import runtime_data
+
+        runtime_data.store_dir(_CLAIM_SEGMENTS[0], _CLAIM_SEGMENTS[1])
+        path = runtime_data.store_path(*_CLAIM_SEGMENTS, f"{key}.claimed")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            os.write(fd, b"1")
+        finally:
+            os.close(fd)
+        return True
+    except FileExistsError:
+        return False
+    except Exception as e:
+        logger.error("[boss_gov] claim primitive failed key=%s err=%s", key[:48], type(e).__name__)
+        return False
+
+
+def _resolve_callable(dotted: str) -> Callable[..., Any] | None:
+    mod_name, _, attr = (dotted or "").rpartition(".")
+    if not mod_name or not attr:
+        return None
+    try:
+        mod = importlib.import_module(mod_name)
+        fn = getattr(mod, attr, None)
+        return fn if callable(fn) else None
+    except Exception as e:
+        logger.warning("[boss_gov] adapter resolve failed %s: %s", dotted, type(e).__name__)
+        return None
+
+
+def build_adapter_registry(
+    *,
+    staff_ids: list[str] | None = None,
+    include_agents: list[str] | None = None,
+) -> dict[str, DecisionAdapter]:
+    """Build explicit per-STAFF adapters. ``include_agents`` limits for tests."""
+    ids = list(staff_ids if staff_ids is not None else _staff_ids())
+    if include_agents is not None:
+        allow = {a.strip().lower() for a in include_agents}
+        ids = [a for a in ids if a in allow]
+    out: dict[str, DecisionAdapter] = {}
+    for aid in ids:
+        dtype = "ops_report" if aid == _BOSS_ID else "hierarchical_member_output"
+        out[aid] = DecisionAdapter(
+            agent_id=aid,
+            producer=_PRODUCER_PATH,
+            consumer=_CONSUMER_PATH,
+            default_decision_type=dtype,
+            role="boss" if aid == _BOSS_ID else "staff",
+        )
+    return out
+
+
+def adapter_registry() -> dict[str, DecisionAdapter]:
+    return build_adapter_registry()
+
+
+def adapter_propose_for_agent(
+    *,
+    agent_id: str,
+    tenant_id: str,
+    decision_type: str | None = None,
+    title: str = "",
+    payload: dict[str, Any] | None = None,
+    proposed_by: str | None = None,
+    run_id: str = "",
+) -> dict[str, Any]:
+    """Canonical producer adapter used by coordinator / STAFF paths."""
+    reg = adapter_registry()
+    aid = (agent_id or "").strip().lower()
+    if aid not in reg:
+        return {"ok": False, "error": "no_adapter", "agent_id": aid, "fail_closed": True}
+    ad = reg[aid]
+    return propose_decision(
+        tenant_id=tenant_id,
+        agent_id=aid,
+        decision_type=(decision_type or ad.default_decision_type),
+        title=title or f"{aid} decision",
+        payload={**(payload or {}), **({"run_id": run_id} if run_id else {})},
+        proposed_by=proposed_by or aid,
+        kind="decision",
+    )
+
+
+def propose_from_hierarchical_run(run: dict[str, Any] | None) -> dict[str, Any]:
+    """Wire hierarchical coordinator outputs into governed propose (flag-gated)."""
+    if not enabled():
+        return {"ok": True, "inert": True, "written": 0, "flag": _FLAG}
+    run = run or {}
+    run_id = str(run.get("run_id") or "")
+    tenant_id = str(run.get("tenant_id") or os.getenv("DEFAULT_TENANT_ID") or "platform").strip()
+    written: list[str] = []
+    errors: list[dict[str, Any]] = []
+    for team in run.get("teams") or []:
+        for result in team.get("results") or []:
+            if not isinstance(result, dict):
+                continue
+            if result.get("error") or result.get("mode") == "skipped":
+                continue
+            agent = str(result.get("agent") or "").strip().lower()
+            if not agent:
+                continue
+            out = adapter_propose_for_agent(
+                agent_id=agent,
+                tenant_id=tenant_id,
+                decision_type="hierarchical_member_output",
+                title=f"hier:{run_id}:{agent}",
+                payload={
+                    "mode": result.get("mode"),
+                    "output_excerpt": str(result.get("output") or "")[:400],
+                },
+                proposed_by=agent,
+                run_id=run_id,
+            )
+            if out.get("ok") and out.get("decision"):
+                written.append(str(out["decision"].get("decision_id")))
+            elif out.get("inert"):
+                continue
+            else:
+                errors.append({"agent": agent, "error": out.get("error")})
+    return {
+        "ok": not errors,
+        "written": len(written),
+        "decision_ids": written,
+        "errors": errors,
+        "run_id": run_id,
+    }
 
 
 def enabled() -> bool:
@@ -174,7 +369,9 @@ def _audit(action: str, detail: dict[str, Any]) -> None:
             {"at": _now_iso(), "action": action, **detail},
         )
     except Exception as e:
-        logger.debug("[boss_gov] audit skip: %s", e)
+        # Critical audit path must be observable — never silent success.
+        logger.error("[boss_gov] AUDIT_WRITE_FAILED action=%s err=%s", action, type(e).__name__)
+        raise
 
 
 def content_hash(
@@ -199,13 +396,12 @@ def content_hash(
 
 
 def classify_lane_strict(decision_type: str) -> str:
-    """RED refuse; UPI/payment + customer-touch AMBER (owner gate); else GREEN."""
+    """Typed registry only. Unknown types are UNKNOWN (fail-closed — never GREEN)."""
     dt = (decision_type or "").strip().lower()
-    if dt in _RED_TYPES:
-        return "RED"
-    if dt in _OWNER_ONLY_TYPES or dt in _AMBER_TYPES:
-        return "AMBER"
-    return "GREEN"
+    meta = DECISION_TYPE_REGISTRY.get(dt)
+    if not meta:
+        return "UNKNOWN"
+    return str(meta.get("lane") or "UNKNOWN")
 
 
 def _staff_ids() -> list[str]:
@@ -239,22 +435,40 @@ def _agent_rollout(agent_id: str) -> str:
         return "held"
 
 
-def routing_coverage() -> dict[str, Any]:
-    """Static 31/31 routing coverage for canonical STAFF + decision lanes.
+def routing_coverage(
+    *,
+    registry: dict[str, DecisionAdapter] | None = None,
+) -> dict[str, Any]:
+    """Coverage from explicit typed adapter registry — not hardcoded governed=True.
 
-    This is routing readiness — NOT proof that every live customer decision
-    was Boss-approved after Second Brain advice.
+    Roster enumeration alone is NOT governance coverage (task-observer #30).
     """
     staff = _staff_ids()
+    reg = registry if registry is not None else adapter_registry()
     rows = []
     for aid in staff:
+        ad = reg.get(aid)
+        producer_ok = bool(ad and _resolve_callable(ad.producer))
+        consumer_ok = bool(ad and _resolve_callable(ad.consumer))
+        governed = bool(ad and producer_ok and consumer_ok)
         rows.append(
             {
                 "agent_id": aid,
                 "rollout": _agent_rollout(aid),
                 "decision_authority": "boss_within_agent_contract",
-                "governed": True,
-                "armed": _agent_rollout(aid) == "canary",
+                "governed": governed,
+                "armed": _agent_rollout(aid) == "canary" and governed,
+                "adapter": (
+                    None
+                    if not ad
+                    else {
+                        "producer": ad.producer,
+                        "consumer": ad.consumer,
+                        "default_decision_type": ad.default_decision_type,
+                        "producer_resolves": producer_ok,
+                        "consumer_resolves": consumer_ok,
+                    }
+                ),
             }
         )
     covered = {r["agent_id"] for r in rows if r["governed"]}
@@ -265,13 +479,12 @@ def routing_coverage() -> dict[str, Any]:
         "missing": sorted(set(staff) - covered),
         "boss": _BOSS_ID,
         "claim_note": (
-            "31/31 = static routing coverage for canonical STAFF identities/"
-            "decision types — not live customer decisions for held agents."
+            "31/31 requires explicit typed adapters with resolvable producer+consumer "
+            "for every STAFF id — not live customer decisions for held agents, and "
+            "not roster enumeration alone."
         ),
         "agents": rows,
-        "decision_types_catalog": sorted(
-            _OWNER_ONLY_TYPES | _AMBER_TYPES | _RED_TYPES | {"internal_plan", "ops_report"}
-        ),
+        "decision_types_catalog": sorted(DECISION_TYPE_REGISTRY.keys()),
     }
 
 
@@ -370,7 +583,17 @@ def propose_decision(
     kind: str = "decision",
     proposed_by: str | None = None,
 ) -> dict[str, Any]:
-    """Create a governed decision object. Non-decision kinds are refused."""
+    """Create a governed decision object. Non-decision kinds are refused.
+
+    Flag OFF = fully inert (no ledger / approval / audit writes).
+    """
+    if not enabled():
+        return {
+            "ok": True,
+            "inert": True,
+            "flag": _FLAG,
+            "note": "BOSS_DECISION_GOVERNANCE OFF — legacy path unchanged; zero governance writes.",
+        }
     kind_l = (kind or "decision").strip().lower()
     if kind_l in _NON_DECISION_KINDS:
         return {
@@ -386,8 +609,18 @@ def propose_decision(
         return {"ok": False, "error": "tenant_id, agent_id, decision_type required"}
     if agent_id not in set(_staff_ids()):
         return {"ok": False, "error": "unknown_agent", "agent_id": agent_id}
+    if agent_id not in adapter_registry():
+        return {"ok": False, "error": "no_adapter", "agent_id": agent_id, "fail_closed": True}
     if "/" in tenant_id or "\\" in tenant_id or ".." in tenant_id:
         return {"ok": False, "error": "unsafe_tenant_id"}
+    if decision_type not in DECISION_TYPE_REGISTRY:
+        return {
+            "ok": False,
+            "error": "unknown_decision_type",
+            "decision_type": decision_type,
+            "fail_closed": True,
+            "note": "Unknown types refuse until registered (never default GREEN).",
+        }
 
     payload = dict(payload or {})
     # Strip obvious secret-shaped keys from stored payload
@@ -397,6 +630,8 @@ def propose_decision(
             payload.pop(k, None)
 
     lane = classify_lane_strict(decision_type)
+    if lane == "UNKNOWN":
+        return {"ok": False, "error": "unknown_decision_type", "fail_closed": True}
     sha = content_hash(
         tenant_id=tenant_id,
         agent_id=agent_id,
@@ -442,18 +677,35 @@ def propose_decision(
                 "content_sha256": sha,
                 "decision_type": decision_type,
                 "lane": lane,
+                "risk": lane,
+                "mission_id": decision_id,
+                "action": decision_type,
                 "governance": "boss_decision_governance",
                 "decision_id": decision_id,
                 "tenant_id": tenant_id,
                 "agent_id": agent_id,
             },
         )
-        if isinstance(mirrored, dict) and mirrored.get("id"):
-            row["verification_item_id"] = mirrored["id"]
+        if not isinstance(mirrored, dict) or not mirrored.get("ok") or not mirrored.get("id"):
+            logger.error(
+                "[boss_gov] approval_mirror_failed decision_id=%s",
+                decision_id,
+            )
+            return {
+                "ok": False,
+                "error": "approval_mirror_failed",
+                "fail_closed": True,
+            }
+        row["verification_item_id"] = mirrored["id"]
     except Exception as e:
-        logger.debug("[boss_gov] approvals_bridge mirror skip: %s", e)
-    _append_jsonl(_ledger_path(), row)
-    _audit("propose", {"decision_id": decision_id, "state": row["state"], "lane": lane})
+        logger.error("[boss_gov] approvals_bridge mirror exception: %s", type(e).__name__)
+        return {"ok": False, "error": "approval_mirror_failed", "fail_closed": True}
+    try:
+        _append_jsonl(_ledger_path(), row)
+        _audit("propose", {"decision_id": decision_id, "state": row["state"], "lane": lane})
+    except Exception as e:
+        logger.error("[boss_gov] ledger/audit write failed: %s", type(e).__name__)
+        return {"ok": False, "error": "ledger_write_failed", "fail_closed": True}
     return {"ok": True, "decision": row}
 
 
@@ -495,23 +747,222 @@ def request_advice(decision_id: str) -> dict[str, Any]:
     return _transition(decision_id, "advice_requested")
 
 
+def _fetch_second_brain_advice(
+    *,
+    query: str,
+    tenant_id: str,
+    content_sha256: str,
+    use_council: bool = False,
+) -> dict[str, Any]:
+    """Advisory provider — tests monkeypatch this; no production inject hook."""
+    notes: list[dict[str, Any]] = []
+    try:
+        from app.platform import obsidian_sync
+
+        notes = list(obsidian_sync.recall(query, k=3) or [])
+    except Exception as e:
+        logger.debug("[boss_gov] recall failed: %s", e)
+        notes = []
+    if not notes and not use_council:
+        return {"ok": False, "error": "advice_unavailable"}
+    council_blob = None
+    if use_council:
+        try:
+            from app.agents import llm_council
+
+            if hasattr(llm_council, "decide_sync"):
+                council_blob = {"status": "skipped_sync_unavailable"}
+            else:
+                council_blob = {"status": "module_present", "authoritative": False}
+        except Exception:
+            council_blob = None
+        if not notes and council_blob is None:
+            return {"ok": False, "error": "advice_unavailable"}
+    return {
+        "ok": True,
+        "advice": {
+            "source": "obsidian_sync.recall",
+            "authoritative": False,
+            "query": query[:200],
+            "notes": [
+                {
+                    "folder": n.get("folder"),
+                    "slug": n.get("slug"),
+                    "score": n.get("score"),
+                    "excerpt": (n.get("excerpt") or "")[:200],
+                    "tenant_id": n.get("tenant_id") or n.get("client_id"),
+                    "namespace": n.get("namespace") or n.get("folder"),
+                }
+                for n in notes[:3]
+            ],
+            "council": council_blob,
+            "bound_content_sha256": content_sha256,
+            "bound_tenant_id": tenant_id,
+            "recorded_at": _now_iso(),
+        },
+    }
+
+
+def _validate_note_tenant_provenance(notes: list[Any], tenant_id: str) -> str | None:
+    """Refuse notes that declare a different tenant/namespace. Returns error code or None."""
+    want = (tenant_id or "").strip()
+    for n in notes or []:
+        if not isinstance(n, dict):
+            continue
+        declared = str(n.get("tenant_id") or n.get("client_id") or "").strip()
+        if declared and declared != want:
+            return "advice_cross_tenant_note"
+        ns = str(n.get("namespace") or n.get("folder") or "").strip().lower()
+        if ns.startswith("client:") and want and not ns.startswith(f"client:{want.lower()}"):
+            return "advice_cross_tenant_note"
+        if ns.startswith("tenant:") and want and ns != f"tenant:{want.lower()}":
+            return "advice_cross_tenant_note"
+    return None
+
+
+def verify_boss_authority(
+    *,
+    decision_id: str,
+    content_sha256: str,
+    evidence: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Authenticate Boss. Request ``actor_id`` alone NEVER establishes authority."""
+    ev = dict(evidence or {})
+    kind = str(ev.get("kind") or "").strip().lower()
+    if not kind:
+        return {"ok": False, "error": "boss_authority_required", "fail_closed": True}
+
+    if kind == "boss_run":
+        run_id = str(ev.get("run_id") or "").strip()
+        if not run_id:
+            return {"ok": False, "error": "boss_run_id_required", "fail_closed": True}
+        try:
+            from app.agents.coordinator import recent_runs
+
+            for run in recent_runs(80):
+                if str(run.get("run_id") or "") != run_id:
+                    continue
+                if str(run.get("boss") or "").lower() != _BOSS_ID:
+                    continue
+                if str(run.get("pattern") or "") != "hierarchical":
+                    continue
+                return {"ok": True, "actor_id": _BOSS_ID, "via": "boss_run", "run_id": run_id}
+        except Exception as e:
+            logger.warning("[boss_gov] boss_run lookup failed: %s", type(e).__name__)
+        return {"ok": False, "error": "boss_run_not_found", "fail_closed": True}
+
+    if kind == "hmac":
+        secret = (os.getenv("BOSS_GOV_AUTHORITY_KEY") or "").strip()
+        if not secret:
+            return {"ok": False, "error": "authority_key_unset", "fail_closed": True}
+        msg = f"{decision_id}|{content_sha256}".encode()
+        expect = hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+        got = str(ev.get("sig") or "").strip().lower()
+        if got and hmac.compare_digest(expect, got):
+            return {"ok": True, "actor_id": _BOSS_ID, "via": "hmac"}
+        return {"ok": False, "error": "bad_boss_hmac", "fail_closed": True}
+
+    if kind == "owner_os":
+        # Owner OS identity evidence is only valid for needs_owner transitions,
+        # not as a substitute Boss GREEN signature.
+        return {"ok": False, "error": "owner_os_not_boss_authority", "fail_closed": True}
+
+    return {"ok": False, "error": "unknown_authority_kind", "fail_closed": True}
+
+
+def verify_and_consume_owner_decision(
+    owner_decision_id: str,
+    *,
+    tenant_id: str,
+    agent_id: str,
+    decision_type: str,
+    content_sha256: str,
+    decision_id: str,
+    lane: str,
+) -> dict[str, Any]:
+    """Verify Owner OS / verification approval bindings + one-time consume."""
+    oid = (owner_decision_id or "").strip()
+    if not oid:
+        return {"ok": False, "error": "owner_decision_id_required", "fail_closed": True}
+    try:
+        from app.platform import approvals_bridge
+    except Exception as e:
+        logger.error("[boss_gov] approvals_bridge import failed: %s", type(e).__name__)
+        return {"ok": False, "error": "owner_verifier_unavailable", "fail_closed": True}
+
+    draft = approvals_bridge.get_verification_draft(oid)
+    if not draft:
+        return {"ok": False, "error": "owner_decision_not_found", "fail_closed": True}
+
+    status = "pending"
+    try:
+        status_fn = getattr(approvals_bridge, "_status_for", None)
+        if callable(status_fn):
+            status = str(status_fn("owner_os_verification", oid) or "pending").lower()
+        else:
+            listed = approvals_bridge.list_drafts(include_decided=True)
+            for it in listed.get("drafts") or []:
+                if str(it.get("id") or "") == oid:
+                    status = str(it.get("status") or "pending").lower()
+                    break
+    except Exception as e:
+        logger.error("[boss_gov] owner status lookup failed: %s", type(e).__name__)
+        return {"ok": False, "error": "owner_status_unverified", "fail_closed": True}
+
+    if status != "approved":
+        return {
+            "ok": False,
+            "error": "owner_decision_not_approved",
+            "status": status,
+            "fail_closed": True,
+        }
+
+    meta = draft.get("meta") if isinstance(draft.get("meta"), dict) else {}
+    checks = {
+        "content_sha256": content_sha256,
+        "tenant_id": tenant_id,
+        "agent_id": agent_id,
+        "decision_type": decision_type,
+        "decision_id": decision_id,
+        "lane": lane,
+        "mission_id": decision_id,
+        "action": decision_type,
+    }
+    for field, expect in checks.items():
+        got = str(meta.get(field) or "").strip()
+        if got != str(expect):
+            return {
+                "ok": False,
+                "error": f"owner_binding_mismatch:{field}",
+                "fail_closed": True,
+            }
+
+    if not _atomic_claim(f"owner:{oid}"):
+        return {
+            "ok": False,
+            "error": "owner_decision_already_consumed",
+            "fail_closed": True,
+        }
+    return {"ok": True, "owner_decision_id": oid, "status": status}
+
+
 def record_second_brain_advice(
     decision_id: str,
     *,
     query: str | None = None,
     use_council: bool = False,
-    injected_advice: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Record advisory Second Brain output. Never authoritative.
 
     Fail-closed when unavailable/stale/malformed/cross-tenant.
-    ``injected_advice`` is for tests only (must include required fields).
+    Tests monkeypatch ``_fetch_second_brain_advice`` — no production inject hook.
     """
+    if not enabled():
+        return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
     if str(cur.get("state")) not in ("proposed", "advice_requested"):
-        # allow propose→request then record; auto-request if still proposed
         if str(cur.get("state")) == "proposed":
             req = request_advice(decision_id)
             if not req.get("ok"):
@@ -524,62 +975,21 @@ def record_second_brain_advice(
     sha = str(cur.get("content_sha256") or "")
     q = (query or f"{cur.get('decision_type')} {cur.get('title')} {tenant_id}").strip()
 
-    advice: dict[str, Any]
-    if injected_advice is not None:
-        advice = dict(injected_advice)
-    else:
-        notes: list[dict[str, Any]] = []
-        try:
-            from app.platform import obsidian_sync
-
-            notes = list(obsidian_sync.recall(q, k=3) or [])
-        except Exception as e:
-            logger.debug("[boss_gov] recall failed: %s", e)
-            notes = []
-        if not notes and not use_council:
-            _transition(
-                decision_id,
-                "refused",
-                {"refuse_reason": "advice_unavailable", "advice": None},
-            )
-            return {"ok": False, "error": "advice_unavailable", "fail_closed": True}
-        council_blob = None
-        if use_council:
-            try:
-                # Soft — council absence is OK if recall had notes; else fail-closed
-                from app.agents import llm_council
-
-                if hasattr(llm_council, "decide_sync"):
-                    council_blob = {"status": "skipped_sync_unavailable"}
-                else:
-                    council_blob = {"status": "module_present", "authoritative": False}
-            except Exception:
-                council_blob = None
-            if not notes and council_blob is None:
-                _transition(
-                    decision_id,
-                    "refused",
-                    {"refuse_reason": "advice_unavailable"},
-                )
-                return {"ok": False, "error": "advice_unavailable", "fail_closed": True}
-        advice = {
-            "source": "obsidian_sync.recall",
-            "authoritative": False,
-            "query": q[:200],
-            "notes": [
-                {
-                    "folder": n.get("folder"),
-                    "slug": n.get("slug"),
-                    "score": n.get("score"),
-                    "excerpt": (n.get("excerpt") or "")[:200],
-                }
-                for n in notes[:3]
-            ],
-            "council": council_blob,
-            "bound_content_sha256": sha,
-            "bound_tenant_id": tenant_id,
-            "recorded_at": _now_iso(),
+    fetched = _fetch_second_brain_advice(
+        query=q, tenant_id=tenant_id, content_sha256=sha, use_council=use_council
+    )
+    if not fetched.get("ok"):
+        _transition(
+            decision_id,
+            "refused",
+            {"refuse_reason": fetched.get("error") or "advice_unavailable", "advice": None},
+        )
+        return {
+            "ok": False,
+            "error": fetched.get("error") or "advice_unavailable",
+            "fail_closed": True,
         }
+    advice = dict(fetched.get("advice") or {})
 
     # Validate advice shape + bindings
     if not isinstance(advice, dict):
@@ -594,6 +1004,10 @@ def record_second_brain_advice(
     if str(advice.get("bound_tenant_id") or "") != tenant_id:
         _transition(decision_id, "refused", {"refuse_reason": "advice_cross_tenant"})
         return {"ok": False, "error": "advice_cross_tenant", "fail_closed": True}
+    prov_err = _validate_note_tenant_provenance(list(advice.get("notes") or []), tenant_id)
+    if prov_err:
+        _transition(decision_id, "refused", {"refuse_reason": prov_err})
+        return {"ok": False, "error": prov_err, "fail_closed": True}
     try:
         recorded = datetime.fromisoformat(
             str(advice.get("recorded_at") or "").replace("Z", "+00:00")
@@ -601,7 +1015,10 @@ def record_second_brain_advice(
         if recorded.tzinfo is None:
             recorded = recorded.replace(tzinfo=timezone.utc)
         age = (_now() - recorded).total_seconds()
-        if age > _ADVICE_MAX_AGE_S or age < -60:
+        if age < -_ADVICE_FUTURE_SKEW_S:
+            _transition(decision_id, "refused", {"refuse_reason": "advice_future_timestamp"})
+            return {"ok": False, "error": "advice_future_timestamp", "fail_closed": True}
+        if age > _ADVICE_MAX_AGE_S:
             _transition(decision_id, "refused", {"refuse_reason": "advice_stale"})
             return {"ok": False, "error": "advice_stale", "fail_closed": True}
     except Exception:
@@ -619,21 +1036,31 @@ def boss_review_decision(
     reviewer_id: str = _BOSS_ID,
     verdict: str = "proceed",
     reason: str = "",
+    authority_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if not enabled():
+        return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
     if str(cur.get("state")) != "advice_recorded":
         return {"ok": False, "error": "advice_required_before_review", "state": cur.get("state")}
-    reviewer_id = (reviewer_id or "").strip().lower()
-    if reviewer_id != _BOSS_ID:
-        return {"ok": False, "error": "only_boss_reviews", "reviewer_id": reviewer_id}
+    auth = verify_boss_authority(
+        decision_id=decision_id,
+        content_sha256=str(cur.get("content_sha256") or ""),
+        evidence=authority_evidence,
+    )
+    if not auth.get("ok"):
+        return auth
+    reviewer_id = str(auth.get("actor_id") or _BOSS_ID)
+    # Spoofed request reviewer_id must not override authenticated identity
     review = {
         "by": reviewer_id,
         "verdict": (verdict or "proceed")[:40],
         "reason": (reason or "")[:200],
         "at": _now_iso(),
         "bound_content_sha256": cur.get("content_sha256"),
+        "authority_via": auth.get("via"),
     }
     return _transition(decision_id, "boss_reviewed", {"boss_review": review})
 
@@ -644,12 +1071,14 @@ def boss_approve(
     actor_id: str = _BOSS_ID,
     expected_sha256: str = "",
     owner_decision_id: str | None = None,
+    authority_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """GREEN Boss approve after advice+review. AMBER needs owner_decision_id. RED refuse."""
+    """GREEN Boss approve after advice+review. AMBER needs verified Owner OS decision."""
+    if not enabled():
+        return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
-    actor_id = (actor_id or "").strip().lower()
     lane = str(cur.get("lane") or "")
     state = str(cur.get("state") or "")
 
@@ -657,6 +1086,16 @@ def boss_approve(
         return {"ok": False, "error": "stale_hash", "fail_closed": True}
     if cur.get("consumed"):
         return {"ok": False, "error": "replay_rejected", "fail_closed": True}
+
+    auth = verify_boss_authority(
+        decision_id=decision_id,
+        content_sha256=str(cur.get("content_sha256") or ""),
+        evidence=authority_evidence,
+    )
+    if not auth.get("ok"):
+        # Spoofed actor_id="manager" without evidence must fail
+        return auth
+    actor_id = str(auth.get("actor_id") or _BOSS_ID)
 
     # Boss cannot self-approve a decision they proposed
     if actor_id == str(cur.get("proposed_by") or "").lower() and actor_id == _BOSS_ID:
@@ -696,6 +1135,17 @@ def boss_approve(
                     {"refuse_reason": None, "note": "AMBER requires Owner OS decision id"},
                 )
             return {"ok": False, "error": "owner_decision_id_required", "lane": "AMBER"}
+        verified = verify_and_consume_owner_decision(
+            oid,
+            tenant_id=str(cur.get("tenant_id") or ""),
+            agent_id=str(cur.get("agent_id") or ""),
+            decision_type=str(cur.get("decision_type") or ""),
+            content_sha256=str(cur.get("content_sha256") or ""),
+            decision_id=decision_id,
+            lane=lane,
+        )
+        if not verified.get("ok"):
+            return verified
         return _transition(
             decision_id,
             "boss_approved",
@@ -703,6 +1153,8 @@ def boss_approve(
                 "owner_decision_id": oid,
                 "approved_by": actor_id,
                 "approved_at": _now_iso(),
+                "authority_via": auth.get("via"),
+                "owner_verified": True,
             },
         )
 
@@ -719,6 +1171,7 @@ def boss_approve(
             "approved_by": actor_id,
             "approved_at": _now_iso(),
             "owner_decision_id": owner_decision_id or cur.get("owner_decision_id"),
+            "authority_via": auth.get("via"),
         },
     )
 
@@ -775,7 +1228,15 @@ def consume_or_execute(
     mode: str = "execute",
     actor_id: str = "runtime",
 ) -> dict[str, Any]:
-    """One-time consume. Requires boss_approved + hash match. Fail-closed otherwise."""
+    """One-time consume with cross-process CAS. Requires boss_approved + hash match."""
+    if not enabled():
+        return {
+            "ok": False,
+            "error": "flag_off",
+            "flag": _FLAG,
+            "fail_closed": True,
+            "note": "Governance execute path INERT until BOSS_DECISION_GOVERNANCE=1",
+        }
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
@@ -796,14 +1257,10 @@ def consume_or_execute(
         return {"ok": False, "error": "agent_unarmed", "fail_closed": True}
     if str(cur.get("decision_type") or "") in _OWNER_ONLY_TYPES:
         return {"ok": False, "error": "upi_owner_only", "fail_closed": True}
-    if not enabled():
-        return {
-            "ok": False,
-            "error": "flag_off",
-            "flag": _FLAG,
-            "fail_closed": True,
-            "note": "Governance execute path INERT until BOSS_DECISION_GOVERNANCE=1",
-        }
+
+    # Cross-process one-time consume claim BEFORE ledger transition
+    if not _atomic_claim(f"consume:{decision_id}"):
+        return {"ok": False, "error": "replay_rejected", "fail_closed": True, "cas": True}
 
     to_state = "executed" if mode == "execute" else "consumed"
     out = _transition(
@@ -821,15 +1278,24 @@ def consume_or_execute(
 
             vid = str(cur.get("verification_item_id") or "").strip()
             if vid:
-                approvals_bridge.decide(
+                mirror = approvals_bridge.decide(
                     "owner_os_verification",
                     vid,
                     "approve",
                     by=actor_id,
                     reason="governed_consume",
                 )
-        except Exception:
-            pass
+                if not isinstance(mirror, dict) or not mirror.get("ok"):
+                    logger.error(
+                        "[boss_gov] consume audit mirror failed decision_id=%s",
+                        decision_id,
+                    )
+                    out["audit_mirror_ok"] = False
+                else:
+                    out["audit_mirror_ok"] = True
+        except Exception as e:
+            logger.error("[boss_gov] consume audit mirror exception: %s", type(e).__name__)
+            out["audit_mirror_ok"] = False
     return out
 
 
@@ -875,10 +1341,16 @@ def metrics_snapshot() -> dict[str, Any]:
 
 __all__ = [
     "STATES",
+    "DECISION_TYPE_REGISTRY",
+    "DecisionAdapter",
     "enabled",
     "content_hash",
     "classify_lane_strict",
     "routing_coverage",
+    "build_adapter_registry",
+    "adapter_registry",
+    "adapter_propose_for_agent",
+    "propose_from_hierarchical_run",
     "propose_decision",
     "request_advice",
     "record_second_brain_advice",
@@ -887,6 +1359,8 @@ __all__ = [
     "boss_reject",
     "mark_needs_owner",
     "consume_or_execute",
+    "verify_boss_authority",
+    "verify_and_consume_owner_decision",
     "get_decision",
     "list_pending",
     "owner_os_visibility",
