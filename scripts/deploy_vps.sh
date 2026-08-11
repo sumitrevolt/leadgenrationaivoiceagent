@@ -159,20 +159,15 @@ fi
 if [ "$DRY_RUN" = "1" ]; then
   echo "=== BUILD CACHE (current — read-only preview, nothing deleted) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
-  echo "=== IMAGE RETENTION preview (keep newest ${KEEP_IMAGES:-3} tags) ==="
-  _KEEP="${KEEP_IMAGES:-3}"
+  echo "=== IMAGE RETENTION preview (lineage-aware; KEEP_IMAGES=${KEEP_IMAGES:-1}) ==="
+  echo "  would protect: newly deployed tag + consistent pre-deploy production tag"
+  echo "  would refuse retention/deploy on skewed pre-deploy service tags"
+  echo "  CreatedAt-newest alone cannot displace the previous-production tag"
+  _KEEP="${KEEP_IMAGES:-1}"
   _IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
-  _OLD="$(docker images "$_IMG" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +$((_KEEP + 1)) | cut -f2)"
-  if [ -z "$_OLD" ]; then
-    echo "  nothing would be reclaimed"
-  else
-    for t in $_OLD; do
-      [ "$t" = "$VER" ] && continue
-      [ "$t" = "<none>" ] && continue
-      echo "  would remove $t (if not still referenced by a running container)"
-    done
-  fi
-  echo "DRY_RUN=1 -> would build+up the above, verify /health == $VER, then run the retention shown above. Exiting."
+  echo "  planner keep_images=$_KEEP (floor expands to protected lineage size)"
+  docker images "$_IMG" --format '  present {{.Tag}} created={{.CreatedAt}}' | head -20 || true
+  echo "DRY_RUN=1 -> would build+up the above, verify /health == $VER, then run lineage retention. Exiting."
   exit 0
 fi
 
@@ -333,6 +328,37 @@ _cleanup_recreate_ghosts() {
   done
 }
 
+# Capture consistent running production tag BEFORE replace (lineage retention).
+PREV_PROD_TAG=""
+echo "=== PRE-DEPLOY production tag capture (lineage) ==="
+_prev_tags=""
+for _svc in $SERVICES; do
+  _c="$(_resolve_compose_container "$_svc")" || {
+    echo "FATAL: cannot resolve running service '$_svc' before UP — refusing deploy."
+    exit 2
+  }
+  _img="$(docker inspect -f '{{.Config.Image}}' "$_c" 2>/dev/null || true)"
+  _tag="${_img##*:}"
+  if [ -z "$_tag" ] || [ "$_tag" = "$_img" ]; then
+    echo "FATAL: service '$_svc' has unparseable image '$_img' — refusing deploy."
+    exit 2
+  fi
+  echo "  pre-deploy $_svc -> $_tag"
+  case " $_prev_tags " in
+    *" $_tag "*) ;;
+    *) _prev_tags="${_prev_tags} ${_tag}" ;;
+  esac
+done
+_prev_tags="$(echo "$_prev_tags" | awk '{$1=$1;print}')"
+_prev_count="$(echo "$_prev_tags" | awk '{print NF}')"
+if [ "$_prev_count" -ne 1 ]; then
+  echo "FATAL: inconsistent pre-deploy app-image tags (skew:$_prev_tags) — refusing deploy."
+  echo "       Fix skew first; retention cannot invent a rollback lineage."
+  exit 2
+fi
+PREV_PROD_TAG="$_prev_tags"
+echo "PREV_PROD_TAG=$PREV_PROD_TAG"
+
 _compose_up > /tmp/deploy_up.log 2>&1
 UP_RC=$?
 echo "UP_RC=$UP_RC"
@@ -440,28 +466,54 @@ docker exec leadgen_redis redis-cli llen celery
 docker exec leadgen_redis redis-cli llen dlq:failed_tasks
 
 # ------------------------------------------------------------------ retention
-# Every deploy adds a ~7GB app image. With no retention the disk filled to 92%
-# (16G free = ~2 deploys from Postgres/Docker dying); a one-off cleanup freed
-# 60GB. Retention runs ONLY after a fully verified deploy, keeps the newest
-# $KEEP_IMAGES tags (current by default), and never uses `rmi -f` — docker
-# itself refuses to delete an image a container still references.
+# Every deploy adds a ~7GB app image. Retention runs ONLY after a fully verified
+# deploy. Policy is deployment-LINEAGE aware (not CreatedAt newest-N alone):
+# always protect the exact new tag AND the exact immediate previous production
+# tag captured before UP. KEEP_IMAGES=1 must not silently delete the sole
+# rollback artifact. A rebuilt older SHA with a newer CreatedAt must not
+# displace the previous-production tag. Never uses `rmi -f`.
 KEEP_IMAGES="${KEEP_IMAGES:-1}"
-echo "=== RETENTION (keep newest $KEEP_IMAGES app image tags) ==="
+echo "=== RETENTION (lineage-aware; keep>=protected; KEEP_IMAGES=$KEEP_IMAGES) ==="
 IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
-OLD_TAGS="$(docker images "$IMG" --format '{{.CreatedAt}}\t{{.Tag}}' \
-  | sort -r | tail -n +$((KEEP_IMAGES + 1)) | cut -f2)"
-if [ -z "$OLD_TAGS" ]; then
-  echo "  nothing to reclaim"
-else
-  for t in $OLD_TAGS; do
-    [ "$t" = "$VER" ] && continue          # never the tag we just deployed
-    [ "$t" = "<none>" ] && continue
-    if docker rmi "$IMG:$t" >/dev/null 2>&1; then
-      echo "  removed $t"
-    else
-      echo "  kept    $t (still referenced)"
-    fi
-  done
+if [ -z "${PREV_PROD_TAG:-}" ]; then
+  echo "FATAL: PREV_PROD_TAG unset — refusing retention without lineage capture."
+  exit 2
+fi
+_IMAGES_JSON="$(docker images "$IMG" --format '{"tag":"{{.Tag}}","created_at":"{{.CreatedAt}}"}' \
+  | python3 -c 'import sys,json; print(json.dumps([json.loads(l) for l in sys.stdin if l.strip()]))')"
+_PLAN_OUT="$(python3 "$_script_dir/deploy_image_retention.py" \
+  --current "$VER" \
+  --previous "$PREV_PROD_TAG" \
+  --keep-images "$KEEP_IMAGES" \
+  --images-json "$_IMAGES_JSON")" || {
+  echo "FATAL: lineage retention planner refused — see above."
+  exit 2
+}
+echo "$_PLAN_OUT"
+_REMOVED_ANY=0
+while IFS= read -r _line; do
+  case "$_line" in
+    REMOVE=)
+      ;;
+    REMOVE=*)
+      t="${_line#REMOVE=}"
+      [ -z "$t" ] && continue
+      [ "$t" = "$VER" ] && continue
+      [ "$t" = "$PREV_PROD_TAG" ] && continue
+      [ "$t" = "<none>" ] && continue
+      if docker rmi "$IMG:$t" >/dev/null 2>&1; then
+        echo "  removed $t"
+        _REMOVED_ANY=1
+      else
+        echo "  kept    $t (still referenced or missing)"
+      fi
+      ;;
+  esac
+done <<EOF
+$_PLAN_OUT
+EOF
+if [ "$_REMOVED_ANY" -eq 0 ]; then
+  echo "  nothing to reclaim (or only protected lineage tags present)"
 fi
 docker image prune -f >/dev/null 2>&1     # untagged leftovers only
 echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"

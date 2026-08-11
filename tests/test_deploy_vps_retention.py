@@ -105,7 +105,7 @@ def test_build_cache_retention_runs_after_verified_deploy_not_before():
     risk evicting cache the CURRENT build still needs)."""
     t = _text()
     smoke_idx = t.index("=== SMOKE")
-    image_retention_idx = t.index("=== RETENTION (keep newest")
+    image_retention_idx = t.index("=== RETENTION (lineage-aware")
     build_cache_idx = t.index("=== BUILD CACHE (before)")
     deployed_ok_idx = t.index('echo "=== DEPLOYED $VER OK ===')
     assert smoke_idx < image_retention_idx < build_cache_idx < deployed_ok_idx
@@ -125,8 +125,11 @@ def test_build_cache_prune_never_uses_bare_dash_a():
 def test_image_retention_never_removes_the_just_deployed_tag():
     t = _text()
     assert 'KEEP_IMAGES="${KEEP_IMAGES:-1}"' in t
-    # both the real retention loop and the dry-run preview loop must guard this
-    assert t.count('[ "$t" = "$VER" ] && continue') == 2
+    # Lineage planner + shell loop both refuse removing $VER / PREV_PROD_TAG
+    assert "PREV_PROD_TAG" in t
+    assert "deploy_image_retention.py" in t
+    assert '[ "$t" = "$VER" ] && continue' in t
+    assert '[ "$t" = "$PREV_PROD_TAG" ] && continue' in t
 
 
 def test_retention_never_uses_rmi_force_flag():
