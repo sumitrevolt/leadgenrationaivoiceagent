@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-11 (PR #330 Cursor ACP Boss canary + Comb fixes + Ready — CURSOR)
+Goal: Bind Boss `1b13cecc` to Cursor ACP; live correlated canary; Comb findings; CI green; Draft→Ready; no merge/deploy.
+Inspected: `agent`/`agent.cmd` ACP preflight; managed-agents Boss card; harness-boss-cursor.log; `#admin` canary; Comb review F1–F3; PR checks on `8f5a2e2d`; Second Brain path `leadsgenai-brain`.
+Problems Found: (1) Claude/Goose Boss backends blocked — fixed by Cursor ACP. (2) Comb: dead advice-state branch + ignored `request_advice` return + zero Redis claim tests — fixed.
+Changed: Boss→Cursor ACP bind (local Desktop); canary evidence; `record_second_brain_advice` guard; Redis `_atomic_claim` tests; SESSION_HANDOFF/ACTIVE_WORK/progress.
+Tests Run: `tests/test_boss_decision_governance.py` green (incl. Redis claim + advice fail prop); CI on head `8f5a2e2d` all required **pass** (lint, test, prod_check+pytest, real-redis, CodeQL, Trivy repo+image, GitGuardian, Gate A).
+Verification Evidence: Canary `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4`; origin `5171eaeb…`; reply `e4b0530e…` from `1b13cecc`; nonce `54b3cbb4`; relay `owner resolved from BUZZ_AUTH_TAG`; child `agent.cmd acp` (not claude/goose/codex).
+Risks: Flag still OFF — correct. Comb Desktop agent card absent — review done via code-reviewer proxy; live Comb harness still optional.
+Remaining: Owner AUTH-MERGE only; no deploy; no flag arm.
+Next Highest Priority: Owner AUTH-MERGE `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330.
+
+## Loop Run
 Date: 2026-08-11 (PR #329 merge + Boss Second Brain governance — CURSOR)
 Goal: AUTH-MERGE #329 exact SHA; local Buzz/OpenCode setup; prove Boss approval gap; implement governed decisions on isolated worktree; Draft PR; no deploy.
 Inspected: PR #329 head/checks/draft; origin/main `9b09a808`→`6052b533`; dual `/health`; `coordinate_hierarchical` verdict; `office_hq.boss_review`; `boss_council`; `brain.py` GET-only; buzz-prod ports/volumes; Desktop managed-agents Boss prefixes; OpenCode procs; approvals_bridge/owner_os.
