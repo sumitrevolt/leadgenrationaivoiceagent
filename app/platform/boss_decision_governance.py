@@ -979,14 +979,18 @@ def record_second_brain_advice(
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
-    if str(cur.get("state")) not in ("proposed", "advice_requested"):
-        if str(cur.get("state")) == "proposed":
-            req = request_advice(decision_id)
-            if not req.get("ok"):
-                return req
-            cur = req["decision"]
-        else:
-            return {"ok": False, "error": "bad_state", "state": cur.get("state")}
+    # proposed → advice_requested first (checked return); other states refuse.
+    if str(cur.get("state")) == "proposed":
+        req = request_advice(decision_id)
+        if not req.get("ok"):
+            return {
+                "ok": False,
+                "error": req.get("error") or "request_advice_failed",
+                "fail_closed": True,
+            }
+        cur = req.get("decision") or get_decision(decision_id) or cur
+    elif str(cur.get("state")) != "advice_requested":
+        return {"ok": False, "error": "bad_state", "state": cur.get("state")}
 
     tenant_id = str(cur.get("tenant_id") or "")
     sha = str(cur.get("content_sha256") or "")
@@ -1042,8 +1046,6 @@ def record_second_brain_advice(
         _transition(decision_id, "refused", {"refuse_reason": "advice_malformed_ts"})
         return {"ok": False, "error": "advice_malformed", "fail_closed": True}
 
-    if str(cur.get("state")) == "proposed":
-        request_advice(decision_id)
     return _transition(decision_id, "advice_recorded", {"advice": advice})
 
 

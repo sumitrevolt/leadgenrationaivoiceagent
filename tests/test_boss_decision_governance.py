@@ -869,3 +869,56 @@ def test_hierarchical_adapter_wiring_when_flag_on(gov_root, monkeypatch):
     assert out["ok"] is True
     assert out["written"] == 1
     assert out["decision_ids"]
+
+
+class _FakeRedis:
+    def __init__(self, *, nx_ok: bool = True, raises: bool = False):
+        self.nx_ok = nx_ok
+        self.raises = raises
+        self.calls: list[tuple] = []
+
+    def set(self, key, value, nx=False, ex=None):
+        self.calls.append((key, value, nx, ex))
+        if self.raises:
+            raise ConnectionError("boom")
+        return self.nx_ok
+
+
+@pytest.mark.parametrize(
+    "nx_ok,raises,expected",
+    [
+        (True, False, True),
+        (False, False, False),
+        (True, True, False),  # redis error → fail-closed
+    ],
+)
+def test_atomic_claim_redis_path(gov_root, monkeypatch, nx_ok, raises, expected):
+    fake = _FakeRedis(nx_ok=nx_ok, raises=raises)
+    monkeypatch.setenv("REDIS_URL", "redis://test-local/0")
+    monkeypatch.setattr(bdg, "_redis_client", lambda: fake)
+    key = f"consume:test-redis-{nx_ok}-{raises}"
+    assert bdg._atomic_claim(key) is expected
+    assert fake.calls, "SET NX must be attempted when REDIS_URL path is active"
+    assert fake.calls[0][0].startswith("bdg:claim:")
+    assert fake.calls[0][2] is True  # nx=True
+
+
+def test_record_advice_propagates_request_advice_failure(gov_root, monkeypatch):
+    prop = bdg.propose_decision(
+        tenant_id="tenant-a",
+        agent_id="isha",
+        decision_type="content_publish",
+        title="t",
+        payload={"x": 1},
+        proposed_by="manager",
+    )
+    did = prop["decision_id"]
+    monkeypatch.setattr(
+        bdg,
+        "request_advice",
+        lambda *_a, **_k: {"ok": False, "error": "forced_request_fail"},
+    )
+    out = bdg.record_second_brain_advice(did)
+    assert out["ok"] is False
+    assert out["error"] == "forced_request_fail"
+    assert out.get("fail_closed") is True
