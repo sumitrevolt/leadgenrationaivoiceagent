@@ -131,3 +131,10 @@ Layout now: `_archive_2026-08-02` (worktrees + backups + loop27/28 patch), `_tra
 - **Verify:** /api/clientops/gsc/overview admin → data block filled (na ki error) · data/gsc_daily.jsonl rows after 00:30 IST run · automation Mission Control me staff-gsc-rank-daily last_run fresh · ntfy page expected (staff job hooks)
 - **Troubleshoot:** creds bad → module logs + never raises (graceful no-op). Google libs missing in image → google-api-python-client add karke rebuild; ImportError is CAUGHT so prod safe.
 - **Rollback:** GSC_ENABLED=0 + restart — beat entry stays but job exits early; files data/gsc_daily.jsonl safe to delete.
+
+## B3 email deliverability (DKIM/SPF/DMARC) runbook (2026-08-11, ADR-085 closure)
+- **Current state (LIVE, verified):** SPF =spf1 include:_spf.mail.hostinger.com -all · DMARC p=quarantine (strong) · DKIM selector hostingermail-a._domainkey CNAME dkim.mail.hostinger.com (real RSA key). data/deliverability_checks.jsonl from 2026-07-12 onward: spf/dmarc/dkim all OK, problems=[]; last check 2026-08-06. Script: deliverability_monitor.py (scheduler pe).
+- **Verify anytime:** .venv\Scripts\python.exe scripts\deliverability_monitor.py (ya jsonl tail). DNS manual: dig TXT leadsgenai.in (SPF), dig TXT _dmarc.leadsgenai.in (DMARC), dig CNAME hostingermail-a._domainkey.leadsgenai.in (DKIM).
+- **Owner DNS action needed only if:** selector rotate karna ho (Hostinger panel) → naya CNAME hostinger ki taraf, phir deliverability_monitor.py confirm; ya DMARC ko p=reject tak tighten karna ho (quarantine abhi safe tier hai — pehle 30-60 din quarantine pe volume dekho).
+- **What breaks email:** hostinger account suspend (bulk/abuse) · daily cap (25/day outreach) · SPF include typo. Recovery = Hostinger panel check + DNS records re-add + monitor green hone tak emails bhejna band.
+- **Never:** admin@leadsgenai.in se bulk bhejna (cap), ya SPF/DKIM records alag provider pe point karna (Hostinger SMTP hi truth hai).
