@@ -995,6 +995,62 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Append-only; never store raw matched text — hash only.",
     },
+    # --- Search Console rank snapshot (ADR-177, GSC pSEO observability) ------
+    # INERT until GSC_ENABLED=1 + creds (staff-gsc-rank-daily beat, 00:30 IST).
+    # New code on this branch, so classified here rather than absorbed into the
+    # debt baseline: baseline growth without a detector change is new debt.
+    {
+        "allowlist_id": "marketing.gsc_rankings.daily",
+        "file": "app/integrations/gsc.py",
+        "line_or_symbol": "DAILY_JSONL",
+        "path_pattern": "data/gsc_daily.jsonl",
+        "store_id": "marketing.gsc_rankings",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Search Console daily snapshot (clicks/impressions/avg-position) for "
+            "pSEO observability. One APPEND per day from staff-gsc-rank-daily; "
+            "rebuildable from the Search Console API, so not authoritative."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Snapshot must stay append-only; data range checkpoints must keep the run idempotent across restarts.",
+    },
+    {
+        "allowlist_id": "marketing.gsc_rankings.state",
+        "file": "app/integrations/gsc.py",
+        "line_or_symbol": "STATE_JSON",
+        "path_pattern": "data/gsc_state.json",
+        "store_id": "marketing.gsc_rankings",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Run-state checkpoint (last snapshot date, data range) for the GSC "
+            "snapshotter. Rebuildable from the API; never customer data."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Must move with marketing.gsc_rankings.state_tmp — the atomic rewrite pair is one family.",
+    },
+    {
+        "allowlist_id": "marketing.gsc_rankings.state_tmp",
+        "file": "app/integrations/gsc.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": "data/gsc_state.json.tmp",
+        "store_id": "marketing.gsc_rankings",
+        "access_modes": ["REWRITE", "REPLACE", "CREATE"],
+        "reason": (
+            "Atomic-rewrite temp for the GSC run-state checkpoint. A temp file "
+            "is not its own logical family."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Temp and target must stay on ONE filesystem.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
