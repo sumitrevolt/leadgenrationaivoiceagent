@@ -74,6 +74,41 @@ def test_automation_max_does_not_footgun_self_improve():
     assert "SELF_IMPROVE_LOOP" not in mod.WANT_SAFE
 
 
+def test_automation_max_default_safe_excludes_dunning_engine():
+    """Issue #307: DUNNING_ENGINE stays OFF — default WANT_SAFE must not arm it."""
+    mod = _load_automation_max()
+    assert "DUNNING_ENGINE" not in mod.WANT_SAFE
+    assert "DUNNING_ENGINE" in mod.OWNER_GATED
+    assert set(mod.WANT_SAFE) & mod.OWNER_GATED == set()
+
+
+def test_automation_max_refuses_owner_gated_dunning_enable():
+    mod = _load_automation_max()
+    with pytest.raises(SystemExit, match="OWNER_GATED"):
+        mod.set_kv("", "DUNNING_ENGINE", "1")
+    with pytest.raises(SystemExit, match="OWNER_GATED"):
+        mod.set_kv("", "DUNNING_ENGINE", "true")
+    # Containment OFF remains allowed (dormant capability, not deleted).
+    text, ch = mod.set_kv("", "DUNNING_ENGINE", "0")
+    assert ch is True
+    assert "DUNNING_ENGINE=0" in text
+
+
+def test_automation_max_dry_run_default_never_sets_dunning(tmp_path, monkeypatch, capsys):
+    """Default --dry-run execution must not plan or write DUNNING_ENGINE=1."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPS_WATCHDOG=0\nDUNNING_ENGINE=0\n", encoding="utf-8")
+    monkeypatch.setenv("LEADGEN_ENV", str(env_file))
+    mod = _load_automation_max()
+    monkeypatch.setattr(sys, "argv", ["vps_enable_automation_max_flags.py", "--dry-run"])
+    assert mod.main() == 0
+    out = capsys.readouterr().out
+    assert "SET DUNNING_ENGINE" not in out
+    assert "OWNER_GATED" in out and "DUNNING_ENGINE" in out
+    assert "DUNNING_ENGINE=1" not in env_file.read_text(encoding="utf-8")
+    assert env_file.read_text(encoding="utf-8") == "OPS_WATCHDOG=0\nDUNNING_ENGINE=0\n"
+
+
 def test_stale_canary_pause_matcher():
     path = SCRIPTS / "vps_clear_stale_canary_pauses.py"
     spec = importlib.util.spec_from_file_location("vps_clear_stale_canary_pauses", path)

@@ -236,6 +236,23 @@ _OVERRIDES: dict[str, FlagMeta] = {
         risk="voice",
         default="1",
     ),
+    "DUNNING_ENGINE": _m(
+        "DUNNING_ENGINE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Issue #307 (2026-08-10): stays OFF / dormant. Not a launch blocker. "
+            "Manual-UPI-safe canary only after money-path proof; never auto-charge."
+        ),
+        owner="nikhil",
+        risk="billing",
+        customer=True,
+        provider=True,
+        default="0",
+        evidence="CODE-PRESENT",
+        kill="DUNNING_ENGINE=0",
+        canary="owner-approved tenant + dry-run ledger",
+    ),
     "OKF_INGEST_ENABLED": _m(
         "OKF_INGEST_ENABLED",
         FlagValueKind.BOOLEAN,

@@ -22,7 +22,11 @@ Parked: WS-PRF1 (PR #248 Draft), WS-CH1, WS-R1 observe-only.
 | Revenue Trends | `REVENUE_TRENDS=1` |
 | Draft-only content auto-submit | `CONTENT_APPROVAL_AUTO=1` (queue submit only — not publish/approve) |
 
-Do **not** enable: cold WA, `REPLY_AUTO_SEND`, open `UPI_AUTO_ACTIVATE`, voice flips, `ALLOW_TOS_SCRAPE`, Creative OS / external-agent, auto social publish, compliance weaken.
+Do **not** enable: cold WA, `REPLY_AUTO_SEND`, open `UPI_AUTO_ACTIVATE`, voice flips, `ALLOW_TOS_SCRAPE`, Creative OS / external-agent, auto social publish, compliance weaken, **`DUNNING_ENGINE`** (issue #307 owner: stays OFF / dormant — not in Automation-Max `WANT_SAFE` nor this Safe Pack).
+
+## Automation-Max enabler vs Safe Pack (do not conflate)
+- **Safe Pack** (`scripts/safe_pack_flags.py`): exact 6 keys above — Mission Control highlight / canary only.
+- **Automation-Max VPS enabler** (`scripts/vps_enable_automation_max_flags.py`): broader draft/ops/health set (`WANT_SAFE`). As of 2026-08-10: `DUNNING_ENGINE` removed from default `WANT_SAFE` and classified `OWNER_GATED` (truthy enable refused). Script name ≠ authorization.
 
 ## P0 code contract
 1. Pay-chase Hot Queue cards clearable via Done

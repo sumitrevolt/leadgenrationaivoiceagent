@@ -4,15 +4,25 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-09 — direct `/health` probe = `d1b106b2` (see the `DEPLOYED 2026-08-09` section immediately below, which is the current truth). See `docs/context/SESSION_HANDOFF.md`.
+2026-08-10 — dual cache-busted `/health` probes = `a3fbc8bb` (timestamps + uptime advanced). See `docs/context/SESSION_HANDOFF.md`.
 
-## DEPLOYED 2026-08-09 — `d1b106b2` (PR #294 merged + shipped)
-Prod `/health` = `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
+## DEPLOYED 2026-08-10 — `a3fbc8bb` (PR #320 guest UPI bind + tip of main)
+Prod `/health` = `{"version":"a3fbc8bb","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-10; two probes ~2s apart with unique `cb=` — timestamp/uptime advanced). Exact SHA = `a3fbc8bb33187f8d5d9eb1489f1acc3b698fef64` = `origin/main` tip. Open PRs = **0**.
+**#304:** bind API + admin Bind UI LIVE on this SHA; issue stays OPEN until owner-authorized guest→bind→approve money-path proof.
+**#306:** flags API `effective_on` / `effective_overrides` CODE-PRESENT on main; authenticated runtime proof WAIT; do not mutate reply posture.
+**#307:** `DUNNING_ENGINE` stays OFF (owner). Automation-Max enabler must not arm it (`OWNER_GATED` — fix in flight on `cursor/automation-max-live-20260810`).
+Rollback ref for prior prod = `76348926`.
+Label: DIRECT_HOST_VERIFIED (2026-08-10) | GIT_VERIFIED
+
+## SUPERSEDED — DEPLOYED 2026-08-09 — `d1b106b2` (PR #294)
+> Historical only. Do not quote as current. Replaced by `a3fbc8bb` above.
+
+Prod `/health` was `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
 Kill-fence procedure executed as documented: backup `.env.bak-dailyvideo-20260809` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh` → reverted to `0` → recreate → proven `0` in all 5 containers. `.env` is byte-identical to the pre-deploy backup (md5 `ec9db158d99269cc463e97923970b50f`).
 **Every new flag stayed unset** (`DAILY_VIDEO_ENABLED`, `DAILY_VIDEO_CLIENTS`, `DAILY_VIDEO_ENGINE`, `CELERY_VIDEO_QUEUE`, `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED`) — the producer is INERT in prod. Calling flags unchanged (`PLATFORM_DIAL_DAILY=1`, `PLATFORM_DIAL_LIMIT=100`, `DIAL_TEST_MODE=0`, `VIDEO_AD_CYCLE=1`).
 Rollback ref = `3cd95ba2` (prior prod).
 ⚠️ **Operator error during this deploy, recorded so it is not repeated:** the fence-closing recreate was run as a bare `docker compose up -d` **without `APP_VERSION`**, so compose fell back to `${APP_VERSION:-latest}` and prod ran the `:latest` image (`266d772a…`) for ~55s before it was caught by the `/health.version` check and corrected with `APP_VERSION=d1b106b2 docker compose … up -d`. This is exactly the ADR-097 landmine. **Any manual recreate — including the one that closes the kill fence — MUST carry `APP_VERSION=<sha>`.** `deploy_vps.sh` itself was never the problem; it pinned correctly.
-Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes)
+Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes) — STALE vs current tip
 
 ## Approval backlog — real numbers + retirement tool (2026-08-09, PR #297)
 "32 stuck approvals" was only the `video_ad` slice. Real queue = **422** `content_approval` pendings: **321** belong to client ids ABSENT from `clients_store` (8 dead ids — un-actionable forever), **101** belong to the 3 live clients (`leadgenai-self` 53 · `0511a69b900e` 28 · `jiya-makeover` 20).
