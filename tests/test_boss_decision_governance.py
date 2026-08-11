@@ -907,12 +907,13 @@ def test_record_advice_propagates_request_advice_failure(gov_root, monkeypatch):
     prop = bdg.propose_decision(
         tenant_id="tenant-a",
         agent_id="isha",
-        decision_type="content_publish",
+        decision_type="internal_plan",
         title="t",
         payload={"x": 1},
-        proposed_by="manager",
+        proposed_by="isha",
     )
-    did = prop["decision_id"]
+    assert prop["ok"], prop
+    did = prop["decision"]["decision_id"]
     monkeypatch.setattr(
         bdg,
         "request_advice",
