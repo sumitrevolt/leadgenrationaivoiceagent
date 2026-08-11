@@ -132,3 +132,21 @@ docker compose -f "$env:USERPROFILE\Documents\buzz\deploy\compose\compose.yml" u
   (empty pubkey) + local copies of Boss/Honey/Fizz/Bumble. Workspace script skips
   empty pubkeys and keeps last active per name — Desktop me stale stubs archive/
   delete manually.
+
+
+## Security & containment (2026-08-10)
+
+- **GitHub bridge is disabled, not deleted.** The public `/gh-hook` route on the VPS
+  host Caddy is fail-closed `403` and the GitHub webhook is deactivated. Do NOT
+  re-enable either without a signed verifier bridge and explicit owner authorization.
+- **Upstream-HMAC-before-downstream-authority invariant.** Any public webhook path
+  must verify the upstream signature over the exact raw body (constant-time) BEFORE
+  injecting any downstream credential. Caddy-style header injection alone is
+  forbidden — it is a confused-deputy defect.
+- **VPS relay is preserved but NOT production-approved.** The remote relay exists in
+  a read-only state. The canonical setup is the local-first relay
+  (`ws://127.0.0.1:3000`, loopback-only, deterministic compose project `buzz-local`).
+- **Signed bridge = separate review.** Reintroducing GitHub events requires a
+  dedicated verifier: raw-body HMAC with constant-time compare, body-size cap,
+  event allowlist, delivery-ID replay dedupe, rate limiting, secret redaction,
+  negative tests, and a named rollback — then explicit owner authorization.

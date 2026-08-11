@@ -9,6 +9,7 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 AUTOMATION_FLAGS = [
     "OWNER_OS",  # Owner Operating System (/app/owner + /api/admin/owner-os) — always mounted for admin; flag documents surface
     "OWNER_OS_LITMUS",  # ADR-155 HITL litmus on Owner OS plan/execute (deterministic; default ON; set 0 to bypass block)
+    "BOSS_DECISION_GOVERNANCE",  # Boss+Second-Brain hash-bound decision approvals (proposed→advice→boss→consume); OFF default; execute fail-closed when unset
     "OPENCLAW_ENABLED",  # OpenClaw Owner Copilot edge layer (/api/owner-copilot) — OFF default; Owner OS remains sole action authority
     "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF
     "ROUTE_HIT_COUNTER",  # per-route hit counter middleware (Redis route_hits:{YYYYMMDD}) for the Control Center "unused API" view — default OFF (middleware not in stack when off)

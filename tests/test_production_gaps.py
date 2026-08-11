@@ -115,6 +115,14 @@ class TestUpiSelfServeWiring:
         assert "/api/upi/pending" in html
         assert "upiSelfServeDecide" in html
 
+    def test_admin_dashboard_has_bind_action_for_unbound_guest(self):
+        """#304: the operator bind queue action is wired into the admin panel."""
+        import pathlib
+
+        html = pathlib.Path("frontend/admin_dashboard.html").read_text(encoding="utf-8")
+        assert "upiSelfServeBind" in html
+        assert "'/bind'" in html  # POST /api/upi/pending/{pid}/bind
+
 
 class TestCustomerOfficeSummaryWiring:
     """Phase-4 (2026-07-01): the /api/customer/office 'summary' payload existed

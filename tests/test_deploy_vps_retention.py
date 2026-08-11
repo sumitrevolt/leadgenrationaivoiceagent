@@ -77,9 +77,8 @@ def test_dry_run_exits_zero_before_any_build_or_up_command():
         "docker image prune",
         "docker system prune",
     ):
-        assert (
-            mutating not in preview_block
-        ), f"DRY_RUN preview must stay read-only, found {mutating!r}"
+        msg = f"DRY_RUN preview must stay read-only, found {mutating!r}"
+        assert mutating not in preview_block, msg
 
 
 def test_build_cache_retention_present_with_age_and_storage_floor():
@@ -105,7 +104,7 @@ def test_build_cache_retention_runs_after_verified_deploy_not_before():
     risk evicting cache the CURRENT build still needs)."""
     t = _text()
     smoke_idx = t.index("=== SMOKE")
-    image_retention_idx = t.index("=== RETENTION (keep newest")
+    image_retention_idx = t.index("=== RETENTION (lineage-aware")
     build_cache_idx = t.index("=== BUILD CACHE (before)")
     deployed_ok_idx = t.index('echo "=== DEPLOYED $VER OK ===')
     assert smoke_idx < image_retention_idx < build_cache_idx < deployed_ok_idx
@@ -125,8 +124,55 @@ def test_build_cache_prune_never_uses_bare_dash_a():
 def test_image_retention_never_removes_the_just_deployed_tag():
     t = _text()
     assert 'KEEP_IMAGES="${KEEP_IMAGES:-1}"' in t
-    # both the real retention loop and the dry-run preview loop must guard this
-    assert t.count('[ "$t" = "$VER" ] && continue') == 2
+    assert "PREV_PROD_TAG" in t
+    assert "ROLLBACK_TAG" in t
+    assert "deploy_image_retention.py" in t
+    assert "LINEAGE_STATE" in t
+    assert "/var/lib/leadgen/deploy_rollback_lineage.json" in t
+    assert "zero destructive cleanup executed" in t
+    assert "_CLEANUP_OK=1" in t
+    assert '[ "$t" = "$VER" ] && continue' in t
+    assert '[ "$t" = "$PREV_PROD_TAG" ] && continue' in t
+    assert '[ "$t" = "$ROLLBACK_TAG" ] && continue' in t
+
+
+def test_planner_refusal_skips_image_and_build_cache_prune():
+    t = _text()
+    assert "BUILD CACHE skipped — zero destructive cleanup executed" in t
+    retention_to_deployed = t[
+        t.index("=== RETENTION (lineage-aware") : t.index('echo "=== DEPLOYED $VER OK ===')
+    ]
+    assert 'if [ "$_CLEANUP_OK" -eq 1 ]; then' in retention_to_deployed
+    assert "zero destructive cleanup executed" in retention_to_deployed
+    prune_lines = [
+        ln
+        for ln in retention_to_deployed.splitlines()
+        if "docker image prune" in ln and not ln.strip().startswith("#")
+    ]
+    assert len(prune_lines) == 1
+    # Success-path only: prune precedes _CLEANUP_OK=1, both before BUILD CACHE gate.
+    assert retention_to_deployed.index("docker image prune") < retention_to_deployed.index(
+        "_CLEANUP_OK=1"
+    )
+    assert retention_to_deployed.index("_CLEANUP_OK=1") < retention_to_deployed.index(
+        'if [ "$_CLEANUP_OK" -eq 1 ]; then'
+    )
+    assert (
+        "docker builder prune"
+        in retention_to_deployed[retention_to_deployed.index('if [ "$_CLEANUP_OK" -eq 1 ]; then') :]
+    )
+
+
+def test_lineage_state_write_only_after_health_verification():
+    t = _text()
+    health_fail_idx = t.index('if [ "$LIVE_VER" != "$VER" ]; then')
+    exit3_idx = t.index("exit 3", health_fail_idx)
+    write_idx = t.index("--write-lineage")
+    retention_idx = t.index("=== RETENTION (lineage-aware")
+    assert health_fail_idx < exit3_idx < retention_idx
+    assert exit3_idx < write_idx
+    # Failed health exits before lineage write / retention
+    assert "exit 3" in t[health_fail_idx:write_idx]
 
 
 def test_retention_never_uses_rmi_force_flag():
