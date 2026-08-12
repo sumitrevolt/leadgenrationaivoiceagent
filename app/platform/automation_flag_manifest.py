@@ -236,6 +236,23 @@ _OVERRIDES: dict[str, FlagMeta] = {
         risk="voice",
         default="1",
     ),
+    "DUNNING_ENGINE": _m(
+        "DUNNING_ENGINE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Issue #307 (2026-08-10): stays OFF / dormant. Not a launch blocker. "
+            "Manual-UPI-safe canary only after money-path proof; never auto-charge."
+        ),
+        owner="nikhil",
+        risk="billing",
+        customer=True,
+        provider=True,
+        default="0",
+        evidence="CODE-PRESENT",
+        kill="DUNNING_ENGINE=0",
+        canary="owner-approved tenant + dry-run ledger",
+    ),
     "OKF_INGEST_ENABLED": _m(
         "OKF_INGEST_ENABLED",
         FlagValueKind.BOOLEAN,
@@ -371,6 +388,36 @@ _OVERRIDES: dict[str, FlagMeta] = {
         risk="llm_cost",
         default="1",
         parser="int_clamp",
+    ),
+    "BOSS_DECISION_GOVERNANCE": _m(
+        "BOSS_DECISION_GOVERNANCE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Boss+Second-Brain hash-bound decision approvals "
+            "(propose→advice→boss→consume); OFF default; "
+            "execute fail-closed; Owner OS AMBER verify+one-time consume"
+        ),
+        owner="rohan",
+        risk="ops",
+        default="0",
+        evidence="CODE-PRESENT",
+        canary="coordinator.coordinate_hierarchical adapter + Owner OS inbox",
+    ),
+    "STAFF_BUS_ENABLED": _m(
+        "STAFF_BUS_ENABLED",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "31-STAFF Buzz collaboration bus (signed bridge projections); "
+            "OFF default inert; synthetic canaries may run with allow_synthetic; "
+            "never executes protected customer outbound/payment actions"
+        ),
+        owner="rohan",
+        risk="ops",
+        default="0",
+        evidence="CODE-PRESENT",
+        canary="app.platform.staff_bus.run_all_staff_canaries",
     ),
     "SALES_AUTOPILOT_ENABLED": _m(
         "SALES_AUTOPILOT_ENABLED",

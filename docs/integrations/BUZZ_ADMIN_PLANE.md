@@ -2,7 +2,7 @@
 
 > Collaboration workspace for humans + Desktop coding agents.
 > Relay: `leadsgenai.communities.buzz.xyz` (hosted default) — **migrating local-first**
-> `ws://127.0.0.1:3000` (owner decision 2026-08-10) · Desktop: Block Buzz
+> `ws://127.0.0.1:3100` (owner decision 2026-08-10) · Desktop: Block Buzz
 > Updated: 2026-08-10 (local-first decision)
 
 ## Relay migration (2026-08-10)

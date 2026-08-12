@@ -58,7 +58,13 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-06: 50 -> 52. Tenant-aware workforce memory adds two READ bindings
 # (_entries_path and tenants_dir) under the existing platform.workforce_memory
 # family. CLASSIFIED, not tolerated — baseline fingerprints remain unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 52
+# 2026-08-11: 52 -> 55. ADR-177 GSC rank snapshot declares marketing.gsc_rankings
+# (+3 entries: daily, state, state_tmp). CLASSIFIED, not tolerated — baseline
+# fingerprint count unchanged.
+# 2026-08-12: 55 -> 61. PR #333 staff_bus declares platform.staff_bus
+# (+6 entries: root, events, idempotency, idempotency_open, audit, dlq).
+# CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 61
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
@@ -226,9 +232,9 @@ def test_the_ratchet_would_actually_catch_a_regression(tmp_path):
     values = {value for _, value in findings}
     assert len(findings) == 4, findings
     assert "data/dial_blocklist.json" in values, "the plain literal slipped through"
-    assert "data/platform_dial.json" in values, (
-        "the os.path.join('data', ...) shape slipped through"
-    )
+    assert (
+        "data/platform_dial.json" in values
+    ), "the os.path.join('data', ...) shape slipped through"
     assert "data/recordings" in values, "the Path('data') / 'sub' shape slipped through"
     assert "join-with-data-root" in values, (
         "a join with a COMPUTED segment must still be reported — degrading to the "

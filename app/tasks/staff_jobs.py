@@ -147,6 +147,7 @@ STAFF_JOBS = (
     "sales_autopilot",  # hourly :25 Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
     "task_lease_reap",  # hourly :05 expired agent-task lease close-out (gated AGENT_TASK_LEASE_REAP; INERT off)
     "daily_video",  # daily 09:45 IST per-client video producer — ENQUEUE-only (gated DAILY_VIDEO_ENABLED; INERT off)
+    "gsc_rank",  # daily 00:30 IST Google Search Console rank snapshot (gated GSC_ENABLED; INERT off)
 )
 
 

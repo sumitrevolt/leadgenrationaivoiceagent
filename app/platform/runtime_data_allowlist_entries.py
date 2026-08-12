@@ -995,6 +995,153 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Append-only; never store raw matched text — hash only.",
     },
+    # --- Search Console rank snapshot (ADR-177, GSC pSEO observability) ------
+    # INERT until GSC_ENABLED=1 + creds (staff-gsc-rank-daily beat, 00:30 IST).
+    # New code on this branch, so classified here rather than absorbed into the
+    # debt baseline: baseline growth without a detector change is new debt.
+    {
+        "allowlist_id": "marketing.gsc_rankings.daily",
+        "file": "app/integrations/gsc.py",
+        "line_or_symbol": "DAILY_JSONL",
+        "path_pattern": "data/gsc_daily.jsonl",
+        "store_id": "marketing.gsc_rankings",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Search Console daily snapshot (clicks/impressions/avg-position) for "
+            "pSEO observability. One APPEND per day from staff-gsc-rank-daily; "
+            "rebuildable from the Search Console API, so not authoritative."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Snapshot must stay append-only; data range checkpoints must keep the run idempotent across restarts.",
+    },
+    {
+        "allowlist_id": "marketing.gsc_rankings.state",
+        "file": "app/integrations/gsc.py",
+        "line_or_symbol": "STATE_JSON",
+        "path_pattern": "data/gsc_state.json",
+        "store_id": "marketing.gsc_rankings",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Run-state checkpoint (last snapshot date, data range) for the GSC "
+            "snapshotter. Rebuildable from the API; never customer data."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Must move with marketing.gsc_rankings.state_tmp — the atomic rewrite pair is one family.",
+    },
+    {
+        "allowlist_id": "marketing.gsc_rankings.state_tmp",
+        "file": "app/integrations/gsc.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": "data/gsc_state.json.tmp",
+        "store_id": "marketing.gsc_rankings",
+        "access_modes": ["REWRITE", "REPLACE", "CREATE"],
+        "reason": (
+            "Atomic-rewrite temp for the GSC run-state checkpoint. A temp file "
+            "is not its own logical family."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Temp and target must stay on ONE filesystem.",
+    },
+    # 2026-08-12 — platform.staff_bus (31 STAFF Buzz bus; STAFF_BUS_ENABLED OFF)
+    {
+        "allowlist_id": "platform.staff_bus.root",
+        "file": "app/platform/staff_bus/runtime.py",
+        "line_or_symbol": "_root",
+        "path_pattern": "override or _DEFAULT_ROOT",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Root directory for staff_bus events/idempotency/audit/DLQ. "
+            "_DEFAULT_ROOT is data/staff_bus; created lazily; STAFF_BUS_ENABLED defaults OFF."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Never arm STAFF_BUS_ENABLED in prod without owner go-ahead; no key material in these files.",
+    },
+    {
+        "allowlist_id": "platform.staff_bus.events",
+        "file": "app/platform/staff_bus/runtime.py",
+        "line_or_symbol": "_events_path",
+        "path_pattern": "data/staff_bus/events.jsonl",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["APPEND", "CREATE", "READ"],
+        "reason": "Append-only staff_bus event ledger (Boss→team envelopes).",
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Append-only; correlation_id required; no outbound side effects from this file alone.",
+    },
+    {
+        "allowlist_id": "platform.staff_bus.idempotency",
+        "file": "app/platform/staff_bus/runtime.py",
+        "line_or_symbol": "_idemp_path",
+        "path_pattern": "data/staff_bus/idempotency.jsonl",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["APPEND", "CREATE", "READ"],
+        "reason": "Idempotency key ledger for staff_bus publish/dispatch.",
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Dedup keys only; never store secrets or auth_tag material.",
+    },
+    {
+        "allowlist_id": "platform.staff_bus.idempotency_open",
+        "file": "app/platform/staff_bus/runtime.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/staff_bus/idempotency.jsonl",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["APPEND", "READ"],
+        "reason": (
+            "open(_idemp_path()) sites bind the path variable as 'path'; "
+            "same store as platform.staff_bus.idempotency."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Must stay paired with _idemp_path entry; same file.",
+    },
+    {
+        "allowlist_id": "platform.staff_bus.audit",
+        "file": "app/platform/staff_bus/runtime.py",
+        "line_or_symbol": "_audit_path",
+        "path_pattern": "data/staff_bus/audit.jsonl",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["APPEND", "CREATE", "READ"],
+        "reason": "Append-only staff_bus governance/audit trail.",
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Audit only; RED refusals stay system-enforced elsewhere.",
+    },
+    {
+        "allowlist_id": "platform.staff_bus.dlq",
+        "file": "app/platform/staff_bus/runtime.py",
+        "line_or_symbol": "_dlq_path",
+        "path_pattern": "data/staff_bus/dlq.jsonl",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["APPEND", "CREATE", "READ"],
+        "reason": "Dead-letter queue for failed staff_bus envelopes.",
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Bounded DLQ; no auto-replay to customer outbound channels.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

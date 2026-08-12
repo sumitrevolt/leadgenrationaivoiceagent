@@ -2200,16 +2200,35 @@ async def run_auto_reply_backlog(
         return out
 
 
+# STRUCTURAL SENDER NOISE (read-path): WhatsApp status/broadcast + DMARC
+# report senders kabhi human reply nahi hote. Draft rows in-sa se saal mein
+# nahi aate (drop classify se pehle hota hai) — yeh legacy rows ke liye hai.
+_SENDER_NOISE = {"status", "@broadcast", "noreply-dmarc-support@google.com"}
+
+
 def _is_noise_row(r: dict) -> bool:
     """Historic draft read-path noise guard. Never raises."""
     try:
         frm = str((r or {}).get("from") or "").strip().lower()
         if frm == "status" or "@broadcast" in frm:
             return True
+        if frm in _SENDER_NOISE:
+            return True
         if _is_blocklisted(frm):
             return True
-        subj_body = f"{(r or {}).get('subject') or ''}\n{(r or {}).get('text') or (r or {}).get('body_snippet') or ''}"
+        # Legacy drafts body ko `draft` key me rakhte hain (text/body_snippet
+        # nahi) — woh bhi scan karo warna closure/spam patterns miss hote hain.
+        subj_body = (
+            f"{(r or {}).get('subject') or ''}\n"
+            f"{(r or {}).get('text') or (r or {}).get('body_snippet') or (r or {}).get('draft') or ''}"
+        )
         if _AUTO_ACK_RE.search(subj_body):
+            return True
+        # CASE-CLOSURE retro-hide (2026-08-11): closure guard classify-time pe
+        # hai, par 2026-07-25 se PEHLE saved adityabirla ticketing rows
+        # ("Not related to Birla Opus. Hence, closed." etc.) read-path pe bhi
+        # Hot Queue me fake-hot dikhti rehti thin. Same regex = read-path hide.
+        if _is_case_closure(str((r or {}).get("subject") or ""), subj_body):
             return True
         # SPAM CONTENT (2026-07-15): pehle se saved betting-spam drafts bhi
         # read-path pe hide ho jaayein (Hot Queue retro-clean).

@@ -2,38 +2,63 @@
 
 ---
 
-## WS-SEC1 Vobiz credential rotation (OWNER BLOCKER)
-- **ID:** WS-SEC1
-- **Business outcome:** Rotate leaked `VOBIZ_AUTH_TOKEN` + `VOBIZ_SIP_PASS` (2026-08-07 settings-dump)
-- **Current state:** `/root/rotate_vobiz.sh` ready (mode 700); `/root/vobiz_new.env` **missing**. Prod `/health`=`d1b106b2` (2026-08-10 probe).
-- **Next exact action:** Owner → Vobiz Console new token+SIP → `/root/vobiz_new.env` (0600) → Cursor `bash /root/rotate_vobiz.sh` → portal **revoke old**
-- **Out of scope:** API half-rotate with leaked token · chat secrets · Postgres tonight · hangup GET “fix”
-
----
-
-## WS-LAUNCH1 Launch+revenue+automation certification (CURSOR)
-- **ID:** WS-LAUNCH1
-- **Business outcome:** Evidence-backed GO/WAIT for Marketing launch / revenue / automation / architecture; safe source fixes only
-- **Current state:** Worktree `C:\Users\Ratanshila\Documents\leadgen-launch-ready-20260810` · branch `cursor/launch-revenue-automation-ready-20260810` · Draft PR **#305** (`fe8eb9fe`) · Graphify refreshed on `64bbe869` · product-truth Advanced rename + REPLY_AUTO_SEND `effective_on` shipped in PR · issues #304/#306/#307 opened · deploy WAIT
-- **Next exact action:** CI green → ready-for-review → normal merge #305 → owner Hot Queue / 2nd UPI (WS-GTM1) · no deploy until owner says
-- **Out of scope:** Production deploy · `.env`/runtime flag flips · real outbound · Swara/voice edits · force-push
-
----
-
-## WS-GTM1 Hot Queue → 2nd paid - REVENUE PENDING
+## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
-- **Current state:** HQ empty / owner prospect pick; activation summary `ready_for_first_paid_customer:true` but **revenue-generated = WAIT** without owner-confirmed UPI ledger for customer #2
-- **Next exact action:** Real ₹1999 UPI → owner confirm → LEDGER_PAID
-- **Out of scope:** fake PAID · auto-activate outside allowlist
+- **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
+- **Current state:** Technical READY · All routes LIVE · Owner outreach execution blocking only · Evidence `docs/evidence/REVENUE_READY_20260812.md`
+- **Next exact action:** Owner daily Hot Queue blitz (15 min/day at `/app/inbox`) + UPI approval when payment arrives
+- **Out of scope:** Deploy · flag arm · lead magnet traffic generation
+
+---
+
+## WS-UPI304 Guest bind status (CURSOR LANE B)
+- **ID:** WS-UPI304
+- **Business outcome:** Guest (no login) can pay → admin binds client_id → activates subscription (resolves #304 approved_but_unbound)
+- **Current state:** CODE-LIVE `a3fbc8bb` (PR #320) · TEST-PROVEN `test_upi_guest_bind_workflow_2026_08_10.py` · UI wired `admin_dashboard.html` · WAIT first live proof
+- **Next exact action:** Wait for first guest payment (or simulate staging) to prove live workflow
+- **Out of scope:** Deploy (already live) · changing UPI flow
+
+---
+
+## WS-SEC Security/compliance residual (CURSOR LANE B)
+- **ID:** WS-SEC
+- **Business outcome:** All compliance gates (DND/TRAI/DPDP/secrets) remain fail-closed; voice FROZEN
+- **Current state:** Gates INTACT · Voice FROZEN per constraint · No security regressions
+- **Next exact action:** Monitor only; no changes permitted
+- **Out of scope:** Voice/Swara edits · weakening compliance gates
+
+---
+- **ID:** WS-GOV
+- **Business outcome:** Decision-bearing STAFF outputs require Second Brain advice + Boss/Owner gates before execute; no parallel approval plane
+- **Current state:** PR #330 Ready · head **`8f5a2e2d`** · base **`6052b533`**. Cursor ACP Boss canary GO · Comb findings fixed · CI green. Flag `BOSS_DECISION_GOVERNANCE` OFF. Second Brain vault `C:\Users\Ratanshila\Documents\leadsgenai-brain`.
+- **Next exact action:** Owner AUTH-MERGE `8f5a2e2d…` PR #330 (normal merge only); no prod flag arm; no deploy
+- **Out of scope:** Voice/Swara · UPI auto · provider canaries · second Boss/ledger
+
+---
+
+## WS-BUZZ Local Buzz Desktop + relay (CURSOR)
+- **ID:** WS-BUZZ
+- **Business outcome:** Owner→Boss visibility plane; Buzz never prod mutation executor
+- **Current state:** Canonical Boss **`1b13cecc…`** · runtime **Cursor ACP** · relay auth + correlated canary **GO** (`BOSS-CURSOR-ACP-CANARY-…54b3cbb4`).
+- **Next exact action:** Keep Cursor ACP as Boss harness; no duplicate Boss
+- **Out of scope:** `-ResetData` · history wipe · Claude/Goose/Codex Boss fallback · prod flag arm
+
+---
+
+## WS-DEP329 Rollback retention deploy boundary (CURSOR)
+- **ID:** WS-DEP329
+- **Business outcome:** PR #329 lineage-aware image retention merged; prod deploy only on explicit AUTH-DEPLOY
+- **Current state:** MERGED `6052b533`; prod still **`9b09a808`**. Request line ready: `AUTH-DEPLOY 6052b533f59e8ab533ab629427fa869d83931a9a`
+- **Next exact action:** Owner issues AUTH-DEPLOY when ready; use `deploy_vps.sh` only
+- **Out of scope:** Deploy under current AUTH · closing #307 · arming DUNNING
 
 ---
 
 ## Parked (not in active 3)
-- **WS-MORNING** B1 D2 + B2 CRM — time-gated; park until owner reopens
-- **WS-DV1** Daily video — CODE READY on prod `d1b106b2`; owner flags still pending (`DAILY_VIDEO_*` unset = INERT)
-- CP-A3 Postgres rotate · CP-A4 DATABASE_URL split · D3 cursor · LOOKUPS owner decision · trainer DLQ · `@example.com` domain-suffix
-- WS-AM1 Safe Pack (after LEDGER_PAID)
-- Estique `removed`
-- **ADR-172 Agent Teams C1 — canary needs RE-BASELINE.**
-- **ADR-173 claw-orchestrator** — REJECT full vendor; patterns-only.
-- **ADR-174 candidate (parked)** — Cloudflare OS vendor REJECT · Gatekeeper deferred-approval + capability-intro patterns.
+- **WS-GOV** Boss + Second Brain governance (PR #330 MERGED `8f5a2e2d`, prod has ancestry, flag OFF)
+- **WS-BUZZ** Local Buzz Desktop + relay (Cursor ACP Boss canonical `1b13cecc`, relay verified)
+- **WS-DEP329** Rollback retention (MERGED `6052b533`, prod `9c47647c` includes ancestry)
+- **WS-REV** #306 live proofs (after #304 guest bind proven)
+- **WS-AMAX** DUNNING safe-enabler (#307 stays OFF per owner decision)
+- **WS-SEC1** Vobiz credential rotation
+- Creative OS expansion · Swara/voice (FROZEN) · Stage B AMBER OpenClaw

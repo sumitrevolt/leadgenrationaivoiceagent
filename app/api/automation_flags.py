@@ -9,6 +9,8 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 AUTOMATION_FLAGS = [
     "OWNER_OS",  # Owner Operating System (/app/owner + /api/admin/owner-os) — always mounted for admin; flag documents surface
     "OWNER_OS_LITMUS",  # ADR-155 HITL litmus on Owner OS plan/execute (deterministic; default ON; set 0 to bypass block)
+    "BOSS_DECISION_GOVERNANCE",  # Boss+Second-Brain hash-bound decision approvals (proposed→advice→boss→consume); OFF default; execute fail-closed when unset
+    "STAFF_BUS_ENABLED",  # 31-STAFF Buzz collaboration bus (envelopes/bridge/canaries); OFF default; never executes protected customer actions
     "OPENCLAW_ENABLED",  # OpenClaw Owner Copilot edge layer (/api/owner-copilot) — OFF default; Owner OS remains sole action authority
     "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF
     "ROUTE_HIT_COUNTER",  # per-route hit counter middleware (Redis route_hits:{YYYYMMDD}) for the Control Center "unused API" view — default OFF (middleware not in stack when off)
@@ -254,6 +256,9 @@ AUTOMATION_FLAGS = [
     "CRM_SYNC_PULL",  # pull lead status back from HubSpot/Zoho (bidirectional, OFF default)
     "TELEPHONY_READY_ALERTS",  # Tara readiness score-drop email alert
     "SOCIAL_AUTOPOST",  # Meta Graph real publish (content job)
+    "GSC_ENABLED",  # Google Search Console rank/impression daily snapshot (staff-gsc-rank-daily job) — OFF default
+    "GSC_SERVICE_ACCOUNT_JSON",  # service-account JSON path for GSC (URL/string-valued = set hona + GSC_ENABLED=1 = ON)
+    "GSC_SITE_URL",  # Search Console property (default sc-domain:leadsgenai.in)
     "AUTO_CALLBACK_INQUIRY",  # inquiry submit pe instant AI callback
     "LEAD_NTFY_ALERT",  # naya lead pe platform owner ke phone pe instant ntfy push (email complement, 1-tap WhatsApp) — ON default, no-op until NTFY_URL+NTFY_TOPIC set
     "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
