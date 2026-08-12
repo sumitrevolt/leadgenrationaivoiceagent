@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (worktree/branch consolidation Phase 0–1 — CURSOR)
+Goal: Inventory all worktrees+branches; classify; park/restore dirty WIP; no blind merge; no deploy.
+Inspected: `git fetch --all --prune`; 34 worktrees; 66 remotes; open PRs Dependabot-only; main `23ea2d46` includes #333/#334.
+Problems Found: (1) Primary “UPI WIP” was **truncation** deleting `bind_client` — restored. (2) Many dirty worktrees on already-merged tips. (3) Several C_UNIQUE tips overlap merged #272–#275.
+Changed: `docs/evidence/WORKTREE_BRANCH_CONSOLIDATION_20260812.md`; `_scratch/buzz_canary_20260812/`; UPI files restored; this Loop Run.
+Tests Run: inventory script + ancestor checks (333/334/ADR-177 = GO).
+Verification Evidence: evidence doc + JSON `_scratch/consolidation_inventory_20260812.json`.
+Risks: Phase 2–4 still pending (Draft PRs / remote deletes / worktree remove).
+Remaining: Draft PRs for residual C_UNIQUE; delete A_MERGED remotes; remove stale worktrees; primary clean `main`.
+Next Highest Priority: land inventory PR then execute Phase 3–4 deletes.
+
+## Loop Run
 Date: 2026-08-12 (PR #333 AUTH-MERGE path A — MERGED — CURSOR)
 Goal: AUTH-MERGE #333 at tip after required CI green; declare PARTIAL (Comb NIP-OA WAIT); no deploy/flag-arm.
 Inspected: PR #333 head/checks; prod_check failure = undeclared staff_bus paths + EXPECTED_ALLOWLIST_ENTRIES pin.
