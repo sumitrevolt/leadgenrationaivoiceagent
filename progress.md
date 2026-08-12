@@ -1,16 +1,16 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
-Date: 2026-08-12 (PR #333 AUTH-MERGE review pack — CURSOR)
-Goal: Owner-accepted Comb NIP-OA WAIT; produce AUTH-MERGE review pack for Draft PR #333 @ d4accbd3; no merge/deploy/flag-arm.
-Inspected: `gh pr view 333` (draft, headOid, file list); `origin/main...HEAD` paths; hosted+local NIP-11 probes.
-Problems Found: None new. Diff scoped to staff_bus + canary/tests/docs/flags only. Only open WAIT = Comb `auth_tag=null` (owner ACCEPT).
-Changed: `docs/context/SESSION_HANDOFF.md` OWNER REVIEW CARD; this Loop Run.
-Tests Run: read-only relay probes hosted=200 local3100=200; no full 31 re-canary (prior evidence intact).
-Verification Evidence: PR #333 draft · head `d4accbd31397d6621faf45ac12915266beefcd5b` · +1439/−17 · 14 files · relays 200/200.
-Risks: Merge ≠ prod arm; `STAFF_BUS_ENABLED` must stay OFF without separate AUTH.
-Remaining: Owner chooses AUTH-MERGE now vs Comb Save-then-COMPLETE; no agent merge.
-Next Highest Priority: Owner AUTH-MERGE #333 @ `d4accbd3` **or** Comb Desktop Save first.
+Date: 2026-08-12 (PR #333 AUTH-MERGE review pack — CURSOR + sunny)
+Goal: Owner-accepted Comb NIP-OA WAIT; AUTH-MERGE review pack for Draft PR #333 @ d4accbd3; no merge/deploy/flag-arm.
+Inspected: gh pr view 333 (draft, headOid, files, checks); hosted+local NIP-11; Gate A failure log.
+Problems Found: Gate A non-required fail = .freebuff submodule url missing — unrelated. Only product WAIT = Comb auth_tag=null (owner ACCEPT).
+Changed: docs/context/SESSION_HANDOFF.md OWNER REVIEW CARD (UTF-8 clean); this Loop Run.
+Tests Run: read-only relay probes previously 200/200; no full 31 re-canary.
+Verification Evidence: PR #333 draft · head d4accbd3 · +1439/-17 · 14 files · 5/5 control + 31/31 synthetic prior.
+Risks: Merge != prod arm; STAFF_BUS_ENABLED must stay OFF without separate AUTH.
+Remaining: Owner chooses AUTH-MERGE now vs Comb Save-then-COMPLETE.
+Next Highest Priority: Owner AUTH-MERGE #333 @ d4accbd3 or Comb Desktop Save first.
 
 ## Loop Run
 Date: 2026-08-12 (31-agent STAFF bus setup — CURSOR)
