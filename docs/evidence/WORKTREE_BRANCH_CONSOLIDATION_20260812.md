@@ -204,12 +204,42 @@ release/merged-2026-08-02
 
 ## Phase execution log
 
-- [x] Phase 0 inventory + this evidence
-- [x] Phase 1: UPI truncation restored (not parked as feature); buzz tmp → _scratch/
-- [ ] Phase 2: Draft PRs for residual C_UNIQUE_KEEP (no blind merge)
-- [ ] Phase 3: delete A_MERGED remotes listed above
-- [ ] Phase 4: remove merged/clean worktrees; primary on clean main
-- [ ] Phase 5: verify counts
+- [x] Phase 0 inventory + this evidence → PR **#335** MERGED (`f814cfe7`)
+- [x] Phase 1: UPI truncation restored (not parked as feature); buzz tmp → `_scratch/buzz_canary_20260812/`
+- [x] Phase 2: Draft PRs **#336–#339** for residual C_UNIQUE (no AUTH-MERGE this packet)
+- [x] Phase 3: remotes **66 → 13** (A_MERGED/E_OBSOLETE deleted; Dependabot kept)
+- [x] Phase 4: worktrees **34 → 2** registered; primary on clean `main`
+- [x] Phase 5: verify counts (below)
+
+## Final snapshot (2026-08-12T07:40Z)
+
+| Metric | Before | After |
+|---|---|---|
+| Registered worktrees | ~34 | **2** (primary `main` + pytest9 Draft #337) |
+| Remote branches | ~66 | **13** (`main` + 4 Draft heads + 7 Dependabot + `origin/HEAD`) |
+| Local branches | ~57 | **4** |
+| Inventory PR | — | **#335 MERGED** |
+| Unique Draft PRs | — | **#336** SSRF · **#337** pytest9 · **#338** buzz kit · **#339** CP5-3 deps |
+| Dependabot | #322–#328 open | **untouched** |
+| `origin/main` tip | `23ea2d46` (+ #333/#334) | **`f814cfe7`** (+ #335) |
+| Deploy / flag arm | — | **none** |
+
+### C_UNIQUE outcomes
+
+| Tip | Outcome |
+|---|---|
+| `alert-autofix-34` | Draft **#336** |
+| `cursor/pytest9-remediation-20260810` | Draft **#337** + worktree kept |
+| `cursor/buzz-local-first-mcp-20260810` | Draft **#338** |
+| `fix/security-cp5-3-deps` | Draft **#339** (deps packet); local tip **ahead 1** unpushed `WIP: cp5-3-security` — do not discard blindly |
+| `feat/call-lead-crm-sync` (+ #272–#275 cousins) | Reclassified **E_OBSOLETE** (content on main); remotes deleted |
+
+### Intentional exceptions
+
+1. Worktree `leadgen-pytest9-cursor-20260810` kept for Draft #337
+2. Orphan dirs (not in `git worktree list`; file-lock): `Documents\leadgen-boss-second-brain-governance-20260811`, `.claude\worktrees\buzz-multi-agent-setup-b0ce78` — delete manually when unlocked
+3. Dependabot #322–#328 left for separate deps packet
+4. Draft #336–#339 not AUTH-MERGED in this packet
 
 ## Constraints observed
 
@@ -218,4 +248,4 @@ release/merged-2026-08-02
 - Dependabot #322–#328 untouched
 - Gate A .freebuff noise ignored
 
-Generated: 2026-08-12T07:16:00.714477+00:00
+Generated: 2026-08-12T07:16:00.714477+00:00 · Closed: 2026-08-12T07:40:00+00:00
