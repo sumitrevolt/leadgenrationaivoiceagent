@@ -1,15 +1,15 @@
 # LeadGen AI
 
-FastAPI SaaS for small Indian local businesses. **Live: https://leadsgenai.in** (Hostinger VPS, Docker).
+FastAPI SaaS for small Indian local businesses. **Live: https://leadsgenai.in** (Hostinger VPS, Mumbai).
 
 Two separate products, sold as distinct SKUs:
 
 | Product | What it is | Price |
 |---|---|---|
-| **AI Automated Marketing** | Done-for-you social-media + local-lead marketing for local businesses (programmatic content, posting, lead capture, CRM follow-up) | Main ₹1,999/mo · Combo/Advanced ₹5,999/mo |
+| **AI Automated Marketing** | Done-for-you social-media + local-lead marketing (programmatic content, posting, lead capture, CRM follow-up) | Main ₹1,999/mo · Combo/Advanced ₹5,999/mo |
 | **AI Voice Calling Agent** | Standalone full AI telecaller (inbound auto-callback + DLT-gated outbound) | Flat per niche-band: A ₹4,999/mo · B ₹9,999/mo · C ₹19,999/mo |
 
-Money path: free lead magnets (`/audit`, `/site-audit`, `/demo`) + programmatic SEO + auto email-outreach → inquiry → `/pricing` → `/start` → **manual UPI** (owner-confirmed) → subscription + top-up minute packs. Manual UPI is the **only** payment rail.
+Money path: free lead magnets (`/audit`, `/site-audit`, `/demo`) + pSEO + auto email-outreach → inquiry → `/pricing` → `/start` → **manual UPI** (owner-confirmed) → subscription + top-up minute packs. Manual UPI is the **canonical** and only payment rail (owner-verified).
 
 The entire AI stack runs on **free providers only** (no paid STT/TTS/LLM).
 
@@ -22,11 +22,17 @@ The entire AI stack runs on **free providers only** (no paid STT/TTS/LLM).
 - Programmatic SEO + mini-sites (`/b/{slug}`)
 - Lead capture widget + Hot Queue (`/app/inbox`) for follow-up
 - AI email/WhatsApp outreach (ban-safe: cold WhatsApp OFF, 1-click human send)
-- Plans: `main` ₹1,999/mo · `advanced` ₹5,999/mo · `growth` ₹2,999 (legacy hidden) · ₹0 7-day trial · annual = 2 months free · top-ups 100/250/500 min = ₹1,499/₹3,499/₹5,999
+- Plans:
+  - `main` ₹1,999/mo
+  - `advanced` ₹5,999/mo (includes AI-callback feature, 500 min)
+  - `growth` ₹2,999 (legacy hidden)
+  - ₹0 7-day trial (marketing-lite)
+  - Annual = 10x monthly (2 months free)
+  - Top-ups: 100/250/500 min = ₹1,499/₹3,499/₹5,999
 
 ### 2. AI Voice Calling Agent
 - Full AI telecaller: STT → LLM → TTS over real phone calls (Vobiz India SIP)
-- Compliance-gated: DND scrub (fail-closed), TRAI calling window 9am–7pm, AI disclosure at call start, consent ledger, DLT for cold outbound, recording retention 90 days
+- Compliance-gated: DND scrub (**fail-closed**), TRAI window 9am–7pm, AI disclosure at call start, consent ledger, DLT for cold outbound, 90-day recording retention
 - Standalone pricing per niche band: `voice_a_monthly` ₹4,999 · `voice_b_monthly` ₹9,999 · `voice_c_monthly` ₹19,999
 
 ---
@@ -34,18 +40,18 @@ The entire AI stack runs on **free providers only** (no paid STT/TTS/LLM).
 ## Architecture
 
 ```
-Internet ──> Caddy (TLS) ──> app :8000 (FastAPI, Docker, WEB_CONCURRENCY=2)
-                                ├── Postgres 16 (via PgBouncer :6432)
-                                ├── Redis :6379 (Celery broker + call-state)
-                                ├── Qdrant :6333 (RAG: kb_main, namespaced)
-                                ├── worker (Celery, concurrency=4) + scheduler (beat)
-                                ├── FreeSWITCH + WS voice stream
-                                └── Obs stack (Prometheus/Grafana/Loki/Tempo/...)
+Internet ──> Caddy (host, TLS leadsgenai.in) ──> leadgen_app :8000 (FastAPI)
+                                                    ├── Postgres leadgen_db (via PgBouncer :6432)
+                                                    ├── Redis leadgen_redis :6379 (Broker + state)
+                                                    ├── Qdrant :6333 (RAG: single kb_main, namespaced)
+                                                    ├── leadgen_worker (Celery) + leadgen_scheduler
+                                                    ├── FreeSWITCH + WS voice stream (L16/16k)
+                                                    └── Obs stack (Prometheus/Grafana/Loki/...)
 ```
 
-- Backend: FastAPI (async), domain routers in `app/api/`, engines in `app/platform/`, voice in `app/voice_agent/` + `app/telephony/`, billing in `app/billing/`
+- Backend: FastAPI (async), domain routers in `app/api/` (split by domain), engines in `app/platform/`, voice in `app/voice_agent/` + `app/telephony/`, billing in `app/billing/`
 - Frontend: server-rendered HTML in `frontend/` (marketing site, Mission Control `/app/automation`, HQ `/app/office`, 4 dashboards)
-- Agents: coordinator / dag_engine / process_engine / self_improve loops in `app/agents/`, governed harness in `app/agents/harness/` (INERT by default, `AGENT_HARNESS=1`)
+- Agents: coordinator / dag_engine / process_engine / self_improve loops in `app/agents/`, governed harness in `app/agents/harness/` (INERT by default)
 
 ## AI Stack (all free)
 
@@ -81,11 +87,12 @@ python -m venv .venv
 .venv\Scripts\pip install --no-deps -r requirements.lock.txt
 .venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
+*Note: Run dev is [UNVERIFIED locally] — import verified via prod_check.*
 
 - Tests (targeted): `.venv\Scripts\python.exe -m pytest tests/test_billing_truth_2026.py -q`
 - Full suite: `scripts\run_tests.bat` (then read `pytest_run.log`)
 - Lint: `.venv\Scripts\python.exe -m ruff check app`
-- Verify gate: `.venv\Scripts\python.exe scripts\prod_check.py` + `scripts\check_secrets.py`
+- Verify gate: `.venv\Scripts\python.exe scripts\prod_check.py` and `scripts\check_secrets.py`
 
 ## Repo map
 
