@@ -1945,3 +1945,25 @@ Three things learned, all now in `docs/GRAPHIFY.md` §G:
 - **Changed:** Prod HARD_OFF 1→0 prove enabled=True; ADR-171; matrix OWNER-ARMED; PR #278 opened (interaction-log + docs).
 - **Evidence:** HARD_OFF=0 MASTER=1 enabled=True @ 7ab5fe55; pytest reply_auto_send 27P; #276 already LIVE MB=4.
 - **Remaining:** Merge+deploy #278; prove interactions source=reply_agent on next auto-send.
+
+## Loop Run
+Date: 2026-08-12 (FreeBuff final revenue execution — isolated worktree)
+Goal: Truth reconciliation; verify money path end-to-end; WSL root-cause verdict; Automation-Max audit; Grok decision; declare engineering freeze if unblocked.
+Inspected: AGENTS.md/CLAUDE.md invariants; REVENUE_READY_20260812.md; CURRENT_STATE/ACTIVE_WORK/SESSION_HANDOFF; live prod /health x2; funnel routes; packages.py + voice_packages.py; UPI/HotQueue/Stripe code+tests; WSL process tree/scheduled tasks/startup/terminal/hooks; all 6 repo wsl launchers; live container flags; Grok refs.
+Problems Found: (1) prod SHA advanced 9c47647c -> 2326c931 (stale docs); (2) WHATSAPP_AUTO_SEND=0 live vs =1 documented 2026-08-03 (drift, owner call needed); (3) repeated WSL window = per-action launcher console, no OS trigger; (4) Hot Queue count unreadable without owner login (bounded request).
+Changed: docs/evidence/WSL_DEPENDENCY_20260812.md (new); docs/evidence/FREEBUFF_FINAL_REVENUE_EXECUTION_20260812.md (new); this Loop Run. No code/env/flag/deploy/commit.
+Tests Run: test_billing_truth_2026.py 15 passed EXIT=0; test_hot_queue.py 7 passed EXIT=0; test_upi_guest_bind_workflow_2026_08_10.py 13 passed EXIT=0; prod_check.py ALL PASSED EXIT=0; check_secrets.py clean EXIT=0.
+Verification Evidence: /health=2326c931 x2 advancing (live, cache-busted); funnel 6x200; /api/upi/submit 422; inbox 401; Stripe webhook 400; live packages JSON 1999/5999; in-container flags table; WSL probes.
+Risks: owner bandwidth (outreach/UPI) is remaining variable; WHATSAPP_AUTO_SEND drift; guest-UPI first live proof pending; Hot Queue count unverified without login.
+Remaining: owner Hot Queue blitz -> 2nd paid; UPI approval on arrival; optional staging guest-UPI sim; doc correction after owner WhatsApp intent confirm.
+Next Highest Priority: owner Day-0 15-min Hot Queue action at /app/inbox (not another module) until first owner-confirmed UPI payment.
+
+## Correction — 2026-08-12 (FreeBuff reconciliation pass)
+
+- **Prod SHA re-probed:** still `2326c931` LIVE x2 (uptime advancing). origin/main advanced to `30900752` (PR #349 ruff/format lint cleanup, ~300 files; `app/marketing/packages.py` NOT in diff) => prod now 1 commit BEHIND origin/main tip. Earlier "exact parity" claim retracted.
+- **WSL popup root cause re-classified `PROBABLE`** (popup-time wsl.exe PID/parent/cmdline NOT captured; absence of OS triggers + manual launchers = inference, not causation). Upgrade path documented in WSL doc §2c.
+- **Buzz verdict unified: `WSL_OPTIONAL`** (Buzz Desktop + SSH pulse run without WSL; only the optional OmniRoute lane requires WSL) — matrix row corrected.
+- **`/app/inbox` 200 = page availability only**; authenticated Hot Queue contents/count UNVERIFIED until owner session. No queue-size claim made.
+- **Automation-Max GO scoped** to the audited already-governed existing set; no claim over all automation/enterprise gates (Enterprise readiness = WAIT).
+- **Checks re-run on corrected deliverables:** `git add -N` + `git diff --check` EXIT=0 (index reset after); `check_secrets.py` on the 3 deliverable files EXIT=0 clean.
+- **Worktree status truth:** `M progress.md` + 2 untracked evidence docs (NOT clean). No commit/push/PR/deploy/flag/`.env`/voice changes. Primary checkout untouched.
