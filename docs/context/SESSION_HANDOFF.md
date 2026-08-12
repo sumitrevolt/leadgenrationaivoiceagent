@@ -1,23 +1,24 @@
-# SESSION_HANDOFF — 2026-08-12 (Cursor LANE B: revenue-ready evidence + truth sync)
+# SESSION_HANDOFF — 2026-08-12 (Cursor: PR queue land + revenue evidence)
 
 ## Status
-**REVENUE AUDIT COMPLETE** — Money path READY, 2 owner actions blocking 2nd paid this week. NO deploy. NO flag arm.
+**REVENUE AUDIT COMPLETE** + **CONSOLIDATION GO (trunk hygiene PARTIAL)**. Money path READY; 2 owner ops blockers for 2nd paid. PR residual queue in flight. NO deploy. NO flag arm.
 
 ## Facts
-- `origin/main` = `23ea2d46` (includes #333 staff-bus, #334/#335 docs)
-- **Prod `/health` = `9c47647c`** (DIRECT_HOST_VERIFIED 2026-08-12 07:39 UTC) — includes PR #332 ADR-177, #330 Boss governance, #329 rollback retention
-- **Drift corrected:** `UPI_AUTO_ACTIVATE` docs said `=0`, actual prod `=1` (containment intact via allowlist)
-- Evidence: `docs/evidence/REVENUE_READY_20260812.md` (GO matrix + owner actions)
-- Active streams: WS-GTM1 (Hot Queue), WS-UPI304 (guest bind), WS-SEC (gates intact)
+- Local tip after #340: check `/health` before asserting prod SHA (last probe `9c47647c` ADR-177 era — re-verify)
+- Consolidation evidence: `docs/evidence/WORKTREE_BRANCH_CONSOLIDATION_20260812.md` (#335/#340)
+- Revenue evidence: `docs/evidence/REVENUE_READY_20260812.md`
+- Residual PRs: #336 SSRF · #337 pytest9 · #338 buzz (CONFLICTING) · #339 CP5-3 · #342 freebuff placeholders
+- Dependabot #322–#328 untouched
+- Drift: `UPI_AUTO_ACTIVATE` docs said `=0`, prod `=1` (allowlist containment intact)
 
 ## Do not
 - Deploy / arm `STAFF_BUS_ENABLED` / `GSC_ENABLED` / `DUNNING_ENGINE` / `BOSS_DECISION_GOVERNANCE`
 - Edit Voice/Swara (FROZEN)
+- Mass-merge Dependabot / blind-merge CONFLICTING tips
 - Weaken compliance gates
-- Quote stale SHA from docs without re-probe
 
-## Next
-1. **Owner:** Daily Hot Queue blitz at `/app/inbox` (15 min/day, 1-2 conversions target)
-2. **Owner:** Approve UPI when payment arrives (admin queue)
-3. **Optional:** Simulate guest UPI proof (staging or wait for real)
-4. **Lane C (if needed):** Deploy readiness (after owner OK; gate `VOICE_LAUNCH_KILL=1`)
+## Next (owner)
+1. Hot Queue blitz `/app/inbox` (15 min/day)
+2. Approve UPI when payment arrives
+3. Review residual Drafts after CI (#336–#339); freebuff #342 should kill Gate A submodule noise
+4. Orphan dirs when unlocked: `leadgen-boss-second-brain-governance-20260811`, `.claude/worktrees/buzz-multi-agent-setup-b0ce78`
