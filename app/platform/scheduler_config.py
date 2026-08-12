@@ -79,6 +79,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 00:15",
         "owner": "platform",
     },
+    "gsc_rank": {
+        "label": "Google Search Console rank snapshot",
+        "cadence": "daily 00:30",
+        "owner": "platform",
+    },
     "obsidian_push": {
         "label": "Second-brain compact + git push",
         "cadence": "daily 02:15",

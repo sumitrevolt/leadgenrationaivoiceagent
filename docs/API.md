@@ -1777,6 +1777,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/upi/pending` — Admin: pending UPI submissions queue
 - `POST  ` `/api/upi/pending/{pid}/approve` — Admin: approve a UPI submission
 - `POST  ` `/api/upi/pending/{pid}/reject` — Admin: reject a UPI submission
+- `POST  ` `/api/upi/pending/{pid}/bind` — Admin: bind a client to an unbound (guest) UPI submission (#304)
 - `POST  ` `/api/upi/submit` — Customer self-serve: maine pay kiya (UPI ref submit)
 
 ### Voice AI  (11)

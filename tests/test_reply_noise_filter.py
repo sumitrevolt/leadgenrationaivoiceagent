@@ -116,6 +116,49 @@ def test_noise_row_detection(monkeypatch):
     assert reply_agent._is_noise_row(None) in (True, False)
 
 
+# ------------------------------------------- legacy-noise retro-hide (2026-08-11)
+def test_noise_row_dmarc_sender():
+    # DMARC aggregate/forensic reports (64 prod rows) — structural noise.
+    assert reply_agent._is_noise_row(
+        {"from": "noreply-dmarc-support@google.com", "subject": "DMARC report"}
+    )
+
+
+def test_noise_row_closure_body_in_draft_field():
+    # 2026-07-25 se pehle saved adityabirla ticketing rows: body `draft` key me
+    # hai, intent=interested — read-path pe fake-hot dikhna band hona chahiye.
+    assert reply_agent._is_noise_row(
+        {
+            "from": "opuscare@adityabirla.com",
+            "intent": "interested",
+            "subject": "Re: AI marketing enquiry",
+            "draft": "Not related to Birla Opus. Hence, closed.",
+        }
+    )
+    assert reply_agent._is_noise_row(
+        {
+            "from": "opuscare@adityabirla.com",
+            "intent": "interested",
+            "subject": "Re: enquiry",
+            "draft": "We regret to inform you that we are not interested.",
+        }
+    )
+
+
+def test_noise_row_closure_in_subject_only():
+    assert reply_agent._is_noise_row(
+        {"from": "opuscare@adityabirla.com", "intent": "interested", "subject": "Your case is closed"}
+    )
+
+
+def test_noise_row_genuine_draft_field_passes(monkeypatch):
+    # `draft` key wali GENUINE reply noise nahi hai.
+    monkeypatch.delenv("REPLY_SENDER_BLOCKLIST", raising=False)
+    assert not reply_agent._is_noise_row(
+        {"from": "owner@localbiz.in", "intent": "interested", "draft": "Haan demo chahiye, kab milega?"}
+    )
+
+
 def test_hot_queue_drops_historic_noise_and_blocklist(tmp_path, monkeypatch):
     import json as _json
 

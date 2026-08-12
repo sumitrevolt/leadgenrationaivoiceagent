@@ -237,16 +237,19 @@ PACKAGES: list[dict] = [
     },
     {
         "key": "advanced",
-        "name": "Combo — Marketing + AI Voice",
-        "tagline": "Poora marketing + ek AI telecaller jo har inquiry ko KHUD call kare — sab ek plan me.",
+        # Product-truth (ADR-009): this is Marketing Product-1 Advanced with an
+        # AI-callback FEATURE — NOT a "two products bundled" USP. Standalone Voice
+        # Agent pricing lives in voice_packages.py (/voice-agent).
+        "name": "Advanced Marketing",
+        "tagline": "Poora marketing + AI inquiry-callback FEATURE (500 min/mo). Standalone Voice Agent alag product hai.",
         "price_inr_month": 5999,
         "price_inr_year": 59990,  # 2 mahine FREE
         "annual_note": "Saal bhar ka ek saath: ₹59,990 (2 mahine FREE)",
-        "price_note": "Main plan ka poora marketing + 500 voice min/mo included (top-up packs available)",
+        "price_note": "Main plan ka poora marketing + 500 callback min/mo included (top-up packs available)",
         "marketing_only": False,
         "features": [
             "Main plan (₹1,999) ke SAARE marketing features included — content, GBP, reviews, leads, CRM, mini-site, sab",
-            "AI Voice Agent — har website/GBP inquiry ko ~2-minute me AI call (insaan jaisi Hindi awaaz)",
+            "AI inquiry callback FEATURE — website/GBP inquiry ko ~2-minute me AI call (Hindi awaaz)",
             "Lead qualification — budget, timeline, interest score AI capture karta hai",
             "Appointment booking — AI calendar slots offer + confirm karta hai",
             "Missed-call auto-callback (DID active hone par) — koi enquiry miss nahi",
@@ -260,7 +263,7 @@ PACKAGES: list[dict] = [
             "Minute usage tracker — kitna use hua, kitna bacha, renewal date",
         ],
         "highlight": True,
-        "badge": "🔥 COMBO",
+        "badge": "ADVANCED",
     },
 ]
 

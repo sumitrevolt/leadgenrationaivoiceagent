@@ -1,8 +1,10 @@
-"""Admin full customer-removal endpoint (client.remove) — Estique-style cleanup.
+"""Admin customer removal — soft-disable default + owner-gated purge.
 
-Covers: confirm-required gate, portal-login revoke, content-schedule cancel,
-autopilot prospect -> terminal removed (never re-contacted), brand-kit + derived
-store file deletion, clients_store record deletion, idempotency replay, audit.
+Covers: confirm-required gate, soft status=cancelled (ledgers kept), purge
+gates (confirm_purge + ADMIN_CUSTOMER_PURGE_ENABLED), portal-login revoke,
+content-schedule cancel, autopilot prospect -> terminal removed, brand-kit +
+derived store file deletion (purge only), clients_store record deletion
+(purge only), idempotency replay, audit.
 """
 
 from __future__ import annotations
@@ -52,6 +54,8 @@ def _isolate(monkeypatch, tmp_path):
 
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    # Purge fail-closed by default in every test unless a case arms it.
+    monkeypatch.delenv("ADMIN_CUSTOMER_PURGE_ENABLED", raising=False)
 
     monkeypatch.delenv("SALES_AUTOPILOT_ENABLED", raising=False)
     yield
@@ -60,6 +64,12 @@ def _isolate(monkeypatch, tmp_path):
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+def _purge_json(**extra):
+    body = {"confirm": True, "mode": "purge", "confirm_purge": True}
+    body.update(extra)
+    return body
 
 
 def _seed(client, *, login=True, schedule=3, prospect=True, brand=True, derived=True, clients=True):
@@ -145,15 +155,71 @@ def test_remove_requires_confirm(client):
     assert r.json()["error"] == "confirm required"
 
 
-def test_remove_customer_full_cleanup(client):
+def test_soft_disable_default_keeps_ledgers(client):
+    """Default mode=soft: cancel + disable, keep brand kit / derived files."""
     _seed(client)
     r = client.post(
         "/api/admin/clients/" + CID + "/remove-customer",
-        json={"confirm": True, "reason": "not a real customer"},
+        json={"confirm": True, "reason": "churn soft"},
     )
     assert r.status_code == 200
     d = r.json()
     assert d["ok"] is True
+    assert d["mode"] == "soft"
+    assert d["auth_logins_revoked"] == 1
+    assert d["content_cancelled"] == 3
+    assert d["prospects_removed"] == 1
+    assert d["client_status_set"] is True
+    assert d["brand_kit_deleted"] is False
+    assert d["delivery_deleted"] is False
+    assert d["clients_record_deleted"] is False
+
+    from app.api import customer_auth
+
+    assert customer_auth.client_has_login(CID) is False
+    rec = clients_store.get_client(CID)
+    assert rec is not None
+    assert rec.get("status") == "cancelled"
+    assert os.path.exists(product_one_delivery._events_path(CID))
+    assert os.path.exists(str(client_blog._path(CID)))
+    assert os.path.exists(crm_lite._path(CID))
+    assert brand_kit.get_brand(CID) is not None
+
+
+def test_purge_refused_without_confirm_purge(client, monkeypatch):
+    monkeypatch.setenv("ADMIN_CUSTOMER_PURGE_ENABLED", "1")
+    _seed(client)
+    r = client.post(
+        "/api/admin/clients/" + CID + "/remove-customer",
+        json={"confirm": True, "mode": "purge"},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is False
+    assert "confirm_purge" in r.json()["error"]
+
+
+def test_purge_refused_when_env_disarmed(client):
+    _seed(client)
+    r = client.post(
+        "/api/admin/clients/" + CID + "/remove-customer",
+        json=_purge_json(reason="should refuse"),
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is False
+    assert "purge disabled" in r.json()["error"]
+
+
+def test_remove_customer_full_cleanup(client, monkeypatch):
+    monkeypatch.setenv("ADMIN_CUSTOMER_PURGE_ENABLED", "1")
+    _seed(client)
+    r = client.post(
+        "/api/admin/clients/" + CID + "/remove-customer",
+        json=_purge_json(reason="not a real customer"),
+    )
+    assert r.status_code == 200
+    d = r.json()
+    assert d["ok"] is True
+    assert d["mode"] == "purge"
     assert d["auth_logins_revoked"] == 1
     assert d["content_cancelled"] == 3
     assert d["prospects_removed"] == 1
@@ -179,10 +245,6 @@ def test_remove_customer_full_cleanup(client):
     assert rec["status"] == store.STATUS_REMOVED
     assert (rec.get("converted_client_id") or "") == ""
     assert rec.get("removed_reason") == "not a real customer"
-    # Inject a fully-PERMISSIVE policy on purpose: with the engine disabled the very
-    # first gate short-circuits to "engine_disabled", which would make this assertion
-    # pass for the wrong reason. Forcing every earlier gate open proves the removal
-    # itself is what blocks re-contact.
     permissive = policy_mod.Policy(
         {
             "enabled": True,
@@ -233,8 +295,6 @@ def test_remove_customer_idempotent_replay(client, monkeypatch):
         def get(self, k):
             return self.store.get(k)
 
-    # ONE shared instance — `lambda: _FakeRedis()` would mint a fresh empty store on
-    # every call, so the stored result could never be found and replay never proves out.
     _fake = _FakeRedis()
     monkeypatch.setattr(idem, "_redis", lambda: _fake)
 
@@ -242,13 +302,13 @@ def test_remove_customer_idempotent_replay(client, monkeypatch):
     h1 = {"Content-Type": "application/json", "X-Idempotency-Key": "removetest-1"}
     r1 = client.post(
         "/api/admin/clients/" + CID + "/remove-customer",
-        json={"confirm": True},
+        json={"confirm": True, "mode": "soft"},
         headers=h1,
     )
     assert r1.json()["ok"] is True
     r2 = client.post(
         "/api/admin/clients/" + CID + "/remove-customer",
-        json={"confirm": True},
+        json={"confirm": True, "mode": "soft"},
         headers=h1,
     )
     assert r2.status_code == 200
@@ -256,7 +316,6 @@ def test_remove_customer_idempotent_replay(client, monkeypatch):
 
 
 def test_remove_unknown_client_is_noop_ok_false(client):
-    # Nothing seeded for this client -> ok False but no crash.
     r = client.post(
         "/api/admin/clients/0000000000000/remove-customer",
         json={"confirm": True},
@@ -265,14 +324,8 @@ def test_remove_unknown_client_is_noop_ok_false(client):
     assert r.json()["ok"] is False
 
 
-def test_remove_by_billing_alias_resolves_to_canonical_id(client):
-    """A billing/invoice id must remove the SAME customer as the marketing id.
-
-    Regression: every derived store (brand kit, blogs, crm, content queue,
-    clients record) is keyed on the canonical marketing id. Passing an invoice
-    alias used to delete nothing while still returning a summary, leaving a
-    half-removed customer who keeps receiving content and counting as active.
-    """
+def test_remove_by_billing_alias_resolves_to_canonical_id(client, monkeypatch):
+    monkeypatch.setenv("ADMIN_CUSTOMER_PURGE_ENABLED", "1")
     alias = "d79d690f61b3"  # pragma: allowlist secret - billing client id, not a credential
     _seed(client, clients=False)
     clients_store._append(
@@ -290,16 +343,13 @@ def test_remove_by_billing_alias_resolves_to_canonical_id(client):
 
     r = client.post(
         "/api/admin/clients/" + alias + "/remove-customer",
-        json={"confirm": True, "reason": "alias path"},
+        json=_purge_json(reason="alias path"),
     )
     assert r.status_code == 200
     d = r.json()
 
-    # Resolved to the canonical id, and reported both for operator traceability.
     assert d["client_id"] == CID
     assert d["requested_client_id"] == alias
-
-    # The canonical-keyed stores actually got cleaned, not silently skipped.
     assert d["ok"] is True
     assert d["clients_record_deleted"] is True
     assert d["brand_kit_deleted"] is True
@@ -308,20 +358,12 @@ def test_remove_by_billing_alias_resolves_to_canonical_id(client):
 
 
 def test_remove_customer_cancels_billing_subscription(client, db):
-    """MRR truth: remove-customer must CANCELL the DB Subscription row.
-
-    Regression (audit 2026-08-08): the endpoint cleaned the clients_store
-    record + derived stores but left ACTIVE/TRIAL ``subscriptions`` rows, so
-    admin MRR (subscriptions-active) kept counting a removed customer as
-    revenue and the portal still showed an active plan.
-    """
+    """MRR truth: soft-disable must CANCEL the DB Subscription row."""
     from app.models.payment import Subscription, SubscriptionStatus
     from tests.conftest import TestingSessionLocal
 
     _seed(client)
 
-    # Real DB row on the shared test engine (same table the endpoint reaches
-    # through the get_async_db dependency override).
     with TestingSessionLocal() as s:
         s.add(
             Subscription(
@@ -341,6 +383,7 @@ def test_remove_customer_cancels_billing_subscription(client, db):
     )
     assert r.status_code == 200
     d = r.json()
+    assert d["mode"] == "soft"
     assert d["subscriptions_cancelled"] == 1
     assert d["subscription_ids"] == ["sub_rm_1"]
 
@@ -352,13 +395,7 @@ def test_remove_customer_cancels_billing_subscription(client, db):
 
 
 def test_remove_customer_cancels_alias_and_trial_subscriptions(client, db):
-    """Alias-owned + TRIAL Subscription rows must cancel too (real Jiya shape).
-
-    The only real paying customer's Subscription/Invoice rows live under the
-    legacy billing id (e.g. ``d79d690f61b3``) while the marketing record is the
-    slug — so cancellation MUST be alias-aware or it silently misses the one
-    customer it matters for. TRIAL rows are in the cancel filter, so prove both.
-    """
+    """Alias-owned + TRIAL Subscription rows must cancel too (real Jiya shape)."""
     from app.models.payment import Subscription, SubscriptionStatus
     from tests.conftest import TestingSessionLocal
 
@@ -381,7 +418,7 @@ def test_remove_customer_cancels_alias_and_trial_subscriptions(client, db):
             [
                 Subscription(
                     id="sub_alias_1",
-                    client_id=alias,  # legacy billing id owns the row
+                    client_id=alias,
                     plan_id="starter",
                     plan_name="Starter",
                     status=SubscriptionStatus.ACTIVE,

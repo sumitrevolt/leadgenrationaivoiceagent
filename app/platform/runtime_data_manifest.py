@@ -461,6 +461,60 @@ STORES: list[dict[str, Any]] = [
             "their brand assets behind."
         ),
     ),
+    # ------------------------------------------------ TIER 3 - rebuildable
+    _e(
+        store_id="marketing.gsc_rankings",
+        display_name="Search Console rank snapshot (ADR-177 pSEO observability)",
+        legacy_paths=["data/gsc_daily.jsonl", "data/gsc_state.json"],
+        writer_modules=["app/integrations/gsc.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single writer (staff-gsc-rank-daily beat, 00:30 IST)",
+        tenant_scope="platform-global (own-domain SEO observability)",
+        target_runtime_subpath="marketing/gsc_rankings/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-11 with ADR-177. Daily append-only JSONL + run-state "
+            "JSON for the free Search Console snapshotter; both rebuildable from "
+            "the Search Console API, so rebuildable, not authoritative. INERT "
+            "until GSC_ENABLED=1 and service-account creds are set (runbook: "
+            "memory/playbooks.md) - files do not exist on the host yet."
+        ),
+    ),
+    _e(
+        store_id="platform.staff_bus",
+        display_name="31 STAFF Buzz bus ledger (events / idempotency / audit / DLQ)",
+        legacy_paths=[
+            "data/staff_bus/",
+            "data/staff_bus/events.jsonl",
+            "data/staff_bus/idempotency.jsonl",
+            "data/staff_bus/audit.jsonl",
+            "data/staff_bus/dlq.jsonl",
+        ],
+        writer_modules=["app/platform/staff_bus/runtime.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="platform",
+        durability_class="rebuildable",
+        concurrency_model="single-process file append under STAFF_BUS_ENABLED gate",
+        tenant_scope="platform-global (internal STAFF coordination; not customer leads)",
+        target_runtime_subpath="platform/staff_bus/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-12 with PR #333 staff_bus. Append-only JSONL family "
+            "for Owner→Boss→7-team envelopes. INERT until STAFF_BUS_ENABLED=1; "
+            "default OFF. Comb NIP-OA auth_tag may be null (WAIT) — not a store "
+            "blocker. No customer outbound from these files alone."
+        ),
+    ),
     _e(
         store_id="content.queue",
         display_name="Per-tenant content queue",

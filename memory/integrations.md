@@ -40,3 +40,10 @@ Schema per entry: `Service — purpose | auth env var(s) | rate limits | observe
 
 ## Collaboration / agent workspace (2026-08-03)
 - **Block Buzz** � human+agent collaboration plane (Nostr relay) | Desktop local keys in OS credential store | hosted community `leadsgenai.communities.buzz.xyz` | harness `claude-agent-acp` via `buzz-acp` | Nest `~/.buzz` + repo `docs/integrations/BUZZ_ADMIN_PLANE.md` | NOT a STAFF/runtime plane; secrets never in channels.
+
+## 2026-08-11 Google Search Console (rank tracking, FREE) ? ADR-177
+- **Purpose:** Programmatic SEO observability — daily clicks/impressions/position snapshot. INERT default (GSC_ENABLED=0).
+- **Creds:** service-account JSON; GSC_SERVICE_ACCOUNT_JSON env → fallback google_sheets_credentials (wahi file reuse, calendar_booking pattern).
+- **Setup (pending):** GCP project → enable Search Console API → SA + key → Search Console property sc-domain:leadsgenai.in → DNS TXT verify → SA ko property pe FULL access → set GSC_ENABLED=1 + GSC_SERVICE_ACCOUNT_JSON. Runbook: memory/playbooks.md (add).
+- **Code:** app/integrations/gsc.py (run_daily_async, never raises); beat staff-gsc-rank-daily 00:30 IST; admin GET /api/clientops/gsc/overview (latest + 30d trend); files data/gsc_daily.jsonl + data/gsc_state.json.
+- **Gotcha:** Google libs (google-api-python-client) missing = graceful no-op, ImportError caught; sync API → asyncio.to_thread.

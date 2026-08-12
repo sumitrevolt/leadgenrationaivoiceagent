@@ -843,6 +843,9 @@ async def admin_delete_client(
 class ClientRemoveIn(BaseModel):
     confirm: bool = False
     reason: str = ""
+    # Default SOFT: cancel + disable. Destructive file/record purge is opt-in.
+    mode: str = "soft"  # soft | purge
+    confirm_purge: bool = False  # required when mode=purge
 
 
 @router.post("/clients/{client_id}/remove-customer")
@@ -853,24 +856,29 @@ async def admin_remove_customer(
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_async_db),
 ) -> dict:
-    """Full customer removal — NOT just the clients_store record.
+    """Admin customer removal — soft-disable by default; purge is owner-gated.
 
-    Revokes the portal login, cancels scheduled content, CANCELLS DB billing
-    subscriptions (MRR truth — audit 2026-08-08), marks any autopilot
-    prospects that converted to this client as terminal ``removed`` (so they
-    stop counting as customers AND are never re-contacted), deletes the brand
-    kit + per-client derived stores (delivery ledger, blogs, crm, content
-    queue), then removes the clients_store record. Irreversible → confirm
-    required. Admin-gated + idempotent like the other destructive actions.
+    **soft (default):** revoke portal login, CANCEL billing subscriptions
+    (MRR truth), cancel scheduled content, mark converted autopilot prospects
+    ``removed`` (never re-contacted), set clients_store status=``cancelled``.
+    Brand kit + derived ledgers are KEPT for audit/DPDP retention.
 
-    Returns a per-store cleanup summary so the operator can verify.
+    **purge:** same as soft, THEN delete brand kit + derived stores + the
+    clients_store record. Requires ``confirm_purge=true`` AND
+    ``ADMIN_CUSTOMER_PURGE_ENABLED=1`` (fail-closed when unset). Irreversible.
+
+    Admin-gated + idempotent. Returns a per-store cleanup summary.
     """
     cid = (client_id or "").strip()
+    mode = (body.mode or "soft").strip().lower() or "soft"
+    if mode not in ("soft", "purge"):
+        return {"ok": False, "error": "mode must be soft|purge"}
+
     if not body.confirm:
         await record_admin_action(
             request=request,
             actor=admin,
-            action="client.remove",
+            action="client.disable" if mode == "soft" else "client.remove.purge",
             target_type="client",
             target_id=cid,
             tenant=cid,
@@ -879,11 +887,55 @@ async def admin_remove_customer(
         )
         return {"ok": False, "error": "confirm required"}
 
+    if mode == "purge":
+        if not body.confirm_purge:
+            await record_admin_action(
+                request=request,
+                actor=admin,
+                action="client.remove.purge",
+                target_type="client",
+                target_id=cid,
+                tenant=cid,
+                result="rejected",
+                error="confirm_purge required",
+            )
+            return {
+                "ok": False,
+                "error": "confirm_purge required for destructive purge",
+            }
+        _purge_armed = os.getenv("ADMIN_CUSTOMER_PURGE_ENABLED", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if not _purge_armed:
+            await record_admin_action(
+                request=request,
+                actor=admin,
+                action="client.remove.purge",
+                target_type="client",
+                target_id=cid,
+                tenant=cid,
+                result="rejected",
+                error="purge disabled",
+            )
+            return {
+                "ok": False,
+                "error": "purge disabled — set ADMIN_CUSTOMER_PURGE_ENABLED=1 (owner-gated)",
+            }
+
+    audit_action = "client.disable" if mode == "soft" else "client.remove.purge"
     _idem = admin_idempotency.begin(
         request=request,
         actor_id=getattr(admin, "id", None),
-        scope="client.remove",
-        payload={"client_id": cid, "confirm": True, "reason": body.reason},
+        scope=f"client.remove.{mode}",
+        payload={
+            "client_id": cid,
+            "confirm": True,
+            "mode": mode,
+            "confirm_purge": bool(body.confirm_purge),
+            "reason": body.reason,
+        },
     )
     if isinstance(_idem, admin_idempotency.Replay):
         return _idem.response
@@ -907,6 +959,7 @@ async def admin_remove_customer(
         "client_id": cid,
         "requested_client_id": requested_cid,
         "reason": body.reason,
+        "mode": mode,
         "auth_logins_revoked": 0,
         "auth_emails": [],
         "subscriptions_cancelled": 0,
@@ -914,6 +967,7 @@ async def admin_remove_customer(
         "content_cancelled": 0,
         "prospects_removed": 0,
         "prospect_ids": [],
+        "client_status_set": False,
         "brand_kit_deleted": False,
         "delivery_deleted": False,
         "blogs_deleted": False,
@@ -941,7 +995,7 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] auth revoke failed: %s", e)
 
-    # 2. Billing subscriptions → CANCELLED (MRR/revenue truth — audit 2026-08-08:
+    # 2. Billing subscriptions → CANCELLED (MRR truth — audit 2026-08-08:
     #    before this, remove-customer deleted the client record but left ACTIVE
     #    Subscription rows, so admin MRR/subscriptions-active still counted a
     #    removed customer as revenue). Alias-aware like billing.cancel_subscription.
@@ -1001,47 +1055,60 @@ async def admin_remove_customer(
     except Exception as e:
         logger.warning("[admin remove-customer] autopilot sweep failed: %s", e)
 
-    # 5. Brand kit + per-client derived stores.
-    try:
-        from app.marketing import brand_kit
+    if mode == "soft":
+        # Soft: keep brand kit + ledgers; mark marketing record cancelled.
+        try:
+            from app.marketing import clients_store
 
-        summary["brand_kit_deleted"] = brand_kit.delete_brand(cid)
-    except Exception as e:
-        logger.warning("[admin remove-customer] brand kit delete failed: %s", e)
-    try:
-        from app.marketing import product_one_delivery as _pod
+            summary["client_status_set"] = bool(clients_store.set_status(cid, "cancelled"))
+            if body.reason:
+                try:
+                    clients_store.update_client(cid, blocked_reason=str(body.reason)[:200])
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning("[admin remove-customer] soft status set failed: %s", e)
+    else:
+        # Purge: brand kit + per-client derived stores + clients_store record.
+        try:
+            from app.marketing import brand_kit
 
-        summary["delivery_deleted"] = _rm(_pod._events_path(cid))
-    except Exception as e:
-        logger.warning("[admin remove-customer] delivery delete failed: %s", e)
-    try:
-        from app.marketing import client_blog as _cb
+            summary["brand_kit_deleted"] = brand_kit.delete_brand(cid)
+        except Exception as e:
+            logger.warning("[admin remove-customer] brand kit delete failed: %s", e)
+        try:
+            from app.marketing import product_one_delivery as _pod
 
-        summary["blogs_deleted"] = _rm(str(_cb._path(cid)))
-    except Exception as e:
-        logger.warning("[admin remove-customer] blogs delete failed: %s", e)
-    try:
-        from app.marketing import crm_lite as _crm
+            summary["delivery_deleted"] = _rm(_pod._events_path(cid))
+        except Exception as e:
+            logger.warning("[admin remove-customer] delivery delete failed: %s", e)
+        try:
+            from app.marketing import client_blog as _cb
 
-        summary["crm_deleted"] = _rm(_crm._path(cid))
-    except Exception as e:
-        logger.warning("[admin remove-customer] crm delete failed: %s", e)
-    try:
-        from app.marketing import delivery_ledger as _dl
+            summary["blogs_deleted"] = _rm(str(_cb._path(cid)))
+        except Exception as e:
+            logger.warning("[admin remove-customer] blogs delete failed: %s", e)
+        try:
+            from app.marketing import crm_lite as _crm
 
-        summary["content_queue_deleted"] = _rm(
-            os.path.join(_dl._CONTENT_QUEUE_DIR(), f"{_dl._safe_stem(cid)}.jsonl")
-        )
-    except Exception as e:
-        logger.warning("[admin remove-customer] content-queue delete failed: %s", e)
+            summary["crm_deleted"] = _rm(_crm._path(cid))
+        except Exception as e:
+            logger.warning("[admin remove-customer] crm delete failed: %s", e)
+        try:
+            from app.marketing import delivery_ledger as _dl
 
-    # 6. clients_store record (the old delete path, folded in).
-    try:
-        from app.marketing import clients_store
+            summary["content_queue_deleted"] = _rm(
+                os.path.join(_dl._CONTENT_QUEUE_DIR(), f"{_dl._safe_stem(cid)}.jsonl")
+            )
+        except Exception as e:
+            logger.warning("[admin remove-customer] content-queue delete failed: %s", e)
 
-        summary["clients_record_deleted"] = bool(clients_store.delete_client(cid))
-    except Exception as e:
-        logger.warning("[admin remove-customer] clients_store delete failed: %s", e)
+        try:
+            from app.marketing import clients_store
+
+            summary["clients_record_deleted"] = bool(clients_store.delete_client(cid))
+        except Exception as e:
+            logger.warning("[admin remove-customer] clients_store delete failed: %s", e)
 
     ok = any(
         [
@@ -1049,6 +1116,7 @@ async def admin_remove_customer(
             summary["subscriptions_cancelled"] > 0,
             summary["content_cancelled"] > 0,
             summary["prospects_removed"] > 0,
+            summary["client_status_set"],
             summary["brand_kit_deleted"],
             summary["delivery_deleted"],
             summary["blogs_deleted"],
@@ -1062,7 +1130,7 @@ async def admin_remove_customer(
     await record_admin_action(
         request=request,
         actor=admin,
-        action="client.remove",
+        action=audit_action,
         target_type="client",
         target_id=cid,
         tenant=cid,

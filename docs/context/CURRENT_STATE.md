@@ -4,15 +4,32 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-09 — direct `/health` probe = `d1b106b2` (see the `DEPLOYED 2026-08-09` section immediately below, which is the current truth). See `docs/context/SESSION_HANDOFF.md`.
+2026-08-11 — dual cache-busted `/health` probes = `9b09a808` (timestamps + uptime advanced). See `docs/context/SESSION_HANDOFF.md`.
 
-## DEPLOYED 2026-08-09 — `d1b106b2` (PR #294 merged + shipped)
-Prod `/health` = `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
+## MERGED not deployed — 2026-08-11 — `6052b533` (PR #329 rollback image retention)
+`origin/main` tip = `6052b533f59e8ab533ab629427fa869d83931a9a` (normal merge of PR head `72d9bc1226ca0d431d24237cc16876f273543c8a`). **Prod `/health` still `9b09a808`** (DIRECT_HOST_VERIFIED 2026-08-11 dual probes pre+post merge). No AUTH-DEPLOY executed. Owner line when ready: `AUTH-DEPLOY 6052b533f59e8ab533ab629427fa869d83931a9a`.
+**#307:** stays OPEN; dunning stays OFF (merge evidence comment only).
+Label: GIT_VERIFIED (merge) | DIRECT_HOST_VERIFIED (prod still prior SHA)
+
+## DEPLOYED 2026-08-11 — `9b09a808` (prod live; pre-#329 tip)
+Prod `/health` = `{"version":"9b09a808","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-11; two probes with unique `cb=` — timestamp/uptime advanced). Exact SHA = `9b09a80825389983829b1c0b4de6caf3789d16bf`.
+**#304 / #306:** still WAIT live proofs. **#307:** dunning OFF.
+Label: DIRECT_HOST_VERIFIED (2026-08-11)
+
+## SUPERSEDED — DEPLOYED 2026-08-10 — `a3fbc8bb`
+> Historical. Replaced as prod tip by later deploys; do not quote as current without re-probe.
+Rollback ref chain includes `76348926`.
+Label: STALE vs 2026-08-11 prod
+
+## SUPERSEDED — DEPLOYED 2026-08-09 — `d1b106b2` (PR #294)
+> Historical only. Do not quote as current. Replaced by `a3fbc8bb` above.
+
+Prod `/health` was `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
 Kill-fence procedure executed as documented: backup `.env.bak-dailyvideo-20260809` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh` → reverted to `0` → recreate → proven `0` in all 5 containers. `.env` is byte-identical to the pre-deploy backup (md5 `ec9db158d99269cc463e97923970b50f`).
 **Every new flag stayed unset** (`DAILY_VIDEO_ENABLED`, `DAILY_VIDEO_CLIENTS`, `DAILY_VIDEO_ENGINE`, `CELERY_VIDEO_QUEUE`, `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED`) — the producer is INERT in prod. Calling flags unchanged (`PLATFORM_DIAL_DAILY=1`, `PLATFORM_DIAL_LIMIT=100`, `DIAL_TEST_MODE=0`, `VIDEO_AD_CYCLE=1`).
 Rollback ref = `3cd95ba2` (prior prod).
 ⚠️ **Operator error during this deploy, recorded so it is not repeated:** the fence-closing recreate was run as a bare `docker compose up -d` **without `APP_VERSION`**, so compose fell back to `${APP_VERSION:-latest}` and prod ran the `:latest` image (`266d772a…`) for ~55s before it was caught by the `/health.version` check and corrected with `APP_VERSION=d1b106b2 docker compose … up -d`. This is exactly the ADR-097 landmine. **Any manual recreate — including the one that closes the kill fence — MUST carry `APP_VERSION=<sha>`.** `deploy_vps.sh` itself was never the problem; it pinned correctly.
-Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes)
+Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes) — STALE vs current tip
 
 ## Approval backlog — real numbers + retirement tool (2026-08-09, PR #297)
 "32 stuck approvals" was only the `video_ad` slice. Real queue = **422** `content_approval` pendings: **321** belong to client ids ABSENT from `clients_store` (8 dead ids — un-actionable forever), **101** belong to the 3 live clients (`leadgenai-self` 53 · `0511a69b900e` 28 · `jiya-makeover` 20).

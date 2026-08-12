@@ -1795,6 +1795,13 @@ async def conversations_page():
     return FileResponse(str(FRONTEND_DIR / "conversations.html"))
 
 
+@app.get("/app/affiliates", tags=["Frontend"])
+async def affiliates_page():
+    """Affiliate/referral admin panel — stats, per-affiliate conversions, ek-tap
+    shareable kit (link + WhatsApp text). Reads /api/affiliate/stats (admin token)."""
+    return FileResponse(str(FRONTEND_DIR / "affiliates.html"))
+
+
 @app.get("/app/dialer", tags=["Frontend"])
 async def dialer_page():
     """Human telecaller dialer mode (NeoDove-style) — lead queue, tel:/wa.me 1-click, dispositions."""

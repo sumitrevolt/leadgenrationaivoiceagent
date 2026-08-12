@@ -10,7 +10,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="LeadGenAI" />
 <meta property="og:title" content="AI Marketing & Voice Agent Pricing for Businesses — LeadGenAI" />
-<meta property="og:description" content="AI Marketing Automation (₹1,999/mo), aur Combo — Marketing + AI Voice (₹5,999/mo) = marketing + AI voice callback feature (500 min/mo)." />
+<meta property="og:description" content="AI Marketing Automation (₹1,999/mo), aur Advanced Marketing (₹5,999/mo) with AI inquiry-callback FEATURE (500 min/mo). Standalone Voice Agent is a separate product." />
 <meta property="og:url" content="https://leadsgenai.in/pricing" />
 <meta property="og:image" content="https://leadsgenai.in/icons/icon-512.png" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -113,11 +113,11 @@
   "name":"LeadGenAI Pricing",
   "operatingSystem":"Web",
   "applicationCategory":"BusinessApplication",
-  "description":"AI Marketing Automation, aur Combo — Marketing + AI Voice = marketing + AI voice callback feature (500 min/mo), for local Indian businesses.",
+  "description":"AI Marketing Automation, aur Advanced Marketing with AI inquiry-callback FEATURE (500 min/mo), for local Indian businesses. Standalone Voice Agent is separate.",
   "url":"https://leadsgenai.in/pricing",
   "offers":[
     {"@type":"Offer","name":"AI Marketing Automation","price":"1999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"1999","priceCurrency":"INR","billingDuration":"P1M"}},
-    {"@type":"Offer","name":"Combo — Marketing + AI Voice","price":"5999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"5999","priceCurrency":"INR","billingDuration":"P1M"}}
+    {"@type":"Offer","name":"Advanced Marketing","price":"5999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"5999","priceCurrency":"INR","billingDuration":"P1M"}}
   ],
   "publisher":{"@type":"Organization","name":"LeadGenAI","url":"https://leadsgenai.in"}
 }
@@ -162,7 +162,7 @@
 
   <div id="plans" class="grid"><div class="cmp" style="grid-column:1/-1">Plans load ho rahe hain…</div></div>
 
-  <p class="fine">Marketing plan me koi calling charge nahi. Combo (₹5,999) me AI Voice callback feature — 500 min/mo included.</p>
+  <p class="fine">Marketing plan me koi calling charge nahi. Advanced (₹5,999) me AI inquiry-callback FEATURE — 500 min/mo included.</p>
   <div class="voice-callout">📞 Full AI telecaller chahiye? Wo alag product hai: <a href="/voice-agent"><b>AI Voice Calling Agent</b></a>. Hinglish AI jo unlimited calls karta hai aapke niche ke liye.</div>
 
   <section class="compare">
@@ -174,9 +174,9 @@
         <div class="wt">Content + leads + reviews + CRM automation. Marketing-only, no calling charge.</div>
       </div>
       <div class="cmp">
-        <div class="nm">Combo — Marketing + AI Voice</div>
+        <div class="nm">Advanced Marketing</div>
         <div class="pr">₹5,999<small>/mo</small></div>
-        <div class="wt">Poora marketing + inquiry callback / qualify / booking feature (500 min/mo). Standalone telecaller alag product hai.</div>
+        <div class="wt">Poora marketing + inquiry callback / qualify / booking FEATURE (500 min/mo). Standalone telecaller alag product hai.</div>
       </div>
     </div>
   </section>
@@ -233,7 +233,7 @@ const FALLBACK = [
   },
   {
     id:"advanced",
-    name:"Combo — Marketing + AI Voice",
+    name:"Advanced Marketing",
     monthly_price:5999,
     yearly_discount:16.6666666667,
     features:[
@@ -312,7 +312,7 @@ function render(){
       <div class="plan ${featured ? "featured" : ""}">
         ${featured ? '<div class="badge">POPULAR</div>' : ""}
         <h2>${p.name || p.id || ""}</h2>
-        <div class="desc">${featured ? "Main marketing plan" : "Marketing + AI Voice callback feature"}</div>
+        <div class="desc">${featured ? "Main marketing plan" : "Marketing + AI inquiry-callback FEATURE"}</div>
         <div class="price">${inr(pr.amt)}<small>${pr.suf}</small></div>
         <div class="note">${isAdv ? "marketing + 500 min/mo voice callback feature" : "100% marketing-only — koi calling charge nahi"}</div>
         ${featuresHtml(p)}

@@ -53,13 +53,23 @@ def _resolve_is_public(host: str) -> bool:
 
 def _safe_audit_target(u: str) -> bool:
     """User-supplied audit URL http(s) hai AND sirf public IPs pe resolve hota?"""
+    return _normalize_safe_audit_url(u) is not None
+
+
+def _normalize_safe_audit_url(u: str) -> str | None:
+    """Return canonical URL if safe for audit, else None."""
     try:
-        p = urlparse(u)
+        p = urlparse((u or "").strip())
     except Exception:
-        return False
+        return None
     if p.scheme not in ("http", "https") or not p.hostname:
-        return False
-    return _resolve_is_public(p.hostname)
+        return None
+    # Reject credentialed URLs and fragments to reduce parser/bypass edge-cases.
+    if p.username is not None or p.password is not None or p.fragment:
+        return None
+    if not _resolve_is_public(p.hostname):
+        return None
+    return p.geturl()
 
 
 def _normalize_safe_audit_url(u: str) -> str | None:

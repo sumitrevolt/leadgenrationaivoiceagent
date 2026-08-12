@@ -441,6 +441,15 @@ async def affiliate_stats(code: str | None = None, _user=Depends(require_admin))
     return {"stats": affiliate.stats(code), "affiliates": affiliate.list_affiliates(50)}
 
 
+@router.post("/affiliate/kit")
+async def affiliate_kit(body: AffiliateIn, _user=Depends(require_admin)):
+    """ADMIN: affiliate register/update + shareable kit (link + WhatsApp-ready
+    text) ek hi call me — Jiya jaisi referral pakdo (owner 1-tap send)."""
+    from app.marketing import affiliate
+
+    return affiliate.referral_kit(body.name, body.email or "", body.phone or "")
+
+
 # ---------------- Community / Q&A content drafter -------------------- #
 class CommunityIn(BaseModel):
     platform: str = "quora"
@@ -1479,11 +1488,31 @@ async def infra_flags(_user=Depends(require_admin)):
             "value": ("***" if (_is_secret and v is not None) else v),
         }
         out[f] = enrich_flag_row(f, row)
+
+    # Effective-runtime honesty: REPLY_AUTO_SEND can be live via Redis
+    # `reply_auto_send` even when env is 0 (HARD_OFF still wins). Env-only
+    # `on`/`switch_on` alone mislead operators — surface effective_on too.
+    if "REPLY_AUTO_SEND" in out:
+        try:
+            from app.platform.reply_agent import _reply_auto_send_enabled
+
+            _eff = bool(await _reply_auto_send_enabled())
+        except Exception:
+            _eff = bool(out["REPLY_AUTO_SEND"].get("on"))
+        out["REPLY_AUTO_SEND"]["effective_on"] = _eff
+        _eff_note = "env OR Redis runtime reply_auto_send; REPLY_AUTO_SEND_HARD_OFF wins"
+        out["REPLY_AUTO_SEND"]["effective_note"] = _eff_note
+
     on = [k for k, d in out.items() if d["on"]]
     boolean_on = [
         k
         for k, d in out.items()
         if d.get("kind") == FlagValueKind.BOOLEAN.value and d.get("switch_on")
+    ]
+    effective_overrides = [
+        k
+        for k, d in out.items()
+        if "effective_on" in d and bool(d.get("effective_on")) != bool(d.get("on"))
     ]
     manifest = build_manifest(list(AUTOMATION_FLAGS))
     return {
@@ -1491,6 +1520,7 @@ async def infra_flags(_user=Depends(require_admin)):
         "on": on,
         "boolean_on_count": len(boolean_on),
         "boolean_on": boolean_on,
+        "effective_overrides": effective_overrides,
         "by_kind": manifest["by_kind"],
         "by_lifecycle": manifest["by_lifecycle"],
         "by_governance": manifest.get("by_governance") or manifest["by_lifecycle"],

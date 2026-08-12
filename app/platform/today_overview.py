@@ -224,6 +224,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Revenue snapshot (raat 00:15)",
         "kya": "Roz ka MRR/churn record karta hai (admin revenue chart ke liye)",
     },
+    "gsc_rank": {
+        "label": "GSC rank snapshot (raat 00:30)",
+        "kya": "Google Search Console se clicks/impressions/position roz record karta hai (gated GSC_ENABLED, off by default)",
+    },
     "meter_watch": {
         "label": "Billing meter-watch (har ghante :55)",
         "kya": "Minute-billing meter fail ho to alert",

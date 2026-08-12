@@ -631,4 +631,19 @@ async def creative_os_customer_view(
     return customer_view(client_id, creative_id)
 
 
+@router.get("/gsc/overview")
+async def gsc_overview(_user=Depends(require_admin)):
+    """Google Search Console rank snapshot overview — latest aggregates +
+    30-day trend for the admin control surface. No-op/empty if GSC_ENABLED=0
+    ya creds nahi hain (integration INERT by design — app/integrations/gsc.py)."""
+    from app.integrations import gsc
+
+    return {
+        "enabled": gsc.enabled(),
+        "site": gsc.site_url(),
+        "latest": gsc.latest_state(),
+        "trend": gsc.trend(30),
+    }
+
+
 __all__ = ["router"]

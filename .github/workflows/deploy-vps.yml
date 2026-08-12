@@ -2,9 +2,13 @@
 # deploy-vps.yml â€” REAL auto-deploy to the Hostinger VPS (replaces Cloud Run).
 #
 # Flow on every push to main:
-#   1) gate     : fast deterministic checks (import smoke + prod_check + ruff)
-#   2) build    : build Docker image, push to GHCR (immutable :<sha> only)
-#   3) deploy   : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
+#   1) gate        : fast deterministic checks (import smoke + prod_check + ruff +
+#                    billing contract) — branch-protection required check (auto-merge)
+#   2) pytest-*    : 4 PARALLEL pytest shards (matrix; exit-139 retry inside) —
+#                    2026-08-10: was sequential inside the 15-min gate (timeout/cancel)
+#   3) release-gate: needs gate + ALL 4 shards green (golden eval advisory runs here)
+#   4) build       : build Docker image, push to GHCR (immutable :<sha> only)
+#   5) deploy      : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
 #
 # One-time GitHub repo secrets required (Settings > Secrets and variables > Actions):
 #   VPS_HOST     = 72.61.245.204
@@ -33,7 +37,7 @@ jobs:
   gate:
     name: Gate (import + prod_check + lint)
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # hang guard (full pytest team_pulse area can stall â€” CLAUDE.md)
+    timeout-minutes: 15  # hang guard - fast checks only; full pytest = parallel shard jobs (2026-08-10: full suite moved to parallel shard jobs)
     steps:
       - uses: actions/checkout@v7
         with:
@@ -80,17 +84,33 @@ jobs:
         run: |
           python scripts/eval_golden.py --deterministic-only
           pytest -q tests/test_eval_golden.py
-      - name: Tests (full suite â€” BLOCKING, network-free)
-        # 2026-07-06: HARD GATE. Full suite proven green (local exit 0) after the
-        # drift-sweep fixed 8 stale tests. Network-marked tests excluded â€” CI has
-        # no provider keys (same policy as ci.yml/tests.yml). Revert = re-add
-        # `continue-on-error: true` on this step.
+  pytest-shards:
+    name: pytest shard ${{ matrix.group }}/4
+    needs: []
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install deps (lock file - same as gate)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-deps -r requirements.lock.txt
+          pip install --no-deps "pytest-timeout==2.4.0"
+          pip install --no-deps "pytest-split==0.9.0"
+      # Same process-shard strategy as ci.yml (exit-139 containment). Parallel:
+      # 2026-08-10 the full suite ran sequentially inside the 15-min gate and
+      # timed out/cancelled, skipping GHCR build + VPS deploy.
+      - name: pytest shard ${{ matrix.group }}/4 (BLOCKING, network-free)
         env:
-          # TelecallerBrain __init__ me key-PRESENCE check hai (CI me real keys
-          # nahi rakhte); saare LLM calls conftest me stubbed — koi network nahi.
           GROQ_API_KEY: ci-dummy-key-not-real
-          # local-dev parity: bina in ke config PROD-defaults leta (global
-          # RateLimitMiddleware arm → suite ke burst pe 429s, turnstile-class gates).
           APP_ENV: test
           ENVIRONMENT: development
           OMP_NUM_THREADS: "1"
@@ -98,32 +118,31 @@ jobs:
           OPENBLAS_NUM_THREADS: "1"
           TOKENIZERS_PARALLELISM: "false"
           PYTHONFAULTHANDLER: "1"
-        # Same process-shard strategy as ci.yml (exit-139 containment).
         run: |
-          pip install --no-deps "pytest-split==0.9.0"
           set -euo pipefail
-          for group in 1 2 3 4; do
-            echo "::group::pytest shard ${group}/4"
-            set +e
+          set +e
+          pytest -q -m "not network" --ignore=tests/integration \
+            --splits 4 --group "${{ matrix.group }}"
+          rc=$?
+          if [ "$rc" -eq 139 ]; then
+            echo "::warning title=exit-139::shard ${{ matrix.group }}/4 cyclic-GC SIGSEGV; one retry (no skip)"
             pytest -q -m "not network" --ignore=tests/integration \
-              --splits 4 --group "${group}"
+              --splits 4 --group "${{ matrix.group }}"
             rc=$?
-            if [ "$rc" -eq 139 ]; then
-              echo "::warning title=exit-139::shard ${group}/4 cyclic-GC SIGSEGV; one retry (no skip)"
-              pytest -q -m "not network" --ignore=tests/integration \
-                --splits 4 --group "${group}"
-              rc=$?
-            fi
-            set -e
-            if [ "$rc" -ne 0 ]; then
-              exit "$rc"
-            fi
-            echo "::endgroup::"
-          done
+          fi
+          exit "$rc"
 
+  release-gate:
+    name: Release gate (gate + all 4 shards green)
+    needs: [gate, pytest-shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Release ready
+        run: echo "gate + all 4 pytest shards green - release path unlocked"
   build:
     name: Build & push image (GHCR)
-    needs: gate
+    needs: release-gate
     # Activates only after you set repo variable DEPLOY_ENABLED=true (and the VPS
     # secrets). Until then, pushes just run the `gate` job â€” no failing deploys.
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}

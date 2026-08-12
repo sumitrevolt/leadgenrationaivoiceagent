@@ -655,3 +655,84 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("decide failed: %s", e)
         return {"ok": False, "error": "decide_failed"}
+
+
+def bind_client(payment_id: str, client_id: str, decided_by: str = "admin") -> dict:
+    """Bind a marketing client to an UPI submission that has no client_id.
+
+    Guest "maine pay kiya" submissions land with ``client_id=""`` +
+    ``needs_client_bind=True``; approving one without a client fails closed
+    (``approved_but_unbound``, #304). This is the operator queue action that
+    resolves it: bind the verified client, then Approve activates.
+
+    Fail-closed + cross-tenant safe:
+      - the payment record must exist;
+      - ``client_id`` is required AND must resolve to a real marketing client
+        (``resolve_client`` — never creates, so a typo'd/unknown id is refused);
+      - an already-activated submission is refused (binding cannot resurrect a
+        settled payment);
+      - an already-bound submission may only be re-bound to the SAME client
+        (idempotent no-op) — re-pointing at a different client is refused
+        (cross-tenant guard);
+      - bind NEVER activates: the owner's Approve remains the single activation
+        gate, so after binding the admin re-approves and ``decide`` activates
+        (matches the approved_but_unbound warning's own "bind karo phir
+        re-approve").
+
+    Never raises — returns the updated record or ``{"ok": False, "error": ...}``.
+    """
+    try:
+        pid = (payment_id or "").strip()
+        cid = (client_id or "").strip()
+        rows = _read_store()
+        record = None
+        for r in rows:
+            if r.get("id") == pid:
+                record = r
+                break
+        if record is None:
+            return {"ok": False, "error": "not_found"}
+        if not cid:
+            return {"ok": False, "error": "client_id_required"}
+
+        current = (record.get("client_id") or "").strip()
+        if record.get("activated") or record.get("auto_activated"):
+            if current == cid:
+                return {"ok": True, **record}
+            return {"ok": False, "error": "already_activated"}
+
+        # Cross-tenant guard: never re-point an already-bound submission.
+        if current and current != cid:
+            return {"ok": False, "error": "already_bound_to_other"}
+
+        # Resolve to the canonical marketing id (id OR billing alias). Fail
+        # closed on unknown — activation itself would fail anyway (activate_plan
+        # needs the marketing record), so refusing here gives the operator a
+        # clear error instead of a silent later failure.
+        try:
+            from app.marketing.clients_store import resolve_client
+
+            rec = resolve_client(cid)
+        except Exception:  # pragma: no cover - defensive
+            rec = None
+        if rec is None:
+            return {"ok": False, "error": "unknown_client"}
+        canonical = str(rec.get("id") or "").strip() or cid
+
+        if current == canonical:
+            # Idempotent re-bind of the same client — clear the flag, done.
+            record["needs_client_bind"] = False
+            record.pop("activation_blocked", None)
+            _write_store(rows)
+            return {"ok": True, **record}
+
+        record["client_id"] = canonical
+        record["needs_client_bind"] = False
+        record.pop("activation_blocked", None)
+        record["bound_at"] = _now_iso()
+        record["bound_by"] = (decided_by or "admin")[:80]
+        _write_store(rows)
+        return {"ok": True, **record}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("bind_client failed: %s", e)
+        return {"ok": False, "error": "bind_failed"}
