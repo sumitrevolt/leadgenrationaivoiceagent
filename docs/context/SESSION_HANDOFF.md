@@ -1,24 +1,62 @@
-# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #330 Boss Cursor ACP Ready)
+# SESSION_HANDOFF — 2026-08-12 (Cursor: PR #333 AUTH-MERGE review pack)
 
-## Done this session
-- **PR #330** head **`8f5a2e2d504186cbc11ed7da1be4693f4508911c`** · base **`6052b533f59e8ab533ab629427fa869d83931a9a`** · Draft→Ready (no merge).
-- Boss identity reconciled: Desktop card **`1b13cecc…`** (rebind from non-operable `20b69265`); NIP-OA `auth_tag` minted; `#admin` member.
-- Boss runtime = **Cursor ACP** (`agent.cmd acp` · `2026.08.04-aaa8809`); not Claude/Goose/Codex.
-- Live correlated canary **GO**: `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4` · mention `1b13cecc` · reply from `1b13cecc` · nonce `54b3cbb4`.
-- Comb-style review findings fixed: advice state guard + Redis `_atomic_claim` tests; CI all required checks **pass** on exact head.
-- Second Brain vault path (owner): `C:\Users\Ratanshila\Documents\leadsgenai-brain` via `obsidian_sync.recall` (advisory only).
-- Flag `BOSS_DECISION_GOVERNANCE` remains **OFF** default / Owner-approval-required. Prod untouched.
+## OWNER REVIEW CARD — AUTH-MERGE PR #333
 
-## WAIT (owner)
-- **AUTH-MERGE** `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330 — normal merge only; no squash/bypass/deploy.
-- Prod flag arm for `BOSS_DECISION_GOVERNANCE` = separate AUTH (not this packet).
+| Field | Value |
+|---|---|
+| PR | https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/333 |
+| State | **Draft** · OPEN · base main |
+| Exact head | d4accbd31397d6621faf45ac12915266beefcd5b (d4accbd3) |
+| Diff scope | pp/platform/staff_bus/* · scripts/staff_bus_canary.py · 	ests/test_staff_bus_2026_08_12.py · STAFF_BUS_ENABLED flag registry · runbook/evidence · SESSION_HANDOFF/progress — **no UPI/voice/prod env** |
+| Declaration | **31-AGENT BUS SETUP PARTIAL** (owner-accepted WAIT below) |
+
+### Merge checklist (owner)
+1. Confirm Draft → Ready only after reading this card.
+2. AUTH-MERGE exact SHA d4accbd3 (normal merge; no squash/bypass if policy forbids).
+3. **Do not arm STAFF_BUS_ENABLED in prod without separate AUTH** — flag stays OFF/inert after merge.
+4. **Do not deploy** under this packet.
+5. Optional later: Comb Desktop Save → mint NIP-OA uth_tag → re-declare COMPLETE (not required for this merge).
+
+### Rollback
+- Code: close/revert PR or git revert the merge commit.
+- Runtime: leave / set STAFF_BUS_ENABLED=0 (unset = inert).
+- No prod DB / customer outbound / payment surface in this diff.
+
+### GO / WAIT / NO-GO
+| Gate | Result |
+|---|---|
+| Hosted relay NIP-11/HTTPS | **GO** |
+| Local :3100 | **GO** |
+| Boss / Fizz / Honey / Bumble harness + auth_tag | **GO** |
+| Comb identity + Cursor harness + correlated reply | **GO** |
+| Comb Desktop NIP-OA uth_tag | **WAIT** — owner ACCEPT as WAIT (reply already SUCCESS; mint deferred) |
+| Roster 31 / 7-team / Comb not in STAFF | **GO** |
+| Bus contracts + 31/31 synthetic | **GO** (254971bb491b) |
+| Second Brain + Boss enforcement | **GO** |
+| 5/5 control correlated (CNY20260812104913-63660547) | **GO** |
+| Protected side-effects / secrets / prod mutate | **GO** (zero) |
+
+### CI note
+- Required checks: lint/secrets, tests, CodeQL, security-scan repo — green at open.
+- Gate A (non-required sketch) FAILURE = broken .freebuff submodule url in checkout — unrelated to staff_bus diff.
+
+### Evidence pointers
+- docs/evidence/STAFF_BUS_20260812.md
+- docs/runbooks/STAFF_BUS_31.md
+- Tests: 	ests/test_staff_bus_2026_08_12.py (7 passed)
+
+## Done
+- Staff bus package + Draft PR #333 @ d4accbd3
+- 31/31 synthetic + 5/5 control canaries
+- Owner-accepted Comb uth_tag=null as WAIT for merge-readiness
+- AUTH-MERGE review pack written (this card)
 
 ## Do not
-- Merge/deploy without AUTH-MERGE
-- Arm governance flag in prod without owner
-- Create duplicate Boss / re-key
-- Touch UPI/WA/email/calling/voice
+- Merge/deploy without owner AUTH-MERGE
+- Arm STAFF_BUS_ENABLED in prod without AUTH
+- Remint/export keys; invent Boss/STAFF identities
+- Touch UPI / WA / email / calling / voice / prod DB
 
-## Next
-1. Owner AUTH-MERGE PR #330 exact SHA above
-2. Separate AUTH only if/when flag arm needed
+## Owner decision needed (pick one)
+**A)** AUTH-MERGE #333 now @ d4accbd3 (PARTIAL accepted), **or**
+**B)** Desktop Comb Save → uth_tag mint first → then COMPLETE + AUTH-MERGE

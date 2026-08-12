@@ -61,7 +61,10 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-11: 52 -> 55. ADR-177 GSC rank snapshot declares marketing.gsc_rankings
 # (+3 entries: daily, state, state_tmp). CLASSIFIED, not tolerated — baseline
 # fingerprint count unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 55
+# 2026-08-12: 55 -> 61. PR #333 staff_bus declares platform.staff_bus
+# (+6 entries: root, events, idempotency, idempotency_open, audit, dlq).
+# CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 61
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 

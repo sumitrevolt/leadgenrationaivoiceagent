@@ -404,6 +404,21 @@ _OVERRIDES: dict[str, FlagMeta] = {
         evidence="CODE-PRESENT",
         canary="coordinator.coordinate_hierarchical adapter + Owner OS inbox",
     ),
+    "STAFF_BUS_ENABLED": _m(
+        "STAFF_BUS_ENABLED",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "31-STAFF Buzz collaboration bus (signed bridge projections); "
+            "OFF default inert; synthetic canaries may run with allow_synthetic; "
+            "never executes protected customer outbound/payment actions"
+        ),
+        owner="rohan",
+        risk="ops",
+        default="0",
+        evidence="CODE-PRESENT",
+        canary="app.platform.staff_bus.run_all_staff_canaries",
+    ),
     "SALES_AUTOPILOT_ENABLED": _m(
         "SALES_AUTOPILOT_ENABLED",
         FlagValueKind.BOOLEAN,
