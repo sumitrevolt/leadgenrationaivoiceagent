@@ -1,24 +1,22 @@
-# SESSION_HANDOFF — 2026-08-12 (Cursor: PR queue land + revenue evidence)
+# SESSION_HANDOFF — 2026-08-12 (Cursor: PR queue land + freebuff cleanup)
 
 ## Status
-**REVENUE AUDIT COMPLETE** + **CONSOLIDATION GO (trunk hygiene PARTIAL)**. Money path READY; 2 owner ops blockers for 2nd paid. PR residual queue in flight. NO deploy. NO flag arm.
+**PR QUEUE LAND GO (PARTIAL only on orphans + Dependabot).** Docs/security residuals merged. Freebuff gitlinks gone (Gate A green). No deploy. No flag arm.
 
 ## Facts
-- Local tip after #340: check `/health` before asserting prod SHA (last probe `9c47647c` ADR-177 era — re-verify)
-- Consolidation evidence: `docs/evidence/WORKTREE_BRANCH_CONSOLIDATION_20260812.md` (#335/#340)
-- Revenue evidence: `docs/evidence/REVENUE_READY_20260812.md`
-- Residual PRs: #336 SSRF · #337 pytest9 · #338 buzz (CONFLICTING) · #339 CP5-3 · #342 freebuff placeholders
+- `origin/main` tip = **`94cc6e44`** (#343 SSRF test CodeQL silence; ancestry includes #340/#341/#336/#339/#342)
+- Freebuff tracked placeholders: **0**
+- Worktrees registered: **1** (primary `main` only)
+- Closed obsolete: #338 buzz residual · #337 pytest9 (greenlet SIGSEGV exit-139)
 - Dependabot #322–#328 untouched
-- Drift: `UPI_AUTO_ACTIVATE` docs said `=0`, prod `=1` (allowlist containment intact)
+- CP5 local WIP discarded (was `.venv-sec` / `.sec-scratch` junk)
 
 ## Do not
-- Deploy / arm `STAFF_BUS_ENABLED` / `GSC_ENABLED` / `DUNNING_ENGINE` / `BOSS_DECISION_GOVERNANCE`
-- Edit Voice/Swara (FROZEN)
-- Mass-merge Dependabot / blind-merge CONFLICTING tips
-- Weaken compliance gates
+- Deploy / arm `STAFF_BUS_ENABLED` / `GSC_ENABLED` / `DUNNING` / `BOSS_DECISION_GOVERNANCE`
+- Mass-merge Dependabot
+- Force-merge greenlet/pytest9 tips
 
 ## Next (owner)
-1. Hot Queue blitz `/app/inbox` (15 min/day)
-2. Approve UPI when payment arrives
-3. Review residual Drafts after CI (#336–#339); freebuff #342 should kill Gate A submodule noise
-4. Orphan dirs when unlocked: `leadgen-boss-second-brain-governance-20260811`, `.claude/worktrees/buzz-multi-agent-setup-b0ce78`
+1. Hot Queue + UPI ops (revenue blockers — not code)
+2. Dependabot packet separate
+3. Manual delete orphan dirs when unlocked (boss-second-brain, buzz-multi-agent)

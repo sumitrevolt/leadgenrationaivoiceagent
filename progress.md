@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (PR queue land + freebuff cleanup — CURSOR)
+Goal: Land open PR queue; remove tracked freebuff placeholders; no deploy/flag-arm.
+Inspected: #340/#341/#336–#339; freebuff mode-160000 gitlinks; Gate A submodule URL fail.
+Problems Found: (1) #341 SESSION_HANDOFF conflict after #340. (2) #338 CONFLICTING superseded. (3) #337 greenlet SIGSEGV exit-139. (4) CP5 local WIP was .venv junk. (5) CodeQL noise in SSRF tests.
+Changed: merged #340/#341/#336/#339/#342/#343; closed #338/#337; freebuff gitlinks deleted; pytest9 worktree removed.
+Tests Run: required CI on each merge (Gate A ignore except verified green after #342).
+Verification Evidence: main `94cc6e44`; freebuff tracked=0; worktrees=1; Gate A pass on #342/#343.
+Risks: 2 orphan dirs still file-locked on disk.
+Remaining: Dependabot packet; orphan manual delete; owner Hot Queue/UPI ops.
+Next Highest Priority: stop — queue land complete.
+
+## Loop Run
 Date: 2026-08-12 (worktree/branch consolidation closeout — CURSOR)
 Goal: Safe consolidate — classify → land/park unique → delete obsolete; no blind merge; no deploy.
 Inspected: post-#335 main `f814cfe7`; worktree list; remotes; open Drafts #336–#339 + Dependabot.
