@@ -14,6 +14,7 @@ Usage:
 
 Exit 0 = clean · Exit 1 = findings present.
 """
+
 from __future__ import annotations
 
 import re
@@ -25,36 +26,83 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Patterns for common security misconfigurations
 MISCONFIG_PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("CSRF disabled / session without CSRF",
-     re.compile(r"csrf_protect\s*=\s*False|CSRFProtect\s*\(.*disabled|session\s*\.\s*csrf")),
-    ("CORS allow-all origin",
-     re.compile(r"allow_origins\s*=\s*\[?\s*['\"]\*['\"]\s*\]?|CORS\(.*['\"]\*['\"]")),
-    ("unsafe eval / exec",
-     re.compile(r"\beval\s*\(|\bexec\s*\(")),
-    ("hardcoded SQL string formatting",
-     re.compile(r"f['\"]\s*SELECT\s+.*\{.*\}|f['\"]\s*INSERT\s+.*\{.*\}|f['\"]\s*DELETE\s+.*\{.*\}|f['\"]\s*UPDATE\s+.*\{.*\}")),
-    ("raw SQL without parameterization",
-     re.compile(r"\.execute\s*\(\s*['\"]\s*(SELECT|INSERT|UPDATE|DELETE)")),
-    ("pickle / yaml.load without safe loader",
-     re.compile(r"pickle\.loads?\s*\(|yaml\.load\s*\(|yaml\.unsafe_load")),
-    ("debug mode enabled",
-     re.compile(r"DEBUG\s*=\s*True|debug\s*=\s*True")),
-    ("sensitive data in URL",
-     re.compile(r"https?://[^\s'\"]+\?(?:[^&]*password|[^&]*secret|[^&]*token)"),
-     ),
+    (
+        "CSRF disabled / session without CSRF",
+        re.compile(r"csrf_protect\s*=\s*False|CSRFProtect\s*\(.*disabled|session\s*\.\s*csrf"),
+    ),
+    (
+        "CORS allow-all origin",
+        re.compile(r"allow_origins\s*=\s*\[?\s*['\"]\*['\"]\s*\]?|CORS\(.*['\"]\*['\"]"),
+    ),
+    ("unsafe eval / exec", re.compile(r"\beval\s*\(|\bexec\s*\(")),
+    (
+        "hardcoded SQL string formatting",
+        re.compile(
+            r"f['\"]\s*SELECT\s+.*\{.*\}|f['\"]\s*INSERT\s+.*\{.*\}|f['\"]\s*DELETE\s+.*\{.*\}|f['\"]\s*UPDATE\s+.*\{.*\}"
+        ),
+    ),
+    (
+        "raw SQL without parameterization",
+        re.compile(r"\.execute\s*\(\s*['\"]\s*(SELECT|INSERT|UPDATE|DELETE)"),
+    ),
+    (
+        "pickle / yaml.load without safe loader",
+        re.compile(r"pickle\.loads?\s*\(|yaml\.load\s*\(|yaml\.unsafe_load"),
+    ),
+    ("debug mode enabled", re.compile(r"DEBUG\s*=\s*True|debug\s*=\s*True")),
+    (
+        "sensitive data in URL",
+        re.compile(r"https?://[^\s'\"]+\?(?:[^&]*password|[^&]*secret|[^&]*token)"),
+    ),
 ]
 
 # Context patterns that indicate a false positive (checked on the same line)
 FALSE_POSITIVE_CONTEXTS: list[tuple[str, re.Pattern]] = [
-    ("Redis Lua eval", re.compile(r"client\.eval\s*\(|redis\.eval\s*\(|\.eval\s*\(\s*['\"][a-zA-Z_]")),
+    (
+        "Redis Lua eval",
+        re.compile(r"client\.eval\s*\(|redis\.eval\s*\(|\.eval\s*\(\s*['\"][a-zA-Z_]"),
+    ),
     ("parameterized SQL", re.compile(r"\.execute\s*\(\s*['\"].*['\"],\s*\(")),
     ("health check SQL", re.compile(r"SELECT\s+1\s*['\"]\s*\)")),
     ("comment-only reference", re.compile(r"#\s*.*eval|#\s*.*exec")),
 ]
 
-SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "data", "dist", "build", ".pytest_cache", "frontend", "monitoring"}
-SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot",
-            ".pdf", ".mp3", ".mp4", ".wav", ".zip", ".gz", ".db", ".pyc", ".lock", ".idx", ".pack"}
+SKIP_DIRS = {
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "data",
+    "dist",
+    "build",
+    ".pytest_cache",
+    "frontend",
+    "monitoring",
+}
+SKIP_EXT = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".pdf",
+    ".mp3",
+    ".mp4",
+    ".wav",
+    ".zip",
+    ".gz",
+    ".db",
+    ".pyc",
+    ".lock",
+    ".idx",
+    ".pack",
+}
 SKIP_NAMES = {"security_scan.py", "check_secrets.py"}
 
 
@@ -69,8 +117,14 @@ def should_scan(rel: str) -> bool:
 
 def all_py_files() -> list[str]:
     try:
-        r = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, timeout=60)
-        return [l.strip() for l in r.stdout.splitlines() if l.strip().endswith(".py") and should_scan(l.strip())]
+        r = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, timeout=60
+        )
+        return [
+            l.strip()
+            for l in r.stdout.splitlines()
+            if l.strip().endswith(".py") and should_scan(l.strip())
+        ]
     except Exception:
         return [str(p.relative_to(ROOT)) for p in ROOT.rglob("app/**/*.py")]
 
@@ -109,8 +163,18 @@ def check_pip_audit() -> list[str]:
     findings: list[str] = []
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pip_audit", "--requirement", str(ROOT / "requirements.txt"), "--format", "json"],
-            capture_output=True, text=True, timeout=120
+            [
+                sys.executable,
+                "-m",
+                "pip_audit",
+                "--requirement",
+                str(ROOT / "requirements.txt"),
+                "--format",
+                "json",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         if result.returncode != 0 and result.stdout:
             findings.append(f"[pip-audit] vulnerabilities found: {result.stdout[:500]}")
@@ -126,7 +190,9 @@ def check_secrets() -> list[str]:
     try:
         result = subprocess.run(
             [sys.executable, str(ROOT / "scripts" / "check_secrets.py"), "--all"],
-            capture_output=True, text=True, timeout=60
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
         if result.returncode != 0:
             for line in result.stdout.splitlines():

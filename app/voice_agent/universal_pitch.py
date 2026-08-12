@@ -7,6 +7,7 @@ Consumers: web_call (test) · vobiz_stream (real) · phone_stream · platform_pi
 niche_scripts ai_marketing · telecaller_brain opening_line · latency pre-synth.
 """
 
+
 def _marketing_start_price() -> str:
     try:
         from app.marketing.packages import get_public_packages

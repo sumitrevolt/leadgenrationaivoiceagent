@@ -2,6 +2,7 @@
 Run: docker exec leadgen_app python scripts/generate_seo_pages.py
 Generates ~30+ pages covering key lead-gen niches and cities for organic inbound.
 """
+
 import asyncio
 import os
 import sys
@@ -13,16 +14,43 @@ async def main():
     from app.marketing import seo_pages
 
     NICHES = [
-        "solar", "real_estate", "gym_fitness", "restaurant", "clinic_doctor",
-        "salon_spa", "coaching_institute", "interior_design", "ca_accountant",
-        "car_dealer", "photographer", "event_management", "pest_control",
-        "packers_movers", "insurance_agent", "driving_school", "grocery_store",
-        "dental_clinic", "home_services", "travel_agent",
+        "solar",
+        "real_estate",
+        "gym_fitness",
+        "restaurant",
+        "clinic_doctor",
+        "salon_spa",
+        "coaching_institute",
+        "interior_design",
+        "ca_accountant",
+        "car_dealer",
+        "photographer",
+        "event_management",
+        "pest_control",
+        "packers_movers",
+        "insurance_agent",
+        "driving_school",
+        "grocery_store",
+        "dental_clinic",
+        "home_services",
+        "travel_agent",
     ]
     CITIES = [
-        "Pune", "Mumbai", "Nagpur", "Nashik", "Aurangabad",
-        "Delhi", "Bangalore", "Hyderabad", "Ahmedabad", "Jaipur",
-        "Indore", "Surat", "Lucknow", "Bhopal", "Kolhapur",
+        "Pune",
+        "Mumbai",
+        "Nagpur",
+        "Nashik",
+        "Aurangabad",
+        "Delhi",
+        "Bangalore",
+        "Hyderabad",
+        "Ahmedabad",
+        "Jaipur",
+        "Indore",
+        "Surat",
+        "Lucknow",
+        "Bhopal",
+        "Kolhapur",
     ]
 
     # Check existing

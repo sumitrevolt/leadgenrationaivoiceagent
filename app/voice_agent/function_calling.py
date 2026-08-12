@@ -543,8 +543,14 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                         "type": "string",
                         "description": "New start time, ISO 8601 e.g. '2026-06-30T15:00'.",
                     },
-                    "phone": {"type": "string", "description": "Lead's phone (to find their booking)."},
-                    "booking_id": {"type": "string", "description": "Existing booking id (optional)."},
+                    "phone": {
+                        "type": "string",
+                        "description": "Lead's phone (to find their booking).",
+                    },
+                    "booking_id": {
+                        "type": "string",
+                        "description": "Existing booking id (optional).",
+                    },
                     "name": {"type": "string", "description": "Lead's name (optional)."},
                 },
                 "required": ["new_when_iso"],

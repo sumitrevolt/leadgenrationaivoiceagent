@@ -28,7 +28,14 @@ DEFAULT_LEASE_SECONDS = 600
 _HEARTBEAT_STATES = (TaskState.CLAIMED.value, TaskState.RUNNING.value)
 
 
-async def atomic_claim(db, task_id: str, worker: str, *, lease_seconds: int = DEFAULT_LEASE_SECONDS, now: datetime | None = None) -> bool:
+async def atomic_claim(
+    db,
+    task_id: str,
+    worker: str,
+    *,
+    lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    now: datetime | None = None,
+) -> bool:
     """Claim one QUEUED task. Returns True only for the single winning worker."""
     from app.models.dev_task import DevTask
 
@@ -47,7 +54,14 @@ async def atomic_claim(db, task_id: str, worker: str, *, lease_seconds: int = DE
     return bool(result.rowcount or 0)
 
 
-async def atomic_heartbeat(db, task_id: str, worker: str, *, lease_seconds: int = DEFAULT_LEASE_SECONDS, now: datetime | None = None) -> bool:
+async def atomic_heartbeat(
+    db,
+    task_id: str,
+    worker: str,
+    *,
+    lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    now: datetime | None = None,
+) -> bool:
     """Extend a lease the caller owns. Returns False on steal attempts."""
     from app.models.dev_task import DevTask
 
@@ -65,7 +79,14 @@ async def atomic_heartbeat(db, task_id: str, worker: str, *, lease_seconds: int 
     return bool(result.rowcount or 0)
 
 
-async def claim_next(db, worker: str, *, lease_seconds: int = DEFAULT_LEASE_SECONDS, scan_limit: int = 10, now: datetime | None = None) -> dict[str, Any] | None:
+async def claim_next(
+    db,
+    worker: str,
+    *,
+    lease_seconds: int = DEFAULT_LEASE_SECONDS,
+    scan_limit: int = 10,
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
     """Atomically claim the highest-priority QUEUED task; None when idle.
 
     Candidates are scanned oldest-first within descending priority; each

@@ -35,8 +35,10 @@ def collect_stats(client: dict[str, Any], month: str = "") -> dict[str, Any]:
     month = month or _month()
     cid = str(client.get("id") or "")
     slug = str(client.get("slug") or "")
+
     def in_month(r: dict[str, Any], k: str = "ts") -> bool:
         return str(r.get(k) or r.get("created_at") or "").startswith(month)
+
     stats = {
         "month": month,
         "inquiries": _count_jsonl(
@@ -120,11 +122,7 @@ def collect_delivery(client_id: str, month: str = "") -> dict[str, Any]:
         d["approvals_pending"] = len(pending)
     except Exception:
         pass
-    gbp_bit = (
-        f" GBP audit score {d['gbp_score']}/100."
-        if d.get("gbp_score") is not None
-        else ""
-    )
+    gbp_bit = f" GBP audit score {d['gbp_score']}/100." if d.get("gbp_score") is not None else ""
     appr_bit = (
         f" {d['approvals_pending']} posts approval wait me."
         if int(d.get("approvals_pending") or 0) > 0
@@ -148,15 +146,23 @@ def _next_actions(delivery: dict[str, Any], client: dict[str, Any]) -> list[str]
         approved = int(delivery.get("posts_approved", 0) or 0)
         pending = max(0, created - approved)
         socials = client.get("socials") if isinstance(client.get("socials"), dict) else {}
-        has_channel = any(str(socials.get(k) or "").strip() for k in ("instagram", "facebook", "gbp"))
+        has_channel = any(
+            str(socials.get(k) or "").strip() for k in ("instagram", "facebook", "gbp")
+        )
         if failed > 0:
             actions.append("Kuch posts publish nahi ho paaye - team ise theek kar rahi hai.")
         if pending > 0:
-            actions.append(f"{pending} post approval ke intezaar me - approve karein taaki publish ho saken.")
+            actions.append(
+                f"{pending} post approval ke intezaar me - approve karein taaki publish ho saken."
+            )
         if not has_channel:
-            actions.append("Instagram / Google Business profile link karein taaki publishing smooth ho.")
+            actions.append(
+                "Instagram / Google Business profile link karein taaki publishing smooth ho."
+            )
         if not actions:
-            actions.append("Sab set hai - agle mahine festival posts aur review replies par focus rahega.")
+            actions.append(
+                "Sab set hai - agle mahine festival posts aur review replies par focus rahega."
+            )
     except Exception as exc:
         logger.warning(f"next_actions failed: {exc}")
     return actions[:4]
@@ -193,9 +199,11 @@ def _render_html(
         ("Follow-ups bheje", delivery.get("followups_sent", 0)),
         (
             "GBP audit score",
-            f"{delivery.get('gbp_score')}/100"
-            if delivery.get("gbp_score") is not None
-            else "— (Reports → GBP Audit)",
+            (
+                f"{delivery.get('gbp_score')}/100"
+                if delivery.get("gbp_score") is not None
+                else "— (Reports → GBP Audit)"
+            ),
         ),
         ("Pending approvals", delivery.get("approvals_pending", 0)),
     ]
@@ -313,9 +321,11 @@ async def run_monthly(send: bool | None = None) -> dict[str, Any]:
                     client_id=cid,
                     job_type="client_report",
                     status="success" if _ok else "failed",
-                    output_summary=(("report: " + _path) if _path else "report generated")
-                    if _ok
-                    else str(r.get("error") or "report failed")[:200],
+                    output_summary=(
+                        (("report: " + _path) if _path else "report generated")
+                        if _ok
+                        else str(r.get("error") or "report failed")[:200]
+                    ),
                     error_message="" if _ok else str(r.get("error") or "")[:500],
                     evidence_url=_path if _ok else "",  # ADR-068: report file = proof artifact
                     triggered_by="scheduler",

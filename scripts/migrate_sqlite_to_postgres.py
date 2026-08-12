@@ -30,6 +30,7 @@ USAGE
   # Re-run after a failed attempt:
   python scripts/migrate_sqlite_to_postgres.py --wipe
 """
+
 from __future__ import annotations
 
 import argparse
@@ -94,7 +95,11 @@ def _coerce(value, col_type):
             return None
         try:
             dt = datetime.fromisoformat(raw.replace("Z", "+00:00").replace(" ", "T", 1))
-            return dt.date() if isinstance(col_type, Date) and not isinstance(col_type, DateTime) else dt
+            return (
+                dt.date()
+                if isinstance(col_type, Date) and not isinstance(col_type, DateTime)
+                else dt
+            )
         except ValueError:
             return raw  # let the driver try; surfaces as an error if truly bad
     return value
@@ -146,8 +151,7 @@ def migrate(sqlite_url: str, pg_url: str, *, wipe: bool, force: bool, batch: int
             if src_rows:
                 coltypes = {c.name: c.type for c in table.columns}
                 clean = [
-                    {k: _coerce(v, coltypes.get(k)) for k, v in row.items()}
-                    for row in src_rows
+                    {k: _coerce(v, coltypes.get(k)) for k, v in row.items()} for row in src_rows
                 ]
                 for i in range(0, len(clean), batch):
                     dconn.execute(table.insert(), clean[i : i + batch])
@@ -178,7 +182,9 @@ def migrate(sqlite_url: str, pg_url: str, *, wipe: bool, force: bool, batch: int
 
 
 def main() -> int:
-    default_pg = os.environ.get("DATABASE_URL", "postgresql+psycopg2://leadgen:leadgen@localhost:5432/leadgen")
+    default_pg = os.environ.get(
+        "DATABASE_URL", "postgresql+psycopg2://leadgen:leadgen@localhost:5432/leadgen"
+    )
     ap = argparse.ArgumentParser(description="Safe SQLite -> Postgres data migration")
     ap.add_argument("--sqlite", default="sqlite:///./leadgen.db", help="source SQLite URL")
     ap.add_argument("--postgres", default=default_pg, help="target Postgres URL (sync or async)")

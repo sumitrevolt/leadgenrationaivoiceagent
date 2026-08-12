@@ -5,6 +5,7 @@ THEIR client_id, using ONLY CUSTOMER_SAFE_ACTIONS. Hard tenant isolation: every
 op owner-checks; cross-tenant access -> 404 (no existence leak). Double-gated
 FLOW_RUNNER + FLOW_RUNNER_CUSTOMER (default OFF). Never-raise.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,12 +22,15 @@ _MAX_CUSTOMER_FLOWS = 20  # per-client cap (monkeypatchable)
 
 
 def _on() -> bool:
-    return (os.getenv("FLOW_RUNNER", "0") in ("1", "true", "True")
-            and os.getenv("FLOW_RUNNER_CUSTOMER", "0") in ("1", "true", "True"))
+    return os.getenv("FLOW_RUNNER", "0") in ("1", "true", "True") and os.getenv(
+        "FLOW_RUNNER_CUSTOMER", "0"
+    ) in ("1", "true", "True")
 
 
 def _gate():
-    return None if _on() else JSONResponse({"error": "FLOW_RUNNER_CUSTOMER disabled"}, status_code=503)
+    return (
+        None if _on() else JSONResponse({"error": "FLOW_RUNNER_CUSTOMER disabled"}, status_code=503)
+    )
 
 
 def _not_found():
@@ -111,7 +115,13 @@ async def cf_save(body: CustomerFlowIn, cid: str = Depends(require_customer)):
     if not saved.get("ok"):
         return saved
     _proc, errs, kind = flow_compiler.compile_flow(saved["flow"], customer_safe=True)
-    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs, "kind": kind}
+    return {
+        "ok": True,
+        "flow": saved["flow"],
+        "compile_errors": errs,
+        "runnable": not errs,
+        "kind": kind,
+    }
 
 
 @router.get("/flow/{flow_id}")
@@ -125,8 +135,13 @@ async def cf_get(flow_id: str, cid: str = Depends(require_customer)):
         return _not_found()
     fl = flow_store.get_flow(flow_id)
     proc, errs, kind = flow_compiler.compile_flow(fl, customer_safe=True)
-    return {"flow": fl, "compile_errors": errs, "kind": kind, "runnable": not errs,
-            "steps": (proc or {}).get("steps", [])}
+    return {
+        "flow": fl,
+        "compile_errors": errs,
+        "kind": kind,
+        "runnable": not errs,
+        "steps": (proc or {}).get("steps", []),
+    }
 
 
 @router.get("/flow/{flow_id}/versions")
@@ -158,7 +173,13 @@ async def cf_rollback(flow_id: str, body: RollbackIn, cid: str = Depends(require
     if not saved.get("ok"):
         return saved
     _proc, errs, kind = flow_compiler.compile_flow(saved["flow"], customer_safe=True)
-    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs, "kind": kind}
+    return {
+        "ok": True,
+        "flow": saved["flow"],
+        "compile_errors": errs,
+        "runnable": not errs,
+        "kind": kind,
+    }
 
 
 @router.delete("/flow/{flow_id}")
@@ -184,7 +205,9 @@ async def cf_run(flow_id: str, cid: str = Depends(require_customer)):
     if not flow_store.owned_by(flow_id, cid):
         return _not_found()
     # defense-in-depth: re-validate customer_safe before running
-    _proc, errs, _kind = flow_compiler.compile_flow(flow_store.get_flow(flow_id), customer_safe=True)
+    _proc, errs, _kind = flow_compiler.compile_flow(
+        flow_store.get_flow(flow_id), customer_safe=True
+    )
     if errs:
         return {"ok": False, "error": "not runnable", "compile_errors": errs}
     # Hydrate the calling tenant's client context into run inputs — executors read
@@ -253,7 +276,9 @@ async def cf_approve(run_id: str, body: ApproveIn, cid: str = Depends(require_cu
 
     if _run_owned(run_id, cid) is None:
         return _not_found()
-    r = flow_dispatch.approve(run_id, approved_by=f"customer:{cid}", note=body.note, node_id=body.node_id)
+    r = flow_dispatch.approve(
+        run_id, approved_by=f"customer:{cid}", note=body.note, node_id=body.node_id
+    )
     if r.get("ok"):
         try:
             from app.tasks.staff_jobs import process_tick
@@ -273,7 +298,9 @@ async def cf_reject(run_id: str, body: ApproveIn, cid: str = Depends(require_cus
 
     if _run_owned(run_id, cid) is None:
         return _not_found()
-    return flow_dispatch.reject(run_id, by=f"customer:{cid}", reason=body.note, node_id=body.node_id)
+    return flow_dispatch.reject(
+        run_id, by=f"customer:{cid}", reason=body.note, node_id=body.node_id
+    )
 
 
 __all__ = ["router"]

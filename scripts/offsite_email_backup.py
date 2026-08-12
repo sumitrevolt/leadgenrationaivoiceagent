@@ -11,6 +11,7 @@ HOST pe chalao (stdlib-only, no deps):  python3 scripts/offsite_email_backup.py
 Cron (suggested):  0 23 * * *  → 04:30 IST daily (pg_backup 02:30 ke baad).
 Never-raise: har failure log-line ke saath exit 0 (cron spam nahi).
 """
+
 from __future__ import annotations
 
 import glob
@@ -29,7 +30,15 @@ ENV_FILE = os.path.join(BASE, ".env")
 BACKUP_GLOB = os.path.join(BASE, "backups", "*.gz")
 DATA_DIR = os.path.join(BASE, "data")
 # media/cache subdirs — backup me nahi chahiye (regenerable, size bloat)
-EXCLUDE_DIRS = {"ai_images", "reels", "jingles", "bg_removed", "vectorstore", "conversations", "logos"}
+EXCLUDE_DIRS = {
+    "ai_images",
+    "reels",
+    "jingles",
+    "bg_removed",
+    "vectorstore",
+    "conversations",
+    "logos",
+}
 MAX_ATTACH = 18 * 1024 * 1024  # 18MB (mail server 25MB limit se neeche)
 
 
@@ -106,7 +115,9 @@ def main() -> int:
     msg = EmailMessage()
     msg["From"] = user
     msg["To"] = to
-    msg["Subject"] = f"[leadsgenai OFFSITE BACKUP] {today} — db {len(dump_bytes)//1024}KB + data {len(data_bytes)//1024}KB"
+    msg["Subject"] = (
+        f"[leadsgenai OFFSITE BACKUP] {today} — db {len(dump_bytes)//1024}KB + data {len(data_bytes)//1024}KB"
+    )
     parts = []
     total = 0
     if dump_bytes and total + len(dump_bytes) <= MAX_ATTACH:
@@ -128,7 +139,9 @@ def main() -> int:
 
     for attempt in (1, 2):
         try:
-            with smtplib.SMTP_SSL(host, port, context=ssl.create_default_context(), timeout=30) as s:
+            with smtplib.SMTP_SSL(
+                host, port, context=ssl.create_default_context(), timeout=30
+            ) as s:
                 s.login(user, pwd)
                 s.send_message(msg)
             log(f"SENT to {to} — attachments={[p[0] for p in parts]} total={total//1024}KB")

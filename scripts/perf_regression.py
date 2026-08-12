@@ -34,7 +34,6 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Config (overridable via env)
 # ---------------------------------------------------------------------------
@@ -45,21 +44,21 @@ BASELINE_PATH: Path = Path(os.environ.get("PERF_BASELINE", "data/perf_baseline.j
 REQUEST_TIMEOUT: int = 15  # seconds per request
 
 # Endpoints to benchmark — (label, path) tuples
-ENDPOINTS: List[Tuple[str, str]] = [
-    ("health",        "/health"),
-    ("niches",        "/api/data/niches"),
-    ("audit_page",    "/audit"),
-    ("home",          "/"),
-    ("blog",          "/blog"),
-    ("pricing",       "/pricing"),
-    ("sitemap",       "/sitemap.xml"),
+ENDPOINTS: list[tuple[str, str]] = [
+    ("health", "/health"),
+    ("niches", "/api/data/niches"),
+    ("audit_page", "/audit"),
+    ("home", "/"),
+    ("blog", "/blog"),
+    ("pricing", "/pricing"),
+    ("sitemap", "/sitemap.xml"),
 ]
 
 
 # ---------------------------------------------------------------------------
 # Latency helpers
 # ---------------------------------------------------------------------------
-def _percentile(values: List[float], pct: float) -> float:
+def _percentile(values: list[float], pct: float) -> float:
     """Sorted percentile (nearest rank)."""
     if not values:
         return 0.0
@@ -68,9 +67,9 @@ def _percentile(values: List[float], pct: float) -> float:
     return sv[idx]
 
 
-def measure_endpoint(label: str, url: str, n: int) -> Dict:
+def measure_endpoint(label: str, url: str, n: int) -> dict:
     """Hit `url` n times, return latency stats dict. Never raises."""
-    durations: List[float] = []
+    durations: list[float] = []
     errors: int = 0
 
     for i in range(n):
@@ -80,7 +79,7 @@ def measure_endpoint(label: str, url: str, n: int) -> Dict:
                 url,
                 headers={
                     "User-Agent": "LeadGenAI-PerfRegression/1.0",
-                    "Accept":     "text/html,application/json",
+                    "Accept": "text/html,application/json",
                 },
             )
             with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
@@ -109,23 +108,23 @@ def measure_endpoint(label: str, url: str, n: int) -> Dict:
     avg = sum(durations) / len(durations) if durations else 0.0
 
     return {
-        "label":     label,
-        "url":       url,
-        "n":         n,
-        "errors":    errors,
-        "p50_ms":    round(p50, 1),
-        "p95_ms":    round(p95, 1),
-        "p99_ms":    round(p99, 1),
-        "avg_ms":    round(avg, 1),
-        "min_ms":    round(min(durations), 1) if durations else 0.0,
-        "max_ms":    round(max(durations), 1) if durations else 0.0,
+        "label": label,
+        "url": url,
+        "n": n,
+        "errors": errors,
+        "p50_ms": round(p50, 1),
+        "p95_ms": round(p95, 1),
+        "p99_ms": round(p99, 1),
+        "avg_ms": round(avg, 1),
+        "min_ms": round(min(durations), 1) if durations else 0.0,
+        "max_ms": round(max(durations), 1) if durations else 0.0,
     }
 
 
 # ---------------------------------------------------------------------------
 # Baseline IO
 # ---------------------------------------------------------------------------
-def load_baseline(path: Path) -> Optional[Dict]:
+def load_baseline(path: Path) -> dict | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -135,7 +134,7 @@ def load_baseline(path: Path) -> Optional[Dict]:
         return None
 
 
-def save_baseline(path: Path, data: Dict) -> None:
+def save_baseline(path: Path, data: dict) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -147,9 +146,9 @@ def save_baseline(path: Path, data: Dict) -> None:
 # ---------------------------------------------------------------------------
 # Comparison + reporting
 # ---------------------------------------------------------------------------
-def compare(current: Dict, baseline: Dict, threshold: float) -> Tuple[bool, List[str]]:
+def compare(current: dict, baseline: dict, threshold: float) -> tuple[bool, list[str]]:
     """Return (passed, list_of_regression_messages)."""
-    regressions: List[str] = []
+    regressions: list[str] = []
 
     for ep in current.get("endpoints", []):
         label = ep["label"]
@@ -197,7 +196,7 @@ def main() -> int:
     print("=" * 60)
 
     # --- Measure current latencies ---
-    results: List[Dict] = []
+    results: list[dict] = []
     for label, path in ENDPOINTS:
         url = f"{BASE_URL}{path}"
         print(f"\nMeasuring [{label}] {url} (n={N})...")
@@ -211,9 +210,9 @@ def main() -> int:
 
     current_snapshot = {
         "recorded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "base_url":    BASE_URL,
-        "n":           N,
-        "endpoints":   results,
+        "base_url": BASE_URL,
+        "n": N,
+        "endpoints": results,
     }
 
     # --- Load or create baseline ---
@@ -240,9 +239,7 @@ def main() -> int:
         print("RESULT: FAIL — p95 regression detected:")
         for r in regressions:
             print(f"  ✗ {r}")
-        print(
-            f"\nBaseline update karna ho to: rm {BASELINE_PATH} aur script dobara chalao."
-        )
+        print(f"\nBaseline update karna ho to: rm {BASELINE_PATH} aur script dobara chalao.")
     print("=" * 60)
 
     # Always write latest run alongside baseline for history

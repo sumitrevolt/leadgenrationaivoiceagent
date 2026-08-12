@@ -12,6 +12,7 @@ run it as-is — the default list already includes them) to trim any stale
 backlog first. Ongoing protection is also wired into the Saturday hygiene
 job (app/platform/scheduled_ops.py::run_saturday_hygiene).
 """
+
 import os
 import sys
 from pathlib import Path
@@ -21,14 +22,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 MIN = int(os.environ.get("CELERY_TRIM_MIN_DEPTH", "800") or 800)
 DEFAULT_QUEUES = "celery,calling,scraping,reporting,sync,training,heavy"
 QUEUES = [
-    q.strip()
-    for q in os.environ.get("CELERY_TRIM_QUEUES", DEFAULT_QUEUES).split(",")
-    if q.strip()
+    q.strip() for q in os.environ.get("CELERY_TRIM_QUEUES", DEFAULT_QUEUES).split(",") if q.strip()
 ]
 
 
 def main() -> int:
     import redis
+
     from app.config import settings
 
     r = redis.Redis.from_url(str(settings.redis_url), socket_timeout=5)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Deep wiring audit — onclick handlers + api()/fetch paths vs FastAPI routes."""
+
 from __future__ import annotations
 
 import pathlib

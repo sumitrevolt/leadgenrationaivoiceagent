@@ -15,6 +15,7 @@ Exit code 0 = PASS, 1 = issues found. Report JSON bhi print hota hai.
 
 Note: canonical QA tester scripts/agent_tester.py hai; yeh ek lightweight variant.
 """
+
 import asyncio
 import json
 import sys
@@ -84,11 +85,15 @@ async def run() -> int:
                     # Sentence-streamed replies use multiple bot frames for one
                     # spoken answer. Count only the first chunk as a logical reply;
                     # chunk_total remains available for protocol-level checks.
-                    latency = first_bot_latency if first_bot_latency is not None else time.monotonic() - t_turn
+                    latency = (
+                        first_bot_latency
+                        if first_bot_latency is not None
+                        else time.monotonic() - t_turn
+                    )
                     bot = [
-                        m for m in msgs
-                        if m.get("type") == "bot"
-                        and (m.get("chunk_index") in (None, 0))
+                        m
+                        for m in msgs
+                        if m.get("type") == "bot" and (m.get("chunk_index") in (None, 0))
                     ]
 
                     if len(bot) == 0:

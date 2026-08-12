@@ -396,7 +396,7 @@ class AssessmentReportPrinter:
             lines.append("## Backlog")
             lines.append("")
             if backlog:
-                headers = [k for k in backlog[0].keys()]
+                headers = list(backlog[0].keys())
                 lines.append("| " + " | ".join(headers) + " |")
                 lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
                 for item in backlog:

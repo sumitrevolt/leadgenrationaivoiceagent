@@ -329,8 +329,12 @@ def _no_refusal(run: EvalRun) -> bool:
 
 def _polite_no_next(bot_text: str, turn: int) -> str:
     # Escalating soft-no's — a good bot stops pitching after the 2nd.
-    seq = ["Haan boliye?", "Achha... dekhte hain baad me.", "Abhi nahi, time nahi hai.",
-           "Nahi bhai, zarurat nahi hai abhi."]
+    seq = [
+        "Haan boliye?",
+        "Achha... dekhte hain baad me.",
+        "Abhi nahi, time nahi hai.",
+        "Nahi bhai, zarurat nahi hai abhi.",
+    ]
     return seq[turn] if turn < len(seq) else ""
 
 
@@ -403,8 +407,7 @@ EXTENDED_PERSONAS: list[Persona] = [
         expected_outcome="qualified",
         success_criteria=lambda run: (
             not any(
-                w in _bot_turns_text(run)
-                for w in ("bekaar", "ghatiya", "faltu", "worst", "bakwas")
+                w in _bot_turns_text(run) for w in ("bekaar", "ghatiya", "faltu", "worst", "bakwas")
             )
             and any("?" in t["content"] for t in run.transcript if t["role"] == "assistant"),
             "incumbent ko gaali nahi (agree-explore-reframe), aur ek sawal se explore",

@@ -34,10 +34,18 @@ async def office_snapshot(current_user=Depends(require_admin)):
     except Exception as e:  # pragma: no cover — belt-and-suspenders, builder never raises
         from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
 
-        return {"ok": False, "schema_version": UNITY_OFFICE_SCHEMA_VERSION, "error": str(e),
-                "rooms": [], "agents": [], "metrics": {},
-                "pipeline": [], "approvals": {"drafts": [], "counts": {}},
-                "system_health": {}, "next_best_actions": []}
+        return {
+            "ok": False,
+            "schema_version": UNITY_OFFICE_SCHEMA_VERSION,
+            "error": str(e),
+            "rooms": [],
+            "agents": [],
+            "metrics": {},
+            "pipeline": [],
+            "approvals": {"drafts": [], "counts": {}},
+            "system_health": {},
+            "next_best_actions": [],
+        }
 
 
 @router.post("/boss-review")
@@ -77,7 +85,10 @@ async def office_pause_agent(member: str, current_user=Depends(require_admin)):
     from app.platform import agent_controls, office_hq
 
     if member not in office_hq.RUNNABLE_MEMBERS:
-        return {"ok": False, "error": f"pause has no real effect on '{member}' (no manual-run wiring) — refused"}
+        return {
+            "ok": False,
+            "error": f"pause has no real effect on '{member}' (no manual-run wiring) — refused",
+        }
     result = agent_controls.pause(member, by=getattr(current_user, "email", "admin") or "admin")
     await office_hq.invalidate_snapshot_cache()
     return result
@@ -155,19 +166,27 @@ class MoveItemIn(BaseModel):
 
 
 @router.post("/pipeline/item/{item_id}/assign")
-async def office_assign_owner(item_id: str, body: AssignOwnerIn, current_user=Depends(require_admin)):
+async def office_assign_owner(
+    item_id: str, body: AssignOwnerIn, current_user=Depends(require_admin)
+):
     from app.platform import office_hq
 
-    result = office_hq.assign_item_owner(item_id, body.agent_key, by=getattr(current_user, "email", "admin") or "admin")
+    result = office_hq.assign_item_owner(
+        item_id, body.agent_key, by=getattr(current_user, "email", "admin") or "admin"
+    )
     await office_hq.invalidate_snapshot_cache()
     return result
 
 
 @router.post("/pipeline/item/{item_id}/next-action")
-async def office_set_next_action(item_id: str, body: NextActionIn, current_user=Depends(require_admin)):
+async def office_set_next_action(
+    item_id: str, body: NextActionIn, current_user=Depends(require_admin)
+):
     from app.platform import office_hq
 
-    result = office_hq.set_item_next_action(item_id, body.note, by=getattr(current_user, "email", "admin") or "admin")
+    result = office_hq.set_item_next_action(
+        item_id, body.note, by=getattr(current_user, "email", "admin") or "admin"
+    )
     await office_hq.invalidate_snapshot_cache()
     return result
 
@@ -176,7 +195,9 @@ async def office_set_next_action(item_id: str, body: NextActionIn, current_user=
 async def office_resolve_stuck(item_id: str, current_user=Depends(require_admin)):
     from app.platform import office_hq
 
-    result = office_hq.resolve_item_stuck(item_id, by=getattr(current_user, "email", "admin") or "admin")
+    result = office_hq.resolve_item_stuck(
+        item_id, by=getattr(current_user, "email", "admin") or "admin"
+    )
     await office_hq.invalidate_snapshot_cache()
     return result
 
@@ -186,7 +207,10 @@ async def office_move_item(item_id: str, body: MoveItemIn, current_user=Depends(
     from app.platform import office_hq
 
     result = office_hq.move_item(
-        item_id, body.item_type, body.next_stage, by=getattr(current_user, "email", "admin") or "admin"
+        item_id,
+        body.item_type,
+        body.next_stage,
+        by=getattr(current_user, "email", "admin") or "admin",
     )
     await office_hq.invalidate_snapshot_cache()
     return result
@@ -212,7 +236,9 @@ class ImprovementCouncilIn(BaseModel):
 # multi-round LLM run) so the two features don't share one IP budget.
 # --------------------------------------------------------------------------- #
 @router.post("/improve", dependencies=[Depends(rate_limit("hqcouncil", 4, 120))])
-async def office_improvement_council(body: ImprovementCouncilIn, current_user=Depends(require_admin)):
+async def office_improvement_council(
+    body: ImprovementCouncilIn, current_user=Depends(require_admin)
+):
     """Team Improvement Council: {ok, topic, experts, contributions, solution,
     summary, score}. Never raises (degrades to ok:False / status:timeout)."""
     from app.platform import office_hq
@@ -244,7 +270,9 @@ async def office_briefing_audio(current_user=Depends(require_admin)):
     try:
         path = ob.audio_path_for_today()
         if not path:
-            return JSONResponse(status_code=404, content={"ok": False, "error": "audio not available"})
+            return JSONResponse(
+                status_code=404, content={"ok": False, "error": "audio not available"}
+            )
         return FileResponse(path, media_type="audio/mpeg", filename="briefing.mp3")
     except Exception as e:  # pragma: no cover
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
@@ -283,22 +311,24 @@ async def office_agent_os_status(current_user=Depends(require_admin)):
                 eligible += 1
             else:
                 forbidden += 1
-            agents.append({
-                "key": key,
-                "name": meta.get("name"),
-                "title": meta.get("title"),
-                "product": meta.get("product"),
-                "category": row.get("category"),
-                "omniroute_task": row.get("omniroute_task"),
-                "privacy_class": row.get("privacy_class"),
-                "omniroute_eligible": omni_ok,
-                "may_contact_customers": row.get("may_contact_customers"),
-                "requires_human_approval_before_publish": row.get(
-                    "requires_human_approval_before_publish"
-                ),
-                "auto_run_allowed": row.get("auto_run_allowed"),
-                "queue": row.get("queue"),
-            })
+            agents.append(
+                {
+                    "key": key,
+                    "name": meta.get("name"),
+                    "title": meta.get("title"),
+                    "product": meta.get("product"),
+                    "category": row.get("category"),
+                    "omniroute_task": row.get("omniroute_task"),
+                    "privacy_class": row.get("privacy_class"),
+                    "omniroute_eligible": omni_ok,
+                    "may_contact_customers": row.get("may_contact_customers"),
+                    "requires_human_approval_before_publish": row.get(
+                        "requires_human_approval_before_publish"
+                    ),
+                    "auto_run_allowed": row.get("auto_run_allowed"),
+                    "queue": row.get("queue"),
+                }
+            )
         base = os.getenv("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128/v1")
         key_set = bool(os.getenv("OMNIROUTE_API_KEY"))
         omni = {

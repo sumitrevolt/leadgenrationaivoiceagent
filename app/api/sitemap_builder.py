@@ -123,8 +123,14 @@ async def build_sitemap_xml(base: str) -> str:
 
     # 4) Niche × city SEO landing pages
     _SITEMAP_NICHES = [
-        "real-estate", "solar", "coaching", "dental",
-        "insurance", "home-loans", "interior-design", "restaurant",
+        "real-estate",
+        "solar",
+        "coaching",
+        "dental",
+        "insurance",
+        "home-loans",
+        "interior-design",
+        "restaurant",
     ]
     _SITEMAP_CITIES = ["india", "mumbai", "delhi", "bangalore"]
     for niche in _SITEMAP_NICHES:

@@ -7,6 +7,7 @@ agent can load ONLY task-relevant facts instead of re-reading the repo.
   python scripts/query_project_context.py "unity office authentication flow"
   python scripts/query_project_context.py "feature flags" --k 8
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,8 +50,10 @@ def main(argv=None) -> int:
 
     store = pc.load_store(Path(args.store))
     if not store:
-        print(f"[context] no store at {args.store} — run scripts/sync_project_context.py first "
-              f"(falling back to memory/INDEX.md for humans).")
+        print(
+            f"[context] no store at {args.store} — run scripts/sync_project_context.py first "
+            f"(falling back to memory/INDEX.md for humans)."
+        )
         return 1
 
     hits = query(store, " ".join(args.query), args.k)
@@ -58,7 +61,9 @@ def main(argv=None) -> int:
         print("[context] no matches.")
         return 0
     ids = {n["id"] for n in hits}
-    print(f"# context query: {' '.join(args.query)}  (HEAD {store['meta']['head_sha'][:8]}, top {len(hits)})\n")
+    print(
+        f"# context query: {' '.join(args.query)}  (HEAD {store['meta']['head_sha'][:8]}, top {len(hits)})\n"
+    )
     for n in hits:
         print(f"- [{n['type']}] {n['label']}  «{n['source']}»")
         if n["summary"]:

@@ -3,9 +3,9 @@ Email Integration
 Send notifications and reports via email
 """
 
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import re
 from typing import Any
 
 import aiosmtplib
@@ -166,6 +166,7 @@ class EmailSender:
             # stalled connection poora Celery task budget (600s) kha jaati thi =
             # email_outreach TimeLimitExceeded/OOM. Default 30s (EMAIL_SEND_TIMEOUT_S).
             import os as _os_smtp
+
             try:
                 _smtp_to = float(_os_smtp.getenv("EMAIL_SEND_TIMEOUT_S", "30") or "30")
             except Exception:

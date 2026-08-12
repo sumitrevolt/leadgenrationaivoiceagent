@@ -26,13 +26,19 @@ def _free_ai_breaker_state(provider: str) -> dict[str, Any]:
         streak = int(getattr(free_ai, "_LLM_TRIP_STREAK", {}).get(provider, 0) or 0)
         now = time.time()
         if until > now:
-            return {"state": "cooling", "cooldown_remaining_s": int(until - now), "trip_streak": streak}
+            return {
+                "state": "cooling",
+                "cooldown_remaining_s": int(until - now),
+                "trip_streak": streak,
+            }
         return {"state": "closed", "cooldown_remaining_s": 0, "trip_streak": streak}
     except Exception:
         return {"state": "unknown", "cooldown_remaining_s": None, "trip_streak": None}
 
 
-def provider_health_snapshot(breaker_lookup: Callable[[str], dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+def provider_health_snapshot(
+    breaker_lookup: Callable[[str], dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """One row per catalog provider: config, cost class, capabilities, breaker."""
     from app.dev_control.registry import MODEL_CATALOG
 
@@ -41,7 +47,10 @@ def provider_health_snapshot(breaker_lookup: Callable[[str], dict[str, Any]] | N
     rows: list[dict[str, Any]] = []
     for alias, meta in MODEL_CATALOG.items():
         breaker = lookup(alias) or {}
-        cost_free = float(meta.get("cost_input_usd_per_million", 0) or 0) == 0.0 and float(meta.get("cost_output_usd_per_million", 0) or 0) == 0.0
+        cost_free = (
+            float(meta.get("cost_input_usd_per_million", 0) or 0) == 0.0
+            and float(meta.get("cost_output_usd_per_million", 0) or 0) == 0.0
+        )
         rows.append(
             {
                 "provider_name": alias,
@@ -62,4 +71,8 @@ def provider_health_snapshot(breaker_lookup: Callable[[str], dict[str, Any]] | N
 def healthy_providers(snapshot: list[dict[str, Any]] | None = None) -> list[str]:
     """Providers that are configured and not currently cooling down."""
     rows = snapshot if snapshot is not None else provider_health_snapshot()
-    return [r["provider_name"] for r in rows if r.get("enabled") and r.get("circuit_breaker_state") != "cooling"]
+    return [
+        r["provider_name"]
+        for r in rows
+        if r.get("enabled") and r.get("circuit_breaker_state") != "cooling"
+    ]

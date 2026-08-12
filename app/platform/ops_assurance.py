@@ -33,6 +33,7 @@ is visible on the existing team activity feed with a real owner.
 
 Lane: GREEN (read-only detection + attribution). Autonomy: L0 (observe + report).
 """
+
 from __future__ import annotations
 
 import uuid

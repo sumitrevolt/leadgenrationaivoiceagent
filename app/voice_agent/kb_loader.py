@@ -81,7 +81,7 @@ def load_from_text(
 def load_niche_faqs(
     kb: KnowledgeBase,
     namespace: str = "_global",
-    only: "str | Iterable[str] | None" = None,
+    only: str | Iterable[str] | None = None,
 ) -> int:
     """
     app.niches.NICHES + common business FAQs se KB entries banao.
@@ -290,7 +290,9 @@ def load_from_website(
 
     # 3) chunk + add
     chunks = chunk_text(text)
-    added = kb.add_documents(chunks, source=f"website:{url}", namespace=namespace, replace_source=True)
+    added = kb.add_documents(
+        chunks, source=f"website:{url}", namespace=namespace, replace_source=True
+    )
     logger.info(f"KB '{namespace}': synced {added} chunk(s) from {url}.")
     return added
 

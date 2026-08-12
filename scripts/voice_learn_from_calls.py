@@ -12,6 +12,7 @@ Run (VPS container):
   docker exec leadgen_app python3 scripts/voice_learn_from_calls.py --call-limit 1 --platform
   docker exec leadgen_app python3 scripts/voice_learn_from_calls.py --learn-only
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,7 +25,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-_BASE = "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = (
+    "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.insert(0, _BASE)
 os.chdir(_BASE)
 

@@ -1,5 +1,6 @@
 """Extract inline <script> (non-src) from an HTML file and `node --check` it.
 Usage: python scripts/check_html_js.py frontend/analytics.html"""
+
 import os
 import re
 import subprocess

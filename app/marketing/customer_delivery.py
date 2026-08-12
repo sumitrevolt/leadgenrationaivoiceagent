@@ -20,6 +20,7 @@ Delivery state lives on the client record: `delivery_state` in
 {paid, assets_built, delivered, acknowledged} + `delivered_at`. "delivered" is set
 ONLY after an actual send (never a backend flag like setup_done).
 """
+
 from __future__ import annotations
 
 import json
@@ -182,9 +183,13 @@ def build_delivery_message(client: dict[str, Any]) -> str:
     ]
     if url:
         lines.append(f"👉 Aapki LIVE business site: {url}")
-        lines.append("(Ye link customers ko WhatsApp/Instagram pe share karein — enquiry seedhe aapke phone pe.)")
+        lines.append(
+            "(Ye link customers ko WhatsApp/Instagram pe share karein — enquiry seedhe aapke phone pe.)"
+        )
     lines.append("📸 Aapke liye ready-to-post content bhi ban chuka hai — har hafte naya milega.")
-    lines.append("Koi badlaav chahiye (services/area/photos)? Bas isi message ka reply kar dijiye — main update kar dungi. 🙏")
+    lines.append(
+        "Koi badlaav chahiye (services/area/photos)? Bas isi message ka reply kar dijiye — main update kar dungi. 🙏"
+    )
     return "\n".join(lines)
 
 
@@ -388,7 +393,9 @@ def build_weekly_digest_message(client: dict[str, Any], fresh_count: int) -> str
     else:
         lines.append("📸 Aapka content agent kaam kar raha hai — naye posts jald.")
     if url:
-        lines.append(f"👉 Aapki site: {url} — ise WhatsApp/Instagram status pe share karein, zyada enquiry milegi.")
+        lines.append(
+            f"👉 Aapki site: {url} — ise WhatsApp/Instagram status pe share karein, zyada enquiry milegi."
+        )
     lines.append("Koi badlaav ya nayi service add karni ho? Isi message ka reply kar dijiye. 🙏")
     return "\n".join(lines)
 
@@ -487,7 +494,12 @@ def record_site_view(client_id: str) -> None:
     try:
         os.makedirs("data", exist_ok=True)
         with open(_VIEWS_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"cid": cid, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}) + "\n")
+            f.write(
+                json.dumps(
+                    {"cid": cid, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+                )
+                + "\n"
+            )
     except Exception as exc:
         logger.debug("record_site_view err: %s", exc)
 
@@ -531,12 +543,16 @@ def build_monthly_receipt_message(client: dict[str, Any], views: int, content: i
     if content > 0:
         lines.append(f"📸 {content} naye content pieces bane.")
     if views == 0 and content == 0:
-        lines.append("Aapka marketing agent kaam kar raha hai — site share karte rahiye zyada reach ke liye.")
+        lines.append(
+            "Aapka marketing agent kaam kar raha hai — site share karte rahiye zyada reach ke liye."
+        )
     if url:
         lines.append(f"👉 {url} — WhatsApp status/Instagram pe share = zyada enquiry.")
     reward = os.environ.get("REFERRAL_REWARD", "").strip()
     if reward:
-        lines.append(f"🎁 Kisi dost (shop owner) ko refer karein — {reward}. Bas unka number reply me bhejein.")
+        lines.append(
+            f"🎁 Kisi dost (shop owner) ko refer karein — {reward}. Bas unka number reply me bhejein."
+        )
     return "\n".join(lines)
 
 
@@ -622,7 +638,9 @@ async def run_monthly_receipt_sweep(limit: int = 50) -> dict[str, Any]:
                 except Exception:
                     pass
             res["due"] += 1
-            msg = build_monthly_receipt_message(c, site_view_count(cid), count_fresh_content(cid, days=30))
+            msg = build_monthly_receipt_message(
+                c, site_view_count(cid), count_fresh_content(cid, days=30)
+            )
             try:
                 r = await sender.send_text_message(phone, msg)
                 if bool(r) and not (isinstance(r, dict) and r.get("error")):
@@ -659,7 +677,13 @@ async def run_testimonial_sweep(limit: int = 20, min_days: int = 5) -> dict[str,
         for c in clients_store.list_clients(status="active"):
             cid = str(c.get("id") or "")
             phone = str(c.get("phone") or "").strip()
-            if not is_paid_client(c) or not is_activated(c) or not cid or not phone or state.get(cid):
+            if (
+                not is_paid_client(c)
+                or not is_activated(c)
+                or not cid
+                or not phone
+                or state.get(cid)
+            ):
                 continue
             da = c.get("delivered_at")
             if da:
@@ -672,9 +696,11 @@ async def run_testimonial_sweep(limit: int = 20, min_days: int = 5) -> dict[str,
                 except Exception:
                     pass
             biz = str(c.get("business_name") or "aapka business")
-            msg = (f"Namaste! 🙏 {biz} ke saath aapka experience kaisa raha? Ek chhoti si line "
-                   "feedback dijiye — aur agar accha laga to hum aapki success doosron ko dikha sakein? "
-                   "(Aapki permission ke bina naam public nahi karenge.)")
+            msg = (
+                f"Namaste! 🙏 {biz} ke saath aapka experience kaisa raha? Ek chhoti si line "
+                "feedback dijiye — aur agar accha laga to hum aapki success doosron ko dikha sakein? "
+                "(Aapki permission ke bina naam public nahi karenge.)"
+            )
             try:
                 r = await sender.send_text_message(phone, msg)
                 if bool(r) and not (isinstance(r, dict) and r.get("error")):

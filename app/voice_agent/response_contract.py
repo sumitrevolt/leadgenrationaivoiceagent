@@ -3,6 +3,7 @@
 Model may emit JSON; we always return a safe spoken Hinglish line.
 Server decides hangup / tools — model only suggests.
 """
+
 from __future__ import annotations
 
 import json

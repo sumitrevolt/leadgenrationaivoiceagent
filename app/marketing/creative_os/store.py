@@ -123,7 +123,7 @@ def list_records(
         rows: list[dict[str, Any]] = []
         root = _root()
         if not os.path.isdir(root):
-            return {"ok": True, "items": [], "counts": {s: 0 for s in COCKPIT_STATUSES}}
+            return {"ok": True, "items": [], "counts": dict.fromkeys(COCKPIT_STATUSES, 0)}
         tenants = (
             [tenant_id]
             if tenant_id
@@ -162,7 +162,7 @@ def list_records(
                 except Exception:
                     continue
         rows.sort(key=lambda r: r.get("creative_id") or "", reverse=True)
-        counts = {s: 0 for s in COCKPIT_STATUSES}
+        counts = dict.fromkeys(COCKPIT_STATUSES, 0)
         for r in rows:
             st = str(r.get("status") or "")
             if st in counts:

@@ -51,6 +51,7 @@ def next_ready_at(job: dict[str, Any]) -> float:
         # timestamp() doesn't apply local-timezone offset (IST = +5:30 = 19800s
         # of drift that would make backoff misfire on non-UTC machines).
         import datetime as _dt
+
         try:
             t = _dt.datetime.fromisoformat(last)
         except Exception:
@@ -75,14 +76,14 @@ def is_ready_for_retry(job: dict[str, Any], now: float | None = None) -> bool:
 # In-process only (per-worker); prod-scale distributed limiter would use Redis.#
 # --------------------------------------------------------------------------- #
 _PLATFORM_QPM: dict[str, int] = {
-    "facebook":  20,   # ~1200/hr headroom vs 200/hr policy
+    "facebook": 20,  # ~1200/hr headroom vs 200/hr policy
     "instagram": 20,
-    "gbp":       10,
-    "linkedin":  15,
-    "x":         5,    # tight — free tier can't sustain more
-    "youtube":   5,
-    "whatsapp":  30,   # self-host — owner phone 1-to-1
-    "postiz":    30,   # gateway internal-fanout
+    "gbp": 10,
+    "linkedin": 15,
+    "x": 5,  # tight — free tier can't sustain more
+    "youtube": 5,
+    "whatsapp": 30,  # self-host — owner phone 1-to-1
+    "postiz": 30,  # gateway internal-fanout
 }
 
 _hits: dict[str, deque[float]] = {}
@@ -133,8 +134,11 @@ def recover_stale_processing(store_mod, older_than_min: int = 15) -> dict[str, i
             except Exception:
                 continue
             if when < cutoff:
-                store_mod.mark(str(r.get("id") or ""), "queued",
-                               last_error=f"stale-recovery: processing > {older_than_min}m")
+                store_mod.mark(
+                    str(r.get("id") or ""),
+                    "queued",
+                    last_error=f"stale-recovery: processing > {older_than_min}m",
+                )
                 recovered += 1
     except Exception as e:
         logger.warning(f"[scheduling] recover_stale_processing failed: {e}")

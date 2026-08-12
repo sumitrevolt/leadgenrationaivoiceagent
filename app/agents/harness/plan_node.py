@@ -93,7 +93,7 @@ def _extract_json(text: str) -> Any:
 
 def parse_plan(
     raw: str, allowed_agents: Union[set[str], list[str]]
-) -> tuple[Optional[list[dict]], str]:
+) -> tuple[list[dict] | None, str]:
     """Validate raw LLM output into ``[{agent, task}]`` steps.
 
     Returns ``(steps, "")`` on success or ``(None, reason)`` on failure. Strict on
@@ -160,10 +160,10 @@ async def structured_plan(
     system: str,
     user: str,
     allowed_agents: Union[set[str], list[str]],
-    llm_fn: Optional[LLMFn],
+    llm_fn: LLMFn | None,
     max_review_rounds: int = 1,
     max_steps: int = 5,
-) -> Optional[dict]:
+) -> dict | None:
     """ActionNode-style fill -> review -> revise over a typed plan schema.
 
     Returns ``{"steps": [{agent, task}, ...], "source": str, "reviews": int}`` on

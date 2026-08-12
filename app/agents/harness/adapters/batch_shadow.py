@@ -86,17 +86,17 @@ def observe_batch_item(
     agent_id: str,
     tenant_id: str,
     operation_name: str,
-    operation_arguments: Optional[dict] = None,
+    operation_arguments: dict | None = None,
     actual_executor: str = "",
     actual_result: Any = None,
     actual_error: Any = None,
     latency_ms: float = 0.0,
-    checkpoint_state: Optional[str] = None,
+    checkpoint_state: str | None = None,
     resumed: bool = False,
-    tool_name: Optional[str] = None,
-    tool_version: Optional[str] = None,
-    execution_metadata: Optional[dict] = None,
-) -> Optional[dict]:
+    tool_name: str | None = None,
+    tool_version: str | None = None,
+    execution_metadata: dict | None = None,
+) -> dict | None:
     """Observe one batch item attempt (or a resume-skip) in shadow. Returns the
     action record, or None (ineligible / resume-skip diagnostic / dedup / error).
     NEVER raises into the batch."""

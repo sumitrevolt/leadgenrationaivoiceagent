@@ -3004,7 +3004,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             )
             or _time_signal
             or any(
-                w in (ut or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
+                w in (ut or "")
+                for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
             )
         )
         if not _action and history:

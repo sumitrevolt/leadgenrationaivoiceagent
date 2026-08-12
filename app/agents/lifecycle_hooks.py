@@ -85,9 +85,21 @@ def _is_safe_target(url: str) -> tuple[bool, str]:
         if not host:
             return False, "no_host"
         if host in {
-            "localhost", "leadgen_app", "leadgen_db", "leadgen_redis", "leadgen_redis_cache",
-            "pgbouncer", "qdrant", "redis", "redis-cache", "postgres", "tempo", "loki",
-            "prometheus", "grafana", "alertmanager",
+            "localhost",
+            "leadgen_app",
+            "leadgen_db",
+            "leadgen_redis",
+            "leadgen_redis_cache",
+            "pgbouncer",
+            "qdrant",
+            "redis",
+            "redis-cache",
+            "postgres",
+            "tempo",
+            "loki",
+            "prometheus",
+            "grafana",
+            "alertmanager",
         }:
             return False, "internal_hostname"
         for entry in socket.getaddrinfo(host, None):

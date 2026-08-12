@@ -53,7 +53,9 @@ def review_gate_status(value: str | dict[str, Any] | None) -> dict[str, Any]:
         review_hash = str(review.get("artifact_hash") or "").lower()
         attestation_version = str(review.get("attestation_version") or "")
         attestation_nonce_sha256 = str(review.get("attestation_nonce_sha256") or "").lower()
-        if attestation_version != ATTESTATION_VERSION or not _SHA256_RE.fullmatch(attestation_nonce_sha256):
+        if attestation_version != ATTESTATION_VERSION or not _SHA256_RE.fullmatch(
+            attestation_nonce_sha256
+        ):
             blocking.append({"governor": governor, "decision": "attestation_missing_or_invalid"})
         elif review_hash != current_hash:
             blocking.append({"governor": governor, "decision": "artifact_hash_mismatch"})

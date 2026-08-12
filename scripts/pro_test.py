@@ -1,11 +1,14 @@
 """Free text test: professional TelecallerBrain reply quality (VPS, no phone cost)."""
+
 import asyncio
 import sys
+
 sys.path.insert(0, "/opt/leadgen")
 
 
 async def main() -> None:
     from app.voice_agent.telecaller_brain import TelecallerBrain
+
     b = TelecallerBrain(niche="solar_residential", client_name="SunGrow Solar")
 
     turns = [

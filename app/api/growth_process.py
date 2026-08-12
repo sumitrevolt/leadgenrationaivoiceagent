@@ -84,8 +84,10 @@ async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(req
     from app.agents import flow_dispatch
 
     r = flow_dispatch.approve(
-        run_id, approved_by=getattr(_user, "email", "admin") or "admin",
-        note=body.note, node_id=body.node_id,
+        run_id,
+        approved_by=getattr(_user, "email", "admin") or "admin",
+        note=body.note,
+        node_id=body.node_id,
     )
     if r.get("ok"):
         try:
@@ -110,8 +112,10 @@ async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(requ
     from app.agents import flow_dispatch
 
     return flow_dispatch.reject(
-        run_id, by=getattr(_user, "email", "admin") or "admin",
-        reason=body.note, node_id=body.node_id,
+        run_id,
+        by=getattr(_user, "email", "admin") or "admin",
+        reason=body.note,
+        node_id=body.node_id,
     )
 
 
@@ -166,8 +170,14 @@ async def flow_template_apply(tid: str, body: ApplyTemplateIn, _user=Depends(req
     if not saved.get("ok"):
         return saved
     _proc, errs, kind = flow_compiler.compile_flow(saved["flow"])
-    return {"ok": True, "flow": saved["flow"], "from_template": tid,
-            "compile_errors": errs, "runnable": not errs, "kind": kind}
+    return {
+        "ok": True,
+        "flow": saved["flow"],
+        "from_template": tid,
+        "compile_errors": errs,
+        "runnable": not errs,
+        "kind": kind,
+    }
 
 
 @router.post("/flow")
@@ -181,8 +191,14 @@ async def flow_save(body: FlowIn, _user=Depends(require_admin)):
     if not saved.get("ok"):
         return saved
     _proc, errs, kind = flow_compiler.compile_flow(saved["flow"])
-    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs,
-            "kind": kind, "warnings": (_proc or {}).get("warnings", [])}
+    return {
+        "ok": True,
+        "flow": saved["flow"],
+        "compile_errors": errs,
+        "runnable": not errs,
+        "kind": kind,
+        "warnings": (_proc or {}).get("warnings", []),
+    }
 
 
 @router.get("/flow/{flow_id}")
@@ -196,8 +212,14 @@ async def flow_get(flow_id: str, _user=Depends(require_admin)):
     if not fl:
         return JSONResponse({"error": "not found"}, status_code=404)
     proc, errs, kind = flow_compiler.compile_flow(fl)
-    return {"flow": fl, "compile_errors": errs, "steps": (proc or {}).get("steps", []),
-            "kind": kind, "runnable": not errs, "warnings": (proc or {}).get("warnings", [])}
+    return {
+        "flow": fl,
+        "compile_errors": errs,
+        "steps": (proc or {}).get("steps", []),
+        "kind": kind,
+        "runnable": not errs,
+        "warnings": (proc or {}).get("warnings", []),
+    }
 
 
 @router.delete("/flow/{flow_id}")

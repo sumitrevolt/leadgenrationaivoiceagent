@@ -19,6 +19,7 @@ Flow (per saved test-call):
 Flag VOICE_SELF_IMPROVE (default ON = propose+store; promotion stays manual/gated).
 Import-safe, never raises.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,7 +39,9 @@ except Exception:  # pragma: no cover
     logger = logging.getLogger(__name__)
 
 _STORE = os.path.join("data", "voice_proposals.jsonl")
-_PROMOTE_MARGIN = 0.0  # candidate must be >= actual (ties allowed when actual already 1.0 fails on rules)
+_PROMOTE_MARGIN = (
+    0.0  # candidate must be >= actual (ties allowed when actual already 1.0 fails on rules)
+)
 _ID_RE = re.compile(r"^vp_[a-f0-9]{8,16}$")
 
 
@@ -60,11 +63,28 @@ def _looks_like_question(t: str) -> bool:
     return (
         "?" in low
         or "？" in low
-        or any(w in low for w in ("kya", "kaise", "kitna", "kitne", "kab", "kahan", "kaun", "kyun", "क्या", "कैसे", "कितन"))
+        or any(
+            w in low
+            for w in (
+                "kya",
+                "kaise",
+                "kitna",
+                "kitne",
+                "kab",
+                "kahan",
+                "kaun",
+                "kyun",
+                "क्या",
+                "कैसे",
+                "कितन",
+            )
+        )
     )
 
 
-def classify_failures(messages: list[dict[str, str]], score: float, flags: dict[str, int]) -> list[str]:
+def classify_failures(
+    messages: list[dict[str, str]], score: float, flags: dict[str, int]
+) -> list[str]:
     """Deterministic failure tags for a call. Empty = the call looked clean."""
     tags: list[str] = []
     flags = flags or {}
@@ -82,9 +102,14 @@ def classify_failures(messages: list[dict[str, str]], score: float, flags: dict[
     for i, m in enumerate(msgs[:-1]):
         if str(m.get("role")) == "user" and _looks_like_question(str(m.get("content", ""))):
             nxt = msgs[i + 1]
-            if str(nxt.get("role")) in ("assistant", "bot") and _looks_like_question(str(nxt.get("content", ""))):
+            if str(nxt.get("role")) in ("assistant", "bot") and _looks_like_question(
+                str(nxt.get("content", ""))
+            ):
                 # bot answered a question with a question and offered no statement
-                if "?" in str(nxt.get("content", "")) and len(str(nxt.get("content", "")).split()) <= 14:
+                if (
+                    "?" in str(nxt.get("content", ""))
+                    and len(str(nxt.get("content", "")).split()) <= 14
+                ):
                     tags.append("unanswered_question")
                     break
     if score < 0.7 and not tags:
@@ -101,8 +126,17 @@ def _worst_turn(messages: list[dict[str, str]]) -> tuple[str, str]:
             if str(nxt.get("role")) in ("assistant", "bot"):
                 return str(m.get("content", "")), str(nxt.get("content", ""))
     # fallback: last user + last bot
-    last_user = next((str(m.get("content", "")) for m in reversed(msgs) if str(m.get("role")) == "user"), "")
-    last_bot = next((str(m.get("content", "")) for m in reversed(msgs) if str(m.get("role")) in ("assistant", "bot")), "")
+    last_user = next(
+        (str(m.get("content", "")) for m in reversed(msgs) if str(m.get("role")) == "user"), ""
+    )
+    last_bot = next(
+        (
+            str(m.get("content", ""))
+            for m in reversed(msgs)
+            if str(m.get("role")) in ("assistant", "bot")
+        ),
+        "",
+    )
     return last_user, last_bot
 
 
@@ -179,7 +213,12 @@ async def propose_from_session(
     except Exception:
         proposal["gate"] = None
     _append(proposal)
-    logger.info("voice_self_improve: proposal %s (%s) failures=%s", proposal["id"], proposal["niche"], failures)
+    logger.info(
+        "voice_self_improve: proposal %s (%s) failures=%s",
+        proposal["id"],
+        proposal["niche"],
+        failures,
+    )
     return proposal
 
 
@@ -198,8 +237,14 @@ def promotion_gate(proposal: dict[str, Any]) -> dict[str, Any]:
         from app.agents.eval_metrics import voice_turn_score
 
         ctx = [{"role": "user", "content": user_q}] if user_q else []
-        cand_score = float(voice_turn_score(ctx + [{"role": "assistant", "content": candidate}]).get("score", 0))
-        actual_score = float(voice_turn_score(ctx + [{"role": "assistant", "content": bad}]).get("score", 0)) if bad else 0.0
+        cand_score = float(
+            voice_turn_score(ctx + [{"role": "assistant", "content": candidate}]).get("score", 0)
+        )
+        actual_score = (
+            float(voice_turn_score(ctx + [{"role": "assistant", "content": bad}]).get("score", 0))
+            if bad
+            else 0.0
+        )
     except Exception as e:
         return {"pass": False, "reason": f"score_error:{str(e)[:40]}"}
     # candidate must answer the question (overlap with a non-question statement) — proxy:

@@ -3,6 +3,7 @@
 Usage (VPS): docker exec leadgen_app python scripts/patch_status.py <patch_id> <status> [note...]
 status = approved | rejected | applied
 """
+
 import sys
 
 

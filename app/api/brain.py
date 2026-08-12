@@ -6,6 +6,7 @@ OPERATOR had no in-app surface — so the brain felt "unused". This router expos
 it: search (recall), recent, and stats. Read-only, admin-gated, never raises.
 Self-gating: when OBSIDIAN_SYNC is unset, `recall()` returns [] (brain disabled).
 """
+
 from __future__ import annotations
 
 import os
@@ -25,7 +26,7 @@ def _excerpt(txt: str, n: int = 300) -> str:
     if txt.startswith("---"):
         end = txt.find("---", 3)
         if end != -1:
-            body = txt[end + 3:].lstrip()
+            body = txt[end + 3 :].lstrip()
     return body[:n].replace("\n", " ").strip()
 
 
@@ -44,7 +45,9 @@ async def brain_search(q: str = "", k: int = 8, _user=Depends(require_admin)) ->
 
 
 @router.get("/recent", summary="Recently-written brain notes (optional folder filter)")
-async def brain_recent(folder: str = "", limit: int = 20, _user=Depends(require_admin)) -> dict[str, Any]:
+async def brain_recent(
+    folder: str = "", limit: int = 20, _user=Depends(require_admin)
+) -> dict[str, Any]:
     from app.platform import obsidian_sync
 
     v: Path = obsidian_sync._VAULT

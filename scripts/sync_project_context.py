@@ -9,6 +9,7 @@ secrets; never reads .env*. Degrades over missing sources.
   python scripts/sync_project_context.py
   python scripts/sync_project_context.py --changed-since HEAD~1
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,7 +24,9 @@ def main(argv=None) -> int:
     pc.force_utf8_stdout()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true", help="compute + report, write nothing")
-    ap.add_argument("--changed-since", metavar="REF", help="only refresh nodes whose source changed since REF")
+    ap.add_argument(
+        "--changed-since", metavar="REF", help="only refresh nodes whose source changed since REF"
+    )
     ap.add_argument("--store", default=str(pc.DEFAULT_STORE))
     ap.add_argument("--snapshot", default=str(pc.DEFAULT_SNAPSHOT))
     args = ap.parse_args(argv)
@@ -40,8 +43,10 @@ def main(argv=None) -> int:
             print(f"[context] changed-since {args.changed_since}: {len(changed)} files changed")
 
     m = store["meta"]
-    print(f"[context] HEAD={m['head_sha'][:8]} nodes={m['node_count']} edges={m['edge_count']} "
-          f"hash={m['content_hash'][:12]}")
+    print(
+        f"[context] HEAD={m['head_sha'][:8]} nodes={m['node_count']} edges={m['edge_count']} "
+        f"hash={m['content_hash'][:12]}"
+    )
 
     if args.dry_run:
         existing = pc.load_store(store_path)

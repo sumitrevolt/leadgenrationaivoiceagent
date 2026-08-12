@@ -7,6 +7,7 @@ FREE (no phone). Same TelecallerBrain + platform_pitch as live test-call page.
   AGENT_TESTER_WS=wss://leadsgenai.in/api/web-call/ws python scripts/web_call_tune_loop.py
   python scripts/web_call_tune_loop.py --rounds 3 --niche ai_marketing
 """
+
 from __future__ import annotations
 
 import argparse
@@ -142,7 +143,9 @@ async def run_persona(name: str, turns: list[str], niche: str) -> dict:
     last = ""
     async with aiohttp.ClientSession() as session:
         async with session.ws_connect(WS, timeout=45, heartbeat=20) as ws:
-            await ws.send_json({"type": "start", "niche": niche, "flow": "qualify", "client_name": "LeadGen AI"})
+            await ws.send_json(
+                {"type": "start", "niche": niche, "flow": "qualify", "client_name": "LeadGen AI"}
+            )
             greet = await _collect_greeting(ws, niche)
             for g in greet:
                 if g:
@@ -169,7 +172,13 @@ async def run_persona(name: str, turns: list[str], niche: str) -> dict:
     if "aapne hamari service" in bot_text:
         issues.append("WRONG OPENER: inbound script leaked")
     score = max(0.0, 1.0 - 0.15 * len(issues))
-    return {"persona": name, "niche": niche, "issues": issues, "score": score, "transcript": transcript}
+    return {
+        "persona": name,
+        "niche": niche,
+        "issues": issues,
+        "score": score,
+        "transcript": transcript,
+    }
 
 
 async def main() -> int:

@@ -34,6 +34,7 @@ visible on the existing team feed with a real owner (no new persona invented).
 
 Lane: GREEN (read-only detection + report). Autonomy: L0/L1 (observe + recommend).
 """
+
 from __future__ import annotations
 
 import os
@@ -235,9 +236,7 @@ def detect_stuck_approvals(approvals: list[dict[str, Any]]) -> list[dict[str, An
     return out
 
 
-def detect_stale_content_queues(
-    clients: list[dict[str, Any]], limit: int
-) -> list[dict[str, Any]]:
+def detect_stale_content_queues(clients: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     """Paid clients whose content queue is empty or has no fresh content in N days.
     Read-only, tenant-safe, never raises."""
     stale_days = _env_int("CONTENT_ASSURANCE_QUEUE_STALE_DAYS", _DEFAULT_QUEUE_STALE_DAYS)
@@ -256,8 +255,13 @@ def detect_stale_content_queues(
             }
             if not items:
                 out.append(
-                    {**base, "empty": True, "last_content_at": None, "days_stale": None,
-                     "reason": "empty_queue"}
+                    {
+                        **base,
+                        "empty": True,
+                        "last_content_at": None,
+                        "days_stale": None,
+                        "reason": "empty_queue",
+                    }
                 )
                 continue
             latest: datetime | None = None
@@ -271,8 +275,13 @@ def detect_stale_content_queues(
             days = (_now() - latest).days
             if days > stale_days:
                 out.append(
-                    {**base, "empty": False, "last_content_at": _iso(latest),
-                     "days_stale": days, "reason": "stale_queue"}
+                    {
+                        **base,
+                        "empty": False,
+                        "last_content_at": _iso(latest),
+                        "days_stale": days,
+                        "reason": "stale_queue",
+                    }
                 )
         except Exception:
             continue
@@ -367,9 +376,7 @@ def scan_content_assurance(limit: int = 200) -> dict[str, Any]:
         if stuck:
             issues.append({"type": "stuck_approval", "count": len(stuck), "sample": stuck[:5]})
         if stale:
-            issues.append(
-                {"type": "stale_content_queue", "count": len(stale), "sample": stale[:5]}
-            )
+            issues.append({"type": "stale_content_queue", "count": len(stale), "sample": stale[:5]})
         if failures:
             issues.append(
                 {"type": "publish_failure", "count": len(failures), "sample": failures[:5]}

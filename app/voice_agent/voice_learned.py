@@ -107,7 +107,11 @@ def examples_for(niche: str, n: int = _INJECT_N) -> list[dict]:
         if not enabled():
             return []
         niche = (str(niche or "general")).strip() or "general"
-        rows = [r for r in _load() if str(r.get("niche") or "") == niche and (r.get("good") or "").strip()]
+        rows = [
+            r
+            for r in _load()
+            if str(r.get("niche") or "") == niche and (r.get("good") or "").strip()
+        ]
         return rows[-max(1, int(n)) :] if rows else []
     except Exception:
         return []
@@ -125,7 +129,9 @@ def hint_for(niche: str, n: int = _INJECT_N) -> str:
             g = (e.get("good") or "").strip()
             if not g:
                 continue
-            lines.append(f'- Customer: "{u}" -> accha jawab: "{g}"' if u else f'- Accha jawab: "{g}"')
+            lines.append(
+                f'- Customer: "{u}" -> accha jawab: "{g}"' if u else f'- Accha jawab: "{g}"'
+            )
         return "\n".join(lines)
     except Exception:
         return ""

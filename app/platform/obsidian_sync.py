@@ -139,7 +139,15 @@ def push_to_git() -> bool:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         cmds = [
             ["git", "-C", str(_VAULT), "add", "-A"],
-            ["git", "-C", str(_VAULT), "commit", "--allow-empty", "-m", f"brain: nightly sync {date_str}"],
+            [
+                "git",
+                "-C",
+                str(_VAULT),
+                "commit",
+                "--allow-empty",
+                "-m",
+                f"brain: nightly sync {date_str}",
+            ],
             ["git", "-C", str(_VAULT), "push"],
         ]
         for cmd in cmds:
@@ -178,7 +186,9 @@ def compact_folder(folder: str, max_files: int = 200) -> None:
         logger.debug("[obsidian] compact_folder failed %s: %s", folder, e)
 
 
-def write_council_verdict(question: str, verdict: str, stage1: list[dict[str, Any]] | None = None) -> bool:
+def write_council_verdict(
+    question: str, verdict: str, stage1: list[dict[str, Any]] | None = None
+) -> bool:
     """Write a council decision to Decisions/ folder."""
     if not _enabled():
         return False
@@ -196,7 +206,9 @@ def write_council_verdict(question: str, verdict: str, stage1: list[dict[str, An
 
 def write_system_health(check_name: str, result: str) -> bool:
     """Write a system check result to System/ folder."""
-    return write_note("System", check_name.replace(" ", "-").lower(), result, tags=["system", "health"])
+    return write_note(
+        "System", check_name.replace(" ", "-").lower(), result, tags=["system", "health"]
+    )
 
 
 def write_daily_session(date_str: str, summary: str) -> bool:
@@ -250,17 +262,21 @@ def recall(query: str, k: int = 3) -> list[dict]:
                 if text.startswith("---"):
                     end = text.find("---", 3)
                     if end != -1:
-                        body = text[end + 3:].lstrip()
+                        body = text[end + 3 :].lstrip()
                 excerpt = body[:300].replace("\n", " ").strip()
                 stat = path.stat()
-                updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-                results.append({
-                    "folder": path.parent.name,
-                    "slug": path.stem,
-                    "excerpt": excerpt,
-                    "updated": updated,
-                    "score": score,
-                })
+                updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M UTC"
+                )
+                results.append(
+                    {
+                        "folder": path.parent.name,
+                        "slug": path.stem,
+                        "excerpt": excerpt,
+                        "updated": updated,
+                        "score": score,
+                    }
+                )
             except Exception as e:
                 logger.debug("[obsidian] recall skip %s: %s", path, e)
                 continue

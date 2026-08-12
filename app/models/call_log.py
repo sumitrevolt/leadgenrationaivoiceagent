@@ -80,9 +80,7 @@ class CallLog(Base):
 
     # Status and outcome
     status = Column(String(20))  # initiated, ringing, answered, completed, failed
-    outcome = Column(
-        Enum(CallOutcome, native_enum=False, values_callable=_enum_values), index=True
-    )
+    outcome = Column(Enum(CallOutcome, native_enum=False, values_callable=_enum_values), index=True)
 
     # Lead scoring
     lead_score = Column(Integer, default=0)

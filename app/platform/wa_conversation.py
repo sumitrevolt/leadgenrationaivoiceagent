@@ -88,7 +88,7 @@ def thread(from_number: str, limit: int = _DEFAULT_CONTEXT_TURNS) -> list[dict[s
     if not key:
         return []
     rows = [r for r in _all_rows() if _digits(r.get("from")) == key]
-    return rows[-max(1, limit):]
+    return rows[-max(1, limit) :]
 
 
 def history_messages(from_number: str, limit: int = _DEFAULT_CONTEXT_TURNS) -> list[dict[str, str]]:

@@ -4,6 +4,7 @@
 Checks: /pricing · /start · /app/login · pay-info · packages · signup route · UPI admin routes exist.
 Run: python scripts/launch_path_smoke.py
 """
+
 from __future__ import annotations
 
 import json

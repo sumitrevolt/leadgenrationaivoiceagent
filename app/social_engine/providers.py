@@ -66,7 +66,11 @@ class TelegramProvider(SocialProvider):
                     field = "video" if req.media_type == "video" else "photo"
                     r = await cx.post(
                         f"https://api.telegram.org/bot{token}/{method}",
-                        json={"chat_id": chat_id, field: req.media_url, "caption": (req.caption or "")[:1024]},
+                        json={
+                            "chat_id": chat_id,
+                            field: req.media_url,
+                            "caption": (req.caption or "")[:1024],
+                        },
                     )
                 else:
                     r = await cx.post(
@@ -102,9 +106,15 @@ class MetaProvider(SocialProvider):
         token = (account or {}).get("token") or ""
         node = (req.account_ref or (account or {}).get("account_ref") or "").strip()
         if not token or not node:
-            return PublishResult(ok=False, platform=self.name, error="token/account_ref unset (Meta app-review pending)")
+            return PublishResult(
+                ok=False,
+                platform=self.name,
+                error="token/account_ref unset (Meta app-review pending)",
+            )
         if not req.media_url:
-            return PublishResult(ok=False, platform=self.name, error="media public URL chahiye (host first)")
+            return PublishResult(
+                ok=False, platform=self.name, error="media public URL chahiye (host first)"
+            )
         try:
             cx = await _http()
             async with cx:
@@ -112,11 +122,19 @@ class MetaProvider(SocialProvider):
                     # 1) media container (REELS) 2) publish
                     c = await cx.post(
                         f"{_GRAPH}/{node}/media",
-                        data={"media_type": "REELS", "video_url": req.media_url,
-                              "caption": req.caption or "", "access_token": token},
+                        data={
+                            "media_type": "REELS",
+                            "video_url": req.media_url,
+                            "caption": req.caption or "",
+                            "access_token": token,
+                        },
                     )
                     if c.status_code // 100 != 2:
-                        return PublishResult(ok=False, platform=self.name, error=f"container {c.status_code}: {c.text[:140]}")
+                        return PublishResult(
+                            ok=False,
+                            platform=self.name,
+                            error=f"container {c.status_code}: {c.text[:140]}",
+                        )
                     cid = (c.json() or {}).get("id")
                     pub = await cx.post(
                         f"{_GRAPH}/{node}/media_publish",
@@ -124,17 +142,29 @@ class MetaProvider(SocialProvider):
                     )
                     ok = pub.status_code // 100 == 2
                     pid = (pub.json() or {}).get("id", "") if ok else ""
-                    return PublishResult(ok=ok, platform=self.name, post_id=str(pid),
-                                         error="" if ok else pub.text[:160])
+                    return PublishResult(
+                        ok=ok,
+                        platform=self.name,
+                        post_id=str(pid),
+                        error="" if ok else pub.text[:160],
+                    )
                 else:  # facebook page video
                     r = await cx.post(
                         f"{_GRAPH}/{node}/videos",
-                        data={"file_url": req.media_url, "description": req.caption or "", "access_token": token},
+                        data={
+                            "file_url": req.media_url,
+                            "description": req.caption or "",
+                            "access_token": token,
+                        },
                     )
                     ok = r.status_code // 100 == 2
                     pid = (r.json() or {}).get("id", "") if ok else ""
-                    return PublishResult(ok=ok, platform=self.name, post_id=str(pid),
-                                         error="" if ok else r.text[:160])
+                    return PublishResult(
+                        ok=ok,
+                        platform=self.name,
+                        post_id=str(pid),
+                        error="" if ok else r.text[:160],
+                    )
         except Exception as e:
             return PublishResult(ok=False, platform=self.name, error=str(e)[:150])
 
@@ -153,11 +183,19 @@ class GBPProvider(SocialProvider):
 
     async def publish(self, req: PublishRequest, account: dict[str, Any]) -> PublishResult:
         token = (account or {}).get("token") or ""
-        parent = (req.account_ref or (account or {}).get("account_ref") or "").strip()  # accounts/{a}/locations/{l}
+        parent = (
+            req.account_ref or (account or {}).get("account_ref") or ""
+        ).strip()  # accounts/{a}/locations/{l}
         if not token or not parent:
-            return PublishResult(ok=False, platform=self.name, error="token/location unset (GBP API access pending)")
+            return PublishResult(
+                ok=False, platform=self.name, error="token/location unset (GBP API access pending)"
+            )
         try:
-            body: dict[str, Any] = {"languageCode": "en-IN", "summary": req.caption or "", "topicType": "STANDARD"}
+            body: dict[str, Any] = {
+                "languageCode": "en-IN",
+                "summary": req.caption or "",
+                "topicType": "STANDARD",
+            }
             if req.media_url:
                 body["media"] = [{"mediaFormat": "PHOTO", "sourceUrl": req.media_url}]
             cx = await _http()
@@ -169,7 +207,9 @@ class GBPProvider(SocialProvider):
                 )
             ok = r.status_code // 100 == 2
             pid = (r.json() or {}).get("name", "") if ok else ""
-            return PublishResult(ok=ok, platform=self.name, post_id=str(pid), error="" if ok else r.text[:160])
+            return PublishResult(
+                ok=ok, platform=self.name, post_id=str(pid), error="" if ok else r.text[:160]
+            )
         except Exception as e:
             return PublishResult(ok=False, platform=self.name, error=str(e)[:150])
 
@@ -188,9 +228,15 @@ class LinkedInProvider(SocialProvider):
 
     async def publish(self, req: PublishRequest, account: dict[str, Any]) -> PublishResult:
         token = (account or {}).get("token") or ""
-        author = (req.account_ref or (account or {}).get("account_ref") or "").strip()  # urn:li:organization:123
+        author = (
+            req.account_ref or (account or {}).get("account_ref") or ""
+        ).strip()  # urn:li:organization:123
         if not token or not author:
-            return PublishResult(ok=False, platform=self.name, error="token/author-urn unset (LinkedIn partner access pending)")
+            return PublishResult(
+                ok=False,
+                platform=self.name,
+                error="token/author-urn unset (LinkedIn partner access pending)",
+            )
         try:
             # Text/article post (image/video = registerUpload flow, separate — activation pe wire).
             body = {
@@ -204,13 +250,18 @@ class LinkedInProvider(SocialProvider):
             async with cx:
                 r = await cx.post(
                     "https://api.linkedin.com/rest/posts",
-                    headers={"Authorization": f"Bearer {token}", "LinkedIn-Version": "202405",
-                             "X-Restli-Protocol-Version": "2.0.0"},
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "LinkedIn-Version": "202405",
+                        "X-Restli-Protocol-Version": "2.0.0",
+                    },
                     json=body,
                 )
             ok = r.status_code // 100 == 2
             pid = r.headers.get("x-restli-id", "") if ok else ""
-            return PublishResult(ok=ok, platform=self.name, post_id=str(pid), error="" if ok else r.text[:160])
+            return PublishResult(
+                ok=ok, platform=self.name, post_id=str(pid), error="" if ok else r.text[:160]
+            )
         except Exception as e:
             return PublishResult(ok=False, platform=self.name, error=str(e)[:150])
 
@@ -228,7 +279,9 @@ class XProvider(SocialProvider):
     async def publish(self, req: PublishRequest, account: dict[str, Any]) -> PublishResult:
         token = (account or {}).get("token") or ""
         if not token:
-            return PublishResult(ok=False, platform=self.name, error="token unset (X API access pending)")
+            return PublishResult(
+                ok=False, platform=self.name, error="token unset (X API access pending)"
+            )
         try:
             # Text tweet. Media upload (v1.1/v2 chunked) = activation pe wire.
             cx = await _http()
@@ -240,7 +293,9 @@ class XProvider(SocialProvider):
                 )
             ok = r.status_code // 100 == 2
             pid = ((r.json() or {}).get("data") or {}).get("id", "") if ok else ""
-            return PublishResult(ok=ok, platform=self.name, post_id=str(pid), error="" if ok else r.text[:160])
+            return PublishResult(
+                ok=ok, platform=self.name, post_id=str(pid), error="" if ok else r.text[:160]
+            )
         except Exception as e:
             return PublishResult(ok=False, platform=self.name, error=str(e)[:150])
 
@@ -257,9 +312,13 @@ class YouTubeProvider(SocialProvider):
 
     async def publish(self, req: PublishRequest, account: dict[str, Any]) -> PublishResult:
         if not (account or {}).get("token"):
-            return PublishResult(ok=False, platform=self.name, error="token unset (YouTube OAuth pending)")
+            return PublishResult(
+                ok=False, platform=self.name, error="token unset (YouTube OAuth pending)"
+            )
         # Resumable upload (videos.insert) heavy — activation pe wire (worker me, public_url ya file).
-        return PublishResult(ok=False, platform=self.name, error="youtube upload activation pe wire hoga")
+        return PublishResult(
+            ok=False, platform=self.name, error="youtube upload activation pe wire hoga"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -320,7 +379,9 @@ class WhatsAppProvider(SocialProvider):
         if req.media_url:
             body = (body + ("\n\n" if body else "") + str(req.media_url)).strip()
         if not body:
-            return PublishResult(ok=False, platform=self.name, error="empty caption (nothing to send)")
+            return PublishResult(
+                ok=False, platform=self.name, error="empty caption (nothing to send)"
+            )
         try:
             from app.integrations.whatsapp import get_whatsapp_sender
 
@@ -375,7 +436,9 @@ class PostizProvider(SocialProvider):
                         client["postiz_integrations"] = cfg.get("postiz_integrations")
                 except Exception:
                     pass
-            res = await postiz_publish.publish_video(client, req.caption, req.media_path or req.media_url)
+            res = await postiz_publish.publish_video(
+                client, req.caption, req.media_path or req.media_url
+            )
             ok = bool(res.get("sent"))
             return PublishResult(
                 ok=ok,

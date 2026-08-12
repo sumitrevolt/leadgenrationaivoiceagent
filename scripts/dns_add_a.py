@@ -55,7 +55,11 @@ def main() -> int:
         f"https://developers.hostinger.com/api/dns/v1/zones/{DOMAIN}",
         data=body,
         method="PUT",
-        headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json", "User-Agent": UA},
+        headers={
+            "Authorization": f"Bearer {tok}",
+            "Content-Type": "application/json",
+            "User-Agent": UA,
+        },
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         print("status", r.status, r.read().decode()[:300])

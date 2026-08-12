@@ -128,7 +128,10 @@ def verify_governor_attestation(
         return {"ok": False, "reason": "attestation_malformed", "version": ATTESTATION_VERSION}
 
     current = int(time.time()) if now is None else int(now)
-    if issued_at_int < current - MAX_PAST_AGE_SECONDS or issued_at_int > current + MAX_FUTURE_SKEW_SECONDS:
+    if (
+        issued_at_int < current - MAX_PAST_AGE_SECONDS
+        or issued_at_int > current + MAX_FUTURE_SKEW_SECONDS
+    ):
         return {"ok": False, "reason": "timestamp_outside_window", "version": ATTESTATION_VERSION}
 
     expected = build_governor_signature(

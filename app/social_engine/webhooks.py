@@ -102,7 +102,8 @@ def dispatch_status_update(
         target = None
         for jid, r in rows.items():
             if str(r.get("post_id") or "") == provider_post_id:
-                target = (jid, r); break
+                target = (jid, r)
+                break
         if target:
             jid, r = target
             if str(r.get("status") or "") != new_status:
@@ -126,8 +127,12 @@ def dispatch_status_update(
                 )
         except Exception:
             pass
-        return {"ok": True, "post_id": provider_post_id, "status": new_status,
-                "matched_job": bool(target)}
+        return {
+            "ok": True,
+            "post_id": provider_post_id,
+            "status": new_status,
+            "matched_job": bool(target),
+        }
     except Exception as e:
         logger.warning(f"[webhooks] dispatch failed: {e}")
         return {"ok": False, "error": str(e)[:150]}

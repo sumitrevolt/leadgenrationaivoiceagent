@@ -6,6 +6,7 @@
 Checks env flags, live URL smoke, test inquiry + notify, email outreach fire, stats.
 Secrets are never printed (only SET/UNSET).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -74,7 +75,6 @@ def check_live_urls() -> None:
 
 async def test_inquiry() -> None:
     """Submit test inquiry — direct store path (container me localhost:8000 often unreachable)."""
-    from datetime import datetime, timezone
 
     rec = {
         "id": str(uuid.uuid4()),

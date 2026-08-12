@@ -25,9 +25,9 @@ def test_outcome_value_high_quality():
     """Test: High quality leads + revenue + cheap = high score."""
     outcome = {
         "lead_count": 20,
-        "avg_lead_score": 0.9,      # hot leads
-        "revenue_impact": 1000,      # $1000 deals
-        "cost": 1.0,                 # cheap
+        "avg_lead_score": 0.9,  # hot leads
+        "revenue_impact": 1000,  # $1000 deals
+        "cost": 1.0,  # cheap
         "success": True,
     }
     score = self_improve.compute_outcome_value(outcome)
@@ -39,9 +39,9 @@ def test_outcome_value_neutral():
     """Test: Neutral outcome (info only, no revenue) = low score."""
     outcome = {
         "lead_count": 5,
-        "avg_lead_score": 0.3,       # info only
-        "revenue_impact": 0,          # no revenue
-        "cost": 2.0,                 # normal cost
+        "avg_lead_score": 0.3,  # info only
+        "revenue_impact": 0,  # no revenue
+        "cost": 2.0,  # normal cost
         "success": True,
     }
     score = self_improve.compute_outcome_value(outcome)
@@ -53,9 +53,9 @@ def test_outcome_value_expensive_failure():
     """Test: Expensive failure = negative score (clamped to 0)."""
     outcome = {
         "lead_count": 0,
-        "avg_lead_score": 0.0,       # no quality
-        "revenue_impact": 0,          # no revenue
-        "cost": 10.0,                # expensive
+        "avg_lead_score": 0.0,  # no quality
+        "revenue_impact": 0,  # no revenue
+        "cost": 10.0,  # expensive
         "success": False,
     }
     score = self_improve.compute_outcome_value(outcome)
@@ -116,7 +116,7 @@ def test_gate_expensive_risky():
     )
     # content_pack is LLM-heavy (cost $2.5), success varies
     # This test depends on actual stats, so structure only
-    print(f"✓ Expensive risky gate: structure ok")
+    print("✓ Expensive risky gate: structure ok")
 
 
 def test_gate_low_roi():
@@ -147,7 +147,7 @@ def test_gate_passes_good_task():
         },
     )
     assert not skip, f"Good task shouldn't skip: {reason}"
-    print(f"✓ Good task passes all gates")
+    print("✓ Good task passes all gates")
 
 
 def test_gates_can_disable():
@@ -166,7 +166,7 @@ def test_gates_can_disable():
         )
         # Gates disabled = should not skip
         assert not skip, f"Disabled gates should not skip: {reason}"
-        print(f"✓ Gates can be disabled")
+        print("✓ Gates can be disabled")
     finally:
         self_improve.DETERMINISTIC_GATES.update(original_gates)
 
@@ -196,7 +196,7 @@ def test_cost_tracker_budget_exceeded():
     assert not tracker.can_afford("task2", 10.0), "Should not afford $10 + $25 > $30"
     assert tracker.can_afford("task2", 5.0), "Should afford $5 + $25 = $30"
 
-    print(f"✓ CostTracker budget enforcement")
+    print("✓ CostTracker budget enforcement")
 
 
 def test_approval_queue_basic():
@@ -224,7 +224,7 @@ def test_approval_queue_approve():
     assert len(queue.get_pending()) == 0, "Should remove from pending"
     assert len(queue.approved) == 1, "Should add to approved"
 
-    print(f"✓ ApprovalQueue approves task")
+    print("✓ ApprovalQueue approves task")
 
 
 def test_approval_queue_reject():
@@ -237,7 +237,7 @@ def test_approval_queue_reject():
     assert rejected, "Should reject"
     assert len(queue.get_pending()) == 0, "Should remove from pending"
 
-    print(f"✓ ApprovalQueue rejects task")
+    print("✓ ApprovalQueue rejects task")
 
 
 def test_hybrid_gates_and_cost():
@@ -268,14 +268,16 @@ def test_backward_compat_outcome_value_optional():
     assert 0.0 <= score <= 1.0, f"Should handle missing keys: {score}"
 
     # Invalid types (should clamp)
-    score = self_improve.compute_outcome_value({
-        "avg_lead_score": "invalid",
-        "revenue_impact": "invalid",
-        "cost": "invalid",
-    })
+    score = self_improve.compute_outcome_value(
+        {
+            "avg_lead_score": "invalid",
+            "revenue_impact": "invalid",
+            "cost": "invalid",
+        }
+    )
     assert 0.0 <= score <= 1.0, f"Should handle invalid types: {score}"
 
-    print(f"✓ Backward compat: compute_outcome_value handles edge cases")
+    print("✓ Backward compat: compute_outcome_value handles edge cases")
 
 
 def test_outcome_weights_configurable():
@@ -309,7 +311,7 @@ async def test_integration_run_once_structure():
     assert "enabled" in status
     assert "recent_runs" in status
 
-    print(f"✓ Integration: run_once() structure ok")
+    print("✓ Integration: run_once() structure ok")
 
 
 def main():
@@ -324,26 +326,25 @@ def main():
         ("Outcome Value: Neutral", test_outcome_value_neutral),
         ("Outcome Value: Expensive Failure", test_outcome_value_expensive_failure),
         ("Outcome Value: Clamping", test_outcome_value_clamps),
-
         # Gate tests
         ("Gate: Budget", test_gate_budget),
         ("Gate: Expensive + Risky", test_gate_expensive_risky),
         ("Gate: Low ROI", test_gate_low_roi),
         ("Gate: Good Task Passes", test_gate_passes_good_task),
         ("Gate: Can Disable", test_gates_can_disable),
-
         # CostTracker tests
         ("CostTracker: Basic", test_cost_tracker_basic),
         ("CostTracker: Budget Enforcement", test_cost_tracker_budget_exceeded),
-
         # ApprovalQueue tests
         ("ApprovalQueue: Basic", test_approval_queue_basic),
         ("ApprovalQueue: Approve", test_approval_queue_approve),
         ("ApprovalQueue: Reject", test_approval_queue_reject),
-
         # Integration tests
         ("Integration: Hybrid Gates + Cost", test_hybrid_gates_and_cost),
-        ("Integration: Backward Compat (outcome_value)", test_backward_compat_outcome_value_optional),
+        (
+            "Integration: Backward Compat (outcome_value)",
+            test_backward_compat_outcome_value_optional,
+        ),
         ("Integration: Configurable Weights", test_outcome_weights_configurable),
         ("Integration: run_once() Structure", test_integration_run_once_structure),
     ]

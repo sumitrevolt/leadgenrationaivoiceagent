@@ -85,6 +85,7 @@ async def _collect() -> dict[str, Any]:
                     if price <= 0 and str(getattr(s, "plan_id", "")).startswith("voice_"):
                         try:
                             from app.marketing.voice_packages import voice_plan_price
+
                             price = float(voice_plan_price(str(getattr(s, "plan_id", ""))) or 0)
                         except Exception:
                             pass

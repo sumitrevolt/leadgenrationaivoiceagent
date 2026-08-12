@@ -120,10 +120,31 @@ def _pattern(table: dict[str, str]) -> re.Pattern[str] | None:
 # (POC 2026-06-30: Whisper-hi AND IndicConformer both give "फाइव नाइन जीरो…" for a
 # phone number → breaks the post-close number read-back, which needs digits).
 _DIGIT_WORD: dict[str, str] = {
-    "zero": "0", "oh": "0", "ohh": "0", "nought": "0", "one": "1", "two": "2",
-    "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
-    "जीरो": "0", "ओह": "0", "वन": "1", "टू": "2", "थ्री": "3", "फोर": "4",
-    "फाइव": "5", "सिक्स": "6", "सेवन": "7", "एट": "8", "नाइन": "9", "जीरोनस": "0",
+    "zero": "0",
+    "oh": "0",
+    "ohh": "0",
+    "nought": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "जीरो": "0",
+    "ओह": "0",
+    "वन": "1",
+    "टू": "2",
+    "थ्री": "3",
+    "फोर": "4",
+    "फाइव": "5",
+    "सिक्स": "6",
+    "सेवन": "7",
+    "एट": "8",
+    "नाइन": "9",
+    "जीरोनस": "0",
 }
 _DIGIT_STRIP = ".,!?;:—- "
 

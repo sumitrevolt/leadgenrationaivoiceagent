@@ -9,11 +9,11 @@ Privacy rule: OmniRoute only admits INTERNAL_SANITIZED (see omniroute_client
 `_TASK_ROUTES`). Agents marked CUSTOMER_SENSITIVE / PROHIBITED_EXTERNAL have
 `omniroute_task=None` so they cannot be routed even if flags flip.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
-
 
 # Task routes that exist in app.platform.omniroute_client._TASK_ROUTES
 OMNIROUTE_TASK_AGENT_OPS = "leadgen.agent_ops"

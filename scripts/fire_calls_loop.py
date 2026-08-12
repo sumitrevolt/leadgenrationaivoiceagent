@@ -10,6 +10,7 @@ Run (VPS container):
 
 Logs: stdout (docker logs leadgen_app ya nohup file).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,7 +19,9 @@ import datetime
 import os
 import sys
 
-_BASE = "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = (
+    "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.insert(0, _BASE)
 os.chdir(_BASE)
 
@@ -60,7 +63,9 @@ async def _maybe_learn(learn: bool) -> None:
         import voice_learn_from_calls as vlc  # noqa: E402
 
         result = await vlc.learn_from_recent(limit=2)
-        print(f"[loop] learn: {result.get('lessons_saved', 0)} lessons, score={result.get('avg_score')}")
+        print(
+            f"[loop] learn: {result.get('lessons_saved', 0)} lessons, score={result.get('avg_score')}"
+        )
     except Exception as e:
         print(f"[loop] learn skip: {e}")
 
@@ -124,7 +129,9 @@ async def run_loop(
         total_ok += ok
         total_skip += skip
         total_fail += fail
-        print(f"[loop] batch {batch_n} done: ok={ok} skip={skip} fail={fail} | totals ok={total_ok}")
+        print(
+            f"[loop] batch {batch_n} done: ok={ok} skip={skip} fail={fail} | totals ok={total_ok}"
+        )
 
         await _maybe_learn(learn)
 

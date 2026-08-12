@@ -41,12 +41,12 @@ DAG_TOOL_MAP: dict[str, tuple[str, str]] = {
 }
 
 
-def resolve_dag_tool(step_action: str) -> Optional[tuple[str, str]]:
+def resolve_dag_tool(step_action: str) -> tuple[str, str] | None:
     """Return (canonical_tool, version) for a stable DAG step action, or None."""
     return DAG_TOOL_MAP.get((step_action or "").strip())
 
 
-def _valid_envelope(dag_run_id: str, node_id: str, attempt: int) -> Optional[str]:
+def _valid_envelope(dag_run_id: str, node_id: str, attempt: int) -> str | None:
     """Strict DAG action-envelope guard (spec DagActionPayload). Returns an error
     string when malformed, else None. Bounds node_id/run_id; attempt >= 0."""
     if not (dag_run_id or "").strip():
@@ -84,15 +84,15 @@ def observe_dag_action(
     agent_id: str,
     tenant_id: str,
     tool_name: str,
-    tool_version: Optional[str] = None,
-    arguments: Optional[dict] = None,
+    tool_version: str | None = None,
+    arguments: dict | None = None,
     actual_result: Any = None,
     actual_error: Any = None,
     latency_ms: int = 0,
     dag_node_status: str = "",
     retry_scheduled: bool = False,
-    execution_metadata: Optional[dict] = None,
-) -> Optional[dict]:
+    execution_metadata: dict | None = None,
+) -> dict | None:
     """Observe one DAG node execution attempt in shadow. Returns the record or
     None (ineligible / internal failure). NEVER raises into the DAG engine."""
     if not shadow_loop_eligible(agent_id, _SOURCE_LOOP):

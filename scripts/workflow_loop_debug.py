@@ -10,6 +10,7 @@ Loops checked:
 Run: python scripts/workflow_loop_debug.py
 VPS: docker exec leadgen_app python scripts/workflow_loop_debug.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -49,7 +50,11 @@ def probe_cadence() -> None:
     from app.marketing import cadence
 
     st = cadence.stats()
-    broken = bool(st.get("engine_on")) and int(st.get("active") or 0) > 0 and not (st.get("step_touches") or {})
+    broken = (
+        bool(st.get("engine_on"))
+        and int(st.get("active") or 0) > 0
+        and not (st.get("step_touches") or {})
+    )
     _log("D", "loop:cadence", "cadence loop", {**st, "broken": broken})
 
 
@@ -126,10 +131,18 @@ async def probe_inquiry_chain() -> None:
     """Dry-run inquiry funnel pieces (no HTTP)."""
     from app.marketing import cadence, journeys
 
-    lead = {"phone": "9888877776", "name": "loop-debug", "source": "inquiry", "niche": "solar", "city": "Mumbai"}
+    lead = {
+        "phone": "9888877776",
+        "name": "loop-debug",
+        "source": "inquiry",
+        "niche": "solar",
+        "city": "Mumbai",
+    }
     c = cadence.enroll(lead)
     journeys.ensure_active_defaults()
-    runs = await journeys.emit_event("inquiry_received", {"name": "loop-debug", "phone": lead["phone"], "niche": "solar"})
+    runs = await journeys.emit_event(
+        "inquiry_received", {"name": "loop-debug", "phone": lead["phone"], "niche": "solar"}
+    )
     _log(
         "F",
         "loop:inquiry_chain",
@@ -146,7 +159,16 @@ async def probe_pipeline() -> None:
     from app.platform import pipeline_ops
 
     r = await pipeline_ops.run_daily()
-    _log("G", "loop:pipeline", "pipeline daily tick", {"ok": r.get("ok"), "rescore": (r.get("rescore") or {}).get("ok"), "journeys_activated": r.get("journeys_activated")})
+    _log(
+        "G",
+        "loop:pipeline",
+        "pipeline daily tick",
+        {
+            "ok": r.get("ok"),
+            "rescore": (r.get("rescore") or {}).get("ok"),
+            "journeys_activated": r.get("journeys_activated"),
+        },
+    )
 
 
 async def main_async() -> int:

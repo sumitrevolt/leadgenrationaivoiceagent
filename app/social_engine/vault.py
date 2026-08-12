@@ -217,8 +217,12 @@ def check_token_expiries(days: int = 7) -> dict[str, Any]:
                 pass
     except Exception as e:
         logger.warning(f"[vault] check_token_expiries failed: {e}")
-    return {"expired": expired, "warning": warning,
-            "expired_count": len(expired), "warning_count": len(warning)}
+    return {
+        "expired": expired,
+        "warning": warning,
+        "expired_count": len(expired),
+        "warning_count": len(warning),
+    }
 
 
 def _latest() -> dict[str, dict[str, Any]]:
@@ -250,7 +254,11 @@ def get(client_id: str, platform: str, account_ref: str = "") -> dict[str, Any] 
         token = _decrypt(str(rec.get("tok") or ""), bool(rec.get("enc")))
         if not token:
             return None
-        return {"token": token, "account_ref": rec.get("account_ref") or "", "meta": rec.get("meta") or {}}
+        return {
+            "token": token,
+            "account_ref": rec.get("account_ref") or "",
+            "meta": rec.get("meta") or {},
+        }
     except Exception as e:
         logger.warning(f"[vault] get failed: {e}")
         return None
@@ -282,7 +290,9 @@ def list_accounts(client_id: str = "") -> list[dict[str, Any]]:
 def delete(client_id: str, platform: str, account_ref: str = "") -> bool:
     try:
         rec = {
-            "k": _key((client_id or "").strip(), (platform or "").strip().lower(), account_ref or ""),
+            "k": _key(
+                (client_id or "").strip(), (platform or "").strip().lower(), account_ref or ""
+            ),
             "deleted": True,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }

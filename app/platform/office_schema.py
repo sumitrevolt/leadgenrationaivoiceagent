@@ -9,6 +9,7 @@ only a breaking change bumps MAJOR (and the shells must then be versioned too).
 Unity parses with tolerant JsonUtility, so adding this field is non-breaking —
 unknown fields are ignored (see unity/.../OfficeLogicTests.cs malformed-input tests).
 """
+
 from __future__ import annotations
 
 UNITY_OFFICE_SCHEMA_VERSION = "unity-office/1.0"

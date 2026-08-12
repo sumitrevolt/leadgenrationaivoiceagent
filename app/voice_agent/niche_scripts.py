@@ -183,7 +183,15 @@ def kb_documents(niche_key: str) -> list[str]:
 # --------------------------------------------------------------------------- #
 # TRAI up-front AI-disclosure (TCCCPR) — legal gate, ALWAYS-ON
 # --------------------------------------------------------------------------- #
-_AI_DISCLOSURE_TOKENS = ("ai assistant", "ai agent", "ai voice", "automated", "artificial", "a.i.", "ai-")
+_AI_DISCLOSURE_TOKENS = (
+    "ai assistant",
+    "ai agent",
+    "ai voice",
+    "automated",
+    "artificial",
+    "a.i.",
+    "ai-",
+)
 
 
 def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:

@@ -212,7 +212,9 @@ def record_bounce(email: str = "", reason: str = "") -> dict[str, Any]:
     try:
         from app.utils.file_lock import file_lock
 
-        with file_lock(_STATE):  # lock load->modify->save (else concurrent writer drops this bounce event)
+        with file_lock(
+            _STATE
+        ):  # lock load->modify->save (else concurrent writer drops this bounce event)
             st = _load()
             events = _trim_7d(list(st.get("bounce_events") or []))
             events.append(

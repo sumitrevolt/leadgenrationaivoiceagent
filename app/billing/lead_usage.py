@@ -164,7 +164,9 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
         from app.platform import obsidian_sync as _obs
 
         phone_slug = str(ref or cid).replace("+", "").replace(" ", "")[:20]
-        _obs.append_note("Leads", phone_slug, f"qualified — plan={plan or '?'} ref={ref or '?'}", tags=["lead"])
+        _obs.append_note(
+            "Leads", phone_slug, f"qualified — plan={plan or '?'} ref={ref or '?'}", tags=["lead"]
+        )
     except Exception:
         pass
 

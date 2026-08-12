@@ -94,7 +94,7 @@ def _csv_set(name: str) -> set[str]:
 
 
 def resolve_mode(
-    *, agent_id: str, source_loop: str, tool_token: Optional[str] = None
+    *, agent_id: str, source_loop: str, tool_token: str | None = None
 ) -> tuple[HarnessMode, list[str]]:
     """Deterministic mode resolver. Fail-closed: any invalid/ambiguous combo -> OFF.
 
@@ -161,7 +161,7 @@ class ExecutorBindingRegistry:
             raise ExecutorBindingConflict(f"executor for {name}@{version} is not callable")
         self._b[key] = fn
 
-    def get(self, name: str, version: str) -> Optional[ExecutorFn]:
+    def get(self, name: str, version: str) -> ExecutorFn | None:
         return self._b.get((name, version))
 
     def is_bound(self, name: str, version: str) -> bool:
@@ -187,13 +187,13 @@ class EnforcementDecision(BaseModel):
     tool_name: str
     tool_version: str
 
-    registry_status: Optional[str] = None
-    schema_valid: Optional[bool] = None
-    agent_allowed: Optional[bool] = None
-    tenant_allowed: Optional[bool] = None
+    registry_status: str | None = None
+    schema_valid: bool | None = None
+    agent_allowed: bool | None = None
+    tenant_allowed: bool | None = None
 
-    risk_lane: Optional[RiskLane] = None
-    authority: Optional[AuthorityClass] = None
+    risk_lane: RiskLane | None = None
+    authority: AuthorityClass | None = None
 
     approval_required: bool = False
     idempotency_required: bool = False
@@ -201,9 +201,9 @@ class EnforcementDecision(BaseModel):
     owner_os_routing_required: bool = False
 
     executor_bound: bool = False
-    budget_allowed: Optional[bool] = None
-    kill_switch_clear: Optional[bool] = None
-    stop_allowed: Optional[bool] = None
+    budget_allowed: bool | None = None
+    kill_switch_clear: bool | None = None
+    stop_allowed: bool | None = None
 
     denial_reasons: list[str] = Field(default_factory=list)
     decision_id: str = Field(default_factory=lambda: uuid.uuid4().hex[:16])
@@ -251,9 +251,9 @@ def _reset_guard() -> None:
 class EnforcementGate:
     def __init__(
         self,
-        registry: Optional[CanonicalToolRegistry] = None,
-        executors: Optional[ExecutorBindingRegistry] = None,
-        stop: Optional[StopController] = None,
+        registry: CanonicalToolRegistry | None = None,
+        executors: ExecutorBindingRegistry | None = None,
+        stop: StopController | None = None,
     ) -> None:
         self.registry = registry or REGISTRY
         self.executors = executors or EXECUTORS
@@ -384,7 +384,7 @@ class EnforcementGate:
     # ---- execute: ONLY the registry-bound executor, at most once ------
     async def execute_registered(
         self, ctx: RunContext, action_request: ToolCall, decision: EnforcementDecision
-    ) -> tuple[bool, Any, Optional[str], bool]:
+    ) -> tuple[bool, Any, str | None, bool]:
         """Returns (ok, output, error, duplicate_suppressed). Executes the
         registry-BOUND executor exactly once. The caller-supplied arbitrary
         callable is never touched here."""
@@ -414,9 +414,9 @@ class EnforcementGate:
 # --------------------------------------------------------------------------- #
 def _audit_event(
     ctx: RunContext,
-    call: Optional[ToolCall],
+    call: ToolCall | None,
     event: str,
-    decision: Optional[EnforcementDecision] = None,
+    decision: EnforcementDecision | None = None,
     **extra: Any,
 ) -> None:
     try:
@@ -453,7 +453,7 @@ async def enforce_batch_item(
     tool_name: str,
     tool_version: str,
     item: Any,
-    gate: Optional[EnforcementGate] = None,
+    gate: EnforcementGate | None = None,
 ) -> dict:
     """Governed execution of ONE batch item in ENFORCE mode. The caller's
     arbitrary `fn` is NOT passed here and NEVER runs — only the registry-bound

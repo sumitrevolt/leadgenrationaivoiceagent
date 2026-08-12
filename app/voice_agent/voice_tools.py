@@ -213,8 +213,7 @@ async def run_tool_turn(
                 logger.warning(f"voice_tools: tool {name} execute failed: {e}")
                 return out
             should_end = name == "end_call" or (
-                isinstance(getattr(result, "data", None), dict)
-                and result.data.get("should_end")
+                isinstance(getattr(result, "data", None), dict) and result.data.get("should_end")
             )
             out.update(
                 {

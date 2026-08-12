@@ -296,20 +296,22 @@ def apply(snapshot_id: str, target_client_id: str) -> dict[str, Any]:
                     if not src_id and target_client_id:
                         cond.setdefault("client_id", target_client_id)
                         acts = [
-                            {
-                                **a,
-                                "params": {
-                                    **(a.get("params") or {}),
-                                    **(
-                                        {"client_id": target_client_id}
-                                        if isinstance(a.get("params"), dict)
-                                        and "client_id" in json.dumps(a.get("params") or {})
-                                        else {}
-                                    ),
-                                },
-                            }
-                            if isinstance(a, dict)
-                            else a
+                            (
+                                {
+                                    **a,
+                                    "params": {
+                                        **(a.get("params") or {}),
+                                        **(
+                                            {"client_id": target_client_id}
+                                            if isinstance(a.get("params"), dict)
+                                            and "client_id" in json.dumps(a.get("params") or {})
+                                            else {}
+                                        ),
+                                    },
+                                }
+                                if isinstance(a, dict)
+                                else a
+                            )
                             for a in acts
                         ]
                     blob = json.dumps({"condition": cond, "actions": acts}, ensure_ascii=False)

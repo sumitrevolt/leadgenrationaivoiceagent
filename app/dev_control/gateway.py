@@ -56,7 +56,10 @@ async def invoke(
                 "reason": admission["reason"],
                 "selected_provider": alias,
                 "attempted": attempted,
-                "usage": {"estimated_cost_usd": str(admission["estimated_cost_usd"]), "estimated": True},
+                "usage": {
+                    "estimated_cost_usd": str(admission["estimated_cost_usd"]),
+                    "estimated": True,
+                },
             }
         try:
             if provider_call is None:
@@ -76,14 +79,34 @@ async def invoke(
                 text, provider, usage = raw
             else:
                 text, provider = raw
-                usage = {"estimated": True, "prompt_tokens": sum(len(str(m.get("content") or "")) for m in messages) // 4, "completion_tokens": len(text or "") // 4}
+                usage = {
+                    "estimated": True,
+                    "prompt_tokens": sum(len(str(m.get("content") or "")) for m in messages) // 4,
+                    "completion_tokens": len(text or "") // 4,
+                }
             if text:
                 input_tokens = int(usage.get("prompt_tokens") or 0)
                 output_tokens = int(usage.get("completion_tokens") or 0)
-                actual_cost = (Decimal(input_tokens) * Decimal(str(meta.get("cost_input_usd_per_million", 0))) + Decimal(output_tokens) * Decimal(str(meta.get("cost_output_usd_per_million", 0)))) / Decimal(1_000_000)
-                return {"ok": True, "task_id": task_id, "provider": provider or _provider_name(alias), "model": meta.get("model"), "text": text, "usage": {**usage, "actual_cost_usd": str(actual_cost)}}
+                actual_cost = (
+                    Decimal(input_tokens) * Decimal(str(meta.get("cost_input_usd_per_million", 0)))
+                    + Decimal(output_tokens)
+                    * Decimal(str(meta.get("cost_output_usd_per_million", 0)))
+                ) / Decimal(1_000_000)
+                return {
+                    "ok": True,
+                    "task_id": task_id,
+                    "provider": provider or _provider_name(alias),
+                    "model": meta.get("model"),
+                    "text": text,
+                    "usage": {**usage, "actual_cost_usd": str(actual_cost)},
+                }
             attempted.append({"provider": alias, "error": "empty_response"})
         except Exception as exc:  # provider failure must fall through safely
             attempted.append({"provider": alias, "error": str(exc)[:160]})
-    return {"ok": False, "task_id": task_id, "reason": "all_providers_failed", "attempted": attempted, "usage": {"estimated": True}}
-
+    return {
+        "ok": False,
+        "task_id": task_id,
+        "reason": "all_providers_failed",
+        "attempted": attempted,
+        "usage": {"estimated": True},
+    }

@@ -20,6 +20,7 @@ they move.
 
 Protocol: ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md
 """
+
 from __future__ import annotations
 
 import argparse

@@ -84,7 +84,9 @@ def _slide_svg(
     )
 
 
-def _fallback_slides(business: str, niche: str, topic: str, n: int, cta: str = "") -> list[dict[str, str]]:
+def _fallback_slides(
+    business: str, niche: str, topic: str, n: int, cta: str = ""
+) -> list[dict[str, str]]:
     nm = (niche or "business").replace("_", " ")
     # Last-slide CTA line — customer ho to apni mini-site/phone; warna default audit.
     last_cta = (cta or "").strip() or _DEFAULT_CTA

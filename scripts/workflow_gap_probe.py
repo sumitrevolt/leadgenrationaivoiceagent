@@ -4,6 +4,7 @@
 Checks incomplete loops: cadence enroll, journey rules, job heartbeats, cadence queue.
 Run: python scripts/workflow_gap_probe.py
 """
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,12 @@ def probe_cadence_enroll_kwarg() -> None:
     from app.marketing import cadence
 
     r = cadence.enroll({"phone": "9999999998", "name": "probe-ok", "source": "inquiry"})
-    _log("A", "probe:cadence", "enroll supported signature", {"id": r.get("id"), "status": r.get("status")})
+    _log(
+        "A",
+        "probe:cadence",
+        "enroll supported signature",
+        {"id": r.get("id"), "status": r.get("status")},
+    )
 
 
 def probe_journey_rules() -> None:
@@ -95,7 +101,12 @@ def probe_cadence_queue() -> None:
         from app.marketing import cadence
 
         st = cadence.stats()
-        _log("D", "probe:cadence", "cadence stats", st if isinstance(st, dict) else {"raw": str(st)[:200]})
+        _log(
+            "D",
+            "probe:cadence",
+            "cadence stats",
+            st if isinstance(st, dict) else {"raw": str(st)[:200]},
+        )
     except Exception as e:
         _log("D", "probe:cadence", "cadence stats failed", {"error": str(e)[:120]})
 

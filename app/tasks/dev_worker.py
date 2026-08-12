@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import os
 
+from app.platform.celery_async import run as run_async
 from app.utils.logger import setup_logger
 from app.worker import celery_app
-from app.platform.celery_async import run as run_async
 
 logger = setup_logger(__name__)
 
@@ -33,7 +33,9 @@ def run_dev_task_task(self, task_id: str, worker_id: str = "celery-dev-worker"):
     async def _go():
         async with get_async_session() as db:
             return await run_dev_task(
-                db, task_id, worker_id=worker_id,
+                db,
+                task_id,
+                worker_id=worker_id,
                 proposals_root=os.getenv("DEV_PROPOSALS_DIR", "data/dev_tasks"),
             )
 

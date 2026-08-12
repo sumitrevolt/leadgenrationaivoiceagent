@@ -5,6 +5,7 @@ Run on VPS (needs DB):
   docker exec leadgen_app python scripts/sales_ops_batch.py
   docker exec leadgen_app python scripts/sales_ops_batch.py --limit 30 --apply
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,12 +22,12 @@ async def _stats() -> dict:
     from app.models.lead import Lead
 
     async with get_async_session() as session:
-        total = (
-            await session.execute(select(func.count()).select_from(Lead))
-        ).scalar() or 0
+        total = (await session.execute(select(func.count()).select_from(Lead))).scalar() or 0
         phone_only = (
             await session.execute(
-                select(func.count()).select_from(Lead).where(
+                select(func.count())
+                .select_from(Lead)
+                .where(
                     Lead.phone.isnot(None),
                     Lead.phone != "",
                     (Lead.email.is_(None)) | (Lead.email == ""),
@@ -35,7 +36,9 @@ async def _stats() -> dict:
         ).scalar() or 0
         with_email = (
             await session.execute(
-                select(func.count()).select_from(Lead).where(
+                select(func.count())
+                .select_from(Lead)
+                .where(
                     Lead.email.isnot(None),
                     Lead.email != "",
                 )
@@ -129,8 +132,7 @@ async def _run(limit: int, apply: bool) -> int:
     stats = await _stats()
     print("DIALER_SPRINT_STATS", json.dumps(stats, ensure_ascii=False))
     print(
-        "\nHuman action: /app/dialer se 20-30 calls/day — "
-        f"phone-only pool={stats['phone_only']}"
+        "\nHuman action: /app/dialer se 20-30 calls/day — " f"phone-only pool={stats['phone_only']}"
     )
     if not apply:
         print("\nDry-run only. Re-run with --apply to enrich emails.")

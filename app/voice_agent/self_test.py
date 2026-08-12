@@ -217,7 +217,9 @@ async def _run_live(n: int, deadline_s: float) -> dict[str, Any]:
     try:
         from app.agents import live_eval
 
-        res = await asyncio.wait_for(asyncio.to_thread(live_eval.eval_recent_calls, n), timeout=deadline_s)
+        res = await asyncio.wait_for(
+            asyncio.to_thread(live_eval.eval_recent_calls, n), timeout=deadline_s
+        )
         n_calls = int(res.get("n") or 0)
         return {
             "ok": True,
@@ -229,10 +231,20 @@ async def _run_live(n: int, deadline_s: float) -> dict[str, Any]:
             "ms": int((time.time() - t0) * 1000),
         }
     except TimeoutError:
-        return {"ok": True, "error": "timeout", "has_data": False, "ms": int((time.time() - t0) * 1000)}
+        return {
+            "ok": True,
+            "error": "timeout",
+            "has_data": False,
+            "ms": int((time.time() - t0) * 1000),
+        }
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("self_test live error: %s", exc)
-        return {"ok": True, "error": repr(exc)[:200], "has_data": False, "ms": int((time.time() - t0) * 1000)}
+        return {
+            "ok": True,
+            "error": repr(exc)[:200],
+            "has_data": False,
+            "ms": int((time.time() - t0) * 1000),
+        }
 
 
 # --------------------------------------------------------------------------- #
@@ -339,8 +351,16 @@ async def _main(argv: list[str]) -> int:
         for key in ("tts", "stt", "llm"):
             v = s.get(key)
             if isinstance(v, dict):
-                extra = v.get("audio_bytes") or v.get("provider") or v.get("manager") or v.get("error") or ""
-                print(f" {key:<8} : {'OK ' if v.get('ok') else 'BAD'}  {extra}  ({v.get('ms', '?')}ms)")
+                extra = (
+                    v.get("audio_bytes")
+                    or v.get("provider")
+                    or v.get("manager")
+                    or v.get("error")
+                    or ""
+                )
+                print(
+                    f" {key:<8} : {'OK ' if v.get('ok') else 'BAD'}  {extra}  ({v.get('ms', '?')}ms)"
+                )
     lv = rep.get("live") or {}
     if lv:
         print(
@@ -349,7 +369,9 @@ async def _main(argv: list[str]) -> int:
             f"gate={lv.get('gate_decision')}"
         )
     print("-" * 64)
-    print(f" SCORE={rep.get('score')}  STATUS={str(rep.get('status')).upper()}  ({rep.get('ms')}ms)")
+    print(
+        f" SCORE={rep.get('score')}  STATUS={str(rep.get('status')).upper()}  ({rep.get('ms')}ms)"
+    )
     print("=" * 64)
     return 0 if rep.get("ok") else 1
 

@@ -50,10 +50,7 @@ async def analyze_web_session(session: dict[str, Any]) -> dict[str, Any]:
         score = float(vs.get("score") or 0)
         flags = vs.get("flags") or {}
 
-        tx = "\n".join(
-            f"{m['role'].upper()}: {m['content']}"
-            for m in rec["messages"][-16:]
-        )[:3500]
+        tx = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in rec["messages"][-16:])[:3500]
 
         prompt = (
             f"Niche: {rec['niche']}. Test-call score: {score:.2f} flags={flags}\n\n"

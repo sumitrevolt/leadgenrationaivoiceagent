@@ -1,5 +1,9 @@
 """Test GEMINI_API_KEY from VPS .env against Generative Language API."""
-import json, os, urllib.request, urllib.error
+
+import json
+import os
+import urllib.error
+import urllib.request
 
 env_file = "/opt/leadgen/.env"
 key = ""

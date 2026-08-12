@@ -109,11 +109,16 @@ def _apply_op(actual: Any, op: str, expected: Any) -> bool:
         if op == "exists":
             # truthy expected => must be present/truthy; falsy => must be absent/empty.
             present = actual not in (None, "", [], {})
-            want = expected if isinstance(expected, bool) else str(expected).lower() not in (
-                "false",
-                "0",
-                "no",
-                "",
+            want = (
+                expected
+                if isinstance(expected, bool)
+                else str(expected).lower()
+                not in (
+                    "false",
+                    "0",
+                    "no",
+                    "",
+                )
             )
             return present if want else (not present)
 
@@ -134,10 +139,15 @@ def _apply_op(actual: Any, op: str, expected: Any) -> bool:
             # bool-aware compare
             if isinstance(actual, bool) or isinstance(expected, bool):
                 a = bool(actual)
-                e = expected if isinstance(expected, bool) else str(expected).lower() in (
-                    "true",
-                    "1",
-                    "yes",
+                e = (
+                    expected
+                    if isinstance(expected, bool)
+                    else str(expected).lower()
+                    in (
+                        "true",
+                        "1",
+                        "yes",
+                    )
                 )
                 return (a == e) if op == "eq" else (a != e)
             na, ne = _coerce_num(actual), _coerce_num(expected)

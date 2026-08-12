@@ -8,18 +8,20 @@ import json
 import sys
 from datetime import datetime
 
+
 # Simulated inspection (would need actual Redis connection on VPS)
 def inspect_dlq():
     """Inspect dlq:dead entries. Prod: requires REDIS_URL connection."""
     try:
         import redis
+
         from app.config import settings
 
         r = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
         # Get DLQ entries
         dlq_len = r.llen("dlq:dead")
-        print(f"\n=== DLQ INSPECTION ===")
+        print("\n=== DLQ INSPECTION ===")
         print(f"Total entries in dlq:dead: {dlq_len}")
 
         if dlq_len == 0:
@@ -54,7 +56,12 @@ def inspect_dlq():
         if prod_count == 0:
             print("\n✓ SAFE TO CLEAN: All entries are QA/test jobs")
             print("Run: redis-cli DEL dlq:dead")
-            return {"status": "safe_to_clean", "qa_count": qa_count, "prod_count": prod_count, "by_job": by_job}
+            return {
+                "status": "safe_to_clean",
+                "qa_count": qa_count,
+                "prod_count": prod_count,
+                "by_job": by_job,
+            }
         else:
             print(f"\n✗ DO NOT CLEAN: {prod_count} production entries found")
             return {"status": "has_prod_entries", "prod_count": prod_count, "by_job": by_job}
@@ -65,6 +72,7 @@ def inspect_dlq():
     except Exception as e:
         print(f"Error: {e}")
         return {"status": "error", "error": str(e)}
+
 
 if __name__ == "__main__":
     result = inspect_dlq()

@@ -7,6 +7,7 @@ Usage:
 
 Playbook ref: Queue System — every queue must have alert thresholds.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,6 +31,7 @@ ALERT_THRESHOLDS = {
 def _redis_client():
     try:
         import redis as _redis
+
         url = os.environ.get("REDIS_URL", "redis://redis:6379")
         return _redis.from_url(url, decode_responses=True)
     except Exception:
@@ -60,7 +62,10 @@ def emit_prometheus_metrics(depths: dict[str, int]) -> None:
     metrics_dir.mkdir(parents=True, exist_ok=True)
     metrics_file = metrics_dir / "celery_queue_depth.prom"
 
-    lines = ["# HELP celery_queue_depth Current depth of Celery queues", "# TYPE celery_queue_depth gauge"]
+    lines = [
+        "# HELP celery_queue_depth Current depth of Celery queues",
+        "# TYPE celery_queue_depth gauge",
+    ]
     for queue, depth in depths.items():
         if depth >= 0:
             lines.append(f'celery_queue_depth{{queue="{queue}"}} {depth}')

@@ -197,7 +197,12 @@ async def build_page_kit(
         try:
             return await asyncio.wait_for(_post(occ), timeout=10)
         except Exception:
-            return {"occasion": occ, "caption": f"{biz} — {niche_name}. {occ}!", "hashtags": [], "image_idea": ""}
+            return {
+                "occasion": occ,
+                "caption": f"{biz} — {niche_name}. {occ}!",
+                "hashtags": [],
+                "image_idea": "",
+            }
 
     first_posts = []
     for o in occasions:

@@ -29,19 +29,19 @@ _CAPTION_LIMITS: dict[str, int] = {
     "gbp": 1500,
     "linkedin": 3000,
     "x": 280,
-    "youtube": 5000,   # description max
+    "youtube": 5000,  # description max
     "whatsapp": 4096,  # text message max
-    "postiz": 5000,    # gateway-side, longest-wins
+    "postiz": 5000,  # gateway-side, longest-wins
 }
 
 # Hashtag caps (0 = platform effectively has none / uncapped).
 _HASHTAG_LIMITS: dict[str, int] = {
     "facebook": 30,
     "instagram": 30,
-    "gbp": 0,           # GBP posts don't officially cap tags — keep sane
+    "gbp": 0,  # GBP posts don't officially cap tags — keep sane
     "linkedin": 30,
-    "x": 0,             # X counts hashtags against 280 char limit only
-    "youtube": 15,      # description-hashtag effective visible cap
+    "x": 0,  # X counts hashtags against 280 char limit only
+    "youtube": 15,  # description-hashtag effective visible cap
     "whatsapp": 0,
     "postiz": 30,
 }
@@ -49,11 +49,11 @@ _HASHTAG_LIMITS: dict[str, int] = {
 # Supported media types per platform (broad — matches provider dispatch shape).
 _MEDIA_SUPPORT: dict[str, set[str]] = {
     "facebook": {"text", "image", "video"},
-    "instagram": {"image", "video"},           # IG post needs media
+    "instagram": {"image", "video"},  # IG post needs media
     "gbp": {"text", "image"},
     "linkedin": {"text", "image", "video"},
     "x": {"text", "image", "video"},
-    "youtube": {"video"},                       # channel upload = video only
+    "youtube": {"video"},  # channel upload = video only
     "whatsapp": {"text", "image", "video"},
     "postiz": {"text", "image", "video"},
 }
@@ -101,63 +101,90 @@ def validate_post(
         # caption length
         cap_limit = _CAPTION_LIMITS.get(p, 5000)
         if len(caption) > cap_limit:
-            issues.append(_issue(
-                "caption_length", "error",
-                f"{p} caption cap {cap_limit} chars; got {len(caption)}",
-                limit=cap_limit, actual=len(caption),
-            ))
+            issues.append(
+                _issue(
+                    "caption_length",
+                    "error",
+                    f"{p} caption cap {cap_limit} chars; got {len(caption)}",
+                    limit=cap_limit,
+                    actual=len(caption),
+                )
+            )
 
         # hashtag count
         ht_limit = _HASHTAG_LIMITS.get(p, 0)
         if ht_limit and len(hashtags) > ht_limit:
-            issues.append(_issue(
-                "hashtag_limit", "error",
-                f"{p} allows up to {ht_limit} hashtags; got {len(hashtags)}",
-                limit=ht_limit, actual=len(hashtags),
-            ))
+            issues.append(
+                _issue(
+                    "hashtag_limit",
+                    "error",
+                    f"{p} allows up to {ht_limit} hashtags; got {len(hashtags)}",
+                    limit=ht_limit,
+                    actual=len(hashtags),
+                )
+            )
 
         # media support
         supported = _MEDIA_SUPPORT.get(p, {"text", "image", "video"})
         if media_type not in supported:
-            issues.append(_issue(
-                "unsupported_media", "error",
-                f"{p} doesn't accept media_type={media_type}; allowed {sorted(supported)}",
-                media_type=media_type, allowed=sorted(supported),
-            ))
+            issues.append(
+                _issue(
+                    "unsupported_media",
+                    "error",
+                    f"{p} doesn't accept media_type={media_type}; allowed {sorted(supported)}",
+                    media_type=media_type,
+                    allowed=sorted(supported),
+                )
+            )
         # Instagram + YouTube must have media (text-only rejected).
         if p in ("instagram", "youtube") and media_type == "text":
-            issues.append(_issue(
-                "missing_media", "error",
-                f"{p} requires media (image or video)",
-            ))
+            issues.append(
+                _issue(
+                    "missing_media",
+                    "error",
+                    f"{p} requires media (image or video)",
+                )
+            )
 
         # zero-width / bidi injection
         if _INJECTION_RE.search(caption):
-            issues.append(_issue(
-                "unsupported_characters", "warn",
-                "Caption contains zero-width / bidi characters — will be stripped",
-            ))
+            issues.append(
+                _issue(
+                    "unsupported_characters",
+                    "warn",
+                    "Caption contains zero-width / bidi characters — will be stripped",
+                )
+            )
 
         # prohibited claims (Indian ad-code)
         m = _PROHIBITED_RE.search(caption)
         if m:
-            issues.append(_issue(
-                "prohibited_claims", "warn",
-                f"Caption contains restricted claim '{m.group(0)}' — verify with owner",
-                match=m.group(0),
-            ))
+            issues.append(
+                _issue(
+                    "prohibited_claims",
+                    "warn",
+                    f"Caption contains restricted claim '{m.group(0)}' — verify with owner",
+                    match=m.group(0),
+                )
+            )
 
         # missing disclaimer for paid/affiliate posts
         cta = str(post.get("cta") or "").lower()
         content_type = str(post.get("content_type") or "").lower()
         if content_type in ("ad", "sponsored", "affiliate"):
             hay = (caption + " " + cta).lower()
-            if not any(tok in hay for tok in ("#ad", "#sponsored", "sponsored", "paid partnership", "#partner")):
-                issues.append(_issue(
-                    "missing_disclaimer", "error",
-                    "Sponsored/affiliate content missing #ad / #sponsored disclosure",
-                    content_type=content_type,
-                ))
+            if not any(
+                tok in hay
+                for tok in ("#ad", "#sponsored", "sponsored", "paid partnership", "#partner")
+            ):
+                issues.append(
+                    _issue(
+                        "missing_disclaimer",
+                        "error",
+                        "Sponsored/affiliate content missing #ad / #sponsored disclosure",
+                        content_type=content_type,
+                    )
+                )
 
         # duplicate content window (caller supplies recent_captions from
         # store.list_jobs). Case-insensitive whitespace-normalized match.
@@ -165,10 +192,13 @@ def validate_post(
             norm = " ".join(caption.strip().lower().split())
             recent_norm = {" ".join(c.strip().lower().split()) for c in recent_captions if c}
             if norm and norm in recent_norm:
-                issues.append(_issue(
-                    "duplicate_content", "warn",
-                    "Same caption published recently on this platform — may look spammy",
-                ))
+                issues.append(
+                    _issue(
+                        "duplicate_content",
+                        "warn",
+                        "Same caption published recently on this platform — may look spammy",
+                    )
+                )
     except Exception as e:
         issues.append(_issue("validator_error", "warn", f"validator crashed: {e}"))
 

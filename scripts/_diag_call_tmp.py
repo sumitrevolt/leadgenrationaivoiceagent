@@ -1,4 +1,5 @@
 """Temp: place ONE diagnostic Vobiz stream call to a given number."""
+
 import asyncio
 import sys
 
@@ -10,7 +11,14 @@ async def main():
     r = await start_stream_call(
         to=to, niche="ai_marketing", call_type="transactional", client_id=None
     )
-    print("PLACED:", r.get("placed"), "| token:", r.get("stream_token"), "| err:", r.get("error") or "-")
+    print(
+        "PLACED:",
+        r.get("placed"),
+        "| token:",
+        r.get("stream_token"),
+        "| err:",
+        r.get("error") or "-",
+    )
     vr = r.get("vobiz_response") or {}
     print("vobiz status_code:", vr.get("status_code"))
 

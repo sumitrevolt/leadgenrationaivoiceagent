@@ -6,6 +6,7 @@
 Confirms the LIVE image actually contains the latest code + baked deps (not just a
 git-pulled checkout). Never mutates anything.
 """
+
 import importlib.util as u
 import os
 import sys

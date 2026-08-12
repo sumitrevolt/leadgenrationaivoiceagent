@@ -25,9 +25,7 @@ logger = setup_logger(__name__)
 # Whole router is admin-only: every endpoint aggregates platform-wide Lead/CallLog
 # data (conversion rates, lead scores, agent/campaign performance) — must not be
 # reachable anonymously.
-router = APIRouter(
-    prefix="/analytics", tags=["Analytics"], dependencies=[Depends(require_admin)]
-)
+router = APIRouter(prefix="/analytics", tags=["Analytics"], dependencies=[Depends(require_admin)])
 
 
 class DashboardStats(BaseModel):

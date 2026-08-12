@@ -197,15 +197,21 @@ async def _sk_niche_snapshot(ctx: Ctx) -> dict[str, Any]:
         cap = client_snapshots.capture_from_niche(ctx["niche"])
         return {
             "ok": cap.get("ok", False),
-            "summary": f"Niche template captured: {ctx['niche']}" if cap.get("ok") else cap.get("error", "fail"),
+            "summary": (
+                f"Niche template captured: {ctx['niche']}"
+                if cap.get("ok")
+                else cap.get("error", "fail")
+            ),
             "data": cap,
         }
     res = client_snapshots.apply_niche_to_client(cid, ctx.get("niche"))
     return {
         "ok": res.get("ok", False),
-        "summary": f"Niche snapshot applied ({res.get('niche_key', ctx['niche'])})"
-        if res.get("ok")
-        else res.get("error", "apply fail"),
+        "summary": (
+            f"Niche snapshot applied ({res.get('niche_key', ctx['niche'])})"
+            if res.get("ok")
+            else res.get("error", "apply fail")
+        ),
         "data": res,
     }
 

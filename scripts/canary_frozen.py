@@ -6,6 +6,7 @@ TM2 contract tests and lead tooling must import this — never paste frozen path
     python3 scripts/canary_frozen.py              # render markdown from SSOT
     python3 scripts/canary_frozen.py check --base origin/main --head HEAD
 """
+
 from __future__ import annotations
 
 import argparse
@@ -115,7 +116,9 @@ def changed_files(*, base: str, head: str, cwd: Path | None = None) -> list[str]
     return [ln.strip().replace("\\", "/") for ln in completed.stdout.splitlines() if ln.strip()]
 
 
-def check_diff_against_frozen(*, base: str, head: str, cwd: Path | None = None) -> list[tuple[str, str]]:
+def check_diff_against_frozen(
+    *, base: str, head: str, cwd: Path | None = None
+) -> list[tuple[str, str]]:
     """Return list of (path, matched_pattern) violations."""
     hits: list[tuple[str, str]] = []
     for path in changed_files(base=base, head=head, cwd=cwd):
@@ -127,7 +130,10 @@ def check_diff_against_frozen(*, base: str, head: str, cwd: Path | None = None) 
 
 def render_frozen_markdown() -> str:
     """Helper for TM1 docs — render bullets from SSOT (no hand-copied list)."""
-    lines = ["<!-- rendered from docs/coordination/canary_frozen_paths.yml — do not hand-edit paths -->", ""]
+    lines = [
+        "<!-- rendered from docs/coordination/canary_frozen_paths.yml — do not hand-edit paths -->",
+        "",
+    ]
     for p in frozen_paths():
         lines.append(f"- `{p}`")
     classes = frozen_classes()
@@ -162,7 +168,10 @@ def cmd_check(args: argparse.Namespace) -> int:
     if not hits:
         print(f"OK frozen_diff_check_clean base={base} head={head}")
         return 0
-    print(f"REFUSED: frozen path touched ({len(hits)} file(s)) base={base} head={head}", file=sys.stderr)
+    print(
+        f"REFUSED: frozen path touched ({len(hits)} file(s)) base={base} head={head}",
+        file=sys.stderr,
+    )
     for path, pat in hits:
         print(f"  {path}  matches  {pat}", file=sys.stderr)
     return 2

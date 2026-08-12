@@ -1,4 +1,7 @@
-import urllib.request, json, sys
+import json
+import sys
+import urllib.request
+
 url = "https://leadsgenai.in/health"
 try:
     with urllib.request.urlopen(url, timeout=10) as r:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check/set workflow flags on VPS .env + import smoke."""
+
 from __future__ import annotations
 
 import os
@@ -18,13 +19,20 @@ def main() -> int:
     if os.path.isfile(ENV_PATH):
         with open(ENV_PATH, encoding="utf-8", errors="replace") as f:
             for line in f:
-                if re.match(r"^(CONTENT_APPROVAL_AUTO|CADENCE_ENGINE|JOURNEY_ENGINE|CUSTOMER_WEBHOOKS|SELF_IMPROVE_LOOP|AUTO_CALLBACK_INQUIRY)=", line):
+                if re.match(
+                    r"^(CONTENT_APPROVAL_AUTO|CADENCE_ENGINE|JOURNEY_ENGINE|CUSTOMER_WEBHOOKS|SELF_IMPROVE_LOOP|AUTO_CALLBACK_INQUIRY)=",
+                    line,
+                ):
                     print(line.rstrip())
     else:
         print("NO .env")
 
     changed = False
-    text = open(ENV_PATH, encoding="utf-8", errors="replace").read() if os.path.isfile(ENV_PATH) else ""
+    text = (
+        open(ENV_PATH, encoding="utf-8", errors="replace").read()
+        if os.path.isfile(ENV_PATH)
+        else ""
+    )
     for key, val in WANT.items():
         pat = re.compile(rf"^{re.escape(key)}=.*$", re.M)
         if pat.search(text):

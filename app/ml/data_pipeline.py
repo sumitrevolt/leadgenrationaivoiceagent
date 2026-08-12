@@ -451,9 +451,7 @@ class ConversationDataPipeline:
                             ConversationTurn(
                                 role=t.get("role", ""),
                                 content=t.get("content", ""),
-                                timestamp=(
-                                    datetime.fromisoformat(ts) if ts else datetime.now()
-                                ),
+                                timestamp=(datetime.fromisoformat(ts) if ts else datetime.now()),
                                 intent=t.get("intent"),
                                 confidence=t.get("confidence", 0.0),
                                 entities=t.get("entities") or {},

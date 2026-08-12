@@ -50,7 +50,7 @@ def _truncate(text: str, cap: int, suffix: str = "…") -> str:
     sp = cut.rfind(" ")
     if sp > int(cap * 0.7):
         cut = cut[:sp]
-    return (cut + suffix)
+    return cut + suffix
 
 
 def _thread_split(text: str, per_part: int = 275) -> list[str]:

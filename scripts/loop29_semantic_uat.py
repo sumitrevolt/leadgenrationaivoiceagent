@@ -3,10 +3,11 @@ Not a real browser render (no Playwright/Chrome MCP available), but does a
 structural check that no real orphan handlers exist, no duplicate IDs are
 served, and every Loop 27/28/29 marker is present in the deployed HTML.
 """
-import urllib.request as u
-import re
+
 import json
+import re
 import sys
+import urllib.request as u
 
 
 def fetch(url: str) -> str:
@@ -20,15 +21,31 @@ def analyze(label: str, html: str) -> dict:
     dup_ids = sorted({i for i in ids if ids.count(i) > 1})
     fns = re.findall(r"\bonclick=['\"]([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", html)
     defs = set(re.findall(r"function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", html))
-    defs |= set(re.findall(r"(?:const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:async\s+)?function", html))
+    defs |= set(
+        re.findall(
+            r"(?:const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:async\s+)?function", html
+        )
+    )
     defs |= set(re.findall(r"window\.([a-zA-Z_][a-zA-Z0-9_]*)\s*=", html))
     orphans = sorted(set(fns) - defs - {"alert", "confirm", "prompt", "fetch", "toast"})
     if label == "customer":
-        markers = ["setupLoggedOutGate", "loadReportsView", "mobileMoreSheet",
-                   "openMoreSheet", "_closeConnectModal", "account_id"]
+        markers = [
+            "setupLoggedOutGate",
+            "loadReportsView",
+            "mobileMoreSheet",
+            "openMoreSheet",
+            "_closeConnectModal",
+            "account_id",
+        ]
     else:
-        markers = ["platformDialBanner", "_closeC360PwdModal", "function toast",
-                   "Intl.NumberFormat", "adminToast(msg", "sec-upi-selfserve"]
+        markers = [
+            "platformDialBanner",
+            "_closeC360PwdModal",
+            "function toast",
+            "Intl.NumberFormat",
+            "adminToast(msg",
+            "sec-upi-selfserve",
+        ]
     marker_check = {m: (m in html) for m in markers}
     # prompt() calls in the touched paths — count only inline template strings we shipped
     # (the c360 and connect modals used to use prompt; count residuals)
@@ -71,10 +88,21 @@ def main() -> int:
         if r["orphan_handlers"]:
             # Some orphans are known-defined-elsewhere (dynamic templates); tolerate
             # but log. Only fail if a Loop27/28/29 marker fn is missing.
-            expected_touched = {"_closeConnectModal", "_submitConnectDialog", "loadReportsView",
-                                "openMoreSheet", "closeMoreSheet", "pickMoreSheet", "_closeC360PwdModal",
-                                "_c360PwdSubmit", "_c360PwdUpdate", "_c360PwdGenerate",
-                                "upiSelfServeDecide", "upiActivate", "upiManualActivate"}
+            expected_touched = {
+                "_closeConnectModal",
+                "_submitConnectDialog",
+                "loadReportsView",
+                "openMoreSheet",
+                "closeMoreSheet",
+                "pickMoreSheet",
+                "_closeC360PwdModal",
+                "_c360PwdSubmit",
+                "_c360PwdUpdate",
+                "_c360PwdGenerate",
+                "upiSelfServeDecide",
+                "upiActivate",
+                "upiManualActivate",
+            }
             missing_critical = expected_touched & set(r["orphan_handlers"])
             if missing_critical:
                 r["MISSING_CRITICAL_HANDLERS"] = sorted(missing_critical)

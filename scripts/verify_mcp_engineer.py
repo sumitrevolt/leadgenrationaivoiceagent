@@ -33,6 +33,7 @@ print("=" * 70)
 print("\n[1] app/platform/mcp_engineer.py")
 try:
     from app.platform import mcp_engineer
+
     check("module imports", True)
 except Exception as e:
     check("module imports", False, str(e)[:80])
@@ -46,15 +47,25 @@ check("INERT when MCP_ENGINEER unset", r.get("status") == "disabled", r.get("sta
 os.environ["MCP_ENGINEER"] = "1"
 r = mcp_engineer.run_mcp()
 check("full pass returns status=ok", r.get("status") == "ok")
-check("score is in [0,100]",
-      isinstance(r.get("score"), (int, float)) and 0 <= r.get("score", -1) <= 100,
-      f"score={r.get('score')}")
-expected_kpis = {"dependency", "expose_gate", "product_armed", "keys", "rotation", "auth_failures", "a2a_card"}
+check(
+    "score is in [0,100]",
+    isinstance(r.get("score"), (int, float)) and 0 <= r.get("score", -1) <= 100,
+    f"score={r.get('score')}",
+)
+expected_kpis = {
+    "dependency",
+    "expose_gate",
+    "product_armed",
+    "keys",
+    "rotation",
+    "auth_failures",
+    "a2a_card",
+}
 got_kpis = set((r.get("kpis") or {}).keys())
 check("all 7 probes ran", expected_kpis.issubset(got_kpis), f"missing={expected_kpis - got_kpis}")
 
 audit = mcp_engineer.audit_mcp_security()
-print(f"\n  Security audit:")
+print("\n  Security audit:")
 for k, v in audit.items():
     print(f"      {k}: {v}")
 
@@ -62,6 +73,7 @@ for k, v in audit.items():
 print("\n[2] app/platform/team.py")
 try:
     from app.platform import team
+
     check("module imports", True)
     check("STAFF['arya'] exists", "arya" in team.STAFF)
     if "arya" in team.STAFF:
@@ -75,20 +87,30 @@ except Exception as e:
 print("\n[3] app/tasks/staff_jobs.py")
 try:
     from app.tasks import staff_jobs
+
     check("STAFF_JOBS includes mcp_engineer", "mcp_engineer" in staff_jobs.STAFF_JOBS)
 except Exception as e:
     src = (REPO / "app" / "tasks" / "staff_jobs.py").read_text(encoding="utf-8")
-    check("STAFF_JOBS includes mcp_engineer (grep)", '"mcp_engineer"' in src, f"import failed: {str(e)[:40]}")
+    check(
+        "STAFF_JOBS includes mcp_engineer (grep)",
+        '"mcp_engineer"' in src,
+        f"import failed: {str(e)[:40]}",
+    )
 
 # [4] team_scheduler
 print("\n[4] app/platform/team_scheduler.py")
 try:
     from app.platform import team_scheduler
+
     inspected = team_scheduler.__dict__.get("_last_ran") or {}
     check("_last_ran includes mcp_engineer", "mcp_engineer" in inspected)
 except Exception as e:
     src = (REPO / "app" / "platform" / "team_scheduler.py").read_text(encoding="utf-8")
-    check("mcp_engineer dispatch present (grep)", '"mcp_engineer"' in src, f"import failed: {str(e)[:40]}")
+    check(
+        "mcp_engineer dispatch present (grep)",
+        '"mcp_engineer"' in src,
+        f"import failed: {str(e)[:40]}",
+    )
 
 # [5] worker.py beat
 print("\n[5] app/worker.py beat schedule")
@@ -116,8 +138,11 @@ for path in (
     "tests/test_mcp_engineer.py",
 ):
     fp = REPO / path
-    check(f"{path} exists", fp.exists() and fp.stat().st_size > 200,
-          f"{fp.stat().st_size if fp.exists() else 0}B")
+    check(
+        f"{path} exists",
+        fp.exists() and fp.stat().st_size > 200,
+        f"{fp.stat().st_size if fp.exists() else 0}B",
+    )
 
 print("\n" + "=" * 70)
 if failures:

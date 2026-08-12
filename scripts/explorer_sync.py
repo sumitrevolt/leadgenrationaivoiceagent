@@ -17,6 +17,7 @@ Coverage sources (the architecture backbone):
   - AUTOMATION_FLAGS (info — graph tags only key flags, not all)
 Never raises. Windows venv: .venv\\Scripts\\python.exe scripts/explorer_sync.py
 """
+
 from __future__ import annotations
 
 import os
@@ -30,9 +31,29 @@ SCHED = ROOT / "app" / "platform" / "team_scheduler.py"
 STAFF = ROOT / "app" / "tasks" / "staff_jobs.py"
 GROWTH = ROOT / "app" / "api" / "growth.py"
 
-_DROP = {"os", "json", "asyncio", "datetime", "timezone", "time", "random", "typing",
-         "annotations", "contextlib", "io", "logging", "math", "uuid", "re",
-         "logger", "settings", "config", "models", "base", "celery_app"}
+_DROP = {
+    "os",
+    "json",
+    "asyncio",
+    "datetime",
+    "timezone",
+    "time",
+    "random",
+    "typing",
+    "annotations",
+    "contextlib",
+    "io",
+    "logging",
+    "math",
+    "uuid",
+    "re",
+    "logger",
+    "settings",
+    "config",
+    "models",
+    "base",
+    "celery_app",
+}
 
 
 def _read(p: pathlib.Path) -> str:
@@ -114,10 +135,14 @@ def audit() -> dict:
     nodes = len(re.findall(r"\{id:'", html))
     edges = len(re.findall(r"\{f:'", html))
     return {
-        "nodes": nodes, "edges": edges,
-        "mods": mods, "miss_mods": miss_mods,
-        "jobs": jobs, "miss_jobs": miss_jobs,
-        "flags": flags, "miss_flags": miss_flags,
+        "nodes": nodes,
+        "edges": edges,
+        "mods": mods,
+        "miss_mods": miss_mods,
+        "jobs": jobs,
+        "miss_jobs": miss_jobs,
+        "flags": flags,
+        "miss_flags": miss_flags,
         "miss_files": files_ref_audit(html),
     }
 
@@ -155,7 +180,7 @@ def edge_audit(html: str) -> dict[str, dict]:
         ids, edges = v["ids"], v["edges"]
         if not edges:
             continue
-        deg = {i: 0 for i in ids}
+        deg = dict.fromkeys(ids, 0)
         dangling = []
         for f, t in edges:
             if f not in ids or t not in ids:
@@ -164,8 +189,11 @@ def edge_audit(html: str) -> dict[str, dict]:
                 deg[f] += 1
             if t in deg:
                 deg[t] += 1
+
         # rm_*/gap_* = intentional roadmap/status marker tiles → allowed standalone
-        _marker = lambda i: i.startswith(("rm_", "gap_"))
+        def _marker(i):
+            return i.startswith(("rm_", "gap_"))
+
         out[k] = {
             "nodes": len(ids),
             "edges": len(edges),
@@ -194,27 +222,39 @@ def main(argv: list[str]) -> int:
     print("EXPLORER GRAPH <-> CODEBASE DRIFT")
     print("=" * 56)
     print(f"graph: {a['nodes']} nodes, {a['edges']} edges")
-    print(f"engine modules on graph: {len(a['mods']) - len(a['miss_mods'])}/{len(a['mods'])} ({pct}%)")
+    print(
+        f"engine modules on graph: {len(a['mods']) - len(a['miss_mods'])}/{len(a['mods'])} ({pct}%)"
+    )
     if a["miss_mods"]:
         print(f"  MISSING engine modules ({len(a['miss_mods'])}): {', '.join(a['miss_mods'])}")
-    print(f"staff jobs not named on graph (info): {len(a['miss_jobs'])}/{len(a['jobs'])}"
-          + (f" -> {', '.join(a['miss_jobs'])}" if a["miss_jobs"] else ""))
-    print(f"flags tagged on graph (info): {len(a['flags']) - len(a['miss_flags'])}/{len(a['flags'])}")
+    print(
+        f"staff jobs not named on graph (info): {len(a['miss_jobs'])}/{len(a['jobs'])}"
+        + (f" -> {', '.join(a['miss_jobs'])}" if a["miss_jobs"] else "")
+    )
+    print(
+        f"flags tagged on graph (info): {len(a['flags']) - len(a['miss_flags'])}/{len(a['flags'])}"
+    )
     if a["miss_files"]:
-        print(f"  DRIFT — `files:` refs not on disk ({len(a['miss_files'])}): {', '.join(a['miss_files'])}")
+        print(
+            f"  DRIFT — `files:` refs not on disk ({len(a['miss_files'])}): {', '.join(a['miss_files'])}"
+        )
     else:
         print("file refs (graph -> code): all resolve to real files")
 
     ea = edge_audit(_read(EXPLORER))
     print("\n--- connection health (per view) ---")
     for view, r in ea.items():
-        print(f"{view}: {r['nodes']} nodes · {r['edges']} edges"
-              + (f" · DANGLING {len(r['dangling'])}" if r["dangling"] else "")
-              + (f" · orphans {len(r['orphans'])}" if r["orphans"] else "")
-              + (f" · markers {len(r['markers'])}" if r["markers"] else "")
-              + (f" · leaves {len(r['leaves'])}" if r["leaves"] else ""))
+        print(
+            f"{view}: {r['nodes']} nodes · {r['edges']} edges"
+            + (f" · DANGLING {len(r['dangling'])}" if r["dangling"] else "")
+            + (f" · orphans {len(r['orphans'])}" if r["orphans"] else "")
+            + (f" · markers {len(r['markers'])}" if r["markers"] else "")
+            + (f" · leaves {len(r['leaves'])}" if r["leaves"] else "")
+        )
         if r["dangling"]:
-            print(f"    DANGLING (f/t not a node): {', '.join(f'{f}->{t}' for f, t in r['dangling'])}")
+            print(
+                f"    DANGLING (f/t not a node): {', '.join(f'{f}->{t}' for f, t in r['dangling'])}"
+            )
         if r["orphans"]:
             print(f"    ORPHAN (0 edges): {', '.join(r['orphans'])}")
         if r["leaves"]:
@@ -229,8 +269,10 @@ def main(argv: list[str]) -> int:
         dangling = {v: r["dangling"] for v, r in ea.items() if r["dangling"]}
         orphans = {v: r["orphans"] for v, r in ea.items() if r["orphans"]}
         if a["miss_mods"]:
-            print(f"\n[FAIL] {len(a['miss_mods'])} scheduled engine module(s) not on the graph "
-                  "— add nodes (--stubs) or this drift was intentional.")
+            print(
+                f"\n[FAIL] {len(a['miss_mods'])} scheduled engine module(s) not on the graph "
+                "— add nodes (--stubs) or this drift was intentional."
+            )
             return 1
         if dangling:
             print(f"\n[FAIL] dangling edges (target/source node missing): {dangling}")
@@ -241,8 +283,10 @@ def main(argv: list[str]) -> int:
         if a["miss_files"]:
             print(f"\n[FAIL] explorer `files:` references not found on disk: {a['miss_files']}")
             return 1
-        print("\n[OK] every engine module represented · no dangling edges · no orphan nodes "
-              "· all file refs resolve")
+        print(
+            "\n[OK] every engine module represented · no dangling edges · no orphan nodes "
+            "· all file refs resolve"
+        )
     return 0
 
 

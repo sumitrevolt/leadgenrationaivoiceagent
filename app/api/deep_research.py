@@ -206,7 +206,12 @@ async def run(payload: ResearchIn, _user=Depends(require_admin)) -> dict:
         "topic": payload.topic,
         "queries": queries,
         "sources": [
-            {"idx": i + 1, "title": s.get("title"), "url": s.get("url"), "snippet": s.get("content")}
+            {
+                "idx": i + 1,
+                "title": s.get("title"),
+                "url": s.get("url"),
+                "snippet": s.get("content"),
+            }
             for i, s in enumerate(sources)
         ],
         "report_markdown": report,

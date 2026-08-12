@@ -50,7 +50,8 @@ _COOLDOWN = {
     "compliance_disabled": 1 * 3600,  # legal kill-switch page, at most one per 1h
     "payment_failed": 1 * 3600,  # payment-failure page, at most one per 1h
     "smtp_disabled": 2 * 3600,  # SMTP account-block page, at most one per 2h
-    "paid_customer_stuck": 3 * 3600,  # jiya-class ghosting bug — page founder, at most one per client per 3h
+    "paid_customer_stuck": 3
+    * 3600,  # jiya-class ghosting bug — page founder, at most one per client per 3h
 }
 
 # Thresholds — override via env if the operator wants tighter/looser.
@@ -153,7 +154,6 @@ def alert_staff_failure(job: str, detail: str = "") -> dict[str, Any]:
     return {"alerted": True}
 
 
-
 def alert_voice_circuit_breaker(reason: str = "") -> dict[str, Any]:
     """Voice controlled-calling circuit breaker tripped (provider-failure spike /
     compliance-unavailable / recording-unhealthy) — campaign auto-paused. Pages ops
@@ -203,7 +203,8 @@ def alert_paid_customer_stuck(client_id: str, business_name: str, reason: str) -
 
 def alert_warm_sla(stuck: int, warm: int) -> dict[str, Any]:
     """W4.1: warm/stuck leads SLA nudge — FOUNDER ko ntfy (cooldown'd). Caller (office_hq)
-    WARM_SLA_NUDGE se gate karta; yahan sirf cooldown + send. Founder-only, koi customer send NAHI."""
+    WARM_SLA_NUDGE se gate karta; yahan sirf cooldown + send. Founder-only, koi customer send NAHI.
+    """
     key = "warm_sla_nudge"
     if _cooldown_active(key, "warm_sla"):
         return {"alerted": False, "reason": "cooldown"}
@@ -445,7 +446,9 @@ def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Alert 7 — UPI auto-activated (spot-check nudge, not a failure signal)
 # --------------------------------------------------------------------------- #
-def maybe_alert_upi_auto_activated(payment_id: str, client_id: str, plan: str, amount: float) -> dict[str, Any]:
+def maybe_alert_upi_auto_activated(
+    payment_id: str, client_id: str, plan: str, amount: float
+) -> dict[str, Any]:
     """Push a low-priority ntfy heads-up whenever UPI_AUTO_ACTIVATE instantly
     activates a plan on a self-reported (unverified) payment claim, so a fake
     claim gets a real founder glance instead of silently disappearing into a

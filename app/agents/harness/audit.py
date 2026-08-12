@@ -52,10 +52,10 @@ def _emit_span_attr(ctx: RunContext, **attrs: Any) -> None:
 
 def record(
     ctx: RunContext,
-    call: Optional[ToolCall],
-    result: Optional[ToolResult],
+    call: ToolCall | None,
+    result: ToolResult | None,
     kind: str,
-    extra: Optional[dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Append one correlation event. ``kind`` in {step, approval, eval, stop}."""
     row = {

@@ -219,7 +219,9 @@ def main() -> int:
         )
         unsafe = True
     elif free_disk < MIN_FREE_DISK_MB * 1.5:
-        reasons.append(f"Disk okay but not roomy ({free_disk:.0f} MB) — clear pip cache after install.")
+        reasons.append(
+            f"Disk okay but not roomy ({free_disk:.0f} MB) — clear pip cache after install."
+        )
         tight = True
 
     # CPU.
@@ -248,7 +250,9 @@ def main() -> int:
     if code == 0:
         print(">> Verdict SAFE. The flags stay OFF until you set them — nothing changed yet.")
     elif code == 1:
-        print(">> Verdict TIGHT. Address the notes (add swap / free disk / low-traffic window) first.")
+        print(
+            ">> Verdict TIGHT. Address the notes (add swap / free disk / low-traffic window) first."
+        )
     else:
         print(">> Verdict UNSAFE. Do NOT run the install commands until capacity improves.")
     return code

@@ -38,7 +38,7 @@ class CheckResult:
     name: str
     status: CheckStatus
     message: str
-    details: Optional[str] = None
+    details: str | None = None
 
 
 @dataclass

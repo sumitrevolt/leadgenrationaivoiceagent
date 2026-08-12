@@ -117,15 +117,14 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
         # issues = overdue + last_failed + never_ran-but-due. health() only emits
         # never_ran once a job is actually due (not-yet-due → scheduled_off), so a
         # plain status-set membership count is correct (no extra due-filter needed).
-        issues = sum(
-            1 for j in hjobs if j.get("status") in ("overdue", "last_failed", "never_ran")
-        )
+        issues = sum(1 for j in hjobs if j.get("status") in ("overdue", "last_failed", "never_ran"))
         out["metrics"]["jobs"] = {"total": total, "ok": ok, "issues": issues}
 
         q = h.get("queue") or {}
         queue_available = h.get("queue_available")
         if queue_available is None:
             queue_available = all(int(q.get(k, 0) or 0) >= 0 for k in ("celery", "dlq", "dead"))
+
         # Redis-unknown (-1) must NOT become 0 on the dashboard (ADR-114 false-green).
         def _q(key: str) -> int | None:
             v = int(q.get(key, -1) if q.get(key) is not None else -1)
@@ -411,8 +410,7 @@ async def control_center_node_stats(_user=Depends(require_admin)) -> dict[str, A
             # critical_path = plain reading: nodes ordered by p50 desc. We can't
             # derive true DAG topology cross-run, so we say so in the note.
             out["critical_path"] = [
-                d["node"]
-                for d in sorted(slowest, key=lambda d: d["p50_ms"], reverse=True)
+                d["node"] for d in sorted(slowest, key=lambda d: d["p50_ms"], reverse=True)
             ]
             out["note"] = "critical_path = nodes ranked by p50 (not DAG topology)"
     except Exception:
@@ -546,9 +544,7 @@ async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, 
         "ok": True,
         "at": _now_iso(),
         "available": False,
-        "note": (
-            "instrument pending — set LLM_BUDGET_GUARD=1 to capture per-day token usage"
-        ),
+        "note": ("instrument pending — set LLM_BUDGET_GUARD=1 to capture per-day token usage"),
         "tokens_today": None,
         "calls_today": None,
         "budget_guard_enabled": False,

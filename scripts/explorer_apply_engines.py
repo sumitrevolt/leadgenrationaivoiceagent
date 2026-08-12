@@ -14,6 +14,7 @@ Idempotent: re-run safe (skips already-present). Targeted edits only — if a no
 id isn't found it WARNS (never corrupts). Validate after: `python scripts/explorer_sync.py`.
 Windows venv: .venv\\Scripts\\python.exe scripts/explorer_apply_engines.py
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -24,7 +25,13 @@ F = ROOT / "frontend" / "explorer.html"
 
 # existing node id -> module filenames it actually covers (append to its files: field)
 APPENDS: dict[str, list[str]] = {
-    "revenue": ["client_health.py", "revenue_digest.py", "revenue_snapshots.py", "reporting.py", "winback.py"],
+    "revenue": [
+        "client_health.py",
+        "revenue_digest.py",
+        "revenue_snapshots.py",
+        "reporting.py",
+        "winback.py",
+    ],
     "eval_gate": ["eval_metrics.py", "eval_suite.py"],
     "growth_opt": ["growth_engine.py"],
     "ops": ["infra_handler.py", "integration_health.py"],
@@ -104,7 +111,7 @@ def append_files(html: str, node_id: str, mods: list[str]) -> tuple[str, int]:
     if not add:
         return html, 0
     new = cur + " · " + " · ".join(add)
-    html = html[: m.start(2)] + new + html[m.end(2):]
+    html = html[: m.start(2)] + new + html[m.end(2) :]
     print(f"  {node_id}: +{', '.join(add)}")
     return html, len(add)
 
@@ -122,7 +129,7 @@ def main() -> int:
     if "id:'auto_trainer'" not in html:
         m = NODE_ANCHOR.search(html)
         if m:
-            html = html[: m.end()] + "".join(x + "\n" for x in NEW_NODES) + html[m.end():]
+            html = html[: m.end()] + "".join(x + "\n" for x in NEW_NODES) + html[m.end() :]
             print(f"  +{len(NEW_NODES)} new nodes")
         else:
             print("  WARN: node anchor (niche_prospector) not found — new nodes skipped")
@@ -144,7 +151,9 @@ def main() -> int:
     F.write_text(html, encoding="utf-8")
     after_nodes = len(re.findall(r"\{id:'", html))
     after_edges = len(re.findall(r"\{f:'", html))
-    print(f"\nfiles-appends: {appended} · nodes {before_nodes}->{after_nodes} · edges {before_edges}->{after_edges}")
+    print(
+        f"\nfiles-appends: {appended} · nodes {before_nodes}->{after_nodes} · edges {before_edges}->{after_edges}"
+    )
     return 0
 
 

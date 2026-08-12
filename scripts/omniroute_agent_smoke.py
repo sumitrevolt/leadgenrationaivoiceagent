@@ -1,4 +1,4 @@
-"""OmniRoute agent-hook smoke (ADR-108) — synthetic/public prompt ONLY.
+r"""OmniRoute agent-hook smoke (ADR-108) — synthetic/public prompt ONLY.
 
 Local dev-only verification: gates status + try_agent_chat() end-to-end via the
 REAL local gateway. Kabhi secret print nahi karta; kabhi customer data nahi bhejta.
@@ -8,6 +8,7 @@ Run (flags process-only set karke, .env untouched):
   $env:OMNIROUTE_ENABLED='1'; $env:OMNIROUTE_AGENTS='1'
   .venv\Scripts\python.exe scripts\omniroute_agent_smoke.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -31,7 +32,9 @@ async def main() -> int:
     print(f"[gate] agents_enabled     : {agents_enabled()}")
 
     if not agents_enabled():
-        print("[skip] double gate closed — smoke needs OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key (process env).")
+        print(
+            "[skip] double gate closed — smoke needs OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key (process env)."
+        )
         return 2
 
     # SYNTHETIC prompt only (runbook rule) — koi customer/lead data nahi.
@@ -40,7 +43,9 @@ async def main() -> int:
     if text:
         print(f"[ok] gateway replied ({len(text)} chars): {text[:80]!r}")
         return 0
-    print("[fail-open] try_agent_chat returned None — gateway/provider fault; free chain would have handled this call.")
+    print(
+        "[fail-open] try_agent_chat returned None — gateway/provider fault; free chain would have handled this call."
+    )
     return 1
 
 

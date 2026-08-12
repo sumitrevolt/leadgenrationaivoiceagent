@@ -1,4 +1,5 @@
 """Godmode-2 VPS smoke — public audit funnel + content pack + retention wiring."""
+
 import asyncio
 
 
@@ -14,6 +15,7 @@ async def main() -> None:
     print("PACK:", "Sharma Solar" in html, len(html) > 3000, pack.get("counts"))
 
     from app.agents.staff import run_ops
+
     ops = await run_ops()
     print("OPS:", ops.get("status"), "pruned" in str(ops).lower() or "prune" in str(ops).lower())
 

@@ -7,7 +7,11 @@ from app.main import FRONTEND_DIR, app
 
 print("FRONTEND_DIR =", str(FRONTEND_DIR))
 print("login.html exists:", os.path.isfile(os.path.join(str(FRONTEND_DIR), "login.html")))
-appp = [str(getattr(r, "path", "")) for r in app.routes if str(getattr(r, "path", "")).startswith("/app/")]
+appp = [
+    str(getattr(r, "path", ""))
+    for r in app.routes
+    if str(getattr(r, "path", "")).startswith("/app/")
+]
 print("/app/* routes (in order):", appp)
 
 # Show ALL routes whose pattern could match '/app/login' (catch-alls / params).

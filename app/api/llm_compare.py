@@ -77,7 +77,9 @@ _DEFAULT_MODELS: dict[str, str] = {
     "sambanova": getattr(free_ai, "_SAMBANOVA_LLM_MODEL", "Meta-Llama-3.3-70B-Instruct"),
     "mistral": getattr(free_ai, "_MISTRAL_LLM_MODEL", "mistral-small-latest"),
     "nvidia": getattr(free_ai, "_NVIDIA_LLM_MODEL", "meta/llama-3.3-70b-instruct"),
-    "openrouter": getattr(free_ai, "_OPENROUTER_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free"),
+    "openrouter": getattr(
+        free_ai, "_OPENROUTER_LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free"
+    ),
     "openrouter_2": getattr(free_ai, "_OPENROUTER_LLM_MODEL2", "openai/gpt-oss-20b:free"),
     "openrouter_3": getattr(free_ai, "_OPENROUTER_LLM_MODEL3", "google/gemma-4-31b-it:free"),
 }
@@ -205,7 +207,9 @@ async def _read_stats() -> list[dict[str, Any]]:
 
 class CompareRunIn(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=8000)
-    providers: list[str] = Field(default_factory=list, description="Provider IDs; empty = all available")
+    providers: list[str] = Field(
+        default_factory=list, description="Provider IDs; empty = all available"
+    )
     system: str = Field(default="", max_length=4000)
     max_tokens: int = Field(default=512, ge=32, le=4096)
     temperature: float = Field(default=0.5, ge=0.0, le=2.0)
