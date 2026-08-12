@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (worktree/branch consolidation closeout — CURSOR)
+Goal: Safe consolidate — classify → land/park unique → delete obsolete; no blind merge; no deploy.
+Inspected: post-#335 main `f814cfe7`; worktree list; remotes; open Drafts #336–#339 + Dependabot.
+Problems Found: (1) UPI “WIP” was truncation — restored. (2) 2 orphan dirs still on disk (file lock). (3) local `fix/security-cp5-3-deps` ahead 1 unpushed WIP.
+Changed: evidence Phase 2–5 closeout; SESSION_HANDOFF; remotes 66→13; worktrees 34→2; Drafts #336–#339; #335 MERGED.
+Tests Run: inventory ancestor checks; CI on #335 (required green; Gate A ignored).
+Verification Evidence: `docs/evidence/WORKTREE_BRANCH_CONSOLIDATION_20260812.md`; PRs #335–#339; primary `main` @ `f814cfe7`.
+Risks: Drafts not AUTH-MERGED; orphan dirs; CP5 local ahead-1.
+Remaining: owner review Drafts; deps packet; orphan dir delete when unlocked.
+Next Highest Priority: stop — consolidation trunk hygiene PARTIAL complete.
+
+## Loop Run
 Date: 2026-08-12 (worktree/branch consolidation Phase 0–1 — CURSOR)
 Goal: Inventory all worktrees+branches; classify; park/restore dirty WIP; no blind merge; no deploy.
 Inspected: `git fetch --all --prune`; 34 worktrees; 66 remotes; open PRs Dependabot-only; main `23ea2d46` includes #333/#334.
