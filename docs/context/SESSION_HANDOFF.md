@@ -1,24 +1,29 @@
-# SESSION_HANDOFF — 2026-08-11 (Cursor: PR #330 Boss Cursor ACP Ready)
+# SESSION_HANDOFF — 2026-08-12 (Cursor: 31-agent STAFF bus setup)
 
 ## Done this session
-- **PR #330** head **`8f5a2e2d504186cbc11ed7da1be4693f4508911c`** · base **`6052b533f59e8ab533ab629427fa869d83931a9a`** · Draft→Ready (no merge).
-- Boss identity reconciled: Desktop card **`1b13cecc…`** (rebind from non-operable `20b69265`); NIP-OA `auth_tag` minted; `#admin` member.
-- Boss runtime = **Cursor ACP** (`agent.cmd acp` · `2026.08.04-aaa8809`); not Claude/Goose/Codex.
-- Live correlated canary **GO**: `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4` · mention `1b13cecc` · reply from `1b13cecc` · nonce `54b3cbb4`.
-- Comb-style review findings fixed: advice state guard + Redis `_atomic_claim` tests; CI all required checks **pass** on exact head.
-- Second Brain vault path (owner): `C:\Users\Ratanshila\Documents\leadsgenai-brain` via `obsidian_sync.recall` (advisory only).
-- Flag `BOSS_DECISION_GOVERNANCE` remains **OFF** default / Owner-approval-required. Prod untouched.
+- Isolated worktree/branch `cursor/31-agent-bus-setup-20260812` @ origin/main tip.
+- Canonical STAFF bus package `app/platform/staff_bus/` (manifest/envelope/bridge/runtime/canary).
+- Manifest validates **exactly 31** from `team.STAFF` + 7-team topology; Comb absent.
+- Flag `STAFF_BUS_ENABLED` registered (OFF default) + automation_flag_manifest entry.
+- Synthetic **31/31 GO** canaries: `docs/evidence/staff_bus_canary_20260812.json` run_id `254971bb491b`.
+- Control-agent correlated canaries **5/5 SUCCESS** nonce `CNY20260812104913-63660547` (Fizz/Honey/Bumble/Comb/Boss) with e-tag correlation; Boss reply `… GO`.
+- Hosted relay HTTPS 200; local `:3100` NIP-11 200; 5× buzz-acp live.
+- Tests: `tests/test_staff_bus_2026_08_12.py` green.
+- Runbook: `docs/runbooks/STAFF_BUS_31.md`.
+- Prod read-only; no deploy/merge; UPI dirty files untouched.
 
-## WAIT (owner)
-- **AUTH-MERGE** `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330 — normal merge only; no squash/bypass/deploy.
-- Prod flag arm for `BOSS_DECISION_GOVERNANCE` = separate AUTH (not this packet).
+## WAIT
+- **Comb NIP-OA:** managed-agents `auth_tag=null` (AGENT_OWNER fallback). Correlated reply works; mandate still marks Desktop-minted NIP-OA as open WAIT.
+- Draft PR merge/deploy = owner only.
+- Buzz workspace canvas superset publish for all domain channels = optional follow-up if hosted membership edits needed.
 
 ## Do not
-- Merge/deploy without AUTH-MERGE
-- Arm governance flag in prod without owner
-- Create duplicate Boss / re-key
-- Touch UPI/WA/email/calling/voice
+- Merge/deploy without owner
+- Arm `STAFF_BUS_ENABLED` / `BOSS_DECISION_GOVERNANCE` in prod without AUTH
+- Invent new Boss/STAFF keypairs or export auth tags
+- Touch UPI/WA/email/calling/voice / prod DB
 
 ## Next
-1. Owner AUTH-MERGE PR #330 exact SHA above
-2. Separate AUTH only if/when flag arm needed
+1. Owner Desktop Save on Comb to mint NIP-OA `auth_tag` (or accept WAIT)
+2. Review Draft PR → AUTH-MERGE when ready
+3. Optional: canvas/superset publish for #staff-pulse roster

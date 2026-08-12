@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (31-agent STAFF bus setup — CURSOR)
+Goal: Canonical 31 STAFF bus-first setup (Owner→Boss→7 teams→30 workers); synthetic 31/31 + 5 control correlated canaries; Draft PR; no merge/deploy.
+Inspected: `team.STAFF`/`office_hq.coordination_topology`/`agent_maturity`; hosted+local relays; Desktop managed-agents (Boss/Fizz/Honey/Bumble/Comb); `boss_decision_governance`; prior canary scripts.
+Problems Found: (1) Hosted relay intermittent earlier — now HTTPS 200. (2) Canary GO wrongly required execute for held/disabled — fixed to accept governed `agent_unarmed` refuse. (3) Rate limit 120 blocked 31-burst — synthetic skip + default 600. (4) Parallel 4-agent canary race overwrote shared evidence — locked `*_5ctrl.json`. (5) Comb still `auth_tag=null`.
+Changed: `app/platform/staff_bus/*`; `scripts/staff_bus_canary.py`; `tests/test_staff_bus_2026_08_12.py`; `STAFF_BUS_ENABLED` in automation_flags + manifest; runbook; evidence JSONs; SESSION_HANDOFF.
+Tests Run: `tests/test_staff_bus_2026_08_12.py` **7 passed**; staff_bus_canary.py **31/31 GO** run_id `254971bb491b`; control canary nonce `CNY20260812104913-63660547` **5/5 SUCCESS**.
+Verification Evidence: Hosted HTTPS 200; local `:3100` 200; 5× buzz-acp live; Boss reply content `… GO` with e-tag to source; Comb correlated reply OK; Comb NIP-OA WAIT (`auth_tag=null`).
+Risks: Flag OFF correct; Comb NIP-OA incomplete; do not claim COMPLETE while NIP-OA WAIT.
+Remaining: Comb Desktop Save for auth_tag; Draft PR owner review; no deploy.
+Next Highest Priority: Owner review Draft PR + Comb NIP-OA mint (or accept WAIT).
+
+## Loop Run
 Date: 2026-08-11 (PR #330 Cursor ACP Boss canary + Comb fixes + Ready — CURSOR)
 Goal: Bind Boss `1b13cecc` to Cursor ACP; live correlated canary; Comb findings; CI green; Draft→Ready; no merge/deploy.
 Inspected: `agent`/`agent.cmd` ACP preflight; managed-agents Boss card; harness-boss-cursor.log; `#admin` canary; Comb review F1–F3; PR checks on `8f5a2e2d`; Second Brain path `leadsgenai-brain`.
