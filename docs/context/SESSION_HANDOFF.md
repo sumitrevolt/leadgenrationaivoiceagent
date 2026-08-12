@@ -1,62 +1,38 @@
-# SESSION_HANDOFF — 2026-08-12 (Cursor: PR #333 AUTH-MERGE review pack)
+# SESSION_HANDOFF — 2026-08-12 (Cursor: PR #333 AUTH-MERGE DONE)
 
-## OWNER REVIEW CARD — AUTH-MERGE PR #333
+## Status
+**31-AGENT BUS SETUP PARTIAL** — PR #333 **MERGED**. Comb NIP-OA `auth_tag=null` WAIT accepted (not COMPLETE).
 
 | Field | Value |
 |---|---|
-| PR | https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/333 |
-| State | **Draft** · OPEN · base main |
-| Exact head | d4accbd31397d6621faf45ac12915266beefcd5b (d4accbd3) |
-| Diff scope | pp/platform/staff_bus/* · scripts/staff_bus_canary.py · 	ests/test_staff_bus_2026_08_12.py · STAFF_BUS_ENABLED flag registry · runbook/evidence · SESSION_HANDOFF/progress — **no UPI/voice/prod env** |
-| Declaration | **31-AGENT BUS SETUP PARTIAL** (owner-accepted WAIT below) |
+| PR | https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/333 — **MERGED** |
+| Merge commit | `760649429839d885656f1565de44f4cc875f5c34` |
+| Tip merged | `e2bdd81ff37a93ef031e8e500b14e5b379fced17` (includes `d4accbd3` staff_bus + runtime-data classify/pin after CI ratchet) |
+| Owner tip note | Named tip `97f6009b` superseded by required-CI fix commits `82bc4666` + `e2bdd81f` |
+| Flag | **`STAFF_BUS_ENABLED` OFF / inert** — do not arm |
+| Deploy | **None** — do not run `deploy_vps.sh` for this |
 
-### Merge checklist (owner)
-1. Confirm Draft → Ready only after reading this card.
-2. AUTH-MERGE exact SHA d4accbd3 (normal merge; no squash/bypass if policy forbids).
-3. **Do not arm STAFF_BUS_ENABLED in prod without separate AUTH** — flag stays OFF/inert after merge.
-4. **Do not deploy** under this packet.
-5. Optional later: Comb Desktop Save → mint NIP-OA uth_tag → re-declare COMPLETE (not required for this merge).
-
-### Rollback
-- Code: close/revert PR or git revert the merge commit.
-- Runtime: leave / set STAFF_BUS_ENABLED=0 (unset = inert).
-- No prod DB / customer outbound / payment surface in this diff.
-
-### GO / WAIT / NO-GO
+## GO / WAIT / NO-GO (post-merge)
 | Gate | Result |
 |---|---|
 | Hosted relay NIP-11/HTTPS | **GO** |
 | Local :3100 | **GO** |
 | Boss / Fizz / Honey / Bumble harness + auth_tag | **GO** |
-| Comb identity + Cursor harness + correlated reply | **GO** |
-| Comb Desktop NIP-OA uth_tag | **WAIT** — owner ACCEPT as WAIT (reply already SUCCESS; mint deferred) |
-| Roster 31 / 7-team / Comb not in STAFF | **GO** |
-| Bus contracts + 31/31 synthetic | **GO** (254971bb491b) |
-| Second Brain + Boss enforcement | **GO** |
-| 5/5 control correlated (CNY20260812104913-63660547) | **GO** |
-| Protected side-effects / secrets / prod mutate | **GO** (zero) |
+| Comb identity + correlated reply | **GO** |
+| Comb Desktop NIP-OA auth_tag | **WAIT** (owner accepted) |
+| Roster 31 / bus contracts / 31/31 synthetic | **GO** |
+| Control 5/5 correlated | **GO** |
+| Required CI on merge tip | **GO** (Gate A non-required FAILURE ignored) |
+| Prod deploy / flag arm | **NO-GO** (by design this packet) |
 
-### CI note
-- Required checks: lint/secrets, tests, CodeQL, security-scan repo — green at open.
-- Gate A (non-required sketch) FAILURE = broken .freebuff submodule url in checkout — unrelated to staff_bus diff.
+## Rollback (do not execute unless merge wrong)
+- `git revert 76064942` on main
+- Runtime: `STAFF_BUS_ENABLED=0` / unset
 
-### Evidence pointers
-- docs/evidence/STAFF_BUS_20260812.md
-- docs/runbooks/STAFF_BUS_31.md
-- Tests: 	ests/test_staff_bus_2026_08_12.py (7 passed)
-
-## Done
-- Staff bus package + Draft PR #333 @ d4accbd3
-- 31/31 synthetic + 5/5 control canaries
-- Owner-accepted Comb uth_tag=null as WAIT for merge-readiness
-- AUTH-MERGE review pack written (this card)
+## Optional owner-only next
+Comb Desktop Save → mint NIP-OA `auth_tag` → re-declare **COMPLETE** (not required now).
 
 ## Do not
-- Merge/deploy without owner AUTH-MERGE
-- Arm STAFF_BUS_ENABLED in prod without AUTH
-- Remint/export keys; invent Boss/STAFF identities
+- Deploy / arm `STAFF_BUS_ENABLED` / Boss governance flags in prod
+- Remint/export keys; invent STAFF identities
 - Touch UPI / WA / email / calling / voice / prod DB
-
-## Owner decision needed (pick one)
-**A)** AUTH-MERGE #333 now @ d4accbd3 (PARTIAL accepted), **or**
-**B)** Desktop Comb Save → uth_tag mint first → then COMPLETE + AUTH-MERGE
