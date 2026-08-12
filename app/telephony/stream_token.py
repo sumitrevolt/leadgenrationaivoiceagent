@@ -40,9 +40,7 @@ def _secret() -> str:
 
 
 def _sig(raw: str, exp: int, secret: str) -> str:
-    return hmac.new(
-        secret.encode(), f"{raw}.{exp}".encode(), hashlib.sha256
-    ).hexdigest()[:_SIG_LEN]
+    return hmac.new(secret.encode(), f"{raw}.{exp}".encode(), hashlib.sha256).hexdigest()[:_SIG_LEN]
 
 
 def sign(raw: str, exp: int | None = None) -> str:

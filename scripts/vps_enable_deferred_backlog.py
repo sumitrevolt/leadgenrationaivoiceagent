@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Enable deferred 2026 backlog flags on VPS (.env) + optional RAG gate."""
+
 from __future__ import annotations
 
 import os

@@ -88,8 +88,15 @@ def _log(rec: dict[str, Any]) -> None:
         ok = bool(rec.get("ok"))
         provider = rec.get("provider") or "?"
         ref = rec.get("lead_ref") or ""
-        detail = f"{provider}: {ref}" + ("" if ok else f" — {rec.get('skipped') or rec.get('error') or 'failed'}")
-        team.log_event("priya", "crm_synced" if ok else "crm_sync_failed", detail, status="ok" if ok else "warn")
+        detail = f"{provider}: {ref}" + (
+            "" if ok else f" — {rec.get('skipped') or rec.get('error') or 'failed'}"
+        )
+        team.log_event(
+            "priya",
+            "crm_synced" if ok else "crm_sync_failed",
+            detail,
+            status="ok" if ok else "warn",
+        )
     except Exception:
         pass
 
@@ -292,7 +299,9 @@ async def pull_lead_status(
             out = {
                 "ok": bool(found),
                 "provider": provider,
-                "status": (found or {}).get("properties", {}).get("hs_lead_status") if found else None,
+                "status": (
+                    (found or {}).get("properties", {}).get("hs_lead_status") if found else None
+                ),
                 "record": found,
             }
             _log({"ts": _now(), "direction": "pull", "client_id": client_id, **out})

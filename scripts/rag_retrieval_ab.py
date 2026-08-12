@@ -13,6 +13,7 @@ Usage (VPS after deploy + optional flag flip in .env):
 Local:
   python scripts/rag_retrieval_ab.py
 """
+
 from __future__ import annotations
 
 import os
@@ -48,10 +49,30 @@ DOCS = [
 # (approximate/HNSW) configs, so it must be immune to an ambient KB_EXACT_SEARCH.
 # Exact search is exercised separately by run_exact_recall_probe().
 MODES = {
-    "baseline": {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
-    "rerank": {"USE_RERANKER": "1", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
-    "hybrid": {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
-    "full": {"USE_RERANKER": "1", "USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
+    "baseline": {
+        "USE_RERANKER": "0",
+        "USE_HYBRID_SEARCH": "0",
+        "USE_CONTEXTUAL_INGEST": "0",
+        "KB_EXACT_SEARCH": "0",
+    },
+    "rerank": {
+        "USE_RERANKER": "1",
+        "USE_HYBRID_SEARCH": "0",
+        "USE_CONTEXTUAL_INGEST": "0",
+        "KB_EXACT_SEARCH": "0",
+    },
+    "hybrid": {
+        "USE_RERANKER": "0",
+        "USE_HYBRID_SEARCH": "1",
+        "USE_CONTEXTUAL_INGEST": "0",
+        "KB_EXACT_SEARCH": "0",
+    },
+    "full": {
+        "USE_RERANKER": "1",
+        "USE_HYBRID_SEARCH": "1",
+        "USE_CONTEXTUAL_INGEST": "0",
+        "KB_EXACT_SEARCH": "0",
+    },
 }
 
 
@@ -99,7 +120,7 @@ def main() -> int:
     print(f"\nnamespace={NS}  queries={len(QUERIES)}\n")
     for q in QUERIES:
         print(f"Q: {q}")
-        base_top = (results["baseline"][q][0].get("text", "")[:50] if results["baseline"][q] else "—")
+        base_top = results["baseline"][q][0].get("text", "")[:50] if results["baseline"][q] else "—"
         for mode in MODES:
             hits = results[mode][q]
             top = hits[0] if hits else {}
@@ -373,7 +394,14 @@ def run_exact_recall_probe() -> None:
     from app.voice_agent import knowledge_base as kb_mod
 
     ns = "ab:exactprobe"
-    _apply({"USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0", "USE_RERANKER": "0", "KB_EXACT_SEARCH": "0"})
+    _apply(
+        {
+            "USE_HYBRID_SEARCH": "1",
+            "USE_CONTEXTUAL_INGEST": "0",
+            "USE_RERANKER": "0",
+            "KB_EXACT_SEARCH": "0",
+        }
+    )
     kb_mod.get_knowledge_base().add_documents(
         list(LABELED_DOCS.values()), source="ab_exact", namespace=ns
     )

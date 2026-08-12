@@ -59,9 +59,7 @@ class PermissionError_(Exception):
 
 
 class ToolRegistry:
-    def __init__(
-        self, permission_fn: Optional[Callable[[str, str], Optional[bool]]] = None
-    ) -> None:
+    def __init__(self, permission_fn: Callable[[str, str], bool | None] | None = None) -> None:
         self._tools: dict[str, ToolSpec] = {}
         # (agent, tool) -> True/False/None(unknown). Defaults to the app's
         # agent_permissions matrix. Injectable for tests / alt deployments.
@@ -75,8 +73,8 @@ class ToolRegistry:
         args_schema: type[BaseModel],
         risk: RiskClass,
         *,
-        profiles: Optional[list[str]] = None,
-        allowed_egress: Optional[list[str]] = None,
+        profiles: list[str] | None = None,
+        allowed_egress: list[str] | None = None,
         description: str = "",
     ) -> None:
         if name in self._tools:
@@ -91,7 +89,7 @@ class ToolRegistry:
             description=description,
         )
 
-    def get(self, name: str) -> Optional[ToolSpec]:
+    def get(self, name: str) -> ToolSpec | None:
         return self._tools.get(name)
 
     def names(self) -> list[str]:

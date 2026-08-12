@@ -52,7 +52,7 @@ try:
 
     # Test queue_task
     result = aq.queue_task("test_task", reason="Testing approval gate", cost_estimate=2.5)
-    assert result == False, "Should return False (waiting approval)"
+    assert not result, "Should return False (waiting approval)"
     print("  ✓ queue_task() returns False when approval_required=True")
 
     # Test get_pending
@@ -67,11 +67,11 @@ try:
     assert success, "Approve should return True"
     assert len(aq.get_pending()) == 0, "Task should be removed from pending after approval"
     assert len(aq.approved) == 1, "Task should be in approved list"
-    print(f"  ✓ approve(task_id) moved task to approved list")
+    print("  ✓ approve(task_id) moved task to approved list")
 
     # Test is_approved
     assert aq.is_approved(task_id), "Task should be in approved list"
-    print(f"  ✓ is_approved(task_id) = True")
+    print("  ✓ is_approved(task_id) = True")
 
     # Test reject
     aq.queue_task("reject_task", reason="To be rejected", cost_estimate=1.0)
@@ -79,12 +79,12 @@ try:
     success = aq.reject(reject_task_id, reason="Not needed")
     assert success, "Reject should return True"
     assert len(aq.get_pending()) == 0, "Rejected task should be removed from pending"
-    print(f"  ✓ reject(task_id, reason) removes from pending")
+    print("  ✓ reject(task_id, reason) removes from pending")
 
     # Test auto-approve when approval_required=False
     aq_auto = ApprovalQueue(approval_required=False)
     result = aq_auto.queue_task("auto_task", reason="Auto-approve", cost_estimate=1.0)
-    assert result == True, "Should return True when approval_required=False"
+    assert result, "Should return True when approval_required=False"
     print("  ✓ queue_task() returns True when approval_required=False (auto-approve)")
 
     print("✅ ApprovalQueue class PASS")
@@ -95,7 +95,7 @@ except Exception as e:
 # Test 3: Global instances
 print("\n✅ TEST 3: Global instances (_get_cost_tracker, _get_approval_queue)")
 try:
-    from app.agents.self_improve import _get_cost_tracker, _get_approval_queue
+    from app.agents.self_improve import _get_approval_queue, _get_cost_tracker
 
     ct = _get_cost_tracker()
     assert ct is not None, "Cost tracker should not be None"
@@ -115,7 +115,7 @@ except Exception as e:
 # Test 4: Helper functions
 print("\n✅ TEST 4: Helper functions (cost_status, approval_status)")
 try:
-    from app.agents.self_improve import cost_status, approval_status
+    from app.agents.self_improve import approval_status, cost_status
 
     cs = cost_status()
     assert "date" in cs, "cost_status should have 'date'"
@@ -153,22 +153,24 @@ try:
         assert cap > 0, "Cost cap must be positive"
         print(f"  ✓ Cost cap parsed as ${cap}")
     except ValueError:
-        print(f"  ⚠️  Cost cap not numeric, will use default 50.0")
+        print("  ⚠️  Cost cap not numeric, will use default 50.0")
 
     print("✅ Environment variables PASS")
 except Exception as e:
     print(f"❌ Environment variables test FAIL: {e}")
     sys.exit(1)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("✅ ALL PHASE 6 TESTS PASSED")
-print("="*60)
+print("=" * 60)
 print("\nPhase 6 Implementation Summary:")
 print("  • CostTracker: daily budget cap + per-task cost logging")
 print("  • ApprovalQueue: human approval gates for LLM-heavy actions")
 print("  • Global instances: _get_cost_tracker(), _get_approval_queue()")
 print("  • Helper functions: cost_status(), approval_status()")
-print("  • API endpoints: /api/growth/selfimprove/cost-status, /approvals-pending, /approval/{id}/approve, /approval/{id}/reject")
+print(
+    "  • API endpoints: /api/growth/selfimprove/cost-status, /approvals-pending, /approval/{id}/approve, /approval/{id}/reject"
+)
 print("  • Frontend UI: Cost tracking chart + approval request cards with approve/reject buttons")
 print("  • Environment: SELF_IMPROVE_APPROVAL (0/1), SELFIMPROVE_COST_CAP ($)")
 print("\nNext: Run full pytest to verify integration with run_once() loop")

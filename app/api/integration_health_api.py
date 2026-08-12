@@ -2,6 +2,7 @@
 (tenant-scoped, redacted). Reads stored evidence only (bounded); makes no live
 provider calls, sends nothing, and never returns tokens/secrets/raw payloads.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query

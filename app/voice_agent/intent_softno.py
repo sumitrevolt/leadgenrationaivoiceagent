@@ -26,6 +26,7 @@ import os
 try:
     from app.voice_agent.qa_checks import is_soft_no
 except Exception:  # pragma: no cover - keep import-safe
+
     def is_soft_no(_text: str) -> bool:  # type: ignore[misc]
         return False
 

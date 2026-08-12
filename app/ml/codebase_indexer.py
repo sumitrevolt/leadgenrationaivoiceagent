@@ -137,7 +137,9 @@ class QdrantCodeIndex:
             return
         from app.voice_agent import knowledge_base as kb
 
-        embedder = kb._get_qdrant_embedder()  # daemon-thread load + hard timeout; raises if disabled
+        embedder = (
+            kb._get_qdrant_embedder()
+        )  # daemon-thread load + hard timeout; raises if disabled
         client = kb._get_qdrant_client()
         dim = int(getattr(kb, "_QDRANT_VECTOR_SIZE", 0) or 0)
         if dim <= 0:
@@ -198,7 +200,9 @@ class QdrantCodeIndex:
             logger.debug(f"QdrantCodeIndex.add_chunks failed: {e}")
             return 0
 
-    def search_sync(self, query: str, agent_domain=None, language=None, limit: int = 10) -> list[dict]:
+    def search_sync(
+        self, query: str, agent_domain=None, language=None, limit: int = 10
+    ) -> list[dict]:
         """SYNC search (caller `to_thread` + timeout me wrap kare). never-raise."""
         try:
             self._setup()
@@ -207,7 +211,9 @@ class QdrantCodeIndex:
             must = []
             if agent_domain:
                 must.append(
-                    qmodels.FieldCondition(key="agent_domain", match=qmodels.MatchValue(value=agent_domain))
+                    qmodels.FieldCondition(
+                        key="agent_domain", match=qmodels.MatchValue(value=agent_domain)
+                    )
                 )
             if language:
                 must.append(

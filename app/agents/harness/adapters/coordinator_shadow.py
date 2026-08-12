@@ -45,7 +45,7 @@ COORDINATOR_TOOL_MAP: dict[str, tuple[str, str]] = {
 }
 
 
-def resolve_coordinator_tool(delegated_agent: str) -> Optional[tuple[str, str]]:
+def resolve_coordinator_tool(delegated_agent: str) -> tuple[str, str] | None:
     return COORDINATOR_TOOL_MAP.get((delegated_agent or "").strip().lower())
 
 
@@ -70,13 +70,13 @@ def observe_coordinator_action(
     actual_result: Any = None,
     actual_error: Any = None,
     latency_ms: float = 0.0,
-    raw_response_hash: Optional[str] = None,
+    raw_response_hash: str | None = None,
     fallback_used: bool = False,
-    delegated_agent: Optional[str] = None,
-    parent_run_id: Optional[str] = None,
+    delegated_agent: str | None = None,
+    parent_run_id: str | None = None,
     boundary: str = "_run_agent",
-    execution_metadata: Optional[dict] = None,
-) -> Optional[dict]:
+    execution_metadata: dict | None = None,
+) -> dict | None:
     """Observe one coordinator normalized action in shadow. agent_id is the REAL
     delegated agent the coordinator invoked (a _TOOLS key). Returns the record or
     None (ineligible / internal failure). NEVER raises into the coordinator."""

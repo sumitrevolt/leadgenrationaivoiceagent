@@ -4,6 +4,7 @@
 Runs against BASE_URL (default https://leadsgenai.in).
 Auth-required routes: 401/403/422/405 = OK (route exists). 404 = FAIL.
 """
+
 from __future__ import annotations
 
 import json

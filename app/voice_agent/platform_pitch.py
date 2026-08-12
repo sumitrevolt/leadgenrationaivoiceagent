@@ -124,10 +124,7 @@ def line_yes_praise() -> str:
     disc = [str(q).strip() for q in (s.get("discovery") or []) if str(q).strip()]
     if disc:
         return f"Theek — {pitch} {disc[0]}"
-    return (
-        f"Theek — {pitch} "
-        "Marketing abhi khud karte ho, staff se, ya agency?"
-    )
+    return f"Theek — {pitch} " "Marketing abhi khud karte ho, staff se, ya agency?"
 
 
 def line_no_convince() -> str:
@@ -247,8 +244,7 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
         return "Bilkul — shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
     if low in ("kya", "kya?", "huh", "what"):
         return (
-            f"LeadGen AI se Swara — {PITCH_SHORT} "
-            "Interested hain?",
+            f"LeadGen AI se Swara — {PITCH_SHORT} " "Interested hain?",
             state,
         )
     if "samjha nahi" in low:
@@ -279,7 +275,7 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
     verdict = classify_interest(user_text)
     if verdict == "unclear":
         # Substantive reply (not yes/no) = customer bol raha hai — discovery pe le jao.
-        if len(low) >= 12 and not low in ("haan", "ji", "ok", "okay", "theek"):
+        if len(low) >= 12 and low not in ("haan", "ji", "ok", "okay", "theek"):
             state.phase = "discovery"
             return None, state
         # Repetition guard: clarify ONCE; a second unclear (garbled/short STT) must

@@ -145,6 +145,7 @@ def _get_pkg_cache():
     if _pkg_cache is None:
         try:
             from app.cache import Cache
+
             _pkg_cache = Cache(prefix="api_packages", default_ttl=600)
         except Exception:
             pass

@@ -6,6 +6,7 @@ worker restarts and repeated scheduler runs (DB-backed — survives a Redis flus
 Additive table, created by Base.metadata.create_all (DB_CREATE_ALL). ADR: Phase-1
 customer-delivery notifications (2026-07-12).
 """
+
 from datetime import datetime
 from uuid import uuid4
 

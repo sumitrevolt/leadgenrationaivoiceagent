@@ -48,7 +48,7 @@ async def enrich(name: str, jurisdiction: str = "in") -> dict[str, Any]:
             )
             if r.status_code != 200:
                 return {}
-            comps = (((r.json() or {}).get("results") or {}).get("companies") or [])
+            comps = ((r.json() or {}).get("results") or {}).get("companies") or []
             if not comps:
                 return {}
             co = (comps[0] or {}).get("company") or {}

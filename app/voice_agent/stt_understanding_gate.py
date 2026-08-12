@@ -6,6 +6,7 @@ Junk must NOT reach the LLM as a meaningful sales turn — clarify or soft-drop.
 Gated ``STT_UNDERSTANDING_GATE`` (default ON). Fail-open on error (caller continues).
 Metrics counters are in-process (exported via ``snapshot_metrics`` / call session).
 """
+
 from __future__ import annotations
 
 import os
@@ -18,9 +19,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-CLARIFY_LINE = (
-    "Maaf kijiye, awaaz clear nahi aayi. Aap ek baar phir bolenge?"
-)
+CLARIFY_LINE = "Maaf kijiye, awaaz clear nahi aayi. Aap ek baar phir bolenge?"
 
 # Whisper noise loops seen in live batches (roman + Devanagari variants).
 _JUNK_PHRASES = (
@@ -59,14 +58,11 @@ _REJECTION = re.compile(
 )
 
 _CONFIRM = re.compile(
-    r"^(?:haan|han|ha|ji|yes|ok|okay|theek|thik|sahi|chalega|pakka|done|"
-    r"हां|जी|ठीक)[\s!.]*$",
+    r"^(?:haan|han|ha|ji|yes|ok|okay|theek|thik|sahi|chalega|pakka|done|" r"हां|जी|ठीक)[\s!.]*$",
     re.IGNORECASE,
 )
 
-_PHONE_CONTENT_RE = re.compile(
-    r"(?:\+?91[\s-]?)?[6-9]\d{9}|\d[\d\s\-]{5,}\d"
-)
+_PHONE_CONTENT_RE = re.compile(r"(?:\+?91[\s-]?)?[6-9]\d{9}|\d[\d\s\-]{5,}\d")
 
 
 def strip_junk_phrases(text: str) -> tuple[str, float, bool]:
@@ -177,32 +173,22 @@ def classify(
     try:
         t = (text or "").strip()
         if not t:
-            return SttGateResult(
-                SttClass.NOISE, "", False, False, False, "empty"
-            )
+            return SttGateResult(SttClass.NOISE, "", False, False, False, "empty")
 
         low = t.lower()
         if _OPT_OUT.search(t):
-            return SttGateResult(
-                SttClass.VALID_OPT_OUT, t, False, False, False, "opt_out"
-            )
+            return SttGateResult(SttClass.VALID_OPT_OUT, t, False, False, False, "opt_out")
         if _REJECTION.search(t) and len(t.split()) <= 8:
-            return SttGateResult(
-                SttClass.VALID_REJECTION, t, True, False, False, "rejection"
-            )
+            return SttGateResult(SttClass.VALID_REJECTION, t, True, False, False, "rejection")
 
         last = (last_user or "").strip()
         if last and t == last:
-            return SttGateResult(
-                SttClass.DUPLICATE, t, False, False, False, "exact_dup"
-            )
+            return SttGateResult(SttClass.DUPLICATE, t, False, False, False, "exact_dup")
 
         # Known Whisper junk loops ("Aam shabd" x N) — pure junk only.
         for phrase in _JUNK_PHRASES:
             if phrase in low and len(set(re.findall(r"\w+", low))) <= 3:
-                return SttGateResult(
-                    SttClass.NOISE, t, False, False, True, f"junk:{phrase}"
-                )
+                return SttGateResult(SttClass.NOISE, t, False, False, True, f"junk:{phrase}")
 
         # Mixed junk + content ("Aam shabd, 8459012607 mera mobile…") — strip or clarify.
         cleaned, junk_ratio, had_junk = strip_junk_phrases(t)
@@ -237,54 +223,36 @@ def classify(
 
         toks = re.findall(r"[0-9A-Za-zऀ-ॿ']+", low)
         if len(toks) >= 4 and (len(set(toks)) / max(len(toks), 1)) <= 0.4:
-            return SttGateResult(
-                SttClass.NOISE, t, False, False, True, "repeat_loop"
-            )
+            return SttGateResult(SttClass.NOISE, t, False, False, True, "repeat_loop")
 
         if len(t) < 3 or re.search(r"[0-9A-Za-zऀ-ॿ]", t) is None:
-            return SttGateResult(
-                SttClass.NOISE, t, False, False, False, "too_short"
-            )
+            return SttGateResult(SttClass.NOISE, t, False, False, False, "too_short")
 
         if confidence is not None and confidence < 0.35:
-            return SttGateResult(
-                SttClass.LOW_CONFIDENCE, t, False, False, True, "low_conf"
-            )
+            return SttGateResult(SttClass.LOW_CONFIDENCE, t, False, False, True, "low_conf")
 
         if (
             energy_rms is not None
             and vad_threshold is not None
             and energy_rms < max(1, int(vad_threshold * 0.5))
         ):
-            return SttGateResult(
-                SttClass.LOW_CONFIDENCE, t, False, False, True, "low_energy"
-            )
+            return SttGateResult(SttClass.LOW_CONFIDENCE, t, False, False, True, "low_energy")
 
         if _CONFIRM.match(t):
-            return SttGateResult(
-                SttClass.VALID_SHORT_CONFIRMATION, t, True, True, False, "ack"
-            )
+            return SttGateResult(SttClass.VALID_SHORT_CONFIRMATION, t, True, True, False, "ack")
 
         if _FILLERS_ONLY.match(t) and len(toks) <= 3:
-            return SttGateResult(
-                SttClass.INCOMPLETE, t, False, False, True, "filler_only"
-            )
+            return SttGateResult(SttClass.INCOMPLETE, t, False, False, True, "filler_only")
 
         # Truncated mid-word / trailing ellipsis without content.
         if t.endswith("...") and len(toks) <= 2:
-            return SttGateResult(
-                SttClass.INCOMPLETE, t, False, False, True, "incomplete"
-            )
+            return SttGateResult(SttClass.INCOMPLETE, t, False, False, True, "incomplete")
 
         # Mostly Latin gibberish with no Hindi/business cues and very short.
         if len(toks) == 1 and len(toks[0]) <= 2:
-            return SttGateResult(
-                SttClass.INCOMPLETE, t, False, False, True, "tiny_token"
-            )
+            return SttGateResult(SttClass.INCOMPLETE, t, False, False, True, "tiny_token")
 
-        return SttGateResult(
-            SttClass.VALID_MEANINGFUL, t, True, True, False, "ok"
-        )
+        return SttGateResult(SttClass.VALID_MEANINGFUL, t, True, True, False, "ok")
     except Exception as e:
         logger.debug("[stt_gate] classify fail-open: %s", e)
         return SttGateResult(

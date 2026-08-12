@@ -33,6 +33,7 @@ Usage:
     python scripts/blueprint_derive.py --json     # full manifest
     python scripts/blueprint_derive.py --check    # exit 1 if any candidate unclassified
 """
+
 from __future__ import annotations
 
 import collections
@@ -45,6 +46,7 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GRAPH = ROOT / "app" / "graphify-out" / "graph.json"
+
 
 def _ensure_repo_importable() -> None:
     """Put the repo root on sys.path for direct CLI execution ONLY.
@@ -61,10 +63,18 @@ def _ensure_repo_importable() -> None:
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
 
+
 # Relations that express a real code dependency. `contains` (structural) and
 # `rationale_for` (doc annotation) are deliberately excluded.
-DEP_RELATIONS = {"calls", "imports", "imports_from", "uses", "references",
-                 "inherits", "indirect_call"}
+DEP_RELATIONS = {
+    "calls",
+    "imports",
+    "imports_from",
+    "uses",
+    "references",
+    "inherits",
+    "indirect_call",
+}
 
 CLASSIFICATIONS = (
     "IMPORTED_CANONICAL",
@@ -78,12 +88,18 @@ CLASSIFICATIONS = (
 
 # Domains where an AST edge is never sufficient on its own (harness policy).
 CRITICAL_DOMAINS = {
-    "email_outreach", "voice_telephony", "billing_payments", "signup_onboarding",
-    "owner_os_copilot", "automation_scheduler", "ai_staff_runtime",
-    "security_compliance", "crm_hotqueue",
+    "email_outreach",
+    "voice_telephony",
+    "billing_payments",
+    "signup_onboarding",
+    "owner_os_copilot",
+    "automation_scheduler",
+    "ai_staff_runtime",
+    "security_compliance",
+    "crm_hotqueue",
 }
 
-MIN_DOMAIN_VOTES = 4      # absolute floor — "1 vs 0" must never read as dominant
+MIN_DOMAIN_VOTES = 4  # absolute floor — "1 vs 0" must never read as dominant
 MIN_DISTINCT_EDGES = 2
 
 
@@ -100,8 +116,12 @@ def _load(name: str, rel: str):
 
 def repo_files() -> list[str]:
     try:
-        out = subprocess.run(["git", "-C", str(ROOT), "ls-tree", "-r", "HEAD", "--name-only"],
-                             capture_output=True, text=True, timeout=120)
+        out = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-tree", "-r", "HEAD", "--name-only"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
         if out.returncode == 0:
             return [l.strip() for l in out.stdout.splitlines() if l.strip()]
     except Exception:
@@ -124,8 +144,12 @@ def load_graph() -> dict[str, Any]:
 def graph_provenance(g: dict[str, Any]) -> dict[str, Any]:
     head = ""
     try:
-        head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
-                              capture_output=True, text=True, timeout=60).stdout.strip()
+        head = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        ).stdout.strip()
     except Exception:
         pass
     built = str(g.get("built_at_commit") or "")
@@ -163,8 +187,13 @@ _FLAG_RE = re.compile(r"getenv\(\s*[\"']([A-Z][A-Z0-9_]{3,})[\"']")
 
 def corroboration(files: list[str], sched_jobs: set[str], staff: set[str]) -> dict[str, Any]:
     """Current-source signals that AST edges cannot provide."""
-    sig: dict[str, Any] = {"route": False, "celery_task": False, "scheduler_job": False,
-                           "agent_registry": False, "feature_flags": []}
+    sig: dict[str, Any] = {
+        "route": False,
+        "celery_task": False,
+        "scheduler_job": False,
+        "agent_registry": False,
+        "feature_flags": [],
+    }
     for f in files:
         p = ROOT / f
         try:
@@ -181,8 +210,9 @@ def corroboration(files: list[str], sched_jobs: set[str], staff: set[str]) -> di
         if stem in staff:
             sig["agent_registry"] = True
         sig["feature_flags"] = sorted(set(sig["feature_flags"]) | set(_FLAG_RE.findall(txt)))[:6]
-    sig["count"] = sum(1 for k in ("route", "celery_task", "scheduler_job", "agent_registry")
-                       if sig[k]) + (1 if sig["feature_flags"] else 0)
+    sig["count"] = sum(
+        1 for k in ("route", "celery_task", "scheduler_job", "agent_registry") if sig[k]
+    ) + (1 if sig["feature_flags"] else 0)
     return sig
 
 
@@ -245,7 +275,7 @@ def derive() -> dict[str, Any]:
             for tgt, w in out_e.get(f, {}).items():
                 if tgt in file_owner:
                     nid, dom = file_owner[tgt]
-                    dom_votes[dom] += w * 2   # "this module uses canonical X"
+                    dom_votes[dom] += w * 2  # "this module uses canonical X"
                     node_votes[nid] += w * 2
                     edges_used += 1
                 seen_hop1.add(tgt)
@@ -289,8 +319,11 @@ def derive() -> dict[str, Any]:
         # was human-verified per file; AST edges only prove code dependency.
         parent_domain = own_domain or (dtop[0] if dtop else None)
         # a specific canonical parent is proposed ONLY when it clearly dominates
-        parent_node = (ntop[0] if ntop and ntop[1] >= MIN_DOMAIN_VOTES
-                       and (not nsecond or ntop[1] >= nsecond[1] * 2) else None)
+        parent_node = (
+            ntop[0]
+            if ntop and ntop[1] >= MIN_DOMAIN_VOTES and (not nsecond or ntop[1] >= nsecond[1] * 2)
+            else None
+        )
         # ...and it must live in the SAME domain. A cross-domain parent is how
         # `s_telecore` (voice) nearly landed under `customer_dashboard`.
         if parent_node and parent_domain and canon[parent_node]["domain"] != parent_domain:
@@ -304,7 +337,9 @@ def derive() -> dict[str, Any]:
         is_critical = bool(parent_domain and parent_domain in CRITICAL_DOMAINS)
 
         dominant = bool(
-            dtop and dtop[1] >= MIN_DOMAIN_VOTES and edges_used >= MIN_DISTINCT_EDGES
+            dtop
+            and dtop[1] >= MIN_DOMAIN_VOTES
+            and edges_used >= MIN_DISTINCT_EDGES
             and (not dsecond or dtop[1] >= dsecond[1] * 2)
         )
 
@@ -314,22 +349,25 @@ def derive() -> dict[str, Any]:
         if not files:
             conf, why = "LOW", "no unique current source path for declared files"
         elif own_conflict:
-            conf, why = "MEDIUM", (
-                f"conflicting reviewed ownership across files {dict(own_votes)}")
-        elif own_domain and corr["count"] >= 1 and (
-            not dtop or dtop[0] == own_domain or not dominant
+            conf, why = "MEDIUM", (f"conflicting reviewed ownership across files {dict(own_votes)}")
+        elif (
+            own_domain
+            and corr["count"] >= 1
+            and (not dtop or dtop[0] == own_domain or not dominant)
         ):
             conf, why = "HIGH", (
-                f"reviewed ownership -> {own_domain} + {corr['count']} "
-                "current-source signal(s)")
+                f"reviewed ownership -> {own_domain} + {corr['count']} " "current-source signal(s)"
+            )
         elif own_domain and dominant and dtop[0] == own_domain:
             conf, why = "HIGH", (
                 f"reviewed ownership -> {own_domain} agrees with dominant "
-                f"dependency ({dtop[1]} votes)")
+                f"dependency ({dtop[1]} votes)"
+            )
         elif own_domain:
             conf, why = "MEDIUM", (
                 f"reviewed ownership -> {own_domain} but no independent "
-                "route/task/job/agent/flag corroboration")
+                "route/task/job/agent/flag corroboration"
+            )
         elif not prov["available"]:
             conf, why = "LOW", "Graphify graph unavailable — cannot prove dependency"
         elif not dranked:
@@ -338,15 +376,17 @@ def derive() -> dict[str, Any]:
             conf, why = "HIGH", (
                 f"dominant canonical-domain dependency ({dtop[1]} vs "
                 f"{dsecond[1] if dsecond else 0}, {edges_used} edges) + "
-                f"{corr['count']} current-source signal(s)")
+                f"{corr['count']} current-source signal(s)"
+            )
         elif dominant:
             conf, why = "MEDIUM", (
                 f"dominant dependency ({dtop[1]} votes) but no route/task/job/agent/"
-                "flag corroboration")
+                "flag corroboration"
+            )
         elif dtop and (not dsecond or dtop[1] > dsecond[1]):
             conf, why = "MEDIUM", (
-                f"leading domain below auto-accept floor ({dtop[1]} votes, "
-                f"{edges_used} edges)")
+                f"leading domain below auto-accept floor ({dtop[1]} votes, " f"{edges_used} edges)"
+            )
         else:
             conf, why = "MEDIUM", "competing canonical domains with equal support"
 
@@ -360,7 +400,8 @@ def derive() -> dict[str, Any]:
         if conf == "HIGH" and parent_node and not own_domain:
             conf, why = "MEDIUM", (
                 f"proposes structural parent '{parent_node}' from dependency "
-                "votes alone; no reviewed ownership backs that placement")
+                "votes alone; no reviewed ownership backs that placement"
+            )
 
         # harness policy: critical domains never auto-accept on AST alone.
         # Reviewed ownership is NOT one of the two — it is the thing being
@@ -378,7 +419,8 @@ def derive() -> dict[str, Any]:
             conf, why = "MEDIUM", (
                 f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
                 f"current-source signals (has {corr['count']}; reviewed ownership "
-                "does not corroborate itself)")
+                "does not corroborate itself)"
+            )
 
         # A dependency claim is only as good as the dependency evidence behind it.
         # With no graph loaded, `edges_used` is 0 for everything, so HIGH here
@@ -388,7 +430,8 @@ def derive() -> dict[str, Any]:
             conf, why = "MEDIUM", (
                 f"only {edges_used} distinct Graphify edge(s) — HIGH requires "
                 f">={MIN_DISTINCT_EDGES} (graph "
-                f"{'unavailable' if not prov['available'] else 'has no path'})")
+                f"{'unavailable' if not prov['available'] else 'has no path'})"
+            )
 
         depth = 2 if e["kind"] == "subnode" else 1
 
@@ -405,32 +448,36 @@ def derive() -> dict[str, Any]:
         if final == "IMPORTED_CANONICAL" and depth >= 2 and not parent_node:
             final = "REVIEW_REQUIRED"
             conf = "MEDIUM"
-            why = (f"{why}; but L2 detail has no verified same-domain group "
-                   "parent — needs manual grouping before import")
+            why = (
+                f"{why}; but L2 detail has no verified same-domain group "
+                "parent — needs manual grouping before import"
+            )
 
-        rows.append({
-            "legacy_id": e["legacy_id"],
-            "title": e["title"],
-            "kind": e["kind"],
-            "canonical_id": None,
-            "depth_level": depth,
-            "parent_domain_id": parent_domain if parent_domain in domain_keys else None,
-            "parent_flow_id": None,
-            "parent_node_id": parent_node,
-            "confidence": conf,
-            "confidence_reason": why,
-            "classification": final,
-            "critical_domain": is_critical,
-            "evidence_files": files,
-            "graphify_edges_used": edges_used,
-            "domain_votes": dict(dranked[:4]),
-            "competing_domains": [d for d, _ in dranked[1:3]],
-            "corroboration": corr,
-            "ownership_domain": own_domain,
-            "ownership_rules_applied": sorted(own_reasons),
-            "ownership_conflict": own_conflict,
-            "non_ast_signals": non_ast,
-        })
+        rows.append(
+            {
+                "legacy_id": e["legacy_id"],
+                "title": e["title"],
+                "kind": e["kind"],
+                "canonical_id": None,
+                "depth_level": depth,
+                "parent_domain_id": parent_domain if parent_domain in domain_keys else None,
+                "parent_flow_id": None,
+                "parent_node_id": parent_node,
+                "confidence": conf,
+                "confidence_reason": why,
+                "classification": final,
+                "critical_domain": is_critical,
+                "evidence_files": files,
+                "graphify_edges_used": edges_used,
+                "domain_votes": dict(dranked[:4]),
+                "competing_domains": [d for d, _ in dranked[1:3]],
+                "corroboration": corr,
+                "ownership_domain": own_domain,
+                "ownership_rules_applied": sorted(own_reasons),
+                "ownership_conflict": own_conflict,
+                "non_ast_signals": non_ast,
+            }
+        )
 
     counts = collections.Counter(r["confidence"] for r in rows)
     cls = collections.Counter(r["classification"] for r in rows)
@@ -454,9 +501,11 @@ def main(argv: list[str]) -> int:
     print("=" * 66)
     print("BLUEPRINT L1/L2 PARENT DERIVATION")
     print("=" * 66)
-    print(f"graphify: available={p['available']} fresh={p['fresh']} "
-          f"built_at={str(p['built_at_commit'])[:8]} head={str(p['repo_head'])[:8]} "
-          f"nodes={p['nodes']} links={p['links']}")
+    print(
+        f"graphify: available={p['available']} fresh={p['fresh']} "
+        f"built_at={str(p['built_at_commit'])[:8]} head={str(p['repo_head'])[:8]} "
+        f"nodes={p['nodes']} links={p['links']}"
+    )
     if not p["fresh"]:
         print("  [WARN] graph is STALE or missing — derivation confidence is capped.")
     print(f"\ntotal candidates: {m['total_candidates']}")
@@ -469,8 +518,10 @@ def main(argv: list[str]) -> int:
             print(f"  {k:<32} {m['classification_counts'][k]}")
     print("\n--- HIGH (auto-accept candidates) ---")
     for r in [x for x in m["entries"] if x["confidence"] == "HIGH"][:20]:
-        print(f"  {r['legacy_id']:<22} L{r['depth_level']} -> domain={r['parent_domain_id']}"
-              f" node={r['parent_node_id']}")
+        print(
+            f"  {r['legacy_id']:<22} L{r['depth_level']} -> domain={r['parent_domain_id']}"
+            f" node={r['parent_node_id']}"
+        )
         print(f"      {r['confidence_reason']}")
 
     if "--check" in argv:

@@ -12,6 +12,7 @@ Run ON the VPS (inside app container or host with PYTHONPATH=/opt/leadgen):
   docker exec -w /app leadgen_app python /opt/leadgen/scripts/vps_clear_stale_canary_pauses.py
   docker exec -w /app leadgen_app python /opt/leadgen/scripts/vps_clear_stale_canary_pauses.py --dry-run
 """
+
 from __future__ import annotations
 
 import argparse

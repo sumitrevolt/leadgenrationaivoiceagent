@@ -33,7 +33,9 @@ class LeadPipelineBatch(Base):
     source = Column(String(30), nullable=False, default="prospector")
     niche = Column(String(50))
     city = Column(String(100))
-    status = Column(String(20), nullable=False, default="pending")  # pending|running|completed|partial_failed|failed
+    status = Column(
+        String(20), nullable=False, default="pending"
+    )  # pending|running|completed|partial_failed|failed
     total_raw = Column(Integer, default=0)
     total_duplicate = Column(Integer, default=0)
     total_invalid = Column(Integer, default=0)
@@ -54,9 +56,13 @@ class LeadPipelineStageRun(Base):
     __table_args__ = (Index("ix_pipeline_stage_runs_batch", "batch_id", "stage_name"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    batch_id = Column(String(36), ForeignKey("lead_pipeline_batches.id"), nullable=False, index=True)
+    batch_id = Column(
+        String(36), ForeignKey("lead_pipeline_batches.id"), nullable=False, index=True
+    )
     stage_name = Column(String(30), nullable=False)
-    status = Column(String(20), nullable=False, default="pending")  # pending|running|passed|warning|failed
+    status = Column(
+        String(20), nullable=False, default="pending"
+    )  # pending|running|passed|warning|failed
     input_count = Column(Integer, default=0)
     output_count = Column(Integer, default=0)
     rejected_count = Column(Integer, default=0)
@@ -78,7 +84,9 @@ class LeadPipelineQualityIssue(Base):
     )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    batch_id = Column(String(36), ForeignKey("lead_pipeline_batches.id"), nullable=False, index=True)
+    batch_id = Column(
+        String(36), ForeignKey("lead_pipeline_batches.id"), nullable=False, index=True
+    )
     stage_name = Column(String(30), nullable=False)
     issue_type = Column(String(40), nullable=False)
     severity = Column(String(10), nullable=False, default="warning")  # info|warning|critical

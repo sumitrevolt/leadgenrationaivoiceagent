@@ -33,6 +33,7 @@ Usage:
     python scripts/backfill_interaction_identity.py            # dry run
     python scripts/backfill_interaction_identity.py --apply    # write
 """
+
 from __future__ import annotations
 
 import collections
@@ -67,8 +68,12 @@ def load_jsonl() -> list[dict[str, Any]]:
     return out
 
 
-def plan(records: list[dict[str, Any]], lead_by_email: dict[str, str],
-         contact_by_email: dict[str, str], orphan_ids: set[str]) -> dict[str, Any]:
+def plan(
+    records: list[dict[str, Any]],
+    lead_by_email: dict[str, str],
+    contact_by_email: dict[str, str],
+    orphan_ids: set[str],
+) -> dict[str, Any]:
     """Compute the (deterministic) set of updates. Pure — no DB writes."""
     updates: list[tuple[str, str | None, str | None]] = []
     unmatched_domains: collections.Counter = collections.Counter()
@@ -97,8 +102,11 @@ def plan(records: list[dict[str, Any]], lead_by_email: dict[str, str],
         if r.get("outcome") == "interested":
             stats["linkable_interested"] += 1
 
-    return {"updates": updates, "stats": dict(stats),
-            "unmatched_domains": unmatched_domains.most_common(10)}
+    return {
+        "updates": updates,
+        "stats": dict(stats),
+        "unmatched_domains": unmatched_domains.most_common(10),
+    }
 
 
 def main(argv: list[str]) -> int:
@@ -111,11 +119,8 @@ def main(argv: list[str]) -> int:
 
     # app.config exposes it lowercase (settings.database_url); accept either so
     # this keeps working if the settings casing ever changes.
-    url = (getattr(settings, "database_url", "")
-           or getattr(settings, "DATABASE_URL", "")
-           or "")
-    url = url.replace("postgresql+asyncpg://", "postgresql://").replace(
-        "+asyncpg", "")
+    url = getattr(settings, "database_url", "") or getattr(settings, "DATABASE_URL", "") or ""
+    url = url.replace("postgresql+asyncpg://", "postgresql://").replace("+asyncpg", "")
     if not url:
         print("[backfill] FATAL: no database_url in app.config.settings")
         return 2
@@ -124,19 +129,24 @@ def main(argv: list[str]) -> int:
     with engine.connect() as conn:
         lead_by_email = {
             e.lower(): i
-            for i, e in conn.execute(text(
-                "select id, lower(trim(email)) from leads "
-                "where email is not null and email <> ''"))
+            for i, e in conn.execute(
+                text(
+                    "select id, lower(trim(email)) from leads "
+                    "where email is not null and email <> ''"
+                )
+            )
         }
         contact_by_email = {
             e.lower(): i
-            for i, e in conn.execute(text(
-                "select id, lower(trim(email)) from contacts "
-                "where email is not null and email <> ''"))
+            for i, e in conn.execute(
+                text(
+                    "select id, lower(trim(email)) from contacts "
+                    "where email is not null and email <> ''"
+                )
+            )
         }
         orphan_ids = {
-            r[0] for r in conn.execute(text(
-                "select id from interactions where lead_id is null"))
+            r[0] for r in conn.execute(text("select id from interactions where lead_id is null"))
         }
 
     records = load_jsonl()
@@ -150,8 +160,14 @@ def main(argv: list[str]) -> int:
     print(f"lead emails            : {len(lead_by_email)}")
     print(f"contact emails         : {len(contact_by_email)}")
     print()
-    for k in ("linkable", "linkable_interested", "unmatched", "no_email",
-              "already_linked_or_absent", "no_id"):
+    for k in (
+        "linkable",
+        "linkable_interested",
+        "unmatched",
+        "no_email",
+        "already_linked_or_absent",
+        "no_id",
+    ):
         if p["stats"].get(k):
             print(f"  {k:<26} {p['stats'][k]}")
     print()
@@ -160,16 +176,20 @@ def main(argv: list[str]) -> int:
         print(f"   {d:<30} {c}")
 
     if not apply:
-        print(f"\n[DRY RUN] would update {len(p['updates'])} interaction row(s). "
-              "Re-run with --apply to write.")
+        print(
+            f"\n[DRY RUN] would update {len(p['updates'])} interaction row(s). "
+            "Re-run with --apply to write."
+        )
         return 0
 
     written = 0
     with engine.begin() as conn:
         for iid, lid, cid in p["updates"]:
             res = conn.execute(
-                text("update interactions set lead_id = coalesce(lead_id, :lid), "
-                     "contact_id = coalesce(contact_id, :cid) where id = :iid"),
+                text(
+                    "update interactions set lead_id = coalesce(lead_id, :lid), "
+                    "contact_id = coalesce(contact_id, :cid) where id = :iid"
+                ),
                 {"lid": lid, "cid": cid, "iid": iid},
             )
             written += res.rowcount or 0

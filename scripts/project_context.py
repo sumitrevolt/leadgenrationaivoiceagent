@@ -20,6 +20,7 @@ Design invariants:
 The CLI wrappers are scripts/sync_project_context.py, query_project_context.py,
 context_health.py and agent_task_packet.py.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -29,6 +30,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
 
 def force_utf8_stdout() -> None:
     """Windows consoles default to cp1252 and crash on ₹/→/«»/emoji in summaries.
@@ -159,8 +161,14 @@ def ingest_project(nodes, edges, sha):
     m = re.search(r"## 1\. PROJECT CHARTER\s*(.+?)(?:\n## )", claude, re.S)
     if m:
         charter = m.group(1)
-    pid = _node(nodes, "Project", "leadgenrationaiagent", "CLAUDE.md",
-                charter or "LeadGen AI SaaS platform", sha)
+    pid = _node(
+        nodes,
+        "Project",
+        "leadgenrationaiagent",
+        "CLAUDE.md",
+        charter or "LeadGen AI SaaS platform",
+        sha,
+    )
     # Products (charter names them explicitly)
     for prod in ("AI Automated Marketing", "AI Voice Calling Agent"):
         if prod in claude:
@@ -247,20 +255,46 @@ def ingest_unity(nodes, edges, sha, project_id):
         n = _node(nodes, "UnityScript", cs.stem, _relpath(cs), doc or f"Unity C# {cs.stem}", sha)
         edges.append({"src": n, "rel": "BELONGS_TO_PROJECT", "dst": project_id})
     # Generated scenes (declared in the generator, not committed as .unity)
-    gen = read_text_safe(root / "LeadGenVirtualOffice" / "Assets" / "Editor" / "GenerateOfficeScenes.cs")
+    gen = read_text_safe(
+        root / "LeadGenVirtualOffice" / "Assets" / "Editor" / "GenerateOfficeScenes.cs"
+    )
     for scene in sorted(set(re.findall(r"Assets/Scenes/([A-Za-z0-9_]+)\.unity", gen))):
-        _node(nodes, "UnityScene", scene, "unity/.../GenerateOfficeScenes.cs",
-              f"Generated Unity scene {scene}", sha)
+        _node(
+            nodes,
+            "UnityScene",
+            scene,
+            "unity/.../GenerateOfficeScenes.cs",
+            f"Generated Unity scene {scene}",
+            sha,
+        )
 
 
 # Unity-facing API routes + the flags that gate them (deterministic mapping).
 _OFFICE_ROUTES = [
-    ("GET /api/platform/office/snapshot", "app/api/office_hq.py",
-     "Admin office snapshot (rooms/agents/pipeline/health)", "require_admin"),
-    ("GET /api/customer/office", "app/api/customer_dashboard.py",
-     "Tenant-scoped customer office payload", "require_customer"),
-    ("GET /app/office", "app/main.py", "Admin office page (3d shell / 2d map fallback)", "require_admin"),
-    ("GET /app/customer/office", "app/main.py", "Customer office page (3d shell / redirect fallback)", "require_customer"),
+    (
+        "GET /api/platform/office/snapshot",
+        "app/api/office_hq.py",
+        "Admin office snapshot (rooms/agents/pipeline/health)",
+        "require_admin",
+    ),
+    (
+        "GET /api/customer/office",
+        "app/api/customer_dashboard.py",
+        "Tenant-scoped customer office payload",
+        "require_customer",
+    ),
+    (
+        "GET /app/office",
+        "app/main.py",
+        "Admin office page (3d shell / 2d map fallback)",
+        "require_admin",
+    ),
+    (
+        "GET /app/customer/office",
+        "app/main.py",
+        "Customer office page (3d shell / redirect fallback)",
+        "require_customer",
+    ),
     ("GET /api/events/stream", "app/api/events.py", "Admin SSE event stream", "require_admin"),
 ]
 _FLAG_ROUTE = {
@@ -330,9 +364,7 @@ def build_store(root: Path | None = None) -> dict[str, Any]:
     ingest_deployment(nodes, edges, sha)
 
     node_list = [nodes[k] for k in sorted(nodes)]
-    edge_list = sorted(
-        [e for e in edges], key=lambda e: (e["src"], e["rel"], e["dst"])
-    )
+    edge_list = sorted(edges, key=lambda e: (e["src"], e["rel"], e["dst"]))
     # de-dup edges
     seen, uniq = set(), []
     for e in edge_list:
@@ -356,8 +388,9 @@ def build_store(root: Path | None = None) -> dict[str, Any]:
 
 
 def content_hash(store: dict) -> str:
-    payload = json.dumps({"nodes": store["nodes"], "edges": store["edges"]},
-                         sort_keys=True, ensure_ascii=False)
+    payload = json.dumps(
+        {"nodes": store["nodes"], "edges": store["edges"]}, sort_keys=True, ensure_ascii=False
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -370,7 +403,7 @@ def merge_changed(old: dict, new: dict, changed: set[str]) -> dict:
     for n in new["nodes"]:
         src = n["source"].split()[0]
         if src in changed or n["id"] not in old_by_id:
-            merged[n["id"]] = n           # refreshed / brand-new
+            merged[n["id"]] = n  # refreshed / brand-new
         else:
             merged[n["id"]] = old_by_id[n["id"]]  # unchanged -> keep old sha
     node_list = [merged[k] for k in sorted(merged)]

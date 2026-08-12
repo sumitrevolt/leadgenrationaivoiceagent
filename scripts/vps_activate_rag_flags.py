@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Idempotent: set RAG advancement flags in /opt/leadgen/.env (VPS only)."""
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,11 @@ def main() -> int:
         print(f"MISSING {ENV}")
         return 1
     text = ENV.read_text(encoding="utf-8", errors="ignore").splitlines()
-    present = {ln.split("=", 1)[0].strip(): i for i, ln in enumerate(text) if "=" in ln and not ln.strip().startswith("#")}
+    present = {
+        ln.split("=", 1)[0].strip(): i
+        for i, ln in enumerate(text)
+        if "=" in ln and not ln.strip().startswith("#")
+    }
     for k, v in FLAGS.items():
         if k in present:
             text[present[k]] = f"{k}={v}"

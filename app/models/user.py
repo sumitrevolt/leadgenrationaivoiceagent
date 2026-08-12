@@ -246,9 +246,7 @@ class UserSession(Base):
     is_active = Column(Boolean, default=True)
     revoke_reason = Column(String(100))  # logout, password_change, admin_revoke
 
-    __table_args__ = (
-        Index("ix_user_sessions_token", "access_token_hash"),
-    )
+    __table_args__ = (Index("ix_user_sessions_token", "access_token_hash"),)
 
 
 class AuditLog(Base):

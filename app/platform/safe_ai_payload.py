@@ -10,6 +10,7 @@ Usage:
     safe_payload = mask_customer_data(raw_payload)
     validate_no_secrets(safe_payload)  # raises SafePayloadError if secrets leak
 """
+
 from __future__ import annotations
 
 import json
@@ -23,11 +24,16 @@ class SafePayloadError(ValueError):
 
 # ---- Patterns for Indian business PII ----
 
-_PHONE_RE = re.compile(r"""(?: \+?\s*91[\s.-]* | 91[\s.-]* | 0[\s.-]* )?[6-9](?:\d[\s.-]*){8,11}\d\b""", re.VERBOSE)
+_PHONE_RE = re.compile(
+    r"""(?: \+?\s*91[\s.-]* | 91[\s.-]* | 0[\s.-]* )?[6-9](?:\d[\s.-]*){8,11}\d\b""", re.VERBOSE
+)
 
-_EMAIL_RE = re.compile(r"""(?i)
+_EMAIL_RE = re.compile(
+    r"""(?i)
     [a-z0-9._%+\-]{3,} @ [a-z0-9.\-]+\.[a-z]{2,}
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
 
 _GSTIN_RE = re.compile(r"\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b")
 _PAN_RE = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")
@@ -41,7 +47,9 @@ _ADDRESS_HINTS = [
 # API key / token patterns — broader: cover "api key is sk-..." syntax too
 _SECRET_PATTERNS = [
     re.compile(r"(?:api[_\-\.\s]*key|password|auth)\s*[:=\s]+\s*[\S]+", re.IGNORECASE),
-    re.compile(r"(?<![a-zA-Z_])token\s*[:=\s]+\s*[\S]+", re.IGNORECASE),  # not oauth_token/access_token
+    re.compile(
+        r"(?<![a-zA-Z_])token\s*[:=\s]+\s*[\S]+", re.IGNORECASE
+    ),  # not oauth_token/access_token
     re.compile(r"\b(?:sk-[a-zA-Z0-9]{20,}|AIza[0-9A-Za-z\-_]{30,})\b"),  # OpenAI / Google key
     re.compile(r"\b(?:ghp_|gho_|ghu_|ghs_|ghr_)[a-zA-Z0-9]{36,}\b"),  # GitHub PAT
     re.compile(r"\bear\s*[:=]\s*[\S]+", re.IGNORECASE),  # JWT-ish
@@ -54,28 +62,42 @@ _OAUTH_PATTERNS = [
 ]
 
 # WhatsApp number patterns — cover @wa.gateway, @s.whatsapp.net, etc.
-_WA_NUMBER_RE = re.compile(r'\+?\d{10,15}@(?:wa|whatsapp|s\.whatsapp)[a-z.]*', re.IGNORECASE)
+_WA_NUMBER_RE = re.compile(r"\+?\d{10,15}@(?:wa|whatsapp|s\.whatsapp)[a-z.]*", re.IGNORECASE)
 
 
 # ---- Provider safety tiers ----
 
 # Providers where raw customer data CANNOT be sent
 _UNSAFE_PROVIDERS = {
-    "glm", "qwen", "kimi", "deepseek",  # Chinese providers
+    "glm",
+    "qwen",
+    "kimi",
+    "deepseek",  # Chinese providers
     # Opaque credential-free gateways are development-only and may not receive PII.
-    "opencode", "duckduckgo",
-    "unknown", "custom",
+    "opencode",
+    "duckduckgo",
+    "unknown",
+    "custom",
 }
 
 # Providers where masked data is OK but NEVER secrets
 _STRICT_PROVIDERS = {
-    "mistral", "groq", "cerebras", "gemini", "openrouter",
-    "nvidia", "sambanova", "hermes", "grok", "codex",
+    "mistral",
+    "groq",
+    "cerebras",
+    "gemini",
+    "openrouter",
+    "nvidia",
+    "sambanova",
+    "hermes",
+    "grok",
+    "codex",
 }
 
 # Providers we trust with Claude-level safety (only these can receive unmasked data)
 _SAFE_PROVIDERS = {
-    "claude", "anthropic",
+    "claude",
+    "anthropic",
 }
 
 
@@ -91,18 +113,31 @@ def mask_customer_data(payload: dict[str, Any] | str | list[Any] | None) -> Any:
         return payload
 
     _pii_fields = {
-        "name": _mask_name, "customer_name": _mask_name, "business_name": _mask_name,
-        "owner_name": _mask_name, "contact_name": _mask_name,
-        "phone": _mask_phone, "mobile": _mask_phone, "contact_number": _mask_phone,
-        "whatsapp_number": _mask_phone, "whatsapp_phone": _mask_phone,
-        "email": _mask_email, "email_address": _mask_email, "customer_email": _mask_email,
-        "address": lambda v: "[ADDRESS REDACTED]", "business_address": lambda v: "[ADDRESS REDACTED]",
+        "name": _mask_name,
+        "customer_name": _mask_name,
+        "business_name": _mask_name,
+        "owner_name": _mask_name,
+        "contact_name": _mask_name,
+        "phone": _mask_phone,
+        "mobile": _mask_phone,
+        "contact_number": _mask_phone,
+        "whatsapp_number": _mask_phone,
+        "whatsapp_phone": _mask_phone,
+        "email": _mask_email,
+        "email_address": _mask_email,
+        "customer_email": _mask_email,
+        "address": lambda v: "[ADDRESS REDACTED]",
+        "business_address": lambda v: "[ADDRESS REDACTED]",
         "shop_address": lambda v: "[ADDRESS REDACTED]",
-        "gstin": lambda v: "[GST REDACTED]", "gst_number": lambda v: "[GST REDACTED]",
+        "gstin": lambda v: "[GST REDACTED]",
+        "gst_number": lambda v: "[GST REDACTED]",
         "gst": lambda v: "[GST REDACTED]",
-        "pan": lambda v: "[PAN REDACTED]", "pan_number": lambda v: "[PAN REDACTED]",
-        "api_key": lambda v: "[SECRET REDACTED]", "secret": lambda v: "[SECRET REDACTED]",
-        "token": lambda v: "[SECRET REDACTED]", "password": lambda v: "[SECRET REDACTED]",
+        "pan": lambda v: "[PAN REDACTED]",
+        "pan_number": lambda v: "[PAN REDACTED]",
+        "api_key": lambda v: "[SECRET REDACTED]",
+        "secret": lambda v: "[SECRET REDACTED]",
+        "token": lambda v: "[SECRET REDACTED]",
+        "password": lambda v: "[SECRET REDACTED]",
         "key": lambda v: "[SECRET REDACTED]",
     }
 

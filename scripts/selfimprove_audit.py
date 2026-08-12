@@ -21,12 +21,12 @@ Usage:
   python scripts/selfimprove_audit.py --anomalies
 """
 
-import sys
-import json
 import argparse
-from pathlib import Path
+import json
+import sys
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Windows consoles default to cp1252 and choke on the ✅/⚠️ markers when piped.
 # Force UTF-8 so the tool prints cleanly on Windows + Linux alike.
@@ -37,9 +37,9 @@ except Exception:
 
 # Path to LIVE data files (match what the loop actually writes)
 DATA_DIR = Path("data")
-RUNS_FILE = DATA_DIR / "self_improve_runs.jsonl"          # loop run log
-LESSONS_FILE = DATA_DIR / "skill_lessons.jsonl"           # auto-learned lessons
-SKILL_USES_FILE = DATA_DIR / "skill_uses.jsonl"           # per-skill use/ok log
+RUNS_FILE = DATA_DIR / "self_improve_runs.jsonl"  # loop run log
+LESSONS_FILE = DATA_DIR / "skill_lessons.jsonl"  # auto-learned lessons
+SKILL_USES_FILE = DATA_DIR / "skill_uses.jsonl"  # per-skill use/ok log
 APPROVALS_FILE = DATA_DIR / "self_improve_approvals.jsonl"  # approval queue
 
 
@@ -111,7 +111,9 @@ def last_run():
     lessons = load_jsonl(LESSONS_FILE)
     if lessons:
         lg = lessons[-1]
-        print(f"\nLatest lesson [{lg.get('topic', '?')}] ({lg.get('source', '?')}/{lg.get('agent', '?')}):")
+        print(
+            f"\nLatest lesson [{lg.get('topic', '?')}] ({lg.get('source', '?')}/{lg.get('agent', '?')}):"
+        )
         print(f"  {str(lg.get('lesson', 'N/A'))[:200]}")
     print()
 
@@ -145,7 +147,9 @@ def skill_stats():
                 marker = " ⚠️ LOW SUCCESS"
             elif rate > 0.8 and d["runs"] > 3:
                 marker = " ✅ RELIABLE"
-            print(f"{task:<32} {d['runs']:<6} {success:<14} ${d['total_cost']:<9.2f} ${avg:<7.2f}{marker}")
+            print(
+                f"{task:<32} {d['runs']:<6} {success:<14} ${d['total_cost']:<9.2f} ${avg:<7.2f}{marker}"
+            )
         total_cost = sum(d["total_cost"] for d in stats.values())
         total_runs = sum(d["runs"] for d in stats.values())
         print("-" * 72)
@@ -161,7 +165,9 @@ def skill_stats():
             d["uses"] += 1
             if r.get("ok"):
                 d["ok"] += 1
-        ranked = sorted(agg.items(), key=lambda x: (x[1]["ok"] + 1) / (x[1]["uses"] + 2), reverse=True)
+        ranked = sorted(
+            agg.items(), key=lambda x: (x[1]["ok"] + 1) / (x[1]["uses"] + 2), reverse=True
+        )
         print("\nTop skills (skill_uses.jsonl, Laplace ok-rate):")
         for s, d in ranked[:8]:
             rate = (d["ok"] + 1) / (d["uses"] + 2)
@@ -271,7 +277,9 @@ def anomalies():
     pending = [a for a in approvals if str(a.get("status", "")).lower() in ("pending", "waiting")]
     if pending:
         for a in pending[-5:]:
-            print(f"   - {_ts(a)}: {a.get('task') or a.get('action') or a.get('id', '?')} (waiting)")
+            print(
+                f"   - {_ts(a)}: {a.get('task') or a.get('action') or a.get('id', '?')} (waiting)"
+            )
         found = True
     else:
         print("   ✅ None")
@@ -293,16 +301,22 @@ def anomalies():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Audit the self-improve loop health, cost, and decisions.")
+    parser = argparse.ArgumentParser(
+        description="Audit the self-improve loop health, cost, and decisions."
+    )
     parser.add_argument("--last-run", action="store_true", help="Show the last run")
-    parser.add_argument("--skill-stats", action="store_true", help="Action success rates + cost + top skills")
+    parser.add_argument(
+        "--skill-stats", action="store_true", help="Action success rates + cost + top skills"
+    )
     parser.add_argument("--memory-audit", action="store_true", help="Inspect auto-learned lessons")
     parser.add_argument("--cost-report", action="store_true", help="Daily notional-cost breakdown")
     parser.add_argument("--days", type=int, default=7, help="Days to include in cost report")
     parser.add_argument("--anomalies", action="store_true", help="Detect issues")
     args = parser.parse_args()
 
-    if not any([args.last_run, args.skill_stats, args.memory_audit, args.cost_report, args.anomalies]):
+    if not any(
+        [args.last_run, args.skill_stats, args.memory_audit, args.cost_report, args.anomalies]
+    ):
         args.last_run = True
 
     if args.last_run:

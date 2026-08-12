@@ -61,9 +61,9 @@ class CoordinatorActionV1(BaseModel):
     action_id: str
     sequence: int
     action_type: CoordinatorActionType
-    target_agent: Optional[str] = None
-    tool_name: Optional[str] = None
-    tool_version: Optional[str] = None
+    target_agent: str | None = None
+    tool_name: str | None = None
+    tool_version: str | None = None
     task: str = ""
     arguments: dict[str, Any] = Field(default_factory=dict)
     expected_effect: str = ""
@@ -111,11 +111,11 @@ class CoordinatorActionResultV1(BaseModel):
     action_id: str
     sequence: int
     status: Literal["succeeded", "failed", "skipped", "blocked", "approval_required"]
-    target_agent: Optional[str] = None
-    tool_name: Optional[str] = None
-    bounded_result: Optional[Any] = None
-    error_code: Optional[str] = None
-    error_summary: Optional[str] = None
+    target_agent: str | None = None
+    tool_name: str | None = None
+    bounded_result: Any | None = None
+    error_code: str | None = None
+    error_summary: str | None = None
     duration_ms: float = 0.0
 
 
@@ -210,7 +210,7 @@ def _bounded_diff(seq: int, field: str, a: Any, b: Any) -> dict:
 
 
 def compare_plans(
-    structured: Optional[CoordinatorPlanV1], legacy: CoordinatorPlanV1
+    structured: CoordinatorPlanV1 | None, legacy: CoordinatorPlanV1
 ) -> CoordinatorPlanComparison:
     """Deterministic structured-vs-legacy comparison. NEVER modifies execution."""
     if structured is None:
@@ -321,7 +321,7 @@ class SupervisorDecisionV1(BaseModel):
     actor_id: str
     target_agent: str
     task: str = ""
-    route_label: Optional[str] = None
+    route_label: str | None = None
     graph_run_id: str
     graph_step: int
     attempt: int = 0
@@ -353,8 +353,8 @@ class SupervisorDecisionV1(BaseModel):
     def to_coordinator_action(
         self,
         *,
-        tool_name: Optional[str] = None,
-        tool_version: Optional[str] = None,
+        tool_name: str | None = None,
+        tool_version: str | None = None,
         claimed_risk: RiskLane = RiskLane.GREEN,
     ) -> CoordinatorActionV1:
         """Normalize this supervisor decision into the shared CoordinatorActionV1.

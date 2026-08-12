@@ -533,9 +533,15 @@ def _get_qdrant_client():
                                 "Data PRESERVED; semantic writes fall back to keyword until "
                                 "fixed. Set KB_ALLOW_DIM_WIPE=1 to recreate (DESTRUCTIVE — "
                                 "drops ALL namespaces) or re-seed manually.",
-                                _cur, _QDRANT_VECTOR_SIZE, _E5_MODEL_NAME,
+                                _cur,
+                                _QDRANT_VECTOR_SIZE,
+                                _E5_MODEL_NAME,
                             )
-                            if os.getenv("KB_ALLOW_DIM_WIPE", "0").strip().lower() in ("1", "true", "yes"):
+                            if os.getenv("KB_ALLOW_DIM_WIPE", "0").strip().lower() in (
+                                "1",
+                                "true",
+                                "yes",
+                            ):
                                 logger.warning(
                                     "KB_ALLOW_DIM_WIPE set — recreating kb_main (destructive wipe)."
                                 )
@@ -935,9 +941,7 @@ class KnowledgeBase:
             try:
                 _removed = index.delete_source(source)
                 if _removed:
-                    logger.info(
-                        f"KB '{namespace}': cleared old source='{source}' before reseed"
-                    )
+                    logger.info(f"KB '{namespace}': cleared old source='{source}' before reseed")
                 _hkw = self._hybrid_kw.get(namespace or "default")
                 if _hkw is not None:
                     _hkw.delete_source(source)
@@ -1086,7 +1090,11 @@ class KnowledgeBase:
             from qdrant_client import models as qmodels
 
             ns_filter = qmodels.Filter(
-                must=[qmodels.FieldCondition(key="namespace", match=qmodels.MatchValue(value=staging_ns))]
+                must=[
+                    qmodels.FieldCondition(
+                        key="namespace", match=qmodels.MatchValue(value=staging_ns)
+                    )
+                ]
             )
             count = 0
             offset = None
@@ -1132,7 +1140,11 @@ class KnowledgeBase:
             from qdrant_client import models as qmodels
 
             ns_filter = qmodels.Filter(
-                must=[qmodels.FieldCondition(key="namespace", match=qmodels.MatchValue(value=staging_ns))]
+                must=[
+                    qmodels.FieldCondition(
+                        key="namespace", match=qmodels.MatchValue(value=staging_ns)
+                    )
+                ]
             )
             c = client.count(collection_name=_QDRANT_COLLECTION, count_filter=ns_filter, exact=True)
             n = int(getattr(c, "count", 0) or 0)
@@ -1193,4 +1205,3 @@ __all__ = [
     "chunk_text",
     "tokenize",
 ]
-

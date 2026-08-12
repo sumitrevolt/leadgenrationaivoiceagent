@@ -13,6 +13,7 @@ Exit 0 = clean · Exit 1 = potential secret mila (file:line print hota hai).
 Wired into /verify step 4. False-positive ho to us LINE me `nosecret` comment
 add karo (scanner skip kar dega) — ya value placeholder banao.
 """
+
 from __future__ import annotations
 
 import re
@@ -23,8 +24,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("generic key/secret/token/password assignment",
-     re.compile(r"(?i)\b\w*(api[_-]?key|secret|token|passwd|password)\w*\s*[=:]\s*['\"][A-Za-z0-9_\-/+\.]{12,}['\"]")),
+    (
+        "generic key/secret/token/password assignment",
+        re.compile(
+            r"(?i)\b\w*(api[_-]?key|secret|token|passwd|password)\w*\s*[=:]\s*['\"][A-Za-z0-9_\-/+\.]{12,}['\"]"
+        ),
+    ),
     ("AWS access key", re.compile(r"AKIA[0-9A-Z]{16}")),
     ("private key block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("Pollinations sk_ key", re.compile(r"\bsk_(?:live_|test_)?[A-Za-z0-9]{16,}")),
@@ -35,7 +40,10 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
     ("Google API key (Gemini/Maps/etc.)", re.compile(r"AIza[0-9A-Za-z_\-]{35}")),
     ("Slack token", re.compile(r"xox[baprs]-[0-9A-Za-z\-]{10,}")),
     ("JWT", re.compile(r"\beyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}")),
-    ("Bearer header literal", re.compile(r"(?i)Authorization['\"]?\s*[:=]\s*['\"]Bearer\s+[A-Za-z0-9_\-\.]{20,}")),
+    (
+        "Bearer header literal",
+        re.compile(r"(?i)Authorization['\"]?\s*[:=]\s*['\"]Bearer\s+[A-Za-z0-9_\-\.]{20,}"),
+    ),
 ]
 
 # In values pe match ho to fake/placeholder maan ke skip
@@ -44,9 +52,42 @@ PLACEHOLDER = re.compile(
 )
 
 # NOTE: .agents/.claude excluded DELIBERATELY — 250 markdown skills = false-positive farm.
-SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "data", "dist", "build", ".pytest_cache", ".agents", ".claude"}
-SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot",
-            ".pdf", ".mp3", ".mp4", ".wav", ".zip", ".gz", ".db", ".pyc", ".lock", ".idx", ".pack"}
+SKIP_DIRS = {
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "data",
+    "dist",
+    "build",
+    ".pytest_cache",
+    ".agents",
+    ".claude",
+}
+SKIP_EXT = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".pdf",
+    ".mp3",
+    ".mp4",
+    ".wav",
+    ".zip",
+    ".gz",
+    ".db",
+    ".pyc",
+    ".lock",
+    ".idx",
+    ".pack",
+}
 SKIP_NAMES = {"check_secrets.py"}  # khud ke patterns pe trip na ho
 ENV_FILE = re.compile(r"(^|[\\/])\.env(\..*)?$")  # .env gitignored — waise bhi skip
 
@@ -89,7 +130,9 @@ def changed_files() -> list[str]:
 
 def all_files() -> list[str]:
     try:
-        r = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        r = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, timeout=60
+        )
         return [l.strip() for l in r.stdout.splitlines() if l.strip()]
     except Exception:
         return []
@@ -159,16 +202,22 @@ def main() -> int:
 
     rc = 0
     if findings:
-        print("[FAIL] potential secrets mile — .env me daalo ya line pe `nosecret` (sirf false-positive pe):")
+        print(
+            "[FAIL] potential secrets mile — .env me daalo ya line pe `nosecret` (sirf false-positive pe):"
+        )
         for f in findings:
             print("  " + f)
         rc = 1
     if strict_sprawl and sprawl_findings:
-        print(f"[FAIL] on-disk sprawl secret(s) mile (--strict-sprawl) — rotate + move to .env ({len(sprawl_findings)}).")
+        print(
+            f"[FAIL] on-disk sprawl secret(s) mile (--strict-sprawl) — rotate + move to .env ({len(sprawl_findings)})."
+        )
         rc = 1
     if rc == 0:
-        print("[OK] no secrets detected"
-              + (" (sprawl WARNINGs advisory — commit-safe)" if sprawl_findings else ""))
+        print(
+            "[OK] no secrets detected"
+            + (" (sprawl WARNINGs advisory — commit-safe)" if sprawl_findings else "")
+        )
     return rc
 
 

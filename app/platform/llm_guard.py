@@ -14,6 +14,7 @@ IFC principle: content from an UNTRUSTED source must never drive control flow
 (send / call / post / pay / tool-invoke) without trusted ratification. This module
 gives you the label + the signal; the caller keeps the gate.
 """
+
 from __future__ import annotations
 
 import os
@@ -26,22 +27,49 @@ TRUSTED_SOURCES = {"user", "customer", "operator", "admin", "system"}
 # IPI signal patterns — imperative-to-agent instructions embedded in content.
 # Conservative + observe-only, so benign false-positives are acceptable (we flag,
 # never block). Each = (name, compiled regex).
-_PATTERNS: list[tuple[str, "re.Pattern[str]"]] = [
-    ("ignore_prior", re.compile(
-        r"\b(ignore|disregard|forget|override)\b.{0,30}\b(previous|prior|above|earlier|all)\b"
-        r".{0,24}\b(instruction|prompt|message|rule|context)", re.I)),
-    ("override_system", re.compile(
-        r"\b(system prompt|developer message|your instructions?|you are now|new instructions?)\b", re.I)),
-    ("exfil_send", re.compile(
-        r"\b(forward|send|email|sms|whatsapp|post|share|leak)\b.{0,40}"
-        r"\b(all|every|contact|customer|password|api[ _]?key|secret|credential|token)\b", re.I)),
-    ("tool_invoke", re.compile(
-        r"\b(call|invoke|execute|trigger|run)\b.{0,20}\b(the )?(tool|function|command|api|endpoint|webhook)\b", re.I)),
-    ("role_switch", re.compile(
-        r"\b(act as|pretend to be|roleplay as|you must now|from now on you)\b", re.I)),
-    ("data_exfil", re.compile(
-        r"\b(reveal|print|output|repeat|show|dump)\b.{0,30}"
-        r"\b(system prompt|your prompt|your instructions?|api[ _]?key|secret|password)\b", re.I)),
+_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    (
+        "ignore_prior",
+        re.compile(
+            r"\b(ignore|disregard|forget|override)\b.{0,30}\b(previous|prior|above|earlier|all)\b"
+            r".{0,24}\b(instruction|prompt|message|rule|context)",
+            re.I,
+        ),
+    ),
+    (
+        "override_system",
+        re.compile(
+            r"\b(system prompt|developer message|your instructions?|you are now|new instructions?)\b",
+            re.I,
+        ),
+    ),
+    (
+        "exfil_send",
+        re.compile(
+            r"\b(forward|send|email|sms|whatsapp|post|share|leak)\b.{0,40}"
+            r"\b(all|every|contact|customer|password|api[ _]?key|secret|credential|token)\b",
+            re.I,
+        ),
+    ),
+    (
+        "tool_invoke",
+        re.compile(
+            r"\b(call|invoke|execute|trigger|run)\b.{0,20}\b(the )?(tool|function|command|api|endpoint|webhook)\b",
+            re.I,
+        ),
+    ),
+    (
+        "role_switch",
+        re.compile(r"\b(act as|pretend to be|roleplay as|you must now|from now on you)\b", re.I),
+    ),
+    (
+        "data_exfil",
+        re.compile(
+            r"\b(reveal|print|output|repeat|show|dump)\b.{0,30}"
+            r"\b(system prompt|your prompt|your instructions?|api[ _]?key|secret|password)\b",
+            re.I,
+        ),
+    ),
     ("encoded_blob", re.compile(r"[A-Za-z0-9+/]{200,}={0,2}")),  # long base64-ish payload
 ]
 

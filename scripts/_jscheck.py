@@ -1,5 +1,12 @@
-import json, re, subprocess, sys, tempfile, os, shutil
-files = ["frontend/pricing.html","frontend/automation.html","frontend/ops.html"]
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+files = ["frontend/pricing.html", "frontend/automation.html", "frontend/ops.html"]
 node = shutil.which("node")
 allok = True
 for f in files:
@@ -15,22 +22,30 @@ for f in files:
             try:
                 json.loads(b)
             except json.JSONDecodeError as exc:
-                fok = False; allok = False
+                fok = False
+                allok = False
                 print(f"{f} script#{i} JSON_FAIL: {exc}")
             continue
         if node:
             tf = tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8")
-            tf.write(b); tf.close()
+            tf.write(b)
+            tf.close()
             r = subprocess.run([node, "--check", tf.name], capture_output=True, text=True)
             os.unlink(tf.name)
             if r.returncode != 0:
-                fok = False; allok = False
-                print(f"{f} script#{i} FAIL: {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'err'}")
+                fok = False
+                allok = False
+                print(
+                    f"{f} script#{i} FAIL: {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'err'}"
+                )
         else:
             # fallback: brace/paren balance
-            for op, cl in [("{","}"),("(",")"),("[","]")]:
+            for op, cl in [("{", "}"), ("(", ")"), ("[", "]")]:
                 if b.count(op) != b.count(cl):
-                    fok = False; allok = False
+                    fok = False
+                    allok = False
                     print(f"{f} script#{i} UNBALANCED {op}{cl}: {b.count(op)} vs {b.count(cl)}")
-    print(f"{f}: {'JS_OK' if fok else 'JS_FAIL'} ({len(bodies)} script blocks, node={'yes' if node else 'no'})")
+    print(
+        f"{f}: {'JS_OK' if fok else 'JS_FAIL'} ({len(bodies)} script blocks, node={'yes' if node else 'no'})"
+    )
 print("ALL_OK" if allok else "SOME_FAIL")

@@ -3,6 +3,7 @@
 Agents are NOT in the live audio path. Deterministic checks first; optional
 free-LLM batch analysis behind flags. Never auto-changes pricing/legal/consent.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,9 +42,8 @@ class PostCallQAResult:
 
 def _looks_greeting(text: str) -> bool:
     t = (text or "").lower()
-    return (
-        ("namaste" in t or "main swara" in t or "ai assistant" in t)
-        and ("baat kar" in t or "minute" in t or "second" in t)
+    return ("namaste" in t or "main swara" in t or "ai assistant" in t) and (
+        "baat kar" in t or "minute" in t or "second" in t
     )
 
 
@@ -89,7 +89,9 @@ def analyze_transcript(
         any(w in u.lower() for w in ("kitna", "price", "pricing", "paisa", "rupee", "₹", "plan"))
         for u in users
     )
-    price_ans = any("₹" in a or "1999" in a or "5999" in a or "plan" in a.lower() for a in assistants)
+    price_ans = any(
+        "₹" in a or "1999" in a or "5999" in a or "plan" in a.lower() for a in assistants
+    )
     if price_ask and not price_ans:
         misunderstanding = True
         issues.append("price_question_unanswered")

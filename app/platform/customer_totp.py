@@ -227,7 +227,7 @@ def _challenge_key() -> bytes:
         # at t=0 still verifies at t=120 in the same process.
         global _RANDOM_KEY
         try:
-            _RANDOM_KEY
+            _ = _RANDOM_KEY
         except NameError:
             _RANDOM_KEY = secrets.token_hex(32)
         k = _RANDOM_KEY

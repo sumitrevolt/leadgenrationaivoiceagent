@@ -226,13 +226,11 @@ def _leads_ready() -> dict:
             connect_timeout=4,
         )
         cur = conn.cursor()
-        cur.execute(
-            """SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
+        cur.execute("""SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
             FROM leads
             WHERE phone IS NOT NULL AND phone <> ''
               AND COALESCE(call_attempts,0) = 0
-            GROUP BY 1 ORDER BY 2 DESC LIMIT 15"""
-        )
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 15""")
         rows = cur.fetchall()
         conn.close()
         by_niche = [{"niche": r[0], "count": int(r[1])} for r in rows]

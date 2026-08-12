@@ -6,6 +6,7 @@ THROUGH this shim so neither knows which engine a run uses. Linear runs (incl.
 pre-Phase-2 runs with no 'engine' key) -> process_engine; dag runs -> dag_engine.
 Never raises.
 """
+
 from __future__ import annotations
 
 import json
@@ -72,7 +73,9 @@ def replay(run_id: str) -> dict[str, Any]:
         return {"run_id": run_id, "status": "failed", "last_error": str(e)[:200]}
 
 
-def approve(run_id: str, approved_by: str = "admin", note: str = "", node_id: str = "") -> dict[str, Any]:
+def approve(
+    run_id: str, approved_by: str = "admin", note: str = "", node_id: str = ""
+) -> dict[str, Any]:
     try:
         from app.agents import dag_engine
 
@@ -117,16 +120,18 @@ def list_runs(limit: int = 20) -> list[dict[str, Any]]:
     for r in rows[-limit:][::-1]:
         rid = str(r.get("run_id") or "")
         st = replay(rid)
-        out.append({
-            "run_id": rid,
-            "process": st.get("process") or r.get("process"),
-            "status": st.get("status"),
-            "engine": st.get("engine", "linear"),
-            "step_index": st.get("step_index", 0),
-            "nodes": len(st.get("nodes", {})) if st.get("engine") == "dag" else None,
-            "last_error": st.get("last_error", ""),
-            "started_at": st.get("started_at") or r.get("at"),
-        })
+        out.append(
+            {
+                "run_id": rid,
+                "process": st.get("process") or r.get("process"),
+                "status": st.get("status"),
+                "engine": st.get("engine", "linear"),
+                "step_index": st.get("step_index", 0),
+                "nodes": len(st.get("nodes", {})) if st.get("engine") == "dag" else None,
+                "last_error": st.get("last_error", ""),
+                "started_at": st.get("started_at") or r.get("at"),
+            }
+        )
     return out
 
 

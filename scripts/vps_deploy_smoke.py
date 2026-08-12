@@ -1,4 +1,5 @@
 """VPS deploy: pull + build app + recreate + health + pay-info smoke."""
+
 import json
 import subprocess
 import sys

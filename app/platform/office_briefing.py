@@ -94,7 +94,7 @@ def _try_generation_claim(date: str) -> bool:
         try:
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             try:
-                os.write(fd, f"pid={os.getpid()} at={_now_iso()}".encode("utf-8"))
+                os.write(fd, f"pid={os.getpid()} at={_now_iso()}".encode())
             finally:
                 os.close(fd)
             return True
@@ -251,7 +251,9 @@ def _template_bulletin(nums: dict[str, Any]) -> str:
         lines.append(f"Sabse active team members: {names}.")
     else:
         lines.append("Abhi tak kisi agent ki activity record nahi hui.")
-    lines.append(f"Reception ke Hot Queue me {nums['hot_queue']} garam replies kaam ke liye pending hain.")
+    lines.append(
+        f"Reception ke Hot Queue me {nums['hot_queue']} garam replies kaam ke liye pending hain."
+    )
     if nums["overdue_jobs"] or nums["failed_jobs"] or nums["dlq_depth"]:
         lines.append(
             f"Reliability: {nums['overdue_jobs']} jobs overdue, DLQ me {nums['dlq_depth']} failed tasks — "
@@ -366,15 +368,27 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
         nums = await asyncio.wait_for(asyncio.to_thread(_collect_numbers), timeout=10.0)
     except Exception as e:
         logger.warning(f"[office_briefing] collect timed out/failed (10s budget): {e}")
-        nums = {"overdue_jobs": 0, "failed_jobs": 0, "dlq_depth": 0, "hot_queue": 0,
-                "new_leads": 0, "qualified_leads": 0, "top_agents": []}
+        nums = {
+            "overdue_jobs": 0,
+            "failed_jobs": 0,
+            "dlq_depth": 0,
+            "hot_queue": 0,
+            "new_leads": 0,
+            "qualified_leads": 0,
+            "top_agents": [],
+        }
     try:
         text = await _compose_text(nums)
     except Exception as e:
         logger.warning(f"[office_briefing] compose failed: {e}")
         _release_generation_claim(date)
-        return {"ok": False, "date": date, "text": "", "has_audio": False,
-                "error": "briefing compose fail"}
+        return {
+            "ok": False,
+            "date": date,
+            "text": "",
+            "has_audio": False,
+            "error": "briefing compose fail",
+        }
 
     has_audio = False
     try:
@@ -433,7 +447,9 @@ def _scheduler_health() -> dict[str, Any]:
 
         health = automation_health.health() or {"ok": False, "status": "unknown"}
         queue = health.get("queue") or {}
-        queue_unknown = any(int(queue.get(name, -1)) < 0 for name in ("celery", "heavy", "dlq", "dead"))
+        queue_unknown = any(
+            int(queue.get(name, -1)) < 0 for name in ("celery", "heavy", "dlq", "dead")
+        )
         recent_failed = [
             str(row.get("job") or "?")
             for row in (health.get("jobs") or [])

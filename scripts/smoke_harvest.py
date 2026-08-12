@@ -11,7 +11,13 @@ def main() -> None:
 
     print("SOURCES", json.dumps(lh.source_status(), ensure_ascii=False))
     res = asyncio.run(lh.run_harvest(limit=5))
-    print("HARVEST", json.dumps({k: res.get(k) for k in ("ok", "niche", "city", "new_leads", "deduped", "enrich")}, ensure_ascii=False))
+    print(
+        "HARVEST",
+        json.dumps(
+            {k: res.get(k) for k in ("ok", "niche", "city", "new_leads", "deduped", "enrich")},
+            ensure_ascii=False,
+        ),
+    )
     for s, d in (res.get("sources") or {}).items():
         print(f"  src {s}: {json.dumps(d, ensure_ascii=False)[:140]}")
     print("RUNS", len(lh.recent_runs(5)))

@@ -376,6 +376,7 @@ class VertexAIClient:
         config = self._gemini_config
         if temperature is not None or max_tokens is not None:
             from google.genai import types
+
             config = types.GenerateContentConfig(
                 temperature=temperature or 0.7,
                 max_output_tokens=max_tokens or 512,

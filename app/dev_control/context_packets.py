@@ -38,9 +38,15 @@ _SECRET_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("[REDACTED_KEY]", re.compile(r"\b(?:sk|rk|pk)[-_](?:live|test|proj)?[-_]?[A-Za-z0-9]{16,}\b")),
     ("[REDACTED_BEARER]", re.compile(r"(?i)\bbearer\s+[A-Za-z0-9\-_.~+/]{16,}=*")),
     ("[REDACTED_AWS]", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
-    ("[REDACTED_JWT]", re.compile(r"\beyJ[A-Za-z0-9\-_]{8,}\.[A-Za-z0-9\-_]{8,}\.[A-Za-z0-9\-_]{8,}\b")),
+    (
+        "[REDACTED_JWT]",
+        re.compile(r"\beyJ[A-Za-z0-9\-_]{8,}\.[A-Za-z0-9\-_]{8,}\.[A-Za-z0-9\-_]{8,}\b"),
+    ),
     ("[REDACTED_GSTIN]", re.compile(r"\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z0-9][A-Z0-9]\b")),
-    ("\\1=[REDACTED_ENV]", re.compile(r"(?im)^([A-Z][A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|VPA))\s*=\s*\S+")),
+    (
+        "\\1=[REDACTED_ENV]",
+        re.compile(r"(?im)^([A-Z][A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|VPA))\s*=\s*\S+"),
+    ),
 ]
 
 
@@ -83,10 +89,15 @@ def _safe_repo_path(value: Any) -> str | None:
 
 def file_hashes(files: dict[str, str]) -> dict[str, str]:
     """{path: content} -> {path: sha256}. Order-independent."""
-    return {p: hashlib.sha256((c or "").encode("utf-8", "replace")).hexdigest() for p, c in files.items()}
+    return {
+        p: hashlib.sha256((c or "").encode("utf-8", "replace")).hexdigest()
+        for p, c in files.items()
+    }
 
 
-def cache_key(*, task_id: str, commit_sha: str, relevant_file_hashes: dict[str, str], contract_version: str) -> str:
+def cache_key(
+    *, task_id: str, commit_sha: str, relevant_file_hashes: dict[str, str], contract_version: str
+) -> str:
     payload = json.dumps(
         {
             "task_id": task_id,
@@ -182,10 +193,13 @@ def build_context_packet(
             return {"ok": False, "reason": "unsafe_relevant_path", "path": str(original_path)}
         normalized_files.append(safe_path)
 
-    excerpts_text = "\n\n".join(
-        f"### {e.get('path')} (lines {e.get('start', '?')}-{e.get('end', '?')})\n```\n{e.get('text', '')}\n```"
-        for e in normalized_excerpts
-    ) or "(none)"
+    excerpts_text = (
+        "\n\n".join(
+            f"### {e.get('path')} (lines {e.get('start', '?')}-{e.get('end', '?')})\n```\n{e.get('text', '')}\n```"
+            for e in normalized_excerpts
+        )
+        or "(none)"
+    )
     failures = list(known_failures or [])
     for att in prior_failed_attempts or []:
         failures.append(
@@ -214,10 +228,26 @@ def build_context_packet(
     tokens = estimate_tokens(text)
     limit = PACKET_TOKEN_LIMITS[size_class]
     if tokens > limit:
-        return {"ok": False, "reason": "packet_over_budget", "tokens": tokens, "limit": limit, "size_class": size_class}
+        return {
+            "ok": False,
+            "reason": "packet_over_budget",
+            "tokens": tokens,
+            "limit": limit,
+            "size_class": size_class,
+        }
 
-    hashes = file_hashes({e.get("path", f"excerpt-{i}"): e.get("text", "") for i, e in enumerate(normalized_excerpts)})
-    key = cache_key(task_id=task_id, commit_sha=commit_sha, relevant_file_hashes=hashes, contract_version=contract_version)
+    hashes = file_hashes(
+        {
+            e.get("path", f"excerpt-{i}"): e.get("text", "")
+            for i, e in enumerate(normalized_excerpts)
+        }
+    )
+    key = cache_key(
+        task_id=task_id,
+        commit_sha=commit_sha,
+        relevant_file_hashes=hashes,
+        contract_version=contract_version,
+    )
     return {
         "ok": True,
         "cache_key": key,

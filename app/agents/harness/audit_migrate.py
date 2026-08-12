@@ -68,7 +68,7 @@ def _migration_identity(source_checksum: str, source_app_version: str) -> str:
 
 
 def preview(
-    source: str, source_app_version: Optional[str], backend: Optional[ab.AuditBackend] = None
+    source: str, source_app_version: str | None, backend: ab.AuditBackend | None = None
 ) -> dict[str, Any]:
     raw, rows = _read_source(source)
     checksum = hashlib.sha256(raw).hexdigest()
@@ -124,7 +124,7 @@ def apply(
     approval_token: str,
     expected_checksum: str,
     source_app_version: str,
-    backend: Optional[ab.AuditBackend] = None,
+    backend: ab.AuditBackend | None = None,
 ) -> dict[str, Any]:
     if not approval_token:
         raise SystemExit("refused: --approval-token required for --apply")
@@ -182,7 +182,7 @@ def apply(
     }
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="audit_migrate", description="Guarded harness-audit historical migration"
     )

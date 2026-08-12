@@ -18,6 +18,7 @@ Run ON the VPS:
 
 Idempotent. Backs up .env. Recreate pins APP_VERSION (ADR-097, never :latest).
 """
+
 from __future__ import annotations
 
 import argparse

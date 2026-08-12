@@ -64,7 +64,7 @@ def group_by_status(leads: list[Any]) -> dict[str, Any]:
         except Exception:
             return ""
 
-    for lead in (leads or []):
+    for lead in leads or []:
         try:
             raw_status = _get(lead, "status").strip()
             col = canon.get(raw_status.lower())

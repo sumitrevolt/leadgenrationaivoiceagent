@@ -74,9 +74,7 @@ class TrajectoryExportIn(BaseModel):
 
 
 @router.post("/trajectory/export")
-async def trajectory_export(
-    body: TrajectoryExportIn, _user=Depends(require_super_admin)
-):
+async def trajectory_export(body: TrajectoryExportIn, _user=Depends(require_super_admin)):
     """Winning traces ko JSONL training-dataset me export karo (local ML fine-tune).
     Disk-write → SUPER_ADMIN only (RBAC design)."""
     from app.agents import trajectory

@@ -484,7 +484,12 @@ class CalendarBooking:
         return False
 
     async def _google_book(
-        self, when: datetime, name: str, phone: str, notes: str, duration_min: int,
+        self,
+        when: datetime,
+        name: str,
+        phone: str,
+        notes: str,
+        duration_min: int,
         client_id: str = "",
     ) -> BookingResult:
         cal_id = getattr(self, "_calendar_id", "primary")
@@ -545,7 +550,12 @@ class CalendarBooking:
         return slots
 
     def _internal_book(
-        self, when: datetime, name: str, phone: str, notes: str, duration_min: int,
+        self,
+        when: datetime,
+        name: str,
+        phone: str,
+        notes: str,
+        duration_min: int,
         client_id: str = "",
     ) -> BookingResult:
         """Durable internal booking (no external calendar). The record is PERSISTED
@@ -591,7 +601,12 @@ class CalendarBooking:
     # only the booking is pushed to Cal.com (its availability API is heavier).
     # ------------------------------------------------------------------ #
     async def _calcom_book(
-        self, when: datetime, name: str, phone: str, notes: str, duration_min: int,
+        self,
+        when: datetime,
+        name: str,
+        phone: str,
+        notes: str,
+        duration_min: int,
         client_id: str = "",
     ) -> BookingResult:
         api_key = _setting("CALCOM_API_KEY")

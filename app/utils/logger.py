@@ -85,32 +85,46 @@ import re as _re
 # bearer/jwt), and generic API keys (api_key/api-key/apikey/token/secret/
 # password). Hyphen/underscore variants collapsed via regex.
 _SENSITIVE_KEY_NAMES = (
-    "client_secret", "webhook_secret", "refresh_token", "access_token",
-    "verify_token", "auth_token", "oauth_token", "private_token",
-    "private_key", "id_token", "session_id", "api_key",
-    "apikey", "authorization", "password", "passwd", "signature",
-    "token", "secret", "bearer", "jwt", "code",
+    "client_secret",
+    "webhook_secret",
+    "refresh_token",
+    "access_token",
+    "verify_token",
+    "auth_token",
+    "oauth_token",
+    "private_token",
+    "private_key",
+    "id_token",
+    "session_id",
+    "api_key",
+    "apikey",
+    "authorization",
+    "password",
+    "passwd",
+    "signature",
+    "token",
+    "secret",
+    "bearer",
+    "jwt",
+    "code",
 )
 
 
 def _sensitive_name_re_alternation() -> str:
     """Build a name alternation regex that tolerates `-` or `_` between
     words (e.g. `api-key` == `api_key`)."""
-    return "|".join(
-        n.replace("-", "[-_]?").replace("_", "[-_]?")
-        for n in _SENSITIVE_KEY_NAMES
-    )
+    return "|".join(n.replace("-", "[-_]?").replace("_", "[-_]?") for n in _SENSITIVE_KEY_NAMES)
 
 
 _MESSAGE_KV_REDACT_RE = _re.compile(
-    r"\b(" + _sensitive_name_re_alternation()
+    r"\b("
+    + _sensitive_name_re_alternation()
     + r')\s*[=:]\s*("[^"]{1,4096}"|\'[^\']{1,4096}\'|[^\s&,;\)\]\}"]{1,4096})',
     _re.IGNORECASE,
 )
 
 _MESSAGE_JSON_REDACT_RE = _re.compile(
-    r"(['\"])(" + _sensitive_name_re_alternation()
-    + r")\1\s*:\s*(['\"])([^'\"]{1,4096})\3",
+    r"(['\"])(" + _sensitive_name_re_alternation() + r")\1\s*:\s*(['\"])([^'\"]{1,4096})\3",
     _re.IGNORECASE,
 )
 
@@ -186,8 +200,7 @@ def redact_url(url: str) -> str:
         # 2) query-string sensitive kv (?token=... or &api_key=...) — case-insensitive.
         if "?" in s or "&" in s:
             qs_re = _re.compile(
-                r"([?&])(" + _sensitive_name_re_alternation()
-                + r")(=)([^&#\s]{0,4096})",
+                r"([?&])(" + _sensitive_name_re_alternation() + r")(=)([^&#\s]{0,4096})",
                 _re.IGNORECASE,
             )
             s = qs_re.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}[REDACTED]", s)

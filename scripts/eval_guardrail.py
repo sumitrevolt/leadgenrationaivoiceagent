@@ -15,6 +15,7 @@ EVAL_GATE_HARD=1 on purpose. Never raises (any error → report + exit 0).
 
 Run: python scripts/eval_guardrail.py
 """
+
 from __future__ import annotations
 
 import json
@@ -30,11 +31,19 @@ _MAX_FILES = 7  # most recent days
 # Built-in clean fixture so the guardrail always yields a score (cold start /
 # no transcripts) without reporting a false regression.
 _FIXTURE: list[dict] = [
-    {"messages": [
-        {"role": "assistant", "content": "Main LeadGen AI se ek AI assistant hoon. Aapko 2 minute hain?"},
-        {"role": "user", "content": "haan boliye"},
-        {"role": "assistant", "content": "Aapke business ka free Google audit kar sakte hain. Interested?"},
-    ]},
+    {
+        "messages": [
+            {
+                "role": "assistant",
+                "content": "Main LeadGen AI se ek AI assistant hoon. Aapko 2 minute hain?",
+            },
+            {"role": "user", "content": "haan boliye"},
+            {
+                "role": "assistant",
+                "content": "Aapke business ka free Google audit kar sakte hain. Interested?",
+            },
+        ]
+    },
 ]
 
 
@@ -86,7 +95,9 @@ def main() -> int:
         for k, v in r["flags"].items():
             agg[k] += v
     print(f"  source={source}  convos={len(convos)}  mean_turn_score={mean}")
-    print(f"  bot_turns={agg['bot_turns']}  flags={ {k: agg[k] for k in ('empty','too_long','double_question','repeat')} }")
+    print(
+        f"  bot_turns={agg['bot_turns']}  flags={ {k: agg[k] for k in ('empty','too_long','double_question','repeat')} }"
+    )
 
     try:
         verdict = eval_gate.score_and_gate(

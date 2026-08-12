@@ -52,7 +52,7 @@ _BUCKETS: tuple[float, ...] = (
 # (method, status) -> request count
 _req_total: dict[tuple[str, str], int] = {}
 # le-bound -> count of observations <= bound (already cumulative by construction)
-_lat_buckets: dict[float, int] = {b: 0 for b in _BUCKETS}
+_lat_buckets: dict[float, int] = dict.fromkeys(_BUCKETS, 0)
 _lat_inf: int = 0
 _lat_sum: float = 0.0
 _lat_count: int = 0

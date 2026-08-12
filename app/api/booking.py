@@ -134,7 +134,9 @@ async def book_slot(req: BookIn):
         raise
     except Exception as e:
         logger.error(f"booking book failed: {e}")
-        raise HTTPException(status_code=503, detail="Booking abhi possible nahi — baad me try karo.")
+        raise HTTPException(
+            status_code=503, detail="Booking abhi possible nahi — baad me try karo."
+        )
 
 
 class CancelIn(BaseModel):

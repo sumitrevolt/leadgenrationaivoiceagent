@@ -89,7 +89,8 @@ EXPECTED_GAP_MIN = {
     "obsidian_push": 30
     * 60,  # daily ~02:15 IST: second-brain compact + git push (_run_job heartbeats daily; job body no-ops unless OBSIDIAN_SYNC=1)
     "revenue_snapshot": 30 * 60,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
-    "gsc_rank": 30 * 60,  # daily ~00:30 IST: Google Search Console rank snapshot (gated GSC_ENABLED)
+    "gsc_rank": 30
+    * 60,  # daily ~00:30 IST: Google Search Console rank snapshot (gated GSC_ENABLED)
     "flow_cron": 30,  # every 5 min: Flow Runner cron scan (self-gates; beat always heartbeats)
     "afternoon_content": 30 * 60,  # daily 15:00 IST: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": 30

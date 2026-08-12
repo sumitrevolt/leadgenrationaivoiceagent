@@ -3,6 +3,7 @@
 Also injects routing/governance blocks from app.platform.agent_os_routing.
 Run:  .venv\\Scripts\\python.exe scripts\\gen_agent_os_specs.py
 """
+
 from __future__ import annotations
 
 import ast
@@ -20,7 +21,11 @@ src = (REPO / "app" / "platform" / "team.py").read_text(encoding="utf-8")
 tree = ast.parse(src)
 staff = None
 for node in ast.walk(tree):
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "STAFF":
+    if (
+        isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "STAFF"
+    ):
         staff = ast.literal_eval(node.value)
     elif isinstance(node, ast.Assign):
         for t in node.targets:
@@ -83,7 +88,7 @@ for key, a in staff.items():
     lines = [
         f"# {a['emoji']} {a['name']} — {a['title']}",
         "",
-        f"> Source of truth: `app/platform/team.py` STAFF[\"{key}\"] + "
+        f'> Source of truth: `app/platform/team.py` STAFF["{key}"] + '
         f"`app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — "
         f"code badle to `python scripts/gen_agent_os_specs.py` re-run karo. "
         f"Code vs spec conflict = code wins.",

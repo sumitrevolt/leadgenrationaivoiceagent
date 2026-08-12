@@ -8,6 +8,7 @@ Run on VPS after flags ON:
 
 Dry-run: --dry-run
 """
+
 from __future__ import annotations
 
 import argparse

@@ -58,7 +58,9 @@ def main() -> int:
         return 0
     shutil.copy2(DATA, DATA.with_suffix(".json.bak_leadband"))
     DATA.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"MIGRATED: {changed} field-changes across {len(data)} custom niches (backup .bak_leadband)")
+    print(
+        f"MIGRATED: {changed} field-changes across {len(data)} custom niches (backup .bak_leadband)"
+    )
     return 0
 
 

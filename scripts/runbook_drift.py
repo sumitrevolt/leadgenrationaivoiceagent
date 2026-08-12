@@ -29,11 +29,51 @@ _ACTIVATE_PY = _ROOT / "scripts" / "activate.py"
 _ENV_KEY_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\b")
 # Keys to ignore (commonly mentioned in docstrings but not env vars per se):
 _DENY = {
-    "BANT", "TODO", "OFF", "ON", "NEW", "CI", "OK", "DPDP", "TRAI", "GST", "SDK",
-    "JWT", "TOTP", "QR", "URL", "DNS", "WAF", "DDoS", "DM", "MIT", "MRR", "ARR",
-    "POST", "GET", "PATCH", "DELETE", "HTTP", "HTTPS", "JSON", "XML", "API",
-    "ID", "IP", "RPC", "REST", "UTC", "IST", "EU", "US", "CDN", "VPS",
-    "BLOCKER", "WARN", "NEUTRAL", "PHASE",
+    "BANT",
+    "TODO",
+    "OFF",
+    "ON",
+    "NEW",
+    "CI",
+    "OK",
+    "DPDP",
+    "TRAI",
+    "GST",
+    "SDK",
+    "JWT",
+    "TOTP",
+    "QR",
+    "URL",
+    "DNS",
+    "WAF",
+    "DDoS",
+    "DM",
+    "MIT",
+    "MRR",
+    "ARR",
+    "POST",
+    "GET",
+    "PATCH",
+    "DELETE",
+    "HTTP",
+    "HTTPS",
+    "JSON",
+    "XML",
+    "API",
+    "ID",
+    "IP",
+    "RPC",
+    "REST",
+    "UTC",
+    "IST",
+    "EU",
+    "US",
+    "CDN",
+    "VPS",
+    "BLOCKER",
+    "WARN",
+    "NEUTRAL",
+    "PHASE",
 }
 
 
@@ -108,8 +148,7 @@ def _activate_cli_keys() -> set[str]:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--strict", action="store_true",
-                   help="Exit 1 if any drift found")
+    p.add_argument("--strict", action="store_true", help="Exit 1 if any drift found")
     args = p.parse_args()
 
     runbook = _runbook_keys()
@@ -128,16 +167,13 @@ def main() -> int:
     # Per-source drift — focused on the highest-value gap: probes (the SoT for
     # 'what we actually check') vs the other three.
     drift = {
-        "in probes, missing from runbook":
-            sorted(probes - runbook),
-        "in probes, missing from .env.example":
-            sorted(probes - env_example),
-        "in probes, missing from activate.py CLI":
-            sorted(probes - cli),
-        "in activate.py CLI, missing from probes":
-            sorted(cli - probes),
-        "in runbook, missing from probes":
-            sorted(runbook - probes - env_example),  # may be doc-only refs
+        "in probes, missing from runbook": sorted(probes - runbook),
+        "in probes, missing from .env.example": sorted(probes - env_example),
+        "in probes, missing from activate.py CLI": sorted(probes - cli),
+        "in activate.py CLI, missing from probes": sorted(cli - probes),
+        "in runbook, missing from probes": sorted(
+            runbook - probes - env_example
+        ),  # may be doc-only refs
     }
 
     any_drift = False

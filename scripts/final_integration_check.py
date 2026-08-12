@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Final integration gate — wiring + prod readiness + tests + live smoke."""
+
 from __future__ import annotations
 
 import argparse
@@ -33,10 +34,15 @@ def main() -> int:
         ("eval_guardrail", [sys.executable, "scripts/eval_guardrail.py"]),
     ]
     if not args.skip_live:
-        steps.append(("live_integration_smoke", [sys.executable, "scripts/live_integration_smoke.py"]))
+        steps.append(
+            ("live_integration_smoke", [sys.executable, "scripts/live_integration_smoke.py"])
+        )
     if not args.skip_prod:
         steps.append(
-            ("production_ready", [sys.executable, "scripts/production_ready.py", "--skip-prod-check"])
+            (
+                "production_ready",
+                [sys.executable, "scripts/production_ready.py", "--skip-prod-check"],
+            )
         )
     if not args.skip_tests:
         steps.append(

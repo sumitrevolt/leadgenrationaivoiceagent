@@ -8,6 +8,7 @@ Usage:
 Exit 0 = zero BLOCKERs (marketing launch green; UPI armed = paid-customer ready).
 Exit 1 = one or more BLOCKERs remain.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,7 +66,9 @@ def _activation_snapshot() -> dict:
         "payments_deferred": not payments_ready,
         "blocker_count": len(blockers),
         "warn_count": len(warns),
-        "blockers": [{"key": b["key"], "label": b["label"], "action": b["action"]} for b in blockers],
+        "blockers": [
+            {"key": b["key"], "label": b["label"], "action": b["action"]} for b in blockers
+        ],
         "warns": [{"key": w["key"], "label": w["label"], "action": w["action"]} for w in warns],
         "next_step": next_step,
     }

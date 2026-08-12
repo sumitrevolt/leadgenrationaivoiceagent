@@ -2,6 +2,7 @@
 
 ADR-064, 2026-07-09.
 """
+
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
@@ -24,7 +25,9 @@ class AutomationLog(Base):
     error_message = Column(Text)
     retry_count = Column(Integer, default=0)
     next_retry_at = Column(String(50))
-    evidence_url = Column(String(500))  # ADR-068: proof artifact URL/path (report HTML, published post, etc.)
+    evidence_url = Column(
+        String(500)
+    )  # ADR-068: proof artifact URL/path (report HTML, published post, etc.)
     triggered_by = Column(String(50), default="system")
     meta_json = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

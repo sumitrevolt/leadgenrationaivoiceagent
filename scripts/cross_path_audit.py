@@ -9,6 +9,7 @@ Detects wireable gaps that prod_check/wiring_audit miss:
 
 Exit 0 = no gaps. Exit 1 = fix before ship.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -54,7 +55,9 @@ def audit_vobiz_stream_lifecycle() -> None:
             "TELEPHONY: vobiz_stream._cleanup missing idempotent teardown guard "
             "(double disconnect → duplicate qualify/meter risk)"
         )
-    qual_m = re.search(r"async def _auto_qualify\(.*?\n(.*?)(?=\n    (?:async )?def |\Z)", text, re.S)
+    qual_m = re.search(
+        r"async def _auto_qualify\(.*?\n(.*?)(?=\n    (?:async )?def |\Z)", text, re.S
+    )
     qual_body = qual_m.group(1) if qual_m else ""
     if "apply_qualified_downstream" not in qual_body:
         PROBLEMS.append(
@@ -67,9 +70,7 @@ def audit_qualified_lead_idempotency() -> None:
     text = _read("app/billing/lead_usage.py")
     if not text:
         return
-    rec_fn = re.search(
-        r"def record_qualified_lead\(.*?\n(.*?)(?=\n\ndef |\nclass |\Z)", text, re.S
-    )
+    rec_fn = re.search(r"def record_qualified_lead\(.*?\n(.*?)(?=\n\ndef |\nclass |\Z)", text, re.S)
     body = rec_fn.group(1) if rec_fn else ""
     if "_ref_already_recorded" not in body and "seen_before" not in body:
         PROBLEMS.append(
@@ -79,9 +80,7 @@ def audit_qualified_lead_idempotency() -> None:
 
 
 def _fn_body(text: str, name: str) -> str:
-    m = re.search(
-        rf"async def {name}\(.*?\n(.*?)(?=\n    (?:async )?def |\Z)", text, re.S
-    )
+    m = re.search(rf"async def {name}\(.*?\n(.*?)(?=\n    (?:async )?def |\Z)", text, re.S)
     return m.group(1) if m else ""
 
 
@@ -123,9 +122,7 @@ def audit_stream_opt_out() -> None:
             "(stream-path opt-out never reaches the consent ledger)"
         )
     if "_is_opt_out" not in text:
-        PROBLEMS.append(
-            "COMPLIANCE: vobiz_stream missing verbal opt-out detection (_is_opt_out)"
-        )
+        PROBLEMS.append("COMPLIANCE: vobiz_stream missing verbal opt-out detection (_is_opt_out)")
 
 
 def audit_disclosure_enforcement() -> None:

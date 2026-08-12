@@ -16,6 +16,7 @@ Read before you overwrite; that rule applies to shared workspaces too.
 Runbook source of truth stays ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md — this
 publishes a copy so the workspace is not dependent on one laptop.
 """
+
 from __future__ import annotations
 
 import argparse

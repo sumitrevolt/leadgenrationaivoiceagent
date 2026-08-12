@@ -4,6 +4,7 @@
 Checks: /health, public activation summary, optional in-container Qdrant ping.
 Exit 0 = safe to announce deploy done. Never mutates state.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,7 +37,9 @@ def main() -> int:
 
     code, body = _get("/health")
     env_ok = isinstance(body, dict) and body.get("environment") == "production"
-    print(f"{'OK' if code == 200 and env_ok else 'FAIL'} /health {code} env={body.get('environment') if isinstance(body, dict) else '?'}")
+    print(
+        f"{'OK' if code == 200 and env_ok else 'FAIL'} /health {code} env={body.get('environment') if isinstance(body, dict) else '?'}"
+    )
     if code != 200 or not env_ok:
         FAIL += 1
 
@@ -45,7 +48,9 @@ def main() -> int:
         blockers = body.get("blocker_count", "?")
         warns = body.get("warn_count", "?")
         ready = body.get("ready_for_launch")
-        print(f"{'OK' if blockers == 0 else 'FAIL'} activation blockers={blockers} warns={warns} ready={ready}")
+        print(
+            f"{'OK' if blockers == 0 else 'FAIL'} activation blockers={blockers} warns={warns} ready={ready}"
+        )
         if blockers != 0:
             FAIL += 1
     else:

@@ -4,6 +4,7 @@ Audit gap #29: customer ko sirf template milta tha, koi live per-client blog pag
 Yeh module woh deta: free_ai se niche-aware Hinglish blog post generate + per-client jsonl
 store + render helpers. Mini-site (/b/{slug}) ke saath consistent. KABHI raise nahi.
 """
+
 from __future__ import annotations
 
 import json

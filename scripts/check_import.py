@@ -1,4 +1,5 @@
 """Import-health / circular-ref check: build the full app and confirm telephony routes."""
+
 from app.main import app
 
 print("IMPORT_OK routes=%d" % len(app.routes))

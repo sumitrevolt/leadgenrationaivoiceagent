@@ -29,6 +29,7 @@ Usage:
     python scripts/blueprint_reconcile.py --repo-root PATH # verify files elsewhere
                                                            # (sparse worktrees)
 """
+
 from __future__ import annotations
 
 import json
@@ -75,7 +76,9 @@ def real_filenames(root: pathlib.Path) -> set[str]:
 
         out = subprocess.run(
             ["git", "-C", str(root), "ls-tree", "-r", "HEAD", "--name-only"],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
         if out.returncode == 0 and out.stdout.strip():
             for line in out.stdout.splitlines():
@@ -138,9 +141,15 @@ def parse_legacy(html: str) -> dict[str, Any]:
                 badge = (re.search(r"badge:'([^']*)'", body) or [None, ""])[1]
                 ntype = (re.search(r"type:'([^']*)'", body) or [None, ""])[1]
                 nodes[nid] = {
-                    "id": nid, "view": k, "title": title, "badge": badge,
-                    "type": ntype, "files_raw": files, "files": _files_tokens(files),
-                    "kind": "view_node", "parent": None,
+                    "id": nid,
+                    "view": k,
+                    "title": title,
+                    "badge": badge,
+                    "type": ntype,
+                    "files_raw": files,
+                    "files": _files_tokens(files),
+                    "kind": "view_node",
+                    "parent": None,
                 }
         edges += re.findall(r"\{f:'([\w]+)',\s*t:'([\w]+)'", seg)
 
@@ -157,9 +166,15 @@ def parse_legacy(html: str) -> dict[str, Any]:
                 files = (re.search(r"files:'([^']*)'", nb2) or [None, ""])[1]
                 badge = (re.search(r"badge:'([^']*)'", nb2) or [None, ""])[1]
                 nodes[nid] = {
-                    "id": nid, "view": "subnodes", "title": title, "badge": badge,
-                    "type": "", "files_raw": files, "files": _files_tokens(files),
-                    "kind": "subnode", "parent": parent,
+                    "id": nid,
+                    "view": "subnodes",
+                    "title": title,
+                    "badge": badge,
+                    "type": "",
+                    "files_raw": files,
+                    "files": _files_tokens(files),
+                    "kind": "subnode",
+                    "parent": parent,
                 }
     return {"nodes": nodes, "edges": edges}
 
@@ -196,7 +211,7 @@ def reconcile(repo_root: pathlib.Path | None = None) -> dict[str, Any]:
         for f in c.get("files") or []:
             file_owner.setdefault(pathlib.PurePath(f).name, c["id"])
 
-    deg: dict[str, int] = {n: 0 for n in lnodes}
+    deg: dict[str, int] = dict.fromkeys(lnodes, 0)
     for f, t in ledges:
         if f in deg:
             deg[f] += 1
@@ -230,23 +245,28 @@ def reconcile(repo_root: pathlib.Path | None = None) -> dict[str, Any]:
         else:
             cls = "MIGRATE_VERIFIED"
 
-        entries.append({
-            "legacy_id": nid,
-            "canonical_id": canon_id,
-            "classification": cls,
-            "title": n["title"],
-            "view": n["view"],
-            "kind": n["kind"],
-            "parent_legacy_id": n["parent"],
-            "degree": deg.get(nid, 0),
-            "files_declared": src_files,
-            "files_resolved": resolved,
-            "files_unresolved": unresolved,
-            "evidence": ("canonical:" + canon_id) if canon_id
-                        else ("disk:" + ",".join(resolved) if resolved else "none"),
-        })
+        entries.append(
+            {
+                "legacy_id": nid,
+                "canonical_id": canon_id,
+                "classification": cls,
+                "title": n["title"],
+                "view": n["view"],
+                "kind": n["kind"],
+                "parent_legacy_id": n["parent"],
+                "degree": deg.get(nid, 0),
+                "files_declared": src_files,
+                "files_resolved": resolved,
+                "files_unresolved": unresolved,
+                "evidence": (
+                    ("canonical:" + canon_id)
+                    if canon_id
+                    else ("disk:" + ",".join(resolved) if resolved else "none")
+                ),
+            }
+        )
 
-    counts: dict[str, int] = {c: 0 for c in CLASSIFICATIONS}
+    counts: dict[str, int] = dict.fromkeys(CLASSIFICATIONS, 0)
     for e in entries:
         counts[e["classification"]] = counts.get(e["classification"], 0) + 1
 
@@ -277,8 +297,10 @@ def main(argv: list[str]) -> int:
     print("=" * 60)
     print("LEGACY EXPLORER -> CANONICAL BLUEPRINT RECONCILIATION")
     print("=" * 60)
-    print(f"legacy: {m['legacy_view_nodes']} view nodes + {m['legacy_subnodes']} subnodes "
-          f"· {m['legacy_edges']} edges")
+    print(
+        f"legacy: {m['legacy_view_nodes']} view nodes + {m['legacy_subnodes']} subnodes "
+        f"· {m['legacy_edges']} edges"
+    )
     print(f"canonical registry: {m['canonical_nodes']} nodes")
     print(f"file evidence checked against: {m['repo_root_checked']}")
     print("\n--- classification ---")

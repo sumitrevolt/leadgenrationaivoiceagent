@@ -5,6 +5,7 @@ uses), one guarded redis ping, and the automation_health snapshot (a
 heartbeat-file read + one queue-depth read). NO live DB query, no KB/ML/
 network-heavy work. Never raises; missing data degrades to -1 / "unknown".
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,7 +27,9 @@ def _resources() -> dict:
         out["cpu_pct"] = round(psutil.cpu_percent(interval=0.0), 1)
         out["mem_pct"] = round(psutil.virtual_memory().percent, 1)
         try:
-            out["disk_pct"] = round(psutil.disk_usage(os.getenv("HEALTH_DISK_PATH", "/")).percent, 1)
+            out["disk_pct"] = round(
+                psutil.disk_usage(os.getenv("HEALTH_DISK_PATH", "/")).percent, 1
+            )
         except Exception:
             out["disk_pct"] = round(psutil.disk_usage(os.getcwd()).percent, 1)
     except Exception as e:
@@ -87,30 +90,106 @@ def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
     worker = str(wq.get("worker_alive") or "unknown")
 
     rows: list[dict] = []
-    rows.append({"key": "cpu", "label": "CPU load", **_band(
-        cpu, 75, 90, f"{cpu}%",
-        {"bad": "CPU bahut busy — server slow ho sakta", "warn": "CPU thoda high", "ok": "Theek hai"})})
-    rows.append({"key": "mem", "label": "Memory", **_band(
-        mem, 82, 92, f"{mem}%",
-        {"bad": "Memory lagbhag full — crash/OOM risk", "warn": "Memory thodi high", "ok": "Theek hai"})})
-    rows.append({"key": "disk", "label": "Disk", **_band(
-        disk, 80, 90, f"{disk}%",
-        {"bad": "Disk bhar raha — space khaali karo (logs/backups)", "warn": "Disk thodi bhar rahi", "ok": "Theek hai"})})
+    rows.append(
+        {
+            "key": "cpu",
+            "label": "CPU load",
+            **_band(
+                cpu,
+                75,
+                90,
+                f"{cpu}%",
+                {
+                    "bad": "CPU bahut busy — server slow ho sakta",
+                    "warn": "CPU thoda high",
+                    "ok": "Theek hai",
+                },
+            ),
+        }
+    )
+    rows.append(
+        {
+            "key": "mem",
+            "label": "Memory",
+            **_band(
+                mem,
+                82,
+                92,
+                f"{mem}%",
+                {
+                    "bad": "Memory lagbhag full — crash/OOM risk",
+                    "warn": "Memory thodi high",
+                    "ok": "Theek hai",
+                },
+            ),
+        }
+    )
+    rows.append(
+        {
+            "key": "disk",
+            "label": "Disk",
+            **_band(
+                disk,
+                80,
+                90,
+                f"{disk}%",
+                {
+                    "bad": "Disk bhar raha — space khaali karo (logs/backups)",
+                    "warn": "Disk thodi bhar rahi",
+                    "ok": "Theek hai",
+                },
+            ),
+        }
+    )
 
     # Redis: -1 = connection nahi (bad), warna ping ms (higher = worse).
     if redis_ms is None or redis_ms < 0:
-        rows.append({"key": "redis", "label": "Redis", "value": "down", "status": "bad",
-                     "hint": "Redis se connection nahi — queue/cache atak sakte"})
+        rows.append(
+            {
+                "key": "redis",
+                "label": "Redis",
+                "value": "down",
+                "status": "bad",
+                "hint": "Redis se connection nahi — queue/cache atak sakte",
+            }
+        )
     else:
-        rows.append({"key": "redis", "label": "Redis", **_band(
-            redis_ms, 60, 250, f"{redis_ms}ms",
-            {"bad": "Redis slow respond kar raha", "warn": "Redis thoda slow", "ok": "Theek hai"})})
+        rows.append(
+            {
+                "key": "redis",
+                "label": "Redis",
+                **_band(
+                    redis_ms,
+                    60,
+                    250,
+                    f"{redis_ms}ms",
+                    {
+                        "bad": "Redis slow respond kar raha",
+                        "warn": "Redis thoda slow",
+                        "ok": "Theek hai",
+                    },
+                ),
+            }
+        )
 
     # Celery queue depth: CLAUDE.md rule — >500 backlog = del celery.
-    rows.append({"key": "queue", "label": "Task queue", **_band(
-        qd, 200, 500, str(qd),
-        {"bad": "Queue me bahut kaam atka — worker restart ya DLQ clear",
-         "warn": "Queue thoda bhara hai", "ok": "Theek hai"})})
+    rows.append(
+        {
+            "key": "queue",
+            "label": "Task queue",
+            **_band(
+                qd,
+                200,
+                500,
+                str(qd),
+                {
+                    "bad": "Queue me bahut kaam atka — worker restart ya DLQ clear",
+                    "warn": "Queue thoda bhara hai",
+                    "ok": "Theek hai",
+                },
+            ),
+        }
+    )
 
     # Worker liveness (string status from automation_health, not numeric).
     _wmap = {

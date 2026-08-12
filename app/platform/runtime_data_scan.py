@@ -1471,7 +1471,7 @@ def matrices(findings: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def summarise(findings: list[dict[str, Any]]) -> dict[str, int]:
-    out = {c: 0 for c in CLASSIFICATIONS}
+    out = dict.fromkeys(CLASSIFICATIONS, 0)
     for f in findings:
         out[f["classification"]] = out.get(f["classification"], 0) + 1
     out["total"] = len(findings)

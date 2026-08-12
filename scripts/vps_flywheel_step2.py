@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Flywheel step-2 ops: identity backfill + approve latest Kiran email proposal."""
+
 from __future__ import annotations
 
 import asyncio
@@ -31,7 +32,10 @@ async def main() -> int:
 
         props = campaign_optimizer.recent_proposals(10)
         pending = [p for p in props if p.get("status") != "approve"]
-        email = next((p for p in pending if p.get("type") == "email_variant"), pending[0] if pending else None)
+        email = next(
+            (p for p in pending if p.get("type") == "email_variant"),
+            pending[0] if pending else None,
+        )
         if email:
             appr = await campaign_optimizer.approve_proposal(str(email["id"]))
         else:

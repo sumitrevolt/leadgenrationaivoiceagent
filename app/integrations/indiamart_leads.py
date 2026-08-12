@@ -56,8 +56,9 @@ async def fetch_and_persist(days: int = 1, niche: str = "general") -> dict[str, 
             return {**out, "error": str(body.get("MESSAGE") or "no RESPONSE")}
         out["total"] = len(rows)
 
-        from app.platform import lead_harvester, prospector
         import uuid
+
+        from app.platform import lead_harvester, prospector
 
         known_phones, known_emails = lead_harvester._existing_keys()
         for row in rows:

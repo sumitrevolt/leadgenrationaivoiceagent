@@ -129,7 +129,9 @@ def register(spec: dict[str, Any]) -> dict[str, Any]:
             "role": str(spec.get("role", ""))[:200],
             "system_prompt": str(spec.get("system_prompt", "")),
             "allowed_tools": [
-                str(t) for t in spec.get("allowed_tools", []) if isinstance(spec.get("allowed_tools"), list)
+                str(t)
+                for t in spec.get("allowed_tools", [])
+                if isinstance(spec.get("allowed_tools"), list)
             ],
             "product": str(spec.get("product", "") or "platform"),
         }

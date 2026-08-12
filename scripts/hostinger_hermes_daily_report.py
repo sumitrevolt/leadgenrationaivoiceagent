@@ -52,9 +52,18 @@ def load_config() -> dict[str, str]:
             k, _, v = line.partition("=")
             cfg[k.strip()] = v.strip()
     # env wins
-    for k in ("NOTIFY_EMAIL", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME",
-              "SMTP_PASSWORD", "NTFY_URL", "NTFY_TOPIC", "NTFY_TOKEN",
-              "HEALTH_URL", "READY_URL"):
+    for k in (
+        "NOTIFY_EMAIL",
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_PASSWORD",
+        "NTFY_URL",
+        "NTFY_TOPIC",
+        "NTFY_TOKEN",
+        "HEALTH_URL",
+        "READY_URL",
+    ):
         if os.environ.get(k):
             cfg[k] = os.environ[k]
     cfg.setdefault("HEALTH_URL", "https://leadsgenai.in/health")
@@ -73,9 +82,13 @@ def _strip_ansi(s: str) -> str:
 def run(cmd: list[str], cwd: Path | None = None, timeout: int = 60) -> tuple[int, str]:
     try:
         r = subprocess.run(
-            cmd, cwd=str(cwd) if cwd else None,
-            capture_output=True, text=True, timeout=timeout,
-            encoding="utf-8", errors="replace",
+            cmd,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding="utf-8",
+            errors="replace",
         )
         out = _strip_ansi((r.stdout or "") + (r.stderr or ""))
         return r.returncode, out
@@ -92,7 +105,7 @@ def section_git() -> tuple[str, str]:
     rc2, recent = run(["git", "log", "-5", "--oneline"], cwd=REPO_ROOT)
     rc3, _ = run(["git", "fetch", "origin", "-q"], cwd=REPO_ROOT, timeout=30)
     rc4, behind = run(["git", "rev-list", "--count", "HEAD..origin/main"], cwd=REPO_ROOT)
-    behind_n = (behind.strip() if rc4 == 0 else "?")
+    behind_n = behind.strip() if rc4 == 0 else "?"
     status = "ok" if rc == 0 else "git_error"
     body = f"HEAD: {head.strip()}\nBehind origin/main: {behind_n}\n\nRecent 5:\n{recent.strip()}"
     return status, body
@@ -117,15 +130,28 @@ def probe_url(url: str, timeout: int = 10) -> dict[str, str]:
             body = r.read(2048).decode("utf-8", errors="ignore")
             code = r.getcode()
         elapsed = int((datetime.now() - t0).total_seconds() * 1000)
-        return {"status": "ok" if code == 200 else "bad",
-                "code": str(code), "elapsed_ms": str(elapsed),
-                "body": body[:500]}
+        return {
+            "status": "ok" if code == 200 else "bad",
+            "code": str(code),
+            "elapsed_ms": str(elapsed),
+            "body": body[:500],
+        }
     except urllib.error.HTTPError as e:
-        return {"status": "http_error", "code": str(e.code), "elapsed_ms": "?", "body": str(e)[:300]}
-    except (urllib.error.URLError, socket.timeout, OSError) as e:
+        return {
+            "status": "http_error",
+            "code": str(e.code),
+            "elapsed_ms": "?",
+            "body": str(e)[:300],
+        }
+    except (TimeoutError, urllib.error.URLError, OSError) as e:
         return {"status": "network_error", "code": "?", "elapsed_ms": "?", "body": str(e)[:300]}
     except Exception as e:
-        return {"status": "unknown_error", "code": "?", "elapsed_ms": "?", "body": f"{type(e).__name__}: {e}"[:300]}
+        return {
+            "status": "unknown_error",
+            "code": "?",
+            "elapsed_ms": "?",
+            "body": f"{type(e).__name__}: {e}"[:300],
+        }
 
 
 def section_external_health(cfg: dict[str, str]) -> tuple[str, str]:
@@ -220,7 +246,7 @@ def build_report(cfg: dict[str, str]) -> str:
     headline = "ALL GREEN" if not bad else f"ATTENTION: {', '.join(bad)}"
 
     lines = [
-        f"LeadGen AI — daily health report",
+        "LeadGen AI — daily health report",
         f"Generated: {now}",
         f"Reporter: Hostinger Managed Hermes (sandbox: {socket.gethostname()})",
         f"Headline: {headline}",

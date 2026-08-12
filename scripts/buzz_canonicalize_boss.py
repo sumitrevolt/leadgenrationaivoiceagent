@@ -31,6 +31,7 @@ Removal is membership-only and is reversible with the printed rollback commands.
     python scripts/buzz_canonicalize_boss.py --apply      # execute
     python scripts/buzz_canonicalize_boss.py --rollback   # restore from snapshot
 """
+
 from __future__ import annotations
 
 import argparse

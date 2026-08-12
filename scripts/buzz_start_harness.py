@@ -23,6 +23,7 @@ the child through its environment only, and never printed, logged or written.
 
 Stop a harness the ordinary way: kill the PID this prints.
 """
+
 from __future__ import annotations
 
 import argparse

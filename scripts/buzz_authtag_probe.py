@@ -13,6 +13,7 @@ lives, without ever printing a value.
 
 Structure only. No secret is written, logged, or returned.
 """
+
 from __future__ import annotations
 
 import json

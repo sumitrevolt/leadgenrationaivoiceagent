@@ -4,14 +4,17 @@
 Checks: env vars · readiness score · balance · compliance gate · optional dry-run.
 Never prints secrets — only SET/missing + masked caller-id tail.
 """
+
 from __future__ import annotations
 
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-_BASE = "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = (
+    "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.insert(0, _BASE)
 os.chdir(_BASE)
 
@@ -90,7 +93,9 @@ async def main() -> int:
 
         ts = TelephonyService()
         st = ts.status()
-        print(f"\ntelephony_status: provider={st.get('provider')} configured={st.get('configured')}")
+        print(
+            f"\ntelephony_status: provider={st.get('provider')} configured={st.get('configured')}"
+        )
     except Exception as e:
         print(f"\ntelephony_status: skip ({e})")
 

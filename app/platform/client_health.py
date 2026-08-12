@@ -184,7 +184,9 @@ async def _gather_signals() -> list[dict[str, Any]]:
                     if cid_ and cid_ not in seen:
                         seen.add(str(cid_))
                         if last_:
-                            last_aware = last_ if last_.tzinfo else last_.replace(tzinfo=timezone.utc)
+                            last_aware = (
+                                last_ if last_.tzinfo else last_.replace(tzinfo=timezone.utc)
+                            )
                             login_map[str(cid_)] = max(0, (_now() - last_aware).days)
             for row in out:
                 row["login_days_ago"] = login_map.get(row["client_id"])

@@ -10,6 +10,7 @@ Outputs a markdown report to stdout listing:
 
 Playbook ref: Queue System — every queue must have idempotency key.
 """
+
 from __future__ import annotations
 
 import re
@@ -100,7 +101,7 @@ def has_idempotency(file_path: str, func_name: str) -> bool:
     # Also scan the decorator lines sitting above the `def` (up to 10 lines back).
     # This correctly detects `@idempotent_task(...)` decorators on tasks in
     # staff_jobs.py and brain_training.py that were previously counted as gaps.
-    decorator_lines = lines[max(0, func_line - 10):func_line]
+    decorator_lines = lines[max(0, func_line - 10) : func_line]
     decorator_text = "\n".join(decorator_lines)
     if any(p.search(decorator_text) for p in IDEM_PATTERNS):
         return True
@@ -108,12 +109,14 @@ def has_idempotency(file_path: str, func_name: str) -> bool:
     # Extract body (simple indentation-based extraction, up to next same-level def or class)
     base_indent = len(lines[func_line]) - len(lines[func_line].lstrip())
     body_lines = []
-    for line in lines[func_line + 1:]:
+    for line in lines[func_line + 1 :]:
         if not line.strip():
             body_lines.append(line)
             continue
         indent = len(line) - len(line.lstrip())
-        if indent <= base_indent and (line.strip().startswith("def ") or line.strip().startswith("class ")):
+        if indent <= base_indent and (
+            line.strip().startswith("def ") or line.strip().startswith("class ")
+        ):
             break
         body_lines.append(line)
 
@@ -140,7 +143,7 @@ def main() -> int:
         else:
             without_idem.append((file_path, func_name, decorator))
 
-    print(f"## Summary\n")
+    print("## Summary\n")
     print(f"- Total Celery tasks found: {len(tasks)}")
     print(f"- Tasks WITH idempotency patterns: {len(with_idem)}")
     print(f"- Tasks WITHOUT idempotency patterns: {len(without_idem)}")
@@ -158,7 +161,7 @@ def main() -> int:
     for file_path, func_name, decorator in without_idem:
         print(f"| {file_path} | `{func_name}` | `{decorator[:60]}...` |")
 
-    print(f"\n## Recommendations\n")
+    print("\n## Recommendations\n")
     print("1. **Add idempotency keys to all tasks without explicit deduplication.**")
     print("   Use `app.billing.idempotency` or Redis `setnx` with task IDs.")
     print("2. **Document idempotency strategy per queue.**")
@@ -180,7 +183,7 @@ def main() -> int:
     else:
         code = 0
         mode = "advisory"
-    print(f"\n---\n")
+    print("\n---\n")
     print(f"**Exit code:** {code} (gaps={gaps}, mode={mode})")
     return code
 

@@ -93,7 +93,12 @@ def set_owner(item_id: str, agent_key: str, by: str = "admin") -> dict[str, Any]
 def set_next_action(item_id: str, note: str, by: str = "admin") -> dict[str, Any]:
     if not item_id:
         return {"ok": False, "error": "item_id required"}
-    rec = {"item_id": str(item_id), "next_action": (note or "")[:300], "by": by[:80], "at": _now_iso()}
+    rec = {
+        "item_id": str(item_id),
+        "next_action": (note or "")[:300],
+        "by": by[:80],
+        "at": _now_iso(),
+    }
     _append(rec)
     return {"ok": True, **rec}
 
@@ -101,7 +106,12 @@ def set_next_action(item_id: str, note: str, by: str = "admin") -> dict[str, Any
 def mark_stuck_resolved(item_id: str, by: str = "admin") -> dict[str, Any]:
     if not item_id:
         return {"ok": False, "error": "item_id required"}
-    rec = {"item_id": str(item_id), "stuck_resolved_at": _now_iso(), "by": by[:80], "at": _now_iso()}
+    rec = {
+        "item_id": str(item_id),
+        "stuck_resolved_at": _now_iso(),
+        "by": by[:80],
+        "at": _now_iso(),
+    }
     _append(rec)
     return {"ok": True, **rec}
 
@@ -111,8 +121,16 @@ def mark_stuck_resolved(item_id: str, by: str = "admin") -> dict[str, Any]:
 # enum before calling into the DB layer; this list is just for admin API
 # input validation at the router edge).
 LEAD_STATUS_VALUES = (
-    "new", "contacted", "qualified", "appointment", "callback",
-    "not_interested", "wrong_number", "dnd", "converted", "lost",
+    "new",
+    "contacted",
+    "qualified",
+    "appointment",
+    "callback",
+    "not_interested",
+    "wrong_number",
+    "dnd",
+    "converted",
+    "lost",
 )
 
 

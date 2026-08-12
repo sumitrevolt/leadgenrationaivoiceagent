@@ -141,7 +141,7 @@ async def verify_turnstile(request: Request) -> None:
         # match the client + the other funnel guards (honeypot + rate-limit +
         # email-dedupe); still fail-CLOSED on a PRESENT-but-INVALID token,
         # which is the only signal of an actual bot that reached the widget.
-        if (os.getenv("TURNSTILE_STRICT_MISSING", "0").strip().lower() in ("1", "true", "yes")):
+        if os.getenv("TURNSTILE_STRICT_MISSING", "0").strip().lower() in ("1", "true", "yes"):
             raise HTTPException(
                 status_code=403,
                 detail="Bot-check token missing. Page refresh karke dobara try karo.",

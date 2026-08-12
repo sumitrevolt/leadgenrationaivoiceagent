@@ -64,7 +64,7 @@ class SandboxResult:
     ok: bool
     stdout: str = ""
     stderr: str = ""
-    exit_code: Optional[int] = None
+    exit_code: int | None = None
     timed_out: bool = False
 
 
@@ -114,7 +114,7 @@ def _apply_rlimits(policy: SandboxPolicy):
 
 
 class Sandbox:
-    def __init__(self, policy: Optional[SandboxPolicy] = None) -> None:
+    def __init__(self, policy: SandboxPolicy | None = None) -> None:
         self.policy = policy or SandboxPolicy()
         self.backend = os.getenv("SANDBOX_BACKEND", "subprocess").lower()
 

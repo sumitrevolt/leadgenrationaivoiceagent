@@ -10,6 +10,7 @@ ref (default: current PR checkout) into the worktree.
 Exit 2 if deliverables already exist in the worktree (contamination) or if a
 refused path would be copied.
 """
+
 from __future__ import annotations
 
 import argparse

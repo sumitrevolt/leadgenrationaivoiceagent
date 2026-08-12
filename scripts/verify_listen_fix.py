@@ -6,6 +6,7 @@ question, and keeps replies SHORT (<=2 sentences). Runs with brain=None
 (rule-based, no API key) = the deterministic worst case; with Gemini on the VPS
 the same path is even more natural.
 """
+
 import asyncio
 import re
 import sys
@@ -21,16 +22,18 @@ def sent_count(t: str) -> int:
 
 async def main() -> int:
     mgr = NaturalDialogManager(
-        niche="solar_residential", client_name="SunPower",
-        client_service="residential solar", brain=None,
+        niche="solar_residential",
+        client_name="SunPower",
+        client_service="residential solar",
+        brain=None,
     )
     st = mgr.new_conversation()
     print("OPENING:", await mgr.opening_line(st))
 
     turns = [
-        "kitna kharcha aayega?",            # QUESTION -> must answer the question first
-        "abhi main thoda busy hoon",        # OBJECTION -> empathy + ONE ask, not pushy
-        "achha theek hai batao",            # INTERESTED
+        "kitna kharcha aayega?",  # QUESTION -> must answer the question first
+        "abhi main thoda busy hoon",  # OBJECTION -> empathy + ONE ask, not pushy
+        "achha theek hai batao",  # INTERESTED
         "haan main hi decision leta hoon",  # ANSWER (captured, not re-asked)
     ]
     all_short = True
@@ -49,13 +52,17 @@ async def main() -> int:
 
     # web_call wiring must import cleanly and resolve a manager.
     from app.api import web_call
+
     d = web_call._get_natural_dialog("real_estate", "Demo Co", "")
     wired = d is not None
     print("\nweb_call._get_natural_dialog ->", type(d).__name__ if d else None)
 
     ok = all_short and answered_q and wired
-    print("\nRESULT:", "PASS" if ok else "FAIL",
-          f"(all_short={all_short} answered_question={answered_q} web_call_wired={wired})")
+    print(
+        "\nRESULT:",
+        "PASS" if ok else "FAIL",
+        f"(all_short={all_short} answered_question={answered_q} web_call_wired={wired})",
+    )
     return 0 if ok else 1
 
 

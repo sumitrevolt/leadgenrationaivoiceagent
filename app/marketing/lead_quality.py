@@ -32,6 +32,7 @@ issue is found, ``ok`` otherwise.
 
 Lane: GREEN (read-only detection + report). Autonomy: L0/L1 (observe + recommend).
 """
+
 from __future__ import annotations
 
 import os
@@ -201,8 +202,10 @@ def _detect_duplicates(leads: list[dict[str, Any]]) -> dict[str, Any]:
         for rec in leads:
             try:
                 tenant = _tenant(rec)
-                for kind, key in (("phone", _norm_phone(rec.get("phone"))),
-                                  ("email", _norm_email(rec.get("email")))):
+                for kind, key in (
+                    ("phone", _norm_phone(rec.get("phone"))),
+                    ("email", _norm_email(rec.get("email"))),
+                ):
                     if not key:
                         continue
                     ck = f"{tenant}|{kind}:{key}"
@@ -315,9 +318,7 @@ def scan_lead_quality(limit: int = 200) -> dict[str, Any]:
                         if touch is None or touch > STALE_HOT_DAYS:
                             ref = _lead_ref(rec)
                             ref["score"] = score
-                            ref["last_touch_days"] = (
-                                None if touch is None else round(touch, 1)
-                            )
+                            ref["last_touch_days"] = None if touch is None else round(touch, 1)
                             stale_hot.append(ref)
             except Exception:
                 # one bad record can never sink the scan

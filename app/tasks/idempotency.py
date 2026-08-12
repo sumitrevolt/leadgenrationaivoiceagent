@@ -3,6 +3,7 @@
 Usage: wrap any task function with @idempotent_task(task_name, ttl=3600)
 Redis setnx with task_id = dedup. TTL = window jisme retry acceptable.
 """
+
 from __future__ import annotations
 
 import functools
@@ -18,6 +19,7 @@ logger = setup_logger(__name__)
 def _redis_client():
     try:
         import redis as _redis
+
         url = os.environ.get("REDIS_URL", "redis://localhost:6379")
         return _redis.from_url(url, decode_responses=True)
     except Exception:
@@ -26,10 +28,15 @@ def _redis_client():
 
 def idempotent_task(task_name: str, ttl: int = 3600) -> Callable:
     """Decorator: Celery task ko idempotent banao (Redis setnx dedup)."""
+
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def wrapper(self, *args: Any, **kwargs: Any) -> Any:
-            task_id = kwargs.get("task_id") or getattr(self, "request", None) and getattr(self.request, "id", None)
+            task_id = (
+                kwargs.get("task_id")
+                or getattr(self, "request", None)
+                and getattr(self.request, "id", None)
+            )
             if not task_id:
                 task_id = f"{task_name}:{hashlib.sha1(str(args).encode()).hexdigest()[:16]}"
 
@@ -49,5 +56,7 @@ def idempotent_task(task_name: str, ttl: int = 3600) -> Callable:
                     logger.warning(f"[idempotency] redis check failed: {e}")
 
             return fn(self, *args, **kwargs)
+
         return wrapper
+
     return decorator

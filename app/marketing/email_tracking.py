@@ -202,7 +202,7 @@ def instrument(html: str, recipient_id: str, campaign: str = "") -> str:
             tok = make_click_token(rid, campaign, url)
             if not tok:
                 return m.group(0)
-            return f'href={quote}{base}/t/c/{tok}{quote}'
+            return f"href={quote}{base}/t/c/{tok}{quote}"
 
         out = _HREF_RE.sub(_rewrite, html)
 

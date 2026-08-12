@@ -73,14 +73,14 @@ class ToolCall(BaseModel):
 
     # Governed-action metadata (spec field set).
     tool_version: str = Field("v1", description="Contract version of the target tool")
-    risk_class: Optional[RiskClass] = Field(
+    risk_class: RiskClass | None = Field(
         None, description="Optional model-declared risk; the registry's value is authoritative"
     )
-    idempotency_key: Optional[str] = Field(
+    idempotency_key: str | None = Field(
         None, description="Required for MUTATING actions; dedupes effects on replay"
     )
     budget_scope: str = Field("run", description="Which budget bucket this call charges")
-    approval_reference: Optional[str] = Field(
+    approval_reference: str | None = Field(
         None, description="Owner OS approval id once an AMBER/dangerous action is cleared"
     )
     expected_effect: str = Field("", description="Human-readable declared effect (audited)")
@@ -99,7 +99,7 @@ class ToolResult(BaseModel):
     call_id: str
     ok: bool
     output: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     cost_usd: float = 0.0
     tokens: int = 0
     latency_ms: int = 0

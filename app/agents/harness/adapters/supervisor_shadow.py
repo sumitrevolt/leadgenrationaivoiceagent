@@ -83,20 +83,20 @@ def observe_supervisor_action(
     supervisor_run_id: str,
     graph_run_id: str,
     graph_step: int,
-    tool_call_id: Optional[str],
+    tool_call_id: str | None,
     supervisor_implementation: str,
     actor_id: str,
-    delegated_agent_id: Optional[str],
+    delegated_agent_id: str | None,
     tenant_id: str,
     tool_name: str,
-    tool_arguments: Optional[dict] = None,
+    tool_arguments: dict | None = None,
     actual_executor: str = "",
     actual_result: Any = None,
     actual_error: Any = None,
     latency_ms: float = 0.0,
     attempt: int = 0,
-    graph_metadata: Optional[dict] = None,
-) -> Optional[dict]:
+    graph_metadata: dict | None = None,
+) -> dict | None:
     """Observe one supervisor-family normalized action in shadow. Eligibility keys
     on the REAL delegated/executing agent identity (not the supervisor/manager
     actor). Returns the record, or None (ineligible / deduped / internal error).

@@ -26,9 +26,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 # training pipeline (Vertex/brain train-now, scheduler start/stop, feedback
 # ingestion) — synchronous heavy-compute + billed GCP calls + data-poisoning
 # risk if reachable anonymously (production audit 2026-07-01, security batch 4).
-router = APIRouter(
-    prefix="/ml", tags=["ML Training"], dependencies=[Depends(require_admin)]
-)
+router = APIRouter(prefix="/ml", tags=["ML Training"], dependencies=[Depends(require_admin)])
 
 
 from app.api.ml_training_models import (  # noqa: F401
@@ -312,7 +310,11 @@ async def get_agent_improvement_plan():
 
     free_gpu_policy = {
         "use_for": ["LoRA experiments", "batch eval", "model comparison", "dataset cleanup"],
-        "do_not_use_for": ["production runtime dependency", "paid Vertex-first training", "ungated all-agent retraining"],
+        "do_not_use_for": [
+            "production runtime dependency",
+            "paid Vertex-first training",
+            "ungated all-agent retraining",
+        ],
         "recommended_order": ["Lightning AI", "Kaggle", "Colab"],
     }
 

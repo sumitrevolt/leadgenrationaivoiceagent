@@ -1,7 +1,8 @@
 """Smoke /app/test-call + web-call WS on live or local. Usage:
-  python scripts/smoke_test_call.py
-  python scripts/smoke_test_call.py --base https://leadsgenai.in
+python scripts/smoke_test_call.py
+python scripts/smoke_test_call.py --base https://leadsgenai.in
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,8 +74,7 @@ async def ws_ai_marketing(base: str) -> list[str]:
             if not praise:
                 issues.append("no bot reply after 'haan ji'")
             elif not any(
-                word in praise.lower()
-                for word in ("bahut achha", "sahi", "decision", "marketing")
+                word in praise.lower() for word in ("bahut achha", "sahi", "decision", "marketing")
             ):
                 issues.append(f"expected acknowledgement/discovery after yes, got: {praise!r}")
     return issues
@@ -98,7 +98,7 @@ def main() -> int:
     if st != 200 or "production" not in body and "healthy" not in body.lower():
         print(f"WARN /health status={st} body={body[:120]}")
     else:
-        print(f"OK /health")
+        print("OK /health")
 
     issues = asyncio.run(ws_ai_marketing(base))
     if issues:

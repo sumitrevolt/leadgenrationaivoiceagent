@@ -185,7 +185,7 @@ def enforce_size(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
-def derive_dedup_key(row: dict[str, Any], source_app_version: Optional[str] = None) -> str:
+def derive_dedup_key(row: dict[str, Any], source_app_version: str | None = None) -> str:
     """Deterministic evidence identity. Live observations bind the CURRENT runtime
     SHA (APP_VERSION/GIT_SHA); a migration passes an explicit validated
     ``source_app_version`` so historical events keep their original provenance and
@@ -242,7 +242,7 @@ def derive_envelope(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_record(
-    row: dict[str, Any], dedup_key: str, source_app_version: str, created_at: Optional[float] = None
+    row: dict[str, Any], dedup_key: str, source_app_version: str, created_at: float | None = None
 ) -> dict[str, Any]:
     """The authoritative record value: durable audit record + replay envelope +
     explicit provenance. ``event_id`` is deterministic (== dedup_key) so retries
@@ -278,7 +278,7 @@ class JsonlBackend(AuditBackend):
 
     name = "jsonl"
 
-    def __init__(self, path: Optional[str] = None) -> None:
+    def __init__(self, path: str | None = None) -> None:
         self._path = path or os.getenv("HARNESS_RUN_LOG", "data/harness_runs.jsonl")
 
     def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
@@ -343,7 +343,7 @@ class InvalidBackend(AuditBackend):
 
     name = "invalid"
 
-    def __init__(self, configured_value: Optional[str]) -> None:
+    def __init__(self, configured_value: str | None) -> None:
         self._configured = configured_value
 
     def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
@@ -383,8 +383,8 @@ class RedisBackend(AuditBackend):
         self,
         row: dict[str, Any],
         dedup_key: str,
-        source_app_version: Optional[str] = None,
-        created_at: Optional[float] = None,
+        source_app_version: str | None = None,
+        created_at: float | None = None,
     ) -> dict[str, Any]:
         rec_key = _RECORD_PREFIX + dedup_key
         sav = (
@@ -594,7 +594,7 @@ def get_backend(*, client: Any = None) -> AuditBackend:
     return JsonlBackend()
 
 
-def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dict[str, Any]:
+def write(row: dict[str, Any], *, backend: AuditBackend | None = None) -> dict[str, Any]:
     """Atomic dedup + durable append for one audit row. NEVER raises — a durable
     failure is reported as a fail-closed dropped observation (written=False, error
     set) so the caller can emit an operational error without touching legacy."""

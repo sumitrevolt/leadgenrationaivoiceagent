@@ -6,6 +6,7 @@ Ek test trace POST karta + HTTP status print karta. Expect: 207 (multi-status =
 accepted). 401/403 = auth galat; connection-error = network/endpoint. Trace
 "deploy-smoke-test" naam se Langfuse dashboard me dikhega (harmless).
 """
+
 from __future__ import annotations
 
 import base64
@@ -57,7 +58,11 @@ def main() -> int:
         )
         print(f"POST {url}")
         print(f"HTTP {r.status_code} -> {r.text[:300]}")
-        print("RESULT: OK (traces will flow)" if r.status_code in (200, 207) else "RESULT: CHECK auth/endpoint")
+        print(
+            "RESULT: OK (traces will flow)"
+            if r.status_code in (200, 207)
+            else "RESULT: CHECK auth/endpoint"
+        )
     except Exception as e:
         print(f"FAIL: request error: {e}")
     return 0

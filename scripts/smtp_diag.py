@@ -1,4 +1,5 @@
 """SMTP host/port diagnostic — creds .env (settings) se padhta hai, koi secret yahan nahi."""
+
 import smtplib
 
 from app.config import settings
@@ -14,7 +15,9 @@ for host in ["smtp.hostinger.com", "smtp.titan.email"]:
                 s = smtplib.SMTP_SSL(host, port, timeout=12)
             else:
                 s = smtplib.SMTP(host, port, timeout=12)
-                s.ehlo(); s.starttls(); s.ehlo()
+                s.ehlo()
+                s.starttls()
+                s.ehlo()
             s.login(u, p)
             s.quit()
             print(f"OK  {host}:{port}")

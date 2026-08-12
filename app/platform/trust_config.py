@@ -129,17 +129,21 @@ def status() -> dict:
             "armed": bool(ts_secret),
             "site_key_set": bool(ts_site),
             "site_key_prefix": ts_site[:8] + "…" if len(ts_site) > 8 else ts_site,
-            "source": "env"
-            if (os.environ.get("TURNSTILE_SECRET_KEY") or "").strip()
-            else ("file" if ts_secret else "none"),
+            "source": (
+                "env"
+                if (os.environ.get("TURNSTILE_SECRET_KEY") or "").strip()
+                else ("file" if ts_secret else "none")
+            ),
             "updated_at": store.get("turnstile_updated_at"),
         },
         "sentry": {
             "armed": bool(sentry),
             "dsn_prefix": sentry[:28] + "…" if len(sentry) > 28 else sentry,
-            "source": "env"
-            if (os.environ.get("SENTRY_DSN") or "").strip()
-            else ("file" if sentry else "none"),
+            "source": (
+                "env"
+                if (os.environ.get("SENTRY_DSN") or "").strip()
+                else ("file" if sentry else "none")
+            ),
             "updated_at": store.get("sentry_updated_at"),
         },
     }
