@@ -393,6 +393,13 @@
   function showResult(data){
     const score = Math.max(0, Math.min(100, Number(data.score) || 0));
     lastScore = score;
+    // Funnel event — PostHog snippet middleware se inject hota hai; same
+    // distinct_id as pageview (silent no-op agar key unset / snippet nahi).
+    try {
+      if (typeof window.posthog !== 'undefined' && window.posthog.capture) {
+        window.posthog.capture('audit_score', { score: score, grade: (data.grade || '') });
+      }
+    } catch (e) {}
     const col = colorOf(score);
 
     document.getElementById('quiz').style.display = 'none';
@@ -433,6 +440,13 @@
     startCta.textContent = score < 50
       ? '🚀 Abhi fix karo — FREE trial shuru karo'
       : (score < 75 ? '🚀 Score badhao — FREE trial shuru karo' : '🚀 Autopilot par lo — FREE trial shuru karo');
+    startCta.addEventListener('click', function (){
+      try {
+        if (typeof window.posthog !== 'undefined' && window.posthog.capture) {
+          window.posthog.capture('audit_cta_click', { score: score });
+        }
+      } catch (e) {}
+    });
 
     // WhatsApp prefill with score
     const waMsg = 'Mera GBP score ' + score + ' aaya, poora plan chahiye';
