@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (PR #333 AUTH-MERGE path A — MERGED — CURSOR)
+Goal: AUTH-MERGE #333 at tip after required CI green; declare PARTIAL (Comb NIP-OA WAIT); no deploy/flag-arm.
+Inspected: PR #333 head/checks; prod_check failure = undeclared staff_bus paths + EXPECTED_ALLOWLIST_ENTRIES pin.
+Problems Found: (1) Runtime-data ratchet NEW debt on `app/platform/staff_bus/runtime.py`. (2) a1–a9 pin still 55 after classify. Gate A FAILURE ignored.
+Changed: allowlist+manifest `platform.staff_bus` (entries 55→61); a1 pin 61; merge #333; SESSION_HANDOFF post-merge PARTIAL.
+Tests Run: local staff_bus allowlist validate bad=0; count/manifest tests green; CI prod_check+pytest **pass** on `e2bdd81f`.
+Verification Evidence: MERGED merge=`76064942` tip=`e2bdd81f` parents include tip; comment on #333; Gate A still red (non-required).
+Risks: none for prod — flag OFF, no deploy. Do not claim COMPLETE while Comb auth_tag WAIT.
+Remaining: optional Comb Desktop Save → auth_tag → COMPLETE only.
+Next Highest Priority: stop; optional Comb mint later.
+
+## Loop Run
 Date: 2026-08-12 (PR #333 AUTH-MERGE review pack — CURSOR + sunny)
 Goal: Owner-accepted Comb NIP-OA WAIT; AUTH-MERGE review pack for Draft PR #333 @ d4accbd3; no merge/deploy/flag-arm.
 Inspected: gh pr view 333 (draft, headOid, files, checks); hosted+local NIP-11; Gate A failure log.
