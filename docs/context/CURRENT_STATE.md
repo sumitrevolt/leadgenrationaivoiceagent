@@ -4,14 +4,15 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-11 — dual cache-busted `/health` probes = `9b09a808` (timestamps + uptime advanced). See `docs/context/SESSION_HANDOFF.md`.
+2026-08-12 — cache-busted `/health` probe = `9c47647c` (timestamp 2026-08-12T07:39:10, uptime 9h 33m). See `docs/evidence/REVENUE_READY_20260812.md`.
 
-## MERGED not deployed — 2026-08-11 — `6052b533` (PR #329 rollback image retention)
-`origin/main` tip = `6052b533f59e8ab533ab629427fa869d83931a9a` (normal merge of PR head `72d9bc1226ca0d431d24237cc16876f273543c8a`). **Prod `/health` still `9b09a808`** (DIRECT_HOST_VERIFIED 2026-08-11 dual probes pre+post merge). No AUTH-DEPLOY executed. Owner line when ready: `AUTH-DEPLOY 6052b533f59e8ab533ab629427fa869d83931a9a`.
-**#307:** stays OPEN; dunning stays OFF (merge evidence comment only).
-Label: GIT_VERIFIED (merge) | DIRECT_HOST_VERIFIED (prod still prior SHA)
+## DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
+`origin/main` tip = `23ea2d46` (includes #333 staff-bus, #334/#335 docs). **Prod `/health` = `9c47647c`** (DIRECT_HOST_VERIFIED 2026-08-12 07:39 UTC). Deploy timestamp estimated ~2026-08-11 22:05 UTC (uptime 9h 33m backtrack). Includes: PR #332 (ADR-177 GSC + funnel + referral + triage), PR #330 (Boss governance), PR #329 (rollback retention).
+**#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
+Label: DIRECT_HOST_VERIFIED (2026-08-12)
 
-## DEPLOYED 2026-08-11 — `9b09a808` (prod live; pre-#329 tip)
+## SUPERSEDED — DEPLOYED 2026-08-11 — `9b09a808` (PR #321)
+> Historical. Replaced by `9c47647c` above.
 Prod `/health` = `{"version":"9b09a808","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-11; two probes with unique `cb=` — timestamp/uptime advanced). Exact SHA = `9b09a80825389983829b1c0b4de6caf3789d16bf`.
 **#304 / #306:** still WAIT live proofs. **#307:** dunning OFF.
 Label: DIRECT_HOST_VERIFIED (2026-08-11)
@@ -80,11 +81,11 @@ Label: DIRECT_HOST_VERIFIED (2026-08-06) + GIT_VERIFIED (2026-08-06).
 > `curl -sS -H 'Cache-Control: no-cache' "https://leadsgenai.in/health?cb=$(date +%s)"`
 > — and **sanity-check `timestamp`/`uptime` against the wall clock before believing `version`**. Two probes returning an identical `timestamp` means you are reading a cache, not production. One probe is never evidence.
 
-## ⚠️ UPI auto-activate — documentation drift found 2026-08-04
-Docs (this file, CLAUDE.md, AGENTS.md) recorded `UPI_AUTO_ACTIVATE=0` as the 2026-07-18 containment state. **Prod `.env` actually has `UPI_AUTO_ACTIVATE=1`.**
+## ⚠️ UPI auto-activate — documentation drift corrected 2026-08-12
+Docs (CURRENT_STATE, CLAUDE.md, AGENTS.md) recorded `UPI_AUTO_ACTIVATE=0` as the 2026-07-18 containment state. **Prod `.env` actually has `UPI_AUTO_ACTIVATE=1`.** (Re-verified 2026-08-12 revenue audit.)
 Containment is still effective — the master flag alone is never enough (`upi_payments.auto_activate_clients_allowed`): `UPI_AUTO_ACTIVATE_CLIENTS` holds exactly **one** client id, and both a random client and an empty client id are refused (probed). So this is ARMED-but-scoped, not open auto-activation.
 Not changed by this session — flipping it is an owner money decision. Recorded so the next agent does not quote `=0` from docs.
-Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe)
+Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe + 2026-08-12 revenue audit)
 
 ## Origin/main — SUPERSEDED (historical, 2026-08-06)
 `b5fc2dea` — was exact parity with production (`git fetch origin`, `git rev-parse origin/main`, and direct HTTPS `/health`, 2026-08-06). `origin/main` has since advanced well past this; re-derive it, do not quote this line.
