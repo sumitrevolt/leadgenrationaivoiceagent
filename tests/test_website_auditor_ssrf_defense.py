@@ -1,7 +1,7 @@
 """SSRF defense tests for website_auditor (alert-autofix-34 coverage).
 
 Tests _normalize_safe_audit_url() hardening:
-- Credential rejection (http://user:pass@host)
+- Credential rejection (http://user:pass@host)  # pragma: allowlist secret
 - Fragment rejection (http://example.com#fragment)
 - Private IP blocks (127.0.0.1, 10.x, 192.168.x, 169.254.x)
 - localhost / .local / .internal rejection
@@ -38,10 +38,13 @@ def test_normalize_safe_audit_url_blocks_private_ips():
 def test_normalize_safe_audit_url_blocks_credentials():
     from app.marketing.website_auditor import _normalize_safe_audit_url
 
-    # Basic auth embedded = REJECT
-    assert _normalize_safe_audit_url("http://user:pass@example.com") is None
-    assert _normalize_safe_audit_url("http://admin@example.com") is None
-    assert _normalize_safe_audit_url("https://user:pass@public-site.com/path") is None
+    # Basic auth embedded = REJECT (fixture URLs — not real credentials)
+    cred_url = "http://user:pass@example.com"  # pragma: allowlist secret
+    assert _normalize_safe_audit_url(cred_url) is None
+    userinfo_url = "http://admin@example.com"  # pragma: allowlist secret
+    assert _normalize_safe_audit_url(userinfo_url) is None
+    https_cred = "https://user:pass@public-site.com/path"  # pragma: allowlist secret
+    assert _normalize_safe_audit_url(https_cred) is None
 
 
 def test_normalize_safe_audit_url_blocks_fragments():
@@ -79,21 +82,26 @@ def test_normalize_safe_audit_url_accepts_valid_public(monkeypatch):
     def mock_getaddrinfo(host, port, *args, **kwargs):
         if host in ("example.com", "www.google.com"):
             # Return a public IP (93.184.216.34 for example.com)
-            return [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
         raise socket.gaierror("Mock DNS: host not found")
 
     monkeypatch.setattr(socket, "getaddrinfo", mock_getaddrinfo)
 
-    # Valid public URLs should pass
+    # Valid public URLs should pass (assert via urlparse — avoids CodeQL
+    # py/incomplete-url-substring-sanitization on startswith/full-URL checks)
+    from urllib.parse import urlparse
+
     result = _normalize_safe_audit_url("http://example.com")
     assert result is not None
-    assert result.startswith("http://example.com")
+    parsed = urlparse(result)
+    assert parsed.scheme == "http"
+    assert parsed.hostname == "example.com"
 
     result = _normalize_safe_audit_url("https://www.google.com/test")
     assert result is not None
-    assert "https://" in result
+    parsed = urlparse(result)
+    assert parsed.scheme == "https"
+    assert parsed.hostname == "www.google.com"
 
     # Canonical form
     result = _normalize_safe_audit_url("  https://example.com/path?q=1  ")
@@ -109,7 +117,7 @@ def test_safe_audit_target_legacy_function_still_works(monkeypatch):
     # Mock DNS resolution
     def mock_getaddrinfo(host, port, *args, **kwargs):
         if host == "example.com":
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))]
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
         raise socket.gaierror("Mock DNS: host not found")
 
     monkeypatch.setattr(socket, "getaddrinfo", mock_getaddrinfo)
@@ -133,7 +141,7 @@ async def test_audit_url_rejects_ssrf_attempts():
     assert result["ok"] is False
 
     # Credentials
-    result = await audit_url("http://admin:pass@example.com")
+    result = await audit_url("http://admin:pass@example.com")  # pragma: allowlist secret
     assert result["ok"] is False
 
     # Fragment
@@ -151,9 +159,9 @@ def test_resolve_is_public_function_coverage(monkeypatch):
     def mock_getaddrinfo(host, port, *args, **kwargs):
         host_lower = (host or "").lower().strip().rstrip(".")
         if host_lower in ("example.com", "google.com"):
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))]
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
         if host_lower == "localhost":
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))]
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))]
         if host_lower.endswith((".local", ".internal")):
             raise socket.gaierror("No address associated with hostname")
         raise socket.gaierror("Mock DNS: host not found")
