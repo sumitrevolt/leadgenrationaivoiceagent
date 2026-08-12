@@ -213,6 +213,7 @@ _last_ran: dict[str, str | None] = {
     "social_drain": None,  # hourly :10: native social queue drain (gated SOCIAL_ENGINE)
     "sales_autopilot": None,  # hourly :25: Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
     "task_lease_reap": None,  # hourly :05: expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP; INERT off)
+    "gsc_rank": None,  # daily 00:30 IST: Google Search Console rank snapshot (gated GSC_ENABLED)
 }
 
 
@@ -1452,6 +1453,12 @@ async def _run_job_inner(job: str) -> bool:
                 from app.platform import revenue_snapshots
 
                 await revenue_snapshots.snapshot_today()
+        elif job == "gsc_rank":
+            # SEO rank observability: daily Search Console snapshot (free API).
+            # INERT — job body no-ops unless GSC_ENABLED=1 + service-account creds.
+            from app.integrations import gsc
+
+            await gsc.run_daily_async()
         elif job == "afternoon_content":
             # 2nd daily content-generation pass (afternoon) — Isha extra social
             # batch (self + clients). Gated AFTERNOON_CONTENT (default OFF; LLM cost).
@@ -1572,6 +1579,9 @@ async def scheduler_loop() -> None:
                 await _run_job(
                     "revenue_snapshot"
                 )  # B1 daily MRR snapshot (light, gated REVENUE_TRENDS)
+            if (0, 30) <= hm < (1, 0) and _last_ran["gsc_rank"] != day_key:
+                _last_ran["gsc_rank"] = day_key
+                await _run_job("gsc_rank")  # GSC rank snapshot (light, gated GSC_ENABLED)
             if (2, 30) <= hm < (4, 0) and _last_ran["qa"] != day_key:
                 _last_ran["qa"] = day_key
                 await _run_job("qa")

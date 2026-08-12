@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Recreate the canonical LeadGen Buzz workspace on the LOCAL relay.
 
-Owner decision 2026-08-10: local-first relay (ws://127.0.0.1:3000). This script
+Owner decision 2026-08-10: local-first relay (ws://localhost:3000). This script
 creates the canonical channel structure on the local relay with FRESH local IDs
 and regenerates ~/.buzz/GUIDES/CHANNEL_IDS.json. Hosted-relay IDs are NEVER reused.
+
+NOTE (2026-08-11 fix): relay URL MUST use host `localhost`, NOT `127.0.0.1` — the
+relay routes communities by HTTP Host header (BUZZ_DOMAIN=localhost) and
+`127.0.0.1` gets "no community is configured for this host" 404 on sends.
 
 Channels: #admin #leadgen #build #dev #ops #revenue #gtm #staff-pulse (private).
 Members: owner (creator) + the 4 Desktop agents (Boss/Honey/Fizz/Bumble) with
@@ -20,7 +24,7 @@ create a second #admin/#build/... on every re-run.
 Usage:
     python scripts/buzz_local_workspace.py
     python scripts/buzz_local_workspace.py --archive-dupes
-    BUZZ_RELAY=ws://127.0.0.1:3000 python scripts/buzz_local_workspace.py
+    BUZZ_RELAY=ws://localhost:3000 python scripts/buzz_local_workspace.py
 """
 
 from __future__ import annotations
@@ -39,7 +43,7 @@ APPDATA = Path(os.environ["APPDATA"]) / "xyz.block.buzz.app"
 AGENTS_PATH = APPDATA / "agents" / "managed-agents.json"
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
 
-RELAY = os.environ.get("BUZZ_RELAY", "ws://127.0.0.1:3000")
+RELAY = os.environ.get("BUZZ_RELAY", "ws://localhost:3000")
 
 CANONICAL = [
     ("admin", "Owner decisions, launch readiness, routing"),

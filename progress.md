@@ -1,6 +1,102 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (worktree/branch consolidation closeout — CURSOR)
+Goal: Safe consolidate — classify → land/park unique → delete obsolete; no blind merge; no deploy.
+Inspected: post-#335 main `f814cfe7`; worktree list; remotes; open Drafts #336–#339 + Dependabot.
+Problems Found: (1) UPI “WIP” was truncation — restored. (2) 2 orphan dirs still on disk (file lock). (3) local `fix/security-cp5-3-deps` ahead 1 unpushed WIP.
+Changed: evidence Phase 2–5 closeout; SESSION_HANDOFF; remotes 66→13; worktrees 34→2; Drafts #336–#339; #335 MERGED.
+Tests Run: inventory ancestor checks; CI on #335 (required green; Gate A ignored).
+Verification Evidence: `docs/evidence/WORKTREE_BRANCH_CONSOLIDATION_20260812.md`; PRs #335–#339; primary `main` @ `f814cfe7`.
+Risks: Drafts not AUTH-MERGED; orphan dirs; CP5 local ahead-1.
+Remaining: owner review Drafts; deps packet; orphan dir delete when unlocked.
+Next Highest Priority: stop — consolidation trunk hygiene PARTIAL complete.
+
+## Loop Run
+Date: 2026-08-12 (worktree/branch consolidation Phase 0–1 — CURSOR)
+Goal: Inventory all worktrees+branches; classify; park/restore dirty WIP; no blind merge; no deploy.
+Inspected: `git fetch --all --prune`; 34 worktrees; 66 remotes; open PRs Dependabot-only; main `23ea2d46` includes #333/#334.
+Problems Found: (1) Primary “UPI WIP” was **truncation** deleting `bind_client` — restored. (2) Many dirty worktrees on already-merged tips. (3) Several C_UNIQUE tips overlap merged #272–#275.
+Changed: `docs/evidence/WORKTREE_BRANCH_CONSOLIDATION_20260812.md`; `_scratch/buzz_canary_20260812/`; UPI files restored; this Loop Run.
+Tests Run: inventory script + ancestor checks (333/334/ADR-177 = GO).
+Verification Evidence: evidence doc + JSON `_scratch/consolidation_inventory_20260812.json`.
+Risks: Phase 2–4 still pending (Draft PRs / remote deletes / worktree remove).
+Remaining: Draft PRs for residual C_UNIQUE; delete A_MERGED remotes; remove stale worktrees; primary clean `main`.
+Next Highest Priority: land inventory PR then execute Phase 3–4 deletes.
+
+## Loop Run
+Date: 2026-08-12 (PR #333 AUTH-MERGE path A — MERGED — CURSOR)
+Goal: AUTH-MERGE #333 at tip after required CI green; declare PARTIAL (Comb NIP-OA WAIT); no deploy/flag-arm.
+Inspected: PR #333 head/checks; prod_check failure = undeclared staff_bus paths + EXPECTED_ALLOWLIST_ENTRIES pin.
+Problems Found: (1) Runtime-data ratchet NEW debt on `app/platform/staff_bus/runtime.py`. (2) a1–a9 pin still 55 after classify. Gate A FAILURE ignored.
+Changed: allowlist+manifest `platform.staff_bus` (entries 55→61); a1 pin 61; merge #333; SESSION_HANDOFF post-merge PARTIAL.
+Tests Run: local staff_bus allowlist validate bad=0; count/manifest tests green; CI prod_check+pytest **pass** on `e2bdd81f`.
+Verification Evidence: MERGED merge=`76064942` tip=`e2bdd81f` parents include tip; comment on #333; Gate A still red (non-required).
+Risks: none for prod — flag OFF, no deploy. Do not claim COMPLETE while Comb auth_tag WAIT.
+Remaining: optional Comb Desktop Save → auth_tag → COMPLETE only.
+Next Highest Priority: stop; optional Comb mint later.
+
+## Loop Run
+Date: 2026-08-12 (PR #333 AUTH-MERGE review pack — CURSOR + sunny)
+Goal: Owner-accepted Comb NIP-OA WAIT; AUTH-MERGE review pack for Draft PR #333 @ d4accbd3; no merge/deploy/flag-arm.
+Inspected: gh pr view 333 (draft, headOid, files, checks); hosted+local NIP-11; Gate A failure log.
+Problems Found: Gate A non-required fail = .freebuff submodule url missing — unrelated. Only product WAIT = Comb auth_tag=null (owner ACCEPT).
+Changed: docs/context/SESSION_HANDOFF.md OWNER REVIEW CARD (UTF-8 clean); this Loop Run.
+Tests Run: read-only relay probes previously 200/200; no full 31 re-canary.
+Verification Evidence: PR #333 draft · head d4accbd3 · +1439/-17 · 14 files · 5/5 control + 31/31 synthetic prior.
+Risks: Merge != prod arm; STAFF_BUS_ENABLED must stay OFF without separate AUTH.
+Remaining: Owner chooses AUTH-MERGE now vs Comb Save-then-COMPLETE.
+Next Highest Priority: Owner AUTH-MERGE #333 @ d4accbd3 or Comb Desktop Save first.
+
+## Loop Run
+Date: 2026-08-12 (31-agent STAFF bus setup — CURSOR)
+Goal: Canonical 31 STAFF bus-first setup (Owner→Boss→7 teams→30 workers); synthetic 31/31 + 5 control correlated canaries; Draft PR; no merge/deploy.
+Inspected: `team.STAFF`/`office_hq.coordination_topology`/`agent_maturity`; hosted+local relays; Desktop managed-agents (Boss/Fizz/Honey/Bumble/Comb); `boss_decision_governance`; prior canary scripts.
+Problems Found: (1) Hosted relay intermittent earlier — now HTTPS 200. (2) Canary GO wrongly required execute for held/disabled — fixed to accept governed `agent_unarmed` refuse. (3) Rate limit 120 blocked 31-burst — synthetic skip + default 600. (4) Parallel 4-agent canary race overwrote shared evidence — locked `*_5ctrl.json`. (5) Comb still `auth_tag=null`.
+Changed: `app/platform/staff_bus/*`; `scripts/staff_bus_canary.py`; `tests/test_staff_bus_2026_08_12.py`; `STAFF_BUS_ENABLED` in automation_flags + manifest; runbook; evidence JSONs; SESSION_HANDOFF.
+Tests Run: `tests/test_staff_bus_2026_08_12.py` **7 passed**; staff_bus_canary.py **31/31 GO** run_id `254971bb491b`; control canary nonce `CNY20260812104913-63660547` **5/5 SUCCESS**.
+Verification Evidence: Hosted HTTPS 200; local `:3100` 200; 5× buzz-acp live; Boss reply content `… GO` with e-tag to source; Comb correlated reply OK; Comb NIP-OA WAIT (`auth_tag=null`).
+Risks: Flag OFF correct; Comb NIP-OA incomplete; do not claim COMPLETE while NIP-OA WAIT.
+Remaining: Comb Desktop Save for auth_tag; Draft PR owner review; no deploy.
+Next Highest Priority: Owner review Draft PR + Comb NIP-OA mint (or accept WAIT).
+
+## Loop Run
+Date: 2026-08-11 (PR #330 Cursor ACP Boss canary + Comb fixes + Ready — CURSOR)
+Goal: Bind Boss `1b13cecc` to Cursor ACP; live correlated canary; Comb findings; CI green; Draft→Ready; no merge/deploy.
+Inspected: `agent`/`agent.cmd` ACP preflight; managed-agents Boss card; harness-boss-cursor.log; `#admin` canary; Comb review F1–F3; PR checks on `8f5a2e2d`; Second Brain path `leadsgenai-brain`.
+Problems Found: (1) Claude/Goose Boss backends blocked — fixed by Cursor ACP. (2) Comb: dead advice-state branch + ignored `request_advice` return + zero Redis claim tests — fixed.
+Changed: Boss→Cursor ACP bind (local Desktop); canary evidence; `record_second_brain_advice` guard; Redis `_atomic_claim` tests; SESSION_HANDOFF/ACTIVE_WORK/progress.
+Tests Run: `tests/test_boss_decision_governance.py` green (incl. Redis claim + advice fail prop); CI on head `8f5a2e2d` all required **pass** (lint, test, prod_check+pytest, real-redis, CodeQL, Trivy repo+image, GitGuardian, Gate A).
+Verification Evidence: Canary `BOSS-CURSOR-ACP-CANARY-20260811T102744Z-54b3cbb4`; origin `5171eaeb…`; reply `e4b0530e…` from `1b13cecc`; nonce `54b3cbb4`; relay `owner resolved from BUZZ_AUTH_TAG`; child `agent.cmd acp` (not claude/goose/codex).
+Risks: Flag still OFF — correct. Comb Desktop agent card absent — review done via code-reviewer proxy; live Comb harness still optional.
+Remaining: Owner AUTH-MERGE only; no deploy; no flag arm.
+Next Highest Priority: Owner AUTH-MERGE `8f5a2e2d504186cbc11ed7da1be4693f4508911c` PR #330.
+
+## Loop Run
+Date: 2026-08-11 (PR #329 merge + Boss Second Brain governance — CURSOR)
+Goal: AUTH-MERGE #329 exact SHA; local Buzz/OpenCode setup; prove Boss approval gap; implement governed decisions on isolated worktree; Draft PR; no deploy.
+Inspected: PR #329 head/checks/draft; origin/main `9b09a808`→`6052b533`; dual `/health`; `coordinate_hierarchical` verdict; `office_hq.boss_review`; `boss_council`; `brain.py` GET-only; buzz-prod ports/volumes; Desktop managed-agents Boss prefixes; OpenCode procs; approvals_bridge/owner_os.
+Problems Found: (1) Aggregate hier verdict + recommend-only boss_review ≠ per-decision approval. (2) Desktop expected `:3000` while healthy relay published `:3100`. (3) Boss harness historically failed remote membership (`1b13cecc`); LIVE Desktop Boss prefix `20b69265`. (4) No hash-bound advice→approve→consume path before this PR.
+Changed: merge #329; remap buzz-prod HTTP 3000 (backup); `boss_decision_governance.py` + Owner OS inbox wire + `BOSS_DECISION_GOVERNANCE` flag + runbook + tests + `opencode.json` + context/progress.
+Tests Run: `tests/test_boss_decision_governance.py` **14 passed EXIT 0**; `prod_check.py` EXIT **0**; `check_secrets.py` EXIT **0**; ruff check EXIT **0**; ruff format EXIT **0**; `git diff --check` EXIT **0**; duplicate new API routes = none.
+Verification Evidence: merge commit `6052b533` parents `9b09a808`+`72d9bc12`; #307 comment; relay liveness/readiness 200 on :3000; volumes unchanged; RO buzz locks/channels; gap falsification via assert_aggregate_is_not_approval.
+Risks: Boss `@` correlated response WAIT owner Desktop harness on local relay; governance flag must stay OFF in prod until separate AUTH; worktree has no local `.venv` (OpenCode MCP uses relative path — open repo with venv or primary tooling).
+Remaining: Draft PR; owner AUTH-DEPLOY for #329; owner interactive Buzz Boss proof; separate AUTH-MERGE for governance.
+Next Highest Priority: Owner Desktop Boss harness + `AUTH-DEPLOY 6052b533…` when ready (not under current AUTH).
+
+## Loop Run
+Date: 2026-08-10 (Automation-Max live — DUNNING safe-enabler + truth — CURSOR)
+Goal: Evidence-backed AMAX correction (#307) + truth docs on isolated worktree; no prod mutate.
+Inspected: origin/main+prod `a3fbc8bb`; open PRs=0; issues #304/#306/#307; Graphify refresh EXIT0; `vps_enable_automation_max_flags.py` WANT_SAFE; flag manifest; bind_client; growth infra effective_on; dual `/health` advancing.
+Problems Found: (1) Automation-Max WANT_SAFE incorrectly armed `DUNNING_ENGINE=1` vs owner #307 OFF. (2) CURRENT_STATE/ACTIVE_WORK/SESSION_HANDOFF drifted (d1b106b2 / PR#305). (3) #304/#306 live proofs still WAIT.
+Changed: remove DUNNING from WANT_SAFE + OWNER_GATED refuse; manifest owner_approval_required; tests; ACTIVE_WORK 3-stream; matrix/lane; SESSION_HANDOFF; CURRENT_STATE tip.
+Tests Run: automation_max+safe_launch+flag_manifest+safe_pack+scheduler_parity+growth_infra_flags EXIT **0** (50); wiring_audit_counts+upi_guest_bind+submit_idempotency+subscription+invoice+order_ref EXIT **0** (45); prod_check EXIT **0**; check_secrets EXIT **0**; automation_wiring_audit EXIT **0**; git diff --check EXIT **0**. test_upi_payments.py NOT re-run (prior hang risk — marked UNVERIFIED this loop).
+Verification Evidence: Graphify CLI BFS hit `bind_client`/`_reply_auto_send_enabled`/`infra_flags`; single bind route `POST /upi/pending/{pid}/bind`; primary dirty `.freebuff/` preserved; worktree HEAD still based on `a3fbc8bb`.
+Risks: Parallel Cursor sessions on same mission — reviewed handoff before commit. Deploy/flag apply WAIT. Revenue-generated WAIT without UPI #2.
+Remaining: PR → Checkpoint 4 AUTH packet; #304 live UPI proof; #306 auth flags probe; no deploy.
+Next Highest Priority: Open focused PR; stop for owner AUTH-MERGE (no deploy).
+
+## Loop Run
 Date: 2026-08-10 (Launch+revenue+automation+architecture certification — CURSOR)
 Goal: Owner-authorized A2Z cert; Graphify refresh on fresh main; safe P0–P2 fixes; Draft PR; no deploy.
 Inspected: origin/main `64bbe869`; Graphify refresh (built commit=`64bbe869`); source-to-cash callers (submit_inquiry/hot_queue/upi/activate_plan); packages.py Advanced naming; growth infra_flags; prod `/health`=`d1b106b2`; activation summary; ACTIVE_WORK streams.

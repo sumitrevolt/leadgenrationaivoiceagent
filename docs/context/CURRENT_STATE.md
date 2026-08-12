@@ -4,15 +4,33 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-09 — direct `/health` probe = `d1b106b2` (see the `DEPLOYED 2026-08-09` section immediately below, which is the current truth). See `docs/context/SESSION_HANDOFF.md`.
+2026-08-12 — cache-busted `/health` probe = `9c47647c` (timestamp 2026-08-12T07:39:10, uptime 9h 33m). See `docs/evidence/REVENUE_READY_20260812.md`.
 
-## DEPLOYED 2026-08-09 — `d1b106b2` (PR #294 merged + shipped)
-Prod `/health` = `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
+## DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
+`origin/main` tip = `23ea2d46` (includes #333 staff-bus, #334/#335 docs). **Prod `/health` = `9c47647c`** (DIRECT_HOST_VERIFIED 2026-08-12 07:39 UTC). Deploy timestamp estimated ~2026-08-11 22:05 UTC (uptime 9h 33m backtrack). Includes: PR #332 (ADR-177 GSC + funnel + referral + triage), PR #330 (Boss governance), PR #329 (rollback retention).
+**#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
+Label: DIRECT_HOST_VERIFIED (2026-08-12)
+
+## SUPERSEDED — DEPLOYED 2026-08-11 — `9b09a808` (PR #321)
+> Historical. Replaced by `9c47647c` above.
+Prod `/health` = `{"version":"9b09a808","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-11; two probes with unique `cb=` — timestamp/uptime advanced). Exact SHA = `9b09a80825389983829b1c0b4de6caf3789d16bf`.
+**#304 / #306:** still WAIT live proofs. **#307:** dunning OFF.
+Label: DIRECT_HOST_VERIFIED (2026-08-11)
+
+## SUPERSEDED — DEPLOYED 2026-08-10 — `a3fbc8bb`
+> Historical. Replaced as prod tip by later deploys; do not quote as current without re-probe.
+Rollback ref chain includes `76348926`.
+Label: STALE vs 2026-08-11 prod
+
+## SUPERSEDED — DEPLOYED 2026-08-09 — `d1b106b2` (PR #294)
+> Historical only. Do not quote as current. Replaced by `a3fbc8bb` above.
+
+Prod `/health` was `{"version":"d1b106b2","environment":"production","status":"healthy"}`. All 5 app-image services on `:d1b106b2`, **zero skew**. Queues identical to the pre-deploy baseline (`celery` 0 · `dlq:failed_tasks` 0 · `dlq:dead` **8** — the 8 were already there BEFORE this deploy, do not attribute them to it). Public smoke: `/health` 200 · new `/api/clientops/video-production/daily-status` **401** (mounted + guarded) · unknown sibling route 404.
 Kill-fence procedure executed as documented: backup `.env.bak-dailyvideo-20260809` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh` → reverted to `0` → recreate → proven `0` in all 5 containers. `.env` is byte-identical to the pre-deploy backup (md5 `ec9db158d99269cc463e97923970b50f`).
 **Every new flag stayed unset** (`DAILY_VIDEO_ENABLED`, `DAILY_VIDEO_CLIENTS`, `DAILY_VIDEO_ENGINE`, `CELERY_VIDEO_QUEUE`, `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED`) — the producer is INERT in prod. Calling flags unchanged (`PLATFORM_DIAL_DAILY=1`, `PLATFORM_DIAL_LIMIT=100`, `DIAL_TEST_MODE=0`, `VIDEO_AD_CYCLE=1`).
 Rollback ref = `3cd95ba2` (prior prod).
 ⚠️ **Operator error during this deploy, recorded so it is not repeated:** the fence-closing recreate was run as a bare `docker compose up -d` **without `APP_VERSION`**, so compose fell back to `${APP_VERSION:-latest}` and prod ran the `:latest` image (`266d772a…`) for ~55s before it was caught by the `/health.version` check and corrected with `APP_VERSION=d1b106b2 docker compose … up -d`. This is exactly the ADR-097 landmine. **Any manual recreate — including the one that closes the kill fence — MUST carry `APP_VERSION=<sha>`.** `deploy_vps.sh` itself was never the problem; it pinned correctly.
-Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes)
+Label: DIRECT_HOST_VERIFIED (2026-08-09 post-deploy probes) — STALE vs current tip
 
 ## Approval backlog — real numbers + retirement tool (2026-08-09, PR #297)
 "32 stuck approvals" was only the `video_ad` slice. Real queue = **422** `content_approval` pendings: **321** belong to client ids ABSENT from `clients_store` (8 dead ids — un-actionable forever), **101** belong to the 3 live clients (`leadgenai-self` 53 · `0511a69b900e` 28 · `jiya-makeover` 20).
@@ -63,11 +81,11 @@ Label: DIRECT_HOST_VERIFIED (2026-08-06) + GIT_VERIFIED (2026-08-06).
 > `curl -sS -H 'Cache-Control: no-cache' "https://leadsgenai.in/health?cb=$(date +%s)"`
 > — and **sanity-check `timestamp`/`uptime` against the wall clock before believing `version`**. Two probes returning an identical `timestamp` means you are reading a cache, not production. One probe is never evidence.
 
-## ⚠️ UPI auto-activate — documentation drift found 2026-08-04
-Docs (this file, CLAUDE.md, AGENTS.md) recorded `UPI_AUTO_ACTIVATE=0` as the 2026-07-18 containment state. **Prod `.env` actually has `UPI_AUTO_ACTIVATE=1`.**
+## ⚠️ UPI auto-activate — documentation drift corrected 2026-08-12
+Docs (CURRENT_STATE, CLAUDE.md, AGENTS.md) recorded `UPI_AUTO_ACTIVATE=0` as the 2026-07-18 containment state. **Prod `.env` actually has `UPI_AUTO_ACTIVATE=1`.** (Re-verified 2026-08-12 revenue audit.)
 Containment is still effective — the master flag alone is never enough (`upi_payments.auto_activate_clients_allowed`): `UPI_AUTO_ACTIVATE_CLIENTS` holds exactly **one** client id, and both a random client and an empty client id are refused (probed). So this is ARMED-but-scoped, not open auto-activation.
 Not changed by this session — flipping it is an owner money decision. Recorded so the next agent does not quote `=0` from docs.
-Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe)
+Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe + 2026-08-12 revenue audit)
 
 ## Origin/main — SUPERSEDED (historical, 2026-08-06)
 `b5fc2dea` — was exact parity with production (`git fetch origin`, `git rev-parse origin/main`, and direct HTTPS `/health`, 2026-08-06). `origin/main` has since advanced well past this; re-derive it, do not quote this line.
