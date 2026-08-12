@@ -72,6 +72,22 @@ def _normalize_safe_audit_url(u: str) -> str | None:
     return p.geturl()
 
 
+def _normalize_safe_audit_url(u: str) -> str | None:
+    """Return canonical URL if safe for audit, else None."""
+    try:
+        p = urlparse((u or "").strip())
+    except Exception:
+        return None
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return None
+    # Reject credentialed URLs and fragments to reduce parser/bypass edge-cases.
+    if p.username is not None or p.password is not None or p.fragment:
+        return None
+    if not _resolve_is_public(p.hostname):
+        return None
+    return p.geturl()
+
+
 def analyze_html(html_text: str, final_url: str = "") -> dict[str, Any]:
     """Pure function — HTML string par checks + 0-100 score. Testable."""
     h = html_text or ""
