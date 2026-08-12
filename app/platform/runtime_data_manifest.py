@@ -487,6 +487,35 @@ STORES: list[dict[str, Any]] = [
         ),
     ),
     _e(
+        store_id="platform.staff_bus",
+        display_name="31 STAFF Buzz bus ledger (events / idempotency / audit / DLQ)",
+        legacy_paths=[
+            "data/staff_bus/",
+            "data/staff_bus/events.jsonl",
+            "data/staff_bus/idempotency.jsonl",
+            "data/staff_bus/audit.jsonl",
+            "data/staff_bus/dlq.jsonl",
+        ],
+        writer_modules=["app/platform/staff_bus/runtime.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="platform",
+        durability_class="rebuildable",
+        concurrency_model="single-process file append under STAFF_BUS_ENABLED gate",
+        tenant_scope="platform-global (internal STAFF coordination; not customer leads)",
+        target_runtime_subpath="platform/staff_bus/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-12 with PR #333 staff_bus. Append-only JSONL family "
+            "for Owner→Boss→7-team envelopes. INERT until STAFF_BUS_ENABLED=1; "
+            "default OFF. Comb NIP-OA auth_tag may be null (WAIT) — not a store "
+            "blocker. No customer outbound from these files alone."
+        ),
+    ),
+    _e(
         store_id="content.queue",
         display_name="Per-tenant content queue",
         legacy_paths=["data/content_queue/"],
