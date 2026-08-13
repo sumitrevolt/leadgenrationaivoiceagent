@@ -111,7 +111,6 @@ _SKIP_DIRS = frozenset(
         "logs",
         "outputs",
         "tmp_deploy",
-        "scripts",
         "_scratch_ops",
     }
 )
