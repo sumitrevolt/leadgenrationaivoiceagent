@@ -6,7 +6,7 @@
 
 ## 1. TEN-LINE EXECUTIVE TRUTH
 
-1. **Production is live at `2326c931`** — re-probed 2026-08-12 15:38 UTC ×2 via cache-busted `/health` (`status:healthy`, uptime 0h4m16s→0h4m20s advancing ⇒ live, not a cache). **Correction (reconciliation pass):** origin/main has since advanced to `30900752` (PR #349 "chore(ci): clear ruff/format lint debt" — formatting across ~300 files; `app/marketing/packages.py` **NOT** in that diff ⇒ no revenue-path code changed). Prod is therefore **1 commit behind** current origin/main tip — this supersedes the earlier "exact parity" claim. The `9c47647c` reading in `REVENUE_READY_20260812.md` remains stale.
+1. **Production is live at `2326c931`** — re-probed 2026-08-12 15:38 UTC ×2 via cache-busted `/health` (`status:healthy`, uptime 0h4m16s→0h4m20s advancing ⇒ live, not a cache). **Correction (reconciliation pass):** origin/main has since advanced to `30900752` (PR #349 "chore(ci): clear ruff/format lint debt" — formatting across ~300 files; `app/marketing/packages.py` **NOT** in that diff ⇒ no revenue-path code changed), then to `cd2e3437` (PR #350, 2026-08-12 21:35 IST — merged the FreeBuff evidence docs; docs-only). Prod is therefore **2 commits behind** current origin/main tip — this supersedes the earlier "exact parity" claim. The `9c47647c` reading in `REVENUE_READY_20260812.md` remains stale.
 2. **Money path is technically GO.** Every funnel route returned 200 live: `/audit` `/site-audit` `/demo` `/pricing` `/start` `/app/inbox`. `/api/upi/submit` 422-on-empty (route live), `/api/growth/inbox` 401-unauth (protected), Stripe webhook 400 (fail-closed).
 3. **Pricing truth is intact live and in source:** `/api/marketing/packages` shows ₹1,999/mo (₹19,990/yr) starter, ₹5,999 (₹59,990) advanced; `app/marketing/packages.py` L195/L245 confirms; contract test `test_billing_truth_2026.py` **15 passed, EXIT=0**. Growth ₹2,999 stays legacy-hidden.
 4. **Voice is a separate product (₹4,999/₹9,999/₹19,999 bands) and FROZEN** — not a "bundle", no edits made.
@@ -68,7 +68,7 @@
 
 - Hot Queue + UPI routes auth-gated (401 unauth live proof above). **Scoping note: `/app/inbox` 200 proves the page serves, NOT the queue's contents or count — Hot Queue size and lead list remain UNVERIFIED until an owner logs in. No queue-size or lead-count claim is made anywhere in this report.**
 - Compliance spine: DND fail-closed, TRAI window, AI-disclosure, consent ledger, DPDP retention — unchanged; voice FROZEN (no edits).
-- Production/source drift reported honestly: prod == origin/main (`2326c931`); docs (`CURRENT_STATE.md`, `REVENUE_READY`) stale SHA `9c47647c`; `WHATSAPP_AUTO_SEND` doc-vs-live drift noted in §1.8 and flagged for owner review.
+- Production/source drift reported honestly: production is `2326c931`; cached origin/main is `cd2e3437` — **production is BEHIND the current source tip** (do not claim parity). Docs (`CURRENT_STATE.md`, `REVENUE_READY`) carry stale SHA `9c47647c`; `WHATSAPP_AUTO_SEND` doc-vs-live drift noted in §1.8 and flagged for owner review.
 
 ### 3.5 Acceptance verdict
 
