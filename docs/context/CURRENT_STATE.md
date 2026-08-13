@@ -4,12 +4,18 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-12 — cache-busted `/health` probe = `9c47647c` (timestamp 2026-08-12T07:39:10, uptime 9h 33m). See `docs/evidence/REVENUE_READY_20260812.md`.
+2026-08-13 — prod `/health` = `2326c931` (AUTH-DEPLOY, PR #327 mypy land). `origin/main` tip = `8217de4` (includes #353 checkout pin, #352 regression fixes) — NOT DEPLOYED; prod remains `2326c931` until Owner OS AUTH-DEPLOY.
 
-## DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
-`origin/main` tip = `23ea2d46` (includes #333 staff-bus, #334/#335 docs). **Prod `/health` = `9c47647c`** (DIRECT_HOST_VERIFIED 2026-08-12 07:39 UTC). Deploy timestamp estimated ~2026-08-11 22:05 UTC (uptime 9h 33m backtrack). Includes: PR #332 (ADR-177 GSC + funnel + referral + triage), PR #330 (Boss governance), PR #329 (rollback retention).
+## DEPLOYED 2026-08-12 (estimated) — `2326c931` (PR #327 mypy land)
+**Prod `/health` = `2326c931`** (AUTH-DEPLOY). Deploy timestamp estimated 2026-08-12 (inherited from previous probe notes; exact time not re-probed). Includes: PR #327 (mypy landmines), and all content from prior `9c47647c` (PR #332 ADR-177 batch, #330, #329).
+`origin/main` has advanced: #353 `8217de4` (checkout pin) and #352 `cfa2cf27` (regression fixes) are ON MAIN but NOT DEPLOYED. Prod remains `2326c931` until next deploy.
 **#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
-Label: DIRECT_HOST_VERIFIED (2026-08-12)
+Label: DIRECT_HOST_VERIFIED (2026-08-13 hub sunny ops update)
+
+## SUPERSEDED — DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
+> Historical. Replaced by `2326c931` above.
+`origin/main` tip = `23ea2d46` (includes #333 staff-bus, #334/#335 docs). **Prod `/health` = `9c47647c`** (DIRECT_HOST_VERIFIED 2026-08-12 07:39 UTC). Deploy timestamp estimated ~2026-08-11 22:05 UTC (uptime 9h 33m backtrack). Includes: PR #332 (ADR-177 GSC + funnel + referral + triage), PR #330 (Boss governance), PR #329 (rollback retention).
+Label: DIRECT_HOST_VERIFIED (2026-08-12) — SUPERSEDED by `2326c931`
 
 ## SUPERSEDED — DEPLOYED 2026-08-11 — `9b09a808` (PR #321)
 > Historical. Replaced by `9c47647c` above.
