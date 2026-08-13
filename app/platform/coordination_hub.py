@@ -1,14 +1,15 @@
 """Coordination Hub — thin Owner OS projection (NOT a second control plane).
 
 Assembles read-only views from Owner OS registry, external-agent missions,
-office Active Coordination, tool presence, events, and bounded git.
-Mutations stay on existing Owner OS / missions endpoints.
+office Active Coordination, tool presence, desktop-app registry, events,
+and bounded git. Mutations stay on existing Owner OS / missions endpoints.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from app.platform.coordination_desktop_registry import registry_slice
 from app.platform.coordination_hub_auth import hub_enabled, tool_auth_status
 from app.platform.coordination_hub_events import list_events, list_presence
 from app.platform.coordination_hub_git import probe_git
@@ -131,6 +132,12 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
             "office_coordination": {"rows": []},
             "tools_presence": {"tools": {}},
             "tool_auth": tool_auth_status(),
+            "desktop_registry": {
+                "ok": True,
+                "enabled": False,
+                "apps": [],
+                "note": "COORDINATION_HUB_ENABLED=0 — inert",
+            },
             "git": None,
             "events_tail": [],
             "mutations": "refused_use_owner_os_or_missions",
@@ -156,6 +163,7 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
         "office_coordination": _office_coordination_slice(),
         "tools_presence": list_presence(),
         "tool_auth": tool_auth_status(),
+        "desktop_registry": registry_slice(),
         "git": git_block,
         "events_tail": list_events(limit=events_limit),
         "mutations": "refused_use_owner_os_or_missions",
