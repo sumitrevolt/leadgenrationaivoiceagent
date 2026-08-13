@@ -21,6 +21,7 @@ proof rather than by hope.
 from __future__ import annotations
 
 import ast
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -97,6 +98,21 @@ _SKIP_DIRS = frozenset(
         "unity",
         "htmlcov",
         "site-packages",
+        "_scratch",
+        "_agent_fetch",
+        ".freebuff",
+        ".worktrees",
+        "backups",
+        "artifacts",
+        "uat_evidence",
+        "_recovery",
+        ".vs",
+        ".idea",
+        "logs",
+        "outputs",
+        "tmp_deploy",
+        "scripts",
+        "_scratch_ops",
     }
 )
 
@@ -1372,13 +1388,22 @@ def _lookup(finding: dict[str, Any], index: dict[str, dict[str, Any]]) -> dict[s
 
 
 def _iter_files(root: Path):
-    for p in sorted(root.rglob("*")):
-        if not p.is_file():
-            continue
-        if any(part in _SKIP_DIRS for part in p.parts):
-            continue
-        if p.suffix in _PY_EXT | _SHELL_EXT | _YAML_EXT:
-            yield p
+    """
+    Recursive generator that skips excluded directories early to avoid
+    filesystem errors and redundant scanning.
+    """
+    try:
+        # Use os.scandir for speed and robustness on Windows (long paths, junctions).
+        for entry in os.scandir(root):
+            if entry.is_dir():
+                if entry.name in _SKIP_DIRS:
+                    continue
+                yield from _iter_files(Path(entry.path))
+            elif entry.is_file():
+                if Path(entry.name).suffix in _PY_EXT | _SHELL_EXT | _YAML_EXT:
+                    yield Path(entry.path)
+    except OSError as e:
+        logger.debug("[scan] skip unreadable dir %s: %s", root, e)
 
 
 def scan_repo(root: Path, allowlist: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:

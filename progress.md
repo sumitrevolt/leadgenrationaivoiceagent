@@ -1978,3 +1978,12 @@ Next Highest Priority: owner Day-0 15-min Hot Queue action at /app/inbox (not an
 - **Risks:** Hot Queue count/cards UNVERIFIED without owner login — no lead invented; revenue claims withheld. dlq:dead trainer backlog is noise, not revenue-blocking.
 - **Remaining:** Owner authenticated `/app/inbox` blitz (15 min/day) + manual UPI bank-credit confirmation; revenue-generated stays NOT PROVEN until owner-confirmed credit.
 - **Next Highest Priority:** Owner login at `/app/admin-login` → `/app/inbox` → act top cards → log scoreboard; UPI confirm on arrival.
+
+## Loop Run — Freebuff Desk 2026-08-13 ~07:41 IST
+- AUTOMATION_REQUIRED evidence: `_scratch/COORDINATION_20260813/FREEBUFF_AUTOMATION_REQUIRED_20260813.md` (on primary scratch; this worktree not switched/deployed).
+- Hygiene note: freebuff worktree shells present (this wt + opencode temp); primary left on fix/regression-remediation dirty — untouched.
+- No flag/deploy/commit/DLQ/dunning arm.
+
+## Loop Run — Dunning dry-run 2026-08-13 08:03 IST
+- Evidence: `_scratch/COORDINATION_20260813/FREEBUFF_DUNNING_CANARY_DRYRUN_20260813.md`.
+- DUNNING_ENGINE left 0. cases/runs 0. SQL subs 0. run_due no-op.
