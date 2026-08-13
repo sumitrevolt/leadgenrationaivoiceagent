@@ -23,7 +23,7 @@ leases, path ownership, review separation, and evidence.
 4. **GitHub CI repair (Wave 1)** — **read-only diagnosis** only:
    `workflow_dispatch`, `contents: read`, `pull-requests: write` (comment),
    no `issue_comment` trigger, no coding-agent write/push. Checkout pinned to
-   `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2).
+   `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (v7.0.1).
    Code repair deferred until mission + Owner OS mechanically bound (Wave 3+).
 5. **Factory evidence** — Task extras attach via `create_mission(initial_evidence=…)`
    before the canonical create save. PR Factory must not `store.get`/`store.save`

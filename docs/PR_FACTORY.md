@@ -65,7 +65,7 @@ Never invent a second mission store — always call `app.dev_control.external_ag
 ## CI
 
 - **Gate A** (non-required): `.github/workflows/pr-factory-gate-a.yml` — ruff/format on changed paths, secrets scan, path-policy stub, optional targeted pytest from task manifest.
-- **CI repair** (Wave 1): `.github/workflows/pr-factory-ci-repair.yml` — `workflow_dispatch` only, read-only diagnosis comment. No `issue_comment` trigger, no `contents: write`, no coding-agent push. Checkout pinned to `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2).
+- **CI repair** (Wave 1): `.github/workflows/pr-factory-ci-repair.yml` — `workflow_dispatch` only, read-only diagnosis comment. No `issue_comment` trigger, no `contents: write`, no coding-agent push. Checkout pinned to `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (v7.0.1).
 - Gate B/C + `merge_group` = Wave 2+ (not built here).
 - Native GitHub Merge Queue = after org migration (Wave 4).
 
