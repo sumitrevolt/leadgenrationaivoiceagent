@@ -39,9 +39,12 @@ def _stub_store_row(monkeypatch, email: str = "u@example.com"):
     }
     monkeypatch.setattr(ca, "_read", lambda: [row])
     captured: dict = {}
-    monkeypatch.setattr(
-        ca, "register_login", lambda e, p, c: captured.update(email=e, password=p, client_id=c)
-    )
+
+    def _mock_reg(e, p, c, **kw):
+        captured.update(email=e, password=p, client_id=c)
+        return {"ok": True}
+
+    monkeypatch.setattr(ca, "register_login", _mock_reg)
     return captured
 
 

@@ -17,6 +17,10 @@ def _isolate(tmp_path, monkeypatch):
     monkeypatch.setattr(wc, "_CONV_FILE", str(tmp_path / "wa_conversations.jsonl"))
     monkeypatch.setattr(ra, "_DRAFTS_FILE", str(tmp_path / "reply_drafts.jsonl"))
     monkeypatch.setattr(ra, "_notify", lambda *a, **k: None)
+    # Money path isolation: ensure interested replies don't append pricing footer
+    # by default (caught by CI when UPI_VPA is set in env/data-file).
+    from app.platform import upi_config
+    monkeypatch.setattr(upi_config, "get_vpa", lambda: "")
 
 
 # --------------------------------------------------------------------------- #
