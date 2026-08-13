@@ -12,7 +12,7 @@ CI_REPAIR = ROOT / ".github" / "workflows" / "pr-factory-ci-repair.yml"
 GATE_A = ROOT / ".github" / "workflows" / "pr-factory-gate-a.yml"
 
 # Public action commits — not credentials
-CHECKOUT_SHA = "11bd71901bbe5b1630ceea73d27597364c9af683"  # pragma: allowlist secret
+CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"  # pragma: allowlist secret
 # actions/setup-python v7.0.0
 SETUP_PYTHON_SHA = "5fda3b95a4ea91299a34e894583c3862153e4b97"  # pragma: allowlist secret
 RUFF_PIN = "ruff==0.16.1"
