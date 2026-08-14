@@ -39,7 +39,10 @@ REQUIRED_DEPENDENCIES = {
     "@deepseek-ai/dsh-session",
     "@deepseek-ai/dsh-tools",
 }
-ALLOWED_CHILD_ENV = {"DSH_RUN_TOKEN", "DSH_LLM_BASE_URL", "DSH_MCP_URL"}
+# Cordis YAML may only reference the three runtime gateway/token vars.
+CORDIS_ENV_NAMES = {"DSH_RUN_TOKEN", "DSH_LLM_BASE_URL", "DSH_MCP_URL"}
+# Worker child process also carries bootstrap config + scratch HOME (pkg SEA).
+ALLOWED_CHILD_ENV = CORDIS_ENV_NAMES | {"DSH_CORDIS_CONFIG", "HOME"}
 FORBIDDEN_PACKAGE = re.compile(
     r"^@deepseek-ai/dsh-(?:"
     r"bash|browser|fs-local|fs-sandbox|jobs|scheduler|session-telemetry|skill|"
@@ -76,6 +79,7 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
     worker_dockerfile_path = dsh_dir / "worker.Dockerfile"
     gateway_dockerfile_path = dsh_dir / "test-gateway.Dockerfile"
     verifier_path = dsh_dir / "verify_runtime.mjs"
+    normalizer_path = dsh_dir / "normalize_sea_binary.py"
     requirements_path = root / "requirements-dsh.lock.txt"
     workflow_path = root / ".github" / "workflows" / "dsh-runtime.yml"
     smoke_path = root / "scripts" / "dsh_runtime_smoke.py"
@@ -93,6 +97,7 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
         worker_dockerfile_path,
         gateway_dockerfile_path,
         verifier_path,
+        normalizer_path,
         requirements_path,
         workflow_path,
         smoke_path,
@@ -120,8 +125,8 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
     plugins = re.findall(r"^\s*name:\s*['\"]([^'\"]+)['\"]\s*$", cordis, flags=re.MULTILINE)
     _require(set(plugins) == REQUIRED_PLUGINS, "Cordis plugin set differs from hardened allowlist")
     _require(len(plugins) == len(set(plugins)), "Cordis contains duplicate plugin rows")
-    child_env = set(re.findall(r"process\.env\.([A-Z][A-Z0-9_]*)", cordis))
-    _require(child_env == ALLOWED_CHILD_ENV, "Cordis child environment references changed")
+    cordis_env = set(re.findall(r"process\.env\.([A-Z][A-Z0-9_]*)", cordis))
+    _require(cordis_env == CORDIS_ENV_NAMES, "Cordis child environment references changed")
 
     patch = _read(patch_path)
     for required_removal in (
@@ -153,11 +158,19 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
     _require("git apply --check" in dockerfile, "source hardening patch must fail closed")
     _require("verify_runtime.mjs" in dockerfile, "final dependency closure must be scanned")
     _require(
-        "/tmp/pkg-sea-dsh000/sea-main.js" in dockerfile
+        "/tmp/pkg-sea-dsh000/sea-main.js" in dockerfile  # nosec B108 -- literal proof marker
         and "expected one pkg SEA temp path" in dockerfile,
         "pkg SEA random build path must be normalized fail-closed",
     )
+    _require(
+        "DSH_CORDIS_CONFIG=/usr/local/bin/cordis.yml" in dockerfile,
+        "packaged runtime must pin Cordis under /usr/local/bin (pkg-visible path)",
+    )
     worker_dockerfile = _read(worker_dockerfile_path)
+    _require(
+        "DSH_CORDIS_CONFIG=/usr/local/bin/cordis.yml" in worker_dockerfile,
+        "DSH worker must pin the same Cordis path as the runtime image",
+    )
     _require("USER 65532:65532" in worker_dockerfile, "DSH worker must run non-root")
     _require(
         "requirements-dsh.lock.txt" in worker_dockerfile and "--no-deps" in worker_dockerfile,
@@ -175,8 +188,9 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
     _require("env_file:" not in dsh_service, "DSH worker must not inherit the application env file")
     child_env_source = _read(dsh_jobs_path)
     child_env_match = re.search(
-        r"CHILD_ENV_NAMES\s*=\s*frozenset\(\{([^}]+)\}\)",
+        r"CHILD_ENV_NAMES\s*=\s*frozenset\(\s*\{([^}]+)\}\s*\)",
         child_env_source,
+        flags=re.DOTALL,
     )
     _require(child_env_match is not None, "DSH child env allowlist declaration missing")
     discovered_child_env = set(re.findall(r'"([A-Z][A-Z0-9_]*)"', child_env_match.group(1)))
@@ -235,6 +249,7 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
         worker_dockerfile_path,
         gateway_dockerfile_path,
         verifier_path,
+        normalizer_path,
         requirements_path,
         workflow_path,
         smoke_path,
@@ -260,7 +275,8 @@ def build_proof(root: Path = ROOT) -> dict[str, Any]:
             "dependency_count": len(dependencies),
             "required_plugins": sorted(REQUIRED_PLUGINS),
             "forbidden_dependencies": forbidden_dependencies,
-            "child_env_names": sorted(child_env),
+            "child_env_names": sorted(ALLOWED_CHILD_ENV),
+            "cordis_env_names": sorted(CORDIS_ENV_NAMES),
         },
         "input_sha256": {
             str(path.relative_to(root)).replace("\\", "/"): _sha256(path) for path in input_paths

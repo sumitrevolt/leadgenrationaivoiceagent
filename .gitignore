@@ -154,6 +154,16 @@ credentials/
 # (scripts/skill_evals/check_repo_skills.py); the blanket `*.json` above
 # silently excluded it, making that gate unsatisfiable.
 !scripts/skill_evals/cases/**/trigger-cases.json
+# Hardened DSH policy, contract, and bounded evidence JSON are source inputs.
+# Raw binaries, full SBOMs, and per-build proofs remain CI/local artifacts.
+!deploy/dsh/upstream.lock.json
+!deploy/dsh/runtime.package.json
+!deploy/dsh/evidence/shadow_promotion_gate.json
+!docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json
+!docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json
+!docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json
+!tests/fixtures/dsh_migration_contract.json
+!tests/fixtures/dsh_shadow_golden_set.json
 # The renderer lockfile MUST be tracked: `npm ci` in Dockerfile.video refuses to
 # run without it, and an untracked lockfile means the image is not reproducible.
 # The blanket `*.json` above silently excluded it.

@@ -1,0 +1,70 @@
+{
+  "closure": {
+    "child_env_names": [
+      "DSH_CORDIS_CONFIG",
+      "DSH_LLM_BASE_URL",
+      "DSH_MCP_URL",
+      "DSH_RUN_TOKEN",
+      "HOME"
+    ],
+    "cordis_env_names": [
+      "DSH_LLM_BASE_URL",
+      "DSH_MCP_URL",
+      "DSH_RUN_TOKEN"
+    ],
+    "dependency_count": 33,
+    "forbidden_dependencies": [],
+    "required_plugins": [
+      "@deepseek-ai/dsh-agent",
+      "@deepseek-ai/dsh-agent-loop",
+      "@deepseek-ai/dsh-invariants",
+      "@deepseek-ai/dsh-llm",
+      "@deepseek-ai/dsh-llm-pi-ai",
+      "@deepseek-ai/dsh-llm-retry",
+      "@deepseek-ai/dsh-mcp-client",
+      "@deepseek-ai/dsh-sdk-jsonrpc-server",
+      "@deepseek-ai/dsh-session",
+      "@deepseek-ai/dsh-system-prompt",
+      "@deepseek-ai/dsh-tools"
+    ]
+  },
+  "evidence_label": "STATIC_VERIFIED",
+  "input_sha256": {
+    ".github/workflows/dsh-runtime.yml": "413f8ba427a60e0865b72196706bc9aebe6a6d7943003d94282b8d711e6c8c8e",
+    "app/tasks/dsh_jobs.py": "e510ed83bc0c94cfae3615ac119e60f6872e729120a05aa1c7b69592704ae561",
+    "deploy/dsh/Dockerfile": "a6897972791c8dacae7646f54dc91bf1c7a4afb65535774ef1a6a01c0e0b98ec",
+    "deploy/dsh/cordis.yml": "3868932e25e39ea03f74ab7e841213db37d0caf978d640ab6050629780e225f5",
+    "deploy/dsh/hardening.patch": "6f3da7d7a0f8b96c56452537d73df8cb3cb4190b0b875069f94099004a8d42d0",
+    "deploy/dsh/normalize_sea_binary.py": "a48a0a98b9ed2b359aa443260da1629b847061d4e6cedb411973efc647c342ed",
+    "deploy/dsh/runtime.package.json": "33067d03defe3eff30533dde124376349d779a8b92b5ebfed65518a51b1685f4",
+    "deploy/dsh/test-gateway.Dockerfile": "a03b4428bc61a0e80dfc3a55779e101491cc5a61b277ba0643bb64f12461d63b",
+    "deploy/dsh/upstream.lock.json": "76ae09b849b11d272de8a13a66b17714ea69f957b9318838309a51d24827d44d",
+    "deploy/dsh/verify_runtime.mjs": "5ef5b804e1e49cb9b9d3dc947466876a5ef03d75f1ef159207f5e8ad4e07fdf1",
+    "deploy/dsh/worker.Dockerfile": "2d6fc2574da958fdb94f3736bda1aeff0c5b7408c330e8212cd77a952ff7b64c",
+    "docker-compose.vps.yml": "7c7501850223a82af11dfcb5f062f3762ea0fd2ac13eef0777eb666521eddd4c",
+    "requirements-dsh.lock.txt": "9c75e7b90bdc768e24b92e7bfefeec7a0ee6e24fb1442003087dadf53db70e90",
+    "scripts/assemble_dsh_ci_evidence.py": "fac2145cce5dac6992aa525e0e22d5f543a6b27e0a9b16ed8681cd9c31e5dd73",
+    "scripts/dsh_runtime_smoke.py": "1a780ef165b30b85c916efd94cef5e56927fab9334abd43c6eec95792003ddee",
+    "tests/fixtures/dsh_fake_gateway.py": "bbe41d2e0e2bf5e48dde94b0fc25c5f8ecd66d47224a836e8dfc3731a4033aaf"
+  },
+  "runtime_state": "INERT_NOT_BUILT",
+  "schema_version": 1,
+  "unverified_until_linux_ci": [
+    "source_build",
+    "binary_reproducibility",
+    "final_image_sbom_and_licences",
+    "fake_model_and_mcp_smoke",
+    "clean_shutdown",
+    "hard_cancellation_under_5_seconds",
+    "isolated_network_egress"
+  ],
+  "upstream": {
+    "commit": "47f943859bef60e4160492346772ded9b24f765a",
+    "git_archive_bytes": 54077440,
+    "git_archive_sha256": "c2d8d1e9ec24f0500da431288d2c0c80cf3f502d4dbda2026bd87ac099f3e2e6",
+    "license": "MIT",
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "source_date_epoch": 1786621126,
+    "tree": "f904efab9ef435201d6ba4da88a34d6366568272"
+  }
+}

@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from scripts.assemble_dsh_ci_evidence import EvidenceFailure, assemble
+from deploy.dsh.normalize_sea_binary import REPLACEMENT, normalize
+from scripts.assemble_dsh_ci_evidence import EvidenceFailure, assemble, assemble_blocked
 from scripts.verify_dsh_supply_chain import ALLOWED_CHILD_ENV, REQUIRED_PLUGINS, build_proof
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,6 +56,16 @@ def test_final_runtime_image_has_no_shell_or_package_manager_stage() -> None:
     assert "npm " not in final
     assert "curl " not in final
     assert "wget " not in final
+
+
+def test_pkg_sea_normalizer_is_exact_and_fail_closed(tmp_path: Path) -> None:
+    binary = tmp_path / "dsh"
+    binary.write_bytes(b"prefix/tmp/pkg-sea-Ab12z9/sea-main.jssuffix")
+    assert normalize(binary) == 1
+    assert binary.read_bytes() == b"prefix" + REPLACEMENT + b"suffix"
+
+    with pytest.raises(SystemExit, match="expected exactly one"):
+        normalize(binary)
 
 
 def test_linux_evidence_assembler_requires_reproducible_binaries(tmp_path: Path) -> None:
@@ -118,6 +129,22 @@ def test_linux_evidence_assembler_requires_reproducible_binaries(tmp_path: Path)
             sbom_path=sbom,
             smoke_path=smoke,
         )
+    blocked = assemble_blocked(
+        reason="independent Linux builds produced different executable hashes",
+        runtime_proof_a=proof_a,
+        runtime_proof_b=proof_b,
+        binary_a_path=binary_a,
+        binary_b_path=binary_b,
+        sbom_path=sbom,
+        smoke_path=smoke,
+    )
+    assert blocked["evidence_label"] == "LINUX_CI_BLOCKED"
+    assert blocked["runtime_state"] == "INERT_SHADOW_BLOCKED"
+    assert blocked["reproducibility"]["bit_identical"] is False
+    assert blocked["reproducibility"]["closure_proofs_equal"] is True
+    assert blocked["security_observed"]["sbom_component_count"] == 1
+    assert blocked["lifecycle_observed"]["hard_cancellation_seconds"] == 0.3
+    assert blocked["shadow_must_not_proceed"] is True
 
     proof_b.write_text(json.dumps(proof), encoding="utf-8")
     with pytest.raises(EvidenceFailure, match="does not match extracted artifact"):

@@ -24,10 +24,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=python-deps --chown=65532:65532 /install /usr/local/lib/python3.12/site-packages
 COPY --chown=65532:65532 app /app/app
 COPY --from=dsh-runtime --chown=65532:65532 --chmod=0555 /usr/local/bin/dsh-jsonrpc-agent /usr/local/bin/dsh-jsonrpc-agent
-COPY --from=dsh-runtime --chown=65532:65532 --chmod=0444 /etc/dsh/cordis.yml /etc/dsh/cordis.yml
+COPY --from=dsh-runtime --chown=65532:65532 --chmod=0444 /usr/local/bin/cordis.yml /usr/local/bin/cordis.yml
 COPY --from=dsh-runtime --chown=65532:65532 --chmod=0444 /usr/share/dsh/runtime-proof.json /usr/share/dsh/runtime-proof.json
 COPY --from=dsh-runtime --chown=65532:65532 --chmod=0444 /usr/share/licenses/dsh/UPSTREAM_LICENSE /usr/share/licenses/dsh/UPSTREAM_LICENSE
 
+ENV DSH_CORDIS_CONFIG=/usr/local/bin/cordis.yml \
+    HOME=/tmp
 USER 65532:65532
 WORKDIR /app
 ENTRYPOINT ["python", "-m", "celery", "-A", "app.dsh_worker:celery_app", "worker", "--queues", "dsh", "--concurrency", "1", "--prefetch-multiplier", "1", "--max-tasks-per-child", "1", "--loglevel", "INFO"]

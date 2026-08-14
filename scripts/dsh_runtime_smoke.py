@@ -21,6 +21,8 @@ ALLOWED_CONTAINER_ENV = {
     "DSH_RUN_TOKEN",
     "DSH_MCP_URL",
     "DSH_LLM_BASE_URL",
+    "DSH_CORDIS_CONFIG",
+    "HOME",
     "PATH",
     "SSL_CERT_FILE",
 }
@@ -94,6 +96,8 @@ def _start_runtime(image: str, network: str, name: str) -> JsonRpcProcess:
         network,
         "--read-only",
         "--tmpfs",
+        "/tmp:rw,noexec,nosuid,size=16m",  # nosec B108 -- isolated container tmpfs
+        "--tmpfs",
         "/run/dsh:rw,noexec,nosuid,size=16m",
         "--cap-drop",
         "ALL",
@@ -106,7 +110,13 @@ def _start_runtime(image: str, network: str, name: str) -> JsonRpcProcess:
         "DSH_MCP_URL=http://gateway:8000/mcp",
         "-e",
         "DSH_LLM_BASE_URL=http://gateway:8000/v1",
+        "-e",
+        "DSH_CORDIS_CONFIG=/usr/local/bin/cordis.yml",
+        "-e",
+        "HOME=/tmp",
+        # pkg SEA: argv[1]=embedded script, argv[2]=user config path
         image,
+        "/usr/local/bin/cordis.yml",
     ]
     process = subprocess.Popen(
         command,
@@ -220,7 +230,7 @@ def run_smoke(image: str, gateway_image: str) -> dict[str, Any]:
             "gateway",
             "--read-only",
             "--tmpfs",
-            "/tmp:rw,noexec,nosuid,size=8m",
+            "/tmp:rw,noexec,nosuid,size=8m",  # nosec B108 -- isolated container tmpfs
             "--cap-drop",
             "ALL",
             "--security-opt",
@@ -260,12 +270,17 @@ def run_smoke(image: str, gateway_image: str) -> dict[str, Any]:
             label="running state before hard cancellation",
         )
         cancel_started = time.monotonic()
-        _run("docker", "kill", "--signal=TERM", cancel_name)
+        # Mirror app/tasks/dsh_jobs._terminate: soft TERM then escalate to KILL
+        # inside the same 5s hard budget (MCP dispose can wedge on TERM alone).
+        _run("docker", "kill", "--signal=TERM", cancel_name, check=False)
         try:
-            cancelled.process.wait(timeout=MAX_CANCEL_SECONDS)
-        except subprocess.TimeoutExpired as exc:
+            cancelled.process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
             _run("docker", "kill", "--signal=KILL", cancel_name, check=False)
-            raise SmokeFailure("DSH process did not terminate within five seconds") from exc
+            try:
+                cancelled.process.wait(timeout=max(0.1, MAX_CANCEL_SECONDS - 2.0))
+            except subprocess.TimeoutExpired as exc:
+                raise SmokeFailure("DSH process did not terminate within five seconds") from exc
         cancel_seconds = time.monotonic() - cancel_started
         if cancel_seconds > MAX_CANCEL_SECONDS:
             raise SmokeFailure(f"DSH cancellation exceeded five seconds: {cancel_seconds:.3f}")

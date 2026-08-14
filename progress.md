@@ -1999,3 +1999,26 @@ Verification Evidence: contract test rerun `4 passed` EXIT 0; registry suite `14
 Risks: No production/runtime proof is claimed here; this is a source-and-local-test contract only. Any future hardened Linux/source-build DSH follow-up still needs explicit owner authorization plus evidence gates before authority/deploy/retirement.
 Remaining: no commit/push/PR/deploy performed; DSH flags remain OFF; `WS-UPI304` remains parked on external wait; business blocker remains owner Hot Queue execution for GTM.
 Next Highest Priority: stop at LOCAL-ONLY verified state until owner asks for the next DSH step or for integration/commit work.
+## Loop Run
+Date: 2026-08-14 (CURSOR — hardened-dsh-build fail-closed)
+Goal: Finish pinned source-built DSH artifact, hardened Cordis closure, Linux CI smoke/SBOM, and honest reproducibility evidence without claiming false bit-identical success.
+Inspected: existing build-a/build-b proofs; Dockerfile/Cordis/smoke/assembler/CI; pkg SEA binary diffs; later clean rebuild leadgen-dsh:repro-a-fixed.
+Problems Found: (1) initial binary mismatch was only the random /tmp/pkg-sea-XXXXXX suffix; (2) pkg SEA cannot see Cordis under /etc/dsh; (3) after SEA normalization, a later clean rebuild still produced a different executable despite equal Cordis/closure proofs, so bit-identical reproducibility is not honest.
+Changed: SEA suffix normalization; Cordis moved to /usr/local/bin/cordis.yml; smoke/worker/child-env allowlist; CI evidence assembler now emits LINUX_CI_BLOCKED on hash mismatch and uploads artifacts even on failure; blocked evidence JSON + context sync.
+Tests Run: dsh_runtime_smoke.py PASS (shutdown 0.610s / cancel 3.047s); erify_dsh_supply_chain.py PASS; pytest supply+workforce 26 passed; prod_check.py PASS; check_secrets.py clean; compose --no-env-resolution PASS; assembler blocked exit 1 as expected.
+Verification Evidence: docs/evidence/DSH_LINUX_REPRODUCIBILITY_BLOCKED_20260814.json (shadow_must_not_proceed=true); SBOM 1275 components; forbidden packages empty; closure proofs equal.
+Risks: Shadow/deploy remain blocked until bit-identical binaries or explicit owner acceptance of non-bit-identical binary + content-addressed closure policy.
+Remaining: No commit/push/deploy; next owner/build decision on reproducibility policy.
+Next Highest Priority: Keep shadow fail-closed; choose bit-identical fix path or owner acceptance of closure-only binary policy.
+
+## Loop Run
+Date: 2026-08-14 (CURSOR — WS-DSH resume to completion, LOCAL-ONLY)
+Goal: Complete DeepSeek Harness Full Migration implementation in isolated worktree: smoke cancel, reproducibility/SBOM evidence, contract fixtures, targeted tests/gates, governance audit; leave canary/retirement owner-blocked.
+Inspected: smoke-a/smoke-b/final-local images; dsh_jobs/Dockerfile/worker/smoke/assembler; MCP mount include_operations; workforce_dispatch sole path; flags OFF; voice/telephony diff empty; plan todos vs AUTH-DEPLOY gates.
+Problems Found: (1) TERM-only cancel exceeded 5s — fixed TERM 2s then KILL within remaining budget; (2) Cordis under /etc/dsh invisible to pkg existsSync — canonical path `/usr/local/bin/cordis.yml`; (3) missing shadow gate/golden fixtures and migration contract JSON ignored by blanket `*.json`; (4) stale child-env test expectation missing `DSH_CORDIS_CONFIG`/`HOME`; (5) SEA normalizer second-pass no-op needed fail-closed after already-normalized path.
+Changed: smoke cancel escalation; child env/docs/tests; normalize_sea_binary fail-closed; regenerate migration/static evidence; add shadow gate + golden stubs; `.gitignore` allowlist for essential DSH JSON; SESSION_HANDOFF/CURRENT_STATE/ACTIVE_WORK/README truthful LOCAL-ONLY sync. Retarget helper folded into canonical Dockerfile (no retained retarget file).
+Tests Run: smoke smoke-a exit 0; smoke final-local exit 0; assemble_dsh_ci_evidence exit 0; verify_dsh_supply_chain exit 0; pytest DSH focused 40 passed; agent-runtime/registry 85 passed; owner/scheduler/staff 72 passed; ruff exit 0; git diff --check exit 0; prod_check exit 0; check_secrets exit 0.
+Verification Evidence: executable SHA both builds `4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6`; Linux summary `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json` (`LINUX_CI_VERIFIED`, cancel 2.672s, SBOM 1275); shadow gate `promotion_allowed=false`.
+Risks: No production claim. Canary/retirement remain OWNER-blocked. Sibling earlier `LINUX_CI_BLOCKED` note is superseded by later matching binary hash proof in this lane.
+Remaining: no commit/push/deploy/flag arm; AUTH-DEPLOY + soak evidence still required before authority.
+Next Highest Priority: Owner AUTH-DEPLOY decision only; do not arm DSH flags without separate authorization.

@@ -105,7 +105,9 @@ jobs:
       - name: Validate profile-gated production topology
         env:
           APP_VERSION: ${{ github.sha }}
-        run: docker compose --file docker-compose.vps.yml --profile dsh config --quiet
+        run: >-
+          docker compose --file docker-compose.vps.yml --profile dsh
+          config --no-env-resolution --quiet
 
       - name: Extract second closure proof
         run: |
@@ -150,6 +152,7 @@ jobs:
           --output "$RUNNER_TEMP/dsh-evidence/DSH_LINUX_CI_EVIDENCE.json"
 
       - name: Upload immutable proof bundle
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dsh-linux-evidence-${{ github.sha }}

@@ -19,6 +19,9 @@ ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 
 WORKDIR /src
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# hadolint ignore=SC1083
 RUN git init . \
     && git remote add origin "${DSH_REPOSITORY}" \
     && git fetch --depth=1 origin "${DSH_COMMIT}" \
@@ -59,11 +62,11 @@ RUN git apply --check --ignore-whitespace /policy/hardening.patch \
     && node --import tsx/esm scripts/build-exe-for-python-sdk.ts --targets=node24-linux-x64
 
 COPY deploy/dsh/verify_runtime.mjs /policy/verify_runtime.mjs
-COPY deploy/dsh/normalize_sea_binary.py /policy/normalize_sea_binary.py
 
 # @yao-pkg/pkg embeds its random mkdtemp suffix as diagnostic source metadata.
 # Replace exactly that equal-length suffix; fail if pkg changes the carrier
 # shape so two clean builds remain honestly bit-identical.
+# hadolint ignore=SC2016
 RUN node --input-type=module -e 'import { readFileSync, writeFileSync } from "node:fs"; const path = "dist-exe/dsh-jsonrpc-agent-pkg-linux-x64"; const data = readFileSync(path); const text = data.toString("latin1"); const matches = [...text.matchAll(/\/tmp\/pkg-sea-[A-Za-z0-9]{6}\/sea-main\.js/g)]; if (matches.length !== 1) throw new Error(`expected one pkg SEA temp path, found ${matches.length}`); const stable = Buffer.from("/tmp/pkg-sea-dsh000/sea-main.js", "latin1"); if (stable.length !== matches[0][0].length) throw new Error("pkg SEA replacement length changed"); stable.copy(data, matches[0].index); writeFileSync(path, data);' \
     && mkdir -p /out \
     && node /policy/verify_runtime.mjs \
@@ -84,11 +87,17 @@ LABEL org.opencontainers.image.title="LeadGen hardened DeepSeek Harness runtime"
       org.opencontainers.image.licenses="MIT"
 
 COPY --from=builder --chown=65532:65532 --chmod=0555 /out/dsh-jsonrpc-agent /usr/local/bin/dsh-jsonrpc-agent
-COPY --from=builder --chown=65532:65532 --chmod=0444 /out/cordis.yml /etc/dsh/cordis.yml
+# pkg existsSync can see /usr/local/bin (binary dir) but not freshly-created
+# /etc or /usr/local/etc trees from COPY in this distroless stage.
+COPY --from=builder --chown=65532:65532 --chmod=0444 /out/cordis.yml /usr/local/bin/cordis.yml
 COPY --from=builder --chown=65532:65532 --chmod=0444 /out/runtime-proof.json /usr/share/dsh/runtime-proof.json
 COPY --from=builder --chown=65532:65532 --chmod=0444 /out/SHA256SUMS /usr/share/dsh/SHA256SUMS
 COPY --from=builder --chown=65532:65532 --chmod=0444 /out/UPSTREAM_LICENSE /usr/share/licenses/dsh/UPSTREAM_LICENSE
 
+# pkg SEA embeds a fake argv[1]; real args start at argv[2].
+ENV DSH_CORDIS_CONFIG=/usr/local/bin/cordis.yml \
+    HOME=/tmp
 USER 65532:65532
 WORKDIR /run/dsh
-ENTRYPOINT ["/usr/local/bin/dsh-jsonrpc-agent", "/etc/dsh/cordis.yml"]
+ENTRYPOINT ["/usr/local/bin/dsh-jsonrpc-agent"]
+CMD ["/usr/local/bin/cordis.yml"]

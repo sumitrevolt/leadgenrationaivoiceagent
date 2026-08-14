@@ -20,6 +20,10 @@ REPLACEMENT = b"/tmp/pkg-sea-dsh000/sea-main.js"
 
 def normalize(path: Path) -> int:
     data = bytearray(path.read_bytes())
+    if REPLACEMENT in data:
+        raise SystemExit(
+            f"normalize_sea_binary: expected exactly one unnormalized pkg-sea path in {path}, found 0"
+        )
     matches = list(PATTERN.finditer(bytes(data)))
     if len(matches) != 1:
         raise SystemExit(

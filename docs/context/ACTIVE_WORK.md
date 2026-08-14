@@ -5,9 +5,9 @@
 ## WS-DSH DeepSeek Harness full migration (CURSOR LANE B)
 - **ID:** WS-DSH
 - **Business outcome:** Replace only the governed planning/turn/tool loop through a reversible, evidence-gated DSH path without introducing a second control plane or touching voice
-- **Current state:** **CODE-READY/INERT, LOCAL-ONLY** · ADR-181 contract + ADR-182 rollout/retirement policy present · rollout, rollback drill, and retirement checklist documented · `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, allowlist empty · no prod arm/deploy/canary promotion/legacy deletion
-- **Prep completed:** Evidence-gated waves frozen as shadow → Kavya RO → Isha draft → GREEN RO → GREEN mutators → Zara → AMBER; one-flag direct-executor rollback + exact-`APP_VERSION` rollback documented; legacy deletion blocked by 30 green days + game-day + caller scan + `/health`
-- **Next exact action (OWNER):** AUTH-DEPLOY decision; only after deploy evidence, separately authorize shadow flag arm and each subsequent canary promotion/soak. Legacy deletion remains a later separate owner decision.
+- **Current state:** **FAIL-CLOSED/INERT, LOCAL-ONLY** · hardened source build + smoke + SBOM green · clean-build executable hashes still differ despite equal closure proofs and SEA suffix normalization · `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`
+- **Prep completed:** Hardened Cordis closure, pkg-visible config path, Linux fake MCP/model lifecycle smoke, CycloneDX SBOM, and CI blocker artifact
+- **Next exact action (OWNER/BUILD):** Do not deploy or arm shadow. Either achieve bit-identical executable output or explicitly accept a non-bit-identical binary policy backed by content-addressed closure proof; all later rollout gates remain separate.
 - **Out of scope:** Any deploy/flag arm/promotion/deletion without owner authorization · plan-file edits · stock wheel/direct embedding/default tools/direct provider access · voice migration
 
 ---

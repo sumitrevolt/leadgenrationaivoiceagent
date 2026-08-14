@@ -20,35 +20,27 @@ performed. `DSH_RUNTIME_ENABLED` and `DSH_SHADOW_ENABLED` remain default-OFF.
 
 ## Green local evidence
 
-- `pytest tests/test_dsh_shadow_evidence_gate.py -q` — **10 passed, exit 0**
-- `pytest tests/test_dsh_workforce_runtime.py -q` — **21 passed, exit 0**
-- agent-runtime governance/idempotency/cancellation group — **87 passed, exit 0**
-- harness registry/shadow/session/enforce group — **156 passed, exit 0**
-- scheduler routing + parity + Owner OS + agent registry group —
-  **54 passed, exit 0**
-- Total bounded regression evidence above: **328 passed**
-- `ruff check tests/test_dsh_shadow_evidence_gate.py` — **exit 0**
-- `git diff --check` — **exit 0**
-- frozen diff scan under `app/voice_agent` and `app/telephony` — **0 paths**
-- `scripts/prod_check.py` — **exit 0**, 1,280 routes checked, zero wiring gaps
-- `scripts/check_secrets.py` — **exit 0**, no secrets detected in changed files
+- Hardened source pin: commit `47f943859bef60e4160492346772ded9b24f765a`,
+  tree `f904efab9ef435201d6ba4da88a34d6366568272`, archive SHA-256
+  `c2d8d1e9ec24f0500da431288d2c0c80cf3f502d4dbda2026bd87ac099f3e2e6`.
+- Two independent no-cache build artifacts are bit-identical: executable
+  SHA-256 `4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6`.
+- Canonical image build and smoke: fake MCP/model passed, clean shutdown
+  **0.485s**, TERM→KILL cancellation **2.672s**, Docker internal-only network.
+- Pinned Syft generated an honest CycloneDX SBOM with **1,275 components**.
+- DSH focused suites: supply **5**, workforce **21**, shadow **10**, migration
+  contract **4** = **40 passed**, all exit 0.
+- Affected agent-runtime/registry group: **85 passed**, exit 0.
+- Owner API/scheduler/staff group: **72 passed**, exit 0.
+- Frozen diff scan under `app/voice_agent` and `app/telephony`: **0 paths**.
+- Runtime summary: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`.
 
 ## Exact blockers / deliberately unverified
 
-1. `tests/test_dsh_supply_chain.py`: **3 passed, 1 failed**. The deterministic
-   static evidence input hashes no longer match
-   `docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json`. Those build/evidence
-   files are sibling-owned; this lane did not rewrite their proof.
-2. `tests/test_dsh_migration_contract.py` determinism test exceeded the bounded
-   local run while `render_contract_json()` repeated the repository AST scan.
-   The 90-second pytest timeout emitted the stack in `_scan_runtime_usage`;
-   process completion took about 231 seconds. This lane did not edit the
-   sibling-owned generator or committed contract outputs.
-3. Linux source build, executable reproducibility, final-image SBOM/licences,
-   fake-gateway container smoke, and hard process cancellation in the actual
-   Linux image remain CI/build-lane evidence.
-4. The 2,000-turn / 14-day shadow soak, production trace hashes, drift metrics,
-   and owner promotion authorization are **not done**. Promotion remains
-   mechanically represented as blocked.
-5. `prod_check.py` passed but reported the generated `API.md` endpoint index as
-   out of date; API doc synchronization remains with the implementation lane.
+1. The 120-case golden execution, 2,000-turn / 14-day production shadow soak,
+   latency/failure/DLQ metrics, and production trace hashes are **not done**.
+2. AUTH-DEPLOY, shadow arm, every authority wave, and final legacy deletion
+   each require separate owner authorization.
+3. Legacy removal remains blocked until 30 consecutive green production days,
+   a recorded rollback game-day, caller/import scan, direct `/health` evidence,
+   and separate deletion authorization.

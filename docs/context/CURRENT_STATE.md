@@ -4,7 +4,7 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — WS-DSH migration contract slice verified as LOCAL-ONLY in this isolated worktree. ADR-181 is append-only, DSH scope is planning/turn/tool loop only, all DSH flags remain OFF, and no deploy/authority/retirement claim is made from this session. Historical prod notes below were not re-probed as part of this DSH slice.
+2026-08-14 — WS-DSH hardened build verified LOCAL-ONLY: pinned source build, hardened Cordis closure, Linux smoke/SBOM, and fail-closed reproducibility evidence. Executable bit identity is NOT proven across the later clean rebuild, so shadow is blocked. All DSH flags remain OFF; no deploy/authority/retirement claim is made. Historical prod notes below were not re-probed.
 
 ## LOCAL-ONLY — DeepSeek Harness migration contract (2026-08-14)
 - Label: LOCAL-ONLY | CODE-PRESENT | TEST-PROVEN (targeted local suites only)
@@ -12,7 +12,10 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 - ADR-181 conditionally supersedes only for an owner-mandated hardened source-built Linux path
 - Canonical controls remain unchanged: Celery, Python domain engines, `agent_registry`, Owner OS approvals, tenant/compliance/billing controls
 - Workforce contract is frozen at 31 identities preserved / 29 migratable / `swara` + `ananya` RED/HARD_OFF excluded from DSH
-- Evidence artifacts: `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json`, `tests/fixtures/dsh_migration_contract.json`, `docs/architecture/DEEPSEEK_HARNESS_MIGRATION.md`, `tests/test_dsh_migration_contract.py`
+- Build evidence: Cordis/closure proofs equal and forbidden packages empty, but clean-build executable hashes differ after SEA temp-suffix normalization; bit-identical claim retracted
+- Linux smoke green on Docker-internal-only network: fake MCP/model passed, shutdown `0.610s`, hard cancel `3.047s`; CycloneDX SBOM has 1,275 components
+- Evidence artifacts: `docs/evidence/DSH_LINUX_REPRODUCIBILITY_BLOCKED_20260814.json`, `docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json`, `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json`
+- Shadow remains mechanically blocked: binary reproducibility gate plus 120 golden cases + 2,000 turns / 14 days + owner authorization are not production-proven
 - Workstream posture: `WS-DSH` active, `WS-GTM1` active, `WS-SEC` active, `WS-UPI304` parked on external wait
 
 ## DEPLOYED 2026-08-13/14 — `2326c931` (PR #327 mypy land)

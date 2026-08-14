@@ -232,6 +232,8 @@ def test_dsh_container_has_default_deny_egress_and_no_child_secrets() -> None:
         "DSH_RUN_TOKEN",
         "DSH_MCP_URL",
         "DSH_LLM_BASE_URL",
+        "DSH_CORDIS_CONFIG",
+        "HOME",
     }
 
 

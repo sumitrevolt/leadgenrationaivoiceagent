@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -67,7 +68,7 @@ def assemble(
         raise EvidenceFailure("runtime smoke did not use an internal-only network")
     for field in ("clean_shutdown_seconds", "hard_cancellation_seconds"):
         value = smoke.get(field)
-        if not isinstance(value, (int, float)) or value > 5:
+        if not isinstance(value, int | float) or value > 5:
             raise EvidenceFailure(f"runtime lifecycle bound failed: {field}")
 
     return {
@@ -105,6 +106,62 @@ def assemble(
     }
 
 
+def assemble_blocked(
+    *,
+    reason: str,
+    runtime_proof_a: Path,
+    runtime_proof_b: Path,
+    binary_a_path: Path,
+    binary_b_path: Path,
+    sbom_path: Path,
+    smoke_path: Path,
+) -> dict[str, Any]:
+    """Render a durable blocker without converting a failed gate into success."""
+    proof_a = _load(runtime_proof_a)
+    proof_b = _load(runtime_proof_b)
+    sbom = _load(sbom_path)
+    smoke = _load(smoke_path)
+    binary_a = _sha256(binary_a_path)
+    binary_b = _sha256(binary_b_path)
+    closure_a = {key: value for key, value in proof_a.items() if key != "binary_sha256"}
+    closure_b = {key: value for key, value in proof_b.items() if key != "binary_sha256"}
+    return {
+        "schema_version": 1,
+        "evidence_label": "LINUX_CI_BLOCKED",
+        "runtime_state": "INERT_SHADOW_BLOCKED",
+        "gate": "binary_reproducibility",
+        "reason": reason,
+        "reproducibility": {
+            "independent_builds": 2,
+            "status": "NOT_BIT_IDENTICAL",
+            "bit_identical": binary_a == binary_b,
+            "executable_sha256_a": binary_a,
+            "executable_sha256_b": binary_b,
+            "closure_proofs_equal": closure_a == closure_b,
+            "normalized_nondeterminism": ["pkg_sea_mkdtemp_suffix"],
+        },
+        "owner_decision_required": (
+            "accept_non_bit_identical_binary_with_content_addressed_closure_proof"
+        ),
+        "security_observed": {
+            "forbidden_packages_a": proof_a.get("forbidden_packages"),
+            "forbidden_packages_b": proof_b.get("forbidden_packages"),
+            "licences": proof_a.get("licences"),
+            "sbom_format": sbom.get("bomFormat"),
+            "sbom_component_count": len(sbom.get("components") or []),
+            "network_mode": smoke.get("network_mode"),
+            "child_env_names": smoke.get("child_env_names"),
+        },
+        "lifecycle_observed": {
+            "fake_model": smoke.get("fake_model"),
+            "fake_mcp": smoke.get("fake_mcp"),
+            "clean_shutdown_seconds": smoke.get("clean_shutdown_seconds"),
+            "hard_cancellation_seconds": smoke.get("hard_cancellation_seconds"),
+        },
+        "shadow_must_not_proceed": True,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime-proof-a", type=Path, required=True)
@@ -115,15 +172,38 @@ def main() -> int:
     parser.add_argument("--smoke", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    evidence = assemble(
-        runtime_proof_a=args.runtime_proof_a,
-        runtime_proof_b=args.runtime_proof_b,
-        binary_a_path=args.binary_a,
-        binary_b_path=args.binary_b,
-        sbom_path=args.sbom,
-        smoke_path=args.smoke,
-    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        evidence = assemble(
+            runtime_proof_a=args.runtime_proof_a,
+            runtime_proof_b=args.runtime_proof_b,
+            binary_a_path=args.binary_a,
+            binary_b_path=args.binary_b,
+            sbom_path=args.sbom,
+            smoke_path=args.smoke,
+        )
+    except EvidenceFailure as exc:
+        evidence = assemble_blocked(
+            reason=str(exc),
+            runtime_proof_a=args.runtime_proof_a,
+            runtime_proof_b=args.runtime_proof_b,
+            binary_a_path=args.binary_a,
+            binary_b_path=args.binary_b,
+            sbom_path=args.sbom,
+            smoke_path=args.smoke,
+        )
+        # Never leave a prior LINUX_CI_VERIFIED claim at the requested output path.
+        evidence["retracted_prior_claim"] = (
+            "BIT_FOR_BIT_REPRODUCIBLE / LINUX_CI_VERIFIED must not be trusted "
+            "when this blocker is present"
+        )
+        payload = f"{json.dumps(evidence, indent=2, sort_keys=True)}\n"
+        args.output.write_text(payload, encoding="utf-8")
+        blocker = args.output.with_name("DSH_LINUX_REPRODUCIBILITY_BLOCKED_20260814.json")
+        if blocker.resolve() != args.output.resolve():
+            blocker.write_text(payload, encoding="utf-8")
+        print(f"DSH_LINUX_CI_EVIDENCE_BLOCKED reason={exc}", file=sys.stderr)
+        return 1
     args.output.write_text(f"{json.dumps(evidence, indent=2, sort_keys=True)}\n", encoding="utf-8")
     print(
         "DSH_LINUX_CI_EVIDENCE_OK "

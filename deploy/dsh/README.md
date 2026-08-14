@@ -7,7 +7,8 @@ wheel, default Cordis composition, and direct provider adapters are not used.
 Security boundary:
 
 - one process per governed run;
-- only `DSH_RUN_TOKEN`, `DSH_MCP_URL`, and `DSH_LLM_BASE_URL` enter the child;
+- only `DSH_RUN_TOKEN`, `DSH_MCP_URL`, `DSH_LLM_BASE_URL`, and the fixed
+  non-secret `DSH_CORDIS_CONFIG`/`HOME` paths enter the child;
 - only the internal streamable-HTTP MCP gateway and free-AI proxy are reachable;
 - no Bash, filesystem mutation, jobs, browser, subagent, scheduler, skills,
   workspace discovery, telemetry, or direct-provider package in the closure;
@@ -41,5 +42,18 @@ shadow rollout.
 suffix into otherwise identical executables. The build replaces exactly one
 equal-length diagnostic suffix with `pkg-sea-dsh000` and fails closed if the
 upstream carrier layout changes. CI extracts both executables and independently
-hashes them; `BIT_FOR_BIT_REPRODUCIBLE` is emitted only when both artifact
-hashes and both closure proofs match.
+hashes them; `BIT_FOR_BIT_REPRODUCIBLE` / `LINUX_CI_VERIFIED` is emitted only
+when both artifact hashes and both closure proofs match. Hash mismatch writes
+`LINUX_CI_BLOCKED` and exits non-zero — shadow must not proceed.
+
+Current local gate (2026-08-14): **PAIR-PROVEN / INERT**. Extracted
+`leadgen-dsh:smoke-a` and `:smoke-b` binaries both hash to
+`4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6`;
+closure proofs match, fake MCP/model smoke passed on the canonical image
+(shutdown `0.485s`, cancel `2.672s`), and pinned Syft produced a CycloneDX
+SBOM (1,275 components). Summary:
+`docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`.
+A historical unequal-rebuild investigation note remains at
+`docs/evidence/DSH_LINUX_REPRODUCIBILITY_BLOCKED_20260814.json` and is marked
+superseded for that smoke pair. CI still fail-closes on any hash mismatch.
+This does **not** authorize deploy, shadow arm, or authority promotion.
