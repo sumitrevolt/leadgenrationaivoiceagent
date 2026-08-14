@@ -9,7 +9,6 @@ import pytest
 
 from app.platform import office_briefing as ob
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,7 +50,9 @@ def test_scheduled_brief_skips_safely_when_automation_is_unhealthy(monkeypatch):
         return {"ok": True}
 
     monkeypatch.setattr(ob, "build_briefing", _fake_build)
-    monkeypatch.setattr(ob, "_log_scheduled_event", lambda status, detail: events.append((status, detail)))
+    monkeypatch.setattr(
+        ob, "_log_scheduled_event", lambda status, detail: events.append((status, detail))
+    )
 
     out = _run(ob.run_scheduled())
 
@@ -63,8 +64,11 @@ def test_scheduled_brief_skips_safely_when_automation_is_unhealthy(monkeypatch):
     assert "ops" in events[0][1]
 
 
-def test_scheduled_brief_reuses_daily_cache_and_stays_draft_only(monkeypatch):
+def test_scheduled_brief_reuses_daily_cache_and_notifies_owner_once(tmp_path, monkeypatch):
+    from app.integrations import ntfy
+
     monkeypatch.setenv("HOT_QUEUE_BRIEF_DAILY", "true")
+    monkeypatch.setattr(ob, "_DIR", str(tmp_path))
     monkeypatch.setattr(
         ob,
         "_scheduler_health",
@@ -72,23 +76,63 @@ def test_scheduled_brief_reuses_daily_cache_and_stays_draft_only(monkeypatch):
     )
     force_args = []
     events = []
+    pushes = []
 
     async def _fake_build(*, force=False):
         force_args.append(force)
-        return {"ok": True, "date": "2026-07-10", "text": "Hot Queue me 3 pending.", "cached": bool(force_args[1:])}
+        return {
+            "ok": True,
+            "date": "2026-07-10",
+            "text": "Hot Queue me 3 pending.",
+            "cached": bool(force_args[1:]),
+        }
+
+    async def _fake_push(title, message, **kwargs):
+        pushes.append((title, message, kwargs))
+        return True
 
     monkeypatch.setattr(ob, "build_briefing", _fake_build)
-    monkeypatch.setattr(ob, "_log_scheduled_event", lambda status, detail: events.append((status, detail)))
+    monkeypatch.setattr(
+        ob, "_log_scheduled_event", lambda status, detail: events.append((status, detail))
+    )
+    monkeypatch.setattr(ntfy, "push", _fake_push)
 
     first = _run(ob.run_scheduled())
     second = _run(ob.run_scheduled())
 
     assert first["ok"] is True and second["ok"] is True
     assert force_args == [False, False]
+    assert first["owner_notification"]["sent"] is True
+    assert second["owner_notification"]["skipped"] == "already_notified"
+    assert len(pushes) == 1
+    assert pushes[0][2]["actions"][0]["url"].endswith("/app/inbox")
     assert all(status == "ok" for status, _detail in events)
     assert not hasattr(ob, "send_email")
     assert not hasattr(ob, "send_whatsapp")
     assert not hasattr(ob, "place_call")
+
+
+def test_owner_notification_retries_then_releases_claim(tmp_path, monkeypatch):
+    from app.integrations import ntfy
+
+    monkeypatch.setattr(ob, "_DIR", str(tmp_path))
+    pushes = []
+
+    async def _failed_push(*args, **kwargs):
+        pushes.append((args, kwargs))
+        return False
+
+    monkeypatch.setattr(ntfy, "push", _failed_push)
+
+    out = _run(
+        ob._notify_owner_once(
+            {"date": "2026-08-14", "text": "Do payment follow-ups owner action me pending hain."}
+        )
+    )
+
+    assert out == {"sent": False, "attempts": 2, "skipped": "notify_failed"}
+    assert len(pushes) == 2
+    assert not Path(ob._notification_path("2026-08-14")).exists()
 
 
 @pytest.mark.parametrize(
@@ -206,7 +250,12 @@ def test_cache_write_failure_is_reported_and_claim_released(tmp_path, monkeypatc
 
 
 def test_run_job_returns_failure_for_celery_wrapper(monkeypatch):
-    from app.platform import automation_health, automation_log_service, scheduler_config, team_scheduler
+    from app.platform import (
+        automation_health,
+        automation_log_service,
+        scheduler_config,
+        team_scheduler,
+    )
 
     async def _failed(_job):
         return False
