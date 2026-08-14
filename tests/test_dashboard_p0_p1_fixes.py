@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CUSTOMER = (ROOT / "frontend" / "customer_dashboard.html").read_text(encoding="utf-8")
 ADMIN = (ROOT / "frontend" / "admin_dashboard.html").read_text(encoding="utf-8")
@@ -14,9 +13,9 @@ def test_setup_review_cta_has_explicit_seed_button_contract():
 
 
 def test_customer_identity_never_uses_url_client_id_fallback():
-    assert "qparam(\"client_id\")" not in CUSTOMER
-    assert "return localStorage.getItem(\"lgai_cid\") || \"demo\";" not in CUSTOMER
-    assert "window.location.replace(\"/app/login?next=\"" in CUSTOMER
+    assert 'qparam("client_id")' not in CUSTOMER
+    assert 'return localStorage.getItem("lgai_cid") || "demo";' not in CUSTOMER
+    assert 'window.location.replace("/app/login?next="' in CUSTOMER
 
 
 def test_webhook_metadata_and_delivery_errors_are_auth_honest():
@@ -56,3 +55,10 @@ def test_god_mode_success_paths_use_admin_toast():
     assert "alert('✅ Sentry saved" not in ADMIN
     assert "alert('✅ PostHog saved')" not in ADMIN
     assert "alert('✅ UPI VPA save" not in ADMIN
+
+
+def test_marketing_suite_has_today_start_here():
+    html = (ROOT / "frontend" / "marketing.html").read_text(encoding="utf-8")
+    assert 'id="mktStartHere"' in html
+    assert 'href="/app/inbox"' in html
+    assert "Aaj kya karna hai" in html
