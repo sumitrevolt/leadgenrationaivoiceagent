@@ -5,9 +5,9 @@
 # Core Framework
 # =============================================================================
 fastapi==0.141.1
-uvicorn[standard]==0.52.0
+uvicorn[standard]==0.52.1
 pydantic>=2.7.4,<3
-pydantic-settings==2.14.2
+pydantic-settings==2.15.0
 email-validator==2.3.0
 python-multipart==0.0.32
 
@@ -18,7 +18,7 @@ sqlalchemy==2.0.51
 asyncpg==0.31.0
 psycopg2-binary==2.9.12
 aiosqlite==0.22.1
-alembic==1.18.5
+alembic==1.19.1
 redis==5.0.1
 aioredis==2.0.1
 
@@ -26,17 +26,17 @@ aioredis==2.0.1
 # AI/ML - Cloud-based APIs
 # =============================================================================
 openai==1.12.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) — see app/voice_agent/free_ai.py
-anthropic==0.120.2
+anthropic==0.121.0
 # langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.3 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.8.6
-google-genai>=2.16.0  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-genai>=2.17.0  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
 google-cloud-aiplatform==1.163.0
 
 # =============================================================================
 # Vector RAG (Qdrant + fastembed e5 embeddings — KB backend)
 # =============================================================================
-qdrant-client>=1.12.0
+qdrant-client>=1.19.0
 fastembed>=0.4.0
 
 # =============================================================================
@@ -73,7 +73,7 @@ googlemaps==4.10.0
 requests==2.34.2
 aiohttp==3.14.3
 httpx==0.28.1
-aiosmtplib==5.1.1
+aiosmtplib==5.1.2
 
 # =============================================================================
 # CRM Integrations
@@ -118,12 +118,12 @@ psutil>=5.9.0
 # =============================================================================
 google-cloud-secret-manager>=2.30.0
 google-cloud-storage>=2.14.0
-google-cloud-logging>=3.16.1
+google-cloud-logging>=3.16.2
 # S3-compatible storage (MinIO addon — app/storage/minio_client.py). Import-safe:
 # missing => local-disk fallback. Needed only if docker-compose.addons.yml minio used.
 boto3>=1.34.0
 google-cloud-monitoring>=2.18.0
-google-auth>=2.56.2
+google-auth>=2.56.3
 
 # =============================================================================
 # Authentication
@@ -147,11 +147,11 @@ langchain-core>=1.5.3
 # Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) — opt-in
 # (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
 langgraph-supervisor>=0.0.27
-langchain-openai>=1.4.1  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+langchain-openai>=1.4.2  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
 # Knowledge-graph RAG (app/voice_agent/graph_rag.py) — opt-in USE_LIGHTRAG=1.
 # Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
 # (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep — reuses KB + free_ai.)
-lightrag-hku>=1.5.5
+lightrag-hku>=1.5.6
 # AI-automation + marketing helpers (opt-in, defensive — graceful fallback if absent):
 instructor>=1.15.4     # validated/typed LLM outputs over free providers (app/llm/structured.py)
 advertools>=0.18.0    # SEM keyword + RSA ad generation (app/marketing/seo_tools.py)
