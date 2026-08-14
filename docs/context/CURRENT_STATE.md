@@ -4,11 +4,12 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-13 — prod `/health` = `2326c931` (AUTH-DEPLOY, PR #327 mypy land). `origin/main` tip = `8217de4` (includes #353 checkout pin, #352 regression fixes) — NOT DEPLOYED; prod remains `2326c931` until Owner OS AUTH-DEPLOY.
+2026-08-14 — prod `/health` last probed = `2326c931`. ADR-180 SessionEvent steal CODE-PRESENT INERT (`HARNESS_SESSION_EVENTS=0`). Hygiene archive on this landing branch. Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`). `origin/main` also holds #353/#352 undeployed until this AUTH-DEPLOY.
 
-## DEPLOYED 2026-08-12 (estimated) — `2326c931` (PR #327 mypy land)
-**Prod `/health` = `2326c931`** (AUTH-DEPLOY). Deploy timestamp estimated 2026-08-12 (inherited from previous probe notes; exact time not re-probed). Includes: PR #327 (mypy landmines), and all content from prior `9c47647c` (PR #332 ADR-177 batch, #330, #329).
-`origin/main` has advanced: #353 `8217de4` (checkout pin) and #352 `cfa2cf27` (regression fixes) are ON MAIN but NOT DEPLOYED. Prod remains `2326c931` until next deploy.
+## DEPLOYED 2026-08-13/14 — `2326c931` (PR #327 mypy land)
+**Prod `/health` = `2326c931`** (DIRECT_HOST_VERIFIED 2026-08-14). Includes PR #327 and ancestry of `9c47647c` (PR #332 ADR-177, #330, #329).
+`origin/main` had advanced past prod (#353 checkout pin, #352 regression fixes) before this merge. Next AUTH-DEPLOY ships that plus ADR-180 + hygiene archive.
+Label: DIRECT_HOST_VERIFIED (2026-08-14)
 **#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
 Label: DIRECT_HOST_VERIFIED (2026-08-13 hub sunny ops update)
 

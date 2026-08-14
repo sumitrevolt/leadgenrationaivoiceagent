@@ -1,22 +1,21 @@
-# SESSION_HANDOFF — 2026-08-12 (Cursor: PR queue land + freebuff cleanup)
+# SESSION_HANDOFF — 2026-08-14 (Cursor: merge unique branches then AUTH-DEPLOY)
 
 ## Status
-**PR QUEUE LAND GO (PARTIAL only on orphans + Dependabot).** Docs/security residuals merged. Freebuff gitlinks gone (Gate A green). No deploy. No flag arm.
+**Landing unique shippable work onto main, then VPS deploy.** ADR-180 INERT. Hygiene archive included. WIP/rejected shims NOT merged. Voice FROZEN.
 
 ## Facts
-- `origin/main` tip = **`94cc6e44`** (#343 SSRF test CodeQL silence; ancestry includes #340/#341/#336/#339/#342)
-- Freebuff tracked placeholders: **0**
-- Worktrees registered: **1** (primary `main` only)
-- Closed obsolete: #338 buzz residual · #337 pytest9 (greenlet SIGSEGV exit-139)
-- Dependabot #322–#328 untouched
-- CP5 local WIP discarded (was `.venv-sec` / `.sec-scratch` junk)
+- Prod last probed = `2326c931` (re-probe after deploy)
+- Unique MERGE: `cursor/archive-duplicate-playbooks-deploy-wrappers` (hygiene `8bad08df` + ADR-180 `d84d1ff5`) onto `origin/main` `da9ea10e`
+- SKIP: WIP lg00/freebuff, checkpoint `817173bf` (gitlinks + ledger), customer-auth shims `f5a232e3` (rejected by #352)
+- Stash kept: `hygiene leftovers pre-main-merge 20260814` (refuse-bat stubs)
 
 ## Do not
-- Deploy / arm `STAFF_BUS_ENABLED` / `GSC_ENABLED` / `DUNNING` / `BOSS_DECISION_GOVERNANCE`
-- Mass-merge Dependabot
-- Force-merge greenlet/pytest9 tips
+- Arm `HARNESS_SESSION_EVENTS` / `AGENT_HARNESS` / `STAFF_BUS_ENABLED` / `GSC_ENABLED` / `DUNNING_ENGINE` / `BOSS_DECISION_GOVERNANCE`
+- Vendor `deepseek-ai/deepseek-harness`
+- Edit Voice/Swara
+- `git worktree remove` registered `.freebuff` trees
+- Recreate containers without `APP_VERSION=<sha>`
 
-## Next (owner)
-1. Hot Queue + UPI ops (revenue blockers — not code)
-2. Dependabot packet separate
-3. Manual delete orphan dirs when unlocked (boss-second-brain, buzz-multi-agent)
+## Next
+1. PR-merge to main → `deploy_vps.sh` with kill fence
+2. Hot Queue `/app/inbox` still 2nd-paid blocker

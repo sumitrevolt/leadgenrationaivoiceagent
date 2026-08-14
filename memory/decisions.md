@@ -2,6 +2,30 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## ADR-180 (2026-08-14) — Steal dsh SessionEvent + hash-chain into existing harness [CODE-PRESENT, INERT]
+
+**Decision:** Harvest DeepSeek Harness *patterns only* into `app/agents/harness/`: typed `SessionEvent` (`session.py`), per-run `seq`/`prev_hash`/`event_hash` stamp on `audit.record`, and `Harness.run()` turn_start / turn_end + optional `pre_step` reject hook. Flag **`HARNESS_SESSION_EVENTS=0` default**. Do **not** vendor `dsh`, Cordis, pnpm, or a second agent runtime (ADR-179 stands).
+
+**Context:** Owner asked to enhance the project from the dsh repo after ADR-179 rejected the dependency. Gap vs OB-01: jsonl was append-only but not hash-chained; no typed turn envelope. Named profiles already exist as `Harness.step(..., profile=)`.
+
+**Alternatives rejected:** (1) Submodule / `npx @deepseek-ai/dsh` — ADR-179. (2) Always-on hash fields — would break historical JSONL readers. (3) Redis-tip WORM in this slice — process-local chain is enough for canary; durable tip is a later steal.
+
+**Consequence:** CODE-PRESENT INERT. Kill = unset/`0`. Do not arm with `AGENT_HARNESS` in prod. Replay ignores extra fields when flag off. Steal-list #1 in `memory/backlog.md` is no longer parked.
+
+## ADR-179 (2026-08-14) — DeepSeek Harness (`dsh`): REJECT as runtime/dep; DeepSeek stays a MODEL [EVAL]
+
+**Context:** Owner asked to add https://github.com/deepseek-ai/deepseek-harness.git if beneficial. `dsh` (MIT, v0.1 developer preview, released 2026-08-13) is a TypeScript/pnpm Cordis microkernel: "everything is a plugin" (models, tools, skills, sessions, sandboxes, loops, scheduling, UI). Official warning: compatibility-breaking changes. Launch: `npx @deepseek-ai/dsh web`.
+
+**Council:** Architect — second agent framework vs existing `app/agents/harness/` (registry/enforce/sandbox/loop, ADR-131/132) = duplicate control plane. SRE — Node island on a Python FastAPI/Celery VPS; preview pins are a deploy landmine (ADR-097 class). Product — GTM blocker is Hot Queue outreach, not a new coding-agent UI. FinOps — DeepSeek-as-model already on free OmniRoute combo (`deepseek-v4-flash-free`); a second harness burns tokens without a money-path.
+
+**Decision:** Do **not** git-submodule, `pnpm install`, or vendor `dsh` into this tree. Do **not** replace coordinator / staff_bus / OpenClaw / Buzz / `dev_control.external_agents`. DeepSeek remains a **free-stack LLM provider**, not a second orchestrator.
+
+**Allow (parked, no code this session):** harvest *ideas* later — named plugin profiles (`web` vs `headless`), append-only `SessionEvent` log, guarded tool pipeline — into existing `app/agents/harness/` only after `dsh` leaves developer-preview. Same shape as ADR-159 (MetaGPT) and ADR-173 (claw-orchestrator).
+
+**Alternatives rejected:** (1) Submodule + `dsh web` as Owner OS — second scheduler/LLM gateway, Creative OS invariant #1 and charter "copy neighbour". (2) Thin Python wrapper around `dsh` headless — still a Node runtime + breaking APIs. (3) Wait forever with no record — next agent would re-eval.
+
+**Consequence:** No new dep, no prod flag, no deploy. Steal-list in `memory/backlog.md`. Revisit only if `dsh` ≥1.0 stable AND a named gap in our harness is proven (eval/trace), not because star-count moved.
+
 ## ADR-178 (2026-08-11) — Guest UPI `#304` bind path (CODE-PRESENT, deploy WAIT)
 
 **Decision:** Guest / empty-`client_id` UPI approve is no longer a dead-end. Add `list_actionable()` (pending + approved-but-unbound), `bind_client()`, optional `client_id` on approve, `POST /api/upi/pending/{pid}/bind`, Self-Serve + God Mode Bind UI, and route Admin Office + 08:30 digest through `list_actionable`.
