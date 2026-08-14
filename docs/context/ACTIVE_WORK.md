@@ -5,7 +5,7 @@
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** Technical READY · All routes LIVE · Owner outreach execution blocking only · Evidence `docs/evidence/REVENUE_READY_20260812.md` + live 2026-08-14 `ready_for_first_paid_customer=true`
+- **Current state:** Technical READY · CODE-PRESENT this session: admin/inbox/marketing "Aaj" path Hot Queue pe; owner outreach + UPI confirm still the revenue gate · Evidence `docs/evidence/REVENUE_READY_20260812.md` + live 2026-08-14 `ready_for_first_paid_customer=true`
 - **Next exact action:** Owner daily Hot Queue blitz (15 min/day at `/app/inbox`) + UPI approval when payment arrives
 - **Out of scope:** Deploy · flag arm · lead magnet traffic generation
 

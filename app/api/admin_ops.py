@@ -226,11 +226,13 @@ def _leads_ready() -> dict:
             connect_timeout=4,
         )
         cur = conn.cursor()
-        cur.execute("""SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
+        cur.execute(
+            """SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
             FROM leads
             WHERE phone IS NOT NULL AND phone <> ''
               AND COALESCE(call_attempts,0) = 0
-            GROUP BY 1 ORDER BY 2 DESC LIMIT 15""")
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 15"""
+        )
         rows = cur.fetchall()
         conn.close()
         by_niche = [{"niche": r[0], "count": int(r[1])} for r in rows]
@@ -792,6 +794,30 @@ def _admin_office() -> dict:
             return int(fn() or 0)
         except Exception:
             return 0
+
+    # 0) Hot Queue — GTM 0→1 bottleneck (owner 15-min sprint). Auto-send nahi.
+    def _hq() -> int:
+        from app.platform import reply_agent
+
+        return len(reply_agent.hot_queue(limit=50, scope="boss") or [])
+
+    n = _safe(_hq)
+    if n > 0:
+        tasks.append(
+            {
+                "id": "hot_queue",
+                "icon": "🔥",
+                "severity": "high",
+                "count": n,
+                "title": f"{n} Hot Queue replies aaj follow-up maangte hain",
+                "why": "Interested/question replies — 15 min sprint: Call/WA draft, phir Done. Auto-send nahi.",
+                "impact": "speed-to-lead = next paying Marketing customer",
+                "cta_label": "Hot Queue kholo",
+                "cta_target": "adminStartHere",
+                "cta_href": "/app/inbox",
+                "cta_action": "open_href",
+            }
+        )
 
     # 1) Self-improve approvals — agents waiting for the go-ahead
     def _si() -> int:

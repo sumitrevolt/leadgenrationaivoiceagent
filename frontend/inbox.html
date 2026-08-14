@@ -11,8 +11,10 @@
 body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1000px;margin:auto}
 h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
 input{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:.85rem}
-button{background:var(--acc);border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.85rem}
+button{background:var(--acc);border:0;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:.85rem;min-height:44px;min-width:44px}
 button.ghost{background:#222636}
+a.act,a.wa{min-height:44px;display:inline-flex;align-items:center;padding:8px 10px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .tab{background:#222636;border:1px solid var(--line);color:var(--mut);padding:7px 14px;border-radius:10px;cursor:pointer;font-size:.85rem}
@@ -37,13 +39,18 @@ a.wa{color:var(--ok)}
 <div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
 <h1>📥 Unified Inbox</h1>
 <div class="sub">Boss rule: samajh aaye → Done/Call/WA. Nahi samajhe → <b>Council Decide</b> (multi-LLM). Auto-send nahi — sirf ACTION apply.</div>
-<div class="bar">
-  <input id="tok" type="password" placeholder="Admin token paste karo" style="width:260px">
+<div class="card" id="hqSprint" style="border-color:#8b5cf6">
+  <b class="t">⏱️ Aaj ka 15-minute Hot Queue sprint</b>
+  <div class="mut">Pehla card = sabse zaroori. Call/WA draft kholo, human bheje, phir Done. Cold WhatsApp auto-send yahan nahi hai.</div>
+</div>
+<div class="bar" id="tokBar">
+  <input id="tok" type="password" placeholder="Admin token paste karo" style="width:260px;min-height:44px" aria-label="Admin token">
   <button onclick="saveTok()">Save</button>
   <button class="ghost" onclick="load()">↻ Reload</button>
   <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem">login →</a>
-  <span id="err" class="msg" style="color:var(--bad)"></span>
+  <span id="err" class="msg" style="color:var(--bad)" role="status" aria-live="polite"></span>
 </div>
+<button class="ghost" id="tokAdv" type="button" style="display:none;margin-bottom:10px" onclick="document.getElementById('tokBar').style.display='flex'">🔑 Token / advanced</button>
 <div class="tabs" id="tabs"></div>
 <div id="s_hotq" class="sec on"></div>
 <div id="s_hot" class="sec"></div>
@@ -143,10 +150,12 @@ function copyPayLink(btn){
 }
 
 async function load(){
-  $('err').textContent=''; CLIPS=[];
+  $('err').textContent='Load ho raha hai…'; CLIPS=[];
   let ib={};
-  try{ ib=await api('/api/growth/inbox'); }
-  catch(e){ $('err').textContent='Inbox load fail — token sahi hai? ('+e.message+')'; ib={}; }
+  let inboxOk=false;
+  let hqOk=false;
+  try{ ib=await api('/api/growth/inbox'); inboxOk=true; $('err').textContent=''; }
+  catch(e){ $('err').textContent='Inbox load fail — login karke Reload dabao ('+e.message+')'; ib={}; }
 
   // 🔥 Hot Queue — interested/question replies, dedupe + phone-join (GTM Track 1)
   // Top-20-live cap (2026-07-03 GTM fix): a 300+ card wall reads as "a project"
@@ -158,10 +167,13 @@ async function load(){
     const hqResp=await api('/api/growth/reply/hot-queue?limit=200&scope='+encodeURIComponent(HQ_SCOPE||'boss'));
     hq=hqResp.items||[];
     hqSummary=hqResp.summary||null;
+    hqOk=true;
   }catch(e){}
   COUNTS.hotq=hq.length;
   window._hqAll=hq;
   window._hqSummary=hqSummary;
+  window._hqOk=hqOk;
+  window._inboxOk=inboxOk;
   renderHotQueue();
 
   // hot leads — backend dict {leads:[...]} ya direct array dono handle
@@ -178,7 +190,7 @@ async function load(){
       (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
       (l.email?'<a class="act" href="mailto:'+esc(l.email)+'">✉️ Email</a>':'')+
       '</div>';
-  }).join(''):'<div class="mut">Koi hot lead nahi abhi — scraping/scoring chal rahi hai ✅</div>';
+  }).join(''):(inboxOk?'<div class="mut">Abhi koi hot lead nahi. Naya lead aaye to yahan dikhega.</div>':'<div class="mut">Hot leads load nahi hue — upar error dekho, phir Reload.</div>');
 
   // reply drafts
   const rd=ib.reply_drafts||[];
@@ -189,7 +201,7 @@ async function load(){
       '<div class="meta">from: '+esc(r.from||'?')+' · <span class="pill intent">'+esc(r.intent||'')+'</span> '+esc((r.at||'').slice(0,16).replace('T',' '))+'</div>'+
       (r.draft?'<pre>'+esc(r.draft)+'</pre><button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'<span class="mut">draft empty (intent pe skip)</span>')+
       '</div>';
-  }).join(''):'<div class="mut">Koi reply draft pending nahi ✅</div>';
+  }).join(''):(inboxOk?'<div class="mut">Koi reply draft pending nahi.</div>':'<div class="mut">Reply drafts load nahi hue — login/Reload try karo.</div>');
 
   // review drafts
   const rv=ib.review_drafts||[];
@@ -206,7 +218,7 @@ async function load(){
       (r.text?'<div class="mut">"'+esc(String(r.text).slice(0,250))+'"</div>':'')+
       (drafts||'<span class="mut">koi draft nahi</span>')+
       '</div>';
-  }).join(''):'<div class="mut">Naye review nahi (REVIEW_MONITOR sweep hourly) ✅</div>';
+  }).join(''):(inboxOk?'<div class="mut">Naye review nahi — hourly sweep ke baad yahan aayenge.</div>':'<div class="mut">Reviews load nahi hue — login/Reload try karo.</div>');
 
   // experiments + 1-click outcome
   const ex=ib.recent_experiments||[];
@@ -221,10 +233,10 @@ async function load(){
       '<div class="meta">'+esc((x.at||x.created_at||'').slice(0,16).replace('T',' '))+(x.topic?' · '+esc(x.topic):'')+'</div>'+
       (x.asset||x.content?'<pre>'+esc(String(x.asset||x.content).slice(0,400))+'</pre>':'')+
       '</div>';
-  }).join(''):'<div class="mut">Koi recent experiment nahi (CHANNEL_EXPERIMENTS daily 3 launch karta) ✅</div>';
+  }).join(''):(inboxOk?'<div class="mut">Koi recent experiment nahi.</div>':'<div class="mut">Experiments load nahi hue — login/Reload try karo.</div>');
   $('s_exp').innerHTML=eh;
 
-  renderTabs(document.querySelector('.sec.on')?document.querySelector('.sec.on').id.slice(2):'hot');
+  renderTabs(document.querySelector('.sec.on')?document.querySelector('.sec.on').id.slice(2):'hotq');
 }
 
 function toggleHqAll(){ HQ_SHOW_ALL=!HQ_SHOW_ALL; renderHotQueue(); }
@@ -281,9 +293,11 @@ function renderHotQueue(){
       '<div class="meta">'+bits.join(' ')+'</div>'+
       '<div class="mut">'+(sum.idle_reason?'idle: '+esc(sum.idle_reason)+' · ':'')+esc(sum.next_owner_hint||'')+'</div></div>';
   }
-  const empty=HQ_SCOPE==='admin'
-    ?'<div class="mut">'+(sum.next_owner_hint||'Admin pending khali ✅')+'</div>'
-    :'<div class="mut">'+(sum.next_owner_hint||'Hot queue khali — koi unhandled interested/question reply nahi 🎉')+'</div>';
+  const empty=!window._hqOk
+    ?'<div class="mut">Hot Queue load nahi hui — login karke Reload dabao. HTTP 200 page ka matlab cards nahi.</div>'
+    :(HQ_SCOPE==='admin'
+    ?'<div class="mut">'+(sum.next_owner_hint||'Admin pending khali.')+'</div>'
+    :'<div class="mut">'+(sum.next_owner_hint||'Hot queue khali — koi unhandled interested/question reply nahi.')+'</div>');
   $('s_hotq').innerHTML=scopeBar+truth+(hq.length?toggle+cards:empty);
 }
 
@@ -298,7 +312,12 @@ async function rec(ch,btn){
 }
 
 $('tok').value=tok();
-renderTabs('hot');
+if(tok()){
+  var bar=$('tokBar'); var adv=$('tokAdv');
+  if(bar) bar.style.display='none';
+  if(adv) adv.style.display='inline-flex';
+}
+renderTabs('hotq');
 load();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>

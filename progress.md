@@ -25,6 +25,18 @@ Remaining: owner Hot Queue `/app/inbox`. Leftover WIP branches stay unmerged.
 Next Highest Priority: stop — AUTH-DEPLOY complete.
 
 ## Loop Run
+Date: 2026-08-14 (GTM Hot Queue UX + honest dashboards — CURSOR)
+Goal: Isolated worktree se Marketing 2nd-paid operational UX: Hot Queue 5-second path, false-green empty states hatao, fabricated customer score hatao. No merge/deploy/flag-arm.
+Inspected: origin/main+prod `150bf898` (dual `/health` uptime 6m25s→6m29s); `/api/activation/summary` ready_for_first_paid_customer=true blocker_count=0 warn_count=1 (names admin-only); public funnel 8/8 HTTP 200; inbox page 200 ≠ authenticated cards.
+Problems Found: (1) Admin Delivery nav + Start Here me `/app/inbox` missing — GTM bottleneck buried. (2) `_admin_office` / today_overview Hot Queue count nahi dikhate. (3) inbox empty states load-fail pe false-green ✅. (4) customer `aiScore` fabricated 42–98%/76%. (5) marketing suite ka koi "Aaj kya karna hai" nahi.
+Changed: admin_ops + today_overview Hot Queue CTA; admin/inbox/customer/marketing HTML surgical; RED tests. Voice UI-only minutes hint. DUNNING untouched.
+Tests Run: 157 targeted pytest EXIT 0; ruff EXIT 0; prod_check EXIT 0; check_secrets EXIT 0; git diff --check EXIT 0; inbox+customer node --check EXIT 0; AMAX --dry-run DUNNING OWNER_GATED. Authenticated browser WAIT (creds).
+Verification Evidence: worktree `cursor/revenue-automation-dashboard-launch-20260814` from `150bf898`. Assessment after: customer completeness 88.2% admin 82.4% UX 85.2% critical UX=0 (generated reports NOT committed).
+Risks: Authenticated Hot Queue cards unproven this session. warn_count=1 key unknown without admin `/readiness`.
+Remaining: PR CI; owner AUTH-MERGE/DEPLOY alag; Hot Queue 15-min sprint + UPI #2 for revenue-generated.
+Next Highest Priority: push PR + owner Hot Queue execution (no deploy until AUTH-DEPLOY exact SHA).
+
+## Loop Run
 Date: 2026-08-12 (PR queue land + freebuff cleanup — CURSOR)
 Goal: Land open PR queue; remove tracked freebuff placeholders; no deploy/flag-arm.
 Inspected: #340/#341/#336–#339; freebuff mode-160000 gitlinks; Gate A submodule URL fail.

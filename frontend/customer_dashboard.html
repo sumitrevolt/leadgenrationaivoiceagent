@@ -159,7 +159,7 @@
   .ai-confidence{display:grid;gap:6px;min-width:150px}
   .ai-confidence .row{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:#cbd5e1;font-weight:750}
   .ai-meter{height:8px;border-radius:999px;background:rgba(148,163,184,.25);overflow:hidden}
-  .ai-meter span{display:block;height:100%;width:76%;border-radius:inherit;background:linear-gradient(90deg,#22c55e,#38bdf8)}
+  .ai-meter span{display:block;height:100%;width:0%;border-radius:inherit;background:linear-gradient(90deg,#22c55e,#38bdf8)}
   .ai-command .btn{background:#fff;color:#0f172a;border:none;justify-content:center;white-space:nowrap}
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
@@ -639,6 +639,7 @@
           <span class="owner-pill" id="ownerPill">✦ Aapka AI Office</span>
           <h1 class="owner-title" id="ownerTitle">Namaste! Aapki AI team ready hai</h1>
           <p class="owner-subtitle" id="ownerSubtitle">Leads, content, calls — sab ek jagah. AI team din-raat kaam karti hai, aapko sirf decisions lene hain.</p>
+          <p class="owner-subtitle voice-only" id="voiceMinsHint" style="margin-top:6px;font-weight:600" hidden></p>
         </div>
         <div class="owner-actions">
           <button class="btn primary" type="button" id="ownerPrimaryBtn" onclick="runNextStep()">Aaj ka kaam dekho</button>
@@ -733,7 +734,7 @@
           <div class="reason" id="aiReason">Dashboard live data dekh ke simple action recommend karega.</div>
         </div>
         <div class="ai-confidence" aria-label="AI confidence">
-          <div class="row"><span>Priority score</span><strong id="aiScore">76%</strong></div>
+          <div class="row"><span>Aaj ka kaam</span><strong id="aiScore">—</strong></div>
           <div class="ai-meter" aria-hidden="true"><span id="aiMeter"></span></div>
           <div class="row"><span>Mode</span><strong id="aiMode">Marketing</strong></div>
         </div>
@@ -1780,14 +1781,34 @@ let NEXT_STEP_TARGET = "contentCard";
 function updateCommandCenter(meta){
   meta = meta || {};
   const modeLabel = productMode()==="voice" ? "Voice" : (productMode()==="marketing" ? "Marketing" : "Combo");
-  const score = Math.max(42, Math.min(98, Number(meta.score || 76)));
   setText("aiDecision", meta.title || "Aaj ka best next step ready hai.");
   setText("aiReason", meta.sub || "AI ne dashboard data dekh kar next action choose kiya.");
-  setText("aiScore", score + "%");
+  // Honest count — kabhi 42–98% jaisi fabricated confidence mat dikhao.
+  const pending = parseInt((document.getElementById("approvalCount")||{}).textContent || "0", 10) || 0;
+  const postsReady = parseInt((document.getElementById("contentCount")||{}).textContent || "0", 10) || 0;
+  const sample = !!(window.DATA && DATA.is_sample_data);
+  let scoreLabel = "—";
+  let meterPct = 0;
+  if(sample){
+    scoreLabel = "Login ke baad";
+  }else if(meta.countLabel){
+    scoreLabel = String(meta.countLabel);
+    meterPct = meta.hasWork ? 100 : 0;
+  }else if(pending > 0){
+    scoreLabel = pending + " pending";
+    meterPct = 100;
+  }else if(postsReady > 0){
+    scoreLabel = postsReady + " ready";
+    meterPct = 100;
+  }else{
+    scoreLabel = "Clear";
+    meterPct = 0;
+  }
+  setText("aiScore", scoreLabel);
   setText("aiMode", modeLabel);
   setText("aiCommandBtn", meta.label || "Action kholo");
   const meter = document.getElementById("aiMeter");
-  if(meter) meter.style.width = score + "%";
+  if(meter) meter.style.width = meterPct + "%";
 }
 function updateTodayGuide(view){
   const d = view || DATA || {};
@@ -1843,7 +1864,12 @@ function updateTodayGuide(view){
   setText("nextStepSub", sub);
   setText("nextStepBtn", label);
   setText("nextStepIcon", icon);
-  updateCommandCenter({title:title, sub:sub, label:label, score: pendingApprovals>0 || hot>0 ? 94 : (postsReady>0 || totalLeads>0 ? 86 : 68)});
+  const workCount = pendingApprovals || hot || postsReady || totalLeads || 0;
+  updateCommandCenter({
+    title:title, sub:sub, label:label,
+    countLabel: pendingApprovals>0 ? (pendingApprovals+" pending") : (hot>0 ? (hot+" hot") : (postsReady>0 ? (postsReady+" ready") : (totalLeads>0 ? (totalLeads+" leads") : "Clear"))),
+    hasWork: workCount > 0
+  });
 }
 function runNextStep(){ scrollToId(NEXT_STEP_TARGET || "contentCard"); }
 function openAdvancedSettings(){
@@ -4150,6 +4176,8 @@ function renderBilling(sub,usage,invoices,failed){
     periodEl.textContent="—";
     noteEl.innerHTML='Billing status load nahi hua — <a href="#" onclick="loadBilling();return false">refresh karo</a>. (Aapka plan safe hai, sirf yeh page abhi load nahi ho paya.)';
     usedEl.textContent="—"; leftEl.textContent="—";
+    var minsHintFail=document.getElementById("voiceMinsHint");
+    if(minsHintFail){ minsHintFail.hidden=true; minsHintFail.textContent=""; }
     document.getElementById("billInvCount").textContent="—";
     document.getElementById("billInvBody").innerHTML='<tr><td colspan="5" class="empty-row">Load fail — refresh karo.</td></tr>';
     show("billManageBtn",false); show("billPauseBtn",false); show("billResumeBtn",false); show("billCancelBtn",false);
@@ -4174,6 +4202,16 @@ function renderBilling(sub,usage,invoices,failed){
     const cu=usage.calls_used, cl=usage.calls_limit, cr=usage.calls_remaining;
     usedEl.textContent=(cu!=null?cu:"—")+(typeof cl==="number"&&cl>0?(" / "+cl):"");
     leftEl.textContent=(cr!=null?cr:"—");
+    const minsHint=document.getElementById("voiceMinsHint");
+    if(minsHint && productMode()!=="marketing"){
+      if(cr!=null){
+        minsHint.hidden=false;
+        minsHint.textContent="Minutes bache: "+cr+(typeof cl==="number"&&cl>0?(" / "+cl):"");
+      }else{
+        minsHint.hidden=true;
+        minsHint.textContent="";
+      }
+    }
   }else{ usedEl.textContent="—"; leftEl.textContent="—"; }
 
   // invoices table

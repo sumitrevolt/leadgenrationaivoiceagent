@@ -6,6 +6,7 @@ Mirrors tests/test_office_map_frontend.py:
  (3) per-task markers added by
      docs/superpowers/plans/2026-07-05-customer-dashboard-ux-redesign.md.
 """
+
 import re
 import shutil
 import subprocess
@@ -17,9 +18,22 @@ HTML_PATH = Path(__file__).resolve().parents[1] / "frontend" / "customer_dashboa
 SRC = HTML_PATH.read_text(encoding="utf-8")
 
 PRE_EXISTING_IDS = [
-    "aiCommand", "teamCard", "contentCard", "contentBody", "approvalCard",
-    "approvalBody", "webToolsCard", "webToolsBody", "routingCard", "leadsCard",
-    "summaryBox", "mktKpis", "callsCard", "billingCard", "webhookCard", "secCard",
+    "aiCommand",
+    "teamCard",
+    "contentCard",
+    "contentBody",
+    "approvalCard",
+    "approvalBody",
+    "webToolsCard",
+    "webToolsBody",
+    "routingCard",
+    "leadsCard",
+    "summaryBox",
+    "mktKpis",
+    "callsCard",
+    "billingCard",
+    "webhookCard",
+    "secCard",
 ]
 # Product-gating class names that must never vanish (stable substrings).
 GATING_TOKENS = ["prod-marketing", "prod-voice", "marketing-only", "voice-only"]
@@ -72,7 +86,7 @@ def test_view_engine_present():
     assert "function viewForHash" in SRC
     # active-view scheme: #mainContent carries data-active-view; CSS hides the rest
     assert 'data-active-view="home"' in SRC
-    assert '[data-active-view=' in SRC
+    assert "[data-active-view=" in SRC
 
 
 def test_showview_resizes_charts():
@@ -148,8 +162,9 @@ def test_mobile_nav_switches_views():
 # ---- Task 5: focused Home ----
 def test_home_money_above_decoration():
     # the hot-leads money hero must sit above the AI-command decoration on Home
-    assert SRC.index('class="hero-leads"') < SRC.index('id="aiCommand"'), \
-        "hero-leads (money action) must precede #aiCommand on Home"
+    assert SRC.index('class="hero-leads"') < SRC.index(
+        'id="aiCommand"'
+    ), "hero-leads (money action) must precede #aiCommand on Home"
 
 
 # ---- Task 6: browser-verified fixes ----
@@ -167,3 +182,12 @@ def test_charts_resized_on_show_and_details():
     assert sv and "resizeCharts()" in sv.group(1), "showView must call resizeCharts"
     td = re.search(r"function toggleDetails\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
     assert td and "resizeCharts()" in td.group(1), "toggleDetails must call resizeCharts"
+
+
+def test_command_center_score_is_honest_count_not_fabricated_percent():
+    assert "Math.max(42, Math.min(98" not in SRC
+    assert "meta.score || 76" not in SRC
+    assert 'id="aiScore">—</strong>' in SRC or 'id="aiScore">—' in SRC
+    assert "Login ke baad" in SRC
+    assert 'id="voiceMinsHint"' in SRC
+    assert "Minutes bache:" in SRC
