@@ -204,7 +204,10 @@ def _scan_runtime_usage() -> dict[str, Any]:
         module_level_imports.extend(scanner.module_level_imports)
         dynamic_imports.extend(scanner.dynamic_imports)
         call_sites.extend(scanner.call_sites)
-    sort_key = lambda item: (item["file"], item["line"], item["scope"], item.get("call", ""))
+
+    def sort_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        return (item["file"], item["line"], item["scope"], item.get("call", ""))
+
     return {
         "module_level_imports": sorted(module_level_imports, key=sort_key),
         "dynamic_imports": sorted(dynamic_imports, key=sort_key),
@@ -251,7 +254,7 @@ def _route_decorator_info(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple
 def _return_dict_keys(tree: ast.AST, function_name: str) -> list[str]:
     for node in ast.walk(tree):
         if (
-            not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
             or node.name != function_name
         ):
             continue
@@ -269,7 +272,7 @@ def _return_dict_keys(tree: ast.AST, function_name: str) -> list[str]:
 def _assigned_dict_keys(tree: ast.AST, function_name: str, variable_name: str) -> list[str]:
     for node in ast.walk(tree):
         if (
-            not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
             or node.name != function_name
         ):
             continue
@@ -307,7 +310,7 @@ def _runtime_api_contract() -> dict[str, Any]:
     models = _collect_model_fields(api_tree)
     routes: list[dict[str, Any]] = []
     for node in ast.walk(api_tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
         route = _route_decorator_info(node)
         if not route:

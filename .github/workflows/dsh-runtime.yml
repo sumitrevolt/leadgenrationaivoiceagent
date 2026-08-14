@@ -61,7 +61,8 @@ jobs:
       - name: Verify pinned source policy
         run: |
           python scripts/verify_dsh_supply_chain.py --check
-          python -m pytest tests/test_dsh_supply_chain.py -q
+          # Hermetic: these offline proofs must not import the app conftest graph.
+          python -m pytest tests/test_dsh_supply_chain.py -q --noconftest
 
   linux-runtime:
     runs-on: ubuntu-24.04
