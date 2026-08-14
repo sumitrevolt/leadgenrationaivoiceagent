@@ -1,35 +1,30 @@
-# SESSION_HANDOFF — 2026-08-14 (Cursor: all-safe-branches integration + DSH deploy prep)
+# SESSION_HANDOFF — 2026-08-14 (Cursor: merge safe PRs + DSH #361 AUTH-DEPLOY)
 
 ## Status
-**IN PROGRESS — integration authorized by owner.** Current main (`cca7b3bd`) was merged into `cursor/deepseek-harness-migration-20260814`. DSH implementation commit `ab21f015` has passing pre-commit gates; merge conflicts are being resolved as unions. No production flag has been armed and no `.env` value changed.
+**DONE — deploy stream CLOSED.** Prod tip `fb3d0bc2`. All open mergeable PRs for this batch merged (#357 · #354 · #361). DSH CODE-READY/INERT on prod. No DSH/runtime flags armed. Voice FROZEN. Kill fence closed (VLK restored FALSE_TOKEN).
 
-## Active streams
-- `WS-DSH` ACTIVE — code integration/deploy only; runtime/shadow/canary/retirement stay separately gated
-- `WS-GTM1` ACTIVE — Hot Queue owner execution remains revenue blocker
-- `WS-SEC` ACTIVE — Voice/Swara frozen; compliance gates unchanged
+## Facts
+- Merged: PR #357 (GTM Hot Queue / honest dashboards) · PR #354 (Dependabot python + pydantic-core pair fix) · PR [#361](https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/361) (hardened DSH runtime, inert)
+- Merge tip / deploy SHA: `fb3d0bc28459ef66efe0fa49a150a896d478cd9c` (`fb3d0bc2`)
+- Deploy: kill fence `.env.bak-deploy-killfence-20260814_150136` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh fb3d0bc2` → `=== DEPLOYED fb3d0bc2 OK ===` → restore VLK=0 + recreate with `APP_VERSION=fb3d0bc2`
+- Prod `/health` (HTTPS ×2 + host): `fb3d0bc2` · `environment:production` · `healthy` (DIRECT_HOST_VERIFIED 2026-08-14 ~15:25Z)
+- Activation: `ready_for_first_paid_customer=true` · `payments_ready=true` · `blocker_count=0` · `warn_count=1`
+- Skew: 5/5 app-image services `APP_VERSION=fb3d0bc2` · celery=0 · dlq:failed_tasks=0 · **NO dsh-worker container** (profile not started)
+- Inert proven in `leadgen_app`: `DSH_RUNTIME_ENABLED` · `DSH_SHADOW_ENABLED` · `HARNESS_SESSION_EVENTS` · `AGENT_HARNESS` · `GSC_ENABLED`
+- Rollback tag lineage: `150bf898` (protected) · prior `2326c931` pruned by retention
 
-## DSH evidence
-- Upstream pin: `deepseek-ai/deepseek-harness` @ `47f943859bef60e4160492346772ded9b24f765a`
-- Matching smoke pair binary SHA: `4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6`
-- Fresh smoke: fake MCP/model pass, shutdown `0.516s`, hard cancel `3.094s`
-- CycloneDX SBOM: 1,275 components; forbidden runtime dependencies empty
-- Canonical evidence: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`
-- Shadow promotion gate remains closed; runtime/shadow flags OFF; allowlist empty
+## Intentionally NOT merged
+- Stale remote branches only (docs/lint/archive/ci-debug equivalents already on main or non-prod): left alone
+- WIP / freebuff / skipped shims from earlier handoff — still out of scope
+- No flag arm · no legacy retirement · no `dsh` compose profile enable
 
-## Integration inventory
-- Main already contains the safe merged worktree batch through PR #359 and docs PR #360.
-- PR #357 and PR #354 are being updated independently against current main before merge.
-- Patch-equivalent stale remote branches are already represented on main and must not be replayed.
-- Debug-only `origin/ci-debug` is not a production merge candidate.
-
-## Mandatory deploy posture
-- Use `scripts/deploy_vps.sh` only with exact `APP_VERSION`.
-- Close `VOICE_LAUNCH_KILL` fence for deploy, then restore the prior value with exact image version.
-- Do not arm `DSH_RUNTIME_ENABLED`, `DSH_SHADOW_ENABLED`, `HARNESS_SESSION_EVENTS`, `AGENT_HARNESS`, `GSC_ENABLED`, dunning, or cold WhatsApp.
-- Verify direct HTTPS `/health` twice, version parity, 5/5 image skew, queues/DLQ, and rollback SHA.
+## Do not
+- Arm `DSH_RUNTIME_ENABLED` / `DSH_SHADOW_ENABLED` / `HARNESS_SESSION_EVENTS` / `AGENT_HARNESS` / `GSC_ENABLED` / dunning / cold WA
+- Start `--profile dsh` without separate owner auth
+- Edit Voice/Swara · weaken DND/TRAI/DPDP
+- Recreate without `APP_VERSION=<sha>` · bare compose without `-f docker-compose.vps.yml`
 
 ## Next
-1. Finish merge conflict resolution and run targeted DSH suites + `prod_check.py` + secrets.
-2. Push DSH branch, create/merge PR after checks.
-3. Merge updated PR #357 and #354 only when required checks are green.
-4. Deploy final `origin/main` with canonical script; record exact production evidence.
+1. **OWNER — Hot Queue `/app/inbox`** (2nd paid blocker; not code-fixable)
+2. Optional: remove finished DSH/PR354 worktrees after owner confirms
+3. Then: Jiya referral kit, GSC creds (still OFF), B3 DKIM
