@@ -52,26 +52,38 @@ def _dash_q_queues(command: str) -> set[str]:
     return set(m.group(1).split(","))
 
 
+# Classic named queues drained by the main VPS `worker` -Q list.
+_CLASSIC_STATIC_QUEUES = {
+    "scraping",
+    "calling",
+    "reporting",
+    "sync",
+    "training",
+}
+# Dedicated / profile-gated queues that live in the static task_routes dict
+# but MUST NOT be drained by the main app worker (separate process + image).
+# "dsh" → profiles: [dsh] leadgen_dsh_worker (deploy/dsh/worker.Dockerfile).
+# Explicit "celery" route for execute_governed_capability is the default queue
+# already on every worker -Q — not a new drain target.
+_DEDICATED_STATIC_QUEUES = {"dsh"}
+_KNOWN_STATIC_QUEUES = _CLASSIC_STATIC_QUEUES | _DEDICATED_STATIC_QUEUES | {"celery"}
+
+
 def test_statically_routed_queues_are_known():
     # Sanity: this project routes exactly these — if someone adds a new
     # app.tasks.X module with its own queue, this test's failure is the
-    # reminder to also add it to every worker -Q below.
-    assert _statically_routed_queues() == {
-        "scraping",
-        "calling",
-        "reporting",
-        "sync",
-        "training",
-    }
+    # reminder to also wire a consumer (main -Q or a dedicated worker).
+    assert _statically_routed_queues() == _KNOWN_STATIC_QUEUES
 
 
 def test_vps_worker_consumes_every_routed_queue():
-    """docker-compose.vps.yml = the LIVE deploy file. "heavy" is deliberately
-    excluded from `worker` here — a dedicated worker-heavy service consumes
-    it instead (starve-prevention), verified separately below."""
+    """docker-compose.vps.yml = the LIVE deploy file. "heavy"/"video" are
+    router-fn queues with dedicated workers; "dsh" is a static route but
+    profile-gated to dsh-worker (INERT default) — main worker must still
+    drain every classic static queue + the default celery queue."""
     cmd = _worker_command(REPO_ROOT / "docker-compose.vps.yml", "worker")
     consumed = _dash_q_queues(cmd)
-    missing = _statically_routed_queues() - consumed
+    missing = (_statically_routed_queues() - _DEDICATED_STATIC_QUEUES) - consumed
     assert not missing, f"docker-compose.vps.yml worker never drains: {missing}"
     assert "celery" in consumed, "default queue must stay consumed too"
 
@@ -92,22 +104,47 @@ def test_vps_worker_does_not_drain_video():
     assert "video" not in _dash_q_queues(cmd)
 
 
+def test_vps_worker_does_not_drain_dsh():
+    # dsh-worker (profiles: [dsh]) isolates it — main worker must not steal
+    # DSH jobs into the general app image / memcg.
+    cmd = _worker_command(REPO_ROOT / "docker-compose.vps.yml", "worker")
+    assert "dsh" not in _dash_q_queues(cmd)
+
+
+def test_vps_dsh_worker_is_profile_gated_and_consumes_dsh_queue():
+    """dsh-worker has no compose `command` — queues live on the Dockerfile
+    ENTRYPOINT. Compose only profile-gates the service."""
+    data = yaml.safe_load((REPO_ROOT / "docker-compose.vps.yml").read_text(encoding="utf-8"))
+    svc = data["services"]["dsh-worker"]
+    assert "dsh" in (svc.get("profiles") or [])
+    assert "command" not in svc
+    dockerfile = (REPO_ROOT / "deploy" / "dsh" / "worker.Dockerfile").read_text(encoding="utf-8")
+    assert '"--queues", "dsh"' in dockerfile
+
+
 def test_prod_worker_consumes_every_routed_queue_plus_heavy_and_video():
     """docker-compose.prod.yml has no separate heavy or video worker, so its
-    single `worker` service must drain both."""
+    single `worker` service must drain both. DSH stays VPS-profile-only —
+    legacy prod stack must not pretend to consume `dsh`."""
     cmd = _worker_command(REPO_ROOT / "deploy" / "legacy" / "docker-compose.prod.yml", "worker")
     consumed = _dash_q_queues(cmd)
-    missing = (_statically_routed_queues() | {"heavy", "video"}) - consumed
+    missing = (
+        (_statically_routed_queues() - _DEDICATED_STATIC_QUEUES) | {"heavy", "video"}
+    ) - consumed
     assert not missing, f"docker-compose.prod.yml worker never drains: {missing}"
+    assert "dsh" not in consumed
 
 
 def test_base_compose_worker_consumes_every_routed_queue_plus_heavy_and_video():
     """docker-compose.yml has no separate heavy or video worker, so its
-    single `worker` service must drain both."""
+    single `worker` service must drain both. DSH stays VPS-profile-only."""
     cmd = _worker_command(REPO_ROOT / "deploy" / "legacy" / "docker-compose.legacy.yml", "worker")
     consumed = _dash_q_queues(cmd)
-    missing = (_statically_routed_queues() | {"heavy", "video"}) - consumed
+    missing = (
+        (_statically_routed_queues() - _DEDICATED_STATIC_QUEUES) | {"heavy", "video"}
+    ) - consumed
     assert not missing, f"docker-compose.yml worker never drains: {missing}"
+    assert "dsh" not in consumed
 
 
 def test_video_router_routes_when_flag_on(monkeypatch):
@@ -135,9 +172,11 @@ def test_video_router_none_for_other_tasks(monkeypatch):
 
 
 def test_static_routes_unchanged_by_video_addition():
-    # video is router-fn based (like "heavy"), NOT added to the static dict —
-    # this assertion must stay exactly as it is today.
-    assert _statically_routed_queues() == {"scraping", "calling", "reporting", "sync", "training"}
+    # video is router-fn based (like "heavy"), NOT added to the static dict.
+    # DSH *is* static (dedicated worker) — assert video still stays dynamic.
+    assert "video" not in _statically_routed_queues()
+    assert "heavy" not in _statically_routed_queues()
+    assert _CLASSIC_STATIC_QUEUES <= _statically_routed_queues()
 
 
 def test_kb_refresh_router_routes_when_flag_on(monkeypatch):
@@ -178,8 +217,10 @@ def test_kb_refresh_router_none_for_other_tasks(monkeypatch):
 
 def test_static_routes_unchanged_by_kb_refresh_addition():
     # kb_refresh is router-fn based (like "heavy"/"video"), NOT added to the
-    # static dict — this assertion must stay exactly as it is today.
-    assert _statically_routed_queues() == {"scraping", "calling", "reporting", "sync", "training"}
+    # static dict. DSH remains the only dedicated static addition.
+    assert "video" not in _statically_routed_queues()
+    assert "heavy" not in _statically_routed_queues()
+    assert _statically_routed_queues() == _KNOWN_STATIC_QUEUES
 
 
 def test_worker_process_init_warmup_skipped_on_default_worker(monkeypatch):
