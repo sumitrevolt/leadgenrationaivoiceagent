@@ -36,6 +36,16 @@ def test_static_supply_chain_evidence_is_deterministic() -> None:
     assert set(stored["closure"]["child_env_names"]) == ALLOWED_CHILD_ENV
 
 
+def test_input_sha256_is_crlf_invariant(tmp_path: Path) -> None:
+    from scripts.verify_dsh_supply_chain import _sha256
+
+    lf = tmp_path / "lf.txt"
+    crlf = tmp_path / "crlf.txt"
+    lf.write_bytes(b"alpha\nbeta\n")
+    crlf.write_bytes(b"alpha\r\nbeta\r\n")
+    assert _sha256(lf) == _sha256(crlf)
+
+
 def test_dsh_worker_lock_is_an_exact_subset_of_canonical_lock() -> None:
     canonical = _pins(ROOT / "requirements.lock.txt")
     isolated = _pins(ROOT / "requirements-dsh.lock.txt")

@@ -61,7 +61,9 @@ def _read(path: Path) -> str:
 
 
 def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    # Text proofs must be CRLF-invariant so Windows worktrees match Linux CI.
+    data = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(data).hexdigest()
 
 
 def _require(condition: bool, message: str) -> None:
