@@ -1,33 +1,35 @@
-# SESSION_HANDOFF — 2026-08-14 (Cursor: PR #356 AUTH-DEPLOY + context writeback + uptime watchdog fix)
+# SESSION_HANDOFF — 2026-08-14 (Cursor: all-safe-branches integration + DSH deploy prep)
 
 ## Status
-**DONE — deploy stream CLOSED.** PR #356 merged on head `e5feaa6e` (not old `8fa39c84`); prod AUTH-DEPLOY `150bf898` re-verified this session. Kill fence closed. `HARNESS_SESSION_EVENTS` UNSET. Voice FROZEN. No flag armed. Context writeback + one real bugfix landed on branch `fix/uptime-watchdog-deadline-20260814` (NOT pushed — needs owner PR).
+**IN PROGRESS — integration authorized by owner.** Current main (`cca7b3bd`) was merged into `cursor/deepseek-harness-migration-20260814`. DSH implementation commit `ab21f015` has passing pre-commit gates; merge conflicts are being resolved as unions. No production flag has been armed and no `.env` value changed.
 
-## Facts
-- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/356 — `MERGED` 2026-08-14T03:49:50Z, merge commit `150bf898`
-- `origin/main` tip = `150bf898`; local `main` fast-forwarded to it (was behind 17 on `1b8fe65d`); stale branch `cursor/archive-duplicate-playbooks-deploy-wrappers` left alone (merged)
-- Prod `/health` re-probed 2026-08-14 04:46Z = `150bf898` · `environment:production` · `healthy` (uptime 0h31m) → **no redeploy done or needed**
-- Activation: `ready_for_first_paid_customer=true` · `payments_ready=true` · `blocker_count=0` · `warn_count=1`
-- Post-merge CI on `main` all green: CI · tests · security-scan · deploy-vps(gate) · CodeQL
-- Kill restore (prior step, unchanged): all 5 app-image containers VLK=FALSE_TOKEN · APP_VERSION_MATCH=1 · HSE=UNSET
-- Rollback tag = `2326c931` · env backup `.env.bak-killfence-20260814035416`
-- SKIP leftover (untouched): WIP `lg00/*` + `freebuff/*`, checkpoint `817173bf`, rejected shims `f5a232e3`. Stash `hygiene leftovers pre-main-merge 20260814` still unapplied. `.freebuff/` worktrees still registered and uncommitted.
+## Active streams
+- `WS-DSH` ACTIVE — code integration/deploy only; runtime/shadow/canary/retirement stay separately gated
+- `WS-GTM1` ACTIVE — Hot Queue owner execution remains revenue blocker
+- `WS-SEC` ACTIVE — Voice/Swara frozen; compliance gates unchanged
 
-## Fixed this session — uptime watchdog could not alert (real bug)
-`.github/workflows/uptime.yml` worst-case retry budget was **805s** against its own `timeout-minutes: 5` (300s). On a genuine outage the job was therefore **cancelled**, and a cancelled job never runs `Notify ntfy.sh on DOWN` or `Fail if DOWN` → no GitHub failure email, no push. The off-VPS dead-man's switch was silent in exactly the scenario it exists for.
-- Proof: run `31768071231` (2026-08-14 03:51Z, during the deploy blip) — annotation `The job has exceeded the maximum execution time of 5m0s` → `cancelled`, zero alert emitted.
-- Fix (additive, no flags, no product code): per-attempt cost trimmed (`MAX_TIME` 45→20, `CONNECT_TIMEOUT` 20→10, curl `--retry` 2→1, `RETRY_SLEEP` 25→20) + new `PROBE_DEADLINE_SECS=210` wall-clock guard so a new attempt only starts with budget left; `timeout-minutes` 5→6 for margin. Attempt count now reported in the summary.
-- Now: worst bound **253s < 360s** = verdict always reportable; hard-down still gets **4/5 attempts over ~232s** (pre-fix it never finished the loop), so flap absorption is not weakened — it improved.
+## DSH evidence
+- Upstream pin: `deepseek-ai/deepseek-harness` @ `47f943859bef60e4160492346772ded9b24f765a`
+- Matching smoke pair binary SHA: `4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6`
+- Fresh smoke: fake MCP/model pass, shutdown `0.516s`, hard cancel `3.094s`
+- CycloneDX SBOM: 1,275 components; forbidden runtime dependencies empty
+- Canonical evidence: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`
+- Shadow promotion gate remains closed; runtime/shadow flags OFF; allowlist empty
 
-## Do not
-- Arm `HARNESS_SESSION_EVENTS` / `AGENT_HARNESS` / `STAFF_BUS_ENABLED` / `GSC_ENABLED` / `DUNNING_ENGINE` / `BOSS_DECISION_GOVERNANCE`
-- Re-edit `app/agents/harness/session.py` (UP045 done)
-- Vendor `deepseek-ai/deepseek-harness`
-- Edit Voice/Swara · weaken DND/TRAI/DPDP gates
-- Recreate containers without `APP_VERSION=<sha>` · bare `docker compose` without `-f docker-compose.vps.yml`
-- `git add -A` · `git worktree remove` the `.freebuff` trees · merge the skipped WIP branches
+## Integration inventory
+- Main already contains the safe merged worktree batch through PR #359 and docs PR #360.
+- PR #357 and PR #354 are being updated independently against current main before merge.
+- Patch-equivalent stale remote branches are already represented on main and must not be replayed.
+- Debug-only `origin/ci-debug` is not a production merge candidate.
+
+## Mandatory deploy posture
+- Use `scripts/deploy_vps.sh` only with exact `APP_VERSION`.
+- Close `VOICE_LAUNCH_KILL` fence for deploy, then restore the prior value with exact image version.
+- Do not arm `DSH_RUNTIME_ENABLED`, `DSH_SHADOW_ENABLED`, `HARNESS_SESSION_EVENTS`, `AGENT_HARNESS`, `GSC_ENABLED`, dunning, or cold WhatsApp.
+- Verify direct HTTPS `/health` twice, version parity, 5/5 image skew, queues/DLQ, and rollback SHA.
 
 ## Next
-1. **OWNER — Hot Queue `/app/inbox`** (2nd-paid blocker). Not code-fixable; no agent can close this.
-2. Owner: push/PR the `fix/uptime-watchdog-deadline-20260814` branch (docs writeback + watchdog fix). Nothing is deployed by it — workflow-only + docs, so no VPS action required.
-3. Then: Jiya referral kit via `/app/affiliates`, GSC creds (runbook `memory/playbooks.md`) before `GSC_ENABLED` is ever considered, B3 DKIM (owner DNS).
+1. Finish merge conflict resolution and run targeted DSH suites + `prod_check.py` + secrets.
+2. Push DSH branch, create/merge PR after checks.
+3. Merge updated PR #357 and #354 only when required checks are green.
+4. Deploy final `origin/main` with canonical script; record exact production evidence.

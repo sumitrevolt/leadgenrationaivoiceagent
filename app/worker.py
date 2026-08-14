@@ -32,6 +32,7 @@ celery_app = Celery(
         "app.tasks.dev_worker",  # Dev control-plane runner (INERT unless DEV_ORCHESTRATOR+DEV_WORKER_ENABLED)
         "app.tasks.video_jobs",  # Video creative-pipeline render task (queue INERT unless CELERY_VIDEO_QUEUE=1)
         "app.tasks.kb_niche_refresh",  # ADR-104 A4.5 — owned single-niche KB catalog refresh (default queue)
+        "app.tasks.dsh_jobs",  # Hardened DSH orchestration + governed domain bridge (INERT default)
     ],
 )
 
@@ -182,6 +183,8 @@ celery_app.conf.update(
             "app.tasks.reporting.*": {"queue": "reporting"},
             "app.tasks.sync.*": {"queue": "sync"},
             "app.tasks.brain_training.*": {"queue": "training"},
+            "app.tasks.dsh_jobs.run_dsh_workforce": {"queue": "dsh"},
+            "app.tasks.dsh_jobs.execute_governed_capability": {"queue": "celery"},
         },
     ),
     # Rate limits per task type

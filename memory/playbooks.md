@@ -15,6 +15,31 @@
 - Whole stack: `docker compose -f docker-compose.vps.yml down` → `systemctl start leadgen` (SQLite systemd service installed as rollback).
 - Worker recreate ke baad: `redis-cli llen celery`; >500 = `del celery` (beat re-schedules).
 
+## DeepSeek Harness rollout, rollback drill, and retirement (ADR-181/182)
+**Current posture:** CODE-READY/INERT only. `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, allowlist empty; deploy/arm/promote/delete mat karo bina separate owner authorization.
+
+**Evidence-gated wave order:** shadow → Kavya read-only → Isha draft → GREEN read-only → GREEN internal mutators → Zara approved-social handoff → AMBER final-approval-gated. Shadow needs 120 golden cases + 2,000 turns / 14 days. Har next wave ke liye prior evidence retained, role-specific mutation/refusal tests green, tenant/compliance/billing/approval gates intact, queue/retry/DLQ/audit healthy, rollback drill green, aur explicit owner promotion approval mandatory hai. Time/test pass se auto-promotion nahi.
+
+**One-flag runtime rollback drill (owner-authorized production game-day only):**
+1. Before state capture: exact running `APP_VERSION`, direct cache-busted `/health`, DSH runtime status, queue/DLQ depth, active allowlist/wave names only, and a known direct-executor control case. Secret/config values print mat karo.
+2. Set only `DSH_RUNTIME_ENABLED=0` through the approved env-change path and recreate the affected app-image services with the same exact `APP_VERSION`; if shadow itself is faulty, set `DSH_SHADOW_ENABLED=0` too.
+3. Prove `provider_for()`/runtime status selects `direct` for the canary, the direct control case succeeds, no DSH authority job is newly accepted, compliance/approval refusals remain fail-closed, and queues/DLQs do not regress.
+4. Probe `/health` twice with cache-busters; require expected SHA, `environment:production`, advancing timestamp/uptime, and zero app-image skew. Record timestamps, run ids, exit codes, and evidence paths.
+5. Do not re-arm. Re-arm/promotion is a new owner decision after incident review.
+
+**Exact-image rollback drill:** Use the last known-good immutable `APP_VERSION` only through `scripts/deploy_vps.sh`; never hand-write compose rollback and never use `:latest`. The script must prove deployed SHA parity, migrations/readiness, service skew, and smoke; then repeat direct `/health` probes. A failed drill blocks the next wave.
+
+**Legacy retirement checklist — every box required before deletion:**
+- [ ] Final owner-authorized target wave has 30 consecutive green production days; any rollback or material incident resets the clock.
+- [ ] Recorded game-day proves `DSH_RUNTIME_ENABLED=0` returns traffic to direct executor while legacy exists.
+- [ ] Recorded exact-`APP_VERSION` game-day proves `scripts/deploy_vps.sh` can restore the legacy-capable image.
+- [ ] Full static + dynamic caller/import/route/task/scheduler scan for `agent_runtime`, existing harness, and direct executor is reviewed; no orphan or hidden function-level import remains.
+- [ ] Targeted suites, runtime/workforce parity, approval/compliance/tenant tests, `prod_check.py`, and secrets scan are green with exit codes.
+- [ ] Direct cache-busted `/health` proves expected production SHA/environment; app-image skew, queues, DLQs, audit continuity, and rollback evidence are healthy.
+- [ ] Deletion diff preserves Celery, Python domain engines, `agent_registry`, Owner OS, tenant/compliance/billing controls, and excludes all voice/Swara/Ananya paths.
+- [ ] Owner separately authorizes legacy deletion after reviewing evidence and diff; deploy approval or canary approval does not imply deletion approval.
+- [ ] Post-deletion rollback remains exact-image rollback until a replacement one-flag mechanism is production-proven.
+
 ## New marketing feature (skill: `marketing-feature`)
 Module in `app/marketing/` → router (PEHLE duplicate-route grep across ALL split routers) → frontend tab SAATH me (API-only = adhoora) → flag-gated INERT default → targeted test → prod_check → smoke on VPS.
 

@@ -2,6 +2,32 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## ADR-182 (2026-08-14) — DSH evidence-gated rollout and legacy retirement policy [CODE-READY, INERT]
+
+**Decision:** Prepare, but do not actuate, the DeepSeek Harness rollout in this fixed order: **shadow → Kavya read-only → Isha draft → GREEN read-only → GREEN internal mutators → Zara approved-social handoff → AMBER final-approval-gated**. `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, and an empty DSH allowlist remain the current posture. AUTH-DEPLOY, every flag arm, every wave promotion, and any legacy deletion each require separate explicit owner authorization; no stage auto-promotes from elapsed time or passing tests.
+
+**Evidence gates:** Before shadow, the hardened image/supply-chain/lifecycle evidence, deterministic contract, targeted tests, `prod_check.py`, caller baseline, and direct-executor rollback drill must be green. Shadow then requires at least 120 golden cases plus 2,000 turns over a 14-day soak, with parity/refusal evidence, tenant isolation, bounded queue/retry/DLQ health, and no compliance/billing/approval bypass. Each authority wave must preserve the previous wave's evidence and add role-specific proof: read-only waves cannot mutate; Isha may create drafts but cannot publish; GREEN mutators require idempotency/dedupe and audited internal-only mutations; Zara may only hand off already-approved social work through existing publication gates; AMBER remains customer-touch/final-approval gated. Any unexplained error, policy divergence, stale approval, cross-tenant result, compliance regression, or rollback failure blocks or demotes the wave.
+
+**Rollback:** Runtime rollback is the one-flag operation `DSH_RUNTIME_ENABLED=0`, which returns dispatch to the canonical direct executor; disable `DSH_SHADOW_ENABLED` too when shadow execution itself is implicated. Code/image rollback uses the last known-good exact `APP_VERSION` through canonical `scripts/deploy_vps.sh`, followed by direct `/health` evidence and skew/smoke checks. No hand-written compose rollback and no `:latest`.
+
+**Retirement gate:** `app/platform/agent_runtime.py` and the existing harness/direct path must not be deleted until the final authorized target wave has completed **30 consecutive green production days**, a recorded game-day proves both flag rollback and exact-image rollback, a full caller/import scan is reviewed, direct `/health` proves the expected production SHA/environment, queues/DLQs and audit continuity are healthy, and the owner separately authorizes deletion after reviewing the deletion diff. Until then the legacy path is an active rollback control, not dead code. After any future deletion, exact-image rollback remains mandatory until a replacement rollback mechanism is production-proven.
+
+**Context:** ADR-181 allows only the hardened source-built Linux path and preserves ADR-179's rejection of stock wheel/direct embedding/default tools/direct provider access. This ADR adds the operational promotion and retirement contract without changing authority or production state.
+
+**Alternatives rejected:** Big-bang workforce cutover; time-only promotion; AMBER before GREEN mutator proof; retiring legacy after local tests; treating deploy authorization as flag-arm or deletion authorization; deleting the direct executor while claiming one-flag rollback still exists.
+
+**Consequence:** Canary/retirement scaffolding is documentation-complete and remains LOCAL-ONLY/CODE-READY/INERT. Owner actions still pending are AUTH-DEPLOY, shadow/authority flag arms, each canary promotion, all production soak evidence, and eventual legacy deletion authorization.
+
+## ADR-181 (2026-08-14) — DeepSeek Harness migration contract: hardened source-built Linux path only [LOCAL-ONLY]
+
+**Decision:** Keep **ADR-179 fully intact** for the rejected paths: stock wheel, direct embedding, default tools, and direct provider access remain **NO-GO**. Conditionally supersede ADR-179 **only** for an owner-mandated, hardened, source-built Linux path where DeepSeek Harness may replace **planning / turn loop / tool loop only** inside the existing governed harness boundary.
+
+**Context:** Owner asked for the next DSH step without turning this repo into a second agent platform. The project already has canonical controls for Celery execution, Python domain engines, `agent_registry`, Owner OS approvals, tenant isolation, compliance gates, and billing truth. The missing artifact was a deterministic migration contract that proves exactly what may move, what must stay, and which identities are frozen.
+
+**Alternatives rejected:** (1) Shipping stock `dsh` wheel / preview package — ADR-179 stands. (2) Direct embedding into runtime with default tools or direct provider access — bypasses Owner OS / policy gates. (3) Retiring existing harness, Celery, or Python domain engines — duplicate control plane and breaks established rollback/governance. (4) Migrating voice path — Swara/Ananya remain RED/HARD_OFF frozen and no voice path enters DSH.
+
+**Consequence:** Local contract artifacts now define the allowed surface: 31 identities preserved, 29 migratable candidates, `swara` + `ananya` frozen forever out of DSH, all `DSH_*` flags default OFF, and **no authority / deploy / retirement** is allowed until evidence gates pass. Those gates include the committed migration contract, stable Owner OS runtime API freeze, non-empty import/caller baseline, targeted tests, `prod_check.py`, and explicit owner authorization for any hardened Linux source-build follow-up.
+
 ## ADR-180 (2026-08-14) — Steal dsh SessionEvent + hash-chain into existing harness [CODE-PRESENT, INERT]
 
 **Decision:** Harvest DeepSeek Harness *patterns only* into `app/agents/harness/`: typed `SessionEvent` (`session.py`), per-run `seq`/`prev_hash`/`event_hash` stamp on `audit.record`, and `Harness.run()` turn_start / turn_end + optional `pre_step` reject hook. Flag **`HARNESS_SESSION_EVENTS=0` default**. Do **not** vendor `dsh`, Cordis, pnpm, or a second agent runtime (ADR-179 stands).

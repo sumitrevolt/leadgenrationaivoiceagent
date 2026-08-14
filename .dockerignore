@@ -57,6 +57,10 @@ tfplan*
 htmlcov
 .pytest_cache
 tests
+!tests
+tests/**
+!tests/fixtures
+!tests/fixtures/dsh_fake_gateway.py
 
 # Documentation
 docs
@@ -90,6 +94,7 @@ data/**/*.sqlite
 /models
 
 # Misc
+_scratch/
 backups/
 .DS_Store
 *.log

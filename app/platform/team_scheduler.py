@@ -256,7 +256,42 @@ def _load_last_ran() -> None:
                 _last_ran[k] = v
 
 
-async def _run_job(job: str, retry_count: int = 0) -> bool:
+async def _run_job(
+    job: str,
+    retry_count: int = 0,
+    *,
+    idempotency_key: str = "",
+) -> bool:
+    """Use workforce dispatch for allowlisted safe jobs; otherwise direct rollback."""
+    try:
+        from app.platform.workforce_runtime.scheduled import maybe_dispatch
+
+        routed = await maybe_dispatch(
+            job,
+            retry_count=retry_count,
+            idempotency_key=idempotency_key,
+        )
+        if routed is not None:
+            logger.info(
+                "[team-scheduler] workforce routed job=%s provider=%s status=%s",
+                job,
+                routed.provider,
+                routed.status,
+            )
+            return routed.status not in {"failed", "enqueue_failed"}
+    except Exception as exc:
+        # A configured DSH route may have an unknown outcome. Never fall through
+        # to a second execution that could duplicate a side effect.
+        logger.warning(
+            "[team-scheduler] workforce dispatch failed job=%s error=%s",
+            job,
+            type(exc).__name__,
+        )
+        return False
+    return await _run_job_direct(job, retry_count=retry_count)
+
+
+async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
     """Heartbeat wrapper — har run automation_health me record hota (dead-man
     switch: job chupchaap band ho jaye to overdue-alert). In-process + Celery
     dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta.

@@ -4,7 +4,19 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` = `150bf898` (PR #356 AUTH-DEPLOY). ADR-180 INERT (`HARNESS_SESSION_EVENTS` UNSET). Kill fence closed (VLK=FALSE_TOKEN in all 5). Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`).
+2026-08-14 — prod `/health` last verified at `150bf898` before this integration (PR #356 AUTH-DEPLOY). WS-DSH is CODE-READY/INERT with matching local Linux binaries, smoke/SBOM and fail-closed shadow evidence; runtime/shadow flags remain OFF and allowlist empty.
+
+## CODE-READY / INERT — DeepSeek Harness migration contract (2026-08-14)
+- Label: CODE-PRESENT | TEST-PROVEN | LOCAL-RUNTIME-PROVEN; production deploy pending
+- ADR-179 remains intact for stock wheel / direct embedding / default tools / direct provider access
+- ADR-181 conditionally supersedes only for an owner-mandated hardened source-built Linux path
+- Canonical controls remain unchanged: Celery, Python domain engines, `agent_registry`, Owner OS approvals, tenant/compliance/billing controls
+- Workforce contract is frozen at 31 identities preserved / 29 migratable / `swara` + `ananya` RED/HARD_OFF excluded from DSH
+- Build evidence: smoke-a/smoke-b executable SHA matches; closure proofs equal; forbidden packages empty
+- Linux smoke green on Docker-internal-only network: fake MCP/model passed, shutdown `0.516s`, hard cancel `3.094s`; CycloneDX SBOM has 1,275 components
+- Evidence artifacts: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`, `docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json`, `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json`
+- Shadow remains mechanically blocked: 120 golden cases + 2,000 turns / 14 days + separate owner authorization are not production-proven
+- Workstream posture: `WS-DSH` active, `WS-GTM1` active, `WS-SEC` active, `WS-UPI304` parked on external wait
 
 ## DEPLOYED 2026-08-14 — `150bf898` (PR #356 hygiene + ADR-180)
 **Prod `/health` = `150bf898`** twice after kill-restore (DIRECT_HOST_VERIFIED 2026-08-14 04:16Z / 04:17Z): `healthy` · `environment:production`. Merge tip is `150bf898` from feature head `e5feaa6e` (UP045); old wait SHA `8fa39c84` is ancestor only. Ships hygiene archive + ADR-180 SessionEvent (INERT) + prior undeployed main (#353/#352/#327 ancestry).

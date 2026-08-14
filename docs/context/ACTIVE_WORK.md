@@ -2,6 +2,16 @@
 
 ---
 
+## WS-DSH DeepSeek Harness full migration (CURSOR LANE B)
+- **ID:** WS-DSH
+- **Business outcome:** Replace only the governed planning/turn/tool loop through a reversible, evidence-gated DSH path without introducing a second control plane or touching voice
+- **Current state:** **CODE-READY/INERT, integration in progress** · source-built pair is bit-identical; fake MCP/model smoke, lifecycle bounds, closure proof and CycloneDX SBOM green · `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, allowlist empty
+- **Prep completed:** Hardened Cordis closure, pkg-visible config path, Linux fake MCP/model lifecycle smoke, reproducibility proof, CycloneDX SBOM, shadow evidence gate and rollback contract
+- **Next exact action:** Merge/deploy code only under the user's current authorization; do not arm runtime/shadow, promote canaries, or retire legacy paths without separate owner authorization.
+- **Out of scope:** Any deploy/flag arm/promotion/deletion without owner authorization · plan-file edits · stock wheel/direct embedding/default tools/direct provider access · voice migration
+
+---
+
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
@@ -11,30 +21,22 @@
 
 ---
 
-## WS-UPI304 Guest bind status (CURSOR LANE B)
-- **ID:** WS-UPI304
-- **Business outcome:** Guest (no login) can pay → admin binds client_id → activates subscription (resolves #304 approved_but_unbound)
-- **Current state:** CODE-LIVE `a3fbc8bb` (PR #320) · TEST-PROVEN `test_upi_guest_bind_workflow_2026_08_10.py` · UI wired `admin_dashboard.html` · WAIT first live proof
-- **Next exact action:** Wait for first guest payment (or simulate staging) to prove live workflow
-- **Out of scope:** Deploy (already live) · changing UPI flow
-
----
-
 ## WS-SEC Security/compliance residual (CURSOR LANE B)
 - **ID:** WS-SEC
-- **Business outcome:** All compliance gates (DND/TRAI/DPDP/secrets) remain fail-closed; voice FROZEN
-- **Current state:** Gates INTACT · Voice FROZEN per constraint · No security regressions
-- **Next exact action:** Monitor only; no changes permitted
+- **Business outcome:** All compliance gates (DND/TRAI/DPDP/secrets) remain fail-closed while voice stays frozen
+- **Current state:** Gates INTACT · voice/Swara surface remains frozen · no compliance gate touched by WS-DSH
+- **Next exact action:** Monitor only; no voice edits and no gate weakening
 - **Out of scope:** Voice/Swara edits · weakening compliance gates
 
 ---
 
 ## Parked (not in active 3)
+- **WS-UPI304** Guest bind workflow is parked on external wait for first live proof; no code change in this DSH slice
 - **WS-HYG** Duplicate/docs hygiene 2026-08-14 — archived + AUTH-DEPLOYED on `150bf898` via PR #356. COMPLETE.
-- **WS-DSH** ADR-179 NO-GO vendor; ADR-180 steal #1 LIVE-INERT on prod `150bf898` (`HARNESS_SESSION_EVENTS` UNSET). Do not arm.
+- **WS-DSH180** ADR-180 SessionEvent steal remains LIVE-INERT on prod `150bf898` (`HARNESS_SESSION_EVENTS` UNSET). Do not arm.
 - **WS-GOV** Boss + Second Brain governance (PR #330 MERGED `8f5a2e2d`, prod has ancestry, flag OFF)
 - **WS-BUZZ** Local Buzz Desktop + relay (Cursor ACP Boss canonical `1b13cecc`, relay verified)
-- **WS-DEP329** Rollback retention (MERGED `6052b533`)
+- **WS-DEP329** Rollback retention lineage
 - **WS-REV** #306 live proofs (after #304 guest bind proven)
 - **WS-AMAX** DUNNING safe-enabler (#307 stays OFF per owner decision)
 - **WS-SEC1** Vobiz credential rotation

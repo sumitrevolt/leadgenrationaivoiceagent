@@ -1,0 +1,52 @@
+{
+  "artifact_sha256": {
+    "runtime-proof-a.json": "7eb93235be72f9b96b7c3a90fc05ee0360573176cdfbecc06ca9517d30079c62",
+    "runtime-proof-b.json": "7eb93235be72f9b96b7c3a90fc05ee0360573176cdfbecc06ca9517d30079c62",
+    "sbom.cdx.json": "2f0e9e43ec6f6a9c1c167c665d1bb0b4a110b56db99844ab862dbfaf47abe1c4",
+    "smoke.json": "2b9ff95bda9c3d2b9f1d06187cd53e68f0c6ac755d64146e303b912679f91c24"
+  },
+  "evidence_label": "LINUX_CI_VERIFIED",
+  "lifecycle": {
+    "clean_shutdown_seconds": 0.516,
+    "fake_mcp": "passed",
+    "fake_model": "passed",
+    "hard_cancellation_seconds": 3.094
+  },
+  "reproducibility": {
+    "bit_identical": true,
+    "closure_proofs_equal": true,
+    "executable_sha256": "4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6",
+    "independent_builds": 2,
+    "normalized_nondeterminism": [
+      "pkg_sea_mkdtemp_suffix"
+    ],
+    "status": "BIT_FOR_BIT_REPRODUCIBLE"
+  },
+  "runtime_state": "INERT_NOT_ARMED",
+  "schema_version": 1,
+  "security": {
+    "child_env_names": [
+      "DSH_CORDIS_CONFIG",
+      "DSH_LLM_BASE_URL",
+      "DSH_MCP_URL",
+      "DSH_RUN_TOKEN",
+      "HOME",
+      "PATH",
+      "SSL_CERT_FILE"
+    ],
+    "forbidden_packages": [],
+    "licences": [
+      "0BSD",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "ISC",
+      "LicenseRef-Proprietary",
+      "MIT",
+      "Python-2.0"
+    ],
+    "network_mode": "docker_internal_only",
+    "sbom_component_count": 1275,
+    "sbom_format": "CycloneDX"
+  }
+}
