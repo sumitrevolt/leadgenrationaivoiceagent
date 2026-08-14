@@ -214,6 +214,9 @@ AUTOMATION_FLAGS = [
     "COORD_PLAN_NODE",  # ADR-159 MetaGPT steal-#1: ActionNode-style structured plan fill/review/revise canary for coordinator.plan() — OFF default, legacy _extract_list authoritative
     "COORD_PLAN_NODE_REVIEWS",  # bounded self-correction rounds when the fill fails schema validation (default 1; 0 = no review, straight legacy fallback)
     "HARNESS_SESSION_EVENTS",  # ADR-180 dsh steal-#1: typed SessionEvent + hash-chained jsonl (seq/prev_hash/event_hash); OFF default, historical keys unchanged
+    "DSH_RUNTIME_ENABLED",  # hardened source-built DSH authority; OFF = direct executor rollback, owner authorization required
+    "DSH_SHADOW_ENABLED",  # proposal-only DSH shadow lane; OFF default
+    "DSH_AGENT_ALLOWLIST",  # bounded CSV identities eligible for DSH authority/shadow; empty = none
     "DEV_ORCHESTRATOR",  # Claude-managed engineering task ledger; draft-safe and OFF by default
     "DEV_WORKER_ENABLED",  # arms the draft-only dev-task Celery runner (needs DEV_ORCHESTRATOR too) — OFF default
     "AUTO_APPLY_PATCH",  # dev-control hard gate: patch application is REFUSED regardless; OFF default

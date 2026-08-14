@@ -4,7 +4,16 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` last probed = `2326c931`. ADR-180 SessionEvent steal CODE-PRESENT INERT (`HARNESS_SESSION_EVENTS=0`). Hygiene archive on this landing branch. Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`). `origin/main` also holds #353/#352 undeployed until this AUTH-DEPLOY.
+2026-08-14 — WS-DSH migration contract slice verified as LOCAL-ONLY in this isolated worktree. ADR-181 is append-only, DSH scope is planning/turn/tool loop only, all DSH flags remain OFF, and no deploy/authority/retirement claim is made from this session. Historical prod notes below were not re-probed as part of this DSH slice.
+
+## LOCAL-ONLY — DeepSeek Harness migration contract (2026-08-14)
+- Label: LOCAL-ONLY | CODE-PRESENT | TEST-PROVEN (targeted local suites only)
+- ADR-179 remains intact for stock wheel / direct embedding / default tools / direct provider access
+- ADR-181 conditionally supersedes only for an owner-mandated hardened source-built Linux path
+- Canonical controls remain unchanged: Celery, Python domain engines, `agent_registry`, Owner OS approvals, tenant/compliance/billing controls
+- Workforce contract is frozen at 31 identities preserved / 29 migratable / `swara` + `ananya` RED/HARD_OFF excluded from DSH
+- Evidence artifacts: `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json`, `tests/fixtures/dsh_migration_contract.json`, `docs/architecture/DEEPSEEK_HARNESS_MIGRATION.md`, `tests/test_dsh_migration_contract.py`
+- Workstream posture: `WS-DSH` active, `WS-GTM1` active, `WS-SEC` active, `WS-UPI304` parked on external wait
 
 ## DEPLOYED 2026-08-13/14 — `2326c931` (PR #327 mypy land)
 **Prod `/health` = `2326c931`** (DIRECT_HOST_VERIFIED 2026-08-14). Includes PR #327 and ancestry of `9c47647c` (PR #332 ADR-177, #330, #329).

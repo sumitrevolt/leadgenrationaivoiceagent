@@ -452,7 +452,11 @@ def run_staff_job(self, job: str):
                 "stopped": True,
             }
         ok = _run_async(
-            team_scheduler._run_job(job, retry_count=int(getattr(self.request, "retries", 0) or 0))
+            team_scheduler._run_job(
+                job,
+                retry_count=int(getattr(self.request, "retries", 0) or 0),
+                idempotency_key=tid,
+            )
         )
         if ok is False:
             raise RuntimeError(f"staff job '{job}' reported failure")

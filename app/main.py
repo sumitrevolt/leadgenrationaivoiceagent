@@ -1204,6 +1204,43 @@ app.include_router(
     telephony_vobiz_router, prefix="/api", tags=["Telephony"]
 )  # /api/telephony/vobiz/*
 
+_dsh_runtime_configured = os.environ.get("DSH_RUNTIME_ENABLED", "0").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+) or os.environ.get("DSH_SHADOW_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+
+try:
+    from app.api.dsh_internal import router as dsh_internal_router
+
+    app.include_router(dsh_internal_router)
+except Exception as _e:  # pragma: no cover
+    if _dsh_runtime_configured:
+        raise
+    logger.warning("DSH internal router not mounted: %s", type(_e).__name__)
+
+
+@app.middleware("http")
+async def _dsh_internal_auth_gate(request, call_next):
+    """All DSH HTTP/MCP traffic requires a live run-scoped bearer."""
+    path = request.url.path or ""
+    if not path.startswith("/internal/dsh"):
+        return await call_next(request)
+    try:
+        from app.api.dsh_internal import authenticate_request
+
+        authenticate_request(request)
+    except Exception as exc:
+        from fastapi import HTTPException
+        from fastapi.responses import JSONResponse
+
+        if isinstance(exc, HTTPException):
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        logger.warning("DSH internal auth gate failed: %s", type(exc).__name__)
+        return JSONResponse(status_code=503, content={"detail": "dsh_auth_unavailable"})
+    return await call_next(request)
+
 
 # ---------------------------------------------------------------------------
 # MCP server — platform admin endpoints as MCP tools (Claude platform-admin)
@@ -1291,12 +1328,31 @@ try:
         logger.info(
             f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, " f"Platform/Data/Agents tools)"
         )
+
+    if _dsh_runtime_configured:
+        from app.api.dsh_internal import MCP_OPERATION_IDS
+
+        _dsh_mcp = FastApiMCP(
+            app,
+            name="LeadGen DSH Internal",
+            include_operations=list(MCP_OPERATION_IDS),
+            headers=["authorization"],
+        )
+        _dsh_mcp.mount_http(mount_path="/internal/dsh/mcp")
+        logger.info(
+            "DSH internal MCP mounted with %d exact operations",
+            len(MCP_OPERATION_IDS),
+        )
 except ImportError as e:
     from app.platform.mcp_import import describe_mcp_import_failure
 
     _mcp_log_level, _mcp_log_message = describe_mcp_import_failure(e)
     getattr(logger, _mcp_log_level)(_mcp_log_message)
+    if _dsh_runtime_configured:
+        raise RuntimeError("DSH runtime configured but FastAPI-MCP is unavailable") from e
 except Exception as e:
+    if _dsh_runtime_configured:
+        raise
     logger.warning(f"MCP mount failed (non-fatal): {e}")
 
 

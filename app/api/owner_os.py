@@ -404,6 +404,14 @@ async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str,
     out = agent_runtime.runtime_status()
     out["dlq_tail"] = agent_runtime.runtime_dlq(20)
     out["workforce_rollout"] = workforce_rollout_state()
+    from app.platform.workforce_runtime import provider_for, rollout_wave
+    from app.platform.workforce_runtime import runtime_status as workforce_runtime_status
+
+    out["workforce_runtime"] = workforce_runtime_status()
+    for row in out.get("agents") or []:
+        agent_id = str(row.get("agent_id") or "")
+        row["provider"] = provider_for(agent_id)
+        row["rollout_wave"] = rollout_wave(agent_id)
     return out
 
 
@@ -485,12 +493,17 @@ async def owner_runtime_run(
         },
     )
     out: dict[str, Any] = {
-        "ok": result.status == "succeeded",
+        "ok": result.status in ("succeeded", "queued"),
         "result": result.to_dict(),
         "agent_id": body.agent_id,
         "capability": body.action,
         "status": result.status,
         "reason_code": result.reason or "",
+        "provider": result.provider,
+        "queue": result.queue,
+        "heartbeat": result.heartbeat,
+        "runtime_version": result.runtime_version,
+        "rollout_wave": result.rollout_wave,
     }
     # Durable duplicate / store-unavailable projection (no fabricated IDs)
     try:

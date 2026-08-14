@@ -56,10 +56,13 @@ async def run_agent_task(
 @router.get("/status")
 async def agents_status() -> dict[str, Any]:
     """Engine availability — safe to call without auth (no secrets exposed)."""
+    from app.platform.workforce_runtime import runtime_status as workforce_runtime_status
+
     return {
         "available": AGENTS_AVAILABLE,
         "engine": "langgraph-supervisor",
         "nodes": GRAPH_NODES,
+        "workforce_runtime": workforce_runtime_status(),
     }
 
 

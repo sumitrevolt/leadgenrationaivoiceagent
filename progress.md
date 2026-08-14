@@ -1987,3 +1987,15 @@ Next Highest Priority: owner Day-0 15-min Hot Queue action at /app/inbox (not an
 ## Loop Run — Dunning dry-run 2026-08-13 08:03 IST
 - Evidence: `_scratch/COORDINATION_20260813/FREEBUFF_DUNNING_CANARY_DRYRUN_20260813.md`.
 - DUNNING_ENGINE left 0. cases/runs 0. SQL subs 0. run_due no-op.
+
+## Loop Run
+Date: 2026-08-14 (WS-DSH migration contract local-only — CURSOR)
+Goal: Ship the owner-requested DeepSeek Harness migration contract slice in the isolated worktree only: ADR-181, deterministic generator, committed evidence JSON, architecture note, tests, and context/memory sync; no deploy/flag arm/voice edits.
+Inspected: `memory/decisions.md`; `docs/context/{ACTIVE_WORK,SESSION_HANDOFF,CURRENT_STATE}.md`; `CLAUDE.md`; `AGENTS.md`; `app/platform/{agent_registry,agent_runtime,agent_runtime_workforce}.py`; `app/api/owner_os.py`; `scripts/generate_dsh_migration_contract.py`; generated evidence JSON; `tests/test_dsh_migration_contract.py`.
+Problems Found: (1) `tests/test_dsh_migration_contract.py` first run failed because committed contract JSON was stale relative to current source-scanned runtime baseline after the test/generator landed. (2) Active-work docs still had `WS-UPI304` active and `WS-DSH` parked, which violated the requested max-3 stream posture. (3) `SESSION_HANDOFF.md` still described merge/deploy work, not the current LOCAL-ONLY DSH slice.
+Changed: appended ADR-181 in `memory/decisions.md`; synced `docs/context/ACTIVE_WORK.md`, overwrote `docs/context/SESSION_HANDOFF.md`, updated `docs/context/CURRENT_STATE.md`; updated `CLAUDE.md` and `AGENTS.md` to the same LOCAL-ONLY DSH current-state wording; kept deterministic generator/test/architecture slice; regenerated `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json` and `tests/fixtures/dsh_migration_contract.json`.
+Tests Run: generator `scripts/generate_dsh_migration_contract.py` EXIT 0; `tests/test_dsh_migration_contract.py` first run EXIT 1 (stale committed JSON) then rerun after regeneration EXIT 0; `tests/test_agent_registry.py` EXIT 0; `tests/test_agent_runtime_workforce.py` EXIT 0; `scripts/prod_check.py` EXIT 0; `git diff --check` EXIT 0; CLAUDE/AGENTS byte-parity check EXIT 0; `ReadLints` on generator/test files = no errors.
+Verification Evidence: contract test rerun `4 passed` EXIT 0; registry suite `14 passed` EXIT 0; workforce suite `10 passed` EXIT 0; `prod_check.py` = `[OK] ALL CHECKS PASSED - ready to deploy`; generator wrote both contract outputs; contract scope stays LOCAL-ONLY with 31 identities / 29 DSH candidates / `swara` + `ananya` frozen RED/HARD_OFF.
+Risks: No production/runtime proof is claimed here; this is a source-and-local-test contract only. Any future hardened Linux/source-build DSH follow-up still needs explicit owner authorization plus evidence gates before authority/deploy/retirement.
+Remaining: no commit/push/PR/deploy performed; DSH flags remain OFF; `WS-UPI304` remains parked on external wait; business blocker remains owner Hot Queue execution for GTM.
+Next Highest Priority: stop at LOCAL-ONLY verified state until owner asks for the next DSH step or for integration/commit work.

@@ -101,7 +101,7 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    networks: [leadgen_net]
+    networks: [leadgen_net, dsh_net]
 
   # ---------------------------------------------------------------------------
   # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
@@ -210,7 +210,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks: [leadgen_net]
+    networks: [leadgen_net, dsh_net]
 
   # ---------------------------------------------------------------------------
   # redis-cache — EVICTABLE cache only (app.cache.Cache). Alag instance taaki
@@ -405,6 +405,66 @@ services:
         max-file: "3"
     networks: [leadgen_net]
 
+  # ---------------------------------------------------------------------------
+  # Hardened DeepSeek Harness worker — profile-gated and INERT unless the service
+  # is explicitly started and authority or shadow is enabled. It receives no
+  # env_file/database/provider credentials and can reach only app + Redis on
+  # the internal dsh_net. One Celery job owns one source-built DSH process.
+  # ---------------------------------------------------------------------------
+  dsh-worker:
+    profiles: ["dsh"]
+    build:
+      context: .
+      dockerfile: deploy/dsh/worker.Dockerfile
+      args:
+        DSH_IMAGE: ${DSH_RUNTIME_IMAGE:-leadgen-dsh:47f94385}
+    image: ${DSH_WORKER_IMAGE_REPOSITORY:-leadgen-dsh-worker}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_dsh_worker
+    mem_limit: 768m
+    mem_reservation: 256m
+    cpus: "1.0"
+    pids_limit: 128
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
+      DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
+      DSH_MCP_URL: http://app:8080/internal/dsh/mcp
+      DSH_LLM_BASE_URL: http://app:8080/internal/dsh/v1
+      DSH_TOKEN_BACKEND: redis
+      DSH_RUN_STORE_BACKEND: redis
+      HOME: /tmp
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532
+      - /run/dsh:rw,noexec,nosuid,size=32m,uid=65532,gid=65532
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 10s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -m celery -A app.dsh_worker:celery_app inspect ping --destination celery@$$HOSTNAME --timeout 5 >/dev/null 2>&1",
+        ]
+      interval: 30s
+      timeout: 8s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [dsh_net]
+
   scheduler:
     profiles: ["celery"]
     image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
@@ -481,3 +541,6 @@ volumes:
 networks:
   leadgen_net:
     driver: bridge
+  dsh_net:
+    driver: bridge
+    internal: true

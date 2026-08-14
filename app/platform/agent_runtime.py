@@ -378,6 +378,11 @@ class AgentResult:
     lifecycle: list[str] = field(default_factory=list)
     usage: dict[str, float] = field(default_factory=dict)
     decision: dict[str, Any] | None = None  # structured admission / control decision
+    provider: str = "direct"
+    queue: str = ""
+    heartbeat: str = ""
+    runtime_version: str = ""
+    rollout_wave: str = "direct"
     at: str = field(default_factory=_now_iso)
 
     def to_dict(self) -> dict[str, Any]:
@@ -1310,18 +1315,58 @@ async def submit(
     trigger: str = "on_demand",
     timeout_s: float | None = None,
 ) -> AgentResult:
-    """Convenience wrapper — build AgentTask + run under full policy."""
-    return await run_task(
-        AgentTask(
+    """Canonical runtime-neutral submission; DSH OFF rolls back to direct."""
+    from app.platform.workforce_runtime import WorkforceRequest
+    from app.platform.workforce_runtime import dispatch as workforce_dispatch
+
+    result = await workforce_dispatch(
+        WorkforceRequest(
             agent_id=agent_id,
             action=action,
-            payload=payload or {},
+            payload=dict(payload or {}),
             tenant_id=tenant_id,
             approval_ref=approval_ref,
             idempotency_key=idempotency_key,
             trigger=trigger,
             timeout_s=timeout_s,
         )
+    )
+    decision = result.decision or admission_decision(
+        allowed=result.ok,
+        reason_code=result.reason,
+        agent_id=agent_id,
+        capability=action,
+        control_source="workforce_dispatch",
+        correlation_id=result.run_id,
+        state=result.status,
+    )
+    return AgentResult(
+        task_id=result.run_id or idempotency_key,
+        agent_id=agent_id,
+        action=action,
+        status=result.status,
+        reason=result.reason,
+        output=result.output,
+        error_class=result.error_class,
+        error_message=result.error_message,
+        attempts=result.attempts,
+        duration_ms=result.duration_ms,
+        mode=result.mode,
+        lane=result.lane,
+        escalation=result.escalation,
+        dlq=result.dlq,
+        lifecycle=(
+            list(result.lifecycle)
+            if result.lifecycle
+            else [TaskStatus.QUEUED.value] if result.status == "queued" else [result.status]
+        ),
+        usage=dict(result.usage),
+        decision=decision,
+        provider=result.provider,
+        queue=result.queue,
+        heartbeat=result.heartbeat,
+        runtime_version=result.runtime_version,
+        rollout_wave=result.rollout_wave,
     )
 
 

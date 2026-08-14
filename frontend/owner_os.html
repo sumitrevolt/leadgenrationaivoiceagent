@@ -171,8 +171,8 @@ textarea{min-height:88px;resize:vertical}
 
   <section class="panel" id="panel-runtime">
     <div class="card">
-      <h2>Agent Runtime (Phase-B pilots)</h2>
-      <p class="muted">Shared contract-enforced runtime. Sirf pilots (kavya/isha/zara) dispatchable — baaki 28 <b>registry_only</b>. RED lane (swara/ananya) hamesha blocked. Master flag <code>AGENT_RUNTIME</code> off = sab dispatch SKIPPED.</p>
+      <h2>Workforce Runtime</h2>
+      <p class="muted">Runtime-neutral governance with deterministic direct rollback. Hardened DSH authority/shadow dono default OFF aur explicit per-agent allowlist par hain. RED lane (swara/ananya) hamesha frozen/blocked; no Voice tools enter DSH.</p>
       <div class="chips" id="rtChips"></div>
       <div class="row" style="margin:8px 0; flex-wrap:wrap; gap:8px; align-items:center">
         <button class="btn sec" onclick="loadRuntime()">↻ Refresh</button>
@@ -586,8 +586,13 @@ async function loadTasks(){
 async function loadRuntime(){
   const {status,body}=await api("/api/admin/owner-os/runtime");
   if(status!==200||!body){ document.getElementById("rtAgents").textContent="load fail ("+status+")"; return; }
+  const wf=body.workforce_runtime||{};
   document.getElementById("rtChips").innerHTML = [
     ["Runtime flag", body.runtime_enabled? "ON":"OFF (inert)"],
+    ["Provider", wf.provider||"direct"],
+    ["DSH authority", wf.dsh_runtime_enabled? "ON":"OFF"],
+    ["DSH shadow", wf.dsh_shadow_enabled? "ON":"OFF"],
+    ["DSH allowlist", (wf.dsh_agent_allowlist||[]).join(", ")||"empty"],
     ["Pilots", (body.pilots||[]).join(", ")],
     ["Canonical", body.canonical_count],
     ["Runtime DLQ", body.runtime_dlq_count],
@@ -607,6 +612,7 @@ async function loadRuntime(){
           ${a.pilot?'<span class="badge ok">pilot</span>':''}
           <span class="badge ${hCls}">${esc(a.health)}</span>
           <span class="badge">${esc(a.mode)}</span>
+          <span class="badge">${esc(a.provider||"direct")} / ${esc(a.rollout_wave||"direct")}</span>
           ${a.cancel_requested?'<span class="badge err">cancel requested</span>':''}
           ${kills.length?`<span class="badge err">kill: ${esc(kills.join(","))}</span>`:''}
         </div>
@@ -621,7 +627,7 @@ async function loadRuntime(){
 async function runtimeKavya(){
   const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({agent_id:"kavya",action:"ops_health_check"})});
   const r=(body||{}).result||{};
-  toast(r.status==="succeeded"?"Kavya check OK":(r.reason||r.status||"blocked/skipped"));
+  toast(r.status==="succeeded"?"Kavya check OK":r.status==="queued"?"Kavya queued via "+(r.provider||"runtime"):(r.reason||r.status||"blocked/skipped"));
   document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
   loadRuntime();
 }
@@ -631,7 +637,7 @@ async function runtimeSprint(action,payload){
     agent_id:"kavya",action,payload:payload||{},idempotency_key:idem
   })});
   const r=(body||{}).result||{};
-  toast(r.status==="succeeded"?(r.output&&r.output.detail?r.output.detail:"Sprint OK"):(r.reason||r.status||"blocked/skipped"));
+  toast(r.status==="succeeded"?(r.output&&r.output.detail?r.output.detail:"Sprint OK"):r.status==="queued"?"Queued via "+(r.provider||"runtime"):(r.reason||r.status||"blocked/skipped"));
   document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
   loadRuntime();
 }
@@ -650,7 +656,7 @@ async function runtimeIsha(){
   const r=(body||{}).result||{};
   const out=(r.output||{});
   const pub=out.published===true;
-  toast(r.status==="succeeded"?(pub?"WARN published?":"Isha draft OK (not published)"):(r.reason||r.status||"blocked/skipped"));
+  toast(r.status==="succeeded"?(pub?"WARN published?":"Isha draft OK (not published)"):r.status==="queued"?"Isha queued via "+(r.provider||"runtime"):(r.reason||r.status||"blocked/skipped"));
   document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
   loadRuntime();
 }

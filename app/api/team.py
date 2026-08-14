@@ -64,11 +64,36 @@ async def get_team_stats(
 @router.post("/run/{member}")
 async def run_team_member(member: str, current_user: User = Depends(require_admin)):
     try:
-        from app.agents import staff
-        from app.platform import team
+        import uuid
 
-        team.log_event("manager", "task_assigned", f"manual run: {member}")
-        return await staff.run_member(member)
+        from app.platform import agent_controls, agent_runtime, team
+        from app.platform.agent_runtime_workforce import (
+            ACTION_DELIVERY_SCAN,
+            ACTION_OWNED,
+            ensure_workforce_registered,
+        )
+
+        agent_id = agent_controls.ALIAS_TO_MEMBER.get(
+            member.strip().lower(), member.strip().lower()
+        )
+        ensure_workforce_registered()
+        capabilities = agent_runtime.capabilities_for(agent_id)
+        if not capabilities:
+            return {"error": f"unknown member/job: {member}"}
+        action = (
+            ACTION_DELIVERY_SCAN
+            if ACTION_DELIVERY_SCAN in capabilities
+            else ACTION_OWNED if ACTION_OWNED in capabilities else capabilities[0]
+        )
+        team.log_event("manager", "task_assigned", f"manual run: {agent_id}")
+        result = await agent_runtime.submit(
+            agent_id,
+            action,
+            {"source": "team_api_manual"},
+            idempotency_key=f"manual_{uuid.uuid4().hex}",
+            trigger="manual_api",
+        )
+        return result.to_dict()
     except Exception as e:
         logger.warning(f"[team-api] run {member} failed: {e}")
         return {"error": str(e)}
