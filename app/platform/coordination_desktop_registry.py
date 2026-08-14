@@ -37,9 +37,7 @@ _REQUIRED_APP_KEYS = (
 def _valid_app(row: Any) -> bool:
     if not isinstance(row, dict):
         return False
-    return all(key in row for key in _REQUIRED_APP_KEYS) and bool(
-        str(row.get("id") or "").strip()
-    )
+    return all(key in row for key in _REQUIRED_APP_KEYS) and bool(str(row.get("id") or "").strip())
 
 
 def load_registry(path: str | os.PathLike | None = None) -> dict[str, Any]:
