@@ -31,6 +31,7 @@ from .enforce import (
 )
 from .loop import Harness, enabled
 from .sandbox import Sandbox, SandboxPolicy
+from .session import SessionEvent, SessionEventType, session_events_enabled
 from .stop import Budget, StopController
 from .tool_registry import REGISTRY, ToolRegistry, ToolSpec
 
@@ -59,4 +60,7 @@ __all__ = [
     "resolve_mode",
     "EXECUTORS",
     "enforcement_state",
+    "SessionEvent",
+    "SessionEventType",
+    "session_events_enabled",
 ]

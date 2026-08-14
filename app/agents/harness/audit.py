@@ -23,6 +23,7 @@ import os
 import time
 from typing import Any, Dict, Optional
 
+from . import session
 from .contracts import RunContext, ToolCall, ToolResult
 
 try:
@@ -74,6 +75,12 @@ def record(
         "control_trail": (result.control_trail if result else None),
         "extra": extra or {},
     }
+    # ADR-180: typed session event + hash-chain. OFF = historical keys only.
+    if session.session_events_enabled():
+        ev = session.event_for_kind(kind, extra)
+        if ev:
+            row["session_event"] = ev
+        session.stamp(row)
     _emit_span_attr(ctx, tool=row["tool"], kind=kind)
     # Durable backend is INERT by default: with HARNESS_AUDIT_BACKEND=jsonl (the
     # default) this is byte-identical to the historical append-only file sink and

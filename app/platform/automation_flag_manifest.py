@@ -389,6 +389,17 @@ _OVERRIDES: dict[str, FlagMeta] = {
         default="1",
         parser="int_clamp",
     ),
+    "HARNESS_SESSION_EVENTS": _m(
+        "HARNESS_SESSION_EVENTS",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.CANARY_ONLY,
+        notes="ADR-180 dsh steal-#1 typed SessionEvent + process-local hash-chain on harness jsonl; prod OFF; flag-off rows stay historical-key compatible",
+        owner="platform",
+        risk="ops",
+        default="0",
+        canary="local pytest + isolated HARNESS_RUN_LOG; do not arm AGENT_HARNESS with this in prod",
+        kill="HARNESS_SESSION_EVENTS=0",
+    ),
     "BOSS_DECISION_GOVERNANCE": _m(
         "BOSS_DECISION_GOVERNANCE",
         FlagValueKind.BOOLEAN,

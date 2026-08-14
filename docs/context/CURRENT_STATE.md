@@ -4,9 +4,14 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-12 — cache-busted `/health` probe = `9c47647c` (timestamp 2026-08-12T07:39:10, uptime 9h 33m). See `docs/evidence/REVENUE_READY_20260812.md`.
+2026-08-14 — cache-busted `/health` probe = `2326c931` (uptime 22h 26m). Hygiene merge: `docs/evidence/HYGIENE_MERGE_20260814.md`. ADR-180 harness SessionEvent steal CODE-PRESENT INERT (`HARNESS_SESSION_EVENTS=0`). Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`).
 
-## DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
+## DEPLOYED 2026-08-13/14 — `2326c931`
+Prod `/health` = `{"version":"2326c931","environment":"production","status":"healthy"}` (DIRECT_HOST_VERIFIED 2026-08-14 02:07 UTC). Activation summary: launch/production/first-paid/payments all true; warn_count=1 (non-blocker).
+**Prior documented tip `9c47647c` is SUPERSEDED.** Re-probe before quoting SHA.
+Label: DIRECT_HOST_VERIFIED (2026-08-14)
+
+## SUPERSEDED — DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
 `origin/main` tip = `23ea2d46` (includes #333 staff-bus, #334/#335 docs). **Prod `/health` = `9c47647c`** (DIRECT_HOST_VERIFIED 2026-08-12 07:39 UTC). Deploy timestamp estimated ~2026-08-11 22:05 UTC (uptime 9h 33m backtrack). Includes: PR #332 (ADR-177 GSC + funnel + referral + triage), PR #330 (Boss governance), PR #329 (rollback retention).
 **#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
 Label: DIRECT_HOST_VERIFIED (2026-08-12)
