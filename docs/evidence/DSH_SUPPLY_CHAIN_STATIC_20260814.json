@@ -30,7 +30,7 @@
   },
   "evidence_label": "STATIC_VERIFIED",
   "input_sha256": {
-    ".github/workflows/dsh-runtime.yml": "d2b5fc3a2f8d787c1ca63b5fd54b0c7b6af387f71c64a0b6f11d16be5b653b14",
+    ".github/workflows/dsh-runtime.yml": "e5f298077604fae28700dc52bf3075cccb7143c7feefff5d2c86340d12aee2e1",
     "app/tasks/dsh_jobs.py": "f0134bc3469e153ac994f509c30934e3609ffd0402cfafaaf00f06806222b0b9",
     "deploy/dsh/Dockerfile": "6588866d6c9854c90c7082230587fb3f208a688c275815a9750a2b3d06eaa2a5",
     "deploy/dsh/cordis.yml": "c8d86878b947c6c831cac60b220e3386417061ebd57fa9d72bcebf208865b629",

@@ -106,9 +106,12 @@ jobs:
       - name: Validate profile-gated production topology
         env:
           APP_VERSION: ${{ github.sha }}
-        run: >-
-          docker compose --file docker-compose.vps.yml --profile dsh
-          config --no-env-resolution --quiet
+        run: |
+          # Compose still resolves env_file paths even with --no-env-resolution.
+          : > .env
+          docker compose --file docker-compose.vps.yml --profile dsh \
+            config --no-env-resolution --quiet
+          rm -f .env
 
       - name: Extract second closure proof
         run: |
