@@ -303,3 +303,8 @@ deploy/buzz/env/channels.local
 deploy/buzz/env/gh-events.response
 !deploy/buzz/env/
 !deploy/buzz/env/.env.local.template
+
+# Desktop-app coordination registry MUST be tracked: the Coordination Hub loader
+# (app/platform/coordination_desktop_registry.py) reads it from disk at runtime.
+# The blanket `*.json` above silently excluded it.
+!docs/coordination/desktop_registry.json
