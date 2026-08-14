@@ -20,7 +20,7 @@ import json
 import os
 import threading
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -70,7 +70,7 @@ def session_events_enabled() -> bool:
     return os.getenv("HARNESS_SESSION_EVENTS", "0") == "1"
 
 
-def event_for_kind(kind: str, extra: Optional[dict[str, Any]] = None) -> Optional[str]:
+def event_for_kind(kind: str, extra: dict[str, Any] | None = None) -> str | None:
     extra = extra or {}
     explicit = extra.get("session_event")
     if isinstance(explicit, str) and explicit.strip():
@@ -101,7 +101,7 @@ def stamp(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
-def reset_chain(run_id: Optional[str] = None) -> None:
+def reset_chain(run_id: str | None = None) -> None:
     """Test helper. Clears one run or the whole process-local chain."""
     with _LOCK:
         if run_id is None:
