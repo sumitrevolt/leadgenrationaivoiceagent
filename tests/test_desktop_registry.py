@@ -83,9 +83,7 @@ def test_buzzlock_tokens_match_registry():
     for app in reg.load_registry()["apps"]:
         tok = app.get("buzzlock_tool")
         if tok:
-            assert tok in enrolled, (
-                f"registry buzzlock_tool {tok} not in scripts/buzzlock.py TOOLS"
-            )
+            assert tok in enrolled, f"registry buzzlock_tool {tok} not in scripts/buzzlock.py TOOLS"
 
 
 def test_registry_contains_no_secret_values():
@@ -94,7 +92,7 @@ def test_registry_contains_no_secret_values():
     for s in _strings(data):
         # credential-shaped: opaque, long, no spaces (keys/tokens/passwords)
         if len(s) >= 40 and " " not in s:
-            assert False, f"credential-shaped value in registry: {s[:16]}..."
+            raise AssertionError(f"credential-shaped value in registry: {s[:16]}...")
     for app in data["apps"]:
         for key in ("api_key", "password", "private_key"):
             assert key not in app
