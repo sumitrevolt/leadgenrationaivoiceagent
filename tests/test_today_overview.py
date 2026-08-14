@@ -190,3 +190,19 @@ def test_future_scheduled_jobs_are_not_due_yet(monkeypatch):
     assert today_overview._job_due_yet("engineer_dataquality") is False
     assert today_overview._job_due_today("engineer_deps") is False
     assert today_overview._job_due_yet("revenue_snapshot") is True
+
+
+def test_hot_queue_pending_surfaces_as_first_problem(monkeypatch):
+    from app.platform import reply_agent
+
+    monkeypatch.setattr(
+        reply_agent,
+        "hot_queue",
+        lambda **_kw: [{"hq_id": "x1"}, {"hq_id": "x2"}],
+    )
+    d = today_overview.build()
+    assert d["totals"].get("hot_queue") == 2
+    hq = [p for p in d["problems"] if "Hot Queue" in p["kya"] or "garam replies" in p["kya"]]
+    assert hq, d["problems"]
+    assert hq[0]["href"] == "/app/inbox"
+    assert d["problems"][0]["href"] == "/app/inbox"

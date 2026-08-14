@@ -1,6 +1,42 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-14 (post-deploy: context writeback + uptime watchdog fix — CURSOR)
+Goal: "continue fix everything" — truth-check prod vs claimed `150bf898`, git hygiene back onto main, kill context-doc drift, then fix only REAL remaining breakage. No deploy, no flag arm, no WIP merge.
+Inspected: public `/health` + `/api/activation/summary`; `git fetch` + branch/stash inventory; uncommitted diffs of `CURRENT_STATE.md`/`SESSION_HANDOFF.md`/`ACTIVE_WORK.md`/`progress.md`; CLAUDE.md `## Current State`; `memory/decisions.md` ADR-180; `gh pr view 356`; `gh run list --branch main`; `.github/workflows/uptime.yml`.
+Problems Found: (1) CLAUDE.md hot cache stale — prod `9b09a808`, rollback `e06687c7`, ADR-177 "deploy pending", no ADR-180. (2) `memory/decisions.md` ADR-180 still CODE-PRESENT with no deploy stamp. (3) Local branch still the merged feature branch; local `main` behind 17. (4) **REAL BUG** — `uptime.yml` worst-case retry budget 805s > its own `timeout-minutes: 5` (300s), so a genuine outage CANCELS the job and the `Fail if DOWN` + ntfy steps never execute → off-VPS dead-man's switch silent (proof run `31768071231`, "exceeded the maximum execution time of 5m0s", 0 alerts).
+Changed: `.github/workflows/uptime.yml` (deadline guard `PROBE_DEADLINE_SECS=210`, per-attempt cost trimmed, `timeout-minutes` 5→6, attempts reported); `CLAUDE.md` + byte-copy `AGENTS.md` (hot cache → prod `150bf898`, rollback `2326c931`, ADR-180 LIVE-INERT do-not-arm, ADR-177 DEPLOYED, next action = owner Hot Queue); `memory/decisions.md` (ADR-180 Status line, append-only); `docs/context/SESSION_HANDOFF.md` overwrite; `CURRENT_STATE.md`/`ACTIVE_WORK.md`/`progress.md` writeback committed. No product code, no `.env`, no voice.
+Tests Run: `yaml.safe_load` on the workflow (OK); `bash -n` on the extracted probe script (exit 0); scaled hard-outage simulation with stubbed curl → loop bounded, `ok=0` recorded, DOWN summary written (alert path reached — pre-fix unreachable); UP-path regression sim with a real prod health body → `ok=1` on attempt 1, no false failure summary; budget math → post-fix bound 253s < 360s timeout, 4/5 attempts retained. `prod_check.py` run (no Python touched).
+Verification Evidence: `/health` = `150bf898` `production`/`healthy` uptime 0h31m; activation `blocker_count=0` `ready_for_first_paid_customer=true`; PR #356 `MERGED` merge commit `150bf898a09fe11a2cfa190d9bb55c7d8ef0ed6b` == prod SHA; `main` CI/tests/security-scan/deploy-vps/CodeQL all `success`; scratch files removed before commit.
+Risks: workflow change is unverifiable until the next scheduled run (03:51 cron) — first real proof will be a future DOWN event; `curl_rc` is structurally always the pipeline's `tail` status (pre-existing latent quirk, verdict still gated on http_code+substring, deliberately NOT changed to avoid behaviour drift).
+Remaining: OWNER Hot Queue `/app/inbox` (2nd-paid blocker, not code-fixable); owner push/PR of `fix/uptime-watchdog-deadline-20260814`; leftover WIP branches + `.freebuff` + stash deliberately untouched.
+Next Highest Priority: owner Hot Queue `/app/inbox` — engineering stream has no open fixable item.
+
+## Loop Run
+Date: 2026-08-14 (PR #356 merge + AUTH-DEPLOY — CURSOR)
+Goal: Wait required CI on `e5feaa6e`, merge #356, kill-fence + deploy_vps.sh + /health proof. Do not arm HARNESS_SESSION_EVENTS. Do not re-edit session.py.
+Inspected: PR #356 head `e5feaa6e` (not old `8fa39c84`); VPS `/tmp/dep.log`; public `/health` + `/api/activation/summary`; 5 app-image containers printenv class.
+Problems Found: First restore attempt via Git-bash `-lc` swallowed SSH stdout and did not apply VLK=0 (host stayed TRUE_TOKEN). Caught by status probe; reran via Git `ssh.exe`.
+Changed: no product code. Context: SESSION_HANDOFF + CURRENT_STATE. VPS: VLK 1→0 + recreate 5 services with APP_VERSION=150bf898.
+Tests Run: required CI on `e5feaa6e` (prod_check+pytest success, Gate A pass) before merge. Local session.py not re-touched.
+Verification Evidence: merge tip `150bf898`. Deploy log `DEPLOYED 150bf898 OK`. Public `/health` twice post-restore = 150bf898 healthy production (04:16:38Z uptime 1m08s; 04:17:46Z uptime 2m16s). Activation ready_for_first_paid_customer=true blocker_count=0. 5/5 VLK=FALSE_TOKEN HSE=UNSET APP_VERSION_MATCH=1. Rollback `2326c931`.
+Risks: VPS tree still dirty (pre-existing; no reset --hard). Orphan compose warning for postiz/temporal (pre-existing, --remove-orphans NOT used).
+Remaining: owner Hot Queue `/app/inbox`. Leftover WIP branches stay unmerged.
+Next Highest Priority: stop — AUTH-DEPLOY complete.
+
+## Loop Run
+Date: 2026-08-14 (GTM Hot Queue UX + honest dashboards — CURSOR)
+Goal: Isolated worktree se Marketing 2nd-paid operational UX: Hot Queue 5-second path, false-green empty states hatao, fabricated customer score hatao. No merge/deploy/flag-arm.
+Inspected: origin/main+prod `150bf898` (dual `/health` uptime 6m25s→6m29s); `/api/activation/summary` ready_for_first_paid_customer=true blocker_count=0 warn_count=1 (names admin-only); public funnel 8/8 HTTP 200; inbox page 200 ≠ authenticated cards.
+Problems Found: (1) Admin Delivery nav + Start Here me `/app/inbox` missing — GTM bottleneck buried. (2) `_admin_office` / today_overview Hot Queue count nahi dikhate. (3) inbox empty states load-fail pe false-green ✅. (4) customer `aiScore` fabricated 42–98%/76%. (5) marketing suite ka koi "Aaj kya karna hai" nahi.
+Changed: admin_ops + today_overview Hot Queue CTA; admin/inbox/customer/marketing HTML surgical; RED tests. Voice UI-only minutes hint. DUNNING untouched.
+Tests Run: 157 targeted pytest EXIT 0; ruff EXIT 0; prod_check EXIT 0; check_secrets EXIT 0; git diff --check EXIT 0; inbox+customer node --check EXIT 0; AMAX --dry-run DUNNING OWNER_GATED. Authenticated browser WAIT (creds).
+Verification Evidence: worktree `cursor/revenue-automation-dashboard-launch-20260814` from `150bf898`. Assessment after: customer completeness 88.2% admin 82.4% UX 85.2% critical UX=0 (generated reports NOT committed).
+Risks: Authenticated Hot Queue cards unproven this session. warn_count=1 key unknown without admin `/readiness`.
+Remaining: PR CI; owner AUTH-MERGE/DEPLOY alag; Hot Queue 15-min sprint + UPI #2 for revenue-generated.
+Next Highest Priority: push PR + owner Hot Queue execution (no deploy until AUTH-DEPLOY exact SHA).
+
+## Loop Run
 Date: 2026-08-12 (PR queue land + freebuff cleanup — CURSOR)
 Goal: Land open PR queue; remove tracked freebuff placeholders; no deploy/flag-arm.
 Inspected: #340/#341/#336–#339; freebuff mode-160000 gitlinks; Gate A submodule URL fail.
@@ -2022,3 +2058,23 @@ Verification Evidence: executable SHA both builds `4d2f75728797d7c932c20a09be1ff
 Risks: No production claim. Canary/retirement remain OWNER-blocked. Sibling earlier `LINUX_CI_BLOCKED` note is superseded by later matching binary hash proof in this lane.
 Remaining: no commit/push/deploy/flag arm; AUTH-DEPLOY + soak evidence still required before authority.
 Next Highest Priority: Owner AUTH-DEPLOY decision only; do not arm DSH flags without separate authorization.
+## Loop Run — Worktree merge + revenue verify + video gap 2026-08-14 (OPECODE; branch `merge/all-worktrees-20260814` -> local main)
+- Goal: merge every worktree branch/fix into main; verify money path on merged tree; root-cause "videos post nahi hore daily". No push/deploy/flag arm.
+- Inspected: 11 branches vs origin/main (150bf898): 4 already-merged ancestors (dsh, renamed-lg-10, opencode-exec, archive-duplicate-playbooks), 7 ahead.
+- Problems Found: (1) temp worktrees had been cleaned (leadgen-rev-wt, lg00-desktop-registry, lg00-external-agents-map) — branches orphaned; recreated isolated worktree. (2) `fix/regression-remediation` checkpoint `817173bf` contains PROD DATA (`data/delivery_ledger/jiya-makeover.jsonl`), freebuff gitlinks + 445-line GROK spec — NOT merged; only real fixes from `f50d1d15` (public_site None-guards, customer_auth, password test, API.md sync) applied, `_rate_limited` alias restored after file-checkout clobber. (3) Ledger conflicts (progress.md/SESSION_HANDOFF/backlog) resolved as unions/keep-newer.
+- Changed: local `main` fast-forwarded/merged onto `merge/all-worktrees-20260814` (tip `31f2dfe2` = ec8b8e5a GTM dashboards + 0443172a auth shims + c81b665e regression fixes + 982224b8 freebuff docs + desktop registry + external agents map). Verification: 67+ targeted pytest, prod_check, secrets — all green on merged tree.
+- Video gap root cause: approval gate (5 CLIENT_REVIEW_PENDING), 5-day cadence (`VIDEO_AD_INTERVAL_DAYS` unset), `DAILY_VIDEO_ENABLED` unset. UPI truth: 2 rows (Jiya auto_activated; MRR ₹1,999). OmniRoute gateway down. Owner actions listed.
+- Verification Evidence: merges exit 0; pytest/prod_check green post-merge; `git worktree list` clean.
+- Risks: local `main` now 7 commits ahead of origin/main — push still needs owner OK; main checkout still on `fix/uptime-watchdog-deadline-20260814` (branch now fully contained in main history — safe to delete or leave).
+- Remaining: owner pushes (or PRs) merged `main`; owner approves 5 pending videos; owner decides daily-video flags + OmniRoute restart; Hot Queue `/app/inbox` execution.
+- Next Highest Priority: owner push authorization for merged main, then Hot Queue `/app/inbox`.
+
+## Loop Run — PR #359 CI fixes + merge + worktree/disk cleanup 2026-08-14 (opencode; main = `ec18cf0e`)
+- **Goal:** drive merged-tree PR #359 through required CI and land it; then delete merged worktrees/archives (C: was full) with zero data loss.
+- **Problems Found:** (1) `assert False` B011 in `tests/test_desktop_registry.py:97` (Gate A). (2) ruff 0.16.1 `format --check` flagged 3 files — `coordination_desktop_registry.py` fixed; `tests/conftest.py` + `tests/test_customer_dashboard_frontend.py` = black-24.1.1 ↔ ruff-0.16.1 disagreement that ALSO exists on origin/main's own copies (verified) → kept black-canonical; Gate A (non-required) stays red on any PR touching those files — pre-existing debt, not PR-introduced. (3) **`fix/customer-auth-test-shims` global `app.dependency_overrides[require_customer]` in conftest broke anon-blocking auth tests** (200 instead of 401/403) in test_customer_portal/creative_os/autopilot — CI `prod_check + pytest` FAILED once; removed the global override (every consumer sets its own per-test override) → suite green (lesson → incidents.md). (4) Trivy image scan infra flake ("Install Trivy" step download exit 35/127) — passed on re-run. (5) dsh worktree held UNCOMMITTED dsh runtime (ADR-179 rejected) + nested `leadgen-dsh-mig` worktree + untracked `_compute_archive.sh` — all preserved as commits on `cursor/deepseek-harness-migration-20260814` (NOT in main). (6) Cursor CWD-locked dsh dir blocked `git worktree remove` — emptied manually; empty shell deleted once lock released.
+- **Changed:** B011 fix `ef5f0a34`; ruff format `aa5562d2`/`16179303`; conftest override removal `03b9b617`; **PR #359 MERGED → main `ec18cf0e`**; local main reset to origin/main; 9 merged branches + all 8 worktrees removed (only main checkout remains); archives deleted: `_archive_2026-08-02` (148MB), `leadgen-history-purge-20260806-owner` (244MB, **irreversible** — incl. old git-history backups), `_agent_swarm_eval_2026-08-04` (88MB, clean clone verified), recovery + boss-second-brain dirs; kept `buzz`/`leadsgenai-brain`/`_secrets_DO_NOT_COMMIT` (referenced infra / never touch).
+- **Tests Run:** CI `prod_check + pytest` **PASS** (18m36s) · Lint · harness real-redis · test · Trivy ×2 · CodeQL · GitGuardian — all green on `03b9b617`; local `prod_check.py` ALL PASSED on `ec18cf0e`; local suites: anon-auth trio + change_password + desktop_registry (55P) + 10 customer/tenant files (80P).
+- **Verification Evidence:** `gh pr checks` table; merge SHA `ec18cf0e`; worktree list = main only; `git status` clean; disk free 15.3 → **21.1 GB**.
+- **Risks:** Gate A permanently red on the 2 formatter-disagreeing files (main itself fails ruff format there); dsh preservation branch = owner decision (delete or keep); history-purge backups gone irreversibly (purge intent intact).
+- **Remaining:** owner — Hot Queue `/app/inbox` blitz, approve 5 pending videos (`/app/office` or `POST /api/clientops/video-production/{id}/approve`), GSC creds setup (`GSC_ENABLED=0` still INERT), OmniRoute restart decision, dsh branch fate.
+- **Next Highest Priority:** owner Hot Queue blitz → 2nd paid customer (code-side sab done; prod untouched at `150bf898`).
