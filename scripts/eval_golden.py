@@ -20,6 +20,7 @@ blocking only after the suite is stable.
 
 Run:  .venv\\Scripts\\python.exe scripts\\eval_golden.py
 """
+
 from __future__ import annotations
 
 import json

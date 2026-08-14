@@ -4,6 +4,7 @@
 Exit 0 = no skip/skipif/xfail patterns tied to missing canary doc.
 Exit 2 = refused (dead assert risk).
 """
+
 from __future__ import annotations
 
 import re
@@ -14,13 +15,11 @@ REPO = Path(__file__).resolve().parents[1]
 TARGET = REPO / "tests" / "test_agent_teams_canary_contract.py"
 
 # Patterns that kill the coupling signal when doc is missing.
-_BAD = re.compile(
-    r"""(?ix)
+_BAD = re.compile(r"""(?ix)
     pytest\.(skip|xfail)\s*\(
     | @pytest\.mark\.(skip|skipif|xfail)\b
     | pytest\.importorskip\s*\(
-    """
-)
+    """)
 _DOC_HINT = re.compile(r"AGENT_TEAMS_CANARY|canary.?doc|missing.?doc", re.I)
 
 
@@ -38,8 +37,12 @@ def main() -> int:
         print("REFUSED: no hard fail/assert found in TM2 contract", file=sys.stderr)
         return 2
     # Prefer explicit fail on missing doc
-    if "pytest.fail" not in text and not re.search(r"assert\s+.+\.is_file\(|assert\s+.+\.exists\(", text):
-        print("WARN: no pytest.fail / path.exists assert detected — review manually", file=sys.stderr)
+    if "pytest.fail" not in text and not re.search(
+        r"assert\s+.+\.is_file\(|assert\s+.+\.exists\(", text
+    ):
+        print(
+            "WARN: no pytest.fail / path.exists assert detected — review manually", file=sys.stderr
+        )
     if hits:
         print("REFUSED: skip/xfail found in TM2 canary contract (F4):", file=sys.stderr)
         for h in hits:

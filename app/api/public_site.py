@@ -275,6 +275,7 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
         result = await start_stream_call(
             to=phone, niche=niche or "general", client_id=client_id or None
         )
+        result = result or {}
         placed = bool(result.get("placed"))
         try:
             from app.platform.team import log_event
@@ -713,7 +714,7 @@ async def public_signup(body: SignupIn, request: Request):
     # and returns `email_claimed`. We then reject THIS submit with the same 409
     # the initial dedupe check uses — no orphan credential row, no silent takeover.
     _reg = register_login(email, pw, cid, allow_reassign=False)
-    if _reg.get("error") == "email_claimed":
+    if _reg and _reg.get("error") == "email_claimed":
         raise HTTPException(
             status_code=409,
             detail="Yeh email already registered hai — login karo.",

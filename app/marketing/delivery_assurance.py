@@ -33,6 +33,7 @@ persona invented). Escalation target for a missed item is the owner (human).
 
 Lane: GREEN (read-only detection + report). Autonomy: L0/L1 (observe + recommend).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -243,7 +244,11 @@ def scan_missed_deliverables(limit: int = 100, include_healthy: bool = False) ->
             key=lambda r: (
                 0 if r["missed"] else 1,
                 0 if r["at_risk"] else 1,
-                (r.get("deliverable_completion_pct") if r.get("deliverable_completion_pct") is not None else 999),
+                (
+                    r.get("deliverable_completion_pct")
+                    if r.get("deliverable_completion_pct") is not None
+                    else 999
+                ),
             )
         )
         result["items"] = items

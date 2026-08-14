@@ -20,7 +20,12 @@ OUT = Path("data/page_kits")
 def _md(kit: dict) -> str:
     p = kit["pages"]
     fb, ig, li, x, gbp, wa = (
-        p["facebook"], p["instagram"], p["linkedin"], p["x_twitter"], p["gbp"], p["whatsapp_business"],
+        p["facebook"],
+        p["instagram"],
+        p["linkedin"],
+        p["x_twitter"],
+        p["gbp"],
+        p["whatsapp_business"],
     )
     lines = [
         f"# {kit['business_name']} — Social Page Setup Kit",
@@ -84,9 +89,19 @@ async def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     targets = [
         # APNA brand (Product 1+2 dono ka parent brand)
-        dict(business_name="LeadsGenAI", niche="ai_marketing", city="Mumbai", phone="+91 84590 12607"),
+        {
+            "business_name": "LeadsGenAI",
+            "niche": "ai_marketing",
+            "city": "Mumbai",
+            "phone": "+91 84590 12607",
+        },
         # Sample client kit (demo/deliverable example)
-        dict(business_name="Sharma Solar", niche="solar_residential", city="Pune", phone=""),
+        {
+            "business_name": "Sharma Solar",
+            "niche": "solar_residential",
+            "city": "Pune",
+            "phone": "",
+        },
     ]
     for t in targets:
         kit = await build_page_kit(**t)

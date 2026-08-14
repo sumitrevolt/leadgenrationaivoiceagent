@@ -13,6 +13,7 @@ Loops:
 Run: python scripts/agents_skills_debug.py
 VPS: docker exec leadgen_app python scripts/agents_skills_debug.py
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -166,13 +167,22 @@ def probe_skill_wiring() -> None:
     try:
         from app.platform import skill_pack
 
-        wiring["post_generator"] = bool(skill_pack.snippet_for("marketing post caption", max_chars=200))
+        wiring["post_generator"] = bool(
+            skill_pack.snippet_for("marketing post caption", max_chars=200)
+        )
         wiring["self_improve_flag"] = skill_pack.enabled()
-        wiring["infra_handler_import"] = importlib.util.find_spec("app.platform.infra_handler") is not None
+        wiring["infra_handler_import"] = (
+            importlib.util.find_spec("app.platform.infra_handler") is not None
+        )
     except Exception as e:
         wiring["error"] = str(e)[:80]
         broken = True
-    _log("E", "skills:wiring", "skill consumer wiring", {**wiring, "broken": broken and not wiring.get("post_generator")})
+    _log(
+        "E",
+        "skills:wiring",
+        "skill consumer wiring",
+        {**wiring, "broken": broken and not wiring.get("post_generator")},
+    )
 
 
 def probe_autonomous() -> None:
@@ -228,7 +238,12 @@ def probe_automation_wiring() -> None:
             {"exit": r.returncode, "ok_line": ok, "broken": not ok},
         )
     except Exception as e:
-        _log("H", "agents:wiring_audit", "automation wiring audit", {"error": str(e)[:80], "broken": True})
+        _log(
+            "H",
+            "agents:wiring_audit",
+            "automation wiring audit",
+            {"error": str(e)[:80], "broken": True},
+        )
 
 
 async def probe_self_improve_fast() -> None:
@@ -243,7 +258,10 @@ async def probe_self_improve_fast() -> None:
         for act in ("cadence_sweep", "code_scan", "voice_eval", "rescore_pipeline"):
             try:
                 res = await asyncio.wait_for(si._execute(act, "debug-smoke"), timeout=15)
-                out[f"exec_{act}"] = {"ok": res.get("ok"), "detail": str(res.get("detail", ""))[:60]}
+                out[f"exec_{act}"] = {
+                    "ok": res.get("ok"),
+                    "detail": str(res.get("detail", ""))[:60],
+                }
             except Exception as e:
                 out[f"exec_{act}"] = {"err": type(e).__name__}
                 broken = True
@@ -277,7 +295,12 @@ def probe_security_kpi() -> None:
             },
         )
     except Exception as e:
-        _log("J", "agents:security_kpi", "security probe failed", {"error": str(e)[:80], "broken": True})
+        _log(
+            "J",
+            "agents:security_kpi",
+            "security probe failed",
+            {"error": str(e)[:80], "broken": True},
+        )
     finally:
         if prev is None:
             os.environ.pop("SECURITY_AGENT", None)

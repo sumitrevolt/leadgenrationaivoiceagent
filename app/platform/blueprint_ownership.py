@@ -10,6 +10,7 @@ Ownership is only ONE signal. It can never produce HIGH confidence on its own �
 critical domains require two non-AST signals. A directory or file name is never
 sufficient evidence.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -20,19 +21,19 @@ from typing import Any
 # public_landing).
 REJECTED_ROOTS: dict[str, str] = {
     "app/api/": "113 modules spanning every domain (routers for billing, voice, "
-                "growth, admin, customer, marketing) — shared HTTP surface.",
+    "growth, admin, customer, marketing) — shared HTTP surface.",
     "app/platform/": "160 modules: scheduler, team, owner_os, delivery, tenancy, "
-                     "agent runtime — the widest shared package in the repo.",
+    "agent runtime — the widest shared package in the repo.",
     "app/models/": "shared SQLAlchemy models used by every domain.",
     "app/utils/": "logging/helpers used everywhere.",
     "app/middleware/": "cross-cutting request middleware.",
     "app/integrations/": "mixed: third-party connectors AND a nested Owner-OS "
-                         "subtree (owner_os_adapter, harness_commands, policies, "
-                         "auth, audit) — carve out by exact file instead.",
+    "subtree (owner_os_adapter, harness_commands, policies, "
+    "auth, audit) — carve out by exact file instead.",
     "app/tasks/": "Celery task modules whose business domains differ per file "
-                  "(calling, video_jobs, scraping, reporting).",
+    "(calling, video_jobs, scraping, reporting).",
     "app/agents/": "agent runtime plus growth/sales optimisers — needs per-file "
-                   "review before any wholesale claim.",
+    "review before any wholesale claim.",
     "app/ml/": "shared model training/serving utilities.",
     "app/llm/": "shared provider plumbing.",
 }
@@ -45,9 +46,15 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
         # consent inside telephony belong to security_compliance.
         "exclude_prefixes": [],
         "exclude_stems": [
-            "graph_rag", "knowledge_base", "kb_loader", "kb_readiness",
-            "consent_ledger", "compliance", "campaign_compliance",
-            "compliance_audit_logger", "observability",
+            "graph_rag",
+            "knowledge_base",
+            "kb_loader",
+            "kb_readiness",
+            "consent_ledger",
+            "compliance",
+            "campaign_compliance",
+            "compliance_audit_logger",
+            "observability",
         ],
         "exact_files": [],
         "evidence": [
@@ -88,8 +95,10 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
             "app/voice_agent/kb_loader.py",
             "app/voice_agent/kb_readiness.py",
         ],
-        "evidence": ["Qdrant-backed retrieval modules physically nested under "
-                     "app/voice_agent/ but owned by the RAG domain."],
+        "evidence": [
+            "Qdrant-backed retrieval modules physically nested under "
+            "app/voice_agent/ but owned by the RAG domain."
+        ],
         "critical": False,
         "requires_corroboration": True,
     },
@@ -99,8 +108,10 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
         # idempotency.py is a generic dedupe helper reused outside billing
         "exclude_stems": ["idempotency"],
         "exact_files": [],
-        "evidence": ["app/billing/ read: 10 modules — subscription, invoice, "
-                     "usage, dunning, entitlement. Only idempotency.py is shared."],
+        "evidence": [
+            "app/billing/ read: 10 modules — subscription, invoice, "
+            "usage, dunning, entitlement. Only idempotency.py is shared."
+        ],
         "critical": True,
         "requires_corroboration": True,
     },
@@ -109,8 +120,10 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
         "exclude_prefixes": [],
         "exclude_stems": [],
         "exact_files": [],
-        "evidence": ["app/social_engine/ read: 13 modules, all publish "
-                     "scheduling/providers/validation for social channels."],
+        "evidence": [
+            "app/social_engine/ read: 13 modules, all publish "
+            "scheduling/providers/validation for social channels."
+        ],
         "critical": False,
         "requires_corroboration": True,
     },
@@ -119,8 +132,10 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
         "exclude_prefixes": [],
         "exclude_stems": [],
         "exact_files": [],
-        "evidence": ["app/lead_scraper/ read: 13 modules, all discovery, "
-                     "extraction, verification and enrichment of leads."],
+        "evidence": [
+            "app/lead_scraper/ read: 13 modules, all discovery, "
+            "extraction, verification and enrichment of leads."
+        ],
         "critical": False,
         "requires_corroboration": True,
     },
@@ -137,8 +152,10 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
             "app/integrations/openclaw/commands.py",
             "app/integrations/openclaw/context_builder.py",
         ],
-        "evidence": ["OpenClaw Owner-Copilot subtree nested under "
-                     "app/integrations/ — ADR-OPENCLAW-OWNER-COPILOT."],
+        "evidence": [
+            "OpenClaw Owner-Copilot subtree nested under "
+            "app/integrations/ — ADR-OPENCLAW-OWNER-COPILOT."
+        ],
         "critical": True,
         "requires_corroboration": True,
     },
@@ -198,5 +215,6 @@ def validate_rules(domain_keys: set[str]) -> list[str]:
             for root in REJECTED_ROOTS:
                 if pref.startswith(root):
                     problems.append(
-                        f"{dom}: include_prefix {pref} sits inside rejected root {root}")
+                        f"{dom}: include_prefix {pref} sits inside rejected root {root}"
+                    )
     return problems

@@ -3,6 +3,7 @@
 Runs ops watchdog (read-only), onboarding sweep (limit 2), and a structured-content
 post. Skips reply-triage on purpose (it marks inbox mail seen — let the scheduler do it).
 """
+
 import asyncio
 import os
 import sys
@@ -26,7 +27,12 @@ async def main():
         if r.get("ok"):
             print("WATCHDOG: ok (system healthy)")
         else:
-            print("WATCHDOG: issues =", [i.get("key") for i in r.get("issues", [])], "| diag:", r.get("diagnosis", "")[:120])
+            print(
+                "WATCHDOG: issues =",
+                [i.get("key") for i in r.get("issues", [])],
+                "| diag:",
+                r.get("diagnosis", "")[:120],
+            )
     except Exception as e:
         print("watchdog err:", e)
 
@@ -41,7 +47,12 @@ async def main():
         from app.marketing.post_generator import generate_post
 
         p = await generate_post("Test Cafe", "restaurant_cafe", offer="20% off")
-        print("STRUCTURED post -> provider:", p.get("provider"), "| caption chars:", len(p.get("caption", "")))
+        print(
+            "STRUCTURED post -> provider:",
+            p.get("provider"),
+            "| caption chars:",
+            len(p.get("caption", "")),
+        )
     except Exception as e:
         print("structured err:", e)
 

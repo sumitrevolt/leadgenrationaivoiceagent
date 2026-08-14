@@ -23,12 +23,13 @@ Run:
     # force a re-seed of demo rows:
     python -m scripts.seed_demo_data --force
 """
+
+import argparse
 import os
+import random
 import sys
 import uuid
-import random
-import argparse
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta
 
 # Make "app" importable when run directly (python scripts/seed_demo_data.py)
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -53,19 +54,34 @@ NICHES = ["solar", "dental", "real-estate"]
 
 BUSINESSES = {
     "solar": [
-        "Sharma Solar Solutions", "SunVolt Energy", "GreenRay Solar",
-        "Aditya Solar Power", "EcoSun Systems", "Surya Renewables",
-        "BrightWatt Solar", "Tejas Solar Hub",
+        "Sharma Solar Solutions",
+        "SunVolt Energy",
+        "GreenRay Solar",
+        "Aditya Solar Power",
+        "EcoSun Systems",
+        "Surya Renewables",
+        "BrightWatt Solar",
+        "Tejas Solar Hub",
     ],
     "dental": [
-        "Smile Care Dental", "Dr. Mehta Dental Clinic", "Perfect Smile Studio",
-        "DentaWorld Clinic", "City Dental Care", "Bright Dental Hub",
-        "Oral Health Centre", "Pearl Dental Clinic",
+        "Smile Care Dental",
+        "Dr. Mehta Dental Clinic",
+        "Perfect Smile Studio",
+        "DentaWorld Clinic",
+        "City Dental Care",
+        "Bright Dental Hub",
+        "Oral Health Centre",
+        "Pearl Dental Clinic",
     ],
     "real-estate": [
-        "Gokhale Realty", "Prime Properties", "Skyline Estates",
-        "Urban Nest Realtors", "Capital Homes", "Greenfield Properties",
-        "Metro Realty Group", "Anand Estate Agents",
+        "Gokhale Realty",
+        "Prime Properties",
+        "Skyline Estates",
+        "Urban Nest Realtors",
+        "Capital Homes",
+        "Greenfield Properties",
+        "Metro Realty Group",
+        "Anand Estate Agents",
     ],
 }
 
@@ -83,16 +99,25 @@ CLIENT_COMPANIES = [
 ]
 
 CONTACTS = [
-    "Rajesh Sharma", "Priya Mehta", "Amit Gokhale", "Sneha Iyer",
-    "Vikram Singh", "Pooja Nair", "Rahul Desai", "Anita Rao",
-    "Suresh Patil", "Kavya Reddy", "Manish Joshi", "Neha Kulkarni",
+    "Rajesh Sharma",
+    "Priya Mehta",
+    "Amit Gokhale",
+    "Sneha Iyer",
+    "Vikram Singh",
+    "Pooja Nair",
+    "Rahul Desai",
+    "Anita Rao",
+    "Suresh Patil",
+    "Kavya Reddy",
+    "Manish Joshi",
+    "Neha Kulkarni",
 ]
 
 AGENT_NAMES = ["Aarav", "Diya", "Kabir", "Anaya", "Vivaan", "Ishaan"]
 
 PLAN_AMOUNTS_PAISE = {
-    "starter": 1500000,   # Rs.15,000
-    "growth": 2500000,    # Rs.25,000
+    "starter": 1500000,  # Rs.15,000
+    "growth": 2500000,  # Rs.25,000
     "enterprise": 3500000,
 }
 
@@ -106,16 +131,28 @@ def _phone() -> str:
 # --------------------------------------------------------------------------- #
 def seed(force: bool = False) -> int:
     # Import here so the module is import-safe even if deps are missing until run.
-    from app.models.base import _get_sync_engine, Base
-    from app.models import (
-        Client, ClientStatus, SubscriptionPlan,
-        Campaign, CampaignStatus, CampaignType,
-        Lead, LeadStatus, LeadSource,
-        CallLog, CallOutcome, CallDirection,
-        Agent, AgentStatus,
-        BillingRecord, BillingRecordType, BillingRecordStatus,
-    )
     from sqlalchemy.orm import sessionmaker
+
+    from app.models import (
+        Agent,
+        AgentStatus,
+        BillingRecord,
+        BillingRecordStatus,
+        BillingRecordType,
+        CallDirection,
+        CallLog,
+        CallOutcome,
+        Campaign,
+        CampaignStatus,
+        CampaignType,
+        Client,
+        ClientStatus,
+        Lead,
+        LeadSource,
+        LeadStatus,
+        SubscriptionPlan,
+    )
+    from app.models.base import Base, _get_sync_engine
 
     engine = _get_sync_engine()
     if engine is None:
@@ -151,7 +188,9 @@ def seed(force: bool = False) -> int:
             return 0
 
         if force and existing_clients:
-            print("[i] --force: deleting existing rows (call_logs, leads, billing, campaigns, agents, clients)...")
+            print(
+                "[i] --force: deleting existing rows (call_logs, leads, billing, campaigns, agents, clients)..."
+            )
             for model in (CallLog, Lead, BillingRecord, Campaign, Agent, Client):
                 db.query(model).delete()
             db.commit()
@@ -161,8 +200,14 @@ def seed(force: bool = False) -> int:
         # ----- clients (~10) -----
         clients = []
         for i, (company, niche) in enumerate(CLIENT_COMPANIES):
-            plan = RNG.choice([SubscriptionPlan.STARTER, SubscriptionPlan.GROWTH, SubscriptionPlan.ENTERPRISE])
-            status = ClientStatus.ACTIVE if i % 4 != 0 else RNG.choice([ClientStatus.ACTIVE, ClientStatus.PAUSED])
+            plan = RNG.choice(
+                [SubscriptionPlan.STARTER, SubscriptionPlan.GROWTH, SubscriptionPlan.ENTERPRISE]
+            )
+            status = (
+                ClientStatus.ACTIVE
+                if i % 4 != 0
+                else RNG.choice([ClientStatus.ACTIVE, ClientStatus.PAUSED])
+            )
             amount = PLAN_AMOUNTS_PAISE[plan.value]
             c = Client(
                 id=_uid(),
@@ -189,8 +234,14 @@ def seed(force: bool = False) -> int:
 
         # ----- agents (~6) -----
         agents = []
-        statuses = [AgentStatus.CALLING, AgentStatus.CALLING, AgentStatus.SCRAPING,
-                    AgentStatus.IDLE, AgentStatus.CALLING, AgentStatus.ERROR]
+        statuses = [
+            AgentStatus.CALLING,
+            AgentStatus.CALLING,
+            AgentStatus.SCRAPING,
+            AgentStatus.IDLE,
+            AgentStatus.CALLING,
+            AgentStatus.ERROR,
+        ]
         for i, name in enumerate(AGENT_NAMES):
             cl = RNG.choice(clients)
             a = Agent(
@@ -256,12 +307,18 @@ def seed(force: bool = False) -> int:
             cl = RNG.choice(clients)
             niche = cl.industry if cl.industry in BUSINESSES else RNG.choice(NICHES)
             cp = RNG.choice([c for c in campaigns if c.client_id == cl.id] or campaigns)
-            score = RNG.choices([RNG.randint(70, 95), RNG.randint(40, 69), RNG.randint(0, 39)],
-                                weights=[34, 44, 22])[0]
-            status = RNG.choice([
-                LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.QUALIFIED,
-                LeadStatus.APPOINTMENT, LeadStatus.CALLBACK,
-            ])
+            score = RNG.choices(
+                [RNG.randint(70, 95), RNG.randint(40, 69), RNG.randint(0, 39)], weights=[34, 44, 22]
+            )[0]
+            status = RNG.choice(
+                [
+                    LeadStatus.NEW,
+                    LeadStatus.CONTACTED,
+                    LeadStatus.QUALIFIED,
+                    LeadStatus.APPOINTMENT,
+                    LeadStatus.CALLBACK,
+                ]
+            )
             lead = Lead(
                 id=_uid(),
                 company_name=RNG.choice(BUSINESSES[niche]),
@@ -276,26 +333,40 @@ def seed(force: bool = False) -> int:
                 lead_score=score,
                 is_hot_lead=score >= 70,
                 status=status,
-                source=RNG.choice([LeadSource.GOOGLE_MAPS, LeadSource.JUSTDIAL,
-                                   LeadSource.INDIAMART, LeadSource.LINKEDIN]),
+                source=RNG.choice(
+                    [
+                        LeadSource.GOOGLE_MAPS,
+                        LeadSource.JUSTDIAL,
+                        LeadSource.INDIAMART,
+                        LeadSource.LINKEDIN,
+                    ]
+                ),
                 assigned_to=cl.id,
                 campaign_id=cp.id,
                 call_attempts=RNG.randint(1, 4),
                 created_at=now - timedelta(days=RNG.randint(0, 12)),
             )
-            lead.set_qualification_data({
-                "interest_level": "high" if score >= 70 else ("medium" if score >= 40 else "low"),
-                "budget_range": RNG.choice(["Rs.50k-1L", "Rs.1L-3L", "Rs.3L+"]),
-                "timeline": RNG.choice(["this week", "this month", "next quarter"]),
-            })
+            lead.set_qualification_data(
+                {
+                    "interest_level": (
+                        "high" if score >= 70 else ("medium" if score >= 40 else "low")
+                    ),
+                    "budget_range": RNG.choice(["Rs.50k-1L", "Rs.1L-3L", "Rs.3L+"]),
+                    "timeline": RNG.choice(["this week", "this month", "next quarter"]),
+                }
+            )
             db.add(lead)
             leads.append(lead)
         db.flush()
         print(f"[+] Inserted {len(leads)} leads.")
 
         # ----- call logs (~40) -----
-        outcomes_connected = [CallOutcome.APPOINTMENT, CallOutcome.CALLBACK,
-                              CallOutcome.INTERESTED, CallOutcome.NOT_INTERESTED]
+        outcomes_connected = [
+            CallOutcome.APPOINTMENT,
+            CallOutcome.CALLBACK,
+            CallOutcome.INTERESTED,
+            CallOutcome.NOT_INTERESTED,
+        ]
         outcomes_missed = [CallOutcome.NO_ANSWER, CallOutcome.BUSY, CallOutcome.VOICEMAIL]
         n_calls = 0
         for i in range(40):
@@ -348,35 +419,41 @@ def seed(force: bool = False) -> int:
                     m += 12
                     y -= 1
                 # subscription (revenue)
-                db.add(BillingRecord(
-                    id=_uid(),
-                    client_id=cl.id,
-                    client_name=cl.business_name,
-                    record_type=BillingRecordType.SUBSCRIPTION,
-                    status=BillingRecordStatus.PAID if back > 0 else BillingRecordStatus.INVOICED,
-                    period_year=y,
-                    period_month=m,
-                    amount=cl.monthly_amount,
-                    cost=0,
-                    quantity=1,
-                    description=f"{cl.plan.value.title()} plan - {y}-{m:02d}",
-                    created_at=datetime(y, m, 1),
-                ))
+                db.add(
+                    BillingRecord(
+                        id=_uid(),
+                        client_id=cl.id,
+                        client_name=cl.business_name,
+                        record_type=BillingRecordType.SUBSCRIPTION,
+                        status=(
+                            BillingRecordStatus.PAID if back > 0 else BillingRecordStatus.INVOICED
+                        ),
+                        period_year=y,
+                        period_month=m,
+                        amount=cl.monthly_amount,
+                        cost=0,
+                        quantity=1,
+                        description=f"{cl.plan.value.title()} plan - {y}-{m:02d}",
+                        created_at=datetime(y, m, 1),
+                    )
+                )
                 # telephony (cost)
-                db.add(BillingRecord(
-                    id=_uid(),
-                    client_id=cl.id,
-                    client_name=cl.business_name,
-                    record_type=BillingRecordType.TELEPHONY,
-                    status=BillingRecordStatus.PAID,
-                    period_year=y,
-                    period_month=m,
-                    amount=0,
-                    cost=RNG.randint(200000, 600000),  # Rs.2k-6k in paise
-                    quantity=RNG.randint(200, 900),
-                    description=f"Telephony usage - {y}-{m:02d}",
-                    created_at=datetime(y, m, 1),
-                ))
+                db.add(
+                    BillingRecord(
+                        id=_uid(),
+                        client_id=cl.id,
+                        client_name=cl.business_name,
+                        record_type=BillingRecordType.TELEPHONY,
+                        status=BillingRecordStatus.PAID,
+                        period_year=y,
+                        period_month=m,
+                        amount=0,
+                        cost=RNG.randint(200000, 600000),  # Rs.2k-6k in paise
+                        quantity=RNG.randint(200, 900),
+                        description=f"Telephony usage - {y}-{m:02d}",
+                        created_at=datetime(y, m, 1),
+                    )
+                )
                 n_billing += 2
         db.commit()
         print(f"[+] Inserted {n_billing} billing records.")
@@ -389,6 +466,7 @@ def seed(force: bool = False) -> int:
         db.rollback()
         print(f"[!] Seeding failed: {e!r}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:
@@ -407,8 +485,7 @@ def _print_summary(db, Client, Agent, Campaign, CallLog, Lead, BillingRecord) ->
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Seed demo data for the dashboards.")
-    parser.add_argument("--force", action="store_true",
-                        help="Wipe existing demo rows and reseed.")
+    parser.add_argument("--force", action="store_true", help="Wipe existing demo rows and reseed.")
     args = parser.parse_args()
     return seed(force=args.force)
 

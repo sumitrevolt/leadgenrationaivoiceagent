@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Quick audit for pages not in deep_wiring_audit PAGES list."""
+
 from __future__ import annotations
 
 import sys
@@ -20,6 +21,7 @@ EXTRA = [
     "frontend/clients.html",
 ]
 
+
 def main() -> int:
     routes = load_routes()
     total = 0
@@ -38,6 +40,7 @@ def main() -> int:
         total += mh + ma + ma2
     print(f"\nTOTAL GAPS: {total}")
     return 1 if total else 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

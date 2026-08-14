@@ -1,4 +1,5 @@
 """Verify embeddable lead-capture widget: pure funcs + live routes (TestClient)."""
+
 import os
 import sys
 
@@ -16,10 +17,25 @@ from app.marketing import embed_widget  # noqa: E402
 
 fake = {"business_name": "Sharma Dental", "slug": "sharma-dental", "brand_color": "#0a7a55"}
 pg = embed_widget.embed_page_html(fake)
-print("embed_page_html len:", len(pg), "| posts_inquiry:", "/api/public/inquiry" in pg,
-      "| has_phone:", 'name="phone"' in pg, "| source_slug:", "sharma-dental" in pg)
+print(
+    "embed_page_html len:",
+    len(pg),
+    "| posts_inquiry:",
+    "/api/public/inquiry" in pg,
+    "| has_phone:",
+    'name="phone"' in pg,
+    "| source_slug:",
+    "sharma-dental" in pg,
+)
 js = embed_widget.widget_js("sharma-dental")
-print("widget_js len:", len(js), "| has_embed_url:", "/b/sharma-dental/embed" in js, "| has_btn:", "lgai-btn" in js)
+print(
+    "widget_js len:",
+    len(js),
+    "| has_embed_url:",
+    "/b/sharma-dental/embed" in js,
+    "| has_btn:",
+    "lgai-btn" in js,
+)
 print("snippet:", embed_widget.snippet("sharma-dental"))
 
 try:
@@ -46,7 +62,14 @@ try:
     c = TestClient(app)
     ts = slug or "sharma-dental"
     r = c.get("/b/%s/widget.js" % ts)
-    print("GET widget.js ->", r.status_code, "|", (r.headers.get("content-type", "")[:30]), "| len", len(r.text))
+    print(
+        "GET widget.js ->",
+        r.status_code,
+        "|",
+        (r.headers.get("content-type", "")[:30]),
+        "| len",
+        len(r.text),
+    )
     r2 = c.get("/b/%s/embed" % ts, follow_redirects=False)
     print("GET embed ->", r2.status_code, "| has_form:", "/api/public/inquiry" in (r2.text or ""))
 except Exception as e:

@@ -86,7 +86,7 @@ _CLAIM_LANE = {
 }
 
 
-def claimed_lane(rc: Any) -> Optional[RiskLane]:
+def claimed_lane(rc: Any) -> RiskLane | None:
     try:
         return _CLAIM_LANE.get(RiskClass(rc)) if rc is not None else None
     except Exception:
@@ -141,20 +141,20 @@ class ToolDefinition(BaseModel):
     version: str
     description: str
     input_schema: dict = {}
-    output_schema: Optional[dict] = None
+    output_schema: dict | None = None
     risk_class: RiskLane
     side_effect_class: SideEffectClass
     authority: AuthorityClass
     allowed_agents: frozenset[str] = frozenset()
     allowed_tenant_scopes: frozenset[str] = frozenset({"__system__"})
     requires_approval: bool = False
-    approval_policy: Optional[str] = None
+    approval_policy: str | None = None
     requires_idempotency: bool = False
     timeout_seconds: int = 30
     max_retries: int = 0
     cost_class: str = "free"
-    budget_scope: Optional[str] = None
-    rate_limit_scope: Optional[str] = None
+    budget_scope: str | None = None
+    rate_limit_scope: str | None = None
     sandbox_required: bool = False
     network_policy: str = "deny"
     executor_ref: str = ""
@@ -257,13 +257,13 @@ class CanonicalToolRegistry:
             raise RegistryConflict(f"conflicting definition for {defn.name}@{defn.version}")
         self._defs[key] = defn
 
-    def get(self, name: str, version: Optional[str] = None) -> Optional[ToolDefinition]:
+    def get(self, name: str, version: str | None = None) -> ToolDefinition | None:
         if version is not None:
             return self._defs.get((name, version))
         vs = self.list_versions(name)
         return self._defs.get((name, vs[-1])) if vs else None
 
-    def resolve(self, name: str, version: Optional[str] = None) -> Optional[ToolDefinition]:
+    def resolve(self, name: str, version: str | None = None) -> ToolDefinition | None:
         return self.get(name, version)
 
     def list_versions(self, name: str) -> list[str]:
@@ -306,12 +306,12 @@ class CanonicalToolRegistry:
         self,
         *,
         tool_name: str,
-        tool_version: Optional[str],
+        tool_version: str | None,
         arguments: dict,
         agent_id: str,
         tenant_id: str,
-        idempotency_key: Optional[str],
-        claimed_risk: Optional[RiskLane],
+        idempotency_key: str | None,
+        claimed_risk: RiskLane | None,
     ) -> dict:
         names = {n for (n, _) in self._defs}
         out: dict[str, Any] = {

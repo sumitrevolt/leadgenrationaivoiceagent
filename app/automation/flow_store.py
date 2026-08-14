@@ -2,6 +2,7 @@
 JSONL at data/flow_runner/flows.jsonl (shared ./data bind-mount, web+worker).
 Upsert by id (rewrite). Import-safe, never-raise.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,7 +32,7 @@ def _norm_trigger(t) -> dict:
         typ = "manual"
     out = {"type": typ}
     if typ == "cron":
-        out["cron"] = str(t.get("cron") or "").strip()[:64]   # "*/5 * * * *" OR "HH:MM" IST
+        out["cron"] = str(t.get("cron") or "").strip()[:64]  # "*/5 * * * *" OR "HH:MM" IST
     if typ == "event":
         out["event"] = str(t.get("event") or "").strip()[:40]  # one of the 4 dotted events
     return out
@@ -169,15 +170,17 @@ def list_flows(owner: str | None = None) -> list[dict]:
     for rec in _read_all().values():
         if owner is not None and str(rec.get("owner_client_id") or "") != owner:
             continue
-        out.append({
-            "id": rec.get("id"),
-            "name": rec.get("name"),
-            "nodes": len(rec.get("nodes") or []),
-            "edges": len(rec.get("edges") or []),
-            "trigger": (rec.get("trigger") or {}).get("type", "manual"),
-            "owner": rec.get("owner_client_id") or "",
-            "updated_at": rec.get("updated_at"),
-        })
+        out.append(
+            {
+                "id": rec.get("id"),
+                "name": rec.get("name"),
+                "nodes": len(rec.get("nodes") or []),
+                "edges": len(rec.get("edges") or []),
+                "trigger": (rec.get("trigger") or {}).get("type", "manual"),
+                "owner": rec.get("owner_client_id") or "",
+                "updated_at": rec.get("updated_at"),
+            }
+        )
     return sorted(out, key=lambda r: r.get("updated_at") or "", reverse=True)
 
 
@@ -219,21 +222,25 @@ def list_versions(flow_id: str) -> list[dict]:
     out = []
     current = _read_all().get(fid)
     if current:
-        out.append({
-            "version": int(current.get("version", 1)),
-            "name": current.get("name"),
-            "updated_at": current.get("updated_at"),
-            "created_by": current.get("created_by"),
-            "current": True,
-        })
+        out.append(
+            {
+                "version": int(current.get("version", 1)),
+                "name": current.get("name"),
+                "updated_at": current.get("updated_at"),
+                "created_by": current.get("created_by"),
+                "current": True,
+            }
+        )
     for rec in _read_history(fid):
-        out.append({
-            "version": int(rec.get("version", 0)),
-            "name": rec.get("name"),
-            "updated_at": rec.get("updated_at"),
-            "created_by": rec.get("created_by"),
-            "current": False,
-        })
+        out.append(
+            {
+                "version": int(rec.get("version", 0)),
+                "name": rec.get("name"),
+                "updated_at": rec.get("updated_at"),
+                "created_by": rec.get("created_by"),
+                "current": False,
+            }
+        )
     return sorted(out, key=lambda r: r.get("version", 0), reverse=True)
 
 

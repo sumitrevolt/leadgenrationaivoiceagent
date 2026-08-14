@@ -39,6 +39,7 @@ target for a flagged item is the owner (human).
 
 Lane: GREEN (read-only detection + report). Autonomy: L0/L1 (observe + recommend).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -61,9 +62,7 @@ _PLACEHOLDER_PLANS = frozenset({"", "free", "trial", "none", "pending"})
 
 # Statuses where being non-active is EXPECTED (intentional churn) — a historical
 # invoice on such a tenant is normal, so it is NOT flagged as a mismatch.
-_TERMINAL_STATUSES = frozenset(
-    {"cancelled", "canceled", "churned", "dead", "deleted", "expired"}
-)
+_TERMINAL_STATUSES = frozenset({"cancelled", "canceled", "churned", "dead", "deleted", "expired"})
 
 
 def _now() -> datetime:
@@ -199,7 +198,9 @@ def _plan_catalog() -> dict[str, dict[str, Any]]:
                         continue
                     cat[key] = {
                         "price_inr": (p or {}).get("price_inr_month"),
-                        "has_features": bool((p or {}).get("features") or (p or {}).get("feature_groups")),
+                        "has_features": bool(
+                            (p or {}).get("features") or (p or {}).get("feature_groups")
+                        ),
                         "source": src,
                     }
             except Exception as exc:
@@ -401,9 +402,7 @@ def scan_entitlements(limit: int = 200) -> dict[str, Any]:
                 flagged_ids.add(rec["canonical_id"])
         result["checked"] = checked
         issues: list[dict[str, Any]] = [
-            {"type": t, "count": len(lst), "sample": lst[:5]}
-            for t, lst in buckets.items()
-            if lst
+            {"type": t, "count": len(lst), "sample": lst[:5]} for t, lst in buckets.items() if lst
         ]
         # critical (paid-no-invoice) first, then by count desc
         issues.sort(key=lambda i: (0 if i["type"] == "paid_no_invoice" else 1, -i["count"]))
@@ -412,7 +411,9 @@ def scan_entitlements(limit: int = 200) -> dict[str, Any]:
             "checked": checked,
             "flagged": len(flagged_ids),
             "paid_no_invoice": len(buckets["paid_no_invoice"]),
-            "invoice_without_active_subscription": len(buckets["invoice_without_active_subscription"]),
+            "invoice_without_active_subscription": len(
+                buckets["invoice_without_active_subscription"]
+            ),
             "unknown_plan": len(buckets["unknown_plan"]),
             "entitlement_drift": len(buckets["entitlement_drift"]),
         }

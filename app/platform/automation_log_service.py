@@ -3,6 +3,7 @@
 Every automation/agent/job writes logs through this service. Falls back to
 JSONL file if DB is unavailable — never crashes the scheduler.
 """
+
 from __future__ import annotations
 
 import json
@@ -62,7 +63,11 @@ def log_event(
                 next_retry_at=str(next_retry_at)[:50] if next_retry_at else None,
                 evidence_url=str(evidence_url)[:500] if evidence_url else None,
                 triggered_by=str(triggered_by)[:50],
-                meta_json=json.dumps(meta_json, ensure_ascii=False, default=str)[:4000] if meta_json else None,
+                meta_json=(
+                    json.dumps(meta_json, ensure_ascii=False, default=str)[:4000]
+                    if meta_json
+                    else None
+                ),
                 created_at=datetime.utcnow(),
             )
             db.add(entry)
@@ -172,9 +177,11 @@ def _read_jsonl(
                     continue
                 if status and rec.get("status") != status:
                     continue
-                if days > 0 and str(rec.get("created_at") or "")[:10] < (
-                    datetime.now(timezone.utc) - timedelta(days=days)
-                ).date().isoformat():
+                if (
+                    days > 0
+                    and str(rec.get("created_at") or "")[:10]
+                    < (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+                ):
                     continue
                 rows.append(rec)
         rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
@@ -186,7 +193,11 @@ def _read_jsonl(
 def has_run_today(client_id: str, job_type: str) -> bool:
     """Check if a job already ran for this client+job today (idempotency guard)."""
     today = datetime.now(timezone.utc).date().isoformat()
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    today_start = (
+        datetime.now(timezone.utc)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .replace(tzinfo=None)
+    )
     try:
         from app.models.automation_log import AutomationLog
         from app.models.base import get_db_session

@@ -226,7 +226,9 @@ def _summary(samples: list[dict[str, float]]) -> dict[str, float]:
         "endpoint_ms": samples[0]["endpoint_ms"] if samples else 0.0,
         "avg_stt_ms": statistics.fmean([s["stt_ms"] for s in samples]) if samples else 0.0,
         "avg_llm_ms": statistics.fmean([s["llm_ms"] for s in samples]) if samples else 0.0,
-        "avg_tts_first_ms": statistics.fmean([s["tts_first_ms"] for s in samples]) if samples else 0.0,
+        "avg_tts_first_ms": (
+            statistics.fmean([s["tts_first_ms"] for s in samples]) if samples else 0.0
+        ),
     }
 
 

@@ -59,7 +59,7 @@ def _redis():
 
 
 class StopController:
-    def __init__(self, budget: Optional[Budget] = None, cost_admitter=None) -> None:
+    def __init__(self, budget: Budget | None = None, cost_admitter=None) -> None:
         self.budget = budget or Budget()
         # Optional provider-level admission, injected at the model-call site where
         # provider + token estimates are known (that is where dev_control's
@@ -112,7 +112,7 @@ class StopController:
         return len(sigs) >= w and len(set(sigs)) == 1
 
     # ---- the single gate the loop calls -------------------------------
-    def check(self, ctx: RunContext) -> tuple[bool, Optional[StopReason]]:
+    def check(self, ctx: RunContext) -> tuple[bool, StopReason | None]:
         """Returns (may_continue, stop_reason). Fail-closed on ambiguity."""
         if self.killed(ctx):
             return False, StopReason.KILL_SWITCH

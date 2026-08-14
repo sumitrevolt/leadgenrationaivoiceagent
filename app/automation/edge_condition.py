@@ -6,6 +6,7 @@ FAIL-CLOSED: any malformed/unevaluable condition returns False, so a branch you
 cannot evaluate is NEVER taken (a broken condition can't trigger a side effect).
 Import-safe, never raises.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -20,7 +21,7 @@ def _cmp(actual: Any, value: Any, op: str) -> bool:
     try:
         a, b = float(actual), float(value)  # numeric compare if both castable
     except (TypeError, ValueError):
-        a, b = str(actual), str(value)      # else string compare
+        a, b = str(actual), str(value)  # else string compare
     if op == "==":
         return a == b
     if op == "!=":
@@ -59,7 +60,7 @@ def _leaf(cond: dict, src: dict) -> bool:
             return actual not in cond.get("value")
         except TypeError:
             return False
-    if actual is None:           # relational op on missing/None -> fail-closed
+    if actual is None:  # relational op on missing/None -> fail-closed
         return False
     return _cmp(actual, cond.get("value"), op)
 

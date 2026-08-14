@@ -72,9 +72,7 @@ def _build_service():
         )
         return None
     try:
-        creds_path = _setting("GSC_SERVICE_ACCOUNT_JSON") or _setting(
-            "google_sheets_credentials"
-        )
+        creds_path = _setting("GSC_SERVICE_ACCOUNT_JSON") or _setting("google_sheets_credentials")
         credentials = Credentials.from_service_account_file(creds_path, scopes=GSC_SCOPES)
         service = build("webmasters", "v3", credentials=credentials, cache_discovery=False)
         logger.info("[gsc] Search Console service constructed")
@@ -96,11 +94,7 @@ def _fetch(service, site: str, days: int) -> dict[str, Any]:
         "rowLimit": 366,
     }
     try:
-        res = (
-            service.searchanalytics()
-            .query(siteUrl=site, body=body)
-            .execute(num_retries=2)
-        )
+        res = service.searchanalytics().query(siteUrl=site, body=body).execute(num_retries=2)
     except Exception as e:
         logger.error(f"[gsc] daily-series fetch failed: {e}")
         res = {}
@@ -110,15 +104,19 @@ def _fetch(service, site: str, days: int) -> dict[str, Any]:
     agg = {
         "clicks": int(sum(r.get("clicks", 0) for r in series)),
         "impressions": int(sum(r.get("impressions", 0) for r in series)),
-        "ctr": (sum(r.get("clicks", 0) for r in series) / sum(r.get("impressions", 0) for r in series))
-        if sum(r.get("impressions", 0) for r in series)
-        else 0.0,
+        "ctr": (
+            (sum(r.get("clicks", 0) for r in series) / sum(r.get("impressions", 0) for r in series))
+            if sum(r.get("impressions", 0) for r in series)
+            else 0.0
+        ),
         "position": (
-            sum(r.get("position", 0) * r.get("impressions", 0) for r in series)
-            / sum(r.get("impressions", 0) for r in series)
-        )
-        if sum(r.get("impressions", 0) for r in series)
-        else 0.0,
+            (
+                sum(r.get("position", 0) * r.get("impressions", 0) for r in series)
+                / sum(r.get("impressions", 0) for r in series)
+            )
+            if sum(r.get("impressions", 0) for r in series)
+            else 0.0
+        ),
     }
     return {
         "start_date": start.isoformat(),

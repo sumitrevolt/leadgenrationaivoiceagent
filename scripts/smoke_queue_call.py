@@ -1,20 +1,28 @@
 """Quick smoke: verify /api/niche/queue-call endpoint is wired (401 = auth guard working)."""
-import urllib.request, json, sys
+
+import json
+import sys
+import urllib.request
 
 BASE = "http://localhost:8000"
 
 tests = [
     ("GET  /api/niche/schema/home_loans", f"{BASE}/api/niche/schema/home_loans", "GET", None),
-    ("GET  /api/niche/voice-niches",      f"{BASE}/api/niche/voice-niches",       "GET", None),
-    ("POST /api/niche/queue-call (no auth → 401/422)", f"{BASE}/api/niche/queue-call", "POST",
-     json.dumps({"client_id": "test", "niche": "home_loans"}).encode()),
+    ("GET  /api/niche/voice-niches", f"{BASE}/api/niche/voice-niches", "GET", None),
+    (
+        "POST /api/niche/queue-call (no auth → 401/422)",
+        f"{BASE}/api/niche/queue-call",
+        "POST",
+        json.dumps({"client_id": "test", "niche": "home_loans"}).encode(),
+    ),
 ]
 
 all_ok = True
 for label, url, method, data in tests:
     try:
-        req = urllib.request.Request(url, data=data, method=method,
-                                     headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(
+            url, data=data, method=method, headers={"Content-Type": "application/json"}
+        )
         try:
             resp = urllib.request.urlopen(req, timeout=5)
             body = json.loads(resp.read())
@@ -33,6 +41,7 @@ for label, url, method, data in tests:
 # Also check TelecallerBrain niche schema injection via logs
 try:
     import subprocess
+
     logs = subprocess.check_output(
         ["docker", "logs", "leadgen_app", "--tail", "50"], stderr=subprocess.STDOUT, text=True
     )

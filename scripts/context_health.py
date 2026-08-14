@@ -10,6 +10,7 @@ Checks (all read-only, no network):
 Exit code: 0 if usable (context available OR memory fallback present); 1 only on
 hard failure (store unreadable/corrupt AND memory fallback also missing).
 """
+
 from __future__ import annotations
 
 import json
@@ -50,7 +51,7 @@ def check() -> dict:
             f"{'FRESH' if grpt and head.startswith(grpt) else 'STALE/unknown'}"
             if graph_present
             else "FAIL-LOUD: app/graphify-out/graph.json MISSING — Graphify MCP cold. "
-                 "Run scripts/graphify_refresh.bat (or .sh) before graphify query/explain."
+            "Run scripts/graphify_refresh.bat (or .sh) before graphify query/explain."
         ),
     }
 
@@ -64,13 +65,18 @@ def check() -> dict:
         results["project_context"] = {
             "ok": store.get("meta", {}).get("content_hash") == recomputed,
             "detail": f"nodes={store['meta'].get('node_count')} "
-                      f"store_sha={store['meta'].get('head_sha','?')[:8]} head={head[:8]} "
-                      f"{'FRESH' if sha_ok else 'STALE — run sync'} "
-                      f"hash={'valid' if store['meta'].get('content_hash')==recomputed else 'CORRUPT'}",
+            f"store_sha={store['meta'].get('head_sha','?')[:8]} head={head[:8]} "
+            f"{'FRESH' if sha_ok else 'STALE — run sync'} "
+            f"hash={'valid' if store['meta'].get('content_hash')==recomputed else 'CORRUPT'}",
         }
 
-    mem = [p for p in ("INDEX.md", "decisions.md", "incidents.md") if (ROOT / "memory" / p).is_file()]
-    results["memory_fallback"] = {"ok": len(mem) >= 1, "detail": f"present: {', '.join(mem) or 'NONE'}"}
+    mem = [
+        p for p in ("INDEX.md", "decisions.md", "incidents.md") if (ROOT / "memory" / p).is_file()
+    ]
+    results["memory_fallback"] = {
+        "ok": len(mem) >= 1,
+        "detail": f"present: {', '.join(mem) or 'NONE'}",
+    }
     return results
 
 
@@ -85,9 +91,10 @@ def main() -> int:
             tag = "PASS" if v["ok"] else "WARN"
         print(f"  [{tag}] {k}: {v['detail']}")
     hard_fail = (not r["project_context"]["ok"]) and (not r["memory_fallback"]["ok"])
-    require_graph = (
-        __import__("os").environ.get("GRAPHIFY_REQUIRE_GRAPH", "0").strip().lower()
-        in ("1", "true", "yes")
+    require_graph = __import__("os").environ.get("GRAPHIFY_REQUIRE_GRAPH", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
     )
     graph_missing = not r["code_graph"]["ok"]
     if hard_fail:

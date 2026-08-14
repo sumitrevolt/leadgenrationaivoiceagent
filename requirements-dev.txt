@@ -29,8 +29,8 @@ deepeval>=1.4,<4
 black==26.3.1  # Code formatting
 isort==5.13.2  # Import sorting
 flake8==7.3.0  # Linting
-mypy==1.8.0  # Type checking
-pylint==3.0.3  # Additional linting
+mypy==2.3.0  # Type checking
+pylint==4.0.6  # Additional linting
 bandit==1.9.4  # Security linting
 
 # =============================================================================
@@ -45,7 +45,7 @@ sqlalchemy-stubs==0.4
 # =============================================================================
 mkdocs==1.6.1
 mkdocs-material==9.7.7
-mkdocstrings[python]==0.24.0
+mkdocstrings[python]==1.0.6
 
 # =============================================================================
 # Development Tools

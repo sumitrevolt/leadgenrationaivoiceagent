@@ -1,11 +1,18 @@
 """Quick smoke test for niche_db endpoints — run via SSH on VPS."""
-import json, urllib.request, sys
+
+import json
+import sys
+import urllib.request
 
 base = "http://localhost:8000"
 
 checks = [
     ("/health", None, lambda d: d.get("environment") == "production"),
-    ("/api/niche/schema/home_loans", None, lambda d: d.get("ok") and len(d.get("schema",{}).get("pre_call_fields",[])) > 0),
+    (
+        "/api/niche/schema/home_loans",
+        None,
+        lambda d: d.get("ok") and len(d.get("schema", {}).get("pre_call_fields", [])) > 0,
+    ),
     ("/api/niche/voice-niches", None, lambda d: d.get("ok") and d.get("total", 0) > 0),
 ]
 

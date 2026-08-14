@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-12 (PR queue land + freebuff cleanup — CURSOR)
+Goal: Land open PR queue; remove tracked freebuff placeholders; no deploy/flag-arm.
+Inspected: #340/#341/#336–#339; freebuff mode-160000 gitlinks; Gate A submodule URL fail.
+Problems Found: (1) #341 SESSION_HANDOFF conflict after #340. (2) #338 CONFLICTING superseded. (3) #337 greenlet SIGSEGV exit-139. (4) CP5 local WIP was .venv junk. (5) CodeQL noise in SSRF tests.
+Changed: merged #340/#341/#336/#339/#342/#343; closed #338/#337; freebuff gitlinks deleted; pytest9 worktree removed.
+Tests Run: required CI on each merge (Gate A ignore except verified green after #342).
+Verification Evidence: main `94cc6e44`; freebuff tracked=0; worktrees=1; Gate A pass on #342/#343.
+Risks: 2 orphan dirs still file-locked on disk.
+Remaining: Dependabot packet; orphan manual delete; owner Hot Queue/UPI ops.
+Next Highest Priority: stop — queue land complete.
+
+## Loop Run
 Date: 2026-08-12 (worktree/branch consolidation closeout — CURSOR)
 Goal: Safe consolidate — classify → land/park unique → delete obsolete; no blind merge; no deploy.
 Inspected: post-#335 main `f814cfe7`; worktree list; remotes; open Drafts #336–#339 + Dependabot.
@@ -1933,3 +1945,45 @@ Three things learned, all now in `docs/GRAPHIFY.md` §G:
 - **Changed:** Prod HARD_OFF 1→0 prove enabled=True; ADR-171; matrix OWNER-ARMED; PR #278 opened (interaction-log + docs).
 - **Evidence:** HARD_OFF=0 MASTER=1 enabled=True @ 7ab5fe55; pytest reply_auto_send 27P; #276 already LIVE MB=4.
 - **Remaining:** Merge+deploy #278; prove interactions source=reply_agent on next auto-send.
+
+## Loop Run
+Date: 2026-08-12 (FreeBuff final revenue execution — isolated worktree)
+Goal: Truth reconciliation; verify money path end-to-end; WSL root-cause verdict; Automation-Max audit; Grok decision; declare engineering freeze if unblocked.
+Inspected: AGENTS.md/CLAUDE.md invariants; REVENUE_READY_20260812.md; CURRENT_STATE/ACTIVE_WORK/SESSION_HANDOFF; live prod /health x2; funnel routes; packages.py + voice_packages.py; UPI/HotQueue/Stripe code+tests; WSL process tree/scheduled tasks/startup/terminal/hooks; all 6 repo wsl launchers; live container flags; Grok refs.
+Problems Found: (1) prod SHA advanced 9c47647c -> 2326c931 (stale docs); (2) WHATSAPP_AUTO_SEND=0 live vs =1 documented 2026-08-03 (drift, owner call needed); (3) repeated WSL window = per-action launcher console, no OS trigger; (4) Hot Queue count unreadable without owner login (bounded request).
+Changed: docs/evidence/WSL_DEPENDENCY_20260812.md (new); docs/evidence/FREEBUFF_FINAL_REVENUE_EXECUTION_20260812.md (new); this Loop Run. No code/env/flag/deploy/commit.
+Tests Run: test_billing_truth_2026.py 15 passed EXIT=0; test_hot_queue.py 7 passed EXIT=0; test_upi_guest_bind_workflow_2026_08_10.py 13 passed EXIT=0; prod_check.py ALL PASSED EXIT=0; check_secrets.py clean EXIT=0.
+Verification Evidence: /health=2326c931 x2 advancing (live, cache-busted); funnel 6x200; /api/upi/submit 422; inbox 401; Stripe webhook 400; live packages JSON 1999/5999; in-container flags table; WSL probes.
+Risks: owner bandwidth (outreach/UPI) is remaining variable; WHATSAPP_AUTO_SEND drift; guest-UPI first live proof pending; Hot Queue count unverified without login.
+Remaining: owner Hot Queue blitz -> 2nd paid; UPI approval on arrival; optional staging guest-UPI sim; doc correction after owner WhatsApp intent confirm.
+Next Highest Priority: owner Day-0 15-min Hot Queue action at /app/inbox (not another module) until first owner-confirmed UPI payment.
+
+## Correction — 2026-08-12 (FreeBuff reconciliation pass)
+
+- **Prod SHA re-probed:** still `2326c931` LIVE x2 (uptime advancing). origin/main advanced to `30900752` (PR #349 ruff/format lint cleanup, ~300 files; `app/marketing/packages.py` NOT in diff) => prod now 1 commit BEHIND origin/main tip. Earlier "exact parity" claim retracted.
+- **WSL popup root cause re-classified `PROBABLE`** (popup-time wsl.exe PID/parent/cmdline NOT captured; absence of OS triggers + manual launchers = inference, not causation). Upgrade path documented in WSL doc §2c.
+- **Buzz verdict unified: `WSL_OPTIONAL`** (Buzz Desktop + SSH pulse run without WSL; only the optional OmniRoute lane requires WSL) — matrix row corrected.
+- **`/app/inbox` 200 = page availability only**; authenticated Hot Queue contents/count UNVERIFIED until owner session. No queue-size claim made.
+- **Automation-Max GO scoped** to the audited already-governed existing set; no claim over all automation/enterprise gates (Enterprise readiness = WAIT).
+- **Checks re-run on corrected deliverables:** `git add -N` + `git diff --check` EXIT=0 (index reset after); `check_secrets.py` on the 3 deliverable files EXIT=0 clean.
+- **Worktree status truth:** `M progress.md` + 2 untracked evidence docs (NOT clean). No commit/push/PR/deploy/flag/`.env`/voice changes. Primary checkout untouched.
+
+## Loop Run — 2026-08-12 (FreeBuff revenue-ops verification, no code change)
+- **Goal:** Verify existing revenue-path loops are runtime-alive (not just source-present), and scope the Hot Queue owner sprint boundary. NO new loop/agent/flag/route/module; no deploy; no edits to primary checkout.
+- **Inspected:** prod /health (x2 cache-busted, DIRECT_HOST_VERIFIED 22:52 UTC) · origin/main (`cd2e3437`; prod `2326c931` = 2 commits behind) · in-container env gates (22:55 UTC) · Redis queue depths · runtime job_heartbeats.json (23:00 UTC) · auth gates on automation-health/flags/hot-queue API · /app/inbox page.
+- **Problems Found:** (1) `dlq:dead` grew 8 → **19** (all sampled = `trainer` TimeLimitExceeded(600), max 3 auto-retries exhausted — non-revenue engine; operative `dlq:failed_tasks` = 0). (2) Honest drift: `BOSS_DECISION_GOVERNANCE=1` in-container vs docs `OFF` (observed, not changed). (3) `GSC_ENABLED` UNSET (INERT as documented). (4) Hot Queue API 401 → no authenticated read available to this session.
+- **Changed:** None (code/flag/env untouched). One Loop Run block appended to progress.md in isolated worktree.
+- **Tests Run:** N/A (no code change). Runtime probes: prod /health x2 (2326c931, uptime advancing), activation summary `ready_for_first_paid_customer:true blocker_count:0`, heartbeats all `ok:true` (reply_triage 22:50 · growth 22:45 · self_improve 22:53 · sales_autopilot 21:55 · watchdog 22:05 · call_processor 22:52 alive), queues celery=0/dlq:failed_tasks=0/dlq:dead=19, auth gates 401 (design), /app/inbox page 200.
+- **Verification Evidence:** raw probe outputs captured above; flags: SALES_AUTOPILOT_ENABLED=1 · EMAIL_ENABLED=1 · DRY_RUN=0 · WHATSAPP_ENABLED=0 (cold WA OFF) · AUTO_EMAIL_OUTREACH=1 · REPLY_AGENT=1 · SELF_IMPROVE_LOOP=1 · VOICE_LAUNCH_KILL=0 · DIAL_TEST_MODE=0 · PLATFORM_DIAL_DAILY=1 · LIMIT=100 · UPI_AUTO_ACTIVATE=1 (allowlist-scoped) · RUN_IN_PROCESS_SCHEDULER=0.
+- **Risks:** Hot Queue count/cards UNVERIFIED without owner login — no lead invented; revenue claims withheld. dlq:dead trainer backlog is noise, not revenue-blocking.
+- **Remaining:** Owner authenticated `/app/inbox` blitz (15 min/day) + manual UPI bank-credit confirmation; revenue-generated stays NOT PROVEN until owner-confirmed credit.
+- **Next Highest Priority:** Owner login at `/app/admin-login` → `/app/inbox` → act top cards → log scoreboard; UPI confirm on arrival.
+
+## Loop Run — Freebuff Desk 2026-08-13 ~07:41 IST
+- AUTOMATION_REQUIRED evidence: `_scratch/COORDINATION_20260813/FREEBUFF_AUTOMATION_REQUIRED_20260813.md` (on primary scratch; this worktree not switched/deployed).
+- Hygiene note: freebuff worktree shells present (this wt + opencode temp); primary left on fix/regression-remediation dirty — untouched.
+- No flag/deploy/commit/DLQ/dunning arm.
+
+## Loop Run — Dunning dry-run 2026-08-13 08:03 IST
+- Evidence: `_scratch/COORDINATION_20260813/FREEBUFF_DUNNING_CANARY_DRYRUN_20260813.md`.
+- DUNNING_ENGINE left 0. cases/runs 0. SQL subs 0. run_due no-op.

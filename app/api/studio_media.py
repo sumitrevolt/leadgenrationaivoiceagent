@@ -46,6 +46,7 @@ def _safe_cid(cid: str) -> str:
     """Filesystem-safe client id for per-client dirs (no traversal)."""
     return re.sub(r"[^A-Za-z0-9_-]", "_", str(cid or "anon"))[:64] or "anon"
 
+
 router = APIRouter(prefix="/api/customer/studio", tags=["Customer Studio Media"])
 
 _UPLOAD_DIR = os.path.join("data", "studio_uploads")
@@ -64,7 +65,13 @@ _MAGIC = (
     (b"GIF87a", "gif"),
     (b"GIF89a", "gif"),
 )
-_EXT_CT = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp", "gif": "image/gif", "mp4": "video/mp4"}
+_EXT_CT = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "webp": "image/webp",
+    "gif": "image/gif",
+    "mp4": "video/mp4",
+}
 _JOB_DIR = os.path.join("data", "studio_jobs")
 _VIDEO_RL = rate_limit("cust_studio_video", 4, 300)  # video is CPU-heavy: 4 / 5min / IP
 
@@ -115,7 +122,9 @@ def _resolve_upload(client_id: str, upload_id: str) -> str | None:
     return None
 
 
-def _store_output(client_id: str, *, src_path: str | None = None, data: bytes | None = None, ext: str = "png") -> str:
+def _store_output(
+    client_id: str, *, src_path: str | None = None, data: bytes | None = None, ext: str = "png"
+) -> str:
     d = _client_dir(_MEDIA_DIR, client_id)
     mid = uuid.uuid4().hex
     dst = os.path.join(d, f"{mid}.{ext}")
@@ -155,7 +164,9 @@ def _validate_image(data: bytes) -> str:
 # Upload + serve
 # --------------------------------------------------------------------------- #
 @router.post("/upload", dependencies=[Depends(_UPLOAD_RL)])
-async def studio_upload(file: UploadFile = File(...), client_id: str = Depends(require_customer)) -> dict:
+async def studio_upload(
+    file: UploadFile = File(...), client_id: str = Depends(require_customer)
+) -> dict:
     """Upload an image (PNG/JPG/WEBP ≤8MB). Returns an opaque upload_id (client-scoped)."""
     data = await file.read(_MAX_UPLOAD + 1)
     if len(data) > _MAX_UPLOAD:
@@ -212,7 +223,9 @@ def _slug_of(client_id: str) -> str:
 
 
 @router.post("/img-gif", dependencies=[Depends(_GEN)])
-async def studio_img_gif(req: GifReq = Body(default=GifReq()), client_id: str = Depends(require_customer)) -> dict:
+async def studio_img_gif(
+    req: GifReq = Body(default=GifReq()), client_id: str = Depends(require_customer)
+) -> dict:
     """Animated text GIF (512², brand colors) for WhatsApp status / story."""
     try:
         from app.marketing import gif_maker
@@ -222,9 +235,18 @@ async def studio_img_gif(req: GifReq = Body(default=GifReq()), client_id: str = 
         logger.error("img-gif failed: %s", e)
         raise HTTPException(status_code=503, detail="GIF abhi nahi bana — baad me try karo.")
     if not out.get("ok") or not out.get("path"):
-        return {"ok": False, "tool": "img-gif", "note": out.get("hint") or "GIF abhi available nahi."}
+        return {
+            "ok": False,
+            "tool": "img-gif",
+            "note": out.get("hint") or "GIF abhi available nahi.",
+        }
     mid = _store_output(client_id, src_path=out["path"], ext="gif")
-    return {"ok": True, "tool": "img-gif", "media": [_media_item(client_id, mid, "gif")], "text": out.get("text", "")}
+    return {
+        "ok": True,
+        "tool": "img-gif",
+        "media": [_media_item(client_id, mid, "gif")],
+        "text": out.get("text", ""),
+    }
 
 
 @router.post("/img-sticker", dependencies=[Depends(_GEN)])
@@ -235,16 +257,22 @@ async def studio_img_sticker(client_id: str = Depends(require_customer)) -> dict
         from app.marketing import sticker_pack
 
         out = await asyncio.to_thread(
-            sticker_pack.generate_stickers, _slug_of(client_id),
-            str(rec.get("business_name") or ""), str(rec.get("niche") or ""),
+            sticker_pack.generate_stickers,
+            _slug_of(client_id),
+            str(rec.get("business_name") or ""),
+            str(rec.get("niche") or ""),
         )
     except Exception as e:
         logger.error("img-sticker failed: %s", e)
         raise HTTPException(status_code=503, detail="Stickers abhi nahi bane.")
     if not out.get("ok"):
         return {"ok": False, "tool": "img-sticker", "note": "Stickers abhi available nahi."}
-    media = [_media_item(client_id, _store_output(client_id, src_path=p, ext="png"), "png", f"Sticker {i + 1}")
-             for i, p in enumerate(out.get("files", []))]
+    media = [
+        _media_item(
+            client_id, _store_output(client_id, src_path=p, ext="png"), "png", f"Sticker {i + 1}"
+        )
+        for i, p in enumerate(out.get("files", []))
+    ]
     return {"ok": True, "tool": "img-sticker", "media": media, "note": out.get("note", "")}
 
 
@@ -257,14 +285,18 @@ async def studio_img_resize(req: ResizeReq, client_id: str = Depends(require_cus
     try:
         from app.marketing import magic_resize
 
-        out = await asyncio.to_thread(magic_resize.resize_pack, path, None, req.sizes, _slug_of(client_id))
+        out = await asyncio.to_thread(
+            magic_resize.resize_pack, path, None, req.sizes, _slug_of(client_id)
+        )
     except Exception as e:
         logger.error("img-resize failed: %s", e)
         raise HTTPException(status_code=503, detail="Resize abhi nahi hua.")
     if not out.get("ok"):
         return {"ok": False, "tool": "img-resize", "note": out.get("error") or "Resize fail."}
-    media = [_media_item(client_id, _store_output(client_id, src_path=p, ext="png"), "png", size)
-             for size, p in (out.get("files") or {}).items()]
+    media = [
+        _media_item(client_id, _store_output(client_id, src_path=p, ext="png"), "png", size)
+        for size, p in (out.get("files") or {}).items()
+    ]
     return {"ok": True, "tool": "img-resize", "media": media, "note": out.get("note", "")}
 
 
@@ -275,10 +307,17 @@ async def studio_img_bgremove(req: BgReq, client_id: str = Depends(require_custo
         from app.marketing import bg_remove
 
         if not bg_remove.available():
-            return {"ok": False, "tool": "img-bgremove",
-                    "note": "Background removal abhi server pe enable nahi (rembg). Jald aayega."}
+            return {
+                "ok": False,
+                "tool": "img-bgremove",
+                "note": "Background removal abhi server pe enable nahi (rembg). Jald aayega.",
+            }
     except Exception:
-        return {"ok": False, "tool": "img-bgremove", "note": "Background removal abhi available nahi."}
+        return {
+            "ok": False,
+            "tool": "img-bgremove",
+            "note": "Background removal abhi available nahi.",
+        }
     path = _resolve_upload(client_id, req.upload_id)
     if not path:
         raise HTTPException(status_code=404, detail="Upload nahi mila — phir se upload karo.")
@@ -296,11 +335,42 @@ async def studio_img_bgremove(req: BgReq, client_id: str = Depends(require_custo
 
 
 _MEDIA_TOOLS = [
-    {"key": "img-gif", "icon": "🎞️", "title": "Animated GIF", "desc": "Text → WhatsApp status GIF", "upload": False},
-    {"key": "img-sticker", "icon": "🩷", "title": "WhatsApp Stickers", "desc": "6 branded stickers", "upload": False},
-    {"key": "img-resize", "icon": "🔁", "title": "Magic Resize", "desc": "Photo → sab social sizes", "upload": True},
-    {"key": "img-bgremove", "icon": "✂️", "title": "Background Remove", "desc": "Photo ka background hatao", "upload": True},
-    {"key": "video-reel", "icon": "🎬", "title": "Faceless Reel", "desc": "Text → short video reel", "upload": False, "job": True},
+    {
+        "key": "img-gif",
+        "icon": "🎞️",
+        "title": "Animated GIF",
+        "desc": "Text → WhatsApp status GIF",
+        "upload": False,
+    },
+    {
+        "key": "img-sticker",
+        "icon": "🩷",
+        "title": "WhatsApp Stickers",
+        "desc": "6 branded stickers",
+        "upload": False,
+    },
+    {
+        "key": "img-resize",
+        "icon": "🔁",
+        "title": "Magic Resize",
+        "desc": "Photo → sab social sizes",
+        "upload": True,
+    },
+    {
+        "key": "img-bgremove",
+        "icon": "✂️",
+        "title": "Background Remove",
+        "desc": "Photo ka background hatao",
+        "upload": True,
+    },
+    {
+        "key": "video-reel",
+        "icon": "🎬",
+        "title": "Faceless Reel",
+        "desc": "Text → short video reel",
+        "upload": False,
+        "job": True,
+    },
 ]
 
 
@@ -341,39 +411,72 @@ def _reel_worker(client_id: str, job_id: str, slides, offer: str) -> None:
         from app.marketing import reel_video
 
         rec = _client_record(client_id) or {}
-        out = asyncio.run(reel_video.build_reel(
-            business_name=str(rec.get("business_name") or "Aapka Business"),
-            niche=str(rec.get("niche") or "general"), slides=slides, offer=offer,
-            client_id=str(rec.get("id") or client_id),
-        ))
+        out = asyncio.run(
+            reel_video.build_reel(
+                business_name=str(rec.get("business_name") or "Aapka Business"),
+                niche=str(rec.get("niche") or "general"),
+                slides=slides,
+                offer=offer,
+                client_id=str(rec.get("id") or client_id),
+            )
+        )
         if isinstance(out, dict) and out.get("path") and os.path.isfile(out["path"]):
             mid = _store_output(client_id, src_path=out["path"], ext="mp4")
-            _write_job(client_id, job_id, {"status": "done", "media": [_media_item(client_id, mid, "mp4", "Reel")]})
+            _write_job(
+                client_id,
+                job_id,
+                {"status": "done", "media": [_media_item(client_id, mid, "mp4", "Reel")]},
+            )
         else:
-            _write_job(client_id, job_id, {"status": "error",
-                                           "note": (out or {}).get("error", "Reel nahi bana.") if isinstance(out, dict) else "Reel nahi bana."})
+            _write_job(
+                client_id,
+                job_id,
+                {
+                    "status": "error",
+                    "note": (
+                        (out or {}).get("error", "Reel nahi bana.")
+                        if isinstance(out, dict)
+                        else "Reel nahi bana."
+                    ),
+                },
+            )
     except Exception as e:
         logger.error("reel worker failed: %s", e)
-        _write_job(client_id, job_id, {"status": "error", "note": "Reel render fail — baad me try karo."})
+        _write_job(
+            client_id, job_id, {"status": "error", "note": "Reel render fail — baad me try karo."}
+        )
 
 
 @router.post("/video-reel", dependencies=[Depends(_VIDEO_RL)])
-def studio_video_reel(req: ReelReq = Body(default=ReelReq()), client_id: str = Depends(require_customer)) -> dict:
+def studio_video_reel(
+    req: ReelReq = Body(default=ReelReq()), client_id: str = Depends(require_customer)
+) -> dict:
     """Submit a faceless reel render (background). Returns job_id; poll /video-status/{id}."""
     try:
         from app.marketing import reel_video
 
         if not reel_video.available().get("ok"):
-            return {"ok": False, "tool": "video-reel", "note": "Video render abhi server pe enable nahi."}
+            return {
+                "ok": False,
+                "tool": "video-reel",
+                "note": "Video render abhi server pe enable nahi.",
+            }
     except Exception:
         return {"ok": False, "tool": "video-reel", "note": "Video render abhi available nahi."}
     _purge_old()
     job_id = uuid.uuid4().hex
     _write_job(client_id, job_id, {"status": "processing"})
     slides = [s for s in (req.slides or []) if str(s).strip()][:5] or None
-    _threading.Thread(target=_reel_worker, args=(client_id, job_id, slides, req.offer), daemon=True).start()
-    return {"ok": True, "tool": "video-reel", "job_id": job_id, "status": "processing",
-            "note": "Reel ban raha hai — 30-60 sec lagte. Status check karo."}
+    _threading.Thread(
+        target=_reel_worker, args=(client_id, job_id, slides, req.offer), daemon=True
+    ).start()
+    return {
+        "ok": True,
+        "tool": "video-reel",
+        "job_id": job_id,
+        "status": "processing",
+        "note": "Reel ban raha hai — 30-60 sec lagte. Status check karo.",
+    }
 
 
 @router.get("/video-status/{job_id}")

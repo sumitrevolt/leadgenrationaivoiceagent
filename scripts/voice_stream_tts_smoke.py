@@ -6,6 +6,7 @@
 
 Exit 0 = safe to flip USE_LLM_STREAM_TTS=1 on VPS.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,7 +46,9 @@ async def _brain_stream_check() -> list[str]:
         brain = TelecallerBrain(niche="general", client_name="Smoke Test")
         t0 = time.perf_counter()
         parts: list[str] = []
-        async for sent in brain.reply_stream_sentences([], "namaste, solar panel ke baare me batao"):
+        async for sent in brain.reply_stream_sentences(
+            [], "namaste, solar panel ke baare me batao"
+        ):
             parts.append(sent)
             if len(parts) >= 2:
                 break
@@ -55,7 +58,9 @@ async def _brain_stream_check() -> list[str]:
         elif elapsed > 45:
             issues.append(f"stream too slow: {elapsed:.1f}s for {len(parts)} sentence(s)")
         else:
-            print(f"OK brain stream: {len(parts)} sentence(s) in {elapsed:.1f}s — {parts[0][:60]!r}…")
+            print(
+                f"OK brain stream: {len(parts)} sentence(s) in {elapsed:.1f}s — {parts[0][:60]!r}…"
+            )
     except Exception as e:
         issues.append(f"brain stream: {e}")
     return issues

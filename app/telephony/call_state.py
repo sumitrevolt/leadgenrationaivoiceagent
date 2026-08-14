@@ -56,6 +56,7 @@ class RedisCallStore:
         self._client_loop = current_loop
         try:
             import redis.asyncio as aioredis
+
             from app.config import settings
 
             client = aioredis.from_url(
@@ -173,7 +174,11 @@ class RedisCallStore:
         if r is not None:
             try:
                 val = await r.hget(_SID_KEY, sid)
-                return val.decode() if isinstance(val, (bytes, bytearray)) else str(val) if val else None
+                return (
+                    val.decode()
+                    if isinstance(val, (bytes, bytearray))
+                    else str(val) if val else None
+                )
             except Exception as e:
                 logger.warning(f"sid_map hget failed ({e}); local fallback.")
         lm = getattr(self, "_local_sid_map", {}) or {}

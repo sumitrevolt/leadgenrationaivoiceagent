@@ -4,9 +4,10 @@ Phase 6 Integration Verification
 Checks that all components work together correctly.
 """
 
-import sys
 import json
+import sys
 from pathlib import Path
+
 
 def check_file_exists(path, description):
     """Check if a file exists."""
@@ -17,23 +18,26 @@ def check_file_exists(path, description):
         print(f"  ❌ {description} NOT FOUND: {path}")
         return False
 
+
 def check_code_imports():
     """Verify all imports work."""
     print("\n✅ IMPORT CHECK")
     try:
         from app.agents.self_improve import (
-            CostTracker,
             ApprovalQueue,
-            _get_cost_tracker,
+            CostTracker,
             _get_approval_queue,
-            cost_status,
+            _get_cost_tracker,
             approval_status,
+            cost_status,
         )
+
         print("  ✅ All Phase 6 classes/functions import successfully")
         return True
     except ImportError as e:
         print(f"  ❌ Import error: {e}")
         return False
+
 
 def check_env_vars():
     """Verify env vars are defined."""
@@ -50,6 +54,7 @@ def check_env_vars():
         value = os.environ.get(var, expected_default)
         print(f"  ✅ {var}={value}")
     return all_ok
+
 
 def check_api_endpoints():
     """Verify API router has new endpoints."""
@@ -80,6 +85,7 @@ def check_api_endpoints():
         print(f"  ⚠️  Could not verify routes: {e}")
         return True  # Don't fail on this
 
+
 def check_database_files():
     """Verify data files exist or are creatable."""
     print("\n✅ DATA FILES CHECK")
@@ -101,12 +107,13 @@ def check_database_files():
 
     return True
 
+
 def check_frontend_ui():
     """Verify frontend HTML has Phase 6 UI."""
     print("\n✅ FRONTEND UI CHECK")
 
     try:
-        with open("frontend/automation.html", "r") as f:
+        with open("frontend/automation.html") as f:
             content = f.read()
 
         checks = [
@@ -130,12 +137,16 @@ def check_frontend_ui():
         print(f"  ❌ Frontend check failed: {e}")
         return False
 
+
 def check_documentation():
     """Verify documentation files exist."""
     print("\n✅ DOCUMENTATION CHECK")
 
     files = [
-        (".claude/skills/self-improve-control/PHASE6_IMPLEMENTATION.md", "Phase 6 implementation guide"),
+        (
+            ".claude/skills/self-improve-control/PHASE6_IMPLEMENTATION.md",
+            "Phase 6 implementation guide",
+        ),
         ("docs/PHASE6_DEPLOYMENT_GUIDE.md", "Deployment guide"),
         ("scripts/test_phase6_safety_gates.py", "Unit tests"),
     ]
@@ -146,13 +157,14 @@ def check_documentation():
 
     return all_ok
 
+
 def check_test_suite():
     """Run unit tests."""
     print("\n✅ UNIT TEST CHECK")
 
     try:
         # Try importing test module
-        from app.agents.self_improve import CostTracker, ApprovalQueue
+        from app.agents.self_improve import ApprovalQueue, CostTracker
 
         # Quick test
         ct = CostTracker(daily_cap=50.0)
@@ -163,7 +175,7 @@ def check_test_suite():
 
         aq = ApprovalQueue(approval_required=True)
         result = aq.queue_task("test", "reason", 2.5)
-        assert result == False  # Should return False when queued
+        assert not result  # Should return False when queued
 
         print("  ✅ Quick integration test PASS (CostTracker + ApprovalQueue)")
         return True
@@ -174,10 +186,11 @@ def check_test_suite():
         print(f"  ⚠️  Test check error: {e}")
         return True  # Don't fail
 
+
 def main():
-    print("="*70)
+    print("=" * 70)
     print("PHASE 6 INTEGRATION VERIFICATION")
-    print("="*70)
+    print("=" * 70)
 
     checks = [
         ("File Completeness", check_file_exists, None),  # Checked separately
@@ -200,9 +213,9 @@ def main():
             results.append((name, False))
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for name, result in results:
         status = "✅ PASS" if result else "❌ FAIL"
@@ -211,18 +224,19 @@ def main():
     all_passed = all(r for _, r in results)
 
     if all_passed:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("✅ PHASE 6 INTEGRATION COMPLETE")
-        print("="*70)
+        print("=" * 70)
         print("\nAll components verified successfully!")
         print("Ready for: VPS deployment → docker build → up -d → manual UI test")
         return 0
     else:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("❌ PHASE 6 VERIFICATION INCOMPLETE")
-        print("="*70)
+        print("=" * 70)
         print("\nSome checks failed. See details above.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

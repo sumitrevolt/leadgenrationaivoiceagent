@@ -42,7 +42,12 @@ async def request_governed_proposal(
     """Return a review-only proposal; never expose tools or mutate project state."""
     for name in _REQUIRED_FLAGS:
         if not _flag(name):
-            return {"ok": False, "reason": "governance_disabled", "missing_flag": name, "applied": False}
+            return {
+                "ok": False,
+                "reason": "governance_disabled",
+                "missing_flag": name,
+                "applied": False,
+            }
 
     if not _packet_admitted(packet_result):
         return {"ok": False, "reason": "packet_not_admitted", "applied": False}

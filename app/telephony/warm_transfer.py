@@ -154,9 +154,7 @@ class WarmTransfer:
                 # live call) — promotional default put this leg through the DND
                 # gate, which fail-closes without a DND provider and killed
                 # every warm transfer (audit 2026-07-04).
-                result = await telephony.place_call(
-                    to_human_number, call_type="transactional"
-                )
+                result = await telephony.place_call(to_human_number, call_type="transactional")
                 human_call_id = getattr(result, "call_id", None)
                 status = getattr(result, "status", "")
                 steps.append(f"[WHISPER] Agent leg status: {status}")

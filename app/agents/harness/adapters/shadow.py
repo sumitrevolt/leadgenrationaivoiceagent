@@ -94,12 +94,12 @@ STAFF_TOOL_MAP: dict[str, tuple[str, str]] = {
 }
 
 
-def resolve_staff_tool(member: str) -> Optional[tuple[str, str]]:
+def resolve_staff_tool(member: str) -> tuple[str, str] | None:
     """Return (canonical_tool, version) for a mapped STAFF member, or None."""
     return STAFF_TOOL_MAP.get((member or "").strip().lower())
 
 
-def _composite_summary(result) -> Optional[dict]:
+def _composite_summary(result) -> dict | None:
     """Bounded composite-operation summary for run_nikhil-style results. Honest
     partial-failure semantics: a component with an 'error' key is a failure."""
     if not isinstance(result, dict):
@@ -138,16 +138,16 @@ async def _noop(**_: Any) -> Any:  # never called by observe() — presence-only
 
 def observe_legacy_run(
     agent_id: str,
-    action: Optional[str] = None,
+    action: str | None = None,
     *,
     actual_result: Any = None,
     actual_error: Any = None,
-    latency_ms: Optional[int] = None,
+    latency_ms: int | None = None,
     source_loop: str = "staff.run_member",
     actor_id: str = "operator",
-    real_run_id: Optional[str] = None,
+    real_run_id: str | None = None,
     action_index: int = 0,
-) -> Optional[dict]:
+) -> dict | None:
     """Observe one legacy run in shadow. Returns the shadow record, or None when
     ineligible / on internal failure. NEVER raises into the caller."""
     if not shadow_eligible(agent_id):

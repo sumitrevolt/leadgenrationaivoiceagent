@@ -129,13 +129,7 @@ def _steps_to_text(steps: list[dict]) -> str:
     for i, s in enumerate(steps or [], start=1):
         if isinstance(s, dict):
             # common keys try karo, warna pura dict compact-dump
-            label = (
-                s.get("step")
-                or s.get("action")
-                or s.get("tool")
-                or s.get("name")
-                or ""
-            )
+            label = s.get("step") or s.get("action") or s.get("tool") or s.get("name") or ""
             detail = s.get("detail") or s.get("input") or s.get("result") or ""
             if label or detail:
                 piece = f"{label}: {detail}".strip(": ").strip()

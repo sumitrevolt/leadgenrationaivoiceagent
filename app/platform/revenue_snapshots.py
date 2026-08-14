@@ -59,8 +59,15 @@ async def snapshot_today() -> dict:
     per-day on read: latest write for a date wins).
     mrr_new / mrr_churned = delta vs previous real snapshot (0 if none).
     """
-    row = {"date": _today(), "mrr": 0, "active": 0, "churn_pct": 0.0, "ltv": 0,
-           "mrr_new": 0, "mrr_churned": 0}
+    row = {
+        "date": _today(),
+        "mrr": 0,
+        "active": 0,
+        "churn_pct": 0.0,
+        "ltv": 0,
+        "mrr_new": 0,
+        "mrr_churned": 0,
+    }
     try:
         from app.platform import client_health, revenue_digest
 

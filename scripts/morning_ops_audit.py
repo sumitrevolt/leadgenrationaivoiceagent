@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """One-shot morning ops audit — emails, calls, agent_events, scheduler heartbeats."""
+
 from __future__ import annotations
 
 import json
@@ -48,8 +49,8 @@ def main() -> int:
     try:
         from sqlalchemy import func, select
 
-        from app.models.base import get_async_session
         from app.models import Call
+        from app.models.base import get_async_session
 
         async def _calls():
             async with get_async_session() as s:
@@ -71,19 +72,23 @@ def main() -> int:
     try:
         from sqlalchemy import select
 
-        from app.models.base import get_async_session
         from app.models import AgentEvent
+        from app.models.base import get_async_session
 
         async def _events():
             async with get_async_session() as s:
                 rows = (
-                    await s.execute(
-                        select(AgentEvent)
-                        .where(AgentEvent.created_at >= since)
-                        .order_by(AgentEvent.created_at.desc())
-                        .limit(200)
+                    (
+                        await s.execute(
+                            select(AgentEvent)
+                            .where(AgentEvent.created_at >= since)
+                            .order_by(AgentEvent.created_at.desc())
+                            .limit(200)
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
                 by_agent: dict[str, int] = {}
                 by_kind: dict[str, int] = {}
                 samples = []
@@ -126,8 +131,8 @@ def main() -> int:
     try:
         from sqlalchemy import func, select
 
-        from app.models.base import get_async_session
         from app.models import Lead
+        from app.models.base import get_async_session
 
         async def _leads():
             async with get_async_session() as s:

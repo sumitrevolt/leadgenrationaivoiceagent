@@ -6,6 +6,7 @@ providers. Writes JSONL evidence to data/voice_route_benchmarks/.
 Usage:
   .venv\\Scripts\\python.exe scripts/benchmark_swara_free_routes.py
 """
+
 from __future__ import annotations
 
 import asyncio

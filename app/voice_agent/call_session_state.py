@@ -3,6 +3,7 @@
 Primary state machine for greeting / introduction / stage / sticky route.
 Persists only in-memory for the live call (not cross-tenant Redis).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

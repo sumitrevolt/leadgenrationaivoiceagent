@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """VPS ops: recreate celery workers + first Kiran optimize (admin POST equivalent)."""
+
 from __future__ import annotations
 
 import asyncio

@@ -275,7 +275,9 @@ class Tracer:
     # telephony code is touched by shipping these methods. Once wired, they
     # feed `vaqi_summary()` below the same way `latencies`/`missed` already
     # feed the self-test harness's own VAQI number (scripts/agent_tester.py).
-    def record_interruption(self, trace: CallTrace, *, premature: bool = False, **data: Any) -> None:
+    def record_interruption(
+        self, trace: CallTrace, *, premature: bool = False, **data: Any
+    ) -> None:
         """Log a barge-in/interruption occurrence. ``premature=True`` means the
         agent was still speaking when genuine user speech started (Deepgram's
         VAQI 'Interruptions' leg) — as opposed to a clean, expected barge-in."""
@@ -312,7 +314,9 @@ class Tracer:
             "latency": latency,
             "interruptions_total": len(interruptions) or None,
             "premature_interruptions": premature if interruptions else None,
-            "interruption_rate": round(premature / len(interruptions), 3) if interruptions else None,
+            "interruption_rate": (
+                round(premature / len(interruptions), 3) if interruptions else None
+            ),
             "missed_responses_total": len(missed),
             "missed_response_rate": round(len(missed) / len(traces), 3) if traces else None,
         }

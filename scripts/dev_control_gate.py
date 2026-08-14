@@ -29,12 +29,19 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 _FLAGSHIP_KEYS = {
-    "glm": "GLM_API_KEY", "minimax": "MINIMAX_API_KEY", "kimi": "KIMI_API_KEY",
-    "deepseek": "DEEPSEEK_API_KEY", "qwen": "QWEN_API_KEY", "claude": "ANTHROPIC_API_KEY",
+    "glm": "GLM_API_KEY",
+    "minimax": "MINIMAX_API_KEY",
+    "kimi": "KIMI_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "qwen": "QWEN_API_KEY",
+    "claude": "ANTHROPIC_API_KEY",
 }
 _REQUIRED_FLAGS = (
-    "DEV_ORCHESTRATOR", "DEV_WORKER_ENABLED", "OMNIROUTE_ENABLED",
-    "AUTO_APPLY_PATCH", "AUTO_DEPLOY",
+    "DEV_ORCHESTRATOR",
+    "DEV_WORKER_ENABLED",
+    "OMNIROUTE_ENABLED",
+    "AUTO_APPLY_PATCH",
+    "AUTO_DEPLOY",
 )
 
 
@@ -70,12 +77,16 @@ def invariants(env: dict | None = None) -> list[str]:
 
     if approval_gate_status().get("auto_deploy_executed_by_code") is not False:
         v.append("deploy gate claims code executes deploys")
-    if not str(env.get("DEV_DEPLOY_APPROVAL_TOKEN", "")).strip() and verify_approval_token("anything"):
+    if not str(env.get("DEV_DEPLOY_APPROVAL_TOKEN", "")).strip() and verify_approval_token(
+        "anything"
+    ):
         v.append("approval token is not fail-closed when unset")
 
-    from app.dev_control.service import TaskState, _TRANSITIONS
+    from app.dev_control.service import _TRANSITIONS, TaskState
 
-    if TaskState.PRODUCTION_DEPLOYED not in _TRANSITIONS.get(TaskState.PRODUCTION_APPROVAL_REQUIRED, set()):
+    if TaskState.PRODUCTION_DEPLOYED not in _TRANSITIONS.get(
+        TaskState.PRODUCTION_APPROVAL_REQUIRED, set()
+    ):
         v.append("state machine allows deploy without the approval gate")
     for pre in (TaskState.STAGING_READY, TaskState.STAGING_DEPLOYED):
         # deploy must only be reachable via the approval-required gate
@@ -118,14 +129,25 @@ def invariants(env: dict | None = None) -> list[str]:
         v.append("unsigned governor reviews can pass the promotion gate")
     try:
         api_text = (ROOT / "app" / "api" / "dev_tasks.py").read_text(encoding="utf-8")
-        for marker in ("verify_governor_attestation", "X-Governor-Timestamp", "X-Governor-Nonce", "X-Governor-Signature"):
+        for marker in (
+            "verify_governor_attestation",
+            "X-Governor-Timestamp",
+            "X-Governor-Nonce",
+            "X-Governor-Signature",
+        ):
             if marker not in api_text:
                 v.append(f"governor review endpoint missing {marker}")
         submitter = (ROOT / "scripts" / "governor_review_submit.py").read_text(encoding="utf-8")
         if "loopback_url_required" not in submitter or "_LOOPBACK_HOSTS" not in submitter:
             v.append("governor review submitter is not loopback-only")
         model_reviewer = (ROOT / "scripts" / "governor_model_review.py").read_text(encoding="utf-8")
-        for marker in ('"--tools"', '"--safe-mode"', '"--no-chrome"', '"--system-prompt"', "chatgpt_toolless_adapter_unavailable"):
+        for marker in (
+            '"--tools"',
+            '"--safe-mode"',
+            '"--no-chrome"',
+            '"--system-prompt"',
+            "chatgpt_toolless_adapter_unavailable",
+        ):
             if marker not in model_reviewer:
                 v.append(f"governor model reviewer missing hard boundary {marker}")
     except Exception as e:  # noqa: BLE001

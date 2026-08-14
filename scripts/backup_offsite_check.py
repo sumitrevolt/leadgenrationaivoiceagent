@@ -9,6 +9,7 @@ ops-watchdog isko cron/loop se call kar sakta (§4 of gap-analysis).
 stdlib-only · never-raise · exit 0 (cron-spam nahi). RCLONE_REMOTE/rclone na ho
 to offsite-check skip (local-only). Cron:  0 5 * * *  python3 scripts/backup_offsite_check.py
 """
+
 from __future__ import annotations
 
 import json
@@ -35,8 +36,11 @@ def _alert(msg: str) -> None:
     if NTFY_URL and NTFY_TOPIC:
         try:
             url = NTFY_URL.rstrip("/") + "/" + NTFY_TOPIC
-            req = urllib.request.Request(url, data=msg.encode("utf-8"),
-                                         headers={"Title": "Backup offsite check", "Priority": "high"})
+            req = urllib.request.Request(
+                url,
+                data=msg.encode("utf-8"),
+                headers={"Title": "Backup offsite check", "Priority": "high"},
+            )
             urllib.request.urlopen(req, timeout=5).read()
         except Exception as e:
             log(f"ntfy push failed: {e}")
@@ -44,8 +48,11 @@ def _alert(msg: str) -> None:
 
 def _latest_local_age_hours() -> float | None:
     try:
-        files = [os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
-                 if f.endswith(".gz") or f.endswith(".dump.gz")]
+        files = [
+            os.path.join(BACKUP_DIR, f)
+            for f in os.listdir(BACKUP_DIR)
+            if f.endswith(".gz") or f.endswith(".dump.gz")
+        ]
         if not files:
             return None
         newest = max(files, key=os.path.getmtime)
@@ -59,8 +66,12 @@ def _latest_offsite_age_hours() -> float | None:
     if not RCLONE_REMOTE:
         return None
     try:
-        out = subprocess.run(["rclone", "lsjson", RCLONE_REMOTE, "--max-depth", "1"],
-                             capture_output=True, text=True, timeout=30)
+        out = subprocess.run(
+            ["rclone", "lsjson", RCLONE_REMOTE, "--max-depth", "1"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
         if out.returncode != 0:
             log(f"rclone error: {out.stderr.strip()[:200]}")
             return None
@@ -103,7 +114,9 @@ def main() -> int:
         else:
             log(f"offsite backup OK: {off:.1f}h old on {RCLONE_REMOTE}")
     else:
-        log("RCLONE_REMOTE unset — offsite disabled (set it + rclone.conf to enable, see deploy/offsite/)")
+        log(
+            "RCLONE_REMOTE unset — offsite disabled (set it + rclone.conf to enable, see deploy/offsite/)"
+        )
     return 0
 
 

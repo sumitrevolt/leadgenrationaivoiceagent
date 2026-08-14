@@ -3,6 +3,7 @@
 Reads VOBIZ_AUTH_ID/TOKEN from .env, creates an outbound trunk + SIP credential,
 appends trunk details to .env. Prints a masked summary only.
 """
+
 import json
 import secrets
 import sys
@@ -39,7 +40,11 @@ jprint("LIST trunks:", r)
 existing = None
 try:
     data = r.json()
-    items = data if isinstance(data, list) else data.get("trunks") or data.get("data") or data.get("objects") or []
+    items = (
+        data
+        if isinstance(data, list)
+        else data.get("trunks") or data.get("data") or data.get("objects") or []
+    )
     for t in items:
         if t.get("name") == "leadgen-trunk":
             existing = t
@@ -53,7 +58,9 @@ if existing:
     print("trunk already exists — reusing")
 else:
     r = requests.post(
-        f"{BASE}/trunks", headers=H, timeout=30,
+        f"{BASE}/trunks",
+        headers=H,
+        timeout=30,
         json={
             "name": "leadgen-trunk",
             "trunk_status": "enabled",
@@ -94,8 +101,12 @@ if not cred_ok:
     sys.exit(2)
 
 # 3) Attach credential to trunk (best-effort)
-r = requests.put(f"{BASE}/trunks/{trunk_id}", headers=H, timeout=20,
-                 json={"credential_uuid": cred_uuid} if cred_uuid else {})
+r = requests.put(
+    f"{BASE}/trunks/{trunk_id}",
+    headers=H,
+    timeout=20,
+    json={"credential_uuid": cred_uuid} if cred_uuid else {},
+)
 jprint("ATTACH cred->trunk:", r)
 
 # 4) Persist to .env

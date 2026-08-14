@@ -7,6 +7,7 @@ Usage:
 
 Exit 0 = backup + restore OK. Exit 1 = failure.
 """
+
 from __future__ import annotations
 
 import os
@@ -63,13 +64,30 @@ def pg_restore_test(dump_path: Path) -> bool:
         return False
 
     # Restore
-    rc, out, err = run(["psql", "-h", host, "-p", port, "-U", user, "-d", test_db, "-f", str(dump_path)], timeout=120)
+    rc, out, err = run(
+        ["psql", "-h", host, "-p", port, "-U", user, "-d", test_db, "-f", str(dump_path)],
+        timeout=120,
+    )
     if rc != 0:
         print(f"[RESTORE FAIL] psql exit={rc}\n{err[:500]}")
         return False
 
     # Verify: count tables
-    rc, out, err = run(["psql", "-h", host, "-p", port, "-U", user, "-d", test_db, "-c", "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';"])
+    rc, out, err = run(
+        [
+            "psql",
+            "-h",
+            host,
+            "-p",
+            port,
+            "-U",
+            user,
+            "-d",
+            test_db,
+            "-c",
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';",
+        ]
+    )
     if rc != 0:
         print(f"[RESTORE VERIFY FAIL] table count failed: {err[:500]}")
         return False
@@ -95,7 +113,7 @@ def main() -> int:
 
     print("[backup_verify] Starting backup test...")
     print(f"  BACKUP_DIR={BACKUP_DIR}")
-    print(f"  DB_URL (host:port)=127.0.0.1:6432")
+    print("  DB_URL (host:port)=127.0.0.1:6432")
     print("=" * 60)
 
     # 1. Backup

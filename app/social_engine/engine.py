@@ -44,7 +44,9 @@ def enabled() -> bool:
     try:
         import json as _json
 
-        with open(os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json"), encoding="utf-8") as fh:
+        with open(
+            os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json"), encoding="utf-8"
+        ) as fh:
             return bool((_json.load(fh) or {}).get("enabled"))
     except Exception:
         return False
@@ -215,7 +217,9 @@ def _dry_run_enabled() -> bool:
     try:
         import json as _json
 
-        with open(os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json"), encoding="utf-8") as fh:
+        with open(
+            os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json"), encoding="utf-8"
+        ) as fh:
             return bool((_json.load(fh) or {}).get("dry_run"))
     except Exception:
         return False
@@ -253,7 +257,8 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
             first = next((i for i in issues if i.get("severity") == "error"), None)
             msg = first.get("message") if first else "validation_error"
             return PublishResult(
-                ok=False, platform=p,
+                ok=False,
+                platform=p,
                 error=f"validation:{first.get('rule','')}: {msg}"[:150],
                 raw={"validation_issues": issues},
             )
@@ -349,8 +354,9 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 if paused:
                     store.mark(jid, "skipped", last_error=f"paused:{reason}")
                     skipped += 1
-                    _log_delivery(cid_pre, "customer_action_required", job,
-                                  detail=f"paused: {reason}")
+                    _log_delivery(
+                        cid_pre, "customer_action_required", job, detail=f"paused: {reason}"
+                    )
                     continue
             # Loop-social-14: exponential backoff — a retry-status row still
             # inside its backoff window is put back to 'retry' (no publish).
@@ -364,11 +370,14 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 plat = str(job.get("platform") or "").strip().lower()
                 allowed, used, cap = _sched.check_platform_qpm(plat)
                 if not allowed:
-                    store.mark(jid, "retry",
-                               last_error=f"rate_limit:{plat}:{used}/{cap}")
+                    store.mark(jid, "retry", last_error=f"rate_limit:{plat}:{used}/{cap}")
                     retried += 1
-                    _log_delivery(cid_pre, "post_retry_scheduled", job,
-                                  detail=f"platform QPM guard: {used}/{cap}/min")
+                    _log_delivery(
+                        cid_pre,
+                        "post_retry_scheduled",
+                        job,
+                        detail=f"platform QPM guard: {used}/{cap}/min",
+                    )
                     continue
             # Loop-social-6 (2026-07-11): emit publish-lifecycle event so the
             # customer timeline + admin cockpit reflect the "publish is running"
@@ -378,7 +387,9 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
             try:
                 res = await _dispatch_one(job)
             except Exception as e:
-                res = PublishResult(ok=False, platform=str(job.get("platform") or ""), error=str(e)[:150])
+                res = PublishResult(
+                    ok=False, platform=str(job.get("platform") or ""), error=str(e)[:150]
+                )
             cid = str(job.get("client_id") or "")
             if res.ok:
                 store.mark(jid, "published", post_id=res.post_id, post_url=res.url)
@@ -390,8 +401,12 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 # Loop-social-6: an unconfigured provider is customer_action —
                 # they need to reconnect the account. Emit the canonical event so
                 # the admin cockpit + customer setup checklist highlight it.
-                _log_delivery(cid, "customer_action_required", job,
-                              detail=f"{job.get('platform','')} account not connected")
+                _log_delivery(
+                    cid,
+                    "customer_action_required",
+                    job,
+                    detail=f"{job.get('platform','')} account not connected",
+                )
             else:
                 attempts = int(job.get("attempts") or 0) + 1
                 if attempts >= store.max_attempts():
@@ -403,8 +418,12 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                     retried += 1
                     # Loop-social-6: emit canonical retry event (ops-visible only —
                     # customer_visible=False in ledger LABELS, avoids timeline noise).
-                    _log_delivery(cid, "post_retry_scheduled", job,
-                                  detail=f"attempt {attempts}/{store.max_attempts()} — {str(res.error or '')[:120]}")
+                    _log_delivery(
+                        cid,
+                        "post_retry_scheduled",
+                        job,
+                        detail=f"attempt {attempts}/{store.max_attempts()} — {str(res.error or '')[:120]}",
+                    )
         if jobs:
             # Staff-visibility (2026-07-01): social posting ran completely invisibly on
             # /app/team today — attribute to "zara" (Social Media Manager).
@@ -419,11 +438,17 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 )
             except Exception:
                 pass
-        return {"ran": True, "claimed": len(jobs), "published": published,
-                "retried": retried, "dead": dead, "skipped": skipped,
-                # `published` above counts FABRICATED results when dry_run is on.
-                # Surface it so no caller/dashboard can read this as real posting.
-                "dry_run": dry}
+        return {
+            "ran": True,
+            "claimed": len(jobs),
+            "published": published,
+            "retried": retried,
+            "dead": dead,
+            "skipped": skipped,
+            # `published` above counts FABRICATED results when dry_run is on.
+            # Surface it so no caller/dashboard can read this as real posting.
+            "dry_run": dry,
+        }
     except Exception as e:
         logger.warning(f"[engine] process_queue failed: {e}")
         return {"ran": False, "reason": str(e)[:150]}

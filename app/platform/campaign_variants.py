@@ -95,10 +95,14 @@ async def try_promote_challenger(script_id: str) -> dict[str, Any]:
 
         async with get_async_session() as session:
             rows = (
-                await session.execute(
-                    select(CampaignVariant).where(CampaignVariant.script_id == script_id)
+                (
+                    await session.execute(
+                        select(CampaignVariant).where(CampaignVariant.script_id == script_id)
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             champion = next((r for r in rows if r.status == "champion"), None)
             challengers = [r for r in rows if r.status == "challenger"]
             if not champion or not challengers:
@@ -169,20 +173,22 @@ async def pick_for_outreach(
 
         async with get_async_session() as session:
             rows = (
-                await session.execute(
-                    select(CampaignVariant).where(
-                        CampaignVariant.script_id == script_id,
-                        CampaignVariant.status.in_(["champion", "challenger"]),
+                (
+                    await session.execute(
+                        select(CampaignVariant).where(
+                            CampaignVariant.script_id == script_id,
+                            CampaignVariant.status.in_(["champion", "challenger"]),
+                        )
                     )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
         if len(rows) < 2:
             return None
         niche_key = (niche or "general").strip()
         filtered = [
-            r
-            for r in rows
-            if not (r.niche or "").strip() or r.niche in (niche_key, "general")
+            r for r in rows if not (r.niche or "").strip() or r.niche in (niche_key, "general")
         ]
         pool = filtered if len(filtered) >= 2 else list(rows)
         if len(pool) < 2:

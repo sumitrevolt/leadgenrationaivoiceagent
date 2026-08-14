@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 
 os.environ.setdefault("OBSIDIAN_SYNC", "1")
 
-from app.platform.obsidian_sync import write_note, append_note  # noqa: E402
+from app.platform.obsidian_sync import append_note, write_note  # noqa: E402
 
 DATA = ROOT / "data"
 DOCS = ROOT / "docs"
@@ -50,7 +50,9 @@ if lead_file.exists():
     for slug, recs in by_ref.items():
         lines = [f"# Lead: {slug}\n"]
         for r in recs:
-            lines.append(f"- **{r.get('ts', '')[:10]}** — {r.get('kind','?')} leads={r.get('leads',0)} plan={r.get('plan','?')}")
+            lines.append(
+                f"- **{r.get('ts', '')[:10]}** — {r.get('kind','?')} leads={r.get('leads',0)} plan={r.get('plan','?')}"
+            )
         write_note("Leads", slug, "\n".join(lines), tags=["lead", "backfill"])
         counts["leads"] += 1
     print(f"[backfill]   → {counts['leads']} lead files written")
@@ -67,7 +69,12 @@ if prospects_dir.exists():
         try:
             content = md_file.read_text(encoding="utf-8")
             slug = md_file.stem.replace("+", "").replace(" ", "")
-            write_note("Leads", f"mem-{slug}", f"# Memory: {slug}\n\n{content}", tags=["memory", "prospect"])
+            write_note(
+                "Leads",
+                f"mem-{slug}",
+                f"# Memory: {slug}\n\n{content}",
+                tags=["memory", "prospect"],
+            )
             counts["memory"] += 1
         except Exception:
             pass
@@ -128,16 +135,26 @@ if runs_file.exists():
 # ── 5. Key skill docs → Skills/  ────────────────────────────────────────────
 skills_dir = ROOT / ".claude" / "skills"
 key_skills = [
-    "llm-council-decision", "context-first", "systematic-debugging",
-    "leadgen-ops", "fable-operating-manual", "production-ready",
-    "voice-agent-kb", "agent-loop-design", "multi-agent-coordination",
+    "llm-council-decision",
+    "context-first",
+    "systematic-debugging",
+    "leadgen-ops",
+    "fable-operating-manual",
+    "production-ready",
+    "voice-agent-kb",
+    "agent-loop-design",
+    "multi-agent-coordination",
 ]
 if skills_dir.exists():
     print("[backfill] .claude/skills/ → Skills/ (key skills)...")
     sk_count = 0
     for skill_name in key_skills:
         for ext in (".md", "/SKILL.md"):
-            candidate = skills_dir / (skill_name + ext) if ext == ".md" else skills_dir / skill_name / "SKILL.md"
+            candidate = (
+                skills_dir / (skill_name + ext)
+                if ext == ".md"
+                else skills_dir / skill_name / "SKILL.md"
+            )
             if candidate.exists():
                 try:
                     content = candidate.read_text(encoding="utf-8")[:8000]

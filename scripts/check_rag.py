@@ -2,6 +2,7 @@
 Run on VPS: cd /opt/leadgen && .venv/bin/python scripts/check_rag.py
 (First run downloads the fastembed model — may take ~30-60s.)
 """
+
 import os
 import sys
 
@@ -26,11 +27,19 @@ except Exception as e:
 kb = KB.get_knowledge_base()
 try:
     kb.add_documents(
-        ["Solar panels lagane se bijli ka monthly bill 70 percent tak kam ho jata hai, 25 saal warranty milti hai."],
-        source="ragtest", namespace="niche:ragtest",
+        [
+            "Solar panels lagane se bijli ka monthly bill 70 percent tak kam ho jata hai, 25 saal warranty milti hai."
+        ],
+        source="ragtest",
+        namespace="niche:ragtest",
     )
     hits = kb.retrieve("electricity bill kaise kam karu", k=2, namespace="niche:ragtest")
-    print("RETRIEVE: hits=", len(hits), "| top_score=", (round(hits[0].get("score", 0), 3) if hits else None))
+    print(
+        "RETRIEVE: hits=",
+        len(hits),
+        "| top_score=",
+        (round(hits[0].get("score", 0), 3) if hits else None),
+    )
     print("TOP:", (hits[0].get("text", "")[:70] if hits else "—"))
 except Exception as e:
     print("RETRIEVE: FAIL ->", repr(e))

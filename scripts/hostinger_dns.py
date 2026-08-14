@@ -11,6 +11,7 @@ Usage (on the VPS):
 Only touches the _dmarc TXT record. SPF (@ TXT), DKIM (CNAMEs) and MX are untouched
 (overwrite=false + a single targeted record).
 """
+
 import json
 import os
 import sys
@@ -26,9 +27,7 @@ BASE = f"https://developers.hostinger.com/api/dns/v1/zones/{DOMAIN}"
 NEW_DMARC = "v=DMARC1; p=quarantine; rua=mailto:admin@leadsgenai.in; fo=1"
 PAYLOAD = {
     "overwrite": False,
-    "zone": [
-        {"name": "_dmarc", "type": "TXT", "ttl": 3600, "records": [{"content": NEW_DMARC}]}
-    ],
+    "zone": [{"name": "_dmarc", "type": "TXT", "ttl": 3600, "records": [{"content": NEW_DMARC}]}],
 }
 
 # Delete ALL _dmarc TXT records (used by `fix` to collapse duplicates back to one).
@@ -57,7 +56,9 @@ def _req(method: str, url: str, body=None):
         sys.exit(2)
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
-        url, data=data, method=method,
+        url,
+        data=data,
+        method=method,
         headers={
             "Authorization": "Bearer " + tok,
             "Content-Type": "application/json",
@@ -86,7 +87,11 @@ def main():
             items = recs if isinstance(recs, list) else recs.get("data", recs)
             for r in items:
                 nm = str(r.get("name", ""))
-                if r.get("type") in ("TXT", "MX") or "dmarc" in nm.lower() or "domainkey" in nm.lower():
+                if (
+                    r.get("type") in ("TXT", "MX")
+                    or "dmarc" in nm.lower()
+                    or "domainkey" in nm.lower()
+                ):
                     print(json.dumps(r, ensure_ascii=False))
         except Exception:
             print(body[:1800])

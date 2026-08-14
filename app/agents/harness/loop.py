@@ -199,12 +199,12 @@ class Harness:
 
     def __init__(
         self,
-        registry: Optional[ToolRegistry] = None,
-        budget: Optional[Budget] = None,
-        approval: Optional[ApprovalFn] = None,
-        egress_scan: Optional[EgressScanFn] = None,
-        sandbox_policy: Optional[SandboxPolicy] = None,
-        pre_step: Optional[PreStepFn] = None,
+        registry: ToolRegistry | None = None,
+        budget: Budget | None = None,
+        approval: ApprovalFn | None = None,
+        egress_scan: EgressScanFn | None = None,
+        sandbox_policy: SandboxPolicy | None = None,
+        pre_step: PreStepFn | None = None,
     ) -> None:
         self.registry = registry or REGISTRY
         self.stop = StopController(budget)
@@ -393,7 +393,7 @@ class Harness:
         action_request: ToolCall,
         actual_result=None,
         actual_error=None,
-        execution_metadata: Optional[dict] = None,
+        execution_metadata: dict | None = None,
         profile: str = "default",
     ) -> dict:
         """SHADOW, record-only. Evaluate controls, compare proposed-vs-actual,
@@ -592,7 +592,7 @@ class Harness:
     async def run(
         self,
         ctx: RunContext,
-        propose: Callable[[RunContext], Awaitable[Optional[ToolCall]]],
+        propose: Callable[[RunContext], Awaitable[ToolCall | None]],
         profile: str = "default",
         est_cost: Callable[[ToolCall], tuple[float, int]] = lambda c: (0.0, 0),
     ) -> StopReason:

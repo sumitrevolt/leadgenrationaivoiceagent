@@ -39,6 +39,7 @@ Usage:
     python scripts/blueprint_edge_reconcile.py --json     # full manifest
     python scripts/blueprint_edge_reconcile.py --check    # exit 1 if unaccounted
 """
+
 from __future__ import annotations
 
 import collections
@@ -65,9 +66,17 @@ EDGE_CLASSIFICATIONS = (
 IMPORTABLE_CLASSIFICATIONS: tuple[str, ...] = ()
 
 _CONTRACT_FIELDS = (
-    "kind", "condition", "mode", "queue", "data_contract",
-    "on_success", "on_failure", "on_retry", "audit_event",
-    "propagates_tenant", "propagates_idempotency",
+    "kind",
+    "condition",
+    "mode",
+    "queue",
+    "data_contract",
+    "on_success",
+    "on_failure",
+    "on_retry",
+    "audit_event",
+    "propagates_tenant",
+    "propagates_idempotency",
 )
 
 
@@ -135,7 +144,8 @@ def reconcile_edges() -> dict[str, Any]:
     raw_literals = len(re.findall(r"\{f:'[\w]+',\s*t:'[\w]+'", html))
     if raw_literals != len(legacy_edges):
         errors.append(
-            f"parser drift: {len(legacy_edges)} parsed edges vs {raw_literals} raw literals")
+            f"parser drift: {len(legacy_edges)} parsed edges vs {raw_literals} raw literals"
+        )
 
     pair_counts = collections.Counter(legacy_edges)
     unique_pairs = len(pair_counts)
@@ -184,20 +194,25 @@ def reconcile_edges() -> dict[str, Any]:
 
         canonical_pair = (cf, ct) if (cf and ct) else None
         pair_exists = bool(canonical_pair and canonical_pair in canon_pairs)
-        collision_id = (f"{cf}->{ct}" if canonical_pair in collisions else None) \
-            if canonical_pair else None
+        collision_id = (
+            (f"{cf}->{ct}" if canonical_pair in collisions else None) if canonical_pair else None
+        )
 
         if f_cls == "INVALID_OR_STALE" or t_cls == "INVALID_OR_STALE":
             cls = "INVALID_OR_STALE"
             reason = "an endpoint references source files that do not exist"
         elif is_exact_duplicate:
             cls = "REVIEW_REQUIRED"
-            reason = (f"exact duplicate legacy literal (occurrence {occurrence}); "
-                      "first occurrence retained for accounting")
+            reason = (
+                f"exact duplicate legacy literal (occurrence {occurrence}); "
+                "first occurrence retained for accounting"
+            )
         elif collision_id:
             cls = "REVIEW_REQUIRED"
-            reason = (f"canonical collapse collision {collision_id}: "
-                      f"{len(collisions[canonical_pair])} distinct legacy pairs map here")
+            reason = (
+                f"canonical collapse collision {collision_id}: "
+                f"{len(collisions[canonical_pair])} distinct legacy pairs map here"
+            )
         elif pair_exists:
             cls = "MERGE_WITH_CANONICAL_EDGE"
             reason = "canonical pair already present (contract equivalence unverified)"
@@ -300,9 +315,11 @@ def main(argv: list[str]) -> int:
     for k in EDGE_CLASSIFICATIONS:
         if m["counts"].get(k):
             print(f"  {k:<36} {m['counts'][k]}")
-    print(f"\nedges eligible for import: "
-          f"{sum(1 for e in m['entries'] if e['eligible_for_import'])} "
-          "(adjacency alone is not an edge contract)")
+    print(
+        f"\nedges eligible for import: "
+        f"{sum(1 for e in m['entries'] if e['eligible_for_import'])} "
+        "(adjacency alone is not an edge contract)"
+    )
 
     if "--check" in argv:
         if m["unique_legacy_pairs"] + m["exact_duplicate_literals"] != m["raw_edge_literals"]:
@@ -311,8 +328,10 @@ def main(argv: list[str]) -> int:
         if m["accounted_entries"] != m["raw_edge_literals"]:
             print("\n[FAIL] not every raw edge literal is accounted for.")
             return 1
-        print(f"\n[OK] all {m['raw_edge_literals']} raw edge literals accounted "
-              f"({m['unique_legacy_pairs']} unique + {m['exact_duplicate_literals']} duplicates).")
+        print(
+            f"\n[OK] all {m['raw_edge_literals']} raw edge literals accounted "
+            f"({m['unique_legacy_pairs']} unique + {m['exact_duplicate_literals']} duplicates)."
+        )
     return 0
 
 

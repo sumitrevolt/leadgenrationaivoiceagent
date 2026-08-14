@@ -18,7 +18,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 RUNS_FILE = "data/coordination_runs.jsonl"
 
 
@@ -28,7 +27,7 @@ def load_runs() -> list[dict]:
     if not os.path.exists(RUNS_FILE):
         return runs
     try:
-        with open(RUNS_FILE, "r", encoding="utf-8") as f:
+        with open(RUNS_FILE, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     try:
@@ -48,7 +47,7 @@ def cmd_last_run():
         return
 
     run = runs[-1]
-    print(f"\nLAST COORDINATOR RUN\n")
+    print("\nLAST COORDINATOR RUN\n")
     print(f"  Run ID:     {run.get('run_id', 'N/A')}")
     print(f"  Goal:       {run.get('goal', 'N/A')}")
     print(f"  Mode:       {run.get('mode', run.get('pattern', 'sequential'))}")
@@ -131,11 +130,7 @@ def cmd_mode_stats():
     for mode in sorted(stats.keys()):
         st = stats[mode]
         ok_rate = f"{100 * st['ok'] / st['count']:.0f}%" if st["count"] else "-"
-        avg_q = (
-            f"{sum(st['avg_score']) / len(st['avg_score']):.2f}"
-            if st["avg_score"]
-            else "-"
-        )
+        avg_q = f"{sum(st['avg_score']) / len(st['avg_score']):.2f}" if st["avg_score"] else "-"
 
         print(f"{mode:<15} {st['count']:<8} {ok_rate:<8} {avg_q:<15}")
 

@@ -14,6 +14,7 @@ Design mirrors ``app/middleware/http_metrics.py``:
   surface unchanged until enabled.
 - Bounded cardinality: ``job`` (truncated) × ``status`` (ok/fail); ~40 known jobs.
 """
+
 from __future__ import annotations
 
 import os

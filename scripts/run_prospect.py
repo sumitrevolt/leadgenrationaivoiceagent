@@ -6,6 +6,7 @@ Yeh wahi `prospector.run_prospecting` chalata jo daily 09:30 cron chalata (real
 Google Maps leads: business + phone + rating + reviews). Phir list_prospects ko
 data/prospect_export.csv me dump karta. Never-raise.
 """
+
 from __future__ import annotations
 
 import asyncio

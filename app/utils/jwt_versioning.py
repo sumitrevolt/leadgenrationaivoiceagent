@@ -54,7 +54,7 @@ class JWTKeyManager:
         except Exception as e:
             logger.warning(f"Failed to load secondary JWT keys: {e}")
 
-    def encode(self, payload: dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    def encode(self, payload: dict[str, Any], expires_delta: timedelta | None = None) -> str:
         """
         Create a JWT token using the primary (active) key.
 
@@ -78,7 +78,7 @@ class JWTKeyManager:
         )
         return token
 
-    def decode(self, token: str) -> Optional[dict[str, Any]]:
+    def decode(self, token: str) -> dict[str, Any] | None:
         """
         Decode a JWT token, trying keys in order: primary, then secondaries.
 
@@ -197,7 +197,7 @@ class JWTKeyManager:
 
 
 # Process-wide singleton
-_jwt_manager: Optional[JWTKeyManager] = None
+_jwt_manager: JWTKeyManager | None = None
 
 
 def get_jwt_manager(primary_secret: str = None, algorithm: str = "HS256") -> JWTKeyManager:

@@ -7,6 +7,10 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
+    from app.platform.sales_autopilot import policy
+
+    # Isolate from both env and the local data file.
+    monkeypatch.setattr(policy, "_read_file", lambda: {})
     for k in (
         "SALES_AUTOPILOT_ENABLED",
         "SALES_AUTOPILOT_WHATSAPP_ENABLED",

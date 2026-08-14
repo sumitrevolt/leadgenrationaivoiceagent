@@ -11,8 +11,12 @@ report. Re-run anytime: `python scripts/dashboard_audit.py`.
 Honest caveat: static heuristics detect PRESENCE of patterns, not whether a
 feature actually works at runtime. Treat as a checklist, not a guarantee.
 """
+
 from __future__ import annotations
-import re, datetime, pathlib
+
+import datetime
+import pathlib
+import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
@@ -22,28 +26,32 @@ DASHBOARDS = {
     "Admin": FRONTEND / "admin_dashboard.html",
 }
 
+
 def inventory(html: str) -> dict:
     return {
         "size_kb": round(len(html) / 1024, 1),
-        "sections": len(re.findall(r'id="sec-', html)) or len(re.findall(r'<section\b', html, re.I)),
+        "sections": len(re.findall(r'id="sec-', html))
+        or len(re.findall(r"<section\b", html, re.I)),
         "kpi_cards": len(re.findall(r'class="[^"]*\b(?:kpi|stat|metric)\b', html, re.I)),
-        "charts": len(re.findall(r'new\s+Chart\(|<canvas\b', html, re.I)),
-        "tables": len(re.findall(r'<table\b', html, re.I)),
-        "buttons": len(re.findall(r'<button\b', html, re.I)),
-        "inputs": len(re.findall(r'<input\b|<select\b|<textarea\b', html, re.I)),
+        "charts": len(re.findall(r"new\s+Chart\(|<canvas\b", html, re.I)),
+        "tables": len(re.findall(r"<table\b", html, re.I)),
+        "buttons": len(re.findall(r"<button\b", html, re.I)),
+        "inputs": len(re.findall(r"<input\b|<select\b|<textarea\b", html, re.I)),
         "api_endpoints": sorted(set(re.findall(r'["\'`](/api/[A-Za-z0-9_\-/]+)', html))),
     }
 
+
 UX_CHECKS = [
-    ("Loading states", r'spinner|skeleton|loading|aria-busy'),
-    ("Empty states", r'empty|no data|nothing|abhi tak|koi[^<]{0,20}nahi'),
-    ("Error handling", r'\.catch\(|onerror|catch\s*\(|error'),
-    ("Action feedback (toast)", r'toast|notify|snackbar|alert\('),
-    ("ARIA / screen-reader", r'aria-label|aria-[a-z]+='),
+    ("Loading states", r"spinner|skeleton|loading|aria-busy"),
+    ("Empty states", r"empty|no data|nothing|abhi tak|koi[^<]{0,20}nahi"),
+    ("Error handling", r"\.catch\(|onerror|catch\s*\(|error"),
+    ("Action feedback (toast)", r"toast|notify|snackbar|alert\("),
+    ("ARIA / screen-reader", r"aria-label|aria-[a-z]+="),
     ("Responsive (@media/viewport)", r'@media|name="viewport"'),
-    ("Keyboard focus", r':focus|tabindex'),
-    ("Semantic landmarks", r'<nav\b|<header\b|<main\b|<aside\b|<footer\b'),
+    ("Keyboard focus", r":focus|tabindex"),
+    ("Semantic landmarks", r"<nav\b|<header\b|<main\b|<aside\b|<footer\b"),
 ]
+
 
 def ux_eval(html: str):
     out = []
@@ -52,12 +60,14 @@ def ux_eval(html: str):
     passed = sum(1 for _, ok in out if ok)
     return out, passed, len(out)
 
+
 def md_table(headers, rows):
     s = "| " + " | ".join(headers) + " |\n"
     s += "| " + " | ".join("---" for _ in headers) + " |\n"
     for r in rows:
         s += "| " + " | ".join(str(c) for c in r) + " |\n"
     return s
+
 
 def main():
     today = datetime.date.today().isoformat()
@@ -85,27 +95,54 @@ def main():
         inv = inventory(html)
         ux, passed, total = ux_eval(html)
         pct = round(passed / total * 100)
-        score_rows.append([name, f"{inv['size_kb']} KB", inv["sections"], inv["charts"],
-                           inv["tables"], f"{passed}/{total} ({pct}%)"])
-        b = [f"## {name} Dashboard", "", "**Inventory**", "",
-             md_table(["Metric", "Count"], [
-                 ["File size", f"{inv['size_kb']} KB"],
-                 ["Sections", inv["sections"]],
-                 ["KPI / stat cards", inv["kpi_cards"]],
-                 ["Charts (Chart.js/canvas)", inv["charts"]],
-                 ["Tables", inv["tables"]],
-                 ["Buttons", inv["buttons"]],
-                 ["Form inputs", inv["inputs"]],
-                 ["Distinct /api endpoints", len(inv["api_endpoints"])],
-             ]),
-             "", "**UX heuristics**", "",
-             md_table(["Check", "Present?"],
-                      [[lbl, "✅" if ok else "⚠️ missing"] for lbl, ok in ux]),
-             "", "**Discovered API endpoints**", "",
-             ("- " + "\n- ".join(inv["api_endpoints"])) if inv["api_endpoints"] else "_none detected_",
-             ""]
+        score_rows.append(
+            [
+                name,
+                f"{inv['size_kb']} KB",
+                inv["sections"],
+                inv["charts"],
+                inv["tables"],
+                f"{passed}/{total} ({pct}%)",
+            ]
+        )
+        b = [
+            f"## {name} Dashboard",
+            "",
+            "**Inventory**",
+            "",
+            md_table(
+                ["Metric", "Count"],
+                [
+                    ["File size", f"{inv['size_kb']} KB"],
+                    ["Sections", inv["sections"]],
+                    ["KPI / stat cards", inv["kpi_cards"]],
+                    ["Charts (Chart.js/canvas)", inv["charts"]],
+                    ["Tables", inv["tables"]],
+                    ["Buttons", inv["buttons"]],
+                    ["Form inputs", inv["inputs"]],
+                    ["Distinct /api endpoints", len(inv["api_endpoints"])],
+                ],
+            ),
+            "",
+            "**UX heuristics**",
+            "",
+            md_table(
+                ["Check", "Present?"], [[lbl, "✅" if ok else "⚠️ missing"] for lbl, ok in ux]
+            ),
+            "",
+            "**Discovered API endpoints**",
+            "",
+            (
+                ("- " + "\n- ".join(inv["api_endpoints"]))
+                if inv["api_endpoints"]
+                else "_none detected_"
+            ),
+            "",
+        ]
         detail_blocks.append("\n".join(b))
-    parts.append(md_table(["Dashboard", "Size", "Sections", "Charts", "Tables", "UX heuristics"], score_rows))
+    parts.append(
+        md_table(["Dashboard", "Size", "Sections", "Charts", "Tables", "UX heuristics"], score_rows)
+    )
     parts.append("")
     parts.extend(detail_blocks)
     parts += [
@@ -115,7 +152,7 @@ def main():
         "do not spin up new tracking:",
         "",
         "1. **Speed-to-lead SLA badge** (P0 #7) — surface inquiry→first-touch time on the "
-        "customer dashboard (\"2-min me jawab\"). Marketing gold, infra already exists.",
+        'customer dashboard ("2-min me jawab"). Marketing gold, infra already exists.',
         "2. **Lead-distribution round-robin** (P0 #10) — admin dashboard view to auto-assign "
         "leads to client staff.",
         "3. **AI-search / GEO visibility score** (P1 #11) — new lead-magnet card after audit/site-audit.",
@@ -127,6 +164,7 @@ def main():
     out.write_text("\n".join(parts), encoding="utf-8")
     print("WROTE", out)
     print("\n".join(parts[:14]))
+
 
 if __name__ == "__main__":
     main()

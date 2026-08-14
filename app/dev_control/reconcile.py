@@ -16,7 +16,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from app.dev_control.service import TaskState, _TRANSITIONS
+from app.dev_control.service import _TRANSITIONS, TaskState
 
 _IN_FLIGHT = (TaskState.CLAIMED.value, TaskState.RUNNING.value)
 
@@ -28,7 +28,9 @@ def _can(state_value: str, target: TaskState) -> bool:
         return False
 
 
-async def reconcile_leases(db, *, now: datetime | None = None, max_retries: int = 3) -> dict[str, Any]:
+async def reconcile_leases(
+    db, *, now: datetime | None = None, max_retries: int = 3
+) -> dict[str, Any]:
     """Reclaim in-flight tasks whose lease has expired. Idempotent + bounded."""
     from app.models.dev_task import DevTask
 
@@ -65,7 +67,9 @@ async def status_snapshot(db) -> dict[str, Any]:
     from app.models.dev_task import DevTask
 
     by_state: dict[str, int] = {}
-    for state, count in (await db.execute(select(DevTask.state, func.count()).group_by(DevTask.state))).all():
+    for state, count in (
+        await db.execute(select(DevTask.state, func.count()).group_by(DevTask.state))
+    ).all():
         by_state[str(state)] = int(count)
     total = sum(by_state.values())
     total_cost = await db.scalar(select(func.coalesce(func.sum(DevTask.actual_cost_usd), 0)))

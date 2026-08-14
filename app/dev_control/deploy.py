@@ -19,8 +19,8 @@ import os
 from datetime import datetime
 from typing import Any
 
-from app.dev_control.service import TaskState, _TRANSITIONS
 from app.dev_control.governor_reviews import review_gate_status
+from app.dev_control.service import _TRANSITIONS, TaskState
 
 
 def _flag(name: str) -> bool:
@@ -61,7 +61,9 @@ def approval_gate_status() -> dict[str, Any]:
     }
 
 
-async def promote_to_staging(db, task_id: str, *, tests_passed: bool, test_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+async def promote_to_staging(
+    db, task_id: str, *, tests_passed: bool, test_evidence: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Legal REVIEW/RUNNING -> TESTS_RUNNING -> STAGING_READY|TESTS_FAILED."""
     from app.models.dev_task import DevTask
 
@@ -90,7 +92,9 @@ async def promote_to_staging(db, task_id: str, *, tests_passed: bool, test_evide
     return {"ok": True, "state": task.state, "outcome": outcome, "review_gate": review_gate}
 
 
-async def request_production_approval(db, task_id: str, *, requested_by: str, staging_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+async def request_production_approval(
+    db, task_id: str, *, requested_by: str, staging_evidence: dict[str, Any] | None = None
+) -> dict[str, Any]:
     from app.models.dev_task import DevTask
 
     task = await db.get(DevTask, task_id)
@@ -106,18 +110,22 @@ async def request_production_approval(db, task_id: str, *, requested_by: str, st
     if not _can(task.state, TaskState.PRODUCTION_APPROVAL_REQUIRED):
         return {"ok": False, "reason": "illegal_state", "state": task.state}
     task.state = TaskState.PRODUCTION_APPROVAL_REQUIRED.value
-    task.deployment_evidence = json.dumps({
-        "stage": "awaiting_human_approval",
-        "requested_by": requested_by,
-        "staging_evidence": staging_evidence or {},
-        "requested_at": datetime.utcnow().isoformat(),
-    })[:8000]
+    task.deployment_evidence = json.dumps(
+        {
+            "stage": "awaiting_human_approval",
+            "requested_by": requested_by,
+            "staging_evidence": staging_evidence or {},
+            "requested_at": datetime.utcnow().isoformat(),
+        }
+    )[:8000]
     task.updated_at = datetime.utcnow()
     await db.commit()
     return {"ok": True, "state": task.state}
 
 
-async def approve_production(db, task_id: str, *, approver: str, token: str | None, commit_hash: str = "") -> dict[str, Any]:
+async def approve_production(
+    db, task_id: str, *, approver: str, token: str | None, commit_hash: str = ""
+) -> dict[str, Any]:
     """Human approval gate. Records PRODUCTION_DEPLOYED evidence but runs NO deploy."""
     from app.models.dev_task import DevTask
 
@@ -129,14 +137,16 @@ async def approve_production(db, task_id: str, *, approver: str, token: str | No
     if not _can(task.state, TaskState.PRODUCTION_DEPLOYED):
         return {"ok": False, "reason": "illegal_state", "state": task.state}
     task.state = TaskState.PRODUCTION_DEPLOYED.value
-    task.deployment_evidence = json.dumps({
-        "stage": "approved_pending_manual_deploy",
-        "approved_by": approver,
-        "approved_at": datetime.utcnow().isoformat(),
-        "commit_hash": commit_hash,
-        "auto_deploy_executed_by_code": False,
-        "note": "human-approved; operator runs the Hostinger runbook — code did not deploy",
-    })[:8000]
+    task.deployment_evidence = json.dumps(
+        {
+            "stage": "approved_pending_manual_deploy",
+            "approved_by": approver,
+            "approved_at": datetime.utcnow().isoformat(),
+            "commit_hash": commit_hash,
+            "auto_deploy_executed_by_code": False,
+            "note": "human-approved; operator runs the Hostinger runbook — code did not deploy",
+        }
+    )[:8000]
     task.updated_at = datetime.utcnow()
     await db.commit()
     return {"ok": True, "state": task.state, "deployed_by_code": False}

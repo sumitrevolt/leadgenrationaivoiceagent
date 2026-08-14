@@ -6,6 +6,7 @@ after a few turns (the "noob baat karta, 1-2 turn baad confuse" complaint).
 
 Run:  .venv\\Scripts\\python.exe scripts\\noob_convo_trace.py
 """
+
 import asyncio
 import os
 import sys
@@ -106,8 +107,14 @@ async def run(niche, turns):
         if reply in seen_replies:
             warn.append("REPEAT")
         # user asked a question but reply is itself a question (didn't answer)
-        if ("?" in ut or any(q in ut.lower() for q in ("kya", "kaise", "kab", "kahan", "kitna", "kitne"))) \
-                and reply.strip().endswith("?") and "?" not in reply[:-1]:
+        if (
+            (
+                "?" in ut
+                or any(q in ut.lower() for q in ("kya", "kaise", "kab", "kahan", "kitna", "kitne"))
+            )
+            and reply.strip().endswith("?")
+            and "?" not in reply[:-1]
+        ):
             # reply is purely a question back — may have dodged
             if not any(w in reply.lower() for w in ut.lower().split()[:3]):
                 warn.append("DODGED-Q?")

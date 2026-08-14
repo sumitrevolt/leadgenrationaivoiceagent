@@ -1,4 +1,5 @@
 """VPS smoke: custom niche add → flow → KB → resolve → cleanup (run on VPS)."""
+
 from app.niches import NICHES, add_custom_niche, remove_custom_niche
 from app.platform.agent_provisioner import resolve_niche_key
 from app.voice_agent.flow_builder import build_flow_for_niche

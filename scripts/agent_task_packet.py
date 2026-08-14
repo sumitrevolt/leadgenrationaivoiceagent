@@ -9,6 +9,7 @@ worker model can execute without re-loading the repo.
   python scripts/agent_task_packet.py --objective "add schema_version to office snapshot" \
       --files app/platform/office_hq.py --query "office snapshot schema" --test tests/test_office_contract.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,13 +37,19 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
     ]
     out += [f"- {f}" for f in files] or ["- (discover via query below)"]
     out += ["", "## Relevant project context"]
-    out += [f"- [{n['type']}] {n['label']} «{n['source']}» — {n['summary']}" for n in ctx] or ["- (none matched)"]
+    out += [f"- [{n['type']}] {n['label']} «{n['source']}» — {n['summary']}" for n in ctx] or [
+        "- (none matched)"
+    ]
     out += ["", "## Hard constraints (never violate)"]
     out += [f"- {n['summary']}" for n in invariants] or ["- Follow CLAUDE.md §5 invariants."]
     out += [
         "",
         "## Acceptance test",
-        f"- {test}" if test else "- Add/extend a targeted pytest; changed behaviour needs a new assertion.",
+        (
+            f"- {test}"
+            if test
+            else "- Add/extend a targeted pytest; changed behaviour needs a new assertion."
+        ),
         "",
         "## Definition of done",
         "- targeted pytest green + scripts/prod_check.py PASS + scripts/check_secrets.py clean.",

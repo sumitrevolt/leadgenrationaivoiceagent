@@ -351,9 +351,7 @@ class CallManager:
                 # sid = body["id"]. The compliance gate already ran in queue_call(),
                 # so skip the duplicate gate here (skip_compliance=True).
                 answer_url = (
-                    self._answer_url(to=request.phone_number)
-                    or self._status_webhook_url()
-                    or ""
+                    self._answer_url(to=request.phone_number) or self._status_webhook_url() or ""
                 )
                 # ENTERPRISE FIX (2026-07-10): pehle call_id Vobiz ko bheja hi nahi
                 # jaata tha — status webhook me "CallbackData" field KHAALI aata tha,

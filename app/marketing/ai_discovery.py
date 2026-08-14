@@ -88,9 +88,13 @@ def build_llms_txt(base_url: str = DEFAULT_BASE) -> str:
             f"- [Local SEO / GEO check]({b}/geo-check): Free Google Business Profile and local-visibility check."
         )
         lines.append(f"- [Live AI Demo]({b}/demo): Try the AI agent interactively.")
-        lines.append(f"- [Compare Products]({b}/compare): Marketing vs Voice — which fits which business.")
+        lines.append(
+            f"- [Compare Products]({b}/compare): Marketing vs Voice — which fits which business."
+        )
         lines.append(f"- [Pricing]({b}/pricing): Human-readable pricing page.")
-        lines.append(f"- [Pricing (machine-readable)]({b}/pricing.md): Structured pricing for AI agents.")
+        lines.append(
+            f"- [Pricing (machine-readable)]({b}/pricing.md): Structured pricing for AI agents."
+        )
         lines.append(f"- [Blog]({b}/blog): Hinglish marketing + AI guides for Indian SMBs.")
         lines.append("")
         lines.append("## For AI agents")
@@ -140,12 +144,16 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
     out.append("Self-serve marketing automation for local businesses. No telecom licensing needed.")
     out.append("")
     try:
-        from app.marketing.packages import get_public_packages, get_trial_package, get_topup_packs
+        from app.marketing.packages import get_public_packages, get_topup_packs, get_trial_package
 
         try:
             trial = get_trial_package()
-            out.append(f"### {trial.get('name', 'Free Trial')} — {_rupee(trial.get('price_inr_month', 0))}")
-            out.append(f"- Price: {_rupee(trial.get('price_inr_month', 0))} ({trial.get('trial_days', 7)} days, no card)")
+            out.append(
+                f"### {trial.get('name', 'Free Trial')} — {_rupee(trial.get('price_inr_month', 0))}"
+            )
+            out.append(
+                f"- Price: {_rupee(trial.get('price_inr_month', 0))} ({trial.get('trial_days', 7)} days, no card)"
+            )
             tnote = str(trial.get("price_note") or "").strip()
             if tnote:
                 out.append(f"- Note: {tnote}")
@@ -207,7 +215,9 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
         out.append(f"- Price: {_rupee(0)} ({PILOT_DAYS} days / {PILOT_CALL_CAP} calls, no card)")
         out.append("")
         for letter, info in BANDS.items():
-            out.append(f"### {info.get('name', f'Band {letter}')} — {_rupee(info.get('price_month'))}/month")
+            out.append(
+                f"### {info.get('name', f'Band {letter}')} — {_rupee(info.get('price_month'))}/month"
+            )
             out.append(f"- Monthly: {_rupee(info.get('price_month'))}")
             out.append(f"- Annual: {_rupee(info.get('price_year'))}/year (2 months free)")
             sample = str(info.get("niches_sample") or "").strip()

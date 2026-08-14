@@ -5,6 +5,7 @@ Run on the VPS:  cd /opt/leadgen && .venv/bin/python scripts/setup_status.py
 Loads /opt/leadgen/.env so feature flags + keys are visible, then prints what's live,
 what to enable, and what needs a user action. Read-only — changes nothing.
 """
+
 import os
 import sys
 

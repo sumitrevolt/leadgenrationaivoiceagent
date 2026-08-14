@@ -119,9 +119,7 @@ async def _post(api_key: str, txt: str) -> tuple[int, dict]:
         "contents": [{"parts": [{"text": txt}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
-            "speechConfig": {
-                "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": _voice()}}
-            },
+            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": _voice()}}},
         },
     }
     async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:

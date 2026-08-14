@@ -1,4 +1,5 @@
 """Vobiz account state probe: balance, KYC, DID search/buy attempt (run on VPS)."""
+
 import sys
 
 sys.path.insert(0, "/opt/leadgen")
@@ -17,7 +18,11 @@ def env_get(key):
 
 
 AID = env_get("VOBIZ_AUTH_ID")
-H = {"X-Auth-ID": AID, "X-Auth-Token": env_get("VOBIZ_AUTH_TOKEN"), "Content-Type": "application/json"}
+H = {
+    "X-Auth-ID": AID,
+    "X-Auth-Token": env_get("VOBIZ_AUTH_TOKEN"),
+    "Content-Type": "application/json",
+}
 B = f"https://api.vobiz.ai/api/v1/Account/{AID}"
 
 

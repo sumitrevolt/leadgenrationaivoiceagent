@@ -14,10 +14,20 @@ def main() -> None:
     from app.agents import self_improve
     from app.platform import skill_library
 
-    print("ENABLED", self_improve.enabled(), "| gap", self_improve.gap_seconds(), "| cap", self_improve.max_per_day())
+    print(
+        "ENABLED",
+        self_improve.enabled(),
+        "| gap",
+        self_improve.gap_seconds(),
+        "| cap",
+        self_improve.max_per_day(),
+    )
 
     st = self_improve.status()
-    print("STATUS", json.dumps({k: st.get(k) for k in ("enabled", "queue_pending")}, ensure_ascii=False))
+    print(
+        "STATUS",
+        json.dumps({k: st.get(k) for k in ("enabled", "queue_pending")}, ensure_ascii=False),
+    )
     print("STATE", json.dumps(st.get("state") or {}, ensure_ascii=False))
 
     # ek inline iteration (smoke) — pick→execute→learn

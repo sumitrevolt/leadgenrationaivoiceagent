@@ -6,12 +6,13 @@
 Prints: today's emails sent, calls, agent job runs (heartbeats), key flags, and a
 data-file inventory. Never mutates anything. Each section guarded (never crash).
 """
+
 from __future__ import annotations
 
 import json
 import os
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -29,11 +30,23 @@ print(f"LIVE OPS SNAPSHOT  —  {now.strftime('%Y-%m-%d %H:%M IST')}  (today={to
 # ── key automation flags ────────────────────────────────────────────────────
 hr("AUTOMATION FLAGS (what is ON)")
 flags = [
-    "AUTO_EMAIL_OUTREACH", "EMAIL_WARMUP", "REPLY_AGENT", "CADENCE_ENGINE",
-    "LEAD_HARVESTER", "NICHE_ROTATION", "AUTO_ONBOARD", "TEAM_AUTOMATION",
-    "RUN_IN_PROCESS_SCHEDULER", "SELF_IMPROVE_LOOP", "SALES_ENGINE",
-    "AUTO_QUALIFY_CALLS", "TELEPHONY_PROVIDER", "VOBIZ_CALLER_ID",
-    "USE_RERANKER", "USE_HYBRID_SEARCH", "USE_CONTEXTUAL_INGEST",
+    "AUTO_EMAIL_OUTREACH",
+    "EMAIL_WARMUP",
+    "REPLY_AGENT",
+    "CADENCE_ENGINE",
+    "LEAD_HARVESTER",
+    "NICHE_ROTATION",
+    "AUTO_ONBOARD",
+    "TEAM_AUTOMATION",
+    "RUN_IN_PROCESS_SCHEDULER",
+    "SELF_IMPROVE_LOOP",
+    "SALES_ENGINE",
+    "AUTO_QUALIFY_CALLS",
+    "TELEPHONY_PROVIDER",
+    "VOBIZ_CALLER_ID",
+    "USE_RERANKER",
+    "USE_HYBRID_SEARCH",
+    "USE_CONTEXTUAL_INGEST",
 ]
 for f in flags:
     v = os.environ.get(f)
@@ -43,6 +56,7 @@ for f in flags:
 hr("EMAIL OUTREACH (Rohan)")
 try:
     from app.platform.auto_outreach import outreach_stats
+
     s = outreach_stats()
     print("  outreach_stats():", json.dumps(s, ensure_ascii=False, default=str)[:600])
 except Exception as e:
@@ -74,8 +88,13 @@ def count_today(path: Path, ts_keys=("ts", "sent_at", "created_at", "emailed_at"
     return (n_total, n_today)
 
 
-for name in ("outreach_log.jsonl", "email_outreach.jsonl", "sent_emails.jsonl",
-             "outreach.jsonl", "email_suppression.jsonl"):
+for name in (
+    "outreach_log.jsonl",
+    "email_outreach.jsonl",
+    "sent_emails.jsonl",
+    "outreach.jsonl",
+    "email_suppression.jsonl",
+):
     p = DATA / name
     if p.exists():
         tot, tod = count_today(p)
@@ -97,6 +116,7 @@ for name in ("call_qualifications.jsonl",):
 try:
     from app.models.base import get_db_session
     from app.models.call_log import CallLog
+
     with get_db_session() as db:
         total = db.query(CallLog).count()
         print(f"  call_logs DB rows (all-time) = {total}")
@@ -127,13 +147,17 @@ except Exception as e:
 # ── agent activity feed (agent_events) ──────────────────────────────────────
 hr("AGENT EVENTS (today, from DB)")
 try:
-    from app.models.base import get_db_session
     from sqlalchemy import text as _t
+
+    from app.models.base import get_db_session
+
     with get_db_session() as db:
-        rows = db.execute(_t(
-            "SELECT agent, action, status, created_at FROM agent_events "
-            "WHERE created_at::date = CURRENT_DATE ORDER BY created_at DESC LIMIT 25"
-        )).fetchall()
+        rows = db.execute(
+            _t(
+                "SELECT agent, action, status, created_at FROM agent_events "
+                "WHERE created_at::date = CURRENT_DATE ORDER BY created_at DESC LIMIT 25"
+            )
+        ).fetchall()
         print(f"  agent_events today = {len(rows)} (showing latest 25)")
         for r in rows:
             print(f"   - {str(r[3])[:16]}  {r[0]:10} {r[1]:18} {r[2]}")

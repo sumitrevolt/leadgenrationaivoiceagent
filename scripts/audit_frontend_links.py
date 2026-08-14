@@ -6,6 +6,7 @@ Run: python scripts/audit_frontend_links.py
 Exit 0 always (report-only). Heuristic — concatenated dynamic paths may be
 flagged as candidates; verify each before "fixing".
 """
+
 from __future__ import annotations
 
 import re
@@ -59,8 +60,8 @@ for html in sorted(FRONTEND.glob("*.html")):
     txt = html.read_text(encoding="utf-8", errors="ignore")
     for mo in PATH_RE.finditer(txt):
         raw = mo.group(1)
-        raw = raw.split("?")[0].split("#")[0]          # drop query/hash
-        raw = DYN.sub("WILD", raw)                       # ${x} -> WILD token
+        raw = raw.split("?")[0].split("#")[0]  # drop query/hash
+        raw = DYN.sub("WILD", raw)  # ${x} -> WILD token
         raw = raw.replace("WILD", "PARAM")
         # turn our PARAM token into a wildcard-matchable segment
         test = raw.replace("PARAM", "x")
@@ -85,10 +86,24 @@ if not missing:
 # (project rule: "API-only feature = adhoora". Exclude routes that legitimately
 #  have no admin-HTML caller: webhooks/public/customer/runtime/infra.)
 NON_UI_PREFIXES = (
-    "/api/webhooks", "/api/public", "/api/customer", "/api/billing/webhooks",
-    "/api/voiceai", "/api/web-call", "/api/events", "/api/telephony",
-    "/api/wa/webhook", "/api/ml", "/health", "/metrics", "/mcp", "/ws",
-    "/r/", "/b/", "/api/niche/", "/api/data",
+    "/api/webhooks",
+    "/api/public",
+    "/api/customer",
+    "/api/billing/webhooks",
+    "/api/voiceai",
+    "/api/web-call",
+    "/api/events",
+    "/api/telephony",
+    "/api/wa/webhook",
+    "/api/ml",
+    "/health",
+    "/metrics",
+    "/mcp",
+    "/ws",
+    "/r/",
+    "/b/",
+    "/api/niche/",
+    "/api/data",
 )
 # frontend refs as matcher regexes (PARAM->seg, trailing-slash->prefix .*)
 ref_res: list[re.Pattern] = []

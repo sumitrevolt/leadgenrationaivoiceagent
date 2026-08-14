@@ -58,14 +58,16 @@ async def finalize_delivery(
 
     draft = build_delivery_notification_draft(task.parent_objective, task.customer_id)
     now = datetime.utcnow()
-    task.delivery_evidence = json.dumps({
-        "verified_by": verified_by,
-        "verified_at": now.isoformat(),
-        "customer_id": task.customer_id,
-        "notification_draft": draft,
-        "auto_sent": False,
-        "note": "delivery recorded; customer notification is a human-sent draft",
-    })[:8000]
+    task.delivery_evidence = json.dumps(
+        {
+            "verified_by": verified_by,
+            "verified_at": now.isoformat(),
+            "customer_id": task.customer_id,
+            "notification_draft": draft,
+            "auto_sent": False,
+            "note": "delivery recorded; customer notification is a human-sent draft",
+        }
+    )[:8000]
     task.state = TaskState.COMPLETED.value  # DELIVERY_VERIFICATION -> COMPLETED (legal)
     task.updated_at = now
 
@@ -79,15 +81,18 @@ async def finalize_delivery(
                 emit = None
         if emit is not None:
             try:
-                attribution_log_id = emit(
-                    client_id=task.customer_id,
-                    job_type="dev_task_delivery",
-                    status="success",
-                    output_summary=(task.parent_objective or "")[:200],
-                    evidence_url=(task.worker_report or "")[:400],
-                    triggered_by="dev_orchestrator",
-                    meta_json={"task_id": task_id, "state": task.state},
-                ) or ""
+                attribution_log_id = (
+                    emit(
+                        client_id=task.customer_id,
+                        job_type="dev_task_delivery",
+                        status="success",
+                        output_summary=(task.parent_objective or "")[:200],
+                        evidence_url=(task.worker_report or "")[:400],
+                        triggered_by="dev_orchestrator",
+                        meta_json={"task_id": task_id, "state": task.state},
+                    )
+                    or ""
+                )
             except Exception:
                 attribution_log_id = ""
 

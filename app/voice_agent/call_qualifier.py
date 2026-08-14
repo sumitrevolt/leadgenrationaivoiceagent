@@ -123,6 +123,7 @@ def _min_user_turns() -> int:
 def _bot_gate_on() -> bool:
     return os.environ.get("QUALIFY_BOT_GATE", "1").strip().lower() not in ("0", "false", "no")
 
+
 _SYSTEM = (
     "Tum ek sales-QA analyst ho. Ek phone call ka transcript milega. SIRF ek JSON "
     "object lautao (aur kuch nahi):\n"
@@ -232,7 +233,9 @@ async def qualify_transcript(
             parsed["appointment_requested"] = False
             parsed["interest_score"] = min(int(parsed.get("interest_score") or 0), 2)
             if parsed.get("summary"):
-                parsed["summary"] = ("[UNVERIFIED — bot/IVR ya kam turns] " + parsed["summary"])[:400]
+                parsed["summary"] = ("[UNVERIFIED — bot/IVR ya kam turns] " + parsed["summary"])[
+                    :400
+                ]
     if not parsed["followup_draft"]:
         parsed["followup_draft"] = (
             f"Namaste {who}! Call ke liye dhanyawad. Aapki zaroorat ke hisaab se hum aapse jald follow-up karenge."

@@ -27,8 +27,8 @@ DEFAULT_STAGE_BUDGETS: dict[str, int] = {
     "final_review": 8_000,
 }
 
-CHECKPOINT_AT = 0.70   # generate a checkpoint summary
-WRAP_UP_AT = 0.85      # stop expanding scope; finish tests + evidence
+CHECKPOINT_AT = 0.70  # generate a checkpoint summary
+WRAP_UP_AT = 0.85  # stop expanding scope; finish tests + evidence
 MAX_ATTEMPTS_PER_MODEL = 2
 
 
@@ -48,7 +48,13 @@ def budget_state(used_tokens: int, budget_tokens: int) -> dict[str, Any]:
         phase, action = "checkpoint", "generate a checkpoint summary before continuing"
     else:
         phase, action = "normal", "continue"
-    return {"phase": phase, "ratio": round(ratio, 4), "used": int(used_tokens), "budget": budget, "action": action}
+    return {
+        "phase": phase,
+        "ratio": round(ratio, 4),
+        "used": int(used_tokens),
+        "budget": budget,
+        "action": action,
+    }
 
 
 def attempts_by_model(attempts: list[dict[str, Any]], provider: str) -> int:
@@ -59,7 +65,12 @@ def next_attempt_decision(attempts: list[dict[str, Any]], provider: str) -> dict
     """Enforce the two-strikes rule: 3rd attempt must escalate, same model refused."""
     failed = attempts_by_model(attempts, provider)
     if failed >= MAX_ATTEMPTS_PER_MODEL:
-        return {"allowed": False, "reason": "max_attempts_reached", "failed_attempts": failed, "required_action": "escalate_to_stronger_model"}
+        return {
+            "allowed": False,
+            "reason": "max_attempts_reached",
+            "failed_attempts": failed,
+            "required_action": "escalate_to_stronger_model",
+        }
     return {"allowed": True, "failed_attempts": failed}
 
 
@@ -108,7 +119,8 @@ def build_handoff_packet(**fields: Any) -> dict[str, Any]:
         else:
             packet[key] = redact_packet_text(str(value))
     text = "\n".join(
-        f"## {key.replace('_', ' ').upper()}\n" + ("\n".join(f"- {v}" for v in val) if isinstance(val, list) else str(val))
+        f"## {key.replace('_', ' ').upper()}\n"
+        + ("\n".join(f"- {v}" for v in val) if isinstance(val, list) else str(val))
         for key, val in packet.items()
     )
     return {"ok": True, "packet": packet, "text": text}

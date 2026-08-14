@@ -7,6 +7,7 @@ Phase 2: BRANCHING flows -> dag_engine graph (per-node, conditional edges, merge
 kind in {"linear","dag"}. Linear output is byte-identical to Phase 1.
 Pure, no side-effects, never-raise.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict, deque
@@ -19,8 +20,12 @@ SIDE_EFFECT_ACTIONS = {"crm_queue"}
 # Phase 7: the ONLY actions a customer-portal flow may use — draft-only, no send,
 # no cost-scrape, no SSRF. Compiler customer_safe=True rejects everything else.
 CUSTOMER_SAFE_ACTIONS = {
-    "content_pack", "social_drafts", "seo_blog_draft",
-    "brand_pulse", "review_scan", "client_report_draft",
+    "content_pack",
+    "social_drafts",
+    "seo_blog_draft",
+    "brand_pulse",
+    "review_scan",
+    "client_report_draft",
 }
 
 
@@ -109,8 +114,8 @@ def compile_flow(flow: dict, customer_safe: bool = False) -> tuple[dict | None, 
             if act not in whitelist:
                 errors.append(f"node '{n.get('id')}' action '{act}' not in executor whitelist")
 
-        outdeg = {i: 0 for i in idset}
-        indeg = {i: 0 for i in idset}
+        outdeg = dict.fromkeys(idset, 0)
+        indeg = dict.fromkeys(idset, 0)
         for e in valid_edges:
             outdeg[str(e["f"])] += 1
             indeg[str(e["t"])] += 1
@@ -118,13 +123,20 @@ def compile_flow(flow: dict, customer_safe: bool = False) -> tuple[dict | None, 
         # ---- decide kind: linear iff Phase-1-shaped (no branching/data-passing primitives) ----
         has_when = any(isinstance(e.get("when"), dict) and e.get("when") for e in valid_edges)
         has_merge = any(nmap[i].get("kind") == "merge" for i in idset)
-        has_inputs_map = any(isinstance(nmap[i].get("inputs_map"), dict) and nmap[i].get("inputs_map")
-                             for i in idset)
+        has_inputs_map = any(
+            isinstance(nmap[i].get("inputs_map"), dict) and nmap[i].get("inputs_map") for i in idset
+        )
         max_in = max(indeg.values()) if indeg else 0
         max_out = max(outdeg.values()) if outdeg else 0
         roots = [i for i in idset if indeg[i] == 0]
-        is_linear = (not has_when and not has_merge and not has_inputs_map
-                     and max_in <= 1 and max_out <= 1 and len(roots) == 1)
+        is_linear = (
+            not has_when
+            and not has_merge
+            and not has_inputs_map
+            and max_in <= 1
+            and max_out <= 1
+            and len(roots) == 1
+        )
 
         if is_linear:
             return _compile_linear(flow, nmap, idset, valid_edges, roots, errors)
@@ -153,11 +165,13 @@ def _compile_linear(flow, nmap, idset, valid_edges, roots, errors):
     for nid in order:
         n = nmap[nid]
         if n.get("kind") == "breakpoint":
-            steps.append({
-                "kind": "breakpoint",
-                "id": nid,
-                "question": str(n.get("question") or n.get("title") or "Approve?"),
-            })
+            steps.append(
+                {
+                    "kind": "breakpoint",
+                    "id": nid,
+                    "question": str(n.get("question") or n.get("title") or "Approve?"),
+                }
+            )
         else:
             step: dict[str, Any] = {"id": nid, "action": str(n.get("action"))}
             if isinstance(n.get("gate"), dict):
@@ -297,9 +311,16 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
         "name": str(flow.get("name") or "flow"),
         "kind": "dag",
         "nodes": gnodes,
-        "edges": [{"f": str(e["f"]), "t": str(e["t"]),
-                   "when": (e.get("when") if isinstance(e.get("when"), dict) and e.get("when") else None)}
-                  for e in valid_edges],
+        "edges": [
+            {
+                "f": str(e["f"]),
+                "t": str(e["t"]),
+                "when": (
+                    e.get("when") if isinstance(e.get("when"), dict) and e.get("when") else None
+                ),
+            }
+            for e in valid_edges
+        ],
         "in": in_map,
         "out": out_map,
         "roots": sorted(roots),

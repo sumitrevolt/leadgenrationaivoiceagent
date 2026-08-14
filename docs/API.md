@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1292 operations)
+## Endpoint Index — auto-generated from OpenAPI (1296 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -536,7 +536,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (34)
+### ClientOps  (35)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -549,6 +549,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientops/creative-os/{creative_id}/customer-view` — Creative Os Customer View
 - `GET   ` `/api/clientops/creative-os/{creative_id}/publish-gate` — Creative Os Publish Gate
 - `POST  ` `/api/clientops/creative-os/{creative_id}/quarantine` — Creative Os Quarantine
+- `GET   ` `/api/clientops/gsc/overview` — Gsc Overview
 - `GET   ` `/api/clientops/p/{token}` — Proposal Open
 - `GET   ` `/api/clientops/proposal-views` — Proposal Views
 - `GET   ` `/api/clientops/routing` — Routing Get
@@ -952,12 +953,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (73)
+### Frontend  (74)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
 - `GET   ` `/app/admin/db` — Admin Db Explorer Page
+- `GET   ` `/app/affiliates` — Affiliates Page
 - `GET   ` `/app/agent-tools` — Agent Tools Page
 - `GET   ` `/app/agents` — Agents Page
 - `GET   ` `/app/analytics` — Analytics Page
@@ -1028,8 +1030,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/voice` — Legacy Alias Voice
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (221)
+### Growth  (222)
 
+- `POST  ` `/api/growth/affiliate/kit` — Affiliate Kit
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
 - `GET   ` `/api/growth/approvals/drafts` — Approvals Drafts
@@ -1772,12 +1775,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/webhooks/vobiz/inbound` — Vobiz Inbound Webhook
 - `POST  ` `/api/webhooks/vobiz/status` — Vobiz Status Webhook
 
-### UPI Payments  (4)
+### UPI Payments  (5)
 
 - `GET   ` `/api/upi/pending` — Admin: pending UPI submissions queue
 - `POST  ` `/api/upi/pending/{pid}/approve` — Admin: approve a UPI submission
+- `POST  ` `/api/upi/pending/{pid}/bind` — Admin: bind a client to an unbound UPI submission
 - `POST  ` `/api/upi/pending/{pid}/reject` — Admin: reject a UPI submission
-- `POST  ` `/api/upi/pending/{pid}/bind` — Admin: bind a client to an unbound (guest) UPI submission (#304)
 - `POST  ` `/api/upi/submit` — Customer self-serve: maine pay kiya (UPI ref submit)
 
 ### Voice AI  (11)

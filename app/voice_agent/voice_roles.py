@@ -117,16 +117,16 @@ def build_role_system_prompt(
     meta = VOICE_ROLES[rid]
     agent_name = meta["name"]
     disc = discovery_questions or []
-    q_block = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(disc)) if disc else (
-        "1. Aap kis service ke liye call kar rahe hain?\n"
-        "2. Kaunsa din aur time aapke liye theek rahega?\n"
-        "3. Naam aur phone number confirm kar doon?"
+    q_block = (
+        "\n".join(f"{i + 1}. {q}" for i, q in enumerate(disc))
+        if disc
+        else (
+            "1. Aap kis service ke liye call kar rahe hain?\n"
+            "2. Kaunsa din aur time aapke liye theek rahega?\n"
+            "3. Naam aur phone number confirm kar doon?"
+        )
     )
-    ctx = (
-        f"\nNICHE CONTEXT: {niche_script_context}"
-        if niche_script_context
-        else ""
-    )
+    ctx = f"\nNICHE CONTEXT: {niche_script_context}" if niche_script_context else ""
 
     if rid == "booking_agent":
         return f"""Tum "{agent_name}" ho — {client_name} ki professional Indian female appointment coordinator.

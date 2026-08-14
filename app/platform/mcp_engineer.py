@@ -291,29 +291,22 @@ def run_mcp() -> dict[str, Any]:
     pressured = kpis.get("keys", {}).get("quota_pressure_keys") or []
     if pressured:
         actions.append(
-            f"Quota pressure on {len(pressured)} key(s): " + ", ".join(
-                f"{p['label']}@{p['pct']}%" for p in pressured[:3]
-            )
+            f"Quota pressure on {len(pressured)} key(s): "
+            + ", ".join(f"{p['label']}@{p['pct']}%" for p in pressured[:3])
         )
     rotation_due = kpis.get("rotation", {}).get("rotation_due") or []
     if rotation_due:
-        actions.append(
-            f"Rotate {len(rotation_due)} key(s) older than {_KEY_ROTATION_DAYS}d"
-        )
+        actions.append(f"Rotate {len(rotation_due)} key(s) older than {_KEY_ROTATION_DAYS}d")
     auth_fails = kpis.get("auth_failures", {}).get("auth_failures_24h") or 0
     if isinstance(auth_fails, int) and auth_fails >= _AUTH_FAIL_ALERT_THRESHOLD:
-        actions.append(
-            f"AUTH ATTACK SIGNAL: {auth_fails} failed /mcp/* auth attempts in 24h"
-        )
+        actions.append(f"AUTH ATTACK SIGNAL: {auth_fails} failed /mcp/* auth attempts in 24h")
         _maybe_alert(
             "MCP auth-failure spike",
             f"{auth_fails} failed auth attempts in 24h (threshold {_AUTH_FAIL_ALERT_THRESHOLD})",
             priority="high",
         )
 
-    summary = (
-        f"MCP health {score:.0f}/100" if isinstance(score, float) else "MCP health unknown"
-    )
+    summary = f"MCP health {score:.0f}/100" if isinstance(score, float) else "MCP health unknown"
     if score is not None and score < 60:
         summary += " — attention needed"
     elif score is not None and score >= 90:

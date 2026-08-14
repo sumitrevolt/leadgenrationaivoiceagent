@@ -74,9 +74,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Voice per-component latency report")
     ap.add_argument("date", nargs="?", help="YYYY-MM-DD (UTC). Default: today.")
     ap.add_argument("--days", type=int, default=1, help="combine the last N days")
-    ap.add_argument(
-        "--by-path", action="store_true", help="also split by the 'path' field"
-    )
+    ap.add_argument("--by-path", action="store_true", help="also split by the 'path' field")
     args = ap.parse_args()
 
     if args.date:

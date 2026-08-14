@@ -6,6 +6,7 @@ word-count and noob-tell flags. Source-of-truth reproduction for the
 
 Run:  .venv\\Scripts\\python.exe scripts\\noob_repro.py
 """
+
 import asyncio
 import os
 import re
@@ -59,7 +60,10 @@ CONVOS = {
 }
 
 NOOB_PATTERNS = [
-    (r"\b(bahut achh?a|great|wonderful|sahi decision|badhiya choice|excellent)\b", "generic-praise"),
+    (
+        r"\b(bahut achh?a|great|wonderful|sahi decision|badhiya choice|excellent)\b",
+        "generic-praise",
+    ),
     (r"maaf kij|samajh nahi|unclear|maine pehle|dobara pooch|phir se pooch", "meta-apology"),
     (r"\[(company|name|project|city)\]", "placeholder-leak"),
     (r"(swara|agent|assistant)\s*:", "role-prefix-leak"),

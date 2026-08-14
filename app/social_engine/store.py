@@ -63,7 +63,9 @@ def _model():
             post_url = Column(Text, default="")
             last_error = Column(Text, default="")
             created_at = Column(DateTime(timezone=True), server_default=func.now())
-            updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+            updated_at = Column(
+                DateTime(timezone=True), onupdate=func.now(), server_default=func.now()
+            )
 
         _MODEL = SocialPostJob
     except Exception as e:
@@ -106,8 +108,18 @@ def _mirror(job: dict[str, Any]) -> None:
                 row = m(id=job["id"])
                 db.add(row)
             for k in (
-                "client_id", "platform", "account_ref", "media_type", "media_path",
-                "media_url", "caption", "status", "attempts", "post_id", "post_url", "last_error",
+                "client_id",
+                "platform",
+                "account_ref",
+                "media_type",
+                "media_path",
+                "media_url",
+                "caption",
+                "status",
+                "attempts",
+                "post_id",
+                "post_url",
+                "last_error",
             ):
                 if k in job and job[k] is not None:
                     setattr(row, k, job[k])

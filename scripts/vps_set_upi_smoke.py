@@ -3,6 +3,7 @@
 Usage:
     python scripts/vps_set_upi_smoke.py YOURVPA@bank
 """
+
 import json
 import subprocess
 import sys

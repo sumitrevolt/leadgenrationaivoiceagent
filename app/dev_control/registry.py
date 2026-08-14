@@ -54,7 +54,16 @@ def _cost(provider: str, direction: str, default: float) -> float:
     return default
 
 
-def _entry(provider: str, model_default: str, *, cost_in: float, cost_out: float, privacy: str, capabilities: list[str], extra_configured: bool = False) -> dict[str, Any]:
+def _entry(
+    provider: str,
+    model_default: str,
+    *,
+    cost_in: float,
+    cost_out: float,
+    privacy: str,
+    capabilities: list[str],
+    extra_configured: bool = False,
+) -> dict[str, Any]:
     return {
         "provider": provider,
         "model": _model(provider, model_default),
@@ -68,16 +77,62 @@ def _entry(provider: str, model_default: str, *, cost_in: float, cost_out: float
 
 MODEL_CATALOG: dict[str, dict[str, Any]] = {
     "local": _entry(
-        "local", "local-coding", cost_in=0.0, cost_out=0.0, privacy="local",
+        "local",
+        "local-coding",
+        cost_in=0.0,
+        cost_out=0.0,
+        privacy="local",
         capabilities=["code", "tests", "docs", "sensitive"],
         extra_configured=bool(os.getenv("OLLAMA_URL", "").strip()),
     ),
-    "glm": _entry("glm", "glm-5.2", cost_in=1.4, cost_out=4.4, privacy="external", capabilities=["code", "reasoning", "long_context"]),
-    "minimax": _entry("minimax", "MiniMax-M3", cost_in=0.30, cost_out=1.20, privacy="external", capabilities=["code", "multimodal", "long_context"]),
-    "kimi": _entry("kimi", "Kimi-K2.7-Code", cost_in=0.15, cost_out=0.60, privacy="external", capabilities=["code", "long_context"]),
-    "deepseek": _entry("deepseek", "deepseek-chat", cost_in=0.27, cost_out=1.10, privacy="external", capabilities=["code", "reasoning"]),
-    "qwen": _entry("qwen", "qwen3-coder", cost_in=0.20, cost_out=0.80, privacy="external", capabilities=["code", "reasoning"]),
-    "claude": _entry("claude", "claude-reviewer", cost_in=3.0, cost_out=15.0, privacy="external", capabilities=["review", "architecture", "security"]),
+    "glm": _entry(
+        "glm",
+        "glm-5.2",
+        cost_in=1.4,
+        cost_out=4.4,
+        privacy="external",
+        capabilities=["code", "reasoning", "long_context"],
+    ),
+    "minimax": _entry(
+        "minimax",
+        "MiniMax-M3",
+        cost_in=0.30,
+        cost_out=1.20,
+        privacy="external",
+        capabilities=["code", "multimodal", "long_context"],
+    ),
+    "kimi": _entry(
+        "kimi",
+        "Kimi-K2.7-Code",
+        cost_in=0.15,
+        cost_out=0.60,
+        privacy="external",
+        capabilities=["code", "long_context"],
+    ),
+    "deepseek": _entry(
+        "deepseek",
+        "deepseek-chat",
+        cost_in=0.27,
+        cost_out=1.10,
+        privacy="external",
+        capabilities=["code", "reasoning"],
+    ),
+    "qwen": _entry(
+        "qwen",
+        "qwen3-coder",
+        cost_in=0.20,
+        cost_out=0.80,
+        privacy="external",
+        capabilities=["code", "reasoning"],
+    ),
+    "claude": _entry(
+        "claude",
+        "claude-reviewer",
+        cost_in=3.0,
+        cost_out=15.0,
+        privacy="external",
+        capabilities=["review", "architecture", "security"],
+    ),
 }
 
 # Ideal escalation order per routing class (planner only -- enforcer filters).
@@ -116,7 +171,9 @@ def route_preview(*, task_type: str, sensitivity: str, complexity: str) -> dict[
             ordered, reason = _dedupe_with_local(_ROUTINE_ORDER), "local_first_routine_work"
         selected, fallbacks = ordered[0], ordered[1:]
 
-    effective = next((c for c in ordered if c == "local" or MODEL_CATALOG[c]["configured"]), "local")
+    effective = next(
+        (c for c in ordered if c == "local" or MODEL_CATALOG[c]["configured"]), "local"
+    )
     return {
         "selected_provider": selected,
         "selected_model": MODEL_CATALOG[selected]["model"],

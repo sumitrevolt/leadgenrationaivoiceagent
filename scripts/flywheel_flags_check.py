@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify enterprise flywheel recommended flags + attribution wiring."""
+
 from __future__ import annotations
 
 import os

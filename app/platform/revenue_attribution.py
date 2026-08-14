@@ -48,7 +48,9 @@ def record_touch(
 
         ch = utm_source or channel
         if ch:
-            channel_experiments.record_outcome(ch, event, 1 if event != "payment" else 2, f"attr:{client_id}")
+            channel_experiments.record_outcome(
+                ch, event, 1 if event != "payment" else 2, f"attr:{client_id}"
+            )
     except Exception:
         pass
     return {"ok": True, "recorded": rec}

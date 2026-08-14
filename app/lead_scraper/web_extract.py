@@ -58,7 +58,7 @@ def find_contacts(text_or_html: str) -> dict[str, Any]:
     """Emails + Indian mobile numbers (deduped). Pure regex — always works."""
     s = text_or_html or ""
     emails = sorted({e.lower() for e in _EMAIL.findall(s) if "." in e.split("@")[-1]})
-    phones = sorted({m for m in _PHONE.findall(s)})
+    phones = sorted(set(_PHONE.findall(s)))
     return {"emails": emails, "phones": phones}
 
 

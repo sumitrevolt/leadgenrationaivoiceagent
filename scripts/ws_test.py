@@ -1,4 +1,5 @@
 """Local websocket test for the web-call bot (run on the VPS)."""
+
 import asyncio
 import json
 

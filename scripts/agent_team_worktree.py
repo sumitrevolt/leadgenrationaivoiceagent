@@ -12,6 +12,7 @@ optional AGENT_TEAM_WORKTREE_ROOT override.
 
 Exit codes: 0 ok · 1 usage/error · 2 refused (path/policy).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -114,7 +115,9 @@ def cmd_create(args: argparse.Namespace) -> int:
             print(f"worktree_create_failed: {err}", file=sys.stderr)
             return 1
     print(f"CREATED worktree={wt} branch={branch} base={base}")
-    print("Next: cd into the worktree; buzzlock claim before edit; Agent Teams teammate cwd = this path.")
+    print(
+        "Next: cd into the worktree; buzzlock claim before edit; Agent Teams teammate cwd = this path."
+    )
     return 0
 
 

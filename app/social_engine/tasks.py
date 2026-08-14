@@ -23,5 +23,6 @@ try:
         except Exception as e:  # pragma: no cover
             logger.warning(f"[social_engine.task] drain failed: {e}")
             return {"error": str(e)[:150]}
+
 except Exception as e:  # celery app unavailable at import (web-only / tests) — fine
     logger.debug(f"[social_engine] celery task not registered: {e}")

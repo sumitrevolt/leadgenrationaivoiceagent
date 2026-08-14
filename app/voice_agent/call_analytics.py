@@ -11,6 +11,7 @@ Sources (all already persisted):
 
 Import-safe, never raises — returns a plain dict for /api/admin/web-calls/kpis.
 """
+
 from __future__ import annotations
 
 import json
@@ -64,7 +65,10 @@ def _qualified_count(days: int) -> int:
                 except Exception:
                     continue
                 if str(r.get("ts") or r.get("timestamp") or "") >= cutoff:
-                    if r.get("qualified") or str(r.get("status") or "").lower() in ("qualified", "hot"):
+                    if r.get("qualified") or str(r.get("status") or "").lower() in (
+                        "qualified",
+                        "hot",
+                    ):
                         n += 1
     except Exception:
         return n
@@ -129,7 +133,9 @@ def compute_call_kpis(days: int = 7) -> dict[str, Any]:
         "reply_latency_ms": lat_summary,
         "repeat_turns": repeat_turns,
         "deadair_turns": deadair_turns,
-        "deadair_rate_pct": round(100 * deadair_turns / assistant_turns, 1) if assistant_turns else 0.0,
+        "deadair_rate_pct": (
+            round(100 * deadair_turns / assistant_turns, 1) if assistant_turns else 0.0
+        ),
         "bookings": bookings,
         "booking_rate_pct": round(100 * bookings / n, 1) if n else 0.0,
         "qualified_phone": qualified,

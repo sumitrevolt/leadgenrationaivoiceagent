@@ -17,6 +17,7 @@ parent. It is a constant with no interpolation, and the remote exit status is
 returned verbatim so 90 (guard denied) and 91 (guard unavailable) reach the
 operator unchanged instead of being flattened.
 """
+
 import json
 import subprocess
 import sys

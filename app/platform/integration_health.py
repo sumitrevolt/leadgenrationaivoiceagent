@@ -154,6 +154,7 @@ def snapshot(hours: int = 24) -> dict[str, Any]:
     `socket.connect` when Redis was not running).
     """
     import time as _time
+
     _t0 = _time.monotonic()
     out: dict[str, Any] = {
         "hours": hours,

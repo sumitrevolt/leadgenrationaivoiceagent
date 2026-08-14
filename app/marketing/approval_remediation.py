@@ -23,6 +23,7 @@ SAFETY CONTRACT (enforced by tests):
 
 Lane: AMBER (internal state change), started gated-off. Owner attribution: zara (social/publishing).
 """
+
 from __future__ import annotations
 
 import os
@@ -122,7 +123,9 @@ def _stuck_records(min_age_hours: float) -> list[dict[str, Any]]:
                 "client_id": str((rec or {}).get("client_id") or ""),
                 "status": status,
                 "age_hours": age,
-                "title": str((rec or {}).get("content", {}).get("title") or (rec or {}).get("title") or "")[:80],
+                "title": str(
+                    (rec or {}).get("content", {}).get("title") or (rec or {}).get("title") or ""
+                )[:80],
             }
         )
     return out
@@ -224,7 +227,8 @@ def execute_remediation(
                 continue  # NEVER touch an active client's draft
             try:
                 res = content_approval.cancel(
-                    r["id"], actor="approval_remediation",
+                    r["id"],
+                    actor="approval_remediation",
                     note="auto-expired: client inactive, draft stale (approval remediation)",
                 )
                 if isinstance(res, dict) and res.get("ok") is not False:
@@ -251,9 +255,13 @@ def _observe(result: dict[str, Any]) -> None:
             f"{result.get('escalate_active', 0)} active-escalate "
             f"(dry_run={result.get('dry_run')})"
         )
-        team.log_event(_OWNER_MEMBER, "approval_remediation", detail[:160],
-                       status="ok" if result.get("status") == "success" else "error",
-                       meta={"expired": result.get("expired"), "candidates": result.get("expire_candidates")})
+        team.log_event(
+            _OWNER_MEMBER,
+            "approval_remediation",
+            detail[:160],
+            status="ok" if result.get("status") == "success" else "error",
+            meta={"expired": result.get("expired"), "candidates": result.get("expire_candidates")},
+        )
     except Exception as exc:
         logger.debug("approval_remediation observe skip: %s", exc)
 

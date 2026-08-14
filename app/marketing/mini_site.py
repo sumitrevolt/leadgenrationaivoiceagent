@@ -790,8 +790,12 @@ def render_site(client: dict[str, Any] | None) -> str:
             f'"name":"{_e(name)}","description":"{_e(desc[:160])}",'
             f'"url":"https://leadsgenai.in/b/{_e(slug)}"'
             + (f',"telephone":"{_e(phone_raw)}"' if phone_raw else "")
-            + (f',"address":{{"@type":"PostalAddress","addressLocality":"{_e(city)}","addressCountry":"IN"}}' if city else "")
-            + '}</script>'
+            + (
+                f',"address":{{"@type":"PostalAddress","addressLocality":"{_e(city)}","addressCountry":"IN"}}'
+                if city
+                else ""
+            )
+            + "}</script>"
             "</head><body>"
             f"{body}{_booking_js(slug)}{_calendar_js(slug)}{_reviews_js(slug)}</body></html>"
         )

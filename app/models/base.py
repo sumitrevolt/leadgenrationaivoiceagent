@@ -244,14 +244,10 @@ def _apply_schema_upgrades(sync_conn) -> None:
         "automation_logs": [("evidence_url", "VARCHAR(500)")],
     }
     _SAFE_TABLES: frozenset[str] = frozenset(_UPGRADES.keys())
-    _SAFE_COLS: frozenset[str] = frozenset(
-        col for cols in _UPGRADES.values() for col, _ in cols
-    )
+    _SAFE_COLS: frozenset[str] = frozenset(col for cols in _UPGRADES.values() for col, _ in cols)
     # DDL type strings are also allowlisted — only these exact strings may
     # appear in an ALTER TABLE statement; no user-controlled data ever reaches here.
-    _SAFE_DDL: frozenset[str] = frozenset(
-        ddl for cols in _UPGRADES.values() for _, ddl in cols
-    )
+    _SAFE_DDL: frozenset[str] = frozenset(ddl for cols in _UPGRADES.values() for _, ddl in cols)
 
     inspector = inspect(sync_conn)
     for table, cols in _UPGRADES.items():
@@ -273,9 +269,7 @@ def _apply_schema_upgrades(sync_conn) -> None:
                     # table, col, and ddl are all validated against hardcoded
                     # frozensets above — no user-controlled data can reach here.
                     # Identifiers are also double-quoted for defence-in-depth.
-                    stmt = text(
-                        f'ALTER TABLE "{table}" ADD COLUMN "{col}" {ddl}'
-                    )
+                    stmt = text(f'ALTER TABLE "{table}" ADD COLUMN "{col}" {ddl}')
                     sync_conn.execute(stmt)
                     logger.info("Schema upgrade: %s.%s added", table, col)
         except Exception as e:

@@ -3,6 +3,7 @@
 Usage: python scripts/prod_quick_check.py
 Supplements the full scripts/prod_check.py (which has a frontend wiring pass that can be slow).
 """
+
 import ast
 import os
 import pathlib
@@ -38,6 +39,7 @@ print(f"[1] {n} source files parsed, {len(problems)} problems")
 # 2. App import
 try:
     from app.main import app  # noqa: F401
+
     print(f"[2] app imports OK — {len(app.routes)} routes")
 except Exception as exc:
     problems.append(f"APP IMPORT FAILED: {exc}")
@@ -66,6 +68,7 @@ print(f"[4] old generativeai SDK: {old_sdk or 'NONE'}")
 # 5. Config sanity
 try:
     from app.config import settings
+
     if settings.app_env == "production":
         if settings.debug:
             problems.append("debug=True in production")

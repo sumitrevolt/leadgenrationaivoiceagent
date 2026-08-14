@@ -396,8 +396,7 @@ async def run_due(limit: int = 20) -> dict[str, Any]:
     due = [
         r
         for r in rows
-        if r.get("status") == "pending"
-        and str(r.get("scheduled_at") or "") <= now.isoformat()
+        if r.get("status") == "pending" and str(r.get("scheduled_at") or "") <= now.isoformat()
     ]
     due.sort(key=lambda x: str(x.get("scheduled_at") or ""))
     due = due[: max(1, int(limit))]

@@ -278,7 +278,9 @@ def record_outcome(
             from app.agents.rl import reward as _rl_reward
 
             _rl_reward.record_reward(
-                "outreach", ch, _rl_reward.outreach_reward({"kind": kind}),
+                "outreach",
+                ch,
+                _rl_reward.outreach_reward({"kind": kind}),
                 ref=f"chexp:{ch}:{kind}:{_now().isoformat()}",
             )
         except Exception:

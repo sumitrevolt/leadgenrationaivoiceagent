@@ -188,7 +188,9 @@ def _read_table(
             mapped = result.mappings().all()
             if want_count:
                 try:
-                    total = conn.execute(sa_text(f"SELECT COUNT(*) FROM {qtable}")).scalar()  # noqa: S608
+                    total = conn.execute(
+                        sa_text(f"SELECT COUNT(*) FROM {qtable}")  # noqa: S608
+                    ).scalar()
                 except Exception:
                     total = None
 
@@ -221,7 +223,9 @@ def _read_table(
 
 def _export_csv(name: str, limit: int, order_by: str | None, descending: bool) -> dict:
     """Build a redacted CSV (capped) for ONE table; returns {csv|error}."""
-    res = _read_table(name, max(1, min(int(limit or 1000), _MAX_EXPORT)), 0, order_by, descending, False)
+    res = _read_table(
+        name, max(1, min(int(limit or 1000), _MAX_EXPORT)), 0, order_by, descending, False
+    )
     if res.get("status"):
         return res
     buf = io.StringIO()
@@ -258,7 +262,9 @@ async def read_table(
     return res
 
 
-@router.get("/table/{name}/export.csv", summary="Export one table to CSV (read-only, capped, redacted)")
+@router.get(
+    "/table/{name}/export.csv", summary="Export one table to CSV (read-only, capped, redacted)"
+)
 async def export_table(
     name: str,
     limit: int = 1000,

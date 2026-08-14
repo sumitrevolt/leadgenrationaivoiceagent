@@ -15,6 +15,7 @@ Usage:
     latency_summary([120, 340, 980, 210])                  # {p50,p95,p99,mean,n,max}
     roundtrip_wer(texts, synth_fn=edge_tts, transcribe_fn=groq_whisper)
 """
+
 from __future__ import annotations
 
 import re
@@ -22,9 +23,9 @@ import string
 from typing import Callable, Iterable, Sequence
 
 # ASR/streaming targets (ph06/17 2026 reference) — agar number inse bahar = regression flag
-WER_HUMAN_PARITY = 0.05          # <5% read-speech = human parity
-ROUNDTRIP_WER_FLAG = 0.10        # TTS line >10% = intelligibility issue
-BARGE_IN_TARGET_MS = 150.0       # user-interrupt → assistant-mute target
+WER_HUMAN_PARITY = 0.05  # <5% read-speech = human parity
+ROUNDTRIP_WER_FLAG = 0.10  # TTS line >10% = intelligibility issue
+BARGE_IN_TARGET_MS = 150.0  # user-interrupt → assistant-mute target
 
 
 def normalize_text(s: str) -> str:

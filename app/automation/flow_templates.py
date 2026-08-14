@@ -12,6 +12,7 @@ teach the human-in-the-loop pattern. Edges use the compiler's {f, t} key shape.
 Node ids are local to the flow (flow_store.save_flow assigns a fresh flow id on
 apply). Import-safe, never-raise.
 """
+
 from __future__ import annotations
 
 import copy
@@ -68,14 +69,16 @@ def list_templates() -> list[dict]:
     """Summaries for a template picker. Source constants never mutated."""
     out: list[dict] = []
     for t in _TEMPLATES:
-        out.append({
-            "tid": t["tid"],
-            "name": t["name"],
-            "description": t["description"],
-            "niche_hint": t.get("niche_hint", "all"),
-            "steps": len([n for n in t["nodes"] if n.get("kind") != "breakpoint"]),
-            "trigger": (t.get("trigger") or {}).get("type", "manual"),
-        })
+        out.append(
+            {
+                "tid": t["tid"],
+                "name": t["name"],
+                "description": t["description"],
+                "niche_hint": t.get("niche_hint", "all"),
+                "steps": len([n for n in t["nodes"] if n.get("kind") != "breakpoint"]),
+                "trigger": (t.get("trigger") or {}).get("type", "manual"),
+            }
+        )
     return out
 
 

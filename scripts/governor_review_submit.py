@@ -77,7 +77,9 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/api")
     parser.add_argument("--task-id", required=True)
     parser.add_argument("--governor", choices=("claude", "chatgpt"), required=True)
-    parser.add_argument("--decision", choices=("approve", "changes_requested", "reject"), required=True)
+    parser.add_argument(
+        "--decision", choices=("approve", "changes_requested", "reject"), required=True
+    )
     parser.add_argument("--artifact-hash", required=True)
     parser.add_argument("--summary", required=True)
     args = parser.parse_args()

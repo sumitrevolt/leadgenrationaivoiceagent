@@ -3,15 +3,16 @@
 Run on VPS: cd /opt/leadgen && .venv/bin/python scripts/enable_flags.py
 Then restart: systemctl restart leadgen
 """
+
 import shutil
 import sys
 
 ENV = "/opt/leadgen/.env"
 # Only flags whose deps + keys are READY (per setup audit) and that take effect safely.
 FLAGS = {
-    "REPLY_AGENT": "1",            # AI inbox reply triage (SMTP/IMAP + free_ai ready)
-    "OPS_WATCHDOG": "1",           # ops monitoring + email alerts (NOTIFY_EMAIL set)
-    "AUTO_ONBOARD": "1",           # auto client onboarding (website->KB)
+    "REPLY_AGENT": "1",  # AI inbox reply triage (SMTP/IMAP + free_ai ready)
+    "OPS_WATCHDOG": "1",  # ops monitoring + email alerts (NOTIFY_EMAIL set)
+    "AUTO_ONBOARD": "1",  # auto client onboarding (website->KB)
     "USE_STRUCTURED_CONTENT": "1",  # typed marketing content (instructor installed)
 }
 

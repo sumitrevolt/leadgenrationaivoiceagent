@@ -22,9 +22,9 @@ from typing import Any
 
 from app.dev_control import locks
 from app.dev_control.context_packets import build_context_packet
-from app.dev_control.governor_reviews import artifact_sha256
 from app.dev_control.governed_omniroute import request_governed_proposal
-from app.dev_control.service import TaskState, _TRANSITIONS
+from app.dev_control.governor_reviews import artifact_sha256
+from app.dev_control.service import _TRANSITIONS, TaskState
 from app.dev_control.usage import record_gateway_result
 
 
@@ -88,7 +88,10 @@ async def run_dev_task(
     daily_remaining_usd: str | float = "5.00",
 ) -> dict[str, Any]:
     """Run one claimed task to a review-required proposal. Draft-only."""
-    del task_budget_usd, daily_remaining_usd  # OmniRoute combos are free-only; transport owns quota fallback.
+    del (
+        task_budget_usd,
+        daily_remaining_usd,
+    )  # OmniRoute combos are free-only; transport owns quota fallback.
     from app.models.dev_task import DevTask
 
     task = await db.get(DevTask, task_id)
@@ -130,7 +133,11 @@ async def run_dev_task(
             output_format="review-only unified diff proposal + rationale; no tool calls",
         )
         if not packet.get("ok"):
-            result = {"ok": False, "reason": packet.get("reason", "packet_rejected"), "attempted": []}
+            result = {
+                "ok": False,
+                "reason": packet.get("reason", "packet_rejected"),
+                "attempted": [],
+            }
         elif provider_call is None:
             result = await request_governed_proposal(packet)
         else:
@@ -150,16 +157,18 @@ async def run_dev_task(
 
         artifact = _write_proposal(proposals_root, task_id, result.get("text") or "")
         proposal_hash = artifact_sha256(Path(artifact).read_text(encoding="utf-8"))
-        task.worker_report = json.dumps({
-            "proposal_artifact": artifact,
-            "proposal_sha256": proposal_hash,
-            "governor_reviews": {},
-            "provider": result.get("provider"),
-            "model": result.get("model"),
-            "applied": False,
-            "auto_apply_enabled": auto_apply_enabled(),
-            "note": "review-only; patch NOT applied to the working tree",
-        })
+        task.worker_report = json.dumps(
+            {
+                "proposal_artifact": artifact,
+                "proposal_sha256": proposal_hash,
+                "governor_reviews": {},
+                "provider": result.get("provider"),
+                "model": result.get("model"),
+                "applied": False,
+                "auto_apply_enabled": auto_apply_enabled(),
+                "note": "review-only; patch NOT applied to the working tree",
+            }
+        )
         task.selected_provider = result.get("provider")
         task.selected_model = result.get("model")
         if _can(task.state, TaskState.REVIEW_REQUIRED):

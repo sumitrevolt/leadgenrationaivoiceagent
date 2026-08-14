@@ -266,6 +266,7 @@ class CacheService:
     async def get_safe_str(self, key: str) -> str:
         """Get a cached string value pre-escaped for safe HTML insertion (CWE-79)."""
         from html import escape as _escape
+
         raw = await self.get(key)
         if raw is None:
             return ""
@@ -428,6 +429,7 @@ class RateLimiter:
         prevent XSS if this dict is ever serialised into an HTML context (CWE-79).
         """
         from html import escape as _escape
+
         client = await get_redis_client()
         key = self._key(identifier)
 
@@ -542,6 +544,7 @@ class SessionCache:
     async def get_safe_str(self, session_id: str, key: str) -> str:
         """Get a session string pre-escaped for safe HTML insertion (CWE-79)."""
         from html import escape as _escape
+
         raw = await self.get(session_id, key)
         if raw is None:
             return ""

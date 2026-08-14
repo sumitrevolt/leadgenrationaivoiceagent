@@ -41,7 +41,7 @@ def apply(env_path: str, pairs: dict[str, str]) -> None:
         s = ln.strip()
         key = s.split("=", 1)[0].strip() if ("=" in s and not s.startswith("#")) else None
         if key and key.startswith("export "):
-            key = key[len("export "):].strip()
+            key = key[len("export ") :].strip()
         if key in pairs:
             prefix = "export " if s.startswith("export ") else ""
             out.append(f"{prefix}{key}={pairs[key]}")

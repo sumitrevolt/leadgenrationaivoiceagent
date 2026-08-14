@@ -52,7 +52,7 @@ _VALID_LANGUAGES = ("hi", "en", "hinglish", "gu", "mr", "ta", "te", "kn", "ml", 
 _DEFAULTS: dict[str, Any] = {
     "handles": dict.fromkeys(_HANDLE_KEYS, ""),
     "channels": [],
-    "cadence": "daily",       # matches daily content engine; saved handles must not downgrade cadence
+    "cadence": "daily",  # matches daily content engine; saved handles must not downgrade cadence
     "approval_mode": "review",  # review | draft | auto (auto = explicit customer consent)
     "postiz_integrations": [],  # optional/advanced — Postiz channel ids (admin-assisted)
     # Loop-social-19: Step-1 business profile fields — persisted alongside
@@ -60,15 +60,15 @@ _DEFAULTS: dict[str, Any] = {
     # social-delivery loop specifically.
     "timezone": "Asia/Kolkata",
     "website": "",
-    "brand_tone": "",           # e.g. "friendly", "professional", "playful"
-    "target_audience": "",      # freeform 1-liner
+    "brand_tone": "",  # e.g. "friendly", "professional", "playful"
+    "target_audience": "",  # freeform 1-liner
     "products_or_services": "",  # freeform, comma-separated
     "preferred_language": "hinglish",
     # Loop-social-19: Step-4 content preferences.
-    "posting_days": [],         # ["mon","wed","fri"] etc — empty = every day
-    "posting_times": [],        # ["09:00","18:00"] IST — empty = auto
-    "content_categories": [],   # ["promo","tips","festivals","testimonials"]
-    "prohibited_topics": [],    # ["politics","competitors","medical claims"]
+    "posting_days": [],  # ["mon","wed","fri"] etc — empty = every day
+    "posting_times": [],  # ["09:00","18:00"] IST — empty = auto
+    "content_categories": [],  # ["promo","tips","festivals","testimonials"]
+    "prohibited_topics": [],  # ["politics","competitors","medical claims"]
     "brand_safety_instructions": "",  # freeform — passed to LLM system prompt
 }
 
@@ -164,6 +164,7 @@ def _norm(raw: dict[str, Any] | None) -> dict[str, Any]:
 
     # Posting times: HH:MM (24h). Regex-lite validation.
     import re as _re
+
     _time_re = _re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
     pt_raw = r.get("posting_times")
     if isinstance(pt_raw, str):
@@ -227,12 +228,21 @@ def save(client_id: str, **partial: Any) -> dict[str, Any]:
         if "handles" in partial and isinstance(partial["handles"], dict):
             merged["handles"] = {**current["handles"], **partial["handles"]}
         for key in (
-            "channels", "cadence", "approval_mode", "postiz_integrations",
+            "channels",
+            "cadence",
+            "approval_mode",
+            "postiz_integrations",
             # Loop-social-19: Step-1 + Step-4 keys.
-            "timezone", "website", "brand_tone", "target_audience",
-            "products_or_services", "preferred_language",
-            "posting_days", "posting_times",
-            "content_categories", "prohibited_topics",
+            "timezone",
+            "website",
+            "brand_tone",
+            "target_audience",
+            "products_or_services",
+            "preferred_language",
+            "posting_days",
+            "posting_times",
+            "content_categories",
+            "prohibited_topics",
             "brand_safety_instructions",
         ):
             if key in partial and partial[key] is not None:

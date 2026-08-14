@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from google.cloud import secretmanager
     from google.api_core.exceptions import AlreadyExists, NotFound
+    from google.cloud import secretmanager
 except ImportError:
     print("Error: google-cloud-secret-manager not installed.")
     print("Run: pip install google-cloud-secret-manager")
@@ -47,7 +47,6 @@ REQUIRED_SECRETS = {
         "required": True,
         "example": "redis://host:6379/0",
     },
-    
     # LLM API Keys (at least one required)
     "gemini-api-key": {
         "description": "Google Gemini API key",
@@ -61,7 +60,6 @@ REQUIRED_SECRETS = {
         "description": "Anthropic API key",
         "required": False,
     },
-    
     # Speech Services
     "deepgram-api-key": {
         "description": "Deepgram STT API key",
@@ -75,7 +73,6 @@ REQUIRED_SECRETS = {
         "description": "Azure Speech Services key",
         "required": False,
     },
-    
     # Telephony (at least one required)
     "twilio-account-sid": {
         "description": "Twilio Account SID",
@@ -93,7 +90,6 @@ REQUIRED_SECRETS = {
         "description": "Exotel API Token",
         "required": False,
     },
-    
     # Integrations
     "hubspot-api-key": {
         "description": "HubSpot API key for CRM sync",
@@ -107,13 +103,11 @@ REQUIRED_SECRETS = {
         "description": "Google Maps API key for lead scraping",
         "required": False,
     },
-    
     # Email
     "smtp-password": {
         "description": "SMTP password for email notifications",
         "required": False,
     },
-    
     # Monitoring
     "sentry-dsn": {
         "description": "Sentry DSN for error tracking",
@@ -125,6 +119,7 @@ REQUIRED_SECRETS = {
 def generate_secret_key(length: int = 64) -> str:
     """Generate a secure random secret key."""
     import secrets
+
     return secrets.token_urlsafe(length)
 
 
@@ -138,25 +133,21 @@ def create_secret(
     parent = f"projects/{project_id}"
     full_secret_id = f"{environment}-{secret_id}"
     secret_name = f"{parent}/secrets/{full_secret_id}"
-    
+
     try:
         client.get_secret(request={"name": secret_name})
         print(f"  ✓ Secret '{full_secret_id}' already exists")
         return secret_name
     except NotFound:
         pass
-    
+
     try:
         secret = client.create_secret(
             request={
                 "parent": parent,
                 "secret_id": full_secret_id,
                 "secret": {
-                    "replication": {
-                        "user_managed": {
-                            "replicas": [{"location": "asia-south1"}]
-                        }
-                    },
+                    "replication": {"user_managed": {"replicas": [{"location": "asia-south1"}]}},
                     "labels": {
                         "environment": environment,
                         "app": "leadgen-ai",
@@ -184,18 +175,16 @@ def add_secret_version(
             "payload": {"data": secret_value.encode("UTF-8")},
         }
     )
-    print(f"    → Added new version")
+    print("    → Added new version")
 
 
 def get_latest_secret_version(
     client: secretmanager.SecretManagerServiceClient,
     secret_name: str,
-) -> Optional[str]:
+) -> str | None:
     """Get the latest version of a secret."""
     try:
-        response = client.access_secret_version(
-            request={"name": f"{secret_name}/versions/latest"}
-        )
+        response = client.access_secret_version(request={"name": f"{secret_name}/versions/latest"})
         return response.payload.data.decode("UTF-8")
     except NotFound:
         return None
@@ -222,9 +211,7 @@ def env_key_to_secret_id(env_key: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Set up GCP Secret Manager secrets for LeadGen AI"
-    )
+    parser = argparse.ArgumentParser(description="Set up GCP Secret Manager secrets for LeadGen AI")
     parser.add_argument(
         "--project-id",
         required=True,
@@ -252,29 +239,29 @@ def main():
         action="store_true",
         help="Prompt for missing secret values",
     )
-    
+
     args = parser.parse_args()
-    
+
     print(f"\n{'='*60}")
-    print(f"  LeadGen AI - Secret Manager Setup")
+    print("  LeadGen AI - Secret Manager Setup")
     print(f"  Project: {args.project_id}")
     print(f"  Environment: {args.env}")
     print(f"{'='*60}\n")
-    
+
     # Load .env file if it exists
     env_vars = load_env_file(args.env_file)
     if env_vars:
         print(f"📁 Loaded {len(env_vars)} variables from {args.env_file}\n")
-    
+
     if args.dry_run:
         print("🔍 DRY RUN MODE - No changes will be made\n")
-    
+
     # Initialize client
     if not args.dry_run:
         client = secretmanager.SecretManagerServiceClient()
     else:
         client = None
-    
+
     # Mapping from secret ID to env var name
     secret_to_env = {
         "secret-key": "SECRET_KEY",
@@ -296,52 +283,52 @@ def main():
         "smtp-password": "SMTP_PASSWORD",
         "sentry-dsn": "SENTRY_DSN",
     }
-    
+
     created_count = 0
     updated_count = 0
     skipped_count = 0
     missing_required = []
-    
+
     for secret_id, config in REQUIRED_SECRETS.items():
         env_key = secret_to_env.get(secret_id, secret_id.upper().replace("-", "_"))
         value = env_vars.get(env_key) or os.environ.get(env_key)
-        
+
         print(f"\n📌 {secret_id}")
         print(f"   {config['description']}")
-        
+
         # Generate secret key if needed
         if not value and config.get("generate"):
             value = generate_secret_key()
-            print(f"   🔐 Generated new secret key")
-        
+            print("   🔐 Generated new secret key")
+
         # Prompt if interactive and no value
         if not value and args.interactive:
             if config["required"]:
-                value = input(f"   Enter value (required): ").strip()
+                value = input("   Enter value (required): ").strip()
             else:
-                value = input(f"   Enter value (optional, press Enter to skip): ").strip()
-        
+                value = input("   Enter value (optional, press Enter to skip): ").strip()
+
         if not value:
             if config["required"]:
-                print(f"   ⚠️  MISSING (required)")
+                print("   ⚠️  MISSING (required)")
                 missing_required.append(secret_id)
             else:
-                print(f"   ⏭️  Skipped (optional)")
+                print("   ⏭️  Skipped (optional)")
                 skipped_count += 1
             continue
-        
+
         if args.dry_run:
             print(f"   Would create/update with value: {'*' * min(len(value), 20)}...")
             created_count += 1
             continue
-        
+
         # Create secret and add version
         secret_name = create_secret(client, args.project_id, secret_id, args.env)
-        
+
         # Check if value already exists
         existing = get_latest_secret_version(client, secret_name)
         if existing == value:
-            print(f"   ⏭️  Value unchanged")
+            print("   ⏭️  Value unchanged")
             skipped_count += 1
         else:
             add_secret_version(client, secret_name, value)
@@ -349,37 +336,37 @@ def main():
                 updated_count += 1
             else:
                 created_count += 1
-    
+
     # Summary
     print(f"\n{'='*60}")
-    print(f"  Summary")
+    print("  Summary")
     print(f"{'='*60}")
     print(f"  ✅ Created: {created_count}")
     print(f"  🔄 Updated: {updated_count}")
     print(f"  ⏭️  Skipped: {skipped_count}")
-    
+
     if missing_required:
-        print(f"\n  ❌ Missing Required Secrets:")
+        print("\n  ❌ Missing Required Secrets:")
         for secret_id in missing_required:
             print(f"     - {secret_id}")
-        print(f"\n  Run with --interactive to provide values")
+        print("\n  Run with --interactive to provide values")
         sys.exit(1)
-    
-    print(f"\n✅ Secret Manager setup complete!")
-    
+
+    print("\n✅ Secret Manager setup complete!")
+
     # Print Cloud Run configuration hint
     print(f"\n{'='*60}")
-    print(f"  Next Steps")
+    print("  Next Steps")
     print(f"{'='*60}")
     print(f"""
   1. Ensure Cloud Run service account has Secret Manager access:
-     
+
      gcloud projects add-iam-policy-binding {args.project_id} \\
        --member="serviceAccount:YOUR_SERVICE_ACCOUNT@{args.project_id}.iam.gserviceaccount.com" \\
        --role="roles/secretmanager.secretAccessor"
 
   2. Deploy with Terraform to configure Cloud Run with secrets:
-     
+
      cd infrastructure/terraform
      terraform plan -var="project_id={args.project_id}"
      terraform apply -var="project_id={args.project_id}"

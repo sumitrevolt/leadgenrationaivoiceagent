@@ -168,7 +168,7 @@ def get_voice_packages(band: str | None = None, niche: str | None = None) -> dic
         "product": "voice_agent",
         "pricing_model": "flat_monthly",
         "band": b,
-        "band_info": {k: v for k, v in BANDS[b].items()},
+        "band_info": dict(BANDS[b].items()),
         "pilot_days": PILOT_DAYS,
         "pilot_call_cap": PILOT_CALL_CAP,
         "tiers": _make_tiers(b),

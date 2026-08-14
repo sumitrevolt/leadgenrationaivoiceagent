@@ -27,15 +27,15 @@ from typing import Any
 # --------------------------------------------------------------------------- #
 # Soft "no" — the polite Indian refusal that a pushy bot mis-reads as "maybe".
 _SOFT_NO_PATTERNS = [
-    r"dekh\s*te?\s+ha?i?n",          # dekhte hain
-    r"soch\s*ke?\s+bata",            # soch ke bata(ta/ti) hoon
-    r"baad\s+m[ei]\b",               # baad me (baat)
-    r"abhi\s+nah[ie]",               # abhi nahi
-    r"time\s+nah[ie]",               # time nahi
-    r"zarur\s*at?\s+nah[ie]",        # zarurat nahi
+    r"dekh\s*te?\s+ha?i?n",  # dekhte hain
+    r"soch\s*ke?\s+bata",  # soch ke bata(ta/ti) hoon
+    r"baad\s+m[ei]\b",  # baad me (baat)
+    r"abhi\s+nah[ie]",  # abhi nahi
+    r"time\s+nah[ie]",  # time nahi
+    r"zarur\s*at?\s+nah[ie]",  # zarurat nahi
     r"(?:interest|intrest)\s+nah[ie]",
-    r"nah[ie]\s+chahiy?e",           # nahi chahiye
-    r"theek\s+hai\s+theek\s+hai",    # rushed brush-off
+    r"nah[ie]\s+chahiy?e",  # nahi chahiye
+    r"theek\s+hai\s+theek\s+hai",  # rushed brush-off
     r"whats?\s*app\s*(?:p[ae]?\s*)?bhej",  # "whatsapp pe bhej do"
     r"रुचि\s*नहीं|नहीं\s*चाहिए|बाद\s*में",
 ]
@@ -44,7 +44,7 @@ _SOFT_NO_RE = [re.compile(p) for p in _SOFT_NO_PATTERNS]
 # Permission / timing ask — Gong: permission-opener converts ~5–10x better.
 _PERMISSION_PATTERNS = [
     r"(?:do|ek|2)\s*minute",
-    r"baat\s+kar\s+sak",             # baat kar sakti/sakte hoon
+    r"baat\s+kar\s+sak",  # baat kar sakti/sakte hoon
     r"busy\s+(?:to|ho|hain)",
     r"abhi\s+(?:sahi\s+)?(?:samay|time)",
     r"theek\s+(?:samay|time)\s+hai",
@@ -55,28 +55,52 @@ _PERMISSION_RE = [re.compile(p) for p in _PERMISSION_PATTERNS]
 
 # Pitch / push markers — a reply that asks for more or pushes value.
 _PITCH_PATTERNS = [
-    r"\?",                           # any question
-    r"demo", r"book", r"slot", r"meeting", r"call\s+kar",
-    r"whats?\s*app",                 # async handoff offer is still a next-step pitch
-    r"sirf\s+\d", r"₹\s*\d", r"offer", r"discount",
+    r"\?",  # any question
+    r"demo",
+    r"book",
+    r"slot",
+    r"meeting",
+    r"call\s+kar",
+    r"whats?\s*app",  # async handoff offer is still a next-step pitch
+    r"sirf\s+\d",
+    r"₹\s*\d",
+    r"offer",
+    r"discount",
     r"ek\s+baar\s+(?:dekh|try|sun)",
 ]
 _PITCH_RE = [re.compile(p) for p in _PITCH_PATTERNS]
 
 # Graceful close markers — a polite goodbye is NOT pushy.
 _GOODBYE_PATTERNS = [
-    r"shukriya", r"dhanyaw?ad", r"thank", r"din\s+ach?ha", r"aabhar",
-    r"samajh\s+(?:gay|gai)", r"bilkul\s+ji", r"koi\s+baat\s+nah[ie]",
-    r"pareshan\s+nah[ie]", r"aapka\s+din",
+    r"shukriya",
+    r"dhanyaw?ad",
+    r"thank",
+    r"din\s+ach?ha",
+    r"aabhar",
+    r"samajh\s+(?:gay|gai)",
+    r"bilkul\s+ji",
+    r"koi\s+baat\s+nah[ie]",
+    r"pareshan\s+nah[ie]",
+    r"aapka\s+din",
 ]
 _GOODBYE_RE = [re.compile(p) for p in _GOODBYE_PATTERNS]
 
 # Robotic translationese — over-Sanskritised tokens a natural Hinglish caller
 # would NEVER use; strong signal of literal machine-translation, not real speech.
 _TRANSLATIONESE_TOKENS = [
-    "sahayata", "uplabdh", "pradan kar", "samadhan", "abhivadan",
-    "sewa pradan", "kृपया", "nivedan hai", "sampark karein", "uttam seva",
-    "aapki kaise sahayata", "main aapki kis prakar", "kis prakar sahayata",
+    "sahayata",
+    "uplabdh",
+    "pradan kar",
+    "samadhan",
+    "abhivadan",
+    "sewa pradan",
+    "kृपया",
+    "nivedan hai",
+    "sampark karein",
+    "uttam seva",
+    "aapki kaise sahayata",
+    "main aapki kis prakar",
+    "kis prakar sahayata",
 ]
 
 # AI self-disclosure (TRAI robocall clause + DPDP) — the opener MUST reveal it's
@@ -84,13 +108,13 @@ _TRANSLATIONESE_TOKENS = [
 # treats this as a wired legal requirement, so the self-test asserts it.
 _AI_DISCLOSURE_PATTERNS = [
     r"\ba\.?\s?i\.?\s+(?:assistant|agent|bot|bol|hoon|hu|se|hai)",  # "AI assistant", "ai bol rahi"
-    r"\bek\s+a\.?\s?i\b",                                            # "ek AI"
+    r"\bek\s+a\.?\s?i\b",  # "ek AI"
     r"virtual\s+(?:assistant|agent)",
     r"automated\s+(?:call|assistant|system|voice|agent)",
     r"artificial\s+intelligence",
     r"computer\s+program",
     r"\brobot\b",
-    r"कृत्रिम|ए\.?\s?आई|बॉट|वर्चुअल|स्वचालित",                       # Devanagari: AI/bot/virtual/automated
+    r"कृत्रिम|ए\.?\s?आई|बॉट|वर्चुअल|स्वचालित",  # Devanagari: AI/bot/virtual/automated
 ]
 _AI_DISCLOSURE_RE = [re.compile(p) for p in _AI_DISCLOSURE_PATTERNS]
 
@@ -251,14 +275,10 @@ def has_ai_disclosure(text: str) -> bool:
     return any(rx.search(t) for rx in _AI_DISCLOSURE_RE)
 
 
-def check_missing_ai_disclosure(
-    transcript: list[dict], within_bot_turns: int = 2
-) -> str | None:
+def check_missing_ai_disclosure(transcript: list[dict], within_bot_turns: int = 2) -> str | None:
     """The opener must disclose AI within the first ``within_bot_turns`` bot
     turns (TRAI robocall + DPDP). Returns a finding if none do, else None."""
-    bot_turns = [
-        t.get("content", "") for t in _turns(transcript) if t.get("role") == "assistant"
-    ]
+    bot_turns = [t.get("content", "") for t in _turns(transcript) if t.get("role") == "assistant"]
     if not bot_turns:
         return None
     early = bot_turns[:within_bot_turns]

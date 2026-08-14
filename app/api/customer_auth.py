@@ -482,7 +482,7 @@ class SetPwIn(BaseModel):
 async def set_password(req: SetPwIn, current_user=Depends(require_admin)):
     """ADMIN: ek client ka login email+password set/reset karo (client_id se link)."""
     res = register_login(req.email, req.password, req.client_id)
-    return {"ok": True, **res}
+    return {"ok": True, **(res or {})}
 
 
 class LoginIn(BaseModel):

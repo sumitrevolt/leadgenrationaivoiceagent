@@ -11,6 +11,7 @@ drifts from code (~750 routes). The full spec stays live at `/openapi.json`.
 Generates from the app in-process (no running server). Never raises (CI-safe).
 Windows venv: .venv\\Scripts\\python.exe scripts/sync_api_docs.py
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -88,7 +89,9 @@ def main(argv: list[str]) -> int:
 
     if "--check" in argv:
         if current.strip() != updated.strip():
-            print("[sync_api_docs] API.md endpoint index is OUT OF DATE — run: python scripts/sync_api_docs.py")
+            print(
+                "[sync_api_docs] API.md endpoint index is OUT OF DATE — run: python scripts/sync_api_docs.py"
+            )
             return 1
         print("[sync_api_docs] API.md endpoint index up to date")
         return 0

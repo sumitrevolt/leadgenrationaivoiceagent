@@ -12,6 +12,7 @@ Usage:
   python scripts/validate_env.py            # report (exit 1 only on fatal prod secret gap)
   python scripts/validate_env.py --strict   # WARN bhi failure (exit 1) — strict deploy gate
 """
+
 from __future__ import annotations
 
 import os
@@ -66,7 +67,10 @@ def main() -> int:
 
     # --- Ops/automation config (degrade = WARN) ---
     check("DATABASE_URL (Postgres)", getattr(settings, "database_url", ""))
-    check("SMTP host (email outreach)", getattr(settings, "smtp_host", "") or getattr(settings, "smtp_server", ""))
+    check(
+        "SMTP host (email outreach)",
+        getattr(settings, "smtp_host", "") or getattr(settings, "smtp_server", ""),
+    )
     check("GROQ_API_KEY (STT)", getattr(settings, "groq_api_key", ""))
     check("SENTRY_DSN (error capture)", getattr(settings, "sentry_dsn", ""))
 

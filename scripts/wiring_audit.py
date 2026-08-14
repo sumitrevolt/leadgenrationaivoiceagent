@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Functional wiring audit — onclick handlers + fetch URLs vs FastAPI routes."""
+
 from __future__ import annotations
 
-import re
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -122,9 +123,7 @@ def main() -> int:
         apis = extract_api_paths(html)
 
         missing_handlers = [
-            h
-            for h in sorted(set(handlers))
-            if h not in funcs and not h.endswith(".splice")
+            h for h in sorted(set(handlers)) if h not in funcs and not h.endswith(".splice")
         ]
         missing_routes = [p for p in apis if not route_exists(p, routes)]
 

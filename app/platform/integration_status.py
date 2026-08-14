@@ -15,6 +15,7 @@ Safe precedence (a problem always outranks stale success):
   never_configured > revoked > expired > unauthorized > unreachable >
   transient_failure > expiring_soon > healthy > unknown
 """
+
 from __future__ import annotations
 
 import os
@@ -91,7 +92,9 @@ def _parse_dt(v) -> datetime | None:
         return None
 
 
-def classify(evidence: dict, *, now: datetime | None = None, threshold_days: int | None = None) -> dict:
+def classify(
+    evidence: dict, *, now: datetime | None = None, threshold_days: int | None = None
+) -> dict:
     """Pure classifier. Evidence keys (all optional):
       configured (bool), expires_at (dt|iso|None), revoked (bool),
       auth_failure/unauthorized (bool), transient_failure (bool), unreachable (bool),
@@ -164,8 +167,13 @@ def _vault_evidence(client_id: str, platform: str) -> dict:
         e = a.get("expires_at")
         if e:
             exp = e if exp is None else min(exp, str(e))  # ISO strings sort chronologically
-    return {"configured": True, "expires_at": exp, "revoked": False, "last_success": None,
-            "account_count": len(plat)}
+    return {
+        "configured": True,
+        "expires_at": exp,
+        "revoked": False,
+        "last_success": None,
+        "account_count": len(plat),
+    }
 
 
 def _reference_id(client_id: str, platform: str) -> str:
@@ -185,17 +193,21 @@ def customer_integration_statuses(client_id: str) -> list[dict]:
             continue  # don't advertise every unconnected provider to customers
         c = classify(ev, threshold_days=thr)
         st = c["status"]
-        out.append({
-            "integration": _DISPLAY.get(platform, platform.title()),
-            "status": st,
-            "label": _CUSTOMER_LABEL.get(st, "Status unknown"),
-            "action_required": c["reconnect_required"],
-            "recommended_action": _CUSTOMER_ACTION.get(st, ""),
-        })
+        out.append(
+            {
+                "integration": _DISPLAY.get(platform, platform.title()),
+                "status": st,
+                "label": _CUSTOMER_LABEL.get(st, "Status unknown"),
+                "action_required": c["reconnect_required"],
+                "recommended_action": _CUSTOMER_ACTION.get(st, ""),
+            }
+        )
     return out
 
 
-def admin_integration_statuses(client_id: str | None = None, *, max_clients: int = 200) -> list[dict]:
+def admin_integration_statuses(
+    client_id: str | None = None, *, max_clients: int = 200
+) -> list[dict]:
     """Admin diagnostics (sanitized). Includes reference id + expiry (when known) +
     recommended action, but never tokens/secrets/raw payloads. Bounded scan."""
     thr = expiring_threshold_days()
@@ -212,20 +224,22 @@ def admin_integration_statuses(client_id: str | None = None, *, max_clients: int
                 continue
             c = classify(ev, threshold_days=thr)
             st = c["status"]
-            out.append({
-                "integration": platform,
-                "display_name": _DISPLAY.get(platform, platform.title()),
-                "client_id": cid,
-                "status": st,
-                "expires_at": ev.get("expires_at") or None,  # only when authoritatively known
-                "last_successful_activity": ev.get("last_success") or None,
-                "last_checked": now,
-                "reconnect_required": c["reconnect_required"],
-                "retry_eligible": c["retry_eligible"],
-                "failure_category": st if st not in (HEALTHY, EXPIRING_SOON) else None,
-                "reference_id": _reference_id(cid, platform),
-                "recommended_action": _ADMIN_ACTION.get(st, ""),
-            })
+            out.append(
+                {
+                    "integration": platform,
+                    "display_name": _DISPLAY.get(platform, platform.title()),
+                    "client_id": cid,
+                    "status": st,
+                    "expires_at": ev.get("expires_at") or None,  # only when authoritatively known
+                    "last_successful_activity": ev.get("last_success") or None,
+                    "last_checked": now,
+                    "reconnect_required": c["reconnect_required"],
+                    "retry_eligible": c["retry_eligible"],
+                    "failure_category": st if st not in (HEALTHY, EXPIRING_SOON) else None,
+                    "reference_id": _reference_id(cid, platform),
+                    "recommended_action": _ADMIN_ACTION.get(st, ""),
+                }
+            )
     return out
 
 

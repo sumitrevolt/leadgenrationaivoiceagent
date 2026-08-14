@@ -1,4 +1,5 @@
 """VPS smoke: pehle seeded client pe 2-agent provisioning chala ke verify (run on VPS)."""
+
 import asyncio
 
 from sqlalchemy import select

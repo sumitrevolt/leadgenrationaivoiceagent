@@ -11,6 +11,7 @@ Idempotent: skips any call whose call_sid already has a row. Safe to re-run.
 
 Usage (repo root):  python scripts/backfill_call_logs.py
 """
+
 from __future__ import annotations
 
 import glob
@@ -125,8 +126,10 @@ def main() -> int:
                 print(f"  skip {call_id}: {e}")
                 skipped += 1
 
-    print(f"backfill_call_logs: inserted={inserted} skipped={skipped} "
-          f"(scanned {len(seen)} calls across {len(transcript_files)} files)")
+    print(
+        f"backfill_call_logs: inserted={inserted} skipped={skipped} "
+        f"(scanned {len(seen)} calls across {len(transcript_files)} files)"
+    )
     return 0
 
 
