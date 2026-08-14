@@ -1,35 +1,28 @@
-# SESSION_HANDOFF — 2026-08-14 (Cursor: all-safe-branches integration + DSH deploy prep)
+# SESSION_HANDOFF — 2026-08-14 (Cursor: full DSH arm + Product-1 90d plan artifacts)
 
 ## Status
-**IN PROGRESS — integration authorized by owner.** Current main (`cca7b3bd`) was merged into `cursor/deepseek-harness-migration-20260814`. DSH implementation commit `ab21f015` has passing pre-commit gates; merge conflicts are being resolved as unions. No production flag has been armed and no `.env` value changed.
+**DONE — DSH FULL AUTHORITY ARMED (owner override ADR-182 wave order).** Prod tip still `fb3d0bc2`. `DSH_RUNTIME_ENABLED=1`, allowlist=29 migratable, `dsh-worker` healthy, `swara`/`ananya` remain `direct`. Rollback drill proven then re-armed. Revenue Phase 0 checklist + 90d capacity plan docs landed (local).
 
-## Active streams
-- `WS-DSH` ACTIVE — code integration/deploy only; runtime/shadow/canary/retirement stay separately gated
-- `WS-GTM1` ACTIVE — Hot Queue owner execution remains revenue blocker
-- `WS-SEC` ACTIVE — Voice/Swara frozen; compliance gates unchanged
+## DSH facts (DIRECT_HOST_VERIFIED 2026-08-14 ~16:12Z)
+- Image: `leadgen-dsh:47f94385` built on VPS; worker `leadgen-dsh-worker:fb3d0bc2`
+- Env bak: `.env.bak-dsh-fullarm-20260814_155839`
+- Proofs: `provider_kavya=dsh` · `provider_swara=direct` · allowlist_len=29 · `/health`=`fb3d0bc2`
+- Rollback drill: `DSH_RUNTIME_ENABLED=0` → kavya=`direct` → re-arm → kavya=`dsh` (`ROLLBACK_DRILL_OK` + `REARM_OK`)
+- Hotfixes required for arm: `tzlocal==5.4.4` in `requirements-dsh.lock.txt`; lazy `app/tasks/__init__.py`; redis re-attached to `leadgen_dsh_net` with `--alias redis` (stale redis lacked dsh_net DNS)
+- Kill: `DSH_RUNTIME_ENABLED=0` + recreate app-image with `APP_VERSION=fb3d0bc2`
 
-## DSH evidence
-- Upstream pin: `deepseek-ai/deepseek-harness` @ `47f943859bef60e4160492346772ded9b24f765a`
-- Matching smoke pair binary SHA: `4d2f75728797d7c932c20a09be1ff5042f3758111cde81ec8b7455ce52dfdfc6`
-- Fresh smoke: fake MCP/model pass, shutdown `0.516s`, hard cancel `3.094s`
-- CycloneDX SBOM: 1,275 components; forbidden runtime dependencies empty
-- Canonical evidence: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`
-- Shadow promotion gate remains closed; runtime/shadow flags OFF; allowlist empty
+## Revenue
+- Phase 0 owner checklist: `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md`
+- 90d path to 50 paid/day Product-1: `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`
+- Not claiming 50/day live — capacity program only
 
-## Integration inventory
-- Main already contains the safe merged worktree batch through PR #359 and docs PR #360.
-- PR #357 and PR #354 are being updated independently against current main before merge.
-- Patch-equivalent stale remote branches are already represented on main and must not be replayed.
-- Debug-only `origin/ci-debug` is not a production merge candidate.
-
-## Mandatory deploy posture
-- Use `scripts/deploy_vps.sh` only with exact `APP_VERSION`.
-- Close `VOICE_LAUNCH_KILL` fence for deploy, then restore the prior value with exact image version.
-- Do not arm `DSH_RUNTIME_ENABLED`, `DSH_SHADOW_ENABLED`, `HARNESS_SESSION_EVENTS`, `AGENT_HARNESS`, `GSC_ENABLED`, dunning, or cold WhatsApp.
-- Verify direct HTTPS `/health` twice, version parity, 5/5 image skew, queues/DLQ, and rollback SHA.
+## Do not
+- Arm cold WA / dunning / GSC without creds / harness session events
+- Delete legacy direct executor
+- Recreate without `APP_VERSION` · bare compose without `-f docker-compose.vps.yml`
+- Use `DSH_AGENT_ALLOWLIST=*` (resolves empty → all direct)
 
 ## Next
-1. Finish merge conflict resolution and run targeted DSH suites + `prod_check.py` + secrets.
-2. Push DSH branch, create/merge PR after checks.
-3. Merge updated PR #357 and #354 only when required checks are green.
-4. Deploy final `origin/main` with canonical script; record exact production evidence.
+1. Owner: Hot Queue blitz daily until 2nd paid
+2. Commit/push surgical fixes (`requirements-dsh.lock.txt`, `app/tasks/__init__.py`) when owner asks
+3. Phase 1: ads budget + GSC creds decision

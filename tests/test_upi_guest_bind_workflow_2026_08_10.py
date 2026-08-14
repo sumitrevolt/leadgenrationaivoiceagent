@@ -16,6 +16,8 @@ deal-won, gst invoice) are monkeypatched — no network/DB/Celery, no real
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 
@@ -88,6 +90,7 @@ def test_approve_unbound_fails_closed_and_bind_then_reapprove_activates(up, act)
     assert not decided.get("activated")
     assert "approved_but_unbound" in (decided.get("warning") or "")
     assert act == []
+    assert [row["id"] for row in up.list_actionable()] == [sub["id"]]
 
     # 2. Operator binds the verified client.
     bound = up.bind_client(sub["id"], "cli_real", decided_by="admin")
@@ -98,11 +101,54 @@ def test_approve_unbound_fails_closed_and_bind_then_reapprove_activates(up, act)
     assert bound.get("bound_by") == "admin"
     assert bound.get("bound_at")
     assert act == []  # bind itself NEVER activates
+    assert [row["id"] for row in up.list_actionable()] == [sub["id"]]
 
     # 3. Re-approve (owner gate) → activates exactly once.
     final = up.decide(sub["id"], True, decided_by="admin")
     assert final.get("activated") is True
     assert act == [("cli_real", "starter")]
+    assert up.list_actionable() == []
+
+
+def test_actionable_queue_includes_pending_and_approved_unactivated(up, act):
+    pending = _guest_submit(up, ref="TXN-ACTION-PENDING")
+    approved_unbound = _guest_submit(up, ref="TXN-ACTION-UNBOUND")
+    activated = _guest_submit(up, ref="TXN-ACTION-DONE")
+
+    up.decide(approved_unbound["id"], True)
+    up.bind_client(activated["id"], "cli_real")
+    up.decide(activated["id"], True)
+
+    actionable_ids = [row["id"] for row in up.list_actionable()]
+    assert actionable_ids == [pending["id"], approved_unbound["id"]]
+
+
+def test_approved_activation_failure_stays_actionable_until_retry(up, act, monkeypatch):
+    sub = up.submit_payment("cli_real", "starter", "TXN-ACTION-FAILED", amount=1999)
+    monkeypatch.setattr(up, "_try_activate", lambda *args, **kwargs: False)
+
+    failed = up.decide(sub["id"], True)
+
+    assert failed.get("activation_blocked") == "activation_failed"
+    assert [row["id"] for row in up.list_actionable()] == [sub["id"]]
+
+    monkeypatch.setattr(up, "_try_activate", lambda *args, **kwargs: True)
+    recovered = up.decide(sub["id"], True)
+
+    assert recovered.get("activated") is True
+    assert "activation_blocked" not in recovered
+    assert up.list_actionable() == []
+
+
+def test_admin_pending_api_returns_full_actionable_queue(up, monkeypatch):
+    from app.api import upi_payments as api
+
+    rows = [{"id": "pending"}, {"id": "approved-unactivated"}]
+    monkeypatch.setattr(up, "list_actionable", lambda: rows)
+
+    out = asyncio.run(api.upi_pending_list(_user={"role": "admin"}))
+
+    assert out == {"ok": True, "pending": rows}
 
 
 def test_bind_before_approve_single_owner_gate(up, act):

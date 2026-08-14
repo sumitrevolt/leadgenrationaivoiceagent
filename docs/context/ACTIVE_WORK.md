@@ -2,42 +2,42 @@
 
 ---
 
-## WS-DSH DeepSeek Harness full migration (CURSOR LANE B)
-- **ID:** WS-DSH
-- **Business outcome:** Replace only the governed planning/turn/tool loop through a reversible, evidence-gated DSH path without introducing a second control plane or touching voice
-- **Current state:** **CODE-READY/INERT, integration in progress** · source-built pair is bit-identical; fake MCP/model smoke, lifecycle bounds, closure proof and CycloneDX SBOM green · `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, allowlist empty
-- **Prep completed:** Hardened Cordis closure, pkg-visible config path, Linux fake MCP/model lifecycle smoke, reproducibility proof, CycloneDX SBOM, shadow evidence gate and rollback contract
-- **Next exact action:** Merge/deploy code only under the user's current authorization; do not arm runtime/shadow, promote canaries, or retire legacy paths without separate owner authorization.
-- **Out of scope:** Any deploy/flag arm/promotion/deletion without owner authorization · plan-file edits · stock wheel/direct embedding/default tools/direct provider access · voice migration
-
----
-
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** Technical READY · CODE-PRESENT this session: admin/inbox/marketing "Aaj" path Hot Queue pe; owner outreach + UPI confirm still the revenue gate · Evidence `docs/evidence/REVENUE_READY_20260812.md` + live 2026-08-14 `ready_for_first_paid_customer=true`
-- **Next exact action:** Owner daily Hot Queue blitz (15 min/day at `/app/inbox`) + UPI approval when payment arrives
-- **Out of scope:** Deploy · flag arm · lead magnet traffic generation
+- **Current state:** Technical READY · checklist `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · Evidence `docs/evidence/REVENUE_READY_20260812.md` + live `ready_for_first_paid_customer=true`
+- **Next exact action:** Owner daily Hot Queue blitz (15–30 min at `/app/inbox`) + UPI approval when payment arrives
+- **Out of scope:** Flag arm · cold WA auto · lead magnet ads (see WS-REV50)
+
+---
+
+## WS-REV50 Product-1 → 50 paid/day capacity (90d)
+- **ID:** WS-REV50
+- **Business outcome:** Build capacity toward 50 new ₹1,999/mo Marketing subscribers / day
+- **Current state:** Plan artifact `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` · Phase 0 in progress via WS-GTM1 · not claiming 50/day live
+- **Next exact action:** After 2nd paid, owner sets ads budget + GSC creds decision for Phase 1
+- **Out of scope:** Weakening compliance · Stripe/Razorpay return · inventing metrics
 
 ---
 
 ## WS-SEC Security/compliance residual (CURSOR LANE B)
 - **ID:** WS-SEC
-- **Business outcome:** All compliance gates (DND/TRAI/DPDP/secrets) remain fail-closed while voice stays frozen
-- **Current state:** Gates INTACT · voice/Swara surface remains frozen · no compliance gate touched by WS-DSH
-- **Next exact action:** Monitor only; no voice edits and no gate weakening
-- **Out of scope:** Voice/Swara edits · weakening compliance gates
+- **Business outcome:** Compliance gates stay fail-closed; voice frozen; DSH kill switch practiced
+- **Current state:** Gates INTACT · voice/Swara FROZEN · DSH LIVE-AUTHORITY 29 on `fb3d0bc2` (rollback drill green)
+- **Next exact action:** Monitor DSH worker health + queues; kill = `DSH_RUNTIME_ENABLED=0` if needed
+- **Out of scope:** Voice/Swara edits · gate weakening · legacy executor deletion
 
 ---
 
 ## Parked (not in active 3)
-- **WS-UPI304** Guest bind workflow is parked on external wait for first live proof; no code change in this DSH slice
-- **WS-HYG** Duplicate/docs hygiene 2026-08-14 — archived + AUTH-DEPLOYED on `150bf898` via PR #356. COMPLETE.
-- **WS-DSH180** ADR-180 SessionEvent steal remains LIVE-INERT on prod `150bf898` (`HARNESS_SESSION_EVENTS` UNSET). Do not arm.
-- **WS-GOV** Boss + Second Brain governance (PR #330 MERGED `8f5a2e2d`, prod has ancestry, flag OFF)
-- **WS-BUZZ** Local Buzz Desktop + relay (Cursor ACP Boss canonical `1b13cecc`, relay verified)
+- **WS-DSH** Armed under ADR-183 owner override (was CODE-READY/INERT). Shadow soak / wave order skipped by owner. Retirement still blocked.
+- **WS-UPI304** Guest bind CODE-LIVE — wait first live proof
+- **WS-HYG** COMPLETE on `fb3d0bc2` ancestry
+- **WS-DSH180** SessionEvent still UNSET — do not arm with AGENT_HARNESS
+- **WS-GOV** Boss governance flag OFF
+- **WS-BUZZ** Local Buzz relay
 - **WS-DEP329** Rollback retention lineage
-- **WS-REV** #306 live proofs (after #304 guest bind proven)
-- **WS-AMAX** DUNNING safe-enabler (#307 stays OFF per owner decision)
-- **WS-SEC1** Vobiz credential rotation
-- Creative OS expansion · Swara/voice (FROZEN) · Stage B AMBER OpenClaw
+- **WS-REV** #306 after #304 proof
+- **WS-AMAX** Dunning OFF
+- **WS-SEC1** Vobiz rotation
+- Creative OS · Swara/voice (FROZEN) · Stage B AMBER OpenClaw

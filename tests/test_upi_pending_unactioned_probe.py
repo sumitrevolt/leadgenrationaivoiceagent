@@ -42,7 +42,20 @@ def fake_payments(monkeypatch):
             return [r for r in rows if r.get("status") == status]
         return list(rows)
 
+    def _fake_actionable():
+        return [
+            row
+            for row in rows
+            if row.get("status") == "pending"
+            or (
+                row.get("status") == "approved"
+                and not row.get("activated")
+                and not row.get("auto_activated")
+            )
+        ]
+
     monkeypatch.setattr("app.platform.upi_payments.list_payments", _fake_list)
+    monkeypatch.setattr("app.platform.upi_payments.list_actionable", _fake_actionable)
     return rows
 
 
@@ -110,15 +123,56 @@ def test_store_failure_is_neutral_not_a_blocker(monkeypatch):
     def _boom(status=None):
         raise RuntimeError("store unreadable")
 
-    monkeypatch.setattr("app.platform.upi_payments.list_payments", _boom)
+    monkeypatch.setattr("app.platform.upi_payments.list_actionable", _boom)
     out = activation._upi_pending_unactioned()
     assert out["status"] == activation._NEUTRAL
     assert out["checks"]["store_ok"] is False
 
 
-def test_approved_rows_are_ignored(fake_payments):
-    """Only `pending` blocks revenue; an approved old row is done business."""
-    fake_payments.append({"id": "p-ok", "status": "approved", "created_at": _iso(72)})
+def test_approved_unbound_row_is_still_a_blocker(fake_payments):
+    """Bank credit confirmed but identity missing is not done until activation."""
+    fake_payments.append(
+        {
+            "id": "p-unbound",
+            "status": "approved",
+            "needs_client_bind": True,
+            "activation_blocked": "empty_client_id",
+            "created_at": _iso(72),
+        }
+    )
+    out = activation._upi_pending_unactioned()
+    assert out["status"] == activation._BLOCKER
+    assert out["checks"]["pending_total"] == 1
+    assert out["checks"]["approved_unbound"] == 1
+    assert "bind" in out["action"].lower()
+
+
+def test_approved_bound_unactivated_row_is_still_a_blocker(fake_payments):
+    fake_payments.append(
+        {
+            "id": "p-bound-unactivated",
+            "status": "approved",
+            "client_id": "client-1",
+            "created_at": _iso(72),
+        }
+    )
+    out = activation._upi_pending_unactioned()
+    assert out["status"] == activation._BLOCKER
+    assert out["checks"]["approved_unbound"] == 0
+    assert out["checks"]["approved_unactivated"] == 1
+    assert "re-approve" in out["action"].lower()
+
+
+def test_approved_activated_row_is_ignored(fake_payments):
+    fake_payments.append(
+        {
+            "id": "p-ok",
+            "status": "approved",
+            "client_id": "client-1",
+            "activated": True,
+            "created_at": _iso(72),
+        }
+    )
     out = activation._upi_pending_unactioned()
     assert out["status"] == activation._OK
     assert out["checks"]["pending_total"] == 0
