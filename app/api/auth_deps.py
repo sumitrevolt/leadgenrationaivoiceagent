@@ -157,6 +157,16 @@ def require_permission(permission: str):
     return permission_checker
 
 
+async def require_customer(*args, **kwargs):
+    """
+    Import-safe shim for require_customer (lives in app.api.customer_auth).
+    Some legacy/generated code imports it from here.
+    """
+    from app.api.customer_auth import require_customer as _real
+
+    return await _real(*args, **kwargs)
+
+
 # NOTE: Webhook signature verification (Stripe) lives in app.api.webhooks with
 # real HMAC checks. The always-True stubs that used to live here were removed
 # so nobody accidentally imports a no-op verifier. (Twilio verifier removed
