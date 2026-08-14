@@ -4,30 +4,29 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` last verified at `150bf898` before this integration (PR #356 AUTH-DEPLOY). WS-DSH is CODE-READY/INERT with matching local Linux binaries, smoke/SBOM and fail-closed shadow evidence; runtime/shadow flags remain OFF and allowlist empty.
+2026-08-14 — prod `/health` = `fb3d0bc2` (PR #361 AUTH-DEPLOY + #357/#354 ancestry). DSH CODE-READY/INERT on prod (`DSH_RUNTIME_ENABLED`/`DSH_SHADOW_ENABLED` OFF, no `dsh-worker`). Kill fence closed (VLK=FALSE_TOKEN). Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`).
 
-## CODE-READY / INERT — DeepSeek Harness migration contract (2026-08-14)
-- Label: CODE-PRESENT | TEST-PROVEN | LOCAL-RUNTIME-PROVEN; production deploy pending
-- ADR-179 remains intact for stock wheel / direct embedding / default tools / direct provider access
-- ADR-181 conditionally supersedes only for an owner-mandated hardened source-built Linux path
-- Canonical controls remain unchanged: Celery, Python domain engines, `agent_registry`, Owner OS approvals, tenant/compliance/billing controls
-- Workforce contract is frozen at 31 identities preserved / 29 migratable / `swara` + `ananya` RED/HARD_OFF excluded from DSH
-- Build evidence: smoke-a/smoke-b executable SHA matches; closure proofs equal; forbidden packages empty
-- Linux smoke green on Docker-internal-only network: fake MCP/model passed, shutdown `0.516s`, hard cancel `3.094s`; CycloneDX SBOM has 1,275 components
-- Evidence artifacts: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`, `docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json`, `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json`
-- Shadow remains mechanically blocked: 120 golden cases + 2,000 turns / 14 days + separate owner authorization are not production-proven
-- Workstream posture: `WS-DSH` active, `WS-GTM1` active, `WS-SEC` active, `WS-UPI304` parked on external wait
-
-## DEPLOYED 2026-08-14 — `150bf898` (PR #356 hygiene + ADR-180)
-**Prod `/health` = `150bf898`** twice after kill-restore (DIRECT_HOST_VERIFIED 2026-08-14 04:16Z / 04:17Z): `healthy` · `environment:production`. Merge tip is `150bf898` from feature head `e5feaa6e` (UP045); old wait SHA `8fa39c84` is ancestor only. Ships hygiene archive + ADR-180 SessionEvent (INERT) + prior undeployed main (#353/#352/#327 ancestry).
-Kill-fence: backup `.env.bak-killfence-20260814035416` → VLK TRUE for `deploy_vps.sh` → `DEPLOYED 150bf898 OK` (BUILD_RC=0 UP_RC=0 5/5 skew-zero smoke 200) → VLK=0 + recreate with `APP_VERSION=150bf898` → 5/5 VLK=FALSE_TOKEN · HSE=UNSET · APP_VERSION_MATCH=1. Rollback = `2326c931`.
+## DEPLOYED 2026-08-14 — `fb3d0bc2` (PR #361 DSH inert + #357/#354)
+**Prod `/health` = `fb3d0bc2`** (DIRECT_HOST_VERIFIED 2026-08-14 ~15:25Z HTTPS×2 + host): `healthy` · `environment:production`. Merge tip `fb3d0bc28459ef66efe0fa49a150a896d478cd9c` from PR #361 (hardened DeepSeek Harness runtime staged inert) after #357 GTM dashboards + #354 pydantic pair. Kill-fence: `.env.bak-deploy-killfence-20260814_150136` → VLK TRUE → `deploy_vps.sh` `=== DEPLOYED fb3d0bc2 OK ===` (5/5 skew, smoke 200, celery/dlq 0) → VLK=0 recreate with `APP_VERSION=fb3d0bc2`. No `--profile dsh`. Rollback lineage protected tag = `150bf898`.
 Label: DIRECT_HOST_VERIFIED (2026-08-14)
-**#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
+**Do not arm:** `DSH_RUNTIME_ENABLED` · `DSH_SHADOW_ENABLED` · harness/GSC/dunning/cold WA. **#307:** stays OPEN; dunning OFF. **#304:** guest bind CODE-LIVE.
+
+## CODE-READY / INERT — DeepSeek Harness (LIVE on prod tip, flags OFF)
+- Label: PRODUCTION-PROVEN code path | CODE-PRESENT | TEST-PROVEN | INERT runtime
+- ADR-179 intact for stock wheel / direct embedding; ADR-181 hardened source-built path only when owner arms
+- Canonical controls unchanged; workforce 31 preserved / 29 migratable; `swara`+`ananya` excluded
+- Evidence: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`, `DSH_SUPPLY_CHAIN_STATIC_20260814.json`, `DSH_MIGRATION_CONTRACT_20260814.json`
+- Shadow promotion still blocked without separate owner auth + golden/volume gates
+
+## SUPERSEDED — DEPLOYED 2026-08-14 — `150bf898` (PR #356 hygiene + ADR-180)
+> Historical. Replaced by `fb3d0bc2` above. Keep as rollback tag.
+**Prod `/health` was `150bf898`** (DIRECT_HOST_VERIFIED 2026-08-14). Kill-fence `.env.bak-killfence-20260814035416`. Prior rollback `2326c931` pruned by retention after `fb3d0bc2` deploy.
+Label: DIRECT_HOST_VERIFIED (2026-08-14) — SUPERSEDED by `fb3d0bc2`
 
 ## SUPERSEDED — DEPLOYED 2026-08-13/14 — `2326c931` (PR #327 mypy land)
-> Historical. Replaced by `150bf898` above. Keep as rollback tag.
-**Prod `/health` was `2326c931`** (DIRECT_HOST_VERIFIED 2026-08-14 pre-deploy). Includes PR #327 and ancestry of `9c47647c`.
-Label: DIRECT_HOST_VERIFIED (2026-08-14) — SUPERSEDED by `150bf898`
+> Historical. Replaced by `150bf898`, then pruned from image retention after `fb3d0bc2`.
+**Prod `/health` was `2326c931`** (DIRECT_HOST_VERIFIED 2026-08-14 pre-`150bf898`).
+Label: SUPERSEDED
 
 ## SUPERSEDED — DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
 > Historical. Replaced by `2326c931` above.
