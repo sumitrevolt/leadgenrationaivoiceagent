@@ -284,17 +284,9 @@ app.dependency_overrides[require_manager] = get_mock_user
 app.dependency_overrides[require_admin] = get_mock_user
 app.dependency_overrides[require_super_admin] = get_mock_user
 
-
-def get_mock_customer_id():
-    """Return a mock customer client_id for tests."""
-    return "test-customer-id"
-
-
-# Customer portal auth (Phase 5+) — same global-override pattern as admin tier.
-# Individual tests can pop/replace this if they need real 401/403 or specific IDs.
-from app.api.customer_auth import require_customer
-
-app.dependency_overrides[require_customer] = get_mock_customer_id
+# NOTE: require_customer deliberately has NO global override here — customer
+# routes must keep rejecting anonymous callers (401/403) unless an individual
+# test opts in with its own app.dependency_overrides[require_customer].
 
 
 @pytest.fixture(autouse=True)
