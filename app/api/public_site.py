@@ -117,10 +117,6 @@ async def _rate_check(ip: str, bucket: str = "inquiry") -> None:
                 store.pop(k, None)
 
 
-# Legacy alias for tests (removed in Phase 5 but some stale mocks still touch it)
-_rate_limited = _rate_check
-
-
 def _clean_phone(raw: str) -> str | None:
     """+91/0/spaces strip karke 10-12 digit number lautao (warna None).
 
