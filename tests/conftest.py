@@ -284,6 +284,10 @@ app.dependency_overrides[require_manager] = get_mock_user
 app.dependency_overrides[require_admin] = get_mock_user
 app.dependency_overrides[require_super_admin] = get_mock_user
 
+# NOTE: require_customer deliberately has NO global override here — customer
+# routes must keep rejecting anonymous callers (401/403) unless an individual
+# test opts in with its own app.dependency_overrides[require_customer].
+
 
 @pytest.fixture(autouse=True)
 def restore_dependency_overrides():

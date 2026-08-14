@@ -5,7 +5,7 @@
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** Technical READY · All routes LIVE · Owner outreach execution blocking only · Evidence `docs/evidence/REVENUE_READY_20260812.md` + live 2026-08-14 `ready_for_first_paid_customer=true`
+- **Current state:** Technical READY · CODE-PRESENT this session: admin/inbox/marketing "Aaj" path Hot Queue pe; owner outreach + UPI confirm still the revenue gate · Evidence `docs/evidence/REVENUE_READY_20260812.md` + live 2026-08-14 `ready_for_first_paid_customer=true`
 - **Next exact action:** Owner daily Hot Queue blitz (15 min/day at `/app/inbox`) + UPI approval when payment arrives
 - **Out of scope:** Deploy · flag arm · lead magnet traffic generation
 
@@ -30,8 +30,8 @@
 ---
 
 ## Parked (not in active 3)
-- **WS-HYG** Duplicate/docs hygiene 2026-08-14 — playbook templates + root orphans + deploy footguns archived; evidence `docs/evidence/HYGIENE_MERGE_20260814.md`. COMPLETE this session.
-- **WS-DSH** ADR-179 NO-GO vendor; ADR-180 steal #1 CODE-PRESENT INERT (`HARNESS_SESSION_EVENTS=0`) — typed SessionEvent + hash-chain. Do not arm in prod.
+- **WS-HYG** Duplicate/docs hygiene 2026-08-14 — archived + AUTH-DEPLOYED on `150bf898` via PR #356. COMPLETE.
+- **WS-DSH** ADR-179 NO-GO vendor; ADR-180 steal #1 LIVE-INERT on prod `150bf898` (`HARNESS_SESSION_EVENTS` UNSET). Do not arm.
 - **WS-GOV** Boss + Second Brain governance (PR #330 MERGED `8f5a2e2d`, prod has ancestry, flag OFF)
 - **WS-BUZZ** Local Buzz Desktop + relay (Cursor ACP Boss canonical `1b13cecc`, relay verified)
 - **WS-DEP329** Rollback retention (MERGED `6052b533`)

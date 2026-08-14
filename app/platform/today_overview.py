@@ -416,7 +416,7 @@ def build() -> dict[str, Any]:
     flags_off: list[dict[str, str]] = []
     # events_today = agents ne AAJ kitne kaam KIYE (done, DB event count) — NOT pending.
     # needs_decision = asli boss-decision backlog (pending agentic approvals).
-    totals = {"events_today": 0, "working": 0, "staff": 0, "needs_decision": 0}
+    totals = {"events_today": 0, "working": 0, "staff": 0, "needs_decision": 0, "hot_queue": 0}
 
     # ---- 1) Scheduled jobs (dead-man heartbeats) -> Hinglish status ----
     try:
@@ -646,6 +646,28 @@ def build() -> dict[str, Any]:
     _appr_totals = _customer_approval_backlog()
     totals["customer_approvals_pending"] = _appr_totals.get("total", 0)
     totals["customer_approvals_oldest_days"] = _appr_totals.get("oldest_days", 0)
+
+    # ---- 6) Hot Queue (GTM bottleneck) — owner 15-min sprint, never auto-send ----
+    try:
+        from app.platform import reply_agent
+
+        hq_n = len(reply_agent.hot_queue(limit=50, scope="boss") or [])
+        totals["hot_queue"] = hq_n
+        if hq_n > 0:
+            problems.insert(
+                0,
+                {
+                    "kya": (
+                        f"{hq_n} garam replies Hot Queue me wait kar rahe hain — "
+                        "15 min sprint se next paid customer"
+                    ),
+                    "fix": "/app/inbox kholo, top card pe Call/WA draft, phir Done (auto-send nahi)",
+                    "href": "/app/inbox",
+                },
+            )
+    except Exception as e:
+        logger.debug(f"[today] hot_queue failed: {e}")
+        totals["hot_queue"] = 0
 
     # ---- Headline ----
     if problems:

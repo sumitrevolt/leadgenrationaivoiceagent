@@ -4,14 +4,18 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` last probed = `2326c931`. ADR-180 SessionEvent steal CODE-PRESENT INERT (`HARNESS_SESSION_EVENTS=0`). Hygiene archive on this landing branch. Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`). `origin/main` also holds #353/#352 undeployed until this AUTH-DEPLOY.
+2026-08-14 — prod `/health` = `150bf898` (PR #356 AUTH-DEPLOY). ADR-180 INERT (`HARNESS_SESSION_EVENTS` UNSET). Kill fence closed (VLK=FALSE_TOKEN in all 5). Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`).
 
-## DEPLOYED 2026-08-13/14 — `2326c931` (PR #327 mypy land)
-**Prod `/health` = `2326c931`** (DIRECT_HOST_VERIFIED 2026-08-14). Includes PR #327 and ancestry of `9c47647c` (PR #332 ADR-177, #330, #329).
-`origin/main` had advanced past prod (#353 checkout pin, #352 regression fixes) before this merge. Next AUTH-DEPLOY ships that plus ADR-180 + hygiene archive.
+## DEPLOYED 2026-08-14 — `150bf898` (PR #356 hygiene + ADR-180)
+**Prod `/health` = `150bf898`** twice after kill-restore (DIRECT_HOST_VERIFIED 2026-08-14 04:16Z / 04:17Z): `healthy` · `environment:production`. Merge tip is `150bf898` from feature head `e5feaa6e` (UP045); old wait SHA `8fa39c84` is ancestor only. Ships hygiene archive + ADR-180 SessionEvent (INERT) + prior undeployed main (#353/#352/#327 ancestry).
+Kill-fence: backup `.env.bak-killfence-20260814035416` → VLK TRUE for `deploy_vps.sh` → `DEPLOYED 150bf898 OK` (BUILD_RC=0 UP_RC=0 5/5 skew-zero smoke 200) → VLK=0 + recreate with `APP_VERSION=150bf898` → 5/5 VLK=FALSE_TOKEN · HSE=UNSET · APP_VERSION_MATCH=1. Rollback = `2326c931`.
 Label: DIRECT_HOST_VERIFIED (2026-08-14)
 **#307:** stays OPEN; dunning stays OFF. **#304:** guest bind CODE-LIVE (PR #320 `a3fbc8bb`).
-Label: DIRECT_HOST_VERIFIED (2026-08-13 hub sunny ops update)
+
+## SUPERSEDED — DEPLOYED 2026-08-13/14 — `2326c931` (PR #327 mypy land)
+> Historical. Replaced by `150bf898` above. Keep as rollback tag.
+**Prod `/health` was `2326c931`** (DIRECT_HOST_VERIFIED 2026-08-14 pre-deploy). Includes PR #327 and ancestry of `9c47647c`.
+Label: DIRECT_HOST_VERIFIED (2026-08-14) — SUPERSEDED by `150bf898`
 
 ## SUPERSEDED — DEPLOYED 2026-08-12 (estimated) — `9c47647c` (PR #332 ADR-177 batch)
 > Historical. Replaced by `2326c931` above.

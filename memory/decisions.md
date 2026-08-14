@@ -12,6 +12,8 @@ Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Cons
 
 **Consequence:** CODE-PRESENT INERT. Kill = unset/`0`. Do not arm with `AGENT_HARNESS` in prod. Replay ignores extra fields when flag off. Steal-list #1 in `memory/backlog.md` is no longer parked.
 
+**Status 2026-08-14:** LIVE-INERT — deployed to prod as `150bf898` (PR #356, merged from feature head `e5feaa6e`); `/health` = `150bf898` `production`/`healthy`, `HARNESS_SESSION_EVENTS` UNSET in all 5 app-image containers, rollback `2326c931`.
+
 ## ADR-179 (2026-08-14) — DeepSeek Harness (`dsh`): REJECT as runtime/dep; DeepSeek stays a MODEL [EVAL]
 
 **Context:** Owner asked to add https://github.com/deepseek-ai/deepseek-harness.git if beneficial. `dsh` (MIT, v0.1 developer preview, released 2026-08-13) is a TypeScript/pnpm Cordis microkernel: "everything is a plugin" (models, tools, skills, sessions, sandboxes, loops, scheduling, UI). Official warning: compatibility-breaking changes. Launch: `npx @deepseek-ai/dsh web`.
