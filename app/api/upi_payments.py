@@ -100,11 +100,11 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
 
 @router.get("/upi/pending", summary="Admin: pending UPI submissions queue")
 async def upi_pending_list(_user=Depends(require_admin)):
-    """Admin-only — saare pending self-serve submissions."""
+    """Admin-only — pending plus approved-but-unactivated submissions."""
     try:
         from app.platform import upi_payments
 
-        return {"ok": True, "pending": upi_payments.list_payments("pending")}
+        return {"ok": True, "pending": upi_payments.list_actionable()}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_pending_list failed: %s", e)
         return {"ok": False, "pending": []}

@@ -1,6 +1,6 @@
 """UPI pending unactioned probe — backup page when submit-time ntfy misses.
 
-Uses setattr on ``upi_payments.list_payments`` (not ``sys.modules`` stub): a
+Uses setattr on ``upi_payments.list_actionable`` (not ``sys.modules`` stub): a
 ``from app.platform import upi_payments`` inside the probe binds the real
 module, so ``monkeypatch.setitem(sys.modules, ...)`` never intercepts it.
 """
@@ -28,7 +28,7 @@ def test_probe_registered_in_digest_path() -> None:
 def test_no_pending_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.platform import upi_payments
 
-    monkeypatch.setattr(upi_payments, "list_payments", lambda status=None: [])
+    monkeypatch.setattr(upi_payments, "list_actionable", lambda: [])
     r = ax._upi_pending_unactioned()
     assert r["status"] == "OK"
     assert r["checks"]["pending_total"] == 0
@@ -40,8 +40,8 @@ def test_fresh_pending_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(
         upi_payments,
-        "list_payments",
-        lambda status=None: [
+        "list_actionable",
+        lambda: [
             {
                 "id": "upi_fresh",
                 "status": "pending",
@@ -61,8 +61,8 @@ def test_stale_pending_is_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("UPI_PENDING_ALERT_HOURS", raising=False)
     monkeypatch.setattr(
         upi_payments,
-        "list_payments",
-        lambda status=None: [
+        "list_actionable",
+        lambda: [
             {
                 "id": "upi_stale",
                 "status": "pending",
@@ -82,8 +82,8 @@ def test_env_threshold_overrides_default(monkeypatch: pytest.MonkeyPatch) -> Non
 
     monkeypatch.setattr(
         upi_payments,
-        "list_payments",
-        lambda status=None: [
+        "list_actionable",
+        lambda: [
             {
                 "id": "upi_mid",
                 "status": "pending",
@@ -110,8 +110,8 @@ def test_corrupt_timestamp_counts_as_stale(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(
         upi_payments,
-        "list_payments",
-        lambda status=None: [
+        "list_actionable",
+        lambda: [
             {"id": "upi_bad_ts", "status": "pending", "created_at": "not-a-date"},
             {"id": "upi_empty_ts", "status": "pending", "created_at": ""},
         ],
@@ -124,10 +124,10 @@ def test_corrupt_timestamp_counts_as_stale(monkeypatch: pytest.MonkeyPatch) -> N
 def test_store_failure_is_neutral_not_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.platform import upi_payments
 
-    def _boom(status=None):
+    def _boom():
         raise RuntimeError("store down")
 
-    monkeypatch.setattr(upi_payments, "list_payments", _boom)
+    monkeypatch.setattr(upi_payments, "list_actionable", _boom)
     r = ax._upi_pending_unactioned()
     assert r["status"] == "NEUTRAL"
     assert r["checks"].get("store_ok") is False

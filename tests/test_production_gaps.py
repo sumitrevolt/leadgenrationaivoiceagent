@@ -122,6 +122,7 @@ class TestUpiSelfServeWiring:
         html = pathlib.Path("frontend/admin_dashboard.html").read_text(encoding="utf-8")
         assert "upiSelfServeBind" in html
         assert "'/bind'" in html  # POST /api/upi/pending/{pid}/bind
+        assert "Payment approved, plan NOT activated" in html
 
 
 class TestCustomerOfficeSummaryWiring:

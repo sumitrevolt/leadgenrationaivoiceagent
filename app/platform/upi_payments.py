@@ -567,6 +567,29 @@ def list_payments(status: str | None = None) -> list[dict]:
         return []
 
 
+def list_actionable() -> list[dict]:
+    """Operator queue: pending claims plus approved payments not yet activated.
+
+    An owner may confirm bank credit before a guest submission is bound to a
+    marketing client. That row is ``approved`` but revenue is not delivered yet,
+    so it remains visible both before and after Bind until re-Approve activates it.
+    """
+    try:
+        return [
+            row
+            for row in _read_store()
+            if row.get("status") == "pending"
+            or (
+                row.get("status") == "approved"
+                and not row.get("activated")
+                and not row.get("auto_activated")
+            )
+        ]
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("list_actionable failed: %s", e)
+        return []
+
+
 def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
     """Admin approve/reject a pending submission.
 
@@ -628,6 +651,7 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                 enforce_floor=False,
             ):
                 record["activated"] = True
+                record.pop("activation_blocked", None)
                 # Activation succeeded → per-client day-1 onboard (signup parity).
                 _trigger_onboarding(str(record.get("client_id") or ""))
                 _mark_deal_won(record.get("payer_contact", ""))
@@ -640,6 +664,7 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
             else:
                 # Approved but activation did NOT succeed (unknown plan / activation
                 # error) → revenue-critical SILENT failure: alert ops (best-effort).
+                record["activation_blocked"] = "activation_failed"
                 try:
                     from app.platform import ops_alerts
 
