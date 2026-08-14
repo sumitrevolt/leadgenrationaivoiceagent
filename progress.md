@@ -1,6 +1,30 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-14 (post-deploy: context writeback + uptime watchdog fix — CURSOR)
+Goal: "continue fix everything" — truth-check prod vs claimed `150bf898`, git hygiene back onto main, kill context-doc drift, then fix only REAL remaining breakage. No deploy, no flag arm, no WIP merge.
+Inspected: public `/health` + `/api/activation/summary`; `git fetch` + branch/stash inventory; uncommitted diffs of `CURRENT_STATE.md`/`SESSION_HANDOFF.md`/`ACTIVE_WORK.md`/`progress.md`; CLAUDE.md `## Current State`; `memory/decisions.md` ADR-180; `gh pr view 356`; `gh run list --branch main`; `.github/workflows/uptime.yml`.
+Problems Found: (1) CLAUDE.md hot cache stale — prod `9b09a808`, rollback `e06687c7`, ADR-177 "deploy pending", no ADR-180. (2) `memory/decisions.md` ADR-180 still CODE-PRESENT with no deploy stamp. (3) Local branch still the merged feature branch; local `main` behind 17. (4) **REAL BUG** — `uptime.yml` worst-case retry budget 805s > its own `timeout-minutes: 5` (300s), so a genuine outage CANCELS the job and the `Fail if DOWN` + ntfy steps never execute → off-VPS dead-man's switch silent (proof run `31768071231`, "exceeded the maximum execution time of 5m0s", 0 alerts).
+Changed: `.github/workflows/uptime.yml` (deadline guard `PROBE_DEADLINE_SECS=210`, per-attempt cost trimmed, `timeout-minutes` 5→6, attempts reported); `CLAUDE.md` + byte-copy `AGENTS.md` (hot cache → prod `150bf898`, rollback `2326c931`, ADR-180 LIVE-INERT do-not-arm, ADR-177 DEPLOYED, next action = owner Hot Queue); `memory/decisions.md` (ADR-180 Status line, append-only); `docs/context/SESSION_HANDOFF.md` overwrite; `CURRENT_STATE.md`/`ACTIVE_WORK.md`/`progress.md` writeback committed. No product code, no `.env`, no voice.
+Tests Run: `yaml.safe_load` on the workflow (OK); `bash -n` on the extracted probe script (exit 0); scaled hard-outage simulation with stubbed curl → loop bounded, `ok=0` recorded, DOWN summary written (alert path reached — pre-fix unreachable); UP-path regression sim with a real prod health body → `ok=1` on attempt 1, no false failure summary; budget math → post-fix bound 253s < 360s timeout, 4/5 attempts retained. `prod_check.py` run (no Python touched).
+Verification Evidence: `/health` = `150bf898` `production`/`healthy` uptime 0h31m; activation `blocker_count=0` `ready_for_first_paid_customer=true`; PR #356 `MERGED` merge commit `150bf898a09fe11a2cfa190d9bb55c7d8ef0ed6b` == prod SHA; `main` CI/tests/security-scan/deploy-vps/CodeQL all `success`; scratch files removed before commit.
+Risks: workflow change is unverifiable until the next scheduled run (03:51 cron) — first real proof will be a future DOWN event; `curl_rc` is structurally always the pipeline's `tail` status (pre-existing latent quirk, verdict still gated on http_code+substring, deliberately NOT changed to avoid behaviour drift).
+Remaining: OWNER Hot Queue `/app/inbox` (2nd-paid blocker, not code-fixable); owner push/PR of `fix/uptime-watchdog-deadline-20260814`; leftover WIP branches + `.freebuff` + stash deliberately untouched.
+Next Highest Priority: owner Hot Queue `/app/inbox` — engineering stream has no open fixable item.
+
+## Loop Run
+Date: 2026-08-14 (PR #356 merge + AUTH-DEPLOY — CURSOR)
+Goal: Wait required CI on `e5feaa6e`, merge #356, kill-fence + deploy_vps.sh + /health proof. Do not arm HARNESS_SESSION_EVENTS. Do not re-edit session.py.
+Inspected: PR #356 head `e5feaa6e` (not old `8fa39c84`); VPS `/tmp/dep.log`; public `/health` + `/api/activation/summary`; 5 app-image containers printenv class.
+Problems Found: First restore attempt via Git-bash `-lc` swallowed SSH stdout and did not apply VLK=0 (host stayed TRUE_TOKEN). Caught by status probe; reran via Git `ssh.exe`.
+Changed: no product code. Context: SESSION_HANDOFF + CURRENT_STATE. VPS: VLK 1→0 + recreate 5 services with APP_VERSION=150bf898.
+Tests Run: required CI on `e5feaa6e` (prod_check+pytest success, Gate A pass) before merge. Local session.py not re-touched.
+Verification Evidence: merge tip `150bf898`. Deploy log `DEPLOYED 150bf898 OK`. Public `/health` twice post-restore = 150bf898 healthy production (04:16:38Z uptime 1m08s; 04:17:46Z uptime 2m16s). Activation ready_for_first_paid_customer=true blocker_count=0. 5/5 VLK=FALSE_TOKEN HSE=UNSET APP_VERSION_MATCH=1. Rollback `2326c931`.
+Risks: VPS tree still dirty (pre-existing; no reset --hard). Orphan compose warning for postiz/temporal (pre-existing, --remove-orphans NOT used).
+Remaining: owner Hot Queue `/app/inbox`. Leftover WIP branches stay unmerged.
+Next Highest Priority: stop — AUTH-DEPLOY complete.
+
+## Loop Run
 Date: 2026-08-12 (PR queue land + freebuff cleanup — CURSOR)
 Goal: Land open PR queue; remove tracked freebuff placeholders; no deploy/flag-arm.
 Inspected: #340/#341/#336–#339; freebuff mode-160000 gitlinks; Gate A submodule URL fail.
