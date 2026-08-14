@@ -383,6 +383,24 @@ def _customer_approval_backlog() -> dict[str, Any]:
     return out
 
 
+def _paid_activations_today() -> dict[str, Any]:
+    """Aaj ke Product-1 (Marketing) paid activations — ledger-backed, IST din.
+
+    ``docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`` ka north-star KPI hai, par owner ke
+    home snapshot pe iska koi number tha hi nahi: sirf MRR snapshot delta tha, jo
+    price/plan edit se bhi hilta hai. Ab invoice + UPI ledger se seedha count aata
+    hai. Read-only — kuch activate/approve nahi hota. Never raises; store na
+    padhe to zeroes (fail-open, kabhi fabricated paid count nahi).
+    """
+    try:
+        from app.billing import paid_activations
+
+        return paid_activations.daily_paid_activations() or {}
+    except Exception as e:
+        logger.debug(f"[today] paid activations skip: {e}")
+        return {}
+
+
 def _ago_minutes(iso: str | None) -> int | None:
     if not iso:
         return None
@@ -646,6 +664,14 @@ def build() -> dict[str, Any]:
     _appr_totals = _customer_approval_backlog()
     totals["customer_approvals_pending"] = _appr_totals.get("total", 0)
     totals["customer_approvals_oldest_days"] = _appr_totals.get("oldest_days", 0)
+
+    # ---- 5b) Aaj ke paid activations (Product-1 north-star, ledger-backed) ----
+    # paid_today = aaj koi bhi paid event (naya + renewal); activations_today =
+    # sirf woh clients jinka pehla paid event bhi aaj hai (asli "naya paid").
+    _paid = _paid_activations_today()
+    totals["paid_today"] = int(_paid.get("paid_today") or 0)
+    totals["activations_today"] = int(_paid.get("activations_today") or 0)
+    totals["paid_gross_today_inr"] = float(_paid.get("gross_inr_today") or 0)
 
     # ---- 6) Hot Queue (GTM bottleneck) — owner 15-min sprint, never auto-send ----
     try:

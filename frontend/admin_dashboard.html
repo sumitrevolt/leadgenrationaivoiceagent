@@ -3252,7 +3252,17 @@ async function loadTodayBiz(){
     var ndAccent = nd>0
       ? {border:'#fbbf24',num:'#b45309',bg:'#fffbeb',href:'/app/automation#approvals'}
       : {border:'#6ee7b7',num:'#059669',bg:'#ecfdf5'};
+    // Product-1 north-star (docs/gtm/PRODUCT1_50_PAID_DAY_90D.md): aaj kitne NAYE
+    // paid Marketing customers bane — invoice + UPI ledger se, IST din. Renewal
+    // alag cheez hai (t.paid_today), isliye label me dono sach dikhte hain.
+    var pa = t.activations_today||0;
+    var paidAll = t.paid_today||0;
+    var paAccent = pa>0
+      ? {border:'#6ee7b7',num:'#059669',bg:'#ecfdf5',href:'#sec-revenue'}
+      : {border:'#e2e8f0',num:'#64748b',bg:'#f8fafc',href:'#sec-revenue'};
+    var paLabel = paidAll>pa ? '💰 Aaj naye paid ('+paidAll+' total paid)' : '💰 Aaj naye paid';
     html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+          + statChip(paLabel, pa, paAccent)
           + statChip('✅ Aaj auto ho chuke', t.events_today||0)
           + statChip(nd>0?'🙋 Boss decision chahiye':'✅ Boss pe kuch pending nahi', nd, ndAccent)
           + statChip('🤖 Active agents', t.working||0)
