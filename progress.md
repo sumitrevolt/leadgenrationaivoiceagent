@@ -2023,3 +2023,14 @@ Next Highest Priority: owner Day-0 15-min Hot Queue action at /app/inbox (not an
 ## Loop Run — Dunning dry-run 2026-08-13 08:03 IST
 - Evidence: `_scratch/COORDINATION_20260813/FREEBUFF_DUNNING_CANARY_DRYRUN_20260813.md`.
 - DUNNING_ENGINE left 0. cases/runs 0. SQL subs 0. run_due no-op.
+
+## Loop Run — Worktree merge + revenue verify + video gap 2026-08-14 (OPECODE; branch `merge/all-worktrees-20260814` -> local main)
+- Goal: merge every worktree branch/fix into main; verify money path on merged tree; root-cause "videos post nahi hore daily". No push/deploy/flag arm.
+- Inspected: 11 branches vs origin/main (150bf898): 4 already-merged ancestors (dsh, renamed-lg-10, opencode-exec, archive-duplicate-playbooks), 7 ahead.
+- Problems Found: (1) temp worktrees had been cleaned (leadgen-rev-wt, lg00-desktop-registry, lg00-external-agents-map) — branches orphaned; recreated isolated worktree. (2) `fix/regression-remediation` checkpoint `817173bf` contains PROD DATA (`data/delivery_ledger/jiya-makeover.jsonl`), freebuff gitlinks + 445-line GROK spec — NOT merged; only real fixes from `f50d1d15` (public_site None-guards, customer_auth, password test, API.md sync) applied, `_rate_limited` alias restored after file-checkout clobber. (3) Ledger conflicts (progress.md/SESSION_HANDOFF/backlog) resolved as unions/keep-newer.
+- Changed: local `main` fast-forwarded/merged onto `merge/all-worktrees-20260814` (tip `31f2dfe2` = ec8b8e5a GTM dashboards + 0443172a auth shims + c81b665e regression fixes + 982224b8 freebuff docs + desktop registry + external agents map). Verification: 67+ targeted pytest, prod_check, secrets — all green on merged tree.
+- Video gap root cause: approval gate (5 CLIENT_REVIEW_PENDING), 5-day cadence (`VIDEO_AD_INTERVAL_DAYS` unset), `DAILY_VIDEO_ENABLED` unset. UPI truth: 2 rows (Jiya auto_activated; MRR ₹1,999). OmniRoute gateway down. Owner actions listed.
+- Verification Evidence: merges exit 0; pytest/prod_check green post-merge; `git worktree list` clean.
+- Risks: local `main` now 7 commits ahead of origin/main — push still needs owner OK; main checkout still on `fix/uptime-watchdog-deadline-20260814` (branch now fully contained in main history — safe to delete or leave).
+- Remaining: owner pushes (or PRs) merged `main`; owner approves 5 pending videos; owner decides daily-video flags + OmniRoute restart; Hot Queue `/app/inbox` execution.
+- Next Highest Priority: owner push authorization for merged main, then Hot Queue `/app/inbox`.
