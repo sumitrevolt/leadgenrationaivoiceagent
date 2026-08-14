@@ -1,30 +1,28 @@
-# SESSION_HANDOFF — 2026-08-14 (Cursor: merge safe PRs + DSH #361 AUTH-DEPLOY)
+# SESSION_HANDOFF — 2026-08-14 (Cursor: full DSH arm + Product-1 90d plan artifacts)
 
 ## Status
-**DONE — deploy stream CLOSED.** Prod tip `fb3d0bc2`. All open mergeable PRs for this batch merged (#357 · #354 · #361). DSH CODE-READY/INERT on prod. No DSH/runtime flags armed. Voice FROZEN. Kill fence closed (VLK restored FALSE_TOKEN).
+**DONE — DSH FULL AUTHORITY ARMED (owner override ADR-182 wave order).** Prod tip still `fb3d0bc2`. `DSH_RUNTIME_ENABLED=1`, allowlist=29 migratable, `dsh-worker` healthy, `swara`/`ananya` remain `direct`. Rollback drill proven then re-armed. Revenue Phase 0 checklist + 90d capacity plan docs landed (local).
 
-## Facts
-- Merged: PR #357 (GTM Hot Queue / honest dashboards) · PR #354 (Dependabot python + pydantic-core pair fix) · PR [#361](https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/361) (hardened DSH runtime, inert)
-- Merge tip / deploy SHA: `fb3d0bc28459ef66efe0fa49a150a896d478cd9c` (`fb3d0bc2`)
-- Deploy: kill fence `.env.bak-deploy-killfence-20260814_150136` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh fb3d0bc2` → `=== DEPLOYED fb3d0bc2 OK ===` → restore VLK=0 + recreate with `APP_VERSION=fb3d0bc2`
-- Prod `/health` (HTTPS ×2 + host): `fb3d0bc2` · `environment:production` · `healthy` (DIRECT_HOST_VERIFIED 2026-08-14 ~15:25Z)
-- Activation: `ready_for_first_paid_customer=true` · `payments_ready=true` · `blocker_count=0` · `warn_count=1`
-- Skew: 5/5 app-image services `APP_VERSION=fb3d0bc2` · celery=0 · dlq:failed_tasks=0 · **NO dsh-worker container** (profile not started)
-- Inert proven in `leadgen_app`: `DSH_RUNTIME_ENABLED` · `DSH_SHADOW_ENABLED` · `HARNESS_SESSION_EVENTS` · `AGENT_HARNESS` · `GSC_ENABLED`
-- Rollback tag lineage: `150bf898` (protected) · prior `2326c931` pruned by retention
+## DSH facts (DIRECT_HOST_VERIFIED 2026-08-14 ~16:12Z)
+- Image: `leadgen-dsh:47f94385` built on VPS; worker `leadgen-dsh-worker:fb3d0bc2`
+- Env bak: `.env.bak-dsh-fullarm-20260814_155839`
+- Proofs: `provider_kavya=dsh` · `provider_swara=direct` · allowlist_len=29 · `/health`=`fb3d0bc2`
+- Rollback drill: `DSH_RUNTIME_ENABLED=0` → kavya=`direct` → re-arm → kavya=`dsh` (`ROLLBACK_DRILL_OK` + `REARM_OK`)
+- Hotfixes required for arm: `tzlocal==5.4.4` in `requirements-dsh.lock.txt`; lazy `app/tasks/__init__.py`; redis re-attached to `leadgen_dsh_net` with `--alias redis` (stale redis lacked dsh_net DNS)
+- Kill: `DSH_RUNTIME_ENABLED=0` + recreate app-image with `APP_VERSION=fb3d0bc2`
 
-## Intentionally NOT merged
-- Stale remote branches only (docs/lint/archive/ci-debug equivalents already on main or non-prod): left alone
-- WIP / freebuff / skipped shims from earlier handoff — still out of scope
-- No flag arm · no legacy retirement · no `dsh` compose profile enable
+## Revenue
+- Phase 0 owner checklist: `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md`
+- 90d path to 50 paid/day Product-1: `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`
+- Not claiming 50/day live — capacity program only
 
 ## Do not
-- Arm `DSH_RUNTIME_ENABLED` / `DSH_SHADOW_ENABLED` / `HARNESS_SESSION_EVENTS` / `AGENT_HARNESS` / `GSC_ENABLED` / dunning / cold WA
-- Start `--profile dsh` without separate owner auth
-- Edit Voice/Swara · weaken DND/TRAI/DPDP
-- Recreate without `APP_VERSION=<sha>` · bare compose without `-f docker-compose.vps.yml`
+- Arm cold WA / dunning / GSC without creds / harness session events
+- Delete legacy direct executor
+- Recreate without `APP_VERSION` · bare compose without `-f docker-compose.vps.yml`
+- Use `DSH_AGENT_ALLOWLIST=*` (resolves empty → all direct)
 
 ## Next
-1. **OWNER — Hot Queue `/app/inbox`** (2nd paid blocker; not code-fixable)
-2. Optional: remove finished DSH/PR354 worktrees after owner confirms
-3. Then: Jiya referral kit, GSC creds (still OFF), B3 DKIM
+1. Owner: Hot Queue blitz daily until 2nd paid
+2. Commit/push surgical fixes (`requirements-dsh.lock.txt`, `app/tasks/__init__.py`) when owner asks
+3. Phase 1: ads budget + GSC creds decision

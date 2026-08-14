@@ -4,19 +4,26 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` = `fb3d0bc2` (PR #361 AUTH-DEPLOY + #357/#354 ancestry). DSH CODE-READY/INERT on prod (`DSH_RUNTIME_ENABLED`/`DSH_SHADOW_ENABLED` OFF, no `dsh-worker`). Kill fence closed (VLK=FALSE_TOKEN). Revenue GO unchanged (`ready_for_first_paid_customer=true`, `blocker_count=0`).
+2026-08-14 — prod `/health` = `fb3d0bc2`. **DSH FULL AUTHORITY ARMED** (owner override ADR-182): `DSH_RUNTIME_ENABLED=1`, allowlist=29, `leadgen_dsh_worker` healthy, `swara`/`ananya`=`direct`. Rollback drill proven then re-armed. Kill fence for voice remains VLK=FALSE_TOKEN. Revenue GO + Phase 0 Hot Queue checklist live in docs.
 
-## DEPLOYED 2026-08-14 — `fb3d0bc2` (PR #361 DSH inert + #357/#354)
+## DSH LIVE-AUTHORITY 2026-08-14 — owner override of ADR-182 wave order
+- Label: DIRECT_HOST_VERIFIED (2026-08-14 ~16:12Z)
+- Flags: `DSH_RUNTIME_ENABLED=1` · `DSH_SHADOW_ENABLED=0` · allowlist 29 migratable (never `*`) · `DSH_ROLLOUT_WAVE=amber`
+- Runtime image `leadgen-dsh:47f94385` · worker `leadgen-dsh-worker:fb3d0bc2` · redis on `leadgen_dsh_net` with alias `redis`
+- Proof: `provider_kavya=dsh` · frozen voice `direct` · game-day `DSH_RUNTIME_ENABLED=0`→direct→re-arm
+- Env bak: `.env.bak-dsh-fullarm-20260814_155839` · Kill: `DSH_RUNTIME_ENABLED=0` + recreate with `APP_VERSION=fb3d0bc2`
+- Surgical code fixes still local (need owner commit): `requirements-dsh.lock.txt` (+tzlocal), lazy `app/tasks/__init__.py`
+- ADR-183 records the override; legacy direct executor NOT deleted; retirement gates unchanged
+
+## DEPLOYED 2026-08-14 — `fb3d0bc2` (PR #361 DSH inert code + #357/#354)
 **Prod `/health` = `fb3d0bc2`** (DIRECT_HOST_VERIFIED 2026-08-14 ~15:25Z HTTPS×2 + host): `healthy` · `environment:production`. Merge tip `fb3d0bc28459ef66efe0fa49a150a896d478cd9c` from PR #361 (hardened DeepSeek Harness runtime staged inert) after #357 GTM dashboards + #354 pydantic pair. Kill-fence: `.env.bak-deploy-killfence-20260814_150136` → VLK TRUE → `deploy_vps.sh` `=== DEPLOYED fb3d0bc2 OK ===` (5/5 skew, smoke 200, celery/dlq 0) → VLK=0 recreate with `APP_VERSION=fb3d0bc2`. No `--profile dsh`. Rollback lineage protected tag = `150bf898`.
 Label: DIRECT_HOST_VERIFIED (2026-08-14)
-**Do not arm:** `DSH_RUNTIME_ENABLED` · `DSH_SHADOW_ENABLED` · harness/GSC/dunning/cold WA. **#307:** stays OPEN; dunning OFF. **#304:** guest bind CODE-LIVE.
+**Posture update:** DSH later owner-armed same day (ADR-183) — see LIVE-AUTHORITY block. Still do not arm harness/GSC/dunning/cold WA. **#307** OPEN; dunning OFF. **#304** guest bind CODE-LIVE.
 
-## CODE-READY / INERT — DeepSeek Harness (LIVE on prod tip, flags OFF)
-- Label: PRODUCTION-PROVEN code path | CODE-PRESENT | TEST-PROVEN | INERT runtime
-- ADR-179 intact for stock wheel / direct embedding; ADR-181 hardened source-built path only when owner arms
-- Canonical controls unchanged; workforce 31 preserved / 29 migratable; `swara`+`ananya` excluded
-- Evidence: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`, `DSH_SUPPLY_CHAIN_STATIC_20260814.json`, `DSH_MIGRATION_CONTRACT_20260814.json`
-- Shadow promotion still blocked without separate owner auth + golden/volume gates
+## CODE-READY / INERT — DeepSeek Harness (SUPERSEDED for runtime by ADR-183)
+> Historical inert posture. Runtime now LIVE-AUTHORITY — see **DSH LIVE-AUTHORITY** above. Shadow soak / retirement gates from ADR-182 still apply before legacy deletion.
+- Label: SUPERSEDED for flags; code path still PRODUCTION-PROVEN on `fb3d0bc2`
+- Evidence artifacts remain under `docs/evidence/DSH_*_20260814.*`
 
 ## SUPERSEDED — DEPLOYED 2026-08-14 — `150bf898` (PR #356 hygiene + ADR-180)
 > Historical. Replaced by `fb3d0bc2` above. Keep as rollback tag.
