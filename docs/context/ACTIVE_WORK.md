@@ -30,8 +30,8 @@
 ---
 
 ## Parked (not in active 3)
-- **WS-HYG** Duplicate/docs hygiene 2026-08-14 — playbook templates + root orphans + deploy footguns archived; evidence `docs/evidence/HYGIENE_MERGE_20260814.md`. COMPLETE this session.
-- **WS-DSH** ADR-179 NO-GO vendor; ADR-180 steal #1 CODE-PRESENT INERT (`HARNESS_SESSION_EVENTS=0`) — typed SessionEvent + hash-chain. Do not arm in prod.
+- **WS-HYG** Duplicate/docs hygiene 2026-08-14 — archived + AUTH-DEPLOYED on `150bf898` via PR #356. COMPLETE.
+- **WS-DSH** ADR-179 NO-GO vendor; ADR-180 steal #1 LIVE-INERT on prod `150bf898` (`HARNESS_SESSION_EVENTS` UNSET). Do not arm.
 - **WS-GOV** Boss + Second Brain governance (PR #330 MERGED `8f5a2e2d`, prod has ancestry, flag OFF)
 - **WS-BUZZ** Local Buzz Desktop + relay (Cursor ACP Boss canonical `1b13cecc`, relay verified)
 - **WS-DEP329** Rollback retention (MERGED `6052b533`)
