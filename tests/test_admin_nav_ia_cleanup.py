@@ -113,3 +113,22 @@ def test_agent_tools_label_signals_dev_only():
     idx = html.index('href="/app/agent-tools"')
     snippet = html[idx : idx + 200]
     assert "Dev" in snippet
+
+
+def test_admin_nav_and_start_here_lead_with_hot_queue():
+    html = _admin_html()
+    nav_start = html.index('<nav class="nav" role="menubar"')
+    nav_end = html.index("</nav>", nav_start)
+    nav_block = html[nav_start:nav_end]
+    assert 'href="/app/inbox"' in nav_block
+    assert 'id="navHotQueue"' in nav_block
+    delivery_idx = nav_block.index("Delivery")
+    inbox_idx = nav_block.index('href="/app/inbox"')
+    cockpit_idx = nav_block.index('href="/app/delivery-command-center"')
+    assert delivery_idx < inbox_idx < cockpit_idx
+    start = html.index('id="adminStartHere"')
+    card = html[start : start + 2800]
+    assert 'id="startHereHotQueue"' in card
+    btns_start = card.index('class="start-flow-btns"')
+    btns = card[btns_start:]
+    assert btns.index("/app/inbox") < btns.index("/app/delivery-command-center")

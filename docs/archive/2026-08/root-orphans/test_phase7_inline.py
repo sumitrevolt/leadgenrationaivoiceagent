@@ -23,10 +23,10 @@ outcome_high = {
     "success": True,
 }
 score = self_improve.compute_outcome_value(outcome_high)
-print(f"  Input: high quality leads + revenue, cheap cost")
+print("  Input: high quality leads + revenue, cheap cost")
 print(f"  Score: {score:.2f}")
 assert 0.8 < score < 1.0, f"Expected high score (0.8-1.0), got {score:.2f}"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 2: compute_outcome_value - neutral
 print("\n[Test 2] Outcome Value: Neutral")
@@ -38,10 +38,10 @@ outcome_neutral = {
     "success": True,
 }
 score = self_improve.compute_outcome_value(outcome_neutral)
-print(f"  Input: info-only leads, no revenue, normal cost")
+print("  Input: info-only leads, no revenue, normal cost")
 print(f"  Score: {score:.2f}")
 assert 0.0 < score < 0.3, f"Expected low score (0.0-0.3), got {score:.2f}"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 3: compute_outcome_value - failure
 print("\n[Test 3] Outcome Value: Expensive Failure")
@@ -53,10 +53,10 @@ outcome_fail = {
     "success": False,
 }
 score = self_improve.compute_outcome_value(outcome_fail)
-print(f"  Input: no leads, no revenue, expensive")
+print("  Input: no leads, no revenue, expensive")
 print(f"  Score: {score:.2f}")
 assert score == 0.0, f"Expected 0.0 (clamped), got {score:.2f}"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 4: should_skip_task - budget gate
 print("\n[Test 4] Deterministic Gate: Budget")
@@ -65,11 +65,11 @@ skip, reason = self_improve.should_skip_task(
     cost_remaining=2.0,  # only $2 left, seo_pages costs $5
     last_outcome=None,
 )
-print(f"  Task: seo_pages (cost=$5)")
-print(f"  Budget remaining: $2")
+print("  Task: seo_pages (cost=$5)")
+print("  Budget remaining: $2")
 print(f"  Skip: {skip}, Reason: {reason}")
 assert skip and "budget" in reason, f"Expected budget skip, got skip={skip}, reason={reason}"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 5: CostTracker
 print("\n[Test 5] CostTracker: Daily Budget")
@@ -84,14 +84,14 @@ print(f"  Pct used: {status['pct_used']}%")
 assert status["spent"] == 30.0, f"Expected $30, got ${status['spent']}"
 assert status["remaining"] == 20.0, f"Expected $20 remaining, got ${status['remaining']}"
 assert not tracker.can_afford("task2", 25.0), "Should not afford $30+$25 > $50"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 6: ApprovalQueue
 print("\n[Test 6] ApprovalQueue: Task Workflow")
 queue = self_improve.ApprovalQueue(approval_required=True)
 queue_result = queue.queue_task("expensive_task", "LLM-heavy action", 5.0)
 pending = queue.get_pending()
-print(f"  Queued task, waiting approval")
+print("  Queued task, waiting approval")
 print(f"  Pending count: {len(pending)}")
 assert len(pending) == 1, f"Expected 1 pending, got {len(pending)}"
 task_id = pending[0]["id"]
@@ -99,7 +99,7 @@ queue.approve(task_id)
 print(f"  Approved task #{task_id}")
 assert len(queue.get_pending()) == 0, "Pending should be empty"
 assert len(queue.approved) == 1, "Should have 1 approved"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 7: OUTCOME_WEIGHTS and DETERMINISTIC_GATES are configurable
 print("\n[Test 7] Configuration: Modifiable Weights and Gates")
@@ -107,7 +107,7 @@ print(f"  OUTCOME_WEIGHTS: {self_improve.OUTCOME_WEIGHTS}")
 print(f"  DETERMINISTIC_GATES: {self_improve.DETERMINISTIC_GATES}")
 assert "lead_quality" in self_improve.OUTCOME_WEIGHTS, "Missing lead_quality weight"
 assert "budget" in self_improve.DETERMINISTIC_GATES, "Missing budget gate"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 # Test 8: Backward compatibility - compute_outcome_value handles edge cases
 print("\n[Test 8] Backward Compat: Edge Cases")
@@ -118,7 +118,7 @@ assert 0.0 <= score_empty <= 1.0, "Should clamp to [0,1]"
 score_partial = self_improve.compute_outcome_value({"lead_count": 5})
 print(f"  Partial dict score: {score_partial:.2f}")
 assert 0.0 <= score_partial <= 1.0, "Should clamp to [0,1]"
-print(f"  ✓ PASS")
+print("  ✓ PASS")
 
 print("\n" + "=" * 70)
 print("All tests PASSED ✓")

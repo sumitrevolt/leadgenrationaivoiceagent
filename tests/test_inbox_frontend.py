@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 HTML = Path("frontend/inbox.html")
 
 
@@ -31,3 +30,16 @@ def test_stale_hot_queue_draft_requires_explicit_timing_review():
     assert "aaj/kal/abhi" in html
     assert "staleDraftWarning(r.age_days,r.draft)" in snippet
     assert 'class="stale-note"' in snippet
+
+
+def test_inbox_sprint_banner_and_honest_empty_states():
+    html = HTML.read_text(encoding="utf-8")
+    assert 'id="hqSprint"' in html
+    assert "15-minute Hot Queue sprint" in html
+    assert "min-height:44px" in html
+    assert "inboxOk" in html
+    assert "_hqOk" in html
+    assert "scraping/scoring chal rahi hai ✅" not in html
+    assert "HTTP 200 page ka matlab cards nahi" in html
+    assert 'aria-live="polite"' in html
+    assert "prefers-reduced-motion" in html

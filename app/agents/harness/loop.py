@@ -31,7 +31,7 @@ from typing import Awaitable, Callable, List, Optional, Tuple
 
 from pydantic import ValidationError
 
-from . import audit
+from . import audit, session
 from .contracts import DANGEROUS, MUTATING, RiskClass, RunContext, StopReason, ToolCall, ToolResult
 from .sandbox import Sandbox, SandboxPolicy
 from .stop import Budget, StopController
@@ -57,6 +57,8 @@ def enabled() -> bool:
 ApprovalFn = Callable[[RunContext, ToolCall, RiskClass], Awaitable[bool]]
 # Egress/content scan: (ctx, call) -> (allowed, reason). DL-01.
 EgressScanFn = Callable[[RunContext, ToolCall], tuple[bool, str]]
+# dsh-style agent/pre-step: True = continue, False = reject the turn (ST-03-adjacent).
+PreStepFn = Callable[[RunContext], Awaitable[bool]]
 
 
 async def _default_approval(ctx: RunContext, call: ToolCall, risk: RiskClass) -> bool:
@@ -202,12 +204,14 @@ class Harness:
         approval: ApprovalFn | None = None,
         egress_scan: EgressScanFn | None = None,
         sandbox_policy: SandboxPolicy | None = None,
+        pre_step: PreStepFn | None = None,
     ) -> None:
         self.registry = registry or REGISTRY
         self.stop = StopController(budget)
         self.approval = approval or _default_approval
         self.egress_scan = egress_scan or _default_egress_scan
         self.sandbox = Sandbox(sandbox_policy)
+        self.pre_step = pre_step
 
     async def step(
         self,
@@ -597,19 +601,59 @@ class Harness:
         ``propose`` is your model call that returns a validated ToolCall (via
         app.llm.structured), or None to signal the model considers the goal met.
         """
+        if session.session_events_enabled():
+            audit.record(
+                ctx,
+                None,
+                None,
+                kind="session",
+                extra={"session_event": "turn_start", "profile": profile},
+            )
         while True:
             cont, reason = self.stop.check(ctx)
             if not cont:
                 audit.record(ctx, None, None, kind="stop", extra={"reason": reason})
                 return reason or StopReason.MAX_ITERATIONS
 
+            if self.pre_step is not None:
+                try:
+                    allowed = await self.pre_step(ctx)
+                except Exception as e:
+                    logger.warning("harness.loop: pre_step errored (rejecting): %s", e)
+                    allowed = False
+                if not allowed:
+                    audit.record(
+                        ctx,
+                        None,
+                        None,
+                        kind="stop",
+                        extra={"reason": "pre_step_reject", "session_event": "pre_step_reject"},
+                    )
+                    return StopReason.DENIED
+
             ctx.iterations += 1
             try:
                 call = await propose(ctx)
             except Exception as e:
                 logger.warning("harness.loop: propose errored: %s", e)
+                if session.session_events_enabled():
+                    audit.record(
+                        ctx,
+                        None,
+                        None,
+                        kind="session",
+                        extra={"session_event": "turn_end", "reason": StopReason.ERROR.value},
+                    )
                 return StopReason.ERROR
             if call is None:
+                if session.session_events_enabled():
+                    audit.record(
+                        ctx,
+                        None,
+                        None,
+                        kind="session",
+                        extra={"session_event": "turn_end", "reason": StopReason.GOAL_MET.value},
+                    )
                 return StopReason.GOAL_MET
 
             est_usd, est_tokens = est_cost(call)

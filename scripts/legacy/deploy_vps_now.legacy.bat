@@ -45,4 +45,3 @@ exit /b 0
 echo FAIL >> "%LOG%"
 
 exit /b 1
-

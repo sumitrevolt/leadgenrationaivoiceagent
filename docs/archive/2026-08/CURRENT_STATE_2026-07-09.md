@@ -196,10 +196,10 @@
 
 ---
 
-**Last Updated:** 2026-08-12  
-**Prod SHA:** `9c47647c` (DIRECT_HOST_VERIFIED)  
-**Main Tip:** `1b8fe65d` (6 commits ahead, safe to deploy)  
-**MRR:** ₹1,999 (1 active customer)  
+**Last Updated:** 2026-08-12
+**Prod SHA:** `9c47647c` (DIRECT_HOST_VERIFIED)
+**Main Tip:** `1b8fe65d` (6 commits ahead, safe to deploy)
+**MRR:** ₹1,999 (1 active customer)
 **Target:** 2nd paid this week (owner execution only blocker)
 
 ---
