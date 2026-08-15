@@ -1208,6 +1208,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Onboard pipeline router not mounted: {_e}")
 try:
+    from app.api.marketing_features import router as marketing_features_router
+
+    app.include_router(
+        marketing_features_router
+    )  # /api/marketing-features/* -- Review automation, email drips, appointment reminders, customer health
+except Exception as _e:  # pragma: no cover
+    logger.warning('Marketing features router not mounted: ' + str(_e))
+try:
     from app.api.coordination_hub import router as coordination_hub_router
 
     app.include_router(
