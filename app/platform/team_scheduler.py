@@ -225,6 +225,9 @@ _last_ran: dict[str, str | None] = {
 # retry NAHI hoga — durable marker; dead-man switch (W1.2) failure surface karta hai.)
 _LAST_RAN_PATH = os.path.join("data", "scheduler_last_ran.json")
 
+# In-process-only day key — intentionally outside _last_ran (parity / Aaj tab).
+_renewal_reminders_day: str | None = None
+
 
 def _save_last_ran() -> None:
     """_last_ran atomic-write (tmp + os.replace) — corrupt file se bacho. Fail-safe."""
@@ -589,7 +592,7 @@ async def _run_job_inner(job: str) -> bool:
                 if _celery_off and self_improve.enabled():
                     result = await self_improve.run_once()
                     logger.debug(
-                        f"[scheduler] self_improve in-process: {result.get('action','?')} ok={result.get('ok')}"
+                        f"[scheduler] self_improve in-process: {result.get('action', '?')} ok={result.get('ok')}"
                     )
             except Exception as _si_e:
                 logger.debug(f"[scheduler] self_improve in-process skip: {_si_e}")
@@ -768,7 +771,9 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.agents import campaign_optimizer
 
-                await campaign_optimizer.optimize()  # Kiran weekly/threshold (gated CAMPAIGN_OPTIMIZER)
+                await (
+                    campaign_optimizer.optimize()
+                )  # Kiran weekly/threshold (gated CAMPAIGN_OPTIMIZER)
             except Exception:
                 pass
             try:
@@ -793,13 +798,17 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.platform import brand_pulse
 
-                await brand_pulse.run_weekly_if_enabled()  # brand mention scan + drafts (gated BRAND_PULSE; LLM-free scan)
+                await (
+                    brand_pulse.run_weekly_if_enabled()
+                )  # brand mention scan + drafts (gated BRAND_PULSE; LLM-free scan)
             except Exception:
                 pass
             try:
                 from app.platform import team_report
 
-                await team_report.run_weekly_if_enabled()  # client-facing AI-staff weekly narrative (gated TEAM_REPORT)
+                await (
+                    team_report.run_weekly_if_enabled()
+                )  # client-facing AI-staff weekly narrative (gated TEAM_REPORT)
             except Exception:
                 pass
         elif job == "call_kpi_digest":
@@ -883,35 +892,45 @@ async def _run_job_inner(job: str) -> bool:
                     from app.marketing import customer_crm
 
                     if _content_budget.ok():
-                        await customer_crm.run_wishes_if_enabled()  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
+                        await (
+                            customer_crm.run_wishes_if_enabled()
+                        )  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
                 except Exception:
                     pass
                 try:
                     from app.platform import service_reminders
 
                     if _content_budget.ok():
-                        await service_reminders.run_due_if_enabled()  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
+                        await (
+                            service_reminders.run_due_if_enabled()
+                        )  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
                 except Exception:
                     pass
                 try:
                     from app.marketing import newsletter
 
                     if _content_budget.ok():
-                        await newsletter.run_due_if_enabled()  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
+                        await (
+                            newsletter.run_due_if_enabled()
+                        )  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
                 except Exception:
                     pass
                 try:
                     from app.platform import winback
 
                     if _content_budget.ok():
-                        await winback.run_due_if_enabled()  # inactive win-back DRAFTS (gated WINBACK_ENGINE)
+                        await (
+                            winback.run_due_if_enabled()
+                        )  # inactive win-back DRAFTS (gated WINBACK_ENGINE)
                 except Exception:
                     pass
                 try:
                     from app.platform import rank_tracker
 
                     if _content_budget.ok():
-                        await rank_tracker.run_if_enabled()  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
+                        await (
+                            rank_tracker.run_if_enabled()
+                        )  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
                 except Exception:
                     pass
                 try:
@@ -928,7 +947,9 @@ async def _run_job_inner(job: str) -> bool:
                     from app.platform import memory_vault
 
                     if _content_budget.ok():
-                        await memory_vault.sync_if_enabled()  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)
+                        await (
+                            memory_vault.sync_if_enabled()
+                        )  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)
                 except Exception:
                     pass
                 try:
@@ -946,7 +967,9 @@ async def _run_job_inner(job: str) -> bool:
                     from app.platform import live_notes
 
                     if _content_budget.ok():
-                        await live_notes.refresh_if_enabled()  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
+                        await (
+                            live_notes.refresh_if_enabled()
+                        )  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
                 except Exception:
                     pass
                 try:
@@ -1010,7 +1033,9 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.marketing import indexnow
 
-                await indexnow.submit_sitemap_if_enabled()  # naye URLs Bing/Yandex pe (gated INDEXNOW)
+                await (
+                    indexnow.submit_sitemap_if_enabled()
+                )  # naye URLs Bing/Yandex pe (gated INDEXNOW)
             except Exception:
                 pass
         elif job == "prospect":
@@ -1129,12 +1154,14 @@ async def _run_job_inner(job: str) -> bool:
             # Multi-channel orchestration: email-openers ko WhatsApp follow-up links
             try:
                 from app.platform import auto_outreach
+
                 auto_outreach.multi_channel_followup(limit=25)
             except Exception:
                 pass
             # Auto-forward positive replies to calling queue
             try:
                 from app.platform import reply_agent
+
                 reply_agent.auto_forward_positive_replies(limit=10)
             except Exception:
                 pass
@@ -1234,7 +1261,9 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.agents import code_upgrader
 
-                await code_upgrader.run_if_enabled()  # Vikram: code-upgrade proposals (gated CODE_UPGRADER; off = no-op)
+                await (
+                    code_upgrader.run_if_enabled()
+                )  # Vikram: code-upgrade proposals (gated CODE_UPGRADER; off = no-op)
             except Exception:
                 pass
             try:
@@ -1737,12 +1766,18 @@ async def scheduler_loop() -> None:
             if now.minute >= 20 and _last_ran.get("product_one_health") != hour_key:
                 _last_ran["product_one_health"] = hour_key
                 await _run_job("product_one_health")
-            # Renewal reminders — independent of DUNNING_ENGINE
-            try:
-                from app.billing import dunning
-                await dunning.send_renewal_reminders()
-            except Exception:
-                pass
+            # Renewal reminders — private day-key (NOT _last_ran / STAFF_JOBS).
+            # Body no-ops when DUNNING_ENGINE covers renewals. Celery prod
+            # (RUN_IN_PROCESS_SCHEDULER=0) never enters this loop.
+            global _renewal_reminders_day
+            if _renewal_reminders_day != day_key:
+                _renewal_reminders_day = day_key
+                try:
+                    from app.billing import dunning
+
+                    await dunning.send_renewal_reminders()
+                except Exception:
+                    pass
             # Bounded pending-approval EMAIL sweep — hourly :40 (INERT unless APPROVAL_EMAIL_NOTIFY=1).
             if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
                 _last_ran["approval_email_sweep"] = hour_key

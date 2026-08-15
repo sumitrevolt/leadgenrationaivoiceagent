@@ -50,6 +50,7 @@ AUTOMATION_FLAGS = [
     "SALES_ENGINE",
     "CADENCE_ENGINE",
     "DUNNING_ENGINE",
+    "RENEWAL_REMINDER_ENABLED",  # independent renewal email; no-ops when DUNNING_ENGINE already sweeps
     "LIFECYCLE_NURTURE",
     "CLIENT_HEALTH_ALERTS",
     "REVENUE_DIGEST",

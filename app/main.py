@@ -73,6 +73,53 @@ def _sentry_before_send(event, hint):
     return None
 
 
+def _safe_transaction_name_from_router(scope):
+    """Sentry-sdk <2.x `_transaction_name_from_router` compat: resolve lazy routes.
+
+    FastAPI >= 0.115 stores `_IncludedRouter` wrappers in `router.routes`
+    (lazy `original_router` references with `.matches` but NO `.path`).
+    sentry-sdk 1.x's naive loop then crashes with
+    ``AttributeError: '_IncludedRouter' object has no attribute 'path'``
+    AFTER the request already failed — masking the real exception (prod
+    2026-08-15: QueuePool timeout on /api/growth/social/token-health was
+    reported as the secondary `_IncludedRouter` crash instead).
+
+    Guarded drop-in keeps the same contract — first FULL match wins, return
+    its `.path` — and for a lazy route, recurses into its wrapped
+    `original_router.routes` to resolve the concrete route's path (bounded
+    depth; missing internals degrade to None, never raise). Applied as a
+    runtime monkeypatch only when the 1.x function is present (2.x fixed
+    upstream; then no-op).
+    """
+    router = scope.get("router") if isinstance(scope, dict) else None
+    if not router:
+        return None
+
+    def _first_path(routes, _depth: int) -> str | None:
+        if _depth > 5 or not routes:
+            return None
+        for route in routes:
+            if not hasattr(route, "matches"):
+                continue
+            try:
+                match = route.matches(scope)
+            except Exception:
+                continue
+            if getattr(match[0], "name", "") != "FULL":
+                continue
+            path = getattr(route, "path", None)
+            if path:
+                return path
+            # Lazy _IncludedRouter: descend into its wrapped router's routes.
+            wrapped = getattr(route, "original_router", None)
+            inner = _first_path(getattr(wrapped, "routes", None) or [], _depth + 1)
+            if inner:
+                return inner
+        return None
+
+    return _first_path(getattr(router, "routes", None) or [], 0)
+
+
 # Initialize Sentry for error tracking in production
 if settings.sentry_dsn and settings.app_env == "production":
     try:
@@ -109,6 +156,17 @@ if settings.sentry_dsn and settings.app_env == "production":
             ),
         )
         logger.info("✅ Sentry error tracking initialized")
+        # 2026-08-15: sentry-sdk 1.x `_transaction_name_from_router` crashes on
+        # FastAPI >= 0.115 lazy `_IncludedRouter` entries (no .path) AFTER a
+        # request already failed → masks the real exception (prod 500 evidence).
+        # Guarded drop-in (same contract) replaces it at call-time; 2.x no-op.
+        try:
+            import sentry_sdk.integrations.starlette as _sentry_starlette
+
+            if hasattr(_sentry_starlette, "_transaction_name_from_router"):
+                _sentry_starlette._transaction_name_from_router = _safe_transaction_name_from_router
+        except Exception as _sentry_patch_err:  # pragma: no cover - defensive
+            logger.warning(f"Sentry transaction-name compat patch skipped: {_sentry_patch_err}")
         # 2026-07-19: issue-level API review (Sentry webhooks / resolved-issue triage)
         # ke liye SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT chahiye (DSN sirf
         # inbound event capture karta hai). Yeh teen env vars missing ho to operator
@@ -410,7 +468,7 @@ async def lifespan(app: FastAPI):
             logger.error("❌ ZERO routes registered — all router imports failed!")
         elif len(_registered) < 50:
             logger.warning(
-                "⚠️ Only %d routes registered — expected 400+ — router import" " failures likely",
+                "⚠️ Only %d routes registered — expected 400+ — router import failures likely",
                 len(_registered),
             )
     except Exception as _sweep_e:
@@ -1326,7 +1384,7 @@ try:
             allowlist_configured=bool(_mcp_allowlist),
         )
         logger.info(
-            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, " f"Platform/Data/Agents tools)"
+            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, Platform/Data/Agents tools)"
         )
 
     if _dsh_runtime_configured:

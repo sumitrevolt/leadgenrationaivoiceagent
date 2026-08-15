@@ -290,6 +290,9 @@ scripts/_canary_*.txt
 artifacts/local/
 .codex/config.toml
 
+# Runtime output from paid-activation watcher (generated evidence; may contain tenant/payment metadata)
+docs/evidence/paid_today_watch.jsonl
+
 # OpenClaw local runtime (tokens/state - never commit)
 config/openclaw/.local/
 # local agent recovery/scratch debris (worktree patches, one-off probes, logs) - never commit

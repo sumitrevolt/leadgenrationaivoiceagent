@@ -4,6 +4,9 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
+2026-08-15 ~08:08Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, public 07:51:24Z / 07:55:32Z + host 08:08:50Z uptime advanced). `origin/main` = `920a3e62` **UNDEPLOYED**. Named blocker `upi_pending_unactioned` (1 approved-unbound, has_client=0). `paid_today=0` honest. Revenue audit: `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. 3 CODE P0s on `cursor/revenue-blocker-p0` (not deployed). Owner inbox/UPI/bank still remaining.
+
+## Last verified timestamp (superseded same-day 02:42Z)
 2026-08-15 ~02:42Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, dual probe 02:37:40Z / 02:40:09Z uptime advanced). NEXT todos agent-side READY. Owner inbox/UPI/Boss harness still remaining. DSH local smoke + Kavya MCP plan used; prod flags not flipped. PR #363/#364 ancestry sealed at ~00:01Z re-probe (5/5 pin, VLK=0).
 
 ## NEXT todos READY 2026-08-15 — Hot Queue / UPI / capacity honesty

@@ -1183,12 +1183,15 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
         rows = prospector._read_all()
         # Emailed prospects jinke paas phone hai — WhatsApp eligible
         emailed_with_phone = [
-            r for r in rows
+            r
+            for r in rows
             if r.get("emailed_at")
             and r.get("phone")
             and len("".join(c for c in str(r["phone"]) if c.isdigit())) >= 10
             and (r.get("status") or "ready") in ("ready", "sent")
             and not r.get("wa_followup_sent")
+            and not r.get("hq_done")
+            and not r.get("hq_parked")
         ]
         emailed_with_phone.sort(key=lambda r: str(r.get("found_at") or ""))
         batch = emailed_with_phone[:limit]
@@ -1222,8 +1225,12 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
 
                 # High-intent signal: niche is local SMB + has phone → calling candidate
                 if str(p.get("niche") or "") in {
-                    "solar_residential", "real_estate", "coaching",
-                    "interior_designers", "dental", "beauty",
+                    "solar_residential",
+                    "real_estate",
+                    "coaching",
+                    "interior_designers",
+                    "dental",
+                    "beauty",
                 }:
                     prospector.set_prospect_fields(
                         str(p.get("id")),
@@ -1241,6 +1248,7 @@ def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
 
         try:
             from app.platform.team import log_event
+
             log_event(
                 "rohan",
                 "multi_channel_followup",
@@ -1290,27 +1298,53 @@ def hot_queue_candidates(limit: int = 20) -> list[dict[str, Any]]:
                 pass
 
             if is_reply or is_calling_flagged or is_wa_engaged or has_high_score:
-                candidates.append({
-                    "id": r.get("id"),
-                    "business_name": r.get("business_name"),
-                    "phone": r.get("phone"),
-                    "email": r.get("email"),
-                    "niche": r.get("niche"),
-                    "city": r.get("city"),
-                    "status": status,
-                    "lead_score": r.get("lead_score"),
-                    "reason": (
-                        "replied" if is_reply
-                        else "calling_flagged" if is_calling_flagged
-                        else "wa_engaged" if is_wa_engaged
-                        else "high_score"
-                    ),
-                })
+                candidates.append(
+                    {
+                        "id": r.get("id"),
+                        "business_name": r.get("business_name"),
+                        "phone": r.get("phone"),
+                        "email": r.get("email"),
+                        "niche": r.get("niche"),
+                        "city": r.get("city"),
+                        "status": status,
+                        "lead_score": r.get("lead_score"),
+                        "wa_followup_link": r.get("wa_followup_link") or "",
+                        "reason": (
+                            "replied"
+                            if is_reply
+                            else (
+                                "calling_flagged"
+                                if is_calling_flagged
+                                else "wa_engaged" if is_wa_engaged else "high_score"
+                            )
+                        ),
+                    }
+                )
         candidates.sort(key=lambda c: float(c.get("lead_score") or 0), reverse=True)
         return candidates[:limit]
     except Exception as e:
         logger.debug(f"[auto_outreach] hot_queue_candidates failed: {e}")
         return []
+
+
+def mark_hot_queue_candidate(prospect_id: str, *, done: bool = False, parked: bool = False) -> bool:
+    """Hot Queue Done/Park for calling_flagged synthetic cards. Never raises."""
+    pid = str(prospect_id or "").strip()
+    if not pid:
+        return False
+    try:
+        from app.platform import prospector
+
+        fields: dict[str, Any] = {"updated_at": datetime.utcnow().isoformat() + "Z"}
+        if done:
+            fields["hq_done"] = True
+        if parked:
+            fields["hq_parked"] = True
+        prospector.set_prospect_fields(pid, fields)
+        return True
+    except Exception as e:
+        logger.debug(f"[auto_outreach] mark_hot_queue_candidate failed: {e}")
+        return False
 
 
 def _rel_time(iso: str) -> str:
