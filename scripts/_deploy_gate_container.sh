@@ -154,7 +154,7 @@ gate_kill_env_proof() {
   gate_run "$candidate" "$repo" -c '
 import os
 v = os.environ.get("VOICE_LAUNCH_KILL")
-true_tokens = {"1", "true", "yes", "on"}
+true_tokens = {"1", "true", "yes", "on", "true_token"}
 print("VOICE_LAUNCH_KILL_PRESENT=" + ("1" if v is not None else "0"))
 print("VOICE_LAUNCH_KILL_IS_TRUE_TOKEN=" + ("1" if (v or "").strip().lower() in true_tokens else "0"))
 print("PLATFORM_DIAL_DAILY=" + (os.environ.get("PLATFORM_DIAL_DAILY") or "<unset>"))
