@@ -29,9 +29,7 @@ def _one(url: str, timeout: float) -> tuple[int, float]:
         req = urllib.request.Request(
             url, method="GET", headers={"User-Agent": "leadgen-capacity/1"}
         )
-        with urllib.request.urlopen(
-            req, timeout=timeout
-        ) as resp:  # nosec B310 — scheme gated above
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
             resp.read(64)
             return int(resp.status), time.perf_counter() - t0
     except urllib.error.HTTPError as exc:
