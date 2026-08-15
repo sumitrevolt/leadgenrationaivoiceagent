@@ -1100,6 +1100,14 @@ except Exception as _e:  # pragma: no cover
     logger.warning(f"Team-access router not mounted: {_e}")
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
+try:
+    from app.api.customer_plugins import router as customer_plugins_router
+
+    app.include_router(
+        customer_plugins_router
+    )  # /api/customer/plugins — AI capabilities for customer
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer plugins router not mounted: {_e}")
 # Loop-social-13 (2026-07-11): OAuth callback stubs — /api/social/oauth/*
 # Never crashes app boot; provider approval flip is env-only, no redeploy.
 try:
@@ -1191,6 +1199,14 @@ try:
     )  # /api/admin/plugins/* — Plugin manifest table + drift detection
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Plugin registry router not mounted: {_e}")
+try:
+    from app.api.onboard_pipeline_api import router as onboard_pipeline_router
+
+    app.include_router(
+        onboard_pipeline_router
+    )  # /api/admin/onboard-pipeline/* — Onboarding factory pipeline status + metrics
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Onboard pipeline router not mounted: {_e}")
 try:
     from app.api.coordination_hub import router as coordination_hub_router
 
@@ -1633,6 +1649,12 @@ async def customer_dashboard_page():
     """Customer dashboard — combo (both products: leads, calls, content, posters).
     Marketing-only / voice-only clients are auto-routed to their product page by JS."""
     return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
+
+
+@app.get("/app/plugins", tags=["Frontend"])
+async def customer_plugins_page():
+    """Customer-facing AI capabilities page — shows active features for their account."""
+    return FileResponse(str(FRONTEND_DIR / "customer_plugins.html"))
 
 
 @app.get("/app/customer/marketing", tags=["Frontend"])

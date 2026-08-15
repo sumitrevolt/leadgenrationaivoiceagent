@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1307 operations)
+## Endpoint Index — auto-generated from OpenAPI (1316 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -805,6 +805,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 - `GET   ` `/api/customer/pipeline` — Customer Pipeline
 
+### Customer Plugins  (1)
+
+- `GET   ` `/api/customer/plugins` — Customer Plugins
+
 ### Customer Portal  (13)
 
 - `POST  ` `/api/customer/auth/change-password` — Customer Change Password
@@ -964,7 +968,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (74)
+### Frontend  (75)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
@@ -1016,6 +1020,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/ops` — Ops Page
 - `GET   ` `/app/outreach` — Outreach Page
 - `GET   ` `/app/owner` — Owner Os Page
+- `GET   ` `/app/plugins` — Customer Plugins Page
 - `GET   ` `/app/segments` — Segments Page
 - `GET   ` `/app/studio` — Studio Page
 - `GET   ` `/app/team` — Team Dashboard Page
@@ -1546,6 +1551,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/okf/recall` — Okf Recall
 - `GET   ` `/api/admin/okf/status` — Okf Status
 
+### Onboarding Pipeline  (6)
+
+- `GET   ` `/api/admin/onboard-pipeline/backpressure` — Backpressure Status
+- `GET   ` `/api/admin/onboard-pipeline/metrics` — Capacity Metrics
+- `POST  ` `/api/admin/onboard-pipeline/retry/{cid}/{stage}` — Retry Stage
+- `POST  ` `/api/admin/onboard-pipeline/run` — Trigger Pipeline
+- `GET   ` `/api/admin/onboard-pipeline/status` — List Pipelines
+- `GET   ` `/api/admin/onboard-pipeline/status/{cid}` — Get Pipeline Status
+
 ### Operating HQ  (15)
 
 - `GET   ` `/api/platform/office/agent-os-status` — Office Agent Os Status
@@ -1661,10 +1675,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/platform/tenants/{tenant_id}/resume` — Resume Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/upgrade` — Upgrade Tenant
 
-### Plugin Registry  (3)
+### Plugin Registry  (4)
 
 - `GET   ` `/api/admin/plugins` — List Plugins
 - `POST  ` `/api/admin/plugins/drift` — Check Drift
+- `GET   ` `/api/admin/plugins/health` — Plugins Health
 - `GET   ` `/api/admin/plugins/{plugin_id}` — Get Plugin
 
 ### Privacy DPDP  (10)
