@@ -5,7 +5,7 @@
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `07870e89` (re-probed 2026-08-15 14:09:45Z–14:10:20Z, uptime advanced from a fresh recreate) · `origin/main` `94ab3167` docs-only on top (not needed for runtime) · GitHub heads = `main` only · open PRs = 0 · `payments_ready=true` · `blocker_count=1` · audit `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Hot Queue `callflag:` from #368 is **in the live SHA**. `HQ_AUTO_CHASE` remains INERT — do not arm.
+- **Current state:** LIVE on `963ee800` (DIRECT_HOST_VERIFIED 2026-08-15 15:21:24Z–15:22:37Z, 5/5 pin, VLK FALSE) · leftover local branches deleted (already on GitHub via squash) · open PRs = 0 at deploy · `payments_ready=true` · `blocker_count=1` · audit `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Hot Queue `callflag:` from #368 is **in the live SHA**. `HQ_AUTO_CHASE` remains INERT — do not arm.
 - **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. No further code merge required for that path.
 - **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
 
