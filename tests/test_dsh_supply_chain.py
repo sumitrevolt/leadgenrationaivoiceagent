@@ -54,6 +54,26 @@ def test_dsh_worker_lock_is_an_exact_subset_of_canonical_lock() -> None:
     assert "deepseek_harness" not in isolated
 
 
+def test_dsh_worker_lock_closure_covers_app_config_imports() -> None:
+    """Regression: 2026-08-15 the dsh worker cancelled EVERY run_dsh_workforce.
+
+    Root cause: `requirements-dsh.lock.txt` lacked `pydantic-settings` (and its
+    `python-dotenv` import-time dep) → `from app.config import settings` inside
+    `agent_runtime_cancellation._sync_redis()` raised ModuleNotFoundError →
+    fail-closed `cancellation_store_unavailable` → all 29 armed agents executed
+    nothing for 12h+. The lock closure MUST keep both pins in sync with the
+    canonical lock so `app/config.py` imports inside the isolated worker.
+    """
+    canonical = _pins(ROOT / "requirements.lock.txt")
+    isolated = _pins(ROOT / "requirements-dsh.lock.txt")
+    assert canonical["pydantic_settings"] == "2.15.0"
+    assert canonical["python_dotenv"] == "1.2.2"
+    assert isolated["pydantic_settings"] == canonical["pydantic_settings"]
+    assert isolated["python_dotenv"] == canonical["python_dotenv"]
+    for module_name in ("pydantic_settings", "python_dotenv"):
+        assert module_name in isolated
+
+
 def test_final_runtime_image_has_no_shell_or_package_manager_stage() -> None:
     dockerfile = (ROOT / "deploy" / "dsh" / "Dockerfile").read_text(encoding="utf-8")
     assert "/tmp/pkg-sea-dsh000/sea-main.js" in dockerfile
