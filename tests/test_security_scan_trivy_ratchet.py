@@ -56,6 +56,10 @@ def test_image_scan_builds_or_uses_exact_ref_never_latest_force(workflow_text: s
     # Must not reintroduce the advisory GHCR-:latest shortcut that skipped PRs.
     assert "vars.DEPLOY_ENABLED" not in workflow_text
     assert "Scan latest image (table, advisory)" not in workflow_text
+    # Path-filter skip is allowed (merge latency) but the fail-closed build
+    # path must still exist for lockfile/Dockerfile PRs and every main push.
+    assert "Skip Dockerfile.lock rebuild unless image inputs changed" in workflow_text
+    assert "steps.image_needed.outputs.run" in workflow_text
 
 
 def test_no_blanket_trivyignore_gate_bypass(workflow_text: str):

@@ -38,8 +38,9 @@ permissions:
   contents: read
 
 concurrency:
+  # DSH upstream CI: cancel superseded PR runs, never cancel a main push.
   group: dsh-runtime-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   static-policy:

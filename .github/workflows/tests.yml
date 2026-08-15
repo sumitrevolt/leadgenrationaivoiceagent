@@ -8,8 +8,14 @@ name: tests
 on:
   push:
     branches: [main]
-  pull_request:
+  # PRs already run the full required suite in ci.yml (parallel shards).
+  # A second targeted pytest job on every PR stole a runner slot from the
+  # merge-blocking `prod_check + pytest` aggregator.
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 permissions:
   contents: write  # failure pe pytest log ci-debug branch pe push (anonymous-readable)
