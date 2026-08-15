@@ -253,6 +253,22 @@ _OVERRIDES: dict[str, FlagMeta] = {
         kill="DUNNING_ENGINE=0",
         canary="owner-approved tenant + dry-run ledger",
     ),
+    "RENEWAL_REMINDER_ENABLED": _m(
+        "RENEWAL_REMINDER_ENABLED",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Independent renewal email. Body no-ops when DUNNING_ENGINE=1 "
+            "(run_due already sends period-deduped reminders). In-process loop "
+            "is day-keyed; celery topology does not call this path."
+        ),
+        owner="nikhil",
+        risk="billing",
+        customer=True,
+        default="1",
+        evidence="CODE-PRESENT",
+        kill="RENEWAL_REMINDER_ENABLED=0",
+    ),
     "OKF_INGEST_ENABLED": _m(
         "OKF_INGEST_ENABLED",
         FlagValueKind.BOOLEAN,

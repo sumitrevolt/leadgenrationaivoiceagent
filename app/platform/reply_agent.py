@@ -1503,7 +1503,8 @@ def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
         rows = prospector._read_all()
         # Interested/question replies with phone — calling candidates
         candidates = [
-            r for r in rows
+            r
+            for r in rows
             if r.get("reply_intent") in ("interested", "question")
             and r.get("phone")
             and len("".join(c for c in str(r["phone"]) if c.isdigit())) >= 10
@@ -1556,6 +1557,7 @@ def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
 
         try:
             from app.platform.team import log_event
+
             log_event(
                 "swara",
                 "auto_forward_replies",
@@ -1861,8 +1863,14 @@ def _full_prospect_map() -> dict[str, dict]:
 
 
 async def _reply_auto_send_enabled() -> bool:
-    """Env kill-switch OR audited Redis runtime flag. Fail-closed on doubt."""
-    if _flag("REPLY_AUTO_SEND_HARD_OFF"):
+    """Env kill-switch OR audited Redis runtime flag. Fail-closed on doubt.
+
+    ``REPLY_AUTO_SEND_HARD_OFF`` defaults ON (unset = blocked) so a live
+    ``REPLY_AUTO_SEND=1`` cannot silently auto-mail when the hard-off env
+    was never written. Owner must set HARD_OFF=0 to arm.
+    """
+    hard_off = os.getenv("REPLY_AUTO_SEND_HARD_OFF", "1").strip().lower()
+    if hard_off not in {"0", "false", "no", "off"}:
         return False
     if _flag("REPLY_AUTO_SEND"):
         return True
@@ -2345,6 +2353,75 @@ def _is_noise_row(r: dict) -> bool:
     return False
 
 
+def _calling_flagged_cards(
+    limit: int,
+    *,
+    seen_from: set[str],
+    seen_phone: set[str],
+) -> list[dict]:
+    """Synthetic Hot Queue cards from prospector calling_flagged / high-intent.
+
+    These are NOT draft rows. Done/Park persist on the prospect via
+    ``auto_outreach.mark_hot_queue_candidate``. Never raises.
+    """
+    out: list[dict] = []
+    try:
+        from app.platform import auto_outreach
+
+        for cand in auto_outreach.hot_queue_candidates(limit=max(1, int(limit) * 2)):
+            email = str(cand.get("email") or "").strip().lower()
+            phone = str(cand.get("phone") or "")
+            digits = "".join(c for c in phone if c.isdigit())
+            phone10 = digits[-10:] if len(digits) >= 10 else ""
+            if email and email in seen_from:
+                continue
+            if phone10 and phone10 in seen_phone:
+                continue
+            pid = str(cand.get("id") or "").strip()
+            if not pid:
+                continue
+            wa = str(cand.get("wa_followup_link") or "")
+            if not wa and phone10:
+                from urllib.parse import quote
+
+                biz = str(cand.get("business_name") or "ji").strip()
+                wa = f"https://wa.me/91{phone10}?text=" + quote(
+                    f"Namaste {biz} ji — LeadGen AI se baat karni ho to yahan reply karein."
+                )
+            out.append(
+                {
+                    "hq_id": f"callflag:{pid}",
+                    "channel": "calling_flagged",
+                    "intent": "interested",
+                    "from": email or phone,
+                    "phone": phone,
+                    "business_name": cand.get("business_name") or "",
+                    "niche": cand.get("niche") or "",
+                    "city": cand.get("city") or "",
+                    "text": f"calling_flagged reason={cand.get('reason') or '-'}",
+                    "draft": (
+                        "High-intent prospect (reply/calling-flag) — owner: Call ya 1-click WA. "
+                        "Cold auto-WA OFF. Done dabao after action."
+                    ),
+                    "wa_link": wa,
+                    "hq_source": "calling_flagged",
+                    "owner_action": "call_or_wa_draft_then_done",
+                    "sla_state": "n/a",
+                    "at": "",
+                    "prospect_id": pid,
+                }
+            )
+            if email:
+                seen_from.add(email)
+            if phone10:
+                seen_phone.add(phone10)
+            if len(out) >= max(1, int(limit)):
+                break
+    except Exception as exc:
+        logger.debug("calling_flagged cards err: %s", exc)
+    return out
+
+
 def hot_queue(
     limit: int = 50,
     intents: tuple = _HOT_INTENTS,
@@ -2449,6 +2526,24 @@ def hot_queue(
                     final.append(card)
             except Exception:
                 pass
+        # Calling-flagged / high-intent prospects that never got a draft row —
+        # otherwise auto_forward_positive_replies writes a flag nobody sees.
+        if scope_n in ("boss", "all") and len(final) < max(1, limit):
+            try:
+                final.extend(
+                    _calling_flagged_cards(
+                        limit=max(1, limit) - len(final),
+                        seen_from={str(r.get("from") or "").strip().lower() for r in final},
+                        seen_phone={
+                            "".join(c for c in str(r.get("phone") or "") if c.isdigit())[-10:]
+                            for r in final
+                            if len("".join(c for c in str(r.get("phone") or "") if c.isdigit()))
+                            >= 10
+                        },
+                    )
+                )
+            except Exception:
+                pass
         return final[: max(1, limit)]
     except Exception as exc:
         logger.debug("hot_queue err: %s", exc)
@@ -2511,6 +2606,14 @@ def mark_handled(hq_id: str) -> bool:
         except Exception as exc:
             logger.debug("mark_handled paychase err: %s", exc)
             return False
+    if hq_id.startswith("callflag:"):
+        try:
+            from app.platform import auto_outreach
+
+            return bool(auto_outreach.mark_hot_queue_candidate(hq_id.split(":", 1)[1], done=True))
+        except Exception as exc:
+            logger.debug("mark_handled callflag err: %s", exc)
+            return False
     if not os.path.exists(_DRAFTS_FILE):
         return False
     try:
@@ -2548,6 +2651,14 @@ def park_for_admin(hq_id: str, note: str = "") -> bool:
             return bool(pay_truth.mark_paychase_parked(hq_id))
         except Exception as exc:
             logger.debug("park_for_admin paychase err: %s", exc)
+            return False
+    if hq_id.startswith("callflag:"):
+        try:
+            from app.platform import auto_outreach
+
+            return bool(auto_outreach.mark_hot_queue_candidate(hq_id.split(":", 1)[1], parked=True))
+        except Exception as exc:
+            logger.debug("park_for_admin callflag err: %s", exc)
             return False
     if not os.path.exists(_DRAFTS_FILE):
         return False

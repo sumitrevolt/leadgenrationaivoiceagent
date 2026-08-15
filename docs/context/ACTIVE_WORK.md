@@ -5,8 +5,8 @@
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 ~00:01Z, 5/5 pinned, VLK=0; dual public probe 02:37:40Z / 02:40:09Z uptime advanced) · inbox shell 200 · named blocker `upi_pending_unactioned` · `payments_ready=true` · `paid_today=0` honest empty day · T31 ntfy+UPI actionable True in running app · one-pager `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · READY board `docs/gtm/NEXT_TODOS.md` §6. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit.
-- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. **Naya module/agent/loop tab tak nahi** jab tak koi correlated real-funnel defect evidence ke saath na mile.
+- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 07:51Z–08:08Z, 5/5 pinned) · `origin/main` `920a3e62` undeployed · inbox shell 200 · named blocker `upi_pending_unactioned` (SSH: 1 approved-unbound, has_client=0, stale≥6h) · `payments_ready=true` · `paid_today=0` honest empty day · audit `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Branch `cursor/revenue-blocker-p0` wires calling_flagged into inbox (not live).
+- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. Deploy of P0 branch is optional and does **not** replace those clicks.
 - **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
 
 ---

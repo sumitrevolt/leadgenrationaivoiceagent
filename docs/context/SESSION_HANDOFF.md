@@ -1,42 +1,43 @@
-# SESSION_HANDOFF — 2026-08-15 (Cursor: Next42 + DSH next-todos PR)
+# SESSION_HANDOFF — 2026-08-15 (Cursor: revenue blocker audit + 3 P0s)
 
 ## Status
-Owner asked PR banao + merge. Next42 / DSH next-todos CODE+docs committed on `cursor/next42-dsh-next-todos` after merging `origin/main` (PR #363/#364 ancestry). **No VPS deploy. No flag arm. No fake paid. No Boss real-start.**
+Previous agent `c8fee2b7` ping-timeout; audit file missing. Fresh audit written. **3 CODE P0s** on branch `cursor/revenue-blocker-p0` from `origin/main`. **No deploy. No flag arm. No fake paid. No Boss real-start.**
 
 ## Evidence
-- Prod `/health` = `91958c23` healthy production. Dual probe 02:37:40Z (uptime 4h53m) → 02:40:09Z (4h55m) = live, not cache. Independent 00:01Z re-probe (PR #364): 5/5 app-image pin, VLK=0, merge SHA `91958c23`.
-- Activation: `payments_ready=true`, `blocker_count=1` named **`upi_pending_unactioned`**, `paid_today=0` / `activations_today=0` (honest empty day; PR #363 ledger-backed KPI).
-- Inbox/admin/login HTTP 200. T31 in running app: `_notify_owner_once` + `list_actionable` True.
-- Flags unchanged (observe): hub/dunning/UPI_AUTO/DSH_RUNTIME=1. Cold WA=0. GSC/HSE UNSET. `WEB_CONCURRENCY=2`. `CELERY_ONBOARD_QUEUE` UNSET.
-- Heavy: 02:41Z CPU 0.46% llen=0 (earlier 155%/llen=2). Jobs = `self_improve_tick`, `run_staff_job`, kb-warmup FastEmbed ~96s. `dlq:dead=24` do not flush. Onboard→heavy still NO-GO.
-- DSH: `verify_dsh_supply_chain.py` EXIT 0; local `dsh_runtime_smoke.py` smoke-a OK; `dsh_next_todos_plan.py` Kavya MCP turn. Prod DSH queue llen=0. Runtime live=1 not flipped.
-- Boss `--dry-run` EXIT 0 identity `1b13cecc`, relay `ws://127.0.0.1:3100`. Real start owner-only.
+- Prod `/health` = `91958c23` healthy production. Dual public 07:51:24Z (uptime 10h06m) → 07:55:32Z (10h11m); host 08:08:50Z (10h24m). Live, not cache.
+- VPS HEAD + 5/5 app images `:91958c23`. `origin/main` = `920a3e62` (#366) **UNDEPLOYED** vs live. Also undeployed: #365 `56ff46a9`, #364 docs.
+- Activation: `payments_ready=true`, `blocker_count=1` named **`upi_pending_unactioned`**, WARN `first_paid_delivery`.
+- UPI actionable: n=1 approved, needs_bind=1, has_client=0, stale_n=1, alert 6h.
+- `paid_today=0` / `activations_today=0` IST 2026-08-15 honest empty day.
+- Funnel `/` `/pricing` `/start` `/privacy` `/audit` `/demo` `/app/inbox` `/app/admin-login` 200 (pricing/start re-probed after burst TLS flake).
+- DSH: `verify_dsh_supply_chain.py` EXIT 0; `dsh_next_todos_plan.py` Kavya heartbeat 200 / gtm_ops_ready 200 / UPI 403; prod DSH runs `cancellation_store_unavailable` (not a paid blocker).
+- Flags (booleans only): hub/dunning/UPI_AUTO/DSH_RUNTIME=1; cold WA=0; GSC/HSE UNSET; `RUN_IN_PROCESS_SCHEDULER=0`; `REPLY_AUTO_SEND=1`; `HOT_QUEUE_BRIEF_DAILY=1`; ntfy SET; DSH allowlist csv_n=29 not `*`.
+- `dlq:dead=24` trainer TimeLimitExceeded — do not flush.
 
-## Revenue verdict (evidence-bound)
-| Gate | Verdict | Kyun |
-|---|---|---|
-| Technical money path | **GO** | funnel + pricing + `/start` + manual-UPI rail + admin approve/bind + ledger-backed `paid_today` live on `91958c23` |
-| Authenticated Hot Queue `/app/inbox` | **WAIT** | surface live; blitz owner ka authenticated kaam hai |
-| UPI activation path | **WAIT** | Bind/Re-Approve ke liye real payment chahiye |
-| REVENUE GENERATED | **WAIT** | sirf **owner-confirmed bank credit** pe GO |
-| **Overall** | **WAIT (owner-gated, koi technical blocker nahi)** | |
+## P0 code this session (not live until deploy)
+1. `callflag:` Hot Queue cards from `hot_queue_candidates` (was NOT_CONNECTED).
+2. `send_renewal_reminders` skips when `DUNNING_ENGINE=1`; in-process day-keyed (no tick storm).
+3. `RENEWAL_REMINDER_ENABLED` in AUTOMATION_FLAGS; `REPLY_AUTO_SEND_HARD_OFF` defaults ON when unset.
 
-## Next (owner, in order)
-1. `/app/admin-login` → `/app/inbox` token on page, 15–30 min ([HOT_QUEUE_BLITZ_CHECKLIST.md](../gtm/HOT_QUEUE_BLITZ_CHECKLIST.md)).
-2. UPI `/app/admin#sec-upi-selfserve` Bind → Approve.
-3. Bank-credit confirm. Scoreboard = Aaj naye paid.
-4. Optional: `python scripts/buzz_start_harness.py --agent Boss` then `#admin` `@Boss` ≥600s ([BOSS_HARNESS_CANARY.md](../gtm/BOSS_HARNESS_CANARY.md)).
-5. Comb Save only after Boss replies.
-6. Decide stay/change on live hub/dunning/UPI_AUTO/DSH_RUNTIME=1.
-7. Phase 1 only after 2nd paid.
+Audit: `docs/gtm/REVENUE_BLOCKER_AUDIT.md`
+Deploy runbook: `docs/gtm/OWNER_DEPLOY_920a3e62.md`
+
+## Revenue verdict
+| Gate | Verdict |
+|---|---|
+| Technical money path | **GO** |
+| Hot Queue / UPI bind / bank | **WAIT owner** |
+| REVENUE GENERATED | **WAIT** |
+| Overall | **WAIT (owner-gated)** |
+
+## Next (owner)
+1. `/app/inbox` token 15–30 min.
+2. UPI Bind → Re-Approve **if bank credit real**.
+3. Optional: merge+deploy P0 branch / `920a3e62` via kill fence + `deploy_vps.sh`.
+4. Optional Boss harness start (not sandbox).
 
 ## Do not
-- Arm cold WA / GSC without creds / HARNESS_SESSION_EVENTS / CELERY_ONBOARD_QUEUE
-- `DSH_AGENT_ALLOWLIST=*` · migrate swara/ananya · delete legacy executor
-- Start Boss from agent sandbox
-- Flush DLQ · raise WEB_CONCURRENCY · claim 50/day live · fake paid_today
-- Touch Swara/voice (FROZEN) · recreate without `APP_VERSION` · `git add -A` · `reset --hard` on dirty VPS
-- Deploy this PR unless owner later asks
+Cold WA · GSC without creds · HARNESS_SESSION_EVENTS · `DSH_AGENT_ALLOWLIST=*` · flush DLQ · raise WEB_CONCURRENCY · fake paid_today · Swara/voice edits · `git add -A` · `reset --hard`
 
-## Rollback (1 line)
-This PR is CODE+docs. Prod stays `91958c23` until owner deploys. Prod rollback still `ROLLBACK_TAG=c4fc0087` via `deploy_vps.sh`.
+## Rollback
+Prod stays `91958c23` until owner deploys. Prod rollback `ROLLBACK_TAG=c4fc0087`. This branch unused if never merged.

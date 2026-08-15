@@ -461,23 +461,30 @@ def stats() -> dict[str, Any]:
 def renewal_reminder_enabled() -> bool:
     """ON by default -- safe, no payment action, just reminder email."""
     return os.environ.get("RENEWAL_REMINDER_ENABLED", "1").strip().lower() not in (
-        "0", "false", "no",
+        "0",
+        "false",
+        "no",
     )
 
 
 async def send_renewal_reminders() -> dict[str, Any]:
-    """Active subscriptions ko renewal reminder bhejo. DUNNING_ENGINE se INDEPENDENT.
+    """Active subscriptions ko renewal reminder bhejo.
 
+    Independent of DUNNING_ENGINE only when dunning is OFF. When
+    ``DUNNING_ENGINE=1``, ``run_due()`` already sends period-deduped
+    ``_renewal_reminders`` — a second sender would double-email Jiya.
     Safe: sirf email reminder, koi payment retry. Manual UPI path intact.
     NEVER raises.
     """
     result: dict[str, Any] = {"sent": 0, "skipped": 0, "error": None}
+    if _enabled():
+        return {"skipped": "covered_by_dunning_run_due"}
     if not renewal_reminder_enabled():
         return {"skipped": "RENEWAL_REMINDER_ENABLED=0"}
     try:
         from app.billing import usage
-        from app.marketing import clients_store
         from app.integrations.email_sender import EmailSender
+        from app.marketing import clients_store
 
         clients = clients_store.list_clients() or []
         sender = EmailSender()
@@ -510,9 +517,22 @@ async def send_renewal_reminders() -> dict[str, Any]:
                     continue
                 subject = biz + " ji -- subscription " + str(days_left) + " din me renew"
                 body_text = "Namaste " + biz + " ji," + NL + NL
-                body_text += "Aapka LeadGen AI subscription " + str(days_left) + " din me expire ho raha hai. "
-                body_text += "Service continue rakhne ke liye UPI se payment kar sakte hain." + NL + NL
-                body_text += "Plan: " + str(sub.get("plan", "starter")) + " -- Rs " + str(sub.get("amount", 1999)) + "/month" + NL
+                body_text += (
+                    "Aapka LeadGen AI subscription "
+                    + str(days_left)
+                    + " din me expire ho raha hai. "
+                )
+                body_text += (
+                    "Service continue rakhne ke liye UPI se payment kar sakte hain." + NL + NL
+                )
+                body_text += (
+                    "Plan: "
+                    + str(sub.get("plan", "starter"))
+                    + " -- Rs "
+                    + str(sub.get("amount", 1999))
+                    + "/month"
+                    + NL
+                )
                 body_text += "Payment: leadsgenai.in/pricing" + NL + NL
                 body_text += "Koi sawaal ho to reply karein -- hum madad karenge." + NL + NL
                 body_text += "-- Sumit, LeadGen AI"
@@ -527,6 +547,7 @@ async def send_renewal_reminders() -> dict[str, Any]:
 
         try:
             from app.platform.team import log_event
+
             log_event(
                 "nikhil",
                 "renewal_reminders",

@@ -1,6 +1,18 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-15 (revenue blocker audit + 3 P0s — CURSOR)
+Goal: Fresh audit after timed-out agent; find/fix ≤3 CODE-safe P0s. DSH governed path. No deploy, no fake paid, voice FROZEN.
+Inspected: `/health` dual+host; activation/summary; SSH images/flags/UPI/paid_today/events/DLQ/logs; git fetch origin/main `920a3e62` vs live `91958c23`; #365 `hot_queue_candidates` callers; dunning duplicate; `_reply_auto_send_enabled`; DSH supply-chain + Kavya plan.
+Problems Found: (1) Owner WAIT — Hot Queue unused + 1 approved-unbound UPI. (2) #365 candidates NOT_CONNECTED to inbox. (3) `send_renewal_reminders` every in-process tick + duplicates dunning. (4) HARD_OFF unset ≠ fail-closed. (5) main undeployed.
+Changed: `reply_agent` `callflag:` cards; `auto_outreach` hq_done; `dunning.send_renewal_reminders` skip if dunning; scheduler day-key; `RENEWAL_REMINDER_ENABLED` registry; HARD_OFF default ON; audit + OWNER_DEPLOY + SESSION_HANDOFF. No `.env`, no voice, no deploy.
+Tests Run: `pytest tests/test_revenue_funnel_p0_20260815.py tests/test_hot_queue.py tests/test_revenue_gtm_hot_queue_paychase_2026_08_05.py tests/test_automation_flag_manifest.py tests/test_reply_auto_send.py tests/test_scheduler_multi_registry_parity.py tests/test_revenue_automation.py` 79 passed EXIT 0. `prod_check.py` ALL CHECKS PASSED EXIT 0 (1282 routes). `check_secrets.py` OK EXIT 0. `verify_dsh_supply_chain.py` EXIT 0. `dsh_next_todos_plan.py` Kavya UPI 403 EXIT 0.
+Verification Evidence: `/health` 91958c23 07:51Z→07:55Z→08:08Z; UPI n=1 approved unbound; Kavya UPI 403; pricing/start 200 delayed re-probe.
+Risks: P0s not live until owner deploy. HARD_OFF default will block live `REPLY_AUTO_SEND=1` after deploy unless HARD_OFF=0. Cards after token still owner-only.
+Remaining: owner inbox/UPI/bank; optional deploy; Boss start.
+Next Highest Priority: owner `/app/inbox` blitz + UPI bind if bank credit real.
+
+## Loop Run
 Date: 2026-08-15 (NEXT todos READY via governed DSH — CURSOR)
 Goal: Owner mandate "hafta nahi DSH use kake next todos READY" — agent-completable items + owner one-command/runbooks. No deploy, no flag arm, no fake paid.
 Inspected: prod `/health`+`/api/activation/summary` dual probe; capacity_baseline flags; paid_today_watch; heavy logs+inspect; DSH supply-chain + Docker smoke-a; Boss `--dry-run`; NEXT_TODOS / HOT_QUEUE / PHASE1; workforce_runtime dispatch allowlist/`FROZEN_AGENTS`; dsh_internal MCP.

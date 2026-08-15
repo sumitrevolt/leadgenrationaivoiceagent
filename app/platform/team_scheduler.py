@@ -1129,12 +1129,14 @@ async def _run_job_inner(job: str) -> bool:
             # Multi-channel orchestration: email-openers ko WhatsApp follow-up links
             try:
                 from app.platform import auto_outreach
+
                 auto_outreach.multi_channel_followup(limit=25)
             except Exception:
                 pass
             # Auto-forward positive replies to calling queue
             try:
                 from app.platform import reply_agent
+
                 reply_agent.auto_forward_positive_replies(limit=10)
             except Exception:
                 pass
@@ -1737,12 +1739,17 @@ async def scheduler_loop() -> None:
             if now.minute >= 20 and _last_ran.get("product_one_health") != hour_key:
                 _last_ran["product_one_health"] = hour_key
                 await _run_job("product_one_health")
-            # Renewal reminders — independent of DUNNING_ENGINE
-            try:
-                from app.billing import dunning
-                await dunning.send_renewal_reminders()
-            except Exception:
-                pass
+            # Renewal reminders — day-keyed (never every tick). Body no-ops when
+            # DUNNING_ENGINE already covers the same email. Celery prod
+            # (RUN_IN_PROCESS_SCHEDULER=0) never enters this loop.
+            if _last_ran.get("renewal_reminders") != day_key:
+                _last_ran["renewal_reminders"] = day_key
+                try:
+                    from app.billing import dunning
+
+                    await dunning.send_renewal_reminders()
+                except Exception:
+                    pass
             # Bounded pending-approval EMAIL sweep — hourly :40 (INERT unless APPROVAL_EMAIL_NOTIFY=1).
             if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
                 _last_ran["approval_email_sweep"] = hour_key

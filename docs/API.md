@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1296 operations)
+## Endpoint Index — auto-generated from OpenAPI (1304 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -536,10 +536,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (35)
+### ClientOps  (37)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
+- `POST  ` `/api/clientops/approvals/retire-orphans` — Retire Orphaned Approvals
 - `POST  ` `/api/clientops/approvals/{approval_id}/decide` — Admin Decide Approval
 - `GET   ` `/api/clientops/approve/{token}` — Public Approve
 - `POST  ` `/api/clientops/creative-os/generate` — Creative Os Generate
@@ -573,6 +574,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/clientops/video-production/generate` — Video Production Generate
 - `GET   ` `/api/clientops/video-production/ops` — Video Production Ops
 - `POST  ` `/api/clientops/video-production/{video_ad_id}/approve` — Video Production Approve
+- `GET   ` `/api/clientops/video/daily-status` — Video Daily Status
 
 ### Clients  (7)
 
@@ -843,6 +845,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/webhooks/{webhook_id}/deliveries/{delivery_id}/retry` — Retry Delivery
 - `POST  ` `/api/customer/webhooks/{webhook_id}/rotate-secret` — Rotate Secret
 - `POST  ` `/api/customer/webhooks/{webhook_id}/test` — Test Fire
+
+### DSH Internal  (6)
+
+- `POST  ` `/internal/dsh/approval-proposals` — Approval Proposal
+- `POST  ` `/internal/dsh/capabilities/{capability}/submissions` — Capability Submit
+- `POST  ` `/internal/dsh/heartbeat` — Dsh Heartbeat
+- `GET   ` `/internal/dsh/submissions/{submission_id}` — Capability Status
+- `POST  ` `/internal/dsh/submissions/{submission_id}/wait` — Capability Wait
+- `POST  ` `/internal/dsh/v1/chat/completions` — Chat Completions
 
 ### Dashboard Assessment  (6)
 
