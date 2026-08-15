@@ -1,4 +1,4 @@
-"""Staff pulse must not trip Buzz mention-preflight."""
+﻿"""Staff pulse must not trip Buzz mention-preflight."""
 
 from __future__ import annotations
 
@@ -19,11 +19,16 @@ def _load():
     return mod
 
 
-pulse = _load()
+def test_pulse_imports_without_localappdata(monkeypatch):
+    """Linux CI has no LOCALAPPDATA; collection must not KeyError."""
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    pulse = _load()
+    assert callable(pulse.build_message)
 
 
 def test_pulse_footer_does_not_at_mention_boss():
     """Hourly task was rc=3 because CLI mention-preflight treated @Boss as a ping."""
+    pulse = _load()
     body = pulse.build_message(
         {
             "totals": {

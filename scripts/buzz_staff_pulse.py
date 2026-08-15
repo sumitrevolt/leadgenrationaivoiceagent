@@ -29,7 +29,7 @@ SSH_KEY = str(Path.home() / ".ssh" / "id_rsa")
 VPS = "root@72.61.245.204"
 CONTAINER = "leadgen_app"
 
-BUZZ = Path(os.environ["LOCALAPPDATA"]) / "Buzz" / "buzz.exe"
+BUZZ = Path(os.environ.get("LOCALAPPDATA") or os.environ.get("HOME", ".")) / "Buzz" / "buzz.exe"
 # Local-first relay migration (owner 2026-08-10): BUZZ_RELAY env overrides once
 # the local relay is up; hosted default keeps the current workspace working.
 RELAY = os.environ.get("BUZZ_RELAY", "https://leadsgenai.communities.buzz.xyz")
