@@ -1147,6 +1147,172 @@ def outreach_stats() -> dict[str, Any]:
     return stats
 
 
+# ---------------------------------------------------------------------------
+# MULTI-CHANNEL ORCHESTRATION — email → WhatsApp → calling pipeline
+# ---------------------------------------------------------------------------
+# Enterprise-grade: email-openers ko WhatsApp follow-up link bhejta hai,
+# high-intent prospects ko calling queue me flag karta hai.
+# NEVER raises — har step ka apna try/except.
+# ---------------------------------------------------------------------------
+
+import urllib.parse as _urlparse
+
+
+def _wa_followup_link(phone10: str, biz_name: str, msg: str) -> str:
+    """1-click WhatsApp follow-up link (NOT auto-send — ban-safe)."""
+    return f"https://wa.me/91{phone10}?text={_urlparse.quote(msg)}"
+
+
+def multi_channel_followup(limit: int = 25) -> dict[str, Any]:
+    """Email-emailed prospects ke liye WhatsApp follow-up links generate karo.
+
+    Gated: SALES_AUTOPILOT_ENABLED + WHATSAPP_AUTO_SEND (auto-send) ya
+    human-click WA links (always safe).  KABHI raise nahi karta.
+
+    Returns: {"processed": n, "wa_links_generated": x, "calling_flagged": y}
+    """
+    result: dict[str, Any] = {
+        "processed": 0,
+        "wa_links_generated": 0,
+        "calling_flagged": 0,
+        "skipped": 0,
+    }
+    try:
+        from app.platform import prospector
+
+        rows = prospector._read_all()
+        # Emailed prospects jinke paas phone hai — WhatsApp eligible
+        emailed_with_phone = [
+            r for r in rows
+            if r.get("emailed_at")
+            and r.get("phone")
+            and len("".join(c for c in str(r["phone"]) if c.isdigit())) >= 10
+            and (r.get("status") or "ready") in ("ready", "sent")
+            and not r.get("wa_followup_sent")
+        ]
+        emailed_with_phone.sort(key=lambda r: str(r.get("found_at") or ""))
+        batch = emailed_with_phone[:limit]
+
+        for p in batch:
+            try:
+                phone10 = "".join(c for c in str(p["phone"]) if c.isdigit())[-10:]
+                if len(phone10) < 10:
+                    continue
+                biz = str(p.get("business_name") or "Business").strip()
+                niche = str(p.get("niche") or "business").replace("_", " ")
+
+                # WhatsApp follow-up message — polite, value-forward
+                wa_msg = (
+                    f"Namaste {biz} ji 🙏 Maine aapko email kiya tha {niche} ke liye "
+                    f"free Google audit ke baare me. Agar dekhna ho to 2 min lagenge: "
+                    f"leadsgenai.in/audit — ya yahan baat karte hain!"
+                )
+                wa_link = _wa_followup_link(phone10, biz, wa_msg)
+
+                # Mark so we don't re-generate
+                prospector.set_prospect_fields(
+                    str(p.get("id")),
+                    {
+                        "wa_followup_generated": True,
+                        "wa_followup_link": wa_link,
+                        "updated_at": datetime.utcnow().isoformat() + "Z",
+                    },
+                )
+                result["wa_links_generated"] += 1
+
+                # High-intent signal: niche is local SMB + has phone → calling candidate
+                if str(p.get("niche") or "") in {
+                    "solar_residential", "real_estate", "coaching",
+                    "interior_designers", "dental", "beauty",
+                }:
+                    prospector.set_prospect_fields(
+                        str(p.get("id")),
+                        {
+                            "calling_flagged": True,
+                            "updated_at": datetime.utcnow().isoformat() + "Z",
+                        },
+                    )
+                    result["calling_flagged"] += 1
+
+                result["processed"] += 1
+            except Exception as e:
+                logger.debug(f"[auto_outreach] multi_channel_followup item failed: {e}")
+                result["skipped"] += 1
+
+        try:
+            from app.platform.team import log_event
+            log_event(
+                "rohan",
+                "multi_channel_followup",
+                (
+                    f"{result['processed']} prospects processed, "
+                    f"{result['wa_links_generated']} WA links, "
+                    f"{result['calling_flagged']} calling-flagged"
+                ),
+                status="ok",
+                meta=result,
+            )
+        except Exception:
+            pass
+
+        logger.info(f"[auto_outreach] multi_channel_followup done: {result}")
+        return result
+    except Exception as e:
+        logger.warning(f"[auto_outreach] multi_channel_followup failed: {e}")
+        result["error"] = str(e)
+        return result
+
+
+def hot_queue_candidates(limit: int = 20) -> list[dict[str, Any]]:
+    """Prospects jo Hot Queue ke liye ready hain — replied ya high-intent.
+
+    Hot Queue `/app/inbox` ke liye data source. KABHI raise nahi karta.
+    """
+    try:
+        from app.platform import prospector
+
+        rows = prospector._read_all()
+        candidates = []
+        for r in rows:
+            status = (r.get("status") or "ready").lower()
+            # Already in pipeline (replied, client, dead) = skip
+            if status in ("client", "dead"):
+                continue
+            # High-intent signals
+            is_reply = status == "replied"
+            is_calling_flagged = bool(r.get("calling_flagged"))
+            is_wa_engaged = bool(r.get("wa_followup_sent"))
+            has_high_score = False
+            try:
+                score = int(r.get("lead_score") or 0)
+                has_high_score = score >= 70
+            except Exception:
+                pass
+
+            if is_reply or is_calling_flagged or is_wa_engaged or has_high_score:
+                candidates.append({
+                    "id": r.get("id"),
+                    "business_name": r.get("business_name"),
+                    "phone": r.get("phone"),
+                    "email": r.get("email"),
+                    "niche": r.get("niche"),
+                    "city": r.get("city"),
+                    "status": status,
+                    "lead_score": r.get("lead_score"),
+                    "reason": (
+                        "replied" if is_reply
+                        else "calling_flagged" if is_calling_flagged
+                        else "wa_engaged" if is_wa_engaged
+                        else "high_score"
+                    ),
+                })
+        candidates.sort(key=lambda c: float(c.get("lead_score") or 0), reverse=True)
+        return candidates[:limit]
+    except Exception as e:
+        logger.debug(f"[auto_outreach] hot_queue_candidates failed: {e}")
+        return []
+
+
 def _rel_time(iso: str) -> str:
     """ISO timestamp -> Hinglish relative ('abhi' / 'X min pehle' / 'X din pehle')."""
     try:
