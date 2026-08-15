@@ -71,31 +71,11 @@ def test_inbox_and_start_routes_exist_in_main():
     assert "/start" in text
 
 
-def test_hot_queue_ntfy_and_upi_actionable_exist_on_origin_main():
-    """Prod 91958c23 ships origin/main copies. This worktree may be behind."""
-    import subprocess
-
-    ob = subprocess.check_output(
-        ["git", "show", "origin/main:app/platform/office_briefing.py"],
-        cwd=REPO,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    upi = subprocess.check_output(
-        ["git", "show", "origin/main:app/platform/upi_payments.py"],
-        cwd=REPO,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    api = subprocess.check_output(
-        ["git", "show", "origin/main:app/api/upi_payments.py"],
-        cwd=REPO,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+def test_hot_queue_ntfy_and_upi_actionable_exist():
+    """Shipped on origin/main via PR #363; this branch merged that ancestry."""
+    ob = (REPO / "app" / "platform" / "office_briefing.py").read_text(encoding="utf-8")
+    upi = (REPO / "app" / "platform" / "upi_payments.py").read_text(encoding="utf-8")
+    api = (REPO / "app" / "api" / "upi_payments.py").read_text(encoding="utf-8")
     assert "async def _notify_owner_once" in ob
     assert "def list_actionable" in upi
     assert "list_actionable()" in api
