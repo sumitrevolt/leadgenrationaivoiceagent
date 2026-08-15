@@ -27,12 +27,15 @@ def test_renewal_respects_own_flag_when_dunning_off(monkeypatch):
 
 
 def test_in_process_renewal_is_day_keyed_not_every_tick():
-    src = inspect.getsource(
-        __import__("app.platform.team_scheduler", fromlist=["scheduler_loop"]).scheduler_loop
+    ts = __import__(
+        "app.platform.team_scheduler", fromlist=["scheduler_loop", "_renewal_reminders_day"]
     )
-    assert '_last_ran.get("renewal_reminders") != day_key' in src
-    # Marker is runtime-only so STAFF_JOBS parity does not grow a dead celery job.
+    src = inspect.getsource(ts.scheduler_loop)
+    assert "if _renewal_reminders_day != day_key" in src
+    assert '_last_ran.get("renewal_reminders")' not in src
+    # Private marker stays outside _last_ran so STAFF_JOBS / Aaj parity stays clean.
     assert "renewal_reminders" not in _last_ran
+    assert hasattr(ts, "_renewal_reminders_day")
     assert (
         "renewal_reminders"
         not in __import__("app.tasks.staff_jobs", fromlist=["STAFF_JOBS"]).STAFF_JOBS
