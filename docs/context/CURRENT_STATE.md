@@ -4,21 +4,57 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` = `fb3d0bc2`. **DSH FULL AUTHORITY ARMED** (owner override ADR-182): `DSH_RUNTIME_ENABLED=1`, allowlist=29, `leadgen_dsh_worker` healthy, `swara`/`ananya`=`direct`. Rollback drill proven then re-armed. Kill fence for voice remains VLK=FALSE_TOKEN. Revenue GO + Phase 0 Hot Queue checklist live in docs.
+2026-08-15 ~00:01Z — prod `/health` = `91958c23` **RE-PROBED and unchanged** (see the re-verification block below). Original deploy verification was 2026-08-14 ~21:45Z (PR #363). **Product-1 north-star KPI ab ledger-backed** (`paid_today` / `activations_today` on the admin "Aaj" snapshot). DSH stays LIVE-AUTHORITY. VLK=0. No flag armed by this deploy. Phase 0 Hot Queue still owner-gated.
+
+## RE-VERIFICATION 2026-08-15 ~00:01Z — independent probe, docs-only session
+Ye block kisi deploy ka nahi hai — ek alag session ne pichhle session ke claims ko **lead** maan kar dobara probe kiya (rumour se nahi, khud ke output se).
+- **PR #363:** `gh pr view 363` → `state=MERGED`, `mergedAt=2026-08-14T21:30:39Z`, `mergeCommit=91958c23feac5aa09d85ccf7dd3a3a62c981f119`. `git merge-base --is-ancestor <merge-sha> origin/main` EXIT=0 aur `origin/main` tip **exactly** wahi SHA hai. (GIT_VERIFIED)
+- **Public `/health` ×2, cache-busted:** `23:59:49.113763Z` uptime `2h 15m 22s` → `00:00:01.593698Z` uptime `2h 15m 35s`. **Timestamp aur uptime dono advance hue** — ye live origin hai, cache nahi (2026-08-06 cached-probe trap ke against explicit check). Dono probes: `healthy` · `environment:production` · `version:91958c23`.
+- **Host-local `/health`:** `127.0.0.1:8000` se bhi `91958c23`, uptime `2h 17m 9s`.
+- **5/5 app-image pin (read-only `docker ps` + `docker inspect` + `printenv`):** `leadgen_app`, `leadgen_worker`, `leadgen_scheduler`, `leadgen_worker_heavy`, `leadgen_worker_video` — sab `ghcr.io/...:91958c23`, `APP_VERSION=91958c23`, `VOICE_LAUNCH_KILL=0`, sab `Up 2 hours (healthy)`. **Zero skew.**
+- **Kill fence end posture:** VLK=`0` in all five containers, aur fence backup on host present: `.env.bak-deploy-killfence-20260814_213255` (naam only — koi `.env` value read/print nahi ki gayi). Fence cycle **CLOSED**.
+- **Not part of the 5 app-image set:** `leadgen_dsh_worker` apni alag image `leadgen-dsh-worker:fb3d0bc2` pe chal raha hai (Up 8h, healthy) — ye app-image skew nahi hai, DSH runtime ka apna tag hai. `leadgen_app_staging` bhi alag (3 din purana).
+- Is session ne **koi code, deploy, flag, env ya customer data touch nahi kiya** — sirf read-only probes + context docs.
+Label: DIRECT_HOST_VERIFIED (2026-08-15 ~00:01Z)
+
+## REVENUE VERDICT (2026-08-15 — evidence-bound, do not upgrade without new proof)
+- **Technical money path: GO.** Public funnel + pricing + `/start` + manual-UPI rail + admin approve/bind + ledger-backed `paid_today` sab prod pe `91958c23` par live hain.
+- **Authenticated Hot Queue (`/app/inbox`): WAIT — owner par.** Surface live hai; blitz execute karna owner ka authenticated kaam hai, koi agent iske liye login nahi karega.
+- **UPI activation path: WAIT — input par.** Bind / Re-Approve tabhi chalega jab koi real payment aaye. Rail ready hai, payment nahi aayi.
+- **REVENUE GENERATED: WAIT.** Ye tabhi GO hoga jab **owner khud bank credit confirm kare** (`payment_verification_method = owner_confirmed_upi`). `PROVIDER_VERIFIED` by design unreachable hai (Stripe + Razorpay dono removed).
+- **Aaj ka `0/0` = honest empty day, failure nahi.** `paid_activations.daily_paid_activations()` ledger padh ke `0` de raha hai — ye "metric toota hai" nahi, "aaj koi paid nahi aaya" hai. Fail-closed design: resolve na ho paye to bhi `0`, kabhi paid count fabricate nahi karta.
+- **Naya module / agent / loop banane ki zaroorat NAHI hai** jab tak ek **correlated real-funnel defect** evidence ke saath na mile. Abhi ka bottleneck code nahi, owner execution hai — is stage pe naya code likhna revenue ko aage nahi badhata.
+Label: GIT_VERIFIED + DIRECT_HOST_VERIFIED (2026-08-15) for the technical facts; the WAIT items are owner/input-gated by definition, not by any defect.
+
+## DEPLOYED 2026-08-14 — `91958c23` (PR #363 ledger-backed paid activations)
+**Prod `/health` = `91958c23`** (DIRECT_HOST_VERIFIED 2026-08-14 ~21:45Z — host ×2 with advancing timestamps + public HTTPS): `healthy` · `environment:production`. Squash merge `91958c23feac5aa09d85ccf7dd3a3a62c981f119`; `origin/main` == merge SHA.
+CI: **13/13 checks pass**, Gate A included (is baar Gate A green tha — koi ignore nahi). Runtime-data allowlist + debt ratchet both ✓ (module is read-only over existing ledgers, no new `data/` path).
+Deploy: VPS HEAD was `c4fc0087` with **zero tracked-file modifications** (only untracked leftovers) → no `git checkout --`, no `reset --hard`. Kill fence `.env.bak-deploy-killfence-20260814_213255` → log proved `VOICE_LAUNCH_KILL_IS_TRUE_TOKEN=1` → `deploy_vps.sh` `=== DEPLOYED 91958c23 OK ===` → `VOICE_LAUNCH_KILL=0` + `APP_VERSION=91958c23` recreate of all 5 app-image services (**5/5 pinned, zero skew, VLK=0 in every container**).
+Live proof inside `leadgen_app`: `paid_activations.daily_paid_activations()` → day `2026-08-15`, `paid_today=0`, `activations_today=0`; `today_overview.build().totals` carries the three new keys. **0 is the honest ledger answer for today.**
+Smoke `/` `/pricing` `/start` `/audit` `/health/ready` → 200. Queues `celery=0` · `dlq:failed_tasks=0` · `dlq:dead=23` (**23 was also the pre-deploy reading — not caused by this deploy**). `leadgen_dsh_worker` healthy.
+Flags after deploy (booleans only): `DSH_RUNTIME_ENABLED=1` · `DSH_SHADOW_ENABLED=0` · `GSC_ENABLED=UNSET` · `AGENT_HARNESS=UNSET` · `HARNESS_SESSION_EVENTS=UNSET` · `SALES_AUTOPILOT_WHATSAPP_ENABLED=0` · `VOICE_LAUNCH_KILL=0`.
+Rollback lineage: `ROLLBACK_TAG=c4fc0087`, `PROTECTED=91958c23,c4fc0087`, `fb3d0bc2` pruned by retention.
+`activation/summary` still `ready_for_first_paid_customer=false` / `blocker_count=1` / `payments_ready=true` — **identical to the `c4fc0087` reading, carried forward, not introduced by #363.**
+Label: DIRECT_HOST_VERIFIED (2026-08-14 ~21:45Z)
+**Still do not arm:** harness session events / GSC / dunning / cold WA.
+
+## SUPERSEDED — DEPLOYED 2026-08-14 — `c4fc0087` (PR #362 revenue automation + DSH arm docs)
+> Historical. Replaced by `91958c23`. Keep as rollback tag (`ROLLBACK_TAG`).
+**Prod `/health` = `c4fc0087`** (DIRECT_HOST_VERIFIED 2026-08-14 ~18:17Z HTTPS×2 + host): `healthy` · `environment:production`. Squash merge `c4fc00870dd0c6cf9e12d231a38c892c515a4813`. Kill-fence `.env.bak-deploy-killfence-20260814_180531` → VLK TRUE → `deploy_vps.sh` `=== DEPLOYED c4fc0087 OK ===` → VLK=0 recreate with `APP_VERSION=c4fc0087` (5/5 skew). DSH stays `1`. Helpers proved: `list_actionable`, `_notify_owner_once`. Rollback lineage prior tag = `fb3d0bc2`.
+Label: DIRECT_HOST_VERIFIED (2026-08-14) — SUPERSEDED by `91958c23`
+**#307** OPEN; **#304** guest bind now ops-visible when approved-unactivated.
 
 ## DSH LIVE-AUTHORITY 2026-08-14 — owner override of ADR-182 wave order
-- Label: DIRECT_HOST_VERIFIED (2026-08-14 ~16:12Z)
-- Flags: `DSH_RUNTIME_ENABLED=1` · `DSH_SHADOW_ENABLED=0` · allowlist 29 migratable (never `*`) · `DSH_ROLLOUT_WAVE=amber`
-- Runtime image `leadgen-dsh:47f94385` · worker `leadgen-dsh-worker:fb3d0bc2` · redis on `leadgen_dsh_net` with alias `redis`
-- Proof: `provider_kavya=dsh` · frozen voice `direct` · game-day `DSH_RUNTIME_ENABLED=0`→direct→re-arm
-- Env bak: `.env.bak-dsh-fullarm-20260814_155839` · Kill: `DSH_RUNTIME_ENABLED=0` + recreate with `APP_VERSION=fb3d0bc2`
-- Surgical code fixes still local (need owner commit): `requirements-dsh.lock.txt` (+tzlocal), lazy `app/tasks/__init__.py`
-- ADR-183 records the override; legacy direct executor NOT deleted; retirement gates unchanged
+- Label: DIRECT_HOST_VERIFIED (armed ~16:12Z; re-proved still true under `91958c23`)
+- Flags: `DSH_RUNTIME_ENABLED=1` · `DSH_SHADOW_ENABLED=0` · allowlist 29 migratable (never `*`)
+- Runtime image `leadgen-dsh:47f94385` · `leadgen_dsh_worker` healthy · redis alias on `leadgen_dsh_net`
+- Env bak: `.env.bak-dsh-fullarm-20260814_155839` · Kill: `DSH_RUNTIME_ENABLED=0` + recreate with exact `APP_VERSION`
+- ADR-183 override; legacy direct executor NOT deleted; retirement gates unchanged
 
-## DEPLOYED 2026-08-14 — `fb3d0bc2` (PR #361 DSH inert code + #357/#354)
-**Prod `/health` = `fb3d0bc2`** (DIRECT_HOST_VERIFIED 2026-08-14 ~15:25Z HTTPS×2 + host): `healthy` · `environment:production`. Merge tip `fb3d0bc28459ef66efe0fa49a150a896d478cd9c` from PR #361 (hardened DeepSeek Harness runtime staged inert) after #357 GTM dashboards + #354 pydantic pair. Kill-fence: `.env.bak-deploy-killfence-20260814_150136` → VLK TRUE → `deploy_vps.sh` `=== DEPLOYED fb3d0bc2 OK ===` (5/5 skew, smoke 200, celery/dlq 0) → VLK=0 recreate with `APP_VERSION=fb3d0bc2`. No `--profile dsh`. Rollback lineage protected tag = `150bf898`.
-Label: DIRECT_HOST_VERIFIED (2026-08-14)
-**Posture update:** DSH later owner-armed same day (ADR-183) — see LIVE-AUTHORITY block. Still do not arm harness/GSC/dunning/cold WA. **#307** OPEN; dunning OFF. **#304** guest bind CODE-LIVE.
+## SUPERSEDED — DEPLOYED 2026-08-14 — `fb3d0bc2` (PR #361 DSH inert code + #357/#354)
+> Historical. Replaced by `c4fc0087`. Keep as rollback tag.
+**Prod `/health` was `fb3d0bc2`**. Kill-fence `.env.bak-deploy-killfence-20260814_150136`.
+Label: DIRECT_HOST_VERIFIED (2026-08-14) — SUPERSEDED by `c4fc0087`
 
 ## CODE-READY / INERT — DeepSeek Harness (SUPERSEDED for runtime by ADR-183)
 > Historical inert posture. Runtime now LIVE-AUTHORITY — see **DSH LIVE-AUTHORITY** above. Shadow soak / retirement gates from ADR-182 still apply before legacy deletion.
