@@ -700,6 +700,7 @@ body.mode-technical #bp-back{display:flex;}
       <div class="sb-tab" onclick="sbTab('flags',this)">FLAGS</div>
       <div class="sb-tab" onclick="sbTab('sched',this)">SCHED</div>
       <div class="sb-tab" onclick="sbTab('build',this)">BUILD</div>
+      <div class="sb-tab" onclick="sbTab('plugins',this)">PLUGINS</div>
     </div>
     <div class="sb-body" id="sb-content"></div>
     <div id="tour-nav">
@@ -772,6 +773,7 @@ const VIEWS = {
       {id:'embed_widget', type:'marketing', badge:'WIDGET', cx:'moderate', title:'Lead-Capture Embed', desc:'/b/{slug}/widget.js + /embed iframe · inquiry → lead + distribution', files:'embed_widget.py', x:40, y:520, w:250, h:100},
       {id:'admin_ui', type:'platform', badge:'LAYER', cx:'complex', title:'Admin Dashboards', desc:'/app/admin God Mode · Automation Hub 21 workflows · /app/marketing · /app/automation · battlecard', files:'admin_dashboard.html', x:720, y:370, w:300, h:100},
       {id:'explorer', type:'monitor', badge:'GRAPH', cx:'moderate', title:'Architecture Explorer', desc:'/app/explorer — 35-page wiring audit · live production_ready sync · flow builder', files:'explorer.html', x:1040, y:370, w:280, h:100},
+      {id:'plugin_registry', type:'platform', badge:'PLUGINS', cx:'moderate', title:'Plugin Registry', desc:'42 governed plugins · 7 categories · machine-readable manifests · drift detection', files:'plugin_manifest.py · plugin_catalog.py · plugin_registry.py', x:1340, y:250, w:280, h:100},
       {id:'growth_hub', type:'monitor', badge:'GROWTH', cx:'moderate', title:'Growth & Ops Hub', desc:'/app/growth-tools · /app/dashboards · /app/outreach · /app/dialer · /app/analytics', files:'growth.py', x:1340, y:370, w:280, h:100},
       {id:'customer_portal', type:'marketing', badge:'LAYER', cx:'moderate', title:'Customer Portal', desc:'/app/login → /app/customer · TOTP 2FA · content approve · webhooks', files:'customer_dashboard.py', x:1660, y:370, w:260, h:100},
       {id:'marketing_hub', type:'marketing', badge:'MARKETING', cx:'complex', title:'Marketing Command', desc:'/app/marketing 28 tabs · /api/marketing/* · AI image · scheduler · widget', files:'marketing.py · marketing.html', x:40, y:680, w:260, h:110},
@@ -825,6 +827,8 @@ const VIEWS = {
       {f:'flow_runner', t:'celery', lbl:'compile→run', style:'async'},
       {f:'flow_runner', t:'data_layer', lbl:'flows.jsonl', style:'sync'},
       {f:'admin_ui', t:'explorer', lbl:'graph UI', style:'sync'},
+      {f:'admin_ui', t:'plugin_registry', lbl:'/api/admin/plugins', style:'sync'},
+      {f:'plugin_registry', t:'explorer', lbl:'PLUGINS tab', style:'sync'},
       {f:'admin_ui', t:'growth_hub', lbl:'ops', style:'sync'},
       {f:'admin_ui', t:'marketing_hub', lbl:'28 tabs', style:'sync'},
       {f:'admin_ui', t:'team_ui', lbl:'staff', style:'sync'},
@@ -922,6 +926,7 @@ const VIEWS = {
       {title:'Marketing Hub', nodeId:'marketing_hub', desc:'28-tab marketing command center'},
       {title:'Growth Hub', nodeId:'growth_hub', desc:'Outreach, dialer, analytics, unified dashboards'},
       {title:'Explorer', nodeId:'explorer', desc:'Live architecture graph — auto-syncs health + launch'},
+      {title:'Plugin Registry', nodeId:'plugin_registry', desc:'42 governed plugins · 7 categories · drift detection · /api/admin/plugins'},
       {title:'Launch Gate', nodeId:'launch', desc:'production_ready — marketing+ops green (payments/calling optional)'},
       {title:'Integration Gate', nodeId:'integration_gate', desc:'python scripts/final_integration_check.py'},
       {title:'Voice Stack', nodeId:'telephony_hub', desc:'Vobiz WS + compliance gates'},
@@ -2545,6 +2550,7 @@ function sbTab(which, el) {
   else if(which === 'flags') showFlagsPanel();
   else if(which === 'sched') showSchedulePanel();
   else if(which === 'build') { if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]')); else showBuilderPanel(); }
+  else if(which === 'plugins') showPluginsPanel();
 }
 
 function showBuilderPanel() {
@@ -2788,6 +2794,69 @@ function renderScheduleBar() {
 function toggleScheduleBar() {
   document.getElementById('schedule-bar').classList.toggle('vis');
   document.getElementById('btn-sched').classList.toggle('on');
+}
+
+// ════════════════════════════════════
+// PLUGIN TOPOLOGY PANEL
+// ════════════════════════════════════
+function showPluginsPanel() {
+  const cats = {
+    model_routing: {label:'Model Routing',icon:'🧠',color:'#818cf8'},
+    harness: {label:'Harness',icon:'⚙️',color:'#60a5fa'},
+    worker: {label:'Workers',icon:'🔧',color:'#4ade80'},
+    domain_capability: {label:'Domain',icon:'📦',color:'#fbbf24'},
+    automation: {label:'Automation',icon:'🔁',color:'#e879f9'},
+    coordination: {label:'Coordination',icon:'🤝',color:'#22d3ee'},
+    ui_projection: {label:'UI',icon:'🖥️',color:'#f87171'}
+  };
+  const riskColors = {green:'#4ade80',amber:'#fbbf24',red:'#f87171'};
+  let html = '<div class="panel-hdr">Plugin Topology</div>';
+  html += '<div style="font-size:10px;color:#64748b;margin-bottom:10px">42 governed plugins across 7 categories. <a href="/api/admin/plugins" style="color:#60a5fa" target="_blank">Full API →</a></div>';
+  // Fetch from API if available, else show static
+  html += '<div id="plugin-list" style="max-height:400px;overflow-y:auto">';
+  html += '<div style="font-size:10px;color:#4b5563">Loading plugin topology...</div>';
+  html += '</div>';
+  html += '<div class="panel-hdr" style="margin-top:12px">Risk Summary</div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#052e16;color:#4ade80">GREEN: read-only</span>';
+  html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#451a03;color:#fbbf24">AMBER: approval needed</span>';
+  html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#450a0a;color:#f87171">RED: owner gate</span>';
+  html += '</div>';
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.toggle('active', t.textContent.trim()==='PLUGINS'));
+  // Fetch live data
+  fetch('/api/admin/plugins', {headers:abAuthHdr?abAuthHdr():{}})
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if(!d || !d.plugins) return;
+      let inner = '';
+      const byCat = {};
+      d.plugins.forEach(p => {
+        if(!byCat[p.category]) byCat[p.category] = [];
+        byCat[p.category].push(p);
+      });
+      Object.entries(cats).forEach(([key, cat]) => {
+        const plugins = byCat[key] || [];
+        if(!plugins.length) return;
+        inner += '<div style="margin-bottom:10px">';
+        inner += '<div style="font-size:11px;font-weight:700;color:' + cat.color + ';margin-bottom:4px">' + cat.icon + ' ' + cat.label + ' (' + plugins.length + ')</div>';
+        plugins.forEach(p => {
+          const rc = riskColors[p.risk_class] || '#64748b';
+          const ev = p.evidence_status === 'production_proven' ? '✅' : p.evidence_status === 'test_proven' ? '🧪' : '📝';
+          inner += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #1e2028;font-size:10px">';
+          inner += '<span style="color:' + rc + '">●</span>';
+          inner += '<span style="color:#e2e8f0;flex:1">' + ev + ' ' + p.plugin_id + '</span>';
+          inner += '<span style="color:#4b5563">' + p.version + '</span>';
+          if(p.feature_flag) inner += '<span style="color:#64748b;font-family:monospace;font-size:8px">' + p.feature_flag + '</span>';
+          inner += '</div>';
+        });
+        inner += '</div>';
+      });
+      document.getElementById('plugin-list').innerHTML = inner || '<div style="font-size:10px;color:#4b5563">No plugins found (login required)</div>';
+    })
+    .catch(() => {
+      document.getElementById('plugin-list').innerHTML = '<div style="font-size:10px;color:#4b5563">Plugin API unavailable (admin login required)</div>';
+    });
 }
 
 // ════════════════════════════════════

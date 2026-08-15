@@ -354,9 +354,35 @@
       <!-- ═══ Start Here — non-technical daily ritual (ADR-110 UX) ═══ -->
       <div class="card" id="adminStartHere" style="margin-bottom:14px;border:1px solid #c7d2fe;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);scroll-margin-top:80px">
         <div class="hd" style="border-bottom:1px solid rgba(99,102,241,.18)">
-          <h3 style="color:#3730a3;font-size:16px;letter-spacing:-.3px">🚀 Aaj ka 5-minute flow — yahan se shuru karo</h3>
+          <h3 style="color:#3730a3;font-size:16px;letter-spacing:-.3px">🚀 Aaj kya karna hai — yahan se shuru karo</h3>
+          <button class="btn" onclick="loadOwnerScorecard()" aria-label="Refresh scorecard" style="background:#6366f1;color:#fff;border:0;margin-left:10px;padding:5px 10px;font-size:11px">↻</button>
         </div>
         <div class="bd" style="color:#0f172a">
+          <!-- Live scorecards -->
+          <div id="ownerScorecard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scPaidToday">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">💰 Aaj paid</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scActivations">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🎉 Naye activations</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scHotQueue">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🔥 Hot Queue</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scPending">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🙋 Pending decisions</div>
+            </div>
+          </div>
+          <!-- Next best action -->
+          <div id="nextBestAction" style="padding:10px 14px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;margin-bottom:14px;display:none">
+            <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:4px">👉 Agla sabse zaroori kaam</div>
+            <div id="nextBestActionText" style="font-size:13.5px;color:#1e3a5f;line-height:1.5"></div>
+          </div>
+          <!-- Steps -->
           <ol style="margin:0 0 12px 18px;padding:0;font-size:13.5px;line-height:1.55;color:#334155">
             <li><b>Hot Queue</b> — 15 min: interested replies pe Call/WA draft, phir Done. Auto-send nahi.</li>
             <li><b>Aapke kaam</b> — pehle UPI (paisa), phir content (paid clients).</li>
@@ -3228,6 +3254,62 @@ function statChip(label, val, accent){
        + '<div style="font-size:11px;color:#64748b;margin-top:2px">'+label+'</div></div>';
   return href ? '<a href="'+href+'" style="text-decoration:none">'+inner+'</a>' : inner;
 }
+async function loadOwnerScorecard(){
+  try{
+    const r = await fetch("/api/growth/overview/today", {headers:abAuthHdr(), cache:"no-store"});
+    if(!r.ok) return;
+    const d = await r.json();
+    const t = d.totals || {};
+    // Scorecards
+    var paidEl = $("scPaidToday");
+    var actEl = $("scActivations");
+    var hqEl = $("scHotQueue");
+    var pendEl = $("scPending");
+    if(paidEl){ paidEl.textContent = t.paid_today||0; paidEl.style.color = (t.paid_today||0)>0?'#059669':'#334155'; }
+    if(actEl){ actEl.textContent = t.activations_today||0; actEl.style.color = (t.activations_today||0)>0?'#059669':'#334155'; }
+    if(hqEl){ hqEl.textContent = t.hot_queue||0; hqEl.style.color = (t.hot_queue||0)>0?'#dc2626':'#334155'; }
+    if(pendEl){ pendEl.textContent = t.needs_decision||0; pendEl.style.color = (t.needs_decision||0)>0?'#b45309':'#334155'; }
+    // Next best action engine
+    var actionEl = $("nextBestAction");
+    var actionText = $("nextBestActionText");
+    if(!actionEl || !actionText) return;
+    var action = null;
+    // Priority: Hot Queue > UPI pending > activations > content approvals > all good
+    if(t.hot_queue > 0){
+      action = {color:'#fef2f2',border:'#fca5a5',text:"<b>"+t.hot_queue+" garam replies</b> Hot Queue me hain — <a href=\"/app/inbox\" style=\"color:#dc2626;font-weight:700\">15 min sprint</a> karo. Interested/question pe Call/WA draft, phir Done. Yehi se next paid customer aata hai."};
+    } else {
+      // Check admin office for UPI/pending tasks
+      try{
+        const or = await fetch("/api/admin/office", {headers:abAuthHdr(), cache:"no-store"});
+        if(or.ok){
+          const od = await or.json();
+          var tasks = od.tasks || [];
+          var upiTask = tasks.find(function(x){ return x.id === 'upi_pending' || (x.title||'').toLowerCase().indexOf('upi')>=0; });
+          var contentTask = tasks.find(function(x){ return x.id === 'content_approval'; });
+          if(upiTask){
+            action = {color:'#fffbeb',border:'#fde68a',text:"<b>"+upiTask.title+"</b> — "+(upiTask.why||'')};
+          } else if(contentTask){
+            action = {color:'#eff6ff',border:'#bfdbfe',text:"<b>"+contentTask.title+"</b> — "+(contentTask.why||'')};
+          }
+        }
+      }catch(e){}
+    }
+    if(!action){
+      if((t.paid_today||0)===0 && (t.activations_today||0)===0){
+        action = {color:'#ecfdf5',border:'#6ee7b7',text:"Aaj abhi tak koi naya paid nahi hai. <a href=\"/app/inbox\" style=\"color:#059669;font-weight:700\">Hot Queue check karo</a> ya <a href=\"/app/automation\" style=\"color:#059669;font-weight:700\">prospects dekho</a>."};
+      } else {
+        action = {color:'#ecfdf5',border:'#6ee7b7',text:"Sab theek chal raha hai — aaj "+(t.paid_today||0)+" paid, "+(t.events_today||0)+" kaam auto ho chuke. "};
+      }
+    }
+    actionEl.style.display = 'block';
+    actionEl.style.background = action.color;
+    actionEl.style.borderColor = action.border;
+    actionText.innerHTML = action.text;
+  }catch(e){}
+}
+// Auto-load scorecard on page load + every 60s
+document.addEventListener('DOMContentLoaded', function(){ loadOwnerScorecard(); setInterval(loadOwnerScorecard, 60000); });
+
 async function loadTodayBiz(){
   const body = $("todayBizBody"); if(!body) return;
   try{
@@ -3298,6 +3380,14 @@ async function loadTodayBiz(){
     body.innerHTML = html;
     const at = $("todayBizAt");
     if(at && d.at){ try{ at.textContent = 'Updated '+new Date(d.at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }catch(e){} }
+    // Sync scorecard with same data
+    try{
+      var paidEl=$("scPaidToday"),actEl=$("scActivations"),hqEl=$("scHotQueue"),pendEl=$("scPending");
+      if(paidEl) paidEl.textContent=t.paid_today||0;
+      if(actEl) actEl.textContent=t.activations_today||0;
+      if(hqEl) hqEl.textContent=t.hot_queue||0;
+      if(pendEl) pendEl.textContent=t.needs_decision||0;
+    }catch(e){}
   }catch(e){
     body.innerHTML = '<span style="color:#b45309;font-size:13px">Summary load nahi hua (network). <a href="#" onclick="loadTodayBiz();return false" style="color:#4f46e5">Retry</a></span>';
   }

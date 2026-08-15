@@ -304,6 +304,18 @@ async def lifespan(app: FastAPI):
     # ML scheduler remains opt-in (heavy). All automation handled by team_scheduler.
     logger.info("⏭️ ML scheduler disabled (opt-in)")
 
+    # Plugin catalog bootstrap — register all governed plugin manifests at startup.
+    # Additive observation layer; no runtime behaviour change.
+    try:
+        from app.agents.harness.plugin_catalog import bootstrap_catalog
+        from app.agents.harness.plugin_manifest import get_registry
+
+        bootstrap_catalog()
+        _plugin_count = get_registry().count()
+        logger.info(f"✅ Plugin catalog: {_plugin_count} manifests registered")
+    except Exception as e:
+        logger.warning(f"Plugin catalog bootstrap skipped: {e}")
+
     # AI Staff Team automation (Arjun QA 02:30, Meera trainer 03:00, Kavya ops hourly).
     # Gated by RUN_IN_PROCESS_SCHEDULER (default ON = today's single-process behaviour).
     # When scaling to multiple web workers + a dedicated scheduler container, set this
@@ -1171,6 +1183,14 @@ try:
     app.include_router(owner_os_router)  # /api/admin/owner-os/* — Owner Command Console
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Owner OS router not mounted: {_e}")
+try:
+    from app.api.plugin_registry import router as plugin_registry_router
+
+    app.include_router(
+        plugin_registry_router
+    )  # /api/admin/plugins/* — Plugin manifest table + drift detection
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Plugin registry router not mounted: {_e}")
 try:
     from app.api.coordination_hub import router as coordination_hub_router
 
