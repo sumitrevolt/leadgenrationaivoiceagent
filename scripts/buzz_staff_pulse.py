@@ -172,7 +172,7 @@ def build_message(data: dict) -> str:
 
     lines += [
         "",
-        "_Read-only mirror. Commands route through @Boss only — Buzz never mutates STAFF directly._",
+        "_Read-only mirror. Commands route through Boss only. Buzz never mutates STAFF directly._",
     ]
     return "\n".join(lines)
 

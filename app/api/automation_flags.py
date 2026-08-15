@@ -125,6 +125,7 @@ AUTOMATION_FLAGS = [
     "CREATIVE_HYPERFRAMES_CANARY_TENANTS",  # comma tenant allowlist; EMPTY = no tenant (fail-closed)
     "CREATIVE_HYPERFRAMES_DEFAULT_TEMPLATE",  # template id (default beauty_luxury_offer_v1)
     "CELERY_VIDEO_QUEUE",  # route video render tasks to the dedicated 'video' queue/worker (default OFF)
+    "CELERY_ONBOARD_QUEUE",  # route onboard_client to existing heavy worker (default OFF; no new queue)
     "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
     "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
     "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)

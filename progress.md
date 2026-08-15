@@ -1,4 +1,28 @@
-# progress.md ? Loop Engineer Ledger (LeadGenAI)
+# progress.md — Loop Engineer Ledger (LeadGenAI)
+
+## Loop Run
+Date: 2026-08-15 (NEXT todos READY via governed DSH — CURSOR)
+Goal: Owner mandate "hafta nahi DSH use kake next todos READY" — agent-completable items + owner one-command/runbooks. No deploy, no flag arm, no fake paid.
+Inspected: prod `/health`+`/api/activation/summary` dual probe; capacity_baseline flags; paid_today_watch; heavy logs+inspect; DSH supply-chain + Docker smoke-a; Boss `--dry-run`; NEXT_TODOS / HOT_QUEUE / PHASE1; workforce_runtime dispatch allowlist/`FROZEN_AGENTS`; dsh_internal MCP.
+Problems Found: (1) Revenue still OWNER-WAIT (`upi_pending_unactioned`, `paid_today=0`). (2) Local tree `cb289d61` behind `origin/main` `c35edb4d` (fetch only). (3) Heavy 155% earlier was kb-warmup/self_improve, not a reason to arm onboard. (4) Public `/summary` does not name the blocker — SSH `_PROBES` does.
+Changed: `scripts/dsh_next_todos_plan.py` + `scripts/next_todos_ready.py`; tests `test_dsh_next_todos_plan.py` `test_next_todos_gates.py`; GTM one-pagers + READY board; context SESSION_HANDOFF overwrite; CURRENT_STATE/ACTIVE_WORK/CAPACITY/NEXT42_EVIDENCE honesty. No product routes, no `.env`, no voice.
+Tests Run: `pytest tests/test_dsh_next_todos_plan.py tests/test_next_todos_gates.py` 7 passed EXIT 0 (after CLI httpx fix); earlier same session `test_next42_plan_gates`+`test_capacity_baseline`+`test_buzz_start_harness` 21 passed EXIT 0 (those files untouched after). `prod_check.py` ALL CHECKS PASSED EXIT 0 (1280 routes). `check_secrets.py` 15 session files OK EXIT 0. ruff clean EXIT 0. `dsh_next_todos_plan.py` CLI ok=true EXIT 0. `dsh_runtime_smoke.py` smoke-a EXIT 0.
+Verification Evidence: `/health` 91958c23 02:37Z→02:40Z; DSH_RUNTIME_SMOKE_OK 0.719s/3.875s; DSH MCP heartbeat 200 / gtm_ops_ready 200 / UPI 403; Boss dry-run 0; paid_today=0; heavy jobs named; buzzlock claim 0.
+Risks: Boss real start still sandbox-blocked. Cards after token unproven. Live hub/dunning/UPI_AUTO/DSH_RUNTIME=1 observed not flipped. dlq:dead=24 not flushed.
+Remaining: owner inbox/UPI/bank; owner Boss start + canary; Comb; Phase 1 after 2nd paid.
+Next Highest Priority: owner `/app/inbox` blitz.
+
+## Loop Run
+Date: 2026-08-15 (Next42 agent-side — CURSOR)
+Goal: Implement revenue-20 + Buzz chat coordination + max-safe automation + 50/day backend capacity toolkit. No deploy, no forbidden flag arm, no fake revenue.
+Inspected: prod `/health`+`/api/activation/summary`; `/app/inbox`; Buzz relay NAT; staff pulse log; worker task_routes; activation BLOCKER probes; DLQ samples; compose WEB_CONCURRENCY.
+Problems Found: (1) Buzz relay HostConfig had 3100 but NetworkSettings.Ports empty; 0.0.0.0:3000 bind conflict. (2) Hourly staff pulse rc=3 because footer `@Boss`/`@mention` tripped CLI mention-preflight. (3) `buzz_start_harness.py` ignored `BUZZ_RELAY`. (4) Named blocker is `upi_pending_unactioned`, not a missing payment rail. (5) Anonymous `/` 429s at 5 concurrent.
+Changed: harness relay_url(); buzzlock `handoff`; pulse footer; buzz-local compose loopback 3100 only; `CELERY_ONBOARD_QUEUE` INERT→heavy; watch/load/baseline scripts; gtm docs; context overwrite.
+Tests Run: test_capacity_baseline + test_next42_plan_gates + test_onboard_client_burst + test_buzz_start_harness + test_celery_queue_routing + test_buzz_staff_pulse = 42 passed EXIT 0; ruff clean; check_secrets OK; prod_check ALL CHECKS PASSED.
+Verification Evidence: `/health` 91958c23 01:16Z; blocker=upi_pending_unactioned; paid_today=0; T31 notify_owner_once+list_actionable True in container; docker stats filled; heavy 155% CPU; pulse posted 31; #build HANDOFF posted.
+Risks: local main behind origin after #364 merge (no reset --hard). Live env has COORDINATION_HUB/DUNNING/UPI_AUTO_ACTIVATE/DSH_RUNTIME =1 vs some memory lines — not flipped here. Boss harness still not started. DLQ trainer timeouts pre-existing.
+Remaining: owner inbox/UPI/bank; owner Boss harness start + canary; Comb; Phase 1 gated after 2nd paid.
+Next Highest Priority: owner `/app/inbox` blitz.
 
 ## Loop Run
 Date: 2026-08-14 (post-deploy: context writeback + uptime watchdog fix — CURSOR)

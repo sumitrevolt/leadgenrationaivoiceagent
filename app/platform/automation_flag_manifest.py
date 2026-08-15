@@ -328,6 +328,16 @@ _OVERRIDES: dict[str, FlagMeta] = {
         kill="PR_FACTORY_PILOT_ENABLED=0",
         evidence="CODE-PRESENT",
     ),
+    "CELERY_ONBOARD_QUEUE": _m(
+        "CELERY_ONBOARD_QUEUE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.CANARY_ONLY,
+        notes="Route onboard_client to existing heavy worker; OFF=default celery; never invent an unconsumed queue",
+        risk="ops",
+        default="0",
+        kill="CELERY_ONBOARD_QUEUE=0",
+        evidence="CODE-PRESENT",
+    ),
     "COORDINATION_HUB_ENABLED": _m(
         "COORDINATION_HUB_ENABLED",
         FlagValueKind.BOOLEAN,

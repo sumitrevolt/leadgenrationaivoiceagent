@@ -163,6 +163,41 @@ def test_video_router_none_when_flag_off(monkeypatch):
     assert route is None
 
 
+def test_onboard_router_none_when_flag_off(monkeypatch):
+    from app import worker
+
+    monkeypatch.delenv("CELERY_ONBOARD_QUEUE", raising=False)
+    route = worker._route_onboard_task("app.tasks.staff_jobs.onboard_client", ("cid1",), {}, {})
+    assert route is None
+
+
+def test_onboard_router_heavy_when_flag_on(monkeypatch):
+    """Reuse worker-heavy — a brand-new queue with no consumer would orphan jobs."""
+    from app import worker
+
+    monkeypatch.setenv("CELERY_ONBOARD_QUEUE", "1")
+    route = worker._route_onboard_task("app.tasks.staff_jobs.onboard_client", ("cid1",), {}, {})
+    assert route == {"queue": "heavy"}
+
+
+def test_onboard_router_none_for_calling(monkeypatch):
+    from app import worker
+
+    monkeypatch.setenv("CELERY_ONBOARD_QUEUE", "1")
+    route = worker._route_onboard_task("app.tasks.calling.make_call", (), {}, {})
+    assert route is None
+
+
+def test_onboard_client_is_not_a_static_calling_or_scraping_route():
+    from app.worker import celery_app
+
+    *_, static_routes = celery_app.conf.task_routes
+    assert "app.tasks.staff_jobs.onboard_client" not in static_routes
+    for pattern, spec in static_routes.items():
+        if "onboard" in str(pattern).lower():
+            assert spec.get("queue") not in {"calling", "scraping", "video", "dsh"}
+
+
 def test_video_router_none_for_other_tasks(monkeypatch):
     from app import worker
 

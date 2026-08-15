@@ -110,6 +110,31 @@ def _route_video_task(name, args, kwargs, options, task=None, **kw):
     return None
 
 
+def _onboard_queue_enabled() -> bool:
+    """INERT default. When ON, Day-1 onboard_client uses the existing heavy worker.
+
+    50 simulated/live onboardings on the default celery pool (conc=4) can delay
+    alerts/triage. Do NOT invent a new queue name — an unconsumed queue orphans
+    tasks. heavy is already drained by worker-heavy. Flag OFF = today's celery
+    default. Arm only after a measured enqueue→start >5 min burst.
+    """
+    return os.environ.get("CELERY_ONBOARD_QUEUE", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+def _route_onboard_task(name, args, kwargs, options, task=None, **kw):
+    """Router fn: onboard_client -> heavy when CELERY_ONBOARD_QUEUE=1."""
+    try:
+        if name == "app.tasks.staff_jobs.onboard_client" and _onboard_queue_enabled():
+            return {"queue": "heavy"}
+    except Exception as _e:
+        logger.debug("_route_onboard_task routing failed, using default queue: %s", _e)
+    return None
+
+
 def _route_kb_refresh_task(name, args, kwargs, options, task=None, **kw):
     """Router fn: ADR-104 kb_niche_refresh -> 'heavy' queue (sirf flag ON pe).
     2026-07-15 live-prod finding: refresh_niche_task loads its own fastembed
@@ -175,6 +200,7 @@ celery_app.conf.update(
     task_routes=(
         _route_staff_task,
         _route_video_task,
+        _route_onboard_task,
         _route_kb_refresh_task,
         _route_self_improve_task,
         {

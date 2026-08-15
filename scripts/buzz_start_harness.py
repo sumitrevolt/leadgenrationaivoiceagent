@@ -35,7 +35,24 @@ import sys
 from ctypes import wintypes
 from pathlib import Path
 
-RELAY_WS = "wss://leadsgenai.communities.buzz.xyz"
+HOSTED_RELAY_WS = "wss://leadsgenai.communities.buzz.xyz"
+
+
+def relay_url() -> str:
+    """ACP wants ws/wss. BUZZ_RELAY may be http(s) (buzzlock) or ws(s).
+
+    Unset → hosted default (current workspace still works). Local-first is
+    ``ws://127.0.0.1:3100`` once the relay publishes that loopback port.
+    """
+    raw = (os.environ.get("BUZZ_RELAY") or "").strip()
+    if not raw:
+        return HOSTED_RELAY_WS
+    if raw.startswith("https://"):
+        return "wss://" + raw[len("https://") :]
+    if raw.startswith("http://"):
+        return "ws://" + raw[len("http://") :]
+    return raw
+
 
 # Every hex literal below is a Nostr PUBLIC key. They are 64-char hex — the same
 # shape as a private key — so the entropy scanner flags them, but they are
@@ -126,10 +143,11 @@ def main() -> int:
         if shim.exists():
             harness = str(shim)
 
+    relay = relay_url()
     cmd = [
         str(acp),
         "--relay-url",
-        RELAY_WS,
+        relay,
         "--agent-owner",
         OWNER_PUBKEY,
         "--agent-command",
@@ -141,7 +159,7 @@ def main() -> int:
         cmd += ["--system-prompt-file", args.system_prompt_file]
 
     print(f"agent      : {args.agent} ({pubkey[:16]}...)")
-    print(f"relay      : {RELAY_WS}")
+    print(f"relay      : {relay}")
     print(f"harness    : {harness}")
     print("private key: from Windows Credential Manager (env-only, not shown)")
     print("command    :", " ".join(cmd))

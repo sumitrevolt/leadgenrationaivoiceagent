@@ -94,6 +94,7 @@ def test_second_tool_is_refused_with_exit_2(locks):
         ["claim", "a.py", "--tool", "NOT_A_TOOL", "--reason", "x"],  # bad choice
         ["claim", "a.py", "--tool", "CLAUDE"],  # missing --reason
         ["release", "a.py", "--tool", "CLAUDE"],  # missing --evidence
+        ["handoff", "--tool", "CURSOR"],  # missing --next/--evidence
         ["not-a-subcommand"],
     ],
 )
@@ -121,6 +122,24 @@ def test_release_frees_the_file_for_another_tool(locks):
     buzzlock.cmd_claim(_args(["app/api/billing.py"], "CLAUDE", "adr"))
     buzzlock.cmd_release(_args(["app/api/billing.py"], "CLAUDE", evidence="exit 0"))
     assert buzzlock.cmd_claim(_args(["app/api/billing.py"], "CODEX", "review")) == 0
+
+
+def test_handoff_body_requires_evidence_line():
+    body = buzzlock.format_handoff(
+        "CURSOR", "CLAUDE", "ship gates", "tests", "exit 0", "owner blitz", "scripts/buzzlock.py"
+    )
+    assert body.startswith("[CURSOR] HANDOFF -> CLAUDE")
+    assert "Evidence: exit 0" in body
+    assert "Goal: ship gates" in body
+
+
+def test_handoff_refuses_blank_evidence(locks):
+    a = _Args()
+    a.tool = "CURSOR"
+    a.next_tool = "CLAUDE"
+    a.goal = a.done = a.left = a.touched = "x"
+    a.evidence = "   "
+    assert buzzlock.cmd_handoff(a) == 1
 
 
 def test_break_refuses_a_fresh_claim(locks):

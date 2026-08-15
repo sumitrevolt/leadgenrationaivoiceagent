@@ -4,19 +4,30 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-14 — prod `/health` last verified at `150bf898` before this integration (PR #356 AUTH-DEPLOY). WS-DSH is CODE-READY/INERT with matching local Linux binaries, smoke/SBOM and fail-closed shadow evidence; runtime/shadow flags remain OFF and allowlist empty.
+2026-08-15 ~02:42Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, dual probe 02:37:40Z / 02:40:09Z uptime advanced). NEXT todos agent-side READY. Owner inbox/UPI/Boss harness still remaining. DSH local smoke + Kavya MCP plan used; prod flags not flipped.
+
+## NEXT todos READY 2026-08-15 — Hot Queue / UPI / capacity honesty
+- Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + LOCAL-ONLY (DSH Docker smoke)
+- Named blocker still `upi_pending_unactioned`; `payments_ready=true`; `paid_today=0`
+- Heavy jobs named: `self_improve_tick`, `run_staff_job`, kb-warmup ~96s. CPU 0.46% at 02:41Z (was 155% 01:16Z). Onboard queue stays UNSET.
+- One-pagers: `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · `docs/gtm/BOSS_HARNESS_CANARY.md` · board `docs/gtm/NEXT_TODOS.md` §6
+- Owner remaining: authenticated `/app/inbox` blitz, UPI bind+bank, `buzz_start_harness.py --agent Boss` (not dry-run)
+
+## NEXT42 2026-08-15 — revenue 20 + Buzz + max-safe auto + 50/day capacity
+- Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + LOCAL-ONLY (relay)
+- Named activation blocker = `upi_pending_unactioned` (`payments_ready=true`)
+- `paid_today=0` IST 2026-08-15 honest empty day
+- T31 in running app: `_notify_owner_once` + `list_actionable` both True
+- Buzz local relay LIVE `127.0.0.1:3100` `/_liveness=ok`; harness `--dry-run` uses `BUZZ_RELAY`; `#staff-pulse` posted 31/31; `#build` HANDOFF posted
+- `CELERY_ONBOARD_QUEUE` UNSET/INERT. Heavy 02:41Z 0.46% after kb-warmup (01:16Z was 155% / 2 jobs) — still do not arm onboard→heavy
+- Loadtest: `/health` 129×200; `/` 43×429 at 5 concurrent (rate-limit knee). Safe anonymous ≈ 3 concurrent. Do not raise `WEB_CONCURRENCY`
+- Live vs intended (do not flip from this session): `COORDINATION_HUB_ENABLED=1`, `DUNNING_ENGINE=1`, `UPI_AUTO_ACTIVATE=1`, `DSH_RUNTIME_ENABLED=1`. Never-arm OK: cold WA=0, GSC UNSET, HARNESS_SESSION_EVENTS UNSET
+- DLQ: trainer TimeLimitExceeded dead=24 (was 23 same day) — do not flush
+- Evidence: `docs/gtm/NEXT42_EVIDENCE.md` · `docs/gtm/CAPACITY_50_DAY.md`
+- Owner remaining: `/app/inbox` blitz, UPI bind+bank confirm, `buzz_start_harness.py --agent Boss` (not dry-run)
 
 ## CODE-READY / INERT — DeepSeek Harness migration contract (2026-08-14)
-- Label: CODE-PRESENT | TEST-PROVEN | LOCAL-RUNTIME-PROVEN; production deploy pending
-- ADR-179 remains intact for stock wheel / direct embedding / default tools / direct provider access
-- ADR-181 conditionally supersedes only for an owner-mandated hardened source-built Linux path
-- Canonical controls remain unchanged: Celery, Python domain engines, `agent_registry`, Owner OS approvals, tenant/compliance/billing controls
-- Workforce contract is frozen at 31 identities preserved / 29 migratable / `swara` + `ananya` RED/HARD_OFF excluded from DSH
-- Build evidence: smoke-a/smoke-b executable SHA matches; closure proofs equal; forbidden packages empty
-- Linux smoke green on Docker-internal-only network: fake MCP/model passed, shutdown `0.516s`, hard cancel `3.094s`; CycloneDX SBOM has 1,275 components
-- Evidence artifacts: `docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json`, `docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json`, `docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json`
-- Shadow remains mechanically blocked: 120 golden cases + 2,000 turns / 14 days + separate owner authorization are not production-proven
-- Workstream posture: `WS-DSH` active, `WS-GTM1` active, `WS-SEC` active, `WS-UPI304` parked on external wait
+- Runtime now LIVE-AUTHORITY on prod (ADR-183) — see DSH section below if present in later blocks; this historical paragraph kept for ancestry.
 
 ## DEPLOYED 2026-08-14 — `150bf898` (PR #356 hygiene + ADR-180)
 **Prod `/health` = `150bf898`** twice after kill-restore (DIRECT_HOST_VERIFIED 2026-08-14 04:16Z / 04:17Z): `healthy` · `environment:production`. Merge tip is `150bf898` from feature head `e5feaa6e` (UP045); old wait SHA `8fa39c84` is ancestor only. Ships hygiene archive + ADR-180 SessionEvent (INERT) + prior undeployed main (#353/#352/#327 ancestry).
