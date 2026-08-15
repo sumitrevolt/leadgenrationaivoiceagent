@@ -17,7 +17,7 @@ import pytest
 
 from scripts import prod_check
 
-TRUE_TOKENS = ("1", "true", "yes", "on", " TRUE ", "On")
+TRUE_TOKENS = ("1", "true", "yes", "on", " TRUE ", "On", "true_token", " TRUE_TOKEN ")
 FALSE_TOKENS = ("0", "false", "no", "off", " FALSE ", "Off")
 INVALID_TOKENS = ("maybe", "kill", "2", "-", "yes please", "tru")
 

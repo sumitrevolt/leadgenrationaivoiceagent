@@ -248,7 +248,7 @@ def _automation_wiring_gaps() -> list[str]:
 
 #: Kept local on purpose: coupling the deployment gate to app.telephony would
 #: drag the runtime import graph into a script that must stay light.
-_VLK_TRUE = ("1", "true", "yes", "on")
+_VLK_TRUE = ("1", "true", "yes", "on", "true_token")
 _VLK_FALSE = ("0", "false", "no", "off")
 
 
