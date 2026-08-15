@@ -240,6 +240,8 @@ AUTOMATION_FLAGS = [
     "STALE_INQUIRY_NUDGE",  # untouched >24h inquiry -> follow-up nudge DRAFT
     "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
     "HOT_QUEUE_BRIEF_DAILY",  # 08:15 admin revenue brief; health-gated, read-only, default OFF
+    "HQ_AUTO_CHASE",  # unactioned inquiry cards -> automated EMAIL follow-up; WhatsApp stays 1-click human (OFF default)
+    "CONTENT_APPROVAL_SWEEP",  # orphaned-pending approval retirement daily sweep (dry_run default; LIVE variant actuates writes)
     "SKILL_PACK",
     "SKILL_PACK_KB_INGEST",  # expensive embedding ingest from trainer; explicit opt-in, OFF default
     "OKF_INGEST_ENABLED",  # ADR-119 Phase-1: knowledge/ → kb_main namespace=okf ingest — OFF default

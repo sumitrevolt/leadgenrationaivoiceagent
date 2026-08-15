@@ -737,6 +737,27 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=25),
         "args": ("sales_autopilot",),
     },
+    # Hot Queue auto-chase. INERT unless HQ_AUTO_CHASE=1 (run_auto_chase no-ops).
+    # Email-only follow-up for unactioned inquiry cards; WhatsApp stays 1-click human.
+    "staff-hq-auto-chase-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=28),
+        "args": ("hq_auto_chase",),
+    },
+    # Safe known-prospect auto-reply sweep — DECOUPLED from IMAP triage so
+    # replies still fire even if IMAP is down/gated. INERT unless REPLY_AUTO_SEND=1.
+    "staff-reply-auto-send-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=30),
+        "args": ("reply_auto_send",),
+    },
+    # Orphaned-pending approval retirement — daily 04:30 IST. dry_run default;
+    # CONTENT_APPROVAL_SWEEP_LIVE=1 actuates writes (fail-closed otherwise).
+    "staff-content-approval-sweep-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=4, minute=30),
+        "args": ("content_approval_sweep",),
+    },
     # Expired agent-task lease close-out (ADR-150). MUST be here, not only in the
     # in-process scheduler_loop: production runs `celery -A app.worker beat` with
     # RUN_IN_PROCESS_SCHEDULER=0, so an in-process-only job is DEAD in prod — the
