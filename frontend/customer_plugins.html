@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadGen AI — Aapki AI Capabilities</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand: var(--violet-600);
+    --brand-2: var(--indigo-600);
+    --brand-soft: var(--violet-50);
+    --ink: var(--ink-700);
+    --muted: var(--slate-400);
+    --bg: var(--bg-soft);
+    --card: var(--surface-card);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-size:14px;min-height:100vh}
+  a{color:var(--brand);text-decoration:none}
+  .shell{max-width:720px;margin:0 auto;padding:16px 16px 60px}
+  .top-bar{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .top-bar h1{font-size:18px;font-weight:700;letter-spacing:-.02em}
+  .top-bar .back{margin-left:auto;font-size:12px;color:var(--muted)}
+  .hero{background:linear-gradient(135deg,#ede9fe 0%,#e0e7ff 100%);border-radius:14px;padding:20px;margin-bottom:20px;border:1px solid #c7d2fe}
+  .hero h2{font-size:16px;font-weight:700;color:#4338ca;margin-bottom:6px}
+  .hero p{font-size:13px;color:#475569;line-height:1.5}
+  .hero .status-pill{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #a5b4fc;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#4338ca;margin-top:10px}
+  .hero .dot{width:8px;height:8px;border-radius:50%;background:#10b981}
+  .cap-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;transition:border-color .15s}
+  .cap-card:hover{border-color:#a5b4fc}
+  .cap-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}
+  .cap-icon{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+  .cap-title{font-size:14px;font-weight:700;color:var(--ink)}
+  .cap-status{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-top:2px;display:inline-block}
+  .cap-status.active{background:#ecfdf5;color:#059669}
+  .cap-status.dormant{background:#f1f5f9;color:#64748b}
+  .cap-status.planned{background:#eff6ff;color:#2563eb}
+  .cap-desc{font-size:12.5px;color:#475569;line-height:1.5;margin-bottom:8px}
+  .cap-features{list-style:none;padding:0;margin:0}
+  .cap-features li{font-size:12px;color:#334155;padding:3px 0;display:flex;align-items:center;gap:6px}
+  .cap-features li::before{content:"✓";color:#10b981;font-weight:700;font-size:11px}
+  .cap-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--brand);margin-top:6px}
+  .footer{text-align:center;padding:20px 0;font-size:11px;color:var(--muted)}
+  .footer a{color:var(--brand)}
+  .loading{text-align:center;padding:40px;color:var(--muted);font-size:13px}
+  @media(max-width:480px){
+    .shell{padding:12px 12px 60px}
+    .cap-icon{width:36px;height:36px;font-size:18px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top-bar">
+    <h1>🧩 Aapki AI Capabilities</h1>
+    <a href="/app/customer" class="back">← Dashboard</a>
+  </div>
+
+  <div class="hero">
+    <h2>Aapka AI Marketing System</h2>
+    <p>LeadGen AI aapke liye ye sab kaam karta hai — ye dekho kya active hai aur kya aane wala hai.</p>
+    <div class="status-pill"><span class="dot"></span> <span id="planLabel">Loading...</span></div>
+  </div>
+
+  <div id="capabilitiesList" class="loading">Aapki capabilities load ho rahi hain...</div>
+
+  <div class="footer">
+    Koi sawal ho? <a href="/app/customer">Dashboard</a> pe jao ya humein reply karo.<br>
+    LeadGen AI — Aapka AI Marketing Partner
+  </div>
+</div>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function escH(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  function abAuthHdr(){
+    var t=localStorage.getItem('customer_token')||sessionStorage.getItem('customer_token');
+    return t?{'Authorization':'Bearer '+t}:{};
+  }
+
+  var CAPABILITIES = [
+    {
+      id:'content_creation',
+      icon:'📝', iconBg:'#ede9fe',
+      title:'AI Content Creation',
+      desc:'Aapke business ke liye automatically social media posts, banners, aur content banta hai — daily.',
+      features:['Daily social media posts','Festival & event-based content','Business-specific text & images','Instagram, Facebook, Google Business par ready'],
+      link:'/app/customer',
+      linkText:'Content dekho →'
+    },
+    {
+      id:'lead_management',
+      icon:' leads', iconBg:'#ecfdf5',
+      title:'Lead Management',
+      desc:'Jo log aapki website ya ads se inquiry karte hain, unhe automatically track karta hai.',
+      features:['Website se leads auto-capture','Lead score aur priority','Hot leads pe turant notification','CSV import bhi kar sakte ho'],
+      link:'/app/customer/pipeline',
+      linkText:'Leads dekho →'
+    },
+    {
+      id:'ai_marketing_calendar',
+      icon:'📅', iconBg:'#eff6ff',
+      title:'Marketing Calendar',
+      desc:'Poora mahine ka content plan automatically ban jata hai — approve karo aur publish ho jayega.',
+      features:['30-day content calendar','Festival-aware scheduling','Auto-publish (admin approval ke baad)','Performance tracking'],
+      link:'/app/customer',
+      linkText:'Calendar dekho →'
+    },
+    {
+      id:'website_optimization',
+      icon:'🌐', iconBg:'#fef3c7',
+      title:'Website SEO & Optimization',
+      desc:'Aapki website ko Google pe better rank dilane ke liye AI suggestions milte hain.',
+      features:['SEO audit aur suggestions','Google Business profile optimization','Content recommendations','Performance monitoring'],
+      link:'/app/customer',
+      linkText:'SEO report dekho →'
+    },
+    {
+      id:'ai_assistant',
+      icon:'🤖', iconBg:'#ede9fe',
+      title:'AI Business Assistant',
+      desc:'Aapke customer ke sawalon ka AI jawab deta hai — 24/7, turant.',
+      features:['Customer queries ka instant reply','Business knowledge base','Smart routing','Human handoff jab zarurat ho'],
+      link:'/app/customer',
+      linkText:'Assistant status dekho →'
+    },
+    {
+      id:'analytics_reporting',
+      icon:'📊', iconBg:'#ecfdf5',
+      title:'Analytics & Reporting',
+      desc:'Aapka marketing kitna kaam kar raha hai — ye sab data dikhta hai.',
+      features:['Lead conversion tracking','Content performance','Campaign ROI','Monthly report'],
+      link:'/app/customer',
+      linkText:'Reports dekho →'
+    },
+    {
+      id:'review_management',
+      icon:'⭐', iconBg:'#fef3c7',
+      title:'Review Management',
+      desc:'Google reviews track karta hai aur response suggestions deta hai.',
+      features:['New review alerts','AI-generated reply suggestions','Sentiment tracking','Review push campaigns'],
+      link:'/app/customer',
+      linkText:'Reviews dekho →'
+    },
+    {
+      id:'email_outreach',
+      icon:'📧', iconBg:'#eff6ff',
+      title:'Email Outreach',
+      desc:'Potential customers ko automatically email karta hai — personalized, smart.',
+      features:['Cold email sequences','Follow-up automation','Reply tracking','Deliverability monitoring'],
+      link:'/app/customer',
+      linkText:'Outreach dekho →'
+    }
+  ];
+
+  function render(capabilities, plan){
+    var el = $('capabilitiesList');
+    if(!el) return;
+    el.className='';
+    el.innerHTML='';
+
+    // Update plan label
+    var pl = $('planLabel');
+    if(pl) pl.textContent = plan || 'AI Marketing Active';
+
+    capabilities.forEach(function(cap){
+      var card = document.createElement('div');
+      card.className = 'cap-card';
+      var statusClass = cap.active ? 'active' : cap.planned ? 'planned' : 'dormant';
+      var statusText = cap.active ? 'Active ✅' : cap.planned ? 'Aane wala hai' : 'Abhi band';
+
+      var featuresHtml = '';
+      (cap.features||[]).forEach(function(f){
+        featuresHtml += '<li>'+escH(f)+'</li>';
+      });
+
+      card.innerHTML =
+        '<div class="cap-header">' +
+          '<div class="cap-icon" style="background:'+escH(cap.iconBg||'#f1f5f9')+'">'+cap.icon+'</div>' +
+          '<div>' +
+            '<div class="cap-title">'+escH(cap.title)+'</div>' +
+            '<span class="cap-status '+statusClass+'">'+statusText+'</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cap-desc">'+escH(cap.desc)+'</div>' +
+        (featuresHtml ? '<ul class="cap-features">'+featuresHtml+'</ul>' : '') +
+        (cap.link ? '<a href="'+escH(cap.link)+'" class="cap-link">'+escH(cap.linkText||'Dekho →')+'</a>' : '');
+      el.appendChild(card);
+    });
+  }
+
+  // Fetch active capabilities from API, fall back to static list
+  fetch('/api/customer/plugins', {headers:abAuthHdr(), cache:'no-store'})
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(function(data){
+      // Merge API data with static capabilities
+      var apiCaps = data.capabilities || [];
+      var apiMap = {};
+      apiCaps.forEach(function(c){ apiMap[c.id] = c; });
+
+      var merged = CAPABILITIES.map(function(c){
+        var api = apiMap[c.id] || {};
+        return Object.assign({}, c, {
+          active: api.active !== undefined ? api.active : c.active !== undefined ? c.active : true,
+          planned: api.planned || false
+        });
+      });
+
+      // Add any API-only capabilities not in static list
+      apiCaps.forEach(function(c){
+        if(!apiMap[c.id] || !CAPABILITIES.find(function(sc){ return sc.id === c.id; })){
+          merged.push({
+            id: c.id,
+            icon: c.icon || '🔧',
+            iconBg: '#f1f5f9',
+            title: c.title || c.id,
+            desc: c.desc || '',
+            features: c.features || [],
+            active: c.active,
+            planned: c.planned || false,
+            link: c.link || '',
+            linkText: 'Dekho →'
+          });
+        }
+      });
+
+      render(merged, data.plan);
+    })
+    .catch(function(){
+      // Fallback: show static capabilities with default active state
+      render(CAPABILITIES.map(function(c){
+        return Object.assign({}, c, {active: true});
+      }), 'AI Marketing');
+    });
+})();
+</script>
+</body>
+</html>

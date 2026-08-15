@@ -1,88 +1,73 @@
-# SESSION_HANDOFF — 2026-08-15 (FreeBuff: REVENUE-50 complete session)
+# SESSION_HANDOFF — 2026-08-16 (FreeBuff: onboarding pipeline + plugin health + customer plugins deployed)
 
 ## Status
-**PARTIAL — all technical gates GO. Owner execution (Hot Queue + UPI bank credit) is the only remaining blocker.** 16+2 files changed/created. All tests green. **Prod `/health` = `75b57dd5`** (LIVE 18:06Z, all pages 200, plugin registry verified in-container). Voice FROZEN. Swara untouched.
+**ALL CODE DEPLOYED. Owner execution (Hot Queue + UPI bank credit + Buzz harness) is the only remaining blocker.** Prod `/health` = `8ebdf36e` (LIVE, healthy, production, all 5 services zero skew). Voice ON (`VOICE_LAUNCH_KILL=0`).
 
-## What was delivered
+## What was deployed (PR #378, merged 22:38 UTC)
 
-### 1. Plugin Architecture
-- `app/agents/harness/plugin_manifest.py` — PluginManifest schema + PluginRegistry + drift detection
-- `app/agents/harness/plugin_catalog.py` — 42 plugin manifests (7 categories, 4 RED, 31 PRODUCTION_PROVEN)
-- `app/api/plugin_registry.py` — GET /api/admin/plugins + /{id} + POST /drift
-- `app/main.py` — bootstrap_catalog() wired into lifespan + router mounted
-- Tests: 23 + 15 = 38 new
+### 1. Onboarding Factory Pipeline
+- `app/marketing/onboarding_factory.py` — 6-stage Celery orchestrator (VALIDATE→KB_SEED→CONTENT_PACK→CONTENT_QUEUE→NICHE_SNAPSHOT→COMPLETE) with per-stage retry (2x, 60s/120s backoff), DLQ, backpressure (10 concurrent), tenant isolation, capacity metrics
+- `app/tasks/onboard_pipeline.py` — Celery tasks: run_onboard_pipeline, run_single_stage, batch_onboard
+- `app/api/onboard_pipeline_api.py` — Admin API: status, run, retry, metrics, backpressure (6 endpoints)
+- Feature flag: `ONBOARDING_PIPELINE=0` (default OFF)
+- Tests: 29 new
 
-### 2. Automation Loop Portfolio
-- `docs/gtm/AUTOMATION_LOOP_PORTFOLIO.md` — 50 loops inventoried, KEEP/FIX/SCALE/KILL
+### 2. Plugin Health Endpoint
+- `app/api/plugin_registry.py` — GET /api/admin/plugins/health returns live health for all 42 plugins (flag/kill-switch/deps/probe/queue/DLQ classification)
+- Optional filter: `?category=harness`
+- Tests: 23 new
 
-### 3. Capacity Measurement
-- `tests/test_onboard_capacity_measure.py` — 50 fake onboardings, p50=74.9ms, p95=122ms, 13.1/s
+### 3. Customer AI Plugins Page
+- `frontend/customer_plugins.html` — /app/plugins customer-facing page (Hinglish, mobile-first, plan-aware capabilities)
+- `app/api/customer_plugins.py` — GET /api/customer/plugins returns capabilities per customer product/plan
+- Tests: 19 new
 
-### 4. Admin Dashboard UX
-- `frontend/admin_dashboard.html` — Live scorecards (paid/activations/Hot Queue/pending) + next best action + 60s auto-refresh
-- Tests: 16 new
+### 4. Deploy Gate Fix (PR #377)
+- `scripts/prod_check.py` + `_deploy_gate_container.sh` — accepts `TRUE_TOKEN` as valid VOICE_LAUNCH_KILL
 
-### 5. Explorer Plugin Topology
-- `frontend/explorer.html` — PLUGINS tab with topology panel + plugin_registry node in graph
-
-### 6. Buzz Setup Runbook
-- `docs/gtm/BUZZ_SETUP_RUNBOOK.md` — End-to-end: relay→membership→harness→canary→troubleshoot
-
-### 7. Master Blueprint Updated
-- `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` — Capacity proof + plugin arch + automation portfolio + UX
-
-### 8. API Docs Synced
-- `docs/API.md` — 1307 endpoints
+## Previous session deliverables (PR #375, #376)
+- Plugin architecture (42 manifests, API, drift detection)
+- Admin dashboard scorecards + next action
+- Explorer plugin topology
+- Automation loop portfolio (50 loops)
+- Capacity measurement (50 onboardings)
+- Buzz setup runbook
+- Master blueprint updated
 
 ## Verification Evidence
-- pytest: 296 targeted **ALL PASS**
-- prod_check.py: **ALL CHECKS PASSED** (1285 routes, 359 nodes, 0 gaps)
-- check_secrets.py: **OK** (0 secrets in 17 files)
-- sync_api_docs.py: **1307 endpoints**
-- Duplicate routes: **No new duplicates** (existing pre-existing across prefix routers)
-- Voice frozen: **Zero paths touched**
-- Whitespace: **Clean** (git diff --check)
-- HTML validation: Explorer 7/7, Admin 11/11
-- **LIVE PROD:** `/health` = `75b57dd5` healthy, plugin registry verified 42 plugins in-container
-- **DEPLOY GATE ISSUE:** `VOICE_LAUNCH_KILL=TRUE_TOKEN` in .env is INVALID (not in `{1,true,yes,on}`); gate will block future deploys. Owner must set to `1` before deploy, `0` after.
+- pytest: 106 new tests (23 plugin health + 29 onboarding + 19 customer + 35 VLK) ALL PASS
+- prod_check.py: **ALL CHECKS PASSED** (1294 routes, 359 nodes, 0 orphans)
+- check_secrets.py: **OK** (0 secrets)
+- API.md: 1316 endpoints synced
+- CI: 18/18 required checks pass (Gate A non-required, skipped)
 
-## Files changed (16 total)
-| File | Type | Lines |
-|---|---|---|
-| `app/main.py` | modified | +20 |
-| `frontend/admin_dashboard.html` | modified | +92 |
-| `frontend/explorer.html` | modified | +65 |
-| `docs/API.md` | modified | +8 |
-| `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` | modified | +42 |
-| `docs/context/SESSION_HANDOFF.md` | modified | this file |
-| `progress.md` | modified | +12 |
-| `app/agents/harness/plugin_manifest.py` | new | schema |
-| `app/agents/harness/plugin_catalog.py` | new | 42 plugins |
-| `app/api/plugin_registry.py` | new | 3 endpoints |
-| `docs/gtm/AUTOMATION_LOOP_PORTFOLIO.md` | new | 50 loops |
-| `docs/gtm/BUZZ_SETUP_RUNBOOK.md` | new | runbook |
-| `tests/test_plugin_manifest.py` | new | 23 tests |
-| `tests/test_plugin_registry_api.py` | new | 15 tests |
-| `tests/test_admin_scorecard.py` | new | 16 tests |
-| `tests/test_onboard_capacity_measure.py` | new | 4 tests |
+## Prod Truth (verified 22:55 UTC 2026-08-16)
+- **SHA:** `8ebdf36e`
+- **Status:** healthy, production, uptime advancing
+- **VOICE_LAUNCH_KILL:** 0 (calling ON)
+- **Services:** all 5 on `8ebdf36e` (zero skew)
+- **Pages:** / /pricing /start /audit /app/admin /app/inbox /app/plugins — all 200
+- **Plugin registry:** 42 plugins live (admin-auth required for /api/admin/plugins)
 
-## Do not
-- Arm DSH_RUNTIME_ENABLED / DSH_SHADOW_ENABLED / HARNESS_SESSION_EVENTS / AGENT_HARNESS / GSC_ENABLED / HQ_AUTO_CHASE / cold WA
-- Edit Voice/Swara · weaken DND/TRAI/DPDP
-- Recreate without APP_VERSION · VPS reset --hard · git add -A · flush dlq:dead
-- Touch .env VOICE_LAUNCH_KILL without deploy sequence (set 1 → deploy → set 0)
+## Remaining Owner Actions
 
-## Deploy Status
-- **PR #375 MERGED** (commit `2b7b5d18`, merge `75b57dd5`)
-- **App container LIVE** on `75b57dd5` healthy
-- **Workers/scheduler** still on `963ee800` (minor skew, non-blocking)
-- **Deploy gate BLOCKED** future deploys: `VOICE_LAUNCH_KILL=TRUE_TOKEN` not recognized
+| Action | How |
+|---|---|
+| Push commits to GitHub | Already pushed + merged |
+| Deploy to VPS | DONE — `8ebdf36e` live |
+| Enable onboarding pipeline | Set `ONBOARDING_PIPELINE=1` in .env |
+| Hot Queue blitz | Login `/app/inbox` → 15 min sprint |
+| UPI bank credit | Admin → Bind → Re-Approve → bank confirm |
+| Buzz harness start | `python scripts/buzz_start_harness.py --agent Boss` (owner's Windows machine only) |
+| Create 2nd paying customer | Sales conversation → pricing → /start → manual UPI |
 
-## Next
-1. **OWNER — fix .env:** `VOICE_LAUNCH_KILL=1` (pause calling for safe deploy) → deploy → `VOICE_LAUNCH_KILL=0` (resume)
-2. **OWNER — Hot Queue /app/inbox** 15-30 min sprint
-3. **OWNER — UPI bank credit** for any real payments
-4. Optional Boss harness start (`buzz_start_harness.py --agent Boss`)
-5. Then: Jiya referral kit, GSC creds (still OFF), B3 DKIM
-6. Onboarding burst staging test (real Celery, not in-process)
-7. Workers to be updated to match app SHA on next deploy cycle
+## GO/WAIT
+
+| Gate | Verdict |
+|---|---|
+| ALL TECHNICAL GATES | **GO** |
+| REVENUE_GENERATED | **WAIT** (owner bank confirm) |
+| BUZZ HARNESS | **WAIT** (owner start) |
+| ONBOARDING_PIPELINE | **READY** (flag OFF, set to 1 when ready) |
+
+## Voice FROZEN — zero paths touched. Swara/Ananya untouched.

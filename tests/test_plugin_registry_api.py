@@ -215,3 +215,122 @@ class TestPluginRegistryIntegration:
         assert len(reds) >= 3  # billing, sales_autopilot, platform_dial, owner_os
         for p in reds:
             assert p.approval_requirement != "none"
+
+
+# ---------------------------------------------------------------------------
+# Health endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestPluginHealth:
+    """GET /api/admin/plugins/health endpoint tests."""
+
+    def test_health_requires_admin(self, client):
+        """Unauthenticated request should 401."""
+        response = client.get("/api/admin/plugins/health")
+        assert response.status_code in (401, 403)
+
+    def test_health_response_model(self):
+        from app.api.plugin_registry import PluginHealthEntry, PluginHealthResponse
+
+        entry = PluginHealthEntry(
+            plugin_id="test_plugin",
+            category="domain",
+            risk_class="GREEN",
+            evidence_status="production_proven",
+            health="healthy",
+            flag_status="on",
+        )
+        assert entry.health == "healthy"
+        assert entry.plugin_id == "test_plugin"
+
+        resp = PluginHealthResponse(
+            total=1,
+            healthy=1,
+            degraded=0,
+            unhealthy=0,
+            unknown=0,
+            plugins=[entry],
+            timestamp=1234567890.0,
+        )
+        assert resp.total == 1
+        assert resp.healthy == 1
+
+    def test_health_computes_per_plugin(self):
+        from app.api.plugin_registry import _compute_plugin_health
+        from app.agents.harness.plugin_manifest import get_registry
+
+        reg = get_registry()
+        plugins = reg.all()
+        assert len(plugins) > 0
+
+        for m in plugins:
+            entry = _compute_plugin_health(m)
+            assert entry.plugin_id == m.plugin_id
+            assert entry.health in ("healthy", "degraded", "unhealthy", "unknown")
+            assert entry.flag_status in ("on", "off", "unset", "n/a") or entry.flag_status.startswith("raw:")
+
+    def test_health_flag_status_detection(self):
+        from app.api.plugin_registry import _check_flag_status
+        import os
+
+        # Set a test flag
+        os.environ["_TEST_PLUGIN_HEALTH_FLAG"] = "1"
+        enabled, status = _check_flag_status("_TEST_PLUGIN_HEALTH_FLAG")
+        assert enabled is True
+        assert status == "on"
+
+        os.environ["_TEST_PLUGIN_HEALTH_FLAG"] = "0"
+        enabled, status = _check_flag_status("_TEST_PLUGIN_HEALTH_FLAG")
+        assert enabled is False
+        assert status == "off"
+
+        del os.environ["_TEST_PLUGIN_HEALTH_FLAG"]
+        enabled, status = _check_flag_status("_TEST_PLUGIN_HEALTH_FLAG")
+        assert enabled is False
+        assert status == "unset"
+
+        enabled, status = _check_flag_status("")
+        assert enabled is None
+        assert status == "n/a"
+
+    def test_health_dependencies_check(self):
+        from app.api.plugin_registry import _check_dependencies
+
+        ok, missing = _check_dependencies(["json", "os"])
+        assert ok is True
+        assert missing == []
+
+        ok, missing = _check_dependencies(["json", "nonexistent_fake_module_xyz"])
+        assert ok is False
+        assert "nonexistent_fake_module_xyz" in missing
+
+    def test_health_counts_match_total(self):
+        """healthy + degraded + unhealthy + unknown should equal total."""
+        from app.api.plugin_registry import _compute_plugin_health
+        from app.agents.harness.plugin_manifest import get_registry
+
+        reg = get_registry()
+        counts = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0}
+        for m in reg.all():
+            entry = _compute_plugin_health(m)
+            counts[entry.health] = counts.get(entry.health, 0) + 1
+        assert sum(counts.values()) == reg.count()
+
+    def test_health_probe_none_when_no_endpoint(self):
+        from app.api.plugin_registry import _probe_health
+        from app.agents.harness.plugin_manifest import HealthProbe
+
+        assert _probe_health(None) is None
+        assert _probe_health(HealthProbe()) is None  # empty endpoint
+
+    def test_health_redis_checks_graceful(self):
+        """Queue/DLQ checks should return None when Redis unavailable."""
+        from app.api.plugin_registry import _check_queue_depth, _check_dlq
+
+        # These should not raise, just return None on connection failure
+        depth = _check_queue_depth("nonexistent_queue")
+        assert depth is None or isinstance(depth, int)
+
+        count = _check_dlq("nonexistent_dlq")
+        assert count is None or isinstance(count, int)

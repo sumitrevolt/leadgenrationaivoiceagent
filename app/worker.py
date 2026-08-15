@@ -33,6 +33,7 @@ celery_app = Celery(
         "app.tasks.video_jobs",  # Video creative-pipeline render task (queue INERT unless CELERY_VIDEO_QUEUE=1)
         "app.tasks.kb_niche_refresh",  # ADR-104 A4.5 — owned single-niche KB catalog refresh (default queue)
         "app.tasks.dsh_jobs",  # Hardened DSH orchestration + governed domain bridge (INERT default)
+        "app.tasks.onboard_pipeline",  # Onboarding factory pipeline (INERT unless ONBOARDING_PIPELINE=1)
     ],
 )
 
