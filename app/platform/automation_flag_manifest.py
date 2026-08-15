@@ -143,6 +143,39 @@ _OVERRIDES: dict[str, FlagMeta] = {
         risk="outbound",
         default="1",
     ),
+    "HQ_AUTO_CHASE": _m(
+        "HQ_AUTO_CHASE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Hot Queue auto-chase: unactioned inquiry cards (>24h) pe automated EMAIL "
+            "follow-up. WhatsApp/call stay 1-click human (ban-safety). Email-only."
+        ),
+        owner="platform",
+        risk="outbound",
+        customer=True,
+        provider=True,
+        companions=(),
+        default="0",
+        canary="HQ_CHASE_DAILY_CAP=2 first, verify sent+drafts, then raise",
+        kill="HQ_AUTO_CHASE=0",
+    ),
+    "CONTENT_APPROVAL_SWEEP": _m(
+        "CONTENT_APPROVAL_SWEEP",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Orphaned-pending approval retirement sweep (daily 04:30). dry_run by "
+            "default; CONTENT_APPROVAL_SWEEP_LIVE=1 actuates writes. Retiring != "
+            "approving — terminal 'expired' marker, never publish consent."
+        ),
+        owner="platform",
+        risk="ops",
+        customer=True,
+        default="0",
+        canary="dry_run sweep (reports counts, writes nothing), review, then LIVE",
+        kill="CONTENT_APPROVAL_SWEEP=0",
+    ),
     "ALLOW_TOS_SCRAPE": _m(
         "ALLOW_TOS_SCRAPE",
         FlagValueKind.BOOLEAN,
