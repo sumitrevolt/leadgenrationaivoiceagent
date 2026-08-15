@@ -130,6 +130,38 @@ async def admin_decide_approval(
     act = "reject" if str(body.action or "").strip().lower() == "reject" else "approve"
     return content_approval.decide_by_id(approval_id, act, body.note or "")
 
+
+
+
+@router.post("/approvals/retire-orphans")
+async def retire_orphaned_approvals(
+    dry_run: bool = Query(True),
+    limit: int = Query(1000, ge=1, le=5000),
+    _user=Depends(require_admin),
+):
+    """321 dead approval rows ko retire karo (PR #297 logic).
+
+    dry_run=True (default) -> sirf counts dikhata hai, kuch mutate nahi.
+    dry_run=False -> actual retire (terminal 'expired' status).
+    Live client approvals are NEVER touched.
+    """
+    from app.marketing import content_approval
+
+    return content_approval.retire_orphaned_pending(
+        dry_run=dry_run,
+        limit=limit,
+    )
+
+
+@router.get("/video/daily-status")
+async def video_daily_status(_user=Depends(require_admin)):
+    """Daily video producer status - pending/approved/failed counts + config."""
+    try:
+        from app.marketing import daily_video
+        return daily_video.status_summary()
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
 
 @router.get("/approve/{token}", dependencies=[Depends(rate_limit("approval", 10, 60))])
 async def public_approve(

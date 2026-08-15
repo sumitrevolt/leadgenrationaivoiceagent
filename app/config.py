@@ -145,7 +145,7 @@ class Settings(BaseSettings):
     # creds + yeh flag dono on hone par hi emails jaate hain.
     auto_email_outreach: bool = False
     # Roz max kitne prospects ko email kare (domain reputation safety).
-    outreach_daily_cap: int = 25
+    outreach_daily_cap: int = 50
     # From-name jo cold email me dikhta hai (footer/sender).
     outreach_from_name: str = "Sumit — LeadGen AI"
     # Email API providers (SMTP se zyada reliable; key ho to API se bhejta hai).

@@ -141,12 +141,16 @@ def is_quality_approved(record: dict[str, Any] | None) -> bool:
 # Env PROSPECT_TARGETS = JSON list: [{"niche": "...", "query": "...",
 # "cities": ["...", ...]}, ...]
 # --------------------------------------------------------------------------- #
-_DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur"]
+_DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Ahmedabad"]
 _DEFAULT_TARGETS: list[dict[str, Any]] = [
     {"niche": "solar_residential", "query": "solar installer", "cities": _DEFAULT_CITIES},
     {"niche": "real_estate", "query": "real estate agency", "cities": _DEFAULT_CITIES},
     {"niche": "coaching", "query": "coaching institute", "cities": _DEFAULT_CITIES},
     {"niche": "interior_designers", "query": "interior designer", "cities": _DEFAULT_CITIES},
+    {"niche": "dental", "query": "dental clinic", "cities": _DEFAULT_CITIES},
+    {"niche": "beauty", "query": "beauty salon", "cities": _DEFAULT_CITIES},
+    {"niche": "restaurant", "query": "restaurant", "cities": _DEFAULT_CITIES},
+    {"niche": "gym", "query": "gym fitness", "cities": _DEFAULT_CITIES},
 ]
 
 # Niche-specific pain line for the pitch (fallback generic).
@@ -733,7 +737,7 @@ def mark_prospect(pid: str, status: str) -> bool:
 # --------------------------------------------------------------------------- #
 # Main run — scraper best-effort, dedupe by phone digits, pitch + wa_link
 # --------------------------------------------------------------------------- #
-async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
+async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
     """Targets × cities pe Google Maps scraper chalao, naye prospects queue karo.
 
     Returns summary dict. NEVER raises — har query apne try/except me hai,
@@ -822,9 +826,9 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
         # harvest useful (5 x up to 10 results) but bounded by default. An
         # operator can raise this deliberately after observing provider latency.
         try:
-            max_queries = int(os.environ.get("PROSPECT_MAX_QUERIES", "5"))
+            max_queries = int(os.environ.get("PROSPECT_MAX_QUERIES", "10"))
         except Exception:
-            max_queries = 5
+            max_queries = 10
         max_queries = max(1, min(max_queries, 20))
         if len(pairs) > max_queries:
             pairs = pairs[:max_queries]

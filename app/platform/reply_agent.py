@@ -1471,6 +1471,112 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         return {"error": str(exc), **res}
 
 
+# ---------------------------------------------------------------------------
+# AUTO-FORWARD POSITIVE REPLIES → CALLING QUEUE
+# ---------------------------------------------------------------------------
+# Enterprise-grade: interested/question replies ko calling queue me flag
+# karta hai + WhatsApp follow-up link generate karta hai.
+# NEVER raises — har step ka apna try/except.
+# ---------------------------------------------------------------------------
+
+import urllib.parse as _urlparse_reply
+
+
+def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
+    """Interested/question replies ko calling queue me flag karo.
+
+    Gated: REPLY_AGENT (must be ON).  KABHI raise nahi karta.
+
+    Returns: {"flagged_for_calling": n, "wa_links_generated": x, "skipped": y}
+    """
+    result: dict[str, Any] = {
+        "flagged_for_calling": 0,
+        "wa_links_generated": 0,
+        "skipped": 0,
+    }
+    try:
+        if not _flag("REPLY_AGENT"):
+            return {"skipped": "REPLY_AGENT off"}
+
+        from app.platform import prospector
+
+        rows = prospector._read_all()
+        # Interested/question replies with phone — calling candidates
+        candidates = [
+            r for r in rows
+            if r.get("reply_intent") in ("interested", "question")
+            and r.get("phone")
+            and len("".join(c for c in str(r["phone"]) if c.isdigit())) >= 10
+            and not r.get("calling_flagged")
+        ]
+        candidates.sort(key=lambda r: str(r.get("replied_at") or r.get("found_at") or ""))
+        batch = candidates[:limit]
+
+        for p in batch:
+            try:
+                pid = str(p.get("id"))
+                phone10 = "".join(c for c in str(p["phone"]) if c.isdigit())[-10:]
+                if len(phone10) < 10:
+                    continue
+                biz = str(p.get("business_name") or "Business").strip()
+                niche = str(p.get("niche") or "business").replace("_", " ")
+                intent = str(p.get("reply_intent") or "interested")
+
+                # Flag for calling
+                prospector.set_prospect_fields(
+                    pid,
+                    {
+                        "calling_flagged": True,
+                        "calling_priority": "high" if intent == "interested" else "medium",
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+                result["flagged_for_calling"] += 1
+
+                # Generate WhatsApp follow-up link (1-click, ban-safe)
+                wa_msg = (
+                    f"Namaste {biz} ji 🙏 Aapne email pe interest dikhaya — "
+                    f"shukriya! Agar baat karni ho to yahan se shuru karein: "
+                    f"leadsgenai.in/audit"
+                )
+                wa_link = f"https://wa.me/91{phone10}?text={_urlparse_reply.quote(wa_msg)}"
+                prospector.set_prospect_fields(
+                    pid,
+                    {
+                        "wa_followup_generated": True,
+                        "wa_followup_link": wa_link,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+                result["wa_links_generated"] += 1
+
+            except Exception as e:
+                logger.debug(f"[reply_agent] auto_forward item failed: {e}")
+                result["skipped"] += 1
+
+        try:
+            from app.platform.team import log_event
+            log_event(
+                "swara",
+                "auto_forward_replies",
+                (
+                    f"{result['flagged_for_calling']} flagged for calling, "
+                    f"{result['wa_links_generated']} WA links generated"
+                ),
+                status="ok",
+                meta=result,
+            )
+        except Exception:
+            pass
+
+        logger.info(f"[reply_agent] auto_forward_positive_replies done: {result}")
+        return result
+    except Exception as e:
+        logger.warning(f"[reply_agent] auto_forward_positive_replies failed: {e}")
+        result["error"] = str(e)
+        return result
+
+
 async def whatsapp_reply(
     from_number: str,
     text: str,

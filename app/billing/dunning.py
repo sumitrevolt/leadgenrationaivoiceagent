@@ -448,3 +448,98 @@ def stats() -> dict[str, Any]:
         }
     except Exception:
         return {"open": 0, "recovered": 0, "lapsed": 0, "open_cases": []}
+
+
+# ---------------------------------------------------------------------------
+# SAFE RENEWAL REMINDER -- works WITHOUT DUNNING_ENGINE gate
+# ---------------------------------------------------------------------------
+# Subscription expiry se pehle reminder bhejta hai. Manual UPI safe.
+# NEVER raises. Gated by RENEWAL_REMINDER_ENABLED (default ON).
+# ---------------------------------------------------------------------------
+
+
+def renewal_reminder_enabled() -> bool:
+    """ON by default -- safe, no payment action, just reminder email."""
+    return os.environ.get("RENEWAL_REMINDER_ENABLED", "1").strip().lower() not in (
+        "0", "false", "no",
+    )
+
+
+async def send_renewal_reminders() -> dict[str, Any]:
+    """Active subscriptions ko renewal reminder bhejo. DUNNING_ENGINE se INDEPENDENT.
+
+    Safe: sirf email reminder, koi payment retry. Manual UPI path intact.
+    NEVER raises.
+    """
+    result: dict[str, Any] = {"sent": 0, "skipped": 0, "error": None}
+    if not renewal_reminder_enabled():
+        return {"skipped": "RENEWAL_REMINDER_ENABLED=0"}
+    try:
+        from app.billing import usage
+        from app.marketing import clients_store
+        from app.integrations.email_sender import EmailSender
+
+        clients = clients_store.list_clients() or []
+        sender = EmailSender()
+
+        NL = chr(10)  # newline character
+
+        for c in clients:
+            try:
+                cid = str(c.get("id") or "").strip()
+                if not cid:
+                    continue
+                sub = usage.get_subscription(cid)
+                if not sub or sub.get("status") not in ("active", "trialing"):
+                    continue
+                renewal_str = str(sub.get("current_period_end") or "")
+                if not renewal_str:
+                    continue
+                try:
+                    renewal_dt = datetime.fromisoformat(renewal_str.replace("Z", "+00:00"))
+                    if renewal_dt.tzinfo is None:
+                        renewal_dt = renewal_dt.replace(tzinfo=timezone.utc)
+                except Exception:
+                    continue
+                days_left = (renewal_dt - _now()).days
+                if days_left > RENEWAL_REMINDER_DAYS or days_left < 0:
+                    continue
+                email = str(c.get("email") or "").strip()
+                biz = str(c.get("business_name") or c.get("name") or "Customer").strip()
+                if not email:
+                    continue
+                subject = biz + " ji -- subscription " + str(days_left) + " din me renew"
+                body_text = "Namaste " + biz + " ji," + NL + NL
+                body_text += "Aapka LeadGen AI subscription " + str(days_left) + " din me expire ho raha hai. "
+                body_text += "Service continue rakhne ke liye UPI se payment kar sakte hain." + NL + NL
+                body_text += "Plan: " + str(sub.get("plan", "starter")) + " -- Rs " + str(sub.get("amount", 1999)) + "/month" + NL
+                body_text += "Payment: leadsgenai.in/pricing" + NL + NL
+                body_text += "Koi sawaal ho to reply karein -- hum madad karenge." + NL + NL
+                body_text += "-- Sumit, LeadGen AI"
+                try:
+                    await sender.send_email([email], subject, body_text, body_text)
+                    result["sent"] += 1
+                except Exception:
+                    result["skipped"] += 1
+            except Exception:
+                result["skipped"] += 1
+                continue
+
+        try:
+            from app.platform.team import log_event
+            log_event(
+                "nikhil",
+                "renewal_reminders",
+                str(result["sent"]) + " renewal reminders sent",
+                status="ok" if result["sent"] > 0 else "info",
+                meta=result,
+            )
+        except Exception:
+            pass
+
+        logger.info("[dunning] renewal reminders done: " + str(result))
+        return result
+    except Exception as e:
+        logger.warning("[dunning] send_renewal_reminders failed: " + str(e))
+        result["error"] = str(e)[:200]
+        return result
