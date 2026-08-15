@@ -4,18 +4,38 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-15 ~00:01Z — prod `/health` = `91958c23` **RE-PROBED and unchanged** (see the re-verification block below). Original deploy verification was 2026-08-14 ~21:45Z (PR #363). **Product-1 north-star KPI ab ledger-backed** (`paid_today` / `activations_today` on the admin "Aaj" snapshot). DSH stays LIVE-AUTHORITY. VLK=0. No flag armed by this deploy. Phase 0 Hot Queue still owner-gated.
+2026-08-15 ~02:42Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, dual probe 02:37:40Z / 02:40:09Z uptime advanced). NEXT todos agent-side READY. Owner inbox/UPI/Boss harness still remaining. DSH local smoke + Kavya MCP plan used; prod flags not flipped. PR #363/#364 ancestry sealed at ~00:01Z re-probe (5/5 pin, VLK=0).
 
-## RE-VERIFICATION 2026-08-15 ~00:01Z — independent probe, docs-only session
-Ye block kisi deploy ka nahi hai — ek alag session ne pichhle session ke claims ko **lead** maan kar dobara probe kiya (rumour se nahi, khud ke output se).
-- **PR #363:** `gh pr view 363` → `state=MERGED`, `mergedAt=2026-08-14T21:30:39Z`, `mergeCommit=91958c23feac5aa09d85ccf7dd3a3a62c981f119`. `git merge-base --is-ancestor <merge-sha> origin/main` EXIT=0 aur `origin/main` tip **exactly** wahi SHA hai. (GIT_VERIFIED)
-- **Public `/health` ×2, cache-busted:** `23:59:49.113763Z` uptime `2h 15m 22s` → `00:00:01.593698Z` uptime `2h 15m 35s`. **Timestamp aur uptime dono advance hue** — ye live origin hai, cache nahi (2026-08-06 cached-probe trap ke against explicit check). Dono probes: `healthy` · `environment:production` · `version:91958c23`.
-- **Host-local `/health`:** `127.0.0.1:8000` se bhi `91958c23`, uptime `2h 17m 9s`.
-- **5/5 app-image pin (read-only `docker ps` + `docker inspect` + `printenv`):** `leadgen_app`, `leadgen_worker`, `leadgen_scheduler`, `leadgen_worker_heavy`, `leadgen_worker_video` — sab `ghcr.io/...:91958c23`, `APP_VERSION=91958c23`, `VOICE_LAUNCH_KILL=0`, sab `Up 2 hours (healthy)`. **Zero skew.**
-- **Kill fence end posture:** VLK=`0` in all five containers, aur fence backup on host present: `.env.bak-deploy-killfence-20260814_213255` (naam only — koi `.env` value read/print nahi ki gayi). Fence cycle **CLOSED**.
-- **Not part of the 5 app-image set:** `leadgen_dsh_worker` apni alag image `leadgen-dsh-worker:fb3d0bc2` pe chal raha hai (Up 8h, healthy) — ye app-image skew nahi hai, DSH runtime ka apna tag hai. `leadgen_app_staging` bhi alag (3 din purana).
-- Is session ne **koi code, deploy, flag, env ya customer data touch nahi kiya** — sirf read-only probes + context docs.
+## NEXT todos READY 2026-08-15 — Hot Queue / UPI / capacity honesty
+- Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + LOCAL-ONLY (DSH Docker smoke)
+- Named blocker still `upi_pending_unactioned`; `payments_ready=true`; `paid_today=0`
+- Heavy jobs named: `self_improve_tick`, `run_staff_job`, kb-warmup ~96s. CPU 0.46% at 02:41Z (was 155% 01:16Z). Onboard queue stays UNSET.
+- One-pagers: `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · `docs/gtm/BOSS_HARNESS_CANARY.md` · board `docs/gtm/NEXT_TODOS.md` §6
+- Owner remaining: authenticated `/app/inbox` blitz, UPI bind+bank, `buzz_start_harness.py --agent Boss` (not dry-run)
+
+## NEXT42 2026-08-15 — revenue 20 + Buzz + max-safe auto + 50/day capacity
+- Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + LOCAL-ONLY (relay)
+- Named activation blocker = `upi_pending_unactioned` (`payments_ready=true`)
+- `paid_today=0` IST 2026-08-15 honest empty day
+- T31 in running app: `_notify_owner_once` + `list_actionable` both True
+- Buzz local relay LIVE `127.0.0.1:3100` `/_liveness=ok`; harness `--dry-run` uses `BUZZ_RELAY`; `#staff-pulse` posted 31/31; `#build` HANDOFF posted
+- `CELERY_ONBOARD_QUEUE` UNSET/INERT. Heavy 02:41Z 0.46% after kb-warmup (01:16Z was 155% / 2 jobs) — still do not arm onboard→heavy
+- Loadtest: `/health` 129×200; `/` 43×429 at 5 concurrent (rate-limit knee). Safe anonymous ≈ 3 concurrent. Do not raise `WEB_CONCURRENCY`
+- Live vs intended (do not flip from this session): `COORDINATION_HUB_ENABLED=1`, `DUNNING_ENGINE=1`, `UPI_AUTO_ACTIVATE=1`, `DSH_RUNTIME_ENABLED=1`. Never-arm OK: cold WA=0, GSC UNSET, HARNESS_SESSION_EVENTS UNSET
+- DLQ: trainer TimeLimitExceeded dead=24 (was 23 same day) — do not flush
+- Evidence: `docs/gtm/NEXT42_EVIDENCE.md` · `docs/gtm/CAPACITY_50_DAY.md`
+- Owner remaining: `/app/inbox` blitz, UPI bind+bank confirm, `buzz_start_harness.py --agent Boss` (not dry-run)
+
+## RE-VERIFICATION 2026-08-15 ~00:01Z — independent probe, docs-only session (PR #364)
+Ye block kisi deploy ka nahi hai — pichhle session ke claims ko **lead** maan kar dobara probe kiya.
+- **PR #363:** `gh pr view 363` → `state=MERGED`, `mergedAt=2026-08-14T21:30:39Z`, `mergeCommit=91958c23feac5aa09d85ccf7dd3a3a62c981f119`. (GIT_VERIFIED)
+- **Public `/health` ×2, cache-busted:** `23:59:49.113763Z` uptime `2h 15m 22s` → `00:00:01.593698Z` uptime `2h 15m 35s`. Dono probes: `healthy` · `environment:production` · `version:91958c23`.
+- **5/5 app-image pin:** `leadgen_app`, `leadgen_worker`, `leadgen_scheduler`, `leadgen_worker_heavy`, `leadgen_worker_video` — sab `ghcr.io/...:91958c23`. **Zero skew.** VLK=0. Fence backup `.env.bak-deploy-killfence-20260814_213255` (naam only).
+- **Not part of the 5 app-image set:** `leadgen_dsh_worker` image `leadgen-dsh-worker:fb3d0bc2`.
 Label: DIRECT_HOST_VERIFIED (2026-08-15 ~00:01Z)
+
+## CODE-READY / INERT — DeepSeek Harness migration contract (2026-08-14)
+- Runtime now LIVE-AUTHORITY on prod (ADR-183) — see DSH section below if present in later blocks; this historical paragraph kept for ancestry.
 
 ## REVENUE VERDICT (2026-08-15 — evidence-bound, do not upgrade without new proof)
 - **Technical money path: GO.** Public funnel + pricing + `/start` + manual-UPI rail + admin approve/bind + ledger-backed `paid_today` sab prod pe `91958c23` par live hain.

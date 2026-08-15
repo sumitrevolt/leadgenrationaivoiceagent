@@ -32,9 +32,12 @@ python scripts/buzzlock.py status
 python scripts/buzzlock.py claim app/api/growth_revenue.py --tool CLAUDE --reason "ADR-159 canary"
 # ... work ...
 python scripts/buzzlock.py release app/api/growth_revenue.py --tool CLAUDE --evidence "3 tests green, exit 0"
+python scripts/buzzlock.py handoff --tool CURSOR --next CLAUDE --goal "..." --done "..." --evidence "exit 0" --left "..." --touched "..."
 ```
 
 `--tool` is one of `CURSOR` `CLAUDE` `CODEX` `GOOSE` `OPENCODE` `FREEBUFF` `MONKEY`.
+
+A `handoff` with a blank Evidence line is refused (exit 1) — that post would be a rumour.
 
 A tool missing from that list cannot claim, so it edits the tree with no lock at
 all — which is the failure the registry exists to prevent. Add new harnesses to

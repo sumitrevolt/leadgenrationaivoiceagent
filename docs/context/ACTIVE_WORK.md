@@ -1,43 +1,43 @@
-﻿# ACTIVE_WORK - max 3 workstreams
+# ACTIVE_WORK - max 3 workstreams
 
 ---
 
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 ~00:01Z, 5/5 pinned, VLK=0) · daily owner ntfy wired · checklist `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · activation summary still `ready_for_first_paid_customer=false` (`blocker_count=1`, unchanged from `c4fc0087`) — owner blitz still the money path. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit (verdict block in `CURRENT_STATE.md`). Aaj ka `paid_today=0` empty-day truth hai, defect nahi
-- **Next exact action:** Owner daily Hot Queue blitz (15–30 min at `/app/inbox`) + UPI Bind/re-Approve when payment arrives. **Naya module/agent/loop tab tak nahi** jab tak koi correlated real-funnel defect evidence ke saath na mile
-- **Out of scope:** Flag arm · cold WA auto · lead magnet ads (see WS-REV50)
+- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 ~00:01Z, 5/5 pinned, VLK=0; dual public probe 02:37:40Z / 02:40:09Z uptime advanced) · inbox shell 200 · named blocker `upi_pending_unactioned` · `payments_ready=true` · `paid_today=0` honest empty day · T31 ntfy+UPI actionable True in running app · one-pager `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · READY board `docs/gtm/NEXT_TODOS.md` §6. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit.
+- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. **Naya module/agent/loop tab tak nahi** jab tak koi correlated real-funnel defect evidence ke saath na mile.
+- **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
+
+---
+
+## WS-BUZZ Agent-chat coordination (CURSOR LANE B)
+- **ID:** WS-BUZZ
+- **Business outcome:** Coding tools + Boss coordinate in Buzz without ping-pong; not a 32nd STAFF
+- **Current state:** Local relay LIVE `ws://127.0.0.1:3100` `/_liveness=ok` · `buzzlock handoff` shipped · `#staff-pulse` posted 31/31 (footer `@` mention bug fixed) · Boss harness **dry-run EXIT 0** (canonical `1b13cecc`) · owner one-pager `docs/gtm/BOSS_HARNESS_CANARY.md`
+- **Next exact action:** Owner runs `python scripts/buzz_start_harness.py --agent Boss` then `@Boss` canary ≥600s in `#admin`. Comb only after that.
+- **Out of scope:** Buzz as production control plane · agent cross-allowlist · using hub as 32nd STAFF (live env already `COORDINATION_HUB_ENABLED=1` — do not treat as control plane)
 
 ---
 
 ## WS-REV50 Product-1 → 50 paid/day capacity (90d)
 - **ID:** WS-REV50
-- **Business outcome:** Build capacity toward 50 new ₹1,999/mo Marketing subscribers / day
-- **Current state:** Plan `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` · Phase 0 via WS-GTM1 · UPI actionable-queue leak fixed on prod · **Phase 1 north-star KPI ab measurable — PR #363 LIVE on `91958c23`: ledger-backed `paid_today` / `activations_today` / `paid_gross_today_inr` on the admin "Aaj" snapshot (invoice + UPI ledgers, IST day, client+day dedupe, read-only). Baseline reading on deploy day = 0/0 (honest ledger answer, not a bug).** Not claiming 50/day live
-- **Next exact action:** After 2nd paid, owner sets ads budget + GSC creds decision for Phase 1 — `paid_today` is now the scoreboard for that decision
-- **Out of scope:** Weakening compliance · Stripe/Razorpay return · inventing metrics
-
----
-
-## WS-SEC Security/compliance residual (CURSOR LANE B)
-- **ID:** WS-SEC
-- **Business outcome:** Compliance gates stay fail-closed; voice frozen; DSH kill switch practiced
-- **Current state:** Gates INTACT · voice/Swara FROZEN · DSH LIVE-AUTHORITY 29 on `91958c23` · kill fence practiced again (PR #363 deploy; VLK proved TRUE mid-deploy, back to 0 after)
-- **Next exact action:** Monitor DSH worker + queues; kill = `DSH_RUNTIME_ENABLED=0` if needed
-- **Out of scope:** Voice/Swara edits · gate weakening · legacy executor deletion
+- **Business outcome:** Backend factory toward 50 new ₹1,999/mo Marketing subscribers / day (not claimed live)
+- **Current state:** Plan `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` · Phase 0 via WS-GTM1 · **PR #363 LIVE on `91958c23`:** ledger-backed `paid_today` / `activations_today` / `paid_gross_today_inr` (invoice + UPI ledgers, IST day, client+day dedupe, read-only; baseline 0/0 honest). `CELERY_ONBOARD_QUEUE` UNSET/INERT · 50 fake onboard tests green · loadtest `/` 429 at 5 concurrent · heavy **0.46% CPU at 02:41Z** after kb-warmup (was 155% 01:16Z) · sheet `docs/gtm/CAPACITY_50_DAY.md` · live flag mismatches in `docs/gtm/NEXT42_EVIDENCE.md`
+- **Next exact action:** After 2nd paid, owner ads/GSC. Do **not** arm onboard→heavy while kb-warmup still recurs on heavy. Owner to confirm dunning/UPI_AUTO_ACTIVATE/hub live=1.
+- **Out of scope:** Claiming 50/day live · paid LLM · raising WEB_CONCURRENCY off 429s · Stripe/Razorpay return · inventing metrics
 
 ---
 
 ## Parked (not in active 3)
-- **WS-DSH** Armed under ADR-183; code+hotfix now on `c4fc0087`. Retirement still blocked.
-- **WS-UPI304** Guest bind CODE-LIVE + approved-unactivated now stays in admin queue on `c4fc0087`
+- **WS-SEC** Constraints inside all three (voice FROZEN, DND/TRAI/DPDP fail-closed; DSH kill = `DSH_RUNTIME_ENABLED=0`). Not a 4th stream. Kill fence practiced on PR #363 deploy (VLK TRUE mid-deploy, back to 0).
+- **WS-DSH** Armed ADR-183 on `c4fc0087` ancestry; retirement still blocked.
+- **WS-UPI304** Guest bind CODE-LIVE + approved-unactivated stays in admin queue on `c4fc0087`
 - **WS-HYG** COMPLETE in ancestry
-- **WS-DSH180** SessionEvent still UNSET — do not arm with AGENT_HARNESS
+- **WS-DSH180** HARNESS_SESSION_EVENTS UNSET — do not arm with AGENT_HARNESS
+- **WS-AMAX** Docs said dunning OFF; live `DUNNING_ENGINE=1` — observe, do not flip from this stream
 - **WS-GOV** Boss governance flag OFF
-- **WS-BUZZ** Local Buzz relay
 - **WS-DEP329** Rollback retention lineage
 - **WS-REV** #306 after #304 live proof
-- **WS-AMAX** Dunning OFF
 - **WS-SEC1** Vobiz rotation
 - Creative OS · Swara/voice (FROZEN) · Stage B AMBER OpenClaw

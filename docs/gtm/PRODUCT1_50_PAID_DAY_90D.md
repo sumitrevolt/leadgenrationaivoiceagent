@@ -47,7 +47,7 @@ See [HOT_QUEUE_BLITZ_CHECKLIST.md](HOT_QUEUE_BLITZ_CHECKLIST.md).
 2. Sales factory roster + queue routing.
 3. Onboarding factory: parallel KB seed / sub / week-1 content via Celery (not web process); idempotent.
 4. Billing ops: batch UPI confirm / dual-approver UI (still manual rail).
-5. Infra: Postgres/Redis/worker headroom; `dsh` + celery DLQ dashboards.
+5. Infra: Postgres/Redis/worker headroom; `dsh` + celery DLQ dashboards. Sheet: [CAPACITY_50_DAY.md](CAPACITY_50_DAY.md). `CELERY_ONBOARD_QUEUE` INERT (heavy worker, no new queue).
 6. **Kill criteria:** CAC &gt; 1 mo GM or onboarding fail red → pause ads.
 
 **Exit:** Written capacity plan + staging/dry-run of 50 simulated onboardings → owner go/no-go for live 50.

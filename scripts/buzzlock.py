@@ -8,6 +8,7 @@ post.
     python scripts/buzzlock.py status
     python scripts/buzzlock.py claim app/api/growth_revenue.py --tool CLAUDE --reason "ADR-159 canary"
     python scripts/buzzlock.py release app/api/growth_revenue.py --tool CLAUDE --evidence "3 tests green, exit 0"
+    python scripts/buzzlock.py handoff --tool CURSOR --next CLAUDE --goal "..." --done "..." --evidence "exit 0" --left "..." --touched "..."
     python scripts/buzzlock.py break app/api/growth_revenue.py --tool CURSOR
 
 Exit codes: 0 ok · 1 usage/arg error · 2 refused (file held by another tool).
@@ -301,6 +302,42 @@ def cmd_break(args) -> int:
     return 0
 
 
+def format_handoff(
+    tool: str, next_tool: str, goal: str, done: str, evidence: str, left: str, touched: str
+) -> str:
+    """Canonical #build HANDOFF. A post with no Evidence line is a rumour."""
+    return (
+        f"[{tool}] HANDOFF -> {next_tool}\n"
+        f"Goal: {goal.strip()}\n"
+        f"Done: {done.strip()}\n"
+        f"Evidence: {evidence.strip()}\n"
+        f"Left: {left.strip()}\n"
+        f"Touched: {touched.strip()}"
+    )
+
+
+def cmd_handoff(args) -> int:
+    evidence = (args.evidence or "").strip()
+    if not evidence:
+        print(
+            "REFUSED: Evidence line required — a handoff without it is a rumour.", file=sys.stderr
+        )
+        return 1
+    body = format_handoff(
+        args.tool,
+        args.next_tool,
+        args.goal,
+        args.done,
+        evidence,
+        args.left,
+        args.touched,
+    )
+    print(body)
+    status = post_build(body)
+    print(status)
+    return 0
+
+
 class _Parser(argparse.ArgumentParser):
     """argparse exits 2 on usage errors — the same code we use for REFUSED.
 
@@ -340,6 +377,16 @@ def main() -> int:
     b.add_argument("path")
     b.add_argument("--tool", required=True, choices=TOOLS)
     b.set_defaults(func=cmd_break)
+
+    h = sub.add_parser("handoff", help="post a #build HANDOFF (Evidence required)")
+    h.add_argument("--tool", required=True, choices=TOOLS)
+    h.add_argument("--next", dest="next_tool", required=True, help="next tool or Boss")
+    h.add_argument("--goal", required=True)
+    h.add_argument("--done", required=True)
+    h.add_argument("--evidence", required=True, help="exit code / test result — required")
+    h.add_argument("--left", required=True)
+    h.add_argument("--touched", required=True)
+    h.set_defaults(func=cmd_handoff)
 
     args = ap.parse_args()
     return args.func(args)

@@ -66,10 +66,10 @@ $c = $c -replace 'BUZZ_S3_ACCESS_KEY=CHANGE_ME_RANDOM_ACCESS_KEY', "BUZZ_S3_ACCE
 $c = $c -replace 'BUZZ_S3_SECRET_KEY=CHANGE_ME_RANDOM_SECRET_KEY', "BUZZ_S3_SECRET_KEY=$(New-Pw 32)"
 # local open mode (like `just dev`): no TLS, no closed-relay requirement yet
 $c = $c -replace 'BUZZ_DOMAIN=buzz.example.com', 'BUZZ_DOMAIN=localhost'
-$c = $c -replace 'RELAY_URL=wss://buzz.example.com', 'RELAY_URL=ws://127.0.0.1:3000'
-$c = $c -replace 'BUZZ_MEDIA_BASE_URL=https://buzz.example.com/media', 'BUZZ_MEDIA_BASE_URL=http://127.0.0.1:3000/media'
+$c = $c -replace 'RELAY_URL=wss://buzz.example.com', 'RELAY_URL=ws://127.0.0.1:3100'
+$c = $c -replace 'BUZZ_MEDIA_BASE_URL=https://buzz.example.com/media', 'BUZZ_MEDIA_BASE_URL=http://127.0.0.1:3100/media'
 $c = $c -replace 'BUZZ_MEDIA_SERVER_DOMAIN=buzz.example.com', 'BUZZ_MEDIA_SERVER_DOMAIN=127.0.0.1'
-$c = $c -replace 'BUZZ_CORS_ORIGINS=https://buzz.example.com', 'BUZZ_CORS_ORIGINS=http://127.0.0.1:3000'
+$c = $c -replace 'BUZZ_CORS_ORIGINS=https://buzz.example.com', 'BUZZ_CORS_ORIGINS=http://127.0.0.1:3100'
 $c = $c -replace 'BUZZ_REQUIRE_AUTH_TOKEN=true', 'BUZZ_REQUIRE_AUTH_TOKEN=false'
 $c = $c -replace 'BUZZ_REQUIRE_RELAY_MEMBERSHIP=true', 'BUZZ_REQUIRE_RELAY_MEMBERSHIP=false'
 $c = $c -replace 'RELAY_OWNER_PUBKEY=CHANGE_ME_OWNER_PUBKEY_HEX', '# RELAY_OWNER_PUBKEY=set from Buzz Desktop identity when hardening (see BUZZ_LOCAL_RELAY.md)'
@@ -97,11 +97,12 @@ try {
   Pop-Location
 }
 
-# 5. Liveness poll (BUZZ_HTTP_PORT, default 3000)
-$port = 3000
+# 5. Liveness poll — community host is 3100 (3000 on 0.0.0.0 often already taken).
+$port = 3100
 try {
   $line = Select-String -Path $envFile -Pattern '^BUZZ_HTTP_PORT=' | Select-Object -First 1
-  if ($line) { $port = [int]($line.Line -split '=')[1] }
+  # Prefer 3100; only use BUZZ_HTTP_PORT if it is already the loopback mapping.
+  if ($line -and $line.Line -match '=3100') { $port = 3100 }
 } catch {}
 $ok = $false
 $deadline = (Get-Date).AddSeconds(120)
