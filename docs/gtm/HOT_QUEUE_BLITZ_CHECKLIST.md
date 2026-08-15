@@ -1,6 +1,7 @@
 # Hot Queue blitz — Phase 0 (2nd paid Marketing)
 
-**Aaj 15–30 min.** Code path GO. HTTP 200 shell ≠ cards. Token page pe hona zaroori.
+**Goal:** Close ≥1 new ₹1,999/mo Marketing subscriber this week (2nd paying customer after Jiya).
+**Owner time:** 15–30 min/day. Code path GO. HTTP 200 shell ≠ cards. Token page pe hona zaroori.
 
 **Scoreboard:** admin **Aaj ka business** → `💰 Aaj naye paid` (`paid_today`). Jiya already on ledger; north star = +1 Marketing ₹1,999/mo.
 

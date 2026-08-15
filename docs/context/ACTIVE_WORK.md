@@ -1,12 +1,12 @@
-﻿# ACTIVE_WORK - max 3 workstreams
+# ACTIVE_WORK - max 3 workstreams
 
 ---
 
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `91958c23` · inbox shell 200 · named blocker `upi_pending_unactioned` · `paid_today=0` honest empty day · T31 ntfy+UPI actionable True in running app · one-pager `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · READY board `docs/gtm/NEXT_TODOS.md` §6
-- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm
+- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 ~00:01Z, 5/5 pinned, VLK=0; dual public probe 02:37:40Z / 02:40:09Z uptime advanced) · inbox shell 200 · named blocker `upi_pending_unactioned` · `payments_ready=true` · `paid_today=0` honest empty day · T31 ntfy+UPI actionable True in running app · one-pager `docs/gtm/HOT_QUEUE_BLITZ_CHECKLIST.md` · READY board `docs/gtm/NEXT_TODOS.md` §6. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit.
+- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. **Naya module/agent/loop tab tak nahi** jab tak koi correlated real-funnel defect evidence ke saath na mile.
 - **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
 
 ---
@@ -20,19 +20,24 @@
 
 ---
 
-## WS-REV50 Product-1 → 50 paid/day capacity
+## WS-REV50 Product-1 → 50 paid/day capacity (90d)
 - **ID:** WS-REV50
-- **Business outcome:** Backend factory toward 50 new ₹1,999/mo / day (not claimed live)
-- **Current state:** `CELERY_ONBOARD_QUEUE` UNSET · 50 fake onboard tests green · loadtest `/` 429 at 5 concurrent · heavy **0.46% CPU at 02:41Z** after kb-warmup (was 155% 01:16Z) · jobs `self_improve_tick` / `run_staff_job` / FastEmbed warmup · sheet `docs/gtm/CAPACITY_50_DAY.md` · live flag mismatches documented in `docs/gtm/NEXT42_EVIDENCE.md`
+- **Business outcome:** Backend factory toward 50 new ₹1,999/mo Marketing subscribers / day (not claimed live)
+- **Current state:** Plan `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` · Phase 0 via WS-GTM1 · **PR #363 LIVE on `91958c23`:** ledger-backed `paid_today` / `activations_today` / `paid_gross_today_inr` (invoice + UPI ledgers, IST day, client+day dedupe, read-only; baseline 0/0 honest). `CELERY_ONBOARD_QUEUE` UNSET/INERT · 50 fake onboard tests green · loadtest `/` 429 at 5 concurrent · heavy **0.46% CPU at 02:41Z** after kb-warmup (was 155% 01:16Z) · sheet `docs/gtm/CAPACITY_50_DAY.md` · live flag mismatches in `docs/gtm/NEXT42_EVIDENCE.md`
 - **Next exact action:** After 2nd paid, owner ads/GSC. Do **not** arm onboard→heavy while kb-warmup still recurs on heavy. Owner to confirm dunning/UPI_AUTO_ACTIVATE/hub live=1.
-- **Out of scope:** Claiming 50/day live · paid LLM · raising WEB_CONCURRENCY off 429s
+- **Out of scope:** Claiming 50/day live · paid LLM · raising WEB_CONCURRENCY off 429s · Stripe/Razorpay return · inventing metrics
 
 ---
 
 ## Parked (not in active 3)
-- **WS-SEC** Constraints inside all three (voice FROZEN, DND/TRAI/DPDP fail-closed). Not a 4th stream.
-- **WS-DSH** Armed ADR-183; retirement still blocked.
-- **WS-DSH180** HARNESS_SESSION_EVENTS UNSET — do not arm
+- **WS-SEC** Constraints inside all three (voice FROZEN, DND/TRAI/DPDP fail-closed; DSH kill = `DSH_RUNTIME_ENABLED=0`). Not a 4th stream. Kill fence practiced on PR #363 deploy (VLK TRUE mid-deploy, back to 0).
+- **WS-DSH** Armed ADR-183 on `c4fc0087` ancestry; retirement still blocked.
+- **WS-UPI304** Guest bind CODE-LIVE + approved-unactivated stays in admin queue on `c4fc0087`
+- **WS-HYG** COMPLETE in ancestry
+- **WS-DSH180** HARNESS_SESSION_EVENTS UNSET — do not arm with AGENT_HARNESS
 - **WS-AMAX** Docs said dunning OFF; live `DUNNING_ENGINE=1` — observe, do not flip from this stream
 - **WS-GOV** Boss governance flag OFF
+- **WS-DEP329** Rollback retention lineage
+- **WS-REV** #306 after #304 live proof
+- **WS-SEC1** Vobiz rotation
 - Creative OS · Swara/voice (FROZEN) · Stage B AMBER OpenClaw

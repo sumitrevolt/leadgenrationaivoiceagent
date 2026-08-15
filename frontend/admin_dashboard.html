@@ -3252,7 +3252,17 @@ async function loadTodayBiz(){
     var ndAccent = nd>0
       ? {border:'#fbbf24',num:'#b45309',bg:'#fffbeb',href:'/app/automation#approvals'}
       : {border:'#6ee7b7',num:'#059669',bg:'#ecfdf5'};
+    // Product-1 north-star (docs/gtm/PRODUCT1_50_PAID_DAY_90D.md): aaj kitne NAYE
+    // paid Marketing customers bane — invoice + UPI ledger se, IST din. Renewal
+    // alag cheez hai (t.paid_today), isliye label me dono sach dikhte hain.
+    var pa = t.activations_today||0;
+    var paidAll = t.paid_today||0;
+    var paAccent = pa>0
+      ? {border:'#6ee7b7',num:'#059669',bg:'#ecfdf5',href:'#sec-revenue'}
+      : {border:'#e2e8f0',num:'#64748b',bg:'#f8fafc',href:'#sec-revenue'};
+    var paLabel = paidAll>pa ? '💰 Aaj naye paid ('+paidAll+' total paid)' : '💰 Aaj naye paid';
     html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+          + statChip(paLabel, pa, paAccent)
           + statChip('✅ Aaj auto ho chuke', t.events_today||0)
           + statChip(nd>0?'🙋 Boss decision chahiye':'✅ Boss pe kuch pending nahi', nd, ndAccent)
           + statChip('🤖 Active agents', t.working||0)
@@ -5045,7 +5055,7 @@ async function loadUpiSelfServe(){
         '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Koi account nahi — pehle Bind client se jodo, phir Approve activate karega</div>';
       return '<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px">'
         + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-        + '<span style="flex:1;color:#e2e8f0"><b>'+escH(p.plan||'')+'</b> · ref: '+escH(p.upi_ref||'')
+        + '<span style="flex:1;color:#e2e8f0"><b>'+escH(p.plan||'')+'</b> · '+escH(p.status||'pending')+' · ref: '+escH(p.upi_ref||'')
         + (p.amount?(' · ₹'+escH(String(p.amount))):'')
         + (p.payer_name?(' · '+escH(p.payer_name)):'')
         + (p.payer_contact?(' · '+escH(p.payer_contact)):'')
@@ -5077,7 +5087,13 @@ async function upiSelfServeDecide(pid, approve, btn){
     });
     var d={}; try{ d=await r.json(); }catch(e){}
     if(r.ok && d && d.ok!==false){
-      adminToast(approve?"✅ UPI approved & plan activated":"✕ Submission rejected","success");
+      var rec=(d.record||{});
+      if(approve && !rec.activated && !rec.auto_activated){
+        var nextStep=rec.needs_client_bind?"Bind client karke re-Approve karein":"activation failed — details check karke re-Approve karein";
+        adminToast("⚠️ Payment approved, plan NOT activated — "+nextStep,"error");
+      } else {
+        adminToast(approve?"✅ UPI approved & plan activated":"✕ Submission rejected","success");
+      }
       loadUpiSelfServe();
     } else {
       var msg=(d&&(d.detail||d.error||d.message))||("HTTP "+r.status);

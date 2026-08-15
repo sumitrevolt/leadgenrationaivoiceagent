@@ -64,7 +64,10 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-12: 55 -> 61. PR #333 staff_bus declares platform.staff_bus
 # (+6 entries: root, events, idempotency, idempotency_open, audit, dlq).
 # CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 61
+# 2026-08-14: 61 -> 62. Hot Queue owner reminder declares ops.office_briefing
+# (+1 entry: _notification_path READ/DELETE claim). CLASSIFIED, not tolerated —
+# baseline fingerprint count unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 62
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 

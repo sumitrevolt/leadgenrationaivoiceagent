@@ -307,6 +307,38 @@ STORES: list[dict[str, Any]] = [
         evidence="new store 2026-07-30; resolve_store_path wired; recipient never stored cleartext",
     ),
     _e(
+        store_id="ops.office_briefing",
+        display_name="Daily Office HQ Hot Queue brief + owner notify claim",
+        legacy_paths=[
+            "data/office_briefing/",
+            "data/office_briefing/*.owner-notified",
+        ],
+        writer_modules=["app/platform/office_briefing.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        last_write="2026-08-14",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="resumable-operational",
+        production_active=True,
+        mutable=True,
+        authoritative_or_required=False,
+        inside_checkout=True,
+        externally_protected=False,
+        target_runtime_subpath="ops/office_briefing/",
+        migration_tier=TIER_1,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=False,
+        blocker_reason=(
+            "daily brief cache + at-most-once owner ntfy claim; safe to lose "
+            "(brief regenerates, claim release only re-sends same-day reminder)"
+        ),
+        evidence=(
+            "declared 2026-08-14 with Hot Queue owner reminder; "
+            "*.owner-notified is O_EXCL claim only — no prospect auto-send"
+        ),
+    ),
+    _e(
         store_id="governance.mission_control",
         display_name="Chat-first mission packets + append-only decision ledger",
         legacy_paths=[

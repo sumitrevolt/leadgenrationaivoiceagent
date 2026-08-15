@@ -2,6 +2,16 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## ADR-183 (2026-08-14) — Owner override: full DSH authority arm (29 migratable) [PRODUCTION-PROVEN]
+
+**Decision:** Against the ADR-182 staged wave order, owner authorized **immediate full authority**: `DSH_RUNTIME_ENABLED=1`, `DSH_SHADOW_ENABLED=0`, explicit CSV allowlist of all **29** `dsh_candidate` agents, `dsh-worker` profile started on prod `fb3d0bc2`. `swara`/`ananya` remain hardcoded `direct`. `DSH_AGENT_ALLOWLIST=*` remains forbidden (empty-set semantics → all direct).
+
+**Context:** Code was AUTH-DEPLOYED inert via PR #361. Owner chose full arm + Product-1 50-paid/day capacity program in the same session. Game-day rollback (`DSH_RUNTIME_ENABLED=0` → prove `direct` → re-arm) was executed successfully before leaving authority on overnight.
+
+**Alternatives rejected:** Shadow-first 14-day soak; Kavya-only canary; leaving inert; using `*` allowlist; deleting legacy direct executor.
+
+**Consequence:** Production runs DSH authority for 29 agents behind isolated `dsh` queue. Kill switch is one flag. ADR-182 retirement/soak requirements still apply before legacy deletion. Ops must keep redis attached to `dsh_net` with alias `redis`. Surgical fixes (`tzlocal` in `requirements-dsh.lock.txt`, lazy `app/tasks/__init__.py`) required for worker boot — commit when owner asks.
+
 ## ADR-182 (2026-08-14) — DSH evidence-gated rollout and legacy retirement policy [CODE-READY, INERT]
 
 **Decision:** Prepare, but do not actuate, the DeepSeek Harness rollout in this fixed order: **shadow → Kavya read-only → Isha draft → GREEN read-only → GREEN internal mutators → Zara approved-social handoff → AMBER final-approval-gated**. `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, and an empty DSH allowlist remain the current posture. AUTH-DEPLOY, every flag arm, every wave promotion, and any legacy deletion each require separate explicit owner authorization; no stage auto-promotes from elapsed time or passing tests.

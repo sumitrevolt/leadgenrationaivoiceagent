@@ -541,14 +541,14 @@ def _upi_pending_age_hours(created_at: Any) -> float | None:
 
 
 def _upi_pending_unactioned() -> dict[str, Any]:
-    """Revenue ops: stale pending UPI = money waiting with no owner action.
+    """Revenue ops: stale actionable UPI = money waiting without activation.
 
     Submit path notifies via best-effort ntfy only (nested try/except + async
     fire-and-forget). If that push misses, the already-scheduled 08:30 IST
     ``daily_readiness_digest`` is the backup page — this probe is what makes
     the digest notice stuck payments (``_upi`` only checks VPA configured).
 
-    - pending older than ``UPI_PENDING_ALERT_HOURS`` (default 6) → BLOCKER
+    - pending or approved-but-unactivated older than threshold → BLOCKER
     - only fresh pendings / none → OK (avoid teaching operators to ignore digest)
     - store/list failure → NEUTRAL, never BLOCKER (infra hiccup ≠ fake alarm)
     - corrupt/missing ``created_at`` → count as stale (false page > silent drown)
@@ -557,7 +557,7 @@ def _upi_pending_unactioned() -> dict[str, Any]:
     try:
         from app.platform import upi_payments
 
-        pending = upi_payments.list_payments(status="pending")
+        pending = upi_payments.list_actionable()
     except Exception:
         return {
             "key": "upi_pending_unactioned",
@@ -565,7 +565,13 @@ def _upi_pending_unactioned() -> dict[str, Any]:
             "category": "revenue",
             "status": _NEUTRAL,
             "env_vars": ["UPI_PENDING_ALERT_HOURS"],
-            "checks": {"store_ok": False, "pending_total": 0, "stale_pending": 0},
+            "checks": {
+                "store_ok": False,
+                "pending_total": 0,
+                "stale_pending": 0,
+                "approved_unbound": 0,
+                "approved_unactivated": 0,
+            },
             "action": "",
             "doc": "app/platform/upi_payments.py",
         }
@@ -587,6 +593,16 @@ def _upi_pending_unactioned() -> dict[str, Any]:
         "store_ok": True,
         "pending_total": len(pending),
         "stale_pending": stale_n,
+        "approved_unbound": sum(
+            1
+            for row in pending
+            if isinstance(row, dict)
+            and row.get("status") == "approved"
+            and row.get("needs_client_bind")
+        ),
+        "approved_unactivated": sum(
+            1 for row in pending if isinstance(row, dict) and row.get("status") == "approved"
+        ),
         "alert_hours": alert_hours,
         "stale_ids_sample": stale_ids[:5],
     }
@@ -599,8 +615,8 @@ def _upi_pending_unactioned() -> dict[str, Any]:
             "env_vars": ["UPI_PENDING_ALERT_HOURS"],
             "checks": checks,
             "action": (
-                f"{stale_n} UPI payment(s) pending ≥{alert_hours:g}h — "
-                "Admin → /app/admin → UPI pending queue → approve/reject"
+                f"{stale_n} UPI payment(s) actionable ≥{alert_hours:g}h — "
+                "Admin → /app/admin → UPI queue → Bind if needed, then re-Approve/Reject"
             ),
             "doc": "app/platform/upi_payments.py",
         }

@@ -483,6 +483,64 @@ def _log_scheduled_event(status: str, detail: str) -> None:
         pass
 
 
+def _notification_path(date: str) -> str:
+    return os.path.join(_DIR, f"{date}.owner-notified")
+
+
+def _try_notification_claim(date: str) -> bool:
+    """At-most-once daily owner reminder claim across worker processes."""
+    try:
+        fd = os.open(_notification_path(date), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            os.write(fd, f"claimed_at={_now_iso()}".encode())
+        finally:
+            os.close(fd)
+        return True
+    except FileExistsError:
+        return False
+    except Exception as exc:
+        logger.warning("[office_briefing] owner notification claim failed: %s", exc)
+        return False
+
+
+def _release_notification_claim(date: str) -> None:
+    try:
+        os.remove(_notification_path(date))
+    except FileNotFoundError:
+        pass
+    except Exception as exc:
+        logger.debug("[office_briefing] owner notification claim release failed: %s", exc)
+
+
+async def _notify_owner_once(result: dict[str, Any]) -> dict[str, Any]:
+    """Send one internal, draft-only action reminder; never contacts a prospect."""
+    date = str(result.get("date") or _ist_date())
+    if not _try_notification_claim(date):
+        return {"sent": False, "skipped": "already_notified"}
+
+    from app.integrations import ntfy
+
+    base = (os.environ.get("PUBLIC_BASE_URL") or "https://leadsgenai.in").rstrip("/")
+    text = " ".join(str(result.get("text") or "").split())[:900]
+    message = text or "Aaj ka Hot Queue revenue brief ready hai."
+    actions = [{"action": "view", "label": "Hot Queue kholo", "url": f"{base}/app/inbox"}]
+    for attempt in range(2):
+        sent = await ntfy.push(
+            "Hot Queue action pending",
+            message,
+            priority="high",
+            tags=["fire"],
+            actions=actions,
+        )
+        if sent:
+            return {"sent": True, "attempts": attempt + 1, "action": "/app/inbox"}
+        if attempt == 0:
+            await asyncio.sleep(0.2)
+
+    _release_notification_claim(date)
+    return {"sent": False, "attempts": 2, "skipped": "notify_failed"}
+
+
 async def run_scheduled() -> dict[str, Any]:
     """Build today's draft-only revenue brief when the control plane is safe.
 
@@ -527,12 +585,15 @@ async def run_scheduled() -> dict[str, Any]:
         _log_scheduled_event("warn", f"generation_failed: {result.get('error') or 'unknown'}")
         return {**result, "enabled": True}
 
+    notification = await _notify_owner_once(result)
+    if notification.get("skipped") == "notify_failed":
+        _log_scheduled_event("warn", "owner_notification_failed: retries=2 action=/app/inbox")
     _log_scheduled_event(
         "ok",
         f"ready: date={result.get('date') or _ist_date()} cached={bool(result.get('cached'))} "
-        "action=/app/inbox",
+        f"owner_notified={bool(notification.get('sent'))} action=/app/inbox",
     )
-    return {**result, "enabled": True}
+    return {**result, "enabled": True, "owner_notification": notification}
 
 
 def audio_path_for_today() -> str | None:

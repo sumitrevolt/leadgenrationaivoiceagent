@@ -135,8 +135,10 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # Console rank snapshot — daily jsonl + state json + atomic tmp). CLASSIFIED.
     # 2026-08-12 +6 entries / +1 family: platform.staff_bus (31 STAFF Buzz bus
     # events/idempotency/audit/DLQ under STAFF_BUS_ENABLED OFF). CLASSIFIED.
-    assert len(entries) == 61
-    assert len(families) == 17, sorted(families)
+    # 2026-08-14 +1 entry / +1 family: ops.office_briefing (Hot Queue daily
+    # owner-notified claim). CLASSIFIED, not tolerated — baseline unchanged.
+    assert len(entries) == 62
+    assert len(families) == 18, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -154,6 +156,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "devcontrol.external_missions",
         "governance.mission_control",
         "owner_os.coordination_hub",
+        "ops.office_briefing",
         "ops.owner_email_canary",
         "sales.prospects",
         "telephony.call_recordings",
@@ -425,7 +428,8 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-04: +1 owner_os.coordination_hub (ADR-150 projection; rebuildable).
     # 2026-08-05: +1 platform.memory_governance (ADR-158/161; rebuildable cache).
     # 2026-08-11: +1 marketing.gsc_rankings (ADR-177; tier3 rebuildable, INERT).
-    assert counts["unique_families"] == 35
+    # 2026-08-14: +1 ops.office_briefing (Hot Queue owner-notified claim; resumable).
+    assert counts["unique_families"] == 36
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]

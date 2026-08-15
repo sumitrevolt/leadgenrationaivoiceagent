@@ -606,6 +606,28 @@ ENTRIES: list[dict[str, Any]] = [
         ),
     },
     {
+        "allowlist_id": "ops.office_briefing.owner_notified_claim",
+        "file": "app/platform/office_briefing.py",
+        "line_or_symbol": "_notification_path",
+        "path_pattern": "owner-notified",
+        "store_id": "ops.office_briefing",
+        "access_modes": ["READ", "DELETE"],
+        "reason": (
+            "At-most-once daily owner ntfy claim for the Hot Queue brief "
+            "(data/office_briefing/<date>.owner-notified). O_EXCL create is "
+            "scanned as READ; DELETE releases the claim only after notify "
+            "retries fail so the next worker can retry the same day."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Claim only — never auto-send prospect contact; losing the marker "
+            "may re-push the same-day /app/inbox reminder and nothing else."
+        ),
+    },
+    {
         "allowlist_id": "governance.mission_control.ledger",
         "file": "app/platform/mission_control.py",
         "line_or_symbol": "_LEDGER",

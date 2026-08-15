@@ -15,17 +15,19 @@
 - Whole stack: `docker compose -f docker-compose.vps.yml down` → `systemctl start leadgen` (SQLite systemd service installed as rollback).
 - Worker recreate ke baad: `redis-cli llen celery`; >500 = `del celery` (beat re-schedules).
 
-## DeepSeek Harness rollout, rollback drill, and retirement (ADR-181/182)
-**Current posture:** CODE-READY/INERT only. `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`, allowlist empty; deploy/arm/promote/delete mat karo bina separate owner authorization.
+## DeepSeek Harness rollout, rollback drill, and retirement (ADR-181/182/183)
+**Current posture (2026-08-14):** **LIVE-AUTHORITY** under ADR-183 owner override. `DSH_RUNTIME_ENABLED=1`, `DSH_SHADOW_ENABLED=0`, allowlist=29 migratable (never `*`), `leadgen_dsh_worker` on `--profile dsh`, prod SHA `fb3d0bc2`. ADR-182 wave order (shadow → Kavya → …) was **skipped by owner**; soak/retirement gates still required before legacy deletion.
 
-**Evidence-gated wave order:** shadow → Kavya read-only → Isha draft → GREEN read-only → GREEN internal mutators → Zara approved-social handoff → AMBER final-approval-gated. Shadow needs 120 golden cases + 2,000 turns / 14 days. Har next wave ke liye prior evidence retained, role-specific mutation/refusal tests green, tenant/compliance/billing/approval gates intact, queue/retry/DLQ/audit healthy, rollback drill green, aur explicit owner promotion approval mandatory hai. Time/test pass se auto-promotion nahi.
+**Redis on dsh_net:** `redis` service must be on both `leadgen_net` and `dsh_net`. If DNS fails inside `dsh-worker`, re-attach with alias: `docker network disconnect leadgen_dsh_net leadgen_redis; docker network connect --alias redis leadgen_dsh_net leadgen_redis`.
 
-**One-flag runtime rollback drill (owner-authorized production game-day only):**
+**Evidence-gated wave order (ADR-182, still the preferred path for future promotions):** shadow → Kavya read-only → Isha draft → GREEN read-only → GREEN internal mutators → Zara approved-social handoff → AMBER final-approval-gated. Shadow needs 120 golden cases + 2,000 turns / 14 days. Har next wave ke liye prior evidence retained, role-specific mutation/refusal tests green, tenant/compliance/billing/approval gates intact, queue/retry/DLQ/audit healthy, rollback drill green, aur explicit owner promotion approval mandatory hai. Time/test pass se auto-promotion nahi.
+
+**One-flag runtime rollback drill (owner-authorized production game-day):**
 1. Before state capture: exact running `APP_VERSION`, direct cache-busted `/health`, DSH runtime status, queue/DLQ depth, active allowlist/wave names only, and a known direct-executor control case. Secret/config values print mat karo.
 2. Set only `DSH_RUNTIME_ENABLED=0` through the approved env-change path and recreate the affected app-image services with the same exact `APP_VERSION`; if shadow itself is faulty, set `DSH_SHADOW_ENABLED=0` too.
-3. Prove `provider_for()`/runtime status selects `direct` for the canary, the direct control case succeeds, no DSH authority job is newly accepted, compliance/approval refusals remain fail-closed, and queues/DLQs do not regress.
+3. Prove `provider_for()`/runtime status selects `direct` for allowlisted agents, compliance/approval refusals remain fail-closed, and queues/DLQs do not regress.
 4. Probe `/health` twice with cache-busters; require expected SHA, `environment:production`, advancing timestamp/uptime, and zero app-image skew. Record timestamps, run ids, exit codes, and evidence paths.
-5. Do not re-arm. Re-arm/promotion is a new owner decision after incident review.
+5. Re-arm only with fresh owner decision (ADR-183 already re-armed after the 2026-08-14 drill).
 
 **Exact-image rollback drill:** Use the last known-good immutable `APP_VERSION` only through `scripts/deploy_vps.sh`; never hand-write compose rollback and never use `:latest`. The script must prove deployed SHA parity, migrations/readiness, service skew, and smoke; then repeat direct `/health` probes. A failed drill blocks the next wave.
 
