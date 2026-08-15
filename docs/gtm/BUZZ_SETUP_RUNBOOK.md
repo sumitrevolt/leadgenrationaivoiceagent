@@ -52,20 +52,25 @@ python scripts/buzz_canonicalize_boss.py --rollback
 
 ## Step 3: Harness Start (Owner One-Command)
 
-```bash
-# Start Boss harness (NOT dry-run)
-python scripts/buzz_start_harness.py --agent Boss
+**Verified 2026-08-15:** dry-run EXIT 0, relay LIVE `ws://127.0.0.1:3100`, `buzz-acp.exe` found at `%LOCALAPPDATA%\Buzz\buzz-acp.exe`.
 
-# Wait ≥600s for correlated canary
-# Then @Boss mention in #admin channel
+Owner runs on their Windows machine:
+
+```bash
+python scripts/buzz_start_harness.py --agent Boss
 ```
+
+This reads the private key from Windows Credential Manager (owner machine only), spawns `buzz-acp.exe` with `--subscribe mentions`, and logs to `%LOCALAPPDATA%\Buzz\harness-boss.log`.
+
+**Then:** Wait ≥600s (7-8 min typical), post `@Boss status check` in `#admin` channel.
 
 **Expected:** Boss replies within 7-8 minutes with correlated evidence.
 
 If harness doesn't start:
-- Check Desktop is running
+- Check Buzz Desktop is signed in (credential store must have Boss key)
 - Check `BUZZ_RELAY=ws://127.0.0.1:3100` in env
-- Check credential store has Boss key for `1b13cecc`
+- Check `%LOCALAPPDATA%\Buzz\buzz-acp.exe` exists
+- Check log at `%LOCALAPPDATA%\Buzz\harness-boss.log`
 
 ## Step 4: Canary Proof
 
