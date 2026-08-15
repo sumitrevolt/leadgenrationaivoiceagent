@@ -468,7 +468,7 @@ async def lifespan(app: FastAPI):
             logger.error("❌ ZERO routes registered — all router imports failed!")
         elif len(_registered) < 50:
             logger.warning(
-                "⚠️ Only %d routes registered — expected 400+ — router import" " failures likely",
+                "⚠️ Only %d routes registered — expected 400+ — router import failures likely",
                 len(_registered),
             )
     except Exception as _sweep_e:
@@ -1384,7 +1384,7 @@ try:
             allowlist_configured=bool(_mcp_allowlist),
         )
         logger.info(
-            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, " f"Platform/Data/Agents tools)"
+            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, Platform/Data/Agents tools)"
         )
 
     if _dsh_runtime_configured:
