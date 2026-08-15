@@ -35,7 +35,7 @@ Live `printenv` inside `leadgen_app` — **do not assume code defaults**.
 | CADENCE_ENGINE | verify | 1 | |
 | SALES_ENGINE | verify | 1 | |
 | OPS_WATCHDOG | verify | 1 | |
-| AUTO_EMAIL_OUTREACH | cap ≤25/day | 1 | default cap 25, do not raise |
+| AUTO_EMAIL_OUTREACH | cap 50/day | 1 | default cap 50 (PR #365), do not raise further |
 | HOT_QUEUE_BRIEF_DAILY | ntfy loop | 1 | T31 path armed |
 | WEB_CONCURRENCY | 2 | 2 | do not raise |
 | VOICE_LAUNCH_KILL | 0 (calling live) | 0 | voice code still FROZEN |

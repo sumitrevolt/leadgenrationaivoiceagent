@@ -55,8 +55,9 @@ def test_gsc_and_onboard_and_watchdog_are_registered():
         assert name in AUTOMATION_FLAGS, name
 
 
-def test_outreach_daily_cap_defaults_to_25():
-    assert Settings.model_fields["outreach_daily_cap"].default == 25
+def test_outreach_daily_cap_defaults_to_50():
+    # PR #365 on origin/main raised the shipped default; do not raise further here.
+    assert Settings.model_fields["outreach_daily_cap"].default == 50
 
 
 def test_web_concurrency_hardcoded_two_on_vps_compose():
