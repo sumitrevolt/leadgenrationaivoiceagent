@@ -3,7 +3,21 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
-## Last verified timestamp
+## RE-VERIFICATION 2026-08-15 ~16:50Z — FreeBuff session: plugin architecture + automation portfolio + dashboard UX
+- Prod `/health` = `963ee800` healthy production (16:50Z, uptime 1h33m, DIRECT_HOST_VERIFIED)
+- `activation/summary`: `payments_ready=true` `blocker_count=1` `ready_for_first_paid_customer=false`
+- Public pages: pricing/start/audit/inbox/health_ready/admin all HTTP 200
+- Plugin registry: 42 plugins, 7 categories, 4 RED (require approval), 31 PRODUCTION_PROVEN
+- Plugin API: GET /api/admin/plugins + /{id} + POST /drift (3 new routes, 1285 total)
+- Explorer: PLUGINS tab added with topology panel + plugin_registry node
+- Admin dashboard: live scorecards (paid/activations/Hot Queue/pending) + next best action
+- Automation portfolio: 50 loops inventoried (28 KEEP, 2 FIX, 1 SCALE, 14 INERT, 8 KILL)
+- Capacity: 50 fake onboardings, p50=74.9ms, p95=122ms, 13.1/s throughput, 0% failuren- Tests: 250+ targeted PASS, prod_check PASS, secrets clean, API.md synced (1307)
+- Voice FROZEN: zero paths touched
+- Files changed: 7 modified + 9 new = 16 total, NOT committed/pushed
+- Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + GIT_VERIFIED
+
+## Last verified timestamp (superseded same-day 15:21Z)
 2026-08-15 ~15:21Z — prod `/health` = `963ee800` (DIRECT_HOST_VERIFIED, public dual probe 15:21:24Z / 15:21:27Z uptime 0h4m55s→0h4m57s; host 15:22:37Z 0h6m7s). `environment:production` · `healthy`. Kill-fence deploy of `origin/main` via `scripts/deploy_vps.sh` (`=== DEPLOYED 963ee800 OK ===`) then VLK restore + `APP_VERSION=963ee800` recreate. **5/5 app-image pin `963ee800` zero skew**, VLK FALSE_TOKEN 5/5, celery=0, dlq:failed_tasks=0, dlq:dead=24 (pre-existing; do not flush). Inert: DSH runtime/shadow FALSE, HARNESS_SESSION_EVENTS/AGENT_HARNESS/GSC/HQ_AUTO_CHASE UNSET. Rollback = `07870e89`. Named blocker still owner-side (`blocker_count=1`, `payments_ready=true`, `ready_for_first_paid_customer=false`). Local leftover feature branches deleted (already squash-merged; re-merge would rewind). GitHub heads = `main` only at deploy. `HQ_AUTO_CHASE` stay INERT.
 
 ## Last verified timestamp (superseded same-day 14:10Z)

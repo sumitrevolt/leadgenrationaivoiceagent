@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1304 operations)
+## Endpoint Index — auto-generated from OpenAPI (1307 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1660,6 +1660,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/platform/tenants/{tenant_id}/pause` — Pause Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/resume` — Resume Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/upgrade` — Upgrade Tenant
+
+### Plugin Registry  (3)
+
+- `GET   ` `/api/admin/plugins` — List Plugins
+- `POST  ` `/api/admin/plugins/drift` — Check Drift
+- `GET   ` `/api/admin/plugins/{plugin_id}` — Get Plugin
 
 ### Privacy DPDP  (10)
 

@@ -1,6 +1,18 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-15 (REVENUE-50 plugin architecture + automation portfolio + dashboard UX — FREEBUFF)
+Goal: CP0–CP7 checkpoints: plugin manifest schema, automation loop portfolio, capacity measurement, admin dashboard scorecard.
+Inspected: prod `/health` = `963ee800` (16:03Z dual probe, uptime advancing); `activation/summary` payments_ready=true blocker_count=1; all public pages 200; AUTOMATION_FLAGS ~200+; beat schedule ~40+ staff-* jobs; harness full contract set; 31 STAFF canary proven; OmniRoute INERT; DSH armed ADR-183; 800 test files.
+Problems Found: (1) Owner Hot Queue unused (owner-side). (2) UPI approved-unbound stale (owner-side). (3) No plugin manifest schema existed (FIXED). (4) No automation loop portfolio existed (FIXED). (5) Admin dashboard top-fold was static (FIXED). (6) API.md out of date (FIXED).
+Changed: `app/agents/harness/plugin_manifest.py` (PluginManifest + PluginRegistry + drift detection); `app/agents/harness/plugin_catalog.py` (42 plugin manifests); `app/api/plugin_registry.py` (GET /api/admin/plugins + /{id} + POST /drift); `app/main.py` (bootstrap + router); `frontend/admin_dashboard.html` (live scorecards + next best action); `docs/gtm/AUTOMATION_LOOP_PORTFOLIO.md` (50-loop inventory); `tests/test_plugin_manifest.py` (23); `tests/test_plugin_registry_api.py` (15); `tests/test_admin_scorecard.py` (16); `tests/test_onboard_capacity_measure.py` (4); `docs/API.md` synced (1307).
+Tests Run: 227 targeted pytest (44 new + 183 existing) EXIT 0; `prod_check.py` ALL CHECKS PASSED (1285 routes); `check_secrets.py` OK (0 secrets); `sync_api_docs.py` 1307 endpoints.
+Verification Evidence: `/health` 963ee800 production healthy (16:03Z); 227 tests green; HTML 11/11 elements present; plugin catalog 42/7/4/31; capacity 50-onboard p50=74.9ms p95=122ms throughput=13.1/s.
+Risks: Changes not committed/pushed (owner authorized). Plugin catalog not yet wired to prod deploy. Onboarding burst measured in-process, not via Celery.
+Remaining: Owner commit + push + deploy; owner Hot Queue blitz + UPI bank confirm; onboarding burst staging test.
+Next Highest Priority: Owner Hot Queue `/app/inbox` + UPI bank credit.
+
+## Loop Run
 Date: 2026-08-15 (prod SHA writeback after leftover cleanup — CURSOR)
 Goal: After merge/cleanup, re-probe `/health` and correct context if live SHA moved.
 Inspected: Dual `/health` 14:09–14:10Z; smoke `/` `/pricing` `/start` `/health/ready`; `git ls-remote --heads`; `gh pr list`; `deploy-vps.yml` runs.
