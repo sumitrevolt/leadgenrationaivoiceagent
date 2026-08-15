@@ -1,9 +1,19 @@
 # =============================================================================
 # CI — automated quality gate (SaaS-infra: "Infrastructure → CI/CD" pillar).
-# Pehle koi CI nahi tha (tests sirf manual run_tests.bat se deploy se pehle).
-# Ab har push/PR pe GitHub Actions automatically gate chalata — broken code main
-# tak na pohnche. GitHub-hosted runner (free) — VPS deploy isse ALAG (woh manual
-# git-pull + docker rehta, ye sirf pre-merge quality gate hai).
+#
+# Lane layout stolen from DeepSeek Harness CI (github.com/deepseek-ai/deepseek-harness
+# `.github/workflows/ci.yml` + `scripts/run-gates.ts`, 2026-08-15): independent
+# gates enter runner allocation in parallel; a named aggregator is the only
+# required-check context; pull_request supersedes cancel, push to main does not.
+#
+# Required ruleset contexts (do NOT rename):
+#   - Lint + syntax + secrets
+#   - prod_check + pytest          ← aggregator over parallel lanes
+#   - harness real-redis integration
+#
+# Heavy pytest is PR/dispatch only. Push to main is covered by deploy-vps `gate`
+# (and optional `DEPLOY_RETEST=true` shards). Re-running the 17-min sequential
+# suite after every auto-merge was the merge-train bottleneck.
 # =============================================================================
 name: CI
 
@@ -27,12 +37,13 @@ on:
   # permanently unreported and the PR blocked. workflow_dispatch lets a
   # maintainer run the exact same blocking jobs on any ref when event
   # delivery fails; check runs attach to the ref's head commit, so the PR's
-  # required contexts report normally. No job behaviour differs by trigger.
+  # required contexts report normally.
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # DSH steal: cancel superseded PR runs, never cancel a main push mid-gate.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 permissions:
   contents: read
@@ -69,20 +80,6 @@ jobs:
           # day-key layer pe hai jo heuristic nahi dekhta). Naya gap = RED.
           IDEM_AUDIT_MAX_GAPS: "117"
         run: python scripts/queue_idempotency_audit.py
-      # NOTE: the two runtime-data gates live in the `tests` job, not here.
-      # They import app.platform (-> pydantic) and this job installs only ruff,
-      # so here they could never do anything but ModuleNotFoundError.
-
-      # NOTE: the dependency vulnerability scan moved to the `tests` job (2026-08-08).
-      # It used to live here, labelled `MUST-PASS — no known CVEs in dependencies`,
-      # while ending in `|| true` and auditing requirements.txt — a REFERENCE
-      # manifest. The image installs requirements.lock.txt (Dockerfile.lock:25). So
-      # the green tick meant "an audit ran against a file we do not ship", and 29
-      # Dependabot alerts (8 high) sat open behind it.
-      # It cannot be fixed in place: this job installs only ruff, so auditing a
-      # requirements FILE makes pip-audit re-resolve the lock — a set nothing ever
-      # installs, since every real install uses --no-deps. It now audits the
-      # installed environment in `tests`, which is the closure that actually ships.
       - name: Type check (mypy)            # advisory — 1522 pre-existing errors (2026-07-06); type-debt visible, merge-gate nahi
         run: |
           pip install mypy
@@ -90,69 +87,43 @@ jobs:
       - name: Ruff lint (repo config)     # informational annotations (style debt block na kare)
         run: ruff check --output-format=github app || true
 
-  # Full gate — runtime deps (Dockerfile.lock-mirror) + prod_check + pytest.
-  # `-m "not network"` = LLM/internet tests skip (repo marker, no API keys CI me).
-  tests:
-    name: prod_check + pytest
+  # Runtime gates that import app.platform. Parallel with pytest shards.
+  prod-check:
+    name: prod_check runtime gates
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.12"
-          cache: pip
-      - name: System libs (voice/audio imports)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
-      - name: Install Python deps (mirrors Dockerfile.lock)
-        run: |
-          python -m pip install --upgrade pip wheel setuptools
-          if [ -f requirements.lock.txt ]; then
-            grep -v -E "^(playwright|selenium)" requirements.lock.txt > req.filtered || cp requirements.lock.txt req.filtered
-            pip install --no-deps -r req.filtered
-          else
-            pip install -e ".[dev,monitoring]"
-          fi
-          # torch CPU (Dockerfile.lock jaisa) + test tooling (lock me na ho to).
-          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu || true
-          # Use the LOCKED test stack from requirements.lock.txt (pytest 7.4.4 +
-          # pytest-asyncio 0.23.4 + httpx 0.28.1). The old `-U pytest-asyncio==1.3.0`
-          # override forced a stack 2 majors above the project's declared/tested one;
-          # with aiosqlite 0.22.x + this repo's 0.23.x-era event-loop fixtures it
-          # amplified an aiosqlite connection-worker leak (SQLAlchemy #13039 / aiosqlite
-          # #369) that a Linux cyclic-GC pass segfaulted on (intermittent exit-139).
-          # httpx 0.28.1 is handled by the TestClient compat shim in tests/conftest.py.
-          # Add ONLY pytest-timeout (needed by --timeout, absent from the lock).
-          pip install --no-deps "pytest-timeout==2.4.0"
-          # Guard: torch + the -U pytest/httpx installs above re-resolve and drift
-          # pydantic-core forward (2.47.0), past what pydantic 2.13.4 needs (==2.46.4),
-          # breaking app.main import in prod_check. Re-pin to the lock version.
-          pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
+      - uses: ./.github/actions/setup-python-lock
+      - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
+        run: python scripts/runtime_data_path_scan.py validate
+      - name: Runtime-data debt ratchet  # MUST-PASS — no NEW undeclared writers
+        run: python scripts/runtime_data_path_scan.py ratchet
+      - name: Production readiness check
+        run: python scripts/prod_check.py
+
+  # MUST-PASS pip-audit of the INSTALLED environment (not a requirements file).
+  # Parallel with pytest so audit latency is not on the merge critical path.
+  pip-audit:
+    name: pip-audit installed env
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-lock
       - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in what SHIPS
         # Audits the INSTALLED ENVIRONMENT, not a requirements file. That matters:
-        # every real install of this project uses `--no-deps` (Dockerfile.lock:25,
-        # the step above, tests.yml:35), so the lock IS the shipped closure. Asking
-        # pip-audit to resolve the file instead audits a set nothing ever installs —
-        # and on 2026-08-08 that resolution failed outright (`packaging==23.2` vs
-        # `google-cloud-bigquery`'s `packaging>=24.2.0`), which is exactly the class
-        # of drift `--no-deps` hides. Auditing the environment needs no resolver.
+        # every real install of this project uses `--no-deps` (Dockerfile.lock:25),
+        # so the lock IS the shipped closure.
         #
         # Exceptions are explicit, justified and time-limited in
         # docs/security/DEPENDENCY_REMEDIATION_2026-08-08.md, and mirrored in
-        # tests/test_dependency_security_floors.py::EXCEPTIONS, where
-        # test_exceptions_have_not_expired turns the build RED once they lapse.
+        # tests/test_dependency_security_floors.py::EXCEPTIONS.
         #   GHSA-wj6h-64fc-37mp  ecdsa    no upstream fix exists; unreachable on HS256
         #   GHSA-6w46-j5rx-g56g  pytest   test runner, never imported by app code
-        #   PYSEC-2017-83        scrapy   no upstream fix; transitive via advertools,
-        #                                 and no FILES_STORE/S3FilesStore pipeline is
-        #                                 configured, so the code path does not exist
-        #                                 here. Found by THIS gate on its first run —
-        #                                 OSV carries it, the Dependabot list did not.
-        #
-        # pip-audit lives in its OWN venv and reaches the audited environment via
-        # `--path`. Installing it into the audited env would let its own dependency
-        # resolution quietly upgrade packages, so the audit would no longer describe
-        # what pytest and prod_check just ran against.
+        #   PYSEC-2017-83        scrapy   no upstream fix; transitive via advertools
         run: |
           python -m venv /tmp/auditvenv
           /tmp/auditvenv/bin/pip install --quiet --upgrade pip
@@ -168,71 +139,65 @@ jobs:
             --ignore-vuln GHSA-6w46-j5rx-g56g \
             --ignore-vuln PYSEC-2017-83
 
-      - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
-        # Schema + allowlist coherence: no stale entries, no unknown store ids,
-        # no operation mismatch, no writer filed against an immutable store.
-        # Offline, deterministic, no network, no production access.
-        # Lives here (not in the lint job) because it imports app.platform.
-        run: python scripts/runtime_data_path_scan.py validate
-
-      - name: Runtime-data debt ratchet  # MUST-PASS — no NEW undeclared writers
-        # Monotonic gate. Existing frozen debt (KNOWN_UNRESOLVED_DEBT) is
-        # tolerated; a new undeclared/ambiguous finding or a classification
-        # regression FAILS. Compared by fingerprint, not by count, because
-        # "one dangerous writer added + one unrelated finding removed" leaves
-        # the count unchanged.
-        # No baseline auto-update here — regenerating is a local, reviewed,
-        # committed action (scripts/runtime_data_baseline_gen.py). There is no
-        # bypass variable and no --accept-current-state anywhere.
-        run: python scripts/runtime_data_path_scan.py ratchet
-
-      - name: Production readiness check
-        run: python scripts/prod_check.py
-      - name: Pytest (skip network/LLM-key tests)
+  # Same required suite as before, wall-clock cut by running 4 shards in parallel
+  # (deploy-vps.yml already did this on 2026-08-10). Sequential `for group in
+  # 1 2 3 4` inside one job was ~17 min and blocked auto-merge.
+  pytest-shards:
+    name: pytest shard ${{ matrix.group }}/4
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-lock
+        with:
+          extras: "pytest-split==0.9.0"
+      - name: Pytest shard ${{ matrix.group }}/4 (skip network/LLM-key tests)
         env:
           APP_ENV: test
-          ENVIRONMENT: development  # local-dev parity (prod-default middleware OFF)
-          # TelecallerBrain __init__ key-presence check — dummy kaafi (LLM calls
-          # conftest-stubbed, no network).
+          ENVIRONMENT: development
           GROQ_API_KEY: ci-dummy-key-not-real  # pragma: allowlist secret
-          # Torch/OpenMP thread storms have segfaulted TestClient lifespan on
-          # GH runners (exit 139). Bound native threads for CI stability.
           OMP_NUM_THREADS: "1"
           MKL_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           TOKENIZERS_PARALLELISM: "false"
-          # Next exit-139 must leave a Python dump (cyclic-GC SIGSEGV class,
-          # 2026-07-28). Does not weaken the required suite.
           PYTHONFAULTHANDLER: "1"
-        # Four sequential process shards + one exit-139 retry per shard: same
-        # required suite, shorter per-process heap lifetime. Cyclic-GC SIGSEGV
-        # (exit 139, Garbage-collecting top frame) has hit fixture setup,
-        # scan_repo, markitdown, and team.log_event — one long-lived pytest
-        # process concentrates native-extension GC risk. Shards + a single
-        # retry contain blast radius without skipping or xfailing anything.
         run: |
-          pip install --no-deps "pytest-split==0.9.0"
           set -euo pipefail
-          for group in 1 2 3 4; do
-            echo "::group::pytest shard ${group}/4"
-            set +e
+          set +e
+          pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
+            --splits 4 --group "${{ matrix.group }}"
+          rc=$?
+          if [ "$rc" -eq 139 ]; then
+            echo "::warning title=exit-139::shard ${{ matrix.group }}/4 cyclic-GC SIGSEGV; one retry (no skip)"
             pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
-              --splits 4 --group "${group}"
+              --splits 4 --group "${{ matrix.group }}"
             rc=$?
-            if [ "$rc" -eq 139 ]; then
-              echo "::warning title=exit-139::shard ${group}/4 cyclic-GC SIGSEGV; one retry (no skip)"
-              pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
-                --splits 4 --group "${group}"
-              rc=$?
-            fi
-            set -e
-            if [ "$rc" -ne 0 ]; then
-              exit "$rc"
-            fi
-            echo "::endgroup::"
-          done
+          fi
+          exit "$rc"
 
-
+  # REQUIRED check name — must stay exactly `prod_check + pytest`.
+  # always() so a failed lane reports FAILURE here instead of SKIPPED (ruleset
+  # treats skipped required contexts as blocking with a worse UI).
+  tests:
+    name: prod_check + pytest
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    needs: [prod-check, pytest-shards, pip-audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Required lanes green
+        run: |
+          echo "prod-check=${{ needs['prod-check'].result }}"
+          echo "pytest-shards=${{ needs['pytest-shards'].result }}"
+          echo "pip-audit=${{ needs['pip-audit'].result }}"
+          test "${{ needs['prod-check'].result }}" = "success"
+          test "${{ needs['pytest-shards'].result }}" = "success"
+          test "${{ needs['pip-audit'].result }}" = "success"
 
   # Mandatory real-Redis integration gate for the durable harness audit backend.
   # Starts a real Redis with AOF + noeviction (the production durability posture)
@@ -240,14 +205,11 @@ jobs:
   # allowed to pass here: HARNESS_REQUIRE_REDIS=1 turns "no Redis" into a failure.
   harness-redis-integration:
     name: harness real-redis integration
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.12"
-          cache: pip
       # Docker Hub is a THIRD-PARTY dependency of a REQUIRED check: a registry
       # timeout here reds the PR and blocks the merge train even though nothing
       # is wrong with the code (observed 2026-07-25 on PR #141 —
@@ -264,10 +226,6 @@ jobs:
           image="redis:7-alpine"
           attempts=4
           delay=5
-          # Arithmetic while-loop, NOT `for i in $(seq ...)`: if `seq` were ever
-          # missing the for-loop body would run ZERO times and the step would
-          # exit 0 — a retry wrapper that silently reports success is worse than
-          # no retry at all. This form cannot degrade that way.
           i=1
           while [ "$i" -le "$attempts" ]; do
             if timeout 120 docker pull "$image"; then
@@ -297,22 +255,7 @@ jobs:
           test "$(docker exec redis-audit redis-cli CONFIG GET appendonly | tail -1)" = "yes"
           test "$(docker exec redis-audit redis-cli CONFIG GET maxmemory-policy | tail -1)" = "noeviction"
           docker exec redis-audit redis-cli EVAL "return 1" 0
-      - name: System libs (voice/audio imports)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
-      - name: Install Python deps (mirrors Dockerfile.lock)
-        run: |
-          python -m pip install --upgrade pip wheel setuptools
-          if [ -f requirements.lock.txt ]; then
-            grep -v -E "^(playwright|selenium)" requirements.lock.txt > req.filtered || cp requirements.lock.txt req.filtered
-            pip install --no-deps -r req.filtered
-          else
-            pip install -e ".[dev,monitoring]"
-          fi
-          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu || true
-          # Locked test stack (same rationale as the prod_check+pytest job above);
-          # add ONLY pytest-timeout, without overriding the locked pytest/asyncio/httpx.
-          pip install --no-deps "pytest-timeout==2.4.0"
-          pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
+      - uses: ./.github/actions/setup-python-lock
       - name: Real-Redis integration tests (mandatory — fail on skip)
         env:
           APP_ENV: test

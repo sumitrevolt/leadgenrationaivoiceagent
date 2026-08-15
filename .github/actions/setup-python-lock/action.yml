@@ -1,0 +1,40 @@
+# Composite install used by CI lanes (DSH-style: one lock install, many gates).
+# Mirrors Dockerfile.lock: pip install --no-deps -r requirements.lock.txt.
+# Never install torch here — deploy-vps shards already proved the required
+# suite does not need it, and the pytorch.org wheel was several minutes of
+# merge-blocking latency.
+name: Setup Python lock
+description: Python 3.12 + locked --no-deps install + pydantic-core pin
+
+inputs:
+  extras:
+    description: Extra packages to pip install --no-deps after the lock
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7.0.0
+      with:
+        python-version: "3.12"
+        cache: pip
+    - name: Install Python deps (mirrors Dockerfile.lock)
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --upgrade pip wheel setuptools
+        if [ -f requirements.lock.txt ]; then
+          grep -v -E "^(playwright|selenium)" requirements.lock.txt > req.filtered || cp requirements.lock.txt req.filtered
+          pip install --no-deps -r req.filtered
+        else
+          pip install -e ".[dev,monitoring]"
+        fi
+        pip install --no-deps "pytest-timeout==2.4.0"
+        # Guard: later extras must not drift pydantic-core past pydantic 2.13.4.
+        pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
+        extras="${{ inputs.extras }}"
+        if [ -n "${extras}" ]; then
+          # shellcheck disable=SC2086
+          pip install --no-deps ${extras}
+        fi

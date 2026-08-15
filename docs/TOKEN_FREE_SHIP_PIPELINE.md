@@ -24,6 +24,21 @@ being spent.
 Parallel-agent work is handled naturally: each PR merges itself when green;
 GitHub serialises merges to `main`; `concurrency: deploy-vps` serialises deploys.
 
+CI lanes (2026-08-15, DeepSeek Harness layout steal — not a DSH runtime arm):
+
+- PR required checks stay the same three names. Pytest runs as **4 parallel
+  shards**; `prod_check + pytest` is an aggregator so the ruleset does not break.
+- After merge, `ci.yml` does **not** re-run the full suite on `push` to `main`.
+  `deploy-vps` `gate` is the post-merge floor. Set repo variable
+  `DEPLOY_RETEST=true` only if you want the 4 shards again before GHCR build.
+- `tests.yml` no longer runs on pull_request (duplicate of ci.yml).
+- Trivy **image** scan still fail-closed, but a PR that does not touch
+  `Dockerfile.lock` / lockfiles skips the 14-minute image rebuild. Main push
+  still scans.
+
+Do **not** rename `Lint + syntax + secrets`, `prod_check + pytest`, or
+`harness real-redis integration`.
+
 ## One-time setup (owner, ~3 minutes)
 
 1. **Settings → General →** enable **"Allow auto-merge"**.

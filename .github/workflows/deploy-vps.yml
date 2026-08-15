@@ -2,13 +2,13 @@
 # deploy-vps.yml â€” REAL auto-deploy to the Hostinger VPS (replaces Cloud Run).
 #
 # Flow on every push to main:
-#   1) gate        : fast deterministic checks (import smoke + prod_check + ruff +
-#                    billing contract) — branch-protection required check (auto-merge)
-#   2) pytest-*    : 4 PARALLEL pytest shards (matrix; exit-139 retry inside) —
-#                    2026-08-10: was sequential inside the 15-min gate (timeout/cancel)
-#   3) release-gate: needs gate + ALL 4 shards green (golden eval advisory runs here)
-#   4) build       : build Docker image, push to GHCR (immutable :<sha> only)
-#   5) deploy      : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
+#   1) gate         : fast deterministic checks (import smoke + prod_check + ruff +
+#                     billing contract) — branch-protection required check (auto-merge)
+#   2) pytest-*     : OPTIONAL 4 parallel shards when repo var DEPLOY_RETEST=true.
+#                     Default OFF — PR CI already ran the suite (2026-08-15 DSH lanes).
+#   3) release-gate : needs `gate` only (skipped optional shards must not block deploy)
+#   4) build        : build Docker image, push to GHCR (immutable :<sha> only)
+#   5) deploy       : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
 #
 # One-time GitHub repo secrets required (Settings > Secrets and variables > Actions):
 #   VPS_HOST     = 72.61.245.204
@@ -86,6 +86,10 @@ jobs:
           pytest -q tests/test_eval_golden.py
   pytest-shards:
     name: pytest shard ${{ matrix.group }}/4
+    # Default OFF. PR CI already ran the same suite (ci.yml parallel shards).
+    # Re-running 4 full shards on every main push delayed GHCR build + deploy.
+    # Owner opt-in: repo variable DEPLOY_RETEST=true.
+    if: ${{ vars.DEPLOY_RETEST == 'true' }}
     needs: []
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -134,12 +138,15 @@ jobs:
 
   release-gate:
     name: Release gate (gate + all 4 shards green)
-    needs: [gate, pytest-shards]
+    # Shards are opt-in (DEPLOY_RETEST). A skipped needed job would skip this
+    # gate and block build/deploy, so release-gate depends only on `gate`.
+    # Required PR checks already covered the suite before merge.
+    needs: [gate]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Release ready
-        run: echo "gate + all 4 pytest shards green - release path unlocked"
+        run: echo "deploy-vps gate green - release path unlocked"
   build:
     name: Build & push image (GHCR)
     needs: release-gate
