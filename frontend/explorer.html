@@ -2811,13 +2811,11 @@ function showPluginsPanel() {
   };
   const riskColors = {green:'#4ade80',amber:'#fbbf24',red:'#f87171'};
   let html = '<div class="panel-hdr">Plugin Topology</div>';
-  html += '<div style="font-size:10px;color:#64748b;margin-bottom:10px">42 governed plugins across 7 categories. <a href="/api/admin/plugins" style="color:#60a5fa" target="_blank">Full API →</a></div>';
-  // Fetch from API if available, else show static
-  html += '<div id="plugin-list" style="max-height:400px;overflow-y:auto">';
-  html += '<div style="font-size:10px;color:#4b5563">Loading plugin topology...</div>';
-  html += '</div>';
-  html += '<div class="panel-hdr" style="margin-top:12px">Risk Summary</div>';
-  html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  html += '<div style="font-size:10px;color:#64748b;margin-bottom:8px"><a href="/api/admin/plugins" style="color:#60a5fa" target="_blank">Full API →</a></div>';
+  html += '<input id="pluginSearch" placeholder="🔍 Search plugins..." style="width:100%;padding:5px 8px;border:1px solid #2d3748;border-radius:5px;font-size:10px;background:#1a1b26;color:#e2e8f0;margin-bottom:8px" oninput="filterPluginList(this.value)" />';
+  html += '<div id="plugin-list" style="max-height:440px;overflow-y:auto"><div style="font-size:10px;color:#4b5563">Loading plugin topology...</div></div>';
+  html += '<div class="panel-hdr" style="margin-top:10px">Risk Summary</div>';
+  html += '<div id="plugin-risk-summary" style="display:flex;gap:6px;flex-wrap:wrap">';
   html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#052e16;color:#4ade80">GREEN: read-only</span>';
   html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#451a03;color:#fbbf24">AMBER: approval needed</span>';
   html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#450a0a;color:#f87171">RED: owner gate</span>';
@@ -2829,34 +2827,63 @@ function showPluginsPanel() {
     .then(r => r.ok ? r.json() : null)
     .then(d => {
       if(!d || !d.plugins) return;
-      let inner = '';
-      const byCat = {};
-      d.plugins.forEach(p => {
-        if(!byCat[p.category]) byCat[p.category] = [];
-        byCat[p.category].push(p);
-      });
-      Object.entries(cats).forEach(([key, cat]) => {
-        const plugins = byCat[key] || [];
-        if(!plugins.length) return;
-        inner += '<div style="margin-bottom:10px">';
-        inner += '<div style="font-size:11px;font-weight:700;color:' + cat.color + ';margin-bottom:4px">' + cat.icon + ' ' + cat.label + ' (' + plugins.length + ')</div>';
-        plugins.forEach(p => {
-          const rc = riskColors[p.risk_class] || '#64748b';
-          const ev = p.evidence_status === 'production_proven' ? '✅' : p.evidence_status === 'test_proven' ? '🧪' : '📝';
-          inner += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #1e2028;font-size:10px">';
-          inner += '<span style="color:' + rc + '">●</span>';
-          inner += '<span style="color:#e2e8f0;flex:1">' + ev + ' ' + p.plugin_id + '</span>';
-          inner += '<span style="color:#4b5563">' + p.version + '</span>';
-          if(p.feature_flag) inner += '<span style="color:#64748b;font-family:monospace;font-size:8px">' + p.feature_flag + '</span>';
-          inner += '</div>';
+      window.__pluginData = d.plugins;
+      const summary = d.summary || {};
+      const risks = summary.by_risk || {};
+      // Update risk summary with live counts
+      var rsEl = document.getElementById('plugin-risk-summary');
+      if(rsEl) {
+        var rsHtml = '';
+        Object.entries(risks).forEach(([k,v]) => {
+          var bg = k==='RED'?'#450a0a':k==='AMBER'?'#451a03':'#052e16';
+          var fg = k==='RED'?'#f87171':k==='AMBER'?'#fbbf24':'#4ade80';
+          rsHtml += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:'+bg+';color:'+fg+';font-weight:600">'+k+': '+v+'</span>';
         });
-        inner += '</div>';
-      });
-      document.getElementById('plugin-list').innerHTML = inner || '<div style="font-size:10px;color:#4b5563">No plugins found (login required)</div>';
+        rsHtml += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:#1e293b;color:#94a3b8">Total: '+(d.total||0)+'</span>';
+        rsEl.innerHTML = rsHtml;
+      }
+      renderPluginList(d.plugins, cats, riskColors);
     })
     .catch(() => {
       document.getElementById('plugin-list').innerHTML = '<div style="font-size:10px;color:#4b5563">Plugin API unavailable (admin login required)</div>';
     });
+}
+function renderPluginList(plugins, cats, riskColors) {
+  let inner = '';
+  const byCat = {};
+  plugins.forEach(p => {
+    if(!byCat[p.category]) byCat[p.category] = [];
+    byCat[p.category].push(p);
+  });
+  Object.entries(cats).forEach(([key, cat]) => {
+    const catPlugins = byCat[key] || [];
+    if(!catPlugins.length) return;
+    inner += '<div class="plugin-cat-group" style="margin-bottom:10px">';
+    inner += '<div style="font-size:11px;font-weight:700;color:' + cat.color + ';margin-bottom:4px">' + cat.icon + ' ' + cat.label + ' (' + catPlugins.length + ')</div>';
+    catPlugins.forEach(p => {
+      const rc = riskColors[p.risk_class] || '#64748b';
+      const ev = p.evidence_status === 'production_proven' ? '✅' : p.evidence_status === 'test_proven' ? '🧪' : '📝';
+      inner += '<div class="plugin-row" data-search="'+(p.plugin_id||'').toLowerCase()+' '+(p.business_outcome||'').toLowerCase()+' '+(p.category||'').toLowerCase()+'" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #1e2028;font-size:10px;border-radius:4px;cursor:default" onmouseenter="this.style.background=#1e2028" onmouseleave="this.style.background=transparent">';
+      inner += '<span style="color:' + rc + ';font-size:14px">●</span>';
+      inner += '<span style="color:#e2e8f0;flex:1;font-weight:500">' + ev + ' ' + p.plugin_id + '</span>';
+      inner += '<span style="color:#4b5563;font-size:9px">v' + p.version + '</span>';
+      if(p.feature_flag) inner += '<span style="color:#64748b;font-family:monospace;font-size:7.5px;background:#0d1117;padding:1px 4px;border-radius:3px">' + p.feature_flag + '</span>';
+      inner += '</div>';
+    });
+    inner += '</div>';
+  });
+  document.getElementById('plugin-list').innerHTML = inner || '<div style="font-size:10px;color:#4b5563">No plugins found</div>';
+}
+function filterPluginList(q) {
+  q = (q||'').toLowerCase();
+  document.querySelectorAll('#plugin-list .plugin-row').forEach(row => {
+    row.style.display = (!q || (row.getAttribute('data-search')||'').includes(q)) ? '' : 'none';
+  });
+  document.querySelectorAll('#plugin-list .plugin-cat-group').forEach(grp => {
+    var vis = grp.querySelectorAll('.plugin-row[style*="display:;"]');
+    if(!q) { grp.style.display = ''; return; }
+    grp.style.display = Array.from(grp.querySelectorAll('.plugin-row')).some(r => r.style.display !== 'none') ? '' : 'none';
+  });
 }
 
 // ════════════════════════════════════

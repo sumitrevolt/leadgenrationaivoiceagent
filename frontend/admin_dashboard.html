@@ -1085,6 +1085,39 @@
         </div>
       </div>
 
+      <!-- Plugin Registry — live governed component inventory -->
+      <div class="card" id="sec-plugin-registry" style="margin-bottom:14px;scroll-margin-top:80px;border:1px solid rgba(99,102,241,.3)">
+        <div class="hd" style="border-bottom:1px solid rgba(99,102,241,.15)">
+          <h3 style="color:#334155;font-size:14px">🧩 Plugin Registry <span style="font-weight:400;color:#94a3b8;font-size:12px">— governed components</span></h3>
+          <span class="right" id="pluginRegTime" style="color:#64748b;font-size:11px">—</span>
+          <button class="btn" onclick="loadPluginRegistry()" style="margin-left:10px;padding:6px 12px;font-size:12px;background:#6366f1">↻ Refresh</button>
+          <button class="btn" onclick="runPluginDrift()" style="margin-left:6px;padding:6px 12px;font-size:12px;background:#475569">🔍 Drift check</button>
+        </div>
+        <div class="bd">
+          <div id="pluginRegSummary" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+          <div style="margin-bottom:8px">
+            <select id="pluginRegFilter" onchange="loadPluginRegistry()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+              <option value="">All categories</option>
+              <option value="model_routing">Model Routing</option>
+              <option value="harness">Harness</option>
+              <option value="worker">Worker</option>
+              <option value="domain">Domain</option>
+              <option value="automation">Automation</option>
+              <option value="coordination">Coordination</option>
+              <option value="ui_projection">UI Projection</option>
+            </select>
+            <select id="pluginRiskFilter" onchange="loadPluginRegistry()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;margin-left:6px">
+              <option value="">All risk levels</option>
+              <option value="GREEN">GREEN</option>
+              <option value="AMBER">AMBER</option>
+              <option value="RED">RED</option>
+            </select>
+          </div>
+          <div id="pluginRegTable" style="font-size:12px;color:#334155;max-height:400px;overflow:auto"></div>
+          <div id="pluginRegDrift" style="margin-top:10px;font-size:12px"></div>
+        </div>
+      </div>
+
       <!-- Hourly job timeline -->
       <div class="card" id="sec-hourly-ops" style="margin-bottom:14px;scroll-margin-top:80px">
         <div class="hd">
@@ -3997,12 +4030,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
   /* Tier-3: secondary panels — stagger 400ms */
   setTimeout(()=>{ loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadSocialCockpit(); loadSocialPause(); loadSocialTokenHealth(); loadSocialLatestEvents(); },400);
   /* Tier-4: heavy/below-fold — stagger 700ms */
-  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadVoiceSession(); loadUpiSelfServe(); loadMcpStatus(); load2FA(); },700);
+  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadVoiceSession(); loadUpiSelfServe(); loadMcpStatus(); load2FA(); loadPluginRegistry(); },700);
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); loadAdminTasks(); loadSocialCockpit(); loadAutomationHub(); loadGodMode(); } }, 60000);
+setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); loadAdminTasks(); loadSocialCockpit(); loadAutomationHub(); loadGodMode(); loadPluginRegistry(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.
@@ -5278,6 +5311,76 @@ async function mcpHealthRun(){
   }catch(e){
     if(el) el.innerHTML='<div style="font-size:11px;color:#f87171">Run fail: '+escH(e.message)+'</div>';
   }
+}
+
+/* ─── Plugin Registry ─── */
+async function loadPluginRegistry(){
+  const summaryEl=document.getElementById('pluginRegSummary');
+  const tableEl=document.getElementById('pluginRegTable');
+  if(!tableEl) return;
+  try{
+    const cat=document.getElementById('pluginRegFilter')?.value||'';
+    const risk=document.getElementById('pluginRiskFilter')?.value||'';
+    let url='/api/admin/plugins?';
+    if(cat) url+='category='+encodeURIComponent(cat)+'&';
+    if(risk) url+='risk='+encodeURIComponent(risk);
+    const r=await fetch(url,{headers:abAuthHdr(),cache:'no-store'});
+    if(!r.ok){
+      if(r.status===401||r.status===403){ tableEl.innerHTML='<span style="color:#64748b">🔑 Admin login karo.</span>'; return; }
+      throw new Error('HTTP '+r.status);
+    }
+    const d=await r.json();
+    const plugins=d.plugins||[];
+    const summary=d.summary||{};
+    // Summary chips
+    if(summaryEl){
+      const cats=summary.by_category||{};
+      const risks=summary.by_risk||{};
+      let sh='<span style="background:#f1f5f9;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600">'+(d.total||0)+' plugins</span>';
+      Object.entries(cats).forEach(([k,v])=>{ sh+='<span style="background:#eff6ff;border-radius:5px;padding:2px 7px;font-size:10.5px;color:#1e40af">'+escH(k)+': '+v+'</span>'; });
+      Object.entries(risks).forEach(([k,v])=>{
+        var bg=k==='RED'?'#fef2f2':k==='AMBER'?'#fffbeb':'#ecfdf5';
+        var fg=k==='RED'?'#b91c1c':k==='AMBER'?'#b45309':'#065f46';
+        sh+='<span style="background:'+bg+';border-radius:5px;padding:2px 7px;font-size:10.5px;color:'+fg+';font-weight:600">'+k+': '+v+'</span>';
+      });
+      summaryEl.innerHTML=sh;
+    }
+    // Table
+    if(!plugins.length){ tableEl.innerHTML='<span style="color:#64748b">Koi plugin nahi mila.</span>'; return; }
+    var html='<table style="width:100%;border-collapse:collapse;font-size:11.5px">';
+    html+='<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left"><th style="padding:4px 6px;font-weight:700">Plugin</th><th style="padding:4px 6px">Category</th><th style="padding:4px 6px">Risk</th><th style="padding:4px 6px">Evidence</th><th style="padding:4px 6px">Flag</th><th style="padding:4px 6px">Business</th></tr></thead><tbody>';
+    plugins.forEach(p=>{
+      var riskBg=p.risk_class==='RED'?'#fef2f2':p.risk_class==='AMBER'?'#fffbeb':'#ecfdf5';
+      var riskFg=p.risk_class==='RED'?'#b91c1c':p.risk_class==='AMBER'?'#b45309':'#065f46';
+      html+='<tr style="border-bottom:1px solid #f1f5f9">';
+      html+='<td style="padding:5px 6px;font-weight:600">'+escH(p.plugin_id||'')+'</td>';
+      html+='<td style="padding:5px 6px;color:#64748b">'+escH(p.category||'')+'</td>';
+      html+='<td style="padding:5px 6px"><span style="background:'+riskBg+';color:'+riskFg+';padding:1px 6px;border-radius:4px;font-weight:600;font-size:10.5px">'+escH(p.risk_class||'')+'</span></td>';
+      html+='<td style="padding:5px 6px;color:#64748b">'+escH(p.evidence_status||'')+'</td>';
+      html+='<td style="padding:5px 6px;color:#64748b">'+escH(p.feature_flag||'—')+'</td>';
+      html+='<td style="padding:5px 6px;color:#475569;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escH(p.business_outcome||'')+'">'+escH(p.business_outcome||'')+'</td>';
+      html+='</tr>';
+    });
+    html+='</tbody></table>';
+    tableEl.innerHTML=html;
+    var t=document.getElementById('pluginRegTime');
+    if(t) t.textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ tableEl.innerHTML='<span style="color:#f87171">Load fail: '+escH(e.message)+'</span>'; }
+}
+async function runPluginDrift(){
+  var el=document.getElementById('pluginRegDrift');
+  if(!el) return;
+  el.innerHTML='<span style="color:#818cf8">Drift check chal raha…</span>';
+  try{
+    var r=await fetch('/api/admin/plugins/drift',{method:'POST',headers:abAuthHdr(),cache:'no-store'});
+    var d=await r.json();
+    var ok=d.ok!==false;
+    var drifts=d.drifts||[];
+    if(ok && !drifts.length){ el.innerHTML='<span style="color:#059669">✅ No drift — all 42 plugin manifests valid.</span>'; }
+    else if(drifts.length){
+      el.innerHTML='<div style="color:#b45309;font-weight:600">⚠️ '+drifts.length+' drift(s):</div><ul style="margin:4px 0 0 16px;padding:0;font-size:11px;color:#92400e">'+drifts.map(function(d2){return '<li>'+escH(d2)+'</li>';}).join('')+'</ul>';
+    } else { el.innerHTML='<span style="color:#f87171">Drift check fail.</span>'; }
+  }catch(e){ el.innerHTML='<span style="color:#f87171">Error: '+escH(e.message)+'</span>'; }
 }
 
 async function upiActivate(clientId, btn){

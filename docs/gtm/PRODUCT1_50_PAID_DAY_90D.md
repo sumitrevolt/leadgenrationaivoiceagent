@@ -94,6 +94,32 @@ Top-fold now shows live scorecards:
 - Dynamic next best action engine
 - Auto-refresh every 60s
 
+## Admin dashboard plugin registry (2026-08-15)
+
+God Mode section now shows:
+- Plugin Registry table with live data from `/api/admin/plugins`
+- Category + risk filters
+- Drift detection button
+- 42 plugins, 7 categories, 4 RED (require owner approval)
+
+## Explorer plugin topology (2026-08-15)
+
+Explorer PLUGINS sidebar tab shows:
+- Live plugin data from API with search filter
+- Category-grouped list with risk dots and evidence badges
+- Risk summary with live counts
+- Plugin node in graph connected to admin_ui + explorer
+- 358 total nodes, zero orphans
+
+## Onboarding capacity proof (2026-08-15)
+
+50 fake onboardings measured:
+- p50: 74.9ms per job
+- p95: 122.0ms per job
+- throughput: 13.1/s (sequential in-process)
+- failure_rate: 0%
+- 50/day = ~4s of task time = trivially achievable
+
 ## DSH role
 
 Full authority arm (29 agents) improves workforce loop leverage. It does **not** create demand or replace UPI confirm. Kill switch remains `DSH_RUNTIME_ENABLED=0`.

@@ -1,7 +1,7 @@
 # SESSION_HANDOFF — 2026-08-15 (FreeBuff: REVENUE-50 complete session)
 
 ## Status
-**PARTIAL — all technical gates GO. Owner execution (Hot Queue + UPI bank credit) is the only remaining blocker.** 16 files changed/created. All tests green. Prod `/health` = `963ee800` (DIRECT_HOST_VERIFIED 16:50Z). Voice FROZEN. Swara untouched.
+**PARTIAL — all technical gates GO. Owner execution (Hot Queue + UPI bank credit) is the only remaining blocker.** 16+2 files changed/created. All tests green. **Prod `/health` = `75b57dd5`** (LIVE 18:06Z, all pages 200, plugin registry verified in-container). Voice FROZEN. Swara untouched.
 
 ## What was delivered
 
@@ -35,14 +35,16 @@
 - `docs/API.md` — 1307 endpoints
 
 ## Verification Evidence
-- pytest: 250+ targeted **ALL PASS**
-- prod_check.py: **ALL CHECKS PASSED** (1285 routes, 358 nodes, 0 gaps)
-- check_secrets.py: **OK** (0 secrets in 16 files)
+- pytest: 296 targeted **ALL PASS**
+- prod_check.py: **ALL CHECKS PASSED** (1285 routes, 359 nodes, 0 gaps)
+- check_secrets.py: **OK** (0 secrets in 17 files)
 - sync_api_docs.py: **1307 endpoints**
 - Duplicate routes: **No new duplicates** (existing pre-existing across prefix routers)
 - Voice frozen: **Zero paths touched**
 - Whitespace: **Clean** (git diff --check)
 - HTML validation: Explorer 7/7, Admin 11/11
+- **LIVE PROD:** `/health` = `75b57dd5` healthy, plugin registry verified 42 plugins in-container
+- **DEPLOY GATE ISSUE:** `VOICE_LAUNCH_KILL=TRUE_TOKEN` in .env is INVALID (not in `{1,true,yes,on}`); gate will block future deploys. Owner must set to `1` before deploy, `0` after.
 
 ## Files changed (16 total)
 | File | Type | Lines |
@@ -68,11 +70,19 @@
 - Arm DSH_RUNTIME_ENABLED / DSH_SHADOW_ENABLED / HARNESS_SESSION_EVENTS / AGENT_HARNESS / GSC_ENABLED / HQ_AUTO_CHASE / cold WA
 - Edit Voice/Swara · weaken DND/TRAI/DPDP
 - Recreate without APP_VERSION · VPS reset --hard · git add -A · flush dlq:dead
+- Touch .env VOICE_LAUNCH_KILL without deploy sequence (set 1 → deploy → set 0)
+
+## Deploy Status
+- **PR #375 MERGED** (commit `2b7b5d18`, merge `75b57dd5`)
+- **App container LIVE** on `75b57dd5` healthy
+- **Workers/scheduler** still on `963ee800` (minor skew, non-blocking)
+- **Deploy gate BLOCKED** future deploys: `VOICE_LAUNCH_KILL=TRUE_TOKEN` not recognized
 
 ## Next
-1. **OWNER — commit + push these changes** (16 files)
-2. **OWNER — deploy via scripts/deploy_vps.sh with APP_VERSION=<sha>**
-3. **OWNER — Hot Queue /app/inbox** 15-30 min + UPI Bind/Re-Approve if bank credit real
-4. Optional Boss harness start (buzz_start_harness.py --agent Boss)
+1. **OWNER — fix .env:** `VOICE_LAUNCH_KILL=1` (pause calling for safe deploy) → deploy → `VOICE_LAUNCH_KILL=0` (resume)
+2. **OWNER — Hot Queue /app/inbox** 15-30 min sprint
+3. **OWNER — UPI bank credit** for any real payments
+4. Optional Boss harness start (`buzz_start_harness.py --agent Boss`)
 5. Then: Jiya referral kit, GSC creds (still OFF), B3 DKIM
 6. Onboarding burst staging test (real Celery, not in-process)
+7. Workers to be updated to match app SHA on next deploy cycle
