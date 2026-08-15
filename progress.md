@@ -1,6 +1,18 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-15 (prod SHA writeback after leftover cleanup — CURSOR)
+Goal: After merge/cleanup, re-probe `/health` and correct context if live SHA moved.
+Inspected: Dual `/health` 14:09–14:10Z; smoke `/` `/pricing` `/start` `/health/ready`; `git ls-remote --heads`; `gh pr list`; `deploy-vps.yml` runs.
+Problems Found: Context just landed as #372 still said live=`91958c23` / undeployed `07870e89`. Public `/health` now `07870e89` with ~2 min uptime (fresh recreate). This sandbox still cannot SSH; Actions Build/Deploy still skipped — live move was another host.
+Changed: CURRENT_STATE / ACTIVE_WORK / SESSION_HANDOFF / OWNER_DEPLOY / progress writeback. No app/voice/flag edits.
+Tests Run: Dual `/health` advancing; smoke four paths 200; `check_secrets` on this slice pending commit.
+Verification Evidence: version=`07870e89` environment=production; GitHub heads=`main` only=`94ab3167`; open PRs=0.
+Risks: 5/5 pin + VLK unverified without SSH. Do not arm `HQ_AUTO_CHASE`.
+Remaining: owner `/app/inbox` + UPI bind; optional SSH 5/5 confirm.
+Next Highest Priority: owner Hot Queue blitz.
+
+## Loop Run
 Date: 2026-08-15 (merge leftover worktrees/branches + cleanup — CURSOR)
 Goal: Inventory every worktree/local/GitHub branch; merge unmerged safe work; deploy; clean up leftovers.
 Inspected: `git worktree list` (this VM = `/workspace` only); `git ls-remote --heads`; `gh pr list`; leftover `cursor/ci-dsh-lane-speed-20260815` vs `6dd4ace0`/`07870e89`; cloud-agent list (17); dual `/health`; `deploy-vps.yml` run 31888501593 jobs; SSH `root@72.61.245.204`.

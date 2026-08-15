@@ -1,29 +1,24 @@
-# SESSION_HANDOFF — 2026-08-15 (Cursor: merge leftover trees/branches + cleanup)
+# SESSION_HANDOFF — 2026-08-15 (Cursor: leftover merge/cleanup; prod now `07870e89`)
 
 ## Status
-**Git cleanup DONE. Live deploy NOT DONE from this sandbox.** Unique leftover product work is on `origin/main` = `07870e89`. Prod still `91958c23`. No extra GitHub heads. No open PRs. Swara/voice untouched. No flag arm.
+**Git cleanup DONE. Product SHA LIVE.** Unique leftover work is on `main`. GitHub heads = `main` only. Open PRs = 0. Prod `/health` = `07870e89` (DIRECT_HOST_VERIFIED). This sandbox did **not** SSH-deploy (no key; Actions Build/Deploy skipped). Live SHA moved on a host that has VPS SSH. Swara/voice untouched. No flag arm.
 
 ## Evidence
-- This VM worktrees: `/workspace` only (no extra git worktrees). Local branches after cleanup: `main` + this handoff branch.
-- GitHub heads after prune: **`main` only** (`07870e89d925d2349b0e751eb9294e40231c3b0e`).
-- Merged this session: PR **#369** `6dd4ace0` (CI lanes) · PR **#371** `07870e89` (HQ auto-chase + explorer; supersedes #370).
-- Closed without merge: PR **#370** (already closed) · PR **#367** (ghost; head branch already deleted).
-- Deleted leftover remote `cursor/ci-dsh-lane-speed-20260815` — CI tree **bit-identical** to #369 `6dd4ace0`; merging it would rewind later main (hq_auto_chase etc.).
-- Not merged (harmful / stale, already deleted earlier): `fix/customer-auth-test-shims-20260812` (global `require_customer` override).
-- Isolated Cursor cloud-agent VMs: 16 IDLE + this RUNNING. Their GitHub branches are already gone/squash-merged. Cannot merge another VM's unpushed worktree from here.
-- Prod `/health` dual probe 13:58:36Z / 13:58:39Z: `healthy` · `environment:production` · `version:91958c23` · uptime 16h14m9s → 16h14m13s (DIRECT_HOST_VERIFIED).
-- `deploy-vps.yml` run 31888501593 for `07870e89`: Gate SUCCESS · pytest shards skipped · Build skipped · Deploy skipped (`DEPLOY_ENABLED` not true).
-- SSH `root@72.61.245.204`: no private key in this sandbox (`~/.ssh` = `known_hosts` only). Desktop Commander MCP `needsAuth`.
-
-## Undeployed on live (owner VPS only)
-`07870e89` vs live `91958c23` includes: #364 docs · #365 funnel · #366 next42 · #368 Hot Queue `callflag:` + renewal guard + DSH worker lock + Sentry unmask · #369 CI (runtime no-op) · #371 `hq_auto_chase` **INERT**.
-
-Canonical: kill fence then `cd /opt/leadgen && setsid nohup bash scripts/deploy_vps.sh > /tmp/dep.log 2>&1 &` — runbook `docs/gtm/OWNER_DEPLOY_920a3e62.md`. Recreate MUST `APP_VERSION=<sha>` (ADR-097). Deploy **current `origin/main`** after fetch (minimum product SHA `07870e89`; later docs-only squash may move the tip). Rollback `ROLLBACK_TAG=c4fc0087` (re-probe before use).
+- This VM worktrees: `/workspace` only. Local leftover feature branch deleted.
+- GitHub heads: **`main` only** = `94ab3167` (docs #372) on top of product `07870e89` (#371).
+- Merged: #369 `6dd4ace0` CI · #371 `07870e89` HQ auto-chase INERT · #372 `94ab3167` context.
+- Closed without merge: #370 · #367 (ghost). Deleted duplicate CI branch `cursor/ci-dsh-lane-speed-20260815` (tree matched #369; merge would rewind later main).
+- Isolated Cursor cloud VMs: GitHub branches already gone/squash-merged; cannot merge another VM's unpushed worktree from here.
+- Prod dual probes: 14:09:45Z / 14:09:48Z `07870e89` production uptime 0h2m23s→0h2m27s; 14:10:17Z / 14:10:20Z uptime 0h2m55s→0h2m58s.
+- Smoke: `/` `/pricing` `/start` `/health/ready` = 200.
+- Public activation: `payments_ready=true`, `blocker_count=1`, `ready_for_first_paid_customer=false`.
+- 5/5 image pin + VLK: **UNVERIFIED** (no SSH from this sandbox).
+- `deploy-vps.yml` for `07870e89` (run 31888501593): Gate SUCCESS, Build+Deploy **skipped**. Live recreate was not that Actions job.
 
 ## Do not
-Cold WA · GSC without creds · HARNESS_SESSION_EVENTS · `DSH_AGENT_ALLOWLIST=*` · arm `HQ_AUTO_CHASE` / `CONTENT_APPROVAL_SWEEP_LIVE` · flush `dlq:dead` · raise `WEB_CONCURRENCY` · fake paid_today · Swara/voice edits · `git add -A` · VPS `reset --hard` · merge leftover CI branch that is behind main.
+Cold WA · GSC without creds · HARNESS_SESSION_EVENTS · `DSH_AGENT_ALLOWLIST=*` · arm `HQ_AUTO_CHASE` / `CONTENT_APPROVAL_SWEEP_LIVE` · flush `dlq:dead` · raise `WEB_CONCURRENCY` · fake paid_today · Swara/voice edits · `git add -A` · VPS `reset --hard`.
 
 ## Next (owner)
 1. `/app/inbox` 15–30 min + UPI Bind/Re-Approve **if bank credit real**.
-2. Deploy current `origin/main` (min `07870e89`) from a host that has VPS SSH (not this cloud agent).
+2. Optional SSH confirm: 5/5 images `:07870e89` zero skew, VLK=0. Docs SHA `94ab3167` is not a product deploy.
 3. Optional Boss harness start (not sandbox).
