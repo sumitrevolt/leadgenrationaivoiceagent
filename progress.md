@@ -1,6 +1,18 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-15 (merge leftover worktrees/branches + cleanup — CURSOR)
+Goal: Inventory every worktree/local/GitHub branch; merge unmerged safe work; deploy; clean up leftovers.
+Inspected: `git worktree list` (this VM = `/workspace` only); `git ls-remote --heads`; `gh pr list`; leftover `cursor/ci-dsh-lane-speed-20260815` vs `6dd4ace0`/`07870e89`; cloud-agent list (17); dual `/health`; `deploy-vps.yml` run 31888501593 jobs; SSH `root@72.61.245.204`.
+Problems Found: (1) Unique product leftover already on main as #369+#371. (2) Ghost PR #367 open after head delete. (3) Leftover CI branch duplicate of #369, behind main — merge would revert hq_auto_chase. (4) Isolated cloud VMs not reachable; their GitHub branches already gone. (5) Live deploy blocked: no SSH key; Actions Build/Deploy skipped (`DEPLOY_ENABLED` not true). Prod still `91958c23`.
+Changed: Merged #369+#371 earlier. Closed #367. Deleted leftover CI remote. Context + owner deploy runbook SHA → `07870e89`. No app/voice/flag edits this slice.
+Tests Run: leftover CI `git diff 6dd4ace0 f846a447 -- .github tests/test_ci_required_lanes.py` empty. Dual `/health` 13:58:36Z/13:58:39Z. `deploy-vps` 31888501593 Gate success, Build/Deploy skipped. SSH no key.
+Verification Evidence: `origin/main`=`07870e89`; GitHub heads=`main` only; open PRs=0 after #367 close; prod version=`91958c23` uptime advanced.
+Risks: Owner must deploy from a host with VPS SSH. Do not arm `HQ_AUTO_CHASE` after deploy. Other agents' unpushed worktrees (if any) cannot be recovered from this VM.
+Remaining: owner VPS deploy of `07870e89`; owner `/app/inbox` + UPI bind.
+Next Highest Priority: owner kill-fence + `scripts/deploy_vps.sh` for `07870e89`.
+
+## Loop Run
 Date: 2026-08-15 (revenue blocker audit + 3 P0s — CURSOR)
 Goal: Fresh audit after timed-out agent; find/fix ≤3 CODE-safe P0s. DSH governed path. No deploy, no fake paid, voice FROZEN.
 Inspected: `/health` dual+host; activation/summary; SSH images/flags/UPI/paid_today/events/DLQ/logs; git fetch origin/main `920a3e62` vs live `91958c23`; #365 `hot_queue_candidates` callers; dunning duplicate; `_reply_auto_send_enabled`; DSH supply-chain + Kavya plan.

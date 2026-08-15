@@ -4,7 +4,10 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-15 ~08:08Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, public 07:51:24Z / 07:55:32Z + host 08:08:50Z uptime advanced). `origin/main` = `920a3e62` **UNDEPLOYED**. Named blocker `upi_pending_unactioned` (1 approved-unbound, has_client=0). `paid_today=0` honest. Revenue audit: `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. 3 CODE P0s on `cursor/revenue-blocker-p0` (not deployed). Owner inbox/UPI/bank still remaining.
+2026-08-15 ~13:58Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, public dual probe 13:58:36Z / 13:58:39Z, uptime 16h14m9s → 16h14m13s). `origin/main` = `07870e89` **UNDEPLOYED** (PRs #364–#366 + #368 + #369 CI + #371 HQ auto-chase). GitHub heads = `main` only. Open PRs = 0. This sandbox: no VPS SSH key; `deploy-vps.yml` run 31888501593 **gate-only** (Build + Deploy jobs skipped, `DEPLOY_ENABLED` not true). Named blocker still owner-side (`upi_pending_unactioned`). `HQ_AUTO_CHASE` CODE-PRESENT, INERT default. Owner inbox/UPI/bank still remaining. Runbook: `docs/gtm/OWNER_DEPLOY_920a3e62.md`.
+
+## Last verified timestamp (superseded same-day 08:08Z)
+2026-08-15 ~08:08Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, public 07:51:24Z / 07:55:32Z + host 08:08:50Z uptime advanced). `origin/main` was then `920a3e62` **UNDEPLOYED**. Named blocker `upi_pending_unactioned` (1 approved-unbound, has_client=0). `paid_today=0` honest. Revenue audit: `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. 3 CODE P0s later landed via PR #368 (`c4e9058f`) into `07870e89` ancestry — still not live until owner deploy.
 
 ## Last verified timestamp (superseded same-day 02:42Z)
 2026-08-15 ~02:42Z — prod `/health` = `91958c23` (DIRECT_HOST_VERIFIED, dual probe 02:37:40Z / 02:40:09Z uptime advanced). NEXT todos agent-side READY. Owner inbox/UPI/Boss harness still remaining. DSH local smoke + Kavya MCP plan used; prod flags not flipped. PR #363/#364 ancestry sealed at ~00:01Z re-probe (5/5 pin, VLK=0).

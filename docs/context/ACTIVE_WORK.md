@@ -5,8 +5,8 @@
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 07:51Z–08:08Z, 5/5 pinned) · `origin/main` `920a3e62` undeployed · inbox shell 200 · named blocker `upi_pending_unactioned` (SSH: 1 approved-unbound, has_client=0, stale≥6h) · `payments_ready=true` · `paid_today=0` honest empty day · audit `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Branch `cursor/revenue-blocker-p0` wires calling_flagged into inbox (not live).
-- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. Deploy of P0 branch is optional and does **not** replace those clicks.
+- **Current state:** LIVE on `91958c23` (re-probed 2026-08-15 13:58:36Z–13:58:39Z, uptime advanced) · `origin/main` `07870e89` **UNDEPLOYED** (#368 callflags/renewal guard + #371 HQ auto-chase INERT + #365/#366) · GitHub heads = `main` only · open PRs = 0 · named blocker `upi_pending_unactioned` · `payments_ready=true` · audit `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Callflags are **in main**, not live until owner deploy.
+- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. Optional: deploy `07870e89` via kill fence + `scripts/deploy_vps.sh` (this cloud sandbox cannot SSH; Actions Build/Deploy skipped). Do **not** arm `HQ_AUTO_CHASE`.
 - **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
 
 ---
