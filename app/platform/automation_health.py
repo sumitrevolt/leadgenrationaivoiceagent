@@ -106,6 +106,9 @@ EXPECTED_GAP_MIN = {
     "social_drain": 180,  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); 3h grace
     "task_lease_reap": 180,  # hourly :05 expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP); 3h grace like meter_watch
     "sales_autopilot": 180,  # hourly :25 Sales Autopilot (gated SALES_AUTOPILOT_ENABLED); RUN_DUE_EXCLUDE; 3h dead-man grace
+    "hq_auto_chase": 180,  # hourly :28 Hot Queue EMAIL chase (gated HQ_AUTO_CHASE); 3h grace
+    "reply_auto_send": 180,  # hourly :30 known-prospect auto-reply (gated REPLY_AUTO_SEND); 3h grace
+    "content_approval_sweep": 30 * 60,  # daily 04:30 orphaned-pending retirement (dry_run default)
 }
 
 

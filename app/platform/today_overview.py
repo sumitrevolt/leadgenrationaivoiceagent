@@ -40,6 +40,7 @@ _DUE_AFTER_IST: dict[str, tuple[int, int]] = {
     "obsidian_push": (2, 15),
     "qa": (2, 30),
     "trainer": (3, 0),
+    "content_approval_sweep": (4, 30),
     "saturday_hygiene": (4, 0),
     "engineer_deps": (4, 30),
     "kb_refresh": (5, 0),
@@ -276,6 +277,18 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "task_lease_reap": {
         "label": "Agent-task lease close-out (hourly :05)",
         "kya": "Jo agent-task apne worker ke marne se claimed/running me atak gaya use terminally failed mark karta hai (re-assign human karta hai, auto-retry NAHI). INERT jab AGENT_TASK_LEASE_REAP off",
+    },
+    "hq_auto_chase": {
+        "label": "Hot Queue auto-chase email (hourly :28)",
+        "kya": "Unactioned inquiry cards pe automated EMAIL follow-up (gated HQ_AUTO_CHASE, default OFF). WhatsApp/call 1-click human rehte hain",
+    },
+    "reply_auto_send": {
+        "label": "Safe known-prospect auto-reply (hourly :30)",
+        "kya": "Guarded known-prospect email auto-reply sweep (gated REPLY_AUTO_SEND). HARD_OFF override hamesha jeetta hai",
+    },
+    "content_approval_sweep": {
+        "label": "Orphan approval sweep (subah 4:30)",
+        "kya": "Dead-client pending approvals ko expire mark karta hai — dry_run default, live tabhi jab CONTENT_APPROVAL_SWEEP_LIVE",
     },
 }
 

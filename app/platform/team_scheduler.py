@@ -214,6 +214,9 @@ _last_ran: dict[str, str | None] = {
     "sales_autopilot": None,  # hourly :25: Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
     "task_lease_reap": None,  # hourly :05: expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP; INERT off)
     "gsc_rank": None,  # daily 00:30 IST: Google Search Console rank snapshot (gated GSC_ENABLED)
+    "hq_auto_chase": None,  # hourly: unactioned inquiry cards -> automated EMAIL follow-up (gated HQ_AUTO_CHASE; INERT off)
+    "reply_auto_send": None,  # hourly :30: safe known-prospect auto-reply sweep (gated REPLY_AUTO_SEND; INERT off)
+    "content_approval_sweep": None,  # daily 04:30: orphaned-pending approval retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
 }
 
 
@@ -1488,6 +1491,32 @@ async def _run_job_inner(job: str) -> bool:
             from app.marketing import daily_video
 
             await daily_video.run_daily()
+        elif job == "hq_auto_chase":
+            # Hot Queue auto-chase — unactioned inquiry cards pe automated EMAIL
+            # follow-up. INERT unless HQ_AUTO_CHASE=1 (run_auto_chase no-ops).
+            # Email-only: WhatsApp/call remain owner 1-click human (ban-safety).
+            from app.platform import hq_auto_chase as _hqc
+
+            await _hqc.run_auto_chase()
+        elif job == "reply_auto_send":
+            # Safe known-prospect auto-reply sweep — DECOUPLED from IMAP triage
+            # so replies still go out even if IMAP is down/gated. INERT unless
+            # REPLY_AUTO_SEND=1 (+ HARD_OFF override checked inside).
+            from app.platform import reply_agent as _reply_agent
+
+            await _reply_agent.run_auto_reply_backlog()
+        elif job == "content_approval_sweep":
+            # Orphaned-pending approval retirement — dry_run by default (reports
+            # counts, writes nothing). CONTENT_APPROVAL_SWEEP_LIVE=1 actuates the
+            # write. Clears dead-client pendings (prod: 321 of 422).
+            from app.marketing import content_approval as _ca
+
+            live = os.environ.get("CONTENT_APPROVAL_SWEEP_LIVE", "0").strip().lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+            await asyncio.to_thread(_ca.retire_orphaned_pending, dry_run=not live)
         elif job == "social_drain":
             from app.social_engine import engine as _social_engine
 
@@ -1785,6 +1814,19 @@ async def scheduler_loop() -> None:
             if now.minute >= 25 and _last_ran.get("sales_autopilot") != hour_key:
                 _last_ran["sales_autopilot"] = hour_key
                 await _run_job("sales_autopilot")
+            # Hot Queue auto-chase — hourly :28 (INERT unless HQ_AUTO_CHASE=1).
+            if now.minute >= 28 and _last_ran.get("hq_auto_chase") != hour_key:
+                _last_ran["hq_auto_chase"] = hour_key
+                await _run_job("hq_auto_chase")
+            # Safe known-prospect auto-reply — hourly :30 (INERT unless REPLY_AUTO_SEND=1).
+            if now.minute >= 30 and _last_ran.get("reply_auto_send") != hour_key:
+                _last_ran["reply_auto_send"] = hour_key
+                await _run_job("reply_auto_send")
+            # Orphaned-pending approval retirement — daily 04:30 (dry_run default;
+            # CONTENT_APPROVAL_SWEEP_LIVE=1 actuates writes).
+            if (4, 30) <= hm < (5, 30) and _last_ran.get("content_approval_sweep") != day_key:
+                _last_ran["content_approval_sweep"] = day_key
+                await _run_job("content_approval_sweep")
             # Expired agent-task lease reclaim — hourly :05 (INERT unless AGENT_TASK_LEASE_REAP=1).
             if now.minute >= 5 and _last_ran.get("task_lease_reap") != hour_key:
                 _last_ran["task_lease_reap"] = hour_key

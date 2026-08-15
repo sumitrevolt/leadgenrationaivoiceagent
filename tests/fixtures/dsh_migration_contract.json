@@ -1307,19 +1307,19 @@
       {
         "call": "app.platform.agent_runtime.register_capability",
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 80,
+        "line": 83,
         "scope": "_register"
       },
       {
         "call": "app.platform.agent_runtime.AgentCapability",
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 81,
+        "line": 84,
         "scope": "_register"
       },
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 113,
+        "line": 116,
         "scope": "maybe_dispatch"
       },
       {
@@ -2890,7 +2890,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 60,
+        "line": 63,
         "local_name": "AgentCapability",
         "module": "app.platform.agent_runtime.AgentCapability",
         "scope": "_register",
@@ -2898,7 +2898,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 60,
+        "line": 63,
         "local_name": "AgentExecutionContext",
         "module": "app.platform.agent_runtime.AgentExecutionContext",
         "scope": "_register",
@@ -2906,7 +2906,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 60,
+        "line": 63,
         "local_name": "register_capability",
         "module": "app.platform.agent_runtime.register_capability",
         "scope": "_register",
@@ -2914,7 +2914,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 105,
+        "line": 108,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "maybe_dispatch",
@@ -2922,7 +2922,7 @@
       },
       {
         "file": "app/platform/workforce_runtime/scheduled.py",
-        "line": 106,
+        "line": 109,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "maybe_dispatch",
