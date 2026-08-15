@@ -4,6 +4,7 @@ Plugin Registry Admin API
 GET /api/admin/plugins          → full manifest table + drift detection
 GET /api/admin/plugins/{id}     → single plugin detail
 POST /api/admin/plugins/drift   → drift check against a supplied snapshot
+GET /api/admin/plugins/health   → live health status per plugin
 
 Auth: require_admin (Bearer JWT from /app/admin-login).
 """
@@ -108,6 +109,39 @@ class DriftResponse(BaseModel):
 
     drift_count: int
     drifts: list[DriftEntry]
+    timestamp: float
+
+
+class PluginHealthEntry(BaseModel):
+    """Live health status for a single plugin."""
+
+    plugin_id: str
+    category: str
+    risk_class: str
+    evidence_status: str
+    health: str  # healthy | degraded | unhealthy | unknown
+    flag_enabled: bool | None = None
+    flag_status: str = ""  # "on" | "off" | "unset" | "n/a"
+    kill_switch_set: bool = False
+    dependencies_ok: bool = True
+    missing_deps: list[str] = Field(default_factory=list)
+    probe_endpoint: str = ""
+    probe_healthy: bool | None = None  # None = not probed
+    queue_depth: int | None = None
+    dlq_count: int | None = None
+    last_check_s: float = 0.0
+    reason: str = ""
+
+
+class PluginHealthResponse(BaseModel):
+    """Aggregate plugin health response."""
+
+    total: int
+    healthy: int
+    degraded: int
+    unhealthy: int
+    unknown: int
+    plugins: list[PluginHealthEntry]
     timestamp: float
 
 
@@ -351,5 +385,238 @@ async def check_drift(
     return DriftResponse(
         drift_count=len(drifts),
         drifts=drifts,
+        timestamp=time.time(),
+    )
+
+
+def _check_flag_status(flag_name: str) -> tuple[bool | None, str]:
+    """Check a feature flag's runtime status. Returns (enabled, status_label)."""
+    if not flag_name:
+        return None, "n/a"
+    try:
+        import os
+
+        val = os.getenv(flag_name, "").strip().lower()
+        if val in ("1", "true", "yes", "on"):
+            return True, "on"
+        if val in ("0", "false", "no", "off"):
+            return False, "off"
+        if not val:
+            return False, "unset"
+        return None, f"raw:{val[:20]}"
+    except Exception:
+        return None, "error"
+
+
+def _check_dependencies(deps: list[str]) -> tuple[bool, list[str]]:
+    """Verify plugin dependencies are importable/available."""
+    missing = []
+    for dep in deps:
+        if not dep:
+            continue
+        try:
+            import importlib
+
+            importlib.import_module(dep)
+        except ImportError:
+            missing.append(dep)
+        except Exception:
+            pass  # other errors = module exists but broken
+    return len(missing) == 0, missing
+
+
+def _check_queue_depth(queue: str) -> int | None:
+    """Get Redis queue depth for a named queue."""
+    if not queue:
+        return None
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+        return r.llen(queue)
+    except Exception:
+        return None
+
+
+def _check_dlq(dlq_key: str) -> int | None:
+    """Get DLQ item count."""
+    if not dlq_key:
+        return None
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+        return r.llen(dlq_key)
+    except Exception:
+        return None
+
+
+def _probe_health(probe: Any) -> bool | None:
+    """Execute a health probe and return True/False/None."""
+    if not probe or not probe.endpoint:
+        return None
+    try:
+        if probe.endpoint.startswith("http"):
+            import json as _json
+            import urllib.request
+
+            req = urllib.request.Request(probe.endpoint, method="GET")
+            with urllib.request.urlopen(req, timeout=probe.timeout_s) as resp:
+                data = _json.loads(resp.read())
+                # Evaluate healthy_condition (simple: "key=value")
+                cond = probe.healthy_condition or "ok=true"
+                k, _, v = cond.partition("=")
+                return str(data.get(k, "")).lower() == v.lower()
+        else:
+            # Function path: "app.module.function"
+            import importlib
+
+            parts = probe.endpoint.rsplit(".", 1)
+            if len(parts) == 2:
+                mod = importlib.import_module(parts[0])
+                fn = getattr(mod, parts[1], None)
+                if callable(fn):
+                    result = fn()
+                    if isinstance(result, dict):
+                        cond = probe.healthy_condition or "ok=true"
+                        k, _, v = cond.partition("=")
+                        return str(result.get(k, "")).lower() == v.lower()
+                    return bool(result)
+    except Exception:
+        return False
+    return None
+
+
+def _compute_plugin_health(m: Any) -> PluginHealthEntry:
+    """Compute live health for a single plugin."""
+    flag_enabled, flag_status = _check_flag_status(m.feature_flag)
+    deps_ok, missing_deps = _check_dependencies(m.dependencies)
+    probe_healthy = _probe_health(m.health_probe) if m.health_probe else None
+    queue_depth = _check_queue_depth(m.queue)
+    dlq_count = _check_dlq(m.dlq)
+    kill_set = bool(m.kill_switch)
+
+    # Determine overall health
+    reasons = []
+    health = "healthy"
+
+    if flag_enabled is False and flag_status == "unset" and m.feature_flag:
+        # Flag exists but unset — degraded (component is dormant, not broken)
+        health = "degraded"
+        reasons.append(f"flag {m.feature_flag} unset")
+    elif flag_enabled is True:
+        pass  # flag ON — good
+    elif flag_status == "off":
+        health = "degraded"
+        reasons.append(f"flag {m.feature_flag} off")
+
+    if not deps_ok:
+        health = "unhealthy"
+        reasons.append(f"missing deps: {', '.join(missing_deps)}")
+
+    if probe_healthy is False:
+        health = "unhealthy"
+        reasons.append("health probe failed")
+
+    if kill_set:
+        reasons.append(f"kill switch: {m.kill_switch}")
+
+    if dlq_count is not None and dlq_count > 10:
+        health = "degraded"
+        reasons.append(f"dlq={dlq_count}")
+
+    if queue_depth is not None and queue_depth > 100:
+        health = "degraded"
+        reasons.append(f"queue_depth={queue_depth}")
+
+    return PluginHealthEntry(
+        plugin_id=m.plugin_id,
+        category=m.category.value if hasattr(m.category, "value") else str(m.category),
+        risk_class=m.risk_class.value if hasattr(m.risk_class, "value") else str(m.risk_class),
+        evidence_status=(
+            m.evidence_status.value
+            if hasattr(m.evidence_status, "value")
+            else str(m.evidence_status)
+        ),
+        health=health,
+        flag_enabled=flag_enabled,
+        flag_status=flag_status,
+        kill_switch_set=kill_set,
+        dependencies_ok=deps_ok,
+        missing_deps=missing_deps,
+        probe_endpoint=m.health_probe.endpoint if m.health_probe else "",
+        probe_healthy=probe_healthy,
+        queue_depth=queue_depth,
+        dlq_count=dlq_count,
+        reason="; ".join(reasons),
+    )
+
+
+@router.get("/plugins/health", response_model=PluginHealthResponse)
+async def plugins_health(
+    category: str | None = Query(None, description="Filter by category"),
+    _admin: Any = Depends(require_admin),
+):
+    """
+    Live health status for each registered plugin.
+
+    Checks per plugin:
+      - Feature flag status (on/off/unset)
+      - Kill switch presence
+      - Dependency availability
+      - Health probe (if configured)
+      - Queue depth
+      - DLQ count
+
+    Returns aggregate counts (healthy/degraded/unhealthy/unknown) + per-plugin detail.
+    """
+    reg = _ensure_catalog()
+    plugins = reg.all()
+
+    # Filter by category if requested
+    if category:
+        from app.agents.harness.plugin_manifest import PluginCategory
+
+        try:
+            cat = PluginCategory(category)
+            plugins = [p for p in plugins if p.category == cat]
+        except ValueError:
+            raise HTTPException(400, f"Invalid category: {category}")
+
+    entries: list[PluginHealthEntry] = []
+    counts = {"healthy": 0, "degraded": 0, "unhealthy": 0, "unknown": 0}
+
+    for m in plugins:
+        try:
+            entry = _compute_plugin_health(m)
+        except Exception as exc:
+            entry = PluginHealthEntry(
+                plugin_id=m.plugin_id,
+                category=m.category.value if hasattr(m.category, "value") else str(m.category),
+                risk_class=(
+                    m.risk_class.value if hasattr(m.risk_class, "value") else str(m.risk_class)
+                ),
+                evidence_status=(
+                    m.evidence_status.value
+                    if hasattr(m.evidence_status, "value")
+                    else str(m.evidence_status)
+                ),
+                health="unknown",
+                reason=f"check error: {str(exc)[:100]}",
+            )
+        counts[entry.health] = counts.get(entry.health, 0) + 1
+        entries.append(entry)
+
+    return PluginHealthResponse(
+        total=len(entries),
+        healthy=counts["healthy"],
+        degraded=counts["degraded"],
+        unhealthy=counts["unhealthy"],
+        unknown=counts["unknown"],
+        plugins=entries,
         timestamp=time.time(),
     )

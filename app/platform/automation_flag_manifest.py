@@ -387,6 +387,16 @@ _OVERRIDES: dict[str, FlagMeta] = {
         kill="CELERY_ONBOARD_QUEUE=0",
         evidence="CODE-PRESENT",
     ),
+    "ONBOARDING_PIPELINE": _m(
+        "ONBOARDING_PIPELINE",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.CANARY_ONLY,
+        notes="Staged onboarding factory pipeline with retry/DLQ/backpressure; OFF=default (legacy auto_onboard still works)",
+        risk="ops",
+        default="0",
+        kill="ONBOARDING_PIPELINE=0",
+        evidence="CODE-PRESENT",
+    ),
     "COORDINATION_HUB_ENABLED": _m(
         "COORDINATION_HUB_ENABLED",
         FlagValueKind.BOOLEAN,
