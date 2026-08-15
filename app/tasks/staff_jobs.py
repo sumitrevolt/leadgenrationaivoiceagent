@@ -148,6 +148,9 @@ STAFF_JOBS = (
     "task_lease_reap",  # hourly :05 expired agent-task lease close-out (gated AGENT_TASK_LEASE_REAP; INERT off)
     "daily_video",  # daily 09:45 IST per-client video producer — ENQUEUE-only (gated DAILY_VIDEO_ENABLED; INERT off)
     "gsc_rank",  # daily 00:30 IST Google Search Console rank snapshot (gated GSC_ENABLED; INERT off)
+    "hq_auto_chase",  # hourly :28 unactioned inquiry cards -> EMAIL follow-up (gated HQ_AUTO_CHASE; INERT off)
+    "reply_auto_send",  # hourly :30 safe known-prospect auto-reply (gated REPLY_AUTO_SEND; INERT off)
+    "content_approval_sweep",  # daily 04:30 orphaned-pending retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
 )
 
 

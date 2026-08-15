@@ -216,6 +216,21 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "hourly :05",
         "owner": "platform",
     },
+    "hq_auto_chase": {
+        "label": "Hot Queue auto-chase EMAIL (gated HQ_AUTO_CHASE)",
+        "cadence": "hourly :28",
+        "owner": "platform",
+    },
+    "reply_auto_send": {
+        "label": "Safe known-prospect auto-reply sweep (gated REPLY_AUTO_SEND)",
+        "cadence": "hourly :30",
+        "owner": "platform",
+    },
+    "content_approval_sweep": {
+        "label": "Orphaned-pending approval retirement (dry_run default)",
+        "cadence": "daily 04:30",
+        "owner": "platform",
+    },
 }
 
 
