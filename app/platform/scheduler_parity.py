@@ -54,6 +54,8 @@ REQUIRED_RUN_DUE_EXCLUDE: frozenset[str] = frozenset(
         "email_followup",
         "digest",
         "sales_autopilot",
+        "hq_auto_chase",
+        "reply_auto_send",
     }
 )
 
@@ -69,6 +71,8 @@ CUSTOMER_CONTACT_JOBS: frozenset[str] = frozenset(
         "digest",  # internal owner email — still outbound SMTP
         "readiness_digest",
         "call_kpi_digest",
+        "hq_auto_chase",
+        "reply_auto_send",
     }
 )
 
@@ -80,6 +84,8 @@ PROVIDER_CONTACT_JOBS: frozenset[str] = frozenset(
         "email_followup",
         "sales_autopilot",
         "approval_email_sweep",
+        "hq_auto_chase",
+        "reply_auto_send",
         "prospect",
         "midday_prospect",
         "evening_prospect",

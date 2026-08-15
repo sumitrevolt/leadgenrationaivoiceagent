@@ -67,6 +67,15 @@ def test_flags_registered():
         assert flag in automation_flags.AUTOMATION_FLAGS, f"{flag} not in AUTOMATION_FLAGS"
 
 
+def test_new_jobs_in_job_info_and_deadman():
+    from app.platform.automation_health import EXPECTED_GAP_MIN
+    from app.platform.today_overview import JOB_INFO
+
+    for job in NEW_JOBS:
+        assert job in JOB_INFO, f"{job} missing JOB_INFO Hinglish label"
+        assert job in EXPECTED_GAP_MIN, f"{job} missing EXPECTED_GAP_MIN dead-man"
+
+
 def _beat_schedule():
     """Import app.worker lazily (heavy app import) and read beat schedule."""
     import app.worker as worker_mod

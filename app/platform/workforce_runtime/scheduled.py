@@ -39,6 +39,9 @@ NEVER_DSH_SCHEDULED_JOBS = frozenset(
         "sales_autopilot",
         "social_drain",
         "product_one_health",
+        "hq_auto_chase",
+        "reply_auto_send",
+        "content_approval_sweep",
     }
 )
 

@@ -238,7 +238,15 @@ JOB_META: dict[str, dict[str, str]] = {
 # outbound calls/emails apni window ke bahar dobara nahi bhejne chahiye).
 # "digest" bhi: uske summary-email step me per-day dedupe nahi hai — recovery
 # double-fire = duplicate internal digest email (audit 2026-07-04).
-RUN_DUE_EXCLUDE = {"platform_dial", "email_outreach", "email_followup", "digest", "sales_autopilot"}
+RUN_DUE_EXCLUDE = {
+    "platform_dial",
+    "email_outreach",
+    "email_followup",
+    "digest",
+    "sales_autopilot",
+    "hq_auto_chase",
+    "reply_auto_send",
+}
 
 
 def _now_iso() -> str:
