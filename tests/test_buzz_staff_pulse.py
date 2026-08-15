@@ -1,4 +1,4 @@
-﻿"""Staff pulse must not trip Buzz mention-preflight."""
+"""Staff pulse must not trip Buzz mention-preflight."""
 
 from __future__ import annotations
 
