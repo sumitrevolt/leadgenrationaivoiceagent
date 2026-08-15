@@ -1,46 +1,36 @@
-# Owner deploy — undeployed `origin/main` vs live `91958c23`
+# Owner deploy — live `07870e89` vs `origin/main` `94ab3167` (docs-only)
 
-**Do not run this from an agent sandbox without a VPS SSH key.** Owner SSH + kill fence only. No `reset --hard`. No `.env` dump. Cloud agent 2026-08-15: `Permission denied (publickey)` + `deploy-vps.yml` Build/Deploy skipped because `DEPLOY_ENABLED` is not true.
+**Product SHA is already live.** Do not re-run a full deploy just to pick up docs #372. No `reset --hard`. No `.env` dump.
 
 ## Truth (re-probe before you start)
 
 | Ref | SHA | Label |
 |---|---|---|
-| Live `/health.version` | `91958c23` (2026-08-15 dual probe 13:58:36Z / 13:58:39Z, uptime advanced) | DIRECT_HOST_VERIFIED |
-| `origin/main` | `07870e89` (PR #371 squash) plus later docs-only handoff if merged — **re-fetch `origin/main` before deploy** | GIT_VERIFIED |
+| Live `/health.version` | `07870e89` (2026-08-15 dual probes 14:09:45Z–14:10:20Z, uptime advanced from a fresh recreate) | DIRECT_HOST_VERIFIED |
+| `origin/main` | `94ab3167` (PR #372 docs squash on top of `07870e89`) | GIT_VERIFIED |
 | GitHub heads | `main` only | GIT_VERIFIED |
-| Open PRs | 0 (`#367` closed as superseded ghost) | GIT_VERIFIED |
-| Actions deploy | run 31888501593 gate-only; Build + Deploy **skipped** | GIT_VERIFIED |
-| Undeployed on live | #364 docs · #365 funnel `56ff46a9` · #366 next42 `920a3e62` · #368 callflags `c4e9058f` · #369 CI `6dd4ace0` (runtime no-op) · #371 HQ auto-chase `07870e89` INERT | VERIFIED |
+| Open PRs | 0 | GIT_VERIFIED |
+| Actions deploy | `07870e89` run 31888501593 gate-only; Build + Deploy **skipped** (`DEPLOY_ENABLED` not true). Live recreate was SSH from another host, not this cloud agent. | GIT_VERIFIED |
+| 5/5 app-image pin | UNVERIFIED from cloud sandbox (no SSH) | UNKNOWN |
 
-P0 Hot Queue `callflag:` + renewal guard are **already in** `07870e89` (PR #368). Do not look for `cursor/revenue-blocker-p0`.
+`HQ_AUTO_CHASE` is CODE-PRESENT on the live SHA. Keep it **INERT**. Do not arm `CONTENT_APPROVAL_SWEEP_LIVE`, cold WA, GSC, or `HARNESS_SESSION_EVENTS`.
 
-Today's UPI Bind/Re-Approve **does not need this deploy** — that path is already live on `91958c23`.
+UPI Bind/Re-Approve is already on this live SHA. Today's revenue gate is owner inbox + bank confirm, not another deploy.
 
-After deploy, do **not** arm `HQ_AUTO_CHASE`, `CONTENT_APPROVAL_SWEEP_LIVE`, cold WA, GSC, or `HARNESS_SESSION_EVENTS`.
-
-## Canonical command (VPS)
+## If you must deploy again (optional docs SHA)
 
 ```bash
-# 1. Probe
+# 1. Probe — expect 07870e89 unless you intend to move it
 curl -sS -H 'Cache-Control: no-cache' "https://leadsgenai.in/health?cb=$(date +%s)"
 
 # 2. Drift check (mandatory)
 git -C /opt/leadgen status --porcelain
 docker diff leadgen_app
 
-# 3. Kill fence (VOICE_LAUNCH_KILL=1 backup) then:
+# 3. Kill fence then:
 cd /opt/leadgen && setsid nohup bash scripts/deploy_vps.sh > /tmp/dep.log 2>&1 &
-# poll /tmp/dep.log until === DEPLOYED <origin/main sha> OK ===
-# If a docs-only handoff PR landed after #371, deploy that new SHA (re-fetch first).
-# Minimum product SHA is 07870e89 (#371).
-
-# 4. Recreate MUST carry APP_VERSION=<deployed sha>  (ADR-097 — never :latest)
-
-# 5. Prove (twice, advancing timestamp)
-curl -sS -H 'Cache-Control: no-cache' "https://leadsgenai.in/health?cb=$(date +%s)"
-# version == origin/main sha, environment=production
-# 5/5 app images :<sha> zero skew; VLK=0
+# poll until === DEPLOYED <sha> OK ===
+# Recreate MUST carry APP_VERSION=<sha> (ADR-097 — never :latest)
 ```
 
 Rollback: `ROLLBACK_TAG=c4fc0087` via the same script (re-probe before using). Fence backup names only, never paste `.env`.
