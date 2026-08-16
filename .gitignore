@@ -1,4 +1,4 @@
-﻿# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -133,6 +133,10 @@ venv.bak/
 # Claude Code agent worktrees â€” harness-managed isolation scratch (full repo copies);
 # must NEVER be committed (one got committed = 1290 duplicate files).
 .claude/worktrees/
+
+# FreeBuff/Desktop Commander scratch — local DB + full nested repo/worktree copies.
+# Never commit or scan/deploy this workspace-private state.
+.freebuff/
 
 # OS
 .DS_Store
