@@ -2198,3 +2198,15 @@ Verification Evidence: PR #363 `state=MERGED`, `mergedAt=2026-08-14T21:30:39Z`, 
 Risks: Docs-only, so production risk is nil. The residual risk is narrative, not technical — `activation/summary` still reports `ready_for_first_paid_customer=false` / `blocker_count=1` (carried forward from `c4fc0087`, not caused by #363), which can read as a false blocker if quoted without context. `leadgen_dsh_worker` runs its own `leadgen-dsh-worker:fb3d0bc2` tag; that is DSH's separate runtime, explicitly NOT app-image skew.
 Remaining: PR is docs-only and left OPEN and UNMERGED by instruction. Engineering freeze after PR creation. Revenue verdict: technical money path GO; authenticated Hot Queue WAIT (owner); UPI activation WAIT (needs a real payment); REVENUE GENERATED WAIT (owner-confirmed bank credit only); overall WAIT — owner-gated, no technical blocker.
 Next Highest Priority: Owner authenticated `/app/inbox` Hot Queue blitz, then UPI Bind/Re-Approve when a payment lands. No new module/agent/loop until a correlated real-funnel defect shows up with evidence.
+
+## Loop Run
+Date: 2026-08-16 (DSH - Dependabot nanoid safe patch)
+Goal: Continue autonomous cleanup by patching the safest open Dependabot alert without touching production Python/voice/compliance paths.
+Inspected: GitHub Dependabot open alerts; HyperFrames package manifest/lock; docs/evidence/DEPENDABOT_TRIAGE_20260816.md; local API docs sync status.
+Problems Found: Dependabot alert #35 flagged nanoid <3.3.18 in video_renderer/hyperframes/package-lock.json; API docs were already in sync locally; Python/uv alerts need separate dependency-chain review.
+Changed: video_renderer/hyperframes/package.json override nanoid 3.3.17->3.3.18; regenerated video_renderer/hyperframes/package-lock.json; updated Dependabot triage evidence.
+Tests Run: npm package-lock-only update; npm audit --audit-level=high; npm install --package-lock-only --ignore-scripts --dry-run; check_secrets.py; git diff --check; prod_check.py.
+Verification Evidence: HyperFrames npm audit reports 0 vulnerabilities; dry-run lock consistency is up to date; prod_check passed; secrets scan clean.
+Risks: Dependabot alert closure requires GitHub re-scan after merge; remaining transformers/chromadb/pytest/ecdsa alerts intentionally not patched in this slice.
+Remaining: Commit/PR/CI/deploy this safe patch, then handle Python/uv alerts separately with full lock/source reconciliation.
+Next Highest Priority: Reconcile uv.lock vs production lock and decide safe removal/upgrade path for chromadb/transformers.
