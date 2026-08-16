@@ -2210,3 +2210,41 @@ Verification Evidence: HyperFrames npm audit reports 0 vulnerabilities; dry-run 
 Risks: Dependabot alert closure requires GitHub re-scan after merge; remaining transformers/chromadb/pytest/ecdsa alerts intentionally not patched in this slice.
 Remaining: Commit/PR/CI/deploy this safe patch, then handle Python/uv alerts separately with full lock/source reconciliation.
 Next Highest Priority: Reconcile uv.lock vs production lock and decide safe removal/upgrade path for chromadb/transformers.
+
+## Loop Run — 2026-08-17
+
+Date: 2026-08-17
+Goal: Patch the lowest-risk open Dependabot alert and take it through PR/CI/merge/deploy.
+Inspected: Dependabot alerts API (27 open, 22 in uv.lock); uv.lock git history; workflows/compose/Dockerfile/scripts uv references; .gitignore; requirements.lock.txt dependency chain for ecdsa/pytest; JWT algorithm usage across app/.
+Problems Found:
+  - uv.lock was committed ONCE in 673cd340 (ADR-179 "NOT for main" sweep, 2026-08-14) as an accidental leftover; never modified since; zero consumers (no uv in workflows/compose/Dockerfile/scripts, no uv.toml/[tool.uv]/python-version).
+  - 22 open alerts (transformers x17, chromadb, etc.) pointed exclusively at uv.lock; neither package exists in production requirements.lock.txt.
+  - ecdsa==0.19.2 alert (CVE-2024-23342): advisory range >= 0, NO patched version exists; app is HS256-only (never exercises ECDSA); transitive via python-jose hard dep — no safe change.
+  - pytest 7.4.4 alert (CVE-2025-71176): dev-only tmpdir issue; needs separate test-infra PR with full test confidence.
+Changed:
+  - Deleted uv.lock (git rm) + added /uv.lock to .gitignore (guard against accidental re-commit by future sweeps).
+  - Updated docs/evidence/DEPENDABOT_TRIAGE_20260816.md with deletion evidence + ecdsa no-fix classification.
+  - PR #386 merged (squash) -> main 7156b61b; deployed via scripts/deploy_vps.sh 7156b61b.
+Tests Run: git diff --check PASS; scripts/check_secrets.py PASS (exit 0); CI 18/18 green (CodeQL, Gate A, GitGuardian, lint+secrets, Trivy image+repo+SBOM, pip-audit, prod_check runtime gates, prod_check+pytest, pytest shards 1-4, harness real-redis integration).
+Verification Evidence: /health = {status: healthy, version: 7156b61b, environment: production}; all 5 app-image services (app worker scheduler worker-heavy worker-video) on ghcr.io/...:7156b61b; smoke routes all 200 (/ /audit /site-audit /demo /pricing /start /app/inbox /api/public/audit/questions /api/voice/niches /api/billing/plans /api/public/pay-info); queues/DLQ = 0/0; ROLLBACK_TAG=47605d12 protected.
+Risks: Dependabot uv.lock alert closure depends on GitHub re-scan (still 22 at API check right after merge); remaining pytest (dev-only) and ecdsa (no-fix, HS256-only) alerts stay open — no zero-vulnerability claim.
+Remaining: pytest upgrade PR (separate, test-infra); ecdsa periodic advisory re-check; monitor uv.lock alert closure on next re-scan; owner-action items unchanged (revenue proof, Hot Queue E2E, voice kill decision).
+Next Highest Priority: pytest CVE-2025-71176 upgrade PR with full test-gate confidence, OR confirm uv.lock alerts closed post re-scan.
+
+## Loop Run — 2026-08-17 (2nd)
+
+Date: 2026-08-17
+Goal: Next safe dependency remediation after uv.lock — pytest CVE-2025-71176 upgrade with CI as authority.
+Inspected: docs/research/PYTEST9_MIGRATION_BLOCKER.md (forensic blocker); tests/test_dependency_security_floors.py (EXCEPTIONS: pytest expiry 2026-11-08, ecdsa expiry 2026-11-08); pytest pins across 4 manifests (7.4.4 everywhere, pytest-asyncio 0.23.4, pytest-cov 4.1.0, pytest-mock 3.15.1, pytest-xdist 3.8.0); PyPI latest releases (pytest 9.1.1, pytest-asyncio 1.4.0, greenlet 3.5.5); Dependabot alerts API; dependabot.yml schedule.
+Problems Found:
+  - pytest 9 PR was ALREADY attempted and terminalized (PR #302): proven greenlet 3.5.4 `green_is_gc` NULL-pimpl segfault (exit 139 x2 on Linux CI shard 1); merge gate (5x shard-1 green, 2x full green) never cleared; no masking fixes allowed.
+  - Go-condition for reopening (greenlet >3.5.4 WITH NULL guard) NOT satisfied: greenlet 3.5.5 (2026-08-10) ships only a Windows-wheel linking fix; 3.5.6 unreleased "Nothing changed yet".
+  - ecdsa remains no-fix (GHSA-wj6h-64fc-37mp, vulnerable range >=0, first_patched=null); HS256-only reachability gate intact (test_jwt_algorithm_is_symmetric pins it).
+  - 22 uv.lock alerts still visible in Dependabot API — GitHub re-scan lag after uv.lock deletion merged at 7156b61b; repo no longer tracks the file.
+Changed:
+  - NO code/dependency changes. NO pytest PR opened (would violate documented blocker). Appended dated re-check note to docs/research/PYTEST9_MIGRATION_BLOCKER.md.
+Tests Run: PyPI release queries (greenlet/pytest/pytest-asyncio); Dependabot alerts API (open + closed); git status/rev-parse; dependabot.yml read.
+Verification Evidence: greenlet CHANGES.rst (raw.githubusercontent) shows 3.5.5 = MSVCP140.dll linking only, 3.5.6 "Nothing changed yet"; Dependabot API: 22 uv.lock + 5 real (pytest x4, ecdsa x1) open; both remaining families are documented-blocked with time-limited exceptions to 2026-11-08.
+Risks: Opening pytest-9 PR now would reproduce known segfault and burn CI cycles (and violate the blocker doc's explicit "do not revive #302 blindly"); no action taken. uv.lock alert closure still pending GitHub re-scan.
+Remaining: greenlet guard release -> re-open pytest-9 PR per blocker doc gate; before 2026-11-08 re-justify or remediate pytest + ecdsa exceptions; monitor uv.lock alert auto-close; owner-action items unchanged.
+Next Highest Priority: Wait for greenlet guard release (or owner decision on pytest 9 path); meanwhile verify uv.lock alerts close on GitHub re-scan and close out any remaining non-dependency hardening items.

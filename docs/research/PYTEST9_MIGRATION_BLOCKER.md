@@ -1,5 +1,7 @@
 # PYTEST 9 MIGRATION — BLOCKER (2026-08-10, Cursor remediation closeout)
 
+> **Re-check 2026-08-17 (Freebuff loop):** blocker still stands. PyPI check: greenlet latest = **3.5.5** (2026-08-10) — its only change is static MSVCP140.dll linking into Windows wheels (`CHANGES.rst`), **no NULL-pimpl guard in `green_is_gc`**. 3.5.6 unreleased ("Nothing changed yet"). Go-condition for a new pytest-9 PR ("greenlet >3.5.4 with NULL guard") is **not satisfied**; do not open the PR. pytest exception (GHSA-6w46-j5rx-g56g) stays valid until 2026-11-08. Next re-check trigger: a greenlet release carrying the guard, or owner decision. Dependabot still lists 22 stale uv.lock alerts (re-scan lag after the 2026-08-16 uv.lock deletion merged at `7156b61b`); they are repo-side gone.
+
 **Status: BLOCKED / SUPERSEDED for merge.** Safe official-dependency remediation was **not** achieved. PR #302 (pytest 9 migration) remains unmergeable; main keeps the time-limited pytest exception (expires **2026-11-08**). This document is forensic evidence only — no dependency pins change here.
 
 ## Evidence language (corrected)
