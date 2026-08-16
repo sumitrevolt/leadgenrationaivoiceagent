@@ -127,7 +127,10 @@ def test_admin_nav_and_start_here_lead_with_hot_queue():
     cockpit_idx = nav_block.index('href="/app/delivery-command-center"')
     assert delivery_idx < inbox_idx < cockpit_idx
     start = html.index('id="adminStartHere"')
-    card = html[start : start + 4000]  # 2800→4000: scorecard + next-best-action added before button
+    # Card grew past a char window when marketing ledger tiles were added —
+    # bound to the next card instead of a magic slice length.
+    card_end = html.index('id="manualCallCard"', start)
+    card = html[start:card_end]
     assert 'id="startHereHotQueue"' in card
     btns_start = card.index('class="start-flow-btns"')
     btns = card[btns_start:]
