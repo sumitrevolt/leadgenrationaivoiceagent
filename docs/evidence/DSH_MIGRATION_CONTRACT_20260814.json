@@ -2994,7 +2994,7 @@
       },
       {
         "file": "tests/test_dsh_workforce_runtime.py",
-        "line": 611,
+        "line": 612,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "test_manual_owner_and_scheduler_paths_share_workforce_dispatch",

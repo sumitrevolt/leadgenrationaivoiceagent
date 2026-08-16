@@ -577,6 +577,7 @@ def test_compose_is_internal_nonroot_and_has_no_application_env_file():
     assert "read_only: true" in service
     assert 'user: "65532:65532"' in service
     assert "env_file:" not in service
+    assert "APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}" in service
     assert "internal: true" in compose
 
 

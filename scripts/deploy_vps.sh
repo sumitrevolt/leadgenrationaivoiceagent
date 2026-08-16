@@ -27,8 +27,11 @@ set -uo pipefail
 REPO=/opt/leadgen
 COMPOSE=docker-compose.vps.yml
 # Every service runs the same app image. Only `app` builds it; miss one during
-# recreation and version skew can still occur.
+# recreation and version skew can still occur. DSH worker is a separately built
+# hardened image but shares APP_VERSION provenance and must deploy in lockstep.
 SERVICES="app worker scheduler worker-heavy worker-video"
+DSH_SERVICES="dsh-worker"
+ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"
 DRY_RUN="${DRY_RUN:-0}"
 
 cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
@@ -123,7 +126,7 @@ gate_kill_env_proof "$CANDIDATE_DIR" "$REPO" || {
 # the fetched object database, and the candidate worktree has already proven it
 # is at exactly that commit — so there is no window in which the tag and the
 # tree can disagree.
-echo "=== DEPLOY $VER (services: $SERVICES) ==="
+echo "=== DEPLOY $VER (services: $ALL_ROLLOUT_SERVICES) ==="
 echo "CANDIDATE_SHA=$CANDIDATE_SHA"
 if [ "$(git -C "$CANDIDATE_DIR" rev-parse HEAD)" != "$CANDIDATE_SHA" ]; then
   echo "FATAL: candidate tree drifted from $CANDIDATE_SHA — aborting before build."
@@ -180,7 +183,8 @@ echo "=== BUILD candidate $VER (log: /tmp/deploy_build.log) ==="
 APP_VERSION="$VER" docker compose \
   --project-directory "$CANDIDATE_DIR" \
   -f "$CANDIDATE_DIR/$COMPOSE" \
-  build app > /tmp/deploy_build.log 2>&1
+  --profile dsh \
+  build app $DSH_SERVICES > /tmp/deploy_build.log 2>&1
 BUILD_RC=$?
 echo "BUILD_RC=$BUILD_RC"
 if [ "$BUILD_RC" -ne 0 ]; then
@@ -249,6 +253,7 @@ _legacy_name_for_service() {
     scheduler) echo leadgen_scheduler ;;
     worker-heavy) echo leadgen_worker_heavy ;;
     worker-video) echo leadgen_worker_video ;;
+    dsh-worker) echo leadgen_dsh_worker ;;
     *) echo "" ;;
   esac
 }
@@ -264,7 +269,7 @@ _resolve_compose_container() {
   local img=""
 
   # 1) docker compose ps (honors project name / this COMPOSE file)
-  cid="$(docker compose -f "$COMPOSE" --profile celery ps -q "$svc" 2>/dev/null | awk 'NF { print; exit }')"
+  cid="$(docker compose -f "$COMPOSE" --profile celery --profile dsh ps -q "$svc" 2>/dev/null | awk 'NF { print; exit }')"
   if [ -n "$cid" ]; then
     printf '%s\n' "$cid"
     return 0
@@ -300,8 +305,8 @@ EOF
 
 _compose_up() {
   # shellcheck disable=SC2086
-  APP_VERSION="$VER" docker compose -f "$COMPOSE" --profile celery \
-    up -d --no-deps $SERVICES
+  APP_VERSION="$VER" docker compose -f "$COMPOSE" --profile celery --profile dsh \
+    up -d --no-deps $ALL_ROLLOUT_SERVICES
 }
 
 _cleanup_recreate_ghosts() {
@@ -317,7 +322,7 @@ _cleanup_recreate_ghosts() {
   done
   # Resolve via compose service names (same as skew check) — bare leadgen_* alone
   # misses project-prefixed containers after a failed recreate.
-  for _svc in $SERVICES; do
+  for _svc in $ALL_ROLLOUT_SERVICES; do
     _c="$(_resolve_compose_container "$_svc" || true)"
     [ -z "$_c" ] && _c="$(_legacy_name_for_service "$_svc")"
     [ -z "$_c" ] && continue
@@ -440,7 +445,7 @@ fi
 
 echo "=== SKEW CHECK — every app-image service must report the same sha ==="
 SKEW=0
-for svc in $SERVICES; do
+for svc in $ALL_ROLLOUT_SERVICES; do
   c="$(_resolve_compose_container "$svc" || true)"
   if [ -z "$c" ]; then
     printf '%-16s resolve=MISSING APP_VERSION=<missing>\n' "$svc"

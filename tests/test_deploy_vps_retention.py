@@ -271,7 +271,7 @@ def test_skew_check_uses_service_resolve_not_bare_names_only():
     """RISKS B3: skew must not hardcode leadgen_* as the sole container lookup."""
     t = _text()
     assert "_resolve_compose_container" in t
-    assert "for svc in $SERVICES" in t
+    assert "for svc in $ALL_ROLLOUT_SERVICES" in t
     skew_idx = t.index("=== SKEW CHECK")
     smoke_idx = t.index("=== SMOKE")
     skew = t[skew_idx:smoke_idx]

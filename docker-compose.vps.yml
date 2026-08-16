@@ -430,6 +430,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
       REDIS_URL: redis://redis:6379/0
       DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
       DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
