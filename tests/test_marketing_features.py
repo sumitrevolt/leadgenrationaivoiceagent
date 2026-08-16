@@ -269,3 +269,5 @@ class TestMarketingFeaturesAPI:
         assert any("email-drips/create" in p for p in route_paths)
         assert any("appointments/schedule" in p for p in route_paths)
         assert any("health/score" in p for p in route_paths)
+        assert any("forms/create" in p for p in route_paths)
+        assert any("proposals/generate" in p for p in route_paths)
