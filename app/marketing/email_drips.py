@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -123,13 +123,41 @@ DRIP_TEMPLATES = {
         "name": "New Customer Onboarding",
         "description": "7-step onboarding for newly activated customers",
         "steps": [
-            {"delay_hours": 0, "subject": "Setup complete! 🎉", "body": "{customer_name} ji, aapka setup ho gaya! Dashboard: {dashboard_link}"},
-            {"delay_hours": 24, "subject": "Step 1: Brand details bharo 📝", "body": "Dashboard me jaake brand details update karo."},
-            {"delay_hours": 48, "subject": "Step 2: First content approve karo ✅", "body": "Pehla content package ready hai. Approve karo!"},
-            {"delay_hours": 96, "subject": "Review karo apna calendar 📅", "body": "30-day content calendar ready hai. Dekho!"},
-            {"delay_hours": 168, "subject": "First week report 📊", "body": "Pehla hafta kaisa raha? Report dekho."},
-            {"delay_hours": 240, "subject": "Google reviews badhao ⭐", "body": "Review request automation on karo."},
-            {"delay_hours": 336, "subject": "Month 1 complete! 🚀", "body": "Pehla month complete. Results dekho aur plan karo."},
+            {
+                "delay_hours": 0,
+                "subject": "Setup complete! 🎉",
+                "body": "{customer_name} ji, aapka setup ho gaya! Dashboard: {dashboard_link}",
+            },
+            {
+                "delay_hours": 24,
+                "subject": "Step 1: Brand details bharo 📝",
+                "body": "Dashboard me jaake brand details update karo.",
+            },
+            {
+                "delay_hours": 48,
+                "subject": "Step 2: First content approve karo ✅",
+                "body": "Pehla content package ready hai. Approve karo!",
+            },
+            {
+                "delay_hours": 96,
+                "subject": "Review karo apna calendar 📅",
+                "body": "30-day content calendar ready hai. Dekho!",
+            },
+            {
+                "delay_hours": 168,
+                "subject": "First week report 📊",
+                "body": "Pehla hafta kaisa raha? Report dekho.",
+            },
+            {
+                "delay_hours": 240,
+                "subject": "Google reviews badhao ⭐",
+                "body": "Review request automation on karo.",
+            },
+            {
+                "delay_hours": 336,
+                "subject": "Month 1 complete! 🚀",
+                "body": "Pehla month complete. Results dekho aur plan karo.",
+            },
         ],
     },
 }

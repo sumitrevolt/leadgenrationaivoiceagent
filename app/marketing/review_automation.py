@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -188,9 +188,7 @@ async def start_review_sequence(
         }
 
     seq_id = uuid.uuid4().hex[:12]
-    happy = sentiment_score is None or (
-        isinstance(sentiment_score, int) and sentiment_score >= 4
-    )
+    happy = sentiment_score is None or (isinstance(sentiment_score, int) and sentiment_score >= 4)
 
     # Choose first step based on sentiment
     if happy:
@@ -219,7 +217,9 @@ async def start_review_sequence(
     # Auto-send via WhatsApp (existing integration)
     auto_sent = False
     want_auto = os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() in (
-        "1", "true", "yes",
+        "1",
+        "true",
+        "yes",
     )
     if want_auto and customer_phone:
         try:
@@ -253,10 +253,8 @@ async def start_review_sequence(
         "created_at": _now(),
         "sent_at": _now() if auto_sent else None,
         "next_step_at": (
-            datetime.now(timezone.utc) + timedelta(hours=48)
-        ).isoformat()
-        if happy
-        else None,
+            (datetime.now(timezone.utc) + timedelta(hours=48)).isoformat() if happy else None
+        ),
     }
     _track(rec)
 
@@ -309,7 +307,19 @@ async def handle_reply(
     # Determine reply sentiment (simple keyword-based)
     if reply_sentiment is None:
         lower = reply_text.lower()
-        if any(w in lower for w in ["achha", "great", "good", "badhiya", "excellent", "thanks", "dhanyawad", "shukriya"]):
+        if any(
+            w in lower
+            for w in [
+                "achha",
+                "great",
+                "good",
+                "badhiya",
+                "excellent",
+                "thanks",
+                "dhanyawad",
+                "shukriya",
+            ]
+        ):
             reply_sentiment = 5
         elif any(w in lower for w in ["theek", "ok", "okay", "fine", "accha"]):
             reply_sentiment = 4

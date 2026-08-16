@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -267,22 +267,26 @@ async def generate_proposal(
 
     # Build sections from template
     sections = []
-    for section in (custom_sections or template["sections"]):
+    for section in custom_sections or template["sections"]:
         content = section.get("content", "")
         # Replace variables
         content = content.replace("{client_name}", client_name)
         content = content.replace("{business_name}", business_name)
-        sections.append({
-            "title": section.get("title", ""),
-            "content": content,
-        })
+        sections.append(
+            {
+                "title": section.get("title", ""),
+                "content": content,
+            }
+        )
 
     # Add custom pricing if provided
     if custom_pricing:
-        sections.append({
-            "title": "Custom Pricing",
-            "content": custom_pricing,
-        })
+        sections.append(
+            {
+                "title": "Custom Pricing",
+                "content": custom_pricing,
+            }
+        )
 
     rec = {
         "proposal_id": proposal_id,
@@ -293,9 +297,7 @@ async def generate_proposal(
         "sections": sections,
         "total_sections": len(sections),
         "status": "draft",
-        "valid_until": (
-            datetime.now(timezone.utc) + timedelta(days=validity_days)
-        ).isoformat(),
+        "valid_until": (datetime.now(timezone.utc) + timedelta(days=validity_days)).isoformat(),
         "created_at": _now(),
     }
     _track(rec)

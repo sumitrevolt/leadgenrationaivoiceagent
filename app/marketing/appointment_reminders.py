@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -79,9 +79,7 @@ def _track(rec: dict[str, Any]) -> None:
         logger.debug(f"[appointment_reminders] track skip: {e}")
 
 
-def list_reminders(
-    client_id: str | None = None, limit: int = 100
-) -> list[dict[str, Any]]:
+def list_reminders(client_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     try:
         if os.path.exists(_STORE):
@@ -153,26 +151,32 @@ async def schedule_reminders(
     # Schedule 24h reminder
     reminders_to_send = []
     if appt_dt - now > timedelta(hours=24):
-        reminders_to_send.append({
-            "type": "24h_before",
-            "send_at": (appt_dt - timedelta(hours=24)).isoformat(),
-            "delay_seconds": max(0, int((appt_dt - timedelta(hours=24) - now).total_seconds())),
-        })
+        reminders_to_send.append(
+            {
+                "type": "24h_before",
+                "send_at": (appt_dt - timedelta(hours=24)).isoformat(),
+                "delay_seconds": max(0, int((appt_dt - timedelta(hours=24) - now).total_seconds())),
+            }
+        )
 
     # Schedule 1h reminder
     if appt_dt - now > timedelta(hours=1):
-        reminders_to_send.append({
-            "type": "1h_before",
-            "send_at": (appt_dt - timedelta(hours=1)).isoformat(),
-            "delay_seconds": max(0, int((appt_dt - timedelta(hours=1) - now).total_seconds())),
-        })
+        reminders_to_send.append(
+            {
+                "type": "1h_before",
+                "send_at": (appt_dt - timedelta(hours=1)).isoformat(),
+                "delay_seconds": max(0, int((appt_dt - timedelta(hours=1) - now).total_seconds())),
+            }
+        )
 
     # Schedule post-appointment follow-up (2h after)
-    reminders_to_send.append({
-        "type": "post_appointment",
-        "send_at": (appt_dt + timedelta(hours=2)).isoformat(),
-        "delay_seconds": max(0, int((appt_dt + timedelta(hours=2) - now).total_seconds())),
-    })
+    reminders_to_send.append(
+        {
+            "type": "post_appointment",
+            "send_at": (appt_dt + timedelta(hours=2)).isoformat(),
+            "delay_seconds": max(0, int((appt_dt + timedelta(hours=2) - now).total_seconds())),
+        }
+    )
 
     # Record the sequence
     rec = {
@@ -209,7 +213,9 @@ async def schedule_reminders(
 
         auto_sent = False
         want_auto = os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() in (
-            "1", "true", "yes",
+            "1",
+            "true",
+            "yes",
         )
         if want_auto and customer_phone:
             try:

@@ -57,10 +57,19 @@ FORM_TEMPLATES = {
             {
                 "title": "Kya Chahiye?",
                 "fields": [
-                    {"id": "service", "type": "select", "label": "Kaunsi Service Chahiye",
-                     "options": ["Marketing", "Voice Calling", "Both"], "required": True},
-                    {"id": "message", "type": "textarea", "label": "Apna Sawaal Likho",
-                     "required": False},
+                    {
+                        "id": "service",
+                        "type": "select",
+                        "label": "Kaunsi Service Chahiye",
+                        "options": ["Marketing", "Voice Calling", "Both"],
+                        "required": True,
+                    },
+                    {
+                        "id": "message",
+                        "type": "textarea",
+                        "label": "Apna Sawaal Likho",
+                        "required": False,
+                    },
                 ],
             },
         ],
@@ -73,32 +82,62 @@ FORM_TEMPLATES = {
                 "title": "Basic Info",
                 "fields": [
                     {"id": "name", "type": "text", "label": "Naam", "required": True},
-                    {"id": "business", "type": "text", "label": "Business Ka Naam", "required": True},
+                    {
+                        "id": "business",
+                        "type": "text",
+                        "label": "Business Ka Naam",
+                        "required": True,
+                    },
                     {"id": "phone", "type": "phone", "label": "Phone", "required": True},
                 ],
             },
             {
                 "title": "Business Details",
                 "fields": [
-                    {"id": "niche", "type": "select", "label": "Industry",
-                     "options": ["Salon", "Restaurant", "Clinic", "Gym", "Retail", "Other"],
-                     "required": True},
-                    {"id": "budget", "type": "radio", "label": "Monthly Budget",
-                     "options": ["Under ₹2000", "₹2000-5000", "₹5000-10000", "Above ₹10000"],
-                     "required": True},
-                    {"id": "urgency", "type": "radio", "label": "Kab Chahiye?",
-                     "options": ["Abhi", "Is month", "Next month", "Sirf jaanna hai"],
-                     "required": True},
+                    {
+                        "id": "niche",
+                        "type": "select",
+                        "label": "Industry",
+                        "options": ["Salon", "Restaurant", "Clinic", "Gym", "Retail", "Other"],
+                        "required": True,
+                    },
+                    {
+                        "id": "budget",
+                        "type": "radio",
+                        "label": "Monthly Budget",
+                        "options": ["Under ₹2000", "₹2000-5000", "₹5000-10000", "Above ₹10000"],
+                        "required": True,
+                    },
+                    {
+                        "id": "urgency",
+                        "type": "radio",
+                        "label": "Kab Chahiye?",
+                        "options": ["Abhi", "Is month", "Next month", "Sirf jaanna hai"],
+                        "required": True,
+                    },
                 ],
             },
             {
                 "title": "Expectations",
                 "fields": [
-                    {"id": "goal", "type": "select", "label": "Main Goal",
-                     "options": ["More leads", "More reviews", "Social media growth", "All of these"],
-                     "required": True},
-                    {"id": "rating", "type": "rating", "label": "Current marketing kitna effective hai? (1-5)",
-                     "required": True},
+                    {
+                        "id": "goal",
+                        "type": "select",
+                        "label": "Main Goal",
+                        "options": [
+                            "More leads",
+                            "More reviews",
+                            "Social media growth",
+                            "All of these",
+                        ],
+                        "required": True,
+                    },
+                    {
+                        "id": "rating",
+                        "type": "rating",
+                        "label": "Current marketing kitna effective hai? (1-5)",
+                        "required": True,
+                    },
                 ],
             },
         ],
@@ -110,12 +149,24 @@ FORM_TEMPLATES = {
             {
                 "title": "Feedback",
                 "fields": [
-                    {"id": "nps", "type": "rating", "label": "Aap hume kitna recommend karenge? (1-10)",
-                     "required": True},
-                    {"id": "reason", "type": "textarea", "label": "Reason kya hai?",
-                     "required": False},
-                    {"id": "improve", "type": "textarea", "label": "Kya improve karein?",
-                     "required": False},
+                    {
+                        "id": "nps",
+                        "type": "rating",
+                        "label": "Aap hume kitna recommend karenge? (1-10)",
+                        "required": True,
+                    },
+                    {
+                        "id": "reason",
+                        "type": "textarea",
+                        "label": "Reason kya hai?",
+                        "required": False,
+                    },
+                    {
+                        "id": "improve",
+                        "type": "textarea",
+                        "label": "Kya improve karein?",
+                        "required": False,
+                    },
                 ],
             },
         ],
@@ -127,13 +178,25 @@ FORM_TEMPLATES = {
             {
                 "title": "Experience",
                 "fields": [
-                    {"id": "satisfaction", "type": "rating", "label": "Service kaisi lagi? (1-5)",
-                     "required": True},
-                    {"id": "team", "type": "radio", "label": "Team kaisa tha?",
-                     "options": ["Bahut achha", "Achha", "Theek thaak", "Kharab"],
-                     "required": True},
-                    {"id": "feedback", "type": "textarea", "label": "Kuch aur batana ho to likho",
-                     "required": False},
+                    {
+                        "id": "satisfaction",
+                        "type": "rating",
+                        "label": "Service kaisi lagi? (1-5)",
+                        "required": True,
+                    },
+                    {
+                        "id": "team",
+                        "type": "radio",
+                        "label": "Team kaisa tha?",
+                        "options": ["Bahut achha", "Achha", "Theek thaak", "Kharab"],
+                        "required": True,
+                    },
+                    {
+                        "id": "feedback",
+                        "type": "textarea",
+                        "label": "Kuch aur batana ho to likho",
+                        "required": False,
+                    },
                 ],
             },
         ],
@@ -184,8 +247,9 @@ def list_forms(client_id: str | None = None, limit: int = 100) -> list[dict[str,
     return list(reversed(rows))[:limit]
 
 
-def list_responses(form_id: str | None = None, client_id: str | None = None,
-                   limit: int = 100) -> list[dict[str, Any]]:
+def list_responses(
+    form_id: str | None = None, client_id: str | None = None, limit: int = 100
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     try:
         if os.path.exists(_RESPONSES_STORE):
@@ -215,7 +279,9 @@ def get_form_stats(client_id: str | None = None) -> dict[str, Any]:
         "total_forms": len(forms),
         "active_forms": sum(1 for f in forms if f.get("status") == "active"),
         "total_responses": len(responses),
-        "unique_submitters": len(set(r.get("submitter_phone", "") for r in responses if r.get("submitter_phone"))),
+        "unique_submitters": len(
+            {r.get("submitter_phone", "") for r in responses if r.get("submitter_phone")}
+        ),
     }
 
 
@@ -321,6 +387,7 @@ async def submit_response(
     if submitter_phone or submitter_email:
         try:
             from app.marketing.lead_scoring import score_lead
+
             lead_data = {
                 "name": submitter_name,
                 "phone": submitter_phone,

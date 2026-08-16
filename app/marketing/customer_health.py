@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -27,11 +27,11 @@ _STORE = os.path.join("data", "customer_health.jsonl")
 
 # Scoring weights (total = 100)
 WEIGHTS = {
-    "engagement": 25,       # Dashboard logins, content approvals, interactions
-    "usage": 20,            # Features used, posts scheduled, leads handled
-    "payment": 25,          # On-time payments, subscription status
-    "satisfaction": 15,     # NPS, review sentiment, support tickets
-    "growth": 15,           # Lead volume trend, content performance
+    "engagement": 25,  # Dashboard logins, content approvals, interactions
+    "usage": 20,  # Features used, posts scheduled, leads handled
+    "payment": 25,  # On-time payments, subscription status
+    "satisfaction": 15,  # NPS, review sentiment, support tickets
+    "growth": 15,  # Lead volume trend, content performance
 }
 
 # Thresholds
@@ -89,22 +89,28 @@ def calculate_health_score(
 
     # Engagement score (0-100)
     eng = engagement_data or {}
-    eng_score = min(100, (
-        (eng.get("dashboard_logins_30d", 0) * 10)
-        + (eng.get("content_approvals_30d", 0) * 15)
-        + (eng.get("support_replies_30d", 0) * 5)
-        + (eng.get("last_login_days_ago", 30) * -2)
-    ))
+    eng_score = min(
+        100,
+        (
+            (eng.get("dashboard_logins_30d", 0) * 10)
+            + (eng.get("content_approvals_30d", 0) * 15)
+            + (eng.get("support_replies_30d", 0) * 5)
+            + (eng.get("last_login_days_ago", 30) * -2)
+        ),
+    )
     scores["engagement"] = max(0, min(100, eng_score))
 
     # Usage score (0-100)
     usg = usage_data or {}
-    usg_score = min(100, (
-        (usg.get("posts_created_30d", 0) * 8)
-        + (usg.get("leads_handled_30d", 0) * 3)
-        + (usg.get("features_used", 0) * 10)
-        + (usg.get("api_calls_30d", 0) * 0.5)
-    ))
+    usg_score = min(
+        100,
+        (
+            (usg.get("posts_created_30d", 0) * 8)
+            + (usg.get("leads_handled_30d", 0) * 3)
+            + (usg.get("features_used", 0) * 10)
+            + (usg.get("api_calls_30d", 0) * 0.5)
+        ),
+    )
     scores["usage"] = max(0, min(100, usg_score))
 
     # Payment score (0-100)
@@ -144,9 +150,7 @@ def calculate_health_score(
     scores["growth"] = max(0, min(100, grw_score))
 
     # Weighted total
-    total = sum(
-        scores[k] * WEIGHTS[k] / 100 for k in WEIGHTS if k in scores
-    )
+    total = sum(scores[k] * WEIGHTS[k] / 100 for k in WEIGHTS if k in scores)
     total = max(0, min(100, round(total, 1)))
 
     # Classification
@@ -173,10 +177,12 @@ def calculate_health_score(
 def _build_recommendation(classification: str, scores: dict) -> str:
     """Generate actionable recommendation based on scores."""
     if classification == "healthy":
-        return "Customer healthy hai. Growth opportunities explore karo — upsell ya referral program."
-    
+        return (
+            "Customer healthy hai. Growth opportunities explore karo — upsell ya referral program."
+        )
+
     weakest = min(scores, key=scores.get) if scores else "engagement"
-    
+
     recs = {
         "engagement": "Customer kam engage ho raha hai. Personal outreach karo — call ya WhatsApp pe check karo.",
         "usage": "Features kaam me nahi aa rahe. Training session offer karo ya quick walkthrough bhejo.",
@@ -184,7 +190,7 @@ def _build_recommendation(classification: str, scores: dict) -> str:
         "satisfaction": "Customer khush nahi hai. NPS survey bhejo ya personal call karo feedback lene.",
         "growth": "Growth ruk gaya hai. Naya content plan ya campaign proposal do.",
     }
-    
+
     return recs.get(weakest, "Customer ko personally reach out karo.")
 
 
@@ -211,6 +217,7 @@ async def record_health(
     if result["classification"] == "critical":
         try:
             from app.utils.logger import setup_logger
+
             logger.warning(
                 f"[customer_health] CRITICAL health for {client_id}: "
                 f"score={result['total_score']}, recommendation={result['recommendation']}"
@@ -255,9 +262,7 @@ def get_health_summary() -> dict[str, Any]:
     healthy = sum(1 for r in records if r.get("classification") == "healthy")
     at_risk = sum(1 for r in records if r.get("classification") == "at_risk")
     critical = sum(1 for r in records if r.get("classification") == "critical")
-    avg_score = (
-        sum(r.get("total_score", 0) for r in records) / total if total > 0 else 0
-    )
+    avg_score = sum(r.get("total_score", 0) for r in records) / total if total > 0 else 0
 
     return {
         "total_clients": total,
