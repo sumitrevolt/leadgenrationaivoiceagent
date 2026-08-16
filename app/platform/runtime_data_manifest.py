@@ -735,7 +735,7 @@ STORES: list[dict[str, Any]] = [
         # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="27.9 MB and growing daily; needs a retention decision, " "not just relocation",
+        evidence="27.9 MB and growing daily; needs a retention decision, not just relocation",
     ),
     _e(
         store_id="automation.cadence_runs",

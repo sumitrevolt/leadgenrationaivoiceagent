@@ -1214,7 +1214,7 @@ try:
         marketing_features_router
     )  # /api/marketing-features/* -- Review automation, email drips, appointment reminders, customer health
 except Exception as _e:  # pragma: no cover
-    logger.warning('Marketing features router not mounted: ' + str(_e))
+    logger.warning("Marketing features router not mounted: " + str(_e))
 try:
     from app.api.coordination_hub import router as coordination_hub_router
 
