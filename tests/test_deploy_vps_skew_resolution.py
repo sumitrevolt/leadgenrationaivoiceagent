@@ -30,7 +30,7 @@ def _skew_block() -> str:
 
 def test_skew_iterates_compose_services_not_bare_container_names():
     skew = _skew_block()
-    assert "for svc in $SERVICES" in skew
+    assert "for svc in $ALL_ROLLOUT_SERVICES" in skew
     assert "for c in leadgen_app" not in skew
     assert "leadgen_worker_heavy" not in skew
     assert "leadgen_worker_video" not in skew
@@ -50,7 +50,7 @@ def test_resolver_prefers_compose_ps_and_service_label():
     start = t.index("_resolve_compose_container() {")
     end = t.index("\n}\n", start)
     body = t[start:end]
-    assert 'docker compose -f "$COMPOSE" --profile celery ps -q' in body
+    assert 'docker compose -f "$COMPOSE" --profile celery --profile dsh ps -q' in body
     assert "com.docker.compose.service=" in body
     # legacy bare names are fallback only (inside helper), not the sole path
     assert "_legacy_name_for_service" in body
@@ -72,12 +72,25 @@ def test_skew_also_checks_image_tag_against_app_version():
     assert '*:"$VER"' in skew
 
 
+def test_dsh_worker_is_built_recreated_and_skew_checked():
+    t = _text()
+    assert "--profile dsh" in t
+    assert "build app $DSH_SERVICES" in t
+    assert "up -d --no-deps $ALL_ROLLOUT_SERVICES" in t
+    skew = _skew_block()
+    assert "for svc in $ALL_ROLLOUT_SERVICES" in skew
+    resolver_start = t.index("_legacy_name_for_service() {")
+    resolver_end = t.index("\n}\n", resolver_start)
+    resolver = t[resolver_start:resolver_end]
+    assert "dsh-worker) echo leadgen_dsh_worker ;;" in resolver
+
+
 def test_cleanup_ghosts_also_uses_compose_service_resolve():
     t = _text()
     start = t.index("_cleanup_recreate_ghosts() {")
     end = t.index("\n}\n", start)
     body = t[start:end]
-    assert "for _svc in $SERVICES" in body
+    assert "for _svc in $ALL_ROLLOUT_SERVICES" in body
     assert "_resolve_compose_container" in body
     assert "for _c in leadgen_app" not in body
 
@@ -86,6 +99,8 @@ def test_safety_invariants_still_present():
     t = _text()
     assert "set -uo pipefail" in t
     assert 'SERVICES="app worker scheduler worker-heavy worker-video"' in t
+    assert 'DSH_SERVICES="dsh-worker"' in t
+    assert 'ALL_ROLLOUT_SERVICES="$SERVICES $DSH_SERVICES"' in t
     # APP_VERSION mandatory / latest refusal
     assert "refusing to deploy with APP_VERSION=" in t
     assert "provenance-less tag" in t or "ADR-097" in t
