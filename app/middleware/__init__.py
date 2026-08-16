@@ -135,13 +135,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # web-call demo (/app/test-call) records the caller's voice.
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
 
-        # Dashboards, revenue funnel + SW: browser/SW stale HTML cache se bachao.
-        # Pricing/start par stale CTA seedha paid conversion ko block karta hai.
+        # Dashboards, conversion funnel + SW: browser/SW stale HTML cache se bachao.
+        # Landing/audit/pricing/start par stale CTA seedha paid conversion ko block karta hai.
         try:
             path = request.url.path or ""
-            if request.method == "GET" and (
-                path.startswith("/app/") or path in ("/pricing", "/start", "/sw.js")
-            ):
+            conversion_pages = (
+                "/",
+                "/index.html",
+                "/audit",
+                "/site-audit",
+                "/demo",
+                "/pricing",
+                "/start",
+                "/sw.js",
+            )
+            if request.method == "GET" and (path.startswith("/app/") or path in conversion_pages):
                 response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
                 response.headers["Pragma"] = "no-cache"
         except (AttributeError, TypeError) as _e:

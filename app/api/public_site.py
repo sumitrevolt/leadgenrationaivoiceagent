@@ -501,6 +501,7 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         "message": ((body.message or "").strip()[:1000] or None),
         "package": ((body.package or "").strip()[:40] or None),
         "preferred_time": ((body.preferred_time or "").strip()[:80] or None),
+        "utm_source": ((body.utm_source or "").strip().lower()[:80] or None),
         "source_slug": source_slug,
         "client_id": mini_client_id,
         "source": "mini_site" if source_slug else "website",
@@ -508,8 +509,9 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     }
 
     # 4) File FIRST (never-lose guarantee), phir DB best-effort.
-    stored_file = _append_jsonl(rec)
-    lead_id = _save_lead_db(rec)
+    # JSONL/SQLite writes are synchronous; keep them off the ASGI event loop.
+    stored_file = await asyncio.to_thread(_append_jsonl, rec)
+    lead_id = await asyncio.to_thread(_save_lead_db, rec)
     if lead_id:
         rec["lead_id"] = lead_id
     if not stored_file and not lead_id:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,16 @@ FIXTURE_CONTRACT = ROOT / "tests" / "fixtures" / "dsh_migration_contract.json"
 
 def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def _generated_contract() -> dict:
+    return build_contract()
+
+
+@lru_cache(maxsize=1)
+def _rendered_contract() -> dict:
+    return json.loads(render_contract_json())
 
 
 @pytest.fixture()
@@ -30,8 +41,8 @@ def isolated_runtime_capabilities():
 
 
 def test_contract_is_deterministic_and_matches_committed_outputs(isolated_runtime_capabilities):
-    generated = build_contract()
-    rendered = json.loads(render_contract_json())
+    generated = _generated_contract()
+    rendered = _rendered_contract()
     doc_contract = _load_json(DOC_CONTRACT)
     fixture_contract = _load_json(FIXTURE_CONTRACT)
 
@@ -40,7 +51,7 @@ def test_contract_is_deterministic_and_matches_committed_outputs(isolated_runtim
 
 
 def test_contract_counts_and_frozen_voice_posture(isolated_runtime_capabilities):
-    contract = build_contract()
+    contract = _generated_contract()
     rows = contract["matrix"]
     by_id = {row["agent_id"]: row for row in rows}
 
@@ -64,7 +75,7 @@ def test_contract_counts_and_frozen_voice_posture(isolated_runtime_capabilities)
 
 
 def test_runtime_baseline_and_api_contract_are_non_empty_and_stable(isolated_runtime_capabilities):
-    contract = build_contract()
+    contract = _generated_contract()
     baseline = contract["runtime_baseline"]
 
     assert baseline["module_level_imports"]
@@ -121,7 +132,7 @@ def test_runtime_baseline_and_api_contract_are_non_empty_and_stable(isolated_run
 
 
 def test_contract_contains_no_secret_values_or_absolute_paths(isolated_runtime_capabilities):
-    payload = render_contract_json().lower()
+    payload = json.dumps(_rendered_contract(), ensure_ascii=False).lower()
 
     assert "postgres://" not in payload
     assert "postgresql://" not in payload

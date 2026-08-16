@@ -25,6 +25,12 @@ def _empty_beats(tmp_path, monkeypatch):
     monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
     with open(ah._BEATS(), "w", encoding="utf-8") as f:
         json.dump({}, f)
+    monkeypatch.setattr(
+        ah,
+        "engine_skip_summary",
+        lambda hours=48: {"total": 0, "by_engine": {}, "by_job": {}, "latest": []},
+    )
+    monkeypatch.setattr(ah, "stale_outputs", lambda: [])
 
 
 def test_dead_tasks_present_marks_degraded_even_with_no_backlog(tmp_path, monkeypatch):

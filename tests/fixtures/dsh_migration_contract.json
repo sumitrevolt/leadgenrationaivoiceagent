@@ -1343,7 +1343,7 @@
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "scripts/generate_dsh_migration_contract.py",
-        "line": 38,
+        "line": 39,
         "scope": "_load_modules"
       },
       {
@@ -2483,19 +2483,19 @@
       {
         "call": "app.platform.agent_runtime._CAPABILITIES.clear",
         "file": "tests/test_dsh_migration_contract.py",
-        "line": 24,
+        "line": 35,
         "scope": "isolated_runtime_capabilities"
       },
       {
         "call": "app.platform.agent_runtime._CAPABILITIES.clear",
         "file": "tests/test_dsh_migration_contract.py",
-        "line": 28,
+        "line": 39,
         "scope": "isolated_runtime_capabilities"
       },
       {
         "call": "app.platform.agent_runtime._CAPABILITIES.update",
         "file": "tests/test_dsh_migration_contract.py",
-        "line": 29,
+        "line": 40,
         "scope": "isolated_runtime_capabilities"
       },
       {
@@ -2946,7 +2946,7 @@
       },
       {
         "file": "scripts/generate_dsh_migration_contract.py",
-        "line": 35,
+        "line": 36,
         "local_name": "rt",
         "module": "app.platform.agent_runtime",
         "scope": "_load_modules",
@@ -2954,7 +2954,7 @@
       },
       {
         "file": "scripts/generate_dsh_migration_contract.py",
-        "line": 36,
+        "line": 37,
         "local_name": "wf",
         "module": "app.platform.agent_runtime_workforce",
         "scope": "_load_modules",
@@ -2970,7 +2970,7 @@
       },
       {
         "file": "tests/test_dsh_migration_contract.py",
-        "line": 21,
+        "line": 32,
         "local_name": "rt",
         "module": "app.platform.agent_runtime",
         "scope": "isolated_runtime_capabilities",

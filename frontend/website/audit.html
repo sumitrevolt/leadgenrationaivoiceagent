@@ -284,6 +284,16 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4500);
   }
 
+  async function fetchWithTimeout(url, opt, timeoutMs){
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs || 8000);
+    try {
+      return await fetch(url, Object.assign({}, opt || {}, { signal: ctrl.signal }));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // ---------------- Quiz state ----------------
   let QUESTIONS = [];
   let idx = 0;
@@ -299,7 +309,7 @@
     qbody.style.display = 'none';
     qerror.style.display = 'none';
     try {
-      const res = await fetch('/api/public/audit/questions');
+      const res = await fetchWithTimeout('/api/public/audit/questions', {}, 8000);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       QUESTIONS = (data && data.questions) || [];
@@ -369,11 +379,11 @@
     document.getElementById('opts').innerHTML = '<div class="qload"><span class="spin"></span></div>';
     try {
       const tok = window.turnstileToken ? await window.turnstileToken() : "";
-      const res = await fetch('/api/public/audit/score', {
+      const res = await fetchWithTimeout('/api/public/audit/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
         body: JSON.stringify({ answers })
-      });
+      }, 10000);
       if (res.status === 429) { showToast('Thoda ruk ke dobara try karo ⏳'); renderQ(); return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
@@ -489,16 +499,17 @@
     btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
     try {
       const tok = window.turnstileToken ? await window.turnstileToken() : "";
-      const res = await fetch('/api/public/inquiry', {
+      const res = await fetchWithTimeout('/api/public/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
         body: JSON.stringify({
           name, business_name: biz, phone,
           package: 'Free Audit Lead',
+          utm_source: 'audit',
           message: lastScore !== null ? ('GBP audit score: ' + lastScore + '/100 — /audit page se') : 'GBP audit page se',
           website: document.getElementById('a-website').value || ''
         })
-      });
+      }, 10000);
       if (res.status === 429) { showToast('Thoda ruk ke dobara try karo ⏳'); btn.disabled = false; btn.textContent = OLD; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
