@@ -2248,3 +2248,15 @@ Verification Evidence: greenlet CHANGES.rst (raw.githubusercontent) shows 3.5.5 
 Risks: Opening pytest-9 PR now would reproduce known segfault and burn CI cycles (and violate the blocker doc's explicit "do not revive #302 blindly"); no action taken. uv.lock alert closure still pending GitHub re-scan.
 Remaining: greenlet guard release -> re-open pytest-9 PR per blocker doc gate; before 2026-11-08 re-justify or remediate pytest + ecdsa exceptions; monitor uv.lock alert auto-close; owner-action items unchanged.
 Next Highest Priority: Wait for greenlet guard release (or owner decision on pytest 9 path); meanwhile verify uv.lock alerts close on GitHub re-scan and close out any remaining non-dependency hardening items.
+
+## Loop Run — 2026-08-17 — DSH configured Celery enqueue fix
+
+- Goal: Fix production DSH authority canary enqueue failure while preserving rollback/direct-default posture.
+- Inspected: mandatory context, current repo/origin/PRs/CI, prod /health twice, service pins, flags, Redis queues/DLQs, DSH runtime dispatch/run_store/tasks, plugin/automation readiness suites.
+- Problems Found: Prod DSH canary failed before worker execution with `enqueue_failed:OperationalError`; direct trace showed `run_dsh_workforce.apply_async` using Celery default AMQP broker (localhost:5672 refused) because DSH tasks were registered with `@shared_task` instead of the configured app broker `redis://redis:6379/0`.
+- Changed: Bound DSH orchestration tasks to `app.worker.celery_app`, added regression asserting both DSH tasks use the configured Celery app/broker, regenerated deterministic DSH supply-chain static evidence hash.
+- Tests Run: `.venv\Scripts\python.exe -m pytest tests/test_dsh_workforce_runtime.py tests/test_dsh_shadow_evidence_gate.py tests/test_agent_runtime_distributed_cancellation.py tests/test_agent_runtime_cancellation_store.py tests/test_dsh_supply_chain.py -q` = 60 passed; adjacent readiness pytest = 92 passed; `.venv\Scripts\python.exe scripts\prod_check.py` = PASS; `.venv\Scripts\python.exe scripts\check_secrets.py` = PASS; `git diff --check` = PASS.
+- Verification Evidence: Prod pre-fix /health healthy at version 7156b61b; DSH allowlist count=29, runtime/shadow default OFF, DSH worker healthy, Redis celery/dlq/dsh queues 0; pre-fix controlled DSH authority canary reproduced OperationalError and no DLQ growth.
+- Risks: DSH runtime remains OFF by default; code deploy can fix queue submission but DSH green authority canary must be rerun after exact-SHA deploy before claiming operational DSH execution.
+- Remaining: Commit/PR/merge/deploy exact SHA; rerun production DSH canary including wildcard fail-closed, frozen Swara direct, adversarial refusal, idempotent retry, rollback direct.
+- Next Highest Priority: Deploy DSH broker-binding fix and prove canaries without enabling persistent DSH runtime flags.

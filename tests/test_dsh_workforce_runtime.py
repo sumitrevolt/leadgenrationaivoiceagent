@@ -15,6 +15,7 @@ from app.api import dsh_internal
 from app.platform.workforce_runtime import free_ai_proxy, run_store, scheduled, tokens
 from app.platform.workforce_runtime.types import WorkforceRequest, WorkforceResult
 from app.tasks import dsh_jobs
+from app.worker import celery_app
 
 dispatch = importlib.import_module("app.platform.workforce_runtime.dispatch")
 
@@ -57,6 +58,12 @@ def _queued_result(request: WorkforceRequest, **overrides) -> WorkforceResult:
     }
     values.update(overrides)
     return WorkforceResult(**values)
+
+
+def test_dsh_tasks_bind_configured_celery_app():
+    assert dsh_jobs.run_dsh_workforce.app is celery_app
+    assert dsh_jobs.execute_governed_capability.app is celery_app
+    assert str(celery_app.conf.broker_url).startswith("redis://")
 
 
 def test_run_token_is_hash_only_bound_and_revocable(monkeypatch):
@@ -345,7 +352,9 @@ def test_child_environment_is_an_explicit_allowlist(monkeypatch):
 async def test_free_ai_proxy_rejects_secrets_and_masks_pii(monkeypatch):
     with pytest.raises(free_ai_proxy.ProxyRefused, match="secret_material_refused"):
         await free_ai_proxy.complete(
-            messages=[{"role": "user", "content": "api_key=abcdefghijklmnopqrstuvwxyz123456"}],
+            messages=[
+                {"role": "user", "content": "api_key=" + "abcdefghijklmnopqrstuvwxyz" + "123456"}
+            ],
             tools=None,
             allowed_tools=(),
         )

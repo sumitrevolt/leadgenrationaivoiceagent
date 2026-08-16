@@ -11,10 +11,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from celery import shared_task
-
 from app.platform.safe_ai_payload import SafePayloadError, mask_customer_data, validate_no_secrets
 from app.platform.workforce_runtime import run_store, tokens
+from app.worker import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -349,7 +348,7 @@ async def _run_jsonrpc(run: dict[str, Any]) -> dict[str, Any]:
                 stderr_task.cancel()
 
 
-@shared_task(
+@celery_app.task(
     name="app.tasks.dsh_jobs.run_dsh_workforce",
     bind=True,
     acks_late=True,
@@ -402,7 +401,7 @@ def run_dsh_workforce(self, run_id: str) -> dict[str, Any]:
         return {"ok": False, "run_id": run_id, "status": status, "reason": reason}
 
 
-@shared_task(
+@celery_app.task(
     name="app.tasks.dsh_jobs.execute_governed_capability",
     bind=True,
     acks_late=True,
