@@ -255,3 +255,132 @@ async def health_summary(_user=Depends(require_admin)):
     """Aggregate health summary."""
     from app.marketing.customer_health import get_health_summary
     return get_health_summary()
+
+
+# ─── Form/Survey Builder ─────────────────────────────────────────
+
+class FormCreateIn(BaseModel):
+    client_id: str
+    name: str
+    steps: list[dict]
+    description: str = ""
+    settings: dict | None = None
+
+
+class FormTemplateIn(BaseModel):
+    client_id: str
+    template_id: str
+    customizations: dict | None = None
+
+
+class FormResponseIn(BaseModel):
+    form_id: str
+    client_id: str
+    answers: dict
+    submitter_name: str = ""
+    submitter_phone: str = ""
+    submitter_email: str = ""
+
+
+@router.post("/forms/create")
+async def create_form_endpoint(body: FormCreateIn, _user=Depends(require_admin)):
+    """Create a new form/survey."""
+    from app.marketing.form_builder import create_form
+    return await create_form(
+        client_id=body.client_id, name=body.name, steps=body.steps,
+        description=body.description, settings=body.settings,
+    )
+
+
+@router.post("/forms/create-from-template")
+async def create_form_from_template(body: FormTemplateIn, _user=Depends(require_admin)):
+    """Create a form from a pre-built template."""
+    from app.marketing.form_builder import create_from_template
+    return await create_from_template(
+        client_id=body.client_id, template_id=body.template_id,
+        customizations=body.customizations,
+    )
+
+
+@router.post("/forms/submit")
+async def submit_form(body: FormResponseIn, _user=Depends(require_admin)):
+    """Submit a form response."""
+    from app.marketing.form_builder import submit_response
+    return await submit_response(
+        form_id=body.form_id, client_id=body.client_id, answers=body.answers,
+        submitter_name=body.submitter_name, submitter_phone=body.submitter_phone,
+        submitter_email=body.submitter_email,
+    )
+
+
+@router.get("/forms/list")
+async def list_forms_endpoint(client_id: str | None = None, _user=Depends(require_admin)):
+    """List forms."""
+    from app.marketing.form_builder import list_forms
+    return {"forms": list_forms(client_id)}
+
+
+@router.get("/forms/stats")
+async def form_stats(client_id: str | None = None, _user=Depends(require_admin)):
+    """Form statistics."""
+    from app.marketing.form_builder import get_form_stats
+    return get_form_stats(client_id)
+
+
+@router.get("/forms/templates")
+async def form_templates(_user=Depends(require_admin)):
+    """Available form templates."""
+    from app.marketing.form_builder import get_templates
+    return {"templates": get_templates()}
+
+
+# ─── Proposal/Quote Builder ───────────────────────────────────────
+
+class ProposalGenIn(BaseModel):
+    client_id: str
+    business_name: str
+    client_name: str
+    template_id: str = "marketing_starter"
+    custom_sections: list[dict] | None = None
+    custom_pricing: str = ""
+    validity_days: int = 30
+
+
+@router.post("/proposals/generate")
+async def generate_proposal_endpoint(body: ProposalGenIn, _user=Depends(require_admin)):
+    """Generate a proposal from template."""
+    from app.marketing.proposal_builder import generate_proposal
+    return await generate_proposal(
+        client_id=body.client_id, business_name=body.business_name,
+        client_name=body.client_name, template_id=body.template_id,
+        custom_sections=body.custom_sections, custom_pricing=body.custom_pricing,
+        validity_days=body.validity_days,
+    )
+
+
+@router.post("/proposals/{proposal_id}/status")
+async def update_proposal_status(proposal_id: str, status: str, _user=Depends(require_admin)):
+    """Update proposal status (draft/sent/accepted/expired/declined)."""
+    from app.marketing.proposal_builder import update_proposal_status
+    return await update_proposal_status(proposal_id, status)
+
+
+@router.get("/proposals/list")
+async def list_proposals_endpoint(client_id: str | None = None, _user=Depends(require_admin)):
+    """List proposals."""
+    from app.marketing.proposal_builder import list_proposals
+    return {"proposals": list_proposals(client_id)}
+
+
+@router.get("/proposals/stats")
+async def proposal_stats(client_id: str | None = None, _user=Depends(require_admin)):
+    """Proposal statistics."""
+    from app.marketing.proposal_builder import get_proposal_stats
+    return get_proposal_stats(client_id)
+
+
+@router.get("/proposals/templates")
+async def proposal_templates(_user=Depends(require_admin)):
+    """Available proposal templates."""
+    from app.marketing.proposal_builder import get_templates
+    return {"templates": get_templates()}

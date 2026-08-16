@@ -269,3 +269,151 @@ class TestMarketingFeaturesAPI:
         assert any("email-drips/create" in p for p in route_paths)
         assert any("appointments/schedule" in p for p in route_paths)
         assert any("health/score" in p for p in route_paths)
+
+
+# ─── Form/Survey Builder ──────────────────────────────────────────
+
+
+class TestFormBuilder:
+    def test_import(self):
+        from app.marketing.form_builder import create_form
+        assert callable(create_form)
+
+    def test_templates_exist(self):
+        from app.marketing.form_builder import get_templates
+        templates = get_templates()
+        assert len(templates) >= 3
+        ids = [t["id"] for t in templates]
+        assert "contact_us" in ids
+        assert "lead_qualification" in ids
+
+    def test_field_types(self):
+        from app.marketing.form_builder import FIELD_TYPES
+        assert "text" in FIELD_TYPES
+        assert "email" in FIELD_TYPES
+        assert "phone" in FIELD_TYPES
+        assert "rating" in FIELD_TYPES
+
+    def test_list_forms_empty(self, tmp_path, monkeypatch):
+        from app.marketing import form_builder
+        monkeypatch.setattr(form_builder, "_FORMS_STORE", str(tmp_path / "forms.jsonl"))
+        monkeypatch.setattr(form_builder, "_RESPONSES_STORE", str(tmp_path / "responses.jsonl"))
+        result = form_builder.list_forms("c1")
+        assert result == []
+
+    def test_stats_empty(self, tmp_path, monkeypatch):
+        from app.marketing import form_builder
+        monkeypatch.setattr(form_builder, "_FORMS_STORE", str(tmp_path / "forms.jsonl"))
+        monkeypatch.setattr(form_builder, "_RESPONSES_STORE", str(tmp_path / "responses.jsonl"))
+        stats = form_builder.get_form_stats("c1")
+        assert stats["total_forms"] == 0
+
+    @pytest.mark.asyncio
+    async def test_create_form(self, tmp_path, monkeypatch):
+        from app.marketing import form_builder
+        monkeypatch.setattr(form_builder, "_FORMS_STORE", str(tmp_path / "forms.jsonl"))
+        monkeypatch.setattr(form_builder, "_RESPONSES_STORE", str(tmp_path / "responses.jsonl"))
+        result = await form_builder.create_form(
+            client_id="c1",
+            name="Test Form",
+            steps=[{"title": "Step 1", "fields": [{"id": "name", "type": "text", "label": "Name", "required": True}]}],
+        )
+        assert result["ok"] is True
+        assert result["total_fields"] == 1
+
+    @pytest.mark.asyncio
+    async def test_create_from_template(self, tmp_path, monkeypatch):
+        from app.marketing import form_builder
+        monkeypatch.setattr(form_builder, "_FORMS_STORE", str(tmp_path / "forms.jsonl"))
+        monkeypatch.setattr(form_builder, "_RESPONSES_STORE", str(tmp_path / "responses.jsonl"))
+        result = await form_builder.create_from_template("c1", "contact_us")
+        assert result["ok"] is True
+        assert result["total_steps"] >= 2
+
+    @pytest.mark.asyncio
+    async def test_submit_response(self, tmp_path, monkeypatch):
+        from app.marketing import form_builder
+        monkeypatch.setattr(form_builder, "_FORMS_STORE", str(tmp_path / "forms.jsonl"))
+        monkeypatch.setattr(form_builder, "_RESPONSES_STORE", str(tmp_path / "responses.jsonl"))
+        create_result = await form_builder.create_form(
+            client_id="c1", name="Test", steps=[{"title": "S1", "fields": [{"id": "q1", "type": "text"}]}]
+        )
+        result = await form_builder.submit_response(
+            form_id=create_result["form_id"], client_id="c1",
+            answers={"q1": "Answer"}, submitter_name="Ravi",
+        )
+        assert result["ok"] is True
+        assert result["answers_count"] == 1
+
+
+# ─── Proposal/Quote Builder ───────────────────────────────────────
+
+
+class TestProposalBuilder:
+    def test_import(self):
+        from app.marketing.proposal_builder import generate_proposal
+        assert callable(generate_proposal)
+
+    def test_templates_exist(self):
+        from app.marketing.proposal_builder import get_templates
+        templates = get_templates()
+        assert len(templates) >= 3
+        ids = [t["id"] for t in templates]
+        assert "marketing_starter" in ids
+        assert "marketing_advanced" in ids
+        assert "voice_only" in ids
+
+    def test_list_proposals_empty(self, tmp_path, monkeypatch):
+        from app.marketing import proposal_builder
+        monkeypatch.setattr(proposal_builder, "_STORE", str(tmp_path / "proposals.jsonl"))
+        result = proposal_builder.list_proposals("c1")
+        assert result == []
+
+    def test_stats_empty(self, tmp_path, monkeypatch):
+        from app.marketing import proposal_builder
+        monkeypatch.setattr(proposal_builder, "_STORE", str(tmp_path / "proposals.jsonl"))
+        stats = proposal_builder.get_proposal_stats("c1")
+        assert stats["total_proposals"] == 0
+
+    @pytest.mark.asyncio
+    async def test_generate_proposal(self, tmp_path, monkeypatch):
+        from app.marketing import proposal_builder
+        monkeypatch.setattr(proposal_builder, "_STORE", str(tmp_path / "proposals.jsonl"))
+        result = await proposal_builder.generate_proposal(
+            client_id="c1", business_name="Sharma Salon", client_name="Ravi",
+            template_id="marketing_starter",
+        )
+        assert result["ok"] is True
+        assert result["total_sections"] >= 4
+        assert result["status"] == "draft"
+
+    @pytest.mark.asyncio
+    async def test_update_proposal_status(self, tmp_path, monkeypatch):
+        from app.marketing import proposal_builder
+        monkeypatch.setattr(proposal_builder, "_STORE", str(tmp_path / "proposals.jsonl"))
+        gen = await proposal_builder.generate_proposal(
+            client_id="c1", business_name="Test", client_name="Ravi",
+        )
+        result = await proposal_builder.update_proposal_status(gen["proposal_id"], "sent")
+        assert result["ok"] is True
+        assert result["status"] == "sent"
+
+    @pytest.mark.asyncio
+    async def test_invalid_status(self, tmp_path, monkeypatch):
+        from app.marketing import proposal_builder
+        monkeypatch.setattr(proposal_builder, "_STORE", str(tmp_path / "proposals.jsonl"))
+        result = await proposal_builder.update_proposal_status("fake", "invalid_status")
+        assert result["ok"] is False
+
+    def test_render_html(self):
+        from app.marketing.proposal_builder import render_proposal_html
+        html = render_proposal_html({
+            "business_name": "Sharma Salon",
+            "client_name": "Ravi",
+            "created_at": "2026-08-16T00:00:00",
+            "valid_until": "2026-09-16T00:00:00",
+            "sections": [{"title": "Test", "content": "Hello World"}],
+        })
+        assert "Sharma Salon" in html
+        assert "Hello World" in html
+        assert "<html" in html
