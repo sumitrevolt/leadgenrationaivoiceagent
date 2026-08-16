@@ -24,7 +24,14 @@ def test_public_pages_render_200(client, path):
     assert r.content, f"{path} returned empty body"
 
 
-def test_lead_capture_inquiry_accepts_valid(client):
+def test_lead_capture_inquiry_accepts_valid(client, monkeypatch):
+    import app.platform.inquiry_hooks as hooks
+
+    async def _noop_run_after_inquiry(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(hooks, "run_after_inquiry", _noop_run_after_inquiry)
+
     r = client.post(
         "/api/public/inquiry",
         json={
@@ -38,6 +45,91 @@ def test_lead_capture_inquiry_accepts_valid(client):
     assert r.status_code == 200, r.text
     # Endpoint is file-first never-lose; just assert a non-empty JSON ack.
     assert r.json()
+
+
+def test_lead_capture_preserves_utm_source(client, monkeypatch):
+    """Audit/landing attribution must survive into the durable inquiry record."""
+    import app.api.public_site as ps
+
+    captured: dict = {}
+
+    def _fake_append(rec):
+        captured.update(rec)
+        return True
+
+    monkeypatch.setattr(ps, "_append_jsonl", _fake_append)
+    monkeypatch.setattr(ps, "_save_lead_db", lambda rec: None)
+    import app.platform.inquiry_hooks as hooks
+
+    async def _noop_run_after_inquiry(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(hooks, "run_after_inquiry", _noop_run_after_inquiry)
+
+    r = client.post(
+        "/api/public/inquiry",
+        json={
+            "name": "Audit Owner",
+            "business_name": "Audit Biz",
+            "phone": "9876543210",
+            "message": "Audit score lead",
+            "utm_source": "Audit",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert captured["utm_source"] == "audit"
+
+
+def test_homepage_avoids_lucide_runtime():
+    """Landing page should not ship a 350KB icon runtime for six feature icons."""
+    import pathlib
+
+    html = pathlib.Path("frontend/website/index.html").read_text(encoding="utf-8")
+    assert "/design-system/vendor/lucide.min.js" not in html
+    assert "data-lucide" not in html
+
+
+def test_audit_page_uses_bounded_fetches():
+    """Lead magnet must not stay forever stuck on slow network/API calls."""
+    import pathlib
+
+    html = pathlib.Path("frontend/website/audit.html").read_text(encoding="utf-8")
+    assert "function fetchWithTimeout" in html
+    assert "fetchWithTimeout('/api/public/audit/questions'" in html
+    assert "fetchWithTimeout('/api/public/audit/score'" in html
+    assert "fetchWithTimeout('/api/public/inquiry'" in html
+    assert "utm_source: 'audit'" in html
+
+
+def test_design_system_stylesheet_is_bundled():
+    """Public pages should not pay serial render-blocking @import RTTs."""
+    import pathlib
+
+    css = pathlib.Path("frontend/design-system/styles.css").read_text(encoding="utf-8")
+    assert "@import" not in css
+    assert "--indigo-600" in css
+    assert "font-family: 'Inter'" in css
+    assert "./tokens/fonts/inter.woff2" in css
+
+
+def test_public_inquiry_offloads_sync_persistence_and_hooks():
+    """Revenue form must avoid sync file/DB/hook work on the ASGI event loop."""
+    import pathlib
+
+    src = pathlib.Path("app/api/public_site.py").read_text(encoding="utf-8")
+    assert "await asyncio.to_thread(_append_jsonl, rec)" in src
+    assert "await asyncio.to_thread(_save_lead_db, rec)" in src
+    assert "await run_after_inquiry(" in src
+    assert "from app.platform.inquiry_hooks import run_after_inquiry" in src
+
+
+def test_upi_submit_offloads_blocking_store_work():
+    """Checkout path should not run JSON-store writes directly on event loop."""
+    import pathlib
+
+    upi = pathlib.Path("app/api/upi_payments.py").read_text(encoding="utf-8")
+    assert "res = await asyncio.to_thread(" in upi
+    assert "upi_payments.submit_payment" in upi
 
 
 def test_lead_capture_honeypot_stays_ban_safe(client):

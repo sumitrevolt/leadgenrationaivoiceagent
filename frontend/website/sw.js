@@ -1,8 +1,8 @@
 // LeadGen AI — Service Worker
 // Public marketing shell = cache-first. App + revenue pages = network-only (never stale).
-const CACHE_NAME = "leadgen-ai-v5"; // v5: dashboard dependency cache bust (2026-07-23)
+const CACHE_NAME = "leadgen-ai-v6"; // v6: conversion pages always-fresh (2026-08-16)
 
-const SHELL_ASSETS = ["/", "/index.html", "/manifest.json", "/icons/icon.svg"];
+const SHELL_ASSETS = ["/manifest.json", "/icons/icon.svg"];
 
 function isAlwaysFreshPage(url) {
   try {
@@ -10,6 +10,11 @@ function isAlwaysFreshPage(url) {
     return (
       p.startsWith("/app/") ||
       p.startsWith("/design-system/") ||
+      p === "/" ||
+      p === "/index.html" ||
+      p === "/audit" ||
+      p === "/site-audit" ||
+      p === "/demo" ||
       p === "/pricing" ||
       p === "/start" ||
       p === "/sw.js"
@@ -44,7 +49,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (request.url.includes("/api/")) return;
 
-  // Dashboards + revenue funnel: always network — deploy/UI changes turant dikhein.
+  // Dashboards + conversion funnel: always network — deploy/UI changes turant dikhein.
   if (isAlwaysFreshPage(request.url)) {
     event.respondWith(fetch(request, { cache: "no-store" }));
     return;

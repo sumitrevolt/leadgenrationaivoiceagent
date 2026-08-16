@@ -20,6 +20,7 @@ SKIP_DIRS = {
     "__pycache__",
     "node_modules",
     "agent-transcripts",
+    ".freebuff",
 }
 
 

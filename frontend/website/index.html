@@ -139,8 +139,7 @@
   .features{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
   .feat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;transition:transform .25s,box-shadow .25s}
   .feat:hover{transform:translateY(-5px);box-shadow:var(--shadow-sm)}
-  .feat .ic{width:50px;height:50px;border-radius:14px;background:var(--indigo-50);display:grid;place-items:center;font-size:1.5rem;margin-bottom:16px}
-  .feat .ic svg,.feat .ic [data-lucide]{width:26px;height:26px;color:var(--indigo);stroke-width:2.2}
+  .feat .ic{width:50px;height:50px;border-radius:14px;background:var(--indigo-50);display:grid;place-items:center;font-size:1.5rem;margin-bottom:16px;color:var(--indigo)}
   .feat h3{font-size:1.14rem;margin-bottom:8px}
   .feat p{color:var(--muted);font-size:.95rem}
 
@@ -494,12 +493,12 @@
       <p>Content, Google presence aur lead-capture — sab built-in. Koi alag design tool, agency ya extra subscription ki zaroorat nahi.</p>
     </div>
     <div class="features">
-      <div class="feat reveal"><div class="ic"><i data-lucide="image"></i></div><h3>Roz AI Social Posts + Posters</h3><p>Hinglish caption + hashtags + branded post frames. Festival posters (Diwali, Holi, Rakhi) auto — aapka logo aur naam har post pe.</p></div>
-      <div class="feat reveal"><div class="ic"><i data-lucide="map-pin"></i></div><h3>Google Business Profile Boost</h3><p>GBP audit (0–100 score) + top fix suggestions + reviews ke Hinglish reply drafts — local Google ranking strong karo.</p></div>
-      <div class="feat reveal"><div class="ic"><i data-lucide="message-circle"></i></div><h3>WhatsApp Content + Drip Nurture</h3><p>Broadcast messages, status updates aur naye leads ke liye spaced follow-up — sab ready, 1-click share.</p></div>
-      <div class="feat reveal"><div class="ic"><i data-lucide="globe"></i></div><h3>Mini-site + Lead Widget + Chatbot</h3><p>`/b/aapka-slug` bio-link + booking page, website pe 1-line enquiry widget aur AI chatbot — inquiries seedha dashboard me.</p></div>
-      <div class="feat reveal"><div class="ic"><i data-lucide="layout-dashboard"></i></div><h3>Hot-leads Dashboard + CRM</h3><p>Score ke hisaab se priority leads upar, Zoho/HubSpot sync + webhooks. Pehle kisko call karein — clear.</p></div>
-      <div class="feat reveal" style="border-color:var(--indigo)"><div class="ic"><i data-lucide="phone-call"></i></div><h3>AI Voice Callback <span style="font-size:.7rem;background:var(--indigo-50);color:var(--indigo);padding:2px 8px;border-radius:999px;vertical-align:middle">Advanced plan</span></h3><p>Advanced (₹5,999) me har inquiry ko AI khud ~2 min me Hinglish call kare aur qualify kare. Full standalone telecaller? Wo hamara <a href="/voice-agent" style="color:var(--indigo);font-weight:600">alag Voice Agent product</a> hai.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">🖼️</div><h3>Roz AI Social Posts + Posters</h3><p>Hinglish caption + hashtags + branded post frames. Festival posters (Diwali, Holi, Rakhi) auto — aapka logo aur naam har post pe.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">📍</div><h3>Google Business Profile Boost</h3><p>GBP audit (0–100 score) + top fix suggestions + reviews ke Hinglish reply drafts — local Google ranking strong karo.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">💬</div><h3>WhatsApp Content + Drip Nurture</h3><p>Broadcast messages, status updates aur naye leads ke liye spaced follow-up — sab ready, 1-click share.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">🌐</div><h3>Mini-site + Lead Widget + Chatbot</h3><p>`/b/aapka-slug` bio-link + booking page, website pe 1-line enquiry widget aur AI chatbot — inquiries seedha dashboard me.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">📊</div><h3>Hot-leads Dashboard + CRM</h3><p>Score ke hisaab se priority leads upar, Zoho/HubSpot sync + webhooks. Pehle kisko call karein — clear.</p></div>
+      <div class="feat reveal" style="border-color:var(--indigo)"><div class="ic" aria-hidden="true">📞</div><h3>AI Voice Callback <span style="font-size:.7rem;background:var(--indigo-50);color:var(--indigo);padding:2px 8px;border-radius:999px;vertical-align:middle">Advanced plan</span></h3><p>Advanced (₹5,999) me har inquiry ko AI khud ~2 min me Hinglish call kare aur qualify kare. Full standalone telecaller? Wo hamara <a href="/voice-agent" style="color:var(--indigo);font-weight:600">alag Voice Agent product</a> hai.</p></div>
     </div>
   </div>
 </section>
@@ -1097,10 +1096,7 @@
   }
 </script>
 
-<!-- Lucide icons — self-hosted from design-system/vendor (offline-first, pinned v0.469.0);
-     CDN fallback only if the local file is missing. Graceful: if it fails, .ic stays empty. -->
-<script src="/design-system/vendor/lucide.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js';"></script>
-<script>try{window.lucide&&lucide.createIcons();}catch(e){}</script>
+<!-- Homepage icons are inline emoji to avoid a 350KB lucide payload on the revenue-critical landing page. -->
 
 <!-- SEO: structured data → Google rich results (Organization, Service, FAQ) -->
 <script type="application/ld+json">

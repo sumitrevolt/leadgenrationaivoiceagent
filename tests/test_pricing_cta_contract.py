@@ -45,11 +45,38 @@ def test_service_worker_never_serves_cached_dashboard_dependencies():
     source = SERVICE_WORKER.read_text(encoding="utf-8")
 
     assert 'p.startsWith("/design-system/")' in source
-    assert 'const CACHE_NAME = "leadgen-ai-v5"' in source
+    assert 'const CACHE_NAME = "leadgen-ai-v6"' in source
+
+
+def test_service_worker_never_serves_cached_conversion_pages():
+    source = SERVICE_WORKER.read_text(encoding="utf-8")
+
+    for path in [
+        "/",
+        "/index.html",
+        "/audit",
+        "/site-audit",
+        "/demo",
+        "/pricing",
+        "/start",
+        "/sw.js",
+    ]:
+        assert f'p === "{path}"' in source
+    assert 'fetch(request, { cache: "no-store" })' in source
 
 
 def test_security_headers_disable_browser_cache_for_revenue_pages():
     source = SECURITY_MIDDLEWARE.read_text(encoding="utf-8")
 
-    assert 'path in ("/pricing", "/start", "/sw.js")' in source
+    for path in [
+        "/",
+        "/index.html",
+        "/audit",
+        "/site-audit",
+        "/demo",
+        "/pricing",
+        "/start",
+        "/sw.js",
+    ]:
+        assert f'"{path}"' in source
     assert 'response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"' in source

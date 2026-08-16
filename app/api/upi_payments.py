@@ -12,6 +12,7 @@ import never fails, handlers never 500.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -63,7 +64,8 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
     try:
         from app.platform import upi_payments
 
-        res = upi_payments.submit_payment(
+        res = await asyncio.to_thread(
+            upi_payments.submit_payment,
             client_id=client_id,
             plan=body.plan,
             upi_ref=body.upi_ref,
@@ -104,7 +106,10 @@ async def upi_pending_list(_user=Depends(require_admin)):
     try:
         from app.platform import upi_payments
 
-        return {"ok": True, "pending": upi_payments.list_actionable()}
+        pending = await asyncio.to_thread(
+            upi_payments.list_actionable
+        )  # calls list_actionable() off-loop
+        return {"ok": True, "pending": pending}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_pending_list failed: %s", e)
         return {"ok": False, "pending": []}
@@ -116,7 +121,7 @@ async def upi_approve(pid: str, _user=Depends(require_admin)):
     try:
         from app.platform import upi_payments
 
-        rec = upi_payments.decide(pid, True, decided_by="admin")
+        rec = await asyncio.to_thread(upi_payments.decide, pid, True, decided_by="admin")
         return {"ok": rec.get("ok", True), "record": rec}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_approve failed: %s", e)
@@ -136,7 +141,9 @@ async def upi_bind(pid: str, body: UpiBindIn, _user=Depends(require_admin)):
     try:
         from app.platform import upi_payments
 
-        rec = upi_payments.bind_client(pid, (body.client_id or "").strip(), decided_by="admin")
+        rec = await asyncio.to_thread(
+            upi_payments.bind_client, pid, (body.client_id or "").strip(), decided_by="admin"
+        )
         return {"ok": rec.get("ok", True), "record": rec}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_bind failed: %s", e)
@@ -149,7 +156,7 @@ async def upi_reject(pid: str, _user=Depends(require_admin)):
     try:
         from app.platform import upi_payments
 
-        rec = upi_payments.decide(pid, False, decided_by="admin")
+        rec = await asyncio.to_thread(upi_payments.decide, pid, False, decided_by="admin")
         return {"ok": rec.get("ok", True), "record": rec}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("upi_reject failed: %s", e)
