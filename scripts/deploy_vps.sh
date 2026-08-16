@@ -469,7 +469,7 @@ if [ "$SKEW" -ne 0 ]; then
 fi
 
 echo "=== SMOKE (revenue + auth critical paths) ==="
-for p in /health /api/voice/niches /api/billing/plans /api/public/pay-info; do
+for p in /health / /audit /site-audit /demo /pricing /start /app/inbox /api/public/audit/questions /api/voice/niches /api/billing/plans /api/public/pay-info; do
   code="$(curl -s -o /dev/null -w '%{http_code}' -m 15 "https://leadsgenai.in$p")"
   printf '%-24s -> %s\n' "$p" "$code"
   [ "$code" = "200" ] || echo "   WARN: expected 200"
