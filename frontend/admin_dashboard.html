@@ -376,6 +376,65 @@
               <div style="font-size:28px;font-weight:800;color:#334155" id="scPending">—</div>
               <div style="font-size:11px;color:#64748b;margin-top:2px">🙋 Pending decisions</div>
             </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scPaidGross">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">₹ Aaj gross <span style="font-size:9px;color:#94a3b8">live</span></div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scUpiPending">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🧾 UPI owner queue</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scStartToday">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">📝 /start aaj</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:22px;font-weight:800;color:#334155" id="scOnboard">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🚀 Onboard wait/run/fail</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scDeliveryRisk">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">📦 Delivery at risk</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scAutomationFail">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">⚠️ Automation fails</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:22px;font-weight:800;color:#334155" id="scDsh">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🧠 DSH runtime</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:22px;font-weight:800;color:#334155" id="scStaffBus">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">🚌 Staff Bus</div>
+            </div>
+          </div>
+          <!-- Marketing automation ledgers — JSONL counts, not live Google/Meta pixels. 0 = empty/inert. -->
+          <div id="ownerMktScorecard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scReviewsSent">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">⭐ Review requests sent</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:22px;font-weight:800;color:#334155" id="scDripSentOpened">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">📧 Drip sent/opened</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scFormsSubmitted">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">📋 Forms submitted</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scProposalsAccepted">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">📄 Proposals accepted</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scRemindersSent">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">📅 Reminders sent</div>
+            </div>
+            <div style="text-align:center;padding:14px 8px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+              <div style="font-size:28px;font-weight:800;color:#334155" id="scHealthAtRisk">—</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">❤️ Health at-risk</div>
+            </div>
           </div>
           <!-- Next best action -->
           <div id="nextBestAction" style="padding:10px 14px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;margin-bottom:14px;display:none">
@@ -1101,16 +1160,16 @@
               <option value="model_routing">Model Routing</option>
               <option value="harness">Harness</option>
               <option value="worker">Worker</option>
-              <option value="domain">Domain</option>
+              <option value="domain_capability">Domain</option>
               <option value="automation">Automation</option>
               <option value="coordination">Coordination</option>
               <option value="ui_projection">UI Projection</option>
             </select>
             <select id="pluginRiskFilter" onchange="loadPluginRegistry()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;margin-left:6px">
               <option value="">All risk levels</option>
-              <option value="GREEN">GREEN</option>
-              <option value="AMBER">AMBER</option>
-              <option value="RED">RED</option>
+              <option value="green">GREEN</option>
+              <option value="amber">AMBER</option>
+              <option value="red">RED</option>
             </select>
           </div>
           <div id="pluginRegTable" style="font-size:12px;color:#334155;max-height:400px;overflow:auto"></div>
@@ -3287,41 +3346,77 @@ function statChip(label, val, accent){
        + '<div style="font-size:11px;color:#64748b;margin-top:2px">'+label+'</div></div>';
   return href ? '<a href="'+href+'" style="text-decoration:none">'+inner+'</a>' : inner;
 }
+function paintOwnerScorecards(t){
+  t = t || {};
+  function setNum(id, val, hotColor){
+    var el = $(id); if(!el) return;
+    var n = Number(val||0);
+    el.textContent = n;
+    el.style.color = n>0 ? (hotColor||'#059669') : '#334155';
+  }
+  setNum('scPaidToday', t.paid_today||0, '#059669');
+  setNum('scActivations', t.activations_today||0, '#059669');
+  setNum('scHotQueue', t.hot_queue||0, '#dc2626');
+  setNum('scPending', t.needs_decision||0, '#b45309');
+  setNum('scUpiPending', t.upi_needs_owner||0, '#b45309');
+  setNum('scStartToday', t.upi_starts_today||0, '#1d4ed8');
+  setNum('scDeliveryRisk', t.delivery_at_risk||0, '#b45309');
+  setNum('scAutomationFail', t.automation_failures||0, '#dc2626');
+  var grossEl = $('scPaidGross');
+  if(grossEl){
+    var g = Number(t.paid_gross_today_inr||0);
+    grossEl.textContent = '₹'+Math.round(g);
+    grossEl.style.color = g>0 ? '#059669' : '#334155';
+  }
+  var onb = $('scOnboard');
+  if(onb){
+    var w = t.onboard_waiting||0, r = t.onboard_running||0, f = t.onboard_failed||0;
+    onb.textContent = w+'/'+r+'/'+f;
+    onb.style.color = f>0 ? '#dc2626' : (r>0 ? '#b45309' : '#334155');
+  }
+  function setFlag(id, state){
+    var el = $(id); if(!el) return;
+    var s = String(state||'unset');
+    el.textContent = s==='on' ? 'ON' : (s==='off' ? 'OFF' : 'unset');
+    el.style.color = s==='on' ? '#059669' : '#64748b';
+  }
+  setFlag('scDsh', t.dsh_runtime);
+  setFlag('scStaffBus', t.staff_bus);
+  setNum('scReviewsSent', t.reviews_sent||0, '#1d4ed8');
+  setNum('scFormsSubmitted', t.forms_submitted||0, '#1d4ed8');
+  setNum('scProposalsAccepted', t.proposals_accepted||0, '#059669');
+  setNum('scRemindersSent', t.reminders_sent||0, '#1d4ed8');
+  setNum('scHealthAtRisk', t.health_at_risk||0, '#b45309');
+  var drip = $('scDripSentOpened');
+  if(drip){
+    var ds = t.drip_emails_sent||0, dop = t.drip_emails_opened||0;
+    drip.textContent = ds+'/'+dop;
+    drip.style.color = ds>0 ? '#1d4ed8' : '#334155';
+  }
+}
 async function loadOwnerScorecard(){
   try{
     const r = await fetch("/api/growth/overview/today", {headers:abAuthHdr(), cache:"no-store"});
     if(!r.ok) return;
     const d = await r.json();
     const t = d.totals || {};
-    // Scorecards
-    var paidEl = $("scPaidToday");
-    var actEl = $("scActivations");
-    var hqEl = $("scHotQueue");
-    var pendEl = $("scPending");
-    if(paidEl){ paidEl.textContent = t.paid_today||0; paidEl.style.color = (t.paid_today||0)>0?'#059669':'#334155'; }
-    if(actEl){ actEl.textContent = t.activations_today||0; actEl.style.color = (t.activations_today||0)>0?'#059669':'#334155'; }
-    if(hqEl){ hqEl.textContent = t.hot_queue||0; hqEl.style.color = (t.hot_queue||0)>0?'#dc2626':'#334155'; }
-    if(pendEl){ pendEl.textContent = t.needs_decision||0; pendEl.style.color = (t.needs_decision||0)>0?'#b45309':'#334155'; }
-    // Next best action engine
+    paintOwnerScorecards(t);
     var actionEl = $("nextBestAction");
     var actionText = $("nextBestActionText");
     if(!actionEl || !actionText) return;
     var action = null;
-    // Priority: Hot Queue > UPI pending > activations > content approvals > all good
     if(t.hot_queue > 0){
       action = {color:'#fef2f2',border:'#fca5a5',text:"<b>"+t.hot_queue+" garam replies</b> Hot Queue me hain — <a href=\"/app/inbox\" style=\"color:#dc2626;font-weight:700\">15 min sprint</a> karo. Interested/question pe Call/WA draft, phir Done. Yehi se next paid customer aata hai."};
+    } else if((t.upi_needs_owner||0) > 0){
+      action = {color:'#fffbeb',border:'#fde68a',text:"<b>"+t.upi_needs_owner+" UPI claim</b> owner action maangte hain (pending "+(t.upi_pending||0)+", bind "+(t.upi_needs_bind||0)+"). <a href=\"/app/admin#sec-upi-selfserve\" style=\"color:#b45309;font-weight:700\">Bind/Re-Approve</a> tabhi jab bank credit sach me aaya ho."};
     } else {
-      // Check admin office for UPI/pending tasks
       try{
         const or = await fetch("/api/admin/office", {headers:abAuthHdr(), cache:"no-store"});
         if(or.ok){
           const od = await or.json();
           var tasks = od.tasks || [];
-          var upiTask = tasks.find(function(x){ return x.id === 'upi_pending' || (x.title||'').toLowerCase().indexOf('upi')>=0; });
           var contentTask = tasks.find(function(x){ return x.id === 'content_approval'; });
-          if(upiTask){
-            action = {color:'#fffbeb',border:'#fde68a',text:"<b>"+upiTask.title+"</b> — "+(upiTask.why||'')};
-          } else if(contentTask){
+          if(contentTask){
             action = {color:'#eff6ff',border:'#bfdbfe',text:"<b>"+contentTask.title+"</b> — "+(contentTask.why||'')};
           }
         }
@@ -3383,6 +3478,16 @@ async function loadTodayBiz(){
           + statChip('🤖 Active agents', t.working||0)
           + statChip('👥 Staff', t.staff||0)
           + '</div>';
+    html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+          + statChip('⭐ Review requests sent', t.reviews_sent||0)
+          + statChip('📧 Drip sent/opened', (t.drip_emails_sent||0)+'/'+(t.drip_emails_opened||0))
+          + statChip('📋 Forms submitted', t.forms_submitted||0)
+          + statChip('📄 Proposals accepted', t.proposals_accepted||0)
+          + statChip('📅 Reminders sent', t.reminders_sent||0)
+          + statChip('❤️ Health at-risk', t.health_at_risk||0, (t.health_at_risk||0)>0
+            ? {border:'#fbbf24',num:'#b45309',bg:'#fffbeb'}
+            : {border:'#e2e8f0',num:'#64748b',bg:'#f8fafc'})
+          + '</div>';
     if(hasProb){
       html += '<div style="margin-bottom:8px;font-weight:600;color:#b45309">⚠️ Dhyan dene wali cheezein</div>';
       d.problems.forEach(p=>{
@@ -3415,11 +3520,7 @@ async function loadTodayBiz(){
     if(at && d.at){ try{ at.textContent = 'Updated '+new Date(d.at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }catch(e){} }
     // Sync scorecard with same data
     try{
-      var paidEl=$("scPaidToday"),actEl=$("scActivations"),hqEl=$("scHotQueue"),pendEl=$("scPending");
-      if(paidEl) paidEl.textContent=t.paid_today||0;
-      if(actEl) actEl.textContent=t.activations_today||0;
-      if(hqEl) hqEl.textContent=t.hot_queue||0;
-      if(pendEl) pendEl.textContent=t.needs_decision||0;
+      paintOwnerScorecards(t);
     }catch(e){}
   }catch(e){
     body.innerHTML = '<span style="color:#b45309;font-size:13px">Summary load nahi hua (network). <a href="#" onclick="loadTodayBiz();return false" style="color:#4f46e5">Retry</a></span>';
@@ -5331,17 +5432,16 @@ async function loadPluginRegistry(){
     }
     const d=await r.json();
     const plugins=d.plugins||[];
-    const summary=d.summary||{};
-    // Summary chips
+    const cats=d.by_category||{};
+    const risks=d.by_risk||{};
     if(summaryEl){
-      const cats=summary.by_category||{};
-      const risks=summary.by_risk||{};
       let sh='<span style="background:#f1f5f9;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600">'+(d.total||0)+' plugins</span>';
       Object.entries(cats).forEach(([k,v])=>{ sh+='<span style="background:#eff6ff;border-radius:5px;padding:2px 7px;font-size:10.5px;color:#1e40af">'+escH(k)+': '+v+'</span>'; });
       Object.entries(risks).forEach(([k,v])=>{
-        var bg=k==='RED'?'#fef2f2':k==='AMBER'?'#fffbeb':'#ecfdf5';
-        var fg=k==='RED'?'#b91c1c':k==='AMBER'?'#b45309':'#065f46';
-        sh+='<span style="background:'+bg+';border-radius:5px;padding:2px 7px;font-size:10.5px;color:'+fg+';font-weight:600">'+k+': '+v+'</span>';
+        var rk=String(k||'').toLowerCase();
+        var bg=rk==='red'?'#fef2f2':rk==='amber'?'#fffbeb':'#ecfdf5';
+        var fg=rk==='red'?'#b91c1c':rk==='amber'?'#b45309':'#065f46';
+        sh+='<span style="background:'+bg+';border-radius:5px;padding:2px 7px;font-size:10.5px;color:'+fg+';font-weight:600">'+escH(k)+': '+v+'</span>';
       });
       summaryEl.innerHTML=sh;
     }
@@ -5350,8 +5450,9 @@ async function loadPluginRegistry(){
     var html='<table style="width:100%;border-collapse:collapse;font-size:11.5px">';
     html+='<thead><tr style="border-bottom:2px solid #e2e8f0;text-align:left"><th style="padding:4px 6px;font-weight:700">Plugin</th><th style="padding:4px 6px">Category</th><th style="padding:4px 6px">Risk</th><th style="padding:4px 6px">Evidence</th><th style="padding:4px 6px">Flag</th><th style="padding:4px 6px">Business</th></tr></thead><tbody>';
     plugins.forEach(p=>{
-      var riskBg=p.risk_class==='RED'?'#fef2f2':p.risk_class==='AMBER'?'#fffbeb':'#ecfdf5';
-      var riskFg=p.risk_class==='RED'?'#b91c1c':p.risk_class==='AMBER'?'#b45309':'#065f46';
+      var rk=String(p.risk_class||'').toLowerCase();
+      var riskBg=rk==='red'?'#fef2f2':rk==='amber'?'#fffbeb':'#ecfdf5';
+      var riskFg=rk==='red'?'#b91c1c':rk==='amber'?'#b45309':'#065f46';
       html+='<tr style="border-bottom:1px solid #f1f5f9">';
       html+='<td style="padding:5px 6px;font-weight:600">'+escH(p.plugin_id||'')+'</td>';
       html+='<td style="padding:5px 6px;color:#64748b">'+escH(p.category||'')+'</td>';
@@ -5374,11 +5475,15 @@ async function runPluginDrift(){
   try{
     var r=await fetch('/api/admin/plugins/drift',{method:'POST',headers:abAuthHdr(),cache:'no-store'});
     var d=await r.json();
-    var ok=d.ok!==false;
-    var drifts=d.drifts||[];
-    if(ok && !drifts.length){ el.innerHTML='<span style="color:#059669">✅ No drift — all 42 plugin manifests valid.</span>'; }
-    else if(drifts.length){
-      el.innerHTML='<div style="color:#b45309;font-weight:600">⚠️ '+drifts.length+' drift(s):</div><ul style="margin:4px 0 0 16px;padding:0;font-size:11px;color:#92400e">'+drifts.map(function(d2){return '<li>'+escH(d2)+'</li>';}).join('')+'</ul>';
+    if(!r.ok){ el.innerHTML='<span style="color:#64748b">Drift check '+r.status+' — admin login check karo.</span>'; return; }
+    if((d.drift_count||0)===0 && !(d.drifts||[]).length){
+      el.innerHTML='<span style="color:#059669">✅ No drift — required manifest fields present.</span>';
+    }
+    else if((d.drifts||[]).length){
+      el.innerHTML='<div style="color:#b45309;font-weight:600">⚠️ '+d.drifts.length+' drift(s):</div><ul style="margin:4px 0 0 16px;padding:0;font-size:11px;color:#92400e">'+d.drifts.map(function(d2){
+        var line = (d2 && typeof d2==='object') ? ((d2.plugin_id||'')+': '+(d2.detail||d2.type||'')) : String(d2);
+        return '<li>'+escH(line)+'</li>';
+      }).join('')+'</ul>';
     } else { el.innerHTML='<span style="color:#f87171">Drift check fail.</span>'; }
   }catch(e){ el.innerHTML='<span style="color:#f87171">Error: '+escH(e.message)+'</span>'; }
 }

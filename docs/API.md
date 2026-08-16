@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1316 operations)
+## Endpoint Index — auto-generated from OpenAPI (1344 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1496,6 +1496,37 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/marketing/upi-kit` — Generate Upi Kit
 - `POST  ` `/api/marketing/upi-qr` — Generate Upi Qr
 - `POST  ` `/api/marketing/whatsapp-pack` — Generate Whatsapp Pack
+
+### Marketing Features  (28)
+
+- `GET   ` `/api/marketing-features/appointments/list` — List Appointments
+- `POST  ` `/api/marketing-features/appointments/schedule` — Schedule Appointment
+- `GET   ` `/api/marketing-features/appointments/stats` — Appointment Stats
+- `POST  ` `/api/marketing-features/appointments/{reminder_id}/status` — Update Appointment Status
+- `POST  ` `/api/marketing-features/email-drips/create` — Create Email Drip
+- `GET   ` `/api/marketing-features/email-drips/list` — List Email Drips
+- `POST  ` `/api/marketing-features/email-drips/start` — Start Email Drip
+- `GET   ` `/api/marketing-features/email-drips/stats` — Email Drip Stats
+- `GET   ` `/api/marketing-features/email-drips/templates` — Drip Templates
+- `POST  ` `/api/marketing-features/forms/create` — Create Form Endpoint
+- `POST  ` `/api/marketing-features/forms/create-from-template` — Create Form From Template
+- `GET   ` `/api/marketing-features/forms/list` — List Forms Endpoint
+- `GET   ` `/api/marketing-features/forms/stats` — Form Stats
+- `POST  ` `/api/marketing-features/forms/submit` — Submit Form
+- `GET   ` `/api/marketing-features/forms/templates` — Form Templates
+- `GET   ` `/api/marketing-features/health/all` — All Health
+- `GET   ` `/api/marketing-features/health/client/{client_id}` — Client Health
+- `POST  ` `/api/marketing-features/health/score` — Score Customer Health
+- `GET   ` `/api/marketing-features/health/summary` — Health Summary
+- `POST  ` `/api/marketing-features/proposals/generate` — Generate Proposal Endpoint
+- `GET   ` `/api/marketing-features/proposals/list` — List Proposals Endpoint
+- `GET   ` `/api/marketing-features/proposals/stats` — Proposal Stats
+- `GET   ` `/api/marketing-features/proposals/templates` — Proposal Templates
+- `POST  ` `/api/marketing-features/proposals/{proposal_id}/status` — Update Proposal Status
+- `POST  ` `/api/marketing-features/review-automation/reply` — Review Reply
+- `GET   ` `/api/marketing-features/review-automation/sequences` — List Review Sequences
+- `POST  ` `/api/marketing-features/review-automation/start` — Start Review Sequence
+- `GET   ` `/api/marketing-features/review-automation/stats` — Review Stats
 
 ### Memory  (9)
 

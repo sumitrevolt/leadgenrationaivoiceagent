@@ -363,6 +363,63 @@ def bootstrap_catalog() -> None:
 
     register(
         PluginManifest(
+            plugin_id="onboarding_factory",
+            version="1.0.0",
+            category=PluginCategory.DOMAIN_CAPABILITY,
+            owner="Boss",
+            business_outcome="Staged onboard pipeline with retry/DLQ/backpressure (INERT default)",
+            risk_class=RiskClass.AMBER,
+            tenant_scope=PluginScope.TENANT,
+            privacy_class=PrivacyClass.CONFIDENTIAL,
+            feature_flag="ONBOARDING_PIPELINE",
+            kill_switch="ONBOARDING_PIPELINE=0",
+            budget=Budget(timeout_s=300.0, wall_clock_budget_s=300.0),
+            queue="celery",
+            dlq="dlq:failed_tasks",
+            idempotency_key_contract="plugin_id + client_id + stage",
+            evidence_status=EvidenceStatus.CODE_PRESENT,
+            tags=["onboarding", "factory", "inert-default"],
+        )
+    )
+
+    register(
+        PluginManifest(
+            plugin_id="form_builder",
+            version="1.0.0",
+            category=PluginCategory.DOMAIN_CAPABILITY,
+            owner="Boss",
+            business_outcome="Tenant-scoped form/survey builder for lead capture (flag default OFF)",
+            risk_class=RiskClass.AMBER,
+            tenant_scope=PluginScope.TENANT,
+            privacy_class=PrivacyClass.CONFIDENTIAL,
+            feature_flag="FORM_BUILDER",
+            kill_switch="FORM_BUILDER=0",
+            approval_requirement="boss_recommend",
+            evidence_status=EvidenceStatus.CODE_PRESENT,
+            tags=["lead-capture", "inert-default"],
+        )
+    )
+
+    register(
+        PluginManifest(
+            plugin_id="proposal_builder",
+            version="1.0.0",
+            category=PluginCategory.DOMAIN_CAPABILITY,
+            owner="Boss",
+            business_outcome="Manual UPI proposal/quote drafts — never auto-confirms payment",
+            risk_class=RiskClass.AMBER,
+            tenant_scope=PluginScope.TENANT,
+            privacy_class=PrivacyClass.CONFIDENTIAL,
+            feature_flag="PROPOSAL_BUILDER",
+            kill_switch="PROPOSAL_BUILDER=0",
+            approval_requirement="owner",
+            evidence_status=EvidenceStatus.CODE_PRESENT,
+            tags=["sales", "inert-default"],
+        )
+    )
+
+    register(
+        PluginManifest(
             plugin_id="content_generation",
             version="1.0.0",
             category=PluginCategory.DOMAIN_CAPABILITY,

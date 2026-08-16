@@ -1164,6 +1164,134 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Bounded DLQ; no auto-replay to customer outbound channels.",
     },
+    # --- Marketing feature JSONL (2026-08-16; INERT flags, classified not tolerated)
+    {
+        "allowlist_id": "marketing.appointment_reminders.store",
+        "file": "app/marketing/appointment_reminders.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/appointment_reminders.jsonl",
+        "store_id": "marketing.appointment_reminders",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Appointment reminder sequence JSONL. INERT until BOOKING_REMINDERS=1; "
+            "rebuildable by re-scheduling."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Must stay append-only; no TRAI/DND bypass; WhatsApp cold stays OFF.",
+    },
+    {
+        "allowlist_id": "marketing.customer_health.store",
+        "file": "app/marketing/customer_health.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/customer_health.jsonl",
+        "store_id": "marketing.customer_health",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Customer health score snapshots. Rebuildable from live client/payment "
+            "signals. INERT until CLIENT_HEALTH_ALERTS=1."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Scores must not fabricate revenue or paid_today.",
+    },
+    {
+        "allowlist_id": "marketing.email_drips.definitions",
+        "file": "app/marketing/email_drips.py",
+        "line_or_symbol": "_DRIPS_STORE",
+        "path_pattern": "data/email_drips.jsonl",
+        "store_id": "marketing.email_drips",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Email drip template definitions. Operator-rebuildable. No cold/bulk "
+            "WhatsApp from this file."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Drip send path must keep email warmup + suppression gates.",
+    },
+    {
+        "allowlist_id": "marketing.email_drips.runs",
+        "file": "app/marketing/email_drips.py",
+        "line_or_symbol": "_RUNS_STORE",
+        "path_pattern": "data/email_drip_runs.jsonl",
+        "store_id": "marketing.email_drips",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": "Per-customer drip run ledger. Idempotent re-entry; rebuildable.",
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Runs must stay append-only; no silent resend storms.",
+    },
+    {
+        "allowlist_id": "marketing.form_builder.forms",
+        "file": "app/marketing/form_builder.py",
+        "line_or_symbol": "_FORMS_STORE",
+        "path_pattern": "data/forms.jsonl",
+        "store_id": "marketing.form_builder",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": ("Form/survey definitions. INERT until FORM_BUILDER=1; API 503 when off."),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Tenant isolation by client_id; DPDP minimisation on stored answers.",
+    },
+    {
+        "allowlist_id": "marketing.form_builder.responses",
+        "file": "app/marketing/form_builder.py",
+        "line_or_symbol": "_RESPONSES_STORE",
+        "path_pattern": "data/form_responses.jsonl",
+        "store_id": "marketing.form_builder",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": ("Form response JSONL. INERT until FORM_BUILDER=1; API 503 when off."),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Must stay tenant-scoped; no cross-client read.",
+    },
+    {
+        "allowlist_id": "marketing.proposal_builder.store",
+        "file": "app/marketing/proposal_builder.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/proposals.jsonl",
+        "store_id": "marketing.proposal_builder",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Proposal/quote drafts. INERT until PROPOSAL_BUILDER=1; API 503 when "
+            "off. Not a billing ledger."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "Must not auto-confirm UPI or mutate invoices.jsonl.",
+    },
+    {
+        "allowlist_id": "marketing.review_sequences.store",
+        "file": "app/marketing/review_automation.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/review_sequences.jsonl",
+        "store_id": "marketing.review_sequences",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Google-review request sequences. Rebuildable by restarting a request. "
+            "Module daily cap is the ban-safety bound."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": "No fabricated ratings/testimonials; daily cap must stay.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

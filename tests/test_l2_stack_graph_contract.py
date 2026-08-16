@@ -7,6 +7,7 @@ Root causes covered:
    and listen for cc-graph-ready / cc-graph-error postMessage.
 3. Dataset must be real curated architecture (not empty placeholder).
 """
+
 from __future__ import annotations
 
 import re
@@ -62,6 +63,8 @@ def test_graph_posts_ready_or_error_to_parent():
 def test_control_center_preserves_old_explorer_and_truthful_embed_issue():
     body = CC_HTML.read_text(encoding="utf-8")
     assert 'href="/app/explorer"' in body
+    assert "tab=plugins" in body
+    assert "node=plugin_registry" in body
     assert "Old explorer" in body or "Old Explorer" in body
     assert 'src="/app/control-center/graph"' in body
     assert "cc-graph-ready" in body

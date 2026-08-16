@@ -102,6 +102,15 @@ def test_high_risk_classifications_locked():
     assert describe_flag("REPLY_AUTO_SEND").governance == FlagGovernance.SAFETY_INVARIANT
 
 
+def test_onboarding_and_builder_flags_are_canary_off():
+    for name in ("ONBOARDING_PIPELINE", "FORM_BUILDER", "PROPOSAL_BUILDER"):
+        meta = describe_flag(name)
+        assert meta.kind == FlagValueKind.BOOLEAN
+        assert meta.governance == FlagGovernance.CANARY_ONLY
+        assert meta.default_hint == "0"
+        assert name in AUTOMATION_FLAGS
+
+
 def test_dunning_engine_is_owner_gated_not_safe_default():
     """Issue #307: retention dunning stays owner-gated / dormant."""
     meta = describe_flag("DUNNING_ENGINE")

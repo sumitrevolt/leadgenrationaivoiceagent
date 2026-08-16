@@ -137,8 +137,10 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # events/idempotency/audit/DLQ under STAFF_BUS_ENABLED OFF). CLASSIFIED.
     # 2026-08-14 +1 entry / +1 family: ops.office_briefing (Hot Queue daily
     # owner-notified claim). CLASSIFIED, not tolerated — baseline unchanged.
-    assert len(entries) == 62
-    assert len(families) == 18, sorted(families)
+    # 2026-08-16 +8 entries / +6 families: marketing appointment/health/drips/
+    # forms/proposals/review JSONL (INERT flags; classified, not tolerated).
+    assert len(entries) == 70
+    assert len(families) == 24, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -148,8 +150,14 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "compliance.dpdp_audit",
         "compliance.email_suppression",
         "customers.identity",
+        "marketing.appointment_reminders",
         "marketing.brand_kits",
+        "marketing.customer_health",
+        "marketing.email_drips",
+        "marketing.form_builder",
         "marketing.gsc_rankings",
+        "marketing.proposal_builder",
+        "marketing.review_sequences",
         "platform.memory_governance",
         "platform.staff_bus",
         "platform.workforce_memory",
@@ -429,7 +437,8 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-05: +1 platform.memory_governance (ADR-158/161; rebuildable cache).
     # 2026-08-11: +1 marketing.gsc_rankings (ADR-177; tier3 rebuildable, INERT).
     # 2026-08-14: +1 ops.office_briefing (Hot Queue owner-notified claim; resumable).
-    assert counts["unique_families"] == 36
+    # 2026-08-16: +6 marketing feature JSONL families (INERT; rebuildable cache).
+    assert counts["unique_families"] == 42
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]

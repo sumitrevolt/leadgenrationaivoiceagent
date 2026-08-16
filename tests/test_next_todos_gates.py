@@ -42,6 +42,9 @@ def test_web_concurrency_stays_two_and_onboard_queue_is_flag():
     from app.api.automation_flags import AUTOMATION_FLAGS
 
     assert "CELERY_ONBOARD_QUEUE" in AUTOMATION_FLAGS
+    assert "ONBOARDING_PIPELINE" in AUTOMATION_FLAGS
+    assert "FORM_BUILDER" in AUTOMATION_FLAGS
+    assert "PROPOSAL_BUILDER" in AUTOMATION_FLAGS
 
 
 def test_capacity_sheet_does_not_claim_50_day_live():

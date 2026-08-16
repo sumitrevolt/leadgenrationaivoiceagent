@@ -547,6 +547,142 @@ STORES: list[dict[str, Any]] = [
             "blocker. No customer outbound from these files alone."
         ),
     ),
+    # ------------------------------------------------ TIER 3 - marketing feature JSONL (INERT)
+    # Classified 2026-08-16 so the runtime-data ratchet does not treat new
+    # checkout JSONL writers as undeclared debt. Flags stay OFF; files are
+    # empty/absent in prod until an owner arms the matching switch.
+    _e(
+        store_id="marketing.appointment_reminders",
+        display_name="Appointment reminder sequences (INERT BOOKING_REMINDERS)",
+        legacy_paths=["data/appointment_reminders.jsonl"],
+        writer_modules=["app/marketing/appointment_reminders.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single-process JSONL append under BOOKING_REMINDERS",
+        tenant_scope="per-client_id rows in one file",
+        target_runtime_subpath="marketing/appointment_reminders/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-16 with marketing-features. Append-only reminder "
+            "JSONL; rebuildable by re-scheduling. INERT until BOOKING_REMINDERS=1."
+        ),
+    ),
+    _e(
+        store_id="marketing.customer_health",
+        display_name="Customer health scores (INERT CLIENT_HEALTH_ALERTS)",
+        legacy_paths=["data/customer_health.jsonl"],
+        writer_modules=["app/marketing/customer_health.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single-process JSONL append under CLIENT_HEALTH_ALERTS",
+        tenant_scope="per-client_id rows in one file",
+        target_runtime_subpath="marketing/customer_health/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-16 with marketing-features. Score snapshots are "
+            "rebuildable from live client/payment signals. INERT until "
+            "CLIENT_HEALTH_ALERTS=1."
+        ),
+    ),
+    _e(
+        store_id="marketing.email_drips",
+        display_name="Email drip definitions + run ledger (INERT)",
+        legacy_paths=["data/email_drips.jsonl", "data/email_drip_runs.jsonl"],
+        writer_modules=["app/marketing/email_drips.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single-process JSONL append; admin-gated",
+        tenant_scope="per-client_id rows in one file",
+        target_runtime_subpath="marketing/email_drips/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-16 with marketing-features. Drip templates + run "
+            "log are operator-rebuildable. No cold/bulk send from these files "
+            "alone; WhatsApp cold stays OFF."
+        ),
+    ),
+    _e(
+        store_id="marketing.form_builder",
+        display_name="Form definitions + responses (INERT FORM_BUILDER)",
+        legacy_paths=["data/forms.jsonl", "data/form_responses.jsonl"],
+        writer_modules=["app/marketing/form_builder.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single-process JSONL append under FORM_BUILDER",
+        tenant_scope="per-client_id rows in one file",
+        target_runtime_subpath="marketing/form_builder/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-16 with marketing-features. INERT until "
+            "FORM_BUILDER=1; API returns 503 while the flag is off, so prod "
+            "does not grow these files. Empty/absent today."
+        ),
+    ),
+    _e(
+        store_id="marketing.proposal_builder",
+        display_name="Proposal/quote drafts (INERT PROPOSAL_BUILDER)",
+        legacy_paths=["data/proposals.jsonl"],
+        writer_modules=["app/marketing/proposal_builder.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single-process JSONL append under PROPOSAL_BUILDER",
+        tenant_scope="per-client_id rows in one file",
+        target_runtime_subpath="marketing/proposal_builder/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-16 with marketing-features. INERT until "
+            "PROPOSAL_BUILDER=1; API returns 503 while the flag is off. "
+            "Empty/absent today; not a live billing authority (UPI ledger stays "
+            "billing.invoices / billing.upi_payments)."
+        ),
+    ),
+    _e(
+        store_id="marketing.review_sequences",
+        display_name="Google-review request sequences (INERT REVIEW_MONITOR)",
+        legacy_paths=["data/review_sequences.jsonl"],
+        writer_modules=["app/marketing/review_automation.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="marketing",
+        durability_class="rebuildable",
+        concurrency_model="single-process JSONL append; daily cap in module",
+        tenant_scope="per-client_id rows in one file",
+        target_runtime_subpath="marketing/review_sequences/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-16 with marketing-features. Sequence state is "
+            "rebuildable by restarting a review request. Ban-safety daily cap "
+            "stays in the module; no fabricated ratings."
+        ),
+    ),
     _e(
         store_id="content.queue",
         display_name="Per-tenant content queue",
