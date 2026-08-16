@@ -235,6 +235,7 @@ pytest_*.log
 pytest_run.log
 smoke_test.log
 uvicorn_smoke.log
+/uv.lock  # stale artifact — accidental DSH-sweep commit 673cd340; repo uses requirements.lock.txt
 frontend_build.log
 git_check.log
 .fuse_hidden*
