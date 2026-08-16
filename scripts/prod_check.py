@@ -159,6 +159,19 @@ def check_routes() -> None:
         "/app/admin",
         "/app/explorer",
         "/app/automation",
+        # Public funnel pages - lead magnets + conversion path.
+        "/",
+        "/audit",
+        "/site-audit",
+        "/demo",
+        "/pricing",
+        "/start",
+        "/app/inbox",
+        # Public API - audit widget + revenue info surfaces.
+        "/api/public/audit/questions",
+        "/api/public/audit/score",
+        "/api/public/pay-info",
+        "/api/voice/niches",
     ]
     for exp in expected:
         if not any(p == exp or p.startswith(exp + "/") or p.startswith(exp) for p in paths):
