@@ -16,9 +16,9 @@
 - Worker recreate ke baad: `redis-cli llen celery`; >500 = `del celery` (beat re-schedules).
 
 ## DeepSeek Harness rollout, rollback drill, and retirement (ADR-181/182/183)
-**Current posture (2026-08-14):** **LIVE-AUTHORITY** under ADR-183 owner override. `DSH_RUNTIME_ENABLED=1`, `DSH_SHADOW_ENABLED=0`, allowlist=29 migratable (never `*`), `leadgen_dsh_worker` on `--profile dsh`, prod SHA `fb3d0bc2`. ADR-182 wave order (shadow → Kavya → …) was **skipped by owner**; soak/retirement gates still required before legacy deletion.
+**Current posture (2026-08-16, prod `090af9e6`):** **DIRECT-RUNTIME AUTHORITY, DSH NOT ARMED.** `DSH_RUNTIME_ENABLED=0`, `DSH_SHADOW_ENABLED=0`; allowlist contains the 29 migratable identities for governed future promotion only (never `*`). Swara/Ananya remain frozen RED/hard-off. Legacy/direct executor remains the sole operational execution authority until separate owner promotion, shadow/soak evidence, rollback drill, and retirement gates are explicitly satisfied. Rollback remains `DSH_RUNTIME_ENABLED=0`.
 
-**Redis on dsh_net:** `redis` service must be on both `leadgen_net` and `dsh_net`. If DNS fails inside `dsh-worker`, re-attach with alias: `docker network disconnect leadgen_dsh_net leadgen_redis; docker network connect --alias redis leadgen_dsh_net leadgen_redis`.
+**Redis / cancellation posture (VERIFIED 2026-08-16):** production runtime reports Redis-backed cancellation/idempotency healthy with fallback inactive and runtime DLQ count 0. This does **not** arm DSH execution; it only means the shared cancellation/idempotency substrate is healthy. If DNS ever fails inside a future `dsh-worker`, re-attach with alias: `docker network disconnect leadgen_dsh_net leadgen_redis; docker network connect --alias redis leadgen_dsh_net leadgen_redis`.
 
 **Evidence-gated wave order (ADR-182, still the preferred path for future promotions):** shadow → Kavya read-only → Isha draft → GREEN read-only → GREEN internal mutators → Zara approved-social handoff → AMBER final-approval-gated. Shadow needs 120 golden cases + 2,000 turns / 14 days. Har next wave ke liye prior evidence retained, role-specific mutation/refusal tests green, tenant/compliance/billing/approval gates intact, queue/retry/DLQ/audit healthy, rollback drill green, aur explicit owner promotion approval mandatory hai. Time/test pass se auto-promotion nahi.
 
