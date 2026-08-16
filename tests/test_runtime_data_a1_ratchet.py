@@ -67,7 +67,10 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-14: 61 -> 62. Hot Queue owner reminder declares ops.office_briefing
 # (+1 entry: _notification_path READ/DELETE claim). CLASSIFIED, not tolerated —
 # baseline fingerprint count unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 62
+# 2026-08-16: 62 -> 70. Marketing factory JSONL (appointment/health/drips/forms/
+# proposals/review) classified as TIER_3 REBUILDABLE_CACHE (+8 allowlist rows).
+# CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 70
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 

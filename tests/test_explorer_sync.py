@@ -29,6 +29,13 @@ def test_explorer_sync_check_exit_zero():
     assert es.main(["--check"]) == 0
 
 
+def test_plugins_tab_is_shareable_url():
+    html = es.EXPLORER.read_text(encoding="utf-8")
+    assert "params.get('tab')" in html
+    assert "showPluginsPanel" in html
+    assert "SB_TABS" in html
+
+
 def test_live_sync_keeps_public_health_independent_from_admin_overlays():
     """An optional admin fetch/render failure must not become 'API unreachable'."""
     html = es.EXPLORER.read_text(encoding="utf-8")

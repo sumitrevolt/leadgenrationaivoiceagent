@@ -1,88 +1,60 @@
-# SESSION_HANDOFF — 2026-08-15 (FreeBuff: REVENUE-50 complete session)
+# SESSION_HANDOFF — 2026-08-16 (CURSOR: admin marketing ledger tiles)
 
 ## Status
-**PARTIAL — all technical gates GO. Owner execution (Hot Queue + UPI bank credit) is the only remaining blocker.** 16+2 files changed/created. All tests green. **Prod `/health` = `75b57dd5`** (LIVE 18:06Z, all pages 200, plugin registry verified in-container). Voice FROZEN. Swara untouched.
+**CODE-READY, UNCOMMITTED** — admin “Aaj kya karna hai” ab 6 marketing JSONL ledgers dikhata hai (read-only). Flags OFF. 0 = empty/inert, fake success nahi. Owner/external gates WAIT.
 
-## What was delivered
+Prod `/health` last DIRECT_HOST_VERIFIED earlier this session = **`520e90eb`** (is slice pe re-probe nahi). Voice FROZEN. No commit/push/deploy.
 
-### 1. Plugin Architecture
-- `app/agents/harness/plugin_manifest.py` — PluginManifest schema + PluginRegistry + drift detection
-- `app/agents/harness/plugin_catalog.py` — 42 plugin manifests (7 categories, 4 RED, 31 PRODUCTION_PROVEN)
-- `app/api/plugin_registry.py` — GET /api/admin/plugins + /{id} + POST /drift
-- `app/main.py` — bootstrap_catalog() wired into lifespan + router mounted
-- Tests: 23 + 15 = 38 new
+## What this Cursor slice delivered
+Read-only tiles on existing `GET /api/growth/overview/today` (`today_overview.build()` → `totals`). **No new route. No flag arm.**
 
-### 2. Automation Loop Portfolio
-- `docs/gtm/AUTOMATION_LOOP_PORTFOLIO.md` — 50 loops inventoried, KEEP/FIX/SCALE/KILL
+Honest labels:
+- Reviews = **review requests sent** (`get_sequence_stats()["sent"]`) — live Google reviews nahi
+- Drip = **sent/opened** (`total_emails_sent` / `opened`) — opens 0 until a run row has `opened` (`EMAIL_TRACKING`)
+- Forms submitted = `total_responses`
+- Proposals accepted = `accepted`
+- Reminders sent = `sent`
+- Health at-risk = `at_risk` only (critical alag classification, add nahi kiya)
 
-### 3. Capacity Measurement
-- `tests/test_onboard_capacity_measure.py` — 50 fake onboardings, p50=74.9ms, p95=122ms, 13.1/s
+Fail-open zeros; marketing counts **problems/headline/top_blocker** me nahi.
 
-### 4. Admin Dashboard UX
-- `frontend/admin_dashboard.html` — Live scorecards (paid/activations/Hot Queue/pending) + next best action + 60s auto-refresh
-- Tests: 16 new
+UI: `#ownerMktScorecard` second row + `loadTodayBiz()` chips. Same `paintOwnerScorecards(t)`.
 
-### 5. Explorer Plugin Topology
-- `frontend/explorer.html` — PLUGINS tab with topology panel + plugin_registry node in graph
+## Git (GIT_VERIFIED)
+- Primary worktree `main` HEAD `520e90eb` **ahead 3 of `origin/main`=`8ebdf36e`**, plus uncommitted scorecard/plugins/C-01..C-15 + ratchet/flags + this metrics slice.
+- Open PR **#379** head still `b8e40f6d` — CI red until Owner push/PR update.
+- FreeBuff worktree dirty — **do not touch**.
 
-### 6. Buzz Setup Runbook
-- `docs/gtm/BUZZ_SETUP_RUNBOOK.md` — End-to-end: relay→membership→harness→canary→troubleshoot
+## Flags — do not arm
+`DSH_RUNTIME_ENABLED` / `DSH_SHADOW_ENABLED` / `DSH_AGENT_ALLOWLIST=*` / `HARNESS_SESSION_EVENTS` / `AGENT_HARNESS` / `GSC_ENABLED` / `HQ_AUTO_CHASE` / `ONBOARDING_PIPELINE` / `CELERY_ONBOARD_QUEUE` / `FORM_BUILDER` / `PROPOSAL_BUILDER` / `REVIEW_MONITOR` / `BOOKING_REMINDERS` / `CLIENT_HEALTH_ALERTS` / `EMAIL_TRACKING` / cold WA.
 
-### 7. Master Blueprint Updated
-- `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` — Capacity proof + plugin arch + automation portfolio + UX
+Prod flag-arm (6 marketing features ON) = **Owner-only**. Agent ne flags nahi flip kiye.
 
-### 8. API Docs Synced
-- `docs/API.md` — 1307 endpoints
-
-## Verification Evidence
-- pytest: 296 targeted **ALL PASS**
-- prod_check.py: **ALL CHECKS PASSED** (1285 routes, 359 nodes, 0 gaps)
-- check_secrets.py: **OK** (0 secrets in 17 files)
-- sync_api_docs.py: **1307 endpoints**
-- Duplicate routes: **No new duplicates** (existing pre-existing across prefix routers)
-- Voice frozen: **Zero paths touched**
-- Whitespace: **Clean** (git diff --check)
-- HTML validation: Explorer 7/7, Admin 11/11
-- **LIVE PROD:** `/health` = `75b57dd5` healthy, plugin registry verified 42 plugins in-container
-- **DEPLOY GATE ISSUE:** `VOICE_LAUNCH_KILL=TRUE_TOKEN` in .env is INVALID (not in `{1,true,yes,on}`); gate will block future deploys. Owner must set to `1` before deploy, `0` after.
-
-## Files changed (16 total)
-| File | Type | Lines |
-|---|---|---|
-| `app/main.py` | modified | +20 |
-| `frontend/admin_dashboard.html` | modified | +92 |
-| `frontend/explorer.html` | modified | +65 |
-| `docs/API.md` | modified | +8 |
-| `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` | modified | +42 |
-| `docs/context/SESSION_HANDOFF.md` | modified | this file |
-| `progress.md` | modified | +12 |
-| `app/agents/harness/plugin_manifest.py` | new | schema |
-| `app/agents/harness/plugin_catalog.py` | new | 42 plugins |
-| `app/api/plugin_registry.py` | new | 3 endpoints |
-| `docs/gtm/AUTOMATION_LOOP_PORTFOLIO.md` | new | 50 loops |
-| `docs/gtm/BUZZ_SETUP_RUNBOOK.md` | new | runbook |
-| `tests/test_plugin_manifest.py` | new | 23 tests |
-| `tests/test_plugin_registry_api.py` | new | 15 tests |
-| `tests/test_admin_scorecard.py` | new | 16 tests |
-| `tests/test_onboard_capacity_measure.py` | new | 4 tests |
+## Verification (this slice)
+- pytest `test_today_overview.py` + `test_admin_scorecard.py` **52 passed EXIT 0**
+- `scripts/check_html_js.py frontend/admin_dashboard.html` **JS_OK EXIT 0**
+- `scripts/prod_check.py` **ALL CHECKS PASSED EXIT 0** (1322 routes, API.md 1344 in sync)
+- `check_secrets.py` OK EXIT 0 (29 files vs HEAD)
+- `git diff --check` EXIT 0 (this slice paths)
+- Voice frozen: **0** telephony/Swara paths
 
 ## Do not
-- Arm DSH_RUNTIME_ENABLED / DSH_SHADOW_ENABLED / HARNESS_SESSION_EVENTS / AGENT_HARNESS / GSC_ENABLED / HQ_AUTO_CHASE / cold WA
-- Edit Voice/Swara · weaken DND/TRAI/DPDP
-- Recreate without APP_VERSION · VPS reset --hard · git add -A · flush dlq:dead
-- Touch .env VOICE_LAUNCH_KILL without deploy sequence (set 1 → deploy → set 0)
+- Arm any of the flags above from this chat
+- Build customer `/app/forms` + `/app/proposals` pages until Owner picks that slice
+- Edit Voice/Swara/Ananya · weaken DND/TRAI/DPDP
+- Touch FreeBuff dirty files
+- `git add -A` · commit/push/deploy without Owner ask
+- Claim 50/day live or revenue-generated
+- Treat marketing zeros as “feature working”
 
-## Deploy Status
-- **PR #375 MERGED** (commit `2b7b5d18`, merge `75b57dd5`)
-- **App container LIVE** on `75b57dd5` healthy
-- **Workers/scheduler** still on `963ee800` (minor skew, non-blocking)
-- **Deploy gate BLOCKED** future deploys: `VOICE_LAUNCH_KILL=TRUE_TOKEN` not recognized
+## Owner WAIT (cannot close in code)
+1. Authenticated `/app/inbox` Hot Queue blitz
+2. UPI Bind/Re-Approve **only if** bank credit real
+3. Boss Desktop canary ≥600s
+4. Push `520e90eb` + uncommitted slices so GitHub/PR #379 match
+5. AUTH-DEPLOY via `scripts/deploy_vps.sh` (not requested)
+6. Prod marketing flags — **Owner sets env**, not this agent
+7. OmniRoute `:20128` this machine = timeout
 
-## Next
-1. **OWNER — fix .env:** `VOICE_LAUNCH_KILL=1` (pause calling for safe deploy) → deploy → `VOICE_LAUNCH_KILL=0` (resume)
-2. **OWNER — Hot Queue /app/inbox** 15-30 min sprint
-3. **OWNER — UPI bank credit** for any real payments
-4. Optional Boss harness start (`buzz_start_harness.py --agent Boss`)
-5. Then: Jiya referral kit, GSC creds (still OFF), B3 DKIM
-6. Onboarding burst staging test (real Celery, not in-process)
-7. Workers to be updated to match app SHA on next deploy cycle
+## Next highest priority
+Owner `/app/inbox` + UPI bank confirm. Optional next code slice: customer-facing forms/proposals pages (like `/app/plugins`).

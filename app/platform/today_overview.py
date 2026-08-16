@@ -396,6 +396,132 @@ def _customer_approval_backlog() -> dict[str, Any]:
     return out
 
 
+def _env_tri_state(name: str) -> str:
+    """Boolean env → on/off/unset. Kabhi raw value return nahi (secrets-safe)."""
+    raw = (os.environ.get(name, "") or "").strip().lower()
+    if not raw:
+        return "unset"
+    if raw in ("0", "false", "no", "off"):
+        return "off"
+    return "on"
+
+
+def _upi_owner_queue() -> dict[str, int]:
+    """Manual-UPI owner queue + aaj ke /start intents. Read-only, fail-open zeros."""
+    out = {
+        "upi_pending": 0,
+        "upi_needs_owner": 0,
+        "upi_needs_bind": 0,
+        "upi_starts_today": 0,
+    }
+    try:
+        from app.billing.paid_activations import _ist_day, today_ist
+        from app.platform import upi_payments
+
+        day = today_ist()
+        rows = upi_payments.list_payments() or []
+        actionable = upi_payments.list_actionable() or []
+        out["upi_needs_owner"] = len(actionable)
+        out["upi_pending"] = sum(1 for r in actionable if r.get("status") == "pending")
+        out["upi_needs_bind"] = sum(
+            1
+            for r in actionable
+            if r.get("status") == "approved" and not str(r.get("client_id") or "").strip()
+        )
+        out["upi_starts_today"] = sum(1 for r in rows if _ist_day(r.get("created_at")) == day)
+    except Exception as e:
+        logger.debug(f"[today] upi owner queue skip: {e}")
+    return out
+
+
+def _onboard_factory_counts() -> dict[str, int]:
+    """Staged onboarding factory snapshot. Flag OFF / Redis miss = honest zeros."""
+    out = {"onboard_waiting": 0, "onboard_running": 0, "onboard_failed": 0}
+    try:
+        from app.marketing.onboarding_factory import get_all_pipelines
+
+        for pipeline in (get_all_pipelines() or [])[:200]:
+            stages = pipeline.get("stages") or {}
+            failed = any((v or {}).get("status") == "failed" for v in stages.values())
+            if failed or pipeline.get("status") == "failed":
+                out["onboard_failed"] += 1
+            elif pipeline.get("status") == "in_progress":
+                out["onboard_running"] += 1
+            elif pipeline.get("status") != "completed":
+                out["onboard_waiting"] += 1
+    except Exception as e:
+        logger.debug(f"[today] onboard factory skip: {e}")
+    return out
+
+
+def _marketing_feature_totals() -> dict[str, Any]:
+    """Read-only marketing-feature JSONL ledgers. Fail-open zeros; never fabricate.
+
+    Numbers are store counts, not live Google/Meta pixels. ``drip_emails_opened``
+    is 0 until a run row actually has ``opened`` (EMAIL_TRACKING). Flag OFF +
+    empty file = honest zero, not a success claim.
+    """
+    out: dict[str, Any] = {
+        "reviews_sent": 0,
+        "drip_emails_sent": 0,
+        "drip_emails_opened": 0,
+        "forms_submitted": 0,
+        "proposals_accepted": 0,
+        "reminders_sent": 0,
+        "health_at_risk": 0,
+        "review_monitor": _env_tri_state("REVIEW_MONITOR"),
+        "form_builder": _env_tri_state("FORM_BUILDER"),
+        "proposal_builder": _env_tri_state("PROPOSAL_BUILDER"),
+        "booking_reminders": _env_tri_state("BOOKING_REMINDERS"),
+        "client_health_alerts": _env_tri_state("CLIENT_HEALTH_ALERTS"),
+        "email_tracking": _env_tri_state("EMAIL_TRACKING"),
+    }
+    try:
+        from app.marketing.review_automation import get_sequence_stats
+
+        s = get_sequence_stats() or {}
+        out["reviews_sent"] = int(s.get("sent") or 0)
+    except Exception as e:
+        logger.debug(f"[today] review stats skip: {e}")
+    try:
+        from app.marketing.email_drips import get_drip_stats
+
+        s = get_drip_stats() or {}
+        out["drip_emails_sent"] = int(s.get("total_emails_sent") or 0)
+        out["drip_emails_opened"] = int(s.get("opened") or 0)
+    except Exception as e:
+        logger.debug(f"[today] drip stats skip: {e}")
+    try:
+        from app.marketing.form_builder import get_form_stats
+
+        s = get_form_stats() or {}
+        out["forms_submitted"] = int(s.get("total_responses") or 0)
+    except Exception as e:
+        logger.debug(f"[today] form stats skip: {e}")
+    try:
+        from app.marketing.proposal_builder import get_proposal_stats
+
+        s = get_proposal_stats() or {}
+        out["proposals_accepted"] = int(s.get("accepted") or 0)
+    except Exception as e:
+        logger.debug(f"[today] proposal stats skip: {e}")
+    try:
+        from app.marketing.appointment_reminders import get_reminder_stats
+
+        s = get_reminder_stats() or {}
+        out["reminders_sent"] = int(s.get("sent") or 0)
+    except Exception as e:
+        logger.debug(f"[today] reminder stats skip: {e}")
+    try:
+        from app.marketing.customer_health import get_health_summary
+
+        s = get_health_summary() or {}
+        out["health_at_risk"] = int(s.get("at_risk") or 0)
+    except Exception as e:
+        logger.debug(f"[today] health stats skip: {e}")
+    return out
+
+
 def _paid_activations_today() -> dict[str, Any]:
     """Aaj ke Product-1 (Marketing) paid activations — ledger-backed, IST din.
 
@@ -707,6 +833,50 @@ def build() -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"[today] hot_queue failed: {e}")
         totals["hot_queue"] = 0
+
+    # ---- 7) Owner money-path + control-plane chips (admin-only; keys/counts, no PII)
+    _upi = _upi_owner_queue()
+    totals.update(_upi)
+    totals.update(_onboard_factory_counts())
+    totals.update(_marketing_feature_totals())
+    totals["dsh_runtime"] = _env_tri_state("DSH_RUNTIME_ENABLED")
+    totals["dsh_shadow"] = _env_tri_state("DSH_SHADOW_ENABLED")
+    totals["staff_bus"] = _env_tri_state("STAFF_BUS_ENABLED")
+    totals["delivery_at_risk"] = int(totals.get("customer_approvals_pending") or 0)
+    totals["automation_failures"] = sum(
+        1
+        for p in problems
+        if any(tok in (p.get("kya") or "").lower() for tok in ("fail", "stuck", "exhausted", "dlq"))
+    )
+    if totals.get("upi_needs_owner"):
+        totals["top_blocker"] = "upi_pending_unactioned"
+    elif totals.get("hot_queue"):
+        totals["top_blocker"] = "hot_queue"
+    elif totals.get("onboard_failed"):
+        totals["top_blocker"] = "onboard_failed"
+    elif totals.get("delivery_at_risk"):
+        totals["top_blocker"] = "delivery_approvals"
+    else:
+        totals["top_blocker"] = ""
+
+    if int(totals.get("upi_needs_owner") or 0) > 0:
+        already = any("upi" in (p.get("kya") or "").lower() for p in problems)
+        if not already:
+            insert_at = 1 if int(totals.get("hot_queue") or 0) > 0 else 0
+            problems.insert(
+                insert_at,
+                {
+                    "kya": (
+                        f"{totals['upi_needs_owner']} UPI claim owner action maangte hain "
+                        f"(pending={totals['upi_pending']}, bind={totals['upi_needs_bind']})"
+                    ),
+                    "fix": (
+                        "Bind/Re-Approve tabhi jab bank credit sach me aaya ho — "
+                        "auto-confirm mat karo"
+                    ),
+                    "href": "/app/admin#sec-upi-selfserve",
+                },
+            )
 
     # ---- Headline ----
     if problems:

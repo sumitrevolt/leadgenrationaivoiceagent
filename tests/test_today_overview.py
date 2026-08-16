@@ -206,3 +206,136 @@ def test_hot_queue_pending_surfaces_as_first_problem(monkeypatch):
     assert hq, d["problems"]
     assert hq[0]["href"] == "/app/inbox"
     assert d["problems"][0]["href"] == "/app/inbox"
+
+
+def test_totals_include_owner_money_path_fields():
+    d = today_overview.build()
+    t = d["totals"]
+    for key in (
+        "paid_today",
+        "activations_today",
+        "paid_gross_today_inr",
+        "upi_pending",
+        "upi_needs_owner",
+        "upi_needs_bind",
+        "upi_starts_today",
+        "onboard_waiting",
+        "onboard_running",
+        "onboard_failed",
+        "dsh_runtime",
+        "staff_bus",
+        "delivery_at_risk",
+        "automation_failures",
+        "top_blocker",
+        "reviews_sent",
+        "drip_emails_sent",
+        "drip_emails_opened",
+        "forms_submitted",
+        "proposals_accepted",
+        "reminders_sent",
+        "health_at_risk",
+        "review_monitor",
+        "form_builder",
+        "proposal_builder",
+        "booking_reminders",
+        "client_health_alerts",
+        "email_tracking",
+    ):
+        assert key in t, f"missing totals.{key}"
+    assert t["dsh_runtime"] in ("on", "off", "unset")
+    assert t["staff_bus"] in ("on", "off", "unset")
+    assert t["form_builder"] in ("on", "off", "unset")
+    assert t["proposal_builder"] in ("on", "off", "unset")
+    assert isinstance(t["upi_needs_owner"], int)
+    assert t["upi_needs_owner"] >= 0
+    for k in (
+        "reviews_sent",
+        "drip_emails_sent",
+        "drip_emails_opened",
+        "forms_submitted",
+        "proposals_accepted",
+        "reminders_sent",
+        "health_at_risk",
+    ):
+        assert isinstance(t[k], int) and t[k] >= 0
+
+
+def test_env_tri_state_never_leaks_raw(monkeypatch):
+    monkeypatch.setenv("DSH_RUNTIME_ENABLED", "1")
+    assert today_overview._env_tri_state("DSH_RUNTIME_ENABLED") == "on"
+    monkeypatch.setenv("DSH_RUNTIME_ENABLED", "0")
+    assert today_overview._env_tri_state("DSH_RUNTIME_ENABLED") == "off"
+    monkeypatch.delenv("DSH_RUNTIME_ENABLED", raising=False)
+    assert today_overview._env_tri_state("DSH_RUNTIME_ENABLED") == "unset"
+
+
+def test_upi_queue_fail_open(monkeypatch):
+    import app.platform.upi_payments as upi_payments
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("store down")
+
+    monkeypatch.setattr(upi_payments, "list_actionable", _boom)
+    monkeypatch.setattr(upi_payments, "list_payments", _boom)
+    q = today_overview._upi_owner_queue()
+    assert q["upi_needs_owner"] == 0
+    assert q["upi_starts_today"] == 0
+
+
+def test_marketing_feature_totals_fail_open(monkeypatch):
+    def _boom(*_a, **_k):
+        raise RuntimeError("store down")
+
+    monkeypatch.setattr("app.marketing.review_automation.get_sequence_stats", _boom, raising=False)
+    monkeypatch.setattr("app.marketing.email_drips.get_drip_stats", _boom, raising=False)
+    monkeypatch.setattr("app.marketing.form_builder.get_form_stats", _boom, raising=False)
+    monkeypatch.setattr("app.marketing.proposal_builder.get_proposal_stats", _boom, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.appointment_reminders.get_reminder_stats", _boom, raising=False
+    )
+    monkeypatch.setattr("app.marketing.customer_health.get_health_summary", _boom, raising=False)
+    t = today_overview._marketing_feature_totals()
+    assert t["reviews_sent"] == 0
+    assert t["drip_emails_sent"] == 0
+    assert t["drip_emails_opened"] == 0
+    assert t["forms_submitted"] == 0
+    assert t["proposals_accepted"] == 0
+    assert t["reminders_sent"] == 0
+    assert t["health_at_risk"] == 0
+    assert t["form_builder"] in ("on", "off", "unset")
+
+
+def test_marketing_feature_totals_maps_store_counts(monkeypatch):
+    """Reviews = requests sent, not Google review pixels. Opens come from drip runs."""
+    monkeypatch.setattr(
+        "app.marketing.review_automation.get_sequence_stats",
+        lambda **_k: {"sent": 3, "google_reviews": 99},
+    )
+    monkeypatch.setattr(
+        "app.marketing.email_drips.get_drip_stats",
+        lambda **_k: {"total_emails_sent": 4, "opened": 1},
+    )
+    monkeypatch.setattr(
+        "app.marketing.form_builder.get_form_stats",
+        lambda **_k: {"total_responses": 5, "total_forms": 9},
+    )
+    monkeypatch.setattr(
+        "app.marketing.proposal_builder.get_proposal_stats",
+        lambda **_k: {"accepted": 2, "sent": 7},
+    )
+    monkeypatch.setattr(
+        "app.marketing.appointment_reminders.get_reminder_stats",
+        lambda **_k: {"sent": 6},
+    )
+    monkeypatch.setattr(
+        "app.marketing.customer_health.get_health_summary",
+        lambda **_k: {"at_risk": 8, "critical": 1},
+    )
+    t = today_overview._marketing_feature_totals()
+    assert t["reviews_sent"] == 3
+    assert t["drip_emails_sent"] == 4
+    assert t["drip_emails_opened"] == 1
+    assert t["forms_submitted"] == 5
+    assert t["proposals_accepted"] == 2
+    assert t["reminders_sent"] == 6
+    assert t["health_at_risk"] == 8

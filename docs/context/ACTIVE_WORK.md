@@ -5,8 +5,8 @@
 ## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `963ee800` (DIRECT_HOST_VERIFIED 2026-08-15 15:21:24Z–15:22:37Z, 5/5 pin, VLK FALSE) · leftover local branches deleted (already on GitHub via squash) · open PRs = 0 at deploy · `payments_ready=true` · `blocker_count=1` · audit `docs/gtm/REVENUE_BLOCKER_AUDIT.md`. **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Hot Queue `callflag:` from #368 is **in the live SHA**. `HQ_AUTO_CHASE` remains INERT — do not arm.
-- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. No further code merge required for that path.
+- **Current state:** LIVE on `520e90eb` (DIRECT_HOST_VERIFIED 2026-08-16 01:00Z–01:18Z, timestamps advanced). `payments_ready=true` · `blocker_count=1` · `ready_for_first_paid_customer=false`. Admin scorecard now surfaces UPI owner-queue + next-best from totals (uncommitted Cursor slice). **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Authenticated `/api/activation/readiness` still 401 from this shell. `HQ_AUTO_CHASE` remains INERT — do not arm.
+- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. Code cannot fake bank credit.
 - **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
 
 ---
@@ -14,7 +14,7 @@
 ## WS-BUZZ Agent-chat coordination (CURSOR LANE B)
 - **ID:** WS-BUZZ
 - **Business outcome:** Coding tools + Boss coordinate in Buzz without ping-pong; not a 32nd STAFF
-- **Current state:** Local relay LIVE `ws://127.0.0.1:3100` `/_liveness=ok` · `buzzlock handoff` shipped · `#staff-pulse` posted 31/31 (footer `@` mention bug fixed) · Boss harness **dry-run EXIT 0** (canonical `1b13cecc`) · owner one-pager `docs/gtm/BOSS_HARNESS_CANARY.md`
+- **Current state:** Local relay LIVE `http://127.0.0.1:3100/_liveness=ok` (2026-08-16 re-probe). OmniRoute `:20128` timeout this machine. Boss harness **dry-run ≠ LIVE**. Canonical Boss still `1b13cecc`. Comb gated until correlated `#admin` canary ≥600s.
 - **Next exact action:** Owner runs `python scripts/buzz_start_harness.py --agent Boss` then `@Boss` canary ≥600s in `#admin`. Comb only after that.
 - **Out of scope:** Buzz as production control plane · agent cross-allowlist · using hub as 32nd STAFF (live env already `COORDINATION_HUB_ENABLED=1` — do not treat as control plane)
 
@@ -23,8 +23,8 @@
 ## WS-REV50 Product-1 → 50 paid/day capacity (90d)
 - **ID:** WS-REV50
 - **Business outcome:** Backend factory toward 50 new ₹1,999/mo Marketing subscribers / day (not claimed live)
-- **Current state:** Plan `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md` · Phase 0 via WS-GTM1 · **PR #363 LIVE on `91958c23`:** ledger-backed `paid_today` / `activations_today` / `paid_gross_today_inr` (invoice + UPI ledgers, IST day, client+day dedupe, read-only; baseline 0/0 honest). `CELERY_ONBOARD_QUEUE` UNSET/INERT · 50 fake onboard tests green · loadtest `/` 429 at 5 concurrent · heavy **0.46% CPU at 02:41Z** after kb-warmup (was 155% 01:16Z) · sheet `docs/gtm/CAPACITY_50_DAY.md` · live flag mismatches in `docs/gtm/NEXT42_EVIDENCE.md`
-- **Next exact action:** After 2nd paid, owner ads/GSC. Do **not** arm onboard→heavy while kb-warmup still recurs on heavy. Owner to confirm dunning/UPI_AUTO_ACTIVATE/hub live=1.
+- **Current state:** Plan `docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`. Ledger KPIs exist on live `520e90eb` ancestry. Uncommitted Cursor stack: ratchet+inert flags + admin marketing ledger tiles (review requests / drip sent-opened / forms / proposals / reminders / health at-risk) on `/api/growth/overview/today`. `CELERY_ONBOARD_QUEUE` UNSET/INERT. Do **not** claim 50/day live. Do **not** arm onboard→heavy or builder flags. Do **not** treat tile zeros as live automation.
+- **Next exact action:** Owner 2nd paid via WS-GTM1. Then ads/GSC. Keep onboard queue INERT. Optional later: AUTH-DEPLOY this uncommitted slice after Owner ask. Customer forms/proposals pages = parked until Owner picks that slice.
 - **Out of scope:** Claiming 50/day live · paid LLM · raising WEB_CONCURRENCY off 429s · Stripe/Razorpay return · inventing metrics
 
 ---

@@ -3,6 +3,33 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
+## RE-VERIFICATION 2026-08-16 ~03:18Z — Cursor admin marketing ledger tiles (uncommitted)
+- Admin scorecard second row `#ownerMktScorecard`: review requests sent, drip sent/opened, forms submitted, proposals accepted, reminders sent, health at-risk. Source = existing `GET /api/growth/overview/today` totals. **No new route. Flags stay OFF.**
+- Honest mapping: `reviews_sent` = sequence `sent` (not Google pixels); `drip_emails_opened` = drip-run `opened` (0 until EMAIL_TRACKING writes it); `health_at_risk` = `at_risk` only. Fail-open zeros; not in `problems`/`headline`/`top_blocker`.
+- Tests: `test_today_overview` + `test_admin_scorecard` 52 passed; `check_html_js` JS_OK; `prod_check` ALL CHECKS PASSED (1322 routes, API.md 1344); secrets OK. Prod SHA not re-probed this slice (still `520e90eb` from earlier DIRECT_HOST_VERIFIED).
+- Do **not** arm FORM_BUILDER / PROPOSAL_BUILDER / REVIEW_MONITOR / BOOKING_REMINDERS / CLIENT_HEALTH_ALERTS / EMAIL_TRACKING from this session. Customer forms/proposals pages still parked.
+- Label: TEST-PROVEN + GIT_VERIFIED; Owner WAIT unchanged.
+
+## RE-VERIFICATION 2026-08-16 ~02:16Z — Cursor ratchet/flag fix (code-only, uncommitted)
+- Root cause of PR #379 CI FAIL: `runtime_data_path_scan.py ratchet` NEW_UNDECLARED / NEW_AMBIGUOUS on marketing JSONL (`appointment_reminders`, `customer_health`, `email_drips`, `form_builder`, `proposal_builder`, `review_automation`). Classified as 6 TIER_3 REBUILDABLE_CACHE families + 8 allowlist rows (GSC pattern). `deployment_blockers` still 0.
+- `ONBOARDING_PIPELINE` / `FORM_BUILDER` / `PROPOSAL_BUILDER` now in `AUTOMATION_FLAGS` + typed overlay (CANARY_ONLY, default `"0"`). Form/proposal admin routes 503 while flag off. **Do not arm.**
+- `scripts/runtime_data_path_scan.py ratchet` = **RATCHET OK** newly unresolved=0 (LOCAL-ONLY). `prod_check` ALL CHECKS PASSED (1322 routes, API.md 1344 in sync). Secrets OK.
+- Local gitignored `scripts/_tmp_void_invoices_c.sh` deleted (scanner saw `cp data/…` as undeclared `data` REWRITE). Not in git.
+- Prod SHA this session still **`520e90eb`** from earlier DIRECT_HOST_VERIFIED (not re-probed this fix). Uncommitted slice still not live.
+- Label: TEST-PROVEN + GIT_VERIFIED; Owner WAIT unchanged.
+
+## RE-VERIFICATION 2026-08-16 ~01:18Z — Cursor REVENUE-50 CP0–CP7 (owner scorecard + C-01..C-15 + plugins deep-link)
+- Prod `/health` = **`520e90eb`** healthy production (DIRECT_HOST_VERIFIED). Dual probe 01:00:28Z uptime `0h 35m 44s` → 01:00:31Z `0h 35m 47s`; re-probe 01:18:02Z `0h 53m 18s` → 01:18:04Z `0h 53m 21s`.
+- `activation/summary`: `payments_ready=true` `blocker_count=1` `ready_for_first_paid_customer=false`. Authenticated readiness/plugins/overview = **401** (do not guess bodies).
+- Git: local `main` `520e90eb` **ahead 3** of `origin/main` `8ebdf36e`. Live SHA is **unpushed** to GitHub. Open PR #379 CI FAIL (FreeBuff). FreeBuff worktree dirty — do not touch.
+- Plugin catalog now **45** manifests (+ `onboarding_factory` / `form_builder` / `proposal_builder`, CODE_PRESENT, flags default OFF).
+- C-01..C-15: source tests green; honest **L3** (C-05/C-09/C-12 PARTIAL). DSH `*` allowlist fail-closed empty. `swara`/`ananya` frozen on dispatch.
+- Admin “Aaj kya karna hai” now includes UPI owner queue, onboard factory, DSH/Staff Bus tri-state. Explorer `?tab=plugins` shareable; Control Center Plugins deep-link.
+- Buzz local `_liveness=ok` on `:3100`. OmniRoute `:20128` **timeout** this machine (WAIT). Boss LIVE canary still Owner Desktop WAIT.
+- Tests this slice: 207 passed EXIT 0 · `prod_check` ALL CHECKS PASSED (1322 routes) · secrets OK · html_js JS_OK · `git diff --check` clean · voice diff **0 paths**.
+- **Do not claim:** 50/day live · revenue-generated · authenticated `paid_today` · 5/5 pin (SSH not this session) · this uncommitted slice live on prod.
+- Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + GIT_VERIFIED; Owner WAIT items remain owner-gated.
+
 ## RE-VERIFICATION 2026-08-15 ~16:50Z — FreeBuff session: plugin architecture + automation portfolio + dashboard UX
 - Prod `/health` = `963ee800` healthy production (16:50Z, uptime 1h33m, DIRECT_HOST_VERIFIED)
 - `activation/summary`: `payments_ready=true` `blocker_count=1` `ready_for_first_paid_customer=false`
@@ -12,7 +39,8 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 - Explorer: PLUGINS tab added with topology panel + plugin_registry node
 - Admin dashboard: live scorecards (paid/activations/Hot Queue/pending) + next best action
 - Automation portfolio: 50 loops inventoried (28 KEEP, 2 FIX, 1 SCALE, 14 INERT, 8 KILL)
-- Capacity: 50 fake onboardings, p50=74.9ms, p95=122ms, 13.1/s throughput, 0% failuren- Tests: 250+ targeted PASS, prod_check PASS, secrets clean, API.md synced (1307)
+- Capacity: 50 fake onboardings, p50=74.9ms, p95=122ms, 13.1/s throughput, 0% failure
+- Tests: 250+ targeted PASS, prod_check PASS, secrets clean, API.md synced (1307)
 - Voice FROZEN: zero paths touched
 - Files changed: 7 modified + 9 new = 16 total, NOT committed/pushed
 - Label: DIRECT_HOST_VERIFIED + TEST-PROVEN + GIT_VERIFIED

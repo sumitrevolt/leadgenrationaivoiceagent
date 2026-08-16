@@ -78,6 +78,8 @@ AUTOMATION_FLAGS = [
     "USAGE_ALERTS",
     "REVIEW_MONITOR",
     "BOOKING_REMINDERS",
+    "FORM_BUILDER",  # admin form/survey builder JSONL; OFF default; API 503 when unset
+    "PROPOSAL_BUILDER",  # admin proposal/quote drafts JSONL; OFF default; API 503 when unset
     "DELIVERABILITY_MONITOR",
     "AUTOMATION_HEALTH_ALERTS",
     "LLM_COMPARE_ENABLED",  # admin-only blind LLM arena (/api/llm/compare/ui) — Odysseus-inspired A/B for free-tier chain, INERT default
@@ -127,6 +129,7 @@ AUTOMATION_FLAGS = [
     "CREATIVE_HYPERFRAMES_DEFAULT_TEMPLATE",  # template id (default beauty_luxury_offer_v1)
     "CELERY_VIDEO_QUEUE",  # route video render tasks to the dedicated 'video' queue/worker (default OFF)
     "CELERY_ONBOARD_QUEUE",  # route onboard_client to existing heavy worker (default OFF; no new queue)
+    "ONBOARDING_PIPELINE",  # staged onboarding factory (retry/DLQ/backpressure); OFF=legacy auto_onboard still works
     "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
     "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
     "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)

@@ -1,6 +1,42 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-16 (CURSOR — admin marketing automation ledger tiles)
+Goal: Owner-selected suggest_prompt: admin dashboard section for marketing automation metrics (reviews sent, emails opened, forms submitted, proposals accepted) plus reminders + health. Flags stay OFF. No new route.
+Inspected: `get_sequence_stats` / `get_drip_stats` / `get_form_stats` / `get_proposal_stats` / `get_reminder_stats` / `get_health_summary`; existing `#ownerScorecard` + `paintOwnerScorecards` + `loadTodayBiz`; `GET /api/growth/overview/today`.
+Problems Found: Admin money-path tiles existed; 6 factory JSONL ledgers had no owner-home surface. Prod flag-arm is Owner-gated (refused). Customer forms/proposals pages parked.
+Changed: `app/platform/today_overview.py` (`_marketing_feature_totals` fail-open); `frontend/admin_dashboard.html` (`#ownerMktScorecard` + chips); `tests/test_today_overview.py`; `tests/test_admin_scorecard.py`; context writeback.
+Tests Run: pytest today_overview + admin_scorecard **52 passed EXIT 0**; `check_html_js.py` JS_OK EXIT 0; `prod_check.py` ALL CHECKS PASSED EXIT 0 (1322 routes, API.md 1344); `check_secrets.py` OK EXIT 0; `git diff --check` EXIT 0.
+Verification Evidence: totals keys present; fail-open zeros; mapping uses `sent` not `google_reviews`; `health_at_risk` = `at_risk` only; drip tile `sent/opened`; HTML ids + JS field names locked.
+Risks: Uncommitted. Empty JSONL → honest 0. `drip_emails_opened` stays 0 until EMAIL_TRACKING writes run.opened. Do not arm flags from this slice.
+Remaining: Owner inbox/UPI/Boss Desktop; GitHub push; AUTH-DEPLOY; parked customer forms/proposals pages; do not arm FORM_BUILDER/PROPOSAL_BUILDER/REVIEW_MONITOR/BOOKING_REMINDERS/CLIENT_HEALTH_ALERTS/EMAIL_TRACKING.
+Next Highest Priority: Owner `/app/inbox` + UPI bank confirm.
+
+## Loop Run
+Date: 2026-08-16 (CURSOR — PR #379 CI ratchet + inert marketing flags)
+Goal: Code-fixable issues from the REVENUE-50 slice: runtime-data ratchet NEW_UNDECLARED marketing JSONL, missing AUTOMATION_FLAGS for ONBOARDING_PIPELINE/FORM_BUILDER/PROPOSAL_BUILDER, API.md drift, CURRENT_STATE typo. Do not arm flags; do not push.
+Inspected: ratchet output (27 new unresolved: 6 marketing modules + local gitignored `_tmp_void_invoices_c.sh`); GSC allowlist pattern; `AUTOMATION_FLAGS` vs `_OVERRIDES`; `app/api/marketing_features.py` form/proposal routes; CI log `31914540926`.
+Problems Found: (1) Marketing feature JSONL writers undeclared → CI `runtime_data_path_scan.py ratchet` FAIL. (2) Catalog flags `FORM_BUILDER`/`PROPOSAL_BUILDER` docstring-only; `ONBOARDING_PIPELINE` overlay present but missing from `AUTOMATION_FLAGS`. (3) Form/proposal admin routes unguarded. (4) `docs/API.md` OUT OF DATE. (5) `n- Tests:` typo. (6) Local `_tmp_void_invoices_c.sh` (gitignored) scanned as `data` REWRITE.
+Changed: 6 TIER_3 REBUILDABLE_CACHE stores + 8 allowlist rows; 3 flags registered (default 0); form/proposal API 503 when flag off; API.md 1344 ops; deleted local `_tmp_void` scratch; context writeback.
+Tests Run: `runtime_data_path_scan.py ratchet` RATCHET OK (newly unresolved=0) EXIT 0; pytest flag/marketing/onboard EXIT 0; pytest runtime_data ratchet+baseline+allowlist `--timeout=300` EXIT 0 (58); plugin+arithmetic EXIT 0; `prod_check.py` ALL CHECKS PASSED EXIT 0 (1322 routes, API.md in sync); `check_secrets.py` OK EXIT 0; `git diff --check` EXIT 0.
+Verification Evidence: stores=42 blockers=0 entries=70 families=24; form/proposal templates 503 when unset / 200 when FORM_BUILDER=1; flags in AUTOMATION_FLAGS + CANARY_ONLY default 0.
+Risks: Uncommitted. PR #379 head is still `b8e40f6d` — this fix is on local `main` `520e90eb`+dirty; CI stays red until Owner push/PR update. Windows scan >120s so local pytest needs `--timeout=300`; CI Linux usually finishes under 120. Pre-existing ruff I001 in `test_marketing_features.py` not touched.
+Remaining: Owner inbox/UPI/Boss Desktop; GitHub push of live SHA + this slice; AUTH-DEPLOY; OmniRoute; do not arm FORM_BUILDER/PROPOSAL_BUILDER/ONBOARDING_PIPELINE/DSH/HQ_AUTO_CHASE.
+Next Highest Priority: Owner `/app/inbox` + UPI bank confirm. Then push so PR #379 / origin catch the ratchet fix.
+
+## Loop Run
+Date: 2026-08-16 (REVENUE-50 CP0–CP7 owner scorecard + C-01..C-15 + plugins deep-link — CURSOR)
+Goal: Close remaining safe technical gaps on money-path visibility, harness conformance evidence, explorer/control-center plugin lens. Stop at Owner/external WAIT.
+Inspected: `docs/context/*`, prod dual `/health` `520e90eb`, activation/summary, anonymous 401 on readiness/plugins, git fetch+status+worktrees, buzzlock, Graphify today_overview/dispatch, `workforce_runtime.dispatch` submodule shadow, FreeBuff dirty tree, PR #379 checks, Buzz `:3100`, OmniRoute `:20128`.
+Problems Found: (1) Owner Hot Queue + UPI bank still the revenue blocker. (2) C-03/C-13/C-15 imported function `dispatch` instead of module. (3) Admin next-best UPI depended on office-task text. (4) Explorer plugins tab not shareable. (5) Live SHA `520e90eb` unpushed vs `origin/main` `8ebdf36e`. (6) OmniRoute local down. (7) PR #379 CI FAIL — FreeBuff lane, not this slice.
+Changed: `app/platform/today_overview.py`; `app/agents/harness/plugin_catalog.py`; `frontend/admin_dashboard.html`; `frontend/explorer.html`; `frontend/control_center.html`; tests listed below; untracked `tests/test_harness_conformance_c01_c15.py`. Context writeback. Voice = 0 paths.
+Tests Run: pytest 16 files **207 passed EXIT 0**; `prod_check.py` ALL CHECKS PASSED EXIT 0 (1322 routes); `check_secrets.py` OK EXIT 0; `check_html_js.py` JS_OK ×3 EXIT 0; `git diff --check` EXIT 0.
+Verification Evidence: `/health` `520e90eb` production healthy 01:00Z and 01:18Z timestamps advanced; plugins/readiness 401; Buzz liveness `ok`; OmniRoute timeout; C-01..C-15 16/16 after importlib fix.
+Risks: Uncommitted slice not live. Prod running unpushed SHA (provenance). `FORM_BUILDER`/`PROPOSAL_BUILDER` catalogued but not in `AUTOMATION_FLAGS`. API.md advisory out of date. 5/5 pin SSH UNVERIFIED this session.
+Remaining: Owner inbox/UPI/Boss Desktop; GitHub push of live SHA; AUTH-DEPLOY this slice if Owner asks; OmniRoute smoke; PR #379; do not arm onboard/DSH/HQ_AUTO_CHASE.
+Next Highest Priority: Owner `/app/inbox` blitz + UPI bank confirm.
+
+## Loop Run
 Date: 2026-08-15 (REVENUE-50 plugin architecture + automation portfolio + dashboard UX — FREEBUFF)
 Goal: CP0–CP7 checkpoints: plugin manifest schema, automation loop portfolio, capacity measurement, admin dashboard scorecard.
 Inspected: prod `/health` = `963ee800` (16:03Z dual probe, uptime advancing); `activation/summary` payments_ready=true blocker_count=1; all public pages 200; AUTOMATION_FLAGS ~200+; beat schedule ~40+ staff-* jobs; harness full contract set; 31 STAFF canary proven; OmniRoute INERT; DSH armed ADR-183; 800 test files.
