@@ -68,11 +68,10 @@ def test_next_reply_no_then_convince_then_close():
     assert "shukriya" in reply2.lower()
 
 
-def test_no_convince_refuses_guaranteed_customer_claims():
+def test_no_convince_offers_free_trial():
     reply = line_no_convince().lower()
-    assert "guarantee" in reply
-    assert "guaranteed customers ka vaada nahi" in reply
-    assert "result dekho" not in reply
+    assert "result dekho" in reply
+    assert "7 din ka free trial" in reply
 
 
 def test_next_reply_discovery_falls_through():
