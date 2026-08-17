@@ -2274,3 +2274,15 @@ Verification Evidence: Production exact app SHA 3121c466 was deployed and health
 Risks: This change updates the canonical release parent; deploy flow must be retested via PR/CI and exact-SHA redeploy. It does not arm persistent DSH runtime flags and does not touch Swara/Ananya/voice behavior.
 Remaining: Commit/PR/merge this deploy fix, redeploy exact merged SHA, verify dsh-worker image APP_VERSION matches, then rerun DSH authority/cancellation/rollback canaries.
 Next Highest Priority: Ship the dsh-worker exact-SHA deploy fix through CI and canonical deploy, then prove GREEN DSH canary no longer fails with cancellation_store_unavailable.
+
+## Loop Run — 2026-08-17 — DSH runtime base build deploy fix
+
+- **Goal:** Fix second DSH deploy blocker: VPS had no local `leadgen-dsh:47f94385` runtime base image, so `dsh-worker` rebuild tried to pull a private/nonexistent Docker Hub image and stayed stale.
+- **Inspected:** `docker-compose.vps.yml` DSH worker build args; `deploy/dsh/worker.Dockerfile`; `deploy/dsh/Dockerfile`; `scripts/deploy_vps.sh`; live VPS Docker images and compose state.
+- **Problems Found:** PR #389 deployed app/worker/scheduler exact SHA `7d0ee010`, but canonical deploy still did not build the local hardened DSH runtime base image. Manual dsh-worker recreate failed with `pull access denied ... leadgen-dsh:47f94385`, leaving `leadgen_dsh_worker` on stale `leadgen-dsh-worker:fb3d0bc2`.
+- **Changed:** `scripts/deploy_vps.sh` now builds `deploy/dsh/Dockerfile` into `${DSH_RUNTIME_IMAGE:-leadgen-dsh:47f94385}` before compose builds app + `dsh-worker`, and passes that exact base tag into compose. `tests/test_deploy_vps_skew_resolution.py` asserts the base image build and compose arg propagation.
+- **Tests Run:** `.venv\Scripts\python.exe -m pytest tests/test_deploy_vps_skew_resolution.py tests/test_deploy_vps_retention.py tests/test_dsh_workforce_runtime.py::test_compose_is_internal_nonroot_and_has_no_application_env_file -q` → 26 passed. `.venv\Scripts\python.exe scripts\prod_check.py` → PASS. `.venv\Scripts\python.exe scripts\check_secrets.py` → PASS. `git diff --check` → PASS.
+- **Verification Evidence:** Live deploy log `/tmp/dep-dsh-7d0ee010.log` reached `DEPLOYED 7d0ee010 OK` for app-image services; live manual recreate proved missing base image with `leadgen-dsh:47f94385: pull access denied`; local patch now builds that base from pinned source before worker build.
+- **Risks:** DSH base build is heavier than app-only deploy and depends on network fetch/cache for pinned upstream; deploy remains fail-closed before container replacement on base build failure. DSH runtime flags remain OFF unless explicitly one-shot/probed.
+- **Remaining:** Commit/PR/CI/merge this second deploy fix, redeploy exact SHA, verify `leadgen_dsh_worker` no longer stale, then rerun DSH canaries.
+- **Next Highest Priority:** Ship the DSH runtime base build patch and rerun production DSH authority canaries.
