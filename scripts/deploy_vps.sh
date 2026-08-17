@@ -180,12 +180,25 @@ fi
 # creates an image; it replaces no container and moves no HEAD, so production is
 # still untouched at this point and a build failure costs nothing.
 echo "=== BUILD candidate $VER (log: /tmp/deploy_build.log) ==="
-APP_VERSION="$VER" docker compose \
-  --project-directory "$CANDIDATE_DIR" \
-  -f "$CANDIDATE_DIR/$COMPOSE" \
-  --profile dsh \
-  build app $DSH_SERVICES > /tmp/deploy_build.log 2>&1
-BUILD_RC=$?
+: > /tmp/deploy_build.log
+DSH_RUNTIME_IMAGE="${DSH_RUNTIME_IMAGE:-leadgen-dsh:47f94385}"
+echo "=== BUILD hardened DSH runtime base $DSH_RUNTIME_IMAGE ===" >> /tmp/deploy_build.log
+APP_VERSION="$VER" docker build \
+  --file "$CANDIDATE_DIR/deploy/dsh/Dockerfile" \
+  --tag "$DSH_RUNTIME_IMAGE" \
+  "$CANDIDATE_DIR" >> /tmp/deploy_build.log 2>&1
+DSH_BASE_BUILD_RC=$?
+echo "DSH_BASE_BUILD_RC=$DSH_BASE_BUILD_RC" >> /tmp/deploy_build.log
+if [ "$DSH_BASE_BUILD_RC" -ne 0 ]; then
+  BUILD_RC="$DSH_BASE_BUILD_RC"
+else
+  APP_VERSION="$VER" DSH_RUNTIME_IMAGE="$DSH_RUNTIME_IMAGE" docker compose \
+    --project-directory "$CANDIDATE_DIR" \
+    -f "$CANDIDATE_DIR/$COMPOSE" \
+    --profile dsh \
+    build app $DSH_SERVICES >> /tmp/deploy_build.log 2>&1
+  BUILD_RC=$?
+fi
 echo "BUILD_RC=$BUILD_RC"
 if [ "$BUILD_RC" -ne 0 ]; then
   echo "FATAL: candidate build failed — NOTHING restarted, live checkout NOT moved. Tail:"

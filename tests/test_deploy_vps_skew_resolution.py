@@ -74,8 +74,12 @@ def test_skew_also_checks_image_tag_against_app_version():
 
 def test_dsh_worker_is_built_recreated_and_skew_checked():
     t = _text()
+    assert "BUILD hardened DSH runtime base" in t
+    assert "deploy/dsh/Dockerfile" in t
+    assert '--tag "$DSH_RUNTIME_IMAGE"' in t
     assert "--profile dsh" in t
     assert "build app $DSH_SERVICES" in t
+    assert 'DSH_RUNTIME_IMAGE="$DSH_RUNTIME_IMAGE" docker compose' in t
     assert "up -d --no-deps $ALL_ROLLOUT_SERVICES" in t
     skew = _skew_block()
     assert "for svc in $ALL_ROLLOUT_SERVICES" in skew
