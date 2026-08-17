@@ -121,6 +121,39 @@ def validate_response_tools(value: Any, *, allowed_tools: Iterable[str]) -> None
                 raise ProxyRefused("model_tool_not_allowed")
 
 
+def _ensure_forced_submit_tool_call(value: Any) -> None:
+    """Force-submit fallback for providers that ignore required tool_choice.
+
+    The scoped submission endpoint ignores model-supplied arguments and re-checks
+    the run token's dsh_capability_submit:<capability> binding, so synthesising
+    the generic tool call here does not grant any new authority; it only repairs
+    provider protocol non-compliance where finish_reason='stop' arrives with no
+    tool_calls despite an explicit required dsh_capability_submit tool_choice.
+    """
+    if not isinstance(value, dict):
+        raise ProxyRefused("provider_response_invalid")
+    choices = value.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ProxyRefused("provider_response_invalid")
+    for idx, choice in enumerate(choices):
+        if not isinstance(choice, dict):
+            raise ProxyRefused("provider_response_invalid")
+        message = choice.get("message")
+        if not isinstance(message, dict):
+            raise ProxyRefused("provider_response_invalid")
+        if message.get("tool_calls"):
+            continue
+        message["content"] = None
+        message["tool_calls"] = [
+            {
+                "id": f"call_dsh_submit_{idx}",
+                "type": "function",
+                "function": {"name": "dsh_capability_submit", "arguments": "{}"},
+            }
+        ]
+        choice["finish_reason"] = "tool_calls"
+
+
 async def complete(
     *,
     messages: Any,
@@ -167,6 +200,7 @@ async def complete(
                 "max_tokens": bounded_tokens,
                 "temperature": bounded_temperature,
             }
+            submit_tool = None
             if safe_tools:
                 kwargs["tools"] = safe_tools
                 submit_tool = next(
@@ -195,6 +229,8 @@ async def complete(
                 timeout=60,
             )
             value = response.model_dump(mode="json")
+            if submit_tool is not None:
+                _ensure_forced_submit_tool_call(value)
             validate_response_tools(value, allowed_tools=allowed_tools)
             value["model"] = PUBLIC_MODEL_ID
             value.pop("system_fingerprint", None)

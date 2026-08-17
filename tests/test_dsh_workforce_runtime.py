@@ -543,6 +543,61 @@ def test_dsh_authority_proxy_forces_capability_submit_tool(monkeypatch):
     )
 
 
+def test_dsh_authority_proxy_synthesizes_submit_when_provider_ignores_tool_choice(monkeypatch):
+    class _Response:
+        def model_dump(self, mode="json"):
+            return {
+                "id": "chatcmpl-forced-fallback",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "I can help with that."},
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+
+    class _Completions:
+        async def create(self, **_kwargs):
+            return _Response()
+
+    class _Client:
+        class chat:
+            completions = _Completions()
+
+    from app.voice_agent import free_ai
+
+    monkeypatch.setattr(free_ai, "_build_llm_chain", lambda _purpose: [("fake", "fake-model")])
+    monkeypatch.setattr(free_ai, "_provider_down", lambda _provider: False)
+    monkeypatch.setattr(free_ai, "_client", lambda _provider: _Client())
+    monkeypatch.setattr(free_ai, "_reset_cooldown_streak", lambda _provider: None)
+
+    result = asyncio.run(
+        free_ai_proxy.complete(
+            messages=[{"role": "user", "content": "Use the governed capability"}],
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "dsh_capability_submit",
+                        "description": "Submit governed capability",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                }
+            ],
+            allowed_tools=("dsh_llm_chat", "dsh_capability_submit:ops_health_check"),
+        )
+    )
+
+    choice = result["choices"][0]
+    assert choice["finish_reason"] == "tool_calls"
+    assert choice["message"]["content"] is None
+    assert choice["message"]["tool_calls"][0]["function"] == {
+        "name": "dsh_capability_submit",
+        "arguments": "{}",
+    }
+
+
 def test_llm_gateway_records_protocol_shape_without_content_or_arguments(monkeypatch):
     run_id, token = _gateway_binding(
         allowed_tools=("dsh_llm_chat", "dsh_capability_submit:ops_health_check")

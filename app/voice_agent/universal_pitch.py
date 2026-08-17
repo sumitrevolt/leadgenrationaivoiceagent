@@ -32,7 +32,7 @@ def _marketing_start_price() -> str:
 # lean rehta (telephony-cheap), qa_checks.has_permission_ask ab pass karta.
 UNIVERSAL_AGENT_INTRO = (
     "Namaste! Main LeadGen AI se bol rahi hoon — "
-    "hum aapke jaise business ko AI se naye customers dila dete hain, "
+    "hum aapke social media aur marketing ko AI se automate karte hain, "
     "Instagram, Facebook aur Google se. Do minute baat kar sakti hoon?"
 )
 

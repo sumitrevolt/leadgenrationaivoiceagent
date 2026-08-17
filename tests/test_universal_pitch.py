@@ -12,6 +12,8 @@ def test_universal_intro_has_identity_and_cta():
     t = UNIVERSAL_AGENT_INTRO.lower()
     assert "leadgen ai" in t
     assert any(w in t for w in ("instagram", "facebook", "google", "customers"))
+    assert "customers dila dete" not in t
+    assert "guarantee" not in t
     # 2026-07-02: +permission-ask ("do minute baat kar sakti hoon?") — cap 26->34
     # (still ~one breath / ~13 sec). Bloat guard stays.
     assert len(UNIVERSAL_AGENT_INTRO.split()) <= 34

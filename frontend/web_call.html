@@ -880,6 +880,7 @@
   }
 
   function startListening(){
+    if (kbdToggle && kbdToggle.classList.contains("on")) return;
     if(!SR || !recog) return;
     if(!callActive || botSpeaking || pendingBot || recognizing) return;
     try{ recog.start(); }catch(e){ /* already starting / transient */ }
@@ -994,8 +995,18 @@
   // Typed fallback
   kbdToggle.addEventListener("click", function(){
     typedRow.classList.toggle("hidden");
-    kbdToggle.classList.toggle("on", !typedRow.classList.contains("hidden"));
-    if(!typedRow.classList.contains("hidden")) input.focus();
+    var isOn = !typedRow.classList.contains("hidden");
+    kbdToggle.classList.toggle("on", isOn);
+    if(isOn){
+       input.focus();
+       stopListening();
+       if(callActive && !pendingBot && !botSpeaking) setState("listening"); // visual update
+    } else {
+       if(callActive && !pendingBot && !botSpeaking){
+         setState("listening");
+         startListening();
+       }
+    }
   });
   sendBtn.addEventListener("click", function(){
     sendUserText(input.value); input.value = ""; input.focus();

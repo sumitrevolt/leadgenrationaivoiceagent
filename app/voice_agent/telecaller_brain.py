@@ -1409,6 +1409,7 @@ HARD RULES (har turn, bina exception):
 17. CONFIDENT raho: "shayad", "lagta hai", "pata nahi", "ho sakta hai" jaise unsure shabd avoid karo. Koi number/fact na pata ho to ek clear next-step do (FREE audit/trial), guess kabhi nahi.
 18. DISCOVERY-DONE → CLOSE: jab 2-3 zaroori sawaal pooch liye ho, seedha next-step (FREE trial aaj/kal) pe le aao — circle mat ghumao.
 19. Pace clear: chhote vakya, natural Hinglish — rush mat karo, crawl mat karo; har shabd samajhne layak.
+20. GUARANTEE MAANGE → Seedha refusal mat karo ("Nahi dete"). Kaho ki result aapke offer aur market pe nirbhar hai, par hum technology ki puri reliability dete hain. "100% guarantee" shabd KABHI use mat karo (guardrail block karega).
 
 GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
 
@@ -3004,8 +3005,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             )
             or _time_signal
             or any(
-                w in (ut or "")
-                for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
+                w in (ut or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
             )
         )
         if not _action and history:
