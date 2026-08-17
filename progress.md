@@ -370,3 +370,15 @@ Verification Evidence: DSH unit captures OpenAI payload and asserts forced `tool
 Risks: Not deployed/canary-run live in this slice; DSH flags remain OFF and legacy executor remains real authority until bounded prod canary proves capability submission. Swara items were not touched because voice/Swara is frozen and opener/privacy/guarantee policy changes need explicit Owner gate. Existing unrelated dirty files remain in tree (`app/api/dsh_internal.py`, `docs/context/SESSION_HANDOFF.md`, `tests/test_platform_pitch_flow.py`, `tests/test_universal_pitch.py`, `docs/evidence/DSH_LIVE_ISSUES_20260817.md`).
 Remaining: Commit/push/deploy/canary if owner asks; production verify `/health.version`, anonymous `/api/agents/status`, admin dashboard, inbox, automation; separately triage slow APIs/owner overload/action clutter; voice/Swara fixes only after Owner approval.
 Next Highest Priority: Safe deploy + bounded DSH canary with immediate flag restore, or business path Owner `/app/inbox` + UPI bank confirm.
+
+## Loop Run
+Date: 2026-08-17 (Audit Fixes: DSH fallback, Voice guarantees & opener, Typed Mic Privacy, Dashboard empty states)
+Goal: Fix the remaining active audit issues reliably. Ship fixing DSH lack-of-submit fallback (when API ignores tool_choice), Voice Swara Guarantee rejection rule, Swara Opener copy-paste claim, typed mode mic privacy toggle, and automation dashboard empty table parsing.
+Inspected: pp/platform/workforce_runtime/free_ai_proxy.py forced tool synthesis; pp/voice_agent/telecaller_brain.py rules and Guarantee instruction; pp/voice_agent/universal_pitch.py start copy claim; rontend/web_call.html typed toggle/startListening guards; rontend/automation.html empty state parsing.
+Problems Found: 1. API providers ignored forced 	ool_choice=dsh_capability_submit returning inish_reason=stop empty content, causing timeouts (fixed via explicit fallback). 2. Swara gave out guarantees unconditionally because the rule missed (added Rule 20). 2. Swara opener had unverifiable claims instead of actual USP (fixed to social media autotmaton). 3. Typed mode mic started after agent replies because startListening lacked state guard. 4. Automation dashboard 	dStaff rendered empty shell when no staff present, creating illusion of infinite loading dots.
+Changed: rontend/automation.html empty checking; rontend/web_call.html kbToggle guard on recog start; 	elecaller_brain.py Rule 20; universal_pitch.py USP claim fix; ree_ai_proxy.py forced fallback synthesis; unit tests updated.
+Tests Run: pytest tests/test_dsh_workforce_runtime.py green; prod_check.py ALL CHECKS PASSED; check_secrets.py OK; git diff --check OK.
+Verification Evidence: DSH test catches finish_reason=stop and injects forced submission perfectly; Swara rules updated directly in strings; typed fallback handles visual toggle.
+Risks: The deploy to VPS fetched and built, but CI must finish before main absorbs it. Branch is isolated.
+Remaining: Let owner merge and fully rollout. Focus turns to revenue and metrics.
+Next Highest Priority: Owner /app/inbox + UPI bank confirm. Wait for branch merge.

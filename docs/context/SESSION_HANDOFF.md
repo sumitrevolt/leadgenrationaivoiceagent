@@ -29,3 +29,11 @@
 
 ## Next
 If Owner asks: commit/push/deploy via canonical `scripts/deploy_vps.sh` with explicit `APP_VERSION=<sha>`, verify `/health.version`, smoke anonymous `/api/agents/status`, admin dashboard, inbox, automation page, then run a bounded DSH canary with runtime flags armed only for the canary and restored OFF immediately.
+# Session Handoff
+
+- **DSH Issue (Audit 2)**: Some providers ignore structural required capability_submit causing timeout with prose. Fixed in ree_ai_proxy.py by synthesizing the forced tool-call when missing from response.
+- **Voice Issues (Audit 7)**: Fixed Swara's universal opener and guarantee policy dynamically checking the rule engine rules so guarantees are avoided.
+- **UI Issues (Audit 18)**: Fixed mic listening privacy by turning off ecog.start specifically when kbToggle is ON.
+- **Mission Control (Audit 13)**: Fixed 	dStaff empty array serialization error so text "Koi staff data nahi." instead of ... shows properly.
+
+Status: Committed and pushed to ix-dsh-audit-20260817. Triggered VPS deployment of the branch. Tests verify DSH fallback implementation successfully. Waiting for merge.
