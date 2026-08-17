@@ -37,6 +37,7 @@ class TestAgentsAPI:
         assert data["engine"] == "langgraph-supervisor"
         assert isinstance(data["available"], bool)
         assert isinstance(data["nodes"], list)
+        assert "workforce_runtime" not in data
         for node in ("supervisor", "data_agent", "leads_agent"):
             assert node in data["nodes"]
 
@@ -132,10 +133,10 @@ class TestKnowledgeBackends:
         assert top["source"] == "faq"
 
     def test_namespace_isolation(self, kb):
-        secret = "Wedding venue package costs two lakh rupees flat."
-        kb.add_documents([secret], namespace="t1")
+        hidden_fact = "Wedding venue package costs two lakh rupees flat."
+        kb.add_documents([hidden_fact], namespace="t1")
         hits = kb.retrieve("wedding venue package cost rupees", k=5, namespace="t2")
-        assert all(secret not in h.get("text", "") for h in hits)
+        assert all(hidden_fact not in h.get("text", "") for h in hits)
 
     def test_grounded_answer_safe_fallback_on_empty_namespace(self, kb):
         ans = kb.grounded_answer("koi bhi sawaal", namespace="empty_ns")

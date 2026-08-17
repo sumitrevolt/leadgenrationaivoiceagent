@@ -3,6 +3,15 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
+## RE-VERIFICATION 2026-08-16 ~04:53Z — DEPLOY `237e20ac` (PR #380 marketing factory + admin scorecard)
+- **Prod `/health` = `237e20ac`** (DIRECT_HOST_VERIFIED 04:53:37Z host + 04:53:56Z public HTTPS): `healthy` · `environment:production` · uptime 0h0m58s.
+- Kill-fence deploy: backup `.env.bak-killfence-20260816_044850` → `VOICE_LAUNCH_KILL=1` → `scripts/deploy_vps.sh` **`=== DEPLOYED 237e20ac OK ===`** → VLK revert `0` → `APP_VERSION=237e20ac` recreate of all 5 app-image services. **5/5 pin `237e20ac` zero skew** (app/worker/scheduler/worker_heavy/worker_video), VLK=0 in all 5, celery=0, dlq:failed_tasks=0, dlq:dead=25 (pre-existing, do not flush). Disk 50% after build-cache retention; removed `fed0797a`; ROLLBACK_TAG=`520e90eb` (lineage `/var/lib/leadgen/deploy_rollback_lineage.json`).
+- Batch contents: marketing factory ledgers on admin scorecard (form/proposal/review/drips/health/appointment builders, flags OFF), Hot Queue start-here card fix, lint/ruff-format alignment, runtime-data ratchet 62→70.
+- PR #380 merged via squash (`237e20ac`, mergedBy sumitrevolt 04:30:56Z). Required CI gates green: Lint+syntax+secrets, prod_check+pytest, harness real-redis. Gate A (ruff-format vs black on test_plugin_manifest assert) + CodeQL (2 advisory findings) remain FAIL but non-required.
+- `origin/main` = `237e20ac` now matches prod. Local checkout on `cursor/marketing-factory-admin-scorecard` (fast-forward behind main); `git checkout main` + `git pull` pending for clean local state.
+- Inert unchanged: DSH runtime/shadow FALSE, HARNESS_SESSION_EVENTS/AGENT_HARNESS/GSC/HQ_AUTO_CHASE UNSET. Owner WAIT: Hot Queue `/app/inbox` blitz, UPI bind/re-approve, bank-credit confirm.
+- Label: DIRECT_HOST_VERIFIED + GIT_VERIFIED; owner revenue gates remain owner-execution.
+
 ## RE-VERIFICATION 2026-08-16 ~03:18Z — Cursor admin marketing ledger tiles (uncommitted)
 - Admin scorecard second row `#ownerMktScorecard`: review requests sent, drip sent/opened, forms submitted, proposals accepted, reminders sent, health at-risk. Source = existing `GET /api/growth/overview/today` totals. **No new route. Flags stay OFF.**
 - Honest mapping: `reviews_sent` = sequence `sent` (not Google pixels); `drip_emails_opened` = drip-run `opened` (0 until EMAIL_TRACKING writes it); `health_at_risk` = `at_risk` only. Fail-open zeros; not in `problems`/`headline`/`top_blocker`.

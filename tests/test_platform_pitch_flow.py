@@ -8,6 +8,7 @@ from app.voice_agent.platform_pitch import (
     classify_interest,
     initial_state,
     is_platform_pitch,
+    line_no_convince,
     line_yes_praise,
     next_reply,
     opening_segments,
@@ -65,6 +66,12 @@ def test_next_reply_no_then_convince_then_close():
     reply2, st = next_reply(st, "nahi chahiye")
     assert st.phase == "closed"
     assert "shukriya" in reply2.lower()
+
+
+def test_no_convince_offers_free_trial():
+    reply = line_no_convince().lower()
+    assert "result dekho" in reply
+    assert "7 din ka free trial" in reply
 
 
 def test_next_reply_discovery_falls_through():
