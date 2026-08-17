@@ -36,6 +36,24 @@ UNLIMITED_QUOTA: int = 9_999  # lead_usage.py me "unlimited" signal
 
 # Band metadata
 BANDS: dict[str, dict] = {
+    "S": {
+        "name": "Starter Voice — 100 min",
+        "desc": "Perfect for freelancers and small setups testing AI voice.",
+        "niches_sample": "Any Niche (100 min cap)",
+        "price_month": 1999,
+        "price_year": 19990,
+        "plan_monthly": "voice_starter_monthly",
+        "plan_annual": "voice_starter_annual",
+    },
+    "F": {
+        "name": "Freemium — 10 calls/mo",
+        "desc": "Viral free tier forever. 10 calls per month.",
+        "niches_sample": "Any Niche (10 calls/mo cap)",
+        "price_month": 0,
+        "price_year": 0,
+        "plan_monthly": "voice_freemium",
+        "plan_annual": "voice_freemium_annual",
+    },
     "A": {
         "name": "Band A — Volume niches",
         "desc": "Insurance, coaching, solar, hospital, upskilling, travel, events — mass market",
@@ -74,7 +92,7 @@ VOICE_PLAN_IDS: list[str] = (
 
 # Features shared across all paid plans
 _BASE_FEATURES: list[str] = [
-    "Hinglish AI telecaller — insaan-jaisi awaaz, TRAI AI-disclosure built-in",
+    "8+ Indian languages (Hindi, Tamil, Telugu, Marathi, Gujarati, Bengali, etc) — human-like voice, TRAI AI-disclosure built-in",
     "Unlimited AI calls aapke niche database pe",
     "Live call dashboard — recordings + Hinglish transcripts",
     "Har call ka AI qualification report (intent, budget, timeline)",
@@ -88,6 +106,32 @@ _BASE_FEATURES: list[str] = [
 def _make_tiers(band: str) -> list[dict]:
     b = BANDS[band]
     return [
+        {
+            "key": "voice_freemium",
+            "name": "Freemium",
+            "tagline": "Duniya ko AI power dikhane ke liye — 10 free calls/mo hamesha.",
+            "billing": "monthly",
+            "price_inr_month": 0,
+            "price_inr_year": None,
+            "calls_included": "10 calls / mahina",
+            "features": _BASE_FEATURES + ["Hamesha ke liye free", "Basic support"],
+            "highlight": False,
+            "badge": "Viral",
+            "plan_id": "voice_freemium",
+        },
+        {
+            "key": "voice_starter_monthly",
+            "name": "Starter Voice",
+            "tagline": "Chhote business/freelancers ke liye perfect shuruwat.",
+            "billing": "monthly",
+            "price_inr_month": 1999,
+            "price_inr_year": 19990,
+            "calls_included": "100 min / mahina",
+            "features": _BASE_FEATURES + ["Sabse sasta AI Voice in India"],
+            "highlight": False,
+            "badge": "New Entry",
+            "plan_id": "voice_starter_monthly",
+        },
         {
             "key": "voice_pilot",
             "name": "Free Pilot",
