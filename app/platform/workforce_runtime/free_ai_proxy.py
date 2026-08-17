@@ -178,7 +178,11 @@ async def complete(
             validate_response_tools(value, allowed_tools=allowed_tools)
             value["model"] = PUBLIC_MODEL_ID
             value.pop("system_fingerprint", None)
-            safe_value = mask_customer_data(value)
+            for choice in value.get("choices", []):
+                msg = choice.get("message", {})
+                if "content" in msg and msg["content"] is not None:
+                    msg["content"] = mask_customer_data(msg["content"])
+            safe_value = value
             validate_no_secrets(safe_value)
             free_ai._reset_cooldown_streak(provider)  # type: ignore[attr-defined]
             try:

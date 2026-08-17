@@ -284,7 +284,12 @@ def _stream_response(value: dict[str, Any]):
     if message.get("content") is not None:
         delta["content"] = message.get("content")
     if message.get("tool_calls") is not None:
-        delta["tool_calls"] = message.get("tool_calls")
+        import copy
+
+        tcs = copy.deepcopy(message.get("tool_calls"))
+        for i, tc in enumerate(tcs):
+            tc["index"] = i
+        delta["tool_calls"] = tcs
     chunk = {
         "id": value.get("id") or "chatcmpl-dsh",
         "object": "chat.completion.chunk",
