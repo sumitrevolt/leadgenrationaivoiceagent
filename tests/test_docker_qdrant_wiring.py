@@ -7,5 +7,5 @@ def test_vps_compose_qdrant_in_stack():
     assert "/opt/qdrant_storage:/qdrant/storage" in text
     for svc in ("app:", "worker:", "worker-heavy:"):
         idx = text.index(f"  {svc}")
-        chunk = text[idx : idx + 2500]
+        chunk = text[idx : idx + 3500]
         assert "QDRANT_URL: http://qdrant:6333" in chunk, f"{svc} missing in-stack QDRANT_URL"

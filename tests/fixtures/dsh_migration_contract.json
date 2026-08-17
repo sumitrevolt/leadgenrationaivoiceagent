@@ -1325,19 +1325,19 @@
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 442,
+        "line": 450,
         "scope": "execute_governed_capability"
       },
       {
         "call": "app.platform.agent_runtime.AgentTask",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 443,
+        "line": 451,
         "scope": "execute_governed_capability"
       },
       {
         "call": "app.platform.agent_runtime.run_task",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 454,
+        "line": 462,
         "scope": "execute_governed_capability"
       },
       {
@@ -2930,7 +2930,7 @@
       },
       {
         "file": "app/tasks/dsh_jobs.py",
-        "line": 439,
+        "line": 447,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "execute_governed_capability",
@@ -2938,7 +2938,7 @@
       },
       {
         "file": "app/tasks/dsh_jobs.py",
-        "line": 440,
+        "line": 448,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "execute_governed_capability",
@@ -2994,7 +2994,7 @@
       },
       {
         "file": "tests/test_dsh_workforce_runtime.py",
-        "line": 612,
+        "line": 627,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "test_manual_owner_and_scheduler_paths_share_workforce_dispatch",
