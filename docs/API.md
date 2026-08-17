@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1344 operations)
+## Endpoint Index — auto-generated from OpenAPI (1346 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1046,7 +1046,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/voice` — Legacy Alias Voice
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (222)
+### Growth  (224)
 
 - `POST  ` `/api/growth/affiliate/kit` — Affiliate Kit
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
@@ -1165,6 +1165,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/partnership/batch` — Partnership Batch
 - `POST  ` `/api/growth/partnership/draft` — Partnership Draft
 - `GET   ` `/api/growth/partnership/types` — Partnership Types
+- `POST  ` `/api/growth/persona/architect` — Build Persona
 - `GET   ` `/api/growth/process/definitions` — Process Definitions
 - `GET   ` `/api/growth/process/run/{run_id}` — Process Run Detail
 - `POST  ` `/api/growth/process/run/{run_id}/approve` — Process Approve
@@ -1258,6 +1259,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/tools/lead-cost` — Tool Lead Cost
 - `POST  ` `/api/growth/tools/missed-call-revenue` — Tool Missed Call
 - `POST  ` `/api/growth/tools/website-audit` — Website Audit Public
+- `POST  ` `/api/growth/triage/classify` — Classify Inbound
 - `GET   ` `/api/growth/upgrader/code-search` — Upgrader Code Search
 - `POST  ` `/api/growth/upgrader/diagnostics` — Upgrader Diagnostics
 - `GET   ` `/api/growth/upgrader/patches` — Upgrader Patches

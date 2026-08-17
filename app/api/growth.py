@@ -1,9 +1,9 @@
-"""Growth API — naye 2026 growth features ka surface (admin).
+"""Growth API â€” naye 2026 growth features ka surface (admin).
 
 - Lead scoring / hot-leads (app/platform/lead_scoring.py)
 - Review generation engine, sentiment-gated (app/marketing/review_engine.py)
-- WhatsApp Flows send (app/marketing/whatsapp_flows.py — Meta-gated)
-- Missed-call -> AI callback (app/telephony/missed_call.py — Vobiz-gated)
+- WhatsApp Flows send (app/marketing/whatsapp_flows.py â€” Meta-gated)
+- Missed-call -> AI callback (app/telephony/missed_call.py â€” Vobiz-gated)
 
 Sab additive + free + gated. Writes admin-only.
 """
@@ -123,7 +123,7 @@ async def missed_call(body: MissedCallIn, _user=Depends(require_admin)):
 # ---------------------- Niche-driven automation ------------------------- #
 @router.get("/niches")
 async def list_niches(tier: str | None = None, _user=Depends(require_admin)):
-    """Saare niches overview — keywords (scraping) + content_focus (marketing)."""
+    """Saare niches overview â€” keywords (scraping) + content_focus (marketing)."""
     try:
         from app.niches import NICHES
     except Exception:
@@ -202,14 +202,14 @@ class FdeDeployIn(BaseModel):
     slug: str | None = None
     client_id: str | None = None
     agent: str | None = "neo"  # isha_fde | veer | aarav | neo
-    brief: str | None = ""  # NL brief — FDE plan isi se banata
+    brief: str | None = ""  # NL brief â€” FDE plan isi se banata
 
 
 @router.post("/fde/deploy")
 async def fde_deploy(body: FdeDeployIn, _user=Depends(require_admin)):
     """FDE agent ko ek client ke liye automation+marketing+website 'deploy' karne bolo.
 
-    Brief do (e.g. 'naye solar client ka full marketing setup') → FDE plan banata +
+    Brief do (e.g. 'naye solar client ka full marketing setup') â†’ FDE plan banata +
     skills chalata (existing capabilities). Ban-safe (drafts/setup, auto-publish nahi).
     """
     from app.agents import fde
@@ -227,7 +227,7 @@ async def fde_deploy(body: FdeDeployIn, _user=Depends(require_admin)):
 # ---------------- Omnichannel Cadence Orchestrator --------------------- #
 class CadenceEnrollIn(BaseModel):
     leads: list[dict] | None = None
-    from_prospects: int = 0  # >0 → top N prospects auto-enroll
+    from_prospects: int = 0  # >0 â†’ top N prospects auto-enroll
 
 
 @router.post("/cadence/enroll")
@@ -305,7 +305,7 @@ class SeoPageIn(BaseModel):
 
 @router.post("/seo/page")
 async def seo_page(body: SeoPageIn, _user=Depends(require_admin)):
-    """Ek niche×city SEO landing page generate karo (inbound)."""
+    """Ek nicheÃ—city SEO landing page generate karo (inbound)."""
     from app.marketing import seo_pages
 
     return await seo_pages.generate_page(body.niche, body.city)
@@ -318,7 +318,7 @@ class SeoBatchIn(BaseModel):
 
 @router.post("/seo/batch")
 async def seo_batch(body: SeoBatchIn, _user=Depends(require_admin)):
-    """Multiple niche×city SEO pages (LLM-heavy; limit)."""
+    """Multiple nicheÃ—city SEO pages (LLM-heavy; limit)."""
     from app.marketing import seo_pages
 
     return await seo_pages.generate_batch(tier=body.tier, limit=body.limit)
@@ -418,7 +418,7 @@ class AffiliateIn(BaseModel):
     dependencies=[Depends(rate_limit("tools", 20, 60))],
 )
 async def affiliate_register(body: AffiliateIn):
-    """PUBLIC: koi bhi affiliate ban sakta → referral link + commission."""
+    """PUBLIC: koi bhi affiliate ban sakta â†’ referral link + commission."""
     from app.marketing import affiliate
 
     return affiliate.register_affiliate(body.name, body.email or "", body.phone or "")
@@ -428,7 +428,7 @@ async def affiliate_register(body: AffiliateIn):
     "/weather-angle", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))]
 )
 async def weather_angle_ep(city: str = "Mumbai"):
-    """PUBLIC: city ka aaj ka mausam → marketing content angle (Open-Meteo, free, no key, India)."""
+    """PUBLIC: city ka aaj ka mausam â†’ marketing content angle (Open-Meteo, free, no key, India)."""
     from app.marketing import weather_angle as wa
 
     return await wa.weather_angle(city)
@@ -444,7 +444,7 @@ async def affiliate_stats(code: str | None = None, _user=Depends(require_admin))
 @router.post("/affiliate/kit")
 async def affiliate_kit(body: AffiliateIn, _user=Depends(require_admin)):
     """ADMIN: affiliate register/update + shareable kit (link + WhatsApp-ready
-    text) ek hi call me — Jiya jaisi referral pakdo (owner 1-tap send)."""
+    text) ek hi call me â€” Jiya jaisi referral pakdo (owner 1-tap send)."""
     from app.marketing import affiliate
 
     return affiliate.referral_kit(body.name, body.email or "", body.phone or "")
@@ -546,7 +546,7 @@ class SalesMsgIn(BaseModel):
 
 @router.post("/sales/assistant")
 async def sales_assistant_reply(body: SalesMsgIn, _user=Depends(require_admin)):
-    """AI sales-closer: prospect message → objection-aware reply + CTA."""
+    """AI sales-closer: prospect message â†’ objection-aware reply + CTA."""
     from app.marketing import sales_assistant
 
     return await sales_assistant.handle_message(
@@ -572,7 +572,7 @@ async def outreach_warmup_status(_user=Depends(require_admin)):
 
 @router.post("/outreach/warmup/bounce")
 async def outreach_warmup_bounce(payload: dict | None = None, _user=Depends(require_admin)):
-    """Bounce record karo: {email?, reason?} — threshold (1.8%) cross pe auto-pause."""
+    """Bounce record karo: {email?, reason?} â€” threshold (1.8%) cross pe auto-pause."""
     from app.platform import email_warmup
 
     p = payload or {}
@@ -599,7 +599,7 @@ async def optimizer_analysis(_user=Depends(require_admin)):
 
 @router.post("/optimizer/run")
 async def optimizer_run(_user=Depends(require_admin)):
-    """Self-healing profit loop abhi chalao (gated GROWTH_OPTIMIZER — off = no-op)."""
+    """Self-healing profit loop abhi chalao (gated GROWTH_OPTIMIZER â€” off = no-op)."""
     from app.agents import growth_optimizer
 
     return await growth_optimizer.optimize()
@@ -638,7 +638,7 @@ class OutcomeIn(BaseModel):
 
 @router.post("/experiments/outcome")
 async def experiments_outcome(body: OutcomeIn, _user=Depends(require_admin)):
-    """Channel outcome record karo (inquiry/reply/signup attribution) — bandit seekhta."""
+    """Channel outcome record karo (inquiry/reply/signup attribution) â€” bandit seekhta."""
     from app.marketing import channel_experiments
 
     return channel_experiments.record_outcome(
@@ -673,7 +673,7 @@ async def campaign_optimize_proposals(limit: int = 30, _user=Depends(require_adm
 
 @router.post("/campaign/optimize/proposals/{proposal_id}/approve")
 async def campaign_optimize_approve(proposal_id: str, _user=Depends(require_admin)):
-    """Approve Kiran proposal → challenger variant (human gate before outreach use)."""
+    """Approve Kiran proposal â†’ challenger variant (human gate before outreach use)."""
     from app.agents import campaign_optimizer
 
     return await campaign_optimizer.approve_proposal(proposal_id)
@@ -681,7 +681,7 @@ async def campaign_optimize_approve(proposal_id: str, _user=Depends(require_admi
 
 @router.post("/campaign/optimize")
 async def campaign_optimize_run(force: bool = False, _user=Depends(require_admin)):
-    """Kiran optimization cycle — proposals only, never auto-deploy globally."""
+    """Kiran optimization cycle â€” proposals only, never auto-deploy globally."""
     from app.agents import campaign_optimizer
 
     return await campaign_optimizer.optimize(force=force)
@@ -812,7 +812,7 @@ class SiteAuditIn(BaseModel):
     dependencies=[Depends(rate_limit("site_audit", 10, 60)), Depends(verify_turnstile)],
 )
 async def website_audit_public(body: SiteAuditIn):
-    """PUBLIC lead magnet: website URL → score + Hinglish tips + CTA."""
+    """PUBLIC lead magnet: website URL â†’ score + Hinglish tips + CTA."""
     from app.marketing import website_auditor
 
     return await website_auditor.audit_url(body.url)
@@ -829,7 +829,7 @@ async def infra_llm_metrics(window: int = 2000, _user=Depends(require_admin)):
 
 @router.get("/infra/explorer-drift")
 async def infra_explorer_drift(_user=Depends(require_admin)):
-    """Architecture-graph drift — how much of the codebase the /app/explorer
+    """Architecture-graph drift â€” how much of the codebase the /app/explorer
     graph reflects (for the explorer's live coverage HUD). Self-contained +
     never-raises (frontend/explorer.html + app/ are baked into the image)."""
     try:
@@ -901,7 +901,7 @@ async def infra_automation_health(_user=Depends(require_admin)):
 
 @router.get("/voice/qualifications")
 async def voice_qualifications_list(limit: int = 50, _user=Depends(require_admin)):
-    """Post-call AI qualifier results (AUTO_QUALIFY_CALLS hook → jsonl)."""
+    """Post-call AI qualifier results (AUTO_QUALIFY_CALLS hook â†’ jsonl)."""
     from app.platform import call_insights
 
     stats = call_insights.quick_stats()
@@ -924,8 +924,8 @@ async def voice_qualifications_ask(body: dict, _user=Depends(require_admin)):
 
 @router.get("/overview/today")
 async def overview_today(_user=Depends(require_admin)):
-    """'Aaj kya hua?' — PLAIN-HINGLISH admin snapshot (staff + jobs + problems +
-    flags) ek hi call me. /app/automation ke '🏠 Aaj' default tab ka payload.
+    """'Aaj kya hua?' â€” PLAIN-HINGLISH admin snapshot (staff + jobs + problems +
+    flags) ek hi call me. /app/automation ke 'ðŸ  Aaj' default tab ka payload.
     No LLM, instant, kabhi raise nahi (2026-06-12 admin-friendly upgrade)."""
     from app.platform import today_overview
 
@@ -934,8 +934,8 @@ async def overview_today(_user=Depends(require_admin)):
 
 @router.get("/infra/hermes")
 async def infra_hermes(_user=Depends(require_admin)):
-    """Hermes 🛰️ Infrastructure Handler: full infra snapshot — readiness, disk,
-    memory, dead-man jobs, queue, LLM chain, backups → score + Hinglish actions."""
+    """Hermes ðŸ›°ï¸ Infrastructure Handler: full infra snapshot â€” readiness, disk,
+    memory, dead-man jobs, queue, LLM chain, backups â†’ score + Hinglish actions."""
     from app.platform import infra_handler
 
     return await infra_handler.snapshot()
@@ -993,7 +993,7 @@ async def infra_dlq(limit: int = 50, key: str = "failed", _user=Depends(require_
 @router.post("/infra/dlq/sweep")
 async def infra_dlq_sweep(limit: int = 20, _user=Depends(require_admin)):
     """Smart DLQ sweep (dlq_retry): staff-jobs retry w/ backoff+attempt-cap,
-    unknown/exhausted → dlq:dead. Manual trigger = flag-independent."""
+    unknown/exhausted â†’ dlq:dead. Manual trigger = flag-independent."""
     from app.platform import dlq_retry
 
     return await dlq_retry.run_sweep(max_items=limit, force=True)
@@ -1008,10 +1008,10 @@ async def infra_dlq_resolve(
     limit: int = 50,
     _user=Depends(require_admin),
 ):
-    """Audited DLQ resolution — move matching records to dlq:resolved (no blind purge).
+    """Audited DLQ resolution â€” move matching records to dlq:resolved (no blind purge).
 
-    source=failed|dead · resolution=RECOVERED|ALREADY_COMPLETED|SUPERSEDED|
-    STALE_EXPIRED|NON_RETRYABLE|MANUAL_REVIEW_REQUIRED · optional job filter.
+    source=failed|dead Â· resolution=RECOVERED|ALREADY_COMPLETED|SUPERSEDED|
+    STALE_EXPIRED|NON_RETRYABLE|MANUAL_REVIEW_REQUIRED Â· optional job filter.
     """
     from app.platform import dlq_retry
 
@@ -1078,7 +1078,7 @@ async def infra_dlq_retry(limit: int = 10, _user=Depends(require_admin)):
 async def infra_dlq_purge(key: str = "failed", _user=Depends(require_admin)):
     """Purge DLQ lists. key=failed (default) | dead | all.
 
-    `dead` = retry-exhausted (`dlq:dead`) — admin must clear stale deploy SIGKILL /
+    `dead` = retry-exhausted (`dlq:dead`) â€” admin must clear stale deploy SIGKILL /
     intentional-skip poison after root-cause fix. Also clears `dlq:retry_counts`
     when dead/all so exhausted jobs can retry cleanly next time.
     """
@@ -1125,7 +1125,7 @@ router.include_router(_crm_router)
 async def research_search(q: str, count: int = 10, user=Depends(require_admin)):
     """FREE web search via self-hosted SearXNG (gated SEARXNG_URL).
 
-    Agents/UI ke liye research primitive — paid search API ki zaroorat nahi.
+    Agents/UI ke liye research primitive â€” paid search API ki zaroorat nahi.
     """
     from app.integrations import searxng
 
@@ -1147,7 +1147,7 @@ async def notify_test(user=Depends(require_admin)):
     if not ntfy.enabled():
         return {"enabled": False, "hint": "NTFY_URL + NTFY_TOPIC env set karo"}
     ok = await ntfy.push(
-        "Test 🔔",
+        "Test ðŸ””",
         "LeadGen AI ntfy push kaam kar raha hai!",
         priority="default",
         tags=["white_check_mark"],
@@ -1252,7 +1252,7 @@ async def reply_feedback(
 
 @router.get("/reply/feedback/stats")
 async def reply_feedback_stats(_user=Depends(require_admin)):
-    """Feedback distribution — misclassified intents from reply_drafts corrections."""
+    """Feedback distribution â€” misclassified intents from reply_drafts corrections."""
     import json as _json
     import os as _os
     from collections import Counter
@@ -1282,7 +1282,7 @@ async def reply_hot_queue(
     scope: str = "boss",
     _user=Depends(require_admin),
 ):
-    """Hot Queue (GTM): interested/question replies — dedupe + prospect
+    """Hot Queue (GTM): interested/question replies â€” dedupe + prospect
     phone-join + freshness sort. Roz subah isse kaam karo (call/WhatsApp/send).
 
     scope=boss (default) | admin (parked) | all."""
@@ -1322,7 +1322,7 @@ async def reply_hot_queue_done(
     _rl=Depends(rate_limit("hot_queue_done", 60, 60)),
     _user=Depends(require_admin),
 ):
-    """1-click Done — queue se hatao (draft row pe hq_status=done)."""
+    """1-click Done â€” queue se hatao (draft row pe hq_status=done)."""
     from app.platform import reply_agent
 
     ok = reply_agent.mark_handled(body.hq_id)
@@ -1337,7 +1337,7 @@ async def reply_hot_queue_park(
     _rl=Depends(rate_limit("hot_queue_park", 60, 60)),
     _user=Depends(require_admin),
 ):
-    """Manual park for admin — boss unclear without running council."""
+    """Manual park for admin â€” boss unclear without running council."""
     from app.platform import reply_agent
 
     ok = reply_agent.park_for_admin(body.hq_id, note=body.note or "")
@@ -1353,7 +1353,7 @@ async def reply_hot_queue_council_decide(
     body: HotQueueCouncilIn,
     _user=Depends(require_admin),
 ):
-    """Boss samajh nahi aaya → LLM Council decide (DONE/PARK_ADMIN/KEEP/CALL)."""
+    """Boss samajh nahi aaya â†’ LLM Council decide (DONE/PARK_ADMIN/KEEP/CALL)."""
     from app.platform import boss_council
 
     out = await boss_council.decide_hot_queue(body.hq_id, apply=bool(body.apply))
@@ -1367,10 +1367,10 @@ async def reply_hot_queue_quick_done(
     token: str,
     _rl=Depends(rate_limit("hq_quickdone", 30, 60)),
 ):
-    """PUBLIC 1-tap Done — fired by the ntfy push-notification action button
+    """PUBLIC 1-tap Done â€” fired by the ntfy push-notification action button
     (2026-07-03 GTM fix). No login: ntfy's http action can't do interactive
     auth, so the HMAC-signed token (app.platform.reply_agent.make_hq_done_token)
-    scopes this call to exactly one hq_id — same trust model as the email
+    scopes this call to exactly one hq_id â€” same trust model as the email
     one-click-unsubscribe links. Same effect as the admin dashboard's Done button."""
     from app.platform import reply_agent
 
@@ -1479,7 +1479,7 @@ async def infra_flags(_user=Depends(require_admin)):
     for f in AUTOMATION_FLAGS:
         v = _os.environ.get(f)
         # Never leak secret-valued flags (DR_REPLICA_URL w/ password, LITELLM_MASTER_KEY,
-        # *_TOKEN/*_SECRET/*_KEY, TOTP_CHALLENGE_KEY…) — mask the value; plain on/off
+        # *_TOKEN/*_SECRET/*_KEY, TOTP_CHALLENGE_KEYâ€¦) â€” mask the value; plain on/off
         # toggles still show their "1"/"true". `set`/`on` stay visible for both.
         _is_secret = is_secret_name(f) or f.upper().endswith(("_URL", "_DSN"))
         row = {
@@ -1491,7 +1491,7 @@ async def infra_flags(_user=Depends(require_admin)):
 
     # Effective-runtime honesty: REPLY_AUTO_SEND can be live via Redis
     # `reply_auto_send` even when env is 0 (HARD_OFF still wins). Env-only
-    # `on`/`switch_on` alone mislead operators — surface effective_on too.
+    # `on`/`switch_on` alone mislead operators â€” surface effective_on too.
     if "REPLY_AUTO_SEND" in out:
         try:
             from app.platform.reply_agent import _reply_auto_send_enabled
@@ -1556,7 +1556,7 @@ class ProspectAnalysisIn(BaseModel):
 
 @router.post("/sales/prospect-analysis")
 async def sales_prospect_analysis(body: ProspectAnalysisIn, _user=Depends(require_admin)):
-    """5 parallel agents (research/BANT/competitive/outreach/objections) ek prospect pe —
+    """5 parallel agents (research/BANT/competitive/outreach/objections) ek prospect pe â€”
     ready-to-act analysis + 1-click drafts. Manual run (flag-independent)."""
     from app.agents import sales_team
 
@@ -1582,7 +1582,7 @@ async def sales_prospect_analyses(limit: int = 20, _user=Depends(require_admin))
 
 @router.post("/sales/team-run")
 async def sales_team_run(limit: int = 3, _user=Depends(require_admin)):
-    """Auto-pilot sweep abhi chalao (top hot leads pe deep-dive) — manual trigger."""
+    """Auto-pilot sweep abhi chalao (top hot leads pe deep-dive) â€” manual trigger."""
     import os as _os
 
     from app.agents import sales_team
@@ -1598,7 +1598,7 @@ async def sales_team_run(limit: int = 3, _user=Depends(require_admin)):
             r = await sales_team.analyze(lead if isinstance(lead, dict) else {})
             if r.get("ok"):
                 leads_done += 1
-        return {"ok": True, "analyzed": leads_done, "note": "flag OFF — one-shot manual run"}
+        return {"ok": True, "analyzed": leads_done, "note": "flag OFF â€” one-shot manual run"}
     return await sales_team.run_auto(limit)
 
 
@@ -1607,3 +1607,13 @@ async def sales_team_run(limit: int = 3, _user=Depends(require_admin)):
 from app.api.growth_automation import router as _automation_router  # noqa: E402
 
 router.include_router(_automation_router)
+
+
+from app.api.growth_persona import router as _persona_router  # noqa: E402
+
+router.include_router(_persona_router)
+
+
+from app.api.growth_triage import router as _triage_router  # noqa: E402
+
+router.include_router(_triage_router)

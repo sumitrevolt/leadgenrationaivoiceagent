@@ -74,6 +74,8 @@ a{color:var(--acc)}
   <button id="tab-askai" onclick="show('askai')">🤖 Ask AI (Calls)</button>
   <button id="tab-localseo" onclick="show('localseo')">📍 Local SEO+</button>
   <button id="tab-crmsync" onclick="show('crmsync')">🔄 CRM Sync</button>
+  <button id="tab-persona" onclick="show('persona')">🧠 Persona Architect</button>
+  <button id="tab-triage" onclick="show('triage')">📥 Inbound Triage</button>
 </nav>
 
 <div class="main">
@@ -1214,7 +1216,45 @@ async function csLog(){
   }catch(e){toast(e.message,false)}
 }
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
+async function genPersona() {
+  document.getElementById('btnPersona').innerText = 'Generating...';
+  let res = document.getElementById('personaRes');
+  let out = document.getElementById('personaOut');
+  try {
+    let req = await fetch('/api/growth/persona/architect', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok()},
+      body: JSON.stringify({niche: document.getElementById('personaNiche').value, product_description: document.getElementById('personaProduct').value})
+    });
+    let data = await req.json();
+    res.style.display = 'block';
+    out.innerText = JSON.stringify(data, null, 2);
+  } catch(e){
+    out.innerText = 'Error: ' + e;
+  }
+  document.getElementById('btnPersona').innerText = 'Generate Architect JSON';
+}
+
+async function runTriage() {
+  document.getElementById('btnTriage').innerText = 'Classifying...';
+  let res = document.getElementById('triageRes');
+  let out = document.getElementById('triageOut');
+  try {
+    let req = await fetch('/api/growth/triage/classify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok()},
+      body: JSON.stringify({message_body: document.getElementById('triageMessage').value, channel: document.getElementById('triageChannel').value})
+    });
+    let data = await req.json();
+    res.style.display = 'block';
+    out.innerText = JSON.stringify(data, null, 2);
+  } catch(e){
+    out.innerText = 'Error: ' + e;
+  }
+  document.getElementById('btnTriage').innerText = 'Classify Inbox Message';
+}
+</script>
 <script src="/api/page-agent/boot.js" defer></script>
 </body>
 </html>

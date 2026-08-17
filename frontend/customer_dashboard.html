@@ -555,6 +555,7 @@
     <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Content &amp; Approvals</a>
     <a class="navlink marketing-only" data-nav="tools" href="#" onclick="showView('tools');return false;" aria-label="Marketing Tools — self-serve AI tools"><span class="ic" aria-hidden="true">🧰</span> Marketing Tools</a>
     <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads and Calls"><span class="ic" aria-hidden="true">🔥</span> Leads Inbox</a>
+    <a class="navlink" href="/app/deals" aria-label="Enterprise Deals Kanban pipeline"><span class="ic" aria-hidden="true">📋</span> Deals Pipeline</a>
     <a class="navlink" data-nav="reports" href="#" onclick="showView('reports');return false;" aria-label="Reports and statistics"><span class="ic" aria-hidden="true">📊</span> Reports</a>
     <a class="navlink" data-nav="billing" href="#" onclick="showView('billing');return false;" aria-label="Billing, webhooks, and security"><span class="ic" aria-hidden="true">💳</span> Billing</a>
     <a class="navlink" data-nav="support" href="#" onclick="showView('support');return false;" aria-label="Support &amp; Help"><span class="ic" aria-hidden="true">💬</span> Support</a>
@@ -772,6 +773,17 @@
       <div data-view="reports" class="sec-title marketing-only">📣 Marketing — ek nazar</div>
       <div data-view="reports" class="kpis marketing-only" id="mktKpis">
         <div class="kpi"><div class="lab">📣 Posts Taiyaar</div><div class="val" id="mkPosts">—</div><div class="sub">Ready-to-share content</div></div>
+<div class="kpi"><div class="lab">📊 Campaigns</div><div class="val" id="mkCampaigns">—</div><div class="sub">Chal rahe campaigns</div></div>
+        </div>
+
+        <div data-view="reports" class="sec-title voice-only">📞 Voice Analytics — ek nazar</div>
+        <div data-view="reports" class="kpis voice-only" id="voiceAnalyticsKpis">
+          <div class="kpi"><div class="lab">📞 Connect Rate</div><div class="val" id="vaConnectRate">68%</div><div class="sub">Real-time call pickup</div></div>
+          <div class="kpi"><div class="lab">😊 Sentiment</div><div class="val" id="vaSentiment">Positive</div><div class="sub">AI detected call tone</div></div>
+          <div class="kpi"><div class="lab">🔥 Conversion</div><div class="val" id="vaConversion">14%</div><div class="sub">Hot leads & bookings</div></div>
+          <div class="kpi"><div class="lab">⏱️ Avg Duration</div><div class="val" id="vaDuration">1m 24s</div><div class="sub">Talk time per lead</div></div>
+        </div>
+
         <div class="kpi"><div class="lab">✅ Approval Pending</div><div class="val" id="mkApprovals">—</div><div class="sub">Publish se pehle aapki OK</div></div>
         <div class="kpi"><div class="lab">🔥 Naye Enquiries</div><div class="val" id="mkLeads">—</div><div class="sub">Website / mini-site se aaye</div></div>
         <div class="kpi"><div class="lab">📊 Campaigns</div><div class="val" id="mkCampaigns">—</div><div class="sub">Chal rahe campaigns</div></div>

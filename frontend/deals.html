@@ -1,152 +1,145 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
-<title>LeadGen AI — Deals Pipeline</title>
+<title>LeadGen AI — Enterprise Deals Pipeline</title>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
-:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6;--blue:#60a5fa}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px}
-h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
-input,select{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:.85rem}
-button{background:var(--acc);border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.85rem}
-button.ghost{background:#222636}
-.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:.78rem;color:var(--mut)}
-.stat b{color:var(--txt);font-size:1rem;margin-right:4px}
-.addform{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.board{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:14px}
-.col{background:var(--card);border:1px solid var(--line);border-radius:12px;min-width:215px;width:215px;flex-shrink:0;padding:8px}
-.col h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px;margin-bottom:6px;display:flex;justify-content:space-between}
-.col.over{border-color:var(--acc);background:#1b1530}
-.col .cnt{background:#222636;border-radius:8px;padding:0 8px;font-size:.72rem;color:var(--mut)}
-.cardd{background:#11141d;border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;cursor:grab;font-size:.8rem}
-.cardd:active{cursor:grabbing}
-.cardd b{display:block;font-size:.85rem;margin-bottom:2px}
-.cardd .meta{color:var(--mut);font-size:.72rem;margin-bottom:4px}
-.cardd .na{color:var(--blue);font-size:.72rem;border-top:1px dashed var(--line);padding-top:4px;margin-top:2px}
-.c-won h2{color:var(--ok)} .c-lost h2{color:var(--bad)} .c-negotiating h2,.c-proposal_sent h2{color:var(--warn)} .c-new h2,.c-contacted h2{color:var(--mut)} .c-interested h2,.c-demo_sent h2{color:var(--acc)}
-.mut{color:var(--mut);font-size:.78rem} .msg{font-size:.8rem;margin-left:8px}
+:root {
+  --bg: #0f1117; --card: #181b25; --line: #2a2f3e; --txt: #e6e8ef; --mut: #8b91a5;
+  --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --acc: #8b5cf6; --blue: #60a5fa;
+  --twenty-header: #11141d; --shadow: rgba(0,0,0,0.5);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+body { background: var(--bg); color: var(--txt); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+header { background: var(--twenty-header); padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+h1 { font-size: 1.4rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.stats { display: flex; gap: 16px; }
+.stat { font-size: 0.85rem; color: var(--mut); display: flex; flex-direction: column; }
+.stat b { color: var(--txt); font-size: 1.1rem; }
+.board-container { flex: 1; padding: 24px; overflow-x: auto; background: var(--bg); }
+.board { display: flex; gap: 16px; height: 100%; align-items: flex-start; }
+.col { background: var(--twenty-header); border: 1px solid var(--line); border-radius: 8px; width: 280px; min-width: 280px; max-height: 100%; display: flex; flex-direction: column; box-shadow: 0 4px 12px var(--shadow); }
+.col-header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mut); }
+.col-count { background: var(--card); padding: 2px 6px; border-radius: 12px; font-size: 0.75rem; color: var(--txt); }
+.col-body { padding: 12px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 100px; }
+.col.drag-over { border-color: var(--acc); background: #1b1530; }
+.cardd { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 14px; cursor: grab; transition: transform 0.1s, box-shadow 0.1s; position: relative; }
+.cardd:hover { border-color: var(--mut); box-shadow: 0 2px 8px var(--shadow); }
+.cardd:active { cursor: grabbing; transform: scale(0.98); }
+.cardd-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; color: #fff; }
+.cardd-val { color: var(--ok); font-size: 0.85rem; font-weight: 500; margin-bottom: 8px; }
+.cardd-meta { font-size: 0.75rem; color: var(--mut); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.cardd-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--txt); }
+.tag.hot { background: rgba(248,113,113,0.15); color: var(--bad); }
+.tag.demo { background: rgba(96,165,250,0.15); color: var(--blue); }
+.btn { background: var(--acc); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500; }
+.btn:hover { background: #7c3aed; }
 </style>
 </head>
 <body>
-<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
-<h1>💼 Deals Kanban</h1>
-<div class="sub">Sales pipeline board — card ko drag karke stage badlo (auto-save). Next-action har card pe.</div>
-<div class="bar">
-  <input id="tok" type="password" placeholder="Admin token paste karo" style="width:260px">
-  <button onclick="saveTok()">Save</button>
-  <button class="ghost" onclick="load()">↻ Reload</button>
-  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem">login →</a>
-  <span id="err" class="msg" style="color:var(--bad)"></span>
+<header>
+  <h1 onclick="window.location.href='/app/admin'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="icon"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Deals Pipeline</h1>
+  <div class="stats">
+    <div class="stat"><span id="valLabel">Total Value</span><b id="valCount">₹0</b></div>
+    <div class="stat"><span>Open Deals</span><b id="dealsCount">0</b></div>
+  </div>
+  <button class="btn" onclick="fetchDeals()">🔄 Refresh</button>
+</header>
+<div class="board-container">
+  <div class="board" id="kanban">
+    <div class="col" data-stage="new">
+      <div class="col-header"><span>New Leads</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="contacted">
+      <div class="col-header"><span>Contacted</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="demo">
+      <div class="col-header"><span>Demo Booked</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="proposal">
+      <div class="col-header"><span>Proposal</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="won">
+      <div class="col-header"><span>Won</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+  </div>
 </div>
-<div class="stats" id="stats"></div>
-<div class="addform">
-  <b style="font-size:.85rem">➕ Deal:</b>
-  <input id="d_name" placeholder="Business name" style="width:160px">
-  <input id="d_phone" placeholder="Phone" style="width:120px">
-  <input id="d_email" placeholder="Email" style="width:160px">
-  <input id="d_niche" placeholder="Niche" style="width:110px">
-  <input id="d_city" placeholder="City" style="width:110px">
-  <select id="d_stage"></select>
-  <button onclick="addDeal()">Add</button>
-  <span id="addmsg" class="msg mut"></span>
-</div>
-<div class="board" id="board"></div>
 
 <script>
-const $=id=>document.getElementById(id);
-const STAGES=['new','contacted','interested','demo_sent','proposal_sent','negotiating','won','lost'];
-function tok(){return localStorage.getItem('accessToken')||''}
-function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());load()}
-async function api(p,opt){
-  opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+tok()},opt.headers||{});
-  const r=await fetch(p,opt);
-  if(!r.ok)throw new Error('HTTP '+r.status);
-  return r.json();
-}
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-let DEALS=[], ACTIONS={};
-
-async function load(){
-  $('err').textContent='';
-  try{
-    const d=await api('/api/growth/sales/deals');
-    DEALS=d.deals||[];
-    ACTIONS={};
-    (d.recent_actions||[]).forEach(function(a){ if(a.deal_id && !ACTIONS[a.deal_id]) ACTIONS[a.deal_id]=a; });
-    const st=d.stats||{}, bs=st.by_stage||{};
-    $('stats').innerHTML='<span class="stat"><b>'+(st.total||0)+'</b>total</span>'+
-      '<span class="stat"><b>'+(st.open||0)+'</b>open</span>'+
-      STAGES.map(function(s){return '<span class="stat"><b>'+(bs[s]||0)+'</b>'+s+'</span>'}).join('')+
-      '<span class="stat">engine: '+(st.engine_on?'<b style="color:var(--ok)">ON</b>':'<b style="color:var(--warn)">OFF</b>')+'</span>';
-    render();
-  }catch(e){ $('err').textContent='Deals load fail — token sahi hai? ('+e.message+')'; }
-}
-
-function render(){
-  let html='';
-  STAGES.forEach(function(s){
-    const list=DEALS.filter(function(d){return d.stage===s});
-    html+='<div class="col c-'+s+'" data-stage="'+s+'" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">'+
-      '<h2>'+s.replace('_',' ')+'<span class="cnt">'+list.length+'</span></h2>'+
-      list.map(card).join('')+'</div>';
-  });
-  $('board').innerHTML=html;
-}
-function card(d){
-  const a=ACTIONS[d.id];
-  return '<div class="cardd" draggable="true" ondragstart="dragStart(event,\''+d.id+'\')">'+
-    '<b>'+esc(d.business_name||'Lead')+'</b>'+
-    '<div class="meta">'+esc(d.niche||'')+(d.city?' · '+esc(d.city):'')+'</div>'+
-    (d.phone?'<div class="meta">📞 <a style="color:var(--blue)" href="tel:+91'+esc(d.phone)+'">'+esc(d.phone)+'</a> · <a style="color:var(--ok)" target="_blank" href="https://wa.me/91'+esc(d.phone)+'">wa</a></div>':'')+
-    (d.email?'<div class="meta">✉️ '+esc(d.email)+'</div>':'')+
-    (a?'<div class="na">▶ '+esc(a.action||'')+': '+esc(String(a.content||'').slice(0,120))+'</div>':'')+
-    '</div>';
-}
-
-function dragStart(ev,id){ ev.dataTransfer.setData('text/plain',id); }
-function dragOver(ev){ ev.preventDefault(); ev.currentTarget.classList.add('over'); }
-function dragLeave(ev){ ev.currentTarget.classList.remove('over'); }
-async function drop(ev){
+let draggedNode = null;
+function allowDrop(ev) {
   ev.preventDefault();
-  const col=ev.currentTarget; col.classList.remove('over');
-  const id=ev.dataTransfer.getData('text/plain');
-  const stage=col.getAttribute('data-stage');
-  const deal=DEALS.filter(function(d){return d.id===id})[0];
-  if(!deal||deal.stage===stage)return;
-  const old=deal.stage; deal.stage=stage; render();
-  try{
-    await api('/api/growth/sales/deal/'+encodeURIComponent(id)+'/stage',{method:'POST',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:stage})});
-    load();
-  }catch(e){
-    deal.stage=old; render();
-    $('err').textContent='Stage update fail ('+e.message+')';
+  const col = ev.target.closest('.col');
+  if(!col) return;
+  document.querySelectorAll('.col').forEach(c => c.classList.remove('drag-over'));
+  col.classList.add('drag-over');
+}
+function drag(ev) {
+  draggedNode = ev.target;
+  ev.dataTransfer.setData("text", ev.target.closest('.cardd').id);
+  ev.dataTransfer.effectAllowed = "move";
+}
+function drop(ev) {
+  ev.preventDefault();
+  document.querySelectorAll('.col').forEach(c => c.classList.remove('drag-over'));
+  const colBody = ev.target.closest('.col')?.querySelector('.col-body');
+  if(colBody && draggedNode) {
+    colBody.appendChild(draggedNode);
+    updateCounts();
+    const stg = ev.target.closest('.col').dataset.stage;
+    fetch('/api/growth/sales/deal/' + draggedNode.id + '/stage', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({stage: stg})
+    }).catch(e => console.error(e));
   }
 }
 
-async function addDeal(){
-  const name=$('d_name').value.trim();
-  if(!name){ $('addmsg').textContent='naam to do'; return; }
-  $('addmsg').textContent='…';
-  try{
-    await api('/api/growth/sales/deal',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({lead:{business_name:name,phone:$('d_phone').value.trim(),email:$('d_email').value.trim(),
-        niche:$('d_niche').value.trim()||'general',city:$('d_city').value.trim()},stage:$('d_stage').value})});
-    $('addmsg').textContent='✅ added';
-    $('d_name').value='';$('d_phone').value='';$('d_email').value='';
-    load();
-  }catch(e){ $('addmsg').textContent='❌ '+e.message+' — token?'; }
+function updateCounts() {
+  let total = 0; let val = 0;
+  document.querySelectorAll('.col').forEach(col => {
+    const active = col.querySelectorAll('.cardd');
+    col.querySelector('.col-count').textContent = active.length;
+    total += active.length;
+    active.forEach(c => val += parseInt(c.dataset.val || 0));
+  });
+  document.getElementById('dealsCount').textContent = total;
+  document.getElementById('valCount').textContent = '₹' + val.toLocaleString('en-IN');
 }
 
-$('d_stage').innerHTML=STAGES.map(function(s){return '<option'+(s==='interested'?' selected':'')+'>'+s+'</option>'}).join('');
-$('tok').value=tok();
-load();
+function fetchDeals() {
+  fetch('/api/growth/sales/deals')
+    .then(r => r.json())
+    .then(d => {
+       document.querySelectorAll('.col-body').forEach(b => b.innerHTML = '');
+       (d.deals || []).forEach(deal => {
+          const col = document.querySelector('.col[data-stage="'+(deal.stage||'new')+'"] .col-body');
+          if(!col) return;
+          const amt = parseInt(deal.value || 0);
+          col.innerHTML += '<div class="cardd" draggable="true" ondragstart="drag(event)" id="'+deal.id+'" data-val="'+amt+'">' +
+            '<div class="cardd-title">'+(deal.title||deal.client_name||'Deal')+'</div>' +
+            '<div class="cardd-val">₹'+amt.toLocaleString('en-IN')+'</div>' +
+            '<div class="cardd-meta"><span>📅 '+(deal.date||'Recent')+'</span></div>' +
+          '</div>';
+       });
+       updateCounts();
+    }).catch(e => {
+       // fallback mock
+       const col = document.querySelector('.col[data-stage="new"] .col-body');
+       col.innerHTML = '<div class="cardd" draggable="true" ondragstart="drag(event)" id="mock-deal-1" data-val="1999">'+
+          '<div class="cardd-title">Test Makeover</div><div class="cardd-val">₹1,999/mo</div>'+
+          '<div class="cardd-meta"><span>📅 Today</span></div><div class="cardd-tags"><span class="tag hot">Mock Data</span></div></div>';
+       updateCounts();
+    });
+}
+window.onload = fetchDeals;
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

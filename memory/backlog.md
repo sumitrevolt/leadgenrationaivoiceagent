@@ -81,3 +81,19 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 [2026-08-05] **MetaGPT steal-list #4 — `exp_cache` semantics for `agent_recall.py`** — WHY: two uncoordinated memory tiers (`coordinator._MEMORY` jsonl hard cap `_MAX_MEM=3`; `agent_recall.py` hybrid keyword+vector) — neither scores an experience, neither can skip an LLM call outright, read/write not independently controllable | lift three ideas from `exp_pool/decorator.py:30`: a `scorer`, a `perfect_judge` (perfect prior ⇒ return it, NO LLM call), and separate `enable_read` / `enable_write` flags so reads can canary before writes are armed — read/write split fits the INERT-by-default convention exactly. unblocks: after #1 proves in prod (ADR-159); dormant today (`AGENT_MEMORY` OFF).
 
 [2026-08-08] **ADR-174 candidate — Cloudflare OS (`cloudflare/cloudflare-os`): vendor REJECT · P1+P2 patterns-only** — WHY: Apache-2.0 CF internal AI productivity OS (5.1k★, v2 rewrite, early access). Authority model fails same ADR-148/155 test as clawo, *worse* control-plane size: User → workshop-backend kernel → agents/Gadgets → Gatekeepers → services — poora apna kernel/users/ACLs/agent runtime; productivity/gadget workspace hai, coding-agent orchestrator nahi; C1 canary sawaal ko chhuta nahi. Kill facts (wholesale): runtime mismatch (Workers/DO/TS/pnpm vs Hostinger Docker FastAPI/Postgres/Redis/Qdrant; self-host workerd docs "COMING SOON"); DPDP/data-residency unanswered for lead PII on CF edge vs 90-din retention+purge+cross-client isolation; early-access + "not seeking outside contribution" = fork-and-maintain. Rejection = infra + control-plane, **not** safety design. Pattern haul (clawo se better): **P1 Gatekeepers deferred approval** — simulate side-effects locally, queue actions, human bulk approve later (names the `--dangerously-skip-permissions` failure mode); maps to Stage B AMBER design (GREEN observe / AMBER today=reject → candidate AMBER=simulate+queue, still fail-closed). **P2 capability introduction vs ambient MCP** — per-resource introduce (agent may request; human deny); design principle for ADR-173 "future bounded MCP". Bonus read: upstream `.agents/skills/write-gatekeeper`. Source: https://github.com/cloudflare/cloudflare-os | **DO NOT write ADR-174 or evaluate mid-C1** — setup FROZEN/GO + Sumit prune/baseline/paste pending; unblocks: after C1 Claude AT Observed (or contaminated) recorded + #283 path clear; then ADR-174 same shape as ADR-173.
+
+## Competitor Research Insights (2026-08-17)
+**Product 1 (Marketing) Gaps:**
+- CRM Pipeline (Kanban deal view)
+- Social media scheduling (Deeper Postiz integration)
+- Google Business Profile auto-posting (Massive moat at ?1,999)
+
+**Product 2 (Voice) Gaps:**
+- No-code agent builder
+- 8+ Indian regional languages
+- Call analytics dashboard
+
+**Quick Wins (Revenue):**
+- Add ?1,999/mo Starter Voice tier (100 min)
+- Launch freemium (10 free calls/month forever)
+- Add '?66/day � less than a cup of chai' framing
