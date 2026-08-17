@@ -333,6 +333,18 @@ async def test_scheduler_bridge_routes_only_allowlisted_safe_jobs(monkeypatch):
     assert await scheduled.maybe_dispatch("platform_dial") is None
 
 
+def test_authority_run_exposes_generic_and_exact_submit_binding():
+    allowed = dsh_jobs._allowed_tools({"action": "ops_health_check", "shadow": False})
+    assert "dsh_capability_submit" in allowed
+    assert "dsh_capability_submit:ops_health_check" in allowed
+
+
+def test_shadow_run_never_exposes_capability_submit():
+    allowed = dsh_jobs._allowed_tools({"action": "ops_health_check", "shadow": True})
+    assert "dsh_capability_submit" not in allowed
+    assert "dsh_capability_submit:ops_health_check" not in allowed
+
+
 def test_child_environment_is_an_explicit_allowlist(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "do-not-copy")
     monkeypatch.setenv("REDIS_URL", "do-not-copy")
@@ -572,6 +584,9 @@ def test_submission_status_refuses_cross_run_token():
 
 def test_compose_is_internal_nonroot_and_has_no_application_env_file():
     compose = (Path(__file__).parents[1] / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    app_service = compose.split("\n  app:", 1)[1].split("\n  db:", 1)[0]
+    assert "DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}" in app_service
+    assert "DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}" in app_service
     service = compose.split("\n  dsh-worker:", 1)[1].split("\n  scheduler:", 1)[0]
     assert "networks: [dsh_net]" in service
     assert "read_only: true" in service

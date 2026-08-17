@@ -68,6 +68,12 @@ services:
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       CELERY_HEAVY_QUEUE: "1"   # app bhi sender hai (API dlq retry/sweep dispatch) — routing consistent rahe
+      # DSH internal MCP mount must share the same one-shot/runtime flags as
+      # dsh-worker. Defaults remain OFF, but canary deploys that pass
+      # DSH_RUNTIME_ENABLED=1 need the app to mount /internal/dsh/mcp too.
+      DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
+      DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
+      DSH_AGENT_ALLOWLIST: ${DSH_AGENT_ALLOWLIST:-}
       # In-stack Qdrant DNS — .env ka 127.0.0.1 override (container localhost trap)
       QDRANT_URL: http://qdrant:6333
       WEB_CALL_EDGE_TTS: "1"   # test-call = real Swara voice (free EdgeTTS)

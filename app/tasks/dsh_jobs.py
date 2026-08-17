@@ -61,11 +61,19 @@ def _safe_prompt(run: dict[str, Any]) -> str:
 def _allowed_tools(run: dict[str, Any]) -> list[str]:
     allowed = ["dsh_llm_chat", "dsh_heartbeat"]
     if not run.get("shadow"):
+        # DSH's OpenAI adapter can only expose generic function-tool names to
+        # the model. The exact capability authority remains enforced by
+        # /capabilities/{capability}/submissions via the scoped
+        # dsh_capability_submit:<capability> binding below. Without the generic
+        # name the LLM proxy rejects the model's schema before the bounded
+        # runtime can call the only side-effect tool, causing turn_complete
+        # timeouts instead of a governed submission.
         allowed.extend(
             [
                 "dsh_capability_status",
                 "dsh_capability_wait",
                 "dsh_approval_proposal",
+                "dsh_capability_submit",
                 f"dsh_capability_submit:{run['action']}",
             ]
         )
