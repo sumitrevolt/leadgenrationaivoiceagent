@@ -101,11 +101,18 @@ function staleDraftWarning(ageDays,draft){
   return ageDays+'d purana draft — '+(timing?'aaj/kal/abhi timing update karo, phir bhejo.':'offer/date/context re-check karke bhejo.');
 }
 
+function tabLabel(key,label){
+  if(key==='hotq' && window._hqSummary && Number(window._hqSummary.total_open||0)>0){
+    const scope = (HQ_SCOPE==='admin') ? 'Admin pending' : 'Boss queue';
+    return '🔥 '+scope;
+  }
+  return label;
+}
 const TABS=[['hotq','🔥 Hot Queue'],['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
 let COUNTS={hotq:0,hot:0,reply:0,review:0,exp:0};
 function renderTabs(active){
   $('tabs').innerHTML=TABS.map(function(t){
-    return '<span class="tab'+(t[0]===active?' on':'')+'" onclick="show(\''+t[0]+'\')">'+t[1]+'<span class="n">'+(COUNTS[t[0]]||0)+'</span></span>';
+    return '<span class="tab'+(t[0]===active?' on':'')+'" onclick="show(\''+t[0]+'\')">'+tabLabel(t[0],t[1])+'<span class="n">'+(COUNTS[t[0]]||0)+'</span></span>';
   }).join('');
 }
 function show(k){
@@ -169,7 +176,7 @@ async function load(){
     hqSummary=hqResp.summary||null;
     hqOk=true;
   }catch(e){}
-  COUNTS.hotq=hq.length;
+  COUNTS.hotq=(hqSummary && Number(hqSummary.total_open||0)>0) ? Number(hqSummary.total_open||0) : hq.length;
   window._hqAll=hq;
   window._hqSummary=hqSummary;
   window._hqOk=hqOk;

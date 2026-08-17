@@ -169,7 +169,27 @@ async def complete(
             }
             if safe_tools:
                 kwargs["tools"] = safe_tools
-                kwargs["tool_choice"] = "auto"
+                submit_tool = next(
+                    (
+                        tool
+                        for tool in safe_tools
+                        if ((tool.get("function") or {}).get("name") == "dsh_capability_submit")
+                    ),
+                    None,
+                )
+                # Authoritative DSH runs are not a chat surface: when the scoped
+                # capability-submit tool is present, require the model to emit
+                # that tool call instead of ending the turn with prose. This
+                # keeps shadow runs unaffected (no submit tool exposed) and
+                # prevents the canary failure mode where LLM=200 but zero
+                # governed submission reaches the runtime.
+                if submit_tool is not None:
+                    kwargs["tool_choice"] = {
+                        "type": "function",
+                        "function": {"name": "dsh_capability_submit"},
+                    }
+                else:
+                    kwargs["tool_choice"] = "auto"
             response = await asyncio.wait_for(
                 client.chat.completions.create(**kwargs),
                 timeout=60,

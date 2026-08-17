@@ -48,6 +48,7 @@
     --shadow:   var(--shadow-card);
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html,body{max-width:100%;overflow-x:hidden}
   body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-size:14px}
   a{color:inherit;text-decoration:none;cursor:pointer}
   html{scroll-behavior:smooth}
@@ -75,7 +76,7 @@
   .brand-meta{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
   .topbar h1{margin:0;font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.2;white-space:nowrap}
   .topbar .sub{margin:0;color:var(--muted);font-size:12.5px;font-weight:500;line-height:1.35;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-  .top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;flex-wrap:wrap;justify-content:flex-end}
   @media (max-width:900px){
     .topbar .sub{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
   }
@@ -92,6 +93,7 @@
   .sb-foot .logout-btn{margin-top:8px;width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fca5a5;font-size:11.5px;font-weight:600;cursor:pointer}
   .sb-foot .logout-btn:hover{background:rgba(239,68,68,.2);color:#fff}
   .sb-foot .login-link{display:block;margin-top:6px;font-size:11.5px;color:#a5b4fc;text-decoration:underline}
+  body:not(.admin-authenticated) .admin-auth-only{display:none!important}
 
   .content{padding:24px 26px 50px}
 
@@ -256,9 +258,9 @@
            Delivery-first: admin landing = Delivery Cockpit. Baaki saare internal links
            System me collapsed rakhe — kuch bhi delete/break nahi hua. -->
       <div class="sec nav-group" role="presentation">Delivery</div>
-      <a href="/app/inbox" id="navHotQueue" role="menuitem" aria-label="Hot Queue 15-minute outreach sprint" style="background:#4f46e5;color:#fff;font-weight:700;margin-bottom:6px"><span class="ic" aria-hidden="true">🔥</span> Hot Queue</a>
+      <a class="admin-auth-only" href="/app/inbox" id="navHotQueue" role="menuitem" aria-label="Hot Queue 15-minute outreach sprint" style="background:#4f46e5;color:#fff;font-weight:700;margin-bottom:6px"><span class="ic" aria-hidden="true">🔥</span> Hot Queue</a>
       <a href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit — customer delivery overview"><span class="ic" aria-hidden="true">📦</span> Delivery Cockpit</a>
-      <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
+      <a class="admin-auth-only" href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <div class="sec nav-group" role="presentation">Automation</div>
       <a href="/app/owner" role="menuitem" aria-label="Owner Operating System command center"><span class="ic" aria-hidden="true">👑</span> Owner OS</a>
       <a href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" role="menuitem" aria-label="OpenClaw Owner Copilot — NL commands via Owner OS"><span class="ic" aria-hidden="true">🧠</span> OpenClaw Copilot <span class="badge" id="nav-openclaw-flag" style="background:#64748b;display:none">OFF</span></a>
@@ -268,7 +270,7 @@
       <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
       <div class="sec nav-group" role="presentation">Customers</div>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">—</span></a>
-      <a href="#manualCallCard" onclick="scrollToSec('manualCallCard');return false;" role="menuitem" aria-label="Call a customer manually"><span class="ic" aria-hidden="true">📞</span> Customer ko Call</a>
+      <a class="admin-auth-only" href="#manualCallCard" onclick="scrollToSec('manualCallCard');return false;" role="menuitem" aria-label="Call a customer manually"><span class="ic" aria-hidden="true">📞</span> Customer ko Call</a>
       <a href="/app/clients" role="menuitem" aria-label="Client actions"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <div class="sec nav-group" role="presentation">System</div>
@@ -344,8 +346,7 @@
         <span class="pill" aria-live="polite" aria-label="Data source status"><span class="live-dot" id="src-dot" aria-hidden="true" style="background:#94a3b8;animation:none"></span> <span id="src-label">Connecting…</span></span>
         <span id="adminUserLbl" class="pill" style="background:#f8fafc;color:var(--slate);font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none" title=""></span>
         <a href="/app/admin-login" id="adminLoginLink" class="btn btn-ghost" style="display:none">🔑 Login</a>
-        <button type="button" id="adminLogoutBtn" class="btn btn-logout" onclick="adminLogout()" style="display:none">Logout</button>
-        <button class="btn" onclick="openOnboard()" style="background:#10b981" aria-label="Add a new customer">➕ Add Customer</button>
+        <button class="btn admin-auth-only" onclick="openOnboard()" style="background:#10b981" aria-label="Add a new customer">➕ Add Customer</button>
         <button class="btn" onclick="loadDashboard()" aria-label="Refresh dashboard data">↻ Refresh</button>
       </div>
     </div>
@@ -466,7 +467,7 @@
       <!-- Owner-triggered single customer call. Reuses the canonical admin-authenticated
            /api/telephony/vobiz/stream-call path so DND/DLT/window/AI-disclosure and
            opt-out gates remain in one backend chokepoint. No second dialer path. -->
-      <div class="card" id="manualCallCard" style="margin-bottom:14px;border:1px solid #6ee7b7;background:linear-gradient(135deg,#ecfdf5 0%,#f8fafc 100%);scroll-margin-top:80px">
+      <div class="card admin-auth-only" id="manualCallCard" style="margin-bottom:14px;border:1px solid #6ee7b7;background:linear-gradient(135deg,#ecfdf5 0%,#f8fafc 100%);scroll-margin-top:80px">
         <div class="hd" style="border-bottom:1px solid rgba(5,150,105,.22)">
           <h3 style="color:#065f46;font-size:16px;letter-spacing:-.3px">📞 Customer ko AI se call karayein</h3>
           <span class="right" style="color:#047857;font-size:11px">Single call · admin only · compliance-gated</span>
@@ -3306,9 +3307,16 @@ async function loadDashboard(){
   if(lbl) lbl.textContent = "Loading…";
   try{
     const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), 8000);
-    const res = await fetch("/api/admin/dashboard", {headers:abAuthHdr(), signal:ctrl.signal, cache:"no-store"});
-    clearTimeout(t);
+    // Production admin dashboard can legitimately take ~8s during cold/cache-miss
+    // windows. Keep a bounded timeout, but don't race honest live scorecards into
+    // a stale "Data load nahi hui" banner at exactly the normal p95.
+    const t = setTimeout(()=>ctrl.abort(), 15000);
+    let res;
+    try{
+      res = await fetch("/api/admin/dashboard", {headers:abAuthHdr(), signal:ctrl.signal, cache:"no-store"});
+    }finally{
+      clearTimeout(t);
+    }
     if(!res.ok) throw new Error("bad status "+res.status);
     const data = await res.json();
     USING_REAL = true;                 // real data wins — never overwrite with demo
@@ -4283,22 +4291,21 @@ document.addEventListener("DOMContentLoaded", function(){
 async function adminAuthBoot(){
   const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
   const loginLnk = document.getElementById("adminLoginLink");
-  const logoutBtn = document.getElementById("adminLogoutBtn");
   const sbLogout = document.getElementById("sbLogoutBtn");
   const sbLogin = document.getElementById("sbLoginLink");
   const navLogin = document.getElementById("navAdminLogin");
   const userLbl = document.getElementById("adminUserLbl");
   function showLoggedOut(){
+    document.body.classList.remove("admin-authenticated");
     if(loginLnk) loginLnk.style.display = "inline-flex";
-    if(logoutBtn) logoutBtn.style.display = "none";
     if(sbLogout) sbLogout.style.display = "none";
     if(sbLogin) sbLogin.style.display = "block";
     if(navLogin) navLogin.style.display = "flex";
     if(userLbl){ userLbl.style.display = "none"; userLbl.textContent = ""; }
   }
   function showLoggedIn(emailOrName){
+    document.body.classList.add("admin-authenticated");
     if(loginLnk) loginLnk.style.display = "none";
-    if(logoutBtn) logoutBtn.style.display = "inline-flex";
     if(sbLogout) sbLogout.style.display = "block";
     if(sbLogin) sbLogin.style.display = "none";
     if(navLogin) navLogin.style.display = "none";

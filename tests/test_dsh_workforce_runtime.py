@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
 import json
@@ -468,6 +469,135 @@ def _gateway_binding(*, allowed_tools: tuple[str, ...]) -> tuple[str, str]:
         ttl_s=60,
     )
     return run_id, token
+
+
+def test_dsh_authority_proxy_forces_capability_submit_tool(monkeypatch):
+    captured = {}
+
+    class _Response:
+        def model_dump(self, mode="json"):
+            return {
+                "id": "chatcmpl-forced",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_1",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "dsh_capability_submit",
+                                        "arguments": "{}",
+                                    },
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+            }
+
+    class _Completions:
+        async def create(self, **kwargs):
+            captured.update(kwargs)
+            return _Response()
+
+    class _Client:
+        class chat:
+            completions = _Completions()
+
+    from app.voice_agent import free_ai
+
+    monkeypatch.setattr(free_ai, "_build_llm_chain", lambda _purpose: [("fake", "fake-model")])
+    monkeypatch.setattr(free_ai, "_provider_down", lambda _provider: False)
+    monkeypatch.setattr(free_ai, "_client", lambda _provider: _Client())
+    monkeypatch.setattr(free_ai, "_reset_cooldown_streak", lambda _provider: None)
+
+    result = asyncio.run(
+        free_ai_proxy.complete(
+            messages=[{"role": "user", "content": "Use the governed capability"}],
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "dsh_capability_submit",
+                        "description": "Submit governed capability",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                }
+            ],
+            allowed_tools=("dsh_llm_chat", "dsh_capability_submit:ops_health_check"),
+        )
+    )
+
+    assert captured["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "dsh_capability_submit"},
+    }
+    assert (
+        result["choices"][0]["message"]["tool_calls"][0]["function"]["name"]
+        == "dsh_capability_submit"
+    )
+
+
+def test_llm_gateway_records_protocol_shape_without_content_or_arguments(monkeypatch):
+    run_id, token = _gateway_binding(
+        allowed_tools=("dsh_llm_chat", "dsh_capability_submit:ops_health_check")
+    )
+
+    async def fake_complete(**_kwargs):
+        return {
+            "id": "chatcmpl-trace",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "private model explanation",
+                        "tool_calls": [
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "dsh_capability_submit",
+                                    "arguments": '{"private":"payload"}',
+                                },
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(free_ai_proxy, "complete", fake_complete)
+    response = _api_client().post(
+        "/internal/dsh/v1/chat/completions",
+        json={
+            "model": "leadgen-free",
+            "messages": [{"role": "user", "content": "Use the governed capability"}],
+            "tools": [],
+            "stream": True,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    row = run_store.get_run(run_id)
+    event = row["audit_events"][-1]
+    assert event["event"] == "dsh_llm_outcome"
+    assert event["detail"] == {
+        "finish_reason": "tool_calls",
+        "tool_call_count": 1,
+        "tool_names": ["dsh_capability_submit"],
+        "content_present": True,
+        "stream": True,
+    }
+    rendered = json.dumps(event)
+    assert "private model explanation" not in rendered
+    assert '"private":"payload"' not in rendered
 
 
 def test_internal_gateway_requires_token_and_exact_tool(monkeypatch):

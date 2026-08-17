@@ -313,6 +313,37 @@ def _stream_response(value: dict[str, Any]):
     yield "data: [DONE]\n\n"
 
 
+def _record_llm_outcome(
+    binding: tokens.RunTokenBinding,
+    value: dict[str, Any],
+    *,
+    stream: bool,
+) -> None:
+    """Persist only protocol shape so failed tool handoffs are diagnosable."""
+    try:
+        choice = (value.get("choices") or [{}])[0]
+        message = choice.get("message") or {}
+        tool_names = []
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") if isinstance(call, dict) else {}
+            name = str((function or {}).get("name") or "")
+            if name:
+                tool_names.append(name[:80])
+        run_store.append_event(
+            binding.run_id,
+            "dsh_llm_outcome",
+            {
+                "finish_reason": str(choice.get("finish_reason") or "")[:40],
+                "tool_call_count": len(tool_names),
+                "tool_names": tool_names[:16],
+                "content_present": bool(message.get("content")),
+                "stream": bool(stream),
+            },
+        )
+    except Exception as exc:
+        logger.warning("[dsh_internal] LLM outcome audit failed: %s", type(exc).__name__)
+
+
 @router.post("/v1/chat/completions", operation_id="dsh_llm_chat")
 async def chat_completions(body: ChatCompletionIn, request: Request):
     binding = authenticate_request(request, required_tool="dsh_llm_chat")
@@ -331,6 +362,7 @@ async def chat_completions(body: ChatCompletionIn, request: Request):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except free_ai_proxy.ProxyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    _record_llm_outcome(binding, result, stream=body.stream)
     if body.stream:
         return StreamingResponse(_stream_response(result), media_type="text/event-stream")
     return JSONResponse(result)

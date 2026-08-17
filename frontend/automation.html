@@ -3258,6 +3258,9 @@ async function launchLoad(){
     var err='<div class="bad">'+esc(e.message)+'</div>';
     if(banner) banner.innerHTML=err;
     if(tabB) tabB.innerHTML=err;
+    if(body) body.innerHTML='<div class="mut">Production readiness load nahi hua — token/API check karke Refresh dabao.</div>';
+    if(tabBody) tabBody.innerHTML='<div class="mut">Production readiness load nahi hua — token/API check karke Refresh dabao.</div>';
+    if(wiz) wiz.innerHTML='<div class="mut">Wizard load nahi hua.</div>';
   }
 }
 
@@ -3703,9 +3706,9 @@ async function ffDel(key){
   }catch(e){toast('Delete fail (super-admin needed?): '+e.message);}
 }
 
-var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,training:trLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad,postcall:pcLoad};
+var AUTOLOAD={today:tdLoad,launch:launchLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,training:trLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad,postcall:pcLoad};
 var _origShow=show;
-show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
+show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}; if(tab==='today')setTimeout(function(){launchLoad().catch(function(){});},100)};
 var start=(location.hash||'').replace('#','');
 /* 2026-07-19: derive valid tabs from the sidebar DOM — the old hard-coded list
    had drifted (growthlab/clientops/rl missing), so their #hash deep-links

@@ -54,16 +54,20 @@ async def run_agent_task(
 
 
 @router.get("/status")
-async def agents_status() -> dict[str, Any]:
-    """Engine availability — safe to call without auth (no secrets exposed)."""
-    from app.platform.workforce_runtime import runtime_status as workforce_runtime_status
-
-    return {
+async def agents_status(
+    user: User | None = Depends(get_current_user_optional),
+) -> dict[str, Any]:
+    """Engine availability. Anonymous callers get no internal runtime inventory."""
+    data: dict[str, Any] = {
         "available": AGENTS_AVAILABLE,
         "engine": "langgraph-supervisor",
         "nodes": GRAPH_NODES,
-        "workforce_runtime": workforce_runtime_status(),
     }
+    if user and getattr(user, "role", "") in {"admin", "super_admin", "owner"}:
+        from app.platform.workforce_runtime import runtime_status as workforce_runtime_status
+
+        data["workforce_runtime"] = workforce_runtime_status()
+    return data
 
 
 # ============================================================================

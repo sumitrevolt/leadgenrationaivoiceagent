@@ -41,5 +41,8 @@ def test_inbox_sprint_banner_and_honest_empty_states():
     assert "_hqOk" in html
     assert "scraping/scoring chal rahi hai ✅" not in html
     assert "HTTP 200 page ka matlab cards nahi" in html
+    assert "tabLabel(key,label)" in html
+    assert "HQ_SCOPE==='admin'" in html
+    assert "COUNTS.hotq=(hqSummary && Number(hqSummary.total_open||0)>0)" in html
     assert 'aria-live="polite"' in html
     assert "prefers-reduced-motion" in html
