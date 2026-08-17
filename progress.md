@@ -1,6 +1,17 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-16 (opencode — PR #380 merge + kill-fence deploy `237e20ac`)
+Goal: Ship the marketing-factory + admin-scorecard batch to prod via the canonical deploy path and leave a clean, verified prod state.
+Inspected: PR #380 required checks (Lint+syntax+secrets / prod_check+pytest / harness real-redis) vs ruleset 19718692; prod_check.py `check_voice_launch_kill_env` TRUE_TOKEN-only ship gate; CURRENT_STATE.md kill-fence deploy precedent (963ee800 / 91958c23 / c4fc0087 / 150bf898); deploy_vps.sh candidate_resolve (CANDIDATE_REF=origin/main) + gate order; VPS drift (git status clean, docker diff benign).
+Problems Found: pytest shard 3/4 FAIL — A1–A9 runtime-data ratchet pinned `EXPECTED_ALLOWLIST_ENTRIES=62` but batch added 8 marketing JSONL families (=70); direct push to origin/main blocked by branch protection; deploy_vps.sh refused twice while `VOICE_LAUNCH_KILL=0` (kill fence disengaged) — gate ships only TRUE_TOKEN.
+Changed: `tests/test_runtime_data_a1_ratchet.py` 62→70 (ratchet note); killed black-vs-ruff format war on `test_plugin_manifest.py` (restored HEAD; Gate A non-required); `docs/context/CURRENT_STATE.md` deploy record.
+Tests Run: local ratchet a1+a8 **20 passed EXIT 0**; CI: shards 1–4 PASS, prod_check runtime gates PASS, harness real-redis PASS, Lint+syntax+secrets PASS, `prod_check + pytest` aggregator PASS, pip-audit PASS.
+Verification Evidence: PR #380 squash-merged `237e20ac` (sumitrevolt 04:30:56Z); `origin/main`=`237e20ac`; VPS `=== DEPLOYED 237e20ac OK ===`; `/health` host `237e20ac` 04:53:37Z + public HTTPS `237e20ac` 04:53:56Z, `environment:production` healthy; 5/5 app-image pin zero skew; VLK=0 in all 5 containers; celery=0, dlq:failed_tasks=0, dlq:dead=25 (pre-existing).
+Risks: Gate A (ruff-format) + CodeQL (2 advisory) still FAIL non-required; `.freebuff/` untracked left; local branch now ahead of origin/main by docs commit only.
+Remaining: Owner WAIT — Hot Queue `/app/inbox` blitz, UPI bind/re-approve, bank-credit confirm; DSH prod arming still needs live SSH cancel-probe; local `git checkout main` pending (Cursor agent holds worktree).
+
+## Loop Run
 Date: 2026-08-16 (CURSOR — admin marketing automation ledger tiles)
 Goal: Owner-selected suggest_prompt: admin dashboard section for marketing automation metrics (reviews sent, emails opened, forms submitted, proposals accepted) plus reminders + health. Flags stay OFF. No new route.
 Inspected: `get_sequence_stats` / `get_drip_stats` / `get_form_stats` / `get_proposal_stats` / `get_reminder_stats` / `get_health_summary`; existing `#ownerScorecard` + `paintOwnerScorecards` + `loadTodayBiz`; `GET /api/growth/overview/today`.
