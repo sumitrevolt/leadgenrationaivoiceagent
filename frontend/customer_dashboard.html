@@ -119,11 +119,11 @@
   /* "Aaj ke liye" hero */
   .today-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:6px}
   .status-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 14px}
-  .status.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow);min-height:84px}
+  .status-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow);min-height:84px}
   .status-card .lab{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.45px}
   .status-card .val{font-size:20px;font-weight:800;line-height:1.15;margin-top:6px}
   .status-card .hint{font-size:12px;color:var(--muted);margin-top:5px}
-  .next-step.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin:0 0 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .next-step-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin:0 0 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
   .next-step-card .ic{width:40px;height:40px;border-radius:10px;background:#ffedd5;display:grid;place-items:center;font-size:20px;flex:0 0 40px}
   .next-step-card .copy{flex:1;min-width:180px}
   .next-step-card .title{font-weight:800;font-size:14px}
@@ -138,7 +138,7 @@
   .owner-subtitle{font-size:13.5px;color:var(--muted);margin:0;max-width:680px}
   .owner-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
   .owner-actions .btn{justify-content:center}
-  .priority.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;margin:0 0 14px}
+  .priority-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;margin:0 0 14px}
   .priority-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
   .priority-head h2{margin:0;font-size:15px;font-weight:850}
   .priority-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -174,7 +174,7 @@
   /* --- view engine: #mainContent[data-active-view] shows one view at a time.
      !important is required to beat block styles like .sec-title{display:flex}.
      This only hides blocks of NON-active views, so product gating
-     (.card{transition: transform 0.2s ease, box-shadow 0.2s ease; display:none !important}) still wins on cards inside the active view. --- */
+     (#card{display:none !important}) still wins on cards inside the active view. --- */
   [data-active-view="home"]     [data-view]:not([data-view="home"]),
   [data-active-view="delivery"] [data-view]:not([data-view="delivery"]),
   [data-active-view="setup"]    [data-view]:not([data-view="setup"]),
@@ -186,8 +186,8 @@
   [data-active-view="support"]  [data-view]:not([data-view="support"]){display:none !important}
 
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
-  .prod-marketing #callsCard,.prod-marketing #routin.card{transition: transform 0.2s ease, box-shadow 0.2s ease; display:none !important}
-  .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webTool.card{transition: transform 0.2s ease, box-shadow 0.2s ease; display:none !important}
+  .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
+  .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
   .prod-voice .actions .action-card[onclick*="contentCard"],.prod-voice .actions .action-card[onclick*="approvalCard"],.prod-voice .actions .action-card[onclick*="webToolsCard"],
   .prod-marketing .actions .action-card[onclick*="callsCard"],.prod-marketing .actions .action-card[onclick*="routingCard"]{display:none !important}
   @media(max-width:980px){.owner-hero{grid-template-columns:1fr}.owner-actions{justify-content:flex-start}.priority-list{grid-template-columns:1fr}.owner-title{font-size:21px}}
@@ -200,7 +200,7 @@
 
   /* Quick action cards */
   .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:6px}
-  .action.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+  .action-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
     padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer;min-height:64px;transition:.12s;text-align:left}
   .action-card:hover{border-color:#c4b5fd;background:#faf9ff}
   .action-card .ic{width:42px;height:42px;flex:0 0 42px;border-radius:11px;background:var(--brand-soft);
@@ -307,9 +307,9 @@
   body.dark .action-card:hover{background:#1e1540;border-color:#7c3aed}
   body.dark .btn{background:#1a1530;border-color:var(--line);color:var(--ink)}
   body.dark .owner-hero,body.dark .priority-item{background:#1a1530;border-color:var(--line)}
-  body.dark .next-step.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#1c1220;border-color:#713f12}
-  body.dark .approve.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#1a1200;border-color:#78350f}
-  body.dark .onboard.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
+  body.dark .next-step-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#1c1220;border-color:#713f12}
+  body.dark .approve-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:#1a1200;border-color:#78350f}
+  body.dark .onboard-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
   body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border:1px solid #14532d !important}
   body.dark .mobile-app-nav{background:rgba(26,21,48,.96);border-color:var(--line)}
 
@@ -381,7 +381,7 @@
   .date-range label{font-weight:600;white-space:nowrap}
 
   /* ===== Onboarding checklist ===== */
-  .onboard.card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:16px 18px;margin-bottom:6px}
+  .onboard-card{transition: transform 0.2s ease, box-shadow 0.2s ease; background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:16px 18px;margin-bottom:6px}
   .onboard-card h3{font-size:14px;font-weight:700;margin:0 0 8px;color:var(--brand)}
   .onboard-steps{display:flex;flex-direction:column;gap:6px}
   .onboard-step{display:flex;align-items:center;gap:10px;font-size:13px}
@@ -397,7 +397,7 @@
   .stl-badge.bad{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
   .svgwrap{background:#fff;border-radius:10px;padding:8px;margin-top:8px;max-width:100%;overflow:auto;border:1px solid var(--line)}
   .svgwrap svg{max-width:100%;height:auto;display:block}
-  .approve.card{transition: transform 0.2s ease, box-shadow 0.2s ease; border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .approve-card{transition: transform 0.2s ease, box-shadow 0.2s ease; border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px 14px;margin-bottom:10px}
   .approve-card .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .route-row{display:grid;grid-template-columns:1fr 140px auto;gap:8px;margin-bottom:8px;align-items:center}
   @media(max-width:640px){.route-row{grid-template-columns:1fr}}
@@ -424,7 +424,7 @@
     .hi h1{font-size:16px}
     .actions{grid-template-columns:1fr}
     .hero-leads .big{font-size:38px}
-    .next-step.card{transition: transform 0.2s ease, box-shadow 0.2s ease; align-items:flex-start;flex-wrap:wrap}
+    .next-step-card{transition: transform 0.2s ease, box-shadow 0.2s ease; align-items:flex-start;flex-wrap:wrap}
     .next-step-card .btn{width:100%;justify-content:center}
     .ai-command{position:sticky;top:0;z-index:18;grid-template-columns:1fr;gap:10px;border-radius:13px;margin-left:-4px;margin-right:-4px}
     .ai-command .btn{width:100%}
@@ -466,7 +466,7 @@
     .hi p{display:none}
     .owner-hero{padding:15px;border-radius:12px}
     .owner-actions .btn{width:100%;justify-content:center}
-    .status.card{transition: transform 0.2s ease, box-shadow 0.2s ease; min-height:76px;padding:12px}
+    .status-card{transition: transform 0.2s ease, box-shadow 0.2s ease; min-height:76px;padding:12px}
     .ai-command .decision{font-size:14px}
   }
 
