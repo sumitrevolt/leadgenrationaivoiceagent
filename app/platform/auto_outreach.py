@@ -649,7 +649,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             if not _valid_email(email, check_mx=not _skip_sel_mx):
                 result["skipped_no_email"] += 1
                 pid = p.get("id")
-                if pid: prospector.mark_prospect(pid, "invalid_email")
+                if pid: prospector.set_prospect_fields(pid, {"status": "dead", "dead_reason": "invalid_email"})
                 continue
             if _is_suppressed_email(email, _suppressed):
                 result["suppressed"] = result.get("suppressed", 0) + 1
@@ -721,7 +721,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             # na ho. Flag off tha to selection me hi MX ho chuka — yahan double na karo.
             if _skip_sel_mx and to_addr and not _valid_email(to_addr):
                 result["skipped_no_email"] += 1
-                if pid: _pending_marks[pid] = {"status": "invalid_email"}
+                if pid: _pending_marks[pid] = {"status": "dead", "dead_reason": "invalid_mx"}
                 continue
             try:
                 subject, text, html_body = _email_subject_body(p)
