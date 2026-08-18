@@ -717,3 +717,20 @@ def _quiet_default_exception_handler(self, context):
     _orig_default_exception_handler(self, context)
 
 asyncio.base_events.BaseEventLoop.default_exception_handler = _quiet_default_exception_handler
+
+import sys
+@pytest.fixture(autouse=True, scope="session")
+def disable_asyncgen_finalizer():
+    # Completely disable async generator finalization tasks to stop asyncio
+    # from logging "Task was destroyed... async_generator_athrow"
+    try:
+        sys.set_asyncgen_hooks(finalizer=lambda agen: None)
+    except Exception:
+        pass
+
+@pytest.fixture(autouse=True)
+def disable_asyncgen_finalizer_per_test():
+    try:
+        sys.set_asyncgen_hooks(finalizer=lambda agen: None)
+    except Exception:
+        pass
