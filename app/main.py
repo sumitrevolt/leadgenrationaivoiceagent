@@ -1208,6 +1208,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Onboard pipeline router not mounted: {_e}")
 try:
+    from app.api.onboard_wizard import router as onboard_wizard_router
+
+    app.include_router(
+        onboard_wizard_router
+    )  # /api/onboard-wizard/* — business-type templates + auto-setup
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Onboard wizard router not mounted: {_e}")
+try:
     from app.api.marketing_features import router as marketing_features_router
 
     app.include_router(

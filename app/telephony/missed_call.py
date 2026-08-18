@@ -90,7 +90,17 @@ async def handle_missed_call(
         # is no client_name param; the callee resolves the real business name
         # from a genuine client_id via clients_store, if one is ever threaded
         # through here). Keyword args prevent that class of bug from recurring.
-        await starter(num, niche=niche or "general", call_type="transactional")
+        # Wizard opening: webhook niche (e.g. salon_spa) + business name ho to
+        # wahi personalized opening use karein — resolve fail = "" → niche-script
+        # chain (unchanged).
+        from app.platform.inquiry_hooks import resolve_wizard_opening
+
+        await starter(
+            num,
+            niche=niche or "general",
+            call_type="transactional",
+            opening_line=resolve_wizard_opening(niche=niche or "", business_name=business or ""),
+        )
         logger.info(f"[missed_call] AI callback triggered -> {num}")
         return {"ok": True, "callback": True, "number": num}
     except Exception as e:

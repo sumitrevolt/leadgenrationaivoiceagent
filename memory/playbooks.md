@@ -54,6 +54,114 @@ Tune on FREE web-call (`/app/test-call`) → `scripts/agent_tester.py` scorecard
 ## Enable a gated automation flag (skill: `automation-flags`)
 Check `GET /api/growth/infra/flags` → read flag's ban/cost risk → enable in `.env` → app recreate → verify emit/log → monitor 24h → naya flag banaya to `AUTOMATION_FLAGS` registry me add.
 
+## Onboarding wizard auto-setup arm (`ONBOARD_WIZARD_APPLY=1`) — deploy ke baad walkthrough
+Wizard feature (business-type → niche template → auto-setup: salon/clinic/restaurant) is INERT until armed. **Catalog + preview endpoints hamesha live hain** (read-only, admin-auth); sirf `POST /api/onboard-wizard/apply` flag-gated hai. Arm ke baad verify kar lena ki apply ACTUALLY client pe niche snapshot + knowledge seed lagata hai.
+
+**1. Check current state (pehle):**
+```bash
+# VPS pe (Git ssh): flag abhi kya hai + flag manifest registry me hai
+ssh -i ~/.ssh/id_rsa root@72.61.245.204 "grep -c ONBOARD_WIZARD_APPLY /opt/leadgen/.env; curl -s http://127.0.0.1:8000/api/growth/infra/flags | grep -o 'ONBOARD_WIZARD_APPLY[^,]*'"
+```
+Expect: `.env` me 0 matches (unset = INERT, correct default) + flag registry entry listed (manifest me `SAFE_LOCAL_ONLY` — product risk, koi outbound/cost risk nahi).
+
+**2. Arm (deploy ke saath ya baad, sirf jab wizard UI prod me use karni ho):**
+```bash
+# /opt/leadgen/.env me (NO inline comments — pydantic ValidationError trap):
+#   ONBOARD_WIZARD_APPLY=1
+docker compose -f docker-compose.vps.yml up -d --no-deps app
+sleep 16 && curl -s http://127.0.0.1:8000/health | grep environment:production
+```
+
+**3. Verify apply (dummy client pe — real client PEHLE nahi):**
+```bash
+# Admin token se: dummy client banao + wizard apply chalao
+curl -s -X POST http://127.0.0.1:8000/api/admin/customers/onboard \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"business_name":"Arm Test Salon","niche":"salon_spa","phone":"9999999901","product":"marketing"}'
+curl -s -X POST http://127.0.0.1:8000/api/onboard-wizard/apply \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":"<id>","business_type":"salon"}'
+```
+Expect: `{"ok": true, "applied": ["niche_snapshot", "knowledge_seed"], ...}`. Snapshot warning aaye (niche NICHES-catalog me nahi, e.g. salon_spa) to bhi OK — knowledge_seed hi main value hai; NICHES-cover niches (restaurant_cafe, hospital_appointments, dental_implants…) pe dono apply honge.
+Flag UNARMED hai to apply `423` deta hai (`ONBOARD_WIZARD_APPLY disabled…`) — yahi quick armed-status signal hai; catalog/preview (`GET /api/onboard-wizard/business-types`, `/preview/{type}`) flag ke BINA bhi 200 dete hain (read-only hamesha live).
+
+**4. Smoke UI:** `/app/onboard` → Step 1 → "Business type" dropdown → salon select → niche auto-fill + preview checklist dikhna chahiye → client banao → auto-setup call best-effort.
+
+**5. Rollback (kabhi bhi):** `.env` se line hatana (`sed -i '/ONBOARD_WIZARD_APPLY/d' /opt/leadgen/.env`) + app recreate. Catalog/preview unaffected (read-only hamesha live). Naya client onboard wizard use kare to flag ON reh sakta hai — yeh SAFE_LOCAL_ONLY product feature hai, customer-messaging/cost kuch nahi.
+
+## Post-call AI summary arm (`POST_CALL_SUMMARY=1`) — deploy ke baad walkthrough
+AI post-call summary (qualified call ke baad lead ke WhatsApp pe summary + action items) is INERT until armed. **Yeh OUTBOUND customer-messaging hai — `WHATSAPP_AUTO_SEND` ke bina kabhi live nahi hota** (fail-closed). Chaar flags chahiye — koi ek bhi missing ho to summary silently skip ho jaata hai (sab gates: `POST_CALL_SUMMARY` → `AUTO_QUALIFY_CALLS` → WhatsApp sender `WHATSAPP_AUTO_SEND` → allowlist → opt-out ledger).
+
+**Quick post-deploy check (script):** `python scripts/verify_armed_flags.py [--env /opt/leadgen/.env] [--url https://leadsgenai.in --token <admin> --apply-client-id <id>]` — manifest registry + .env flags + endpoint 423/200 signals ek-shot me. Exit 0 = sab armed/INERT sahi · 1 = problem (missing gate, broken endpoint) · 2 = warning (INERT default ya apply probe skip).
+
+**Prerequisites (check pehle):**
+```bash
+# VPS pe (Git ssh): saare 4 flags + manifest entry + WA backend
+ssh -i ~/.ssh/id_rsa root@72.61.245.204 "grep -E 'POST_CALL_SUMMARY|AUTO_QUALIFY_CALLS|WHATSAPP_AUTO_SEND|WHATSAPP_SEND_ALLOWLIST' /opt/leadgen/.env; curl -s http://127.0.0.1:8000/api/growth/infra/flags | grep -o 'POST_CALL_SUMMARY[^,]*'"
+```
+Expect: flag registry me `POST_CALL_SUMMARY` listed (`OWNER_APPROVAL_REQUIRED`, risk=outbound, companion=`WHATSAPP_AUTO_SEND`). WhatsApp backend armed hona chahiye: `curl -s -H "X-Api-Key: $WAHA_API_KEY" http://127.0.0.1:3111/api/sessions/default` session active (WAHA) ya Cloud API creds set (`.env` me `WHATSAPP_BUSINESS_TOKEN`+`WHATSAPP_PHONE_NUMBER_ID`).
+
+**Arm (saare 4 flags ek saath, NO inline comments):**
+```bash
+# /opt/leadgen/.env me:
+#   POST_CALL_SUMMARY=1
+#   AUTO_QUALIFY_CALLS=1          # post-call qualification flow (summary iske andar wire hai)
+#   WHATSAPP_AUTO_SEND=1          # sender-boundary gate (fail-closed, §5)
+#   WHATSAPP_SEND_ALLOWLIST=+919999999999   # canary: pehle sirf test number; '*' = sabko
+#   ONBOARD_WIZARD_APPLY=1        # (optional) wizard auto-setup bhi chahiye to
+#   POST_CALL_WHATSAPP=1          # (optional) existing trial-link message bhi
+#   VOICE_CLOSE_WHATSAPP=0        # close-signal WA apna flag — alag opt-in
+#   AUTO_QUALIFY_CALLS ke liye note: AUTO_QUALIFY_CALLS=1 se har call qualify hoti hai
+#   (billing/CRM/RL spine bhi on ho jaata hai — POST_CALL_SUMMARY sirf usi ke saath
+#   chal sakta hai, standalone nahi)
+docker compose -f docker-compose.vps.yml up -d --no-deps app
+sleep 16 && curl -s http://127.0.0.1:8000/health | grep environment:production
+```
+
+**Verify (canary number pe pehle — real lead PEHLE nahi):**
+1. Test call karo allowlisted number pe (web `/app/test-call` ya manual dial) — call qualified honi chahiye (lead ne interest dikhaya).
+2. WhatsApp pe wahi number check karo — summary message aana chahiye: 📞 Call Summary → interest score, budget, duration, AI summary, action items.
+3. Logs: `docker logs leadgen_app -n 200 | grep -i 'call_summary'` — `AI summary sent to` line = send hua; `blocked`/`DENY` = gate ne roka (allowlist ya auto_send check karo).
+4. Non-qualified call pe summary NAHI aana chahiye (sirf `qualified:true` wale calls pe send hota hai).
+
+**Rollback (kabhi bhi):** `.env` me `POST_CALL_SUMMARY=0` ya line hatana + app recreate. Instant stop — send path flag check karta hai. Emergency override: `WHATSAPP_AUTO_SEND=0` (global WA kill — sab WhatsApp sends band, summary included).
+
+**Safety:** summary sirf QUALIFIED leads pe jaata hai (not-interested/IVR-suspect calls skip), opt-out ledger fail-closed hai (opted-out number kabhi send nahi), aur WhatsApp `4096` char limit ke liye message truncate hota hai. Billing/cost: summary LLM call free-ai chain use karta hai (no paid provider), WhatsApp send existing channel pe — naya cost surface nahi.
+
+## Wizard opening → auto-callback greeting smoke (`opening_line` chain) — post-deploy
+Chain: `/audit` `/site-audit` `/demo` inquiry me visitor ka **business type + business_name** → `run_after_inquiry` → `_wizard_opening_for(rec)` wizard ka personalized `suggested_opening` resolve (`"Namaste, main Swara bol rahi hoon <Business> ki taraf se…"`) → `_auto_callback(opening_line=…)` → `start_stream_call` → Redis pending `vobiz:pending:<token>` me `opening_line` store + `answer-stream` URL qs me threading → WS `/stream/{token}?opening_line=…` → `VobizStreamSession(opening_line=…)` → greeting. Ye smoke is poore chain ko deploy ke baad prove karta hai (unit-level proof + live probe). **Resolve fail ho to `""` — call generic niche-script chain pe girta hai (unchanged, safe default).**
+
+**1. Code-level proof (deploy ke saath, zero cost — chain mechanics):**
+```bash
+# local ya CI — deployed commit pe; 8 tests: label resolve, niche-key resolve, unknown→"",
+# qs threading, pending store, auto_callback passthrough, session override + compliance wrap, default None
+python -m pytest tests/test_auto_callback_opening.py -q
+```
+Expect: 8 passed. Yeh `VobizStreamSession` override (greeting) + `ensure_ai_disclosure`/`ensure_permission_ask` wrap mechanically prove karta hai — prod pe bina call lagaye.
+
+**2. Live probe (canary number pe — ASLI Vobiz call place hoga, credit lagta hai):**
+```bash
+# VPS pe — disposable test inquiry: business_type + niche + business_name (teeno chahiye, warna resolve "")
+curl -s -X POST http://127.0.0.1:8000/api/public/inquiry \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Smoke Test","phone":"+919999999902","business_name":"Arm Smoke Salon","business_type":"Salon / Beauty Parlour","niche":"salon_spa","source":"smoke"}'
+```
+Expect: `ok: true`. Ab 2-3s rukke pending store check karo (race — Vobiz call start hone se pehle pakdo):
+```bash
+TOKEN=$(docker exec leadgen_redis redis-cli --scan --pattern 'vobiz:pending:*' | head -1 | sed 's|vobiz:pending:||')
+if [ -z "$TOKEN" ]; then echo "pending missing — call shayad already start ho gaya (pop). Retry: naya inquiry POST karke turant scan karo."; else
+  docker exec leadgen_redis redis-cli GET "vobiz:pending:$TOKEN"
+  curl -s "http://127.0.0.1:8000/api/telephony/vobiz/answer-stream/$TOKEN" | grep -o 'opening_line=[^&]*'
+fi
+```
+Expect (dono): `opening_line` me **`Arm Smoke Salon` naam ka personalized wizard opening** (wizard path PROVEN — generic path me opening_line `null`/absent hota aur opening `[Company]` placeholder/`LeadGen AI` kehta). Answer-stream XML me bhi `opening_line=` qs milega — **yehi wo value hai jo WS session constructor ko milegi** (session override reach proof, bina call answer kiye).
+
+**3. Live greet (optional — call uthao, full loop):** canary number pe call answer karo → greeting me "Arm Smoke Salon" sunai dega (personalized), generic "LeadGen AI" nahi. `docker logs leadgen_app --since 10m | grep -iE 'auto_callback|start_stream_call'` — fail ho to error line, success pe `log_event('swara','auto_callback',…)` team events me jaata hai.
+
+**4. Negative check (resolve-fail path):** bina `business_type`/`business_name` wala inquiry POST karo → pending me `opening_line: null` → call niche-script generic opening se greet karta hai (sabhi kuch toota nahi, fallback intact).
+
+**5. Rollback / skip:** yeh chain INERT-additive hai — koi flag nahi. Agar prod pe koi step fail ho to `AUTO_CALLBACK_INQUIRY=0` (`.env`) = inquiry auto-callback band (purana manual follow-up path); opening_line logic remove kiye bina bhi default `""` flow hi hai. DND/disclosure gates call path me fail-closed hain — smoke opening bhi `ensure_ai_disclosure` + `ensure_permission_ask` se wrapped hai (step 1 test assert).
+
 ## WAHA secret rotation (P0 security — `scripts/activate_waha_vps.sh` had hardcoded values until 2026-07-14)
 1. **Rotate on the WAHA container:** generate two new strong random values for `WAHA_API_KEY` and `WAHA_WEBHOOK_TOKEN` (e.g. `openssl rand -base64 32`).
 2. SSH to VPS (`ssh -i ~/.ssh/id_rsa root@72.61.245.204`), `cd /opt/leadgen`.

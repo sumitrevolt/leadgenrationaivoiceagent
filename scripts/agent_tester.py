@@ -94,7 +94,16 @@ except Exception:  # pragma: no cover
 # 127.0.0.1:8000 -> container 8080) — set AGENT_TESTER_WS to ws://127.0.0.1:8080/...
 DEFAULT_WS = os.environ.get("AGENT_TESTER_WS") or "ws://127.0.0.1:8000/api/web-call/ws"
 
-BANNED = ["maine pehle", "pehle hi poocha", "unclear", "maaf kij", "[echo", "(no response)"]
+BANNED = [
+    "maine pehle",
+    "pehle hi poocha",
+    "unclear",
+    "maaf kij",
+    "[echo",
+    "(no response)",
+    "<think",  # chain-of-thought/reasoning leak — never speakable to a caller
+    "thinking process",
+]
 
 _SCN_BY_NAME = {s.name: s for s in vs.SCENARIOS}
 

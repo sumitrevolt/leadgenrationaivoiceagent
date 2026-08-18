@@ -545,8 +545,14 @@ def find_niche_snapshot(niche_key: str) -> str | None:
         for row in list_snapshots(limit=200):
             if str(row.get("niche_key") or "").lower() != niche_key:
                 continue
-            if row.get("kind") == "niche_template":
-                return str(row.get("id") or "") or None
+            if row.get("kind") != "niche_template":
+                continue
+            sid = str(row.get("id") or "") or None
+            # Index/file drift guard (2026-08-17): file missing ho to stale id
+            # mat do — capture_from_niche fresh banayega (warna "snapshot nahi
+            # mila" pe apply fail hota).
+            if sid and get_snapshot(sid) is not None:
+                return sid
         return None
     except Exception:
         return None

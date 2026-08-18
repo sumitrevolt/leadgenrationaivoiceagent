@@ -17,14 +17,15 @@ import importlib
 def test_voice_packages_catalog():
     from app.marketing import voice_packages as vp
 
-    assert set(vp.BANDS) == {"A", "B", "C"}
+    # S = Starter Voice ₹1,999 (100 min) · F = Freemium ₹0 (10 calls/mo) — added 2026-08
+    assert set(vp.BANDS) == {"S", "F", "A", "B", "C"}
     # flat monthly prices, band ladder A < B < C
     pa, pb, pc = (vp.BANDS[b]["price_month"] for b in ("A", "B", "C"))
     assert pa < pb < pc and pa > 0
     # annual = 10× monthly (2 mahine free) for every band
     for b in ("A", "B", "C"):
         assert vp.BANDS[b]["price_year"] == vp.BANDS[b]["price_month"] * 10
-    # plan-id registry: 3 monthly + 3 annual + free pilot
+    # plan-id registry: 3 monthly + 3 annual + starter/freemium + free pilot
     assert set(vp.VOICE_PLAN_IDS) == {
         "voice_a_monthly",
         "voice_b_monthly",
@@ -32,6 +33,10 @@ def test_voice_packages_catalog():
         "voice_a_annual",
         "voice_b_annual",
         "voice_c_annual",
+        "voice_starter_monthly",
+        "voice_starter_annual",
+        "voice_freemium",
+        "voice_freemium_annual",
         "voice_pilot",
     }
     # flat plans = unlimited quota signal; pilot = fair-use call cap
@@ -43,10 +48,17 @@ def test_voice_packages_resolution_helpers():
     from app.marketing import voice_packages as vp
 
     pkg = vp.get_voice_packages(band="b")
-    assert pkg["band"] == "B" and len(pkg["tiers"]) == 3
+    # tiers = freemium + starter + pilot + band monthly + band annual
+    assert pkg["band"] == "B" and len(pkg["tiers"]) == 5
     assert pkg["pricing_model"] == "flat_monthly"
     plan_ids = [t["plan_id"] for t in pkg["tiers"]]
-    assert plan_ids == ["voice_pilot", "voice_b_monthly", "voice_b_annual"]
+    assert plan_ids == [
+        "voice_freemium",
+        "voice_starter_monthly",
+        "voice_pilot",
+        "voice_b_monthly",
+        "voice_b_annual",
+    ]
     assert vp.voice_plan_parts("voice_b_monthly") == ("voice_b_monthly", "B")
     assert vp.voice_plan_parts("starter") == ("", "A")  # marketing plan != voice
     assert vp.is_voice_plan("voice_c_monthly") and not vp.is_voice_plan("growth")
@@ -62,7 +74,9 @@ def test_niches_lead_band_and_no_per_lead_pricing():
     from app import niches as n
 
     builtins = {k: v for k, v in n.NICHES.items() if not v.get("custom")}
-    assert len(builtins) == 39  # curated builtin set (niche rebuild)
+    # curated builtin set + wizard catalog extension 2026-08 (12 SMB niches,
+    # real_estate folded into real_estate_luxury as builtin) — 39 + 12 = 51
+    assert len(builtins) == 51
     for k, cfg in builtins.items():
         assert "pricing_inr" not in cfg, f"per-lead pricing leftover in {k}"
         assert cfg.get("lead_band") in ("A", "B", "C"), k

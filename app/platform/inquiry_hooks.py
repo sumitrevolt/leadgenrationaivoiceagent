@@ -130,14 +130,69 @@ async def drain_inquiry_bg_tasks(*, timeout: float | None = None) -> dict[str, i
     return result
 
 
+def resolve_wizard_opening(
+    *,
+    business_type: str = "",
+    niche: str = "",
+    business_name: str = "",
+) -> str:
+    """Wizard business-type se personalized opening_line resolve karo.
+
+    Lead-magnet pages (/audit /site-audit /demo) visitor ko business type select
+    karwate hain → business_type label + niche key aate hain. Har AI-call path
+    (auto-callback, voice-followup, missed-call) isi opening se greet kare
+    (generic niche script ki jagah wizard ka done-for-you opening). Resolve fail
+    ho to "" — call niche-script chain pe girta hai (unchanged). Best-effort,
+    kabhi raise nahi. business_name zaroori hai (personalization); label ya niche
+    me se koi ek wizard business type se match hona chahiye.
+    """
+    try:
+        from app.marketing.onboard_wizard import BUSINESS_TYPES, get_script_preview
+
+        label = str(business_type or "").strip().lower()
+        niche_key = str(niche or "").strip().lower()
+        biz = str(business_name or "").strip()
+        if not (label or niche_key) or not biz:
+            return ""
+        btype: str | None = None
+        for b in BUSINESS_TYPES:
+            if b.get("niche") == "general":
+                continue
+            if (label and str(b.get("label") or "").strip().lower() == label) or (
+                niche_key and str(b.get("niche") or "").strip().lower() == niche_key
+            ):
+                btype = b.get("id")
+                break
+        if not btype:
+            return ""
+        preview = get_script_preview(btype, business_name=biz)
+        return str(preview.get("suggested_opening") or "").strip()[:500]
+    except Exception:
+        return ""
+
+
+def _wizard_opening_for(rec: dict[str, Any]) -> str:
+    """Inquiry record se wizard opening_line (business_type/niche + business_name). Wrapper."""
+    return resolve_wizard_opening(
+        business_type=str(rec.get("business_type") or ""),
+        niche=str(rec.get("niche") or ""),
+        business_name=str(rec.get("business_name") or ""),
+    )
+
+
 async def run_after_inquiry(
     rec: dict[str, Any],
     *,
     mini_client_id: str | None = None,
     utm_source: str | None = None,
     lead_id: str | None = None,
+    dry_run: bool = False,
 ) -> None:
-    """Post-store automation for any inquiry record. Storage caller ne pehle hi kar diya."""
+    """Post-store automation for any inquiry record. Storage caller ne pehle hi kar diya.
+
+    dry_run=True (verification smoke): auto-callback chain poora chalta hai par
+    ASLI call nahi lagta (start_stream_call dry_run). Baaki hooks unaffected.
+    """
     cid = (mini_client_id or rec.get("client_id") or "").strip() or None
     lid = lead_id or rec.get("lead_id")
 
@@ -203,18 +258,30 @@ async def run_after_inquiry(
             _spawn(_cw.emit(cid, "lead.created", payload), name="customer_webhook")
         except Exception:
             pass
-        # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
-        try:
-            from app.analytics import posthog_client as _ph
+    # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+    # 2026-08-18: `if cid` ke ANDAR tha — platform leads (/audit /demo) kabhi
+    # fire nahi hote the (cid sirf mini-site pe hota hai). Ab HAR inquiry pe
+    # fire hota hai (cid ke bahar), distinct_id = phone (payment_activated bhi
+    # phone-keyed hai — isliye funnel dono steps same person pe match karta hai).
+    try:
+        from app.analytics import posthog_client as _ph
 
-            _ph.capture(
-                cid, "lead_captured", {"source": rec.get("source"), "niche": rec.get("niche")}
-            )
-        except Exception:
-            pass
-        # Customer Delivery OS ledger event — same "lead_captured" name as the
-        # PostHog analytics capture above but a distinct system (delivery_ledger
-        # drives the customer timeline/Command Center, not product analytics).
+        _ph.capture(
+            cid or str(rec.get("phone") or rec.get("id") or "lead"),
+            "lead_captured",
+            {
+                "source": rec.get("source"),
+                "niche": rec.get("niche"),
+                "business_type": rec.get("business_type"),
+            },
+        )
+    except Exception:
+        pass
+    # Customer Delivery OS ledger event — same "lead_captured" name as the
+    # PostHog analytics capture above but a distinct system (delivery_ledger
+    # drives the customer timeline/Command Center, not product analytics).
+    # Mini-site (cid) leads ke liye — client timeline record.
+    if cid:
         try:
             from app.marketing import delivery_ledger
 
@@ -265,6 +332,8 @@ async def run_after_inquiry(
                     str(rec.get("niche") or "general"),
                     str(rec.get("business_name") or ""),
                     client_id=cid or "",
+                    opening_line=_wizard_opening_for(rec),
+                    dry_run=bool(dry_run),
                 ),
                 name="auto_callback",
             )

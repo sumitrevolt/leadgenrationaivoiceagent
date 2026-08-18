@@ -31,7 +31,14 @@ def test_auto_callback_threads_client_id_to_start_stream_call(monkeypatch):
 
     captured = {}
 
-    async def _fake_start_stream_call(to, niche="general", client_id=None, call_type="transactional"):
+    async def _fake_start_stream_call(
+        to,
+        niche="general",
+        client_id=None,
+        call_type="transactional",
+        opening_line="",
+        dry_run=False,
+    ):
         captured.update(to=to, niche=niche, client_id=client_id)
         return {"placed": True, "stream_token": "tok123"}
 
@@ -58,7 +65,14 @@ def test_auto_callback_platform_lead_stays_client_id_none(monkeypatch):
 
     captured = {}
 
-    async def _fake_start_stream_call(to, niche="general", client_id=None, call_type="transactional"):
+    async def _fake_start_stream_call(
+        to,
+        niche="general",
+        client_id=None,
+        call_type="transactional",
+        opening_line="",
+        dry_run=False,
+    ):
         captured.update(client_id=client_id)
         return {"placed": True}
 
@@ -74,13 +88,18 @@ def test_run_after_inquiry_passes_resolved_client_id_to_auto_callback(monkeypatc
 
     captured = {}
 
-    async def _fake_auto_callback(phone, niche, business, client_id=""):
+    async def _fake_auto_callback(
+        phone, niche, business, client_id="", opening_line="", dry_run=False
+    ):
         captured.update(phone=phone, niche=niche, business=business, client_id=client_id)
 
     monkeypatch.setattr("app.api.public_site._auto_callback", _fake_auto_callback)
     # Silence unrelated best-effort hooks inside run_after_inquiry so this test
     # stays focused on the auto-callback wiring only.
-    monkeypatch.setattr("app.platform.sales_qualify.bant_score", lambda rec: {"grade": "C", "total": 50, "action": ""})
+    monkeypatch.setattr(
+        "app.platform.sales_qualify.bant_score",
+        lambda rec: {"grade": "C", "total": 50, "action": ""},
+    )
     monkeypatch.setattr("app.platform.lead_alerts.notify_new_lead_bg", lambda rec: None)
 
     rec = {
@@ -102,11 +121,16 @@ def test_run_after_inquiry_mini_client_id_overrides_rec_client_id(monkeypatch):
 
     captured = {}
 
-    async def _fake_auto_callback(phone, niche, business, client_id=""):
+    async def _fake_auto_callback(
+        phone, niche, business, client_id="", opening_line="", dry_run=False
+    ):
         captured.update(client_id=client_id)
 
     monkeypatch.setattr("app.api.public_site._auto_callback", _fake_auto_callback)
-    monkeypatch.setattr("app.platform.sales_qualify.bant_score", lambda rec: {"grade": "C", "total": 50, "action": ""})
+    monkeypatch.setattr(
+        "app.platform.sales_qualify.bant_score",
+        lambda rec: {"grade": "C", "total": 50, "action": ""},
+    )
     monkeypatch.setattr("app.platform.lead_alerts.notify_new_lead_bg", lambda rec: None)
 
     rec = {"phone": "9998887777", "niche": "salon", "client_id": "wrong_id"}
@@ -129,7 +153,14 @@ def test_missed_call_no_longer_misuses_business_as_client_id(monkeypatch):
 
     captured = {}
 
-    async def _fake_start_stream_call(to, niche="general", client_id=None, call_type="transactional"):
+    async def _fake_start_stream_call(
+        to,
+        niche="general",
+        client_id=None,
+        call_type="transactional",
+        opening_line="",
+        dry_run=False,
+    ):
         captured.update(to=to, niche=niche, client_id=client_id, call_type=call_type)
         return {"placed": True}
 
@@ -137,9 +168,7 @@ def test_missed_call_no_longer_misuses_business_as_client_id(monkeypatch):
 
     monkeypatch.setattr(tv, "start_stream_call", _fake_start_stream_call)
 
-    res = asyncio.run(
-        missed_call.handle_missed_call("+919812340000", "solar", "Acme Solar")
-    )
+    res = asyncio.run(missed_call.handle_missed_call("+919812340000", "solar", "Acme Solar"))
     assert res["ok"] is True and res["callback"] is True
     assert captured["client_id"] is None, "must not stuff business text into client_id"
     assert captured["niche"] == "solar"

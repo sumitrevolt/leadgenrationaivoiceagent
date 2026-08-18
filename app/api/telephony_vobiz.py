@@ -51,6 +51,7 @@ def _answer_stream_qs(
     client_id: str | None,
     lead_phone: str | None = None,
     lead_id: str | None = None,
+    opening_line: str = "",
 ) -> str:
     """Query string embedded in answer_url — survives cross-process pending loss.
 
@@ -79,6 +80,8 @@ def _answer_stream_qs(
         qs["lead_phone"] = str(lead_phone)
     if lead_id:
         qs["crm_lead_id"] = str(lead_id)
+    if opening_line:
+        qs["opening_line"] = str(opening_line)[:500]
     return urlencode(qs)
 
 
@@ -276,12 +279,18 @@ async def start_stream_call(
     call_type: str = "transactional",
     *,
     lead_id: str | None = None,
+    opening_line: str = "",
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
 
     Wahi token + _PENDING_STREAMS + answer-stream URL flow jo POST /stream-call
     use karta hai; auto-callback (inquiry → AI call) jaise internal callers ke
     liye. NEVER raises — fail pe {"placed": False, "error": ...} return.
+
+    dry_run=True (verification smoke): pending store + answer_url poora banta
+    hai (opening_line threaded) par Vobiz dial skip hota hai — chain verify
+    karo bina real call lagaye. Return me "dry_run": True + stream_token.
     """
     try:
         client = VobizClient()
@@ -300,17 +309,28 @@ async def start_stream_call(
                 "client_id": client_id,
                 "lead_phone": to,
                 "crm_lead_id": lead_id or "",
+                "opening_line": (opening_line or "").strip()[:500] or None,
             },
         )
 
+        _opening_qs = (opening_line or "").strip()[:500]
         answer_url = (
             f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-            f"?{_answer_stream_qs(niche_key, client_id, lead_phone=to, lead_id=lead_id)}"
+            f"?{_answer_stream_qs(niche_key, client_id, lead_phone=to, lead_id=lead_id, opening_line=_opening_qs)}"
         )
         # Per-call hangup_url so Vobiz posts HangupCause/CallStatus → disposition
         # tally (NUP/no_answer/answered). Without this, stream-calls never hit
         # /api/webhooks/vobiz/status (proven 2026-07-17 live call gap).
         hangup_url = f"{settings.public_base_url}/api/webhooks/vobiz/status"
+        if dry_run:
+            # Verification smoke — pending + answer-url ready, dial nahi hoga.
+            return {
+                "placed": True,
+                "dry_run": True,
+                "answer_url": answer_url,
+                "hangup_url": hangup_url,
+                "stream_token": token,
+            }
         result = await client.place_call(
             to=to,
             answer_url=answer_url,
@@ -417,6 +437,7 @@ async def answer_stream_xml(token: str, request: Request) -> Response:
     client_id = request.query_params.get("client_id") or pend.get("client_id")
     lead_phone = request.query_params.get("lead_phone") or pend.get("lead_phone")
     crm_lead_id = request.query_params.get("crm_lead_id") or pend.get("crm_lead_id")
+    opening_line = request.query_params.get("opening_line") or pend.get("opening_line") or ""
     qs: dict[str, str] = {"niche": niche or "general"}
     if client_id:
         qs["client_id"] = str(client_id)
@@ -424,6 +445,8 @@ async def answer_stream_xml(token: str, request: Request) -> Response:
         qs["lead_phone"] = str(lead_phone)
     if crm_lead_id:
         qs["crm_lead_id"] = str(crm_lead_id)
+    if opening_line:
+        qs["opening_line"] = str(opening_line)[:500]
     ws_url = f"wss://{_wss_host()}/api/telephony/vobiz/stream/{token}?{urlencode(qs)}"
     return Response(content=build_stream_xml(ws_url), media_type="application/xml")
 
@@ -436,6 +459,7 @@ async def vobiz_stream_ws(
     client_id: str | None = None,
     lead_phone: str | None = None,
     crm_lead_id: str | None = None,
+    opening_line: str = "",
 ) -> None:
     """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
     conversation loop. niche/client/lead_phone/crm_lead_id come from query
@@ -475,6 +499,7 @@ async def vobiz_stream_ws(
         client_id = pend.get("client_id") or client_id
         lead_phone = pend.get("lead_phone") or lead_phone
         crm_lead_id = pend.get("crm_lead_id") or crm_lead_id
+        opening_line = pend.get("opening_line") or opening_line
 
     # Resolve real client name + niche from client_id so the INSTANT greeting
     # (played at WS-open) isn't generic "Demo Co" / niche=general. Never-raise.
@@ -498,6 +523,7 @@ async def vobiz_stream_ws(
         client_name=client_name,
         lead_phone=lead_phone,
         crm_lead_id=crm_lead_id,
+        opening_line=opening_line,
     )
     await session.handle()
 

@@ -13,9 +13,9 @@ def test_common_objections_merged_into_all_niches():
 
 
 def test_niche_specific_rebuttal_wins():
-    # real_estate has its own "mehenga"; the merge must NOT override it
-    base = NICHE_SCRIPTS["real_estate"]["objections"]["mehenga"]
-    assert get_script("real_estate")["objections"]["mehenga"] == base
+    # real_estate_luxury has its own "mehenga"; the merge must NOT override it
+    base = NICHE_SCRIPTS["real_estate_luxury"]["objections"]["mehenga"]
+    assert get_script("real_estate_luxury")["objections"]["mehenga"] == base
 
 
 def test_source_not_mutated():

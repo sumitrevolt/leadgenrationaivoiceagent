@@ -3,17 +3,13 @@
 Extracted from app/voice_agent/niche_scripts.py (2026-06-20 refactor) — pure data, re-exported.
 """
 
-from app.voice_agent.universal_pitch import (
-    INTEREST_ASK,
-    PITCH_SHORT,
-    UNIVERSAL_AGENT_INTRO,
-)
+from app.voice_agent.universal_pitch import INTEREST_ASK, PITCH_SHORT, UNIVERSAL_AGENT_INTRO
 
 NICHE_SCRIPTS: dict[str, dict] = {
     # ====================================================================== #
     # PRIORITY NICHES (researched, niche-specific)
     # ====================================================================== #
-    "real_estate": {
+    "real_estate_luxury": {
         "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapne [Project] me 2 BHK ke liye inquiry ki thi, bas 30 second baat kar lein?",
         "discovery": [
             "Aap apne rehne ke liye dekh rahe hain ya investment ke liye?",
@@ -820,8 +816,242 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "closing": "Toh sir, ek free Google audit fix karein — 15 minute mein exact opportunity aur action plan clear ho jaayega, kab convenient hai?",
     },
     # ====================================================================== #
-    # GENERAL FALLBACK — baaki saare niches (real_estate_luxury, modular_kitchen,
-    # hair_transplant, immigration, custom niches, etc.) yahi use karte hain.
+    # HOME/SERVICE NICHE SCRIPTS (added with wizard business types)
+    # ====================================================================== #
+    "tiffin_service": {
+        "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapki tiffin service ki online visibility aur naye monthly customers ke baare mein baat karni thi, 2 minute denge?",
+        "discovery": [
+            "Abhi monthly subscriptions kaise aate hain — word of mouth, WhatsApp ya online?",
+            "Kitne customers ko roz tiffin jaati hai aur kitne slots bache hain?",
+            "Zomato/Swiggy pe listed hain ya sirf local area mein hi kaam karte hain?",
+            "Office ya home delivery — konsa segment bada hai?",
+        ],
+        "objections": {
+            "mehenga": "Sir, ek extra monthly subscription per week se poora monthly fee cover ho jaata hai — aur slots bhi fixed rehte hain, risk nahi.",
+            "abhi_nahi": "Koi baat nahi sir, tab tak ek free Google audit karwa lijiye — aapki service area mein kitne log tiffin dhoondh rahe hain, data saamne aayega.",
+            "soch_ke": "Zaroor sochiye sir, main ek free audit report bhej deta hoon — online visibility aur inquiry flow ka exact gap clearly dikhega.",
+            "pehle_se_hai": "Achha sir, compare karein — hum review management aur WhatsApp inquiry follow-up bhi karte hain, sirf post nahi.",
+            "bharosa": "Bilkul sir, similar tiffin services ke results share kar sakte hain — ek free month trial pe bhi baat kar sakte hain.",
+        },
+        "value_lines": [
+            "Menu posts, Google reviews aur WhatsApp orders — monthly subscriptions consistently aate hain.",
+            "AI se naye inquiry ka turant follow-up — sirf bharose pe nahi, system pe naye customers.",
+        ],
+        "closing": "Toh sir, pehle free Google audit karwa lein — 15 minute mein exact opportunity clear ho jaayegi, kab convenient hai?",
+    },
+    "gents_salon": {
+        "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapke salon ki online visibility aur naye walk-in customers ke baare mein baat karni thi, abhi 2 minute denge?",
+        "discovery": [
+            "Abhi bookings kaise aate hain — walk-in, WhatsApp ya Google pe search karke?",
+            "Google reviews kitne hain aur kab update kiye aakhri baar?",
+            "Men grooming — haircut, beard, facial — konsi service sabse zyada chalti hai?",
+            "Festival ya weekend pe offers karte hain ya nahi?",
+        ],
+        "objections": {
+            "mehenga": "Sir, 2-3 extra walk-in customers per day se poora monthly fee nikal jaata hai — salon mein repeat customer hi business hai.",
+            "abhi_nahi": "Koi baat nahi sir, ek free Google audit karwa lijiye — 'salon near me' searches mein aap kitne peechhe hain, data saamne aayega.",
+            "soch_ke": "Zaroor sochiye sir, main free audit bhej deta hoon — review score aur visibility gap clearly dikhega.",
+            "pehle_se_hai": "Achha sir, compare karein — hum review collection aur booking follow-up bhi automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul sir, similar salons ke before-after results share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Before-after reels, offers aur Google reviews — 'salon near me' mein top pe aa jaate hain.",
+            "WhatsApp booking + reminder — no-show zero, repeat visits zyada.",
+        ],
+        "closing": "Toh sir, pehle free Google audit karwa lein — exact gaps aur next steps 15 minute mein clear ho jaayenge, kab convenient hai?",
+    },
+    "tuition_classes": {
+        "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapki tuition classes ke liye naye admission inquiries ke baare mein baat karni thi, 2 minute denge?",
+        "discovery": [
+            "Kis class aur subject padhate hain — 5th-10th, maths/science, ya board prep?",
+            "Admissions kaise aate hain — referral se ya parents Google/Justdial pe dhoondhte hain?",
+            "Kitne students hain abhi aur kitne seats khaali hain?",
+            "Online classes bhi karte hain ya sirf offline?",
+        ],
+        "objections": {
+            "mehenga": "Sir, ek extra student per month se fees cover ho jaati hai — aur seats fill hote hi value clear dikh jaati hai.",
+            "abhi_nahi": "Koi baat nahi sir, tab tak ek free Google audit karwa lijiye — aapke area mein kitne parents 'tuition near me' dhoondh rahe hain, data saamne aayega.",
+            "soch_ke": "Zaroor sochiye sir, main free audit report bhej deta hoon — visibility aur admission inquiry flow ka gap clearly dikhega.",
+            "pehle_se_hai": "Achha sir, compare karein — hum result posts aur parent review collection bhi automate karte hain, sirf advertising nahi.",
+            "bharosa": "Bilkul sir, similar institutes ke admission growth results share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Result posts, parent reviews aur Google ranking — admission season mein pehle dikhte hain.",
+            "AI se har admission inquiry ka turant follow-up — parents ko koi doosra institute pehle na pakad le.",
+        ],
+        "closing": "Toh sir, pehle free Google audit karwa lein — admission season se pehle visibility fix ho jaayegi, kab convenient hai?",
+    },
+    "play_school": {
+        "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapke play school ke naye admission inquiries ke baare mein baat karni thi, abhi 2 minute denge?",
+        "discovery": [
+            "Nursery/LKG/UKG admission season kaise manage karte hain — form se ya parent visits?",
+            "Aapke area mein kitne play schools hain aur aap kya alag karte hain?",
+            "Google pe parents aapko kaisa dikhte hain — reviews aur photos hain?",
+            "WhatsApp pe parent inquiries ka follow-up karte hain?",
+        ],
+        "objections": {
+            "mehenga": "Sir, ek extra admission per season se poori annual fee cover ho jaati hai — parents pehle hi admission karwana chahte hain.",
+            "abhi_nahi": "Koi baat nahi sir, admission season shuru hone se pehle free Google audit karwa lijiye — parents kya dhoondh rahe hain, data saamne aayega.",
+            "soch_ke": "Zaroor sochiye sir, main free audit bhej deta hoon — aapka play school search mein kaisa dikhta hai, exact picture milega.",
+            "pehle_se_hai": "Achha sir, compare karein — hum parent reviews aur campus photos ki visibility bhi automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul sir, similar play schools ke admission season results share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Campus photos, parent reviews aur admission offers — season se pehle visibility ready.",
+            "AI se har parent inquiry ka turant follow-up — admission form kabhi thanda nahi padta.",
+        ],
+        "closing": "Toh sir, admission season se pehle free Google audit karwa lein — exact gaps 15 minute mein clear, kab convenient hai?",
+    },
+    "salon_spa": {
+        "opening": "Namaste madam/sir, main [Company] se [Name] bol raha hoon — aapke area mein salon ki nayi offers aur bridal packages ke baare mein batana tha, bas 30 second?",
+        "discovery": [
+            "Abhi salon ki marketing kaise hoti hai — khud Instagram pe post karte hain ya koi handle karta hai?",
+            "Google pe 'salon near me' search karne par aapka salon dikhta hai kya — reviews hain?",
+            "Bridal ya party packages kya offer karte hain, aur kaunse season me bookings peak hoti hain?",
+            "Before-after photos ya reels banate hain kya customers ke?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par ek do extra bridal bookings se poori monthly cost cover ho jaati hai — pehle free Google audit karwa lijiye, exact gap dikh jaayega.",
+            "abhi_nahi": "Koi baat nahi, abhi sirf free audit karwa lein — aapka salon Google/Insta pe kaise dikhta hai, 15 minute mein clear ho jaayega.",
+            "soch_ke": "Bilkul sochiye, main free audit bhej deta hoon — reviews, reels, 'salon near me' visibility, sab ka picture milega.",
+            "pehle_se_hai": "Achha, phir compare karein — hum before-after reels aur review collection bhi automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar salons ke bookings growth ke real examples share kar sakte hain — aap khud decide karenge.",
+        },
+        "value_lines": [
+            "Before-after reels aur bridal offers — Insta pe dikho to bookings khud aati hain.",
+            "Google reviews collect karke 'salon near me' pe rank badhao.",
+        ],
+        "closing": "Toh madam/sir, free Google audit karwa lein — aapka salon online kaise dikhta hai, 15 minute mein exact picture milega, kab convenient hai?",
+    },
+    "gym_fitness": {
+        "opening": "Namaste sir/madam, main [Company] se [Name] bol raha hoon — aapke gym ke naye membership offers ke baare mein batana tha, bas 30 second baat kar lein?",
+        "discovery": [
+            "Abhi naye members kaise aate hain — walk-in, referral ya koi marketing?",
+            "Google pe 'gym near me' search karne par aapka gym dikhta hai kya — reviews hain?",
+            "Joining offers ya seasonal plans chalate hain kya (January/Diwali rush)?",
+            "Transformation photos ya workout reels banate hain kya?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par ek do extra memberships se poori cost cover ho jaati hai — pehle free audit karwa lijiye, gap dikh jaayega.",
+            "abhi_nahi": "Koi baat nahi, abhi free Google audit karwa lein — aapka gym online kaise dikhta hai, 15 minute mein clear ho jaayega.",
+            "soch_ke": "Zaroor sochiye, main audit bhej deta hoon — reviews, reels, 'gym near me' visibility ka poora picture milega.",
+            "pehle_se_hai": "Achha, compare karein — hum transformation reels aur review collection automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar gyms ke membership growth examples share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Transformation reels aur joining offers — naye members Insta se aate hain.",
+            "Google reviews se 'gym near me' pe rank badhao, walk-ins badho.",
+        ],
+        "closing": "Toh sir/madam, free Google audit karwa lein — aapka gym online kaise dikhta hai, 15 minute mein exact gaps clear, kab convenient hai?",
+    },
+    "boutique_fashion": {
+        "opening": "Namaste madam, main [Company] se [Name] bol raha hoon — aapki boutique ke naye collection aur festive offers ke baare mein batana tha, bas 30 second?",
+        "discovery": [
+            "Abhi boutique ki marketing kaise hoti hai — khud Instagram pe post karte hain?",
+            "Naye collection ke photos/reels banate hain kya, aur kaunse season me sabse zyada sale hoti hai?",
+            "Google pe 'boutique near me' search karne par dikhte hain kya — reviews?",
+            "WhatsApp pe regular customers ke liye offers bhejte hain kya?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par ek festive collection se hi poori cost recover ho jaati hai — pehle free audit karwa lijiye, gap dikh jaayega.",
+            "abhi_nahi": "Koi baat nahi, abhi free Google audit karwa lein — aapki boutique online kaise dikhti hai, 15 minute mein clear.",
+            "soch_ke": "Bilkul sochiye, main audit bhej deta hoon — Instagram visibility, reviews aur festive offers ka poora picture milega.",
+            "pehle_se_hai": "Achha, compare karein — hum collection reels aur WhatsApp offers automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar boutiques ke festive sale growth examples share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "New collection reels aur festive posters — Insta pe dikho to customers aate hain.",
+            "WhatsApp offers se repeat customers wapas aate hain.",
+        ],
+        "closing": "Toh madam, free Google audit karwa lein — aapki boutique online kaise dikhti hai, 15 minute mein exact picture milega, kab convenient hai?",
+    },
+    "laundry_dryclean": {
+        "opening": "Namaste sir/madam, main [Company] se [Name] bol raha hoon — aapke laundry ke naye offers aur home-pickup service ke baare mein batana tha, bas 30 second?",
+        "discovery": [
+            "Abhi laundry ki marketing kaise hoti hai — khud Instagram pe post karte hain ya word-of-mouth?",
+            "Google pe 'laundry near me' ya 'dry cleaning near me' search karne par dikhte hain kya — reviews?",
+            "Home pickup/delivery service dete hain kya — society zones me?",
+            "Festival season (Diwali, shaadi) me special offers chalate hain kya?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par ek do home-pickup customers se poori cost cover ho jaati hai — pehle free audit karwa lijiye, gap dikh jaayega.",
+            "abhi_nahi": "Koi baat nahi, abhi free Google audit karwa lein — aapki laundry online kaise dikhti hai, 15 minute mein clear.",
+            "soch_ke": "Bilkul sochiye, main audit bhej deta hoon — reviews, offers aur 'laundry near me' visibility ka poora picture milega.",
+            "pehle_se_hai": "Achha, compare karein — hum home-pickup offers aur review collection automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar laundries ke customer growth examples share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Home pickup/delivery offers — societies aur office zones se orders aate hain.",
+            "Google reviews se 'laundry near me' pe rank badhao.",
+        ],
+        "closing": "Toh sir/madam, free Google audit karwa lein — aapki laundry online kaise dikhti hai, 15 minute mein exact gaps clear, kab convenient hai?",
+    },
+    "electronics_repair": {
+        "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapke mobile/electronics repair ke naye offers aur doorstep service ke baare mein batana tha, bas 30 second?",
+        "discovery": [
+            "Abhi repair business ki marketing kaise hoti hai — khud Instagram/Google pe?",
+            "Google pe 'mobile repair near me' search karne par aapka shop dikhta hai kya — reviews?",
+            "Doorstep repair ya home service dete hain kya, aur warranty dete hain?",
+            "Kaunse repairs sabse zyada aate hain — screen, battery, ya AC/electronics?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par ek do extra repairs se poori cost cover ho jaati hai — pehle free audit karwa lijiye, gap dikh jaayega.",
+            "abhi_nahi": "Koi baat nahi, abhi free Google audit karwa lein — aapki shop online kaise dikhti hai, 15 minute mein clear.",
+            "soch_ke": "Bilkul sochiye, main audit bhej deta hoon — reviews, offers aur 'mobile repair near me' visibility ka poora picture milega.",
+            "pehle_se_hai": "Achha, compare karein — hum doorstep offers aur review collection automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar shops ke repair growth examples share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Doorstep repair aur warranty offers — log 'mobile repair near me' se aate hain.",
+            "Google reviews se trust badhao, repair inquiries badho.",
+        ],
+        "closing": "Toh sir, free Google audit karwa lein — aapka repair shop online kaise dikhta hai, 15 minute mein exact gaps clear, kab convenient hai?",
+    },
+    "bakery_sweets": {
+        "opening": "Namaste sir/madam, main [Company] se [Name] bol raha hoon — aapki bakery ke festive offers aur naye menu items ke baare mein batana tha, bas 30 second?",
+        "discovery": [
+            "Abhi bakery ki marketing kaise hoti hai — khud Instagram pe post karte hain ya word-of-mouth?",
+            "Google pe 'bakery near me' ya 'cake shop near me' pe dikhte hain kya — reviews?",
+            "Festive season (Diwali, shaadi) me sweet boxes ya custom cakes lete hain kya?",
+            "WhatsApp pe orders/repeat customers kaise aate hain — manually handle karte ho?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par festive season me ek custom cake/sweet box order se invest recover ho jaata hai — pehle free audit karwa lijiye.",
+            "abhi_nahi": "Koi baat nahi, abhi free Google audit karwa lein — aapki bakery online kaise dikhti hai, 15 minute mein clear.",
+            "soch_ke": "Bilkul sochiye, main audit bhej deta hoon — menu, offers aur 'bakery near me' visibility ka poora picture milega.",
+            "pehle_se_hai": "Achha, compare karein — hum festive offers aur WhatsApp order flow automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar bakeries ke festive-order growth examples share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Festive sweet boxes aur custom cake offers — party aur shaadi orders repeat hote hain.",
+            "Google reviews se 'bakery near me' pe rank badhao.",
+        ],
+        "closing": "Toh sir/madam, free Google audit karwa lein — aapki bakery online kaise dikhti hai, 15 minute mein exact gaps clear, kab convenient hai?",
+    },
+    "jewellery_store": {
+        "opening": "Namaste sir/madam, main [Company] se [Name] bol raha hoon — aapki jewellery store ke festive collection aur offers ke baare mein batana tha, bas 30 second?",
+        "discovery": [
+            "Abhi jewellery store ki marketing kaise hoti hai — khud Instagram pe post karte hain ya word-of-mouth?",
+            "Google pe 'jewellery shop near me' pe dikhte hain kya — reviews?",
+            "Wedding/festive season me special collections ya offers chalate hain kya?",
+            "Gold schemes ya exchange offers chalate hain kya — repeat customers kaise aate hain?",
+        ],
+        "objections": {
+            "mehenga": "Samajh sakta hoon, par wedding/festive season me ek do bade orders se investment recover ho jaati hai — pehle free audit karwa lijiye.",
+            "abhi_nahi": "Koi baat nahi, abhi free Google audit karwa lein — aapki store online kaise dikhti hai, 15 minute mein clear.",
+            "soch_ke": "Bilkul sochiye, main audit bhej deta hoon — collection, offers aur 'jewellery shop near me' visibility ka poora picture milega.",
+            "pehle_se_hai": "Achha, compare karein — hum festive offers aur gold-scheme posts automate karte hain, sirf post nahi.",
+            "bharosa": "Bilkul, similar stores ke festive-season growth examples share kar sakte hain — real data saamne hoga.",
+        },
+        "value_lines": [
+            "Festive collection aur gold-scheme offers — wedding season me walk-ins double hote hain.",
+            "Google reviews se trust badhao, 'jewellery shop near me' pe rank karo.",
+        ],
+        "closing": "Toh sir/madam, free Google audit karwa lein — aapki store online kaise dikhti hai, 15 minute mein exact gaps clear, kab convenient hai?",
+    },
+    # ====================================================================== #
+    # GENERAL FALLBACK — baaki saare niches (modular_kitchen, hair_transplant,
+    # immigration, custom niches, etc.) yahi use karte hain.
     # ====================================================================== #
     "general": {
         "opening": UNIVERSAL_AGENT_INTRO,

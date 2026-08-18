@@ -351,6 +351,11 @@ def test_min_plan_price_resolves_voice_and_combo_plans(up):
 
     for band, info in BANDS.items():
         expected = float(info["price_month"])
+        if expected == 0:
+            # Freemium ₹0 — no min-price floor applies (fail-open → None)
+            assert up._min_plan_price(info["plan_monthly"].lower()) is None, band
+            assert up._min_plan_price(info["plan_annual"].lower()) is None, band
+            continue
         assert up._min_plan_price(info["plan_monthly"].lower()) == expected, band
         assert up._min_plan_price(info["plan_annual"].lower()) == expected, band
     for tier, info in COMBO_TIERS.items():

@@ -268,6 +268,18 @@
       <a class="btn btn-ghost" id="ctaAudit" href="/audit">📊 FREE Google audit</a>
       <a class="btn btn-wa" id="ctaWa" href="https://wa.me/918459012607" target="_blank" rel="noopener">💬 WhatsApp pe baat karo</a>
     </div>
+    <div class="fcard" id="demoLeadWrap" style="margin-top:26px;display:none">
+      <form id="demoLeadForm" novalidate>
+        <h3 style="font-size:1.05rem;margin-bottom:4px">📞 Poora system 30 second me?</h3>
+        <p style="color:var(--muted);font-size:.88rem;margin-bottom:14px">Number chhodo — hamari team aapke business type ke hisaab se custom plan WhatsApp/call pe <b>FREE</b> bhejegi. Koi charge nahi.</p>
+        <div class="fld"><label for="dl-name">Aapka naam *</label><input id="dl-name" name="name" type="text" required placeholder="e.g. Rohan Sharma" autocomplete="name" /></div>
+        <div class="fld"><label for="dl-phone">Phone / WhatsApp number *</label><input id="dl-phone" name="phone" type="tel" required placeholder="98765 43210" autocomplete="tel" /></div>
+        <!-- honeypot: bots fill this, humans never see it -->
+        <input type="text" name="website" id="dl-website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <button type="submit" class="btn btn-primary" id="dlSubmit" style="width:100%">📞 Poora plan FREE me lo</button>
+        <p class="form-note">✅ No spam · 24 ghante me call · Details sirf aapse contact ke liye</p>
+      </form>
+    </div>
   </div>
 </section>
 
@@ -300,27 +312,20 @@
     });
   }
 
-  // ---------------- Niche dropdown ----------------
+  // ---------------- Business-type dropdown ----------------
+  // audit/site-audit jaisa hi catalog — /api/public/business-types (wizard
+  // BUSINESS_TYPES ka slim public view). Option value = wizard id; niche key
+  // selectedBiz() se resolve hota hai (ai-demo + inquiry payload dono ke liye).
   var FALLBACK_NICHES = [
-    { value: 'solar_residential', label: 'Solar' },
-    { value: 'real_estate',       label: 'Real Estate' },
-    { value: 'gym_fitness',       label: 'Gym/Fitness' },
-    { value: 'restaurant',        label: 'Restaurant' },
-    { value: 'salon_spa',         label: 'Salon/Spa' },
-    { value: 'coaching_classes',  label: 'Coaching' },
-    { value: 'general',           label: 'Other' }
+    { id: 'restaurant', label: 'Restaurant / Cafe', niche: 'restaurant_cafe' },
+    { id: 'salon', label: 'Salon / Beauty Parlour', niche: 'salon_spa' },
+    { id: 'gym', label: 'Gym / Fitness Studio', niche: 'gym_fitness' },
+    { id: 'real_estate', label: 'Real Estate / Property', niche: 'real_estate' },
+    { id: 'clinic', label: 'Clinic / Doctor', niche: 'hospital_appointments' },
+    { id: 'coaching', label: 'Coaching / Tuition', niche: 'coaching' },
+    { id: 'general', label: 'Other', niche: 'general' }
   ];
-
-  function nicheValueOf(n){
-    if (n == null) return '';
-    if (typeof n === 'string') return n;
-    return n.key || n.niche || n.id || n.slug || '';
-  }
-  function nicheLabelOf(n){
-    if (n == null) return '';
-    if (typeof n === 'string') return n;
-    return n.name || n.label || n.title || n.display || nicheValueOf(n);
-  }
+  var BIZ_TYPES = [];   // [{id,label,emoji,niche}]
 
   function fillNiches(list){
     var sel = document.getElementById('d-niche');
@@ -328,44 +333,37 @@
     var ph = document.createElement('option');
     ph.value = ''; ph.textContent = 'Choose your business type…';
     sel.appendChild(ph);
-    list.forEach(function(n){
-      var val = (n && n.value !== undefined) ? n.value : nicheValueOf(n);
-      var lab = (n && n.label !== undefined && typeof n.label === 'string' && n.value !== undefined) ? n.label : nicheLabelOf(n);
-      if (!val) return;
+    BIZ_TYPES = list.filter(function(n){ return n && n.id && n.niche; });
+    BIZ_TYPES.forEach(function(n){
       var o = document.createElement('option');
-      o.value = val;
-      o.textContent = lab || val;
+      o.value = n.id;
+      o.textContent = (n.emoji ? n.emoji + ' ' : '') + n.label;
       sel.appendChild(o);
     });
-    // ensure an "Other" escape hatch always exists
-    if (!list.some(function(n){ var v = (n && n.value !== undefined) ? n.value : nicheValueOf(n); return v === 'general'; })) {
+    // "Other" escape hatch hamesha rahe
+    if (!BIZ_TYPES.some(function(n){ return n.id === 'general'; })) {
       var og = document.createElement('option');
       og.value = 'general'; og.textContent = 'Other';
       sel.appendChild(og);
+      BIZ_TYPES.push({ id: 'general', label: 'Other', niche: 'general' });
     }
   }
-
+  function selectedBiz(){
+    var sel = document.getElementById('d-niche');
+    if (!sel || !sel.value) return null;
+    for (var i = 0; i < BIZ_TYPES.length; i++){
+      if (BIZ_TYPES[i].id === sel.value) return BIZ_TYPES[i];
+    }
+    return null;
+  }
   async function loadNiches(){
     try {
-      var res = await fetch('/api/data/niches');
+      var res = await fetch('/api/public/business-types');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var data = await res.json();
-      var arr = [];
-      if (Array.isArray(data)) arr = data;
-      else if (data && Array.isArray(data.niches)) arr = data.niches;
-      else if (data && Array.isArray(data.items)) arr = data.items;
-      else if (data && Array.isArray(data.data)) arr = data.data;
-      else if (data && typeof data === 'object') {
-        // object map { key: {...} } fallback
-        arr = Object.keys(data).map(function(k){
-          var v = data[k];
-          if (v && typeof v === 'object') { if (!nicheValueOf(v)) v.key = k; return v; }
-          return { key: k, name: String(v) };
-        });
-      }
-      var cleaned = arr.filter(function(n){ return nicheValueOf(n); });
-      if (!cleaned.length) throw new Error('empty');
-      fillNiches(cleaned);
+      var arr = (data && Array.isArray(data.business_types)) ? data.business_types : [];
+      if (!arr.length) throw new Error('empty');
+      fillNiches(arr);
     } catch (e) {
       fillNiches(FALLBACK_NICHES);
     }
@@ -399,13 +397,62 @@
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var biz   = document.getElementById('d-biz').value.trim();
-    var niche = document.getElementById('d-niche').value;
+    var bt    = selectedBiz();
     var city  = document.getElementById('d-city').value.trim();
     if (!biz)   { showToast('Business ka naam daalo 🙏'); return; }
-    if (!niche) { showToast('Apna business type choose karo 🙏'); return; }
+    if (!bt)    { showToast('Apna business type choose karo 🙏'); return; }
     if (!city)  { showToast('City daalo 🙏'); return; }
-    lastInput = { business_name: biz, niche: niche, city: city };
+    // ai-demo niche KEY expect karta hai — wizard id se resolve karo
+    lastInput = { business_name: biz, niche: bt.niche, business_type: bt.label, city: city };
     runDemo(lastInput);
+  });
+
+  // ---------------- CTA lead form → /api/public/inquiry ----------------
+  var leadForm = document.getElementById('demoLeadForm');
+  leadForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var name  = document.getElementById('dl-name').value.trim();
+    var phone = document.getElementById('dl-phone').value.trim();
+    if (!name) { showToast('Naam bharo 🙏'); return; }
+    var digits = phone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 12) { showToast('Sahi 10-digit phone number daalo 📞'); return; }
+    var btn = document.getElementById('dlSubmit');
+    var OLD = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
+    (async function(){
+      try {
+        var tok = window.turnstileToken ? await window.turnstileToken() : "";
+        var bt = selectedBiz();
+        var res = await fetch('/api/public/inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
+          body: JSON.stringify({
+            name: name,
+            business_name: (lastInput.business_name || ''),
+            phone: phone,
+            package: 'Free AI Demo Lead',
+            utm_source: 'demo',
+            business_type: bt ? bt.label : '',
+            niche: bt ? bt.niche : '',
+            message: 'AI demo pack generate hua — ' + (lastInput.business_name || '') + ' (/demo)'
+          })
+        });
+        if (res.status === 429) { showToast('Thoda ruk ke dobara try karo ⏳'); btn.disabled = false; btn.textContent = OLD; return; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var data = await res.json();
+        if (!data.ok) throw new Error('fail');
+        var safe = name.replace(/[<>&"']/g, '');
+        var wrap = document.getElementById('demoLeadWrap');
+        wrap.innerHTML = '<div class="fcard" style="text-align:center">' +
+          '<div style="font-size:2rem">✅</div>' +
+          '<h3 style="margin-bottom:6px">Dhanyawad ' + safe + '!</h3>' +
+          '<p style="color:var(--muted)">24 ghante me call aayega — poora plan FREE milega. Tab tak <a href="/app/test-call" style="color:var(--indigo);font-weight:600">🎧 AI live demo</a> try karo.</p>' +
+        '</div>';
+      } catch (err) {
+        showToast('Kuch problem aayi — dobara try karo ya WhatsApp karo 💬');
+        btn.disabled = false; btn.textContent = OLD;
+      }
+    })();
   });
 
   document.getElementById('retryBtn').addEventListener('click', function(){
@@ -599,6 +646,7 @@
 
     resultsSec.style.display = 'block';
     ctaSec.style.display = 'block';
+    document.getElementById('demoLeadWrap').style.display = 'block';
     resultsSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 

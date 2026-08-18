@@ -122,6 +122,8 @@
   .fld label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px;color:var(--ink-2)}
   .fld input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;font:inherit;font-size:.95rem;background:#fff;color:var(--ink);transition:border-color .2s,box-shadow .2s}
   .fld input:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .fld select{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;font:inherit;font-size:.95rem;background:#fff;color:var(--ink)}
+  .fld select:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
   .form-note{font-size:.8rem;color:var(--muted);text-align:center;margin-top:12px}
   .orline{display:flex;align-items:center;gap:12px;max-width:520px;margin:20px auto;color:var(--muted);font-size:.84rem;font-weight:600}
   .orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -247,6 +249,7 @@
       <form id="auditLeadForm" novalidate>
         <div class="fld"><label for="a-name">Aapka naam *</label><input id="a-name" name="name" type="text" required placeholder="e.g. Rohan Sharma" autocomplete="name" /></div>
         <div class="fld"><label for="a-biz">Business ka naam *</label><input id="a-biz" name="business_name" type="text" required placeholder="e.g. Sharma Solar Solutions" autocomplete="organization" /></div>
+        <div class="fld"><label for="a-type">Business type (optional — custom plan milega)</label><select id="a-type" name="business_type"><option value="">✨ Select karo…</option></select></div>
         <div class="fld"><label for="a-phone">Phone / WhatsApp number *</label><input id="a-phone" name="phone" type="tel" required placeholder="98765 43210" autocomplete="tel" /></div>
         <!-- honeypot: bots fill this, humans never see it -->
         <input type="text" name="website" id="a-website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
@@ -400,6 +403,35 @@
     return { cls: 'c-green', chip: 'bg-green', hex: 'var(--green)' };
   }
 
+  // ---------------- Business-type dropdown (wizard catalog se) ----------------
+  let BIZ_TYPES = [];       // [{id,label,emoji,niche}]
+  async function loadBizTypes(){
+    try {
+      const res = await fetchWithTimeout('/api/public/business-types', {}, 8000);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      BIZ_TYPES = (data.business_types || []);
+      const sel = document.getElementById('a-type');
+      if (!sel) return;
+      BIZ_TYPES.forEach(function (b){
+        const o = document.createElement('option');
+        o.value = b.id;
+        o.textContent = (b.emoji ? b.emoji + ' ' : '') + b.label;
+        sel.appendChild(o);
+      });
+    } catch (e) { /* dropdown optional — form bina iske bhi chalta hai */ }
+  }
+  function selectedBiz(){
+    const sel = document.getElementById('a-type');
+    if (!sel) return null;
+    const id = sel.value;
+    if (!id) return null;
+    for (let i = 0; i < BIZ_TYPES.length; i++){
+      if (BIZ_TYPES[i].id === id) return BIZ_TYPES[i];
+    }
+    return null;
+  }
+
   function showResult(data){
     const score = Math.max(0, Math.min(100, Number(data.score) || 0));
     lastScore = score;
@@ -407,7 +439,8 @@
     // distinct_id as pageview (silent no-op agar key unset / snippet nahi).
     try {
       if (typeof window.posthog !== 'undefined' && window.posthog.capture) {
-        window.posthog.capture('audit_score', { score: score, grade: (data.grade || '') });
+        const bt = selectedBiz();
+        window.posthog.capture('audit_score', { score: score, grade: (data.grade || ''), business_type: bt ? bt.label : '', niche: bt ? bt.niche : '' });
       }
     } catch (e) {}
     const col = colorOf(score);
@@ -453,7 +486,8 @@
     startCta.addEventListener('click', function (){
       try {
         if (typeof window.posthog !== 'undefined' && window.posthog.capture) {
-          window.posthog.capture('audit_cta_click', { score: score });
+          const bt = selectedBiz();
+          window.posthog.capture('audit_cta_click', { score: score, business_type: bt ? bt.label : '', niche: bt ? bt.niche : '' });
         }
       } catch (e) {}
     });
@@ -499,6 +533,7 @@
     btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
     try {
       const tok = window.turnstileToken ? await window.turnstileToken() : "";
+      const bt = selectedBiz();
       const res = await fetchWithTimeout('/api/public/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
@@ -506,6 +541,8 @@
           name, business_name: biz, phone,
           package: 'Free Audit Lead',
           utm_source: 'audit',
+          business_type: bt ? bt.label : '',
+          niche: bt ? bt.niche : '',
           message: lastScore !== null ? ('GBP audit score: ' + lastScore + '/100 — /audit page se') : 'GBP audit page se',
           website: document.getElementById('a-website').value || ''
         })
@@ -528,6 +565,7 @@
   });
 
   // go!
+  loadBizTypes();
   loadQuestions();
 </script>
 <script src="/site/turnstile.js" defer></script>

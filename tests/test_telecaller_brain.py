@@ -217,6 +217,30 @@ def test_clean_strips_unclosed_paren_leak() -> None:
     assert out.endswith("?")
 
 
+def test_clean_strips_think_block_leak() -> None:
+    # 2026-08-18 agent_tester: free model ne literal "<think> Here's a thinking
+    # process:..." bol diya (laundry/electronics scorecard). TTS usse bol deta
+    # — strip karo, real answer bachao.
+    b = _brain("general")
+    out = TelecallerBrain._clean(
+        b,
+        "<think> Here's a thinking process: 1. Analyze User Input: - User said: "
+        'home pickup dete ho kya"</think> Haan ji, home pickup bilkul milta hai.'
+        " Kab theek rahega?",
+    )
+    assert "<think" not in out.lower()
+    assert "thinking process" not in out.lower()
+    assert "home pickup" in out.lower()
+
+
+def test_clean_strips_unclosed_think_tag() -> None:
+    # Unclosed <think... (koi closing tag nahi) — tag se pehle ka hissa bachao.
+    b = _brain("general")
+    out = TelecallerBrain._clean(b, "Namaste! <think> yahan reasoning hai bina close")
+    assert "<think" not in out.lower()
+    assert "namaste" in out.lower()
+
+
 def test_clean_allows_two_short_sentences() -> None:
     # Answer-then-question ek hi reply me (pehle 1-sentence cap clip kar deta tha).
     b = _brain("general")
@@ -262,7 +286,7 @@ def _opener_brain(niche: str) -> TelecallerBrain:
 def test_opening_line_vertical_uses_niche_script_not_platform_pitch() -> None:
     from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
 
-    for niche in ("real_estate", "solar_residential", "insurance"):
+    for niche in ("real_estate_luxury", "solar_residential", "insurance"):
         opener = TelecallerBrain.opening_line(_opener_brain(niche))
         # Must NOT be the marketing platform pitch.
         assert opener != UNIVERSAL_AGENT_INTRO, f"{niche} opened with platform pitch"

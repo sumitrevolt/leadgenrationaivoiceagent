@@ -615,6 +615,28 @@ _OVERRIDES: dict[str, FlagMeta] = {
         customer=True,
         companions=("WHATSAPP_AUTO_SEND",),
     ),
+    "ONBOARD_WIZARD_APPLY": _m(
+        "ONBOARD_WIZARD_APPLY",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.SAFE_LOCAL_ONLY,
+        notes=(
+            "Business-type wizard auto-setup (salon/clinic/restaurant template apply) — "
+            "OFF default; preview/catalog endpoints hamesha available"
+        ),
+        risk="product",
+    ),
+    "POST_CALL_SUMMARY": _m(
+        "POST_CALL_SUMMARY",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "AI post-call WhatsApp summary + action items to qualified leads — "
+            "needs WHATSAPP_AUTO_SEND too; OFF default"
+        ),
+        risk="outbound",
+        customer=True,
+        companions=("WHATSAPP_AUTO_SEND",),
+    ),
     "VOICE_CLOSE_WHATSAPP": _m(
         "VOICE_CLOSE_WHATSAPP",
         FlagValueKind.BOOLEAN,

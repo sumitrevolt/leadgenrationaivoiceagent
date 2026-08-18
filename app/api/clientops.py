@@ -130,37 +130,36 @@ async def admin_decide_approval(
     act = "reject" if str(body.action or "").strip().lower() == "reject" else "approve"
     return content_approval.decide_by_id(approval_id, act, body.note or "")
 
-
-
-
-@router.post("/approvals/retire-orphans")
-async def retire_orphaned_approvals(
-    dry_run: bool = Query(True),
-    limit: int = Query(1000, ge=1, le=5000),
-    _user=Depends(require_admin),
-):
-    """321 dead approval rows ko retire karo (PR #297 logic).
-
-    dry_run=True (default) -> sirf counts dikhata hai, kuch mutate nahi.
-    dry_run=False -> actual retire (terminal 'expired' status).
-    Live client approvals are NEVER touched.
-    """
-    from app.marketing import content_approval
-
-    return content_approval.retire_orphaned_pending(
-        dry_run=dry_run,
-        limit=limit,
-    )
-
-
-@router.get("/video/daily-status")
-async def video_daily_status(_user=Depends(require_admin)):
-    """Daily video producer status - pending/approved/failed counts + config."""
-    try:
-        from app.marketing import daily_video
-        return daily_video.status_summary()
-    except Exception as e:
-        return {"ok": False, "error": str(e)[:200]}
+
+@router.post("/approvals/retire-orphans")
+async def retire_orphaned_approvals(
+    dry_run: bool = Query(True),
+    limit: int = Query(1000, ge=1, le=5000),
+    _user=Depends(require_admin),
+):
+    """321 dead approval rows ko retire karo (PR #297 logic).
+
+    dry_run=True (default) -> sirf counts dikhata hai, kuch mutate nahi.
+    dry_run=False -> actual retire (terminal 'expired' status).
+    Live client approvals are NEVER touched.
+    """
+    from app.marketing import content_approval
+
+    return content_approval.retire_orphaned_pending(
+        dry_run=dry_run,
+        limit=limit,
+    )
+
+
+@router.get("/video/daily-status")
+async def video_daily_status(_user=Depends(require_admin)):
+    """Daily video producer status - pending/approved/failed counts + config."""
+    try:
+        from app.marketing import daily_video
+
+        return daily_video.status_summary()
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
 
 
 @router.get("/approve/{token}", dependencies=[Depends(rate_limit("approval", 10, 60))])
@@ -444,7 +443,7 @@ async def video_production_ops(
 
 
 @router.get("/video-production/daily-status")
-async def video_daily_status(_user=Depends(require_admin)):
+async def video_production_daily_status(_user=Depends(require_admin)):
     """Why is (or isn't) the DAILY video producer generating?
 
     One call answers the whole question: master flag, engine preference, the
@@ -676,6 +675,33 @@ async def gsc_overview(_user=Depends(require_admin)):
         "latest": gsc.latest_state(),
         "trend": gsc.trend(30),
     }
+
+
+@router.get("/posthog/funnel")
+async def posthog_funnel_overview(
+    create: int = Query(0, ge=0, le=1),
+    payload: int = Query(0, ge=0, le=1),
+    _user=Depends(require_admin),
+):
+    """Inquiry → paid funnel insight (PostHog) — business_type/niche split.
+
+    - capture_enabled: lead_captured/payment_activated events dono ab business_type
+      + niche properties carry karte hain (PostHog me funnel breakdown chalta hai).
+    - payload=1: exact FUNNELS filters JSON — PostHog UI me paste karne ke liye
+      (jab personal API key nahi hai).
+    - create=1: PostHog API se insight banao (POSTHOG_PERSONAL_API_KEY phx_
+      chahiye; phc_ key private endpoints pe nahi chalta — INERT by design).
+    """
+    from app.analytics import posthog_client as _ph
+    from app.integrations import posthog_funnel as pf
+
+    out: dict[str, Any] = {
+        "capture_enabled": _ph.enabled(),
+        "insight": pf.ensure_insight(create=bool(create)),
+    }
+    if payload:
+        out["payload"] = pf.insight_payload()
+    return out
 
 
 __all__ = ["router"]

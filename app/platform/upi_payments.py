@@ -243,13 +243,20 @@ def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: b
         except Exception as e:  # pragma: no cover - defensive
             logger.debug("upi_payments reset_usage_period skipped: %s", e)
         # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+        # niche + business_type properties paid side pe bhi + distinct_id = phone
+        # (lead_captured bhi phone-keyed hai — inquiry → paid funnel same person pe
+        # match karta hai; posthog_funnel module). Client ka phone record se aata
+        # hai; na ho to cid fallback.
         try:
             from app.analytics import posthog_client as _ph
+            from app.integrations.posthog_funnel import client_business_type
 
+            props = {"plan": plan_k, "amount": float(amount or 0), "gateway": "upi"}
+            props.update({k: v for k, v in client_business_type(cid).items() if v})
             _ph.capture(
-                cid,
+                str(props.pop("phone", "") or cid),
                 "payment_activated",
-                {"plan": plan_k, "amount": float(amount or 0), "gateway": "upi"},
+                props,
             )
         except Exception:
             pass

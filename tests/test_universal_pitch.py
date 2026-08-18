@@ -53,7 +53,7 @@ def test_telecaller_vertical_niche_opener_is_not_platform_pitch():
     # marketing platform pitch (the "agent noob baat kar rahi" web-call bug).
     from app.voice_agent.telecaller_brain import TelecallerBrain
 
-    brain = TelecallerBrain(niche="real_estate", client_name="Sharma Realty")
+    brain = TelecallerBrain(niche="real_estate_luxury", client_name="Sharma Realty")
     opener = brain.opening_line()
     assert opener != UNIVERSAL_AGENT_INTRO
     assert "instagram" not in opener.lower()
