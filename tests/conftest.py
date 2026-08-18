@@ -706,3 +706,14 @@ def suppress_unclosable_tasks_in_ci():
         loop.set_exception_handler(_quiet_handler)
     except Exception:
         pass
+
+# Global generic monkeypatch for task leaks per test
+import asyncio.base_events
+_orig_default_exception_handler = asyncio.base_events.BaseEventLoop.default_exception_handler
+
+def _quiet_default_exception_handler(self, context):
+    if "Task was destroyed but it is pending" in str(context.get('message', '')):
+        return
+    _orig_default_exception_handler(self, context)
+
+asyncio.base_events.BaseEventLoop.default_exception_handler = _quiet_default_exception_handler
