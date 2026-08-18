@@ -298,20 +298,395 @@ def restore_dependency_overrides():
     without bypassing production authentication — production code paths unchanged.
     """
     before = dict(app.dependency_overrides)
+    yield
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(before)
 
-import asyncio
-import pytest
-@pytest.fixture(autouse=True, scope="session")
-def suppress_unclosable_tasks_in_ci():
-    """CI hotfix: suppress async_generator_athrow Task destroyed warnings
-    that cause pytest to exit with status 1 on teardown."""
+
+@pytest.fixture(autouse=True)
+def _resume_inquiry_bg_accept_gate():
+    """Keep inquiry spawn gate open across tests.
+
+    Production shutdown calls drain_inquiry_bg_tasks() which stops accepting.
+    Tests that exercise drain must not poison later cases; reopen after each test.
+    """
     try:
-        loop = asyncio.get_event_loop()
-        def _quiet_handler(loop, context):
-            msg = context.get("message", "")
-            if "Task was destroyed but it is pending" in msg:
-                return
-            loop.default_exception_handler(context)
-        loop.set_exception_handler(_quiet_handler)
-    except RuntimeError:
+        from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
+
+        resume_accepting_inquiry_bg()
+    except Exception:
         pass
+    yield
+    try:
+        from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
+
+        resume_accepting_inquiry_bg()
+    except Exception:
+        pass
+
+
+# =============================================================================
+# EVENT LOOP CONFIGURATION
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create event loop for async tests (session-scoped for performance)"""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(autouse=True)
+def _ensure_policy_event_loop():
+    """ORDER-DEPENDENT FLAKE FIX (2026-07-18): sync tests that call asyncio.run()
+    (test_voice_tools / test_call_learning / etc.) leave the MainThread policy
+    loop UNSET on exit (asyncio.run closes its loop + set_event_loop(None)).
+    pytest-asyncio 0.23 then raises 'There is no current event loop' for every
+    LATER async test file in the same run (seen: test_voice_opener_cache red in
+    combined runs, green standalone). Re-arm a policy loop before each test."""
+    try:
+        asyncio.get_event_loop_policy().get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+    yield
+
+
+# =============================================================================
+# DATABASE FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(scope="function")
+def db():
+    """Create test database tables (function-scoped for isolation)"""
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
+    yield
+    # Drop all tables after test
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(scope="function")
+async def async_db():
+    """Create test database tables for async tests"""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _async_engine_teardown_guard(event_loop):
+    """Session-end: call app drain, dispose engines, assert no aiosqlite workers.
+
+    Ownership/lifecycle lives in app.platform.inquiry_hooks — harness only
+    invokes the canonical drain then verifies (NullPool/StaticPool already set
+    for cross-loop safety). No parallel all-tasks cancel that hides app bugs.
+    """
+    yield
+
+    import threading
+    import time as _time
+
+    def _leaked_aiosqlite_workers():
+        return [
+            t.name
+            for t in threading.enumerate()
+            if t.is_alive()
+            and "aiosqlite" in (getattr(getattr(t, "_target", None), "__module__", "") or "")
+        ]
+
+    if not event_loop.is_closed():
+        try:
+            from app.platform.inquiry_hooks import (
+                drain_inquiry_bg_tasks,
+                pending_inquiry_bg_count,
+                resume_accepting_inquiry_bg,
+            )
+
+            event_loop.run_until_complete(drain_inquiry_bg_tasks(timeout=5.0))
+            assert (
+                pending_inquiry_bg_count() == 0
+            ), "inquiry_hooks owned tasks still pending after drain"
+            # Leave accept gate open for any late imports in other session fixtures.
+            resume_accepting_inquiry_bg()
+        except AssertionError:
+            raise
+        except Exception:
+            pass
+
+    disposed = True
+    try:
+        event_loop.run_until_complete(async_engine.dispose())
+    except Exception:
+        disposed = False
+    try:
+        from app.models.base import close_async_db
+
+        event_loop.run_until_complete(close_async_db())
+    except Exception:
+        pass
+
+    for _ in range(50):  # up to ~5s settle
+        if not _leaked_aiosqlite_workers():
+            break
+        _time.sleep(0.1)
+
+    assert disposed, "test async_engine.dispose() raised at session teardown"
+    leaked = _leaked_aiosqlite_workers()
+    assert not leaked, (
+        "aiosqlite connection worker thread(s) leaked at session end: "
+        + ", ".join(leaked)
+        + " (app drain_inquiry_bg_tasks + dispose; see SQLAlchemy #13039)"
+    )
+
+
+@pytest.fixture(scope="function")
+def db_session(db) -> Generator:
+    """Get a database session for direct database operations"""
+    session = TestingSessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+@pytest.fixture(scope="function")
+async def async_db_session(async_db) -> AsyncGenerator:
+    """Get an async database session"""
+    async with AsyncTestingSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+# =============================================================================
+# CLIENT FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(scope="function")
+def client(db) -> Generator:
+    """Create test client (sync)"""
+    from httpx import ASGITransport
+    from starlette.testclient import TestClient as StarletteTestClient
+
+    # Use ASGITransport for newer httpx versions
+    try:
+        with TestClient(app) as c:
+            yield c
+    except TypeError:
+        # Fallback for httpx >= 0.28
+        transport = ASGITransport(app=app)
+        with StarletteTestClient(app, transport=transport) as c:
+            yield c
+
+
+@pytest.fixture(scope="function")
+async def async_client(async_db):
+    """Create async test client"""
+    from httpx import ASGITransport, AsyncClient
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+
+# =============================================================================
+# SAMPLE DATA FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def sample_lead() -> dict:
+    """Sample lead data"""
+    return {
+        "company_name": "Test Company Pvt Ltd",
+        "contact_name": "Rahul Sharma",
+        "phone": "+919876543210",
+        "email": "rahul@testcompany.com",
+        "city": "Mumbai",
+        "category": "Real Estate",
+        "source": "manual",
+        "notes": "Test lead for unit testing",
+    }
+
+
+@pytest.fixture
+def sample_campaign() -> dict:
+    """Sample campaign data"""
+    return {
+        "name": "Test Campaign Q1",
+        "niche": "real_estate",
+        "client_name": "Test Client Corp",
+        "client_service": "Property Sales",
+        "target_cities": ["Mumbai", "Delhi", "Bangalore"],
+        "target_lead_count": 100,
+        "daily_call_limit": 50,
+        "working_hours_start": "09:00",
+        "working_hours_end": "18:00",
+    }
+
+
+@pytest.fixture
+def sample_user() -> dict:
+    """Sample user data for registration tests"""
+    return {
+        "email": "newuser@example.com",
+        "password": "SecurePass123!",
+        "first_name": "New",
+        "last_name": "User",
+    }
+
+
+@pytest.fixture
+def auth_headers() -> dict:
+    """Sample authentication headers"""
+    return {
+        "Authorization": "Bearer test-token",
+        "Content-Type": "application/json",
+    }
+
+
+# =============================================================================
+# MOCK FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def mock_redis(mocker):
+    """Mock Redis client for tests"""
+    mock = mocker.patch("app.cache.get_redis_client")
+    mock_client = mocker.AsyncMock()
+    mock.return_value = mock_client
+    return mock_client
+
+
+@pytest.fixture
+def mock_llm(mocker):
+    """Mock LLM Brain for tests"""
+    mock = mocker.patch("app.voice_agent.llm_brain.LLMBrain")
+    mock_instance = mocker.AsyncMock()
+    mock.return_value = mock_instance
+    mock_instance.generate_opening.return_value = "Hello! How can I help you today?"
+    mock_instance.generate_response.return_value = "Thank you for your interest."
+    return mock_instance
+
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _isolate_billing_stores(monkeypatch, tmp_path):
+    """2026-07-18 PROD-LEDGER CONTAMINATION FIX (INV/2026-27/0003..0013 postmortem):
+    tests `upi_payments._STORE` to patch karte the par `_fire_gst_invoice` →
+    `gst_invoice.create_invoice` REAL relative `data/invoices.jsonl` (cwd) me likhta
+    tha. VPS pe targeted pytest chala to 11 synthetic `cli_*` invoices production
+    Rule-46 ledger me ghus gaye. Ab HAR test ke billing stores tmp_path pe redirect —
+    koi bhi test kabhi real `data/` billing files ko touch nahi kar sakta. Tests jo
+    khud _STORE patch karte hain unka setattr baad me lagta hai (unaffected)."""
+    from app.billing import gst_invoice
+    from app.platform import upi_payments
+
+    monkeypatch.setattr(gst_invoice, "_STORE", lambda: str(tmp_path / "_iso_invoices.jsonl"))
+    monkeypatch.setattr(upi_payments, "_STORE", lambda: str(tmp_path / "_iso_upi_payments.json"))
+    yield
+
+
+@pytest.fixture(autouse=True)
+def cleanup_test_files():
+    """Clean up test files after each test"""
+    yield
+    # Clean up test database file if it exists
+    test_db_path = "./test.db"
+    if os.path.exists(test_db_path):
+        try:
+            os.remove(test_db_path)
+        except PermissionError:
+            pass  # File might still be in use
+
+
+@pytest.fixture(scope="session", autouse=True)
+def netguard_session():
+    """
+    Session-scoped fixture that ensures the network guard stays active for
+    the whole test run.  The guard is also installed at import time above,
+    but this fixture re-enables it after any potential disable() call and
+    provides a clean disable on teardown (useful when running a single test
+    interactively where you want real network after the session).
+    """
+    try:
+        from tests._netguard import disable as _ng_disable
+        from tests._netguard import enable as _ng_enable
+
+        _ng_enable()  # idempotent if already active
+        yield
+        _ng_disable()  # restore originals so pytest's own cleanup can work
+    except Exception:
+        yield  # never block pytest teardown
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_state():
+    """Isolate per-IP rate-limit counters between tests (2026-07-18).
+
+    Tests point REDIS_URL at a refused port, so app.cache falls back to a
+    PROCESS-LEVEL InMemoryCache singleton (app.cache._redis_client). Its
+    rl:<scope>:<ip> counters — written by both rate_limit() deps and
+    public_site._rate_check() — accumulate across tests (every TestClient
+    request shares one client IP). After ~10 signup POSTs, later tests got
+    HTTP 429 instead of 422/200 (test_signup_password_hygiene). Clearing ONLY
+    rl:* keys (plus public_site's in-memory fallback lists) keeps rate limiting
+    fully functional WITHIN a test while resetting it BETWEEN tests. Test-only:
+    production limiter behaviour and configuration are unchanged."""
+
+    def _clear():
+        try:
+            import app.cache as _cache
+
+            for _name in ("_redis_client", "_cache_redis_client"):
+                _client = getattr(_cache, _name, None)
+                for _attr in ("_cache", "_expiry"):
+                    _store = getattr(_client, _attr, None)
+                    if isinstance(_store, dict):
+                        for _k in [k for k in list(_store) if str(k).startswith("rl:")]:
+                            _store.pop(_k, None)
+        except Exception:
+            pass
+        try:
+            from app.middleware import RateLimitMiddleware
+
+            node = app.middleware_stack
+            while node is not None:
+                if isinstance(node, RateLimitMiddleware):
+                    node._fallback_counts.clear()
+                node = getattr(node, "app", None)
+        except Exception:
+            pass
+        try:
+            import app.api.public_site as _ps
+
+            for _dn in ("_RL", "_RL_AUDIT"):
+                _d = getattr(_ps, _dn, None)
+                if isinstance(_d, dict):
+                    _d.clear()
+        except Exception:
+            pass
+
+    _clear()
+    yield
