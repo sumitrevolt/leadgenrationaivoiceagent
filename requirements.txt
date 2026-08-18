@@ -5,9 +5,9 @@
 # Core Framework
 # =============================================================================
 fastapi==0.141.1
-uvicorn[standard]==0.52.1
+uvicorn[standard]==0.52.3
 pydantic==2.13.4
-pydantic-core==2.46.4
+pydantic-core==2.48.0
 pydantic-settings==2.15.0
 email-validator==2.3.0
 python-multipart==0.0.32
@@ -15,7 +15,7 @@ python-multipart==0.0.32
 # =============================================================================
 # Database
 # =============================================================================
-sqlalchemy==2.0.51
+sqlalchemy==2.0.52
 asyncpg==0.31.0
 psycopg2-binary==2.9.12
 aiosqlite==0.22.1
@@ -27,12 +27,12 @@ aioredis==2.0.1
 # AI/ML - Cloud-based APIs
 # =============================================================================
 openai==2.41.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) ΓÇö see app/voice_agent/free_ai.py
-anthropic==0.121.0
-# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.3 (langgraph)
+anthropic==0.122.0
+# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.5 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.8.6
-google-genai>=2.17.0  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
-google-cloud-aiplatform==1.163.0
+google-genai>=2.18.1  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-cloud-aiplatform==1.164.0
 
 # =============================================================================
 # Vector RAG (Qdrant + fastembed e5 embeddings ΓÇö KB backend)
@@ -44,7 +44,7 @@ fastembed>=0.4.0
 # Speech Processing
 # =============================================================================
 # STT
-deepgram-sdk==7.6.0
+deepgram-sdk==7.7.0
 google-cloud-speech==2.40.0
 # Local STT for the conversational phone pipeline (app/voice_agent/phone_stream.py
 # + app/telephony/vobiz_stream.py) ΓÇö faster-whisper 'tiny' runs CPU/int8, no API key.
@@ -59,7 +59,7 @@ edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) ΓÇ�
 # =============================================================================
 # Payment Gateways
 # =============================================================================
-stripe>=15.4.0
+stripe>=15.5.0
 # razorpay removed 2026-06-18 ΓÇö no online India gateway (payments via manual UPI)
 
 # =============================================================================
@@ -67,7 +67,7 @@ stripe>=15.4.0
 # =============================================================================
 playwright==1.62.0
 beautifulsoup4==4.15.0
-selenium==4.46.0
+selenium==4.47.0
 googlemaps==4.10.0
 
 # =============================================================================
@@ -144,13 +144,13 @@ scikit-learn>=1.3.2
 # =============================================================================
 # Agent Orchestration (LangGraph supervisor ΓÇö app/agents/)
 # =============================================================================
-langgraph>=1.2.10
+langgraph>=1.2.11
 langgraph-checkpoint-sqlite>=3.1.1
-langchain-core>=1.5.3
+langchain-core>=1.5.5
 # Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) ΓÇö opt-in
 # (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
 langgraph-supervisor>=0.0.27
-langchain-openai>=1.4.2  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+langchain-openai>=1.5.1  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
 # Knowledge-graph RAG (app/voice_agent/graph_rag.py) ΓÇö opt-in USE_LIGHTRAG=1.
 # Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
 # (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep ΓÇö reuses KB + free_ai.)
