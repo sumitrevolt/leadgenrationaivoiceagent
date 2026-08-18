@@ -191,7 +191,7 @@ celery_app.conf.update(
     result_serializer="json",
     # Timezone
     timezone="Asia/Kolkata",
-    enable_utc=True,
+    enable_utc=False,
     # Narrow deploy/restart recovery: if beat is restarted just after a cron
     # boundary, allow only the last 15 minutes of missed cron work to catch up.
     # This prevents a near-slot deploy from silently losing a daily run while
