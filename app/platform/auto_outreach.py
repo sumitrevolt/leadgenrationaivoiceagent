@@ -637,6 +637,10 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         ).strip().lower() not in {"0", "false", "no", "off"}
         _suppressed = _suppressed_email_set()
         _seen_recipients: set[str] = set()
+        # Selection can scan hundreds of historical ready prospects. Per-row file
+        # rewrites for malformed/blank email addresses made staff email_outreach hit
+        # the 600s hard limit; bulk-flush keeps the same dead-marking semantics.
+        _selection_invalid_marks: dict[str, dict[str, Any]] = {}
         for p in _ready_pool:
             if str(p.get("status") or "ready") != "ready":
                 continue
@@ -649,7 +653,17 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             if not _valid_email(email, check_mx=not _skip_sel_mx):
                 result["skipped_no_email"] += 1
                 pid = p.get("id")
-                if pid: prospector.set_prospect_fields(pid, {"status": "dead", "dead_reason": "invalid_email"})
+                if pid:
+                    _selection_invalid_marks[str(pid)] = {
+                        "status": "dead",
+                        "dead_reason": "invalid_email",
+                    }
+                    if len(_selection_invalid_marks) >= 50:
+                        try:
+                            prospector.set_prospect_fields_bulk(_selection_invalid_marks)
+                        except Exception:
+                            pass
+                        _selection_invalid_marks = {}
                 continue
             if _is_suppressed_email(email, _suppressed):
                 result["suppressed"] = result.get("suppressed", 0) + 1
@@ -662,6 +676,13 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             candidates.append(p)
             if len(candidates) >= 500:
                 break  # safety cap — pending_for_outreach jaisa behavior
+
+        if _selection_invalid_marks:
+            try:
+                prospector.set_prospect_fields_bulk(_selection_invalid_marks)
+            except Exception:
+                pass
+            _selection_invalid_marks = {}
 
         try:
             daily_cap = int(getattr(settings, "outreach_daily_cap", 25))
@@ -723,7 +744,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 result["skipped_no_email"] += 1
                 if pid:
                     _pending_marks[pid] = {"status": "dead", "dead_reason": "invalid_mx"}
-                    prospector.set_prospect_fields(pid, {"status": "dead", "dead_reason": "invalid_mx"})
+                    prospector.set_prospect_fields(
+                        pid, {"status": "dead", "dead_reason": "invalid_mx"}
+                    )
                 continue
             try:
                 subject, text, html_body = _email_subject_body(p)

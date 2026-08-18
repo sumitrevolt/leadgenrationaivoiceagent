@@ -85,19 +85,90 @@ def _client_plan(client_id: str) -> str:
 
 
 def resolve_client_id(client_name: str) -> str:
-    """Best-effort client_name -> client_id via clients_store (empty if not found)."""
+    """Best-effort client_name -> billing Client.id (empty if not found).
+
+    BillingRecord.client_id is an FK to SQL `clients.id`, while Product-1
+    ledgers often use JSON marketing-client ids (for example `leadgenai-self`).
+    Prefer SQL ids so minute metering does not create FK failures for own-brand
+    platform calls; fall back to the legacy JSON lookup for older no-DB callers.
+    """
+    name = (client_name or "").strip().lower()
+    if not name:
+        return ""
+    try:
+        from app.models.base import get_db_session
+        from app.models.client import Client
+
+        with get_db_session() as db:
+            # Own-brand/self calls are stored in SQL as id=platform and business_name
+            # "LeadGen AI (self/internal)"; exact name lookup would miss and fall
+            # through to the JSON marketing id leadgenai-self, which violates the
+            # BillingRecord.client_id FK.
+            if name in {"leadgen ai", "leadsgenai", "leadsgen ai"}:
+                rec = db.query(Client).filter(Client.id == "platform").first()
+                if rec and getattr(rec, "id", None):
+                    return str(rec.id)
+            rec = db.query(Client).filter(Client.business_name.ilike(client_name.strip())).first()
+            if not rec:
+                rec = (
+                    db.query(Client)
+                    .filter(Client.business_name.ilike(f"{client_name.strip()}%"))
+                    .first()
+                )
+            if rec and getattr(rec, "id", None):
+                return str(rec.id)
+    except Exception:
+        pass
     try:
         from app.marketing.clients_store import list_clients
 
-        name = (client_name or "").strip().lower()
-        if not name:
-            return ""
         for c in list_clients() or []:
             if str(c.get("business_name") or "").strip().lower() == name:
                 return str(c.get("id") or "")
     except Exception:
         pass
     return ""
+
+
+def _billing_client_id(client_id: str, client_name: str = "") -> str:
+    """Return a SQL `clients.id` suitable for BillingRecord FK, or ''.
+
+    Accepts already-SQL ids, legacy marketing ids with `billing_client_ids`, and
+    client-name lookup. Never raises.
+    """
+    raw = (client_id or "").strip()
+    try:
+        from app.models.base import get_db_session
+        from app.models.client import Client
+
+        with get_db_session() as db:
+            if raw:
+                if db.query(Client.id).filter(Client.id == raw).first():
+                    return raw
+            by_name = resolve_client_id(client_name)
+            if by_name and db.query(Client.id).filter(Client.id == by_name).first():
+                return by_name
+            if raw:
+                try:
+                    from app.marketing.clients_store import resolve_client
+
+                    m = resolve_client(raw) or {}
+                    aliases = m.get("billing_client_ids") or []
+                    if isinstance(aliases, list | tuple | set):
+                        for alias in aliases:
+                            aid = str(alias or "").strip()
+                            if aid and db.query(Client.id).filter(Client.id == aid).first():
+                                return aid
+                    mname = str(m.get("business_name") or "").strip()
+                    if mname:
+                        rec = db.query(Client).filter(Client.business_name.ilike(mname)).first()
+                        if rec and getattr(rec, "id", None):
+                            return str(rec.id)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return raw or resolve_client_id(client_name)
 
 
 def record_call_usage(
@@ -109,7 +180,7 @@ def record_call_usage(
     (H.1). INERT when CUSTOMER_WEBHOOKS unset; NEVER blocks the billing path.
     """
     try:
-        cid = (client_id or "").strip() or resolve_client_id(client_name)
+        cid = _billing_client_id(client_id, client_name)
         if not cid:
             return False
         minutes = max(0, math.ceil(int(duration_seconds or 0) / 60.0))

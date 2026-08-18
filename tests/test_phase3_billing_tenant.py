@@ -30,6 +30,39 @@ def test_record_and_used_are_safe_without_data():
     assert usage.minutes_remaining("no-such-client", plan="advanced") == 500
 
 
+def test_own_brand_call_usage_resolves_sql_platform_client(monkeypatch):
+    class _Query:
+        def __init__(self, model):
+            self.model = model
+            self._mode = ""
+
+        def filter(self, expr):
+            text = str(expr)
+            if "clients.id" in text:
+                self._mode = "id"
+            else:
+                self._mode = "name"
+            return self
+
+        def first(self):
+            if self._mode == "id":
+                return type("ClientRow", (), {"id": "platform"})()
+            return None
+
+    class _DB:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def query(self, model):
+            return _Query(model)
+
+    monkeypatch.setattr("app.models.base.get_db_session", lambda: _DB())
+    assert usage.resolve_client_id("LeadGen AI") == "platform"
+
+
 def test_subdomain_parsing():
     assert tenant._subdomain("agency.leadsgenai.in") == "agency"
     assert tenant._subdomain("leadsgenai.in") == ""

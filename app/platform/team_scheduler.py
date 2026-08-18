@@ -1383,6 +1383,12 @@ async def _run_job_inner(job: str) -> bool:
                     )
                 elif acquire_campaign_lock(ttl_s=max(400, _limit * 8 + 120)):
                     try:
+                        from app.telephony import voice_launch as _vl
+
+                        await _vl.create_voice_session(
+                            owner="platform_dial", niche=_dial_niche, label="auto_daily"
+                        )
+
                         from app.worker import celery_app
 
                         celery_app.send_task(
