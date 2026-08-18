@@ -28,10 +28,15 @@ def test_defaults_when_unset(cc):
     g = cc.get("clientA")
     assert g["configured"] is False
     assert g["cadence"] == "daily"
-    assert g["approval_mode"] == "review"
+    assert g["approval_mode"] == "auto"
     assert g["channels"] == []
     assert set(g["handles"].keys()) == {
-        "instagram", "facebook", "gbp", "youtube", "linkedin", "twitter"
+        "instagram",
+        "facebook",
+        "gbp",
+        "youtube",
+        "linkedin",
+        "twitter",
     }
     assert all(v == "" for v in g["handles"].values())
 
@@ -45,7 +50,7 @@ def test_save_normalizes_and_validates(cc):
         approval_mode="review",
         postiz_integrations=["id1", "id1", " id2 "],  # dedup + trim
     )
-    assert saved["cadence"] == "daily"           # invalid coerced to default
+    assert saved["cadence"] == "daily"  # invalid coerced to default
     assert saved["channels"] == ["instagram", "whatsapp"]
     assert saved["postiz_integrations"] == ["id1", "id2"]
     assert saved["handles"]["youtube"] == "yt.com/@x"
