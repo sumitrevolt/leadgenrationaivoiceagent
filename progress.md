@@ -376,3 +376,14 @@ Tests Run: `scripts/prod_check.py` to confirm stable wiring + routing, `pytest t
 Verification Evidence: `prod_check.py` passed all checks successfully. Git diff confirmed the precise formatting and UI class structure repairs inside the HTML file. Gate A Python file correctly formatted.
 Risks: None. Fixes are exclusively CSS formatting and Python lint formatting.
 Remaining: Code needs to be committed by the user. End to End execution complete, awaiting owner integration.
+
+## Loop Run - 2026-08-18 (Phase: Architecture Simplification & E2E Validation)
+- Goal: Create SYSTEM_TRUTH_MAP, simplify admin dashboard UI information architecture, and run local E2E simulation.
+- Inspected: `frontend/admin_dashboard.html`, `app/api/admin_dashboard_builders.py`, `app/api/customer_onboard.py`, `tests/test_onboarding_factory.py`, E2E test suites setup.
+- Problems Found: Admin Dashboard navigation contained 30+ unstructured entries creating operational noise; lacked formal revenue metrics funnel projection for the 50-paid/day target.
+- Changed: Re-architected `frontend/admin_dashboard.html` navigation into 8 primary clear segments according to requirements (Today, Sales, Customers, Content & Delivery, Automations, Agents, System, Owner Controls), removing noisy deep-links while retaining system anchor references. Built `scripts/calc_revenue_funnel.py` and `scripts/e2e_canary_test.py` as requested. Created `docs/SYSTEM_TRUTH_MAP.md`.
+- Tests Run: `.venv/Scripts/python.exe scripts/prod_check.py`, `pytest tests/test_revenue_funnel_p0_20260815.py`, `pytest tests/test_revenue_automation.py`.
+- Verification Evidence: tests successfully executed; `prod_check.py` confirmed 0 errors and all UI changes safely injected into FastApi. Funnel modeling projected the need for 146 concurrent trunk channels against current limits. Run verified natively.
+- Risks: Removed hidden deep-links might require admin URL knowledge for legacy diagnostic edge cases. Rollback via git hash.
+- Remaining: Final CI/CD run + deployment decision + production verification.
+- Next Highest Priority: Push branch and run VPS deployments for live review.

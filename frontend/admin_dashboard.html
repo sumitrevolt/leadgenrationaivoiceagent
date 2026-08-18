@@ -255,73 +255,45 @@
       <img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="36" height="36" />
       <div><b>LeadGen AI</b><small>Admin Console</small></div>
     </div>
-    <nav class="nav" role="menubar" aria-label="Main menu">
-      <!-- IA 2026-07-09 (ADR-064): 4 mission-aligned groups, 11 core links.
-           Delivery-first: admin landing = Delivery Cockpit. Baaki saare internal links
-           System me collapsed rakhe — kuch bhi delete/break nahi hua. -->
-      <div class="sec nav-group" role="presentation">Delivery</div>
-      <a class="admin-auth-only" href="/app/inbox" id="navHotQueue" role="menuitem" aria-label="Hot Queue 15-minute outreach sprint" style="background:#4f46e5;color:#fff;font-weight:700;margin-bottom:6px"><span class="ic" aria-hidden="true">🔥</span> Hot Queue</a>
-      <a href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit — customer delivery overview"><span class="ic" aria-hidden="true">📦</span> Delivery Cockpit</a>
-      <a class="admin-auth-only" href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
-      <div class="sec nav-group" role="presentation">Automation</div>
-      <a href="/app/owner" role="menuitem" aria-label="Owner Operating System command center"><span class="ic" aria-hidden="true">👑</span> Owner OS</a>
-      <a href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" role="menuitem" aria-label="OpenClaw Owner Copilot — NL commands via Owner OS"><span class="ic" aria-hidden="true">🧠</span> OpenClaw Copilot <span class="badge" id="nav-openclaw-flag" style="background:#64748b;display:none">OFF</span></a>
-      <a href="#creativeOsCard" onclick="scrollToSec('creativeOsCard');return false;" role="menuitem" aria-label="Creative Production cockpit"><span class="ic" aria-hidden="true">🎨</span> Creative Production</a>
-      <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Monitor <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
-      <a href="/app/calendar" role="menuitem" aria-label="Content calendar"><span class="ic" aria-hidden="true">🗓</span> Content Calendar</a>
-      <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
-      <div class="sec nav-group" role="presentation">Customers</div>
+        <nav class="nav" role="menubar" aria-label="Main menu">
+      <div class="sec nav-group" role="presentation">1. Today</div>
+      <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business"><span class="ic" aria-hidden="true">🏠</span> Overview & Performance</a>
+      <a href="#sec-revenue" role="menuitem" aria-label="Revenue analytics"><span class="ic" aria-hidden="true">📈</span> Revenue Analytics</a>
+
+      <div class="sec nav-group" role="presentation">2. Sales</div>
+      <a class="admin-auth-only" href="/app/inbox" id="navHotQueue" role="menuitem" aria-label="Hot Queue 15-minute outreach sprint" style="background:#4f46e5;color:#fff;font-weight:700;"><span class="ic" aria-hidden="true">🔥</span> Hot Queue</a>
+      <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Pipeline & Leads</a>
+      <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">—</span></a>
+      <a href="/app/outreach" role="menuitem" aria-label="WhatsApp / Email Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> WhatsApp / Email Outreach</a>
+
+      <div class="sec nav-group" role="presentation">3. Customers</div>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">—</span></a>
-      <a class="admin-auth-only" href="#manualCallCard" onclick="scrollToSec('manualCallCard');return false;" role="menuitem" aria-label="Call a customer manually"><span class="ic" aria-hidden="true">📞</span> Customer ko Call</a>
-      <a href="/app/clients" role="menuitem" aria-label="Client actions"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
-      <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
-      <div class="sec nav-group" role="presentation">System</div>
-      <a class="active" href="#top" role="menuitem" aria-label="Full admin dashboard"><span class="ic" aria-hidden="true">▦</span> Full Console</a>
+      <a class="admin-auth-only" href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;"><span class="ic" aria-hidden="true">➕</span> Add & Onboard Customer</a>
+      <a href="/app/clients" role="menuitem" aria-label="Client support"><span class="ic" aria-hidden="true">🕵️</span> Health & Support</a>
+
+      <div class="sec nav-group" role="presentation">4. Content & Delivery</div>
+      <a href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit"><span class="ic" aria-hidden="true">📦</span> Full Delivery Cockpit</a>
+      <a href="/app/studio" role="menuitem" aria-label="AI creative studio"><span class="ic" aria-hidden="true">🎨</span> Creative & AI Studio</a>
+      <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings"><span class="ic" aria-hidden="true">🎙</span> Completed Call Recordings</a>
+
+      <div class="sec nav-group" role="presentation">5. Automations</div>
+      <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Control Plane <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
+      <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Rule Approvals</a>
+      <a href="#sec-webcalls" role="menuitem" aria-label="Web test calls"><span class="ic" aria-hidden="true">💬</span> Voice Diagnostics / Sandbox</a>
+
+      <div class="sec nav-group" role="presentation">6. Agents</div>
+      <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">👥</span> AI Workforce Roster <span class="badge" id="nav-ag">—</span></a>
+      <a href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" role="menuitem" aria-label="OpenClaw Owner Copilot"><span class="ic" aria-hidden="true">🧠</span> OpenClaw Copilot <span class="badge" id="nav-openclaw-flag" style="background:#64748b;display:none">OFF</span></a>
+
+      <div class="sec nav-group" role="presentation">7. System</div>
       <a href="/app/control-center" id="navControlCenter" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center <span id="navCcGate" class="badge" style="display:none;background:#64748b">flag OFF</span></a>
-      <a href="/app/team-access" role="menuitem" aria-label="Team RBAC and settings"><span class="ic" aria-hidden="true">🔐</span> Settings</a>
-      <a href="#sec-godmode" onclick="expandAdvTech();expandSystemGroup();return false;" role="menuitem" aria-label="God Mode + all system pages" style="font-size:10px;opacity:.7;margin-top:4px" id="nav-more-system">▼ Show all system pages</a>
-      <div id="nav-system-extra" style="display:none">
-        <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business"><span class="ic" aria-hidden="true">🏠</span> Aaj ka business</a>
-        <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
-        <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
-        <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">—</span></a>
-        <a href="#sec-speed" role="menuitem" aria-label="Speed to lead"><span class="ic" aria-hidden="true">⚡</span> Speed-to-Lead</a>
-        <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
-        <a href="#sec-webcalls" role="menuitem" aria-label="Web test calls"><span class="ic" aria-hidden="true">💬</span> Web Test Calls</a>
-        <a href="/app/whatsapp" role="menuitem" aria-label="WhatsApp campaigns"><span class="ic" aria-hidden="true">💚</span> WhatsApp Campaigns</a>
-        <a href="#sec-revenue" role="menuitem" aria-label="Revenue analytics"><span class="ic" aria-hidden="true">📈</span> Revenue Analytics</a>
-        <a href="#sec-billing" role="menuitem" aria-label="Billing and Revenue"><span class="ic" aria-hidden="true">₹</span> Billing &amp; Revenue</a>
-        <a href="/app/outreach" role="menuitem" aria-label="Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> Outreach</a>
-        <a href="#sec-outreach-activity" role="menuitem" aria-label="Email activity"><span class="ic" aria-hidden="true">📧</span> Email Activity</a>
-        <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
-        <a href="/app/analytics" role="menuitem" aria-label="Analytics dashboard"><span class="ic" aria-hidden="true">📊</span> Analytics</a>
-        <a href="/app/battlecard" role="menuitem" aria-label="Competitive Battlecard"><span class="ic" aria-hidden="true">⚔</span> Competitive Battlecard</a>
-        <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">—</span></a>
-        <a href="#sec-diff" role="menuitem" aria-label="P0 differentiators"><span class="ic" aria-hidden="true">🎯</span> P0 Differentiators</a>
-        <a href="/app/studio" role="menuitem" aria-label="AI creative studio"><span class="ic" aria-hidden="true">🎨</span> AI Studio</a>
-        <a href="/app/deals" role="menuitem" aria-label="Deals pipeline"><span class="ic" aria-hidden="true">🤝</span> Deals Pipeline</a>
-        <a href="/app/segments" role="menuitem" aria-label="Dynamic segments"><span class="ic" aria-hidden="true">🧩</span> Dynamic Segments</a>
-        <a href="/app/growth-tools" role="menuitem" aria-label="Growth tools"><span class="ic" aria-hidden="true">🧰</span> Growth Tools</a>
-        <a href="/app/ops" role="menuitem" aria-label="Ops control"><span class="ic" aria-hidden="true">🛠</span> Ops Control</a>
-        <a href="/app/dashboards" role="menuitem" aria-label="Activation and integrations"><span class="ic" aria-hidden="true">🔌</span> Activation &amp; Integrations</a>
-        <a href="#sec-health" role="menuitem" aria-label="System Health"><span class="ic" aria-hidden="true">◐</span> System Health</a>
-        <a href="#sec-api" role="menuitem" aria-label="API and infra"><span class="ic" aria-hidden="true">🔌</span> API &amp; Infra</a>
-        <a href="/app/brain" role="menuitem" aria-label="Second Brain"><span class="ic" aria-hidden="true">🧠</span> Second Brain</a>
-        <a href="/app/team" role="menuitem" aria-label="AI staff team"><span class="ic" aria-hidden="true">👥</span> AI Staff Team</a>
-        <a href="/app/office" role="menuitem" aria-label="Virtual office"><span class="ic" aria-hidden="true">🏢</span> Virtual Office</a>
-        <a href="/app/explorer" role="menuitem" aria-label="Architecture Explorer"><span class="ic" aria-hidden="true">🗺</span> Architecture Explorer</a>
-        <!-- Master Blueprint (2026-08-07): canonical /api/blueprint graph mode. Feature
-             already shipped inside /app/explorer as a sub-mode toggle, but had NO admin
-             nav entry — so an admin who did not know the ?view=master deep-link could not
-             reach it. Additive link only; the Explorer entry above is untouched. -->
-        <a href="/app/explorer?view=master" role="menuitem" aria-label="Master Blueprint canonical architecture graph"><span class="ic" aria-hidden="true">🏛</span> Master Blueprint</a>
-        <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">—</span></a>
-        <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability &amp; Eval</a>
-        <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
-        <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode</a>
-        <a href="/app/agent-tools" role="menuitem" aria-label="Agent Tools developer"><span class="ic" aria-hidden="true">🛠</span> Agent Tools (Dev)</a>
-        <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
-      </div>
+      <a href="/app/explorer?view=master" role="menuitem" aria-label="Master Blueprint"><span class="ic" aria-hidden="true">🏛</span> Architecture Explorer</a>
+      <a href="#sec-health" role="menuitem" aria-label="System Health"><span class="ic" aria-hidden="true">◐</span> Telemetry & Health</a>
+
+      <div class="sec nav-group" role="presentation">8. Owner Controls</div>
+      <a href="/app/team-access" role="menuitem" aria-label="Team RBAC and settings"><span class="ic" aria-hidden="true">🔐</span> Global Settings</a>
+      <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> Advanced / God Mode</a>
+      <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
     </nav>
     <div class="ao-sb-live" id="sbLiveAgents"><span class="dot"></span>Full Console · daily guide upar</div>
     <div class="sb-foot" aria-label="Logged in admin user">
