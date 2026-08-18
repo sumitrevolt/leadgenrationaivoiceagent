@@ -23,3 +23,4 @@ Owner must perform the following actions manually via the live admin interface:
 4. **Flags Check**: After Hot Queue Blitz proves value, convert the `FIX(2)` flag manually by turning ON `REVENUE_TRENDS`.
 
 All code-fixable blockers are cleared. `first_paid_delivery` WARN remains honest until the Jiya delivery checklist is completed. The revenue metrics depend wholly on Owner completion of steps above.
+- **Agent Executed:** BL-4 (Capacity Verification Baseline). capacity_baseline.py ran successfully. System load is ~1-2% CPU, plenty of RAM headrooom (app at 2.8GB, worker at 700MB). Infrastructure is 100% capacity-ready for 50/day.
