@@ -9,12 +9,13 @@ from app.niches import NICHES, niches_by_target, niches_by_tier
 
 
 class TestNicheRegistry:
-    def test_exactly_39_builtin_niches(self):
+    def test_exactly_51_builtin_niches(self):
         # ADR-009 + niche rebuild (commits 46f3b4d/50ea9a8): curated 39 builtin
-        # niches (S=8, A=14, B=17). Purane 42 me se weak niches removed.
+        # niches (S=8, A=14, B=17) + wizard catalog extension 2026-08 (12 naye
+        # SMB niches; real_estate folded into real_estate_luxury as a builtin) = 51.
         from app.niches import _BUILTIN_KEYS
 
-        assert len(_BUILTIN_KEYS) == 39
+        assert len(_BUILTIN_KEYS) == 51
 
     def test_every_niche_has_required_fields(self):
         required = [
@@ -40,7 +41,7 @@ class TestNicheRegistry:
     def test_tier_and_target_views(self):
         assert len(niches_by_tier("S")) == 8  # S-tier (post niche rebuild)
         total = sum(len(niches_by_tier(t)) for t in ("S", "A", "B"))
-        assert total == 39  # builtin tiers; custom niches tier "C" me hote hain
+        assert total == 51  # builtin tiers; custom niches tier "C" me hote hain
         # b2c view includes 'both'
         b2c = niches_by_target("b2c")
         assert "cloud_kitchen" in b2c and "skin_dermatology" in b2c
@@ -113,7 +114,7 @@ class TestNichesAPI:
         r = client.get("/api/data/niches?target_type=b2c")
         assert r.status_code == 200
         data = r.json()
-        assert 0 < data["count"] <= 42
+        assert 0 < data["count"] <= 51  # wizard catalog extension 2026-08 (was 42)
         for n in data["niches"]:
             assert n["target_type"] in ("b2c", "both")
 

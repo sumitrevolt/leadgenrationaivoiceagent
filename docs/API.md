@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1344 operations)
+## Endpoint Index — auto-generated from OpenAPI (1352 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -536,7 +536,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (37)
+### ClientOps  (38)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -552,6 +552,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/clientops/creative-os/{creative_id}/quarantine` — Creative Os Quarantine
 - `GET   ` `/api/clientops/gsc/overview` — Gsc Overview
 - `GET   ` `/api/clientops/p/{token}` — Proposal Open
+- `GET   ` `/api/clientops/posthog/funnel` — Posthog Funnel Overview
 - `GET   ` `/api/clientops/proposal-views` — Proposal Views
 - `GET   ` `/api/clientops/routing` — Routing Get
 - `POST  ` `/api/clientops/routing` — Routing Set
@@ -1046,7 +1047,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/voice` — Legacy Alias Voice
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (222)
+### Growth  (224)
 
 - `POST  ` `/api/growth/affiliate/kit` — Affiliate Kit
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
@@ -1165,6 +1166,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/partnership/batch` — Partnership Batch
 - `POST  ` `/api/growth/partnership/draft` — Partnership Draft
 - `GET   ` `/api/growth/partnership/types` — Partnership Types
+- `POST  ` `/api/growth/persona/architect` — Build Persona
 - `GET   ` `/api/growth/process/definitions` — Process Definitions
 - `GET   ` `/api/growth/process/run/{run_id}` — Process Run Detail
 - `POST  ` `/api/growth/process/run/{run_id}/approve` — Process Approve
@@ -1258,6 +1260,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/tools/lead-cost` — Tool Lead Cost
 - `POST  ` `/api/growth/tools/missed-call-revenue` — Tool Missed Call
 - `POST  ` `/api/growth/tools/website-audit` — Website Audit Public
+- `POST  ` `/api/growth/triage/classify` — Classify Inbound
 - `GET   ` `/api/growth/upgrader/code-search` — Upgrader Code Search
 - `POST  ` `/api/growth/upgrader/diagnostics` — Upgrader Diagnostics
 - `GET   ` `/api/growth/upgrader/patches` — Upgrader Patches
@@ -1591,6 +1594,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/onboard-pipeline/status` — List Pipelines
 - `GET   ` `/api/admin/onboard-pipeline/status/{cid}` — Get Pipeline Status
 
+### Onboarding Wizard  (4)
+
+- `POST  ` `/api/onboard-wizard/apply` — Apply Wizard Setup
+- `GET   ` `/api/onboard-wizard/business-types` — List Business Types
+- `GET   ` `/api/onboard-wizard/preview/{business_type}` — Preview Template
+- `POST  ` `/api/onboard-wizard/script-preview` — Preview Script
+
 ### Operating HQ  (15)
 
 - `GET   ` `/api/platform/office/agent-os-status` — Office Agent Os Status
@@ -1726,11 +1736,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/privacy/requests/{request_id}/done` — Request Done
 - `POST  ` `/api/privacy/retention/run` — Retention Run
 
-### Public  (8)
+### Public  (9)
 
 - `POST  ` `/api/public/ai-demo` — Ai Demo
 - `GET   ` `/api/public/audit/questions` — Audit Questions
 - `POST  ` `/api/public/audit/score` — Audit Score
+- `GET   ` `/api/public/business-types` — Public Business Types
 - `GET   ` `/api/public/inquiries` — List Inquiries
 - `POST  ` `/api/public/inquiry` — Submit Inquiry
 - `GET   ` `/api/public/pay-info` — Pay Info

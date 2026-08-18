@@ -1009,4 +1009,124 @@ NICHE_KNOWLEDGE: dict[str, dict[str, Any]] = {
             "no_time": "Aap dukaan chalaiye — Google listing, posters aur posts hum sambhalenge.",
         },
     },
+    "tiffin_service": {
+        "facts": [
+            "Tiffin service ka #1 business engine monthly subscription hai — naye customers office/home area ke groups se aate hain.",
+            "Google reviews aur WhatsApp orders se trust banta hai — log 'tiffin near me' ya 'ghar ka khana home delivery' search karte hain.",
+            "Menu ki daily photos aur weekly offers ke posts se existing customers engaged rehte hain (renewals badhte hain).",
+            "Office zones aur housing societies me target karo — ek contract se 5-10 monthly subscriptions ek saath milte hain.",
+            "Hum menu posts, Google reviews aur WhatsApp order flow sab manage karte hain.",
+        ],
+        "benefits": [
+            "Monthly subscriptions consistently badhein",
+            "Google 'tiffin near me' me top dikhna",
+            "WhatsApp orders se direct bookings",
+            "Menu posts se renewals",
+        ],
+        "objections": {
+            "too_expensive": "Ek extra monthly subscription se hi ₹2,999 nikal jaata hai — tiffin business repeat hai, ROI clear hai.",
+            "already_have": "Sirf post karna kaafi nahi — hum reviews, WhatsApp follow-up aur Google listing ka poora system dete hain.",
+            "no_time": "Aap khana aur delivery sambhaliye — posts, listing aur follow-up hum karenge.",
+        },
+    },
+    "gents_salon": {
+        "facts": [
+            "Men's salon/barber shop ke liye Google Business Profile #1 lever hai — 'salon near me' ya 'barber shop near me' searches me dikhna.",
+            "Before-after reels aur beard/haircut styling posts Instagram pe sabse zyada reach laate hain.",
+            "Google reviews se trust badhta hai — aadmi phone pe puchhne se pehle reviews dekh ke aata hai.",
+            "Festival season (Diwali, weddings) aur weekend offers se walk-ins badhte hain — posters zaroori.",
+            "Hum before-after reels, offers, reviews aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Naye walk-in customers 'near me' se",
+            "Before-after reels se direct bookings",
+            "Google reviews se bharosa",
+            "Festival offers se peak footfall",
+        ],
+        "objections": {
+            "too_expensive": "Roz 2-3 extra walk-in customers se ₹2,999 nikal jaata hai — salon me repeat customer hi business hai.",
+            "already_have": "Sirf post karna kaafi nahi — hum review collection + Google ranking ka system dete hain.",
+            "no_time": "Aap clients sambhaliye — reels, posts aur listing hum karenge.",
+        },
+    },
+    "tuition_classes": {
+        "facts": [
+            "Tuition classes ke liye admission season (April-June, Dec-Jan) main window hai — usse pehle visibility ready honi chahiye.",
+            "Google 'tuition near me' / 'maths tuition' searches parents ko admission dilaate hain — listing + reviews zaroori.",
+            "Result posts aur topper photos se trust badhta hai — parents results dekh ke admission karte hain.",
+            "WhatsApp group aur parent reviews se referrals badhte hain — har admission inquiry ka turant follow-up.",
+            "Hum result posts, reviews, Google listing aur inquiry follow-up sab handle karte hain.",
+        ],
+        "benefits": [
+            "Admission season me pehle dikhna",
+            "Result posts se parent trust",
+            "Google 'tuition near me' ranking",
+            "Har inquiry ka turant follow-up",
+        ],
+        "objections": {
+            "too_expensive": "Ek extra student per month se ₹2,999 nikal jaata hai — seats fill hote hi ROI clear hai.",
+            "already_have": "Sirf board pe ad dena kaafi nahi — hum result posts + parent reviews + Google ka system dete hain.",
+            "no_time": "Aap padhane pe focus kijiye — posts, listing aur follow-up hum karenge.",
+        },
+    },
+    "play_school": {
+        "facts": [
+            "Play school ke liye admission season (Nov-Feb nursery/LKG/UKG) main window hai — parents 6 mahine pehle research shuru karte hain.",
+            "Campus photos, activities aur safe-environment posts se parents ka bharosa banta hai.",
+            "Google 'play school near me' / 'nursery school admission' searches se direct admission inquiries aate hain.",
+            "Parent reviews aur testimonials play school ke liye sabse strong trust signal hain.",
+            "Hum campus posts, reviews, Google listing aur admission inquiry follow-up sab handle karte hain.",
+        ],
+        "benefits": [
+            "Admission season se pehle visibility ready",
+            "Campus photos se parent trust",
+            "Google 'play school near me' ranking",
+            "Har parent inquiry ka turant follow-up",
+        ],
+        "objections": {
+            "too_expensive": "Ek extra admission per season se ₹2,999 se zyada nikal jaata hai — parents pehle hi admission karwana chahte hain.",
+            "already_have": "Sirf walk-in boards pe bharosa nahi — hum campus photos + reviews + Google ka system dete hain.",
+            "no_time": "Aap bacchon pe focus kijiye — posts, listing aur inquiries hum sambhalenge.",
+        },
+    },
+    "laundry_dryclean": {
+        "facts": [
+            "Laundry/dryclean ke liye Google Business Profile #1 lever hai — 'laundry near me' aur 'dry cleaning near me' searches me dikhna.",
+            "Home pickup/delivery offers se society aur office-zone customers repeat order karte hain.",
+            "Festival season (Diwali, shaadi) me dry-cleaning demand spike hoti hai — pehle se offers ready hona chahiye.",
+            "Google reviews se trust badhta hai — log door pe jane se pehle reviews dekh ke aate hain.",
+            "Hum home-pickup offers, reviews aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Home-pickup orders consistently badhein",
+            "Google 'laundry near me' me top dikhna",
+            "Festival dry-clean offers se peak demand",
+            "Reviews se naye customers ka bharosa",
+        ],
+        "objections": {
+            "too_expensive": "Ek do home-pickup customers se hi ₹2,999 nikal jaata hai — laundry repeat business hai, ROI clear hai.",
+            "already_have": "Sirf post karna kaafi nahi — hum reviews, offers aur Google listing ka poora system dete hain.",
+            "no_time": "Aap kaam sambhaliye — posts, listing aur follow-up hum karenge.",
+        },
+    },
+    "electronics_repair": {
+        "facts": [
+            "Mobile/electronics repair ke liye Google Business Profile #1 lever hai — 'mobile repair near me' searches me dikhna.",
+            "Doorstep repair aur warranty offers ko highlight karna — log convenience aur trust dono dhoondhte hain.",
+            "Screen/battery repair India me sabse zyada search volume wale repairs hain.",
+            "Google reviews se bharosa banta hai — customer repair se pehle shop ki reputation check karta hai.",
+            "Hum doorstep offers, reviews aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Naye repair customers 'near me' se",
+            "Doorstep service offers se convenience demand",
+            "Google reviews se bharosa",
+            "High-search repairs pe visibility",
+        ],
+        "objections": {
+            "too_expensive": "Ek do extra repairs se hi ₹2,999 nikal jaata hai — repair demand roz ki hai, ROI clear hai.",
+            "already_have": "Sirf post karna kaafi nahi — hum reviews, offers aur Google listing ka poora system dete hain.",
+            "no_time": "Aap repairs sambhaliye — posts, listing aur follow-up hum karenge.",
+        },
+    },
 }

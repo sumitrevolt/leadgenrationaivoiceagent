@@ -599,9 +599,14 @@ class VobizStreamSession:
         voice: str = "hi-IN-SwaraNeural",
         lead_phone: str | None = None,
         crm_lead_id: str | None = None,
+        opening_line: str = "",
     ) -> None:
         self.ws = websocket
         self.niche = (niche or "general").strip() or "general"
+        # Explicit caller-provided opener (audit auto-callback → wizard opening).
+        # Same _flywheel_opening_override slot _resolve_voice_variant use karta hai;
+        # caller intent wins, isliye resolve step ise overwrite nahi karta.
+        self._caller_opening_line: str | None = (opening_line or "").strip() or None
         self.client_id = client_id
         self.client_name = client_name or "Demo Co"
         self.voice_role = "telecaller"
@@ -744,7 +749,7 @@ class VobizStreamSession:
         self._terminate_after_reply: tuple[str, str] | None = None
 
         # Kiran flywheel voice_opening (VOICE_CAMPAIGN_VARIANTS=1)
-        self._flywheel_opening_override: str | None = None
+        self._flywheel_opening_override: str | None = self._caller_opening_line
         self._voice_variant_id: str | None = None
         self._voice_variant_resolved = False
 
@@ -2565,6 +2570,8 @@ class VobizStreamSession:
         if self._voice_variant_resolved:
             return
         self._voice_variant_resolved = True
+        if self._flywheel_opening_override:
+            return  # caller ka opening already hai — flywheel overwrite nahi karega
         try:
             from app.platform import voice_opening_variants as vov
 

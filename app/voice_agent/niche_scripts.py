@@ -42,7 +42,7 @@ from app.voice_agent.niche_scripts_data import (  # noqa: F401  (data extracted 
 # ========================================================================== #
 
 _NICHE_LABELS: dict[str, str] = {
-    "real_estate": "real estate (site visit)",
+    "real_estate_luxury": "real estate (site visit)",
     "solar_residential": "residential solar",
     "solar_commercial": "commercial solar / C&I",
     "studying_abroad": "study abroad counselling",
@@ -76,10 +76,21 @@ _NICHE_LABELS: dict[str, str] = {
     "finance_advisory": "financial advisory / wealth management",
     "edtech_creators": "edtech course creators",
     "cloud_kitchen": "cloud kitchen / tiffin service",
+    "tiffin_service": "tiffin / home-food service",
+    "gents_salon": "men's salon / barber shop",
+    "tuition_classes": "tuition classes (5th-10th / board prep)",
+    "play_school": "play school / preschool (nursery-LKG-UKG)",
+    "salon_spa": "salon / beauty parlour",
+    "gym_fitness": "gym / fitness studio",
+    "boutique_fashion": "boutique / fashion store",
+    "laundry_dryclean": "laundry / dry-clean service",
+    "electronics_repair": "mobile / electronics repair shop",
     "ayurveda_wellness": "Ayurveda & wellness center",
     "event_management": "event management",
     "hardware_paint": "hardware & paint store",
     "ai_marketing": "AI marketing services (B2B, business owners)",
+    "bakery_sweets": "bakery / sweet shop",
+    "jewellery_store": "jewellery store",
     "general": "general sales call",
 }
 

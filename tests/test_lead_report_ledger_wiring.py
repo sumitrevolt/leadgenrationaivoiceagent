@@ -15,6 +15,7 @@ Covers:
     customer's on-demand view endpoint — logging on-demand would count
     customer-initiated page views as if the AI had "delivered" a report.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,7 +27,10 @@ import asyncio
 def _run_hook(rec, monkeypatch, **kw):
     from app.platform import inquiry_hooks
 
-    monkeypatch.setattr("app.platform.sales_qualify.bant_score", lambda rec: {"grade": "C", "total": 50, "action": ""})
+    monkeypatch.setattr(
+        "app.platform.sales_qualify.bant_score",
+        lambda rec: {"grade": "C", "total": 50, "action": ""},
+    )
     monkeypatch.setattr("app.platform.lead_alerts.notify_new_lead_bg", lambda rec: None)
     monkeypatch.setattr("app.platform.team.log_event", lambda *a, **k: None)
 
@@ -43,7 +47,12 @@ def test_lead_captured_logged_for_client_owned_inquiry(monkeypatch):
         "app.marketing.delivery_ledger.log_event",
         lambda cid, event, **k: logged.append((cid, event, k)),
     )
-    rec = {"phone": "9998887777", "niche": "salon", "business_name": "Test Biz", "client_id": "client_abc"}
+    rec = {
+        "phone": "9998887777",
+        "niche": "salon",
+        "business_name": "Test Biz",
+        "client_id": "client_abc",
+    }
     _run_hook(rec, monkeypatch)
 
     matches = [e for e in logged if e[1] == "lead_captured"]
@@ -71,7 +80,12 @@ def test_lead_captured_ledger_failure_does_not_break_hook(monkeypatch):
         raise RuntimeError("ledger down")
 
     monkeypatch.setattr("app.marketing.delivery_ledger.log_event", _boom)
-    rec = {"phone": "9998887777", "niche": "salon", "business_name": "Test Biz", "client_id": "client_abc"}
+    rec = {
+        "phone": "9998887777",
+        "niche": "salon",
+        "business_name": "Test Biz",
+        "client_id": "client_abc",
+    }
     # Must not raise even though the ledger call inside run_after_inquiry blows up.
     _run_hook(rec, monkeypatch)
 
@@ -82,7 +96,14 @@ def test_lead_captured_ledger_failure_does_not_break_hook(monkeypatch):
 def _run_callback(monkeypatch, placed, client_id="client_xyz"):
     import app.api.public_site as ps
 
-    async def _fake_start_stream_call(to, niche="general", client_id=None, call_type="transactional"):
+    async def _fake_start_stream_call(
+        to,
+        niche="general",
+        client_id=None,
+        call_type="transactional",
+        opening_line="",
+        dry_run=False,
+    ):
         return {"placed": placed, "error": None if placed else "no answer"}
 
     monkeypatch.setattr("app.api.telephony_vobiz.start_stream_call", _fake_start_stream_call)
@@ -120,7 +141,14 @@ def test_followup_sent_not_logged_for_platform_lead(monkeypatch):
 def test_followup_sent_ledger_failure_does_not_break_callback(monkeypatch):
     import app.api.public_site as ps
 
-    async def _fake_start_stream_call(to, niche="general", client_id=None, call_type="transactional"):
+    async def _fake_start_stream_call(
+        to,
+        niche="general",
+        client_id=None,
+        call_type="transactional",
+        opening_line="",
+        dry_run=False,
+    ):
         return {"placed": True}
 
     monkeypatch.setattr("app.api.telephony_vobiz.start_stream_call", _fake_start_stream_call)

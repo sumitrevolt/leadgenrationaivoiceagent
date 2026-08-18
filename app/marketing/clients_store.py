@@ -579,6 +579,8 @@ _ALLOWED_FIELDS = {
     "setup_done",  # bool — onboarding complete (idempotency guard for AUTO_ONBOARD sweep)
     "setup_at",  # ISO timestamp — onboarding kab hua
     "crm",  # dict — per-client Zoho/HubSpot config (crm_sync.save_client_config)
+    "wizard_setup",  # dict — onboard wizard: custom opening_line + services/offer/business_type/niche
+    "offer",  # str — wizard/niche offer line (posters + voice copy)
     "website",  # business site URL — AUTO_ONBOARD website→KB seed (audit 2026-07-04: was whitelist-blocked)
     "awaiting_kb_interview",  # bool — no website at onboarding; WhatsApp business-info
     # reply still pending (onboarding.py welcome message + wa selfhost webhook capture)
@@ -632,9 +634,9 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
                 found["setup_done"] = bool(v)  # bool, NOT str("True") — idempotency guard
             elif k == "awaiting_kb_interview":
                 found["awaiting_kb_interview"] = bool(v)
-            elif k == "crm":
-                # per-client CRM config dict — store as-is (generic else would str() it)
-                found["crm"] = dict(v) if isinstance(v, dict) else found.get("crm", {})
+            elif k in ("crm", "wizard_setup"):
+                # per-client config dicts — store as-is (generic else would str() it)
+                found[k] = dict(v) if isinstance(v, dict) else found.get(k, {})
             elif k == "billing_client_ids":
                 vals = v if isinstance(v, list | tuple | set) else []
                 clean = (str(x or "").strip()[:120] for x in vals)

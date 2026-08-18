@@ -58,6 +58,7 @@ a{color:var(--acc)}
     <p class="grade" style="text-align:left;margin-bottom:10px">Number chhodo — humari team aapke score ke hisaab se poora plan WhatsApp/call pe FREE bhejegi.</p>
     <input id="lname" type="text" placeholder="Aapka naam" autocomplete="name">
     <input id="lbiz" type="text" placeholder="Business ka naam" autocomplete="organization" style="margin-top:10px">
+    <select id="ltype" style="margin-top:10px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font:inherit;background:#fff"><option value="">✨ Business type (optional — custom plan milega)</option></select>
     <input id="lphone" type="tel" placeholder="📱 Phone / WhatsApp" autocomplete="tel" style="margin-top:10px">
     <input type="text" id="lhp" name="website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button id="lgo" onclick="sendLead()">📞 Poora plan FREE me lo</button>
@@ -75,6 +76,18 @@ a{color:var(--acc)}
 <script>
 const $=id=>document.getElementById(id);
 let lastAudit={url:'',score:null};
+let BIZ_TYPES=[];
+function selectedBiz(){const sel=$('ltype');if(!sel||!sel.value)return null;for(let i=0;i<BIZ_TYPES.length;i++){if(BIZ_TYPES[i].id===sel.value)return BIZ_TYPES[i]}return null}
+async function loadBizTypes(){
+  try{
+    const res=await fetch('/api/public/business-types');
+    if(!res.ok)return;
+    const data=await res.json();
+    BIZ_TYPES=(data.business_types||[]);
+    const sel=$('ltype');if(!sel)return;
+    BIZ_TYPES.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=(b.emoji?b.emoji+' ':'')+b.label;sel.appendChild(o)});
+  }catch(e){/* dropdown optional */}
+}
 const NAMES={https:'HTTPS (secure)',title:'Page title',meta_description:'Meta description (SEO)',h1:'H1 heading',viewport:'Mobile-friendly tag',phone_visible:'Phone number dikh raha',whatsapp_link:'WhatsApp button',contact_form:'Inquiry form',light_page:'Page speed (weight)'};
 async function run(){
   const u=$('url').value.trim(); if(!u){$('err').textContent='URL daalo';return}
@@ -108,9 +121,12 @@ async function sendLead(){
   $('lgo').disabled=true;$('lgo').textContent='Bhej rahe hain…';$('lmsg').textContent='';
   try{
     const tok=window.turnstileToken?await window.turnstileToken():"";
+    const bt=selectedBiz();
     const res=await fetch('/api/public/inquiry',{method:'POST',headers:{'Content-Type':'application/json','X-Turnstile-Token':tok},body:JSON.stringify({
       name, business_name:biz, phone,
       package:'Free Site Audit Lead',
+      business_type:bt?bt.label:'',
+      niche:bt?bt.niche:'',
       message:(lastAudit.score!==null?('Website audit score: '+lastAudit.score+'/100 — '+lastAudit.url+' (/site-audit)'):'/site-audit page se'),
       website:$('lhp').value||'',
       utm_source:new URLSearchParams(location.search).get('utm_source')||''
@@ -122,6 +138,7 @@ async function sendLead(){
     $('leadCard').innerHTML='<div class="score" style="font-size:2rem">✅</div><h3 style="text-align:center;margin-bottom:6px">Dhanyawad '+safe+'!</h3><p class="grade" style="text-align:center">24 ghante me call aayega — poora fix-list FREE milega. Tab tak <a href="/app/test-call">🎧 AI live demo</a> try karo.</p>';
   }catch(e){$('lmsg').textContent='Kuch problem aayi — dobara try karo ya WhatsApp 💬';$('lgo').disabled=false;$('lgo').textContent='📞 Poora plan FREE me lo'}
 }
+loadBizTypes();
 </script>
 <script src="/site/turnstile.js" defer></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>

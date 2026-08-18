@@ -255,6 +255,8 @@ AUTOMATION_FLAGS = [
     "STUDIO_ENTITLEMENT_GATE",  # customer studio: block expired trials + never-paid signups after 7-day grace — OFF default
     "WHATSAPP_WELCOME",  # send welcome WhatsApp to customer on signup/trial — ON default (consented/transactional; no-op until WA engine armed)
     "POST_CALL_WHATSAPP",  # send WhatsApp trial-link to interested lead after a qualified voice call — ON default (no-op until WA armed)
+    "ONBOARD_WIZARD_APPLY",  # business-type wizard auto-setup apply (salon/clinic/restaurant templates) — OFF default
+    "POST_CALL_SUMMARY",  # AI post-call WhatsApp summary + action items to qualified leads — OFF default (needs WHATSAPP_AUTO_SEND)
     "VOICE_FOLLOWUP",  # trial day8/9 + interested-not-converted transactional voice callbacks — OFF default
     "CODE_UPGRADER",
     "RECORDING_RETENTION",

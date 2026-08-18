@@ -207,8 +207,8 @@ SCENARIOS: list[Scenario] = [
         description="Bill-pain lead, mild price objection, soft defer.",
     ),
     Scenario(
-        "real_estate",
-        "real_estate",
+        "real_estate_luxury",
+        "real_estate_luxury",
         ["haan", "2 BHK dhund raha hoon", "budget thoda kam hai", "site visit kab ho sakta hai"],
         kind="happy",
         goals=("ai_disclosure", "permission", "qualify"),
@@ -230,10 +230,36 @@ SCENARIOS: list[Scenario] = [
         goals=("ai_disclosure", "qualify"),
         description="Self-serving SMB curious about visibility + trial.",
     ),
+    Scenario(
+        "laundry_dryclean",
+        "laundry_dryclean",
+        [
+            "haan boliye",
+            "weekly kapde dhone ka jhanjhat hai, time nahi milta",
+            "home pickup dete ho kya",
+            "thik hai, par abhi soch ke batata hoon",
+        ],
+        kind="happy",
+        goals=("ai_disclosure", "permission", "qualify", "not_pushy"),
+        description="Laundry niche — home-pickup interest then soft defer (must not push).",
+    ),
+    Scenario(
+        "electronics_repair",
+        "electronics_repair",
+        [
+            "haan boliye",
+            "phone ka screen toot gaya hai, repair chahiye",
+            "doorstep service dete ho kya",
+            "accha, kya guarantee milti hai",
+        ],
+        kind="happy",
+        goals=("ai_disclosure", "permission", "qualify", "not_pushy"),
+        description="Electronics-repair niche — screen-repair lead asking doorstep + warranty.",
+    ),
     # ---- adversarial (behavioural) ---------------------------------------- #
     Scenario(
         "polite_soft_no",
-        "real_estate",
+        "real_estate_luxury",
         ["haan boliye", "abhi nahi", "dekhte hain baad me", "nahi bhai zarurat nahi hai"],
         kind="adversarial",
         goals=("not_pushy",),

@@ -445,12 +445,20 @@ async def run_due(limit: int = 20) -> dict[str, Any]:
 
         try:
             from app.api.telephony_vobiz import start_stream_call
+            from app.platform.inquiry_hooks import resolve_wizard_opening
 
             result = await start_stream_call(
                 to=pk,
                 niche=str(rec.get("niche") or "ai_marketing"),
                 client_id=cid or None,
                 call_type="transactional",
+                # Business-type-aware followup (wizard niche + name) — wizard
+                # opening se greet, generic niche script nahi. Resolve fail = ""
+                # → purana niche-script chain (unchanged).
+                opening_line=resolve_wizard_opening(
+                    niche=str(rec.get("niche") or ""),
+                    business_name=str(rec.get("business_name") or ""),
+                ),
             )
             if result.get("placed"):
                 rec["status"] = "placed"

@@ -22,8 +22,11 @@ from app.marketing import voice_packages as VP
 
 # ---------------------------------------------------------------- pricing truth
 def test_flat_band_pricing_is_the_source_of_truth():
-    """Teeno band flat monthly price expose karein (CLAUDE.md §1: 4999/9999/19999)."""
-    assert set(VP.BANDS) == {"A", "B", "C"}
+    """Band flat monthly prices expose karein (CLAUDE.md §1: 4999/9999/19999,
+    + 2026-08: S Starter 1999 · F Freemium 0)."""
+    assert set(VP.BANDS) == {"S", "F", "A", "B", "C"}
+    assert VP.BANDS["S"]["price_month"] == 1_999
+    assert VP.BANDS["F"]["price_month"] == 0
     assert VP.BANDS["A"]["price_month"] == 4_999
     assert VP.BANDS["B"]["price_month"] == 9_999
     assert VP.BANDS["C"]["price_month"] == 19_999

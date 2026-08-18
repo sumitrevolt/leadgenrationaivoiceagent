@@ -189,3 +189,61 @@ async def test_run_due_places_transactional_call(vf_store, monkeypatch):
     assert out["placed"] == 1
     rows = vf._read(str(vf_store))
     assert rows[0]["status"] == "placed"
+
+
+@pytest.mark.asyncio
+async def test_run_due_passes_wizard_opening_for_aware_lead(vf_store, monkeypatch):
+    """Business-type-aware followup (wizard niche + name) → start_stream_call ko
+    wizard opening_line milta hai; generic lead pe "" (fallback intact)."""
+    from app.telephony import voice_followup as vf
+
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    vf._write_all(
+        str(vf_store),
+        [
+            {
+                "id": "rec3",
+                "phone": "919876543210",
+                "client_id": "",
+                "business_name": "Sharma Salon",
+                "purpose": vf.PURPOSE_INTERESTED_1,
+                "scheduled_at": past,
+                "status": "pending",
+                "niche": "salon_spa",
+                "attempts": 0,
+            },
+            {
+                "id": "rec4",
+                "phone": "919876543211",
+                "client_id": "",
+                "business_name": "Generic Co",
+                "purpose": vf.PURPOSE_INTERESTED_1,
+                "scheduled_at": past,
+                "status": "pending",
+                "niche": "ai_marketing",
+                "attempts": 0,
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        "app.telephony.campaign_compliance.trai_window_ok",
+        lambda _t: (True, ""),
+    )
+    monkeypatch.setattr("app.telephony.consent_ledger.is_suppressed", lambda _p: False)
+    monkeypatch.setattr("app.telephony.consent_ledger.reconsent_blocked", lambda _p: False)
+
+    calls: list[dict] = []
+
+    async def _fake_start(**kwargs):
+        calls.append(kwargs)
+        return {"placed": True}
+
+    monkeypatch.setattr("app.api.telephony_vobiz.start_stream_call", _fake_start)
+
+    out = await vf.run_due()
+    assert out["placed"] == 2
+    by_phone = {c["to"]: c.get("opening_line") or "" for c in calls}
+    # wizard niche + name → personalized opening
+    assert "Sharma Salon" in by_phone["919876543210"]
+    # non-wizard niche → "" (niche-script chain)
+    assert by_phone["919876543211"] == ""

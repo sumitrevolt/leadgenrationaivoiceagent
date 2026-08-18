@@ -301,6 +301,7 @@ async def auto_qualify_and_downstream(
     niche: str = "",
     city: str = "",
     ended_at: datetime | None = None,
+    call_duration_s: float = 0.0,
 ) -> dict[str, Any] | None:
     """Post-call qualify + report webhook + billing + CRM/cadence (stream paths)."""
     try:
@@ -381,6 +382,22 @@ async def auto_qualify_and_downstream(
             niche=niche or "",
             city=city or "",
         )
+        # AI post-call summary → WhatsApp (qualified calls only). Gated
+        # POST_CALL_SUMMARY (default OFF) + WHATSAPP_AUTO_SEND. Best-effort.
+        if q.get("qualified"):
+            try:
+                from app.voice_agent.call_summary_formatter import send_post_call_summary
+
+                await send_post_call_summary(
+                    q,
+                    phone=phone or "",
+                    client_name=client_name or "",
+                    niche=niche or "",
+                    call_duration_s=float(call_duration_s or 0.0),
+                    call_id=str(call_id or ""),
+                )
+            except Exception as exc:
+                logger.debug("[post_call] summary send skip: %s", exc)
         return q
     except Exception as e:
         logger.debug("[post_call] auto_qualify skip: %s", e)
@@ -784,6 +801,7 @@ async def finalize_stream_session(
         phone=phone or "",
         niche=niche or "",
         ended_at=ended,
+        call_duration_s=dur,
     )
     # DB-backed call analytics row (mirrors JSONL into the structured call_logs
     # table the analytics dashboard reads). Covers phone_stream cleanup path.

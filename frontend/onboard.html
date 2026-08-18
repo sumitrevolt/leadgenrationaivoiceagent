@@ -69,6 +69,11 @@
         <option value="combo">Both — Marketing + Voice (optional combo)</option>
       </select></div>
       <div><label>Business naam *</label><input type="text" id="b-name" placeholder="Sharma Solar" /></div>
+      <div>
+        <label>Business type (template auto-setup ke liye)</label>
+        <select id="b-btype" onchange="wzBtypeChange()"><option value="">— Select karo (optional) —</option></select>
+        <div id="btype-preview" style="display:none;margin-top:6px;background:#0f1729;border:1px solid #26314d;border-radius:10px;padding:10px;font-size:12.5px"></div>
+      </div>
       <div><label>Niche</label>
         <select id="b-niche" onchange="wzNicheChange()"><option value="general">Loading…</option></select>
         <input id="b-custom-niche" type="text" placeholder="Custom niche naam (e.g. Aquarium Shop)" style="display:none;width:100%;margin-top:5px;padding:6px 10px;border:1px solid #f59e0b;border-radius:6px;font-size:13px" />
@@ -80,6 +85,23 @@
       <div><label>Plan</label><select id="b-plan"></select></div>
     </div>
     <p class="hint" id="b-plan-hint" style="margin:10px 0 0"></p>
+
+    <!-- STEP 1b: services + offer + voice script preview (business type select hone pe dikhe) -->
+    <div id="wz-services-block" style="display:none;margin-top:14px;background:#0f1729;border:1px solid #26314d;border-radius:12px;padding:14px">
+      <h3 style="margin:0 0 6px;font-size:15px">Services + Offer (voice agent ko kya batana hai)</h3>
+      <p class="hint" style="margin:0 0 10px">Yeh details voice agent ke opening aur baat-cheet me use hongi — setup truly done-for-you.</p>
+      <div class="row">
+        <div><label>Services (comma separated)</label><input type="text" id="b-services" placeholder="Haircut, Beard styling, Facial, Bridal makeup" oninput="wzRefreshScript()" /></div>
+        <div><label>Offer / USP (ek line)</label><input type="text" id="b-offer" placeholder="Weekday 20% off — pehli visit" oninput="wzRefreshScript()" /></div>
+      </div>
+      <div id="wz-script-box" style="margin-top:12px">
+        <label style="margin-top:6px">Voice agent opening line (edit kar sakte ho)</label>
+        <textarea id="b-opening" rows="3" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--bord);background:#0b1020;color:var(--ink);font-size:13.5px;resize:vertical" placeholder="Business type select karo — suggested opening yahan aayega..."></textarea>
+        <div class="hint" style="margin:6px 0 0">Niche script discovery questions + closing preview:</div>
+        <div id="b-script-detail" style="font-size:12px;color:#94a3b8;margin-top:4px;line-height:1.7"></div>
+      </div>
+    </div>
+
     <div class="err" id="e1"></div><div class="okmsg" id="o1"></div>
     <div class="nav"><span style="flex:1"></span><button class="btn" id="n1">Client Banao →</button></div>
   </div>
@@ -268,13 +290,103 @@
   (async function(){
     var pe=document.getElementById("b-product"); if(pe) pe.addEventListener("change", wzProductChange);
     var ne=document.getElementById("b-niche"); if(ne) ne.addEventListener("change", wzNicheChange);
+    var op=document.getElementById("b-opening"); if(op) op.addEventListener("input", wzMarkOpeningTouched);
     wzProductChange();                       // turant embedded fallback se populate (API ka wait nahi)
     try{
       var j=await api("GET","/api/data/niches");
       var mapped=((j&&j.niches)||[]).map(function(n){ return {id:n.id, name:n.name, products:(n.products||["marketing","voice"]), band:(n.lead_band||"A")}; });
       if(mapped.length){ WZ_NICHES=mapped; wzProductChange(); }   // API success -> full/fresh list
     }catch(e){ /* fallback already populated — kuch mat karo */ }
+    wzLoadBtypes();                          // business-type catalog (optional; fail pe silent)
   })();
+
+  // ── business-type wizard: catalog load + auto-fill niche + preview ──
+  var WZ_BTYPES=[];
+  var btSel=document.getElementById("b-btype");
+  async function wzLoadBtypes(){
+    try{
+      var j=await api("GET","/api/onboard-wizard/business-types");
+      WZ_BTYPES=(j&&j.business_types)||[];
+      if(!btSel||!WZ_BTYPES.length) return;
+      var html='<option value="">— Select karo (optional) —</option>';
+      WZ_BTYPES.forEach(function(b){ html+='<option value="'+esc(b.id)+'">'+esc(b.emoji+' '+b.label)+'</option>'; });
+      btSel.innerHTML=html;
+    }catch(e){ /* catalog unavailable — business-type optional hai, niche dropdown khud kaam karega */ }
+  }
+  function wzBtypeChange(){
+    if(!btSel) return;
+    var id=btSel.value, prev=document.getElementById("btype-preview");
+    if(!id){ if(prev) prev.style.display="none"; document.getElementById("wz-services-block").style.display="none"; return; }
+    var b=null; for(var i=0;i<WZ_BTYPES.length;i++){ if(WZ_BTYPES[i].id===id){ b=WZ_BTYPES[i]; break; } }
+    if(!b){ if(prev) prev.style.display="none"; return; }
+    // niche auto-fill (agar dropdown me hai)
+    var ne=document.getElementById("b-niche");
+    if(ne){ for(var k=0;k<ne.options.length;k++){ if(ne.options[k].value===b.niche){ ne.selectedIndex=k; break; } } wzNicheChange(); }
+    if(prev){
+      var fields=(b.auto_setup_fields||[]).map(function(f){ return '<div>✓ '+esc(f)+'</div>'; }).join("");
+      prev.innerHTML='<b>'+esc(b.emoji+' '+b.label)+'</b> → niche: <code style="color:#22c55e">'+esc(b.niche)+'</code>'+
+        '<div style="margin-top:6px;color:#94a3b8">Auto-setup (client create pe apply hoga):</div>'+fields+
+        '<div style="margin-top:6px;font-size:11px;color:#64748b">Voice script: '+((b.niche in {real_estate_luxury:1,solar_residential:1,studying_abroad:1,insurance:1,coaching:1,dental_implants:1,restaurant_cafe:1,hospital_appointments:1,skin_dermatology:1,automobile_service:1,travel_agency:1,pharmacy_medical:1,tiffin_service:1,gents_salon:1,tuition_classes:1,play_school:1,salon_spa:1,gym_fitness:1,boutique_fashion:1,laundry_dryclean:1,electronics_repair:1,bakery_sweets:1,jewellery_store:1})?"✅ ready":"→ general fallback")+
+        ' · Knowledge pack: '+((b.niche in {salon_spa:1,gym_fitness:1,boutique_fashion:1,bakery_sweets:1,jewellery_store:1,restaurant_cafe:1,hospital_appointments:1,dental_implants:1,real_estate_luxury:1,automobile_service:1,travel_agency:1,pharmacy_medical:1,tiffin_service:1,gents_salon:1,tuition_classes:1,play_school:1,laundry_dryclean:1,electronics_repair:1})?"✅ ready":"→ general")+'</div>';
+      prev.style.display="";
+    }
+    // services + offer + script preview block dikhao
+    var sb=document.getElementById("wz-services-block");
+    if(sb) sb.style.display="";
+    wzRefreshScript();
+  }
+  // Voice script preview — server se niche opening + suggested line (services/offer aware)
+  var _wzScriptTimer=null;
+  async function wzRefreshScript(){
+    if(!btSel||!btSel.value){ return; }
+    var op=document.getElementById("b-opening");
+    if(op && !op.dataset.touched && !document.getElementById("b-services").value && !document.getElementById("b-offer").value){
+      // pehli baar: server suggested opening se pre-fill (sirf jab user ne edit nahi kiya)
+      try{
+        var j=await api("POST","/api/onboard-wizard/script-preview",{
+          business_type:btSel.value,
+          business_name:(document.getElementById("b-name").value||"").trim(),
+          services:(document.getElementById("b-services").value||"").trim(),
+          offer:(document.getElementById("b-offer").value||"").trim()
+        });
+        if(op && j && j.suggested_opening){ op.value=j.suggested_opening; }
+        var det=document.getElementById("b-script-detail");
+        if(det && j){
+          var qs=(j.discovery||[]).map(function(q){ return '<div>Q: '+esc(q)+'</div>'; }).join("");
+          det.innerHTML=(j.closing?('<div style="margin-top:4px;color:#22c55e">Closing: '+esc(j.closing)+'</div>'):"")+qs;
+        }
+      }catch(e){ /* script preview best-effort */ }
+    } else if(document.getElementById("b-services").value || document.getElementById("b-offer").value){
+      // user ne services/offer likhe — suggested opening refresh (agar opening untouched)
+      if(op && !op.dataset.touched){
+        try{
+          var j2=await api("POST","/api/onboard-wizard/script-preview",{
+            business_type:btSel.value,
+            business_name:(document.getElementById("b-name").value||"").trim(),
+            services:(document.getElementById("b-services").value||"").trim(),
+            offer:(document.getElementById("b-offer").value||"").trim()
+          });
+          if(op && j2 && j2.suggested_opening){ op.value=j2.suggested_opening; }
+        }catch(e){}
+      }
+    }
+  }
+  function wzMarkOpeningTouched(){ var op=document.getElementById("b-opening"); if(op) op.dataset.touched="1"; }
+  async function wzApplyAutoSetup(){
+    if(!btSel||!btSel.value||!state.clientId) return;
+    try{
+      var j=await api("POST","/api/onboard-wizard/apply",{
+        client_id:state.clientId,
+        business_type:btSel.value,
+        business_name:(document.getElementById("b-name").value||"").trim(),
+        services:(document.getElementById("b-services").value||"").trim(),
+        offer:(document.getElementById("b-offer").value||"").trim(),
+        opening_line:(document.getElementById("b-opening").value||"").trim()
+      });
+      var okel=document.getElementById("o1");
+      if(okel && j.ok) okel.textContent=(okel.textContent||"")+" | Auto-setup: "+(j.applied||[]).join(", ");
+    }catch(e){ /* non-fatal — snapshot/knowledge best-effort hai */ }
+  }
 
   // STEP 1: create client — POST /api/clients
   document.getElementById("n1").addEventListener("click", async function(){
@@ -309,6 +421,7 @@
       var c=(j&&j.client)||{};
       state.clientId=c.id||""; state.slug=c.slug||"";
       ok.textContent="Client ban gaya ✓ (id: "+(c.id||"?")+", slug: "+(c.slug||"?")+")";
+      if(state.clientId){ await wzApplyAutoSetup(); }   // business-type auto-setup (best-effort)
       setTimeout(function(){ go(2); }, 600);
     }catch(e){
       if(btn.dataset.failedOnce==="1"){

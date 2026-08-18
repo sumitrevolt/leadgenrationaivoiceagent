@@ -1436,6 +1436,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # ends with a yes/no question. Used by vobiz_stream._opening_line().
     # ------------------------------------------------------------------ #
     def opening_line(self) -> str:
+        # 0) Wizard-set custom opening (done-for-you onboarding) — client record pe
+        #    ``wizard_setup.opening_line`` set hai to wahi use karo. Best-effort;
+        #    lookup fail ho to niche script chain par girao.
+        try:
+            if self.client_id:
+                from app.marketing import clients_store
+
+                _rec = clients_store.get_client(self.client_id) or {}
+                _wz = _rec.get("wizard_setup") or {}
+                _custom = str(_wz.get("opening_line") or "").strip()
+                if _custom:
+                    return _custom
+        except Exception:
+            pass
         # Role-specific opener first (receptionist/booking → custom; telecaller → None).
         try:
             from app.voice_agent.voice_roles import build_role_opening
@@ -3832,6 +3846,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         whitespace, strip habitual fillers (ji/sir/haji), cap to 1–2 COMPLETE
         sentences / ~28 words. Meta/noob phrases => '' (caller uses script_fallback)."""
         t = (text or "").strip()
+        # Some free models emit reasoning blocks (<think>...</think>) before the
+        # real answer — strip them so TTS never speaks chain-of-thought junk
+        # (agent_tester caught literal "<think> Here's a thinking process:..."
+        # on the laundry/electronics-repair scorecard, 2026-08-18).
+        _think_re = re.compile(
+            r"<(?:think|thinking|thought|reasoning)[^>]*>.*?</(?:think|thinking|thought|reasoning)>",
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        t = _think_re.sub(" ", t)
+        # Unclosed variant — cut at the tag, keep only what came before (mirrors
+        # the dangling-parenthesis rule below).
+        m = re.search(r"<(?:think|thinking|thought|reasoning)\b", t, flags=re.IGNORECASE)
+        if m:
+            t = t[: m.start()].strip()
         agent = re.escape(getattr(self, "agent_name", None) or "Swara")
         t = re.sub(rf"^({agent}|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
         # Small models kabhi poora transcript continue kar dete hain ("...kya?

@@ -195,6 +195,8 @@ def _save_lead_db(rec: dict[str, Any]) -> str | None:
                 notes_parts.append(f"City: {rec['city']}")
             if rec.get("niche"):
                 notes_parts.append(f"Niche: {rec['niche']}")
+            if rec.get("business_type"):
+                notes_parts.append(f"Business type: {rec['business_type']}")
             if rec.get("package"):
                 notes_parts.append(f"Package: {rec['package']}")
             if rec.get("source_slug"):
@@ -263,7 +265,14 @@ def _read_jsonl(limit: int = 300) -> list[dict[str, Any]]:
 _BG_TASKS: set = set()
 
 
-async def _auto_callback(phone: str, niche: str, business: str, client_id: str = "") -> None:
+async def _auto_callback(
+    phone: str,
+    niche: str,
+    business: str,
+    client_id: str = "",
+    opening_line: str = "",
+    dry_run: bool = False,
+) -> None:
     """Fire-and-forget: inquiry phone pe conversational AI call try karo.
 
     client_id (2026-07-02): a mini-site inquiry belongs to a specific paying
@@ -277,7 +286,11 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
         from app.api.telephony_vobiz import start_stream_call
 
         result = await start_stream_call(
-            to=phone, niche=niche or "general", client_id=client_id or None
+            to=phone,
+            niche=niche or "general",
+            client_id=client_id or None,
+            opening_line=opening_line or "",
+            dry_run=dry_run,
         )
         result = result or {}
         placed = bool(result.get("placed"))
@@ -296,6 +309,7 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
                     "error": result.get("error"),
                     "stream_token": result.get("stream_token"),
                     "client_id": client_id or "",
+                    "dry_run": bool(dry_run),
                 },
             )
         except Exception:
@@ -304,7 +318,9 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
             logger.info(
                 f"[public] auto-callback not placed for ***{str(phone)[-4:]}: {result.get('error')}"
             )
-        else:
+        elif not dry_run:
+            # Real call hi side-effects deta hai — dry-run smoke business
+            # ledgers (speed_to_lead / delivery) ko pollute nahi karta.
             try:
                 from app.platform.speed_to_lead import log_callback_touch
 
@@ -369,6 +385,9 @@ class InquiryIn(BaseModel):
     phone: str = Field("", max_length=20)
     email: str | None = Field(None, max_length=254)  # optional — sales_autopilot email channel feed
     niche: str | None = Field(None, max_length=60)
+    business_type: str | None = Field(
+        None, max_length=60
+    )  # wizard business-type id/label (audit funnel)
     city: str | None = Field(None, max_length=100)
     message: str | None = Field(None, max_length=1000)
     package: str | None = Field(None, max_length=40)  # Starter/Growth/Advanced (pricing card se)
@@ -439,8 +458,13 @@ async def ai_demo(body: AiDemoIn):
     "/inquiry",
     dependencies=[Depends(rate_limit("inquiry", 15, 60)), Depends(verify_turnstile)],
 )
-async def submit_inquiry(body: InquiryIn, request: Request):
-    """Landing page ka lead form — NO AUTH. Validate → file+DB save → team log."""
+async def submit_inquiry(body: InquiryIn, request: Request, dry_run: bool = False):
+    """Landing page ka lead form — NO AUTH. Validate → file+DB save → team log.
+
+    dry_run=1 (verification smoke only): poora chain chalta hai (store →
+    wizard opening resolve → auto-callback → pending + answer-url) par ASLI
+    Vobiz call nahi lagta. No real call = no cost/no compliance side-effects.
+    """
     # 1) Honeypot: bots hidden "website" field bhar dete hain — ok bolo, ignore karo.
     if (body.website or "").strip():
         return {"ok": True, "message": _OK_MESSAGE}
@@ -497,6 +521,7 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         "phone": phone,
         "email": email,
         "niche": ((body.niche or "").strip()[:50] or None),
+        "business_type": ((body.business_type or "").strip()[:60] or None),
         "city": ((body.city or "").strip()[:100] or None),
         "message": ((body.message or "").strip()[:1000] or None),
         "package": ((body.package or "").strip()[:40] or None),
@@ -525,6 +550,7 @@ async def submit_inquiry(body: InquiryIn, request: Request):
             mini_client_id=mini_client_id,
             utm_source=(body.utm_source or "").strip().lower() or None,
             lead_id=lead_id,
+            dry_run=bool(dry_run),
         )
     except Exception as e:
         logger.debug(f"[public] inquiry funnel hooks skip: {e}")
@@ -1100,6 +1126,32 @@ async def turnstile_config():
     """
     sk = _turnstile_site_key()
     return {"enabled": bool(sk), "site_key": sk}
+
+
+@router.get("/business-types")
+async def public_business_types():
+    """PUBLIC lead-magnet catalog — audit/site-audit forms isse dropdown bharate
+    hain; visitor apna business type select karta hai to inquiry `niche` ke saath
+    aati hai (lead + auto-callback niche-aware). Read-only, no auth — sirf
+    wizard catalog ke labels/niches hain, koi PII nahi."""
+    try:
+        from app.marketing.onboard_wizard import BUSINESS_TYPES
+
+        return {
+            "ok": True,
+            "business_types": [
+                {
+                    "id": b["id"],
+                    "label": b["label"],
+                    "emoji": b.get("emoji", ""),
+                    "niche": b["niche"],
+                }
+                for b in BUSINESS_TYPES
+            ],
+        }
+    except Exception as e:  # pragma: no cover - fail-open: dropdown ke bina form chalta hai
+        logger.warning(f"[public] business-types failed: {e}")
+        return {"ok": True, "business_types": []}
 
 
 @router.get("/audit/questions")
