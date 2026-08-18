@@ -53,7 +53,7 @@ _DEFAULTS: dict[str, Any] = {
     "handles": dict.fromkeys(_HANDLE_KEYS, ""),
     "channels": [],
     "cadence": "daily",  # matches daily content engine; saved handles must not downgrade cadence
-    "approval_mode": "review",  # review | draft | auto (auto = explicit customer consent)
+    "approval_mode": "auto",  # Changed to "auto" natively for SaaS 'set and forget' competitor parity
     "postiz_integrations": [],  # optional/advanced — Postiz channel ids (admin-assisted)
     # Loop-social-19: Step-1 business profile fields — persisted alongside
     # clients_store base profile. Wizard-level source of truth for the
