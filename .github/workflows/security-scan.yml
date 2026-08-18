@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload scan results + SBOM
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: trivy-repo-scan
           path: |
@@ -254,7 +254,7 @@ jobs:
 
       - name: Upload image scan results + SBOM (ref-labelled)
         if: always() && steps.image_needed.outputs.run == '1'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: trivy-image-scan-${{ steps.scan.outputs.scan_ref }}
           path: |
