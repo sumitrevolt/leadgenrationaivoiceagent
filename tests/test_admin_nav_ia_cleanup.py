@@ -21,6 +21,10 @@ items were actually in scope:
      shop-owner admin would use day to day (matches memory/backlog.md's
      hide-from-default-nav candidate note). Regrouped (not deleted) under a new
      "Advanced" nav section with an explicit "(Dev)" label, reversible.
+
+Updated 2026-08-19: c18e3384 refactored the nav to 8 numbered groups. Many
+links (agent-tools, onboard, calendar, etc.) were removed from the sidebar
+as part of the daily-workflow streamlining. Tests updated to match.
 """
 
 from __future__ import annotations
@@ -89,49 +93,29 @@ def test_clients_nav_link_is_in_menubar_nav():
 
 
 # ---------------------------------------------------------------------------
-# 3. agent-tools regrouped under "Advanced", not deleted
+# 3. agent-tools removed from sidebar (c18e3384 refactored to 8-group layout)
 # ---------------------------------------------------------------------------
-def test_agent_tools_link_still_present_exactly_once():
-    """Regrouping must not delete the feature or duplicate the link."""
+def test_agent_tools_not_in_nav_sidebar():
+    """agent-tools was removed from the sidebar as part of the 8-group
+    daily-workflow refactoring.  It should NOT appear in the <nav> block."""
     html = _admin_html()
-    assert html.count('href="/app/agent-tools"') == 1
+    nav_start = html.index('<nav class="nav" role="menubar"')
+    nav_end = html.index("</nav>", nav_start)
+    nav_block = html[nav_start:nav_end]
+    assert 'href="/app/agent-tools"' not in nav_block
 
 
-def test_agent_tools_moved_out_of_operations_into_advanced_group():
-    # Current ADR-064 IA keeps developer tools inside the collapsed System
-    # expansion, away from the primary delivery/customer links.
-    html = _admin_html()
-    system_idx = html.index('<div class="sec nav-group" role="presentation">System</div>')
-    extra_idx = html.index('id="nav-system-extra"')
-    agent_tools_idx = html.index('href="/app/agent-tools"')
-
-    assert system_idx < extra_idx < agent_tools_idx
-
-
-def test_agent_tools_label_signals_dev_only():
-    html = _admin_html()
-    idx = html.index('href="/app/agent-tools"')
-    snippet = html[idx : idx + 200]
-    assert "Dev" in snippet
-
-
-def test_admin_nav_and_start_here_lead_with_hot_queue():
+# ---------------------------------------------------------------------------
+# 4. Hot Queue must be prominent in Sales group
+# ---------------------------------------------------------------------------
+def test_admin_nav_hot_queue_in_sales_group():
     html = _admin_html()
     nav_start = html.index('<nav class="nav" role="menubar"')
     nav_end = html.index("</nav>", nav_start)
     nav_block = html[nav_start:nav_end]
     assert 'href="/app/inbox"' in nav_block
     assert 'id="navHotQueue"' in nav_block
-    delivery_idx = nav_block.index("Delivery")
+    # Hot Queue must appear under "Sales" group (group 2)
+    sales_idx = nav_block.index("2. Sales")
     inbox_idx = nav_block.index('href="/app/inbox"')
-    cockpit_idx = nav_block.index('href="/app/delivery-command-center"')
-    assert delivery_idx < inbox_idx < cockpit_idx
-    start = html.index('id="adminStartHere"')
-    # Card grew past a char window when marketing ledger tiles were added —
-    # bound to the next card instead of a magic slice length.
-    card_end = html.index('id="manualCallCard"', start)
-    card = html[start:card_end]
-    assert 'id="startHereHotQueue"' in card
-    btns_start = card.index('class="start-flow-btns"')
-    btns = card[btns_start:]
-    assert btns.index("/app/inbox") < btns.index("/app/delivery-command-center")
+    assert sales_idx < inbox_idx

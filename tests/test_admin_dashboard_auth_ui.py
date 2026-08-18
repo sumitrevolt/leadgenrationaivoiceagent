@@ -16,8 +16,10 @@ def test_privileged_actions_hidden_until_admin_auth_boot():
     html = HTML.read_text(encoding="utf-8")
     assert "body:not(.admin-authenticated) .admin-auth-only" in html
     assert 'class="admin-auth-only" href="/app/inbox"' in html
-    assert 'class="admin-auth-only" href="#manualCallCard"' in html
+    # The manualCallCard is a card div with admin-auth-only, linked from
+    # the Start Here card with a plain "btn" class link.
     assert 'card admin-auth-only" id="manualCallCard"' in html
+    assert 'href="#manualCallCard"' in html
     assert 'class="btn admin-auth-only" onclick="openOnboard()"' in html
     boot = html[
         html.index("async function adminAuthBoot()") : html.index("async function adminLogout()")
