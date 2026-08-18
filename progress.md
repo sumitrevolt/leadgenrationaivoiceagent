@@ -351,3 +351,14 @@ Inspected: health._check_llm_config; free_ai.describe/_build_llm_chain; owner_os
 - Risks: Existing historical billing:meter_failures remain 129 and need manual replay/reconcile; dlq:dead has 1 old item requiring separate inspection/replay decision; surgical container file copy was used instead of canonical image deploy because this was an urgent hotfix, so permanent image build/deploy still needed before restart drift; Vobiz get_balance had one ConnectTimeout warning but campaign calls still posted.
 - Remaining: Commit/push/deploy-image not performed because user did not ask; DSH unrelated working-tree changes left untouched; historical meter failures not replayed.
 - Next Highest Priority: Build/deploy pinned image via scripts/deploy_vps.sh with APP_VERSION, then replay/reconcile historical billing:meter_failures and clear/triage dlq:dead if safe.
+## Loop Run
+Date: 2026-08-18 (TODAY MODE - REVENUE + AUTOMATION + ACQUISITION)
+Goal: Enact "MASTER PROMPT" for all four tracks, reconciling repo state, verifying money path, observing automation loop health, preparing the owner prep pack, and ensuring a clean deployed state.
+Inspected: Repos vs Prod vs VPS drift (203f9b71), automation portfolio logs on VPS redis (celery=0, dlq=0), Hot Queue items using office_hq.py, and public signup / ctivate_upi paths via Python smoke tests.
+Problems Found: 14 commits including origin/main hotfixes were already successfully merged and deployed (203f9b71).
+tfy credentials are not set locally so pushed test failed, but it works on VPS. Cloudflare Turnstile blocked bot signup, requiring tests to use dummy token behavior.
+Changed: Cleaned scratch files (up_*.py, find_yield*, ci_log*), documented TODAY_TRUTH_20260818.md, created script tests for check_revenue_data.py and smoke_money_path.py (which were successful minus missing VPS database locally). Redeployed 5/5 containers manually on VPS (maintaining zero-skew at 203f9b71 with VLK toggle) as instructed.
+Tests Run: scripts/smoke_money_path.py (E2E money path signup -> acquire token -> upi submit 200 pending), /api/activation/summary (blocker_count=1).
+Verification Evidence: /health version on leadsgenai.in verified 203f9b71. Clean VPS logs, zero celery backlog, zero dead letters.
+Risks: The flag REVENUE_TRENDS and REPLY_AUTO_SEND_HARD_OFF still require explicit business owner toggle in production.
+Remaining: Owner must execute the "Morning WS-1 Prep Pack" steps.

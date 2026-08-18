@@ -571,7 +571,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/clientops/video-ads/{approval_id}/request-changes` — Video Ads Request Changes
 - `POST  ` `/api/clientops/video-production/daily-clear-block` — Video Daily Clear Block
 - `POST  ` `/api/clientops/video-production/daily-run` — Video Daily Run
-- `GET   ` `/api/clientops/video-production/daily-status` — Video Daily Status
+- `GET   ` `/api/clientops/video-production/daily-status` — Video Production Daily Status
 - `POST  ` `/api/clientops/video-production/generate` — Video Production Generate
 - `GET   ` `/api/clientops/video-production/ops` — Video Production Ops
 - `POST  ` `/api/clientops/video-production/{video_ad_id}/approve` — Video Production Approve
