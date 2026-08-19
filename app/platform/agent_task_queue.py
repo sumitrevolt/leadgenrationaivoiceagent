@@ -162,6 +162,7 @@ async def assign(
             db.commit()
 
         _log_event(agent_id, "task_assigned", f"📋 {goal[:100]}")
+        _bridge_on_assign(agent_id, goal, task_id, delegated_by=delegated_by, client_id=client_id)
         return {"ok": True, "id": task_id, "agent_id": agent_id, "goal": goal}
     except Exception as e:
         logger.warning(f"[atq] assign failed: {e}")
@@ -237,6 +238,7 @@ async def claim_next(agent_id: str) -> dict[str, Any] | None:
                 return None  # someone else claimed it
 
             _log_event(key, "task_claimed", f"🔒 {task.goal[:80]}")
+            _bridge_on_claimed(key, task.goal, task.id)
             return {
                 "id": task.id,
                 "agent_id": key,
@@ -320,6 +322,7 @@ async def complete(
             if tokens_in or tokens_out or cost_usd:
                 _rollup_cost_to_parent(db, task_id, tokens_in, tokens_out, cost_usd)
 
+        _bridge_on_complete(task_id, result)
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -344,6 +347,7 @@ async def fail(task_id: str, error: str = "") -> dict[str, Any]:
                 synchronize_session=False,
             )
             db.commit()
+        _bridge_on_fail(task_id, error)
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -839,5 +843,84 @@ def _log_event(member: str, action: str, detail: str) -> None:
         from app.platform import team
 
         team.log_event(member, action, detail)
+    except Exception:
+        pass
+
+
+# --------------------------------------------------------------------------- #
+# Staff Bus task bridge — publish events so the live SSE stream and OpenClaw
+# coordination plane see real work flowing.  Fail-open: bus errors never block
+# a task state transition.
+# --------------------------------------------------------------------------- #
+
+
+def _bridge_on_assign(
+    agent_id: str,
+    goal: str,
+    task_id: str,
+    *,
+    delegated_by: str = "human",
+    client_id: str | None = None,
+) -> None:
+    try:
+        from app.platform.staff_bus.task_bridge import on_task_assigned
+
+        on_task_assigned(
+            agent_id,
+            goal,
+            task_id,
+            delegated_by=delegated_by,
+            client_id=client_id,
+        )
+    except Exception:
+        pass
+
+
+def _bridge_on_claimed(agent_id: str, goal: str, task_id: str) -> None:
+    try:
+        from app.platform.staff_bus.task_bridge import on_task_accepted
+
+        on_task_accepted(agent_id, goal, task_id)
+    except Exception:
+        pass
+
+
+def _bridge_on_complete(task_id: str, result: str) -> None:
+    try:
+        from app.platform.staff_bus.task_bridge import on_task_completed
+
+        # Resolve agent_id with a lightweight query (fail-open).
+        _aid = ""
+        try:
+            from app.models.agent_task import AgentTask
+            from app.models.base import get_db_session
+
+            with get_db_session() as db:
+                row = db.query(AgentTask.agent_id).filter(AgentTask.id == task_id).first()
+                if row:
+                    _aid = row.agent_id
+        except Exception:
+            pass
+        on_task_completed(_aid or "unknown", task_id, result=result)
+    except Exception:
+        pass
+
+
+def _bridge_on_fail(task_id: str, error: str) -> None:
+    try:
+        from app.platform.staff_bus.task_bridge import on_task_failed
+
+        _aid = ""
+        try:
+            from app.models.agent_task import AgentTask
+            from app.models.base import get_db_session
+
+            with get_db_session() as db:
+                row = db.query(AgentTask.agent_id).filter(AgentTask.id == task_id).first()
+                if row:
+                    _aid = row.agent_id
+        except Exception:
+            pass
+        on_task_failed(_aid or "unknown", task_id, error=error)
     except Exception:
         pass
