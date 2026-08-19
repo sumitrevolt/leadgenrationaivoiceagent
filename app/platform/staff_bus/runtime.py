@@ -21,6 +21,7 @@ _LOCK = threading.Lock()
 _SEEN: set[str] = set()
 _RATE: dict[str, list[float]] = {}
 _RATE_LIMIT_PER_MIN = int((os.getenv("STAFF_BUS_RATE_LIMIT_PER_MIN") or "600").strip() or "600")
+_REDIS_CHANNEL = "lgai:events"
 
 
 def enabled() -> bool:
@@ -97,6 +98,35 @@ def _rate_ok(tenant_id: str) -> bool:
         return False
     _RATE[tenant_id].append(now)
     return True
+
+
+def _publish_to_redis(signed: dict[str, Any]) -> None:
+    """Bridge Staff Bus events to Redis pub/sub for live SSE stream.
+
+    Fail-open: if Redis is unreachable, JSONL append already succeeded.
+    Uses sync redis client (Staff Bus publish() is not async).
+    Channel: lgai:events (same as app/api/events.py SSE endpoint).
+    """
+    try:
+        import redis as sync_redis
+
+        from app.config import settings
+
+        url = getattr(settings, "redis_url", None) or os.environ.get(
+            "REDIS_URL", "redis://127.0.0.1:6379/0"
+        )
+        r = sync_redis.from_url(
+            url,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_timeout=2,
+            socket_connect_timeout=2,
+        )
+        payload = json.dumps(signed, ensure_ascii=False, default=str)
+        r.publish(_REDIS_CHANNEL, payload)
+        r.close()
+    except Exception as exc:
+        logger.debug("staff_bus redis publish skip: %s", exc)
 
 
 class StaffBus:
@@ -212,6 +242,8 @@ class StaffBus:
                     "correlation_id": signed.get("correlation_id"),
                 },
             )
+        # Bridge to Redis pub/sub for live SSE stream (fail-open).
+        _publish_to_redis(signed)
         return {"ok": True, "event": signed}
 
     def _dlq(self, reason: str, detail: dict[str, Any]) -> dict[str, Any]:
