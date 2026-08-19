@@ -47,6 +47,7 @@ _DUE_AFTER_IST: dict[str, tuple[int, int]] = {
     "blog": (6, 30),
     "content": (7, 0),
     "standup": (8, 0),
+    "daily_owner_brief": (8, 10),
     "hot_queue_brief": (8, 15),
     "digest": (8, 30),
     "readiness_digest": (8, 30),
@@ -289,6 +290,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "content_approval_sweep": {
         "label": "Orphan approval sweep (subah 4:30)",
         "kya": "Dead-client pending approvals ko expire mark karta hai — dry_run default, live tabhi jab CONTENT_APPROVAL_SWEEP_LIVE",
+    },
+    "daily_owner_brief": {
+        "label": "Owner brief + ntfy push (subah 8:10)",
+        "kya": "P0/P1 exceptions pe owner ko ntfy push — gated DAILY_OWNER_BRIEF_NTFY. data/daily_owner_brief.txt hamesha save hota hai",
     },
 }
 

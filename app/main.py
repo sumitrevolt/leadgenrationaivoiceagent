@@ -813,6 +813,13 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Control Center router not mounted: {_e}")
 try:
+    from app.api.owner_brief import router as owner_brief_router
+
+    # /api/admin/owner-brief — single-call owner operational intelligence.
+    app.include_router(owner_brief_router, prefix="/api", tags=["Owner Brief"])
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Owner Brief router not mounted: {_e}")
+try:
     from app.api.agent_memory_admin import router as _agent_memory_admin_router
 
     # /api/agent-memory/* — operator inspect + DPDP-compliant purge (F.4).

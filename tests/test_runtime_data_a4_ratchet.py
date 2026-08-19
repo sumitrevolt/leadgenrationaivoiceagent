@@ -75,6 +75,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data": "parent mkdir for trainer suggestions (not content.queue)",
         "data/inquiries.jsonl": "digest inquiry count (not content.queue)",
         "data/daily_digest.txt": "ops digest artifact (not content.queue)",
+        "data/daily_owner_brief.txt": "ops owner brief artifact (not content.queue)",
     },
 }
 

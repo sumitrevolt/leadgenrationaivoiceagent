@@ -133,6 +133,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data": "parent mkdir for trainer suggestions",
         "data/content_feedback.jsonl": "ops rotation list (not A9)",
         "data/daily_digest.txt": "ops digest artifact (not A9)",
+        "data/daily_owner_brief.txt": "ops owner brief artifact (not A9)",
         "data/inquiries.jsonl": "digest inquiry count (not A9)",
         "data/reply_drafts.jsonl": "ops rotation list (not A9)",
         "data/self_improve_runs.jsonl": "ops rotation list (not A9)",

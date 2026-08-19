@@ -151,6 +151,7 @@ STAFF_JOBS = (
     "hq_auto_chase",  # hourly :28 unactioned inquiry cards -> EMAIL follow-up (gated HQ_AUTO_CHASE; INERT off)
     "reply_auto_send",  # hourly :30 safe known-prospect auto-reply (gated REPLY_AUTO_SEND; INERT off)
     "content_approval_sweep",  # daily 04:30 orphaned-pending retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
+    "daily_owner_brief",  # daily 08:10 IST owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY; INERT off)
 )
 
 

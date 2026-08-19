@@ -956,6 +956,136 @@ async def run_digest() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# OWNER BRIEF — daily autonomous morning ntfy push when blockers/exceptions found
+# --------------------------------------------------------------------------- #
+async def run_daily_owner_brief() -> dict[str, Any]:
+    """Roz subah owner-brief build karo. Agar P0/P1 exceptions ya pending owner
+    decisions ho to ntfy push karo. Gated DAILY_OWNER_BRIEF_NTFY (default OFF).
+    KABHI raise nahi."""
+    try:
+        from app.api.owner_brief import _build_owner_brief
+
+        brief = _build_owner_brief()
+        status = brief.get("status", "green")
+        exceptions = brief.get("exceptions") or []
+        next_actions = brief.get("next_actions") or []
+        revenue = brief.get("revenue") or {}
+        automation = brief.get("automation") or {}
+        customers = brief.get("customers") or {}
+
+        # Classify: push only when P0/P1 exist OR status is not green
+        p0 = sum(1 for e in exceptions if e.get("severity") == "p0")
+        p1 = sum(1 for e in exceptions if e.get("severity") == "p1")
+        push_urgent = p0 > 0 or p1 > 0
+        push_always = os.getenv("DAILY_OWNER_BRIEF_NTFY", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+            "always",
+        )
+        if not push_urgent and not push_always:
+            return {
+                "ok": True,
+                "status": status,
+                "exceptions": len(exceptions),
+                "ntfy": "skipped",
+                "reason": "no_p0_p1_and_not_always",
+            }
+
+        # Build Hinglish ntfy message
+        lines: list[str] = []
+        lines.append(f"📊 Owner Brief — {status.upper()}")
+        lines.append(
+            f"MRR ₹{revenue.get('mrr', 0)} | Paid {revenue.get('paid_customers', 0)} | "
+            f"Pending UPI {revenue.get('pending_payments', 0)}"
+        )
+        lines.append(
+            f"Jobs {automation.get('jobs_ok', 0)}/{automation.get('jobs_total', 0)} ok | "
+            f"Overdue {automation.get('jobs_overdue', 0)} | DLQ {automation.get('dlq_depth', 0)}"
+        )
+        lines.append(
+            f"Customers: {customers.get('total', 0)} total | "
+            f"{customers.get('at_risk', 0)} at-risk | "
+            f"{customers.get('pending_approvals', 0)} approvals pending"
+        )
+        if exceptions:
+            lines.append("")
+            lines.append("🔴 Exceptions:")
+            for e in exceptions[:5]:
+                sev = (e.get("severity") or "?").upper()
+                lines.append(f"  [{sev}] {e.get('label', '')}")
+        if next_actions:
+            lines.append("")
+            lines.append("👉 Next:")
+            for a in next_actions[:3]:
+                lines.append(f"  P{a.get('priority', '?')}: {a.get('action', '')}")
+        text = "\n".join(lines)
+
+        # Persist to data/daily_owner_brief.txt (best-effort)
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open("data/daily_owner_brief.txt", "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+        except Exception:
+            pass
+
+        # Log event
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "manager",
+                "daily_owner_brief",
+                text[:200],
+                meta={
+                    "status": status,
+                    "exceptions": len(exceptions),
+                    "p0": p0,
+                    "p1": p1,
+                    "next_actions": len(next_actions),
+                },
+            )
+        except Exception:
+            pass
+
+        # ntfy push (P0 = urgent, P1 = high, else = default)
+        try:
+            from app.integrations import ntfy as _ntfy_mod
+
+            if _ntfy_mod.enabled():
+                priority = "urgent" if p0 > 0 else "high"
+                tags = ["rotating_light"] if p0 > 0 else ["memo", "chart_with_upwards_trend"]
+                await _ntfy_mod.push(
+                    f"🎯 Owner Brief — {status.upper()}",
+                    text,
+                    priority=priority,
+                    tags=tags,
+                )
+                return {
+                    "ok": True,
+                    "status": status,
+                    "exceptions": len(exceptions),
+                    "ntfy": "pushed",
+                    "p0": p0,
+                    "p1": p1,
+                }
+        except Exception as e:
+            logger.debug(f"[staff] daily_owner_brief: ntfy push failed: {e}")
+
+        return {
+            "ok": True,
+            "status": status,
+            "exceptions": len(exceptions),
+            "ntfy": "disabled",
+        }
+    except Exception as e:
+        logger.warning(f"[staff] run_daily_owner_brief failed: {e}")
+        _staff_job_failed("daily_owner_brief", str(e))
+        return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
 # isha — per-client auto social-media content (run_daily_content wrapper)
 # --------------------------------------------------------------------------- #
 async def run_content() -> dict[str, Any]:

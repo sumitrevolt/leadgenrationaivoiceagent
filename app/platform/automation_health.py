@@ -109,6 +109,8 @@ EXPECTED_GAP_MIN = {
     "hq_auto_chase": 180,  # hourly :28 Hot Queue EMAIL chase (gated HQ_AUTO_CHASE); 3h grace
     "reply_auto_send": 180,  # hourly :30 known-prospect auto-reply (gated REPLY_AUTO_SEND); 3h grace
     "content_approval_sweep": 30 * 60,  # daily 04:30 orphaned-pending retirement (dry_run default)
+    "daily_owner_brief": 30
+    * 60,  # daily 08:10 owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
 }
 
 
