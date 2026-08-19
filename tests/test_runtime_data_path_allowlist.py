@@ -139,7 +139,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # owner-notified claim). CLASSIFIED, not tolerated — baseline unchanged.
     # 2026-08-16 +8 entries / +6 families: marketing appointment/health/drips/
     # forms/proposals/review JSONL (INERT flags; classified, not tolerated).
-    assert len(entries) == 70
+    assert len(entries) == 71
     assert len(families) == 24, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}

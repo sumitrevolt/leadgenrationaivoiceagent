@@ -1164,6 +1164,24 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Bounded DLQ; no auto-replay to customer outbound channels.",
     },
+    {
+        "allowlist_id": "platform.staff_bus.agent_poll.events",
+        "file": "app/platform/staff_bus/agent_poll.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/staff_bus/events.jsonl",
+        "store_id": "platform.staff_bus",
+        "access_modes": ["READ"],
+        "reason": (
+            "AgentPoller reads bus events.jsonl to discover task.assigned events "
+            "targeting a specific agent. Same store as platform.staff_bus.events; "
+            "read-only — never writes or mutates the event ledger."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Read-only; bounded scan (last 500 lines); no side effects.",
+    },
     # --- Marketing feature JSONL (2026-08-16; INERT flags, classified not tolerated)
     {
         "allowlist_id": "marketing.appointment_reminders.store",
