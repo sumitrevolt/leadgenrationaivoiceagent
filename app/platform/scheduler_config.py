@@ -231,6 +231,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 04:30",
         "owner": "platform",
     },
+    "daily_owner_brief": {
+        "label": "Owner brief + ntfy push (P0/P1 blockers)",
+        "cadence": "daily 08:10",
+        "owner": "platform",
+    },
 }
 
 

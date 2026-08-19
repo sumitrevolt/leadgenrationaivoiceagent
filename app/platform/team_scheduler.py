@@ -217,6 +217,7 @@ _last_ran: dict[str, str | None] = {
     "hq_auto_chase": None,  # hourly: unactioned inquiry cards -> automated EMAIL follow-up (gated HQ_AUTO_CHASE; INERT off)
     "reply_auto_send": None,  # hourly :30: safe known-prospect auto-reply sweep (gated REPLY_AUTO_SEND; INERT off)
     "content_approval_sweep": None,  # daily 04:30: orphaned-pending approval retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
+    "daily_owner_brief": None,  # daily 08:10: owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
 }
 
 
@@ -1523,6 +1524,10 @@ async def _run_job_inner(job: str) -> bool:
                 "yes",
             )
             await asyncio.to_thread(_ca.retire_orphaned_pending, dry_run=not live)
+        elif job == "daily_owner_brief":
+            from app.agents import staff as _staff
+
+            return await _staff.run_daily_owner_brief()
         elif job == "social_drain":
             from app.social_engine import engine as _social_engine
 
@@ -1833,6 +1838,10 @@ async def scheduler_loop() -> None:
             if (4, 30) <= hm < (5, 30) and _last_ran.get("content_approval_sweep") != day_key:
                 _last_ran["content_approval_sweep"] = day_key
                 await _run_job("content_approval_sweep")
+            # Daily owner brief + ntfy push — 08:10 IST (gated DAILY_OWNER_BRIEF_NTFY).
+            if (8, 10) <= hm < (9, 10) and _last_ran.get("daily_owner_brief") != day_key:
+                _last_ran["daily_owner_brief"] = day_key
+                await _run_job("daily_owner_brief")
             # Expired agent-task lease reclaim — hourly :05 (INERT unless AGENT_TASK_LEASE_REAP=1).
             if now.minute >= 5 and _last_ran.get("task_lease_reap") != hour_key:
                 _last_ran["task_lease_reap"] = hour_key

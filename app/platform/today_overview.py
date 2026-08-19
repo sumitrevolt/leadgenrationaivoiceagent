@@ -47,6 +47,7 @@ _DUE_AFTER_IST: dict[str, tuple[int, int]] = {
     "blog": (6, 30),
     "content": (7, 0),
     "standup": (8, 0),
+    "daily_owner_brief": (8, 10),
     "hot_queue_brief": (8, 15),
     "digest": (8, 30),
     "readiness_digest": (8, 30),

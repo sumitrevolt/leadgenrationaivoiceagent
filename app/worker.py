@@ -759,6 +759,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=4, minute=30),
         "args": ("content_approval_sweep",),
     },
+    # Daily owner brief + ntfy push (08:10 IST). Gated DAILY_OWNER_BRIEF_NTFY.
+    # Pushes P0/P1 exceptions to owner phone; always saves data/daily_owner_brief.txt.
+    "staff-daily-owner-brief": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=8, minute=10),
+        "args": ("daily_owner_brief",),
+    },
     # Expired agent-task lease close-out (ADR-150). MUST be here, not only in the
     # in-process scheduler_loop: production runs `celery -A app.worker beat` with
     # RUN_IN_PROCESS_SCHEDULER=0, so an in-process-only job is DEAD in prod — the
