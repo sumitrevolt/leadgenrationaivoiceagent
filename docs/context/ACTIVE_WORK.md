@@ -2,11 +2,11 @@
 
 ---
 
-## WS-GTM1 Hot Queue → 2nd paid (CURSOR LANE B)
+## WS-GTM1 Hot Queue → 2nd paid (REVISED 2026-08-19)
 - **ID:** WS-GTM1
 - **Business outcome:** 2nd paying Marketing customer this week via Hot Queue outreach execution
-- **Current state:** LIVE on `520e90eb` (DIRECT_HOST_VERIFIED 2026-08-16 01:00Z–01:18Z, timestamps advanced). `payments_ready=true` · `blocker_count=1` · `ready_for_first_paid_customer=false`. Admin scorecard now surfaces UPI owner-queue + next-best from totals (uncommitted Cursor slice). **Technical money path = GO; REVENUE GENERATED = WAIT** until owner-confirmed UPI bank credit. Authenticated `/api/activation/readiness` still 401 from this shell. `HQ_AUTO_CHASE` remains INERT — do not arm.
-- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm. Code cannot fake bank credit.
+- **Current state:** Prod `28ba5d4e` (DIRECT_HOST_VERIFIED 2026-08-19 13:23Z). `blocker_count=0` · `ready_for_first_paid_customer=true` · `payments_ready=true`. Technical money path = GO. REVENUE GENERATED = WAIT (owner-confirmed UPI bank credit required). SESSION_HANDOFF 2026-08-17 claimed 2nd paid via synthetic Test Hotel Spa bind — UNVERIFIED from this session.
+- **Next exact action:** Owner authenticated `/app/inbox` 15–30 min + UPI Bind/Re-Approve + bank confirm.
 - **Out of scope:** Flag arm · cold WA auto · ads (see WS-REV50)
 
 ---

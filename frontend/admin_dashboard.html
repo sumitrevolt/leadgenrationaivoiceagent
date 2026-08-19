@@ -438,6 +438,109 @@
         </div>
       </div>
 
+      <!-- ═══ Owner Brief — unified operational intelligence (P0–P3 exceptions + next actions) ═══ -->
+      <div class="card admin-auth-only" id="ownerBriefCard" style="margin-bottom:14px;border:1px solid #e2e8f0;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+          <h3 style="font-size:16px;letter-spacing:-.3px;color:#0f172a;margin:0">🎯 Owner Brief</h3>
+          <span id="obStatusBadge" style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#64748b;color:#fff">loading…</span>
+          <button class="btn" onclick="loadOwnerBrief()" style="background:#e2e8f0;color:#334155;border:0;margin-left:auto;padding:4px 10px;font-size:11px">↻</button>
+        </div>
+        <div class="bd" id="obBody" style="color:#0f172a;min-height:60px">
+          <div style="color:#64748b;font-size:13px;padding:10px">Loading operational brief…</div>
+        </div>
+      </div>
+      <script>
+      (function(){
+        var _loaded = false;
+        function $(id){ return document.getElementById(id); }
+        function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+        function abAuthHdr(){
+          var t=localStorage.getItem('accessToken')||localStorage.getItem('adminToken')||'';
+          return t?{'Authorization':'Bearer '+t,'Content-Type':'application/json'}:{'Content-Type':'application/json'};
+        }
+        function severityColor(s){
+          return {'p0':'#dc2626','p1':'#ea580c','p2':'#d97706','p3':'#2563eb','info':'#64748b'}[s]||'#64748b';
+        }
+        function severityBg(s){
+          return {'p0':'#fef2f2','p1':'#fff7ed','p2':'#fffbeb','p3':'#eff6ff','info':'#f8fafc'}[s]||'#f8fafc';
+        }
+        function statusMeta(s){
+          return {'green':{bg:'#dcfce7',fg:'#166534',label:'✅ ALL CLEAR'},'amber':{bg:'#fef3c7',fg:'#92400e',label:'⚠️ ATTENTION'},'red':{bg:'#fef2f2',fg:'#991b1b',label:'🔴 ACTION NEEDED'}}[s]||{bg:'#f1f5f9',fg:'#64748b',label:'—'};
+        }
+        window.loadOwnerBrief = async function(){
+          var body = $('obBody'); var badge = $('obStatusBadge');
+          try{
+            var r = await fetch('/api/admin/owner-brief', {headers:abAuthHdr(), cache:'no-store'});
+            if(!r.ok){
+              if(body) body.innerHTML = '<div style="padding:10px;color:#b45309;font-size:13px">⚠️ Owner brief load nahi hua (status '+r.status+'). <a href="/app/admin-login" style="color:#4f46e5">Login →</a></div>';
+              return;
+            }
+            var d = await r.json();
+            if(d.ok !== true) return;
+            // Status badge
+            var sm = statusMeta(d.status);
+            if(badge){
+              badge.textContent = sm.label;
+              badge.style.background = sm.bg;
+              badge.style.color = sm.fg;
+            }
+            // Build HTML
+            var html = '';
+            // Revenue row
+            var rev = d.revenue || {};
+            html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;text-align:center"><div style="font-size:18px;font-weight:800;color:#166534">₹'+(rev.mrr||0)+'</div><div style="font-size:10px;color:#64748b">MRR</div></div>';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;text-align:center"><div style="font-size:18px;font-weight:800;color:#166534">'+(rev.paid_customers||0)+'</div><div style="font-size:10px;color:#64748b">Paid Customers</div></div>';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;text-align:center"><div style="font-size:18px;font-weight:800;color:#166534">'+(rev.paid_today||0)+'</div><div style="font-size:10px;color:#64748b">Paid Today</div></div>';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:'+(rev.pending_payments>0?'#fffbeb':'#f8fafc')+';border:1px solid '+(rev.pending_payments>0?'#fde68a':'#e2e8f0')+';text-align:center"><div style="font-size:18px;font-weight:800;color:'+(rev.pending_payments>0?'#92400e':'#64748b')+'">'+(rev.pending_payments||0)+'</div><div style="font-size:10px;color:#64748b">Pending UPI</div></div>';
+            html += '</div>';
+            // Automation health row
+            var auto = d.automation || {};
+            html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;text-align:center"><div style="font-size:18px;font-weight:800;color:#334155">'+(auto.jobs_ok||0)+'/'+(auto.jobs_total||0)+'</div><div style="font-size:10px;color:#64748b">Jobs OK</div></div>';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:'+(auto.jobs_overdue>0?'#fef2f2':'#f8fafc')+';border:1px solid '+(auto.jobs_overdue>0?'#fecaca':'#e2e8f0')+';text-align:center"><div style="font-size:18px;font-weight:800;color:'+(auto.jobs_overdue>0?'#dc2626':'#64748b')+'">'+(auto.jobs_overdue||0)+'</div><div style="font-size:10px;color:#64748b">Overdue</div></div>';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:'+(auto.dlq_depth>0?'#fef2f2':'#f8fafc')+';border:1px solid '+(auto.dlq_depth>0?'#fecaca':'#e2e8f0')+';text-align:center"><div style="font-size:18px;font-weight:800;color:'+(auto.dlq_depth>0?'#dc2626':'#64748b')+'">'+(auto.dlq_depth||0)+'</div><div style="font-size:10px;color:#64748b">DLQ</div></div>';
+            html += '<div style="padding:6px 12px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;text-align:center"><div style="font-size:18px;font-weight:800;color:#334155">'+(d.workforce.active||0)+'/'+(d.workforce.total||0)+'</div><div style="font-size:10px;color:#64748b">Agents Active</div></div>';
+            html += '</div>';
+            // Next Actions
+            var actions = d.next_actions || [];
+            if(actions.length > 0){
+              html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:6px">👉 Next Actions</div>';
+              actions.forEach(function(a){
+                var color = a.priority <= 3 ? '#b45309' : '#475569';
+                html += '<div style="padding:6px 10px;border-radius:6px;background:#fffbeb;border:1px solid #fde68a;margin-bottom:4px;font-size:12.5px"><span style="font-weight:700;color:'+color+'">P'+a.priority+':</span> '+esc(a.action)+' <span style="color:#64748b">— '+esc(a.detail)+'</span></div>';
+              });
+              html += '</div>';
+            }
+            // Exceptions (only show if any)
+            var excs = d.exceptions || [];
+            if(excs.length > 0){
+              html += '<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:6px">🔴 Exceptions ('+excs.length+')</div>';
+              excs.slice(0, 8).forEach(function(e){
+                var sc = severityColor(e.severity);
+                var sb = severityBg(e.severity);
+                html += '<div style="padding:6px 10px;border-radius:6px;background:'+sb+';border-left:3px solid '+sc+';margin-bottom:4px;font-size:12px">';
+                html += '<span style="font-weight:700;color:'+sc+';text-transform:uppercase;font-size:10px">'+esc(e.severity)+'</span> ';
+                html += esc(e.label);
+                if(e.detail) html += ' <span style="color:#64748b">— '+esc(e.detail)+'</span>';
+                html += '</div>';
+              });
+              if(excs.length > 8) html += '<div style="font-size:11px;color:#64748b;padding:4px">… and '+(excs.length-8)+' more</div>';
+              html += '</div>';
+            }
+            if(body) body.innerHTML = html;
+            _loaded = true;
+          }catch(e){
+            if(body) body.innerHTML = '<div style="padding:10px;color:#b45309;font-size:13px">⚠️ Load failed — <a href="#" onclick="loadOwnerBrief();return false" style="color:#4f46e5">Retry</a></div>';
+          }
+        };
+        document.addEventListener('DOMContentLoaded', function(){
+          loadOwnerBrief();
+          setInterval(loadOwnerBrief, 60000);
+        });
+      })();
+      </script>
+
       <!-- Owner-triggered single customer call. Reuses the canonical admin-authenticated
            /api/telephony/vobiz/stream-call path so DND/DLT/window/AI-disclosure and
            opt-out gates remain in one backend chokepoint. No second dialer path. -->
