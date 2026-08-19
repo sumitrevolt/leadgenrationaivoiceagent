@@ -57,15 +57,8 @@ def _empty_mocks(monkeypatch):
                 "actions_today": 450,
                 "errors_today": 2,
             },
+            # Exceptions pre-sorted by severity (mock replaces _build_owner_brief entirely)
             "exceptions": [
-                {
-                    "type": "automation",
-                    "category": "job_overdue",
-                    "label": "Job overdue: content",
-                    "detail": "Last run: 2h ago",
-                    "action": "Check worker health",
-                    "severity": "p2",
-                },
                 {
                     "type": "automation",
                     "category": "job_failed",
@@ -73,6 +66,14 @@ def _empty_mocks(monkeypatch):
                     "detail": "Last run: 1h ago",
                     "action": "Check error logs",
                     "severity": "p1",
+                },
+                {
+                    "type": "automation",
+                    "category": "job_overdue",
+                    "label": "Job overdue: content",
+                    "detail": "Last run: 2h ago",
+                    "action": "Check worker health",
+                    "severity": "p2",
                 },
             ],
             "next_actions": [
