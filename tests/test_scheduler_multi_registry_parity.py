@@ -40,7 +40,14 @@ def test_required_run_due_exclude_complete():
 
 
 def test_side_effect_jobs_marked_and_excluded():
-    for job in ("platform_dial", "email_outreach", "email_followup", "sales_autopilot", "hq_auto_chase", "reply_auto_send"):
+    for job in (
+        "platform_dial",
+        "email_outreach",
+        "email_followup",
+        "sales_autopilot",
+        "hq_auto_chase",
+        "reply_auto_send",
+    ):
         assert job in RUN_DUE_EXCLUDE
         assert job in sp.CUSTOMER_CONTACT_JOBS or job in sp.PROVIDER_CONTACT_JOBS
 
@@ -64,9 +71,9 @@ def test_self_improve_intentional_exception_documented():
 
 def test_summarize_clean():
     s = sp.summarize()
-    # 48 since 2026-08-15: +hq_auto_chase + reply_auto_send + content_approval_sweep
+    # 49 since 2026-08-19: +daily_owner_brief
     # (all INERT/dry-run default; previous 45 included gsc_rank).
-    assert s["staff_job_count"] == 48
+    assert s["staff_job_count"] == 49
     assert s["unexplained"] == []
     assert s["beat_problems"] == []
 
