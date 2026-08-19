@@ -70,9 +70,7 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-16: 62 -> 70. Marketing factory JSONL (appointment/health/drips/forms/
 # proposals/review) classified as TIER_3 REBUILDABLE_CACHE (+8 allowlist rows).
 # CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
-# 2026-08-19: 70 -> 74. Operational scripts (check_outreach_pipeline,
-# clean_stale_upi) classified as ops.outreach.* / ops.upi_cleanup.* (+4).
-EXPECTED_ALLOWLIST_ENTRIES = 74
+EXPECTED_ALLOWLIST_ENTRIES = 70
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
