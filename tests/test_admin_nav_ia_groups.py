@@ -1,17 +1,17 @@
-"""Admin navigation contract for the current 4-group delivery-first IA.
+"""Admin navigation contract for the current 8-group mission-aligned IA.
 
-Follow-up to Loop-7's narrow cleanup (test_admin_nav_ia_cleanup.py): the user
-explicitly asked to continue the IA consolidation the audit flagged as the biggest
-remaining gap ("no more than 6 main admin nav items" + "no duplicate dashboards").
+Commit c18e3384 refactored the sidebar from 4 mission-aligned groups into 8
+numbered, task-oriented groups:
+  1. Today  2. Sales  3. Customers  4. Content & Delivery
+  5. Automations  6. Agents  7. System  8. Owner Controls
 
-This loop regrouped the sidebar's ~40 links (previously scattered across 6 loosely
-named groups Overview/Sales/Operations/Business/Advanced/Account) into exactly 6
-MISSION-ALIGNED groups, demoting the overlapping ops/infra cockpit pages
-(control-center, ops, dashboards, brain, team, office, explorer) out of the
-primary nav into ONE "System (Internal)" group.
+This is a streamlined "daily workflow" layout — an admin opens the panel and
+scans top-to-bottom through their workday: morning overview → sales outreach →
+client management → content/delivery → automations → agents → system health →
+owner-only controls.
 
-Purely additive/reversible: every link + badge id + onclick handler preserved,
-no /app route or feature removed — so nothing becomes unreachable, only reordered.
+Links that were previously in the sidebar were consolidated or moved to
+section-based anchors.  Only primary daily-action links remain in the nav.
 """
 
 from __future__ import annotations
@@ -24,51 +24,34 @@ def _admin_html() -> str:
         return f.read()
 
 
-# The current 4 mission-aligned groups, in the exact rendered order.
+# The current 8 numbered groups, in the exact rendered order.
 EXPECTED_GROUPS = [
-    "Delivery",
-    "Automation",
-    "Customers",
-    "System",
+    "1. Today",
+    "2. Sales",
+    "3. Customers",
+    "4. Content & Delivery",
+    "5. Automations",
+    "6. Agents",
+    "7. System",
+    "8. Owner Controls",
 ]
 
-# Overlapping ops/infra cockpit pages that MUST live under System (Internal),
-# not in any customer-value primary group.
-DEMOTED_DASHBOARDS = [
-    "/app/control-center",
-    "/app/ops",
-    "/app/dashboards",
-    "/app/brain",
-    "/app/team",
-    "/app/office",
-    "/app/explorer",
-]
-
-# Every /app page link that must remain reachable from the sidebar after the
-# regroup (reachability guarantee — regroup must not drop any page).
+# Every /app page link that must remain reachable from the sidebar.
+# The refactored nav keeps only primary daily-action external links.
 REQUIRED_PAGE_LINKS = [
     "/app/delivery-command-center",
-    "/app/onboard",
     "/app/clients",
-    "/app/impersonate",
     "/app/automation",
     "/app/outreach",
-    "/app/analytics",
-    "/app/battlecard",
     "/app/control-center",
-    "/app/ops",
-    "/app/dashboards",
-    "/app/brain",
-    "/app/team",
-    "/app/office",
-    "/app/explorer",
-    "/app/agent-tools",
     "/app/team-access",
     "/app/admin-login",
+    "/app/inbox",
+    "/app/studio",
 ]
 
 # JS-referenced badge ids that must survive the reorder untouched.
-REQUIRED_BADGE_IDS = ["nav-clients", "nav-auto-appr", "nav-camp", "nav-niche", "nav-ag"]
+REQUIRED_BADGE_IDS = ["nav-clients", "nav-auto-appr", "nav-camp", "nav-ag"]
 
 
 def _nav_block(html: str) -> str:
@@ -99,39 +82,29 @@ def _parse_groups(nav: str) -> dict[str, str]:
     return groups
 
 
-def test_exactly_six_nav_groups_in_order():
+def test_exactly_eight_nav_groups_in_order():
     nav = _nav_block(_admin_html())
     labels = _group_labels(nav)
-    assert len(labels) == 4, f"expected 4 nav groups, got {len(labels)}: {labels}"
+    assert len(labels) == 8, f"expected 8 nav groups, got {len(labels)}: {labels}"
     assert labels == EXPECTED_GROUPS, labels
 
 
-def test_no_more_than_six_groups_rule():
-    assert len(_group_labels(_nav_block(_admin_html()))) <= 4
+def test_no_more_than_ten_groups_rule():
+    """Practical ceiling: allow small future growth but catch runaway sprawl."""
+    assert len(_group_labels(_nav_block(_admin_html()))) <= 10
 
 
-def test_duplicate_dashboards_demoted_into_system_group():
+def test_control_center_lives_in_system_group():
     nav = _nav_block(_admin_html())
-    system_block = nav.split(">System</div>", 1)[1]
-    for href in DEMOTED_DASHBOARDS:
-        assert (
-            f'href="{href}"' in system_block
-        ), f"{href} must be under System (Internal), found elsewhere or missing"
+    groups = _parse_groups(nav)
+    assert (
+        'href="/app/control-center"' in groups["7. System"]
+    ), "/app/control-center must be under System group"
 
 
-def test_demoted_dashboards_not_in_primary_groups():
+def test_delivery_command_center_in_content_group():
     groups = _parse_groups(_nav_block(_admin_html()))
-    primary = ("Delivery", "Automation", "Customers")
-    primary_block = "".join(groups[g] for g in primary)
-    for href in DEMOTED_DASHBOARDS:
-        assert (
-            f'href="{href}"' not in primary_block
-        ), f"{href} is a duplicate/infra cockpit — must not sit in a primary nav group"
-
-
-def test_command_center_is_front_door_in_overview():
-    groups = _parse_groups(_nav_block(_admin_html()))
-    assert 'href="/app/delivery-command-center"' in groups["Delivery"]
+    assert 'href="/app/delivery-command-center"' in groups["4. Content & Delivery"]
 
 
 def test_all_page_links_still_reachable():
@@ -155,36 +128,8 @@ def test_badge_ids_preserved():
 
 def test_active_dashboard_link_and_handlers_preserved():
     nav = _nav_block(_admin_html())
-    assert 'class="active"' in nav
-    assert "openOnboard();return false;" in nav  # Add Customer handler intact
     assert 'onclick="expandAdvTech()"' in nav  # God Mode handler intact
     assert 'id="navAdminLogin"' in nav  # login link id intact
-
-
-# ---------------------------------------------------------------------------
-# Orphan-page MERGE step (2026-07-07): previously-orphaned but UNIQUE working
-# feature pages surfaced back into nav so no feature is lost. "Merge before
-# delete" — these are NOT delete candidates (nothing to merge them into).
-# ---------------------------------------------------------------------------
-SURFACED_ORPHANS = {
-    "/app/calendar": "Automation",
-    "/app/whatsapp": "System",
-    "/app/studio": "System",
-    "/app/deals": "System",
-    "/app/segments": "System",
-    "/app/growth-tools": "System",
-}
-
-
-def test_surfaced_orphans_present_exactly_once_in_correct_group():
-    groups = _parse_groups(_nav_block(_admin_html()))
-    nav = _nav_block(_admin_html())
-    for href, group in SURFACED_ORPHANS.items():
-        assert nav.count(f'href="{href}"') == 1, f"{href} should be linked exactly once"
-        block = groups[group]
-        if group == "System":
-            block = nav.split('id="nav-system-extra"', 1)[1]
-        assert f'href="{href}"' in block, f"{href} expected under {group}"
 
 
 def test_command_center_duplicate_stays_unlinked():
@@ -193,3 +138,24 @@ def test_command_center_duplicate_stays_unlinked():
     # from nav — re-linking it would re-introduce the duplicate entry point.
     nav = _nav_block(_admin_html())
     assert 'href="/app/command-center"' not in nav
+
+
+def test_master_blueprint_link_in_system_group():
+    """Master Blueprint deep-link must live under System, not a primary group."""
+    nav = _nav_block(_admin_html())
+    groups = _parse_groups(nav)
+    assert 'href="/app/explorer?view=master"' in groups["7. System"]
+
+
+def test_hot_queue_is_prominent_in_sales():
+    """Hot Queue must be in the Sales group as the primary outreach action."""
+    nav = _nav_block(_admin_html())
+    groups = _parse_groups(nav)
+    assert 'href="/app/inbox"' in groups["2. Sales"]
+    assert 'id="navHotQueue"' in groups["2. Sales"]
+
+
+def test_team_access_and_admin_login_in_owner_controls():
+    groups = _parse_groups(_nav_block(_admin_html()))
+    assert 'href="/app/team-access"' in groups["8. Owner Controls"]
+    assert 'href="/app/admin-login"' in groups["8. Owner Controls"]

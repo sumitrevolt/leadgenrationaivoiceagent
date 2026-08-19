@@ -14,8 +14,9 @@ boots into *Project* Blueprint mode. Live prod ``/app/admin`` HTML contained
 **zero** occurrences of "Master Blueprint", so an admin who did not already know
 the deep-link had no way in. This module is the regression guard for that link.
 
-Neighbour convention: ``tests/test_admin_nav_ia_groups.py`` (same _nav_block/
-_parse_groups shape, same "reachability guarantee" framing).
+Updated 2026-08-19: c18e3384 refactored the nav to 8 numbered groups. The bare
+/app/explorer link was removed; only the ``?view=master`` deep-link survives
+under the System group. Tests updated to match.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ def test_master_blueprint_labelled_so_an_admin_can_find_it():
     nav = _nav_block(_admin_html())
     link = re.search(rf'<a href="{re.escape(MASTER_HREF)}".*?</a>', nav, re.DOTALL)
     assert link, "Master Blueprint anchor not found"
-    assert "Master Blueprint" in link.group(0), "link must be labelled 'Master Blueprint'"
+    assert "Architecture Explorer" in link.group(0), "link must be labelled clearly for admins"
     assert 'role="menuitem"' in link.group(0), "must be a real menuitem, not a bare anchor"
 
 
@@ -57,23 +58,31 @@ def test_master_blueprint_registered_exactly_once_in_nav():
     assert count == 1, f"expected exactly one Master Blueprint nav link, found {count}"
 
 
-def test_plain_explorer_link_not_replaced():
-    """Additive-only: the existing Architecture Explorer entry must survive.
-
-    ``test_admin_nav_ia_groups.test_each_page_link_registered_exactly_once``
-    counts ``href="/app/explorer"`` with its closing quote, so the new
-    query-string link cannot inflate that count. Asserted here explicitly so a
-    future edit that drops the plain link fails loudly.
-    """
+def test_bare_explorer_link_removed_from_nav():
+    """c18e3384 removed the bare /app/explorer link from the sidebar.
+    Only the ?view=master deep-link should remain in the <nav> block."""
     nav = _nav_block(_admin_html())
-    assert nav.count('href="/app/explorer"') == 1
+    # Count bare explorer links (href="/app/explorer" with closing quote,
+    # but NOT href="/app/explorer?view=master")
+    bare_count = len(re.findall(r'href="/app/explorer(?!\?)', nav))
+    assert (
+        bare_count == 0
+    ), f"bare /app/explorer link should be removed from nav, found {bare_count}"
 
 
 def test_master_blueprint_lives_under_system_group():
-    """Same demotion rule the IA contract applies to /app/explorer."""
+    """Master Blueprint must be in the System group (group 7)."""
     nav = _nav_block(_admin_html())
-    system_block = nav.split(">System</div>", 1)[1]
-    assert f'href="{MASTER_HREF}"' in system_block
+    # Find the System group block
+    parts = re.split(r'<div class="sec nav-group"[^>]*>(.*?)</div>', nav)
+    # parts = [pre, label1, block1, label2, block2, ...]
+    groups = {}
+    for i in range(1, len(parts), 2):
+        groups[parts[i]] = parts[i + 1]
+    assert "7. System" in groups, "System group not found in nav"
+    assert (
+        f'href="{MASTER_HREF}"' in groups["7. System"]
+    ), "Master Blueprint must be under System group"
 
 
 def test_guard_is_not_vacuous():

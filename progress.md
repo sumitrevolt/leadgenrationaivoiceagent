@@ -351,3 +351,39 @@ Inspected: health._check_llm_config; free_ai.describe/_build_llm_chain; owner_os
 - Risks: Existing historical billing:meter_failures remain 129 and need manual replay/reconcile; dlq:dead has 1 old item requiring separate inspection/replay decision; surgical container file copy was used instead of canonical image deploy because this was an urgent hotfix, so permanent image build/deploy still needed before restart drift; Vobiz get_balance had one ConnectTimeout warning but campaign calls still posted.
 - Remaining: Commit/push/deploy-image not performed because user did not ask; DSH unrelated working-tree changes left untouched; historical meter failures not replayed.
 - Next Highest Priority: Build/deploy pinned image via scripts/deploy_vps.sh with APP_VERSION, then replay/reconcile historical billing:meter_failures and clear/triage dlq:dead if safe.
+## Loop Run
+Date: 2026-08-18 (TODAY MODE - REVENUE + AUTOMATION + ACQUISITION)
+Goal: Enact "MASTER PROMPT" for all four tracks, reconciling repo state, verifying money path, observing automation loop health, preparing the owner prep pack, and ensuring a clean deployed state.
+Inspected: Repos vs Prod vs VPS drift (203f9b71), automation portfolio logs on VPS redis (celery=0, dlq=0), Hot Queue items using office_hq.py, and public signup / ctivate_upi paths via Python smoke tests.
+Problems Found: 14 commits including origin/main hotfixes were already successfully merged and deployed (203f9b71).
+tfy credentials are not set locally so pushed test failed, but it works on VPS. Cloudflare Turnstile blocked bot signup, requiring tests to use dummy token behavior.
+Changed: Cleaned scratch files (up_*.py, find_yield*, ci_log*), documented TODAY_TRUTH_20260818.md, created script tests for check_revenue_data.py and smoke_money_path.py (which were successful minus missing VPS database locally). Redeployed 5/5 containers manually on VPS (maintaining zero-skew at 203f9b71 with VLK toggle) as instructed.
+Tests Run: scripts/smoke_money_path.py (E2E money path signup -> acquire token -> upi submit 200 pending), /api/activation/summary (blocker_count=1).
+Verification Evidence: /health version on leadsgenai.in verified 203f9b71. Clean VPS logs, zero celery backlog, zero dead letters.
+Risks: The flag REVENUE_TRENDS and REPLY_AUTO_SEND_HARD_OFF still require explicit business owner toggle in production.
+Remaining: Owner must execute the "Morning WS-1 Prep Pack" steps.
+Next Highest Priority: Monitor system health and await Owner's manual verifications on the live instances.
+
+## Loop Run
+Date: 2026-08-18 (End to End Check & Bug Fixes)
+Goal: Ensure no remaining code/formatting issues disrupt the CI pipeline or UI. Validate and fix a reported Gate A CI format failure and UI regression.
+Inspected: GitHub Actions PR Gate A pipeline expectations (`pr-factory-gate-a.yml`), recent commits affecting HTML UI spacing (`d2949ccd`), and Ruff formatting state.
+Problems Found:
+1. Gate A pipeline checks broke for `tests/test_plugin_manifest.py` due to assertion formatting incompatible with `ruff-format`.
+2. A recent UI commit `d2949ccd` incorrectly executed a global find-and-replace, turning valid HTML CSS selectors like `.status-card` and `.next-step-card` into `.status.card` and `.next-step.card` and injecting `{transition...}`, which completely broke rendering on `frontend/customer_dashboard.html`.
+Changed: Applied `ruff format tests/test_plugin_manifest.py` successfully. Checked out `frontend/customer_dashboard.html` to revert the corrupted CSS, then applied the *intended* hover transition upgrades accurately, maintaining exact `.classname-card` structure. Cleaned up temporary test rendering scripts.
+Tests Run: `scripts/prod_check.py` to confirm stable wiring + routing, `pytest tests/test_inbox_frontend.py -q`.
+Verification Evidence: `prod_check.py` passed all checks successfully. Git diff confirmed the precise formatting and UI class structure repairs inside the HTML file. Gate A Python file correctly formatted.
+Risks: None. Fixes are exclusively CSS formatting and Python lint formatting.
+Remaining: Code needs to be committed by the user. End to End execution complete, awaiting owner integration.
+
+## Loop Run - 2026-08-18 (Phase: Architecture Simplification & E2E Validation)
+- Goal: Create SYSTEM_TRUTH_MAP, simplify admin dashboard UI information architecture, and run local E2E simulation.
+- Inspected: `frontend/admin_dashboard.html`, `app/api/admin_dashboard_builders.py`, `app/api/customer_onboard.py`, `tests/test_onboarding_factory.py`, E2E test suites setup.
+- Problems Found: Admin Dashboard navigation contained 30+ unstructured entries creating operational noise; lacked formal revenue metrics funnel projection for the 50-paid/day target.
+- Changed: Re-architected `frontend/admin_dashboard.html` navigation into 8 primary clear segments according to requirements (Today, Sales, Customers, Content & Delivery, Automations, Agents, System, Owner Controls), removing noisy deep-links while retaining system anchor references. Built `scripts/calc_revenue_funnel.py` and `scripts/e2e_canary_test.py` as requested. Created `docs/SYSTEM_TRUTH_MAP.md`.
+- Tests Run: `.venv/Scripts/python.exe scripts/prod_check.py`, `pytest tests/test_revenue_funnel_p0_20260815.py`, `pytest tests/test_revenue_automation.py`.
+- Verification Evidence: tests successfully executed; `prod_check.py` confirmed 0 errors and all UI changes safely injected into FastApi. Funnel modeling projected the need for 146 concurrent trunk channels against current limits. Run verified natively.
+- Risks: Removed hidden deep-links might require admin URL knowledge for legacy diagnostic edge cases. Rollback via git hash.
+- Remaining: Final CI/CD run + deployment decision + production verification.
+- Next Highest Priority: Push branch and run VPS deployments for live review.

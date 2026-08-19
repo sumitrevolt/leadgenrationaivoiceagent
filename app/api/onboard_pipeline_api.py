@@ -31,8 +31,8 @@ router = APIRouter(prefix="/api/admin/onboard-pipeline", tags=["Onboarding Pipel
 
 class PipelineStageResult(BaseModel):
     status: str
-    duration_s: Optional[float] = None
-    error: Optional[str] = None
+    duration_s: float | None = None
+    error: str | None = None
 
 
 class PipelineStatus(BaseModel):
@@ -42,9 +42,9 @@ class PipelineStatus(BaseModel):
     pct: int = 0
     stages: dict[str, Any] = {}
     stages_list: list[str] = []
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    updated_at: str | None = None
 
 
 class PipelineMetrics(BaseModel):
@@ -56,7 +56,7 @@ class RunRequest(BaseModel):
     client_id: str = Field(..., min_length=1, max_length=100)
     force: bool = False
     send_welcome: bool = True
-    start_from: Optional[str] = None
+    start_from: str | None = None
 
 
 class RetryRequest(BaseModel):
