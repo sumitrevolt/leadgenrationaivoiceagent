@@ -208,40 +208,6 @@ CHANGES: list[dict[str, Any]] = [
             "telephony.call_recordings.dir, devcontrol.external_missions.*)."
         ),
     },
-    {
-        "change_id": "bce-2026-08-19-scripts-runtime-data-access",
-        "old_scanner_version": SCANNER_ENGINE_VERSION,
-        "new_scanner_version": SCANNER_ENGINE_VERSION,
-        "old_baseline_count": 839,
-        "new_baseline_count": 843,
-        "added_fingerprints": 4,
-        "removed_fingerprints": 0,
-        "reason": (
-            "Operational scripts (check_outreach_pipeline.py, clean_stale_upi.py) "
-            "access existing runtime data stores for diagnostics and cleanup. "
-            "These are read/write references to already-established stores (UPI "
-            "payments, email warmup, outreach logs)."
-        ),
-        "detector_change": (
-            "No scanner change. Four new findings from scripts/ directory: "
-            "warmup_path READ, log_path READ, store_path READ, store_path REPLACE."
-        ),
-        "affected_files": [
-            "scripts/check_outreach_pipeline.py",
-            "scripts/clean_stale_upi.py",
-        ],
-        "affected_store_candidates": [],
-        "review_status": REVIEW_APPROVED,
-        "evidence": (
-            "4 added / 0 removed / 839 unchanged; 839 + 4 = 843. All 4 are "
-            "new files accessing existing stores: check_outreach_pipeline.py reads "
-            "email_warmup.json and outreach logs (diagnostic only); "
-            "clean_stale_upi.py reads and atomically rewrites upi_payments.json "
-            "to reject stale records blocking ready_for_first_paid_customer. "
-            "Verified on prod: rejecting 3 stale records flipped the activation "
-            "gate from blocker_count=1 to 0."
-        ),
-    },
 ]
 
 
