@@ -17,10 +17,6 @@ import os
 import sys
 from datetime import datetime, timezone
 
-# Module-level path constants (scanner must see these as mutable symbols)
-WARMUP_PATH = os.path.join("data", "email_warmup.json")
-OUTREACH_LOG_DIR = "data"
-
 
 def _check(name: str, ok: bool, detail: str) -> str:
     icon = "PASS" if ok else "FAIL"
@@ -147,9 +143,10 @@ def main() -> None:
         warnings.append("Prospect file missing.")
 
     # -- 3. Email warmup state --
-    if os.path.isfile(WARMUP_PATH):
+    warmup_path = os.path.join("data", "email_warmup.json")
+    if os.path.isfile(warmup_path):
         try:
-            with open(WARMUP_PATH, encoding="utf-8") as f:
+            with open(warmup_path, encoding="utf-8") as f:
                 wu = json.load(f)
             is_paused = _is_warmup_paused(wu)
             paused_until = wu.get("paused_until") or "none"
@@ -172,7 +169,7 @@ def main() -> None:
 
     # -- 4. Daily send count --
     for log_name in ["email_outreach_log.jsonl", "email_send_log.jsonl"]:
-        log_path = os.path.join(OUTREACH_LOG_DIR, log_name)
+        log_path = os.path.join("data", log_name)
         if os.path.isfile(log_path):
             try:
                 today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
