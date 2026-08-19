@@ -291,6 +291,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Orphan approval sweep (subah 4:30)",
         "kya": "Dead-client pending approvals ko expire mark karta hai — dry_run default, live tabhi jab CONTENT_APPROVAL_SWEEP_LIVE",
     },
+    "daily_owner_brief": {
+        "label": "Owner brief + ntfy push (subah 8:10)",
+        "kya": "P0/P1 exceptions pe owner ko ntfy push — gated DAILY_OWNER_BRIEF_NTFY. data/daily_owner_brief.txt hamesha save hota hai",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
