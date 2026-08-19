@@ -1,0 +1,15 @@
+{
+  "cases": [
+    {
+      "id": "collective_engineering_review",
+      "prompt": "10-lens review karo — architecture, backend, security, SRE, QA, compliance sab lenses se is diff ko",
+      "should_trigger": true
+    },
+    {
+      "id": "marketing_copy_unrelated",
+      "prompt": "landing page headline ka copy likho conversion ke liye",
+      "should_trigger": false,
+      "lexical": false
+    }
+  ]
+}

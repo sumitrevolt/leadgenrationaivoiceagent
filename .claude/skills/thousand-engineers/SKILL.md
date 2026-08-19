@@ -1,6 +1,6 @@
 ---
 name: thousand-engineers
-description: The 1000-engineers collective engineering brain — universal invariants, 10-lens review, 12 discipline knowledge packs (architecture, backend, frontend, AI/LLM, data, DevOps, SRE, security, QA, performance, product, debugging). MANDATORY on EVERY task: load before design/code/debug/review/deploy/test. Canonical knowledge = deploy/dsh/skills/1000-engineers.md (DSH skill).
+description: The 1000-engineers collective engineering brain — universal invariants, 10-lens review, 12 discipline knowledge packs (architecture, backend, frontend, AI/LLM, data, DevOps, SRE, security, QA, performance, product, debugging). Use when designing, building, debugging, reviewing, or shipping ANY code change. MANDATORY on EVERY task: load before design/code/debug/review/deploy/test. Canonical knowledge = deploy/dsh/skills/1000-engineers.md (DSH skill).
 ---
 
 # Thousand Engineers — Collective Engineering Brain (LeadGen)
@@ -42,7 +42,8 @@ Compliance (TRAI/DND/DPDP/billing truth intact).
 - Secrets: `.env` only; never in code/docs/logs/URLs.
 - Background work on workers, never web process.
 - New behavior = new test; contract tests for pricing/plans/routes.
-- Voice/telephony change = scorecard (`scripts/agent_tester.py`) + compliance gates.
+- Voice/telephony change = voice scorecard (repo-root `agent_tester.py`) + compliance gates.
+- Local evidence: `python .claude/skills/thousand-engineers/scripts/preflight_gate.py --paths <changed files> --pytest <target tests>` → PASS/FAIL lines per gate.
 
 ## Task → Discipline routing (load the pack from canonical file)
 
