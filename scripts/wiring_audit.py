@@ -149,7 +149,9 @@ def main() -> int:
 
         print()
 
-    # Explicit high-value checks
+    # Explicit high-value checks (LEGACY — superseded by scripts/prod_check.py, which
+    # is the canonical wiring gate and reports 0 gaps; these paths predate the
+    # godfile-split route refactor and thus show false MISSING).
     checks = [
         "/api/admin/customers/onboard",
         "/api/admin/system/summary",
