@@ -38,9 +38,9 @@ repos:
       - id: isort
         args: [--settings-path, pyproject.toml]
 
-  # Linting with ruff (faster than flake8)
+  # Linting with ruff (faster than flake8) — keep in sync with CI Gate A (ruff==0.16.1)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.14
+    rev: v0.16.1
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

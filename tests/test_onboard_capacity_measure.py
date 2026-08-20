@@ -123,12 +123,12 @@ class TestOnboardCapacityMeasurement:
         # Record results for visibility
         print(f"\n=== ONBOARD CAPACITY MEASUREMENT ({N} tenants) ===")
         print(f"wall_total: {wall_total:.3f}s")
-        print(f"per-job p50: {p50*1000:.1f}ms")
-        print(f"per-job p95: {p95*1000:.1f}ms")
-        print(f"per-job p99: {p99*1000:.1f}ms")
-        print(f"per-job mean: {mean*1000:.1f}ms")
+        print(f"per-job p50: {p50 * 1000:.1f}ms")
+        print(f"per-job p95: {p95 * 1000:.1f}ms")
+        print(f"per-job p99: {p99 * 1000:.1f}ms")
+        print(f"per-job mean: {mean * 1000:.1f}ms")
         print(f"failure_rate: 0/{N} (0%)")
-        print(f"throughput: {N/wall_total:.1f} onboards/s (sequential in-process)")
+        print(f"throughput: {N / wall_total:.1f} onboards/s (sequential in-process)")
 
     def test_50_onboardings_with_failures(self, monkeypatch):
         """50 fake onboardings with ~10% simulated failure rate."""
