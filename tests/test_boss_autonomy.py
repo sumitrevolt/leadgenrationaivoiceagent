@@ -338,6 +338,16 @@ def test_admin_boss_autopilot_endpoint():
     assert out["status"]["boss_rollout"] in ("held", "canary", "disabled")
 
 
+def test_admin_boss_autopilot_html_surface():
+    from pathlib import Path
+
+    html = Path("frontend/admin_dashboard.html").read_text(encoding="utf-8")
+    assert 'id="sec-boss-autopilot"' in html
+    assert 'id="bossAutopilotBody"' in html
+    assert "/api/admin/boss-autopilot" in html
+    assert 'href="#sec-boss-autopilot"' in html
+
+
 def test_run_once_flag_off_inert(gov_root, monkeypatch):
     monkeypatch.setenv("BOSS_FULL_AUTONOMY", "0")
     out = ba.run_once(limit=10)
