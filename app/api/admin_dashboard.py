@@ -1315,6 +1315,35 @@ async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
     return live
 
 
+@router.get("/boss-autopilot")
+async def get_boss_autopilot(_user=Depends(require_admin)) -> dict:
+    """Boss autonomy observability — flag, status, decisions, rollout (read-only).
+
+    Real values only: enabled/ready reflect the live env flags; boss_rollout is
+    the current rollout lane (held until the mutating canary); never fabricated.
+    """
+    out: dict = {"ok": True, "source": "app.platform.boss_autonomy"}
+    try:
+        from app.platform import boss_autonomy
+
+        out["status"] = boss_autonomy.status()
+    except Exception as e:  # noqa: BLE001 - best-effort observability
+        out["status_error"] = str(e)[:160]
+    try:
+        from app.platform import boss_autonomy
+
+        out["metrics"] = boss_autonomy.metrics()
+    except Exception as e:  # noqa: BLE001
+        out["metrics_error"] = str(e)[:160]
+    try:
+        from app.platform import boss_decision_governance as bdg
+
+        out["governance"] = bdg.owner_os_visibility(limit=20)
+    except Exception as e:  # noqa: BLE001
+        out["governance_error"] = str(e)[:160]
+    return out
+
+
 @router.post("/ops/celery-trim")
 async def trim_celery_queue(
     body: CeleryTrimIn, request: Request, admin=Depends(require_admin)

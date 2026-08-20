@@ -817,3 +817,20 @@ def test_manual_owner_and_scheduler_paths_share_workforce_dispatch():
     assert "agent_runtime.submit" in inspect.getsource(owner_os.owner_runtime_run)
     assert "maybe_dispatch" in inspect.getsource(team_scheduler._run_job)
     assert "idempotency_key=tid" in inspect.getsource(staff_jobs.run_staff_job)
+
+
+def test_token_store_unavailable_fails_closed_503(monkeypatch):
+    """Proof: Redis/token-store failure must fail closed (503), never open."""
+
+    def _boom(raw_token, required_tool=""):
+        raise tokens.TokenStoreUnavailable("store down")
+
+    monkeypatch.setattr(dsh_internal.tokens, "authenticate", _boom)
+    client = _api_client()
+    response = client.post(
+        "/internal/dsh/heartbeat",
+        json={"phase": "running"},
+        headers={"Authorization": "Bearer " + "x" * 40},
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "run_token_store_unavailable"
