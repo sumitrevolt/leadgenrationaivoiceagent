@@ -22,15 +22,24 @@ SKIP_HANDLERS = {
     "classList.add",
     "event.stopPropagation",
     "var el=document.getElementById",
+    "if",
+    "for",
+    "while",
+    "switch",
+    "catch",
+    "typeof",
+    "new",
+    "function",
 }
 
 
 def load_routes() -> set[str]:
     sys.path.insert(0, str(ROOT))
     from app.main import app
+    from app.utils.route_inspection import iter_effective_routes
 
     out: set[str] = set()
-    for r in app.routes:
+    for r in iter_effective_routes(app.routes):
         p = getattr(r, "path", None)
         if p and p.startswith("/"):
             out.add(p)
@@ -40,17 +49,21 @@ def load_routes() -> set[str]:
 def extract_onclick_handlers(html: str) -> list[str]:
     handlers: list[str] = []
     for m in re.finditer(r'onclick="([^"]+)"', html):
-        expr = m.group(1).split(";")[0].strip()
-        if "(" in expr:
-            handlers.append(re.sub(r"\(.*", "", expr).strip())
-        else:
-            handlers.append(expr)
+        for stmt in m.group(1).split(";"):
+            stmt = stmt.strip()
+            mm = re.match(r"([A-Za-z_$][\w$]*)\s*\(", stmt)
+            if mm and mm.group(1) not in SKIP_HANDLERS:
+                handlers.append(mm.group(1))
     return handlers
 
 
 def extract_functions(html: str) -> set[str]:
     funcs = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", html))
     funcs |= set(re.findall(r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(", html))
+    funcs |= set(re.findall(r"(?:window\.)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function", html))
+    funcs |= set(
+        re.findall(r"(?:window\.)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>", html)
+    )
     return funcs
 
 
@@ -149,9 +162,7 @@ def main() -> int:
 
         print()
 
-    # Explicit high-value checks (LEGACY — superseded by scripts/prod_check.py, which
-    # is the canonical wiring gate and reports 0 gaps; these paths predate the
-    # godfile-split route refactor and thus show false MISSING).
+    # Explicit high-value checks — all must be registered (via iter_effective_routes).
     checks = [
         "/api/admin/customers/onboard",
         "/api/admin/system/summary",
