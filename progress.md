@@ -410,4 +410,17 @@ Remaining: Code needs to be committed by the user. End to End execution complete
 - Remaining: owner-gated flag arm + dedicated mutating canary for manager; Admin HTML tab; production canary + deploy via scripts/deploy_vps.sh; commit/push/PR/merge (not performed this session — AGENTS.md §8 requires explicit ask).
 - Next Highest Priority: owner Hot Queue /app/inbox (business) + decide the mutating canary promotion + explicit deploy authorization.
 
+## Loop Run
+- Date: 2026-08-20 (Boss Autonomy ship + deploy to prod)
+- Goal: Commit/PR/merge/deploy the canonicalized Boss autonomy spine + Admin surface to production.
+- Inspected: CI workflow gates; scripts/deploy_vps.sh interface; prod /health; runtime-data debt ratchet.
+- Problems Found: CI prod_check gate FAILED on RATCHET (new debt) because scripts/auto_commit_deploy.py wrote a direct data/release_evidence.jsonl mutable path (unclassified).
+- Changed: routed release evidence through runtime_data.store_path (canonical); added Admin Boss Autopilot HTML surface (nav + section + fetch /api/admin/boss-autopilot); fixed trailing blank line; 3 commits on feat/boss-autonomy-canonical; merged PR #415 (squash ddf47c4a).
+- Tests Run: 140+ local targeted green; runtime_data ratchet OK (newly unresolved 0); CI full green (prod_check runtime gates pass, pytest shards 1-4 pass, Lint/Trivy/pip-audit/real-redis/Gate A/GitGuardian pass).
+- Verification Evidence: prod /health = ddf47c4a (healthy, production); DEPLOYED ddf47c4a OK; rollback tag 67aabd2a protected; admin /api/admin/boss-autopilot -> 401 (require_admin); celery=0 dlq:failed_tasks=0 dlq:dead=0.
+- Risks: autonomy flags remain OFF (inert); manager rollout held; production canary execute step needs obsidian advice + mutating canary promotion.
+- Remaining: flag arm + mutating canary promotion for manager; obsidian advice seed; AGENTS/CLAUDE ops SHA -> ddf47c4a.
+- Next Highest Priority: owner flag arm decision + Hot Queue /app/inbox.
+
+
 - Next Highest Priority: LIVE-verify trainer job survival on next scheduled run; then owner `/app/inbox` + UPI revenue path.

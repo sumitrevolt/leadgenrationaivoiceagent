@@ -2825,3 +2825,13 @@ Current production is **byte-identical to the original state**, and `REPLY_AUTO_
 **Evidence:** 25 tests in tests/test_boss_autonomy.py + 1 token-store 503 fail-closed test; combined 90 green; prod_check PASS (1334 routes); check_secrets clean. manager rollout = held (not in PILOT_AGENTS) so autonomy is CODE-PRESENT + TEST-PROVEN, not production-armed.
 
 **Consequence:** BOSS_FULL_AUTONOMY and BOSS_DECISION_GOVERNANCE remain OFF in prod. Boss cannot execute its own decisions until a dedicated mutating canary promotes manager. No deploy/arm/commit this session.
+
+## 2026-08-20 — ADR-185 Boss Autonomy deploy (ddf47c4a) + Admin surface
+
+**Context:** ADR-184 canonicalized the Boss autonomy spine; this record ships it to production.
+
+**Decision:** Merged PR #415 (squash ddf47c4a) and deployed to prod via scripts/deploy_vps.sh. Added Admin Boss Autopilot HTML surface over GET /api/admin/boss-autopilot (require_admin). Fixed runtime-data debt ratchet by routing release evidence through runtime_data.store_path.
+
+**Evidence:** prod /health.version = ddf47c4a (environment production, healthy); CI full green (prod_check runtime gates + pytest 4 shards + ratchet); rollback tag 67aabd2a protected.
+
+**Consequence:** BOSS_FULL_AUTONOMY + BOSS_DECISION_GOVERNANCE remain OFF (inert). manager rollout = held. Production canary execute step gated on obsidian advice + a dedicated mutating canary promotion.
