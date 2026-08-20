@@ -87,6 +87,23 @@ def own_brand_enabled() -> bool:
     return _on("VIDEO_OWN_BRAND_ENABLED")
 
 
+def own_brand_auto_approve_enabled() -> bool:
+    """Flag-gated own-brand canary: auto-approve own-brand pending videos.
+
+    CANARY-FIRST — default OFF. When ON, only own-brand allowlist tenants
+    (leadgenai-self / leadgen-ai) are auto-approved; customers are never touched.
+    """
+    return _on("VIDEO_OWN_BRAND_AUTO_APPROVE")
+
+
+def own_brand_auto_approve_limit() -> int:
+    """Max own-brand videos auto-approved per sweep (bounded canary)."""
+    try:
+        return max(1, int(os.getenv("VIDEO_OWN_BRAND_AUTO_APPROVE_LIMIT", "2") or 2))
+    except (TypeError, ValueError):
+        return 2
+
+
 def stage1_shadow_active() -> bool:
     """True when Stage 1 shadow posture is correctly set (side-effect flags OFF)."""
     return (
@@ -117,6 +134,7 @@ def flag_snapshot() -> dict[str, bool]:
         "VIDEO_HARNESS_ENFORCE": harness_enforce(),
         "VIDEO_HARNESS_SHADOW_ENABLED": harness_shadow(),
         "VIDEO_OWN_BRAND_ENABLED": own_brand_enabled(),
+        "VIDEO_OWN_BRAND_AUTO_APPROVE": own_brand_auto_approve_enabled(),
         "VIDEO_AD_CYCLE": _on("VIDEO_AD_CYCLE"),
         "stage1_shadow_active": stage1_shadow_active(),
     }
@@ -132,6 +150,8 @@ __all__ = [
     "harness_enforce",
     "harness_shadow",
     "own_brand_enabled",
+    "own_brand_auto_approve_enabled",
+    "own_brand_auto_approve_limit",
     "stage1_shadow_active",
     "flag_snapshot",
 ]

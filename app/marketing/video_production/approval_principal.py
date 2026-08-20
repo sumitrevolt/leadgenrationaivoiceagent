@@ -46,12 +46,16 @@ class PrincipalType(str, Enum):
     CUSTOMER_TENANT = "customer_tenant"
     #: A specific admin User row (stable DB id).
     ADMIN_ACCOUNT = "admin_account"
+    #: A flag-gated server automation acting ONLY on its own brand. No human,
+    #: no session — the authority comes from the flag + own-brand allowlist.
+    SYSTEM_AUTOMATION = "system_automation"
 
 
 class AuthEvidence(str, Enum):
     CUSTOMER_SESSION = "customer_session"
     APPROVAL_TOKEN = "approval_token"  # nosecret - enum label, not a credential
     ADMIN_SESSION = "admin_session"
+    SYSTEM_AUTOMATION = "system_automation"
 
 
 class ApprovalChannel(str, Enum):
@@ -60,6 +64,7 @@ class ApprovalChannel(str, Enum):
     ADMIN = "admin"
     WHATSAPP = "whatsapp"
     HARNESS = "harness"
+    SYSTEM = "system"
 
 
 class ApprovalCapability(str, Enum):
@@ -239,6 +244,29 @@ def from_admin_user(user: Any, *, tenant_id: str) -> ApprovalPrincipal:
         channel=ApprovalChannel.ADMIN,
         auth_evidence_type=AuthEvidence.ADMIN_SESSION,
         approval_capability=ApprovalCapability.APPROVE,
+    )
+
+
+def from_system_automation(client_id: str) -> ApprovalPrincipal:
+    """Own-brand auto-approve canary — flag-gated, tenant-scoped, no human.
+
+    The actor is a SYSTEM automation acting on its OWN brand only
+    (leadgenai-self / leadgen-ai), never on a customer's behalf. The caller
+    must already have verified (a) the own-brand flag is ON and (b) the client
+    id is in the own-brand allowlist — this resolver only turns a trusted server
+    decision into a principal; it does not itself perform that check.
+    """
+    cid = str(client_id or "").strip()
+    if not cid:
+        raise PrincipalRefused("approval_tenant_unresolved")
+    return ApprovalPrincipal(
+        subject_id="system:own_brand_canary",
+        tenant_id=cid,
+        principal_type=PrincipalType.SYSTEM_AUTOMATION,
+        channel=ApprovalChannel.SYSTEM,
+        auth_evidence_type=AuthEvidence.SYSTEM_AUTOMATION,
+        approval_capability=ApprovalCapability.APPROVE,
+        evidence_ref="video_own_brand_auto_approve",
     )
 
 
