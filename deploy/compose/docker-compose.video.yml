@@ -42,6 +42,10 @@ services:
     mem_limit: 4096m
     mem_reservation: 1024m
     cpus: "2.0"
+    # Chrome headless shell needs >=256MB of /dev/shm; the Docker default is 64MB
+    # and the render crashes with "Protocol error (Page.captureScreenshot):
+    # Target closed" at ~67/762 frames. hyperframes doctor recommends 512m.
+    shm_size: 512m
     # A 1080x1920 render is ~2 min on this hardware; the Celery soft limit for
     # render_creative_os_task must stay ABOVE CREATIVE_HYPERFRAMES_TIMEOUT_S or
     # Celery kills the task before the provider can reap its own Chrome children.
