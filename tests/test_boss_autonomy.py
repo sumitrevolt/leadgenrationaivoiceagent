@@ -296,6 +296,18 @@ def test_sweep_bounded(gov_root, monkeypatch):
     assert out["swept"] <= 3
 
 
+def test_advance_decision_reports_advanced_outcome(gov_root, monkeypatch):
+    _patch_advice(monkeypatch, score=1.0)
+    out = ba.propose_and_decide(
+        decision_type="internal_plan", agent_id="isha", proposed_by="isha", advance=False
+    )
+    did = out["decision_id"]
+    r = ba.advance_decision(did, max_steps=1)
+    assert r["outcome"] == "advanced"
+    assert r["steps"] == 1
+    assert r["state"] == "advice_recorded"
+
+
 def test_evaluate_decision_read_only(gov_root, monkeypatch):
     _patch_advice(monkeypatch, score=1.0)
     out = ba.propose_and_decide(

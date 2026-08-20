@@ -427,6 +427,10 @@ def advance_decision(
             outcome = err if err in _KNOWN_HARD_ERRORS else "advance_failed"
             return {**result, **r, "outcome": outcome, "steps": steps}
 
+    result["steps"] = steps
+    cur = bdg.get_decision(did)
+    result["state"] = str((cur or {}).get("state") or "?")
+    result["outcome"] = "advanced"
     return result
 
 
