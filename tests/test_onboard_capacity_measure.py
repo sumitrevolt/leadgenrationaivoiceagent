@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import statistics
 import time
+import zlib
 from typing import Any
 
 import pytest
@@ -40,7 +41,7 @@ class _FakeOnboard:
     async def __call__(self, cid: str, send_welcome: bool = True) -> dict[str, Any]:
         t0 = time.perf_counter()
         # Simulate: KB seed + content gen + delivery (varies by "client")
-        jitter = hash(cid) % 100 / 1000.0  # 0–0.1s jitter
+        jitter = zlib.crc32(cid.encode()) % 100 / 1000.0  # 0–0.1s jitter
         await asyncio.sleep(self._base_latency + jitter)
         elapsed = time.perf_counter() - t0
         self.calls.append({"cid": cid, "elapsed_s": elapsed, "ok": True})
@@ -59,7 +60,7 @@ class _FakeOnboardWithFailures(_FakeOnboard):
         jitter = hash(cid) % 100 / 1000.0
         await asyncio.sleep(0.05 + jitter)
         elapsed = time.perf_counter() - t0
-        should_fail = (hash(cid) % 100) < (self._failure_rate * 100)
+        should_fail = (zlib.crc32(cid.encode()) % 100) < (self._failure_rate * 100)
         if should_fail:
             self.calls.append({"cid": cid, "elapsed_s": elapsed, "ok": False})
             raise RuntimeError(f"simulated failure for {cid}")
