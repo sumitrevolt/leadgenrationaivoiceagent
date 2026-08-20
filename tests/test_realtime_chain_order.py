@@ -34,15 +34,15 @@ def test_realtime_chain_groq_first():
     first_cerebras = providers.index("cerebras")
     first_mistral = providers.index("mistral")
 
-    assert first_groq < first_cerebras, (
-        f"realtime: groq ({first_groq}) should be before cerebras ({first_cerebras})"
-    )
-    assert first_cerebras < first_mistral, (
-        f"realtime: cerebras ({first_cerebras}) should be before mistral ({first_mistral})"
-    )
-    assert core_providers[0] == "groq", (
-        f"realtime: first core provider should be groq, got {core_providers[0]}"
-    )
+    assert (
+        first_groq < first_cerebras
+    ), f"realtime: groq ({first_groq}) should be before cerebras ({first_cerebras})"
+    assert (
+        first_cerebras < first_mistral
+    ), f"realtime: cerebras ({first_cerebras}) should be before mistral ({first_mistral})"
+    assert (
+        core_providers[0] == "groq"
+    ), f"realtime: first core provider should be groq, got {core_providers[0]}"
 
 
 def test_bulk_chain_cerebras_first():
@@ -56,12 +56,12 @@ def test_bulk_chain_cerebras_first():
     first_groq = providers.index("groq")
     first_mistral = providers.index("mistral")
 
-    assert first_cerebras < first_groq, (
-        f"bulk: cerebras ({first_cerebras}) should be before groq ({first_groq})"
-    )
-    assert first_groq < first_mistral, (
-        f"bulk: groq ({first_groq}) should be before mistral ({first_mistral})"
-    )
+    assert (
+        first_cerebras < first_groq
+    ), f"bulk: cerebras ({first_cerebras}) should be before groq ({first_groq})"
+    assert (
+        first_groq < first_mistral
+    ), f"bulk: groq ({first_groq}) should be before mistral ({first_mistral})"
 
 
 def test_trainer_timeout_within_celery_limit():
@@ -69,9 +69,7 @@ def test_trainer_timeout_within_celery_limit():
     import ast
     import pathlib
 
-    scheduler_path = pathlib.Path(
-        "app/platform/team_scheduler.py"
-    )
+    scheduler_path = pathlib.Path("app/platform/team_scheduler.py")
     src = scheduler_path.read_text(encoding="utf-8")
 
     # Find wait_for timeout for run_nightly_training
@@ -99,6 +97,41 @@ def test_trainer_timeout_within_celery_limit():
         )
 
 
+def test_trainer_ingest_kb_budget_within_celery_limit():
+    """KB ingest wait_for timeout must exist and leave room for ML training (360s)
+    inside Celery's 600s hard / 540s soft limit (was unbounded sync → daily
+    TimeLimitExceeded(600) DLQ deaths)."""
+    import ast
+    import pathlib
+
+    scheduler_path = pathlib.Path("app/platform/team_scheduler.py")
+    src = scheduler_path.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    timeouts = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "wait_for"
+        ):
+            src_segment = ast.get_source_segment(src, node) or ""
+            if "ingest_to_kb" in src_segment:
+                for kw in node.keywords:
+                    if kw.arg == "timeout":
+                        if isinstance(kw.value, ast.Constant):
+                            timeouts.append(kw.value.value)
+    assert timeouts, (
+        "Could not find wait_for(ingest_to_kb, timeout=...) in scheduler — "
+        "bounded ingest is required to keep the trainer job under Celery's hard limit"
+    )
+    for t in timeouts:
+        assert 0 < t <= 200, (
+            f"ingest_to_kb wait_for timeout {t}s must be ≤200s so trainer "
+            "transcript analysis + ML 360s window stay under the 600s hard limit"
+        )
+
+
 def test_both_profiles_have_all_three_core_providers():
     """Sanity: both profiles must include groq, cerebras, mistral in core."""
     from app.voice_agent import free_ai
@@ -107,6 +140,4 @@ def test_both_profiles_have_all_three_core_providers():
         chain = free_ai._build_llm_chain(profile)
         providers = {p for p, _ in chain}
         for expected in ("groq", "cerebras", "mistral"):
-            assert expected in providers, (
-                f"{profile} chain missing '{expected}': {providers}"
-            )
+            assert expected in providers, f"{profile} chain missing '{expected}': {providers}"
