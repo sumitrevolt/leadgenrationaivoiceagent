@@ -223,6 +223,21 @@ def _build_owner_brief() -> dict[str, Any]:
                     "severity": "p1",
                 }
             )
+
+        # Surface wiring gaps — flags ON but backend/creds missing (armed no-op).
+        # This is the difference between "automation chalu hai" and "automation
+        # actually kaam kar rahi hai": a green heartbeat with no wired backend.
+        for g in (h.get("wiring_gaps") or [])[:5]:
+            out["exceptions"].append(
+                {
+                    "type": "automation",
+                    "category": "wiring_gap",
+                    "label": f"Armed but unwired: {g.get('key', '?')}",
+                    "detail": f"{g.get('note') or ''} — missing: {g.get('missing') or '?'}",
+                    "action": "Add the missing credential/backend in .env, then recreate app",
+                    "severity": "p2",
+                }
+            )
     except Exception:
         pass
 
