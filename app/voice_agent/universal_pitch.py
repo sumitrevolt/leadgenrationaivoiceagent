@@ -31,15 +31,15 @@ def _marketing_start_price() -> str:
 # caller ko control deta (kam pushy). Ek chhota timing-ask turn-1 me add — segment
 # lean rehta (telephony-cheap), qa_checks.has_permission_ask ab pass karta.
 UNIVERSAL_AGENT_INTRO = (
-    "Namaste! Main LeadGen AI se bol rahi hoon — "
-    "hum aapke social media aur marketing ko AI se automate karte hain, "
-    "Instagram, Facebook aur Google se. Do minute baat kar sakti hoon?"
+    "Namaste! Main LeadGen AI se bol rahi hoon. Hum local businesses ko roz "
+    "Instagram, Facebook aur Google par active rakhte hain — taki naye customers "
+    "roz milein. Do minute baat kar sakti hoon?"
 )
 
 PITCH_SHORT = (
-    "Aapko khud kuch nahi karna — roz ki posts, ads aur Google par upar aana, "
-    f"sab AI automatic karta hai. {_marketing_start_price()} mahine se, agency se kaafi sasta, "
-    "aur 7 din bilkul FREE trial."
+    "Aapko kuch nahi karna — AI roz posts, ads aur Google ranking sambhalta hai, "
+    f"taaki roz naye customers milein. {_marketing_start_price()} mahine se, agency se kaafi "
+    "kam kharcha — aur 7 din FREE trial, bina card ke."
 )
 
 INTEREST_ASK = "Ek baar free me try karke dekhna chahenge?"
