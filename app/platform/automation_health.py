@@ -493,6 +493,96 @@ def queue_depth() -> dict[str, Any]:
 QUEUE_BACKLOG_ALERT = 50  # itne pending tasks = worker problem
 
 
+def wiring_gaps() -> list[dict[str, Any]]:
+    """'Flag ON but backend missing' — armed automation jo silently no-op kar
+    rahi hai (config gap, not a runtime outage). Surfaced so admin can see
+    "ON" flags that are not actually connected. Kabhi raise nahi."""
+    gaps: list[dict[str, Any]] = []
+
+    def _on(flag: str) -> bool:
+        return (os.getenv(flag, "0") or "0").strip().lower() in ("1", "true", "yes")
+
+    # CRM sync: armed but no provider wired (Zoho refresh token / HubSpot key)
+    if _on("CRM_SYNC") or _on("CRM_SYNC_PULL"):
+        try:
+            from app.platform import crm_sync
+
+            st = crm_sync.status() or {}
+            if str(st.get("provider") or "none") == "none":
+                gaps.append(
+                    {
+                        "key": "CRM_SYNC",
+                        "flag_on": True,
+                        "missing": "zoho_refresh_token / hubspot_api_key",
+                        "note": "CRM sync armed but no provider wired — qualified leads CRM me push nahi ho rahe",
+                    }
+                )
+        except Exception:
+            pass
+
+    # GSC: armed but no usable service-account creds. Reuse gsc.enabled() — the
+    # canonical gate — so the `google_sheets_credentials` fallback and the
+    # `os.path.exists(creds)` check are honoured instead of re-implemented here
+    # (a manual GSC_SERVICE_ACCOUNT_JSON-only check would FALSE-ALARM when the
+    # owner wires GSC through the fallback source).
+    if _on("GSC_ENABLED"):
+        try:
+            from app.integrations import gsc
+
+            if not gsc.enabled():
+                gaps.append(
+                    {
+                        "key": "GSC_ENABLED",
+                        "flag_on": True,
+                        "missing": "GSC_SERVICE_ACCOUNT_JSON / google_sheets_credentials",
+                        "note": "Google Search Console rank tracking armed but no usable service-account creds",
+                    }
+                )
+        except Exception:
+            pass
+
+    # Social engine: armed but no Postiz key AND no WhatsApp backend
+    if _on("SOCIAL_ENGINE"):
+        try:
+            from app.integrations import whatsapp_selfhost as ws
+            from app.marketing import postiz_publish
+
+            has_postiz = postiz_publish.enabled()
+            has_whatsapp = ws.is_active_provider()
+            if not has_postiz and not has_whatsapp:
+                gaps.append(
+                    {
+                        "key": "SOCIAL_ENGINE",
+                        "flag_on": True,
+                        "missing": "POSTIZ_API_KEY / WAHA",
+                        "note": "Social engine armed but no publish backend (Postiz key + WAHA dono missing)",
+                    }
+                )
+        except Exception:
+            pass
+
+    # WhatsApp auto-send: armed but WAHA not the active configured provider
+    if _on("WHATSAPP_AUTO_SEND"):
+        try:
+            from app.config import settings
+            from app.integrations import whatsapp_selfhost as ws
+
+            cloud_token = bool(getattr(settings, "whatsapp_business_token", "") or "")
+            if not ws.is_active_provider() and not cloud_token:
+                gaps.append(
+                    {
+                        "key": "WHATSAPP_AUTO_SEND",
+                        "flag_on": True,
+                        "missing": "WAHA_BASE_URL / whatsapp_business_token",
+                        "note": "WhatsApp auto-send armed but no WA backend configured",
+                    }
+                )
+        except Exception:
+            pass
+
+    return gaps
+
+
 def health() -> dict[str, Any]:
     """Per-job: last run, ok, overdue? + overall status. Kabhi raise nahi."""
     beats: dict[str, Any] = {}
@@ -693,6 +783,7 @@ def health() -> dict[str, Any]:
         "dead_tasks_present": dead_present,
         "retryable_failed_present": retryable_failed_present,
         "jobs": jobs,
+        "wiring_gaps": wiring_gaps(),
         "obsidian_sync": {"ok": _obs_ok, "detail": _obs_detail},
         "at": _now().isoformat(timespec="seconds"),
     }
