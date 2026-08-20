@@ -10,6 +10,7 @@ AUTOMATION_FLAGS = [
     "OWNER_OS",  # Owner Operating System (/app/owner + /api/admin/owner-os) — always mounted for admin; flag documents surface
     "OWNER_OS_LITMUS",  # ADR-155 HITL litmus on Owner OS plan/execute (deterministic; default ON; set 0 to bypass block)
     "BOSS_DECISION_GOVERNANCE",  # Boss+Second-Brain hash-bound decision approvals (proposed→advice→boss→consume); OFF default; execute fail-closed when unset
+    "BOSS_FULL_AUTONOMY",  # Boss full-autonomy loop over BOSS_DECISION_GOVERNANCE (sweep→advice→review→consume); OFF default inert
     "STAFF_BUS_ENABLED",  # 31-STAFF Buzz collaboration bus (envelopes/bridge/canaries); OFF default; never executes protected customer actions
     "OPENCLAW_ENABLED",  # OpenClaw Owner Copilot edge layer (/api/owner-copilot) — OFF default; Owner OS remains sole action authority
     "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF

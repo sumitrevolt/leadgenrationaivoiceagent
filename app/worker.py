@@ -812,6 +812,15 @@ if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true"
         k: v for k, v in celery_app.conf.beat_schedule.items() if k.startswith("staff-")
     }
 
+# Boss autonomy sweep — always scheduled; the TASK is flag-gated inert itself
+# (BOSS_FULL_AUTONOMY=1 AND BOSS_DECISION_GOVERNANCE=1 required). Never a second
+# scheduler: this only drives app.platform.boss_autonomy.run_once().
+celery_app.conf.beat_schedule["boss-autonomy-sweep"] = {
+    "task": "app.tasks.staff_jobs.boss_autonomy_sweep",
+    "schedule": crontab(minute="*/5"),
+    "args": (),
+}
+
 
 # Task definitions
 @celery_app.task(bind=True, max_retries=3)
