@@ -24,7 +24,7 @@ Commands:
   merge  --branch B --sha S
   deploy --sha S [--apply]
 
-Evidence is appended to data/release_evidence.jsonl after every step.
+Evidence is recorded after every step (runtime_data store + stdout).
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / "data" / "release_evidence.jsonl"
+sys.path.insert(0, str(ROOT))
 DEFAULT_BASE = "main"
 
 
@@ -48,10 +48,23 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _evidence_path():
+    try:
+        from app.platform import runtime_data
+
+        runtime_data.store_dir("release_evidence")
+        return runtime_data.store_path("release_evidence", "release_evidence.jsonl")
+    except Exception:
+        return None
+
+
 def _log(step: str, detail: dict[str, Any]) -> None:
     try:
-        EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
-        with open(EVIDENCE, "a", encoding="utf-8") as f:
+        path = _evidence_path()
+        if path is None:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps({"at": _now_iso(), "step": step, **detail}, default=str) + "\n")
     except OSError:
         pass
