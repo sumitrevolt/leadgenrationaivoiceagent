@@ -236,6 +236,50 @@ def approve_version(
     )
 
 
+def auto_approve_own_brand_pending(limit: int | None = None) -> dict[str, Any]:
+    """Flag-gated own-brand canary: approve own-brand CLIENT_REVIEW_PENDING videos.
+
+    CANARY-FIRST. Fires ONLY when VIDEO_OWN_BRAND_AUTO_APPROVE=1. Approves ONLY
+    own-brand allowlist tenants (leadgenai-self / leadgen-ai) through the
+    canonical approve_version + a SYSTEM principal. Idempotent (approve_version
+    returns already_decided for settled rows). Bounded by limit (default from
+    flag, 2). Never raises — a failure is reported, not propagated.
+    """
+    from app.marketing import video_ad_cycle
+    from app.marketing.video_production import flags as _vflags
+    from app.marketing.video_production.allowlist import is_own_brand_client_id
+    from app.marketing.video_production.approval_principal import from_system_automation
+
+    if not _vflags.own_brand_auto_approve_enabled():
+        return {"ran": False, "reason": "VIDEO_OWN_BRAND_AUTO_APPROVE off"}
+    cap = int(limit) if limit is not None else _vflags.own_brand_auto_approve_limit()
+    approved = skipped = 0
+    try:
+        for rec in video_ad_cycle.list_all(200):
+            if approved >= cap:
+                break
+            cid = str(rec.get("client_id") or "").strip()
+            status = str(rec.get("status") or "").strip().lower()
+            if status != "pending":
+                continue
+            if not is_own_brand_client_id(cid):
+                continue  # tenant isolation: never auto-approve a customer's video
+            principal = from_system_automation(cid)
+            res = approve_version(
+                str(rec.get("id") or ""),
+                expected_revision=int(rec.get("revision") or 0),
+                principal=principal,
+            )
+            if res.get("ok"):
+                approved += 1
+            else:
+                skipped += 1
+    except Exception as e:
+        logger.warning(f"[video-cell] own-brand auto-approve failed: {e}")
+        return {"ran": False, "reason": str(e)[:150]}
+    return {"ran": True, "approved": approved, "skipped": skipped, "cap": cap}
+
+
 async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
     """AMBER — publish only if gate passes. Uses existing publish path."""
     from app.marketing import video_ad_cycle

@@ -120,6 +120,7 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
+    "VIDEO_OWN_BRAND_AUTO_APPROVE",  # flag-gated auto-approve of own-brand pending videos (canary, default OFF)
     "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
     # HyperFrames = the "advanced" animated deliverable. It was MISSING from this
     # registry, so /api/growth/infra/flags reported Creative OS healthy while the
