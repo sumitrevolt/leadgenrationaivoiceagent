@@ -628,6 +628,16 @@ class NaturalDialogManager:
             Affect.HESITANT: "Customer hesitant hai — reassure karo, pressure mat do.",
             Affect.NEUTRAL: "",
         }.get(affect, "")
+
+        # ── Enterprise Persona Registry (ADR-184, 2026-08-21) ──
+        # Agar is agent ka unique persona defined hai, woh use karo.
+        # Nahi to generic VOICE_SYSTEM_PROMPT fallback (original behaviour).
+        persona_prompt = self._try_persona_prompt()
+        if persona_prompt:
+            if affect_hint:
+                persona_prompt += f"\n\nTONE NOTE: {affect_hint}"
+            return persona_prompt
+
         known = "\n".join(f"- {k}" for k in self.knowledge) or "- (none)"
         prompt = VOICE_SYSTEM_PROMPT.format(
             agent_name=self.agent_name,
@@ -642,6 +652,61 @@ class NaturalDialogManager:
         if affect_hint:
             prompt += f"\n\nTONE NOTE: {affect_hint}"
         return prompt
+
+    def _try_persona_prompt(self) -> str | None:
+        """Try to get this agent's unique enterprise persona system prompt.
+
+        Maps agent_name → STAFF key → persona from agent_personas.py.
+        Returns None if no persona found (caller falls back to generic prompt).
+        """
+        try:
+            from app.platform.team import get_staff_persona_prompt
+
+            # agent_name → staff_id mapping
+            _NAME_TO_STAFF = {
+                "Riya": "riya",
+                "Swara": "swara",
+                "Ananya": "ananya",
+                "Dev": "dev",
+                "Rohan": "rohan",
+                "Arjun": "arjun",
+                "Meera": "meera",
+                "Lekha": "lekha",
+                "Raksha": "raksha",
+                "Kavya": "kavya",
+                "Hermes": "hermes",
+                "Isha": "isha",
+                "Tara": "tara",
+                "Nikhil": "nikhil",
+                "Vikram": "vikram",
+                "Guru": "guru",
+                "Pranav": "pranav",
+                "Vidya": "vidya",
+                "Arnav": "arnav",
+                "Kabir": "kabir",
+                "Diya": "diya",
+                "Aryan": "aryan",
+                "Arya": "arya",
+                "Ravi": "ravi",
+                "Neha": "neha",
+                "Kiran": "kiran",
+                "Priya": "priya",
+                "Zara": "zara",
+                "Anika": "anika",
+                "Ira": "ira",
+                "Boss": "manager",
+            }
+            staff_id = _NAME_TO_STAFF.get(self.agent_name)
+            if not staff_id:
+                return None
+            return get_staff_persona_prompt(
+                staff_id,
+                client_name=self.client_name,
+                niche=self.niche,
+                client=self.client_name,
+            )
+        except Exception:
+            return None
 
     # ----------------------- goal steering ----------------------- #
     def _next_goal_question(self, state: DialogState) -> str:

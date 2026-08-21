@@ -21,10 +21,13 @@ proof rather than by hope.
 from __future__ import annotations
 
 import ast
+import logging
 import os
 import re
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------ classifications
 CANONICAL_RUNTIME_PATH = "CANONICAL_RUNTIME_PATH"
