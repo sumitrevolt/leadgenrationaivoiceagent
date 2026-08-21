@@ -102,3 +102,17 @@ async def checkpoint_rollback(ckpt_id: str, _user=Depends(require_super_admin)):
     if not result.get("ok") and result.get("error") == "checkpoint not found":
         raise HTTPException(status_code=404, detail="checkpoint not found")
     return result
+
+
+# --------------------------- Enterprise Persona Registry (ADR-184) --------------------- #
+@router.get("/personas")
+async def get_agent_personas(_user=Depends(require_admin)):
+    """Saare AI staff members ke enterprise-grade distinct personas.
+
+    Har agent ka: name, title, tone, expertise, sales_motivation, system_prompt,
+    coordination_role. Admin dashboard /app/office isse render karta hai.
+    """
+    from app.platform.team import staff_personas_summary
+
+    personas = staff_personas_summary()
+    return {"personas": personas, "count": len(personas)}

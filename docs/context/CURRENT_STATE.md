@@ -1,7 +1,50 @@
-﻿# CURRENT_STATE - LeadGen AI (operational truth)
+# CURRENT_STATE - LeadGen AI (operational truth)
 
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
+
+## HYPERFRAMES ENABLED 2026-08-20 ~23:00Z — advanced video toolchain LIVE in worker-video
+- **worker-video now runs `ghcr.io/...-video:1a48039b`** (Dockerfile.video overlay) with node v22.23.2 + hyperframes CLI v0.7.87 + Chrome headless. Flags already ARMED (`CREATIVE_PROVIDER_HYPERFRAMES_ENABLED=1`, canary tenant `leadgenai-self`).
+- **In-container render proof:** composition compiled (1080x1920, 25.4s, 762 frames), Chrome launched, frames streamed. Static templates use screenshot capture (slow); mem_limit raised 4096m→10240m (PR #426) to escape the slow low-memory profile.
+- Rollback: redeploy worker-video WITHOUT the overlay (back to shared app image).
+- Label: DIRECT_HOST_VERIFIED (2026-08-20 ~23:00Z).
+
+## DEPLOYED 2026-08-20 ~22:35Z — `1a48039b` (PR #425 Postiz X caption truncation)
+- **Prod `/health` = `1a48039b`** (DIRECT_HOST_VERIFIED 22:36:10Z): `healthy` · `environment:production`. **5/5 app-image pinned `1a48039b` zero-skew**. VLK=0 restored. Rollback `2af569a2`.
+- Ship: PR #425 — per-platform caption truncation (X 280, Instagram 2200, LinkedIn 3000, etc.) fixing X "post is too long" 400.
+- Label: DIRECT_HOST_VERIFIED + GIT_VERIFIED (origin/main == `1a48039b`); rollback `2af569a2`.
+
+## DEPLOYED 2026-08-20 ~18:05Z — `2af569a2` (PR #423 video own-brand canary auto-approve+publish)
+- **Prod `/health` = `2af569a2`** (DIRECT_HOST_VERIFIED 18:00:24Z + 18:01:07Z): `healthy` · `environment:production`. **5/5 app-image pinned `2af569a2` zero-skew**. VLK=0 restored. Rollback `525cd33f`.
+- Kill-fence SOP: `.env.bak-killfence-20260820_video` → `VOICE_LAUNCH_KILL=1` → `deploy_vps.sh` `=== DEPLOYED 2af569a2 OK ===` → VLK revert `0` → recreate 5 services.
+- Ship: PR #423 — `VIDEO_OWN_BRAND_AUTO_APPROVE` flag (CANARY-FIRST) + SYSTEM principal + `auto_approve_own_brand_pending` (own-brand only, bounded, idempotent) wired into `publish_due`. Armed in prod .env (=1); `VIDEO_OWN_BRAND_ENABLED` already =1.
+- **PROVEN:** trigger => auto-approve `{approved:2, cap:2}` + publish_due `{published:4, failed:1}`; REAL Postiz post_ids (4 channels). X 1-fail = "post is too long" (caption > X limit).
+- **HyperFrames gap:** `CREATIVE_PROVIDER_HYPERFRAMES_ENABLED=1` + `CREATIVE_HYPERFRAMES_CANARY_TENANTS=leadgenai-self` ARMED, but toolchain MISSING from prod image (no node / hyperframes bin) — advanced render fail-closed.
+- Label: DIRECT_HOST_VERIFIED + GIT_VERIFIED (origin/main == `2af569a2`); rollback `525cd33f`.
+
+## DEPLOYED 2026-08-20 ~14:05Z — `525cd33f` (PR #422 Swara enterprise pitch + flagship voice model)
+- **Prod `/health` = `525cd33f`** (DIRECT_HOST_VERIFIED 14:04:24Z + 14:05:13Z): `healthy` · `environment:production`. **5/5 app-image pinned `525cd33f` zero-skew**, all `(healthy)`. VLK=0 restored (calling live). Rollback `658fc20a` (lineage).
+- Kill-fence SOP: `.env.bak-killfence-20260820_1935` → `VOICE_LAUNCH_KILL=1` → `deploy_vps.sh` `=== DEPLOYED 525cd33f OK ===` (smoke 200, queues 0/0) → VLK revert `0` → recreate 5 services.
+- Ship: PR #422 (owner-authorized voice change, overrides Swara FROZEN): `universal_pitch.py` outcome-first enterprise opener/pitch + `telecaller_brain.py` `_voice_model` default → `gemini-2.5-flash` (flagship-fast). Compliance (AI disclosure, permission, soft-no, price-truth) UNTOUCHED. CI all required PASS.
+- Voice model truth: `VOICE_LLM_MODEL=gemini-2.5-flash` · `VOICE_GEMINI_PRIMARY=1` · `DEFAULT_LLM=mistral-small-latest` (voice-scoped Gemini flagship-fast primary; global free stack).
+- Label: DIRECT_HOST_VERIFIED + GIT_VERIFIED (origin/main == `525cd33f`); rollback `658fc20a`.
+
+## RUNTIME FLAG + CRED TRUTH 2026-08-20 ~13:05Z (fresh host probe — supersedes older flag/cred lines)
+- **Prod `/health` = `658fc20a`** re-verified (12:57:50Z + 12:58:34Z advancing, `environment:production` healthy). **5/5 app-image services pinned `658fc20a` zero-skew**, all `(healthy)`. `leadgen_dsh_worker` running (`leadgen-dsh-worker:658fc20a`) but `DSH_RUNTIME_ENABLED=0` (fail-closed). Staging `28ba5d4e`.
+- **Queues clean:** celery=0 · dlq:failed_tasks=0 · dlq:dead=0. Runtime-data cutover `RUNTIME_DATA_CUTOVER_ENABLED=1`, canonical store `/opt/leadgen-runtime` (host) actively written (heartbeats fresh 13:03, job_runs 37MB).
+- **Automation LIVE:** all scheduler jobs `ok=true` fresh — growth, email_outreach/email_followup, sales_autopilot, social_drain, daily_video, gsc_rank, platform_dial (06:00), coordinator, product_one_health, hot_queue_brief, daily_owner_brief, boss-autonomy-sweep (every 5m).
+- **Flag drift CORRECTED (older docs said OFF/pending — LIVE truth):** `BOSS_FULL_AUTONOMY=1` + `BOSS_DECISION_GOVERNANCE=1` (governance sweep LIVE, **agents UNARMED 30/30** — rollout held, no mutating canary yet) · `CRM_SYNC=1` + `CRM_SYNC_PULL=1` · `COORD_PLAN_NODE=1` · `DAILY_VIDEO_CLIENTS=*` · `VIDEO_AD_CYCLE=1` · `DUNNING_ENGINE=1` · `OPENCLAW_ENABLED=1` · `DSH_RUNTIME_ENABLED=0` · `GSC_ENABLED` UNSET (creds present) · `VOICE_LAUNCH_KILL=0` · `PLATFORM_DIAL_DAILY=1` + `PLATFORM_DIAL_LIMIT=100` · `WHATSAPP_AUTO_SEND=1`/`POST_CALL_WHATSAPP=1`/`VOICE_CLOSE_WHATSAPP=1` · `SALES_AUTOPILOT_WHATSAPP_ENABLED=0` (cold WA OFF) · `UPI_AUTO_ACTIVATE=1` scoped to one client.
+- **Provider creds PRESENT by name (older docs said "pending"):** ZOHO (id/secret/refresh) · HUBSPOT_API_KEY · GSC_SERVICE_ACCOUNT_JSON + GOOGLE_SHEETS_CREDENTIALS · META_APP_ID/SECRET/OAUTH_APPROVED · POSTIZ_API_KEY/URL/INTEGRATIONS · WAHA_API_KEY/BASE_URL/SESSION/WEBHOOK_TOKEN.
+- Label: DIRECT_HOST_VERIFIED (2026-08-20 ~13:05Z, host + container env).
+
+## DEPLOYED 2026-08-20 ~12:40Z — `658fc20a` (PR #421 wiring-gap self-diagnosis)
+- **Prod `/health` = `658fc20a`** (DIRECT_HOST_VERIFIED 2026-08-20 12:40:05Z + 12:40:08Z public HTTPS dual probe — timestamps ADVANCE 3s ⇒ live, not cached): `healthy` · `environment:production` · uptime 4m.
+- Pre-deploy live probe (12:07:58Z) found prod actually at `16c0475e` (NOT `ddf47c4a` — the AGENTS.md "Ops facts hot" `ddf47c4a` was STALE; SHA-discipline landmine — live probe wins). VPS checkout HEAD was `16c0475e`, FF-able to origin/main.
+- Deploy via `scripts/deploy_vps.sh` (CANONICAL): candidate resolved `658fc20a` from origin/main (PR #421 squash-merged after GitHub branch-protection refused a direct `main` push — required PR + 3/3 status checks, all GREEN including Gate A this run + full pytest shards 1–4). Kill fence MANDATORY: `prod_check --deployment` gate requires `VOICE_LAUNCH_KILL` TRUE_TOKEN — UNSET/FALSE both BLOCK (`scripts/prod_check.py` `check_voice_launch_kill_env`).
+- Kill-fence SOP: backup `.env.bak-killfence-20260820_120758` → `VOICE_LAUNCH_KILL=1` → `deploy_vps.sh` `=== DEPLOYED 658fc20a OK ===` (queues 0/0, smoke 10/10 → 200, lineage ROLLBACK_TAG=`16c0475e`, removed `ddf47c4a`) → VLK revert `0` → `APP_VERSION=658fc20a` recreate of all 5 app-image services. **5/5 pin `658fc20a`, VLK=0 in every service** (calling RESTORED). Disk 51%, 96G free.
+- Ship: PR #421 `feat(automation): wiring-gap self-diagnosis — surface flag-ON-but-unwired`. `wiring_gaps()` reuses canonical `gsc.enabled()` (honours `google_sheets_credentials` fallback + file-exists; the prior narrow manual check false-alarmed). Signal surfaced in **daily owner brief** (p2 exceptions) + **Mission Control** rollup — "flag ON but backend/creds missing" now visible instead of dead data. 6 regression tests. Diff: automation_health.py, owner_brief.py, control_center.py, admin_dashboard.html (dialer nav — `/app/dialer` route verified-live), test file.
+- Owner revenue gates unchanged (NOT a revenue fix): `ready_for_first_paid_customer` still owner-gated on UPI bind + bank confirm; cold WA + ToS-scrape still OFF by design. (Flag/cred truth corrected by the 13:05Z probe block above — CRM LIVE `hubspot`, GSC creds PRESENT with only `GSC_ENABLED` flag flip remaining; this deploy did NOT touch flags/creds.)
+- Label: DIRECT_HOST_VERIFIED + GIT_VERIFIED (origin/main == `658fc20a`); rollback `16c0475e`. **AGENTS.md `## Current State` "Ops facts hot" `ddf47c4a` / `16c0475e` now SUPERSEDED — re-probe `/health` before quoting any SHA.**
 
 ## RE-VERIFICATION 2026-08-16 ~04:53Z — DEPLOY `237e20ac` (PR #380 marketing factory + admin scorecard)
 - **Prod `/health` = `237e20ac`** (DIRECT_HOST_VERIFIED 04:53:37Z host + 04:53:56Z public HTTPS): `healthy` · `environment:production` · uptime 0h0m58s.

@@ -151,6 +151,24 @@ _BOARD_REQUIRED_PLATFORMS = frozenset({"pinterest"})
 # Hard ceiling for POSTIZ_PUBLISH_MAX_CHANNELS (matches parse cap).
 _PUBLISH_MAX_CHANNELS_CEILING = 20
 
+# Per-platform caption character limits (X is the tight one). Conservative
+# values; a platform-map miss falls back to the global 2000 cap (old behaviour).
+_CAPTION_LIMITS: dict[str, int] = {
+    "x": 280,
+    "twitter": 280,
+    "instagram": 2200,
+    "linkedin": 3000,
+    "facebook": 5000,
+    "youtube": 5000,
+    "pinterest": 500,
+}
+_DEFAULT_CAPTION_LIMIT = 2000
+
+
+def _caption_limit(provider_type: str) -> int:
+    """Max caption chars for a Postiz provider identifier (best-effort)."""
+    return _CAPTION_LIMITS.get((provider_type or "").strip().lower(), _DEFAULT_CAPTION_LIMIT)
+
 
 def _pinterest_board() -> str:
     """Optional Postiz Pinterest board id/name. Unset/whitespace = skip Pinterest."""
@@ -501,7 +519,13 @@ async def publish_video(
             }
         media_list = [media]
     caption_clean = (caption or "").strip()
-    value = [{"content": caption_clean[:2000], "image": media_list}]
+
+    def _value_for(integration_id: str) -> list[dict[str, Any]]:
+        # Per-platform caption truncation: X (280) vs Instagram/LinkedIn/etc.
+        provider_type = platform_map.get(integration_id) or ""
+        limit = _caption_limit(provider_type)
+        return [{"content": caption_clean[:limit], "image": media_list}]
+
     # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
     # ("should not be null or undefined") — every platform needs this. X also
     # requires settings.who_can_reply_post; harmless extra field on other
@@ -535,7 +559,8 @@ async def publish_video(
         "shortLink": False,
         "tags": [],
         "posts": [
-            {"integration": {"id": i}, "value": value, "settings": _settings_for(i)} for i in ids
+            {"integration": {"id": i}, "value": _value_for(i), "settings": _settings_for(i)}
+            for i in ids
         ],
     }
     # Note: idempotency_key is intentionally NOT forwarded — Postiz docs do not

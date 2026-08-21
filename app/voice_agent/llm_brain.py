@@ -366,7 +366,29 @@ Just provide the opening line, no explanations."""
         return response
 
     def _get_default_prompt(self, client_name: str, client_service: str, niche: str) -> str:
-        """Get default static system prompt"""
+        """Get default static system prompt.
+
+        ADR-184 (2026-08-21): Enterprise persona registry se agent-specific
+        system prompt use karo. Fallback = original static prompts.
+        """
+        # Try enterprise persona — agent_name se staff_id resolve karo
+        try:
+            from app.platform.team import get_staff_persona_prompt
+
+            # llm_brain ke andar agent_name attribute nahi hai —
+            # default "Swara" use karo (primary telecaller)
+            persona = get_staff_persona_prompt(
+                "swara",
+                client_name=client_name,
+                niche=niche,
+                client=client_name,
+            )
+            if persona:
+                return persona
+        except Exception:
+            pass
+
+        # Original fallback prompts
         if client_service == "AI Lead Gen SAAS":
             return self.SYSTEM_PROMPTS["saas_sales_agent"].format(
                 client_name=client_name, niche=niche

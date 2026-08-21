@@ -169,6 +169,9 @@ def test_run_cycle_flag_off_inert(iso, monkeypatch):
 
 
 def test_run_cycle_flag_on_generates(iso, monkeypatch):
+    # Disable daily video producer so classic cycle runs (not deferred)
+    monkeypatch.delenv("DAILY_VIDEO_ENABLED", raising=False)
+    monkeypatch.delenv("DAILY_VIDEO_CLIENTS", raising=False)
     monkeypatch.setenv("VIDEO_AD_CYCLE", "1")
     out = asyncio.run(V.run_cycle())
     assert out["ran"] is True and out.get("generated", 0) >= 1
