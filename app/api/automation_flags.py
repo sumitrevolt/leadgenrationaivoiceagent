@@ -10,6 +10,7 @@ AUTOMATION_FLAGS = [
     "OWNER_OS",  # Owner Operating System (/app/owner + /api/admin/owner-os) — always mounted for admin; flag documents surface
     "OWNER_OS_LITMUS",  # ADR-155 HITL litmus on Owner OS plan/execute (deterministic; default ON; set 0 to bypass block)
     "BOSS_DECISION_GOVERNANCE",  # Boss+Second-Brain hash-bound decision approvals (proposed→advice→boss→consume); OFF default; execute fail-closed when unset
+    "BOSS_FULL_AUTONOMY",  # Boss full-autonomy loop over BOSS_DECISION_GOVERNANCE (sweep→advice→review→consume); OFF default inert
     "STAFF_BUS_ENABLED",  # 31-STAFF Buzz collaboration bus (envelopes/bridge/canaries); OFF default; never executes protected customer actions
     "OPENCLAW_ENABLED",  # OpenClaw Owner Copilot edge layer (/api/owner-copilot) — OFF default; Owner OS remains sole action authority
     "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF
@@ -119,6 +120,7 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
+    "VIDEO_OWN_BRAND_AUTO_APPROVE",  # flag-gated auto-approve of own-brand pending videos (canary, default OFF)
     "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
     # HyperFrames = the "advanced" animated deliverable. It was MISSING from this
     # registry, so /api/growth/infra/flags reported Creative OS healthy while the

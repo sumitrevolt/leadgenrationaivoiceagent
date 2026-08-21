@@ -544,6 +544,23 @@ _OVERRIDES: dict[str, FlagMeta] = {
         evidence="CODE-PRESENT",
         canary="coordinator.coordinate_hierarchical adapter + Owner OS inbox",
     ),
+    "BOSS_FULL_AUTONOMY": _m(
+        "BOSS_FULL_AUTONOMY",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.OWNER_APPROVAL_REQUIRED,
+        notes=(
+            "Boss full-autonomy loop over BOSS_DECISION_GOVERNANCE "
+            "(sweep existing decisions -> advice -> review -> consume); "
+            "OFF default inert; GREEN auto / AMBER needs_owner / RED+UPI refuse; "
+            "advisory absence never executes"
+        ),
+        owner="rohan",
+        risk="ops",
+        default="0",
+        evidence="CODE-PRESENT",
+        canary="app.platform.boss_autonomy sweep (manager held until mutating canary)",
+        companions=("BOSS_DECISION_GOVERNANCE",),
+    ),
     "STAFF_BUS_ENABLED": _m(
         "STAFF_BUS_ENABLED",
         FlagValueKind.BOOLEAN,

@@ -485,3 +485,41 @@ def run_staff_job(self, job: str):
                 oae.clear_running_task(aid, tid)
         except Exception:
             pass
+
+
+@shared_task(
+    bind=True,
+    base=OwnerSchedulerGuardedTask,
+    name="app.tasks.staff_jobs.boss_autonomy_sweep",
+    max_retries=1,
+    default_retry_delay=300,
+    acks_late=True,
+)
+@idempotent_task("boss_autonomy_sweep", ttl=600)
+def boss_autonomy_sweep(self):
+    """Flag-gated Boss autonomy sweep (INERT unless both flags ON).
+
+    Advances EXISTING pending governed decisions one bounded step each via
+    app.platform.boss_autonomy.run_once(). No re-propose, no catch-up flood:
+      - idempotent_task SETNX dedup + retry-safe (distributed lock)
+      - bounded batch (run_once limit) + one-step-per-decision
+      - flag-gated inert: BOSS_FULL_AUTONOMY=1 AND BOSS_DECISION_GOVERNANCE=1
+      - boot-grace guard (no-op for non-heavy jobs; defense-in-depth)
+    """
+    try:
+        from app.platform import boot_grace, boss_autonomy
+
+        if boot_grace.should_skip_boot_grace("boss_autonomy"):
+            return {"ok": True, "skipped": True, "reason": "boot_grace"}
+        if not boss_autonomy.ready():
+            return {
+                "ok": True,
+                "inert": True,
+                "reason": "flag_off",
+                "enabled": boss_autonomy.enabled(),
+                "governance_enabled": boss_autonomy.governance_enabled(),
+            }
+        return boss_autonomy.run_once(limit=30)
+    except Exception as e:
+        logger.warning("[boss_autonomy_sweep] failed: %s", type(e).__name__)
+        raise self.retry(exc=e)

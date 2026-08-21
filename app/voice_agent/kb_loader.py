@@ -28,11 +28,9 @@ except Exception:  # pragma: no cover
 
     logger = logging.getLogger(__name__)
 
-from app.voice_agent.knowledge_base import (
-    KnowledgeBase,
-    chunk_text,
-    get_knowledge_base,
-)
+from collections.abc import Iterable
+
+from app.voice_agent.knowledge_base import KnowledgeBase, chunk_text, get_knowledge_base
 
 # --------------------------------------------------------------------------- #
 # Common business FAQs — har niche ke liye relevant (LeadGen AI ka apna pitch).

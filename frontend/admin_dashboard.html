@@ -265,6 +265,7 @@
       <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Pipeline & Leads</a>
       <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">—</span></a>
       <a href="/app/outreach" role="menuitem" aria-label="WhatsApp / Email Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> WhatsApp / Email Outreach</a>
+      <a href="/app/dialer" role="menuitem" aria-label="Voice calling dialer"><span class="ic" aria-hidden="true">📞</span> Calling / Dialer</a>
 
       <div class="sec nav-group" role="presentation">3. Customers</div>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">—</span></a>
@@ -273,7 +274,7 @@
 
       <div class="sec nav-group" role="presentation">4. Content & Delivery</div>
       <a href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit"><span class="ic" aria-hidden="true">📦</span> Full Delivery Cockpit</a>
-      <a href="/app/studio" role="menuitem" aria-label="AI creative studio"><span class="ic" aria-hidden="true">🎨</span> Creative & AI Studio</a>
+      <a href="/app/studio" role="menuitem" aria-label="AI video and creative studio"><span class="ic" aria-hidden="true">🎬</span> Video & Creative Studio</a>
       <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings"><span class="ic" aria-hidden="true">🎙</span> Completed Call Recordings</a>
 
       <div class="sec nav-group" role="presentation">5. Automations</div>
@@ -293,6 +294,7 @@
       <div class="sec nav-group" role="presentation">8. Owner Controls</div>
       <a href="/app/team-access" role="menuitem" aria-label="Team RBAC and settings"><span class="ic" aria-hidden="true">🔐</span> Global Settings</a>
       <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> Advanced / God Mode</a>
+      <a href="#sec-boss-autopilot" role="menuitem" aria-label="Boss Autopilot status"><span class="ic" aria-hidden="true">🤖</span> Boss Autopilot</a>
       <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
     </nav>
     <div class="ao-sb-live" id="sbLiveAgents"><span class="dot"></span>Full Console · daily guide upar</div>
@@ -1403,6 +1405,51 @@
         </div>
       </div>
 
+      <!-- Boss Autopilot -->
+      <div class="card" id="sec-boss-autopilot" style="margin-bottom:14px;scroll-margin-top:80px;border:1px solid #6366f1">
+        <div class="hd" aria-expanded="false">
+          <h3>Boss Autopilot</h3><span class="right" id="bossAutoStatus" style="color:#b45309">—</span>
+        </div>
+        <div class="bd" id="bossAutopilotBody" style="font-size:12.5px"><em>Loading…</em></div>
+      </div>
+      <script>
+      (function(){
+        function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){return c==="&"?"&amp;":c==="<"?"&lt;":"&gt;";}); }
+        function tag(enabled){ return enabled ? "LIVE" : "INERT"; }
+        async function loadBossAutopilot(){
+          var el=document.getElementById("bossAutopilotBody");
+          var st=document.getElementById("bossAutoStatus");
+          try{
+            var r=await fetch("/api/admin/boss-autopilot",{headers:abAuthHdr(),cache:"no-store"});
+            if(!r.ok){ el.innerHTML="<em>HTTP "+r.status+"</em>"; st.textContent="UNKNOWN"; return; }
+            var d=await r.json();
+            var s=d.status||{}, g=d.governance||{}, hb=(s.heartbeat||{});
+            var rows=[];
+            rows.push(["Autonomy flag", s.flag||"?", tag(s.enabled)]);
+            rows.push(["Governance flag", "BOSS_DECISION_GOVERNANCE", tag(s.governance_enabled)]);
+            rows.push(["Ready", String(!!s.ready), s.ready?"READY":"NOT-READY"]);
+            rows.push(["Boss identity", s.boss_id||"?", "CODE-PRESENT"]);
+            var rl=s.boss_rollout||"?";
+            rows.push(["Boss rollout", rl, rl==="held"?"HELD (needs canary)":(rl==="canary"?"CANARY":"UNKNOWN")]);
+            rows.push(["Confidence threshold", String(s.confidence_threshold!=null?s.confidence_threshold:"?"), "CODE-PRESENT"]);
+            rows.push(["Pending decisions", String(s.pending!=null?s.pending:"?"), "LIVE"]);
+            var bs=s.by_state||{}, bst=Object.keys(bs).map(function(k){return k+":"+bs[k];}).join(", ")||"0";
+            rows.push(["By state", bst, "LIVE"]);
+            if(hb.heartbeat_at) rows.push(["Last heartbeat", new Date(hb.heartbeat_at*1000).toISOString(), "LIVE"]);
+            var html="<table style='width:100%'><tbody>";
+            for(var i=0;i<rows.length;i++){ html+="<tr><td style='padding:5px 8px;color:#64748b;white-space:nowrap'>"+esc(rows[i][0])+"</td><td style='padding:5px 8px'>"+esc(rows[i][1])+"</td><td style='padding:5px 8px;white-space:nowrap'>"+esc(rows[i][2])+"</td></tr>"; }
+            html+="</tbody></table>";
+            if(g && g.pending!=null){ html+="<div style='margin-top:8px;color:#475569'>Governed decisions pending: <b>"+g.pending+"</b> (Owner OS visibility)</div>"; }
+            if(d.status_error) html+="<div style='margin-top:6px;color:#b91c1c'>status error: "+esc(d.status_error)+"</div>";
+            el.innerHTML=html;
+            st.textContent = s.ready ? "READY" : (s.enabled ? "PARTIAL" : "INERT");
+            st.style.color = s.ready ? "#16a34a" : "#b45309";
+          }catch(e){ el.innerHTML="<em>unavailable</em>"; st.textContent="UNKNOWN"; }
+        }
+        if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", loadBossAutopilot);
+        else loadBossAutopilot();
+      })();
+      </script>
       <!-- Agents -->
       <div data-view="office" class="card" id="sec-agents">
         <div class="hd" aria-expanded="false">

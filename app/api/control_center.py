@@ -138,6 +138,9 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
             "dead": _q("dead"),
             "available": bool(queue_available),
         }
+        # wiring gaps: flags ON but backend/creds missing — surfaced so Mission
+        # Control can show "armed but unwired" instead of a false-green.
+        out["wiring_gaps"] = h.get("wiring_gaps") or []
         # heartbeat: health() has no heartbeat object → derive. up = jobs that are
         # neither overdue nor never_ran (i.e. have a live recent beat).
         overdue = len(h.get("overdue") or [])

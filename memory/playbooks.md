@@ -273,3 +273,26 @@ Layout now: `_archive_2026-08-02` (worktrees + backups + loop27/28 patch), `_tra
 - **Owner DNS action needed only if:** selector rotate karna ho (Hostinger panel) → naya CNAME hostinger ki taraf, phir deliverability_monitor.py confirm; ya DMARC ko p=reject tak tighten karna ho (quarantine abhi safe tier hai — pehle 30-60 din quarantine pe volume dekho).
 - **What breaks email:** hostinger account suspend (bulk/abuse) · daily cap (25/day outreach) · SPF include typo. Recovery = Hostinger panel check + DNS records re-add + monitor green hone tak emails bhejna band.
 - **Never:** admin@leadsgenai.in se bulk bhejna (cap), ya SPF/DKIM records alag provider pe point karna (Hostinger SMTP hi truth hai).
+
+## Boss Autonomy launch + rollback runbook (2026-08-20, ADR-184/185)
+
+**State:** CODE-PRESENT + TEST-PROVEN + DEPLOYED (`ddf47c4a`); flags OFF/inert; `manager` rollout held; admin `GET /api/admin/boss-autopilot` LIVE (require_admin); beat `boss-autonomy-sweep` every 5m (flag-gated inert).
+
+**Launch (flag arm — owner-gated, reversible):**
+1. Backup: `cp /opt/leadgen/.env /opt/leadgen/.env.bak-boss-autonomy-<ts>`
+2. Generate secret: `openssl rand -hex 32` → add `BOSS_GOV_AUTHORITY_KEY=<secret>` to `/opt/leadgen/.env` (NEVER commit).
+3. Add `BOSS_DECISION_GOVERNANCE=1` + `BOSS_FULL_AUTONOMY=1` to `.env`.
+4. Recreate: `docker compose -f docker-compose.vps.yml up -d app worker scheduler`
+5. Verify (admin JWT): `curl -H "Authorization: Bearer <adminJWT>" http://127.0.0.1:8000/api/admin/boss-autopilot` → `status.enabled=true`, `status.ready=true`.
+6. Canary (harmless internal, no customer side-effects): `docker exec leadgen_app python -c "from app.platform import boss_autonomy as ba; print(ba.propose_and_decide(decision_type='internal_plan', title='launch-canary', agent_id='hermes', proposed_by='hermes'))"` → expect `outcome=executed` (if obsidian advice present) or `outcome=deferred` (fail-closed, no advice).
+
+**Rollback (kill switch):**
+1. `cp /opt/leadgen/.env.bak-boss-autonomy-<ts> /opt/leadgen/.env`
+2. `docker compose -f docker-compose.vps.yml up -d app worker scheduler`
+3. Verify `enabled=false`, `ready=false`; sweep stops; coordinator governance ledger inert again.
+4. Code rollback (if needed): `bash scripts/deploy_vps.sh 67aabd2a` (rollback tag protected).
+
+**Gates to remember:**
+- `manager` rollout = held → Boss self-execution blocked until a dedicated mutating canary promotes it; use canary executors (`hermes`/`kavya`/`isha`) as `agent_id`.
+- Advisory-absence defers (never auto-executes): execution needs obsidian second-brain notes with score ≥ 0.65.
+- RED / UPI / unknown types refuse; AMBER → `needs_owner` (Owner OS decides).

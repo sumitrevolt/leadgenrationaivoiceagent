@@ -2815,3 +2815,23 @@ Current production is **byte-identical to the original state**, and `REPLY_AUTO_
 **Evidence:** 13 GSC contract tests + 10 affiliate contract tests + 89 reply-noise/closure tests; scheduler multi-registry parity updated (staff count 44→45); prod_check PASS (1273 effective routes); check_secrets clean; API.md synced (1295 endpoints).
 
 **Consequence:** GSC creds verification runbook needed (GCP SA + Search Console property + DNS TXT). Jiya kit owner 1-tap se /app/affiliates pe ready. New flags registry: GSC_ENABLED / GSC_SERVICE_ACCOUNT_JSON / GSC_SITE_URL.
+
+## 2026-08-20 — ADR-184 Boss Autonomy canonicalization (BOSS_FULL_AUTONOMY + app/platform/boss_autonomy.py)
+
+**Context:** Four untracked draft scripts (boss_autonomy.py, boss_autonomy_cli.py, boss_decision.py, auto_commit_deploy.py) implemented Boss full autonomy but monkey-patched private governance internals, re-proposed existing decisions (idempotency break), used a non-canonical default agent (hermes), and used shell=True + git add -A + main-branch commits for release.
+
+**Decision:** Canonical runtime logic lives in app/platform/boss_autonomy.py — public bdg API only (no monkey-patch, no private access), canonical Boss identity manager, authority classes A (GREEN auto) / B (AMBER needs_owner) / C (OWNER_ONLY + RED refuse), HMAC authority via BOSS_GOV_AUTHORITY_KEY, advisory-absence defers (never auto-executes). CLI files under scripts/ are thin adapters. auto_commit_deploy.py is a governed release helper (list-form subprocess, explicit-path staging, no main commit, SHA-verified merge, deploy dry-run). Flag BOSS_FULL_AUTONOMY registered (OWNER_APPROVAL_REQUIRED, default 0). Celery beat boss-autonomy-sweep (*/5) drives run_once() via @idempotent_task (flag-gated inert). Admin GET /api/admin/boss-autopilot (require_admin) exposes live status/metrics/governance.
+
+**Evidence:** 25 tests in tests/test_boss_autonomy.py + 1 token-store 503 fail-closed test; combined 90 green; prod_check PASS (1334 routes); check_secrets clean. manager rollout = held (not in PILOT_AGENTS) so autonomy is CODE-PRESENT + TEST-PROVEN, not production-armed.
+
+**Consequence:** BOSS_FULL_AUTONOMY and BOSS_DECISION_GOVERNANCE remain OFF in prod. Boss cannot execute its own decisions until a dedicated mutating canary promotes manager. No deploy/arm/commit this session.
+
+## 2026-08-20 — ADR-185 Boss Autonomy deploy (ddf47c4a) + Admin surface
+
+**Context:** ADR-184 canonicalized the Boss autonomy spine; this record ships it to production.
+
+**Decision:** Merged PR #415 (squash ddf47c4a) and deployed to prod via scripts/deploy_vps.sh. Added Admin Boss Autopilot HTML surface over GET /api/admin/boss-autopilot (require_admin). Fixed runtime-data debt ratchet by routing release evidence through runtime_data.store_path.
+
+**Evidence:** prod /health.version = ddf47c4a (environment production, healthy); CI full green (prod_check runtime gates + pytest 4 shards + ratchet); rollback tag 67aabd2a protected.
+
+**Consequence:** BOSS_FULL_AUTONOMY + BOSS_DECISION_GOVERNANCE remain OFF (inert). manager rollout = held. Production canary execute step gated on obsidian advice + a dedicated mutating canary promotion.

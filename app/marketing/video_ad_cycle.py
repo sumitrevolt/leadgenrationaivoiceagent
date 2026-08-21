@@ -1121,6 +1121,16 @@ async def publish_due(limit: int = 20) -> dict[str, Any]:
     published = failed = 0
     held = unknown = 0
     try:
+        # Own-brand canary (flag-gated, default OFF): auto-approve own-brand
+        # CLIENT_REVIEW_PENDING videos so own-brand social actually publishes.
+        try:
+            from app.marketing.video_production import cell as _cell
+
+            _auto = _cell.auto_approve_own_brand_pending()
+            if _auto.get("ran"):
+                logger.info(f"[video_ad] own-brand auto-approve: {_auto}")
+        except Exception as e:
+            logger.debug(f"[video_ad] own-brand auto-approve skip: {e}")
         rows = [r for r in _latest().values() if r.get("status") == "approved"]
         rows.sort(key=lambda r: str(r.get("decided_at") or r.get("created_at") or ""))
         for rec in rows[: max(1, int(limit))]:

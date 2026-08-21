@@ -1,26 +1,28 @@
-# SESSION_HANDOFF — 2026-08-18 (TODAY MODE)
+# SESSION_HANDOFF — 2026-08-20 (CP0 truth reconciliation)
 
 ## Status
-**VERIFIED AND DEPLOYED.** Executed the MASTER PROMPT TODAY MODE tracks 1 through 4. The 14-commit slice and origin/main hotfixes (`203f9b71`) were observed to already be merged and built, so I finalized the verification, smoke tested the money-path E2E, checked automation health (which is 100% clean), and successfully bounced/recreated the containers on VPS using the explicit kill-fence strategy.
+**VERIFIED (no deploy needed).** Established fresh end-to-end truth at prod `658fc20a` and reconciled stale flag/cred/SHA claims. No app code changed, no flag flipped, no voice triggered, no revenue fabricated.
 
-## Changed files in this session
-- **`docs/gtm/TODAY_TRUTH_20260818.md`**: Created unified truth sheet asserting zero drift on `203f9b71`.
-- **`progress.md`**: Appended Ledger for TODAY MODE execution.
-- **Removed Scratch files**: `find_yield.py`, `find_yield2.py`, `up_conftest.py`, `up_conftest2.py`, `up_proof.py`, `ci_log.txt`, `ci_log2.txt`, `MASTER_PROMPT_50DAY.md` as instructed.
-- All testing Python files (`smoke_money_path.py`, `check_revenue_data.py`, `check_outreach.py`) have been left in `scripts/` but they are fully gitignored or uncommitted to avoid polluting the repo.
+## Key truth established (DIRECT_HOST_VERIFIED 2026-08-20 ~13:05Z)
+- Prod `/health` = `658fc20a` (healthy, environment:production). 5/5 app-image services pinned `658fc20a` zero-skew. Staging `28ba5d4e`. `leadgen_dsh_worker` running but `DSH_RUNTIME_ENABLED=0`.
+- Queues clean: celery=0, dlq:failed_tasks=0, dlq:dead=0.
+- Runtime-data cutover `RUNTIME_DATA_CUTOVER_ENABLED=1`, canonical `/opt/leadgen-runtime` fresh.
+- All scheduler jobs ok & fresh (growth, email, sales_autopilot, social_drain, daily_video, gsc_rank, platform_dial, coordinator, boss-autonomy-sweep).
 
-## Verification evidence
-- Prod `/health` is **`203f9b71`** (Zero Skew). Fresh up-time (recreated 5/5).
-- Smoke tested the `/pricing` -> `/start` -> `signup` -> `/api/upi/submit` path: Return 200 `status: pending` (working logic).
-- Automation DB health verified directly on VPS: `celery` = 0, `dlq:failed_tasks` = 0, `dlq:dead` = 0.
-- `activation/summary`: `payments_ready=true, blocker_count=1`. (Waiting on owner).
+## Flag + cred drift (older docs were stale)
+- BOSS_FULL_AUTONOMY=1 + BOSS_DECISION_GOVERNANCE=1 — governance sweep LIVE, agents UNARMED 30/30 (rollout held).
+- CRM_SYNC=1 (Zoho + HubSpot creds present), COORD_PLAN_NODE=1, DAILY_VIDEO_CLIENTS=*, VIDEO_AD_CYCLE=1.
+- GSC_ENABLED UNSET but GSC creds present (owner flip needed).
+- META + POSTIZ + WAHA creds present (social publish path wired; canary not yet proven).
+- Cold WA OFF (SALES_AUTOPILOT_WHATSAPP_ENABLED=0). Voice LIVE (PLATFORM_DIAL_DAILY=1, VOICE_LAUNCH_KILL=0).
 
-## Next (Owner Preparation Pack)
-Owner must perform the following actions manually via the live admin interface:
-1. **Hot Queue Blitz (15–30 min)**: `/app/admin-login` -> `/app/inbox` -> Hit the top 5 intent cards -> Send WA pitch: "Namaste! Aapne LeadGen AI check kiya tha apne website ke liye. Hum pehle week me results dila sakte hain aapke business me. Demo link bhejun?" -> Click Done to log.
-2. **UPI Bind Path**: Navigate to `/app/admin#sec-upi-selfserve` and bind real VPA.
-3. **Bank Credit Confirm**: Manually verify and clear the `approved-unbound` queue item. This is the **only way** `paid_today` will register!
-4. **Flags Check**: After Hot Queue Blitz proves value, convert the `FIX(2)` flag manually by turning ON `REVENUE_TRENDS`.
+## Verification gates run (local)
+- prod_check.py → ALL CHECKS PASSED (1335 routes, 0 wiring gaps). check_secrets.py → no secrets. API.md synced (1359).
+- graphify_refresh.bat failed (local graphify CLI node arg error — navigation-only, non-blocking).
 
-All code-fixable blockers are cleared. `first_paid_delivery` WARN remains honest until the Jiya delivery checklist is completed. The revenue metrics depend wholly on Owner completion of steps above.
-- **Agent Executed:** BL-4 (Capacity Verification Baseline). capacity_baseline.py ran successfully. System load is ~1-2% CPU, plenty of RAM headrooom (app at 2.8GB, worker at 700MB). Infrastructure is 100% capacity-ready for 50/day.
+## Next (Owner Preparation Pack — HUMAN-INPUT REQUIRED only)
+1. **Hot Queue blitz** `/app/inbox` → 2nd customer.
+2. **UPI bind + bank credit confirm** → `paid_today` registers (only revenue gate).
+3. **Flip `GSC_ENABLED=1`** (creds already present) → rank tracking arms.
+4. **Boss per-agent arm (mutating canary)** → autonomy rollout.
+5. Optional: social/video provider publish canary (creds present).

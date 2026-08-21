@@ -843,12 +843,11 @@ class TelecallerBrain:
         # self._genai=None reh jaata hai aur brain free_ai.chat se chalta hai.
         first_key = self._active_key() or (settings.gemini_api_key or "").strip()
         self._genai = None
-        # Voice LLM model — env-tunable (research 2026-06-30: flash-lite = fast +
-        # decent free Hindi IF; set VOICE_LLM_MODEL=gemini-2.5-flash for higher Hindi
-        # instruction-following at the cost of latency/quota — reversible, default unchanged).
-        _voice_model = (
-            os.environ.get("VOICE_LLM_MODEL", "") or ""
-        ).strip() or "gemini-2.5-flash-lite"
+        # Voice LLM model — env-tunable. Default = gemini-2.5-flash (Google Gemini
+        # flagship FAST model) for higher Hindi/Hinglish instruction-following; owner
+        # 2026-08-20 asked for the provider FLAGSHIP for Swara. flash-lite (highest free
+        # quota) remains available via VOICE_LLM_MODEL=gemini-2.5-flash-lite (reversible).
+        _voice_model = (os.environ.get("VOICE_LLM_MODEL", "") or "").strip() or "gemini-2.5-flash"
         self.model = _voice_model
         if first_key:
             try:
