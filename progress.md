@@ -1,6 +1,80 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-20 (~23:00Z) — HyperFrames advanced-video toolchain LIVE in prod worker-video
+Goal: Enable advanced (HyperFrames/Creative OS) video rendering in prod (the last "sab karo one by one" item).
+Inspected: Dockerfile.video (node22+npm+hyperframes+Chrome toolchain), Dockerfile.lock (no node), docker-compose.vps.yml (all services from Dockerfile.lock), deploy/compose/docker-compose.video.yml overlay (OPT-IN switch for worker-video), deploy_vps.sh skew check (tag-suffix *:$VER accepts -video repo).
+Problems Found: (1) HyperFrames flags ARMED (CREATIVE_PROVIDER_HYPERFRAMES_ENABLED=1, canary tenant leadgenai-self) but toolchain ABSENT from prod image (no node). (2) overlay mem_limit 4096m < 8192m threshold => hyperframes slow single-worker screenshot profile.
+Changed: built ghcr.io/...-video:1a48039b (Dockerfile.video overlay); switched worker-video onto it via overlay compose; raised overlay mem_limit 4096m->10240m (commit -> PR #426). No app code changed.
+Tests Run: in-container render proof — node v22.23.2; hyperframes CLI v0.7.87; composition compiled (1080x1920, 25.4s, 762 frames); Chrome headless launched + streamed frames (slow screenshot mode for static template, killed after proof).
+Verification Evidence: worker-video image = ...-video:1a48039b; node v22.23.2; hyperframes.mjs present; CREATIVE_HYPERFRAMES_ROOT=/opt/video_renderer/hyperframes; CLI --version 0.7.87; render frames streamed.
+Risks: static templates use screenshot capture (slow); mem_limit bump needs VPS RAM headroom (15GiB total, ok). Rollback = redeploy worker-video without overlay.
+Remaining: full app-flow render (creative_os enqueue) to produce a customer deliverable; tune CREATIVE_HYPERFRAMES_TIMEOUT_S vs Celery soft limit (overlay sets 1200s soft / 1320 time).
+Next Highest Priority: trigger a real creative_os HyperFrames render for leadgenai-self and verify the .mp4 deliverable.
+
+## Loop Run
+Date: 2026-08-20 (~22:40Z) — Postiz X caption truncation DEPLOYED 1a48039b
+Goal: Fix X "post is too long" 400 found during own-brand canary publish.
+Inspected: postiz_publish.publish_video (global 2000-char caption cap shared across all integrations).
+Problems Found: X (twitter) hard 280-char limit exceeded by the shared 2000-char caption -> create 400.
+Changed: postiz_publish.py — _CAPTION_LIMITS map (x/twitter 280, instagram 2200, linkedin 3000, facebook/youtube 5000, pinterest 500, default 2000) + per-integration _value_for() truncation. tests/test_postiz_caption_limits.py (4 tests). Committed 9b0e85ea -> PR #425 -> squash-merged 1a48039b -> kill-fence deploy.
+Tests Run: test_postiz_caption_limits + test_postiz_config + test_postiz_unresolved_client (46 green); ruff clean; prod_check PASS; secrets clean; CI all required PASS.
+Verification Evidence: /health=1a48039b healthy; 5/5 pinned zero-skew; VLK=0 restored; rollback 2af569a2.
+Risks: platform_map miss falls back to 2000 (old behaviour); conservative X 280.
+Remaining: HyperFrames toolchain into prod image (Dockerfile.video has node+npm+hyperframes+Chrome; Dockerfile.lock has none; compose builds all from Dockerfile.lock) — infra change, next item.
+Next Highest Priority: HyperFrames prod enable (compose/Dockerfile + render proof).
+
+## Loop Run
+Date: 2026-08-20 (~18:10Z) — Video autopilot: own-brand canary auto-approve+publish DEPLOYED 2af569a2 (PROVEN)
+Goal: "sab karo one by one" — unblock video posting (own-brand canary) + assess advanced (HyperFrames).
+Inspected: video_ad_cycle.py (approval->publish flow), video_production/{flags,cell,approval_principal,approval_saga,publish_gate,allowlist}.py, postiz_publish.py, daily_video.py, prod video flags + video_ads.jsonl (76 records, 21 CLIENT_REVIEW_PENDING, 4 published) + delivery ledger + prod HyperFrames toolchain.
+Problems Found: (1) 21 videos stuck CLIENT_REVIEW_PENDING (no auto-approve) => own-brand social never published. (2) X channel "post is too long" (caption > X limit) — channel-specific validation gap. (3) HyperFrames flags ARMED (CREATIVE_PROVIDER_HYPERFRAMES_ENABLED=1, canary tenant leadgenai-self) but toolchain MISSING from prod image (no node, no hyperframes bin) — advanced render fails closed.
+Changed: approval_principal.py (SYSTEM_AUTOMATION principal + from_system_automation); flags.py (VIDEO_OWN_BRAND_AUTO_APPROVE + limit); cell.py (auto_approve_own_brand_pending — own-brand only, bounded, idempotent); video_ad_cycle.py (wire into publish_due); automation_flags.py (register flag); tests/test_own_brand_video_auto_approve.py (8 tests). Committed c528737d -> PR #423 -> squash-merged 2af569a2 -> kill-fence deploy. Armed VIDEO_OWN_BRAND_AUTO_APPROVE=1 in prod .env (own-brand only; VIDEO_OWN_BRAND_ENABLED already =1).
+Tests Run: 8 new canary tests + video suites (approval_principal, production_cell, video_ad_cycle, daily_video, stage1_shadow) = 114 green; ruff clean; prod_check PASS; CI shards 1-4 + prod_check + harness PASS.
+Verification Evidence: /health=2af569a2 healthy; 5/5 pinned zero-skew; VLK=0 restored; canary trigger => auto-approve {approved:2, cap:2} + publish_due {published:4, failed:1}; REAL Postiz post_ids (4 channels: cmt1txku...); video_ads.jsonl status published 4->8. 1 X-fail = caption too long.
+Risks: auto-approve is own-brand-only (customer never touched, tenant-isolated); flag OFF = no-op (reversible). X caption-length needs per-platform truncation. HyperFrames toolchain needs Dockerfile bake.
+Remaining: (a) X caption-length validation fix; (b) HyperFrames toolchain into prod image (node + hyperframes CLI via Dockerfile.lock/video) + in-container render proof; (c) owner human approvals for the 13 non-own-brand pending videos.
+Next Highest Priority: X caption truncation (small code fix) + HyperFrames Dockerfile bake.
+
+## Loop Run
+Date: 2026-08-20 (~14:05Z) — Swara enterprise pitch + flagship voice model (owner voice-change authorization) DEPLOYED 525cd33f
+Goal: Owner asked to make Swara "Enterprise Grade / best in business" (advanced pitch) + use the provider FLAGSHIP model, then deploy and test-call 9960567001.
+Inspected: universal_pitch.py (single source of ai_marketing opener/pitch), niche_scripts_data.py ai_marketing block, platform_pitch.py flow, telecaller_brain.py _build_system_prompt + _voice_model, free_ai.py model chain, compliance.py window (promo 09:00-19:00 IST fail-closed), stream-call endpoint (admin-gated), prod flags (VOICE_LLM_MODEL=gemini-2.5-flash, VOICE_GEMINI_PRIMARY=1).
+Problems Found: (1) pitch feature-first/generic ("automate social media", "agency se sasta"). (2) code voice-model DEFAULT still gemini-2.5-flash-lite while prod env already overrides to gemini-2.5-flash (drift). (3) Swara/voice FROZEN in repo rules — owner explicit instruction = the human "yes" (R8). (4) promo calling window 09:00-19:00 IST — at test-call time (~19:35 IST) it is CLOSED, so the outbound call is correctly fail-closed.
+Changed: universal_pitch.py (UNIVERSAL_AGENT_INTRO -> outcome-first "roz naye customers"; PITCH_SHORT -> value-anchor "agency se kaafi kam kharcha" + risk-reversal "FREE trial bina card"); telecaller_brain.py (_voice_model default -> gemini-2.5-flash flagship-fast). Compliance UNTOUCHED. Committed 4c92600c -> PR #422 -> squash-merged 525cd33f -> kill-fence deploy (VLK=1 -> deploy_vps.sh DEPLOYED OK -> VLK=0 recreate).
+Tests Run: pytest (test_universal_pitch, test_platform_pitch_flow, test_ai_disclosure, test_permission_opener, test_qa_checks, test_telecaller_brain, test_platform_pitch_dodge, test_call_termination, test_ai_disclosure_wiring, test_voice_selftest, test_niche_common_objections, test_intent_softno) all green; ruff clean; prod_check PASS; check_secrets clean; CI shards 1-4 + prod_check + harness real-redis PASS (Gate A non-required fail pre-existing).
+Verification Evidence: /health=525cd33f production healthy; 5/5 app-image 525cd33f zero-skew; VLK=0 in all 5 (calling restored); queues 0/0; rollback 658fc20a; deploy "=== DEPLOYED 525cd33f OK ===".
+Risks: gemini-2.5-flash is flagship-FAST (latency-correct for voice); gemini-2.5-pro (literal flagship) adds latency + burns quota — reversible VOICE_LLM_MODEL flip. Voice freeze override is owner-authorized only.
+Remaining: test-call 9960567001 NOT placed — promo window closed (19:35 IST) + /stream-call admin-gated. Place tomorrow 09:00-19:00 IST via /app/admin manual-call form.
+Next Highest Priority: owner places verification call to 9960567001 during tomorrow's window; judge pitch from transcript.
+
+## Loop Run
+Date: 2026-08-20 (~13:05Z) — CP0 fresh-runtime truth + flag/wiring reconciliation (no code change, no deploy)
+Goal: Establish current truth (CP0) end-to-end and reconcile stale flag/cred/SHA claims against live runtime; fix docs drift only; no fabricated revenue, no compliance change.
+Inspected: git (HEAD=origin/main=658fc20a, 2 dirty docs), prod /health (658fc20a healthy production), docker ps (5/5 app-image 658fc20a zero-skew + leadgen_dsh_worker + obs stack), queues (celery/dlq/dead all 0), runtime-data cutover (RUNTIME_DATA_CUTOVER_ENABLED=1, canonical /opt/leadgen-runtime fresh 13:03), scheduler/worker logs (jobs firing), fresh job_heartbeats.json (all ok), boss_autonomy/state.json, container flags, provider cred names (ZOHO/HUBSPOT/GSC/META/POSTIZ/WAHA), automation_health.wiring_gaps source, prod_check + check_secrets + sync_api_docs.
+Problems Found: (1) docs drift — AGENTS.md "Ops facts hot" + ACTIVE_WORK said prod=ddf47c4a/28ba5d4e + "BOSS autonomy OFF" + "GSC/CRM creds pending"; LIVE = 658fc20a + BOSS_FULL_AUTONOMY=1 + BOSS_DECISION_GOVERNANCE=1 + CRM_SYNC=1 + ZOHO/HUBSPOT/GSC/META/POSTIZ/WAHA creds ALL present. (2) API.md index stale (prod_check advisory). (3) graphify_refresh.bat fails locally (graphify CLI node arg error — navigation-only). (4) boss autonomy = flags ON + governance sweep LIVE but 30/30 agents UNARMED (rollout held).
+Changed: docs/API.md regenerated (1359 endpoints via sync_api_docs.py); context writeback (progress/CURRENT_STATE/ACTIVE_WORK/SESSION_HANDOFF) with fresh flag + cred + runtime truth. No app code, no flag flip, no deploy, no voice trigger.
+Tests Run: prod_check.py -> ALL CHECKS PASSED (1335 routes, 0 wiring gaps, 51 pages, explorer 360 nodes/95 engines/0 orphans); check_secrets.py -> no secrets; graphify_refresh failed local tooling (non-blocking).
+Verification Evidence: /health 658fc20a (12:57:50Z + 12:58:34Z advancing); 5/5 pin zero-skew; queues 0/0/0; fresh heartbeats all ok (growth 13:00, email_followup 12:55, social_drain 12:40, daily_video 04:15, platform_dial 06:00, boss-autonomy-sweep 13:00 sweeping 30 agent_unarmed); prod_check PASS; secrets clean.
+Risks: older doc lines still say "creds pending" — this entry supersedes; AGENTS.md/CLAUDE.md "Current State" still stale (owner-doc sync separate hop); advanced video toolchain still not in prod compose (worker-video runs but no Node/Chrome toolchain proof).
+Remaining: owner UPI/bank confirm (revenue), Hot Queue blitz (2nd customer), GSC_ENABLED flag flip (creds present but flag off), CRM/Social provider publish canary, Boss per-agent arm (mutating canary), AGENTS.md/CLAUDE.md Current State sync.
+Next Highest Priority: owner UPI bind + bank confirm (only gate to paid_today); then GSC_ENABLED=1 (creds already present) + social publish canary.
+
+## Loop Run
+Date: 2026-08-20 (~12:40Z) — DSH session: wiring-gap self-diagnosis ship + canonical kill-fence deploy `658fc20a` (PR #421)
+Goal: "sab karo autopilot pe chalo" — maximize safe automation, fix everything fixable by code, ship to prod. Verify honesty: what's owner-gated stays owner-gated.
+Inspected: repo state (branch main, HEAD `f3bce5ca` pre-slice); uncommitted WIP from parallel session (automation_health.py wiring_gaps + admin_dashboard.html dialer nav); consumers of `automation_health.health()` (owner_brief, control_center, admin_dashboard_builders) — wiring_gaps computed but NOT surfaced (dead data); `wiring_gaps` references (crm_sync.status / postiz_publish.enabled / whatsapp_selfhost.is_active_provider / settings.whatsapp_business_token — all VERIFIED present); GSC gate `gsc.enabled()` honours `google_sheets_credentials` fallback + file-exists; deploy SOP (hostinger-deploy + leadgen-ops skills + `scripts/deploy_vps.sh`); `prod_check.py --deployment` `check_voice_launch_kill_env` = TRUE_TOKEN-only ship gate (UNSET/FALSE BLOCK).
+Problems Found: (1) wiring_gaps GSC branch re-implemented a NARROWER cred check than `gsc.enabled()` — would FALSE-ALARM when owner wires GSC via `google_sheets_credentials` fallback. (2) wiring_gaps computed but surfaced nowhere. (3) Direct push to `main` blocked by GitHub branch-protection (PR + 3/3 status checks required). (4) `no-commit-to-branch` pre-commit hook blocks commit to main. (5) Pre-commit ruff flagged `_on = lambda` (E731). (6) Pre-deploy live probe showed `16c0475e`, NOT the AGENTS.md-stated `ddf47c4a` (stale hot-fact — SHA-discipline landmine; live probe wins).
+Changed: `app/platform/automation_health.py` — wiring_gaps now `def _on` (was lambda) + GSC reuses `gsc.enabled()`; `app/api/owner_brief.py` — surface wiring_gaps as p2 exceptions in daily owner brief; `app/api/control_center.py` — `out["wiring_gaps"]` in Mission Control rollup; `tests/test_automation_health_wiring_gaps.py` (new, 6 tests); `frontend/admin_dashboard.html` (parallel-session dialer nav — `/app/dialer` route verified-live); `docs/context/CURRENT_STATE.md` deploy record. Deploy: feature branch → squash-merge PR #421 → origin/main `658fc20a` → VPS `deploy_vps.sh` (kill-fence VLK=1 → DEPLOYED OK → VLK=0 recreate).
+Tests Run: local targeted (automation_health + owner_brief + control_center + new wiring_gaps) → green; ruff clean; prod_check PASS; check_secrets clean. CI on PR #421: shards 1–4 PASS, prod_check runtime gates PASS, harness real-redis PASS, Gate A PASS, CodeQL PASS, full suite GREEN.
+Verification Evidence: `=== DEPLOYED 658fc20a OK ===`; public `/health` dual-probe `658fc20a` 12:40:05.923Z + 12:40:08.972Z (timestamps advance ⇒ not cached), healthy, production; smoke 10/10 → 200; 5/5 app-image pin `658fc20a` zero skew; **VLK=0 in all 5** (calling RESTORED); celery=0, dlq:failed_tasks=0; rollback `16c0475e`; disk 51%/96G free; backup `.env.bak-killfence-20260820_120758`.
+Risks: (a) Voice was in a brief kill-window during deploy (~minutes, restored promptly via VLK=0 recreate). (b) AGENTS.md `## Current State` "Ops facts hot" still says `ddf47c4a` — STALE; live truth is `658fc20a` (this entry fixes CURRENT_STATE; AGENTS.md synch is a separate owner-doc hop). (c) Revenue/automation still owner-gated — this deploy did NOT fix revenue (no creds, no UPI confirm, no bank credit) — wiring_gaps now makes those gaps VISIBLE daily so owner knows exactly what to drop in.
+Remaining (OWNER — no agent/autopilot can bypass): provide GSC service-account JSON + `GSC_ENABLED=1` (rank tracking arms); provide Zoho refresh-token / HubSpot key + `CRM_SYNC=1` (CRM push arms); UPI bind + bank-credit confirm (`paid_today` registers); `/app/inbox` Hot-Queue blitz (2nd customer); (wiring_gaps now reports these daily so owner sees them). Further code roll-forward needs same PR→merge→deploy path.
+Next Highest Priority: OWNER drops GSC + CRM creds (the only thing blocking two automation loops from arming) + does the UPI/bank revenue confirm.
+Label: DIRECT_HOST_VERIFIED + GIT_VERIFIED
+
+
+## Loop Run
 Date: 2026-08-16 (opencode — PR #380 merge + kill-fence deploy `237e20ac`)
 Goal: Ship the marketing-factory + admin-scorecard batch to prod via the canonical deploy path and leave a clean, verified prod state.
 Inspected: PR #380 required checks (Lint+syntax+secrets / prod_check+pytest / harness real-redis) vs ruleset 19718692; prod_check.py `check_voice_launch_kill_env` TRUE_TOKEN-only ship gate; CURRENT_STATE.md kill-fence deploy precedent (963ee800 / 91958c23 / c4fc0087 / 150bf898); deploy_vps.sh candidate_resolve (CANDIDATE_REF=origin/main) + gate order; VPS drift (git status clean, docker diff benign).
