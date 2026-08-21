@@ -329,6 +329,83 @@ def staff_for_product(product: str) -> dict[str, dict[str, Any]]:
     return {k: v for k, v in STAFF.items() if v.get("product") in (p, "platform")}
 
 
+# --------------------------------------------------------------------------- #
+# Enterprise Persona Registry (ADR-184, 2026-08-21)
+# Har staff member ka UNIQUE system prompt — sales-focused, distinct personality.
+# team.py STAFF = metadata (name/emoji/duties/schedule)
+# agent_personas.py STAFF_PERSONAS = LLM personality (tone/expertise/system_prompt)
+# get_staff_persona_prompt() = merged dict with persona attached
+# --------------------------------------------------------------------------- #
+def get_staff_persona_prompt(staff_id: str, **kwargs) -> str:
+    """Staff member ka unique enterprise-grade system prompt.
+
+    Args:
+        staff_id: STAFF key ("swara", "manager", "arjun", ...)
+        **kwargs: client_name, niche (dynamic insertion placeholders)
+
+    Returns:
+        Full system prompt string with that member's distinct personality.
+        Falls back to generic voice prompt if persona not found.
+    """
+    try:
+        from app.platform.agent_personas import build_staff_system_prompt
+
+        prompt = build_staff_system_prompt(staff_id, **kwargs)
+        if prompt and prompt != "Staff member not found.":
+            return prompt
+    except Exception:
+        pass
+    # Fallback: generic voice prompt
+    return (
+        f"Tum ek professional AI agent ho. Client: {kwargs.get('client_name', 'our company')}. "
+        f"Niche: {kwargs.get('niche', 'general')}. "
+        "Reply chhota rakho, natural Hinglish me baat karo, sales-focused raho."
+    )
+
+
+def staff_personas_summary() -> list[dict[str, Any]]:
+    """Saare staff members ka persona summary (for dashboard/admin display).
+
+    Returns list of dicts with: id, name, emoji, title, tone, expertise,
+    sales_motivation, product, duties.
+    """
+    try:
+        from app.platform.agent_personas import STAFF_PERSONAS
+
+        result = []
+        for key, info in STAFF.items():
+            persona = STAFF_PERSONAS.get(key, {})
+            result.append(
+                {
+                    "id": key,
+                    "name": info.get("name", key.title()),
+                    "emoji": info.get("emoji", "🤖"),
+                    "title": persona.get("title", info.get("title", "")),
+                    "product": info.get("product", "platform"),
+                    "tone": persona.get("tone", ""),
+                    "expertise": persona.get("expertise", []),
+                    "sales_motivation": persona.get("sales_motivation", ""),
+                    "duties": info.get("duties", ""),
+                    "has_persona": bool(persona),
+                }
+            )
+        return result
+    except Exception:
+        # Fallback: just STAFF metadata without personas
+        return [
+            {
+                "id": key,
+                "name": info.get("name", key.title()),
+                "emoji": info.get("emoji", "🤖"),
+                "title": info.get("title", ""),
+                "product": info.get("product", "platform"),
+                "has_persona": False,
+                "duties": info.get("duties", ""),
+            }
+            for key, info in STAFF.items()
+        ]
+
+
 # Status windows (realism): "working" = abhi-abhi active; "active" = aaj kaam kiya
 # (resting); "offline" = aaj kuch nahi. Pehle 2-min working/20-min offline tha →
 # din me kaam karne wale bhi grey "idle" dikhte the. Ab schedule-cycles reflect hote.
