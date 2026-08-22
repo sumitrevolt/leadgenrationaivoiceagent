@@ -2380,14 +2380,50 @@ def _calling_flagged_cards(
             pid = str(cand.get("id") or "").strip()
             if not pid:
                 continue
+            biz = str(cand.get("business_name") or "ji").strip() or "ji"
+            # BLK-01 (2026-08-22): high-intent card me PAYMENT PATH embed karo.
+            # Sirf audit pitch dena adhoora tha — warm lead ko UPI link bhi chahiye.
+            # _interested_offer_block fail-open hai (UPI unarmed -> ""); jab empty
+            # ho to link BILKUL pehle jaisa rehta hai (zero behaviour change).
+            offer = ""
+            try:
+                offer = _interested_offer_block(biz)
+            except Exception:
+                offer = ""
             wa = str(cand.get("wa_followup_link") or "")
             if not wa and phone10:
                 from urllib.parse import quote
 
-                biz = str(cand.get("business_name") or "ji").strip()
-                wa = f"https://wa.me/91{phone10}?text=" + quote(
-                    f"Namaste {biz} ji — LeadGen AI se baat karni ho to yahan reply karein."
-                )
+                msg = f"Namaste {biz} ji — LeadGen AI se baat karni ho to yahan reply karein."
+                if offer:
+                    msg = f"{msg}{offer}"
+                wa = f"https://wa.me/91{phone10}?text=" + quote(msg)
+            elif wa and offer and phone10:
+                # Pre-computed follow-up link (audit pitch) me bhi payment path
+                # jodo: text= param decode -> append -> re-encode. Koi bhi issue
+                # par original link hi rehta hai (fail-open, never raise).
+                try:
+                    from urllib.parse import quote_plus, unquote_plus
+
+                    base, sep, qs = wa.partition("?")
+                    if sep:
+                        kept: list[str] = []
+                        txt: str | None = None
+                        for part in qs.split("&"):
+                            if part.startswith("text="):
+                                txt = unquote_plus(part[5:])
+                            else:
+                                kept.append(part)
+                        if txt is None:
+                            # NOTE: urlencode() yahan TypeError deta hai (single
+                            # string valid input nahi) — quote_plus hi sahi hai.
+                            kept.append("text=" + quote_plus(offer.strip()))
+                        elif offer not in txt:
+                            kept.append("text=" + quote_plus(txt + offer))
+                        if kept:
+                            wa = f"{base}?{'&'.join(kept)}"
+                except Exception:
+                    pass
             out.append(
                 {
                     "hq_id": f"callflag:{pid}",
