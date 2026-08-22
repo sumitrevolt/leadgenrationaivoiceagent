@@ -75,9 +75,7 @@ def test_ops_hot_queue_bad_scope_defaults_boss(client, monkeypatch):
         return []
 
     monkeypatch.setattr(reply_agent, "hot_queue", fake_hq)
-    monkeypatch.setattr(
-        reply_agent, "hot_queue_summary", lambda rows, scope="boss": {}
-    )
+    monkeypatch.setattr(reply_agent, "hot_queue_summary", lambda rows, scope="boss": {})
     r = client.get("/api/ops/hotqueue?scope=nonsense")
     assert r.status_code == 200
     assert seen["scope"] == "boss"
