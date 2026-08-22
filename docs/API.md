@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1359 operations)
+## Endpoint Index — auto-generated from OpenAPI (1363 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -945,11 +945,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/t/c/{token}` — Track Click
 - `GET   ` `/t/o/{token}` — Track Open
 
-### EngAgents  (6)
+### EngAgents  (7)
 
 - `POST  ` `/api/agents-ext/checkpoint` — Checkpoint Create
 - `GET   ` `/api/agents-ext/checkpoints` — Checkpoints List
 - `POST  ` `/api/agents-ext/code-review` — Code Review
+- `GET   ` `/api/agents-ext/personas` — Get Agent Personas
 - `GET   ` `/api/agents-ext/recall` — Recall Search
 - `POST  ` `/api/agents-ext/recall` — Recall Record
 - `POST  ` `/api/agents-ext/rollback/{ckpt_id}` — Checkpoint Rollback
@@ -1709,8 +1710,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/page-agent/config` — Page Agent Config
 - `POST  ` `/api/page-agent/v1/chat/completions` — Page Agent Chat
 
-### Platform  (17)
+### Platform  (20)
 
+- `GET   ` `/api/ops/hotqueue` — Ops Hot Queue
+- `POST  ` `/api/ops/hotqueue/action` — Ops Hot Queue Action
+- `GET   ` `/api/ops/revenue-summary` — Ops Revenue Summary
 - `POST  ` `/api/platform/clients` — Create Client
 - `GET   ` `/api/platform/clients/{client_id}/agents` — List Client Agents
 - `POST  ` `/api/platform/clients/{client_id}/provision-agents` — Provision Client Agents
