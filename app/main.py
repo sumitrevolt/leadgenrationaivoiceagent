@@ -797,6 +797,15 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Eval-gate router not mounted: {_e}")
 try:
+    from app.api.ops_mcp_tools import router as _ops_mcp_tools_router
+
+    # /api/ops/* — Hot Queue + revenue-summary admin tools, tag="Platform"
+    # taaki /mcp fastapi-mcp mount inhe MCP tools ke roop me expose kare.
+    # Rollback = ye include-block hatao.
+    app.include_router(_ops_mcp_tools_router, prefix="/api")
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Ops MCP-tools router not mounted: {_e}")
+try:
     from app.api.rl import router as _rl_router
 
     # /api/rl/* — RL flywheel (Phase 0) read-only reward-spine visibility.
