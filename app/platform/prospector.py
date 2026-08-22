@@ -347,6 +347,12 @@ _OSM_TAG_MAP: list[tuple[tuple[str, ...], list[str]]] = [
     (("real estate", "property", "realtor"), ['office="estate_agent"']),
     (("hardware", "paint"), ['shop~"^(hardware|doityourself|paint)$"']),
     (("furniture", "decor"), ['shop="furniture"']),
+    # Interior designers / decorators — a DEFAULT target. No single canonical OSM
+    # tag, so cover the shop- and craft-level surfaces.
+    (
+        ("interior", "decorator", "interior_"),
+        ['shop="interior_decoration"', 'craft="interior_decoration"'],
+    ),
     (("pharmacy", "medical", "chemist"), ['amenity="pharmacy"']),
     (("mobile", "electronics"), ['shop~"^(mobile_phone|electronics)$"']),
     (("hotel", "resort", "lodge"), ['tourism~"^(hotel|guest_house|motel)$"']),
@@ -362,6 +368,17 @@ _OSM_TAG_MAP: list[tuple[tuple[str, ...], list[str]]] = [
     (
         ("doctor", "clinic", "hospital"),
         ['amenity~"^(clinic|hospital|doctors)$"', 'healthcare~"^(clinic|hospital|doctor)$"'],
+    ),
+    # Solar / renewable installers — the DEFAULT first target (see _DEFAULT_TARGETS).
+    # Without a mapping, "solar installer" falls to the name~ fallback which returns
+    # ~0 on Indian OSM, starving the free path. craft=solar_installer is a documented
+    # OSM value; shop=solar covers retail-only concerns.
+    (("solar", "renewable", "energy"), ['craft="solar_installer"', 'shop="solar"']),
+    # Coaching institutes / tuition centers — a DEFAULT target. OSM India doesn't
+    # have one canonical tag, so cover the plausible surfaces.
+    (
+        ("coaching", "tuition", "education"),
+        ['amenity="prep_school"', 'office="educational_institution"', 'amenity="language_school"'],
     ),
 ]
 
