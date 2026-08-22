@@ -2394,10 +2394,7 @@ def _calling_flagged_cards(
             if not wa and phone10:
                 from urllib.parse import quote
 
-                msg = (
-                    f"Namaste {biz} ji — LeadGen AI se baat karni ho to yahan "
-                    "reply karein."
-                )
+                msg = f"Namaste {biz} ji — LeadGen AI se baat karni ho to yahan reply karein."
                 if offer:
                     msg = f"{msg}{offer}"
                 wa = f"https://wa.me/91{phone10}?text=" + quote(msg)

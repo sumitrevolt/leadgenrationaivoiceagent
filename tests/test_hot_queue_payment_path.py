@@ -122,11 +122,9 @@ def test_no_offer_duplication_when_already_present(cfg, monkeypatch, flagged_can
     from app.platform.reply_agent import _interested_offer_block
 
     offer = _interested_offer_block("AFM Solar")
-    flagged_candidate["wa_followup_link"] = (
-        "https://wa.me/919876543210?text=" + __import__("urllib.parse", fromlist=["quote"]).quote(
-            "Audit pitch." + offer
-        )
-    )
+    flagged_candidate["wa_followup_link"] = "https://wa.me/919876543210?text=" + __import__(
+        "urllib.parse", fromlist=["quote"]
+    ).quote("Audit pitch." + offer)
 
     cards = _build_cards(monkeypatch, flagged_candidate)
 
