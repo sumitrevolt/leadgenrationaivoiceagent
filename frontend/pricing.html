@@ -137,6 +137,11 @@
 
   <section class="hero">
     <div class="eyebrow"><span class="eyebrow-dot"></span>AI team abhi kaam kar rahi hai — 24/7</div>
+    <div id="launchBanner" style="display:none; background:linear-gradient(135deg,#7c3aed,#db2777); color:#fff; border-radius:14px; padding:14px 18px; margin-bottom:18px; text-align:center;">
+      <b id="launchLabel">🎉 LAUNCH OFFER</b>
+      <span id="launchDetail" style="display:block; font-size:13px; opacity:.92; margin-top:4px;"></span>
+      <span id="launchCountdown" style="display:block; font-size:20px; font-weight:800; margin-top:6px; letter-spacing:.5px;"></span>
+    </div>
     <h1>Apna AI Office shuru karo aaj</h1>
     <p>Marketing AI aapka roz ka content, leads aur reviews sambhalta hai. Voice AI aapke liye calls, qualification aur bookings karta hai — aap sirf results dekho.</p>
     <div class="cta-row">
@@ -495,6 +500,34 @@ async function doSignupPay(){
 }
 
 loadPlans();
+
+// Launch offer banner — server-side deadline hi source-of-truth (honest urgency;
+// fake evergreen timer nahi). /api/public/launch-offer active na ho to banner
+// hidden rehta hai — page bina offer ke bhi poora kaam karta hai.
+(async function(){
+  try{
+    const r = await fetch("/api/public/launch-offer");
+    const d = await r.json();
+    if(!d || !d.ok || !d.expires_at) return;
+    const el = document.getElementById("launchBanner");
+    if(!el) return;
+    const off = d.kind === "pct" ? (d.value + "% OFF") : ("₹" + d.value + " OFF");
+    document.getElementById("launchLabel").textContent =
+      "🎉 " + ((d.label || "LAUNCH OFFER") + " — code " + d.code + " · " + off).toUpperCase();
+    document.getElementById("launchDetail").textContent =
+      "Signup ke baad payment par ye code lagao — deadline tak hi locked price.";
+    el.style.display = "block";
+    const cd = document.getElementById("launchCountdown");
+    const tick = () => {
+      const ms = new Date(d.expires_at) - Date.now();
+      if(ms <= 0){ el.style.display = "none"; clearInterval(window._lt); return; }
+      const dd = Math.floor(ms/864e5), h = Math.floor(ms%864e5/36e5),
+            m = Math.floor(ms%36e5/6e4), s = Math.floor(ms%6e4/1e3);
+      cd.textContent = (dd ? dd + "d " : "") + h + "h " + m + "m " + s + "s";
+    };
+    tick(); window._lt = setInterval(tick, 1000);
+  }catch(e){}
+})();
 </script>
 <script src="/site/turnstile.js" defer></script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){});}</script>

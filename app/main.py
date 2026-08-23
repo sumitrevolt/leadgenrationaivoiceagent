@@ -743,6 +743,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"UPI payments router not mounted: {_e}")
 try:
+    from app.api.revenue_sprint import router as revenue_sprint_router
+
+    app.include_router(
+        revenue_sprint_router, prefix="/api", tags=["Revenue Sprint"]
+    )  # /api/public/offers/* pay-links + /api/admin/revenue|promo (7-day sprint)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Revenue sprint router not mounted: {_e}")
+try:
     from app.api.reseller import router as reseller_router
 
     app.include_router(
@@ -1994,6 +2002,23 @@ async def affiliates_page():
     """Affiliate/referral admin panel — stats, per-affiliate conversions, ek-tap
     shareable kit (link + WhatsApp text). Reads /api/affiliate/stats (admin token)."""
     return FileResponse(str(FRONTEND_DIR / "affiliates.html"))
+
+
+@app.get("/pay/{order_ref}", tags=["Frontend"])
+async def pay_page(order_ref: str):
+    """Hosted pay-page — order-ref se amount-prefilled UPI intent + QR +
+    'maine pay kar diya' submit (revenue sprint 2026-08-23). Data /api/public/
+    offers/{ref} se fetch hota hai; ref unknown/expired ho to page khud
+    fail-closed message dikhata hai."""
+    return FileResponse(str(FRONTEND_DIR / "pay.html"))
+
+
+@app.get("/app/revenue-kit", tags=["Frontend"])
+async def revenue_kit_page():
+    """Owner revenue console — pay-link issue + WhatsApp close text, launch
+    promo create (pricing-page countdown), orders/redemptions ledger. Admin
+    token localStorage se; APIs /api/admin/revenue|promo (revenue sprint)."""
+    return FileResponse(str(FRONTEND_DIR / "revenue_kit.html"))
 
 
 @app.get("/app/dialer", tags=["Frontend"])

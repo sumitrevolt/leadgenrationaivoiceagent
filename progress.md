@@ -498,3 +498,15 @@ Remaining: Code needs to be committed by the user. End to End execution complete
 
 
 - Next Highest Priority: LIVE-verify trainer job survival on next scheduled run; then owner `/app/inbox` + UPI revenue path.
+
+## Loop Run
+- **Date:** 2026-08-23 (DSH Tier-1 plugins + arm)
+- **Goal:** "sab karo in parallel" - cordis Tier-1 plugins PR + DSH runtime arm/soak start
+- **Problems Found:** (1) supply-chain policy 3-layer hai (verify py + evidence json + verify_runtime.mjs build gate) - sirf ek update kafi nahi; (2) Set-Content UTF8 = BOM -> CI SyntaxError; (3) auto-merge race: #435 required-green pe merge ho gaya, mjs fix strand -> deploy build fail; follow-up #436 se land.
+- **Changed:** PR #435 + #436 merged. cordis.yml += session-persistence/user-approval/timeout (llm-retry already tha); REQUIRED_PLUGINS + verify_runtime.mjs allowlists updated; evidence JSON regen. Deployed 5919c379 (DEPLOYED OK). DSH ARMED: RUNTIME=1 SHADOW=1 ALLOWLIST=internal (backup .env.bak-dsharm-*); app+worker+scheduler+worker-heavy+dsh-worker recreated.
+- **Tests Run:** supply-chain verifier OK (plugins=14); test_dsh_supply_chain + test_dsh_migration_contract 11 passed worktree me; CI ALL_GREEN on #436.
+- **Verification Evidence:** /health=5919c379 healthy; app printenv flags set; runtime_status {"dsh_runtime_enabled":true,"dsh_shadow_enabled":true,"dsh_agent_allowlist":["internal"]}; celery Q=0.
+- **Risks:** First natural soak = agla SAFE_SCHEDULED job via dispatch (gsc_rank 00:30 IST / revenue_snapshot 00:15 IST); rollback = .env.bak-dsharm-* restore ya DSH_RUNTIME_ENABLED=0.
+- **Remaining:** Soak results dekh ke promotion decision (OWNER gate); user-approval transport wiring real runs me verify hoga.
+- **Next Highest Priority:** DSH shadow-run events monitor; Hot Queue money actions (owner); Kamal inputs.
+

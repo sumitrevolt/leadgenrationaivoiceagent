@@ -1,5 +1,12 @@
 # CURRENT_STATE - LeadGen AI (operational truth)
 
+## CODE-READY / LOCAL-ONLY — Revenue Sprint batch (2026-08-23, uncommitted)
+- **Goal context:** ₹5L/7-din sprint — GitHub/web research (upi-pg, wacrm, Lago, openpartner, speed-to-lead patterns) + repo gap-audit ke baad MISSING conversion infra ship kiya (dormant engines WIRE kiye, duplicate NAHI banaya).
+- **Shipped:** `app/billing/promo_codes.py` (platform coupon engine — fixed/pct, once-per-customer, max-redemptions, expiry, launch tags) · `offers.issue_custom_offer()` (DFY setup ₹4,999 jaise explicit-amount orders; immutability intact — promo = supersede chain) · `app/api/revenue_sprint.py` router (/api/admin/revenue|promo admin-gated · /api/public/offers/{ref} fail-closed · /api/public/launch-offer) · **`/pay/{order_ref}` hosted pay-page** (amount-prefilled UPI intent+QR, tn=order_ref reconciliation, promo box, /api/upi/submit wiring) · **`/app/revenue-kit`** owner console (pay-link → WhatsApp close text, LAUNCH promo create, ledgers) · pricing.html honest countdown (server-side deadline) · affiliate referral lead→paid flip hooked into BOTH UPI activation sites (`_credit_referral`).
+- **Evidence:** 21 NEW tests + 47 offers + 15 billing-truth + 36 UPI tests GREEN · prod_check PASS (1348 routes, API.md 1372) · secrets clean · ruff clean · runtime-ratchet OK (manifest: billing.promo_codes + marketing.affiliates) · TestClient smoke 9/9.
+- **NOT deployed** — user ne deploy nahi bola. Voice paths 0 touched. Checkout-core coupon field deliberately OUT (follow-up).
+- Label: TEST-PROVEN + GIT_VERIFIED(uncommitted worktree) | deploy = owner gate.
+
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 

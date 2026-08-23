@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadsGen AI — Payment</title>
+<meta name="robots" content="noindex">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Arial,sans-serif; }
+  body { background:#f5f3ff; min-height:100vh; display:flex; justify-content:center; padding:16px; }
+  .card { background:#fff; width:100%; max-width:430px; border-radius:20px; overflow:hidden;
+          box-shadow:0 10px 40px rgba(124,58,237,.18); height:fit-content; }
+  .head { background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#fff; padding:22px 20px; }
+  .head h1 { font-size:20px; } .head p { font-size:13px; opacity:.85; margin-top:4px; }
+  .body { padding:20px; }
+  .amt { text-align:center; margin-bottom:14px; }
+  .amt .n { font-size:40px; font-weight:800; color:#1f2937; }
+  .amt .old { text-decoration:line-through; color:#9ca3af; font-size:15px; margin-right:8px; }
+  .amt .save { color:#059669; font-size:14px; font-weight:600; }
+  .pkg { display:inline-block; background:#ede9fe; color:#6d28d9; font-size:12px;
+         padding:4px 12px; border-radius:99px; margin-top:6px; font-weight:600; }
+  .qrbox { display:flex; flex-direction:column; align-items:center; gap:12px; margin:10px 0 16px; }
+  .qrbox svg { width:230px; height:230px; border:3px solid #7c3aed; border-radius:14px; padding:8px; background:#fff; }
+  .btn { display:block; width:100%; text-align:center; padding:14px; border-radius:12px; font-size:16px;
+         font-weight:700; text-decoration:none; cursor:pointer; border:none; }
+  .btn-upi { background:#7c3aed; color:#fff; }
+  .btn-ghost { background:#f3f0ff; color:#6d28d9; margin-top:10px; font-weight:600; font-size:14px; }
+  .timer { text-align:center; font-size:13px; color:#b45309; background:#fef3c7;
+           border-radius:10px; padding:8px; margin-bottom:14px; display:none; }
+  .promo { display:flex; gap:8px; margin-bottom:16px; }
+  .promo input { flex:1; border:2px solid #e5e7eb; border-radius:10px; padding:11px 12px; font-size:14px; text-transform:uppercase; }
+  .promo button { background:#1f2937; color:#fff; border:none; border-radius:10px; padding:0 18px; font-weight:700; cursor:pointer; }
+  .msg { font-size:13px; margin:-8px 0 12px; display:none; padding:8px 10px; border-radius:8px; }
+  .msg.err { display:block; background:#fee2e2; color:#b91c1c; }
+  .msg.ok { display:block; background:#d1fae5; color:#047857; }
+  form .row { margin-bottom:12px; }
+  form label { font-size:13px; color:#374151; font-weight:600; display:block; margin-bottom:5px; }
+  form input { width:100%; border:2px solid #e5e7eb; border-radius:10px; padding:11px 12px; font-size:15px; }
+  .note { font-size:12px; color:#6b7280; text-align:center; margin-top:14px; line-height:1.5; }
+  .errbig { text-align:center; padding:30px 10px; color:#6b7280; display:none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head"><h1>💳 LeadsGen AI</h1><p>Order payment — scan ya tap karke UPI se pay karo</p></div>
+  <div class="body" id="mainBody" style="display:none">
+    <div class="amt" id="amtBox"></div>
+    <div class="timer" id="timer"></div>
+    <div class="qrbox" id="qrBox"></div>
+    <a id="upiBtn" class="btn btn-upi" style="display:none">📱 UPI app me pay karo</a>
+    <div class="promo">
+      <input id="promoCode" placeholder="Promo code (optional)" maxlength="24">
+      <button onclick="applyPromo()">Lagao</button>
+    </div>
+    <div class="msg" id="promoMsg"></div>
+    <form onsubmit="submitPay(event)">
+      <div class="row"><label>UPI Reference No. (payment ke baad aaya)</label>
+        <input id="upiRef" required placeholder="e.g. 402112345678"></div>
+      <div class="row"><label>Aapka Naam</label><input id="payerName" required></div>
+      <div class="row"><label>WhatsApp Number</label><input id="payerContact" required placeholder="10-digit mobile"></div>
+      <button type="submit" class="btn btn-upi">✅ Maine pay kar diya — activate karo</button>
+    </form>
+    <p class="note">Payment ke baad owner verify karega aur plan turant activate ho jayega.<br>
+    GST invoice email par milega. 🧾</p>
+  </div>
+  <div class="errbig" id="errBig"></div>
+</div>
+<script>
+const ref = location.pathname.split('/').pop();
+let cur = null;
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+
+async function load(){
+  try{
+    const r = await fetch('/api/public/offers/'+encodeURIComponent(ref));
+    const d = await r.json();
+    if(!d.ok){
+      const m = {already_paid:'Ye order already paid hai — dhanyavaad! Activation ho gayi hogi. 🙏',
+                 expired:'Ye offer expire ho gayi. Naya link WhatsApp par mil jayega.',
+                 superseded:'Is order ka naya version aa gaya hai (discount laga hoga). Naye link se pay karo.',
+                 cancelled:'Ye order cancel ho gaya.'};
+      document.getElementById('errBig').style.display='block';
+      document.getElementById('errBig').textContent = m[d.reason] || 'Offer available nahi hai — WhatsApp par message karo.';
+      return;
+    }
+    cur = d;
+    document.getElementById('mainBody').style.display='block';
+    render();
+  }catch(e){
+    document.getElementById('errBig').style.display='block';
+    document.getElementById('errBig').textContent='Network issue — page reload karo.';
+  }
+}
+
+function render(){
+  const disc = cur.promo_discount_inr|0;
+  document.getElementById('amtBox').innerHTML =
+    (disc ? '<span class="old">₹'+(cur.amount_inr+disc)+'</span>' : '') +
+    '<span class="n">₹'+cur.amount_inr+'</span>' +
+    (disc ? '<div class="save">Promo se ₹'+disc+' bachat! 🎉</div>' : '') +
+    '<br><span class="pkg">'+esc(cur.label || cur.package_code)+'</span>';
+  if(cur.armed && cur.upi_link){
+    document.getElementById('qrBox').innerHTML = cur.qr_svg;
+    const b=document.getElementById('upiBtn'); b.style.display='block'; b.href=cur.upi_link;
+  } else {
+    document.getElementById('qrBox').innerHTML='<small style="color:#6b7280">UPI abhi set nahi — WhatsApp karo: wa.me/918459012607</small>';
+  }
+  if(cur.expires_at){
+    const t=document.getElementById('timer'); t.style.display='block';
+    clearInterval(window._ti);
+    window._ti=setInterval(()=>{
+      const ms=new Date(cur.expires_at)-Date.now();
+      if(ms<=0){ t.textContent='⏰ Offer deadline nikal gayi'; clearInterval(window._ti); return; }
+      const h=Math.floor(ms/36e5), mn=Math.floor(ms%36e5/6e4), s=Math.floor(ms%6e4/1e3);
+      t.textContent='⏳ Ye locked price sirf '+h+'h '+mn+'m '+s+'s tak valid hai';
+    },1000);
+  }
+}
+
+async function applyPromo(){
+  const code=document.getElementById('promoCode').value.trim();
+  const msg=document.getElementById('promoMsg');
+  msg.className='msg'; msg.style.display='none';
+  if(!code) return;
+  try{
+    const r=await fetch('/api/public/offers/'+encodeURIComponent(ref),{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code, contact:document.getElementById('payerContact').value.trim()})});
+    const d=await r.json();
+    if(d.ok){
+      msg.className='msg ok'; msg.textContent='🎉 Discount laga — ₹'+d.discount_inr+' bachat!';
+      history.replaceState({},'', '/pay/'+d.order_ref);
+      setTimeout(()=>location.reload(), 700);
+    } else {
+      const m={unknown:'Code galat hai.', expired:'Code expire ho gaya.', plan_not_eligible:'Ye code is plan pe nahi chalta.',
+               already_used:'Aap ye code pehle hi use kar chuke ho.', exhausted:'Code ki limit khatam ho gayi.',
+               promo_already_applied:'Is order pe pehle hi discount lag chuka hai.'};
+      msg.className='msg err'; msg.textContent=m[d.reason]||'Code apply nahi hua.';
+    }
+  }catch(e){ msg.className='msg err'; msg.textContent='Network issue — dobara try karo.'; }
+}
+
+async function submitPay(ev){
+  ev.preventDefault();
+  const btn=ev.target.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Bhej rahe hain...';
+  try{
+    const r=await fetch('/api/upi/submit',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({plan:cur.package_code, upi_ref:document.getElementById('upiRef').value.trim(),
+        amount:cur.amount_inr, payer_name:document.getElementById('payerName').value.trim(),
+        payer_contact:document.getElementById('payerContact').value.trim(), order_ref:ref})});
+    const d=await r.json();
+    if(d.ok && d.status==='auto_activated'){ document.body.innerHTML='<div class="card"><div class="head"><h1>🎉 Activate ho gaya!</h1></div><div class="body"><p>Login karke dashboard dekho — AI team kaam shuru kar chuki hai.</p></div></div>'; }
+    else if(d.ok){
+      document.querySelector('form').outerHTML='<div class="msg ok" style="display:block;text-align:center;padding:14px;font-size:15px">✅ Mil gaya! Owner verify karke turant activate karega — WhatsApp par update aayega. 🙏</div>';
+    } else {
+      btn.disabled=false; btn.textContent='✅ Maine pay kar diya — activate karo';
+      alert(d.message||'Submit fail — dobara try karo.');
+    }
+  }catch(e){ btn.disabled=false; btn.textContent='✅ Maine pay kar diya — activate karo'; alert('Network issue — dobara try karo.'); }
+}
+
+load();
+</script>
+</body>
+</html>

@@ -106,6 +106,64 @@ def record_referral(code: str, lead: dict[str, Any], status: str = "lead") -> di
     return {"ok": True, "referral": rec}
 
 
+def mark_referral_paid_by_contact(
+    contact: str = "",
+    email: str = "",
+    phone: str = "",
+    amount: float = 0,
+) -> int:
+    """Referral rows ko 'lead' → 'paid' flip karo jab customer PAY kar de.
+
+    Revenue-sprint fix (2026-08-23): pehle referral kabhi 'paid' nahi hota tha
+    (koi caller hi nahi) — commission_earned hamesha ₹0 dikhta tha aur payout
+    loop dead tha. Match normalized contact se (email lowercase ya phone ke
+    last 10 digits). Idempotent: already-paid rows skip. Locked atomic rewrite
+    (offers.py convention). Returns flipped count; never raises.
+    """
+    try:
+        em = (email or contact or "").strip().lower()
+        em = em if "@" in em else ""
+        ph = "".join(c for c in (phone or contact or "") if c.isdigit())[-10:]
+        if not em and len(ph) != 10:
+            return 0
+
+        def _hit(r: dict[str, Any]) -> bool:
+            if r.get("status") == "paid":
+                return False
+            r_email = str(r.get("email") or "").strip().lower()
+            r_phone = "".join(c for c in str(r.get("phone") or "") if c.isdigit())[-10:]
+            return bool((em and r_email == em) or (len(ph) == 10 and r_phone == ph))
+
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_REFERRALS) as locked:
+            if not locked:
+                return 0
+            rows = _read(_REFERRALS)
+            flipped = 0
+            for r in rows:
+                if _hit(r):
+                    r["status"] = "paid"
+                    try:
+                        r["amount"] = float(amount or r.get("amount", 0) or 0)
+                    except Exception:
+                        pass
+                    r["paid_at"] = _now()
+                    flipped += 1
+            if not flipped:
+                return 0
+            tmp = f"{_REFERRALS}.tmp.{os.getpid()}"
+            os.makedirs(os.path.dirname(_REFERRALS) or ".", exist_ok=True)
+            with open(tmp, "w", encoding="utf-8") as f:
+                for r in rows:
+                    f.write(json.dumps(r, ensure_ascii=False) + "\n")
+            os.replace(tmp, _REFERRALS)
+            return flipped
+    except Exception as e:
+        logger.warning(f"[affiliate] mark_referral_paid failed: {e}")
+        return 0
+
+
 def stats(code: str | None = None) -> dict[str, Any]:
     refs = _read(_REFERRALS)
     if code:
@@ -183,6 +241,7 @@ def list_affiliates(limit: int = 100) -> list[dict[str, Any]]:
 __all__ = [
     "register_affiliate",
     "record_referral",
+    "mark_referral_paid_by_contact",
     "stats",
     "list_affiliates",
     "referral_kit",

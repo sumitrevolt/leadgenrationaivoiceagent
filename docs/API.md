@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1363 operations)
+## Endpoint Index — auto-generated from OpenAPI (1372 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -971,7 +971,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (75)
+### Frontend  (77)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
@@ -1024,6 +1024,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/outreach` — Outreach Page
 - `GET   ` `/app/owner` — Owner Os Page
 - `GET   ` `/app/plugins` — Customer Plugins Page
+- `GET   ` `/app/revenue-kit` — Revenue Kit Page
 - `GET   ` `/app/segments` — Segments Page
 - `GET   ` `/app/studio` — Studio Page
 - `GET   ` `/app/team` — Team Dashboard Page
@@ -1037,6 +1038,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/demo` — Public Demo Page
 - `GET   ` `/geo-check` — Public Geo Check Page
 - `GET   ` `/manifest.json` — Pwa Manifest
+- `GET   ` `/pay/{order_ref}` — Pay Page
 - `GET   ` `/pricing` — Pricing Page
 - `GET   ` `/privacy` — Privacy Page
 - `GET   ` `/refund` — Refund Page
@@ -1772,6 +1774,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/reseller/applications/{aid}/reject` — Reseller Reject
 - `POST  ` `/api/reseller/apply` — Reseller Apply
 - `GET   ` `/api/reseller/info` — Reseller Info
+
+### Revenue Sprint  (7)
+
+- `POST  ` `/api/admin/promo/create` — Admin: promo code define karo (launch offer, discount)
+- `GET   ` `/api/admin/promo/list` — Admin: promo definitions + applied ledger
+- `GET   ` `/api/admin/revenue/offers` — Admin: recent offers (issued/paid/superseded)
+- `POST  ` `/api/admin/revenue/offers/issue` — Admin: payable offer issue karo → hosted pay-link (WhatsApp close)
+- `GET   ` `/api/public/launch-offer` — Public: active launch offer (pricing-page countdown ka server-side deadline)
+- `GET   ` `/api/public/offers/{order_ref}` — Public: order resolve → UPI pay-kit (amount-prefilled intent + QR)
+- `POST  ` `/api/public/offers/{order_ref}/promo` — Public: order par promo code lagao → discounted supersede offer
 
 ### SEO-Ops  (10)
 
