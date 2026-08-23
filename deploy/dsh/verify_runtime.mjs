@@ -96,8 +96,11 @@ const allowedPlugins = new Set([
   '@deepseek-ai/dsh-mcp-client',
   '@deepseek-ai/dsh-sdk-jsonrpc-server',
   '@deepseek-ai/dsh-session',
+  '@deepseek-ai/dsh-session-persistence',
   '@deepseek-ai/dsh-system-prompt',
+  '@deepseek-ai/dsh-timeout',
   '@deepseek-ai/dsh-tools',
+  '@deepseek-ai/dsh-user-approval',
 ])
 const unexpectedPlugins = plugins.filter(name => !allowedPlugins.has(name))
 if (unexpectedPlugins.length) {
