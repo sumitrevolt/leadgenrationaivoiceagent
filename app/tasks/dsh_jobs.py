@@ -15,6 +15,11 @@ from app.platform.safe_ai_payload import SafePayloadError, mask_customer_data, v
 from app.platform.workforce_runtime import run_store, tokens
 from app.worker import celery_app
 
+try:
+    from app.integrations import dsh as dsh_integration
+except Exception:  # pragma: no cover
+    dsh_integration = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 DSH_QUEUE = "dsh"
@@ -154,8 +159,16 @@ async def _cancel_requested(run: dict[str, Any]) -> tuple[bool, str]:
 async def _run_jsonrpc(run: dict[str, Any]) -> dict[str, Any]:
     if os.name != "posix":
         raise RuntimeError("dsh_linux_only")
-    if not (_flag_on("DSH_RUNTIME_ENABLED") or _flag_on("DSH_SHADOW_ENABLED")):
+    if not dsh_integration:
+        raise RuntimeError("dsh_integration_unavailable")
+    if not (dsh_integration.is_dsh_runtime_enabled() or dsh_integration.is_dsh_shadow_enabled()):
         raise RuntimeError("dsh_runtime_disabled")
+    
+    # Allowlist check (fail-closed).
+    agent_id = str(run.get("agent_id", "")).strip().lower()
+    tool_token = None  # Optional: "<name>@<version>" for per-tool allowlist refinement.
+    if not dsh_integration.is_dsh_allowed(agent_id=agent_id, tool_token=tool_token):
+        raise RuntimeError("dsh_allowlist_denied")
 
     binary = Path(os.getenv("DSH_RUNTIME_BINARY") or RUNTIME_BINARY)
     config = Path(os.getenv("DSH_RUNTIME_CONFIG") or RUNTIME_CONFIG)

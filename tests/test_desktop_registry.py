@@ -59,20 +59,20 @@ def test_registry_loads_with_all_required_fields():
     out = reg.load_registry()
     assert out["ok"] is True
     assert out["version"] == 1
-    assert len(out["apps"]) == 5
+    assert len(out["apps"]) == 6
     ids = [a["id"] for a in out["apps"]]
     assert len(ids) == len(set(ids)), "app ids must be unique"
     for app in out["apps"]:
         for key in _REQUIRED_KEYS:
             assert key in app, f"app {app.get('id')} missing {key}"
-    assert {a["id"] for a in out["apps"]} == {"freebuff", "android", "opencode", "cursor", "buzz"}
+    assert {a["id"] for a in out["apps"]} == {"freebuff", "android", "opencode", "cursor", "hermes", "buzz"}
 
 
 def test_registry_slice_shape():
     sl = reg.registry_slice()
     assert sl["ok"] is True
     assert sl["enabled"] is True
-    assert isinstance(sl["apps"], list) and len(sl["apps"]) == 5
+    assert isinstance(sl["apps"], list) and len(sl["apps"]) == 6
     assert "Read-only projection" in sl["note"]
     assert "error" in sl
 
@@ -121,7 +121,7 @@ def test_hub_snapshot_includes_registry_when_enabled(monkeypatch, tmp_path):
     dr = snap["desktop_registry"]
     assert dr["ok"] is True
     assert dr["enabled"] is True
-    assert len(dr["apps"]) == 5
+    assert len(dr["apps"]) == 6
 
 
 def test_hub_snapshot_registry_inert_when_flag_off(monkeypatch):

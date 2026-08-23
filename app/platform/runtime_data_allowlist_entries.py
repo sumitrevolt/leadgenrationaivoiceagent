@@ -1310,6 +1310,86 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "No fabricated ratings/testimonials; daily cap must stay.",
     },
+    # 2026-08-23 — billing.promo_codes (platform promo/launch-code engine)
+    {
+        "allowlist_id": "billing.promo_codes.store",
+        "file": "app/billing/promo_codes.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/promo_codes.jsonl",
+        "store_id": "billing.promo_codes",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Promo definitions + applied-redemption ledger (launch offers, "
+            "discount codes). Definitions are re-enterable via admin re-create; "
+            "never holds customer PII beyond a normalized contact hash-key. "
+            "CREATE is the os.makedirs ensuring data/ exists before replace."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Writes go through the atomic tmp+replace pair only — never a bare "
+            "append on this path."
+        ),
+    },
+    {
+        "allowlist_id": "billing.promo_codes.tmp",
+        "file": "app/billing/promo_codes.py",
+        "line_or_symbol": "tmp",
+        # Dynamic (pid-suffixed) temp — declaration names the expression the
+        # scanner actually detects, not a glob (offers.py precedent).
+        "path_pattern": 'f"{_STORE}.tmp.{os.getpid()}"',
+        "store_id": "billing.promo_codes",
+        "access_modes": ["CREATE", "REWRITE", "REPLACE", "DELETE"],
+        "reason": (
+            "Atomic temp for the promo-store rewrite under file_lock. DELETE "
+            "is the cleanup path when the write fails partway."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": "Temp and target must stay on ONE filesystem.",
+    },
+    # 2026-08-23 — marketing.affiliates referral paid-flip (revenue sprint)
+    {
+        "allowlist_id": "marketing.affiliates.referrals",
+        "file": "app/marketing/affiliate.py",
+        "line_or_symbol": "_REFERRALS",
+        "path_pattern": "data/affiliate_referrals.jsonl",
+        "store_id": "marketing.affiliates",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Referral conversion ledger (lead→paid flip on payment activation, "
+            "revenue sprint 2026-08-23). Legacy append-only family; the new "
+            "paid-flip adds a locked atomic rewrite via its own tmp row."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "growth",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Flip only moves status lead→paid; never fabricates conversions."
+        ),
+    },
+    {
+        "allowlist_id": "marketing.affiliates.referrals_tmp",
+        "file": "app/marketing/affiliate.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": 'f"{_REFERRALS}.tmp.{os.getpid()}"',
+        "store_id": "marketing.affiliates",
+        "access_modes": ["REWRITE", "REPLACE"],
+        "reason": (
+            "Atomic temp for the referral paid-flip rewrite (tmp + os.replace) "
+            "under file_lock."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "growth",
+        "production_relevance": "LIVE",
+        "review_condition": "Temp and target must stay on ONE filesystem.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

@@ -519,6 +519,56 @@ STORES: list[dict[str, Any]] = [
         ),
     ),
     _e(
+        store_id="billing.promo_codes",
+        display_name="Platform promo/launch-code engine (definitions + applied ledger)",
+        legacy_paths=["data/promo_codes.jsonl"],
+        writer_modules=["app/billing/promo_codes.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="billing",
+        durability_class="rebuildable",
+        concurrency_model="single-writer locked read-modify-write with atomic tmp+replace",
+        tenant_scope="platform-global (sales/marketing launch offers)",
+        target_runtime_subpath="billing/promo_codes/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-23 with the revenue-sprint batch. Promo definitions "
+            "+ applied-redemption ledger for platform-level discount codes; "
+            "re-enterable from admin re-creation (codes are short-lived launch "
+            "artifacts), so rebuildable rather than authoritative. Created lazily "
+            "on first admin create_code call."
+        ),
+    ),
+    _e(
+        store_id="marketing.affiliates",
+        display_name="Affiliate/referral program ledger (registrations + conversions)",
+        legacy_paths=[
+            "data/affiliates.jsonl",
+            "data/affiliate_referrals.jsonl",
+        ],
+        writer_modules=["app/marketing/affiliate.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="growth",
+        durability_class="rebuildable",
+        concurrency_model="append for registrations; locked atomic rewrite for lead→paid flip",
+        tenant_scope="platform-global (referral partners; contact keys only)",
+        target_runtime_subpath="marketing/affiliates/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-23 when the revenue-sprint batch added the "
+            "lead→paid flip on UPI activation (previously referrals never "
+            "reached 'paid', so commission_earned was permanently ₹0). "
+            "Re-enterable from affiliate re-registration + payment ledger."
+        ),
+    ),
+    _e(
         store_id="platform.staff_bus",
         display_name="31 STAFF Buzz bus ledger (events / idempotency / audit / DLQ)",
         legacy_paths=[

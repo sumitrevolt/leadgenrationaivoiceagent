@@ -38,7 +38,7 @@ LOCKS = REPO / "docs" / "coordination" / "LOCKS.json"
 # the local relay is up; hosted default keeps the current workspace working.
 RELAY = os.environ.get("BUZZ_RELAY", "https://leadsgenai.communities.buzz.xyz")
 CHANNEL_IDS = Path.home() / ".buzz" / "GUIDES" / "CHANNEL_IDS.json"
-TOOLS = ("CURSOR", "CLAUDE", "CODEX", "GOOSE", "OPENCODE", "FREEBUFF", "MONKEY")
+TOOLS = ("CURSOR", "CLAUDE", "CODEX", "GOOSE", "OPENCODE", "FREEBUFF", "MONKEY", "HERMES")
 
 
 def _now() -> datetime:

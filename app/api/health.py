@@ -105,13 +105,28 @@ async def health_check(response: Response) -> dict[str, Any]:
     documented deploy-drift detector.
     """
     _mark_no_store(response)
-    return {
+    result = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": os.environ.get("APP_VERSION", "dev"),
         "environment": settings.app_env,
         "uptime": _get_uptime(),
     }
+    
+    # Add DSH fields (fail-closed: default to disabled).
+    try:
+        from app.integrations import dsh as dsh_integration
+        dsh_fields = dsh_integration.get_dsh_health_fields()
+        result.update(dsh_fields)
+    except Exception:
+        # If DSH integration is unavailable, default to disabled.
+        result.update({
+            "dsh_runtime_enabled": False,
+            "dsh_shadow_enabled": False,
+            "dsh_allowlist": [],
+        })
+    
+    return result
 
 
 @router.get("/health/live")

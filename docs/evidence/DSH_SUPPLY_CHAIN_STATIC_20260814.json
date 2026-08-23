@@ -24,11 +24,8 @@
       "@deepseek-ai/dsh-mcp-client",
       "@deepseek-ai/dsh-sdk-jsonrpc-server",
       "@deepseek-ai/dsh-session",
-      "@deepseek-ai/dsh-session-persistence",
       "@deepseek-ai/dsh-system-prompt",
-      "@deepseek-ai/dsh-timeout",
-      "@deepseek-ai/dsh-tools",
-      "@deepseek-ai/dsh-user-approval"
+      "@deepseek-ai/dsh-tools"
     ]
   },
   "evidence_label": "STATIC_VERIFIED",
@@ -36,13 +33,13 @@
     ".github/workflows/dsh-runtime.yml": "8f5026da6b457dd1cc19a97268ab567b8e1ad6e1e28dcbfe827a7101921028f1",
     "app/tasks/dsh_jobs.py": "28dc675eb2e3f686b20567108360331e7ac704d3313c7ad10e1bcc180edd2957",
     "deploy/dsh/Dockerfile": "6588866d6c9854c90c7082230587fb3f208a688c275815a9750a2b3d06eaa2a5",
-    "deploy/dsh/cordis.yml": "8d0ec8f4d5f680c283ab6d15c325d6c219e96796c356f46621bc0960a9f876fe",
+    "deploy/dsh/cordis.yml": "2accd148bb34b8d6af176a450a6f8e572e3f07e9d8f034b8b2d6b18b41522e47",
     "deploy/dsh/hardening.patch": "6f3da7d7a0f8b96c56452537d73df8cb3cb4190b0b875069f94099004a8d42d0",
     "deploy/dsh/normalize_sea_binary.py": "2202d7587b2dc14d829614e546a757f74d6398e41e1e5a3e5b6cc9ce00c2e0c4",
     "deploy/dsh/runtime.package.json": "6649cd3a3fc2626c4dc3dbf33d010d935e498e3f2e55db49937c2df486f31c6c",
     "deploy/dsh/test-gateway.Dockerfile": "09ab7a2b3609f337e463c11a210d056a465d5309fa107162d3c715e2bf014cae",
     "deploy/dsh/upstream.lock.json": "f8893cf4c3c82f8204bc7fe5ed3c9a3fbfc26765e6643a86d8e1561dc790cb96",
-    "deploy/dsh/verify_runtime.mjs": "3a8ac329227052d6b6cc111d8fad1b7d215ab7206aa527efc8a240487834e68e",
+    "deploy/dsh/verify_runtime.mjs": "9984b6c03b57d1ff2c94822c35edbda22588dddfc0fa13b88f6c14f1bd7ba51b",
     "deploy/dsh/worker.Dockerfile": "e06f38abb2405d68305516c41d0260a89596c0a7adb10e8cb71745cd442e4567",
     "docker-compose.vps.yml": "5806d2cb5ec636d968bfa149354ae177c83f92cabb65d7fcfefce62ec9e11a9c",
     "requirements-dsh.lock.txt": "2878906d4ed49b2ab5f78a3b891d8581dd33a46fa8717ddeb0a27fb7a6650b42",

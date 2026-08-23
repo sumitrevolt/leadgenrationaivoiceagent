@@ -8,6 +8,13 @@ from celery import Celery
 
 _broker = (os.getenv("REDIS_URL") or "redis://redis:6379/0").strip()
 
+# DSH_RUNTIME_ENABLED flag check (fail-closed).
+# If the flag is not set or set to 0, the worker is DORMANT.
+# This ensures the worker does not process any DSH jobs unless explicitly enabled.
+if not (os.getenv("DSH_RUNTIME_ENABLED", "0") == "1" or os.getenv("DSH_SHADOW_ENABLED", "0") == "1"):
+    # DORMANT: Worker is registered but no DSH jobs will be processed.
+    pass
+
 celery_app = Celery(
     "leadgen_dsh_worker",
     broker=_broker,

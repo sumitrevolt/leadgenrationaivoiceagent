@@ -6,7 +6,7 @@
 # Exit codes: 0 = healthy (already running or started), 1 = failed to reach healthy state.
 
 $ErrorActionPreference = 'Stop'
-$LogPath = "C:\Users\Ratanshila\Documents\leadgenrationaiagent\uat_evidence\omniroute_setup\launcher_log.txt"
+$LogPath = "C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\uat_evidence\omniroute_setup\launcher_log.txt"
 
 function Write-Log($msg) {
     $line = "[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
@@ -30,7 +30,7 @@ Write-Log "Port 20128 not listening. Ensuring tmux session 'leadgen-omni' + wind
 
 # Ensure session/window exist, then (re)start the omniroute process in the gateway window.
 # This does not disturb the other coding-lane windows/panes in the same session.
-wsl.exe bash /mnt/c/Users/Ratanshila/Documents/leadgenrationaiagent/scripts/omniroute_ensure_running.sh | Out-Null
+wsl.exe bash /mnt/c/Users/Ratanshila/Documents/leadgenrationaivoiceagent/scripts/omniroute_ensure_running.sh | Out-Null
 
 Write-Log "Start command sent. Waiting for bounded health readiness (max 30s)..."
 
@@ -50,6 +50,6 @@ if ($ready) {
     Write-Log "OmniRoute did NOT become reachable within 30s."
     Write-Log "Degraded-mode: existing LeadGen AI fallback chain (free_ai.py) remains available."
     Write-Log "OmniRoute routing is simply unavailable until manually investigated."
-    Write-Log "Debug command: wsl.exe bash /mnt/c/Users/Ratanshila/Documents/leadgenrationaiagent/scripts/omniroute_debug_capture.sh"
+    Write-Log "Debug command: wsl.exe bash /mnt/c/Users/Ratanshila/Documents/leadgenrationaivoiceagent/scripts/omniroute_debug_capture.sh"
     exit 1
 }

@@ -188,9 +188,7 @@ def test_suppression_wins(wired, monkeypatch):
 def test_cooldown_no_double_send_same_day(wired, monkeypatch):
     monkeypatch.setenv("TRIAL_NUDGE_ENABLED", "1")
     recent = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-    wired.set_clients(
-        [_client(trial_nudge_stage="expiring", trial_nudge_at=recent, trial_nudge_count=1)]
-    )
+    wired.set_clients([_client(trial_nudge_stage="expiring", trial_nudge_at=recent, trial_nudge_count=1)])
     out = _run(wired)
     assert out["sent"] == 0
     assert out["skipped_cooldown"] == 1
@@ -199,9 +197,7 @@ def test_cooldown_no_double_send_same_day(wired, monkeypatch):
 def test_max_per_client_cap(wired, monkeypatch):
     monkeypatch.setenv("TRIAL_NUDGE_ENABLED", "1")
     old = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-    wired.set_clients(
-        [_client(trial_nudge_stage="expired", trial_nudge_at=old, trial_nudge_count=3)]
-    )
+    wired.set_clients([_client(trial_nudge_stage="expired", trial_nudge_at=old, trial_nudge_count=3)])
     out = _run(wired)
     assert out["sent"] == 0
     assert out["skipped_cooldown"] == 1
