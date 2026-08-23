@@ -1,5 +1,7 @@
-from app.integrations.postiz import PostizClient
 from app.platform.scheduler import SchedulerTask
+
+from app.integrations.postiz import PostizClient
+
 
 class PostizAutoPostTask(SchedulerTask):
     name = "postiz_auto_post"

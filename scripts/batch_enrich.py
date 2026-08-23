@@ -13,7 +13,7 @@ async def main():
     count = 0
     os.makedirs(os.path.dirname(out_file), exist_ok=True)
     with (
-        open(in_file, "r", encoding="utf-8") as f_in,
+        open(in_file, encoding="utf-8") as f_in,
         open(out_file, "a", encoding="utf-8") as f_out,
     ):
         reader = csv.DictReader(f_in)

@@ -1,7 +1,8 @@
-import os
+import asyncio
 import csv
 import json
-import asyncio
+import os
+
 from app.lead_scraper.deep_extract import extract_url
 
 
@@ -15,7 +16,7 @@ async def process_prospects():
     hubspot_key = os.environ.get("HUBSPOT_API_KEY", "").strip()
     # Checking the .env file explicitly since os.environ might not have it in this subshell if not exported
     if not hubspot_key and os.path.exists(".env"):
-        with open(".env", "r") as f:
+        with open(".env") as f:
             for line in f:
                 if line.startswith("HUBSPOT_API_KEY="):
                     hubspot_key = line.split("=", 1)[1].strip()
@@ -24,7 +25,7 @@ async def process_prospects():
     has_hubspot = bool(hubspot_key and hubspot_key != "your-hubspot-api-key")
 
     results = []
-    with open(in_csv, "r", encoding="utf-8") as f:
+    with open(in_csv, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
 
