@@ -758,6 +758,14 @@ async def chat_provider(
         return "", p
 
     tlim = timeout_s if timeout_s and timeout_s > 0 else max(_CALL_TIMEOUT_S, 30.0)
+    # 2026-08-23 fix: gpt-oss* = REASONING models — hidden reasoning tokens
+    # `max_tokens` se pehle khate hain. Prod evidence: telecaller max_tokens=56
+    # par Groq gpt-oss-20b ne finish='length' + content='' diya (T1 probe);
+    # max_tokens=512 par 'GROQ_OK' (T2). Bina headroom ke har voice turn top-2
+    # providers (groq+cerebras dono gpt-oss) se EMPTY aata tha -> Mistral fallback.
+    _mt = int(max_tokens or 0)
+    if "gpt-oss" in (model or "") and 0 < _mt < 512:
+        _mt = 512
     _t0 = time.monotonic()
     try:
         with _llm_span("chat_provider", model=model, provider=p) as _obs:
@@ -765,7 +773,7 @@ async def chat_provider(
                 client.chat.completions.create(
                     model=model,
                     messages=msgs,
-                    max_tokens=max_tokens,
+                    max_tokens=_mt,
                     temperature=temperature,
                 ),
                 timeout=tlim,
@@ -975,13 +983,18 @@ async def chat(
         if _blocked_for_provider(msgs, provider):
             continue
         _t0 = time.monotonic()
+        # 2026-08-23 fix: reasoning-model token headroom (see chat_provider note).
+        # gpt-oss* hidden reasoning tokens max_tokens khate hain -> content=''.
+        _mt = int(max_tokens or 0)
+        if "gpt-oss" in (model or "") and 0 < _mt < 512:
+            _mt = 512
         try:
             with _llm_span("chat", model=model, provider=provider) as _obs:
                 resp = await asyncio.wait_for(
                     client.chat.completions.create(
                         model=model,
                         messages=msgs,
-                        max_tokens=max_tokens,
+                        max_tokens=_mt,
                         temperature=temperature,
                     ),
                     timeout=_CALL_TIMEOUT_S,
