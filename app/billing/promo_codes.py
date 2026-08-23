@@ -187,9 +187,11 @@ def create_code(
         with file_lock(_STORE) as locked:
             if not locked:
                 return {"ok": False, "reason": "store_locked"}
-            rows = [r for r in _read() if not (
-                r.get("type") == "definition" and str(r.get("code") or "") == norm
-            )]
+            rows = [
+                r
+                for r in _read()
+                if not (r.get("type") == "definition" and str(r.get("code") or "") == norm)
+            ]
             rows.append(rec)
             if not _write_all(rows):
                 return {"ok": False, "reason": "write_failed"}
@@ -200,11 +202,7 @@ def create_code(
 
 
 def _applied_rows(rows: list[dict[str, Any]], code: str, customer_key: str = "") -> list[dict]:
-    out = [
-        r
-        for r in rows
-        if r.get("type") == "applied" and str(r.get("code") or "") == code
-    ]
+    out = [r for r in rows if r.get("type") == "applied" and str(r.get("code") or "") == code]
     if customer_key:
         out = [r for r in out if str(r.get("customer_key") or "") == customer_key]
     return out

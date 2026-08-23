@@ -373,9 +373,7 @@ def issue_custom_offer(
     except Exception:
         return None
     if amount < CUSTOM_MIN_INR or amount > CUSTOM_MAX_INR:
-        logger.warning(
-            "[offers] refusing custom offer out of bounds: %s (%s)", amount, code
-        )
+        logger.warning("[offers] refusing custom offer out of bounds: %s (%s)", amount, code)
         return None
 
     try:
