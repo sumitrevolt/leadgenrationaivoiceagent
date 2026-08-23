@@ -358,9 +358,7 @@ class AutoTrainer:
             pickle.dump(pipeline, f)
 
         logger.info(
-            f"📈 {model_name} trained: "
-            f"accuracy={metrics.accuracy:.3f}, "
-            f"f1={metrics.f1_score:.3f}"
+            f"📈 {model_name} trained: accuracy={metrics.accuracy:.3f}, f1={metrics.f1_score:.3f}"
         )
 
         return metrics

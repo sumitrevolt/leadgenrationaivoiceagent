@@ -9,6 +9,7 @@ buffer (flush every 10 + once at the end).
 Fix: follow-ups use the same bulk-mark buffer. A multi-send run must call
 `set_prospect_fields_bulk` (batched) and NOT the per-send `set_prospect_fields`.
 """
+
 from __future__ import annotations
 
 import asyncio

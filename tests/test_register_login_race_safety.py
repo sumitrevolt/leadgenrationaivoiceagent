@@ -23,12 +23,14 @@ def test_register_login_refuses_cross_tenant_overwrite(monkeypatch):
     tries to bind X to client_id B → refused with `email_claimed`."""
     import app.api.customer_auth as ca
 
-    seed = [{
-        "email": "race@example.com",
-        "client_id": "cid_A",
-        "password_hash": ca._hash("passA"),
-        "created_at": "2026-07-10T00:00:00Z",
-    }]
+    seed = [
+        {
+            "email": "race@example.com",
+            "client_id": "cid_A",
+            "password_hash": ca._hash("passA"),
+            "created_at": "2026-07-10T00:00:00Z",
+        }
+    ]
     monkeypatch.setattr(ca, "_read", lambda: list(seed))
 
     written: list[list[dict]] = []
@@ -45,12 +47,14 @@ def test_register_login_same_client_id_is_idempotent(monkeypatch):
     """Same client_id → idempotent overwrite (real password rotation)."""
     import app.api.customer_auth as ca
 
-    seed = [{
-        "email": "race@example.com",
-        "client_id": "cid_A",
-        "password_hash": ca._hash("passOld"),
-        "created_at": "2026-07-10T00:00:00Z",
-    }]
+    seed = [
+        {
+            "email": "race@example.com",
+            "client_id": "cid_A",
+            "password_hash": ca._hash("passOld"),
+            "created_at": "2026-07-10T00:00:00Z",
+        }
+    ]
     monkeypatch.setattr(ca, "_read", lambda: list(seed))
     written: list[list[dict]] = []
     monkeypatch.setattr(ca, "_write_all", lambda rows: written.append(list(rows)))
@@ -67,12 +71,14 @@ def test_register_login_admin_reassign_default_allowed(monkeypatch):
     overwrite semantics — support-driven re-targeting stays possible."""
     import app.api.customer_auth as ca
 
-    seed = [{
-        "email": "race@example.com",
-        "client_id": "cid_A",
-        "password_hash": ca._hash("passA"),
-        "created_at": "2026-07-10T00:00:00Z",
-    }]
+    seed = [
+        {
+            "email": "race@example.com",
+            "client_id": "cid_A",
+            "password_hash": ca._hash("passA"),
+            "created_at": "2026-07-10T00:00:00Z",
+        }
+    ]
     monkeypatch.setattr(ca, "_read", lambda: list(seed))
     written: list[list[dict]] = []
     monkeypatch.setattr(ca, "_write_all", lambda rows: written.append(list(rows)))
@@ -93,16 +99,22 @@ def test_signup_returns_409_on_race_claimed_email(client, monkeypatch):
 
     # Initial login_exists check passes (row seeded AFTER, simulating race).
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
-    monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "cid_race", "business_name": k.get("business_name")})
+    monkeypatch.setattr(
+        cs, "add_client", lambda **k: {"id": "cid_race", "business_name": k.get("business_name")}
+    )
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda c: True)
 
     # Simulate register_login returning email_claimed (race-lost case).
     monkeypatch.setattr(
-        ca, "register_login",
+        ca,
+        "register_login",
         lambda email, pw, cid, allow_reassign=True: {
-            "ok": False, "error": "email_claimed", "email": email, "client_id": "cid_other"
+            "ok": False,
+            "error": "email_claimed",
+            "email": email,
+            "client_id": "cid_other",
         },
     )
 

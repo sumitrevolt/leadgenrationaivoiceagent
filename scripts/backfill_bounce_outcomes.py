@@ -223,8 +223,7 @@ def main(argv: list[str]) -> int:
 
     if not apply:
         print(
-            f"\n[DRY RUN] would update {len(r['updates'])} interaction row(s). "
-            "Re-run with --apply."
+            f"\n[DRY RUN] would update {len(r['updates'])} interaction row(s). Re-run with --apply."
         )
         return 0
 

@@ -1,4 +1,5 @@
 """B3 - system-health drill-down endpoint."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -27,8 +28,15 @@ def test_health_detail_shape(monkeypatch):
     r = client.get("/api/admin/system-health-detail")
     assert r.status_code == 200
     d = r.json()
-    for k in ("cpu_pct", "mem_pct", "disk_pct", "redis_ping_ms",
-              "celery_queue_depth", "worker_alive", "health_ready"):
+    for k in (
+        "cpu_pct",
+        "mem_pct",
+        "disk_pct",
+        "redis_ping_ms",
+        "celery_queue_depth",
+        "worker_alive",
+        "health_ready",
+    ):
         assert k in d
 
 
@@ -51,22 +59,34 @@ def test_grade_thresholds():
     from app.api.system_health import _grade
 
     # all healthy
-    g = _grade({"cpu_pct": 10, "mem_pct": 20, "disk_pct": 30},
-               {"celery_queue_depth": 5, "worker_alive": "ok"}, 2)
+    g = _grade(
+        {"cpu_pct": 10, "mem_pct": 20, "disk_pct": 30},
+        {"celery_queue_depth": 5, "worker_alive": "ok"},
+        2,
+    )
     assert g["status"] == "ok"
     # disk full + queue backlog -> bad overall
-    g2 = _grade({"cpu_pct": 10, "mem_pct": 20, "disk_pct": 95},
-                {"celery_queue_depth": 900, "worker_alive": "ok"}, 2)
+    g2 = _grade(
+        {"cpu_pct": 10, "mem_pct": 20, "disk_pct": 95},
+        {"celery_queue_depth": 900, "worker_alive": "ok"},
+        2,
+    )
     assert g2["status"] == "bad"
     disk_row = next(r for r in g2["rows"] if r["key"] == "disk")
     assert disk_row["status"] == "bad" and disk_row["hint"]
     # redis down (-1) -> bad redis row
-    g3 = _grade({"cpu_pct": 10, "mem_pct": 20, "disk_pct": 30},
-                {"celery_queue_depth": 5, "worker_alive": "ok"}, -1)
+    g3 = _grade(
+        {"cpu_pct": 10, "mem_pct": 20, "disk_pct": 30},
+        {"celery_queue_depth": 5, "worker_alive": "ok"},
+        -1,
+    )
     redis_row = next(r for r in g3["rows"] if r["key"] == "redis")
     assert redis_row["status"] == "bad"
     # missing data (-1 pct) -> unknown row, not a crash
-    g4 = _grade({"cpu_pct": -1, "mem_pct": -1, "disk_pct": -1},
-                {"celery_queue_depth": -1, "worker_alive": "unknown"}, 2)
+    g4 = _grade(
+        {"cpu_pct": -1, "mem_pct": -1, "disk_pct": -1},
+        {"celery_queue_depth": -1, "worker_alive": "unknown"},
+        2,
+    )
     cpu_row = next(r for r in g4["rows"] if r["key"] == "cpu")
     assert cpu_row["status"] == "unknown"

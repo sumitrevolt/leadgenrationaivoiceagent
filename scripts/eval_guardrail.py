@@ -96,7 +96,7 @@ def main() -> int:
             agg[k] += v
     print(f"  source={source}  convos={len(convos)}  mean_turn_score={mean}")
     print(
-        f"  bot_turns={agg['bot_turns']}  flags={ {k: agg[k] for k in ('empty','too_long','double_question','repeat')} }"
+        f"  bot_turns={agg['bot_turns']}  flags={ {k: agg[k] for k in ('empty', 'too_long', 'double_question', 'repeat')} }"
     )
 
     try:

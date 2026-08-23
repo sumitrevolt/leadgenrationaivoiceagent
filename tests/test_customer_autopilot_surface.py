@@ -16,21 +16,40 @@ def test_drafts_for_client_filters_and_isolates(monkeypatch, tmp_path):
     today = cap._today()
     (tmp_path / "autopilot_brief.jsonl").write_text(
         json.dumps(
-            {"date": today, "kind": "owner_brief", "client_id": "A", "brief": "Aaj ka brief A",
-             "status": "ready", "created_at": today + "T10:00:00"}
+            {
+                "date": today,
+                "kind": "owner_brief",
+                "client_id": "A",
+                "brief": "Aaj ka brief A",
+                "status": "ready",
+                "created_at": today + "T10:00:00",
+            }
         )
         + "\n"
         + json.dumps(
-            {"date": today, "kind": "owner_brief", "client_id": "B", "brief": "brief B (secret)",
-             "status": "ready", "created_at": today + "T10:00:00"}
+            {
+                "date": today,
+                "kind": "owner_brief",
+                "client_id": "B",
+                "brief": "brief B (secret)",
+                "status": "ready",
+                "created_at": today + "T10:00:00",
+            }
         )
         + "\n",
         encoding="utf-8",
     )
     (tmp_path / "autopilot_nps.jsonl").write_text(
         json.dumps(
-            {"date": today, "kind": "nps_survey", "slug": "jiya", "message": "feedback dena?",
-             "wa_link": "wa://x", "status": "draft", "created_at": today + "T11:00:00"}
+            {
+                "date": today,
+                "kind": "nps_survey",
+                "slug": "jiya",
+                "message": "feedback dena?",
+                "wa_link": "wa://x",
+                "status": "draft",
+                "created_at": today + "T11:00:00",
+            }
         )
         + "\n",
         encoding="utf-8",
@@ -53,8 +72,13 @@ def test_drafts_for_client_date_cutoff(monkeypatch, tmp_path):
     monkeypatch.setattr(cap, "_DATA_DIR", str(tmp_path))
     (tmp_path / "autopilot_brief.jsonl").write_text(
         json.dumps(
-            {"date": "2020-01-01", "kind": "owner_brief", "client_id": "A", "brief": "old",
-             "created_at": "2020-01-01T10:00:00"}
+            {
+                "date": "2020-01-01",
+                "kind": "owner_brief",
+                "client_id": "A",
+                "brief": "old",
+                "created_at": "2020-01-01T10:00:00",
+            }
         )
         + "\n",
         encoding="utf-8",
@@ -65,7 +89,9 @@ def test_drafts_for_client_date_cutoff(monkeypatch, tmp_path):
 def test_drafts_for_client_empty_without_identity():
     from app.platform import customer_autopilot as cap
 
-    assert cap.drafts_for_client("", slug="") == []  # no id + no slug => nothing (never mass-return)
+    assert (
+        cap.drafts_for_client("", slug="") == []
+    )  # no id + no slug => nothing (never mass-return)
 
 
 def test_autopilot_route_mounted_and_requires_customer():

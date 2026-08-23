@@ -145,9 +145,9 @@ class TestOwnerBriefShape:
             for i in range(len(exceptions) - 1):
                 a = order.get(exceptions[i].get("severity", "info"), 99)
                 b = order.get(exceptions[i + 1].get("severity", "info"), 99)
-                assert (
-                    a <= b
-                ), f"Exceptions not sorted: {exceptions[i]['severity']} > {exceptions[i+1]['severity']}"
+                assert a <= b, (
+                    f"Exceptions not sorted: {exceptions[i]['severity']} > {exceptions[i + 1]['severity']}"
+                )
 
     def test_owner_brief_next_actions_non_empty(self, client, _empty_mocks):
         body = client.get("/api/admin/owner-brief").json()

@@ -497,7 +497,7 @@ class CalendarBooking:
         event = {
             "summary": f"AI Voice Agent — meeting with {name or 'lead'}",
             "description": (
-                f"Booked via AI voice agent.\nLead: {name}\nPhone: {phone}\n" f"Notes: {notes}"
+                f"Booked via AI voice agent.\nLead: {name}\nPhone: {phone}\nNotes: {notes}"
             ),
             "start": {"dateTime": when.isoformat(), "timeZone": "Asia/Kolkata"},
             "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Kolkata"},
@@ -571,7 +571,7 @@ class CalendarBooking:
                 when=iso,
                 error="Slot already booked.",
                 confirmation_text=(
-                    "Woh slot abhi book ho gaya — main aapko aas-paas ka dusra " "time de doon?"
+                    "Woh slot abhi book ho gaya — main aapko aas-paas ka dusra time de doon?"
                 ),
             )
         booking_id = f"bk_{uuid.uuid4().hex[:12]}"

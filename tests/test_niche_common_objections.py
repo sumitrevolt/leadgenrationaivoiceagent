@@ -7,7 +7,7 @@ NEW = ("fraud_suspicion", "decision_maker", "tried_before", "details_bhejo")
 
 def test_common_objections_merged_into_all_niches():
     for niche in list(NICHE_SCRIPTS.keys()):
-        obj = (get_script(niche).get("objections") or {})
+        obj = get_script(niche).get("objections") or {}
         for k in NEW:
             assert k in obj and obj[k].strip(), f"{niche} missing {k}"
 

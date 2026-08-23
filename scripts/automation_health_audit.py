@@ -507,7 +507,7 @@ def format_daily_check_human() -> str:
             output.append("   Low-Success Actions (<50%):")
             for a in anomalies["low_success_actions"]:
                 output.append(
-                    f"     • {a['action']}: {a['success_rate']*100:.1f}% ({a['uses']} uses)"
+                    f"     • {a['action']}: {a['success_rate'] * 100:.1f}% ({a['uses']} uses)"
                 )
     output.append("")
 
@@ -548,7 +548,9 @@ def format_daily_check_human() -> str:
     verdict_text = (
         "All green — loop healthy"
         if verdict == "green"
-        else "Issues detected — investigate" if verdict == "red" else "Minor issues — monitor"
+        else "Issues detected — investigate"
+        if verdict == "red"
+        else "Minor issues — monitor"
     )
 
     output.append("═══════════════════════════════════════════════════════════")
@@ -617,10 +619,10 @@ def format_weekly_audit_human() -> str:
             output.append("📊 SKILL SUCCESS RATES")
             output.append("Best:")
             for b in best:
-                output.append(f"  ✅ {b['skill']}: {b['rate']*100:.1f}% ({b['uses']} uses)")
+                output.append(f"  ✅ {b['skill']}: {b['rate'] * 100:.1f}% ({b['uses']} uses)")
             output.append("Worst:")
             for w in worst:
-                output.append(f"  ⚠️  {w['skill']}: {w['rate']*100:.1f}% ({w['uses']} uses)")
+                output.append(f"  ⚠️  {w['skill']}: {w['rate'] * 100:.1f}% ({w['uses']} uses)")
         except Exception as e:
             output.append(f"⚠️  Could not read skill stats: {e}")
 

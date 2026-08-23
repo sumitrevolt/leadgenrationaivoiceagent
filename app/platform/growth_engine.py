@@ -411,7 +411,7 @@ def _learn_best_niche() -> dict[str, Any]:
             )
         elif best_niche:
             insights.append(
-                f"Sabse zyada demand '{best_niche}' niche me dikh rahi hai — " "ispe focus badhao."
+                f"Sabse zyada demand '{best_niche}' niche me dikh rahi hai — ispe focus badhao."
             )
         # Dead-heavy niches → pitch revisit.
         for niche, d in by_niche.items():

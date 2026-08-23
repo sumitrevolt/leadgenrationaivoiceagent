@@ -78,9 +78,7 @@ def test_run_pipeline_skips_client_owned_deal(tmp_path, monkeypatch):
 
     # Seed one platform deal + one client-owned deal, both at stage "new"
     # (send_intro -> cadence.enroll is the ONE live auto-execute action).
-    sp.upsert_deal(
-        {"phone": "9876500010", "business_name": "LeadGen Prospect"}, stage="new"
-    )
+    sp.upsert_deal({"phone": "9876500010", "business_name": "LeadGen Prospect"}, stage="new")
     sp.upsert_deal(
         {
             "phone": "9876500011",

@@ -67,6 +67,6 @@ else:
     print("NONE")
 
 print(
-    f"\nTotal: main.py={len(routes)}, routers={len(all_router_routes)}, sum={len(routes)+len(all_router_routes)}"
+    f"\nTotal: main.py={len(routes)}, routers={len(all_router_routes)}, sum={len(routes) + len(all_router_routes)}"
 )
 print("DONE")

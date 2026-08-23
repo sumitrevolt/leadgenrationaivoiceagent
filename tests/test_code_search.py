@@ -54,7 +54,10 @@ def test_grounding_block_shape():
 
 def test_grounding_block_respects_char_budget():
     big = "x" * 5000
-    hits = [{"file": f"f{i}.py", "start_line": 1, "end_line": 2, "score": 0.5, "snippet": big} for i in range(5)]
+    hits = [
+        {"file": f"f{i}.py", "start_line": 1, "end_line": 2, "score": 0.5, "snippet": big}
+        for i in range(5)
+    ]
     blk = code_search.grounding_block(hits, max_chars=1200)
     # only the first block fits under the budget
     assert blk.count("# f") == 1

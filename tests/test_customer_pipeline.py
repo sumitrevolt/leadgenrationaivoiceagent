@@ -30,7 +30,14 @@ def test_empty_input_returns_all_empty_columns():
 
 def test_groups_dict_leads_by_status_with_counts():
     leads = [
-        {"id": "1", "business": "A Solar", "status": "Hot", "phone": "98", "city": "Pune", "niche": "solar"},
+        {
+            "id": "1",
+            "business": "A Solar",
+            "status": "Hot",
+            "phone": "98",
+            "city": "Pune",
+            "niche": "solar",
+        },
         {"id": "2", "business": "B Dental", "status": "Hot"},
         {"id": "3", "business": "C", "status": "Won"},
         {"id": "4", "business": "D", "status": "Follow-up"},
@@ -46,7 +53,16 @@ def test_groups_dict_leads_by_status_with_counts():
 
 def test_card_carries_business_phone_city_niche():
     board = group_by_status(
-        [{"id": "1", "business": "A Solar", "status": "Cold", "phone": "98765", "city": "Pune", "niche": "solar"}]
+        [
+            {
+                "id": "1",
+                "business": "A Solar",
+                "status": "Cold",
+                "phone": "98765",
+                "city": "Pune",
+                "niche": "solar",
+            }
+        ]
     )
     card = board["leads_by_status"]["Cold"][0]
     assert card["business"] == "A Solar"
@@ -57,7 +73,9 @@ def test_card_carries_business_phone_city_niche():
 
 
 def test_object_leads_supported():
-    leads = [_LeadObj(id="9", business="Obj Co", status="Warm", phone="1", city="Goa", niche="hotel")]
+    leads = [
+        _LeadObj(id="9", business="Obj Co", status="Warm", phone="1", city="Goa", niche="hotel")
+    ]
     board = group_by_status(leads)
     assert board["counts"]["Warm"] == 1
     assert board["leads_by_status"]["Warm"][0]["business"] == "Obj Co"

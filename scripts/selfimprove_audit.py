@@ -140,7 +140,7 @@ def skill_stats():
         print("-" * 72)
         for task, d in sorted_tasks:
             rate = d["successes"] / d["runs"] if d["runs"] else 0
-            success = f"{rate*100:.0f}% ({d['successes']}/{d['runs']})"
+            success = f"{rate * 100:.0f}% ({d['successes']}/{d['runs']})"
             avg = d["total_cost"] / d["runs"] if d["runs"] else 0
             marker = ""
             if rate < 0.6 and d["runs"] >= 3:
@@ -171,7 +171,7 @@ def skill_stats():
         print("\nTop skills (skill_uses.jsonl, Laplace ok-rate):")
         for s, d in ranked[:8]:
             rate = (d["ok"] + 1) / (d["uses"] + 2)
-            print(f"  {s[:46]:<46} {rate*100:4.0f}%  ({d['ok']}/{d['uses']})")
+            print(f"  {s[:46]:<46} {rate * 100:4.0f}%  ({d['ok']}/{d['uses']})")
     print()
 
 
@@ -266,7 +266,7 @@ def anomalies():
     low = {k: v for k, v in agg.items() if v["runs"] >= 3 and v["ok"] / v["runs"] < 0.5}
     if low:
         for task, v in low.items():
-            print(f"   - {task}: {v['ok']/v['runs']*100:.0f}% ({v['ok']}/{v['runs']})")
+            print(f"   - {task}: {v['ok'] / v['runs'] * 100:.0f}% ({v['ok']}/{v['runs']})")
         found = True
     else:
         print("   ✅ None")

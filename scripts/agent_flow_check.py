@@ -44,11 +44,11 @@ def _team():
     ts = team.team_status() or {}
     members = ts.get("members", [])
     tot = ts.get("totals", {})
-    print(f"  staff total={len(members)} working={tot.get('working_members','?')}")
+    print(f"  staff total={len(members)} working={tot.get('working_members', '?')}")
     for m in members:
         st = m.get("status") or ("working" if (m.get("last_active_mins") or 1e9) < 20 else "idle")
         print(
-            f"   - {m.get('key'):10} {st:9} last_active={m.get('last_active_mins')}m  product={m.get('product','')}"
+            f"   - {m.get('key'):10} {st:9} last_active={m.get('last_active_mins')}m  product={m.get('product', '')}"
         )
     return ts
 
@@ -118,7 +118,7 @@ def _llm():
     for p, v in list(provs.items())[:12]:
         if isinstance(v, dict):
             print(
-                f"   - {p:14} ok={v.get('ok_rate', v.get('ok','?'))} calls={v.get('calls','?')} last_err={str(v.get('last_error',''))[:40]}"
+                f"   - {p:14} ok={v.get('ok_rate', v.get('ok', '?'))} calls={v.get('calls', '?')} last_err={str(v.get('last_error', ''))[:40]}"
             )
     return st
 
@@ -209,7 +209,7 @@ def _events():
     evs = team.recent_events(limit=15) or []
     for e in evs:
         print(
-            f"   {str(e.get('at',''))[:19]}  {e.get('agent','?'):10} {e.get('action','?'):22} {str(e.get('detail',''))[:50]}"
+            f"   {str(e.get('at', ''))[:19]}  {e.get('agent', '?'):10} {e.get('action', '?'):22} {str(e.get('detail', ''))[:50]}"
         )
     if not evs:
         print("  (koi recent event nahi)")

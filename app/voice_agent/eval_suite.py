@@ -581,7 +581,7 @@ async def demo() -> EvalReport:
         for note in run.notes:
             print(f"        - {note}")
     print("-" * 64)
-    print(f" passed={report.passed}  failed={report.failed}  " f"pass_rate={report.pass_rate:.0%}")
+    print(f" passed={report.passed}  failed={report.failed}  pass_rate={report.pass_rate:.0%}")
     print("=" * 64)
     return report
 

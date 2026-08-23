@@ -6,6 +6,7 @@ as ok=True (dead-man switch + W1.13 job metric think they succeeded), and nobody
 paged. Fix: a dedicated `leadgen_job_errors_total{job}` counter + an OPS_ALERTS-gated
 ntfy alert, both driven from `_staff_job_failed`, called at each job's error path.
 """
+
 from __future__ import annotations
 
 import asyncio

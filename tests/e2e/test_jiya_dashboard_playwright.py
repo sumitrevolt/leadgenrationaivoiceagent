@@ -42,6 +42,7 @@ persist background processes across tool invocations). Needs a real run in
 an environment with root/Docker access (or the repo's normal CI) before this
 evidence can be cited as PASS/FAIL. See progress.md for exact details.
 """
+
 from __future__ import annotations
 
 import http.server
@@ -115,9 +116,17 @@ def browser():
         b.close()
 
 
-def _mock_dashboard_routes(page, *, dashboard_status=200, dashboard_body=None,
-                            dashboard_delay_ms=0, dashboard_abort=False,
-                            auth_status=200, profile_ok=True, social_ok=True):
+def _mock_dashboard_routes(
+    page,
+    *,
+    dashboard_status=200,
+    dashboard_body=None,
+    dashboard_delay_ms=0,
+    dashboard_abort=False,
+    auth_status=200,
+    profile_ok=True,
+    social_ok=True,
+):
     """Central place mirroring the real API shapes from
     app/api/customer_dashboard_models.py / app/api/customer_dashboard.py so
     the mocked suite stays honest about what production actually returns."""
@@ -127,8 +136,11 @@ def _mock_dashboard_routes(page, *, dashboard_status=200, dashboard_body=None,
         "generated_at": "2026-07-12T09:00:00Z",
         "campaigns": [],
         "kpis": {
-            "total_calls": 0, "connected_calls": 0, "qualified_leads": 0,
-            "conversion_pct": 0, "est_cost_inr": 0,
+            "total_calls": 0,
+            "connected_calls": 0,
+            "qualified_leads": 0,
+            "conversion_pct": 0,
+            "est_cost_inr": 0,
         },
         "calls": [],
         "leads": [],
@@ -147,42 +159,90 @@ def _mock_dashboard_routes(page, *, dashboard_status=200, dashboard_body=None,
             return
         if dashboard_delay_ms:
             time.sleep(dashboard_delay_ms / 1000)
-        route.fulfill(status=dashboard_status, content_type="application/json", body=json.dumps(body))
+        route.fulfill(
+            status=dashboard_status, content_type="application/json", body=json.dumps(body)
+        )
 
     page.route(re.compile(r".*/api/customer/dashboard.*"), handle_dashboard)
-    page.route(re.compile(r".*/api/customer/auth/me.*"), lambda r: r.fulfill(
-        status=auth_status, content_type="application/json",
-        body=json.dumps({"product": "marketing", "client_id": "jiya-makeover"}),
-    ))
-    page.route(re.compile(r".*/api/customer/profile.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json",
-        body=json.dumps({"ok": profile_ok, "business_name": "Jiya Makeover", "city": "Mumbai"}
-                         if profile_ok else {"ok": False, "error": "profile load nahi hua"}),
-    ))
-    page.route(re.compile(r".*/api/customer/social/config.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json", body=json.dumps({"ok": social_ok}),
-    ))
-    page.route(re.compile(r".*/api/customer/social/accounts.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json",
-        body=json.dumps({"ok": social_ok, "platforms": [], "accounts": {}}),
-    ))
-    page.route(re.compile(r".*/api/customer/team.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json", body=json.dumps({"agents": []}),
-    ))
-    page.route(re.compile(r".*/api/customer/autopilot.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json", body=json.dumps({"drafts": []}),
-    ))
-    page.route(re.compile(r".*/api/customer/flow-templates.*"), lambda r: r.fulfill(
-        status=404, content_type="application/json", body="{}",
-    ))
-    page.route(re.compile(r".*/health.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json",
-        body=json.dumps({"status": "healthy", "version": "mock-e2e-build", "environment": "test"}),
-    ))
+    page.route(
+        re.compile(r".*/api/customer/auth/me.*"),
+        lambda r: r.fulfill(
+            status=auth_status,
+            content_type="application/json",
+            body=json.dumps({"product": "marketing", "client_id": "jiya-makeover"}),
+        ),
+    )
+    page.route(
+        re.compile(r".*/api/customer/profile.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {"ok": profile_ok, "business_name": "Jiya Makeover", "city": "Mumbai"}
+                if profile_ok
+                else {"ok": False, "error": "profile load nahi hua"}
+            ),
+        ),
+    )
+    page.route(
+        re.compile(r".*/api/customer/social/config.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"ok": social_ok}),
+        ),
+    )
+    page.route(
+        re.compile(r".*/api/customer/social/accounts.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"ok": social_ok, "platforms": [], "accounts": {}}),
+        ),
+    )
+    page.route(
+        re.compile(r".*/api/customer/team.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"agents": []}),
+        ),
+    )
+    page.route(
+        re.compile(r".*/api/customer/autopilot.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"drafts": []}),
+        ),
+    )
+    page.route(
+        re.compile(r".*/api/customer/flow-templates.*"),
+        lambda r: r.fulfill(
+            status=404,
+            content_type="application/json",
+            body="{}",
+        ),
+    )
+    page.route(
+        re.compile(r".*/health.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {"status": "healthy", "version": "mock-e2e-build", "environment": "test"}
+            ),
+        ),
+    )
     # anything else customer-dashboard-related: benign empty ok so nothing hangs
-    page.route(re.compile(r".*/api/customer/.*"), lambda r: r.fulfill(
-        status=200, content_type="application/json", body=json.dumps({"ok": True}),
-    ))
+    page.route(
+        re.compile(r".*/api/customer/.*"),
+        lambda r: r.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"ok": True}),
+        ),
+    )
 
 
 class TestMockedDashboardRegression:
@@ -246,13 +306,25 @@ class TestMockedDashboardRegression:
         context.add_init_script(f"localStorage.setItem('lgai_token', '{_FAKE_JWT}')")
 
         malformed = {
-            "is_sample_data": False, "client_id": "jiya-makeover", "generated_at": "now",
-            "campaigns": [], "kpis": {"total_calls": 0, "connected_calls": 0,
-                                       "qualified_leads": 0, "conversion_pct": 0, "est_cost_inr": 0},
-            "calls": [], "leads": [],
+            "is_sample_data": False,
+            "client_id": "jiya-makeover",
+            "generated_at": "now",
+            "campaigns": [],
+            "kpis": {
+                "total_calls": 0,
+                "connected_calls": 0,
+                "qualified_leads": 0,
+                "conversion_pct": 0,
+                "est_cost_inr": 0,
+            },
+            "calls": [],
+            "leads": [],
             "charts": {"calls_per_day": []},  # leads_by_status / leads_by_city deliberately missing
-            "branding": None, "onboarding": {"complete": True, "steps": []},
-            "trial_banner": None, "approval_banner": None, "social_error": None,
+            "branding": None,
+            "onboarding": {"complete": True, "steps": []},
+            "trial_banner": None,
+            "approval_banner": None,
+            "social_error": None,
         }
         _mock_dashboard_routes(page, dashboard_body=malformed)
         page.goto(f"{static_server}/customer_dashboard.html", wait_until="domcontentloaded")
@@ -281,7 +353,9 @@ class TestMockedDashboardRegression:
 
         # DASHBOARD_TIMEOUT_MS is 15s in the page; allow generous margin
         expect(page.locator("#liveDataErrorBanner")).to_be_visible(timeout=20_000)
-        expect(page.locator("#liveDataErrorBanner button:has-text('Dobara try karein')")).to_be_visible()
+        expect(
+            page.locator("#liveDataErrorBanner button:has-text('Dobara try karein')")
+        ).to_be_visible()
         expect(page.locator("#liveDataErrorBanner button:has-text('Logout')")).to_be_visible()
         context.close()
 
@@ -295,18 +369,38 @@ class TestMockedDashboardRegression:
 
         def capture_and_fulfill(route):
             seen_auth_headers.append(route.request.headers.get("authorization"))
-            route.fulfill(status=200, content_type="application/json", body=json.dumps({
-                "is_sample_data": False, "client_id": "jiya-makeover", "generated_at": "now",
-                "campaigns": [], "kpis": {"total_calls": 0, "connected_calls": 0,
-                                           "qualified_leads": 0, "conversion_pct": 0, "est_cost_inr": 0},
-                "calls": [], "leads": [],
-                "charts": {"calls_per_day": [], "leads_by_status": [], "leads_by_city": []},
-                "branding": None, "onboarding": {"complete": True, "steps": []},
-                "trial_banner": None, "approval_banner": None, "social_error": None,
-            }))
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "is_sample_data": False,
+                        "client_id": "jiya-makeover",
+                        "generated_at": "now",
+                        "campaigns": [],
+                        "kpis": {
+                            "total_calls": 0,
+                            "connected_calls": 0,
+                            "qualified_leads": 0,
+                            "conversion_pct": 0,
+                            "est_cost_inr": 0,
+                        },
+                        "calls": [],
+                        "leads": [],
+                        "charts": {"calls_per_day": [], "leads_by_status": [], "leads_by_city": []},
+                        "branding": None,
+                        "onboarding": {"complete": True, "steps": []},
+                        "trial_banner": None,
+                        "approval_banner": None,
+                        "social_error": None,
+                    }
+                ),
+            )
 
         page.route(re.compile(r".*/api/customer/dashboard.*"), capture_and_fulfill)
-        _mock_dashboard_routes(page)  # covers the rest; dashboard route above overrides via last-registered-wins
+        _mock_dashboard_routes(
+            page
+        )  # covers the rest; dashboard route above overrides via last-registered-wins
         page.goto(f"{static_server}/customer_dashboard.html", wait_until="domcontentloaded")
         page.wait_for_timeout(2000)
 
@@ -320,11 +414,14 @@ class TestMockedDashboardRegression:
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
         page = context.new_page()
         context.add_init_script("localStorage.setItem('lgai_token', 'garbage-invalid-token')")
-        _mock_dashboard_routes(page, dashboard_status=401, dashboard_body={"detail": "invalid token"})
+        _mock_dashboard_routes(
+            page, dashboard_status=401, dashboard_body={"detail": "invalid token"}
+        )
         page.goto(f"{static_server}/customer_dashboard.html", wait_until="domcontentloaded")
 
         page.wait_for_function(
-            "() => location.href.includes('app/login')", timeout=LOAD_TIMEOUT_MS,
+            "() => location.href.includes('app/login')",
+            timeout=LOAD_TIMEOUT_MS,
         )
         token_after = page.evaluate("() => localStorage.getItem('lgai_token')")
         assert token_after is None, "stale token must be cleared on 401/403"
@@ -355,7 +452,8 @@ class TestMockedDashboardRegression:
         _mock_dashboard_routes(page)  # /health mocked -> version "mock-e2e-build"
         page.goto(f"{static_server}/customer_dashboard.html", wait_until="domcontentloaded")
         page.wait_for_function(
-            "() => document.documentElement.getAttribute('data-ui-build') != null", timeout=10_000,
+            "() => document.documentElement.getAttribute('data-ui-build') != null",
+            timeout=10_000,
         )
         build = page.evaluate("() => document.documentElement.getAttribute('data-ui-build')")
         assert build == "mock-e2e-build"
@@ -401,7 +499,8 @@ class TestProductionSmoke:
 
         # Step 2: wait for redirect off the login page onto a customer dashboard route
         page.wait_for_function(
-            "() => /\\/app\\/customer/.test(location.pathname)", timeout=LOAD_TIMEOUT_MS,
+            "() => /\\/app\\/customer/.test(location.pathname)",
+            timeout=LOAD_TIMEOUT_MS,
         )
         final_url = page.url
         assert "/app/customer" in urlparse(final_url).path
@@ -413,6 +512,7 @@ class TestProductionSmoke:
         # decode exp claim only (non-sensitive), never print the token itself
         try:
             import base64
+
             payload_b64 = token.split(".")[1]
             payload_b64 += "=" * (-len(payload_b64) % 4)
             claims = json.loads(base64.urlsafe_b64decode(payload_b64))

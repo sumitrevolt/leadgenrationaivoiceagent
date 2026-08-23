@@ -141,7 +141,16 @@ def is_quality_approved(record: dict[str, Any] | None) -> bool:
 # Env PROSPECT_TARGETS = JSON list: [{"niche": "...", "query": "...",
 # "cities": ["...", ...]}, ...]
 # --------------------------------------------------------------------------- #
-_DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Ahmedabad"]
+_DEFAULT_CITIES = [
+    "Pune",
+    "Mumbai",
+    "Nagpur",
+    "Delhi",
+    "Bangalore",
+    "Chennai",
+    "Hyderabad",
+    "Ahmedabad",
+]
 _DEFAULT_TARGETS: list[dict[str, Any]] = [
     {"niche": "solar_residential", "query": "solar installer", "cities": _DEFAULT_CITIES},
     {"niche": "real_estate", "query": "real estate agency", "cities": _DEFAULT_CITIES},
@@ -291,9 +300,7 @@ def build_personalized_pitch(
                 f"posts/photos nahi dikhe — top pe aane ke liye wahi chahiye"
             )
         elif has_website is False:
-            diag = (
-                "aapki website bhi nahi dikhi — ek mini page + Google " "profile dono set kar dunga"
-            )
+            diag = "aapki website bhi nahi dikhi — ek mini page + Google profile dono set kar dunga"
         else:
             diag = (
                 "Google pe aapki online presence aur strong ki ja sakti hai — "

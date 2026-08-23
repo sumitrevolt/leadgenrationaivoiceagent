@@ -4,6 +4,7 @@
 discovery question. From the user's real call: "features batao" → "marketing khud
 karte ho?" (dodge).
 """
+
 from __future__ import annotations
 
 from app.voice_agent.platform_pitch import (

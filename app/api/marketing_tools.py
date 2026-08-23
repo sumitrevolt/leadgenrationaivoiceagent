@@ -175,8 +175,7 @@ async def generate_festival_posts(
         )
         _log_isha(
             "festival_posts_generated",
-            f"{req.business_name} ({req.niche or 'general'}, "
-            f"{len(result.get('posts', []))} posts)",
+            f"{req.business_name} ({req.niche or 'general'}, {len(result.get('posts', []))} posts)",
         )
         return result
     except Exception as e:
@@ -479,7 +478,7 @@ async def add_crm_customers(
         )
         _log_isha(
             "crm_customers_added",
-            f"client={client_id} (+{result.get('added', 0)}, " f"total {result.get('total', 0)})",
+            f"client={client_id} (+{result.get('added', 0)}, total {result.get('total', 0)})",
         )
         return result
     except Exception as e:
@@ -684,7 +683,7 @@ async def get_lead_scores(current_user: User = Depends(require_admin)):
         result = lead_scoring.score_leads()
         _log_isha(
             "lead_scores_viewed",
-            f"{result.get('total', 0)} leads " f"(hot={result.get('counts', {}).get('hot', 0)})",
+            f"{result.get('total', 0)} leads (hot={result.get('counts', {}).get('hot', 0)})",
         )
         return result
     except Exception as e:

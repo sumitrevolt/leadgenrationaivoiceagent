@@ -1,5 +1,6 @@
 from app.integrations.base import BaseIntegrationClient
 
+
 class PostizClient(BaseIntegrationClient):
     # ... existing methods ...
 

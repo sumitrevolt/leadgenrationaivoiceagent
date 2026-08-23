@@ -9,6 +9,7 @@ precompressed-aware handler that also fixes the Content-Type for wasm/js/data.
 Skips when the build isn't deployed (frontend/office_unity/Build absent) so CI
 without a Unity build stays green.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

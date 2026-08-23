@@ -27,7 +27,7 @@ def test_windows_check_uses_wsl_and_authenticated_safe_liveness_endpoint():
     assert "wsl.exe -d Ubuntu-24.04" in text
     assert "/root/.nvm/versions/node/v22.23.1/bin" in text
     assert "$BaseUrl/v1/models" in text
-    assert 'Get-Command omniroute' not in text
+    assert "Get-Command omniroute" not in text
 
 
 def test_sanitized_benchmark_uses_verified_responses_api_contract():

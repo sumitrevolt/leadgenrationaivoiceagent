@@ -6,6 +6,7 @@ pyproject — a hang now FAILS instead of blocking CI forever). This adds a tigh
 explicit guard: `team_pulse` runs cheap non-LLM monitors and must return a dict fast;
 a 20s per-test cap turns any reintroduced blocking monitor into a fast failure.
 """
+
 from __future__ import annotations
 
 import pytest

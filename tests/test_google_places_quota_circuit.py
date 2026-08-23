@@ -87,8 +87,12 @@ def test_429_records_failure_and_starts_shared_cooldown(monkeypatch):
             return _Response()
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **_kwargs: _Client())
-    monkeypatch.setattr(integration_health, "record_failure", lambda _name, note: recorded.append(note))
-    monkeypatch.setattr(integration_health, "start_places_quota_cooldown", lambda: cooldowns.append(True))
+    monkeypatch.setattr(
+        integration_health, "record_failure", lambda _name, note: recorded.append(note)
+    )
+    monkeypatch.setattr(
+        integration_health, "start_places_quota_cooldown", lambda: cooldowns.append(True)
+    )
     monkeypatch.setattr(integration_health, "record_success", lambda _name: successes.append(True))
 
     try:

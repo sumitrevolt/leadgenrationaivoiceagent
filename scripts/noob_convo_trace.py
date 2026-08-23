@@ -93,7 +93,7 @@ async def run(niche, turns):
     brain = TelecallerBrain(niche=niche, client_name="LeadGen AI")
     _install_trace(brain)
     history = [{"role": "assistant", "content": brain.opening_line()}]
-    print(f"\n{'='*70}\n=== {niche} ===\n{'='*70}")
+    print(f"\n{'=' * 70}\n=== {niche} ===\n{'=' * 70}")
     print(f"  OPENER: {history[0]['content'][:100]}")
     seen_replies = []
     for ut in turns:

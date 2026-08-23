@@ -13,10 +13,26 @@ def test_pending_for_outreach_surfaces_backlog(monkeypatch):
     data = [
         {"id": "a", "status": "ready", "email": "old@x.com", "found_at": "2026-01-01"},  # ✓ oldest
         {"id": "b", "status": "ready", "email": "new@x.com", "found_at": "2026-06-01"},  # ✓
-        {"id": "c", "status": "ready", "email": "done@x.com", "emailed_at": "2026-06-02", "found_at": "2026-02-01"},  # already emailed
+        {
+            "id": "c",
+            "status": "ready",
+            "email": "done@x.com",
+            "emailed_at": "2026-06-02",
+            "found_at": "2026-02-01",
+        },  # already emailed
         {"id": "d", "status": "ready", "email": "", "found_at": "2026-03-01"},  # no email
-        {"id": "e", "status": "contacted", "email": "x@x.com", "found_at": "2026-04-01"},  # not ready
-        {"id": "f", "status": "ready", "email": "bademail", "found_at": "2026-05-01"},  # invalid email
+        {
+            "id": "e",
+            "status": "contacted",
+            "email": "x@x.com",
+            "found_at": "2026-04-01",
+        },  # not ready
+        {
+            "id": "f",
+            "status": "ready",
+            "email": "bademail",
+            "found_at": "2026-05-01",
+        },  # invalid email
     ]
     monkeypatch.setattr(prospector, "_read_all", lambda: list(data))
     out = prospector.pending_for_outreach(limit=500)

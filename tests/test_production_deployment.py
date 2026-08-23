@@ -2,6 +2,7 @@
 Production post-deployment verification tests.
 These tests verify that the actual deployed code contains the fixes.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -78,7 +79,10 @@ def test_customer_portal_logout_calls_api():
     assert "/api/customer/auth/logout" in dash, "customer_dashboard should call logout API"
     assert "doCustomerLogout(" in dash
     # No local-only logout that skips server revoke on the error banner
-    assert "localStorage.removeItem('lgai_token');window.location.replace('/app/login?reason=retry_failed')" not in dash
+    assert (
+        "localStorage.removeItem('lgai_token');window.location.replace('/app/login?reason=retry_failed')"
+        not in dash
+    )
 
 
 def test_no_silent_failures_in_logout():

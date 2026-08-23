@@ -29,7 +29,7 @@ for url, method, data in [
         if code == 200 and "schema" in url:
             s = body.get("schema", {})
             print(
-                f"  collect_during: {len(s.get('collect_during',[]))}, script_context: {s.get('script_context','')[:60]}"
+                f"  collect_during: {len(s.get('collect_during', []))}, script_context: {s.get('script_context', '')[:60]}"
             )
     except Exception as e:
         print(f"ERROR {url}: {e}")

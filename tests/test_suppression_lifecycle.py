@@ -59,9 +59,9 @@ def test_followup_is_due_before_suppression() -> None:
     """Baseline. Without this the cancellation test could pass vacuously."""
     _seed_prospect()
     due = _followups.due_followups(channel="whatsapp")
-    assert any(
-        d["prospect"]["id"] == "p-life-1" for d in due
-    ), "fixture is wrong: follow-up was not due, so cancelling it proves nothing"
+    assert any(d["prospect"]["id"] == "p-life-1" for d in due), (
+        "fixture is wrong: follow-up was not due, so cancelling it proves nothing"
+    )
 
 
 def test_all_outreach_durably_cancels_pending_followups() -> None:
@@ -275,9 +275,9 @@ def test_suppression_reachable_from_run_reply_triage(monkeypatch, isolated_store
     res = asyncio.run(reply_agent.run_reply_triage())
 
     assert isinstance(res, dict)
-    assert (
-        email_unsub.is_suppressed("angry@customer.com") is True
-    ), f"triage ran ({res}) but no suppression was written — the reply path is not wired"
+    assert email_unsub.is_suppressed("angry@customer.com") is True, (
+        f"triage ran ({res}) but no suppression was written — the reply path is not wired"
+    )
 
 
 def test_replaying_same_reply_is_idempotent(monkeypatch, isolated_stores: Path) -> None:

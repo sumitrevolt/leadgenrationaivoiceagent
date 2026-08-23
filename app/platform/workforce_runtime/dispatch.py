@@ -347,7 +347,9 @@ def runtime_status() -> dict[str, Any]:
             "provider": (
                 "dsh"
                 if _flag_on(DSH_RUNTIME_FLAG)
-                else "direct+shadow" if _flag_on(DSH_SHADOW_FLAG) else "direct"
+                else "direct+shadow"
+                if _flag_on(DSH_SHADOW_FLAG)
+                else "direct"
             ),
             "dsh_runtime_enabled": _flag_on(DSH_RUNTIME_FLAG),
             "dsh_shadow_enabled": _flag_on(DSH_SHADOW_FLAG),

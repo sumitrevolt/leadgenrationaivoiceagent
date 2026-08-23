@@ -10,6 +10,7 @@ def rl(tmp_path, monkeypatch):
     """Fresh reward module with isolated data files + flag ON."""
     monkeypatch.setenv("RL_ENGINE", "1")
     import app.agents.rl.reward as reward
+
     importlib.reload(reward)
     monkeypatch.setattr(reward, "_REWARDS", str(tmp_path / "rl_rewards.jsonl"))
     monkeypatch.setattr(reward, "_DEV", str(tmp_path / "claude_feedback.jsonl"))
@@ -17,11 +18,17 @@ def rl(tmp_path, monkeypatch):
 
 
 def test_voice_reward_monotonic(rl):
-    assert rl.voice_reward({"outcome": "appointment"}) > rl.voice_reward({"outcome": "not_interested"})
+    assert rl.voice_reward({"outcome": "appointment"}) > rl.voice_reward(
+        {"outcome": "not_interested"}
+    )
     assert rl.voice_reward({"qualified": True}) > rl.voice_reward({"qualified": False})
-    assert rl.voice_reward({"conversation_quality": 90}) > rl.voice_reward({"conversation_quality": 20})
+    assert rl.voice_reward({"conversation_quality": 90}) > rl.voice_reward(
+        {"conversation_quality": 20}
+    )
     # qa violations penalize
-    assert rl.voice_reward({"interest_score": 80, "qa_violations": 3}) < rl.voice_reward({"interest_score": 80})
+    assert rl.voice_reward({"interest_score": 80, "qa_violations": 3}) < rl.voice_reward(
+        {"interest_score": 80}
+    )
     assert 0.0 <= rl.voice_reward({"outcome": "dnd"}) <= 1.0
 
 
@@ -41,6 +48,7 @@ def test_dev_reward(rl):
 def test_record_inert_when_off(tmp_path, monkeypatch):
     monkeypatch.delenv("RL_ENGINE", raising=False)
     import app.agents.rl.reward as reward
+
     importlib.reload(reward)
     monkeypatch.setattr(reward, "_REWARDS", str(tmp_path / "r.jsonl"))
     reward.record_reward("voice", "salon", 0.9, ref="c1")
@@ -89,10 +97,12 @@ def test_never_raises_on_garbage(rl):
 def test_channel_experiments_emits_reward(tmp_path, monkeypatch):
     monkeypatch.setenv("RL_ENGINE", "1")
     import app.agents.rl.reward as reward
+
     importlib.reload(reward)
     monkeypatch.setattr(reward, "_REWARDS", str(tmp_path / "rl_rewards.jsonl"))
 
     import app.marketing.channel_experiments as ce
+
     out = ce.record_outcome("quora", kind="reply")
     assert out["ok"] is True
     rows = reward._read(reward._REWARDS)
@@ -101,6 +111,7 @@ def test_channel_experiments_emits_reward(tmp_path, monkeypatch):
 
 def test_rl_router_shape():
     from app.api.rl import router
+
     paths = {r.path for r in router.routes}
     assert "/api/rl/summary" in paths
     assert "/api/rl/arms" in paths

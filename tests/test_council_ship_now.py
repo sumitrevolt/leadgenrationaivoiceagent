@@ -30,9 +30,7 @@ def test_posthog_file_fallback(tmp_path, monkeypatch):
     store = tmp_path / "data" / "posthog_config.json"
     store.parent.mkdir(parents=True)
     store.write_text(
-        json.dumps(
-            {"posthog_api_key": "phc_real_key", "posthog_host": "https://us.i.posthog.com"}
-        ),
+        json.dumps({"posthog_api_key": "phc_real_key", "posthog_host": "https://us.i.posthog.com"}),
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)

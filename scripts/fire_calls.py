@@ -168,7 +168,7 @@ async def fire_vobiz(
         niche = "ai_marketing" if platform else (p.get("niche") or "general")
         cid = "" if platform else client_id
         print(
-            f'  -> +91{p10} | {p["name"]} | {p["city"]} | niche={niche}',
+            f"  -> +91{p10} | {p['name']} | {p['city']} | niche={niche}",
             end=" ... ",
             flush=True,
         )
@@ -236,7 +236,7 @@ async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> t
         for p in prospects:
             p10 = phone10(p["phone"])
             print(
-                f'  -> +91{p10} | {p["name"]} | {p.get("city","")} | niche={p.get("niche","general")} ... DRY'
+                f"  -> +91{p10} | {p['name']} | {p.get('city', '')} | niche={p.get('niche', 'general')} ... DRY"
             )
         return 0, 0, 0
 
@@ -248,7 +248,7 @@ async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> t
             p10 = phone10(p["phone"])
             niche = p.get("niche") or "general"
             print(
-                f'  -> +91{p10} | {p["name"]} | {p.get("city","")} | niche={niche}',
+                f"  -> +91{p10} | {p['name']} | {p.get('city', '')} | niche={niche}",
                 end=" ... ",
                 flush=True,
             )

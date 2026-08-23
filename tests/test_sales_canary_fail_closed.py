@@ -267,6 +267,6 @@ def test_run_canary_still_requires_admin() -> None:
     from app.api import sales_autopilot_admin as mod
 
     deps = mod.run_canary.__defaults__ or ()
-    assert any(
-        getattr(d, "dependency", None) is not None for d in deps
-    ), "run_canary lost its Depends(require_admin) guard"
+    assert any(getattr(d, "dependency", None) is not None for d in deps), (
+        "run_canary lost its Depends(require_admin) guard"
+    )

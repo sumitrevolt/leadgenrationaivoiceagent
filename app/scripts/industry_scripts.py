@@ -799,7 +799,7 @@ class IndustryScriptManager:
 
         lead_data = lead_data or {}
 
-        prompt = f"""You are an AI sales agent calling for {client_name or 'LeadGen AI'}.
+        prompt = f"""You are an AI sales agent calling for {client_name or "LeadGen AI"}.
 
 INDUSTRY: {script.industry_name}
 SCRIPT TYPE: {script_type.value}
@@ -814,12 +814,12 @@ VALUE PROPOSITION:
 Hook: {script.hook_statement}
 
 Benefits to mention:
-{chr(10).join(f'- {b}' for b in script.key_benefits)}
+{chr(10).join(f"- {b}" for b in script.key_benefits)}
 
 Social Proof: {script.social_proof}
 
 QUALIFICATION QUESTIONS (ask naturally, not like a survey):
-{chr(10).join(f'{i+1}. {q["question"]}' for i, q in enumerate(script.qualification_questions))}
+{chr(10).join(f"{i + 1}. {q["question"]}" for i, q in enumerate(script.qualification_questions))}
 
 OBJECTION HANDLING:
 {chr(10).join(f'If they say "{k}": {v}' for k, v in script.objection_responses.items())}
@@ -834,7 +834,7 @@ CLOSING:
 {script.closing}
 
 LEAD CONTEXT:
-{chr(10).join(f'- {k}: {v}' for k, v in lead_data.items()) if lead_data else 'No prior data'}
+{chr(10).join(f"- {k}: {v}" for k, v in lead_data.items()) if lead_data else "No prior data"}
 
 IMPORTANT RULES:
 1. Speak naturally in {script.language}

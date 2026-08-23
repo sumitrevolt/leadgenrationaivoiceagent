@@ -82,8 +82,7 @@ def validate_marker(
 
     if not str(marker["rollback_reference"] or "").strip():
         problems.append(
-            "rollback_reference is empty — a cutover without a documented "
-            "rollback is not a cutover"
+            "rollback_reference is empty — a cutover without a documented rollback is not a cutover"
         )
 
     ids = list(marker["migrated_store_ids"] or [])

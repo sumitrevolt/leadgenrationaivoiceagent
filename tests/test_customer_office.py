@@ -15,8 +15,11 @@ def _onboarding(done_ids: set[str]) -> OnboardingChecklist:
     steps = [OnboardingStep(id=i, label=i, done=(i in done_ids), hint="") for i in ids]
     done = sum(1 for s in steps if s.done)
     return OnboardingChecklist(
-        steps=steps, done=done, total=len(steps),
-        pct=round(done / len(steps) * 100, 1), complete=done >= len(steps),
+        steps=steps,
+        done=done,
+        total=len(steps),
+        pct=round(done / len(steps) * 100, 1),
+        complete=done >= len(steps),
     )
 
 
@@ -35,8 +38,13 @@ def test_every_task_has_impact_and_severity():
     """Core promise: har manual task me 'why' + automation-impact + severity ho."""
     ob = _onboarding(set())  # nothing done -> max tasks
     tasks = _office_tasks(
-        {"plan": "trial"}, "combo", ob, approvals_pending=2,
-        trial=None, routing_set=False, hot_leads=3,
+        {"plan": "trial"},
+        "combo",
+        ob,
+        approvals_pending=2,
+        trial=None,
+        routing_set=False,
+        hot_leads=3,
     )
     assert tasks, "combo with empty onboarding should yield tasks"
     for t in tasks:
@@ -70,13 +78,29 @@ def test_no_tasks_when_all_done():
 def test_build_office_never_raises_and_shape():
     o = _build_office("does-not-exist-client-xyz")
     assert isinstance(o, dict)
-    for k in ("ok", "enabled", "product", "headline", "next_best_action", "your_tasks", "activity", "summary"):
+    for k in (
+        "ok",
+        "enabled",
+        "product",
+        "headline",
+        "next_best_action",
+        "your_tasks",
+        "activity",
+        "summary",
+    ):
         assert k in o, k
     assert o["product"] in ("marketing", "voice", "combo")
     assert isinstance(o["your_tasks"], list)
     assert isinstance(o["activity"], list)
     # proof-of-work fields present with honest zeros for a client with no data
-    for k in ("posts_ready", "approvals_pending", "new_leads", "hot_leads", "calls_completed", "bookings"):
+    for k in (
+        "posts_ready",
+        "approvals_pending",
+        "new_leads",
+        "hot_leads",
+        "calls_completed",
+        "bookings",
+    ):
         assert k in o["summary"], k
         assert o["summary"][k] == 0
 
@@ -124,16 +148,36 @@ def test_office_call_stats_no_cross_client_leakage(monkeypatch):
     TestSession = _office_db(monkeypatch)
     session = TestSession()
     try:
-        session.add_all([
-            CallLog(id="call_a1", client_id="client_a", duration_seconds=90, to_number="9990000001"),
-            CallLog(id="call_a2", client_id="client_a", duration_seconds=0, to_number="9990000002"),
-            CallLog(id="call_b1", client_id="client_b", duration_seconds=60, to_number="9990000003"),
-            CallLog(id="call_b2", client_id="client_b", duration_seconds=45, to_number="9990000004"),
-            Lead(id="lead_a1", company_name="A Biz", phone="9990000001",
-                 assigned_to="client_a", status=LeadStatus.APPOINTMENT),
-            Lead(id="lead_b1", company_name="B Biz", phone="9990000003",
-                 assigned_to="client_b", status=LeadStatus.NEW),
-        ])
+        session.add_all(
+            [
+                CallLog(
+                    id="call_a1", client_id="client_a", duration_seconds=90, to_number="9990000001"
+                ),
+                CallLog(
+                    id="call_a2", client_id="client_a", duration_seconds=0, to_number="9990000002"
+                ),
+                CallLog(
+                    id="call_b1", client_id="client_b", duration_seconds=60, to_number="9990000003"
+                ),
+                CallLog(
+                    id="call_b2", client_id="client_b", duration_seconds=45, to_number="9990000004"
+                ),
+                Lead(
+                    id="lead_a1",
+                    company_name="A Biz",
+                    phone="9990000001",
+                    assigned_to="client_a",
+                    status=LeadStatus.APPOINTMENT,
+                ),
+                Lead(
+                    id="lead_b1",
+                    company_name="B Biz",
+                    phone="9990000003",
+                    assigned_to="client_b",
+                    status=LeadStatus.NEW,
+                ),
+            ]
+        )
         session.commit()
     finally:
         session.close()
@@ -183,26 +227,40 @@ def test_calls_from_events_no_cross_client_leakage(monkeypatch):
     TestSession = _office_db(monkeypatch)
     session = TestSession()
     try:
-        session.add_all([
-            AgentEvent(
-                id="ev1", member="swara", action="call_finished", status="ok",
-                meta_json=json.dumps({"client_id": "client_a"}),
-            ),
-            AgentEvent(
-                id="ev2", member="swara", action="call_placed", status="ok",
-                meta_json=json.dumps({"client_id": "client_a"}),
-            ),
-            AgentEvent(
-                id="ev3", member="swara", action="auto_callback", status="ok",
-                meta_json=json.dumps({"client_id": "client_b"}),
-            ),
-            # pre-fix event with no client_id in meta — must NOT count toward
-            # anyone (honest exclusion, not attributed to the wrong client).
-            AgentEvent(
-                id="ev4", member="swara", action="call_finished", status="ok",
-                meta_json=json.dumps({"duration_s": 12.0}),
-            ),
-        ])
+        session.add_all(
+            [
+                AgentEvent(
+                    id="ev1",
+                    member="swara",
+                    action="call_finished",
+                    status="ok",
+                    meta_json=json.dumps({"client_id": "client_a"}),
+                ),
+                AgentEvent(
+                    id="ev2",
+                    member="swara",
+                    action="call_placed",
+                    status="ok",
+                    meta_json=json.dumps({"client_id": "client_a"}),
+                ),
+                AgentEvent(
+                    id="ev3",
+                    member="swara",
+                    action="auto_callback",
+                    status="ok",
+                    meta_json=json.dumps({"client_id": "client_b"}),
+                ),
+                # pre-fix event with no client_id in meta — must NOT count toward
+                # anyone (honest exclusion, not attributed to the wrong client).
+                AgentEvent(
+                    id="ev4",
+                    member="swara",
+                    action="call_finished",
+                    status="ok",
+                    meta_json=json.dumps({"duration_s": 12.0}),
+                ),
+            ]
+        )
         session.commit()
     finally:
         session.close()

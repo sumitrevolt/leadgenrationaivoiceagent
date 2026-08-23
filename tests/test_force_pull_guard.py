@@ -56,9 +56,9 @@ def test_denial_is_not_swallowed(mod, monkeypatch) -> None:
     """A try/except around the guard would make denial indistinguishable from approval."""
     source = TARGET.read_text(encoding="utf-8")
     code = "\n".join(ln for ln in source.splitlines() if not ln.strip().startswith("#"))
-    assert (
-        "except" not in code.split("def main")[1]
-    ), "main() must not catch exceptions around the guard"
+    assert "except" not in code.split("def main")[1], (
+        "main() must not catch exceptions around the guard"
+    )
     assert "|| true" not in code
     assert "--force" not in code
 

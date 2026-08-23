@@ -39,9 +39,9 @@ def _nav_block(html: str) -> str:
 
 def test_master_blueprint_link_present_in_admin_nav():
     nav = _nav_block(_admin_html())
-    assert (
-        f'href="{MASTER_HREF}"' in nav
-    ), "admin sidebar has no Master Blueprint entry — the canonical graph is unreachable"
+    assert f'href="{MASTER_HREF}"' in nav, (
+        "admin sidebar has no Master Blueprint entry — the canonical graph is unreachable"
+    )
 
 
 def test_master_blueprint_labelled_so_an_admin_can_find_it():
@@ -65,9 +65,9 @@ def test_bare_explorer_link_removed_from_nav():
     # Count bare explorer links (href="/app/explorer" with closing quote,
     # but NOT href="/app/explorer?view=master")
     bare_count = len(re.findall(r'href="/app/explorer(?!\?)', nav))
-    assert (
-        bare_count == 0
-    ), f"bare /app/explorer link should be removed from nav, found {bare_count}"
+    assert bare_count == 0, (
+        f"bare /app/explorer link should be removed from nav, found {bare_count}"
+    )
 
 
 def test_master_blueprint_lives_under_system_group():
@@ -80,9 +80,9 @@ def test_master_blueprint_lives_under_system_group():
     for i in range(1, len(parts), 2):
         groups[parts[i]] = parts[i + 1]
     assert "7. System" in groups, "System group not found in nav"
-    assert (
-        f'href="{MASTER_HREF}"' in groups["7. System"]
-    ), "Master Blueprint must be under System group"
+    assert f'href="{MASTER_HREF}"' in groups["7. System"], (
+        "Master Blueprint must be under System group"
+    )
 
 
 def test_guard_is_not_vacuous():

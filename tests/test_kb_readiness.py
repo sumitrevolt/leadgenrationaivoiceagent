@@ -42,6 +42,7 @@ def _conds(flt):
 
 # ---------------- catalog / unsupported ---------------- #
 
+
 def test_catalog_membership_not_hardcoded_size():
     """NOTE: catalog size is RUNTIME-VARIABLE — local repo showed 39 keys but the
     production container showed 42 (same code SHA lineage), so NICHES is extended at
@@ -75,6 +76,7 @@ def test_empty_and_none_niche_degrade_safely():
 
 
 # ---------------- readiness semantics ---------------- #
+
 
 def test_populated_valid_niche_is_ready():
     r = R.count_niche_catalog_points("insurance", client=FakeClient(n=1674))
@@ -110,6 +112,7 @@ def test_no_client_available_degrades_not_ready(monkeypatch):
 
 # ---------------- the exact filter (false-ready guard) ---------------- #
 
+
 def test_filter_uses_both_namespace_and_source():
     """ns-only would false-ready (prod: insurance ns-only=3970 vs ns+source=1674)."""
     fake = FakeClient(n=1)
@@ -139,6 +142,7 @@ def test_uses_the_shared_kb_main_collection():
 
 
 # ---------------- THE incident guard ---------------- #
+
 
 def test_readiness_never_touches_embedder_or_bootstrapping_client(monkeypatch):
     """THE regression: measured >239s because _get_qdrant_client() force-loads FastEmbed.

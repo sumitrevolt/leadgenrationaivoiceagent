@@ -60,9 +60,9 @@ def test_signup_success_emits_signup_completed_row(client, monkeypatch):
     assert row.get("status") == "success"
     assert row.get("triggered_by") == "signup"
     summary = row.get("output_summary") or ""
-    assert (
-        "GTM Paid Biz" in summary
-    ), f"business name must be in summary for admin scan: {summary!r}"
+    assert "GTM Paid Biz" in summary, (
+        f"business name must be in summary for admin scan: {summary!r}"
+    )
     assert "advanced" in summary
     assert "[trial]" not in summary
     meta = row.get("meta_json") or {}

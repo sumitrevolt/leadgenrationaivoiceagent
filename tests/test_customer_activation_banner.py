@@ -4,9 +4,7 @@ from app.api.customer_dashboard_builders import _approval_banner
 
 
 def test_approval_banner_is_hidden_when_queue_is_empty(monkeypatch):
-    monkeypatch.setattr(
-        "app.marketing.content_approval.pending", lambda _cid: [], raising=False
-    )
+    monkeypatch.setattr("app.marketing.content_approval.pending", lambda _cid: [], raising=False)
     banner = _approval_banner("client-a")
     assert banner.show is False
     assert banner.count == 0

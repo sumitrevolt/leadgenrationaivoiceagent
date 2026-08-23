@@ -218,8 +218,7 @@ async def test_margin_alerts_flags_negative_margin(
     monkeypatch.setenv("LITELLM_MASTER_KEY", "x")
     monkeypatch.setenv("LITELLM_GATEWAY_URL", "http://x")
     (tmp_path / "keymap.jsonl").write_text(
-        '{"vkey":"sk-aaa","client_id":"loss_maker"}\n'
-        '{"vkey":"sk-bbb","client_id":"profitable"}\n'
+        '{"vkey":"sk-aaa","client_id":"loss_maker"}\n{"vkey":"sk-bbb","client_id":"profitable"}\n'
     )
 
     class _Resp:

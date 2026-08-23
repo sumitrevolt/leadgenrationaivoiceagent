@@ -1,4 +1,5 @@
 """Customer logout (session revocation) tests."""
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -12,7 +13,7 @@ async def test_customer_logout_invalidates_token():
     # Login
     login_resp = client.post(
         "/api/customer/auth/login",
-        json={"email": "test.logout@example.com", "password": "Password123!"}
+        json={"email": "test.logout@example.com", "password": "Password123!"},
     )
     assert login_resp.status_code in (200, 401)  # May not exist in test DB
     if login_resp.status_code != 200:

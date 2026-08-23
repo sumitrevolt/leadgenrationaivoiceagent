@@ -11,6 +11,7 @@ touch NO real data files, DB, or network. They verify:
   - never-raises (every reader raising -> scan returns a shaped dict, no throw)
   - AgentRunResult-shaped structured output + summary
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -38,9 +39,9 @@ def stub(monkeypatch):
     state: dict = {
         "clients": [],
         "approvals": [],
-        "queues": {},          # cid -> list[item]
-        "jobs": {},            # status -> list[job]
-        "events": [],          # captured team.log_event calls
+        "queues": {},  # cid -> list[item]
+        "jobs": {},  # status -> list[job]
+        "events": [],  # captured team.log_event calls
     }
 
     # --- clients_store: tenant map + paid filter ---------------------------- #
@@ -87,17 +88,37 @@ def stub(monkeypatch):
 def test_stuck_approval_detection(stub):
     stub["approvals"] = [
         # approved 30h ago (> 24h grace) -> stuck (approved_not_published)
-        {"id": "a1", "client_id": "c1", "status": "approved",
-         "decided_at": _iso_ago(hours=30), "content": {"title": "Diwali post"}},
+        {
+            "id": "a1",
+            "client_id": "c1",
+            "status": "approved",
+            "decided_at": _iso_ago(hours=30),
+            "content": {"title": "Diwali post"},
+        },
         # pending 60h ago (> 48h threshold) -> stuck (awaiting_client_over_threshold)
-        {"id": "a2", "client_id": "c2", "status": "pending",
-         "created_at": _iso_ago(hours=60), "content": {"title": "Offer post"}},
+        {
+            "id": "a2",
+            "client_id": "c2",
+            "status": "pending",
+            "created_at": _iso_ago(hours=60),
+            "content": {"title": "Offer post"},
+        },
         # published -> terminal, ignored
-        {"id": "a3", "client_id": "c1", "status": "published",
-         "created_at": _iso_ago(hours=100), "content": {"title": "Old"}},
+        {
+            "id": "a3",
+            "client_id": "c1",
+            "status": "published",
+            "created_at": _iso_ago(hours=100),
+            "content": {"title": "Old"},
+        },
         # approved 1h ago (< grace) -> fresh, NOT stuck
-        {"id": "a4", "client_id": "c3", "status": "approved",
-         "decided_at": _iso_ago(hours=1), "content": {"title": "Fresh"}},
+        {
+            "id": "a4",
+            "client_id": "c3",
+            "status": "approved",
+            "decided_at": _iso_ago(hours=1),
+            "content": {"title": "Fresh"},
+        },
     ]
 
     res = ca.scan_content_assurance()
@@ -115,9 +136,14 @@ def test_stuck_approval_detection(stub):
 
 def test_scheduled_time_passed_is_stuck(stub):
     stub["approvals"] = [
-        {"id": "s1", "client_id": "c1", "status": "scheduled",
-         "decided_at": _iso_ago(hours=200), "scheduled_time": _iso_ago(hours=48),
-         "content": {"title": "Late schedule"}},
+        {
+            "id": "s1",
+            "client_id": "c1",
+            "status": "scheduled",
+            "decided_at": _iso_ago(hours=200),
+            "scheduled_time": _iso_ago(hours=48),
+            "content": {"title": "Late schedule"},
+        },
     ]
     res = ca.scan_content_assurance()
     assert res["counts"]["stuck_approvals"] == 1
@@ -136,7 +162,7 @@ def test_stale_queue_detection(stub):
     stub["queues"] = {
         "c1": [],  # empty -> flagged
         "c2": [{"id": "x", "created_at": _iso_ago(days=20)}],  # 20d stale (>7) -> flagged
-        "c3": [{"id": "y", "created_at": _iso_ago(days=1)}],   # fresh -> NOT flagged
+        "c3": [{"id": "y", "created_at": _iso_ago(days=1)}],  # fresh -> NOT flagged
     }
 
     res = ca.scan_content_assurance()
@@ -155,10 +181,26 @@ def test_stale_queue_detection(stub):
 
 def test_publish_failure_detection(stub):
     stub["jobs"] = {
-        "failed": [{"id": "j1", "client_id": "c1", "platform": "instagram",
-                    "status": "failed", "attempts": 2, "last_error": "token expired"}],
-        "dead": [{"id": "j2", "client_id": "c2", "platform": "facebook",
-                  "status": "dead", "attempts": 4, "last_error": "max attempts"}],
+        "failed": [
+            {
+                "id": "j1",
+                "client_id": "c1",
+                "platform": "instagram",
+                "status": "failed",
+                "attempts": 2,
+                "last_error": "token expired",
+            }
+        ],
+        "dead": [
+            {
+                "id": "j2",
+                "client_id": "c2",
+                "platform": "facebook",
+                "status": "dead",
+                "attempts": 4,
+                "last_error": "max attempts",
+            }
+        ],
     }
     res = ca.scan_content_assurance()
     assert res["counts"]["publish_failures"] == 2
@@ -180,6 +222,7 @@ def test_read_only_guarantee(stub, monkeypatch):
         def _f(*a, **k):
             calls.append(name)
             raise AssertionError(f"content_assurance must not call {name} (read-only)")
+
         return _f
 
     for mod, fn in [
@@ -247,8 +290,18 @@ def test_structured_shape_and_summary(stub):
     res = ca.scan_content_assurance()
 
     for key in (
-        "run_id", "agent_id", "domain", "lane", "status", "started_at",
-        "completed_at", "latency_ms", "checked", "issues", "counts", "error",
+        "run_id",
+        "agent_id",
+        "domain",
+        "lane",
+        "status",
+        "started_at",
+        "completed_at",
+        "latency_ms",
+        "checked",
+        "issues",
+        "counts",
+        "error",
     ):
         assert key in res, f"missing {key}"
     assert res["agent_id"] == "content_assurance"
@@ -270,8 +323,13 @@ def test_structured_shape_and_summary(stub):
     # summary is a compact, shaped view
     summary = ca.content_assurance_summary()
     for key in (
-        "generated_at", "status", "checked", "stuck_approvals",
-        "stale_content_queues", "publish_failures", "issues",
+        "generated_at",
+        "status",
+        "checked",
+        "stuck_approvals",
+        "stale_content_queues",
+        "publish_failures",
+        "issues",
     ):
         assert key in summary, f"summary missing {key}"
     assert summary["stuck_approvals"] == 1

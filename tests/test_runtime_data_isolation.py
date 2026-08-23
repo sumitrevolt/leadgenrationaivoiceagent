@@ -89,9 +89,9 @@ def test_case_A_repository_data_cannot_suppress(isolated_runtime: Path, tmp_path
     # The canonical store lives under the isolated runtime root, and is empty.
     email_unsub._store_path = lambda: isolated_runtime / "compliance" / "email_suppression.jsonl"
 
-    assert (
-        email_unsub.is_suppressed("victim@example.com") is False
-    ), "repository data leaked into the test — this is the PR #144 CI incident"
+    assert email_unsub.is_suppressed("victim@example.com") is False, (
+        "repository data leaked into the test — this is the PR #144 CI incident"
+    )
 
 
 def test_case_B_isolated_root_suppression_is_respected(isolated_runtime: Path, tmp_path) -> None:

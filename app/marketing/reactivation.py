@@ -117,9 +117,7 @@ async def reactivation_campaign(
                 "STYLE2: <offer-led message>\n"
                 "STYLE3: <feedback-ask message>"
             )
-            user = (
-                f"Business: {biz} (category: {niche}). " f"Offer line jo include karni hai: {oline}"
-            )
+            user = f"Business: {biz} (category: {niche}). Offer line jo include karni hai: {oline}"
             text, p = await free_ai.chat(
                 system,
                 [{"role": "user", "content": user}],

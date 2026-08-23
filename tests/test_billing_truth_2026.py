@@ -99,9 +99,9 @@ def test_collect_live_stats_estimated_mrr_excludes_unpaid_tenants(monkeypatch):
         f"real dashboard path reported ₹{stats['estimated_mrr']} — must be ₹1,999 "
         "(only the invoice-backed client). ₹7,997 = the ADR-101 regression."
     )
-    assert (
-        sum(stats["mrr_by_product"].values()) == stats["estimated_mrr"]
-    ), "lane breakdown must reconcile with the headline total"
+    assert sum(stats["mrr_by_product"].values()) == stats["estimated_mrr"], (
+        "lane breakdown must reconcile with the headline total"
+    )
 
 
 def test_estimated_mrr_fails_open_when_ledger_unknown(monkeypatch):

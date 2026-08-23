@@ -191,7 +191,9 @@ def test_kb_facts_readiness_error_state_degrades(monkeypatch):
     monkeypatch.setattr(
         kb_readiness,
         "count_niche_catalog_points",
-        lambda n, client=None: _FakeReadiness(kb_readiness.STATE_ERROR, count=0, error_class="NoClient"),
+        lambda n, client=None: _FakeReadiness(
+            kb_readiness.STATE_ERROR, count=0, error_class="NoClient"
+        ),
     )
 
     brain = _make_brain(niche="solar")

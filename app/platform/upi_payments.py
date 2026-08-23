@@ -333,7 +333,9 @@ def _credit_referral(record: dict) -> None:
             except Exception:
                 pass
         affiliate.mark_referral_paid_by_contact(
-            contact=contact, email=email, phone=contact,
+            contact=contact,
+            email=email,
+            phone=contact,
             amount=float(record.get("amount", 0) or 0),
         )
     except Exception as e:  # pragma: no cover - defensive

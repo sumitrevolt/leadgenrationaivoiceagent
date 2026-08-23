@@ -5,6 +5,7 @@ regressing the P1 answer-first fix.
 - reply_with_tools (the VOICE_TOOLS path) must STILL answer a product question via
   the deterministic fast-path (no dodge), only routing booking-intent to the tool-LLM.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,11 +15,16 @@ from app.voice_agent.telecaller_brain import TelecallerBrain
 
 
 def test_booking_intent_detection():
-    for yes in ("Book karoge appointment mein", "abhi karo book", "meeting fix karo",
-                "kal visit karna hai", "slot kya hai", "बुक कर दो"):
+    for yes in (
+        "Book karoge appointment mein",
+        "abhi karo book",
+        "meeting fix karo",
+        "kal visit karna hai",
+        "slot kya hai",
+        "बुक कर दो",
+    ):
         assert _is_booking_intent(yes) is True, yes
-    for no in ("kya kya features hain?", "mera bill zyada aata hai", "price kitna",
-               "haan ji", ""):
+    for no in ("kya kya features hain?", "mera bill zyada aata hai", "price kitna", "haan ji", ""):
         assert _is_booking_intent(no) is False, no
 
 

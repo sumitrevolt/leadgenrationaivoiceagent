@@ -31,9 +31,9 @@ def test_outbound_webhooks_api_is_emit_not_fire_event():
     from app.platform import outbound_webhooks as ow
 
     assert callable(getattr(ow, "emit", None)), "outbound_webhooks.emit() must exist"
-    assert not hasattr(
-        ow, "fire_event"
-    ), "outbound_webhooks has no fire_event() — callers must use emit()"
+    assert not hasattr(ow, "fire_event"), (
+        "outbound_webhooks has no fire_event() — callers must use emit()"
+    )
 
 
 def test_no_telephony_module_calls_outbound_fire_event():
@@ -56,6 +56,6 @@ def test_no_telephony_module_calls_outbound_fire_event():
 def test_call_manager_fires_call_completed_via_emit():
     """Positive lock: call_manager wires the call_completed event through emit()."""
     src = _src(CALLMGR)
-    assert re.search(
-        r"\.emit\(\s*[\"']call_completed[\"']", src
-    ), "call_manager must fire 'call_completed' via outbound_webhooks.emit()"
+    assert re.search(r"\.emit\(\s*[\"']call_completed[\"']", src), (
+        "call_manager must fire 'call_completed' via outbound_webhooks.emit()"
+    )

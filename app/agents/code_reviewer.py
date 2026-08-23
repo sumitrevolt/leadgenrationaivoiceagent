@@ -155,7 +155,7 @@ async def review(code: str, dimensions: list[str] | None = None) -> dict[str, An
             '"line":<int or null>,"message":"<short actionable note>"}],"summary":"<1-2 lines>"}. '
             "If the code is clean, return an empty findings list and a brief positive summary."
         )
-        user = "Review dimensions: " + ", ".join(dims) + "\n\n" "CODE / DIFF:\n" + snippet
+        user = "Review dimensions: " + ", ".join(dims) + "\n\nCODE / DIFF:\n" + snippet
         reply, _provider = await asyncio.wait_for(
             free_ai.chat(
                 system,

@@ -275,9 +275,7 @@ async def test_place_call_allowlisted_passes_gate(monkeypatch, tmp_path):
 
             return D()
 
-    monkeypatch.setattr(
-        "app.telephony.compliance.get_compliance_gate", lambda: _FakeGate()
-    )
+    monkeypatch.setattr("app.telephony.compliance.get_compliance_gate", lambda: _FakeGate())
     client = vh.VobizClient()
     result = await client.place_call(
         to="+919812345678", answer_url="https://x/answer", call_type="promotional"

@@ -3,6 +3,7 @@
 Includes a red-team regression corpus (ph18/16 garak-style): known indirect
 prompt-injection payloads MUST flag; benign business emails must NOT.
 """
+
 import os
 
 from app.platform import llm_guard as g

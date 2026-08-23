@@ -126,9 +126,7 @@ def main():
             "",
             "**UX heuristics**",
             "",
-            md_table(
-                ["Check", "Present?"], [[lbl, "✅" if ok else "⚠️ missing"] for lbl, ok in ux]
-            ),
+            md_table(["Check", "Present?"], [[lbl, "✅" if ok else "⚠️ missing"] for lbl, ok in ux]),
             "",
             "**Discovered API endpoints**",
             "",

@@ -141,8 +141,14 @@ def test_run_check_problems_weak_dmarc_and_no_dkim(monkeypatch):
 
 
 def test_recommend_fixes_spf_missing_gives_exact_record():
-    rec = {"domain": "leadsgenai.in", "spf_ok": False, "dmarc_ok": True, "dmarc_strong": True,
-           "dkim_ok": True, "blacklist": {}}
+    rec = {
+        "domain": "leadsgenai.in",
+        "spf_ok": False,
+        "dmarc_ok": True,
+        "dmarc_strong": True,
+        "dkim_ok": True,
+        "blacklist": {},
+    }
     out = dm.recommend_fixes(rec)
     assert len(out) == 1
     assert "SPF" in out[0]["issue"]
@@ -151,8 +157,15 @@ def test_recommend_fixes_spf_missing_gives_exact_record():
 
 
 def test_recommend_fixes_weak_dmarc_suggests_quarantine_not_reject():
-    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": False,
-           "dmarc_policy": "none", "dkim_ok": True, "blacklist": {}}
+    rec = {
+        "domain": "leadsgenai.in",
+        "spf_ok": True,
+        "dmarc_ok": True,
+        "dmarc_strong": False,
+        "dmarc_policy": "none",
+        "dkim_ok": True,
+        "blacklist": {},
+    }
     out = dm.recommend_fixes(rec)
     assert len(out) == 1
     assert "p=none" in out[0]["issue"]
@@ -161,8 +174,14 @@ def test_recommend_fixes_weak_dmarc_suggests_quarantine_not_reject():
 
 
 def test_recommend_fixes_dkim_missing_points_to_provider_toggle_not_a_dns_value():
-    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": True,
-           "dkim_ok": False, "blacklist": {}}
+    rec = {
+        "domain": "leadsgenai.in",
+        "spf_ok": True,
+        "dmarc_ok": True,
+        "dmarc_strong": True,
+        "dkim_ok": False,
+        "blacklist": {},
+    }
     out = dm.recommend_fixes(rec)
     assert len(out) == 1
     assert "DKIM" in out[0]["issue"]
@@ -170,8 +189,14 @@ def test_recommend_fixes_dkim_missing_points_to_provider_toggle_not_a_dns_value(
 
 
 def test_recommend_fixes_blacklist_gives_spamhaus_lookup_url():
-    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": True,
-           "dkim_ok": True, "blacklist": {"listed_on": ["zen.spamhaus.org"], "ip": "1.2.3.4"}}
+    rec = {
+        "domain": "leadsgenai.in",
+        "spf_ok": True,
+        "dmarc_ok": True,
+        "dmarc_strong": True,
+        "dkim_ok": True,
+        "blacklist": {"listed_on": ["zen.spamhaus.org"], "ip": "1.2.3.4"},
+    }
     out = dm.recommend_fixes(rec)
     assert len(out) == 1
     assert "zen.spamhaus.org" in out[0]["issue"]
@@ -180,8 +205,14 @@ def test_recommend_fixes_blacklist_gives_spamhaus_lookup_url():
 
 
 def test_recommend_fixes_empty_when_everything_ok():
-    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": True,
-           "dkim_ok": True, "blacklist": {"listed_on": []}}
+    rec = {
+        "domain": "leadsgenai.in",
+        "spf_ok": True,
+        "dmarc_ok": True,
+        "dmarc_strong": True,
+        "dkim_ok": True,
+        "blacklist": {"listed_on": []},
+    }
     assert dm.recommend_fixes(rec) == []
 
 

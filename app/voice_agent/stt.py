@@ -30,7 +30,10 @@ class DeepgramSTT(STTProvider):
         self.base_url = "https://api.deepgram.com/v1/listen"
 
     async def transcribe(
-        self, audio_data: bytes, audio_format: str = "wav", language: str = "hi-en"  # Hindi-English
+        self,
+        audio_data: bytes,
+        audio_format: str = "wav",
+        language: str = "hi-en",  # Hindi-English
     ) -> str:
         """Transcribe audio using Deepgram"""
         if not self.api_key:

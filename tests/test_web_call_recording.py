@@ -9,6 +9,7 @@ Covers:
   - call_recordings._SERVE_RE / _MEDIA_BY_EXT accept webcall_*.{webm,mp4,ogg}
   - web_call_admin._recording_url  disk-check → admin serve URL
 """
+
 from __future__ import annotations
 
 import os
@@ -18,17 +19,17 @@ from app.api import call_recordings, web_call, web_call_admin
 
 # ---------------------------------------------------------------- _rec_ext
 def test_rec_ext_magic_bytes():
-    assert web_call._rec_ext(b"\x1aE\xdf\xa3rest") == "webm"          # EBML/webm
-    assert web_call._rec_ext(b"....ftypisom") == "mp4"               # ISO-BMFF
+    assert web_call._rec_ext(b"\x1aE\xdf\xa3rest") == "webm"  # EBML/webm
+    assert web_call._rec_ext(b"....ftypisom") == "mp4"  # ISO-BMFF
     assert web_call._rec_ext(b"OggS....") == "ogg"
-    assert web_call._rec_ext(b"garbage") == "webm"                   # unknown → webm
+    assert web_call._rec_ext(b"garbage") == "webm"  # unknown → webm
 
 
 # ------------------------------------------------------ _normalize_session_id_safe
 def test_normalize_session_id_safe():
     good = "abc12345-XYZ_67"
     assert web_call._normalize_session_id_safe(good) == good
-    assert web_call._normalize_session_id_safe("short") is None      # < 8
+    assert web_call._normalize_session_id_safe("short") is None  # < 8
     assert web_call._normalize_session_id_safe("bad space!!") is None
     assert web_call._normalize_session_id_safe(None) is None
 
@@ -59,7 +60,13 @@ def test_log_turn_persists_timing_meta():
         session,
         "assistant",
         "Ji bilkul, bataiye.",
-        meta={"heard": "haan boliye", "stt_ms": 900, "llm_ms": 2200, "tts_ms": 1000, "latency_ms": 4100},
+        meta={
+            "heard": "haan boliye",
+            "stt_ms": 900,
+            "llm_ms": 2200,
+            "tts_ms": 1000,
+            "latency_ms": 4100,
+        },
     )
     turn = session["turns"][-1]
     assert turn["role"] == "assistant"
@@ -76,10 +83,10 @@ def test_serve_regex_accepts_webcall_and_phone():
     assert R.match("webcall_abc12345.webm")
     assert R.match("webcall_abc12345.mp4")
     assert R.match("webcall_abc12345.ogg")
-    assert R.match("call_cd512ca0-1.wav")          # phone WAV still allowed
-    assert R.match("call_cd512ca0_bot.wav")        # legacy split
-    assert not R.match("../etc/passwd")            # traversal blocked
-    assert not R.match("webcall_abc12345.exe")     # arbitrary ext blocked
+    assert R.match("call_cd512ca0-1.wav")  # phone WAV still allowed
+    assert R.match("call_cd512ca0_bot.wav")  # legacy split
+    assert not R.match("../etc/passwd")  # traversal blocked
+    assert not R.match("webcall_abc12345.exe")  # arbitrary ext blocked
 
 
 def test_media_by_ext_maps_containers():

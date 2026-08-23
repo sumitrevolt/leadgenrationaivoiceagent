@@ -222,9 +222,7 @@ class TestStreamOptOut:
         from app.telephony.vobiz_stream import VobizStreamSession
 
         s = VobizStreamSession.__new__(VobizStreamSession)
-        VobizStreamSession.__init__(
-            s, websocket=None, niche="ai_marketing", lead_phone=phone
-        )
+        VobizStreamSession.__init__(s, websocket=None, niche="ai_marketing", lead_phone=phone)
         return s
 
     def test_opt_out_regex_matches_revocations(self):
@@ -253,9 +251,7 @@ class TestStreamOptOut:
         import app.telephony.consent_ledger as cl
 
         calls = []
-        monkeypatch.setattr(
-            cl, "record_opt_out", lambda phone, **kw: calls.append((phone, kw))
-        )
+        monkeypatch.setattr(cl, "record_opt_out", lambda phone, **kw: calls.append((phone, kw)))
         s = self._session()
         s._persist_opt_out("verbal_request")
         assert len(calls) == 1
@@ -266,9 +262,7 @@ class TestStreamOptOut:
         import app.telephony.consent_ledger as cl
 
         calls = []
-        monkeypatch.setattr(
-            cl, "record_opt_out", lambda phone, **kw: calls.append(phone)
-        )
+        monkeypatch.setattr(cl, "record_opt_out", lambda phone, **kw: calls.append(phone))
         s = self._session(phone="")
         s._persist_opt_out("ivr_press9")
         assert calls == []

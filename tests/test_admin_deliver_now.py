@@ -1,6 +1,7 @@
 """POST /api/admin/clients/{client_id}/deliver-now — human-clicked single-customer
 delivery bypass. Never flips AUTO_DELIVER_VALUE; always calls
 deliver_client_value(client, force=True), the existing operator bypass."""
+
 from fastapi.testclient import TestClient
 
 
@@ -23,7 +24,9 @@ def test_deliver_now_success(monkeypatch):
         assert force is True
         return {"delivered": True, "client_id": "c1"}
 
-    monkeypatch.setattr("app.marketing.customer_delivery.deliver_client_value", _fake_deliver, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.customer_delivery.deliver_client_value", _fake_deliver, raising=False
+    )
 
     events = []
     monkeypatch.setattr(
@@ -51,7 +54,9 @@ def test_deliver_now_failure_still_logs_reason(monkeypatch):
     async def _fake_deliver(client, force=False):
         return {"delivered": False, "skipped": "no_phone"}
 
-    monkeypatch.setattr("app.marketing.customer_delivery.deliver_client_value", _fake_deliver, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.customer_delivery.deliver_client_value", _fake_deliver, raising=False
+    )
 
     events = []
     monkeypatch.setattr(

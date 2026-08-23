@@ -6,6 +6,7 @@ existing per-stage stuckCount / warm_count (no change to the pipeline logic). It
 gated OFF by default (WARM_SLA_NUDGE) and sends ONLY to the founder — zero customer
 send, so no §5 ban/deliverability surface.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -35,7 +36,9 @@ def test_nudge_fires_above_threshold(monkeypatch):
     monkeypatch.setenv("WARM_SLA_NUDGE", "1")
     monkeypatch.setattr(office_hq, "build_pipeline", _fake_pipeline(stuck_a=2, warm=5, stuck_b=3))
     fired = []
-    monkeypatch.setattr(ops_alerts, "alert_warm_sla", lambda stuck, warm: fired.append((stuck, warm)), raising=False)
+    monkeypatch.setattr(
+        ops_alerts, "alert_warm_sla", lambda stuck, warm: fired.append((stuck, warm)), raising=False
+    )
 
     res = asyncio.run(office_hq.warm_lead_sla_nudge())
     assert res["nudged"] is True

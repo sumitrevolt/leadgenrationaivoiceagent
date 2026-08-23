@@ -4,6 +4,7 @@ karna nahi pata" bug: once discovery + value + closing are all covered,
 _next_discovery_line returned "" (blank) or the SAME closing again (repeat), so the
 agent stalled. Shared TelecallerBrain => guards ALL agents/niches.
 """
+
 from app.voice_agent import telecaller_brain as tb
 from app.voice_agent.telecaller_brain import TelecallerBrain
 
@@ -32,7 +33,9 @@ def test_advances_after_everything_asked():
     b = _brain()
     hist, asked = _exhaust(b)
     line = b._next_discovery_line(hist)
-    assert line, "discovery+value+closing exhaust ke baad bhi ek next-step aana chahiye (no dead-air)"
+    assert line, (
+        "discovery+value+closing exhaust ke baad bhi ek next-step aana chahiye (no dead-air)"
+    )
     assert line not in asked, "wahi closing/sawaal repeat na ho — conversation ADVANCE kare"
 
 

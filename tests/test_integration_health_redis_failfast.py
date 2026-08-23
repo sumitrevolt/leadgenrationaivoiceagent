@@ -19,6 +19,7 @@ This suite locks:
   5. Snapshot never raises
   6. No Redis credential leaks in error diagnostics
 """
+
 from __future__ import annotations
 
 import os
@@ -32,6 +33,7 @@ from app.platform import integration_health as ih
 # --------------------------------------------------------------------------- #
 # Test-mode policy
 # --------------------------------------------------------------------------- #
+
 
 def test_redis_mode_default_is_enabled(monkeypatch):
     monkeypatch.delenv("INTEGRATION_HEALTH_REDIS_MODE", raising=False)
@@ -53,11 +55,16 @@ def test_redis_mode_invalid_value_treated_as_enabled(monkeypatch):
 # Disabled mode — zero network
 # --------------------------------------------------------------------------- #
 
+
 def test_disabled_mode_performs_zero_network_calls(monkeypatch):
     """When explicitly disabled, snapshot() must never attempt Redis I/O."""
     monkeypatch.setenv("INTEGRATION_HEALTH_REDIS_MODE", "disabled")
     calls = []
-    monkeypatch.setattr(ih, "_redis", lambda: calls.append("call") or (_ for _ in ()).throw(RuntimeError("should not be called")))
+    monkeypatch.setattr(
+        ih,
+        "_redis",
+        lambda: calls.append("call") or (_ for _ in ()).throw(RuntimeError("should not be called")),
+    )
 
     out = ih.snapshot(hours=2)
     assert calls == [], "disabled mode must NOT call _redis()"
@@ -77,17 +84,21 @@ def test_disabled_mode_returns_within_bounded_time(monkeypatch):
 # Unavailable Redis (ping fails)
 # --------------------------------------------------------------------------- #
 
+
 class _RedisPingFails:
     def ping(self):
         import redis
+
         raise redis.ConnectionError("Error 111 connecting to 127.0.0.1:6379. Connection refused.")
 
 
 class _RedisConnectHang:
     """Simulates the ORIGINAL hang symptom by raising a timeout error the
     way redis-py does when socket_connect_timeout fires."""
+
     def ping(self):
         import socket
+
         raise socket.timeout("timed out")
 
 
@@ -147,6 +158,7 @@ def test_redis_constructor_raises_degrades_safely(monkeypatch):
 # Available Redis — happy path
 # --------------------------------------------------------------------------- #
 
+
 class _RedisHealthy:
     def __init__(self):
         self._hashes: dict[str, dict[bytes, bytes]] = {}
@@ -173,6 +185,7 @@ def test_healthy_redis_returns_populated_integrations(monkeypatch):
     stub = _RedisHealthy()
 
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     stub.seed(ih._hour_key(now, "fail"), {"smtp": 3, "places": 1})
     stub.seed(ih._hour_key(now, "ok"), {"smtp": 100, "places": 50})
@@ -189,6 +202,7 @@ def test_healthy_redis_returns_populated_integrations(monkeypatch):
 # --------------------------------------------------------------------------- #
 # Snapshot invariants
 # --------------------------------------------------------------------------- #
+
 
 def test_snapshot_always_populates_elapsed_s(monkeypatch):
     monkeypatch.setenv("INTEGRATION_HEALTH_REDIS_MODE", "disabled")
@@ -211,6 +225,7 @@ def test_snapshot_never_raises_even_on_bogus_hours(monkeypatch):
 # Regression: the exact scenario that hung the full suite before this fix
 # --------------------------------------------------------------------------- #
 
+
 def test_snapshot_bounded_when_redis_absent(monkeypatch):
     """Simulates the ORIGINAL hang: Redis constructor succeeds but ping()
     hits socket-connect timeout. Prior to the socket_connect_timeout=1
@@ -221,6 +236,7 @@ def test_snapshot_bounded_when_redis_absent(monkeypatch):
     class _RedisAbsent:
         def ping(self):
             import redis
+
             raise redis.ConnectionError("connect timed out")
 
     monkeypatch.setattr(ih, "_redis", lambda: _RedisAbsent())

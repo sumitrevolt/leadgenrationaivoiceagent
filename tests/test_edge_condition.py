@@ -16,7 +16,9 @@ def test_string_vs_numeric_coercion():
     # both castable to float -> numeric compare
     assert edge_taken({"field": "count", "op": "==", "value": 3}, {"count": "3"}) is True
     # not castable -> string compare
-    assert edge_taken({"field": "detail", "op": "==", "value": "merged"}, {"detail": "merged"}) is True
+    assert (
+        edge_taken({"field": "detail", "op": "==", "value": "merged"}, {"detail": "merged"}) is True
+    )
     assert edge_taken({"field": "detail", "op": "!=", "value": "x"}, {"detail": "merged"}) is True
 
 
@@ -33,12 +35,20 @@ def test_in_not_in():
 
 
 def test_all_any_combinators():
-    cond = {"all": [{"field": "ok", "op": "truthy", "value": None},
-                    {"field": "count", "op": ">=", "value": 1}]}
+    cond = {
+        "all": [
+            {"field": "ok", "op": "truthy", "value": None},
+            {"field": "count", "op": ">=", "value": 1},
+        ]
+    }
     assert edge_taken(cond, {"ok": True, "count": 2}) is True
     assert edge_taken(cond, {"ok": True, "count": 0}) is False
-    any_cond = {"any": [{"field": "count", "op": ">=", "value": 100},
-                        {"field": "ok", "op": "truthy", "value": None}]}
+    any_cond = {
+        "any": [
+            {"field": "count", "op": ">=", "value": 100},
+            {"field": "ok", "op": "truthy", "value": None},
+        ]
+    }
     assert edge_taken(any_cond, {"ok": True, "count": 0}) is True
 
 
@@ -60,6 +70,6 @@ def test_validate_accepts_good():
 
 def test_validate_rejects_bad():
     assert validate({"field": "count", "op": "bogus", "value": 1})  # unknown op
-    assert validate({"field": "", "op": "==", "value": 1})          # empty field
+    assert validate({"field": "", "op": "==", "value": 1})  # empty field
     deep = {"all": [{"all": [{"all": [{"all": [{"field": "a", "op": "==", "value": 1}]}]}]}]}
     assert validate(deep)  # depth > 3

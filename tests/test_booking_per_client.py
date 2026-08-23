@@ -161,7 +161,12 @@ def test_api_book_scopes_by_slug(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cb, "DATA_BOOKINGS_DIR", str(tmp_path / "bookings"))
     monkeypatch.setenv("BOOKING_NOTIFY", "0")
-    for k in ("CALCOM_API_KEY", "CALCOM_EVENT_TYPE_ID", "GOOGLE_CALENDAR_CREDENTIALS", "GOOGLE_CALENDAR_ID"):
+    for k in (
+        "CALCOM_API_KEY",
+        "CALCOM_EVENT_TYPE_ID",
+        "GOOGLE_CALENDAR_CREDENTIALS",
+        "GOOGLE_CALENDAR_ID",
+    ):
         monkeypatch.delenv(k, raising=False)
     # reset the module singleton so it picks up the patched ledger dir
     monkeypatch.setattr(cb, "_calendar", None, raising=False)

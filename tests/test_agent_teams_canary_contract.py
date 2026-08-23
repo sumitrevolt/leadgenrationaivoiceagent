@@ -45,11 +45,7 @@ def test_agent_teams_canary_doc_coupled_to_ssot():
         for p in paths:
             assert p in text, f"canary doc missing frozen path from SSOT: {p}"
 
-    assert prefix in text or "agent/tm" in text, (
-        f"canary doc must mention branch_prefix={prefix!r}"
+    assert prefix in text or "agent/tm" in text, f"canary doc must mention branch_prefix={prefix!r}"
+    assert "2" in text or "2 teammates" in text.lower() or ("TM1" in text and "TM2" in text), (
+        "canary doc must mention max teammates (2) or merge_order TM1/TM2"
     )
-    assert (
-        "2" in text
-        or "2 teammates" in text.lower()
-        or ("TM1" in text and "TM2" in text)
-    ), "canary doc must mention max teammates (2) or merge_order TM1/TM2"

@@ -36,6 +36,7 @@ def test_app_imports_and_mounts_telephony_webhooks():
 
 def test_call_state_rebinds_redis_client_per_event_loop(monkeypatch):
     """A Redis client created in one loop must never be reused in another."""
+
     class _FakeRedis:
         def __init__(self):
             self.pings = 0

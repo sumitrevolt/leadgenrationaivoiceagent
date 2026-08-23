@@ -213,18 +213,18 @@ class EmailSender:
         body = f"""
 NEW HOT LEAD ALERT!
 
-Company: {lead_data.get('company_name', 'N/A')}
-Contact: {lead_data.get('contact_name', 'N/A')}
-Phone: {lead_data.get('phone', 'N/A')}
-City: {lead_data.get('city', 'N/A')}
+Company: {lead_data.get("company_name", "N/A")}
+Contact: {lead_data.get("contact_name", "N/A")}
+Phone: {lead_data.get("phone", "N/A")}
+City: {lead_data.get("city", "N/A")}
 
-Lead Score: {lead_data.get('lead_score', 0)}/100
-Interest Level: {lead_data.get('detected_intent', 'N/A')}
+Lead Score: {lead_data.get("lead_score", 0)}/100
+Interest Level: {lead_data.get("detected_intent", "N/A")}
 
 Notes:
-{lead_data.get('notes', 'No additional notes')}
+{lead_data.get("notes", "No additional notes")}
 
-Call Time: {lead_data.get('call_time', 'N/A')}
+Call Time: {lead_data.get("call_time", "N/A")}
 
 ---
 LeadGen AI - AI Automated Marketing + Voice Agent
@@ -241,25 +241,25 @@ LeadGen AI - AI Automated Marketing + Voice Agent
         <table style="width: 100%; border-collapse: collapse;">
             <tr>
                 <td style="padding: 10px; font-weight: bold;">Company:</td>
-                <td style="padding: 10px;">{lead_data.get('company_name', 'N/A')}</td>
+                <td style="padding: 10px;">{lead_data.get("company_name", "N/A")}</td>
             </tr>
             <tr>
                 <td style="padding: 10px; font-weight: bold;">Contact:</td>
-                <td style="padding: 10px;">{lead_data.get('contact_name', 'N/A')}</td>
+                <td style="padding: 10px;">{lead_data.get("contact_name", "N/A")}</td>
             </tr>
             <tr>
                 <td style="padding: 10px; font-weight: bold;">Phone:</td>
-                <td style="padding: 10px;"><a href="tel:{lead_data.get('phone', '')}">{lead_data.get('phone', 'N/A')}</a></td>
+                <td style="padding: 10px;"><a href="tel:{lead_data.get("phone", "")}">{lead_data.get("phone", "N/A")}</a></td>
             </tr>
             <tr>
                 <td style="padding: 10px; font-weight: bold;">City:</td>
-                <td style="padding: 10px;">{lead_data.get('city', 'N/A')}</td>
+                <td style="padding: 10px;">{lead_data.get("city", "N/A")}</td>
             </tr>
         </table>
 
         <div style="background: white; padding: 15px; border-radius: 10px; margin-top: 15px;">
-            <h3 style="margin-top: 0;">Lead Score: <span style="color: #667eea;">{lead_data.get('lead_score', 0)}/100</span></h3>
-            <p>Interest: {lead_data.get('detected_intent', 'N/A')}</p>
+            <h3 style="margin-top: 0;">Lead Score: <span style="color: #667eea;">{lead_data.get("lead_score", 0)}/100</span></h3>
+            <p>Interest: {lead_data.get("detected_intent", "N/A")}</p>
         </div>
     </div>
 
@@ -279,21 +279,21 @@ LeadGen AI - AI Automated Marketing + Voice Agent
         body = f"""
 DAILY CAMPAIGN REPORT
 
-Date: {stats.get('date', 'Today')}
+Date: {stats.get("date", "Today")}
 
 CALL STATISTICS:
-- Calls Made: {stats.get('calls_made', 0)}
-- Connected: {stats.get('calls_connected', 0)}
-- Connection Rate: {stats.get('connection_rate', 0):.1%}
+- Calls Made: {stats.get("calls_made", 0)}
+- Connected: {stats.get("calls_connected", 0)}
+- Connection Rate: {stats.get("connection_rate", 0):.1%}
 
 OUTCOMES:
-- Interested: {stats.get('interested', 0)}
-- Appointments Booked: {stats.get('appointments', 0)}
-- Callback Requests: {stats.get('callbacks', 0)}
-- Not Interested: {stats.get('not_interested', 0)}
+- Interested: {stats.get("interested", 0)}
+- Appointments Booked: {stats.get("appointments", 0)}
+- Callback Requests: {stats.get("callbacks", 0)}
+- Not Interested: {stats.get("not_interested", 0)}
 
-HOT LEADS: {stats.get('hot_leads', 0)}
-ESTIMATED VALUE: ₹{stats.get('estimated_value', 0):,.0f}
+HOT LEADS: {stats.get("hot_leads", 0)}
+ESTIMATED VALUE: ₹{stats.get("estimated_value", 0):,.0f}
 
 ---
 LeadGen AI - AI Automated Marketing + Voice Agent
@@ -310,16 +310,16 @@ LeadGen AI - AI Automated Marketing + Voice Agent
         body = f"""
 Your Meeting is Confirmed!
 
-Date: {appointment_data.get('date', 'TBD')}
-Time: {appointment_data.get('time', 'TBD')}
-With: {appointment_data.get('client_name', 'Our Team')}
+Date: {appointment_data.get("date", "TBD")}
+Time: {appointment_data.get("time", "TBD")}
+With: {appointment_data.get("client_name", "Our Team")}
 
-{f"Meeting Link: {appointment_data.get('meeting_link')}" if appointment_data.get('meeting_link') else ""}
+{f"Meeting Link: {appointment_data.get('meeting_link')}" if appointment_data.get("meeting_link") else ""}
 
 We look forward to speaking with you!
 
 Best regards,
-{appointment_data.get('client_name', 'Team')}
+{appointment_data.get("client_name", "Team")}
         """
 
         return await self.send_email([to_email], subject, body)

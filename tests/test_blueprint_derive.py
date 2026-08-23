@@ -37,8 +37,12 @@ def test_no_candidate_is_silently_dropped():
 def test_deterministic():
     a, b = bd.derive(), bd.derive()
     assert [r["legacy_id"] for r in a["entries"]] == [r["legacy_id"] for r in b["entries"]]
-    assert [r["classification"] for r in a["entries"]] == [r["classification"] for r in b["entries"]]
-    assert [r["parent_domain_id"] for r in a["entries"]] == [r["parent_domain_id"] for r in b["entries"]]
+    assert [r["classification"] for r in a["entries"]] == [
+        r["classification"] for r in b["entries"]
+    ]
+    assert [r["parent_domain_id"] for r in a["entries"]] == [
+        r["parent_domain_id"] for r in b["entries"]
+    ]
 
 
 def test_entries_sorted_by_legacy_id():
@@ -85,7 +89,9 @@ def test_structural_parent_requires_reviewed_ownership():
     for r in _rows():
         if r["confidence"] == "HIGH" and r["parent_node_id"]:
             assert r["ownership_domain"], (
-                r["legacy_id"], "structural parent without reviewed ownership")
+                r["legacy_id"],
+                "structural parent without reviewed ownership",
+            )
 
 
 def test_council_is_not_parented_under_rag():

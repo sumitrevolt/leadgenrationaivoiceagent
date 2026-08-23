@@ -53,9 +53,9 @@ class TestPayInfo:
             "starter",
             "advanced",
         } <= keys, f"public pay-info must show exactly the public pricing plans; got {keys}"
-        assert (
-            "growth" not in keys
-        ), "legacy 'growth' plan must NOT appear on public pricing — ADR-009/2026-06-11"
+        assert "growth" not in keys, (
+            "legacy 'growth' plan must NOT appear on public pricing — ADR-009/2026-06-11"
+        )
         for p in data["packages"]:
             assert p["name"] and p["price_inr_month"] > 0
 

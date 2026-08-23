@@ -62,9 +62,9 @@ def _no_repo_data_writes():
     added = sorted(set(after) - set(before))
     removed = sorted(set(before) - set(after))
     changed = sorted(k for k in set(before) & set(after) if before[k] != after[k])
-    assert not (
-        added or removed or changed
-    ), f"repo data/ mutated — added={added} removed={removed} changed={changed}"
+    assert not (added or removed or changed), (
+        f"repo data/ mutated — added={added} removed={removed} changed={changed}"
+    )
 
 
 @pytest.fixture

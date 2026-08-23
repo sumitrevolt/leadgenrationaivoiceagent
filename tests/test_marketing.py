@@ -681,7 +681,7 @@ class TestLeadScoring:
                     "phone": "+919876543210",
                     "niche": "real_estate",
                     "city": "Pune",
-                    "message": "Mujhe 3BHK project ke liye " "leads chahiye urgent",
+                    "message": "Mujhe 3BHK project ke liye leads chahiye urgent",
                     "source": "website",
                     "at": now.isoformat(),
                 },

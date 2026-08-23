@@ -85,8 +85,7 @@ class TelephonyService:
                 self._handler = self._build_handler(self.provider)
             except Exception as e:
                 logger.error(
-                    f"Failed to init '{self.provider}' handler ({e}); "
-                    f"falling back to simulation."
+                    f"Failed to init '{self.provider}' handler ({e}); falling back to simulation."
                 )
                 self.provider = "simulation"
 

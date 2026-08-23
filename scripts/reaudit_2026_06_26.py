@@ -27,7 +27,7 @@ print("=== RE-AUDIT: 2026-06-26 (After Batches 1-5) ===\n")
 print("1. SECURITY TESTS")
 print(f"   Files: {test_counts.get('tests/security', 0)}")
 print(
-    f"   Test cases: {sum(test_functions.get(k, 0) for k in test_functions if k.startswith('test_') and k in [f.name for f in (ROOT/'tests/security').glob('*.py')])}"
+    f"   Test cases: {sum(test_functions.get(k, 0) for k in test_functions if k.startswith('test_') and k in [f.name for f in (ROOT / 'tests/security').glob('*.py')])}"
 )
 print("   security_scan.py: 0 misconfig findings (CLEAN)")
 print("   Score: 80 → 88 (+8)\n")

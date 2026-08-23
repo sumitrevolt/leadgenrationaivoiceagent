@@ -5,6 +5,7 @@ W2.4 adds an optional free-LLM (bulk profile, W1.10-cached) synthesis appended t
 digest, gated by DIGEST_LLM (default OFF → pure rule-based), fail-open (LLM error/empty
 → digest unchanged).
 """
+
 from __future__ import annotations
 
 import asyncio

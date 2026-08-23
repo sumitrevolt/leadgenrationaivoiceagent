@@ -1,4 +1,5 @@
 """Unit tests for app/platform/mcp_engineer.py (Arya)."""
+
 from __future__ import annotations
 import json
 import os
@@ -12,6 +13,7 @@ def _isolate_data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     import importlib
     from app.platform import mcp_engineer
+
     importlib.reload(mcp_engineer)
     yield mcp_engineer
 
@@ -77,6 +79,7 @@ def test_probe_auth_failures_alert_threshold(_isolate_data_dir, monkeypatch):
     monkeypatch.setenv("MCP_AUTH_FAIL_ALERT", "5")
     import importlib
     from app.platform import mcp_engineer as m
+
     importlib.reload(m)
     for _ in range(6):
         m.log_auth_failure("brute_force_probe", ip="1.1.1.1", path="/mcp/x")
@@ -98,7 +101,15 @@ def test_run_mcp_full_pass_when_enabled(_isolate_data_dir, monkeypatch):
     assert r["status"] == "ok"
     assert isinstance(r["score"], float)
     assert 0 <= r["score"] <= 100
-    for p in ("dependency", "expose_gate", "product_armed", "keys", "rotation", "auth_failures", "a2a_card"):
+    for p in (
+        "dependency",
+        "expose_gate",
+        "product_armed",
+        "keys",
+        "rotation",
+        "auth_failures",
+        "a2a_card",
+    ):
         assert p in r["kpis"]
 
 
@@ -112,8 +123,15 @@ def test_run_mcp_writes_last_run_file(_isolate_data_dir, monkeypatch, tmp_path):
 
 def test_audit_mcp_security_returns_checklist(_isolate_data_dir):
     a = _isolate_data_dir.audit_mcp_security()
-    expected = {"fastapi_mcp_dep", "mcp_endpoint_gated", "mcp_product_armed",
-                "no_rotation_overdue", "no_auth_attack", "a2a_card_valid", "all_green"}
+    expected = {
+        "fastapi_mcp_dep",
+        "mcp_endpoint_gated",
+        "mcp_product_armed",
+        "no_rotation_overdue",
+        "no_auth_attack",
+        "a2a_card_valid",
+        "all_green",
+    }
     assert expected.issubset(a.keys())
     assert isinstance(a["all_green"], bool)
 

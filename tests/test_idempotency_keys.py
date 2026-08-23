@@ -11,6 +11,7 @@ which is stable/deterministic across processes.
 These tests assert the fallback key is deterministic for the same args and is
 derived from a stable sha1 (NOT the randomized builtin ``hash``).
 """
+
 from __future__ import annotations
 
 import hashlib

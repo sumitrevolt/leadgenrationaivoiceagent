@@ -27,29 +27,30 @@ def test_next_ready_at_zero_for_non_retry():
 
 def test_next_ready_at_for_retry_row():
     ts = "2026-07-11T10:00:00"
-    when = sch.next_ready_at({
-        "status": "retry", "attempts": 2, "updated_at": ts,
-    })
+    when = sch.next_ready_at(
+        {
+            "status": "retry",
+            "attempts": 2,
+            "updated_at": ts,
+        }
+    )
     # attempts=2 → 120s backoff — should be exactly 120s past parsed ts.
     # Store writes UTC ISO; production parses naive-as-UTC so timestamp() is
     # timezone-safe on IST machines (see scheduling.next_ready_at).
     import datetime as _dt
+
     expected = _dt.datetime.fromisoformat(ts).replace(tzinfo=_dt.timezone.utc).timestamp() + 120
     assert when == pytest.approx(expected, abs=1)
 
 
 def test_is_ready_for_retry_true_when_past():
     old = (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S")
-    assert sch.is_ready_for_retry({
-        "status": "retry", "attempts": 3, "updated_at": old
-    }) is True
+    assert sch.is_ready_for_retry({"status": "retry", "attempts": 3, "updated_at": old}) is True
 
 
 def test_is_ready_for_retry_false_when_within_backoff():
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-    assert sch.is_ready_for_retry({
-        "status": "retry", "attempts": 3, "updated_at": now
-    }) is False
+    assert sch.is_ready_for_retry({"status": "retry", "attempts": 3, "updated_at": now}) is False
 
 
 # --------------------------------------------------------------------------- #
@@ -94,7 +95,9 @@ def test_recover_stale_processing(monkeypatch, tmp_path):
 
     jid = store.enqueue({"client_id": "c1", "platform": "facebook", "caption": "hi"})
     # Force processing with an old claimed_at.
-    old_iso = (datetime.datetime.utcnow() - datetime.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
+    old_iso = (datetime.datetime.utcnow() - datetime.timedelta(minutes=30)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
     store.mark(jid, "processing", claimed_at=old_iso)
     assert store.get(jid)["status"] == "processing"
 

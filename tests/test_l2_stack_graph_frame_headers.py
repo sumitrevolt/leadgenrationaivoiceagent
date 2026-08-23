@@ -15,6 +15,7 @@ lead-widget/reviews-widget) that sets `X-Frame-Options: SAMEORIGIN` and
 `frame-ancestors *`), since this route must only ever be framed by our own
 authenticated admin UI, never an external site.
 """
+
 from __future__ import annotations
 
 import pytest

@@ -725,8 +725,7 @@ async def _voice_learn() -> dict[str, Any]:
             from app.voice_agent import free_ai
 
             digest = (
-                f"niche={niche} call_score={target.get('score')} "
-                f"qa_findings={str(findings)[:600]}"
+                f"niche={niche} call_score={target.get('score')} qa_findings={str(findings)[:600]}"
             )
             text, _ = await asyncio.wait_for(
                 free_ai.chat(

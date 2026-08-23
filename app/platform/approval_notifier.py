@@ -173,8 +173,7 @@ def _backlog_phrase(backlog: dict) -> str:
         return "You have content awaiting your approval."
     if days >= 2:
         return (
-            f"You have {n} items awaiting your approval "
-            f"— the oldest has been waiting {days} days."
+            f"You have {n} items awaiting your approval — the oldest has been waiting {days} days."
         )
     return f"You have {n} items awaiting your approval."
 
@@ -184,7 +183,7 @@ def _backlog_text(backlog: dict, link: str) -> str:
 
 
 def _backlog_html(backlog: dict, link: str) -> str:
-    return f"<p>{_backlog_phrase(backlog)}</p>" f'<p><a href="{link}">Review &amp; approve</a></p>'
+    return f'<p>{_backlog_phrase(backlog)}</p><p><a href="{link}">Review &amp; approve</a></p>'
 
 
 def deep_link(approval_id: str = "") -> str:

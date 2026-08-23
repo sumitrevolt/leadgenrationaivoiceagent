@@ -5,6 +5,7 @@ consent, disabled email setting, provider failure + retry, cross-tenant isolatio
 Uses injected recipient/consent/send seams + the async test DB session so no real
 email is sent and no real store is touched.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -134,10 +135,20 @@ async def test_first_send_records_sent_audit(async_db_session):
 async def test_duplicate_send_is_suppressed(async_db_session):
     s = Sender(ok=True)
     a = _approval()
-    r1 = await an.notify_approval(a, session=async_db_session, send_fn=s,
-                                  resolve_recipient=lambda c: "x@y.com", email_allowed=_ALLOW)
-    r2 = await an.notify_approval(a, session=async_db_session, send_fn=s,
-                                  resolve_recipient=lambda c: "x@y.com", email_allowed=_ALLOW)
+    r1 = await an.notify_approval(
+        a,
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=lambda c: "x@y.com",
+        email_allowed=_ALLOW,
+    )
+    r2 = await an.notify_approval(
+        a,
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=lambda c: "x@y.com",
+        email_allowed=_ALLOW,
+    )
     assert r1["status"] == "sent" and r2["status"] == "sent"
     assert r2.get("note") == "duplicate_suppressed"
     assert len(s.calls) == 1, "email must be sent exactly once for the same approval version"
@@ -148,10 +159,20 @@ async def test_changed_approval_version_sends_again(async_db_session):
     s = Sender(ok=True)
     a1 = _approval(content={"text": "v1"})
     a2 = _approval(content={"text": "v2 EDITED"})  # same id, changed content => new version
-    r1 = await an.notify_approval(a1, session=async_db_session, send_fn=s,
-                                  resolve_recipient=lambda c: "x@y.com", email_allowed=_ALLOW)
-    r2 = await an.notify_approval(a2, session=async_db_session, send_fn=s,
-                                  resolve_recipient=lambda c: "x@y.com", email_allowed=_ALLOW)
+    r1 = await an.notify_approval(
+        a1,
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=lambda c: "x@y.com",
+        email_allowed=_ALLOW,
+    )
+    r2 = await an.notify_approval(
+        a2,
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=lambda c: "x@y.com",
+        email_allowed=_ALLOW,
+    )
     assert r1["status"] == "sent" and r2["status"] == "sent"
     assert r1["idempotency_key"] != r2["idempotency_key"]
     assert len(s.calls) == 2  # a genuinely new version is a new notification
@@ -161,7 +182,9 @@ async def test_changed_approval_version_sends_again(async_db_session):
 async def test_missing_consent_skips_without_send(async_db_session):
     s = Sender(ok=True)
     r = await an.notify_approval(
-        _approval(), session=async_db_session, send_fn=s,
+        _approval(),
+        session=async_db_session,
+        send_fn=s,
         resolve_recipient=lambda c: "x@y.com",
         email_allowed=lambda c, e: (False, "no_consent"),
     )
@@ -174,7 +197,9 @@ async def test_missing_consent_skips_without_send(async_db_session):
 async def test_disabled_email_setting_skips(async_db_session):
     s = Sender(ok=True)
     r = await an.notify_approval(
-        _approval(), session=async_db_session, send_fn=s,
+        _approval(),
+        session=async_db_session,
+        send_fn=s,
         resolve_recipient=lambda c: "x@y.com",
         email_allowed=lambda c, e: (False, "email_disabled"),
     )
@@ -185,8 +210,11 @@ async def test_disabled_email_setting_skips(async_db_session):
 async def test_no_email_address_skips(async_db_session):
     s = Sender(ok=True)
     r = await an.notify_approval(
-        _approval(), session=async_db_session, send_fn=s,
-        resolve_recipient=lambda c: None, email_allowed=_ALLOW,
+        _approval(),
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=lambda c: None,
+        email_allowed=_ALLOW,
     )
     assert r["status"] == "skipped" and r["failure_category"] == "no_email"
     assert len(s.calls) == 0
@@ -195,15 +223,25 @@ async def test_no_email_address_skips(async_db_session):
 async def test_provider_failure_then_retry_succeeds(async_db_session):
     fail = Sender(ok=False, category="provider_error")
     a = _approval()
-    r1 = await an.notify_approval(a, session=async_db_session, send_fn=fail,
-                                  resolve_recipient=lambda c: "x@y.com", email_allowed=_ALLOW)
+    r1 = await an.notify_approval(
+        a,
+        session=async_db_session,
+        send_fn=fail,
+        resolve_recipient=lambda c: "x@y.com",
+        email_allowed=_ALLOW,
+    )
     assert r1["status"] == "failed" and r1["failure_category"] == "provider_error"
     row = await _row(async_db_session, r1["idempotency_key"])
     assert row.status == "failed" and row.attempts == 1
 
     ok = Sender(ok=True)
-    r2 = await an.notify_approval(a, session=async_db_session, send_fn=ok,
-                                  resolve_recipient=lambda c: "x@y.com", email_allowed=_ALLOW)
+    r2 = await an.notify_approval(
+        a,
+        session=async_db_session,
+        send_fn=ok,
+        resolve_recipient=lambda c: "x@y.com",
+        email_allowed=_ALLOW,
+    )
     assert r2["status"] == "sent"  # a failed send is retryable
     assert len(ok.calls) == 1
     row2 = await _row(async_db_session, r2["idempotency_key"])
@@ -225,12 +263,20 @@ async def test_cross_tenant_recipient_isolation(async_db_session):
             return await super().__call__(to_email, subject, html, text)
 
     s = TrackingSender(ok=True)
-    r1 = await an.notify_approval(_approval(client_id="cli-1", aid="a1"),
-                                  session=async_db_session, send_fn=s,
-                                  resolve_recipient=resolver, email_allowed=_ALLOW)
-    r2 = await an.notify_approval(_approval(client_id="cli-2", aid="a2"),
-                                  session=async_db_session, send_fn=s,
-                                  resolve_recipient=resolver, email_allowed=_ALLOW)
+    r1 = await an.notify_approval(
+        _approval(client_id="cli-1", aid="a1"),
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=resolver,
+        email_allowed=_ALLOW,
+    )
+    r2 = await an.notify_approval(
+        _approval(client_id="cli-2", aid="a2"),
+        session=async_db_session,
+        send_fn=s,
+        resolve_recipient=resolver,
+        email_allowed=_ALLOW,
+    )
     assert r1["status"] == "sent" and r2["status"] == "sent"
     assert s.calls[0]["to"] == "owner1@a.com"  # cli-1 approval -> cli-1 email
     assert s.calls[1]["to"] == "owner2@b.com"  # cli-2 approval -> cli-2 email

@@ -6,6 +6,7 @@ drowning, and no suggestion ever named it. Now: summary["by_niche"] carries
 per-niche metrics, and a niche-targeted suggestion fires when the worst niche
 crosses the junk threshold that the aggregate hides.
 """
+
 from __future__ import annotations
 
 import asyncio

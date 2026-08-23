@@ -7,6 +7,7 @@ status saves could surface a STALE status (real correctness bug, surfaced as a
 full-suite test flake). Fix: ascending sort + last row (append order is
 chronological) => newest always wins, tie or not.
 """
+
 from app.marketing import listings_presence as lp
 
 

@@ -31,9 +31,9 @@ def test_tier_buckets_are_disjoint_and_total_exactly() -> None:
     """Every family sits in exactly one tier, so the buckets must sum to the total."""
     c = m.counts()
     tier_total = sum(c[t] for t in m.TIERS)
-    assert (
-        tier_total == c["unique_families"]
-    ), f"tier buckets sum to {tier_total} but there are {c['unique_families']} families"
+    assert tier_total == c["unique_families"], (
+        f"tier buckets sum to {tier_total} but there are {c['unique_families']} families"
+    )
 
 
 def test_every_store_has_exactly_one_tier() -> None:
@@ -79,9 +79,9 @@ def test_derived_blocker_cannot_be_understated() -> None:
     """An active, mutable, required, in-checkout, unprotected store MUST block."""
     for s in m.STORES:
         if m.derived_blocker(s):
-            assert (
-                s.get("deployment_blocker") is True
-            ), f"{s['store_id']} meets every blocking condition but is not flagged"
+            assert s.get("deployment_blocker") is True, (
+                f"{s['store_id']} meets every blocking condition but is not flagged"
+            )
 
 
 def test_rebuildable_cache_may_sit_in_checkout_without_blocking() -> None:

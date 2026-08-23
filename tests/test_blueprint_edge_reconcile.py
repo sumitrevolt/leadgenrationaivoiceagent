@@ -125,7 +125,11 @@ def test_unresolved_endpoints_are_reported_not_dropped():
         if e["endpoint_resolution"] == "UNRESOLVED":
             assert e["reason"]
             assert e["classification"] in (
-                "ENDPOINT_MISSING", "DEPRECATED", "INVALID_OR_STALE", "REVIEW_REQUIRED")
+                "ENDPOINT_MISSING",
+                "DEPRECATED",
+                "INVALID_OR_STALE",
+                "REVIEW_REQUIRED",
+            )
 
 
 # --------------------------- fail-closed -----------------------------------
@@ -174,16 +178,17 @@ def test_unknown_classification_is_flagged(monkeypatch):
     entries = [dict(e) for e in real["entries"]]
     entries[0]["classification"] = "NOT_A_REAL_CLASSIFICATION"
     for e in entries:
-        assert e["classification"] in ber.EDGE_CLASSIFICATIONS or \
-            e["classification"] == "NOT_A_REAL_CLASSIFICATION"
+        assert (
+            e["classification"] in ber.EDGE_CLASSIFICATIONS
+            or e["classification"] == "NOT_A_REAL_CLASSIFICATION"
+        )
     with pytest.raises(AssertionError):
         for e in entries:
             assert e["classification"] in ber.EDGE_CLASSIFICATIONS
 
 
 def test_json_mode_returns_nonzero_when_not_ok(monkeypatch):
-    monkeypatch.setattr(ber, "reconcile_edges",
-                        lambda: {**ber._fail(["broken"]), "entries": []})
+    monkeypatch.setattr(ber, "reconcile_edges", lambda: {**ber._fail(["broken"]), "entries": []})
     assert ber.main(["--json"]) == 1
 
 
@@ -200,7 +205,8 @@ def test_l0_projection_untouched_by_edge_analysis():
 def test_no_sys_path_mutation_at_import_time():
     """Regression: a module-level sys.path insert segfaulted CI (PR #131)."""
     src = (ber.ROOT / "scripts" / "blueprint_edge_reconcile.py").read_text(
-        encoding="utf-8", errors="replace")
+        encoding="utf-8", errors="replace"
+    )
     head = src.split("def _ensure_repo_importable", 1)[0]
     assert "sys.path.insert" not in head
 

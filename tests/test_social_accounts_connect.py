@@ -87,7 +87,13 @@ def test_accounts_list_empty_returns_all_platforms_not_connected(client, iso, as
     plats = {p["platform"]: p for p in body["platforms"]}
     # 7 platforms exposed by the connect surface.
     assert set(plats.keys()) == {
-        "facebook", "instagram", "gbp", "linkedin", "x", "youtube", "postiz",
+        "facebook",
+        "instagram",
+        "gbp",
+        "linkedin",
+        "x",
+        "youtube",
+        "postiz",
     }
     # Nothing stored → every direct-API platform is provider_review_pending;
     # postiz alone is not_connected (no review path).
@@ -100,13 +106,16 @@ def test_accounts_list_empty_returns_all_platforms_not_connected(client, iso, as
 
 def test_accounts_list_after_connect_shows_connected_state(client, iso, as_customer):
     # Seed vault via the connect route (exercises the write path too).
-    r = client.post("/api/customer/social/accounts/connect", json={
-        "platform": "facebook",
-        "token": "EAA_test_page_token",
-        "account_ref": "1234567890",
-        "label": "Test Page",
-        "source": "manual_paste",
-    })
+    r = client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": "facebook",
+            "token": "EAA_test_page_token",
+            "account_ref": "1234567890",
+            "label": "Test Page",
+            "source": "manual_paste",
+        },
+    )
     assert r.status_code == 200, r.text
     assert r.json().get("ok") is True
 
@@ -152,42 +161,54 @@ def _extract_error_code(body: dict) -> str | None:
 
 
 def test_connect_rejects_unknown_platform(client, iso, as_customer):
-    r = client.post("/api/customer/social/accounts/connect", json={
-        "platform": "myspace",
-        "token": "abcdefghij",
-        "account_ref": "x",
-    })
+    r = client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": "myspace",
+            "token": "abcdefghij",
+            "account_ref": "x",
+        },
+    )
     assert r.status_code == 400
     assert _extract_error_code(r.json()) == "invalid_platform"
 
 
 def test_connect_rejects_short_token(client, iso, as_customer):
-    r = client.post("/api/customer/social/accounts/connect", json={
-        "platform": "x",
-        "token": "abc",  # < 8
-    })
+    r = client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": "x",
+            "token": "abc",  # < 8
+        },
+    )
     assert r.status_code == 400
     assert _extract_error_code(r.json()) == "invalid_token"
 
 
 @pytest.mark.parametrize("plat", ["facebook", "instagram", "gbp", "linkedin"])
 def test_connect_requires_account_ref_for_direct_api_platforms(client, iso, as_customer, plat):
-    r = client.post("/api/customer/social/accounts/connect", json={
-        "platform": plat,
-        "token": "token_at_least_eight",
-        # No account_ref
-    })
+    r = client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": plat,
+            "token": "token_at_least_eight",
+            # No account_ref
+        },
+    )
     assert r.status_code == 400
     assert _extract_error_code(r.json()) == "account_ref_required"
 
 
 def test_connect_stores_token_encrypted_and_retrievable_via_vault(client, iso, as_customer):
-    r = client.post("/api/customer/social/accounts/connect", json={
-        "platform": "instagram",
-        "token": "IG_LIVE_TEST_TOKEN_XYZ",
-        "account_ref": "17841400000000000",
-        "label": "Test IG Business",
-    })
+    r = client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": "instagram",
+            "token": "IG_LIVE_TEST_TOKEN_XYZ",
+            "account_ref": "17841400000000000",
+            "label": "Test IG Business",
+        },
+    )
     assert r.status_code == 200
     assert r.json().get("ok") is True
 
@@ -202,11 +223,14 @@ def test_connect_stores_token_encrypted_and_retrievable_via_vault(client, iso, a
 def test_connect_is_idor_safe_uses_jwt_client_id_not_body(client, iso, as_customer):
     """Even if a caller injects `client_id` in the body, the vault key MUST come
     from the JWT (`require_customer` returns 'c_social_test')."""
-    r = client.post("/api/customer/social/accounts/connect", json={
-        "platform": "x",
-        "token": "X_BEARER_TOKEN_12345",
-        "client_id": "c_ATTACKER",  # extra field — must be ignored
-    })
+    r = client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": "x",
+            "token": "X_BEARER_TOKEN_12345",
+            "client_id": "c_ATTACKER",  # extra field — must be ignored
+        },
+    )
     assert r.status_code == 200
 
     # Vault has it under the JWT-authoritative client_id, NOT the body one.
@@ -219,17 +243,17 @@ def test_connect_is_idor_safe_uses_jwt_client_id_not_body(client, iso, as_custom
 # --------------------------------------------------------------------------- #
 def test_disconnect_soft_deletes_via_vault(client, iso, as_customer):
     # Seed
-    client.post("/api/customer/social/accounts/connect", json={
-        "platform": "linkedin",
-        "token": "LI_TOKEN_XXXX",
-        "account_ref": "urn:li:organization:123",
-    })
+    client.post(
+        "/api/customer/social/accounts/connect",
+        json={
+            "platform": "linkedin",
+            "token": "LI_TOKEN_XXXX",
+            "account_ref": "urn:li:organization:123",
+        },
+    )
     assert iso["vault"].get("c_social_test", "linkedin") is not None
 
-    r = client.delete(
-        "/api/customer/social/accounts/linkedin"
-        "?account_ref=urn:li:organization:123"
-    )
+    r = client.delete("/api/customer/social/accounts/linkedin?account_ref=urn:li:organization:123")
     assert r.status_code == 200
     body = r.json()
     assert body.get("ok") is True
@@ -294,8 +318,7 @@ def test_admin_social_jobs_filters_by_platform_and_status(client, iso, as_admin)
 def test_admin_retry_requeues_dead_job_and_is_idempotent(client, iso, as_admin):
     jid = _seed_job(iso["store"], platform="facebook")
     # Push to dead state (like the drain loop would after max_attempts).
-    iso["store"].mark(jid, "dead", attempts=iso["store"].max_attempts(),
-                      last_error="Provider 401")
+    iso["store"].mark(jid, "dead", attempts=iso["store"].max_attempts(), last_error="Provider 401")
     assert iso["store"].get(jid)["status"] == "dead"
 
     r = client.post(f"/api/growth/social/jobs/{jid}/retry")

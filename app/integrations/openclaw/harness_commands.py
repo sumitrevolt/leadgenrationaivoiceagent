@@ -116,7 +116,9 @@ def _status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[
             "enforcement": (
                 "enforce"
                 if flags["AGENT_HARNESS_ENFORCE"]
-                else "shadow" if flags["AGENT_HARNESS_SHADOW"] else "inert"
+                else "shadow"
+                if flags["AGENT_HARNESS_SHADOW"]
+                else "inert"
             ),
             "calling_hard_off": True,
             "conformance_level": _conformance_level(flags),
@@ -363,7 +365,7 @@ def _enforcement(params: dict[str, Any], *, actor: str, correlation_id: str) -> 
             "correlation_id": correlation_id,
         },
         "next_action": (
-            "Owner-approved canary runbook: " "docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md"
+            "Owner-approved canary runbook: docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md"
         ),
     }
 

@@ -440,7 +440,7 @@ class ComplianceGate:
         except Exception as e:
             # Fail SAFE: promo blocked, transactional allowed.
             logger.warning(
-                f"compliance: gate error ({e}); failing {'closed' if ct==CallType.PROMOTIONAL else 'open'}."
+                f"compliance: gate error ({e}); failing {'closed' if ct == CallType.PROMOTIONAL else 'open'}."
             )
             safe = ct != CallType.PROMOTIONAL
             return ComplianceDecision(safe, ct.value, phone, [f"gate_error:{e}"], checks)

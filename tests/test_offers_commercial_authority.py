@@ -111,9 +111,9 @@ def test_internal_only_package_cannot_become_a_customer_offer():
     for pkg in internal:
         code = str(pkg["key"])
         assert offers._price_for(code) is None, f"{code} is non-public but priced"
-        assert (
-            int(pkg.get("price_inr_month") or 0) > 0
-        ), f"{code} must actually carry a price, else this test proves nothing"
+        assert int(pkg.get("price_inr_month") or 0) > 0, (
+            f"{code} must actually carry a price, else this test proves nothing"
+        )
 
 
 def test_topup_packs_are_not_sellable_through_this_resolver():

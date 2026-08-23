@@ -3,6 +3,7 @@ Live production tenant-isolation proof.
 Tests actual API behavior with two separate tenant identities.
 Safe test data only — no customer data touched.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -31,10 +32,7 @@ def test_tenant_a_cannot_read_tenant_b_records():
 
     # Attempt to access tenant B's endpoint with tenant A's token
     # (the endpoint implementation filters by client_id from the token)
-    resp = client.get(
-        "/api/customer/auth/portal/content",
-        headers=headers_a
-    )
+    resp = client.get("/api/customer/auth/portal/content", headers=headers_a)
 
     # If token is valid, the endpoint extracts client_id from token (not from URL params)
     # So it should return tenant A's content, not allow B's access
@@ -57,7 +55,9 @@ def test_unauthenticated_cannot_access_protected_endpoints():
         # No Authorization header
         resp = client.get(endpoint)
         # Should reject with 401 (Unauthorized) or 403 (Forbidden)
-        assert resp.status_code in (401, 403), f"{endpoint} should reject unauthenticated, got {resp.status_code}"
+        assert resp.status_code in (401, 403), (
+            f"{endpoint} should reject unauthenticated, got {resp.status_code}"
+        )
 
 
 def test_invalid_token_rejected():

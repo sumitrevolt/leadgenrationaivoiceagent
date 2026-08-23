@@ -163,9 +163,9 @@ def test_deflection_lines_are_safe(role, tmpl):
     # never echoes an injection marker → held_role judge stays clean
     assert qc.check_prompt_injection_obeyed([{"role": "assistant", "content": cleaned}]) == []
     low = cleaned.lower()
-    assert not any(
-        b in low for b in _AGENT_TESTER_BANNED
-    ), f"deflection trips a BANNED phrase: {cleaned!r}"
+    assert not any(b in low for b in _AGENT_TESTER_BANNED), (
+        f"deflection trips a BANNED phrase: {cleaned!r}"
+    )
     assert len(cleaned.split()) <= 14, f"deflection exceeds spoken budget: {cleaned!r}"
 
 

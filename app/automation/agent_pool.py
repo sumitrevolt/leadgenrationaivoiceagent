@@ -146,9 +146,7 @@ class AgentWorkerPool:
             logger.warning("run_all() called with no queued campaigns")
             return self._aggregate()
 
-        logger.info(
-            f"▶️ Running {len(self._specs)} campaigns " f"(max {self.concurrency} concurrent)"
-        )
+        logger.info(f"▶️ Running {len(self._specs)} campaigns (max {self.concurrency} concurrent)")
 
         tasks = [asyncio.create_task(self._run_one(spec)) for spec in self._specs]
         await asyncio.gather(*tasks, return_exceptions=True)

@@ -197,7 +197,7 @@ async def main() -> int:
     print(f"WS={WS} rounds={args.rounds} personas={len(personas)}")
 
     for r in range(args.rounds):
-        print(f"\n{'='*50}\nROUND {r+1}/{args.rounds}\n{'='*50}")
+        print(f"\n{'=' * 50}\nROUND {r + 1}/{args.rounds}\n{'=' * 50}")
         if r > 0:
             await asyncio.sleep(5.0)
         for name, turns in personas.items():
@@ -214,7 +214,7 @@ async def main() -> int:
                 print(f"  CRASH: {e}")
 
     avg = sum(scores) / len(scores) if scores else 0.0
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"AVG SCORE: {avg:.2f} | issues: {len(all_issues)}")
     if all_issues:
         print("ISSUES:")

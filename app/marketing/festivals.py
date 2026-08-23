@@ -474,7 +474,7 @@ async def festival_posts(
                 "Tu Indian small-business ka festival-marketing expert hai. Har festival "
                 "ke liye ek chhota Hinglish social post caption likh (2-3 lines, emojis, "
                 "business naam naturally use kar, halka sa CTA). Output EXACTLY:\n"
-                + "\n".join(f"{i+1}. <{n} ka caption>" for i, n in enumerate(names))
+                + "\n".join(f"{i + 1}. <{n} ka caption>" for i, n in enumerate(names))
                 + "\nKoi extra commentary nahi."
             )
             user = (

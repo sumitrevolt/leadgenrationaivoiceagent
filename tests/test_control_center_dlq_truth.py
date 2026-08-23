@@ -64,5 +64,5 @@ def test_header_tile_reflects_dead_count_in_status_and_label():
     assert "qDead" in block
     assert "m.queue.dead" in block
     # status class must go 'bad' when dead alone is nonzero, not just dlq.
-    qcls_line = block[block.index("var qcls"): block.index(";", block.index("var qcls"))]
+    qcls_line = block[block.index("var qcls") : block.index(";", block.index("var qcls"))]
     assert "qDead > 0" in qcls_line

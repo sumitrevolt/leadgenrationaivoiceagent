@@ -1288,8 +1288,7 @@ class VobizStreamSession:
             if self._noinput_reprompts < NOINPUT_MAX_REPROMPTS:
                 self._noinput_reprompts += 1
                 logger.info(
-                    f"[vobiz-stream {self.stream_sid}] no-input reprompt "
-                    f"#{self._noinput_reprompts}"
+                    f"[vobiz-stream {self.stream_sid}] no-input reprompt #{self._noinput_reprompts}"
                 )
                 await self._say("Hello, kya aap line par hain? Boliye, main sun rahi hoon.")
             else:

@@ -163,7 +163,7 @@ async def _run_jsonrpc(run: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("dsh_integration_unavailable")
     if not (dsh_integration.is_dsh_runtime_enabled() or dsh_integration.is_dsh_shadow_enabled()):
         raise RuntimeError("dsh_runtime_disabled")
-    
+
     # Allowlist check (fail-closed).
     agent_id = str(run.get("agent_id", "")).strip().lower()
     tool_token = None  # Optional: "<name>@<version>" for per-tool allowlist refinement.

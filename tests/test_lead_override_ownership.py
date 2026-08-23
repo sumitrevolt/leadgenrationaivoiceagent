@@ -45,9 +45,7 @@ def _fake_session_returning(row):
 
 def test_owns_lead_via_inquiry(monkeypatch):
     monkeypatch.setattr(cd, "_client_record", lambda cid: {})
-    monkeypatch.setattr(
-        cd, "_inquiries_for_client", lambda cid, rec: [{"id": "L1"}, {"id": "L2"}]
-    )
+    monkeypatch.setattr(cd, "_inquiries_for_client", lambda cid, rec: [{"id": "L1"}, {"id": "L2"}])
     owned, infra = cd._client_owns_lead("clientA", "L2")
     assert owned is True
     assert infra is False
@@ -121,9 +119,7 @@ def test_foreign_lead_404_and_no_eviction(tmp_path, monkeypatch):
 
     monkeypatch.setattr(lo, "_OVR_FILE", str(tmp_path / "ovr.jsonl"))
     # Ownership: A owns leadX, B does not.
-    monkeypatch.setattr(
-        cd, "_client_owns_lead", lambda cid, lid: (cid == "clientA", False)
-    )
+    monkeypatch.setattr(cd, "_client_owns_lead", lambda cid, lid: (cid == "clientA", False))
 
     # A records an override on its own lead.
     app.dependency_overrides[require_customer] = lambda: "clientA"

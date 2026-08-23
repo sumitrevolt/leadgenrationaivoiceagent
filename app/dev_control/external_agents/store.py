@@ -140,7 +140,7 @@ def list_missions(
         if executor and m.executor.lower() != executor.lower():
             continue
         out.append(m)
-    out.sort(key=lambda m: (m.updated_at or ""), reverse=True)
+    out.sort(key=lambda m: m.updated_at or "", reverse=True)
     return out[: max(1, limit)]
 
 

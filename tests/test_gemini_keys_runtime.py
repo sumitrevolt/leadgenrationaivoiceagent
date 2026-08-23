@@ -12,7 +12,9 @@ from app.voice_agent.telecaller_brain import TelecallerBrain
 
 def test_runtime_keys_save_and_pool(tmp_path, monkeypatch):
     monkeypatch.setattr(gemini_keys, "_RUNTIME_FILE", str(tmp_path / "vk.json"))
-    gemini_keys.save_runtime_keys(["AIzaTESTkey1", "AIzaTESTkey2", "AIzaTESTkey1"], voice_primary=True)
+    gemini_keys.save_runtime_keys(
+        ["AIzaTESTkey1", "AIzaTESTkey2", "AIzaTESTkey1"], voice_primary=True
+    )
     assert gemini_keys.runtime_voice_primary() is True
     pool = gemini_keys.gemini_keys()
     assert "AIzaTESTkey1" in pool and "AIzaTESTkey2" in pool

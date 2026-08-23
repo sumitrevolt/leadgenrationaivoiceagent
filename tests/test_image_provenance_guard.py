@@ -16,6 +16,7 @@ Silent drift is the most expensive failure mode in this repo — hence fail-LOUD
 
 Offline/pure — no app startup, no network.
 """
+
 from __future__ import annotations
 
 from app.main import is_unversioned_production_image as unversioned

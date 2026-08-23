@@ -5,6 +5,7 @@ ElevenLabs/Azure TTS blocks — all paid and none part of the actual stack (Groq
 Mistral+Groq+Cerebras+Gemini LLM / EdgeTTS, free-only per user mandate). That misleads
 onboarding. This guards the corrected defaults against re-drift.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

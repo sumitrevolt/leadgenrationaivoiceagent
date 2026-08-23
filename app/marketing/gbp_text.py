@@ -74,7 +74,7 @@ def _fallback_description(name: str, label: str, city: str, svcs: list[str]) -> 
         f"hai.{svc_line} Hamari experienced team har customer ko personal "
         "attention deti hai, isliye log hume apno ko refer karte hain. "
         + (
-            f"{city} aur aas-paas ke ilaake me hum ghar baithe consultation " "bhi dete hain. "
+            f"{city} aur aas-paas ke ilaake me hum ghar baithe consultation bhi dete hain. "
             if city
             else ""
         )

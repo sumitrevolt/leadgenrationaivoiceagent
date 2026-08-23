@@ -490,11 +490,11 @@ async def queue_call_batch(
             )
             call_id = await cm.queue_call(req)
             if call_id.startswith("compliance") or call_id.startswith("out_of"):
-                skipped.append(f"{p.get('id','?')} ({call_id})")
+                skipped.append(f"{p.get('id', '?')} ({call_id})")
             else:
                 queued.append(call_id)
         except Exception as e:
-            errors.append(f"id={p.get('id','?')}: {e}")
+            errors.append(f"id={p.get('id', '?')}: {e}")
 
     return {
         "ok": True,

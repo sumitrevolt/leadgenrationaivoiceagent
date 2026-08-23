@@ -6,6 +6,7 @@ HTML is a single self-contained page (inline CSS+JS), so tests are
 (3) per-feature markers added task-by-task by the upgrade plan
     (docs/superpowers/plans/2026-07-05-office-enterprise-upgrade.md).
 """
+
 import re
 import shutil
 import subprocess
@@ -18,30 +19,110 @@ SRC = HTML_PATH.read_text(encoding="utf-8")
 
 # Every interactive/panel ID that existed BEFORE the upgrade — none may vanish.
 PRE_EXISTING_IDS = [
-    "banner", "bannerRetry", "page", "quickNav", "statusSummary", "warRoom",
-    "bossCommandInput", "bossCommandBtn", "bossCommandResult", "trustStrip",
-    "bossBriefBody", "priorityActionStack", "warKpiGrid", "pulseStrip",
-    "councilPanel", "councilTopic", "councilRunBtn", "councilDeeper", "councilResult",
-    "capabilitiesPanel", "kpiRow", "nbaCard", "nbaList", "enterpriseCard",
-    "enterpriseScore", "enterpriseFeatureGrid", "mapToolbar", "agentSearch",
-    "agentSearchResults", "zoomInBtn", "zoomOutBtn", "zoomResetBtn", "mapHint",
-    "modeToggle", "stageWrap", "stage", "previewOverlay", "roomListCompact",
-    "replayPanel", "replayList", "feedCard", "filterRow", "tickerList",
-    "coordHistoryWrap", "coordHistoryList", "leaderboardPanel", "leaderboardList",
-    "activityPanel", "activityChart", "activityHours", "activityMeta",
-    "pipelineBoard", "boardRow", "schedulePanel", "scheduleList", "recurringStrip",
-    "systemMapCard", "systemMapToggle", "systemMapBody", "systemMapFrame",
-    "workflowRunsCard", "workflowRunsList", "activeCoordCard", "activeCoordList",
-    "approvalsPanel", "bossReviewBtn", "bossReviewNote", "approvalsList",
-    "decisionTrail", "systemHealthPanel", "healthList", "schedulerPanel",
-    "schedBadge", "schedList", "failureConsoleCard", "dlqSweepBtn",
-    "failureConsoleList", "dlqRepairCard", "dlqRepairBadge", "dlqRepairSummary",
-    "hotQueueCard", "hotQueueBadge", "hotQueueSummary", "roomTooltip",
-    "coordinatorTickerBox", "coordinatorTicker", "agentPanel", "panelClose",
-    "panelBody", "legendToggle", "legendPopover", "legendClose", "briefingBtn",
-    "briefingModal", "briefingClose", "briefingDate", "briefingBody",
-    "briefingPlay", "briefingAudioNote", "briefingRefresh", "istClock",
-    "freshnessBadge", "viewModeBtn", "manualRefreshBtn",
+    "banner",
+    "bannerRetry",
+    "page",
+    "quickNav",
+    "statusSummary",
+    "warRoom",
+    "bossCommandInput",
+    "bossCommandBtn",
+    "bossCommandResult",
+    "trustStrip",
+    "bossBriefBody",
+    "priorityActionStack",
+    "warKpiGrid",
+    "pulseStrip",
+    "councilPanel",
+    "councilTopic",
+    "councilRunBtn",
+    "councilDeeper",
+    "councilResult",
+    "capabilitiesPanel",
+    "kpiRow",
+    "nbaCard",
+    "nbaList",
+    "enterpriseCard",
+    "enterpriseScore",
+    "enterpriseFeatureGrid",
+    "mapToolbar",
+    "agentSearch",
+    "agentSearchResults",
+    "zoomInBtn",
+    "zoomOutBtn",
+    "zoomResetBtn",
+    "mapHint",
+    "modeToggle",
+    "stageWrap",
+    "stage",
+    "previewOverlay",
+    "roomListCompact",
+    "replayPanel",
+    "replayList",
+    "feedCard",
+    "filterRow",
+    "tickerList",
+    "coordHistoryWrap",
+    "coordHistoryList",
+    "leaderboardPanel",
+    "leaderboardList",
+    "activityPanel",
+    "activityChart",
+    "activityHours",
+    "activityMeta",
+    "pipelineBoard",
+    "boardRow",
+    "schedulePanel",
+    "scheduleList",
+    "recurringStrip",
+    "systemMapCard",
+    "systemMapToggle",
+    "systemMapBody",
+    "systemMapFrame",
+    "workflowRunsCard",
+    "workflowRunsList",
+    "activeCoordCard",
+    "activeCoordList",
+    "approvalsPanel",
+    "bossReviewBtn",
+    "bossReviewNote",
+    "approvalsList",
+    "decisionTrail",
+    "systemHealthPanel",
+    "healthList",
+    "schedulerPanel",
+    "schedBadge",
+    "schedList",
+    "failureConsoleCard",
+    "dlqSweepBtn",
+    "failureConsoleList",
+    "dlqRepairCard",
+    "dlqRepairBadge",
+    "dlqRepairSummary",
+    "hotQueueCard",
+    "hotQueueBadge",
+    "hotQueueSummary",
+    "roomTooltip",
+    "coordinatorTickerBox",
+    "coordinatorTicker",
+    "agentPanel",
+    "panelClose",
+    "panelBody",
+    "legendToggle",
+    "legendPopover",
+    "legendClose",
+    "briefingBtn",
+    "briefingModal",
+    "briefingClose",
+    "briefingDate",
+    "briefingBody",
+    "briefingPlay",
+    "briefingAudioNote",
+    "briefingRefresh",
+    "istClock",
+    "freshnessBadge",
+    "viewModeBtn",
+    "manualRefreshBtn",
 ]
 
 
@@ -68,12 +149,12 @@ def test_no_pre_existing_id_removed():
 def test_bugfix_unique_agent_colors():
     assert "OFFICE.colorForKey" in SRC
     assert "colorCssForKey" in SRC
-    assert "setTint(OFFICE.colorForKey" in SRC          # sprite + desk tinted
+    assert "setTint(OFFICE.colorForKey" in SRC  # sprite + desk tinted
 
 
 def test_bugfix_room_overflow_shrink():
-    assert "return { slots: slots, scale:" in SRC        # layoutSlots new shape
-    assert "sizeScale" in SRC                            # drawAvatar consumes it
+    assert "return { slots: slots, scale:" in SRC  # layoutSlots new shape
+    assert "sizeScale" in SRC  # drawAvatar consumes it
 
 
 def test_bugfix_offline_snapback():
@@ -84,7 +165,7 @@ def test_bugfix_offline_snapback():
 
 def test_bugfix_unmapped_room_badge():
     assert "unmapped" in SRC
-    assert "#f97316" in SRC                              # orange ? badge
+    assert "#f97316" in SRC  # orange ? badge
 
 
 def test_bugfix_ticker_box_hidden_on_mobile_and_simple():
@@ -99,14 +180,21 @@ def test_bugfix_lazy_phaser_boot():
 
 
 def test_dark_mode():
-    assert 'data-theme' in SRC
+    assert "data-theme" in SRC
     assert 'id="themeBtn"' in SRC
     assert "prefers-color-scheme" in SRC
     assert "OFFICE.cycleTheme" in SRC
 
 
 def test_six_labelled_sections():
-    for sec in ("secCommand", "secMap", "secActivity", "secPipeline", "secApprovals", "secReliability"):
+    for sec in (
+        "secCommand",
+        "secMap",
+        "secActivity",
+        "secPipeline",
+        "secApprovals",
+        "secReliability",
+    ):
         assert f'id="{sec}"' in SRC, sec
     assert "hq-sec-label" in SRC
 

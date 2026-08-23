@@ -29,8 +29,8 @@ def test_coordinator_rate_cap_enforces_when_set(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setenv("COORDINATOR_LLM_CAP_PER_MIN", "2")
     coordinator._LLM_WINDOW.update({"start": 0.0, "count": 0.0})
-    assert coordinator._llm_rate_ok() is True   # 1st
-    assert coordinator._llm_rate_ok() is True   # 2nd
+    assert coordinator._llm_rate_ok() is True  # 1st
+    assert coordinator._llm_rate_ok() is True  # 2nd
     assert coordinator._llm_rate_ok() is False  # 3rd — capped within the 60s window
 
 

@@ -7,6 +7,7 @@ Mirrors tests/test_customer_dashboard_frontend.py:
  (2) no-removal guard: existing cockpit wiring must still be present,
  (3) per-feature markers for the new panel + its real backend fetch.
 """
+
 import re
 import shutil
 import subprocess

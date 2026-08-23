@@ -52,15 +52,29 @@ def _auth(nonce: str) -> dict:
 
 def _endpoint_task() -> SimpleNamespace:
     return SimpleNamespace(
-        worker_report=json.dumps(_report()), updated_at=None,
+        worker_report=json.dumps(_report()),
+        updated_at=None,
         state=TaskState.REVIEW_REQUIRED.value,
-        id="t1", idempotency_key="idem-review-2", parent_objective="review",
-        customer_id=None, priority=50, selected_provider="omniroute",
-        selected_model="free-coding-safe", fallback_models=None,
-        worktree_path=None, branch_name=None, file_ownership=None,
-        dependencies=None, acceptance_criteria=None, retry_count=0,
-        lease_owner=None, lease_until=None, test_evidence=None,
-        deployment_evidence=None, delivery_evidence=None, created_at=None,
+        id="t1",
+        idempotency_key="idem-review-2",
+        parent_objective="review",
+        customer_id=None,
+        priority=50,
+        selected_provider="omniroute",
+        selected_model="free-coding-safe",
+        fallback_models=None,
+        worktree_path=None,
+        branch_name=None,
+        file_ownership=None,
+        dependencies=None,
+        acceptance_criteria=None,
+        retry_count=0,
+        lease_owner=None,
+        lease_until=None,
+        test_evidence=None,
+        deployment_evidence=None,
+        delivery_evidence=None,
+        created_at=None,
         blocked_reason=None,
     )
 
@@ -71,14 +85,22 @@ def test_artifact_hash_is_deterministic_sha256():
 
 def test_two_distinct_governors_must_approve_same_artifact():
     report = record_governor_review(
-        _report(), governor="claude", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="safe", reviewed_by="admin",
+        _report(),
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="safe",
+        reviewed_by="admin",
         **_auth("claude_approval_nonce_001"),
     )
     assert review_gate_status(report)["approved"] is False
     report = record_governor_review(
-        report, governor="chatgpt", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="tests bounded", reviewed_by="admin",
+        report,
+        governor="chatgpt",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="tests bounded",
+        reviewed_by="admin",
         **_auth("chatgpt_approval_nonce_001"),
     )
     status = review_gate_status(report)
@@ -88,13 +110,21 @@ def test_two_distinct_governors_must_approve_same_artifact():
 
 def test_duplicate_governor_is_idempotent_not_a_second_approval():
     report = record_governor_review(
-        _report(), governor="claude", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="first", reviewed_by="admin",
+        _report(),
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="first",
+        reviewed_by="admin",
         **_auth("claude_update_nonce_001"),
     )
     report = record_governor_review(
-        report, governor="claude", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="updated", reviewed_by="admin",
+        report,
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="updated",
+        reviewed_by="admin",
         **_auth("claude_update_nonce_002"),
     )
     assert list(report["governor_reviews"]) == ["claude"]
@@ -106,9 +136,12 @@ def test_non_approval_decision_blocks_gate(decision):
     report = _report()
     for governor in ("claude", "chatgpt"):
         report = record_governor_review(
-            report, governor=governor,
+            report,
+            governor=governor,
             decision="approve" if governor == "claude" else decision,
-            artifact_hash=ARTIFACT_HASH, summary="bounded", reviewed_by="admin",
+            artifact_hash=ARTIFACT_HASH,
+            summary="bounded",
+            reviewed_by="admin",
             **_auth(f"{governor}_{decision}_nonce_001"),
         )
     assert review_gate_status(report)["approved"] is False
@@ -118,8 +151,12 @@ def test_non_approval_decision_blocks_gate(decision):
 def test_hash_mismatch_and_malformed_report_fail_closed():
     with pytest.raises(ValueError, match="artifact_hash_mismatch"):
         record_governor_review(
-            _report(), governor="claude", decision="approve",
-            artifact_hash="0" * 64, summary="wrong artifact", reviewed_by="admin",
+            _report(),
+            governor="claude",
+            decision="approve",
+            artifact_hash="0" * 64,
+            summary="wrong artifact",
+            reviewed_by="admin",
             **_auth("claude_mismatch_nonce_001"),
         )
     assert review_gate_status("not-json")["approved"] is False
@@ -129,7 +166,9 @@ def test_hash_mismatch_and_malformed_report_fail_closed():
 def test_promote_to_staging_requires_dual_review():
     task = SimpleNamespace(
         state=TaskState.REVIEW_REQUIRED.value,
-        worker_report=json.dumps(_report()), test_evidence=None, updated_at=None,
+        worker_report=json.dumps(_report()),
+        test_evidence=None,
+        updated_at=None,
     )
     db = FakeDb(task)
     blocked = asyncio.run(promote_to_staging(db, "t1", tests_passed=True))
@@ -144,8 +183,12 @@ def test_promote_to_staging_requires_dual_review():
     report = _report()
     for governor in ("claude", "chatgpt"):
         report = record_governor_review(
-            report, governor=governor, decision="approve",
-            artifact_hash=ARTIFACT_HASH, summary="approved", reviewed_by="admin",
+            report,
+            governor=governor,
+            decision="approve",
+            artifact_hash=ARTIFACT_HASH,
+            summary="approved",
+            reviewed_by="admin",
             **_auth(f"{governor}_promotion_nonce_001"),
         )
     task.worker_report = json.dumps(report)
@@ -159,14 +202,20 @@ def test_generic_transition_cannot_bypass_dual_review(monkeypatch):
 
     monkeypatch.setenv("DEV_ORCHESTRATOR", "1")
     task = SimpleNamespace(
-        state=TaskState.REVIEW_REQUIRED.value, worker_report=json.dumps(_report()),
-        blocked_reason=None, updated_at=None,
+        state=TaskState.REVIEW_REQUIRED.value,
+        worker_report=json.dumps(_report()),
+        blocked_reason=None,
+        updated_at=None,
     )
     with pytest.raises(HTTPException) as caught:
-        asyncio.run(transition_task(
-            "t1", TransitionRequest(state=TaskState.TESTS_RUNNING),
-            db=FakeDb(task), _user=SimpleNamespace(email="admin@example.test"),
-        ))
+        asyncio.run(
+            transition_task(
+                "t1",
+                TransitionRequest(state=TaskState.TESTS_RUNNING),
+                db=FakeDb(task),
+                _user=SimpleNamespace(email="admin@example.test"),
+            )
+        )
     assert caught.value.status_code == 409
     assert caught.value.detail == "dual_governor_review_required"
     assert task.state == TaskState.REVIEW_REQUIRED.value
@@ -178,21 +227,40 @@ def test_worker_report_cannot_erase_controlled_review_metadata(monkeypatch):
     monkeypatch.setenv("DEV_ORCHESTRATOR", "1")
     report = _report()
     report = record_governor_review(
-        report, governor="claude", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="safe", reviewed_by="admin",
+        report,
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="safe",
+        reviewed_by="admin",
         **_auth("claude_report_nonce_001"),
     )
     report["proposal_artifact"] = "data/dev_tasks/t1/proposal.md"
     task = SimpleNamespace(
-        worker_report=json.dumps(report), test_evidence=None, updated_at=None,
-        id="t1", idempotency_key="idem-review-1", parent_objective="review",
-        customer_id=None, priority=50, state=TaskState.REVIEW_REQUIRED.value,
-        selected_provider="omniroute", selected_model="free-coding-safe",
-        fallback_models=None, worktree_path=None, branch_name=None,
-        file_ownership=None, dependencies=None, acceptance_criteria=None,
-        retry_count=0, lease_owner=None, lease_until=None,
-        deployment_evidence=None, delivery_evidence=None,
-        created_at=None, blocked_reason=None,
+        worker_report=json.dumps(report),
+        test_evidence=None,
+        updated_at=None,
+        id="t1",
+        idempotency_key="idem-review-1",
+        parent_objective="review",
+        customer_id=None,
+        priority=50,
+        state=TaskState.REVIEW_REQUIRED.value,
+        selected_provider="omniroute",
+        selected_model="free-coding-safe",
+        fallback_models=None,
+        worktree_path=None,
+        branch_name=None,
+        file_ownership=None,
+        dependencies=None,
+        acceptance_criteria=None,
+        retry_count=0,
+        lease_owner=None,
+        lease_until=None,
+        deployment_evidence=None,
+        delivery_evidence=None,
+        created_at=None,
+        blocked_reason=None,
     )
     body = WorkerReportRequest(summary="worker update", test_result="not-run")
     asyncio.run(record_report("t1", body, db=FakeDb(task), _user=SimpleNamespace()))
@@ -210,22 +278,31 @@ def test_review_endpoint_records_one_governor_and_changes_state(monkeypatch):
     issued_at = int(time.time())
     nonce = "claude_endpoint_nonce_001"
     signature = build_governor_signature(
-        secret=CLAUDE_SECRET, task_id="t1", governor="claude",
-        decision="changes_requested", artifact_hash=ARTIFACT_HASH,
-        summary="revise boundary", issued_at=issued_at, nonce=nonce,
+        secret=CLAUDE_SECRET,
+        task_id="t1",
+        governor="claude",
+        decision="changes_requested",
+        artifact_hash=ARTIFACT_HASH,
+        summary="revise boundary",
+        issued_at=issued_at,
+        nonce=nonce,
     )
     task = _endpoint_task()
-    out = asyncio.run(record_governor_review_endpoint(
-        "t1",
-        GovernorReviewRequest(
-            governor="claude", decision="changes_requested",
-            artifact_hash=ARTIFACT_HASH, summary="revise boundary",
-        ),
-        db=FakeDb(task),
-        x_governor_timestamp=str(issued_at),
-        x_governor_nonce=nonce,
-        x_governor_signature=signature,
-    ))
+    out = asyncio.run(
+        record_governor_review_endpoint(
+            "t1",
+            GovernorReviewRequest(
+                governor="claude",
+                decision="changes_requested",
+                artifact_hash=ARTIFACT_HASH,
+                summary="revise boundary",
+            ),
+            db=FakeDb(task),
+            x_governor_timestamp=str(issued_at),
+            x_governor_nonce=nonce,
+            x_governor_signature=signature,
+        )
+    )
     assert task.state == TaskState.CHANGES_REQUESTED.value
     assert out["review_gate"]["approved"] is False
     stored = json.loads(task.worker_report)["governor_reviews"]["claude"]
@@ -237,22 +314,34 @@ def test_review_endpoint_records_one_governor_and_changes_state(monkeypatch):
 def test_unsigned_review_cannot_enter_approval_ledger():
     with pytest.raises(ValueError, match="attestation_required"):
         record_governor_review(
-            _report(), governor="claude", decision="approve",
-            artifact_hash=ARTIFACT_HASH, summary="unsigned", reviewed_by="admin",
+            _report(),
+            governor="claude",
+            decision="approve",
+            artifact_hash=ARTIFACT_HASH,
+            summary="unsigned",
+            reviewed_by="admin",
         )
 
 
 def test_attestation_nonce_cannot_be_replayed_across_governors():
     report = record_governor_review(
-        _report(), governor="claude", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="signed", reviewed_by="admin",
+        _report(),
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="signed",
+        reviewed_by="admin",
         attestation_version=ATTESTATION_VERSION,
         attestation_nonce="one_unique_nonce_12345",
     )
     with pytest.raises(ValueError, match="attestation_replayed"):
         record_governor_review(
-            report, governor="chatgpt", decision="approve",
-            artifact_hash=ARTIFACT_HASH, summary="signed", reviewed_by="admin",
+            report,
+            governor="chatgpt",
+            decision="approve",
+            artifact_hash=ARTIFACT_HASH,
+            summary="signed",
+            reviewed_by="admin",
             attestation_version=ATTESTATION_VERSION,
             attestation_nonce="one_unique_nonce_12345",
         )
@@ -263,18 +352,23 @@ def test_review_endpoint_rejects_missing_attestation(monkeypatch):
 
     monkeypatch.setenv("DEV_ORCHESTRATOR", "1")
     task = SimpleNamespace(
-        worker_report=json.dumps(_report()), updated_at=None,
+        worker_report=json.dumps(_report()),
+        updated_at=None,
         state=TaskState.REVIEW_REQUIRED.value,
     )
     with pytest.raises(HTTPException) as caught:
-        asyncio.run(record_governor_review_endpoint(
-            "t1",
-            GovernorReviewRequest(
-                governor="claude", decision="approve",
-                artifact_hash=ARTIFACT_HASH, summary="unsigned",
-            ),
-            db=FakeDb(task),
-        ))
+        asyncio.run(
+            record_governor_review_endpoint(
+                "t1",
+                GovernorReviewRequest(
+                    governor="claude",
+                    decision="approve",
+                    artifact_hash=ARTIFACT_HASH,
+                    summary="unsigned",
+                ),
+                db=FakeDb(task),
+            )
+        )
     assert caught.value.status_code == 403
     assert caught.value.detail == "governor_attestation_invalid"
 
@@ -291,7 +385,9 @@ def test_old_unattested_review_rows_fail_closed():
     }
     status = review_gate_status(report)
     assert status["approved"] is False
-    assert {x["decision"] for x in status["blocking_decisions"]} == {"attestation_missing_or_invalid"}
+    assert {x["decision"] for x in status["blocking_decisions"]} == {
+        "attestation_missing_or_invalid"
+    }
 
 
 def test_endpoint_rejects_a_valid_signature_replay(monkeypatch):
@@ -302,26 +398,43 @@ def test_endpoint_rejects_a_valid_signature_replay(monkeypatch):
     issued_at = int(time.time())
     nonce = "claude_replay_nonce_001"
     body = GovernorReviewRequest(
-        governor="claude", decision="approve",
-        artifact_hash=ARTIFACT_HASH, summary="safe",
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="safe",
     )
     signature = build_governor_signature(
-        secret=CLAUDE_SECRET, task_id="t1", governor="claude",
-        decision="approve", artifact_hash=ARTIFACT_HASH, summary="safe",
-        issued_at=issued_at, nonce=nonce,
+        secret=CLAUDE_SECRET,
+        task_id="t1",
+        governor="claude",
+        decision="approve",
+        artifact_hash=ARTIFACT_HASH,
+        summary="safe",
+        issued_at=issued_at,
+        nonce=nonce,
     )
     db = FakeDb(_endpoint_task())
-    first = asyncio.run(record_governor_review_endpoint(
-        "t1", body, db=db,
-        x_governor_timestamp=str(issued_at), x_governor_nonce=nonce,
-        x_governor_signature=signature,
-    ))
+    first = asyncio.run(
+        record_governor_review_endpoint(
+            "t1",
+            body,
+            db=db,
+            x_governor_timestamp=str(issued_at),
+            x_governor_nonce=nonce,
+            x_governor_signature=signature,
+        )
+    )
     assert first["review_gate"]["approved"] is False
     with pytest.raises(HTTPException) as caught:
-        asyncio.run(record_governor_review_endpoint(
-            "t1", body, db=db,
-            x_governor_timestamp=str(issued_at), x_governor_nonce=nonce,
-            x_governor_signature=signature,
-        ))
+        asyncio.run(
+            record_governor_review_endpoint(
+                "t1",
+                body,
+                db=db,
+                x_governor_timestamp=str(issued_at),
+                x_governor_nonce=nonce,
+                x_governor_signature=signature,
+            )
+        )
     assert caught.value.status_code == 409
     assert caught.value.detail == "governor_attestation_replayed"

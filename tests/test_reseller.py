@@ -103,7 +103,10 @@ def test_program_info_shape(rs):
 
 def test_clients_estimate_coerces_bad_input(rs):
     out = rs.submit_application(
-        name="A", agency="A1", email="a@b.com", clients_estimate="not-int"  # type: ignore[arg-type]
+        name="A",
+        agency="A1",
+        email="a@b.com",
+        clients_estimate="not-int",  # type: ignore[arg-type]
     )
     assert out["ok"] is True
     assert out["clients_estimate"] == 0

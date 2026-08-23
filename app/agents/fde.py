@@ -177,7 +177,9 @@ async def _sk_content_schedule(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import content_schedule
 
     try:
-        content_schedule.schedule(client_id=ctx.get("client_id") or "", topic=f"{ctx['niche']} weekly post", date="")  # type: ignore
+        content_schedule.schedule(
+            client_id=ctx.get("client_id") or "", topic=f"{ctx['niche']} weekly post", date=""
+        )  # type: ignore
     except Exception:
         pass
     items = content_schedule.list_scheduled(limit=5)

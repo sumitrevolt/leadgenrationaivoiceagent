@@ -44,7 +44,10 @@ def test_coaching_institute_maps_to_an_amenity_or_office():
     filters = prospector._osm_filters("coaching institute")
     assert filters
     assert not any(f.startswith("name~") for f in filters)
-    assert any(("prep_school" in f) or ("educational_institution" in f) or ("language_school" in f) for f in filters)
+    assert any(
+        ("prep_school" in f) or ("educational_institution" in f) or ("language_school" in f)
+        for f in filters
+    )
 
 
 def test_unchanged_mapped_keywords_still_work():

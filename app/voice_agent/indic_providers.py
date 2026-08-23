@@ -428,8 +428,7 @@ class Ai4BharatSTT(STTProvider):
     async def transcribe(self, audio: bytes, language: str = None, **kwargs) -> str:
         if not self.is_available():
             logger.debug(
-                "Ai4BharatSTT not configured (set AI4BHARAT_ENDPOINT to self-host). "
-                "Returning ''."
+                "Ai4BharatSTT not configured (set AI4BHARAT_ENDPOINT to self-host). Returning ''."
             )
             return ""
         if not audio:
@@ -491,8 +490,7 @@ class Ai4BharatTTS(TTSProvider):
     ) -> bytes:
         if not self.is_available():
             logger.debug(
-                "Ai4BharatTTS not configured (set AI4BHARAT_ENDPOINT to self-host). "
-                "Returning b''."
+                "Ai4BharatTTS not configured (set AI4BHARAT_ENDPOINT to self-host). Returning b''."
             )
             return b""
         if not text or not text.strip():
@@ -557,9 +555,7 @@ def register_indic_providers(registry=None) -> None:
         reg.register("stt", "ai4bharat", Ai4BharatSTT)
         reg.register("tts", "ai4bharat", Ai4BharatTTS)
 
-        logger.info(
-            "Registered Indian-language providers: sarvam (stt+tts), " "ai4bharat (stt+tts)."
-        )
+        logger.info("Registered Indian-language providers: sarvam (stt+tts), ai4bharat (stt+tts).")
     except Exception as e:  # pragma: no cover - registration must never crash app
         logger.warning(f"register_indic_providers failed ({e}); skipping.")
 

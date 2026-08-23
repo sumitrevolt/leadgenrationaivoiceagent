@@ -6,6 +6,7 @@ each detected issue is mapped to the correct owning agent (registry job-owner
 truth). Covers: overdue -> correct owner, empty/healthy case, never-raises when a
 signal source blows up, DLQ/backup -> infra owner, and the AgentRunResult shape.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -57,7 +58,7 @@ def _patch_common(monkeypatch, health: dict[str, Any], backups: dict[str, Any] |
     monkeypatch.setattr(
         infra_handler,
         "_check_backups",
-        lambda: (backups if backups is not None else {"ok": True, "newest": "x", "age_hours": 1.0}),
+        lambda: backups if backups is not None else {"ok": True, "newest": "x", "age_hours": 1.0},
     )
     events: list[tuple[Any, Any]] = []
     monkeypatch.setattr(team, "log_event", lambda *a, **k: events.append((a, k)))
@@ -166,7 +167,9 @@ def test_never_raises_when_health_source_fails(monkeypatch):
         infra_handler, "_check_backups", lambda: (_ for _ in ()).throw(RuntimeError("backups boom"))
     )
     # log_event also blows up — the scan must still not raise.
-    monkeypatch.setattr(team, "log_event", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(
+        team, "log_event", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db down"))
+    )
 
     scan = oa.scan_ops()  # must not raise
     assert isinstance(scan, dict)

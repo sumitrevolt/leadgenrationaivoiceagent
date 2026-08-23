@@ -46,9 +46,17 @@ def test_improve_endpoint_requires_admin():
 def test_improve_endpoint_happy_path(monkeypatch):
     async def _fake_agentverse(goal, execute=False, max_rounds=1, quality_bar=0.75, team_size=3):
         return {
-            "ok": True, "run_id": "abc", "final_score": 0.8,
+            "ok": True,
+            "run_id": "abc",
+            "final_score": 0.8,
             "experts": [{"role": "Growth Lead", "expertise": "revenue", "staff": "rohan"}],
-            "contributions": [{"role": "Growth Lead", "staff": "rohan", "output": "Follow-up cadence tighten karo"}],
+            "contributions": [
+                {
+                    "role": "Growth Lead",
+                    "staff": "rohan",
+                    "output": "Follow-up cadence tighten karo",
+                }
+            ],
             "solution": "Follow-up cadence tighten karo",
             "summary": "Rohan follow-up cadence pe focus kare",
         }
@@ -81,9 +89,13 @@ def test_default_topic_used_when_empty(monkeypatch):
 def test_unknown_staff_contribution_not_dispatchable(monkeypatch):
     async def _fake_agentverse(goal, execute=False, max_rounds=1, quality_bar=0.75, team_size=3):
         return {
-            "ok": True, "experts": [],
-            "contributions": [{"role": "Freelance Consultant", "staff": "", "output": "generic idea"}],
-            "solution": "", "summary": "",
+            "ok": True,
+            "experts": [],
+            "contributions": [
+                {"role": "Freelance Consultant", "staff": "", "output": "generic idea"}
+            ],
+            "solution": "",
+            "summary": "",
         }
 
     monkeypatch.setattr("app.agents.coordinator.coordinate_agentverse", _fake_agentverse)

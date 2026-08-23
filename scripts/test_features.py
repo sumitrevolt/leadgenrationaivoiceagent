@@ -37,7 +37,7 @@ async def main():
         rec(
             "generate_post",
             bool(p.get("caption")),
-            f"provider={p.get('provider')} cap={len(p.get('caption',''))}ch tags={len(p.get('hashtags',[]))} img={'image_url' in p}",
+            f"provider={p.get('provider')} cap={len(p.get('caption', ''))}ch tags={len(p.get('hashtags', []))} img={'image_url' in p}",
         )
     except Exception as e:
         rec("generate_post", False, repr(e))
@@ -51,7 +51,7 @@ async def main():
         rec(
             "ai_image",
             img.get("url", "").startswith("http"),
-            f"prompt='{img.get('prompt','')[:60]}'",
+            f"prompt='{img.get('prompt', '')[:60]}'",
         )
         rec(
             "logo",
@@ -82,7 +82,7 @@ async def main():
         rec(
             "chatbot",
             bool(r.get("answer")),
-            f"ask_contact={r.get('ask_contact')} sources={r.get('sources')} ans='{r.get('answer','')[:60]}'",
+            f"ask_contact={r.get('ask_contact')} sources={r.get('sources')} ans='{r.get('answer', '')[:60]}'",
         )
     except Exception as e:
         rec("chatbot", False, repr(e))
@@ -108,7 +108,7 @@ async def main():
         rec(
             "hashtags",
             len(h.get("hashtags", [])) > 0,
-            f"{len(h.get('hashtags',[]))} tags, {len(h.get('best_times',[]))} times",
+            f"{len(h.get('hashtags', []))} tags, {len(h.get('best_times', []))} times",
         )
     except Exception as e:
         rec("hashtags", False, repr(e))
@@ -120,7 +120,7 @@ async def main():
         rec(
             "ops_watchdog",
             ("ok" in w) or ("skipped" in w),
-            f"ok={w.get('ok')} issues={[i.get('key') for i in w.get('issues',[])]}",
+            f"ok={w.get('ok')} issues={[i.get('key') for i in w.get('issues', [])]}",
         )
     except Exception as e:
         rec("ops_watchdog", False, repr(e))

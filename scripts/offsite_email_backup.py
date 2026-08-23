@@ -116,7 +116,7 @@ def main() -> int:
     msg["From"] = user
     msg["To"] = to
     msg["Subject"] = (
-        f"[leadsgenai OFFSITE BACKUP] {today} — db {len(dump_bytes)//1024}KB + data {len(data_bytes)//1024}KB"
+        f"[leadsgenai OFFSITE BACKUP] {today} — db {len(dump_bytes) // 1024}KB + data {len(data_bytes) // 1024}KB"
     )
     parts = []
     total = 0
@@ -128,8 +128,8 @@ def main() -> int:
         total += len(data_bytes)
     body = (
         f"Nightly offsite backup (email-based, R2/B2 aane tak).\n"
-        f"DB dump: {dump or 'NONE'} ({len(dump_bytes)//1024}KB)\n"
-        f"data/ tarball: {len(data_bytes)//1024}KB (media-cache excluded)\n"
+        f"DB dump: {dump or 'NONE'} ({len(dump_bytes) // 1024}KB)\n"
+        f"data/ tarball: {len(data_bytes) // 1024}KB (media-cache excluded)\n"
         f"Attached: {[p[0] for p in parts] or 'NONE (size cap/missing) — CHECK BACKUPS!'}\n"
         f"Restore: gunzip dump → pg_restore; tar -xzf data tarball.\n"
     )
@@ -144,7 +144,7 @@ def main() -> int:
             ) as s:
                 s.login(user, pwd)
                 s.send_message(msg)
-            log(f"SENT to {to} — attachments={[p[0] for p in parts]} total={total//1024}KB")
+            log(f"SENT to {to} — attachments={[p[0] for p in parts]} total={total // 1024}KB")
             return 0
         except Exception as e:
             log(f"send attempt {attempt} fail: {e}")

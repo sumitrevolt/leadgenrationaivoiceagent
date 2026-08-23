@@ -136,7 +136,7 @@ def _build_html(
         body = (p.get("caption") or "").strip() + ("\n\n" + tags if tags else "")
         idea = str(p.get("image_idea") or "").strip()
         label = labels[i] if i < len(labels) else str(i + 1) + ") Post"
-        posts_html += f"<h3>{_e(label)}</h3>" f"<pre>{_e(body)}</pre>" + (
+        posts_html += f"<h3>{_e(label)}</h3><pre>{_e(body)}</pre>" + (
             f"<p class='idea'>🖼️ Photo idea: {_e(idea)}</p>" if idea else ""
         )
     posts_html = posts_html or "<p>Posts generate nahi hue — Posts tab se alag se banayein.</p>"
@@ -286,40 +286,47 @@ async def build_client_pack(
         offer_eff = offer or "Is mahine ka special offer — abhi poochhein!"
 
         # --- sab pieces CONCURRENTLY (har ek guarded → fallback) ---
-        calendar, post_plain, post_offer, post_fest, gbp, wa, poster_fest, poster_offer = (
-            await asyncio.gather(
-                _safe(_calendar(business_name, niche), []),
-                _safe(_post(business_name, niche, "", ""), {}),
-                _safe(_post(business_name, niche, "", offer_eff), {}),
-                _safe(_post(business_name, niche, fest_name, offer), {}),
-                _safe(_gbp(business_name, niche), {}),
-                _safe(_wa(business_name, niche, offer), {}),
-                _safe(
-                    _poster(
-                        "festival-glow",
-                        business_name=business_name,
-                        tagline=tagline,
-                        offer=offer,
-                        phone=phone_eff,
-                        festival=fest_name,
-                        brand_primary=brand_primary,
-                        brand_accent=brand_accent,
-                    ),
-                    {},
+        (
+            calendar,
+            post_plain,
+            post_offer,
+            post_fest,
+            gbp,
+            wa,
+            poster_fest,
+            poster_offer,
+        ) = await asyncio.gather(
+            _safe(_calendar(business_name, niche), []),
+            _safe(_post(business_name, niche, "", ""), {}),
+            _safe(_post(business_name, niche, "", offer_eff), {}),
+            _safe(_post(business_name, niche, fest_name, offer), {}),
+            _safe(_gbp(business_name, niche), {}),
+            _safe(_wa(business_name, niche, offer), {}),
+            _safe(
+                _poster(
+                    "festival-glow",
+                    business_name=business_name,
+                    tagline=tagline,
+                    offer=offer,
+                    phone=phone_eff,
+                    festival=fest_name,
+                    brand_primary=brand_primary,
+                    brand_accent=brand_accent,
                 ),
-                _safe(
-                    _poster(
-                        "offer-burst",
-                        business_name=business_name,
-                        tagline=tagline,
-                        offer=offer,
-                        phone=phone_eff,
-                        brand_primary=brand_primary,
-                        brand_accent=brand_accent,
-                    ),
-                    {},
+                {},
+            ),
+            _safe(
+                _poster(
+                    "offer-burst",
+                    business_name=business_name,
+                    tagline=tagline,
+                    offer=offer,
+                    phone=phone_eff,
+                    brand_primary=brand_primary,
+                    brand_accent=brand_accent,
                 ),
-            )
+                {},
+            ),
         )
 
         calendar = calendar if isinstance(calendar, list) else []

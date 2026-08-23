@@ -5,6 +5,7 @@ or mitigated across the API surface.
 
 Playbook ref: Security Playbook — Injection tests.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -41,18 +42,14 @@ def test_public_search_rejects_sqli():
     for payload in SQLI_PAYLOADS:
         resp = client.get(f"/api/public/search?q={payload}", follow_redirects=False)
         # We expect 200 (if sanitized) or 400/422 (if rejected) — NOT 500.
-        assert resp.status_code != 500, (
-            f"SQLi payload caused 500: {payload[:50]}..."
-        )
+        assert resp.status_code != 500, f"SQLi payload caused 500: {payload[:50]}..."
 
 
 def test_audit_endpoint_rejects_sqli():
     """Audit endpoint must not crash on SQLi payloads in URL params."""
     for payload in SQLI_PAYLOADS:
         resp = client.get(f"/api/audit?url={payload}", follow_redirects=False)
-        assert resp.status_code != 500, (
-            f"SQLi payload caused 500 on /api/audit: {payload[:50]}..."
-        )
+        assert resp.status_code != 500, f"SQLi payload caused 500 on /api/audit: {payload[:50]}..."
 
 
 # ---------------------------------------------------------------------------
@@ -66,9 +63,7 @@ def test_customer_profile_rejects_sqli():
             json={"name": payload, "phone": "9999999999", "business": payload},
             follow_redirects=False,
         )
-        assert resp.status_code != 500, (
-            f"SQLi payload caused 500 in onboard: {payload[:50]}..."
-        )
+        assert resp.status_code != 500, f"SQLi payload caused 500 in onboard: {payload[:50]}..."
 
 
 # ---------------------------------------------------------------------------
@@ -80,9 +75,7 @@ def test_public_endpoints_encode_xss():
         resp = client.get(f"/api/public/search?q={payload}", follow_redirects=False)
         if resp.status_code == 200 and "text/html" in resp.headers.get("content-type", ""):
             body = resp.text
-            assert payload not in body, (
-                f"XSS payload echoed unescaped: {payload[:50]}..."
-            )
+            assert payload not in body, f"XSS payload echoed unescaped: {payload[:50]}..."
 
 
 # ---------------------------------------------------------------------------
@@ -127,9 +120,7 @@ def test_file_paths_reject_traversal():
     """Static/download endpoints must not serve files outside intended directory."""
     for payload in PATH_TRAVERSAL_PAYLOADS:
         resp = client.get(f"/data/{payload}", follow_redirects=False)
-        assert resp.status_code in (404, 403, 400), (
-            f"Path traversal not blocked: {payload[:50]}..."
-        )
+        assert resp.status_code in (404, 403, 400), f"Path traversal not blocked: {payload[:50]}..."
 
 
 # ---------------------------------------------------------------------------
@@ -173,9 +164,7 @@ def test_sanitize_utterance_truncates_to_500():
     context-stuffing attacks via very long caller utterances."""
     long_payload = "a" * 2000
     result = _sanitize_utterance(long_payload)
-    assert len(result) <= 500, (
-        f"Utterance not truncated: got {len(result)} chars"
-    )
+    assert len(result) <= 500, f"Utterance not truncated: got {len(result)} chars"
 
 
 def test_sanitize_utterance_safe_input_unchanged():
@@ -189,9 +178,7 @@ def test_sanitize_utterance_safe_input_unchanged():
     ]
     for text in normal_inputs:
         result = _sanitize_utterance(text)
-        assert result == text, (
-            f"Safe utterance was incorrectly modified: {text!r} -> {result!r}"
-        )
+        assert result == text, f"Safe utterance was incorrectly modified: {text!r} -> {result!r}"
 
 
 def test_sanitize_utterance_case_insensitive():
@@ -203,9 +190,7 @@ def test_sanitize_utterance_case_insensitive():
     ]
     for payload in variants:
         cleaned = _sanitize_utterance(payload)
-        assert "[...]" in cleaned, (
-            f"Case-insensitive IPI not caught: {payload!r} -> {cleaned!r}"
-        )
+        assert "[...]" in cleaned, f"Case-insensitive IPI not caught: {payload!r} -> {cleaned!r}"
 
 
 def test_web_call_endpoint_rejects_ipi_payloads():
@@ -220,6 +205,4 @@ def test_web_call_endpoint_rejects_ipi_payloads():
         # Endpoint may 401/403 (auth required), 404 (route absent in test env),
         # 422 (schema), or 200 (processed with sanitized prompt).
         # The critical invariant: must NOT be 500 (unhandled injection crash).
-        assert resp.status_code != 500, (
-            f"IPI payload caused 500 on web-call chat: {payload[:60]!r}"
-        )
+        assert resp.status_code != 500, f"IPI payload caused 500 on web-call chat: {payload[:60]!r}"

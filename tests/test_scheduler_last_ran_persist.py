@@ -8,6 +8,7 @@ save each changed tick). Boot-grace still handles heavy daily jobs in-window at 
 Covers both the mechanism (save→restart→load round-trip) AND the wiring (scheduler_loop
 actually calls load-on-boot + save-per-tick) — the wiring is the real regression risk.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -50,8 +51,12 @@ def test_scheduler_loop_wires_load_and_save(monkeypatch):
     save_calls = {"n": 0}
     saved = dict(ts._last_ran)
 
-    monkeypatch.setattr(ts, "_load_last_ran", lambda: load_calls.__setitem__("n", load_calls["n"] + 1))
-    monkeypatch.setattr(ts, "_save_last_ran", lambda: save_calls.__setitem__("n", save_calls["n"] + 1))
+    monkeypatch.setattr(
+        ts, "_load_last_ran", lambda: load_calls.__setitem__("n", load_calls["n"] + 1)
+    )
+    monkeypatch.setattr(
+        ts, "_save_last_ran", lambda: save_calls.__setitem__("n", save_calls["n"] + 1)
+    )
 
     async def _noop_job(job):
         return None

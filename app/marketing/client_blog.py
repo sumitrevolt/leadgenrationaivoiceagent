@@ -160,9 +160,9 @@ def render_index(client: dict[str, Any], slug: str) -> str:
     posts = list_posts(str(client.get("id") or ""))
     if posts:
         items = "".join(
-            f"<a class='card' href='/b/{e(slug)}/blog/{e(str(p.get('slug','')))}'>"
-            f"<h2>{e(str(p.get('title','')))}</h2>"
-            f"<p>{e(str(p.get('body',''))[:150])}…</p></a>"
+            f"<a class='card' href='/b/{e(slug)}/blog/{e(str(p.get('slug', '')))}'>"
+            f"<h2>{e(str(p.get('title', '')))}</h2>"
+            f"<p>{e(str(p.get('body', ''))[:150])}…</p></a>"
             for p in posts
         )
     else:
@@ -177,8 +177,8 @@ def render_post(client: dict[str, Any], slug: str, post: dict[str, Any]) -> str:
     primary = str((brand or {}).get("primary") or "#6d28d9")
     inner = (
         f"<div class='top'><a href='/b/{e(slug)}/blog'>← Blog</a></div>"
-        f"<h1>{e(str(post.get('title','')))}</h1>"
-        f"<article>{e(str(post.get('body','')))}</article>"
+        f"<h1>{e(str(post.get('title', '')))}</h1>"
+        f"<article>{e(str(post.get('body', '')))}</article>"
     )
     return _shell(biz, primary, inner, slug)
 

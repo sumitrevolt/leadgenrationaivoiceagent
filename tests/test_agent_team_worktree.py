@@ -58,7 +58,6 @@ def test_adr_and_runbook_present():
     assert "patterns-only" in text.lower() or "FEATURE_HARVEST" in text
 
 
-
 def test_invalid_slug_refused():
     r = _run(["create", "--name", "Bad_Slug!"])
     assert r.returncode == 1

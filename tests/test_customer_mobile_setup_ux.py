@@ -15,9 +15,9 @@ def test_mobile_nav_exposes_setup_and_direct_view_actions():
     start = html.index('<nav class="mobile-app-nav"')
     end = html.index("</nav>", start)
     nav = html[start:end]
-    assert [nav.index(label) for label in (">Home<", ">Setup<", ">Posts<", ">Leads<", ">Plan<")] == sorted(
+    assert [
         nav.index(label) for label in (">Home<", ">Setup<", ">Posts<", ">Leads<", ">Plan<")
-    )
+    ] == sorted(nav.index(label) for label in (">Home<", ">Setup<", ">Posts<", ">Leads<", ">Plan<"))
     assert "openSetupWizard()" in nav
     assert "showView('home')" in nav
 
@@ -62,7 +62,11 @@ def test_advanced_social_connection_is_collapsed():
 
 def test_demo_badge_starts_hidden_and_is_data_driven():
     html = _html()
-    assert 'id="demoBadge"' in html and 'style="display:none"' in html[html.index('id="demoBadge"') - 120 : html.index('id="demoBadge"') + 160]
+    assert (
+        'id="demoBadge"' in html
+        and 'style="display:none"'
+        in html[html.index('id="demoBadge"') - 120 : html.index('id="demoBadge"') + 160]
+    )
     assert "d.is_sample_data === true" in html
 
 

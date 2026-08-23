@@ -59,9 +59,13 @@ def test_customer_visible_flags_reasonable():
         assert delivery_ledger.LABELS[ev][3] is False, f"{ev} should be ops-only"
     # Customer sees the outcome-shaped events.
     customer_visible = {
-        "social_account_connected", "social_account_disconnected",
-        "social_account_connection_failed", "token_expired",
-        "post_scheduled", "post_partially_published", "post_cancelled",
+        "social_account_connected",
+        "social_account_disconnected",
+        "social_account_connection_failed",
+        "token_expired",
+        "post_scheduled",
+        "post_partially_published",
+        "post_cancelled",
         "customer_action_required",
     }
     for ev in customer_visible:
@@ -136,8 +140,9 @@ def test_process_queue_emits_retry_scheduled_on_transient_failure(engine_iso):
     engine_iso["engine"].enqueue_publish("c1", caption="hi", platforms=["failing"])
     out = asyncio.run(engine_iso["engine"].process_queue())
     assert out["retried"] == 1
-    retry_events = [(cid, det) for cid, ev, det in engine_iso["captured"]
-                    if ev == "post_retry_scheduled"]
+    retry_events = [
+        (cid, det) for cid, ev, det in engine_iso["captured"] if ev == "post_retry_scheduled"
+    ]
     assert len(retry_events) >= 1
     cid, detail = retry_events[0]
     assert cid == "c1"
@@ -149,8 +154,7 @@ def test_process_queue_emits_customer_action_on_inert_provider(engine_iso):
     engine_iso["engine"].enqueue_publish("c1", caption="hi", platforms=["inert"])
     out = asyncio.run(engine_iso["engine"].process_queue())
     assert out["skipped"] == 1
-    cact = [ev for _, ev, _ in engine_iso["captured"]
-            if ev == "customer_action_required"]
+    cact = [ev for _, ev, _ in engine_iso["captured"] if ev == "customer_action_required"]
     assert len(cact) >= 1
 
 

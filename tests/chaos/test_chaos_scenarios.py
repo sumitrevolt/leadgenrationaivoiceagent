@@ -3,6 +3,7 @@
 Scenarios: Redis down, DB slow, worker crash, duplicate webhook, poison message.
 All tests are hermetic (mocked failures), fast, and never-raise.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -64,10 +65,12 @@ def test_worker_crash_dlq_retry(monkeypatch):
     monkeypatch.setenv("RUN_IN_PROCESS_SCHEDULER", "1")
 
     dispatched = []
+
     async def fake_run_job(job):
         dispatched.append(job)
 
     from app.platform import team_scheduler
+
     monkeypatch.setattr(team_scheduler, "_run_job", fake_run_job)
 
     r = FakeRedis()
@@ -123,11 +126,13 @@ def test_poison_message_isolation(monkeypatch):
     monkeypatch.setenv("NOTIFY_EMAIL", "admin@leadsgenai.in")
 
     alerts = []
+
     async def fake_send_email(to, subject, body):
         alerts.append((to, subject))
         return True
 
     from app.integrations.email_sender import email_sender
+
     monkeypatch.setattr(email_sender, "send_email", fake_send_email)
 
     r = FakeRedis()
@@ -158,5 +163,6 @@ def test_llm_provider_chain_fallback(monkeypatch):
 
     # Circuit breaker should be engaged for failing providers
     from app.infrastructure import circuit_breaker
+
     cb = circuit_breaker.CircuitBreaker("mistral", fail_threshold=5, reset_after_s=300)
     assert cb.state == "closed"

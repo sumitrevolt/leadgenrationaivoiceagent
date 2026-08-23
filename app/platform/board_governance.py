@@ -208,7 +208,7 @@ def pause_tree(agent_id: str, *, by: str = "admin") -> dict[str, Any]:
 
         _pause_reports(key)
         _log_event(key, "tree_paused", f"🌳 Tree paused ({len(paused)} agents) by {by}")
-        _notify(f"🌳 Agent tree paused: {key} + {len(paused)-1} reports by {by}")
+        _notify(f"🌳 Agent tree paused: {key} + {len(paused) - 1} reports by {by}")
         return {"ok": True, "paused": paused}
     except Exception as e:
         return {"ok": False, "error": str(e)}

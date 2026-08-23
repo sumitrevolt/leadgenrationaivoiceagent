@@ -62,7 +62,9 @@ def test_on_close_signal_no_whatsapp_task_without_phone(monkeypatch):
     monkeypatch.setattr(sales_pipeline, "upsert_deal", lambda *a, **k: None)
     spawned = []
     orig_create_task = asyncio.create_task
-    monkeypatch.setattr(asyncio, "create_task", lambda coro: spawned.append(coro) or orig_create_task(coro))
+    monkeypatch.setattr(
+        asyncio, "create_task", lambda coro: spawned.append(coro) or orig_create_task(coro)
+    )
     brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     assert brain.caller_phone == ""
     brain._on_close_signal()

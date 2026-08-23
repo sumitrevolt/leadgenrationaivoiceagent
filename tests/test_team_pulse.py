@@ -38,7 +38,9 @@ def test_team_pulse_logs_and_never_raises(monkeypatch):
     from app.platform import automation_health
 
     monkeypatch.setattr(
-        automation_health, "health", lambda: {"ok": True, "overdue": [], "never_ran": [], "jobs": []}
+        automation_health,
+        "health",
+        lambda: {"ok": True, "overdue": [], "never_ran": [], "jobs": []},
     )
 
     res = team.team_pulse(max_members=3)
@@ -85,12 +87,16 @@ def test_arya_pulse_does_not_duplicate_mcp_health_prefix(monkeypatch):
     from app.platform import automation_health, mcp_engineer
 
     monkeypatch.setattr(
-        mcp_engineer, "health_score", lambda: {"score": 90.0, "summary": "MCP health 90/100 — all green"}
+        mcp_engineer,
+        "health_score",
+        lambda: {"score": 90.0, "summary": "MCP health 90/100 — all green"},
     )
     # _kavya (also in the rotation) hits automation_health.health() (DB) — stub
     # it so this test stays hermetic/fast, same as the file's other tests.
     monkeypatch.setattr(
-        automation_health, "health", lambda: {"ok": True, "overdue": [], "never_ran": [], "jobs": []}
+        automation_health,
+        "health",
+        lambda: {"ok": True, "overdue": [], "never_ran": [], "jobs": []},
     )
 
     # max_members large enough to cover the whole rotation (23 monitors today)

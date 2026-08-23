@@ -95,7 +95,9 @@ def test_nps_autopilot_writes_draft_when_enabled(monkeypatch, tmp_path):
     monkeypatch.setenv("NPS_AUTO", "1")
     monkeypatch.setattr(customer_autopilot, "_DATA_DIR", str(tmp_path))
 
-    fake_drafts = [{"client": "Sharma Dental", "slug": "sharma-dental", "message": "rate us", "wa_link": None}]
+    fake_drafts = [
+        {"client": "Sharma Dental", "slug": "sharma-dental", "message": "rate us", "wa_link": None}
+    ]
     import app.platform.nps as nps_mod
 
     monkeypatch.setattr(nps_mod, "request_drafts", lambda limit=50: fake_drafts)

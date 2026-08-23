@@ -122,7 +122,7 @@ def theme_stats(niche: str = "") -> dict[str, Any]:
         rows = [r for r in rows if r.get("niche") == niche.strip().lower()]
     agg: dict[str, dict[str, int]] = {}
     for r in rows:
-        key = f"{r.get('theme','?')}|{r.get('format','post')}"
+        key = f"{r.get('theme', '?')}|{r.get('format', 'post')}"
         d = agg.setdefault(key, {"worked": 0, "total": 0})
         d["total"] += 1
         d["worked"] += 1 if r.get("worked") else 0

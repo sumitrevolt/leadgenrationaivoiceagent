@@ -14,6 +14,7 @@ def _iso(tmp_path, monkeypatch):
 
 # ---- _resolve_inputs unit ----
 
+
 def test_resolve_inputs_source_pull():
     nodes = {"a": {"state": "done", "result": {"ok": True, "count": 7, "detail": "seven"}}}
     node = {"id": "b", "action": "x", "inputs_map": {"leads": {"from": "a", "key": "detail"}}}
@@ -30,7 +31,7 @@ def test_resolve_inputs_literal():
 def test_resolve_inputs_missing_source_fail_closed():
     node = {"id": "b", "inputs_map": {"leads": {"from": "a", "key": "detail"}}}
     eff = dag_engine._resolve_inputs(node, {"x": 1}, {})
-    assert "leads" not in eff and eff["x"] == 1   # omitted, not garbage
+    assert "leads" not in eff and eff["x"] == 1  # omitted, not garbage
 
 
 def test_resolve_inputs_not_done_fail_closed():
@@ -47,6 +48,7 @@ def test_resolve_inputs_no_map_is_passthrough():
 
 # ---- e2e: downstream reads upstream output ----
 
+
 def test_e2e_downstream_reads_upstream_output(tmp_path, monkeypatch):
     _iso(tmp_path, monkeypatch)
     received: dict = {}
@@ -60,12 +62,24 @@ def test_e2e_downstream_reads_upstream_output(tmp_path, monkeypatch):
 
     monkeypatch.setitem(process_library.EXECUTORS, "scrape", src)
     monkeypatch.setitem(process_library.EXECUTORS, "crm_queue", sink)
-    fs.save_flow({"id": "dp", "name": "dp",
-        "nodes": [{"id": "a", "action": "scrape"},
-                  {"id": "b", "action": "crm_queue",
-                   "inputs_map": {"leads": {"from": "a", "key": "detail"},
-                                  "tag": {"value": "vip"}}}],
-        "edges": [{"f": "a", "t": "b"}]})
+    fs.save_flow(
+        {
+            "id": "dp",
+            "name": "dp",
+            "nodes": [
+                {"id": "a", "action": "scrape"},
+                {
+                    "id": "b",
+                    "action": "crm_queue",
+                    "inputs_map": {
+                        "leads": {"from": "a", "key": "detail"},
+                        "tag": {"value": "vip"},
+                    },
+                },
+            ],
+            "edges": [{"f": "a", "t": "b"}],
+        }
+    )
     rid = dag_engine.start_run("flow:dp", {"run_level": "yes"})["run_id"]
     for _ in range(10):
         st = dag_engine.replay(rid)
@@ -73,6 +87,6 @@ def test_e2e_downstream_reads_upstream_output(tmp_path, monkeypatch):
             break
         asyncio.run(dag_engine.advance(rid))
     assert dag_engine.replay(rid)["status"] == "completed"
-    assert received.get("leads") == "seven"      # upstream output passed downstream
-    assert received.get("tag") == "vip"          # literal injected
-    assert received.get("run_level") == "yes"    # run-level inputs still present
+    assert received.get("leads") == "seven"  # upstream output passed downstream
+    assert received.get("tag") == "vip"  # literal injected
+    assert received.get("run_level") == "yes"  # run-level inputs still present

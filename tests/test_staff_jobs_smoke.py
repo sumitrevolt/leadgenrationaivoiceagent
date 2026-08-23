@@ -5,6 +5,7 @@ synthesis) and every job's failure path is covered by W1.14. This closes the gap
 run_ops and run_trainer must return a well-formed dict on the happy path and never
 raise. Prune side effects are stubbed so the smoke test never touches real data.
 """
+
 from __future__ import annotations
 
 import asyncio

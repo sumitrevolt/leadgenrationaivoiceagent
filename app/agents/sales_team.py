@@ -315,7 +315,7 @@ def _render_md(p: dict, parts: dict[str, Any]) -> str:
         )
     lines += ["", "## 🛡️ Objection playbook (Arjun)"]
     for o in parts.get("objections", {}).get("playbook", []):
-        lines.append(f"- **\"{o.get('objection')}\"** → {o.get('laer')}")
+        lines.append(f'- **"{o.get("objection")}"** → {o.get("laer")}')
     if parts.get("boss_summary"):
         lines += ["", "## 🎯 Boss verdict", parts["boss_summary"]]
     return "\n".join(lines)

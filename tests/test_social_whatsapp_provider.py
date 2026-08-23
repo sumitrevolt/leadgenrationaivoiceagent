@@ -57,8 +57,13 @@ def wa_on(monkeypatch):
 # --------------------------------------------------------------------------- #
 def test_publish_sends_to_single_recipient(wa_on):
     prov = WhatsAppProvider()
-    req = PublishRequest(client_id="c1", caption="Diwali offer 20% off", platform="whatsapp",
-                         account_ref="8712928847", media_type="image")
+    req = PublishRequest(
+        client_id="c1",
+        caption="Diwali offer 20% off",
+        platform="whatsapp",
+        account_ref="8712928847",
+        media_type="image",
+    )
     res = asyncio.run(prov.publish(req, {}))
     assert res.ok is True
     assert res.post_id == "wamid.TEST123"
@@ -71,8 +76,13 @@ def test_publish_sends_to_single_recipient(wa_on):
 
 def test_publish_appends_media_url(wa_on):
     prov = WhatsAppProvider()
-    req = PublishRequest(client_id="c1", caption="New look", platform="whatsapp",
-                         account_ref="8712928847", media_url="https://cdn.x/y.jpg")
+    req = PublishRequest(
+        client_id="c1",
+        caption="New look",
+        platform="whatsapp",
+        account_ref="8712928847",
+        media_url="https://cdn.x/y.jpg",
+    )
     res = asyncio.run(prov.publish(req, {}))
     assert res.ok is True
     _, msg = wa_on.calls[0]
@@ -85,7 +95,9 @@ def test_publish_records_sender_error(wa_on, monkeypatch):
 
     monkeypatch.setattr(wa_mod, "get_whatsapp_sender", lambda: bad)
     prov = WhatsAppProvider()
-    req = PublishRequest(client_id="c1", caption="hi", platform="whatsapp", account_ref="8712928847")
+    req = PublishRequest(
+        client_id="c1", caption="hi", platform="whatsapp", account_ref="8712928847"
+    )
     res = asyncio.run(prov.publish(req, {}))
     assert res.ok is False
     assert "selfhost_not_configured" in res.error
@@ -115,8 +127,12 @@ def test_configured_needs_backend_and_recipient(monkeypatch):
 def test_bulk_recipient_collapses_to_single(wa_on):
     """A comma/semicolon list must NEVER fan out — only the first number is used."""
     prov = WhatsAppProvider()
-    req = PublishRequest(client_id="c1", caption="hi", platform="whatsapp",
-                         account_ref="8712928847, 9000000000; 9111111111")
+    req = PublishRequest(
+        client_id="c1",
+        caption="hi",
+        platform="whatsapp",
+        account_ref="8712928847, 9000000000; 9111111111",
+    )
     res = asyncio.run(prov.publish(req, {}))
     assert res.ok is True
     assert len(wa_on.calls) == 1  # one send only

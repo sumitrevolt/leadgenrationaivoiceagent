@@ -1,5 +1,6 @@
 """GET /api/admin/clients/{id}/timeline must merge delivery-ledger events
 alongside the existing agent_events/inquiries/audit sources."""
+
 from fastapi.testclient import TestClient
 
 
@@ -12,13 +13,24 @@ def test_client_timeline_includes_ledger_events(monkeypatch):
 
     monkeypatch.setattr("app.platform.team.recent_events", lambda limit=200: [], raising=False)
     monkeypatch.setattr("app.api.admin_dashboard._read_inquiries", lambda: [], raising=False)
-    monkeypatch.setattr("app.api.admin_dashboard._fetch_client_audit", lambda client_id, limit=100: [], raising=False)
+    monkeypatch.setattr(
+        "app.api.admin_dashboard._fetch_client_audit",
+        lambda client_id, limit=100: [],
+        raising=False,
+    )
     monkeypatch.setattr(
         "app.marketing.delivery_ledger.timeline",
         lambda client_id, limit=100, customer_only=False: [
-            {"at": "2026-07-06T09:00:00", "event": "plan_activated",
-             "label": "Plan activated", "icon": "✅", "detail": "starter", "actor": "system",
-             "customer_visible": True, "meta": {}}
+            {
+                "at": "2026-07-06T09:00:00",
+                "event": "plan_activated",
+                "label": "Plan activated",
+                "icon": "✅",
+                "detail": "starter",
+                "actor": "system",
+                "customer_visible": True,
+                "meta": {},
+            }
         ],
         raising=False,
     )

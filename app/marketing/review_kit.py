@@ -359,9 +359,7 @@ def review_ask_pack(business_name: str) -> dict[str, str]:
         "nikaal kar Google par ek chhota review de dijiye — aapke 2 shabd "
         "hamare liye bahut keemti hain aur dusre logon ki madad bhi karte hain ⭐"
     )
-    sms_line = (
-        f"{name}: Service achhi lagi? Google par 1-min me review dein — " "bahut madad hogi 🙏"
-    )
+    sms_line = f"{name}: Service achhi lagi? Google par 1-min me review dein — bahut madad hogi 🙏"
     card = _CARD_SVG.replace("{business_name}", escape(name, quote=True))
     return {
         "wa_message": wa_message,

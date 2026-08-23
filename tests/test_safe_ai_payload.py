@@ -1,4 +1,5 @@
 """Test safe_ai_payload: PII masking, secrets validation, provider blocking."""
+
 import pytest
 from app.platform.safe_ai_payload import (
     SafePayloadError,
@@ -21,7 +22,9 @@ class TestMaskString:
         assert "[PHONE REDACTED]" in _mask_string("+91 98765 43210")
 
     def test_mask_email(self):
-        assert _mask_string("Email admin@leadsgenai.in for help") == "Email [EMAIL REDACTED] for help"
+        assert (
+            _mask_string("Email admin@leadsgenai.in for help") == "Email [EMAIL REDACTED] for help"
+        )
 
     def test_mask_gstin(self):
         assert _mask_string("GST: 27AAPFU0939F1ZV") == "GST: [GST REDACTED]"
@@ -33,7 +36,9 @@ class TestMaskString:
         assert _mask_string("api_key = sk-abc123def456") == "[SECRET REDACTED]"
 
     def test_mask_github_token(self):
-        assert _mask_string("use ghp_abcdefghijklmnopqrstuvwxyz0123456789") == "use [SECRET REDACTED]"
+        assert (
+            _mask_string("use ghp_abcdefghijklmnopqrstuvwxyz0123456789") == "use [SECRET REDACTED]"
+        )
 
     def test_mask_facebook_token(self):
         result = _mask_string("access_token=EAAbc123def456ghi789")
@@ -75,14 +80,16 @@ class TestMaskEmail:
 
 class TestMaskCustomerData:
     def test_mask_dict_with_known_fields(self):
-        result = mask_customer_data({
-            "customer_name": "Rahul Sharma",
-            "phone": "9876543210",
-            "email": "rahul@example.com",
-            "address": "Shop No 5, Nagpur",
-            "gstin": "27AAPFU0939F1ZV",
-            "description": "Good customer",
-        })
+        result = mask_customer_data(
+            {
+                "customer_name": "Rahul Sharma",
+                "phone": "9876543210",
+                "email": "rahul@example.com",
+                "address": "Shop No 5, Nagpur",
+                "gstin": "27AAPFU0939F1ZV",
+                "description": "Good customer",
+            }
+        )
         assert result["customer_name"] == "R***"
         assert result["phone"] == "XXXX3210"
         assert result["email"] == "redacted@example.com"
@@ -91,21 +98,25 @@ class TestMaskCustomerData:
         assert result["description"] == "Good customer"
 
     def test_mask_nested_dict(self):
-        result = mask_customer_data({
-            "client": {
-                "name": "Rahul Sharma",
-                "contact": {"phone": "9876543210", "email": "test@test.com"},
+        result = mask_customer_data(
+            {
+                "client": {
+                    "name": "Rahul Sharma",
+                    "contact": {"phone": "9876543210", "email": "test@test.com"},
+                }
             }
-        })
+        )
         assert result["client"]["name"] == "R***"
         assert result["client"]["contact"]["phone"] == "XXXX3210"
         assert result["client"]["contact"]["email"] == "redacted@test.com"
 
     def test_mask_list(self):
-        result = mask_customer_data([
-            {"name": "Rahul", "phone": "9876543210"},
-            {"name": "Priya", "phone": "9123456789"},
-        ])
+        result = mask_customer_data(
+            [
+                {"name": "Rahul", "phone": "9876543210"},
+                {"name": "Priya", "phone": "9123456789"},
+            ]
+        )
         assert result[0]["name"] == "R***"
         assert result[0]["phone"] == "XXXX3210"
 

@@ -12,9 +12,7 @@ except Exception as e:
     print("omniroute_available ERROR", e)
 
 try:
-    r = urllib.request.urlopen(
-        "http://172.16.1.1:20128/health", timeout=5
-    )  # nosec B310 — fixed http health URL
+    r = urllib.request.urlopen("http://172.16.1.1:20128/health", timeout=5)  # nosec B310 — fixed http health URL
     print("gateway_status", getattr(r, "status", 200))
     print("gateway_body", r.read().decode()[:300])
 except Exception as e:

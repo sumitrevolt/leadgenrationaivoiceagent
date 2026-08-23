@@ -41,6 +41,7 @@ Non-negotiable assertions:
   * No customer route in customer_dashboard.py has a `Query()`-bound
     `client_id` parameter (static AST audit — regression-proof).
 """
+
 from __future__ import annotations
 
 import ast
@@ -61,6 +62,7 @@ TENANT_B_PRIVATE_MARKER = "TENANT_B_PRIVATE_MARKER_9C42"
 # Helpers — real JWTs via the actual production token pipeline
 # --------------------------------------------------------------------------- #
 
+
 def _mint_customer_jwt(client_id: str, *, role: str = "customer", ttl_s: int = 3600) -> str:
     """Encode a JWT using the SAME code path production uses (jose.jwt +
     settings.jwt_secret_key + settings.jwt_algorithm). No mocking of the
@@ -75,19 +77,23 @@ def _mint_customer_jwt(client_id: str, *, role: str = "customer", ttl_s: int = 3
         "exp": datetime.now(timezone.utc) + timedelta(seconds=ttl_s),
     }
     return _jwt.encode(
-        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm,
+        payload,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
     )
 
 
 def _creds(token: str):
     """Wrap in HTTPAuthorizationCredentials like FastAPI's HTTPBearer emits."""
     from fastapi.security import HTTPAuthorizationCredentials
+
     return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
 
 # --------------------------------------------------------------------------- #
 # LAYER 1 — Static route audit (regression-proof AST scan)
 # --------------------------------------------------------------------------- #
+
 
 def test_static_no_customer_route_binds_client_id_via_query():
     """AST-scan every route handler in customer_dashboard.py. For each
@@ -96,6 +102,7 @@ def test_static_no_customer_route_binds_client_id_via_query():
     default is a P0 IDOR regression that this test catches at PR time.
     """
     from app.api import customer_dashboard
+
     src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()
     tree = ast.parse(src)
 
@@ -110,7 +117,7 @@ def test_static_no_customer_route_binds_client_id_via_query():
         # Positional defaults align to trailing positional args
         pos_defaults = list(args.defaults)
         if pos_defaults:
-            aligned = args.args[-len(pos_defaults):]
+            aligned = args.args[-len(pos_defaults) :]
             for a, d in zip(aligned, pos_defaults):
                 defaults_by_name[a.arg] = d
         # Kw-only defaults
@@ -146,6 +153,7 @@ def test_static_every_customer_handler_uses_require_customer_dep():
     must use `Depends(require_customer)`. Counts them so a future silent
     removal is caught."""
     from app.api import customer_dashboard
+
     src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()
     count = src.count("Depends(require_customer)")
     assert count >= 20, (
@@ -157,6 +165,7 @@ def test_static_every_customer_handler_uses_require_customer_dep():
 # --------------------------------------------------------------------------- #
 # LAYER 2 — Runtime dependency proof (real JWTs, real decode path)
 # --------------------------------------------------------------------------- #
+
 
 async def test_require_customer_returns_jwt_sub_only():
     """The primitive is authoritative on its own — no request state can
@@ -244,18 +253,22 @@ async def test_token_without_sub_rejected():
 # tenant-b's sub because the FUNCTION SIGNATURE doesn't accept anything else.
 # --------------------------------------------------------------------------- #
 
-@pytest.mark.parametrize("attack_variant", [
-    "?client_id=tenant-a-7F31",
-    "?client_id=tenant-a-7F31&client_id=tenant-b-9C42",
-    "?CLIENT_ID=tenant-a-7F31",
-    "?client_id=TENANT-A-7F31",
-    "?client_id=%20tenant-a-7F31%20",
-    "?client_id=",
-    "?client_id=../../tenant-a",
-    "body:{\"client_id\":\"tenant-a-7F31\"}",
-    "body:{\"tenant_id\":\"tenant-a-7F31\"}",
-    "header:X-Tenant-Id=tenant-a-7F31",
-])
+
+@pytest.mark.parametrize(
+    "attack_variant",
+    [
+        "?client_id=tenant-a-7F31",
+        "?client_id=tenant-a-7F31&client_id=tenant-b-9C42",
+        "?CLIENT_ID=tenant-a-7F31",
+        "?client_id=TENANT-A-7F31",
+        "?client_id=%20tenant-a-7F31%20",
+        "?client_id=",
+        "?client_id=../../tenant-a",
+        'body:{"client_id":"tenant-a-7F31"}',
+        'body:{"tenant_id":"tenant-a-7F31"}',
+        "header:X-Tenant-Id=tenant-a-7F31",
+    ],
+)
 async def test_no_request_attribute_can_override_authenticated_tenant(attack_variant):
     """Every attack variant. The `require_customer` signature accepts ONLY
     `HTTPAuthorizationCredentials` — there's no way for a request query,
@@ -288,11 +301,13 @@ async def test_no_request_attribute_can_override_authenticated_tenant(attack_var
 # Route coverage summary (introspection lock)
 # --------------------------------------------------------------------------- #
 
+
 def test_route_coverage_summary_recorded():
     """Records the total customer route count so a silent drop/add is
     caught. NOT an isolation assertion — a shape lock."""
     from app.api import customer_dashboard
     import re
+
     src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()
     # Approximate — count route decorators
     routes = re.findall(r"@router\.(get|post|put|patch|delete)\(", src)

@@ -445,7 +445,6 @@ class FreeSTTManager:
 
         # Try Vosk first (offline, real-time)
         try:
-
             vosk_path = os.getenv("VOSK_MODEL_PATH", "models/vosk")
             if Path(vosk_path).exists():
                 provider = VoskProvider(model_path=vosk_path)
@@ -459,7 +458,6 @@ class FreeSTTManager:
 
         # Try Whisper (offline, high accuracy)
         try:
-
             provider = WhisperProvider(model_size="base")
             self.providers["whisper"] = provider
             self.active_provider = "whisper"
@@ -470,7 +468,6 @@ class FreeSTTManager:
 
         # Try SpeechRecognition (requires internet)
         try:
-
             provider = SpeechRecognitionProvider()
             self.providers["speech_recognition"] = provider
             self.active_provider = "speech_recognition"

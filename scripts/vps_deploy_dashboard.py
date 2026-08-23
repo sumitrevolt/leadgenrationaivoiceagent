@@ -71,7 +71,7 @@ def main() -> int:
                     print("HEALTH_OK production")
                     break
         except Exception as e:
-            print(f"health attempt {attempt+1} fail: {e}")
+            print(f"health attempt {attempt + 1} fail: {e}")
             time.sleep(8)
     else:
         print("HEALTH_WARN check manually")

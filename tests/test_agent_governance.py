@@ -207,9 +207,7 @@ def test_custom_agents_register_validation(monkeypatch, tmp_path):
 
 def test_custom_agents_merged_roster(monkeypatch, tmp_path):
     ca = _custom(monkeypatch, tmp_path)
-    ca.register(
-        {"name": "harsh", "role": "Retention", "system_prompt": "win-back karo"}
-    )
+    ca.register({"name": "harsh", "role": "Retention", "system_prompt": "win-back karo"})
     roster = ca.merged_roster()
     assert "note" in roster and "team.py" in roster["note"]
     assert len(roster["custom_agents"]) == 1

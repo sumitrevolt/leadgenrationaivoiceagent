@@ -42,13 +42,28 @@ class TestLeadsAPI:
         from app.api import leads as leads_mod
 
         leads_mod._save_scraped_lead_to_db(
-            {"phone": "+919876500001", "company_name": "Acme Co", "source": "google_maps", "city": "Mumbai"}
+            {
+                "phone": "+919876500001",
+                "company_name": "Acme Co",
+                "source": "google_maps",
+                "city": "Mumbai",
+            }
         )
         leads_mod._save_scraped_lead_to_db(
-            {"phone": "+919876500002", "company_name": "Biz B", "source": "google_maps", "city": "Delhi"}
+            {
+                "phone": "+919876500002",
+                "company_name": "Biz B",
+                "source": "google_maps",
+                "city": "Delhi",
+            }
         )
         leads_mod._save_scraped_lead_to_db(
-            {"phone": "+919876500003", "company_name": "Biz C", "source": "website", "city": "Mumbai"}
+            {
+                "phone": "+919876500003",
+                "company_name": "Biz C",
+                "source": "website",
+                "city": "Mumbai",
+            }
         )
         db_session.commit()
 

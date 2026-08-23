@@ -215,7 +215,7 @@ async def export_subject_data(identifier: str) -> dict[str, Any]:
         records_dict: dict[str, list[dict]] = result.get("records", {})
         flat_records: list[dict[str, Any]] = []
         for store_name, recs in records_dict.items():
-            for rec in (recs if isinstance(recs, list) else []):
+            for rec in recs if isinstance(recs, list) else []:
                 flat_records.append({"_store": store_name, **rec})
         # Also include DB leads if present
         db_info = result.get("db_leads", {})

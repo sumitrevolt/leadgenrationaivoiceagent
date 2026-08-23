@@ -112,9 +112,9 @@ class TestOnboardCapacityMeasurement:
 
         # Budget enforcement: each job must complete within ONBOARD_TIME_BUDGET_S
         for c in fake.calls:
-            assert (
-                c["elapsed_s"] < BUDGET_S
-            ), f"{c['cid']} took {c['elapsed_s']:.2f}s > budget {BUDGET_S}s"
+            assert c["elapsed_s"] < BUDGET_S, (
+                f"{c['cid']} took {c['elapsed_s']:.2f}s > budget {BUDGET_S}s"
+            )
 
         # Wall clock: 50 sequential onboardings with ~0.02s base should be fast
         # (this is in-process, not Celery — measures task function overhead)

@@ -17,11 +17,18 @@ def test_flow_runs_start_to_completion(tmp_path, monkeypatch):
 
     monkeypatch.setitem(process_library.EXECUTORS, "noop", _noop)
 
-    fs.save_flow({"id": "e2e", "name": "e2e",
-        "nodes": [{"id": "s", "action": "noop"},
-                  {"id": "g", "kind": "breakpoint", "question": "ok?"},
-                  {"id": "s2", "action": "noop"}],
-        "edges": [{"f": "s", "t": "g"}, {"f": "g", "t": "s2"}]})
+    fs.save_flow(
+        {
+            "id": "e2e",
+            "name": "e2e",
+            "nodes": [
+                {"id": "s", "action": "noop"},
+                {"id": "g", "kind": "breakpoint", "question": "ok?"},
+                {"id": "s2", "action": "noop"},
+            ],
+            "edges": [{"f": "s", "t": "g"}, {"f": "g", "t": "s2"}],
+        }
+    )
 
     started = process_engine.start_run("flow:e2e", {})
     assert started["ok"]

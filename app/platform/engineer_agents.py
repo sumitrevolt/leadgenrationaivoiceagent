@@ -711,12 +711,12 @@ def run_dataquality() -> dict[str, Any]:
     elif dup_ratio < 0.10:
         sub_scores.append(70.0)
         actions.append(
-            f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — review dedupe (report-only)"
+            f"{dupes} duplicate leads ({dup_ratio * 100:.0f}%) — review dedupe (report-only)"
         )
     else:
         sub_scores.append(30.0)
         actions.append(
-            f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — high dup rate, dedupe recommended"
+            f"{dupes} duplicate leads ({dup_ratio * 100:.0f}%) — high dup rate, dedupe recommended"
         )
 
     if miss_ratio < 0.05:
@@ -727,7 +727,7 @@ def run_dataquality() -> dict[str, Any]:
     else:
         sub_scores.append(40.0)
         actions.append(
-            f"{missing} leads ({miss_ratio*100:.0f}%) have no contact — enrichment needed"
+            f"{missing} leads ({miss_ratio * 100:.0f}%) have no contact — enrichment needed"
         )
 
     score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None

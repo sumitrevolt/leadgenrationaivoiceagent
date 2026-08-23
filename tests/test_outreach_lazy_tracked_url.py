@@ -9,6 +9,7 @@ This test proves the accessor is lazy + cached (one `_track_url` call across man
 The "not at import" half is guaranteed structurally — the module no longer holds a
 top-level `= _track_url(...)` assignment (grep-verified in the loop).
 """
+
 from __future__ import annotations
 
 import app.platform.auto_outreach as ao

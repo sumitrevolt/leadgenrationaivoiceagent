@@ -42,8 +42,13 @@ def test_new_flow_starts_at_version_1(tmp_path, monkeypatch):
     r = fs.save_flow({"id": "v1flow", "name": "First", "nodes": [], "edges": []})
     assert r["flow"]["version"] == 1
     assert fs.list_versions("v1flow") == [
-        {"version": 1, "name": "First", "updated_at": r["flow"]["updated_at"],
-         "created_by": r["flow"]["created_by"], "current": True}
+        {
+            "version": 1,
+            "name": "First",
+            "updated_at": r["flow"]["updated_at"],
+            "created_by": r["flow"]["created_by"],
+            "current": True,
+        }
     ]
 
 
@@ -66,7 +71,9 @@ def test_overwrite_bumps_version_and_archives_prior(tmp_path, monkeypatch):
 
 def test_rollback_restores_content_and_bumps_version_forward(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
-    fs.save_flow({"id": "f2", "name": "good", "nodes": [{"id": "a"}], "edges": []}, owner_client_id="cli1")
+    fs.save_flow(
+        {"id": "f2", "name": "good", "nodes": [{"id": "a"}], "edges": []}, owner_client_id="cli1"
+    )
     fs.save_flow({"id": "f2", "name": "broken", "nodes": [], "edges": []})
 
     out = fs.rollback_flow("f2", 1, by="admin")

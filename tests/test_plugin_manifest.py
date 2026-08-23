@@ -361,9 +361,9 @@ class TestPluginCatalog:
         reg = get_registry()
         reds = reg.by_risk(RiskClass.RED)
         for p in reds:
-            assert (
-                p.approval_requirement != "none"
-            ), f"RED plugin {p.plugin_id} has no approval requirement"
+            assert p.approval_requirement != "none", (
+                f"RED plugin {p.plugin_id} has no approval requirement"
+            )
 
     def test_voice_plugins_frozen(self):
         """Voice plugins must be tagged frozen and not modifiable."""

@@ -1,6 +1,7 @@
 # tests/test_lead_pipeline_models.py
 """Model-shape tests for the lead-gen pipeline batch tracking tables
 (2026-07-08 pipeline-automation vertical slice)."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -38,7 +39,11 @@ def test_stage_run_links_to_batch():
     db = _session()
     db.add(LeadPipelineBatch(id="b2", source="prospector"))
     db.commit()
-    db.add(LeadPipelineStageRun(id="s1", batch_id="b2", stage_name="ingestion", status="passed", output_count=5))
+    db.add(
+        LeadPipelineStageRun(
+            id="s1", batch_id="b2", stage_name="ingestion", status="passed", output_count=5
+        )
+    )
     db.commit()
     row = db.get(LeadPipelineStageRun, "s1")
     assert row.batch_id == "b2"
@@ -51,8 +56,12 @@ def test_quality_issue_defaults_unresolved():
     db.commit()
     db.add(
         LeadPipelineQualityIssue(
-            id="q1", batch_id="b3", stage_name="ingestion",
-            issue_type="zero_output", severity="warning", message="0 raw leads",
+            id="q1",
+            batch_id="b3",
+            stage_name="ingestion",
+            issue_type="zero_output",
+            severity="warning",
+            message="0 raw leads",
         )
     )
     db.commit()
@@ -64,9 +73,13 @@ def test_quality_issue_defaults_unresolved():
 def test_lead_has_score_reason_and_source_batch_id_columns():
     db = _session()
     lead = Lead(
-        id="l1", company_name="Test Co", phone="9198765432 10".replace(" ", ""),
-        status=LeadStatus.NEW, source=LeadSource.GOOGLE_MAPS,
-        score_reason="niche_fit+recency", source_batch_id="b1",
+        id="l1",
+        company_name="Test Co",
+        phone="9198765432 10".replace(" ", ""),
+        status=LeadStatus.NEW,
+        source=LeadSource.GOOGLE_MAPS,
+        score_reason="niche_fit+recency",
+        source_batch_id="b1",
     )
     db.add(lead)
     db.commit()
@@ -79,8 +92,13 @@ def test_update_score_uses_centralized_threshold_and_persists_reason(monkeypatch
     from app.config import settings
 
     monkeypatch.setattr(settings, "lead_hot_threshold", 65)
-    lead = Lead(id="l2", company_name="X", phone="9198765432 11".replace(" ", ""),
-                status=LeadStatus.NEW, source=LeadSource.MANUAL)
+    lead = Lead(
+        id="l2",
+        company_name="X",
+        phone="9198765432 11".replace(" ", ""),
+        status=LeadStatus.NEW,
+        source=LeadSource.MANUAL,
+    )
     lead.update_score(70, reason="high intent")
     assert lead.is_hot_lead is True
     assert lead.score_reason == "high intent"

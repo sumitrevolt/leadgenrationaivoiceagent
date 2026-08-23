@@ -186,7 +186,7 @@ def _soft_alert(agent_id: str, usage: int, limit: int, pct: float) -> None:
         team.log_event(
             agent_id,
             "budget_soft_alert",
-            f"⚠️ {int(pct*100)}% budget used ({usage:,}/{limit:,} tokens)",
+            f"⚠️ {int(pct * 100)}% budget used ({usage:,}/{limit:,} tokens)",
             status="warn",
         )
     except Exception:
@@ -200,7 +200,7 @@ def _soft_alert(agent_id: str, usage: int, limit: int, pct: float) -> None:
         if ntfy_url:
             httpx.post(
                 ntfy_url,
-                content=f"⚠️ Agent {agent_id}: {int(pct*100)}% daily budget ({usage:,}/{limit:,} tokens)",
+                content=f"⚠️ Agent {agent_id}: {int(pct * 100)}% daily budget ({usage:,}/{limit:,} tokens)",
                 headers={"Title": f"Budget Alert: {agent_id}", "Priority": "3"},
                 timeout=5,
             )

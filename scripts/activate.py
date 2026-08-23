@@ -275,9 +275,7 @@ def _atomic_write_env(path: Path, raw_lines: list[str], updates: dict[str, str])
 # --------------------------------------------------------------------------- #
 def _verify_health(base: str = "http://127.0.0.1:8000") -> tuple[bool, str]:
     try:
-        with urllib.request.urlopen(
-            f"{base}/health", timeout=5
-        ) as r:  # nosec B310 (localhost health check)
+        with urllib.request.urlopen(f"{base}/health", timeout=5) as r:  # nosec B310 (localhost health check)
             body = r.read().decode("utf-8", "ignore")
             return r.status == 200 and '"environment":"production"' in body, body[:200]
     except Exception as exc:

@@ -20,6 +20,7 @@ def _isolate(tmp_path, monkeypatch):
     # Money path isolation: ensure interested replies don't append pricing footer
     # by default (caught by CI when UPI_VPA is set in env/data-file).
     from app.platform import upi_config
+
     monkeypatch.setattr(upi_config, "get_vpa", lambda: "")
 
 
@@ -60,7 +61,9 @@ def test_whatsapp_reply_second_message_gets_prior_context(tmp_path, monkeypatch)
     async def fake_chat(system, messages, max_tokens=90, temperature=0.6, **kw):
         calls.append({"max_tokens": max_tokens, "messages": messages})
         # max_tokens==8 => classifier; warna draft
-        return ("interested", "fake") if max_tokens == 8 else ("Bilkul! Demo bhej raha hoon.", "fake")
+        return (
+            ("interested", "fake") if max_tokens == 8 else ("Bilkul! Demo bhej raha hoon.", "fake")
+        )
 
     from app.voice_agent import free_ai
 
@@ -105,9 +108,9 @@ def test_auto_send_off_by_default(tmp_path, monkeypatch):
     monkeypatch.setattr(wa_int, "get_whatsapp_sender", lambda: _Sender())
 
     rec = asyncio.run(ra.whatsapp_reply("919876543210", "interested hoon"))
-    assert rec["draft"] == "draft reply"       # draft bana (1-click human send ke liye)
-    assert rec["auto_sent"] is False           # par bheja nahi (default OFF)
-    assert sent == []                          # sender kabhi call nahi hua
+    assert rec["draft"] == "draft reply"  # draft bana (1-click human send ke liye)
+    assert rec["auto_sent"] is False  # par bheja nahi (default OFF)
+    assert sent == []  # sender kabhi call nahi hua
     # outbound turn record nahi hua (kyunki actually gaya hi nahi)
     assert [m["role"] for m in wc.history_messages("919876543210")] == ["user"]
 

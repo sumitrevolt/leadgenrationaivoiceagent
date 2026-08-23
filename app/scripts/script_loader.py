@@ -40,9 +40,7 @@ class CallScript:
     closing: str
 
     # Compliance
-    disclosure: str = (
-        "This is an automated call from {client_name}. Press 9 at any time to be removed from our list."
-    )
+    disclosure: str = "This is an automated call from {client_name}. Press 9 at any time to be removed from our list."
 
 
 class ScriptLoader:

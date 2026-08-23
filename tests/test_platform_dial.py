@@ -46,9 +46,7 @@ async def test_platform_dial_noop_when_flag_off(monkeypatch, tmp_path):
     monkeypatch.delenv("PLATFORM_DIAL_DAILY", raising=False)
     monkeypatch.setenv("PLATFORM_DIAL_CONFIG", str(tmp_path / "absent.json"))
     touched = {}
-    monkeypatch.setattr(
-        calling, "campaign_lock_held", lambda: touched.setdefault("lock", True)
-    )
+    monkeypatch.setattr(calling, "campaign_lock_held", lambda: touched.setdefault("lock", True))
     await team_scheduler._run_job("platform_dial")
     assert "lock" not in touched
 

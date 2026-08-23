@@ -89,7 +89,7 @@ def test_completed_setup_with_content_moves_to_approval_pending(monkeypatch, tmp
             {
                 "id": f"it{i}",
                 "client_id": "c1",
-                "date": f"2026-07-{i+1:02d}",
+                "date": f"2026-07-{i + 1:02d}",
                 "type": typ,
                 "title": f"Item {i}",
                 "caption": "Nice offer",
@@ -372,9 +372,9 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
         # Next action must be a customer-safe string, not a technical status code
         assert my_row["next_action"]
         for forbidden in ("cron", "queue", "worker", "exception", "stack", "env var"):
-            assert (
-                forbidden not in my_row["next_action"].lower()
-            ), f"admin next_action leaked technical wording: {forbidden!r} in {my_row['next_action']!r}"
+            assert forbidden not in my_row["next_action"].lower(), (
+                f"admin next_action leaked technical wording: {forbidden!r} in {my_row['next_action']!r}"
+            )
 
         # --- 4. Admin delivery-logs filter ties back to this customer ---
         logs_resp = client.get(f"/api/admin/delivery-logs?client_id={client_rec['id']}").json()
@@ -403,15 +403,15 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
 
         # All 10 deliverables exist
         deliverable_ids = {d["id"] for d in customer_proof["deliverables"]}
-        assert (
-            len(deliverable_ids) == 10
-        ), f"expected 10 deliverables, got {len(deliverable_ids)}: {deliverable_ids}"
+        assert len(deliverable_ids) == 10, (
+            f"expected 10 deliverables, got {len(deliverable_ids)}: {deliverable_ids}"
+        )
 
         # The proof deliverable is now marked done (we manually published)
         proof_d = next(d for d in customer_proof["deliverables"] if d["id"] == "proof")
-        assert (
-            proof_d["status"] == "done"
-        ), f"proof should be done after publish_manual, got {proof_d}"
+        assert proof_d["status"] == "done", (
+            f"proof should be done after publish_manual, got {proof_d}"
+        )
 
         # The monthly_report deliverable is done
         report_d = next(d for d in customer_proof["deliverables"] if d["id"] == "monthly_report")

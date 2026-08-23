@@ -14,7 +14,7 @@
 ## WS-BUZZ Agent-chat coordination (CURSOR LANE B)
 - **ID:** WS-BUZZ
 - **Business outcome:** Coding tools + Boss coordinate in Buzz without ping-pong; not a 32nd STAFF
-- **Current state:** Local relay LIVE `http://127.0.0.1:3100/_liveness=ok`. OmniRoute `:20128` timeout this machine. Boss harness **dry-run ≠ LIVE**. Canonical Boss `1b13cecc`. Comb gated until correlated `#admin` canary ≥600s.
+- **Current state:** Local relay LIVE `http://127.0.0.1:3100/_liveness=ok` (2026-08-23 re-proved after outage: relay rides **Docker Desktop** — DD down = relay down; fix = start Docker Desktop, stack auto-starts, poll `/_liveness`). OmniRoute `:20128` timeout this machine. Boss harness **dry-run ≠ LIVE**. Canonical Boss `1b13cecc`. Comb gated until correlated `#admin` canary ≥600s.
 - **Next exact action:** Owner runs `python scripts/buzz_start_harness.py --agent Boss` then `@Boss` canary ≥600s in `#admin`.
 - **Out of scope:** Buzz as production control plane · using hub as 32nd STAFF
 

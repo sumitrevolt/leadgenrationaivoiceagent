@@ -2,6 +2,7 @@
 value-first delivery, paid detection, mini-site URL, dead-man detector, and the
 AUTO_DELIVER_VALUE gate. Offline (no WhatsApp send).
 """
+
 import os
 
 import pytest
@@ -16,9 +17,16 @@ def test_is_paid_client():
     assert cd.is_paid_client({"status": "active", "plan": ""}) is False
     assert cd.is_paid_client({"status": "paused", "plan": "starter"}) is False
     # self-brand entries are NOT delivery targets (company's own record)
-    assert cd.is_paid_client({"status": "active", "plan": "starter", "id": "leadgenai-self"}) is False
-    assert cd.is_paid_client({"status": "active", "plan": "growth", "business_name": "LeadGen AI"}) is False
-    assert cd.is_paid_client({"status": "active", "plan": "starter", "niche": "ai_marketing"}) is False
+    assert (
+        cd.is_paid_client({"status": "active", "plan": "starter", "id": "leadgenai-self"}) is False
+    )
+    assert (
+        cd.is_paid_client({"status": "active", "plan": "growth", "business_name": "LeadGen AI"})
+        is False
+    )
+    assert (
+        cd.is_paid_client({"status": "active", "plan": "starter", "niche": "ai_marketing"}) is False
+    )
 
 
 def test_payment_evidence_is_tri_state(monkeypatch):
@@ -33,7 +41,8 @@ def test_payment_evidence_is_tri_state(monkeypatch):
     assert cd._payment_evidence({"id": "1f89031d621a"}) is False
     # Legacy/recreated identity keeps invoice ownership via billing_client_ids.
     assert (
-        cd._payment_evidence({"id": "jiya-makeover", "billing_client_ids": ["d79d690f61b3"]}) is True
+        cd._payment_evidence({"id": "jiya-makeover", "billing_client_ids": ["d79d690f61b3"]})
+        is True
     )
 
     # Empty ledger = anomaly, NOT proof of non-payment -> UNKNOWN.
@@ -81,13 +90,17 @@ def test_has_paid_evidence_fails_open_when_ledger_unavailable(monkeypatch):
     from app.billing import gst_invoice
 
     monkeypatch.setattr(gst_invoice, "_read", lambda: [])
-    assert cd.has_paid_evidence({"id": "jiya-makeover", "status": "active", "plan": "starter"}) is True
+    assert (
+        cd.has_paid_evidence({"id": "jiya-makeover", "status": "active", "plan": "starter"}) is True
+    )
 
     def _boom():
         raise RuntimeError("ledger unreadable")
 
     monkeypatch.setattr(gst_invoice, "_read", _boom)
-    assert cd.has_paid_evidence({"id": "jiya-makeover", "status": "active", "plan": "starter"}) is True
+    assert (
+        cd.has_paid_evidence({"id": "jiya-makeover", "status": "active", "plan": "starter"}) is True
+    )
     # ...but a trial/placeholder plan is still never "paid".
     assert cd.has_paid_evidence({"id": "x", "status": "active", "plan": "trial"}) is False
 
@@ -132,7 +145,9 @@ def test_is_delivered():
 
 def test_build_delivery_message_is_value_first():
     """Message must hand over the LIVE mini-site link — value-first, not an info-ask."""
-    msg = cd.build_delivery_message({"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"})
+    msg = cd.build_delivery_message(
+        {"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"}
+    )
     assert "jiya makeover" in msg
     assert "/b/jiya-makeover-d79d" in msg
     # must NOT be the old "describe your business first" gate
@@ -222,18 +237,30 @@ def test_activation_and_acknowledgment(monkeypatch):
     (council: 'delivered = acknowledged'); non-delivered/non-paid unaffected."""
     marked = {}
     clients = [
-        {"id": "j", "status": "active", "plan": "starter", "phone": "918712928847",
-         "delivery_state": "delivered"},  # delivered paid -> should ack
-        {"id": "t", "status": "active", "plan": "trial", "phone": "9800000000",
-         "delivery_state": "delivered"},  # not paid -> ignore
+        {
+            "id": "j",
+            "status": "active",
+            "plan": "starter",
+            "phone": "918712928847",
+            "delivery_state": "delivered",
+        },  # delivered paid -> should ack
+        {
+            "id": "t",
+            "status": "active",
+            "plan": "trial",
+            "phone": "9800000000",
+            "delivery_state": "delivered",
+        },  # not paid -> ignore
     ]
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
-        lambda status=None: clients, raising=False,
+        lambda status=None: clients,
+        raising=False,
     )
     monkeypatch.setattr(
         "app.marketing.clients_store.update_client",
-        lambda cid, **kw: marked.update({"cid": cid, **kw}), raising=False,
+        lambda cid, **kw: marked.update({"cid": cid, **kw}),
+        raising=False,
     )
     # reply from jiya's number (with country code) — last-10 match
     assert cd.try_mark_acknowledged("918712928847@c.us") is True
@@ -246,8 +273,15 @@ def test_activation_and_acknowledgment(monkeypatch):
 def test_ack_ignores_unknown_number(monkeypatch):
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
-        lambda status=None: [{"id": "j", "status": "active", "plan": "starter",
-                              "phone": "918712928847", "delivery_state": "delivered"}],
+        lambda status=None: [
+            {
+                "id": "j",
+                "status": "active",
+                "plan": "starter",
+                "phone": "918712928847",
+                "delivery_state": "delivered",
+            }
+        ],
         raising=False,
     )
     assert cd.try_mark_acknowledged("919999999999") is False
@@ -287,12 +321,19 @@ def test_referral_line_only_when_configured(monkeypatch):
 
 def test_case_study_is_honest(monkeypatch):
     """Case study uses REAL assets; testimonial only if actually present."""
-    cs1 = cd.build_case_study({"id": "j", "business_name": "jiya makeover",
-                               "slug": "jiya-makeover-d79d", "niche": "beauty"})
+    cs1 = cd.build_case_study(
+        {
+            "id": "j",
+            "business_name": "jiya makeover",
+            "slug": "jiya-makeover-d79d",
+            "niche": "beauty",
+        }
+    )
     assert cs1["has_testimonial"] is False
     assert any("/b/jiya-makeover-d79d" in p for p in cs1["proof_points"])
-    cs2 = cd.build_case_study({"id": "j", "business_name": "jiya", "slug": "s",
-                               "testimonial": "Bahut accha kaam!"})
+    cs2 = cd.build_case_study(
+        {"id": "j", "business_name": "jiya", "slug": "s", "testimonial": "Bahut accha kaam!"}
+    )
     assert cs2["has_testimonial"] is True
     assert any("Bahut accha" in p for p in cs2["proof_points"])
 

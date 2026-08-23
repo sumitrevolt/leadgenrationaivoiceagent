@@ -46,7 +46,9 @@ async def test_auto_onboard_send_welcome_false_skips_welcome(monkeypatch):
 
     from app.platform import client_snapshots
 
-    monkeypatch.setattr(client_snapshots, "apply_niche_to_client", lambda cid: {"ok": True}, raising=False)
+    monkeypatch.setattr(
+        client_snapshots, "apply_niche_to_client", lambda cid: {"ok": True}, raising=False
+    )
 
     r_off = await onboarding.auto_onboard("c1", send_welcome=False)
     assert calls["welcome"] == 0

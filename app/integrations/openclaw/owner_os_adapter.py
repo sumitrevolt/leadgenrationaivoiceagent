@@ -82,8 +82,7 @@ def prove_edge_receipt(
             "verified": bool(out.get("verified")),
             "safety_lane": out.get("safety_lane") or "GREEN",
             "note": (
-                "In-process Owner-Copilot GREEN receipt "
-                "(not an external OpenClaw Gateway session)"
+                "In-process Owner-Copilot GREEN receipt (not an external OpenClaw Gateway session)"
             ),
             "receipt": {
                 "status": out.get("status"),

@@ -22,6 +22,7 @@ def test_2fa_verify_invalid_challenge_emits_admin_log(client, monkeypatch):
     monkeypatch.setattr(ct_mod, "consume_challenge", lambda t: None)
 
     import app.platform.automation_log_service as als
+
     captured: list[dict] = []
     monkeypatch.setattr(als, "log_event", lambda **kw: (captured.append(kw), "id")[1])
 
@@ -46,6 +47,7 @@ def test_2fa_verify_bad_code_emits_admin_log_with_client_id(client, monkeypatch)
     monkeypatch.setattr(ct_mod, "verify", lambda cid, code: False)
 
     import app.platform.automation_log_service as als
+
     captured: list[dict] = []
     monkeypatch.setattr(als, "log_event", lambda **kw: (captured.append(kw), "id")[1])
 
@@ -57,7 +59,9 @@ def test_2fa_verify_bad_code_emits_admin_log_with_client_id(client, monkeypatch)
     rows = [c for c in captured if c.get("job_type") == "login_failed"]
     assert len(rows) == 1
     row = rows[0]
-    assert row.get("client_id") == "c_targeted", "client_id attribution needed for targeted-attack signal"
+    assert row.get("client_id") == "c_targeted", (
+        "client_id attribution needed for targeted-attack signal"
+    )
     assert row.get("error_message") == "bad_2fa_code"
     assert (row.get("meta_json") or {}).get("stage") == "totp_verify"
 
@@ -71,11 +75,15 @@ def test_2fa_verify_success_emits_no_failure_row(client, monkeypatch):
 
     # Stub the auth-store row lookup + token creation so success returns 200.
     import app.api.customer_auth as ca
-    monkeypatch.setattr(ca, "_read", lambda: [
-        {"email": "ok@example.com", "client_id": "c_ok_2fa", "password_hash": "x"}
-    ])
+
+    monkeypatch.setattr(
+        ca,
+        "_read",
+        lambda: [{"email": "ok@example.com", "client_id": "c_ok_2fa", "password_hash": "x"}],
+    )
 
     import app.platform.automation_log_service as als
+
     captured: list[dict] = []
     monkeypatch.setattr(als, "log_event", lambda **kw: (captured.append(kw), "id")[1])
 

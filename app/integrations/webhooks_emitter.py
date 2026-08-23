@@ -313,8 +313,7 @@ class WebhookEmitter:
             if not targets:
                 # No-op path — zero config safe
                 logger.info(
-                    f"emit({event}): no matching subscribers — skipped "
-                    f"(event_id={result.event_id})"
+                    f"emit({event}): no matching subscribers — skipped (event_id={result.event_id})"
                 )
                 return result
 
@@ -551,7 +550,7 @@ class WebhookEmitter:
             except Exception as e:
                 last_error = str(e)
                 logger.error(
-                    f"webhook POST error: {url} ({e}) " f"(attempt {attempt}/{self.max_retries})"
+                    f"webhook POST error: {url} ({e}) (attempt {attempt}/{self.max_retries})"
                 )
 
             # Backoff before next attempt (last attempt ke baad nahi)

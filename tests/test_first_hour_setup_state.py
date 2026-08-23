@@ -57,9 +57,9 @@ def test_me_first_hour_setup_inactive_when_content_ready(monkeypatch):
 
     rec = {"id": "c_ready", "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=10))}
     state = _first_hour_setup_state(rec)
-    assert (
-        state["active"] is False
-    ), "content already exists — customer doesn't need the setup banner"
+    assert state["active"] is False, (
+        "content already exists — customer doesn't need the setup banner"
+    )
 
 
 def test_me_first_hour_setup_defensive_on_missing_created_at(monkeypatch):

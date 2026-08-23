@@ -232,7 +232,7 @@ def _render_html(
     return f"""<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f7fb;margin:0;padding:24px">
 <div style="max-width:560px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)">
 <div style="background:{primary};color:#fff;padding:22px 24px">
-<h2 style="margin:0">{name}</h2><div style="opacity:.9">Monthly Marketing Report — {s['month']}</div></div>
+<h2 style="margin:0">{name}</h2><div style="opacity:.9">Monthly Marketing Report — {s["month"]}</div></div>
 {summary_block}
 <table style="width:100%;border-collapse:collapse;font-size:15px">{trs}</table>
 {delivery_block}

@@ -429,7 +429,7 @@ async def _send_campaign_item(item: dict) -> dict[str, Any]:
 
     import asyncio
 
-    fallback = item.get("note") or f"{item.get('business_name','')} update"
+    fallback = item.get("note") or f"{item.get('business_name', '')} update"
     cap = wac.daily_cap()
     sent_today = wac.sent_today_count() if live else 0
     delay = wac.send_spacing_s()

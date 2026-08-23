@@ -719,7 +719,7 @@ class NaturalDialogManager:
     def _capture(self, state: DialogState, utterance: str) -> None:
         # last asked question ke against answer store karo
         if state.asked_questions:
-            key = f"q{len(state.captured)+1}_{self._slug(state.asked_questions[-1])}"
+            key = f"q{len(state.captured) + 1}_{self._slug(state.asked_questions[-1])}"
             state.captured[key] = utterance
 
     def _update_interest(self, state, utype, affect) -> None:
@@ -805,7 +805,7 @@ class NaturalDialogManager:
             cfg = NICHES.get(niche, {})
             hook = cfg.get("pitch_hook")
             if hook:
-                kb.append(f"Hum {niche.replace('_',' ')} businesses ke liye: {hook}.")
+                kb.append(f"Hum {niche.replace('_', ' ')} businesses ke liye: {hook}.")
         except Exception:
             pass
         # dedupe preserving order (packs me _global se overlap ho sakta hai)

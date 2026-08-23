@@ -220,9 +220,9 @@ def test_selfheal_cannot_prune_volumes() -> None:
     lines = _executable_lines(e["file"])
     for line in lines:
         assert "--volumes" not in line, f"prune now removes volumes: {line}"
-        assert not re.search(
-            r"\bgit\s+(reset|clean|checkout)\b", line
-        ), f"selfheal gained a git mutation, reclassify it: {line}"
+        assert not re.search(r"\bgit\s+(reset|clean|checkout)\b", line), (
+            f"selfheal gained a git mutation, reclassify it: {line}"
+        )
 
 
 def test_selfheal_prune_is_actually_present() -> None:
@@ -256,15 +256,15 @@ def test_bootstrap_target_dir_is_env_overridable() -> None:
     assert e["guard_precedes_mutation"] is True
 
     lines = _executable_lines(e["file"])
-    assert any(
-        re.search(r'LOCAL_DIR="\$\{LOCAL_DIR:-', ln) for ln in lines
-    ), "LOCAL_DIR is no longer env-overridable — re-evaluate the classification"
+    assert any(re.search(r'LOCAL_DIR="\$\{LOCAL_DIR:-', ln) for ln in lines), (
+        "LOCAL_DIR is no longer env-overridable — re-evaluate the classification"
+    )
     # The `git reset --hard` this entry was created for is now DELETED, not
     # gated — see tests/test_bootstrap_guard.py. Asserting its presence here
     # would lock in the very command the protection removed.
-    assert not any(
-        re.search(r"\bgit\s+reset\s+--hard\b", ln) for ln in lines
-    ), "the destructive reset came back"
+    assert not any(re.search(r"\bgit\s+reset\s+--hard\b", ln) for ln in lines), (
+        "the destructive reset came back"
+    )
 
 
 def test_detached_execution_is_tracked_separately_from_guarding() -> None:
@@ -335,6 +335,6 @@ def test_every_entry_declares_completion_observability() -> None:
         assert isinstance(e["detached_execution"], bool)
         assert isinstance(e["operational_completion_observable"], bool)
         if e["detached_execution"]:
-            assert (
-                e["operational_completion_observable"] is False
-            ), f"{e['deployment_id']}: detached but claims observable completion"
+            assert e["operational_completion_observable"] is False, (
+                f"{e['deployment_id']}: detached but claims observable completion"
+            )

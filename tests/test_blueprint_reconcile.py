@@ -15,8 +15,14 @@ from scripts import blueprint_reconcile as br
 
 def test_manifest_shape():
     m = br.reconcile()
-    for k in ("legacy_view_nodes", "legacy_subnodes", "legacy_edges",
-              "canonical_nodes", "counts", "entries"):
+    for k in (
+        "legacy_view_nodes",
+        "legacy_subnodes",
+        "legacy_edges",
+        "canonical_nodes",
+        "counts",
+        "entries",
+    ):
         assert k in m, f"manifest missing {k}"
     assert m["legacy_view_nodes"] > 0
     assert m["legacy_edges"] > 0
@@ -34,16 +40,17 @@ def test_deterministic_output():
     """Same input -> byte-identical manifest (no set-ordering leakage)."""
     a, b = br.reconcile(), br.reconcile()
     assert a["entries"] == b["entries"]
-    assert [e["legacy_id"] for e in a["entries"]] == sorted(
-        e["legacy_id"] for e in a["entries"]
-    )
+    assert [e["legacy_id"] for e in a["entries"]] == sorted(e["legacy_id"] for e in a["entries"])
 
 
 def test_no_legacy_node_references_a_missing_file():
     """Drift gate: a legacy node claiming `files:'x.py'` must resolve on disk."""
     m = br.reconcile()
-    stale = [(e["legacy_id"], e["files_unresolved"])
-             for e in m["entries"] if e["classification"] == "INVALID_OR_STALE"]
+    stale = [
+        (e["legacy_id"], e["files_unresolved"])
+        for e in m["entries"]
+        if e["classification"] == "INVALID_OR_STALE"
+    ]
     assert not stale, f"legacy nodes reference missing files: {stale}"
 
 
@@ -55,7 +62,7 @@ def test_merged_entries_name_a_canonical_node():
 
 
 def test_migrate_verified_is_evidence_backed():
-    """"Verified" is never granted on a description — only on a real file."""
+    """ "Verified" is never granted on a description — only on a real file."""
     m = br.reconcile()
     for e in m["entries"]:
         if e["classification"] == "MIGRATE_VERIFIED":
@@ -87,6 +94,9 @@ def test_manifest_carries_no_secrets():
     import re
 
     blob = json.dumps(br.reconcile())
-    for pat in (r"sk_[A-Za-z0-9]{8,}", r"AIza[0-9A-Za-z_\-]{20,}",
-                r"(?i)(api[_-]?key|password|secret)\s*[:=]\s*['\"][^'\"]{8,}"):
+    for pat in (
+        r"sk_[A-Za-z0-9]{8,}",
+        r"AIza[0-9A-Za-z_\-]{20,}",
+        r"(?i)(api[_-]?key|password|secret)\s*[:=]\s*['\"][^'\"]{8,}",
+    ):
         assert not re.search(pat, blob), f"secret-shaped literal in manifest: {pat}"

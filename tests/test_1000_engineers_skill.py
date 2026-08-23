@@ -74,7 +74,7 @@ def test_no_secrets_in_skill_files() -> None:
         text = path.read_text(encoding="utf-8")
         for marker in ("sk-", "api_key=", "AIza", "ghp_"):
             assert marker not in text, f"possible secret marker {marker!r} in {path.name}"
-        assert not re.search(
-            r"\bBearer\s+[A-Za-z0-9]", text
-        ), f"literal bearer token in {path.name}"
+        assert not re.search(r"\bBearer\s+[A-Za-z0-9]", text), (
+            f"literal bearer token in {path.name}"
+        )
         assert not re.search(r"\b[0-9a-f]{40,}\b", text), f"long hex literal in {path.name}"

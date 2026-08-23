@@ -51,7 +51,7 @@ if lead_file.exists():
         lines = [f"# Lead: {slug}\n"]
         for r in recs:
             lines.append(
-                f"- **{r.get('ts', '')[:10]}** — {r.get('kind','?')} leads={r.get('leads',0)} plan={r.get('plan','?')}"
+                f"- **{r.get('ts', '')[:10]}** — {r.get('kind', '?')} leads={r.get('leads', 0)} plan={r.get('plan', '?')}"
             )
         write_note("Leads", slug, "\n".join(lines), tags=["lead", "backfill"])
         counts["leads"] += 1

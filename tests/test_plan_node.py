@@ -166,8 +166,7 @@ def test_zero_review_rounds_skips_review():
 def test_max_steps_trimmed():
     async def fake(system, user, **kw):
         return (
-            '[{"agent":"dev","task":"a"},{"agent":"isha","task":"b"},'
-            '{"agent":"rohan","task":"c"}]',
+            '[{"agent":"dev","task":"a"},{"agent":"isha","task":"b"},{"agent":"rohan","task":"c"}]',
             "none",
         )
 

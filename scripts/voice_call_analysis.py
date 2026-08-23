@@ -166,37 +166,37 @@ def main() -> int:
     print("\nCALL SHAPE")
     print(
         f"  calls with 0 user turns (voicemail/IVR/no-talk): {_EMPTY_CALLS}/{_TOTAL_CALLS} "
-        f"({100*_EMPTY_CALLS/max(1,_TOTAL_CALLS):.0f}%)"
+        f"({100 * _EMPTY_CALLS / max(1, _TOTAL_CALLS):.0f}%)"
     )
     print(f"  IVR/voicemail/announcement detected           : {_IVR}")
     print(
-        f"  user_turns per call   median={pct(_USER_TURNS,50):.0f} "
-        f"p95={pct(_USER_TURNS,95):.0f}  max={max(_USER_TURNS) if _USER_TURNS else 0}"
+        f"  user_turns per call   median={pct(_USER_TURNS, 50):.0f} "
+        f"p95={pct(_USER_TURNS, 95):.0f}  max={max(_USER_TURNS) if _USER_TURNS else 0}"
     )
     print(
-        f"  call duration_s       median={pct(_DUR_S,50):.0f} "
-        f"p95={pct(_DUR_S,95):.0f}  max={max(_DUR_S) if _DUR_S else 0}"
+        f"  call duration_s       median={pct(_DUR_S, 50):.0f} "
+        f"p95={pct(_DUR_S, 95):.0f}  max={max(_DUR_S) if _DUR_S else 0}"
     )
     print(
-        f"  barge_count/call      median={pct(_BARGES,50):.0f} "
-        f"p95={pct(_BARGES,95):.0f}  max={max(_BARGES) if _BARGES else 0}"
+        f"  barge_count/call      median={pct(_BARGES, 50):.0f} "
+        f"p95={pct(_BARGES, 95):.0f}  max={max(_BARGES) if _BARGES else 0}"
     )
 
     print(f"\nLATENCY (turn_metrics, n={len(_TURN_MS)})")
     for name, data in (("stt_ms", _STT_MS), ("tts_first_ms", _TTS_FIRST_MS), ("turn_ms", _TURN_MS)):
         if data:
             print(
-                f"  {name:<12} p50={pct(data,50):8.1f}  p95={pct(data,95):8.1f}  "
-                f"avg={sum(data)/len(data):8.1f}  max={max(data):8.1f}"
+                f"  {name:<12} p50={pct(data, 50):8.1f}  p95={pct(data, 95):8.1f}  "
+                f"avg={sum(data) / len(data):8.1f}  max={max(data):8.1f}"
             )
     print(
-        f"  reply_words           p50={pct(_REPLY_WORDS,50):.0f}  "
-        f"p95={pct(_REPLY_WORDS,95):.0f}  avg={sum(_REPLY_WORDS)/max(1,len(_REPLY_WORDS)):.1f}"
+        f"  reply_words           p50={pct(_REPLY_WORDS, 50):.0f}  "
+        f"p95={pct(_REPLY_WORDS, 95):.0f}  avg={sum(_REPLY_WORDS) / max(1, len(_REPLY_WORDS)):.1f}"
     )
     if _LONG_GAP_TURNS:
         print(
             f"  TURNS >=3.5s with <=20 words (dead-air suspects): {_LONG_GAP_TURNS} "
-            f"(p50={pct(_LONG_GAP_PCT_MS,50):.0f}ms p95={pct(_LONG_GAP_PCT_MS,95):.0f}ms max={max(_LONG_GAP_PCT_MS):.0f}ms)"
+            f"(p50={pct(_LONG_GAP_PCT_MS, 50):.0f}ms p95={pct(_LONG_GAP_PCT_MS, 95):.0f}ms max={max(_LONG_GAP_PCT_MS):.0f}ms)"
         )
         print("  worst slow turns (turn_ms, words, tts_first_ms):")
         for t in sorted(_SLOW_TURNS, reverse=True)[:10]:
@@ -208,7 +208,9 @@ def main() -> int:
 
     print("\nCONVERSATION DEPTH (calls with >=2 real user turns)")
     deep = [u for u in _USER_TURNS if u >= 2]
-    print(f"  calls reaching 2+ user turns: {len(deep)} ({100*len(deep)/max(1,_TOTAL_CALLS):.0f}%)")
+    print(
+        f"  calls reaching 2+ user turns: {len(deep)} ({100 * len(deep) / max(1, _TOTAL_CALLS):.0f}%)"
+    )
     print(f"  calls reaching 4+ user turns: {sum(1 for u in _USER_TURNS if u >= 4)}")
 
     print("\nDAILY VOLUME")

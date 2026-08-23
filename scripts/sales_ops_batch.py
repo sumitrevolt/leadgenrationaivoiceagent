@@ -131,9 +131,7 @@ async def _enrich(limit: int) -> dict:
 async def _run(limit: int, apply: bool) -> int:
     stats = await _stats()
     print("DIALER_SPRINT_STATS", json.dumps(stats, ensure_ascii=False))
-    print(
-        "\nHuman action: /app/dialer se 20-30 calls/day — " f"phone-only pool={stats['phone_only']}"
-    )
+    print(f"\nHuman action: /app/dialer se 20-30 calls/day — phone-only pool={stats['phone_only']}")
     if not apply:
         print("\nDry-run only. Re-run with --apply to enrich emails.")
         return 0

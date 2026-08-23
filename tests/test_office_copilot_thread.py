@@ -12,6 +12,7 @@ tests/test_office_map_frontend.py's node --check; here we only guard that the
 thread feature + its pre-existing anchors stay present. Hermetic (no network,
 no app import) but frontend-static — CI runs it; it can also be eyeballed.
 """
+
 from pathlib import Path
 
 HTML_PATH = Path(__file__).resolve().parents[1] / "frontend" / "office_map.html"
@@ -47,7 +48,7 @@ def test_thread_persists_and_attributes():
     assert "localStorage.setItem(OFFICE.BOSS_THREAD_KEY" in SRC
     assert "slice(-20)" in SRC  # bounded history
     # attribution branches (task -> agent, broadcast -> team, else Boss)
-    assert 'Puri Team' in SRC
+    assert "Puri Team" in SRC
 
 
 def test_thread_bubble_styles_present():

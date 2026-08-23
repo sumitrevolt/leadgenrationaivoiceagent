@@ -155,9 +155,13 @@ def test_upi_auto_activated_keys_cooldown_per_payment(monkeypatch):
     not bypassed here, to prove the per-payment_id keying actually works)."""
     monkeypatch.setenv("OPS_ALERTS", "1")
     monkeypatch.setattr(ops_alerts, "_record_fire", lambda *a, **k: None)
-    monkeypatch.setattr(ops_alerts, "_read_state", lambda: {})  # empty ledger, real _cooldown_active logic
+    monkeypatch.setattr(
+        ops_alerts, "_read_state", lambda: {}
+    )  # empty ledger, real _cooldown_active logic
     calls: list[tuple] = []
-    monkeypatch.setattr(ops_alerts, "_ntfy", lambda title, message, **kw: calls.append((title, message)))
+    monkeypatch.setattr(
+        ops_alerts, "_ntfy", lambda title, message, **kw: calls.append((title, message))
+    )
 
     r1 = ops_alerts.maybe_alert_upi_auto_activated("upi_a", "cli_a", "starter", 1999)
     r2 = ops_alerts.maybe_alert_upi_auto_activated("upi_b", "cli_b", "starter", 1999)

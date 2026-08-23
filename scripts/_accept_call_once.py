@@ -17,9 +17,7 @@ async def main() -> None:
     print("PLACE", datetime.datetime.utcnow().isoformat() + "Z")
     r = await start_stream_call(to=to, niche="ai_marketing", call_type="transactional")
     print(json.dumps({k: r.get(k) for k in ("placed", "error", "stream_token")}, default=str))
-    with open(
-        "/tmp/last_accept_call.json", "w", encoding="utf-8"
-    ) as f:  # nosec B108 — VPS canary scratch
+    with open("/tmp/last_accept_call.json", "w", encoding="utf-8") as f:  # nosec B108 — VPS canary scratch
         f.write(json.dumps(r, default=str))
 
 

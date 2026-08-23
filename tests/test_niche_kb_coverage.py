@@ -52,6 +52,6 @@ def test_overlay_enrichment_applied():
     """Depth overlay (niche_knowledge_extra) base packs me merge hua ho."""
     # ayurveda_wellness overlay me >=4 facts add karte hain → merged pack richer hona chahiye
     p = NICHE_KNOWLEDGE.get("ayurveda_wellness", {})
-    assert (
-        len(p.get("facts", [])) >= 5
-    ), "Depth overlay merge nahi hua (ayurveda_wellness facts kam)"
+    assert len(p.get("facts", [])) >= 5, (
+        "Depth overlay merge nahi hua (ayurveda_wellness facts kam)"
+    )

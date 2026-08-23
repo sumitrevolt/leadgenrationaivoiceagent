@@ -65,8 +65,7 @@ class TestRealNamesAccepted:
 class TestWebsearchContactRequirement:
     def test_websearch_no_contact_rejected(self):
         assert (
-            ingest_reject_reason("Sharma Interiors", "", "", "websearch")
-            == "websearch_no_contact"
+            ingest_reject_reason("Sharma Interiors", "", "", "websearch") == "websearch_no_contact"
         )
 
     def test_websearch_email_only_ok(self):

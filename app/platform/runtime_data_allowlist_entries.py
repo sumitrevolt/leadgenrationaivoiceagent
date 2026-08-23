@@ -1329,8 +1329,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "billing",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Writes go through the atomic tmp+replace pair only — never a bare "
-            "append on this path."
+            "Writes go through the atomic tmp+replace pair only — never a bare append on this path."
         ),
     },
     {
@@ -1369,9 +1368,7 @@ ENTRIES: list[dict[str, Any]] = [
         "target_change_set": "runtime-data-cutover-wave-3",
         "owner": "growth",
         "production_relevance": "LIVE",
-        "review_condition": (
-            "Flip only moves status lead→paid; never fabricates conversions."
-        ),
+        "review_condition": ("Flip only moves status lead→paid; never fabricates conversions."),
     },
     {
         "allowlist_id": "marketing.affiliates.referrals_tmp",
@@ -1381,8 +1378,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "marketing.affiliates",
         "access_modes": ["REWRITE", "REPLACE"],
         "reason": (
-            "Atomic temp for the referral paid-flip rewrite (tmp + os.replace) "
-            "under file_lock."
+            "Atomic temp for the referral paid-flip rewrite (tmp + os.replace) under file_lock."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",
@@ -1433,8 +1429,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "sales.prospects",
         "access_modes": ["READ"],
         "reason": (
-            "Board enrichment variant reads the same hunter CSV READ-ONLY. "
-            "One-shot offline script."
+            "Board enrichment variant reads the same hunter CSV READ-ONLY. One-shot offline script."
         ),
         "migration_tier": 3,
         "target_change_set": "runtime-data-cutover-wave-3",

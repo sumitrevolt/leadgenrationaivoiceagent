@@ -28,15 +28,15 @@ def test_complete_on_terminal_punct(text):
 @pytest.mark.parametrize(
     "text",
     [
-        "mujhe lagta hai ki yeh sahi hai because",   # English dangling
+        "mujhe lagta hai ki yeh sahi hai because",  # English dangling
         "haan but",
         "karna to hai and",
-        "le lunga warna",                            # new Hinglish
+        "le lunga warna",  # new Hinglish
         "woh banda jiska",
-        "mujhe chahiye kyunki",                      # existing Hinglish
-        "dekhiye matlab",                            # filler
-        "thoda ruko,",                               # trailing comma
-        "haan -",                                    # trailing dash
+        "mujhe chahiye kyunki",  # existing Hinglish
+        "dekhiye matlab",  # filler
+        "thoda ruko,",  # trailing comma
+        "haan -",  # trailing dash
     ],
 )
 def test_incomplete_keeps_listening(text):
@@ -46,7 +46,7 @@ def test_incomplete_keeps_listening(text):
 @pytest.mark.parametrize(
     "text",
     [
-        "mujhe ek website chahiye",   # plain words, no punct -> let audio decide
+        "mujhe ek website chahiye",  # plain words, no punct -> let audio decide
         "",
         "   ",
     ],

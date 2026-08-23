@@ -23,7 +23,9 @@ def test_nested_router_paths_and_methods_are_effective():
 
     routes = list(iter_effective_routes(app.routes))
     paths = {getattr(route, "path", "") for route in routes}
-    ping_route = next(route for route in routes if getattr(route, "path", "") == "/api/v1/nested/ping")
+    ping_route = next(
+        route for route in routes if getattr(route, "path", "") == "/api/v1/nested/ping"
+    )
 
     assert "/api/v1/nested/ping" in paths
     assert "/api/v1/nested/stream" in paths

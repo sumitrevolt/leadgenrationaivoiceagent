@@ -76,7 +76,9 @@ def starter_price_inr() -> int:
 
         for p in PACKAGES:
             if str(p.get("key") or "") == "starter":
-                return int(p.get("price_inr_month") or p.get("price_inr") or get_starter_price_inr())
+                return int(
+                    p.get("price_inr_month") or p.get("price_inr") or get_starter_price_inr()
+                )
         return int(get_starter_price_inr())
     except Exception:
         return 1999

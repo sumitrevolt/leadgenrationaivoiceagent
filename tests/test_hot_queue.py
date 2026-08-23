@@ -16,16 +16,41 @@ def _seed(tmp_path, monkeypatch):
     f = tmp_path / "reply_drafts.jsonl"
     rows = [
         # a@x.com ke 2 rows — dedupe me sirf LATEST (at=..10T12) rehna chahiye
-        {"from": "a@x.com", "subject": "old ping", "intent": "interested",
-         "draft": "purana draft", "at": "2026-06-10T09:00:00+00:00"},
-        {"from": "a@x.com", "subject": "price batao", "intent": "interested",
-         "draft": "naya draft", "at": "2026-06-10T12:00:00+00:00"},
-        {"from": "b@y.com", "subject": "kaise kaam karta?", "intent": "question",
-         "draft": "demo link", "at": "2026-06-20T10:00:00+00:00"},
-        {"from": "c@z.com", "subject": "newsletter", "intent": "other",
-         "draft": "", "at": "2026-06-21T10:00:00+00:00"},
-        {"from": "d@w.com", "subject": "unsub", "intent": "not_interested",
-         "draft": "", "at": "2026-06-22T10:00:00+00:00"},
+        {
+            "from": "a@x.com",
+            "subject": "old ping",
+            "intent": "interested",
+            "draft": "purana draft",
+            "at": "2026-06-10T09:00:00+00:00",
+        },
+        {
+            "from": "a@x.com",
+            "subject": "price batao",
+            "intent": "interested",
+            "draft": "naya draft",
+            "at": "2026-06-10T12:00:00+00:00",
+        },
+        {
+            "from": "b@y.com",
+            "subject": "kaise kaam karta?",
+            "intent": "question",
+            "draft": "demo link",
+            "at": "2026-06-20T10:00:00+00:00",
+        },
+        {
+            "from": "c@z.com",
+            "subject": "newsletter",
+            "intent": "other",
+            "draft": "",
+            "at": "2026-06-21T10:00:00+00:00",
+        },
+        {
+            "from": "d@w.com",
+            "subject": "unsub",
+            "intent": "not_interested",
+            "draft": "",
+            "at": "2026-06-22T10:00:00+00:00",
+        },
     ]
     f.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))

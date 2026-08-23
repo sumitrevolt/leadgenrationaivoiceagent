@@ -158,7 +158,7 @@ def _label(text: str) -> str:
 def _reply_draft(business: str, mention: dict[str, str]) -> str:
     return (
         f"Namaste! {business} ki team se — aapki baat humne dekhi "
-        f"(\"{mention.get('title', '')[:80]}\"). Hum sach me sudharna chahte hain; "
+        f'("{mention.get("title", "")[:80]}"). Hum sach me sudharna chahte hain; '
         "kya aap details share kar sakte hain? Hum personally resolve karenge. "
         "DM/call dono open hai — dhanyavaad ki aapne bataya. 🙏"
     )

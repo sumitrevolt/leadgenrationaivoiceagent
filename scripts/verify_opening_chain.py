@@ -219,7 +219,7 @@ def main() -> int:
         else:
             print(f"{_OK} C) answer-stream XML me opening_line qs present — session override reach")
             print(
-                f"      ws snippet: {xml[xml.find('opening_line=')-40:xml.find('opening_line=')+80]}"
+                f"      ws snippet: {xml[xml.find('opening_line=') - 40 : xml.find('opening_line=') + 80]}"
             )
 
     print("-" * 60)

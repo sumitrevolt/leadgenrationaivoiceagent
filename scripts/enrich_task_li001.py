@@ -7,6 +7,7 @@ ONLY from the CSV's own notes field, offer ladder from packages.py rules
 
 HubSpot push: skipped fail-closed if HUBSPOT_API_KEY unset -> crm_status=pending_token.
 """
+
 import csv
 import json
 import os
@@ -34,7 +35,11 @@ for row in rows:
     phone = row.get("contact_phone", "").strip()
 
     # Contact quality from REAL columns only
-    if email.startswith("public") or phone.startswith("public") or "via site" in (email + phone).lower():
+    if (
+        email.startswith("public")
+        or phone.startswith("public")
+        or "via site" in (email + phone).lower()
+    ):
         contact_q = "form_only"
     elif email and phone:
         contact_q = "email+phone"
@@ -51,28 +56,32 @@ for row in rows:
     first_sentence = notes.split(".")[0].strip() if notes else "Manual delivery bottleneck"
     pain_thesis = f"{first_sentence}. Manual audit/delivery workload = labor-cost bottleneck jo AI Marketing automate karta hai."
 
-    out.append({
-        "lead_id": lid,
-        "company": row["company"],
-        "location": row.get("location", ""),
-        "industry": industry,
-        "score": score,
-        "pain_thesis": pain_thesis,
-        "recommended_offer": recommended_offer,
-        "next_action": "route_to_sales_cadence",
-        "contact_quality": contact_q,
-        "contact_email": "" if email.startswith("public") else email,
-        "contact_phone": "" if phone.startswith("public") else phone,
-        "consent_basis": row.get("consent_basis", "Public contact"),
-        "crm_status": "synced" if has_hubspot else "pending_token",
-    })
+    out.append(
+        {
+            "lead_id": lid,
+            "company": row["company"],
+            "location": row.get("location", ""),
+            "industry": industry,
+            "score": score,
+            "pain_thesis": pain_thesis,
+            "recommended_offer": recommended_offer,
+            "next_action": "route_to_sales_cadence",
+            "contact_quality": contact_q,
+            "contact_email": "" if email.startswith("public") else email,
+            "contact_phone": "" if phone.startswith("public") else phone,
+            "consent_basis": row.get("consent_basis", "Public contact"),
+            "crm_status": "synced" if has_hubspot else "pending_token",
+        }
+    )
 
 with open(DST, "w", encoding="utf-8") as f:
     for rec in out:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 print(f"WROTE {len(out)} records -> {DST}")
-print(f"HUBSPOT_API_KEY set: {has_hubspot} -> crm_status={'synced' if has_hubspot else 'pending_token'}")
+print(
+    f"HUBSPOT_API_KEY set: {has_hubspot} -> crm_status={'synced' if has_hubspot else 'pending_token'}"
+)
 offers = {}
 for r in out:
     offers[r["recommended_offer"]] = offers.get(r["recommended_offer"], 0) + 1

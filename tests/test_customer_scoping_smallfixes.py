@@ -33,9 +33,7 @@ class TestReferralUsesRealSlug:
     def test_real_slug_used_in_link(self):
         # jiya makeover ka stored slug business-naam se derive-able NAHI hai
         # (kebab(name)+id-suffix). REAL slug pass karo => link usi ka ho.
-        r = referral_kit.make_referral(
-            "Jiya Makeover", reward="20% off", slug="jiya-makeover-d79d"
-        )
+        r = referral_kit.make_referral("Jiya Makeover", reward="20% off", slug="jiya-makeover-d79d")
         assert r["slug"] == "jiya-makeover-d79d"
         assert "https://leadsgenai.in/b/jiya-makeover-d79d?ref=" in r["link"]
         # code abhi bhi link me (ref=)
@@ -89,9 +87,7 @@ class TestReportScopedOmitsGlobalNumbers:
 
     def test_scoped_report_shows_no_global_numbers(self, fake_global_events):
         out = asyncio.run(
-            monthly_report.build_report(
-                client_name="Jiya Makeover", client_id="d79d690f61b3"
-            )
+            monthly_report.build_report(client_name="Jiya Makeover", client_id="d79d690f61b3")
         )
         assert out["scoped"] is True
         # global counts (5 events) MUST NOT leak into this client's report
@@ -155,7 +151,9 @@ class TestCarouselClientCta:
 
     def test_phone_cta_when_no_slug(self):
         assert carousel.client_cta(phone="8712928847").endswith("8712928847")
-        assert carousel.client_cta(slug="jiya-makeover-d79d") == "leadsgenai.in/b/jiya-makeover-d79d"
+        assert (
+            carousel.client_cta(slug="jiya-makeover-d79d") == "leadsgenai.in/b/jiya-makeover-d79d"
+        )
         assert carousel.client_cta() == ""
 
     def test_brand_primary_applied(self, monkeypatch):

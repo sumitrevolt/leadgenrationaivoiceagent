@@ -212,8 +212,7 @@ def _is_booking_intent(text: str) -> bool:
     ):
         return True
     return any(
-        w in (text or "")
-        for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "टाइम बदल")
+        w in (text or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "टाइम बदल")
     )
 
 

@@ -157,7 +157,7 @@ def _extract_api_endpoints(html: str) -> list[dict]:
     # method hints
     for ep in endpoints:
         ctx_match = re.search(
-            rf"""['"`]{re.escape(ep['path'])}['"`][^{{]*method\s*:\s*['"`](\w+)['"`]""", html, re.I
+            rf"""['"`]{re.escape(ep["path"])}['"`][^{{]*method\s*:\s*['"`](\w+)['"`]""", html, re.I
         )
         if ctx_match:
             ep["method"] = ctx_match.group(1).upper()
@@ -489,7 +489,7 @@ def scan_dashboard(filepath: pathlib.Path, dashboard_name: str) -> dict:
     # Add feature IDs
     features = []
     for i, f in enumerate(raw_features):
-        f["id"] = f"feat_{dashboard_name[:3].lower()}_{i+1:03d}"
+        f["id"] = f"feat_{dashboard_name[:3].lower()}_{i + 1:03d}"
         f["dashboard"] = dashboard_name.lower()
         features.append(f)
 

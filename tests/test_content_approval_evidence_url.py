@@ -303,9 +303,9 @@ def test_migration_execute_rewrites_and_is_idempotent(isolated_store):
     assert "client_id=" not in latest["a1"]["evidence_url"]
     assert "cust-a" not in latest["a1"]["evidence_url"]
     assert latest["a1"]["status"] == "published", "status must be preserved"
-    assert (
-        latest["a1"]["published_at"] == "2026-07-11T10:00:00+00:00"
-    ), "timestamp must be preserved"
+    assert latest["a1"]["published_at"] == "2026-07-11T10:00:00+00:00", (
+        "timestamp must be preserved"
+    )
 
     # Idempotent: re-run should produce 0 new rewrites
     r2 = ca.migrate_evidence_urls(dry_run=False)

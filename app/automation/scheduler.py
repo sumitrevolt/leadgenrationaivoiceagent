@@ -267,7 +267,8 @@ class CallScheduler:
 
         start_date = datetime.now(self.tz).date()
         daily_limit = min(
-            total_calls // days, self.config.calls_per_hour * 8  # Max 8 hours of calling
+            total_calls // days,
+            self.config.calls_per_hour * 8,  # Max 8 hours of calling
         )
 
         for day_offset in range(days):

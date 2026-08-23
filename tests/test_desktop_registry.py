@@ -65,7 +65,14 @@ def test_registry_loads_with_all_required_fields():
     for app in out["apps"]:
         for key in _REQUIRED_KEYS:
             assert key in app, f"app {app.get('id')} missing {key}"
-    assert {a["id"] for a in out["apps"]} == {"freebuff", "android", "opencode", "cursor", "hermes", "buzz"}
+    assert {a["id"] for a in out["apps"]} == {
+        "freebuff",
+        "android",
+        "opencode",
+        "cursor",
+        "hermes",
+        "buzz",
+    }
 
 
 def test_registry_slice_shape():

@@ -16,6 +16,7 @@ formatter, and asserts:
   3. The surrounding non-sensitive context IS preserved (so debugging still
      works).
 """
+
 from __future__ import annotations
 
 import json
@@ -29,6 +30,7 @@ from app.utils import logger as log_mod
 # --------------------------------------------------------------------------- #
 # Pure `redact_message` unit tests
 # --------------------------------------------------------------------------- #
+
 
 @pytest.mark.parametrize(
     "raw,forbidden,expected_marker",
@@ -106,6 +108,7 @@ def test_redact_message_preserves_non_sensitive_context():
 # found this session; locked here so it can't regress.
 # --------------------------------------------------------------------------- #
 
+
 @pytest.mark.parametrize(
     "raw,secret",
     [
@@ -145,12 +148,15 @@ def test_redact_message_does_not_over_redact_non_secrets(raw, preserved):
 
 def test_redact_message_fail_safe_returns_original_on_error(monkeypatch):
     """Regex error must NOT break logging — return original (safer)."""
+
     class _EvilStr(str):
         def __str__(self):
             raise RuntimeError("boom")
 
     # We can't easily force a regex error, so simulate by patching the compiled RE.
-    fake = type("FakePat", (), {"sub": lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("regex boom"))})()
+    fake = type(
+        "FakePat", (), {"sub": lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("regex boom"))}
+    )()
     monkeypatch.setattr(log_mod, "_MESSAGE_KV_REDACT_RE", fake)
     r = log_mod.redact_message("hello world")
     assert r == "hello world"
@@ -164,6 +170,7 @@ def test_redact_message_no_op_on_empty():
 # --------------------------------------------------------------------------- #
 # Formatter-integration tests: sensitive values must not reach emitted logs
 # --------------------------------------------------------------------------- #
+
 
 def _make_record(msg: str) -> logging.LogRecord:
     return logging.LogRecord(
@@ -220,10 +227,19 @@ def test_env_flag_defaults_to_on(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 _REQUIRED_NAMES = (
-    "token", "access_token", "refresh_token",
-    "api_key", "apikey", "secret", "client_secret",
-    "authorization", "password", "signature", "code",
-    "verify_token", "webhook_secret",
+    "token",
+    "access_token",
+    "refresh_token",
+    "api_key",
+    "apikey",
+    "secret",
+    "client_secret",
+    "authorization",
+    "password",
+    "signature",
+    "code",
+    "verify_token",
+    "webhook_secret",
 )
 
 

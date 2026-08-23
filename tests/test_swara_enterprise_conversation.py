@@ -299,7 +299,7 @@ def test_question_discipline_preserves_pricing_after_customer_question():
     """Rhetorical double-? must not cut pricing/setup detail after the 2nd ?."""
     b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     hist = [{"role": "user", "content": "price kya hai aapka?"}]
-    raw = "Interested hain? Budget kitna? " "Basic plan 1999 se start hota hai — setup free hai."
+    raw = "Interested hain? Budget kitna? Basic plan 1999 se start hota hai — setup free hai."
     out = b._apply_question_discipline(raw, "price kya hai aapka?", hist)
     assert "1999" in out
     assert "setup free" in out.lower()
