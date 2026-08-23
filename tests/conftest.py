@@ -692,10 +692,6 @@ def _reset_rate_limit_state():
     yield
 
 
-import asyncio
-import pytest
-
-
 @pytest.fixture(autouse=True, scope="session")
 def suppress_unclosable_tasks_in_ci():
     """CI hotfix: suppress async_generator_athrow Task destroyed warnings
