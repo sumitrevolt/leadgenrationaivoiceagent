@@ -179,13 +179,12 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 - **Next Highest Priority:** DSH shadow-run events monitor; Hot Queue money actions (owner); Kamal inputs.
 
 ## Loop Run
-- **Date:** 2026-08-23 (Swara prosody + latency tune, autopilot ₹5L/7d)
-- **Goal:** Owner directive — Swara "1 sec delay nahi chahiye", slow speech tez karo, pitch deep karo; OmniRoute flagship best model Swara use kare.
-- **Inspected:** vobiz_stream.py prosody knobs (TTS_RATE/PITCH/SILENCE_MS), web_call.py TTS synth, omniroute_voice.py + omniroute_client.py swara_live route, latency.py optimizer layers, turn_detector shared knobs, existing contract tests. Found: flagship combo `leadgen-swara-flagship` ALREADY committed (1690f412, aaj) + test green — code-side model wiring complete; jo bacha tha wo prosody+latency tha.
-- **Problems Found:** (1) turn-end silence 650ms = sabse bada fixed delay contributor; (2) rate +28% owner ke hisaab se abhi bhi slow; (3) pitch default khali = voice-native high pitch; (4) web_call test tautological tha (env se padh ke wahi assert — R4 violation).
-- **Changed:** SILENCE_MS default 650→500ms; TTS_RATE default +28%→+32%; TTS_PITCH default ""→"-8Hz" (dono phone+web paths match); test_web_call_edge.py ko real source-contract test banaya (prosody defaults dono files me pin).
-- **Tests Run:** test_web_call_edge + test_phase3_voice 17 passed · omniroute_voice+vobiz_token+watchdog+no_deadair+turn_detector 48 passed · ruff clean · prod_check ALL PASSED (1348 routes) · check_secrets clean.
-- **Verification Evidence:** pytest exit 0 ×2 suites; `[OK] ALL CHECKS PASSED - ready to deploy`; secrets scan OK. Local-only — NOT deployed (push/deploy owner confirm baaki).
-- **Risks:** 500ms silence mid-sentence pause clip kar sakta hai (grace logic mitigates); -8Hz/+32% taste-boundar hain — env VOBIZ_TTS_RATE/VOBIZ_TTS_PITCH se turant dial-back; flagship combo TTFT Groq se dheema ho sakta hai (groq/gpt-oss-120b fallback + breaker fail-open covered).
-- **Remaining:** OWNER: push+deploy → /app/test-call pe sunke sign-off; prod me OMNIROUTE_ENABLED=1 + OMNIROUTE_VOICE=1 arm (gateway :20128 reachability verify karke).
-- **Next Highest Priority:** ₹5L/7d plan execution — Hot Queue warm leads close (owner), dialer 100/day LIVE churn, deploy ke baad Swara quality conversion-ready.
+- **Date:** 2026-08-23 (Swara prosody + latency tune — CLEAN branch)
+- **Goal:** Owner directive — Swara "1 sec delay nahi chahiye", slow speech tez, pitch deep; OmniRoute flagship best model. Push+deploy owner-approved.
+- **Inspected:** vobiz_stream/web_call prosody knobs, omniroute_client swara_live route, latency layers, contract tests. NOTE: pehla PR #440 parallel-session ke 22 unpushed commits se contaminated tha (revenue-sprint/DSH WIP) jiske CI failures mere change se unrelated the — isliye ye CLEAN branch origin/main se banayi (worktree isolate).
+- **Changed:** swara_live route primary -> `leadgen-swara-flagship` (cherry-pick 1690f412) · turn-end silence 650->500ms · TTS_RATE +28%->+32% · TTS_PITCH ""->"-8Hz" · web_call WEB_TTS_PITCH parity · tautological test -> real source-contract test.
+- **Tests Run:** web_call_edge+omniroute_voice+phase3 28 passed · ruff check+format clean · prod_check ALL PASSED (1363 ops).
+- **Verification Evidence:** pytest exit 0; `[OK] ALL CHECKS PASSED - ready to deploy`; secrets scan clean (root tree).
+- **Risks:** 500ms pause-clip edge (grace mitigates); -8Hz/+32% env se dial-back; flagship TTFT Groq se dheema ho sakta (fallback+breaker covered).
+- **Remaining:** OWNER prod env: OMNIROUTE_ENABLED=1 + OMNIROUTE_VOICE=1 (+gateway :20128 reach verify). Deploy ke baad /app/test-call sign-off.
+- **Next Highest Priority:** Deploy verify /health.version == merge sha; ₹5L sprint me Swara quality conversion-ready.
