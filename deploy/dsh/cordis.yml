@@ -1,6 +1,7 @@
 # LeadGen hardened DSH composition.
-# No Bash, filesystem, jobs, browser, subagent, scheduler, skills, telemetry,
-# persistence backend, direct provider adapter, workspace discovery, or UI.
+# Excluded by policy: Bash, filesystem, jobs, browser, subagent, scheduler, skills,
+# telemetry, direct provider adapter, workspace discovery, UI. Session persistence =
+# container-local files only (2026-08-23 Tier-1 add, owner-approved; ADR-182 gates).
 
 - id: invariants
   name: '@deepseek-ai/dsh-invariants'
@@ -116,8 +117,3 @@
   name: '@deepseek-ai/dsh-timeout'
   config:
     defaultTimeoutMs: 60000
-
-- id: llm-retry
-  name: '@deepseek-ai/dsh-llm-retry'
-  config:
-    maxAttempts: 3
