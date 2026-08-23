@@ -766,6 +766,14 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=8, minute=10),
         "args": ("daily_owner_brief",),
     },
+    # Trial-to-paid nudge — BLK-02 (2026-08-23). INERT unless TRIAL_NUDGE_ENABLED=1
+    # (run_trial_nudge no-ops when off / TRIAL_NUDGE_HARD_OFF=1 blocks always).
+    # Email-only; WhatsApp text sirf owner 1-click human ke liye return hota hai.
+    "staff-trial-nudge-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=9, minute=50),
+        "args": ("trial_nudge",),
+    },
     # Expired agent-task lease close-out (ADR-150). MUST be here, not only in the
     # in-process scheduler_loop: production runs `celery -A app.worker beat` with
     # RUN_IN_PROCESS_SCHEDULER=0, so an in-process-only job is DEAD in prod — the

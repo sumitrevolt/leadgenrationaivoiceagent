@@ -218,6 +218,7 @@ _last_ran: dict[str, str | None] = {
     "reply_auto_send": None,  # hourly :30: safe known-prospect auto-reply sweep (gated REPLY_AUTO_SEND; INERT off)
     "content_approval_sweep": None,  # daily 04:30: orphaned-pending approval retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
     "daily_owner_brief": None,  # daily 08:10: owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
+    "trial_nudge": None,  # daily 09:50: trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED)
 }
 
 
@@ -1599,6 +1600,14 @@ async def _run_job_inner(job: str) -> bool:
             from app.integrations import gsc
 
             await gsc.run_daily_async()
+        elif job == "trial_nudge":
+            # Trial-to-paid nudge — expiring/expired trials ko Starter UPI link
+            # email (BLK-02 2026-08-23). INERT unless TRIAL_NUDGE_ENABLED=1
+            # (job body no-ops; TRIAL_NUDGE_HARD_OFF=1 always blocks).
+            # Email-only: WhatsApp text sirf OWNER 1-click human ke liye.
+            from app.billing import trial_nudge as _tn
+
+            await _tn.run_trial_nudge()
         elif job == "afternoon_content":
             # 2nd daily content-generation pass (afternoon) — Isha extra social
             # batch (self + clients). Gated AFTERNOON_CONTENT (default OFF; LLM cost).
@@ -1722,6 +1731,11 @@ async def scheduler_loop() -> None:
             if (0, 30) <= hm < (1, 0) and _last_ran["gsc_rank"] != day_key:
                 _last_ran["gsc_rank"] = day_key
                 await _run_job("gsc_rank")  # GSC rank snapshot (light, gated GSC_ENABLED)
+            if (9, 50) <= hm < (10, 50) and _last_ran["trial_nudge"] != day_key:
+                _last_ran["trial_nudge"] = day_key
+                await _run_job(
+                    "trial_nudge"
+                )  # trial UPI nudge email (light, gated TRIAL_NUDGE_ENABLED)
             if (2, 30) <= hm < (4, 0) and _last_ran["qa"] != day_key:
                 _last_ran["qa"] = day_key
                 await _run_job("qa")
