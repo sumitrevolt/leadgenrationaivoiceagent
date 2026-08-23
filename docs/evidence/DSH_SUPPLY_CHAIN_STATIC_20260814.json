@@ -34,7 +34,7 @@
   "evidence_label": "STATIC_VERIFIED",
   "input_sha256": {
     ".github/workflows/dsh-runtime.yml": "8f5026da6b457dd1cc19a97268ab567b8e1ad6e1e28dcbfe827a7101921028f1",
-    "app/tasks/dsh_jobs.py": "4699bdb034ee0eacf809d3d5e8fccaf8d8c999f80b7b1df9d0ccbaaeeacc173e",
+    "app/tasks/dsh_jobs.py": "314fe2a3f031296d0ceb2892627da7d0b08f37fb1a67dbadd657f2cb890acd65",
     "deploy/dsh/Dockerfile": "6588866d6c9854c90c7082230587fb3f208a688c275815a9750a2b3d06eaa2a5",
     "deploy/dsh/cordis.yml": "4299b6102acb75b34f4e2b9344439cf0a38a248cf2bfb575d59beab8d82d6a05",
     "deploy/dsh/hardening.patch": "6f3da7d7a0f8b96c56452537d73df8cb3cb4190b0b875069f94099004a8d42d0",
@@ -47,7 +47,7 @@
     "docker-compose.vps.yml": "5806d2cb5ec636d968bfa149354ae177c83f92cabb65d7fcfefce62ec9e11a9c",
     "requirements-dsh.lock.txt": "2878906d4ed49b2ab5f78a3b891d8581dd33a46fa8717ddeb0a27fb7a6650b42",
     "scripts/assemble_dsh_ci_evidence.py": "f644797a4220d8b555e959bfe626a648eb50e955e33ee5d163c0c0084e474093",
-    "scripts/dsh_runtime_smoke.py": "5ad575e4e84cbfd4a97c79a531c0d77f7317eae0c897e06db19848c5c60eee77",
+    "scripts/dsh_runtime_smoke.py": "6e21a10b6b3c9c5958e4b37f5f8f74cbbd592c8d3d7ca1cca56710991d16835b",
     "tests/fixtures/dsh_fake_gateway.py": "1d3e3f6808c58e56044ffde4a3e11a0928c8c556e60c467d4927b6ef45a45e06"
   },
   "runtime_state": "INERT_NOT_BUILT",
