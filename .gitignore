@@ -154,6 +154,7 @@ credentials/
 *.json
 !package.json
 !.mcp.json
+!opencode.json
 # The skill CI ratchet requires trigger-cases.json for newly-added skills
 # (scripts/skill_evals/check_repo_skills.py); the blanket `*.json` above
 # silently excluded it, making that gate unsatisfiable.
