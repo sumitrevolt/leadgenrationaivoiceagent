@@ -24,8 +24,11 @@
       "@deepseek-ai/dsh-mcp-client",
       "@deepseek-ai/dsh-sdk-jsonrpc-server",
       "@deepseek-ai/dsh-session",
+      "@deepseek-ai/dsh-session-persistence",
       "@deepseek-ai/dsh-system-prompt",
-      "@deepseek-ai/dsh-tools"
+      "@deepseek-ai/dsh-timeout",
+      "@deepseek-ai/dsh-tools",
+      "@deepseek-ai/dsh-user-approval"
     ]
   },
   "evidence_label": "STATIC_VERIFIED",
@@ -33,7 +36,7 @@
     ".github/workflows/dsh-runtime.yml": "8f5026da6b457dd1cc19a97268ab567b8e1ad6e1e28dcbfe827a7101921028f1",
     "app/tasks/dsh_jobs.py": "28dc675eb2e3f686b20567108360331e7ac704d3313c7ad10e1bcc180edd2957",
     "deploy/dsh/Dockerfile": "6588866d6c9854c90c7082230587fb3f208a688c275815a9750a2b3d06eaa2a5",
-    "deploy/dsh/cordis.yml": "2accd148bb34b8d6af176a450a6f8e572e3f07e9d8f034b8b2d6b18b41522e47",
+    "deploy/dsh/cordis.yml": "8d0ec8f4d5f680c283ab6d15c325d6c219e96796c356f46621bc0960a9f876fe",
     "deploy/dsh/hardening.patch": "6f3da7d7a0f8b96c56452537d73df8cb3cb4190b0b875069f94099004a8d42d0",
     "deploy/dsh/normalize_sea_binary.py": "2202d7587b2dc14d829614e546a757f74d6398e41e1e5a3e5b6cc9ce00c2e0c4",
     "deploy/dsh/runtime.package.json": "6649cd3a3fc2626c4dc3dbf33d010d935e498e3f2e55db49937c2df486f31c6c",
