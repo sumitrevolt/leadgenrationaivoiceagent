@@ -122,10 +122,12 @@ class TestSwaraLiveRoute:
         from app.platform.omniroute_client import get_task_route
 
         route = get_task_route(ov.TASK_SWARA_LIVE, ov.PRIVACY_CUSTOMER_MASKED)
-        # 2026-07-18: voice hot-path pinned to the dedicated fast gateway combo
-        # (groq -> mistral -> gemini); free-first burns voice max_tokens on
-        # reasoning_content and streams zero `content` deltas.
-        assert route.primary_model == "leadgen-swara-live"
+        # 2026-08-23 OWNER DIRECTIVE: voice hot-path pinned to the flagship combo
+        # `leadgen-swara-flagship` (antigravity Gemini 3.1 Pro / Claude Opus 4.6
+        # head, smoke 200). Old swara-live (groq->mistral->gemini) stays in the
+        # gateway DB as fallback; client-side fallback = groq gpt-oss-120b.
+        assert route.primary_model == "leadgen-swara-flagship"
+        assert route.fallback_model == "groq/openai/gpt-oss-120b"
         assert route.privacy_class == "CUSTOMER_MASKED"
 
     def test_wrong_privacy_rejected(self):
