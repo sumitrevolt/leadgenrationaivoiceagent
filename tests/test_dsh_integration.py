@@ -13,10 +13,10 @@ from unittest.mock import patch
 
 import pytest
 
-
 # Try to import the integration module. If unavailable, tests will fail gracefully.
 try:
     from app.integrations import dsh as dsh_integration
+
     DSH_AVAILABLE = True
 except ImportError:
     DSH_AVAILABLE = False
@@ -171,11 +171,13 @@ class TestDSHIntegrationContract:
     def test_integration_module_importable(self):
         """Verify DSH integration module is importable."""
         from app.integrations import dsh as dsh_mod
+
         assert dsh_mod is not None
 
     def test_all_required_functions_present(self):
         """Verify all required functions are present."""
         from app.integrations import dsh as dsh_mod
+
         assert hasattr(dsh_mod, "is_dsh_runtime_enabled")
         assert hasattr(dsh_mod, "is_dsh_shadow_enabled")
         assert hasattr(dsh_mod, "get_dsh_allowlist")

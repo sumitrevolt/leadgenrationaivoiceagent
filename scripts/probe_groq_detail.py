@@ -3,6 +3,7 @@
 gpt-oss models are REASONING models: they spend tokens in `reasoning` and can
 return empty content when max_tokens is too low. This prints the evidence.
 """
+
 import asyncio
 import sys
 import time
@@ -31,8 +32,8 @@ async def main() -> None:
     c1 = r1.choices[0]
     print(
         f"T1_oss20b_tok10 ms={int((time.time() - t0) * 1000)} "
-        f"finish={c1.finish_reason!r} content={((c1.message.content or ''))[:30]!r} "
-        f"reasoning={getattr(c1.message, 'reasoning', None) and str(getattr(c1.message, 'reasoning'))[:40]!r}"
+        f"finish={c1.finish_reason!r} content={(c1.message.content or '')[:30]!r} "
+        f"reasoning={getattr(c1.message, 'reasoning', None) and str(c1.message.reasoning)[:40]!r}"
     )
 
     # Test 2: same model with generous max_tokens
