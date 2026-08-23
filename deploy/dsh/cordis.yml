@@ -99,3 +99,25 @@
   name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
   config:
     maxTokensAsSuccess: false
+
+# --- Tier-1 plugin adds 2026-08-23 (PR: big-project handling; INERT until armed soak) ---
+# Owner-approved 2026-08-23 ("sab karo"). ADR-182 gates apply: shadow soak -> owner
+# promotion. Persistence = session files inside hardened container only (no external
+# backend, no tenant data paths). user-approval = in-run owner gate surface (R8 map);
+# read-only planning runs never trigger it.
+
+- id: session-persistence
+  name: '@deepseek-ai/dsh-session-persistence'
+
+- id: user-approval
+  name: '@deepseek-ai/dsh-user-approval'
+
+- id: timeout
+  name: '@deepseek-ai/dsh-timeout'
+  config:
+    defaultTimeoutMs: 60000
+
+- id: llm-retry
+  name: '@deepseek-ai/dsh-llm-retry'
+  config:
+    maxAttempts: 3
