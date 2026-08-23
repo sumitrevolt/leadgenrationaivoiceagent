@@ -97,3 +97,5 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 - Add ?1,999/mo Starter Voice tier (100 min)
 - Launch freemium (10 free calls/month forever)
 - Add '?66/day � less than a cup of chai' framing
+
+- 2026-08-23: trial-nudge ADMIN UI tab (stats card in Mission Control) — API-only-adhoora rule ke hisaab se pending; job LIVE hai par dashboard surface nahi. Saath me Sharma-trials data-source reconciliation (marketing_clients.jsonl me eligible trials zero — signup→trial-flag wiring check karo).
