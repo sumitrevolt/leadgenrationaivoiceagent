@@ -1,83 +1,30 @@
-#!/usr/bin/env python
-"""Run wiring_gaps() self-diagnosis."""
-import os
+"""run_wiring_gaps.py — Board-run wiring-gaps audit (PR #421 runner).
+
+Prints automation_health().wiring_gaps so 'flag ON but backend/creds missing'
+surfaces before it bites. Exits 1 on gaps found.
+"""
 import sys
 
-# Add repo root to Python path
-repo_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, repo_root)
-
-# Determine which python to use
-venv_python = r"C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.venv\Scripts\python.exe"
-if os.path.exists(venv_python):
-    python_exe = venv_python
-    print(f"Using venv: {venv_python}")
-else:
-    python_exe = sys.executable
-    print(f"WARNING: .venv not found at {venv_python}")
-    print(f"Using system python: {sys.executable}")
-
-print("\n=== ENVIRONMENT VARIABLES ===")
-known_env_vars = [
-    "BOSS_FULL_AUTONOMY",
-    "GSC_ENABLED",
-    "CRM_SYNC",
-    "META_APP_ID",
-    "META_APP_SECRET",
-    "POSTIZ_API_KEY",
-    "WAHA_API_KEY",
-    "WAHA_BASE_URL",
-    "WAHA_SESSION",
-    "ZOHO_CLIENT_ID",
-    "ZOHO_CLIENT_SECRET",
-    "ZOHO_REFRESH_TOKEN",
-    "HUBSPOT_API_KEY",
-    "GSC_SERVICE_ACCOUNT_JSON",
-    "GOOGLE_SHEETS_CREDENTIALS",
-]
-for var in known_env_vars:
-    val = os.getenv(var, "MISSING")
-    print(f"{var}: {val}")
-
-print("\n=== RUNNING wiring_gaps() ===")
 try:
-    from app.platform.automation_health import wiring_gaps
+    from app.platform.automation_health import health
 
-    gaps = wiring_gaps()
-
+    h = health()
+    gaps = h.get("wiring_gaps") or []
     if not gaps:
-        print("No wiring gaps detected!")
-    else:
-        print(f"Found {len(gaps)} wiring gap(s):\n")
-        for i, gap in enumerate(gaps, 1):
-            print(f"{i}. [{gap['key']}]")
-            print(f"   Flag ON: {gap['flag_on']}")
-            print(f"   Missing: {gap['missing']}")
-            print(f"   Note: {gap['note']}")
-            print()
-
+        print("WIRING_GAPS_OK 0 gaps — armed flags sab wired.")
+        sys.exit(0)
+    print(f"WIRING_GAPS {len(gaps)} gap(s):")
+    for g in gaps:
+        flag = g.get("flag", "?")
+        missing = g.get("missing", "?")
+        print(f"  - {flag}: {missing}")
+    sys.exit(1)
 except ImportError as e:
-    print(f"Import error: {e}")
-    print("\nThis may be due to missing dependencies or environment variables.")
-    print("Checking for commonly needed env vars that might cause import issues...")
-    # Try to give hints based on error message
-    err_str = str(e).lower()
-    if "zoho" in err_str or "crm_sync" in err_str:
-        print("  -> Possible missing Zoho CRM credentials:")
-        print("     ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN")
-    if "gsc" in err_str or "google" in err_str or "sheets" in err_str:
-        print("  -> Possible missing Google service account credentials:")
-        print("     GSC_SERVICE_ACCOUNT_JSON, GOOGLE_SHEETS_CREDENTIALS")
-    if "postiz" in err_str:
-        print("  -> Possible missing Postiz API key:")
-        print("     POSTIZ_API_KEY")
-    if "whatsapp" in err_str or "waha" in err_str:
-        print("  -> Possible missing WhatsApp/Waha credentials:")
-        print("     WAHA_API_KEY, WAHA_BASE_URL, WAHA_SESSION")
-    if "meta" in err_str or "facebook" in err_str:
-        print("  -> Possible missing Meta credentials:")
-        print("     META_APP_ID, META_APP_SECRET")
+    print(f"Import failed: {e}")
+    sys.exit(2)
 except Exception as e:
     print(f"Unexpected error: {e}")
     import traceback
+
     traceback.print_exc()
+    sys.exit(3)
