@@ -1,13 +1,15 @@
 """Simple verification script for DSH integration."""
+
 import os
 import sys
 
 # Add the current directory to the Python path
-sys.path.insert(0, '.')
+sys.path.insert(0, ".")
 
 # Import the DSH integration module
 try:
     from app.integrations import dsh as dsh_integration
+
     print("[OK] DSH integration module imported successfully")
 except ImportError as e:
     print(f"[FAIL] Failed to import DSH integration: {e}")
@@ -92,7 +94,9 @@ result = dsh_integration.get_dsh_allowlist()
 if result == {"agent1", "agent2", "agent3"}:
     print("[OK] Multiple agents allowlist parsed correctly")
 else:
-    print(f"[FAIL] Multiple agents allowlist should be {{'agent1', 'agent2', 'agent3'}}, got: {result}")
+    print(
+        f"[FAIL] Multiple agents allowlist should be {{'agent1', 'agent2', 'agent3'}}, got: {result}"
+    )
     sys.exit(1)
 
 # Test 9: Allowlist check (agent in allowlist)

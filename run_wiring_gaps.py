@@ -3,6 +3,7 @@
 Prints automation_health().wiring_gaps so 'flag ON but backend/creds missing'
 surfaces before it bites. Exits 1 on gaps found.
 """
+
 import sys
 
 try:
