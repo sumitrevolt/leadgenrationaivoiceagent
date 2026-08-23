@@ -70,9 +70,6 @@
             contextWindow: 32768
             maxTokens: 2048
 
-- id: llm-retry
-  name: '@deepseek-ai/dsh-llm-retry'
-
 - id: agent-loop
   name: '@deepseek-ai/dsh-agent-loop'
   config:
