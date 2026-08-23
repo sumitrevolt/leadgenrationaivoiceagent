@@ -231,6 +231,28 @@ def _stream_num(name: str, default: float) -> float:
 _STREAM_FIRST_TOKEN_S = _stream_num("LLM_STREAM_FIRST_TOKEN_S", 5.0)  # wait for the 1st delta
 _STREAM_IDLE_S = _stream_num("LLM_STREAM_IDLE_S", 3.0)  # max gap between deltas once flowing
 _STREAM_TOTAL_S = _stream_num("LLM_STREAM_TOTAL_S", 12.0)  # overall wall budget per provider
+# 2026-08-23 realtime RACE budgets (top-2 providers simultaneous; tighter than the
+# sequential ladder because a loser costs nothing — winner's clock is what matters).
+_RACE_CREATE_S = _stream_num("LLM_RACE_CREATE_S", 3.5)  # race: create() handshake deadline
+_RACE_FIRST_TOKEN_S = _stream_num("LLM_RACE_FIRST_TOKEN_S", 2.5)  # race: 1st delta deadline
+
+
+def _realtime_race_enabled(profile: str) -> bool:
+    """Owner directive 2026-08-23 ("enterprise grade chat, 1s bhi dead-air nahi"):
+    realtime turns apne top-2 providers ko SIMULTANEOUSLY race karte hain — jo
+    pehla content token de wahi jeeta; loser cancel. Slow/429-ing primary ab turn
+    ko block nahi karta (pehle sequential ladder me ek stalled primary poora
+    _CALL_TIMEOUT_S=8s kha sakta tha — live call me llm_first 6.8s naapa gaya).
+    Sirf realtime/voice profile; bulk untouched. Kill-switch: LLM_REALTIME_RACE=0."""
+    if profile != "realtime":
+        return False
+    return os.getenv("LLM_REALTIME_RACE", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
 
 # Circuit-breaker: jab koi provider 429/rate-limit de, use skip karo (har call pe
 # wasted retry-latency na ho). Auto-reopen. UPGRADE (patches 6e7af062/c01b6766):
@@ -758,6 +780,14 @@ async def chat_provider(
         return "", p
 
     tlim = timeout_s if timeout_s and timeout_s > 0 else max(_CALL_TIMEOUT_S, 30.0)
+    # 2026-08-23 fix: gpt-oss* = REASONING models — hidden reasoning tokens
+    # `max_tokens` se pehle khate hain. Prod evidence: telecaller max_tokens=56
+    # par Groq gpt-oss-20b ne finish='length' + content='' diya (T1 probe);
+    # max_tokens=512 par 'GROQ_OK' (T2). Bina headroom ke har voice turn top-2
+    # providers (groq+cerebras dono gpt-oss) se EMPTY aata tha -> Mistral fallback.
+    _mt = int(max_tokens or 0)
+    if "gpt-oss" in (model or "") and 0 < _mt < 512:
+        _mt = 512
     _t0 = time.monotonic()
     try:
         with _llm_span("chat_provider", model=model, provider=p) as _obs:
@@ -765,7 +795,7 @@ async def chat_provider(
                 client.chat.completions.create(
                     model=model,
                     messages=msgs,
-                    max_tokens=max_tokens,
+                    max_tokens=_mt,
                     temperature=temperature,
                 ),
                 timeout=tlim,
@@ -975,13 +1005,18 @@ async def chat(
         if _blocked_for_provider(msgs, provider):
             continue
         _t0 = time.monotonic()
+        # 2026-08-23 fix: reasoning-model token headroom (see chat_provider note).
+        # gpt-oss* hidden reasoning tokens max_tokens khate hain -> content=''.
+        _mt = int(max_tokens or 0)
+        if "gpt-oss" in (model or "") and 0 < _mt < 512:
+            _mt = 512
         try:
             with _llm_span("chat", model=model, provider=provider) as _obs:
                 resp = await asyncio.wait_for(
                     client.chat.completions.create(
                         model=model,
                         messages=msgs,
-                        max_tokens=max_tokens,
+                        max_tokens=_mt,
                         temperature=temperature,
                     ),
                     timeout=_CALL_TIMEOUT_S,
@@ -1042,6 +1077,96 @@ async def chat(
     return "", ""
 
 
+async def _race_open_first(
+    provider: str,
+    model: str,
+    msgs: list[dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+):
+    """Race leg: open one provider's stream and capture its FIRST content delta.
+    Returns (provider, model, stream, iterator, first_delta). Raises on
+    timeout/error; closes its own stream on any failure/cancel. Never yields."""
+    stream = None
+    try:
+        client = _client(provider)
+        if client is None:
+            raise RuntimeError("client unavailable")
+        stream = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model,
+                messages=msgs,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=True,
+            ),
+            timeout=_RACE_CREATE_S,
+        )
+        it = stream.__aiter__()
+        while True:
+            chunk = await asyncio.wait_for(it.__anext__(), timeout=_RACE_FIRST_TOKEN_S)
+            delta = ""
+            try:
+                delta = chunk.choices[0].delta.content or ""
+            except Exception:
+                delta = ""
+            if delta:
+                return (provider, model, stream, it, delta)
+    except BaseException:
+        if stream is not None:
+            try:
+                await stream.aclose()
+            except Exception:
+                pass
+        raise
+
+
+async def _race_top2(chain: list[tuple[str, str]], msgs, max_tokens, temperature):
+    """Start the top-2 usable chain entries concurrently; return the first leg
+    that produced a content delta (losers cancelled), else None. Providers whose
+    legs FAILED (not merely cancelled-loser) get their cooldown tripped so the
+    sequential tail skips them this turn."""
+    cands: list[tuple[str, str]] = []
+    for provider, model in chain:
+        if len(cands) >= 2:
+            break
+        if _provider_down(provider) or _client(provider) is None:
+            continue
+        if _blocked_for_provider(msgs, provider):
+            continue
+        cands.append((provider, model))
+    if len(cands) < 2:
+        return None
+
+    tasks = {
+        asyncio.create_task(_race_open_first(p, m, msgs, max_tokens, temperature)): (p, m)
+        for p, m in cands
+    }
+    pending = set(tasks)
+    winner = None
+    while pending and winner is None:
+        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        for t in done:
+            p, m = tasks[t]
+            exc = t.exception()
+            if exc is None:
+                winner = t.result()
+                for o in pending:
+                    o.cancel()
+                try:
+                    await asyncio.gather(*pending, return_exceptions=True)
+                except Exception:
+                    pass
+                pending = set()
+            else:
+                _trip_cooldown(p, _err_str(exc))
+    if pending:
+        for o in pending:
+            o.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+    return winner
+
+
 async def chat_stream(
     system: str,
     messages: list[dict[str, str]],
@@ -1091,6 +1216,52 @@ async def chat_stream(
     prof = _resolve_llm_profile(profile, max_tokens)
 
     chain = _build_llm_chain(prof)
+
+    # REALTIME RACE (owner 2026-08-23): top-2 providers simultaneous — pehla
+    # content token jeeta. Winner ko sequential loop jaisi hi budgets (idle/total),
+    # breaker aur metrics treatment milti hai; dono legs fail ho to cooldowns trip
+    # hoke sequential tail (mistral + extras) normal chalta hai.
+    if _realtime_race_enabled(prof):
+        _win = await _race_top2(chain, msgs, max_tokens, temperature)
+        if _win is not None:
+            provider, model, stream, it, first = _win
+            _t0 = time.monotonic()
+            try:
+                yield first
+                while True:
+                    if (time.monotonic() - _t0) > _STREAM_TOTAL_S:
+                        raise asyncio.TimeoutError("stream total budget exceeded")
+                    try:
+                        chunk = await asyncio.wait_for(it.__anext__(), timeout=_STREAM_IDLE_S)
+                    except StopAsyncIteration:
+                        break
+                    delta = ""
+                    try:
+                        delta = chunk.choices[0].delta.content or ""
+                    except Exception:
+                        delta = ""
+                    if delta:
+                        yield delta
+                _reset_cooldown_streak(provider)
+                try:
+                    from app.platform import llm_metrics
+
+                    llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
+                except Exception:
+                    pass
+                return
+            except Exception as e:
+                # Partial speech already gone out -> STOP (sequential restart would
+                # duplicate/garble the spoken reply); non-stream caller fallback
+                # finishes the turn. Same contract as the sequential ladder.
+                _trip_cooldown(provider, _err_str(e))
+                logger.debug("[free_ai] %s race-winner stream stalled: %s", provider, e)
+                try:
+                    await stream.aclose()
+                except Exception:
+                    pass
+                return
+
     for provider, model in chain:
         if _provider_down(provider):
             continue
