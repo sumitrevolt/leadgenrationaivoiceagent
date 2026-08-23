@@ -1,4 +1,4 @@
-﻿"""Offline, deterministic policy proof for the hardened DSH source build."""
+"""Offline, deterministic policy proof for the hardened DSH source build."""
 
 from __future__ import annotations
 
