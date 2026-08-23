@@ -457,6 +457,13 @@ _OVERRIDES: dict[str, FlagMeta] = {
         notes="Per-tool Claude heartbeat HMAC",
         risk="security",
     ),
+    "COORD_HUB_TOOL_HERMES_SECRET": _m(
+        "COORD_HUB_TOOL_HERMES_SECRET",
+        FlagValueKind.SECRET,
+        FlagGovernance.SECRET_NEVER_EXPOSE,
+        notes="Per-tool Hermes Desktop heartbeat HMAC (desktop registry id 'hermes')",
+        risk="security",
+    ),
     "COORD_PLAN_NODE": _m(
         "COORD_PLAN_NODE",
         FlagValueKind.BOOLEAN,
