@@ -68,7 +68,14 @@ STATUS_CANCELLED = "cancelled"
 _PAYABLE = {STATUS_ISSUED}
 _STATUSES = {STATUS_ISSUED, STATUS_PAID, STATUS_SUPERSEDED, STATUS_EXPIRED, STATUS_CANCELLED}
 
+#: Custom-amount offers (DFY setup fee, promo-discounted re-issues) ke liye
+#: sanity floor — ₹99 se neeche ka "order" sale nahi hota.
+CUSTOM_MIN_INR = 99
+CUSTOM_MAX_INR = 1_000_000
+
 __all__ = [
+    "CUSTOM_MAX_INR",
+    "CUSTOM_MIN_INR",
     "DEFAULT_TTL_DAYS",
     "STATUS_CANCELLED",
     "STATUS_EXPIRED",
@@ -76,6 +83,7 @@ __all__ = [
     "STATUS_PAID",
     "STATUS_SUPERSEDED",
     "get_offer",
+    "issue_custom_offer",
     "issue_offer",
     "list_offers",
     "mark_status",
@@ -284,17 +292,21 @@ def _issue_locked(
     client_id: str,
     ttl_days: int,
     supersedes: str,
+    *,
+    reuse_live: bool = True,
+    label: str = "",
 ) -> dict[str, Any] | None:
     rows = _read()
 
-    for r in rows:
-        if (
-            r.get("deal_id") == did
-            and str(r.get("package_code") or "") == code
-            and r.get("status") == STATUS_ISSUED
-            and not _is_expired(r)
-        ):
-            return dict(r)  # idempotent reuse — same quote, same reference
+    if reuse_live:
+        for r in rows:
+            if (
+                r.get("deal_id") == did
+                and str(r.get("package_code") or "") == code
+                and r.get("status") == STATUS_ISSUED
+                and not _is_expired(r)
+            ):
+                return dict(r)  # idempotent reuse — same quote, same reference
 
     version = 1 + sum(1 for r in rows if r.get("deal_id") == did)
     ref = _new_order_ref({str(r.get("order_ref") or "") for r in rows})
@@ -311,6 +323,8 @@ def _issue_locked(
         "created_at": now.isoformat(),
         "expires_at": (now + timedelta(days=max(1, int(ttl_days or DEFAULT_TTL_DAYS)))).isoformat(),
     }
+    if label:
+        rec["label"] = str(label)[:120]
     if prospect_id:
         rec["prospect_id"] = str(prospect_id)
     if client_id:
@@ -326,6 +340,66 @@ def _issue_locked(
     if not _write_all(rows):
         return None
     return dict(rec)
+
+
+def issue_custom_offer(
+    deal_id: str,
+    package_code: str,
+    quoted_amount: int,
+    *,
+    label: str = "",
+    prospect_id: str = "",
+    client_id: str = "",
+    ttl_days: int = DEFAULT_TTL_DAYS,
+    supersedes: str = "",
+    reuse_live: bool = False,
+) -> dict[str, Any] | None:
+    """EXPLICIT-amount offer — admin-gated custom quotes (DFY setup fee) aur
+    promo-discounted supersede orders ke liye (revenue sprint 2026-08-23).
+
+    ``issue_offer`` sirf catalogue price resolve karta hai; ye function caller
+    ka frozen amount leta hai with hard bounds (₹99..₹10L) — isliye SIRF
+    admin-authenticated / engine-internal callers use kar sakte hain, kabhi
+    public input par nahi. Fail-closed: bad amount/deal → None, kabhi raise
+    nahi. ``reuse_live=False`` (default) guaranteed-new order banata hai taaki
+    promo-derived offers apne parent se distinct rahen.
+    """
+    did = (deal_id or "").strip()
+    code = (package_code or "").strip().lower()
+    if not did or not code:
+        return None
+    try:
+        amount = int(quoted_amount)
+    except Exception:
+        return None
+    if amount < CUSTOM_MIN_INR or amount > CUSTOM_MAX_INR:
+        logger.warning(
+            "[offers] refusing custom offer out of bounds: %s (%s)", amount, code
+        )
+        return None
+
+    try:
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_store()) as locked:
+            if not locked:
+                logger.warning("[offers] could not lock store; refusing to issue")
+                return None
+            return _issue_locked(
+                did,
+                code,
+                amount,
+                "INR",
+                prospect_id,
+                client_id,
+                ttl_days,
+                supersedes,
+                reuse_live=reuse_live,
+                label=label,
+            )
+    except Exception as e:
+        logger.warning("[offers] issue_custom_offer failed: %s", e)
+        return None
 
 
 def get_offer(order_ref: str) -> dict[str, Any] | None:
