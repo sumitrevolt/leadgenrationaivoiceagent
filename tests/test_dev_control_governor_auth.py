@@ -8,7 +8,6 @@ from app.dev_control.governor_auth import (
     verify_governor_attestation,
 )
 
-
 TASK_ID = "task-auth-1"
 ARTIFACT_HASH = "a" * 64
 CLAUDE_SECRET = "c" * 40
@@ -93,16 +92,16 @@ def test_governor_secrets_are_not_interchangeable(monkeypatch):
 
 def test_stale_future_and_malformed_attestations_fail(monkeypatch):
     monkeypatch.setenv("DEV_CLAUDE_REVIEW_SECRET", CLAUDE_SECRET)
-    common = dict(
-        task_id=TASK_ID,
-        governor="claude",
-        decision="approve",
-        artifact_hash=ARTIFACT_HASH,
-        summary="safe",
-        nonce=NONCE,
-        signature=_signature(),
-        now=NOW,
-    )
+    common = {
+        "task_id": TASK_ID,
+        "governor": "claude",
+        "decision": "approve",
+        "artifact_hash": ARTIFACT_HASH,
+        "summary": "safe",
+        "nonce": NONCE,
+        "signature": _signature(),
+        "now": NOW,
+    }
     assert (
         verify_governor_attestation(issued_at=str(NOW - 301), **common)["reason"]
         == "timestamp_outside_window"

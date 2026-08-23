@@ -26,15 +26,15 @@ from app.dev_control.context_packets import (
 
 
 def _packet(**overrides):
-    base = dict(
-        task_id="t-100",
-        commit_sha="abc1234",
-        size_class="standard",
-        task_goal="Fix the UPI submit 404",
-        business_impact="unblocks live payment path",
-        acceptance_criteria=["route returns 200", "contract test green"],
-        relevant_files=["app/api/upi.py"],
-        code_excerpts=[
+    base = {
+        "task_id": "t-100",
+        "commit_sha": "abc1234",
+        "size_class": "standard",
+        "task_goal": "Fix the UPI submit 404",
+        "business_impact": "unblocks live payment path",
+        "acceptance_criteria": ["route returns 200", "contract test green"],
+        "relevant_files": ["app/api/upi.py"],
+        "code_excerpts": [
             {
                 "path": "app/api/upi.py",
                 "start": 1,
@@ -42,9 +42,9 @@ def _packet(**overrides):
                 "text": "from pydantic import BaseModel",
             }
         ],
-        do_not_change=["app/marketing/packages.py"],
-        security_rules=["no secrets in prompts"],
-    )
+        "do_not_change": ["app/marketing/packages.py"],
+        "security_rules": ["no secrets in prompts"],
+    }
     base.update(overrides)
     return build_context_packet(**base)
 
@@ -173,20 +173,20 @@ def test_repeat_identical_prompt_is_refused():
 
 # ---------------------------------------------------------------- handoff packets
 def _handoff_fields(**overrides):
-    fields = dict(
-        work_completed="atomic claim implemented",
-        files_changed=["app/dev_control/claims.py"],
-        commands_run=["pytest tests/test_dev_control_claims.py -q"],
-        tests_run="6",
-        tests_passing="6",
-        tests_failing="0",
-        current_blocker="none",
-        likely_cause="n/a",
-        next_exact_action="wire API layer",
-        investigations_already_completed=["checked reconcile path"],
-        decisions_made=["conditional UPDATE over advisory locks"],
-        remaining_risk="low",
-    )
+    fields = {
+        "work_completed": "atomic claim implemented",
+        "files_changed": ["app/dev_control/claims.py"],
+        "commands_run": ["pytest tests/test_dev_control_claims.py -q"],
+        "tests_run": "6",
+        "tests_passing": "6",
+        "tests_failing": "0",
+        "current_blocker": "none",
+        "likely_cause": "n/a",
+        "next_exact_action": "wire API layer",
+        "investigations_already_completed": ["checked reconcile path"],
+        "decisions_made": ["conditional UPDATE over advisory locks"],
+        "remaining_risk": "low",
+    }
     fields.update(overrides)
     return fields
 
