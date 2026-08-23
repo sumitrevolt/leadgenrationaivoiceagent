@@ -188,3 +188,14 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 - **Risks:** 500ms pause-clip edge (grace mitigates); -8Hz/+32% env se dial-back; flagship TTFT Groq se dheema ho sakta (fallback+breaker covered).
 - **Remaining:** OWNER prod env: OMNIROUTE_ENABLED=1 + OMNIROUTE_VOICE=1 (+gateway :20128 reach verify). Deploy ke baad /app/test-call sign-off.
 - **Next Highest Priority:** Deploy verify /health.version == merge sha; ₹5L sprint me Swara quality conversion-ready.
+
+## Loop Run
+- **Date:** 2026-08-23 (Realtime LLM race — Swara <1s first-audio, round 2)
+- **Goal:** Owner: "abhi enterprise grade chat nahi kar pa rahi, 1 second to bolna hi nahi chahiye."
+- **Inspected:** Prod turn_metrics (live call aaj): llm_first = 2189/6839/6334ms — bottleneck LLM. llm_calls.jsonl: mistral 3272ms, groq 6738ms spikes; gemini chain retired-model 404 se pehle hi out. free_ai.chat_stream sequential ladder + _CALL_TIMEOUT_S=8s/_STREAM_FIRST_TOKEN_S=5s = stalled primary poora budget kha jata tha.
+- **Changed:** free_ai.py me REALTIME RACE (LLM_REALTIME_RACE default-ON, sirf realtime profile): top-2 providers (groq+cerebras) simultaneous create+first-delta race (_RACE_CREATE_S=3.5/_RACE_FIRST_TOKEN_S=2.5), winner jeeta loser cancel; dono fail -> cooldown trip -> sequential tail unchanged; partial-stream stall contract mirrored. Bulk profile untouched.
+- **Tests Run:** naya tests/test_free_ai_realtime_race.py (5 tests: flag/winner-cancelled/both-fail-fallthrough/single-candidate/env-off) + realtime_chain_order + voice_llm_race + pii_gate = 20 passed · ruff clean · prod_check PASS · secrets clean.
+- **Verification Evidence:** pytest exit 0; [OK] ALL CHECKS PASSED; deploy ke baad live turn_metrics re-probe planned.
+- **Risks:** double concurrent calls on free tiers (quota burn ~2x per voice turn, breaker+cooldowns waise hi lagu); race winner mid-stream stall = same stop-and-fallback contract.
+- **Remaining:** deploy + live call se llm_first_ms verify (<1000ms target p50); OmniRoute flagship gateway install abhi bhi pending (owner infra).
+- **Next Highest Priority:** live probe scorecard; gateway install jab source available ho.
