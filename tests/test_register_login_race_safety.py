@@ -94,8 +94,8 @@ def test_signup_returns_409_on_race_claimed_email(client, monkeypatch):
     """Integration: public_signup path handles the `email_claimed` return by
     raising the same 409 the initial dedupe check uses — no silent hijack."""
     import app.api.customer_auth as ca
-    import app.marketing.clients_store as cs
     import app.billing.usage as usage
+    import app.marketing.clients_store as cs
 
     # Initial login_exists check passes (row seeded AFTER, simulating race).
     monkeypatch.setattr(ca, "login_exists", lambda e: False)

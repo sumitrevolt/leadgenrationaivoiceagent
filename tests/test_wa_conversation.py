@@ -101,8 +101,8 @@ def test_auto_send_off_by_default(tmp_path, monkeypatch):
             sent.append((to, msg))
             return {"messages": [{"id": "x"}]}
 
-    from app.voice_agent import free_ai
     from app.integrations import whatsapp as wa_int
+    from app.voice_agent import free_ai
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
     monkeypatch.setattr(wa_int, "get_whatsapp_sender", lambda: _Sender())
@@ -131,8 +131,8 @@ def test_auto_send_on_sends_and_records_outbound(tmp_path, monkeypatch):
             sent.append((to, msg))
             return {"messages": [{"id": "x"}]}
 
-    from app.voice_agent import free_ai
     from app.integrations import whatsapp as wa_int
+    from app.voice_agent import free_ai
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
     monkeypatch.setattr(wa_int, "get_whatsapp_sender", lambda: _Sender())
@@ -158,8 +158,8 @@ def test_auto_send_never_for_unsubscribe(tmp_path, monkeypatch):
             sent.append((to, msg))
             return {"messages": [{"id": "x"}]}
 
-    from app.voice_agent import free_ai
     from app.integrations import whatsapp as wa_int
+    from app.voice_agent import free_ai
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
     monkeypatch.setattr(wa_int, "get_whatsapp_sender", lambda: _Sender())

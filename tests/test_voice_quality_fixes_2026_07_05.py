@@ -11,7 +11,6 @@ from app.voice_agent import telecaller_brain as tb
 from app.voice_agent.guardrails import get_guardrails
 from app.voice_agent.intent_detector import IntentDetector, IntentType
 
-
 # --- Batch 1: compliance -----------------------------------------------------
 
 

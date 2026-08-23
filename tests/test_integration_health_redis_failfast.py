@@ -29,7 +29,6 @@ import pytest
 
 from app.platform import integration_health as ih
 
-
 # --------------------------------------------------------------------------- #
 # Test-mode policy
 # --------------------------------------------------------------------------- #
@@ -99,7 +98,7 @@ class _RedisConnectHang:
     def ping(self):
         import socket
 
-        raise socket.timeout("timed out")
+        raise TimeoutError("timed out")
 
 
 def test_redis_ping_connection_error_degrades_safely(monkeypatch):

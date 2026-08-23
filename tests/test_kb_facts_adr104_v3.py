@@ -28,8 +28,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.voice_agent import telecaller_brain as tcb  # noqa: E402
 from app.voice_agent import kb_readiness  # noqa: E402
+from app.voice_agent import telecaller_brain as tcb  # noqa: E402
 
 
 def _make_brain(niche: str = "real_estate", client_id: str | None = None):

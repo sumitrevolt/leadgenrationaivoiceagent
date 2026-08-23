@@ -18,7 +18,6 @@ import pytest
 
 from app.marketing import post_generator
 
-
 # --- realistic LLM outputs (free models markdown decoration daal dete hain) --- #
 
 MARKDOWN_BOLD_FIXTURE = (

@@ -33,8 +33,8 @@ def _clear_signup_bucket(monkeypatch):
 def _stub_signup_side_effects(monkeypatch, cid: str = "c_al"):
     """Mirror pattern from test_p1_audit_fixes_2026_06_27._stub_signup_side_effects."""
     import app.api.customer_auth as ca
-    import app.marketing.clients_store as cs
     import app.billing.usage as usage
+    import app.marketing.clients_store as cs
 
     monkeypatch.setattr(
         cs,
@@ -150,9 +150,9 @@ def test_signup_token_mint_failure_logs_at_warning_level(client, monkeypatch):
 def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
     """RED-first: activate_plan returns False → response has plan_provisioned=False,
     log at WARNING, but signup still succeeds (account created)."""
-    from app.marketing import clients_store as cs
     import app.api.customer_auth as ca
     import app.billing.usage as usage
+    from app.marketing import clients_store as cs
 
     monkeypatch.setattr(
         cs, "add_client", lambda **k: {"id": "c_pp", "business_name": k.get("business_name")}
@@ -180,9 +180,9 @@ def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
 
 def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
     """When activate_plan raises → response has plan_provisioned=False + WARNING log."""
-    from app.marketing import clients_store as cs
     import app.api.customer_auth as ca
     import app.billing.usage as usage
+    from app.marketing import clients_store as cs
 
     monkeypatch.setattr(
         cs, "add_client", lambda **k: {"id": "c_ppr", "business_name": k.get("business_name")}
@@ -222,9 +222,9 @@ def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
 
 def test_signup_trial_skips_plan_provisioning(client, monkeypatch):
     """Trial signup MUST NOT call plan provisioning — returns plan_provisioned=False."""
-    from app.marketing import clients_store as cs
     import app.api.customer_auth as ca
     import app.billing.usage as usage
+    from app.marketing import clients_store as cs
 
     monkeypatch.setattr(
         cs, "add_client", lambda **k: {"id": "c_tr", "business_name": k.get("business_name")}
