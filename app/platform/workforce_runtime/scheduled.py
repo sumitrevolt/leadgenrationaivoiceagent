@@ -42,6 +42,7 @@ NEVER_DSH_SCHEDULED_JOBS = frozenset(
         "hq_auto_chase",
         "reply_auto_send",
         "content_approval_sweep",
+        "trial_nudge",  # customer-contact lane (trial UPI email) — direct path only
     }
 )
 

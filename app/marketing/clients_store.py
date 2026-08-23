@@ -597,6 +597,9 @@ _ALLOWED_FIELDS = {
     "blocked_reason",  # admin-facing tech error / reason blocked
     "email_notifications",  # approval/report email delivery preference
     "approval_email_opt_out",  # explicit approval-reminder opt-out
+    "trial_nudge_stage",  # str — last trial nudge stage ("expiring"/"expired") — trial_nudge.py idempotency (BLK-02)
+    "trial_nudge_at",  # ISO timestamp — last trial nudge kab gaya
+    "trial_nudge_count",  # int — lifetime trial-nudge count (cap enforcement)
 }
 
 

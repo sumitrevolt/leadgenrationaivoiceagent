@@ -152,6 +152,7 @@ STAFF_JOBS = (
     "reply_auto_send",  # hourly :30 safe known-prospect auto-reply (gated REPLY_AUTO_SEND; INERT off)
     "content_approval_sweep",  # daily 04:30 orphaned-pending retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
     "daily_owner_brief",  # daily 08:10 IST owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY; INERT off)
+    "trial_nudge",  # daily 09:50 IST trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED; INERT off; BLK-02 2026-08-23)
 )
 
 
