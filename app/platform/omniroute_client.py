@@ -141,9 +141,13 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     # token on the 1 success). Voice hot-path now uses the dedicated gateway combo
     # `leadgen-swara-live` (groq -> mistral -> gemini, no reasoning-only models);
     # direct groq is the client-side fallback. Coding/bulk routes stay free-first.
+    # 2026-08-23 OWNER DIRECTIVE: Swara (test-call + live calls) flagship combo
+    # `leadgen-swara-flagship` use kare — antigravity Gemini 3.1 Pro / Claude
+    # Opus 4.6 head (bunny + sunny accounts), smoke-verified 200 same day.
+    # Old swara-live combo DB me untouched fallback ke liye preserved hai.
     "leadgen.swara_live": OmniRouteRoute(
-        primary_model="leadgen-swara-live",
-        fallback_model="groq/llama-3.3-70b-versatile",
+        primary_model="leadgen-swara-flagship",
+        fallback_model="groq/openai/gpt-oss-120b",
         privacy_class="CUSTOMER_MASKED",
     ),
 }
