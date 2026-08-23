@@ -218,7 +218,6 @@ AUTOMATION_FLAGS = [
     "COORD_HUB_BUZZ_SECRET",  # Buzz webhook HMAC secret (≥32) — unset = webhook fail-closed
     "COORD_HUB_TOOL_CURSOR_SECRET",  # Cursor tool heartbeat HMAC — unset = fail-closed
     "COORD_HUB_TOOL_CLAUDE_SECRET",  # Claude tool heartbeat HMAC — unset = fail-closed
-    "COORD_HUB_TOOL_HERMES_SECRET",  # Hermes Desktop tool heartbeat HMAC — unset = fail-closed
     "COORD_PLAN_NODE",  # ADR-159 MetaGPT steal-#1: ActionNode-style structured plan fill/review/revise canary for coordinator.plan() — OFF default, legacy _extract_list authoritative
     "COORD_PLAN_NODE_REVIEWS",  # bounded self-correction rounds when the fill fails schema validation (default 1; 0 = no review, straight legacy fallback)
     "HARNESS_SESSION_EVENTS",  # ADR-180 dsh steal-#1: typed SessionEvent + hash-chained jsonl (seq/prev_hash/event_hash); OFF default, historical keys unchanged
