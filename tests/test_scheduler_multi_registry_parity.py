@@ -71,9 +71,9 @@ def test_self_improve_intentional_exception_documented():
 
 def test_summarize_clean():
     s = sp.summarize()
-    # 49 since 2026-08-19: +daily_owner_brief
-    # (all INERT/dry-run default; previous 45 included gsc_rank).
-    assert s["staff_job_count"] == 49
+    # 50 since 2026-08-23: +trial_nudge (BLK-02; INERT default).
+    # (previous 49 since 2026-08-19 added daily_owner_brief; 45 included gsc_rank).
+    assert s["staff_job_count"] == 50
     assert s["unexplained"] == []
     assert s["beat_problems"] == []
 

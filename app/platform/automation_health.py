@@ -111,6 +111,8 @@ EXPECTED_GAP_MIN = {
     "content_approval_sweep": 30 * 60,  # daily 04:30 orphaned-pending retirement (dry_run default)
     "daily_owner_brief": 30
     * 60,  # daily 08:10 owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
+    "trial_nudge": 30
+    * 60,  # daily 09:50 IST trial expiry/expired UPI nudge email (gated TRIAL_NUDGE_ENABLED; BLK-02)
 }
 
 

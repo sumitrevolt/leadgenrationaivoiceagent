@@ -230,6 +230,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "GSC rank snapshot (raat 00:30)",
         "kya": "Google Search Console se clicks/impressions/position roz record karta hai (gated GSC_ENABLED, off by default)",
     },
+    "trial_nudge": {
+        "label": "Trial nudge email (subah 09:50)",
+        "kya": "Trial khatam hone wale/khatam hue users ko Starter UPI upgrade email bhejta hai (gated TRIAL_NUDGE_ENABLED, off by default)",
+    },
     "meter_watch": {
         "label": "Billing meter-watch (har ghante :55)",
         "kya": "Minute-billing meter fail ho to alert",

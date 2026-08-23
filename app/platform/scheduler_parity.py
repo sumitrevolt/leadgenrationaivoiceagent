@@ -73,6 +73,7 @@ CUSTOMER_CONTACT_JOBS: frozenset[str] = frozenset(
         "call_kpi_digest",
         "hq_auto_chase",
         "reply_auto_send",
+        "trial_nudge",
     }
 )
 
@@ -86,6 +87,7 @@ PROVIDER_CONTACT_JOBS: frozenset[str] = frozenset(
         "approval_email_sweep",
         "hq_auto_chase",
         "reply_auto_send",
+        "trial_nudge",
         "prospect",
         "midday_prospect",
         "evening_prospect",

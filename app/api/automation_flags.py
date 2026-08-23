@@ -280,6 +280,8 @@ AUTOMATION_FLAGS = [
     "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
     "REPLY_AUTO_SEND",  # guarded known-prospect email auto-reply; default OFF
     "REPLY_AUTO_SEND_HARD_OFF",  # emergency precedence override; 1 always blocks sends
+    "TRIAL_NUDGE_ENABLED",  # trial expiry/expired Starter UPI nudge email (staff-trial-nudge-daily, BLK-02) — OFF default
+    "TRIAL_NUDGE_HARD_OFF",  # emergency precedence over TRIAL_NUDGE_ENABLED; 1 always blocks sends
     "REPLY_AGENT_INTERACTION_LOG",  # auto-reply OUT → interaction_log; default ON (opt-out=0); mirrors ROUTINE_TASK_LEDGER
     "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
     "AGENT_RUNTIME",  # Agent-OS Phase-B shared runtime master gate — OFF default (pilots kavya/isha/zara only; RED lane hamesha blocked)

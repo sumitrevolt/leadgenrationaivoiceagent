@@ -84,6 +84,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 00:30",
         "owner": "platform",
     },
+    "trial_nudge": {
+        "label": "Trial expiry/expired Starter UPI nudge email",
+        "cadence": "daily 09:50",
+        "owner": "platform",
+    },
     "obsidian_push": {
         "label": "Second-brain compact + git push",
         "cadence": "daily 02:15",
@@ -251,6 +256,7 @@ RUN_DUE_EXCLUDE = {
     "sales_autopilot",
     "hq_auto_chase",
     "reply_auto_send",
+    "trial_nudge",  # outbound customer email — no catch-up flood (BLK-02 2026-08-23)
 }
 
 
