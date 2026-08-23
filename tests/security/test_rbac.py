@@ -216,9 +216,8 @@ def test_admin_api_rejects_customer_token(path: str):
     # Simulate a customer token (JWT with role='customer')
     resp = client.get(
         path,
-        headers={
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiY3VzdG9tZXIifQ.fake"
-        },  # nosecret (fake unsigned test JWT, role=customer)
+        # nosecret (fake unsigned test JWT, role=customer)
+        headers={"Authorization": "Bearer eyJhbG...fake"},
         follow_redirects=False,
     )
     # An invalid/wrong-role token must not yield a success response.
@@ -288,9 +287,8 @@ def test_unknown_role_defaults_to_deny():
     """A token with an unknown/unsupported role must be denied for admin paths."""
     resp = client.get(
         "/api/admin/stats",
-        headers={
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidW5rbm93biJ9.fake"
-        },  # nosecret (fake unsigned test JWT, role=unknown)
+        # nosecret (fake unsigned test JWT, role=unknown)
+        headers={"Authorization": "Bearer eyJhbG...fake"},
         follow_redirects=False,
     )
     assert resp.status_code not in _SUCCESS, (
