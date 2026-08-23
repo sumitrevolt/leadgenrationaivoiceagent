@@ -1390,6 +1390,126 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Temp and target must stay on ONE filesystem.",
     },
+    # 2026-08-23 — sales.prospects TASK_LI-001 enrichment batch (Board-run, offline)
+    {
+        "allowlist_id": "sales.prospects.enrich.source",
+        "file": "scripts/batch_enrich.py",
+        "line_or_symbol": "in_file",
+        "path_pattern": "data/hunter_leads/TASK_LI-001_top10.csv",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "TASK_LI-001 enrichment reads the hunter CSV source READ-ONLY; "
+            "one-shot offline script, never mutates the source."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Source CSV must stay read-only in this script.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.sink_flat",
+        "file": "scripts/batch_enrich.py",
+        "line_or_symbol": "out_file",
+        "path_pattern": "data/enriched_prospects.jsonl",
+        "store_id": "sales.prospects.enriched",
+        "access_modes": ["CREATE", "APPEND"],
+        "reason": (
+            "Enrichment output sidecar (append-only jsonl). Rebuildable from "
+            "source CSV + deterministic mapping — REBUILDABLE_CACHE class data."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Append-only sink; no customer PII beyond public contact fields.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.board_source",
+        "file": "scripts/board_enrich_task.py",
+        "line_or_symbol": "in_csv",
+        "path_pattern": "data/hunter_leads/TASK_LI-001_top10.csv",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "Board enrichment variant reads the same hunter CSV READ-ONLY. "
+            "One-shot offline script."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Source CSV must stay read-only in this script.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.board_sink_dir",
+        "file": "scripts/board_enrich_task.py",
+        "line_or_symbol": "out_dir",
+        "path_pattern": "data/enriched_prospects",
+        "store_id": "sales.prospects.enriched",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Enrichment output directory (os.makedirs) for per-task jsonl "
+            "sidecars. Rebuildable from source CSV."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar outputs only; no source mutation.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.board_sink_file",
+        "file": "scripts/board_enrich_task.py",
+        "line_or_symbol": "out_path",
+        "path_pattern": "data/enriched_prospects/TASK_LI-001_enriched.jsonl",
+        "store_id": "sales.prospects.enriched",
+        "access_modes": ["CREATE", "WRITE"],
+        "reason": (
+            "Per-task enriched output file (deterministic rebuild from CSV). "
+            "REBUILDABLE_CACHE class data."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar output only.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.li001_src",
+        "file": "scripts/enrich_task_li001.py",
+        "line_or_symbol": "SRC",
+        "path_pattern": "data/hunter_leads/TASK_LI-001_top10.csv",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "Deterministic enrichment script reads the hunter CSV READ-ONLY. "
+            "No fabrication: every output field derives from the source row."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Source CSV must stay read-only in this script.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.li001_dst",
+        "file": "scripts/enrich_task_li001.py",
+        "line_or_symbol": "DST",
+        "path_pattern": "data/enriched_prospects/TASK_LI-001_enriched.jsonl",
+        "store_id": "sales.prospects.enriched",
+        "access_modes": ["CREATE", "WRITE"],
+        "reason": (
+            "Enriched output jsonl — deterministic rebuild from the CSV source. "
+            "os.makedirs on DST_DIR is the CREATE."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar output only; overwrite semantics are idempotent.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
