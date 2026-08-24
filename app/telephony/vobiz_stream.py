@@ -3097,8 +3097,14 @@ class VobizStreamSession:
                 f"[vobiz-stream] play CANCELLED sid={self.stream_sid} "
                 f"elapsed_ms={_now_ms() - t0} speaking_left_as={self._speaking}"
             )
-            # barge-in / superseded — canceller owns _speaking, so don't touch it
-            # here (unchanged behavior — logging only, no re-raise).
+            # FIX (2026-08-24): guarantee _speaking is cleared on cancellation so
+            # Swara can never get stuck "speaking" (documented: stuck True for the
+            # whole call -> customer's 2nd turn skipped -> confused/hiccup). If the
+            # canceller (e.g. _barge_in) already cleared it, this is a no-op; a
+            # supersession via _stop_playback_only() cancels WITHOUT clearing it,
+            # which was the leak. Idempotent, no happy-path behaviour change.
+            self._speaking = False
+            self._disclosure_active = False
         except Exception as e:
             logger.warning(
                 f"[vobiz-stream] play EXCEPTION sid={self.stream_sid} "
