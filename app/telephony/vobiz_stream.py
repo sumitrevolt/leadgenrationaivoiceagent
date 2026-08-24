@@ -3051,6 +3051,14 @@ class VobizStreamSession:
             if self._rec_enabled and self._rec_bot_playhead is not None:
                 self._rec_mix_bot(self._rec_bot_playhead, frame)
                 self._rec_bot_playhead += len(frame) // 2
+                # FIX (2026-08-24): advance the master clock with the BOT too. The
+                # caller clock (_rec_timeline_samples) only advanced on caller frames,
+                # so during Swara's reply it froze; when the caller spoke again the
+                # next _rec_mix_caller wrote at the stale position and OVERWROTE the
+                # bot's audio -> the mixed recording was garbled / missing Swara's side
+                # (owner heard nothing useful). Keeping the master clock linear makes
+                # the caller write at the true position.
+                self._rec_timeline_samples += len(frame) // 2
             # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
             await self._send(
                 {
