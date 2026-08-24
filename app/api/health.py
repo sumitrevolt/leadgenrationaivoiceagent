@@ -105,13 +105,31 @@ async def health_check(response: Response) -> dict[str, Any]:
     documented deploy-drift detector.
     """
     _mark_no_store(response)
-    return {
+    result = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": os.environ.get("APP_VERSION", "dev"),
         "environment": settings.app_env,
         "uptime": _get_uptime(),
     }
+
+    # Add DSH fields (fail-closed: default to disabled).
+    try:
+        from app.integrations import dsh as dsh_integration
+
+        dsh_fields = dsh_integration.get_dsh_health_fields()
+        result.update(dsh_fields)
+    except Exception:
+        # If DSH integration is unavailable, default to disabled.
+        result.update(
+            {
+                "dsh_runtime_enabled": False,
+                "dsh_shadow_enabled": False,
+                "dsh_allowlist": [],
+            }
+        )
+
+    return result
 
 
 @router.get("/health/live")
@@ -582,7 +600,7 @@ async def prometheus_metrics():
         )
         metrics.append("# TYPE leadgen_llm_fallback_rate gauge")
         metrics.append(
-            f'leadgen_llm_fallback_rate {float((llm or {}).get("fallback_or_fail_rate", 0) or 0):.3f}'
+            f"leadgen_llm_fallback_rate {float((llm or {}).get('fallback_or_fail_rate', 0) or 0):.3f}"
         )
     except Exception:
         pass
@@ -742,12 +760,12 @@ async def prometheus_metrics():
                 "# HELP leadgen_redis_connected_clients Number of connected Redis clients"
             )
             metrics.append("# TYPE leadgen_redis_connected_clients gauge")
-            metrics.append(f'leadgen_redis_connected_clients {info.get("connected_clients", 0)}')
+            metrics.append(f"leadgen_redis_connected_clients {info.get('connected_clients', 0)}")
 
             metrics.append("")
             metrics.append("# HELP leadgen_redis_used_memory_bytes Redis memory usage")
             metrics.append("# TYPE leadgen_redis_used_memory_bytes gauge")
-            metrics.append(f'leadgen_redis_used_memory_bytes {info.get("used_memory", 0)}')
+            metrics.append(f"leadgen_redis_used_memory_bytes {info.get('used_memory', 0)}")
     except Exception:
         pass
 

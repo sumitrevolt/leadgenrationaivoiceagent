@@ -5,6 +5,7 @@ This covers the actual call-site wiring added to app/voice_agent/free_ai.py
 (chat, chat_stream, chat_provider, gemini_vertex branch), on top of the existing
 unit tests in tests/test_safe_ai_payload.py which test block_if_sensitive() directly.
 """
+
 from app.voice_agent.free_ai import _blocked_for_provider
 
 

@@ -37,9 +37,9 @@ def _assert_content_item_contract(item):
     if "caption" in item:
         cap = item.get("caption") or ""
         assert cap, f"caption-bearing item ({item.get('type')}) has empty caption"
-        assert (
-            _CAPTION_MIN <= len(cap) <= _CAPTION_MAX
-        ), f"caption length {len(cap)} out of bounds for {item.get('type')}"
+        assert _CAPTION_MIN <= len(cap) <= _CAPTION_MAX, (
+            f"caption length {len(cap)} out of bounds for {item.get('type')}"
+        )
     else:
         # caption-less creative (poster / svg) -- must still expose an svg slot
         assert "svg" in item, f"non-caption item missing svg slot: {item}"

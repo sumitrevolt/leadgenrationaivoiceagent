@@ -39,9 +39,9 @@ def test_no_dockerfile_bakes_legacy_root() -> None:
     ):
         p = ROOT / df
         if p.exists():
-            assert ".agents/skills" not in p.read_text(
-                encoding="utf-8"
-            ), f"{df} still references the removed .agents/skills root"
+            assert ".agents/skills" not in p.read_text(encoding="utf-8"), (
+                f"{df} still references the removed .agents/skills root"
+            )
 
 
 def test_runtime_code_does_not_reference_legacy_root() -> None:

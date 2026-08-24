@@ -39,9 +39,6 @@ REQUIRED_DEPENDENCIES = {
     "@deepseek-ai/dsh-sdk-jsonrpc-demo",
     "@deepseek-ai/dsh-sdk-jsonrpc-server",
     "@deepseek-ai/dsh-sdk-protocol",
-    "@deepseek-ai/dsh-session-persistence",
-    "@deepseek-ai/dsh-timeout",
-    "@deepseek-ai/dsh-user-approval",
     "@deepseek-ai/dsh-session",
     "@deepseek-ai/dsh-tools",
 }

@@ -255,7 +255,9 @@ class TenantManager:
 
         for niche in tenant.config.target_niches:
             leads = await self.scraper.scrape_leads(
-                niche=niche, cities=tenant.config.target_cities, max_leads=50  # 50 per niche
+                niche=niche,
+                cities=tenant.config.target_cities,
+                max_leads=50,  # 50 per niche
             )
 
             tenant.total_leads_generated += len(leads)

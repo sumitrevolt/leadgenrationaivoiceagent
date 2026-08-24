@@ -52,7 +52,7 @@ def test_signup_rejects_common_breached_passwords(client, monkeypatch, bad_pw, e
         "/api/public/signup",
         json={
             "business_name": "Weak Biz",
-            "email": f"weak{hash(bad_pw)%1000}@example.com",
+            "email": f"weak{hash(bad_pw) % 1000}@example.com",
             "password": bad_pw,
             "plan": "starter",
         },
@@ -63,9 +63,9 @@ def test_signup_rejects_common_breached_passwords(client, monkeypatch, bad_pw, e
     if message == "Request validation failed":
         message = " ".join(error["message"] for error in body["error"]["details"]["errors"])
     message = message.lower()
-    assert (
-        expected_hint.lower() in message
-    ), f"reject message should hint at strength, got: {message!r}"
+    assert expected_hint.lower() in message, (
+        f"reject message should hint at strength, got: {message!r}"
+    )
 
 
 def test_signup_accepts_reasonable_password(client, monkeypatch):

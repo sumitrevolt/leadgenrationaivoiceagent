@@ -4,6 +4,7 @@ Scenarios 1-12: pure classifier (healthy / expiring_soon / expired / revoked /
 unauthorized / transient_failure / unreachable / never_configured / unknown +
 precedence). 13-20: API auth, tenant isolation, redaction, failure isolation.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,9 @@ def test_1_recent_success_is_healthy():
 
 
 def test_2_expiry_within_threshold_is_expiring_soon():
-    r = ist.classify({"configured": True, "expires_at": NOW + timedelta(days=3)}, now=NOW, threshold_days=7)
+    r = ist.classify(
+        {"configured": True, "expires_at": NOW + timedelta(days=3)}, now=NOW, threshold_days=7
+    )
     assert r["status"] == "expiring_soon" and r["reconnect_required"]
 
 
@@ -74,8 +77,13 @@ def test_10_expired_overrides_recent_success():
 
 def test_11_revoked_overrides_success_and_valid_token():
     r = ist.classify(
-        {"configured": True, "revoked": True, "expires_at": NOW + timedelta(days=30),
-         "last_success": NOW}, now=NOW
+        {
+            "configured": True,
+            "revoked": True,
+            "expires_at": NOW + timedelta(days=30),
+            "last_success": NOW,
+        },
+        now=NOW,
     )
     assert r["status"] == "revoked"
 
@@ -114,7 +122,9 @@ def _fake_vault(monkeypatch):
         return list(_DIRECTORY.get(cid, []))
 
     monkeypatch.setattr("app.social_engine.vault.list_accounts", fake_list_accounts)
-    monkeypatch.setattr("app.platform.integration_status._bounded_client_ids", lambda limit=200: list(_DIRECTORY))
+    monkeypatch.setattr(
+        "app.platform.integration_status._bounded_client_ids", lambda limit=200: list(_DIRECTORY)
+    )
 
 
 def test_13_customer_unauthenticated_denied(client):
@@ -123,12 +133,16 @@ def test_13_customer_unauthenticated_denied(client):
 
 
 def test_14_customer_sees_only_own_tenant(client):
-    ra = client.get("/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliA')}"})
+    ra = client.get(
+        "/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliA')}"}
+    )
     assert ra.status_code == 200
     a = ra.json()["integrations"]
     assert len(a) == 1 and a[0]["integration"] == "Facebook" and a[0]["status"] == "healthy"
 
-    rb = client.get("/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliB')}"})
+    rb = client.get(
+        "/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliB')}"}
+    )
     b = rb.json()["integrations"]
     assert len(b) == 1 and b[0]["integration"] == "LinkedIn"
     assert b[0]["status"] == "expired" and b[0]["action_required"] is True
@@ -137,9 +151,19 @@ def test_14_customer_sees_only_own_tenant(client):
 
 
 def test_15_customer_response_is_redacted(client):
-    r = client.get("/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliA')}"})
+    r = client.get(
+        "/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliA')}"}
+    )
     blob = json.dumps(r.json())
-    for forbidden in ("client_id", "cliA", "tok", "access_token", "expires_at", "reference_id", "correlation"):
+    for forbidden in (
+        "client_id",
+        "cliA",
+        "tok",
+        "access_token",
+        "expires_at",
+        "reference_id",
+        "correlation",
+    ):
         assert forbidden not in blob, f"customer response leaked {forbidden!r}"
 
 
@@ -162,7 +186,9 @@ def test_17_one_provider_failure_does_not_break_response(client, monkeypatch):
         raise RuntimeError("vault store unavailable")
 
     monkeypatch.setattr("app.social_engine.vault.list_accounts", boom)
-    r = client.get("/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliA')}"})
+    r = client.get(
+        "/api/customer/integrations/health", headers={"Authorization": f"Bearer {_mint('cliA')}"}
+    )
     assert r.status_code == 200  # degrades to empty, never 500
     assert r.json()["integrations"] == []
 
@@ -172,4 +198,6 @@ def test_18_no_secret_key_names_in_admin_serialization(client):
     keys = set()
     for it in r.json()["integrations"]:
         keys |= set(it.keys())
-    assert keys.isdisjoint({"token", "tok", "access_token", "refresh_token", "api_key", "secret", "signature"})
+    assert keys.isdisjoint(
+        {"token", "tok", "access_token", "refresh_token", "api_key", "secret", "signature"}
+    )

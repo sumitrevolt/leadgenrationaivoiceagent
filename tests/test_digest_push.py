@@ -5,6 +5,7 @@ emailed — but had NO phone-push channel, so the founder's daily digest could s
 in an inbox. Fix: a best-effort ntfy push, gated by DIGEST_NTFY (default OFF = inert),
 so it ships additively and is switched on by the user.
 """
+
 from __future__ import annotations
 
 import asyncio

@@ -7,6 +7,7 @@ hone par bhi `create_challenge` ka koi bhi error silently FULL JWT de deta tha
 - is_enabled STATE-check error (2FA status unknown) → documented fail-open
   (no-2FA majority ko infra-error pe lockout nahi) — par ab LOUD log, silent nahi.
 """
+
 from __future__ import annotations
 
 import asyncio

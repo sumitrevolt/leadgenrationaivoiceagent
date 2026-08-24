@@ -868,7 +868,8 @@ def decision_html(result: dict[str, Any], action: str) -> str:
         f"<p style='color:#94a3b8;line-height:1.5'>{body}</p>"
         # Machine-readable refusal reason. Non-sensitive by construction (a
         # fixed vocabulary of codes) and never the credential itself.
-        + (f"<!--reason:{reason}-->" if reason else "") + "</div></body></html>"
+        + (f"<!--reason:{reason}-->" if reason else "")
+        + "</div></body></html>"
     )
 
 

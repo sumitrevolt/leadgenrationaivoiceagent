@@ -73,9 +73,7 @@ def test_diagnostic_can_never_fail_the_build():
             continue
         if stripped.startswith("echo "):
             continue
-        assert stripped.endswith("|| true"), (
-            f"diagnostic command may fail the build: {stripped!r}"
-        )
+        assert stripped.endswith("|| true"), f"diagnostic command may fail the build: {stripped!r}"
 
 
 def test_diagnostic_captures_every_required_artefact():

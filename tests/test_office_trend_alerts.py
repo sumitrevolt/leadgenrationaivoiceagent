@@ -4,6 +4,7 @@ Trends give numbers; this turns worsening momentum into an explicit founder sign
 the snapshot: stuck leads rising (mid-funnel jamming) or hot leads falling (top-funnel
 slowing). Deterministic, read-only, thresholds env-tunable, never raises.
 """
+
 from __future__ import annotations
 
 from app.platform import office_hq

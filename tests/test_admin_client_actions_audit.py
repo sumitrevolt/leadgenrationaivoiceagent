@@ -98,8 +98,9 @@ def test_password_reset_success_registers_login_and_logs_audit(tmp_path, monkeyp
     monkeypatch.setattr(
         customer_auth,
         "register_login",
-        lambda email, password, client_id, **kw: calls.append((email, password, client_id))
-        or {"ok": True},
+        lambda email, password, client_id, **kw: (
+            calls.append((email, password, client_id)) or {"ok": True}
+        ),
     )
 
     result = _run(

@@ -339,7 +339,7 @@ def _hinglish_summary(ctx: dict[str, Any]) -> str:
     q = ctx.get("queues") or {}
     ap = ctx.get("approvals") or {}
     return (
-        f"Platform { (ctx.get('platform') or {}).get('health') } · "
+        f"Platform {(ctx.get('platform') or {}).get('health')} · "
         f"agents {a.get('total')}/31 · paused_manual {a.get('paused_manual_run_count') or len(a.get('paused') or [])} · "
         f"approvals {ap.get('pending')} · "
         f"queues celery={q.get('pending')} dlq={q.get('failed')} dead={q.get('dead')} · "

@@ -513,8 +513,8 @@ class CallAnalyzer:
         return (
             f"Call {who}me {outcome_hi}. Customer ka mood {sentiment} laga "
             f"(interest score ~{score}/100).{obj} "
-            f"Agent talk-share {int(metrics['talk_ratio']['agent']*100)}%, "
-            f"customer {int(metrics['talk_ratio']['customer']*100)}%."
+            f"Agent talk-share {int(metrics['talk_ratio']['agent'] * 100)}%, "
+            f"customer {int(metrics['talk_ratio']['customer'] * 100)}%."
         )
 
     # ----------------------- LLM helpers ----------------------- #

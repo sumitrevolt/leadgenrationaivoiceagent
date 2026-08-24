@@ -63,8 +63,11 @@ def test_check_token_expiries_emits_ledger_event(viso, monkeypatch):
     from app.marketing import delivery_ledger
 
     captured: list[tuple] = []
-    monkeypatch.setattr(delivery_ledger, "log_event",
-                        lambda cid, ev, detail="", **kw: captured.append((cid, ev, detail)))
+    monkeypatch.setattr(
+        delivery_ledger,
+        "log_event",
+        lambda cid, ev, detail="", **kw: captured.append((cid, ev, detail)),
+    )
 
     out = viso.check_token_expiries(days=7)
     assert out["expired_count"] == 1

@@ -32,16 +32,12 @@ def _isolate(monkeypatch, tmp_path):
     """
     from app.voice_agent import free_ai as _free_ai
 
-    monkeypatch.setattr(
-        _free_ai, "PROVIDERS_AVAILABLE", {"groq": True}, raising=False
-    )
+    monkeypatch.setattr(_free_ai, "PROVIDERS_AVAILABLE", {"groq": True}, raising=False)
     monkeypatch.setattr(ap_store, "_DIR", str(tmp_path))
     monkeypatch.setattr(ap_store, "_PROSPECTS_FILE", str(tmp_path / "prospects.json"))
     monkeypatch.setattr(ap_store, "_ATTEMPTS_FILE", str(tmp_path / "attempts.jsonl"))
     monkeypatch.setattr(consent_ledger, "ledger_path", lambda: tmp_path / "consent.jsonl")
-    monkeypatch.setattr(
-        consent_ledger, "suppression_path", lambda: tmp_path / "suppression.jsonl"
-    )
+    monkeypatch.setattr(consent_ledger, "suppression_path", lambda: tmp_path / "suppression.jsonl")
     # The close signal also writes a deal and may spawn a WhatsApp task; neither
     # is under test here and both must stay inert.
     from app.marketing import sales_pipeline

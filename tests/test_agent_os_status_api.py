@@ -1,4 +1,5 @@
 """Contract: GET /api/platform/office/agent-os-status (ADR-109 admin surface)."""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient

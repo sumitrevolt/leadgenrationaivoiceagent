@@ -50,9 +50,7 @@ def fake_store(monkeypatch):
         "city": "Mumbai",
         "plan": "trial",
     }
-    monkeypatch.setattr(
-        clients_store, "get_client", lambda cid: rec if cid == rec["id"] else None
-    )
+    monkeypatch.setattr(clients_store, "get_client", lambda cid: rec if cid == rec["id"] else None)
     monkeypatch.setattr(clients_store, "update_client", lambda cid, **kw: rec.update(kw) or rec)
     return rec
 

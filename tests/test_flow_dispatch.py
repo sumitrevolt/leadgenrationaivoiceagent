@@ -15,6 +15,7 @@ def _iso(tmp_path, monkeypatch):
 
     async def _noop(inputs):
         return {"ok": True, "count": 5, "detail": "stub"}
+
     monkeypatch.setitem(process_library.EXECUTORS, "scrape", _noop)
     monkeypatch.setitem(process_library.EXECUTORS, "rescore", _noop)
     monkeypatch.setitem(process_library.EXECUTORS, "harvest", _noop)
@@ -22,12 +23,26 @@ def _iso(tmp_path, monkeypatch):
 
 def test_start_routes_linear_vs_dag(tmp_path, monkeypatch):
     _iso(tmp_path, monkeypatch)
-    fs.save_flow({"id": "lin", "name": "lin",
-        "nodes": [{"id": "a", "action": "scrape"}, {"id": "b", "action": "rescore"}],
-        "edges": [{"f": "a", "t": "b"}]})
-    fs.save_flow({"id": "dag", "name": "dag",
-        "nodes": [{"id": "a", "action": "scrape"}, {"id": "b", "action": "rescore"}, {"id": "c", "action": "harvest"}],
-        "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}]})
+    fs.save_flow(
+        {
+            "id": "lin",
+            "name": "lin",
+            "nodes": [{"id": "a", "action": "scrape"}, {"id": "b", "action": "rescore"}],
+            "edges": [{"f": "a", "t": "b"}],
+        }
+    )
+    fs.save_flow(
+        {
+            "id": "dag",
+            "name": "dag",
+            "nodes": [
+                {"id": "a", "action": "scrape"},
+                {"id": "b", "action": "rescore"},
+                {"id": "c", "action": "harvest"},
+            ],
+            "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}],
+        }
+    )
     rl = flow_dispatch.start("flow:lin", {})
     rd = flow_dispatch.start("flow:dag", {})
     assert rl["ok"] and rl["kind"] == "linear"
@@ -44,9 +59,18 @@ def test_pre_phase2_run_defaults_linear(tmp_path, monkeypatch):
 
 def test_dispatch_replay_advance_dag(tmp_path, monkeypatch):
     _iso(tmp_path, monkeypatch)
-    fs.save_flow({"id": "dag2", "name": "dag2",
-        "nodes": [{"id": "a", "action": "scrape"}, {"id": "b", "action": "rescore"}, {"id": "c", "action": "harvest"}],
-        "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}]})
+    fs.save_flow(
+        {
+            "id": "dag2",
+            "name": "dag2",
+            "nodes": [
+                {"id": "a", "action": "scrape"},
+                {"id": "b", "action": "rescore"},
+                {"id": "c", "action": "harvest"},
+            ],
+            "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}],
+        }
+    )
     r = flow_dispatch.start("flow:dag2", {})
     rid = r["run_id"]
     for _ in range(10):
@@ -59,9 +83,18 @@ def test_dispatch_replay_advance_dag(tmp_path, monkeypatch):
 
 def test_list_runs_merges_both(tmp_path, monkeypatch):
     _iso(tmp_path, monkeypatch)
-    fs.save_flow({"id": "dag3", "name": "dag3",
-        "nodes": [{"id": "a", "action": "scrape"}, {"id": "b", "action": "rescore"}, {"id": "c", "action": "harvest"}],
-        "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}]})
+    fs.save_flow(
+        {
+            "id": "dag3",
+            "name": "dag3",
+            "nodes": [
+                {"id": "a", "action": "scrape"},
+                {"id": "b", "action": "rescore"},
+                {"id": "c", "action": "harvest"},
+            ],
+            "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}],
+        }
+    )
     flow_dispatch.start("flow:dag3", {})
     process_engine.start_run("growth_audit", {})
     runs = flow_dispatch.list_runs(20)

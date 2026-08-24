@@ -141,4 +141,3 @@ class TestMiddlewareIntegration:
         redacted = redact_url(test_url)
         assert "sk_test_secret" not in redacted
         assert "[REDACTED]" in redacted
-

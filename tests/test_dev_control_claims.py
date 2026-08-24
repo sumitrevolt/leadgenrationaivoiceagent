@@ -102,9 +102,9 @@ def test_heartbeat_refuses_non_owner():
                 await db.refresh(claimed)  # update() bypasses the identity map
                 before = claimed.lease_until
                 assert before is not None
-                assert (
-                    await atomic_heartbeat(db, task.id, "worker-2") is False
-                ), "lease steal must be refused"
+                assert await atomic_heartbeat(db, task.id, "worker-2") is False, (
+                    "lease steal must be refused"
+                )
                 assert await atomic_heartbeat(db, task.id, "worker-1", lease_seconds=3600) is True
                 fresh = await db.get(DevTask, task.id)
                 await db.refresh(fresh)

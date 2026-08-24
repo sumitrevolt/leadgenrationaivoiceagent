@@ -346,7 +346,12 @@ def test_deps_counts_cves(monkeypatch: pytest.MonkeyPatch) -> None:
                     {
                         "name": "foo",
                         "version": "1.0",
-                        "vulns": [{"id": "CVE-1"}, {"id": "CVE-2"}, {"id": "CVE-3"}, {"id": "CVE-4"}],
+                        "vulns": [
+                            {"id": "CVE-1"},
+                            {"id": "CVE-2"},
+                            {"id": "CVE-3"},
+                            {"id": "CVE-4"},
+                        ],
                     }
                 ]
             }
@@ -378,7 +383,9 @@ def test_dataquality_detects_duplicates(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert out["score"] is not None
 
 
-def test_dataquality_clean_store_high_score(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_dataquality_clean_store_high_score(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("DATA_INTEGRITY_AGENT", "1")
     rows = [{"phone": str(i), "email": f"u{i}@x.com"} for i in range(20)]
     (tmp_path / "prospects.jsonl").write_text(

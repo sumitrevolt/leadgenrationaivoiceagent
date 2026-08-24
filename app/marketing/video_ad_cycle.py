@@ -840,7 +840,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
                     **(
                         {
                             "remedy": (
-                                "provider reconciliation or explicit operator " "decision required"
+                                "provider reconciliation or explicit operator decision required"
                             )
                         }
                         if err == "publish_outcome_unknown"

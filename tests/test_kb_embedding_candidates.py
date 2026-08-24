@@ -18,9 +18,7 @@ def test_cold_embedder_timeout_does_not_permanently_disable_qdrant(monkeypatch):
         knowledge_base,
         "_get_qdrant_embedder",
         lambda: (_ for _ in ()).throw(
-            RuntimeError(
-                "fastembed model not ready within 20s — qdrant is still warming"
-            )
+            RuntimeError("fastembed model not ready within 20s — qdrant is still warming")
         ),
     )
 

@@ -126,9 +126,9 @@ def test_unknown_sender_remove_is_not_discarded(monkeypatch) -> None:
         b"REMOVE me from this list\r\n"
     )
     res = _run_triage(monkeypatch, raw)
-    assert (
-        email_unsub.is_suppressed("stranger@nowhere.com") is True
-    ), f"unknown-sender opt-out was discarded by the junk guard: {res}"
+    assert email_unsub.is_suppressed("stranger@nowhere.com") is True, (
+        f"unknown-sender opt-out was discarded by the junk guard: {res}"
+    )
     assert res.get("optout_precheck") == 1
 
 
@@ -179,9 +179,9 @@ def test_unknown_sender_optout_does_not_create_global_all_outreach(
     # QUARANTINE, not EMAIL_ADDRESS and certainly not ALL_OUTREACH: it blocks
     # just as hard but stays visibly unresolved, so an unreviewed guess is never
     # mistaken for a verified decision.
-    assert all(
-        r["scope"] == email_unsub.SCOPE_QUARANTINE for r in rows
-    ), f"unresolved identity produced a broader scope than the evidence supports: {rows}"
+    assert all(r["scope"] == email_unsub.SCOPE_QUARANTINE for r in rows), (
+        f"unresolved identity produced a broader scope than the evidence supports: {rows}"
+    )
     assert email_unsub.SCOPE_ALL_OUTREACH not in {r["scope"] for r in rows}
     # ...and the exception is recorded for admin reconciliation.
     exc = isolated / "unresolved_optouts.jsonl"

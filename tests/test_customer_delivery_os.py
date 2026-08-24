@@ -1,6 +1,7 @@
 """Tests for Customer Delivery OS: paid customer dashboard, setup wizard data, Day-1 value,
 admin command center visibility, social errors, and navigation cleanup.
 """
+
 from fastapi.testclient import TestClient
 import pytest
 import uuid
@@ -42,7 +43,7 @@ def test_customer_dashboard_active_view_payload(monkeypatch):
     data = resp.json()
     assert data["client_id"] == "jiya-makeover"
     assert data["social_error"] == "Instagram connection timeout"
-    
+
     # Checklist verification
     onb = data.get("onboarding")
     assert onb is not None
@@ -64,7 +65,7 @@ def test_starter_plan_day1_value_generation(monkeypatch):
         "status": "active",
         "plan": "starter",
         "product": "marketing",
-        "slug": f"slug-{cid}"
+        "slug": f"slug-{cid}",
     }
 
     submitted_drafts = []
@@ -72,7 +73,14 @@ def test_starter_plan_day1_value_generation(monkeypatch):
 
     async def fake_generate_for_client(client, day=None):
         d_str = str(day) if day else "2026-07-01"
-        return [{"date": d_str, "type": "post", "title": "Beauty post", "caption": "Beauty post description"}]
+        return [
+            {
+                "date": d_str,
+                "type": "post",
+                "title": "Beauty post",
+                "caption": "Beauty post description",
+            }
+        ]
 
     async def fake_broadcast_pack(business_name, niche, occasion="", offer=""):
         return {"broadcast": ["Special WhatsApp promo draft!"]}
@@ -84,8 +92,12 @@ def test_starter_plan_day1_value_generation(monkeypatch):
     def fake_log_event(cid, event, detail="", actor="system", meta=None):
         logged_events.append((cid, event, detail))
 
-    monkeypatch.setattr("app.marketing.auto_content.generate_for_client", fake_generate_for_client, raising=False)
-    monkeypatch.setattr("app.marketing.whatsapp_pack.broadcast_pack", fake_broadcast_pack, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.auto_content.generate_for_client", fake_generate_for_client, raising=False
+    )
+    monkeypatch.setattr(
+        "app.marketing.whatsapp_pack.broadcast_pack", fake_broadcast_pack, raising=False
+    )
     monkeypatch.setattr("app.marketing.content_approval.submit", fake_submit, raising=False)
     monkeypatch.setattr("app.marketing.delivery_ledger.log_event", fake_log_event, raising=False)
 
@@ -98,7 +110,7 @@ def test_starter_plan_day1_value_generation(monkeypatch):
     assert len(submitted_drafts) >= 9
     assert any("WhatsApp Promo Message" in d.get("title", "") for d in submitted_drafts)
     assert any("Local Offer Campaign Suggestion" in d.get("title", "") for d in submitted_drafts)
-    
+
     # Ledger verification
     assert any(ev[1] == "marketing_calendar_generated" for ev in logged_events)
     assert any(ev[1] == "post_draft_created" for ev in logged_events)
@@ -117,7 +129,7 @@ def test_admin_sees_customer_delivery_status(monkeypatch):
         "plan": "starter",
         "product": "marketing",
         "setup_done": True,
-        "delivery_state": "delivered"
+        "delivery_state": "delivered",
     }
 
     def fake_summary(cid):
@@ -127,9 +139,11 @@ def test_admin_sees_customer_delivery_status(monkeypatch):
         "app.marketing.clients_store.list_clients", lambda status=None: [fake_client], raising=False
     )
     monkeypatch.setattr(
-        "app.delivery_ledger.summary" if hasattr(fake_client, "none") else "app.marketing.delivery_ledger.summary",
+        "app.delivery_ledger.summary"
+        if hasattr(fake_client, "none")
+        else "app.marketing.delivery_ledger.summary",
         fake_summary,
-        raising=False
+        raising=False,
     )
 
     with TestClient(app) as client:
@@ -157,7 +171,7 @@ def test_failed_social_connection_blocked_state(monkeypatch):
         "plan": "starter",
         "product": "marketing",
         "social_error": "Connection refused by Meta OAuth API (403)",
-        "blocked_reason": "Failed to authenticate Instagram account."
+        "blocked_reason": "Failed to authenticate Instagram account.",
     }
 
     monkeypatch.setattr(
@@ -184,10 +198,10 @@ def test_command_center_navigation_cleanup():
 def test_delivery_ledger_records_automation_events():
     """6. Verify delivery ledger records automation events correctly."""
     from app.marketing import delivery_ledger
-    
+
     cid = "test-client-ledger"
     delivery_ledger.log_event(cid, "post_published", detail="Instagram post id: 12987")
-    
+
     events = delivery_ledger.timeline(cid, limit=5, customer_only=False)
     assert len(events) >= 1
     assert events[0]["event"] == "post_published"

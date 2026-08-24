@@ -154,7 +154,9 @@ def test_falls_back_to_per_member_loop_when_window_path_breaks(db, monkeypatch):
 def test_never_raises_when_everything_fails(db, monkeypatch):
     import sqlalchemy
 
-    monkeypatch.setattr(sqlalchemy, "select", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
+    monkeypatch.setattr(
+        sqlalchemy, "select", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x"))
+    )
 
     class _DeadDB:
         def query(self, *a, **k):

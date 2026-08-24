@@ -8,6 +8,7 @@
 3. vobiz get_balance/place_call: blank `str(e)` ("failed: ") se root-cause
    undiagnosable — exception TYPE bhi log/return me chahiye.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -93,9 +94,10 @@ def test_geocode_retries_with_india_bias(monkeypatch):
             calls.append(addr)
             if "india" in addr.lower():
                 return _GeoResp(
-                    {"status": "OK", "results": [
-                        {"geometry": {"location": {"lat": 19.2, "lng": 72.97}}}
-                    ]}
+                    {
+                        "status": "OK",
+                        "results": [{"geometry": {"location": {"lat": 19.2, "lng": 72.97}}}],
+                    }
                 )
             return _GeoResp({"status": "ZERO_RESULTS", "results": []})
 

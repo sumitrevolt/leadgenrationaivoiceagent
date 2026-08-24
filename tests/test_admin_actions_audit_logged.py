@@ -11,6 +11,7 @@ directly (no real DB/app needed) — confirms the audit call fires with the
 right action/resource/severity, and that a failing audit write never blocks
 the actual operation (mirrors impersonation.py's own best-effort contract).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -85,8 +86,12 @@ async def test_upi_activate_audits(monkeypatch):
     from app.billing import usage as usage_mod
     from app.marketing import clients_store
 
-    monkeypatch.setattr(usage_mod, "activate_plan", lambda cid, plan, ensure_subscription=True: None)
-    monkeypatch.setattr(clients_store, "get_client", lambda cid: {"client_id": cid, "email": "c@x.com"})
+    monkeypatch.setattr(
+        usage_mod, "activate_plan", lambda cid, plan, ensure_subscription=True: None
+    )
+    monkeypatch.setattr(
+        clients_store, "get_client", lambda cid: {"client_id": cid, "email": "c@x.com"}
+    )
     monkeypatch.setattr(clients_store, "update_client", lambda cid, **kw: None)
 
     audited = {}
@@ -116,8 +121,12 @@ async def test_upi_activate_succeeds_even_if_audit_write_fails(monkeypatch):
     from app.billing import usage as usage_mod
     from app.marketing import clients_store
 
-    monkeypatch.setattr(usage_mod, "activate_plan", lambda cid, plan, ensure_subscription=True: None)
-    monkeypatch.setattr(clients_store, "get_client", lambda cid: {"client_id": cid, "email": "c@x.com"})
+    monkeypatch.setattr(
+        usage_mod, "activate_plan", lambda cid, plan, ensure_subscription=True: None
+    )
+    monkeypatch.setattr(
+        clients_store, "get_client", lambda cid: {"client_id": cid, "email": "c@x.com"}
+    )
     monkeypatch.setattr(clients_store, "update_client", lambda cid, **kw: None)
 
     async def _boom(db, **kw):

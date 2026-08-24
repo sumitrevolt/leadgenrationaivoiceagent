@@ -89,7 +89,7 @@ STEPS = [
         "display_name": "Comb",
         "prompt": COMB_PROMPT,
         "desktop_form": [
-            "Harness  : Codex  (Buzz ships codex-acp at " "%APPDATA%\\Buzz\\node-tools\\codex-acp)",
+            "Harness  : Codex  (Buzz ships codex-acp at %APPDATA%\\Buzz\\node-tools\\codex-acp)",
             "Model    : your Codex subscription default",
             "Respond  : owner-only  (matches AGENT_ROLES.md - stops agent @-loops)",
             "Channels : #dev and #build; do NOT grant #admin or #revenue",

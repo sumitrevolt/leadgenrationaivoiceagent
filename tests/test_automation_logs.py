@@ -1,4 +1,5 @@
 """Tests for centralized automation log service (ADR-064, 2026-07-09)."""
+
 import os
 import uuid
 
@@ -29,13 +30,17 @@ def test_log_event_jsonl_fallback(tmp_path, monkeypatch):
 
 def test_log_event_db_success(monkeypatch):
     """log_event writes to DB successfully."""
+
     class FakeDB:
         def __enter__(self):
             return self
+
         def __exit__(self, *a):
             pass
+
         def add(self, obj):
             self._added = obj
+
         def commit(self):
             pass
 
@@ -111,7 +116,10 @@ def test_admin_automation_logs_endpoint(client):
     saved_user = app.dependency_overrides.pop(get_current_user, None)
     try:
         assert client.get("/api/admin/automation-logs").status_code in (401, 403)
-        app.dependency_overrides[require_admin] = lambda: {"username": "test-admin", "role": "admin"}
+        app.dependency_overrides[require_admin] = lambda: {
+            "username": "test-admin",
+            "role": "admin",
+        }
         resp = client.get("/api/admin/automation-logs")
         assert resp.status_code == 200
         body = resp.json()

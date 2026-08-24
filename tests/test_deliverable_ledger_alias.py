@@ -48,9 +48,9 @@ def test_type_candidates_include_legacy_names():
 
 def test_type_candidates_for_each_renamed_type():
     for legacy, current in pod._LEGACY_DB_DELIVERABLE_TYPES.items():
-        assert legacy in pod._deliverable_type_candidates(
-            current
-        ), f"{legacy} must still match a writer passing {current}"
+        assert legacy in pod._deliverable_type_candidates(current), (
+            f"{legacy} must still match a writer passing {current}"
+        )
 
 
 def test_type_candidates_unknown_type_is_itself():

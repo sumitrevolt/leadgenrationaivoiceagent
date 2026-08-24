@@ -90,7 +90,7 @@ def test_concurrent_claim_exactly_one_winner(shared_env):
     script = textwrap.dedent(
         f"""
         import json, os, time, random
-        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env['root'])!r}
+        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
         from app.dev_control.external_agents import cas, store
@@ -122,7 +122,7 @@ def test_concurrent_idempotent_create_same_mission_id(shared_env):
     script = textwrap.dedent(
         f"""
         import json, os, time, random
-        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env['root'])!r}
+        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
         from app.dev_control.external_agents import cas, orchestrator
@@ -157,7 +157,7 @@ def test_concurrent_heartbeat_owner_only(shared_env):
     script = textwrap.dedent(
         f"""
         import json, os
-        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env['root'])!r}
+        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
         from app.dev_control.external_agents import cas, store
@@ -222,7 +222,7 @@ def test_concurrent_transition_one_commits(shared_env):
     script = textwrap.dedent(
         f"""
         import json, os, time, random
-        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env['root'])!r}
+        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
         from app.dev_control.external_agents import cas, store
@@ -286,7 +286,7 @@ def test_orchestrator_cancel_vs_advance_cas(shared_env):
     script = textwrap.dedent(
         f"""
         import json, os, time, random
-        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env['root'])!r}
+        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
         from app.dev_control.external_agents import cas, orchestrator

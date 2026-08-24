@@ -120,9 +120,9 @@ def test_nested_render_timeouts_decrease_inward(monkeypatch):
     worker_deadline = flags.worker_timeout_s()
     celery_deadline = _render_soft_limit()
 
-    assert (
-        subprocess_deadline < worker_deadline < celery_deadline
-    ), f"{subprocess_deadline} < {worker_deadline} < {celery_deadline}"
+    assert subprocess_deadline < worker_deadline < celery_deadline, (
+        f"{subprocess_deadline} < {worker_deadline} < {celery_deadline}"
+    )
 
 
 def test_render_timeout_is_clamped_even_when_misconfigured(monkeypatch):

@@ -207,7 +207,7 @@ async def get_strategy_suggestion(
 
     prompt = f"""
 Current campaign settings:
-- Target Industries: {', '.join(request.target_industries)}
+- Target Industries: {", ".join(request.target_industries)}
 - Monthly Leads Goal: {request.monthly_leads_goal}
 - Monthly Appointments Goal: {request.monthly_appointments_goal}
 - Agent Aggressiveness: {request.agent_aggressiveness}

@@ -62,9 +62,7 @@ def _patch_siteverify(
         async def __aexit__(self, *a: Any) -> None:  # noqa: ANN401
             return None
 
-        async def post(
-            self, url: str, data: dict[str, Any] | None = None, **kw: Any
-        ) -> _Resp:  # noqa: ANN401
+        async def post(self, url: str, data: dict[str, Any] | None = None, **kw: Any) -> _Resp:  # noqa: ANN401
             if raise_exc:
                 raise httpx.ConnectError("simulated")
             captured["url"] = url

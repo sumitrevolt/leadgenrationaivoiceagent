@@ -136,12 +136,12 @@ class TestVobizGetBalanceTimeoutHardening:
 
         to = captured.get("timeout")
         assert to is not None, "timeout must be passed"
-        assert (
-            getattr(to, "connect", None) == 5.0
-        ), f"connect timeout must be 5s, got {getattr(to, 'connect', None)}"
-        assert (
-            getattr(to, "read", None) == 10.0
-        ), f"read timeout must be 10s, got {getattr(to, 'read', None)}"
+        assert getattr(to, "connect", None) == 5.0, (
+            f"connect timeout must be 5s, got {getattr(to, 'connect', None)}"
+        )
+        assert getattr(to, "read", None) == 10.0, (
+            f"read timeout must be 10s, got {getattr(to, 'read', None)}"
+        )
 
     def test_transport_error_logged_as_warning_not_error(self, monkeypatch):
         import logging

@@ -6,6 +6,7 @@ land on. With QA_REAL_TRANSCRIPTS=1: recent transcript user-turns are replayed
 (junk-STT skipped, deduped, bounded) and transcript niches join the QA targets.
 Flag unset = byte-identical old behaviour (inert default).
 """
+
 from __future__ import annotations
 
 import asyncio

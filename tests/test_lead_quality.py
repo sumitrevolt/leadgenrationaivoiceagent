@@ -27,13 +27,9 @@ def _now_iso() -> str:
 
 def _install(monkeypatch, leads, *, forbid_writes=True, score_fn=None):
     """Wire hermetic stubs and return the captured team.log_event calls list."""
-    monkeypatch.setattr(
-        prospector, "list_prospects", lambda status=None, limit=100: list(leads)
-    )
+    monkeypatch.setattr(prospector, "list_prospects", lambda status=None, limit=100: list(leads))
     # tenant resolver → identity (no file I/O); empty handled by module -> 'platform'
-    monkeypatch.setattr(
-        clients_store, "canonical_client_id", lambda cid: str(cid or "").strip()
-    )
+    monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
     if score_fn is not None:
         monkeypatch.setattr(lead_scoring, "score_lead", score_fn)
 
@@ -84,8 +80,20 @@ def test_detects_duplicate_leads_same_phone(monkeypatch):
 def test_cross_tenant_same_phone_is_not_a_duplicate(monkeypatch):
     """Same phone under two different tenants must NOT be flagged (tenant-safe)."""
     leads = [
-        {"id": "a", "business_name": "A", "phone": "9876543210", "client_id": "t1", "lead_score": 70},
-        {"id": "b", "business_name": "B", "phone": "9876543210", "client_id": "t2", "lead_score": 70},
+        {
+            "id": "a",
+            "business_name": "A",
+            "phone": "9876543210",
+            "client_id": "t1",
+            "lead_score": 70,
+        },
+        {
+            "id": "b",
+            "business_name": "B",
+            "phone": "9876543210",
+            "client_id": "t2",
+            "lead_score": 70,
+        },
     ]
     _install(monkeypatch, leads)
     res = lq.scan_lead_quality()

@@ -99,7 +99,9 @@ def test_tool_confirmation_lines():
 
     # honours a tool-provided confirmation_text verbatim
     custom = types.SimpleNamespace(ok=True, data={"confirmation_text": "Theek hai Rahul ji."})
-    assert VobizStreamSession._tool_confirmation("book_appointment", custom) == "Theek hai Rahul ji."
+    assert (
+        VobizStreamSession._tool_confirmation("book_appointment", custom) == "Theek hai Rahul ji."
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -133,9 +135,7 @@ def test_reply_with_tools_routes_tool_call(monkeypatch):
     monkeypatch.setattr(brain, "_generate", _fake_gen_call)
     # CLOSE_DETECT (LIVE, default ON) buy-signal "book kar do" ko pre-LLM confirm pe
     # short-circuit karta — is test ka target TOOL routing hai, close-flow nahi.
-    monkeypatch.setattr(
-        "app.voice_agent.telecaller_brain._close_detect_enabled", lambda: False
-    )
+    monkeypatch.setattr("app.voice_agent.telecaller_brain._close_detect_enabled", lambda: False)
 
     spoken, call = asyncio.run(brain.reply_with_tools([], "book kar do kal 3 baje", reg))
     assert call is not None and call["name"] == "book_appointment"

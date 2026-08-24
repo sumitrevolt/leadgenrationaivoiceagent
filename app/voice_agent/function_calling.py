@@ -376,7 +376,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
         name = args.get("name") or lead.get("name") or lead.get("contact_name") or ""
         phone = args.get("phone") or lead.get("phone") or ""
         when_iso = args.get("when_iso") or args.get("when") or ""
-        notes = args.get("notes") or f"Booked via AI voice agent for {ctx.get('niche','')}"
+        notes = args.get("notes") or f"Booked via AI voice agent for {ctx.get('niche', '')}"
         try:
             from app.integrations.calendar_booking import get_calendar
 
@@ -468,8 +468,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
         Tool(
             name="check_availability",
             description=(
-                "Check free appointment slots for a given date before offering "
-                "times to the lead."
+                "Check free appointment slots for a given date before offering times to the lead."
             ),
             parameters={
                 "type": "object",

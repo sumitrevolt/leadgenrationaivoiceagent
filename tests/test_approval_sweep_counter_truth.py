@@ -15,6 +15,7 @@ operator galti se ye samajh sakta hai ki customer ko baar-baar spam ja raha hai.
 Contract: real send hi `sent` hai; dedupe alag counter (`deduplicated`) me jaye
 aur `attempted` bhi na bade (kyunki koi attempt hua hi nahi).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -46,9 +47,7 @@ _RESOLVE = lambda c: f"{c}@x.com"  # noqa: E731
 _ONE = [{"id": "a0", "client_id": "cli-0", "status": "pending", "content": {"t": 0}}]
 
 
-async def test_second_sweep_dedupes_and_does_not_report_a_send(
-    async_db_session, monkeypatch
-):
+async def test_second_sweep_dedupes_and_does_not_report_a_send(async_db_session, monkeypatch):
     """Do baar sweep: pehla asli bheje, doosra dedupe kare aur `sent` na bole."""
     monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": list(_ONE))
 
@@ -70,8 +69,7 @@ async def test_second_sweep_dedupes_and_does_not_report_a_send(
 
     # Counter sach bole — yehi wo bug tha jisne live triage ko bharma diya.
     assert second["sent"] == 0, (
-        "dedupe-suppressed item `sent` me nahi ginna chahiye "
-        f"(mila: {second})"
+        f"dedupe-suppressed item `sent` me nahi ginna chahiye (mila: {second})"
     )
     assert second["deduplicated"] == 1, f"dedupe alag counter me aana chahiye (mila: {second})"
     assert second["attempted"] == 0, "koi attempt hua hi nahi to attempted 0 rahe"

@@ -157,8 +157,7 @@ def main(argv: list[str]) -> int:
     store = pathlib.Path(prospector._PROSPECTS_FILE())
     if not store.is_file():
         print(
-            f"[backfill] FATAL: prospect store not found at {store} "
-            "(run this from the repo root)",
+            f"[backfill] FATAL: prospect store not found at {store} (run this from the repo root)",
             file=sys.stderr,
         )
         return 2

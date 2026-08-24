@@ -9,6 +9,7 @@ Fail-closed: on a lock-fs error, claim NO lock (return False) so a broken-FS boo
 skips the scheduler on this worker instead of double-firing. Loud warn log = the
 recovery signal (there is no next-tick retry — acquire is boot-once).
 """
+
 from __future__ import annotations
 
 import os
@@ -71,8 +72,9 @@ def test_no_steal_on_unreadable_lock(tmp_path):
             raise OSError("unreadable")
         return real_open(file, mode, *args, **kwargs)
 
-    with mock.patch("os.path.getmtime", side_effect=OSError("unreadable")), mock.patch(
-        "builtins.open", side_effect=read_broken_open
+    with (
+        mock.patch("os.path.getmtime", side_effect=OSError("unreadable")),
+        mock.patch("builtins.open", side_effect=read_broken_open),
     ):
         got = ts._acquire_lock()
     assert got is False, "unreadable lock = no proof of stale/dead → must NOT steal"

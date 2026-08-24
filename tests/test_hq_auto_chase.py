@@ -113,9 +113,7 @@ def test_skips_suppressed_recipient(monkeypatch):
         "app.platform.reply_agent._update_draft_fields",
         lambda hq_id, u: updates.append((hq_id, u)),
     )
-    monkeypatch.setattr(
-        "app.platform.email_unsub.is_suppressed", lambda email: True
-    )
+    monkeypatch.setattr("app.platform.email_unsub.is_suppressed", lambda email: True)
     fake = _FakeSend()
 
     out = _run(hqc.run_auto_chase(send_fn=fake))
@@ -149,10 +147,10 @@ def test_daily_cap_respected(monkeypatch):
         _card(**{"email": "b@test.in", "from": "b@test.in"}),
     ]
     monkeypatch.setattr("app.platform.reply_agent.list_drafts", lambda limit=50: drafts)
-    monkeypatch.setattr("app.platform.reply_agent.hq_id_for", lambda row: "hq_" + str(row.get("email", "")))
     monkeypatch.setattr(
-        "app.platform.reply_agent._update_draft_fields", lambda hq_id, u: None
+        "app.platform.reply_agent.hq_id_for", lambda row: "hq_" + str(row.get("email", ""))
     )
+    monkeypatch.setattr("app.platform.reply_agent._update_draft_fields", lambda hq_id, u: None)
     fake = _FakeSend()
 
     out = _run(hqc.run_auto_chase(send_fn=fake))

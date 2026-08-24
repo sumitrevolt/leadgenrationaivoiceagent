@@ -60,13 +60,14 @@ def _install(monkeypatch, clients, status_map, *, forbid_writes=True):
     monkeypatch.setattr(
         customer_delivery,
         "is_delivered",
-        lambda c: str((c or {}).get("delivery_state") or "").lower()
-        in ("delivered", "acknowledged"),
+        lambda c: (
+            str((c or {}).get("delivery_state") or "").lower() in ("delivered", "acknowledged")
+        ),
     )
     monkeypatch.setattr(
         customer_delivery,
         "mini_site_url",
-        lambda c: f"https://leadsgenai.in/b/{(c or {}).get('slug','')}",
+        lambda c: f"https://leadsgenai.in/b/{(c or {}).get('slug', '')}",
     )
     monkeypatch.setattr(
         product_one_delivery,

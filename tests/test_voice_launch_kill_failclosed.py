@@ -214,7 +214,6 @@ async def test_launch_status_exposes_reason(kill_file):
     assert snap.get("admin_kill_reason") == "MALFORMED"
 
 
-
 # ------------------------------------------------ REAL execution-gate harness
 #
 # A loader-only assertion cannot show that no call is placed. These tests invoke
@@ -306,11 +305,10 @@ def _harness(monkeypatch):
     monkeypatch.setattr(vl, "circuit_open", fake_circuit_open)
     monkeypatch.setattr(vl, "is_lead_eligible_for_voice_call", fake_eligibility)
     monkeypatch.setattr(vl, "reserve_call_slot", fake_reservation)
+    monkeypatch.setattr("app.telephony.vobiz_handler.VobizClient", FakeVobizClient, raising=False)
     monkeypatch.setattr(
-        "app.telephony.vobiz_handler.VobizClient", FakeVobizClient, raising=False
-    )
-    monkeypatch.setattr(
-        "app.api.telephony_vobiz.start_stream_call", fake_start_stream_call,
+        "app.api.telephony_vobiz.start_stream_call",
+        fake_start_stream_call,
         raising=False,
     )
     return events, states, counters, provider_calls
@@ -325,12 +323,12 @@ async def _run_campaign(monkeypatch):
     # p10 = re.sub(r"\D", "", (p.phone or "").strip())[-10:]  -> "0000000000"
     prospect = SimpleNamespace(id="test-prospect", phone="0000000000")
     result = await _dial_vobiz_campaign(
-        object(),          # db — untouched while provider returns placed=False
+        object(),  # db — untouched while provider returns placed=False
         [prospect],
-        False,             # dry_run MUST be False or the kill gate is skipped
+        False,  # dry_run MUST be False or the kill gate is skipped
         "promotional",
         "test-client",
-        True,              # platform=True -> p.niche never read, client_id=None
+        True,  # platform=True -> p.niche never read, client_id=None
     )
     return result, events, states, counters, provider_calls
 
@@ -348,9 +346,7 @@ def _diag(result, events, states, counters, provider_calls) -> str:
     [None, '{"kill": tru', "{}", '{"kill": 1}'],
     ids=["missing", "malformed", "invalid_schema", "invalid_schema_int"],
 )
-async def test_real_gate_refuses_when_kill_authority_unavailable(
-    kill_file, monkeypatch, payload
-):
+async def test_real_gate_refuses_when_kill_authority_unavailable(kill_file, monkeypatch, payload):
     if payload is not None:
         kill_file.write_text(payload, encoding="utf-8")
 
@@ -478,7 +474,9 @@ def test_replace_failure_preserves_the_previous_file(kill_file, monkeypatch):
 def test_failed_replace_does_not_leave_a_temp_behind(kill_file, monkeypatch):
     kill_file.write_text('{"kill": true}', encoding="utf-8")
     monkeypatch.setattr(
-        vl.os, "replace", lambda *a, **k: (_ for _ in ()).throw(OSError("x")),
+        vl.os,
+        "replace",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("x")),
         raising=False,
     )
     vl.set_kill(False)

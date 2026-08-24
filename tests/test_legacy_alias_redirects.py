@@ -38,9 +38,9 @@ def test_aliases_are_get_only_not_write_bypass():
     for src in _LEGACY_ALIASES:
         r = client.post(src, follow_redirects=False)
         assert r.status_code in (405, 307), f"POST {src} -> {r.status_code}"
-        assert (
-            r.headers.get("location") is None
-        ), f"POST {src} must NOT redirect (write surface is not aliased)"
+        assert r.headers.get("location") is None, (
+            f"POST {src} must NOT redirect (write surface is not aliased)"
+        )
 
 
 def test_aliases_do_not_shadow_the_real_api_routes():

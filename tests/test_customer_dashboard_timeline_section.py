@@ -17,6 +17,7 @@ def test_combo_dashboard_has_timeline_section_in_account_view():
         "timeline card must not be crammed into the Home hero area"
     )
 
+
 # customer_marketing.html/customer_voice.html (separate per-product fork checks
 # used to live here) were confirmed unreachable duplicates of this single file
 # and deleted 2026-07-07 — see tests/test_customer_dashboard_product_routing.py.

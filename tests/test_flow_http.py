@@ -8,8 +8,8 @@ def test_host_allowed_suffix_logic():
     assert flow_http._host_allowed("leadsgenai.in", allow)
     assert flow_http._host_allowed("ntfy.leadsgenai.in", allow)
     assert not flow_http._host_allowed("evil.com", allow)
-    assert not flow_http._host_allowed("notleadsgenai.in", allow)   # suffix-boundary safe
-    assert not flow_http._host_allowed("leadsgenai.in", [])         # empty allowlist denies all
+    assert not flow_http._host_allowed("notleadsgenai.in", allow)  # suffix-boundary safe
+    assert not flow_http._host_allowed("leadsgenai.in", [])  # empty allowlist denies all
 
 
 def test_is_public_blocks_private_and_internal():
@@ -76,6 +76,7 @@ def test_run_get_success_mocked(monkeypatch):
             return FakeResp()
 
     import httpx
+
     monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
     r = asyncio.run(flow_http.run({"url": "https://leadsgenai.in/health"}))
     assert r["ok"] is True and "200" in r["detail"]

@@ -123,7 +123,11 @@ def test_build_graph_advertises_the_new_contract():
 def test_public_graph_leaks_no_hierarchy_or_harness_internals():
     pub = bg.build_public_graph()
     forbidden = set(bg.HARNESS_CONTROL_FIELDS) | {
-        "legacy_node_id", "parent_node_id", "source_provenance", "files", "flags",
+        "legacy_node_id",
+        "parent_node_id",
+        "source_provenance",
+        "files",
+        "flags",
     }
     for n in pub["nodes"]:
         assert not (set(n) & forbidden), f"public node leaks {set(n) & forbidden}"
@@ -149,8 +153,15 @@ def test_v4_did_not_change_the_curated_overview():
 # --------------------------- negative gates -------------------------------
 def _base_node(**extra):
     return bg._n(
-        "tmp_probe", "Probe", 1, "observability_ops", "platform",
-        "CODE-PRESENT", ["app/platform/blueprint_graph.py"], "probe", **extra
+        "tmp_probe",
+        "Probe",
+        1,
+        "observability_ops",
+        "platform",
+        "CODE-PRESENT",
+        ["app/platform/blueprint_graph.py"],
+        "probe",
+        **extra,
     )
 
 

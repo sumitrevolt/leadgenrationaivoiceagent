@@ -390,7 +390,7 @@ class VertexContinuousTrainer:
                 return (
                     True,
                     TrainingPriority.NORMAL,
-                    f"Scheduled ({time_since_last.total_seconds()/3600:.1f}h since last)",
+                    f"Scheduled ({time_since_last.total_seconds() / 3600:.1f}h since last)",
                 )
 
         return False, TrainingPriority.MAINTENANCE, "No training needed"
@@ -508,12 +508,20 @@ class VertexContinuousTrainer:
         prompt = f"""{BRAIN_TRAINING_PROMPTS.get(brain_type, "")}
 
 BEHAVIOR DATA (last {len(sample)} actions):
-{json.dumps([{
-    "action": b.get("action", "unknown"),
-    "success": b.get("success", True),
-    "latency_ms": b.get("latency_ms", 0),
-    "user_accepted": b.get("user_accepted"),
-} for b in sample], indent=2)}
+{
+            json.dumps(
+                [
+                    {
+                        "action": b.get("action", "unknown"),
+                        "success": b.get("success", True),
+                        "latency_ms": b.get("latency_ms", 0),
+                        "user_accepted": b.get("user_accepted"),
+                    }
+                    for b in sample
+                ],
+                indent=2,
+            )
+        }
 
 Analyze these behaviors and identify:
 1. Success patterns (what works well)
@@ -558,13 +566,13 @@ PATTERNS IDENTIFIED:
 {json.dumps(patterns, indent=2)}
 
 BILLIONAIRE PRINCIPLES TO APPLY:
-{json.dumps(BILLIONAIRE_TRAINING_PRINCIPLES['core_mindset'], indent=2)}
+{json.dumps(BILLIONAIRE_TRAINING_PRINCIPLES["core_mindset"], indent=2)}
 
 DECISION FRAMEWORK:
-{json.dumps(BILLIONAIRE_TRAINING_PRINCIPLES['decision_framework'], indent=2)}
+{json.dumps(BILLIONAIRE_TRAINING_PRINCIPLES["decision_framework"], indent=2)}
 
 KPI TARGETS:
-{json.dumps(BILLIONAIRE_TRAINING_PRINCIPLES['kpi_targets'], indent=2)}
+{json.dumps(BILLIONAIRE_TRAINING_PRINCIPLES["kpi_targets"], indent=2)}
 
 Generate improvements that:
 1. Address identified failure patterns

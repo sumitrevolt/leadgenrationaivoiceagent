@@ -191,9 +191,9 @@ def test_workflow_steps_are_not_production_relevant() -> None:
         ),
     )
     assert all(f["production_relevant"] is False for f in out)
-    assert all(
-        s.classify(f, {}) == s.FIXTURE_ONLY for f in out
-    ), "ephemeral CI runners are not production state"
+    assert all(s.classify(f, {}) == s.FIXTURE_ONLY for f in out), (
+        "ephemeral CI runners are not production state"
+    )
 
 
 # ------------------------------------------------------------ classification
@@ -250,7 +250,7 @@ def test_real_repo_canonical_usage_is_detected() -> None:
     # `path.mkdir()`), so it is resolved during classify(), not at discovery.
     classes = {s.classify(x, {}) for x in f}
     assert s.CANONICAL_RUNTIME_PATH in classes, (
-        "canonical resolver usage in runtime_data.py not detected; " f"got {sorted(classes)}"
+        f"canonical resolver usage in runtime_data.py not detected; got {sorted(classes)}"
     )
 
 

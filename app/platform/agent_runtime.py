@@ -1358,7 +1358,9 @@ async def submit(
         lifecycle=(
             list(result.lifecycle)
             if result.lifecycle
-            else [TaskStatus.QUEUED.value] if result.status == "queued" else [result.status]
+            else [TaskStatus.QUEUED.value]
+            if result.status == "queued"
+            else [result.status]
         ),
         usage=dict(result.usage),
         decision=decision,

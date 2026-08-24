@@ -1,10 +1,11 @@
 """ADR-065 deeper logs part 2/3 (no-migration slice):
- - `team_scheduler._run_job` accepts a `retry_count` (Celery `run_staff_job`
-   threads `self.request.retries`), surfaced in the admin Automation Runs panel.
- - The Automation Runs panel renders a Proof column from existing fields
-   (`meta_json.path` report artifact / a URL in `output_summary`) — no DB column,
-   so no migration on the live prod DB.
+- `team_scheduler._run_job` accepts a `retry_count` (Celery `run_staff_job`
+  threads `self.request.retries`), surfaced in the admin Automation Runs panel.
+- The Automation Runs panel renders a Proof column from existing fields
+  (`meta_json.path` report artifact / a URL in `output_summary`) — no DB column,
+  so no migration on the live prod DB.
 """
+
 import inspect
 from pathlib import Path
 
@@ -23,9 +24,9 @@ def test_run_job_accepts_retry_count():
 
 def test_run_staff_job_threads_retries():
     # The Celery wrapper must pass the current retry number into _run_job.
-    src = (
-        Path(__file__).resolve().parents[1] / "app" / "tasks" / "staff_jobs.py"
-    ).read_text(encoding="utf-8")
+    src = (Path(__file__).resolve().parents[1] / "app" / "tasks" / "staff_jobs.py").read_text(
+        encoding="utf-8"
+    )
     assert "retry_count=int(getattr(self.request" in src
 
 

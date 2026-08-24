@@ -356,7 +356,7 @@ def drafts_for_client(
                 continue
     except Exception:  # pragma: no cover
         return []
-    out.sort(key=lambda r: (r.get("created_at") or r.get("date") or ""), reverse=True)
+    out.sort(key=lambda r: r.get("created_at") or r.get("date") or "", reverse=True)
     return out[: max(1, limit)]
 
 

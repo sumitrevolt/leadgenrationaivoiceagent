@@ -119,18 +119,14 @@ def test_run_blind_and_vote_flow(monkeypatch):
         assert rid and len(rid) >= 8
 
         # VOTE for label 'A'
-        vote_out = await m.vote(
-            m.CompareVoteIn(run_id=rid, winner_label="A"), _user=object()
-        )
+        vote_out = await m.vote(m.CompareVoteIn(run_id=rid, winner_label="A"), _user=object())
         assert vote_out["winner_label"] == "A"
         assert vote_out["winner_provider"] in ("cerebras", "groq", "mistral")
         assert set(vote_out["reveal"].keys()) == {"A", "B", "C"}
 
         # Double-vote rejected
         with pytest.raises(Exception) as exc:
-            await m.vote(
-                m.CompareVoteIn(run_id=rid, winner_label="B"), _user=object()
-            )
+            await m.vote(m.CompareVoteIn(run_id=rid, winner_label="B"), _user=object())
         assert getattr(exc.value, "status_code", None) == 400
 
         # Stats leaderboard non-empty

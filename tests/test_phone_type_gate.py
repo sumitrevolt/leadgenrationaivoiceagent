@@ -162,8 +162,12 @@ def test_duplicate_confirms_count_distinct_numbers(monkeypatch, tmp_path):
 def test_feedback_writes_audit_trail(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
     _no_prospect_store(monkeypatch)
-    call_feedback.record_ivr_confirmed(FIXED_LINE_IVR, source="post_call_bot", detail="ivr_phrase:welcome to")
-    lines = (tmp_path / "dial_blocklist_audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    call_feedback.record_ivr_confirmed(
+        FIXED_LINE_IVR, source="post_call_bot", detail="ivr_phrase:welcome to"
+    )
+    lines = (
+        (tmp_path / "dial_blocklist_audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    )
     assert len(lines) == 1
     entry = json.loads(lines[0])
     assert entry["phone"] == FIXED_LINE_IVR and entry["source"] == "post_call_bot"

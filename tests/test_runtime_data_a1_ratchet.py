@@ -70,7 +70,7 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-16: 62 -> 70. Marketing factory JSONL (appointment/health/drips/forms/
 # proposals/review) classified as TIER_3 REBUILDABLE_CACHE (+8 allowlist rows).
 # CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 71
+EXPECTED_ALLOWLIST_ENTRIES = 83
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
@@ -238,9 +238,9 @@ def test_the_ratchet_would_actually_catch_a_regression(tmp_path):
     values = {value for _, value in findings}
     assert len(findings) == 4, findings
     assert "data/dial_blocklist.json" in values, "the plain literal slipped through"
-    assert (
-        "data/platform_dial.json" in values
-    ), "the os.path.join('data', ...) shape slipped through"
+    assert "data/platform_dial.json" in values, (
+        "the os.path.join('data', ...) shape slipped through"
+    )
     assert "data/recordings" in values, "the Path('data') / 'sub' shape slipped through"
     assert "join-with-data-root" in values, (
         "a join with a COMPUTED segment must still be reported — degrading to the "

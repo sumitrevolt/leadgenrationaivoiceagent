@@ -101,7 +101,9 @@ async def test_race_survives_one_exception(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_race_disabled_by_default_preserves_sequential(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_race_disabled_by_default_preserves_sequential(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """VOICE_LLM_RACE unset → existing sequential behaviour byte-identical."""
     monkeypatch.delenv("VOICE_LLM_RACE", raising=False)
     monkeypatch.delenv("VOICE_GEMINI_PRIMARY", raising=False)

@@ -10,6 +10,7 @@ Fix: `_run_job_inner` returns False when its outer except catches; `_run_job`
 threads that into `record_run` as ok=False — WITHOUT re-raising (the tick's other
 jobs must still run; scheduler_loop runs the whole tick under one try).
 """
+
 from __future__ import annotations
 
 import asyncio

@@ -6,6 +6,7 @@ it, so a customer's registered webhook never heard about a payment. Fix: when
 `activate_plan` provisions a plan (after pay/renew), fire both events (gated by
 CUSTOMER_WEBHOOKS inside emit, never-raises).
 """
+
 from __future__ import annotations
 
 from app.billing import usage
@@ -34,7 +35,9 @@ def test_activate_plan_fires_subscription_and_payment_webhooks(monkeypatch):
 
 
 def test_activate_plan_no_emit_when_not_applied(monkeypatch):
-    monkeypatch.setattr(clients_store, "get_client", lambda cid: None)  # unknown client → not applied
+    monkeypatch.setattr(
+        clients_store, "get_client", lambda cid: None
+    )  # unknown client → not applied
 
     emitted = []
     monkeypatch.setattr(customer_webhooks, "fire_emit", lambda *a, **k: emitted.append(1))

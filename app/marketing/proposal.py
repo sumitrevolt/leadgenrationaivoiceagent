@@ -98,7 +98,7 @@ async def generate_proposal(
 
     template = (
         f"*Proposal for {biz}*\n\n"
-        f"Problem: {(niche or 'aapke').replace('_',' ')} business me aadhe inquiries bina follow-up "
+        f"Problem: {(niche or 'aapke').replace('_', ' ')} business me aadhe inquiries bina follow-up "
         f"ke nikal jaate — ~₹{lost:,}/mo ka nuksan.\n\n"
         f"Solution: LeadGen AI marketing automation — posts/GBP/reviews/WhatsApp drafts. "
         f"Advanced plan me AI voice callback feature bhi. Aap ready leads pe focus karo.\n\n"

@@ -175,4 +175,6 @@ def test_bootstrap_default_kb_still_full_seed(monkeypatch):
 
     assert out is kb
     assert "_global" in kb.namespaces_touched()
-    assert not (_all_niche_keys() - kb.namespaces_touched()), "bootstrap ab bhi saare niches seed kare"
+    assert not (_all_niche_keys() - kb.namespaces_touched()), (
+        "bootstrap ab bhi saare niches seed kare"
+    )

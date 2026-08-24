@@ -20,7 +20,9 @@ def test_health_signup_all_green_when_deps_healthy(client):
     checks = d.get("checks") or {}
     for name in ("jwt_mint", "clients_store", "auth_store", "automation_log"):
         assert name in checks, f"probe missing: {name}"
-        assert checks[name].get("status") == "healthy", f"{name} unexpectedly unhealthy: {checks[name]}"
+        assert checks[name].get("status") == "healthy", (
+            f"{name} unexpectedly unhealthy: {checks[name]}"
+        )
 
 
 def test_health_signup_reports_503_when_jwt_mint_fails(client, monkeypatch):
@@ -40,7 +42,10 @@ def test_health_signup_reports_503_when_jwt_mint_fails(client, monkeypatch):
     assert jm.get("status") == "unhealthy"
     assert "RuntimeError" in (jm.get("error") or "")
     # Other checks should still report their own status (per-probe granularity).
-    assert (d.get("checks") or {}).get("clients_store", {}).get("status") in ("healthy", "unhealthy")
+    assert (d.get("checks") or {}).get("clients_store", {}).get("status") in (
+        "healthy",
+        "unhealthy",
+    )
 
 
 def test_health_signup_reports_503_when_automation_log_missing(client, monkeypatch):

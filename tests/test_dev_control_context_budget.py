@@ -27,11 +27,21 @@ from app.dev_control.context_packets import (
 
 def _packet(**overrides):
     base = dict(
-        task_id="t-100", commit_sha="abc1234", size_class="standard",
-        task_goal="Fix the UPI submit 404", business_impact="unblocks live payment path",
+        task_id="t-100",
+        commit_sha="abc1234",
+        size_class="standard",
+        task_goal="Fix the UPI submit 404",
+        business_impact="unblocks live payment path",
         acceptance_criteria=["route returns 200", "contract test green"],
         relevant_files=["app/api/upi.py"],
-        code_excerpts=[{"path": "app/api/upi.py", "start": 1, "end": 5, "text": "from pydantic import BaseModel"}],
+        code_excerpts=[
+            {
+                "path": "app/api/upi.py",
+                "start": 1,
+                "end": 5,
+                "text": "from pydantic import BaseModel",
+            }
+        ],
         do_not_change=["app/marketing/packages.py"],
         security_rules=["no secrets in prompts"],
     )
@@ -53,13 +63,20 @@ def test_oversize_packet_is_hard_blocked_even_with_justification():
     big = "x" * (PACKET_TOKEN_LIMITS["simple"] * 4 + 500)
     denied = _packet(size_class="simple", code_excerpts=[{"path": "big.py", "text": big}])
     assert denied["ok"] is False and denied["reason"] == "packet_over_budget"
-    allowed = _packet(size_class="simple", code_excerpts=[{"path": "big.py", "text": big}],
-                      oversize_justification="full-file migration diff required")
+    allowed = _packet(
+        size_class="simple",
+        code_excerpts=[{"path": "big.py", "text": big}],
+        oversize_justification="full-file migration diff required",
+    )
     assert allowed["ok"] is False and allowed["reason"] == "packet_over_budget"
 
 
 def test_prior_failed_attempts_are_included_for_the_next_model():
-    out = _packet(prior_failed_attempts=[{"attempt_no": 1, "provider": "deepseek", "error": "hallucinated route"}])
+    out = _packet(
+        prior_failed_attempts=[
+            {"attempt_no": 1, "provider": "deepseek", "error": "hallucinated route"}
+        ]
+    )
     assert "prior attempt #1 via deepseek: hallucinated route" in out["text"]
 
 
@@ -69,9 +86,15 @@ def test_cache_key_changes_only_when_inputs_change():
     k1 = cache_key(task_id="t", commit_sha="s1", relevant_file_hashes=h1, contract_version="v1")
     k_same = cache_key(task_id="t", commit_sha="s1", relevant_file_hashes=h1, contract_version="v1")
     assert k1 == k_same
-    assert k1 != cache_key(task_id="t", commit_sha="s1", relevant_file_hashes=h2, contract_version="v1")
-    assert k1 != cache_key(task_id="t", commit_sha="s2", relevant_file_hashes=h1, contract_version="v1")
-    assert k1 != cache_key(task_id="t", commit_sha="s1", relevant_file_hashes=h1, contract_version="v2")
+    assert k1 != cache_key(
+        task_id="t", commit_sha="s1", relevant_file_hashes=h2, contract_version="v1"
+    )
+    assert k1 != cache_key(
+        task_id="t", commit_sha="s2", relevant_file_hashes=h1, contract_version="v1"
+    )
+    assert k1 != cache_key(
+        task_id="t", commit_sha="s1", relevant_file_hashes=h1, contract_version="v2"
+    )
 
 
 def test_packet_cache_hit_miss_and_bounded_size():
@@ -79,7 +102,8 @@ def test_packet_cache_hit_miss_and_bounded_size():
     assert cache.get("k1") is None
     cache.put("k1", {"ok": True, "tokens": 1})
     assert cache.get("k1")["tokens"] == 1
-    cache.put("k2", {"ok": True}); cache.put("k3", {"ok": True})  # evicts oldest
+    cache.put("k2", {"ok": True})
+    cache.put("k3", {"ok": True})  # evicts oldest
     assert len(cache._store) == 2
     assert cache.hits == 1 and cache.misses >= 1
 
@@ -150,10 +174,15 @@ def test_repeat_identical_prompt_is_refused():
 # ---------------------------------------------------------------- handoff packets
 def _handoff_fields(**overrides):
     fields = dict(
-        work_completed="atomic claim implemented", files_changed=["app/dev_control/claims.py"],
-        commands_run=["pytest tests/test_dev_control_claims.py -q"], tests_run="6",
-        tests_passing="6", tests_failing="0", current_blocker="none",
-        likely_cause="n/a", next_exact_action="wire API layer",
+        work_completed="atomic claim implemented",
+        files_changed=["app/dev_control/claims.py"],
+        commands_run=["pytest tests/test_dev_control_claims.py -q"],
+        tests_run="6",
+        tests_passing="6",
+        tests_failing="0",
+        current_blocker="none",
+        likely_cause="n/a",
+        next_exact_action="wire API layer",
         investigations_already_completed=["checked reconcile path"],
         decisions_made=["conditional UPDATE over advisory locks"],
         remaining_risk="low",
@@ -170,7 +199,9 @@ def test_handoff_packet_requires_all_12_fields():
 
 
 def test_handoff_packet_complete_and_redacted():
-    out = build_handoff_packet(**_handoff_fields(remaining_risk="token sk-live-abcdefghijklmnop1234 leaked?"))
+    out = build_handoff_packet(
+        **_handoff_fields(remaining_risk="token sk-live-abcdefghijklmnop1234 leaked?")
+    )
     assert out["ok"] is True
     assert "sk-live-abcdefghijklmnop1234" not in out["text"]
     assert "NEXT EXACT ACTION" in out["text"]

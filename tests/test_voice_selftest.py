@@ -55,7 +55,10 @@ def _scn(name, goals, kind="happy"):
 
 def test_score_scenario_all_pass():
     good = [
-        {"role": "assistant", "content": "Namaste, main ek AI assistant — do minute baat kar sakti hoon?"},
+        {
+            "role": "assistant",
+            "content": "Namaste, main ek AI assistant — do minute baat kar sakti hoon?",
+        },
         {"role": "user", "content": "haan"},
         {"role": "assistant", "content": "aapko zyada leads chahiye kya?"},
     ]
@@ -138,7 +141,7 @@ def test_gate_critical_fails_advisory_does_not():
 
 def test_gate_strict_promotes_everything():
     adv = [vs.as_finding("PII_LEAK: ..."), vs.as_finding("SLOW 9s ...")]
-    assert vs.gate(adv)["exit_code"] == 0          # default: advisory + warn don't gate
+    assert vs.gate(adv)["exit_code"] == 0  # default: advisory + warn don't gate
     assert vs.gate(adv, strict=True)["exit_code"] == 1  # strict: any finding gates
 
 

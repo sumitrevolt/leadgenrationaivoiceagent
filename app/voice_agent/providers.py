@@ -386,7 +386,7 @@ class ProviderRegistry:
         instance: Any = None
         if factory is None:
             logger.warning(
-                f"{kind.upper()} provider '{name}' not registered; " f"falling back to Mock."
+                f"{kind.upper()} provider '{name}' not registered; falling back to Mock."
             )
         else:
             try:
@@ -394,8 +394,7 @@ class ProviderRegistry:
                 logger.info(f"✅ {kind.upper()} provider active: {name}")
             except Exception as e:
                 logger.warning(
-                    f"{kind.upper()} provider '{name}' failed to init ({e}); "
-                    f"falling back to Mock."
+                    f"{kind.upper()} provider '{name}' failed to init ({e}); falling back to Mock."
                 )
                 instance = None
 

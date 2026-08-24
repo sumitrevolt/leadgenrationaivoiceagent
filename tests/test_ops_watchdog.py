@@ -5,6 +5,7 @@ goes down, automation_health.queue_depth() silently returns -1 (looks like 'no
 backlog'), so before this guard the operator got NO alert that Redis itself died.
 These tests pin the new sense→alert behavior.
 """
+
 from app.platform import ops_watchdog
 
 

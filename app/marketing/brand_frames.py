@@ -319,7 +319,7 @@ async def _llm_captions(brand: dict[str, Any], items: list[dict[str, str]]) -> l
     try:
         from app.voice_agent import free_ai
 
-        listing = "; ".join(f"{i+1}. {it['kind']}: {it['title']}" for i, it in enumerate(items))
+        listing = "; ".join(f"{i + 1}. {it['kind']}: {it['title']}" for i, it in enumerate(items))
         raw, _ = await free_ai.chat(
             (
                 "Tu Indian local business ka social media caption writer hai. Har item ke "

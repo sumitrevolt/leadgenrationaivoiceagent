@@ -529,9 +529,9 @@ def test_render_creative_video_getsize_failure_never_double_logs(monkeypatch, tm
     assert "error" in result
     ready_events = [e for e in logged if e[1] == "video_ready"]
     failed_events = [e for e in logged if e == ("c1", "video_render_failed")]
-    assert (
-        not ready_events
-    ), f"video_ready must never fire when getsize raises building the result dict, got {logged}"
+    assert not ready_events, (
+        f"video_ready must never fire when getsize raises building the result dict, got {logged}"
+    )
     assert len(failed_events) == 1, f"expected exactly one video_render_failed log, got {logged}"
 
 

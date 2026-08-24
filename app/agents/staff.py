@@ -472,7 +472,7 @@ async def run_trainer() -> dict[str, Any]:
             )
         if junk_ratio > _junk_max:
             suggestions.append(
-                f"STT junk zyada hai ({int(junk_ratio*100)}% user turns garbage) — VAD/SILENCE_MS tune karo, Groq STT key check karo."
+                f"STT junk zyada hai ({int(junk_ratio * 100)}% user turns garbage) — VAD/SILENCE_MS tune karo, Groq STT key check karo."
             )
         if avg_reply_len > _words_max:
             suggestions.append(

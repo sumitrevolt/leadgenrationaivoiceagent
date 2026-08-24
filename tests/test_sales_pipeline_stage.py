@@ -9,6 +9,7 @@ code is never-raise by design, so these assert the contract, not exceptions.
 
 Run: .venv\\Scripts\\python.exe -m pytest tests/test_sales_pipeline_stage.py -q
 """
+
 from __future__ import annotations
 
 

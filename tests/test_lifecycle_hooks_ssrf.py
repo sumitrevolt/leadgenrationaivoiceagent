@@ -12,7 +12,12 @@ def test_rejects_loopback_and_linklocal():
 
 
 def test_rejects_internal_hostnames():
-    for h in ("http://localhost/x", "http://qdrant:6333", "http://pgbouncer:6432", "http://redis/x"):
+    for h in (
+        "http://localhost/x",
+        "http://qdrant:6333",
+        "http://pgbouncer:6432",
+        "http://redis/x",
+    ):
         assert lifecycle_hooks._is_safe_target(h)[0] is False
 
 

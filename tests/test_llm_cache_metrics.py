@@ -11,6 +11,7 @@ last_error per provider — no explicit rate-limit (429/quota) count.
   error strings (read-side only — errors were already recorded).
 - free_ai's single cache-get site records hit/miss (never-raise, ultra-light).
 """
+
 from __future__ import annotations
 
 import asyncio

@@ -242,11 +242,11 @@ def main():
 
     args = parser.parse_args()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  LeadGen AI - Secret Manager Setup")
     print(f"  Project: {args.project_id}")
     print(f"  Environment: {args.env}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Load .env file if it exists
     env_vars = load_env_file(args.env_file)
@@ -338,9 +338,9 @@ def main():
                 created_count += 1
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  Summary")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  ✅ Created: {created_count}")
     print(f"  🔄 Updated: {updated_count}")
     print(f"  ⏭️  Skipped: {skipped_count}")
@@ -355,9 +355,9 @@ def main():
     print("\n✅ Secret Manager setup complete!")
 
     # Print Cloud Run configuration hint
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  Next Steps")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"""
   1. Ensure Cloud Run service account has Secret Manager access:
 

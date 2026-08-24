@@ -89,8 +89,9 @@ def test_dispatch_status_update_no_match_is_ok(monkeypatch, tmp_path):
     monkeypatch.setattr(_store, "_mirror", lambda job: None)
 
     captured: list[tuple] = []
-    monkeypatch.setattr(delivery_ledger, "log_event",
-                        lambda cid, ev, detail="", **kw: captured.append((cid, ev)))
+    monkeypatch.setattr(
+        delivery_ledger, "log_event", lambda cid, ev, detail="", **kw: captured.append((cid, ev))
+    )
     out = wh.dispatch_status_update("PID-orphan", "published", detail="ok", client_id="c1")
     assert out["ok"] is True
     assert out["matched_job"] is False

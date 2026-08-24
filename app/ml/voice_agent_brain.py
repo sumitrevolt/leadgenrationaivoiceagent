@@ -578,15 +578,15 @@ CONTEXT:
 - Temperature: {state.temperature.value}
 
 VALUE PROPOSITION:
-{config['value_prop']}
+{config["value_prop"]}
 
 CONVERSATION HISTORY:
 {self._format_history(state.history[-6:])}
 
 {rag_context}
 
-{"OBJECTION TO HANDLE: " + extracted.get('objection', '') if extracted.get('objection') else ""}
-{"QUESTION TO ANSWER: " + extracted.get('question', '') if extracted.get('question') else ""}
+{"OBJECTION TO HANDLE: " + extracted.get("objection", "") if extracted.get("objection") else ""}
+{"QUESTION TO ANSWER: " + extracted.get("question", "") if extracted.get("question") else ""}
 
 RULES:
 1. Keep response to 2-3 sentences MAX (this is a phone call)
@@ -669,12 +669,12 @@ Generate ONLY the agent's response (no quotes, no labels):"""
 CONTEXT:
 - Agent name: Maya
 - Calling: {state.lead_name}
-- Company: {state.company_name or 'a business'}
+- Company: {state.company_name or "a business"}
 - Industry: {state.industry}
-- City: {state.city or 'India'}
+- City: {state.city or "India"}
 
 VALUE PROP (DO NOT SAY ALL THIS, just hint):
-{config['value_prop']}
+{config["value_prop"]}
 
 {f"SIMILAR SUCCESSFUL GREETINGS:{chr(10)}{similar_greetings}" if similar_greetings else ""}
 

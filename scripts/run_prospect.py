@@ -13,6 +13,15 @@ import asyncio
 import csv
 import json
 import sys
+from pathlib import Path
+
+# Allow ``python scripts/run_prospect.py`` (as documented for `docker exec
+# leadgen_app`) to import the `app` package regardless of the caller's CWD.
+# Without this, the script fails with "No module named 'app'" when invoked
+# from anywhere other than the repo root.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 
 def main() -> int:

@@ -259,7 +259,7 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
             return PublishResult(
                 ok=False,
                 platform=p,
-                error=f"validation:{first.get('rule','')}: {msg}"[:150],
+                error=f"validation:{first.get('rule', '')}: {msg}"[:150],
                 raw={"validation_issues": issues},
             )
     except Exception:
@@ -405,7 +405,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                     cid,
                     "customer_action_required",
                     job,
-                    detail=f"{job.get('platform','')} account not connected",
+                    detail=f"{job.get('platform', '')} account not connected",
                 )
             else:
                 attempts = int(job.get("attempts") or 0) + 1

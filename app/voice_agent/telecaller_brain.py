@@ -1892,7 +1892,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
         if any(w in low for w in ("trial", "free trial", "demo", "test karna", "try karna")):
             return self._clean(
-                "7 din ka FREE trial hai, bina credit card. " "Aaj setup kar doon ya kal subah?"
+                "7 din ka FREE trial hai, bina credit card. Aaj setup kar doon ya kal subah?"
             )
         if any(w in low for w in ("busy", "meeting", "abhi nahi", "time nahi")):
             return self._clean("Shaam paanch baje ya kal subah gyarah — kab theek rahega?")
@@ -3615,9 +3615,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # callback so its eventual result/exception isn't logged as
             # "never retrieved" and nothing is left dangling.
             try:
-                readiness_fut.add_done_callback(
-                    lambda f: (None if f.cancelled() else f.exception())
-                )
+                readiness_fut.add_done_callback(lambda f: None if f.cancelled() else f.exception())
             except Exception:
                 pass
             _kb_log_state(niche, _KB_STATE_READINESS_TIMEOUT, t0)
@@ -3673,7 +3671,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # Own the future on timeout instead of discarding it — bounded by
             # the qdrant client's own socket timeout, not indefinite.
             try:
-                query_fut.add_done_callback(lambda f: (None if f.cancelled() else f.exception()))
+                query_fut.add_done_callback(lambda f: None if f.cancelled() else f.exception())
             except Exception:
                 pass
             _kb_log_state(niche, _KB_STATE_RETRIEVAL_TIMEOUT, t0)

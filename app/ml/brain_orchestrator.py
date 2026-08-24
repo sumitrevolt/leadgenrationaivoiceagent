@@ -775,7 +775,7 @@ class BrainOrchestrator:
 
                 client = get_vertex_client()
 
-                prompt = f"""You are training the {agent_name.replace('_', ' ').title()} sub-agent.
+                prompt = f"""You are training the {agent_name.replace("_", " ").title()} sub-agent.
 
 This agent specializes in:
 - voice_ai: Real-time call optimization, ASR/TTS latency, LLM fallbacks

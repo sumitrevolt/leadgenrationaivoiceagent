@@ -28,7 +28,8 @@ async def test_semcache_wrapper_invoked_and_falls_through_when_off(monkeypatch):
         chat_calls["n"] += 1
         text = (
             "Intro paragraph yahan hai jo kaafi lamba hai taaki gate paas ho jaye "
-            "aur template fallback na ho. " * 6
+            "aur template fallback na ho. "
+            * 6
             + "\n\n## Pehla section\nPehle section ka useful content yahan likha hai.\n\n"
             "## Doosra section\nDoosre section ka useful content yahan likha hai.\n"
         )

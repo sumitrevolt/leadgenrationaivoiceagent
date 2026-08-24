@@ -1,4 +1,5 @@
 """Tests for the Lekha call-KPI daily digest (Task 3 — fixes missing log_event wiring)."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -8,8 +9,12 @@ from app.voice_agent import call_analytics
 
 def test_run_daily_digest_calls_compute_call_kpis():
     fake_kpis = {
-        "window_days": 1, "web_calls": 12, "avg_duration_s": 145.2, "qualified_phone": 4,
-        "booking_rate_pct": 10.0, "reply_latency_ms": {"p50": 900, "p95": 2200},
+        "window_days": 1,
+        "web_calls": 12,
+        "avg_duration_s": 145.2,
+        "qualified_phone": 4,
+        "booking_rate_pct": 10.0,
+        "reply_latency_ms": {"p50": 900, "p95": 2200},
     }
     with patch.object(call_analytics, "compute_call_kpis", return_value=fake_kpis) as m:
         result = call_analytics.run_daily_digest()

@@ -33,8 +33,7 @@ def _strip_line_comments(body: str) -> str:
     "confirm(" while documenting the fix) before asserting no *live* call to
     the native confirm() remains."""
     return "\n".join(
-        line if "//" not in line else line[: line.index("//")]
-        for line in body.splitlines()
+        line if "//" not in line else line[: line.index("//")] for line in body.splitlines()
     )
 
 
@@ -187,7 +186,7 @@ def test_delivery_action_publish_manual_gated_by_modal_before_prompt_and_api():
     first_modal_idx = body.index("actionConfirmModal(")
     second_modal_idx = body.index("actionConfirmModal(", first_modal_idx + 1)
     guard_idx = body.index("if(!okPublish) return")
-    prompt_idx = body.index("prompt(\"Manual proof note")
+    prompt_idx = body.index('prompt("Manual proof note')
     api_idx = body.index('callApi("/api/admin/clients/')
     assert second_modal_idx < guard_idx < prompt_idx < api_idx
 

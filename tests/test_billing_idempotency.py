@@ -18,6 +18,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _reset_mem(idem_module):
     """Clear the module-level _MEM dict between tests so state never bleeds."""
     idem_module._MEM.clear()
@@ -34,9 +35,9 @@ def test_seen_before_sync_first_call_false(monkeypatch):
 
     _reset_mem(idem)
 
-    monkeypatch.setattr(idem, "_sync_redis", lambda: (_ for _ in ()).throw(
-        ConnectionError("redis down")
-    ))
+    monkeypatch.setattr(
+        idem, "_sync_redis", lambda: (_ for _ in ()).throw(ConnectionError("redis down"))
+    )
 
     result = idem.seen_before_sync("test-key-first-call")
     assert result is False, "First-time key should return False (not seen before)"
@@ -155,9 +156,9 @@ def test_forget_sync_empty_key_no_error(monkeypatch):
     import app.billing.idempotency as idem
 
     _reset_mem(idem)
-    monkeypatch.setattr(idem, "_sync_redis", lambda: (_ for _ in ()).throw(
-        ConnectionError("should not be called")
-    ))
+    monkeypatch.setattr(
+        idem, "_sync_redis", lambda: (_ for _ in ()).throw(ConnectionError("should not be called"))
+    )
 
     # Must not raise
     idem.forget_sync("")

@@ -35,7 +35,9 @@ async def test_make_post_item_injects_brain_context(monkeypatch: pytest.MonkeyPa
         "Daily Post",
     )
     assert item["caption"] == "ok"
-    assert "SOLAR_WIN_ANGLE" in captured.get("context", ""), "brain context not passed to generate_post"
+    assert "SOLAR_WIN_ANGLE" in captured.get("context", ""), (
+        "brain context not passed to generate_post"
+    )
 
 
 @pytest.mark.asyncio

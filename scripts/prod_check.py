@@ -362,9 +362,7 @@ def check_explorer_drift() -> None:
 
         a = es.audit()
         cov = len(a["mods"]) - len(a["miss_mods"])
-        line = (
-            f"[i] explorer graph: {a['nodes']} nodes · engine coverage " f"{cov}/{len(a['mods'])}"
-        )
+        line = f"[i] explorer graph: {a['nodes']} nodes · engine coverage {cov}/{len(a['mods'])}"
         if a["miss_mods"]:
             line += f" · {len(a['miss_mods'])} not drawn (scripts/explorer_sync.py --stubs)"
         ea = es.edge_audit(es._read(es.EXPLORER))

@@ -305,7 +305,7 @@ def invoice_html(inv: dict[str, Any]) -> str:
         e = _h.escape
         sup, rec = inv.get("supplier", {}), inv.get("recipient", {})
         rows = (
-            f'<tr><td>{e(str(inv.get("description", "")))}<br><small>SAC: {e(str(inv.get("sac_code", "")))}</small></td>'
+            f"<tr><td>{e(str(inv.get('description', '')))}<br><small>SAC: {e(str(inv.get('sac_code', '')))}</small></td>"
             f'<td style="text-align:right">₹{inv.get("taxable_value", 0):,.2f}</td></tr>'
         )
         tax_rows = ""
@@ -321,13 +321,13 @@ def invoice_html(inv: dict[str, Any]) -> str:
             if inv.get("note")
             else ""
         )
-        gstin_line = f'GSTIN: {e(sup.get("gstin", ""))}<br>' if sup.get("gstin") else ""
-        rec_gstin = f'GSTIN: {e(rec.get("gstin", ""))}<br>' if rec.get("gstin") else ""
+        gstin_line = f"GSTIN: {e(sup.get('gstin', ''))}<br>" if sup.get("gstin") else ""
+        rec_gstin = f"GSTIN: {e(rec.get('gstin', ''))}<br>" if rec.get("gstin") else ""
         void_banner = (
             f'<div style="border:2px solid #c00;color:#c00;text-align:center;'
             f'font-weight:bold;padding:8px;margin:8px 0">VOIDED — '
-            f'{e(str(inv.get("void_reason", "") or "cancelled"))} '
-            f'({e(str(inv.get("voided_at", ""))[:10])})</div>'
+            f"{e(str(inv.get('void_reason', '') or 'cancelled'))} "
+            f"({e(str(inv.get('voided_at', ''))[:10])})</div>"
             if inv.get("voided")
             else ""
         )

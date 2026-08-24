@@ -411,9 +411,9 @@ def _async_engine_teardown_guard(event_loop):
             )
 
             event_loop.run_until_complete(drain_inquiry_bg_tasks(timeout=5.0))
-            assert (
-                pending_inquiry_bg_count() == 0
-            ), "inquiry_hooks owned tasks still pending after drain"
+            assert pending_inquiry_bg_count() == 0, (
+                "inquiry_hooks owned tasks still pending after drain"
+            )
             # Leave accept gate open for any late imports in other session fixtures.
             resume_accepting_inquiry_bg()
         except AssertionError:
@@ -690,8 +690,11 @@ def _reset_rate_limit_state():
 
     _clear()
     yield
+
+
 import asyncio
 import pytest
+
 
 @pytest.fixture(autouse=True, scope="session")
 def suppress_unclosable_tasks_in_ci():
@@ -699,26 +702,34 @@ def suppress_unclosable_tasks_in_ci():
     that cause pytest to exit with status 1 on teardown."""
     try:
         loop = asyncio.get_event_loop()
+
         def _quiet_handler(loop, context):
-            if "Task was destroyed but it is pending" in str(context.get('message', '')):
+            if "Task was destroyed but it is pending" in str(context.get("message", "")):
                 return
             loop.default_exception_handler(context)
+
         loop.set_exception_handler(_quiet_handler)
     except Exception:
         pass
 
+
 # Global generic monkeypatch for task leaks per test
 import asyncio.base_events
+
 _orig_default_exception_handler = asyncio.base_events.BaseEventLoop.default_exception_handler
 
+
 def _quiet_default_exception_handler(self, context):
-    if "Task was destroyed but it is pending" in str(context.get('message', '')):
+    if "Task was destroyed but it is pending" in str(context.get("message", "")):
         return
     _orig_default_exception_handler(self, context)
+
 
 asyncio.base_events.BaseEventLoop.default_exception_handler = _quiet_default_exception_handler
 
 import sys
+
+
 @pytest.fixture(autouse=True, scope="session")
 def disable_asyncgen_finalizer():
     # Completely disable async generator finalization tasks to stop asyncio
@@ -727,6 +738,7 @@ def disable_asyncgen_finalizer():
         sys.set_asyncgen_hooks(finalizer=lambda agen: None)
     except Exception:
         pass
+
 
 @pytest.fixture(autouse=True)
 def disable_asyncgen_finalizer_per_test():

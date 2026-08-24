@@ -6,6 +6,7 @@ couldn't retune what counts as "a problem" without a code change. Fix:
 `_trainer_thresholds()` reads TRAINER_REPEAT_MAX / TRAINER_JUNK_RATIO /
 TRAINER_REPLY_WORDS (env), falling back to the original defaults.
 """
+
 from __future__ import annotations
 
 import app.agents.staff as staff

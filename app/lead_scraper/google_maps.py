@@ -175,7 +175,7 @@ class GoogleMapsScraper:
                                     rating=p.get("rating"),
                                     reviews_count=p.get("userRatingCount") or 0,
                                     website=p.get("websiteUri"),
-                                    google_maps_url=f"https://www.google.com/maps/place/?q=place_id:{p.get('id','')}",
+                                    google_maps_url=f"https://www.google.com/maps/place/?q=place_id:{p.get('id', '')}",
                                     place_id=p.get("id", ""),
                                     latitude=0.0,
                                     longitude=0.0,

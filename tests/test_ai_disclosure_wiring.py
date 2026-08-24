@@ -12,6 +12,7 @@ locks in the 4 real call sites so a future refactor that silently drops the
 wrap (exactly the failure mode that shipped today's ADR-043 P0 elsewhere in
 this same audit) fails loudly here instead of shipping quietly.
 """
+
 from __future__ import annotations
 
 import inspect

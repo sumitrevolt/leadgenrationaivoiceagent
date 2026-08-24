@@ -164,8 +164,7 @@ def _build_html(
         or '<tr><td>Abhi events record nahi hue</td><td class="r">0</td></tr>'
     )
     rows += (
-        f'<tr class="tot"><td>Total actions</td>'
-        f'<td class="r">{stats["total_actions"]}</td></tr>'
+        f'<tr class="tot"><td>Total actions</td><td class="r">{stats["total_actions"]}</td></tr>'
     )
     sugg = "".join(f"<li>{e(s)}</li>" for s in summary)
     plan_html = "".join(f"<li>{e(p)}</li>" for p in plan)

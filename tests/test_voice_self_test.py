@@ -31,18 +31,14 @@ async def test_personas_only_network_free():
 
 async def test_live_only_no_data_is_neutral():
     """live component never raises even with no transcripts (has_data False)."""
-    rep = await self_test.run_voice_self_test(
-        personas=False, stack=False, live=True, llm=False
-    )
+    rep = await self_test.run_voice_self_test(personas=False, stack=False, live=True, llm=False)
     assert rep["live"]["ok"] is True
     assert "score" in rep and "status" in rep
 
 
 async def test_no_components_is_fail():
     """Nothing selected → fail/0.0 (no component ran), still never raises."""
-    rep = await self_test.run_voice_self_test(
-        personas=False, stack=False, live=False, llm=False
-    )
+    rep = await self_test.run_voice_self_test(personas=False, stack=False, live=False, llm=False)
     assert rep["status"] == "fail"
     assert rep["score"] == 0.0
     assert rep["ok"] is False

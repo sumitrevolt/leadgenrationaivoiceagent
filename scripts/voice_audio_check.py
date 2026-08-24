@@ -95,7 +95,7 @@ async def _wrap_test():
 try:
     r = asyncio.run(_wrap_test())
     print(
-        f"  _edge_tts_mp3_b64 -> {('OK ' + str(r) + ' b64-chars' ) if isinstance(r,int) and r>1000 else ('PROBLEM: ' + str(r))}"
+        f"  _edge_tts_mp3_b64 -> {('OK ' + str(r) + ' b64-chars') if isinstance(r, int) and r > 1000 else ('PROBLEM: ' + str(r))}"
     )
 except Exception as e:
     print(f"  [ERR] {e}")

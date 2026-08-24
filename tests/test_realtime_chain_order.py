@@ -34,15 +34,15 @@ def test_realtime_chain_groq_first():
     first_cerebras = providers.index("cerebras")
     first_mistral = providers.index("mistral")
 
-    assert (
-        first_groq < first_cerebras
-    ), f"realtime: groq ({first_groq}) should be before cerebras ({first_cerebras})"
-    assert (
-        first_cerebras < first_mistral
-    ), f"realtime: cerebras ({first_cerebras}) should be before mistral ({first_mistral})"
-    assert (
-        core_providers[0] == "groq"
-    ), f"realtime: first core provider should be groq, got {core_providers[0]}"
+    assert first_groq < first_cerebras, (
+        f"realtime: groq ({first_groq}) should be before cerebras ({first_cerebras})"
+    )
+    assert first_cerebras < first_mistral, (
+        f"realtime: cerebras ({first_cerebras}) should be before mistral ({first_mistral})"
+    )
+    assert core_providers[0] == "groq", (
+        f"realtime: first core provider should be groq, got {core_providers[0]}"
+    )
 
 
 def test_bulk_chain_cerebras_first():
@@ -56,12 +56,12 @@ def test_bulk_chain_cerebras_first():
     first_groq = providers.index("groq")
     first_mistral = providers.index("mistral")
 
-    assert (
-        first_cerebras < first_groq
-    ), f"bulk: cerebras ({first_cerebras}) should be before groq ({first_groq})"
-    assert (
-        first_groq < first_mistral
-    ), f"bulk: groq ({first_groq}) should be before mistral ({first_mistral})"
+    assert first_cerebras < first_groq, (
+        f"bulk: cerebras ({first_cerebras}) should be before groq ({first_groq})"
+    )
+    assert first_groq < first_mistral, (
+        f"bulk: groq ({first_groq}) should be before mistral ({first_mistral})"
+    )
 
 
 def test_trainer_timeout_within_celery_limit():

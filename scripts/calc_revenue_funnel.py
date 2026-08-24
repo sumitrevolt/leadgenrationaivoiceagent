@@ -22,10 +22,10 @@ def calculate_funnel(target_paid: int = 50):
     calls_needed = answers_needed / answer_rate
 
     print("Assuming:")
-    print(f"  - Answer rate: {answer_rate*100}%")
-    print(f"  - Meaningful conversion: {meaningful_conv_rate*100}%")
-    print(f"  - Qualify rate: {offer_qualified_rate*100}%")
-    print(f"  - Payment conv rate: {payment_conv_rate*100}%")
+    print(f"  - Answer rate: {answer_rate * 100}%")
+    print(f"  - Meaningful conversion: {meaningful_conv_rate * 100}%")
+    print(f"  - Qualify rate: {offer_qualified_rate * 100}%")
+    print(f"  - Payment conv rate: {payment_conv_rate * 100}%")
     print("-----------------------------------------")
     print(f"To get {target_paid} paid customers/day, you need:")
     print(f"  - Offers made: {int(offers_needed)}")

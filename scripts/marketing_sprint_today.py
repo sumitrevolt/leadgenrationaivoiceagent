@@ -119,7 +119,7 @@ async def test_inquiry() -> None:
             if lines:
                 last = json.loads(lines[-1])
                 if last.get("name") == "Sprint Test":
-                    log(PASS, "inquiry jsonl", f"id={last.get('id','')[:8]}…")
+                    log(PASS, "inquiry jsonl", f"id={last.get('id', '')[:8]}…")
                 else:
                     log(WARN, "inquiry jsonl", "last row is not sprint test (maybe race)")
             else:
@@ -178,7 +178,7 @@ async def main() -> int:
     print()
     fails = sum(1 for s, _, _ in results if s == FAIL)
     warns = sum(1 for s, _, _ in results if s == WARN)
-    print(f"=== SUMMARY: {fails} FAIL, {warns} WARN, {len(results)-fails-warns} OK ===")
+    print(f"=== SUMMARY: {fails} FAIL, {warns} WARN, {len(results) - fails - warns} OK ===")
     print("\nManual (tumhe): GSC sitemap submit · WA 10 contacts · 1 social post")
     return 1 if fails else 0
 

@@ -495,9 +495,9 @@ def test_credential_routes_keep_their_own_rate_limit(module_path: str, route_pat
     assert matches, f"{route_path} not found in {module_path}.router"
     for route in matches:
         names = _dependency_names(route)
-        assert any(
-            "rate_limit" in name for name in names
-        ), f"{route_path} has no rate_limit dependency: {names}"
+        assert any("rate_limit" in name for name in names), (
+            f"{route_path} has no rate_limit dependency: {names}"
+        )
 
 
 # --------------------------------------------------------------------------- #

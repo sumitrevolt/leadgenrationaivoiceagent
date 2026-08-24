@@ -5,6 +5,7 @@ Uses the REAL canonical registry (23 non-voice contracts) with the live runtime
 signals (team_status / automation_health / owner_os kill / env flags) monkeypatched,
 so the honest-health computation is exercised deterministically without a DB or app.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -43,7 +44,15 @@ def test_disabled_when_flag_off(monkeypatch):
 def test_healthy_when_recent_activity(monkeypatch):
     _wire(
         monkeypatch,
-        members=[{"key": "neha", "state": "working", "last_active_mins": 10, "today_actions": 3, "today_errors": 0}],
+        members=[
+            {
+                "key": "neha",
+                "state": "working",
+                "last_active_mins": 10,
+                "today_actions": 3,
+                "today_errors": 0,
+            }
+        ],
     )
     h = asx.agent_health("neha")  # core (ungated), periodic
     assert h["enabled"] is True

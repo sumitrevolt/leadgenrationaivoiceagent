@@ -1,4 +1,5 @@
 """Tests for app/voice_agent/voice_metrics.py — objective voice-eval metrics."""
+
 from app.voice_agent import voice_metrics as vm
 
 
@@ -110,5 +111,7 @@ def test_vaqi_summary_interruption_rate_optional():
     out = vm.vaqi_summary(turns_total=5, missed_count=0)
     assert out["interruption_rate"] is None
     # supplied -> computed
-    out2 = vm.vaqi_summary(turns_total=5, missed_count=0, interruptions_total=4, premature_interruptions=1)
+    out2 = vm.vaqi_summary(
+        turns_total=5, missed_count=0, interruptions_total=4, premature_interruptions=1
+    )
     assert out2["interruption_rate"] == 0.25

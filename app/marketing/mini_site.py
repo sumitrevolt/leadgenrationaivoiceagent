@@ -158,8 +158,7 @@ def _services_section(services: list[str]) -> str:
         return ""
     chips = "".join(f'<span class="chip">{_e(s)}</span>' for s in services)
     return (
-        '<section class="sec"><h2>Hamari Services</h2>'
-        f'<div class="chips">{chips}</div></section>'
+        f'<section class="sec"><h2>Hamari Services</h2><div class="chips">{chips}</div></section>'
     )
 
 

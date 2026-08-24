@@ -136,3 +136,29 @@ upi_12 approve/reject · Kamal brand-kit colors/tagline + FB/Insta connect · ag
 
 ### RULES REMINDER
 Cold-WA OFF · email cap 25/day · DND/TRAI gates untouched · koi fake metric nahi — har claim ke saath prod evidence.
+
+---
+
+## HERMES DESKTOP = OWNER ADMIN COCKPIT — WIRED & LIVE (2026-08-23 12:45 IST, ADR-188)
+
+**Status:** LeadGen prod MCP → Hermes Desktop **CONNECTED, 54 tools registered** (gateway log 12:34:33).
+Owner ab Hermes GUI **ya Telegram DM** me seedha admin-data maang sakta hai.
+
+**Kya kaam karta hai (proven):**
+- ✅ **END-TO-END VERIFIED 13:20 IST:** Hermes one-shot agent ne khud `mcp__leadgen__ops_revenue_summary` call karke live jawab diya — `fy_gross_inr=7996.0, total=16`. Pura chain: LLM → MCP SSE (Bearer JWT) → middleware → require_admin → invoice ledger.
+- `ops_revenue_summary` → collected revenue + invoice ledger (REST probe bhi 200)
+- `ops_hot_queue` (+ action: done/park) → HX-01 warm leads ka cockpit surface (live: SOUTH interested-inquiry SLA-breach + Nashik solar question + 4x Pune solar call-flag "interested")
+- + 51 aur Platform/Data/Agents tools (companies search, company details, etc.)
+
+**Auth model:** FASTAPI_MCP_TOKEN ab valid super_admin service-JWT hai (1825d) — middleware gate +
+route-level require_admin dono pass. Owner password-reset = token revoke → re-mint (ADR-188 runbook).
+
+**Rollback:** VPS `.env.bak-mcpgw-20260823_065853` restore + app recreate; Hermes `config.yaml.bak-leadgenmcp-20260823_123327`.
+
+**Owner quick-start (GUI/Telegram me type karo):**
+- "revenue summary batao" → collected ₹ + recent invoices
+- "hot queue dikhao" → warm leads + next action hint
+- "HX tasks" context is file se; evidence-first discipline wahi rahega.
+
+**Observations (pre-existing, alag fix):** Telegram polling conflict-retry loop (~70s, self-heals —
+koi doosra getUpdates consumer active lag raha hai) · kanban.db not-writable warnings desktop plugin me.

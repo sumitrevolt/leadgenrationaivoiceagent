@@ -67,16 +67,26 @@ def test_loader_structure_no_pasted_path_twin():
 
 def test_path_match_and_check_enforcement(tmp_path):
     mod = _load()
-    assert mod.path_matches_frozen("app/voice_agent/foo.py", ["app/voice_agent/"]) == "app/voice_agent/"
-    assert mod.path_matches_frozen("app/billing/packages.py", ["app/billing/packages.py"]) == "app/billing/packages.py"
+    assert (
+        mod.path_matches_frozen("app/voice_agent/foo.py", ["app/voice_agent/"])
+        == "app/voice_agent/"
+    )
+    assert (
+        mod.path_matches_frozen("app/billing/packages.py", ["app/billing/packages.py"])
+        == "app/billing/packages.py"
+    )
     assert mod.path_matches_frozen("docs/x.md", ["app/voice_agent/"]) is None
 
     # Isolated git repo: touch a frozen-shaped path and expect check exit 2
     repo = tmp_path / "r"
     repo.mkdir()
     subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "canary@test"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "canary"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "canary@test"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "canary"], cwd=repo, check=True, capture_output=True
+    )
     (repo / "ok.txt").write_text("a\n", encoding="utf-8")
     subprocess.run(["git", "add", "ok.txt"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True, capture_output=True)
@@ -86,8 +96,12 @@ def test_path_match_and_check_enforcement(tmp_path):
     bad = repo / "app" / "billing"
     bad.mkdir(parents=True)
     (bad / "packages.py").write_text("x=1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "app/billing/packages.py"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "touch frozen"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "add", "app/billing/packages.py"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "touch frozen"], cwd=repo, check=True, capture_output=True
+    )
 
     # Point module patterns by passing explicit list through check_diff helper
     hits = []

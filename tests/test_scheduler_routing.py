@@ -10,6 +10,7 @@ last-run are covered by the W1.x suites):
 Driven by a fixed clock + a one-tick loop (sleep raises CancelledError after tick 1).
 This is a regression guard: remove boot-grace and `qa`/`trainer` would fire at 03:00.
 """
+
 from __future__ import annotations
 
 import asyncio

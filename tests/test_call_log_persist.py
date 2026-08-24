@@ -4,6 +4,7 @@ Covers the pure mapping (`build_call_log`) and the never-raise / idempotent
 insert (`persist_call_log`) without needing a live database — `persist_call_log`
 runs its sync insert through a fake session injected via monkeypatch.
 """
+
 from __future__ import annotations
 
 import os
@@ -54,8 +55,13 @@ def test_build_call_log_appointment_outcome(monkeypatch):
 
     q = {"interest_score": 5, "qualified": True, "appointment_requested": True, "summary": "Booked"}
     row = pch.build_call_log(
-        call_id="sid-2", provider="phone", phone="+910000000000",
-        duration_s=30.0, user_turns=4, outcome="completed", q=q,
+        call_id="sid-2",
+        provider="phone",
+        phone="+910000000000",
+        duration_s=30.0,
+        user_turns=4,
+        outcome="completed",
+        q=q,
     )
     assert row is not None
     assert row.outcome == CallOutcome.APPOINTMENT
@@ -69,8 +75,13 @@ def test_build_call_log_none_q_no_answer(monkeypatch):
 
     # No qualification, zero user turns → NO_ANSWER, empty phone → NOT-NULL fallback.
     row = pch.build_call_log(
-        call_id="sid-3", provider="vobiz", phone="",
-        duration_s=3.0, user_turns=0, outcome="no_answer", q=None,
+        call_id="sid-3",
+        provider="vobiz",
+        phone="",
+        duration_s=3.0,
+        user_turns=0,
+        outcome="no_answer",
+        q=None,
     )
     assert row is not None
     assert row.outcome == CallOutcome.NO_ANSWER
@@ -83,7 +94,12 @@ def test_build_call_log_none_q_no_answer(monkeypatch):
 def test_build_call_log_flag_off_returns_none(monkeypatch):
     monkeypatch.setenv("CALL_LOG_DB", "0")
     row = pch.build_call_log(
-        call_id="sid-x", provider="vobiz", phone="+91", duration_s=1.0, user_turns=1, q=None,
+        call_id="sid-x",
+        provider="vobiz",
+        phone="+91",
+        duration_s=1.0,
+        user_turns=1,
+        q=None,
     )
     assert row is None
 
@@ -131,8 +147,13 @@ async def test_persist_call_log_inserts(monkeypatch):
     monkeypatch.setattr("app.models.base.get_db_session", lambda: fake)
 
     await pch.persist_call_log(
-        call_id="ins-1", provider="vobiz", phone="+9111", client_id="missing",
-        duration_s=10.0, user_turns=2, outcome="completed",
+        call_id="ins-1",
+        provider="vobiz",
+        phone="+9111",
+        client_id="missing",
+        duration_s=10.0,
+        user_turns=2,
+        outcome="completed",
         q={"interest_score": 3, "qualified": True, "summary": "ok"},
     )
     assert len(fake.added) == 1
@@ -146,8 +167,13 @@ async def test_persist_call_log_idempotent(monkeypatch):
     monkeypatch.setattr("app.models.base.get_db_session", lambda: fake)
 
     await pch.persist_call_log(
-        call_id="dup-1", provider="vobiz", phone="+9111",
-        duration_s=10.0, user_turns=2, outcome="completed", q=None,
+        call_id="dup-1",
+        provider="vobiz",
+        phone="+9111",
+        duration_s=10.0,
+        user_turns=2,
+        outcome="completed",
+        q=None,
     )
     assert fake.added == []  # no duplicate insert
 
@@ -161,8 +187,13 @@ async def test_persist_call_log_never_raises_on_db_error(monkeypatch):
     monkeypatch.setattr("app.models.base.get_db_session", _boom)
     # Must swallow the error — call teardown must never break on analytics.
     await pch.persist_call_log(
-        call_id="err-1", provider="vobiz", phone="+9111",
-        duration_s=5.0, user_turns=1, outcome="completed", q=None,
+        call_id="err-1",
+        provider="vobiz",
+        phone="+9111",
+        duration_s=5.0,
+        user_turns=1,
+        outcome="completed",
+        q=None,
     )
 
 
@@ -171,7 +202,12 @@ async def test_persist_call_log_flag_off_noop(monkeypatch):
     fake = _FakeSession(existing_first=None)
     monkeypatch.setattr("app.models.base.get_db_session", lambda: fake)
     await pch.persist_call_log(
-        call_id="off-1", provider="vobiz", phone="+9111",
-        duration_s=5.0, user_turns=1, outcome="completed", q=None,
+        call_id="off-1",
+        provider="vobiz",
+        phone="+9111",
+        duration_s=5.0,
+        user_turns=1,
+        outcome="completed",
+        q=None,
     )
     assert fake.added == []  # flag off → build returns None → no DB touch

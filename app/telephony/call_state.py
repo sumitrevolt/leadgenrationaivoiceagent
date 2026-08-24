@@ -177,7 +177,9 @@ class RedisCallStore:
                 return (
                     val.decode()
                     if isinstance(val, (bytes, bytearray))
-                    else str(val) if val else None
+                    else str(val)
+                    if val
+                    else None
                 )
             except Exception as e:
                 logger.warning(f"sid_map hget failed ({e}); local fallback.")

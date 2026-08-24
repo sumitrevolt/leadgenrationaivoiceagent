@@ -160,14 +160,28 @@ def test_node_stats_folds_synthetic_timings(monkeypatch):
     empty default. Covers _percentile + data.ms extraction (no real runs exist)."""
     import app.agents.flow_dispatch as flow_dispatch
 
-    monkeypatch.setattr(flow_dispatch, "list_runs", lambda n=50: [{"run_id": "r1"}, {"run_id": "r2"}])
+    monkeypatch.setattr(
+        flow_dispatch, "list_runs", lambda n=50: [{"run_id": "r1"}, {"run_id": "r2"}]
+    )
 
     def _journal(run_id, limit=100):
         # two nodes across runs; 'scrape' clearly slowest → must rank first.
         return [
-            {"type": "node_completed", "data": {"node": "scrape", "ms": 1200}, "at": "2026-06-28T10:00:00+00:00"},
-            {"type": "node_completed", "data": {"node": "scrape", "ms": 1400}, "at": "2026-06-28T10:00:02+00:00"},
-            {"type": "node_completed", "data": {"node": "email", "ms": 200}, "at": "2026-06-28T10:00:03+00:00"},
+            {
+                "type": "node_completed",
+                "data": {"node": "scrape", "ms": 1200},
+                "at": "2026-06-28T10:00:00+00:00",
+            },
+            {
+                "type": "node_completed",
+                "data": {"node": "scrape", "ms": 1400},
+                "at": "2026-06-28T10:00:02+00:00",
+            },
+            {
+                "type": "node_completed",
+                "data": {"node": "email", "ms": 200},
+                "at": "2026-06-28T10:00:03+00:00",
+            },
         ]
 
     monkeypatch.setattr(flow_dispatch, "journal", _journal)

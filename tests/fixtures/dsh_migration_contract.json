@@ -1055,7 +1055,7 @@
       {
         "call": "app.platform.agent_runtime.submit",
         "file": "app/api/team.py",
-        "line": 89,
+        "line": 91,
         "scope": "run_team_member"
       },
       {
@@ -1325,19 +1325,19 @@
       {
         "call": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 450,
+        "line": 463,
         "scope": "execute_governed_capability"
       },
       {
         "call": "app.platform.agent_runtime.AgentTask",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 451,
+        "line": 464,
         "scope": "execute_governed_capability"
       },
       {
         "call": "app.platform.agent_runtime.run_task",
         "file": "app/tasks/dsh_jobs.py",
-        "line": 462,
+        "line": 475,
         "scope": "execute_governed_capability"
       },
       {
@@ -2930,7 +2930,7 @@
       },
       {
         "file": "app/tasks/dsh_jobs.py",
-        "line": 447,
+        "line": 460,
         "local_name": "agent_runtime",
         "module": "app.platform.agent_runtime",
         "scope": "execute_governed_capability",
@@ -2938,7 +2938,7 @@
       },
       {
         "file": "app/tasks/dsh_jobs.py",
-        "line": 448,
+        "line": 461,
         "local_name": "ensure_workforce_registered",
         "module": "app.platform.agent_runtime_workforce.ensure_workforce_registered",
         "scope": "execute_governed_capability",

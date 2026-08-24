@@ -6,6 +6,7 @@ most recent prior day — so the founder sees direction, not just a number. Full
 try-wrapped/fail-open (never blanks the page); derived-metrics history persisted like the
 existing revenue_snapshots pattern.
 """
+
 from __future__ import annotations
 
 import datetime as _dt

@@ -28,9 +28,7 @@ def _get(url: str, timeout: float = 20.0) -> tuple[int, str]:
         return 0, "ValueError:url_scheme_not_allowed"
     req = urllib.request.Request(url, headers={"User-Agent": "leadgen-burn-in/1.0"})
     try:
-        with urllib.request.urlopen(
-            req, timeout=timeout
-        ) as resp:  # nosec B310 — scheme gated above
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — scheme gated above
             return int(resp.status), resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace") if e.fp else ""

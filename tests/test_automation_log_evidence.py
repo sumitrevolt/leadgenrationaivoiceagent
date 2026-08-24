@@ -3,6 +3,7 @@
 Covers the model column, the migration chain, the service round-trip (write +
 read echo evidence_url), and the client_report + panel wiring.
 """
+
 import importlib.util
 import pathlib
 

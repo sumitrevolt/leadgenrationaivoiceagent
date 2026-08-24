@@ -20,7 +20,7 @@ SECRET_MIN_CHARS = 32
 MAX_PAST_AGE_SECONDS = 300
 MAX_FUTURE_SKEW_SECONDS = 30
 
-_KNOWN_TOOLS = ("cursor", "claude", "monkeycode", "opencode", "bolt", "buzz")
+_KNOWN_TOOLS = ("cursor", "claude", "monkeycode", "opencode", "bolt", "buzz", "hermes")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 _TOOL_RE = re.compile(r"^[a-z][a-z0-9_]{1,31}$")

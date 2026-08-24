@@ -447,9 +447,9 @@ def test_permitted_release_runs_both_gates_before_touching_anything_live(
 
     replacements = _container_replacements(log)
     if replacements:
-        assert pull < lines.index(
-            replacements[0]
-        ), "a container was replaced before the live checkout was updated"
+        assert pull < lines.index(replacements[0]), (
+            "a container was replaced before the live checkout was updated"
+        )
 
 
 @requires_bash
@@ -469,8 +469,7 @@ def test_gates_mount_candidate_and_live_data_read_only(tmp_path: pathlib.Path) -
     for call in gate_calls:
         assert "/repo:ro" in call, f"candidate source not mounted read-only: {call}"
         assert f"{live_data}:/repo/data:ro" in call, (
-            "live production data not mounted read-only over the candidate's empty "
-            f"data/: {call}"
+            f"live production data not mounted read-only over the candidate's empty data/: {call}"
         )
         assert "--read-only" in call and "--network none" in call, call
         assert "--env-file" in call, f"the gate ran without production's environment: {call}"
@@ -493,9 +492,9 @@ def test_calling_safety_environment_is_proven_without_printing_values(
     script, log, _state = _sandbox(tmp_path)
     proc = _run(script, tmp_path)
 
-    assert [
-        ln for ln in _lines(log) if "VOICE_LAUNCH_KILL" in ln
-    ], "the gate environment was never proven"
+    assert [ln for ln in _lines(log) if "VOICE_LAUNCH_KILL" in ln], (
+        "the gate environment was never proven"
+    )
     assert "VOICE_LAUNCH_KILL_PRESENT=1" in proc.stdout
     # The token itself must never be echoed by the parent.
     assert "VOICE_LAUNCH_KILL=1" not in proc.stdout

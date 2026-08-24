@@ -7,6 +7,7 @@ right when caching mattered most.
 Fix: `_llm_cache_evict` drops expired entries first, and only if still full evicts the
 oldest ~20% by timestamp — hot entries survive.
 """
+
 from __future__ import annotations
 
 import time

@@ -34,7 +34,6 @@ def _run(coro):
         return asyncio.get_event_loop().run_until_complete(coro)
 
 
-
 # --------------------------------------------------------------------------- #
 # HTTP: admin gate
 #
@@ -66,6 +65,7 @@ def test_task_endpoint_happy_path(monkeypatch):
     200 with {ok, summary}. We do NOT touch dependency_overrides here — conftest
     already hands the client a super-admin, and popping it in a finally would
     delete the global override for every sibling test."""
+
     async def _fake_fanout(goal, agents=None, max_agents=4):
         return {"ok": True, "summary": "isha ne plan bana diya", "agents": agents}
 
@@ -84,25 +84,19 @@ def test_task_endpoint_happy_path(monkeypatch):
 # Unit: run_agent_task validation + never-raise contract
 # --------------------------------------------------------------------------- #
 def test_empty_goal_rejected():
-    out = _run(
-        office_hq.run_agent_task("isha", "   ", "solo")
-    )
+    out = _run(office_hq.run_agent_task("isha", "   ", "solo"))
     assert out["ok"] is False
     assert "goal" in out["error"].lower()
 
 
 def test_unknown_member_rejected():
-    out = _run(
-        office_hq.run_agent_task("__nobody__", "kuch kaam karo", "solo")
-    )
+    out = _run(office_hq.run_agent_task("__nobody__", "kuch kaam karo", "solo"))
     assert out["ok"] is False
     assert "unknown agent" in out["error"].lower()
 
 
 def test_bad_scope_rejected():
-    out = _run(
-        office_hq.run_agent_task("isha", "kuch kaam karo", "everyone")
-    )
+    out = _run(office_hq.run_agent_task("isha", "kuch kaam karo", "everyone"))
     assert out["ok"] is False
     assert "scope" in out["error"].lower()
 
@@ -122,9 +116,7 @@ def test_solo_scope_calls_fanout_single_agent(monkeypatch):
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _fake_fanout)
     monkeypatch.setattr("app.agents.coordinator.coordinate", _boom_coordinate)
-    out = _run(
-        office_hq.run_agent_task("rohan", "leads follow up karo", "solo")
-    )
+    out = _run(office_hq.run_agent_task("rohan", "leads follow up karo", "solo"))
     assert out["ok"] is True
     assert captured["agents"] == ["rohan"]  # only that one member
     assert captured["max_agents"] == 1
@@ -145,9 +137,7 @@ def test_team_scope_calls_coordinate_draft_safe(monkeypatch):
 
     monkeypatch.setattr("app.agents.coordinator.coordinate", _fake_coordinate)
     monkeypatch.setattr("app.agents.coordinator.fan_out", _boom_fanout)
-    out = _run(
-        office_hq.run_agent_task("isha", "poori team se campaign", "team")
-    )
+    out = _run(office_hq.run_agent_task("isha", "poori team se campaign", "team"))
     assert out["ok"] is True
     assert captured["execute"] is False  # DRAFT-SAFE — no side effects
     assert out["run_id"] == "abc123"
@@ -162,36 +152,32 @@ def test_goal_over_500_chars_capped(monkeypatch):
         return {"ok": True, "summary": "ok"}
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _fake_fanout)
-    out = _run(
-        office_hq.run_agent_task("isha", "x" * 900, "solo")
-    )
+    out = _run(office_hq.run_agent_task("isha", "x" * 900, "solo"))
     assert out["ok"] is True
     assert len(captured["goal"]) == 500  # capped, not rejected
 
 
 def test_coordinator_raises_yields_ok_false(monkeypatch):
     """Never-raise: coordinator blowing up -> {ok:False}, function returns."""
+
     async def _boom(*a, **k):
         raise RuntimeError("LLM chain down")
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _boom)
-    out = _run(
-        office_hq.run_agent_task("isha", "kuch karo", "solo")
-    )
+    out = _run(office_hq.run_agent_task("isha", "kuch karo", "solo"))
     assert out["ok"] is False
     assert "LLM chain down" in out["error"]
 
 
 def test_timeout_yields_honest_background_note(monkeypatch):
     """Budget exceeded -> ok:True + status:timeout + honest note (not fabricated)."""
+
     async def _slow(*a, **k):
         await asyncio.sleep(999)
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _slow)
     monkeypatch.setattr(office_hq, "_TASK_TIMEOUT", 0.05)
-    out = _run(
-        office_hq.run_agent_task("isha", "lamba kaam", "solo")
-    )
+    out = _run(office_hq.run_agent_task("isha", "lamba kaam", "solo"))
     assert out["ok"] is True
     assert out["status"] == "timeout"
     assert "events" in out["note"].lower() or "ticker" in out["note"].lower()
@@ -199,12 +185,11 @@ def test_timeout_yields_honest_background_note(monkeypatch):
 
 def test_coordinator_ok_false_propagates(monkeypatch):
     """Primitive returning ok:False (e.g. goal too short) surfaces honestly."""
+
     async def _fake_fanout(goal, agents=None, max_agents=4):
         return {"ok": False, "error": "goal bahut chhota hai"}
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _fake_fanout)
-    out = _run(
-        office_hq.run_agent_task("isha", "abc", "solo")
-    )
+    out = _run(office_hq.run_agent_task("isha", "abc", "solo"))
     assert out["ok"] is False
     assert "chhota" in out["error"]

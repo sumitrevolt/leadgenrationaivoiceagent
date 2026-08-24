@@ -7,6 +7,7 @@ Matrix: docs/UNITY_VIRTUAL_OFFICE_SECURITY.md §5 (S1-S9).
 Backend guarantees (admin auth on snapshot, customer tenant isolation, etc.) are covered by
 EXISTING suites (test_customer_tenant_isolation_authenticated.py etc.) — not re-proven here.
 """
+
 from __future__ import annotations
 
 import re
@@ -45,14 +46,15 @@ def shell_html() -> str:
 # Static security checks (hermetic)
 # ---------------------------------------------------------------------------
 
+
 def test_s4_no_secret_shaped_literals(shell_html):
     patterns = [
-        r"sk_[A-Za-z0-9]{8,}",            # provider secret keys
-        r"AKIA[0-9A-Z]{16}",              # AWS
-        r"postgres(ql)?://",              # DB URLs
-        r"redis://",                       # Redis URLs
-        r"eyJ[A-Za-z0-9_\-]{20,}",        # JWT literals
-        r"whsec_[A-Za-z0-9]{8,}",         # webhook secrets
+        r"sk_[A-Za-z0-9]{8,}",  # provider secret keys
+        r"AKIA[0-9A-Z]{16}",  # AWS
+        r"postgres(ql)?://",  # DB URLs
+        r"redis://",  # Redis URLs
+        r"eyJ[A-Za-z0-9_\-]{20,}",  # JWT literals
+        r"whsec_[A-Za-z0-9]{8,}",  # webhook secrets
     ]
     for pat in patterns:
         assert not re.search(pat, shell_html), f"secret-shaped literal matches {pat}"
@@ -98,8 +100,14 @@ def test_room_geometry_mirrors_office_map(shell_html):
     """ROOM_GEOM in the shell must stay 1:1 with office_map.html OFFICE.ROOMS (drift lock)."""
     office_map = OFFICE_MAP_PATH.read_text(encoding="utf-8")
     room_ids = [
-        "coordinator", "lead_lab", "sales_crm", "voice_team",
-        "marketing_team", "qa_audit", "platform_engineering", "admin_finance",
+        "coordinator",
+        "lead_lab",
+        "sales_crm",
+        "voice_team",
+        "marketing_team",
+        "qa_audit",
+        "platform_engineering",
+        "admin_finance",
     ]
     for rid in room_ids:
         assert f'"{rid}"' in shell_html or f"'{rid}'" in shell_html, f"shell missing room {rid}"
@@ -118,6 +126,7 @@ def test_bridge_ids_are_sanitized(shell_html):
 # ---------------------------------------------------------------------------
 # Route behavior (TestClient) — INERT-flag proof
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def client():
@@ -244,12 +253,16 @@ def test_c6_customer_shell_has_no_admin_actions(customer_shell_html):
     )
     for a in ADMIN_ONLY_ACTIONS:
         assert a not in customer_shell_html, f"admin-only action {a} present in customer shell"
-    assert actions <= DOCUMENTED_ACTIONS, "customer actions must be a subset of the documented contract"
+    assert actions <= DOCUMENTED_ACTIONS, (
+        "customer actions must be a subset of the documented contract"
+    )
 
 
 def test_c7_customer_shell_no_admin_routes_or_secrets(customer_shell_html):
     for banned in ("/app/admin", "/app/control-center", "/api/platform/office"):
-        assert banned not in customer_shell_html, f"admin surface {banned} leaked into customer shell"
+        assert banned not in customer_shell_html, (
+            f"admin surface {banned} leaked into customer shell"
+        )
     for pat in (r"sk_[A-Za-z0-9]{8,}", r"eyJ[A-Za-z0-9_\-]{20,}", r"postgres(ql)?://", r"redis://"):
         assert not re.search(pat, customer_shell_html), f"secret-shaped literal: {pat}"
     low = customer_shell_html.lower()

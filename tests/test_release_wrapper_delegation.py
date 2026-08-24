@@ -148,7 +148,7 @@ def test_parent_denial_propagates_as_90_with_no_mutation(
     _assert_ran(proc, wrapper)
 
     assert proc.returncode == 90, (
-        f"{wrapper} swallowed a guard denial (rc={proc.returncode}).\n" f"STDOUT:\n{proc.stdout}"
+        f"{wrapper} swallowed a guard denial (rc={proc.returncode}).\nSTDOUT:\n{proc.stdout}"
     )
     assert _mutations(log) == [], f"{wrapper} mutated after denial: {_mutations(log)}"
 
@@ -243,9 +243,9 @@ def test_no_fallback_after_denial(wrapper: str, tmp_path: pathlib.Path) -> None:
     _run(script, tmp_path)
     lines = [ln.strip() for ln in log.read_text(encoding="utf-8").splitlines() if ln.strip()]
     after_parent = lines[1:] if lines else []
-    assert [
-        ln for ln in after_parent if _MUTATING_RE.match(ln)
-    ] == [], f"{wrapper} ran a fallback chain after denial: {after_parent}"
+    assert [ln for ln in after_parent if _MUTATING_RE.match(ln)] == [], (
+        f"{wrapper} ran a fallback chain after denial: {after_parent}"
+    )
 
 
 @requires_bash

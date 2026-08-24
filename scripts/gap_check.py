@@ -20,7 +20,7 @@ for r in rows:
         s[p][1] += 1
 print("=== LLM OK-RATES (last 500) ===")
 for p, v in sorted(s.items()):
-    print(f"  {p}: {round(v[1]/max(v[0],1)*100)}%  ({v[0]} calls)")
+    print(f"  {p}: {round(v[1] / max(v[0], 1) * 100)}%  ({v[0]} calls)")
 
 # Prospects
 print("\n=== PROSPECTS ===")
@@ -30,7 +30,7 @@ print(f"  Total: {len(pros)}")
 print(f"  Status: {dict(st)}")
 print(f"  With email: {sum(1 for p in pros if p.get('email'))}")
 print(f"  With phone: {sum(1 for p in pros if p.get('phone'))}")
-print(f"  Hot leads (score>=70): {sum(1 for p in pros if (p.get('lead_score') or 0)>=70)}")
+print(f"  Hot leads (score>=70): {sum(1 for p in pros if (p.get('lead_score') or 0) >= 70)}")
 
 # Cadence
 print("\n=== CADENCE ===")
@@ -69,7 +69,7 @@ hrs = (
 )
 for h in hrs[-3:]:
     print(
-        f"  {h.get('ts','')[:16]}  scraped={h.get('scraped',0)}  sources={h.get('sources_used',[])} "
+        f"  {h.get('ts', '')[:16]}  scraped={h.get('scraped', 0)}  sources={h.get('sources_used', [])} "
     )
 
 # Env flags

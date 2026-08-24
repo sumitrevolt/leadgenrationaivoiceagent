@@ -65,6 +65,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Isolate first_paid_delivery from live clients_store — hermetic wizard test.
     import app.marketing.clients_store as _clients_store
+
     monkeypatch.setattr(_clients_store, "list_clients", lambda **kw: [])
     # Bust the delivery probe cache so each test observes the isolated store.
     ax._FIRST_PAID_CACHE.clear()

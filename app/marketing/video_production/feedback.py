@@ -69,7 +69,7 @@ def classify_feedback(raw: str) -> dict[str, Any]:
             "tasks": [],
             "ambiguous": True,
             "clarification": (
-                "Samajh nahi aaya. APPROVE likho post ke liye, CHANGES + detail, " "ya REJECT."
+                "Samajh nahi aaya. APPROVE likho post ke liye, CHANGES + detail, ya REJECT."
             ),
             "raw": text,
         }

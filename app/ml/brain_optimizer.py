@@ -472,7 +472,7 @@ Industry Context (Education):
             variant = self.ab_assignments[assignment_key]
             # Log A/B result for analysis
             logger.info(
-                f"📊 A/B Result: {response_type} | " f"variant={variant} | outcome={outcome.value}"
+                f"📊 A/B Result: {response_type} | variant={variant} | outcome={outcome.value}"
             )
 
         self._save_optimizations()

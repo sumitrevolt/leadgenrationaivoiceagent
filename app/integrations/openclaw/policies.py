@@ -220,8 +220,7 @@ def command_permitted(command: str) -> tuple[bool, str]:
         # OPENCLAW_ALLOW_RED_ACTIONS must NEVER make RED executable.
         _ = allow_red_actions()  # observed for ops clarity only
         return False, (
-            f"RED command refused via OpenClaw: {c}. "
-            "Use existing secure admin / Owner OS workflow."
+            f"RED command refused via OpenClaw: {c}. Use existing secure admin / Owner OS workflow."
         )
     if c not in allowed_commands():
         if lane == "AMBER" and is_production_env() and not durable_idempotency_ready():

@@ -1,4 +1,5 @@
 """Tests for Agent OS routing policy + registry coverage (ADR-109)."""
+
 from __future__ import annotations
 
 from app.platform import agent_os_routing as routing

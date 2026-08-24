@@ -121,5 +121,7 @@ def test_combo_router_not_mounted_by_default():
     ), "test assumes default env"
     from app.main import app
 
-    combo_paths = [getattr(r, "path", "") for r in app.routes if "/api/combo" in getattr(r, "path", "")]
+    combo_paths = [
+        getattr(r, "path", "") for r in app.routes if "/api/combo" in getattr(r, "path", "")
+    ]
     assert combo_paths == [], f"combo routes leaked: {combo_paths}"

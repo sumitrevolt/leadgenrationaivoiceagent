@@ -701,13 +701,13 @@ if __name__ == "__main__":
             print("\nRegressions:")
             for r in report["regressions"]:
                 print(
-                    f"  [{r.get('dashboard','?')}] {r.get('feature_name','?')} "
-                    f"{r.get('regression_type','?')}"
+                    f"  [{r.get('dashboard', '?')}] {r.get('feature_name', '?')} "
+                    f"{r.get('regression_type', '?')}"
                 )
         if report.get("improvements"):
             print("\nImprovements (gaps closed):")
             for imp in report["improvements"]:
-                print(f"  [{imp.get('dashboard','?')}] {imp.get('gap_name','?')}")
+                print(f"  [{imp.get('dashboard', '?')}] {imp.get('gap_name', '?')}")
         sys.exit(0)
 
     elif args.mode == "ci":

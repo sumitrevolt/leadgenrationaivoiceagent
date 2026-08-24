@@ -107,7 +107,7 @@ async def test_scheduled_ops_hygiene_trims_every_routed_queue(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_scheduled_ops_hygiene_never_auto_deletes_calling_queue(monkeypatch):
-    """"calling" carries run_campaign_task (admin-launched, never
+    """ "calling" carries run_campaign_task (admin-launched, never
     beat-regenerated — deleting a queued one silently drops the campaign AND
     leaks its launch lock since the delete skips the task's own `finally:
     release_campaign_lock()`) and process_callbacks' make_call_task (only

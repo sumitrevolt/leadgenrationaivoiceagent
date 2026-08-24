@@ -409,9 +409,9 @@ class HubSpotIntegration:
         """Format call data as note body"""
         body = f"""**AI Voice Agent Call Summary**
 
-📞 **Outcome:** {call_data.get('outcome', 'Unknown')}
-⏱️ **Duration:** {call_data.get('duration_seconds', 0)} seconds
-🎯 **Lead Score:** {call_data.get('lead_score', 0)}/100
+📞 **Outcome:** {call_data.get("outcome", "Unknown")}
+⏱️ **Duration:** {call_data.get("duration_seconds", 0)} seconds
+🎯 **Lead Score:** {call_data.get("lead_score", 0)}/100
 
 **Qualification Data:**
 """

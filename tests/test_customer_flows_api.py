@@ -16,6 +16,7 @@ def _clear_customer_override():
 def _as(cid):
     from app.api import customer_auth
     from app.main import app
+
     app.dependency_overrides[customer_auth.require_customer] = lambda: cid
 
 
@@ -29,6 +30,7 @@ def _client(tmp_path, monkeypatch, cid="cli_A", customer_flag=True):
         monkeypatch.delenv("FLOW_RUNNER_CUSTOMER", raising=False)
     _as(cid)
     from app.main import app
+
     return TestClient(app)
 
 
@@ -54,9 +56,9 @@ def test_create_scoped_to_caller(tmp_path, monkeypatch):
 def test_cross_tenant_get_is_404(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch, cid="cli_A")
     fid = c.post("/api/customer/flow", json=_safe_flow()).json()["flow"]["id"]
-    _as("cli_B")                                   # switch tenant
-    assert c.get(f"/api/customer/flow/{fid}").status_code == 404   # CRITICAL isolation
-    assert not c.get("/api/customer/flows").json()["flows"]        # B sees nothing
+    _as("cli_B")  # switch tenant
+    assert c.get(f"/api/customer/flow/{fid}").status_code == 404  # CRITICAL isolation
+    assert not c.get("/api/customer/flows").json()["flows"]  # B sees nothing
 
 
 def test_cross_tenant_delete_is_404_and_preserves(tmp_path, monkeypatch):
@@ -65,19 +67,22 @@ def test_cross_tenant_delete_is_404_and_preserves(tmp_path, monkeypatch):
     _as("cli_B")
     assert c.delete(f"/api/customer/flow/{fid}").status_code == 404
     _as("cli_A")
-    assert c.get(f"/api/customer/flow/{fid}").status_code == 200   # still there
+    assert c.get(f"/api/customer/flow/{fid}").status_code == 200  # still there
 
 
 def test_unsafe_action_not_runnable(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch, cid="cli_A")
-    r = c.post("/api/customer/flow", json={"name": "bad",
-        "nodes": [{"id": "a", "action": "http_request"}], "edges": []})
+    r = c.post(
+        "/api/customer/flow",
+        json={"name": "bad", "nodes": [{"id": "a", "action": "http_request"}], "edges": []},
+    )
     assert r.status_code == 200 and r.json()["runnable"] is False
     assert r.json()["compile_errors"]
 
 
 def test_cap_enforced(tmp_path, monkeypatch):
     import app.api.customer_flows as cfmod
+
     c = _client(tmp_path, monkeypatch, cid="cli_A")
     monkeypatch.setattr(cfmod, "_MAX_CUSTOMER_FLOWS", 2)
     assert c.post("/api/customer/flow", json=_safe_flow("1")).json()["ok"] is True
@@ -88,6 +93,7 @@ def test_cap_enforced(tmp_path, monkeypatch):
 
 def test_run_and_status_owner_checked(tmp_path, monkeypatch):
     from app.agents import dag_engine, process_engine, process_library
+
     c = _client(tmp_path, monkeypatch, cid="cli_A")
     monkeypatch.setattr(process_engine, "_RUNS_DIR", str(tmp_path / "runs"))
     monkeypatch.setattr(process_engine, "_INDEX", str(tmp_path / "runs" / "index.jsonl"))
@@ -96,6 +102,7 @@ def test_run_and_status_owner_checked(tmp_path, monkeypatch):
 
     async def _stub(inputs):
         return {"ok": True, "count": 1, "detail": "draft"}
+
     monkeypatch.setitem(process_library.EXECUTORS, "seo_blog_draft", _stub)
 
     fid = c.post("/api/customer/flow", json=_safe_flow()).json()["flow"]["id"]

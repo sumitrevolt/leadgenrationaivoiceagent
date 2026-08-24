@@ -35,17 +35,44 @@ def _seed(Session):
 
     s = Session()
     try:
-        s.add_all([
-            Lead(id="lead_a1", company_name="A Alpha", phone="9990000001",
-                 assigned_to="client_a", status=LeadStatus.NEW, lead_score=80),
-            Lead(id="lead_a2", company_name="A Gamma", phone="9990000002",
-                 assigned_to="client_a", status=LeadStatus.NEW, lead_score=40),
-            Lead(id="lead_b1", company_name="B Beta", phone="9990000003",
-                 assigned_to="client_b", status=LeadStatus.NEW, lead_score=90),
-        ])
+        s.add_all(
+            [
+                Lead(
+                    id="lead_a1",
+                    company_name="A Alpha",
+                    phone="9990000001",
+                    assigned_to="client_a",
+                    status=LeadStatus.NEW,
+                    lead_score=80,
+                ),
+                Lead(
+                    id="lead_a2",
+                    company_name="A Gamma",
+                    phone="9990000002",
+                    assigned_to="client_a",
+                    status=LeadStatus.NEW,
+                    lead_score=40,
+                ),
+                Lead(
+                    id="lead_b1",
+                    company_name="B Beta",
+                    phone="9990000003",
+                    assigned_to="client_b",
+                    status=LeadStatus.NEW,
+                    lead_score=90,
+                ),
+            ]
+        )
         # lead_a1 already called -> must be anti-joined out of the call-queue
-        s.add(CallLog(id="cl1", client_id="client_a", lead_id="lead_a1",
-                      to_number="9990000001", initiated_at=datetime.utcnow()))
+        s.add(
+            CallLog(
+                id="cl1",
+                client_id="client_a",
+                lead_id="lead_a1",
+                to_number="9990000001",
+                initiated_at=datetime.utcnow(),
+            )
+        )
         s.commit()
     finally:
         s.close()
@@ -115,12 +142,15 @@ async def test_call_queue_scopes_to_own_client_and_skips_called(monkeypatch):
     fake = _FakeMgr()
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
     monkeypatch.setattr(
-        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon", "product": "voice"}
+        "app.api.customer_dashboard._client_record",
+        lambda cid: {"business_name": "A", "niche": "salon", "product": "voice"},
     )
     from app.api.customer_dashboard import customer_voice_call_queue
 
     res = await customer_voice_call_queue(limit=20, client_id="client_a")
-    assert res["ok"] and res["queued"] == 1  # only lead_a2 (a1 already called, b1 is another tenant)
+    assert (
+        res["ok"] and res["queued"] == 1
+    )  # only lead_a2 (a1 already called, b1 is another tenant)
     phones = {r.phone_number for r in fake.seen}
     assert phones == {"9990000002"}
     assert all(r.client_id == "client_a" for r in fake.seen)  # IDOR: never another client's lead
@@ -137,7 +167,9 @@ async def test_call_queue_honors_compliance_block(monkeypatch):
             return "compliance_blocked_" + req.lead_id  # gate refused
 
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: _Blocker())
-    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {"product": "voice"})
+    monkeypatch.setattr(
+        "app.api.customer_dashboard._client_record", lambda cid: {"product": "voice"}
+    )
     from app.api.customer_dashboard import customer_voice_call_queue
 
     res = await customer_voice_call_queue(limit=20, client_id="client_a")
@@ -190,7 +222,8 @@ async def test_call_queue_skips_inflight_leads(monkeypatch):
     fake = _FakeMgr()
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
     monkeypatch.setattr(
-        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon", "product": "voice"}
+        "app.api.customer_dashboard._client_record",
+        lambda cid: {"business_name": "A", "niche": "salon", "product": "voice"},
     )
     fr = _FakeRedis(inflight={"lead_a2"})  # a2 already in-flight
 
@@ -212,7 +245,9 @@ async def test_call_queue_daily_cap(monkeypatch):
     _seed(Session)
     fake = _FakeMgr()
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
-    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {"product": "voice"})
+    monkeypatch.setattr(
+        "app.api.customer_dashboard._client_record", lambda cid: {"product": "voice"}
+    )
     fr = _FakeRedis(dcount=1)  # already used 1 today, cap=1 -> reached immediately
 
     async def _getr():

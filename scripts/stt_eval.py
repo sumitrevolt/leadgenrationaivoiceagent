@@ -35,7 +35,7 @@ async def _main() -> int:
     fixtures = stt_eval.list_transcript_fixtures(10)
     print(f"fixtures={len(fixtures)}")
     for f in fixtures[:5]:
-        print(f"  [{f.get('file')}] {str(f.get('text',''))[:80]}...")
+        print(f"  [{f.get('file')}] {str(f.get('text', ''))[:80]}...")
     return 0
 
 

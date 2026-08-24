@@ -53,7 +53,9 @@ def test_approval_notification_migration_upgrade_idempotent_and_downgrade(monkey
             "completed_at",
             "meta_json",
         }
-        indexes = {index["name"]: index for index in inspector.get_indexes("approval_notifications")}
+        indexes = {
+            index["name"]: index for index in inspector.get_indexes("approval_notifications")
+        }
         assert indexes["ix_approval_notifications_idempotency_key"]["unique"] == 1
         assert {
             "ix_approval_notifications_client_id",

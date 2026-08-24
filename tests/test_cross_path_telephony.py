@@ -106,7 +106,9 @@ def test_vobiz_cleanup_logs_no_answer_for_dead_call(monkeypatch):
     )
     monkeypatch.setattr(
         "app.platform.outbound_webhooks.emit",
-        AsyncMock(side_effect=lambda event, payload, client_id="": emitted.append((event, payload))),
+        AsyncMock(
+            side_effect=lambda event, payload, client_id="": emitted.append((event, payload))
+        ),
     )
 
     sess = VobizStreamSession(MagicMock(), client_id="cid-1", client_name="Test Co")

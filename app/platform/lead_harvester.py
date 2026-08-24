@@ -411,9 +411,7 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
 
         def _fetch() -> dict[str, Any]:
             req = urllib.request.Request(url, headers={"User-Agent": "leadgenai/1.0"})
-            with urllib.request.urlopen(
-                req, timeout=_HTTP_TIMEOUT
-            ) as resp:  # noqa: S310  # nosec B310
+            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:  # noqa: S310  # nosec B310
                 return json.loads(resp.read().decode("utf-8", "replace")) or {}
 
         data = await asyncio.to_thread(_fetch)

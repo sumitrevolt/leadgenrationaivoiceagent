@@ -440,7 +440,7 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
         text_lines = [
             "Namaste,",
             "",
-            f"{name} ji, yeh mera aakhri reminder hai — uske baad aapko pareshan " "nahi karunga.",
+            f"{name} ji, yeh mera aakhri reminder hai — uske baad aapko pareshan nahi karunga.",
             "",
             "Ek chhota idea jo aapke kaam aa sakta hai:",
             idea,
@@ -1110,8 +1110,8 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
             pass
         _log_event(
             "email_followup_run",
-            f"{result['sent']} follow-ups bheje (#1:{result['by_step'].get('1',0)} "
-            f"#2:{result['by_step'].get('2',0)}), {result['failed']} fail, cap {cap}",
+            f"{result['sent']} follow-ups bheje (#1:{result['by_step'].get('1', 0)} "
+            f"#2:{result['by_step'].get('2', 0)}), {result['failed']} fail, cap {cap}",
             status="ok" if result["failed"] == 0 else "warn",
             meta=dict(result),
         )
@@ -1343,7 +1343,9 @@ def hot_queue_candidates(limit: int = 20) -> list[dict[str, Any]]:
                             else (
                                 "calling_flagged"
                                 if is_calling_flagged
-                                else "wa_engaged" if is_wa_engaged else "high_score"
+                                else "wa_engaged"
+                                if is_wa_engaged
+                                else "high_score"
                             )
                         ),
                     }

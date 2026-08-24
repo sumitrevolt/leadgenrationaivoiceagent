@@ -15,6 +15,7 @@ This package-scoped, autouse fixture REMOVES those auth overrides for the
 duration of each security test so real 401/403 enforcement is verified, then
 restores them. DB overrides (test DB) are intentionally left in place.
 """
+
 from __future__ import annotations
 
 import pytest

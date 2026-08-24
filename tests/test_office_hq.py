@@ -70,9 +70,18 @@ async def test_build_snapshot_never_raises_and_has_all_sections():
     snap = await office_hq.build_snapshot()
     assert snap["ok"] is True
     for key in (
-        "rooms", "agents", "metrics", "pipeline", "approvals", "system_health",
-        "next_best_actions", "boss_brief", "priority_actions", "room_workloads",
-        "replay", "enterprise_features",
+        "rooms",
+        "agents",
+        "metrics",
+        "pipeline",
+        "approvals",
+        "system_health",
+        "next_best_actions",
+        "boss_brief",
+        "priority_actions",
+        "room_workloads",
+        "replay",
+        "enterprise_features",
     ):
         assert key in snap
 
@@ -142,10 +151,22 @@ def _command_center_snapshot():
             },
         ],
         "agents": [
-            {"key": "rohan", "name": "Rohan", "status": "working", "room": "sales_crm",
-             "todayActions": 8, "todayErrors": 0},
-            {"key": "kavya", "name": "Kavya", "status": "active", "room": "platform_engineering",
-             "todayActions": 3, "todayErrors": 1},
+            {
+                "key": "rohan",
+                "name": "Rohan",
+                "status": "working",
+                "room": "sales_crm",
+                "todayActions": 8,
+                "todayErrors": 0,
+            },
+            {
+                "key": "kavya",
+                "name": "Kavya",
+                "status": "active",
+                "room": "platform_engineering",
+                "todayActions": 3,
+                "todayErrors": 1,
+            },
         ],
         "pipeline": [
             {
@@ -200,8 +221,14 @@ def _command_center_snapshot():
                 {"job": "ops", "status": "ok"},
             ],
         },
-        "schedule": [{"job": "email_outreach", "label": "Email outreach", "type": "recurring",
-                      "cadence": "hourly"}],
+        "schedule": [
+            {
+                "job": "email_outreach",
+                "label": "Email outreach",
+                "type": "recurring",
+                "cadence": "hourly",
+            }
+        ],
         "coordination": [
             {
                 "goal": "clear hot replies",
@@ -266,7 +293,12 @@ def test_enterprise_features_contract_has_20_clickable_features():
         "metrics": {"mrr": 1999},
         "pipeline": [{"id": "lead_source", "count": 2, "stuckCount": 1, "errorCount": 0}],
         "approvals": {"counts": {"total_pending": 1}},
-        "system_health": {"jobs": [{"job": "ops", "status": "ok"}], "overdue": [], "never_ran": [], "queue": {"dlq": 0}},
+        "system_health": {
+            "jobs": [{"job": "ops", "status": "ok"}],
+            "overdue": [],
+            "never_ran": [],
+            "queue": {"dlq": 0},
+        },
         "schedule": [{"job": "ops"}],
         "coordination": [],
         "next_best_actions": [{"label": "Review", "cta_target": "approvals"}],
@@ -286,7 +318,9 @@ def test_needs_approval_matches_pending_draft_title_substring():
     assert office_hq._needs_approval("Sharma Electricals", titles) is True
     assert office_hq._needs_approval("Totally Unrelated Co", titles) is False
     assert office_hq._needs_approval("", titles) is False
-    assert office_hq._needs_approval("ab", titles) is False  # too short, avoids noisy false-positives
+    assert (
+        office_hq._needs_approval("ab", titles) is False
+    )  # too short, avoids noisy false-positives
 
 
 def test_is_resolved_reads_stuck_resolved_at_from_overrides():
@@ -298,10 +332,22 @@ def test_is_resolved_reads_stuck_resolved_at_from_overrides():
 
 
 def test_apply_override_merges_owner_next_action_status_and_clears_sla():
-    item = {"id": "L1", "type": "lead", "assignedAgentId": None, "nextAction": "Review karo",
-            "status": "new", "slaRisk": True}
-    overrides = {"L1": {"owner_agent": "rohan", "next_action": "Call at 5pm",
-                         "status_override": "callback", "stuck_resolved_at": "2026-07-01T00:00:00+00:00"}}
+    item = {
+        "id": "L1",
+        "type": "lead",
+        "assignedAgentId": None,
+        "nextAction": "Review karo",
+        "status": "new",
+        "slaRisk": True,
+    }
+    overrides = {
+        "L1": {
+            "owner_agent": "rohan",
+            "next_action": "Call at 5pm",
+            "status_override": "callback",
+            "stuck_resolved_at": "2026-07-01T00:00:00+00:00",
+        }
+    }
     out = office_hq._apply_override(item, overrides)
     assert out["assignedAgentId"] == "rohan"
     assert out["nextAction"] == "Call at 5pm"
@@ -376,6 +422,7 @@ async def test_safe_collect_live_stats_returns_value_when_fast(monkeypatch):
 
 
 # ---- Phase 3: unified approvals queue + boss finalizer + coordination ------ #
+
 
 def test_build_approval_queue_never_raises_and_items_well_formed():
     q = office_hq.build_approval_queue()
@@ -615,6 +662,7 @@ def test_offline_reason_unknown_member():
 def test_offline_reason_never_raises(monkeypatch):
     # Simulate a broken env read — must still return a string, never raise.
     import os
+
     original_environ = os.environ
     try:
         monkeypatch.setattr(office_hq.os, "environ", None)

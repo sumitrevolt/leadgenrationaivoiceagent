@@ -278,6 +278,6 @@ def test_call_manager_writer_still_sets_lead_id_from_context():
     from app.telephony import call_manager as cm
 
     src = inspect.getsource(cm)
-    assert (
-        'lead_id=getattr(context, "lead_id", None)' in src
-    ), "call_manager's CallLog writer must keep sourcing lead_id from CallContext"
+    assert 'lead_id=getattr(context, "lead_id", None)' in src, (
+        "call_manager's CallLog writer must keep sourcing lead_id from CallContext"
+    )

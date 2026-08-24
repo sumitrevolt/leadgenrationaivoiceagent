@@ -90,7 +90,7 @@ class BillingRecord(Base):
     paid_at = Column(DateTime)
 
     def __repr__(self):
-        return f"<BillingRecord {self.client_name} {self.record_type.value if self.record_type else '?'} Rs.{(self.amount or 0)/100:.0f}>"
+        return f"<BillingRecord {self.client_name} {self.record_type.value if self.record_type else '?'} Rs.{(self.amount or 0) / 100:.0f}>"
 
     @property
     def amount_inr(self) -> float:

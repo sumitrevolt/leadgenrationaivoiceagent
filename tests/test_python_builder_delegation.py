@@ -69,9 +69,9 @@ def test_invokes_the_canonical_parent(name: str) -> None:
     above. It must actually reach deploy_vps.sh.
     """
     tree = _tree(name)
-    assert any(
-        "deploy_vps.sh" in s for s in _string_constants(tree)
-    ), f"{name} removed its chain but never invokes the parent"
+    assert any("deploy_vps.sh" in s for s in _string_constants(tree)), (
+        f"{name} removed its chain but never invokes the parent"
+    )
 
 
 @pytest.mark.parametrize("name", BUILDERS)
@@ -130,14 +130,14 @@ def test_parent_unavailability_is_handled(name: str) -> None:
     if "ssh" in text.lower() and "REMOTE" in text:
         assert "REMOTE_EXIT_" in text, f"{name} must surface the remote exit status"
         return
-    assert (
-        "EXIT_PARENT_UNAVAILABLE" in text
-    ), f"{name} has no explicit handling for a missing canonical parent"
+    assert "EXIT_PARENT_UNAVAILABLE" in text, (
+        f"{name} has no explicit handling for a missing canonical parent"
+    )
 
 
 @pytest.mark.parametrize("name", BUILDERS)
 def test_scripts_still_parse_and_have_a_main(name: str) -> None:
     tree = _tree(name)
-    assert any(
-        isinstance(n, ast.FunctionDef) and n.name == "main" for n in ast.walk(tree)
-    ), f"{name} lost its main()"
+    assert any(isinstance(n, ast.FunctionDef) and n.name == "main" for n in ast.walk(tree)), (
+        f"{name} lost its main()"
+    )

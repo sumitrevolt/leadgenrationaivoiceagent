@@ -57,6 +57,19 @@
       "status": "registered"
     },
     {
+      "id": "hermes",
+      "name": "Hermes Desktop",
+      "project": "this repo (leadgenrationaivoiceagent) — dedicated worktree per mission",
+      "worktree": "own isolated worktree (per-mission, from recorded base SHA)",
+      "channel": "#build (progress) / #dev (results)",
+      "buzzlock_tool": "HERMES",
+      "buzzlock_enrolled": true,
+      "harness": "desktop GUI + headless CLI (MCP-coordinated); harness contract via coordination bus",
+      "headless_cli": true,
+      "heartbeat": "hub HMAC heartbeat (tool id 'hermes')",
+      "status": "registered"
+    },
+    {
       "id": "buzz",
       "name": "Buzz Desktop",
       "project": "message bus owner — local relay ws://127.0.0.1:3100",

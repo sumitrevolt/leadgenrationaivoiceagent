@@ -1,6 +1,7 @@
 """P3a (2026-06-28): reschedule flow in calendar_booking — find existing by phone
 (durable ledger), free old slot, book new. Plus the voice-tool registration.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,8 +19,8 @@ def test_reschedule_frees_old_books_new(tmp_path, monkeypatch):
 
     r2 = asyncio.run(cal.reschedule(new_when_iso="2026-07-02T15:00", phone="98765 01234"))
     assert r2.ok
-    assert "2026-07-02T15:00:00" in cal._taken           # new slot taken
-    assert "2026-07-01T11:00:00" not in cal._taken        # old slot freed
+    assert "2026-07-02T15:00:00" in cal._taken  # new slot taken
+    assert "2026-07-01T11:00:00" not in cal._taken  # old slot freed
     assert "move" in r2.confirmation_text.lower()
     assert r2.meta.get("rescheduled_from") == "2026-07-01T11:00:00"
 

@@ -644,10 +644,10 @@ class ProductionBrain:
         prompt = f"""Analyze these production metrics for an AI Voice Agent lead generation platform and suggest 1-2 high-impact optimizations.
 
 METRICS SUMMARY (last hour):
-- Average calls per day: {summary['avg_calls']:.0f}
-- Conversion rate: {summary['avg_conversion']:.1%}
-- API P99 latency: {summary['avg_latency']:.0f}ms
-- Error rate: {summary['avg_error_rate']:.1%}
+- Average calls per day: {summary["avg_calls"]:.0f}
+- Conversion rate: {summary["avg_conversion"]:.1%}
+- API P99 latency: {summary["avg_latency"]:.0f}ms
+- Error rate: {summary["avg_error_rate"]:.1%}
 - Active tenants: {metrics.active_tenants}
 - MRR: ₹{metrics.mrr_inr:,.0f}
 

@@ -44,7 +44,9 @@ def test_mc_catalog_shape(monkeypatch):
 def test_mc_recommend_for_salon(monkeypatch):
     m = _mc(monkeypatch)
     # force all providers "configured"
-    monkeypatch.setattr(m.free_ai, "_provider_flags", lambda: {r["provider"]: True for r in m._CATALOG})
+    monkeypatch.setattr(
+        m.free_ai, "_provider_flags", lambda: {r["provider"]: True for r in m._CATALOG}
+    )
 
     async def _run():
         out = await m.recommend(m.RecommendIn(niche="salon"), _user=object())
@@ -59,12 +61,12 @@ def test_mc_recommend_for_salon(monkeypatch):
 
 def test_mc_recommend_explicit_task(monkeypatch):
     m = _mc(monkeypatch)
-    monkeypatch.setattr(m.free_ai, "_provider_flags", lambda: {r["provider"]: True for r in m._CATALOG})
+    monkeypatch.setattr(
+        m.free_ai, "_provider_flags", lambda: {r["provider"]: True for r in m._CATALOG}
+    )
 
     async def _run():
-        out = await m.recommend(
-            m.RecommendIn(niche="ignored", task="content_gen"), _user=object()
-        )
+        out = await m.recommend(m.RecommendIn(niche="ignored", task="content_gen"), _user=object())
         assert out["matched_tasks"] == ["content_gen"]
         # cerebras / sambanova should appear (content_gen recipe)
         assert set(out["recommended_full_chain"]) & {"cerebras", "sambanova"}
@@ -140,7 +142,9 @@ def test_dr_full_flow_mocked(monkeypatch):
         assert out["queries"], "no queries planned"
         assert len(out["queries"]) >= 1
         assert out["sources"], "no sources"
-        assert out["report_markdown"].startswith("# Report") or "Bottom line" in out["report_markdown"]
+        assert (
+            out["report_markdown"].startswith("# Report") or "Bottom line" in out["report_markdown"]
+        )
         assert out["elapsed_ms"] >= 0
 
     asyncio.run(_run())
@@ -199,9 +203,7 @@ def test_dx_unknown_action_rejected(monkeypatch):
 
     async def _run():
         with pytest.raises(Exception) as exc:
-            await m.run_edit(
-                m.EditIn(text="Hello", action="explode"), _user=object()
-            )
+            await m.run_edit(m.EditIn(text="Hello", action="explode"), _user=object())
         assert getattr(exc.value, "status_code", None) == 400
 
     asyncio.run(_run())
@@ -218,9 +220,7 @@ def test_dx_improve_action(monkeypatch):
     monkeypatch.setattr(m.free_ai, "chat", fake_chat)
 
     async def _run():
-        out = await m.run_edit(
-            m.EditIn(text="Salon opens 10am.", action="improve"), _user=object()
-        )
+        out = await m.run_edit(m.EditIn(text="Salon opens 10am.", action="improve"), _user=object())
         assert out["action"] == "improve"
         assert out["edited_text"].startswith("Improved: ")
         assert out["provider"] == "test-provider"
@@ -261,9 +261,7 @@ def test_dx_empty_llm_returns_502(monkeypatch):
 
     async def _run():
         with pytest.raises(Exception) as exc:
-            await m.run_edit(
-                m.EditIn(text="hi", action="improve"), _user=object()
-            )
+            await m.run_edit(m.EditIn(text="hi", action="improve"), _user=object())
         assert getattr(exc.value, "status_code", None) == 502
 
     asyncio.run(_run())

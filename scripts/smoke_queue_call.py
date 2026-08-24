@@ -30,7 +30,7 @@ for label, url, method, data in tests:
         except urllib.error.HTTPError as e:
             code = e.code
             body = {}
-        print(f"[{'OK' if code in (200,401,422) else 'FAIL'}] {label} → HTTP {code}")
+        print(f"[{'OK' if code in (200, 401, 422) else 'FAIL'}] {label} → HTTP {code}")
         if method == "GET" and code == 200:
             if "ok" in body and not body.get("ok"):
                 print(f"     WARNING: ok=False — {body.get('error')}")

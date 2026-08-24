@@ -8,6 +8,7 @@ Verifies that role-based access control is enforced:
 
 Playbook ref: Security Playbook — RBAC tests.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -44,7 +45,9 @@ ADMIN_API_PATHS = [
 def test_admin_api_rejects_no_auth(path: str):
     """Admin API without any auth token must not succeed (no 2xx)."""
     resp = client.get(path, follow_redirects=False)
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +107,9 @@ def test_platform_tenant_upgrade_rejects_no_auth(monkeypatch):
     tenant_id = "rbac-regression-tenant-2"
     _seed_fake_tenant(monkeypatch, tenant_id)
     resp = client.post(
-        f"/api/platform/tenants/{tenant_id}/upgrade", json={"tier": "growth"}, follow_redirects=False
+        f"/api/platform/tenants/{tenant_id}/upgrade",
+        json={"tier": "growth"},
+        follow_redirects=False,
     )
     assert resp.status_code not in _SUCCESS, (
         f"AUTH BYPASS: POST /api/platform/tenants/{{id}}/upgrade -> {resp.status_code} without auth"
@@ -144,7 +149,9 @@ def test_platform_tenant_post_rejects_no_auth(path: str):
     """These three don't gate on tenant existence (pause/resume no-op silently,
     scrape/platform takes no id) — a nonexistent id doesn't mask an auth bypass."""
     resp = client.post(path, json={"tier": "growth"}, follow_redirects=False)
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    )
 
 
 ML_TRAINING_GET_PATHS = ["/api/ml/status", "/api/ml/metrics", "/api/ml/brain/status"]
@@ -153,7 +160,9 @@ ML_TRAINING_GET_PATHS = ["/api/ml/status", "/api/ml/metrics", "/api/ml/brain/sta
 @pytest.mark.parametrize("path", ML_TRAINING_GET_PATHS)
 def test_ml_training_get_rejects_no_auth(path: str):
     resp = client.get(path, follow_redirects=False)
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    )
 
 
 ML_TRAINING_POST_PATHS = [
@@ -170,7 +179,9 @@ ML_TRAINING_POST_PATHS = [
 @pytest.mark.parametrize("path", ML_TRAINING_POST_PATHS)
 def test_ml_training_post_rejects_no_auth(path: str):
     resp = client.post(path, json={}, follow_redirects=False)
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    )
 
 
 # Same batch: app/api/leads.py's GET /stats/summary (business-data leak) and
@@ -205,11 +216,15 @@ def test_admin_api_rejects_customer_token(path: str):
     # Simulate a customer token (JWT with role='customer')
     resp = client.get(
         path,
-        headers={"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiY3VzdG9tZXIifQ.fake"},  # nosecret (fake unsigned test JWT, role=customer)
+        headers={
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiY3VzdG9tZXIifQ.fake"  # nosecret (fake unsigned test JWT, role=customer)
+        },
         follow_redirects=False,
     )
     # An invalid/wrong-role token must not yield a success response.
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: {path} -> {resp.status_code} with bad token"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: {path} -> {resp.status_code} with bad token"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +241,9 @@ CUSTOMER_API_PATHS = [
 def test_customer_api_rejects_no_auth(path: str):
     """Customer API without auth must be rejected or redirected (no 2xx)."""
     resp = client.get(path, follow_redirects=False)
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: {path} -> {resp.status_code} without auth"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +288,11 @@ def test_unknown_role_defaults_to_deny():
     """A token with an unknown/unsupported role must be denied for admin paths."""
     resp = client.get(
         "/api/admin/stats",
-        headers={"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidW5rbm93biJ9.fake"},  # nosecret (fake unsigned test JWT, role=unknown)
+        headers={
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidW5rbm93biJ9.fake"  # nosecret (fake unsigned test JWT, role=unknown)
+        },
         follow_redirects=False,
     )
-    assert resp.status_code not in _SUCCESS, f"AUTH BYPASS: unknown-role token -> {resp.status_code}"
+    assert resp.status_code not in _SUCCESS, (
+        f"AUTH BYPASS: unknown-role token -> {resp.status_code}"
+    )

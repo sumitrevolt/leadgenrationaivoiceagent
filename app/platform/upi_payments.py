@@ -309,6 +309,39 @@ def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
         logger.debug("upi_payments gst invoice hook skipped: %s", e)
 
 
+def _credit_referral(record: dict) -> None:
+    """Best-effort referral 'lead' → 'paid' flip on a successful activation.
+
+    Revenue sprint (2026-08-23): affiliate referrals signup par record hote the
+    par payment hone par kabhi 'paid' nahi hote the — commission ledger dead
+    tha. Match payer_contact (ya client ka email) se; idempotent, never raises.
+    """
+    try:
+        from app.marketing import affiliate
+
+        contact = str(record.get("payer_contact") or "")
+        email = ""
+        cid = str(record.get("client_id") or "").strip()
+        if cid and "@" not in contact:
+            try:
+                from app.marketing.clients_store import resolve_client
+
+                rec = resolve_client(cid) or {}
+                email = str(rec.get("email") or "")
+                if not contact:
+                    contact = str(rec.get("phone") or "")
+            except Exception:
+                pass
+        affiliate.mark_referral_paid_by_contact(
+            contact=contact,
+            email=email,
+            phone=contact,
+            amount=float(record.get("amount", 0) or 0),
+        )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments referral credit skipped: %s", e)
+
+
 def _trigger_onboarding(client_id: str = "") -> None:
     """Front-run day-1 onboard for a just-activated client (KB seed + first pack).
 
@@ -542,6 +575,7 @@ def submit_payment(
                 # nudge the founder to spot-check (council decision 2026-07-03:
                 # ship UPI_AUTO_ACTIVATE's speed, pair it with a reconciliation
                 # signal instead of a blocking review).
+                _credit_referral(record)
                 try:
                     from app.platform import ops_alerts
 
@@ -668,6 +702,8 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                     record.get("plan", ""),
                     record.get("amount", 0),
                 )
+                # Referral commission loop — lead → paid (revenue sprint).
+                _credit_referral(record)
             else:
                 # Approved but activation did NOT succeed (unknown plan / activation
                 # error) → revenue-critical SILENT failure: alert ops (best-effort).

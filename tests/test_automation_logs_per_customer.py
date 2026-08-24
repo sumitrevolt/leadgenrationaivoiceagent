@@ -2,6 +2,7 @@
 per-client AutomationLog rows (client_id set + output_summary), so the admin
 Automation Runs "customer" filter is meaningful instead of always-blank.
 """
+
 import pytest
 
 

@@ -19,11 +19,13 @@ REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 SKILLS_ROOT = os.path.join(REPO_ROOT, ".claude", "skills")
 EVALS_ROOT = os.path.join(HERE, "cases")
 
-STOP = set("""a an the and or of to in on for with is are was were be been it its this
+STOP = set(
+    """a an the and or of to in on for with is are was were be been it its this
 that those these you your i me my we our they their he she his her do does did done
 can could should would will just very really some any all not no yes if then than as
 at by from into out up down over under again more most other own same so too s t don
-""".split())
+""".split()
+)
 
 MARGIN = 1.15
 

@@ -3,6 +3,7 @@
 Guards the three properties the layer promises: idempotent, secret-safe, and
 degrades. Pure-stdlib — runs without the full app import.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,10 +35,10 @@ def test_write_then_second_write_is_skipped(tmp_path):
     store = pc.build_store()
     sp = tmp_path / "ctx.json"
     snap = tmp_path / "snap.md"
-    assert pc.write_store(store, sp, snap) is True          # first write happens
+    assert pc.write_store(store, sp, snap) is True  # first write happens
     assert sp.is_file() and snap.is_file()
     store2 = pc.build_store()
-    assert pc.write_store(store2, sp, snap) is False         # unchanged -> skip
+    assert pc.write_store(store2, sp, snap) is False  # unchanged -> skip
 
 
 def test_dry_run_writes_nothing(tmp_path):

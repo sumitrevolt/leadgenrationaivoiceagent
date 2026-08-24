@@ -30,11 +30,14 @@ def test_caption_too_long_for_x():
 
 
 def test_hashtag_over_instagram_limit():
-    issues = v.validate_post("instagram", {
-        "caption": "hi",
-        "media_type": "image",
-        "hashtags": ["t" + str(i) for i in range(50)],
-    })
+    issues = v.validate_post(
+        "instagram",
+        {
+            "caption": "hi",
+            "media_type": "image",
+            "hashtags": ["t" + str(i) for i in range(50)],
+        },
+    )
     errs = [i for i in issues if i["rule"] == "hashtag_limit"]
     assert errs and errs[0]["severity"] == "error"
 
@@ -56,31 +59,40 @@ def test_gbp_rejects_video():
 
 
 def test_prohibited_claim_is_warn_not_block():
-    issues = v.validate_post("facebook", {
-        "caption": "100% safe cure for diabetes — GUARANTEED results!",
-        "media_type": "text",
-    })
+    issues = v.validate_post(
+        "facebook",
+        {
+            "caption": "100% safe cure for diabetes — GUARANTEED results!",
+            "media_type": "text",
+        },
+    )
     assert any(i["rule"] == "prohibited_claims" for i in issues)
     # It's a warn (context could qualify), so it does not block.
     assert v.has_blocking_error([i for i in issues if i["rule"] == "prohibited_claims"]) is False
 
 
 def test_sponsored_missing_disclaimer_is_error():
-    issues = v.validate_post("instagram", {
-        "caption": "Check out this amazing product!",
-        "media_type": "image",
-        "content_type": "sponsored",
-    })
+    issues = v.validate_post(
+        "instagram",
+        {
+            "caption": "Check out this amazing product!",
+            "media_type": "image",
+            "content_type": "sponsored",
+        },
+    )
     assert any(i["rule"] == "missing_disclaimer" and i["severity"] == "error" for i in issues)
 
 
 def test_sponsored_with_ad_hashtag_passes():
-    issues = v.validate_post("instagram", {
-        "caption": "Check out this amazing product! #ad",
-        "media_type": "image",
-        "content_type": "sponsored",
-        "hashtags": ["ad"],
-    })
+    issues = v.validate_post(
+        "instagram",
+        {
+            "caption": "Check out this amazing product! #ad",
+            "media_type": "image",
+            "content_type": "sponsored",
+            "hashtags": ["ad"],
+        },
+    )
     assert not any(i["rule"] == "missing_disclaimer" for i in issues)
 
 
@@ -92,7 +104,8 @@ def test_zero_width_injection_flagged_as_warn():
 
 
 def test_duplicate_content_detected_with_recent_list():
-    issues = v.validate_post("facebook",
+    issues = v.validate_post(
+        "facebook",
         {"caption": "Diwali offer 30% off!", "media_type": "text"},
         recent_captions=["diwali offer 30% off!"],  # case+normalized match
     )

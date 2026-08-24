@@ -83,7 +83,9 @@ async def run_team_member(member: str, current_user: User = Depends(require_admi
         action = (
             ACTION_DELIVERY_SCAN
             if ACTION_DELIVERY_SCAN in capabilities
-            else ACTION_OWNED if ACTION_OWNED in capabilities else capabilities[0]
+            else ACTION_OWNED
+            if ACTION_OWNED in capabilities
+            else capabilities[0]
         )
         team.log_event("manager", "task_assigned", f"manual run: {agent_id}")
         result = await agent_runtime.submit(

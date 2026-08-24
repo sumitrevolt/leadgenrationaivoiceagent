@@ -35,9 +35,9 @@ def test_registry_is_non_vacuous_against_manifest():
     by_id = {s["store_id"]: s for s in manifest.STORES}
 
     missing_from_manifest = sorted(set(all_declared_store_ids()) - set(by_id))
-    assert (
-        not missing_from_manifest
-    ), f"registry declares store ids absent from the manifest: {missing_from_manifest}"
+    assert not missing_from_manifest, (
+        f"registry declares store ids absent from the manifest: {missing_from_manifest}"
+    )
 
     wave_of: dict[str, str] = {}
     for wave, ids in WAVE_STORE_IDS.items():
@@ -48,9 +48,9 @@ def test_registry_is_non_vacuous_against_manifest():
 
     moved_rows = manifest.by_state(manifest.CUTOVER_COMPLETE)
     undeclared_moved = sorted(s["store_id"] for s in moved_rows if s["store_id"] not in wave_of)
-    assert (
-        not undeclared_moved
-    ), f"manifest rows are moved but not declared in any wave: {undeclared_moved}"
+    assert not undeclared_moved, (
+        f"manifest rows are moved but not declared in any wave: {undeclared_moved}"
+    )
 
 
 def test_blocking_store_count_is_still_pinned():

@@ -3,6 +3,7 @@
 Lightweight load tests using concurrent requests. Not a full Locust suite
 but verifies basic throughput gates. Run: pytest tests/load/ -v -s
 """
+
 from __future__ import annotations
 
 import concurrent.futures
@@ -25,7 +26,9 @@ if os.environ.get("RUN_LOAD_TESTS") != "1":
         allow_module_level=True,
     )
 # 2) Never hammer PROD (same discipline as tests/load/run.sh — leadsgenai.in / VPS IP).
-if ("leadsgenai.in" in BASE_URL or "72.61.245.204" in BASE_URL) and os.environ.get("CONFIRM_PROD") != "1":
+if ("leadsgenai.in" in BASE_URL or "72.61.245.204" in BASE_URL) and os.environ.get(
+    "CONFIRM_PROD"
+) != "1":
     pytest.skip(
         f"refusing to load-test prod ({BASE_URL}) — set CONFIRM_PROD=1 to override",
         allow_module_level=True,
@@ -99,11 +102,32 @@ def test_scheduler_24_concurrent_triggers():
     from app.tasks.staff_jobs import run_staff_job
 
     # Simulate 24 concurrent triggers (different jobs)
-    jobs = ["content", "blog", "prospect", "email_outreach", "digest", "qa",
-            "trainer", "watchdog", "onboard", "standup", "pipeline", "hygiene",
-            "kb_refresh", "midday_prospect", "evening_wrap", "weekly_marketing",
-            "revenue_snapshot", "engineer_sre", "engineer_finops", "engineer_security",
-            "engineer_dbre", "engineer_dataquality", "engineer_deps", "readiness_digest"]
+    jobs = [
+        "content",
+        "blog",
+        "prospect",
+        "email_outreach",
+        "digest",
+        "qa",
+        "trainer",
+        "watchdog",
+        "onboard",
+        "standup",
+        "pipeline",
+        "hygiene",
+        "kb_refresh",
+        "midday_prospect",
+        "evening_wrap",
+        "weekly_marketing",
+        "revenue_snapshot",
+        "engineer_sre",
+        "engineer_finops",
+        "engineer_security",
+        "engineer_dbre",
+        "engineer_dataquality",
+        "engineer_deps",
+        "readiness_digest",
+    ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
         futures = [pool.submit(run_staff_job, job) for job in jobs[:24]]

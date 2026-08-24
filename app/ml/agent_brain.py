@@ -547,7 +547,7 @@ class AgentBrain:
         expertise = "\n".join(f"- {e}" for e in config.get("expertise", []))
         priority = config.get("priority", "features")
 
-        return f"""You are the {role.value.replace('_', ' ').title()} sub-agent for the LeadGen AI Voice Agent platform.
+        return f"""You are the {role.value.replace("_", " ").title()} sub-agent for the LeadGen AI Voice Agent platform.
 
 ## Your Expertise
 {expertise}
@@ -587,7 +587,7 @@ RISK: [low/medium/high]
 ```
 
 ## Related Files
-{', '.join(context.related_files[:5])}
+{", ".join(context.related_files[:5])}
 
 ## Relevant Patterns from Codebase
 {json.dumps(context.relevant_patterns[:3], indent=2)}

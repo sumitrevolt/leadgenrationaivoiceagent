@@ -2,6 +2,7 @@
 (from the 7-dimension voice audit). Each test pins ONE fixed defect so a
 future edit can't silently regress it. All offline (no LLM/network).
 """
+
 import asyncio
 
 import pytest
@@ -12,6 +13,7 @@ from app.voice_agent.intent_detector import IntentDetector, IntentType
 
 
 # --- Batch 1: compliance -----------------------------------------------------
+
 
 def test_intent_devanagari_optout_now_detected():
     """Whisper(hi) Devanagari opt-out must match OPT_OUT after roman-normalize.
@@ -34,10 +36,11 @@ def test_llm_brain_prompt_no_ai_denial_instruction():
 
     sp = LLMBrain.SYSTEM_PROMPTS["sales_agent"]
     assert "khud se mat bolo" not in sp  # the removed non-compliant clause
-    assert "AI assistant hoon" in sp     # the compliant replacement
+    assert "AI assistant hoon" in sp  # the compliant replacement
 
 
 # --- Batch 2: KB grounding ---------------------------------------------------
+
 
 def test_objection_rag_uses_correct_kwarg_and_keys():
     """find_objection_responses is called with top_k (not limit) and reads the
@@ -57,6 +60,7 @@ def test_objection_rag_uses_correct_kwarg_and_keys():
 
 
 # --- Batch 3: conversation quality -------------------------------------------
+
 
 def test_sanitize_does_not_garble_legit_words():
     """'act as' inside 'exact assessment' must NOT be blanked (word-boundary)."""
@@ -84,6 +88,7 @@ def test_post_close_number_or_bare_affirm_still_closes():
 
 
 # --- Batch 4: guardrails word-boundary ---------------------------------------
+
 
 def test_guardrails_no_false_injection_on_legit_phrase():
     g = get_guardrails()

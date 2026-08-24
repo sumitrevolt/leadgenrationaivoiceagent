@@ -97,9 +97,9 @@ def test_no_more_than_ten_groups_rule():
 def test_control_center_lives_in_system_group():
     nav = _nav_block(_admin_html())
     groups = _parse_groups(nav)
-    assert (
-        'href="/app/control-center"' in groups["7. System"]
-    ), "/app/control-center must be under System group"
+    assert 'href="/app/control-center"' in groups["7. System"], (
+        "/app/control-center must be under System group"
+    )
 
 
 def test_delivery_command_center_in_content_group():

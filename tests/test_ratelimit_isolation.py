@@ -37,9 +37,9 @@ def test_rate_limit_state_clean_then_pollute():
 
 def test_rate_limit_state_isolated_from_previous_test():
     # if isolation works, the previous test's rl: pollution has been cleared
-    assert (
-        _rl_keys() == []
-    ), f"rate-limit state leaked across tests (isolation fixture failed): {_rl_keys()}"
+    assert _rl_keys() == [], (
+        f"rate-limit state leaked across tests (isolation fixture failed): {_rl_keys()}"
+    )
 
 
 def test_limiter_still_counts_within_a_test():

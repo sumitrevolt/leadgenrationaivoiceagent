@@ -34,19 +34,24 @@ OB-01 trace/audit → ST-02 progress/stop`
 from pydantic import BaseModel, field_validator
 from app.agents.harness import REGISTRY, RiskClass
 
+
 class SendWhatsAppArgs(BaseModel):
     to: str
     body: str
+
     @field_validator("to")
     @classmethod
     def _india(cls, v):
-        assert v.startswith("+91"), "domestic only"   # VA-02
+        assert v.startswith("+91"), "domestic only"  # VA-02
         return v
 
+
 REGISTRY.register(
-    "send_whatsapp", send_whatsapp_impl, SendWhatsAppArgs,
-    RiskClass.EXTERNAL_SEND,           # -> PM-03 approval + SB-04 checkpoint + DL-01 scan
-    profiles=["outreach"],            # PM-01 least-privilege
+    "send_whatsapp",
+    send_whatsapp_impl,
+    SendWhatsAppArgs,
+    RiskClass.EXTERNAL_SEND,  # -> PM-03 approval + SB-04 checkpoint + DL-01 scan
+    profiles=["outreach"],  # PM-01 least-privilege
     allowed_egress=["graph.facebook.com"],  # SB-02
 )
 ```
@@ -59,9 +64,11 @@ from app.agents.harness import Harness, RunContext, Budget
 h = Harness(budget=Budget(max_iterations=8, max_usd=0.50, max_wall_clock_s=120))
 ctx = RunContext(task_id="t123", tenant_id="client:jiya", agent="sales")
 
+
 async def propose(ctx):
     # your model call -> a validated ToolCall via app.llm.structured, or None when done
     return await plan_next_action(ctx)
+
 
 reason = await h.run(ctx, propose, profile="outreach")
 # reason in {GOAL_MET, BUDGET_EXHAUSTED, WALL_CLOCK, NO_PROGRESS, KILL_SWITCH, ...}
@@ -71,8 +78,9 @@ reason = await h.run(ctx, propose, profile="outreach")
 
 ```python
 from app.agents.harness import StopController
-StopController.request_kill("all")        # fleet-wide
-StopController.request_kill(run_id)       # one run
+
+StopController.request_kill("all")  # fleet-wide
+StopController.request_kill(run_id)  # one run
 ```
 
 ## Rollout

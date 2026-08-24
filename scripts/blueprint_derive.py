@@ -355,37 +355,51 @@ def derive() -> dict[str, Any]:
             and corr["count"] >= 1
             and (not dtop or dtop[0] == own_domain or not dominant)
         ):
-            conf, why = "HIGH", (
-                f"reviewed ownership -> {own_domain} + {corr['count']} " "current-source signal(s)"
+            conf, why = (
+                "HIGH",
+                (f"reviewed ownership -> {own_domain} + {corr['count']} current-source signal(s)"),
             )
         elif own_domain and dominant and dtop[0] == own_domain:
-            conf, why = "HIGH", (
-                f"reviewed ownership -> {own_domain} agrees with dominant "
-                f"dependency ({dtop[1]} votes)"
+            conf, why = (
+                "HIGH",
+                (
+                    f"reviewed ownership -> {own_domain} agrees with dominant "
+                    f"dependency ({dtop[1]} votes)"
+                ),
             )
         elif own_domain:
-            conf, why = "MEDIUM", (
-                f"reviewed ownership -> {own_domain} but no independent "
-                "route/task/job/agent/flag corroboration"
+            conf, why = (
+                "MEDIUM",
+                (
+                    f"reviewed ownership -> {own_domain} but no independent "
+                    "route/task/job/agent/flag corroboration"
+                ),
             )
         elif not prov["available"]:
             conf, why = "LOW", "Graphify graph unavailable — cannot prove dependency"
         elif not dranked:
             conf, why = "LOW", "no dependency path reaches any canonical domain"
         elif dominant and corr["count"] >= 1:
-            conf, why = "HIGH", (
-                f"dominant canonical-domain dependency ({dtop[1]} vs "
-                f"{dsecond[1] if dsecond else 0}, {edges_used} edges) + "
-                f"{corr['count']} current-source signal(s)"
+            conf, why = (
+                "HIGH",
+                (
+                    f"dominant canonical-domain dependency ({dtop[1]} vs "
+                    f"{dsecond[1] if dsecond else 0}, {edges_used} edges) + "
+                    f"{corr['count']} current-source signal(s)"
+                ),
             )
         elif dominant:
-            conf, why = "MEDIUM", (
-                f"dominant dependency ({dtop[1]} votes) but no route/task/job/agent/"
-                "flag corroboration"
+            conf, why = (
+                "MEDIUM",
+                (
+                    f"dominant dependency ({dtop[1]} votes) but no route/task/job/agent/"
+                    "flag corroboration"
+                ),
             )
         elif dtop and (not dsecond or dtop[1] > dsecond[1]):
-            conf, why = "MEDIUM", (
-                f"leading domain below auto-accept floor ({dtop[1]} votes, " f"{edges_used} edges)"
+            conf, why = (
+                "MEDIUM",
+                (f"leading domain below auto-accept floor ({dtop[1]} votes, {edges_used} edges)"),
             )
         else:
             conf, why = "MEDIUM", "competing canonical domains with equal support"
@@ -398,9 +412,12 @@ def derive() -> dict[str, Any]:
         # have been parented under the RAG node. app/agents/ is a rejected
         # mixed package, so it has no reviewed ownership — hold it at MEDIUM.
         if conf == "HIGH" and parent_node and not own_domain:
-            conf, why = "MEDIUM", (
-                f"proposes structural parent '{parent_node}' from dependency "
-                "votes alone; no reviewed ownership backs that placement"
+            conf, why = (
+                "MEDIUM",
+                (
+                    f"proposes structural parent '{parent_node}' from dependency "
+                    "votes alone; no reviewed ownership backs that placement"
+                ),
             )
 
         # harness policy: critical domains never auto-accept on AST alone.
@@ -416,10 +433,13 @@ def derive() -> dict[str, Any]:
         # domain votes — because `own_domain` supplied the second "signal" itself.
         # A canonical blueprint placement must not be purchasable with an env var.
         if conf == "HIGH" and is_critical and corr["count"] < 2:
-            conf, why = "MEDIUM", (
-                f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
-                f"current-source signals (has {corr['count']}; reviewed ownership "
-                "does not corroborate itself)"
+            conf, why = (
+                "MEDIUM",
+                (
+                    f"critical domain '{parent_domain}' — needs >=2 INDEPENDENT "
+                    f"current-source signals (has {corr['count']}; reviewed ownership "
+                    "does not corroborate itself)"
+                ),
             )
 
         # A dependency claim is only as good as the dependency evidence behind it.
@@ -427,10 +447,13 @@ def derive() -> dict[str, Any]:
         # would rest on AST/ownership alone — exactly what
         # test_high_confidence_requires_evidence_and_corroboration forbids.
         if conf == "HIGH" and edges_used < MIN_DISTINCT_EDGES:
-            conf, why = "MEDIUM", (
-                f"only {edges_used} distinct Graphify edge(s) — HIGH requires "
-                f">={MIN_DISTINCT_EDGES} (graph "
-                f"{'unavailable' if not prov['available'] else 'has no path'})"
+            conf, why = (
+                "MEDIUM",
+                (
+                    f"only {edges_used} distinct Graphify edge(s) — HIGH requires "
+                    f">={MIN_DISTINCT_EDGES} (graph "
+                    f"{'unavailable' if not prov['available'] else 'has no path'})"
+                ),
             )
 
         depth = 2 if e["kind"] == "subnode" else 1

@@ -37,7 +37,8 @@ def _stub_signup_side_effects(monkeypatch, cid: str = "c_al"):
     import app.billing.usage as usage
 
     monkeypatch.setattr(
-        cs, "add_client",
+        cs,
+        "add_client",
         lambda **k: {"id": cid, "business_name": k.get("business_name")},
     )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
@@ -153,7 +154,9 @@ def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
     import app.api.customer_auth as ca
     import app.billing.usage as usage
 
-    monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "c_pp", "business_name": k.get("business_name")})
+    monkeypatch.setattr(
+        cs, "add_client", lambda **k: {"id": "c_pp", "business_name": k.get("business_name")}
+    )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
     monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
@@ -180,11 +183,16 @@ def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
     from app.marketing import clients_store as cs
     import app.api.customer_auth as ca
     import app.billing.usage as usage
-    monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "c_ppr", "business_name": k.get("business_name")})
+
+    monkeypatch.setattr(
+        cs, "add_client", lambda **k: {"id": "c_ppr", "business_name": k.get("business_name")}
+    )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
     monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
-    monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: (_ for _ in ()).throw(RuntimeError("DB down")))
+    monkeypatch.setattr(
+        usage, "activate_plan", lambda c, p, **k: (_ for _ in ()).throw(RuntimeError("DB down"))
+    )
 
     from app.api import public_site as ps
 
@@ -218,13 +226,23 @@ def test_signup_trial_skips_plan_provisioning(client, monkeypatch):
     import app.api.customer_auth as ca
     import app.billing.usage as usage
 
-    monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "c_tr", "business_name": k.get("business_name")})
+    monkeypatch.setattr(
+        cs, "add_client", lambda **k: {"id": "c_tr", "business_name": k.get("business_name")}
+    )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
     monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     # Should never be called for trial — if it is, raise to catch.
-    monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: (_ for _ in ()).throw(AssertionError("trial must not provision")))
-    monkeypatch.setattr(usage, "reset_usage_period", lambda c: (_ for _ in ()).throw(AssertionError("trial must not watermark")))
+    monkeypatch.setattr(
+        usage,
+        "activate_plan",
+        lambda c, p, **k: (_ for _ in ()).throw(AssertionError("trial must not provision")),
+    )
+    monkeypatch.setattr(
+        usage,
+        "reset_usage_period",
+        lambda c: (_ for _ in ()).throw(AssertionError("trial must not watermark")),
+    )
 
     r = client.post(
         "/api/public/signup",

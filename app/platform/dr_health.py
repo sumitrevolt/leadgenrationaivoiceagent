@@ -79,7 +79,7 @@ def probe() -> dict[str, Any]:
             try:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "SELECT EXTRACT(EPOCH FROM " "(now() - pg_last_xact_replay_timestamp()))"
+                        "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))"
                     )
                     val = cur.fetchone()[0]
                     lag_s = float(val) if val is not None else None
@@ -91,7 +91,7 @@ def probe() -> dict[str, Any]:
             with psycopg.connect(url, connect_timeout=5) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "SELECT EXTRACT(EPOCH FROM " "(now() - pg_last_xact_replay_timestamp()))"
+                        "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))"
                     )
                     val = cur.fetchone()[0]
                     lag_s = float(val) if val is not None else None

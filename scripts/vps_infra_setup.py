@@ -10,9 +10,7 @@ LOG = []
 
 
 def run(cmd, shell=True):
-    r = subprocess.run(
-        cmd, shell=shell, capture_output=True, text=True
-    )  # nosec B602 (ops script, explicit shell)
+    r = subprocess.run(cmd, shell=shell, capture_output=True, text=True)  # nosec B602 (ops script, explicit shell)
     out = (r.stdout + r.stderr).strip()
     LOG.append(f"$ {cmd}\n{out}")
     return r.returncode, out

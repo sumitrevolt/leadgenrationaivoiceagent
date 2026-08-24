@@ -59,7 +59,10 @@ def test_risk_enabled_env(monkeypatch):
 def test_risk_low_action_auto_approves(monkeypatch):
     monkeypatch.setenv("RISK_AUTO_APPROVE_MAX_COST", "5")
     # a cheap, benign action → low score → auto-approve
-    assert risk_approve.should_auto_approve("reflection", cost_estimate=0.5, reason="self review") is True
+    assert (
+        risk_approve.should_auto_approve("reflection", cost_estimate=0.5, reason="self review")
+        is True
+    )
 
 
 def test_risk_high_cost_blocks(monkeypatch):
@@ -70,7 +73,12 @@ def test_risk_high_cost_blocks(monkeypatch):
 def test_risk_sideeffect_word_blocks(monkeypatch):
     monkeypatch.setenv("RISK_AUTO_APPROVE_MAX_COST", "100")
     # reason mentions an outward send → score bumped → not auto-approved
-    assert risk_approve.should_auto_approve("social_drafts", cost_estimate=1, reason="send whatsapp blast") is False
+    assert (
+        risk_approve.should_auto_approve(
+            "social_drafts", cost_estimate=1, reason="send whatsapp blast"
+        )
+        is False
+    )
 
 
 def test_risk_score_bounds():

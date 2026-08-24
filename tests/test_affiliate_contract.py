@@ -77,9 +77,7 @@ def test_record_referral_unknown_code() -> None:
 
 def test_affiliate_detail_per_affiliate_earned() -> None:
     a = af.register_affiliate("Jiya", "jiya@example.com", "9876543210")
-    af.record_referral(
-        a["code"], {"business_name": "Shop A", "email": "a@a.in"}, status="lead"
-    )
+    af.record_referral(a["code"], {"business_name": "Shop A", "email": "a@a.in"}, status="lead")
     af.record_referral(
         a["code"],
         {"business_name": "Shop B", "email": "b@b.in", "amount": 1999},

@@ -1310,6 +1310,218 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "No fabricated ratings/testimonials; daily cap must stay.",
     },
+    # 2026-08-23 — billing.promo_codes (platform promo/launch-code engine)
+    {
+        "allowlist_id": "billing.promo_codes.store",
+        "file": "app/billing/promo_codes.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/promo_codes.jsonl",
+        "store_id": "billing.promo_codes",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Promo definitions + applied-redemption ledger (launch offers, "
+            "discount codes). Definitions are re-enterable via admin re-create; "
+            "never holds customer PII beyond a normalized contact hash-key. "
+            "CREATE is the os.makedirs ensuring data/ exists before replace."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Writes go through the atomic tmp+replace pair only — never a bare append on this path."
+        ),
+    },
+    {
+        "allowlist_id": "billing.promo_codes.tmp",
+        "file": "app/billing/promo_codes.py",
+        "line_or_symbol": "tmp",
+        # Dynamic (pid-suffixed) temp — declaration names the expression the
+        # scanner actually detects, not a glob (offers.py precedent).
+        "path_pattern": 'f"{_STORE}.tmp.{os.getpid()}"',
+        "store_id": "billing.promo_codes",
+        "access_modes": ["CREATE", "REWRITE", "REPLACE", "DELETE"],
+        "reason": (
+            "Atomic temp for the promo-store rewrite under file_lock. DELETE "
+            "is the cleanup path when the write fails partway."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": "Temp and target must stay on ONE filesystem.",
+    },
+    # 2026-08-23 — marketing.affiliates referral paid-flip (revenue sprint)
+    {
+        "allowlist_id": "marketing.affiliates.referrals",
+        "file": "app/marketing/affiliate.py",
+        "line_or_symbol": "_REFERRALS",
+        "path_pattern": "data/affiliate_referrals.jsonl",
+        "store_id": "marketing.affiliates",
+        "access_modes": ["CREATE", "APPEND", "READ"],
+        "reason": (
+            "Referral conversion ledger (lead→paid flip on payment activation, "
+            "revenue sprint 2026-08-23). Legacy append-only family; the new "
+            "paid-flip adds a locked atomic rewrite via its own tmp row."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "growth",
+        "production_relevance": "LIVE",
+        "review_condition": ("Flip only moves status lead→paid; never fabricates conversions."),
+    },
+    {
+        "allowlist_id": "marketing.affiliates.referrals_tmp",
+        "file": "app/marketing/affiliate.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": 'f"{_REFERRALS}.tmp.{os.getpid()}"',
+        "store_id": "marketing.affiliates",
+        "access_modes": ["REWRITE", "REPLACE"],
+        "reason": (
+            "Atomic temp for the referral paid-flip rewrite (tmp + os.replace) under file_lock."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "growth",
+        "production_relevance": "LIVE",
+        "review_condition": "Temp and target must stay on ONE filesystem.",
+    },
+    # 2026-08-23 — sales.prospects TASK_LI-001 enrichment batch (Board-run, offline)
+    {
+        "allowlist_id": "sales.prospects.enrich.source",
+        "file": "scripts/batch_enrich.py",
+        "line_or_symbol": "in_file",
+        "path_pattern": "data/hunter_leads/TASK_LI-001_top10.csv",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "TASK_LI-001 enrichment reads the hunter CSV source READ-ONLY; "
+            "one-shot offline script, never mutates the source."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Source CSV must stay read-only in this script.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.sink_flat",
+        "file": "scripts/batch_enrich.py",
+        "line_or_symbol": "out_file",
+        "path_pattern": "data/enriched_prospects.jsonl",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE", "APPEND"],
+        "reason": (
+            "Enrichment output sidecar (append-only jsonl). Rebuildable from "
+            "source CSV + deterministic mapping — REBUILDABLE_CACHE class data."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Append-only sink; no customer PII beyond public contact fields.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.board_source",
+        "file": "scripts/board_enrich_task.py",
+        "line_or_symbol": "in_csv",
+        "path_pattern": "data/hunter_leads/TASK_LI-001_top10.csv",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "Board enrichment variant reads the same hunter CSV READ-ONLY. One-shot offline script."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Source CSV must stay read-only in this script.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.board_sink_dir",
+        "file": "scripts/board_enrich_task.py",
+        "line_or_symbol": "out_dir",
+        "path_pattern": "data/enriched_prospects",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Enrichment output directory (os.makedirs) for per-task jsonl "
+            "sidecars. Rebuildable from source CSV."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar outputs only; no source mutation.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.board_sink_file",
+        "file": "scripts/board_enrich_task.py",
+        "line_or_symbol": "out_jsonl",
+        "path_pattern": "data/enriched_prospects/TASK_LI-001_enriched.jsonl",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE", "REWRITE"],
+        "reason": (
+            "Per-task enriched output file (deterministic rebuild from CSV). "
+            "REBUILDABLE_CACHE class data."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar output only.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.li001_src",
+        "file": "scripts/enrich_task_li001.py",
+        "line_or_symbol": "SRC",
+        "path_pattern": "data/hunter_leads/TASK_LI-001_top10.csv",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "Deterministic enrichment script reads the hunter CSV READ-ONLY. "
+            "No fabrication: every output field derives from the source row."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Source CSV must stay read-only in this script.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.li001_dst",
+        "file": "scripts/enrich_task_li001.py",
+        "line_or_symbol": "DST",
+        "path_pattern": "data/enriched_prospects/TASK_LI-001_enriched.jsonl",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE", "REWRITE"],
+        "reason": (
+            "Enriched output jsonl — deterministic rebuild from the CSV source. "
+            "os.makedirs on DST_DIR is the CREATE."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar output only; overwrite semantics are idempotent.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.li001_dstdir",
+        "file": "scripts/enrich_task_li001.py",
+        "line_or_symbol": "DST_DIR",
+        "path_pattern": "data/enriched_prospects",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Output directory (os.makedirs exist_ok) for the enriched sidecar — "
+            "rebuildable from the source CSV; same offline tooling family."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Directory creation only; no file writes at this symbol.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

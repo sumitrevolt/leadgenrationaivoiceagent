@@ -24,8 +24,8 @@ def test_list_flows_owner_filter(tmp_path, monkeypatch):
     fs.save_flow({"id": "a2", "name": "A2", "nodes": [], "edges": []}, owner_client_id="cli_2")
     fs.save_flow({"id": "adm", "name": "ADM", "nodes": [], "edges": []})  # admin
     ids1 = {f["id"] for f in fs.list_flows(owner="cli_1")}
-    assert ids1 == {"a1"}                                  # only cli_1's
-    all_ids = {f["id"] for f in fs.list_flows()}           # admin (no filter) sees all
+    assert ids1 == {"a1"}  # only cli_1's
+    all_ids = {f["id"] for f in fs.list_flows()}  # admin (no filter) sees all
     assert {"a1", "a2", "adm"} <= all_ids
 
 
@@ -33,7 +33,7 @@ def test_owned_by(tmp_path, monkeypatch):
     _setup(tmp_path, monkeypatch)
     fs.save_flow({"id": "x", "name": "X", "nodes": [], "edges": []}, owner_client_id="cli_1")
     assert fs.owned_by("x", "cli_1") is True
-    assert fs.owned_by("x", "cli_2") is False     # cross-tenant
+    assert fs.owned_by("x", "cli_2") is False  # cross-tenant
     assert fs.owned_by("ghost", "cli_1") is False  # missing
 
 

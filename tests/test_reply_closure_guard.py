@@ -138,9 +138,12 @@ def test_guard_runs_before_llm_classification():
     a fake-hot row — it must short-circuit like the other guards."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parent.parent.joinpath(
-        "app", "platform", "reply_agent.py"
-    ).read_text(encoding="utf-8")
+    src = (
+        Path(__file__)
+        .resolve()
+        .parent.parent.joinpath("app", "platform", "reply_agent.py")
+        .read_text(encoding="utf-8")
+    )
     assert "if _is_case_closure(subj, body):" in src
     assert 'res["case_closure"]' in src
     # must sit ahead of the spam guard, which itself is pre-LLM

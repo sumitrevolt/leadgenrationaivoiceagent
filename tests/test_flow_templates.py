@@ -4,6 +4,7 @@ Guards the "dormant-but-wireable" fix: FLOW_RUNNER shipped with an empty builder
 these 3 templates must stay compile-valid under the STRICTEST (customer) gate so a
 1-click apply always yields a runnable flow.
 """
+
 from app.automation import flow_compiler, flow_templates
 
 

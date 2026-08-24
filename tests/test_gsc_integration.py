@@ -88,7 +88,9 @@ def _mock_service() -> SimpleNamespace:
         {"clicks": 10, "impressions": 1000, "ctr": 0.01, "position": 12.4, "keys": ["2026-08-01"]},
         {"clicks": 5, "impressions": 800, "ctr": 0.00625, "position": 9.2, "keys": ["2026-08-02"]},
     ]
-    qrows = [{"clicks": 8, "impressions": 900, "ctr": 0.0089, "position": 5.1, "keys": ["ac repair"]}]
+    qrows = [
+        {"clicks": 8, "impressions": 900, "ctr": 0.0089, "position": 5.1, "keys": ["ac repair"]}
+    ]
     prows = [{"clicks": 15, "impressions": 1500, "ctr": 0.01, "position": 7.7, "keys": ["/blog/x"]}]
 
     def query(siteUrl=None, body=None):
@@ -111,9 +113,7 @@ def test_fetch_aggregate_shape() -> None:
     assert snap["top_queries"][0]["keys"] == ["ac repair"]
 
 
-def test_run_daily_success_writes_state(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
+def test_run_daily_success_writes_state(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     creds = tmp_path / "sa.json"
     creds.write_text("{}")
     monkeypatch.setenv("GSC_ENABLED", "1")
@@ -155,7 +155,10 @@ def test_trend_ignores_corrupt_lines(tmp_path) -> None:
     os.makedirs(os.path.dirname(gsc.DAILY_JSONL), exist_ok=True)
     with open(gsc.DAILY_JSONL, "w", encoding="utf-8") as f:
         f.write("not-json\n")
-        f.write(json.dumps({"aggregate": {"clicks": 3, "impressions": 400}, "end_date": "2026-08-11"}) + "\n")
+        f.write(
+            json.dumps({"aggregate": {"clicks": 3, "impressions": 400}, "end_date": "2026-08-11"})
+            + "\n"
+        )
     rows = gsc.trend(30)
     assert len(rows) == 1
     assert rows[0]["clicks"] == 3

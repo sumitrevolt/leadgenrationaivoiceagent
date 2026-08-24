@@ -165,7 +165,7 @@ async def _first_content_pack(client: dict) -> dict:
         if html:
             os.makedirs(_PACK_DIR, exist_ok=True)
             with open(
-                os.path.join(_PACK_DIR, f"{client.get('id','client')}.html"), "w", encoding="utf-8"
+                os.path.join(_PACK_DIR, f"{client.get('id', 'client')}.html"), "w", encoding="utf-8"
             ) as f:
                 f.write(html)
         return pack.get("counts", {})
@@ -355,7 +355,7 @@ async def _capture_business_interview(client: dict[str, Any], text: str) -> bool
         _clear_nudge_state(cid)  # captured -> re-nudge record ki zaroorat nahi
         _log(
             "client_interview_captured",
-            f"{client.get('business_name','')}: WhatsApp se business-info mila (KB seeded)",
+            f"{client.get('business_name', '')}: WhatsApp se business-info mila (KB seeded)",
         )
         return True
     except Exception as exc:

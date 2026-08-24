@@ -7,6 +7,7 @@ providers every run. Voice/realtime must stay uncached (dynamic replies).
 Fix: `_llm_cache_on(prof)` defaults ON for the "bulk" profile and OFF for realtime when
 `LLM_CACHE` is unset; explicit `LLM_CACHE=1/0` still force-on/off across all profiles.
 """
+
 from __future__ import annotations
 
 import app.voice_agent.free_ai as fa

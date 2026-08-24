@@ -7,6 +7,7 @@ this single consolidated file, CSS-gated by a prod-marketing/prod-voice body
 class). This file now confirms the wizard card/hook/functions are present
 once, and that the voice-mode CSS gate for the social/brand-tone section
 (a pure voice product has no posts to brand) actually exists."""
+
 import pytest
 
 FORKS = ["customer_dashboard.html"]

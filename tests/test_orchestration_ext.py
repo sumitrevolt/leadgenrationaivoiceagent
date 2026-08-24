@@ -22,9 +22,7 @@ def _redirect_store(monkeypatch, tmp_path):
 def test_record_and_best_orders_by_reward(monkeypatch, tmp_path):
     _redirect_store(monkeypatch, tmp_path)
 
-    tid_lo = trajectory.record_trajectory(
-        "qualify_lead", [{"step": "ask"}], "ok-low", reward=0.2
-    )
+    tid_lo = trajectory.record_trajectory("qualify_lead", [{"step": "ask"}], "ok-low", reward=0.2)
     tid_hi = trajectory.record_trajectory(
         "qualify_lead", [{"step": "ask"}, {"step": "close"}], "ok-high", reward=0.9
     )
@@ -163,9 +161,7 @@ def test_vote_voter_fail_abstains(monkeypatch):
         return "CHOICE: Alpha", "mock"
 
     monkeypatch.setattr(free_ai, "chat", flaky_chat)
-    res = asyncio.run(
-        agent_consensus.vote("Pick", ["Alpha", "Beta"], voters=3)
-    )
+    res = asyncio.run(agent_consensus.vote("Pick", ["Alpha", "Beta"], voters=3))
     # voter 1 abstained → 2 valid votes both Alpha → quorum still holds (2 > 3/2)
     assert res["winner"] == "Alpha"
     assert res["tally"]["Alpha"] == 2

@@ -25,6 +25,7 @@ in-file pattern for consistency, not a copy of clients.html's helper.
 Same test convention as test_clients_page_confirm_modal.py: pure text/
 structure assertions against the shipped HTML/JS (no JS runtime assumed).
 """
+
 from __future__ import annotations
 
 from pathlib import Path

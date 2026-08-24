@@ -5,6 +5,7 @@ bounded batch, one-client failure isolation, repeated-run idempotency, and healt
 signal accuracy. Locks are injected so the tests are hermetic (independent of live
 Redis) and no real email/store/ledger is touched.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -73,8 +74,11 @@ async def test_scheduler_flag_off_is_inert(async_db_session, monkeypatch):
     monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY", raising=False)
     s = Sender()
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     assert out["enabled"] is False and out.get("skipped_lock") is False
     assert len(s.calls) == 0
@@ -86,8 +90,11 @@ async def test_scheduler_flag_on_sends(async_db_session, monkeypatch):
     monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": _pending(3))
     s = Sender()
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     assert out["enabled"] is True and out["skipped_lock"] is False
     assert out["sent"] == 3 and out["seen"] == 3
@@ -101,8 +108,11 @@ async def test_enabled_without_allowlist_sends_nothing(async_db_session, monkeyp
     s = Sender()
 
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
 
     assert out["enabled"] is True
@@ -111,9 +121,7 @@ async def test_enabled_without_allowlist_sends_nothing(async_db_session, monkeyp
     assert s.calls == []
 
 
-async def test_runtime_tenant_canary_selects_only_enabled_customer(
-    async_db_session, monkeypatch
-):
+async def test_runtime_tenant_canary_selects_only_enabled_customer(async_db_session, monkeypatch):
     monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY", raising=False)
     pending = [
         {"id": "j1", "client_id": "jiya-makeover", "status": "pending", "content": {"t": 1}},
@@ -135,9 +143,7 @@ async def test_runtime_tenant_canary_selects_only_enabled_customer(
     assert s.calls == ["jiya-makeover@x.com"]
 
 
-async def test_scheduler_entrypoint_honours_runtime_tenant_scope(
-    async_db_session, monkeypatch
-):
+async def test_scheduler_entrypoint_honours_runtime_tenant_scope(async_db_session, monkeypatch):
     async def runtime_scope(_service=None):
         return True, {"jiya-makeover"}
 
@@ -224,8 +230,11 @@ async def test_multiple_pending_for_same_client_send_one_reminder(async_db_sessi
     s = Sender()
 
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=lambda _cid: "jiya@example.com", email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=lambda _cid: "jiya@example.com",
+        email_allowed=_ALLOW,
     )
 
     assert out["seen"] == 1 and out["sent"] == 1
@@ -238,8 +247,11 @@ async def test_overlapping_invocation_suppressed(async_db_session, monkeypatch):
     monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": _pending(2))
     s = Sender()
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=HeldLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=HeldLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     assert out["skipped_lock"] is True
     assert len(s.calls) == 0  # nothing sent while another run holds the lock
@@ -250,8 +262,12 @@ async def test_bounded_batch_size(async_db_session, monkeypatch):
     monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": _pending(10))
     s = Sender()
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), batch_size=4, send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        batch_size=4,
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     assert out["seen"] == 4 and len(s.calls) == 4  # bounded to batch_size
 
@@ -272,8 +288,11 @@ async def test_one_client_failure_does_not_stop_sweep(async_db_session, monkeypa
 
     f = Flaky()
     out = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=f,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=f,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     assert out["seen"] == 3  # every client processed despite one failure
     assert out["sent"] == 2 and out["failed"] == 1
@@ -285,12 +304,18 @@ async def test_repeated_run_is_idempotent(async_db_session, monkeypatch):
     monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": _pending(2))
     s = Sender()
     o1 = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     o2 = await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     assert o1["sent"] == 2
     # 2nd run: rows already 'sent' are recognised and NOT re-sent — the provider is
@@ -304,8 +329,11 @@ async def test_health_signal_accuracy_and_no_pii(async_db_session, monkeypatch):
     monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": _pending(2))
     s = Sender()
     await an.run_approval_email_sweep(
-        session=async_db_session, lock=FreeLock(), send_fn=s,
-        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
     )
     h = an.get_health()
     assert h["enabled"] is True

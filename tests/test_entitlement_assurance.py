@@ -87,10 +87,15 @@ def _install(
             {"key": "advanced", "price_inr_month": 5999, "features": ["x"]},
         ]
     monkeypatch.setattr(
-        packages, "get_public_packages", lambda include_trial=False: [dict(p) for p in public_packages]
+        packages,
+        "get_public_packages",
+        lambda include_trial=False: [dict(p) for p in public_packages],
     )
     if all_packages is None:
-        all_packages = [*public_packages, {"key": "growth", "price_inr_month": 2999, "features": ["g"]}]
+        all_packages = [
+            *public_packages,
+            {"key": "growth", "price_inr_month": 2999, "features": ["g"]},
+        ]
     monkeypatch.setattr(
         packages, "get_packages", lambda include_trial=False: [dict(p) for p in all_packages]
     )
@@ -102,6 +107,7 @@ def _install(
     monkeypatch.setattr(team, "log_event", lambda *a, **k: events.append((a, k)))
 
     if forbid_writes:
+
         def _boom(*a, **k):
             raise AssertionError("BILLING WRITE called from read-only entitlement scan")
 

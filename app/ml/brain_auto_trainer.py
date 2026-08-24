@@ -532,7 +532,7 @@ NEW WEB KNOWLEDGE:
 {json.dumps(web_knowledge, indent=2)}
 
 BILLIONAIRE PRINCIPLES:
-{json.dumps(BILLIONAIRE_MINDSET['principles'], indent=2)}
+{json.dumps(BILLIONAIRE_MINDSET["principles"], indent=2)}
 
 Generate fine-tuning instructions to improve the brain:
 {{

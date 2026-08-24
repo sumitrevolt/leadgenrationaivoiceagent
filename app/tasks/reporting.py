@@ -134,13 +134,13 @@ def generate_daily_report():
             recipients = _get_notification_recipients(db)
 
             # Format report message
-            report_message = f"""📊 Daily Report - {report_data['date']}
+            report_message = f"""📊 Daily Report - {report_data["date"]}
 
-📞 Calls: {report_data['total_calls']}
-✅ Connected: {report_data['connected_calls']} ({report_data['connection_rate']}%)
-📅 Appointments: {report_data['appointments_booked']} ({report_data['appointment_rate']}%)
-🔥 Hot Leads: {report_data['hot_leads']}
-🔍 New Leads: {report_data['leads_scraped']}
+📞 Calls: {report_data["total_calls"]}
+✅ Connected: {report_data["connected_calls"]} ({report_data["connection_rate"]}%)
+📅 Appointments: {report_data["appointments_booked"]} ({report_data["appointment_rate"]}%)
+🔥 Hot Leads: {report_data["hot_leads"]}
+🔍 New Leads: {report_data["leads_scraped"]}
 
 Keep crushing it! 🚀"""
 

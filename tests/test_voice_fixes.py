@@ -35,9 +35,9 @@ def test_calling_tasks_use_real_callmanager_api():
 
     make_src = inspect.getsource(calling.make_call_task)
     assert "call_manager.queue_call" in make_src, "make_call_task must enqueue via queue_call()"
-    assert (
-        "call_manager.initiate_call" not in make_src
-    ), "initiate_call does not exist on CallManager"
+    assert "call_manager.initiate_call" not in make_src, (
+        "initiate_call does not exist on CallManager"
+    )
 
     pq_src = inspect.getsource(calling.process_queue)
     assert "start_call_processor" in pq_src, "process_queue must drain via start_call_processor()"

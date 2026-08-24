@@ -224,8 +224,7 @@ def test_reclassified_paths_are_not_treated_as_release_paths() -> None:
     for name, reason in RECLASSIFIED.items():
         assert reason.strip(), name
         assert name.split("/")[-1] not in GUARDED_NOW, (
-            f"{name} was reclassified as non-release but is listed as a "
-            "normal-release guarded path"
+            f"{name} was reclassified as non-release but is listed as a normal-release guarded path"
         )
 
 

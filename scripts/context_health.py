@@ -65,9 +65,9 @@ def check() -> dict:
         results["project_context"] = {
             "ok": store.get("meta", {}).get("content_hash") == recomputed,
             "detail": f"nodes={store['meta'].get('node_count')} "
-            f"store_sha={store['meta'].get('head_sha','?')[:8]} head={head[:8]} "
+            f"store_sha={store['meta'].get('head_sha', '?')[:8]} head={head[:8]} "
             f"{'FRESH' if sha_ok else 'STALE — run sync'} "
-            f"hash={'valid' if store['meta'].get('content_hash')==recomputed else 'CORRUPT'}",
+            f"hash={'valid' if store['meta'].get('content_hash') == recomputed else 'CORRUPT'}",
         }
 
     mem = [

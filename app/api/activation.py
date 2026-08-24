@@ -235,7 +235,9 @@ def _eval_gate() -> dict[str, Any]:
         "action": (
             "Set EVAL_GATE=1 to start recording (observe-only); after baseline trusted, EVAL_GATE_HARD=1 to block regressions"
             if not on
-            else "Once 20+ samples per metric, flip EVAL_GATE_HARD=1 to enforce" if not hard else ""
+            else "Once 20+ samples per metric, flip EVAL_GATE_HARD=1 to enforce"
+            if not hard
+            else ""
         ),
         "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#24",
     }

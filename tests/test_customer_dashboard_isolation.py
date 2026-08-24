@@ -23,9 +23,7 @@ def _iso_db(monkeypatch):
 
     import app.models.base as base_mod
 
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}
-    )
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Session = sessionmaker(bind=engine)
     base_mod.Base.metadata.create_all(bind=engine)
     monkeypatch.setattr(base_mod, "_engine", engine)
@@ -38,12 +36,24 @@ def _seed_two_clients(Session):
 
     s = Session()
     try:
-        s.add_all([
-            Lead(id="lead_a1", company_name="A Biz Alpha", phone="9990000001",
-                 assigned_to="client_a", status=LeadStatus.NEW),
-            Lead(id="lead_b1", company_name="B Biz Beta", phone="9990000003",
-                 assigned_to="client_b", status=LeadStatus.NEW),
-        ])
+        s.add_all(
+            [
+                Lead(
+                    id="lead_a1",
+                    company_name="A Biz Alpha",
+                    phone="9990000001",
+                    assigned_to="client_a",
+                    status=LeadStatus.NEW,
+                ),
+                Lead(
+                    id="lead_b1",
+                    company_name="B Biz Beta",
+                    phone="9990000003",
+                    assigned_to="client_b",
+                    status=LeadStatus.NEW,
+                ),
+            ]
+        )
         s.commit()
     finally:
         s.close()

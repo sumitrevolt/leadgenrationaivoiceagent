@@ -164,9 +164,9 @@ def test_whatsapp_campaign_list_is_a_documented_separate_store() -> None:
     runner = APP / "marketing" / "wa_campaign_runner.py"
     text = runner.read_text(encoding="utf-8", errors="ignore")
     assert "wa_suppression.jsonl" in text
-    assert (
-        LEDGER not in text
-    ), "the WhatsApp campaign runner must not write the unified email ledger"
+    assert LEDGER not in text, (
+        "the WhatsApp campaign runner must not write the unified email ledger"
+    )
 
 
 def test_canonical_service_exposes_the_safety_primitives() -> None:

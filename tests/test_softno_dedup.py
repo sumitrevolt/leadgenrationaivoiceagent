@@ -3,6 +3,7 @@
 Self-test (agent_tester polite_soft_no) found the bot saying the SAME
 de-escalation line on the 2nd and 3rd soft-no. deescalation_reply now rotates
 by soft-no count so consecutive closers differ. Pure-function test (no WS/LLM)."""
+
 from app.voice_agent import intent_softno as sn
 
 _SOFT = ["dekhte hain baad me", "abhi nahi", "nahi bhai zarurat nahi hai", "baad me sochenge"]
@@ -18,8 +19,8 @@ def test_softno_phrases_are_detected():
 
 
 def test_consecutive_deescalation_closers_differ():
-    h2, cur2 = _hist(2), _SOFT[1]          # 2nd soft-no
-    h3, cur3 = _hist(3), _SOFT[2]          # 3rd soft-no
+    h2, cur2 = _hist(2), _SOFT[1]  # 2nd soft-no
+    h3, cur3 = _hist(3), _SOFT[2]  # 3rd soft-no
     r2 = sn.deescalation_reply("solar", "", h2, cur2)
     r3 = sn.deescalation_reply("solar", "", h3, cur3)
     assert r2 in sn.DEESCALATION_TEMPLATES and r3 in sn.DEESCALATION_TEMPLATES

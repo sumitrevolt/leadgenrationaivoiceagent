@@ -13,6 +13,7 @@ sites were wrapped in try/except, the failures were SILENT:
 
 These asserts fail loudly if any of those names go missing again.
 """
+
 from __future__ import annotations
 
 

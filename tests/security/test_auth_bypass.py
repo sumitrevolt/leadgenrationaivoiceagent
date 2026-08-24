@@ -5,6 +5,7 @@ and that auth bypass vectors (missing auth, weak tokens, session fixation) are b
 
 Playbook ref: Security Playbook — Auth bypass tests.
 """
+
 from __future__ import annotations
 
 import pytest

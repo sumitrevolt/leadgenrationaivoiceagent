@@ -117,7 +117,7 @@ async def test_agentic_rag_off_no_fallback(monkeypatch):
     monkeypatch.setattr(
         ar_mod,
         "get_agentic_rag",
-        lambda: (called.__setitem__("n", called["n"] + 1) or _mock_agentic()),
+        lambda: called.__setitem__("n", called["n"] + 1) or _mock_agentic(),
     )
     out = await chatbot.reply("solar subsidy kitni milti hai?", client_id="c1")
     assert called["n"] == 0  # CRAG NOT called
