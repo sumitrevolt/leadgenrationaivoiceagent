@@ -385,3 +385,123 @@ async def test_find_undelivered_paid_clients(monkeypatch):
     out = cd.find_undelivered_paid_clients()
     ids = {c["id"] for c in out}
     assert ids == {"a"}
+
+
+@pytest.mark.asyncio
+async def test_email_fallback_delivers_when_flag_on(monkeypatch):
+    """WA blocked (recipient_not_on_whatsapp) + DELIVERY_EMAIL_FALLBACK=1 + client email
+    -> value delivered via EMAIL and marked delivered, not stuck."""
+    sent_emails = []
+    monkeypatch.setenv("DELIVERY_EMAIL_FALLBACK", "1")
+
+    class _FakeSender:
+        async def send_text_message(self, to, msg):
+            return {"error": "recipient_not_on_whatsapp", "status": "blocked"}
+
+    async def _fake_send_email(self, to, subject, body, **kw):
+        sent_emails.append((to, subject, body))
+        return True
+
+    monkeypatch.setattr(
+        "app.integrations.whatsapp.get_whatsapp_sender", lambda: _FakeSender(), raising=False
+    )
+    monkeypatch.setattr(
+        "app.integrations.email_sender.EmailSender.send_email", _fake_send_email, raising=False
+    )
+    marked = {}
+    monkeypatch.setattr(
+        "app.marketing.clients_store.update_client",
+        lambda cid, **kw: marked.update({"cid": cid, **kw}),
+        raising=False,
+    )
+    r = await cd.deliver_client_value(
+        {
+            "id": "x3",
+            "status": "active",
+            "plan": "starter",
+            "slug": "s",
+            "phone": "9812345678",
+            "email": "owner@testhotelspa.in",
+            "business_name": "Test Hotel Spa",
+        },
+        force=True,
+    )
+    assert r["delivered"] is True
+    assert r.get("channel") == "email_fallback"
+    assert marked.get("delivery_state") == "delivered"
+    assert len(sent_emails) == 1
+    assert sent_emails[0][0] == ["owner@testhotelspa.in"]
+    assert "/b/s" in sent_emails[0][2]
+
+
+@pytest.mark.asyncio
+async def test_email_fallback_gated_off_still_stuck(monkeypatch):
+    """DELIVERY_EMAIL_FALLBACK unset (default OFF): WA blocked -> stuck, NO email sent."""
+    monkeypatch.delenv("DELIVERY_EMAIL_FALLBACK", raising=False)
+    sent_emails = []
+
+    class _FakeSender:
+        async def send_text_message(self, to, msg):
+            return {"error": "recipient_not_on_whatsapp", "status": "blocked"}
+
+    async def _fake_send_email(self, to, subject, body, **kw):
+        sent_emails.append((to, subject, body))
+        return True
+
+    monkeypatch.setattr(
+        "app.integrations.whatsapp.get_whatsapp_sender", lambda: _FakeSender(), raising=False
+    )
+    monkeypatch.setattr(
+        "app.integrations.email_sender.EmailSender.send_email", _fake_send_email, raising=False
+    )
+    paged = []
+    monkeypatch.setattr(
+        "app.platform.ops_alerts.alert_paid_customer_stuck",
+        lambda cid, name, reason: paged.append((cid, name, reason)),
+        raising=False,
+    )
+    r = await cd.deliver_client_value(
+        {
+            "id": "x3",
+            "status": "active",
+            "plan": "starter",
+            "slug": "s",
+            "phone": "9812345678",
+            "email": "owner@testhotelspa.in",
+            "business_name": "Test Hotel Spa",
+        },
+        force=True,
+    )
+    assert r["delivered"] is False
+    assert r.get("error") == "recipient_not_on_whatsapp"
+    assert sent_emails == []  # no email fallback when flag OFF
+    assert paged and paged[0][2] == "recipient_not_on_whatsapp"  # fail-LOUD stays loud
+
+
+@pytest.mark.asyncio
+async def test_email_fallback_without_customer_email_skips(monkeypatch):
+    """Flag ON but client has no email: no email send, falls to stuck (never raises)."""
+    monkeypatch.setenv("DELIVERY_EMAIL_FALLBACK", "1")
+    sent_emails = []
+
+    class _FakeSender:
+        async def send_text_message(self, to, msg):
+            return {"error": "recipient_not_on_whatsapp", "status": "blocked"}
+
+    async def _fake_send_email(self, to, subject, body, **kw):
+        sent_emails.append((to, subject, body))
+        return True
+
+    monkeypatch.setattr(
+        "app.integrations.whatsapp.get_whatsapp_sender", lambda: _FakeSender(), raising=False
+    )
+    monkeypatch.setattr(
+        "app.integrations.email_sender.EmailSender.send_email", _fake_send_email, raising=False
+    )
+    r = await cd.deliver_client_value(
+        {"id": "x3", "status": "active", "plan": "starter", "slug": "s", "phone": "9812345678"},
+        force=True,
+    )
+    assert r["delivered"] is False
+    assert r.get("error") == "recipient_not_on_whatsapp"
+    assert sent_emails == []
