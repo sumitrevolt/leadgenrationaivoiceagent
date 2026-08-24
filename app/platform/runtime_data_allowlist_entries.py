@@ -1409,7 +1409,7 @@ ENTRIES: list[dict[str, Any]] = [
         "file": "scripts/batch_enrich.py",
         "line_or_symbol": "out_file",
         "path_pattern": "data/enriched_prospects.jsonl",
-        "store_id": "sales.prospects.enriched",
+        "store_id": "sales.prospects",
         "access_modes": ["CREATE", "APPEND"],
         "reason": (
             "Enrichment output sidecar (append-only jsonl). Rebuildable from "
@@ -1442,7 +1442,7 @@ ENTRIES: list[dict[str, Any]] = [
         "file": "scripts/board_enrich_task.py",
         "line_or_symbol": "out_dir",
         "path_pattern": "data/enriched_prospects",
-        "store_id": "sales.prospects.enriched",
+        "store_id": "sales.prospects",
         "access_modes": ["CREATE"],
         "reason": (
             "Enrichment output directory (os.makedirs) for per-task jsonl "
@@ -1457,10 +1457,10 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "sales.prospects.enrich.board_sink_file",
         "file": "scripts/board_enrich_task.py",
-        "line_or_symbol": "out_path",
+        "line_or_symbol": "out_jsonl",
         "path_pattern": "data/enriched_prospects/TASK_LI-001_enriched.jsonl",
-        "store_id": "sales.prospects.enriched",
-        "access_modes": ["CREATE", "WRITE"],
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE", "REWRITE"],
         "reason": (
             "Per-task enriched output file (deterministic rebuild from CSV). "
             "REBUILDABLE_CACHE class data."
@@ -1493,8 +1493,8 @@ ENTRIES: list[dict[str, Any]] = [
         "file": "scripts/enrich_task_li001.py",
         "line_or_symbol": "DST",
         "path_pattern": "data/enriched_prospects/TASK_LI-001_enriched.jsonl",
-        "store_id": "sales.prospects.enriched",
-        "access_modes": ["CREATE", "WRITE"],
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE", "REWRITE"],
         "reason": (
             "Enriched output jsonl — deterministic rebuild from the CSV source. "
             "os.makedirs on DST_DIR is the CREATE."
@@ -1504,6 +1504,23 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "sales",
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Sidecar output only; overwrite semantics are idempotent.",
+    },
+    {
+        "allowlist_id": "sales.prospects.enrich.li001_dstdir",
+        "file": "scripts/enrich_task_li001.py",
+        "line_or_symbol": "DST_DIR",
+        "path_pattern": "data/enriched_prospects",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Output directory (os.makedirs exist_ok) for the enriched sidecar — "
+            "rebuildable from the source CSV; same offline tooling family."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "sales",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Directory creation only; no file writes at this symbol.",
     },
 ]
 
