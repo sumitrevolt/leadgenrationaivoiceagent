@@ -1,5 +1,5 @@
 # HERMES AGENT ROSTER
-# Mapping of 31 project AI agents to 8 Hermes bots (control/orchestration layer)
+# Mapping of 31 project AI agents to 9 Hermes nodes = Boss (Owner/Orchestrator) + 8 department bots.
 # Each agent is assigned to exactly one Hermes bot based on duties and ownership.
 
 hermes_bots:
@@ -11,10 +11,9 @@ hermes_bots:
 
   - id: revenue_cro
     name: Revenue / CRO Bot
-    description: Owns ICP, prospect prioritization, offers, pricing, sales funnel, pipeline, conversion optimization, upsells, reactivation, revenue experiments. Primary KPI: verified collected revenue.
+    description: "Owns ICP, prospect prioritization, offers, pricing, sales funnel, pipeline, conversion optimization, upsells, reactivation, revenue experiments. Primary KPI: verified collected revenue."
     agents:
       - nikhil  # Revenue Ops - Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar — paisa leak na ho
-      - vidya   # FinOps / Cost - Per-tenant unit economics, margin-negative niche flag, LLM spend vs revenue trend. KPI: gross_margin_per_tenant
       - rohan   # Leads Manager - Outreach plan banana, lead qualification criteria set karna, campaigns ke liye targeting
 
   - id: lead_intelligence
@@ -28,13 +27,14 @@ hermes_bots:
 
   - id: outreach_conversation
     name: Outreach & Conversation Bot
-    description: Owns WhatsApp, email, compliant outreach, follow-ups, reply classification, conversation continuation, handoff. Requirements: suppression-aware, opt-out aware, deduplicated, rate-limited, auditable, idempotent.
+    description: "Owns WhatsApp, email, compliant outreach, follow-ups, reply classification, conversation continuation, handoff. Requirements: suppression-aware, opt-out aware, deduplicated, rate-limited, auditable, idempotent."
     agents:
       - isha    # Marketing Executive - Clients ke liye AI social posts (FB/Insta captions), Google Business Profile tips, festival/offer content
       - zara    # Social Media Manager - Approved content queue drain karke per-client social channels (Telegram/Postiz/Meta) pe publish karna (gated SOCIAL_ENGINE)
       - swara   # Telecaller - End-customers ko call karna (phone + web demo), niche scripts se qualify karna, objections handle karna
       - ananya  # Appointment Booker - Har niche ke end-customers ke liye appointment, site-visit ya demo slot book karna — calendar + reminders
       - riya    # AI Receptionist - Inbound customer calls — greeting, department route, message lena, appointment book karna (sales pitch nahi)
+      - priya   # CRM Sync Specialist - Qualified leads client ke apne Zoho/HubSpot CRM me auto-push (gated CRM_SYNC) — "apna CRM chhodna nahi padega"
 
   - id: voice_swara
     name: Voice / Swara Bot
@@ -52,6 +52,7 @@ hermes_bots:
       - ravi    # SEO Scout - Programmatic SEO pages (niche×city), IndexNow sitemap ping, rank-tracker sweep — organic inbound badhao
       - anika   # Cadence Manager - Enrolled leads ko per-day omnichannel sequence (email/SMS/WhatsApp/LinkedIn draft) me aage badhana (gated CADENCE_ENGINE)
       - ira     # Journey Automation Manager - Event-trigger rules (inquiry/booking/reply/pipeline hooks) → matching journey ke actions/drafts chalana (gated JOURNEY_ENGINE)
+      - kiran   # Campaign Optimizer - Har 100 interactions pe campaign analyze karo — winning openings, objections, A/B proposals; eval_gate ke baad hi promote (gated CAMPAIGN_OPTIMIZER)
 
   - id: engineering_sre
     name: Engineering / SRE Bot
@@ -64,9 +65,16 @@ hermes_bots:
       - kavya   # Ops Monitor - System health (service, AI providers, DB, disk), telephony balance/trunk status pe nazar
       - hermes  # Infrastructure Handler - Poore infra ka scan — app readiness (db+redis), disk/memory, dead-man jobs, queue backlog, LLM chain, backup freshness → 0-100 score + Hinglish fix-actions; critical pe email alert (Kavya/Tara ke engines REUSE — aggregator/diagnoser)
       - arnav   # Security / Compliance - DPDP + TRAI posture, secret-rotation reminders, CVE triage → patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.
+      - arya    # MCP Engineer - Three-layer MCP surface (with /mcp expose, metered B2B routes, A2A Agent Card); hourly health-pulse — gate-presence audit, key quota pressure, 90d rotation watch, /mcp auth-failure spike detection. Owns MCP-specific KPIs.
 
-  - id: qa_analytics_finance
-    name: QA / Analytics / Finance Bot
-    description: Owns end-to-end testing, funnel analytics, revenue reconciliation, dashboards, regression testing, anomaly detection, daily operating report. This bot should independently challenge unsupported claims from other bots.
+  - id: qa_analytics
+    name: QA / Analytics Bot
+    description: Owns end-to-end testing, funnel analytics, dashboards, regression testing, anomaly detection. This bot should independently challenge unsupported claims from other bots.
     agents:
       - arjun   # QA Engineer - Voice agent ko scripted conversations se test karna, bugs (double/repeat/slow/long) pakad ke report karna
+
+  - id: finance_admin
+    name: Admin / Finance Bot
+    description: Owns billing, subscription, GST invoices, revenue reconciliation, unit economics, budget/spend guardrails, daily operating report.
+    agents:
+      - vidya   # FinOps / Cost - Per-tenant unit economics, margin-negative niche flag, LLM spend vs revenue trend. KPI: gross_margin_per_tenant
