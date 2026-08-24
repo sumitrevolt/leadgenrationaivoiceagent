@@ -5,8 +5,8 @@
 set -uo pipefail
 NODE_BIN=/root/.nvm/versions/node/v22.23.1/bin
 export PATH="$NODE_BIN:$PATH"
-export OMNIROUTE_MEMORY_MB=2048
-OMNI_CMD="export PATH=$NODE_BIN:\$PATH; export OMNIROUTE_MEMORY_MB=2048; omniroute"
+export OMNIROUTE_MEMORY_MB=4096
+OMNI_CMD="export PATH=$NODE_BIN:\$PATH; export OMNIROUTE_MEMORY_MB=4096; omniroute"
 SESSION=leadgen-omni
 
 echo "== Redis =="

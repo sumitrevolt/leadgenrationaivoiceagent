@@ -11,7 +11,7 @@ NODE_BIN_DIR="${OMNI_NODE_BIN_DIR:-/root/.nvm/versions/node/v22.23.1/bin}"
 if [[ -d "$NODE_BIN_DIR" ]]; then
   export PATH="$NODE_BIN_DIR:$PATH"
 fi
-OMNI_CMD="export PATH='$NODE_BIN_DIR':\$PATH; export OMNIROUTE_MEMORY_MB=2048; omniroute"
+OMNI_CMD="export PATH='$NODE_BIN_DIR':\$PATH; export OMNIROUTE_MEMORY_MB=4096; omniroute"
 FIX=0
 [[ "${1:-}" == "--fix" ]] && FIX=1
 WINDOW_SECONDS="${OMNI_HEALTHGUARD_WINDOW_SECONDS:-300}"

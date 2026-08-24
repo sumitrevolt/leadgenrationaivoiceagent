@@ -12,7 +12,10 @@ def test_shell_recovery_scripts_pin_node22_and_do_not_use_bare_command():
         assert "/root/.nvm/versions/node/v22.23.1/bin" in text
         assert "OMNI_CMD" in text
         assert "send-keys" in text
-        assert "OMNIROUTE_MEMORY_MB=2048" in text
+        # 2026-08-23: 2048 -> 4096 (prod heap evidence: chat-admission shed 73
+        # bodies at limit=2096MB on an 8GB WSL box; ALL restart paths must stay
+        # consistent or healthguard churn reintroduces the HTTP 503).
+        assert "OMNIROUTE_MEMORY_MB=4096" in text
 
 
 def test_healthguard_uses_a_bounded_time_window_for_livews_churn():
@@ -42,8 +45,9 @@ def test_sanitized_benchmark_uses_verified_responses_api_contract():
 
 def test_one_command_dev_launcher_retains_omniroute_memory_limit():
     text = (ROOT / "scripts" / "_leadgen_dev_up.sh").read_text(encoding="utf-8")
-    assert "OMNIROUTE_MEMORY_MB=2048" in text
-    assert text.count("OMNIROUTE_MEMORY_MB=2048") >= 2
+    assert "OMNIROUTE_MEMORY_MB=4096" in text
+    assert text.count("OMNIROUTE_MEMORY_MB=4096") >= 2
+    assert "OMNIROUTE_MEMORY_MB=2048" not in text
 
 
 def test_agent_smoke_script_is_synthetic_only_and_never_prints_secrets():

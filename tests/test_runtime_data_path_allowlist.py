@@ -139,8 +139,13 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # owner-notified claim). CLASSIFIED, not tolerated — baseline unchanged.
     # 2026-08-16 +8 entries / +6 families: marketing appointment/health/drips/
     # forms/proposals/review JSONL (INERT flags; classified, not tolerated).
-    assert len(entries) == 71
-    assert len(families) == 24, sorted(families)
+    # 2026-08-24 +12 entries / +2 families: revenue-sprint batch —
+    # billing.promo_codes (platform coupon engine) + marketing.affiliates
+    # (referral kit) plus sales.prospects TASK_LI-001 enrichment tooling
+    # entries re-bound to real code symbols; scratch temp_enrich_write.py
+    # deleted instead of classified. CLASSIFIED, not tolerated.
+    assert len(entries) == 83
+    assert len(families) == 26, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -150,6 +155,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "compliance.dpdp_audit",
         "compliance.email_suppression",
         "customers.identity",
+        "marketing.affiliates",
         "marketing.appointment_reminders",
         "marketing.brand_kits",
         "marketing.customer_health",
@@ -438,7 +444,10 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-11: +1 marketing.gsc_rankings (ADR-177; tier3 rebuildable, INERT).
     # 2026-08-14: +1 ops.office_briefing (Hot Queue owner-notified claim; resumable).
     # 2026-08-16: +6 marketing feature JSONL families (INERT; rebuildable cache).
-    assert counts["unique_families"] == 42
+    # 2026-08-24: +2 revenue-sprint families — billing.promo_codes (coupon
+    # engine ledger) and marketing.affiliates (referral kit), both tier-3
+    # rebuildable INERT-by-default stores via evidence-backed manifest edit.
+    assert counts["unique_families"] == 44
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
