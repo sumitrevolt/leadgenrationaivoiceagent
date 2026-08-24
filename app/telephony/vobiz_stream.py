@@ -3051,6 +3051,14 @@ class VobizStreamSession:
             if self._rec_enabled and self._rec_bot_playhead is not None:
                 self._rec_mix_bot(self._rec_bot_playhead, frame)
                 self._rec_bot_playhead += len(frame) // 2
+                # FIX (2026-08-24): advance the master clock with the BOT too. The
+                # caller clock (_rec_timeline_samples) only advanced on caller frames,
+                # so during Swara's reply it froze; when the caller spoke again the
+                # next _rec_mix_caller wrote at the stale position and OVERWROTE the
+                # bot's audio -> the mixed recording was garbled / missing Swara's side
+                # (owner heard nothing useful). Keeping the master clock linear makes
+                # the caller write at the true position.
+                self._rec_timeline_samples += len(frame) // 2
             # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
             await self._send(
                 {
@@ -3089,8 +3097,14 @@ class VobizStreamSession:
                 f"[vobiz-stream] play CANCELLED sid={self.stream_sid} "
                 f"elapsed_ms={_now_ms() - t0} speaking_left_as={self._speaking}"
             )
-            # barge-in / superseded — canceller owns _speaking, so don't touch it
-            # here (unchanged behavior — logging only, no re-raise).
+            # FIX (2026-08-24): guarantee _speaking is cleared on cancellation so
+            # Swara can never get stuck "speaking" (documented: stuck True for the
+            # whole call -> customer's 2nd turn skipped -> confused/hiccup). If the
+            # canceller (e.g. _barge_in) already cleared it, this is a no-op; a
+            # supersession via _stop_playback_only() cancels WITHOUT clearing it,
+            # which was the leak. Idempotent, no happy-path behaviour change.
+            self._speaking = False
+            self._disclosure_active = False
         except Exception as e:
             logger.warning(
                 f"[vobiz-stream] play EXCEPTION sid={self.stream_sid} "
