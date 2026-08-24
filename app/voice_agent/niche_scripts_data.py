@@ -1113,3 +1113,30 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "closing": "Toh ek short call ya visit fix karein — aaj shaam ya kal, jo aapko convenient ho?",
     },
 }
+
+NICHE_SCRIPTS["voice_ai"] = {
+    "opening": UNIVERSAL_AGENT_INTRO,
+    "pitch_short": "Main AI Voice Calling Agent sell kar rahi hoon. Ek aisa AI jo 24/7 human-like awaaz mein aapke leads ko automatic call lagata hai.",
+    "interest_ask": "Kya aap leads filter karne ke liye ek AI Telecaller pasand karenge?",
+    "yes_praise": "Great. Abhi kitne staff ya telecallers kaam karte hain aapke yahan?",
+    "no_convince_once": "Ye AI thakan nahi manta aur din ke 1000 calls bina salary ke kar sakta hai. Ek bar demo dekhein?",
+    "close_cold": "Koi baat nahi, thank you.",
+    "discovery": [
+        "Aapke paas daily kitne naye leads/inquiries aati hain?",
+        "Kya leads ko turant 5 minute me call ho pata hai?",
+        "Telecallers ka mahine ka kharcha approx kitna hai?"
+    ],
+    "objections": {
+        "mehenga": "₹19,999/mahina start hai, ek full-time human caller ke lagbhag barabar hai lekin output 10x hota hai.",
+        "abhi_nahi": "Thik hai, par ek free demo call schedule kar sakte hain apne number par?",
+        "soch_ke": "Sure, mai brochure aur sample call recording WhatsApp karti hoon. Dekh lijiye.",
+        "pehle_se_hai": "Human caller aur AI ka hybrid model sabse best hai, AI pehla filter kar deta hai.",
+        "bharosa": "Isi waqt main ek AI hoon jo aapse live baat kar rahi hoon. Mujhe test kar lijiye!"
+    },
+    "value_lines": [
+        "Inquiry aate hi 2 minute mein automatic human-like call lag jayegi.",
+        "Pricing tier: ₹4,999, ₹9,999, aur Enterprise ₹19,999/mo volume pe depend karta hai.",
+        "DND check, call summary, CRM sync sab backend se automatic hoga."
+    ],
+    "closing": "Toh main ek live demo call book kar doon? Usme aap apne sawal AI se khud pooch lena."
+}
