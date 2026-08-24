@@ -151,6 +151,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     assert families <= known, sorted(families - known)
     assert families == {
         "billing.invoices",
+        "billing.promo_codes",
         "billing.upi_payments",
         "compliance.dpdp_audit",
         "compliance.email_suppression",
