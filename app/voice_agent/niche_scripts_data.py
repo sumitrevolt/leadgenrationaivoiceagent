@@ -3,7 +3,14 @@
 Extracted from app/voice_agent/niche_scripts.py (2026-06-20 refactor) — pure data, re-exported.
 """
 
-from app.voice_agent.universal_pitch import INTEREST_ASK, PITCH_SHORT, UNIVERSAL_AGENT_INTRO
+from app.voice_agent.universal_pitch import (
+    INTEREST_ASK,
+    PITCH_SHORT,
+    UNIVERSAL_AGENT_INTRO,
+    VOICE_AGENT_INTEREST_ASK,
+    VOICE_AGENT_INTRO,
+    VOICE_AGENT_PITCH_SHORT,
+)
 
 NICHE_SCRIPTS: dict[str, dict] = {
     # ====================================================================== #
@@ -202,6 +209,38 @@ NICHE_SCRIPTS: dict[str, dict] = {
             "Advanced me inquiry pe 2 minute me AI callback bhi — koi lead miss nahi.",
         ],
         "closing": "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj ya kal set kar doon?",
+    },
+    "ai_voice_agent": {
+        "opening": VOICE_AGENT_INTRO,
+        "pitch_short": VOICE_AGENT_PITCH_SHORT,
+        "interest_ask": VOICE_AGENT_INTEREST_ASK,
+        "yes_praise": (
+            "Bahut badiya — pehle aapki requirement samajh leti hoon. "
+            "Aapke yahan calls inbound inquiry aati hain ya outbound telecalling karte hain?"
+        ),
+        "no_convince_once": (
+            "Samajh sakti hoon — 7 din ka free pilot hai jisme 50 calls free milti hain, pehle test karke dekhiye."
+        ),
+        "close_cold": "Theek hai, shukriya — din shubh!",
+        "discovery": [
+            "Aapke yahan calls inbound customer aati hain ya outbound telecalling karte hain?",
+            "Daily kitni calls aati ya jaati hain roughly?",
+            "Abhi calls khud attend karte hain ya staff rakha hua hai?",
+            "Inquiry aane par kitni der me call back ho paata hai?",
+        ],
+        "objections": {
+            "mehenga": "₹4,999/mahina se shuru hai unlimited calls ke liye — telecaller ki 15-20K salary se 80% sasta hai aur 24 ghante active rehta hai.",
+            "abhi_nahi": "Koi baat nahi sir — 50 calls ka free pilot test karwa deti hoon bina kisi payment ke, tab decide kijiye.",
+            "soch_ke": "Zaroor sochiye — main WhatsApp par demo recording aur live test number bhej deti hoon, aaram se suniye.",
+            "pehle_se_hai": "Achha hai, par AI agent bina chhutti liye 24/7 turant 60 second me har inquiry ko call back karta hai aur appointments book karta hai.",
+            "bharosa": "Bilkul sahi sawaal — aap abhi mere se live phone call par baat kar rahe hain, hamara AI isi tarah aapke customers se natural Hindi-English me baat karega.",
+        },
+        "value_lines": [
+            "Har inquiry aate hi 60 second me instant AI call back — lead kabhi miss nahi hoti.",
+            "Natural human-like Hinglish voice — calendar appointment booking aur CRM WhatsApp sync.",
+            "100+ calls ek sath bina busy tone ke handle karta hai — 24/7 zero salary/leaves.",
+        ],
+        "closing": "Toh aapke business ke liye ek free 50-call pilot activate karwa doon — aaj setup karein ya kal?",
     },
     # ====================================================================== #
     # ADDITIONAL NICHE SCRIPTS (29 niches — professionally researched Hinglish)

@@ -1361,17 +1361,21 @@ class TelecallerBrain:
         try:
             from app.voice_agent.platform_pitch import is_platform_pitch
 
-            if is_platform_pitch(self.niche):
+            if is_platform_pitch(self.niche) or self.niche in ("ai_marketing", "ai_voice_agent", "voice_agent"):
                 platform_pitch_block = """
 
-SELF-PITCH MODE (tum apna hi LeadGen AI product bech rahi ho — yeh rules sabse upar priority pe hain):
-- Customer se "aapko kya chahiye" ya lambi discovery MAT poocho — SEEDHA batao hum kya karte hain: AI se roz Instagram/Facebook/Google post+ads+leads, WhatsApp follow-up automatic.
-- POORE CALL me MAX EK qualifying sawaal jab tak customer khud sawaal na pooche — uske baad value/close, discovery checklist ignore.
-- Customer ne sawaal poocha ho → PEHLE poora clear jawab (pricing/features/kaise-kaam), phir optional ek chhota relevant follow-up — faltu/exploratory sawaal BANNED.
-- MAX EK qualifying sawaal ke baad seedha close-move pe aao: "Aaj 7-din FREE trial start karoon (bina card) ya seedha paid plan?"
-- Interest ka koi bhi signal (haan/interested/batao/sunao/pricing-sawaal) → TURANT close-move pe jao — lambi baat mat khincho.
-- Detail/lambi baat WHATSAPP pe hogi, is CALL par nahi (calling paisa kharch karta hai, WhatsApp free hai) — interest confirm hote hi WhatsApp number confirm karo, "poori detail WhatsApp pe bhej rahi hoon" bolo, warmly call wrap karo. Is call ka POORA maqsad = interest confirm + WhatsApp handoff — poori sales pitch yahi call pe khatam karne ki koshish MAT karo.
-- Tone = enterprise-grade: crisp, confident, "hum yeh karte hain" — kabhi open-ended "aapko kya chahiye" jaisa sawaal nahi."""
+SELF-PITCH ENTERPRISE MODE (tum apna hi LeadGen AI platform bech rahi ho — yeh rules sabse upar priority pe hain):
+- LeadGen AI ke DO FLAGSHIP PRODUCTS hain:
+  1. AI Automated Marketing: Starter ₹1,999/mo (Social posts, Google Business Profile, ads, WhatsApp follow-ups, 7-din FREE trial bina card). Advanced ₹5,999/mo me voice callback feature included hai.
+  2. AI Voice Calling Agent: Standalone AI telecaller (Band A ₹4,999/mo, Band B ₹9,999/mo, Band C ₹19,999/mo, Starter ₹1,999/mo). 24/7 human-like calling, instant 60s inquiry callbacks, calendar booking, 50-call free pilot.
+- Customer se "aapko kya chahiye" ya lambi discovery MAT poocho — SEEDHA crisp value batao:
+  - Marketing context me: "AI roz Instagram/Facebook/Google pe active rakhta hai taaki naye customers milein — ₹1,999/mo, 7-din free trial."
+  - Voice context me: "AI telecaller 24 ghante aapke leads ko call back karta hai aur appointments book karta hai — ₹4,999/mo se unlimited calls, 50-call free pilot."
+- Customer ne sawaal poocha ho → PEHLE poora clear, accurate, professional jawab do (pricing/features/kaise-kaam), phir ek chhota relevant follow-up. Sawaal IGNORE ya deflect karna BANNED.
+- MAX EK qualifying sawaal ke baad seedha close-move pe aao: "Aaj FREE trial / pilot start karwa doon ya WhatsApp par complete demo bhej doon?"
+- Interest ka koi bhi signal (haan/interested/batao/sunao/pricing-sawaal) → TURANT close-move pe jao.
+- Detail/lambi baat WHATSAPP pe hogi, is CALL par nahi — interest confirm hote hi WhatsApp number confirm karo, "poori details aur demo WhatsApp pe bhej rahi hoon" bolo, warmly call wrap karo.
+- Tone = enterprise-grade senior consultant: crisp, confident, articulate, respectful 'aap', zero filler interjections."""
         except Exception:
             pass
 
@@ -1688,14 +1692,30 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return ""
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
             return self._clean(self._ai_disclosure_qa_line())
-        platform = self.niche == "ai_marketing" or self._interest_confirmed
+        platform = self.niche in ("ai_marketing", "ai_voice_agent", "voice_agent") or self._interest_confirmed
         if platform:
-            # Paid-vs-free MUST beat feature/service keywords. Live call 2026-08-06
-            # (sid 4b15d7e1): "paid hai ki free hai … service/feature" matched the
-            # product-pitch branch twice → customer heard the same pitch, then
-            # "ratta laga ke baithi ho" + hangup. Whisper often keeps पेड/फ्री in
-            # Devanagari while romanizing the rest — match both scripts.
-            _paid_free_ask = any(
+            # Voice Calling specific asks
+            _voice_specific = any(
+                w in low
+                for w in (
+                    "calling",
+                    "telecaller",
+                    "voice agent",
+                    "voice calling",
+                    "call karne",
+                    "calling service",
+                    "inbound call",
+                    "outbound call",
+                    "auto call",
+                    "telecalling",
+                    "कॉलिंग",
+                    "टेलीकॉलर",
+                    "वॉइस",
+                    "वायस",
+                )
+            )
+            # Paid-vs-free or price asks
+            _price_ask = any(
                 w in low
                 for w in (
                     "paid",
@@ -1703,37 +1723,6 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "charges",
                     "charge hai",
                     "kitna charge",
-                    "paid hai",
-                    "paid or free",
-                    "free or paid",
-                    "paid ya free",
-                    "free ya paid",
-                    "hai ki free",
-                    "hai ke free",
-                    "free hai ki",
-                    "free he ki",
-                )
-            ) or (
-                any(w in low for w in ("free", "फ्री", "फ्री"))
-                and any(
-                    w in low
-                    for w in (
-                        "paid",
-                        "पेड",
-                        "feature",
-                        "service",
-                        "plan",
-                        "hai ki",
-                        "hai ke",
-                        "ya ",
-                        " or ",
-                    )
-                )
-                and "trial" not in low
-            )
-            if _paid_free_ask or any(
-                w in low
-                for w in (
                     "kitne ka",
                     "kitna paisa",
                     "kitna lag",
@@ -1745,7 +1734,6 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "rupaye",
                     "rupee",
                     "₹",
-                    # Devanagari (Whisper hi script) — price/plan asks
                     "कितना",
                     "कितने",
                     "चार्ज",
@@ -1757,18 +1745,24 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "पैकेज",
                     "महीन",
                     "monthly",
-                    "yearly",
-                    "साल",
-                    "plan",
-                    "wala plan",
-                    "वाला plan",
-                    "प्लान",
                 )
-            ):
+            )
+
+            if _voice_specific and _price_ask:
                 return self._clean(
-                    f"{_marketing_plan_price_line('starter')}; "
-                    f"{_marketing_plan_price_line('advanced')}. "
-                    "Roz posts, ads, Google boost AI se — 7 din FREE trial."
+                    "AI Voice Calling Agent ₹4,999/mahine se shuru hai unlimited calls ke liye. "
+                    "Traditional telecalling team se 80% sasta aur 50 calls ka free pilot test hai."
+                )
+            if _voice_specific:
+                return self._clean(
+                    "Hum AI Voice Telecaller dete hain: 24 ghante leads ko instant 60s me call, "
+                    "natural Hinglish me baat, appointment booking aur WhatsApp CRM sync. 50 calls free pilot hai."
+                )
+
+            if _price_ask:
+                return self._clean(
+                    f"AI Marketing {_marketing_plan_price_line('starter')}, aur "
+                    "AI Voice Calling Agent ₹4,999/mahine se shuru hai. 7 din FREE trial bina card ke."
                 )
             if any(
                 w in low
@@ -1782,10 +1776,6 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "matlab kya",
                     "explain",
                     "detail me",
-                    # "kya kya service/feature provide karte ho" — most-asked discovery
-                    # sawaal tha jo roman me kisi keyword se match NAHI hota tha → throttled
-                    # LLM pe gir ke deflect ho jaata ("dobara boliye"/"detail bhej deti
-                    # hoon" = noob). Yeh seedhe-jawaab branch me route karo (2026-06-27).
                     "kya kya",
                     "service",
                     "services",
@@ -1800,7 +1790,6 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "kya cheez",
                     "kaam kya",
                     "sab kya",
-                    # English product asks (web/demo + bilingual callers)
                     "what do you",
                     "what you do",
                     "what you guys",
@@ -1810,7 +1799,6 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "tell me about your",
                     "how does it work",
                     "how it works",
-                    # Devanagari (Whisper hi script) — what-do-you-do asks
                     "क्या कर",
                     "क्या क्या",
                     "क्या है",
@@ -1829,30 +1817,28 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             ) or any(w in (ut or "") for w in ("प्रोवाइड", "provide kar", "provide karte")):
                 return self._clean(
-                    "Hum AI Automated Marketing dete hain: Instagram-Facebook pe roz posts aur ads, "
-                    "Google Business boost, aur inquiry pe auto follow-up. Aap approve karo — baaki automatic."
+                    "Hum do solutions dete hain: 1) AI Marketing — roz social posts, Google boost aur ads, "
+                    "aur 2) AI Voice Telecaller — 24/7 lead calling aur appointment booking. 7 din free trial hai."
                 )
-            if any(w in low for w in ("free trial", "trial", "demo", "try karna")):
-                return self._clean("7 din FREE trial, bina card. Aaj setup kar doon ya kal subah?")
+            if any(w in low for w in ("free trial", "trial", "pilot", "demo", "try karna")):
+                return self._clean("7 din FREE trial aur 50 calls pilot bina card ke milta hai. Aaj setup karein ya kal?")
             if any(w in low for w in ("google", "gbp", "listing", "profile", "search pe")):
                 return self._clean(
-                    "Google Business audit + fix suggestions dete hain — search pe upar aane me madad, "
-                    "reviews ke reply drafts bhi."
+                    "Google Business audit aur rank boost dete hain — local search me top ranking aur reviews ke auto reply."
                 )
             if any(w in low for w in ("cancel", "band karna", "paise wapas", "refund")):
                 return self._clean(
-                    "Monthly plan hai — cancel anytime. Pehle 7 din FREE trial se result dekho, pressure nahi."
+                    "Monthly subscription hai — kabhi bhi cancel kar sakte hain. Pehle 7 din free trial se result dekhiye."
                 )
             if any(w in low for w in ("kitne din", "result kab", "time lagega", "kab tak")):
                 return self._clean(
-                    "Pehle posts aur audit 24-48 ghante me ready — roz ka content subah ~7 baje portal me."
+                    "Setup 24 ghante me active ho jaata hai aur roz ka marketing content aur calling subah se shuru ho jaati hai."
                 )
             if any(
                 w in low for w in ("social", "instagram", "facebook", "whatsapp", "post", "ads")
             ):
                 return self._clean(
-                    "Roz ke posts aur ads AI banati hai — aapki industry aur city ke hisaab se, "
-                    "aap sirf approve ya copy-paste karo."
+                    "Roz ke posts, reels scripts aur ads AI banata hai aapke brand ke saath — aap sirf 1 click me share ya approve kijiye."
                 )
         # IMPORTANT: pehle yahan HAR question pe value_lines[0] dump hota tha — yahi
         # "confused/noob" ka root tha (real_estate me "loan milega?"/"location

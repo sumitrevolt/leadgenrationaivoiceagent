@@ -50,14 +50,13 @@ except Exception:  # pragma: no cover
 FILLERS: dict[str, dict[str, list[str]]] = {
     "hinglish": {
         "thinking": [
-            "ek second...",
             "hmm theek hai...",
-            "ek minute...",
-            "haan dekhiye...",
+            "ji dekhiye...",
+            "haan bilkul...",
             "let me check...",
-            "ruko zara...",
+            "ji main samajh rahi hoon...",
             "achha...",
-            "ek second, dekh leti hoon...",
+            "ji dekh leti hoon...",
         ],
         "acknowledge": [
             "haan...",

@@ -579,10 +579,10 @@ _GREET_CACHE_MAX = 64
 # Thinking fillers (played BEFORE LLM reply). "Ji sir/Achha ji" BANNED —
 # 2026-07-17 live feedback: mid-turn habit fillers confuse the caller.
 # Keep only short non-addressing bridges; USE_THINKING_FILLER defaults OFF.
-_FILLER_TEXTS = ("Hmm...", "Ek second...")
+_FILLER_TEXTS = ("Hmm...", "Ji...")
 _FILLER_PCM: list[bytes] = []
 _FILLER_STARTED = False  # synth fillers once per worker (first session does it)
-_PROCESSING_ACK_TEXT = "Ji, ek second."
+_PROCESSING_ACK_TEXT = "Ji, sun rahi hoon..."
 _PROCESSING_ACK_PCM: bytes | None = None
 _PROCESSING_ACK_STARTED = False
 _CELEBRATION_PCM: bytes | None = None
@@ -2589,11 +2589,6 @@ class VobizStreamSession:
                 return
             self._flywheel_opening_override = r["opening_line"]
             self._voice_variant_id = str(r.get("variant_id") or "") or None
-            if TTS_AVAILABLE and self._flywheel_opening_override:
-                pcm = await self._synth_pcm(self._opening_line())
-                if pcm:
-                    self._greet_pcm = pcm
-                    _GREET_CACHE[self._greet_key()] = pcm
         except Exception as e:
             logger.debug(f"[vobiz-stream] flywheel opener skip: {e}")
 
@@ -2739,6 +2734,12 @@ class VobizStreamSession:
                     cached = _GREET_CACHE.get(self._greet_key())
                     if isinstance(cached, list):
                         pcms = cached
+                if not pcms and self._pregen_task is not None and not self._pregen_task.done():
+                    try:
+                        await asyncio.wait_for(asyncio.shield(self._pregen_task), timeout=4.0)
+                    except Exception:
+                        pass
+                    pcms = self._platform_greet_pcms or _GREET_CACHE.get(self._greet_key())
                 self._begin_disclosure()  # D-6: barge-lock the opener (disclosure)
                 for i, seg in enumerate(segs):
                     self.hist.append({"role": "assistant", "content": seg})

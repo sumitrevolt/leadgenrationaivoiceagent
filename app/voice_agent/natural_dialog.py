@@ -928,13 +928,13 @@ class NaturalDialogManager:
             logger.debug(f"Indic providers not registered: {e}")
 
     def thinking_filler(self, context: str = "thinking") -> str:
-        """Ek short natural filler ('ek second...') jab LLM soch raha ho — call ke beech play karo."""
+        """Ek short natural filler jab LLM soch raha ho — call ke beech play karo."""
         if self.filler is not None:
             try:
                 return self.filler.next(context)
             except Exception:
                 pass
-        return "Ek second..."
+        return "Ji..."
 
     async def _maybe_tool_call(self, llm_output: str, state: DialogState) -> str | None:
         """Agar LLM output me tool call hai (e.g. book_appointment), execute karke natural confirm do."""
@@ -956,7 +956,7 @@ class NaturalDialogManager:
                 return f"Perfect! {conf}. Aapko WhatsApp par reminder bhej deti hoon."
             if call["name"] == "transfer_to_human":
                 return (
-                    "Theek hai, main aapko abhi humari team se connect kar deti hoon — ek second."
+                    "Theek hai, main aapko abhi humari team se connect kar deti hoon, line par baniye."
                 )
             if call["name"] == "check_availability" and ok:
                 slots = data.get("slots") or data.get("available") or []
