@@ -1,7 +1,7 @@
 # Minimal deps for a FAST local test (Phase A of LAUNCH_GUIDE.md).
 # Full features: use requirements.txt instead.
 fastapi==0.141.1
-uvicorn[standard]==0.52.3
+uvicorn[standard]==0.52.4
 pydantic==2.13.4
 pydantic-settings==2.15.0
 email-validator==2.3.0
@@ -12,7 +12,7 @@ httpx==0.28.1
 aiohttp==3.14.3
 requests==2.34.2
 beautifulsoup4==4.15.0
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 loguru==0.7.3
 phonenumbers==8.13.28
 APScheduler==3.11.3

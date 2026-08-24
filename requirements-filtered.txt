@@ -5,7 +5,7 @@
 # Core Framework
 # =============================================================================
 fastapi==0.141.1
-uvicorn[standard]==0.52.3
+uvicorn[standard]==0.52.4
 pydantic>=2.7.4,<3
 pydantic-settings==2.15.0
 email-validator==2.3.0
@@ -27,11 +27,11 @@ aioredis==2.0.1
 # =============================================================================
 openai==1.12.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) — see app/voice_agent/free_ai.py
 anthropic==0.122.0
-# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.5 (langgraph)
+# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.6.0 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.8.6
-google-genai>=2.18.1  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
-google-cloud-aiplatform==1.164.0
+google-genai>=2.19.0  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-cloud-aiplatform==1.165.1
 
 # =============================================================================
 # Vector RAG (Qdrant + fastembed e5 embeddings — KB backend)
@@ -52,13 +52,13 @@ faster-whisper>=1.0.0
 
 # TTS
 elevenlabs==1.0.3
-azure-cognitiveservices-speech==1.51.1
+azure-cognitiveservices-speech==1.51.2
 edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) — must be 7.x
 
 # =============================================================================
 # Payment Gateways
 # =============================================================================
-stripe>=15.5.0
+stripe>=15.5.1
 # razorpay removed 2026-06-18 — no online India gateway (payments via manual UPI)
 
 # =============================================================================
@@ -79,14 +79,14 @@ aiosmtplib==5.1.2
 # CRM Integrations
 # =============================================================================
 hubspot-api-client==8.2.1
-google-api-python-client==2.198.0
+google-api-python-client==2.199.0
 google-auth-oauthlib==1.4.0
 gspread==6.2.1
 
 # =============================================================================
 # Utilities
 # =============================================================================
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 pydub==0.25.1
 phonenumbers==8.13.28
 APScheduler==3.11.3
@@ -143,11 +143,11 @@ scikit-learn>=1.3.2
 # =============================================================================
 langgraph>=1.2.11
 langgraph-checkpoint-sqlite>=3.1.1
-langchain-core>=1.5.5
+langchain-core>=1.6.0
 # Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) — opt-in
 # (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
 langgraph-supervisor>=0.0.27
-langchain-openai>=1.5.1  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+langchain-openai>=1.6.0  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
 # Knowledge-graph RAG (app/voice_agent/graph_rag.py) — opt-in USE_LIGHTRAG=1.
 # Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
 # (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep — reuses KB + free_ai.)
