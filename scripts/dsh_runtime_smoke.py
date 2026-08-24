@@ -246,10 +246,8 @@ def run_smoke(image: str, gateway_image: str) -> dict[str, Any]:
         _assert_env_allowlist(normal_name)
         _prompt(normal, "Reply exactly SMOKE_OK.")
         normal.wait_for(
-            lambda value: (
-                value.get("method") == "session.event"
-                and "SMOKE_OK" in json.dumps(value.get("params"), ensure_ascii=True)
-            ),
+            lambda value: value.get("method") == "session.event"
+            and "SMOKE_OK" in json.dumps(value.get("params"), ensure_ascii=True),
             timeout=45,
             label="fake model completion",
         )
@@ -266,10 +264,8 @@ def run_smoke(image: str, gateway_image: str) -> dict[str, Any]:
         _initialize(cancelled, request_id=11)
         _prompt(cancelled, "HANG_UNTIL_CANCELLED", request_id=12)
         cancelled.wait_for(
-            lambda value: (
-                value.get("method") == "session.status"
-                and value.get("params", {}).get("status") == "running"
-            ),
+            lambda value: value.get("method") == "session.status"
+            and value.get("params", {}).get("status") == "running",
             timeout=20,
             label="running state before hard cancellation",
         )
