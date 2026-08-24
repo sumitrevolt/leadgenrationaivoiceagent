@@ -4,7 +4,7 @@
 # then: pip install -r requirements.txt
 fastapi>=0.110
 uvicorn[standard]>=0.29
-transformers>=4.44
+transformers>=5.15.1
 torch>=2.2
 torchaudio>=2.2
 soundfile>=0.14.0
