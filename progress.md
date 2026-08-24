@@ -199,3 +199,14 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 - **Risks:** double concurrent calls on free tiers (quota burn ~2x per voice turn, breaker+cooldowns waise hi lagu); race winner mid-stream stall = same stop-and-fallback contract.
 - **Remaining:** deploy + live call se llm_first_ms verify (<1000ms target p50); OmniRoute flagship gateway install abhi bhi pending (owner infra).
 - **Next Highest Priority:** live probe scorecard; gateway install jab source available ho.
+
+## Loop Run
+- **Date:** 2026-08-24 (Buzz chat-coordination owner-visibility fix)
+- **Goal:** Owner: "chat coordination owner ko proper nahi dikh raha" (Buzz Desktop me collapsed cards + coordination unreadable).
+- **Inspected:** Relay live probe (ws://127.0.0.1:3100/_liveness=200) se 20 channels + messages dump kiye. Findings: (1) staff-pulse scheduled task 21-Aug 20:15 se SILENT-FAIL — repo rename ke baad task purane `leadgenrationaiagent` bat path pe tha (missing bat = cmd fail, log me kuch nahi); (2) relay content intact hai, sab posts kind-9 (Desktop inhe collapsed cards render karta hai); (3) 5 same-name duplicate channels; (4) owner ke plain-text @Bumble pings resolved chips nahi = agents wake nahi; (5) purane posts relay pe cp1252-mojibake stored.
+- **Changed:** `scripts/buzz_staff_pulse.bat` self-relative (`%~dp0..`, hardcoded old path removed) + schtask repointed to current repo. NEW `scripts/buzz_owner_digest.py` — sab channels ka readable markdown digest (~/.buzz/OUTBOX/buzz_digest_<ts>.md), mojibake-repair + pubkey→name resolution (users get, cache PUBKEY_NAMES.json) + duplicate-channel merge + --post #admin summary. Runbook sharp-edges updated (folder-rename trap, dup-channel archive auth, mojibake, mention-chip rule).
+- **Tests Run:** manual pulse run exit=0 "posted 31 members"; scheduled 17:15 run bhi posted (naye path pe LIVE proof); digest --hours 72 = 33 msgs/7 channels clean output; ruff clean.
+- **Verification Evidence:** staff_pulse.log 24-Aug 17:10 exit=0 + 17:15 scheduled post digest me visible; buzz_digest_20260824_1716.md em-dash/₹ sahi, authors named; check_secrets 22 files OK.
+- **Risks:** dup-channel archive credential-store identity se BLOCKED hai (channel-admin nahi) — owner ke 4 Desktop clicks baaki; digest name-resolution sirf users-get jitna accurate; kind-9 collapsed-card rendering Desktop-side hai, hum change nahi kar sakte.
+- **Remaining:** OWNER: 4 empty dup channels Desktop me archive kare (general/incidents/agents/engineering ke empties); Docker Desktop auto-start consider kare (23-Aug relay-down root cause).
+- **Next Highest Priority:** Owner Hot Queue /app/inbox blitz (revenue blocker unchanged).
