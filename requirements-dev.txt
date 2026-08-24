@@ -27,7 +27,7 @@ deepeval>=1.4,<4
 # Code Quality
 # =============================================================================
 black==26.5.1
-isort==5.13.2  # Import sorting
+isort==8.0.1  # Import sorting
 flake8==7.3.0  # Linting
 mypy==2.3.0  # Type checking
 pylint==4.0.7  # Additional linting
