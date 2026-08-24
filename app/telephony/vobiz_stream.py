@@ -183,10 +183,14 @@ try:  # pragma: no cover - import-safety
     from app.voice_agent.turn_detector import turn_vad_rms as _shared_vad_rms
 
     _DEF_VAD_RMS = _shared_vad_rms(300)
-    _DEF_SILENCE_MS = _shared_silence_ms(650.0)  # keep snappy 650 ms vobiz default
+    # 2026-08-23 owner: "1 second to bolna hi nahi chahiye" — 650 ms turn-end
+    # silence ab 500 ms (LiveKit-style snappy). VOBIZ_SILENCE_MS/TURN_SILENCE_MS
+    # env ab bhi WIN karte hain; mid-sentence pause clipping se bachne ke liye
+    # POST-SPEECH GRACE + hard 2x floor untouched.
+    _DEF_SILENCE_MS = _shared_silence_ms(500.0)
     _DEF_BARGE_FRAMES = _shared_barge_frames(20.0, 100.0)  # 20 ms frames @16k
 except Exception:
-    _DEF_VAD_RMS, _DEF_SILENCE_MS, _DEF_BARGE_FRAMES = 300, 650.0, 5
+    _DEF_VAD_RMS, _DEF_SILENCE_MS, _DEF_BARGE_FRAMES = 300, 500.0, 5
 
 # BARGE_GUARD (adaptive interruption handling) helpers. Defensive: if
 # turn_detector can't load, the guard is inert — is_backchannel() -> False and
@@ -225,15 +229,17 @@ NOINPUT_MAX_REPROMPTS = max(1, int(_env_num("VOBIZ_NOINPUT_MAX_REPROMPTS", 2)))
 # 1-sentence playback, with headroom; a genuine hang sits far past this.
 THINK_MAX_S = _env_num("VOBIZ_THINK_MAX_S", 16.0)
 
-# EdgeTTS prosody knobs (env-tunable for naturalness; defaults reproduce the
-# previous hard-coded "+8% rate, no pitch/volume" exactly). VOBIZ_* win, else the
-# shared PHONE_TTS_* fall through, else the snappy default. EdgeTTS takes these
-# natively (rate/pitch/volume kwargs) — guarded so a build lacking a kwarg is
-# fine. e.g. VOBIZ_TTS_PITCH="+3Hz" warms the female voice; rate="+0%" slows it.
-# Default +28% (2026-07-17 owner: +12% abhi bhi SLOW; +33% pehle rush feel —
-# +28% = snappy Hinglish without chipmunk). VOBIZ_TTS_RATE/PHONE_TTS_RATE win.
-TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+28%").strip()
-TTS_PITCH = (os.environ.get("VOBIZ_TTS_PITCH") or os.environ.get("PHONE_TTS_PITCH") or "").strip()
+# EdgeTTS prosody knobs (env-tunable for naturalness). VOBIZ_* win, else the
+# shared PHONE_TTS_* fall through. EdgeTTS takes rate/pitch/volume natively —
+# guarded so a build lacking a kwarg is fine.
+# Rate history: +12% SLOW (2026-07-17) → +28% → 2026-08-23 owner "abhi bhi slow
+# bol rahi" → +32% (just under the +33% rush threshold). Pitch: "" (voice-native)
+# → -8Hz (2026-08-23 owner: deeper voice; -8Hz warm on SwaraNeural, not
+# unnatural). Env se hamesha dial-back possible.
+TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+32%").strip()
+TTS_PITCH = (
+    os.environ.get("VOBIZ_TTS_PITCH") or os.environ.get("PHONE_TTS_PITCH") or "-8Hz"
+).strip()
 TTS_VOLUME = (os.environ.get("VOBIZ_TTS_VOLUME") or "").strip()
 
 
