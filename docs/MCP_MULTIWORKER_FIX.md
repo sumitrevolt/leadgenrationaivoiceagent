@@ -96,11 +96,21 @@ handle {
 ```
 Then `caddy reload`.
 
-**A3. Apply (Owner):**
-```
-APP_VERSION=<git-sha> docker compose -f docker-compose.vps.yml up -d mcp
-caddy reload
-```
+**A3. Apply (Owner) — deploy sequence (step-by-step):**
+
+> `mcp` is a NEW service. `scripts/deploy_vps.sh` does NOT manage it yet: its
+> pre-UP check (lines ~360-364) FATALs on a service with no running container, so a
+> first-time `mcp` must NOT be added to `SERVICES`. Bring `mcp` up once via the
+> compose command; once it is running you may add it to `SERVICES` +
+> `_legacy_name_for_service` for future skew checks.
+
+1. **Ship it:** push `fix/mcp-single-worker` and merge to `main` (repo is PR-only), then on the VPS `cd /opt/leadgen && git pull`.
+2. **Main deploy (unchanged):** deploy the app-image services as usual — `setsid nohup bash scripts/deploy_vps.sh > /tmp/dep.log 2>&1 &`, poll `/tmp/dep.log`, confirm `/health.version == deployed sha` (this does NOT touch `mcp`).
+3. **Bring up the MCP service (same image, single worker):** `APP_VERSION=<git-sha> docker compose -f docker-compose.vps.yml up -d mcp`
+4. **Caddy route** (VPS Caddyfile, BEFORE the existing `reverse_proxy` to :8000): `handle /mcp* { reverse_proxy 127.0.0.1:8090 }` → `caddy reload`.
+5. **Verify:** repeatedly `POST https://leadsgenai.in/mcp/messages/?session_id=…` → **202 Accepted** (never 404); a Hermes `ops_revenue_summary` tool call returns `{ok:true,…}`.
+
+---
 
 ## Option B (faster, but re-introduces 502 risk)
 
@@ -110,14 +120,15 @@ issue AND you accept the 502 regression.
 
 ## Verify
 
-- Hermes MCP client: `POST https://leadsgenai.in/mcp/messages/?session_id=…` → **202 Accepted** (not 404).
+- Hermes MCP client: `POST https://leadsgenai.in/mcp/messages/?session_id=…` → **202 Accepted** (not 404) across several calls.
 - `hermes` tool call of `ops_revenue_summary` returns `{ok:true,…}`.
 - `GET https://leadsgenai.in/mcp` still 200 (SSE opens).
 
 ## Rollback
-- `docker compose -f docker-compose.vps.yml rm -fs mcp` (removes the dedicated service);
-  main `app` is untouched. If A2 Caddy rule was added, remove the `handle @mcp` block + reload.
-  `config.yaml` on Hermes side is unchanged.
+
+- Remove the service: `docker compose -f docker-compose.vps.yml rm -fs mcp`.
+- Remove the Caddy `handle /mcp*` block, then `caddy reload`. Main `app` (port :8000, 2 workers) is untouched.
+- Hermes side `config.yaml` unchanged. No data migration.
 
 ## Related
 - `app/main.py` MCP mount (~1386-1496, `_mcp.mount()`, gated by `FASTAPI_MCP_TOKEN` / `MCP_IP_ALLOWLIST`).
