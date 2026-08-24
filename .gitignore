@@ -327,3 +327,10 @@ deploy/buzz/env/gh-events.response
 # (app/platform/coordination_desktop_registry.py) reads it from disk at runtime.
 # The blanket `*.json` above silently excluded it.
 !docs/coordination/desktop_registry.json
+
+# pytest basetemp + agent(checkpoint)-scratch dirs — `git add -A` must NEVER trip on
+# these (a nested-git 'dsh-check/' aborts add; a locked pytest dir denies read).
+# Local test/agent scratch only; never track.
+.pytest_tmp/
+pytest-of-Ratanshila/
+dsh-check/
