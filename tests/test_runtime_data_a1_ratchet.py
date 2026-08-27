@@ -70,7 +70,10 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-16: 62 -> 70. Marketing factory JSONL (appointment/health/drips/forms/
 # proposals/review) classified as TIER_3 REBUILDABLE_CACHE (+8 allowlist rows).
 # CLASSIFIED, not tolerated — baseline fingerprint count unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 83
+# 2026-08-27: 83 -> 85. ADR-OWNER-1 added 2 allowlist entries for the new
+# hot_queue_owner_pack CSV+MD files. CLASSIFIED, not tolerated — baseline
+# fingerprint count unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 85
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
