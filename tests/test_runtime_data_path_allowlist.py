@@ -145,7 +145,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # entries re-bound to real code symbols; scratch temp_enrich_write.py
     # deleted instead of classified. CLASSIFIED, not tolerated.
     assert len(entries) == 85
-    assert len(families) == 26, sorted(families)
+    assert len(families) == 28, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -172,6 +172,8 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "governance.mission_control",
         "owner_os.coordination_hub",
         "ops.office_briefing",
+        "ops.hot_queue_owner_pack_csv",
+        "ops.hot_queue_owner_pack_md",
         "ops.owner_email_canary",
         "sales.prospects",
         "telephony.call_recordings",
