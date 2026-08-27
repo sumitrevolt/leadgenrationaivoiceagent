@@ -628,6 +628,51 @@ ENTRIES: list[dict[str, Any]] = [
         ),
     },
     {
+        "allowlist_id": "ops.hot_queue_owner_pack.csv",
+        "file": "app/platform/hot_queue_owner_pack.py",
+        "line_or_symbol": "csv_path",
+        "path_pattern": "data/hot_queue_for_owner_<date>.csv",
+        "store_id": "ops.hot_queue_owner_pack",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "ADR-OWNER-1: daily CSV of /api/ops/hotqueue rows for the owner "
+            "to import into a phone/CRM and click wa.me links directly. "
+            "Re-written each morning by the 09:00 IST scheduled job; only "
+            "the latest copy is kept. No prospect PII is masked here "
+            "(owner-only output) but no PII ever leaves this file — it is "
+            "a local read-only surface, never auto-sent or forwarded."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Must remain owner-local (no email/ntfy auto-attach); losing "
+            "the file just means the next-day job regenerates it."
+        ),
+    },
+    {
+        "allowlist_id": "ops.hot_queue_owner_pack.md",
+        "file": "app/platform/hot_queue_owner_pack.py",
+        "line_or_symbol": "md_path",
+        "path_pattern": "data/hot_queue_for_owner_<date>.md",
+        "store_id": "ops.hot_queue_owner_pack",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "ADR-OWNER-1: daily markdown of the same top-15 hot leads as "
+            "the CSV, with clickable wa.me links. Same lifecycle as the "
+            "CSV (one day, owner-local, re-written each morning)."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Same as the CSV entry — must stay owner-local; only the "
+            "top-15 subset is exposed to reduce PII surface if shared."
+        ),
+    },
+    {
         "allowlist_id": "governance.mission_control.ledger",
         "file": "app/platform/mission_control.py",
         "line_or_symbol": "_LEDGER",
