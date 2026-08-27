@@ -182,6 +182,7 @@ _last_ran: dict[str, str | None] = {
     "onboard": None,
     "standup": None,
     "hot_queue_brief": None,  # daily 08:15: health-gated Office HQ revenue brief
+    "hot_queue_owner_pack": None,  # daily 09:00: CSV+MD+nfty — owner 1-click close (ADR-OWNER-1)
     # F.5 engineer agents — gated by per-role flag inside run_X() (INERT default).
     "engineer_sre": None,  # hourly: Pranav reliability score
     "engineer_finops": None,  # daily: Vidya margin score
@@ -1588,6 +1589,21 @@ async def _run_job_inner(job: str) -> bool:
             result = await office_briefing.run_scheduled()
             if result.get("ok") is False:
                 return False
+        elif job == "hot_queue_owner_pack":
+            # ADR-OWNER-1: 09:00 IST daily — build CSV+MD from hot_queue + ntfy push
+            from app.platform import hot_queue_owner_pack as _hqop
+
+            r = await _hqop.build_owner_pack(limit=200, push_ntfy=True)
+            from app.platform import team
+
+            team.log_event(
+                "boss",
+                "hot_queue_owner_pack",
+                f"Owner action pack built: rows={r.get('rows', 0)} "
+                f"ntfy={r.get('ntfy', 'skipped')}",
+                status="ok" if r.get("ok") else "warn",
+                meta={"rows": r.get("rows"), "csv": r.get("csv"), "md": r.get("md")},
+            )
         elif job == "revenue_snapshot":
             # B1: daily MRR/churn/LTV snapshot for the admin revenue trend chart.
             if os.environ.get("REVENUE_TRENDS", "0").strip().lower() in ("1", "true", "yes"):

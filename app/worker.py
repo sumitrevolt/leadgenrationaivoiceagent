@@ -53,6 +53,7 @@ HEAVY_STAFF_JOBS = {
     "blog",
     "content",
     "hot_queue_brief",
+    "hot_queue_owner_pack",
     "digest",
     "prospect",
 }
@@ -565,6 +566,14 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=8, minute=15),
         "args": ("hot_queue_brief",),
+    },
+    # ADR-OWNER-1: 09:00 IST — CSV+MD+nfty push so owner has click-ready WA packs
+    # for the day's hot leads by 9:05 AM. Closes the loop on `calling_flagged`
+    # cards that previously sat un-actioned for days.
+    "staff-hot-queue-owner-pack-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=9, minute=0),
+        "args": ("hot_queue_owner_pack",),
     },
     "staff-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
