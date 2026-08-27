@@ -71,9 +71,10 @@ def test_self_improve_intentional_exception_documented():
 
 def test_summarize_clean():
     s = sp.summarize()
-    # 50 since 2026-08-23: +trial_nudge (BLK-02; INERT default).
-    # (previous 49 since 2026-08-19 added daily_owner_brief; 45 included gsc_rank).
-    assert s["staff_job_count"] == 50
+    # 51 since 2026-08-27: +hot_queue_owner_pack (ADR-OWNER-1; daily 09:00).
+    # (previous 50 since 2026-08-23 added trial_nudge (BLK-02; INERT default);
+    # 49 since 2026-08-19 added daily_owner_brief; 45 included gsc_rank.)
+    assert s["staff_job_count"] == 51
     assert s["unexplained"] == []
     assert s["beat_problems"] == []
 
