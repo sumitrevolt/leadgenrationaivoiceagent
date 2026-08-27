@@ -631,16 +631,14 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.hot_queue_owner_pack.csv",
         "file": "app/platform/hot_queue_owner_pack.py",
         "line_or_symbol": "csv_path",
-        "path_pattern": "data/hot_queue_for_owner_<date>.csv",
-        "store_id": "ops.hot_queue_owner_pack",
+        "path_pattern": "f\"data/hot_queue_for_owner_{today}.csv\"",
+        "store_id": "ops.hot_queue_owner_pack_csv",
         "access_modes": ["REWRITE"],
         "reason": (
             "ADR-OWNER-1: daily CSV of /api/ops/hotqueue rows for the owner "
             "to import into a phone/CRM and click wa.me links directly. "
             "Re-written each morning by the 09:00 IST scheduled job; only "
-            "the latest copy is kept. No prospect PII is masked here "
-            "(owner-only output) but no PII ever leaves this file — it is "
-            "a local read-only surface, never auto-sent or forwarded."
+            "the latest copy is kept. No prospect PII leaves this file."
         ),
         "migration_tier": 1,
         "target_change_set": "runtime-data-cutover-wave-1",
@@ -655,8 +653,8 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "ops.hot_queue_owner_pack.md",
         "file": "app/platform/hot_queue_owner_pack.py",
         "line_or_symbol": "md_path",
-        "path_pattern": "data/hot_queue_for_owner_<date>.md",
-        "store_id": "ops.hot_queue_owner_pack",
+        "path_pattern": "f\"data/hot_queue_for_owner_{today}.md\"",
+        "store_id": "ops.hot_queue_owner_pack_md",
         "access_modes": ["REWRITE"],
         "reason": (
             "ADR-OWNER-1: daily markdown of the same top-15 hot leads as "
