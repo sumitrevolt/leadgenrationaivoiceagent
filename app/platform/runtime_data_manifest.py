@@ -339,6 +339,64 @@ STORES: list[dict[str, Any]] = [
         ),
     ),
     _e(
+        store_id="ops.hot_queue_owner_pack_csv",
+        display_name="Daily CSV of /api/ops/hotqueue for owner 1-click close",
+        legacy_paths=["data/hot_queue_for_owner_<date>.csv"],
+        writer_modules=["app/platform/hot_queue_owner_pack.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        last_write="2026-08-27",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="resumable-operational",
+        production_active=True,
+        mutable=True,
+        authoritative_or_required=False,
+        inside_checkout=True,
+        externally_protected=False,
+        target_runtime_subpath="ops/hot_queue_owner_pack/",
+        migration_tier=TIER_1,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=False,
+        blocker_reason=(
+            "owner-local CSV re-written each morning by the 09:00 IST job; "
+            "safe to lose (next-day job regenerates it from hot_queue())"
+        ),
+        evidence=(
+            "ADR-OWNER-1 (2026-08-27): CSV is owner-only, never auto-sent; "
+            "wa.me column carries the pre-drafted UPI deep-link."
+        ),
+    ),
+    _e(
+        store_id="ops.hot_queue_owner_pack_md",
+        display_name="Daily top-15 markdown of /api/ops/hotqueue for owner",
+        legacy_paths=["data/hot_queue_for_owner_<date>.md"],
+        writer_modules=["app/platform/hot_queue_owner_pack.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        last_write="2026-08-27",
+        current_authority="FILE",
+        business_category="ops",
+        durability_class="resumable-operational",
+        production_active=True,
+        mutable=True,
+        authoritative_or_required=False,
+        inside_checkout=True,
+        externally_protected=False,
+        target_runtime_subpath="ops/hot_queue_owner_pack/",
+        migration_tier=TIER_1,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=False,
+        blocker_reason=(
+            "owner-local MD re-written each morning by the 09:00 IST job; "
+            "safe to lose (next-day job regenerates it from hot_queue())"
+        ),
+        evidence=(
+            "ADR-OWNER-1 (2026-08-27): MD is the top-15 clickable view of "
+            "the same data as the CSV; owner-only, never auto-sent."
+        ),
+    ),
+    _e(
         store_id="governance.mission_control",
         display_name="Chat-first mission packets + append-only decision ledger",
         legacy_paths=[

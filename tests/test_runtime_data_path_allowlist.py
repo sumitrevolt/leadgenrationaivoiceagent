@@ -144,8 +144,8 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # (referral kit) plus sales.prospects TASK_LI-001 enrichment tooling
     # entries re-bound to real code symbols; scratch temp_enrich_write.py
     # deleted instead of classified. CLASSIFIED, not tolerated.
-    assert len(entries) == 83
-    assert len(families) == 26, sorted(families)
+    assert len(entries) == 85
+    assert len(families) == 28, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -172,6 +172,8 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "governance.mission_control",
         "owner_os.coordination_hub",
         "ops.office_briefing",
+        "ops.hot_queue_owner_pack_csv",
+        "ops.hot_queue_owner_pack_md",
         "ops.owner_email_canary",
         "sales.prospects",
         "telephony.call_recordings",
@@ -448,7 +450,7 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-24: +2 revenue-sprint families — billing.promo_codes (coupon
     # engine ledger) and marketing.affiliates (referral kit), both tier-3
     # rebuildable INERT-by-default stores via evidence-backed manifest edit.
-    assert counts["unique_families"] == 44
+    assert counts["unique_families"] == 46
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
