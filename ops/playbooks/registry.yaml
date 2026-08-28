@@ -1,0 +1,152 @@
+# =====================================================================
+# PLAYBOOK REGISTRY — LeadGen AI (LAYER: strategy selection)
+# File: ops/playbooks/registry.yaml
+#
+# Playbooks answer: "what STRATEGY should be followed, and under what
+# conditions?" They complement runbooks ("when X happens, what exactly
+# executes?"). This registry indexes all playbooks — existing docs plus
+# the normalized P0 playbooks added in this upgrade.
+#
+# Structure per playbook: purpose / trigger / scope / prerequisites /
+# strategy / decision tree / allowed+prohibited actions / escalation /
+# KPIs / guardrails / linked runbooks / evidence / owner approval.
+#
+# LIVE playbook detail: ops/playbooks/<id>.md. This file = machine index
+# (selection + gating).
+# =====================================================================
+schema_version: "1.0"
+generated_at: "2026-08-28T05:40:00Z"
+
+playbooks:
+  - id: "PB-OWNER-OPS"
+    name: "Owner Operations Playbook"
+    trigger: "daily owner operating loop / priority decisions"
+    source: "ops/playbooks/PB-OWNER-OPS.md (NEW)"
+    priority: "P0"
+    owner_approval: "N/A — owner is the operator"
+
+  - id: "PB-ENGINEERING"
+    name: "Engineering Playbook"
+    trigger: "any code change, feature, or fix"
+    source: "docs/AGENT_WORK_RULES.md; docs/LOOP_ENGINEER.md; CLAUDE.md ##4-6 (canonical)"
+    priority: "P0"
+
+  - id: "PB-INCIDENT-MGMT"
+    name: "Incident Management Playbook"
+    trigger: "any P0/P1 production incident"
+    source: "docs/runbooks/RUNBOOK_*; knowledge/operations/incident-response.md; memory/incidents.md"
+    priority: "P0"
+
+  - id: "PB-DEPLOYMENT"
+    name: "Deployment Playbook"
+    trigger: "any production deploy"
+    source: "docs/ADR-104_DEPLOY_RUNBOOK.md; CLAUDE.md ##3 (deploy_vps.sh ONLY); scripts/deploy_vps.sh"
+    priority: "P0"
+
+  - id: "PB-SALES"
+    name: "Sales Execution Playbook"
+    trigger: "any revenue-facing action (leads, outreach, follow-up, close)"
+    source: "ops/playbooks/PB-SALES.md (NEW); docs/GTM_PILOT_PLAYBOOK.md; DAY_0_REVENUE_BASELINE.md"
+    priority: "P0"
+
+  - id: "PB-LEAD-QUALIFICATION"
+    name: "Lead Qualification Playbook"
+    trigger: "lead enters pipeline / needs scoring"
+    source: "docs/Agentic_Customer_Acquisition_Playbook.md; HERMES_AGENT_ROSTER.yaml (rohan/neha duties)"
+    priority: "P0"
+
+  - id: "PB-WHATSAPP-OUTREACH"
+    name: "WhatsApp Outreach Playbook"
+    trigger: "any WhatsApp send (1-click human default; owner-armed auto paths)"
+    source: "CLAUDE.md ##5 (ban-safety: cold/bulk auto = number ban); docs/gtm/BUZZ_SETUP_RUNBOOK.md"
+    priority: "P0"
+
+  - id: "PB-EMAIL-OUTREACH"
+    name: "Email Outreach Playbook"
+    trigger: "any email outreach campaign"
+    source: "CLAUDE.md (25/day cap + warmup); docs/OPERATIONAL_RUNBOOKS.md RB-008"
+    priority: "P0"
+
+  - id: "PB-VOICE-CALLING"
+    name: "Voice Calling Playbook"
+    trigger: "any outbound calling (auto-dial or manual)"
+    source: "ops/playbooks/PB-VOICE-CALLING.md (NEW); CLAUDE.md ##5 (compliance spine); docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md"
+    priority: "P0"
+
+  - id: "PB-SWARA-OPT"
+    name: "Swara Optimization Playbook"
+    trigger: "voice quality / conversion optimization"
+    source: "voice_stack/; scripts/agent_tester.py; memory/incidents.md (deaf-call lesson)"
+    priority: "P1"
+
+  - id: "PB-CUSTOMER-ONBOARDING"
+    name: "Customer Onboarding Playbook"
+    trigger: "new paying customer"
+    source: "ops/playbooks/PB-CUSTOMER-ONBOARDING.md (NEW); knowledge/operations/customer-onboarding.md; docs/CLIENT_ONBOARDING_KIT.md"
+    priority: "P0"
+
+  - id: "PB-CUSTOMER-SUPPORT"
+    name: "Customer Support Playbook"
+    trigger: "existing customer issue / escalation"
+    source: "docs/CUSTOMER_DELIVERY_AUTOMATION_2026_07_05.md; knowledge/operations/customer-onboarding.md"
+    priority: "P1"
+
+  - id: "PB-PAYMENT-VERIFICATION"
+    name: "Payment Verification Playbook"
+    trigger: "UPI proof arrives / invoice unpaid / ledger needs confirm"
+    source: "ops/playbooks/PB-PAYMENT-VERIFICATION.md (NEW); CLAUDE.md ##1 + ##5 (manual UPI canonical)"
+    priority: "P0"
+
+  - id: "PB-MARKETING"
+    name: "Marketing Playbook"
+    trigger: "any marketing campaign / content creation"
+    source: "docs/LEAD_MAGNET_PLAYBOOK.md; knowledge/product/agency-methods.md; frontend/marketing.html"
+    priority: "P1"
+
+  - id: "PB-VIDEO-PRODUCTION"
+    name: "Video Production Playbook"
+    trigger: "video request / daily video job"
+    source: "docs/runbooks/RUNBOOK_DAILY_VIDEO.md; video_renderer/; ADR-142 (approval rules)"
+    priority: "P1"
+
+  - id: "PB-SOCIAL-PUBLISHING"
+    name: "Social Publishing Playbook"
+    trigger: "publish to social channels"
+    source: "knowledge/agents/routing-policy.md; memory/integrations.md (Postiz; Meta own-brand OK)"
+    priority: "P1"
+
+  - id: "PB-PROVIDER-FAILOVER"
+    name: "Provider Failover Playbook"
+    trigger: "provider degradation (LLM/STT/TTS/telephony)"
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md (authoritative); CLAUDE.md ##2 (free stack chain)"
+    priority: "P0"
+
+  - id: "PB-COST-OPT"
+    name: "Cost Optimization Playbook"
+    trigger: "cost review / budget alert"
+    source: "memory/integrations.md (limits); ops/owner_truth.yaml (cost control)"
+    priority: "P2"
+
+  - id: "PB-SECURITY"
+    name: "Security Playbook"
+    trigger: "security incident / secret leak / access review"
+    source: "docs/SECURITY_PLAYBOOK.md; docs/runbooks/RUNBOOK_SECURITY_INCIDENT.md; scripts/check_secrets.py"
+    priority: "P0"
+
+  - id: "PB-DATA-QUALITY"
+    name: "Data Quality Playbook"
+    trigger: "lead/CRM data integrity issue"
+    source: "docs/runbooks/RUNBOOK_DUPLICATE_OUTREACH.md; HERMES_AGENT_ROSTER.yaml (diya duties)"
+    priority: "P1"
+
+  - id: "PB-AGENT-COORD"
+    name: "Agent Coordination Playbook"
+    trigger: "multi-agent task / handoff / conflict"
+    source: "HERMES_AGENT_ROSTER.yaml; docs/context/AI_OPERATING_PROTOCOL.md; _tasks_sync.json"
+    priority: "P1"
+
+# ------------------------------------------------------------- SELECTION
+selection_policy:
+  precedence: "P0 playbooks first when trigger matches; runbook selection follows playbook"
+  gate_order: "task -> tag domain -> playbook -> runbook -> class -> permissions -> execute"
+  conflict: "when two playbooks match, the one with the higher priority (lower P number) + stricter class wins"

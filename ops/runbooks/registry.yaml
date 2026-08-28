@@ -1,0 +1,334 @@
+# =====================================================================
+# RUNBOOK REGISTRY — LeadGen AI (LAYER: machine-executable specs)
+# File: ops/runbooks/registry.yaml
+#
+# Normalizes ALL runbooks (existing docs/runbooks/*.md, RB-0xx in
+# docs/OPERATIONAL_RUNBOOKS.md, knowledge/operations/*) into one
+# machine-readable index with a risk classifier.
+#
+# RISK CLASS (fail-closed; conservative wins):
+#   GREEN  = autonomous execution allowed (safe, reversible, no external side effect)
+#   AMBER  = execution allowed with explicit owner approval
+#   RED    = human-only / prohibited autonomous action (compliance, irreversible, secrets, prod-down)
+#
+# When a task triggers a runbook, the orchestrator: tags -> registry ->
+# verify permissions -> execute or gate. Runbook .md files stay the
+# detailed source; THIS file is the machine index + decision gate.
+# =====================================================================
+schema_version: "1.1"
+generated_at: "2026-08-28T05:35:00Z"
+classifier:
+  green: "autonomous"
+  amber: "owner_approval_required"
+  red: "human_only"
+
+runbooks:
+  # --- VOICE / CALLING ---
+  - id: "RB-VOICE-001"
+    name: "SIP trunk unavailable"
+    trigger: "Vobiz trunk down / registration lost / calls not egressing"
+    class: "RED"
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md; docs/OPERATIONAL_RUNBOOKS.md RB-007"
+    owner_gate: "provider contact + fallback route decision"
+    detection: "call_health_check.py scorecard; call_attempts ok-rate drop; provider status API"
+
+  - id: "RB-VOICE-002"
+    name: "All calls Busy Line"
+    trigger: "every number returns BUSY / 486 on call attempts"
+    class: "AMBER"
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md; voice_stack/"
+    owner_gate: "carrier-side investigation; possible trunk reset"
+    detection: "voice call logs state=busy spike; agent_tester.py"
+
+  - id: "RB-VOICE-003"
+    name: "Authentication failure (SIP/WS token)"
+    trigger: "401 from Vobiz / WS stream token rejected"
+    class: "GREEN"
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md"
+    owner_gate: "none (token rotate is scripted)"
+    detection: "SIP 401 events; /api/telephony/vobiz/stream errors"
+
+  - id: "RB-VOICE-004"
+    name: "Insufficient balance (Vobiz credits)"
+    trigger: "402/insufficient balance on call attempt"
+    class: "RED"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-007"
+    owner_gate: "OWNER recharges provider wallet"
+    detection: "402 responses; provider billing API"
+
+  - id: "RB-VOICE-005"
+    name: "Call queued but not connected"
+    trigger: "call state stuck in queued/running >N min without connect"
+    class: "AMBER"
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md; memory/incidents.md"
+    owner_gate: "escalate to provider if concurrency=1 stuck"
+    detection: "call_attempts state=running stale; session S20* stuck"
+
+  - id: "RB-VOICE-006"
+    name: "Carrier rejection"
+    trigger: "specific numbers/prefix rejected by carrier (DND/phone-type/etc)"
+    class: "GREEN"        # compliance-safe: log + suppress + retry-avoid
+    source: "CLAUDE.md ##5 (DND fail-closed, phone-type gate); docs/OPERATIONAL_RUNBOOKS.md"
+    owner_gate: "none"
+    detection: "rejection reason codes in call logs; learned IVR blocklist"
+
+  - id: "RB-VOICE-007"
+    name: "Provider outage (LLM/STT/TTS)"
+    trigger: "429 / quota exhaust / provider 5xx across free stack"
+    class: "GREEN"        # circuit-breaker auto-failover is the canonical response
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md (authoritative)"
+    owner_gate: "none (auto) / add keys (AMBER if pool exhausted)"
+    detection: "llm_metrics ok-rate; circuit-breaker cooldowns; Sentry burst"
+
+  - id: "RB-VOICE-008"
+    name: "High failure rate (voice)"
+    trigger: "ok-rate < threshold over window"
+    class: "AMBER"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-007"
+    owner_gate: "pause dialer if sustained (>30-call training pause exists)"
+    detection: "call_health_check.py; voice metrics"
+
+  - id: "RB-VOICE-009"
+    name: "Swara not connecting / latency too high"
+    trigger: "WS stream not established; TTFB/stream latency spikes"
+    class: "AMBER"
+    source: "CLAUDE.md landmines (Silero VAD=0, EdgeTTS>=7.2.0); voice_stack/"
+    owner_gate: "none once root-caused; use agent_tester.py"
+    detection: "agent_tester.py scorecard; WS handshake latency"
+
+  - id: "RB-VOICE-010"
+    name: "Webhook failure (telephony events)"
+    trigger: "Vobiz call-event webhooks failing / 4xx"
+    class: "GREEN"
+    source: "CLAUDE.md landmine (app:8080 vs :8000 in-network hooks)"
+    owner_gate: "none"
+    detection: "webhook delivery logs; Sentry webhook error group"
+
+  # --- INFRASTRUCTURE ---
+  - id: "RB-INFRA-001"
+    name: "Production unhealthy (/health 5xx/502)"
+    trigger: "health probe fails; users report down"
+    class: "AMBER"        # diagnostics GREEN; container surgery is AMBER
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-001; knowledge/operations/incident-response.md"
+    owner_gate: "blind rebuild forbidden; surgical recover only"
+    detection: "Uptime/Gatus; ntfy ops_alerts; Sentry"
+
+  - id: "RB-INFRA-002"
+    name: "Container crash / OOM"
+    trigger: "container exit; OOMKilled; restart loop"
+    class: "AMBER"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-005; docker compose ps"
+    owner_gate: "targeted recover, no reset --hard / blind rebuild"
+    detection: "docker inspect; dmesg OOM; restart count"
+
+  - id: "RB-INFRA-003"
+    name: "Redis unavailable"
+    trigger: "celery broker down; DLQ growing; cache misses"
+    class: "AMBER"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-004; memory/incidents.md"
+    owner_gate: "del celery only if >500 and verified; no blind flush"
+    detection: "redis-cli ping; celery queue length; DLQ size"
+
+  - id: "RB-INFRA-004"
+    name: "DB unavailable / slow"
+    trigger: "Postgres down; slow queries; connection pool pressure"
+    class: "RED"          # DB surgery = human-only
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-002; memory/playbooks.md"
+    owner_gate: "migration/destructive ops = explicit owner confirm"
+    detection: "pg_stat_statements; PgBouncer pool; /health"
+
+  - id: "RB-INFRA-005"
+    name: "Disk pressure"
+    trigger: "disk >80% on VPS"
+    class: "AMBER"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-010"
+    owner_gate: "log purge/backup expansion sizing"
+    detection: "df -h; Uptime/Gatus disk probe"
+
+  - id: "RB-INFRA-006"
+    name: "VPS unreachable"
+    trigger: "SSH down; host ping fails; full outage"
+    class: "RED"          # external/irreversible — human-only
+    source: "docs/DISASTER_RECOVERY.md"
+    owner_gate: "provider console (Hostinger) access = human"
+    detection: "monitoring blackhole; SSH timeout"
+
+  - id: "RB-INFRA-007"
+    name: "Deployment regression"
+    trigger: "post-deploy health/version mismatch; smoke fail"
+    class: "AMBER"
+    source: "docs/ADR-104_DEPLOY_RUNBOOK.md; scripts/deploy_vps.sh"
+    owner_gate: "rollback decision (kill fence + redeploy previous sha)"
+    detection: "/health .version != expected; prod_check --deployment"
+
+  - id: "RB-INFRA-008"
+    name: "CI failed"
+    trigger: "pytest / prod_check / secrets scan red"
+    class: "GREEN"        # fix code, don't bypass gate
+    source: "CLAUDE.md ##6 TESTING PROTOCOL"
+    owner_gate: "none"
+    detection: "CI status; local pytest_run.log"
+
+  - id: "RB-INFRA-009"
+    name: "Rollback deployment"
+    trigger: "regression accepted -> revert to previous sha"
+    class: "RED"          # prod deploy = human-armed
+    source: "docs/ADR-104_DEPLOY_RUNBOOK.md; CLAUDE.md ##3"
+    owner_gate: "OWNER arms deploy; kill fence first"
+    detection: "post-rollback /health == previous sha"
+
+  - id: "RB-INFRA-010"
+    name: "Secret/config mismatch"
+    trigger: "app starts with missing/mismatched env; wiring_gaps report"
+    class: "AMBER"
+    source: "CLAUDE.md landmines (compose -f, .env tokens); scripts/check_secrets.py"
+    owner_gate: "secrets changes = owner-managed .env"
+    detection: "wiring_gaps LIVE report; startup logs; check_secrets"
+
+  # --- SALES ---
+  - id: "RB-SALES-001"
+    name: "WhatsApp send failed"
+    trigger: "WA send 4xx; number ban risk"
+    class: "AMBER"
+    source: "CLAUDE.md ##5 (ban-safety); docs/gtm/BUZZ_SETUP_RUNBOOK.md"
+    owner_gate: "owner-armed WA paths (WHATSAPP_AUTO_SEND + POST_CALL_WHATSAPP)"
+    detection: "WA send logs; WAHA session state"
+
+  - id: "RB-SALES-002"
+    name: "WhatsApp auth expired"
+    trigger: "WAHA session default disconnected; QR needed"
+    class: "RED"          # QR scan = owner-held phone
+    source: "CLAUDE.md ops facts (WAHA re-scan ***2607 2026-08-23)"
+    owner_gate: "OWNER re-scans QR in WAHA"
+    detection: "WAHA session state; sent:2/2 sweep"
+
+  - id: "RB-SALES-003"
+    name: "Email delivery failure"
+    trigger: "SMTP 4xx/5xx; deliverability drop"
+    class: "AMBER"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-008; CLAUDE.md (25/day cap + warmup)"
+    owner_gate: "domain reputation decisions"
+    detection: "email logs; reply-triage (status/@broadcast filters)"
+
+  - id: "RB-SALES-004"
+    name: "Lead duplicated"
+    trigger: "same phone/email twice in prospect store"
+    class: "GREEN"
+    source: "docs/runbooks/RUNBOOK_DUPLICATE_OUTREACH.md"
+    owner_gate: "none"
+    detection: "data_integrity_score; dedupe checks"
+
+  - id: "RB-SALES-005"
+    name: "Customer opted out"
+    trigger: "consent ledger opt-out / DND hit"
+    class: "GREEN"        # fail-closed instant suppression — compliance-safe
+    source: "CLAUDE.md ##5 (consent ledger = INSTANT cross-channel suppression)"
+    owner_gate: "none — compliance"
+    detection: "consent ledger events"
+
+  - id: "RB-SALES-006"
+    name: "Payment not verified"
+    trigger: "UPI proof pending; invoice unpaid; PROVIDER_VERIFIED unreachable"
+    class: "RED"
+    source: "CLAUDE.md ##1 (manual UPI canonical); docs/runbooks/RUNBOOK_BILLING_INCIDENT.md"
+    owner_gate: "OWNER confirms bank credit (payment_verification_method=owner_confirmed_upi)"
+    detection: "ledger state; hot_queue owner pack"
+
+  - id: "RB-SALES-007"
+    name: "Hot lead requires human takeover"
+    trigger: "high-intent lead in Hot Queue /app/inbox"
+    class: "AMBER"
+    source: "ops/owner_truth.yaml; hot_queue_owner_pack docs"
+    owner_gate: "OWNER closes via 1-click actions"
+    detection: "hot_queue API; daily 09:00 IST pack"
+
+  # --- VIDEO ---
+  - id: "RB-VIDEO-001"
+    name: "Render failed"
+    trigger: "video renderer job failed/exit nonzero"
+    class: "GREEN"
+    source: "docs/runbooks/RUNBOOK_DAILY_VIDEO.md; video_renderer/"
+    owner_gate: "none (retry idempotent)"
+    detection: "render job logs; scheduler failures"
+
+  - id: "RB-VIDEO-002"
+    name: "Publish failed"
+    trigger: "social publish 4xx; Postiz/API error"
+    class: "AMBER"
+    source: "memory/integrations.md (Postiz restore 2026-08-01)"
+    owner_gate: "republish approval if content already live"
+    detection: "publish job logs; channel status"
+
+  - id: "RB-VIDEO-003"
+    name: "Approval mismatch"
+    trigger: "Changes vs reject logic drift (ADR-142)"
+    class: "GREEN"
+    source: "CLAUDE.md ADR-142 (reject terminal / only Changes revises)"
+    owner_gate: "none"
+    detection: "video decision ledger stale-state checks"
+
+  - id: "RB-VIDEO-004"
+    name: "Wrong customer branding"
+    trigger: "asset generated with wrong brand/template"
+    class: "AMBER"
+    source: "knowledge/product/deliverables.md; frontend office_unity/"
+    owner_gate: "customer-facing redo approval"
+    detection: "QA review; customer feedback"
+
+  # --- AGENT OPERATIONS ---
+  - id: "RB-AGENT-001"
+    name: "Agent stuck / no heartbeat"
+    trigger: "agent heartbeat missing > threshold"
+    class: "GREEN"
+    source: "docs/OPERATIONAL_RUNBOOKS.md RB-006; HERMES_AGENT_ROSTER.yaml"
+    owner_gate: "none"
+    detection: "heartbeat registry; scheduler"
+
+  - id: "RB-AGENT-002"
+    name: "Agent hallucinating state"
+    trigger: "agent claims contradict authoritative source (revenue/health/ledger)"
+    class: "GREEN"
+    source: "CLAUDE.md ##8 (never treat claims as proof); causal-claim discipline"
+    owner_gate: "none"
+    detection: "cross-check vs owner_truth + APIs; evidence requirement"
+
+  - id: "RB-AGENT-003"
+    name: "Duplicate work / task ownership conflict"
+    trigger: "two agents touch same task/lead"
+    class: "GREEN"
+    source: "HERMES_AGENT_ROSTER.yaml (1 task = 1 owner); _tasks_sync.json"
+    owner_gate: "none"
+    detection: "task owner field conflict; _tasks_sync status"
+
+  - id: "RB-AGENT-004"
+    name: "Sandbox failure"
+    trigger: "execution environment error (local/WSL/Docker/Daytona)"
+    class: "GREEN"
+    source: "ops/sandbox/ (Phase 6 interface)"
+    owner_gate: "none"
+    detection: "sandbox health; execution logs"
+
+  - id: "RB-AGENT-005"
+    name: "Provider quota exhausted"
+    trigger: "429/TPD/credit exhaust across a provider"
+    class: "GREEN"        # auto-failover chain handles it
+    source: "docs/runbooks/RUNBOOK_PROVIDER_OUTAGE.md"
+    owner_gate: "add paid keys if pool exhausted (AMBER)"
+    detection: "llm_metrics; circuit-breaker state; Groq TPD"
+
+  - id: "RB-AGENT-006"
+    name: "Budget threshold exceeded"
+    trigger: "per-agent/task cost over limit"
+    class: "AMBER"
+    source: "memory/decisions.md; ops/owner_truth.yaml (cost control)"
+    owner_gate: "budget raise approval"
+    detection: "cost meters (llm_metrics, video, call costs)"
+
+# ------------------------------------------------------------- EXECUTION
+execution_policy:
+  gate_order: "trigger -> registry lookup -> class check -> permission check -> execute-or-gate"
+  green: "agents may execute autonomously; record evidence + task update"
+  amber: "agents prepare + propose; OWNER approval required before execution"
+  red: "agents diagnose + document ONLY; execution is human-only"
+  fail_closed: "unknown/untagged runbook or missing permission = do NOT execute; escalate"
+  evidence_required: "every execution saves: actor, task_id, runbook_id, action, timestamp, result, evidence_path"
