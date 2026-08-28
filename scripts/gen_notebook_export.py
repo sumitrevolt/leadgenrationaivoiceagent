@@ -226,7 +226,11 @@ def main():
         idx_lines.append(f"| {domain} | {cfg['title']} | {len(cfg['files'])} files |")
     (out / "INDEX.md").write_text("\n".join(idx_lines), encoding="utf-8")
 
-    print(f"\nNOTEBOOK EXPORT: {n} bundles -> {out.relative_to(ROOT)}/")
+    try:
+        out_display = out.relative_to(ROOT)
+    except ValueError:
+        out_display = out
+    print(f"\nNOTEBOOK EXPORT: {n} bundles -> {out_display}/")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ notebook exports, acceptance scenarios retrieve correctly.
 
 Run: .venv\\Scripts\\python.exe -m pytest tests/test_knowledge_os.py -q
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -87,14 +88,40 @@ class TestAcceptance:
 
 
 class TestNotebooks:
-    def test_bundles_exist(self):
-        d = ROOT / "notebook_exports"
-        required = ["00-owner.md", "01-architecture.md", "04-voice.md", "08-incidents.md", "09-providers.md"]
-        for f in required:
-            assert (d / f).exists(), f"missing bundle {f}"
+    def test_bundles_exist(self, tmp_path):
+        # Bundles are GENERATED artifacts (not committed). Verify the generator
+        # produces them correctly in a throwaway dir rather than asserting
+        # pre-generated files live in the repo tree.
+        gen = ROOT / "scripts" / "gen_notebook_export.py"
+        import subprocess
+        env = dict(os.environ)
+        # Point notebook-exports output into a temp dir if the generator honors an
+        # override; otherwise fall back to asserting the generator runs cleanly.
+        try:
+            subprocess.run(
+                [sys.executable, str(gen), "--out", str(tmp_path)],
+                check=True,
+                capture_output=True,
+                timeout=60,
+                env=env,
+            )
+            required = ["00-owner.md", "01-architecture.md", "04-voice.md", "08-incidents.md", "09-providers.md"]
+            for f in required:
+                assert (tmp_path / f).exists(), f"generator failed to emit {f}"
+        except subprocess.CalledProcessError as e:
+            raise AssertionError(
+                f"gen_notebook_export.py failed: {e.stderr.decode(errors='replace')[:500]}"
+            ) from e
 
-    def test_bundles_have_version_stamp(self):
-        d = ROOT / "notebook_exports"
-        for f in d.glob("*.md"):
+    def test_bundles_have_version_stamp(self, tmp_path):
+        gen = ROOT / "scripts" / "gen_notebook_export.py"
+        import subprocess
+        subprocess.run(
+            [sys.executable, str(gen), "--out", str(tmp_path)],
+            check=True,
+            capture_output=True,
+            timeout=60,
+        )
+        for f in (tmp_path).glob("*.md"):
             text = f.read_text(encoding="utf-8")
             assert re.search(r"Generated: \d{4}-\d{2}-\d{2}", text), f"{f.name} missing timestamp"
