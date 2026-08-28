@@ -1,0 +1,138 @@
+# =====================================================================
+# OWNER TRUTH — LeadGen AI (LAYER A: canonical machine-readable truth)
+# File: ops/owner_truth.yaml
+# Source of truth rule: code wins. THIS file is a normalized, dated
+# snapshot + pointer layer. LIVE truth lives in:
+#   - prod SHA          -> GET https://leadsgenai.in/health .version
+#   - feature flags     -> GET /api/growth/infra/flags  (runtime)
+#   - revenue/customers -> Postgres (ledger, invoices) + owner_confirmed_upi
+#   - agents            -> HERMES_AGENT_ROSTER.yaml
+#   - tasks             -> _tasks_sync.json
+# This YAML is the single entry point agents read FIRST; every field
+# below exposes the authoritative source to re-verify against.
+# =====================================================================
+schema_version: "1.0"
+generated_at: "2026-08-28T05:30:00Z"
+generator: "ops/owner_truth.yaml (manual + verify-on-read)"
+
+# ---------------------------------------------------------------- PROD
+production:
+  domain: "https://leadsgenai.in"
+  host: "root@72.61.245.204"          # Hostinger VPS, Mumbai
+  health_url: "https://leadsgenai.in/health"
+  # VERIFY BEFORE TRUSTING: curl the health_url — version must match git.
+  last_known_sha: "5919c379"          # 2026-08-23 live probe (ADR-188 env swap, no code deploy)
+  last_known_env: "production"
+  deploy_mode: "MANUAL"               # CI deploy-vps.yml = gate-only; DEPLOY_ENABLED unset
+  container_port: 8080                # in-network; host publish 127.0.0.1:8000
+  # Kill switches (runtime truth: /api/growth/infra/flags)
+  kill_switches:
+    voice_launch_kill: "0"            # 0 = calling LIVE; 1 = hard off
+    platform_dial_daily: "1"          # boolean ON/OFF — daily auto-dial
+    platform_dial_limit: "100"        # per-run cap
+    dlt_approved: "1"
+    cold_whatsapp: "OFF"              # cold/bulk WA auto-send = number-ban risk
+
+# ------------------------------------------------------------- REVENUE
+revenue:
+  # Canonical: only owner_confirmed_upi + invoice/ledger id counts.
+  # NEVER infer from unpaid invoices, proposals, or verbal yes.
+  target_7d_inr: 500000               # sprint goal, deadline 2026-08-30 EOD
+  verified_collected_inr: null        # set when owner confirms; source = ledger
+  paid_customers: 1                   # jiya makeover (INV/2026-27/0001)
+  first_invoice: "INV/2026-27/0001"
+  payment_verification: "owner_confirmed_upi"   # only rail; PROVIDER_VERIFIED unreachable BY DESIGN
+  pricing_source: "app/billing/packages.py"     # single source; get_public_packages() hides legacy ₹2,999
+  gst: "only when GST_GSTIN set"
+
+# ------------------------------------------------------------- PRIORITY
+priorities:
+  - "GTM 0->1: first paid customers on Marketing product (jiya makeover = only real paying customer)"
+  - "Mid-funnel bottleneck: Hot Queue /app/inbox + dialer sprint"
+  - "1st paid target <= 7d from 2026-07-02"
+
+active_workstreams:                    # MAX 3 engineering streams at a time
+  - "WS-2 Daily Pipeline Expansion (OUTREACH_DAILY_CAP=80 live — measure 24-48h)"
+  - "WS-3 High-ACV Offer (council_proposal_high_acv_2026-08-27.md — OWNER pick pending)"
+  - "Owner Hot Queue close-loop (42 hot cards ~2026-08-27)"
+
+# ------------------------------------------------------------- INCIDENTS
+active_incidents: []
+# past incidents -> memory/incidents.md (postmortems), docs/runbooks/ (runbooks)
+
+# ------------------------------------------------------------- BLOCKERS
+blockers:
+  - "OWNER: Hot Queue /app/inbox daily action (system pushes; owner closes)"
+  - "OWNER: WS-3 High-ACV offer decision (council_proposal_high_acv_2026-08-27.md)"
+  - "DSH migration gates (owner-only: AUTH-DEPLOY, shadow/flag arm, legacy deletion)"
+  - "EXTERNAL: missed-call DID webhook, GBP API approval, HA 2nd server"
+  - "EXTERNAL: Meta app-review for CUSTOMER pages only (own-brand NOT blocked)"
+
+# ------------------------------------------------------------- AGENTS
+agents:
+  roster_file: "HERMES_AGENT_ROSTER.yaml"       # 31 agents -> 9 Hermes bots
+  boss_autonomy: "ON"                           # BOSS_FULL_AUTONOMY=1 + BOSS_DECISION_GOVERNANCE=1
+  rollout: "12 canary / 17 hold / 2 disabled"   # runtime; agents UNARMED 30/30
+  authority_model: "owner human gate = manual UPI confirm only; compliance/kill/budget/refusals system-enforced"
+
+# ------------------------------------------------------------- AUTOMATION
+automation_status:
+  calling: "LIVE under compliance gates (DND fail-closed, 10-19 IST, AI-disclosure, concurrency=1)"
+  cold_whatsapp: "OFF"
+  daily_auto_dial: "ON (11:30 IST scheduler, cap 100/run)"
+  hot_queue_owner_pack: "LIVE (daily 09:00 IST CSV+MD+ntfy)"
+  buzz_owner_digest: "LIVE"
+  wiring_gaps_report: "LIVE (0 gaps last probe)"
+  crm_sync: "LIVE (provider=hubspot, auto_sync, recent_pushes=5)"
+  gsc_tracking: "INERT (GSC_ENABLED unset; creds present — flag flip baaki)"
+  harness_session_events: "ARMED (HARNESS_SESSION_EVENTS=1; AGENT_HARNESS still OFF)"
+
+# ------------------------------------------------------------- PROVIDERS
+providers:
+  llm_primary: "Mistral mistral-small-latest"
+  llm_fallback_chain: "Groq -> Cerebras -> Gemini -> NVIDIA NIM -> SambaNova -> OpenRouter"
+  voice_llm: "Gemini 2.5-flash-lite (VOICE_GEMINI_PRIMARY=1, 9-key rotation)"
+  stt: "Groq whisper-large-v3 -> Gemini audio -> local faster-whisper"
+  tts: "EdgeTTS hi-IN-SwaraNeural (free; edge-tts>=7.2.0)"
+  telephony: "Vobiz (India SIP); Twilio = international-only fallback"
+  omniroute_gateway: "VPS Docker container 127.0.0.1:20128 (compose-managed; app key 200/475 models; combos leadgen-free-first + leadgen-project-best live)"
+  # LIMITS (memory/integrations.md is authoritative):
+  # email 25/day + warmup | prospect lookups 60/run | Gemini 9-key pool | NVIDIA ~5k lifetime credits
+
+# ------------------------------------------------------------- KNOWLEDGE MAP
+# LAYER B — Agentic Notebook domains. Index files live in knowledge/00_OWNER_TRUTH/ etc.
+# (Phase 1 of this upgrade created the domain structure; each index points at
+#  the authoritative existing sources instead of duplicating them.)
+knowledge_map:
+  domains:
+    - "00_OWNER_TRUTH"
+    - "01_ARCHITECTURE"
+    - "02_ENGINEERING"
+    - "03_SALES_REVENUE"
+    - "04_SWARA_VOICE"
+    - "05_MARKETING_VIDEO"
+    - "06_CUSTOMER_SUCCESS"
+    - "07_PRODUCTION_OPERATIONS"
+    - "08_INCIDENTS_RUNBOOKS"
+    - "09_PROVIDERS_APIS_MCP"
+    - "10_EXPERIMENTS_LESSONS"
+  source_note: "knowledge/ = normalized pointers; memory/ = deep archive; docs/ = dated artifacts; Postgres/APIs = live truth"
+
+# ------------------------------------------------------------- OWNER DECISIONS (recent)
+owner_decisions:
+  - "2026-08-05 ADR-159: MetaGPT eval -> steal #1 only (no dep)"
+  - "2026-08-06 ADR-164/165: 31-agent enterprise profiles; Boss coordination coverage"
+  - "2026-08-11 ADR-177: GSC rank tracking + funnel/referral/triage batch"
+  - "2026-08-14 ADR-179/180/181/182/183: DSH NO-GO for stock wheel; session-event steal; hardened path"
+  - "2026-08-23 ADR-188: Hermes Desktop Cockpit — FASTAPI_MCP_TOKEN = super_admin service-JWT; 54 MCP tools"
+  - "2026-08-26: Revenue sprint ₹5,00,000/7d — Boss broadcast; UPI confirm + bank credit = owner-only gate"
+
+# ------------------------------------------------------------- ESCALATION
+escalation:
+  policy: "P0 (revenue-impacting, compliance, security, prod-down) -> owner immediately. P1 -> same-day. P2 -> backlog."
+  owner_surfaces:
+    - "Hermes Desktop (cockpit, 54 MCP tools)"
+    - "ntfy push (leadgen-* topics)"
+    - "Buzz channels (@board, @operations, @guardian)"
+    - "Hot Queue /app/inbox"
+    - "Daily 09:00 IST owner brief (CSV+MD)"
