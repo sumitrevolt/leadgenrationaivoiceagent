@@ -30,7 +30,7 @@ Write-Log "Port 20128 not listening. Ensuring tmux session 'leadgen-omni' + wind
 
 # Ensure session/window exist, then (re)start the omniroute process in the gateway window.
 # This does not disturb the other coding-lane windows/panes in the same session.
-wsl.exe bash /mnt/c/Users/Ratanshila/Documents/leadgenrationaivoiceagent/scripts/omniroute_ensure_running.sh | Out-Null
+wsl.exe -u root bash /mnt/c/Users/Ratanshila/Documents/leadgenrationaivoiceagent/scripts/omniroute_ensure_running.sh | Out-Null
 
 Write-Log "Start command sent. Waiting for bounded health readiness (max 30s)..."
 

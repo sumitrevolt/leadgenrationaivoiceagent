@@ -14,7 +14,7 @@ $LogPath = "C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\uat_evidence
 
 # --- Configurable defaults ---
 $DshPort = $env:DSH_WEB_PORT
-if (-not $DshPort) { $DshPort = 3000 }
+if (-not $DshPort) { $DshPort = 3080 }
 $MaxWaitSeconds = $env:DSH_MAX_WAIT_SECONDS
 if (-not $MaxWaitSeconds) { $MaxWaitSeconds = 120 }
 $CheckIntervalSeconds = 2

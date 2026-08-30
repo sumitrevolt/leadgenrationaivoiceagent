@@ -1,0 +1,4 @@
+# PILOT synchronization (2026-08-30 cron run)
+- `_tasks_sync.json` local kanban is the STALE 2026-08-26 copy; authoritative live kanban lives on VPS `/opt/leadgen/data/command_center/tasks.json` (mtime 08-26, now updated with 08 new dispatch entries + 08-30 timestamps).
+- Dispatch done on VPS command_center (34 tasks). Buzz send failed (local relay 127.0.0.1:3100 refused; Buzz MCP timed out) — coordination posts asynchronously out of this run's window.
+- Dialer blocker: `from number 911171366938 is not owned by this account` — 355 fails, ok=0, same 3 leads (Suppertime/Rangeen/Ishaara, Ahmedabad) cycling since ~14:55 IST today. OPS-004 rotates leads; SAL-002 chases DID.

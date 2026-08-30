@@ -71,7 +71,7 @@ def run_checks() -> dict[str, Any]:
     jio_pass = _env("JIO_SIP_PASS")
     jio_creds = bool(jio_host and jio_user and jio_pass)
     jio_enabled = _env("JIO_TRUNK_ENABLED").lower() in ("1", "true", "yes")
-    # weight 0 jab INERT (wo ready-score ko nahi girayega); real gate sirf armed pe
+    # Real gate sirf armed pe (weight 5 if jio_enabled else 0)
     jio_w = 5 if jio_enabled else 0
     add("jio_sip_creds", jio_creds, "JIO_SIP_HOST + JIO_SIP_USER + JIO_SIP_PASS", jio_w)
     add("jio_sip_did", bool(_env("JIO_SIP_DID")), "JIO_SIP_DID (mobile DID)", jio_w)

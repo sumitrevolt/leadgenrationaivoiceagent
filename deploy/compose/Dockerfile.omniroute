@@ -1,0 +1,40 @@
+# =============================================================================
+# Dockerfile.omniroute — OmniRoute local dev gateway (Node 22, pinned 3.8.46).
+# -----------------------------------------------------------------------------
+# DEV / LOOPBACK-ONLY container. This is the WSL-replacement for the OmniRoute
+# free-LLM gateway (was: WSL Ubuntu-24.04 + tmux + nvm Node 22).
+# NOT part of the VPS production stack — production LLM/voice path is untouched.
+#
+# Why this image:
+#   * Node 22 LTS — better-sqlite3 is an ABI-sensitive native dep; Node 22 is the
+#     documented/tested ABI (the WSL setup used Node 22.23.1).
+#   * omniroute@3.8.46 is the PINNED version. 3.8.47 has a known
+#     ERR_MODULE_NOT_FOUND packaging bug — do NOT auto-upgrade (see
+#     scripts/omniroute-healthguard.sh notes).
+#   * Build tools are included because native build may be required if a prebuilt
+#     better-sqlite3 binary is missing for the slim base (harmless in a dev image).
+#
+# Build:  docker compose -f deploy/compose/docker-compose.omniroute.yml build
+# After first start: re-configure providers/OAuth in the dashboard at
+#   http://127.0.0.1:20128  (config persists in the omniroute_data volume).
+# =============================================================================
+
+FROM node:22-slim
+
+# better-sqlite3 native build fallback.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install scripts must run (native module) — do not use --ignore-scripts.
+RUN npm install -g omniroute@3.8.46 \
+    && omniroute --version
+
+# V8 heap default (MB) — image-level fallback only. The launcher/compose auto-tune this
+# to ~half of host RAM, clamped [1024, 4096]; 4096 = prod-proven (2048 -> HTTP 503).
+ENV OMNIROUTE_MEMORY_MB=4096
+
+# Dashboard/gateway + LiveWS.
+EXPOSE 20128 20129
+
+CMD ["omniroute"]

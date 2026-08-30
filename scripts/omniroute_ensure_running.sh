@@ -8,7 +8,7 @@ fi
 # 2026-08-23: 2048 -> 4096. Prod evidence: chat-admission shed 73 bodies
 # under heap pressure (heapUsed=1681MB / limit=2096MB -> HTTP 503) while WSL
 # box has 8GB RAM (~5GB free). Guidance (.env.example): heap ~ half of box RAM.
-OMNI_CMD="export PATH='$NODE_BIN_DIR':\$PATH; export OMNIROUTE_MEMORY_MB=4096; omniroute"
+OMNI_CMD="export PATH='$NODE_BIN_DIR':\$PATH; export PORT=20128; export DATA_DIR=/root/.omniroute; export OMNIROUTE_MEMORY_MB=4096; omniroute"
 tmux has-session -t leadgen-omni 2>/dev/null
 if [ $? -ne 0 ]; then
   tmux new-session -d -s leadgen-omni -n gateway

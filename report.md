@@ -1,0 +1,87 @@
+[swarm:stale_leads_processed]
+
+**stale_count**: 27
+
+### Stale Leads List (14+ days no touch)
+
+- **Lead ID**: `91f40d6f-b051-4be1-b0e5-5803425f6635` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `744ca9c5-2b21-4356-b21a-6d7f3e5eb10c` | **Stage**: `prospect` | **Stale**: `80 days`
+  - **Reason**: No initial calling cycle triggered
+  - **Recommended Action**: draft intro email
+- **Lead ID**: `b304c8b5-2e67-4b2c-9a0e-c268b4b243fb` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `26c6926d-a9dd-4cc6-adfa-e3e3eecbdb95` | **Stage**: `contacted` | **Stale**: `80 days`
+  - **Reason**: Contacted but conversational thread dropped
+  - **Recommended Action**: draft check-in email
+- **Lead ID**: `6debb6cb-10ae-4a4e-a148-7a08269de24a` | **Stage**: `meeting` | **Stale**: `80 days`
+  - **Reason**: Demo/meeting occurred but went cold
+  - **Recommended Action**: draft post-demo follow-up email
+- **Lead ID**: `d68776aa-a415-4710-a0e4-3dc054ce7713` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `25f2c955-f93b-4b74-a51a-efb7984f6e65` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `06cf0dbd-105b-4815-bf10-4f1e868c95e7` | **Stage**: `meeting` | **Stale**: `80 days`
+  - **Reason**: Demo/meeting occurred but went cold
+  - **Recommended Action**: draft post-demo follow-up email
+- **Lead ID**: `6dcca7db-734d-412c-8f93-279efe830448` | **Stage**: `qualified` | **Stale**: `80 days`
+  - **Reason**: Qualified but quote/proposal not chased
+  - **Recommended Action**: draft final review email
+- **Lead ID**: `56ca57b7-92ce-4b09-8e17-91369cc29eeb` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `a99f1458-734d-42bc-84aa-9930f67b0295` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `5ec4b8fe-d4fc-490f-a462-a2efa8b12003` | **Stage**: `prospect` | **Stale**: `80 days`
+  - **Reason**: No initial calling cycle triggered
+  - **Recommended Action**: draft intro email
+- **Lead ID**: `d6292f49-ac78-4ea0-8f95-a30b508d6a28` | **Stage**: `qualified` | **Stale**: `80 days`
+  - **Reason**: Qualified but quote/proposal not chased
+  - **Recommended Action**: draft final review email
+- **Lead ID**: `accea577-5ec4-4af5-9464-67f6a8b82593` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `22b57d4c-7818-464f-82aa-6943583b09f7` | **Stage**: `contacted` | **Stale**: `80 days`
+  - **Reason**: Contacted but conversational thread dropped
+  - **Recommended Action**: draft check-in email
+- **Lead ID**: `d7f0486e-9e4d-4df0-9de2-be7d10c25168` | **Stage**: `contacted` | **Stale**: `80 days`
+  - **Reason**: Contacted but conversational thread dropped
+  - **Recommended Action**: draft check-in email
+- **Lead ID**: `312f2f00-f80c-4eeb-9020-8e57366db8e2` | **Stage**: `meeting` | **Stale**: `80 days`
+  - **Reason**: Demo/meeting occurred but went cold
+  - **Recommended Action**: draft post-demo follow-up email
+- **Lead ID**: `4cc9fcf9-0bcb-4a8b-8671-265bd95d6c83` | **Stage**: `prospect` | **Stale**: `80 days`
+  - **Reason**: No initial calling cycle triggered
+  - **Recommended Action**: draft intro email
+- **Lead ID**: `bce47c21-20d3-4fec-8ae2-ce513f74b09c` | **Stage**: `meeting` | **Stale**: `80 days`
+  - **Reason**: Demo/meeting occurred but went cold
+  - **Recommended Action**: draft post-demo follow-up email
+- **Lead ID**: `cfccfe2d-db3d-4708-9291-d0bf85cadb54` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `4ee1487f-fd8a-4631-b637-09ad328f00a8` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `2762cdbf-a5ac-4d43-9059-aae50dc3d101` | **Stage**: `contacted` | **Stale**: `80 days`
+  - **Reason**: Contacted but conversational thread dropped
+  - **Recommended Action**: draft check-in email
+- **Lead ID**: `6a6ad8c4-2ab3-4ec9-88e9-b44f239152e9` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `e5c530c7-e3aa-438c-8297-269a73868057` | **Stage**: `meeting` | **Stale**: `80 days`
+  - **Reason**: Demo/meeting occurred but went cold
+  - **Recommended Action**: draft post-demo follow-up email
+- **Lead ID**: `ee151fd0-3fd2-4921-a52a-6aa729f75424` | **Stage**: `qualified` | **Stale**: `80 days`
+  - **Reason**: Qualified but quote/proposal not chased
+  - **Recommended Action**: draft final review email
+- **Lead ID**: `fd7a2571-5bb2-4ade-b723-2347c79d88c8` | **Stage**: `engaged` | **Stale**: `80 days`
+  - **Reason**: Callback missed and never rescheduled
+  - **Recommended Action**: draft follow-up email
+- **Lead ID**: `e312f763-3494-4c70-b043-a284b6afca9c` | **Stage**: `prospect` | **Stale**: `79 days`
+  - **Reason**: No initial calling cycle triggered
+  - **Recommended Action**: draft intro email

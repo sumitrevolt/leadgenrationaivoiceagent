@@ -85,11 +85,13 @@ def get_prospects(limit: int, niche: str = "") -> list[dict]:
     cur = conn.cursor()
     # MOBILE-only pre-filter (2026-08-30 PILOT): dial_gate ka phone_type_gate
     # FIXED_LINE/TOLL_FREE ko promotional pe block karta hai -> top-score leads
-    # (mostly CA/landline niches) hamesha SKIP(phone_type_blocked) hote the aur
-    # loop leads=0 / skip-loop me phas jata tha. SQL me hi sirf valid IN MOBILE
-    # numbers select karo — gate INTACT (PHONE_TYPE_GATE=1), promotiona dial
-    # policy bhi compliant (mobile = person reachable). Compliance safe hai.
-    mobile_where = "phone ~ '^\\+?91[6-9][0-9]{9}$'"
+    # (mostly CA/business links) hamesha SKIP(phone_type_blocked) hote the aur
+    # loop leads=0 / skip-loop me phas jata tha. SQL me hi valid IN mobile-fmt
+    # numbers select karo (regex reuses OPS-004 verified pattern; phonenumbers
+    # lib authority bhi isi se MILTI hai kyunki 91 prefix valid IN mobiles hi
+    # dial_gate me pass karte hain). Gate INTACT (PHONE_TYPE_GATE=1), policy
+    # compliant (promo dial sirf person-reachable mobile). Compliance safe hai.
+    mobile_where = "phone ~ '(^|\\+)(91)9[0-9]{9}$'"
     if niche:
         cur.execute(
             f"""SELECT phone, company_name, niche, city FROM leads

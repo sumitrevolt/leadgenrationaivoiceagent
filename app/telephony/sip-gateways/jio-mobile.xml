@@ -1,0 +1,17 @@
+<include>
+  <gateway name="jio_mobile">
+    <param name="realm" value="${JIO_SIP_REALM}"/>
+    <param name="proxy" value="${JIO_SIP_HOST}"/>
+    <param name="from-domain" value="${JIO_SIP_FROM_DOMAIN:-leadsgenai.in}"/>
+    <param name="register" value="true"/>
+    <param name="username" value="${JIO_SIP_USER}"/>
+    <param name="password" value="${JIO_SIP_PASS}"/>
+    <param name="caller-id-in-from" value="true"/>
+    <param name="contact-params" value=""/>
+    <param name="codec-prefs" value="PCMA,PCMU,G729"/>
+    <param name="transport" value="${JIO_SIP_TRANSPORT:-udp}"/>
+    <param name="sip-ip" value="${local_ip_v4}"/>
+    <param name="rtp-ip" value="${local_ip_v4}"/>
+    <param name="expire-seconds" value="600"/>
+  </gateway>
+</include>
