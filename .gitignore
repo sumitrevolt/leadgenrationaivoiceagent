@@ -327,3 +327,19 @@ deploy/buzz/env/gh-events.response
 # (app/platform/coordination_desktop_registry.py) reads it from disk at runtime.
 # The blanket `*.json` above silently excluded it.
 !docs/coordination/desktop_registry.json
+
+# --- Local scratch / tool workspaces (2026-08-29 housekeeping) -------------
+# These are regenerable or tool-owned. Keeping them untracked stops a bulk
+# `git add -A` from sweeping throwaway artifacts into a real commit.
+.pytest_tmp/
+.worktrees/
+.workbuddy-ai/
+.omniroute-cutover/
+scratch/
+notebook_exports/
+command_center/data/
+
+# Windows reserved-name artifact: created by a `> nul` redirect that git-bash
+# turned into a real 60-byte file. Never meaningful.
+nul
+nul.*

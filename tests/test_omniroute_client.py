@@ -63,24 +63,37 @@ class _Response:
 class TestOmniRouteResponsesAdapter:
     def test_registry_exposes_only_sanitized_dev_routes(self):
         route = get_task_route("leadgen.coding_primary", "INTERNAL_SANITIZED")
-        # 2026-07-16: gateway v3.8.48 rebuild — custom combo `leadgen-free-first`
-        # PRIMARY (4-deep priority failover: free deepseek → groq → mistral →
-        # gemini, PONG-proven) + free auto-alias client-side FALLBACK.
         assert route == OmniRouteRoute(
-            primary_model="leadgen-free-first",
-            fallback_model="auto/coding:free",
+            primary_model="hermes-engineer",
+            fallback_model="claude-code",
             privacy_class="INTERNAL_SANITIZED",
         )
         agent_ops = get_task_route("leadgen.agent_ops", "INTERNAL_SANITIZED")
         assert agent_ops.privacy_class == "INTERNAL_SANITIZED"
-        assert "leadgen.agent_ops" in {
+
+    def test_all_12_combos_registered_and_accessible(self):
+        from app.platform.omniroute_client import list_task_routes
+        routes = list_task_routes()
+        assert len(routes) == 12
+        expected_combos = {
             "leadgen.coding_primary",
             "leadgen.coding_fast",
             "leadgen.repo_analysis",
             "leadgen.test_generation",
             "leadgen.agent_ops",
             "leadgen.swara_live",
+            "leadgen.marketing_content",
+            "leadgen.prospect_enrich",
+            "leadgen.outreach_email",
+            "leadgen.seo_keyword",
+            "leadgen.governor_review",
+            "leadgen.project_best",
         }
+        assert set(routes.keys()) == expected_combos
+        for combo_name in expected_combos:
+            task_route = get_task_route(combo_name, routes[combo_name].privacy_class)
+            assert task_route.primary_model is not None
+
 
     def test_registry_rejects_customer_and_unknown_routes(self):
         with pytest.raises(SafePayloadError):
@@ -128,7 +141,7 @@ class TestOmniRouteResponsesAdapter:
         assert result.text == "safe result"
         assert result.provider == "combo"  # bare combo id — not faked as a provider
         assert seen["url"].endswith("/v1/responses")
-        assert seen["payload"]["model"] == "leadgen-free-first"
+        assert seen["payload"]["model"] == "hermes-engineer"
         assert "9876543210" not in str(seen["payload"])
 
     @pytest.mark.asyncio
@@ -155,7 +168,7 @@ class TestOmniRouteResponsesAdapter:
         assert result is not None
         assert result.text == "fallback ok"
         assert result.fallback_reason == "http_429"
-        assert models == ["leadgen-free-first", "auto/coding:free"]
+        assert models == ["hermes-engineer", "claude-code"]
 
     @pytest.mark.asyncio
     async def test_non_retryable_primary_failure_does_not_fallback(self, monkeypatch):
@@ -248,7 +261,7 @@ class TestOmniRouteAgentHook:
             [{"role": "user", "content": "Summarise leads, call 9876543210 back"}]
         )
         assert text == "agent ok"
-        assert seen["payload"]["model"] == "leadgen-free-first"  # leadgen.agent_ops primary (combo)
+        assert seen["payload"]["model"] == "hermes-ops"  # leadgen.agent_ops primary (combo)
         assert "9876543210" not in str(seen["payload"])  # customer data masked
 
     @pytest.mark.asyncio

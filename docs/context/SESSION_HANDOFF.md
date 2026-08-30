@@ -1,45 +1,28 @@
-# SESSION HANDOFF — 2026-08-28 (Hermes engineering session)
+# SESSION_HANDOFF — 2026-08-20 (CP0 truth reconciliation)
 
-## What shipped this session (verified)
-**Agentic Knowledge + Execution OS layer** (owner master prompt) — normalization/registry/retrieval over existing docs:
+## Status
+**VERIFIED (no deploy needed).** Established fresh end-to-end truth at prod `658fc20a` and reconciled stale flag/cred/SHA claims. No app code changed, no flag flipped, no voice triggered, no revenue fabricated.
 
-| Artifact | Location | Status |
-|---|---|---|
-| Owner Truth (machine-readable) | `ops/owner_truth.yaml` | ✅ |
-| Runbook registry + GREEN/AMBER/RED | `ops/runbooks/registry.yaml` (37) | ✅ |
-| Playbook registry | `ops/playbooks/registry.yaml` (21) | ✅ |
-| P0 playbooks ×6 | `ops/playbooks/PB-*.md` | ✅ |
-| Knowledge domains 00-10 | `knowledge/00_OWNER_TRUTH/..10_EXPERIMENTS_LESSONS/` | ✅ |
-| Notebook bundles ×11 (secret-free) | `notebook_exports/` | ✅ |
-| Incident template | `incidents/TEMPLATE.md` | ✅ |
-| Retrieval engine | `scripts/knowledge_query.py` | ✅ |
-| Validator + acceptance | `scripts/validate_knowledge_os.py` | ✅ |
-| Contract tests ×12 | `tests/test_knowledge_os.py` | ✅ 12/12 |
-| Layer map | `ops/README.md` | ✅ |
+## Key truth established (DIRECT_HOST_VERIFIED 2026-08-20 ~13:05Z)
+- Prod `/health` = `658fc20a` (healthy, environment:production). 5/5 app-image services pinned `658fc20a` zero-skew. Staging `28ba5d4e`. `leadgen_dsh_worker` running but `DSH_RUNTIME_ENABLED=0`.
+- Queues clean: celery=0, dlq:failed_tasks=0, dlq:dead=0.
+- Runtime-data cutover `RUNTIME_DATA_CUTOVER_ENABLED=1`, canonical `/opt/leadgen-runtime` fresh.
+- All scheduler jobs ok & fresh (growth, email, sales_autopilot, social_drain, daily_video, gsc_rank, platform_dial, coordinator, boss-autonomy-sweep).
 
-**Evidence:** pytest 12/12 · validator 0 errors · acceptance A-D ✓ · check_secrets 131 files clean.
+## Flag + cred drift (older docs were stale)
+- BOSS_FULL_AUTONOMY=1 + BOSS_DECISION_GOVERNANCE=1 — governance sweep LIVE, agents UNARMED 30/30 (rollout held).
+- CRM_SYNC=1 (Zoho + HubSpot creds present), COORD_PLAN_NODE=1, DAILY_VIDEO_CLIENTS=*, VIDEO_AD_CYCLE=1.
+- GSC_ENABLED UNSET but GSC creds present (owner flip needed).
+- META + POSTIZ + WAHA creds present (social publish path wired; canary not yet proven).
+- Cold WA OFF (SALES_AUTOPILOT_WHATSAPP_ENABLED=0). Voice LIVE (PLATFORM_DIAL_DAILY=1, VOICE_LAUNCH_KILL=0).
 
-## Canonical commands
-```bash
-python scripts/knowledge_query.py "Calls failing with Busy Line"   # retrieval
-python scripts/gen_notebook_export.py                              # rebuild notebook bundles
-python scripts/validate_knowledge_os.py                            # validate + acceptance
-.venv/Scripts/python.exe -m pytest tests/test_knowledge_os.py -q   # contract tests
-```
+## Verification gates run (local)
+- prod_check.py → ALL CHECKS PASSED (1335 routes, 0 wiring gaps). check_secrets.py → no secrets. API.md synced (1359).
+- graphify_refresh.bat failed (local graphify CLI node arg error — navigation-only, non-blocking).
 
-## Open / next (owner + future sessions)
-1. **Owner: review & commit the layer** — all new files under `ops/`, `knowledge/00-10/`, `notebook_exports/`, `incidents/`, `scripts/`, `tests/test_knowledge_os.py` are UNTRACKED.
-2. Phase 2 extension: expose `ops/owner_truth.yaml` via admin `GET /api/owner/truth` (route slot pending).
-3. Phase 6: sandbox provider interface (local/VPS/Daytona) abstraction.
-4. Phase 7: wire retrieval → orchestrator → scheduler (formal owner-orchestrator loop).
-
-## Revenue state (unchanged, still the priority)
-- Only paying customer: jiya makeover (INV/0001). MRR ₹5,997.
-- **Owner action still required:** Hot Queue `/app/inbox` (42 cards) + WS-3 ACV decision (`data/council_proposal_high_acv_2026-08-27.md`, Option 1 default).
-- Sprint: ₹5,00,000 verified by 2026-08-30 (mathematically needs ACV lift + owner closes; system side done).
-
-## Landmines touched this session
-- `cat >> file << 'EOF'` with `&` in content → terminal guard blocks; use write_file/read-modify-append.
-- Windows file-tools = source of truth for repo edits (bash heredoc append risky mid-file).
-- YAML inline comments after scalars = parse errors; keep registry YAML comment-free or use separate lines.
-- `.venv/Scripts/python.exe` exists (git-bash path) — pytest works; CI gate is `scripts/run_tests.bat` + prod_check.
+## Next (Owner Preparation Pack — HUMAN-INPUT REQUIRED only)
+1. **Hot Queue blitz** `/app/inbox` → 2nd customer.
+2. **UPI bind + bank credit confirm** → `paid_today` registers (only revenue gate).
+3. **Flip `GSC_ENABLED=1`** (creds already present) → rank tracking arms.
+4. **Boss per-agent arm (mutating canary)** → autonomy rollout.
+5. Optional: social/video provider publish canary (creds present).

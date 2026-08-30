@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1372 operations)
+## Endpoint Index — auto-generated from OpenAPI (1373 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -971,7 +971,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (77)
+### Frontend  (78)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
@@ -1005,6 +1005,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/customer/support` — Customer View Alias Support
 - `GET   ` `/app/customer/voice` — Customer Voice Page
 - `GET   ` `/app/dashboard` — Legacy Alias App Dashboard
+- `GET   ` `/app/dashboard-v2` — Customer Dashboard V2 Page
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
 - `GET   ` `/app/delivery-command-center` — Delivery Command Center Page

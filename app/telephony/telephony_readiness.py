@@ -65,6 +65,22 @@ def run_checks() -> dict[str, Any]:
     )
     add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
     add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
+    # Jio Mobile SIP trunk (INERT-by-default — sirf tab active jab JIO_TRUNK_ENABLED=1)
+    jio_host = _env("JIO_SIP_HOST")
+    jio_user = _env("JIO_SIP_USER")
+    jio_pass = _env("JIO_SIP_PASS")
+    jio_creds = bool(jio_host and jio_user and jio_pass)
+    jio_enabled = _env("JIO_TRUNK_ENABLED").lower() in ("1", "true", "yes")
+    # weight 0 jab INERT (wo ready-score ko nahi girayega); real gate sirf armed pe
+    jio_w = 5 if jio_enabled else 0
+    add("jio_sip_creds", jio_creds, "JIO_SIP_HOST + JIO_SIP_USER + JIO_SIP_PASS", jio_w)
+    add("jio_sip_did", bool(_env("JIO_SIP_DID")), "JIO_SIP_DID (mobile DID)", jio_w)
+    add(
+        "jio_sip_enabled",
+        jio_enabled,
+        "JIO_TRUNK_ENABLED=1 (INERT default — live test ke baad arming)",
+        jio_w,
+    )
     telephony_ok = bool(vobiz_id and vobiz_tok)
     # Voice AI chain
     tts_ok = False

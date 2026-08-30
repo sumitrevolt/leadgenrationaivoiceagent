@@ -2870,18 +2870,3 @@ Current production is **byte-identical to the original state**, and `REPLY_AUTO_
 **Consequence:** Every weekday at 9:05 AM the owner phone gets a high-priority fire-zap ntfy with the count + top 3 + link to the file. 42 leads / 0 conversions is no longer a "didn't see" failure — it's a "didn't act" failure with the gap being owner minutes, not system minutes. Rollback: unset the beat entry or revert this commit.
 
 **Verification:** `tests/test_hot_queue_owner_pack.py` 4/4 PASS (empty rows ok, 3 rows writes CSV+MD, error path returns ok:False, never raises). `prod_check.py` 1354 routes / 0 gaps / API.md in sync. Ruff clean. 38/38 related tests green. Daily 9:00 IST job wired in `app/worker.py` `staff-hot-queue-owner-pack-daily` + routed in `app/platform/team_scheduler.py`.
-
-## ADR-189 — Agentic Knowledge + Execution OS layer (2026-08-28)
-
-**Decision:** Add an `ops/` normalization/registry/retrieval layer over existing authoritative docs (no duplication): machine-readable Owner Truth (`ops/owner_truth.yaml`), runbook registry with GREEN/AMBER/RED classifier (37 runbooks), playbook registry (21), 6 P0 playbooks, 11 knowledge domains (knowledge/00-10), Gemini Notebook export bundles (notebook_exports/, secret-scrubbed), retrieval engine (scripts/knowledge_query.py), validator + 12 contract tests.
-
-**Context:** Owner master prompt demanded an enterprise agentic notebook/playbook/runbook OS. The repo already had authoritative docs (CLAUDE.md, memory/, docs/runbooks, knowledge/ OKF) — rebuilding them would create a disconnected system. The upgrade adds machine readability, classification, retrieval, freshness, and learning loops on top.
-
-**Alternatives rejected:**
-- Rewriting docs into new format (duplication, drift risk).
-- Separate wiki/Notion (disconnected, violates one-repo-truth).
-- Full runbook engine + endpoints now (deferred: Phase 2/7; registry + tests prove the contract first).
-
-**Consequence:** Agents can now query a symptom → get classed runbook + playbook + incident + truth bundle (knowledge_query.py). Compliance/irreversible runbooks are RED (human-only); fail-closed on unknown. Execution authority unchanged (Owner OS + permissions + sandbox; Notebook is knowledge-only). Rollback: delete ops/, notebook_exports/, incidents/TEMPLATE.md, scripts/*knowledge*, tests/test_knowledge_os.py.
-
-**Verification:** 12/12 pytest green · validator 0 errors · acceptance A-D ✓ · check_secrets 131 files clean.
