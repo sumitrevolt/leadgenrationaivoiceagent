@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadGen AI — Aapka Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   LeadGen AI — Dark Premium tokens
+   Extends frontend/design-system/tokens (brand indigo→violet,
+   Hot/Warm/Cold lead-temperature scale). Surfaces re-skinned dark.
+   ============================================================ */
+:root{
+  --indigo-500:#6366f1; --indigo-600:#4f46e5;
+  --violet-400:#a78bfa; --violet-500:#7c3aed;
+  --violet-800:#4c1d95; --violet-900:#2e1065;
+
+  --grad-brand: linear-gradient(135deg,#4f46e5 0%,#8b5cf6 100%);
+  --grad-brand-soft: linear-gradient(135deg, rgba(79,70,229,.20), rgba(139,92,246,.14));
+  --grad-sidebar: linear-gradient(180deg,#1c1040 0%,#12102a 58%,#0c0b1a 100%);
+
+  --bg-base:#07070f; --bg-canvas:#0b0b16;
+  --surface:#12121f; --surface-2:#171826; --surface-3:#1d1e2e; --surface-hover:#20212f;
+  --line: rgba(255,255,255,.07); --line-strong: rgba(255,255,255,.13);
+
+  --text-1:#f3f4fb; --text-2:#a7a9c2; --text-3:#6f7189;
+
+  --hot:#ff5a5a;   --hot-soft: rgba(255,90,90,.14);
+  --warm:#f5a524;  --warm-soft: rgba(245,165,36,.14);
+  --cold:#3b82f6;  --cold-soft: rgba(59,130,246,.14);
+  --success:#22c55e; --success-soft: rgba(34,197,94,.14);
+
+  --r-xs:6px; --r-sm:9px; --r-md:12px; --r-lg:14px; --r-xl:18px; --r-pill:999px;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.65);
+  --shadow-brand: 0 14px 34px -12px rgba(99,102,241,.55);
+
+  --font-display:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --sb-w:248px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg-base);color:var(--text-1);font-family:var(--font-body);font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(760px 480px at 8% -8%, rgba(124,58,237,.20), transparent 62%),
+             radial-gradient(680px 420px at 92% 4%, rgba(79,70,229,.16), transparent 60%),
+             radial-gradient(900px 520px at 62% 108%, rgba(139,92,246,.09), transparent 62%);}
+.app{position:relative;z-index:1;display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:var(--sb-w);flex:0 0 var(--sb-w);background:var(--grad-sidebar);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:11px;padding:22px 20px 20px}
+.brand-mark{width:34px;height:34px;border-radius:10px;flex:0 0 34px;background:var(--grad-brand);display:grid;place-items:center;box-shadow:var(--shadow-brand)}
+.brand-name{font-family:var(--font-display);font-weight:800;font-size:15.5px;letter-spacing:-.02em}
+.brand-sub{font-size:10.5px;color:var(--text-3);letter-spacing:.07em;text-transform:uppercase;margin-top:1px}
+.nav{padding:6px 12px 0;display:flex;flex-direction:column;gap:2px;flex:1}
+.nav-label{font-size:10px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:#5c5b7d;padding:16px 10px 7px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:#9b9bbd;font-size:13.5px;font-weight:500;text-decoration:none;position:relative;transition:background .16s ease,color .16s ease}
+.nav-item svg{width:17px;height:17px;flex:0 0 17px;opacity:.85}
+.nav-item:hover{background:rgba(255,255,255,.055);color:#dcdcee}
+.nav-item.active{background:var(--grad-brand-soft);color:#fff;font-weight:600}
+.nav-item.active svg{opacity:1;color:var(--violet-400)}
+.nav-item.active::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;background:var(--grad-brand);border-radius:0 3px 3px 0;box-shadow:0 0 14px 1px rgba(139,92,246,.75)}
+.nav-badge{margin-left:auto;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.10);color:#cbcbe4;padding:2px 7px;border-radius:var(--r-pill)}
+.nav-item.active .nav-badge{background:rgba(139,92,246,.30);color:#e5dfff}
+.side-foot{padding:12px;border-top:1px solid var(--line);margin-top:auto}
+.mini-card{background:linear-gradient(140deg, rgba(124,58,237,.20), rgba(79,70,229,.10));border:1px solid rgba(167,139,250,.22);border-radius:var(--r-lg);padding:13px}
+.mini-card h4{font-family:var(--font-display);font-size:12.5px;font-weight:700;margin-bottom:3px}
+.mini-card p{font-size:11.5px;color:#a6a6c6;line-height:1.5;margin-bottom:10px}
+.mini-bar{height:5px;border-radius:var(--r-pill);background:rgba(255,255,255,.10);overflow:hidden}
+.mini-bar i{display:block;height:100%;width:0%;background:var(--grad-brand);border-radius:inherit;transition:width .4s ease}
+.mini-meta{display:flex;justify-content:space-between;font-size:10.5px;color:#9d9dbd;margin-top:7px}
+
+/* Main + topbar */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;height:66px;flex:0 0 66px;display:flex;align-items:center;gap:14px;padding:0 26px;background:rgba(11,11,22,.72);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);border-bottom:1px solid var(--line)}
+.search{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:0 12px;height:38px;width:290px;transition:border-color .16s ease}
+.search:focus-within{border-color:rgba(139,92,246,.55);box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+.search svg{width:15px;height:15px;color:var(--text-3);flex:0 0 15px}
+.search input{background:none;border:none;outline:none;color:var(--text-1);font-family:var(--font-body);font-size:13px;width:100%}
+.search input::placeholder{color:var(--text-3)}
+.spacer{flex:1}
+.pill{display:flex;align-items:center;gap:8px;height:36px;padding:0 13px;border-radius:var(--r-pill);font-size:12.5px;font-weight:500;background:var(--surface);border:1px solid var(--line);color:var(--text-2);white-space:nowrap}
+.pill.live{border-color:rgba(34,197,94,.30);background:rgba(34,197,94,.09);color:#86efac}
+.pill svg{width:15px;height:15px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--success);flex:0 0 7px}
+.dot.pulse{animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.icon-btn{width:36px;height:36px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--text-2);position:relative;cursor:pointer;transition:background .16s ease,color .16s ease}
+.icon-btn:hover{background:var(--surface-hover);color:var(--text-1)}
+.icon-btn svg{width:17px;height:17px}
+.avatar{width:36px;height:36px;border-radius:var(--r-pill);flex:0 0 36px;background:var(--grad-brand);display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:13px;color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 6px 16px -6px rgba(99,102,241,.8);cursor:pointer}
+
+/* Content */
+.content{padding:26px;display:flex;flex-direction:column;gap:20px;max-width:1520px;width:100%}
+.page-head{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+.page-head h1{font-family:var(--font-display);font-size:25px;font-weight:800;letter-spacing:-.025em;line-height:1.2}
+.page-head p{color:var(--text-3);font-size:13px;margin-top:5px}
+.head-actions{display:flex;gap:9px;margin-left:auto;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-radius:var(--r-md);font-family:var(--font-body);font-size:13px;font-weight:600;border:1px solid var(--line-strong);background:var(--surface);color:var(--text-2);cursor:pointer;white-space:nowrap;transition:background .16s ease,color .16s ease}
+.btn:hover{background:var(--surface-hover);color:var(--text-1)}
+.btn svg{width:15px;height:15px}
+.btn-primary{background:var(--grad-brand);border-color:transparent;color:#fff;box-shadow:var(--shadow-brand)}
+.btn-primary:hover{color:#fff;filter:brightness(1.07)}
+
+/* Banners */
+.banner{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:var(--r-md);font-size:12.5px;font-weight:500;border:1px solid}
+.banner.warn{background:var(--warm-soft);border-color:rgba(245,165,36,.30);color:#fbbf24}
+.banner.info{background:var(--cold-soft);border-color:rgba(59,130,246,.30);color:#7cb0ff}
+.banner svg{width:15px;height:15px;flex:0 0 15px}
+
+/* Cards */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--line);border-radius:var(--r-xl);box-shadow:var(--shadow-card);position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg, rgba(255,255,255,.045), transparent 46%)}
+.kpi{padding:17px 18px 15px}
+.kpi-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.kpi-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 34px;background:var(--grad-brand-soft);border:1px solid rgba(139,92,246,.22);color:var(--violet-400)}
+.kpi-ico svg{width:16px;height:16px}
+.kpi-label{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.kpi-val{font-family:var(--font-display);font-size:29px;font-weight:800;letter-spacing:-.03em;margin-top:9px;line-height:1;font-variant-numeric:tabular-nums}
+.kpi-val small{font-size:15px;font-weight:700;color:var(--text-3);margin-left:2px}
+.kpi-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}
+.kpi-note{font-size:11px;color:var(--text-3)}
+
+.grid-2{display:grid;grid-template-columns:1.62fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.card-head{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.card-head h3{font-family:var(--font-display);font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+.card-head .sub{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.card-head .right{margin-left:auto;display:flex;gap:7px;align-items:center}
+.card-body{padding:16px 18px}
+.legend{display:flex;gap:16px;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-2)}
+.legend i{width:8px;height:8px;border-radius:2.5px;flex:0 0 8px}
+
+.donut-wrap{display:flex;align-items:center;gap:22px;padding:16px 18px;flex-wrap:wrap}
+.donut{position:relative;flex:0 0 150px}
+.donut-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.donut-center b{font-family:var(--font-display);font-size:27px;font-weight:800;letter-spacing:-.03em;display:block;line-height:1;font-variant-numeric:tabular-nums}
+.donut-center span{font-size:10.5px;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+.temp-list{flex:1;display:flex;flex-direction:column;gap:11px;min-width:180px}
+.temp-row{display:flex;align-items:center;gap:10px}
+.temp-row i{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.temp-row .nm{font-size:12.5px;color:var(--text-2);min-width:44px}
+.temp-row .bar{flex:1;height:6px;border-radius:var(--r-pill);background:rgba(255,255,255,.06);overflow:hidden}
+.temp-row .bar em{display:block;height:100%;border-radius:inherit;transition:width .4s ease}
+.temp-row .ct{font-family:var(--font-display);font-size:13px;font-weight:700;min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+.temp-row .pc{font-size:11px;color:var(--text-3);min-width:36px;text-align:right}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);padding:11px 18px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
+.tbl td{padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.045);font-size:13px;vertical-align:middle}
+.tbl tbody tr{transition:background .14s ease}
+.tbl tbody tr:hover{background:rgba(255,255,255,.028)}
+.tbl tbody tr:last-child td{border-bottom:none}
+.lead{display:flex;align-items:center;gap:11px}
+.lead .ava{width:32px;height:32px;border-radius:var(--r-pill);flex:0 0 32px;display:grid;place-items:center;font-family:var(--font-display);font-size:11.5px;font-weight:700;color:#fff}
+.lead .nm{font-weight:600;font-size:13px;line-height:1.3}
+.lead .meta{font-size:11px;color:var(--text-3);margin-top:1px}
+.temp{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:var(--r-pill)}
+.temp.hot{background:var(--hot-soft);color:#ff8a8a}
+.temp.warm{background:var(--warm-soft);color:#fbbf24}
+.temp.cold{background:var(--cold-soft);color:#7cb0ff}
+.temp i{width:6px;height:6px;border-radius:50%}
+.status{font-size:12px;color:var(--text-2)}
+
+/* Plan */
+.plan{padding:18px}
+.plan-top{display:flex;align-items:center;gap:12px}
+.plan-badge{font-family:var(--font-display);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:var(--r-pill);background:var(--grad-brand);color:#fff;box-shadow:var(--shadow-brand)}
+.plan-price{font-family:var(--font-display);font-size:32px;font-weight:800;letter-spacing:-.03em;margin-top:14px;line-height:1;font-variant-numeric:tabular-nums}
+.plan-price small{font-size:14px;font-weight:600;color:var(--text-3)}
+.plan-note{font-size:12px;color:var(--text-3);margin-top:6px}
+.gauge{margin-top:18px}
+.gauge-head{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-2);margin-bottom:8px}
+.gauge-track{height:8px;border-radius:var(--r-pill);background:rgba(255,255,255,.07);overflow:hidden}
+.gauge-track i{display:block;height:100%;border-radius:inherit;background:var(--grad-brand);box-shadow:0 0 16px rgba(99,102,241,.65);width:0%;transition:width .5s ease}
+.gauge-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-top:7px}
+.state{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:var(--r-pill)}
+.state.live{background:var(--success-soft);color:#4ade80}
+.state.idle{background:rgba(255,255,255,.07);color:var(--text-3)}
+.state.busy{background:var(--warm-soft);color:#fbbf24}
+
+/* Team + feed */
+.team{display:flex;flex-direction:column;gap:2px;padding:12px}
+.member{display:flex;align-items:center;gap:11px;padding:10px;border-radius:var(--r-md);transition:background .15s ease}
+.member:hover{background:var(--surface-hover)}
+.member .ava{width:34px;height:34px;border-radius:10px;flex:0 0 34px;display:grid;place-items:center;font-size:17px}
+.member .nm{font-size:13px;font-weight:600;line-height:1.3}
+.member .rl{font-size:11px;color:var(--text-3);margin-top:2px}
+.member .st{margin-left:auto;text-align:right;min-width:0}
+.member .st span{font-size:10.5px;color:var(--text-3);display:block;margin-top:3px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed{padding:8px 18px 14px}
+.feed-item{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+.feed-item:last-child{border-bottom:none}
+.feed-ico{width:30px;height:30px;border-radius:9px;flex:0 0 30px;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface-3);font-size:14px}
+.feed-body{flex:1;min-width:0}
+.feed-body p{font-size:12.5px;color:var(--text-2);line-height:1.5}
+.feed-body p b{color:var(--text-1);font-weight:600}
+.feed-body time{font-size:11px;color:var(--text-3);display:block;margin-top:3px}
+
+.empty{padding:34px 18px;text-align:center;color:var(--text-3);font-size:12.5px;line-height:1.6}
+.empty b{display:block;color:var(--text-2);font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:6px}
+.skel{background:linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.09) 37%, rgba(255,255,255,.05) 63%);background-size:400% 100%;animation:sk 1.3s ease infinite;border-radius:6px;color:transparent!important}
+@keyframes sk{0%{background-position:100% 50%}100%{background-position:0 50%}}
+
+@media (max-width:1240px){.kpis{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}.grid-3{grid-template-columns:1fr 1fr}}
+@media (max-width:900px){.sidebar{display:none}.grid-3{grid-template-columns:1fr}.search{width:180px}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-grid"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></g>
+  <g id="i-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g>
+  <g id="i-phone"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></g>
+  <g id="i-mega"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></g>
+  <g id="i-file"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></g>
+  <g id="i-chart"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12.5" y="8" width="3" height="10" rx="1"/><rect x="18" y="5" width="2.6" height="13" rx="1"/></g>
+  <g id="i-zap"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></g>
+  <g id="i-cog"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></g>
+  <g id="i-search"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></g>
+  <g id="i-bell"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g>
+  <g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+  <g id="i-up-right"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></g>
+  <g id="i-clock"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g>
+  <g id="i-warn"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></g>
+  <g id="i-info"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></g>
+</defs></svg>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg></div>
+      <div><div class="brand-name">LeadGen AI</div><div class="brand-sub">Growth Console</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-item active" href="/app/dashboard-v2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-grid"/></svg> Dashboard</a>
+      <a class="nav-item" href="/app/customer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg> Leads <span class="nav-badge" id="navLeadCount">–</span></a>
+      <a class="nav-item" href="/app/customer/voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg> Voice Agent</a>
+      <a class="nav-item" href="/app/customer/marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-mega"/></svg> Campaigns</a>
+      <a class="nav-item" href="/app/plugins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg> Content Studio</a>
+      <div class="nav-label">Automations</div>
+      <a class="nav-item" href="/app/automation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg> Mission Control</a>
+      <a class="nav-item" href="/app/office"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chart"/></svg> AI Office</a>
+      <a class="nav-item" href="/app/settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-cog"/></svg> Settings</a>
+    </nav>
+    <div class="side-foot">
+      <div class="mini-card">
+        <h4>Voice minutes</h4>
+        <p id="sideMinuteText">Load ho raha hai…</p>
+        <div class="mini-bar"><i id="sideMinuteBar"></i></div>
+        <div class="mini-meta"><span id="sideMinuteUsed">–</span><span id="sideMinuteLeft">–</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-search"/></svg>
+        <input type="text" id="q" placeholder="Leads, calls, campaigns dhoondo…" />
+      </div>
+      <div class="spacer"></div>
+      <div class="pill live"><span class="dot pulse"></span><span id="livePill">Voice Agent live</span></div>
+      <div class="icon-btn" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bell"/></svg></div>
+      <div class="avatar" id="avatar" title="">–</div>
+    </header>
+
+    <div class="content">
+      <div id="banners" style="display:flex;flex-direction:column;gap:10px"></div>
+
+      <div class="page-head">
+        <div>
+          <h1 id="greet">Aapka Dashboard</h1>
+          <p id="greetSub">Load ho raha hai…</p>
+        </div>
+        <div class="head-actions">
+          <a class="btn" href="/app/customer">Purana view</a>
+          <a class="btn btn-primary" href="/app/customer/marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg> Naya Campaign</a>
+        </div>
+      </div>
+
+      <section class="kpis" id="kpis">
+        <div class="card kpi"><div class="kpi-top"><div><div class="kpi-label">Total Calls</div><div class="kpi-val skel">000</div></div><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg></div></div><div class="kpi-foot"><span class="kpi-note">AI agent ne dial kiye</span></div></div>
+        <div class="card kpi"><div class="kpi-top"><div><div class="kpi-label">Calls Judh Gaye</div><div class="kpi-val skel">000</div></div><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg></div></div><div class="kpi-foot"><span class="kpi-note" id="connectNote">–</span></div></div>
+        <div class="card kpi"><div class="kpi-top"><div><div class="kpi-label">Qualified Leads</div><div class="kpi-val skel">000</div></div><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg></div></div><div class="kpi-foot"><span class="kpi-note">qualification pass kiye</span></div></div>
+        <div class="card kpi"><div class="kpi-top"><div><div class="kpi-label">Conversion</div><div class="kpi-val skel">00%</div></div><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chart"/></svg></div></div><div class="kpi-foot"><span class="kpi-note" id="costNote">–</span></div></div>
+      </section>
+
+      <section class="grid-2">
+        <div class="card">
+          <div class="card-head"><div><h3>Roz Kitni Calls</h3><div class="sub">AI agent ke daily outbound calls</div></div></div>
+          <div class="card-body" id="callsChart" style="padding:14px 10px 8px"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>Lead Temperature</h3><div class="sub">AI-scored lead mix</div></div></div>
+          <div id="tempBlock"></div>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <div class="card">
+          <div class="card-head"><div><h3>Haal ke Leads</h3><div class="sub">Real leads — aapke account se</div></div>
+            <div class="right"><a class="btn" href="/app/customer" style="height:32px;padding:0 12px;font-size:12px">Sab dekho <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></a></div>
+          </div>
+          <div id="leadsBlock"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>Aapka Plan</h3><div class="sub">Billing + voice minutes</div></div></div>
+          <div class="plan" id="planBlock"></div>
+        </div>
+      </section>
+
+      <section class="grid-3">
+        <div class="card">
+          <div class="card-head"><div><h3>AI Team</h3><div class="sub" id="teamSub">–</div></div>
+            <div class="right"><span class="state live"><span class="dot pulse"></span> Live</span></div>
+          </div>
+          <div class="team" id="teamBlock"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>Haal ki Calls</h3><div class="sub">Recent call activity</div></div>
+            <div class="right"><span class="state live"><span class="dot pulse"></span> Real-time</span></div>
+          </div>
+          <div class="feed" id="callsBlock"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><h3>Sheher ke Hisaab se</h3><div class="sub">Leads by city</div></div></div>
+          <div class="card-body" id="cityBlock" style="display:flex;flex-direction:column;gap:11px"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   LeadGen AI — Dashboard v2 (dark premium)
+   REAL DATA ONLY. Every number comes from an authenticated API call.
+   No invented businesses, no placeholder leads. Zero-activity clients get
+   an honest empty state (mirrors the backend's is_sample_data contract).
+   ========================================================================= */
+(function () {
+  "use strict";
+
+  var CID = null;
+
+  /* ------------------------- helpers ---------------------------------- */
+  function token() { try { return localStorage.getItem("lgai_token") || ""; } catch (e) { return ""; } }
+  function hdr() { var t = token(); return t ? { "Authorization": "Bearer " + t } : {}; }
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function num(n) { var v = Number(n); return isFinite(v) ? v : 0; }
+  function fmt(n) { return num(n).toLocaleString("en-IN"); }
+  function hardLogout() {
+    try { localStorage.removeItem("lgai_token"); } catch (e) {}
+    window.location.href = "/login.html";
+  }
+
+  /** Never-throw JSON GET. 401 => logout. Non-OK => null (caller shows empty state). */
+  async function getJSON(url) {
+    try {
+      var r = await fetch(url, { headers: hdr(), credentials: "same-origin" });
+      if (r.status === 401 || r.status === 403) { hardLogout(); return null; }
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (e) { return null; }
+  }
+
+  function emptyState(title, body) {
+    return '<div class="empty"><b>' + esc(title) + "</b>" + esc(body) + "</div>";
+  }
+
+  /* ------------------------- SVG charts (data-driven) ------------------ */
+  function areaChart(points, color) {
+    var pts = (points || []).filter(function (p) { return p && isFinite(num(p.value)); });
+    if (!pts.length) {
+      return emptyState("Abhi data nahi hai", "Jaise hi AI agent calls karega, yahan daily graph ban jayega.");
+    }
+    var W = 700, H = 200, PAD = 20, TOP = 10, BASE = 176;
+    var max = 0;
+    pts.forEach(function (p) { if (num(p.value) > max) max = num(p.value); });
+    if (max <= 0) max = 1;
+    var n = pts.length;
+    var xs = [], ys = [];
+    for (var i = 0; i < n; i++) {
+      xs.push(n === 1 ? W / 2 : PAD + i * ((W - PAD * 2) / (n - 1)));
+      ys.push(BASE - (num(pts[i].value) / max) * (BASE - TOP));
+    }
+    // Smooth path: Q-midpoint technique
+    var d = "M" + xs[0].toFixed(1) + " " + ys[0].toFixed(1);
+    for (var j = 1; j < n - 1; j++) {
+      var mx = (xs[j] + xs[j + 1]) / 2, my = (ys[j] + ys[j + 1]) / 2;
+      d += " Q" + xs[j].toFixed(1) + " " + ys[j].toFixed(1) + " " + mx.toFixed(1) + " " + my.toFixed(1);
+    }
+    if (n > 1) d += " L" + xs[n - 1].toFixed(1) + " " + ys[n - 1].toFixed(1);
+
+    var grid = "";
+    [BASE, BASE - (BASE - TOP) * 0.25, BASE - (BASE - TOP) * 0.5, BASE - (BASE - TOP) * 0.75, TOP]
+      .forEach(function (y) { grid += '<line x1="0" y1="' + y.toFixed(1) + '" x2="' + W + '" y2="' + y.toFixed(1) + '"/>'; });
+
+    var dots = "";
+    pts.forEach(function (p, k) { dots += '<circle cx="' + xs[k].toFixed(1) + '" cy="' + ys[k].toFixed(1) + '" r="3.4"/>'; });
+
+    var labels = "";
+    pts.forEach(function (p, k) {
+      labels += '<span>' + esc(String(p.label || "").slice(0, 8)) + "</span>";
+    });
+
+    var gid = "g" + Math.random().toString(36).slice(2, 8);
+    return '<svg viewBox="0 0 ' + W + ' ' + (H + 6) + '" width="100%" height="212" preserveAspectRatio="none" role="img" aria-label="Daily calls">' +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="' + color + '" stop-opacity=".42"/>' +
+      '<stop offset="100%" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>' +
+      '<g stroke="rgba(255,255,255,.055)" stroke-width="1">' + grid + "</g>" +
+      '<path d="' + d + " L" + xs[n - 1].toFixed(1) + " " + BASE + " L" + xs[0].toFixed(1) + " " + BASE + ' Z" fill="url(#' + gid + ')"/>' +
+      '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<g fill="#12121f" stroke="' + color + '" stroke-width="2.4">' + dots + "</g></svg>" +
+      '<div style="display:flex;justify-content:space-between;padding:6px 12px 2px;font-size:11px;color:var(--text-3)">' + labels + "</div>";
+  }
+
+  var TEMP = {
+    Hot:  { c: "#ff5a5a", hi: "Garam" },
+    Warm: { c: "#f5a524", hi: "Gunguna" },
+    Cold: { c: "#3b82f6", hi: "Thanda" }
+  };
+  function tempMeta(label) {
+    var k = String(label || "").toLowerCase();
+    if (k.indexOf("hot") === 0) return TEMP.Hot;
+    if (k.indexOf("warm") === 0) return TEMP.Warm;
+    if (k.indexOf("cold") === 0) return TEMP.Cold;
+    return { c: "#6f7189", hi: String(label || "Other") };
+  }
+
+  function donut(segments, centerLabel, centerSub) {
+    var total = 0;
+    segments.forEach(function (s) { total += num(s.value); });
+    if (total <= 0) {
+      return emptyState("Abhi koi lead nahi", "Leads aate hi yahan temperature mix dikhega.");
+    }
+    var R = 54, C = 2 * Math.PI * R, off = 0, rings = "";
+    segments.forEach(function (s) {
+      var frac = num(s.value) / total;
+      var len = frac * C;
+      rings += '<circle cx="75" cy="75" r="' + R + '" stroke="' + s.color + '"' +
+        ' stroke-dasharray="' + len.toFixed(2) + " " + (C - len).toFixed(2) + '"' +
+        ' stroke-dashoffset="' + (-off).toFixed(2) + '"/>';
+      off += len;
+    });
+    return '<div class="donut-wrap"><div class="donut">' +
+      '<svg width="150" height="150" viewBox="0 0 150 150">' +
+      '<g transform="rotate(-90 75 75)" fill="none" stroke-width="14">' +
+      '<circle cx="75" cy="75" r="' + R + '" stroke="rgba(255,255,255,.055)"/>' + rings +
+      "</g></svg>" +
+      '<div class="donut-center"><b>' + fmt(total) + "</b><span>" + esc(centerSub || "Leads") + "</span></div>" +
+      '</div><div class="temp-list"></div></div>';
+  }
+
+  /* ------------------------- renderers -------------------------------- */
+  function renderKpis(k) {
+    k = k || {};
+    var box = document.getElementById("kpis");
+    var cards = box.querySelectorAll(".kpi");
+    var vals = [fmt(k.total_calls), fmt(k.connected_calls), fmt(k.qualified_leads),
+      num(k.conversion_pct).toFixed(1) + "<small>%</small>"];
+    for (var i = 0; i < cards.length; i++) {
+      var el = cards[i].querySelector(".kpi-val");
+      el.classList.remove("skel");
+      el.innerHTML = vals[i] || "0";
+    }
+    var tot = num(k.total_calls), conn = num(k.connected_calls);
+    document.getElementById("connectNote").textContent =
+      tot > 0 ? (Math.round((conn / tot) * 100) + "% connect rate") : "Abhi calls nahi hue";
+    document.getElementById("costNote").textContent =
+      "Est. telephony cost ₹" + fmt(k.est_cost_inr);
+  }
+
+  function renderCharts(charts) {
+    charts = charts || {};
+    document.getElementById("callsChart").innerHTML = areaChart(charts.calls_per_day, "#8b5cf6");
+
+    var segs = (charts.leads_by_status || []).map(function (s) {
+      return { label: s.label, value: num(s.value), color: tempMeta(s.label).c };
+    });
+    var host = document.getElementById("tempBlock");
+    host.innerHTML = donut(segs, "", "Leads");
+    var list = host.querySelector(".temp-list");
+    if (list && segs.length) {
+      var total = 0; segs.forEach(function (s) { total += num(s.value); });
+      list.innerHTML = segs.map(function (s) {
+        var pct = total > 0 ? Math.round((num(s.value) / total) * 100) : 0;
+        return '<div class="temp-row"><i style="background:' + s.color + '"></i>' +
+          '<span class="nm">' + esc(tempMeta(s.label).hi) + "</span>" +
+          '<span class="bar"><em style="width:' + pct + "%;background:" + s.color + '"></em></span>' +
+          '<span class="ct">' + fmt(s.value) + '</span><span class="pc">' + pct + "%</span></div>";
+      }).join("");
+    }
+  }
+
+  function renderCity(list) {
+    var rows = (list || []).filter(function (c) { return num(c.value) > 0; })
+      .sort(function (a, b) { return num(b.value) - num(a.value); }).slice(0, 6);
+    var host = document.getElementById("cityBlock");
+    if (!rows.length) { host.innerHTML = emptyState("Abhi city data nahi", "Leads aane par sheher-wise breakup yahan dikhega."); return; }
+    var max = 0; rows.forEach(function (r) { if (num(r.value) > max) max = num(r.value); });
+    host.innerHTML = rows.map(function (r) {
+      var pct = max > 0 ? Math.round((num(r.value) / max) * 100) : 0;
+      return '<div class="temp-row"><span class="nm" style="min-width:88px">' + esc(r.label) + "</span>" +
+        '<span class="bar"><em style="width:' + pct + '%;background:var(--grad-brand)"></em></span>' +
+        '<span class="ct">' + fmt(r.value) + "</span></div>";
+    }).join("");
+  }
+
+  function renderLeads(leads) {
+    var rows = leads || [];
+    var host = document.getElementById("leadsBlock");
+    document.getElementById("navLeadCount").textContent = rows.length ? String(rows.length) : "0";
+    if (!rows.length) {
+      host.innerHTML = emptyState("Abhi koi lead nahi", "Aapka AI agent lead capture kar raha hai — jaise hi naya lead aayega, yahan dikhega.");
+      return;
+    }
+    var order = { hot: 0, warm: 1, cold: 2 };
+    var sorted = rows.slice().sort(function (a, b) {
+      var ka = String(a.score || "").toLowerCase(), kb = String(b.score || "").toLowerCase();
+      return (order[ka] === undefined ? 9 : order[ka]) - (order[kb] === undefined ? 9 : order[kb]);
+    }).slice(0, 8);
+
+    var html = '<table class="tbl"><thead><tr><th>Lead</th><th>Sheher</th><th>Temp</th><th>Niche</th><th>Status</th></tr></thead><tbody>';
+    sorted.forEach(function (l) {
+      var m = tempMeta(l.score);
+      var name = l.business || l.contact || "Lead";
+      var initials = String(name).trim().split(/\s+/).slice(0, 2)
+        .map(function (w) { return w.charAt(0); }).join("").toUpperCase() || "L";
+      html += "<tr>" +
+        '<td><div class="lead"><div class="ava" style="background:' + m.c + '">' + esc(initials) + "</div>" +
+        '<div><div class="nm">' + esc(name) + "</div>" +
+        '<div class="meta">' + esc(l.contact || "") + (l.date ? " · " + esc(l.date) : "") + "</div></div></div></td>" +
+        "<td>" + esc(l.city || "—") + "</td>" +
+        '<td><span class="temp ' + String(l.score || "").toLowerCase() + '"><i style="background:' + m.c + '"></i>' + esc(m.hi) + "</span></td>" +
+        "<td>" + esc(l.niche || "—") + "</td>" +
+        "<td>" + esc(l.status || l.qualification || "—") + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    host.innerHTML = html;
+  }
+
+  function renderCalls(calls) {
+    var rows = (calls || []).slice(0, 6);
+    var host = document.getElementById("callsBlock");
+    if (!rows.length) {
+      host.innerHTML = emptyState("Abhi koi call nahi", "AI agent ke calls yahan real-time dikhenge.");
+      return;
+    }
+    host.innerHTML = rows.map(function (c) {
+      var st = String(c.status || "").toLowerCase();
+      var color = st === "connected" ? "#22c55e" : (st === "busy" ? "#f5a524" : "#6f7189");
+      var ico = st === "connected" ? "📞" : "⏳";
+      return '<div class="feed-item"><div class="feed-ico" style="color:' + color + '">' + ico + "</div>" +
+        '<div class="feed-body"><p><b>' + esc(c.business || "Call") + "</b> — " + esc(c.outcome || c.status || "") +
+        "</p><time>" + esc(c.time || "") + (c.duration ? " · " + esc(c.duration) : "") +
+        (c.city ? " · " + esc(c.city) : "") + "</time></div></div>";
+    }).join("");
+  }
+
+  function renderTeam(t) {
+    var host = document.getElementById("teamBlock");
+    var sub = document.getElementById("teamSub");
+    var agents = (t && t.agents) || [];
+    sub.textContent = t && t.headline ? t.headline
+      : (agents.length ? agents.length + " agents" : "Agents load ho rahe hain");
+    if (!agents.length) {
+      host.innerHTML = emptyState("AI team taiyaar hai", "Kaam shuru hote hi yahan agents ki activity dikhegi.");
+      return;
+    }
+    host.innerHTML = agents.slice(0, 6).map(function (a) {
+      var st = String(a.status || "active").toLowerCase();
+      var cls = st === "working" ? "busy" : (st === "idle" ? "idle" : "live");
+      return '<div class="member"><div class="ava" style="background:' + esc(a.accent || "#6366f1") + '33">' +
+        esc(a.emoji || "🤖") + "</div>" +
+        '<div><div class="nm">' + esc(a.name || "Agent") + "</div>" +
+        '<div class="rl">' + esc(a.title || "") + "</div></div>" +
+        '<div class="st"><span class="state ' + cls + '">' + esc(a.status_label || "Active") + "</span>" +
+        "<span>" + esc(a.metric || a.task || "") + "</span></div></div>";
+    }).join("");
+  }
+
+  function renderPlan(sub, usage) {
+    var host = document.getElementById("planBlock");
+    var cur = (sub && sub.currency) || "INR";
+    var sym = cur === "INR" || cur === "inr" ? "₹" : (cur + " ");
+    var price = sub ? fmt(sub.base_price) : "—";
+    var period = sub && sub.current_period_end
+      ? String(sub.current_period_end).slice(0, 10) : null;
+
+    var used = usage ? num(usage.calls_used) : 0;
+    var limit = usage ? num(usage.calls_limit) : 0;
+    var left = usage ? num(usage.calls_remaining) : 0;
+    var pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+
+    // sidebar mini-card
+    var sText = document.getElementById("sideMinuteText");
+    if (limit > 0) {
+      sText.textContent = used + " of " + limit + " minutes used this cycle.";
+      document.getElementById("sideMinuteBar").style.width = pct + "%";
+      document.getElementById("sideMinuteUsed").textContent = pct + "% used";
+      document.getElementById("sideMinuteLeft").textContent = left + " min bache";
+    } else {
+      sText.textContent = "Minutes ka data abhi available nahi hai.";
+      document.getElementById("sideMinuteUsed").textContent = "–";
+      document.getElementById("sideMinuteLeft").textContent = "–";
+    }
+
+    var head = '<div class="plan-top">' +
+      '<span class="plan-badge">' + esc((sub && sub.plan_name) || "Plan") + "</span>" +
+      '<span class="state ' + (String((sub && sub.status) || "").toLowerCase() === "active" ? "live" : "idle") + '">' +
+      esc((sub && sub.status) || "—") + "</span></div>" +
+      '<div class="plan-price">' + sym + price + ' <small>/ month</small></div>' +
+      '<div class="plan-note">' + (period ? "Renews " + esc(period) : "Billing details load nahi hue") + "</div>";
+
+    var gauge = '<div class="gauge"><div class="gauge-head"><span>Voice minutes</span><span style="font-weight:600;color:var(--text-1)">' +
+      fmt(used) + " / " + fmt(limit) + "</span></div>" +
+      '<div class="gauge-track"><i data-pct="' + pct + '"></i></div>' +
+      '<div class="gauge-meta"><span>' + fmt(left) + " min bache</span><span>" + pct + "% used</span></div></div>";
+
+    host.innerHTML = head + (limit > 0 ? gauge : emptyState("Usage data nahi mila", "Billing usage abhi available nahi hai."));
+    var bar = host.querySelector(".gauge-track i");
+    if (bar) { setTimeout(function () { bar.style.width = pct + "%"; }, 60); }
+  }
+
+  function renderBanners(d) {
+    var host = document.getElementById("banners");
+    var out = [];
+    if (d && d.is_sample_data) {
+      out.push('<div class="banner warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-warn"/></svg>' +
+        "Ye abhi sample/reference data hai — aapke real results nahi. Real activity shuru hote hi yahan sachche numbers aa jayenge.</div>");
+    }
+    if (d && d.approval_banner && d.approval_banner.count) {
+      out.push('<div class="banner info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-info"/></svg>' +
+        esc(String(d.approval_banner.message || ("Aapki approval ka wait kar rahe " + d.approval_banner.count + " items"))) + "</div>");
+    }
+    host.innerHTML = out.join("");
+  }
+
+  /* ------------------------- boot ------------------------------------- */
+  async function boot() {
+    if (!token()) { hardLogout(); return; }
+
+    var me = await getJSON("/api/customer/auth/me");
+    if (!me || !me.client_id) {
+      document.getElementById("greetSub").textContent = "Session expire ho gaya — login page par bhej rahe hain…";
+      setTimeout(hardLogout, 900);
+      return;
+    }
+    CID = me.client_id;
+    var biz = me.business_name || CID;
+    document.getElementById("greet").textContent = "Namaste, " + biz;
+    document.getElementById("greetSub").textContent =
+      biz + " · " + String(me.product || "marketing") + " plan · aaj ka haal yahan hai";
+    document.getElementById("avatar").textContent =
+      String(biz).trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0); }).join("").toUpperCase();
+    document.getElementById("avatar").title = biz;
+
+    var q = "?client_id=" + encodeURIComponent(CID);
+    var results = await Promise.all([
+      getJSON("/api/customer/dashboard" + q),
+      getJSON("/api/customer/team"),
+      getJSON("/api/billing/subscription" + q),
+      getJSON("/api/billing/usage" + q)
+    ]);
+    var d = results[0], team = results[1], sub = results[2], usage = results[3];
+
+    if (!d) {
+      document.getElementById("greetSub").textContent = "Dashboard data load nahi hua — thodi der me refresh karein.";
+      document.querySelectorAll(".kpi-val").forEach(function (el) {
+        el.classList.remove("skel"); el.textContent = "—";
+      });
+      ["callsChart", "tempBlock", "leadsBlock", "callsBlock", "cityBlock"].forEach(function (id) {
+        document.getElementById(id).innerHTML = emptyState("Data load nahi hua", "Kuch der baad dobara try karein.");
+      });
+      document.getElementById("teamBlock").innerHTML = emptyState("AI team load nahi hui", "Thodi der me refresh karein.");
+      document.getElementById("planBlock").innerHTML = emptyState("Billing load nahi hua", "Thodi der me refresh karein.");
+      return;
+    }
+
+    renderBanners(d);
+    renderKpis(d.kpis);
+    renderCharts(d.charts);
+    renderCity(d.charts && d.charts.leads_by_city);
+    renderLeads(d.leads);
+    renderCalls(d.calls);
+    renderTeam(team);
+    renderPlan(sub, usage);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else { boot(); }
+})();
+</script>
+</body>
+</html>

@@ -1721,6 +1721,22 @@ async def customer_voice_page():
     return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
 
 
+@app.get("/app/dashboard-v2", tags=["Frontend"])
+async def customer_dashboard_v2_page():
+    """Customer dashboard v2 — dark-premium re-skin of the customer dashboard.
+
+    Visual-only fork: it binds the SAME authenticated API contract as v1
+    (`/api/customer/dashboard`, `/api/customer/team`, `/api/billing/usage`,
+    `/api/billing/subscription`). Auth remains client-side exactly as v1 does it
+    (lgai_token -> /api/customer/auth/me), so this adds no new auth surface and
+    no new data access path. v1 stays canonical and untouched.
+    """
+    return FileResponse(
+        str(FRONTEND_DIR / "customer_dashboard_v2.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
+
+
 @app.get("/app/admin", tags=["Frontend"])
 async def admin_dashboard_page():
     """Admin dashboard (clients, agents, campaigns, revenue, health)."""
