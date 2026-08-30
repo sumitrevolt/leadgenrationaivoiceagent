@@ -83,11 +83,19 @@ def get_db_conn():
 def get_prospects(limit: int, niche: str = "") -> list[dict]:
     conn = get_db_conn()
     cur = conn.cursor()
+    # MOBILE-only pre-filter (2026-08-30 PILOT): dial_gate ka phone_type_gate
+    # FIXED_LINE/TOLL_FREE ko promotional pe block karta hai -> top-score leads
+    # (mostly CA/landline niches) hamesha SKIP(phone_type_blocked) hote the aur
+    # loop leads=0 / skip-loop me phas jata tha. SQL me hi sirf valid IN MOBILE
+    # numbers select karo — gate INTACT (PHONE_TYPE_GATE=1), promotiona dial
+    # policy bhi compliant (mobile = person reachable). Compliance safe hai.
+    mobile_where = "phone ~ '^\\+?91[6-9][0-9]{9}$'"
     if niche:
         cur.execute(
-            """SELECT phone, company_name, niche, city FROM leads
+            f"""SELECT phone, company_name, niche, city FROM leads
             WHERE phone IS NOT NULL AND phone != ''
             AND (call_attempts IS NULL OR call_attempts = 0)
+            AND {mobile_where}
             AND LOWER(COALESCE(niche,'')) = LOWER(%s)
             ORDER BY lead_score DESC NULLS LAST, created_at DESC
             LIMIT %s""",
@@ -95,9 +103,10 @@ def get_prospects(limit: int, niche: str = "") -> list[dict]:
         )
     else:
         cur.execute(
-            """SELECT phone, company_name, niche, city FROM leads
+            f"""SELECT phone, company_name, niche, city FROM leads
             WHERE phone IS NOT NULL AND phone != ''
             AND (call_attempts IS NULL OR call_attempts = 0)
+            AND {mobile_where}
             ORDER BY lead_score DESC NULLS LAST, created_at DESC
             LIMIT %s""",
             (limit,),
