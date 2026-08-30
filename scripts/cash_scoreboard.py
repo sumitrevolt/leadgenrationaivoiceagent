@@ -34,7 +34,11 @@ def load_campaign_ledger():
 
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT verified_cash_collected FROM campaign_ledger WHERE id = 1")
+        # Static query: no interpolation and no user input - `id` is a literal
+        # constant, so there is nothing to parameterize. scripts/security_scan.py
+        # flags every raw SELECT handed to cursor.execute by regex unless it also
+        # sees a parameter tuple, so this is a documented false positive.
+        cursor.execute("SELECT verified_cash_collected FROM campaign_ledger WHERE id = 1")  # nosecurity
         result = cursor.fetchone()
         conn.close()
         if result:
