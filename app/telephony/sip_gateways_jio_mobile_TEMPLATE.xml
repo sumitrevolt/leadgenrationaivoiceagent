@@ -1,0 +1,87 @@
+"""FreeSWITCH gateway template — Jio Mobile SIP Trunk (Sai Service Centre reseller).
+
+This is a TEMPLATE — do NOT load until:
+  1. JIO_SIP_HOST/USER/PASS are set in VPS .env
+  2. KYC complete + provider has activated the trunk
+  3. JIO_TRUNK_ENABLED=1 (after live test)
+
+Plan doc: docs/coordination/JIO_SIP_SETUP_PLAN.md
+Provider: Sai Service Centre, Mumbai (Indiamart, GST 27ARAPP6458L3Z6)
+Plan: 10 channel × ₹999/ch = ₹9,990/month unlimited domestic
+Activation: 5 days post-KYC
+
+To ACTIVATE (after creds arrive + KYC done):
+  1. Set JIO_SIP_HOST, JIO_SIP_USER, JIO_SIP_PASS, JIO_SIP_REALM in VPS .env
+  2. Set JIO_SIP_DID, JIO_SIP_FROM_DOMAIN
+  3. Set JIO_TRUNK_ENABLED=1 (after first successful test call)
+  4. Generate the actual gateway XML:
+       python -c "from app.telephony.trunks import list_active_trunks, freeswitch_gateway_xml; \
+         print(freeswitch_gateway_xml([t for t in list_active_trunks() if t.name=='jio_mobile'][0]))" \
+         > /etc/freeswitch/sip_profiles/external/jio_mobile.xml
+  5. fs_cli -x 'reloadxml' && fs_cli -x 'sofia profile external rescan'
+  6. Test: fs_cli -x 'originate sofia/gateway/jio_mobile/918261030181 &echo'
+
+Expected outcome:
+  - Registration succeeds (or IP-auth passes)
+  - Caller-ID shows Jio DID
+  - Audio both ways
+  - Log: sofia.cdr shows gateway=jio_mobile
+"""
+
+# ====== IP-AUTH MODE (preferred if provider supports) ======
+JIO_MOBILE_GATEWAY_IP_AUTH = """<include>
+  <gateway name="jio_mobile">
+    <!-- IP-auth: no register, no creds. VPS public IP must be whitelisted. -->
+    <param name="realm" value="__JIO_SIP_REALM__"/>
+    <param name="proxy" value="__JIO_SIP_HOST__"/>
+    <param name="from-domain" value="__JIO_SIP_FROM_DOMAIN__"/>
+    <param name="register" value="false"/>
+    <param name="caller-id-in-from" value="true"/>
+    <param name="codec-prefs" value="PCMA,PCMU,G729"/>
+    <param name="transport" value="__JIO_SIP_TRANSPORT__"/>
+    <param name="sip-ip" value="$${local_ip_v4}"/>
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <param name="expire-seconds" value="600"/>
+    <!-- 10 channels: matches JIO_SIP_MAX_CONCURRENT -->
+    <param name="max-proceeding" value="10"/>
+    <param name="progress-timeout" value="30"/>
+    <param name="invite-timeout" value="60"/>
+  </gateway>
+</include>
+"""
+
+# ====== REGISTRATION MODE (fallback) ======
+JIO_MOBILE_GATEWAY_REGISTRATION = """<include>
+  <gateway name="jio_mobile">
+    <!-- Registration: provider gives user/pass, we register on boot. -->
+    <param name="realm" value="__JIO_SIP_REALM__"/>
+    <param name="proxy" value="__JIO_SIP_HOST__"/>
+    <param name="from-domain" value="__JIO_SIP_FROM_DOMAIN__"/>
+    <param name="register" value="true"/>
+    <param name="username" value="__JIO_SIP_USER__"/>
+    <param name="password" value="__JIO_SIP_PASS__"/>
+    <param name="caller-id-in-from" value="true"/>
+    <param name="codec-prefs" value="PCMA,PCMU,G729"/>
+    <param name="transport" value="__JIO_SIP_TRANSPORT__"/>
+    <param name="sip-ip" value="$${local_ip_v4}"/>
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <param name="expire-seconds" value="600"/>
+    <param name="max-proceeding" value="10"/>
+    <param name="progress-timeout" value="30"/>
+    <param name="invite-timeout" value="60"/>
+  </gateway>
+</include>
+"""
+
+# ====== DIALPLAN SNIPPET (route outbound via jio_mobile first, then vobiz) ======
+JIO_OUTBOUND_DIALPLAN = """<extension name="outbound-jio">
+  <condition field="destination_number" expression="^(\\+?91\\d{10})$">
+    <!-- Try Jio first (cheaper at high volume). If unavailable, fall through to vobiz. -->
+    <action application="set" data="hangup_after_bridge=true"/>
+    <action application="set" data="effective_caller_id_number=${jio_did}"/>
+    <action application="set" data="effective_caller_id_name=LeadGen AI"/>
+    <action application="set" data="media_bypass_answer=true"/>
+    <action application="bridge" data="sofia/gateway/jio_mobile/$1"/>
+  </condition>
+</extension>
+"""

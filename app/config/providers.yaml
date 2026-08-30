@@ -1,0 +1,405 @@
+# Auto-generated 42-provider registry from OmniRoute DB
+# providers.yaml — single source for free_ai.py provider chain
+# 35 unique providers extracted (2026-08-27)
+# Encrypted API keys are in OmniRoute DB — env vars map via key_attr
+
+providers:
+  agy:
+    label: "sumitrevolt23@gmail.com"
+    auth_type: oauth
+    email: "sumitrevolt23@gmail.com"
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: true
+    project_id: "pristine-asset-svbmb"
+    key_attr: "AGY_API_KEY"
+    # specific: "{\"projectId\":\"pristine-asset-svbmb\",\"tier\":\"g1-pro-tier\",\"subscriptionTier\":\"Google AI Pro\",\"plan\":\"Pro\"}"
+
+  amazon-q:
+    label: ""
+    auth_type: oauth
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: true
+    key_attr: "AMAZON_Q_API_KEY"
+    # specific: "{\"authMethod\":\"imported\",\"provider\":\"Google\",\"profileArn\":\"arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK\"}"
+
+  antigravity:
+    label: "daryananisumit440@gmail.com"
+    auth_type: oauth
+    email: "daryananisumit440@gmail.com"
+    priority: 1
+    active: false
+    test_status: "active"
+    has_token: true
+    key_attr: "ANTIGRAVITY_API_KEY"
+    # specific: "{\"projectId\":\"\",\"tier\":\"free-tier\",\"subscriptionTier\":\"Antigravity Starter Quota\",\"plan\":\"Antigravity starter quota\"}"
+
+  api-airforce:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.airforce.dev/v1"
+    key_attr: "airforce_api_key"
+    # specific: "{\"importFreeModelsOnly\":true,\"apiKeyHealth\":{\"primary\":{\"status\":\"healthy\",\"failures\":0,\"lastFailure\":null,\"lastSuccess\":\"2026-08-19T16:35:00.000Z\",\"t"
+
+  arcee-ai:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "expired"
+    has_token: false
+    base_url: "https://api.arcee.ai/v1"
+    key_attr: "arcee_ai_api_key"
+    # specific: "{\"apiKeyHealth\":{\"primary\":{\"status\":\"warning\",\"failures\":1,\"lastFailure\":\"2026-08-16T11:43:24.728Z\",\"lastSuccess\":null,\"totalRequests\":1,\"totalFailur"
+
+  bazaarlink:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.bazaarlink.ai/v1"
+    key_attr: "bazaarlink_api_key"
+    # specific: "{\"importFreeModelsOnly\":true,\"apiKeyHealth\":{\"primary\":{\"status\":\"healthy\",\"failures\":0,\"lastFailure\":null,\"lastSuccess\":\"2026-08-19T16:30:00.000Z\",\"t"
+
+  cerebras:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.cerebras.ai/v1"
+    key_attr: "cerebras_api_key"
+    # specific: "{\"apiKeyHealth\":{\"primary\":{\"status\":\"invalid\",\"failures\":2,\"lastFailure\":\"2026-08-19T08:26:00.980Z\",\"lastSuccess\":null,\"totalRequests\":1,\"totalFailur"
+
+  claude:
+    label: "sumitrevolt23@gmail.com"
+    auth_type: oauth
+    email: "sumitrevolt23@gmail.com"
+    priority: 1
+    active: false
+    test_status: "expired"
+    has_token: true
+    key_attr: "CLAUDE_API_KEY"
+    # specific: "{\"cliUserID\":\"24dfd7fa819ea1656e9f9d8867f853efb933c4728a59f6b85169c6d6e6518c1e\",\"accountUUID\":\"93695bdb-d13f-4084-a5d5-56b87d48a3b9\",\"organizationUUID"
+
+  cline:
+    label: "Sumit Daryanani"
+    auth_type: oauth
+    email: "daryananisumit440@gmail.com"
+    priority: 1
+    active: false
+    test_status: "credits_exhausted"
+    has_token: true
+    key_attr: "CLINE_API_KEY"
+    # specific: "{\"firstName\":\"Sumit\",\"lastName\":\"Daryanani\"}"
+
+  cohere:
+    label: "Cohere"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://api.cohere.com/v1"
+    key_attr: "cohere_api_key"
+    # specific: "{\"apiKeyHealth\":{}}"
+
+  deepseek:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.deepseek.com/v1"
+    key_attr: "deepseek_api_key"
+
+  gemini:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    key_attr: "gemini_api_key"
+
+  github:
+    label: ""
+    auth_type: oauth
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: true
+    key_attr: "GITHUB_API_KEY"
+    # specific: "{\"copilotToken\":\"tid=651e3b7dd7030b2903e96dc5000d0408;exp=1787534334;iat=1787447934;sku=free_limited_copilot;proxy-ep=proxy.individual.githubcopilot.c"
+
+  github-models:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://api.github.com/v1"
+    key_attr: "github_models_api_key"
+
+  groq:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "unavailable"
+    has_token: false
+    base_url: "https://api.groq.com/openai/v1"
+    key_attr: "groq_api_key"
+
+  hackclub:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "expired"
+    has_token: false
+    key_attr: "HACKCLUB_API_KEY"
+    # specific: "{\"importFreeModelsOnly\":true,\"apiKeyHealth\":{\"primary\":{\"status\":\"warning\",\"failures\":1,\"lastFailure\":\"2026-08-19T08:38:28.304Z\",\"lastSuccess\":null,\"t"
+
+  huggingface:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.huggingface.co/v1"
+    key_attr: "huggingface_api_key"
+
+  kimi-coding:
+    label: ""
+    auth_type: oauth
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: true
+    key_attr: "KIMI_CODING_API_KEY"
+    # specific: "{\"deviceId\":\"373fcfb4d67d453e9542ddebb8bc9534\",\"deviceName\":\"WIN-GT6L1K7NN5H\",\"deviceModel\":\"Linux 6.6.87.2-microsoft-standard-WSL2 x64\",\"osVersion\":\""
+
+  kiro:
+    label: ""
+    auth_type: oauth
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: true
+    key_attr: "KIRO_API_KEY"
+    # specific: "{\"authMethod\":\"imported\",\"provider\":\"Google\",\"profileArn\":\"arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK\"}"
+
+  mimocode:
+    label: "MiMoCode Account 1"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "unknown"
+    has_token: false
+    key_attr: "MIMOCODE_API_KEY"
+    # specific: "{\"fingerprints\":[\"d5c0c9a0fdc5416f9f814554f8bb0f19\"],\"accountProxies\":[]}"
+
+  mistral:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.mistral.ai/v1"
+    key_attr: "mistral_api_key"
+
+  nvidia:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://integrate.api.nvidia.com/v1"
+    key_attr: "nvidia_api_key"
+
+  ollama-cloud:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://cloud.ollama.com/v1"
+    key_attr: "ollama_cloud_api_key"
+
+  openai-compatible-chat-39015e75-fa35-4c75-80f3-7789508f9e97:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    default_model: "deepseek-ai/DeepSeek-V4-Pro:cheapest"
+    base_url: "https://router.huggingface.co/v1"
+    key_attr: "OPENAI_COMPATIBLE_CHAT_39015E75_FA35_4C75_80F3_7789508F9E97_API_KEY"
+    # specific: "{\"prefix\":\"hfr\",\"apiType\":\"chat\",\"baseUrl\":\"https://router.huggingface.co/v1\",\"nodeName\":\"Hugging Face Inference\"}"
+
+  openai-compatible-chat-afc47780-f6b2-45d5-8b2b-df426cf305a7:
+    label: "Cloudflare-oaic"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "http://172.26.112.1:8899/v1"
+    key_attr: "OPENAI_COMPATIBLE_CHAT_AFC47780_F6B2_45D5_8B2B_DF426CF305A7_API_KEY"
+    # specific: "{\"baseUrl\":\"http://172.26.112.1:8899/v1\",\"prefix\":\"cfr\",\"apiType\":\"chat\",\"nodeName\":\"Cloudflare Workers AI\",\"apiKeyHealth\":{\"primary\":{\"status\":\"warni"
+
+  openai-compatible-chat-e14c63cd-d80a-492a-b93e-0098c8eb6288:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    default_model: "openai/gpt-5.4"
+    base_url: "https://ai-gateway.vercel.sh/v1"
+    key_attr: "OPENAI_COMPATIBLE_CHAT_E14C63CD_D80A_492A_B93E_0098C8EB6288_API_KEY"
+    # specific: "{\"prefix\":\"vcg\",\"apiType\":\"chat\",\"baseUrl\":\"https://ai-gateway.vercel.sh/v1\",\"nodeName\":\"Vercel AI Gateway\"}"
+
+  opencode:
+    label: "OpenCode Account 1"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "unknown"
+    has_token: false
+    key_attr: "OPENCODE_API_KEY"
+    # specific: "{\"fingerprints\":[\"b54005457fc245449622d3c7244bebfd\"],\"accountProxies\":[]}"
+
+  openrouter:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://openrouter.ai/api/v1"
+    key_attr: "openrouter_api_key"
+
+  pollinations:
+    label: "main"
+    auth_type: apikey
+    email: "sumitrevolt23@gmail.com"
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.pollinations.ai/v1"
+    key_attr: "pollinations_api_key"
+    # specific: "{\"importFreeModelsOnly\":true,\"apiKeyHealth\":{\"primary\":{\"status\":\"warning\",\"failures\":1,\"lastFailure\":\"2026-08-19T15:42:56.690Z\",\"lastSuccess\":null,\"t"
+
+  puter:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    key_attr: "PUTER_API_KEY"
+    # specific: "{\"importFreeModelsOnly\":true,\"apiKeyHealth\":{\"primary\":{\"status\":\"invalid\",\"failures\":2,\"lastFailure\":\"2026-08-19T16:16:13.208Z\",\"lastSuccess\":null,\"t"
+
+  sambanova:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://api.sambanova.ai/v1"
+    key_attr: "sambanova_api_key"
+
+  serper-search:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://google.serper.dev"
+    key_attr: "serper_api_key"
+
+  siliconflow:
+    label: "SiliconFlow"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "credits_exhausted"
+    has_token: false
+    base_url: "https://api.siliconflow.cn/v1"
+    key_attr: "siliconflow_api_key"
+    # specific: "{\"apiKeyHealth\":{\"primary\":{\"status\":\"invalid\",\"failures\":2,\"lastFailure\":\"2026-08-19T08:37:37.234Z\",\"lastSuccess\":null,\"totalRequests\":1,\"totalFailur"
+
+  vercel-ai-gateway:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "expired"
+    has_token: false
+    base_url: "https://ai-gateway.vercel.sh/v1"
+    key_attr: "vercel_ai_gateway_api_key"
+    # specific: "{\"apiKeyHealth\":{\"primary\":{\"status\":\"warning\",\"failures\":1,\"lastFailure\":\"2026-08-16T08:06:06.413Z\",\"lastSuccess\":null,\"totalRequests\":1,\"totalFailur"
+
+  zai:
+    label: "main"
+    auth_type: apikey
+    email: ""
+    priority: 1
+    active: true
+    test_status: "active"
+    has_token: false
+    base_url: "https://api.z.ai/v1"
+    key_attr: "zai_api_key"
+
