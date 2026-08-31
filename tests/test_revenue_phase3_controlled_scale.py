@@ -35,7 +35,10 @@ def temp_store(tmp_path):
 
 
 def test_alembic_migration_025_up_down():
-    import alembic.versions.025_add_revenue_pipeline_tables as m025
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("m025", "alembic/versions/025_add_revenue_pipeline_tables.py")
+    m025 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m025)
 
     assert m025.revision == "025"
     assert m025.down_revision == "024"
@@ -45,7 +48,7 @@ def test_alembic_migration_025_up_down():
 
 def test_webhook_hmac_signature_and_replay_protection(temp_store):
     engine = temp_store
-    secret = "super_webhook_secret_key"
+    secret = "super_webhook_secret_key"  # nosecret
     ts = time.time()
 
     lead, _ = engine.ingest_and_dedup_lead(

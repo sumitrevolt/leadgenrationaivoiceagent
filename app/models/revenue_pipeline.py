@@ -1,13 +1,14 @@
 """
-Revenue Pipeline SQLAlchemy Models — Phase 2 Production Authority
-====================================================================
+Revenue Pipeline SQLAlchemy Models — Phase 4 Production Authority & DB Immutability
+====================================================================================
 Declarative database models for revenue pipeline lead records and immutable audit logs.
+Includes DB-level event listeners blocking UPDATE/DELETE operations on audit records.
 """
 
 from __future__ import annotations
 
 import time
-from sqlalchemy import Column, String, Integer, Float, Text, JSON, DateTime
+from sqlalchemy import Column, String, Integer, Float, Text, JSON, DateTime, event
 from app.models.base import Base
 
 
@@ -27,7 +28,7 @@ class RevenueLeadModel(Base):
     kanban_state = Column(String(64), nullable=False, default="DISCOVERED", index=True)
     outreach_channel = Column(String(64), default="email")
     outreach_draft = Column(Text, nullable=True)
-    provider_action_id = Column(String(128), nullable=True, index=True)
+    provider_action_id = Column(String(128), unique=True, nullable=True, index=True)
     provider_response_payload = Column(JSON, nullable=True)
     payment_evidence = Column(JSON, nullable=True)
     suppression_status = Column(String(64), default="CLEARED", index=True)
@@ -50,3 +51,16 @@ class RevenueAuditLogModel(Base):
     task_id = Column(String(128), nullable=True)
     evidence_id = Column(String(128), nullable=True)
     timestamp = Column(Float, default=time.time, index=True)
+
+
+# --------------------------------------------------------------------------- #
+# DB-Level Event Listeners for Immutability Protection
+# --------------------------------------------------------------------------- #
+@event.listens_for(RevenueAuditLogModel, "before_update")
+def block_audit_log_update(mapper, connection, target):
+    raise PermissionError("DB Immutability Violation: Database-level rule forbids UPDATE operations on revenue_audit_logs")
+
+
+@event.listens_for(RevenueAuditLogModel, "before_delete")
+def block_audit_log_delete(mapper, connection, target):
+    raise PermissionError("DB Immutability Violation: Database-level rule forbids DELETE operations on revenue_audit_logs")
