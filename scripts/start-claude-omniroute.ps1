@@ -24,9 +24,9 @@ param(
     [switch]$DryRun,
     [string]$Prompt,
     [string]$Model,
-    [string]$Combo = "leadgen.coding_primary",
+    [string]$Combo = "leadgen-coding-primary",
     [string]$OmniHost = "127.0.0.1",
-    [int]$Port = 20128
+    [int]$Port = 22000
 )
 
 $ErrorActionPreference = "Stop"

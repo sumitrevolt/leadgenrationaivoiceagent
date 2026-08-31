@@ -63,8 +63,10 @@ if ($apiKey) {
 Write-Output "[3/3] Launching Hermes Desktop..."
 $candidates = @(
     $HermesApp,
+    (Join-Path $env:LOCALAPPDATA 'hermes\hermes-agent\apps\desktop\release\win-unpacked\Hermes.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\Hermes\Hermes.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\hermes\Hermes.exe'),
     (Join-Path $env:LOCALAPPDATA 'hermes\bin\hermes.cmd'),
-    (Join-Path $env:LOCALAPPDATA 'hermes\hermes-setup.exe'),
     (Join-Path $env:LOCALAPPDATA 'hermes\hermes.exe'),
     (Join-Path $env:APPDATA 'Hermes\Hermes.exe')
 ) | Where-Object { $_ -and (Test-Path $_) }

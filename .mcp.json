@@ -1,25 +1,48 @@
 {
   "mcpServers": {
-    "graphify": {
-      "command": "graphify-mcp",
-      "args": ["--graph", "app/graphify-out/graph.json"],
-      "env": {}
-    },
-    "omniroute": {
-      "type": "http",
-      "url": "http://127.0.0.1:20128/api/mcp/stream",
-      "headers": {
-        "Authorization": "Bearer ${OMNIROUTE_MANAGEMENT_API_KEY}"
-      },
-      "_status": "ACTIVE — verified 2026-07-12 via real MCP JSON-RPC (initialize + tools/list + tools/call omniroute_get_health/check_quota/list_combos all succeeded). Key is a 'Manage'-type OmniRoute key stored ONLY as the Windows User env var OMNIROUTE_MANAGEMENT_API_KEY (never committed). NOTE: OmniRoute's MCP transport requires Management Access on the key — a 'Standard'/read-only key (see OMNIROUTE_API_KEY) gets 403 AUTH_001 on MCP calls, there is no finer-grained MCP scope in this dashboard version despite the per-tool scope labels."
+    "leadgen_admin_harness": {
+      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\leadgen_admin_harness_mcp.py"
+      ]
     },
     "buzz": {
-      "command": ".venv/Scripts/python.exe",
-      "args": ["scripts/buzz_mcp.py"],
+      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\buzz_mcp.py"
+      ],
       "env": {
-        "BUZZ_RELAY": "ws://127.0.0.1:3100"
-      },
-      "_status": "LIVE 2026-08-11 — stdio MCP (stdlib-only). Tools: buzz_channels / buzz_send / buzz_lock_status. BUZZ_RELAY=ws://127.0.0.1:3100 (user env; relay community host + port mapping + owner pubkey + fresh workspace fixed 2026-08-11). Verified: initialize + tools/list + buzz_channels + buzz_send (posted to #build) + buzz_lock_status against local relay."
+        "BUZZ_RELAY": "https://leadsgenai.communities.buzz.xyz"
+      }
+    },
+    "puppeteer": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "playwright": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ]
+    },
+    "filesystem": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+      ]
+    },
+    "graphify": {
+      "command": "C:\\Users\\Ratanshila\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\graphify-mcp.exe",
+      "args": [
+        "--graph",
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\app\\graphify-out\\graph.json"
+      ]
     }
   }
 }

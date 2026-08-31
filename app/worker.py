@@ -34,6 +34,7 @@ celery_app = Celery(
         "app.tasks.kb_niche_refresh",  # ADR-104 A4.5 — owned single-niche KB catalog refresh (default queue)
         "app.tasks.dsh_jobs",  # Hardened DSH orchestration + governed domain bridge (INERT default)
         "app.tasks.onboard_pipeline",  # Onboarding factory pipeline (INERT unless ONBOARDING_PIPELINE=1)
+        "app.marketing.content_os.tasks",  # Daily video automation: leadsgen + customer (INERT unless CONTENT_OS_ENABLED=1)
     ],
 )
 
@@ -835,6 +836,23 @@ if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true"
 celery_app.conf.beat_schedule["boss-autonomy-sweep"] = {
     "task": "app.tasks.staff_jobs.boss_autonomy_sweep",
     "schedule": crontab(minute="*/5"),
+    "args": (),
+}
+
+# ContentOS daily video automation tasks
+celery_app.conf.beat_schedule["content_os.daily_video_run"] = {
+    "task": "content_os.daily_video_run",
+    "schedule": crontab(hour=9, minute=0),
+    "args": (),
+}
+celery_app.conf.beat_schedule["content_os.scan_inbox"] = {
+    "task": "content_os.scan_inbox",
+    "schedule": crontab(minute="*/2"),
+    "args": (),
+}
+celery_app.conf.beat_schedule["content_os.notify_owner"] = {
+    "task": "content_os.notify_owner",
+    "schedule": crontab(minute="*/15"),
     "args": (),
 }
 

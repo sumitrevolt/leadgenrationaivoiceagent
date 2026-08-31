@@ -9,11 +9,28 @@ and unlocks all API keys so both local & secondary computers can execute all com
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import sys
 import uuid
 from datetime import datetime, timezone
 
-DB_PATH = "/root/.omniroute/storage.sqlite"
+
+def get_db_path() -> str:
+    if sys.platform == "win32":
+        candidates = [
+            r"\\wsl.localhost\Ubuntu-24.04\root\.omniroute\storage.sqlite",
+            r"\\wsl$\Ubuntu-24.04\root\.omniroute\storage.sqlite",
+            r"\\wsl.localhost\Ubuntu\root\.omniroute\storage.sqlite",
+            r"\\wsl$\Ubuntu\root\.omniroute\storage.sqlite",
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+    return "/root/.omniroute/storage.sqlite"
+
+
+DB_PATH = get_db_path()
 
 
 def now_iso() -> str:
@@ -22,29 +39,117 @@ def now_iso() -> str:
 
 # Free flagship model pool candidates
 COMMON_FREE_MODELS = [
-    {"id": "c1", "kind": "model", "model": "groq/llama-3.3-70b-versatile", "providerId": "groq", "weight": 0, "label": "groq-llama33"},
-    {"id": "c2", "kind": "model", "model": "gemini/gemini-flash-latest", "providerId": "gemini", "weight": 0, "label": "gemini-flash"},
-    {"id": "c3", "kind": "model", "model": "mistral/mistral-small-latest", "providerId": "mistral", "weight": 0, "label": "mistral-small"},
-    {"id": "c4", "kind": "model", "model": "cerebras/llama-3.3-70b", "providerId": "cerebras", "weight": 0, "label": "cerebras-llama33"},
-    {"id": "c5", "kind": "model", "model": "nvidia/meta/llama-3.3-70b-instruct", "providerId": "nvidia", "weight": 0, "label": "nvidia-llama33"},
-    {"id": "c6", "kind": "model", "model": "sambanova/Meta-Llama-3.3-70B-Instruct", "providerId": "sambanova", "weight": 0, "label": "sambanova-llama33"},
-    {"id": "c7", "kind": "model", "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free", "providerId": "openrouter", "weight": 0, "label": "openrouter-llama33"},
-    {"id": "c8", "kind": "model", "model": "antigravity/gemini-2.5-flash", "providerId": "antigravity", "weight": 0, "label": "ag-gemini"},
+    {
+        "id": "c1",
+        "kind": "model",
+        "model": "groq/llama-3.3-70b-versatile",
+        "providerId": "groq",
+        "weight": 0,
+        "label": "groq-llama33",
+    },
+    {
+        "id": "c2",
+        "kind": "model",
+        "model": "gemini/gemini-flash-latest",
+        "providerId": "gemini",
+        "weight": 0,
+        "label": "gemini-flash",
+    },
+    {
+        "id": "c3",
+        "kind": "model",
+        "model": "mistral/mistral-small-latest",
+        "providerId": "mistral",
+        "weight": 0,
+        "label": "mistral-small",
+    },
+    {
+        "id": "c4",
+        "kind": "model",
+        "model": "cerebras/llama-3.3-70b",
+        "providerId": "cerebras",
+        "weight": 0,
+        "label": "cerebras-llama33",
+    },
+    {
+        "id": "c5",
+        "kind": "model",
+        "model": "nvidia/meta/llama-3.3-70b-instruct",
+        "providerId": "nvidia",
+        "weight": 0,
+        "label": "nvidia-llama33",
+    },
+    {
+        "id": "c6",
+        "kind": "model",
+        "model": "sambanova/Meta-Llama-3.3-70B-Instruct",
+        "providerId": "sambanova",
+        "weight": 0,
+        "label": "sambanova-llama33",
+    },
+    {
+        "id": "c7",
+        "kind": "model",
+        "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+        "providerId": "openrouter",
+        "weight": 0,
+        "label": "openrouter-llama33",
+    },
+    {
+        "id": "c8",
+        "kind": "model",
+        "model": "antigravity/gemini-2.5-flash",
+        "providerId": "antigravity",
+        "weight": 0,
+        "label": "ag-gemini",
+    },
 ]
 
 COMBOS_DEFINITION = [
-    ("leadgen-coding-primary", "Coding & Logic Primary (hermes-engineer / leadgen-free-first)", "leadgen.coding_primary"),
+    (
+        "leadgen-coding-primary",
+        "Coding & Logic Primary (hermes-engineer / leadgen-free-first)",
+        "leadgen.coding_primary",
+    ),
     ("leadgen-coding-fast", "Coding Fast Lane (claude-code / rapid syntax)", "leadgen.coding_fast"),
-    ("leadgen-repo-analysis", "Repo Architecture Deep Scan (hermes-research)", "leadgen.repo_analysis"),
-    ("leadgen-test-generation", "Automated Test & QA (hermes-qa / pytest)", "leadgen.test_generation"),
+    (
+        "leadgen-repo-analysis",
+        "Repo Architecture Deep Scan (hermes-research)",
+        "leadgen.repo_analysis",
+    ),
+    (
+        "leadgen-test-generation",
+        "Automated Test & QA (hermes-qa / pytest)",
+        "leadgen.test_generation",
+    ),
     ("leadgen-agent-ops", "Agent Workforce Operations (hermes-ops)", "leadgen.agent_ops"),
     ("leadgen-swara-live", "Voice Realtime Fallback (hermes-voice)", "leadgen.swara_live"),
-    ("leadgen-marketing-content", "Marketing Content & Copywriting (hermes-content)", "leadgen.marketing_content"),
-    ("leadgen-prospect-enrich", "Prospecting & Lead Data Enrichment (hermes-prospect)", "leadgen.prospect_enrich"),
-    ("leadgen-outreach-email", "Outreach Email & Follow-up Drafts (hermes-outreach)", "leadgen.outreach_email"),
+    (
+        "leadgen-marketing-content",
+        "Marketing Content & Copywriting (hermes-content)",
+        "leadgen.marketing_content",
+    ),
+    (
+        "leadgen-prospect-enrich",
+        "Prospecting & Lead Data Enrichment (hermes-prospect)",
+        "leadgen.prospect_enrich",
+    ),
+    (
+        "leadgen-outreach-email",
+        "Outreach Email & Follow-up Drafts (hermes-outreach)",
+        "leadgen.outreach_email",
+    ),
     ("leadgen-seo-keyword", "SEO & SEM Keyword Clustering (hermes-seo)", "leadgen.seo_keyword"),
-    ("leadgen-governor-review", "Dual Governor Code Review (hermes-governor)", "leadgen.governor_review"),
-    ("leadgen-project-best", "50-Model Master Flagship Combo (hermes-master)", "leadgen.project_best"),
+    (
+        "leadgen-governor-review",
+        "Dual Governor Code Review (hermes-governor)",
+        "leadgen.governor_review",
+    ),
+    (
+        "leadgen-project-best",
+        "50-Model Master Flagship Combo (hermes-master)",
+        "leadgen.project_best",
+    ),
 ]
 
 
@@ -53,7 +158,9 @@ def seed_database() -> None:
     c = conn.cursor()
 
     # 1. Unlock all API keys (remove allowed_combos restrictions so all combos are allowed)
-    c.execute("UPDATE api_keys SET allowed_combos = NULL, allowed_models = NULL WHERE is_active = 1;")
+    c.execute(
+        "UPDATE api_keys SET allowed_combos = NULL, allowed_models = NULL WHERE is_active = 1;"
+    )
     print("API keys updated: allowed_combos set to NULL (all combos allowed).")
 
     # 2. Query existing combo IDs
@@ -68,7 +175,7 @@ def seed_database() -> None:
         # Generate model pool with unique IDs for this combo
         models = [
             {
-                "id": f"{combo_name}-m{i+1}-{m['providerId']}",
+                "id": f"{combo_name}-m{i + 1}-{m['providerId']}",
                 "kind": "model",
                 "model": m["model"],
                 "providerId": m["providerId"],
@@ -126,7 +233,6 @@ def seed_database() -> None:
     conn.commit()
     conn.close()
     print(f"Seeded {len(COMBOS_DEFINITION) * 2} combo keys (hyphen + dot alias) in {DB_PATH}.")
-
 
 
 if __name__ == "__main__":

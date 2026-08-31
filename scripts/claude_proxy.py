@@ -7,13 +7,14 @@ Advertises 12 Claude-prefixed OmniRoute combos (claude-omni-*) so Claude Desktop
 frontend filter passes all 12 dynamic combos into the UI dropdown.
 Proxies all chat, completions, and messages requests to OmniRoute (http://127.0.0.1:20128/v1).
 """
+
 import http.server
 import json
 import os
 import socketserver
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 from http import HTTPStatus
 
 UPSTREAM = os.environ.get("OMNI_UPSTREAM", "http://127.0.0.1:20128")
@@ -23,18 +24,58 @@ LISTEN_PORT = int(os.environ.get("PROXY_PORT", "22000"))
 
 # 12 Claude-prefixed dynamic combos
 ALL_COMBOS = [
-    {"id": "claude-omni-coding-primary", "real": "leadgen-coding-primary", "name": "OmniRoute Coding Primary"},
-    {"id": "claude-omni-coding-fast", "real": "leadgen-coding-fast", "name": "OmniRoute Coding Fast"},
-    {"id": "claude-omni-repo-analysis", "real": "leadgen-repo-analysis", "name": "OmniRoute Repo Analysis"},
-    {"id": "claude-omni-test-generation", "real": "leadgen-test-generation", "name": "OmniRoute Test Generation"},
+    {
+        "id": "claude-omni-coding-primary",
+        "real": "leadgen-coding-primary",
+        "name": "OmniRoute Coding Primary",
+    },
+    {
+        "id": "claude-omni-coding-fast",
+        "real": "leadgen-coding-fast",
+        "name": "OmniRoute Coding Fast",
+    },
+    {
+        "id": "claude-omni-repo-analysis",
+        "real": "leadgen-repo-analysis",
+        "name": "OmniRoute Repo Analysis",
+    },
+    {
+        "id": "claude-omni-test-generation",
+        "real": "leadgen-test-generation",
+        "name": "OmniRoute Test Generation",
+    },
     {"id": "claude-omni-agent-ops", "real": "leadgen-agent-ops", "name": "OmniRoute Agent Ops"},
     {"id": "claude-omni-swara-live", "real": "leadgen-swara-live", "name": "OmniRoute Swara Live"},
-    {"id": "claude-omni-marketing-content", "real": "leadgen-marketing-content", "name": "OmniRoute Marketing Content"},
-    {"id": "claude-omni-prospect-enrich", "real": "leadgen-prospect-enrich", "name": "OmniRoute Prospect Enrich"},
-    {"id": "claude-omni-outreach-email", "real": "leadgen-outreach-email", "name": "OmniRoute Outreach Email"},
-    {"id": "claude-omni-seo-keyword", "real": "leadgen-seo-keyword", "name": "OmniRoute SEO Keyword"},
-    {"id": "claude-omni-governor-review", "real": "leadgen-governor-review", "name": "OmniRoute Governor Review"},
-    {"id": "claude-omni-project-best", "real": "leadgen-project-best", "name": "OmniRoute Project Best"},
+    {
+        "id": "claude-omni-marketing-content",
+        "real": "leadgen-marketing-content",
+        "name": "OmniRoute Marketing Content",
+    },
+    {
+        "id": "claude-omni-prospect-enrich",
+        "real": "leadgen-prospect-enrich",
+        "name": "OmniRoute Prospect Enrich",
+    },
+    {
+        "id": "claude-omni-outreach-email",
+        "real": "leadgen-outreach-email",
+        "name": "OmniRoute Outreach Email",
+    },
+    {
+        "id": "claude-omni-seo-keyword",
+        "real": "leadgen-seo-keyword",
+        "name": "OmniRoute SEO Keyword",
+    },
+    {
+        "id": "claude-omni-governor-review",
+        "real": "leadgen-governor-review",
+        "name": "OmniRoute Governor Review",
+    },
+    {
+        "id": "claude-omni-project-best",
+        "real": "leadgen-project-best",
+        "name": "OmniRoute Project Best",
+    },
 ]
 
 MODEL_MAP = {
@@ -73,40 +114,46 @@ MODEL_MAP = {
     "claude-opus-4-1": "leadgen-project-best",
 }
 
+
 def normalize_path(path: str) -> str:
     """Normalize path by stripping duplicate /v1 prefixes."""
     while "/v1/v1" in path:
         path = path.replace("/v1/v1", "/v1")
     return path
 
+
 def build_models_response():
     """Build a /v1/models response in Anthropic shape with claude-omni- prefixed IDs."""
     now = 1787911502
     data = []
-    
+
     # 12 Claude-Prefixed Dynamic Combos (MANDATORY claude- prefix for Claude Desktop filter)
     for combo in ALL_COMBOS:
-        data.append({
-            "id": combo["id"],
-            "display_name": combo["name"],
-            "object": "model",
-            "created": now,
-            "owned_by": "anthropic",
-            "permission": [],
-            "root": combo["id"],
-            "parent": None,
-            "context_length": 200000,
-            "max_input_tokens": 200000,
-            "max_output_tokens": 8192,
-            "capabilities": {
-                "tool_calling": True,
-                "reasoning": True,
-                "thinking": False,
-                "temperature": True,
-            },
-        })
-        
+        jls_extract_var = False
+        data.append(
+            {
+                "id": combo["id"],
+                "display_name": combo["name"],
+                "object": "model",
+                "created": now,
+                "owned_by": "anthropic",
+                "permission": [],
+                "root": combo["id"],
+                "parent": None,
+                "context_length": 1048576,
+                "max_input_tokens": 1048576,
+                "max_output_tokens": 16384,
+                "capabilities": {
+                    "tool_calling": True,
+                    "reasoning": True,
+                    "thinking": True,
+                    "temperature": True,
+                },
+            }
+        )
+
     return {"object": "list", "data": data}
+
 
 def rewrite_model_in_body(body_bytes: bytes, content_type: str) -> bytes:
     """Replace model references in JSON body with real OmniRoute IDs."""
@@ -130,6 +177,7 @@ def rewrite_model_in_body(body_bytes: bytes, content_type: str) -> bytes:
     if changed:
         return json.dumps(body).encode("utf-8")
     return body_bytes
+
 
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
     server_version = "ClaudeProxy/5.0"
@@ -155,7 +203,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         body = override_body if override_body is not None else self._read_body()
         body = rewrite_model_in_body(body, self.headers.get("Content-Type", ""))
 
-        headers_to_send = {k: v for k, v in self._common_headers().items() if v and k != "Content-Type"}
+        headers_to_send = {
+            k: v for k, v in self._common_headers().items() if v and k != "Content-Type"
+        }
         req = urllib.request.Request(
             url,
             data=body if body else None,
@@ -167,16 +217,39 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
 
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
-                data = resp.read()
+                content_type = resp.headers.get("Content-Type", "")
+                is_stream = "text/event-stream" in content_type.lower() or "chunked" in resp.headers.get("Transfer-Encoding", "").lower()
+                
                 try:
                     self.send_response(resp.status)
                     for k, v in resp.headers.items():
-                        if k.lower() in ("content-encoding", "content-length", "transfer-encoding", "connection"):
+                        if k.lower() in (
+                            "content-encoding",
+                            "content-length",
+                            "transfer-encoding",
+                            "connection",
+                        ):
                             continue
                         self.send_header(k, v)
-                    self.send_header("Content-Length", str(len(data)))
-                    self.end_headers()
-                    self.wfile.write(data)
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    
+                    if is_stream:
+                        self.send_header("Transfer-Encoding", "chunked")
+                        self.end_headers()
+                        while True:
+                            chunk = resp.read(512)
+                            if not chunk:
+                                break
+                            # Write HTTP/1.1 chunked encoding
+                            self.wfile.write(f"{len(chunk):X}\r\n".encode() + chunk + b"\r\n")
+                            self.wfile.flush()
+                        self.wfile.write(b"0\r\n\r\n")
+                        self.wfile.flush()
+                    else:
+                        data = resp.read()
+                        self.send_header("Content-Length", str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
                 except (BrokenPipeError, ConnectionResetError):
                     pass
         except urllib.error.HTTPError as e:
@@ -184,9 +257,15 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             try:
                 self.send_response(e.code)
                 for k, v in (e.headers or {}).items():
-                    if k.lower() in ("content-encoding", "content-length", "transfer-encoding", "connection"):
+                    if k.lower() in (
+                        "content-encoding",
+                        "content-length",
+                        "transfer-encoding",
+                        "connection",
+                    ):
                         continue
                     self.send_header(k, v)
+                self.send_header("Access-Control-Allow-Origin", "*")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -194,8 +273,11 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 pass
         except Exception as e:
             try:
-                err = json.dumps({"error": {"message": f"proxy error: {e}", "type": "proxy_error"}}).encode()
+                err = json.dumps(
+                    {"error": {"message": f"proxy error: {e}", "type": "proxy_error"}}
+                ).encode()
                 self.send_response(HTTPStatus.BAD_GATEWAY)
+                self.send_header("Access-Control-Allow-Origin", "*")
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(err)))
                 self.end_headers()
@@ -213,7 +295,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         clean_path = normalize_path(self.path)
         path_without_query = clean_path.split("?")[0]
 
-        if path_without_query.endswith("/models") or path_without_query in ("/v1/models", "/models"):
+        if path_without_query.endswith("/models") or path_without_query in (
+            "/v1/models",
+            "/models",
+        ):
             payload = json.dumps(build_models_response()).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -222,8 +307,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
-        if path_without_query in ("/health", "/_health"):
-            payload = json.dumps({"status": "ok", "upstream": UPSTREAM, "combos": [c["id"] for c in ALL_COMBOS]}).encode()
+        if path_without_query in ("/health", "/_health", "/api/health"):
+            payload = json.dumps(
+                {"status": "ok", "upstream": UPSTREAM, "combos": [c["id"] for c in ALL_COMBOS]}
+            ).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -243,17 +330,22 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "*")
         self.end_headers()
 
+
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
+
 def main():
     server = ThreadedHTTPServer((LISTEN_HOST, LISTEN_PORT), ProxyHandler)
-    print(f"ClaudeProxy listening on http://{LISTEN_HOST}:{LISTEN_PORT} -> forwarding to {UPSTREAM}")
+    print(
+        f"ClaudeProxy listening on http://{LISTEN_HOST}:{LISTEN_PORT} -> forwarding to {UPSTREAM}"
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down proxy.")
         server.server_close()
+
 
 if __name__ == "__main__":
     main()

@@ -691,6 +691,13 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Public site router not mounted: {_e}")
 try:
+    from app.api.internal_media import router as content_internal_router, public as content_public_router
+
+    app.include_router(content_internal_router)  # /internal/*  (HMAC-protected; renderer webhooks)
+    app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"ContentOS router not mounted: {_e}")
+try:
     from app.api.page_agent import router as page_agent_router
 
     app.include_router(

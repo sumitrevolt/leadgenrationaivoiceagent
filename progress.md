@@ -238,3 +238,33 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 - **COMPLIANCE FOLD-IN (research agent verdict 2026-08-30):** No free legal India outbound exists — TRAI mandates a 140-series CLI for promotional (even with consent). **Jio Mobile DID is non-140 ⇒ NOT compliant for cold promo** → repositioned to transactional/service/reactivation/inbound/web-demo lanes only. **Changed:** `trunks.py` — `Trunk.lanes` attribute; `jio_mobile` = `{"transactional"}`; `pick_trunk(lead)` now lane-filters and **fail-closes to the promotional lane on unknown lead** (jio never carries promo; jio-only+promo → ("none","")). Updated `test_jio_sip_tenant.py` round-robin (transactional lead) + added `test_pick_trunk_promo_excludes_jio_mobile` + `test_pick_trunk_jio_only_promo_returns_none`. Docs: `JIO_SIP_SETUP_PLAN.md` Status + step-10 revision note. Recorded `docs/coordination/JIO_SIP_SETUP_PLAN.md`.
 - **Tests Run (final):** `tests/test_jio_sip_tenant.py` 13 passed · readiness+compliance+vobiz regression 100 passed · `prod_check.py` `[OK] ALL CHECKS PASSED - ready to deploy` · `check_secrets.py` clean (98 changed files).
 - **Verification Evidence:** pytest exit 0; prod_check OK; armed-path probe jio ok True; inert path weights 0; lane guard: promo/None/consented → vobiz only; jio-only+promo → none.
+
+## Loop Run — 2026-08-31 (OmniRoute 12 Combos, Multi-App Discovery, Model Proxy Hardening)
+- **Goal:** Autopilot resolution of OmniRoute gateway downtime, WorkBuddy AI 12-combo missing catalog, Hermes Desktop connection desync, and cross-platform SQLite seeder locking.
+- **Inspected:** scripts/claude_proxy.py (:22000), WSL OmniRoute gateway (:20128), scripts/seed_omniroute_12combos.py, scripts/sync_all_combos_all_apps.py, scripts/start-all-combos-desktop.ps1, scripts/start-claude-omniroute.ps1, scripts/start-hermes-omniroute.ps1, ~/.workbuddy-ai/models.json, AppData/Roaming/Hermes/connections.json, AppData/Local/hermes/provider_models_cache.json.
+- **Problems Found:**
+  1. WSL OmniRoute process had collided with EADDRINUSE on port 20128.
+  2. claude_proxy.py was down and lacked /api/health support needed for instantaneous health checks from start-claude-omniroute.ps1.
+  3. WorkBuddy AI custom models UI read from models.json array instead of settings.json alone, so 12 dynamic combos were absent from its dropdown.
+  4. Hermes Desktop AppData/Local runtime cache (provider_models_cache.json and auth.json) lacked omniroute provider registration.
+  5. seed_omniroute_12combos.py failed when invoked on Windows due to hardcoded POSIX /root/... path and 9P UNC network file-locking against active SQLite.
+  6. start-hermes-omniroute.ps1 binary candidate order picked CLI hermes.cmd before GUI Hermes.exe.
+- **Changed:**
+  1. scripts/claude_proxy.py: Added /api/health alongside /health & /_health for instant 200 OK probe; daemonized on port 22000.
+  2. scripts/seed_omniroute_12combos.py: Dynamic WSL UNC path detection on Windows + POSIX path fallback on Linux.
+  3. scripts/sync_all_combos_all_apps.py: Comprehensive multi-app sync engine writing 25 custom model entries to ~/.workbuddy-ai/models.json, injecting omniroute and custom to AppData/Local/hermes/provider_models_cache.json, auth.json, and config.yaml, and seeding SQLite via wsl.exe python3.
+  4. scripts/start-hermes-omniroute.ps1: Prioritized unpacked GUI Hermes.exe at the top of candidate list.
+- **Tests Run:**
+  - tests/test_billing_truth_2026.py — 15 passed (100% green).
+  - scripts/prod_check.py — ALL CHECKS PASSED (1,346 routes, 54 pages 0 gaps, automation 0 gaps).
+  - scripts/check_secrets.py — clean (0 secrets).
+  - Live End-to-End Chat Completion: POST http://127.0.0.1:22000/v1/chat/completions with model claude-omni-coding-fast -> HTTP 200 OK real-time chunks.
+- **Verification Evidence:**
+  - Port 20128 Gateway: ONLINE (27 combos registered in SQLite).
+  - Port 22000 Proxy: ONLINE (12 dynamic combos advertised).
+  - WorkBuddy AI: 25 models verified in ~/.workbuddy-ai/models.json.
+  - Hermes Desktop: 24 model keys verified in provider_models_cache.json.
+  - start-claude-omniroute.ps1 -DryRun: OmniRoute reachable: OK.
+- **Risks:** Desktop apps must be refreshed/restarted to reload newly populated JSON caches.
+- **Remaining:** None on local combo discovery stack; ready for user daily operations.
+- **Next Highest Priority:** Owner operation of 12 combos across WorkBuddy, Hermes, DSH, and Claude Desktop.
