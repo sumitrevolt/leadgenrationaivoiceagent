@@ -6,11 +6,11 @@ ARG RUNTIME_IMAGE=gcr.io/distroless/cc-debian12:nonroot@sha256:9a5775272c79c226d
 FROM ${NODE_IMAGE} AS builder
 
 ARG DSH_REPOSITORY=https://github.com/deepseek-ai/deepseek-harness.git
-ARG DSH_COMMIT=cd5ef8148158c3a752a658978873241fdf8e2bbc
-ARG DSH_TREE=a712eec535b48badc4fefb4df5176a7002e4280b
-ARG DSH_ARCHIVE_SHA256=1fe7d2380d3e53eac2f6ee92ee5c81850ddc9b735b5910bae132cf1fc12b7211
+ARG DSH_COMMIT=47f943859bef60e4160492346772ded9b24f765a
+ARG DSH_TREE=f904efab9ef435201d6ba4da88a34d6366568272
+ARG DSH_ARCHIVE_SHA256=c2d8d1e9ec24f0500da431288d2c0c80cf3f502d4dbda2026bd87ac099f3e2e6
 ARG PNPM_VERSION=11.7.0
-ARG SOURCE_DATE_EPOCH=1787849863
+ARG SOURCE_DATE_EPOCH=1786621126
 
 ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
     TZ=UTC \
@@ -83,7 +83,7 @@ FROM ${RUNTIME_IMAGE} AS runtime
 
 LABEL org.opencontainers.image.title="LeadGen hardened DeepSeek Harness runtime" \
       org.opencontainers.image.source="https://github.com/deepseek-ai/deepseek-harness" \
-      org.opencontainers.image.revision="cd5ef8148158c3a752a658978873241fdf8e2bbc" \
+      org.opencontainers.image.revision="47f943859bef60e4160492346772ded9b24f765a" \
       org.opencontainers.image.licenses="MIT"
 
 COPY --from=builder --chown=65532:65532 --chmod=0555 /out/dsh-jsonrpc-agent /usr/local/bin/dsh-jsonrpc-agent
