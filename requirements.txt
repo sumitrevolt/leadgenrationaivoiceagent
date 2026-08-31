@@ -5,9 +5,9 @@
 # Core Framework
 # =============================================================================
 fastapi==0.141.1
-uvicorn[standard]==0.52.3
-pydantic==2.13.4
-pydantic_core==2.46.4
+uvicorn[standard]==0.52.4
+pydantic==2.13.5
+pydantic_core==2.48.0
 pydantic-settings==2.15.0
 email-validator==2.3.0
 python-multipart==0.0.32
@@ -28,10 +28,10 @@ aioredis==2.0.1
 # =============================================================================
 openai==2.41.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) ΓÇö see app/voice_agent/free_ai.py
 anthropic==0.122.0
-# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.5 (langgraph)
+# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.6.1 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.8.6
-google-genai>=2.18.1  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-genai>=2.20.0  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
 google-cloud-aiplatform==1.164.0
 
 # =============================================================================
@@ -44,7 +44,7 @@ fastembed>=0.4.0
 # Speech Processing
 # =============================================================================
 # STT
-deepgram-sdk==7.7.0
+deepgram-sdk==7.7.1
 google-cloud-speech==2.40.0
 # Local STT for the conversational phone pipeline (app/voice_agent/phone_stream.py
 # + app/telephony/vobiz_stream.py) ΓÇö faster-whisper 'tiny' runs CPU/int8, no API key.
@@ -53,13 +53,13 @@ faster-whisper>=1.0.0
 
 # TTS
 elevenlabs==1.0.3
-azure-cognitiveservices-speech==1.51.1
+azure-cognitiveservices-speech==1.51.2
 edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) ΓÇö must be 7.x
 
 # =============================================================================
 # Payment Gateways
 # =============================================================================
-stripe>=15.5.0
+stripe>=15.6.0
 # razorpay removed 2026-06-18 ΓÇö no online India gateway (payments via manual UPI)
 
 # =============================================================================
@@ -67,7 +67,7 @@ stripe>=15.5.0
 # =============================================================================
 playwright==1.62.0
 beautifulsoup4==4.15.0
-selenium==4.47.0
+selenium==4.48.0
 googlemaps==4.10.0
 
 # =============================================================================
@@ -82,14 +82,14 @@ aiosmtplib==5.1.2
 # CRM Integrations
 # =============================================================================
 hubspot-api-client==8.2.1
-google-api-python-client==2.198.0
-google-auth-oauthlib==1.4.0
+google-api-python-client==2.199.0
+google-auth-oauthlib==1.4.1
 gspread==6.2.1
 
 # =============================================================================
 # Utilities
 # =============================================================================
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 pydub==0.25.1
 phonenumbers==8.13.28
 APScheduler==3.11.3
@@ -121,12 +121,12 @@ psutil>=5.9.0
 # =============================================================================
 google-cloud-secret-manager>=2.30.0
 google-cloud-storage>=2.14.0
-google-cloud-logging>=3.16.2
+google-cloud-logging>=3.16.3
 # S3-compatible storage (MinIO addon ΓÇö app/storage/minio_client.py). Import-safe:
 # missing => local-disk fallback. Needed only if docker-compose.addons.yml minio used.
 boto3>=1.43.72
 google-cloud-monitoring>=2.18.0
-google-auth>=2.56.3
+google-auth>=2.57.0
 
 # =============================================================================
 # Authentication
@@ -146,17 +146,17 @@ scikit-learn>=1.3.2
 # =============================================================================
 langgraph>=1.2.11
 langgraph-checkpoint-sqlite>=3.1.1
-langchain-core>=1.5.5
+langchain-core>=1.6.1
 # Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) ΓÇö opt-in
 # (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
 langgraph-supervisor>=0.0.27
-langchain-openai>=1.5.1  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+langchain-openai>=1.6.0  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
 # Knowledge-graph RAG (app/voice_agent/graph_rag.py) ΓÇö opt-in USE_LIGHTRAG=1.
 # Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
 # (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep ΓÇö reuses KB + free_ai.)
 lightrag-hku>=1.5.6
 # AI-automation + marketing helpers (opt-in, defensive ΓÇö graceful fallback if absent):
-instructor>=1.15.4     # validated/typed LLM outputs over free providers (app/llm/structured.py)
+instructor>=1.16.0     # validated/typed LLM outputs over free providers (app/llm/structured.py)
 advertools>=0.18.0    # SEM keyword + RSA ad generation (app/marketing/seo_tools.py)
 trafilatura>=2.2.0    # high-accuracy web text + contact extraction (app/lead_scraper/web_extract.py)
 markitdown>=0.1.7     # any file/URL -> LLM-ready markdown (app/lead_scraper/to_markdown.py)

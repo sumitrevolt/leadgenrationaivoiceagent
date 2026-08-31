@@ -10,5 +10,5 @@ torchaudio>=2.2
 soundfile>=0.14.0
 numpy>=1.24
 av>=11.0            # PyAV: decode browser webm/opus audio
-huggingface_hub>=1.27.0
+huggingface_hub>=1.29.0
 einops               # IndicF5 / F5-TTS dep
