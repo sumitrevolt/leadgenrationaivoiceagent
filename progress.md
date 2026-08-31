@@ -1,6 +1,38 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+- **Date:** 2026-08-31
+- **Goal:** Merge all local worktrees (`omniroute-jio-sip-20260830`, Worktree 3 `main-16853fc4`, Worktree 4 `main-554fb586`, desktop orchestrator scripts) into `main`, verify compliance & contract tests, and deploy to live production VPS (`https://leadsgenai.in`).
+- **Inspected:**
+  - `omniroute-jio-sip-20260830`: Jio SIP trunk (`app/telephony/trunks.py`), Customer Dashboard v2 (`/app/dashboard-v2`), Cash Scoreboard, Campaign Attribution, revenue ops scripts.
+  - Worktree 3 (`main-16853fc4`): ContentOS daily video automation (`app/marketing/content_os/`, `app/api/internal_media.py`, Celery tasks/schedule).
+  - Worktree 4 (`main-554fb586`): Content Engine & Pipeline (`app/content_engine/`, `app/content_pipeline/`, `design_system.md`).
+  - Worktree 1 (`main`): Desktop orchestrator (`scripts/master_desktop_orchestrator.py`), autoboot scripts, proxy tools.
+- **Problems Found:**
+  - `omniroute-jio-sip-20260830` branch had unmerged commits (`63c2c47a`, `14be3394`, `f05bbd5d`, `3a02c40e`) and conflict markers in 14 revenue scripts during merge (resolved using HEAD TRAI compliance lane rules & format).
+  - DSH Dockerfile pinned commit drifted to `cd5ef814` causing `hardening.patch` failure during docker build (restored working pinned commit `47f9438`).
+  - `prod_check --deployment` required `VOICE_LAUNCH_KILL=1` safety fence in VPS `.env` (updated and verified).
+- **Changed:**
+  - Consolidated all 4 worktree change-sets into `main`.
+  - Mounted ContentOS internal and public routers (`/internal/*`, `/api/content-os/*`) in `app/main.py` and Celery tasks/schedules in `app/worker.py`.
+  - Restored `deploy/dsh/Dockerfile` and `deploy/dsh/upstream.lock.json` pinned commit (`47f9438`).
+  - Set `VOICE_LAUNCH_KILL=1` in VPS `.env`.
+- **Tests Run:**
+  - `scripts/check_secrets.py` → **PASS** (0 findings).
+  - `scripts/prod_check.py` → **PASS** (1357 routes registered, 0 gaps).
+  - `pytest tests/test_billing_truth_2026.py -q` → **PASS** (15/15 green).
+  - Candidate container `prod_check --deployment` → **PASS** (TRUE_TOKEN verified).
+- **Verification Evidence:**
+  - Public TLS `https://leadsgenai.in/health` -> `status: healthy`, `version: 37a1daf8`, `environment: production`.
+  - All 6 core containers (`app`, `worker`, `scheduler`, `worker-heavy`, `worker-video`, `dsh-worker`) running image tag `37a1daf8` with zero version skew.
+- **Risks:**
+  - External provider API limits (Groq/Gemini key rotation pools active).
+- **Remaining:**
+  - None. All worktrees merged and deployed to production.
+- **Next Highest Priority:**
+  - GTM paid acquisition drive.
+
+
 **Date:** 2026-08-21
 **Goal:** 7 parallel streams (GTM 0→1 sprint — DSH Integration, Hot Queue, Unity 3D Office, Buzz Relay, GSC Rank Tracking, Billing Ledger, Agent Loop).
 
