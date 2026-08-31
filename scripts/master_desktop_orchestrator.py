@@ -88,6 +88,7 @@ UNIVERSAL_MCP_SERVERS = {
 CLAUDE_EXE_MS = r"C:\Program Files\WindowsApps\Claude_1.40609.0.0_x64__pzs8sxrjxfjjc\app\Claude.exe"
 HERMES_EXE = os.path.expanduser(r"~\AppData\Local\hermes\hermes-agent\apps\desktop\release\win-unpacked\Hermes.exe")
 WORKBUDDY_EXE = os.path.expanduser(r"~\AppData\Local\Programs\WorkBuddyAI\WorkBuddyAI.exe")
+ANTIGRAVITY_EXE = os.path.expanduser(r"~\AppData\Local\Programs\Antigravity IDE\Antigravity IDE.exe")
 
 
 def check_http_port(port: int, path: str = "/") -> tuple[bool, str]:
@@ -205,6 +206,10 @@ def launch_workbuddy():
     return launch_app_interactively(WORKBUDDY_EXE, "WorkBuddy Desktop")
 
 
+def launch_antigravity():
+    return launch_app_interactively(ANTIGRAVITY_EXE, "Antigravity IDE")
+
+
 def print_status():
     """Print comprehensive master status table for all services, apps, and MCP harness."""
     print("=================================================================")
@@ -224,6 +229,9 @@ def print_status():
 
     # 2. Desktop Applications
     print("\n--- [2] Desktop Applications ---")
+    antigravity_pids = is_process_running("Antigravity")
+    print(f"  * Antigravity IDE  : {'[RUNNING - PIDs: ' + str(antigravity_pids) + ']' if antigravity_pids else '[STOPPED]'}")
+
     claude_pids = is_process_running("Claude")
     print(f"  * Claude Desktop   : {'[RUNNING - PIDs: ' + str(claude_pids) + ']' if claude_pids else '[STOPPED]'}")
     
@@ -279,6 +287,8 @@ def main():
         launch_hermes()
     elif action == "launch-workbuddy":
         launch_workbuddy()
+    elif action == "launch-antigravity":
+        launch_antigravity()
     elif action in ("verify-harness", "verify"):
         print("=== Running Self-Harness Diagnostics ===")
         from scripts.leadgen_admin_harness_mcp import tool_self_harness_verify
@@ -286,7 +296,7 @@ def main():
         print(res.get("text", ""))
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: status, fix, launch-all, launch-claude, launch-hermes, launch-workbuddy, verify")
+        print("Available actions: status, fix, launch-all, launch-claude, launch-hermes, launch-workbuddy, launch-antigravity, verify")
 
 
 if __name__ == "__main__":
