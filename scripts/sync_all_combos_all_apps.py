@@ -423,6 +423,88 @@ def sync_hermes():
         )
 
 
+def sync_openclaw():
+    openclaw_dir = os.path.expanduser(r"~\.openclaw")
+    if not os.path.exists(openclaw_dir):
+        return
+
+    config_path = os.path.join(openclaw_dir, "openclaw.json")
+    try:
+        data = {}
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        if "models" not in data or not isinstance(data["models"], dict):
+            data["models"] = {}
+        if "providers" not in data["models"] or not isinstance(data["models"]["providers"], dict):
+            data["models"]["providers"] = {}
+
+        omni_models = [
+            {
+                "id": c["real"],
+                "name": f"{c['name']} (OmniRoute 1M)",
+                "reasoning": False,
+                "input": ["text"],
+                "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+                "contextWindow": 1048576,
+                "maxTokens": 16384,
+            }
+            for c in ALL_COMBOS
+        ]
+
+        custom_models = [
+            {
+                "id": c["id"],
+                "name": f"{c['name']} (Claude Proxy 1M)",
+                "reasoning": False,
+                "input": ["text"],
+                "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+                "contextWindow": 1048576,
+                "maxTokens": 16384,
+            }
+            for c in ALL_COMBOS
+        ]
+
+        data["models"]["providers"]["omniroute"] = {
+            "baseUrl": "http://127.0.0.1:20128/v1",
+            "apiKey": "dummy-local-key",
+            "api": "openai-completions",
+            "models": omni_models,
+        }
+
+        data["models"]["providers"]["custom"] = {
+            "baseUrl": "http://127.0.0.1:22000/v1",
+            "apiKey": "dummy-local-key",
+            "api": "openai-completions",
+            "models": custom_models,
+        }
+
+        if "agents" not in data or not isinstance(data["agents"], dict):
+            data["agents"] = {}
+        if "defaults" not in data["agents"] or not isinstance(data["agents"]["defaults"], dict):
+            data["agents"]["defaults"] = {}
+
+        data["agents"]["defaults"]["model"] = {
+            "primary": "custom/claude-omni-coding-primary"
+        }
+
+        if "models" not in data["agents"]["defaults"] or not isinstance(data["agents"]["defaults"]["models"], dict):
+            data["agents"]["defaults"]["models"] = {}
+
+        data["agents"]["defaults"]["models"]["custom/*"] = {}
+        data["agents"]["defaults"]["models"]["omniroute/*"] = {}
+        data["agents"]["defaults"]["models"]["custom/claude-omni-coding-primary"] = {}
+        data["agents"]["defaults"]["models"]["omniroute/leadgen-coding-primary"] = {}
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+        print(f"[OK] OpenClaw config synced with OmniRoute & Claude Proxy 12 Combos -> {config_path}")
+    except Exception as e:
+        print(f"[WARN] OpenClaw sync note: {e}")
+
+
 def sync_workspace_mcp():
     mcp_json_path = os.path.join(REPO_DIR, ".mcp.json")
     try:
@@ -457,5 +539,6 @@ if __name__ == "__main__":
     sync_claude()
     sync_workbuddy()
     sync_hermes()
+    sync_openclaw()
     sync_workspace_mcp()
     print("=== All Client App Configs Successfully Synced! ===")
