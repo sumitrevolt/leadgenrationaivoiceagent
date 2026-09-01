@@ -60,11 +60,19 @@ def handle_owner_command(text: str) -> str:
         asset_id = items[idx]["id"]
         feedback = " ".join(parts[2].split()[1:]) if sub == "recreate" else None
         try:
-            from app.api.internal_media import approve as _approve_endpoint  # type: ignore
             from pydantic import BaseModel  # noqa
+
+            from app.api.internal_media import approve as _approve_endpoint  # type: ignore
+
             # call internal helper directly
             from app.marketing.content_os.inbox_watcher import (
-                approve as _approve_act, recreate as _recreate_act, skip as _skip_act,
+                approve as _approve_act,
+            )
+            from app.marketing.content_os.inbox_watcher import (
+                recreate as _recreate_act,
+            )
+            from app.marketing.content_os.inbox_watcher import (
+                skip as _skip_act,
             )
             if sub == "approve":
                 res = _approve_act(asset_id)

@@ -1,7 +1,8 @@
-import os
 import asyncio
 import json
+import os
 from pathlib import Path
+
 import edge_tts
 from groq import Groq
 
@@ -33,10 +34,10 @@ async def main(topic):
     script = await generate_script(topic)
     script_path = OUTPUT_DIR / "script.txt"
     script_path.write_text(script, encoding="utf-8")
-    
+
     print("Generating voiceover...")
     voice_path = await generate_voice(script, "voiceover.mp3")
-    
+
     print(f"Pipeline complete. Script: {script_path}, Voice: {voice_path}")
 
 if __name__ == "__main__":

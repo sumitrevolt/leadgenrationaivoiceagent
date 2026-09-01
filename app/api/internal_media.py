@@ -4,13 +4,13 @@ public admin routes for owner 1-clicks (approval/recrate/skip).
 """
 from __future__ import annotations
 
-import os
-import hmac
 import hashlib
+import hmac
 import logging
+import os
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Request, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def _sign(body: bytes) -> str:
     return hmac.new(HMAC_KEY.encode(), body, hashlib.sha256).hexdigest()
 
 
-async def _hmac_check(request: Request, x_render_signature: Optional[str] = Header(None)):
+async def _hmac_check(request: Request, x_render_signature: str | None = Header(None)):
     if not INTERNAL_REQUIRED:
         return
     if not HMAC_KEY:
@@ -83,7 +83,7 @@ def render_done(inp: RenderDoneIn):
 class ApprovalIn(BaseModel):
     asset_id: str
     action: str           # "approve" | "recreate" | "skip"
-    feedback: Optional[str] = None
+    feedback: str | None = None
 
 
 @public.post("/approve")
@@ -106,9 +106,8 @@ def pending(limit: int = 25):
 
 @public.get("/status")
 def status():
-    from app.marketing.content_os.engine import _today_ist
+    from app.marketing.content_os.engine import DATA_DIR, _today_ist
     from app.marketing.content_os.inbox_watcher import list_pending
-    from app.marketing.content_os.engine import DATA_DIR
     return {
         "ok": True,
         "date_ist": _today_ist(),
@@ -134,13 +133,13 @@ def run_for_client(slug: str):
 # --------------------------------------------------------------------------- #
 class LeadIn(BaseModel):
     name: str
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    city: Optional[str] = None
-    niche: Optional[str] = None
-    source: Optional[str] = None      # "ig_bio", "tt_bio", "yt_comment", ...
+    phone: str | None = None
+    email: str | None = None
+    city: str | None = None
+    niche: str | None = None
+    source: str | None = None      # "ig_bio", "tt_bio", "yt_comment", ...
     utm: dict = {}
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @public.post("/lead")

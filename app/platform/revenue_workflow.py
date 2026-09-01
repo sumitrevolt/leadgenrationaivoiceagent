@@ -18,32 +18,32 @@ DISCOVERED -> QUALIFIED -> DRAFTED -> APPROVED -> SENT -> REPLIED -> APPOINTMENT
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+import logging
 import os
 import sys
 import time
-import json
 import uuid
-import hmac
-import hashlib
-import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.config import settings
 from app.platform.automation_orchestrator import (
     AutomationOrchestrator,
-    TaskStatus,
-    TaskPriority,
     StructuredEvidence,
+    TaskPriority,
+    TaskStatus,
 )
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 SENSITIVE_KEYS = {"token", "password", "secret", "api_key", "credit_card", "cvv", "auth_token"}
 
 
-def redact_sensitive_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+def redact_sensitive_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return payload
     sanitized = {}
@@ -65,7 +65,7 @@ def verify_webhook_signature(payload_str: str, signature: str, secret: str, time
 
     expected_sig = hmac.new(
         secret.encode("utf-8"),
-        f"{timestamp}.{payload_str}".encode("utf-8"),
+        f"{timestamp}.{payload_str}".encode(),
         hashlib.sha256,
     ).hexdigest()
 
@@ -104,11 +104,11 @@ class RevenueAuditRecord:
     previous_state: str
     next_state: str
     reason: str
-    task_id: Optional[str] = None
-    evidence_id: Optional[str] = None
+    task_id: str | None = None
+    evidence_id: str | None = None
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -124,16 +124,16 @@ class RevenueLeadRecord:
     score: int = 0
     kanban_state: RevenueKanbanState = RevenueKanbanState.DISCOVERED
     outreach_channel: str = "email"
-    outreach_draft: Optional[str] = None
-    provider_action_id: Optional[str] = None
-    provider_response_payload: Optional[Dict[str, Any]] = None
-    payment_evidence: Optional[Dict[str, Any]] = None
+    outreach_draft: str | None = None
+    provider_action_id: str | None = None
+    provider_response_payload: dict[str, Any] | None = None
+    payment_evidence: dict[str, Any] | None = None
     suppression_status: str = "CLEARED"  # "CLEARED" or "SUPPRESSED"
-    task_id: Optional[str] = None
+    task_id: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "lead_id": self.lead_id,
             "tenant_id": self.tenant_id,
@@ -159,16 +159,16 @@ class RevenueLeadRecord:
 class RevenueWorkflowEngine:
     """Canonical GTM revenue workflow control plane wrapping AutomationOrchestrator."""
 
-    def __init__(self, orchestrator: Optional[AutomationOrchestrator] = None):
+    def __init__(self, orchestrator: AutomationOrchestrator | None = None):
         verify_production_db_guard()
         self.orchestrator = orchestrator or AutomationOrchestrator()
-        self._leads_store: Dict[str, RevenueLeadRecord] = {}
-        self._audit_logs: List[RevenueAuditRecord] = []
-        self._dedup_index: Dict[str, str] = {}
-        self._webhook_events_index: Dict[str, float] = {}
-        self._utr_index: Dict[str, str] = {}
-        self._provider_actions_index: Dict[str, str] = {}
-        self.metrics: Dict[str, Any] = {
+        self._leads_store: dict[str, RevenueLeadRecord] = {}
+        self._audit_logs: list[RevenueAuditRecord] = []
+        self._dedup_index: dict[str, str] = {}
+        self._webhook_events_index: dict[str, float] = {}
+        self._utr_index: dict[str, str] = {}
+        self._provider_actions_index: dict[str, str] = {}
+        self.metrics: dict[str, Any] = {
             "duplicate_webhook_rejections": 0,
             "utr_collisions": 0,
             "partial_payment_rejections": 0,
@@ -184,8 +184,8 @@ class RevenueWorkflowEngine:
         previous_state: str,
         next_state: str,
         reason: str,
-        task_id: Optional[str] = None,
-        evidence_id: Optional[str] = None,
+        task_id: str | None = None,
+        evidence_id: str | None = None,
     ) -> RevenueAuditRecord:
         sanitized_reason = redact_sensitive_payload({"reason": reason}).get("reason", reason)
         audit_rec = RevenueAuditRecord(
@@ -223,7 +223,7 @@ class RevenueWorkflowEngine:
         email: str,
         domain: str,
         niche: str,
-    ) -> Tuple[RevenueLeadRecord, bool]:
+    ) -> tuple[RevenueLeadRecord, bool]:
         dedup_keys = [f"phone:{phone.strip()}", f"email:{email.strip().lower()}", f"domain:{domain.strip().lower()}"]
 
         for dkey in dedup_keys:
@@ -327,7 +327,7 @@ class RevenueWorkflowEngine:
         )
         return lead
 
-    def guardian_pre_send_check(self, lead_id: str) -> Tuple[RevenueLeadRecord, bool]:
+    def guardian_pre_send_check(self, lead_id: str) -> tuple[RevenueLeadRecord, bool]:
         lead = self._leads_store.get(lead_id)
         if not lead:
             raise KeyError(f"Lead {lead_id} not found")
@@ -423,9 +423,9 @@ class RevenueWorkflowEngine:
         lead_id: str,
         provider_event_id: str,
         reply_text: str,
-        signature: Optional[str] = None,
-        secret: Optional[str] = None,
-        timestamp: Optional[float] = None,
+        signature: str | None = None,
+        secret: str | None = None,
+        timestamp: float | None = None,
     ) -> RevenueLeadRecord:
         lead = self._leads_store.get(lead_id)
         if not lead:
@@ -492,7 +492,7 @@ class RevenueWorkflowEngine:
     def mark_won_with_payment(
         self,
         lead_id: str,
-        payment_evidence: Dict[str, Any],
+        payment_evidence: dict[str, Any],
         min_required_amount_inr: int = 1999,
     ) -> RevenueLeadRecord:
         lead = self._leads_store.get(lead_id)
@@ -539,18 +539,18 @@ class RevenueWorkflowEngine:
         )
         return lead
 
-    def execute_scale_ladder(self, leads_input: List[Dict[str, str]], stage: str = "A") -> Dict[str, Any]:
+    def execute_scale_ladder(self, leads_input: list[dict[str, str]], stage: str = "A") -> dict[str, Any]:
         """Phase 3 backward-compatible scale ladder execution."""
         return self.run_live_revenue_pilot(leads_input, stage=stage)
 
-    def run_live_revenue_pilot(self, leads_input: List[Dict[str, str]], stage: str = "A") -> Dict[str, Any]:
+    def run_live_revenue_pilot(self, leads_input: list[dict[str, str]], stage: str = "A") -> dict[str, Any]:
         """Executes Live Revenue Pilot Stage (A: 1 lead, B: 5 leads, C: 20 leads).
         Enforces 0-violation safety gates. Activates AUTOMATION_STOP_NEW_CLAIMS=1 on invariant breach.
         """
         target_count = 1 if stage == "A" else (5 if stage == "B" else 20)
         batch = leads_input[:target_count]
 
-        processed_leads: List[RevenueLeadRecord] = []
+        processed_leads: list[RevenueLeadRecord] = []
         violations_count = 0
 
         for item in batch:
@@ -611,7 +611,7 @@ class RevenueWorkflowEngine:
 
         return stage_summary
 
-    def get_financial_and_funnel_metrics(self) -> Dict[str, Any]:
+    def get_financial_and_funnel_metrics(self) -> dict[str, Any]:
         pipeline = self.get_kanban_pipeline()
         sent_count = len(pipeline["SENT"]) + len(pipeline["REPLIED"]) + len(pipeline["APPOINTMENT"]) + len(pipeline["WON"])
         replied_count = len(pipeline["REPLIED"]) + len(pipeline["APPOINTMENT"]) + len(pipeline["WON"])
@@ -644,15 +644,15 @@ class RevenueWorkflowEngine:
             },
         }
 
-    def get_kanban_pipeline(self) -> Dict[str, List[Dict[str, Any]]]:
-        pipeline: Dict[str, List[Dict[str, Any]]] = {
+    def get_kanban_pipeline(self) -> dict[str, list[dict[str, Any]]]:
+        pipeline: dict[str, list[dict[str, Any]]] = {
             state.value: [] for state in RevenueKanbanState
         }
         for lead in self._leads_store.values():
             pipeline[lead.kanban_state.value].append(lead.to_dict())
         return pipeline
 
-    def get_audit_trail(self, lead_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_audit_trail(self, lead_id: str | None = None) -> list[dict[str, Any]]:
         logs = self._audit_logs
         if lead_id:
             logs = [l for l in logs if l.lead_id == lead_id]

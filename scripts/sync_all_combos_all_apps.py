@@ -280,6 +280,25 @@ def sync_hermes():
     # 2. Local AppData hermes cache, auth & mcp
     hermes_local = os.path.expanduser(r"~\AppData\Local\hermes")
     if os.path.exists(hermes_local):
+        all_combo_models = (
+            [c["real"] for c in ALL_COMBOS]
+            + [c["id"] for c in ALL_COMBOS]
+            + [
+                "hermes-engineer",
+                "claude-code",
+                "hermes-research",
+                "hermes-qa",
+                "hermes-ops",
+                "hermes-voice",
+                "hermes-content",
+                "hermes-prospect",
+                "hermes-outreach",
+                "hermes-seo",
+                "hermes-governor",
+                "hermes-master",
+            ]
+        )
+
         # provider_models_cache.json
         cache_path = os.path.join(hermes_local, "provider_models_cache.json")
         cache_data = {}
@@ -290,10 +309,9 @@ def sync_hermes():
             except Exception:
                 cache_data = {}
 
-        now_ts = 1788106106.0
-        all_models = COMBO_IDS + [c["real"] for c in ALL_COMBOS]
-        cache_data["omniroute"] = {"fp": "omni12combos", "at": now_ts, "models": all_models}
-        cache_data["custom"] = {"fp": "custom12combos", "at": now_ts, "models": all_models}
+        now_ts = 1888106106.0
+        cache_data["omniroute"] = {"fp": "omni12combos", "at": now_ts, "models": all_combo_models}
+        cache_data["custom"] = {"fp": "custom12combos", "at": now_ts, "models": all_combo_models}
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(cache_data, f, indent=2)
 
@@ -344,19 +362,49 @@ def sync_hermes():
                     "base_url": "http://127.0.0.1:20128/v1",
                     "key_env": "OMNIROUTE_API_KEY",
                     "model": "leadgen-coding-primary",
+                    "models": all_combo_models,
                     "discover_models": True,
                     "context_length": 1048576,
-                    "max_tokens": 16384,
                 }
                 cfg_data["providers"]["custom"] = {
                     "name": "Claude Proxy (12 Combos - 1M Context)",
                     "base_url": "http://127.0.0.1:22000/v1",
                     "key_env": "OMNIROUTE_API_KEY",
                     "model": "claude-omni-coding-primary",
+                    "models": all_combo_models,
                     "discover_models": True,
                     "context_length": 1048576,
-                    "max_tokens": 16384,
                 }
+
+                # Register each individual combo under providers: so model switch succeeds for any alias
+                for c in ALL_COMBOS:
+                    slug_hyphen = c["name"].lower().replace(" ", "-")
+                    provider_entry = {
+                        "name": c["name"],
+                        "base_url": "http://127.0.0.1:20128/v1",
+                        "key_env": "OMNIROUTE_API_KEY",
+                        "model": c["real"],
+                        "models": [c["real"], c["id"]],
+                        "discover_models": False,
+                        "context_length": 1048576,
+                    }
+                    cfg_data["providers"][slug_hyphen] = provider_entry
+                    cfg_data["providers"][f"custom:{slug_hyphen}"] = provider_entry
+                    cfg_data["providers"][c["id"]] = provider_entry
+                    cfg_data["providers"][c["real"]] = provider_entry
+
+                # Also register in custom_providers
+                cfg_data["custom_providers"] = [
+                    {
+                        "name": c["name"],
+                        "provider_key": c["name"].lower().replace(" ", "-"),
+                        "base_url": "http://127.0.0.1:20128/v1",
+                        "model": c["real"],
+                        "key_env": "OMNIROUTE_API_KEY",
+                        "context_length": 1048576,
+                    }
+                    for c in ALL_COMBOS
+                ]
 
                 cfg_data["mcp_servers"] = UNIVERSAL_MCP_SERVERS
 
@@ -371,7 +419,7 @@ def sync_hermes():
             json.dump({"mcpServers": UNIVERSAL_MCP_SERVERS}, f, indent=2)
 
         print(
-            f"[OK] Hermes Agent Local AppData synced (provider_models_cache + auth + config.yaml with 1M context + Full Project MCPs) -> {hermes_local}"
+            f"[OK] Hermes Agent Local AppData synced ({len(all_combo_models)} combos in provider_models_cache + auth + config.yaml with 1M context + Full Project MCPs) -> {hermes_local}"
         )
 
 

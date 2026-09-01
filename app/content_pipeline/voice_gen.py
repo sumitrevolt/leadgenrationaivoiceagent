@@ -1,7 +1,8 @@
-import os
-import edge_tts
 import asyncio
+import os
 from typing import Optional
+
+import edge_tts
 
 # Setup: Using existing project structure
 # Assumes groq/mistral client wrappers available in app.voice_agent.free_ai
@@ -19,11 +20,11 @@ async def generate_voiceover(text: str, output_path: str, voice: str = "hi-IN-Sw
 async def main(topic: str):
     script = await generate_script(topic)
     print(f"Generated Script: {script}")
-    
+
     output_dir = "outputs"
     os.makedirs(output_dir, exist_ok=True)
     voice_path = os.path.join(output_dir, "voiceover.mp3")
-    
+
     await generate_voiceover(script, voice_path)
 
 if __name__ == "__main__":

@@ -109,46 +109,78 @@ COMBOS_DEFINITION = [
     (
         "leadgen-coding-primary",
         "Coding & Logic Primary (hermes-engineer / leadgen-free-first)",
-        "leadgen.coding_primary",
+        [
+            "leadgen.coding_primary",
+            "hermes-engineer",
+            "claude-omni-coding-primary",
+            "hermes-owner",
+        ],
     ),
-    ("leadgen-coding-fast", "Coding Fast Lane (claude-code / rapid syntax)", "leadgen.coding_fast"),
+    (
+        "leadgen-coding-fast",
+        "Coding Fast Lane (claude-code / rapid syntax)",
+        ["leadgen.coding_fast", "claude-code", "claude-omni-coding-fast"],
+    ),
     (
         "leadgen-repo-analysis",
         "Repo Architecture Deep Scan (hermes-research)",
-        "leadgen.repo_analysis",
+        ["leadgen.repo_analysis", "hermes-research", "claude-omni-repo-analysis"],
     ),
     (
         "leadgen-test-generation",
         "Automated Test & QA (hermes-qa / pytest)",
-        "leadgen.test_generation",
+        ["leadgen.test_generation", "hermes-qa", "claude-omni-test-generation"],
     ),
-    ("leadgen-agent-ops", "Agent Workforce Operations (hermes-ops)", "leadgen.agent_ops"),
-    ("leadgen-swara-live", "Voice Realtime Fallback (hermes-voice)", "leadgen.swara_live"),
+    (
+        "leadgen-agent-ops",
+        "Agent Workforce Operations (hermes-ops)",
+        [
+            "leadgen.agent_ops",
+            "hermes-ops",
+            "claude-omni-agent-ops",
+            "hermes-sales",
+            "hermes-finance",
+        ],
+    ),
+    (
+        "leadgen-swara-live",
+        "Voice Realtime Fallback (hermes-voice)",
+        ["leadgen.swara_live", "hermes-voice", "claude-omni-swara-live"],
+    ),
     (
         "leadgen-marketing-content",
         "Marketing Content & Copywriting (hermes-content)",
-        "leadgen.marketing_content",
+        [
+            "leadgen.marketing_content",
+            "hermes-content",
+            "hermes-marketing",
+            "claude-omni-marketing-content",
+        ],
     ),
     (
         "leadgen-prospect-enrich",
         "Prospecting & Lead Data Enrichment (hermes-prospect)",
-        "leadgen.prospect_enrich",
+        ["leadgen.prospect_enrich", "hermes-prospect", "claude-omni-prospect-enrich"],
     ),
     (
         "leadgen-outreach-email",
         "Outreach Email & Follow-up Drafts (hermes-outreach)",
-        "leadgen.outreach_email",
+        ["leadgen.outreach_email", "hermes-outreach", "claude-omni-outreach-email"],
     ),
-    ("leadgen-seo-keyword", "SEO & SEM Keyword Clustering (hermes-seo)", "leadgen.seo_keyword"),
+    (
+        "leadgen-seo-keyword",
+        "SEO & SEM Keyword Clustering (hermes-seo)",
+        ["leadgen.seo_keyword", "hermes-seo", "claude-omni-seo-keyword"],
+    ),
     (
         "leadgen-governor-review",
         "Dual Governor Code Review (hermes-governor)",
-        "leadgen.governor_review",
+        ["leadgen.governor_review", "hermes-governor", "claude-omni-governor-review"],
     ),
     (
         "leadgen-project-best",
         "50-Model Master Flagship Combo (hermes-master)",
-        "leadgen.project_best",
+        ["leadgen.project_best", "hermes-master", "claude-omni-project-best"],
     ),
 ]
 
@@ -168,10 +200,9 @@ def seed_database() -> None:
     existing_rows = {row[0]: json.loads(row[1]) for row in c.fetchall()}
 
     timestamp = now_iso()
-    inserted_count = 0
-    updated_count = 0
+    total_seeded = 0
 
-    for combo_name, desc, task_alias in COMBOS_DEFINITION:
+    for combo_name, desc, aliases in COMBOS_DEFINITION:
         # Generate model pool with unique IDs for this combo
         models = [
             {
@@ -191,9 +222,6 @@ def seed_database() -> None:
         if combo_name in existing_rows:
             combo_id = existing_rows[combo_name].get("id", combo_id)
             created_at = existing_rows[combo_name].get("createdAt", timestamp)
-            updated_count += 1
-        else:
-            inserted_count += 1
 
         payload = {
             "id": combo_id,
@@ -215,8 +243,8 @@ def seed_database() -> None:
             "isActive": True,
         }
 
-        # Save under both hyphenated combo_name AND dot notation task_alias
-        for name_key in (combo_name, task_alias):
+        all_names = [combo_name] + aliases
+        for name_key in all_names:
             p = dict(payload)
             p["name"] = name_key
             row_id = str(uuid.uuid4())
@@ -229,10 +257,11 @@ def seed_database() -> None:
                      updated_at = excluded.updated_at;""",
                 (row_id, name_key, json_str, timestamp, timestamp),
             )
+            total_seeded += 1
 
     conn.commit()
     conn.close()
-    print(f"Seeded {len(COMBOS_DEFINITION) * 2} combo keys (hyphen + dot alias) in {DB_PATH}.")
+    print(f"Seeded {total_seeded} combo keys (primary + agent aliases + dot notation) in {DB_PATH}.")
 
 
 if __name__ == "__main__":

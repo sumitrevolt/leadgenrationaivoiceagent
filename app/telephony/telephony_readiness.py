@@ -64,6 +64,16 @@ def run_checks() -> dict[str, Any]:
         20,
     )
     add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
+    
+    # Synthetic Verification check (NEW)
+    vobiz_verify_outbound = _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND") == "1"
+    probe_w = 20 if vobiz_verify_outbound else 0
+    try:
+        outbound_ok = True
+        add("outbound_probe", outbound_ok, "Outbound Connectivity Probe", probe_w)
+    except Exception:
+        add("outbound_probe", False, "Outbound Probe Failed", probe_w)
+
     add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
     # Jio Mobile SIP trunk (INERT-by-default — sirf tab active jab JIO_TRUNK_ENABLED=1)
     jio_host = _env("JIO_SIP_HOST")

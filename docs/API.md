@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1373 operations)
+## Endpoint Index — auto-generated from OpenAPI (1380 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -600,6 +600,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/contentauto/repurpose` — Repurpose Pack
 - `GET   ` `/api/contentauto/team-report` — Team Report
 - `POST  ` `/api/contentauto/team-report/run` — Team Report Run
+
+### ContentOS  (6)
+
+- `POST  ` `/api/api/content-os/approve` — Approve
+- `POST  ` `/api/api/content-os/lead` — Capture Lead
+- `GET   ` `/api/api/content-os/pending` — Pending
+- `POST  ` `/api/api/content-os/run-for-client/{slug}` — Run For Client
+- `POST  ` `/api/api/content-os/run-now` — Run Now
+- `GET   ` `/api/api/content-os/status` — Status
 
 ### ContentPlus  (12)
 
@@ -1964,5 +1973,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/widgets/popup-wheel-coupons` — Popup Wheel Coupons
 - `GET   ` `/api/widgets/popup.js` — Popup Js
 - `GET   ` `/api/widgets/site-stats` — Site Stats
+
+### content-os  (1)
+
+- `POST  ` `/internal/render/done` — Render Done
 
 <!-- AUTO-OPENAPI:END -->

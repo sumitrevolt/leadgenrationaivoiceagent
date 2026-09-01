@@ -17,22 +17,22 @@ Key Architecture & Production Authority:
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import sys
-import time
-import json
-import uuid
 import threading
-import logging
-from dataclasses import dataclass, field, asdict
+import time
+import uuid
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.platform.agent_registry import (
-    build_registry,
-    Lane,
     HARD_OFF,
     AgentContract,
+    Lane,
+    build_registry,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,9 +74,9 @@ class StructuredEvidence:
     uri_or_path: str  # URL or file path pointing to evidence artifact
     timestamp: float = field(default_factory=time.time)
     producer: str = ""  # Agent ID or component that produced the evidence
-    checksum_or_result: Dict[str, Any] = field(default_factory=dict)
+    checksum_or_result: dict[str, Any] = field(default_factory=dict)
 
-    def validate(self) -> Tuple[bool, str]:
+    def validate(self) -> tuple[bool, str]:
         if not self.type or not isinstance(self.type, str):
             return False, "Evidence 'type' must be a non-empty string"
         if not self.uri_or_path or not isinstance(self.uri_or_path, str):
@@ -85,7 +85,7 @@ class StructuredEvidence:
             return False, "Evidence 'producer' must specify the agent/producer ID"
         return True, "Valid"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -100,21 +100,21 @@ class TaskRecord:
     priority: TaskPriority
     status: TaskStatus
     version: int = 1  # CAS Version counter
-    fencing_token: Optional[str] = None  # Monotonic fencing token for lease validation
+    fencing_token: str | None = None  # Monotonic fencing token for lease validation
     retry_count: int = 0
     max_retries: int = 3
     deadline_s: int = 300
     provider: str = "omniroute"
     model: str = "leadgen-free-first"
     idempotency_key: str = ""
-    input_payload: Dict[str, Any] = field(default_factory=dict)
-    evidence: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    input_payload: dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] | None = None
+    error_message: str | None = None
     last_heartbeat: float = field(default_factory=time.time)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "owner_bot": self.owner_bot,
@@ -138,7 +138,7 @@ class TaskRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> TaskRecord:
+    def from_dict(cls, data: dict[str, Any]) -> TaskRecord:
         return cls(
             task_id=data["task_id"],
             owner_bot=data["owner_bot"],
@@ -207,7 +207,7 @@ class DurableTaskStore:
             conn.commit()
             conn.close()
 
-    def get(self, task_id: str) -> Optional[TaskRecord]:
+    def get(self, task_id: str) -> TaskRecord | None:
         import sqlite3
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -219,7 +219,7 @@ class DurableTaskStore:
                 return self._row_to_record(row)
             return None
 
-    def get_by_idempotency_key(self, key: str) -> Optional[TaskRecord]:
+    def get_by_idempotency_key(self, key: str) -> TaskRecord | None:
         import sqlite3
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -285,7 +285,7 @@ class DurableTaskStore:
             conn.close()
             return success
 
-    def all_tasks(self) -> List[TaskRecord]:
+    def all_tasks(self) -> list[TaskRecord]:
         import sqlite3
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -339,23 +339,23 @@ class RedisGovernorAuthority:
             self._seq += 1
             return f"fence_{task_id}_{self._seq}_{int(time.time()*1000)}"
 
-    def _load_leases(self) -> Dict[str, Dict[str, Any]]:
+    def _load_leases(self) -> dict[str, dict[str, Any]]:
         if os.path.exists(self.lease_file):
             try:
-                with open(self.lease_file, "r", encoding="utf-8") as f:
+                with open(self.lease_file, encoding="utf-8") as f:
                     return json.load(f)
             except Exception:
                 return {}
         return {}
 
-    def _save_leases(self, leases: Dict[str, Dict[str, Any]]) -> None:
+    def _save_leases(self, leases: dict[str, dict[str, Any]]) -> None:
         try:
             with open(self.lease_file, "w", encoding="utf-8") as f:
                 json.dump(leases, f, indent=2)
         except Exception as e:
             logger.error(f"[RedisGovernor] Failed to save lease file: {e}")
 
-    def reap_stale_leases(self) -> List[str]:
+    def reap_stale_leases(self) -> list[str]:
         reclaimed = []
         now = time.time()
         with self._lock:
@@ -426,7 +426,7 @@ class AutomationOrchestrator:
         "dsh": "http://127.0.0.1:3080",  # Specialized Harness
     }
 
-    def __init__(self, max_concurrency: int = 4, store: Optional[DurableTaskStore] = None, lease_file: Optional[str] = None):
+    def __init__(self, max_concurrency: int = 4, store: DurableTaskStore | None = None, lease_file: str | None = None):
         self.registry = build_registry()
         self.store = store or DurableTaskStore()
         l_file = lease_file or (self.store.db_path + ".leases.json" if hasattr(self.store, "db_path") else LEASE_JSON)
@@ -471,12 +471,12 @@ class AutomationOrchestrator:
         owner_bot: str,
         assigned_agent: str,
         priority: TaskPriority = TaskPriority.MEDIUM,
-        input_payload: Optional[Dict[str, Any]] = None,
-        idempotency_key: Optional[str] = None,
+        input_payload: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
         provider: str = "omniroute",
         model: str = "leadgen-free-first",
         deadline_s: int = 300,
-    ) -> Tuple[TaskRecord, bool]:
+    ) -> tuple[TaskRecord, bool]:
         if owner_bot not in self.HERMES_BOTS:
             raise ValueError(f"Invalid owner_bot '{owner_bot}'. Must be one of {list(self.HERMES_BOTS.keys())}")
 
@@ -573,8 +573,8 @@ class AutomationOrchestrator:
         task_id: str,
         execution_evidence: Any,
         is_success: bool = True,
-        error_msg: Optional[str] = None,
-        fencing_token: Optional[str] = None,
+        error_msg: str | None = None,
+        fencing_token: str | None = None,
     ) -> TaskRecord:
         record = self.store.get(task_id)
         if not record:
@@ -610,7 +610,7 @@ class AutomationOrchestrator:
             return record
 
         # Structured Guardian Evidence Validation
-        evidence_obj: Optional[StructuredEvidence] = None
+        evidence_obj: StructuredEvidence | None = None
         if isinstance(execution_evidence, StructuredEvidence):
             evidence_obj = execution_evidence
         elif isinstance(execution_evidence, dict):
@@ -650,8 +650,8 @@ class AutomationOrchestrator:
         owner_bot: str,
         assigned_agent: str,
         task_description: str,
-        input_payload: Optional[Dict[str, Any]] = None,
-        idempotency_key: Optional[str] = None,
+        input_payload: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
     ) -> TaskRecord:
         payload = input_payload or {}
         payload["description"] = task_description
@@ -702,15 +702,15 @@ class AutomationOrchestrator:
 
         return completed_task
 
-    def get_kanban_board(self) -> Dict[str, List[Dict[str, Any]]]:
-        board: Dict[str, List[Dict[str, Any]]] = {
+    def get_kanban_board(self) -> dict[str, list[dict[str, Any]]]:
+        board: dict[str, list[dict[str, Any]]] = {
             status.value: [] for status in TaskStatus
         }
         for task in self.store.all_tasks():
             board[task.status.value].append(task.to_dict())
         return board
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         tasks = self.store.all_tasks()
         avg_lat = sum(self.metrics["task_latency"]) / len(self.metrics["task_latency"]) if self.metrics["task_latency"] else 0.0
         return {

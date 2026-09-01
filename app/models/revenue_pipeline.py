@@ -8,7 +8,9 @@ Includes DB-level event listeners blocking UPDATE/DELETE operations on audit rec
 from __future__ import annotations
 
 import time
-from sqlalchemy import Column, String, Integer, Float, Text, JSON, DateTime, event
+
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String, Text, event
+
 from app.models.base import Base
 
 

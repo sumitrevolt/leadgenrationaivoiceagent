@@ -12,6 +12,7 @@ All tasks are idempotent and never raise.
 from __future__ import annotations
 
 import logging
+
 from app.worker import celery_app
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ def notify_owner_task(self):
         # /internal/media/list every minute and pushes inline keyboards
         # one-per-asset when there are <= 3 pending items.
         from app.integrations.ntfy import push
-        msg = "[content_os] {} pending approvals.\n".format(len(pending)) + "\n".join(
+        msg = f"[content_os] {len(pending)} pending approvals.\n" + "\n".join(
             "• {} — {}".format(p["title"][:40], p["id"]) for p in pending[:5]
         )
         push(topic="leadgen-owner", message=msg, priority="high")

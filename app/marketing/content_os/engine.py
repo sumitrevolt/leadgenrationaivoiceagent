@@ -16,14 +16,14 @@ Design principles:
 """
 from __future__ import annotations
 
-import os
-import json
-import uuid
-import time
-import logging
 import hashlib
 import hmac
-from dataclasses import dataclass, field, asdict
+import json
+import logging
+import os
+import time
+import uuid
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -157,7 +157,7 @@ def _pick_customer_briefs() -> list[RenderBrief]:
     out: list[RenderBrief] = []
     try:
         from app.marketing.brand_kit import list_active_clients  # type: ignore
-        from app.marketing.niche_pack import next_pack_item        # type: ignore
+        from app.marketing.niche_pack import next_pack_item  # type: ignore
     except Exception as e:
         logger.info("[content_os] leadgen marketing deps unavailable (%s); skipping customer queue", e)
         return out

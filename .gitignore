@@ -228,6 +228,9 @@ config/openclaw/.local/
 # Reorg scratch (AUDIT 2026-08-05): quarantined _tmp_* litter + legacy agent roots land here
 _scratch/
 
+# Multi-agent task artifacts (docs/MULTI_AGENT_WORKFLOW.md section 4): README tracked, task dirs ephemeral
+_work/*/
+
 # Local artifacts that must never ship
 source.tar.gz
 *.tar.gz

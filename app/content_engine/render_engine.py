@@ -1,5 +1,6 @@
-from moviepy.editor import ImageClip, AudioFileClip, TextClip, CompositeVideoClip
 import os
+
+from moviepy.editor import AudioFileClip, CompositeVideoClip, ImageClip, TextClip
 
 # Configuration
 OUTPUT_DIR = "data/content_gen"
@@ -12,8 +13,7 @@ def get_video_codec() -> str:
 
         res = subprocess.run(
             ["ffmpeg", "-encoders"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             timeout=5,
         )
@@ -50,8 +50,8 @@ def render_video(voice_path, image_path, output_path=VIDEO_OUTPUT):
 if __name__ == "__main__":
     # Ensure these exist before running
     v_path = os.path.join(OUTPUT_DIR, "voiceover.mp3")
-    i_path = os.path.join(OUTPUT_DIR, "background.png") 
-    
+    i_path = os.path.join(OUTPUT_DIR, "background.png")
+
     if os.path.exists(v_path) and os.path.exists(i_path):
         render_video(v_path, i_path)
     else:
