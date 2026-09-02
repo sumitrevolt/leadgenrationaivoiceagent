@@ -209,7 +209,7 @@ def sync_workbuddy():
                     "name": c["name"],
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:22000/v1/chat/completions",
-                    "apiKey": "sk-18effe9c5f68c04f-fb461e-b60524ad",
+                    "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -224,7 +224,7 @@ def sync_workbuddy():
                     "name": f"{c['name']} ({c['real']})",
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:20128/v1/chat/completions",
-                    "apiKey": "sk-18effe9c5f68c04f-fb461e-b60524ad",
+                    "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -323,7 +323,7 @@ def sync_hermes():
                     auth_data = json.load(f)
                 if "providers" not in auth_data:
                     auth_data["providers"] = {}
-                key_val = "sk-18effe9c5f68c04f-fb461e-b60524ad"
+                key_val = "sk-18effe9c5f68c04f-b87d87-c952d5da"
                 auth_data["providers"]["omniroute"] = {
                     "provider": "omniroute",
                     "api_key": key_val,
@@ -468,14 +468,14 @@ def sync_openclaw():
 
         data["models"]["providers"]["omniroute"] = {
             "baseUrl": "http://127.0.0.1:20128/v1",
-            "apiKey": "dummy-local-key",
+            "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
             "api": "openai-completions",
             "models": omni_models,
         }
 
         data["models"]["providers"]["custom"] = {
             "baseUrl": "http://127.0.0.1:22000/v1",
-            "apiKey": "dummy-local-key",
+            "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
             "api": "openai-completions",
             "models": custom_models,
         }
@@ -517,19 +517,30 @@ def sync_workspace_mcp():
 
 
 def sync_omniroute_sqlite():
+    """Seed OmniRoute SQLite inside the Docker container (ADR-189: Docker-only, WSL removed)."""
     seed_script_win = os.path.join(os.path.dirname(__file__), "seed_omniroute_12combos.py")
-    seed_script_wsl = "/mnt/c/" + seed_script_win.replace("C:\\", "").replace("\\", "/")
+    if not os.path.exists(seed_script_win):
+        print(f"[WARN] Seed script not found: {seed_script_win}")
+        return
     try:
+        # Copy seed script into container and run it
+        # The container has Python and SQLite at /root/.omniroute/storage.sqlite
         res = subprocess.run(
-            ["wsl.exe", "-u", "root", "python3", seed_script_wsl],
+            ["docker", "exec", "-i", "leadgen_omniroute", "python3"],
+            input=open(seed_script_win, "rb").read(),
             capture_output=True,
-            text=True,
-            timeout=10,
+            timeout=15,
         )
-        print("[OK] OmniRoute SQLite seeding triggered (via WSL):")
-        print(res.stdout or res.stderr)
+        if res.returncode == 0:
+            print("[OK] OmniRoute SQLite seeded (via Docker exec)")
+            print(res.stdout.decode() if res.stdout else "")
+        else:
+            print(f"[WARN] OmniRoute SQLite seeding failed (exit {res.returncode}):")
+            print(res.stderr.decode() if res.stderr else "")
+    except subprocess.TimeoutExpired:
+        print("[WARN] OmniRoute SQLite seeding timeout")
     except Exception as e:
-        print(f"[WARN] OmniRoute SQLite seeding fallback note: {e}")
+        print(f"[WARN] OmniRoute SQLite seeding note: {e}")
 
 
 if __name__ == "__main__":

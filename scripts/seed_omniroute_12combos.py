@@ -1,40 +1,21 @@
 #!/usr/bin/env python3
-"""Seed all 12 OmniRoute combos directly into /root/.omniroute/storage.sqlite.
+"""Seed all 12 OmniRoute combos directly into the Docker container's SQLite.
 
 Ensures OmniRoute gateway DB has all 12 combo routes registered with priority failover
 across 40+ free flagship models (Groq, Gemini, Mistral, Cerebras, NVIDIA NIM, OpenRouter, etc.),
 and unlocks all API keys so both local & secondary computers can execute all combos.
+
+ADR-189: Docker-only, WSL removed. Seeds via `docker exec`.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import sqlite3
+import subprocess
 import sys
 import uuid
 from datetime import datetime, timezone
-
-
-def get_db_path() -> str:
-    if sys.platform == "win32":
-        candidates = [
-            r"\\wsl.localhost\Ubuntu-24.04\root\.omniroute\storage.sqlite",
-            r"\\wsl$\Ubuntu-24.04\root\.omniroute\storage.sqlite",
-            r"\\wsl.localhost\Ubuntu\root\.omniroute\storage.sqlite",
-            r"\\wsl$\Ubuntu\root\.omniroute\storage.sqlite",
-        ]
-        for c in candidates:
-            if os.path.exists(c):
-                return c
-    return "/root/.omniroute/storage.sqlite"
-
-
-DB_PATH = get_db_path()
-
-
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 # Free flagship model pool candidates
@@ -185,25 +166,25 @@ COMBOS_DEFINITION = [
 ]
 
 
-def seed_database() -> None:
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
-    # 1. Unlock all API keys (remove allowed_combos restrictions so all combos are allowed)
-    c.execute(
+
+def seed_database_via_docker() -> None:
+    """Build the SQLite seeding SQL and execute it inside the Docker container."""
+    timestamp = now_iso()
+
+    # Build all INSERT/UPDATE statements as a single SQL script
+    sql_parts = []
+
+    # 1. Unlock all API keys
+    sql_parts.append(
         "UPDATE api_keys SET allowed_combos = NULL, allowed_models = NULL WHERE is_active = 1;"
     )
-    print("API keys updated: allowed_combos set to NULL (all combos allowed).")
 
-    # 2. Query existing combo IDs
-    c.execute("SELECT name, data FROM combos;")
-    existing_rows = {row[0]: json.loads(row[1]) for row in c.fetchall()}
-
-    timestamp = now_iso()
     total_seeded = 0
 
     for combo_name, desc, aliases in COMBOS_DEFINITION:
-        # Generate model pool with unique IDs for this combo
         models = [
             {
                 "id": f"{combo_name}-m{i + 1}-{m['providerId']}",
@@ -219,50 +200,68 @@ def seed_database() -> None:
         combo_id = str(uuid.uuid4())
         created_at = timestamp
 
-        if combo_name in existing_rows:
-            combo_id = existing_rows[combo_name].get("id", combo_id)
-            created_at = existing_rows[combo_name].get("createdAt", timestamp)
+        # We'll use the same UUID for all aliases of this combo for consistency
+        for name_key in [combo_name] + aliases:
+            payload = {
+                "id": combo_id,
+                "name": name_key,
+                "description": desc,
+                "models": models,
+                "strategy": "priority",
+                "config": {
+                    "maxRetries": 2,
+                    "retryDelayMs": 1000,
+                    "handoffThreshold": 0.85,
+                    "trackMetrics": True,
+                },
+                "isHidden": False,
+                "sortOrder": 1,
+                "createdAt": created_at,
+                "updatedAt": timestamp,
+                "version": 2,
+                "isActive": True,
+            }
 
-        payload = {
-            "id": combo_id,
-            "name": combo_name,
-            "description": desc,
-            "models": models,
-            "strategy": "priority",
-            "config": {
-                "maxRetries": 2,
-                "retryDelayMs": 1000,
-                "handoffThreshold": 0.85,
-                "trackMetrics": True,
-            },
-            "isHidden": False,
-            "sortOrder": 1,
-            "createdAt": created_at,
-            "updatedAt": timestamp,
-            "version": 2,
-            "isActive": True,
-        }
-
-        all_names = [combo_name] + aliases
-        for name_key in all_names:
-            p = dict(payload)
-            p["name"] = name_key
             row_id = str(uuid.uuid4())
-            json_str = json.dumps(p)
-            c.execute(
-                """INSERT INTO combos (id, name, data, sort_order, created_at, updated_at)
-                   VALUES (?, ?, ?, 1, ?, ?)
+            json_str = json.dumps(payload).replace("'", "''")  # escape single quotes for SQL
+
+            sql_parts.append(
+                f"""INSERT INTO combos (id, name, data, sort_order, created_at, updated_at)
+                   VALUES ('{row_id}', '{name_key}', '{json_str}', 1, '{timestamp}', '{timestamp}')
                    ON CONFLICT(name) DO UPDATE SET
                      data = excluded.data,
-                     updated_at = excluded.updated_at;""",
-                (row_id, name_key, json_str, timestamp, timestamp),
+                     updated_at = excluded.updated_at;"""
             )
             total_seeded += 1
 
-    conn.commit()
-    conn.close()
-    print(f"Seeded {total_seeded} combo keys (primary + agent aliases + dot notation) in {DB_PATH}.")
+    full_sql = "\n".join(sql_parts)
+
+    # Execute inside Docker container
+    try:
+        res = subprocess.run(
+            ["docker", "exec", "-i", "leadgen_omniroute", "sqlite3", "/root/.omniroute/storage.sqlite"],
+            input=full_sql.encode("utf-8"),
+            capture_output=True,
+            timeout=15,
+        )
+        if res.returncode == 0:
+            print(f"Seeded {total_seeded} combo keys (primary + agent aliases + dot notation) in Docker container.")
+            if res.stdout:
+                print(res.stdout.decode())
+        else:
+            print(f"[FAIL] SQLite seeding failed (exit {res.returncode}):")
+            print(res.stderr.decode() if res.stderr else "")
+            sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("[FAIL] SQLite seeding timeout")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("[FAIL] Docker not found or container 'leadgen_omniroute' not running")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[FAIL] SQLite seeding error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    seed_database()
+    seed_database_via_docker()

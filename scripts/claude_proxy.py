@@ -18,7 +18,7 @@ import urllib.request
 from http import HTTPStatus
 
 UPSTREAM = os.environ.get("OMNI_UPSTREAM", "http://127.0.0.1:20128")
-UPSTREAM_KEY = os.environ.get("OMNIROUTE_API_KEY", "sk-18effe9c5f68c04f-fb461e-b60524ad")
+UPSTREAM_KEY = os.environ.get("OMNIROUTE_API_KEY", "sk-18effe9c5f68c04f-b87d87-c952d5da")
 LISTEN_HOST = os.environ.get("PROXY_HOST", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("PROXY_PORT", "22000"))
 

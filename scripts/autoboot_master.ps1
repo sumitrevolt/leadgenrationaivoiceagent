@@ -20,15 +20,15 @@ $WaitSec = 10
 Log-Msg "Waiting ${WaitSec}s for network/WSL initialization..."
 Start-Sleep -Seconds $WaitSec
 
-# 1. Start OmniRoute Gateway in WSL (Port 20128)
+# 1. Start OmniRoute Gateway via Docker (Port 20128) — ADR-189
 try {
-    Log-Msg "[1/4] Ensuring OmniRoute Gateway is active on port 20128..."
-    $omniCheck = Invoke-RestMethod -Uri "http://127.0.0.1:20128/v1/combos" -TimeoutSec 3 -ErrorAction SilentlyContinue
+    Log-Msg "[1/4] Ensuring OmniRoute Gateway is active on port 20128 (Docker)..."
+    $omniCheck = Invoke-RestMethod -Uri "http://127.0.0.1:20128/v1/models" -TimeoutSec 3 -ErrorAction SilentlyContinue
     if ($omniCheck) {
         Log-Msg " -> OmniRoute Gateway already ONLINE."
     } else {
-        Log-Msg " -> Launching OmniRoute PM2 via WSL..."
-        wsl.exe -u root bash -c "export PORT=20128; export DATA_DIR=/root/.omniroute; export STORAGE_ENCRYPTION_KEY=ce9a29e748880c7c5aed8fc6fab5c31466dd5d8fd4eb8ba972206017f22e4d9b; pm2 restart omniroute || pm2 start /root/.nvm/versions/node/v22.23.1/lib/node_modules/omniroute/bin/omniroute.mjs --name omniroute"
+        Log-Msg " -> Starting OmniRoute container via Docker Compose..."
+        & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-omniroute.ps1')
         Start-Sleep -Seconds 3
     }
 } catch {

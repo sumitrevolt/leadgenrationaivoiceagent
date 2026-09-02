@@ -20,8 +20,8 @@ import os
 import urllib.request
 from datetime import datetime, timezone
 
-from app.platform import reply_agent  # type: ignore
-
+from app.platform import reply_agent
+from app.marketing.upi_kit import payment_kit
 
 async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
     """Build today's owner action pack + optional ntfy push. Never raises."""
@@ -29,6 +29,15 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
         rows = reply_agent.hot_queue(limit=limit, scope="boss") or []
     except Exception as exc:  # never raise — defensive surface
         return {"ok": False, "error": f"hot_queue_unavailable: {exc}", "rows": 0}
+
+    # Inject UPI Payment Flows
+    for x in rows:
+        # Defaults to a safe placeholder VPA if missing from row
+        vpa = x.get("vpa", "default.upi@bank") 
+        amount = x.get("amount", 499)
+        kit = payment_kit(x.get("business_name", "Lead"), vpa, amount, "LeadGen Payment")
+        x["wa_link"] = f"https://wa.me/91{x.get('phone', '')}?text={kit['wa_payment_msg']}"
+        x["draft"] = kit['wa_payment_msg']
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     csv_path = f"data/hot_queue_for_owner_{today}.csv"

@@ -43,6 +43,19 @@ def _get_sync_engine():
             sync_url = settings.database_url.replace("+asyncpg", "").replace(
                 "postgresql://", "postgresql+psycopg2://"
             )
+            # For SQLite, convert async driver to sync driver
+            if sync_url.startswith("sqlite+aiosqlite://"):
+                sync_url = sync_url.replace("sqlite+aiosqlite://", "sqlite://")
+            elif sync_url.startswith("sqlite+pysqlite://"):
+                sync_url = sync_url.replace("sqlite+pysqlite://", "sqlite://")
+            # Ensure relative paths are resolved to absolute
+            if sync_url.startswith("sqlite:///"):
+                import os
+                rel_path = sync_url[len("sqlite:///"):]
+                if rel_path.startswith("/"):
+                    rel_path = rel_path[1:]
+                abs_path = os.path.abspath(rel_path)
+                sync_url = f"sqlite:///{abs_path}"
 
             # Sync engine = migrations + occasional background sync only (rarely
             # concurrent) → small pool. Shares the same PgBouncer/PG budget as the
