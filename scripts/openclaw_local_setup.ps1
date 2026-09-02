@@ -1,16 +1,32 @@
 # OpenClaw local setup - Owner Copilot (Windows)
 # Regenerates config/openclaw/.local from committed templates. Secrets stay local.
 # Does NOT enable OPENCLAW on production VPS.
+#
+# v2026-09-01: added port-conflict preflight to avoid setup-engine failures.
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Oc = Join-Path $Root "config\openclaw"
 $Local = Join-Path $Oc ".local"
 $Plugin = Join-Path $Oc "plugins\leadgen-owner-copilot"
+$GatewayPort = 18789
 
 Write-Host "== OpenClaw local setup =="
 if (-not (Test-Path $Plugin)) {
   throw "Missing plugin at $Plugin"
+}
+
+# --- Port conflict preflight ------------------------------------------------
+$portInUse = $null -ne (Get-NetTCPConnection -State Listen -LocalPort $GatewayPort -ErrorAction SilentlyContinue)
+if ($portInUse) {
+  $ownerPid = (Get-NetTCPConnection -State Listen -LocalPort $GatewayPort -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
+  $ownerName = if ($ownerPid) { (Get-Process -Id $ownerPid -ErrorAction SilentlyContinue).ProcessName } else { "unknown" }
+  Write-Host "[WARN] Port $GatewayPort is already in use by $ownerName (PID $ownerPid)."
+  Write-Host "       The OpenClaw Gateway is likely running. Setup config files can still be"
+  Write-Host "       written, but a full setup-engine reinstall will fail on this port."
+  Write-Host "       To re-run setup: stop the gateway first (Stop-Process -Id $ownerPid),"
+  Write-Host "       then re-run this script or the setup installer."
+  Write-Host ""
 }
 
 New-Item -ItemType Directory -Force -Path $Local | Out-Null
