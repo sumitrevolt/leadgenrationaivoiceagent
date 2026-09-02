@@ -20,8 +20,8 @@ import signal
 from datetime import datetime, timezone
 from decimal import Decimal
 
-# Add project root to path
-sys.path.insert(0, 'C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent')
+# Add project root to path (relative to this script)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db import get_connection
 

@@ -117,9 +117,15 @@ services:
     networks: [leadgen_net]
 
   # Synthetic checks with BODY assertions (Kuma = ping-style only) — ~40MB RAM.
+  # NTFY_* env vars power the independent last-resort alert path (OBS-005):
+  # Gatus pushes to ntfy when endpoints fail, even if Prometheus is down.
   gatus:
     image: twinproduction/gatus:latest
     container_name: leadgen_gatus
+    environment:
+      NTFY_URL: ${NTFY_URL:-}
+      NTFY_TOPIC: ${NTFY_TOPIC:-leadgen-alerts}
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - ./monitoring/gatus.yaml:/config/config.yaml:ro
       - gatusdata:/data

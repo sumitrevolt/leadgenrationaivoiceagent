@@ -1,8 +1,9 @@
 """Build Niche_Pricing_Research.xlsx — top 25 niches + competitor pricing + benchmarks."""
 
+import os
 import sys
 
-sys.path.insert(0, r"C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -393,6 +394,6 @@ for i, (a, b) in enumerate(strat, r0):
 ws4.column_dimensions["A"].width = 28
 ws4.column_dimensions["B"].width = 110
 
-out = r"C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\Niche_Pricing_Research.xlsx"
+out = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Niche_Pricing_Research.xlsx")
 wb.save(out)
 print("saved", out)

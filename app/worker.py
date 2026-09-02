@@ -618,12 +618,12 @@ celery_app.conf.beat_schedule = {
     },
     "staff-engineer-finops-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=9, minute=0),
+        "schedule": crontab(hour=9, minute=5),
         "args": ("engineer_finops",),
     },
     "staff-engineer-security-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=9, minute=30),
+        "schedule": crontab(hour=9, minute=35),
         "args": ("engineer_security",),
     },
     # council 2026-06-25 — 3 new engineer agents (gated INERT in run_X())
@@ -651,7 +651,7 @@ celery_app.conf.beat_schedule = {
     },
     "staff-readiness-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=8, minute=30),
+        "schedule": crontab(hour=8, minute=35),
         "args": ("readiness_digest",),
     },
     "staff-pipeline-daily": {
@@ -823,11 +823,16 @@ celery_app.conf.beat_schedule = {
 # Bina GCP/Vertex creds ke ye tasks heavy/no-op hain, aur `process_queue`
 # jaise entries call-side-effects rakh sakte. Celery-beat switch ka core =
 # sirf `staff-*` jobs (team_scheduler._run_job dispatcher — saare naye
-# engines included). Puraane entries chahiye to ENABLE_LEGACY_BEAT=1.
+# engines included) + `process-voice-followups` (production-critical
+# transactional callback drain, not a legacy entry). Puraane entries chahiye
+# to ENABLE_LEGACY_BEAT=1.
 # ---------------------------------------------------------------------------
 if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true", "yes"):
+    _KEEP_KEYS = {"process-voice-followups"}  # production-critical, not legacy
     celery_app.conf.beat_schedule = {
-        k: v for k, v in celery_app.conf.beat_schedule.items() if k.startswith("staff-")
+        k: v
+        for k, v in celery_app.conf.beat_schedule.items()
+        if k.startswith("staff-") or k in _KEEP_KEYS
     }
 
 # Boss autonomy sweep — always scheduled; the TASK is flag-gated inert itself
