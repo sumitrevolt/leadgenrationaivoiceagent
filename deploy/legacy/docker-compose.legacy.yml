@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  # Main Application
+  app:
+    build: .
+    container_name: voice_agent_app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/voice_agent
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - voice_agent_network
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: voice_agent_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      - POSTGRES_DB=${POSTGRES_DB:-voice_agent}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Port NOT exposed publicly — only accessible inside voice_agent_network.
+    # To connect from host for debugging: docker exec -it voice_agent_db psql ...
+    restart: unless-stopped
+    networks:
+      - voice_agent_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    container_name: voice_agent_redis
+    # Port NOT exposed publicly — only accessible inside voice_agent_network.
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - voice_agent_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Celery Worker (for background tasks)
+  worker:
+    build: .
+    container_name: voice_agent_worker
+    # -Q explicit: task_routes (app/worker.py) sends scraping/calling/reporting/
+    # sync/brain_training/heavy tasks to their own named queues — a bare
+    # `worker` with no -Q only drains the default "celery" queue, so those
+    # tasks would enqueue but never run. No separate heavy worker in this
+    # compose file, so "heavy" is included here.
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training,heavy,video --loglevel=info --concurrency=4
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/voice_agent
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - voice_agent_network
+
+  # Celery Beat (for scheduled tasks)
+  scheduler:
+    build: .
+    container_name: voice_agent_scheduler
+    command: celery -A app.worker beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/voice_agent
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - worker
+    restart: unless-stopped
+    networks:
+      - voice_agent_network
+
+  # Flower (Celery monitoring)
+  flower:
+    build: .
+    container_name: voice_agent_flower
+    command: celery -A app.worker flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/voice_agent
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - worker
+    restart: unless-stopped
+    networks:
+      - voice_agent_network
+
+  # Nginx (reverse proxy) - Optional for production
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: voice_agent_nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #     - ./ssl:/etc/nginx/ssl
+  #   depends_on:
+  #     - app
+  #   restart: unless-stopped
+  #   networks:
+  #     - voice_agent_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  voice_agent_network:
+    driver: bridge

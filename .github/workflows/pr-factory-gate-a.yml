@@ -1,0 +1,143 @@
+# =============================================================================
+# pr-factory-gate-a.yml — Wave 1 Gate A sketch (NON-REQUIRED)
+#
+# Additive only. Does NOT remove or weaken existing required checks in ci.yml /
+# deploy-vps.yml gate. Do not add this as a branch-protection required check
+# until Wave 2 path-filter promotion.
+#
+# Gate A contents:
+#   - ruff / format on changed Python paths
+#   - secrets scan (scripts/check_secrets.py)
+#   - changed-path policy stub (refuse protected prefixes in the diff)
+#   - targeted pytest from .pr-factory/task.json if present
+# =============================================================================
+name: pr-factory-gate-a
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gate-a:
+    name: Gate A (non-required sketch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout (pinned SHA)
+        # actions/checkout v7.0.1 — full commit SHA (not floating @v7)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python (pinned SHA)
+        # actions/setup-python v5.6.0 — full commit SHA (not floating @v5)
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff (pinned)
+        # Pin matches the Gate A run that first enforced format (0.16.1).
+        # Do not `pip install --upgrade pip` here — keep the job deterministic.
+        run: python -m pip install ruff==0.16.1
+
+      - name: Collect changed Python files
+        id: changed
+        shell: bash
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || 'origin/main' }}"
+          if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
+            git fetch origin main --depth=1 || true
+            BASE="origin/main"
+          fi
+          mapfile -t FILES < <(git diff --name-only --diff-filter=ACMRT "$BASE"...HEAD -- '*.py' || true)
+          echo "count=${#FILES[@]}" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "${FILES[@]}" > /tmp/changed_py.txt
+          echo "Changed Python files:"
+          cat /tmp/changed_py.txt || true
+
+      - name: Ruff on changed paths
+        if: steps.changed.outputs.count != '0'
+        shell: bash
+        run: |
+          mapfile -t FILES < /tmp/changed_py.txt
+          ruff check --output-format=github "${FILES[@]}"
+          ruff format --check "${FILES[@]}"
+
+      - name: Secrets scan
+        run: python scripts/check_secrets.py
+
+      - name: Changed-path policy stub (protected prefixes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha || 'origin/main' }}"
+          if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
+            BASE="origin/main"
+          fi
+          PROTECTED=(
+            ".env"
+            ".github/workflows/deploy"
+            "alembic/versions/"
+            "app/billing/"
+            "app/telephony/"
+            "app/voice_agent/"
+            "data/voice_gemini_keys.json"
+            "docker-compose.vps.yml"
+          )
+          mapfile -t ALL < <(git diff --name-only --diff-filter=ACMRT "$BASE"...HEAD || true)
+          hits=()
+          for f in "${ALL[@]}"; do
+            for p in "${PROTECTED[@]}"; do
+              case "$f" in
+                "$p"*|"./"$p*) hits+=("$f");;
+              esac
+            done
+          done
+          if [ "${#hits[@]}" -gt 0 ]; then
+            echo "::warning::Gate A policy stub: protected-path touches (manual Owner OS review):"
+            printf '  - %s\n' "${hits[@]}"
+            # Wave 1: warn only (non-required). Wave 2 may fail-closed on path filters.
+          else
+            echo "No protected-path touches in this diff."
+          fi
+
+      - name: Targeted pytest from task manifest (optional)
+        shell: bash
+        run: |
+          MANIFEST=".pr-factory/task.json"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "No $MANIFEST — skipping targeted pytest (Wave 1 optional)."
+            exit 0
+          fi
+          # Deterministic install — no `pip install --upgrade pip` (Gate A pin contract).
+          if [ -f requirements.lock.txt ]; then
+            python -m pip install --no-deps -r requirements.lock.txt || python -m pip install pytest pyyaml
+          else
+            python -m pip install pytest pyyaml
+          fi
+          python - <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          data = json.loads(Path(".pr-factory/task.json").read_text(encoding="utf-8"))
+          tests = data.get("required_tests") or []
+          if not tests:
+              print("required_tests empty — skip")
+              sys.exit(0)
+          # Only allow pytest invocations for safety.
+          for cmd in tests:
+              parts = str(cmd).split()
+              if not parts or parts[0] not in {"pytest", "python", ".venv/bin/pytest"}:
+                  print(f"refusing non-pytest required_tests entry: {cmd!r}")
+                  sys.exit(1)
+              if parts[0] == "python" and (len(parts) < 2 or parts[1] != "-m" or parts[2] != "pytest"):
+                  print(f"refusing non-pytest python entry: {cmd!r}")
+                  sys.exit(1)
+              print("running:", cmd)
+              subprocess.check_call(parts)
+          PY

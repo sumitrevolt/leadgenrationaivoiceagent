@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>LeadGen AI — Content Calendar</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6;--blue:#60a5fa}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1250px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+input,select{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:.85rem}
+button{background:var(--acc);border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.85rem}
+button.ghost{background:#222636}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.card h2{font-size:.95rem;margin-bottom:8px;color:var(--acc)}
+.nav{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.nav b{font-size:1.05rem;min-width:170px;text-align:center}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.dow{color:var(--mut);font-size:.72rem;text-align:center;padding:4px 0;text-transform:uppercase}
+.day{background:#11141d;border:1px solid var(--line);border-radius:8px;min-height:92px;padding:4px;font-size:.72rem;overflow:hidden}
+.day.out{opacity:.35} .day.today{border-color:var(--acc)}
+.day .dt{color:var(--mut);font-size:.7rem;margin-bottom:3px}
+.chip{display:block;border-radius:6px;padding:2px 5px;margin-bottom:3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.7rem}
+.chip.scheduled{background:#3a2f10;color:var(--warn)}
+.chip.ready{background:#123524;color:var(--ok)}
+.chip.other{background:#222636;color:var(--mut)}
+.chip.booking{background:#152540;color:var(--blue)}
+.panel{position:fixed;top:0;right:-420px;width:400px;max-width:92vw;height:100%;background:var(--card);border-left:1px solid var(--line);padding:18px;overflow-y:auto;transition:right .25s;z-index:50}
+.panel.open{right:0}
+.panel h3{font-size:1rem;margin-bottom:8px;color:var(--acc)}
+.panel .row{margin-bottom:8px;font-size:.85rem} .panel .row b{color:var(--mut);font-weight:600;display:block;font-size:.72rem;text-transform:uppercase}
+.panel pre{background:#11141d;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;font-size:.8rem;font-family:inherit}
+.x{float:right;background:#222636;border-radius:6px;padding:2px 10px;cursor:pointer}
+.mut{color:var(--mut);font-size:.78rem} .msg{font-size:.8rem;margin-left:8px}
+form.add{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.legend span{display:inline-block;margin-right:10px;font-size:.72rem}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>Content Calendar & Social Auto-Poster</h1>
+<div class="sub">Scheduled posts (content scheduler) + upcoming bookings — month view. Chip pe click karo, details side me.</div>
+<div class="bar">
+  <input id="tok" type="password" placeholder="Admin token paste karo" style="width:260px">
+  <button onclick="saveTok()">Save</button>
+  <button class="ghost" onclick="load()">↻ Reload</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem">login →</a>
+  <span id="err" class="msg" style="color:var(--bad)"></span>
+</div>
+
+<div class="card">
+  <h2>➕ Quick schedule (date pe post queue karo)</h2>
+  <form class="add" onsubmit="return addItem(event)">
+    <input id="f_date" type="date" required>
+    <input id="f_biz" placeholder="Business name" required style="width:170px">
+    <input id="f_niche" placeholder="Niche (e.g. solar)" style="width:130px">
+    <input id="f_occ" placeholder="Occasion (Diwali/sale...)" style="width:170px">
+    <input id="f_offer" placeholder="Offer (optional)" style="width:150px">
+    <select id="f_ch"><option>instagram</option><option>facebook</option><option>whatsapp</option><option>gbp</option></select>
+    <button type="submit">Schedule karo</button>
+    <button type="button" class="ghost" onclick="runDue()">▶ Due abhi prepare</button>
+    <span id="addmsg" class="msg mut"></span>
+  </form>
+</div>
+
+<div class="card">
+  <div class="nav">
+    <button class="ghost" onclick="shift(-1)">◀ Prev</button>
+    <b id="mon">…</b>
+    <button class="ghost" onclick="shift(1)">Next ▶</button>
+    <button class="ghost" onclick="goToday()">Aaj</button>
+    <span class="legend" style="margin-left:auto">
+      <span><span class="dot" style="background:var(--warn)"></span>queued</span>
+      <span><span class="dot" style="background:var(--ok)"></span>ready</span>
+      <span><span class="dot" style="background:var(--blue)"></span>booking</span>
+    </span>
+  </div>
+  <div class="cal" id="cal"></div>
+</div>
+
+<div class="panel" id="panel">
+  <span class="x" onclick="closePanel()">✕</span>
+  <div id="pbody" class="mut">…</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());load()}
+async function api(p,opt){
+  opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+tok()},opt.headers||{});
+  const r=await fetch(p,opt);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+let cur=new Date(); cur.setDate(1);
+let ITEMS=[], BOOKINGS=[];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOWS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function pad(n){return n<10?'0'+n:''+n}
+function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+
+async function load(){
+  $('err').textContent='';
+  try{
+    const s=await api('/api/marketing/schedule');
+    ITEMS=s.items||[];
+  }catch(e){ ITEMS=[]; $('err').textContent='Schedule load fail — token sahi hai? ('+e.message+')'; }
+  try{
+    const b=await api('/api/growth/bookings/upcoming');
+    BOOKINGS=Array.isArray(b)?b:(b.items||[]);
+  }catch(e){ BOOKINGS=[]; }
+  render();
+}
+
+function render(){
+  $('mon').textContent=MONTHS[cur.getMonth()]+' '+cur.getFullYear();
+  const byDate={};
+  ITEMS.forEach(function(it){ const d=(it.date||'').slice(0,10); (byDate[d]=byDate[d]||[]).push({t:'post',o:it}); });
+  BOOKINGS.forEach(function(bk){ const d=String(bk.slot||'').slice(0,10); if(d) (byDate[d]=byDate[d]||[]).push({t:'booking',o:bk}); });
+  // grid: Monday-first
+  const first=new Date(cur); const startIdx=(first.getDay()+6)%7;
+  const start=new Date(first); start.setDate(1-startIdx);
+  const todayIso=iso(new Date());
+  let html=DOWS.map(function(d){return '<div class="dow">'+d+'</div>'}).join('');
+  for(let i=0;i<42;i++){
+    const d=new Date(start); d.setDate(start.getDate()+i);
+    const di=iso(d);
+    const out=d.getMonth()!==cur.getMonth();
+    const cls='day'+(out?' out':'')+(di===todayIso?' today':'');
+    let chips='';
+    (byDate[di]||[]).slice(0,5).forEach(function(e){
+      if(e.t==='post'){
+        const st=e.o.status==='ready'?'ready':(e.o.status==='scheduled'?'scheduled':'other');
+        chips+='<span class="chip '+st+'" onclick="openItem(\''+e.o.id+'\')">📝 '+esc(e.o.business_name||'?')+(e.o.occasion?' · '+esc(e.o.occasion):'')+'</span>';
+      }else{
+        chips+='<span class="chip booking" onclick="openBooking(\''+(e.o.id||'')+'\')">📞 '+esc(e.o.name||'booking')+' '+esc(String(e.o.slot||'').slice(11,16))+'</span>';
+      }
+    });
+    const extra=(byDate[di]||[]).length>5?'<span class="mut">+'+((byDate[di]||[]).length-5)+' aur</span>':'';
+    html+='<div class="'+cls+'"><div class="dt">'+d.getDate()+'</div>'+chips+extra+'</div>';
+  }
+  $('cal').innerHTML=html;
+}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function shift(n){cur.setMonth(cur.getMonth()+n);render()}
+function goToday(){cur=new Date();cur.setDate(1);render()}
+function closePanel(){$('panel').classList.remove('open')}
+
+function openItem(id){
+  const it=ITEMS.filter(function(x){return x.id===id})[0]; if(!it)return;
+  const c=it.content||{};
+  let h='<h3>📝 Scheduled Post</h3>';
+  h+='<div class="row"><b>Business</b>'+esc(it.business_name)+'</div>';
+  h+='<div class="row"><b>Date · Channel</b>'+esc(it.date)+' · '+esc(it.channel)+'</div>';
+  h+='<div class="row"><b>Niche · Occasion</b>'+esc(it.niche)+(it.occasion?' · '+esc(it.occasion):'')+'</div>';
+  if(it.offer)h+='<div class="row"><b>Offer</b>'+esc(it.offer)+'</div>';
+  h+='<div class="row"><b>Status</b><span style="color:'+(it.status==='ready'?'var(--ok)':'var(--warn)')+'">'+esc(it.status)+'</span></div>';
+  if(c.caption){
+    h+='<div class="row"><b>Caption</b><pre id="cap">'+esc(c.caption)+'</pre></div>';
+    if((c.hashtags||[]).length)h+='<div class="row"><b>Hashtags</b><pre>'+esc((c.hashtags||[]).join(' '))+'</pre></div>';
+    if(c.image_idea)h+='<div class="row"><b>Image idea</b>'+esc(c.image_idea)+'</div>';
+    h+='<button onclick="copyCap()">📋 Copy caption</button> <span id="cpmsg" class="mut"></span>';
+    window.__cap=(c.caption||'')+'\n\n'+(c.hashtags||[]).join(' ');
+  }else{
+    h+='<div class="mut">Content abhi prepare nahi hua — due date pe daily job (ya ▶ Due button) prepare karega.</div>';
+  }
+  $('pbody').innerHTML=h; $('panel').classList.add('open');
+}
+function copyCap(){
+  navigator.clipboard.writeText(window.__cap||'').then(function(){ var m=$('cpmsg'); if(m)m.textContent='✅ copied'; });
+}
+function openBooking(id){
+  const bk=BOOKINGS.filter(function(x){return x.id===id})[0]; if(!bk)return;
+  let h='<h3>📞 Booking</h3>';
+  h+='<div class="row"><b>Naam</b>'+esc(bk.name||'—')+'</div>';
+  h+='<div class="row"><b>Slot</b>'+esc(String(bk.slot||'').replace('T',' ').slice(0,16))+'</div>';
+  if(bk.phone)h+='<div class="row"><b>Phone</b><a style="color:var(--blue)" href="tel:+91'+esc(bk.phone)+'">'+esc(bk.phone)+'</a> · <a style="color:var(--ok)" target="_blank" href="https://wa.me/91'+esc(bk.phone)+'">WhatsApp</a></div>';
+  if(bk.email)h+='<div class="row"><b>Email</b>'+esc(bk.email)+'</div>';
+  if(bk.notes)h+='<div class="row"><b>Notes</b>'+esc(bk.notes)+'</div>';
+  if(bk.slug)h+='<div class="row"><b>Client slug</b>'+esc(bk.slug)+'</div>';
+  $('pbody').innerHTML=h; $('panel').classList.add('open');
+}
+
+async function addItem(ev){
+  ev.preventDefault();
+  $('addmsg').textContent='…';
+  try{
+    await api('/api/marketing/schedule',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({business_name:$('f_biz').value.trim(),niche:$('f_niche').value.trim()||'general',
+        date:$('f_date').value,occasion:$('f_occ').value.trim(),offer:$('f_offer').value.trim(),channel:$('f_ch').value})});
+    $('addmsg').textContent='✅ scheduled';
+    $('f_biz').value='';$('f_occ').value='';$('f_offer').value='';
+    load();
+  }catch(e){ $('addmsg').textContent='❌ fail ('+e.message+') — token?'; }
+  return false;
+}
+async function runDue(){
+  $('addmsg').textContent='preparing…';
+  try{ const r=await api('/api/marketing/schedule/run',{method:'POST'});
+    $('addmsg').textContent='✅ due '+(r.due||0)+' · prepared '+(r.prepared||0); load();
+  }catch(e){ $('addmsg').textContent='❌ '+e.message; }
+}
+$('tok').value=tok();
+load();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

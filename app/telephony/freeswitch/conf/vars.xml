@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- Global vars — Vobiz SIP creds container ENV se padhte hain (exec-set), XML me secrets NAHI. -->
+<include>
+  <!-- ENV -> FreeSWITCH global vars ($${...} se reference hote hain). Shell default ${VAR:-fallback} pattern. -->
+  <X-PRE-PROCESS cmd="exec-set" data="vobiz_user=echo ${VOBIZ_SIP_USER:-leadgenfs}"/>
+  <X-PRE-PROCESS cmd="exec-set" data="vobiz_pass=echo ${VOBIZ_SIP_PASS:-}"/>
+  <X-PRE-PROCESS cmd="exec-set" data="vobiz_realm=echo ${VOBIZ_SIP_REALM:-MA_RVP4WSNO.sip.vobiz.ai}"/>
+  <X-PRE-PROCESS cmd="exec-set" data="vobiz_proxy=echo ${VOBIZ_TRUNK_DOMAIN:-1a7ce9d9.sip.vobiz.ai}"/>
+  <X-PRE-PROCESS cmd="exec-set" data="esl_password=echo ${ESL_PASSWORD:-ClueCon}"/>
+
+  <X-PRE-PROCESS cmd="set" data="sound_prefix=/usr/share/freeswitch/sounds"/>
+  <X-PRE-PROCESS cmd="set" data="default_password=$${esl_password}"/>
+</include>

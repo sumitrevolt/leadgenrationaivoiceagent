@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeadGen AI — Enterprise Deals Pipeline</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root {
+  --bg: #0f1117; --card: #181b25; --line: #2a2f3e; --txt: #e6e8ef; --mut: #8b91a5;
+  --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --acc: #8b5cf6; --blue: #60a5fa;
+  --twenty-header: #11141d; --shadow: rgba(0,0,0,0.5);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+body { background: var(--bg); color: var(--txt); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+header { background: var(--twenty-header); padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+h1 { font-size: 1.4rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.stats { display: flex; gap: 16px; }
+.stat { font-size: 0.85rem; color: var(--mut); display: flex; flex-direction: column; }
+.stat b { color: var(--txt); font-size: 1.1rem; }
+.board-container { flex: 1; padding: 24px; overflow-x: auto; background: var(--bg); }
+.board { display: flex; gap: 16px; height: 100%; align-items: flex-start; }
+.col { background: var(--twenty-header); border: 1px solid var(--line); border-radius: 8px; width: 280px; min-width: 280px; max-height: 100%; display: flex; flex-direction: column; box-shadow: 0 4px 12px var(--shadow); }
+.col-header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mut); }
+.col-count { background: var(--card); padding: 2px 6px; border-radius: 12px; font-size: 0.75rem; color: var(--txt); }
+.col-body { padding: 12px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 100px; }
+.col.drag-over { border-color: var(--acc); background: #1b1530; }
+.cardd { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 14px; cursor: grab; transition: transform 0.1s, box-shadow 0.1s; position: relative; }
+.cardd:hover { border-color: var(--mut); box-shadow: 0 2px 8px var(--shadow); }
+.cardd:active { cursor: grabbing; transform: scale(0.98); }
+.cardd-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; color: #fff; }
+.cardd-val { color: var(--ok); font-size: 0.85rem; font-weight: 500; margin-bottom: 8px; }
+.cardd-meta { font-size: 0.75rem; color: var(--mut); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.cardd-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--txt); }
+.tag.hot { background: rgba(248,113,113,0.15); color: var(--bad); }
+.tag.demo { background: rgba(96,165,250,0.15); color: var(--blue); }
+.btn { background: var(--acc); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500; }
+.btn:hover { background: #7c3aed; }
+</style>
+</head>
+<body>
+<header>
+  <h1 onclick="window.location.href='/app/admin'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="icon"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Deals Pipeline</h1>
+  <div class="stats">
+    <div class="stat"><span id="valLabel">Total Value</span><b id="valCount">₹0</b></div>
+    <div class="stat"><span>Open Deals</span><b id="dealsCount">0</b></div>
+  </div>
+  <button class="btn" onclick="fetchDeals()">🔄 Refresh</button>
+</header>
+<div class="board-container">
+  <div class="board" id="kanban">
+    <div class="col" data-stage="new">
+      <div class="col-header"><span>New Leads</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="contacted">
+      <div class="col-header"><span>Contacted</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="demo">
+      <div class="col-header"><span>Demo Booked</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="proposal">
+      <div class="col-header"><span>Proposal</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div class="col" data-stage="won">
+      <div class="col-header"><span>Won</span><span class="col-count">0</span></div>
+      <div class="col-body" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let draggedNode = null;
+function allowDrop(ev) {
+  ev.preventDefault();
+  const col = ev.target.closest('.col');
+  if(!col) return;
+  document.querySelectorAll('.col').forEach(c => c.classList.remove('drag-over'));
+  col.classList.add('drag-over');
+}
+function drag(ev) {
+  draggedNode = ev.target;
+  ev.dataTransfer.setData("text", ev.target.closest('.cardd').id);
+  ev.dataTransfer.effectAllowed = "move";
+}
+function drop(ev) {
+  ev.preventDefault();
+  document.querySelectorAll('.col').forEach(c => c.classList.remove('drag-over'));
+  const colBody = ev.target.closest('.col')?.querySelector('.col-body');
+  if(colBody && draggedNode) {
+    colBody.appendChild(draggedNode);
+    updateCounts();
+    const stg = ev.target.closest('.col').dataset.stage;
+    fetch('/api/growth/sales/deal/' + draggedNode.id + '/stage', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({stage: stg})
+    }).catch(e => console.error(e));
+  }
+}
+
+function updateCounts() {
+  let total = 0; let val = 0;
+  document.querySelectorAll('.col').forEach(col => {
+    const active = col.querySelectorAll('.cardd');
+    col.querySelector('.col-count').textContent = active.length;
+    total += active.length;
+    active.forEach(c => val += parseInt(c.dataset.val || 0));
+  });
+  document.getElementById('dealsCount').textContent = total;
+  document.getElementById('valCount').textContent = '₹' + val.toLocaleString('en-IN');
+}
+
+function fetchDeals() {
+  fetch('/api/growth/sales/deals')
+    .then(r => r.json())
+    .then(d => {
+       document.querySelectorAll('.col-body').forEach(b => b.innerHTML = '');
+       (d.deals || []).forEach(deal => {
+          const col = document.querySelector('.col[data-stage="'+(deal.stage||'new')+'"] .col-body');
+          if(!col) return;
+          const amt = parseInt(deal.value || 0);
+          col.innerHTML += '<div class="cardd" draggable="true" ondragstart="drag(event)" id="'+deal.id+'" data-val="'+amt+'">' +
+            '<div class="cardd-title">'+(deal.title||deal.client_name||'Deal')+'</div>' +
+            '<div class="cardd-val">₹'+amt.toLocaleString('en-IN')+'</div>' +
+            '<div class="cardd-meta"><span>📅 '+(deal.date||'Recent')+'</span></div>' +
+          '</div>';
+       });
+       updateCounts();
+    }).catch(e => {
+       // fallback mock
+       const col = document.querySelector('.col[data-stage="new"] .col-body');
+       col.innerHTML = '<div class="cardd" draggable="true" ondragstart="drag(event)" id="mock-deal-1" data-val="1999">'+
+          '<div class="cardd-title">Test Makeover</div><div class="cardd-val">₹1,999/mo</div>'+
+          '<div class="cardd-meta"><span>📅 Today</span></div><div class="cardd-tags"><span class="tag hot">Mock Data</span></div></div>';
+       updateCounts();
+    });
+}
+window.onload = fetchDeals;
+</script>
+</body>
+</html>

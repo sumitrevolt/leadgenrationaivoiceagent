@@ -1,0 +1,63 @@
+# rclone.conf.example — offsite backup target for pg_backup.sh + data_backup_rclone.sh.
+# Both scripts already read RCLONE_REMOTE (dormant until this file is filled in and
+# placed at ~/.config/rclone/rclone.conf on the VPS). Pick ONE remote below.
+#
+# Setup (R2/B2 — access-key based, no interactive step):
+#   1) cp deploy/offsite/rclone.conf.example ~/.config/rclone/rclone.conf
+#   2) niche real keys bharo (bucket dashboard se)
+#   3) test: rclone lsd r2:    (ya b2:)
+#   4) .env me:  RCLONE_REMOTE=r2:leadgen-backups   (ya b2:leadgen-backups)
+#   5) agli raat pg_backup.sh khud offsite copy karega (cron 02:30).
+#
+# Setup (Google Drive — needs a ONE-TIME interactive OAuth step, see below):
+#   The [gdrive] section below CANNOT be filled in by editing this file alone —
+#   rclone needs to obtain an OAuth token by you logging into YOUR Google
+#   account once. This puts backups in YOUR actual personal Drive (unlike a
+#   Google Cloud service account, whose files land in the service account's
+#   own tiny, separate storage quota — not your Drive).
+#
+#   On a machine with a browser (can be your laptop, not the VPS):
+#     1) install rclone: https://rclone.org/downloads/
+#     2) run: rclone config
+#        -> "n" (new remote) -> name it "gdrive" -> type "drive"
+#        -> leave client_id/client_secret blank (use rclone's own) -> scope "drive"
+#        -> "y" to auto-config -> browser opens -> log in to YOUR Google account
+#           -> allow access -> rclone finishes and writes the token
+#     3) this creates a working [gdrive] block in YOUR LOCAL ~/.config/rclone/rclone.conf
+#   Then get that token onto the VPS (headless, no browser there):
+#     4) open your local rclone.conf, copy the whole [gdrive] section
+#        (includes a `token = {...}` line with the OAuth token JSON)
+#     5) paste it into THIS file below (replacing the placeholder [gdrive] block),
+#        then `scp`/copy this file to the VPS at ~/.config/rclone/rclone.conf
+#     6) test on the VPS: rclone lsd gdrive:
+#     7) .env me:  RCLONE_REMOTE=gdrive:leadgen-backups
+#     8) agli raat pg_backup.sh + data_backup_rclone.sh khud offsite copy karenge.
+#   Token expires eventually (Google OAuth refresh tokens are long-lived but not
+#   forever) — if `rclone lsd gdrive:` starts failing, just re-run `rclone config
+#   reconnect gdrive:` on the machine with a browser and re-copy the token.
+
+# --- Option A: Cloudflare R2 (zero egress — restore frequent ho to best) ----
+[r2]
+type = s3
+provider = Cloudflare
+access_key_id = REPLACE_R2_ACCESS_KEY_ID
+secret_access_key = REPLACE_R2_SECRET_ACCESS_KEY
+endpoint = https://REPLACE_ACCOUNT_ID.r2.cloudflarestorage.com
+acl = private
+
+# --- Option B: Backblaze B2 (sabse sasta storage) ---------------------------
+[b2]
+type = b2
+account = REPLACE_B2_KEY_ID
+key = REPLACE_B2_APPLICATION_KEY
+hard_delete = true
+
+# --- Option C: Google Drive (YOUR personal Drive — needs the OAuth steps above) ---
+[gdrive]
+type = drive
+scope = drive
+token = REPLACE_WITH_TOKEN_JSON_FROM_YOUR_LOCAL_RCLONE_CONFIG
+# root_folder_id optional — set to a specific Drive folder's ID to keep backups
+# out of the top level of your Drive (right-click folder in Drive -> "Get link"
+# -> the long ID in the URL after /folders/).
+# root_folder_id = REPLACE_WITH_FOLDER_ID_OPTIONAL

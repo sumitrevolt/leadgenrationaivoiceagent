@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>LeadGen AI — Outreach</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+
+  /* ---- Header ---- */
+  .topbar{
+    position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .spacer{flex:1}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  .runbtn{border:none;border-radius:10px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:9px 14px;cursor:pointer;font-size:12.5px;
+    display:flex;align-items:center;gap:7px;transition:filter .12s;white-space:nowrap}
+  .runbtn:hover{filter:brightness(1.08)}
+  .runbtn:disabled{opacity:.6;cursor:not-allowed}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* Counter chips */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;width:100%;padding-top:8px}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--muted)}
+  .chip b{color:var(--ink);font-size:13px}
+  .chip.ready b{color:var(--brand)} .chip.sent b{color:var(--warn)} .chip.replied b{color:var(--ok)}
+
+  /* Token row */
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+
+  /* ---- Layout ---- */
+  .wrap{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:14px}
+
+  /* Filter tabs */
+  .tabs{display:flex;gap:7px;flex-wrap:wrap}
+  .tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 15px;
+    font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .12s}
+  .tab.on{background:var(--brand);border-color:var(--brand);color:#fff;
+    box-shadow:0 4px 12px rgba(109,40,217,.3)}
+
+  /* Prospect cards */
+  .grid{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:760px){.grid{grid-template-columns:repeat(2,1fr)}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:14px;display:flex;flex-direction:column;gap:9px}
+  .card .head{display:flex;align-items:flex-start;gap:8px}
+  .bname{font-weight:800;font-size:14.5px;flex:1;min-width:0;word-break:break-word}
+  .stbadge{font-size:10.5px;font-weight:800;border-radius:999px;padding:3px 9px;
+    text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .stbadge.ready{background:var(--brand-soft);color:var(--brand)}
+  .stbadge.sent{background:#fffbeb;color:#b45309}
+  .stbadge.replied{background:#ecfdf5;color:#15803d}
+  .stbadge.client{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .stbadge.dead{background:#f3f4f6;color:#6b7280}
+
+  .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11.5px;color:var(--muted)}
+  .nchip{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;
+    background:var(--brand-soft);color:var(--brand)}
+  .star{color:#b45309;font-weight:700}
+  .addr{font-size:11.5px;color:var(--muted);word-break:break-word}
+  .found{font-size:11px;color:#9ca3af;font-weight:600}
+
+  .btns{display:flex;gap:7px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:9px}
+  .act{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 11px;
+    font-size:12px;font-weight:700;cursor:pointer;color:var(--ink);transition:all .12s;
+    display:flex;align-items:center;gap:5px}
+  .act:hover{border-color:var(--brand-2);color:var(--brand)}
+  .act.wa{background:#dcfce7;border-color:#bbf7d0;color:#15803d}
+  .act.wa:hover{filter:brightness(.97)}
+  .act.dead:hover{border-color:var(--err);color:var(--err)}
+  .act:disabled{opacity:.5;cursor:not-allowed}
+
+  .empty{background:var(--card);border:1px dashed var(--line);border-radius:16px;
+    padding:34px 16px;text-align:center;color:var(--muted);font-weight:600}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);
+    color:#fff;border-radius:11px;padding:10px 18px;font-size:12.5px;font-weight:700;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;z-index:50;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">🎯</span> LeadGen AI — Outreach</div>
+  <div class="spacer"></div>
+  <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  <button id="runBtn" class="runbtn" onclick="runNow()">▶ Abhi prospects dhundo</button>
+  <button class="kbd" id="tokBtn" title="Admin token" onclick="toggleTok()">🔑</button>
+
+  <div class="chips" id="chips">
+    <span class="chip ready">Ready <b id="cReady">–</b></span>
+    <span class="chip sent">Sent <b id="cSent">–</b></span>
+    <span class="chip replied">Replied <b id="cReplied">–</b></span>
+    <span class="chip">Total <b id="cTotal">–</b></span>
+  </div>
+
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button onclick="saveTok()">Save</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-f="ready" onclick="setFilter('ready')">📋 Ready</button>
+    <button class="tab" data-f="sent" onclick="setFilter('sent')">📤 Sent</button>
+    <button class="tab" data-f="replied" onclick="setFilter('replied')">💬 Replied</button>
+    <button class="tab" data-f="" onclick="setFilter('')">Sab</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">Koi prospect nahi — "▶ Abhi prospects dhundo" dabao
+    ya scheduler ka roz 09:30 wala run aane do.</div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(json){
+    var h = {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    if(json) h["Content-Type"] = "application/json";
+    return h;
+  }
+  function toggleTok(){
+    var r = document.getElementById("tokRow");
+    r.classList.toggle("show");
+    document.getElementById("tokBtn").classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  }
+  function saveTok(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    document.getElementById("tokRow").classList.remove("show");
+    document.getElementById("tokBtn").classList.remove("on");
+    refresh();
+  }
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  }
+
+  // ---- State ----------------------------------------------------------------
+  var FILTER = "ready";
+  var ALL = [];
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function rel(iso){
+    if(!iso) return "";
+    try{
+      var d = new Date(iso); var m = Math.floor((Date.now() - d.getTime())/60000);
+      if(m < 60) return m + "m pehle";
+      if(m < 1440) return Math.floor(m/60) + "h pehle";
+      return Math.floor(m/1440) + "d pehle";
+    }catch(e){ return ""; }
+  }
+
+  function setFilter(f){
+    FILTER = f;
+    document.querySelectorAll(".tab").forEach(function(b){
+      b.classList.toggle("on", b.getAttribute("data-f") === f);
+    });
+    render();
+  }
+
+  // ---- Data -----------------------------------------------------------------
+  async function refresh(){
+    try{
+      var r = await fetch("/api/platform/team/prospects?limit=200", {headers: hdrs()});
+      if(r.status === 401 || r.status === 403){
+        toast("🔑 Admin token chahiye — upar 🔑 se paste karo");
+        document.getElementById("tokRow").classList.add("show");
+        return;
+      }
+      var data = await r.json();
+      ALL = (data && data.prospects) || [];
+      render();
+    }catch(e){ toast("Load fail: " + e.message); }
+  }
+
+  function counts(){
+    var c = {ready:0, sent:0, replied:0, client:0, dead:0};
+    ALL.forEach(function(p){ var s = p.status || "ready"; if(c[s] != null) c[s]++; });
+    document.getElementById("cReady").textContent = c.ready;
+    document.getElementById("cSent").textContent = c.sent;
+    document.getElementById("cReplied").textContent = c.replied + (c.client ? " (+" + c.client + " client)" : "");
+    document.getElementById("cTotal").textContent = ALL.length;
+  }
+
+  function render(){
+    counts();
+    var rows = FILTER ? ALL.filter(function(p){ return (p.status || "ready") === FILTER; }) : ALL;
+    var g = document.getElementById("grid");
+    document.getElementById("empty").style.display = rows.length ? "none" : "block";
+    g.innerHTML = rows.map(function(p){
+      var st = p.status || "ready";
+      var stars = (p.rating != null && p.rating !== "") ? '<span class="star">★ ' + esc(p.rating) + '</span>' : "";
+      var btns = "";
+      if(st === "ready"){
+        btns = '<button class="act wa" onclick="sendWA(\'' + esc(p.id) + '\')">📲 WhatsApp bhejo</button>';
+      }
+      if(st === "sent" || st === "ready"){
+        btns += '<button class="act" onclick="mark(\'' + esc(p.id) + '\',\'replied\')">✅ Reply aaya</button>';
+      }
+      if(st === "replied"){
+        btns += '<button class="act wa" onclick="window.open(\'' + esc(p.wa_link || "#") + '\',\'_blank\')">💬 WhatsApp kholo</button>'
+              + '<button class="act" onclick="mark(\'' + esc(p.id) + '\',\'client\')">🤝 Client ban gaya</button>';
+      }
+      if(st !== "dead" && st !== "client"){
+        btns += '<button class="act dead" onclick="mark(\'' + esc(p.id) + '\',\'dead\')">❌ Dead</button>';
+      }
+      return '<div class="card">'
+        + '<div class="head"><div class="bname">' + esc(p.business_name) + '</div>'
+        + '<span class="stbadge ' + esc(st) + '">' + esc(st) + '</span></div>'
+        + '<div class="meta"><span class="nchip">' + esc((p.niche || "general").replace(/_/g, " ")) + '</span>'
+        + '<span>📍 ' + esc(p.city || "") + '</span>' + stars
+        + '<span>📞 ' + esc(p.phone || "") + '</span></div>'
+        + (p.address ? '<div class="addr">' + esc(p.address) + '</div>' : "")
+        + '<div class="found">🕐 ' + rel(p.found_at) + (p.source_query ? ' · "' + esc(p.source_query) + '"' : "") + '</div>'
+        + '<div class="btns">' + btns + '</div>'
+        + '</div>';
+    }).join("");
+  }
+
+  // ---- Actions ----------------------------------------------------------------
+  function byId(id){ for(var i=0;i<ALL.length;i++){ if(ALL[i].id === id) return ALL[i]; } return null; }
+
+  async function mark(id, status){
+    try{
+      var r = await fetch("/api/platform/team/prospects/" + encodeURIComponent(id) + "/status", {
+        method: "POST", headers: hdrs(true), body: JSON.stringify({status: status})
+      });
+      var data = await r.json();
+      if(data && data.ok){
+        var p = byId(id); if(p) p.status = status;
+        render();
+        toast(status === "dead" ? "❌ Dead mark hua" : status === "client" ? "🎉 Naya CLIENT!" : "✅ " + status);
+      } else { toast("Update fail" + (data && data.error ? ": " + data.error : "")); }
+    }catch(e){ toast("Update fail: " + e.message); }
+  }
+
+  function sendWA(id){
+    var p = byId(id);
+    if(!p || !p.wa_link){ toast("wa_link missing"); return; }
+    window.open(p.wa_link, "_blank");      // WhatsApp pre-filled pitch ke saath
+    mark(id, "sent");                       // auto: ready → sent
+  }
+
+  async function runNow(){
+    var b = document.getElementById("runBtn");
+    b.disabled = true;
+    b.innerHTML = '<span class="spin"></span> Rohan dhundh raha hai…';
+    try{
+      var r = await fetch("/api/platform/team/prospects/run", {method: "POST", headers: hdrs(true)});
+      if(r.status === 401 || r.status === 403){
+        toast("🔑 Admin token chahiye"); document.getElementById("tokRow").classList.add("show");
+      } else {
+        var data = await r.json();
+        if(data && data.ok !== false){
+          toast("🎯 " + (data.new || 0) + " naye prospects (" + (data.duplicates || 0) + " dup, "
+                + (data.queries_failed || 0) + " query fail)");
+        } else { toast("Run fail" + (data && data.error ? ": " + data.error : "")); }
+        await refresh();
+      }
+    }catch(e){ toast("Run fail: " + e.message); }
+    b.disabled = false;
+    b.innerHTML = "▶ Abhi prospects dhundo";
+  }
+
+  refresh();
+  setInterval(refresh, 30000);
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

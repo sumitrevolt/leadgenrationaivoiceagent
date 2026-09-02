@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
+<title>Login — LeadGen AI Office</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  /* Local names aliased → LeadGen AI Design System tokens (linked /design-system/styles.css).
+     Colliding names (--ink-900, --violet-500/600, --radius-sm) are dropped here so they
+     inherit straight from the DS — redefining them via var() would create a self-cycle. */
+  :root {
+    --brand-600: var(--brand);        /* indigo-600 #4f46e5 */
+    --brand-500: var(--indigo-500);   /* #6366f1 */
+    --grad:      var(--grad-brand);   /* indigo → violet, 135deg */
+    --ink-500:   var(--text-muted);
+    --border:    var(--border-subtle);
+    --bg-card:   var(--surface-card);
+    --bg-subtle: var(--bg-soft);
+    --radius:    var(--radius-lg);
+    --shadow:    var(--shadow-brand);
+    --font:      var(--font-body);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; font-family:var(--font); color:var(--ink-900);
+         background:
+           radial-gradient(1100px 600px at 12% -8%, #6366f155, transparent 60%),
+           radial-gradient(900px 600px at 100% 0%, #8b5cf655, transparent 55%),
+           linear-gradient(135deg,#1e1b4b,#3730a3 55%,#5b21b6);
+         display:flex; align-items:center; justify-content:center; padding:18px; }
+  .card { background:var(--bg-card); width:100%; max-width:410px; border-radius:var(--radius);
+          padding:30px 26px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .card::before { content:""; position:absolute; inset:0 0 auto 0; height:4px; background:var(--grad); }
+  .brand { display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+  .brand .dot { width:30px; height:30px; border-radius:9px; display:block; }
+  .brand .name { font-weight:700; font-size:15px; letter-spacing:-.2px; color:var(--ink-900); }
+  .brand .name span { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h1 { margin:0 0 3px; font-size:23px; font-weight:700; letter-spacing:-.4px; color:var(--ink-900); }
+  .sub { color:var(--ink-500); font-size:13.5px; margin-bottom:20px; line-height:1.5; }
+  label { display:block; font-size:12.5px; font-weight:600; color:var(--ink-900); margin:14px 0 6px; }
+  input { width:100%; padding:12px 13px; border:1px solid var(--border); border-radius:var(--radius-sm);
+          font-size:15px; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
+  input:focus { outline:none; border-color:var(--brand-500); box-shadow:var(--ring); }
+  button { width:100%; margin-top:20px; padding:13px; border:0; border-radius:var(--radius-sm);
+           background:var(--grad); color:#fff; font-size:15.5px; font-weight:700; cursor:pointer;
+           font-family:inherit; box-shadow:0 8px 20px rgba(79,70,229,.32);
+           transition:transform .12s, box-shadow .12s, opacity .12s; }
+  button:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(79,70,229,.4); }
+  button:disabled { opacity:.6; cursor:default; transform:none; }
+  .err { color:var(--danger); font-size:13px; min-height:16px; margin-top:8px; }
+  .acct { display:none; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0; }
+  .kpi { background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center; }
+  .kpi b { display:block; font-size:23px; font-weight:700; color:var(--brand-600); }
+  .kpi span { font-size:11.5px; color:var(--ink-500); }
+  .row { display:flex; gap:10px; }
+  .ghost { background:var(--bg-subtle); color:var(--ink-900); box-shadow:none; border:1px solid var(--border); }
+  .ghost:hover { box-shadow:none; transform:none; background:var(--surface-tint); }
+  .foot { text-align:center; color:var(--ink-500); font-size:11px; margin-top:18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand"><img class="dot" src="/design-system/assets/logo-mark.svg" alt="LeadGen AI" width="30" height="30" /><div class="name">LeadsGen<span>AI</span></div></div>
+  <div id="loginView">
+    <h1>Aapka AI Office</h1>
+    <div class="sub">Login karein — leads, content, calls sab ek jagah milenge. AI team tayaar hai.</div>
+    <form id="loginForm" autocomplete="on">
+      <label for="email">Email</label>
+      <input id="email" type="email" required placeholder="you@business.com" />
+      <label for="password">Password</label>
+      <input id="password" type="password" required placeholder="••••••••" />
+      <div style="text-align:right;margin-top:7px"><a href="#" id="forgotLink" style="font-size:12px;color:var(--brand-600);text-decoration:none;font-weight:600">Forgot password?</a></div>
+      <div class="err" id="forgotMsg" style="color:#15803d"></div>
+      <div class="err" id="err"></div>
+      <button type="submit" id="btn">Login</button>
+    </form>
+    <div id="magicWrap" style="display:none;text-align:center;margin-top:14px">
+      <div style="color:var(--text-muted);font-size:12px;margin-bottom:8px">— ya —</div>
+      <button type="button" class="ghost" id="magicBtn">📧 Email me a login link</button>
+      <div class="err" id="magicMsg" style="color:#15803d"></div>
+    </div>
+    <div style="text-align:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);font-size:13.5px;color:var(--ink-500)">
+      Naya account? <a href="/start" style="color:var(--brand-600);font-weight:700;text-decoration:none">Register karein →</a>
+    </div>
+  </div>
+
+  <div class="acct" id="acctView">
+    <h1 id="bizName">Welcome</h1>
+    <div class="sub" id="acctSub">Aapka account overview</div>
+    <div class="kpis" id="kpis"></div>
+    <div class="row">
+      <button class="ghost" onclick="goToDashboard()">Full dashboard ↗</button>
+      <button class="ghost" id="logout">Logout</button>
+    </div>
+  </div>
+  <div class="foot">Powered by LeadsGenAI</div>
+</div>
+
+<script>
+(function(){
+  var f=document.getElementById("loginForm"), btn=document.getElementById("btn"), err=document.getElementById("err");
+  function show(view){ document.getElementById("loginView").style.display = view==="login"?"block":"none";
+    document.getElementById("acctView").style.display = view==="acct"?"block":"none"; }
+  function authHdr(){ return {"Authorization":"Bearer "+(localStorage.getItem("lgai_token")||"")}; }
+
+  // After login, go straight to the client's product dashboard (no /app/customer hop).
+  // Exposed on window so onclick="goToDashboard()" in acctView also works.
+  async function goToDashboard(){
+    var product="marketing";
+    try{ var r=await fetch("/api/customer/auth/me",{headers:authHdr()}); if(r.ok){ var j=await r.json(); product=(j.product||"marketing"); } }catch(e){}
+    window.location.href = product==="voice" ? "/app/customer/voice"
+                         : product==="combo" ? "/app/customer"
+                         : "/app/customer/marketing";
+  }
+  window.goToDashboard = goToDashboard;
+
+  async function loadAccount(){
+    try{
+      var me = await fetch("/api/customer/auth/me",{headers:authHdr()});
+      if(!me.ok) throw new Error("session");
+      var mj = await me.json();
+      document.getElementById("bizName").textContent = mj.business_name || "My Account";
+      var d = await fetch("/api/customer/auth/portal/dashboard",{headers:authHdr()});
+      var dj = d.ok ? await d.json() : {};
+      var k = dj.kpis || {};
+      var cards = [
+        ["Leads", (dj.leads||[]).length],
+        ["Calls", (dj.calls||[]).length],
+        ["Campaigns", (dj.campaigns||[]).length],
+        ["Hot leads", (k.hot_leads!=null?k.hot_leads:((dj.charts&&dj.charts.leads_by_status||[]).find(function(x){return (x.label||"")==="Hot";})||{}).value||0)]
+      ];
+      document.getElementById("kpis").innerHTML = cards.map(function(c){
+        return '<div class="kpi"><b>'+(c[1]||0)+'</b><span>'+c[0]+'</span></div>'; }).join("");
+      show("acct");
+    }catch(e){ localStorage.removeItem("lgai_token"); show("login"); }
+  }
+
+  f.addEventListener("submit", async function(ev){
+    ev.preventDefault(); err.textContent=""; btn.disabled=true; btn.textContent="Logging in…";
+    try{
+      var r = await fetch("/api/customer/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email:document.getElementById("email").value.trim(), password:document.getElementById("password").value})});
+      var j = await r.json().catch(function(){return{};});
+      if(!r.ok){
+        // Loop 17 (2026-07-10): Loop 16 ka structured 429 consume karo — countdown
+        // dikhao instead of a bare "too many requests". FastAPI HTTPException detail
+        // ab dict hai `{error, message, retry_after, scope}` — string coerce mat karo.
+        if(r.status === 429){
+          var rl = (j && j.detail && typeof j.detail === "object") ? j.detail : {};
+          var wait = parseInt(rl.retry_after || r.headers.get("Retry-After") || "60", 10);
+          if(!(wait > 0)) wait = 60;
+          btn.disabled = true;
+          btn.textContent = "Please wait…";
+          err.style.color = "#b91c1c";
+          var tick = function(){
+            if(wait <= 0){ err.textContent = "Ab try karo ↻"; btn.disabled = false; btn.textContent = "Login"; return; }
+            err.textContent = "Bahut sari koshish — " + wait + "s me phir try karo.";
+            wait--;
+            setTimeout(tick, 1000);
+          };
+          tick();
+          return;
+        }
+        // Non-429 error: honor structured detail dict OR string.
+        var det = (j && j.detail);
+        var msg = "";
+        if(det && typeof det === "object"){ msg = det.message || det.error || "Login failed"; }
+        else { msg = det || "Login failed"; }
+        throw new Error(msg);
+      }
+      localStorage.setItem("lgai_token", j.access_token);
+      localStorage.setItem("lgai_cid", j.client_id||"");
+      await goToDashboard();
+    }catch(e){ err.textContent = e.message; }
+    finally{ if(btn.textContent !== "Please wait…"){ btn.disabled=false; btn.textContent="Login"; } }
+  });
+
+  document.getElementById("logout").addEventListener("click", async function(){
+    var token = localStorage.getItem("lgai_token")||"";
+    if(token){
+      try{ await fetch("/api/customer/auth/logout",{method:"POST",headers:{"Authorization":"Bearer "+token}}); }
+      catch(e){}
+    }
+    localStorage.removeItem("lgai_token"); localStorage.removeItem("lgai_cid"); show("login"); });
+
+  // Magic-link (passwordless) — sirf tab dikhao jab feature ON ho (config se).
+  var magicWrap=document.getElementById("magicWrap"), magicBtn=document.getElementById("magicBtn"), magicMsg=document.getElementById("magicMsg");
+  fetch("/api/customer/auth/magic-link/config").then(function(r){return r.json();}).then(function(j){
+    if(j&&j.enabled&&magicWrap){ magicWrap.style.display="block"; }
+  }).catch(function(){});
+  if(magicBtn){ magicBtn.addEventListener("click", async function(){
+    var em=(document.getElementById("email").value||"").trim();
+    magicMsg.style.color="#15803d";
+    if(!em){ magicMsg.style.color="#b91c1c"; magicMsg.textContent="Pehle email daalein"; return; }
+    magicBtn.disabled=true; magicBtn.textContent="Bhej rahe…";
+    try{
+      await fetch("/api/customer/auth/magic-link/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em})});
+      magicMsg.textContent="Agar account hai to email me login link bhej diya. Inbox check karein.";
+    }catch(e){ magicMsg.textContent="Agar account hai to link bhej diya."; }
+    finally{ magicBtn.disabled=false; magicBtn.textContent="📧 Email me a login link"; }
+  }); }
+
+  // Forgot password — email pe single-use login link bhejo (magic-link reuse).
+  // Link se login karke customer apna password reset/badal sakta hai.
+  var forgotLink=document.getElementById("forgotLink"), forgotMsg=document.getElementById("forgotMsg");
+  if(forgotLink){ forgotLink.addEventListener("click", async function(ev){
+    ev.preventDefault();
+    var em=(document.getElementById("email").value||"").trim();
+    forgotMsg.style.color="#15803d";
+    if(!em || em.indexOf("@")<0){ forgotMsg.style.color="#b91c1c"; forgotMsg.textContent="Pehle apna email upar daalein."; return; }
+    forgotLink.textContent="Bhej rahe…";
+    try{
+      var r=await fetch("/api/customer/auth/magic-link/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em})});
+      if(r.status===404){ forgotMsg.style.color="#b91c1c"; forgotMsg.textContent="Password reset abhi band hai — support@leadsgenai.in pe email karein."; }
+      else { forgotMsg.textContent="Email pe login link bhej diya — usse seedha login ho jaoge (password ki zaroorat nahi). Inbox check karein."; }
+    }catch(e){ forgotMsg.textContent="Agar account hai to email pe link bhej diya."; }
+    finally{ forgotLink.textContent="Forgot password?"; }
+  }); }
+
+  // ?magic=<token> -> verify -> auto-login (URL se token turant hatao).
+  async function tryMagic(){
+    try{
+      var t=new URLSearchParams(location.search).get("magic");
+      if(!t) return false;
+      var r=await fetch("/api/customer/auth/magic-link/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:t})});
+      var j=await r.json().catch(function(){return{};});
+      history.replaceState({}, "", "/app/login");
+      if(r.ok && j.access_token){
+        localStorage.setItem("lgai_token", j.access_token);
+        localStorage.setItem("lgai_cid", j.client_id||"");
+        await goToDashboard(); return true;
+      }
+      err.textContent = j.detail || "Login link invalid ya expire ho gaya.";
+    }catch(e){}
+    return false;
+  }
+
+  if(localStorage.getItem("lgai_token")){ loadAccount(); }
+  else { tryMagic().then(function(done){ if(!done) show("login"); }); }
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

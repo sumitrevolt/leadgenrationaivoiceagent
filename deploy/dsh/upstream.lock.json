@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "commit": "47f943859bef60e4160492346772ded9b24f765a",
+  "tree": "f904efab9ef435201d6ba4da88a34d6366568272",
+  "git_archive_sha256": "c2d8d1e9ec24f0500da431288d2c0c80cf3f502d4dbda2026bd87ac099f3e2e6",
+  "git_archive_bytes": 54077440,
+  "source_date_epoch": 1786621126,
+  "node_image": "node:24.9.0-bookworm@sha256:86a81e1721186f2c5c313657496a84ac776509e265ab7677252e412b366a2b87",
+  "runtime_image": "gcr.io/distroless/cc-debian12:nonroot@sha256:9a5775272c79c226db4d6762d3b5a2caffb2b9a59dcbe5ce8dc8879c9c404115",
+  "pnpm": "11.7.0",
+  "upstream_license": "MIT"
+}

@@ -1,0 +1,21 @@
+# Deploy approval gate — Boss approves before a deploy proceeds.
+# Trigger with: buzz workflows trigger --workflow <uuid>  (or a webhook call)
+# The approving message is posted into the channel the workflow lives in.
+name: Deploy Approval
+description: Boss approval gate before a deploy proceeds
+trigger:
+  on: webhook
+steps:
+  - id: ask
+    action: request_approval
+    from: '@boss'
+    message: 'Deploy request — approve? Reply 👍/👎 in the thread.'
+    timeout: 4h
+  - id: notify_approved
+    if: 'steps_ask_output_approved == true'
+    action: send_message
+    text: '✅ Deploy approved — proceed with deploy_vps.sh'
+  - id: notify_denied
+    if: 'steps_ask_output_approved == false'
+    action: send_message
+    text: '⛔ Deploy denied — root-cause first'

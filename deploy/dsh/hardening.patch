@@ -1,0 +1,240 @@
+diff --git a/packages/sdk/protocol/package.json b/packages/sdk/protocol/package.json
+index 36922c3..436c163 100644
+--- a/packages/sdk/protocol/package.json
++++ b/packages/sdk/protocol/package.json
+@@ -34,7 +34,6 @@
+     "@deepseek-ai/dsh-invariants": "workspace:^",
+     "@deepseek-ai/dsh-llm": "workspace:^",
+     "@deepseek-ai/dsh-session": "workspace:^",
+-    "@deepseek-ai/dsh-subagent": "workspace:^",
+     "@deepseek-ai/cordis": "workspace:^"
+   },
+   "devDependencies": {
+diff --git a/packages/sdk/protocol/src/types.ts b/packages/sdk/protocol/src/types.ts
+index 533b5f2..48fd850 100644
+--- a/packages/sdk/protocol/src/types.ts
++++ b/packages/sdk/protocol/src/types.ts
+@@ -10,7 +10,13 @@
+
+ import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+ import type { SessionEvent } from '@deepseek-ai/dsh-session'
+-import type { SubagentStopReason } from '@deepseek-ai/dsh-subagent'
++
++/**
++ * Legacy wire vocabulary retained for SDK client compatibility. The hardened
++ * LeadGen server never emits subagent notifications and does not include the
++ * subagent package in its runtime closure.
++ */
++export type SubagentStopReason = 'completed' | 'aborted' | 'error' | 'max-tokens' | 'refusal'
+
+ /** Parameters for the process-wide SDK handshake. */
+ export interface InitializeParams {
+diff --git a/packages/sdk/server/package.json b/packages/sdk/server/package.json
+index e5c1639..9a37a32 100644
+--- a/packages/sdk/server/package.json
++++ b/packages/sdk/server/package.json
+@@ -38,11 +38,9 @@
+     "@deepseek-ai/dsh-agent": "workspace:^",
+     "@deepseek-ai/dsh-invariants": "workspace:^",
+     "@deepseek-ai/dsh-llm": "workspace:^",
+-    "@deepseek-ai/dsh-llm-deepseek": "workspace:^",
+     "@deepseek-ai/dsh-scope": "workspace:^",
+     "@deepseek-ai/dsh-sdk-protocol": "workspace:^",
+     "@deepseek-ai/dsh-session": "workspace:^",
+-    "@deepseek-ai/dsh-subagent": "workspace:^",
+     "@deepseek-ai/cordis": "workspace:^"
+   },
+   "devDependencies": {
+diff --git a/packages/sdk/server/src/server.ts b/packages/sdk/server/src/server.ts
+index 195caa9..ef35f62 100644
+--- a/packages/sdk/server/src/server.ts
++++ b/packages/sdk/server/src/server.ts
+@@ -7,13 +7,9 @@
+
+ import type { Context } from '@deepseek-ai/cordis'
+ import { resolve } from 'node:path'
+-import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
++import type { AgentHandle } from '@deepseek-ai/dsh-agent'
+ import { createUserMessage } from '@deepseek-ai/dsh-llm'
+-import { carrierKeyOf, type Scoped } from '@deepseek-ai/dsh-scope'
+ import { SessionId } from '@deepseek-ai/dsh-session'
+-import type SubagentRuntime from '@deepseek-ai/dsh-subagent'
+-import type { SubagentRunEndInfo } from '@deepseek-ai/dsh-subagent'
+-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek'
+ import type {
+   InitializeParams,
+   InitializeResult,
+@@ -21,33 +17,21 @@ import type {
+   SessionEventNotification,
+   SessionPromptParams,
+   SessionPromptResult,
+-  SubagentFinishedNotification,
+-  SubagentStartedNotification,
+ } from '@deepseek-ai/dsh-sdk-protocol'
+
+ interface SessionRecord {
+   handle: AgentHandle
+ }
+
+-/** Recover the delegating parent from the service-owned scoped carrier. */
+-function subagentParentOf(carrier: Scoped<SubagentRuntime>): Agent {
+-  return carrierKeyOf(carrier) as Agent
+-}
+-
+ /** Deployment-specific status mapping for SDK turn and subagent outcomes. */
+ export interface HarnessSdkJsonRpcServerOptions {
+   /** Report max-token termination as an accepted result instead of an infrastructure error. */
+   maxTokensAsSuccess?: boolean
+ }
+
+-function successStatus(reason: string, options: HarnessSdkJsonRpcServerOptions): 'ok' | 'error' {
+-  if (reason === 'completed') return 'ok'
+-  return reason === 'max-tokens' && options.maxTokensAsSuccess === true ? 'ok' : 'error'
+-}
+-
+ /**
+  * SDK server over one booted harness context and transport peer. Construction
+- * subscribes to session, agent, and subagent lifecycle events until shutdown;
++ * subscribes to session and agent lifecycle events until shutdown;
+  * reinitialization is unsupported.
+  */
+ export class HarnessSdkJsonRpcServer {
+@@ -55,7 +39,6 @@ export class HarnessSdkJsonRpcServer {
+   private provider = 'deepseek-official'
+   private model = 'deepseek-official'
+   private maxTokens: number | undefined
+-  private llmFiber: { dispose(): Promise<void> } | undefined
+   private readonly sessions = new Map<string, SessionRecord>()
+   private readonly sessionCreations = new Map<string, Promise<SessionRecord>>()
+   private readonly disposers: (() => void)[] = []
+@@ -65,9 +48,8 @@ export class HarnessSdkJsonRpcServer {
+   constructor(
+     private readonly ctx: Context,
+     private readonly transport: JsonRpcTransportPeer,
+-    private readonly options: HarnessSdkJsonRpcServerOptions = {},
++    _options: HarnessSdkJsonRpcServerOptions = {},
+   ) {
+-    const serverOptions = this.options
+     this.disposers.push(ctx.on('session/event', (session, event) => {
+       const payload: SessionEventNotification = { sessionId: String(session.id), event }
+       this.transport.notify('session.event', payload)
+@@ -75,36 +57,11 @@ export class HarnessSdkJsonRpcServer {
+     this.disposers.push(ctx.on('agent/status', ({ agent, status }) => {
+       this.transport.notify('session.status', { sessionId: String(agent.session.id), status })
+     }))
+-    this.disposers.push(ctx.on('session/created', (session) => {
+-      const parentSession = session.header.parentSession
+-      if (parentSession === undefined) return
+-      const payload: SubagentStartedNotification = {
+-        parentSessionId: String(parentSession),
+-        childSessionId: String(session.id),
+-      }
+-      this.transport.notify('subagent.started', payload)
+-    }))
+-    this.disposers.push(ctx.on('subagent/end', function (this: Scoped<SubagentRuntime>, info: SubagentRunEndInfo) {
+-      const parent = subagentParentOf(this)
+-      // This protocol reports only in-process child sessions. The service
+-      // snapshots the provider name and local flag through child disposal;
+-      // matching ids or parent lineage alone never establishes locality.
+-      if (!info.local) return
+-      const payload: SubagentFinishedNotification = {
+-        provider: info.provider,
+-        agentId: String(info.id),
+-        parentSessionId: String(parent.session.id),
+-        childSessionId: String(info.id),
+-        status: successStatus(info.stopReason, serverOptions),
+-        stopReason: info.stopReason,
+-        ...(info.lastAssistantMessage === undefined ? {} : { lastAssistantMessage: info.lastAssistantMessage }),
+-      }
+-      transport.notify('subagent.finished', payload)
+-    }))
+   }
+
+   /**
+-   * Configure the SDK route, mounting the DeepSeek fallback only when unowned.
++   * Configure the SDK route. Hardened deployments require an explicitly
++   * composed adapter and never mount a direct-provider fallback.
+    * @param params - SDK handshake parameters.
+    * @returns server identity for the handshake.
+    */
+@@ -118,8 +75,7 @@ export class HarnessSdkJsonRpcServer {
+     this.model = params.model
+     this.maxTokens = params.maxTokens
+     if (!this.hasAdapterFor(this.provider)) {
+-      if (this.provider !== 'deepseek-official') throw new Error(`no adapter registered for provider "${this.provider}"`)
+-      this.llmFiber = await this.ctx.plugin(LlmDeepSeek, {})
++      throw new Error(`no adapter registered for provider "${this.provider}"`)
+     }
+     return { serverInfo: { name: 'deepseek-harness-sdk-runtime', version: '0.0.1' } }
+   }
+@@ -169,9 +125,7 @@ export class HarnessSdkJsonRpcServer {
+     }
+     const teardownResults = await Promise.allSettled([
+       ...records.map(rec => Promise.resolve().then(() => rec.handle.dispose())),
+-      ...(this.llmFiber === undefined ? [] : [Promise.resolve().then(() => this.llmFiber?.dispose())]),
+     ])
+-    this.llmFiber = undefined
+     failures.push(...teardownResults
+       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+       .map(result => result.reason as unknown))
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index e8d8ee5..da1f182 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -68,5 +68,10 @@ minimumReleaseAgeExclude:
+   - node-addon-require-builtin-win32-x64-msvc@0.1.4
+   - node-addon-require-builtin@0.1.4
+
++# The hardened deploy subset intentionally excludes node-pty. The upstream
++# workspace patch remains pinned for the build graph but must not force it into
++# the final runtime closure.
++allowUnusedPatches: true
++
+ patchedDependencies:
+   node-pty@1.1.0: patches/node-pty@1.1.0.patch
+diff --git a/scripts/build-exe-for-python-sdk.ts b/scripts/build-exe-for-python-sdk.ts
+index da1cea6..de8776b 100644
+--- a/scripts/build-exe-for-python-sdk.ts
++++ b/scripts/build-exe-for-python-sdk.ts
+@@ -228,16 +228,20 @@ class SingleExeBuild {
+
+   /** Verify the closure before compiling or packaging. */
+   async verifyClosure(): Promise<void> {
+-    await this.run('runtime dependency closure', pnpmBin(), ['run', 'verify-runtime-closure'])
++    await this.run('runtime dependency closure', process.execPath, [
++      '--import',
++      'tsx/esm',
++      'scripts/verify-runtime-closure.ts',
++    ])
+   }
+
+-  /** Build all package artifacts unless `--skip-build` was passed. */
++  /** Build host-side package artifacts only unless `--skip-build` was passed. */
+   async build(): Promise<void> {
+     if (this.cli.skipBuild) {
+-      console.log('build-exe-for-python-sdk: skipping pnpm run build (--skip-build)')
++      console.log('build-exe-for-python-sdk: skipping host library build (--skip-build)')
+       return
+     }
+-    await this.run('build', pnpmBin(), ['run', 'build'])
++    await this.run('build hardened host libraries', pnpmBin(), ['run', 'build:lib:host'])
+   }
+
+   /** Clear and deploy the runtime closure into the node carrier. */
+@@ -253,6 +257,7 @@ class SingleExeBuild {
+       'deploy',
+       '--legacy',
+       '--prod',
++      '--ignore-scripts',
+       '--config.node-linker=hoisted',
+       '--config.auto-install-peers=false',
+       '--config.link-workspace-packages=true',
+@@ -417,6 +422,8 @@ class SingleExeBuild {
+     const stagedBuild = join(this.staging, 'node_modules', 'node-pty', 'build')
+     if (this.cli.dryRun) console.log(`build-exe-for-python-sdk: [dry-run] rm -rf ${stagedBuild}`)
+     else await rm(stagedBuild, { recursive: true, force: true })
++    // Hardened closures intentionally exclude subprocess-local/node-pty.
++    if (!existsSync(join(this.staging, 'node_modules', 'node-pty'))) return
+     if (target.platform !== 'linux') return
+     const source = join(root, 'packages', 'subprocess', 'subprocess-local', 'node_modules', 'node-pty', 'build', 'Release', 'pty.node')
+     const destination = join(stagedBuild, 'Release', 'pty.node')

@@ -1,0 +1,45 @@
+fix(social): dry-run canary was silently blocking ALL posting (ADR-098)
+
+LeadGen AI's own automated posting had not happened at all. The cause was NOT
+missing config — everything was wired and healthy:
+
+  POSTIZ_API_KEY        set (64 chars)
+  POSTIZ_API_URL        https://postiz.leadsgenai.in/api
+  4 integrations        resolve LIVE -> facebook, instagram, x, youtube
+  postiz provider       configured=True
+  _default_platforms('leadgenai-self') == ['postiz']
+  content_queue/leadgenai-self.jsonl   41 items, latest 2026-07-14
+
+The blocker was the 2026-07-11 canary gate left ON:
+
+  data/social_engine.json = {"enabled": true, "dry_run": true}
+
+With dry_run on, process_queue drains the queue, FABRICATES
+PublishResult(ok=True) and marks jobs `published` — while never calling any
+provider. Six self-brand jobs read status=published with an EMPTY post_id, the
+cockpit showed posts going out, and zero posts ever reached social. For three
+days. Nobody noticed because nothing anywhere said "dry run": no log line, no
+field, no badge.
+
+That is the ADR-095/096 class (fabricated state on a real status surface) and it
+gets the ADR-097 remedy (make the silent state loud):
+
+- data/social_engine.json: dry_run true -> false (prod, backup kept; `enabled`
+  untouched; the file is bind-mounted and read at call time, so no restart).
+- process_queue() logs a LOUD WARNING on every dry-run drain, naming the exact
+  flags to turn it off.
+- process_queue() returns `dry_run` in its result dict so callers/dashboards can
+  badge it instead of guessing.
+
+Dry-run still marks jobs `published` on purpose — that is the canary's whole
+point (exercise queue -> ledger -> timeline -> cockpit without a live post). What
+changes is that it can no longer do so INVISIBLY. A canary indistinguishable from
+production is worse than no canary: it manufactures false confidence.
+
+Tests: 5 new cases pin the warning text, the dry_run flag both ways, that a REAL
+drain stays quiet (so the alarm keeps meaning something), and that the
+SOCIAL_ENGINE master gate still wins. prod_check ALL CHECKS PASSED (1102 routes).
+check_secrets clean.
+
+Historical: 6 jobs stay marked `published` from dry runs — deliberately NOT
+rewritten, since re-queuing them would post stale content.

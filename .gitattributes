@@ -1,0 +1,2 @@
+scripts/_leadgen_dev_up.sh text eol=lf
+deploy/dsh/hardening.patch text eol=lf

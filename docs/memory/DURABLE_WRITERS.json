@@ -1,0 +1,121 @@
+{
+  "$schema_note": "Machine-readable inventory of every path that can persist agent MEMORY. Consumed by tests/test_memory_write_boundary.py — if a new durable writer appears without a governance guard, that test fails. Update this file in the SAME commit as any new memory writer.",
+  "generated": "2026-08-05",
+  "guard_contract": {
+    "symbol": "app.platform.memory_governance.durable_writes_allowed | check_write | guard_durable_write",
+    "results": ["ALLOW", "SUPPRESSED_BY_RULE", "DEFERRED_GOVERNANCE_UNAVAILABLE"],
+    "active_when": "MEMORY_STACK_ENABLED is truthy (flag OFF = legacy behaviour, byte-identical)",
+    "on_deferred": "no durable write, no raw content in row/log/audit/retry, masked reason only"
+  },
+  "writers": [
+    {
+      "layer": "L6 prospective",
+      "file": "app/platform/prospective_store.py",
+      "symbol": "enqueue",
+      "storage_authority": "postgres:prospective_memory",
+      "public_callers": ["app/platform/memory_stack.py::schedule", "app/api/memory_stack_admin.py::prospective_add"],
+      "governance_guard": "guard_durable_write",
+      "tenant_scope": "explicit tenant_id, blank refused",
+      "result_behavior": "{ok:false, deferred:true, code, error} — no content"
+    },
+    {
+      "layer": "L6 facade",
+      "file": "app/platform/memory_stack.py",
+      "symbol": "schedule",
+      "storage_authority": "delegates to prospective_store",
+      "public_callers": ["app/api/memory_stack_admin.py", "agent callers"],
+      "governance_guard": "_write_decision (check_write)",
+      "tenant_scope": "explicit tenant_id, blank refused",
+      "result_behavior": "{ok:false, deferred:true, code} — no content"
+    },
+    {
+      "layer": "L1 working (NON-durable)",
+      "file": "app/platform/memory_stack.py",
+      "symbol": "push_turn",
+      "storage_authority": "process memory (OrderedDict, TTL+LRU)",
+      "public_callers": ["agent/voice callers"],
+      "governance_guard": "_write_decision(durable=False) + degraded-session marker",
+      "tenant_scope": "tenant::session key, blank refused",
+      "result_behavior": "allowed during outage (answer-without-remembering); never promoted to a durable lane"
+    },
+    {
+      "layer": "L2 episodic",
+      "file": "app/voice_agent/agent_memory.py",
+      "symbol": "remember",
+      "storage_authority": "qdrant:agent_memory",
+      "public_callers": ["voice agent turn loop", "app/api/agent_memory_admin.py"],
+      "governance_guard": "durable_writes_allowed",
+      "tenant_scope": "subject-scoped (lead/client namespace); no tenant handle — health gate only",
+      "result_behavior": "{stored:0, deferred:true, code, reason}"
+    },
+    {
+      "layer": "L3 semantic / L7 shared",
+      "file": "app/platform/workforce_memory.py",
+      "symbol": "remember",
+      "storage_authority": "jsonl:data/workforce_memory/<agent>/entries.jsonl + refs",
+      "public_callers": [
+        "app/api/workforce_memory_admin.py::remember",
+        "remember_runtime_outcome",
+        "remember_lesson_bridge",
+        "remember_reflection_bridge"
+      ],
+      "governance_guard": "durable_writes_allowed (single choke point — the bridges all call remember)",
+      "tenant_scope": "agent-scoped with asset ACL; no tenant handle — health gate only",
+      "result_behavior": "{ok:false, deferred:true, code, error}"
+    },
+    {
+      "layer": "L4 procedural",
+      "file": "app/platform/skill_library.py",
+      "symbol": "record_lesson",
+      "storage_authority": "jsonl:data/skill_lessons.jsonl",
+      "public_callers": ["app/agents/self_improve.py", "app/agents/coordinator.py reflection", "workforce_memory.remember_lesson_bridge"],
+      "governance_guard": "durable_writes_allowed",
+      "tenant_scope": "global agent knowledge (no tenant) — health gate only",
+      "result_behavior": "{ok:false, deferred:true, code, error}"
+    },
+    {
+      "layer": "agent self-recall",
+      "file": "app/agents/agent_recall.py",
+      "symbol": "record",
+      "storage_authority": "jsonl:data/agent_recall.jsonl + chroma vector overlay",
+      "public_callers": ["app/api/eng_agents.py::recall_record", "infra agents"],
+      "governance_guard": "durable_writes_allowed",
+      "tenant_scope": "global agent runs (no tenant) — health gate only",
+      "result_behavior": "{ok:false, deferred:true, code, error}"
+    },
+    {
+      "layer": "entity memory (background promotion)",
+      "file": "app/platform/memory_vault.py",
+      "symbol": "sync_if_enabled",
+      "storage_authority": "markdown:data/memory/{prospects,clients,topics}",
+      "public_callers": ["app/platform/team_scheduler.py daily job", "app/api/memory_api.py::sync"],
+      "governance_guard": "durable_writes_allowed (scheduled promotion path)",
+      "tenant_scope": "entity-scoped (phone/client_id) — health gate only",
+      "result_behavior": "{ok:false, deferred:true, code, skipped}"
+    },
+    {
+      "layer": "L4 procedural (counters)",
+      "file": "app/platform/skill_library.py",
+      "symbol": "record_use",
+      "storage_authority": "jsonl:data/skill_uses.jsonl",
+      "public_callers": ["self_improve", "growth_optimizer"],
+      "governance_guard": "NOT_GUARDED_BY_DESIGN",
+      "tenant_scope": "none",
+      "result_behavior": "counters only: skill name + ok/fail + ms. Carries no customer content, so a do-not-remember rule has nothing to suppress. Documented exclusion, not an oversight."
+    }
+  ],
+  "explicit_exclusions": [
+    {
+      "file": "app/voice_agent/knowledge_base.py",
+      "reason": "business KB ingest — admin-curated product/niche documents, not per-subject agent memory. Out of the DNR scope by definition; revisit if customer conversations are ever ingested into it."
+    },
+    {
+      "file": "app/ml/vector_store.py",
+      "reason": "generic vector-store primitive with no memory semantics of its own; guarded at each memory caller instead (agent_recall, agent_memory)."
+    },
+    {
+      "file": "app/platform/obsidian_sync.py",
+      "reason": "developer note mirror (OBSIDIAN_SYNC, dev-only, never customer data)."
+    }
+  ]
+}

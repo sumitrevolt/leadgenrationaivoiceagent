@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>LeadsGenAI — Agentic AI Battlecard (Internal) — June 2026</title>
+<style>
+:root{
+  --bg-primary:#0a0d14;--bg-elevated:#0f131c;--bg-surface:#161b28;--bg-hover:#1e2536;
+  --text-primary:#ffffff;--text-secondary:rgba(255,255,255,.72);--text-muted:rgba(255,255,255,.5);
+  --accent:#3b82f6;--accent-hover:#2563eb;
+  --you-win:#10b981;--they-win:#ef4444;--tie:#f59e0b;
+  --border:rgba(255,255,255,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-primary);color:var(--text-primary);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;line-height:1.6;padding-bottom:60px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+header{background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:28px 0;margin-bottom:0}
+header h1{font-size:24px;font-weight:600}
+header h1 span{color:var(--accent)}
+header p{color:var(--text-muted);font-size:13px;margin-top:6px}
+.badge{display:inline-block;font-size:11px;padding:2px 10px;border-radius:99px;border:1px solid var(--border);color:var(--text-secondary);margin-left:8px;vertical-align:middle}
+nav.tabs{position:sticky;top:0;z-index:10;background:var(--bg-elevated);border-bottom:1px solid var(--border);padding:10px 0;overflow-x:auto;white-space:nowrap}
+nav.tabs .wrap{display:flex;gap:8px}
+.tab{background:transparent;border:1px solid var(--border);color:var(--text-secondary);padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s}
+.tab:hover{background:var(--bg-hover);color:var(--text-primary)}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+section.tab-content{display:none;padding:28px 0}
+section.tab-content.active{display:block}
+h2{font-size:19px;font-weight:600;margin:26px 0 14px;color:var(--text-primary)}
+h2:first-child{margin-top:0}
+h3{font-size:15px;font-weight:600;margin:18px 0 8px;color:var(--accent)}
+p.lead{color:var(--text-secondary);font-size:14px;max-width:820px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 20px;background:var(--bg-elevated);border-radius:12px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+th{background:var(--bg-surface);font-weight:600;font-size:12px;color:var(--text-secondary);position:sticky;top:54px}
+td:first-child{font-weight:600;color:var(--text-secondary);width:170px}
+.w{color:var(--you-win);font-weight:600}
+.l{color:var(--they-win);font-weight:600}
+.t{color:var(--tie);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;margin:14px 0}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;transition:all .2s}
+.card:hover{background:var(--bg-hover)}
+.card h4{font-size:14px;font-weight:600;margin-bottom:8px}
+.card ul{margin:0;padding-left:18px;color:var(--text-secondary);font-size:13px}
+.card li{margin:5px 0}
+.card.win{border-left:3px solid var(--you-win);border-radius:0 12px 12px 0}
+.card.lose{border-left:3px solid var(--they-win);border-radius:0 12px 12px 0}
+.card.warn{border-left:3px solid var(--tie);border-radius:0 12px 12px 0}
+.profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.stat{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.stat .k{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.stat .v{font-size:14px;font-weight:600;margin-top:3px}
+.talk{background:var(--bg-elevated);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:12px 16px;margin:10px 0;font-size:13px;color:var(--text-secondary)}
+.talk b{color:var(--text-primary)}
+.mine{background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:11px 16px;margin:8px 0;font-size:13px;color:var(--text-secondary)}
+.mine::before{content:"💣 ";opacity:.8}
+.pill{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;margin:2px 4px 2px 0}
+.pill.g{background:rgba(16,185,129,.14);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+.pill.r{background:rgba(239,68,68,.14);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.pill.y{background:rgba(245,158,11,.14);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+.src{color:var(--text-muted);font-size:11px;margin-top:24px;border-top:1px solid var(--border);padding-top:12px}
+.src a{color:var(--accent);text-decoration:none}
+@media(max-width:640px){td:first-child{width:auto}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1><span>LeadsGenAI</span> vs Agentic AI Players <span class="badge">INTERNAL — serve nahi hota</span></h1>
+<p>Generated: 12 June 2026 · Focus: agentic & automated infrastructure · Products: AI Marketing + AI Voice Agent · Competitors: 11x.ai · Artisan · Lindy · Relevance AI · India Voice Infra (Bolna/Sarvam/Retell)</p>
+</div></header>
+
+<nav class="tabs"><div class="wrap">
+<button class="tab active" data-tab="matrix">⚔️ Comparison Matrix</button>
+<button class="tab" data-tab="t11x">11x.ai</button>
+<button class="tab" data-tab="artisan">Artisan</button>
+<button class="tab" data-tab="lindy">Lindy</button>
+<button class="tab" data-tab="relevance">Relevance AI</button>
+<button class="tab" data-tab="indiavoice">India Voice Infra</button>
+<button class="tab" data-tab="us">🏠 LeadsGenAI</button>
+</div></nav>
+
+<div class="wrap">
+
+<section id="matrix" class="tab-content active">
+<h2>Head-to-head: agentic AI landscape, June 2026</h2>
+<p class="lead">Core insight: ye sab "AI employee/agent" bechte hain — par koi bhi <b>Indian local SMB ko outcome (qualified lead) nahi bechta</b>. 11x/Artisan = US B2B enterprise email-first. Lindy/Relevance = DIY agent builders. Bolna/Retell = per-minute voice INFRA (raw material, solution nahi). Hamara flat ₹4,999/mo (UNLIMITED calls) + Hinglish + TRAI/DLT/DPDP compliance + done-for-you 13-agent stack — is intersection pe koi nahi khada.</p>
+<table>
+<tr><th>Dimension</th><th>LeadsGenAI</th><th>11x.ai</th><th>Artisan</th><th>Lindy</th><th>Relevance AI</th><th>Bolna/Retell/Sarvam</th></tr>
+<tr><td>Target market</td><td class="w">Indian local SMB (39 niches)</td><td>US/global B2B enterprise</td><td>US/global B2B SMB-mid</td><td>Horizontal teams/ops</td><td>GTM/ops teams (build)</td><td>Developers/enterprise India+US</td></tr>
+<tr><td>Entry price</td><td class="w">₹1,199/mo mktg · ₹4,999/mo flat voice</td><td class="l">~$5,000/mo, $50-60k min/yr</td><td>$250/mo (Ava 2.0 self-serve)</td><td>$99.99/mo + credits</td><td>Free→$19→$349/mo</td><td>₹5.52/min (Bolna) · $0.07-0.31/min (Retell all-in)</td></tr>
+<tr><td>Pricing model</td><td class="w">Flat per-niche-band, unlimited calls</td><td>Per digital worker, opaque</td><td>Credit-based activity</td><td>Credit-based (pause on exhaust)</td><td>Dual meter: Actions + vendor credits</td><td>Per-minute metering</td></tr>
+<tr><td>Hinglish/Hindi native</td><td class="w">✅ Default (voice+content+UI)</td><td class="l">❌</td><td class="l">❌</td><td class="l">❌</td><td class="l">❌</td><td class="t">✅ Sarvam 11 langs · Bolna yes · Retell weak</td></tr>
+<tr><td>TRAI/DLT/DND/DPDP</td><td class="w">✅ Built-in (consent ledger, fail-closed DND, AI disclosure)</td><td class="l">❌ US TCPA only</td><td class="l">❌</td><td class="l">❌</td><td class="l">❌</td><td class="t">Partial (client ka kaam)</td></tr>
+<tr><td>Done-for-you</td><td class="w">✅ Auto-onboard + 13 AI staff + FDE agents</td><td class="t">Managed onboarding (heavy)</td><td class="t">Self-serve, semi</td><td class="l">DIY builder</td><td class="l">DIY builder (learning curve)</td><td class="l">DIY/dev integration</td></tr>
+<tr><td>Marketing bundle</td><td class="w">✅ 28-tab suite, posts/reels/GBP/festivals/mini-site</td><td class="l">❌ Sales only</td><td class="l">❌ Outbound only</td><td class="t">Possible (build yourself)</td><td class="t">Templates (assemble)</td><td class="l">❌</td></tr>
+<tr><td>Voice calling (India legal)</td><td class="w">✅ Vobiz + Hinglish telecaller brain</td><td class="t">Julian (US phone)</td><td class="t">Dialer (US)</td><td class="t">Voice via partners</td><td class="l">❌</td><td class="w">✅ Core strength</td></tr>
+<tr><td>Local-SMB lead data</td><td class="w">✅ Places/OSM 42-niche × 15-city harvester</td><td class="t">Global B2B DB</td><td class="t">300M B2B contacts (India local weak)</td><td class="l">❌ BYO</td><td class="l">❌ BYO</td><td class="l">❌</td></tr>
+<tr><td>Agentic infra depth</td><td class="t">13 staff, Reflexion+critic+memory, process engine, self-improve loop</td><td class="t">2 digital workers, polished</td><td class="t">1 agent (Ava), signals</td><td class="w">Strong builder, 2,300+ apps</td><td class="w">Multi-agent workforce, 400+ templates</td><td class="t">Voice pipeline infra deep (sub-400ms)</td></tr>
+</table>
+
+<h2>Quick win/loss guide</h2>
+<div class="grid">
+<div class="card win"><h4>✅ Hum jeet-te hain jab…</h4><ul>
+<li>Prospect = Indian local business (solar, gym, clinic, salon…) — unka budget ₹1-25k/mo, USD tools ka entry hi ₹20k-4L/mo hai.</li>
+<li>Customer ki audience Hindi/Hinglish me phone+WhatsApp pe respond karti hai (email-first US playbook India SMB me fail).</li>
+<li>Owner ko "AI tool" nahi, <b>result</b> chahiye — humara done-for-you qualified-lead delivery + flat predictable pricing risk unse hata deta hai.</li>
+<li>Compliance sawal uthe — DLT/TRAI/DND/DPDP humare paas codebase me hai, unke paas FAQ me bhi nahi.</li>
+<li>Marketing + leads + calling EK jagah chahiye (sab competitors single-slice hain).</li></ul></div>
+<div class="card lose"><h4>❌ Hum haarte hain jab…</h4><ul>
+<li>Prospect US/EU B2B SaaS me outbound karna chahta hai — 11x/Artisan ka contact DB + email infra wahan superior.</li>
+<li>Team khud custom internal agents banana chahti hai (ops/support automation) — Lindy/Relevance sahi fit.</li>
+<li>Enterprise ko apna voice stack chahiye dev team ke saath — Retell/Sarvam/Bolna infra-depth jeet jaate.</li>
+<li>Cold-calling at scale chahiye AAJ — humari DLT pending hai (inbound callback + marketing tiers se ladho).</li>
+<li>Brand-name trust chahiye (a16z/Benchmark-backed vs bootstrap).</li></ul></div>
+</div>
+<div class="talk"><b>Ek-line positioning:</b> "Wo sab 'AI employee' ka tool bechte hain — hum aapko <b>kaam hua hua</b> dete hain: content bana, post ready, calls hui, sirf qualified lead aapke paas. Tool seekhna nahi, result ginna."</div>
+</section>
+
+<section id="t11x" class="tab-content">
+<h2>11x.ai — "digital workers" Alice (SDR) + Julian (phone)</h2>
+<div class="profile-grid">
+<div class="stat"><div class="k">Funding</div><div class="v">$76M (Benchmark, a16z)</div></div>
+<div class="stat"><div class="k">Pricing</div><div class="v">~$5k/mo · $50-60k min first-yr</div></div>
+<div class="stat"><div class="k">Julian (voice)</div><div class="v">~$4-6k/mo inbound qual</div></div>
+<div class="stat"><div class="k">Target</div><div class="v">US/global B2B enterprise</div></div>
+</div>
+<p class="lead">Sabse well-funded AI SDR. Alice = outbound multichannel prospecting, Julian = inbound phone qualification. Pricing opaque (G2 reports $5-15k/mo). Median contract ~$40k/yr (Vendr).</p>
+<span class="pill g">Strong onboarding/support</span><span class="pill g">Multichannel story</span><span class="pill g">24/7 autonomous</span><span class="pill r">Opaque pricing</span><span class="pill r">Generic messaging reports</span><span class="pill r">No real-time buying signals</span><span class="pill r">Reddit: "autopilot expectations mismatch"</span>
+<div class="grid">
+<div class="card lose"><h4>Wo jeet-te</h4><ul><li>Enterprise US B2B outbound at scale, brand-name investors, polished managed onboarding.</li><li>Julian inbound phone qual English me mature.</li></ul></div>
+<div class="card win"><h4>Hum jeet-te</h4><ul><li>₹4,999/mo vs ₹4,00,000+/mo — Indian SMB ke liye 11x exist hi nahi karta.</li><li>Hinglish voice + TRAI AI-disclosure + DLT path — 11x India me legally call kar hi nahi sakta (foreign trunk = illegal).</li><li>Flat unlimited pricing vs per-worker subscription; unke khud ke reviews "inconsistent results" bolte hain.</li><li>Marketing suite bundle — Alice sirf outbound hai, content/GBP/festivals kuch nahi.</li></ul></div>
+</div>
+<h3>Talk tracks</h3>
+<div class="talk"><b>Early mention:</b> "11x bahut bada US enterprise tool hai — minimum contract ~₹45 lakh/saal. Aap usi class ka kaam flat ₹4,999/mo me (UNLIMITED calls) le sakte ho, Hindi me, Indian numbers pe legally."</div>
+<div class="talk"><b>Displacement:</b> "Unke customers khud bolte hain messaging generic lagti hai. Hamara brain aapke business ke KB pe grounded hai + har call qualified/not-qualified score hota hai — aur aap flat ₹4,999/mo dete ho, unlimited calls, koi surprise bill nahi."</div>
+<h3>Landmines</h3>
+<div class="mine">"11x se poochhiye — India me TRAI 140-series aur DLT registration kaun handle karega? Foreign trunk se domestic call illegal hai."</div>
+<div class="mine">"Minimum annual commitment kitna hai? Pricing page pe number kyun nahi hai?"</div>
+<div class="mine">"Hindi ya Hinglish me Julian baat kar sakta hai? Demo dikhao."</div>
+</section>
+
+<section id="artisan" class="tab-content">
+<h2>Artisan — Ava 2.0, "the AI employee"</h2>
+<div class="profile-grid">
+<div class="stat"><div class="k">Funding</div><div class="v">$46M (YC, $25M Series A Apr'25)</div></div>
+<div class="stat"><div class="k">Entry price</div><div class="v">$250/mo (10x cut from $2,500)</div></div>
+<div class="stat"><div class="k">Plans</div><div class="v">Intern $280 · Employee ~$600-660/mo</div></div>
+<div class="stat"><div class="k">Data</div><div class="v">300M B2B contacts, 15+ enrichers</div></div>
+</div>
+<p class="lead">Sabse aggressive move: Ava 2.0 self-serve @ $250/mo + $300 free credits — enterprise AI SDR ko SMB price pe le aaye. Built-in dialer, signals workflows, conversational management. <b>Yeh hamare liye sabse relevant THREAT hai</b> kyunki downmarket aa rahe hain.</p>
+<span class="pill g">Self-serve + cheap entry</span><span class="pill g">300M contact DB</span><span class="pill g">Signals-triggered campaigns</span><span class="pill r">Email/LinkedIn-first (India SMB phone-first)</span><span class="pill r">India local-business data weak</span><span class="pill r">Credit costs unpredictable</span>
+<div class="grid">
+<div class="card lose"><h4>Wo jeet-te</h4><ul><li>Global B2B email outbound — contact DB + deliverability infra hamse aage.</li><li>$250 entry = price objection khatam (US me).</li></ul></div>
+<div class="card win"><h4>Hum jeet-te</h4><ul><li>Unka 300M DB = B2B professionals; Pune ka gym ya Nashik ka solar dealer usme nahi milta — hamara Places/OSM harvester wahi nikalta hai.</li><li>India SMB cold email ~dead channel hai; phone+WhatsApp+GBP hamara home ground.</li><li>Ava activity bechti hai (credits), hum outcome (qualified lead).</li><li>Hinglish content + festivals + GBP — Ava ke paas marketing surface zero.</li></ul></div>
+</div>
+<h3>Talk tracks</h3>
+<div class="talk"><b>Early mention:</b> "Artisan videsh ke B2B SaaS ke liye email bhejta hai. Aapke customer Justdial pe dhundte hain, WhatsApp pe reply karte hain, phone uthate hain — wahi pipeline hum chalate hain."</div>
+<div class="talk"><b>Pricing:</b> "$250/mo + credits = ₹25k+ activity ke liye. Hamare flat ₹4,999/mo me UNLIMITED calls — predictable bill, activity-meter ka tension nahi."</div>
+<h3>Landmines</h3>
+<div class="mine">"Ava se Indian local businesses ki list nikalwa ke dikhao — apne sheher ke 50 salon/clinic."</div>
+<div class="mine">"Credits kab khatam honge, monthly bill predict kar sakte ho?"</div>
+<div class="mine">"Hindi me follow-up WhatsApp/SMS DLT template se bhejegi Ava?"</div>
+</section>
+
+<section id="lindy" class="tab-content">
+<h2>Lindy — no-code AI agent builder</h2>
+<div class="profile-grid">
+<div class="stat"><div class="k">Pricing</div><div class="v">Pro $99.99 · Max $199.99/mo</div></div>
+<div class="stat"><div class="k">Business</div><div class="v">~$890/mo annual + $1.5-3k onboarding</div></div>
+<div class="stat"><div class="k">Integrations</div><div class="v">2,300+ apps</div></div>
+<div class="stat"><div class="k">Model</div><div class="v">Credits (no rollover, agents pause)</div></div>
+</div>
+<p class="lead">Best-in-class DIY: plain-English me multi-step agents banao. User sentiment: "ease of use" #1 praise, "expensive/unpredictable credits" #1 complaint (42+35 mentions). Credits khatam = agents PAUSE — production automation ke liye scary.</p>
+<span class="pill g">Easiest builder UX</span><span class="pill g">2,300+ integrations</span><span class="pill r">DIY — owner ko banana/maintain karna padta</span><span class="pill r">Credits exhaust = sab ruk jata</span><span class="pill r">No India GTM/voice/compliance</span>
+<div class="grid">
+<div class="card lose"><h4>Wo jeet-te</h4><ul><li>Tech-comfortable teams jo custom internal automations (inbox, meetings, support) khud banana chahti hain.</li></ul></div>
+<div class="card win"><h4>Hum jeet-te</h4><ul><li>SMB owner ke paas agents BANANE ka time nahi — hamare 13 staff pre-built, pre-tuned, roz chalte hain (scheduler + self-improve loop).</li><li>Lindy = horizontal tool; hum = lead-gen vertical solution with data, scripts, niches, compliance baked in.</li><li>Hamari billing flat ₹ — unki credit anxiety hamara selling point.</li></ul></div>
+</div>
+<h3>Talk tracks</h3>
+<div class="talk"><b>Builder vs done-for-you:</b> "Lindy aapko kitchen deta hai, hum khana. Aapko AI agent design nahi karna — pehle din se content, leads, calls milte hain."</div>
+<h3>Landmines</h3>
+<div class="mine">"Mahine ke beech credits khatam ho gaye to lead-follow-up agents ka kya hoga?" (Answer: pause.)</div>
+<div class="mine">"Setup + maintain karne me kitne ghante lagenge, kaun karega?"</div>
+</section>
+
+<section id="relevance" class="tab-content">
+<h2>Relevance AI — multi-agent "AI workforce" platform</h2>
+<div class="profile-grid">
+<div class="stat"><div class="k">HQ / Since</div><div class="v">Sydney · 2020 · 40k+ agents built</div></div>
+<div class="stat"><div class="k">Pricing</div><div class="v">Free → $19 Pro → $349/mo teams</div></div>
+<div class="stat"><div class="k">Model (Sep'25 overhaul)</div><div class="v">Dual meter: Actions + vendor credits (BYO API key)</div></div>
+<div class="stat"><div class="k">Templates</div><div class="v">400+ (BDR, research, content)</div></div>
+</div>
+<p class="lead">Conceptually hamare sabse kareeb — "AI workforce" framing (hum 13-staff team bechte hain, wo build-your-own workforce). Strongest multi-agent builder 2026 ka. Par reviews consistent flag karte hain: learning curve, complex UI, unpredictable consumption.</p>
+<span class="pill g">Multi-agent workforce concept</span><span class="pill g">BYO API key = cost control</span><span class="pill g">400+ templates</span><span class="pill r">Steep learning curve</span><span class="pill r">Assemble-it-yourself</span><span class="pill r">No voice/telephony/India compliance</span>
+<div class="grid">
+<div class="card lose"><h4>Wo jeet-te</h4><ul><li>GTM ops teams with technical chops jo custom workforce architect karna chahti hain.</li><li>Model-agnostic + BYO key = enterprises ko pasand.</li></ul></div>
+<div class="card win"><h4>Hum jeet-te</h4><ul><li>Same "workforce" pitch, zero assembly: hamari team naam-personality-schedule ke saath LIVE hai (Boss, Swara, Isha, Hermes…).</li><li>Unke templates generic; hamare agents 42 Indian niches ke scripts/pricing/data pe trained.</li><li>Voice calling + telephony unke paas hai hi nahi.</li></ul></div>
+</div>
+<h3>Talk tracks</h3>
+<div class="talk"><b>Workforce vs workforce:</b> "Relevance pe aap AI workforce BANATE ho. Humare yahan workforce pehle se NAUKRI pe hai — 13 AI staff jo roz subah 6:30 se kaam shuru karte hain."</div>
+<h3>Landmines</h3>
+<div class="mine">"Pehla working BDR agent live karne me kitne din + kaun configure karega?"</div>
+<div class="mine">"Indian phone calls, DLT SMS, WhatsApp templates — in channels ka native support hai?"</div>
+</section>
+
+<section id="indiavoice" class="tab-content">
+<h2>India voice infra — Bolna · Sarvam Samvaad · Retell/Bland/Vapi</h2>
+<div class="profile-grid">
+<div class="stat"><div class="k">Bolna</div><div class="v">~₹5.52/min (Sarvam stack)</div></div>
+<div class="stat"><div class="k">Sarvam Samvaad</div><div class="v">11 langs, sub-500ms, early-2026 launch</div></div>
+<div class="stat"><div class="k">Retell</div><div class="v">$0.07/min adv. → $0.13-0.31 all-in</div></div>
+<div class="stat"><div class="k">Bland</div><div class="v">$0.11/min + $499/mo plan</div></div>
+</div>
+<p class="lead">Yeh log voice-agent INFRA bechte hain — STT/LLM/TTS pipeline per-minute pe. Client ko phir bhi chahiye: scripts, telephony+DLT, lead sourcing, CRM, follow-up, marketing. Hum FULL OUTCOME bechte hain jisme voice ek hissa hai. Indian voice AI market $153M (2024) → $957M (2030) @ 35.7% CAGR — infra players hamare potential vendors bhi hain, competitors bhi.</p>
+<span class="pill g">Deep latency/scale engineering</span><span class="pill g">Sarvam: sovereign 11-language stack</span><span class="pill y">SquadStack hybrid = alag battlecard me covered</span><span class="pill r">Minutes ≠ outcomes</span><span class="pill r">DIY integration (dev chahiye)</span><span class="pill r">No lead sourcing/marketing</span>
+<div class="grid">
+<div class="card lose"><h4>Wo jeet-te</h4><ul><li>Enterprise jiske paas dev team hai aur custom voice product banana hai (BFSI, logistics scale).</li><li>Raw latency benchmarks (sub-400-500ms) me unka infra hamse deep.</li></ul></div>
+<div class="card win"><h4>Hum jeet-te</h4><ul><li>SMB ko "₹5.52/min" ka koi matlab nahi — "flat ₹4,999/mo me unlimited calls" samajh aata hai.</li><li>Per-minute billing me failed/voicemail/wrong-number minutes bhi client pay karta hai; humare yahan flat ₹4,999/mo — unlimited calls, koi per-minute/per-lead charge nahi.</li><li>Voice akela bekar — lead kahan se aayegi? Hamara harvester+marketing+callback funnel feed karta hai.</li><li>Compliance (consent ledger, DND fail-closed, AI disclosure) unke docs me "customer responsibility" hai, hamare code me hai.</li></ul></div>
+<div class="card warn"><h4>⚠️ Honest watch-list</h4><ul><li>Sarvam Samvaad "live in 24 hours" + brand momentum — agar wo SMB packaging layer banaye to direct threat.</li><li>Bolna ₹5.52/min hamari cost economics se compare hota hai — hamara free-stack moat yahan matter karta hai.</li><li>Tabbly self-serve SMB voice @ transparent pricing — downmarket squeeze.</li></ul></div>
+</div>
+<h3>Talk tracks</h3>
+<div class="talk"><b>Infra vs solution:</b> "Retell/Bolna se aap engine kharidte ho — gaadi aapko khud banani padegi. Hum aapko driver ke saath gaadi dete hain — flat monthly kiraya, unlimited trips, koi per-minute meter nahi."</div>
+<h3>Landmines</h3>
+<div class="mine">"Per-minute me voicemail aur wrong numbers ke minutes kaun pay karta hai?"</div>
+<div class="mine">"Leads list kaun dega? Script kaun likhega? DLT registration kaun karega?"</div>
+</section>
+
+<section id="us" class="tab-content">
+<h2>LeadsGenAI — hamari agentic infra story</h2>
+<p class="lead">"Infrastructure beyond imagination" pitch ka backbone — ye sab LIVE hai, demo me dikha sakte ho:</p>
+<div class="grid">
+<div class="card win"><h4>🤖 13-agent AI workforce (live)</h4><ul><li>Boss/Swara/Isha/Dev/Rohan/Arjun/Meera/Kavya/Tara/Nikhil/Hermes/Guru/Vikram — named staff with daily IST schedules, events dashboard pe visible.</li><li>Coordinator: Reflexion loops, critic (Arjun QA), episodic memory, debate, hierarchical teams — 2026 SOTA patterns production me.</li></ul></div>
+<div class="card win"><h4>🔁 Self-improving loop (live)</h4><ul><li>Task→task forever loop: weakest funnel stage detect → corrective action → learn → repeat (60/day cap, dead-man guarded).</li><li>Process engine: event-sourced, crash-safe, human breakpoints ban-risky steps se pehle.</li></ul></div>
+<div class="card win"><h4>🎙️ Voice stack (live)</h4><ul><li>Groq whisper-large-v3 STT → KB-grounded Telecaller Brain → EdgeTTS Hinglish, thinking-fillers, barge-in; proven on live human calls (44s+55s).</li><li>Post-call AI qualifier har lead ko "interested" score karta — aapko sirf garam leads milti hain (flat ₹4,999/mo, unlimited calls).</li></ul></div>
+<div class="card win"><h4>⚖️ Compliance moat</h4><ul><li>Consent ledger (TCCCPR/DPDP), DND fail-closed, TRAI AI-disclosure, 90-day recording retention — competitors ke paas roadmap me bhi nahi.</li></ul></div>
+<div class="card win"><h4>💰 Economics moat</h4><ul><li>Free AI stack (Cerebras/Groq/EdgeTTS/Qdrant self-host) = cost structure jo $0.13-0.31/min walo se order-of-magnitude sasta.</li><li>Isliye ₹1,199/mo marketing aur ₹4,999/mo flat (unlimited) voice sustainable hai.</li></ul></div>
+<div class="card warn"><h4>⚠️ Honest gaps (sales me overclaim mat karo)</h4><ul><li>Cold-calling DLT-pending (inbound callback + marketing becho).</li><li>Latency benchmarks me Ringg/Sarvam-class sub-400ms infra se peeche.</li><li>Meta auto-publish blocked (1-click human post hai).</li><li>Brand/funding trust signal nahi — demo aur ₹4,999 flat entry se jeeto.</li></ul></div>
+</div>
+<h3>Recent releases (apne last ~30 din — demo ammo)</h3>
+<div class="mine" style="border-left:3px solid var(--you-win)">Web-call Groq STT fix + business-name personalization · /compare public page · consent ledger · Hermes infra-handler (90/100 score) · Zoho/HubSpot CRM sync · 16-tab automation Mission Control · GST invoice engine · self-hosted SearXNG/ntfy stack.</div>
+<div class="src">Sources: <a href="https://getbreakout.ai/blog/11x-pricing-ai-sdr-cost-2026">11x pricing (Breakout)</a> · <a href="https://coldreach.ai/blog/11x.ai-review">11x review (ColdReach)</a> · <a href="https://www.artisan.co/blog/artisan-launches-ava-2-0-the-first-autonomous-ai-bdr-now-self-serve">Ava 2.0 launch (Artisan)</a> · <a href="https://www.salesrobot.co/blogs/artisan-ai-review">Artisan review (SalesRobot)</a> · <a href="https://www.cloudtalk.io/blog/lindy-ai-pricing/">Lindy pricing (CloudTalk)</a> · <a href="https://prospeo.io/s/lindy-pricing-reviews-pros-and-cons">Lindy reviews (Prospeo)</a> · <a href="https://www.salesrobot.co/blogs/relevance-ai-review">Relevance AI review</a> · <a href="https://relevanceai.com/pricing">Relevance pricing</a> · <a href="https://www.retellai.com/comparisons/retell-vs-bland">Retell vs Bland</a> · <a href="https://klariqo.com/blog/voice-ai-cost-per-minute/">Voice AI cost/min (Klariqo)</a> · <a href="https://www.sarvam.ai/products/conversational-agents">Sarvam Samvaad</a> · <a href="https://caller.digital/blog/top-10-voice-ai-agents-india-2026">India voice AI top-10 (Caller Digital)</a> · <a href="https://www.topo.io/blog/top-5-ai-sdrs">AI SDR comparison (Topo)</a> — pricing third-party estimates hain jahan vendor opaque hai; major deal se pehle re-verify.</div>
+</section>
+
+</div>
+<script>
+document.querySelectorAll('.tab').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+    document.querySelectorAll('.tab-content').forEach(function(x){x.classList.remove('active')});
+    b.classList.add('active');
+    document.getElementById(b.dataset.tab).classList.add('active');
+    window.scrollTo({top:0});
+  });
+});
+</script>
+</body>
+</html>

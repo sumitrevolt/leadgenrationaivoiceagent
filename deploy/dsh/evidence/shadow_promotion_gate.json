@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_label": "LOCAL_ONLY_NOT_SOAKED",
+  "status": "blocked_pending_production_soak",
+  "promotion_allowed": false,
+  "safe_default": {
+    "flag": "DSH_SHADOW_ENABLED",
+    "default": "0",
+    "authority": "direct",
+    "shadow_side_effects_allowed": false
+  },
+  "required": {
+    "minimum_turns": 2000,
+    "minimum_duration_days": 14,
+    "maximum_shadow_side_effects": 0,
+    "artifact_sha256_required": true
+  },
+  "observed": {
+    "turns": 0,
+    "duration_days": 0,
+    "shadow_side_effects": 0
+  },
+  "artifacts": []
+}

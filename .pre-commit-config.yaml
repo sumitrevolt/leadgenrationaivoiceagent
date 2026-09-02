@@ -1,0 +1,101 @@
+# Pre-commit hooks for LeadGen AI Voice Agent
+# Install: pre-commit install
+# Run all: pre-commit run --all-files
+
+repos:
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        # deploy/dsh/cordis.yml uses Cordis-specific !!js custom tags — not plain YAML
+        exclude: '^deploy/dsh/cordis\.yml$'
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: debug-statements
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, production]
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: [--config, pyproject.toml]
+
+  # Import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--settings-path, pyproject.toml]
+
+  # Linting with ruff (faster than flake8) — keep in sync with CI Gate A (ruff==0.16.1)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+      - id: bandit
+        # Per-changed-file scan at medium+ severity. The old `-r app` + filenames
+        # combo crashed bandit ("unrecognized arguments") so the hook never ran;
+        # whole-repo low-severity scan has ~1.5k legacy B110 defensive-except hits.
+        args: [--skip, B101, -ll]
+        exclude: tests/
+
+  # Secrets detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: \.env\.example$
+
+  # Dockerfile linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        # DL3008/DL3013: pinned apt/pip versions — lockfile installs are pinned by
+        # design (requirements.lock.txt). DL3025: shell-form CMD is deliberate
+        # (env-substitutes PORT). DL3066: non-numeric USER appuser is deliberate.
+        args: [--ignore, DL3008, --ignore, DL3013, --ignore, DL3025, --ignore, DL3066]
+
+  # Terraform formatting
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.86.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+      - id: terraform_tflint
+
+  # DPDP: refuse committing tracked CSVs with personal-data headers
+  - repo: local
+    hooks:
+      - id: no-tracked-pii-exports
+        name: no tracked personal-data CSV exports
+        entry: python -m pytest --noconftest tests/test_no_tracked_pii_exports.py -q --tb=line
+        language: python
+        additional_dependencies: [pytest==7.4.4]
+        pass_filenames: false
+        files: '(^|/).+\.csv$|(^\.gitignore$)|(^tests/test_no_tracked_pii_exports\.py$)'
+
+# CI configuration
+ci:
+  autofix_commit_msg: 'style: auto-fixes from pre-commit hooks'
+  autofix_prs: true
+  autoupdate_commit_msg: 'chore: pre-commit autoupdate'
+  autoupdate_schedule: weekly

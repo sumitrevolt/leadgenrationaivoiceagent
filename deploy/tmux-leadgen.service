@@ -1,0 +1,14 @@
+[Unit]
+Description=LeadGen AI tmux dashboard
+After=docker.service network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/leadgen
+ExecStart=/bin/bash /opt/leadgen/tmux-leadgen.sh
+RemainAfterExit=yes
+ExecStop=/usr/bin/tmux kill-server
+
+[Install]
+WantedBy=multi-user.target

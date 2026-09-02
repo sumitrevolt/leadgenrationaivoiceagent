@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Owner OS — LeadGen AI</title>
+<style>
+:root{
+  --bg:#0b1220; --card:#111827; --line:#1f2937; --ink:#e5e7eb; --muted:#94a3b8;
+  --brand:#6366f1; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; --soft:#1e1b4b;
+}
+*{box-sizing:border-box} body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:linear-gradient(180deg,#0b1220,#111827);color:var(--ink)}
+a{color:#a5b4fc;text-decoration:none}
+.top{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;background:rgba(11,18,32,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+.brand{font-weight:800} .brand span{color:var(--brand)}
+.nav a{margin-right:10px;font-size:13px;color:var(--muted)} .nav a:hover{color:#fff}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.card h2{margin:0 0 8px;font-size:16px} .card h3{margin:0 0 6px;font-size:14px;color:#c7d2fe}
+.muted{color:var(--muted);font-size:12px;line-height:1.45}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:13px;background:var(--brand);color:#fff}
+.btn.sec{background:#334155} .btn.warn{background:var(--warn);color:#111} .btn.danger{background:var(--err)} .btn.ok{background:var(--ok);color:#052e16}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+textarea,input,select{width:100%;background:#0f172a;border:1px solid #334155;color:var(--ink);border-radius:10px;padding:10px;font:inherit}
+textarea{min-height:88px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{background:#0f172a;border:1px solid #334155;border-radius:999px;padding:5px 10px;font-size:12px}
+.chip b{color:#fff}
+.agent{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #1f2937}
+.agent:last-child{border-bottom:0}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:#1e293b;color:#cbd5e1}
+.badge.ok{background:#14532d;color:#bbf7d0} .badge.warn{background:#78350f;color:#fde68a} .badge.err{background:#7f1d1d;color:#fecaca}
+.pre{white-space:pre-wrap;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;font-size:12px;max-height:260px;overflow:auto}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tabs button{background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:999px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700}
+.tabs button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.panel{display:none}.panel.on{display:block}
+.toast{position:fixed;right:14px;bottom:14px;background:#1e1b4b;border:1px solid #6366f1;padding:10px 14px;border-radius:10px;font-size:13px;display:none;z-index:50}
+.teach{margin-top:8px;padding:10px;border-radius:10px;background:var(--soft);border:1px dashed #6366f1;font-size:12px;color:#c7d2fe}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">👑 Owner OS <span>· LeadGen AI</span></div>
+  <nav class="nav">
+    <a href="/app/admin">Admin</a>
+    <a href="/app/inbox">Hot Queue</a>
+    <a href="/app/office">Office</a>
+    <a href="/app/automation">Automation</a>
+    <a href="/app/explorer">Explorer</a>
+    <a href="/app/agent-tools">Agent OS</a>
+    <a href="/app/control-center">CC</a>
+    <a href="/app/admin-login">Login</a>
+  </nav>
+  <div class="spacer" style="flex:1"></div>
+  <span class="badge" id="authBadge">checking…</span>
+  <button class="btn sec" onclick="boot()">↻ Refresh</button>
+</header>
+
+<main class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="on" data-tab="home">Home</button>
+    <button data-tab="commands">Commands</button>
+    <button data-tab="agents">Agents</button>
+    <button data-tab="workflows">Workflows</button>
+    <button data-tab="routes">OmniRoute</button>
+    <button data-tab="tasks">Tasks</button>
+    <button data-tab="runtime">Runtime</button>
+    <button data-tab="approvals">Approvals</button>
+    <button data-tab="kill">Kill Switches</button>
+    <button data-tab="copilot">Owner Copilot</button>
+    <button data-tab="hub">Coord Hub</button>
+    <button data-tab="training">Training</button>
+  </div>
+
+  <section class="panel on" id="panel-home">
+    <div class="card">
+      <h2>Owner Home — business abhi kya kar raha hai?</h2>
+      <p class="muted">Har metric actionable hai. Terminal/SSH ki zarurat nahi for routine ops.</p>
+      <div class="row" style="margin-bottom:8px"><span class="badge err" id="callingBadge">Calling OFF</span></div>
+      <div class="chips" id="homeChips"></div>
+      <h3>Attention</h3>
+      <div id="homeAttention" class="muted">Loading…</div>
+      <h3 style="margin-top:12px">Recommended safe commands</h3>
+      <div id="homeRecs" class="row"></div>
+      <div class="teach" id="teach-home"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-commands">
+    <div class="grid">
+      <div class="card">
+        <h2>Owner Command Console</h2>
+        <p class="muted">Hinglish / Hindi / English. Pehle Preview, phir Confirm & Run (sirf safe intents).</p>
+        <textarea id="cmdText" placeholder="Jiya ke pending deliverables ka status report banao. Koi content publish ya customer message mat bhejna."></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn sec" onclick="previewCmd()">Preview plan</button>
+          <button class="btn" onclick="runCmd()">Confirm & Run (safe)</button>
+          <button class="btn sec" onclick="document.getElementById('cmdText').value=SAMPLE">Sample Jiya report</button>
+        </div>
+        <h3 style="margin-top:14px">Interpreted plan</h3>
+        <div class="pre" id="cmdPreview">—</div>
+        <div class="teach" id="teach-commands"></div>
+      </div>
+      <div class="card">
+        <h2>Recent commands</h2>
+        <div id="cmdList" class="muted">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-agents">
+    <div class="card">
+      <h2>Agent Registry</h2>
+      <p class="muted">Canonical workforce = <b>31</b> STAFF. <b>manager</b> = Boss (system supervisor + runnable). Pause Manual Runs ≠ full agent stop.</p>
+      <p class="muted" id="pauseNote">Scheduled jobs may continue. Use workflow or scheduler controls to stop scheduled execution.</p>
+      <div class="chips" id="agentChips"></div>
+      <div class="teach" id="maturityNote" style="margin:10px 0">Loading agent maturity...</div>
+      <div id="agentList"></div>
+      <div id="ishaSlice" class="card" style="margin-top:12px;background:#0f172a">
+        <h3>Isha — V1.1 execution controls</h3>
+        <p class="muted">Scheduler dispatch paused = new jobs will not be queued. Already queued/running may continue unless Stop Claims / Drain.</p>
+        <div class="chips" id="ishaChips"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn warn" onclick="ishaCtrl({scheduled_pause:true})">Pause Scheduled Dispatch</button>
+          <button class="btn warn" onclick="ishaCtrl({stop_claims:true})">Stop New Task Claims</button>
+          <button class="btn danger" onclick="ishaCtrl({drain:true})">Drain Agent</button>
+          <button class="btn ok" onclick="ishaResume()">Resume / Restore Defaults</button>
+          <button class="btn sec" onclick="loadIshaSlice()">↻ Refresh Isha</button>
+        </div>
+        <div class="pre" id="ishaDetail" style="margin-top:10px">—</div>
+      </div>
+      <div class="teach" id="teach-agents"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-workflows">
+    <div class="card">
+      <h2>Workflow Control Center (aggregator)</h2>
+      <p class="muted">Existing scheduler + process library — no second scheduler. Isha focus: <code>content</code> + <code>client_content</code>.</p>
+      <div id="wfBox" class="muted">—</div>
+      <div class="teach" id="teach-workflows"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-routes">
+    <div class="card">
+      <h2>OmniRoute Agent Route Matrix</h2>
+      <p class="muted">Approved registry only. Credentials never shown. Route health test = sanitized non-customer prompt.</p>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn sec" onclick="loadRoutes()">↻ Load matrix</button>
+        <button class="btn" onclick="routeHealth()">Sanitized route-health test (Isha)</button>
+      </div>
+      <div id="routeBox" class="muted">—</div>
+      <div class="teach" id="teach-routes"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-tasks">
+    <div class="card">
+      <h2>Task Control</h2>
+      <p class="muted">Owner commands: approve queue, running, failed, completed + recent agent events.</p>
+      <div class="chips" id="taskChips"></div>
+      <div id="taskBoard" class="muted"></div>
+      <div class="teach" id="teach-tasks"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-runtime">
+    <div class="card">
+      <h2>Workforce Runtime</h2>
+      <p class="muted">Runtime-neutral governance with deterministic direct rollback. Hardened DSH authority/shadow dono default OFF aur explicit per-agent allowlist par hain. RED lane (swara/ananya) hamesha frozen/blocked; no Voice tools enter DSH.</p>
+      <div class="chips" id="rtChips"></div>
+      <div class="row" style="margin:8px 0; flex-wrap:wrap; gap:8px; align-items:center">
+        <button class="btn sec" onclick="loadRuntime()">↻ Refresh</button>
+        <button class="btn" onclick="runtimeKavya()">Run Kavya ops check (read-only)</button>
+        <button class="btn" onclick="runtimeSprint('dialer_sprint_prep',{limit:3})">Sprint: dialer prep briefs (read-only)</button>
+        <button class="btn" onclick="runtimeSprint('hot_wa_draft',{limit:5})">Sprint: Hot Queue WA drafts (draft-only)</button>
+        <button class="btn" onclick="runtimeSprint('job_heal_sweep',{max_jobs:3})">Sprint: job heal sweep (internal)</button>
+        <label class="muted" for="rtTenant">Tenant</label>
+        <input id="rtTenant" type="text" placeholder="ws3-canary (not Jiya for canary)" style="min-width:180px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" autocomplete="off" />
+        <label class="muted" for="rtTopic">Topic</label>
+        <input id="rtTopic" type="text" placeholder="local business marketing" style="min-width:200px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" autocomplete="off" />
+        <button class="btn ok" onclick="runtimeIsha()">Run Isha draft brief (draft-only)</button>
+      </div>
+      <p class="muted" style="margin:0 0 8px">Sprint caps hosted under <b>kavya</b> (GREEN L0 read-only) — 31-agent invariant intact. Runtime gate <code>OPS_HEALTH_AGENT</code>; draft/brief only, no auto-send, <code>counts_contact=false</code>.</p>
+      <p class="muted" style="margin:0 0 8px">Isha requires <code>tenant_id</code>. Empty tenant = client validation error. Output stays <code>published=false</code>.</p>
+      <div id="rtAgents"></div>
+      <h3 style="margin-top:12px">Runtime DLQ (last 20)</h3>
+      <div class="pre" id="rtDlq">—</div>
+      <h3 style="margin-top:12px">Last dispatch result</h3>
+      <div class="pre" id="rtResult">—</div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-approvals">
+    <div class="card">
+      <h2>Approval Center</h2>
+      <p class="muted">Canonical bridge = Mission Control. sales/coordinator/fde decide yahan; content = View-only → Open in Mission Control.</p>
+      <div id="apprBox" class="muted"></div>
+      <p class="muted" style="margin-top:10px"><a href="/app/automation#approvals">Mission Control Approvals →</a></p>
+      <div class="teach" id="teach-approvals"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-kill">
+    <div class="card">
+      <h2>Production Safety — Kill Switches</h2>
+      <p class="muted">Server-side enforced. Outbound calling yahan se <b>ENABLE nahi</b> hota. <code>owner_schedulers</code> engage = new scheduled jobs will not be queued; already queued/running may continue.</p>
+      <div id="killBox"></div>
+      <div class="teach" id="teach-kill"></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Owner-inbox email canary (one-shot)</h2>
+      <p class="muted">Does <b>not</b> enable <code>AUTO_EMAIL_OUTREACH</code>. Super-admin only. Enter your own inbox here — address is never shown in logs/toasts in cleartext. Same idempotency key = no resend.</p>
+      <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap">
+        <button class="btn sec" onclick="emailCanaryPreflight()">Preflight</button>
+        <button class="btn sec" onclick="emailCanaryLast()">Last result</button>
+      </div>
+      <div class="pre" id="emailCanaryPre">—</div>
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
+        <label class="muted" for="emailCanaryTo">Owner inbox</label>
+        <input id="emailCanaryTo" type="email" autocomplete="off" placeholder="you@your-domain" style="min-width:220px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />
+        <label class="muted"><input id="emailCanaryConfirm" type="checkbox" /> Confirm send</label>
+        <label class="muted"><input id="emailCanaryOwner" type="checkbox" /> This is my owner-controlled inbox</label>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px">
+        <button class="btn ok" onclick="emailCanarySend()">Send exactly one canary</button>
+      </div>
+      <div class="pre" id="emailCanaryOut" style="margin-top:10px">—</div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-copilot">
+    <div class="grid">
+      <div class="card">
+        <h2>OpenClaw Owner Copilot</h2>
+        <p class="muted">Chief of Staff edge layer. Actions sirf Owner OS se. Dial ENABLE Owner OS se refuse. Flag: <code>OPENCLAW_ENABLED</code>.</p>
+        <div class="row" style="margin-bottom:8px">
+          <span class="badge err" id="copilotCalling">Calling OFF</span>
+          <span class="badge" id="copilotFlag">flag…</span>
+          <span class="badge" id="copilotLane">lane…</span>
+        </div>
+        <div class="chips" id="copilotChips"></div>
+        <textarea id="copilotText" placeholder="Aaj platform ka complete status batao."></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn sec" onclick="copilotPreview()">Parse / Preview</button>
+          <button class="btn" onclick="copilotRun()">Run (GREEN / park AMBER)</button>
+          <button class="btn sec" onclick="loadCopilot()">↻ Status</button>
+        </div>
+        <h3 style="margin-top:14px">Parsed command</h3>
+        <div class="pre" id="copilotPreview">—</div>
+        <h3 style="margin-top:14px">Result / evidence</h3>
+        <div class="pre" id="copilotResult">—</div>
+      </div>
+      <div class="card">
+        <h2>Context snapshot</h2>
+        <div class="pre" id="copilotCtx">—</div>
+        <h3 style="margin-top:12px">Suggested next action</h3>
+        <div id="copilotNext" class="muted">—</div>
+        <p class="muted" style="margin-top:12px">Audit: Owner OS audit store · <a href="/app/owner#approvals">Approvals</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-hub">
+    <div class="card">
+      <h2>Coordination Hub — Owner OS projection</h2>
+      <p class="muted">Read-only. Tools presence · missions slice · office coordination · bounded git · events.
+        <b>Not</b> a second control plane. Mutations → Owner OS Agents tab / <a href="/app/dev-control">Dev Control</a> / <a href="/app/office">Office</a>.</p>
+      <div class="row" style="margin-bottom:8px">
+        <span class="badge" id="hubEnabledBadge">Hub …</span>
+        <button class="btn sec" onclick="loadHub()">↻ Refresh Hub</button>
+      </div>
+      <div class="chips" id="hubChips"></div>
+      <h3 style="margin-top:12px">Tools presence</h3>
+      <div class="pre" id="hubPresence">—</div>
+      <h3 style="margin-top:12px">Missions summary</h3>
+      <div class="pre" id="hubMissions">—</div>
+      <h3 style="margin-top:12px">Office coordination</h3>
+      <div class="pre" id="hubOffice">—</div>
+      <h3 style="margin-top:12px">Git (redacted)</h3>
+      <div class="pre" id="hubGit">—</div>
+      <h3 style="margin-top:12px">Events tail</h3>
+      <div class="pre" id="hubEvents">—</div>
+      <div class="teach" id="teach-hub">HMAC tool heartbeats / Buzz webhook use per-tool secrets — never shared admin bearer.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-training">
+    <div class="card">
+      <h2>Admin Training Mode</h2>
+      <p class="muted">Har page pe Teach-me. Safe practice pehle, risky baad me.</p>
+      <div class="row">
+        <select id="trainPage" onchange="loadTraining()">
+          <option value="home">Home</option>
+          <option value="commands">Commands</option>
+          <option value="agents">Agents</option>
+          <option value="tasks">Tasks</option>
+          <option value="approvals">Approvals</option>
+          <option value="kill">Kill</option>
+          <option value="training">Training</option>
+        </select>
+        <button class="btn sec" onclick="loadTraining()">Teach me this page</button>
+      </div>
+      <div class="teach" id="trainBody" style="margin-top:12px"></div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const SAMPLE = "Jiya ke pending deliverables ka status report banao. Koi content publish ya customer message mat bhejna.";
+function tok(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function authHdr(){ const t=tok(); return t? {Authorization:"Bearer "+t,"Content-Type":"application/json"} : {"Content-Type":"application/json"}; }
+function toast(m){ const el=document.getElementById("toast"); el.textContent=m; el.style.display="block"; setTimeout(()=>el.style.display="none",3200); }
+async function api(path, opts={}){
+  const r = await fetch(path, { ...opts, headers: { ...authHdr(), ...(opts.headers||{}) } });
+  let j=null; try{ j=await r.json(); }catch(e){ j={ok:false,error:"bad_json"}; }
+  if(r.status===401||r.status===403){ document.getElementById("authBadge").textContent="Login required"; document.getElementById("authBadge").className="badge err"; }
+  return {status:r.status, body:j};
+}
+
+document.getElementById("tabs").addEventListener("click", (e)=>{
+  const b=e.target.closest("button[data-tab]"); if(!b) return;
+  document.querySelectorAll("#tabs button").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  document.getElementById("panel-"+b.dataset.tab).classList.add("on");
+  if(b.dataset.tab==="training") loadTraining();
+  if(b.dataset.tab==="agents") loadIshaSlice();
+  if(b.dataset.tab==="workflows"){ loadWorkflows(); loadTeach("workflows"); }
+  if(b.dataset.tab==="routes"){ loadRoutes(); loadTeach("routes"); }
+  if(b.dataset.tab==="runtime") loadRuntime();
+  if(b.dataset.tab==="copilot") loadCopilot();
+  if(b.dataset.tab==="hub") loadHub();
+});
+
+async function loadHub(){
+  const {status,body}=await api("/api/admin/owner-os/coordination-hub/snapshot");
+  const badge=document.getElementById("hubEnabledBadge");
+  if(status!==200||!body){ badge.textContent="Hub load fail"; badge.className="badge err"; return; }
+  badge.textContent = body.enabled ? "Hub ENABLED (projection)" : "Hub OFF (inert)";
+  badge.className = body.enabled ? "badge ok" : "badge warn";
+  const oa=body.owner_agents||{};
+  const ms=body.missions||{};
+  const pr=(body.tools_presence&&body.tools_presence.tools)||{};
+  document.getElementById("hubChips").innerHTML = [
+    ["Role", body.role||"projection"],
+    ["Owner agents ok", oa.ok],
+    ["Missions on", ms.enabled],
+    ["Tools seen", Object.keys(pr).length],
+    ["Events", (body.events_tail||[]).length],
+    ["Mutations", body.mutations||"refused"]
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${v??"—"}</b></span>`).join("");
+  document.getElementById("hubPresence").textContent = JSON.stringify(pr, null, 2);
+  document.getElementById("hubMissions").textContent = JSON.stringify(ms.summary||ms, null, 2);
+  document.getElementById("hubOffice").textContent = JSON.stringify((body.office_coordination||{}).rows||[], null, 2);
+  const g=body.git||{};
+  document.getElementById("hubGit").textContent = g.head ? ("HEAD "+g.head+"\n"+(g.commands&&g.commands.status&&g.commands.status.stdout||"")) : JSON.stringify(g, null, 2);
+  document.getElementById("hubEvents").textContent = JSON.stringify(body.events_tail||[], null, 2);
+}
+
+async function boot(){
+  if(!tok()){ document.getElementById("authBadge").textContent="Login required"; document.getElementById("authBadge").className="badge err"; toast("Pehle /app/admin-login"); }
+  else { document.getElementById("authBadge").textContent="Admin session"; document.getElementById("authBadge").className="badge ok"; }
+  await Promise.all([loadHome(), loadAgents(), loadIshaSlice(), loadTasks(), loadApprovals(), loadKills(), loadCommands(), loadTeach("home"), loadTeach("commands"), loadTeach("agents"), loadTeach("tasks"), loadTeach("approvals"), loadTeach("kill"), loadTeach("workflows"), loadTeach("routes")]);
+}
+
+async function loadTeach(page){
+  const {body}=await api("/api/admin/owner-os/training?page="+encodeURIComponent(page));
+  const el=document.getElementById("teach-"+page);
+  if(!el||!body||!body.ok) return;
+  el.innerHTML = "<b>Teach me · "+esc(body.title||page)+"</b><br>"+esc(body.hinglish||"")+"<br><b>Next:</b> "+esc(body.next||"");
+}
+
+async function loadHome(){
+  const {status,body}=await api("/api/admin/owner-os/home");
+  if(status!==200){ document.getElementById("homeAttention").textContent="Home load fail ("+status+")"; return; }
+  const w=body.workforce||{};
+  document.getElementById("callingBadge").textContent = body.calling_badge || "Calling OFF";
+  const cb = document.getElementById("callingBadge");
+  if (body.calling_live) { cb.className = "badge ok"; }
+  else { cb.className = "badge err"; }
+  document.getElementById("homeChips").innerHTML = [
+    ["Canonical agents", w.canonical_agents??w.total],
+    ["Supervisors", w.system_supervisors],
+    ["Service IDs", w.service_identities],
+    ["Manual-runnable", w.runnable_workers??w.runnable],
+    ["Paused manual", w.paused_manual_run],
+    ["Approvals", body.approvals_pending],
+    ["Failed cmds", (body.tasks||{}).failed||0],
+    ["Storage", body.storage_mode]
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${v??"—"}</b></span>`).join("");
+  const att=(body.attention||[]).map(a=>`<div style="margin:6px 0">• <a href="${esc(a.href||"#")}">${esc(a.title||"")}</a> <span class="badge">${esc(a.priority||"")}</span></div>`).join("")||"Koi critical attention nahi";
+  document.getElementById("homeAttention").innerHTML=att;
+  document.getElementById("homeRecs").innerHTML=(body.recommended||[]).map(r=>
+    `<button class="btn sec" onclick="useRec(${JSON.stringify(r.command||"")})">${esc(r.label||"cmd")}</button>`
+  ).join("");
+}
+
+function useRec(cmd){
+  document.querySelector('#tabs button[data-tab="commands"]').click();
+  document.getElementById("cmdText").value=cmd;
+}
+
+async function previewCmd(){
+  const text=document.getElementById("cmdText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  const {body}=await api("/api/admin/owner-os/commands/preview",{method:"POST",body:JSON.stringify({text})});
+  const lit = body.litmus || {};
+  const litLine = lit.ok === false
+    ? ("\nLitmus FAIL: " + (lit.failed_must || []).join(", "))
+    : (lit.ok ? "\nLitmus: PASS" : "");
+  document.getElementById("cmdPreview").textContent =
+    (body.preview_summary || JSON.stringify(body,null,2)) + litLine;
+}
+
+let _lastIdem = null;
+async function runCmd(){
+  const text=document.getElementById("cmdText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  if(!_lastIdem) _lastIdem = "ui_"+Date.now()+"_"+Math.random().toString(16).slice(2,8);
+  const {status,body}=await api("/api/admin/owner-os/commands",{method:"POST",body:JSON.stringify({text, run_now:true, confirm:true, idempotency_key:_lastIdem})});
+  const exec=(body.executed||{}).command || body.command || {};
+  const plan=body.plan||{};
+  document.getElementById("cmdPreview").textContent =
+    (plan.preview_summary||"")+"\n\n--- RESULT ---\n"+JSON.stringify({
+      http:status,
+      intent: plan.intent,
+      tenant_id: plan.tenant_id,
+      publish_allowed: plan.publish_allowed,
+      customer_notify_allowed: plan.customer_notify_allowed,
+      risk_level: plan.risk_level,
+      status: exec.status || (body.created&&body.created.command&&body.created.command.status),
+      command_id: exec.command_id || (body.created&&body.created.command&&body.created.command.command_id),
+      correlation_id: exec.correlation_id || (body.created&&body.created.command&&body.created.command.correlation_id),
+      deduped: !!(body.created&&body.created.deduped) || !!(body.executed&&body.executed.deduped),
+      evidence_keys: exec.evidence? Object.keys(exec.evidence): [],
+      litmus: plan.litmus || body.litmus || null,
+      error: exec.error || body.error || null,
+      note: body.note || null
+    },null,2);
+  toast(exec.status==="SUCCEEDED"?"Command SUCCEEDED":(body.note||exec.status||"done"));
+  if(exec.status==="SUCCEEDED") _lastIdem = null;
+  loadCommands(); loadTasks(); loadHome();
+}
+
+async function loadCommands(){
+  const {body}=await api("/api/admin/owner-os/commands?limit=20");
+  const cmds=body.commands||[];
+  document.getElementById("cmdList").innerHTML = cmds.length? cmds.map(c=>`
+    <div style="border-bottom:1px solid #1f2937;padding:8px 0">
+      <div><b>${esc(c.intent)}</b> <span class="badge ${c.status==="SUCCEEDED"?"ok":(c.status==="FAILED"?"err":"warn")}">${esc(c.status)}</span></div>
+      <div class="muted">${esc((c.original||"").slice(0,120))}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn sec" onclick="execCmd('${esc(c.command_id)}')">Execute</button>
+        <button class="btn sec" onclick="cancelCmd('${esc(c.command_id)}')">Cancel</button>
+        <button class="btn sec" onclick="retryCmd('${esc(c.command_id)}')">Retry</button>
+      </div>
+    </div>`).join("") : "Abhi koi command nahi";
+}
+
+async function execCmd(id){ const {body}=await api("/api/admin/owner-os/commands/"+id+"/execute",{method:"POST",body:"{}"}); toast((body.command||{}).status||body.error||"exec"); loadCommands(); }
+async function cancelCmd(id){ await api("/api/admin/owner-os/commands/"+id+"/cancel",{method:"POST",body:"{}"}); loadCommands(); }
+async function retryCmd(id){ await api("/api/admin/owner-os/commands/"+id+"/retry",{method:"POST",body:"{}"}); loadCommands(); loadTasks(); }
+
+async function loadAgents(){
+  const {body}=await api("/api/admin/owner-os/agents");
+  const agents=body.agents||[];
+  const inv=body.inventory||{};
+  const maturity=body.maturity||{};
+  document.getElementById("agentChips").innerHTML =
+    `<span class="chip">Canonical: <b>${inv.canonical_agents??body.staff_count??agents.length}</b></span>`+
+    `<span class="chip">Supervisors: <b>${inv.system_supervisors??0}</b></span>`+
+    `<span class="chip">Service IDs: <b>${inv.service_identities??0}</b></span>`+
+    `<span class="chip">Manual-runnable: <b>${inv.runnable_workers??(body.runnable_members||[]).length}</b></span>`+
+    `<span class="chip">Paused manual: <b>${inv.paused_manual_runs ?? body.paused_count ?? 0}</b></span>`+
+    `<span class="chip">Enterprise profiles: <b>${maturity.enterprise_profiles_ready??0}/31</b></span>`;
+  document.getElementById("maturityNote").innerHTML = maturity.ok
+    ? `<b>Memory + Knowledge + Skills baseline ready.</b> ${esc(maturity.claim_note||"")} `+
+      `Boss coordination: ${esc((maturity.coordination||{}).covered_count??0)}/${esc((maturity.coordination||{}).staff_count??31)} · `+
+      `Rollout: ${Object.entries(maturity.rollout_counts||{}).map(([k,v])=>`${esc(k)} ${esc(v)}`).join(" / ")}`
+    : `<b>Maturity contract incomplete.</b> ${esc((maturity.problems||[]).join("; ")||"projection unavailable")}`;
+  if(body.manager_explanation){
+    document.getElementById("pauseNote").textContent =
+      (body.pause_semantics&&body.pause_semantics.note? body.pause_semantics.note+" ":"")+
+      "manager = Boss: "+body.manager_explanation;
+  }
+  document.getElementById("agentList").innerHTML = agents.map(a=>`
+    <div class="agent">
+      <div style="font-size:22px">${esc(a.emoji||"🤖")}</div>
+      <div>
+        <div><b>${esc(a.name)}</b> <span class="muted">(${esc(a.id)})</span>
+          <span class="badge ${a.status==='working'?'ok':''}">${esc(a.status)}</span>
+          ${a.is_system_supervisor?'<span class="badge warn">supervisor</span>':""}
+          ${a.paused?'<span class="badge warn">manual paused</span>':""}
+          ${a.runnable?'<span class="badge">manual-runnable</span>':""}
+          <span class="badge ${a.enterprise_profile==='enterprise_profile_ready'?'ok':'warn'}">${esc(a.enterprise_profile||'profile unknown')}</span>
+          <span class="badge">${esc(a.rollout_state||'rollout unknown')}</span>
+        </div>
+        <div class="muted">${esc(a.department)} · ${esc(a.title)}</div>
+        <div class="muted">${esc((a.responsibility||"").slice(0,140))}</div>
+        <div class="muted">Memory: ${esc(a.memory_namespace||'-')} / Role skills: ${esc((a.role_skills||[]).join(', ')||'-')}</div>
+        <div class="muted">Boss route: ${esc(a.coordination_team||'-')} · ${a.coordination_ready?'ready':'incomplete'} · decision: ${esc(a.decision_authority||'-')}</div>
+      </div>
+      <div class="row">
+        ${a.runnable?`<button class="btn warn" onclick="pauseAgent('${esc(a.id)}')">Pause Manual Runs</button>
+        <button class="btn ok" onclick="resumeAgent('${esc(a.id)}')">Resume Manual Runs</button>`:'<span class="muted">scheduler-driven</span>'}
+      </div>
+    </div>`).join("");
+}
+async function pauseAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/pause",{method:"POST",body:JSON.stringify({note:"owner_os UI"})}); toast(body.ok?"Pause Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); if(id==="isha") loadIshaSlice(); }
+async function resumeAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/resume",{method:"POST",body:"{}"}); toast(body.ok?"Resume Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); if(id==="isha") loadIshaSlice(); }
+
+async function loadIshaSlice(){
+  const {status,body}=await api("/api/admin/owner-os/agents/isha");
+  if(status!==200){ document.getElementById("ishaDetail").textContent="load fail"; return; }
+  const ex=body.execution||{};
+  const c=(ex.control&&ex.control.effective_scope)||{};
+  const counts=ex.counts||{};
+  document.getElementById("ishaChips").innerHTML =
+    `<span class="chip">manual_pause: <b>${!!c.manual_pause}</b></span>`+
+    `<span class="chip">scheduled_pause: <b>${!!c.scheduled_pause}</b></span>`+
+    `<span class="chip">stop_claims: <b>${!!c.stop_claims}</b></span>`+
+    `<span class="chip">drain: <b>${!!c.drain}</b> (${esc(c.drain_state||"idle")})</span>`+
+    `<span class="chip">queued: <b>${counts.queued??0}</b></span>`+
+    `<span class="chip">running: <b>${counts.running??0}</b></span>`;
+  document.getElementById("ishaDetail").textContent = JSON.stringify({
+    control: ex.control, counts, workflows: ex.workflows, omniroute: ex.omniroute
+  }, null, 2);
+}
+async function ishaCtrl(flags){
+  const {body}=await api("/api/admin/owner-os/agents/isha/controls",{
+    method:"POST", body: JSON.stringify({...flags, reason:"owner_os UI v1.1"})
+  });
+  toast(body.ok?"Isha control OK":(body.detail||body.error||"fail"));
+  loadIshaSlice(); loadAgents();
+}
+async function ishaResume(){
+  const {body}=await api("/api/admin/owner-os/agents/isha/restore-defaults",{method:"POST",body:"{}"});
+  toast(body.ok?"Isha restored":(body.detail||body.error||"fail"));
+  loadIshaSlice(); loadAgents();
+}
+async function loadWorkflows(){
+  const {body}=await api("/api/admin/owner-os/workflows");
+  const rows=(body.workflows||[]).filter(w=> (w.participating_agents||[]).includes("isha") || ["content","blog","afternoon_content","weekly_marketing","social_drain","client_content"].includes(w.workflow_id));
+  document.getElementById("wfBox").innerHTML = rows.length? rows.map(w=>`
+    <div style="padding:8px 0;border-bottom:1px solid #1f2937">
+      <b>${esc(w.workflow_id)}</b> <span class="badge">${esc(w.kind||"")}</span>
+      <div class="muted">${esc(w.business_purpose||"")} · ${esc(w.schedule||"")} · enabled=${w.enabled}</div>
+    </div>`).join("") : "<div class='muted'>No Isha workflows</div>";
+}
+async function loadRoutes(){
+  const {body}=await api("/api/admin/owner-os/routes");
+  const isha=(body.rows||[]).find(r=>r.agent==="isha");
+  document.getElementById("routeBox").innerHTML =
+    `<div class="chip">available: <b>${!!(body.health&&body.health.omniroute_available)}</b></div>`+
+    `<div class="chip">key present: <b>${!!(body.health&&body.health.api_key_present)}</b></div>`+
+    (isha?`<div class="pre" style="margin-top:8px">${esc(JSON.stringify(isha,null,2))}</div>`:"<div class='muted'>Isha row missing</div>");
+}
+async function routeHealth(){
+  const {body}=await api("/api/admin/owner-os/routes/health-test",{
+    method:"POST",
+    body: JSON.stringify({task_type:"leadgen.agent_ops", prompt:"Reply with exactly: OWNER_OS_ROUTE_OK"})
+  });
+  toast(body.ok?(body.skipped?"route unavailable (safe skip)":"route health OK"):(body.detail||body.error||"fail"));
+  document.getElementById("routeBox").textContent = JSON.stringify(body, null, 2);
+}
+
+async function loadTasks(){
+  const {body}=await api("/api/admin/owner-os/tasks");
+  const c=body.counts||{};
+  document.getElementById("taskChips").innerHTML = Object.entries(c).map(([k,v])=>`<span class="chip">${k}: <b>${v}</b></span>`).join("");
+  const v=body.views||{};
+  const blocks=["my_attention","running","failed","completed"].map(k=>{
+    const rows=v[k]||[];
+    return `<h3>${k}</h3>`+(rows.length?rows.map(r=>`<div class="muted">• <b>${esc(r.intent||r.status)}</b> ${esc((r.original||"").slice(0,80))} <span class="badge">${esc(r.status||"")}</span></div>`).join(""):"<div class='muted'>—</div>");
+  }).join("");
+  document.getElementById("taskBoard").innerHTML=blocks;
+}
+
+async function loadRuntime(){
+  const {status,body}=await api("/api/admin/owner-os/runtime");
+  if(status!==200||!body){ document.getElementById("rtAgents").textContent="load fail ("+status+")"; return; }
+  const wf=body.workforce_runtime||{};
+  document.getElementById("rtChips").innerHTML = [
+    ["Runtime flag", body.runtime_enabled? "ON":"OFF (inert)"],
+    ["Provider", wf.provider||"direct"],
+    ["DSH authority", wf.dsh_runtime_enabled? "ON":"OFF"],
+    ["DSH shadow", wf.dsh_shadow_enabled? "ON":"OFF"],
+    ["DSH allowlist", (wf.dsh_agent_allowlist||[]).join(", ")||"empty"],
+    ["Pilots", (body.pilots||[]).join(", ")],
+    ["Canonical", body.canonical_count],
+    ["Runtime DLQ", body.runtime_dlq_count],
+    ["Celery q", (body.celery_queue||{}).celery]
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${esc(String(v??"—"))}</b></span>`).join("");
+  const rows=(body.agents||[]);
+  document.getElementById("rtAgents").innerHTML = rows.map(a=>{
+    const kills=Object.entries(a.kill_switches||{}).filter(([,v])=>v===true).map(([k])=>k);
+    const b=a.budget||{};
+    const lr=a.last_result||{};
+    const laneCls=a.lane==="RED"?"err":(a.lane==="AMBER"?"warn":"ok");
+    const hCls=(a.health==="healthy"||a.health==="healthy_idle")?"ok":(a.health==="pilot_ready"||a.health==="registry_only")?"":"warn";
+    return `<div class="agent">
+      <div><span class="badge ${laneCls}">${esc(a.lane)}</span></div>
+      <div>
+        <div><b>${esc(a.name)}</b> <span class="muted">(${esc(a.agent_id)})</span>
+          ${a.pilot?'<span class="badge ok">pilot</span>':''}
+          <span class="badge ${hCls}">${esc(a.health)}</span>
+          <span class="badge">${esc(a.mode)}</span>
+          <span class="badge">${esc(a.provider||"direct")} / ${esc(a.rollout_wave||"direct")}</span>
+          ${a.cancel_requested?'<span class="badge err">cancel requested</span>':''}
+          ${kills.length?`<span class="badge err">kill: ${esc(kills.join(","))}</span>`:''}
+        </div>
+        <div class="muted">hb: ${esc(a.last_heartbeat||"—")} · useful: ${esc(a.last_useful_work||"—")} · active: ${(a.active_tasks||[]).length} · last: ${esc(lr.status||"—")}${lr.reason?" ("+esc(lr.reason)+")":""}</div>
+        <div class="muted">budget ₹${(b.cost_inr||{}).used??0}/${(b.cost_inr||{}).cap??0} · api ${(b.api_calls||{}).used??0}/${(b.api_calls||{}).cap??0} · contacts ${(b.contacts||{}).used??0}/${(b.contacts||{}).cap??0} · runs ${b.runs_today??0} · escalate → ${esc(a.escalation)}</div>
+      </div>
+      <div class="muted">${esc((a.capabilities||[]).join(", ")||"")}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("rtDlq").textContent = JSON.stringify(body.dlq_tail||[], null, 2);
+}
+async function runtimeKavya(){
+  const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({agent_id:"kavya",action:"ops_health_check"})});
+  const r=(body||{}).result||{};
+  toast(r.status==="succeeded"?"Kavya check OK":r.status==="queued"?"Kavya queued via "+(r.provider||"runtime"):(r.reason||r.status||"blocked/skipped"));
+  document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
+  loadRuntime();
+}
+async function runtimeSprint(action,payload){
+  const idem="ui-sprint-"+action+"-"+Date.now();
+  const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({
+    agent_id:"kavya",action,payload:payload||{},idempotency_key:idem
+  })});
+  const r=(body||{}).result||{};
+  toast(r.status==="succeeded"?(r.output&&r.output.detail?r.output.detail:"Sprint OK"):r.status==="queued"?"Queued via "+(r.provider||"runtime"):(r.reason||r.status||"blocked/skipped"));
+  document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
+  loadRuntime();
+}
+async function runtimeIsha(){
+  const tenant=(document.getElementById("rtTenant").value||"").trim();
+  if(!tenant){ toast("tenant_id required (e.g. jiya-makeover)"); return; }
+  const topic=(document.getElementById("rtTopic").value||"local business marketing").trim().slice(0,200);
+  const idem="ui-isha-"+Date.now();
+  const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({
+    agent_id:"isha",
+    action:"draft_content_brief",
+    tenant_id:tenant,
+    payload:{topic, business_name:tenant},
+    idempotency_key:idem
+  })});
+  const r=(body||{}).result||{};
+  const out=(r.output||{});
+  const pub=out.published===true;
+  toast(r.status==="succeeded"?(pub?"WARN published?":"Isha draft OK (not published)"):r.status==="queued"?"Isha queued via "+(r.provider||"runtime"):(r.reason||r.status||"blocked/skipped"));
+  document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
+  loadRuntime();
+}
+
+async function loadApprovals(){
+  const {body}=await api("/api/admin/owner-os/approvals");
+  const items=body.items||[];
+  document.getElementById("apprBox").innerHTML =
+    `<div class="chip">Pending: <b>${body.pending||0}</b></div>`+
+    (items.slice(0,30).map(i=>{
+      const decidable=!!i.decidable_here;
+      const sid=esc(i.source||"");
+      const iid=esc(i.item_id||"");
+      return `<div style="padding:8px 0;border-bottom:1px solid #1f2937">
+        <b>${sid}</b> · ${esc(i.category||"")} · tenant <b>${esc(i.tenant_id||i.customer||"—")}</b>
+        <span class="badge ${decidable?'ok':'warn'}">${decidable?'operational':'View-only'}</span>
+        <div class="muted">${esc(i.title||"")}</div>
+        <div class="muted">Agent: ${esc(i.requesting_agent||"—")} · Action: ${esc(i.action_type||"—")} · Risk: ${esc(i.risk||"—")}</div>
+        <div class="row" style="margin-top:6px">
+          ${decidable?`<button class="btn ok" onclick="decideAppr('${sid}','${iid}','approve')">Approve</button>
+            <button class="btn danger" onclick="decideAppr('${sid}','${iid}','reject')">Reject</button>`:
+            `<a class="btn sec" href="${esc(i.open_in||'/app/automation#approvals')}">Open in Mission Control</a>
+             <span class="muted">${esc(i.open_reason||'')}</span>`}
+        </div>
+      </div>`;
+    }).join("")||"<div class='muted'>Queue empty / bridge quiet</div>");
+}
+async function decideAppr(source, itemId, decision){
+  const {status,body}=await api("/api/admin/owner-os/approvals/"+encodeURIComponent(source)+"/"+encodeURIComponent(itemId)+"/decide",{
+    method:"POST", body: JSON.stringify({decision, reason:"owner_os bridge"})
+  });
+  toast(status===200&&body.ok? (body.noop?"Already decided":body.status||"ok") : (body.detail||body.error||"fail"));
+  loadApprovals();
+}
+
+async function loadKills(){
+  const {body}=await api("/api/admin/owner-os/kill-switches");
+  const sw=body.switches||{};
+  document.getElementById("killBox").innerHTML = Object.entries(sw).map(([k,v])=>{
+    const on=!!v.engaged;
+    const can=v.can_toggle!==false && v.can_enable_here!==false && k!=="platform_dial";
+    return `<div class="agent">
+      <div class="badge ${on?"err":"ok"}">${on?"ENGAGED":"off"}</div>
+      <div><b>${esc(k)}</b><div class="muted">${esc(v.note||v.source||"")}</div></div>
+      <div class="row">
+        ${can?`<button class="btn danger" onclick="setKill('${esc(k)}',true)">Engage</button>
+               <button class="btn ok" onclick="setKill('${esc(k)}',false)">Release</button>`:
+               `<span class="muted">locked</span>`}
+      </div>
+    </div>`;
+  }).join("");
+}
+async function setKill(key, engaged){
+  const reason = engaged? "owner_os UI engage":"owner_os UI release";
+  const {status,body}=await api("/api/admin/owner-os/kill-switches",{method:"POST",body:JSON.stringify({key,engaged,reason})});
+  toast(status===200&&body.ok? (engaged?"ENGAGED":"released") : (body.detail||body.error||"refused"));
+  loadKills();
+}
+
+function _emailCanaryIdem(){
+  if(!_emailCanaryIdem._k){
+    _emailCanaryIdem._k = "oec_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,10);
+  }
+  return _emailCanaryIdem._k;
+}
+function _emailCanaryRotateIdem(){
+  _emailCanaryIdem._k = null;
+}
+let _emailCanaryInFlight = false;
+async function emailCanaryPreflight(){
+  const {status,body}=await api("/api/admin/owner-email-canary/preflight");
+  document.getElementById("emailCanaryPre").textContent = status===200? JSON.stringify(body,null,2) : ("HTTP "+status+" "+JSON.stringify(body));
+}
+async function emailCanaryLast(){
+  const {status,body}=await api("/api/admin/owner-email-canary/last");
+  document.getElementById("emailCanaryOut").textContent = status===200? JSON.stringify(body,null,2) : ("HTTP "+status);
+}
+async function emailCanarySend(){
+  if(_emailCanaryInFlight){ toast("Send already in progress"); return; }
+  const to=(document.getElementById("emailCanaryTo").value||"").trim();
+  const confirm=!!document.getElementById("emailCanaryConfirm").checked;
+  const owner=!!document.getElementById("emailCanaryOwner").checked;
+  if(!to){ toast("Enter owner inbox in the field (not in chat)"); return; }
+  if(!confirm||!owner){ toast("Both confirmations required"); return; }
+  const idem=_emailCanaryIdem();
+  const btn=document.querySelector('button[onclick="emailCanarySend()"]');
+  _emailCanaryInFlight = true;
+  if(btn) btn.disabled = true;
+  try{
+    const {status,body}=await api("/api/admin/owner-email-canary/send",{
+      method:"POST",
+      body: JSON.stringify({to_email:to, idempotency_key:idem, confirm:true, confirm_owner_inbox:true})
+    });
+    // Clear the inbox field immediately so it is not left visible on screen longer than needed.
+    document.getElementById("emailCanaryTo").value="";
+    document.getElementById("emailCanaryOut").textContent = JSON.stringify({http:status, ...body, idempotency_key:idem}, null, 2);
+    toast(body.outcome || ("HTTP "+status));
+    // Keep key after SENT / DUPLICATE / UNKNOWN (strict idempotency). Rotate only
+    // after definite provider-not-called failures so an explicit later retry is allowed.
+    const outcome = String(body.outcome || "");
+    const keepKey = outcome === "SENT" || outcome === "DUPLICATE" || outcome === "UNKNOWN_REQUIRES_REVIEW"
+      || body.provider_called === true;
+    if(!keepKey && body.provider_called === false){
+      _emailCanaryRotateIdem();
+    }
+  } finally {
+    _emailCanaryInFlight = false;
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function loadTraining(){
+  const page=document.getElementById("trainPage").value;
+  const {body}=await api("/api/admin/owner-os/training?page="+encodeURIComponent(page));
+  if(!body||!body.ok){ document.getElementById("trainBody").textContent="fail"; return; }
+  document.getElementById("trainBody").innerHTML =
+    `<b>${esc(body.title)}</b><p>${esc(body.hinglish)}</p><p><b>Safe commands:</b><br>${(body.safe_commands||[]).map(c=>"• "+esc(c)).join("<br>")}</p><p><b>Next:</b> ${esc(body.next||"")}</p>`;
+}
+
+async function loadCopilot(){
+  const {status,body}=await api("/api/owner-copilot/status");
+  const flagEl=document.getElementById("copilotFlag");
+  if(status!==200){ flagEl.textContent="status "+status; flagEl.className="badge err"; return; }
+  const on=!!body.enabled;
+  flagEl.textContent = on? "OPENCLAW_ENABLED=1":"OPENCLAW_ENABLED=0";
+  flagEl.className = on? "badge ok":"badge warn";
+  document.getElementById("copilotCalling").textContent =
+    document.getElementById("callingBadge").textContent || "Calling OFF";
+  const cc = document.getElementById("copilotCalling");
+  cc.className = document.getElementById("callingBadge").className || "badge err";
+  const ctx=body.context||{};
+  const a=ctx.agents||{}, q=ctx.queues||{}, ap=ctx.approvals||{};
+  // Built via DOM + textContent rather than innerHTML: these values come from an
+  // API response, and although they are numeric counts today, an unescaped sink
+  // would become an XSS vector the moment any of them turns into a string.
+  // Renders identically: <span class="chip">Key: <b>value</b></span>
+  const chipsEl = document.getElementById("copilotChips");
+  chipsEl.textContent = "";
+  for(const [k,v] of [
+    ["Agents", a.total],
+    ["Paused", a.paused_manual_run_count ?? (a.paused||[]).length],
+    ["Approvals", ap.pending],
+    ["Celery", q.pending],
+    ["DLQ", q.failed],
+    ["Dead", q.dead]
+  ]){
+    const span=document.createElement("span");
+    span.className="chip";
+    span.append(k+": ");
+    const b=document.createElement("b");
+    b.textContent = (v ?? "—");
+    span.append(b);
+    chipsEl.append(span);
+  }
+  document.getElementById("copilotCtx").textContent = JSON.stringify(ctx,null,2);
+  const next=(ctx.next_actions||[])[0];
+  document.getElementById("copilotNext").textContent = next? (next.label||next.command_hint||"—") : (on? "—":"Enable OPENCLAW_ENABLED locally to run commands");
+}
+
+async function copilotPreview(){
+  const text=document.getElementById("copilotText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  const {status,body}=await api("/api/owner-copilot/nl",{method:"POST",body:JSON.stringify({text, execute:false})});
+  document.getElementById("copilotLane").textContent = ((body.proposal||{}).safety_lane)||"?";
+  document.getElementById("copilotLane").className = "badge "+(((body.proposal||{}).safety_lane)==="RED"?"err":((body.proposal||{}).safety_lane)==="AMBER"?"warn":"ok");
+  document.getElementById("copilotPreview").textContent = JSON.stringify(body.proposal||body,null,2);
+  if(status===503) toast("OPENCLAW_ENABLED=0");
+}
+
+async function copilotRun(){
+  const text=document.getElementById("copilotText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  const idem="ocui_"+Date.now()+"_"+Math.random().toString(16).slice(2,8);
+  const {status,body}=await api("/api/owner-copilot/nl",{method:"POST",body:JSON.stringify({text, execute:true, confirm:true, idempotency_key:idem})});
+  document.getElementById("copilotPreview").textContent = JSON.stringify(body.proposal||{},null,2);
+  document.getElementById("copilotResult").textContent = JSON.stringify(body.executed||body,null,2);
+  const lane=((body.proposal||{}).safety_lane)||((body.executed||{}).safety_lane);
+  document.getElementById("copilotLane").textContent = lane||"?";
+  document.getElementById("copilotLane").className = "badge "+(lane==="RED"?"err":lane==="AMBER"?"warn":"ok");
+  toast(status===200? ((body.executed||{}).status||"ok") : ("fail "+status));
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# OpenTelemetry distributed tracing (R3#2) — OPTIONAL, NOT in main requirements.lock.
+# Jaan-bujhke alag file: main image build ko risk na ho (ye gated feature hai).
+#
+# Enable karne ke liye:
+#   1. pip install -r requirements-otel.txt   (ya Dockerfile me ek extra layer)
+#   2. .env me: ENABLE_OTEL=1 + OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
+#   3. restart — `app/observability_otel.py` traces Tempo ko bhejega (already wired, gated).
+# Bina inke: observability_otel.py graceful no-op (Sentry/Prometheus active rehte).
+#
+# Versions pinned-conservative; upgrade carefully (otel API/SDK same minor rakho).
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-grpc==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
+opentelemetry-instrumentation-asgi==0.65b0

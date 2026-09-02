@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — DB Explorer</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root { --bg:#0f1216; --card:#1a1f27; --line:#2a313c; --txt:#e7ecf3; --mut:#9aa6b2; --ok:#1db954; --bad:#e5484d; --warn:#f5a623; --accent:#4f8cff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:22px 16px 70px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:13px; margin:0 0 18px; }
+  .grid { display:grid; grid-template-columns:260px 1fr; gap:16px; }
+  @media (max-width:760px){ .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .tlist { max-height:72vh; overflow:auto; }
+  .titem { display:flex; justify-content:space-between; gap:8px; padding:8px 10px; border-radius:9px; cursor:pointer; font-size:13px; }
+  .titem:hover { background:#0d1117; }
+  .titem.active { background:rgba(79,140,255,.16); color:#fff; }
+  .titem .c { color:var(--mut); font-size:11px; }
+  .muted { color:var(--mut); font-size:13px; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:9px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); }
+  button:disabled { opacity:.5; cursor:default; }
+  input[type=text] { background:#0d1117; color:var(--txt); border:1px solid var(--line); border-radius:9px; padding:7px 10px; font-size:13px; }
+  .tblwrap { overflow:auto; max-height:66vh; border:1px solid var(--line); border-radius:10px; }
+  table { border-collapse:collapse; font-size:12px; white-space:nowrap; }
+  th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); max-width:340px; overflow:hidden; text-overflow:ellipsis; }
+  th { position:sticky; top:0; background:#11161d; cursor:pointer; user-select:none; }
+  th .r { color:var(--bad); font-size:10px; }
+  tr:hover td { background:#0d1117; }
+  .pill { padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+  .p-ok { background:rgba(29,185,84,.15); color:var(--ok); }
+  .p-warn { background:rgba(245,166,35,.15); color:var(--warn); }
+  code { background:#0d1117; padding:1px 6px; border-radius:6px; }
+  a { color:var(--accent); }
+  .status { font-size:13px; min-height:18px; }
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<div class="wrap">
+  <h1>🗄️ DB Explorer <span class="pill p-ok" style="vertical-align:middle">READ-ONLY</span></h1>
+  <p class="sub">Live Postgres tables browse karo (super-admin). Sensitive columns (password/secret/token…) auto-redacted. Koi edit/delete nahi — sirf dekho + CSV export.</p>
+
+  <div id="gate" class="card" style="display:none;margin-bottom:14px"></div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="bar" style="margin-bottom:8px">
+        <input type="text" id="filter" placeholder="filter tables…" oninput="renderTables()" style="flex:1" />
+      </div>
+      <div id="tables" class="tlist muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <b id="tname">Koi table select karo →</b>
+        <span style="flex:1"></span>
+        <button class="ghost" id="prev" onclick="page(-1)" disabled>‹ Prev</button>
+        <span class="muted" id="pageinfo">—</span>
+        <button class="ghost" id="next" onclick="page(1)" disabled>Next ›</button>
+        <button id="csv" onclick="exportCsv()" disabled>Export CSV</button>
+      </div>
+      <div class="status" id="msg"></div>
+      <div class="tblwrap" id="tblwrap"><div class="muted" style="padding:16px">Left se table chuno.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function hdr(){ return { "Authorization":"Bearer "+token() }; }
+var ALL=[], CUR=null, OFFSET=0, LIMIT=50, ORDER="", DESC=true, TOTAL=null;
+
+function gate(html){ var g=document.getElementById("gate"); g.style.display="block"; g.innerHTML=html; }
+
+async function loadTables(){
+  var el=document.getElementById("tables");
+  if(!token()){ el.innerHTML=""; gate("Admin login chahiye — <a href='/app/admin-login'>login karo</a>."); return; }
+  try{
+    var r=await fetch("/api/admin/db/tables",{headers:hdr()});
+    if(r.status===401||r.status===403){ el.innerHTML=""; gate("Super-admin access chahiye — <a href='/app/admin-login'>login</a>."); return; }
+    if(r.status===503){ var d=await r.json(); el.innerHTML=""; gate("⚠️ "+(d.detail||"Feature OFF")+" <br><span class='muted'>Enable: <code>ADMIN_DB_EXPLORER=1</code> .env me + restart.</span>"); return; }
+    var d=await r.json();
+    if(!d.available){ el.textContent="DB unavailable: "+(d.reason||"?"); return; }
+    ALL=d.tables||[];
+    document.getElementById("gate").style.display="none";
+    renderTables();
+  }catch(e){ el.textContent="Load fail: "+e; }
+}
+
+function renderTables(){
+  var q=(document.getElementById("filter").value||"").toLowerCase();
+  var el=document.getElementById("tables");
+  var rows=ALL.filter(function(t){ return t.table.toLowerCase().indexOf(q)>=0; });
+  if(!rows.length){ el.innerHTML="<div class='muted' style='padding:8px'>Koi table nahi.</div>"; return; }
+  el.innerHTML=rows.map(function(t){
+    var a=(CUR===t.table)?" active":"";
+    return "<div class='titem"+a+"' onclick=\"openTable('"+t.table.replace(/'/g,"")+"')\"><span>"+t.table+"</span><span class='c'>"+t.columns+" cols</span></div>";
+  }).join("");
+}
+
+async function openTable(name){ CUR=name; OFFSET=0; ORDER=""; DESC=true; TOTAL=null; renderTables(); await loadRows(); }
+
+async function loadRows(){
+  if(!CUR) return;
+  var wrap=document.getElementById("tblwrap"), msg=document.getElementById("msg");
+  document.getElementById("tname").textContent=CUR;
+  msg.textContent="Loading…";
+  try{
+    var u="/api/admin/db/table/"+encodeURIComponent(CUR)+"?limit="+LIMIT+"&offset="+OFFSET+"&desc="+DESC+(ORDER?("&order_by="+encodeURIComponent(ORDER)):"");
+    var r=await fetch(u,{headers:hdr()});
+    var d=await r.json();
+    if(!r.ok){ msg.innerHTML="<span style='color:#e5484d'>"+(d.detail||"error")+"</span>"; return; }
+    TOTAL=d.total; msg.textContent="";
+    var cols=d.columns||[], sens={}; (d.sensitive||[]).forEach(function(c){sens[c]=1;});
+    var head="<tr>"+cols.map(function(c){
+      var arrow=(ORDER===c)?(DESC?" ▼":" ▲"):"";
+      var red=sens[c]?" <span class='r'>🔒</span>":"";
+      return "<th onclick=\"sortBy('"+c.replace(/'/g,"")+"')\">"+c+red+arrow+"</th>";
+    }).join("")+"</tr>";
+    var body=(d.rows||[]).map(function(row){
+      return "<tr>"+cols.map(function(c){
+        var v=row[c]; if(v===null||v===undefined) v="<span class='muted'>NULL</span>"; else v=String(v).replace(/</g,"&lt;");
+        return "<td title=\""+String(row[c]==null?"":row[c]).replace(/"/g,"&quot;")+"\">"+v+"</td>";
+      }).join("")+"</tr>";
+    }).join("");
+    wrap.innerHTML="<table>"+head+body+"</table>"+(d.rows&&d.rows.length?"":"<div class='muted' style='padding:16px'>0 rows.</div>");
+    updatePager(d.returned||0);
+    document.getElementById("csv").disabled=false;
+  }catch(e){ msg.innerHTML="<span style='color:#e5484d'>"+e+"</span>"; }
+}
+
+function updatePager(returned){
+  var info=document.getElementById("pageinfo");
+  var end=OFFSET+returned;
+  info.textContent=(returned?(OFFSET+1):0)+"–"+end+(TOTAL!=null?(" / "+TOTAL):"");
+  document.getElementById("prev").disabled=(OFFSET<=0);
+  document.getElementById("next").disabled=(returned<LIMIT)||(TOTAL!=null&&end>=TOTAL);
+}
+
+function page(dir){ OFFSET=Math.max(0,OFFSET+dir*LIMIT); loadRows(); }
+function sortBy(c){ if(ORDER===c){ DESC=!DESC; } else { ORDER=c; DESC=true; } OFFSET=0; loadRows(); }
+
+async function exportCsv(){
+  if(!CUR) return;
+  var btn=document.getElementById("csv"); btn.disabled=true; var old=btn.textContent; btn.textContent="…";
+  try{
+    var u="/api/admin/db/table/"+encodeURIComponent(CUR)+"/export.csv?limit=5000&desc="+DESC+(ORDER?("&order_by="+encodeURIComponent(ORDER)):"");
+    var r=await fetch(u,{headers:hdr()});
+    if(!r.ok){ var d=await r.json().catch(function(){return{};}); document.getElementById("msg").innerHTML="<span style='color:#e5484d'>CSV: "+(d.detail||r.status)+"</span>"; return; }
+    var blob=await r.blob(), a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=CUR+".csv"; document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ document.getElementById("msg").innerHTML="<span style='color:#e5484d'>"+e+"</span>"; }
+  btn.textContent=old; btn.disabled=false;
+}
+
+loadTables();
+</script>
+</body>
+</html>

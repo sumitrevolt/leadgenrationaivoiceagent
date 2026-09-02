@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Battlecard: LeadGen AI vs Competitors (June 2026)</title>
+<style>
+  :root{
+    --bg-primary:#0a0d14; --bg-elevated:#0f131c; --bg-surface:#161b28; --bg-hover:#1e2536;
+    --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+    --text-primary:#fff; --text-secondary:rgba(255,255,255,.72); --text-muted:rgba(255,255,255,.48);
+    --accent:#3b82f6; --accent-hover:#2563eb; --accent-soft:rgba(59,130,246,.12);
+    --you-win:#10b981; --they-win:#ef4444; --tie:#f59e0b;
+    --you-soft:rgba(16,185,129,.12); --they-soft:rgba(239,68,68,.1); --tie-soft:rgba(245,158,11,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg-primary);color:var(--text-primary);line-height:1.55;
+    -webkit-font-smoothing:antialiased;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  header{background:linear-gradient(160deg,#11203a 0%,var(--bg-elevated) 60%);border-bottom:1px solid var(--border);
+    padding:34px 0 28px;margin-bottom:8px}
+  header h1{font-size:30px;font-weight:800;letter-spacing:-.5px}
+  header h1 .hl{color:var(--accent)}
+  header .sub{color:var(--text-secondary);margin-top:8px;font-size:14.5px}
+  header .meta{color:var(--text-muted);margin-top:10px;font-size:12.5px}
+  .badges{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+  .badge{background:var(--bg-surface);border:1px solid var(--border);border-radius:999px;
+    padding:5px 13px;font-size:12.5px;color:var(--text-secondary)}
+  .badge b{color:var(--you-win)}
+  /* tabs */
+  nav.tabs{position:sticky;top:0;z-index:20;background:rgba(10,13,20,.92);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);display:flex;gap:4px;overflow-x:auto;padding:10px 0;margin-bottom:26px}
+  nav.tabs .inner{display:flex;gap:6px;max-width:1180px;margin:0 auto;padding:0 16px}
+  .tab{white-space:nowrap;background:transparent;border:1px solid transparent;color:var(--text-muted);
+    font-size:13.5px;font-weight:600;padding:8px 15px;border-radius:9px;cursor:pointer;transition:.18s}
+  .tab:hover{color:var(--text-primary);background:var(--bg-hover)}
+  .tab.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+  .tab.us.active{background:var(--you-win);border-color:var(--you-win)}
+  .tab-content{display:none;animation:fade .25s ease}
+  .tab-content.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2{font-size:21px;font-weight:750;margin:6px 0 16px;letter-spacing:-.3px}
+  h2 .em{color:var(--text-muted);font-size:14px;font-weight:500}
+  h3{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin:0 0 12px}
+  /* matrix */
+  .matrix-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:var(--bg-elevated)}
+  table.matrix{border-collapse:collapse;width:100%;min-width:840px;font-size:13px}
+  table.matrix th,table.matrix td{padding:11px 12px;text-align:center;border-bottom:1px solid var(--border)}
+  table.matrix thead th{position:sticky;top:0;background:var(--bg-surface);font-size:12.5px;font-weight:700;
+    color:var(--text-secondary);border-bottom:1px solid var(--border-strong)}
+  table.matrix thead th.us{color:var(--you-win)}
+  table.matrix td.feat,table.matrix th.feat{text-align:left;font-weight:600;color:var(--text-primary);
+    min-width:230px;position:sticky;left:0;background:var(--bg-elevated)}
+  table.matrix thead th.feat{background:var(--bg-surface);z-index:2}
+  table.matrix tbody tr:hover td{background:var(--bg-hover)}
+  table.matrix tbody tr:hover td.feat{background:var(--bg-hover)}
+  td.us{background:rgba(16,185,129,.05)}
+  .mk{display:inline-block;font-weight:800;font-size:14px;line-height:1}
+  .win{color:var(--you-win)} .lose{color:var(--they-win)} .part{color:var(--tie)}
+  .mk small{display:block;font-weight:500;font-size:10.5px;color:var(--text-muted);margin-top:3px;letter-spacing:0}
+  caption{caption-side:bottom;color:var(--text-muted);font-size:11.5px;padding:10px;text-align:left}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:14px 2px 0;font-size:12.5px;color:var(--text-secondary)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  /* pricing strip */
+  .price-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin:22px 0 6px}
+  .price-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .price-card.us{border-color:var(--you-win);background:var(--you-soft)}
+  .price-card .nm{font-weight:700;font-size:13.5px;margin-bottom:6px}
+  .price-card .pr{font-size:13px;color:var(--text-secondary)}
+  .price-card.us .nm{color:var(--you-win)}
+  /* win-loss grid */
+  .wl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:8px}
+  .wl-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:13px;padding:18px}
+  .wl-card h4{font-size:15px;font-weight:750;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .wl-card h4 .dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .wl-row{display:flex;gap:9px;font-size:13px;margin-bottom:8px;align-items:flex-start}
+  .wl-row .ic{flex:none;font-weight:800;margin-top:1px}
+  .wl-row.w .ic{color:var(--you-win)} .wl-row.l .ic{color:var(--they-win)}
+  .wl-row span{color:var(--text-secondary)}
+  /* battlecard layout */
+  .bc-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-bottom:4px}
+  .bc-head h2{margin:0}
+  .pill{font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg-surface);
+    border:1px solid var(--border);color:var(--text-secondary)}
+  .pill.danger{color:var(--they-win);border-color:rgba(239,68,68,.3);background:var(--they-soft)}
+  .pill.warn{color:var(--tie);border-color:rgba(245,158,11,.3);background:var(--tie-soft)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  .card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:13px;padding:18px}
+  .card.win-card{border-color:rgba(16,185,129,.28)}
+  .card.lose-card{border-color:rgba(239,68,68,.24)}
+  .card ul{list-style:none;display:flex;flex-direction:column;gap:11px}
+  .card li{font-size:13.5px;color:var(--text-secondary);display:flex;gap:9px;align-items:flex-start}
+  .card li .ic{flex:none;font-weight:800;margin-top:1px}
+  .card.win-card li .ic{color:var(--you-win)} .card.lose-card li .ic{color:var(--they-win)}
+  .card li b{color:var(--text-primary);font-weight:650}
+  .profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:16px}
+  .profile-grid .pg{background:var(--bg-elevated);padding:13px 15px}
+  .profile-grid .pg .k{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)}
+  .profile-grid .pg .v{font-size:13.5px;font-weight:600;margin-top:3px}
+  .block{margin-top:22px}
+  .talk{background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:9px;padding:13px 15px;margin-bottom:10px}
+  .talk .sc{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);font-weight:700;margin-bottom:5px}
+  .talk p{font-size:13.5px;color:var(--text-secondary)}
+  .obj{border-left-color:var(--tie)} .obj .sc{color:var(--tie)}
+  .landmines{background:var(--bg-elevated);border:1px solid var(--border);border-radius:13px;padding:18px;margin-top:18px}
+  .landmines li{font-size:13.5px;color:var(--text-secondary);margin-bottom:11px;display:flex;gap:9px;list-style:none}
+  .landmines li:before{content:"\1F3AF";flex:none}
+  .note{font-size:12.5px;color:var(--text-muted);margin-top:14px;padding:12px 14px;background:var(--bg-elevated);
+    border:1px dashed var(--border-strong);border-radius:10px}
+  footer{margin-top:40px;padding-top:22px;border-top:1px solid var(--border);color:var(--text-muted);font-size:12px}
+  footer a{color:var(--accent);text-decoration:none}
+  .src{font-size:11.5px;line-height:1.7;margin-top:8px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}header h1{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1><span class="hl">LeadGen AI</span> — Competitive Battlecard</h1>
+    <div class="sub">For Indian local-business sales: AI Marketing + Lead-Gen + Hinglish Voice Agent at 1/5th competitor price</div>
+    <div class="meta">Generated 17 June 2026 · Web research (June 2026) + internal feature audit (Competitor_Top20_Feature_Gap_2026) · Competitors: Dhanda, AdBanao, MyOperator, Vodex.ai, GoHighLevel</div>
+    <div class="badges">
+      <span class="badge"><b>MOAT:</b>&nbsp;Koi competitor marketing+leadgen+voice teeno ek saath nahi deta</span>
+      <span class="badge"><b>PRICE:</b>&nbsp;5–10× undercut vs INR-published rivals</span>
+      <span class="badge"><b>EDGE:</b>&nbsp;Hinglish-native voice + India-legal (DLT/140/TRAI/DPDP/GST)</span>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="inner">
+    <button class="tab active" data-tab="matrix">⚔️ Comparison Matrix</button>
+    <button class="tab us" data-tab="us">🟢 LeadGen AI (Us)</button>
+    <button class="tab" data-tab="dhanda">Dhanda (EZO)</button>
+    <button class="tab" data-tab="adbanao">AdBanao</button>
+    <button class="tab" data-tab="myoperator">MyOperator</button>
+    <button class="tab" data-tab="vodex">Vodex.ai</button>
+    <button class="tab" data-tab="ghl">GoHighLevel</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ============ MATRIX ============ -->
+<section id="matrix" class="tab-content active">
+  <h2>Head-to-Head Comparison <span class="em">— green = we win, red = they win, amber = partial/building</span></h2>
+  <div class="matrix-scroll">
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th class="feat">Capability</th>
+        <th class="us">LeadGen AI</th>
+        <th>Dhanda</th>
+        <th>AdBanao</th>
+        <th>MyOperator</th>
+        <th>Vodex.ai</th>
+        <th>GoHighLevel</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="feat">All-in-one: Marketing + Lead-gen + Voice</td>
+        <td class="us"><span class="mk win">✓✓<small>only one</small></span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk part">~<small>mktg+CRM</small></span></td></tr>
+
+      <tr><td class="feat">AI Marketing (GBP / social / posts)</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk win">✓<small>creative</small></span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk win">✓</span></td></tr>
+
+      <tr><td class="feat">Branded daily-post / template library scale</td>
+        <td class="us"><span class="mk part">~<small>building frames</small></span></td>
+        <td><span class="mk part">~</span></td><td><span class="mk win">✓✓<small>50L+, 4.5M users</small></span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk part">~</span></td></tr>
+
+      <tr><td class="feat">Lead generation (Maps prospector / harvester)</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk part">~<small>limited</small></span></td></tr>
+
+      <tr><td class="feat">Email outreach + warmup + deliverability</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk win">✓</span></td></tr>
+
+      <tr><td class="feat">AI Voice calling agent</td>
+        <td class="us"><span class="mk win">✓<small>Hinglish, 42 niches</small></span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk win">✓<small>multilingual bots</small></span></td><td><span class="mk win">✓<small>EN / US-style</small></span></td>
+        <td><span class="mk part">~<small>add-on, EN</small></span></td></tr>
+
+      <tr><td class="feat">CRM / dialer / deals pipeline</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk part">~<small>call mgmt</small></span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk win">✓✓</span></td></tr>
+
+      <tr><td class="feat">WhatsApp campaigns / chatbot</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk part">~<small>stickers</small></span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk win">✓</span></td></tr>
+
+      <tr><td class="feat">Reviews / reputation (monitor + AI reply)</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk lose">✗</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk win">✓</span></td></tr>
+
+      <tr><td class="feat">Live human transfer w/ context</td>
+        <td class="us"><span class="mk part">~<small>gated, building</small></span></td>
+        <td>—</td><td>—</td>
+        <td><span class="mk win">✓</span></td><td><span class="mk win">✓</span></td>
+        <td><span class="mk win">✓</span></td></tr>
+
+      <tr><td class="feat">AI staff that auto-executes work</td>
+        <td class="us"><span class="mk win">✓✓<small>14 agents</small></span></td>
+        <td><span class="mk part">~</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk part">~</span></td><td><span class="mk part">~</span></td>
+        <td><span class="mk win">✓<small>AI Employee</small></span></td></tr>
+
+      <tr><td class="feat">India-legal by design (DLT/140/TRAI/DPDP/GST)</td>
+        <td class="us"><span class="mk win">✓✓</span></td>
+        <td><span class="mk win">✓<small>no calling</small></span></td><td><span class="mk win">✓<small>no calling</small></span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk lose">✗<small>US-focus</small></span></td>
+        <td><span class="mk lose">✗<small>US tool</small></span></td></tr>
+
+      <tr><td class="feat">Hinglish / regional-native</td>
+        <td class="us"><span class="mk win">✓✓</span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk win">✓<small>10 langs</small></span></td>
+        <td><span class="mk part">~</span></td><td><span class="mk lose">✗</span></td>
+        <td><span class="mk lose">✗</span></td></tr>
+
+      <tr><td class="feat">Transparent INR pricing</td>
+        <td class="us"><span class="mk win">✓</span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk part">~</span></td>
+        <td><span class="mk win">✓</span></td><td><span class="mk lose">✗<small>USD</small></span></td>
+        <td><span class="mk lose">✗<small>USD</small></span></td></tr>
+
+      <tr><td class="feat">Entry price affordable for tiny local biz</td>
+        <td class="us"><span class="mk win">✓<small>₹1,199/mo</small></span></td>
+        <td><span class="mk win">✓✓<small>free tier</small></span></td><td><span class="mk win">✓<small>freemium</small></span></td>
+        <td><span class="mk lose">✗<small>₹52k+ base</small></span></td><td><span class="mk part">~</span></td>
+        <td><span class="mk lose">✗<small>$194+/mo</small></span></td></tr>
+    </tbody>
+    <caption>Internal capabilities verified against ~500 live routes (Competitor_Top20_Feature_Gap_2026). "~ building" items are on the active backlog, not shipped — do not over-claim in deals.</caption>
+  </table>
+  </div>
+  <div class="legend">
+    <span><span class="mk win">✓✓</span> Clear advantage</span>
+    <span><span class="mk win">✓</span> Have it</span>
+    <span><span class="mk part">~</span> Partial / building</span>
+    <span><span class="mk lose">✗</span> Missing</span>
+  </div>
+
+  <div class="block">
+    <h3>Pricing at a glance</h3>
+    <div class="price-strip">
+      <div class="price-card us"><div class="nm">LeadGen AI</div><div class="pr">Marketing ₹1,199 / ₹2,999 / ₹6,999/mo · Voice flat ₹4,999 / ₹9,999 / ₹19,999/mo (Band A/B/C, unlimited calls)</div></div>
+      <div class="price-card"><div class="nm">Dhanda (EZO)</div><div class="pr">Free + premium subscription (undisclosed)</div></div>
+      <div class="price-card"><div class="nm">AdBanao</div><div class="pr">Freemium; premium tier undisclosed</div></div>
+      <div class="price-card"><div class="nm">MyOperator</div><div class="pr">~₹52,000/mo base + AI ₹10–20k/mo + ₹20k onboarding</div></div>
+      <div class="price-card"><div class="nm">Vodex.ai</div><div class="pr">Pay-per-connected-call (USD); free trial</div></div>
+      <div class="price-card"><div class="nm">GoHighLevel</div><div class="pr">$97–497/mo + AI Employee $97/mo (USD)</div></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>Quick win / loss guide</h3>
+    <div class="wl-grid">
+      <div class="wl-card"><h4><span class="dot" style="background:#f59e0b"></span>Dhanda (EZO)</h4>
+        <div class="wl-row w"><span class="ic">✓</span><span><b>Win when:</b> they need follow-up — calls, WhatsApp, email outreach, CRM. Dhanda stops at the Google post.</span></div>
+        <div class="wl-row l"><span class="ic">✗</span><span><b>Lose when:</b> prospect only wants free GBP posts + review replies and won't pay for more.</span></div></div>
+
+      <div class="wl-card"><h4><span class="dot" style="background:#10b981"></span>AdBanao</h4>
+        <div class="wl-row w"><span class="ic">✓</span><span><b>Win when:</b> "poster ban gaya — ab leads kaun laaega aur call kaun karega?" They give creatives, not customers.</span></div>
+        <div class="wl-row l"><span class="ic">✗</span><span><b>Lose when:</b> need is purely daily branded posters in regional langs — their 50L+ library + 4.5M-user brand is strong.</span></div></div>
+
+      <div class="wl-card"><h4><span class="dot" style="background:#ef4444"></span>MyOperator</h4>
+        <div class="wl-row w"><span class="ic">✓</span><span><b>Win when:</b> a 5–30 person local business sees the ₹52k base + ₹10–20k AI + ₹20k onboarding bill. We're all-in under ₹7k.</span></div>
+        <div class="wl-row l"><span class="ic">✗</span><span><b>Lose when:</b> large enterprise needs mature IVR, big-brand references, dedicated SLAs.</span></div></div>
+
+      <div class="wl-card"><h4><span class="dot" style="background:#ef4444"></span>Vodex.ai</h4>
+        <div class="wl-row w"><span class="ic">✓</span><span><b>Win when:</b> Indian local biz wants Hinglish lead-qual calls that are DLT/140/TRAI-legal. Vodex is English/US-collections-first.</span></div>
+        <div class="wl-row l"><span class="ic">✗</span><span><b>Lose when:</b> US/global enterprise collections needing SOC2/ISO/HIPAA-certified audit trails.</span></div></div>
+
+      <div class="wl-card"><h4><span class="dot" style="background:#3b82f6"></span>GoHighLevel</h4>
+        <div class="wl-row w"><span class="ic">✓</span><span><b>Win when:</b> local owner (not an agency) wants it done-for-them, in Hinglish, INR-billed, India-telephony-legal — no setup labyrinth.</span></div>
+        <div class="wl-row l"><span class="ic">✗</span><span><b>Lose when:</b> a marketing agency wants the mature GHL ecosystem, marketplace, snapshots & funnel builder to resell.</span></div></div>
+    </div>
+  </div>
+  <div class="note"><b>Positioning discipline:</b> never trash-talk. Plant the landmine question, let the prospect find the gap. And stay honest about the 3 "~ building" rows — credibility &gt; over-claiming.</div>
+</section>
+
+<!-- ============ US ============ -->
+<section id="us" class="tab-content">
+  <div class="bc-head"><h2>LeadGen AI</h2><span class="pill">leadsgenai.in</span><span class="pill" style="color:var(--you-win)">The all-in-one moat</span></div>
+  <div class="profile-grid">
+    <div class="pg"><div class="k">Target</div><div class="v">Small local Indian businesses (5–50 staff)</div></div>
+    <div class="pg"><div class="k">Two products</div><div class="v">AI Marketing · AI Voice Agent</div></div>
+    <div class="pg"><div class="k">Marketing price</div><div class="v">₹1,199 / ₹2,999 / ₹6,999 per mo</div></div>
+    <div class="pg"><div class="k">Voice price</div><div class="v">Flat ₹4,999–19,999/mo (Band A/B/C) — unlimited calls, free 7-day pilot</div></div>
+    <div class="pg"><div class="k">Stack</div><div class="v">Free-stack AI (Cerebras/Groq/Edge-TTS), zero per-call vendor lock</div></div>
+    <div class="pg"><div class="k">Compliance</div><div class="v">DLT-aware, 140-series, TRAI hours, DPDP, GST Rule-46</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card win-card"><h3>Key differentiators</h3><ul>
+      <li><span class="ic">✓</span><span><b>Only platform</b> bundling marketing + lead-gen + Hinglish voice — every rival covers one slice.</span></li>
+      <li><span class="ic">✓</span><span><b>Hinglish-native voice</b> with KB-RAG, 42 niche scripts, answering-machine detection, DND fail-closed, post-call qualifier.</span></li>
+      <li><span class="ic">✓</span><span><b>India-legal by design</b> — the one thing foreign tools (Vodex/GHL) structurally can't claim for domestic calling.</span></li>
+      <li><span class="ic">✓</span><span><b>14 AI staff agents</b> that auto-run blogs, content, outreach, follow-ups, reply-triage — "AI that does the work, not just drafts."</span></li>
+      <li><span class="ic">✓</span><span><b>5–10× cheaper</b> with transparent INR pricing + GST invoices — rare in this market.</span></li>
+    </ul></div>
+    <div class="card lose-card"><h3>Be honest — our soft spots</h3><ul>
+      <li><span class="ic">✗</span><span><b>Template library scale</b> vs AdBanao's 50L+ assets / 4.5M users (branded-frames + daily feed on backlog).</span></li>
+      <li><span class="ic">✗</span><span><b>Live human call-transfer</b> w/ context is gated/building — Advanced tier's biggest missing piece.</span></li>
+      <li><span class="ic">✗</span><span><b>No formal SOC2/ISO/HIPAA certs</b> yet (we have DPDP + consent ledger) — matters only for enterprise/US deals.</span></li>
+      <li><span class="ic">✗</span><span><b>No agency marketplace/snapshots ecosystem</b> like GHL — reseller tooling is younger.</span></li>
+      <li><span class="ic">✗</span><span><b>Brand awareness</b> — we're new vs incumbents with millions of users.</span></li>
+    </ul></div>
+  </div>
+  <div class="block"><h3>Proof points to drop in a call</h3>
+    <div class="talk"><p>"MyOperator ka AI module akela ₹10,000/mo + ₹20,000 onboarding hai. Hum poora marketing + voice + leads ₹6,999/mo all-in dete hain — aur Hinglish me."</p></div>
+    <div class="talk"><p>"Hum cold-calling foreign trunk pe nahi karte — woh India me illegal hai. Sab DLT/140-series/TRAI ke andar, AI-disclosure ke saath. Aapka number safe."</p></div>
+    <div class="talk"><p>"Dhanda ya AdBanao poster bana dete hain. Par us poster se aayi inquiry ko call karke qualify karna, follow-up karna — woh humari AI staff khud karti hai."</p></div>
+  </div>
+</section>
+
+<!-- ============ DHANDA ============ -->
+<section id="dhanda" class="tab-content">
+  <div class="bc-head"><h2>Dhanda (by EZO)</h2><span class="pill">Closest direct marketing rival</span><span class="pill warn">Marketing-only</span></div>
+  <div class="profile-grid">
+    <div class="pg"><div class="k">Maker</div><div class="v">EZO (Billing Machine / ezobooks)</div></div>
+    <div class="pg"><div class="k">Form factor</div><div class="v">Android + iOS mobile app</div></div>
+    <div class="pg"><div class="k">Traction</div><div class="v">~59k installs / 30 days (mid-2026)</div></div>
+    <div class="pg"><div class="k">Pricing</div><div class="v">Free + premium subscription</div></div>
+    <div class="pg"><div class="k">Focus</div><div class="v">Google Business Profile presence</div></div>
+    <div class="pg"><div class="k">Last major update</div><div class="v">Aug 2025</div></div>
+  </div>
+  <p style="margin-top:16px;color:var(--text-secondary);font-size:14px">Sells a free Google-score audit, SEO keyword + competitor analysis, AI review replies, and monthly GBP posts/offers/images. Distribution edge = EZO's existing GST-billing user base. <b>No voice, no lead-gen, no email/WhatsApp outreach, no CRM.</b></p>
+  <div class="grid2">
+    <div class="card lose-card"><h3>Where they win</h3><ul>
+      <li><span class="ic">›</span><span><b>Free entry + simple mobile UX</b> — frictionless for a shop owner's phone.</span></li>
+      <li><span class="ic">›</span><span><b>EZO distribution</b> — cross-sell into a large billing-app install base.</span></li>
+      <li><span class="ic">›</span><span><b>Same lead-magnet funnel</b> (free GBP audit → upsell) that we also run via /audit.</span></li>
+    </ul></div>
+    <div class="card win-card"><h3>Where we win</h3><ul>
+      <li><span class="ic">✓</span><span><b>We close the loop</b> — inquiry → AI call/qualify → WhatsApp + email follow-up → deal. Dhanda ends at the post.</span></li>
+      <li><span class="ic">✓</span><span><b>Outbound lead-gen</b> (Maps prospector, harvester) — Dhanda has none.</span></li>
+      <li><span class="ic">✓</span><span><b>Voice agent + full CRM</b> on the same bill.</span></li>
+    </ul></div>
+  </div>
+  <div class="block"><h3>Talk tracks</h3>
+    <div class="talk"><div class="sc">If prospect already uses Dhanda</div><p>"Bahut achha — GBP posts already ho rahe. Sawaal yeh: jab us post se koi customer message kare, uska follow-up aur call kaun karta hai? Wahi gap hum bharte hain, aur posts bhi cover karte hain."</p></div>
+    <div class="talk"><div class="sc">Early mention</div><p>"Dhanda ek achha poster + GBP tool hai. Hum ek step aage — marketing se aaye leads ko AI khud call karke qualify karti hai. Ek hi jagah."</p></div>
+  </div>
+  <div class="block"><h3>Objection handling</h3>
+    <div class="talk obj"><div class="sc">"Dhanda toh free hai"</div><p>"Free posts ke liye sahi. Par ek paying customer ki value ₹2,999/mo se kahin zyada hai — aur woh tab aata hai jab koi lead ko call karke close kare. Free app woh nahi karta."</p></div>
+  </div>
+  <div class="landmines"><h3>Landmine questions</h3><ul>
+    <li>Jab Google post se inquiry aati hai, use kaun aur kitni der me call karta hai?</li>
+    <li>Dhanda aapke liye naye leads laata hai, ya sirf aapki existing GBP manage karta hai?</li>
+    <li>Customer ka follow-up — WhatsApp + call + email sequence — app karta hai ya aapko khud karna padta hai?</li>
+  </ul></div>
+</section>
+
+<!-- ============ ADBANAO ============ -->
+<section id="adbanao" class="tab-content">
+  <div class="bc-head"><h2>AdBanao</h2><span class="pill">Creative / poster leader</span><span class="pill warn">No leads, no voice</span></div>
+  <div class="profile-grid">
+    <div class="pg"><div class="k">Users</div><div class="v">4.5M+ (made in India)</div></div>
+    <div class="pg"><div class="k">Category</div><div class="v">Festival/business poster + video maker</div></div>
+    <div class="pg"><div class="k">Library</div><div class="v">50 lakh+ posts/videos, 1.5L+ jingles</div></div>
+    <div class="pg"><div class="k">Languages</div><div class="v">10 regional (Hindi, Marathi, Tamil…)</div></div>
+    <div class="pg"><div class="k">Extras</div><div class="v">Digital cards, WhatsApp stickers, bg-removal</div></div>
+    <div class="pg"><div class="k">Pricing</div><div class="v">Freemium (premium undisclosed)</div></div>
+  </div>
+  <p style="margin-top:16px;color:var(--text-secondary);font-size:14px">India's top branding-content app — 100+ industries, huge ready-made template library. <b>Pure creative tool: it makes the artwork, it does not generate, qualify, or follow up on customers.</b> This is our most honest "they're genuinely better at one thing" competitor.</p>
+  <div class="grid2">
+    <div class="card lose-card"><h3>Where they win</h3><ul>
+      <li><span class="ic">›</span><span><b>Template scale + brand</b> — 50L+ assets, 4.5M users. We can't out-library them today.</span></li>
+      <li><span class="ic">›</span><span><b>Regional-language breadth</b> + stickers + jingles for viral WhatsApp sharing.</span></li>
+      <li><span class="ic">›</span><span><b>Daily branded-post habit</b> baked in — the exact P0 frame-engine gap on our backlog.</span></li>
+    </ul></div>
+    <div class="card win-card"><h3>Where we win</h3><ul>
+      <li><span class="ic">✓</span><span><b>Outcomes, not artwork</b> — we turn a poster's inquiry into a called, qualified, followed-up lead.</span></li>
+      <li><span class="ic">✓</span><span><b>Whole funnel</b> — GBP, site, email, WhatsApp, voice, CRM, invoices. AdBanao is step one of ten.</span></li>
+      <li><span class="ic">✓</span><span><b>AI staff auto-runs</b> the campaign; AdBanao needs the owner to design + post manually.</span></li>
+    </ul></div>
+  </div>
+  <div class="block"><h3>Talk tracks</h3>
+    <div class="talk"><div class="sc">Displacement</div><p>"AdBanao ke poster zabardast hain — unhe rakhiye. Par poster banane aur grahak laane me farq hai. Hum poster se aaye customer ko AI se call karwa ke qualify karte hain. Creative + conversion, dono."</p></div>
+    <div class="talk"><div class="sc">Complement framing (low friction)</div><p>"Hum AdBanao ke saath chal sakte hain — aap creative wahan banao, baaki marketing + leads + calls hum sambhaalein. Result: poster ka ROI dikhta hai."</p></div>
+  </div>
+  <div class="block"><h3>Objection handling</h3>
+    <div class="talk obj"><div class="sc">"AdBanao pe sab kuch milta hai"</div><p>"Creative ke liye haan. Par ek bhi naya customer call karke close karna ho — woh AdBanao nahi karta. Hum exactly wahi karte hain, aur posters bhi dete hain."</p></div>
+  </div>
+  <div class="landmines"><h3>Landmine questions</h3><ul>
+    <li>Poster ban gaya — us poster se aaye leads ko qualify aur call kaun karta hai?</li>
+    <li>AdBanao aapke liye outreach bhi karta hai, ya sirf creative deta hai?</li>
+    <li>Pichhle mahine kitne posters se kitne paying customers aaye — yeh track hota hai?</li>
+  </ul></div>
+</section>
+
+<!-- ============ MYOPERATOR ============ -->
+<section id="myoperator" class="tab-content">
+  <div class="bc-head"><h2>MyOperator</h2><span class="pill">Enterprise cloud-telephony</span><span class="pill danger">Expensive for local biz</span></div>
+  <div class="profile-grid">
+    <div class="pg"><div class="k">Customers</div><div class="v">12,000+ incl. Amazon, Dominos, Razorpay, TCS</div></div>
+    <div class="pg"><div class="k">Core</div><div class="v">Cloud call mgmt + AI voice bots</div></div>
+    <div class="pg"><div class="k">Base price</div><div class="v">~₹52,000/mo (pre-GST)</div></div>
+    <div class="pg"><div class="k">AI module</div><div class="v">₹10,000–20,000/mo extra</div></div>
+    <div class="pg"><div class="k">Onboarding</div><div class="v">~₹20,000 one-time</div></div>
+    <div class="pg"><div class="k">WhatsApp</div><div class="v">~₹0.95 / India marketing msg</div></div>
+  </div>
+  <p style="margin-top:16px;color:var(--text-secondary);font-size:14px">A mature, enterprise-grade cloud-telephony + IVR platform with optional AI bots (multilingual FAQ, routing, 24/7). Strong big-brand trust. <b>Priced and built for mid-market/enterprise — not a 5–15 person local shop.</b></p>
+  <div class="grid2">
+    <div class="card lose-card"><h3>Where they win</h3><ul>
+      <li><span class="ic">›</span><span><b>Enterprise trust</b> — Amazon/Dominos/TCS logos, mature IVR, dedicated support + SLAs.</span></li>
+      <li><span class="ic">›</span><span><b>Telephony depth</b> — years of call-management infra and scale.</span></li>
+      <li><span class="ic">›</span><span><b>Published INR pricing</b> + established WhatsApp Business stack.</span></li>
+    </ul></div>
+    <div class="card win-card"><h3>Where we win</h3><ul>
+      <li><span class="ic">✓</span><span><b>Total cost</b> — their AI alone is ₹10–20k/mo + ₹20k onboarding on a ₹52k base. We're all-in marketing+voice under ₹7k.</span></li>
+      <li><span class="ic">✓</span><span><b>Marketing + lead-gen</b> bundled — MyOperator is calls only.</span></li>
+      <li><span class="ic">✓</span><span><b>Zero onboarding fee</b>, self-serve, Hinglish-tuned for local niches.</span></li>
+    </ul></div>
+  </div>
+  <div class="block"><h3>Talk tracks</h3>
+    <div class="talk"><div class="sc">Price reframe</div><p>"MyOperator enterprise ke liye solid hai. Par aapke size ke business ke liye ₹52k base + ₹10–20k AI + ₹20k onboarding — woh bahut bhaari hai. Same AI calling, hum ₹6,999 all-in dete hain, onboarding free."</p></div>
+    <div class="talk"><div class="sc">Scope reframe</div><p>"Woh sirf calls handle karte hain. Aapko leads bhi chahiye, marketing bhi — woh sab hum ek hi platform pe dete hain."</p></div>
+  </div>
+  <div class="block"><h3>Objection handling</h3>
+    <div class="talk obj"><div class="sc">"MyOperator bade brands use karte hain"</div><p>"Bilkul — woh enterprise ke liye banaya hai, enterprise budget ke saath. Aapko unka call-volume aur unki keemat dono nahi chahiye. Humara product aapke scale + budget ke liye bana hai."</p></div>
+  </div>
+  <div class="landmines"><h3>Landmine questions</h3><ul>
+    <li>Base + AI module + onboarding + per-message — total monthly bill kya banta hai?</li>
+    <li>Yeh aapke liye naye leads laata hai, ya sirf incoming calls manage karta hai?</li>
+    <li>Hinglish me aapke niche ke hisaab se script kitni customize hoti hai?</li>
+  </ul></div>
+</section>
+
+<!-- ============ VODEX ============ -->
+<section id="vodex" class="tab-content">
+  <div class="bc-head"><h2>Vodex.ai</h2><span class="pill">Gen-AI outbound calling</span><span class="pill danger">US/English-first</span></div>
+  <div class="profile-grid">
+    <div class="pg"><div class="k">Company</div><div class="v">LilChirp AI Tech, Bengaluru</div></div>
+    <div class="pg"><div class="k">Funding</div><div class="v">~$2M seed (Apr 2024)</div></div>
+    <div class="pg"><div class="k">Sweet spot</div><div class="v">US collections, insurance, mortgage</div></div>
+    <div class="pg"><div class="k">Pricing</div><div class="v">Pay-per-connected-call (USD)</div></div>
+    <div class="pg"><div class="k">Compliance</div><div class="v">SOC2 / ISO 27001 / HIPAA-aligned</div></div>
+    <div class="pg"><div class="k">Languages</div><div class="v">English-led, US-style voice</div></div>
+  </div>
+  <p style="margin-top:16px;color:var(--text-secondary);font-size:14px">India-HQ'd but traction is in the <b>U.S. compliance-heavy outreach</b> market (debt collection, insurance, mortgage). Strong enterprise compliance certs, "only pay for connected calls" model. <b>Not tuned for Hinglish local-business lead-qual, and not your DLT/140-series partner for India-domestic calling.</b></p>
+  <div class="grid2">
+    <div class="card lose-card"><h3>Where they win</h3><ul>
+      <li><span class="ic">›</span><span><b>Compliance certs</b> — SOC2/ISO/HIPAA audit trail for regulated US verticals.</span></li>
+      <li><span class="ic">›</span><span><b>Connected-call billing</b> — clean, transparent cost model (good framing to borrow).</span></li>
+      <li><span class="ic">›</span><span><b>VC-backed scale</b> + high-volume outbound for collections.</span></li>
+    </ul></div>
+    <div class="card win-card"><h3>Where we win</h3><ul>
+      <li><span class="ic">✓</span><span><b>Hinglish-native</b> conversations for Indian local customers — not US-English collection scripts.</span></li>
+      <li><span class="ic">✓</span><span><b>India-legal</b> — DLT, 140-series, TRAI hours, AI disclosure, DPDP. Foreign-trunk domestic calling is illegal; we're built for it.</span></li>
+      <li><span class="ic">✓</span><span><b>Full marketing + leads</b> around the call — Vodex is calls only.</span></li>
+      <li><span class="ic">✓</span><span><b>INR pricing + GST invoice</b> vs USD billing.</span></li>
+    </ul></div>
+  </div>
+  <div class="block"><h3>Talk tracks</h3>
+    <div class="talk"><div class="sc">Fit reframe</div><p>"Vodex zabardast hai — US collections ke liye. Aapke local customers ko Hinglish me natural call chahiye, aur woh DLT/140-series ke andar honi chahiye. Hum India ke liye purpose-built hain."</p></div>
+    <div class="talk"><div class="sc">Compliance landmine (soft)</div><p>"Ek cheez zaroor poochhna — India-domestic calls ke liye DLT registration aur 140-series kaun handle karega? Yeh miss hua toh ₹10 lakh tak penalty ka risk hai."</p></div>
+  </div>
+  <div class="block"><h3>Objection handling</h3>
+    <div class="talk obj"><div class="sc">"Vodex bhi Indian company hai"</div><p>"HQ Bengaluru me hai, sahi — par product aur traction US collections market ke liye hai, English-first. Aapko Hinglish local-business calling chahiye, India compliance ke saath. Alag zaroorat, alag tool."</p></div>
+  </div>
+  <div class="landmines"><h3>Landmine questions</h3><ul>
+    <li>Kya yeh aapke customers se Hinglish me natural baat karta hai, ya English/US-style?</li>
+    <li>India-domestic calling ke liye DLT + 140-series compliance kaun sambhaalta hai?</li>
+    <li>Billing USD me hai ya INR — aur GST invoice milta hai?</li>
+  </ul></div>
+</section>
+
+<!-- ============ GHL ============ -->
+<section id="ghl" class="tab-content">
+  <div class="bc-head"><h2>GoHighLevel</h2><span class="pill">All-in-one agency platform</span><span class="pill danger">US-centric · setup-heavy</span></div>
+  <div class="profile-grid">
+    <div class="pg"><div class="k">Built for</div><div class="v">Marketing agencies / resellers</div></div>
+    <div class="pg"><div class="k">Platform</div><div class="v">$97 / $297 / $497 per mo (USD)</div></div>
+    <div class="pg"><div class="k">AI Employee</div><div class="v">+$97/mo (or usage: Voice $0.13/min)</div></div>
+    <div class="pg"><div class="k">Strength</div><div class="v">CRM, funnels, snapshots, marketplace</div></div>
+    <div class="pg"><div class="k">Languages</div><div class="v">English-first</div></div>
+    <div class="pg"><div class="k">India fit</div><div class="v">No native DLT/telephony/Hinglish</div></div>
+  </div>
+  <p style="margin-top:16px;color:var(--text-secondary);font-size:14px">The mature all-in-one for <b>marketing agencies</b> — deep CRM, funnels, automations, snapshots, AI Employee. Powerful, but English-first, USD-billed, and built for agencies to configure — not for a local owner who just wants results in Hinglish. <b>No native India telephony/DLT compliance.</b></p>
+  <div class="grid2">
+    <div class="card lose-card"><h3>Where they win</h3><ul>
+      <li><span class="ic">›</span><span><b>Ecosystem maturity</b> — marketplace, snapshots, funnel builder, huge agency community.</span></li>
+      <li><span class="ic">›</span><span><b>Reseller/white-label model</b> agencies already know and trust.</span></li>
+      <li><span class="ic">›</span><span><b>Breadth + integrations</b> across the US martech stack.</span></li>
+    </ul></div>
+    <div class="card win-card"><h3>Where we win</h3><ul>
+      <li><span class="ic">✓</span><span><b>Done-for-you, not DIY</b> — our 14 AI agents run it; GHL needs an agency to build & maintain.</span></li>
+      <li><span class="ic">✓</span><span><b>India-native</b> — Hinglish voice, DLT/140 legal, INR + GST. GHL has none of this out of the box.</span></li>
+      <li><span class="ic">✓</span><span><b>Cost</b> — GHL ~$194+/mo (~₹16k) before telephony; we start at ₹1,199 and bundle voice.</span></li>
+      <li><span class="ic">✓</span><span><b>No learning curve</b> for a non-technical local owner.</span></li>
+    </ul></div>
+  </div>
+  <div class="block"><h3>Talk tracks</h3>
+    <div class="talk"><div class="sc">Owner (not agency) prospect</div><p>"GHL agencies ke liye banaya hai — usse chalaane ke liye ek expert chahiye. Aap business chalao, setup + Hinglish calls + leads humari AI sambhaalti hai. INR me, GST invoice ke saath."</p></div>
+    <div class="talk"><div class="sc">Reseller prospect</div><p>"Reseller ho toh white-label hum bhi dete hain — par India telephony, DLT, aur Hinglish voice native. GHL me yeh sab jugaad + USD cost ke saath aata hai."</p></div>
+  </div>
+  <div class="block"><h3>Objection handling</h3>
+    <div class="talk obj"><div class="sc">"GHL me toh sab kuch hai"</div><p>"Feature breadth me haan. Par India ke liye do cheezein missing hain — legal Hinglish voice calling aur INR/GST. Aur usse chalaane me jo time + expert lagta hai, woh local owner ke paas nahi hota. Hum woh gap bharte hain."</p></div>
+  </div>
+  <div class="landmines"><h3>Landmine questions</h3><ul>
+    <li>GHL setup aur India telephony/DLT integration kaun karega, kitne din me?</li>
+    <li>Hinglish voice calling native hai ya add-on jugaad — aur woh India-legal hai?</li>
+    <li>Monthly $194+ (₹16k+) USD billing — local business budget me fit hai?</li>
+  </ul></div>
+</section>
+
+<footer>
+  <div><b>How to use:</b> Open the competitor tab before a call → skim "where we win" + landmine questions. Stay honest on the 3 "building" rows. Refresh monthly or before a major deal.</div>
+  <div class="src">
+    <b>Sources (June 2026 web research + internal audit):</b><br>
+    Internal: docs/Competitor_Top20_Feature_Gap_2026.md (26-competitor audit, parity list, gap backlog) · CLAUDE.md (current pricing/feature truth).<br>
+    MyOperator pricing — GetApp, SoftwareSuggest, Prospeo (2026). · Vodex — Vodex.ai, GetApp, Tracxn, Crunchbase, ZoomInfo (2026). · GoHighLevel — netpartners.marketing, Ruzuku (Feb 2026). · Dhanda — Google Play, AppBrain, Digital Gabbar (2025–26). · AdBanao — adbanao.com, SaaSworthy, Crunchbase (Feb 2026).
+  </div>
+  <div style="margin-top:10px;color:var(--text-muted)">Generated 17 June 2026 · LeadGen AI internal sales asset · Plant landmines, don't badmouth.</div>
+</footer>
+</div>
+
+<script>
+  document.querySelectorAll('nav.tabs .tab').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('nav.tabs .tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      var el=document.getElementById(btn.dataset.tab);
+      if(el){el.classList.add('active');}
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+  });
+</script>
+</body>
+</html>

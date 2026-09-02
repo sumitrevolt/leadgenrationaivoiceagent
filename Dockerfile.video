@@ -1,0 +1,112 @@
+# =============================================================================
+# Dockerfile.video — worker-video ONLY.
+#
+# Derives FROM the already-built application image so the Python runtime, the
+# lockfile-pinned venv and the application code are byte-identical to every other
+# service. This image only ADDS the HyperFrames render toolchain (Node + a pinned
+# Chrome headless shell + the pinned npm packages).
+#
+# It exists so that toolchain does NOT land in the web app, the scheduler, or the
+# general worker: Chromium plus its shared libraries is several hundred MB, and
+# the web container has no reason to carry a browser.
+#
+# Build (tag must match APP_VERSION so the deploy skew check still passes):
+#   docker build -f Dockerfile.video \
+#     --build-arg APP_IMAGE=ghcr.io/sumitrevolt/leadgenrationaivoiceagent:$SHA \
+#     -t ghcr.io/sumitrevolt/leadgenrationaivoiceagent-video:$SHA .
+#
+# This image is OPT-IN. docker-compose.vps.yml is unchanged; the overlay
+# docker-compose.video.yml is what switches worker-video onto it.
+# =============================================================================
+ARG APP_IMAGE
+# No mutable default is allowed: callers must provide the exact immutable app
+# image used by the other runtime roles.
+# hadolint ignore=DL3006
+FROM ${APP_IMAGE}
+
+# A pipe's exit code is the LAST command's unless pipefail is set, so a failed
+# curl of the NodeSource key would silently produce an empty keyring and the
+# build would carry on. Same masked-exit-code class as the deploy-script
+# `| tail` landmine.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+USER root
+
+# Node 22 LTS from NodeSource + the shared libraries Chrome headless needs.
+#
+# NO system font packages are installed, deliberately. Every template bundles its
+# own OFL woff2 files and loads them via @font-face, so a render must not depend
+# on a system font — if it did, output would silently change with the base image.
+# (The base is Debian 13 "trixie", where ALSA is `libasound2t64`, not
+# `libasound2`, and the Noto font packages are not in its configured sources.)
+ENV NODE_MAJOR=22
+    # `unzip` is REQUIRED, not optional: `hyperframes browser ensure` downloads
+    # Chrome as a zip and its extractor fails closed with "no zip archiver is
+    # available" on a slim Debian base. Without it the image builds far enough to
+    # look fine and then cannot render.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg xz-utils unzip \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+         | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
+         > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        nodejs \
+        libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
+        libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 \
+        libpango-1.0-0 libcairo2 libatspi2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- pinned renderer -------------------------------------------------------
+# Only the manifest + lockfile first, so a template edit does not bust the npm
+# layer. `npm ci` installs the EXACT committed lockfile — never a floating range.
+WORKDIR /opt/video_renderer/hyperframes
+COPY video_renderer/hyperframes/package.json video_renderer/hyperframes/package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+# Templates (compositions + bundled OFL fonts).
+COPY video_renderer/hyperframes/templates ./templates
+
+# Fetch Chrome headless shell AT BUILD TIME. This is the one and only download;
+# a production render must never reach the network, so if this layer is missing
+# the renderer fails closed rather than silently downloading mid-job.
+# HOME is pinned to the RUNTIME user's home on purpose: hyperframes resolves its
+# browser cache from os.homedir(), NOT from XDG_CACHE_HOME. Downloading as root
+# without this puts Chrome in /root/.cache, where the appuser runtime cannot read
+# it — the image builds clean and then fails the first render with
+# "Chrome not found / EACCES ... /home/appuser/.cache".
+ENV HYPERFRAMES_NO_TELEMETRY=1 \
+    HYPERFRAMES_NO_UPDATE_CHECK=1 \
+    HYPERFRAMES_NO_FEEDBACK=1 \
+    HYPERFRAMES_NO_AUTO_INSTALL=1 \
+    HYPERFRAMES_SKIP_SKILLS=1 \
+    DO_NOT_TRACK=1 \
+    HOME=/home/appuser
+RUN node ./node_modules/hyperframes/bin/hyperframes.mjs browser ensure
+# `doctor` is diagnostics only, so its failure must not fail the build — but it
+# is a SEPARATE layer rather than `ensure && doctor || true`, because in that
+# form the `|| true` also swallows a genuine `browser ensure` failure and we
+# would only discover the missing Chrome on the first customer render.
+RUN node ./node_modules/hyperframes/bin/hyperframes.mjs doctor || echo "doctor reported issues (non-fatal)"
+
+# Prove the toolchain is really present — a build that produced no renderer is a
+# build that would fail on the first customer job instead of here.
+RUN test -f ./node_modules/hyperframes/bin/hyperframes.mjs \
+    && node --version && ffprobe -version >/dev/null
+
+# The provider resolves the renderer from the repo by default; in this image it
+# lives at /opt so it survives the /app bind-mount used in compose.
+ENV CREATIVE_HYPERFRAMES_ROOT=/opt/video_renderer/hyperframes
+
+# Group is `appgroup`, NOT `appuser` — the base image creates uid/gid 999 with
+# different names, and `appuser:appuser` fails the whole build.
+# /home/appuser/.cache holds the Chrome fetched above (as root) and MUST be
+# handed to the runtime user or every render fails with EACCES.
+RUN chown -R appuser:appgroup /opt/video_renderer /home/appuser
+
+WORKDIR /app
+USER appuser
+
+# No HEALTHCHECK/EXPOSE override: this is a Celery worker, and compose already
+# supplies the worker healthcheck. Command comes from compose.

@@ -1,0 +1,100 @@
+# =============================================================================
+# docker-compose.staging.yml — STAGING stack (prod ka mirror, isolated).
+# -----------------------------------------------------------------------------
+# Prod se ALAG: alag containers (_staging suffix), alag DB+Redis (alag volumes),
+# alag port (8001), alag network. Yahan changes test karo PHIR prod pe bhejo
+# (abhi changes seedhe prod pe jaate the — risky).
+#
+# Setup:
+#   1) cp .env .env.staging   # fir staging-specific values (test keys etc.)
+#   2) docker compose -f docker-compose.staging.yml --profile staging --env-file .env.staging up -d
+#   3) Caddy me route: staging.leadsgenai.in -> 127.0.0.1:8001 (basic-auth lagao)
+#
+# Image prod jaisa hi — :${APP_VERSION} MANDATORY (ADR-097). Staging pe :latest
+# KABHI mat chalao: yeh unknown-provenance code chala sakta hai jo prod pe nahi
+# hai, aur `check_skew.sh` isi container ko watch karta hai. DB prod se ALAG (prod
+# data safe). Migrations: docker compose -f docker-compose.staging.yml run --rm app_staging alembic upgrade head
+#
+# NOTE (2026-08-08, OOM containment): SAARE services `profiles: ["staging"]` pe
+# hain — bina `--profile staging` ke `up -d` KABHI bhi staging container start
+# nahi karta (bare `up` pe profile-less services silent-skip hote hain). Resource
+# caps prod jaisi hi (mem_limit / pids_limit / oom_score_adj) additive hai —
+# staging pe memory behaviour prod se PEHLE reproduce/verify hota hai, aur ek
+# staging leak host ke RAM ko nahi gira sakta. Rollback = `--profile staging down`
+# + in keys ko remove karo (no prod effect — yeh file prod ka part nahi hai).
+# =============================================================================
+name: leadgen-staging
+
+services:
+  app_staging:
+    profiles: ["staging"]
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:?APP_VERSION must be set — staging sirf pinned git-sha pe chale (ADR-097, :latest = unknown provenance)}
+    container_name: leadgen_app_staging
+    # Resource caps prod app jaisi (docker-compose.vps.yml) + pids_limit guard:
+    # staging pe koi leak/spike db/redis ko OOM-kill na kare aur load-test fork-bomb
+    # se pids na ujde. oom_score_adj >0 = host OOM pe pehle app hi marta hai (data
+    # integrity containers protected neeche).
+    mem_limit: 3g
+    mem_reservation: 1g
+    cpus: "2.0"
+    pids_limit: 512
+    oom_score_adj: 100
+    env_file: .env.staging
+    environment:
+      # Prod URLs override — staging DB/Redis (isolated)
+      DATABASE_URL: postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-staging}@db_staging:5432/leadgen
+      REDIS_URL: redis://redis_staging:6379/0
+      APP_ENV: staging
+      RUN_IN_PROCESS_SCHEDULER: "0"   # staging me automation jobs OFF (no real emails/scrape)
+      AUTO_EMAIL_OUTREACH: "false"
+      NICHE_ROTATION: "0"
+    depends_on:
+      db_staging: { condition: service_healthy }
+      redis_staging: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:8001:8080"
+    restart: unless-stopped
+    networks: [staging_net]
+
+  db_staging:
+    profiles: ["staging"]
+    image: postgres:16-alpine
+    container_name: leadgen_db_staging
+    # Data integrity: host OOM pe Postgres LAST marna chahiye (oom_score_adj <0).
+    mem_limit: 2g
+    oom_score_adj: -200
+    environment:
+      POSTGRES_USER: leadgen
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staging}
+      POSTGRES_DB: leadgen
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leadgen"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks: [staging_net]
+
+  redis_staging:
+    profiles: ["staging"]
+    image: redis:7-alpine
+    container_name: leadgen_redis_staging
+    # Broker/call-state integrity: host OOM pe app se pehle mat maaro.
+    mem_limit: 512m
+    oom_score_adj: -100
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks: [staging_net]
+
+volumes:
+  pgdata_staging:
+
+networks:
+  staging_net:
+    name: leadgen_staging_net

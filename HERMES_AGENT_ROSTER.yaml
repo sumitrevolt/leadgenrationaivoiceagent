@@ -1,0 +1,72 @@
+# HERMES AGENT ROSTER
+# Mapping of 31 project AI agents to 8 Hermes bots (control/orchestration layer)
+# Each agent is assigned to exactly one Hermes bot based on duties and ownership.
+
+hermes_bots:
+  - id: owner_orchestrator
+    name: Owner / Orchestrator
+    description: Business objectives, priority queue, assigning work, resolving conflicts, enforcing safety policy, revenue dashboard, coordinating other bots, approving architecture decisions, preventing duplicate work.
+    agents:
+      - manager  # Manager (Supervisor) - Kaam baantna — data/leads agents ko route karna (LangGraph), team coordination
+
+  - id: revenue_cro
+    name: Revenue / CRO Bot
+    description: Owns ICP, prospect prioritization, offers, pricing, sales funnel, pipeline, conversion optimization, upsells, reactivation, revenue experiments. Primary KPI: verified collected revenue.
+    agents:
+      - nikhil  # Revenue Ops - Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar — paisa leak na ho
+      - vidya   # FinOps / Cost - Per-tenant unit economics, margin-negative niche flag, LLM spend vs revenue trend. KPI: gross_margin_per_tenant
+      - rohan   # Leads Manager - Outreach plan banana, lead qualification criteria set karna, campaigns ke liye targeting
+
+  - id: lead_intelligence
+    name: Lead Intelligence Bot
+    description: Owns lead discovery, enrichment, scoring, deduplication, qualification, intent signals, territory/category segmentation. Must never invent contact information.
+    agents:
+      - dev     # Data Analyst - Client business profile + niche knowledge KB me seed karna, RAG grounding maintain karna
+      - neha    # Pipeline Ops - Lead rescore, hot-lead surfacing Rohan ke liye, journey rules seed — pipeline fresh rakho
+      - kabir   # DB Reliability Engineer - Postgres query-health — slow-query patterns (pg_stat_statements), unused/bloating indexes, connection-pool pressure, DB size trend. KPI: db_reliability_score
+      - diya    # Data-Integrity Engineer - Lead/CRM data quality — duplicate phone/email detection, missing-contact leads, prospect-store integrity. KPI: data_integrity_score
+
+  - id: outreach_conversation
+    name: Outreach & Conversation Bot
+    description: Owns WhatsApp, email, compliant outreach, follow-ups, reply classification, conversation continuation, handoff. Requirements: suppression-aware, opt-out aware, deduplicated, rate-limited, auditable, idempotent.
+    agents:
+      - isha    # Marketing Executive - Clients ke liye AI social posts (FB/Insta captions), Google Business Profile tips, festival/offer content
+      - zara    # Social Media Manager - Approved content queue drain karke per-client social channels (Telegram/Postiz/Meta) pe publish karna (gated SOCIAL_ENGINE)
+      - swara   # Telecaller - End-customers ko call karna (phone + web demo), niche scripts se qualify karna, objections handle karna
+      - ananya  # Appointment Booker - Har niche ke end-customers ke liye appointment, site-visit ya demo slot book karna — calendar + reminders
+      - riya    # AI Receptionist - Inbound customer calls — greeting, department route, message lena, appointment book karna (sales pitch nahi)
+
+  - id: voice_swara
+    name: Voice / Swara Bot
+    description: Owns call queue, voice provider availability, scripts, qualification, call outcomes, call analytics, follow-ups. Respect all calling kill switches and budgets.
+    agents:
+      - tara    # Voice Infra Ops - Telephony readiness (Vobiz auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna — calling launch ke liye system hamesha taiyaar rahe
+      - lekha   # Call Analytics Lead - Call-center KPIs — web+phone calls se duration, qualified-rate, booking-rate, reply-latency p50/p95, dead-air/repeat ratio nikal ke trend + admin digest (app/voice_agent/call_analytics.py)
+      - meera   # Trainer - Call transcripts padh ke quality analysis (STT failures, repeats, latency), tuning suggestions nikalna
+      - raksha  # Human Escalation Manager - Jab AI unsure/confused ho ya customer gussa/insaan maange — call human ko route karna (app/telephony/call_transfer.py, gated CALL_TRANSFER) + context handover; escalation log + handback
+
+  - id: marketing_content
+    name: Marketing / Content Bot
+    description: Owns daily creatives, social content, video generation, approval queue, posting workflow, campaign analytics. Reuse existing Video Production Cell where useful.
+    agents:
+      - ravi    # SEO Scout - Programmatic SEO pages (niche×city), IndexNow sitemap ping, rank-tracker sweep — organic inbound badhao
+      - anika   # Cadence Manager - Enrolled leads ko per-day omnichannel sequence (email/SMS/WhatsApp/LinkedIn draft) me aage badhana (gated CADENCE_ENGINE)
+      - ira     # Journey Automation Manager - Event-trigger rules (inquiry/booking/reply/pipeline hooks) → matching journey ke actions/drafts chalana (gated JOURNEY_ENGINE)
+
+  - id: engineering_sre
+    name: Engineering / SRE Bot
+    description: Owns bugs, Docker, VPS, queues, CI/CD, deployment, observability, infrastructure, provider failures, performance, automated recovery.
+    agents:
+      - vikram  # Code Upgrader - Observability signals (LLM errors, failing jobs, weak actions) se code-upgrade proposals banana — safe skills auto, core code Sumit ke approve pe (hybrid autonomy)
+      - guru    # Skill Trainer - 35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna — LLM/team seekhte rahein. Knowledge/Memory steward role bhi (Mem0 hygiene + agent_memory drift detect)
+      - pranav  # SRE / Reliability - DR drills, backup-restore integrity, capacity headroom, SLO/error-budget tracking. KPIs: backup_pass_rate, mttr_seconds, capacity_headroom_pct. Existing Kavya does liveness; Pranav owns SURVIVABILITY on a SPOF VPS.
+      - aryan   # Dependency / Supply-chain Engineer - Package vulnerability audit via pip-audit (read-only), lock-file pinning hygiene, CVE → upgrade PROPOSALS. KPI: supply_chain_score. Distinct from Arnav (secrets/compliance posture); Aryan owns dependency CVEs. Never auto-upgrades.
+      - kavya   # Ops Monitor - System health (service, AI providers, DB, disk), telephony balance/trunk status pe nazar
+      - hermes  # Infrastructure Handler - Poore infra ka scan — app readiness (db+redis), disk/memory, dead-man jobs, queue backlog, LLM chain, backup freshness → 0-100 score + Hinglish fix-actions; critical pe email alert (Kavya/Tara ke engines REUSE — aggregator/diagnoser)
+      - arnav   # Security / Compliance - DPDP + TRAI posture, secret-rotation reminders, CVE triage → patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.
+
+  - id: qa_analytics_finance
+    name: QA / Analytics / Finance Bot
+    description: Owns end-to-end testing, funnel analytics, revenue reconciliation, dashboards, regression testing, anomaly detection, daily operating report. This bot should independently challenge unsupported claims from other bots.
+    agents:
+      - arjun   # QA Engineer - Voice agent ko scripted conversations se test karna, bugs (double/repeat/slow/long) pakad ke report karna

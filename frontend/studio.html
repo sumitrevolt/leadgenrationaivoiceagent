@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — AI Studio</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--pri:#2563eb;--ink:#e2e8f0;--mut:#94a3b8;--bg:#0b1020;--card:#141b2e;--bord:#26314d;--ok:#22c55e;--bad:#f87171;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:#0d1326;border-bottom:1px solid var(--bord);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:18px;margin:0;}
+  header .sp{flex:1;}
+  header input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:13px;width:230px;}
+  .wrap{max-width:1000px;margin:18px auto;padding:0 16px;}
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tabs button{padding:9px 16px;border:1px solid var(--bord);border-radius:10px;background:var(--card);color:var(--mut);font-weight:600;cursor:pointer;font-size:14px;}
+  .tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri);}
+  .card{background:var(--card);border:1px solid var(--bord);border-radius:14px;padding:18px;margin-bottom:16px;}
+  .card h3{margin:0 0 6px;font-size:16px;}
+  .hint{font-size:12.5px;color:var(--mut);margin:0 0 14px;}
+  label{display:block;font-size:12.5px;color:var(--mut);margin:10px 0 4px;}
+  input[type=text],textarea,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--bord);background:#0f1729;color:var(--ink);font-size:14px;}
+  textarea{min-height:70px;resize:vertical;}
+  input[type=file]{color:var(--mut);font-size:13px;margin-top:4px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:640px){.row{grid-template-columns:1fr;}}
+  .btn{margin-top:14px;padding:10px 18px;border:0;border-radius:9px;background:var(--pri);color:#fff;font-weight:700;cursor:pointer;font-size:14px;}
+  .btn:disabled{opacity:.5;cursor:wait;}
+  .btn2{padding:8px 14px;border:1px solid var(--bord);border-radius:8px;background:#0f1729;color:var(--ink);cursor:pointer;font-size:13px;text-decoration:none;display:inline-block;margin-top:10px;}
+  .err{color:var(--bad);font-size:13px;margin-top:10px;white-space:pre-wrap;}
+  .okmsg{color:var(--ok);font-size:13px;margin-top:10px;}
+  .result img{max-width:100%;border-radius:12px;border:1px solid var(--bord);margin-top:14px;display:block;}
+  .promptbox{font-size:12px;color:var(--mut);background:#0f1729;border:1px solid var(--bord);border-radius:8px;padding:10px;margin-top:10px;white-space:pre-wrap;word-break:break-word;}
+  .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;}
+  .tpl{background:#0f1729;border:1px solid var(--bord);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .15s;}
+  .tpl:hover{border-color:var(--pri);}
+  .tpl b{display:block;font-size:14px;margin-bottom:4px;}
+  .tpl .meta{font-size:11.5px;color:var(--pri);margin-bottom:6px;}
+  .tpl p{font-size:12px;color:var(--mut);margin:0;max-height:54px;overflow:hidden;}
+  .spin{display:inline-block;font-size:13px;color:var(--mut);margin-left:10px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>AI Studio</h1>
+  <div class="sp"></div>
+  <input id="tok" type="password" placeholder="Admin token paste karo (ek baar)" />
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
+</header>
+<div class="wrap">
+  <div class="tabs">
+    <button data-tab="photo" class="on">📷 Photo → Poster</button>
+    <button data-tab="poster">✨ AI Poster</button>
+    <button data-tab="templates">🗂️ Templates</button>
+    <button data-tab="editor">✏️ Editor</button>
+  </div>
+
+  <!-- Photo -> Poster -->
+  <div class="card" id="tab-photo">
+    <h3>Photo se Poster banao</h3>
+    <p class="hint">Apni dukaan/product ki photo upload karo — AI usse professional marketing poster bana dega.</p>
+    <label>Photo (jpg/png)</label>
+    <input type="file" id="pp-file" accept="image/*" />
+    <label>Kya banana hai? (prompt)</label>
+    <textarea id="pp-prompt" placeholder="e.g. Diwali offer poster — 20% off, festive lights, mera product center me"></textarea>
+    <label>Style</label>
+    <select id="pp-style">
+      <option value="vibrant professional">Vibrant professional</option>
+      <option value="festive indian">Festive Indian</option>
+      <option value="minimal clean">Minimal clean</option>
+      <option value="luxury premium">Luxury premium</option>
+      <option value="bold sale">Bold sale / discount</option>
+      <option value="retro pop">Retro pop</option>
+    </select>
+    <button class="btn" id="pp-go">Poster Banao</button><span class="spin" id="pp-spin"></span>
+    <div class="err" id="pp-err"></div>
+    <div class="result" id="pp-res"></div>
+  </div>
+
+  <!-- AI Poster -->
+  <div class="card" id="tab-poster" style="display:none">
+    <h3>AI Poster (text se image)</h3>
+    <p class="hint">Business details bharo — free AI se ready marketing image milegi.</p>
+    <div class="row">
+      <div><label>Business naam *</label><input type="text" id="ai-name" placeholder="Sharma Solar" /></div>
+      <div><label>Niche</label><input type="text" id="ai-niche" placeholder="solar / gym / salon..." /></div>
+      <div><label>Occasion</label><input type="text" id="ai-occ" placeholder="Diwali / weekend sale..." /></div>
+      <div><label>Offer</label><input type="text" id="ai-offer" placeholder="20% off is hafte" /></div>
+      <div><label>Style</label>
+        <select id="ai-style">
+          <option value="vibrant professional">Vibrant professional</option>
+          <option value="festive indian">Festive Indian</option>
+          <option value="minimal clean">Minimal clean</option>
+          <option value="luxury premium">Luxury premium</option>
+          <option value="bold sale">Bold sale / discount</option>
+        </select>
+      </div>
+      <div><label>Size</label>
+        <select id="ai-size">
+          <option value="1024x1024">Square post (1024×1024)</option>
+          <option value="1024x1280">Portrait (1024×1280)</option>
+          <option value="864x1536">Story / Reel (864×1536)</option>
+          <option value="1280x1024">Landscape (1280×1024)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" id="ai-go">Image Banao</button><span class="spin" id="ai-spin"></span>
+    <div class="err" id="ai-err"></div>
+    <div class="result" id="ai-res"></div>
+  </div>
+
+  <!-- Templates -->
+  <div class="card" id="tab-templates" style="display:none">
+    <h3>Ready Templates</h3>
+    <p class="hint">Template pe click karo — AI Poster form auto-fill ho jayega, bas naam daal ke generate karo.</p>
+    <div class="err" id="tp-err"></div>
+    <div class="tgrid" id="tp-grid"></div>
+  </div>
+
+  <!-- Editor (fabric.js) -->
+  <div class="card" id="tab-editor" style="display:none">
+    <h3>Poster Editor (Canva-style)</h3>
+    <p class="hint">Generated poster load karo — text add/edit, logo overlay, drag-resize, PNG download. Sab browser me, free.</p>
+    <div class="row">
+      <div>
+        <label>Image URL (generated poster ka)</label>
+        <input type="text" id="ed-url" placeholder="/api/marketing/ai-img-file/xxxx.jpg" />
+        <button class="btn2" id="ed-load" type="button">🖼️ URL se Load</button>
+      </div>
+      <div>
+        <label>Ya apni image upload karo</label>
+        <input type="file" id="ed-base" accept="image/*" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label>Text size / color (selected text pe lagta)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="ed-size" value="42" style="width:70px" />
+          <input type="color" id="ed-color" value="#ffffff" style="width:46px;height:36px;padding:2px;border:1px solid var(--bord);border-radius:8px;background:#0f1729" />
+          <button class="btn2" id="ed-addtext" type="button" style="margin-top:0">➕ Text</button>
+          <button class="btn2" id="ed-apply" type="button" style="margin-top:0">🎨 Apply</button>
+        </div>
+      </div>
+      <div>
+        <label>Logo overlay (png/jpg)</label>
+        <input type="file" id="ed-logo" accept="image/*" />
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn2" id="ed-del" type="button">🗑️ Delete selected</button>
+      <button class="btn" id="ed-download" type="button" style="margin-top:0;margin-left:8px">⬇️ Download PNG</button>
+    </div>
+    <div class="err" id="ed-err"></div>
+    <div class="okmsg" id="ed-ok"></div>
+    <div style="margin-top:14px;overflow:auto;border:1px solid var(--bord);border-radius:12px;background:#0f1729;padding:8px">
+      <canvas id="ed-canvas" width="640" height="640"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tokEl=document.getElementById("tok");
+  tokEl.value = localStorage.getItem("accessToken") || "";
+  function hdr(){ var t=(tokEl.value||"").trim(); if(t) localStorage.setItem("accessToken",t);
+    return t ? {"Authorization":"Bearer "+t} : {}; }
+  function friendly(status, detail){
+    if(status===401||status===403) return "Token galat/missing — upar admin token paste karo.";
+    if(status===402||status===502) return "Image service unavailable — POLLINATIONS_API_KEY set karo (.env me).";
+    if(status===422) return "Form me kuch missing hai: "+(detail||"required fields bharo.");
+    if(status===429) return "Thoda ruk ke try karo (rate limit).";
+    return "Kuch gadbad ho gayi ("+status+"): "+(detail||"dobara try karo.");
+  }
+  async function postJSON(url, body){
+    var h=hdr(); h["Content-Type"]="application/json";
+    var r=await fetch(url,{method:"POST",headers:h,body:JSON.stringify(body)});
+    var j=null; try{ j=await r.json(); }catch(e){}
+    if(!r.ok) throw new Error(friendly(r.status, j&&j.detail?(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail)):""));
+    return j||{};
+  }
+  function showImage(box, url, promptText){
+    var html="";
+    if(url){
+      html+='<img src="'+url+'" alt="poster" onerror="this.outerHTML=\'<div class=err>Image load nahi hui — POLLINATIONS_API_KEY check karo.</div>\'" />';
+      html+='<a class="btn2" href="'+url+'" download="poster.jpg" target="_blank" rel="noopener">⬇️ Download</a>';
+    } else html='<div class="err">Image URL nahi mila — POLLINATIONS_API_KEY set karo.</div>';
+    if(promptText) html+='<div class="promptbox"><b>Prompt:</b> '+promptText.replace(/</g,"&lt;")+'</div>';
+    box.innerHTML=html;
+  }
+
+  // ---- tabs ----
+  var tabs=document.querySelectorAll(".tabs button");
+  function switchTab(name){
+    tabs.forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-tab")===name); });
+    ["photo","poster","templates","editor"].forEach(function(t){
+      document.getElementById("tab-"+t).style.display = (t===name)?"":"none";
+    });
+    if(name==="templates") loadTemplates();
+    if(name==="editor") initEditor();
+  }
+  tabs.forEach(function(b){ b.addEventListener("click", function(){ switchTab(b.getAttribute("data-tab")); }); });
+
+  // ---- Photo -> Poster ----
+  document.getElementById("pp-go").addEventListener("click", async function(){
+    var btn=this, err=document.getElementById("pp-err"), res=document.getElementById("pp-res"),
+        spin=document.getElementById("pp-spin");
+    err.textContent=""; res.innerHTML="";
+    var f=document.getElementById("pp-file").files[0];
+    if(!f){ err.textContent="Pehle photo choose karo."; return; }
+    var fd=new FormData();
+    fd.append("file", f);
+    fd.append("prompt", (document.getElementById("pp-prompt").value||"").trim());
+    fd.append("style", document.getElementById("pp-style").value);
+    btn.disabled=true; spin.textContent="AI poster bana raha hai… (~20-40s)";
+    try{
+      var r=await fetch("/api/marketing/photo-poster",{method:"POST",headers:hdr(),body:fd});
+      var j=null; try{ j=await r.json(); }catch(e){}
+      if(!r.ok) throw new Error(friendly(r.status, j&&j.detail?(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail)):""));
+      showImage(res, (j&&j.url)||"", j&&j.prompt);
+    }catch(e){ err.textContent=e.message||"Poster fail — dobara try karo."; }
+    btn.disabled=false; spin.textContent="";
+  });
+
+  // ---- AI Poster ----
+  document.getElementById("ai-go").addEventListener("click", async function(){
+    var btn=this, err=document.getElementById("ai-err"), res=document.getElementById("ai-res"),
+        spin=document.getElementById("ai-spin");
+    err.textContent=""; res.innerHTML="";
+    var name=(document.getElementById("ai-name").value||"").trim();
+    if(!name){ err.textContent="Business naam zaroori hai."; return; }
+    var sz=document.getElementById("ai-size").value.split("x");
+    var body={
+      business_name:name,
+      niche:(document.getElementById("ai-niche").value||"general").trim()||"general",
+      occasion:(document.getElementById("ai-occ").value||"").trim(),
+      offer:(document.getElementById("ai-offer").value||"").trim(),
+      style:document.getElementById("ai-style").value,
+      width:parseInt(sz[0],10), height:parseInt(sz[1],10)
+    };
+    btn.disabled=true; spin.textContent="AI image generate ho rahi… (~20-40s)";
+    try{
+      var j=await postJSON("/api/marketing/ai-image", body);
+      showImage(res, j.url||j.image_url||"", j.prompt||"");
+    }catch(e){ err.textContent=e.message; }
+    btn.disabled=false; spin.textContent="";
+  });
+
+  // ---- Templates ----
+  var tplLoaded=false;
+  async function loadTemplates(){
+    if(tplLoaded) return;
+    var grid=document.getElementById("tp-grid"), err=document.getElementById("tp-err");
+    err.textContent=""; grid.innerHTML='<div class="hint">Templates load ho rahe…</div>';
+    try{
+      var r=await fetch("/api/growth/content/templates",{headers:hdr()});
+      var j=null; try{ j=await r.json(); }catch(e){}
+      if(!r.ok) throw new Error(friendly(r.status, j&&j.detail?String(j.detail):""));
+      var list=(j&&j.templates)||[];
+      if(!list.length){ grid.innerHTML='<div class="hint">Abhi koi template nahi hai.</div>'; tplLoaded=true; return; }
+      grid.innerHTML="";
+      list.forEach(function(t){
+        var d=document.createElement("div");
+        d.className="tpl";
+        d.innerHTML='<b>'+String(t.title||t.id||"Template").replace(/</g,"&lt;")+'</b>'+
+          '<div class="meta">'+String(t.niche||"general")+(t.occasion?(" · "+String(t.occasion)):"")+'</div>'+
+          '<p>'+String(t.prompt||"").replace(/</g,"&lt;")+'</p>';
+        d.addEventListener("click", function(){ useTemplate(t); });
+        grid.appendChild(d);
+      });
+      tplLoaded=true;
+    }catch(e){
+      grid.innerHTML="";
+      err.textContent=(e.message||"Templates load nahi hue.")+" (Endpoint deploy ke baad aayega.)";
+    }
+  }
+  function useTemplate(t){
+    document.getElementById("ai-niche").value = t.niche||"";
+    document.getElementById("ai-occ").value = t.occasion||"";
+    document.getElementById("ai-offer").value = String(t.prompt||"").slice(0,200);
+    switchTab("poster");
+    document.getElementById("ai-name").focus();
+  }
+
+  // ---- Editor (fabric.js, lazy-load on first open) ----
+  var fcanvas=null, fabricLoading=false;
+  var edErr=document.getElementById("ed-err"), edOk=document.getElementById("ed-ok");
+  function edMsg(ok, msg){ edErr.textContent = ok?"":(msg||""); edOk.textContent = ok?(msg||""):""; }
+  function ensureFabric(cb){
+    if(window.fabric){ cb(); return; }
+    if(fabricLoading) return;
+    fabricLoading=true;
+    // Self-hosted first (design-system/vendor, offline-first), CDN fallback.
+    var sources=[
+      "/design-system/vendor/fabric.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"
+    ];
+    function load(index){
+      if(index>=sources.length){ fabricLoading=false; edMsg(false,"fabric.js load nahi hua — internet/CDN check karo."); return; }
+      var s=document.createElement("script");
+      s.src=sources[index];
+      s.onload=function(){ if(window.fabric){ fabricLoading=false; cb(); } else { load(index+1); } };
+      s.onerror=function(){ load(index+1); };
+      document.head.appendChild(s);
+    }
+    load(0);
+  }
+  function initEditor(){
+    ensureFabric(function(){
+      if(!fcanvas){
+        fcanvas=new fabric.Canvas("ed-canvas",{preserveObjectStacking:true,backgroundColor:"#111827"});
+        fcanvas.renderAll();
+      }
+    });
+  }
+  function loadBase(url){
+    if(!fcanvas){ edMsg(false,"Editor abhi load ho raha — 1 sec baad try karo."); return; }
+    edMsg(true,"Image load ho rahi…");
+    fabric.Image.fromURL(url, function(img){
+      if(!img||!img.width){ edMsg(false,"Image load nahi hui — URL check karo."); return; }
+      var maxW=640, scale=Math.min(1, maxW/img.width);
+      fcanvas.setWidth(Math.round(img.width*scale));
+      fcanvas.setHeight(Math.round(img.height*scale));
+      img.scale(scale);
+      fcanvas.setBackgroundImage(img, fcanvas.renderAll.bind(fcanvas), {originX:"left",originY:"top"});
+      edMsg(true,"Image loaded — ab text/logo add karo.");
+    }, {crossOrigin:"anonymous"});
+  }
+  document.getElementById("ed-load").addEventListener("click", function(){
+    var u=(document.getElementById("ed-url").value||"").trim();
+    if(!u){ edMsg(false,"Pehle image URL daalo (generate kiye poster ka)."); return; }
+    initEditor(); setTimeout(function(){ loadBase(u); }, window.fabric?0:800);
+  });
+  document.getElementById("ed-base").addEventListener("change", function(){
+    var f=this.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){ initEditor(); setTimeout(function(){ loadBase(rd.result); }, window.fabric?0:800); };
+    rd.readAsDataURL(f);
+  });
+  document.getElementById("ed-addtext").addEventListener("click", function(){
+    if(!fcanvas){ edMsg(false,"Pehle image load karo."); return; }
+    var sz=parseInt(document.getElementById("ed-size").value,10)||42;
+    var col=document.getElementById("ed-color").value||"#ffffff";
+    var t=new fabric.IText("Apna text yahan",{left:40,top:40,fontSize:sz,fill:col,fontFamily:"Arial",fontWeight:"bold",stroke:"#00000055",strokeWidth:0.5});
+    fcanvas.add(t); fcanvas.setActiveObject(t); fcanvas.renderAll();
+    edMsg(true,"Text added — double-click karke edit karo, drag/resize karo.");
+  });
+  document.getElementById("ed-apply").addEventListener("click", function(){
+    if(!fcanvas) return;
+    var o=fcanvas.getActiveObject();
+    if(!o||!o.set||(o.type!=="i-text"&&o.type!=="text"&&o.type!=="textbox")){ edMsg(false,"Pehle koi text select karo."); return; }
+    o.set({fontSize:parseInt(document.getElementById("ed-size").value,10)||42, fill:document.getElementById("ed-color").value||"#ffffff"});
+    fcanvas.renderAll(); edMsg(true,"Style applied.");
+  });
+  document.getElementById("ed-logo").addEventListener("change", function(){
+    var f=this.files[0]; if(!f) return;
+    if(!fcanvas){ edMsg(false,"Pehle base image load karo."); this.value=""; return; }
+    var rd=new FileReader();
+    rd.onload=function(){
+      fabric.Image.fromURL(rd.result, function(img){
+        if(!img||!img.width){ edMsg(false,"Logo load nahi hua."); return; }
+        img.scaleToWidth(Math.min(140, fcanvas.getWidth()/4));
+        img.set({left:fcanvas.getWidth()-160, top:20});
+        fcanvas.add(img); fcanvas.setActiveObject(img); fcanvas.renderAll();
+        edMsg(true,"Logo added — drag/resize karo.");
+      });
+    };
+    rd.readAsDataURL(f);
+    this.value="";
+  });
+  document.getElementById("ed-del").addEventListener("click", function(){
+    if(!fcanvas) return;
+    var objs=fcanvas.getActiveObjects();
+    if(!objs||!objs.length){ edMsg(false,"Pehle koi object select karo."); return; }
+    objs.forEach(function(o){ fcanvas.remove(o); });
+    fcanvas.discardActiveObject(); fcanvas.renderAll();
+    edMsg(true,"Deleted.");
+  });
+  document.getElementById("ed-download").addEventListener("click", function(){
+    if(!fcanvas){ edMsg(false,"Pehle image load karo."); return; }
+    try{
+      var data=fcanvas.toDataURL({format:"png",multiplier:2});
+      var a=document.createElement("a"); a.href=data; a.download="poster-edit.png";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      edMsg(true,"PNG download ho gaya ✓");
+    }catch(e){
+      edMsg(false,"Download fail — external image CORS block karti hai. Same-site (/api/marketing/...) image use karo.");
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!doctype html>
+<!--
+  agency_product_launch_v1 — LeadGen AI's OWN product/launch reel.
+  1080x1920, 30fps, 6 scenes, 25.4s.
+
+  Metric cards render ONLY values the caller supplied. There is no default set
+  and no placeholder number anywhere in this file: a launch video that invents
+  "10,000+ customers" is a false advertising claim, and this product currently
+  has one paying customer. An empty metrics list removes the whole row.
+-->
+<html lang="en" data-composition-variables='[
+  {"id":"product_name","type":"string","label":"Product name","default":""},
+  {"id":"monogram","type":"string","label":"Monogram","default":""},
+  {"id":"tagline","type":"string","label":"Tagline","default":""},
+  {"id":"eyebrow","type":"string","label":"Eyebrow","default":""},
+  {"id":"primary_color","type":"color","label":"Brand primary","default":"#5b6cff"},
+  {"id":"accent_color","type":"color","label":"Brand accent","default":"#35e0c4"},
+  {"id":"hook_line","type":"string","label":"Hook headline","default":""},
+  {"id":"hook_sub","type":"string","label":"Hook subline","default":""},
+  {"id":"showcase_line","type":"string","label":"Showcase headline","default":""},
+  {"id":"features_json","type":"string","label":"Features JSON","default":"[]"},
+  {"id":"workflow_json","type":"string","label":"Workflow steps JSON","default":"[]"},
+  {"id":"metrics_json","type":"string","label":"Metrics JSON","default":"[]"},
+  {"id":"cta_text","type":"string","label":"CTA headline","default":""},
+  {"id":"contact_display","type":"string","label":"CTA button text","default":""},
+  {"id":"photos_json","type":"string","label":"UI footage/screens JSON","default":"[]"},
+  {"id":"footer_note","type":"string","label":"Footer note","default":""}
+]'>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div id="root" data-composition-id="root" data-no-timeline data-start="0"
+       data-width="1080" data-height="1920" data-fps="30" data-duration="25.4">
+
+    <div class="bg">
+      <div class="bg-mesh"></div>
+      <div class="scan"></div>
+      <div class="bg-vignette"></div>
+    </div>
+
+    <!-- ================================================ 1. title (0→3.6) -->
+    <div id="scene-title" class="clip" data-start="0" data-duration="3.6" data-track-index="1">
+      <div class="stage" style="align-items:center;text-align:center;gap:38px;">
+        <div class="eyebrow" data-bind="eyebrow" data-optional
+             style="animation:fadeIn .7s ease .12s both;"></div>
+        <h1 class="headline grad" data-fit="title" data-bind="product_name"
+            style="animation:slideUp .92s cubic-bezier(.22,1,.36,1) .26s both;"></h1>
+        <p class="sub" data-bind="tagline" data-optional
+           style="max-width:840px;animation:fadeIn .8s ease .78s both;"></p>
+      </div>
+    </div>
+
+    <!-- ================================================= 2. hook (3.6→7.8) -->
+    <div id="scene-hook" class="clip" data-start="3.6" data-duration="4.2" data-track-index="1">
+      <div class="stage" style="gap:34px;">
+        <h2 class="headline rise" data-fit="hook" data-bind="hook_line" data-words></h2>
+        <p class="sub" data-bind="hook_sub" data-optional
+           style="max-width:820px;animation:slideUp .84s cubic-bezier(.22,1,.36,1) .62s both;"></p>
+      </div>
+    </div>
+
+    <!-- ============================================= 3. product UI (7.8→12.8) -->
+    <div id="scene-product" class="clip" data-start="7.8" data-duration="5.0" data-track-index="1">
+      <div class="stage" style="gap:26px;">
+        <div class="eyebrow fade-in">Inside the platform</div>
+        <div id="product-media" style="flex:1 1 auto;min-height:0;display:flex;"></div>
+        <h2 class="headline" data-fit="showcase" data-bind="showcase_line" data-optional
+            style="animation:slideUp .82s cubic-bezier(.22,1,.36,1) .5s both;"></h2>
+      </div>
+    </div>
+
+    <!-- ============================================== 4. features (12.8→17.8) -->
+    <div id="scene-features" class="clip" data-start="12.8" data-duration="5.0" data-track-index="1">
+      <div class="stage" style="gap:24px;">
+        <div class="eyebrow fade-in">What it does</div>
+        <div id="feature-list" style="display:flex;flex-direction:column;gap:18px;"></div>
+        <div class="flow" id="flow-row" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- =============================================== 5. metrics (17.8→21.4) -->
+    <div id="scene-metrics" class="clip" data-start="17.8" data-duration="3.6" data-track-index="1">
+      <div class="stage" style="justify-content:center;gap:30px;">
+        <div class="eyebrow fade-in" id="metrics-eyebrow">By the numbers</div>
+        <div class="metrics" id="metric-row"></div>
+      </div>
+    </div>
+
+    <!-- =================================================== 6. CTA (21.4→25.4) -->
+    <div id="scene-cta" class="clip" data-start="21.4" data-duration="4.0" data-track-index="1">
+      <div class="stage" style="align-items:center;text-align:center;gap:44px;">
+        <h2 class="headline grad" data-fit="cta" data-bind="cta_text"
+            style="animation:slideUp .86s cubic-bezier(.22,1,.36,1) both;"></h2>
+        <div class="cta" style="animation-delay:.48s;">
+          <span data-bind="contact_display"></span>
+        </div>
+        <div class="eyebrow" data-bind="product_name"
+             style="animation:fadeIn .8s ease .9s both;"></div>
+      </div>
+      <div class="footer-line" data-bind="footer_note" data-optional
+           style="animation:fadeIn .8s ease 1.08s both;"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var V = {};
+      try { V = (window.__hyperframes && window.__hyperframes.getVariables()) || {}; }
+      catch (e) { V = {}; }
+
+      var S = function (k) { return String(V[k] == null ? "" : V[k]).trim(); };
+
+      function parseList(key) {
+        try {
+          var raw = JSON.parse(S(key) || "[]");
+          return Array.isArray(raw) ? raw : [];
+        } catch (e) { return []; }
+      }
+
+      var root = document.documentElement;
+      if (S("primary_color")) root.style.setProperty("--brand", S("primary_color"));
+      if (S("accent_color")) root.style.setProperty("--accent", S("accent_color"));
+
+      document.querySelectorAll("[data-bind]").forEach(function (el) {
+        var val = S(el.getAttribute("data-bind"));
+        if (!val) {
+          if (el.hasAttribute("data-optional")) el.remove();
+          return;
+        }
+        if (el.hasAttribute("data-words")) {
+          el.textContent = "";
+          val.split(/\s+/).forEach(function (word, i) {
+            var s = document.createElement("span");
+            s.className = "w";
+            s.textContent = word;
+            s.style.animationDelay = (0.05 + i * 0.052).toFixed(3) + "s";
+            el.appendChild(s);
+            el.appendChild(document.createTextNode(" "));
+          });
+        } else {
+          el.textContent = val;
+        }
+      });
+
+      var LADDER = {
+        title:    [[16, 100], [26, 84], [40, 70], [999, 58]],
+        hook:     [[26, 96], [44, 80], [66, 66], [999, 55]],
+        showcase: [[30, 58], [52, 48], [999, 42]],
+        cta:      [[20, 78], [34, 64], [999, 54]]
+      };
+      document.querySelectorAll("[data-fit]").forEach(function (el) {
+        var rungs = LADDER[el.getAttribute("data-fit")];
+        if (!rungs) return;
+        var n = (el.textContent || "").length;
+        for (var i = 0; i < rungs.length; i++) {
+          if (n <= rungs[i][0]) { el.style.fontSize = rungs[i][1] + "px"; break; }
+        }
+      });
+
+      // ---- product UI slot ---------------------------------------------
+      // Real UI footage/screenshots bind here when supplied. Otherwise a
+      // CSS-DRAWN app frame stands in: a bundled screenshot of the live
+      // dashboard would embed customer data, and a stock mockup would be
+      // unlicensed.
+      var media = document.getElementById("product-media");
+      if (media) {
+        var shots = parseList("photos_json").filter(Boolean).slice(0, 2);
+        media.style.display = "grid";
+        media.style.gridTemplateColumns = "1fr";
+        media.style.gridTemplateRows = "1fr";
+        if (shots.length) {
+          if (shots.length === 2) media.style.gridTemplateColumns = "1fr 1fr";
+          shots.forEach(function (src, i) {
+            var frame = document.createElement("div");
+            frame.className = "photo-frame";
+            frame.style.animation =
+              "pop .78s cubic-bezier(.22,1,.36,1) " + (0.1 + i * 0.14).toFixed(2) + "s both";
+            var img = document.createElement("div");
+            img.className = "photo kb";
+            img.style.setProperty("--kb-dur", "5s");
+            img.style.backgroundImage = 'url("' + encodeURI(src) + '")';
+            frame.appendChild(img);
+            media.appendChild(frame);
+          });
+        } else {
+          var app = document.createElement("div");
+          app.className = "appframe";
+          app.style.animation = "slideUp .9s cubic-bezier(.22,1,.36,1) .18s both";
+
+          var bar = document.createElement("div");
+          bar.className = "bar";
+          for (var d = 0; d < 3; d++) {
+            var dot = document.createElement("span");
+            dot.className = "dot";
+            bar.appendChild(dot);
+          }
+          var addr = document.createElement("span");
+          addr.className = "addr";
+          bar.appendChild(addr);
+
+          var body = document.createElement("div");
+          body.className = "body";
+
+          // Skeleton rows — deterministic widths, never Math.random().
+          var widths = ["62%", "88%", "74%"];
+          widths.forEach(function (w, i) {
+            var s = document.createElement("div");
+            s.className = "skel";
+            s.style.width = w;
+            s.style.height = i === 0 ? "34px" : "20px";
+            s.style.animationDelay = (0.45 + i * 0.1).toFixed(2) + "s";
+            body.appendChild(s);
+          });
+
+          var barRow = document.createElement("div");
+          barRow.className = "bar-row";
+          var heights = [42, 66, 51, 83, 72, 96];
+          heights.forEach(function (h, i) {
+            var b = document.createElement("i");
+            b.style.height = h + "%";
+            b.style.animationDelay = (0.7 + i * 0.09).toFixed(2) + "s";
+            barRow.appendChild(b);
+          });
+          body.appendChild(barRow);
+
+          app.appendChild(bar);
+          app.appendChild(body);
+          media.appendChild(app);
+        }
+      }
+
+      // ---- features ------------------------------------------------------
+      var list = document.getElementById("feature-list");
+      if (list) {
+        parseList("features_json").slice(0, 3).forEach(function (f, i) {
+          var title = String(f && f.title ? f.title : "").trim();
+          if (!title) return;
+          var row = document.createElement("div");
+          row.className = "feature panel";
+          row.style.animation =
+            "slideUp .8s cubic-bezier(.22,1,.36,1) " + (0.16 + i * 0.16).toFixed(2) + "s both";
+
+          var ic = document.createElement("div");
+          ic.className = "ic";
+          ic.textContent = String(f.icon || title.slice(0, 1)).slice(0, 2).toUpperCase();
+
+          var box = document.createElement("div");
+          var t = document.createElement("div");
+          t.className = "t";
+          t.textContent = title;
+          box.appendChild(t);
+          var d = String(f && f.subtitle ? f.subtitle : "").trim();
+          if (d) {
+            var dd = document.createElement("div");
+            dd.className = "d";
+            dd.textContent = d;
+            box.appendChild(dd);
+          }
+          row.appendChild(ic);
+          row.appendChild(box);
+          list.appendChild(row);
+        });
+      }
+
+      // ---- workflow ------------------------------------------------------
+      var flow = document.getElementById("flow-row");
+      if (flow) {
+        var steps = parseList("workflow_json")
+          .map(function (x) { return String(x || "").trim(); })
+          .filter(Boolean)
+          .slice(0, 4);
+        if (!steps.length) {
+          flow.remove();
+        } else {
+          steps.forEach(function (label, i) {
+            if (i > 0) {
+              var link = document.createElement("span");
+              link.className = "link";
+              link.style.animationDelay = (0.72 + i * 0.14).toFixed(2) + "s";
+              flow.appendChild(link);
+            }
+            var node = document.createElement("div");
+            node.className = "node";
+            node.textContent = label;
+            node.style.animation =
+              "pop .58s cubic-bezier(.34,1.56,.64,1) " + (0.62 + i * 0.14).toFixed(2) + "s both";
+            flow.appendChild(node);
+          });
+        }
+      }
+
+      // ---- metrics -------------------------------------------------------
+      // Only caller-supplied values. No defaults: an unproven number in a
+      // launch video is a false claim, so an empty list removes the row AND
+      // its eyebrow rather than rendering an empty card.
+      var mrow = document.getElementById("metric-row");
+      if (mrow) {
+        var metrics = parseList("metrics_json").slice(0, 3).filter(function (m) {
+          return m && String(m.value || "").trim();
+        });
+        if (!metrics.length) {
+          mrow.remove();
+          var eb = document.getElementById("metrics-eyebrow");
+          if (eb) eb.remove();
+        } else {
+          metrics.forEach(function (m, i) {
+            var card = document.createElement("div");
+            card.className = "metric panel";
+            card.style.animation =
+              "pop .66s cubic-bezier(.34,1.56,.64,1) " + (0.16 + i * 0.15).toFixed(2) + "s both";
+            var v = document.createElement("div");
+            v.className = "v";
+            v.textContent = String(m.value).trim();
+            card.appendChild(v);
+            var lbl = String(m.label || "").trim();
+            if (lbl) {
+              var l = document.createElement("div");
+              l.className = "l";
+              l.textContent = lbl;
+              card.appendChild(l);
+            }
+            mrow.appendChild(card);
+          });
+        }
+      }
+
+      document.documentElement.setAttribute("data-lg-bound", "1");
+    })();
+  </script>
+</body>
+</html>

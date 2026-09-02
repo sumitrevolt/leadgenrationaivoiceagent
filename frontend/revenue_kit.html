@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue Kit — LeadsGen AI Admin</title>
+<meta name="robots" content="noindex">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+  body{background:#0f172a;color:#e2e8f0;padding:18px}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:22px;margin-bottom:4px} .sub{color:#94a3b8;font-size:13px;margin-bottom:18px}
+  .box{background:#1e293b;border-radius:14px;padding:16px;margin-bottom:16px;border:1px solid #334155}
+  h2{font-size:15px;margin-bottom:10px;color:#a78bfa}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  input,select{background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:9px 10px;font-size:13px;flex:1;min-width:120px}
+  input::placeholder{color:#64748b}
+  label{font-size:12px;color:#94a3b8;display:block;margin-bottom:3px}
+  .btn{background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:13px}
+  .btn.ghost{background:#334155} .btn.small{padding:7px 12px;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  th{text-align:left;color:#94a3b8;padding:6px 8px;border-bottom:1px solid #334155}
+  td{padding:7px 8px;border-bottom:1px solid #26334b;vertical-align:top}
+  code{background:#0f172a;padding:2px 6px;border-radius:5px;color:#fbbf24;font-size:12px}
+  textarea{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:10px;font-size:13px;min-height:84px;margin-top:6px}
+  .hidden{display:none} .mut{color:#64748b;font-size:11.5px} .ok{color:#34d399}.bad{color:#f87171}
+  #toasts{position:fixed;top:14px;right:14px;z-index:50}
+  .toast{background:#334155;color:#fff;padding:10px 14px;border-radius:8px;margin-top:8px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  .toast.bad{background:#7f1d1d} .toast.ok{background:#065f46}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💰 Revenue Kit</h1>
+  <div class="sub">Pay-link banao → WhatsApp par close karo · Launch offers chalao. <span id="authWarn" class="bad hidden">Admin token required — /app/login se aao ya niche save karo.</span></div>
+
+  <div class="box hidden" id="tokRow">
+    <label>Admin JWT token</label>
+    <div class="row"><input id="tokInput" placeholder="eyJhbGci..."><button class="btn small" id="tokSave">Save</button></div>
+  </div>
+
+  <div class="box">
+    <h2>1️⃣ Pay-link issue karo (locked price + UPI QR)</h2>
+    <div class="row">
+      <input id="oDeal" placeholder="Deal id (e.g. wa9876501234)">
+      <select id="oPkg">
+        <option value="starter">Marketing Main — ₹1,999/mo</option>
+        <option value="advanced">Advanced Combo — ₹5,999/mo</option>
+        <option value="voice_a_monthly">Voice A — ₹4,999/mo</option>
+        <option value="voice_b_monthly">Voice B — ₹9,999/mo</option>
+        <option value="voice_c_monthly">Voice C — ₹19,999/mo</option>
+        <option value="dfy_setup">⚡ Done-for-you Setup — ₹4,999 one-time</option>
+      </select>
+    </div>
+    <div class="row hidden" id="customRow">
+      <input id="oAmount" type="number" placeholder="Amount ₹ (99..1000000)">
+      <input id="oLabel" placeholder="Label (optional)">
+    </div>
+    <button class="btn" id="btnIssue">Pay-link banao</button>
+    <div id="issueOut" class="hidden" style="margin-top:10px">
+      <div class="mut">Pay URL (copy-paste WhatsApp me):</div>
+      <input id="payUrl" readonly>
+      <textarea id="waText" readonly></textarea>
+      <button class="btn ghost small" id="btnCopyWa">Copy WhatsApp message</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>2️⃣ Launch offer / promo code banao</h2>
+    <div class="row">
+      <input id="pCode" placeholder="CODE (A-Z0-9)" style="text-transform:uppercase">
+      <select id="pKind"><option value="fixed_inr">₹ off (fixed)</option><option value="pct">% off</option></select>
+      <input id="pValue" type="number" placeholder="Value">
+    </div>
+    <div class="row">
+      <input id="pPlans" placeholder="Plans (comma, khali = sab)">
+      <input id="pExpiry" type="datetime-local" title="Deadline — pricing page countdown isi se chalega">
+      <input id="pMax" type="number" placeholder="Max uses (0=∞)" style="max-width:150px">
+      <label style="display:flex;align-items:center;gap:5px;min-width:auto"><input type="checkbox" id="pLaunch" style="min-width:auto"> Launch tag</label>
+    </div>
+    <button class="btn" id="btnPromo">Promo save karo</button>
+    <div id="promoList"></div>
+  </div>
+
+  <div class="box">
+    <h2>3️⃣ Recent orders</h2>
+    <div id="offerList"><div class="mut">Load ho raha hai...</div></div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+(function(){
+"use strict";
+function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function hdrs(extra){ var h = extra || {}; var t = token(); if(t) h["Authorization"] = "Bearer " + t; return h; }
+function needAuth(){ document.getElementById("tokRow").classList.remove("hidden"); document.getElementById("authWarn").classList.remove("hidden"); document.getElementById("tokInput").value = token(); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function toast(m, k){ var el = document.createElement("div"); el.className = "toast " + (k||""); el.textContent = m; document.getElementById("toasts").appendChild(el); setTimeout(function(){ el.remove(); }, 4000); }
+async function callApi(url, opts){ var r = await fetch(url, opts); if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); } var d = null; try{ d = await r.json(); }catch(_e){} if(!r.ok){ throw new Error((d && (d.detail || d.error)) || ("HTTP " + r.status)); } return d; }
+function inr(n){ return "₹" + Number(n || 0).toLocaleString("en-IN"); }
+document.getElementById("tokSave").onclick = function(){ var v = document.getElementById("tokInput").value.trim(); if(v) localStorage.setItem("accessToken", v); loadAll(); };
+
+document.getElementById("oPkg").onchange = function(){
+  document.getElementById("customRow").classList.toggle("hidden", this.value !== "dfy_setup");
+};
+
+document.getElementById("btnIssue").onclick = async function(){
+  var deal = document.getElementById("oDeal").value.trim();
+  var pkg = document.getElementById("oPkg").value;
+  if(!deal){ toast("Deal id required (phone/email se bana lo)", "bad"); return; }
+  var body = { deal_id: deal, package_code: pkg, mode: "package", ttl_days: 30 };
+  if(pkg === "dfy_setup"){ body.mode = "custom"; body.amount_inr = parseInt(document.getElementById("oAmount").value || "4999", 10); body.label = document.getElementById("oLabel").value.trim() || "Done-for-you Setup"; }
+  try{
+    var d = await callApi("/api/admin/revenue/offers/issue", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify(body)});
+    if(!d.ok){ toast(d.error || "Issue fail", "bad"); return; }
+    var url = location.origin + d.pay_url;
+    document.getElementById("payUrl").value = url;
+    document.getElementById("waText").value =
+      "Namaste! 🙏 Aapke liye locked-price order ready hai — " + (d.label || pkg).toUpperCase() + " at " + inr(d.amount_inr) + ".\n\n" +
+      "Ye link kholiye aur UPI se pay kar dijiye (QR bhi hai):\n" + url + "\n\n" +
+      "Payment ke turant baad activation ho jati hai. Deadline tak hi ye price valid hai ⏳";
+    document.getElementById("issueOut").classList.remove("hidden");
+    toast("Pay-link ready ✓", "ok"); loadAll();
+  }catch(e){ if(String(e.message) !== "auth") toast("Issue fail: " + e.message, "bad"); }
+};
+
+document.getElementById("btnCopyWa").onclick = function(){
+  var t = document.getElementById("waText"); t.select();
+  try{ document.execCommand("copy"); toast("Copied — WhatsApp me paste karo", "ok"); }catch(_e){ toast("Copy fail", "bad"); }
+};
+
+document.getElementById("btnPromo").onclick = async function(){
+  var exp = document.getElementById("pExpiry").value;
+  var body = {
+    code: document.getElementById("pCode").value.trim(),
+    kind: document.getElementById("pKind").value,
+    value: parseFloat(document.getElementById("pValue").value || "0"),
+    once_per_customer: true,
+    max_redemptions: parseInt(document.getElementById("pMax").value || "0", 10),
+    expires_at: exp ? new Date(exp).toISOString() : "",
+    tags: document.getElementById("pLaunch").checked ? ["launch"] : [],
+    plan_ids: document.getElementById("pPlans").value.split(",").map(function(s){return s.trim();}).filter(Boolean)
+  };
+  if(!body.code || !body.value){ toast("Code + value required", "bad"); return; }
+  try{
+    var d = await callApi("/api/admin/promo/create", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify(body)});
+    if(!d.ok){ toast("Refused: " + (d.reason || "?"), "bad"); return; }
+    toast("Promo saved ✓" + (body.tags.length ? " Pricing page pe countdown LIVE" : ""), "ok");
+    loadAll();
+  }catch(e){ if(String(e.message) !== "auth") toast("Promo fail: " + e.message, "bad"); }
+};
+
+function fmtDt(s){ try{ return new Date(s).toLocaleString("en-IN", {day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); }catch(_e){ return s || "—"; } }
+
+async function loadAll(){
+  try{
+    var p = await callApi("/api/admin/promo/list", {headers: hdrs()});
+    var html = "";
+    if(p.definitions && p.definitions.length){
+      html += '<table><tr><th>Code</th><th>Off</th><th>Plans</th><th>Deadline</th><th>Used</th><th></th></tr>';
+      for(var i = 0; i < p.definitions.length; i++){
+        var d = p.definitions[i];
+        var used = (p.applied || []).filter(function(a){ return a.code === d.code; }).length;
+        html += "<tr><td><code>" + esc(d.code) + "</code>" + (d.label ? '<div class="mut">' + esc(d.label) + '</div>' : "") +
+          ((d.tags||[]).indexOf("launch") >= 0 ? ' <span class="ok">●launch</span>' : "") + "</td>" +
+          "<td>" + (d.kind === "pct" ? d.value + "%" : inr(d.value)) + "</td>" +
+          "<td class='mut'>" + esc((d.plan_ids || []).join(", ") || "sab") + "</td>" +
+          "<td class='mut'>" + fmtDt(d.expires_at) + "</td><td>" + used + (d.max_redemptions ? "/" + d.max_redemptions : "") + "</td>" +
+          "<td class='" + (d.expires_at && new Date(d.expires_at) > new Date() ? "ok" : "mut") + "'>" + (d.expires_at && new Date(d.expires_at) > new Date() ? "LIVE" : "dead") + "</td></tr>";
+      }
+      html += "</table>";
+    }
+    if(p.applied && p.applied.length){
+      html += '<div class="mut" style="margin-top:10px">Redemptions:</div><table><tr><th>Code</th><th>Contact</th><th>Order</th><th>Discount</th><th>When</th></tr>';
+      for(var j = 0; j < Math.min(p.applied.length, 10); j++){
+        var a = p.applied[j];
+        html += "<tr><td><code>" + esc(a.code) + "</code></td><td class='mut'>" + esc(a.customer_key || "—") + "</td><td class='mut'>" + esc(String(a.order_ref_new || "").slice(0, 14)) + "…</td><td>" + inr(a.discount_inr) + "</td><td class='mut'>" + fmtDt(a.at) + "</td></tr>";
+      }
+      html += "</table>";
+    }
+    document.getElementById("promoList").innerHTML = html || '<div class="mut">Koi promo nahi — upar se LAUNCH offer banao.</div>';
+
+    var o = await callApi("/api/admin/revenue/offers", {headers: hdrs()});
+    var oh = "";
+    if(o.offers && o.offers.length){
+      oh += '<table><tr><th>Ref</th><th>Package</th><th>Amount</th><th>Status</th><th>Expires</th><th></th></tr>';
+      for(var k = 0; k < Math.min(o.offers.length, 12); k++){
+        var f = o.offers[k];
+        oh += "<tr><td class='mut'>" + esc(String(f.order_ref || "").slice(0, 14)) + "…</td><td>" + esc(f.label || f.package_code) + "</td><td><b>" + inr(f.amount_inr) + "</b>" + (f.promo_code ? '<div class="ok">' + esc(f.promo_code) + " −" + inr(f.promo_discount_inr) + '</div>' : "") + "</td>" +
+          "<td>" + esc(f.status) + "</td><td class='mut'>" + fmtDt(f.expires_at) + "</td>" +
+          "<td>" + (f.status === "issued" ? '<a href="/pay/' + esc(f.order_ref) + '" target="_blank" class="mut">open ↗</a>' : "") + "</td></tr>";
+      }
+      oh += "</table>";
+    }
+    document.getElementById("offerList").innerHTML = oh || '<div class="mut">Abhi koi order nahi.</div>';
+    document.getElementById("authWarn").classList.add("hidden");
+  }catch(e){ if(String(e.message) !== "auth") toast("Load fail: " + e.message, "bad"); }
+}
+
+if(!token()) needAuth();
+loadAll();
+})();
+</script>
+</body>
+</html>

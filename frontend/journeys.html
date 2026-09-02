@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0b1020">
+<title>LeadGen AI — Journeys</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--bg:#0b1020;--card:#141a2e;--card2:#1b2440;--ink:#eef2ff;--mut:#9aa6c7;--bd:#26304f;
+        --pri:#5b8cff;--pri2:#7aa2ff;--ok:#2ecc71;--warn:#ffb454;--rad:13px}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+       background:radial-gradient(1100px 520px at 50% -10%,#16203f 0,var(--bg) 55%);color:var(--ink);min-height:100vh}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 16px 60px}
+  .top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  .logo{font-weight:800}.logo span{color:var(--pri2)}
+  .top a{color:var(--mut);font-size:13px;margin-left:12px;text-decoration:none}
+  h1{font-size:24px;margin:20px 0 2px}
+  .sub{color:var(--mut);font-size:13.5px;margin:0 0 14px}
+  .pill{display:inline-block;font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--bd)}
+  .pill.on{background:rgba(46,204,113,.15);color:var(--ok);border-color:var(--ok)}
+  .pill.off{background:rgba(255,180,84,.12);color:var(--warn);border-color:var(--warn)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  button{cursor:pointer;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--ink);padding:9px 14px;font-size:13.5px}
+  button.pri{background:var(--pri);border-color:var(--pri);font-weight:700}
+  button.pri:hover{background:var(--pri2)}
+  button.danger{color:#ff8f8f;border-color:#5a2730}
+  .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--bd);border-radius:var(--rad);padding:14px 16px;margin-bottom:11px}
+  .jh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .jname{font-weight:700;font-size:15px}
+  .meta{color:var(--mut);font-size:12.5px;margin-top:3px}
+  .tag{display:inline-block;background:#0e1426;border:1px solid var(--bd);border-radius:7px;padding:2px 8px;font-size:11.5px;margin:4px 4px 0 0;color:#cdd6f4}
+  h2{font-size:16px;margin:26px 0 8px;color:#cdd6f4}
+  .run{background:#0e1426;border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-bottom:9px;font-size:13px}
+  .draft{white-space:pre-wrap;color:#d7def5;border-left:2px solid var(--pri);padding-left:9px;margin-top:6px}
+  .msg{font-size:13px;color:var(--mut);margin:8px 0}
+  label{font-size:12px;color:var(--mut)}
+  input,select{width:100%;background:#0e1426;border:1px solid var(--bd);color:var(--ink);padding:9px;border-radius:8px;font-size:13.5px;margin-top:3px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">LeadGen<span>AI</span> · Journeys</div>
+    <div><a href="/app/admin">Admin</a><a href="/app/assistant">Ask CRM</a><a href="/app/marketing">Marketing</a></div>
+    <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  </div>
+  <h1>🔀 Omnichannel Journeys</h1>
+  <p class="sub">Event → condition → action (WhatsApp/email/callback drafts). Engine status: <span id="eng" class="pill off">…</span> · <span style="color:var(--mut)">enable: <code>JOURNEY_ENGINE=1</code></span></p>
+
+  <div class="row">
+    <button class="pri" onclick="seed()">+ Seed 3 starter rules</button>
+    <button onclick="load()">↻ Refresh</button>
+    <button onclick="testEmit()">▶ Test: inquiry_received</button>
+  </div>
+  <p class="msg" id="msg"></p>
+
+  <div id="list"></div>
+
+  <h2>Create rule</h2>
+  <div class="card">
+    <div class="grid2">
+      <div><label>Name</label><input id="c-name" placeholder="Inquiry → WhatsApp draft" /></div>
+      <div><label>Trigger</label><select id="c-trig"></select></div>
+    </div>
+    <div class="grid2" style="margin-top:9px">
+      <div><label>Action</label><select id="c-act"></select></div>
+      <div><label>Topic (draft ke liye)</label><input id="c-topic" placeholder="naye inquiry ka follow-up" /></div>
+    </div>
+    <div class="row"><button class="pri" onclick="create()">Create (disabled — review karke ON karo)</button></div>
+  </div>
+
+  <h2>Recent runs (drafts — 1-click human send)</h2>
+  <div id="runs"></div>
+</div>
+
+<script>
+const API="";
+function tok(){return localStorage.getItem("accessToken")||"";}
+function H(){const h={"Content-Type":"application/json"};const t=tok();if(t)h["Authorization"]="Bearer "+t;return h;}
+function esc(s){return String(s==null?"":s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
+function setMsg(t){document.getElementById("msg").textContent=t||"";}
+
+async function load(){
+  let d;
+  try{ const r=await fetch(API+"/api/journeys",{headers:H()}); d=await r.json();
+       if(!r.ok)throw new Error(d.detail||"auth? admin token chahiye"); }
+  catch(e){ setMsg("Load fail: "+e.message+" (admin login: /app/admin pe token lo)"); return; }
+  const eng=document.getElementById("eng");
+  eng.textContent=d.engine_enabled?"ON":"OFF (dormant)"; eng.className="pill "+(d.engine_enabled?"on":"off");
+  // fill selects
+  const ts=document.getElementById("c-trig"); if(!ts.options.length) ts.innerHTML=(d.triggers||[]).map(t=>`<option>${t}</option>`).join("");
+  const as=document.getElementById("c-act"); if(!as.options.length) as.innerHTML=(d.actions||[]).map(a=>`<option>${a}</option>`).join("");
+  // list
+  const L=document.getElementById("list");
+  if(!(d.journeys||[]).length){ L.innerHTML='<p class="msg">Koi rule nahi. "Seed 3 starter rules" dabao.</p>'; }
+  else{
+    L.innerHTML=d.journeys.map(j=>`
+      <div class="card"><div class="jh">
+        <div><div class="jname">${esc(j.name)}</div>
+          <div class="meta">on <b>${esc(j.trigger)}</b> · ${(j.actions||[]).length} action(s)</div>
+          <div>${(j.actions||[]).map(a=>`<span class="tag">${esc(a.type)}</span>`).join("")}</div></div>
+        <div style="text-align:right">
+          <span class="pill ${j.enabled?'on':'off'}">${j.enabled?'ENABLED':'OFF'}</span><br>
+          <button onclick="toggle('${j.id}',${!j.enabled})" style="margin-top:7px">${j.enabled?'Disable':'Enable'}</button>
+          <button class="danger" onclick="del('${j.id}')" style="margin-top:7px">Delete</button>
+        </div></div></div>`).join("");
+  }
+  loadRuns();
+}
+async function loadRuns(){
+  try{ const r=await fetch(API+"/api/journeys/runs",{headers:H()}); const d=await r.json();
+    const R=document.getElementById("runs");
+    if(!(d.runs||[]).length){R.innerHTML='<p class="msg">Abhi koi run nahi (engine OFF ya koi event nahi).</p>';return;}
+    R.innerHTML=d.runs.map(run=>`<div class="run"><b>${esc(run.journey_name)}</b> · ${esc(run.event)} · ${esc((run.at||'').slice(0,16))}
+      ${(run.results||[]).filter(x=>x.draft).map(x=>`<div class="draft">[${esc(x.channel||x.action)}] ${esc(x.draft)}</div>`).join("")}</div>`).join("");
+  }catch(e){}
+}
+async function seed(){ await fetch(API+"/api/journeys/seed",{method:"POST",headers:H()}); setMsg("Seeded (disabled). Enable karke use karo."); load(); }
+async function toggle(id,en){ await fetch(API+`/api/journeys/${id}/toggle`,{method:"POST",headers:H(),body:JSON.stringify({enabled:en})}); load(); }
+async function del(id){ await fetch(API+`/api/journeys/${id}`,{method:"DELETE",headers:H()}); load(); }
+async function create(){
+  const name=document.getElementById("c-name").value.trim();
+  const trigger=document.getElementById("c-trig").value;
+  const type=document.getElementById("c-act").value;
+  const topic=document.getElementById("c-topic").value.trim();
+  if(name.length<2)return setMsg("Name do.");
+  const body={name,trigger,enabled:false,actions:[{type,params:{topic}}]};
+  const r=await fetch(API+"/api/journeys",{method:"POST",headers:H(),body:JSON.stringify(body)});
+  if(r.ok){setMsg("Rule bana (disabled). Enable karo.");document.getElementById("c-name").value="";load();}
+  else{const d=await r.json();setMsg("Fail: "+(d.detail||""));}
+}
+async function testEmit(){
+  const r=await fetch(API+"/api/journeys/emit",{method:"POST",headers:H(),
+    body:JSON.stringify({event:"inquiry_received",context:{business_name:"Test Solar",name:"Test",niche:"solar",city:"Mumbai",phone:"+910000000000"}})});
+  const d=await r.json();
+  setMsg(d.engine_enabled?`Test ran ${d.ran} rule(s) — neeche runs dekho.`:"Engine OFF hai (JOURNEY_ENGINE=1 set karo) — koi rule nahi chala.");
+  loadRuns();
+}
+load();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

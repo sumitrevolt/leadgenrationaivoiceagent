@@ -1,0 +1,12 @@
+[Unit]
+Description=LeadGen scheduler run-once job
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/leadgen-scheduler
+EnvironmentFile=/opt/leadgen-scheduler/.env.scheduler
+ExecStart=/usr/bin/python3 /opt/leadgen-scheduler/leadgen_scheduler.py --run-once
+User=www-data
+Group=www-data

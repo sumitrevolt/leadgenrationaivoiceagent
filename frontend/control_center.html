@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Control Center</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0c;--panel:#111113;--panel2:#13141a;--card:#161618;
+  --bd:#1e2028;--bd2:#2d3748;--tx:#e2e8f0;--mut:#64748b;--mut2:#475569;
+  --amber:#f59e0b;
+  --healthy:#22c55e;--processing:#3b82f6;--waiting:#eab308;--retry:#f97316;
+  --failed:#ef4444;--ai:#a855f7;--idle:#64748b;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:13px}
+button{font-family:inherit}
+a{color:inherit}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-thumb{background:#23252e;border-radius:4px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+:focus-visible{outline:2px solid var(--amber);outline-offset:1px;border-radius:3px}
+
+/* ===== TOP STRIP ===== */
+#top{height:46px;flex-shrink:0;background:var(--panel);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:10px;z-index:200}
+.brand{font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.brand .bdot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 7px var(--amber)}
+.crumb{font-size:11px;color:var(--mut);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.crumb .sep{color:#33363f}
+.crumb b{color:#cbd5e1;font-weight:600}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:7px}
+.pill{font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid var(--bd2);background:var(--card);color:var(--mut);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.pill.env{border-color:#15803d;color:#4ade80}
+.pill.env .pdot{width:6px;height:6px;border-radius:50%;background:#22c55e}
+.tbtn{padding:4px 9px;border-radius:5px;font-size:12px;cursor:pointer;color:var(--mut);border:1px solid var(--bd2);background:var(--card);display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap;transition:all .12s}
+.tbtn:hover{color:var(--tx);border-color:#4b5563}
+#clock{font-size:11px;color:#94a3b8;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ===== METRIC CARDS ROW ===== */
+#metrics{flex-shrink:0;background:#0d0d0f;border-bottom:1px solid var(--bd);padding:9px 12px;display:grid;grid-template-columns:repeat(6,1fr);gap:9px;z-index:150}
+.mcard{background:var(--panel2);border:1px solid var(--bd);border-left:3px solid var(--idle);border-radius:8px;padding:8px 11px;min-width:0}
+.mcard .mhead{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.mcard .mlabel{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard .mbig{font-size:22px;font-weight:800;color:#fff;line-height:1.15;margin-top:3px;font-variant-numeric:tabular-nums}
+.mcard .msub{font-size:11px;color:var(--mut);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard.ok{border-left-color:var(--healthy)}
+.mcard.warn{border-left-color:var(--waiting)}
+.mcard.bad{border-left-color:var(--failed)}
+.mcard.proc{border-left-color:var(--processing)}
+
+/* shared live/projection badge */
+.lb{font-size:11px;font-weight:700;letter-spacing:.5px;padding:2px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0}
+.lb.live{background:#06210f;border:1px solid #14532d;color:#4ade80}
+.lb.live .d{width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 5px #22c55e}
+.lb.proj{background:#14151a;border:1px dashed #3a3d47;color:#8a93a3}
+.lb.proj .d{width:5px;height:5px;border-radius:50%;background:#4b5563}
+.lb.idle{background:#16171c;border:1px solid #2a2d36;color:var(--mut)}
+.lb.idle .d{width:5px;height:5px;border-radius:50%;background:#3d4350}
+
+/* ===== MAIN ROW ===== */
+#main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+/* LEFT RAIL */
+#rail{width:200px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--bd);display:flex;flex-direction:column;transition:width .14s;overflow:hidden;z-index:100}
+#rail.collapsed{width:60px}
+.rail-item{display:flex;align-items:center;gap:11px;padding:10px 14px;cursor:pointer;color:var(--mut);font-size:12px;border:none;background:transparent;width:100%;text-align:left;white-space:nowrap;text-decoration:none;transition:background .1s,color .1s;border-left:3px solid transparent}
+.rail-item:hover{background:#16181f;color:var(--tx)}
+.rail-item.active{color:#fff;background:#181b22;border-left-color:var(--amber)}
+.rail-item .ri-ic{width:18px;flex-shrink:0;text-align:center;font-size:15px}
+.rail-item .ri-tx{overflow:hidden;text-overflow:ellipsis}
+#rail.collapsed .ri-tx{opacity:0;width:0}
+.rail-div{height:1px;background:var(--bd);margin:9px 12px}
+.rail-cap{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#384152;padding:4px 14px 4px;white-space:nowrap}
+#rail.collapsed .rail-cap{opacity:0}
+.rail-foot{margin-top:auto;padding:8px}
+.rail-collapse{width:100%;border:1px solid var(--bd2);background:var(--card);color:var(--mut);border-radius:6px;padding:6px;cursor:pointer;font-size:13px}
+.rail-collapse:hover{color:var(--tx);border-color:#4b5563}
+
+/* CENTER CANVAS */
+#canvas{flex:1;overflow-y:auto;padding:16px;min-width:0;background:radial-gradient(circle at 50% -10%,#0e1016 0,#0a0a0c 60%)}
+
+/* RIGHT INSPECTOR */
+#inspector{width:360px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--bd);display:flex;flex-direction:column;transition:width .14s,margin .14s;overflow:hidden;z-index:100}
+#inspector.collapsed{width:0;border-left:none}
+.ins-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.ins-title{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#94a3b8}
+.ins-x{cursor:pointer;border:none;background:transparent;color:var(--mut);font-size:16px;line-height:1;padding:2px 5px;border-radius:4px}
+.ins-x:hover{color:var(--tx);background:#1c1f27}
+.ins-body{flex:1;overflow-y:auto;padding:14px}
+.ins-empty{color:var(--mut2);font-size:12px;line-height:1.7;padding:24px 8px;text-align:center}
+.ins-empty .ie-ic{font-size:26px;display:block;margin-bottom:10px;opacity:.5}
+
+/* ===== panels / cards in canvas ===== */
+.headline{border-radius:10px;padding:14px 16px;margin-bottom:14px;border:1px solid var(--bd2);border-left:4px solid var(--mut);background:var(--panel2);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.headline.sev-ok{border-left-color:var(--healthy);background:#0c1a12}
+.headline.sev-warn{border-left-color:var(--waiting);background:#1a1606}
+.headline.sev-bad{border-left-color:var(--failed);background:#1a0e0e}
+.headline.sev-idle{border-left-color:var(--idle);background:var(--panel2)}
+.headline .hl-tx{font-size:15px;font-weight:700;color:#fff;line-height:1.45;flex:1;min-width:200px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:13px;align-items:start}
+.panel{background:var(--panel2);border:1px solid var(--bd);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 13px;border-bottom:1px solid var(--bd)}
+.panel-h .ph-t{font-size:12px;font-weight:700;color:#e2e8f0;display:flex;align-items:center;gap:7px}
+.panel-h .ph-t .pic{font-size:13px}
+.panel-b{padding:6px 13px 12px}
+.panel.dashed{border-style:dashed;border-color:#33363f;background:#101117}
+
+/* status row */
+.srow{display:flex;align-items:flex-start;gap:9px;padding:8px 6px;border-bottom:1px solid #15161c;cursor:pointer;border-radius:5px;border-left:3px solid transparent}
+.srow:last-child{border-bottom:none}
+.srow:hover{background:#16181f}
+.srow .sdot{width:8px;height:8px;border-radius:50%;background:var(--idle);margin-top:4px;flex-shrink:0}
+.srow .stx{flex:1;min-width:0}
+.srow .stitle{font-size:12px;color:#cbd5e1;line-height:1.4}
+.srow .ssub{font-size:11px;color:var(--mut);line-height:1.5;margin-top:2px;word-break:break-word}
+.srow .ssub.fix{color:#86efac}
+.srow .smeta{font-size:11px;color:var(--mut2);flex-shrink:0;margin-top:3px;text-align:right;white-space:nowrap}
+.srow.st-healthy{border-left-color:var(--healthy)}.srow.st-healthy .sdot{background:var(--healthy)}
+.srow.st-processing{border-left-color:var(--processing)}.srow.st-processing .sdot{background:var(--processing)}
+.srow.st-waiting{border-left-color:var(--waiting)}.srow.st-waiting .sdot{background:var(--waiting)}
+.srow.st-retry{border-left-color:var(--retry)}.srow.st-retry .sdot{background:var(--retry)}
+.srow.st-failed{border-left-color:var(--failed)}.srow.st-failed .sdot{background:var(--failed)}
+.srow.st-ai{border-left-color:var(--ai)}.srow.st-ai .sdot{background:var(--ai)}
+.srow.st-idle{border-left-color:var(--idle)}.srow.st-idle .sdot{background:var(--idle)}
+
+.empty-line{font-size:11px;color:var(--mut);padding:10px 6px;line-height:1.6}
+.empty-line.good{color:#4ade80}
+
+/* staff groups */
+.grp-cap{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--mut2);margin:8px 6px 3px}
+.grp-cap:first-child{margin-top:2px}
+
+/* cost tile */
+.cost-tile{text-align:center;padding:18px 10px}
+.cost-tile .ct-glyph{font-size:24px;color:#4b5563}
+.cost-tile .ct-big{font-size:18px;font-weight:800;color:#6b7280;margin-top:6px;letter-spacing:.5px}
+.cost-tile .ct-sub{font-size:11px;color:var(--mut2);margin-top:5px;line-height:1.6}
+
+/* flag chip rows */
+.flag-line{display:flex;align-items:flex-start;gap:8px;padding:6px 4px;border-bottom:1px solid #15161c}
+.flag-line:last-child{border-bottom:none}
+.flag-line .fl-name{font-size:11px;color:#fbbf24;flex-shrink:0;background:#1a1408;border:1px solid #3a2e0a;border-radius:4px;padding:2px 6px}
+.flag-line .fl-tx{font-size:11px;color:var(--mut);line-height:1.5}
+
+/* stub panel */
+.stub-wrap{max-width:620px;margin:6px auto}
+.stub-desc{font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:10px}
+.stub-note{font-size:11px;color:#fbbf24;background:#1a1408;border:1px solid #3a2e0a;border-radius:7px;padding:9px 12px;margin-bottom:14px;line-height:1.6}
+.stub-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:7px;background:#1a2a42;border:1px solid #1e3a5f;color:#60a5fa;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer}
+.stub-btn:hover{background:#1e3350;border-color:#2563eb;color:#93c5fd}
+.runs-list{margin-top:16px}
+.run-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--bd);border-radius:7px;margin-bottom:6px;background:var(--card)}
+.run-row .rdot{width:8px;height:8px;border-radius:50%;background:var(--idle);flex-shrink:0}
+.run-row .rid{font-size:11px;color:var(--mut);flex-shrink:0}
+.run-row .rproc{font-size:12px;color:#cbd5e1;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run-row .rstat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+
+/* no-token banner */
+.tok-banner{background:#1a1408;border:1px solid #3a2e0a;border-radius:9px;padding:13px 16px;margin-bottom:14px;color:#fbbf24;font-size:12px;line-height:1.7;display:flex;align-items:center;gap:11px}
+.tok-banner a{color:#fcd34d;font-weight:700}
+.tok-banner .tk-ic{font-size:20px}
+
+/* ===== BOTTOM PANEL ===== */
+#bottom{flex-shrink:0;background:var(--panel);border-top:1px solid var(--bd);display:flex;flex-direction:column;transition:height .14s;z-index:120}
+#bottom.collapsed{height:34px}
+.bot-tabs{display:flex;align-items:center;height:34px;flex-shrink:0;padding:0 6px;gap:2px}
+.bot-tab{padding:5px 12px;font-size:11px;font-weight:600;color:var(--mut);background:transparent;border:none;cursor:pointer;border-radius:5px}
+.bot-tab:hover{color:var(--tx)}
+.bot-tab.active{color:var(--amber);background:#1a1408}
+.bot-spacer{margin-left:auto;display:flex;align-items:center;gap:9px;padding-right:6px}
+.bot-live{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px}
+.bot-live .bldot{width:7px;height:7px;border-radius:50%;background:#3d4350}
+.bot-live.on .bldot{background:#22c55e;box-shadow:0 0 6px #22c55e}
+.bot-live.recon .bldot{background:#eab308;animation:pulse 1.1s infinite}
+.bot-toggle{cursor:pointer;border:none;background:transparent;color:var(--mut);font-size:13px;padding:3px 7px;border-radius:4px}
+.bot-toggle:hover{color:var(--tx);background:#1c1f27}
+.bot-body{flex:1;overflow-y:auto;padding:8px 12px;min-height:0}
+#bottom.collapsed .bot-body{display:none}
+.log-line{font-size:11px;color:#94a3b8;padding:3px 0;line-height:1.5;border-bottom:1px solid #131319;display:flex;gap:9px}
+.log-line .lt{color:var(--mut2);flex-shrink:0;font-variant-numeric:tabular-nums}
+.log-line .lm{flex:1;word-break:break-word}
+.log-line .lm b{color:#cbd5e1;font-weight:600}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:1100px){
+  #inspector{width:300px}
+  #metrics{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:768px){
+  #rail{width:60px}
+  #rail .ri-tx,#rail .rail-cap{opacity:0;width:0}
+  #inspector{position:absolute;right:0;top:0;bottom:0;width:300px;box-shadow:-8px 0 24px rgba(0,0,0,.5)}
+  #inspector.collapsed{width:0}
+  #metrics{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:1fr}
+  #canvas{padding:11px}
+}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div class="brand"><span class="bdot"></span>LeadGen AI · Control Center</div>
+  <div class="crumb"><span class="sep">/</span><b id="crumb-level">L1 Executive Overview</b></div>
+  <div class="top-right">
+    <span class="pill env"><span class="pdot"></span>prod</span>
+    <span id="clock" class="mono">--:--:-- IST</span>
+    <button class="tbtn" title="coming soon" id="cmdk-btn">⌘K</button>
+    <button class="tbtn" title="Settings (coming soon)">⚙</button>
+    <button class="tbtn" id="theme-btn" title="Theme (placeholder)">◑</button>
+    <a class="tbtn" href="/app/explorer" target="_blank" rel="noopener" title="Architecture Explorer">Explorer ↗</a>
+  </div>
+</div>
+
+<div id="metrics">
+  <div class="mcard" id="m-staff"><div class="mhead"><span class="mlabel">Staff</span><span class="lb idle" data-lb><span class="d"></span>—</span></div><div class="mbig">—</div><div class="msub">—</div></div>
+  <div class="mcard" id="m-jobs"><div class="mhead"><span class="mlabel">Jobs aaj</span><span class="lb idle" data-lb><span class="d"></span>—</span></div><div class="mbig">—</div><div class="msub">—</div></div>
+  <div class="mcard" id="m-runs"><div class="mhead"><span class="mlabel">Runs</span><span class="lb idle" data-lb><span class="d"></span>—</span></div><div class="mbig">—</div><div class="msub">—</div></div>
+  <div class="mcard" id="m-queue"><div class="mhead"><span class="mlabel">Queue / DLQ</span><span class="lb idle" data-lb><span class="d"></span>—</span></div><div class="mbig">—</div><div class="msub">—</div></div>
+  <div class="mcard" id="m-heart"><div class="mhead"><span class="mlabel">Heartbeat</span><span class="lb idle" data-lb><span class="d"></span>—</span></div><div class="mbig">—</div><div class="msub">—</div></div>
+  <div class="mcard" id="m-llm"><div class="mhead"><span class="mlabel">LLM brain</span><span class="lb idle" data-lb><span class="d"></span>—</span></div><div class="mbig">—</div><div class="msub">—</div></div>
+</div>
+
+<div id="main">
+  <nav id="rail">
+    <div class="rail-cap">Levels</div>
+    <button class="rail-item" data-route="" id="rail-l1"><span class="ri-ic">▣</span><span class="ri-tx">L1 Executive</span></button>
+    <button class="rail-item" data-route="stack" id="rail-l2"><span class="ri-ic">⛁</span><span class="ri-tx">L2 Stack</span></button>
+    <button class="rail-item" data-route="workflow" id="rail-l3"><span class="ri-ic">⛓</span><span class="ri-tx">L3 Workflow</span></button>
+    <button class="rail-item" data-route="agent" id="rail-l4"><span class="ri-ic">◈</span><span class="ri-tx">L4 Agent</span></button>
+    <div class="rail-div"></div>
+    <div class="rail-cap">Deep links</div>
+    <a class="rail-item" href="/app/explorer" target="_blank" rel="noopener"><span class="ri-ic">🗺</span><span class="ri-tx">Explorer ↗</span></a>
+    <a class="rail-item" href="/app/explorer?tab=plugins&amp;node=plugin_registry" target="_blank" rel="noopener"><span class="ri-ic">🔌</span><span class="ri-tx">Plugins ↗</span></a>
+    <a class="rail-item" href="/app/automation" target="_blank" rel="noopener"><span class="ri-ic">🛠</span><span class="ri-tx">Mission Control ↗</span></a>
+    <a class="rail-item" href="/app/team" target="_blank" rel="noopener"><span class="ri-ic">👥</span><span class="ri-tx">Team ↗</span></a>
+    <a class="rail-item" href="/app/admin" target="_blank" rel="noopener"><span class="ri-ic">⚙</span><span class="ri-tx">Admin ↗</span></a>
+    <div class="rail-foot">
+      <button class="rail-collapse" id="rail-collapse" title="Collapse rail">⮜</button>
+    </div>
+  </nav>
+
+  <main id="canvas" aria-live="polite"><div class="ins-empty">Loading…</div></main>
+
+  <aside id="inspector" class="collapsed">
+    <div class="ins-head">
+      <span class="ins-title" id="ins-title">Inspector</span>
+      <button class="ins-x" id="ins-close" title="Band karo (Esc)">✕</button>
+    </div>
+    <div class="ins-body" id="ins-body"></div>
+  </aside>
+</div>
+
+<div id="bottom">
+  <div class="bot-tabs">
+    <button class="bot-tab active" data-bot="log">Live Log</button>
+    <button class="bot-tab" data-bot="runs">Recent Runs</button>
+    <button class="bot-tab" data-bot="dlq">DLQ / Queue</button>
+    <div class="bot-spacer">
+      <span class="bot-live" id="bot-live"><span class="bldot"></span><span id="bot-live-tx">offline</span></span>
+      <button class="bot-toggle" id="bot-toggle" title="Toggle panel">▾</button>
+    </div>
+  </div>
+  <div class="bot-body" id="bot-body"></div>
+</div>
+
+<script>
+"use strict";
+
+// ════════════════════════════════════════════════════════════════
+// LeadGen AI — Control Center · Phase 1 shell + wired L1
+// Vanilla, single-file, no deps. Never-crash on missing data.
+// ════════════════════════════════════════════════════════════════
+
+var API_BASES = ['https://leadsgenai.in', 'http://127.0.0.1:8000', 'http://localhost:8000'];
+function getApiBases(){
+  var bases = [];
+  try {
+    if (location.protocol.indexOf('http') === 0 && location.host) bases.push(location.origin);
+  } catch(e){}
+  API_BASES.forEach(function(b){ if (bases.indexOf(b) < 0) bases.push(b); });
+  return bases;
+}
+function getToken(){
+  try { return localStorage.getItem('accessToken') || localStorage.getItem('adminToken') || ''; }
+  catch(e){ return ''; }
+}
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+  });
+}
+function el(id){ return document.getElementById(id); }
+function num(v, d){ var n = Number(v); return (isFinite(n)) ? n : (d == null ? 0 : d); }
+
+// ---- in-memory fetch cache + abort -------------------------------------
+var _cache = new Map();
+function fetchJSON(url, opts){
+  opts = opts || {};
+  var ttl = opts.ttl || 0;
+  var now = Date.now();
+  if (ttl) {
+    var hit = _cache.get(url);
+    if (hit && (now - hit.t) < ttl) return Promise.resolve(hit.v);
+  }
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = ctl ? setTimeout(function(){ try { ctl.abort(); } catch(e){} }, opts.timeout || 9000) : null;
+  var headers = {};
+  if (opts.token) headers['Authorization'] = 'Bearer ' + opts.token;
+  return fetch(url, {
+    mode: 'cors', credentials: 'omit', headers: headers,
+    signal: ctl ? ctl.signal : undefined
+  }).then(function(r){
+    if (timer) clearTimeout(timer);
+    if (!r.ok) { var e = new Error('http ' + r.status); e.status = r.status; throw e; }
+    return r.json();
+  }).then(function(j){
+    if (ttl) _cache.set(url, {t: now, v: j});
+    return j;
+  }).catch(function(err){
+    if (timer) clearTimeout(timer);
+    throw err;
+  });
+}
+
+// ---- POST sibling (fetchJSON is GET-only) — mutations (approve/reject) ----
+function postJSON(url, body, token){
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = ctl ? setTimeout(function(){ try { ctl.abort(); } catch(e){} }, 9000) : null;
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  return fetch(url, {
+    method: 'POST', mode: 'cors', credentials: 'omit', headers: headers,
+    body: JSON.stringify(body || {}), signal: ctl ? ctl.signal : undefined
+  }).then(function(r){
+    if (timer) clearTimeout(timer);
+    if (!r.ok) { var e = new Error('http ' + r.status); e.status = r.status; throw e; }
+    return r.json().catch(function(){ return {}; });
+  }).catch(function(err){
+    if (timer) clearTimeout(timer);
+    throw err;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+var STATE = {
+  token: getToken(),
+  hasToken: false,
+  overview: null,      // mapped to the /control-center/overview contract shape
+  liveBase: null,      // base that answered
+  degraded: false,     // true => assembled from fallback fan-out
+  primaryDead: false,  // /overview 404'd this session, skip it
+  runs: [],
+  pollTimer: null,
+  logTimer: null,
+  sse: null,
+  logs: [],
+  liveAt: 0,
+  fetching: false,
+  loaded: false,
+  // L3 workflow-explorer view-state (idempotent re-render from cache)
+  l3: { runs:null, filter:'all', selectedId:null, detail:null, loading:false, nodeStats:null, runPoll:null, busy:false },
+  // L4 agent-explorer view-state
+  l4: { agents:null, filter:'all', selectedKey:null, rca:null, loading:false }
+};
+STATE.hasToken = !!STATE.token;
+
+// ════════════════════════════════════════════════════════════════
+// ROUTING (hash)
+// ════════════════════════════════════════════════════════════════
+var ROUTES = {
+  '':         { id:'l1', crumb:'L1 Executive Overview' },
+  'stack':    { id:'l2', crumb:'L2 Stack' },
+  'workflow': { id:'l3', crumb:'L3 Workflow' },
+  'agent':    { id:'l4', crumb:'L4 Agent' }
+};
+function curRoute(){
+  var h = (location.hash || '').replace(/^#\/?/, '');
+  return ROUTES[h] ? h : '';
+}
+function go(route){
+  location.hash = route ? ('#/' + route) : '#/';
+}
+function onRoute(){
+  var r = curRoute();
+  var def = ROUTES[r];
+  el('crumb-level').textContent = def.crumb;
+  ['', 'stack', 'workflow', 'agent'].forEach(function(rt){
+    var node = el('rail-' + ({'':'l1','stack':'l2','workflow':'l3','agent':'l4'})[rt]);
+    if (node) node.classList.toggle('active', rt === r);
+  });
+  render();
+}
+
+// ════════════════════════════════════════════════════════════════
+// DATA — primary call + fallback fan-out → unified contract shape
+// ════════════════════════════════════════════════════════════════
+function blankOverview(){
+  return {
+    ok:false, at:null, headline:'', problems:[],
+    metrics:{ staff:{total:0,active:0}, jobs:{total:0,ok:0,issues:0}, runs:{total:0,running:0},
+      queue:{depth:0,dlq:0}, heartbeat:{up:0,total:0}, llm:{ok_rate:null,primary:''} },
+    staff:[], jobs:[], flags_off:[], activation:{ready_for_paid:null,blockers:[]},
+    eval_gate:{status:'',regression:null}, providers:[],
+    cost:{available:false, note:'set LLM_BUDGET_GUARD=1', tokens_today:null, calls_today:null, budget_guard_enabled:false}
+  };
+}
+
+function loadOverview(){
+  if (!STATE.token) {
+    STATE.hasToken = false;
+    STATE.overview = null;
+    render(); renderMetrics(); return Promise.resolve();
+  }
+  if (STATE.fetching) return Promise.resolve();
+  STATE.fetching = true;
+  var bases = getApiBases();
+  // try primary /control-center/overview on each base (unless known-dead)
+  var chain = Promise.resolve(null);
+  if (!STATE.primaryDead) {
+    bases.forEach(function(base){
+      chain = chain.then(function(got){
+        if (got) return got;
+        return fetchJSON(base + '/api/control-center/overview', {token:STATE.token, ttl:0, timeout:9000})
+          .then(function(j){ STATE.liveBase = base; STATE.degraded = false; return j; })
+          .catch(function(err){
+            if (err && err.status === 404) STATE.primaryDead = true; // skip primary forever this session
+            return null;
+          });
+      });
+    });
+  }
+  return chain.then(function(primary){
+    if (primary) { STATE.overview = primary; STATE.hasToken = true; STATE.liveAt = Date.now(); return; }
+    return fanoutFallback(bases);
+  }).then(function(){
+    return attachAgentOsWiring();
+  }).then(function(){
+    STATE.fetching = false; STATE.loaded = true;
+    render(); renderMetrics();
+  }).catch(function(){
+    STATE.fetching = false; STATE.loaded = true;
+    render(); renderMetrics();
+  });
+}
+
+// Agent OS / OmniRoute wiring strip — daily HQ pe dikhao (ADR-109). Fail-open.
+function attachAgentOsWiring(){
+  if (!STATE.token || !STATE.overview) return Promise.resolve();
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/platform/office/agent-os-status', {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ STATE.liveBase = b; return j; })
+        .catch(function(){ return null; });
+    });
+  });
+  return ch.then(function(aos){
+    if (aos && STATE.overview) STATE.overview.agent_os = aos;
+  }).then(function(){
+    return attachCostAndRouteHits();
+  });
+}
+
+// Cost-rollup + route-hits — real APIs (ADR-113). Never invent ₹/$.
+function attachCostAndRouteHits(){
+  if (!STATE.token || !STATE.overview) return Promise.resolve();
+  var base = STATE.liveBase || (getApiBases()[0] || '');
+  var costP = fetchJSON(base + '/api/control-center/cost-rollup', {token:STATE.token, ttl:0, timeout:9000})
+    .then(function(j){ STATE.overview.cost_rollup = j; if (j && STATE.overview.cost) {
+      STATE.overview.cost.available = !!j.available;
+      STATE.overview.cost.note = j.note || STATE.overview.cost.note;
+      STATE.overview.cost.tokens_today = j.tokens_today;
+      STATE.overview.cost.calls_today = j.calls_today;
+      STATE.overview.cost.budget_guard_enabled = !!j.budget_guard_enabled;
+      STATE.overview.cost.by_provider = j.by_provider || [];
+    }})
+    .catch(function(){ return null; });
+  var hitsP = fetchJSON(base + '/api/control-center/route-hits', {token:STATE.token, ttl:0, timeout:9000})
+    .then(function(j){ STATE.overview.route_hits = j; })
+    .catch(function(){ return null; });
+  return Promise.all([costP, hitsP]);
+}
+
+// fan out to REAL existing endpoints (Promise.allSettled, partial is fine)
+function fanoutFallback(bases){
+  var base = STATE.liveBase || bases[0];
+  function tryEach(path){
+    var ch = Promise.resolve(null);
+    bases.forEach(function(b){
+      ch = ch.then(function(got){
+        if (got) return got;
+        return fetchJSON(b + path, {token:STATE.token, ttl:0, timeout:9000})
+          .then(function(j){ STATE.liveBase = b; return {base:b, data:j}; })
+          .catch(function(){ return null; });
+      });
+    });
+    return ch;
+  }
+  return Promise.all([
+    tryEach('/api/growth/overview/today'),
+    tryEach('/api/growth/infra/automation-health'),
+    tryEach('/api/activation/summary'),
+    tryEach('/api/growth/infra/llm'),
+    tryEach('/api/eval-gate/summary'),
+    tryEach('/api/growth/process/runs')
+  ]).then(function(res){
+    var today  = res[0] && res[0].data;
+    var autoh  = res[1] && res[1].data;
+    var act    = res[2] && res[2].data;
+    var llm    = res[3] && res[3].data;
+    var evalg  = res[4] && res[4].data;
+    var runsR  = res[5] && res[5].data;
+    var anyOk = !!(today || autoh || act || llm || evalg || runsR);
+    if (!anyOk) { STATE.overview = null; STATE.hasToken = true; STATE.degraded = true; return; }
+    STATE.overview = mapFallback(today, autoh, act, llm, evalg, runsR);
+    STATE.degraded = true;
+    STATE.hasToken = true;
+    STATE.liveAt = Date.now();
+    if (runsR && Array.isArray(runsR.runs)) STATE.runs = runsR.runs;
+  });
+}
+
+function mapFallback(today, autoh, act, llm, evalg, runsR){
+  var o = blankOverview();
+  o.ok = true;
+  o.at = (today && today.at) || new Date().toISOString();
+  today = today || {}; autoh = autoh || {}; act = act || {}; llm = llm || {}; evalg = evalg || {};
+
+  // headline + problems + staff + jobs + flags from overview/today
+  o.headline = today.headline || '';
+  o.problems = Array.isArray(today.problems) ? today.problems : [];
+  o.staff = Array.isArray(today.staff) ? today.staff.map(function(s){
+    return { name:s.name||s.member||'', emoji:s.emoji||'🤖', state:_staffState(s.line),
+             role:s.role||'', today:num(s.today), last:s.last||'' };
+  }) : [];
+  o.jobs = Array.isArray(today.jobs) ? today.jobs.map(function(j){
+    return { label:j.label||j.job||'', status:j.status||'unknown', line:j.line||'', kya:j.kya||'' };
+  }) : [];
+  o.flags_off = Array.isArray(today.flags_off) ? today.flags_off : [];
+
+  // ---- metrics ----
+  var totals = today.totals || {};
+  var staffTotal = num(totals.staff, o.staff.length);
+  var staffActive = o.staff.filter(function(s){ return s.state==='healthy' || s.state==='processing'; }).length;
+  if (!staffActive) staffActive = num(totals.working, 0);
+  o.metrics.staff = { total: staffTotal, active: staffActive };
+
+  var jobs = Array.isArray(autoh.jobs) ? autoh.jobs : o.jobs;
+  var jOk = 0, jIssue = 0;
+  jobs.forEach(function(j){
+    var st = j.status || '';
+    if (st === 'ok') jOk++;
+    else if (st === 'overdue' || st === 'last_failed' || st === 'never_ran') jIssue++;
+  });
+  o.metrics.jobs = { total: jobs.length, ok: jOk, issues: jIssue };
+
+  // heartbeat: jobs that have run at least once / total
+  var hbUp = jobs.filter(function(j){ return j.status==='ok' || j.status==='overdue' || j.status==='last_failed'; }).length;
+  o.metrics.heartbeat = { up: hbUp, total: jobs.length };
+
+  // queue / dlq
+  // ADR-104 Phase F (2026-07-15): this adapter path dropped q.dead (retry-
+  // exhausted) even though autoh.queue (raw automation_health.health()
+  // queue dict) already carries it -- same fix as the server-side
+  // /api/control-center/overview path in app/api/control_center.py.
+  var q = autoh.queue || {};
+  o.metrics.queue = {
+    depth: num(q.celery, 0) < 0 ? 0 : num(q.celery, 0),
+    dlq: num(q.dlq, 0) < 0 ? 0 : num(q.dlq, 0),
+    dead: num(q.dead, 0) < 0 ? 0 : num(q.dead, 0),
+  };
+
+  // llm — derive ok_rate from fallback-rate, primary from busiest provider
+  var llmMetric = _deriveLlm(llm);
+  o.metrics.llm = llmMetric;
+  o.providers = _providerList(llm);
+
+  // runs
+  if (runsR && Array.isArray(runsR.runs)) {
+    var running = runsR.runs.filter(function(r){ return (r.status||'') === 'running' || (r.status||'') === 'active'; }).length;
+    o.metrics.runs = { total: runsR.runs.length, running: running };
+  } else {
+    o.metrics.runs = { total: null, running: null };
+  }
+
+  // activation
+  var ready = act.ready_for_first_paid_customer;
+  if (ready == null) ready = act.production_ready;
+  if (ready == null) ready = act.ready_for_launch;
+  o.activation = { ready_for_paid: (ready == null ? null : !!ready), blockers: act.blockers || [] };
+
+  // eval gate
+  o.eval_gate = { status: _evalStatus(evalg), regression: _evalRegression(evalg) };
+
+  return o;
+}
+
+function _staffState(line){
+  line = String(line || '');
+  if (line.indexOf('🟢') >= 0 || line.toLowerCase().indexOf('working') >= 0) return 'processing';
+  if (line.indexOf('🔵') >= 0 || line.toLowerCase().indexOf('active') >= 0) return 'healthy';
+  return 'idle';
+}
+function _deriveLlm(llm){
+  if (!llm || typeof llm !== 'object') return { ok_rate:null, primary:'' };
+  var fbRate = llm.fallback_or_fail_rate;
+  var okRate = (typeof fbRate === 'number') ? Math.max(0, Math.min(1, 1 - fbRate)) : null;
+  var provs = llm.providers || {};
+  var primary = '', best = -1;
+  Object.keys(provs).forEach(function(p){
+    var c = num(provs[p] && provs[p].calls, 0);
+    if (c > best) { best = c; primary = p; }
+  });
+  return { ok_rate: okRate, primary: primary };
+}
+function _providerList(llm){
+  if (!llm || !llm.providers) return [];
+  return Object.keys(llm.providers).map(function(p){
+    var v = llm.providers[p] || {};
+    return { name:p, calls:num(v.calls,0), ok_rate:(typeof v.ok_rate==='number'?v.ok_rate:null) };
+  }).sort(function(a,b){ return b.calls - a.calls; });
+}
+function _evalStatus(e){
+  if (!e || typeof e !== 'object') return '';
+  if (e.status) return String(e.status);
+  if (e.latest_decision) return String(e.latest_decision);
+  if (e.decisions && typeof e.decisions === 'object') {
+    if (num(e.decisions.reject) > 0) return 'reject';
+    if (num(e.decisions.accept) > 0) return 'accept';
+  }
+  return e.suites || e.count != null ? 'tracking' : '';
+}
+function _evalRegression(e){
+  if (!e || typeof e !== 'object') return null;
+  if (typeof e.regression === 'boolean') return e.regression;
+  if (e.decisions && num(e.decisions.reject) > 0) return true;
+  return null;
+}
+
+// ════════════════════════════════════════════════════════════════
+// METRIC CARDS
+// ════════════════════════════════════════════════════════════════
+function setBadge(cardId, kind, txt){
+  var card = el(cardId); if (!card) return;
+  var b = card.querySelector('[data-lb]'); if (!b) return;
+  b.className = 'lb ' + kind;
+  b.innerHTML = '<span class="d"></span>' + esc(txt);
+}
+function setCard(cardId, cls, big, sub){
+  var card = el(cardId); if (!card) return;
+  card.className = 'mcard' + (cls ? (' ' + cls) : '');
+  var bigEl = card.querySelector('.mbig'); if (bigEl) bigEl.textContent = (big == null ? '—' : big);
+  var subEl = card.querySelector('.msub'); if (subEl) subEl.textContent = (sub == null ? '' : sub);
+}
+function renderMetrics(){
+  var o = STATE.overview;
+  if (!o || !o.metrics) {
+    ['m-staff','m-jobs','m-runs','m-queue','m-heart','m-llm'].forEach(function(id){
+      setCard(id, '', '—', STATE.hasToken ? 'data nahi mila' : 'login chahiye');
+      setBadge(id, 'idle', '—');
+    });
+    return;
+  }
+  var m = o.metrics;
+  var liveTxt = STATE.degraded ? 'live·fb' : 'live';
+
+  // Staff (REAL count, never hardcoded)
+  setCard('m-staff', 'ok', m.staff.total, m.staff.active + ' active');
+  setBadge('m-staff', 'live', liveTxt);
+
+  // Jobs
+  var jcls = m.jobs.issues > 0 ? 'warn' : 'ok';
+  setCard('m-jobs', jcls, m.jobs.total, m.jobs.ok + ' ok · ' + m.jobs.issues + ' issue');
+  setBadge('m-jobs', 'live', liveTxt);
+
+  // Runs (may be null if no source)
+  if (m.runs.total == null) {
+    setCard('m-runs', '', '—', 'process runs');
+    setBadge('m-runs', 'idle', 'n/a');
+  } else {
+    setCard('m-runs', m.runs.running > 0 ? 'proc' : 'ok', m.runs.total, m.runs.running + ' running');
+    setBadge('m-runs', 'live', liveTxt);
+  }
+
+  // Queue / DLQ
+  // ADR-104 Phase F (2026-07-15): the tile's status class and subtext used
+  // to consider m.queue.dlq only, so it could show a green/ok tile with
+  // "DLQ 0" while m.queue.dead (retry-exhausted) was nonzero.
+  var qDead = m.queue.dead || 0;
+  var qcls = (m.queue.dlq > 0 || qDead > 0) ? 'bad' : (m.queue.depth > 200 ? 'warn' : 'ok');
+  setCard('m-queue', qcls, m.queue.depth, 'DLQ ' + m.queue.dlq + ' · dead ' + qDead);
+  setBadge('m-queue', 'live', liveTxt);
+
+  // Heartbeat
+  var hcls = (m.heartbeat.total && m.heartbeat.up < m.heartbeat.total) ? 'warn' : 'ok';
+  setCard('m-heart', hcls, m.heartbeat.up + '/' + m.heartbeat.total, 'jobs alive');
+  setBadge('m-heart', 'live', liveTxt);
+
+  // LLM brain
+  if (m.llm.ok_rate == null) {
+    setCard('m-llm', '', '—', m.llm.primary || 'no data');
+    setBadge('m-llm', 'idle', 'n/a');
+  } else {
+    var pct = Math.round(m.llm.ok_rate * 100);
+    var lcls = pct >= 85 ? 'ok' : (pct >= 50 ? 'warn' : 'bad');
+    setCard('m-llm', lcls, pct + '%', m.llm.primary || 'ok-rate');
+    setBadge('m-llm', 'live', liveTxt);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER — center canvas by route
+// ════════════════════════════════════════════════════════════════
+function render(){
+  var r = curRoute();
+  // leaving the workflow route → stop the per-run 3s poll (no leaked timers)
+  if (r !== 'workflow') stopL3RunPoll();
+  if (r === '') return renderL1();
+  if (r === 'stack') return renderL2();
+  if (r === 'workflow') return renderL3();
+  if (r === 'agent') return renderL4();
+}
+
+function renderL1(){
+  var c = el('canvas');
+  var o = STATE.overview;
+  var html = '';
+
+  if (!STATE.token) {
+    html += tokBanner();
+  } else if (!o && !STATE.loaded) {
+    html += '<div class="tok-banner"><span class="tk-ic">⏳</span><div>Live data connect ho raha hai…</div></div>';
+  } else if (!o) {
+    html += '<div class="tok-banner"><span class="tk-ic">⚠️</span><div>Live data abhi nahi mila — API reachable nahi ya login expire ho gaya. <a href="/app/admin-login">Dobara login</a> karke try karo. Shell tab bhi chalu hai.</div></div>';
+  }
+
+  if (o) {
+    // headline
+    var sev = headlineSev(o);
+    html += '<div class="headline sev-' + sev + '">'
+      + '<div class="hl-tx">' + esc(o.headline || '—') + '</div>'
+      + liveBadge() + '</div>';
+
+    html += '<div class="grid">';
+
+    // Problems
+    html += panelOpen('Problems', '❗', liveBadge());
+    if (o.problems && o.problems.length) {
+      o.problems.forEach(function(p, i){
+        html += '<div class="srow st-failed" data-ins="prob" data-i="' + i + '">'
+          + '<span class="sdot"></span><div class="stx">'
+          + '<div class="stitle">' + esc(p.kya || '') + '</div>'
+          + '<div class="ssub fix">fix: ' + esc(p.fix || '') + '</div></div></div>';
+      });
+    } else {
+      html += '<div class="empty-line good">✅ Koi problem nahi — sab theek</div>';
+    }
+    html += panelClose();
+
+    // Staff pulse
+    html += panelOpen('Staff pulse', '👥', liveBadge());
+    html += renderStaffGroups(o.staff);
+    html += panelClose();
+
+    // Today's jobs
+    html += panelOpen("Aaj ke jobs", '🗓', liveBadge());
+    if (o.jobs && o.jobs.length) {
+      o.jobs.forEach(function(j, i){
+        var st = jobStatusClass(j.status);
+        html += '<div class="srow st-' + st + '" data-ins="job" data-i="' + i + '">'
+          + '<span class="sdot"></span><div class="stx">'
+          + '<div class="stitle">' + esc(j.label || '') + '</div>'
+          + '<div class="ssub">' + esc(j.line || j.status || '') + '</div></div></div>';
+      });
+    } else {
+      html += '<div class="empty-line">Koi job data nahi</div>';
+    }
+    html += panelClose();
+
+    // Flags off
+    html += panelOpen('Flags OFF', '🚩', liveBadge());
+    if (o.flags_off && o.flags_off.length) {
+      o.flags_off.forEach(function(f){
+        html += '<div class="flag-line"><span class="fl-name mono">' + esc(f.flag || '') + '</span>'
+          + '<span class="fl-tx">' + esc(f.matlab || '') + '</span></div>';
+      });
+    } else {
+      html += '<div class="empty-line good">✅ Saare zaroori flags ON</div>';
+    }
+    html += panelClose();
+
+    // Activation
+    html += panelOpen('Activation', '🎯', liveBadge());
+    var rp = o.activation && o.activation.ready_for_paid;
+    if (rp === true) {
+      html += '<div class="srow st-healthy"><span class="sdot"></span><div class="stx"><div class="stitle">✅ Ready for first paid customer</div><div class="ssub">koi blocker nahi</div></div></div>';
+    } else if (rp === false) {
+      var bl = (o.activation.blockers || []);
+      html += '<div class="srow st-waiting"><span class="sdot"></span><div class="stx"><div class="stitle">⚠️ ' + bl.length + ' blocker baaki</div><div class="ssub">' + esc(bl.slice(0,6).join(', ') || '—') + '</div></div></div>';
+    } else {
+      html += '<div class="empty-line">Activation status nahi mila</div>';
+    }
+    html += panelClose();
+
+    // Agent OS / OmniRoute wiring (read-only; VPS INERT = healthy default)
+    html += panelOpen('Agent OS / OmniRoute', '🧭', liveBadge());
+    var aos = o.agent_os || {};
+    var om = aos.omniroute || {};
+    if (aos.ok) {
+      var hookOn = !!om.agents_hook_armed;
+      var aosCls = hookOn ? 'waiting' : 'healthy';
+      html += '<div class="srow st-' + aosCls + '"><span class="sdot"></span><div class="stx">'
+        + '<div class="stitle">Staff ' + esc(String(aos.staff_count || 0))
+        + ' · OmniRoute eligible ' + esc(String(aos.eligible_for_omniroute || 0))
+        + ' · forbidden ' + esc(String(aos.forbidden_omniroute || 0)) + '</div>'
+        + '<div class="ssub">flags enabled=' + (om.enabled_flag ? 'ON' : 'OFF')
+        + ' agents=' + (om.agents_flag ? 'ON' : 'OFF')
+        + ' key=' + (om.api_key_present ? 'set' : 'no')
+        + ' · hook_armed=' + (hookOn ? 'YES' : 'no')
+        + ' · <a href="/app/agent-tools" style="color:inherit">detail → agent-tools</a></div></div></div>';
+      if (om.prod_note) {
+        html += '<div class="empty-line" style="opacity:.85">' + esc(om.prod_note) + '</div>';
+      }
+    } else {
+      html += '<div class="empty-line">Agent OS status nahi mila — <a href="/app/agent-tools">/app/agent-tools</a> pe Refresh</div>';
+    }
+    html += panelClose();
+
+    // Eval gate
+    html += panelOpen('Eval gate', '🧪', liveBadge());
+    var eg = o.eval_gate || {};
+    if (eg.status) {
+      var egcls = (eg.regression === true || eg.status === 'reject') ? 'failed'
+        : (eg.status === 'accept' ? 'healthy' : 'idle');
+      html += '<div class="srow st-' + egcls + '"><span class="sdot"></span><div class="stx">'
+        + '<div class="stitle">Status: ' + esc(eg.status) + '</div>'
+        + '<div class="ssub">' + (eg.regression === true ? '⚠️ regression detected' : 'baseline OK') + '</div></div></div>';
+    } else {
+      html += '<div class="empty-line">Abhi koi eval sample nahi</div>';
+    }
+    html += panelClose();
+
+    // Provider chain
+    html += panelOpen('Provider chain', '🔗', liveBadge());
+    if (o.providers && o.providers.length) {
+      o.providers.slice(0, 8).forEach(function(p){
+        var pr = (typeof p.ok_rate === 'number') ? Math.round(p.ok_rate * 100) + '%' : '—';
+        var pcls = (typeof p.ok_rate === 'number') ? (p.ok_rate >= 0.85 ? 'healthy' : (p.ok_rate >= 0.5 ? 'waiting' : 'failed')) : 'idle';
+        html += '<div class="srow st-' + pcls + '"><span class="sdot"></span><div class="stx">'
+          + '<div class="stitle">' + esc(p.name) + '</div>'
+          + '<div class="ssub">' + p.calls + ' calls · ok ' + pr + '</div></div></div>';
+      });
+    } else {
+      html += '<div class="empty-line">Provider data nahi (LLM metrics khaali)</div>';
+    }
+    html += panelClose();
+
+    // Cost — tokens/calls from cost-rollup (never ₹/$). Honest when guard OFF.
+    var cost = o.cost || {};
+    var costBig = cost.available
+      ? ((cost.tokens_today != null ? cost.tokens_today : '—') + ' tok · ' + (cost.calls_today != null ? cost.calls_today : '—') + ' calls')
+      : (cost.budget_guard_enabled ? '0 tok · guard ON' : '— · —');
+    var costSub = cost.available
+      ? 'today · free-stack (no ₹/$ figure)'
+      : esc(cost.note || 'set LLM_BUDGET_GUARD=1');
+    html += '<div class="panel' + (cost.available ? '' : ' dashed') + '"><div class="panel-h"><span class="ph-t"><span class="pic">💸</span>Usage (tokens)</span>'
+      + '<span class="lb ' + (cost.available ? 'ok' : 'proj') + '"><span class="d"></span>' + (cost.available ? 'live' : '◌ pending') + '</span></div>'
+      + '<div class="panel-b"><div class="cost-tile">'
+      + '<div class="ct-glyph">' + (cost.available ? '✓' : '◌') + '</div>'
+      + '<div class="ct-big">' + esc(String(costBig)) + '</div>'
+      + '<div class="ct-sub">' + costSub + '</div>'
+      + '</div></div></div>';
+
+    // Route hits — unused/hot API view (ROUTE_HIT_COUNTER)
+    var rh = o.route_hits || {};
+    html += panelOpen('Route hits today', '📍', liveBadge());
+    if (rh.enabled && rh.top && rh.top.length) {
+      rh.top.slice(0, 6).forEach(function(row){
+        html += '<div class="srow st-healthy"><span class="sdot"></span><div class="stx">'
+          + '<div class="stitle">' + esc(row.path) + '</div>'
+          + '<div class="ssub">' + esc(String(row.hits)) + ' hits</div></div></div>';
+      });
+      html += '<div class="empty-line mut">' + esc(String(rh.total_paths || 0)) + ' paths tracked</div>';
+    } else {
+      html += '<div class="empty-line">' + esc(rh.note || 'enable ROUTE_HIT_COUNTER=1 to track') + '</div>';
+    }
+    html += panelClose();
+
+    if (o.nav_enabled === false) {
+      html = '<div class="empty-line" style="border:1px dashed #f59e0b;padding:8px;margin-bottom:10px;border-radius:8px">⚠️ CONTROL_CENTER flag OFF — page URL se open hai, nav pe gated. Flip: CONTROL_CENTER=1</div>' + html;
+    }
+
+    html += '</div>'; // grid
+  }
+
+  c.innerHTML = html;
+  wireL1Rows();
+}
+
+function headlineSev(o){
+  var h = String((o && o.headline) || '');
+  if (o && o.problems && o.problems.length) return 'warn';
+  if (h.indexOf('✅') >= 0) return 'ok';
+  if (h.indexOf('⚠') >= 0 || h.indexOf('❌') >= 0) return 'warn';
+  if (h.indexOf('🚨') >= 0) return 'bad';
+  return 'idle';
+}
+function jobStatusClass(st){
+  st = String(st || '');
+  if (st === 'ok') return 'healthy';
+  if (st === 'overdue') return 'waiting';
+  if (st === 'last_failed') return 'failed';
+  if (st === 'never_ran') return 'retry';
+  if (st === 'scheduled_off') return 'idle';
+  return 'idle';
+}
+function renderStaffGroups(staff){
+  staff = staff || [];
+  if (!staff.length) return '<div class="empty-line">Staff data nahi mila</div>';
+  var groups = { processing:[], healthy:[], idle:[] };
+  staff.forEach(function(s){ (groups[s.state] || groups.idle).push(s); });
+  var out = '';
+  var caps = [['processing','Working'], ['healthy','Active'], ['idle','Offline / idle']];
+  caps.forEach(function(g){
+    var arr = groups[g[0]];
+    if (!arr.length) return;
+    out += '<div class="grp-cap">' + g[1] + ' (' + arr.length + ')</div>';
+    arr.forEach(function(s, idx){
+      out += '<div class="srow st-' + g[0] + '" data-ins="staff" data-name="' + esc(s.name) + '">'
+        + '<span class="sdot"></span><div class="stx">'
+        + '<div class="stitle">' + esc(s.emoji + ' ' + s.name) + '</div>'
+        + '<div class="ssub">' + esc(s.role || '') + (s.today ? (' · ' + s.today + ' kaam') : '') + '</div></div>'
+        + '<div class="smeta">' + (s.today || 0) + '</div></div>';
+    });
+  });
+  return out;
+}
+
+function panelOpen(title, ic, badge){
+  return '<div class="panel"><div class="panel-h"><span class="ph-t"><span class="pic">' + ic + '</span>' + esc(title) + '</span>' + (badge || '') + '</div><div class="panel-b">';
+}
+function panelClose(){ return '</div></div>'; }
+function liveBadge(){
+  if (!STATE.hasToken) return '<span class="lb idle"><span class="d"></span>—</span>';
+  if (STATE.degraded) return '<span class="lb live"><span class="d"></span>live·fb</span>';
+  return '<span class="lb live"><span class="d"></span>live</span>';
+}
+function tokBanner(){
+  return '<div class="tok-banner"><span class="tk-ic">🔑</span><div>Live data ke liye admin login karo → '
+    + '<a href="/app/admin-login">/app/admin-login</a>. Tab tak shell + layout dikh raha hai (live metric blank rahenge).</div></div>';
+}
+
+// ---- L1 row → inspector wiring ----
+function wireL1Rows(){
+  var rows = document.querySelectorAll('#canvas [data-ins]');
+  rows.forEach(function(row){
+    row.addEventListener('click', function(){
+      var kind = row.getAttribute('data-ins');
+      var o = STATE.overview; if (!o) return;
+      if (kind === 'prob') {
+        var p = (o.problems || [])[num(row.getAttribute('data-i'))];
+        if (p) openInspector('Problem', '<div class="stitle" style="font-size:13px;color:#fca5a5;line-height:1.6;margin-bottom:10px">❗ ' + esc(p.kya) + '</div>'
+          + '<div class="ssub fix" style="font-size:12px;line-height:1.7">✅ fix: ' + esc(p.fix) + '</div>');
+      } else if (kind === 'job') {
+        var j = (o.jobs || [])[num(row.getAttribute('data-i'))];
+        if (j) openInspector(j.label || 'Job', '<div class="ssub" style="font-size:12px;line-height:1.7;color:#cbd5e1">' + esc(j.line || j.status) + '</div>'
+          + (j.kya ? ('<div class="ssub" style="margin-top:10px;font-size:11px;line-height:1.7">' + esc(j.kya) + '</div>') : '')
+          + '<div class="grp-cap" style="margin-top:14px">Status</div><div class="ssub" style="font-size:11px">' + esc(j.status) + '</div>');
+      } else if (kind === 'staff') {
+        var nm = row.getAttribute('data-name');
+        var s = (o.staff || []).filter(function(x){ return x.name === nm; })[0];
+        if (s) openInspector(s.emoji + ' ' + s.name, '<div class="ssub" style="font-size:12px;color:#cbd5e1;line-height:1.7">' + esc(s.role || '') + '</div>'
+          + '<div class="grp-cap" style="margin-top:12px">Aaj kaam</div><div class="ssub" style="font-size:12px">' + (s.today || 0) + '</div>'
+          + (s.last ? ('<div class="grp-cap" style="margin-top:12px">Aakhri action</div><div class="ssub" style="font-size:11px;line-height:1.7">' + esc(s.last) + '</div>') : ''));
+      }
+    });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// STUB PANELS (L2 / L4) + L3 (with runs)
+// ════════════════════════════════════════════════════════════════
+function renderStub(title, desc, href, btn){
+  var c = el('canvas');
+  c.innerHTML = '<div class="panel" style="max-width:680px;margin:0 auto"><div class="panel-h"><span class="ph-t"><span class="pic">◔</span>'
+    + esc(title) + '</span><span class="lb proj"><span class="d"></span>preview</span></div>'
+    + '<div class="panel-b"><div class="stub-wrap">'
+    + '<div class="stub-desc">' + esc(desc) + '</div>'
+    + '<div class="stub-note">🚧 Coming in P2/P3 — abhi yeh honest preview stub hai. Niche wala button live page kholta hai.</div>'
+    + '<a class="stub-btn" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(btn) + '</a>'
+    + '</div></div></div>';
+}
+
+// ════════════════════════════════════════════════════════════════
+// L2 — STACK GRAPH (Sigma + ELK WebGL engine, iframe-embedded)
+// ════════════════════════════════════════════════════════════════
+var _ccGraphWired = false;
+var _ccGraphWatch = null;
+function showL2EmbedIssue(detail){
+  var box = el('cc-graph-issue');
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = '<strong style="color:var(--bad)">L2 graph load issue</strong>'
+    + '<div style="margin-top:4px;color:var(--mut);font-size:12px">' + esc(String(detail || 'unknown')) + '</div>'
+    + '<div style="margin-top:8px"><a href="/app/explorer" target="_blank" rel="noopener" style="color:#60a5fa">Old Explorer ↗ open karo</a>'
+    + ' — architecture map wahan working fallback hai.</div>';
+}
+function clearL2EmbedIssue(){
+  var box = el('cc-graph-issue');
+  if (box){ box.style.display = 'none'; box.innerHTML = ''; }
+}
+function renderL2(){
+  if (_ccGraphWatch) { try { clearTimeout(_ccGraphWatch); } catch(e){} _ccGraphWatch = null; }
+  var c = el('canvas');
+  c.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;min-height:520px">'
+    + '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 8px;font-size:12px">'
+    +   '<span style="color:var(--tx);font-weight:600">L2 Stack — architecture graph</span>'
+    +   '<span class="pill">Sigma + ELK · WebGL</span>'
+    +   '<span style="color:var(--mut)">node click → inspector</span>'
+    +   '<a href="/app/explorer" target="_blank" rel="noopener" style="margin-left:auto;color:#60a5fa;text-decoration:none">Old explorer ↗</a>'
+    + '</div>'
+    + '<div id="cc-graph-issue" role="alert" style="display:none;margin:0 0 8px;padding:10px 12px;border:1px solid var(--bad);border-radius:8px;background:rgba(239,68,68,.08)"></div>'
+    + '<iframe id="cc-graph-frame" src="/app/control-center/graph" title="Architecture graph" '
+    +   'style="flex:1;width:100%;min-height:480px;border:1px solid var(--bd);border-radius:10px;background:#0a0a0c"></iframe>'
+    + '</div>';
+  clearL2EmbedIssue();
+  var frame = el('cc-graph-frame');
+  if (frame) frame.addEventListener('load', function(){
+    var map = ccGraphStatusMap();
+    if (map) { try { frame.contentWindow.postMessage({ type:'cc-status', map: map }, '*'); } catch(e){} }
+  });
+  // Watchdog: if child never posts ready/error (XFO/CSP blank frame), surface truth.
+  _ccGraphWatch = setTimeout(function(){
+    var issue = el('cc-graph-issue');
+    if (issue && issue.style.display === 'none') {
+      showL2EmbedIssue('Graph iframe ne 12s me ready signal nahi bheja (blank/blocked frame?). Old Explorer fallback use karo.');
+    }
+  }, 12000);
+  wireGraphBridge();
+}
+// Honest live-status overlay: only nodes with a DIRECT runtime signal get a
+// colour (infra heartbeat · LLM health · data). All other architecture nodes
+// stay grey (= curated map). Driven by the real /overview metrics.
+function ccGraphStatusMap(){
+  var o = STATE.overview; if (!o) return null;
+  var m = o.metrics || {}, hb = m.heartbeat || {}, llm = m.llm || {};
+  var infraOk = (hb.up || 0) > 0 && (hb.up || 0) >= (hb.total || 0) - 1;
+  var llmOk = (llm.ok_rate || 0) >= 0.5;
+  var map = {};
+  ['beat','worker','celery','scheduler','ops'].forEach(function(id){ map[id] = infraOk ? 'healthy' : 'failed'; });
+  ['free_ai','rag'].forEach(function(id){ map[id] = llmOk ? 'healthy' : 'retry'; });
+  // Honest dead-man: never hardcode automation_health green (fake confidence).
+  var jobs = m.jobs || {};
+  var autoOk = (jobs.issues || 0) === 0 && (jobs.total || 0) > 0;
+  map['automation_health'] = autoOk ? 'healthy' : ((jobs.issues || 0) > 0 ? 'failed' : 'retry');
+  var q = m.queue || {};
+  var dlqN = (q.dlq || 0) + (q.dead || 0);
+    map['events'] = dlqN > 0 ? 'failed' : 'healthy';
+  // data / data_layer stay grey unless we have a direct signal — do not invent healthy
+  return map;
+}
+function wireGraphBridge(){
+  if (_ccGraphWired) return;
+  _ccGraphWired = true;
+  window.addEventListener('message', function(ev){
+    var d = ev && ev.data;
+    if (!d || !d.type) return;
+    if (d.type === 'cc-graph-ready') {
+      if (_ccGraphWatch) { try { clearTimeout(_ccGraphWatch); } catch(e){} _ccGraphWatch = null; }
+      if ((d.nodes || 0) > 0) clearL2EmbedIssue();
+      else showL2EmbedIssue('Graph ready par 0 nodes — dataset empty. Old Explorer dekho.');
+      return;
+    }
+    if (d.type === 'cc-graph-error') {
+      if (_ccGraphWatch) { try { clearTimeout(_ccGraphWatch); } catch(e){} _ccGraphWatch = null; }
+      showL2EmbedIssue(d.detail || 'Graph engine failed');
+      return;
+    }
+    if (d.type !== 'cc-node' || !d.node) return;
+    var n = d.node;
+    var rows = [['Type', n.ntype], ['Badge', n.badge], ['View', n.view], ['Files', n.files], ['Status', n.status || 'curated']];
+    var html = '<div style="font-size:12px;color:var(--mut);line-height:1.7">';
+    if (n.desc) html += '<div style="color:var(--tx);margin-bottom:8px">' + esc(n.desc) + '</div>';
+    rows.forEach(function(rw){ html += '<div><span style="color:var(--mut)">' + esc(rw[0]) + ':</span> <span style="color:var(--tx)">' + esc(String(rw[1] || '—')) + '</span></div>'; });
+    html += '</div>';
+    openInspector(esc(n.title || n.id || 'Node'), html);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// L3 — WORKFLOW EXPLORER (real Flow-Runner runs view)
+// ════════════════════════════════════════════════════════════════
+// status → color (spec exact; backend status = ST_* strings)
+function l3RunColor(st){
+  st = String(st || '');
+  if (st === 'running' || st === 'active') return '#3b82f6';
+  if (st === 'completed' || st === 'done' || st === 'success') return '#22c55e';
+  if (st === 'failed' || st === 'error') return '#ef4444';
+  if (st === 'waiting_approval') return '#a855f7';
+  return '#eab308';
+}
+function l3RunId(r){ return String((r && (r.run_id || r.id)) || ''); }
+function l3RunName(r){ return (r && (r.process || r.flow || r.name)) || '—'; }
+
+function renderL3(){
+  var c = el('canvas');
+  if (!STATE.token) { c.innerHTML = tokBanner(); return; }
+  // already mounted (periodic overview-poll re-render) → only refresh sub-views
+  // from cache so scroll/selection/in-flight buttons don't reset every 15s.
+  if (el('l3-list')) {
+    renderL3List(); renderL3NodeStats();
+    if (STATE.l3.selectedId && STATE.l3.detail) renderL3Detail();
+    return;
+  }
+  var s = STATE.l3;
+  // shell (chips + 2 columns + slowest-nodes slot)
+  var chips = ['all','running','failed','waiting'].map(function(f){
+    var on = (s.filter === f) ? ' active' : '';
+    var lbl = f === 'all' ? 'Sab' : (f === 'waiting' ? 'Approval' : (f === 'running' ? 'Running' : 'Failed'));
+    return '<button class="bot-tab' + on + '" data-l3chip="' + f + '">' + lbl + '</button>';
+  }).join('');
+  c.innerHTML =
+    '<div class="headline sev-idle"><div class="hl-tx" style="font-size:13px">⛓ Workflow Explorer — process / flow runs, journal timeline + breakpoint approve</div>'
+    + liveBadge() + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">'
+    + '<div class="bot-tabs" style="height:auto;padding:0;gap:2px">' + chips + '</div>'
+    + '<button class="tbtn" id="l3-refresh" style="margin-left:auto" title="Refresh">↻ Refresh</button></div>'
+    + '<div id="l3-nodestats"></div>'
+    + '<div style="display:grid;grid-template-columns:300px 1fr;gap:13px;align-items:start" class="l3-cols">'
+    + '<div id="l3-list"><div class="empty-line">Runs load ho rahe…</div></div>'
+    + '<div id="l3-detail"></div>'
+    + '</div>';
+  el('l3-refresh').addEventListener('click', function(){ loadL3Runs(true); });
+  document.querySelectorAll('[data-l3chip]').forEach(function(b){
+    b.addEventListener('click', function(){ STATE.l3.filter = b.getAttribute('data-l3chip'); renderL3List(); });
+  });
+  // render from cache first (idempotent), then refresh async
+  if (s.runs) { renderL3List(); }
+  loadL3Runs(false);
+  loadL3NodeStats();
+  // if a run was selected, re-paint its detail from cache
+  if (s.selectedId && s.detail) renderL3Detail();
+}
+
+function loadL3Runs(force){
+  var s = STATE.l3;
+  if (s.loading) return;
+  if (!force && s.runs) return;       // cache present → skip unless forced
+  s.loading = true;
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/growth/process/runs?limit=50', {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ STATE.liveBase = b; return j; }).catch(function(){ return null; });
+    });
+  });
+  ch.then(function(j){
+    s.loading = false;
+    s.runs = (j && Array.isArray(j.runs)) ? j.runs : [];
+    STATE.runs = s.runs;             // keep bottom-panel cache in sync
+    if (curRoute() === 'workflow') renderL3List();
+  }).catch(function(){
+    s.loading = false; if (!s.runs) s.runs = [];
+    if (curRoute() === 'workflow') renderL3List();
+  });
+}
+
+function renderL3List(){
+  var box = el('l3-list'); if (!box) return;
+  var s = STATE.l3;
+  var runs = s.runs || [];
+  if (s.filter === 'running') runs = runs.filter(function(r){ return (r.status||'') === 'running' || (r.status||'') === 'active'; });
+  else if (s.filter === 'failed') runs = runs.filter(function(r){ return (r.status||'') === 'failed' || (r.status||'') === 'error'; });
+  else if (s.filter === 'waiting') runs = runs.filter(function(r){ return (r.status||'') === 'waiting_approval'; });
+  if (!runs.length) { box.innerHTML = '<div class="panel"><div class="panel-b"><div class="empty-line">koi run nahi</div></div></div>'; return; }
+  var html = '<div class="panel"><div class="panel-h"><span class="ph-t"><span class="pic">▤</span>Runs (' + runs.length + ')</span></div><div class="panel-b">';
+  runs.forEach(function(r){
+    var rid = l3RunId(r);
+    var col = l3RunColor(r.status);
+    var sel = (rid && rid === s.selectedId) ? ';background:#16181f' : '';
+    var step = (r.step_index != null) ? ('step ' + r.step_index) : '';
+    var eng = r.engine ? (' · ' + esc(r.engine)) : '';
+    html += '<div class="run-row" data-l3run="' + esc(rid) + '" style="cursor:pointer' + sel + '">'
+      + '<span class="rdot" style="background:' + col + '"></span>'
+      + '<span class="rproc" title="' + esc(l3RunName(r)) + '">' + esc(l3RunName(r)) + '</span>'
+      + '<span class="rstat" style="color:' + col + '">' + esc(String(r.status||'—')) + '</span>'
+      + '</div>'
+      + (step || eng ? '<div class="ssub" style="font-size:11px;color:var(--mut2);margin:-2px 0 6px 17px">' + esc(rid.slice(0,10)) + (step?(' · '+step):'') + eng + '</div>' : '');
+  });
+  html += '</div></div>';
+  box.innerHTML = html;
+  document.querySelectorAll('[data-l3run]').forEach(function(row){
+    row.addEventListener('click', function(){ selectL3Run(row.getAttribute('data-l3run')); });
+  });
+}
+
+function selectL3Run(rid){
+  if (!rid) return;
+  STATE.l3.selectedId = rid;
+  STATE.l3.detail = null;
+  renderL3List();           // highlight
+  loadL3Detail(rid, false);
+}
+
+function loadL3Detail(rid, isPoll){
+  var s = STATE.l3;
+  if (!rid || rid !== s.selectedId) return;
+  if (!isPoll) { var dbox = el('l3-detail'); if (dbox) dbox.innerHTML = '<div class="panel"><div class="panel-b"><div class="empty-line">Run detail load ho rahi…</div></div></div>'; }
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/growth/process/run/' + encodeURIComponent(rid), {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ STATE.liveBase = b; return j; }).catch(function(){ return null; });
+    });
+  });
+  ch.then(function(j){
+    if (rid !== STATE.l3.selectedId) return;   // selection moved on
+    STATE.l3.detail = j || { state:{}, journal:[] };
+    if (curRoute() === 'workflow') { renderL3Detail(); renderL3Inspector(); }
+    scheduleL3RunPoll();
+  }).catch(function(){
+    if (rid !== STATE.l3.selectedId) return;
+    if (!STATE.l3.detail) STATE.l3.detail = { state:{}, journal:[] };
+    if (curRoute() === 'workflow') renderL3Detail();
+  });
+}
+
+// journal event → state color (linear: data.step / dag: data.node)
+function l3EventColor(type){
+  type = String(type || '');
+  if (type === 'run_completed' || type === 'step_completed' || type === 'breakpoint_approved') return '#22c55e';
+  if (type === 'run_failed' || type === 'gate_failed') return '#ef4444';
+  if (type === 'breakpoint_waiting') return '#a855f7';
+  if (type === 'run_started' || type === 'step_started') return '#3b82f6';
+  return '#64748b';
+}
+function l3TimeShort(iso){
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleTimeString('en-GB', { timeZone:'Asia/Kolkata', hour12:false }); }
+  catch(e){ return String(iso).slice(11,19) || ''; }
+}
+
+function renderL3Detail(){
+  var box = el('l3-detail'); if (!box) return;
+  var d = STATE.l3.detail;
+  if (!d) { box.innerHTML = '<div class="panel"><div class="panel-b"><div class="empty-line">Baayein se run choose karo — journal + steps yahan dikhega</div></div></div>'; return; }
+  var st = (d && d.state) || {};
+  var jr = (d && Array.isArray(d.journal)) ? d.journal : [];
+  var status = String(st.status || '—');
+  var col = l3RunColor(status);
+  var html = '';
+  // run header + approve/reject + replay
+  html += '<div class="panel"><div class="panel-h"><span class="ph-t"><span class="pic">⛓</span>'
+    + esc(st.process || l3RunName(st) || 'Run') + '</span>'
+    + '<span class="rstat" style="color:' + col + '">' + esc(status) + '</span></div><div class="panel-b">';
+  html += '<div class="ssub" style="font-size:11px;color:var(--mut2)">' + esc(String(STATE.l3.selectedId||'').slice(0,18))
+    + (st.engine ? (' · ' + esc(st.engine)) : '') + (st.step_index != null ? (' · step ' + st.step_index) : '') + '</div>';
+  if (st.last_error) html += '<div class="ssub" style="font-size:11px;color:#fca5a5;margin-top:6px;word-break:break-word">⚠ ' + esc(st.last_error) + '</div>';
+  html += '<div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">';
+  if (status === 'waiting_approval') {
+    html += '<button class="stub-btn" id="l3-approve" style="background:#06210f;border-color:#14532d;color:#4ade80">✓ Approve</button>'
+      + '<button class="stub-btn" id="l3-reject" style="background:#1a0e0e;border-color:#7f1d1d;color:#fca5a5">✗ Reject</button>';
+  }
+  html += '<button class="tbtn" id="l3-replay">↻ Replay / refresh</button></div>';
+  html += '</div></div>';
+
+  // execution timeline (journal)
+  html += '<div class="panel" style="margin-top:13px"><div class="panel-h"><span class="ph-t"><span class="pic">≣</span>Execution timeline</span></div><div class="panel-b">';
+  if (jr.length) {
+    jr.slice().reverse().forEach(function(ev){
+      var t = String(ev.type || '');
+      var data = ev.data || {};
+      var node = data.node || data.step || '—';
+      var ecol = l3EventColor(t);
+      var extra = data.detail || data.reason || data.error || '';
+      html += '<div class="srow" style="cursor:default;border-left-color:' + ecol + '">'
+        + '<span class="sdot" style="background:' + ecol + '"></span><div class="stx">'
+        + '<div class="stitle">' + esc(t) + ' <span style="color:var(--mut2)">· ' + esc(String(node)) + '</span></div>'
+        + (extra ? ('<div class="ssub" style="word-break:break-word">' + esc(String(extra).slice(0,200)) + '</div>') : '')
+        + '</div><div class="smeta mono">' + esc(l3TimeShort(ev.at)) + '</div></div>';
+    });
+  } else {
+    html += '<div class="empty-line">Abhi koi journal event nahi</div>';
+  }
+  html += '</div></div>';
+
+  // step list (steps_done)
+  var steps = Array.isArray(st.steps_done) ? st.steps_done : [];
+  html += '<div class="panel" style="margin-top:13px"><div class="panel-h"><span class="ph-t"><span class="pic">☑</span>Steps (' + steps.length + ')</span></div><div class="panel-b">';
+  if (steps.length) {
+    steps.forEach(function(sp, i){
+      html += '<div class="srow st-healthy" style="cursor:default"><span class="sdot"></span><div class="stx">'
+        + '<div class="stitle">' + (i+1) + '. ' + esc(sp.step || '—') + '</div>'
+        + (sp.detail ? ('<div class="ssub" style="word-break:break-word">' + esc(String(sp.detail).slice(0,160)) + '</div>') : '')
+        + '</div></div>';
+    });
+  } else {
+    html += '<div class="empty-line">Koi step complete nahi hua abhi</div>';
+  }
+  html += '</div></div>';
+
+  box.innerHTML = html;
+  // wire actions
+  var rb = el('l3-replay'); if (rb) rb.addEventListener('click', function(){ loadL3Detail(STATE.l3.selectedId, false); });
+  var ap = el('l3-approve'); if (ap) ap.addEventListener('click', function(){ l3Decide('approve'); });
+  var rj = el('l3-reject'); if (rj) rj.addEventListener('click', function(){ l3Decide('reject'); });
+}
+
+function l3Decide(kind){
+  var s = STATE.l3;
+  var rid = s.selectedId; if (!rid || s.busy) return;
+  var st = (s.detail && s.detail.state) || {};
+  s.busy = true;
+  var btn = el(kind === 'approve' ? 'l3-approve' : 'l3-reject');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+  var base = STATE.liveBase || getApiBases()[0];
+  var node_id = '';
+  // dag breakpoint node — best-effort from journal (linear ignores node_id)
+  if (st.engine === 'dag' && s.detail && Array.isArray(s.detail.journal)) {
+    for (var i = s.detail.journal.length - 1; i >= 0; i--) {
+      var ev = s.detail.journal[i];
+      if (ev && ev.type === 'breakpoint_waiting') { node_id = (ev.data && ev.data.node) || ''; break; }
+    }
+  }
+  postJSON(base + '/api/growth/process/run/' + encodeURIComponent(rid) + '/' + kind,
+    { note: kind === 'approve' ? 'approved via control-center' : 'rejected via control-center', node_id: node_id },
+    STATE.token
+  ).then(function(){
+    s.busy = false;
+    pushLog('', (kind === 'approve' ? '✓ approved' : '✗ rejected') + ' run ' + rid.slice(0,10));
+    loadL3Detail(rid, false);   // re-fetch after action
+    loadL3Runs(true);
+  }).catch(function(err){
+    s.busy = false;
+    if (btn) { btn.disabled = false; btn.textContent = kind === 'approve' ? '✓ Approve' : '✗ Reject'; }
+    var dbox = el('l3-detail');
+    if (dbox) { var w = document.createElement('div'); w.className='empty-line'; w.style.color='#fca5a5';
+      w.textContent = (kind + ' fail: ' + ((err && err.status) ? ('http ' + err.status) : 'network')); dbox.insertBefore(w, dbox.firstChild); }
+  });
+}
+
+// run-detail 3s poll (only while running/waiting; paused on hidden; cleared on route-change)
+function stopL3RunPoll(){ if (STATE.l3.runPoll) { clearInterval(STATE.l3.runPoll); STATE.l3.runPoll = null; } }
+function scheduleL3RunPoll(){
+  stopL3RunPoll();
+  var st = (STATE.l3.detail && STATE.l3.detail.state) || {};
+  var status = String(st.status || '');
+  if (status !== 'running' && status !== 'active' && status !== 'waiting_approval') return;
+  STATE.l3.runPoll = setInterval(function(){
+    if (document.hidden) return;
+    if (curRoute() !== 'workflow' || !STATE.l3.selectedId) { stopL3RunPoll(); return; }
+    loadL3Detail(STATE.l3.selectedId, true);
+  }, 3000);
+}
+
+function renderL3Inspector(){
+  var d = STATE.l3.detail; if (!d) return;
+  var st = d.state || {};
+  var col = l3RunColor(st.status);
+  var html = '<div class="grp-cap">Status</div><div class="ssub" style="font-size:12px;color:' + col + '">' + esc(String(st.status||'—')) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Engine</div><div class="ssub" style="font-size:12px">' + esc(st.engine || '—') + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Run ID</div><div class="ssub mono" style="font-size:11px;word-break:break-all">' + esc(String(STATE.l3.selectedId||'—')) + '</div>'
+    + (st.last_error ? ('<div class="grp-cap" style="margin-top:12px">Last error</div><div class="ssub" style="font-size:11px;color:#fca5a5;line-height:1.7;word-break:break-word">' + esc(st.last_error) + '</div>') : '');
+  // openInspector sets the title via textContent (XSS-safe) → pass raw, no esc.
+  openInspector(st.process || 'Run', html);
+}
+
+// optional slowest-nodes strip from NEW /control-center/node-stats (hide if empty/404)
+function loadL3NodeStats(){
+  if (!STATE.token) return;
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/control-center/node-stats', {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ return j; }).catch(function(){ return null; });
+    });
+  });
+  ch.then(function(j){
+    STATE.l3.nodeStats = j || null;
+    renderL3NodeStats();
+  }).catch(function(){});
+}
+function renderL3NodeStats(){
+  var box = el('l3-nodestats'); if (!box) return;
+  var ns = STATE.l3.nodeStats;
+  var slow = (ns && Array.isArray(ns.slowest)) ? ns.slowest : [];
+  if (!slow.length) { box.innerHTML = ''; return; }   // hide
+  var html = '<div class="panel" style="margin-bottom:13px"><div class="panel-h"><span class="ph-t"><span class="pic">🐢</span>Slowest nodes</span>' + liveBadge() + '</div><div class="panel-b">';
+  slow.slice(0, 8).forEach(function(n){
+    var p50 = (n.p50_ms != null) ? (Math.round(num(n.p50_ms)) + 'ms') : '—';
+    var p95 = (n.p95_ms != null) ? (Math.round(num(n.p95_ms)) + 'ms') : '—';
+    html += '<div class="srow" style="cursor:default"><span class="sdot" style="background:#f97316"></span><div class="stx">'
+      + '<div class="stitle">' + esc(n.node || '—') + '</div>'
+      + '<div class="ssub">p50 ' + p50 + ' · p95 ' + p95 + (n.runs != null ? (' · ' + num(n.runs) + ' runs') : '') + '</div>'
+      + '</div></div>';
+  });
+  html += '</div></div>';
+  box.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════
+// L4 — AGENT EXPLORER (staff grid + agent detail + rca strip)
+// ════════════════════════════════════════════════════════════════
+function l4StateColor(s){
+  s = String(s || '');
+  if (s === 'working') return '#22c55e';
+  if (s === 'active') return '#3b82f6';
+  return '#64748b'; // offline / unknown
+}
+function l4MinAgo(ts){
+  if (!ts) return '—';
+  var t = (typeof ts === 'number') ? ts : Date.parse(ts);
+  if (!isFinite(t)) return '—';
+  var mins = Math.floor((Date.now() - t) / 60000);
+  if (mins < 0) mins = 0;
+  if (mins < 1) return 'abhi';
+  if (mins < 60) return mins + ' min pehle';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + ' ghante pehle';
+  return Math.floor(hrs / 24) + ' din pehle';
+}
+function l4Dash(v){ return (v == null || v === '') ? '—' : v; }
+
+function renderL4(){
+  var c = el('canvas');
+  if (!STATE.token) { c.innerHTML = tokBanner(); return; }
+  // already mounted → refresh sub-views from cache (don't reset scroll/filter)
+  if (el('l4-grid')) { renderL4Grid(); renderL4Rca(); return; }
+  var s = STATE.l4;
+  var chips = ['all','marketing','voice','platform'].map(function(f){
+    var on = (s.filter === f) ? ' active' : '';
+    var lbl = f === 'all' ? 'Sab' : (f.charAt(0).toUpperCase() + f.slice(1));
+    return '<button class="bot-tab' + on + '" data-l4chip="' + f + '">' + lbl + '</button>';
+  }).join('');
+  c.innerHTML =
+    '<div id="l4-rca"></div>'
+    + '<div class="headline sev-idle"><div class="hl-tx" style="font-size:13px">◈ Agent Explorer — staff grid, per-agent metrics + detail</div>'
+    + liveBadge() + '</div>'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">'
+    + '<div class="bot-tabs" style="height:auto;padding:0;gap:2px">' + chips + '</div>'
+    + '<button class="tbtn" id="l4-refresh" style="margin-left:auto" title="Refresh">↻ Refresh</button></div>'
+    + '<div id="l4-grid"><div class="empty-line">Agents load ho rahe…</div></div>';
+  el('l4-refresh').addEventListener('click', function(){ loadL4Agents(true); });
+  document.querySelectorAll('[data-l4chip]').forEach(function(b){
+    b.addEventListener('click', function(){ STATE.l4.filter = b.getAttribute('data-l4chip'); renderL4Grid(); });
+  });
+  if (s.agents) renderL4Grid();
+  loadL4Agents(false);
+  renderL4Rca();           // from cache if present
+  loadL4Rca();
+}
+
+function loadL4Agents(force){
+  var s = STATE.l4;
+  if (s.loading) return;
+  if (!force && s.agents) return;
+  s.loading = true;
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/control-center/agents/metrics', {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ STATE.liveBase = b; return j; }).catch(function(){ return null; });
+    });
+  });
+  ch.then(function(j){
+    s.loading = false;
+    s.agents = (j && Array.isArray(j.agents)) ? j.agents : [];
+    if (curRoute() === 'agent') renderL4Grid();
+  }).catch(function(){
+    s.loading = false; if (!s.agents) s.agents = [];
+    if (curRoute() === 'agent') renderL4Grid();
+  });
+}
+
+function renderL4Grid(){
+  var box = el('l4-grid'); if (!box) return;
+  var s = STATE.l4;
+  var agents = s.agents || [];
+  if (s.filter !== 'all') agents = agents.filter(function(a){ return (a.product || '') === s.filter; });
+  if (!agents.length) {
+    box.innerHTML = '<div class="panel"><div class="panel-b"><div class="empty-line">'
+      + (s.loading ? 'Agents load ho rahe…' : ((s.agents && s.agents.length) ? 'Is filter me koi agent nahi' : 'Agent metrics nahi mila (endpoint pending ya data khaali)')) + '</div></div></div>';
+    return;
+  }
+  var cards = agents.map(function(a){
+    var col = l4StateColor(a.state);
+    var rid = esc(String(a.key || a.name || ''));
+    var okr = (a.ok_rate != null && isFinite(Number(a.ok_rate))) ? (Math.round(Number(a.ok_rate) * 100) + '%') : null;
+    var sel = (a.key && a.key === s.selectedKey) ? ';border-color:#4b5563;background:#181b22' : '';
+    return '<div class="panel" data-l4agent="' + rid + '" style="cursor:pointer' + sel + '">'
+      + '<div class="panel-h"><span class="ph-t"><span class="pic">' + esc(a.emoji || '🤖') + '</span>' + esc(a.name || a.key || '—') + '</span>'
+      + '<span class="sdot" style="width:9px;height:9px;border-radius:50%;background:' + col + '"></span></div>'
+      + '<div class="panel-b">'
+      + '<div class="ssub" style="font-size:11px;color:var(--mut)">' + esc(l4Dash(a.role)) + '</div>'
+      + '<div class="ssub" style="font-size:11px;color:var(--mut2);margin-top:6px">'
+      + esc(String(a.state || 'offline')) + ' · ' + num(a.runs_today) + ' aaj'
+      + (okr != null ? (' · ok ' + okr) : '') + '</div>'
+      + '</div></div>';
+  }).join('');
+  box.innerHTML = '<div class="grid">' + cards + '</div>';
+  document.querySelectorAll('[data-l4agent]').forEach(function(card){
+    card.addEventListener('click', function(){ selectL4Agent(card.getAttribute('data-l4agent')); });
+  });
+}
+
+function selectL4Agent(key){
+  if (!key) return;
+  STATE.l4.selectedKey = key;
+  renderL4Grid();   // highlight
+  var a = (STATE.l4.agents || []).filter(function(x){ return String(x.key || x.name || '') === key; })[0];
+  if (!a) return;
+  var col = l4StateColor(a.state);
+  var okr = (a.ok_rate != null && isFinite(Number(a.ok_rate))) ? (Math.round(Number(a.ok_rate) * 100) + '%') : '—';
+  var avg = (a.avg_ms != null && isFinite(Number(a.avg_ms))) ? (Math.round(Number(a.avg_ms)) + ' ms') : '—';
+  var html = '<div class="ssub" style="font-size:12px;color:#cbd5e1;line-height:1.7">' + esc(l4Dash(a.role)) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Product</div><div class="ssub" style="font-size:12px">' + esc(l4Dash(a.product)) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">State</div><div class="ssub" style="font-size:12px;color:' + col + '">' + esc(l4Dash(a.state)) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Runs aaj</div><div class="ssub" style="font-size:12px">' + num(a.runs_today) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Events total</div><div class="ssub" style="font-size:12px">' + l4Dash(a.events_total != null ? num(a.events_total) : null) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">OK rate</div><div class="ssub" style="font-size:12px">' + okr + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Avg latency</div><div class="ssub" style="font-size:12px">' + avg + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Aakhri action</div><div class="ssub" style="font-size:11px;line-height:1.7;word-break:break-word">' + esc(l4Dash(a.last_action)) + '</div>'
+    + '<div class="grp-cap" style="margin-top:12px">Last event</div><div class="ssub" style="font-size:11px">' + esc(l4MinAgo(a.last_event_ts)) + '</div>';
+  openInspector((a.emoji || '🤖') + ' ' + (a.name || a.key || 'Agent'), html);
+}
+
+// RCA strip from NEW /control-center/rca (hide if empty/404)
+function loadL4Rca(){
+  if (!STATE.token) return;
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/control-center/rca', {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ return j; }).catch(function(){ return null; });
+    });
+  });
+  ch.then(function(j){ STATE.l4.rca = j || null; renderL4Rca(); }).catch(function(){});
+}
+function l4RcaColor(sev){
+  sev = String(sev || '').toLowerCase();
+  if (sev === 'high') return '#ef4444';
+  if (sev === 'med' || sev === 'medium') return '#f97316';
+  return '#64748b';
+}
+function renderL4Rca(){
+  var box = el('l4-rca'); if (!box) return;
+  var rca = STATE.l4.rca;
+  var findings = (rca && Array.isArray(rca.findings)) ? rca.findings : [];
+  if (!findings.length) { box.innerHTML = ''; return; }   // hide
+  var html = '<div class="panel" style="margin-bottom:13px"><div class="panel-h"><span class="ph-t"><span class="pic">🔎</span>Root-cause analysis</span>' + liveBadge() + '</div><div class="panel-b">';
+  findings.slice(0, 8).forEach(function(f){
+    var col = l4RcaColor(f.severity);
+    html += '<div class="srow" style="cursor:default;border-left-color:' + col + '"><span class="sdot" style="background:' + col + '"></span><div class="stx">'
+      + '<div class="stitle">' + esc(l4Dash(f.symptom)) + '</div>'
+      + '<div class="ssub" style="word-break:break-word">cause: ' + esc(l4Dash(f.cause)) + '</div>'
+      + (f.fix ? ('<div class="ssub fix" style="word-break:break-word">fix: ' + esc(f.fix) + '</div>') : '')
+      + '</div><div class="smeta" style="color:' + col + '">' + esc(l4Dash(f.severity)) + '</div></div>';
+  });
+  html += '</div></div>';
+  box.innerHTML = html;
+}
+
+function loadRunsInto(targetId){
+  var box = el(targetId); if (!box) return;
+  if (!STATE.token) { box.innerHTML = '<div class="empty-line">Runs ke liye admin login chahiye</div>'; return; }
+  // reuse cached runs if present
+  if (STATE.runs && STATE.runs.length) { box.innerHTML = runsHtml(STATE.runs); return; }
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/growth/process/runs', {token:STATE.token, ttl:8000, timeout:9000})
+        .then(function(j){ return j; }).catch(function(){ return null; });
+    });
+  });
+  ch.then(function(j){
+    var runs = (j && Array.isArray(j.runs)) ? j.runs : [];
+    STATE.runs = runs;
+    box.innerHTML = runs.length ? runsHtml(runs) : '<div class="empty-line">koi run nahi</div>';
+  }).catch(function(){
+    box.innerHTML = '<div class="empty-line">koi run nahi</div>';
+  });
+}
+function runsHtml(runs){
+  return '<div class="grp-cap">Recent runs</div>' + runs.slice(0, 20).map(function(r){
+    var st = String(r.status || '');
+    var cls = (st === 'running' || st === 'active') ? '#3b82f6'
+      : (st === 'done' || st === 'completed' || st === 'success') ? '#22c55e'
+      : (st === 'failed' || st === 'error') ? '#ef4444'
+      : (st === 'waiting' || st === 'paused' || st === 'breakpoint') ? '#eab308' : '#64748b';
+    var rid = String(r.id || r.run_id || '').slice(0, 10);
+    return '<div class="run-row"><span class="rdot" style="background:' + cls + '"></span>'
+      + '<span class="rid mono">' + esc(rid || '—') + '</span>'
+      + '<span class="rproc">' + esc(r.process || r.flow || r.name || '—') + '</span>'
+      + '<span class="rstat" style="color:' + cls + '">' + esc(st || '—') + '</span></div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// INSPECTOR
+// ════════════════════════════════════════════════════════════════
+function openInspector(title, html){
+  el('ins-title').textContent = title;
+  el('ins-body').innerHTML = html;
+  el('inspector').classList.remove('collapsed');
+}
+function emptyInspector(){
+  el('ins-title').textContent = 'Inspector';
+  el('ins-body').innerHTML = '<div class="ins-empty"><span class="ie-ic">◈</span>Kuch select karo — node / run / agent par click karo, detail yahan dikhega.</div>';
+}
+function closeInspector(){ el('inspector').classList.add('collapsed'); }
+
+// ════════════════════════════════════════════════════════════════
+// BOTTOM PANEL — Live Log / Recent Runs / DLQ
+// ════════════════════════════════════════════════════════════════
+var BOT = 'log';
+function renderBottom(){
+  var body = el('bot-body');
+  if (BOT === 'log') {
+    body.innerHTML = STATE.logs.length ? STATE.logs.slice(0, 60).map(function(l){
+      return '<div class="log-line"><span class="lt mono">' + esc(l.t) + '</span><span class="lm">' + l.m + '</span></div>';
+    }).join('') : '<div class="empty-line">Abhi koi event nahi — ' + (STATE.token ? 'live feed se aate hi yahan dikhenge' : 'login ke baad live feed') + '</div>';
+  } else if (BOT === 'runs') {
+    body.innerHTML = '<div id="bot-runs"><div class="empty-line">Runs load ho rahe…</div></div>';
+    loadRunsInto('bot-runs');
+  } else if (BOT === 'dlq') {
+    var o = STATE.overview;
+    if (o && o.metrics) {
+      var q = o.metrics.queue;
+      // ADR-104 Phase F (2026-07-15): q.dead (retry-exhausted, dlq:dead) was
+      // never read here -- this tab could say "Queue clean" while dead tasks
+      // sat unaddressed. /api/control-center/overview now includes q.dead
+      // (see app/api/control_center.py); "clean" now requires BOTH dlq and
+      // dead to be 0.
+      var deadCount = num(q.dead);
+      var dlqCount = num(q.dlq);
+      var anyBad = dlqCount > 0 || deadCount > 0;
+      body.innerHTML = '<div class="run-row"><span class="rdot" style="background:' + (num(q.depth) > 200 ? '#eab308' : '#22c55e') + '"></span>'
+        + '<span class="rproc">Celery queue depth</span><span class="rstat">' + num(q.depth) + '</span></div>'
+        + '<div class="run-row"><span class="rdot" style="background:' + (dlqCount > 0 ? '#ef4444' : '#22c55e') + '"></span>'
+        + '<span class="rproc">DLQ retry-able (dlq:failed_tasks)</span><span class="rstat" style="color:' + (dlqCount > 0 ? '#ef4444' : '#22c55e') + '">' + dlqCount + '</span></div>'
+        + '<div class="run-row"><span class="rdot" style="background:' + (deadCount > 0 ? '#ef4444' : '#22c55e') + '"></span>'
+        + '<span class="rproc">Dead/exhausted (dlq:dead)</span><span class="rstat" style="color:' + (deadCount > 0 ? '#ef4444' : '#22c55e') + '">' + deadCount + '</span></div>'
+        + (anyBad ? '<div class="empty-line">⚠️ DLQ/dead retry → Reliability Console (/app/office#reliability)</div>' : '<div class="empty-line good">✅ Queue clean</div>');
+    } else {
+      body.innerHTML = '<div class="empty-line">' + (STATE.token ? 'Queue data nahi mila' : 'login chahiye') + '</div>';
+    }
+  }
+}
+function pushLog(member, action, detail){
+  var d = new Date();
+  var t = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+  var m = (member ? ('<b>' + esc(member) + '</b> ') : '') + esc(action || '') + (detail ? (' — ' + esc(detail)) : '');
+  STATE.logs.unshift({ t: t, m: m });
+  if (STATE.logs.length > 120) STATE.logs.length = 120;
+  if (BOT === 'log' && !el('bottom').classList.contains('collapsed')) renderBottom();
+}
+function setBotLive(mode){ // 'on' | 'recon' | 'off'
+  var b = el('bot-live'); var tx = el('bot-live-tx');
+  b.className = 'bot-live' + (mode === 'on' ? ' on' : (mode === 'recon' ? ' recon' : ''));
+  tx.textContent = mode === 'on' ? 'live' : (mode === 'recon' ? 'reconnecting' : 'offline');
+}
+
+// SSE attempt → polling fallback. EventSource can't send Authorization header,
+// and /api/events/stream is admin-gated (no ?token), so SSE will almost always
+// fail; polling is the real path. We stay honest about the dot.
+function startLiveLog(){
+  if (!STATE.token) { setBotLive('off'); return; }
+  setBotLive('recon');
+  var base = STATE.liveBase || getApiBases()[0];
+  var sseOk = false;
+  try {
+    if (typeof EventSource !== 'undefined') {
+      var es = new EventSource(base + '/api/events/stream');
+      STATE.sse = es;
+      es.onopen = function(){ sseOk = true; setBotLive('on'); };
+      es.onmessage = function(ev){
+        sseOk = true; setBotLive('on');
+        try { var d = JSON.parse(ev.data); pushLog(d.member || d.name, d.action || d.event, d.detail); }
+        catch(e){ pushLog('', String(ev.data || '').slice(0, 120)); }
+      };
+      es.onerror = function(){
+        try { es.close(); } catch(e){}
+        STATE.sse = null;
+        if (!sseOk) startLogPolling(); // SSE never connected → poll
+      };
+      // safety: if no open within 6s, fall back
+      setTimeout(function(){ if (!sseOk) { try { es.close(); } catch(e){} STATE.sse = null; startLogPolling(); } }, 6000);
+      return;
+    }
+  } catch(e){}
+  startLogPolling();
+}
+function startLogPolling(){
+  if (STATE.logTimer) return;
+  setBotLive('recon');
+  pollLogOnce();
+  STATE.logTimer = setInterval(function(){ if (!document.hidden) pollLogOnce(); }, 20000);
+}
+function pollLogOnce(){
+  // derive a synthetic feed from overview snapshot (no real event API w/o header)
+  if (!STATE.token) { setBotLive('off'); return; }
+  var o = STATE.overview;
+  if (o) {
+    setBotLive('on');
+    // log the freshest staff actions + any problems, dedup by signature
+    var sig = '';
+    (o.staff || []).slice(0, 4).forEach(function(s){ if (s.last) sig += s.name + s.last; });
+    (o.problems || []).slice(0, 3).forEach(function(p){ sig += p.kya; });
+    if (sig && sig !== STATE._lastLogSig) {
+      STATE._lastLogSig = sig;
+      (o.problems || []).slice(0, 3).forEach(function(p){ pushLog('', '⚠ ' + (p.kya || '')); });
+      (o.staff || []).slice(0, 3).forEach(function(s){ if (s.last) pushLog(s.name, 'action', s.last); });
+      if (!(o.problems || []).length && !(o.staff || []).some(function(s){ return s.last; })) {
+        pushLog('', 'snapshot refreshed · ' + ((o.metrics && o.metrics.staff.active) || 0) + ' agent active');
+      }
+    }
+  } else {
+    setBotLive('recon');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// POLLING LIFECYCLE
+// ════════════════════════════════════════════════════════════════
+function startPolling(){
+  loadOverview();
+  if (STATE.pollTimer) clearInterval(STATE.pollTimer);
+  STATE.pollTimer = setInterval(function(){
+    if (!document.hidden) loadOverview();
+  }, 15000);
+}
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden) loadOverview();
+});
+
+// ════════════════════════════════════════════════════════════════
+// CLOCK (IST)
+// ════════════════════════════════════════════════════════════════
+function tickClock(){
+  try {
+    var t = new Date().toLocaleTimeString('en-GB', { timeZone:'Asia/Kolkata', hour12:false });
+    el('clock').textContent = t + ' IST';
+  } catch(e){
+    el('clock').textContent = new Date().toTimeString().slice(0,8) + ' IST';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// UI WIRING
+// ════════════════════════════════════════════════════════════════
+function initRail(){
+  var collapsed = false;
+  try { collapsed = localStorage.getItem('cc_rail') === '1'; } catch(e){}
+  if (collapsed) el('rail').classList.add('collapsed');
+  if (window.innerWidth <= 768) el('rail').classList.add('collapsed');
+  el('rail-collapse').addEventListener('click', function(){
+    var r = el('rail'); r.classList.toggle('collapsed');
+    try { localStorage.setItem('cc_rail', r.classList.contains('collapsed') ? '1' : '0'); } catch(e){}
+    el('rail-collapse').textContent = r.classList.contains('collapsed') ? '⮞' : '⮜';
+  });
+  el('rail-collapse').textContent = el('rail').classList.contains('collapsed') ? '⮞' : '⮜';
+  document.querySelectorAll('.rail-item[data-route]').forEach(function(b){
+    b.addEventListener('click', function(){ go(b.getAttribute('data-route')); });
+  });
+}
+function initBottom(){
+  document.querySelectorAll('.bot-tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelectorAll('.bot-tab').forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      BOT = t.getAttribute('data-bot');
+      if (el('bottom').classList.contains('collapsed')) el('bottom').classList.remove('collapsed');
+      renderBottom();
+    });
+  });
+  el('bot-toggle').addEventListener('click', function(){
+    var b = el('bottom'); b.classList.toggle('collapsed');
+    el('bot-toggle').textContent = b.classList.contains('collapsed') ? '▴' : '▾';
+    if (!b.classList.contains('collapsed')) renderBottom();
+  });
+}
+function initKeys(){
+  document.addEventListener('keydown', function(e){
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (e.key === '1') go('');
+    else if (e.key === '2') go('stack');
+    else if (e.key === '3') go('workflow');
+    else if (e.key === '4') go('agent');
+    else if (e.key === 'Escape') closeInspector();
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════
+function boot(){
+  emptyInspector();
+  initRail();
+  initBottom();
+  initKeys();
+  el('ins-close').addEventListener('click', closeInspector);
+  window.addEventListener('hashchange', onRoute);
+  tickClock(); setInterval(tickClock, 1000);
+  onRoute();          // initial render from hash
+  startPolling();     // L1 + metrics
+  startLiveLog();     // bottom live log
+  renderBottom();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+</script>
+</body>
+</html>

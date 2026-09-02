@@ -1,0 +1,238 @@
+# =============================================================================
+# deploy-vps.yml â€” REAL auto-deploy to the Hostinger VPS (replaces Cloud Run).
+#
+# Flow on every push to main:
+#   1) gate         : fast deterministic checks (import smoke + prod_check + ruff +
+#                     billing contract) — branch-protection required check (auto-merge)
+#   2) pytest-*     : OPTIONAL 4 parallel shards when repo var DEPLOY_RETEST=true.
+#                     Default OFF — PR CI already ran the suite (2026-08-15 DSH lanes).
+#   3) release-gate : needs `gate` only (skipped optional shards must not block deploy)
+#   4) build        : build Docker image, push to GHCR (immutable :<sha> only)
+#   5) deploy       : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
+#
+# One-time GitHub repo secrets required (Settings > Secrets and variables > Actions):
+#   VPS_HOST     = 72.61.245.204
+#   VPS_USER     = root
+#   VPS_SSH_KEY  = <private key matching the VPS authorized_keys>
+#   GHCR_PAT     = <classic PAT with read:packages>  (used by the VPS to pull)
+#
+# pytest runs but does NOT block deploys yet (continue-on-error) â€” flip to a hard
+# gate once the CI test env is stable. The fast checks below DO block.
+# =============================================================================
+name: deploy-vps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/sumitrevolt/leadgenrationaivoiceagent
+
+jobs:
+  gate:
+    name: Gate (import + prod_check + lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # hang guard - fast checks only; full pytest = parallel shard jobs (2026-08-10: full suite moved to parallel shard jobs)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # skill CI compares this push with github.event.before
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install deps (lock file â€” same as Dockerfile.lock + tests.yml)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-deps -r requirements.lock.txt
+          # -U + PINS zaroori (tests.yml gotcha): lock ke purane pytest/pytest-asyncio
+          # ke upar akela `-U pytest` = version-mismatch => "no current event loop"
+          # (2026-07-06 pehla blocking run isi se laal hua).
+          # Locked test stack (pytest 7.4.4 + pytest-asyncio 0.23.4 + httpx 0.28.1 from
+          # the lock — the project's declared/tested pair). The old -U override forced
+          # pytest-asyncio 1.3.0 which, with aiosqlite 0.22.x, amplified an aiosqlite
+          # connection-worker leak (SQLAlchemy #13039) that a Linux cyclic-GC pass
+          # segfaulted on (exit-139). httpx 0.28.1 handled by the conftest TestClient shim.
+          pip install --no-deps "pytest-timeout==2.4.0"
+          pip install ruff
+      - name: Import smoke (catches syntax/import/route breakage)
+        run: python -c "import app.main; print('import OK')"
+      - name: Production check
+        run: python scripts/prod_check.py
+      - name: Skill quality + security ratchet
+        env:
+          SKILL_CI_BASE: ${{ github.event.before || '' }}
+        run: python scripts/skill_evals/check_repo_skills.py --base-ref "$SKILL_CI_BASE"
+      - name: Lint (ruff, non-blocking warnings)
+        run: ruff check app || true
+      - name: Contract tests (billing/pricing truth â€” BLOCKING)
+        # Deterministic, no-network. Pricing/plan/route regression => deploy blocked.
+        run: pytest -q tests/test_billing_truth_2026.py
+      - name: Golden eval suite (advisory — non-blocking until stable)
+        # Tier-1 Salesforce-style golden dataset. Deterministic asserts always run;
+        # semantic LLM-judge skips without key. Flip continue-on-error off only after
+        # the suite is proven green across several main builds.
+        continue-on-error: true
+        env:
+          APP_ENV: test
+          ENVIRONMENT: development
+        run: |
+          python scripts/eval_golden.py --deterministic-only
+          pytest -q tests/test_eval_golden.py
+  pytest-shards:
+    name: pytest shard ${{ matrix.group }}/4
+    # Default OFF. PR CI already ran the same suite (ci.yml parallel shards).
+    # Re-running 4 full shards on every main push delayed GHCR build + deploy.
+    # Owner opt-in: repo variable DEPLOY_RETEST=true.
+    if: ${{ vars.DEPLOY_RETEST == 'true' }}
+    needs: []
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install deps (lock file - same as gate)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-deps -r requirements.lock.txt
+          pip install --no-deps "pytest-timeout==2.4.0"
+          pip install --no-deps "pytest-split==0.9.0"
+      # Same process-shard strategy as ci.yml (exit-139 containment). Parallel:
+      # 2026-08-10 the full suite ran sequentially inside the 15-min gate and
+      # timed out/cancelled, skipping GHCR build + VPS deploy.
+      - name: pytest shard ${{ matrix.group }}/4 (BLOCKING, network-free)
+        env:
+          GROQ_API_KEY: ci-dummy-key-not-real
+          APP_ENV: test
+          ENVIRONMENT: development
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          TOKENIZERS_PARALLELISM: "false"
+          PYTHONFAULTHANDLER: "1"
+        run: |
+          set -euo pipefail
+          set +e
+          pytest -q -m "not network" --ignore=tests/integration \
+            --splits 4 --group "${{ matrix.group }}"
+          rc=$?
+          if [ "$rc" -eq 139 ]; then
+            echo "::warning title=exit-139::shard ${{ matrix.group }}/4 cyclic-GC SIGSEGV; one retry (no skip)"
+            pytest -q -m "not network" --ignore=tests/integration \
+              --splits 4 --group "${{ matrix.group }}"
+            rc=$?
+          fi
+          exit "$rc"
+
+  release-gate:
+    name: Release gate (gate + all 4 shards green)
+    # Shards are opt-in (DEPLOY_RETEST). A skipped needed job would skip this
+    # gate and block build/deploy, so release-gate depends only on `gate`.
+    # Required PR checks already covered the suite before merge.
+    needs: [gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Release ready
+        run: echo "deploy-vps gate green - release path unlocked"
+  build:
+    name: Build & push image (GHCR)
+    needs: release-gate
+    # Activates only after you set repo variable DEPLOY_ENABLED=true (and the VPS
+    # secrets). Until then, pushes just run the `gate` job â€” no failing deploys.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.lock
+          push: true
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Hardened deploy path (credential-hardening-20260721)
+  #   - dedicated identity: VPS_DEPLOY_USER=leadgen-deploy (NOT root), no docker group
+  #   - dedicated key: VPS_SSH_KEY_DEPLOY (ed25519), not the shared root id_rsa
+  #   - NO registry secret: the GHCR package is public -> anonymous pull by exact SHA
+  #   - all privileged work runs in a root-owned, input-validated wrapper
+  #     (/usr/local/sbin/leadgen-deploy-release) reachable only via a scoped sudo
+  #     rule; the wrapper pulls the exact SHA, rolls the celery stack, hard-gates
+  #     alembic, health-gates /health/ready, records the previous image and
+  #     auto-rolls-back on migration or health failure.
+  #   The old root-based secrets (VPS_USER / VPS_SSH_KEY / GHCR_PAT) are retained
+  #   as an emergency rollback path until this path has a proven production run.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Preflight (dedicated identity, non-destructive)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_DEPLOY_USER }}
+          key: ${{ secrets.VPS_SSH_KEY_DEPLOY }}
+          request_pty: false
+          script_stop: true
+          script: |
+            set -e
+            SHA="${{ github.sha }}"
+            case "$SHA" in ""|*[!0-9a-f]*) echo "resolved SHA is not lowercase hex"; exit 1;; esac
+            [ "${#SHA}" -eq 40 ] || { echo "resolved SHA is not 40 chars"; exit 1; }
+            echo "==> preflight as $(id -un) for exact SHA $SHA"
+            test -x /usr/local/sbin/leadgen-deploy-release && echo "wrapper present"
+            sudo -n -l | grep -q '/usr/local/sbin/leadgen-deploy-release' && echo "scoped sudo rule present"
+            T="$(curl -s "https://ghcr.io/token?scope=repository:sumitrevolt/leadgenrationaivoiceagent:pull" | grep -o '"token":"[^"]*' | cut -d'"' -f4)"
+            CODE="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $T" -H 'Accept: application/vnd.oci.image.index.v1+json' "https://ghcr.io/v2/sumitrevolt/leadgenrationaivoiceagent/manifests/$SHA")"
+            echo "anonymous GHCR manifest http=$CODE"
+            [ "$CODE" = "200" ] || { echo "exact-SHA image not anonymously reachable"; exit 1; }
+      - name: Deploy exact SHA via root-owned wrapper (auto-rollback inside)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_DEPLOY_USER }}
+          key: ${{ secrets.VPS_SSH_KEY_DEPLOY }}
+          request_pty: false
+          script_stop: true
+          script: |
+            set -e
+            SHA="${{ github.sha }}"
+            case "$SHA" in ""|*[!0-9a-f]*) echo "bad sha"; exit 1;; esac
+            [ "${#SHA}" -eq 40 ] || { echo "bad sha length"; exit 1; }
+            echo "==> deploying exact SHA $SHA via wrapper (public GHCR anonymous pull; no registry secret)"
+            sudo -n /usr/local/sbin/leadgen-deploy-release "$SHA"

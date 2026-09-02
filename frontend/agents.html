@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#4f46e5" />
+<link rel="manifest" href="/manifest.json">
+<title>Multi-Agent Coordination | LeadGen AI</title>
+<meta name="description" content="LeadGen AI — live Multi-Agent Coordination dashboard. Reflexion orchestration, debate/consensus, episodic memory over the 31-agent AI staff team." />
+<link rel="icon" type="image/svg+xml" href="/site/icons/icon.svg" />
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --indigo:#4f46e5;--violet:#7c3aed;--ink:#0f1024;--ink-2:#1b1c3a;--muted:#64647e;
+    --bg-soft:#f6f6fb;--line:#e8e8f2;--ok:#16a34a;--ok-bg:#e9f9ef;--warn:#d97706;
+    --bad:#dc2626;--shadow-sm:0 8px 24px -12px rgba(15,16,36,.25);
+    --shadow-md:0 18px 50px -22px rgba(79,70,229,.45);--rad:16px
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);
+       line-height:1.6;-webkit-font-smoothing:antialiased;
+       background:radial-gradient(1100px 540px at 50% -8%,#eef0ff 0,#fbfbfe 46%,#f6f6fb 100%);min-height:100vh}
+  h1,h2,h3,.brand{font-family:'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:-.02em}
+  a{color:var(--indigo);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* sticky header — matches privacy.html nav */
+  header.nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+             background:rgba(255,255,255,.85);border-bottom:1px solid var(--line)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px;max-width:1140px;margin:0 auto;padding:0 18px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.12rem;color:var(--ink)}
+  .brand:hover{text-decoration:none}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;box-shadow:var(--shadow-sm)}
+  .brand .logo svg{width:18px;height:18px}
+  .nav-links{display:flex;align-items:center;gap:16px}
+  .nav-links a{font-size:.9rem;font-weight:600;color:var(--muted)}
+
+  .page{max-width:1080px;margin:0 auto;padding:34px 18px 70px}
+  .hero h1{font-size:clamp(1.7rem,5vw,2.35rem);font-weight:800;margin-bottom:6px}
+  .hero .sub{color:var(--muted);font-size:.98rem;max-width:680px}
+  .authnote{margin-top:12px;font-size:.83rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+  .dot.on{background:var(--ok)}.dot.off{background:var(--bad)}
+
+  section{margin-top:34px}
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .sec-head h2{font-size:1.32rem;font-weight:800}
+  .sec-head .hint{color:var(--muted);font-size:.85rem}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--rad);
+        padding:18px 20px;box-shadow:var(--shadow-sm)}
+  .grid{display:grid;gap:14px}
+  .grid.roster{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  .grid.runs{grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
+
+  /* agent roster cards */
+  .agent{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 16px;
+         box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .12s ease}
+  .agent:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  .agent .top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+  .agent .nm{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.02rem}
+  .agent .ti{color:var(--violet);font-weight:600;font-size:.82rem;margin-bottom:6px}
+  .agent .du{color:var(--ink-2);font-size:.86rem;line-height:1.5}
+  .badge{font-size:.68rem;font-weight:700;letter-spacing:.3px;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .badge.exec{background:var(--ok-bg);color:var(--ok);border:1px solid #bdebcb}
+  .badge.draft{background:#eef0ff;color:var(--indigo);border:1px solid #d7d9fb}
+
+  /* forms */
+  label.fld{display:block;font-size:.83rem;font-weight:600;color:var(--ink-2);margin:0 0 5px}
+  textarea,input[type=text],input[type=number]{width:100%;font-family:inherit;font-size:.95rem;color:var(--ink);
+        background:#fbfbfe;border:1px solid var(--line);border-radius:11px;padding:11px 13px;outline:none;transition:border-color .12s}
+  textarea:focus,input:focus{border-color:var(--indigo)}
+  textarea{resize:vertical;min-height:74px}
+  .row{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+  .row .col{flex:1;min-width:130px}
+  .btn{appearance:none;border:0;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
+       font-size:.93rem;color:#fff;padding:11px 22px;border-radius:11px;margin-top:14px;
+       background:linear-gradient(135deg,var(--indigo),var(--violet));box-shadow:var(--shadow-md);
+       display:inline-flex;align-items:center;gap:9px}
+  .btn:hover{filter:brightness(1.05)}
+  .btn:disabled{opacity:.6;cursor:not-allowed;filter:none}
+  .btn.ghost{background:#fff;color:var(--indigo);border:1px solid #d7d9fb;box-shadow:none}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid #ffffff66;border-top-color:#fff;
+        border-radius:50%;animation:s .7s linear infinite}
+  .btn.ghost .spin{border:2px solid #4f46e533;border-top-color:var(--indigo)}
+  @keyframes s{to{transform:rotate(360deg)}}
+
+  /* result blocks */
+  .res{margin-top:16px;display:none}
+  .res.show{display:block}
+  .err{background:#fef2f2;border:1px solid #fbcaca;color:var(--bad);border-radius:12px;padding:12px 15px;font-size:.9rem}
+  .err a{color:var(--bad);font-weight:700;text-decoration:underline}
+  .summary{background:linear-gradient(135deg,#eef0ff,#f3edff);border:1px solid #d9dbfb;border-radius:14px;
+           padding:15px 17px;margin-bottom:14px}
+  .summary .lbl{font-size:.7rem;letter-spacing:.6px;text-transform:uppercase;color:var(--indigo);font-weight:800;margin-bottom:5px}
+  .summary .txt{font-size:1rem;color:var(--ink);white-space:pre-wrap}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+  .chip{font-size:.78rem;font-weight:700;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:#fff}
+  .chip .k{color:var(--muted);font-weight:600;margin-right:5px}
+  .score-hi{background:var(--ok-bg);border-color:#bdebcb;color:var(--ok)}
+  .score-mid{background:#fff7ed;border-color:#fed7aa;color:var(--warn)}
+  .score-lo{background:#fef2f2;border-color:#fbcaca;color:var(--bad)}
+
+  .step{border:1px solid var(--line);border-left:4px solid var(--indigo);border-radius:12px;
+        padding:12px 15px;margin-bottom:10px;background:#fff}
+  .step .hd{display:flex;align-items:center;gap:9px;margin-bottom:5px;flex-wrap:wrap}
+  .step .ag{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.95rem;text-transform:capitalize}
+  .step .mode{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#eef0ff;color:var(--indigo)}
+  .step .mode.executed{background:var(--ok-bg);color:var(--ok)}
+  .step .task{color:var(--muted);font-size:.83rem;margin-bottom:6px}
+  .step .out{color:var(--ink-2);font-size:.9rem;white-space:pre-wrap}
+  .step .out.bad{color:var(--bad)}
+
+  .wk{margin:10px 0 4px;padding-left:20px}
+  .wk li{color:var(--ink-2);font-size:.88rem;margin-bottom:4px}
+  .wk.fix li{color:var(--ok)}
+  .sub-lbl{font-size:.74rem;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);font-weight:700;margin:14px 0 6px}
+
+  /* debate two-column */
+  .debate{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.debate{grid-template-columns:1fr}}
+  /* council tabs */
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 12px}
+  .tabbtn{font-size:.78rem;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink-2)}
+  .tabbtn.on{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+  .tabpane{display:none}.tabpane.on{display:block}
+  .rankrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff;font-size:.88rem}
+  .rankrow .nm{font-weight:700}.rankrow .sc{color:var(--violet);font-weight:800;font-size:.82rem}
+  .side{border:1px solid var(--line);border-radius:13px;padding:14px 16px;background:#fff}
+  .side.pro{border-top:4px solid var(--ok)}
+  .side.con{border-top:4px solid var(--bad)}
+  .side .tag{font-size:.7rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+  .side.pro .tag{color:var(--ok)}.side.con .tag{color:var(--bad)}
+  .side .txt{font-size:.9rem;color:var(--ink-2);white-space:pre-wrap}
+  .rnd-lbl{font-size:.72rem;color:var(--muted);font-weight:700;margin:12px 0 6px}
+
+  /* memory list */
+  .mem{border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:10px;background:#fff;
+       display:flex;gap:12px;align-items:flex-start}
+  .mem .body{flex:1}
+  .mem .topic{font-weight:700;font-size:.9rem;color:var(--ink);margin-bottom:3px}
+  .mem .refl{font-size:.87rem;color:var(--ink-2)}
+  .mem .at{font-size:.74rem;color:var(--muted);margin-top:4px}
+
+  /* recent runs */
+  .run{border:1px solid var(--line);border-radius:13px;padding:14px 16px;background:#fff;box-shadow:var(--shadow-sm)}
+  .run .pat{font-size:.66rem;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--violet);margin-bottom:4px}
+  .run .goal{font-weight:700;font-size:.95rem;margin-bottom:6px}
+  .run .sm{font-size:.85rem;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .run .at{font-size:.74rem;color:var(--muted);margin-top:8px}
+
+  .empty{color:var(--muted);font-size:.9rem;padding:8px 2px}
+  .loading{color:var(--muted);font-size:.9rem;display:flex;align-items:center;gap:9px}
+  .loading .spin{border:2px solid #4f46e533;border-top-color:var(--indigo)}
+
+  footer{border-top:1px solid var(--line);margin-top:50px}
+  .foot-in{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.84rem;max-width:1080px;margin:0 auto;padding:22px 18px}
+  .foot-in a{color:var(--ink-2);font-weight:500}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a href="/" class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6.5 4.5c-.7-.7-1.8-.6-2.4.2L2.7 6.6c-.6.8-.5 1.9.1 2.6 3.2 3.9 6.9 7.6 10.8 10.8.7.6 1.8.7 2.6.1l1.9-1.4c.8-.6.9-1.7.2-2.4l-2.3-2.3c-.6-.6-1.5-.6-2.2-.2l-1.3.8c-.2.1-.5.1-.7-.1-1.5-1.4-2.9-2.8-4.3-4.3-.2-.2-.2-.5-.1-.7l.8-1.3c.4-.7.4-1.6-.2-2.2L6.5 4.5Z" fill="#fff"/></svg></span>LeadGen AI</a>
+    <nav class="nav-links">
+      <span class="ao-topbar-status" style="margin-right:4px"><span class="dot"></span>AI Active</span>
+      <a href="/app/team">Team</a>
+      <a href="/app/assistant">Assistant</a>
+      <a href="/app/admin">Admin</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+  <div class="hero">
+    <h1>🧠 Multi-Agent Coordination</h1>
+    <p class="sub">Boss 31-agent AI staff ko orchestrate karta hai — Reflexion, parallel fan-out, debate/consensus, aur LLM Council (cross-model peer review). Free-stack, ban-safe (default = drafts). Governance detail → <a href="/app/agent-tools">Agent Tools</a>.</p>
+    <div class="authnote"><span id="authDot" class="dot"></span><span id="authMsg">Admin token check ho raha hai…</span></div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Agent OS / OmniRoute</h2>
+      <span class="hint">privacy · contact · publish · eligibility</span>
+    </div>
+    <div id="agentOsStrip" class="card" style="padding:14px 16px;font-size:.9rem;color:var(--muted)">⏳ Loading…</div>
+  </section>
+
+  <!-- TEAM ROSTER -->
+  <section>
+    <div class="sec-head">
+      <h2>Team Roster</h2>
+      <span class="hint">Green badge = concrete executable capability</span>
+    </div>
+    <div id="roster" class="grid roster"><div class="loading"><span class="spin"></span> Roster load ho raha hai…</div></div>
+  </section>
+
+  <!-- RUN COORDINATION (REFLEXION) -->
+  <section>
+    <div class="sec-head">
+      <h2>Run Coordination (Reflexion)</h2>
+      <span class="hint">plan → execute → critic → reflect → retry</span>
+    </div>
+    <div class="card">
+      <label class="fld" for="goal">Goal (Hinglish chalega)</label>
+      <textarea id="goal" placeholder="e.g. Pune ke solar businesses se 15 hot leads nikaalo aur outreach plan banao"></textarea>
+      <div class="row">
+        <div class="col">
+          <label class="fld" for="iters">Max iterations</label>
+          <input type="number" id="iters" value="2" min="1" max="3" />
+        </div>
+        <div class="col">
+          <label class="fld" for="bar">Quality bar (0–1)</label>
+          <input type="number" id="bar" value="0.7" min="0" max="1" step="0.05" />
+        </div>
+      </div>
+      <button id="coordBtn" class="btn" onclick="runCoordinate()">⚡ Coordinate (Reflexion)</button>
+      <div id="coordRes" class="res"></div>
+    </div>
+  </section>
+
+  <!-- LLM COUNCIL -->
+  <section>
+    <div class="sec-head">
+      <h2>LLM Council</h2>
+      <span class="hint">Karpathy-style — multi-model opinions → peer rank → Chairman</span>
+    </div>
+    <div class="card">
+      <label class="fld" for="cq">Question (strategy / content / decision)</label>
+      <textarea id="cq" placeholder="e.g. Pune solar businesses ke liye pehle email outreach ya WhatsApp 1-click links?"></textarea>
+      <div id="councilMembers" class="chips" style="margin-top:10px"></div>
+      <button id="councilBtn" class="btn" onclick="runCouncil()">🏛️ Run Council</button>
+      <div id="councilRes" class="res"></div>
+    </div>
+  </section>
+
+  <!-- DEBATE / CONSENSUS -->
+  <section>
+    <div class="sec-head">
+      <h2>Debate / Consensus</h2>
+      <span class="hint">Rohan (pro) vs Kavya (con) → Boss verdict</span>
+    </div>
+    <div class="card">
+      <label class="fld" for="dq">Question / proposal</label>
+      <input type="text" id="dq" placeholder="e.g. Kya humein WhatsApp auto-send abhi enable karna chahiye?" />
+      <button id="debateBtn" class="btn" onclick="runDebate()">⚖️ Debate</button>
+      <div id="debateRes" class="res"></div>
+    </div>
+  </section>
+
+  <!-- PARALLEL FAN-OUT -->
+  <section>
+    <div class="sec-head">
+      <h2>Parallel Fan-out</h2>
+      <span class="hint">Multiple agents same goal pe ek saath</span>
+    </div>
+    <div class="card">
+      <label class="fld" for="fq">Goal</label>
+      <input type="text" id="fq" placeholder="e.g. Diwali sale campaign ke liye ideas do" />
+      <button id="fanBtn" class="btn ghost" onclick="runFanout()">🔀 Fan-out</button>
+      <div id="fanRes" class="res"></div>
+    </div>
+  </section>
+
+  <!-- EPISODIC MEMORY -->
+  <section>
+    <div class="sec-head">
+      <h2>Episodic Memory</h2>
+      <span class="hint">Reflexion reflections + scores (admin)</span>
+    </div>
+    <div class="card">
+      <div id="memory"><div class="loading"><span class="spin"></span> Memory load ho rahi hai…</div></div>
+    </div>
+  </section>
+
+  <!-- RECENT RUNS -->
+  <section>
+    <div class="sec-head">
+      <h2>Recent Runs</h2>
+      <span class="hint">Pichhli coordination/debate runs</span>
+    </div>
+    <div id="runs" class="grid runs"><div class="loading"><span class="spin"></span> Runs load ho rahe hain…</div></div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot-in">
+    <span>© 2026 LeadGen AI · <a href="/app/team">AI Staff</a> · <a href="/app/admin">Admin</a></span>
+    <span>Free-stack multi-agent · ban-safe (drafts) · <a href="/app/login">Admin login</a></span>
+  </div>
+</footer>
+
+<script>
+const API = "";
+const AUTH_ERR = 'Admin login required — open <a href="/app/login">/app/login</a>';
+
+function tok(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken"); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function spin(){ return '<span class="spin"></span>'; }
+
+// scoreClass: numeric 0-1 -> chip color tier
+function scoreClass(v){ v = Number(v); if(v >= 0.75) return "score-hi"; if(v >= 0.5) return "score-mid"; return "score-lo"; }
+function fmtDate(s){ if(!s) return ""; const d = new Date(s); return isNaN(d) ? esc(s) : d.toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); }
+
+// generic authed POST -> json (throws on non-ok; flags 401 specially)
+async function postJSON(path, body){
+  const t = tok();
+  const h = {"Content-Type":"application/json"};
+  if(t) h["Authorization"] = "Bearer " + t;
+  const r = await fetch(API + path, {method:"POST", headers:h, body:JSON.stringify(body||{})});
+  let d = null;
+  try{ d = await r.json(); }catch(e){ d = null; }
+  if(r.status === 401 || r.status === 403){ const e = new Error("auth"); e.auth = true; throw e; }
+  if(!r.ok){ throw new Error((d && (d.detail || d.error)) || ("HTTP " + r.status)); }
+  return d || {};
+}
+async function getJSON(path, authed){
+  const h = {};
+  if(authed){ const t = tok(); if(t) h["Authorization"] = "Bearer " + t; }
+  const r = await fetch(API + path, {headers:h});
+  let d = null;
+  try{ d = await r.json(); }catch(e){ d = null; }
+  if(r.status === 401 || r.status === 403){ const e = new Error("auth"); e.auth = true; throw e; }
+  if(!r.ok){ throw new Error((d && (d.detail || d.error)) || ("HTTP " + r.status)); }
+  return d || {};
+}
+function errHTML(e){
+  if(e && e.auth) return '<div class="err">'+AUTH_ERR+'</div>';
+  return '<div class="err">Error: '+esc((e && e.message) || "kuch galat hua")+'</div>';
+}
+function showErr(elId, e){ const el = document.getElementById(elId); el.className = "res show"; el.innerHTML = errHTML(e); }
+
+// busy toggle for a button (keeps label, swaps spinner)
+function busy(btn, on, label){
+  if(on){ btn.dataset.label = btn.innerHTML; btn.disabled = true; btn.innerHTML = spin() + ' ' + (label||"Working…"); }
+  else { btn.disabled = false; btn.innerHTML = btn.dataset.label || label || "Run"; }
+}
+
+/* ---------- 1. ROSTER (no auth) ---------- */
+async function loadAgentOsStrip(){
+  const el = document.getElementById("agentOsStrip");
+  if(!el) return;
+  try{
+    const d = await getJSON("/api/platform/office/agent-os-status", true);
+    const o = (d && d.omniroute) || {};
+    const hook = o.agents_hook_armed ? "⚠️ hook ARMED" : "✅ hook inert";
+    el.innerHTML = '<b>'+esc(d.staff_count||0)+'</b> staff · OmniRoute eligible <b>'+esc(d.eligible_for_omniroute||0)+'</b> · forbidden <b>'+esc(d.forbidden_omniroute||0)+'</b> · '+hook
+      + '<div style="margin-top:6px;font-size:.82rem">flags enabled='+!!o.enabled_flag+' · agents='+!!o.agents_flag+' · key='+!!o.api_key_present
+      + ' · <a href="/app/agent-tools">full governance table →</a></div>';
+  }catch(e){
+    el.innerHTML = (e && e.auth)
+      ? '🔒 Admin login chahiye — <a href="/app/admin-login">login</a>.'
+      : '⚠️ Agent OS status load fail — <a href="/app/agent-tools">agent-tools</a>.';
+  }
+}
+async function loadRoster(){
+  const box = document.getElementById("roster");
+  try{
+    const d = await getJSON("/api/agents/roster", true);  // send admin token if present → recent_runs (anon still gets public roster)
+    const list = Array.isArray(d.roster) ? d.roster : [];
+    if(!list.length){ box.innerHTML = '<div class="empty">Roster khaali hai.</div>'; }
+    else {
+      box.innerHTML = list.map(a => {
+        const badge = a.executable
+          ? '<span class="badge exec">EXECUTABLE</span>'
+          : '<span class="badge draft">DRAFT</span>';
+        return '<div class="agent">'
+          + '<div class="top"><span class="nm">'+esc(a.name||a.id)+'</span>'+badge+'</div>'
+          + '<div class="ti">'+esc(a.title||"")+'</div>'
+          + '<div class="du">'+esc(a.duties||"")+'</div>'
+          + '</div>';
+      }).join("");
+    }
+    renderRuns(Array.isArray(d.recent_runs) ? d.recent_runs : []);
+  }catch(e){
+    box.innerHTML = errHTML(e);
+    document.getElementById("runs").innerHTML = '<div class="empty">Recent runs load nahi ho paaye.</div>';
+  }
+}
+
+/* recent_runs derive a pattern label (shape varies by run type) */
+function runPattern(r){
+  if(r.pattern) return r.pattern;
+  if(r.pattern === "llm_council") return "llm-council";
+  if(r.mode === "parallel") return "fan-out";
+  if(Array.isArray(r.rounds) && "verdict" in r) return "debate";
+  if(Array.isArray(r.plan)) return "coordinate";
+  return "run";
+}
+function renderRuns(runs){
+  const box = document.getElementById("runs");
+  if(!runs.length){ box.innerHTML = '<div class="empty">Abhi koi run nahi hua.</div>'; return; }
+  box.innerHTML = runs.map(r => {
+    const txt = r.summary || r.verdict || (r.stage3 && r.stage3.response) || "";
+    return '<div class="run">'
+      + '<div class="pat">'+esc(runPattern(r))+'</div>'
+      + '<div class="goal">'+esc(r.goal || r.question || "(goal)")+'</div>'
+      + '<div class="sm">'+esc(txt)+'</div>'
+      + '<div class="at">'+fmtDate(r.at)+'</div>'
+      + '</div>';
+  }).join("");
+}
+
+/* ---------- 2. MEMORY (admin) ---------- */
+async function loadMemory(){
+  const box = document.getElementById("memory");
+  try{
+    const d = await getJSON("/api/agents/memory?limit=20", true);
+    const list = Array.isArray(d.memory) ? d.memory : [];
+    if(!list.length){ box.innerHTML = '<div class="empty">Abhi koi episodic reflection nahi.</div>'; return; }
+    box.innerHTML = list.map(m => {
+      const sc = (m.score != null) ? Number(m.score).toFixed(2) : "—";
+      return '<div class="mem">'
+        + '<span class="chip '+scoreClass(m.score)+'">'+esc(sc)+'</span>'
+        + '<div class="body">'
+        +   '<div class="topic">'+esc(m.topic||"(topic)")+'</div>'
+        +   '<div class="refl">'+esc(m.reflection||"")+'</div>'
+        +   '<div class="at">'+fmtDate(m.at)+'</div>'
+        + '</div></div>';
+    }).join("");
+  }catch(e){ box.innerHTML = errHTML(e); }
+}
+
+/* render a list of {agent,task,mode,output,error} step cards */
+function stepsHTML(results){
+  if(!Array.isArray(results) || !results.length) return '<div class="empty">Koi step nahi.</div>';
+  return results.map(s => {
+    const mode = s.mode || "draft";
+    const out = s.error ? s.error : (s.output != null ? s.output : "");
+    const outTxt = (typeof out === "object") ? JSON.stringify(out, null, 2) : String(out);
+    return '<div class="step">'
+      + '<div class="hd"><span class="ag">'+esc(s.agent||"")+'</span>'
+      +   '<span class="mode '+(mode==="executed"?"executed":"")+'">'+esc(mode)+'</span></div>'
+      + (s.task ? '<div class="task">'+esc(s.task)+'</div>' : '')
+      + '<div class="out'+(s.error?' bad':'')+'">'+esc(outTxt)+'</div>'
+      + '</div>';
+  }).join("");
+}
+
+/* ---------- 3. COORDINATE-ADVANCED (admin) ---------- */
+async function runCoordinate(){
+  const goal = document.getElementById("goal").value.trim();
+  const out = document.getElementById("coordRes");
+  if(goal.length < 3){ out.className="res show"; out.innerHTML='<div class="err">Goal thoda lamba likho.</div>'; return; }
+  const btn = document.getElementById("coordBtn");
+  busy(btn, true, "Coordinating…");
+  out.className = "res show";
+  out.innerHTML = '<div class="loading">'+spin()+' Boss team ko coordinate kar raha hai (Reflexion loop)…</div>';
+  try{
+    const body = {
+      goal: goal,
+      max_iterations: parseInt(document.getElementById("iters").value, 10) || 2,
+      quality_bar: parseFloat(document.getElementById("bar").value) || 0.7,
+      max_steps: 4
+    };
+    const d = await postJSON("/api/agents/coordinate-advanced", body);
+    let h = "";
+    // Boss summary — prominent
+    h += '<div class="summary"><div class="lbl">Boss Summary</div><div class="txt">'+esc(d.summary||"(summary nahi)")+'</div></div>';
+    // score chips
+    const chips = [];
+    if(d.final_score != null) chips.push('<span class="chip '+scoreClass(d.final_score)+'"><span class="k">final</span>'+Number(d.final_score).toFixed(2)+'</span>');
+    if(d.pattern) chips.push('<span class="chip"><span class="k">pattern</span>'+esc(d.pattern)+'</span>');
+    if(Array.isArray(d.iterations)) chips.push('<span class="chip"><span class="k">iterations</span>'+d.iterations.length+'</span>');
+    if(d.memory_used != null) chips.push('<span class="chip"><span class="k">memory</span>'+esc(d.memory_used)+'</span>');
+    if(chips.length) h += '<div class="chips">'+chips.join("")+'</div>';
+    // per-iteration critic scores
+    if(Array.isArray(d.iterations) && d.iterations.length){
+      h += '<div class="sub-lbl">Critic scores per iteration</div><div class="chips">';
+      h += d.iterations.map(it => '<span class="chip '+scoreClass(it.score)+'"><span class="k">#'+esc(it.iteration)+'</span>'+Number(it.score).toFixed(2)+' · '+esc(it.steps)+' steps</span>').join("");
+      h += '</div>';
+    }
+    // plan / results steps
+    h += '<div class="sub-lbl">Plan &amp; agent results</div>' + stepsHTML(d.results);
+    // critique weaknesses + fixes
+    const cr = d.critique || {};
+    if(Array.isArray(cr.weak) && cr.weak.length){
+      h += '<div class="sub-lbl">Critique — weaknesses</div><ul class="wk">' + cr.weak.map(w=>'<li>'+esc(w)+'</li>').join("") + '</ul>';
+    }
+    if(Array.isArray(cr.fixes) && cr.fixes.length){
+      h += '<div class="sub-lbl">Suggested fixes</div><ul class="wk fix">' + cr.fixes.map(f=>'<li>'+esc(f)+'</li>').join("") + '</ul>';
+    }
+    out.innerHTML = h;
+    // refresh memory + runs (new reflections/runs may have been written)
+    loadMemory(); loadRoster();
+  }catch(e){ showErr("coordRes", e); }
+  finally{ busy(btn, false, "⚡ Coordinate (Reflexion)"); }
+}
+
+/* ---------- 4. LLM COUNCIL (admin) ---------- */
+async function loadCouncilMembers(){
+  const box = document.getElementById("councilMembers");
+  if(!box) return;
+  if(!tok()){ box.innerHTML = '<span class="chip"><span class="k">members</span>login ke baad dikhenge</span>'; return; }
+  try{
+    const d = await getJSON("/api/agents/council/members", true);
+    const list = Array.isArray(d.members) ? d.members : [];
+    if(!list.length){ box.innerHTML = '<span class="chip"><span class="k">members</span>0 — API keys check karo</span>'; return; }
+    box.innerHTML = list.map(m => '<span class="chip"><span class="k">'+esc(m.label||m.provider)+'</span>'+esc(m.provider)+'</span>').join("");
+  }catch(e){ box.innerHTML = '<span class="chip">members load fail</span>'; }
+}
+
+async function runCouncil(){
+  const q = document.getElementById("cq").value.trim();
+  const out = document.getElementById("councilRes");
+  if(q.length < 3){ out.className="res show"; out.innerHTML='<div class="err">Question thoda lamba likho.</div>'; return; }
+  const btn = document.getElementById("councilBtn");
+  busy(btn, true, "Council chal raha hai…");
+  out.className = "res show";
+  out.innerHTML = '<div class="loading">'+spin()+' Stage 1→2→3 (multi-model, 1-3 min)…</div>';
+  try{
+    const d = await postJSON("/api/agents/council", {question:q});
+    if(!d.ok){ showErr("councilRes", new Error(d.error||"Council fail")); return; }
+    let h = '<div class="summary"><div class="lbl">Chairman — Final Answer</div><div class="txt">'+esc((d.stage3&&d.stage3.response)||d.summary||"")+'</div></div>';
+    const agg = (d.metadata&&d.metadata.aggregate_rankings)||[];
+    if(agg.length){
+      h += '<div class="sub-lbl">Aggregate peer rankings</div>';
+      agg.forEach((a,i) => { h += '<div class="rankrow"><span class="nm">#'+(i+1)+' '+esc(a.model)+'</span><span class="sc">avg '+esc(a.average_rank)+'</span></div>'; });
+    }
+    const s1 = Array.isArray(d.stage1) ? d.stage1 : [];
+    if(s1.length){
+      h += '<div class="sub-lbl">Stage 1 — Individual opinions</div><div class="tabs" id="councilTabs">';
+      s1.forEach((s,i) => { h += '<button type="button" class="tabbtn'+(i===0?' on':'')+'" onclick="councilTab('+i+')">'+esc(s.label||s.provider)+'</button>'; });
+      h += '</div>';
+      s1.forEach((s,i) => {
+        h += '<div class="tabpane'+(i===0?' on':'')+'" id="councilPane'+i+'"><div class="step"><div class="hd"><span class="ag">'+esc(s.label||s.provider)+'</span></div><div class="out">'+esc(s.response||"")+'</div></div></div>';
+      });
+    }
+    out.innerHTML = h;
+    loadRoster();
+  }catch(e){ showErr("councilRes", e); }
+  finally{ busy(btn, false, "🏛️ Run Council"); }
+}
+function councilTab(i){
+  document.querySelectorAll("#councilTabs .tabbtn").forEach((b,j)=>b.classList.toggle("on", j===i));
+  document.querySelectorAll("[id^=councilPane]").forEach((p,j)=>p.classList.toggle("on", j===i));
+}
+
+/* ---------- 5. DEBATE (admin) ---------- */
+async function runDebate(){
+  const q = document.getElementById("dq").value.trim();
+  const out = document.getElementById("debateRes");
+  if(q.length < 3){ out.className="res show"; out.innerHTML='<div class="err">Question thoda lamba likho.</div>'; return; }
+  const btn = document.getElementById("debateBtn");
+  busy(btn, true, "Debating…");
+  out.className = "res show";
+  out.innerHTML = '<div class="loading">'+spin()+' Rohan vs Kavya debate kar rahe hain…</div>';
+  try{
+    const d = await postJSON("/api/agents/debate", {question:q, rounds:1});
+    let h = '<div class="summary"><div class="lbl">Boss Verdict</div><div class="txt">'+esc(d.verdict||"(verdict nahi)")+'</div></div>';
+    const rounds = Array.isArray(d.rounds) ? d.rounds : [];
+    rounds.forEach((rd, i) => {
+      if(rounds.length > 1) h += '<div class="rnd-lbl">Round '+esc(rd.round != null ? rd.round : i)+'</div>';
+      h += '<div class="debate">'
+        + '<div class="side pro"><div class="tag">▲ Rohan — Pro</div><div class="txt">'+esc(rd.pro||"")+'</div></div>'
+        + '<div class="side con"><div class="tag">▼ Kavya — Con</div><div class="txt">'+esc(rd.con||"")+'</div></div>'
+        + '</div>';
+    });
+    if(!rounds.length) h += '<div class="empty">Koi debate round nahi mila.</div>';
+    out.innerHTML = h;
+  }catch(e){ showErr("debateRes", e); }
+  finally{ busy(btn, false, "⚖️ Debate"); }
+}
+
+/* ---------- 6. FAN-OUT (admin) ---------- */
+async function runFanout(){
+  const q = document.getElementById("fq").value.trim();
+  const out = document.getElementById("fanRes");
+  if(q.length < 3){ out.className="res show"; out.innerHTML='<div class="err">Goal thoda lamba likho.</div>'; return; }
+  const btn = document.getElementById("fanBtn");
+  busy(btn, true, "Fanning out…");
+  out.className = "res show";
+  out.innerHTML = '<div class="loading">'+spin()+' Agents parallel me kaam kar rahe hain…</div>';
+  try{
+    const d = await postJSON("/api/agents/fanout", {goal:q});
+    let h = '<div class="summary"><div class="lbl">Merged Plan ('+esc(d.mode||"parallel")+')</div><div class="txt">'+esc(d.summary||"(merge nahi)")+'</div></div>';
+    if(Array.isArray(d.agents) && d.agents.length) h += '<div class="chips"><span class="chip"><span class="k">agents</span>'+d.agents.map(esc).join(", ")+'</span></div>';
+    h += stepsHTML(d.results);
+    out.innerHTML = h;
+  }catch(e){ showErr("fanRes", e); }
+  finally{ busy(btn, false, "🔀 Fan-out"); }
+}
+
+/* ---------- auth banner + init ---------- */
+function initAuthBanner(){
+  const dot = document.getElementById("authDot");
+  const msg = document.getElementById("authMsg");
+  if(tok()){ dot.className = "dot on"; msg.innerHTML = "Admin token mila — coordinate / council / debate / memory ready."; }
+  else { dot.className = "dot off"; msg.innerHTML = 'Admin token nahi — roster public hai, baaki ke liye <a href="/app/login">/app/login</a>.'; }
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  initAuthBanner();
+  loadAgentOsStrip();
+  loadRoster();
+  loadMemory();
+  loadCouncilMembers();
+});
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

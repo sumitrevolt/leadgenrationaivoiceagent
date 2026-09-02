@@ -1,0 +1,85 @@
+# =============================================================================
+# Gatus — synthetic monitoring with BODY assertions (TwiN/gatus, Apache-2.0).
+# Uptime Kuma ping-style checks ke UPAR: yeh response BODY assert karta hai
+# (e.g. /health/ready me database+redis dono "healthy") + TLS expiry.
+# Run: docker compose -f deploy/compose/docker-compose.observability.yml up -d gatus
+# UI:  ssh -L 8082:127.0.0.1:8082 root@72.61.245.204 -> http://localhost:8082
+# Alerts: Alertmanager pehle se email karta hai; Gatus apne alerting me bhi
+# email add kar sakte (abhi UI/status only — alert duplication avoid).
+# =============================================================================
+
+storage:
+  type: sqlite
+  path: /data/gatus.db
+
+# --- OPT-IN: independent ntfy alert path (OBS-005) ---------------------------
+# Gatus runs independently of Prometheus/Alertmanager, so ntfy here is a
+# LAST-RESORT detector that still fires even if Prometheus itself is down. It is
+# a SEPARATE channel from Alertmanager email (non-duplicating), so the
+# no-duplication note above does not apply. Left commented because the gatus
+# container does not yet receive NTFY_* env. To enable:
+#   1. pass NTFY_URL + NTFY_TOPIC (+ optional NTFY_TOKEN) into the gatus service
+#      env in deploy/compose/docker-compose.observability.yml,
+#   2. uncomment the block below,
+#   3. restart gatus and confirm it starts cleanly.
+# With default-alert every endpoint below inherits the ntfy alert automatically.
+# alerting:
+#   ntfy:
+#     url: "${NTFY_URL}"
+#     topic: "${NTFY_TOPIC}"
+#     token: "${NTFY_TOKEN}"
+#     priority: 4
+#     default-alert:
+#       enabled: true
+#       failure-threshold: 3
+#       success-threshold: 2
+#       send-on-resolved: true
+# -----------------------------------------------------------------------------
+
+endpoints:
+  - name: health-ready (db+redis)
+    group: core
+    url: "http://leadgen_app:8000/health/ready"
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].database == healthy"
+      - "[BODY].redis == healthy"
+      - "[RESPONSE_TIME] < 2000"
+
+  - name: public landing
+    group: public
+    url: "https://leadsgenai.in/"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[CERTIFICATE_EXPIRATION] > 168h"  # TLS 7 din pehle warn
+
+  - name: pricing page
+    group: public
+    url: "https://leadsgenai.in/pricing"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: packages API (revenue path)
+    group: public
+    url: "https://leadsgenai.in/api/marketing/packages"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY][0].key == any(starter, trial)"
+
+  - name: audit lead-magnet
+    group: public
+    url: "https://leadsgenai.in/audit"
+    interval: 10m
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: niches API
+    group: api
+    url: "http://leadgen_app:8000/api/data/niches"
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"

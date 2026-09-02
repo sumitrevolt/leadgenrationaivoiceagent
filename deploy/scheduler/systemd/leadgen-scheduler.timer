@@ -1,0 +1,12 @@
+[Unit]
+Description=Run LeadGen scheduler every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+AccuracySec=30s
+Persistent=true
+Unit=leadgen-scheduler-run-once.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Team Access</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--line:#334155;--txt:#e2e8f0;--mut:#94a3b8;--acc:#38bdf8;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:20px;max-width:1100px;margin:0 auto}
+h1{font-size:1.3rem;margin-bottom:4px}.sub{color:var(--mut);font-size:.85rem;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+h2{font-size:1rem;margin-bottom:10px;color:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:500}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.72rem;border:1px solid var(--line)}
+.b-super{color:#f0abfc}.b-admin{color:var(--acc)}.b-member{color:var(--ok)}.b-inactive{color:var(--bad)}
+.mods{color:var(--mut);font-size:.75rem}
+input,select{background:#0b1220;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:8px;font-size:.85rem;width:100%}
+label{font-size:.78rem;color:var(--mut);display:block;margin-bottom:3px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:10px}
+button{background:var(--acc);color:#06222e;border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:.85rem}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+.modbox{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.modbox label{display:flex;align-items:center;gap:5px;background:#0b1220;border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;margin:0;color:var(--txt);font-size:.8rem}
+.modbox input{width:auto}
+#msg{padding:10px;border-radius:6px;margin-bottom:12px;font-size:.85rem;display:none}
+.okmsg{background:#06281e;color:var(--ok);display:block!important}.badmsg{background:#2b1212;color:var(--bad);display:block!important}
+.actions button{padding:4px 8px;font-size:.72rem;margin-right:4px}
+#tokenbar{display:flex;gap:8px;margin-bottom:14px}
+.audit{font-size:.78rem;color:var(--mut);max-height:260px;overflow:auto}
+.audit div{padding:5px 0;border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>👥 Team Access</h1>
+<div class="sub">Super admin: sub-admins banao, members ko modules do · sab actions audit me</div>
+
+<div id="tokenbar">
+  <input id="tok" type="password" placeholder="Admin token (auto from login)" style="max-width:320px">
+  <button class="ghost" onclick="saveTok()">Save token</button>
+  <a href="/app/admin-login" style="color:var(--acc);font-size:.85rem;align-self:center">Login page →</a>
+</div>
+<div id="msg"></div>
+
+<div class="card" id="pwcard" style="display:none">
+  <h2>🔑 Pehle password change karo (temp password active)</h2>
+  <div class="row">
+    <div><label>Current (temp) password</label><input id="curpw" type="password"></div>
+    <div><label>Naya password (min 8)</label><input id="newpw" type="password"></div>
+  </div>
+  <button onclick="changePw()">Change password</button>
+</div>
+
+<div class="card" id="addcard">
+  <h2>➕ Add member</h2>
+  <div class="row">
+    <div><label>Email</label><input id="m_email" type="email" placeholder="member@team.in"></div>
+    <div><label>Naam</label><input id="m_name" placeholder="Pehla naam"></div>
+    <div><label>Role</label><select id="m_role">
+      <option value="admin">admin (sub-admin — sab access)</option>
+      <option value="manager" selected>manager (module-limited)</option>
+      <option value="agent">agent (module-limited)</option>
+      <option value="viewer">viewer (module-limited)</option>
+    </select></div>
+    <div><label>Temp password (min 8)</label><input id="m_pw" placeholder="member ko alag se dena"></div>
+  </div>
+  <label>Modules (sirf manager/agent/viewer ke liye zaroori)</label>
+  <div class="modbox" id="modbox"></div>
+  <button onclick="addMember()">Create member</button>
+</div>
+
+<div class="card">
+  <h2>📋 Members</h2>
+  <table><thead><tr><th>Member</th><th>Role</th><th>Modules</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="6" class="mods">Loading…</td></tr></tbody></table>
+</div>
+
+<div class="card">
+  <h2>🧾 Recent audit</h2>
+  <div class="audit" id="audit">—</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let TOKEN=localStorage.getItem('accessToken')||'';
+$('tok').value=TOKEN?'••••••••':'';
+let MODULES=[],ME=null;
+function saveTok(){const v=$('tok').value.trim();if(v&&v!=='••••••••'){TOKEN=v;localStorage.setItem('accessToken',v);}boot();}
+function msg(t,ok){const m=$('msg');m.textContent=t;m.className=ok?'okmsg':'badmsg';setTimeout(()=>{m.className='';m.style.display='none';},6000);}
+async function api(path,opts={}){
+  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN,...(opts.headers||{})}});
+  let d={};try{d=await r.json();}catch(e){}
+  if(!r.ok)throw new Error(d.detail||('HTTP '+r.status));
+  return d;
+}
+async function boot(){
+  if(!TOKEN){msg('Token missing — pehle /app/admin-login se login karo',false);return;}
+  try{
+    ME=await api('/api/team-access/me');
+    if(ME.must_change_password){$('pwcard').style.display='block';}
+    const mods=await api('/api/team-access/modules');
+    MODULES=mods.modules.map(m=>m.key);
+    $('modbox').innerHTML=MODULES.map(k=>`<label><input type="checkbox" value="${k}" class="mchk"> ${k}</label>`).join('');
+    if(ME.role!=='super_admin'){$('addcard').style.display='none';}
+    await loadMembers();await loadAudit();
+  }catch(e){msg('Load fail: '+e.message,false);}
+}
+async function loadMembers(){
+  try{
+    const d=await api('/api/team-access/members');
+    $('rows').innerHTML=d.members.map(m=>{
+      const rb=m.role==='super_admin'?'b-super':(m.role==='admin'?'b-admin':'b-member');
+      const acts=(ME&&ME.role==='super_admin'&&m.role!=='super_admin')?
+        `<button class="ghost" onclick="editMods('${m.id}','${(m.modules||[]).join(',')}')">Modules</button>
+         <button class="ghost" onclick="resetPw('${m.id}')">Reset pw</button>
+         <button class="danger" onclick="toggleActive('${m.id}','${m.status}')">${m.status==='active'?'Disable':'Enable'}</button>`:'—';
+      return `<tr><td>${m.name}<div class="mods">${m.email}</div></td>
+        <td><span class="badge ${rb}">${m.role}</span></td>
+        <td class="mods">${m.role==='super_admin'||m.role==='admin'?'(sab)':(m.modules||[]).join(', ')||'—'}</td>
+        <td><span class="badge ${m.status==='active'?'':'b-inactive'}">${m.status}${m.must_change_password?' · pw-pending':''}</span></td>
+        <td class="mods">${m.last_login?m.last_login.slice(0,16).replace('T',' '):'—'}</td>
+        <td class="actions">${acts}</td></tr>`;
+    }).join('');
+  }catch(e){$('rows').innerHTML=`<tr><td colspan="6" class="mods">${e.message}</td></tr>`;}
+}
+async function addMember(){
+  const mods=[...document.querySelectorAll('.mchk:checked')].map(c=>c.value);
+  try{
+    const d=await api('/api/team-access/members',{method:'POST',body:JSON.stringify({
+      email:$('m_email').value.trim(),first_name:$('m_name').value.trim(),role:$('m_role').value,
+      modules:mods,temp_password:$('m_pw').value})});
+    msg('Member bana — temp password use alag se do (chat/call), yahan store nahi hota',true);
+    $('m_email').value='';$('m_name').value='';$('m_pw').value='';
+    await loadMembers();await loadAudit();
+  }catch(e){msg(e.message,false);}
+}
+async function editMods(id,cur){
+  const inp=prompt('Modules (comma-separated):\n'+MODULES.join(', '),cur);
+  if(inp===null)return;
+  const mods=inp.split(',').map(s=>s.trim()).filter(Boolean);
+  try{await api(`/api/team-access/members/${id}/modules`,{method:'PATCH',body:JSON.stringify({modules:mods})});
+    msg('Modules updated',true);await loadMembers();await loadAudit();}catch(e){msg(e.message,false);}
+}
+async function resetPw(id){
+  const pw=prompt('Naya temp password (min 8) — member ko alag se dena:');
+  if(!pw)return;
+  try{await api(`/api/team-access/members/${id}/reset-password`,{method:'POST',body:JSON.stringify({temp_password:pw})});
+    msg('Password reset — agla login pe change forced',true);await loadMembers();}catch(e){msg(e.message,false);}
+}
+async function toggleActive(id,status){
+  const next=status==='active'?'inactive':'active';
+  try{await api(`/api/admin/users/${id}`,{method:'PATCH',body:JSON.stringify({status:next})});
+    msg('Status: '+next,true);await loadMembers();await loadAudit();}catch(e){msg(e.message,false);}
+}
+async function changePw(){
+  try{await api('/api/team-access/auth/change-password',{method:'POST',body:JSON.stringify({
+    current_password:$('curpw').value,new_password:$('newpw').value})});
+    msg('Password changed ✓',true);$('pwcard').style.display='none';}catch(e){msg(e.message,false);}
+}
+async function loadAudit(){
+  try{
+    const d=await api('/api/admin/audit-logs?limit=25');
+    const list=Array.isArray(d)?d:(d.logs||[]);
+    $('audit').innerHTML=list.map(a=>`<div><b>${a.action}</b> · ${a.resource_type||''} · ${(a.created_at||'').slice(0,16).replace('T',' ')}</div>`).join('')||'—';
+  }catch(e){$('audit').textContent='Audit load fail: '+e.message;}
+}
+boot();
+</script>
+</body>
+</html>

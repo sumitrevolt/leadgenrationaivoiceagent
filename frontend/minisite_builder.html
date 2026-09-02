@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — Mini-site Builder</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--pri:#6d28d9;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:#0b1020;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:18px;margin:0;}
+  header .sp{flex:1;}
+  header input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:13px;width:220px;}
+  header button{padding:8px 12px;border:0;border-radius:8px;background:var(--pri);color:#fff;font-weight:600;cursor:pointer;}
+  .wrap{max-width:1180px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:1fr 420px;gap:18px;}
+  @media(max-width:920px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:16px;}
+  .card h3{margin:0 0 12px;font-size:15px;}
+  label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px;color:var(--mut);}
+  select,input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;}
+  .palettes{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+  .pal{border:2px solid var(--line);border-radius:11px;padding:8px;cursor:pointer;text-align:center;font-size:12px;font-weight:600;}
+  .pal.sel{border-color:var(--ink);}
+  .pal .sw{height:34px;border-radius:7px;margin-bottom:6px;}
+  .layouts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media(max-width:520px){.layouts{grid-template-columns:1fr;}}
+  .lay{border:2px solid var(--line);border-radius:11px;padding:12px 10px;cursor:pointer;font-size:13px;font-weight:700;text-align:center;}
+  .lay.sel{border-color:var(--pri);background:#f5f3ff;}
+  .lay small{display:block;font-weight:500;color:var(--mut);font-size:11px;margin-top:4px;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .btn{padding:11px 16px;border:0;border-radius:9px;background:var(--pri);color:#fff;font-weight:700;cursor:pointer;font-size:14px;}
+  .btn.sec{background:#e2e8f0;color:var(--ink);}
+  .btn:disabled{opacity:.6;cursor:default;}
+  .msg{font-size:13px;margin-top:10px;min-height:16px;}
+  .msg.ok{color:#15803d;}.msg.err{color:#b91c1c;}
+  .snippet{background:#0b1020;color:#e2e8f0;border-radius:9px;padding:12px;font-family:monospace;font-size:12px;word-break:break-all;white-space:pre-wrap;}
+  .preview-frame{width:100%;height:760px;border:1px solid var(--line);border-radius:12px;background:#fff;}
+  .logo-thumb{width:54px;height:54px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:#fff;display:none;}
+  .reviews-list .rv{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:13px;}
+  .reviews-list .rv .top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .reviews-list .rv .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;}
+  .reviews-list .rv .badge.p{background:#fef3c7;color:#92400e;}
+  .reviews-list .rv .badge.a{background:#dcfce7;color:#166534;}
+  .reviews-list .rv .acts{margin-top:6px;display:flex;gap:6px;}
+  .reviews-list .rv .acts button{font-size:12px;padding:5px 10px;border:0;border-radius:7px;cursor:pointer;}
+  .stars{color:#f59e0b;}
+  .hint{font-size:12px;color:var(--mut);margin-top:4px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mini-site Builder</h1>
+  <input id="slug" type="text" placeholder="client slug (e.g. sharma-solar-7b6f)" style="width:260px;color:#fff;" />
+  <div class="sp"></div>
+  <input id="tok" type="password" placeholder="Admin token (paste once)" />
+  <button id="reload">Load</button>
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
+</header>
+<div class="wrap">
+  <div class="left">
+    <div class="card">
+      <h3>Color palette</h3>
+      <div class="palettes" id="palettes"></div>
+      <div class="hint">Palette mini-site ke hero + buttons ke colors set karta hai.</div>
+    </div>
+
+    <div class="card">
+      <h3>Layout</h3>
+      <div class="layouts" id="layouts"></div>
+    </div>
+
+    <div class="card">
+      <h3>Logo</h3>
+      <div class="row">
+        <img id="logoThumb" class="logo-thumb" alt="logo" />
+        <div style="flex:1;min-width:200px;">
+          <label>Upload (PNG/JPG/WEBP, max 2MB)</label>
+          <input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" />
+        </div>
+      </div>
+      <label>…or paste a logo URL</label>
+      <div class="row">
+        <input id="logoUrl" type="text" placeholder="https://…/logo.png" />
+        <button class="btn sec" id="logoUrlBtn" type="button">Set URL</button>
+      </div>
+      <div class="msg" id="logoMsg"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <h3 style="margin:0;">Save &amp; preview</h3>
+        <div class="row">
+          <button class="btn sec" id="previewBtn" type="button">Refresh preview</button>
+          <button class="btn" id="saveBtn" type="button">Save changes</button>
+        </div>
+      </div>
+      <div class="msg" id="saveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h3>Embed widget snippet</h3>
+      <div class="snippet" id="snippet">Load a slug to see the snippet.</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn sec" id="copyBtn" type="button">Copy snippet</button>
+        <a id="siteLink" class="btn sec" href="#" target="_blank" rel="noopener" style="text-decoration:none;">Open /b/&lt;slug&gt;</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Reviews moderation</h3>
+      <div class="reviews-list" id="reviews">Load a slug to see reviews.</div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="card" style="position:sticky;top:16px;">
+      <h3>Live preview</h3>
+      <iframe id="preview" class="preview-frame" title="Mini-site preview"></iframe>
+      <div class="hint">Preview saved config dikhata hai. Changes "Save" ke baad reflect honge.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tokEl=document.getElementById("tok");
+  var slugEl=document.getElementById("slug");
+  tokEl.value = localStorage.getItem("accessToken") || "";
+  slugEl.value = localStorage.getItem("minisiteSlug") || "";
+
+  var state = { palette:"violet", layout:"classic", logo_url:"" };
+  var PALETTES = {}, LAYOUTS = {};
+
+  function hdr(){
+    var t=(tokEl.value||"").trim();
+    if(t) localStorage.setItem("accessToken",t);
+    return t ? {"Authorization":"Bearer "+t} : {};
+  }
+  function slug(){ return (slugEl.value||"").trim(); }
+  function setMsg(id,txt,ok){ var e=document.getElementById(id); if(!e)return; e.textContent=txt||""; e.className="msg "+(ok===true?"ok":(ok===false?"err":"")); }
+
+  async function getJSON(url){
+    try{ var r=await fetch(url,{headers:hdr()}); var j=await r.json().catch(function(){return null;}); return {ok:r.ok,j:j}; }
+    catch(e){ return {ok:false,j:null}; }
+  }
+  async function postJSON(url,body){
+    try{
+      var r=await fetch(url,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},hdr()),body:JSON.stringify(body)});
+      var j=await r.json().catch(function(){return null;}); return {ok:r.ok,j:j};
+    }catch(e){ return {ok:false,j:null}; }
+  }
+
+  function renderPalettes(){
+    var el=document.getElementById("palettes"); var html="";
+    Object.keys(PALETTES).forEach(function(k){
+      var p=PALETTES[k];
+      html+='<div class="pal'+(state.palette===k?' sel':'')+'" data-k="'+k+'">'+
+            '<div class="sw" style="background:linear-gradient(135deg,'+p.primary+','+p.accent+')"></div>'+
+            (p.label||k)+'</div>';
+    });
+    el.innerHTML=html;
+    el.querySelectorAll(".pal").forEach(function(n){
+      n.addEventListener("click",function(){ state.palette=this.getAttribute("data-k"); renderPalettes(); });
+    });
+  }
+  function renderLayouts(){
+    var el=document.getElementById("layouts"); var html="";
+    Object.keys(LAYOUTS).forEach(function(k){
+      var desc=String(LAYOUTS[k]||"");
+      var title=desc.split("—")[0].trim()||k;
+      var sub=desc.indexOf("—")>=0?desc.split("—").slice(1).join("—").trim():"";
+      html+='<div class="lay'+(state.layout===k?' sel':'')+'" data-k="'+k+'">'+title+
+            (sub?'<small>'+sub+'</small>':'')+'</div>';
+    });
+    el.innerHTML=html;
+    el.querySelectorAll(".lay").forEach(function(n){
+      n.addEventListener("click",function(){ state.layout=this.getAttribute("data-k"); renderLayouts(); });
+    });
+  }
+  function showLogo(){
+    var t=document.getElementById("logoThumb");
+    if(state.logo_url){ t.src=state.logo_url; t.style.display="block"; }
+    else { t.style.display="none"; }
+  }
+
+  async function loadPalettes(){
+    var res=await getJSON("/api/minisite/palettes");
+    if(res.ok && res.j){ PALETTES=res.j.palettes||{}; LAYOUTS=res.j.layouts||{}; }
+    renderPalettes(); renderLayouts();
+  }
+  async function loadConfig(){
+    if(!slug()){ setMsg("saveMsg","Pehle ek client slug daaliye.",false); return; }
+    localStorage.setItem("minisiteSlug",slug());
+    var res=await getJSON("/api/minisite/config?slug="+encodeURIComponent(slug()));
+    if(res.ok && res.j){
+      state.palette=res.j.palette||"violet";
+      state.layout=res.j.layout||"classic";
+      state.logo_url=res.j.logo_url||"";
+      document.getElementById("logoUrl").value=state.logo_url&&state.logo_url.indexOf("http")===0?state.logo_url:"";
+      setMsg("saveMsg","Config loaded.",true);
+    } else {
+      setMsg("saveMsg","Config load nahi hua — token/slug check karein.",false);
+    }
+    renderPalettes(); renderLayouts(); showLogo();
+    loadSnippet(); loadReviews(); refreshPreview();
+  }
+  async function save(){
+    if(!slug()){ setMsg("saveMsg","Slug zaroori hai.",false); return; }
+    var btn=document.getElementById("saveBtn"); btn.disabled=true;
+    var res=await postJSON("/api/minisite/config",{slug:slug(),palette:state.palette,layout:state.layout,logo_url:state.logo_url});
+    btn.disabled=false;
+    if(res.ok){ setMsg("saveMsg","Saved! Preview refresh ho raha hai…",true); refreshPreview(); }
+    else { setMsg("saveMsg","Save fail — "+((res.j&&res.j.detail)||"try again"),false); }
+  }
+
+  async function uploadLogo(file){
+    if(!slug()){ setMsg("logoMsg","Pehle slug daaliye.",false); return; }
+    var fd=new FormData(); fd.append("file",file);
+    setMsg("logoMsg","Uploading…");
+    try{
+      var r=await fetch("/api/minisite/logo?slug="+encodeURIComponent(slug()),{method:"POST",headers:hdr(),body:fd});
+      var j=await r.json().catch(function(){return null;});
+      if(r.ok && j && j.logo_url){ state.logo_url=j.logo_url; showLogo(); setMsg("logoMsg","Logo uploaded ✔",true); refreshPreview(); }
+      else { setMsg("logoMsg",(j&&j.detail)||"Upload fail.",false); }
+    }catch(e){ setMsg("logoMsg","Upload error.",false); }
+  }
+  async function setLogoUrl(){
+    var u=(document.getElementById("logoUrl").value||"").trim();
+    if(!slug()){ setMsg("logoMsg","Pehle slug daaliye.",false); return; }
+    var res=await postJSON("/api/minisite/logo-url",{slug:slug(),logo_url:u});
+    if(res.ok){ state.logo_url=u; showLogo(); setMsg("logoMsg","Logo URL set ✔",true); refreshPreview(); }
+    else { setMsg("logoMsg",(res.j&&res.j.detail)||"Invalid URL (.png/.jpg/.jpeg/.webp).",false); }
+  }
+
+  async function loadSnippet(){
+    var res=await getJSON("/api/minisite/snippet?slug="+encodeURIComponent(slug()));
+    var box=document.getElementById("snippet");
+    var link=document.getElementById("siteLink");
+    if(res.ok && res.j){ box.textContent=res.j.snippet||""; link.href=res.j.site_url||"#"; }
+    else { box.textContent="Snippet load nahi hua."; }
+  }
+  function copySnippet(){
+    var txt=document.getElementById("snippet").textContent||"";
+    if(navigator.clipboard){ navigator.clipboard.writeText(txt); }
+    setMsg("saveMsg","Snippet copied!",true);
+  }
+
+  function stars(n){ n=Math.max(0,Math.min(5,parseInt(n,10)||0)); return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n); }
+  async function loadReviews(){
+    var el=document.getElementById("reviews");
+    var res=await getJSON("/api/minisite/reviews?slug="+encodeURIComponent(slug()));
+    if(!(res.ok && res.j)){ el.textContent="Reviews load nahi hue."; return; }
+    var arr=res.j.reviews||[];
+    if(!arr.length){ el.textContent="Abhi koi review nahi."; return; }
+    el.innerHTML="";
+    arr.forEach(function(rv){
+      var div=document.createElement("div"); div.className="rv";
+      var approved=!!rv.approved;
+      div.innerHTML='<div class="top"><b>'+escapeHtml(rv.name)+' <span class="stars">'+stars(rv.rating)+'</span></b>'+
+        '<span class="badge '+(approved?'a':'p')+'">'+(approved?'approved':'pending')+'</span></div>'+
+        (rv.text?'<div>'+escapeHtml(rv.text)+'</div>':'')+
+        '<div class="acts"></div>';
+      var acts=div.querySelector(".acts");
+      var ap=document.createElement("button"); ap.textContent=approved?"Unapprove":"Approve";
+      ap.style.background=approved?"#fee2e2":"#dcfce7";
+      ap.addEventListener("click",function(){ moderate(rv.id,!approved); });
+      acts.appendChild(ap);
+      el.appendChild(div);
+    });
+  }
+  async function moderate(id,approved){
+    var res=await postJSON("/api/minisite/reviews/moderate",{slug:slug(),review_id:id,approved:approved});
+    if(res.ok){ loadReviews(); refreshPreview(); }
+  }
+  function escapeHtml(s){ var d=document.createElement("div"); d.textContent=s==null?"":String(s); return d.innerHTML; }
+
+  function refreshPreview(){
+    if(!slug()) return;
+    // Save first so the renderer reads the latest config, then load preview.
+    postJSON("/api/minisite/config",{slug:slug(),palette:state.palette,layout:state.layout,logo_url:state.logo_url})
+      .then(function(){
+        var f=document.getElementById("preview");
+        // preview endpoint needs auth → fetch HTML with token, render via srcdoc
+        fetch("/api/minisite/preview?slug="+encodeURIComponent(slug()),{headers:hdr()})
+          .then(function(r){ return r.ok?r.text():null; })
+          .then(function(html){ if(html!=null) f.srcdoc=html; });
+      });
+  }
+
+  document.getElementById("reload").addEventListener("click",function(){ loadPalettes().then(loadConfig); });
+  document.getElementById("saveBtn").addEventListener("click",save);
+  document.getElementById("previewBtn").addEventListener("click",refreshPreview);
+  document.getElementById("logoUrlBtn").addEventListener("click",setLogoUrl);
+  document.getElementById("copyBtn").addEventListener("click",copySnippet);
+  document.getElementById("logoFile").addEventListener("change",function(){ if(this.files&&this.files[0]) uploadLogo(this.files[0]); });
+
+  // boot
+  loadPalettes().then(function(){ if(slug()) loadConfig(); });
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

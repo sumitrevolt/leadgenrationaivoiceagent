@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#4f46e5" />
+<title>LeadGen AI — AI Automated Marketing for Local Businesses</title>
+<meta name="description" content="AI Marketing Automation for local businesses — posts, Google ranking, WhatsApp content on auto-pilot, plus an AI Voice Agent feature. ₹1,999/mo se shuru." />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<!-- Fonts self-hosted via /design-system/styles.css + tokens/fonts.css (no external CDN). -->
+<link rel="canonical" href="https://leadsgenai.in/" />
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<meta name="keywords" content="AI marketing India, AI voice agent Hindi, local business marketing, Google Business Profile audit, lead generation, WhatsApp marketing, festival posters, small business" />
+<meta name="author" content="LeadGen AI" />
+<meta name="google-site-verification" content="hSuMpSLt2ovH2_nJh-rCbUmAwFoE6AU1NJvwJkuShEE" />
+<!-- Open Graph — WhatsApp / Facebook / LinkedIn link previews -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="LeadGen AI" />
+<meta property="og:title" content="LeadGen AI — AI Automated Marketing for Local Businesses" />
+<meta property="og:description" content="Local businesses ke liye AI Automated Marketing — posts, Google ranking, festival posters, WhatsApp content, sab auto-pilot pe. Advanced plan me AI Voice Agent feature jo har inquiry ko khud Hindi me call kare. ₹1,999/mo se." />
+<meta property="og:url" content="https://leadsgenai.in/" />
+<meta property="og:image" content="https://leadsgenai.in/icons/icon-512.png" />
+<meta property="og:locale" content="en_IN" />
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="LeadGen AI — AI Automated Marketing" />
+<meta name="twitter:description" content="Local business ka poora marketing auto-pilot pe. Advanced me AI Voice Agent feature — har inquiry ko AI khud call kare. ₹1,999/mo se." />
+<meta name="twitter:image" content="https://leadsgenai.in/icons/icon-512.png" />
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  /* Local names aliased -> LeadGen AI Design System tokens (linked /design-system/styles.css).
+     --indigo-400,--bg,--bg-soft,--line,--shadow-sm share the DS value, so they're dropped here
+     and inherited straight from the DS; --indigo-600 and --white were unused. */
+  :root{
+    --indigo: var(--brand);            /* indigo-600 #4f46e5 */
+    --violet: var(--brand-2);          /* violet-500 #7c3aed */
+    --ink:    var(--text-strong);      /* ink-900 #0f1024 */
+    --ink-2:  var(--ink-800);          /* #1b1c3a */
+    --muted:  var(--text-muted);       /* slate-500 #64647e */
+    --radius: var(--radius-xl);        /* 18px */
+    --shadow: var(--shadow-brand);
+    --maxw:   var(--container-max);    /* 1140px */
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  h1,h2,h3,.brand{font-family:'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:-.02em;line-height:1.12}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--indigo);background:var(--indigo-50);padding:7px 14px;border-radius:999px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;font-size:.98rem;padding:14px 24px;border-radius:12px;cursor:pointer;border:1.5px solid transparent;transition:transform .18s ease,box-shadow .25s ease,background .2s ease;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;box-shadow:var(--shadow)}
+  .btn-primary:hover{transform:translateY(-2px)}
+  .btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--indigo-400);color:var(--indigo)}
+  .btn-light{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
+  .btn-light:hover{background:rgba(255,255,255,.22)}
+
+  /* NAV */
+  header.nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(255,255,255,.82);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
+  header.nav.scrolled{border-color:var(--line);box-shadow:0 6px 24px -16px rgba(15,16,36,.3)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:72px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.22rem}
+  .brand .logo{width:36px;height:36px;border-radius:10px;display:block;box-shadow:var(--shadow-sm)}
+  .brand .logo svg{width:20px;height:20px}
+  .nav-links{display:flex;align-items:center;gap:30px}
+  .nav-links a.link{font-size:.95rem;color:var(--muted);font-weight:500;transition:color .2s}
+  .nav-links a.link:hover{color:var(--ink)}
+  .nav-cta{display:flex;align-items:center;gap:12px}
+  .nav-cta a.login{font-size:.95rem;font-weight:600;color:var(--ink)}
+  .nav-links .login-menu-item{display:none} /* sirf mobile menu me dikhta hai */
+  .menu-btn{display:none;background:none;border:none;cursor:pointer;flex-direction:column;gap:5px;padding:8px}
+  .menu-btn span{width:24px;height:2px;background:var(--ink);border-radius:2px;transition:.3s}
+
+  /* HERO */
+  .hero{position:relative;padding:72px 0 90px;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;background:
+    radial-gradient(60% 60% at 80% 0%,rgba(124,58,237,.10),transparent 70%),
+    radial-gradient(50% 50% at 0% 30%,rgba(79,70,229,.10),transparent 70%);z-index:-1}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  .hero h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:800;margin:20px 0 18px}
+  .hero h1 .grad{background:linear-gradient(120deg,var(--indigo),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.sub{font-size:1.12rem;color:var(--muted);max-width:560px}
+  .hero-cta{display:flex;gap:14px;margin:30px 0 22px;flex-wrap:wrap}
+  .hero-mini{display:flex;gap:22px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
+  .hero-mini b{color:var(--ink)}
+  .hero-mini .dot{color:var(--indigo);font-weight:800;margin-right:6px}
+
+  /* Phone mock card */
+  .hero-card{position:relative}
+  .callcard{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:22px;max-width:380px;margin-left:auto}
+  .callcard .top{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .callcard .av{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;color:#fff;font-weight:700}
+  .callcard .top small{color:var(--muted);font-size:.8rem}
+  .callcard .live{margin-left:auto;font-size:.72rem;font-weight:700;color:#16a34a;background:#dcfce7;padding:4px 10px;border-radius:999px;display:flex;align-items:center;gap:6px}
+  .pulse{width:7px;height:7px;background:#16a34a;border-radius:50%;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+  .bubble{margin:14px 0;max-width:84%;padding:11px 15px;border-radius:14px;font-size:.92rem}
+  .bubble.ai{background:var(--indigo-50);color:var(--ink-2);border-bottom-left-radius:4px}
+  .bubble.user{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+  .callcard .result{margin-top:16px;padding:14px;border-radius:14px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:.9rem;color:#166534;display:flex;gap:10px;align-items:flex-start}
+  .callcard .result b{color:#14532d}
+  .float-chip{position:absolute;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow-sm);border-radius:14px;padding:11px 14px;font-size:.82rem;font-weight:600;display:flex;align-items:center;gap:8px}
+  .float-chip .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:1rem}
+  .chip-1{top:-18px;left:-22px;animation:floaty 4s ease-in-out infinite}
+  .chip-2{bottom:30px;left:-34px;animation:floaty 4.6s ease-in-out infinite .6s}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+  /* TRUST */
+  .trust{padding:26px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg-soft)}
+  .trust .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .trust .label{font-size:.82rem;font-weight:600;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+  .trust .logos{display:flex;gap:30px;flex-wrap:wrap;align-items:center}
+  .trust .logos span{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#a0a0bb;font-size:1.05rem;letter-spacing:-.01em}
+
+  /* SECTION shell */
+  section.block{padding:84px 0}
+  .head{text-align:center;max-width:640px;margin:0 auto 52px}
+  .head h2{font-size:clamp(1.7rem,3.6vw,2.5rem);font-weight:800;margin:14px 0 14px}
+  .head p{color:var(--muted);font-size:1.06rem}
+
+  /* HOW IT WORKS */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .step{position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 22px;transition:transform .25s,box-shadow .25s,border-color .25s}
+  .step:hover{transform:translateY(-6px);box-shadow:var(--shadow-sm);border-color:var(--indigo-400)}
+  .step .num{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;display:grid;place-items:center;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;margin-bottom:16px}
+  .step h3{font-size:1.12rem;margin-bottom:8px}
+  .step p{color:var(--muted);font-size:.94rem}
+  .step .arrow{position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:var(--indigo-400);font-size:1.3rem;font-weight:700}
+
+  /* FEATURES */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .feat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;transition:transform .25s,box-shadow .25s}
+  .feat:hover{transform:translateY(-5px);box-shadow:var(--shadow-sm)}
+  .feat .ic{width:50px;height:50px;border-radius:14px;background:var(--indigo-50);display:grid;place-items:center;font-size:1.5rem;margin-bottom:16px;color:var(--indigo)}
+  .feat h3{font-size:1.14rem;margin-bottom:8px}
+  .feat p{color:var(--muted);font-size:.95rem}
+
+  /* NICHES */
+  .niches{background:linear-gradient(180deg,var(--bg-soft),#fff)}
+  .niche-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .niche{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 16px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:.96rem;transition:transform .2s,border-color .2s,box-shadow .2s;text-decoration:none;color:inherit;cursor:pointer}
+  .niche:hover{transform:translateY(-3px);border-color:var(--indigo-400);box-shadow:var(--shadow-sm)}
+  .niche .e{font-size:1.4rem}
+  .niche-more{text-align:center;margin-top:26px;color:var(--muted);font-size:.95rem}
+
+  /* PRICING */
+  .pricing-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:780px;margin:0 auto}
+  .price .pnote{font-size:.82rem;color:var(--muted);margin-top:6px}
+  .price{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:34px 30px;transition:transform .25s,box-shadow .25s}
+  .price.featured{border-color:var(--indigo);box-shadow:var(--shadow)}
+  .price .tag{position:absolute;top:-13px;left:30px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;font-size:.74rem;font-weight:700;letter-spacing:.04em;padding:6px 14px;border-radius:999px;text-transform:uppercase}
+  .price h3{font-size:1.25rem;margin-bottom:6px}
+  .price .desc{color:var(--muted);font-size:.92rem;margin-bottom:18px;min-height:42px}
+  .price .amt{font-size:2.6rem;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);display:flex;align-items:baseline;gap:6px}
+  .price .amt small{font-size:1rem;font-weight:600;color:var(--muted)}
+  .price ul{list-style:none;margin:22px 0 26px}
+  .price li{display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:.95rem;color:var(--ink-2)}
+  .price li .ck{color:#16a34a;font-weight:800;flex-shrink:0}
+  .price .fgroup{border-top:1px solid var(--line)}
+  .price .fgroup:first-of-type{border-top:none;margin-top:18px}
+  .price .fgroup summary{cursor:pointer;list-style:none;padding:11px 0;font-size:.92rem;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .price .fgroup summary::-webkit-details-marker{display:none}
+  .price .fgroup summary::after{content:"▸";margin-left:auto;color:var(--muted);transition:transform .15s}
+  .price .fgroup[open] summary::after{transform:rotate(90deg)}
+  .price .fgroup ul{margin:2px 0 10px}
+  .price .btn{width:100%}
+
+  /* TESTIMONIALS */
+  .tcards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .tcard{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 24px}
+  .tcard .stars{color:#f59e0b;letter-spacing:2px;margin-bottom:12px}
+  .tcard p{font-size:.97rem;color:var(--ink-2);margin-bottom:18px}
+  .tcard .who{display:flex;align-items:center;gap:12px}
+  .tcard .who .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;display:grid;place-items:center;font-weight:700}
+  .tcard .who small{color:var(--muted);display:block;font-size:.82rem}
+  .tcard .who b{font-size:.95rem}
+
+  /* FAQ */
+  .faq-wrap{max-width:780px;margin:0 auto}
+  details.faq{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 22px;margin-bottom:12px;transition:box-shadow .2s}
+  details.faq[open]{box-shadow:var(--shadow-sm)}
+  details.faq summary{cursor:pointer;list-style:none;font-weight:600;font-size:1.02rem;padding:18px 0;display:flex;justify-content:space-between;align-items:center;gap:14px;font-family:'Plus Jakarta Sans',sans-serif}
+  details.faq summary::-webkit-details-marker{display:none}
+  details.faq summary .plus{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:var(--indigo-50);color:var(--indigo);display:grid;place-items:center;font-size:1.1rem;transition:transform .25s}
+  details.faq[open] summary .plus{transform:rotate(45deg)}
+  details.faq .ans{color:var(--muted);font-size:.96rem;padding:0 0 20px}
+
+  /* FINAL CTA */
+  .finalcta{padding:84px 0}
+  .finalcta .box{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--ink),var(--ink-2));border-radius:30px;padding:64px 40px;text-align:center;color:#fff;box-shadow:var(--shadow)}
+  .finalcta .box::before{content:"";position:absolute;inset:0;background:radial-gradient(50% 80% at 50% 0%,rgba(124,58,237,.4),transparent 70%);z-index:0}
+  .finalcta .box>*{position:relative;z-index:1}
+  .finalcta h2{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;margin-bottom:14px}
+  .finalcta p{color:#c7c7e0;max-width:520px;margin:0 auto 28px;font-size:1.06rem}
+  .finalcta .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+  /* FOOTER */
+  footer{background:var(--bg-soft);border-top:1px solid var(--line);padding:54px 0 30px}
+  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:34px;margin-bottom:38px}
+  .foot-brand p{color:var(--muted);font-size:.92rem;margin:14px 0 0;max-width:280px}
+  .foot-col h4{font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:14px;font-family:'Plus Jakarta Sans',sans-serif}
+  .foot-col a{display:block;color:var(--ink-2);font-size:.94rem;padding:5px 0;transition:color .2s}
+  .foot-col a:hover{color:var(--indigo)}
+  .foot-bottom{border-top:1px solid var(--line);padding-top:22px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:.88rem}
+
+  /* Install banner */
+  #installBanner{position:fixed;left:50%;transform:translateX(-50%) translateY(120%);bottom:18px;z-index:80;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;max-width:380px;width:calc(100% - 32px);transition:transform .35s ease}
+  #installBanner.show{transform:translateX(-50%) translateY(0)}
+  #installBanner .ic{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;flex-shrink:0}
+  #installBanner small{color:var(--muted);font-size:.8rem;display:block}
+  #installBanner b{font-size:.92rem}
+  #installBanner .x{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;margin-left:4px}
+
+  /* WhatsApp button */
+  .btn-wa{background:#1fa855;color:#fff;box-shadow:0 14px 30px -14px rgba(31,168,85,.55)}
+  .btn-wa:hover{transform:translateY(-2px);background:#188f47}
+
+  /* GBP FREE AUDIT HOOK */
+  .gbp .box{position:relative;overflow:hidden;display:grid;grid-template-columns:auto 1fr auto;gap:30px;align-items:center;background:linear-gradient(135deg,var(--ink),var(--ink-2));border-radius:26px;padding:44px 38px;color:#fff;box-shadow:var(--shadow)}
+  .gbp .box::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 90% at 85% 10%,rgba(124,58,237,.38),transparent 70%);pointer-events:none}
+  .gbp .box>*{position:relative;z-index:1}
+  .gbp .score{width:112px;height:112px;border-radius:50%;border:7px solid rgba(255,255,255,.16);border-top-color:#34d399;border-right-color:#34d399;display:grid;place-items:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.7rem;flex-shrink:0}
+  .gbp .score small{font-size:.7rem;font-weight:600;color:#c7c7e0;display:block;text-align:center}
+  .gbp h2{font-size:clamp(1.4rem,3vw,2rem);margin-bottom:10px}
+  .gbp p{color:#c7c7e0;font-size:1rem;max-width:560px}
+  @media(max-width:860px){.gbp .box{grid-template-columns:1fr;text-align:center;justify-items:center;padding:36px 24px}}
+
+  /* LEAD INQUIRY FORM */
+  #lead-form,#gbp{scroll-margin-top:84px}
+  .formwrap{max-width:660px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:24px;padding:34px 30px;box-shadow:var(--shadow-sm)}
+  .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .formgrid .full{grid-column:1/-1}
+  .fld label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px;color:var(--ink-2)}
+  .fld input,.fld select,.fld textarea{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;font:inherit;font-size:.95rem;background:#fff;color:var(--ink);transition:border-color .2s,box-shadow .2s}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .fld textarea{resize:vertical;min-height:84px}
+  .form-note{font-size:.82rem;color:var(--muted);text-align:center;margin-top:14px}
+  .form-success{text-align:center;padding:30px 10px}
+  .form-success .big{font-size:2.6rem;margin-bottom:10px}
+  @media(max-width:560px){.formgrid{grid-template-columns:1fr}.formwrap{padding:26px 18px}}
+
+  /* Toast */
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(160%);background:var(--ink);color:#fff;padding:13px 20px;border-radius:12px;font-size:.92rem;z-index:90;transition:transform .3s ease;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+
+  /* UPI pay modal */
+  #payModal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(15,16,36,.62);padding:18px}
+  #payModal.open{display:flex}
+  #payModal .pm-card{background:#fff;border-radius:20px;max-width:390px;width:100%;padding:28px 24px;text-align:center;position:relative;box-shadow:var(--shadow);max-height:92vh;overflow:auto}
+  #payModal .pm-x{position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.5rem;color:var(--muted);cursor:pointer;line-height:1}
+  #payModal .pm-qr{display:flex;justify-content:center;margin-top:14px}
+  #payModal .pm-qr svg{width:220px;height:220px;max-width:100%}
+  #payModal .pm-vpa{font-weight:700;font-size:1.05rem;margin:12px 0 2px;word-break:break-all}
+  #payModal .pm-note{font-size:.86rem;color:var(--muted);margin-top:12px}
+
+  /* Scroll reveal */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* RESPONSIVE */
+  @media(max-width:980px){
+    .hero-grid{grid-template-columns:1fr;gap:40px}
+    .hero-card{order:-1}
+    .callcard{margin:0 auto}
+    .steps{grid-template-columns:repeat(2,1fr)}
+    .step .arrow{display:none}
+    .features,.tcards{grid-template-columns:repeat(2,1fr)}
+    .pricing-grid{grid-template-columns:1fr;max-width:560px}
+    .foot-grid{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:720px){
+    .nav-links{display:none}
+    /* Mobile: Login VISIBLE rakho (customer login nahi dhundh pa raha tha) — header CTA hide, hero me same CTA hai */
+    .nav-cta .btn-primary{display:none}
+    .nav-cta{gap:8px}
+    .nav-cta a.login{display:inline-flex;align-items:center;font-size:.92rem;padding:8px 14px;border:1.5px solid var(--line);border-radius:10px;color:var(--indigo)}
+    .menu-btn{display:flex}
+    .nav-links.open{display:flex;position:absolute;top:72px;left:0;right:0;flex-direction:column;background:#fff;padding:18px 22px;gap:14px;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+    .nav-links.open a.link{color:var(--ink)}
+    .nav-links.open a.login-menu-item{display:block;font-weight:700;color:var(--indigo);border-top:1px solid var(--line);padding-top:14px}
+    .features,.tcards,.pricing-grid,.steps{grid-template-columns:1fr}
+    .foot-grid{grid-template-columns:1fr 1fr}
+    section.block{padding:60px 0}
+    .float-chip{display:none}
+  }
+  @media(max-width:480px){
+    .foot-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#" class="brand" aria-label="LeadGen AI home">
+      <img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="36" height="36" />
+      LeadGen AI
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a class="link" href="#products">Products</a>
+      <a class="link" href="#how">How it works</a>
+      <a class="link" href="#features">Features</a>
+      <a class="link" href="#niches">Niches</a>
+      <a class="link" href="#pricing">Pricing</a>
+      <a class="link" href="#faq">FAQ</a>
+      <a class="link login-menu-item" href="/app/login">👤 Login — apna dashboard kholo</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="login" href="/app/login">Login</a>
+      <a class="btn btn-primary" href="#lead-form">10 FREE Leads</a>
+      <button class="menu-btn" id="menuBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">📣 AI Automated Marketing</span>
+      <h1>AI Automated Marketing — <span class="grad">Poora Marketing, Auto-Pilot Pe</span></h1>
+      <p class="sub">Posts, Google ranking, festival posters, WhatsApp content — sab AI karega. <b>Advanced plan me AI Voice Agent feature</b> — har inquiry ko AI khud call kare. India me yeh feature sirf yahan.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#lead-form">📞 10 FREE leads chahiye?</a>
+        <a class="btn btn-ghost" href="/audit">📊 FREE Google Audit</a>
+        <a class="btn btn-ghost" href="/geo-check">🤖 GEO / AI Check</a>
+        <a class="btn btn-primary" href="/app/test-call">📞 AI se baat karo — free trial shuru karo</a>
+        <a class="btn btn-wa" href="https://wa.me/918459012607?text=Hi!%20Mujhe%20AI%20voice%20agent%20se%20apne%20business%20ke%20liye%20leads%20chahiye." target="_blank" rel="noopener">💬 WhatsApp pe baat karo</a>
+      </div>
+      <div class="hero-mini">
+        <span><span class="dot">●</span> <b>Posts + posters + Google ranking</b> auto</span>
+        <span><span class="dot">●</span> Advanced me <b>AI inquiry callback in 2 min</b></span>
+        <span><span class="dot">●</span> <b>₹1,999/mo</b> se shuru</span>
+      </div>
+    </div>
+
+    <div class="hero-card" id="demo">
+      <div class="float-chip chip-1"><span class="ic" style="background:#dcfce7">✅</span> Lead qualified</div>
+      <div class="float-chip chip-2"><span class="ic" style="background:var(--indigo-50)">📲</span> Sent to WhatsApp</div>
+      <div class="callcard">
+        <div class="top">
+          <div class="av">AI</div>
+          <div>
+            <b>Aarav · AI Agent</b>
+            <small>Advanced plan ka AI callback FEATURE · Live</small>
+          </div>
+          <span class="live"><span class="pulse"></span> LIVE</span>
+        </div>
+        <div class="bubble ai">Namaste! Main SunPower se Aarav. Aapne solar panels ke baare me enquiry ki thi — abhi 2 min baat kar sakte hain?</div>
+        <div class="bubble user">Haan boliye, ghar ke liye dekh raha tha.</div>
+        <div class="bubble ai">Great! Aapka monthly bijli bill approx kitna aata hai, aur chhat kitni square feet hai?</div>
+        <div class="bubble user">₹4,500 ke aaspaas, aur chhat kaafi badi hai.</div>
+        <div class="result"><span>✅</span><span><b>Qualified lead!</b> High bill + bada rooftop. Site visit ke liye interested — sales team ko forward kiya.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<div class="trust">
+  <div class="wrap">
+    <span class="label">Built for Indian small businesses</span>
+    <div class="logos">
+      <span>39 Niches</span>
+      <span>₹0 Setup</span>
+      <span>Fixed Monthly Plans</span>
+      <span>Hindi · English</span>
+      <span>WhatsApp Delivery</span>
+    </div>
+  </div>
+</div>
+
+<!-- TWO PRODUCTS — clear split so customer confuse na ho -->
+<section class="block" id="products" style="padding-bottom:48px">
+  <style>
+    .products2{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:980px;margin:0 auto}
+    .pcard{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:30px 26px;display:flex;flex-direction:column;transition:transform .25s,box-shadow .25s}
+    .pcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-sm)}
+    .pcard.main{border-color:var(--indigo);box-shadow:var(--shadow)}
+    .pcard .pbadge{position:absolute;top:-13px;left:26px;font-size:.72rem;font-weight:700;letter-spacing:.04em;padding:6px 13px;border-radius:999px;text-transform:uppercase}
+    .pcard.main .pbadge{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff}
+    .pcard.alt .pbadge{background:var(--ink);color:#fff}
+    .pcard .pemoji{font-size:1.8rem}
+    .pcard h3{font-size:1.32rem;margin:10px 0 4px}
+    .pcard .pprice{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.5rem;color:var(--ink);margin-bottom:4px}
+    .pcard .pprice small{font-size:.9rem;font-weight:600;color:var(--muted)}
+    .pcard .pdesc{color:var(--muted);font-size:.95rem;margin-bottom:16px}
+    .pcard ul{list-style:none;margin:0 0 18px}
+    .pcard li{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:.93rem;color:var(--ink-2)}
+    .pcard li .ck{color:#16a34a;font-weight:800;flex-shrink:0}
+    .pcard .pcombo{background:var(--indigo-50);border-radius:12px;padding:12px 14px;font-size:.88rem;color:var(--ink-2);margin-bottom:18px}
+    .pcard .pcta{margin-top:auto}
+    .pclear{max-width:760px;margin:26px auto 0;text-align:center;background:var(--bg-soft);border:1px solid var(--line);border-radius:16px;padding:18px 22px;font-size:.95rem;color:var(--ink-2)}
+    @media(max-width:820px){.products2{grid-template-columns:1fr;max-width:480px}}
+  </style>
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">2 alag products</span>
+      <h2>Hum DO alag cheezein banate hain</h2>
+      <p>Confusion mat rakho — pehle decide karo aapko kya chahiye. Dono ek doosre se ALAG hain, alag pricing.</p>
+    </div>
+    <div class="products2">
+      <!-- PRODUCT 1 — Marketing (MAIN) -->
+      <div class="pcard main reveal">
+        <span class="pbadge">📣 Main Product</span>
+        <div class="pemoji">📣</div>
+        <h3>AI Automated Marketing</h3>
+        <div class="pprice">₹1,999<small>/mo se</small></div>
+        <p class="pdesc">Aapka <b>poora online marketing</b> AI karega — aap app me kaam nahi karte, sab ready milta hai. (Ismein cold-calling NAHI hai.)</p>
+        <ul>
+          <li><span class="ck">✓</span> Roz AI social posts + branded festival posters</li>
+          <li><span class="ck">✓</span> Google Business Profile audit + review reply drafts</li>
+          <li><span class="ck">✓</span> WhatsApp content pack + drip nurture</li>
+          <li><span class="ck">✓</span> Mini-site + lead-capture widget + AI chatbot</li>
+          <li><span class="ck">✓</span> Hot-leads dashboard + CRM sync</li>
+        </ul>
+        <div class="pcombo">➕ <b>Advanced plan ₹5,999/mo:</b> yahi poora marketing <b>+ AI inquiry-callback FEATURE</b> (500 min/mo) — har inquiry ko AI khud 2 min me call kare. Standalone Voice Agent alag product hai.</div>
+        <div class="pcta">
+          <a class="btn btn-primary" href="#pricing" style="width:100%">Marketing pricing dekho ↓</a>
+        </div>
+      </div>
+      <!-- PRODUCT 2 — Voice Agent (STANDALONE) -->
+      <div class="pcard alt reveal">
+        <span class="pbadge">📞 Standalone</span>
+        <div class="pemoji">📞</div>
+        <h3>AI Voice Calling Agent</h3>
+        <div class="pprice">₹4,999<small>/mo se</small></div>
+        <p class="pdesc">Ek <b>poora AI telecaller</b> — aapki leads ko KHUD phone karke Hinglish me qualify kare. Yeh marketing plan se <b>bilkul ALAG product</b> hai.</p>
+        <ul>
+          <li><span class="ck">✓</span> Unlimited AI calls — flat monthly (niche-band A/B/C)</li>
+          <li><span class="ck">✓</span> Hinglish qualification + appointment booking</li>
+          <li><span class="ck">✓</span> Transcripts + summary → dashboard/WhatsApp/CRM</li>
+          <li><span class="ck">✓</span> Koi per-minute / per-lead charge nahi</li>
+          <li><span class="ck">✓</span> TRAI/DLT/DND compliant (AI disclosure built-in)</li>
+        </ul>
+        <div class="pcombo" style="background:#f1f5f9">Band A ₹4,999 · Band B ₹9,999 · Band C ₹19,999 /mo — aapke niche ke hisaab se. FREE pilot: 7 din / 50 calls.</div>
+        <div class="pcta">
+          <a class="btn btn-ghost" href="/voice-agent" style="width:100%">Voice Agent dekho →</a>
+        </div>
+      </div>
+    </div>
+    <div class="pclear reveal">
+      <b>Simple rakho:</b> 📣 <b>Marketing</b> = aapka brand, content aur leads online. &nbsp;📞 <b>Voice Agent</b> = AI phone calls jo khud leads ko call kare. &nbsp;Dono chahiye? Marketing ka <b>Advanced plan</b> lo (callback FEATURE included) ya Marketing + standalone Voice alag-alag subscribe karo.
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Marketing kaise kaam karta hai</span>
+      <h2>Sirf 3 steps — baaki marketing AI pe chhod do</h2>
+      <p>Aap apna business batao. Roz ka content, Google presence aur lead-capture — sab AI banata hai. Aap sirf approve karo aur leads close karo.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <h3>Aap business batao</h3>
+        <p>Apna niche, city aur offer batao — 2 minute ka setup, ₹0 charge. Hum aapke brand ke hisaab se AI marketing ready kar dete hain.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <h3>AI roz content + Google + WhatsApp banata hai</h3>
+        <p>Roz subah social posts, festival posters, Google review replies aur WhatsApp content portal me ready — aap 1-click approve/share karo.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <h3>Inquiries aapke dashboard me</h3>
+        <p>Website widget, mini-site aur GBP se aane wali inquiries seedha hot-leads dashboard + WhatsApp/CRM me. <b>Advanced plan me AI inquiry-callback FEATURE</b> har inquiry ko khud call bhi karta hai.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="block" id="features" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Marketing Features</span>
+      <h2>Ek complete marketing engine, ek jagah</h2>
+      <p>Content, Google presence aur lead-capture — sab built-in. Koi alag design tool, agency ya extra subscription ki zaroorat nahi.</p>
+    </div>
+    <div class="features">
+      <div class="feat reveal"><div class="ic" aria-hidden="true">🖼️</div><h3>Roz AI Social Posts + Posters</h3><p>Hinglish caption + hashtags + branded post frames. Festival posters (Diwali, Holi, Rakhi) auto — aapka logo aur naam har post pe.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">📍</div><h3>Google Business Profile Boost</h3><p>GBP audit & Auto-Posting (No other Indian competitor offers GBP auto-posting at ₹1,999) (0–100 score) + top fix suggestions + reviews ke Hinglish reply drafts — local Google ranking strong karo.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">💬</div><h3>WhatsApp Content + Drip Nurture</h3><p>Broadcast messages, status updates aur naye leads ke liye spaced follow-up — sab ready, 1-click share.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">🌐</div><h3>Mini-site + Lead Widget + Chatbot</h3><p>`/b/aapka-slug` bio-link + booking page, website pe 1-line enquiry widget aur AI chatbot — inquiries seedha dashboard me.</p></div>
+      <div class="feat reveal"><div class="ic" aria-hidden="true">📊</div><h3>Hot-leads Dashboard + CRM</h3><p>Score ke hisaab se priority leads upar, Zoho/HubSpot sync + webhooks. Pehle kisko call karein — clear.</p></div>
+      <div class="feat reveal" style="border-color:var(--indigo)"><div class="ic" aria-hidden="true">📞</div><h3>AI Voice Callback <span style="font-size:.7rem;background:var(--indigo-50);color:var(--indigo);padding:2px 8px;border-radius:999px;vertical-align:middle">Advanced plan</span></h3><p>Advanced (₹5,999) me har inquiry ko AI khud ~2 min me Hinglish call kare aur qualify kare. Full standalone telecaller? Wo hamara <a href="/voice-agent" style="color:var(--indigo);font-weight:600">alag Voice Agent product</a> hai.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- NICHES -->
+<section class="block niches" id="niches">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">39 Niches</span>
+      <h2>Aapke industry ke liye ready</h2>
+      <p>Har niche ke liye custom content, posters, scripts aur tone — pehle se trained.</p>
+    </div>
+    <div class="niche-grid">
+      <a href="/for/real-estate-in-india" class="niche reveal"><span class="e">🏡</span> Real Estate</a>
+      <a href="/for/solar-in-india" class="niche reveal"><span class="e">☀️</span> Solar</a>
+      <a href="/for/study-abroad-in-india" class="niche reveal"><span class="e">✈️</span> Study Abroad</a>
+      <a href="/for/home-loans-in-india" class="niche reveal"><span class="e">🏦</span> Home Loans</a>
+      <a href="/for/insurance-in-india" class="niche reveal"><span class="e">💼</span> Insurance</a>
+      <a href="/for/coaching-in-india" class="niche reveal"><span class="e">🎓</span> Coaching</a>
+      <a href="/for/interior-design-in-india" class="niche reveal"><span class="e">🛋️</span> Interior Design</a>
+      <a href="/for/dental-in-india" class="niche reveal"><span class="e">🦷</span> Dental</a>
+    </div>
+    <p class="niche-more">…aur 31+ niches ready (39 total). Aapka niche list me nahi? <a href="#lead-form" style="color:var(--indigo);font-weight:600">Form me "Other" choose karo →</a></p>
+  </div>
+</section>
+
+<!-- GBP FREE AUDIT HOOK -->
+<section class="block gbp" id="gbp" style="padding-top:0">
+  <div class="wrap">
+    <div class="box reveal">
+      <div class="score">?<small>/100</small></div>
+      <div>
+        <h2>Aapka Google profile kitna strong hai?</h2>
+        <p>Zyaadatar local businesses ka Google Business Profile 60/100 se neeche hota hai — isliye customers competitor ko call kar lete hain. Hum <b style="color:#fff">FREE audit + 10 demo leads</b> dete hain — bina koi charge, bina card.</p>
+      </div>
+      <a class="btn btn-primary" href="/audit">📊 FREE audit abhi karo (2 min) →</a>
+    </div>
+  </div>
+</section>
+
+<!-- INQUIRY FORM -->
+<section class="block" id="lead-form" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">🎁 FREE Trial</span>
+      <h2>10 FREE leads + FREE Google audit</h2>
+      <p>Form bharo — 24 ghante me hamari team aapko call karegi. Koi charge nahi, koi card nahi.</p>
+    </div>
+    <div class="formwrap reveal">
+      <form id="leadForm" novalidate>
+        <div class="formgrid">
+          <div class="fld"><label for="f-name">Aapka naam *</label><input id="f-name" name="name" type="text" required placeholder="e.g. Rohan Sharma" autocomplete="name" /></div>
+          <div class="fld"><label for="f-biz">Business ka naam *</label><input id="f-biz" name="business_name" type="text" required placeholder="e.g. Sharma Solar Solutions" autocomplete="organization" /></div>
+          <div class="fld"><label for="f-phone">Phone / WhatsApp number *</label><input id="f-phone" name="phone" type="tel" required placeholder="98765 43210" autocomplete="tel" /></div>
+          <div class="fld"><label for="f-email">Business email (optional — follow-up ke liye)</label><input id="f-email" name="email" type="email" placeholder="info@yourbusiness.com" autocomplete="email" /></div>
+          <div class="fld"><label for="f-niche">Business kis niche me hai?</label>
+            <select id="f-niche" name="niche">
+              <option value="">— Choose karo —</option>
+              <option value="real_estate">Real Estate</option>
+              <option value="solar_residential">Solar</option>
+              <option value="studying_abroad">Study Abroad</option>
+              <option value="home_loans">Home Loans</option>
+              <option value="insurance">Insurance</option>
+              <option value="coaching">Coaching</option>
+              <option value="interior_designers">Interior Design</option>
+              <option value="dental_implants">Dental</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="fld"><label for="f-city">City</label><input id="f-city" name="city" type="text" placeholder="e.g. Pune" autocomplete="address-level2" /></div>
+          <div class="fld"><label for="f-package">Kaunsa product/plan interest hai? (optional)</label>
+            <select id="f-package" name="package">
+              <option value="">— Abhi decide nahi —</option>
+              <option value="Starter">📣 AI Marketing Automation (₹1,999/mo)</option>
+              <option value="Advanced">Advanced Marketing — AI inquiry-callback FEATURE (₹5,999/mo)</option>
+              <option value="Voice Agent">📞 AI Voice Calling Agent — standalone (₹4,999/mo se)</option>
+            </select>
+          </div>
+          <div class="fld full"><label for="f-msg">Kuch aur batana chahte ho? (optional)</label><textarea id="f-msg" name="message" placeholder="e.g. Mahine me kitne leads chahiye, kaunsa area target hai…"></textarea></div>
+          <!-- honeypot: bots fill this, humans never see it -->
+          <input type="text" name="website" id="f-website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <div class="fld full"><button type="submit" class="btn btn-primary" id="leadSubmit" style="width:100%">📞 10 FREE leads ke liye apply karo</button></div>
+        </div>
+        <p class="form-note">✅ No spam · 24 ghante me call · Details sirf aapse contact ke liye</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING (marketing-first packages — live from /api/marketing/packages, static fallback below) -->
+<section class="block" id="pricing" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Pricing</span>
+      <h2>Marketing-first plans — seedha hisaab</h2>
+      <p>AI marketing ₹1,999/mo se shuru. Advanced plan me <b>AI Voice Agent feature</b> included — jo aapke har inquiry ko khud call kare. India me yeh feature kisi aur marketing tool me nahi.</p>
+    </div>
+    <div class="pricing-grid" id="pricingGrid">
+      <div class="price reveal">
+        <h3>AI Marketing Automation</h3>
+        <p class="desc">Roz ka content + Google presence — sab AI se, aapka time zero.</p>
+        <div class="amt">₹1,999<small>/month</small></div>
+        <p class="pnote pnote-year" style="font-weight:600">ya ₹19,990/saal — 2 mahine FREE</p>
+        <p class="pnote">100% marketing-only — koi calling charge nahi · roz ke ₹40 se kam me poora setup</p>
+        <ul>
+          <li><span class="ck">✓</span> Roz AI social posts — Hinglish caption + hashtags (39 niches, aapki industry ke hisaab se)</li>
+          <li><span class="ck">✓</span> Branded post frames — aapka logo + business naam har post pe</li>
+          <li><span class="ck">✓</span> Customer portal — 1-click copy + WhatsApp/Insta share (roz subah ~7 baje content ready)</li>
+          <li><span class="ck">✓</span> Festival calendar auto — Diwali, Holi, Rakhi, Independence Day sab covered</li>
+          <li><span class="ck">✓</span> Tyohar/offer posts — sale day ke liye ready creatives + captions</li>
+          <li><span class="ck">✓</span> Google Business Profile audit (0–100 score) + top 5 fix suggestions</li>
+          <li><span class="ck">✓</span> Google reviews ke Hinglish reply drafts — copy-paste, rating bachao</li>
+          <li><span class="ck">✓</span> 4 branded posters/mo — naam, phone, offer ke saath (SVG, print-ready)</li>
+          <li><span class="ck">✓</span> WhatsApp content pack — broadcast messages + status updates ready</li>
+          <li><span class="ck">✓</span> UPI Scan &amp; Pay QR card — counter/display ke liye branded</li>
+          <li><span class="ck">✓</span> Hashtag suggestions har post ke saath</li>
+          <li><span class="ck">✓</span> Post approval workflow — publish se pehle aapki OK (portal me)</li>
+          <li><span class="ck">✓</span> Onboarding checklist + customer dashboard (leads, content, bills)</li>
+          <li><span class="ck">✓</span> GST invoice download portal se</li>
+          <li><span class="ck">✓</span> 100% marketing-only — koi calling charge / minute limit nahi</li>
+        </ul>
+        <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
+        <button type="button" class="btn btn-primary paynow" data-pkg="Starter" data-plan-key="starter" style="margin-top:10px">🚀 Shuru karo</button>
+      </div>
+      <div class="price featured reveal">
+        <span class="tag">ADVANCED — AI callback FEATURE</span>
+        <h3>Advanced Marketing</h3>
+        <p class="desc">Poora marketing + AI inquiry-callback FEATURE — standalone Voice Agent alag product hai.</p>
+        <div class="amt">₹5,999<small>/month</small></div>
+        <p class="pnote pnote-year" style="font-weight:600">ya ₹59,990/saal — 2 mahine FREE</p>
+        <p class="pnote">telephony usage included up to 500 min/mo</p>
+        <ul>
+          <li><span class="ck">✓</span> Main plan ke saare marketing features included</li>
+          <li><span class="ck">✓</span> AI inquiry-callback FEATURE — har website/GBP inquiry ko ~2-minute me AI call (insaan jaisi Hindi awaaz)</li>
+          <li><span class="ck">✓</span> Lead qualification — budget, timeline, interest score AI capture karta hai</li>
+          <li><span class="ck">✓</span> Appointment booking — AI calendar slots offer + confirm karta hai</li>
+          <li><span class="ck">✓</span> Missed-call auto-callback (DID active hone par) — koi enquiry miss nahi</li>
+          <li><span class="ck">✓</span> 500 calling minutes/mo included — top-up packs (100/250/500 min) available</li>
+          <li><span class="ck">✓</span> Weekly 50 follow-up calls — purani leads garam rakho</li>
+          <li><span class="ck">✓</span> Sab call transcripts + AI summary aapke dashboard me</li>
+          <li><span class="ck">✓</span> Post-call AI qualification — interest score + next-action draft</li>
+          <li><span class="ck">✓</span> Speed-to-lead SLA badge — kitni der me pehli call hui, track karo</li>
+          <li><span class="ck">✓</span> Multi-lingual — Hindi, Hinglish, English (aur regional jahan script ho)</li>
+          <li><span class="ck">✓</span> TRAI-compliant AI disclosure greeting har call pe</li>
+          <li><span class="ck">✓</span> Calls + leads ek hi portal — marketing content bhi, voice bhi</li>
+          <li><span class="ck">✓</span> Minute usage tracker — kitna use hua, kitna bacha, renewal date</li>
+        </ul>
+        <a class="btn btn-primary" href="#lead-form">🚀 FREE demo + audit se shuru karo</a>
+        <button type="button" class="btn btn-ghost paynow" data-pkg="Advanced" data-plan-key="advanced" style="margin-top:10px">🚀 Shuru karo</button>
+      </div>
+    </div>
+    <p class="niche-more" style="margin-top:24px">Voice agent nahi chahiye? <b>Starter plan 100% marketing-only hai — koi calling charge nahi.</b></p>
+    <p class="niche-more" style="margin-top:10px">Note: Advanced plan me 500 min/mo tak telephony included — uske upar transparent top-up packs, koi hidden charge nahi. Full AI telecaller chahiye? Wo hamara ALAG product hai — <a href="/voice-agent" style="color:var(--indigo);font-weight:600">AI Voice Calling Agent dekho</a> (flat monthly, unlimited calls).</p>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="block">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Results</span>
+      <h2>Small businesses, real growth</h2>
+      <p>Solar se dental tak — owners apna time bacha rahe hain aur sirf hot leads handle kar rahe hain.</p>
+    </div>
+    <div class="tcards">
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <p>"Pehle roz post banane ka time nahi milta tha. Ab AI roz Hinglish posts + festival posters de deta hai, Google reviews ke reply bhi ready. Mera Google profile strong hua aur inquiries double ho gayi."</p>
+        <div class="who"><div class="av">RK</div><div><b>Rohan Kulkarni</b><small>Solar Installer · Pune</small></div></div>
+      </div>
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <p>"Fixed monthly plan ne budget clear kar diya — koi surprise billing nahi. AI voice feature har inquiry ko khud call karta hai; clinic ki new patient bookings 40% badh gayi."</p>
+        <div class="who"><div class="av">SD</div><div><b>Dr. Sneha Desai</b><small>Dental Clinic · Ahmedabad</small></div></div>
+      </div>
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <p>"WhatsApp par seedha qualified buyers aate hain with budget &amp; location. Mera team ab sirf serious clients ke saath deal karta hai. Game changer."</p>
+        <div class="who"><div class="av">AM</div><div><b>Aman Mehta</b><small>Real Estate · Gurugram</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="block" id="faq" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2>Common sawaal, honest jawaab</h2>
+    </div>
+    <div class="faq-wrap">
+      <details class="faq reveal" open>
+        <summary>AI Marketing aur AI Voice Agent — ek hi product hai? <span class="plus">+</span></summary>
+        <div class="ans">Nahi, <b>DO alag products</b> hain. (1) <b>📣 AI Automated Marketing</b> (₹1,999/mo se) = aapka poora online marketing — posts, posters, Google profile, reviews, WhatsApp, mini-site, leads. Iske <b>Advanced plan (₹5,999/mo)</b> me AI inquiry-callback ek <i>feature</i> ke roop me included hai (500 min/mo). (2) <b>📞 <a href="/voice-agent" style="color:var(--indigo);font-weight:600">AI Voice Calling Agent</a></b> (₹4,999/mo se) = ek poora standalone AI telecaller jo aapki leads ko khud call karke qualify kare — flat monthly, unlimited calls. Sirf marketing chahiye? Plan 1 lo. Sirf calling chahiye? Plan 2 lo. Advanced FEATURE + standalone Voice alag products hain — bundle USP nahi.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Kya calls bilkul free hain? <span class="plus">+</span></summary>
+        <div class="ans">Honest jawaab: <b>AI ka "brain" (samajhna, baat karna, qualify karna) lagभग free chalता hai</b> — woh humne optimize kar diya hai. Lekin real phone ring (telephony/PSTN) ka ek <b>minimal per-minute cost</b> hota hai jo telecom charge karta hai, woh koi bhi platform free nahi kar sakta. Isliye hum "free calls" ka jhootha vaada nahi karte — marketing plans <b>100% fixed-price</b> hain (Advanced me 500 min/mo included), aur standalone <a href="/voice-agent" style="color:var(--indigo);font-weight:600">AI Voice Calling Agent</a> me aap <b>flat monthly fee</b> dete ho (niche-band ke hisaab se) — unlimited AI calls, telephony ka cost usme included hota hai.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>"Qualified lead" ka matlab kya hai? <span class="plus">+</span></summary>
+        <div class="ans">Wahi lead jise AI ne call par budget, need aur buying intent ke basis par verify kiya ho. Random number nahi — ek aisa person jo genuinely interested hai aur aapke offer ke liye fit hai. Voice product flat monthly hai — yeh leads aapko hot-lead ke roop me milte hain, koi per-lead charge nahi.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>AI Hindi me theek se baat kar paata hai? <span class="plus">+</span></summary>
+        <div class="ans">Haan. AI voice agent natural Hinglish (Hindi + English mix) aur pure Hindi/English — dono me fluently baat karta hai. Local tone aur niche-specific scripts ke saath, taaki conversation real aur bharosemand lage.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Leads kahan deliver hote hain? <span class="plus">+</span></summary>
+        <div class="ans">Aapki pasand par — WhatsApp par instant message, HubSpot CRM me direct entry, ya Google Sheets me row. Real-time, zero manual data entry.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Setup me kitna time lagta hai? <span class="plus">+</span></summary>
+        <div class="ans">Zyadatar niches ke liye 48 ghante ke andar setup live ho jaata hai. Aap niche, target area aur offer batao — baaki content, posters, Google profile aur lead-capture hum set kar dete hain. (Advanced/Voice product me scripts + AI calling bhi.)</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Mera niche supported hai ya nahi? <span class="plus">+</span></summary>
+        <div class="ans">39 niches pehle se ready hain (real estate, solar, study abroad, home loans, insurance, coaching, interior, dental, etc.). Agar aapka niche list me nahi hai, form me "Other" choose karo — hum custom setup kar dete hain.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="finalcta">
+  <div class="wrap">
+    <div class="box reveal">
+      <h2>Aaj se hot leads aapke inbox me</h2>
+      <p>Marketing ka pura kaam AI pe chhodo — content, Google ranking, WhatsApp follow-ups. Advanced me AI voice agent feature inquiries ko khud call karta hai — aap sirf qualified leads close karo.</p>
+      <div class="row">
+        <a class="btn btn-primary" href="#lead-form">📞 10 FREE leads lo →</a>
+        <a class="btn btn-light" href="/app/test-call">🎧 Live demo suno</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a href="#" class="brand">
+          <img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="36" height="36" />
+          LeadGen AI
+        </a>
+        <p>AI Automated Marketing — posts, Google ranking, posters, WhatsApp content. Advanced plan me AI voice agent jo aapke inquiries ko khud call kare. Built for Indian small businesses.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Products</h4>
+        <a href="#pricing">📣 AI Marketing (₹1,999/mo)</a>
+        <a href="/voice-agent">📞 AI Voice Agent (₹4,999/mo)</a>
+        <a href="/compare">Compare vs others</a>
+        <a href="#features">Features</a>
+        <a href="/audit">📊 FREE Google Audit</a>
+      </div>
+      <div class="foot-col">
+        <h4>Contact</h4>
+        <a href="https://wa.me/918459012607" target="_blank" rel="noopener">💬 WhatsApp pe baat karo</a>
+        <a href="mailto:hello@leadsgenai.in">hello@leadsgenai.in</a>
+        <a href="https://leadsgenai.in">leadsgenai.in</a>
+        <a href="/app/test-call">🎧 Live demo</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h4>Login</h4>
+        <a href="/app/customer">Customer Dashboard</a>
+        <a href="/app/admin">Admin Dashboard</a>
+        <a href="/start">Sign up</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 LeadGen AI. Made in India 🇮🇳 for small businesses.</span>
+      <span><a href="/privacy" style="color:var(--ink-2)">Privacy</a> · <a href="/terms" style="color:var(--ink-2)">Terms</a> · <a href="/refund" style="color:var(--ink-2)">Refund</a> · हम "free calls" ka jhootha vaada nahi karte — transparent, fixed pricing.</span>
+    </div>
+  </div>
+</footer>
+
+<!-- INSTALL BANNER -->
+<div id="installBanner">
+  <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M6.5 4.5c-.7-.7-1.8-.6-2.4.2L2.7 6.6c-.6.8-.5 1.9.1 2.6 3.2 3.9 6.9 7.6 10.8 10.8.7.6 1.8.7 2.6.1l1.9-1.4c.8-.6.9-1.7.2-2.4l-2.3-2.3c-.6-.6-1.5-.6-2.2-.2l-1.3.8c-.2.1-.5.1-.7-.1-1.5-1.4-2.9-2.8-4.3-4.3-.2-.2-.2-.5-.1-.7l.8-1.3c.4-.7.4-1.6-.2-2.2L6.5 4.5Z" fill="#fff"/></svg></span>
+  <div style="flex:1">
+    <b>Install LeadGen AI</b>
+    <small>App ki tarah — home screen par add karo</small>
+  </div>
+  <button class="btn btn-primary" id="installBtn" style="padding:9px 16px;font-size:.85rem">Install</button>
+  <button class="x" id="installClose" aria-label="Close">×</button>
+</div>
+
+<!-- UPI PAY MODAL ("Shuru karo" → /api/public/pay-info) -->
+<div id="payModal" role="dialog" aria-modal="true" aria-label="UPI payment">
+  <div class="pm-card">
+    <button class="pm-x" id="payClose" aria-label="Close">×</button>
+    <h3 id="payPkg" style="margin-bottom:4px">Plan</h3>
+    <p style="font-size:.9rem;color:var(--muted)">Kisi bhi UPI app se QR scan karke pay karein — GPay/PhonePe/Paytm sab chalega</p>
+    <div class="pm-qr" id="payQr"></div>
+    <div class="pm-vpa" id="payVpa"></div>
+    <p class="pm-note">Pay karne ke baad neeche transaction ID/reference daal ke submit karo — hum verify karke plan activate kar denge.</p>
+    <form id="payRefForm" style="text-align:left;margin-top:10px">
+      <div class="fld" style="margin-bottom:8px"><label for="pay-ref">UPI Transaction ID / Reference *</label><input id="pay-ref" type="text" required placeholder="e.g. 123456789012" /></div>
+      <div class="fld" style="margin-bottom:8px"><label for="pay-name">Aapka naam (optional)</label><input id="pay-name" type="text" placeholder="Rohan Sharma" /></div>
+      <div class="fld" style="margin-bottom:2px"><label for="pay-contact">Phone/WhatsApp (optional, agar naya account nahi hai)</label><input id="pay-contact" type="tel" placeholder="98765 43210" /></div>
+      <button type="submit" class="btn btn-primary" id="payRefSubmit" style="width:100%;margin-top:10px">✅ Maine Pay Kiya — Submit karo</button>
+      <p class="msg" id="payRefMsg" style="font-size:.82rem;margin-top:8px"></p>
+    </form>
+    <p class="pm-note" style="margin-top:12px">Ya seedha WhatsApp pe screenshot bhejo:</p>
+    <a class="btn btn-wa" id="payWa" href="https://wa.me/918459012607" target="_blank" rel="noopener" style="margin-top:4px;width:100%">💬 Screenshot WhatsApp karo</a>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  // Nav scroll shadow
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 12);
+  });
+
+  // Mobile menu
+  const menuBtn = document.getElementById('menuBtn');
+  const navLinks = document.getElementById('navLinks');
+  menuBtn.addEventListener('click', () => navLinks.classList.toggle('open'));
+  navLinks.querySelectorAll('a').forEach(a =>
+    a.addEventListener('click', () => navLinks.classList.remove('open'))
+  );
+
+  // Scroll reveal
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // PWA: register service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
+  // PWA: install prompt
+  let deferredPrompt = null;
+  const banner = document.getElementById('installBanner');
+  const installBtn = document.getElementById('installBtn');
+  const installClose = document.getElementById('installClose');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!localStorage.getItem('lg_install_dismissed')) {
+      setTimeout(() => banner.classList.add('show'), 2200);
+    }
+  });
+  installBtn.addEventListener('click', async () => {
+    banner.classList.remove('show');
+    if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+  });
+  installClose.addEventListener('click', () => {
+    banner.classList.remove('show');
+    localStorage.setItem('lg_install_dismissed', '1');
+  });
+  window.addEventListener('appinstalled', () => banner.classList.remove('show'));
+
+  // ---------- Lead inquiry form → POST /api/public/inquiry ----------
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function showToast(msg){
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4500);
+  }
+
+  const leadForm = document.getElementById('leadForm');
+  if (leadForm) {
+    const SUBMIT_LABEL = '📞 10 FREE leads ke liye apply karo';
+    leadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name  = document.getElementById('f-name').value.trim();
+      const biz   = document.getElementById('f-biz').value.trim();
+      const phone = document.getElementById('f-phone').value.trim();
+      if (!name || !biz) { showToast('Naam aur business ka naam dono bharo 🙏'); return; }
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 12) { showToast('Sahi 10-digit phone number daalo 📞'); return; }
+      const btn = document.getElementById('leadSubmit');
+      btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
+      try {
+        const res = await fetch('/api/public/inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, business_name: biz, phone,
+            email:   (document.getElementById('f-email') || {}).value?.trim() || null,
+            niche:   document.getElementById('f-niche').value || null,
+            city:    document.getElementById('f-city').value.trim() || null,
+            message: document.getElementById('f-msg').value.trim() || null,
+            package: (document.getElementById('f-package') || {}).value || null,
+            website: document.getElementById('f-website').value || ''
+          })
+        });
+        if (res.status === 429) { showToast('Thoda ruk ke dobara try karo ⏳'); btn.disabled = false; btn.textContent = SUBMIT_LABEL; return; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'fail');
+        const safeName = name.replace(/[<>&"']/g, '');
+        const wrap = leadForm.parentElement;
+        wrap.innerHTML =
+          '<div class="form-success">' +
+            '<div class="big">✅</div>' +
+            '<h3 style="font-size:1.4rem;margin-bottom:8px">Dhanyawad ' + safeName + '!</h3>' +
+            '<p style="color:var(--muted)">24 ghante me aapko call aayega. Tab tak <a href="/app/test-call" style="color:var(--indigo);font-weight:600">🎧 live demo</a> try karo.</p>' +
+          '</div>';
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        showToast('Kuch problem aayi — dobara try karo ya WhatsApp karo 💬');
+        btn.disabled = false; btn.textContent = SUBMIT_LABEL;
+      }
+    });
+  }
+
+  // ---------- Pricing cards ← GET /api/marketing/packages (public) ----------
+  // API se live packages render hote hain; fail ho to upar wala static HTML
+  // (same data) waise hi dikhta rehta hai.
+  (async () => {
+    const grid = document.getElementById('pricingGrid');
+    if (!grid || !window.fetch) return;
+    try {
+      const res = await fetch('/api/marketing/packages');
+      if (!res.ok) return;
+      const data = await res.json();
+      const pkgs = (data && data.packages) || [];
+      if (!pkgs.length) return;
+      grid.innerHTML = '';
+      pkgs.forEach((p) => {
+        const card = document.createElement('div');
+        card.className = 'price reveal in' + (p.highlight ? ' featured' : '');
+        if (p.badge) {
+          const tag = document.createElement('span');
+          tag.className = 'tag'; tag.textContent = p.badge;
+          card.appendChild(tag);
+        }
+        const h3 = document.createElement('h3'); h3.textContent = p.name || ''; card.appendChild(h3);
+        const desc = document.createElement('p'); desc.className = 'desc'; desc.textContent = p.tagline || ''; card.appendChild(desc);
+        const amt = document.createElement('div'); amt.className = 'amt';
+        amt.textContent = '₹' + Number(p.price_inr_month || 0).toLocaleString('en-IN');
+        const small = document.createElement('small'); small.textContent = '/month'; amt.appendChild(small);
+        card.appendChild(amt);
+        if (p.price_inr_year) {
+          const yr = document.createElement('p');
+          yr.className = 'pnote pnote-year';
+          yr.style.fontWeight = '600';
+          yr.textContent = 'ya ₹' + Number(p.price_inr_year).toLocaleString('en-IN') + '/saal — 2 mahine FREE';
+          card.appendChild(yr);
+        }
+        if (p.price_note) {
+          const note = document.createElement('p'); note.className = 'pnote'; note.textContent = p.price_note;
+          card.appendChild(note);
+        }
+        const buildList = (items) => {
+          const ul = document.createElement('ul');
+          (items || []).forEach((f) => {
+            const li = document.createElement('li');
+            const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓';
+            li.appendChild(ck); li.appendChild(document.createTextNode(' ' + f));
+            ul.appendChild(li);
+          });
+          return ul;
+        };
+        const groups = Array.isArray(p.feature_groups) ? p.feature_groups : [];
+        if (groups.length) {
+          // Collapsible groups (avoid a 70+ bullet wall on the card)
+          groups.forEach((g, gi) => {
+            const d = document.createElement('details'); d.className = 'fgroup'; if (gi === 0) d.open = true;
+            const s = document.createElement('summary');
+            s.textContent = (g.icon ? g.icon + ' ' : '') + (g.title || 'Features') + ' (' + ((g.items || []).length) + ')';
+            d.appendChild(s);
+            d.appendChild(buildList(g.items));
+            card.appendChild(d);
+          });
+        } else {
+          card.appendChild(buildList(p.features));
+        }
+        const a = document.createElement('a');
+        a.className = 'btn ' + (p.highlight ? 'btn-primary' : 'btn-ghost');
+        a.href = '#lead-form';
+        a.textContent = p.highlight ? '🚀 FREE demo + audit se shuru karo' : 'FREE trial se shuru karo';
+        card.appendChild(a);
+        const payBtn = document.createElement('button');
+        payBtn.type = 'button';
+        payBtn.className = 'btn paynow ' + (p.highlight ? 'btn-ghost' : 'btn-primary');
+        payBtn.style.marginTop = '10px';
+        const pkgNames = { starter: 'Starter', advanced: 'Advanced' };
+        payBtn.dataset.pkg = pkgNames[p.key] || p.name || 'Starter';
+        payBtn.dataset.planKey = p.key || 'starter';
+        payBtn.textContent = '🚀 Shuru karo';
+        card.appendChild(payBtn);
+        grid.appendChild(card);
+      });
+    } catch (e) { /* static fallback stays */ }
+  })();
+
+  // ---------- "🚀 Shuru karo" → UPI pay modal (UPI_VPA set) ya WhatsApp ----------
+  const payModal = document.getElementById('payModal');
+  let CURRENT_PLAN_KEY = 'starter';
+  function openPayModal(info, pkg, planKey){
+    CURRENT_PLAN_KEY = planKey || 'starter';
+    document.getElementById('payPkg').textContent = pkg + ' plan — payment';
+    // qr_svg hamara hi backend banata hai (pure-python encoder) — trusted markup
+    document.getElementById('payQr').innerHTML = info.qr_svg || '';
+    document.getElementById('payVpa').textContent = 'UPI ID: ' + (info.vpa || '');
+    const waMsg = 'Maine ' + pkg + ' plan ki payment ki hai — screenshot bhej raha hoon. Plan activate kar dijiye.';
+    document.getElementById('payWa').href = 'https://wa.me/918459012607?text=' + encodeURIComponent(waMsg);
+    const refForm = document.getElementById('payRefForm');
+    if (refForm) refForm.reset();
+    const refMsg = document.getElementById('payRefMsg');
+    if (refMsg) { refMsg.textContent = ''; refMsg.className = 'msg'; }
+    payModal.classList.add('open');
+  }
+  document.getElementById('payClose').addEventListener('click', () => payModal.classList.remove('open'));
+  payModal.addEventListener('click', (e) => { if (e.target === payModal) payModal.classList.remove('open'); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') payModal.classList.remove('open'); });
+  // Delegated — static + dynamically-rendered dono pricing cards cover hote hain.
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.paynow');
+    if (!btn) return;
+    e.preventDefault();
+    const pkg = btn.dataset.pkg || 'Starter';
+    const planKey = btn.dataset.planKey || 'starter';
+    const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Ek second…';
+    let info = null;
+    try {
+      const res = await fetch('/api/public/pay-info');
+      if (res.ok) info = await res.json();
+    } catch (err) { info = null; }
+    btn.disabled = false; btn.textContent = old;
+    if (info && info.enabled && info.vpa) { openPayModal(info, pkg, planKey); return; }
+    // UPI configured nahi — WhatsApp pe baat shuru karo.
+    window.open('https://wa.me/918459012607?text=' + encodeURIComponent('Mujhe ' + pkg + ' plan chahiye'), '_blank', 'noopener');
+  });
+
+  // ---------- Pay modal: "maine pay kiya" ref submit (self-serve, no WhatsApp needed) ----------
+  const payRefForm = document.getElementById('payRefForm');
+  if (payRefForm) {
+    payRefForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const ref = (document.getElementById('pay-ref') || {}).value?.trim() || '';
+      const name = (document.getElementById('pay-name') || {}).value?.trim() || '';
+      const contact = (document.getElementById('pay-contact') || {}).value?.trim() || '';
+      const msgEl = document.getElementById('payRefMsg');
+      const setMsg = (t, ok) => { if (!msgEl) return; msgEl.textContent = t; msgEl.className = 'msg ' + (ok ? '' : 'err'); msgEl.style.color = ok ? 'var(--ok, #16a34a)' : '#dc2626'; };
+      if (!ref) { setMsg('Transaction ID/reference daalo.', false); return; }
+      // Not-logged-in visitor => no client_id yet; backend stores it as an unresolved
+      // pending record (payer_contact se admin manually reach out karta hai) — never
+      // silently "activates" a plan for an account that doesn't exist.
+      let clientId = '';
+      try { clientId = localStorage.getItem('lgai_cid') || ''; } catch (err) {}
+      // Logged-in customer? Attach JWT so backend resolves the real client_id
+      // (auto-activation path). Guest (no token) = pending record, admin reach-out.
+      let authHdr = {};
+      try {
+        const t = localStorage.getItem('lgai_token') || '';
+        if (t) authHdr = { 'Authorization': 'Bearer ' + t };
+      } catch (err) {}
+      const btn = document.getElementById('payRefSubmit');
+      const oldTxt = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Submit ho raha hai…';
+      try {
+        const res = await fetch('/api/upi/submit', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHdr),
+          body: JSON.stringify({
+            // amount:0 always — this is an unverified self-report (no receipt/screenshot
+            // check here). Admin reviews + fills the real amount before approving; never
+            // let a homepage submission auto-activate a paid plan on a claimed amount.
+            plan: CURRENT_PLAN_KEY, upi_ref: ref, amount: 0,
+            payer_name: name, payer_contact: contact, client_id: clientId
+          })
+        });
+        const d = await res.json();
+        btn.disabled = false; btn.textContent = oldTxt;
+        if (res.status === 429) { setMsg('Thoda ruk ke dobara try karo.', false); return; }
+        if (!d.ok) { setMsg(d.message || 'Submit fail — dobara try karo ya WhatsApp karo.', false); return; }
+        setMsg(clientId
+          ? '✅ Mil gaya! Verify ho raha hai, jaldi activate.'
+          : '✅ Mil gaya! Team aapse contact karke account setup + activate karegi.', true);
+        payRefForm.reset();
+      } catch (err) {
+        btn.disabled = false; btn.textContent = oldTxt;
+        setMsg('Network error — dobara try karo ya WhatsApp karo.', false);
+      }
+    });
+  }
+</script>
+
+<!-- Homepage icons are inline emoji to avoid a 350KB lucide payload on the revenue-critical landing page. -->
+
+<!-- SEO: structured data → Google rich results (Organization, Service, FAQ) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://leadsgenai.in/#org",
+      "name": "LeadGen AI",
+      "url": "https://leadsgenai.in/",
+      "logo": "https://leadsgenai.in/icons/icon-512.png",
+      "image": "https://leadsgenai.in/icons/icon-512.png",
+      "description": "AI Automated Marketing for Indian small businesses — social posts, Google Business Profile audit, festival posters, WhatsApp content. The Advanced plan includes an AI voice agent feature that calls every inquiry in Hindi.",
+      "areaServed": "IN",
+      "sameAs": ["https://wa.me/918459012607"],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "email": "hello@leadsgenai.in",
+        "areaServed": "IN",
+        "availableLanguage": ["Hindi", "English"]
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://leadsgenai.in/#website",
+      "url": "https://leadsgenai.in/",
+      "name": "LeadGen AI",
+      "inLanguage": "en-IN",
+      "publisher": { "@id": "https://leadsgenai.in/#org" }
+    },
+    {
+      "@type": "Service",
+      "name": "AI Automated Marketing for local businesses",
+      "serviceType": "AI marketing and AI voice lead qualification",
+      "provider": { "@id": "https://leadsgenai.in/#org" },
+      "areaServed": "IN",
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Plans",
+        "itemListElement": [
+          { "@type": "Offer", "name": "AI Marketing Automation", "priceCurrency": "INR", "price": "1999", "description": "Roz AI Hinglish posts with branded frames, festival calendar, GBP audit & Auto-Posting (No other Indian competitor offers GBP auto-posting at ₹1,999), review reply drafts, 4 posters/mo, WhatsApp pack, mini-site + lead-capture widget + AI chatbot, hot-leads dashboard, CRM sync, customer portal and GST invoices. 100% marketing-only — no calling." },
+          { "@type": "Offer", "name": "Advanced Marketing", "priceCurrency": "INR", "price": "5999", "description": "Everything in AI Marketing Automation plus the AI inquiry-callback FEATURE: 2-minute inquiry callback, lead qualification, appointment booking, missed-call callback, 500 min/mo, follow-ups, transcripts, post-call qualify, speed-to-lead SLA, TRAI AI disclosure. Standalone Voice Agent is a separate product." }
+        ]
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "AI Marketing aur AI Voice Agent — ek hi product hai?", "acceptedAnswer": { "@type": "Answer", "text": "Nahi, do alag products hain. (1) AI Automated Marketing (₹1,999/mo se) = poora online marketing — posts, posters, Google profile, reviews, WhatsApp, mini-site, leads; iske Advanced plan (₹5,999/mo) me AI inquiry-callback ek feature ke roop me included hai (500 min/mo). (2) AI Voice Calling Agent (₹4,999/mo se) = standalone full AI telecaller jo aapki leads ko khud call karke qualify kare — flat monthly, unlimited calls (niche-band A/B/C)." } },
+        { "@type": "Question", "name": "Kya calls bilkul free hain?", "acceptedAnswer": { "@type": "Answer", "text": "AI ka brain (samajhna, baat karna, qualify karna) lagbhag free chalta hai, lekin real phone ring ka minimal telecom cost hota hai jo koi platform free nahi kar sakta. Base AI Marketing plan (₹1,999) me koi calling hai hi nahi; Advanced (₹5,999) me 500 min/mo included. Standalone AI Voice Calling Agent (alag product) me flat monthly fee hai (niche-band ke hisaab se) — unlimited AI calls, telephony cost included." } },
+        { "@type": "Question", "name": "Qualified lead ka matlab kya hai?", "acceptedAnswer": { "@type": "Answer", "text": "Wahi lead jise AI ne call par budget, need aur buying intent ke basis par verify kiya ho — ek genuinely interested person jo aapke offer ke liye fit hai. AI Voice Calling Agent product flat monthly hai — yeh leads aapko hot-lead ke roop me milte hain, koi per-lead charge nahi." } },
+        { "@type": "Question", "name": "AI Hindi me theek se baat kar paata hai?", "acceptedAnswer": { "@type": "Answer", "text": "Haan. AI voice agent natural Hinglish (Hindi plus English mix) aur pure Hindi ya English dono me fluently baat karta hai, niche-specific scripts ke saath taaki conversation real aur bharosemand lage." } },
+        { "@type": "Question", "name": "Leads kahan deliver hote hain?", "acceptedAnswer": { "@type": "Answer", "text": "Aapki pasand par — WhatsApp par instant message, HubSpot CRM me direct entry, ya Google Sheets me row. Real-time, zero manual data entry." } },
+        { "@type": "Question", "name": "Setup me kitna time lagta hai?", "acceptedAnswer": { "@type": "Answer", "text": "Zyadatar niches ke liye 48 ghante ke andar setup live ho jata hai. Aap niche, target area aur offer batao — baaki content, posters, Google profile aur lead-capture hum set kar dete hain (Advanced ya Voice product me scripts aur AI calling bhi)." } },
+        { "@type": "Question", "name": "Mera niche supported hai ya nahi?", "acceptedAnswer": { "@type": "Answer", "text": "Filhaal 39 niches supported hain — solar, real estate, healthcare, education, home services, finance aur bahut saare. Aapka niche abhi list me na ho tab bhi bata do — zyadatar cases me hum 48 ghante ke andar custom setup kar dete hain." } }
+      ]
+    }
+  ]
+}
+</script>
+</body>
+</html>

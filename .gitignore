@@ -1,0 +1,329 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# graphify (code knowledge-graph dev tool) â€” generated artifacts, regenerable + large (graph.json ~9MB)
+graphify-out/
+app/graphify-out/
+.graphify/
+
+# Secrets (never commit) â€” Alertmanager SMTP password file, written on VPS from .env
+monitoring/alertmanager_smtp_pass
+
+# Unity office loop â€” local verification/UAT evidence logs (docs/UNITY_VIRTUAL_OFFICE_UAT.md)
+uat_evidence/
+
+# Local tool directories
+.commandcode/
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+# Unity WebGL build artifacts for the Blueprint Virtual Office MUST be versioned
+# (docs/UNITY_VIRTUAL_OFFICE_DEPLOYMENT.md §1: rollback = restore previous dir).
+!frontend/office_unity/Build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env*
+!.env.example
+!.env.production.example
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+# Only exclude root-level models directory (ML models), NOT app/models
+/models
+*.gguf
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+# Kiro IDE â€” vendored third-party skill packs (not project code; contains JS with literal
+# 'token'/'secret' strings that trip check_secrets.py false-positives)
+.kiro/
+
+# Claude Code agent worktrees â€” harness-managed isolation scratch (full repo copies);
+# must NEVER be committed (one got committed = 1290 duplicate files).
+.claude/worktrees/
+
+# FreeBuff/Desktop Commander scratch — local DB + full nested repo/worktree copies.
+# Never commit or scan/deploy this workspace-private state.
+.freebuff/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+logs/
+data/*
+!data/skills_extra/
+!data/skills_extra/**
+*.db
+*.sqlite
+recordings/
+credentials/
+*.json
+!package.json
+!.mcp.json
+!opencode.json
+# The skill CI ratchet requires trigger-cases.json for newly-added skills
+# (scripts/skill_evals/check_repo_skills.py); the blanket `*.json` above
+# silently excluded it, making that gate unsatisfiable.
+!scripts/skill_evals/cases/**/trigger-cases.json
+# Hardened DSH policy, contract, and bounded evidence JSON are source inputs.
+# Raw binaries, full SBOMs, and per-build proofs remain CI/local artifacts.
+!deploy/dsh/upstream.lock.json
+!deploy/dsh/runtime.package.json
+!deploy/dsh/evidence/shadow_promotion_gate.json
+!docs/evidence/DSH_MIGRATION_CONTRACT_20260814.json
+!docs/evidence/DSH_SUPPLY_CHAIN_STATIC_20260814.json
+!docs/evidence/DSH_LINUX_CI_EVIDENCE_20260814.json
+!tests/fixtures/dsh_migration_contract.json
+!tests/fixtures/dsh_shadow_golden_set.json
+# The renderer lockfile MUST be tracked: `npm ci` in Dockerfile.video refuses to
+# run without it, and an untracked lockfile means the image is not reproducible.
+# The blanket `*.json` above silently excluded it.
+!package-lock.json
+# Team plugin policy only (Warp PostToolUse OFF). Local hooks stay in
+# .claude/settings.local.json (still ignored). Do not put secrets here.
+!.claude/settings.json
+
+# Test database
+test.db
+
+# Playwright
+playwright-report/
+test-results/
+
+# Visual Studio
+.vs/
+
+# Terraform
+infrastructure/terraform/.terraform/
+*.tfplan
+infrastructure/terraform/tfplan*
+
+# Additional production ignores
+server.log
+*.log
+data/leadgen_dev.db
+data/*.db
+models/*.tmp
+revenue_pipeline/*.csv
+auraleads_extracted/
+
+# --- Personal data exports — DPDP Act 2023, never track (2026-08-06) ---
+# `prospect_leads_export.csv` reached the ROOT of this PUBLIC repo carrying 200
+# real businesses' name/phone/address/email/pitch/wa_link. `data/*` above did not
+# cover it because the file sat at the repo root. These patterns are deliberately
+# root-anchored AND recursive. Lead data belongs in Postgres or encrypted object
+# storage with source, collection date, legal basis, suppression state and
+# retention deadline — only synthetic fixtures belong in Git.
+# Guard test: tests/test_no_tracked_pii_exports.py
+# Note: root CSV is NOT under Dockerfile.lock `COPY data/` — image rebuild is
+# unnecessary for this containment; history purge (owner-run) remains separate.
+/*.csv
+prospect*.csv
+*_leads*.csv
+*leads_export*.csv
+*prospects_export*.csv
+*outreach_export*.csv
+!tests/fixtures/**/*.csv
+!.claude/skills/**/*.csv
+.env.production
+.env.local
+
+# OpenClaw local proof state (tokens, runtime) â€” never commit
+config/openclaw/.local/
+
+# Reorg scratch (AUDIT 2026-08-05): quarantined _tmp_* litter + legacy agent roots land here
+_scratch/
+
+# Local artifacts that must never ship
+source.tar.gz
+*.tar.gz
+*.db-journal
+pytest_*.log
+pytest_run.log
+smoke_test.log
+uvicorn_smoke.log
+/uv.lock  # stale artifact — accidental DSH-sweep commit 673cd340; repo uses requirements.lock.txt
+frontend_build.log
+git_check.log
+.fuse_hidden*
+_commit_out.txt
+_push_out.txt
+
+cowork_*.log
+
+# Session-specific debug scripts and one-shot diagnostics (orphans from past debug sessions).
+# Move transient .bat/.sh debug scripts here to keep them on disk without polluting git status.
+scripts/_debug/
+
+# Debug command output dumps (stdout/stderr captures, never tracked)
+*_out.txt
+prod_check_out.txt
+deploy_filler_out.txt
+
+# MCP one-shot temp scripts (auto-generated, do not commit)
+scripts/_mcp_*
+
+# Local npm / Playwright installs + session deploy scratch (never ship)
+node_modules/
+tmp_deploy/
+tmp_vps_*.sh
+
+# One-shot Gemini/Vertex deploy scripts + empty debug artifacts (ROOT-level only;
+# scripts/*.bat stay tracked). Negate the two legit tracked root .bat files.
+/*.bat
+!/deploy_brain.bat
+!/start_server.bat
+/gemini_vertex
+/55-min
+
+# Temp / one-shot diagnostics + captured outputs (ai-firstify 2026-07-18; NARROWED 2026-07-18).
+# Policy (docs/CONTEXT_HYGIENE_POLICY.md): reusable canary/diagnostic TOOLS stay TRACKED under
+# scripts/canary/ or scripts/. Only one-off _tmp_ scripts and generated OUTPUT are ignored â€”
+# a blanket scripts/_canary_* would hide reusable safety tooling, so canary SCRIPTS are NOT ignored.
+scripts/_tmp_*
+scripts/_canary_*.log
+scripts/_canary_*_out.txt
+scripts/_canary_*.txt
+# root-scoped one-off capture files only (leading / = repo-root, never hides nested tracked evidence)
+/*_exit.txt
+/pytest_*.txt
+/*_result.txt
+/forensics_*.txt
+# root-scoped debug dumps (prod page snapshots, cleanup logs, stderr captures, leftover commit msgs) â€” 2026-07-19 harden
+/*_prod.html
+/cleanup_*.txt
+/wt_prodcheck.txt
+/commit_msg*.txt
+/*.err
+# editor/agent backup files (never tracked; confirmed 0 tracked matches)
+*.bak
+*.bak.*
+# designated ignored runtime scratch for local diagnostics + generated outputs
+artifacts/local/
+.codex/config.toml
+
+# Runtime output from paid-activation watcher (generated evidence; may contain tenant/payment metadata)
+docs/evidence/paid_today_watch.jsonl
+
+# OpenClaw local runtime (tokens/state - never commit)
+config/openclaw/.local/
+# local agent recovery/scratch debris (worktree patches, one-off probes, logs) - never commit
+_recovery/
+# ...but the plugin manifest IS source and must be tracked
+!config/openclaw/plugins/**/openclaw.plugin.json
+
+tests/fixtures/external_agent_runner/_captured_argv_*.json
+.external_agent_result_manifest.json
+.external_agent_runner_prompt.txt
+
+# business/compliance PDFs + brand assets consolidated from Desktop (GST/Udyam/PTEC/QR) - never commit
+_business_docs/
+# Buzz Desktop SQLite sidecars (locked by running process - pre-commit breaks) - never track
+.freebuff/desktop-v2.db*
+
+# Buzz local workspace artifacts (keys/channels/workflow responses/binaries - never commit)
+deploy/buzz/bin/
+deploy/buzz/env/.env.local.owner
+deploy/buzz/env/channels.local
+deploy/buzz/env/gh-events.response
+!deploy/buzz/env/
+!deploy/buzz/env/.env.local.template
+
+# Desktop-app coordination registry MUST be tracked: the Coordination Hub loader
+# (app/platform/coordination_desktop_registry.py) reads it from disk at runtime.
+# The blanket `*.json` above silently excluded it.
+!docs/coordination/desktop_registry.json

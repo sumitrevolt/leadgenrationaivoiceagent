@@ -1,0 +1,38 @@
+MCP overhaul (council 2026-06-26): 3-layer prod-ready + Arya engineer + Claude subagent
+
+Council verdict (4-perspective synthesis): the /mcp endpoint was UNGATED
+in production (Platform/Data/Agents tagged routes exposed publicly = admin
+tools leak), MCP-as-product surface dormant, no MCP-specific owner agent.
+
+Fixed:
+1. /mcp mount now requires FASTAPI_MCP_TOKEN OR MCP_IP_ALLOWLIST. In
+   production (ENV=production) without a gate, the mount is REFUSED with
+   a loud warning. Middleware enforces Bearer-token OR IP-allowlist
+   (X-Forwarded-For respected for Caddy) and 401-rejects with append to
+   data/mcp_auth_failures.jsonl (Arya tails this for abuse detection).
+2. MCP-as-product surface ready (flip MCP_PRODUCT=1 on VPS .env).
+3. Arya = new platform staff agent (app/platform/mcp_engineer.py) with
+   7 probes (dependency, expose_gate, product_armed, keys, rotation,
+   auth_failures, a2a_card), 0-100 health score, hourly :40 pulse,
+   ntfy alert on critical signals.
+
+Wiring (full 6-layer parity):
+- STAFF dict + team_pulse monitor (team.py)
+- team_scheduler.py dispatch + tick at :40
+- staff_jobs.py STAFF_JOBS tuple
+- worker.py Celery beat entry staff-mcp-engineer-hourly
+- automation_flags.py registry (6 new flags)
+
+Admin endpoints:
+- GET  /api/admin/mcp/health     - last-pulse snapshot
+- POST /api/admin/mcp/health/run - on-demand trigger
+- GET  /api/admin/mcp/audit      - security checklist + rotation-due keys
+
+Claude subagent + skill:
+- .claude/agents/mcp-engineer/AGENT.md (dev-time MCP debugging)
+- .claude/skills/mcp-engineer/SKILL.md (activation checklist + file map)
+
+Tests: tests/test_mcp_engineer.py (16 tests, all green).
+Verify script: scripts/verify_mcp_engineer.py (smoke gate runnable).
+
+Full dated entry: docs/SESSION_LOG.md 2026-06-26.

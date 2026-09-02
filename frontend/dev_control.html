@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Dev Control Plane — LeadGenAI</title>
+<style>
+  :root{--bg:#0f1420;--card:#161d2e;--line:#26304a;--fg:#e8edf7;--mut:#93a1bf;--acc:#5b8cff;--ok:#38b26a;--warn:#e6a23c;--bad:#e05a5a}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  h1{font-size:18px;margin:0}.sub{color:var(--mut);font-size:12px}
+  main{padding:18px 22px;max-width:1200px;margin:0 auto}
+  .banner{padding:10px 14px;border-radius:8px;margin-bottom:16px;font-weight:600}
+  .banner.off{background:#3a2a12;color:var(--warn);border:1px solid #5a3f1a}
+  .banner.on{background:#12301f;color:var(--ok);border:1px solid #1c4d31}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .kpi .n{font-size:22px;font-weight:700}.kpi .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:18px}
+  .card h2{font-size:14px;margin:0 0 12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:#22314f;color:#bcd}
+  .pill.ok{background:#12301f;color:#6be09a}.pill.no{background:#3a1d1d;color:#e89}
+  button{background:var(--acc);color:#fff;border:0;border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12px}
+  button.ghost{background:#22314f;color:#cdd}button.bad{background:#7a2b2b}
+  input,textarea{background:#0e1526;border:1px solid var(--line);color:var(--fg);border-radius:7px;padding:7px 9px;width:100%;font:inherit}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}.muted{color:var(--mut)}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+  code{background:#0e1526;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Dev Control Plane <span class="sub">Claude-managed engineering tasks</span></h1>
+  <div class="sub">Draft-safe: no auto-apply · no auto-deploy · customer notifications are human-sent drafts</div></div>
+  <div class="actions"><button class="ghost" onclick="loadAll()">Refresh</button><button class="ghost" onclick="reconcile()">Reconcile leases</button></div>
+</header>
+<main>
+  <div id="banner" class="banner off">Loading…</div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card"><h2>Deploy gate</h2><div id="gate" class="muted">—</div></div>
+
+  <div class="card"><h2>Create task</h2>
+    <div class="row"><input id="c_key" placeholder="idempotency_key (min 8 chars)"/><input id="c_pri" type="number" value="50" min="1" max="100" placeholder="priority"/></div>
+    <div class="row"><input id="c_files" placeholder="file_ownership (comma sep, e.g. app/foo.py)"/><input id="c_accept" placeholder="acceptance criteria (comma sep)"/></div>
+    <textarea id="c_obj" rows="2" placeholder="objective"></textarea>
+    <div style="margin-top:10px"><button onclick="createTask()">Create</button> <span id="c_msg" class="muted"></span></div>
+  </div>
+
+  <div class="card"><h2>Model catalog</h2><div style="overflow:auto"><table id="models"></table></div></div>
+
+  <div class="card"><h2>Tasks</h2><div style="overflow:auto"><table id="tasks"></table></div></div>
+
+  <div class="card">
+    <h2>External agent missions <span class="sub" id="m_flag">—</span></h2>
+    <div class="sub" style="margin-bottom:10px">Cursor = engineering executor · Claude = admin/reviewer · Owner OS = sole authority. GREEN auto-progresses to PR/CI; AMBER stops for owner; RED is refused at creation.</div>
+    <div class="sub" id="m_runner" style="margin-bottom:10px">runner —</div>
+    <div class="actions" style="margin-bottom:10px" id="m_filters"></div>
+    <div style="overflow:auto"><table id="missions"></table></div>
+  </div>
+</main>
+<script>
+function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function hdr(){ const h={"Content-Type":"application/json"}; const t=token(); if(t) h["Authorization"]="Bearer "+t; return h; }
+async function api(path, opts){ const r=await fetch("/api/dev-tasks"+path, Object.assign({headers:hdr()}, opts||{})); return {status:r.status, body: await r.json().catch(()=>({}))}; }
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+async function loadAll(){
+  const st = await api("/status");
+  const b=document.getElementById("banner");
+  if(st.status===503){ b.className="banner off"; b.textContent="DEV_ORCHESTRATOR is OFF — control plane is dormant (enable env flag to activate)."; document.getElementById("kpis").innerHTML=""; document.getElementById("gate").textContent="—"; document.getElementById("models").innerHTML=""; document.getElementById("tasks").innerHTML=""; return; }
+  if(st.status!==200){ b.className="banner off"; b.textContent="Not authorized or unavailable (HTTP "+st.status+"). Log in as admin."; return; }
+  b.className="banner on"; b.textContent="Active — DB is the source of truth.";
+  const s=st.body.status||{};
+  const k=[["total",s.total],["in flight",s.in_flight],["queued",s.queued],["review",s.review_required],["prod approval",s.production_approval_required],["failed",s.failed],["completed",s.completed],["cost $",s.actual_cost_usd]];
+  document.getElementById("kpis").innerHTML=k.map(x=>`<div class="kpi"><div class="n">${esc(x[1]??0)}</div><div class="l">${esc(x[0])}</div></div>`).join("");
+  const g=st.body.deploy_gate||{};
+  document.getElementById("gate").innerHTML=`mode <code>${esc(g.deploy_mode)}</code> · code deploys: <span class="pill ${g.auto_deploy_executed_by_code?'no':'ok'}">${g.auto_deploy_executed_by_code?'YES':'never'}</span> · approval token: <span class="pill ${g.approval_token_configured?'ok':'no'}">${g.approval_token_configured?'configured':'unset'}</span> · runbook <code>${esc(g.runbook)}</code>`;
+  loadModels(); loadTasks(); loadMissions();
+}
+
+var MISSION_FILTER = "all";
+var MISSION_FILTERS = [["all","All"],["running","Running"],["blocked","Blocked"],["approval","Approval required"],["failed","Failed"],["complete","Completed"],["cursor","Cursor"],["claude","Claude"],["GREEN","GREEN"],["AMBER","AMBER"],["RED","RED"]];
+function setMissionFilter(f){ MISSION_FILTER=f; loadMissions(); }
+function missionMatches(m){
+  var f=MISSION_FILTER; if(f==="all") return true;
+  if(f==="running") return ["PREFLIGHT","CLAIMED","RUNNING","IMPLEMENTED","TESTING","REVIEW_REQUIRED","PR_OPEN","CI_RUNNING","MERGE_QUEUED","CANARY_RUNNING"].indexOf(m.status)>=0;
+  if(f==="blocked") return m.status==="BLOCKED"||m.status==="CHANGES_REQUESTED";
+  if(f==="approval") return !!m.owner_action_required;
+  if(f==="failed") return m.status==="FAILED_RETRYABLE"||m.status==="FAILED_TERMINAL"||m.status==="ROLLED_BACK";
+  if(f==="complete") return m.status==="COMPLETE";
+  if(f==="cursor"||f==="claude") return m.executor===f;
+  return m.risk_class===f;
+}
+async function loadMissions(){
+  document.getElementById("m_filters").innerHTML = MISSION_FILTERS.map(function(x){
+    return '<button class="'+(MISSION_FILTER===x[0]?"":"ghost")+'" onclick="setMissionFilter(\''+x[0]+'\')">'+esc(x[1])+'</button>';
+  }).join(" ");
+  const st = await api("/missions/status");
+  const flag = document.getElementById("m_flag");
+  if(st.status!==200 || !(st.body||{}).enabled){
+    flag.textContent = "EXTERNAL_AGENT_ORCHESTRATOR is OFF — missions dormant";
+    document.getElementById("missions").innerHTML = '<tr><td class="muted">no missions (flag off)</td></tr>';
+    return;
+  }
+  const s = st.body.summary||{};
+  flag.textContent = "active · "+(s.total||0)+" missions · cursor "+(s.cursor||0)+" · claude "+(s.claude||0)+" · owner action "+(s.owner_action_required||0);
+  const rn = st.body.runner||{};
+  const rb = document.getElementById("m_runner");
+  if(rb){
+    rb.innerHTML = "runner <span class=\"pill "+(rn.runner_enabled?"ok":"no")+"\">"+(rn.runner_enabled?"ENABLED":"OFF")+"</span> · badge <code>"+esc(rn.environment_badge||"dormant")+"</code> · active "+esc((rn.active_missions||[]).length)+" · root <code>"+esc((rn.worktree_root||"").slice(-40))+"</code>";
+  }
+  const r = await api("/missions?limit=100"); if(r.status!==200) return;
+  const rows=(r.body.missions||[]).filter(missionMatches).map(function(m){
+    const risk = m.risk_class==="GREEN" ? "ok" : (m.risk_class==="RED" ? "no" : "");
+    return '<tr>'+
+      '<td class="muted">'+esc(m.mission_id.slice(0,10))+'</td>'+
+      '<td>'+esc(m.title).slice(0,50)+'</td>'+
+      '<td>'+esc(m.executor)+' → '+esc(m.reviewer)+'</td>'+
+      '<td><span class="pill '+risk+'">'+esc(m.risk_class)+'</span></td>'+
+      '<td><span class="pill">'+esc(m.status)+'</span></td>'+
+      '<td class="muted">'+esc(m.branch||"-")+'</td>'+
+      '<td>'+esc((m.changed_files||[]).length)+' files</td>'+
+      '<td>'+esc(m.tests)+'</td>'+
+      '<td class="muted">'+esc(m.last_heartbeat? m.last_heartbeat.slice(11,19):"-")+'</td>'+
+      '<td>'+(m.owner_action_required?'<span class="pill no">owner</span>':esc(m.approval_state))+'</td>'+
+      '<td class="muted">'+esc(m.blocker||"-").slice(0,40)+'</td>'+
+      '<td>'+esc(m.evidence_count)+'</td>'+
+      '<td><span class="pill '+(m.rollback_available?"ok":"no")+'">'+(m.rollback_available?"yes":"no")+'</span></td>'+
+      '<td class="actions"><button class="ghost" onclick="missionRollback(\''+m.mission_id+'\')">rollback</button> <button class="bad" onclick="missionCancel(\''+m.mission_id+'\')">cancel</button></td>'+
+    '</tr>';
+  }).join("");
+  document.getElementById("missions").innerHTML =
+    '<tr><th>id</th><th>title</th><th>executor→reviewer</th><th>risk</th><th>state</th><th>branch</th><th>changed</th><th>tests</th><th>heartbeat</th><th>approval</th><th>blocker</th><th>evidence</th><th>rollback</th><th>actions</th></tr>'+
+    (rows||'<tr><td colspan=14 class="muted">no missions for this filter</td></tr>');
+}
+async function missionRollback(id){ const r=await api("/missions/"+id+"/rollback"); alert("Rollback package:\n"+JSON.stringify(r.body,null,2)); }
+async function missionCancel(id){ if(!confirm("Cancel mission "+id+"?")) return; const r=await api("/missions/"+id+"/cancel",{method:"POST"}); if(r.status>=400) alert("Failed: "+JSON.stringify(r.body)); loadMissions(); }
+async function loadModels(){
+  const r=await api("/models"); if(r.status!==200) return;
+  const rows=(r.body.models||[]).map(m=>`<tr><td>${esc(m.alias)}</td><td><code>${esc(m.model)}</code></td><td><span class="pill ${m.configured?'ok':'no'}">${m.configured?'yes':'no'}</span></td><td>${esc(m.privacy)}</td><td>$${esc(m.cost_input_usd_per_million)}/$${esc(m.cost_output_usd_per_million)} per M</td></tr>`).join("");
+  document.getElementById("models").innerHTML=`<tr><th>alias</th><th>model</th><th>configured</th><th>privacy</th><th>cost in/out</th></tr>`+rows;
+}
+function actionsFor(t){
+  const id=t.task_id, s=t.state; let a=`<button class="ghost" onclick="usage('${id}')">usage</button>`;
+  if(s==="review_required") a+=` <button onclick="act('${id}','/promote-staging',{tests_passed:true,evidence:{by:'admin'}})">promote staging</button>`;
+  if(s==="staging_ready"||s==="staging_deployed") a+=` <button onclick="act('${id}','/request-approval',{staging_evidence:{}})">request approval</button>`;
+  if(s==="production_approval_required"){ a+=` <input id="tok_${id}" placeholder="approval token" style="width:150px;display:inline-block"/> <button onclick="approve('${id}')">approve</button> <button class="bad" onclick="act('${id}','/reject-production',{reason:'rejected via UI'})">reject</button>`; }
+  if(s==="production_deployed") a+=` <button onclick="act('${id}','/finalize-delivery',{})">finalize delivery</button>`;
+  return a;
+}
+async function loadTasks(){
+  const r=await api("/?limit=100"); if(r.status!==200) return;
+  const rows=(r.body.tasks||[]).map(t=>`<tr><td class="muted">${esc(t.task_id.slice(0,8))}</td><td>${esc(t.objective).slice(0,60)}</td><td><span class="pill">${esc(t.state)}</span></td><td>${esc(t.selected_provider||"-")}</td><td>${esc(t.customer_id||"-")}</td><td class="actions">${actionsFor(t)}</td></tr>`).join("");
+  document.getElementById("tasks").innerHTML=`<tr><th>id</th><th>objective</th><th>state</th><th>provider</th><th>customer</th><th>actions</th></tr>`+(rows||`<tr><td colspan=6 class="muted">no tasks</td></tr>`);
+}
+async function act(id, path, body){ const r=await api("/"+id+path,{method:"POST",body:JSON.stringify(body)}); if(r.status>=400){ alert("Failed ("+r.status+"): "+(r.body.detail||"")); } loadAll(); }
+async function approve(id){ const tok=(document.getElementById("tok_"+id)||{}).value||""; await act(id,"/approve-production",{token:tok}); }
+async function usage(id){ const r=await api("/"+id+"/usage"); alert("Usage for "+id.slice(0,8)+":\n"+JSON.stringify(r.body.usage||[],null,2)); }
+async function reconcile(){ const r=await api("/reconcile",{method:"POST"}); alert("Reconcile: "+JSON.stringify(r.body)); loadAll(); }
+async function createTask(){
+  const body={ idempotency_key:document.getElementById("c_key").value.trim(),
+    parent_objective:document.getElementById("c_obj").value.trim(),
+    priority:parseInt(document.getElementById("c_pri").value||"50",10),
+    file_ownership:document.getElementById("c_files").value.split(",").map(x=>x.trim()).filter(Boolean),
+    acceptance_criteria:document.getElementById("c_accept").value.split(",").map(x=>x.trim()).filter(Boolean),
+    dependencies:[] };
+  const r=await api("",{method:"POST",body:JSON.stringify(body)});
+  document.getElementById("c_msg").textContent = r.status===200 ? (r.body.reused?"reused existing":"created") : ("error "+r.status+": "+(r.body.detail||""));
+  loadAll();
+}
+loadAll();
+</script>
+</body>
+</html>

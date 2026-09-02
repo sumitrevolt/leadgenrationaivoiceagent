@@ -1,0 +1,40 @@
+# Self-hosted LLM on the VPS (CPU-only, always-on reliability FLOOR). EXTERNAL leadgen
+# network se judta + alias "ollama" — app http://ollama:11434/v1 pe reach karta, aur
+# app/ollama recreate ke baad bhi network/alias bana rehta (durable). CPU-limited so
+# inference spike app ko starve na kare (prod-down #3 lesson).
+#
+# Usage (STANDALONE — vps.yml ke saath merge NAHI, external net join karta):
+#   docker compose -f docker-compose.ollama.yml up -d
+#   docker exec leadgen_ollama ollama pull qwen2.5:3b-instruct
+#   # .env: OLLAMA_URL=http://ollama:11434/v1   (recreate app)
+# Network name confirm: `docker network ls | grep leadgen` (default: leadgen_leadgen_net).
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: leadgen_ollama
+    restart: unless-stopped
+    volumes:
+      - ./data/ollama:/root/.ollama        # models persist (bind-mount)
+    expose:
+      - "11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: "30m"             # model RAM me 30min — repeat calls warm/fast
+      OLLAMA_NUM_PARALLEL: "1"             # 1 concurrent (4-core VPS — no overload)
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"                      # 4-core VPS: 3 ollama, 1 app ke liye
+          memory: 6g
+    networks:
+      leadgen_net:
+        aliases: [ollama]                  # app isi alias se reach karta
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net              # docker-compose.vps.yml ka network (project=leadgen)

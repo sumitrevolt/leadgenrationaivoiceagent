@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0b1020">
+<title>LeadGen AI — Ask your CRM</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--bg:#0b1020;--card:#141a2e;--card2:#1b2440;--ink:#eef2ff;--mut:#9aa6c7;--bd:#26304f;
+        --pri:#5b8cff;--pri2:#7aa2ff;--ok:#2ecc71;--rad:14px}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+       background:radial-gradient(1100px 520px at 50% -10%,#16203f 0,var(--bg) 55%);color:var(--ink);min-height:100vh}
+  .wrap{max-width:820px;margin:0 auto;padding:26px 16px 60px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .logo{font-weight:800;font-size:19px}.logo span{color:var(--pri2)}
+  .top a{color:var(--mut);font-size:13px;margin-left:14px;text-decoration:none}
+  h1{font-size:26px;margin:26px 0 4px}
+  .sub{color:var(--mut);margin:0 0 18px;font-size:14px}
+  .bar{display:flex;gap:8px}
+  .bar input{flex:1;background:#0e1426;border:1px solid var(--bd);color:var(--ink);
+       padding:14px 14px;border-radius:11px;font-size:15px}
+  .bar button{background:var(--pri);color:#fff;border:0;border-radius:11px;padding:0 20px;
+       font-size:15px;font-weight:700;cursor:pointer}
+  .bar button:hover{background:var(--pri2)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+  .chip{background:var(--card);border:1px solid var(--bd);color:var(--mut);font-size:12.5px;
+        padding:7px 12px;border-radius:999px;cursor:pointer}
+  .chip:hover{border-color:var(--pri);color:var(--ink)}
+  .out{margin-top:20px}
+  .reply{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--bd);
+         border-radius:var(--rad);padding:16px 18px;margin-bottom:14px}
+  .reply .lbl{font-size:11px;letter-spacing:.5px;color:var(--mut);text-transform:uppercase}
+  .reply .txt{font-size:15.5px;margin-top:4px}
+  .prov{font-size:11px;color:var(--mut);margin-top:8px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd)}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .stat{background:#0e1426;border:1px solid var(--bd);border-radius:11px;padding:14px;text-align:center}
+  .stat b{display:block;font-size:26px}.stat span{color:var(--mut);font-size:12px}
+  .draft{background:#0e1426;border:1px dashed var(--pri);border-radius:11px;padding:14px;white-space:pre-wrap;font-size:14.5px}
+  .copy{margin-top:10px;background:transparent;border:1px solid var(--bd);color:var(--ink);
+        padding:7px 14px;border-radius:9px;cursor:pointer;font-size:13px}
+  .copy:hover{border-color:var(--pri)}
+  ul.cap{margin:6px 0 0;padding-left:18px;color:#d7def5;font-size:14px}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff6;border-top-color:#fff;
+        border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .foot{color:var(--mut);font-size:12px;margin-top:30px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">LeadGen<span>AI</span> · Ask your CRM</div>
+    <div><a href="/app/admin">Admin</a><a href="/app/marketing">Marketing</a><a href="/app/customer">Customer</a></div>
+    <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  </div>
+
+  <h1>💬 CRM se baat karo</h1>
+  <p class="sub">Hinglish me type karo — AI samajh ke data dikhata ya message draft karta hai. (Read/draft only — auto-send nahi.)</p>
+
+  <div class="bar">
+    <input id="q" placeholder="e.g. stats dikhao  ·  solar client dhoondo  ·  diwali offer message draft karo" onkeydown="if(event.key==='Enter')ask()" />
+    <button id="go" onclick="ask()">Ask</button>
+  </div>
+  <div class="chips">
+    <span class="chip" onclick="ex('stats dikhao')">📊 stats dikhao</span>
+    <span class="chip" onclick="ex('saare clients list karo')">📋 clients list</span>
+    <span class="chip" onclick="ex('solar naam ka client dhoondo')">🔎 client dhoondo</span>
+    <span class="chip" onclick="ex('is client ko diwali offer ka follow-up draft karo')">✍️ follow-up draft</span>
+  </div>
+
+  <div class="out" id="out"></div>
+  <div class="foot">Powered by free AI chain (Cerebras/Groq) · koi paid LLM nahi.</div>
+</div>
+
+<script>
+const API="";
+function ex(t){document.getElementById("q").value=t;ask();}
+function esc(s){return String(s==null?"":s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
+
+async function ask(){
+  const q=document.getElementById("q").value.trim();
+  const out=document.getElementById("out");
+  if(q.length<2){out.innerHTML='<div class="reply"><div class="txt">Kuch likho 🙂</div></div>';return;}
+  const btn=document.getElementById("go"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  out.innerHTML='<div class="reply"><div class="txt">Soch raha hoon…</div></div>';
+  let d;
+  try{
+    const tok=localStorage.getItem("accessToken");
+    const h={"Content-Type":"application/json"}; if(tok) h["Authorization"]="Bearer "+tok;
+    const r=await fetch(API+"/api/ai/command",{method:"POST",headers:h,body:JSON.stringify({query:q})});
+    d=await r.json();
+    if(!r.ok){throw new Error(d.detail||"error");}
+  }catch(e){
+    out.innerHTML='<div class="reply"><div class="txt">Error: '+esc(e.message)+'</div></div>';
+    btn.disabled=false; btn.textContent="Ask"; return;
+  }
+  render(d);
+  btn.disabled=false; btn.textContent="Ask";
+}
+
+function render(d){
+  const out=document.getElementById("out");
+  let html='<div class="reply"><div class="lbl">'+esc(d.action||"")+'</div><div class="txt">'+esc(d.reply||"")+'</div>'
+           +(d.provider?'<div class="prov">via '+esc(d.provider)+'</div>':'')+'</div>';
+  const data=d.data;
+  if(d.action==="stats" && data){
+    html+='<div class="stats">'
+      +'<div class="stat"><b>'+esc(data.clients)+'</b><span>Clients</span></div>'
+      +'<div class="stat"><b>'+esc(data.active_clients)+'</b><span>Active</span></div>'
+      +'<div class="stat"><b>'+esc(data.inquiries)+'</b><span>Inquiries</span></div></div>';
+  } else if((d.action==="list_clients"||d.action==="find_client") && Array.isArray(data)){
+    if(!data.length){ html+='<div class="reply"><div class="txt">Koi client nahi mila.</div></div>'; }
+    else{
+      html+='<table><tr><th>Business</th><th>Niche</th><th>City</th><th>Plan</th></tr>';
+      data.forEach(c=>{html+='<tr><td>'+esc(c.business_name)+'</td><td>'+esc(c.niche)+'</td><td>'+esc(c.city)+'</td><td>'+esc(c.plan)+'</td></tr>';});
+      html+='</table>';
+    }
+  } else if((d.action==="draft_followup"||d.action==="draft_message") && data && data.draft){
+    html+='<div class="draft" id="dft">'+esc(data.draft)+'</div>'
+         +'<button class="copy" onclick="copyDraft()">📋 Copy (review karke bhejo)</button>';
+  } else if(d.action==="help" && data && data.capabilities){
+    html+='<div class="reply"><ul class="cap">'+data.capabilities.map(c=>'<li>'+esc(c)+'</li>').join("")+'</ul></div>';
+  }
+  out.innerHTML=html;
+}
+function copyDraft(){
+  const t=document.getElementById("dft"); if(!t)return;
+  navigator.clipboard.writeText(t.textContent).then(()=>{
+    const b=document.querySelector(".copy"); b.textContent="✓ Copied"; setTimeout(()=>b.textContent="📋 Copy (review karke bhejo)",1500);
+  });
+}
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

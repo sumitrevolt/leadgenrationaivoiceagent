@@ -1,0 +1,23 @@
+/* LeadGen AI — Webfonts
+   Display/headings: Plus Jakarta Sans · Body/UI: Inter
+   Self-hosted variable woff2 (OFL-licensed) under ./fonts/ — served by the app
+   itself via /design-system, so pages have NO runtime dependency on Google Fonts
+   CDN (region flakiness / ERR_FAILED 2026-08-02). System stack fallback remains. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: local('Inter'), url('./fonts/inter.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: local('Plus Jakarta Sans'), url('./fonts/plus-jakarta-sans.woff2') format('woff2');
+}
+
+/* Fallback: font-family declarations in typography.css already carry full system
+   stacks (-apple-system, 'Segoe UI', Roboto, ...) — readable even if a font file
+   404s, aur Devanagari/Hinglish text system fonts se render hoga. */

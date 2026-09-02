@@ -1,0 +1,76 @@
+# .graphifyignore — Graphify code knowledge-graph exclusions (DEV tool)
+# ---------------------------------------------------------------------------
+# WHY: Graphify indexes source into app/graphify-out/graph.json. This file is
+# DEFENSE-IN-DEPTH. Today the graph is built app-scoped (`graphify update app`)
+# so root secrets/customer-data (all outside app/) are physically unreachable,
+# and .gitignore already excludes .env*/data/logs/.venv. These patterns become
+# LOAD-BEARING only if someone ever runs a whole-repo build (`graphify update .`).
+# Secrets/customer-data must NEVER enter the graph. See docs/GRAPHIFY.md.
+# NOTE: never exclude legitimate schema/migration source (they are safe code).
+# ---------------------------------------------------------------------------
+
+# --- Secrets / credentials (values must never be indexed) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa
+id_rsa.*
+secrets/
+credentials/
+
+# --- Customer data / PII / runtime state (DPDP — never index) ---
+data/
+uploads/
+customer-data/
+exports/
+logs/
+*.log
+
+# --- Backups / DB dumps / local databases ---
+backups/
+dumps/
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Graphify's own generated output (don't index the graph into itself) ---
+graphify-out/
+app/graphify-out/
+.graphify/
+
+# --- Python / virtualenv / tool caches ---
+.venv/
+venv/
+.codex_validation_venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node / frontend build (indexes add noise, little value) ---
+node_modules/
+dist/
+build/
+
+# --- Unity generated folders (would pollute centrality) ---
+unity/**/Library/
+unity/**/Temp/
+unity/**/Obj/
+unity/**/Build/
+unity/**/Builds/
+unity/**/Logs/
+unity/**/UserSettings/
+
+# --- VCS / IDE / misc ---
+.git/
+.idea/
+.vscode/
+*.zip
+*.tar.gz

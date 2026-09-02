@@ -1,0 +1,68 @@
+# =============================================================================
+# Development Dependencies
+# Install with: pip install -r requirements-dev.txt
+# =============================================================================
+
+# Include production requirements
+-r requirements.txt
+
+# =============================================================================
+# Testing
+# =============================================================================
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+pytest-mock==3.15.1
+pytest-xdist==3.8.0  # Parallel test execution
+httpx==0.28.1  # For async test client
+factory-boy==3.3.3  # Test data factories
+faker==22.0.0  # Fake data generation
+
+# LLM/RAG eval (CI-only, ADVISORY) — DeepEval gates RAG output quality
+# (faithfulness / answer-relevancy) using a FREE judge (Cerebras/Groq). NOT in
+# prod requirements.lock. See evals/test_rag_quality.py + evals/deepeval_judge.py.
+deepeval>=1.4,<4
+
+# =============================================================================
+# Code Quality
+# =============================================================================
+black==26.5.1
+isort==5.13.2  # Import sorting
+flake8==7.3.0  # Linting
+mypy==2.3.0  # Type checking
+pylint==4.0.7  # Additional linting
+bandit==1.9.4  # Security linting
+
+# =============================================================================
+# Type Stubs
+# =============================================================================
+types-redis==4.6.0.20241004
+types-requests==2.33.0.20260518
+sqlalchemy-stubs==0.4
+
+# =============================================================================
+# Documentation
+# =============================================================================
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mkdocstrings[python]==1.0.6
+
+# =============================================================================
+# Development Tools
+# =============================================================================
+pre-commit==4.6.2  # Git hooks
+ipython==8.20.0  # Enhanced Python shell
+ipdb==0.13.13  # Interactive debugger
+watchfiles==0.21.0  # File watching for hot reload
+
+# =============================================================================
+# Profiling & Performance
+# =============================================================================
+py-spy==0.4.2  # Sampling profiler
+memory-profiler==0.61.0  # Memory profiling
+line-profiler==5.0.2  # Line-by-line profiling
+
+# =============================================================================
+# Database Tools
+# =============================================================================
+aiosqlite==0.22.1  # SQLite async support for tests

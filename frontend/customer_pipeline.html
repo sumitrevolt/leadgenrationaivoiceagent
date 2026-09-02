@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#4f46e5">
+<title>LeadGen AI — Lead Pipeline</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:      var(--violet-600);
+    --brand-2:    var(--indigo-600);
+    --brand-soft: var(--violet-50);
+    --ink:        var(--ink-700);
+    --muted:      var(--slate-400);
+    --bg:         var(--bg-soft);
+    --card:       var(--surface-card);
+    --ok:         var(--success);
+    --bad:        var(--danger);
+    --shadow:     var(--shadow-card);
+    --hot:  #dc2626;
+    --warm: #d97706;
+    --cold: #2563eb;
+    --fup:  #7c3aed;
+    --won:  #16a34a;
+    --lost: #6b7280;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--font-body, system-ui, sans-serif);
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+  a{color:inherit}
+  .wrap{max-width:1280px;margin:0 auto;padding:18px 16px 60px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .top h1{font-size:20px;margin:0;font-weight:800}
+  .top .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+  .back{font-size:13px;color:var(--brand);font-weight:700;text-decoration:none}
+  .hint{color:var(--muted);font-size:12px;margin:8px 0 14px}
+
+  /* Board: horizontal-scroll columns (mobile-friendly at 380px) */
+  .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity}
+  .col{
+    flex:0 0 270px;min-width:270px;background:var(--card);
+    border:1px solid var(--brand-soft);border-radius:14px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;max-height:78vh;scroll-snap-align:start;
+  }
+  .col-head{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:11px 14px;border-bottom:1px solid var(--brand-soft);position:sticky;top:0;
+    background:var(--card);border-radius:14px 14px 0 0;
+  }
+  .col-name{font-weight:800;font-size:14px;display:flex;align-items:center;gap:7px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .count{
+    background:var(--brand-soft);color:var(--brand);font-weight:800;font-size:12px;
+    border-radius:999px;padding:1px 9px;min-width:24px;text-align:center;
+  }
+  .cards{padding:10px;overflow-y:auto;flex:1;min-height:60px}
+  .col.drag-over{outline:2px dashed var(--brand);outline-offset:-4px}
+  .card{
+    background:#fff;border:1px solid #eee;border-radius:11px;padding:10px 11px;margin-bottom:9px;
+    box-shadow:0 1px 2px rgba(16,24,40,.05);cursor:grab;transition:box-shadow .12s,transform .12s;
+  }
+  .card:active{cursor:grabbing}
+  .card.dragging{opacity:.45;transform:scale(.98)}
+  .card .biz{font-weight:700;font-size:13.5px;margin-bottom:3px;word-break:break-word}
+  .card .meta{color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 10px}
+  .card .meta span{display:inline-flex;align-items:center;gap:3px}
+  .card .pill{
+    display:inline-block;margin-top:6px;font-size:10.5px;font-weight:700;
+    padding:1px 7px;border-radius:999px;background:var(--brand-soft);color:var(--brand);
+  }
+  .empty-col{color:var(--muted);font-size:12px;text-align:center;padding:18px 6px;font-style:italic}
+  .state{padding:40px 14px;text-align:center;color:var(--muted)}
+  .state a{color:var(--brand);font-weight:700;text-decoration:none}
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;
+  }
+  .toast.show{opacity:1}
+  @media (max-width:480px){
+    .col{flex-basis:84vw;min-width:84vw}
+    .wrap{padding:14px 10px 60px}
+  }
+  @media (prefers-color-scheme:dark){
+    body{background:#14121f;color:#e7e4f0}
+    .col,.card,.col-head{background:#1d1a2b;border-color:#2c2740}
+    .card{background:#221e33}
+    .card .biz{color:#e7e4f0}
+  }
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/customer" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>📋 Lead Pipeline</h1>
+      <p class="sub">Apne leads ko drag karke status badlo — stage ke hisaab se board.</p>
+    </div>
+    <a class="back" href="/app/customer">← Dashboard</a>
+  </div>
+  <div class="hint">Tip: ek card ko pakad ke doosre column me chhodo — status apne-aap update ho jaayega. 📱 Mobile pe columns side me scroll hote hain.</div>
+
+  <div id="board" class="board" aria-live="polite"></div>
+  <div id="state" class="state" style="display:none"></div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* Auth pattern copied EXACTLY from customer_dashboard.html:
+   customer JWT in localStorage("lgai_token") -> Authorization: Bearer <token>. */
+function billToken(){ return localStorage.getItem("lgai_token") || ""; }
+function authHdr(){ const t=billToken(); return t ? {"Authorization":"Bearer "+t} : {}; }
+
+const COLOR = {Hot:"var(--hot)",Warm:"var(--warm)",Cold:"var(--cold)","Follow-up":"var(--fup)",Won:"var(--won)",Lost:"var(--lost)"};
+let BOARD = {columns:[], leads_by_status:{}, counts:{}};
+
+function escH(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let _tt;
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove("show"),1800); }
+
+function cardHTML(l){
+  const bits=[];
+  if(l.phone) bits.push(`<span>📞 ${escH(l.phone)}</span>`);
+  if(l.city)  bits.push(`<span>📍 ${escH(l.city)}</span>`);
+  return `<div class="card" draggable="true" data-id="${escH(l.id)}">`+
+    `<div class="biz">${escH(l.business)||"—"}</div>`+
+    (bits.length?`<div class="meta">${bits.join("")}</div>`:"")+
+    (l.niche?`<span class="pill">${escH(l.niche)}</span>`:"")+
+    `</div>`;
+}
+
+function render(){
+  const board=document.getElementById("board");
+  const cols=BOARD.columns||[];
+  board.innerHTML = cols.map(c=>{
+    const leads=(BOARD.leads_by_status||{})[c]||[];
+    const cards = leads.length
+      ? leads.map(cardHTML).join("")
+      : `<div class="empty-col">Koi lead nahi</div>`;
+    return `<section class="col" data-col="${escH(c)}">`+
+      `<div class="col-head"><span class="col-name"><span class="dot" style="background:${COLOR[c]||'var(--brand)'}"></span>${escH(c)}</span>`+
+      `<span class="count">${(BOARD.counts||{})[c]||0}</span></div>`+
+      `<div class="cards">${cards}</div></section>`;
+  }).join("");
+  wireDnD();
+}
+
+function findLead(id){
+  for(const c of (BOARD.columns||[])){
+    const arr=(BOARD.leads_by_status||{})[c]||[];
+    const i=arr.findIndex(x=>String(x.id)===String(id));
+    if(i>=0) return {col:c, idx:i, lead:arr[i]};
+  }
+  return null;
+}
+
+async function moveLead(id, toCol){
+  const found=findLead(id);
+  if(!found || found.col===toCol) return;
+  if(!billToken()){ toast("Pehle login karo"); return; }
+  // optimistic move
+  const {col:fromCol, idx, lead}=found;
+  BOARD.leads_by_status[fromCol].splice(idx,1);
+  lead.status=toCol;
+  (BOARD.leads_by_status[toCol]=BOARD.leads_by_status[toCol]||[]).push(lead);
+  BOARD.counts[fromCol]=(BOARD.counts[fromCol]||1)-1;
+  BOARD.counts[toCol]=(BOARD.counts[toCol]||0)+1;
+  render();
+  try{
+    const r=await fetch("/api/customer/leads/"+encodeURIComponent(id),{
+      method:"PATCH",
+      headers:Object.assign({"Content-Type":"application/json"}, authHdr()),
+      body:JSON.stringify({status:toCol})
+    });
+    if(!r.ok) throw new Error("status "+r.status);
+    toast("✓ "+ (lead.business||"Lead") +" → "+toCol);
+  }catch(e){
+    toast("Update fail — wapas load kar rahe");
+    load(); // re-sync from server on failure
+  }
+}
+
+let _dragId=null;
+function wireDnD(){
+  document.querySelectorAll(".card").forEach(card=>{
+    card.addEventListener("dragstart",e=>{ _dragId=card.getAttribute("data-id"); card.classList.add("dragging"); try{e.dataTransfer.setData("text/plain",_dragId);e.dataTransfer.effectAllowed="move";}catch(_){} });
+    card.addEventListener("dragend",()=>{ card.classList.remove("dragging"); document.querySelectorAll(".col.drag-over").forEach(c=>c.classList.remove("drag-over")); });
+  });
+  document.querySelectorAll(".col").forEach(col=>{
+    col.addEventListener("dragover",e=>{ e.preventDefault(); try{e.dataTransfer.dropEffect="move";}catch(_){} col.classList.add("drag-over"); });
+    col.addEventListener("dragleave",()=>col.classList.remove("drag-over"));
+    col.addEventListener("drop",e=>{
+      e.preventDefault(); col.classList.remove("drag-over");
+      const id=_dragId||(()=>{try{return e.dataTransfer.getData("text/plain");}catch(_){return null;}})();
+      _dragId=null;
+      if(id) moveLead(id, col.getAttribute("data-col"));
+    });
+  });
+}
+
+async function load(){
+  const stateEl=document.getElementById("state");
+  if(!billToken()){
+    document.getElementById("board").innerHTML="";
+    stateEl.style.display="block";
+    stateEl.innerHTML='Pehle <a href="/app/login">login</a> karo — phir apna lead pipeline yahan dikhega.';
+    return;
+  }
+  try{
+    const r=await fetch("/api/customer/pipeline",{headers:Object.assign({Accept:"application/json"}, authHdr())});
+    if(r.status===401||r.status===403){
+      stateEl.style.display="block";
+      stateEl.innerHTML='Session expired — dobara <a href="/app/login">login</a> karo.';
+      document.getElementById("board").innerHTML="";
+      return;
+    }
+    BOARD = await r.json();
+    if(!BOARD.columns) BOARD.columns=[];
+    const total=(BOARD.columns||[]).reduce((a,c)=>a+((BOARD.counts||{})[c]||0),0);
+    stateEl.style.display="none";
+    document.getElementById("board").style.display="flex";
+    render();
+    if(total===0){
+      stateEl.style.display="block";
+      stateEl.innerHTML="Abhi koi lead nahi. Jaise leads aayenge, yahan stage-wise board banega. 🚀";
+    }
+  }catch(e){
+    stateEl.style.display="block";
+    stateEl.textContent="Pipeline load nahi ho paya — thodi der me dobara try karo.";
+  }
+}
+load();
+</script>
+</body>
+</html>

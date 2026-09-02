@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>LeadGen AI — Ops Control</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1200px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h2{font-size:.95rem;margin-bottom:8px;color:var(--acc)}
+.big{font-size:1.6rem;font-weight:700} .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.8rem} td,th{padding:3px 6px;text-align:left;border-bottom:1px solid var(--line)}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.72rem;margin:1px;background:#222636}
+.pill.on{background:#123524;color:var(--ok)} .mut{color:var(--mut);font-size:.78rem}
+input{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;width:280px}
+button{background:var(--acc);border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;margin-left:6px}
+ul{list-style:none} li{padding:2px 0;font-size:.82rem}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>🛠️ Ops Mission Control</h1>
+<div class="sub">Automation health · LLM observability · Telephony readiness · Flags · DLQ — sab ek jagah. Auto-refresh 60s.</div>
+<div style="margin-bottom:12px">
+  <input id="tok" type="password" placeholder="Admin token (login se auto)">
+  <button onclick="saveTok()">Save</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem;margin-left:8px">login →</a>
+</div>
+<div class="grid">
+  <div class="card"><h2>💚 System</h2><div id="sys" class="big mut">…</div><div id="sysd" class="mut"></div></div>
+  <div class="card"><h2>🤖 Automation Jobs (dead-man)</h2><div id="autoh" class="big mut">…</div><div id="autod"></div></div>
+  <div class="card"><h2>🧠 LLM Providers</h2><div id="llm"></div></div>
+  <div class="card"><h2>🎙️ Telephony Readiness (Tara)</h2><div id="telr" class="big mut">…</div><ul id="tela"></ul></div>
+  <div class="card"><h2>🚩 Flags ON</h2><div id="flags"></div></div>
+  <div class="card"><h2>📥 DLQ + Queue</h2><div id="dlq" class="mut">…</div>
+    <div style="margin-top:6px"><button style="padding:4px 10px;font-size:.75rem" onclick="dlqAct('sweep')">▶️ Smart sweep</button>
+    <button style="padding:4px 10px;font-size:.75rem;margin-left:4px" onclick="dlqAct('retry')">🔄 Retry failed</button>
+    <span id="dlqmsg" class="mut" style="margin-left:6px"></span></div></div>
+  <div class="card"><h2>🛰️ Hermes Infra</h2><div id="hermes" class="big mut">…</div><div id="hermesd" class="mut"></div></div>
+  <div class="card"><h2>🔌 Integrations (silent-fail)</h2><div id="integ" class="mut">…</div></div>
+  <div class="card"><h2>💰 Revenue (Nikhil)</h2><div id="rev" class="mut">…</div></div>
+  <div class="card"><h2>🎯 Channel Outcome (1-click)</h2><div class="mut" style="margin-bottom:6px">Inquiry kahan se aayi? Click karo — bandit seekhega:</div><div id="outbtns"></div><div id="outmsg" class="mut"></div></div>
+  <div class="card" style="grid-column:1/-1"><h2>📥 Action Inbox — aaj ke 1-click kaam</h2><div id="inbox" class="mut">…</div></div>
+  <div class="card" style="grid-column:1/-1"><h2>📈 Growth Funnel (weakest stage)</h2><div id="funnel" class="mut">…</div></div>
+  <div class="card" style="grid-column:1/-1"><h2>🗓️ Job Heartbeats</h2><table id="jobs"><thead><tr><th>Job</th><th>Last run</th><th>OK</th><th>Dur (s)</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+  <div class="card" style="grid-column:1/-1"><h2>🎛️ Feature Flags — per-tenant / % rollout</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
+      <input id="ffkey" placeholder="flag key (e.g. new_dashboard)" style="width:200px">
+      <select id="ffstate" style="background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px">
+        <option value="disabled">disabled</option>
+        <option value="enabled_all">enabled_all</option>
+        <option value="enabled_percentage">enabled_percentage</option>
+        <option value="enabled_tenants">enabled_tenants</option>
+      </select>
+      <input id="ffpct" type="number" min="0" max="100" placeholder="%" style="width:70px" title="sirf enabled_percentage">
+      <input id="fftenants" placeholder="tenant ids (comma)" style="width:190px" title="sirf enabled_tenants">
+      <input id="ffdesc" placeholder="description" style="width:190px">
+      <button onclick="saveFF()">Save flag</button>
+      <span id="ffmsg" class="mut"></span>
+    </div>
+    <div id="fflist" class="mut">…</div>
+    <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">
+      <span class="mut">Check eval: </span>
+      <input id="ffck" placeholder="flag key" style="width:160px">
+      <input id="ffckt" placeholder="tenant_id" style="width:140px">
+      <button style="padding:4px 12px" onclick="checkFF()">Check</button>
+      <span id="ffckmsg" class="mut" style="margin-left:8px"></span>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());load()}
+async function api(p){const r=await fetch(p,{headers:{Authorization:'Bearer '+tok()}});if(!r.ok)throw new Error(r.status);return r.json()}
+function cls(s){return s==='healthy'||s==='ok'?'ok':(s==='degraded'||s==='overdue'?'bad':'warn')}
+async function load(){
+  try{const h=await (await fetch('/health/ready')).json();
+    $('sys').textContent=h.status;$('sys').className='big '+cls(h.status);
+    const c=h.checks||{};$('sysd').textContent=`db:${(c.database||{}).status} redis:${(c.redis||{}).status} disk:${(c.disk||{}).free_percent}% free mem:${(c.memory||{}).used_percent}%`;
+  }catch(e){$('sys').textContent='unreachable';$('sys').className='big bad'}
+  try{const a=await api('/api/growth/infra/automation-health');
+    $('autoh').textContent=a.status;$('autoh').className='big '+cls(a.status);
+    $('autod').innerHTML=`<span class="mut">overdue: ${a.overdue.join(', ')||'none'} · queue: ${a.queue?a.queue.celery:'?'} pending</span>`;
+    const tb=$('jobs').querySelector('tbody');tb.innerHTML='';
+    (a.jobs||[]).forEach(j=>{tb.innerHTML+=`<tr><td>${j.job}</td><td>${j.last_run||'—'}</td><td>${j.last_ok===false?'❌':'✅'}</td><td>${j.duration_s??''}</td><td class="${cls(j.status)}">${j.status}</td></tr>`});
+  }catch(e){$('autoh').textContent='token?'}
+  try{const l=await api('/api/growth/infra/llm');let html='<table><tr><th>Provider</th><th>Calls</th><th>OK%</th><th>Avg ms</th></tr>';
+    Object.entries(l.providers||{}).forEach(([p,d])=>{html+=`<tr><td>${p}</td><td>${d.calls}</td><td class="${d.ok_rate>0.8?'ok':'warn'}">${Math.round(d.ok_rate*100)}%</td><td>${d.avg_ms}</td></tr>`});
+    html+=`</table><div class="mut">fallback/fail rate: ${Math.round((l.fallback_or_fail_rate||0)*100)}%</div>`;$('llm').innerHTML=html;
+  }catch(e){$('llm').innerHTML='<span class="mut">—</span>'}
+  try{const t=await api('/api/growth/infra/telephony-readiness');
+    $('telr').textContent=t.score+'/100';$('telr').className='big '+(t.score>=80?'ok':(t.score>=50?'warn':'bad'));
+    $('tela').innerHTML=(t.actions||[]).map(a=>`<li>• ${a}</li>`).join('');
+  }catch(e){$('telr').textContent='—'}
+  try{const f=await api('/api/growth/infra/flags');
+    $('flags').innerHTML=`<div class="big ok">${f.on_count}</div>`+(f.on||[]).map(x=>`<span class="pill on">${x}</span>`).join('');
+  }catch(e){$('flags').innerHTML='<span class="mut">—</span>'}
+  try{const d=await api('/api/growth/infra/dlq?limit=5');
+    $('dlq').innerHTML=`<span class="big ${d.count>0?'warn':'ok'}">${d.count}</span> failed tasks`+(d.items||[]).map(i=>`<div class="mut">${(i.error||'').slice(0,80)}</div>`).join('');
+  }catch(e){$('dlq').textContent='—'}
+  try{const h=await api('/api/growth/infra/hermes');const sc=h.score??h.readiness??null;
+    $('hermes').textContent=(sc!=null?sc+'/100':(h.status||'—'));$('hermes').className='big '+(sc>=80?'ok':(sc>=50?'warn':'bad'));
+    $('hermesd').innerHTML=(h.actions||h.recommendations||[]).slice(0,4).map(a=>`<div class="mut">• ${typeof a==='string'?a:(a.msg||JSON.stringify(a))}</div>`).join('')||'<span class="mut">no actions</span>';
+  }catch(e){$('hermes').textContent='—'}
+  try{const ig=await api('/api/growth/infra/integrations');const items=ig.integrations||ig.items||ig;let h='';
+    Object.entries(items||{}).forEach(([k,v])=>{if(v&&typeof v==='object'){const f=v.fail||v.errors||0;h+=`<span class="pill ${f>0?'':'on'}">${k}: ${f>0?'❌'+f:'✅'}</span> `}});
+    $('integ').innerHTML=h||'<span class="mut">no integration activity</span>';
+  }catch(e){$('integ').textContent='—'}
+  try{const g=await api('/api/growth/optimizer/analysis');const w=g.weakest||{};
+    $('funnel').innerHTML=`<b class="warn">${w.stage}</b> — ${w.reason||''}<br><span class="mut">Action: ${w.action||''}</span>`;
+  }catch(e){$('funnel').textContent='—'}
+  try{const rv=await api('/api/growth/revenue/summary');const s=rv.subscriptions||{},dn=rv.dunning||{},lc=rv.lifecycle||{};
+    $('rev').innerHTML=`<div class="big ok">₹${rv.mrr||0} MRR</div><span class="mut">${s.active||0} active · ${s.past_due||0} past_due · dunning ${dn.open||0} open/${dn.recovered||0} rec · nurture ${lc.active||0} active/${lc.converted||0} won</span>`;
+  }catch(e){$('rev').textContent='—'}
+  try{const ib=await api('/api/growth/inbox');let h='';
+    if((ib.hot_leads||[]).length)h+='<b>🔥 Hot leads:</b> '+ib.hot_leads.map(l=>`${l.business_name||l.name||'?'} (${l.lead_score||l.score||''})`).join(' · ')+'<br>';
+    if((ib.reply_drafts||[]).length)h+=`<b>✉️ Reply drafts:</b> ${ib.reply_drafts.length} ready (data/reply_drafts)<br>`;
+    if((ib.review_drafts||[]).length)h+=`<b>⭐ Review replies:</b> ${ib.review_drafts.length} naye review drafts<br>`;
+    if((ib.recent_experiments||[]).length)h+='<b>🧪 Experiments:</b> '+ib.recent_experiments.map(x=>`${x.channel}(${x.niche})`).join(' · ');
+    $('inbox').innerHTML=h||'Sab khali — automation sab handle kar raha ✅';
+  }catch(e){$('inbox').textContent='—'}
+  loadFF();
+}
+async function loadFF(){
+  try{
+    const r=await api('/api/growth/infra/feature-flags');
+    const badge=r.system_active?'<span class="pill on">MASTER ON</span>':'<span class="pill warn" style="background:#3a3320;color:var(--warn)">MASTER OFF — set FEATURE_FLAGS=1 to go live</span>';
+    let h='<div style="margin-bottom:6px">'+badge+' <span class="mut">'+(r.count||0)+' flag(s)</span></div>';
+    if((r.flags||[]).length){
+      h+='<table><tr><th>Key</th><th>State</th><th>Detail</th><th>Updated</th><th></th></tr>';
+      r.flags.forEach(f=>{
+        const detail=f.state==='enabled_percentage'?(f.percentage+'%'):(f.state==='enabled_tenants'?((f.enabled_tenants||[]).join(', ')||'—'):'—');
+        h+=`<tr><td><b>${f.key}</b>${f.description?`<div class="mut">${f.description.slice(0,50)}</div>`:''}</td>`+
+           `<td><span class="pill ${f.state!=='disabled'?'on':''}">${f.state}</span></td>`+
+           `<td>${detail}</td><td class="mut">${(f.updated_at||'').replace('T',' ').slice(0,16)}</td>`+
+           `<td><button style="padding:2px 8px;font-size:.7rem;background:#3a2030" onclick="delFF('${f.key}')">del</button></td></tr>`;
+      });
+      h+='</table>';
+    } else { h+='<span class="mut">koi flag nahi — upar form se banao</span>'; }
+    $('fflist').innerHTML=h;
+  }catch(e){$('fflist').innerHTML='<span class="mut">— (admin token chahiye)</span>'}
+}
+async function saveFF(){
+  const key=$('ffkey').value.trim();
+  if(!key){$('ffmsg').textContent='key chahiye';return}
+  const body={key,state:$('ffstate').value,description:$('ffdesc').value.trim(),
+    percentage:parseInt($('ffpct').value||'0',10)||0,
+    enabled_tenants:($('fftenants').value||'').split(',').map(s=>s.trim()).filter(Boolean)};
+  $('ffmsg').textContent='⏳...';
+  try{
+    const r=await fetch('/api/growth/infra/feature-flags',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(r.ok){$('ffmsg').textContent='✅ saved';['ffkey','ffdesc','ffpct','fftenants'].forEach(i=>$(i).value='');loadFF();}
+    else{$('ffmsg').textContent='❌ '+(d.detail||r.status)+(r.status===403?' (super-admin chahiye)':'');}
+  }catch(e){$('ffmsg').textContent='fail/token?'}
+}
+async function delFF(key){
+  if(!confirm('Delete feature flag "'+key+'"?'))return;
+  try{await fetch('/api/growth/infra/feature-flags/'+encodeURIComponent(key),{method:'DELETE',headers:{Authorization:'Bearer '+tok()}});loadFF();}catch(e){}
+}
+async function checkFF(){
+  const key=$('ffck').value.trim(),t=$('ffckt').value.trim();
+  if(!key){$('ffckmsg').textContent='key?';return}
+  try{const r=await api('/api/growth/infra/feature-flags/'+encodeURIComponent(key)+'/check?tenant_id='+encodeURIComponent(t));
+    $('ffckmsg').innerHTML=r.enabled?'<span class="ok">✅ ENABLED</span>':'<span class="bad">⛔ disabled</span>';
+  }catch(e){$('ffckmsg').textContent='— (token?)'}
+}
+const CHANNELS=['seo_page','quora','reddit','whatsapp_group','linkedin_article','medium','partnership','linkedin_dm'];
+$('outbtns').innerHTML=CHANNELS.map(c=>`<button style="margin:2px;padding:4px 10px;font-size:.75rem" onclick="rec('${c}')">${c}</button>`).join('');
+async function rec(ch){try{const r=await fetch('/api/growth/experiments/outcome',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify({channel:ch,kind:'inquiry'})});const d=await r.json();$('outmsg').textContent=d.ok?`✅ ${ch} +1 (score ${d.stats.score})`:(d.error||'fail')}catch(e){$('outmsg').textContent='token?'}}
+async function dlqAct(act){$('dlqmsg').textContent='⏳...';try{const r=await fetch('/api/growth/infra/dlq/'+act,{method:'POST',headers:{Authorization:'Bearer '+tok()}});const d=await r.json();$('dlqmsg').textContent='✅ '+JSON.stringify(d).slice(0,120);load();}catch(e){$('dlqmsg').textContent='fail/token?'}}
+$('tok').value=tok();load();setInterval(load,60000);
+
+// SSE real-time feed — agent events pe live reload trigger karta hai
+(function startSSE(){
+  if(!tok())return; // token nahi hai to SSE nahi chalega
+  var es=new EventSource('/api/events/stream?token='+encodeURIComponent(tok()));
+  es.onmessage=function(e){
+    if(e.data&&e.data.trim()&&e.data!=='ping')try{load()}catch(_){}
+  };
+  es.onerror=function(){
+    // connection drop pe 30s baad reconnect (avoid tight loop)
+    es.close();setTimeout(startSSE,30000);
+  };
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

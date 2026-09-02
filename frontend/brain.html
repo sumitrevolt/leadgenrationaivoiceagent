@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!--suppress ALL -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>LeadGen AI — Second Brain</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--bg:#0b1020;--card:#141a2e;--line:#243049;--muted:#8b97b3;--fg:#e7ecf7;--accent:#6d8cff;--ok:#34d399}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  input,select{background:var(--card);border:1px solid var(--line);color:var(--fg);padding:10px 12px;border-radius:10px;font-size:14px}
+  input#q{flex:1;min-width:220px}
+  button{background:var(--accent);border:0;color:#06122e;font-weight:700;padding:10px 16px;border-radius:10px;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg);font-weight:600}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;color:var(--muted)}
+  .pill b{color:var(--fg)}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
+  .note .h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:4px}
+  .note .f{color:var(--accent);font-weight:700;font-size:13px}
+  .note .t{color:var(--muted);font-size:11px}
+  .note .x{color:var(--fg);font-size:13px}
+  .empty{color:var(--muted);text-align:center;padding:30px}
+  a.back{color:var(--muted);text-decoration:none;font-size:13px}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<div class="wrap">
+  <a class="back" href="/app/admin">← Admin</a>
+  <h1>🧠 Second Brain</h1>
+  <div class="sub">Agents jo decisions/leads/sessions/council yahan likhte — ab aap search/browse kar sakte ho. (Read-only · Obsidian vault)</div>
+
+  <div class="row">
+    <input id="q" placeholder="Search past decisions, leads, niches… (e.g. 'solar Nagpur', 'pricing', 'council')" autofocus/>
+    <button onclick="doSearch()">Search</button>
+    <button class="ghost" onclick="loadRecent()">Recent</button>
+    <select id="folder" onchange="loadRecent()">
+      <option value="">All folders</option>
+    </select>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div id="out"><div class="empty">Search karo ya "Recent" dabao — brain ke notes yahan dikhenge.</div></div>
+</div>
+<script>
+const TOKEN = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
+function H(){ return {"Authorization":"Bearer "+TOKEN}; }
+function esc(s){ return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function render(notes){
+  const out=document.getElementById("out");
+  if(!notes||!notes.length){ out.innerHTML='<div class="empty">Kuch nahi mila.</div>'; return; }
+  out.innerHTML = notes.map(n=>`<div class="note"><div class="h"><span class="f">${esc(n.folder)}/${esc(n.slug)}</span><span class="t">${esc(n.updated||"")}</span></div><div class="x">${esc(n.excerpt||"")}</div></div>`).join("");
+}
+async function doSearch(){
+  const q=document.getElementById("q").value.trim();
+  if(!q){ loadRecent(); return; }
+  try{
+    const r=await fetch("/api/admin/brain/search?k=12&q="+encodeURIComponent(q),{headers:H()});
+    const d=await r.json();
+    if(!d.enabled){ document.getElementById("out").innerHTML='<div class="empty">Brain OFF hai (OBSIDIAN_SYNC unset).</div>'; return; }
+    render(d.results);
+  }catch(e){ document.getElementById("out").innerHTML='<div class="empty">Error — admin login chahiye?</div>'; }
+}
+async function loadRecent(){
+  const f=document.getElementById("folder").value;
+  try{
+    const r=await fetch("/api/admin/brain/recent?limit=30&folder="+encodeURIComponent(f),{headers:H()});
+    const d=await r.json(); render(d.notes);
+  }catch(e){ document.getElementById("out").innerHTML='<div class="empty">Error — admin login chahiye?</div>'; }
+}
+async function loadStats(){
+  try{
+    const r=await fetch("/api/admin/brain/stats",{headers:H()});
+    const d=await r.json();
+    const fs=Object.entries(d.folders||{});
+    document.getElementById("stats").innerHTML =
+      `<span class="pill">Brain: <b>${d.enabled?"ON":"OFF"}</b></span>`+
+      `<span class="pill">Notes: <b>${d.total_notes||0}</b></span>`+
+      `<span class="pill">Newest: <b>${esc(d.newest||"—")}</b></span>`+
+      fs.slice(0,8).map(([k,v])=>`<span class="pill">${esc(k)}: <b>${v}</b></span>`).join("");
+    const sel=document.getElementById("folder");
+    fs.forEach(([k])=>{ const o=document.createElement("option"); o.value=k; o.textContent=k; sel.appendChild(o); });
+  }catch(e){}
+}
+document.getElementById("q").addEventListener("keydown",e=>{ if(e.key==="Enter") doSearch(); });
+loadStats(); loadRecent();
+</script>
+</body>
+</html>

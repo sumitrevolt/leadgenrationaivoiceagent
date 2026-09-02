@@ -1,0 +1,190 @@
+# =============================================================================
+# docker-compose.addons.yml  —  Genuine infrastructure additions (not duplicates)
+# -----------------------------------------------------------------------------
+# CONFIRMED GAPS filled here (verified against existing stack):
+#
+#  1. celery-exporter  — Prometheus Celery metrics (14 AI-staff tasks DARK in
+#                        Grafana; prometheus.yml me koi celery scrape nahi tha).
+#  2. flower           — Celery task inspection UI (task state / retries / ETA).
+#  3. minio            — S3-compatible object store (AI images aur client assets
+#                        abhi ./data/ai_images/ bind-mount pe — no S3 API, no
+#                        replication, no presigned URLs).
+#
+# Prereq: main stack up (network leadgen_leadgen_net exists).
+# Usage:
+#   docker compose -f deploy/compose/docker-compose.addons.yml up -d   (from /opt/leadgen)
+#
+# NOTE: celery-exporter sirf broker pe listen karta; APP container restart ki
+# zaroorat NAHI. Flower bhi broker-only (no app connection needed).
+#
+# New .env vars needed:
+#   FLOWER_USER=admin          (default: admin)
+#   FLOWER_PASSWORD=<secret>   (default: changeme — CHANGE THIS)
+#   MINIO_ROOT_USER=minioadmin (default)
+#   MINIO_ROOT_PASSWORD=<secret>   (CHANGE THIS)
+#   MINIO_BUCKET=leadgen-assets    (default)
+# =============================================================================
+
+name: leadgen-addons
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # 1. celery-exporter — Prometheus Celery metrics
+  # ---------------------------------------------------------------------------
+  # Gap: prometheus.yml me celery scrape missing tha. 14 AI staff tasks (blog/
+  # prospect/outreach/qa/trainer/self-improve etc.) Grafana me completely DARK.
+  # This: Go binary, ~50MB RAM, zero app code change, broker-only connection.
+  #
+  # Metrics exposed at :9808/metrics:
+  #   celery_tasks_total{state,name,queue,hostname}
+  #   celery_tasks_runtime_seconds (histogram — slow-task alerts)
+  #   celery_workers_online
+  #   celery_queue_length{queue_name}   <-- DLQ watch bhi
+  # ---------------------------------------------------------------------------
+  celery-exporter:
+    image: danihodovic/celery-exporter:latest
+    container_name: leadgen_celery_exporter
+    command: >
+      --broker-url=redis://redis:6379/0
+      --port=9808
+    mem_limit: 128m
+    mem_reservation: 32m
+    cpus: "0.25"
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9808/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # 2. Flower — Celery real-time task inspection UI
+  # ---------------------------------------------------------------------------
+  # Gap: Celery worker + scheduler LIVE hain par task state / retry / ETA /
+  # worker health kisi dashboard me visible nahi. 14 AI-staff tasks ke liye
+  # blind operations. Flower = Celery ka traffic-control tower.
+  #
+  # Access: ssh -L 5555:127.0.0.1:5555 root@72.61.245.204
+  #         http://localhost:5555
+  #
+  # Auth: HTTP Basic (FLOWER_USER / FLOWER_PASSWORD env vars).
+  # Flower bhi Prometheus metrics expose karta (:5555/metrics) — see prometheus.yml.
+  # ---------------------------------------------------------------------------
+  flower:
+    image: mher/flower:2.0
+    container_name: leadgen_flower
+    command: >
+      celery
+      --broker=redis://redis:6379/0
+      --result-backend=redis://redis:6379/0
+      flower
+      --port=5555
+      --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-changeme_flower}
+      --max_tasks=1000
+      --tasks_columns=name,uuid,state,args,result,received,started,runtime,worker,retries,expires
+    mem_limit: 256m
+    mem_reservation: 64m
+    cpus: "0.25"
+    ports:
+      - "127.0.0.1:5555:5555"   # SSH tunnel se access karo — public expose mat karo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:5555/healthcheck || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # 3. MinIO — S3-compatible object store (AI images + client assets)
+  # ---------------------------------------------------------------------------
+  # Gap: app/marketing/ai_image.py AI images data/ai_images/ bind-mount pe save
+  # karta (flat files). No S3 API = no presigned URLs, no CDN-ready paths, no
+  # lifecycle policies, no cross-service access. Client logos, QR codes, AI
+  # poster images — sab same flat dir. Single-point-of-failure.
+  #
+  # MinIO features that matter here:
+  #   - S3-compatible API: boto3 / httpx presigned URLs
+  #   - Browser console: bucket + object management UI (:9001)
+  #   - Bucket policies: public-read for marketing assets
+  #   - Object lifecycle: auto-delete old images (AI image cache cleanup)
+  #   - Foundation for: R2 / B2 offsite replication (future)
+  #
+  # Migration path for ai_image.py: MINIO_URL + MINIO_BUCKET + boto3 client.
+  # Until migrated: existing ./data/ai_images/ bind-mount still works (graceful).
+  #
+  # Access:
+  #   API:     http://127.0.0.1:9000  (S3 endpoint — in-network: http://minio:9000)
+  #   Console: ssh -L 9001:127.0.0.1:9001 root@72.61.245.204 -> http://localhost:9001
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: leadgen_minio
+    command: server /data --console-address ":9001"
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: "0.5"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changeme_minio_secret}
+      MINIO_BROWSER_REDIRECT_URL: ""   # console CSRF protect ke liye tunnel se aao
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API — in-network: http://minio:9000
+      - "127.0.0.1:9001:9001"   # Web console (SSH tunnel se)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # MinIO setup — one-shot: default bucket + public read policy banao
+  # ---------------------------------------------------------------------------
+  minio-setup:
+    image: minio/mc:latest
+    container_name: leadgen_minio_setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-changeme_minio_secret};
+      mc mb --ignore-existing local/${MINIO_BUCKET:-leadgen-assets};
+      mc mb --ignore-existing local/${MINIO_PRIVATE_BUCKET:-leadgen-private};
+      mc anonymous set download local/${MINIO_BUCKET:-leadgen-assets};
+      echo 'MinIO setup complete';
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-changeme_minio_secret}
+      MINIO_BUCKET: ${MINIO_BUCKET:-leadgen-assets}
+      MINIO_PRIVATE_BUCKET: ${MINIO_PRIVATE_BUCKET:-leadgen-private}
+    restart: "no"
+    networks: [leadgen_net]
+
+volumes:
+  miniodata:
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net

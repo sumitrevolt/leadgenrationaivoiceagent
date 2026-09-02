@@ -1,0 +1,86 @@
+# =============================================================================
+# docker-compose.tools.yml — SELF-HOSTED TOOLS stack (free, paid-SaaS replace).
+# -----------------------------------------------------------------------------
+# 1. SearXNG  — FREE unlimited web-search JSON API (Brave $5/mo ki jagah).
+#               App in-network: SEARXNG_URL=http://searxng:8080
+#               Wired: lead_harvester websearch source + /api/growth/research/search
+# 2. ntfy     — phone push notifications (hot lead / payment / critical alert).
+#               App in-network publish: NTFY_URL=http://ntfy:80 + NTFY_TOPIC=<secret>
+#               Phone subscribe ke liye Caddy: ntfy.leadsgenai.in -> 127.0.0.1:8093
+# 3. changedetection.io — competitor + client website watch (alerts via ntfy).
+#               UI: ssh -L 5055:127.0.0.1:5055 root@VPS -> http://localhost:5055
+#
+# Prereq: main stack up (network `leadgen_leadgen_net` exists).
+# Usage:  docker compose -f docker-compose.tools.yml up -d
+# RAM: searxng ~150-250MB, ntfy ~20MB, changedetection ~120MB (16GB me trivial).
+# =============================================================================
+
+name: leadgen-tools
+
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: leadgen_searxng
+    environment:
+      SEARXNG_BASE_URL: "http://searxng:8080/"
+      SEARXNG_SECRET: "${SEARXNG_SECRET:-change-me-random}"
+    volumes:
+      - ./monitoring/searxng:/etc/searxng:rw
+    ports:
+      - "127.0.0.1:8888:8080"
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: leadgen_ntfy
+    command: serve
+    environment:
+      NTFY_BASE_URL: "${NTFY_BASE_URL:-https://ntfy.leadsgenai.in}"
+      NTFY_BEHIND_PROXY: "true"
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      # Public internet pe expose hota hai (phone subscribe) — default DENY,
+      # user/token VPS pe banao: docker exec leadgen_ntfy ntfy user add --role=admin sumit
+      NTFY_AUTH_DEFAULT_ACCESS: "deny"
+      NTFY_ATTACHMENT_CACHE_DIR: /var/cache/ntfy/attachments
+    volumes:
+      - ntfycache:/var/cache/ntfy
+      - ntfyauth:/var/lib/ntfy
+    ports:
+      - "127.0.0.1:8093:80"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io:latest
+    container_name: leadgen_changedetection
+    environment:
+      BASE_URL: "http://127.0.0.1:5055"
+    volumes:
+      - cddata:/datastore
+    ports:
+      - "127.0.0.1:5055:5000"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+volumes:
+  ntfycache:
+  ntfyauth:
+  cddata:
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net

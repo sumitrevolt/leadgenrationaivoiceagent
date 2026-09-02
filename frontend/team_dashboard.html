@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
+<title>LeadGen AI — AI Staff Team</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+
+  /* ---- Header ---- */
+  .topbar{
+    position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .spacer{flex:1}
+  .clock{font-variant-numeric:tabular-nums;font-weight:700;color:var(--brand);font-size:13px;
+    background:var(--brand-soft);padding:5px 11px;border-radius:9px;white-space:nowrap}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  /* Totals chips */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;width:100%;padding-top:8px}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--muted)}
+  .chip b{color:var(--ink);font-size:13px}
+  .chip.err b{color:var(--err)}
+
+  /* Token row */
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+
+  /* ---- Growth Pulse banner ---- */
+  .growth{max-width:1180px;margin:16px auto 0;padding:0 16px}
+  .gcard{background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;border-radius:18px;
+    box-shadow:0 10px 30px rgba(79,70,229,.25);padding:16px 18px;position:relative;overflow:hidden}
+  .gcard .ghead{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .gcard .gtitle{font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}
+  .gcard .glive{width:8px;height:8px;border-radius:50%;background:#34d399;
+    animation:pulse 1.4s ease-out infinite;box-shadow:0 0 0 0 rgba(52,211,153,.5)}
+  .gcard .gtime{margin-left:auto;font-size:11.5px;font-weight:700;color:#c7d2fe;white-space:nowrap}
+  .gcard .grun{border:none;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;
+    font-weight:700;padding:6px 12px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px}
+  .gcard .grun:hover{background:rgba(255,255,255,.28)}
+  .gcard .grun:disabled{opacity:.6;cursor:not-allowed}
+  .gmetrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  @media(min-width:560px){.gmetrics{grid-template-columns:repeat(4,1fr)}}
+  @media(min-width:980px){.gmetrics{grid-template-columns:repeat(7,1fr)}}
+  .gm{background:rgba(255,255,255,.10);border-radius:12px;padding:9px 11px}
+  .gm .gv{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+  .gm .gl{font-size:10.5px;color:#c7d2fe;font-weight:700;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+  .ginsight{margin-top:13px;background:rgba(255,255,255,.12);border-left:3px solid #34d399;
+    border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.45}
+  .ginsight b{color:#a7f3d0}
+  .ghealed{margin-top:9px;font-size:11.5px;color:#c7d2fe;font-weight:700}
+  .ghealed span{display:inline-block;background:rgba(52,211,153,.22);color:#a7f3d0;
+    border-radius:999px;padding:2px 9px;margin:2px 4px 0 0}
+
+  /* ---- Layout ---- */
+  .wrap{max-width:1180px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr}
+  @media(min-width:980px){.wrap{grid-template-columns:1fr 360px;align-items:start}}
+
+  .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;margin:0 0 10px 2px}
+
+  /* ---- Staff grid ---- */
+  .grid{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:1240px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:14px;position:relative;display:flex;flex-direction:column;gap:8px}
+  .card .head{display:flex;align-items:flex-start;gap:10px}
+  .avatar{width:46px;height:46px;border-radius:13px;flex:0 0 46px;
+    background:linear-gradient(135deg,#a78bfa,#6366f1);display:grid;place-items:center;
+    font-size:24px;box-shadow:0 6px 16px rgba(99,102,241,.35)}
+  .who{flex:1;min-width:0}
+  .who .nm{font-weight:800;font-size:15px}
+  .who .tt{font-size:12px;color:var(--muted);font-weight:600}
+  .duties{font-size:12px;color:var(--muted);line-height:1.4}
+
+  /* status dot */
+  .st{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .dot{width:9px;height:9px;border-radius:50%;background:#9ca3af}
+  .st.working{color:var(--ok)} .st.working .dot{background:var(--ok);animation:pulse 1.4s ease-out infinite}
+  .st.idle{color:var(--warn)}  .st.idle .dot{background:var(--warn)}
+  .st.offline{color:var(--muted)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.45)}100%{box-shadow:0 0 0 8px rgba(22,163,74,0)}}
+
+  .mchips{display:flex;gap:6px;flex-wrap:wrap}
+  .mchip{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;
+    background:var(--brand-soft);color:var(--brand)}
+  .mchip.work{background:#ecfdf5;color:#15803d}
+  .mchip.errs{background:#fef2f2;color:var(--err)}
+
+  .lastact{font-size:11.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:7px;
+    display:flex;gap:5px;align-items:baseline;word-break:break-word}
+  .lastact b{color:var(--ink);font-weight:700}
+  .lastact .rel{margin-left:auto;white-space:nowrap;font-weight:700;color:#9ca3af}
+
+  .runbtn{border:none;border-radius:10px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:8px 12px;cursor:pointer;font-size:12.5px;
+    display:flex;align-items:center;justify-content:center;gap:7px;transition:filter .12s}
+  .runbtn:hover{filter:brightness(1.08)}
+  .runbtn:disabled{opacity:.6;cursor:not-allowed}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ---- Activity feed ---- */
+  .feedcard{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .feedhead{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:800;font-size:13.5px;
+    display:flex;align-items:center;gap:7px}
+  .feedhead .live{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 1.4s ease-out infinite}
+  .feed{max-height:72vh;overflow-y:auto}
+  .ev{padding:10px 13px;border-bottom:1px solid var(--line);border-left:3px solid transparent;font-size:12.5px}
+  .ev:last-child{border-bottom:none}
+  .ev.error{border-left-color:var(--err);background:#fef2f2}
+  .ev.warn{border-left-color:var(--warn);background:#fffbeb}
+  .ev .l1{display:flex;gap:6px;align-items:baseline}
+  .ev .l1 b{font-weight:800}
+  .ev .act{color:var(--brand);font-weight:700}
+  .ev .rel{margin-left:auto;color:#9ca3af;font-size:11px;font-weight:700;white-space:nowrap}
+  .ev .dt{color:var(--muted);margin-top:2px;word-break:break-word}
+  .empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:13px}
+
+  /* ---- Toasts ---- */
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
+  .toast{background:#1e293b;color:#fff;border-radius:12px;padding:11px 14px;font-size:12.5px;
+    box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .25s ease}
+  .toast.err{background:#b91c1c}
+  .toast.ok{background:#15803d}
+  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">🏢</span><span>LeadGen AI — AI Staff</span></div>
+  <div class="spacer"></div>
+  <div class="clock" id="clock">--:--:--</div>
+  <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+
+  <div class="chips" id="chips">
+    <div class="chip">👥 Staff <b id="cStaff">–</b></div>
+    <div class="chip">🟢 Active abhi <b id="cActive">–</b></div>
+    <div class="chip">⚡ Aaj kaam <b id="cActions">–</b></div>
+    <div class="chip err">❗ Aaj errors <b id="cErrors">–</b></div>
+  </div>
+
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="growth">
+  <div class="gcard">
+    <div class="ghead">
+      <div class="gtitle"><span class="glive"></span>📈 Growth Pulse</div>
+      <span class="gtime" id="gTime">—</span>
+      <button class="grun" id="gRun" title="Abhi pulse chalao">▶ Pulse</button>
+    </div>
+    <div class="gmetrics" id="gMetrics">
+      <div class="gm"><div class="gv">–</div><div class="gl">Loading…</div></div>
+    </div>
+    <div class="ginsight" id="gInsight" style="display:none"></div>
+    <div class="ghealed" id="gHealed" style="display:none"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div>
+    <h2 class="col-title">👩‍💼 Team</h2>
+    <div class="grid" id="staffGrid">
+      <div class="empty">Loading team…</div>
+    </div>
+  </div>
+
+  <div>
+    <h2 class="col-title">📡 Activity Feed</h2>
+    <div class="feedcard">
+      <div class="feedhead"><span class="live"></span> Live activity <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:600">har 10s refresh</span></div>
+      <div class="feed" id="feed">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+  var RUNNABLE = {arjun:1, meera:1, kavya:1};
+  var running = {};          // member-key -> true while run-now in flight
+  var timer = null;
+
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+    refresh();
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+  }
+
+  // ---- Helpers -------------------------------------------------------------
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function relTime(iso){
+    if(!iso) return "";
+    var t = new Date(iso).getTime();
+    if(isNaN(t)) return "";
+    var s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if(s < 10)    return "abhi";
+    if(s < 60)    return s + " sec pehle";
+    if(s < 3600)  return Math.floor(s/60) + " min pehle";
+    if(s < 86400) return Math.floor(s/3600) + " ghante pehle";
+    return Math.floor(s/86400) + " din pehle";
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+
+  // ---- Live clock ----------------------------------------------------------
+  function tick(){
+    var d = new Date();
+    function p(n){ return (n < 10 ? "0" : "") + n; }
+    document.getElementById("clock").textContent =
+      p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+  }
+  tick(); setInterval(tick, 1000);
+
+  // ---- Render: staff grid ----------------------------------------------------
+  var ST_LABEL = {working:"Working", idle:"Idle", offline:"Offline"};
+  function renderTeam(data){
+    var t = (data && data.totals) || {};
+    document.getElementById("cStaff").textContent   = t.staff_count   != null ? t.staff_count   : "–";
+    document.getElementById("cActive").textContent  = t.active_members!= null ? t.active_members: "–";
+    document.getElementById("cActions").textContent = t.actions_today != null ? t.actions_today : "–";
+    document.getElementById("cErrors").textContent  = t.errors_today  != null ? t.errors_today  : "–";
+
+    var grid = document.getElementById("staffGrid");
+    var members = (data && data.members) || [];
+    if(!members.length){
+      grid.innerHTML = '<div class="empty">Team data nahi mila.</div>';
+      return;
+    }
+    var html = members.map(function(m){
+      var st = (m.state === "working" || m.state === "idle") ? m.state : "offline";
+      var la = m.last_activity;
+      var laHtml = la && (la.action || la.detail)
+        ? '<div class="lastact">🕒 <span><b>' + esc(la.action) + '</b>' +
+          (la.detail ? ' — ' + esc(String(la.detail).slice(0,90)) : '') + '</span>' +
+          '<span class="rel">' + esc(relTime(la.at)) + '</span></div>'
+        : '<div class="lastact" style="color:#9ca3af">🕒 Abhi tak koi activity nahi</div>';
+      var errChip = (m.today_errors > 0)
+        ? '<span class="mchip errs">❗ ' + m.today_errors + ' errors</span>' : '';
+      var runBtn = RUNNABLE[m.key]
+        ? '<button class="runbtn" data-run="' + esc(m.key) + '"' + (running[m.key] ? ' disabled' : '') + '>' +
+          (running[m.key] ? '<span class="spin"></span> Chal raha hai…' : '▶ Run now') + '</button>'
+        : '';
+      return '<div class="card">' +
+        '<div class="head">' +
+          '<div class="avatar">' + esc(m.emoji || "🤖") + '</div>' +
+          '<div class="who"><div class="nm">' + esc(m.name) + '</div>' +
+            '<div class="tt">' + esc(m.title) + '</div></div>' +
+          '<div class="st ' + st + '"><span class="dot"></span>' + ST_LABEL[st] + '</div>' +
+        '</div>' +
+        '<div class="duties">' + esc(m.duties) + '</div>' +
+        '<div class="mchips">' +
+          '<span class="mchip">🗓 ' + esc(m.schedule) + '</span>' +
+          '<span class="mchip work">Aaj: ' + (m.today_actions || 0) + ' kaam</span>' +
+          errChip +
+        '</div>' +
+        laHtml + runBtn +
+      '</div>';
+    }).join("");
+    grid.innerHTML = html;
+
+    // wire run-now buttons
+    grid.querySelectorAll("[data-run]").forEach(function(btn){
+      btn.onclick = function(){ runMember(btn.getAttribute("data-run")); };
+    });
+  }
+
+  // ---- Render: growth pulse banner -------------------------------------------
+  function renderGrowth(data){
+    var p = (data && data.pulse) || {};
+    var pr = p.prospects || {}, inq = p.inquiries || {}, em = p.emails || {};
+    // 7 key live metrics.
+    var cells = [
+      [pr.total != null ? pr.total : 0, "Prospects"],
+      [pr.ready != null ? pr.ready : 0, "Ready"],
+      [inq.total != null ? inq.total : 0, "Inquiries"],
+      [(inq.today != null ? inq.today : 0), "Inq aaj"],
+      [em.emailed != null ? em.emailed : 0, "Emailed"],
+      [p.blog_articles != null ? p.blog_articles : 0, "Blogs"],
+      [p.content_items != null ? p.content_items : 0, "Content"],
+    ];
+    document.getElementById("gMetrics").innerHTML = cells.map(function(c){
+      return '<div class="gm"><div class="gv">' + esc(c[0]) + '</div>' +
+             '<div class="gl">' + esc(c[1]) + '</div></div>';
+    }).join("");
+
+    // last pulse time
+    var t = p.last_pulse_at || p.at;
+    document.getElementById("gTime").textContent = t ? ("⏱ " + relTime(t)) : "abhi tak pulse nahi";
+
+    // best-niche / first insight
+    var gi = document.getElementById("gInsight");
+    var insights = Array.isArray(p.insights) ? p.insights : [];
+    if(p.best_niche || insights.length){
+      var line = "";
+      if(p.best_niche){
+        line = '🎯 Best niche: <b>' + esc(p.best_niche) + '</b>' +
+               (p.best_niche_ratio ? ' (' + Math.round(p.best_niche_ratio*100) + '% warm/won)' : '') +
+               (insights[0] ? ' — ' + esc(insights[0]) : '');
+      } else {
+        line = '💡 ' + esc(insights[0]);
+      }
+      gi.innerHTML = line; gi.style.display = "block";
+    } else { gi.style.display = "none"; }
+
+    // self-heal actions this pulse
+    var gh = document.getElementById("gHealed");
+    var healed = Array.isArray(p.healed) ? p.healed : [];
+    if(healed.length){
+      gh.innerHTML = '🔧 Self-heal: ' + healed.map(function(h){ return '<span>' + esc(h) + '</span>'; }).join("");
+      gh.style.display = "block";
+    } else { gh.style.display = "none"; }
+  }
+
+  // ---- Render: activity feed -------------------------------------------------
+  function renderEvents(events){
+    var feed = document.getElementById("feed");
+    if(!events || !events.length){
+      feed.innerHTML = '<div class="empty">Abhi koi activity nahi — system kaam karte hi yahan dikhega.</div>';
+      return;
+    }
+    feed.innerHTML = events.map(function(e){
+      var cls = e.status === "error" ? " error" : (e.status === "warn" ? " warn" : "");
+      return '<div class="ev' + cls + '">' +
+        '<div class="l1">' + esc(e.emoji || "🤖") + ' <b>' + esc(e.name) + '</b>' +
+        ' <span class="act">' + esc(e.action) + '</span>' +
+        '<span class="rel">' + esc(relTime(e.at)) + '</span></div>' +
+        (e.detail ? '<div class="dt">' + esc(String(e.detail).slice(0,180)) + '</div>' : '') +
+      '</div>';
+    }).join("");
+  }
+
+  // ---- Fetch + refresh loop ---------------------------------------------------
+  var warned401 = false;
+  async function refresh(){
+    try{
+      var [r1, r2, r3] = await Promise.all([
+        fetch("/api/platform/team", {headers: hdrs()}),
+        fetch("/api/platform/team/events?limit=50", {headers: hdrs()}),
+        fetch("/api/platform/team/growth", {headers: hdrs()}),
+      ]);
+      if(r1.status === 401 || r1.status === 403){
+        needAuth();
+        if(!warned401){ toast("Admin token chahiye — 🔑 me paste karo", "err"); warned401 = true; }
+        document.getElementById("staffGrid").innerHTML =
+          '<div class="empty">🔒 Admin token required — upar 🔑 se add karo.</div>';
+        renderEvents([]);
+        return;
+      }
+      warned401 = false;
+      if(r1.ok) renderTeam(await r1.json());
+      if(r2.ok){ var d2 = await r2.json(); renderEvents(d2.events || []); }
+      if(r3.ok){ renderGrowth(await r3.json()); }
+    }catch(e){
+      // network blip — purana data dikha rehne do
+    }
+  }
+
+  function startTimer(){ if(!timer) timer = setInterval(refresh, 10000); }
+  function stopTimer(){ if(timer){ clearInterval(timer); timer = null; } }
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){ stopTimer(); } else { refresh(); startTimer(); }
+  });
+
+  // ---- Run-now ---------------------------------------------------------------
+  async function runMember(key){
+    if(running[key]) return;
+    running[key] = true;
+    refresh();  // show spinner state instantly via re-render below
+    var btn = document.querySelector('[data-run="' + key + '"]');
+    if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Chal raha hai…'; }
+    try{
+      var r = await fetch("/api/platform/team/run/" + encodeURIComponent(key), {
+        method: "POST", headers: hdrs(),
+      });
+      if(r.status === 401 || r.status === 403){ needAuth(); toast("Admin token chahiye", "err"); return; }
+      var res = {};
+      try{ res = await r.json(); }catch(_e){}
+      if(!r.ok || res.error){
+        toast(key + " run failed: " + (res.error || ("HTTP " + r.status)), "err");
+      }else{
+        var bits = [];
+        if(Array.isArray(res.issues)) bits.push(res.issues.length + " issues");
+        if(res.turns != null)  bits.push(res.turns + " turns");
+        if(res.calls != null)  bits.push(res.calls + " calls");
+        if(res.summary)        bits.push(String(res.summary).slice(0,80));
+        if(res.status)         bits.push("status: " + res.status);
+        toast("✓ " + key + " done" + (bits.length ? " — " + bits.join(", ") : ""), "ok");
+      }
+    }catch(e){
+      toast(key + " run error: " + e.message, "err");
+    }finally{
+      running[key] = false;
+      refresh();
+    }
+  }
+
+  // ---- Growth pulse: run-now button --------------------------------------------
+  var gRunning = false;
+  document.getElementById("gRun").onclick = async function(){
+    if(gRunning) return;
+    gRunning = true;
+    var btn = this;
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Chal raha…';
+    try{
+      var r = await fetch("/api/platform/team/growth/run", {method:"POST", headers: hdrs()});
+      if(r.status === 401 || r.status === 403){ needAuth(); toast("Admin token chahiye", "err"); return; }
+      var res = {}; try{ res = await r.json(); }catch(_e){}
+      if(!r.ok || res.error){ toast("Pulse failed: " + (res.error || ("HTTP "+r.status)), "err"); }
+      else{
+        renderGrowth({pulse: res});
+        var h = Array.isArray(res.healed) && res.healed.length ? (" — healed: " + res.healed.join(", ")) : "";
+        toast("✓ Growth pulse done" + h, "ok");
+      }
+    }catch(e){ toast("Pulse error: " + e.message, "err"); }
+    finally{ gRunning = false; btn.disabled = false; btn.innerHTML = "▶ Pulse"; refresh(); }
+  };
+
+  // ---- Boot --------------------------------------------------------------------
+  refresh();
+  startTimer();
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

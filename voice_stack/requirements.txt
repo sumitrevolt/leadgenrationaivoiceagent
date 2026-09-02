@@ -1,0 +1,14 @@
+# Self-hosted voice model-server (AI4Bharat IndicConformer + IndicF5)
+# IMPORTANT: install the CUDA build of torch matching your GPU FIRST, e.g.:
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+# then: pip install -r requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+transformers>=4.44
+torch>=2.2
+torchaudio>=2.2
+soundfile>=0.14.0
+numpy>=1.24
+av>=11.0            # PyAV: decode browser webm/opus audio
+huggingface_hub>=1.27.0
+einops               # IndicF5 / F5-TTS dep

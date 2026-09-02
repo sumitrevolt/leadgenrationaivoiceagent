@@ -1,0 +1,64 @@
+# =============================================================================
+# docker-compose.edge.yml — EDGE + AI-GATEWAY add-ons (G2 Cloudflare Tunnel,
+# G7 LiteLLM semantic-cache). NAYA + STANDALONE — main stack ko touch NAHI karta.
+# Dono OPTIONAL + profile-gated => `up -d` by default kuch nahi chalata.
+#
+#   * cloudflared : origin IP hide + free WAF/DDoS/CDN (Cloudflare edge). Sirf
+#                   outbound tunnel — VPS pe naya port khulta NAHI. Token chahiye.
+#   * litellm     : OpenAI-compatible gateway + Redis cache (repeated-prompt
+#                   cache => Groq-TPD-exhaust pain kam). free_ai.py fallback rahe.
+#
+# Prereq: main stack up (network leadgen_leadgen_net + leadgen_redis maujood).
+# Enable cloudflared: docker compose -f docker-compose.edge.yml --profile edge   up -d
+# Enable litellm    : docker compose -f docker-compose.edge.yml --profile gateway up -d
+# =============================================================================
+
+name: leadgen-edge
+
+services:
+  # ---- G2: Cloudflare Tunnel (origin hide + edge WAF/DDoS/CDN) --------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: leadgen_cloudflared
+    profiles: ["edge"]
+    command: tunnel --no-autoupdate run
+    environment:
+      # Cloudflare Zero Trust dashboard -> Tunnels -> create -> token copy.
+      # .env me: CLOUDFLARE_TUNNEL_TOKEN=eyJ...
+      TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+  # ---- G7: LiteLLM gateway (OpenAI-compat + Redis cache + fallbacks) --------
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: leadgen_litellm
+    profiles: ["gateway"]
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      # Tere existing free-stack keys reuse hote (free_ai.py jaise).
+      CEREBRAS_API_KEY: "${CEREBRAS_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      XAI_API_KEY: "${XAI_API_KEY:-}"
+      # Gateway ko protect karne ke liye master key (clients isse auth karein).
+      LITELLM_MASTER_KEY: "${LITELLM_MASTER_KEY:?set LITELLM_MASTER_KEY in .env}"
+      REDIS_URL: "${REDIS_URL:-redis://leadgen_redis:6379/3}"
+    volumes:
+      - ./deploy/litellm/config.yaml:/app/config.yaml:ro
+    ports:
+      - "127.0.0.1:4000:4000"   # in-network: http://litellm:4000 ; local debug only
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net

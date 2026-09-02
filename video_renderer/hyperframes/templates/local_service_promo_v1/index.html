@@ -1,0 +1,334 @@
+<!doctype html>
+<!--
+  local_service_promo_v1 — reusable local-SMB promo (plumber, tutor, clinic,
+  repair, salon, gym...).
+
+  Spine: problem -> solution -> proof -> offer -> CTA.
+  1080x1920, 30fps, 6 scenes, 25.4s.
+
+  Every on-screen value arrives through a declared variable. No business name,
+  price, rating, review count, address or testimonial is hard-coded, and an
+  unfilled variable REMOVES its element rather than rendering an empty chip —
+  a fabricated trust signal in a customer's ad is the worst failure this
+  product can have.
+-->
+<html lang="en" data-composition-variables='[
+  {"id":"business_name","type":"string","label":"Business name","default":""},
+  {"id":"monogram","type":"string","label":"Monogram","default":""},
+  {"id":"tagline","type":"string","label":"Tagline","default":""},
+  {"id":"city","type":"string","label":"City","default":""},
+  {"id":"primary_color","type":"color","label":"Brand primary","default":"#1d6f5c"},
+  {"id":"accent_color","type":"color","label":"Brand accent","default":"#f4a259"},
+  {"id":"problem_line","type":"string","label":"Problem headline","default":""},
+  {"id":"problem_strike","type":"string","label":"Struck phrase","default":""},
+  {"id":"solution_line","type":"string","label":"Solution headline","default":""},
+  {"id":"solution_sub","type":"string","label":"Solution subline","default":""},
+  {"id":"steps_json","type":"string","label":"Steps JSON","default":"[]"},
+  {"id":"trust_json","type":"string","label":"Trust chips JSON","default":"[]"},
+  {"id":"proof_line","type":"string","label":"Proof headline","default":""},
+  {"id":"offer_title","type":"string","label":"Offer label","default":""},
+  {"id":"offer_sub","type":"string","label":"Offer headline","default":""},
+  {"id":"cta_text","type":"string","label":"CTA headline","default":""},
+  {"id":"cta_channel","type":"string","label":"CTA channel","default":"whatsapp"},
+  {"id":"contact_display","type":"string","label":"Contact display","default":""},
+  {"id":"photos_json","type":"string","label":"Photo paths JSON","default":"[]"},
+  {"id":"footer_note","type":"string","label":"Footer note","default":""}
+]'>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div id="root" data-composition-id="root" data-no-timeline data-start="0"
+       data-width="1080" data-height="1920" data-fps="30" data-duration="25.4">
+
+    <div class="bg">
+      <div class="grid-lines"></div>
+      <div class="bg-wash"></div>
+    </div>
+
+    <!-- ============================================== 1. problem (0→4.2) -->
+    <div id="scene-problem" class="clip" data-start="0" data-duration="4.2" data-track-index="1">
+      <div class="corner-mark tl"></div>
+      <div class="stage" style="gap:34px;">
+        <div class="kicker fade-in" data-bind="city" data-optional></div>
+        <h1 class="headline rise" data-fit="problem" data-bind="problem_line" data-words></h1>
+        <div class="sub" style="animation:slideUp .8s cubic-bezier(.22,1,.36,1) .7s both;">
+          <span class="strike" data-bind="problem_strike" data-optional></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================= 2. solution (4.2→8.6) -->
+    <div id="scene-solution" class="clip" data-start="4.2" data-duration="4.4" data-track-index="1">
+      <div class="stage" style="gap:32px;">
+        <div class="kicker fade-in">Solution</div>
+        <h2 class="headline rise" data-fit="solution" data-bind="solution_line" data-words></h2>
+        <p class="sub" data-bind="solution_sub" data-optional
+           style="max-width:820px;animation:slideUp .82s cubic-bezier(.22,1,.36,1) .6s both;"></p>
+      </div>
+    </div>
+
+    <!-- ================================================ 3. steps (8.6→14.2) -->
+    <div id="scene-steps" class="clip" data-start="8.6" data-duration="5.6" data-track-index="1">
+      <div class="stage" style="gap:30px;">
+        <div class="kicker fade-in">Kaise kaam karta hai</div>
+        <div id="step-list" style="display:flex;flex-direction:column;gap:22px;"></div>
+      </div>
+    </div>
+
+    <!-- ================================================ 4. proof (14.2→18.4) -->
+    <div id="scene-proof" class="clip" data-start="14.2" data-duration="4.2" data-track-index="1">
+      <div class="stage" style="gap:30px;">
+        <div class="kicker fade-in">Bharosa</div>
+        <div id="proof-media" style="flex:1 1 auto;min-height:0;display:flex;"></div>
+        <h2 class="headline" data-fit="proof" data-bind="proof_line" data-optional
+            style="animation:slideUp .84s cubic-bezier(.22,1,.36,1) .3s both;"></h2>
+        <div class="trust" id="trust-row"></div>
+      </div>
+    </div>
+
+    <!-- ================================================ 5. offer (18.4→21.6) -->
+    <div id="scene-offer" class="clip" data-start="18.4" data-duration="3.2" data-track-index="1">
+      <div class="stage" style="justify-content:center;">
+        <div class="offer-band pop">
+          <div class="t" data-bind="offer_title" data-optional></div>
+          <h2 class="headline" data-fit="offer" data-bind="offer_sub"
+              style="margin-top:18px;animation:slideUp .8s cubic-bezier(.22,1,.36,1) .28s both;"></h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================== 6. CTA (21.6→25.4) -->
+    <div id="scene-cta" class="clip" data-start="21.6" data-duration="3.8" data-track-index="1">
+      <div class="corner-mark br"></div>
+      <div class="stage" style="align-items:center;text-align:center;gap:40px;">
+        <h2 class="headline" data-fit="cta" data-bind="cta_text"
+            style="animation:slideUp .84s cubic-bezier(.22,1,.36,1) both;"></h2>
+        <div class="cta" style="animation-delay:.45s;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path id="cta-glyph" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span data-bind="contact_display"></span>
+        </div>
+        <div class="kicker" data-bind="business_name"
+             style="animation:fadeIn .8s ease .85s both;"></div>
+      </div>
+      <div class="footer-line" data-bind="footer_note" data-optional
+           style="animation:fadeIn .8s ease 1.05s both;"></div>
+    </div>
+  </div>
+
+  <script>
+    // Local and dependency-free. Runs once before capture; all motion after this
+    // is declarative CSS, which is what keeps every frame seekable and identical.
+    (function () {
+      var V = {};
+      try { V = (window.__hyperframes && window.__hyperframes.getVariables()) || {}; }
+      catch (e) { V = {}; }
+
+      var S = function (k) { return String(V[k] == null ? "" : V[k]).trim(); };
+
+      function parseList(key) {
+        try {
+          var raw = JSON.parse(S(key) || "[]");
+          return Array.isArray(raw) ? raw : [];
+        } catch (e) { return []; }
+      }
+
+      var root = document.documentElement;
+      if (S("primary_color")) root.style.setProperty("--brand", S("primary_color"));
+      if (S("accent_color")) root.style.setProperty("--accent", S("accent_color"));
+
+      document.querySelectorAll("[data-bind]").forEach(function (el) {
+        var val = S(el.getAttribute("data-bind"));
+        if (!val) {
+          if (el.hasAttribute("data-optional")) el.remove();
+          return;
+        }
+        if (el.hasAttribute("data-words")) {
+          el.textContent = "";
+          val.split(/\s+/).forEach(function (word, i) {
+            var s = document.createElement("span");
+            s.className = "w";
+            s.textContent = word;
+            s.style.animationDelay = (0.05 + i * 0.05).toFixed(3) + "s";
+            el.appendChild(s);
+            el.appendChild(document.createTextNode(" "));
+          });
+        } else {
+          el.textContent = val;
+        }
+      });
+
+      // Length-driven type scale. Hindi/Hinglish lines run far longer than their
+      // English equivalents, so a fixed px size would overflow the safe zone.
+      var LADDER = {
+        problem:  [[26, 96], [44, 80], [66, 66], [999, 55]],
+        solution: [[26, 92], [44, 78], [66, 64], [999, 54]],
+        proof:    [[30, 60], [52, 50], [999, 43]],
+        offer:    [[24, 74], [42, 62], [999, 52]],
+        cta:      [[20, 76], [34, 62], [999, 52]]
+      };
+      document.querySelectorAll("[data-fit]").forEach(function (el) {
+        var rungs = LADDER[el.getAttribute("data-fit")];
+        if (!rungs) return;
+        var n = (el.textContent || "").length;
+        for (var i = 0; i < rungs.length; i++) {
+          if (n <= rungs[i][0]) { el.style.fontSize = rungs[i][1] + "px"; break; }
+        }
+      });
+
+      // ---- steps -------------------------------------------------------
+      var list = document.getElementById("step-list");
+      if (list) {
+        parseList("steps_json").slice(0, 4).forEach(function (st, i) {
+          var title = String(st && st.title ? st.title : "").trim();
+          if (!title) return;
+          var row = document.createElement("div");
+          row.className = "step block";
+          row.style.animation =
+            "slideUp .8s cubic-bezier(.22,1,.36,1) " + (0.16 + i * 0.16).toFixed(2) + "s both";
+
+          var n = document.createElement("div");
+          n.className = "n";
+          n.textContent = String(i + 1);
+
+          var body = document.createElement("div");
+          var t = document.createElement("div");
+          t.className = "t";
+          t.textContent = title;
+          body.appendChild(t);
+
+          var d = String(st && st.subtitle ? st.subtitle : "").trim();
+          if (d) {
+            var dd = document.createElement("div");
+            dd.className = "d";
+            dd.textContent = d;
+            body.appendChild(dd);
+          }
+          row.appendChild(n);
+          row.appendChild(body);
+          list.appendChild(row);
+        });
+      }
+
+      // ---- trust chips -------------------------------------------------
+      // Rendered ONLY from provider-supplied, already-verified strings. There is
+      // no default set: a business with nothing verified shows no chips.
+      var trust = document.getElementById("trust-row");
+      if (trust) {
+        var items = parseList("trust_json")
+          .map(function (x) { return String(x || "").trim(); })
+          .filter(Boolean)
+          .slice(0, 3);
+        if (!items.length) {
+          trust.remove();
+        } else {
+          items.forEach(function (label, i) {
+            var chip = document.createElement("div");
+            chip.className = "chip";
+            chip.style.animation =
+              "pop .6s cubic-bezier(.34,1.56,.64,1) " + (0.5 + i * 0.13).toFixed(2) + "s both";
+            var tick = document.createElement("span");
+            tick.className = "tick";
+            tick.textContent = "✓";
+            var span = document.createElement("span");
+            span.textContent = label;
+            chip.appendChild(tick);
+            chip.appendChild(span);
+            trust.appendChild(chip);
+          });
+        }
+      }
+
+      // ---- proof media --------------------------------------------------
+      var media = document.getElementById("proof-media");
+      if (media) {
+        var photos = parseList("photos_json").filter(Boolean).slice(0, 2);
+        if (photos.length) {
+          media.style.display = "grid";
+          media.style.gap = "18px";
+          media.style.gridTemplateColumns = photos.length === 1 ? "1fr" : "1fr 1fr";
+          photos.forEach(function (src, i) {
+            var frame = document.createElement("div");
+            frame.className = "photo-frame";
+            frame.style.animation =
+              "pop .74s cubic-bezier(.22,1,.36,1) " + (0.1 + i * 0.14).toFixed(2) + "s both";
+            var img = document.createElement("div");
+            img.className = "photo kb";
+            img.style.setProperty("--kb-dur", "4.2s");
+            // encodeURI keeps spaces/unicode in a tenant filename from breaking
+            // the url() token; the path itself was validated in Python.
+            img.style.backgroundImage = 'url("' + encodeURI(src) + '")';
+            frame.appendChild(img);
+            media.appendChild(frame);
+          });
+        } else {
+          // No consented imagery -> a designed monogram panel that FILLS the
+          // slot. Explicit 1fr tracks, because place-items:center would size the
+          // panel to its content and render a narrow column in a wide frame.
+          // Bounded height: the slot is `flex:1 1 auto`, so a monogram card left
+          // to fill it becomes a near-empty full-height white box. A fixed,
+          // proportionate card reads as a designed element instead.
+          media.style.display = "grid";
+          media.style.gridTemplateColumns = "1fr";
+          media.style.gridTemplateRows = "1fr";
+          media.style.flex = "0 0 auto";
+          media.style.height = "540px";
+          var panel = document.createElement("div");
+          // NOT `kb` on the panel itself: a scale(1.08) on the outer box grows
+          // it past its layout bounds and occludes the kicker above it (caught
+          // by `hyperframes check` as text_occluded). The panel stays put and
+          // is clipped; the ken-burns push moves to the mark inside it.
+          panel.className = "block";
+          panel.style.cssText +=
+            "display:grid;place-items:center;padding:56px;text-align:center;overflow:hidden;" +
+            "animation:slideUp .8s cubic-bezier(.22,1,.36,1) .12s both;";
+          // Mark and caption go in ONE wrapper: as two direct grid children they
+          // land in separate implicit rows and spread to opposite ends of a tall
+          // panel, which reads as an empty box with text stranded at the edges.
+          var inner = document.createElement("div");
+          inner.className = "kb";
+          inner.style.setProperty("--kb-dur", "4.2s");
+
+          var mark = document.createElement("div");
+          mark.style.cssText =
+            "font-size:132px;font-weight:700;letter-spacing:.05em;color:var(--brand);line-height:1.05;";
+          mark.textContent = S("monogram") || S("business_name").slice(0, 2).toUpperCase();
+          inner.appendChild(mark);
+
+          var cap = document.createElement("div");
+          cap.style.cssText = "margin-top:16px;font-size:30px;color:var(--ink-dim);";
+          cap.textContent = S("tagline");
+          if (cap.textContent) inner.appendChild(cap);
+
+          var name = document.createElement("div");
+          name.style.cssText =
+            "margin-top:26px;font-size:26px;letter-spacing:.2em;text-transform:uppercase;color:var(--brand);";
+          name.textContent = S("business_name");
+          if (name.textContent) inner.appendChild(name);
+
+          panel.appendChild(inner);
+          media.appendChild(panel);
+        }
+      }
+
+      // Generic chat/phone glyphs only — no third-party brand mark is drawn.
+      if (S("cta_channel").toLowerCase() === "call") {
+        var g = document.getElementById("cta-glyph");
+        if (g) {
+          g.setAttribute("d",
+            "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6" +
+            " 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81" +
+            "a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45" +
+            "c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z");
+        }
+      }
+
+      document.documentElement.setAttribute("data-lg-bound", "1");
+    })();
+  </script>
+</body>
+</html>

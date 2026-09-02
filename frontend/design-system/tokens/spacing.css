@@ -1,0 +1,27 @@
+/* LeadGen AI — Spacing & layout tokens
+   8px base rhythm; generous section padding on marketing, denser on app. */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* Layout */
+  --container-max: 1140px;   /* marketing site */
+  --content-max: 1320px;     /* app dashboard */
+  --sidebar-w: 230px;
+  --section-y: 84px;         /* marketing section vertical padding */
+  --gutter: 22px;
+
+  /* Tap targets (mobile-first, India SMB users) */
+  --tap-min: 44px;
+}

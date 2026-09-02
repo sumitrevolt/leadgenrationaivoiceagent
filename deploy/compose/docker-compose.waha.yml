@@ -1,0 +1,96 @@
+# =============================================================================
+# docker-compose.waha.yml — SELF-HOSTED WhatsApp stack (WAHA Core, free/GPL).
+# -----------------------------------------------------------------------------
+# "Apna khud ka" WhatsApp API. Links an EXISTING WhatsApp account by QR scan and
+# exposes a plain HTTP API — sidesteps Meta Business VERIFICATION entirely (the real
+# Cloud-API blocker). The app talks to it via WAHA_BASE_URL=http://waha:3000.
+#
+#  A number is EITHER on Meta Cloud API OR on this Web session — NEVER both at once.
+#  ⚠️ BAN-RISK: a Web session has no template/24h protection. Use for INBOUND auto-reply
+#     + warm 1-to-1 + low-volume opt-in. Bulk cold-blasting bans the number fast.
+#
+# Prereq: main stack up (network `leadgen_leadgen_net` exists).
+# Setup (VPS):
+#   1) In .env set:  WAHA_API_KEY=<random>  WAHA_WEBHOOK_TOKEN=<random>
+#   2) docker compose -f deploy/compose/docker-compose.waha.yml up -d   (from /opt/leadgen)
+#   3) In app .env:  WHATSAPP_PROVIDER=waha  WAHA_BASE_URL=http://waha:3000
+#                    WAHA_SESSION=default  WHATSAPP_BUSINESS_NUMBER=918261030181
+#      (WAHA_API_KEY / WAHA_WEBHOOK_TOKEN same as step 1) -> recreate app container.
+#   4) BEFORE clicking Start: open the COMPANY phone's WhatsApp -> Linked
+#      devices -> Link a device, so its scanner is ALREADY live and waiting.
+#      ONLY THEN click "Start session" -> "Show QR" and scan within seconds —
+#      NOWEB gives a HARD ~40s window total, no config extends it (see below).
+#   5) Status flips to WORKING. Leave WHATSAPP_AUTO_SEND=0 until you want auto-send.
+# RAM: NOWEB engine ~150-300MB (no headless Chromium). 16GB VPS = trivial.
+#
+# ENGINE HISTORY (2026-07-04) — both real engines tried, NOWEB is the answer:
+#  1. NOWEB (Baileys, direct multi-device protocol): hard ~40s QR-scan window
+#     (2 refresh cycles) then force-fails, no Core-tier config extends it —
+#     real users missed it navigating dashboard->phone->WhatsApp->Linked
+#     Devices. FIX = procedure, not code: pre-stage the phone's scanner BEFORE
+#     clicking Start, so the whole flow takes <5s once triggered.
+#  2. WEBJS (Chromium+Puppeteer scraping WhatsApp Web's own frontend): QR
+#     never expires, BUT hit a confirmed unresolved upstream bug —
+#     "TypeError: window.require(...).Cmd.refreshQR is not a function" on
+#     every refresh cycle (WhatsApp changed an internal JS API, whatsapp-web.js
+#     hasn't patched it yet as of this image's build date 2026-06-27 — a fresh
+#     `docker pull` got the SAME image, confirming no upstream fix exists yet).
+#     Scanning never actually links while this is broken. REVERTED to NOWEB.
+#  Verdict: NOWEB's problem is a solvable timing/procedure issue; WEBJS's is
+#  an unpatched upstream bug we can't fix locally. NOWEB wins until WAHA ships
+#  a whatsapp-web.js update (re-try WEBJS then if NOWEB's window is ever a
+#  real blocker again — check `docker inspect devlikeapro/waha:latest
+#  --format '{{.Created}}'` for a newer build date first).
+# =============================================================================
+
+name: leadgen-waha
+
+services:
+  waha:
+    image: devlikeapro/waha:latest        # Core (free/GPL). NOT waha-plus (paywalled).
+    container_name: leadgen_waha
+    restart: unless-stopped
+    environment:
+      # --- API auth: app sends this as X-Api-Key on every call ---
+      # Fail closed: a predictable fallback would expose the local WAHA API if
+      # somebody starts this compose file before completing the secret setup.
+      WHATSAPP_API_KEY: "${WAHA_API_KEY:?WAHA_API_KEY must be set before starting WAHA}"
+      # --- Lightest engine: Baileys-based, no Chromium. Text + webhook + QR all
+      #     work. Reverted from WEBJS 2026-07-04 (see history above) — WEBJS
+      #     hit an unresolved upstream Cmd.refreshQR crash, QR never actually
+      #     linked. NOWEB's only downside (~40s scan window) is a procedure
+      #     fix: pre-stage the phone's scanner BEFORE clicking Start. ---
+      WHATSAPP_DEFAULT_ENGINE: "NOWEB"
+      # --- Auto-start the saved session on boot (-> SCAN_QR_CODE / WORKING) ---
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+      # --- Inbound -> app webhook (in-network; token-gated). 'message' = inbound texts. ---
+      # PORT NOTE (2026-07-14): app ke ANDAR uvicorn 8080 pe sunta hai
+      # (`--port ${PORT:-8080}`); host pe wo `8080/tcp -> 127.0.0.1:8000` publish hota
+      # hai. Isliye HOST se 8000 sahi hai par CONTAINER-to-container 8080 hi sahi hai.
+      # Yahan 8000 tha -> har inbound message pe ECONNREFUSED retry storm (15/15) +
+      # Jiya ke ledger me roz `integration_failed: whatsapp`. In-network = 8080.
+      WHATSAPP_HOOK_URL: "http://app:8080/api/wa/selfhost/webhook?token=${WAHA_WEBHOOK_TOKEN:?WAHA_WEBHOOK_TOKEN must be set before starting WAHA}"
+      WHATSAPP_HOOK_EVENTS: "message"
+      # Keep session store on disk so a restart doesn't force a re-scan.
+      WHATSAPP_FILES_FOLDER: "/app/.media"
+    volumes:
+      - waha_sessions:/app/.sessions
+      - waha_media:/app/.media
+    ports:
+      # localhost only, 3111 (NOT 3000 — Grafana owns 3000 on this VPS). App reaches WAHA
+      # in-network at waha:3000 regardless; this host port is just the optional dashboard
+      # (SSH tunnel). QR linking goes through the app at /api/wa/selfhost/qr, so this is optional.
+      - "127.0.0.1:3111:3000"
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+volumes:
+  waha_sessions:
+  waha_media:
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net

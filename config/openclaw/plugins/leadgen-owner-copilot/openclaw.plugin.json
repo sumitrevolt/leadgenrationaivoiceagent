@@ -1,0 +1,19 @@
+{
+  "id": "leadgen-owner-copilot",
+  "name": "LeadGen Owner Copilot",
+  "description": "Typed Owner Copilot commands via LeadGen Owner OS — no shell/SQL/DB",
+  "contracts": {
+    "tools": ["leadgen_owner_command"]
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "baseUrl": { "type": "string" },
+      "timeoutSeconds": { "type": "number" }
+    }
+  }
+}

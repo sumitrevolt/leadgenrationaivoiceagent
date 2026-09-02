@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#2563eb">
+<title>LeadGen AI — Analytics</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<!-- Chart.js is optional UI enhancement. The local copy is preferred, while
+     the remote copies keep older images/browser caches from breaking charts. -->
+<script>
+(function(){
+  var sources=[
+    "/design-system/vendor/chart.umd.js",
+    "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"
+  ];
+  window.__chartReady=new Promise(function(resolve){
+    function load(index){
+      if(typeof Chart!=="undefined"){ resolve(true); return; }
+      if(index>=sources.length){ resolve(false); return; }
+      var script=document.createElement("script");
+      script.src=sources[index]; script.async=true;
+      script.onload=function(){
+        if(typeof Chart!=="undefined") resolve(true); else load(index+1);
+      };
+      script.onerror=function(){ load(index+1); };
+      document.head.appendChild(script);
+    }
+    load(0);
+  });
+})();
+</script>
+<style>
+  :root{--pri:#2563eb;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:#0b1020;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:18px;margin:0;}
+  header .sp{flex:1;}
+  header input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:13px;width:230px;}
+  header button{padding:8px 12px;border:0;border-radius:8px;background:var(--pri);color:#fff;font-weight:600;cursor:pointer;}
+  .wrap{max-width:1100px;margin:18px auto;padding:0 16px;}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+  .kpi{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+  .kpi b{display:block;font-size:26px;}
+  .kpi span{font-size:12px;color:var(--mut);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:760px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+  .card h3{margin:0 0 12px;font-size:15px;}
+  .err{color:#b91c1c;font-size:13px;}
+  .funnel div{display:flex;justify-content:space-between;padding:9px 12px;border-radius:8px;margin-bottom:6px;color:#fff;font-weight:600;font-size:14px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Analytics</h1>
+  <div class="sp"></div>
+  <input id="tok" type="password" placeholder="Admin token (paste once)" />
+  <button id="reload">Reload</button>
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
+</header>
+<div class="wrap">
+  <div class="err" id="err"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="card"><h3>Lead funnel</h3><div class="funnel" id="funnel"></div></div>
+    <div class="card"><h3>Prospects by status</h3><canvas id="cStatus" height="170"></canvas></div>
+    <div class="card"><h3>Leads by source</h3><canvas id="cSource" height="170"></canvas></div>
+    <div class="card"><h3>Calls by outcome</h3><canvas id="cOutcome" height="170"></canvas></div>
+  </div>
+</div>
+<script>
+(function(){
+  var tokEl=document.getElementById("tok"), err=document.getElementById("err");
+  tokEl.value = localStorage.getItem("accessToken") || "";
+  var charts={};
+  function hdr(){ var t=(tokEl.value||"").trim(); if(t) localStorage.setItem("accessToken",t);
+    return t ? {"Authorization":"Bearer "+t} : {}; }
+  async function getJSON(url){ try{ var r=await fetch(url,{headers:hdr()}); return r.ok? await r.json():null; }catch(e){ return null; } }
+  function kpi(label,val){ return '<div class="kpi"><b>'+(val!=null?val:0)+'</b><span>'+label+'</span></div>'; }
+  function inr(p){ return '₹'+Math.round((p||0)/100).toLocaleString('en-IN'); }
+  function pie(id,labels,data,colors){
+    if(charts[id]) charts[id].destroy();
+    var el=document.getElementById(id); if(!el) return;
+    charts[id]=new Chart(el,{type:'doughnut',data:{labels:labels,datasets:[{data:data,backgroundColor:colors}]},
+      options:{plugins:{legend:{position:'bottom'}}}});
+  }
+  function bar(id,labels,data){
+    if(charts[id]) charts[id].destroy();
+    var el=document.getElementById(id); if(!el) return;
+    charts[id]=new Chart(el,{type:'bar',data:{labels:labels,datasets:[{data:data,backgroundColor:'#2563eb'}]},
+      options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+  }
+  async function load(){
+    if(typeof Chart==="undefined"){
+      if(window.__chartReady && !load._queued){
+        load._queued=true;
+        window.__chartReady.then(function(ok){
+          load._queued=false;
+          if(ok) load();
+          else err.textContent="Charts unavailable; KPI cards remain available.";
+        });
+      }
+      return;
+    }
+    err.textContent="Loading…";
+    var s = await getJSON("/api/admin/live-stats") || {};
+    if(!Object.keys(s).length){ err.textContent="Stats load nahi hue — admin token sahi hai? (top-right paste karo)"; }
+    else err.textContent="";
+    document.getElementById("kpis").innerHTML =
+      kpi("Inquiries", s.inquiries_total) + kpi("Prospects", s.total_prospects) +
+      kpi("Clients (active)", s.marketing_clients_active) + kpi("Est. MRR", inr(s.estimated_mrr)) +
+      kpi("Emails sent", s.emails_sent) + kpi("Content made", s.content_items_generated) +
+      kpi("Blog articles", s.blog_articles) + kpi("Calls today", s.calls_today);
+    // funnel
+    var stages=[["Inquiries",s.inquiries_total||0,"#2563eb"],["Prospects",s.total_prospects||0,"#7c3aed"],
+      ["Clients",s.marketing_clients||0,"#0ea5e9"],["Active clients",s.marketing_clients_active||0,"#1f7a3d"]];
+    document.getElementById("funnel").innerHTML = stages.map(function(x){
+      return '<div style="background:'+x[2]+'"><span>'+x[0]+'</span><span>'+x[1]+'</span></div>'; }).join("");
+    // prospects by status
+    var pbs=s.prospects_by_status||{}; var sl=Object.keys(pbs);
+    pie("cStatus", sl.length?sl:["none"], sl.length?sl.map(function(k){return pbs[k];}):[1],
+        ["#2563eb","#7c3aed","#0ea5e9","#1f7a3d","#f59e0b","#ef4444"]);
+    // leads by source (analytics endpoint, graceful)
+    var src = await getJSON("/api/analytics/leads/by-source");
+    if(src){ var arr=Array.isArray(src)?src:(src.data||src.items||Object.entries(src).map(function(e){return {label:e[0],value:e[1]};}));
+      bar("cSource", arr.map(function(x){return x.label||x.source||x.name||"?";}), arr.map(function(x){return x.value||x.count||0;})); }
+    else bar("cSource",["no data"],[0]);
+    // calls by outcome (graceful)
+    var oc = await getJSON("/api/analytics/calls/by-outcome");
+    if(oc){ var oa=Array.isArray(oc)?oc:(oc.data||Object.entries(oc).map(function(e){return {label:e[0],value:e[1]};}));
+      pie("cOutcome", oa.map(function(x){return x.label||x.outcome||"?";}), oa.map(function(x){return x.value||x.count||0;}),
+        ["#1f7a3d","#2563eb","#f59e0b","#ef4444","#7c3aed","#0ea5e9","#64748b"]); }
+    else pie("cOutcome",["no calls yet"],[1],["#cbd5e1"]);
+  }
+  document.getElementById("reload").addEventListener("click", load);
+  load();
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

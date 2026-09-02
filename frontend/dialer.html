@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>LeadGen AI — Dialer</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:16px;max-width:680px;margin:auto}
+h1{font-size:1.25rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:12px}
+input,textarea,select{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:7px 10px;border-radius:8px}
+#tok{width:240px}
+button{background:var(--acc);border:0;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;margin:3px}
+button.sec{background:#222636}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px}
+.biz{font-size:1.2rem;font-weight:700} .meta{color:var(--mut);font-size:.85rem;margin:4px 0 10px}
+.pitch{background:#11141d;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.85rem;white-space:pre-wrap;margin-bottom:10px}
+.act a{display:inline-block;background:#123524;color:var(--ok);padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600;margin:3px}
+.disp button{font-size:.85rem}
+.d-int{background:#123524!important;color:var(--ok)} .d-cb{background:#2a2410!important;color:var(--warn)}
+.d-na{background:#222636!important} .d-wn{background:#2c1820!important;color:var(--bad)} .d-ni{background:#2c1820!important;color:var(--bad)}
+#notes{width:100%;min-height:50px;margin-top:8px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.st{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;text-align:center}
+.st b{display:block;font-size:1.2rem}
+.mut{color:var(--mut);font-size:.8rem}
+.filters{margin-top:8px}
+.filters input{width:130px;margin-right:4px}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>📞 Dialer Mode</h1>
+<div class="sub">Ek-ek lead, click-to-call, disposition — telecaller productivity (NeoDove-style, AAPKE staff ke liye). Calls AAP karte ho — system sirf queue + log.</div>
+<div>
+  <input id="tok" type="password" placeholder="Admin token (login se auto)">
+  <button onclick="saveTok()" class="sec">Save</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem">login →</a>
+</div>
+<div class="filters">
+  <input id="f-niche" placeholder="niche (optional)">
+  <input id="f-city" placeholder="city (optional)">
+  <select id="f-status"><option value="ready">ready</option><option value="sent">sent</option><option value="">sab</option></select>
+  <button class="sec" onclick="loadQueue()">▶ Queue load</button>
+</div>
+<div class="card" id="lead"><div class="mut">Queue load karo — upar ▶ button.</div></div>
+<div class="stats" id="stats"></div>
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());loadQueue()}
+async function api(p,opt){const r=await fetch(p,Object.assign({headers:{Authorization:'Bearer '+tok(),'Content-Type':'application/json'}},opt||{}));if(!r.ok)throw new Error(r.status);return r.json()}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+let queue=[],idx=0;
+async function loadQueue(){
+  try{
+    const q=new URLSearchParams({niche:$('f-niche').value.trim(),city:$('f-city').value.trim(),status:$('f-status').value,limit:'100'});
+    const d=await api('/api/growth/prospects/search?'+q.toString());
+    queue=(Array.isArray(d)?d:(d.prospects||[])).filter(p=>p.phone);
+    idx=0;
+    if(!queue.length){$('lead').innerHTML='<div class="mut">Is filter pe koi phone-wala lead nahi. Filter badlo.</div>';return}
+    show();loadStats();
+  }catch(e){$('lead').innerHTML='<div class="mut">Token chahiye ('+esc(e.message)+') — upar save karo.</div>'}
+}
+function digits(p){const d=String(p||'').replace(/\D/g,'');return d.slice(-10)}
+function show(){
+  if(idx>=queue.length){$('lead').innerHTML='<div class="biz">🎉 Queue khatam!</div><div class="mut">Naya filter lagao ya kal continue karo.</div>';loadStats();return}
+  const p=queue[idx],ph=digits(p.phone);
+  $('lead').innerHTML=`
+    <div class="mut">Lead ${idx+1} / ${queue.length}</div>
+    <div class="biz">${esc(p.business_name||'?')}</div>
+    <div class="meta">${esc(p.niche||'')} · ${esc(p.city||'')} ${p.rating?('· ⭐'+p.rating):''} ${p.score?('· score '+p.score):''}<br>📱 +91 ${ph}</div>
+    ${p.pitch?`<div class="pitch">${esc(p.pitch)}</div>`:''}
+    <div class="act">
+      <a href="tel:+91${ph}">📞 Call karo</a>
+      <a href="https://wa.me/91${ph}${p.pitch?'?text='+encodeURIComponent(p.pitch):''}" target="_blank">🟢 WhatsApp</a>
+      <button class="sec" onclick="prep('${ph}')">📋 Prep</button>
+    </div>
+    <div id="prep" class="pitch" style="display:none"></div>
+    <textarea id="notes" placeholder="Notes (kya baat hui…)"></textarea>
+    <div class="disp">
+      <button class="d-int" onclick="disp('interested')">😊 Interested</button>
+      <button class="d-cb" onclick="disp('callback')">🔁 Callback</button>
+      <button class="d-na" onclick="disp('no-answer')">📵 No answer</button>
+      <button class="d-wn" onclick="disp('wrong-number')">❌ Wrong no.</button>
+      <button class="d-ni" onclick="disp('not-interested')">🙅 Not interested</button>
+      <button class="sec" onclick="idx++;show()">⏭ Skip</button>
+    </div>
+    <div id="dmsg" class="mut"></div>`;
+}
+async function disp(d){
+  const p=queue[idx];
+  try{
+    const r=await api('/api/seoops/dialer/disposition',{method:'POST',body:JSON.stringify({phone:p.phone,disposition:d,notes:$('notes').value.trim()})});
+    if(r.ok){idx++;show();loadStats()}else{$('dmsg').textContent='❌ '+(r.error||'fail')}
+  }catch(e){$('dmsg').textContent='❌ '+e.message}
+}
+async function prep(ph){
+  const el=$('prep');if(!el)return;
+  el.style.display='block';el.textContent='⏳ Brief ban raha (call history + AI)…';
+  try{
+    const r=await api('/api/memory/prep?phone='+encodeURIComponent(ph));
+    if(!r.ok){el.textContent='❌ '+(r.error||'prep fail');return}
+    const b=r.brief||{};
+    let h='<b>📋 '+esc(b.kaun_hai||'')+'</b>'+(r.score?(' · score '+r.score):'')+(r.memory_found?' · 🧠 memory':'')+'\n';
+    if(b.history_summary)h+='\n🕘 '+esc(b.history_summary)+'\n';
+    if((b.talking_points||[]).length)h+='\n🎯 Talking points:\n'+b.talking_points.map(t=>'• '+esc(t)).join('\n')+'\n';
+    if((b.objections||[]).length)h+='\n🛡️ Objections:\n'+b.objections.map(o=>'• "'+esc(o.objection)+'" → '+esc(o.jawab)).join('\n')+'\n';
+    if(b.next_action)h+='\n➡️ '+esc(b.next_action);
+    if(b.best_time_hint)h+='\n⏰ '+esc(b.best_time_hint);
+    el.innerHTML=h.replace(/\n/g,'<br>');
+  }catch(e){el.textContent='❌ '+e.message}
+}
+async function loadStats(){
+  try{
+    const s=await api('/api/seoops/dialer/stats');
+    const by=s.by_disposition||{};
+    $('stats').innerHTML=`<div class="st"><b>${s.total_calls||0}</b><span class="mut">aaj total</span></div>`+
+      Object.entries(by).map(([k,v])=>`<div class="st"><b>${v}</b><span class="mut">${esc(k)}</span></div>`).join('');
+  }catch(e){}
+}
+$('tok').value=tok();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body></html>

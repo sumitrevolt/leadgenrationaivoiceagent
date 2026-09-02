@@ -1,0 +1,83 @@
+# Prometheus scrape config for the LeadGen stack.
+# The app already exposes Prometheus-format metrics at /metrics (app/api/health.py).
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+# Alert rules (availability / latency / errors / resources).
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+# Send firing alerts to Alertmanager (added in docker-compose.observability.yml).
+# Alertmanager na chale to Prometheus bas warn karta — scrape/rules chalte rehte.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["leadgen_alertmanager:9093"]
+
+scrape_configs:
+  - job_name: leadgen-app
+    metrics_path: /metrics
+    static_configs:
+      # container_name from docker-compose.vps.yml, reachable on the shared network
+      - targets: ["leadgen_app:8080"]
+    # /metrics is open by default (no auth) — safe on this internal Docker network
+    # since Prometheus has no token configured below. If you arm METRICS_TOKEN in
+    # the app's .env (production audit 2026-07-01: locks down external exposure of
+    # real business/operational counts), this scrape needs the SAME value or it
+    # will start getting 401s. Prometheus doesn't support env-var substitution in
+    # this file, and the value must never be committed here (secrets = .env only)
+    # — use `bearer_token_file: /run/secrets/metrics_token` pointing at a file
+    # populated from METRICS_TOKEN at container start, or an untracked local
+    # override, not a literal value in this tracked file.
+    # bearer_token_file: /run/secrets/metrics_token
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["leadgen_alertmanager:9093"]
+
+  # --- Infra exporters (audit infra-upgrade) — USE metrics ---
+  # Host (CPU/mem/disk/load) + per-container (cAdvisor) volatile → 10s scrape.
+  - job_name: node
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["leadgen_node_exporter:9100"]
+
+  - job_name: cadvisor
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["leadgen_cadvisor:8080"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["leadgen_pg_exporter:9187"]
+
+  - job_name: redis            # main redis (noeviction) — broker/state
+    static_configs:
+      - targets: ["leadgen_redis_exporter:9121"]
+
+  - job_name: redis-cache      # cache redis (allkeys-lru)
+    static_configs:
+      - targets: ["leadgen_redis_exporter_cache:9121"]
+
+  # --- Celery exporters (deploy/compose/docker-compose.addons.yml) — DISABLED 2026-07-14 ------
+  # Purana comment ("graceful: missing target = Prometheus bas warn karta") GALAT
+  # tha: `alert_rules.yml` ka PrometheusTargetMissing `up == 0` pe fire karta hai,
+  # job exist kare ya na kare. `deploy/compose/docker-compose.addons.yml` VPS pe deploy NAHI hai,
+  # isliye leadgen_celery_exporter/leadgen_flower kabhi up nahi hue -> 2 alert
+  # 2026-07-09 se PERMANENTLY firing -> alert fatigue (asli alert dab jata).
+  # Addons deploy karo tab in dono blocks ko wapas uncomment kar dena.
+  # - job_name: celery
+  #   scrape_interval: 15s
+  #   static_configs:
+  #     - targets: ["leadgen_celery_exporter:9808"]
+  #
+  # - job_name: flower
+  #   metrics_path: /metrics
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets: ["leadgen_flower:5555"]

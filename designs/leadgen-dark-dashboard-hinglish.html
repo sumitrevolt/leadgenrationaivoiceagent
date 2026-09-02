@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadGen AI — Customer Dashboard (Hinglish, Dark Premium)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   LeadGen AI — Dark Premium design tokens
+   Brand indigo→violet preserved. Surfaces re-skinned to dark.
+   ============================================================ */
+:root{
+  /* Brand (unchanged from design-system/tokens/colors.css) */
+  --indigo-400:#818cf8; --indigo-500:#6366f1; --indigo-600:#4f46e5;
+  --violet-400:#a78bfa; --violet-500:#7c3aed; --violet-600:#6d28d9;
+  --violet-800:#4c1d95; --violet-900:#2e1065;
+
+  --grad-brand: linear-gradient(135deg,#4f46e5 0%,#8b5cf6 100%);
+  --grad-brand-soft: linear-gradient(135deg, rgba(79,70,229,.20), rgba(139,92,246,.14));
+  --grad-sidebar: linear-gradient(180deg,#1c1040 0%,#12102a 58%,#0c0b1a 100%);
+
+  /* Dark surfaces */
+  --bg-base:#07070f;
+  --bg-canvas:#0b0b16;
+  --surface:#12121f;
+  --surface-2:#171826;
+  --surface-3:#1d1e2e;
+  --surface-hover:#20212f;
+
+  --line: rgba(255,255,255,.07);
+  --line-strong: rgba(255,255,255,.13);
+
+  /* Text */
+  --text-1:#f3f4fb;
+  --text-2:#a7a9c2;
+  --text-3:#6f7189;
+
+  /* Lead temperature (signature semantic scale — preserved) */
+  --hot:#ff5a5a;   --hot-soft: rgba(255,90,90,.14);
+  --warm:#f5a524;  --warm-soft: rgba(245,165,36,.14);
+  --cold:#3b82f6;  --cold-soft: rgba(59,130,246,.14);
+  --success:#22c55e; --success-soft: rgba(34,197,94,.14);
+  --whatsapp:#22c55e;
+
+  /* Radii */
+  --r-xs:6px; --r-sm:9px; --r-md:12px; --r-lg:14px; --r-xl:18px; --r-2xl:24px; --r-pill:999px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.65);
+  --shadow-pop: 0 20px 48px -16px rgba(0,0,0,.75);
+  --shadow-brand: 0 14px 34px -12px rgba(99,102,241,.55);
+
+  --font-display:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+
+  --sb-w:248px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg-base);
+  color:var(--text-1);
+  font-family:var(--font-body);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* Ambient brand glow */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(760px 480px at 8% -8%, rgba(124,58,237,.20), transparent 62%),
+    radial-gradient(680px 420px at 92% 4%, rgba(79,70,229,.16), transparent 60%),
+    radial-gradient(900px 520px at 62% 108%, rgba(139,92,246,.09), transparent 62%);
+}
+
+.app{position:relative;z-index:1;display:flex;min-height:100vh}
+
+/* ============================ SIDEBAR ============================ */
+.sidebar{
+  width:var(--sb-w);flex:0 0 var(--sb-w);
+  background:var(--grad-sidebar);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;
+}
+.brand{display:flex;align-items:center;gap:11px;padding:22px 20px 20px}
+.brand-mark{
+  width:34px;height:34px;border-radius:10px;flex:0 0 34px;
+  background:var(--grad-brand);
+  display:grid;place-items:center;
+  box-shadow:var(--shadow-brand);
+}
+.brand-name{font-family:var(--font-display);font-weight:800;font-size:15.5px;letter-spacing:-.02em}
+.brand-sub{font-size:10.5px;color:var(--text-3);letter-spacing:.07em;text-transform:uppercase;margin-top:1px}
+
+.nav{padding:6px 12px 0;display:flex;flex-direction:column;gap:2px;flex:1}
+.nav-label{
+  font-size:10px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+  color:#5c5b7d;padding:16px 10px 7px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:9px 11px;border-radius:10px;
+  color:#9b9bbd;font-size:13.5px;font-weight:500;
+  text-decoration:none;position:relative;
+  transition:background .16s ease,color .16s ease;
+}
+.nav-item svg{width:17px;height:17px;flex:0 0 17px;opacity:.85}
+.nav-item:hover{background:rgba(255,255,255,.055);color:#dcdcee}
+.nav-item.active{background:var(--grad-brand-soft);color:#fff;font-weight:600}
+.nav-item.active svg{opacity:1;color:var(--violet-400)}
+.nav-item.active::before{
+  content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;
+  background:var(--grad-brand);border-radius:0 3px 3px 0;
+  box-shadow:0 0 14px 1px rgba(139,92,246,.75);
+}
+.nav-badge{
+  margin-left:auto;font-size:10.5px;font-weight:700;
+  background:rgba(255,255,255,.10);color:#cbcbe4;
+  padding:2px 7px;border-radius:var(--r-pill);
+}
+.nav-item.active .nav-badge{background:rgba(139,92,246,.30);color:#e5dfff}
+
+.side-foot{padding:12px;border-top:1px solid var(--line);margin-top:auto}
+.mini-card{
+  background:linear-gradient(140deg, rgba(124,58,237,.20), rgba(79,70,229,.10));
+  border:1px solid rgba(167,139,250,.22);
+  border-radius:var(--r-lg);padding:13px;
+}
+.mini-card h4{font-family:var(--font-display);font-size:12.5px;font-weight:700;margin-bottom:3px}
+.mini-card p{font-size:11.5px;color:#a6a6c6;line-height:1.5;margin-bottom:10px}
+.mini-bar{height:5px;border-radius:var(--r-pill);background:rgba(255,255,255,.10);overflow:hidden}
+.mini-bar i{display:block;height:100%;width:68%;background:var(--grad-brand);border-radius:inherit}
+.mini-meta{display:flex;justify-content:space-between;font-size:10.5px;color:#9d9dbd;margin-top:7px}
+
+/* ============================ MAIN / TOPBAR ============================ */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+.topbar{
+  position:sticky;top:0;z-index:20;
+  height:66px;flex:0 0 66px;
+  display:flex;align-items:center;gap:14px;
+  padding:0 26px;
+  background:rgba(11,11,22,.72);
+  backdrop-filter:blur(18px) saturate(150%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  border-bottom:1px solid var(--line);
+}
+.search{
+  display:flex;align-items:center;gap:9px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:0 12px;height:38px;width:290px;
+  transition:border-color .16s ease, box-shadow .16s ease;
+}
+.search:focus-within{border-color:rgba(139,92,246,.55);box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+.search svg{width:15px;height:15px;color:var(--text-3);flex:0 0 15px}
+.search input{
+  background:none;border:none;outline:none;color:var(--text-1);
+  font-family:var(--font-body);font-size:13px;width:100%;
+}
+.search input::placeholder{color:var(--text-3)}
+.search kbd{
+  font-family:var(--font-body);font-size:10px;color:var(--text-3);
+  border:1px solid var(--line-strong);border-radius:5px;padding:2px 5px;
+}
+
+.spacer{flex:1}
+
+.pill{
+  display:flex;align-items:center;gap:8px;height:36px;padding:0 13px;
+  border-radius:var(--r-pill);font-size:12.5px;font-weight:500;
+  background:var(--surface);border:1px solid var(--line);color:var(--text-2);
+  white-space:nowrap;
+}
+.pill.live{border-color:rgba(34,197,94,.30);background:rgba(34,197,94,.09);color:#86efac}
+.pill svg{width:15px;height:15px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--success);flex:0 0 7px}
+.dot.pulse{box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite}
+@keyframes pulse{
+  70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
+}
+
+.icon-btn{
+  width:36px;height:36px;border-radius:var(--r-md);
+  background:var(--surface);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--text-2);
+  position:relative;cursor:pointer;transition:background .16s ease,color .16s ease;
+}
+.icon-btn:hover{background:var(--surface-hover);color:var(--text-1)}
+.icon-btn svg{width:17px;height:17px}
+.notif-dot{
+  position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;
+  background:var(--hot);border:2px solid var(--surface);
+}
+.avatar{
+  width:36px;height:36px;border-radius:var(--r-pill);flex:0 0 36px;
+  background:var(--grad-brand);display:grid;place-items:center;
+  font-family:var(--font-display);font-weight:700;font-size:13px;color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.14), 0 6px 16px -6px rgba(99,102,241,.8);
+  cursor:pointer;
+}
+
+/* ============================ CONTENT ============================ */
+.content{padding:26px;display:flex;flex-direction:column;gap:20px;max-width:1520px;width:100%}
+
+.page-head{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+.page-head h1{
+  font-family:var(--font-display);font-size:25px;font-weight:800;letter-spacing:-.025em;line-height:1.2;
+}
+.page-head p{color:var(--text-3);font-size:13px;margin-top:5px}
+.head-actions{display:flex;gap:9px;margin-left:auto;align-items:center}
+
+.btn{
+  display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;
+  border-radius:var(--r-md);font-family:var(--font-body);font-size:13px;font-weight:600;
+  border:1px solid var(--line-strong);background:var(--surface);color:var(--text-2);
+  cursor:pointer;white-space:nowrap;transition:background .16s ease,color .16s ease,transform .16s ease;
+}
+.btn:hover{background:var(--surface-hover);color:var(--text-1)}
+.btn svg{width:15px;height:15px}
+.btn-primary{
+  background:var(--grad-brand);border-color:transparent;color:#fff;
+  box-shadow:var(--shadow-brand);
+}
+.btn-primary:hover{transform:translateY(-1px);color:#fff;filter:brightness(1.07)}
+
+/* ---- KPI row ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{
+  background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--line);
+  border-radius:var(--r-xl);
+  box-shadow:var(--shadow-card);
+  position:relative;overflow:hidden;
+}
+.card::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.045), transparent 46%);
+}
+.kpi{padding:17px 18px 15px}
+.kpi-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.kpi-ico{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 34px;
+  background:var(--grad-brand-soft);border:1px solid rgba(139,92,246,.22);color:var(--violet-400);
+}
+.kpi-ico svg{width:16px;height:16px}
+.kpi-label{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.kpi-val{
+  font-family:var(--font-display);font-size:29px;font-weight:800;letter-spacing:-.03em;
+  margin-top:9px;line-height:1;
+}
+.kpi-val small{font-size:15px;font-weight:700;color:var(--text-3);margin-left:2px}
+.kpi-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}
+.delta{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11.5px;font-weight:700;border-radius:var(--r-pill);padding:3px 8px;
+}
+.delta.up{background:var(--success-soft);color:#4ade80}
+.delta.down{background:var(--hot-soft);color:#f87171}
+.delta svg{width:12px;height:12px}
+.kpi-note{font-size:11px;color:var(--text-3)}
+.spark{display:block}
+
+/* ---- Grids ---- */
+.grid-2{display:grid;grid-template-columns:1.62fr 1fr;gap:16px}
+.grid-2b{display:grid;grid-template-columns:1.62fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+.card-head{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 18px;border-bottom:1px solid var(--line);
+}
+.card-head h3{font-family:var(--font-display);font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+.card-head .sub{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.card-head .right{margin-left:auto;display:flex;gap:7px;align-items:center}
+.card-body{padding:16px 18px}
+
+.seg{display:flex;gap:2px;background:var(--surface-3);border-radius:var(--r-sm);padding:3px;border:1px solid var(--line)}
+.seg button{
+  border:none;background:none;color:var(--text-3);
+  font-family:var(--font-body);font-size:11.5px;font-weight:600;
+  padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .15s ease;
+}
+.seg button.on{background:var(--surface);color:var(--text-1);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+
+/* Legend */
+.legend{display:flex;gap:16px;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-2)}
+.legend i{width:8px;height:8px;border-radius:2.5px;flex:0 0 8px}
+
+/* Donut block */
+.donut-wrap{display:flex;align-items:center;gap:22px;padding:16px 18px}
+.donut{position:relative;flex:0 0 150px}
+.donut-center{
+  position:absolute;inset:0;display:grid;place-content:center;text-align:center;
+}
+.donut-center b{font-family:var(--font-display);font-size:27px;font-weight:800;letter-spacing:-.03em;display:block;line-height:1}
+.donut-center span{font-size:10.5px;color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+.temp-list{flex:1;display:flex;flex-direction:column;gap:11px;min-width:0}
+.temp-row{display:flex;align-items:center;gap:10px}
+.temp-row i{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.temp-row .nm{font-size:12.5px;color:var(--text-2);min-width:38px}
+.temp-row .bar{flex:1;height:6px;border-radius:var(--r-pill);background:rgba(255,255,255,.06);overflow:hidden}
+.temp-row .bar em{display:block;height:100%;border-radius:inherit}
+.temp-row .ct{font-family:var(--font-display);font-size:13px;font-weight:700;min-width:26px;text-align:right}
+.temp-row .pc{font-size:11px;color:var(--text-3);min-width:34px;text-align:right}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{
+  text-align:left;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--text-3);padding:11px 18px;border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.015);
+}
+.tbl td{padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.045);font-size:13px;vertical-align:middle}
+.tbl tbody tr{transition:background .14s ease}
+.tbl tbody tr:hover{background:rgba(255,255,255,.028)}
+.tbl tbody tr:last-child td{border-bottom:none}
+.lead{display:flex;align-items:center;gap:11px}
+.lead .ava{
+  width:32px;height:32px;border-radius:var(--r-pill);flex:0 0 32px;
+  display:grid;place-items:center;font-family:var(--font-display);font-size:11.5px;font-weight:700;color:#fff;
+}
+.lead .nm{font-weight:600;font-size:13px;line-height:1.3}
+.lead .meta{font-size:11px;color:var(--text-3);margin-top:1px}
+.temp{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:var(--r-pill);
+}
+.temp.hot{background:var(--hot-soft);color:#ff8a8a}
+.temp.warm{background:var(--warm-soft);color:#fbbf24}
+.temp.cold{background:var(--cold-soft);color:#7cb0ff}
+.temp i{width:6px;height:6px;border-radius:50%}
+.score{font-family:var(--font-display);font-weight:700;font-size:13px}
+.status{font-size:12px;color:var(--text-2)}
+.row-act{
+  display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+  color:var(--violet-400);background:none;border:none;cursor:pointer;padding:0;
+}
+.row-act:hover{color:#c4b5fd}
+.row-act svg{width:13px;height:13px}
+
+/* Plan card */
+.plan{padding:18px}
+.plan-top{display:flex;align-items:center;gap:12px}
+.plan-badge{
+  font-family:var(--font-display);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  padding:5px 10px;border-radius:var(--r-pill);background:var(--grad-brand);color:#fff;
+  box-shadow:var(--shadow-brand);
+}
+.plan-price{font-family:var(--font-display);font-size:32px;font-weight:800;letter-spacing:-.03em;margin-top:14px;line-height:1}
+.plan-price small{font-size:14px;font-weight:600;color:var(--text-3)}
+.plan-note{font-size:12px;color:var(--text-3);margin-top:6px}
+.gauge{margin-top:18px}
+.gauge-head{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-2);margin-bottom:8px}
+.gauge-track{height:8px;border-radius:var(--r-pill);background:rgba(255,255,255,.07);overflow:hidden}
+.gauge-track i{
+  display:block;height:100%;border-radius:inherit;background:var(--grad-brand);
+  box-shadow:0 0 16px rgba(99,102,241,.65);
+}
+.gauge-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-top:7px}
+.plan-actions{display:flex;gap:8px;margin-top:16px}
+.plan-actions .btn{flex:1;justify-content:center}
+.feature-list{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+.feature-list div{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-2)}
+.feature-list svg{width:14px;height:14px;color:var(--success);flex:0 0 14px}
+
+/* AI team */
+.team{display:flex;flex-direction:column;gap:2px;padding:12px}
+.member{
+  display:flex;align-items:center;gap:11px;padding:10px;border-radius:var(--r-md);
+  transition:background .15s ease;
+}
+.member:hover{background:var(--surface-hover)}
+.member .ava{
+  width:34px;height:34px;border-radius:10px;flex:0 0 34px;display:grid;place-items:center;
+  font-family:var(--font-display);font-size:12px;font-weight:800;color:#fff;
+}
+.member .nm{font-size:13px;font-weight:600;line-height:1.3}
+.member .rl{font-size:11px;color:var(--text-3);margin-top:2px}
+.member .st{margin-left:auto;text-align:right}
+.member .st b{display:block;font-family:var(--font-display);font-size:12.5px;font-weight:700}
+.member .st span{font-size:10.5px;color:var(--text-3)}
+.state{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:var(--r-pill)}
+.state.live{background:var(--success-soft);color:#4ade80}
+.state.idle{background:rgba(255,255,255,.07);color:var(--text-3)}
+.state.busy{background:var(--warm-soft);color:#fbbf24}
+
+/* Activity feed */
+.feed{padding:8px 18px 14px}
+.feed-item{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+.feed-item:last-child{border-bottom:none}
+.feed-ico{
+  width:30px;height:30px;border-radius:9px;flex:0 0 30px;display:grid;place-items:center;
+  border:1px solid var(--line);background:var(--surface-3);
+}
+.feed-ico svg{width:14px;height:14px}
+.feed-body{flex:1;min-width:0}
+.feed-body p{font-size:12.5px;color:var(--text-2);line-height:1.5}
+.feed-body p b{color:var(--text-1);font-weight:600}
+.feed-body time{font-size:11px;color:var(--text-3);display:block;margin-top:3px}
+
+/* Responsive */
+@media (max-width:1240px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid-2,.grid-2b{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+}
+@media (max-width:900px){
+  .sidebar{display:none}
+  .grid-3{grid-template-columns:1fr}
+  .search{width:180px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== ICON SPRITE ===================== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <g id="i-grid"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></g>
+  <g id="i-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g>
+  <g id="i-phone"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></g>
+  <g id="i-mega"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></g>
+  <g id="i-file"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></g>
+  <g id="i-chart"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12.5" y="8" width="3" height="10" rx="1"/><rect x="18" y="5" width="2.6" height="13" rx="1"/></g>
+  <g id="i-zap"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></g>
+  <g id="i-cog"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></g>
+  <g id="i-search"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></g>
+  <g id="i-bell"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></g>
+  <g id="i-down"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></g>
+  <g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+  <g id="i-up-right"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></g>
+  <g id="i-trend"><path d="M22 7 13.5 15.5l-5-5L2 17"/><path d="M16 7h6v6"/></g>
+  <g id="i-clock"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g>
+  <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+  <g id="i-spark"><path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></g>
+  <g id="i-bolt"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0 6h-1.5"/><path d="M4 15h4l-2 6"/></g>
+</defs>
+</svg>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <use href="#i-zap"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">LeadGen AI</div>
+        <div class="brand-sub">Growth Console</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Workspace</div>
+      <a class="nav-item active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-grid"/></svg> Dashboard</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg> Leads <span class="nav-badge">148</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg> Voice Agent</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-mega"/></svg> Campaigns <span class="nav-badge">6</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg> Content Studio</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chart"/></svg> Reports</a>
+
+      <div class="nav-label">Automations</div>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg> Mission Control</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg> AI Team</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg> Integrations</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-cog"/></svg> Settings</a>
+    </nav>
+
+    <div class="side-foot">
+      <div class="mini-card">
+        <h4>Voice minutes</h4>
+        <p>Is cycle me 500 me se 342 minutes used.</p>
+        <div class="mini-bar"><i></i></div>
+        <div class="mini-meta"><span>68% used</span><span>1 Sep ko reset</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-search"/></svg>
+        <input type="text" placeholder="Leads, calls, campaigns dhoondo…" />
+        <kbd>⌘K</kbd>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="pill live">
+        <span class="dot pulse"></span>
+        Voice Agent live · 2 call par
+      </div>
+
+      <div class="icon-btn" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bell"/></svg>
+        <span class="notif-dot"></span>
+      </div>
+
+      <div class="avatar" title="Jiya Makeover">JM</div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Page head -->
+      <div class="page-head">
+        <div>
+          <h1>Suprabhat, Jiya 👋</h1>
+          <p>Jiya Makeover · Mumbai · Salon &amp; Bridal Studio — aaj kya hua, yahan dikh raha hai.</p>
+        </div>
+        <div class="head-actions">
+          <div class="seg">
+            <button>24 ghante</button>
+            <button class="on">7 din</button>
+            <button>30 din</button>
+          </div>
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-down"/></svg> Export</button>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg> New Campaign</button>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <section class="kpis">
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Naye Leads</div>
+              <div class="kpi-val">148</div>
+            </div>
+            <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg></div>
+          </div>
+          <div class="kpi-foot">
+            <span class="delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trend"/></svg> 24.3%</span>
+            <svg class="spark" width="62" height="26" viewBox="0 0 62 26" fill="none">
+              <path d="M2 20 L12 16 L22 18 L32 11 L42 13 L52 6 L60 4" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Calls Judh Gaye</div>
+              <div class="kpi-val">312</div>
+            </div>
+            <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg></div>
+          </div>
+          <div class="kpi-foot">
+            <span class="delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trend"/></svg> 11.8%</span>
+            <svg class="spark" width="62" height="26" viewBox="0 0 62 26" fill="none">
+              <path d="M2 18 L12 20 L22 13 L32 15 L42 9 L52 10 L60 5" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Avg Baat Time</div>
+              <div class="kpi-val">3<small>m 42s</small></div>
+            </div>
+            <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-clock"/></svg></div>
+          </div>
+          <div class="kpi-foot">
+            <span class="delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trend"/></svg> 18s</span>
+            <span class="kpi-note">har connected lead par</span>
+          </div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Lead → Booking</div>
+              <div class="kpi-val">18.4<small>%</small></div>
+            </div>
+            <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chart"/></svg></div>
+          </div>
+          <div class="kpi-foot">
+            <span class="delta down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trend"/></svg> 1.2pp</span>
+            <span class="kpi-note">27 bookings</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Call activity + Lead temperature -->
+      <section class="grid-2">
+
+        <!-- Call activity -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Call Activity</h3>
+              <div class="sub">Outbound AI calls vs. connected — pichhle 7 din</div>
+            </div>
+            <div class="right">
+              <div class="legend">
+                <span><i style="background:#8b5cf6"></i> Placed</span>
+                <span><i style="background:#22c55e"></i> Connected</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-body" style="padding:14px 10px 8px">
+            <svg viewBox="0 0 720 200" width="100%" height="212" preserveAspectRatio="none" role="img" aria-label="Call activity chart">
+              <defs>
+                <linearGradient id="gPlaced" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#8b5cf6" stop-opacity=".42"/>
+                  <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="gConn" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#22c55e" stop-opacity=".30"/>
+                  <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+
+              <!-- grid -->
+              <g stroke="rgba(255,255,255,.055)" stroke-width="1">
+                <line x1="0" y1="176" x2="720" y2="176"/>
+                <line x1="0" y1="134.5" x2="720" y2="134.5"/>
+                <line x1="0" y1="93" x2="720" y2="93"/>
+                <line x1="0" y1="51.5" x2="720" y2="51.5"/>
+                <line x1="0" y1="10" x2="720" y2="10"/>
+              </g>
+
+              <!-- Placed -->
+              <path d="M20 106.3 Q133.3 79.7 190 85.5 Q246.7 91.3 303.35 72.25 Q360 53.2 416.65 58.15 Q473.3 63.1 530 44 Q586.7 24.9 643.35 29.05 L700 33.2 L700 176 L20 176 Z" fill="url(#gPlaced)"/>
+              <path d="M20 106.3 Q133.3 79.7 190 85.5 Q246.7 91.3 303.35 72.25 Q360 53.2 416.65 58.15 Q473.3 63.1 530 44 Q586.7 24.9 643.35 29.05 L700 33.2" fill="none" stroke="#8b5cf6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+              <!-- Connected -->
+              <path d="M20 141.1 Q133.3 126.2 190 129.5 Q246.7 132.8 303.35 120.35 Q360 107.9 416.65 110.4 Q473.3 112.9 530 98.8 Q586.7 84.7 643.35 87.2 L700 89.7 L700 176 L20 176 Z" fill="url(#gConn)"/>
+              <path d="M20 141.1 Q133.3 126.2 190 129.5 Q246.7 132.8 303.35 120.35 Q360 107.9 416.65 110.4 Q473.3 112.9 530 98.8 Q586.7 84.7 643.35 87.2 L700 89.7" fill="none" stroke="#22c55e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+              <!-- points -->
+              <g fill="#12121f" stroke-width="2.4">
+                <g stroke="#8b5cf6">
+                  <circle cx="20" cy="106.3" r="3.6"/><circle cx="133.3" cy="79.7" r="3.6"/>
+                  <circle cx="246.7" cy="91.3" r="3.6"/><circle cx="360" cy="53.2" r="3.6"/>
+                  <circle cx="473.3" cy="63.1" r="3.6"/><circle cx="586.7" cy="24.9" r="3.6"/>
+                  <circle cx="700" cy="33.2" r="3.6"/>
+                </g>
+                <g stroke="#22c55e">
+                  <circle cx="20" cy="141.1" r="3.2"/><circle cx="133.3" cy="126.2" r="3.2"/>
+                  <circle cx="246.7" cy="132.8" r="3.2"/><circle cx="360" cy="107.9" r="3.2"/>
+                  <circle cx="473.3" cy="112.9" r="3.2"/><circle cx="586.7" cy="84.7" r="3.2"/>
+                  <circle cx="700" cy="89.7" r="3.2"/>
+                </g>
+              </g>
+            </svg>
+            <div style="display:flex;justify-content:space-between;padding:2px 12px 4px;font-size:11px;color:var(--text-3)">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lead temperature -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Lead Temperature</h3>
+              <div class="sub">AI ne 148 active leads ka score kiya</div>
+            </div>
+          </div>
+          <div class="donut-wrap">
+            <div class="donut">
+              <svg width="150" height="150" viewBox="0 0 150 150">
+                <g transform="rotate(-90 75 75)" fill="none" stroke-width="14" stroke-linecap="butt">
+                  <circle cx="75" cy="75" r="54" stroke="rgba(255,255,255,.055)"/>
+                  <circle cx="75" cy="75" r="54" stroke="#ff5a5a" stroke-dasharray="77.95 261.34" stroke-dashoffset="0"/>
+                  <circle cx="75" cy="75" r="54" stroke="#f5a524" stroke-dasharray="201.74 137.55" stroke-dashoffset="-77.95"/>
+                  <circle cx="75" cy="75" r="54" stroke="#3b82f6" stroke-dasharray="59.60 279.69" stroke-dashoffset="-279.69"/>
+                </g>
+              </svg>
+              <div class="donut-center">
+                <b>148</b>
+                <span>Leads</span>
+              </div>
+            </div>
+            <div class="temp-list">
+              <div class="temp-row">
+                <i style="background:#ff5a5a"></i>
+                <span class="nm">Garam</span>
+                <span class="bar"><em style="width:23%;background:#ff5a5a"></em></span>
+                <span class="ct">34</span><span class="pc">23%</span>
+              </div>
+              <div class="temp-row">
+                <i style="background:#f5a524"></i>
+                <span class="nm">Gunguna</span>
+                <span class="bar"><em style="width:59%;background:#f5a524"></em></span>
+                <span class="ct">88</span><span class="pc">59%</span>
+              </div>
+              <div class="temp-row">
+                <i style="background:#3b82f6"></i>
+                <span class="nm">Thanda</span>
+                <span class="bar"><em style="width:18%;background:#3b82f6"></em></span>
+                <span class="ct">26</span><span class="pc">18%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Recent leads + Plan -->
+      <section class="grid-2b">
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Haaal ke Leads</h3>
+              <div class="sub">Sabse high-intent pehle — SLA clock chal rahi hai</div>
+            </div>
+            <div class="right">
+              <button class="btn" style="height:32px;padding:0 12px;font-size:12px">View all
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg>
+              </button>
+            </div>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Lead</th><th>Source</th><th>Temp</th><th>Score</th><th>Agla action</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="lead">
+                    <div class="ava" style="background:linear-gradient(135deg,#ef4444,#f97316)">PS</div>
+                    <div><div class="nm">Priya Sharma</div><div class="meta">Bridal package · ₹18k</div></div>
+                  </div>
+                </td>
+                <td><span class="status">Google Maps</span></td>
+                <td><span class="temp hot"><i style="background:#ff5a5a"></i>Hot</span></td>
+                <td><span class="score" style="color:#ff8a8a">92</span></td>
+                <td><span class="status"><svg style="width:13px;height:13px;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="#a7a9c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-clock"/></svg> Call back 4:00 PM</span></td>
+                <td><span class="status">Callback set hai</span></td>
+                <td><button class="row-act">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="lead">
+                    <div class="ava" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">RG</div>
+                    <div><div class="nm">Rakesh Gupta</div><div class="meta">Grooming studio</div></div>
+                  </div>
+                </td>
+                <td><span class="status">Website form</span></td>
+                <td><span class="temp hot"><i style="background:#ff5a5a"></i>Hot</span></td>
+                <td><span class="score" style="color:#ff8a8a">88</span></td>
+                <td><span class="status">Quotation bhejo</span></td>
+                <td><span class="status">Reply ka wait</span></td>
+                <td><button class="row-act">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="lead">
+                    <div class="ava" style="background:linear-gradient(135deg,#22c55e,#0ea5e9)">NV</div>
+                    <div><div class="nm">Neha Verma</div><div class="meta">Party makeup</div></div>
+                  </div>
+                </td>
+                <td><span class="status">WhatsApp</span></td>
+                <td><span class="temp warm"><i style="background:#f5a524"></i>Warm</span></td>
+                <td><span class="score" style="color:#fbbf24">71</span></td>
+                <td><span class="status">Portfolio share karo</span></td>
+                <td><span class="status">Nurture ho rahi</span></td>
+                <td><button class="row-act">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="lead">
+                    <div class="ava" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">VS</div>
+                    <div><div class="nm">Vikram Singh</div><div class="meta">Franchise enquiry</div></div>
+                  </div>
+                </td>
+                <td><span class="status">Google Maps</span></td>
+                <td><span class="temp warm"><i style="background:#f5a524"></i>Warm</span></td>
+                <td><span class="score" style="color:#fbbf24">68</span></td>
+                <td><span class="status">Demo call book karo</span></td>
+                <td><span class="status">Nurturing</span></td>
+                <td><button class="row-act">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="lead">
+                    <div class="ava" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">AP</div>
+                    <div><div class="nm">Amit Patel</div><div class="meta">Mini-site visit</div></div>
+                  </div>
+                </td>
+                <td><span class="status">Mini-site</span></td>
+                <td><span class="temp warm"><i style="background:#f5a524"></i>Warm</span></td>
+                <td><span class="score" style="color:#fbbf24">64</span></td>
+                <td><span class="status">Tue ko follow-up</span></td>
+                <td><span class="status">Nurturing</span></td>
+                <td><button class="row-act">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="lead">
+                    <div class="ava" style="background:linear-gradient(135deg,#64748b,#475569)">SR</div>
+                    <div><div class="nm">Sunita Rao</div><div class="meta">Referral</div></div>
+                  </div>
+                </td>
+                <td><span class="status">Referral</span></td>
+                <td><span class="temp cold"><i style="background:#3b82f6"></i>Cold</span></td>
+                <td><span class="score" style="color:#7cb0ff">41</span></td>
+                <td><span class="status">7 din me re-engage</span></td>
+                <td><span class="status">Soya hua</span></td>
+                <td><button class="row-act">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up-right"/></svg></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Plan card -->
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Aapka Plan</h3>
+              <div class="sub">Billing cycle 1–31 Aug 2026</div>
+            </div>
+          </div>
+          <div class="plan">
+            <div class="plan-top">
+              <span class="plan-badge">Main</span>
+              <span class="state live"><span class="dot pulse"></span> Active</span>
+            </div>
+
+            <div class="plan-price">₹1,999 <small>/ month</small></div>
+            <div class="plan-note">AI Automated Marketing — 1 Sep 2026 ko renew hoga</div>
+
+            <div class="gauge">
+              <div class="gauge-head"><span>Voice minutes</span><span style="font-weight:600;color:var(--text-1)">342 / 500</span></div>
+              <div class="gauge-track"><i style="width:68%"></i></div>
+              <div class="gauge-meta"><span>158 min bache</span><span>68% used</span></div>
+            </div>
+
+            <div class="plan-actions">
+              <button class="btn btn-primary" style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg> Top-up minutes</button>
+              <button class="btn" style="flex:0 0 auto">Upgrade</button>
+            </div>
+
+            <div class="feature-list">
+              <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Unlimited AI lead capture</div>
+              <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> 500 voice-callback minutes</div>
+              <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> WhatsApp + email sequences</div>
+              <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg> Weekly auto content pack</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- AI team + activity -->
+      <section class="grid-3">
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>AI Team</h3>
+              <div class="sub">4 agents · 3 active</div>
+            </div>
+            <div class="right"><span class="state live"><span class="dot pulse"></span> Live</span></div>
+          </div>
+          <div class="team">
+            <div class="member">
+              <div class="ava" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">VC</div>
+              <div><div class="nm">Voice Closer</div><div class="rl">Outbound · Hindi + English</div></div>
+              <div class="st">
+                <span class="state busy"><span class="dot" style="background:#fbbf24"></span> On call</span>
+                <span>312 calls · 61% connect</span>
+              </div>
+            </div>
+            <div class="member">
+              <div class="ava" style="background:linear-gradient(135deg,#22c55e,#0ea5e9)">LR</div>
+              <div><div class="nm">Lead Researcher</div><div class="rl">Prospecting · Google Maps</div></div>
+              <div class="st">
+                <span class="state live"><span class="dot pulse"></span> Working</span>
+                <span>1,204 aaj scan hue</span>
+              </div>
+            </div>
+            <div class="member">
+              <div class="ava" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">CW</div>
+              <div><div class="nm">Content Writer</div><div class="rl">Social + WhatsApp copy</div></div>
+              <div class="st">
+                <span class="state live"><span class="dot pulse"></span> Working</span>
+                <span>18 assets queue me</span>
+              </div>
+            </div>
+            <div class="member">
+              <div class="ava" style="background:linear-gradient(135deg,#64748b,#475569)">QA</div>
+              <div><div class="nm">QA Reviewer</div><div class="rl">Compliance + DLT checks</div></div>
+              <div class="st">
+                <span class="state idle"><span class="dot" style="background:#6f7189"></span> Idle</span>
+                <span>Last run 40 min pehle</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Live Activity</h3>
+              <div class="sub">Real-time from Voice Agent + WhatsApp</div>
+            </div>
+            <div class="right"><span class="state live"><span class="dot pulse"></span> Streaming</span></div>
+          </div>
+          <div class="feed">
+            <div class="feed-item">
+              <div class="feed-ico" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg></div>
+              <div class="feed-body"><p><b>Priya Sharma</b> ne uthaya — 3m 12s, intent high, callback 4 PM set.</p><time>2 min pehle</time></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-ico" style="color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg></div>
+              <div class="feed-body"><p><b>Content Writer</b> ne is hafte ke 4 Instagram posts publish kiye.</p><time>18 min pehle</time></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-ico" style="color:#3b82f6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg></div>
+              <div class="feed-body"><p><b>12 new leads</b> imported from Google Maps — Andheri West cluster.</p><time>1 ghante pehle</time></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-ico" style="color:#f5a524"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-mega"/></svg></div>
+              <div class="feed-body"><p><b>Monsoon Bridal Offer</b> campaign crossed 4,200 impressions.</p><time>3 ghante pehle</time></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-ico" style="color:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg></div>
+              <div class="feed-body"><p><b>Rakesh Gupta</b> ne quotation kholi — WhatsApp par nudge bheja.</p><time>5 ghante pehle</time></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Is Hafte ki Jeet</h3>
+              <div class="sub">AI ne khud summarize kiya</div>
+            </div>
+          </div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div class="kpi-ico" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.25);color:#4ade80">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trend"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600">27 bookings band hui</div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;line-height:1.5">Bridal season push + 2 extra shaam call slots ne lift diya.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div class="kpi-ico" style="background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.25);color:#a78bfa">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600">Connect rate 61% tak gaya</div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;line-height:1.5">Shaam 6–8 PM window ne subah se 19pp behtar perform kiya.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div class="kpi-ico" style="background:rgba(245,165,36,.12);border-color:rgba(245,165,36,.25);color:#fbbf24">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-clock"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600">Dhyaan: 8 garam leads purani ho rahi</div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:2px;line-height:1.5">Pichhle 24h SLA. Voice Agent unhe ~30 min me clear kar sakta hai.</div>
+              </div>
+            </div>
+
+            <button class="btn" style="justify-content:center;margin-top:2px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg>
+              Let AI clear the backlog
+            </button>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

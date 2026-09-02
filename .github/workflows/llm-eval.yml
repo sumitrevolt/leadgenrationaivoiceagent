@@ -1,0 +1,134 @@
+# =============================================================================
+# llm-eval.yml — ADVISORY LLM/prompt eval gate (G8). security-scan.yml pattern:
+# NON-BLOCKING (exit 0), build kabhi RED nahi karega — pehle results dekho, phir
+# gate banao. promptfoo (YAML asserts + red-team) GitHub-hosted runner pe chalta
+# (VPS resource 0). agent_tester.py (tera scorecard) ke upar declarative layer.
+#
+# Gated: evals/promptfooconfig.yaml hona chahiye + LLM key secret set ho. Bina
+# key ke sirf config-validate hota (assertions skip) — phir bhi green.
+# =============================================================================
+name: llm-eval
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["evals/**", "app/voice_agent/**", "app/llm/**", "app/marketing/**"]
+  schedule:
+    - cron: "0 3 * * 1"   # weekly Mon 03:00 UTC — model/prompt drift catch
+  workflow_dispatch:
+
+concurrency:
+  group: llm-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  promptfoo:
+    name: promptfoo (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Skip if no eval config
+        id: cfg
+        run: |
+          if [ -f evals/promptfooconfig.yaml ]; then echo "have=1" >> "$GITHUB_OUTPUT";
+          else echo "have=0" >> "$GITHUB_OUTPUT"; echo "no evals/promptfooconfig.yaml — skipping"; fi
+
+      - uses: actions/setup-node@v7
+        if: steps.cfg.outputs.have == '1'
+        with:
+          node-version: "20"
+
+      - name: Run promptfoo (advisory, never fails build)
+        if: steps.cfg.outputs.have == '1'
+        continue-on-error: true
+        env:
+          # Cerebras/Groq OpenAI-compatible — repo secret set karo to assertions chalein.
+          OPENAI_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          OPENAI_BASE_URL: "https://api.cerebras.ai/v1"
+        run: |
+          npx -y promptfoo@latest eval -c evals/promptfooconfig.yaml \
+            --output evals/results.json --no-progress-bar || true
+
+      - name: Upload eval results
+        if: always() && steps.cfg.outputs.have == '1'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: promptfoo-results
+          path: evals/results.json
+          retention-days: 30
+
+  deepeval:
+    name: deepeval RAG quality (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Skip if no eval tests
+        id: cfg
+        run: |
+          if [ -f evals/test_rag_quality.py ]; then echo "have=1" >> "$GITHUB_OUTPUT";
+          else echo "have=0" >> "$GITHUB_OUTPUT"; echo "no evals/test_rag_quality.py — skipping"; fi
+
+      - uses: actions/setup-python@v7.0.0
+        if: steps.cfg.outputs.have == '1'
+        with:
+          python-version: "3.12"
+
+      # F.3 eval_gate baseline cache — restore prior eval_history.jsonl across
+      # CI runs so the median-baseline regression detector has real signal.
+      # Key on the main branch SHA so PRs read main's baseline (one source of
+      # truth) and only the post-merge run on main actually advances it.
+      - name: Restore eval_gate baseline cache
+        if: steps.cfg.outputs.have == '1'
+        uses: actions/cache@v6
+        with:
+          path: data/eval_history.jsonl
+          key: eval-history-${{ github.ref }}
+          restore-keys: |
+            eval-history-refs/heads/main
+            eval-history-
+
+      - name: Install deepeval (isolated — prod deps se alag, conflict-safe)
+        if: steps.cfg.outputs.have == '1'
+        run: pip install "deepeval>=1.4,<4" "openai>=1.0" "pytest>=7.4"
+
+      - name: Run DeepEval RAG quality (advisory, never fails build)
+        if: steps.cfg.outputs.have == '1'
+        continue-on-error: true
+        env:
+          # FREE judge — wahi key jo promptfoo use karta (Cerebras OpenAI-compatible).
+          # Secret na ho to judge-gated tests SKIP honge (deterministic guards phir bhi chalte).
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+        run: |
+          python -m pytest evals/test_rag_quality.py -q \
+            --junitxml=evals/deepeval-results.xml || true
+
+      # F.3 eval_gate CI step — record each metric in the rolling baseline and
+      # produce a regressions summary. Advisory (continue-on-error) until the
+      # baseline is trusted; once stable, drop the flag and set EVAL_GATE_HARD=1
+      # at the workflow level to make regressions actually fail the build.
+      - name: Record scores + compute gate verdicts
+        if: steps.cfg.outputs.have == '1'
+        continue-on-error: true
+        env:
+          EVAL_GATE: "1"
+          EVAL_GATE_HARD: "0"
+        run: |
+          mkdir -p data
+          python evals/eval_gate_ci.py
+
+      - name: Upload DeepEval results
+        if: always() && steps.cfg.outputs.have == '1'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: deepeval-results
+          path: |
+            evals/deepeval-results.xml
+            evals/eval_gate_summary.json
+          retention-days: 30

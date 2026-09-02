@@ -1,0 +1,108 @@
+# =============================================================================
+# site.yml — VPS rebuild-as-code (G5). Single-VPS = single point of failure;
+# ye playbook ek FRESH Ubuntu 24.04 box ko poore leadgen stack tak le jaata
+# (DR / migration / 2nd-region 15-min me). Existing docker-compose.*.yml reuse.
+#
+# Prereq (control machine): pip install ansible ; SSH key box tak pohnche.
+# Run:
+#   ansible-playbook -i deploy/ansible/inventory.ini deploy/ansible/site.yml
+# Vars override:
+#   ansible-playbook ... -e "repo_url=https://github.com/sumitrevolt/leadgenrationaivoiceagent.git git_ref=main"
+#
+# NOTE: secrets ke liye SOPS already repo me hai (.sops.yaml + scripts/sops_*).
+#   Ye playbook expect karta ki tu `/opt/leadgen/.env` ya SOPS-decrypt khud
+#   provide kare (age private key control-node pe ho to `sops -d` step uncomment).
+# =============================================================================
+- name: Provision LeadGen VPS (full stack)
+  hosts: leadgen
+  become: true
+  vars:
+    app_dir: /opt/leadgen
+    repo_url: "https://github.com/sumitrevolt/leadgenrationaivoiceagent.git"
+    git_ref: main
+    compose_files:
+      - docker-compose.vps.yml
+      - deploy/compose/docker-compose.observability.yml
+      - deploy/compose/docker-compose.tools.yml
+
+  tasks:
+    - name: Base packages
+      apt:
+        name: [ca-certificates, curl, git, gnupg, ufw, fail2ban, unattended-upgrades, rclone, age]
+        state: present
+        update_cache: true
+
+    - name: Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        keyring: /etc/apt/keyrings/docker.gpg
+        state: present
+
+    - name: Docker apt repo
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Docker engine + compose plugin
+      apt:
+        name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
+        state: present
+        update_cache: true
+
+    - name: Docker service enabled + running
+      service: { name: docker, state: started, enabled: true }
+
+    - name: Firewall — allow SSH + HTTP(S) only
+      ufw: { rule: allow, port: "{{ item }}", proto: tcp }
+      loop: ["22", "80", "443"]
+
+    - name: Enable UFW (deny incoming default)
+      ufw: { state: enabled, policy: deny, direction: incoming }
+
+    - name: Clone / update repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ git_ref }}"
+        force: false
+
+    # --- Secrets: SOPS-decrypt (age key control-node pe ho to uncomment) -----
+    # - name: Decrypt .env from SOPS
+    #   command: sops -d --output {{ app_dir }}/.env {{ app_dir }}/.env.sops
+    #   args: { creates: "{{ app_dir }}/.env" }
+    #   environment: { SOPS_AGE_KEY_FILE: /root/.config/sops/age/keys.txt }
+
+    - name: Assert .env present (manual ya SOPS)
+      stat: { path: "{{ app_dir }}/.env" }
+      register: envfile
+
+    - name: Fail fast if .env missing
+      fail:
+        msg: "{{ app_dir }}/.env nahi mila — SOPS-decrypt karo ya manually rakho, phir dobara chalao."
+      when: not envfile.stat.exists
+
+    - name: Pull images + bring stack up (idempotent)
+      command: >
+        docker compose
+        {% for f in compose_files %}-f {{ f }} {% endfor %}
+        up -d --remove-orphans
+      args: { chdir: "{{ app_dir }}" }
+
+    - name: Install backup + self-heal crons
+      cron:
+        name: "{{ item.name }}"
+        minute: "{{ item.minute }}"
+        hour: "{{ item.hour }}"
+        job: "{{ item.job }}"
+      loop:
+        - { name: pg_backup,     minute: "30", hour: "2",  job: "{{ app_dir }}/scripts/pg_backup.sh >> /var/log/leadgen_backup.log 2>&1" }
+        - { name: offsite_check, minute: "0",  hour: "5",  job: "python3 {{ app_dir }}/scripts/backup_offsite_check.py >> /var/log/leadgen_backup.log 2>&1" }
+        - { name: vps_backup,    minute: "0",  hour: "4",  job: "{{ app_dir }}/scripts/vps_backup.sh >> /var/log/leadgen_backup.log 2>&1" }
+        - { name: selfheal,      minute: "*/10", hour: "*", job: "{{ app_dir }}/scripts/vps_selfheal.sh >> /var/log/leadgen_selfheal.log 2>&1" }
+
+    - name: Health check
+      uri: { url: "http://127.0.0.1:8000/health", status_code: 200 }
+      retries: 6
+      delay: 10
+      register: health
+      until: health.status == 200

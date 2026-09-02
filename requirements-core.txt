@@ -1,0 +1,20 @@
+# Minimal deps for a FAST local test (Phase A of LAUNCH_GUIDE.md).
+# Full features: use requirements.txt instead.
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+pydantic==2.13.4
+pydantic-settings==2.15.0
+email-validator==2.3.0
+python-multipart==0.0.32
+sqlalchemy==2.0.52
+aiosqlite==0.22.1
+httpx==0.28.1
+aiohttp==3.14.3
+requests==2.34.2
+beautifulsoup4==4.15.0
+python-dotenv==1.2.2
+loguru==0.7.3
+phonenumbers==8.13.28
+APScheduler==3.11.3
+edge-tts>=7.2.0  # 6.1.9 => HTTP 403 (MS Sec-MS-GEC token). MUST be 7.x. Matches requirements.txt/lock.
+google-generativeai==0.8.6

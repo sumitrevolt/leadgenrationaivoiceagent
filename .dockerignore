@@ -1,0 +1,116 @@
+# Git
+.git
+.gitignore
+.github
+
+# graphify generated artifacts — NEVER bake into the prod image (app/ is COPYed in)
+graphify-out
+app/graphify-out
+.graphify
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+*.egg
+.venv
+venv
+env
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.vs
+.idea
+*.swp
+*.swo
+
+# Node/Frontend build tooling (the built/static frontend IS served by the API)
+node_modules
+frontend/node_modules
+frontend/src
+frontend/public
+frontend/*.json
+frontend/*.ts
+frontend/*.js
+!frontend/manifest.json
+!frontend/sw.js
+!frontend/page_agent_boot.js
+!frontend/vendor/*.js
+frontend/.gitignore
+
+# Terraform/Infrastructure (not needed in container)
+.terraform
+infrastructure
+*.tfstate
+*.tfstate.*
+tfplan*
+
+# Testing/Coverage
+.coverage
+htmlcov
+.pytest_cache
+tests
+!tests
+tests/**
+!tests/fixtures
+!tests/fixtures/dsh_fake_gateway.py
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Include data directory but exclude large files
+!data
+!data/**
+# Runtime/generated data must never be baked into the app image. These are
+# bind-mounted or build-baked elsewhere, and can make Docker export fail.
+data/ai_images/
+data/backups/
+data/call_recordings/
+data/conversations/
+data/obsidian_staging/
+data/ollama/
+data/qdrant/
+data/u2net/
+data/vectorstore/
+data/leadgen_dev.db
+data/*.db
+data/*.sqlite
+data/**/*.db
+data/**/*.sqlite
+*.gguf
+*.bin
+*.pkl
+
+# Exclude models directory at root (ML models) but keep app/models
+/models
+
+# Misc
+_scratch/
+backups/
+.DS_Store
+*.log
+.mypy_cache
+.ruff_cache
+.secrets.baseline
+.pre-commit-config.yaml
+*.tar.gz
+source.tar.gz
+server_*.log
+
+# Build artifacts
+Dockerfile.backup
+docker-compose*.yml
+cloudbuild*.yaml
+Makefile
+deploy*.sh
+deploy*.ps1
+*.template.md

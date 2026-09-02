@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>LeadGen AI — Unified Inbox</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6;--blue:#60a5fa}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1000px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+input{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:.85rem}
+button{background:var(--acc);border:0;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:.85rem;min-height:44px;min-width:44px}
+button.ghost{background:#222636}
+a.act,a.wa{min-height:44px;display:inline-flex;align-items:center;padding:8px 10px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{background:#222636;border:1px solid var(--line);color:var(--mut);padding:7px 14px;border-radius:10px;cursor:pointer;font-size:.85rem}
+.tab.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tab .n{background:rgba(0,0,0,.25);border-radius:8px;padding:0 7px;margin-left:5px;font-size:.75rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;font-size:.85rem}
+.card b.t{display:block;font-size:.92rem;margin-bottom:3px}
+.meta{color:var(--mut);font-size:.74rem;margin-bottom:6px}
+pre{background:#11141d;border:1px solid var(--line);border-radius:8px;padding:9px;white-space:pre-wrap;font-size:.8rem;font-family:inherit;margin:6px 0}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.7rem;background:#222636;color:var(--mut);margin-right:4px}
+.pill.hot{background:#3a1515;color:var(--bad)} .pill.intent{background:#152540;color:var(--blue)}
+a.act{color:var(--blue);text-decoration:none;margin-right:10px;font-size:.8rem}
+a.wa{color:var(--ok)}
+.mut{color:var(--mut);font-size:.78rem} .msg{font-size:.8rem;margin-left:8px}
+.stale-note{margin:6px 0;color:var(--warn);font-size:.78rem;font-weight:600}
+.outbtn{margin:2px;padding:4px 10px;font-size:.75rem;background:#222636}
+.sec{display:none} .sec.on{display:block}
+.star{color:var(--warn)}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>📥 Unified Inbox</h1>
+<div class="sub">Boss rule: samajh aaye → Done/Call/WA. Nahi samajhe → <b>Council Decide</b> (multi-LLM). Auto-send nahi — sirf ACTION apply.</div>
+<div class="card" id="hqSprint" style="border-color:#8b5cf6">
+  <b class="t">⏱️ Aaj ka 15-minute Hot Queue sprint</b>
+  <div class="mut">Pehla card = sabse zaroori. Call/WA draft kholo, human bheje, phir Done. Cold WhatsApp auto-send yahan nahi hai.</div>
+</div>
+<div class="bar" id="tokBar">
+  <input id="tok" type="password" placeholder="Admin token paste karo" style="width:260px;min-height:44px" aria-label="Admin token">
+  <button onclick="saveTok()">Save</button>
+  <button class="ghost" onclick="load()">↻ Reload</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem">login →</a>
+  <span id="err" class="msg" style="color:var(--bad)" role="status" aria-live="polite"></span>
+</div>
+<button class="ghost" id="tokAdv" type="button" style="display:none;margin-bottom:10px" onclick="document.getElementById('tokBar').style.display='flex'">🔑 Token / advanced</button>
+<div class="tabs" id="tabs"></div>
+<div id="s_hotq" class="sec on"></div>
+<div id="s_hot" class="sec"></div>
+<div id="s_reply" class="sec"></div>
+<div id="s_review" class="sec"></div>
+<div id="s_exp" class="sec"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());load()}
+async function api(p,opt){
+  opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+tok()},opt.headers||{});
+  const r=await fetch(p,opt);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function cleanPhone(p){
+  const d=String(p||'').replace(/\D/g,'');
+  let ph='';
+  if(d.length===10) ph=d;
+  else if(d.length===11&&d[0]==='0') ph=d.slice(1);
+  else if(d.length===12&&d.slice(0,2)==='91') ph=d.slice(2);
+  else if(d.length===13&&d.slice(0,3)==='091') ph=d.slice(3);
+  return (/^[6-9]\d{9}$/.test(ph))?ph:'';
+}
+function waDraftLink(phone,draft,fallback){
+  if(fallback) return String(fallback);
+  const ph=cleanPhone(phone);
+  if(!ph) return '';
+  const msg=String(draft||'').trim();
+  return 'https://wa.me/91'+ph+(msg?'?text='+encodeURIComponent(msg):'');
+}
+function emailDraftLink(email,subject,draft){
+  const to=String(email||'').trim();
+  if(to.indexOf('@')<1) return '';
+  const original=String(subject||'').trim();
+  const reSubj=/^re\s*:/i.test(original)?original:'Re: '+(original||'your message');
+  const body=String(draft||'').trim();
+  return 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(reSubj)+(body?'&body='+encodeURIComponent(body):'');
+}
+function staleDraftWarning(ageDays,draft){
+  ageDays=Number(ageDays||0);
+  if(ageDays<7) return '';
+  const body=String(draft||'').toLowerCase();
+  const timing=/(?:^|[\s.,!?;:])(aaj|kal|abhi|today|tomorrow|right now)(?=$|[\s.,!?;:])/i.test(body);
+  return ageDays+'d purana draft — '+(timing?'aaj/kal/abhi timing update karo, phir bhejo.':'offer/date/context re-check karke bhejo.');
+}
+
+function tabLabel(key,label){
+  if(key==='hotq' && window._hqSummary && Number(window._hqSummary.total_open||0)>0){
+    const scope = (HQ_SCOPE==='admin') ? 'Admin pending' : 'Boss queue';
+    return '🔥 '+scope;
+  }
+  return label;
+}
+const TABS=[['hotq','🔥 Hot Queue'],['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
+let COUNTS={hotq:0,hot:0,reply:0,review:0,exp:0};
+function renderTabs(active){
+  $('tabs').innerHTML=TABS.map(function(t){
+    return '<span class="tab'+(t[0]===active?' on':'')+'" onclick="show(\''+t[0]+'\')">'+tabLabel(t[0],t[1])+'<span class="n">'+(COUNTS[t[0]]||0)+'</span></span>';
+  }).join('');
+}
+function show(k){
+  TABS.forEach(function(t){ $('s_'+t[0]).classList.toggle('on',t[0]===k); });
+  renderTabs(k);
+}
+let CLIPS=[];
+let HQ_SHOW_ALL=false;
+function clip(text){ CLIPS.push(text); return CLIPS.length-1; }
+function copyClip(i,btn){
+  navigator.clipboard.writeText(CLIPS[i]||'').then(function(){ btn.textContent='✅ copied'; setTimeout(function(){btn.textContent='📋 Copy';},1500); });
+}
+
+let HQ_SCOPE='boss';
+async function hqDone(id,btn){
+  btn.disabled=true; btn.textContent='…';
+  try{ await api('/api/growth/reply/hot-queue/done',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hq_id:id})}); load(); }
+  catch(e){ btn.disabled=false; btn.textContent='✅ Done'; $('err').textContent='done fail: '+e.message; }
+}
+async function hqPark(id,btn){
+  btn.disabled=true; btn.textContent='…';
+  try{ await api('/api/growth/reply/hot-queue/park',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hq_id:id,note:'manual park'})}); load(); }
+  catch(e){ btn.disabled=false; btn.textContent='⏳ Admin park'; $('err').textContent='park fail: '+e.message; }
+}
+async function hqCouncil(id,btn){
+  btn.disabled=true; btn.textContent='Council…';
+  $('err').textContent='LLM Council chal raha hai (45s tak)…';
+  try{
+    const d=await api('/api/growth/reply/hot-queue/council-decide',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hq_id:id,apply:true})});
+    const dec=d.decision||{};
+    $('err').textContent=(d.ok!==false)
+      ?('Council: '+(dec.action||'?')+' · '+(dec.why||d.summary||'').toString().slice(0,160)+(d.applied?' ✅ applied':''))
+      :(d.error||'council fail');
+    load();
+  }catch(e){ btn.disabled=false; btn.textContent='🤔 Council Decide'; $('err').textContent='council fail: '+e.message; }
+}
+function setHqScope(s){ HQ_SCOPE=s; load(); }
+function copyPayLink(btn){
+  navigator.clipboard.writeText('https://leadsgenai.in/start').then(function(){
+    btn.textContent='✅ copied'; setTimeout(function(){btn.textContent='Copy pay link';},1500);
+  });
+}
+
+async function load(){
+  $('err').textContent='Load ho raha hai…'; CLIPS=[];
+  let ib={};
+  let inboxOk=false;
+  let hqOk=false;
+  try{ ib=await api('/api/growth/inbox'); inboxOk=true; $('err').textContent=''; }
+  catch(e){ $('err').textContent='Inbox load fail — login karke Reload dabao ('+e.message+')'; ib={}; }
+
+  // 🔥 Hot Queue — interested/question replies, dedupe + phone-join (GTM Track 1)
+  // Top-20-live cap (2026-07-03 GTM fix): a 300+ card wall reads as "a project"
+  // and gets avoided entirely — freshest 20 shown by default, rest collapsed
+  // behind a toggle so the number itself doesn't trigger avoidance.
+  let hq=[];
+  let hqSummary=null;
+  try{
+    const hqResp=await api('/api/growth/reply/hot-queue?limit=200&scope='+encodeURIComponent(HQ_SCOPE||'boss'));
+    hq=hqResp.items||[];
+    hqSummary=hqResp.summary||null;
+    hqOk=true;
+  }catch(e){}
+  COUNTS.hotq=(hqSummary && Number(hqSummary.total_open||0)>0) ? Number(hqSummary.total_open||0) : hq.length;
+  window._hqAll=hq;
+  window._hqSummary=hqSummary;
+  window._hqOk=hqOk;
+  window._inboxOk=inboxOk;
+  renderHotQueue();
+
+  // hot leads — backend dict {leads:[...]} ya direct array dono handle
+  let hl=ib.hot_leads||[];
+  if(!Array.isArray(hl)) hl=hl.leads||[];
+  COUNTS.hot=hl.length;
+  $('s_hot').innerHTML=hl.length?hl.map(function(l){
+    const ph=cleanPhone(l.phone||l.phone_number);
+    const nm=l.business_name||l.name||l.contact_name||'Lead';
+    return '<div class="card"><b class="t">'+esc(nm)+
+      (l.is_hot_lead?' <span class="pill hot">HOT</span>':'')+
+      '<span class="pill">score '+(l.lead_score||l.score||0)+'</span></b>'+
+      '<div class="meta">'+esc(l.niche||l.industry||'')+(l.city?' · '+esc(l.city):'')+(l.status?' · '+esc(l.status):'')+(l.source?' · src: '+esc(l.source):'')+'</div>'+
+      (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
+      (l.email?'<a class="act" href="mailto:'+esc(l.email)+'">✉️ Email</a>':'')+
+      '</div>';
+  }).join(''):(inboxOk?'<div class="mut">Abhi koi hot lead nahi. Naya lead aaye to yahan dikhega.</div>':'<div class="mut">Hot leads load nahi hue — upar error dekho, phir Reload.</div>');
+
+  // reply drafts
+  const rd=ib.reply_drafts||[];
+  COUNTS.reply=rd.length;
+  $('s_reply').innerHTML=rd.length?rd.map(function(r){
+    const i=clip(r.draft||'');
+    return '<div class="card"><b class="t">'+esc(r.subject||'(no subject)')+'</b>'+
+      '<div class="meta">from: '+esc(r.from||'?')+' · <span class="pill intent">'+esc(r.intent||'')+'</span> '+esc((r.at||'').slice(0,16).replace('T',' '))+'</div>'+
+      (r.draft?'<pre>'+esc(r.draft)+'</pre><button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'<span class="mut">draft empty (intent pe skip)</span>')+
+      '</div>';
+  }).join(''):(inboxOk?'<div class="mut">Koi reply draft pending nahi.</div>':'<div class="mut">Reply drafts load nahi hue — login/Reload try karo.</div>');
+
+  // review drafts
+  const rv=ib.review_drafts||[];
+  COUNTS.review=rv.length;
+  $('s_review').innerHTML=rv.length?rv.map(function(r){
+    const stars=r.rating?'<span class="star">'+'★'.repeat(Math.max(1,Math.min(5,Math.round(r.rating))))+'</span> ':'';
+    let drafts=(r.reply_drafts||[]).map(function(d,j){
+      const txt=typeof d==='string'?d:(d.reply||d.text||JSON.stringify(d));
+      const i=clip(txt);
+      return '<pre>'+esc(txt)+'</pre><button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>';
+    }).join('');
+    return '<div class="card"><b class="t">'+stars+esc(r.business_name||'?')+'</b>'+
+      '<div class="meta">'+esc(r.author||r.author_name||'')+' · '+esc((r.at||'').slice(0,16).replace('T',' '))+'</div>'+
+      (r.text?'<div class="mut">"'+esc(String(r.text).slice(0,250))+'"</div>':'')+
+      (drafts||'<span class="mut">koi draft nahi</span>')+
+      '</div>';
+  }).join(''):(inboxOk?'<div class="mut">Naye review nahi — hourly sweep ke baad yahan aayenge.</div>':'<div class="mut">Reviews load nahi hue — login/Reload try karo.</div>');
+
+  // experiments + 1-click outcome
+  const ex=ib.recent_experiments||[];
+  COUNTS.exp=ex.length;
+  const CHANNELS=['seo_page','quora','reddit','whatsapp_group','linkedin_article','medium','partnership','linkedin_dm'];
+  let eh='<div class="card"><b class="t">🎯 Channel outcome (1-click)</b>'+
+    '<div class="mut" style="margin-bottom:6px">Inquiry kahan se aayi? Click karo — bandit seekhega:</div>'+
+    CHANNELS.map(function(c){return '<button class="outbtn" onclick="rec(\''+c+'\',this)">'+c+'</button>'}).join('')+
+    '<div id="outmsg" class="mut"></div></div>';
+  eh+=ex.length?ex.map(function(x){
+    return '<div class="card"><b class="t">'+esc(x.channel||'?')+' <span class="pill">'+esc(x.niche||'')+'</span></b>'+
+      '<div class="meta">'+esc((x.at||x.created_at||'').slice(0,16).replace('T',' '))+(x.topic?' · '+esc(x.topic):'')+'</div>'+
+      (x.asset||x.content?'<pre>'+esc(String(x.asset||x.content).slice(0,400))+'</pre>':'')+
+      '</div>';
+  }).join(''):(inboxOk?'<div class="mut">Koi recent experiment nahi.</div>':'<div class="mut">Experiments load nahi hue — login/Reload try karo.</div>');
+  $('s_exp').innerHTML=eh;
+
+  renderTabs(document.querySelector('.sec.on')?document.querySelector('.sec.on').id.slice(2):'hotq');
+}
+
+function toggleHqAll(){ HQ_SHOW_ALL=!HQ_SHOW_ALL; renderHotQueue(); }
+
+function renderHotQueue(){
+  const hq=window._hqAll||[];
+  const sum=window._hqSummary||{};
+  const shown=HQ_SHOW_ALL?hq:hq.slice(0,20);
+  const cards=shown.map(function(r){
+    const ph=cleanPhone(r.phone);
+    const nm=r.business_name||r.from||'?';
+    const age=(r.age_days==null?'':(r.age_days===0?'aaj':r.age_days+'d purana'));
+    const i=clip(r.draft||'');
+    const wa=waDraftLink(r.phone,r.draft,r.wa_link);
+    const email=emailDraftLink(r.from,r.subject,r.draft);
+    const stale=staleDraftWarning(r.age_days,r.draft);
+    const sla=r.sla_state==='breach'?'<span class="pill hot">SLA &gt;5min</span>':'';
+    const ch=r.channel?'<span class="pill">'+esc(r.channel)+'</span>':'';
+    const act=r.owner_action?'<span class="pill intent">'+esc(r.owner_action)+'</span>':'';
+    return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+ch+act+sla+
+      (age?'<span class="pill">'+esc(age)+'</span>':'')+
+      (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
+      '<div class="meta">'+esc(r.from||'')+(r.niche?' · '+esc(r.niche):'')+(r.city?' · '+esc(r.city):'')+
+      (r.subject?' · "'+esc(String(r.subject).slice(0,80))+'"':'')+'</div>'+
+      (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
+      (stale?'<div class="stale-note">⚠️ '+esc(stale)+'</div>':'')+
+      '<div style="margin-top:6px">'+
+      ((r.channel==='inquiry'||r.channel==='payment_chase')?'<a class="act" target="_blank" rel="noopener" href="https://leadsgenai.in/start">Open /start</a><button class="ghost" onclick="copyPayLink(this)">Copy pay link</button>':'')+
+      (ph&&wa?'<a class="act wa" target="_blank" rel="noopener" href="'+esc(wa)+'">WhatsApp draft</a>':'')+
+      (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
+      (email?'<a class="act" href="'+esc(email)+'">✉️ Email draft</a>':'')+
+      (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
+      '<button class="ghost" onclick="hqDone(\''+esc(r.hq_id)+'\',this)">✅ Done</button>'+
+      '<button class="ghost" onclick="hqCouncil(\''+esc(r.hq_id)+'\',this)">🤔 Council Decide</button>'+
+      '<button class="ghost" onclick="hqPark(\''+esc(r.hq_id)+'\',this)">⏳ Admin park</button>'+
+      '</div></div>';
+  }).join('');
+  const rest=hq.length-shown.length;
+  const toggle=rest>0
+    ?'<button class="ghost" onclick="toggleHqAll()" style="margin-bottom:10px">'+(HQ_SHOW_ALL?'▲ Sirf top 20 dikhao':'▼ '+rest+' aur purane dikhao')+'</button>'
+    :(HQ_SHOW_ALL&&hq.length>20?'<button class="ghost" onclick="toggleHqAll()" style="margin-bottom:10px">▲ Sirf top 20 dikhao</button>':'');
+  const scopeBar='<div class="bar" style="margin-bottom:10px">'+
+    '<button class="'+(HQ_SCOPE==='boss'?'':'ghost')+'" onclick="setHqScope(\'boss\')">Boss queue</button>'+
+    '<button class="'+(HQ_SCOPE==='admin'?'':'ghost')+'" onclick="setHqScope(\'admin\')">Admin pending</button>'+
+    '<span class="mut">Samajh aaye → Done. Nahi → Council. Risky → Admin park.</span></div>';
+  let truth='';
+  if(sum && (sum.next_owner_hint || sum.idle_reason || sum.sla_breach_count)){
+    const bits=[];
+    if(sum.sla_breach_count) bits.push('<span class="pill hot">SLA breach '+sum.sla_breach_count+'</span>');
+    if(sum.inquiry_count) bits.push('<span class="pill">inquiry '+sum.inquiry_count+'</span>');
+    if(sum.payment_chase_count) bits.push('<span class="pill">pay-chase '+sum.payment_chase_count+'</span>');
+    if(sum.oldest_age_minutes!=null) bits.push('<span class="pill">oldest '+sum.oldest_age_minutes+'m</span>');
+    truth='<div class="card" style="border-color:#3a3f55"><b class="t">Operator truth</b>'+
+      '<div class="meta">'+bits.join(' ')+'</div>'+
+      '<div class="mut">'+(sum.idle_reason?'idle: '+esc(sum.idle_reason)+' · ':'')+esc(sum.next_owner_hint||'')+'</div></div>';
+  }
+  const empty=!window._hqOk
+    ?'<div class="mut">Hot Queue load nahi hui — login karke Reload dabao. HTTP 200 page ka matlab cards nahi.</div>'
+    :(HQ_SCOPE==='admin'
+    ?'<div class="mut">'+(sum.next_owner_hint||'Admin pending khali.')+'</div>'
+    :'<div class="mut">'+(sum.next_owner_hint||'Hot queue khali — koi unhandled interested/question reply nahi.')+'</div>');
+  $('s_hotq').innerHTML=scopeBar+truth+(hq.length?toggle+cards:empty);
+}
+
+async function rec(ch,btn){
+  btn.disabled=true;
+  try{
+    const d=await api('/api/growth/experiments/outcome',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({channel:ch,kind:'inquiry',value:1})});
+    $('outmsg').textContent=d.ok!==false?('✅ '+ch+' +1'+(d.stats&&d.stats.score!=null?' (score '+d.stats.score+')':'')):(d.error||'fail');
+  }catch(e){ $('outmsg').textContent='❌ '+e.message+' — token?'; }
+  btn.disabled=false;
+}
+
+$('tok').value=tok();
+if(tok()){
+  var bar=$('tokBar'); var adv=$('tokAdv');
+  if(bar) bar.style.display='none';
+  if(adv) adv.style.display='inline-flex';
+}
+renderTabs('hotq');
+load();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

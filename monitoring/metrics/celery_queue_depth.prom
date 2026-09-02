@@ -1,0 +1,9 @@
+# HELP celery_queue_depth Current depth of Celery queues
+# TYPE celery_queue_depth gauge
+celery_queue_depth{queue="celery"} 0
+celery_queue_depth{queue="heavy"} 0
+celery_queue_depth{queue="scraping"} 0
+celery_queue_depth{queue="calling"} 0
+celery_queue_depth{queue="reporting"} 0
+celery_queue_depth{queue="sync"} 0
+celery_queue_depth{queue="training"} 0

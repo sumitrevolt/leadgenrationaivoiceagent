@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<title>LeadGen AI — Web Call Test</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --listen:#22c55e; --speak:#7c3aed; --think:#f59e0b;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+    display:flex;align-items:stretch;justify-content:center;
+  }
+
+  /* ---- Phone-call shell (mobile-first) ---- */
+  .phone{
+    width:100%;max-width:440px;min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;background:var(--card);
+    box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+
+  /* Top bar: brand + compact selects */
+  .topbar{
+    padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);background:#fff;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px}
+  .brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:15px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .spacer{flex:1}
+  select{
+    appearance:none;border:1px solid var(--line);background:#fff;border-radius:9px;
+    padding:7px 26px 7px 10px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 8px center;max-width:46vw;
+  }
+  select:disabled{opacity:.55;cursor:not-allowed}
+  .biz{
+    border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px;
+    font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;width:128px;max-width:34vw;
+  }
+  .biz:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .biz:disabled{opacity:.55;cursor:not-allowed}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  /* Call stage */
+  .stage{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:6px;padding:18px;text-align:center;
+    background:radial-gradient(120% 80% at 50% 0%,#f3f0ff 0%,#fbfaff 55%,#ffffff 100%);
+  }
+  .avatar-wrap{position:relative;width:184px;height:184px;display:grid;place-items:center;margin:4px auto}
+  .avatar{
+    width:122px;height:122px;border-radius:50%;z-index:3;
+    background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;color:#fff;font-size:46px;font-weight:800;letter-spacing:.5px;
+    box-shadow:0 12px 34px rgba(99,102,241,.45);cursor:pointer;user-select:none;
+    transition:transform .2s ease;
+  }
+  .ring{
+    position:absolute;inset:18px;border-radius:50%;border:3px solid var(--brand-2);
+    opacity:0;z-index:1;
+    animation-name:none;animation-duration:1.8s;animation-timing-function:ease-out;animation-iteration-count:infinite;
+  }
+  .ring.r2{animation-delay:.65s}
+  @keyframes ripple{0%{transform:scale(.7);opacity:.6}100%{transform:scale(1.45);opacity:0}}
+  @keyframes talk{from{transform:scale(1)}to{transform:scale(1.06)}}
+
+  /* State-driven animation/colors */
+  #callScreen[data-state="calling"]  .ring{animation-name:ripple;animation-duration:2.2s;border-color:var(--brand-2)}
+  #callScreen[data-state="connected"] .ring{animation-name:ripple;animation-duration:2.2s;border-color:var(--brand-2)}
+  #callScreen[data-state="listening"] .ring{animation-name:ripple;border-color:var(--listen)}
+  #callScreen[data-state="listening"] .avatar{background:linear-gradient(135deg,#86efac,#22c55e);box-shadow:0 12px 34px rgba(34,197,94,.45)}
+  #callScreen[data-state="thinking"]  .ring{animation-name:ripple;border-color:var(--think)}
+  #callScreen[data-state="speaking"]  .ring{animation-name:ripple;animation-duration:1.15s;border-color:var(--speak)}
+  #callScreen[data-state="speaking"]  .avatar{animation:talk .5s ease-in-out infinite alternate}
+
+  .agent-name{font-size:21px;font-weight:800;margin-top:4px}
+  .status-line{font-size:14px;font-weight:700;color:var(--brand);min-height:20px}
+  #callScreen[data-state="idle"] .status-line,
+  #callScreen[data-state="ended"] .status-line{color:var(--muted)}
+  .timer{font-size:13px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+  .timer.hidden{visibility:hidden}
+
+  /* Captions (secondary) */
+  .captions{
+    width:100%;max-width:420px;margin:8px auto 0;min-height:58px;
+    display:flex;flex-direction:column;gap:6px;align-items:stretch;
+  }
+  .cap{font-size:12.5px;line-height:1.35;padding:7px 12px;border-radius:12px;
+    max-width:88%;word-break:break-word;white-space:pre-wrap}
+  .cap:empty{display:none}
+  .cap.bot{align-self:flex-start;background:var(--brand-soft);color:#5b21b6;border-bottom-left-radius:4px}
+  .cap.user{align-self:flex-end;background:#1e293b;color:#fff;border-bottom-right-radius:4px}
+  .cap.user.interim{opacity:.6;font-style:italic}
+
+  /* Bottom controls */
+  .dock{padding:14px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#fff}
+  .callbar{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .call-action{
+    width:70px;height:70px;border-radius:50%;border:none;cursor:pointer;
+    display:grid;place-items:center;font-size:28px;color:#fff;transition:transform .12s ease,filter .12s ease;
+    box-shadow:0 10px 26px rgba(0,0,0,.18);
+  }
+  .call-action:active{transform:scale(.93)}
+  .call-action.start{background:linear-gradient(135deg,#16a34a,#15803d)}
+  .call-action.end{background:linear-gradient(135deg,#ef4444,#dc2626)}
+  .call-action.hidden{display:none}
+  .call-cap{font-size:12.5px;font-weight:700;color:var(--muted)}
+
+  /* Typed fallback */
+  .typed{display:flex;gap:8px;margin-top:12px}
+  .typed.hidden{display:none}
+  .typed input{
+    flex:1;border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:13.5px;
+    font-family:inherit;color:var(--ink);
+  }
+  .typed input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .typed button{border:none;border-radius:11px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 15px;cursor:pointer;font-size:13.5px}
+  .typed button:disabled,.typed input:disabled{opacity:.5;cursor:not-allowed}
+
+  .foot{padding:9px 14px 12px;font-size:10.5px;color:var(--muted);text-align:center}
+  .foot b{color:var(--warn)}
+
+  /* Call history (transcript log — newest first, IST time) */
+  .history-panel{
+    border-top:1px solid var(--line);background:#faf9ff;padding:10px 14px 12px;
+    max-height:min(38vh,280px);overflow-y:auto;flex-shrink:0;
+  }
+  .history-hd{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:12px;font-weight:800;color:var(--ink);margin-bottom:8px;
+  }
+  .history-hd span{color:var(--muted);font-weight:600;font-size:11px}
+  .hist-empty{font-size:12px;color:var(--muted);padding:4px 0 2px}
+  .hist-day{font-size:11px;font-weight:800;color:var(--brand);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+  .hist-day:first-child{margin-top:0}
+  .hist-row{
+    border:1px solid var(--line);border-radius:10px;background:#fff;
+    margin-bottom:8px;overflow:hidden;
+  }
+  .hist-head{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;
+    padding:9px 11px;cursor:pointer;user-select:none;
+  }
+  .hist-head:hover{background:var(--brand-soft)}
+  .hist-time{font-weight:800;font-size:12.5px;font-variant-numeric:tabular-nums}
+  .hist-dur{
+    font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-soft);
+    padding:2px 7px;border-radius:999px;
+  }
+  .hist-meta{font-size:11px;color:var(--muted);flex:1;min-width:120px}
+  .hist-chev{font-size:10px;color:var(--muted)}
+  .hist-body{
+    display:none;border-top:1px solid var(--line);padding:8px 11px 10px;
+    background:#f8fafc;max-height:160px;overflow-y:auto;
+  }
+  .hist-row.open .hist-body{display:block}
+  .hist-row.open .hist-chev{transform:rotate(90deg)}
+  .hist-turn{font-size:11.5px;line-height:1.35;margin-bottom:6px;word-break:break-word}
+  .hist-turn b{color:var(--brand);font-size:10px;text-transform:uppercase}
+  .hist-turn.user b{color:#334155}
+  .hist-turn .ts{color:var(--muted);font-size:10px;margin-left:4px}
+
+  /* ---- Inline trial-signup overlay (voice close-signal) ---- */
+  .signup-overlay{
+    position:absolute;inset:0;z-index:50;background:rgba(30,27,46,.55);
+    display:flex;align-items:center;justify-content:center;padding:18px;
+  }
+  .signup-overlay.hidden{display:none}
+  .signup-card{
+    background:var(--card);border-radius:16px;box-shadow:var(--shadow);
+    padding:20px;width:100%;max-width:340px;max-height:88vh;overflow-y:auto;
+  }
+  .signup-title{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:4px}
+  .signup-sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.4}
+  .signup-card label{display:block;font-size:12px;font-weight:700;color:var(--ink);margin:10px 0 4px}
+  .signup-card input{
+    width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;
+    font-size:13.5px;font-family:inherit;color:var(--ink);
+  }
+  .signup-card input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .signup-card input[readonly]{background:var(--bg);color:var(--muted)}
+  .signup-err{font-size:12px;color:var(--err);margin-top:8px}
+  .signup-err.hidden{display:none}
+  .signup-card button{
+    width:100%;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;
+    cursor:pointer;margin-top:14px;font-family:inherit;
+  }
+  #signupSubmit{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
+  #signupSubmit:disabled{opacity:.6;cursor:not-allowed}
+  .signup-dismiss{background:transparent;color:var(--muted);margin-top:6px !important}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Compact top bar -->
+  <div class="topbar">
+    <div class="brand"><span class="logo">📞</span><span>LeadGen AI — Test Call</span></div>
+    <div class="spacer"></div>
+    <span class="ao-topbar-status"><span class="dot"></span>AI Ready</span>
+    <input id="bizName" class="biz" placeholder="Business naam"
+      title="Aapke business ka naam — agent isi naam se baat karega (khali = Demo Co)" />
+    <select id="niche" title="Niche">
+      <!-- Populated from /api/data/niches; static fallback below -->
+      <option value="ai_marketing" selected>AI Marketing</option>
+      <option value="real_estate">Real Estate</option>
+      <option value="solar_residential">Solar (Residential)</option>
+      <option value="dental_implants">Dental</option>
+      <option value="studying_abroad">Study Abroad</option>
+      <option value="insurance">Insurance</option>
+      <option value="general">General</option>
+    </select>
+    <select id="flow" title="Voice agent role">
+      <option value="qualify">Swara — Telecaller</option>
+      <option value="booking">Ananya — Appointment</option>
+      <option value="reception">Riya — Receptionist</option>
+    </select>
+    <div class="kbd" id="kbdToggle" title="Type instead">⌨️</div>
+  </div>
+
+  <!-- Call stage -->
+  <div class="stage" id="callScreen" data-state="idle">
+    <div class="avatar-wrap">
+      <div class="ring r1"></div>
+      <div class="ring r2"></div>
+      <div class="avatar" id="avatar" title="Tap to interrupt while the agent is speaking">S</div>
+    </div>
+    <div class="agent-name" id="agentName">Swara</div>
+    <div class="status-line" id="statusLine">Call shuru karne ke liye green button dabayein</div>
+    <div class="timer hidden" id="timer">00:00</div>
+
+    <div class="captions">
+      <div class="cap bot" id="capBot"></div>
+      <div class="cap user" id="capUser"></div>
+    </div>
+  </div>
+
+  <!-- Bottom dock -->
+  <div class="dock">
+    <div class="callbar">
+      <button class="call-action start" id="startBtn" title="Call Start">📞</button>
+      <button class="call-action end hidden" id="endBtn" title="End Call">✕</button>
+      <div class="call-cap" id="callCap">Call Start</div>
+    </div>
+
+    <div class="typed hidden" id="typedRow">
+      <input id="input" placeholder="Type karke baat karein…" disabled />
+      <button id="sendBtn" disabled>Send</button>
+    </div>
+
+    <div class="foot" id="foot"><b>🔒 Free &amp; safe</b> — koi charge nahi, koi real phone call nahi. Browser me hi AI se baat karke apna free trial shuru karein.</div>
+
+    <div class="history-panel" id="historyPanel">
+      <div class="history-hd">
+        <span>📋 Call History</span>
+        <span id="histSummary">—</span>
+      </div>
+      <div id="historyList"><div class="hist-empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Inline trial-signup overlay — shown on voice close-signal when
+       WEBCALL_INLINE_SIGNUP=1 (see close_signal WS message handling below). -->
+  <div class="signup-overlay hidden" id="signupOverlay">
+    <div class="signup-card">
+      <div class="signup-title">🎉 Trial shuru karein?</div>
+      <div class="signup-sub">Call ki details bhar di hain — bas email aur password confirm karein, 7-din FREE trial turant shuru ho jayega.</div>
+      <label for="suBiz">Business ka naam</label>
+      <input id="suBiz" type="text" placeholder="e.g. Sharma Solar" />
+      <label for="suPhone">Phone</label>
+      <input id="suPhone" type="text" readonly />
+      <label for="suEmail">Email</label>
+      <input id="suEmail" type="email" placeholder="aap@business.com" />
+      <label for="suPassword">Password</label>
+      <input id="suPassword" type="password" placeholder="min 6 characters" />
+      <div data-turnstile-host></div>
+      <div class="signup-err hidden" id="signupErr"></div>
+      <button id="signupSubmit">Free trial shuru karo</button>
+      <button id="signupDismiss" class="signup-dismiss">Baad me karunga</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- WebSocket URL (auto-detect host) -------------------------------
+  var proto = location.protocol === "https:" ? "wss:" : "ws:";
+  var host  = location.host || "localhost:8000";
+
+  // Stable browser identity — bina iske backend session save NAHI karta.
+  function getLeadKey(){
+    var k = "";
+    try{ k = localStorage.getItem("lg_webcall_lead") || ""; }catch(e){}
+    if(k && k.length >= 8) return k;
+    var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    k = "wc_";
+    for(var i = 0; i < 14; i++){ k += chars.charAt(Math.floor(Math.random() * chars.length)); }
+    try{ localStorage.setItem("lg_webcall_lead", k); }catch(e){}
+    return k;
+  }
+  var LEAD_KEY = getLeadKey();
+  var WS_URL = proto + "//" + host + "/api/web-call/ws?lead_key=" + encodeURIComponent(LEAD_KEY);
+  var currentSessionId = null;
+
+  // ---- DOM refs --------------------------------------------------------
+  var screenEl  = document.getElementById("callScreen");
+  var statusEl  = document.getElementById("statusLine");
+  var timerEl   = document.getElementById("timer");
+  var capBot    = document.getElementById("capBot");
+  var capUser   = document.getElementById("capUser");
+  var avatar    = document.getElementById("avatar");
+  var startBtn  = document.getElementById("startBtn");
+  var endBtn    = document.getElementById("endBtn");
+  var callCap   = document.getElementById("callCap");
+  var nicheSel  = document.getElementById("niche");
+  var flowSel   = document.getElementById("flow");
+  var agentNameEl = document.getElementById("agentName");
+
+  // Voice agent personas (sync with /api/voice/agents)
+  var VOICE_AGENTS = {
+    qualify:    { name: "Swara",  emoji: "S", label: "Swara — Telecaller" },
+    booking:    { name: "Ananya", emoji: "A", label: "Ananya — Appointment" },
+    reception:  { name: "Riya",   emoji: "R", label: "Riya — Receptionist" },
+    telecaller: { name: "Swara",  emoji: "S", label: "Swara — Telecaller" },
+    appointment:{ name: "Ananya", emoji: "A", label: "Ananya — Appointment" },
+    receptionist:{ name: "Riya", emoji: "R", label: "Riya — Receptionist" }
+  };
+  function agentForFlow(flow){
+    return VOICE_AGENTS[flow] || VOICE_AGENTS.qualify;
+  }
+  function updateAgentDisplay(){
+    var a = agentForFlow(flowSel.value);
+    agentNameEl.textContent = a.name;
+    avatar.textContent = a.emoji;
+    avatar.title = a.name + " — tap to interrupt while speaking";
+  }
+  function loadVoiceAgents(){
+    fetch("/api/voice/agents")
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || !data.agents || !data.agents.length) return;
+        var current = flowSel.value;
+        flowSel.innerHTML = "";
+        data.agents.forEach(function(ag){
+          var val = ag.role === "telecaller" ? "qualify"
+            : ag.role === "booking_agent" ? "booking"
+            : ag.role === "receptionist" ? "reception" : ag.role;
+          var letter = (ag.name || "?").charAt(0).toUpperCase();
+          var opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = (ag.emoji ? ag.emoji + " " : "") + ag.name + " — " + (ag.title || ag.role);
+          flowSel.appendChild(opt);
+          VOICE_AGENTS[val] = { name: ag.name, emoji: letter, label: opt.textContent };
+        });
+        for(var i=0;i<flowSel.options.length;i++){
+          if(flowSel.options[i].value === current){ flowSel.selectedIndex = i; break; }
+        }
+        updateAgentDisplay();
+      })
+      .catch(function(){ updateAgentDisplay(); });
+  }
+  loadVoiceAgents();
+  flowSel.addEventListener("change", updateAgentDisplay);
+  updateAgentDisplay();
+  var bizName   = document.getElementById("bizName");
+  var kbdToggle = document.getElementById("kbdToggle");
+  var typedRow  = document.getElementById("typedRow");
+  var input     = document.getElementById("input");
+  var sendBtn   = document.getElementById("sendBtn");
+  var foot      = document.getElementById("foot");
+  var historyList = document.getElementById("historyList");
+  var histSummary = document.getElementById("histSummary");
+
+  // ---- Call state ------------------------------------------------------
+  var ws = null;
+  var callActive   = false;   // true between Call Start and End Call
+  var botSpeaking  = false;   // true while bot audio/TTS is playing (mic OFF)
+  var recognizing  = false;   // SR engine currently running
+  var pendingBot   = false;   // user turn sent, waiting for bot reply
+  var awaitingGreeting = false;
+  var endAfterSpeak = false;  // should_end -> hang up after bot finishes
+  var currentAudio = null;
+  var botTurnId = 0;
+  var botQueue = [];           // sequential playback (3-seg opener + sentence chunks)
+  var drainingBot = false;
+  var kickTimer = null, safetyTimer = null, timerInt = null, t0 = 0;
+
+  // ---- Niche dropdown: load all research-finalized niches --------------
+  (function loadNiches(){
+    fetch("/api/data/niches")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if(!data || !data.niches || !data.niches.length) return;
+        var current = nicheSel.value;
+        nicheSel.innerHTML = "";
+        var tiers = {"S":[],"A":[],"B":[],"C":[],"":[]};
+        data.niches.forEach(function(n){ (tiers[n.tier]||tiers[""]).push(n); });
+        ["S","A","B","C",""].forEach(function(t){
+          tiers[t].forEach(function(n){
+            var opt = document.createElement("option");
+            opt.value = n.id;
+            var label = t === "C" ? " [custom]" : (t ? " ["+t+"]" : "");
+            opt.textContent = n.name + label;
+            nicheSel.appendChild(opt);
+          });
+        });
+        var gen = document.createElement("option");
+        gen.value = "general"; gen.textContent = "General";
+        nicheSel.appendChild(gen);
+        for(var i=0;i<nicheSel.options.length;i++){
+          if(nicheSel.options[i].value === current){ nicheSel.selectedIndex = i; break; }
+        }
+      })
+      .catch(function(){ /* static fallback options stay */ });
+  })();
+
+  // ---- UI helpers ------------------------------------------------------
+  var STATUS = {
+    idle:      "Call shuru karne ke liye green button dabayein",
+    calling:   "Calling…",
+    connected: "Connected",
+    listening: "Sun rahi hoon…",
+    thinking:  "Soch rahi hoon…",
+    speaking:  "Bol rahi hoon…",
+    ended:     "Call samapt ho gayi"
+  };
+  function setState(s){
+    screenEl.dataset.state = s;
+    statusEl.textContent = STATUS[s] || s;
+  }
+  function setControls(active){
+    nicheSel.disabled = active;
+    flowSel.disabled  = active;
+    bizName.disabled  = active;
+    startBtn.classList.toggle("hidden", active);
+    endBtn.classList.toggle("hidden", !active);
+    callCap.textContent = active ? "End Call" : "Call Start";
+    input.disabled   = !active;
+    sendBtn.disabled = !active;
+  }
+  function showUserCaption(text, interim){
+    capUser.textContent = text || "";
+    capUser.classList.toggle("interim", !!interim);
+  }
+  function showBotCaption(text){ capBot.textContent = text || ""; }
+  function clearCaptions(){ capBot.textContent = ""; showUserCaption("", false); }
+
+  function startTimer(){
+    stopTimer(); t0 = Date.now(); timerEl.classList.remove("hidden"); timerEl.textContent = "00:00";
+    timerInt = setInterval(function(){
+      var s = Math.floor((Date.now()-t0)/1000), m = Math.floor(s/60), ss = s%60;
+      timerEl.textContent = (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;
+    }, 500);
+  }
+  function stopTimer(){ if(timerInt){ clearInterval(timerInt); timerInt = null; } }
+
+  // ---- WebSocket -------------------------------------------------------
+  function sendJSON(obj){
+    if(ws && ws.readyState === WebSocket.OPEN){ ws.send(JSON.stringify(obj)); return true; }
+    return false;
+  }
+  function withBiz(p){
+    // Business naam session me bhejo — agent "Demo Co" ki jagah isi naam se
+    // baat karta hai (backend client_name handle karta hai).
+    // ai_marketing platform pitch = hamesha LeadGen AI brand (override mat bhejo).
+    var n = (bizName && bizName.value || "").trim();
+    if(n && nicheSel.value !== "ai_marketing"){ p.client_name = n; }
+    p.lead_key = LEAD_KEY;
+    if(currentSessionId){ p.session_id = currentSessionId; }
+    return p;
+  }
+
+  // Chrome autoplay: WS se aane wali awaaz tabhi chale jab user gesture pe unlock ho.
+  var audioUnlocked = false;
+  function unlockAudioPlayback(){
+    if(audioUnlocked) return;
+    try{
+      var sil = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+      sil.volume = 0.01;
+      var p = sil.play();
+      if(p && p.then){ p.then(function(){ audioUnlocked = true; }).catch(function(){}); }
+      else { audioUnlocked = true; }
+    }catch(e){}
+  }
+
+  function connectWS(){
+    try{ ws = new WebSocket(WS_URL); }
+    catch(e){ showBotCaption("Connection error: " + e); endCall(); return; }
+
+    ws.onopen = function(){
+      // Backend replies with {type:"ready"} then a spoken greeting on 'start'.
+      sendJSON(withBiz({type:"start", niche:nicheSel.value, flow:flowSel.value}));
+    };
+    ws.onmessage = function(ev){
+      var data; try{ data = JSON.parse(ev.data); }catch(e){ return; }
+      if(!callActive && data.type !== "pong") return;
+
+      if(data.type === "ready"){
+        setState("connected");
+        if(data.session_id){ currentSessionId = data.session_id; }
+        startTimer();
+        if(data.responder){
+          foot.innerHTML = "<b>🔒 Free &amp; safe</b> · " + data.responder +
+            " se baat ho rahi hai — koi charge nahi.";
+        }
+        // The agent greets first. If no greeting arrives, open the mic anyway.
+        awaitingGreeting = true;
+        clearTimeout(kickTimer);
+        kickTimer = setTimeout(function(){
+          if(callActive && awaitingGreeting && !botSpeaking && !botQueue.length){
+            awaitingGreeting = false; setState("listening"); startListening();
+          }
+        }, 12000);
+
+      } else if(data.type === "bot"){
+        awaitingGreeting = false; clearTimeout(kickTimer);
+        var isLastChunk = !data.chunk_total || data.chunk_index == null
+          || data.chunk_index >= (data.chunk_total - 1);
+        if(isLastChunk){
+          pendingBot = false; clearTimeout(safetyTimer);
+        }
+        enqueueBot(data.text, data.audio_b64, {
+          heard: data.heard,
+          should_end: data.should_end
+        });
+
+      } else if(data.type === "filler"){
+        if(data.heard){ showUserCaption(data.heard, false); }
+        if(data.audio_b64){ enqueueBot("…", data.audio_b64, {}); }
+
+      } else if(data.type === "info"){
+        // Not a spoken turn (e.g. echo-mode start) — start listening if waiting.
+        if(awaitingGreeting){
+          awaitingGreeting = false; clearTimeout(kickTimer);
+          if(callActive && !botSpeaking){ setState("listening"); startListening(); }
+        }
+
+      } else if(data.type === "session_saved"){
+        loadCallHistory();
+
+      } else if(data.type === "close_signal"){
+        showSignupOverlay(data.business_name, data.niche, data.phone);
+
+      } else if(data.type === "error"){
+        if(pendingBot){ pendingBot = false; clearTimeout(safetyTimer); }
+        showBotCaption("⚠ " + (data.text || "error"));
+        if(callActive && !botSpeaking){ setState("listening"); startListening(); }
+      }
+      /* pong: keepalive, ignore */
+    };
+    ws.onclose = function(){ if(callActive && !endingCall){ endCall(); } };
+    ws.onerror = function(){ /* onclose will follow */ };
+  }
+
+  // ---- Bot playback queue (3-seg opener + streaming sentence chunks) ----
+  function clearBotQueue(){
+    botQueue = [];
+    drainingBot = false;
+  }
+  function enqueueBot(text, b64, opts){
+    opts = opts || {};
+    botQueue.push({
+      text: (text || "(no response)"),
+      b64: b64 || null,
+      heard: opts.heard || "",
+      should_end: !!opts.should_end
+    });
+    drainBotQueue();
+  }
+  function drainBotQueue(){
+    if(drainingBot || !botQueue.length || !callActive) return;
+    drainingBot = true;
+    stopListening();
+    var item = botQueue.shift();
+    if(item.should_end) endAfterSpeak = true;
+    if(item.heard) showUserCaption(item.heard, false);
+    playBotTurn(item.text, item.b64, function(){
+      drainingBot = false;
+      if(botQueue.length){
+        drainBotQueue();
+        return;
+      }
+      if(endAfterSpeak){ endCall(); return; }
+      if(callActive && !pendingBot){
+        setState("listening");
+        setTimeout(startListening, 300);
+      }
+    });
+  }
+
+  // ---- Bot turn: pause mic -> play audio -> resume mic -----------------
+  // Keeps playAudioB64(): plays the bot's EdgeTTS mp3 (natural Swara voice).
+  function playAudioB64(b64, onEnded, onFail){
+    if(!b64) return false;
+    try{
+      // Auto-detect format: Gemini-TTS = WAV (base64 starts "UklGR" = RIFF),
+      // EdgeTTS = mp3. Wrong MIME = silent no-play, so detect before wrapping.
+      var mime = (b64.indexOf("UklGR") === 0) ? "audio/wav" : "audio/mp3";
+      var audio = new Audio("data:" + mime + ";base64," + b64);
+      currentAudio = audio;
+      routeBotAudioToRecorder(audio);   // Swara ki awaaz recording-mix me bhi
+      audio.onended = onEnded;
+      audio.onerror = onFail;
+      var p = audio.play();
+      if(p && p.catch){
+        p.catch(function(err){
+          if(!audioUnlocked){
+            foot.innerHTML = "<b>Audio blocked</b> — browser ne awaaz roki. Green Call button dubara dabao (ya ⌨️ se type karo). <b>🔒 Free &amp; safe</b>";
+          }
+          onFail();
+        });
+      }
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // Browser TTS fallback when no mp3 is returned.
+  function speak(text, onEnded){
+    if("speechSynthesis" in window && text){
+      try{
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = "hi-IN"; u.rate = 1.0;
+        u.onend = onEnded; u.onerror = onEnded;
+        window.speechSynthesis.speak(u);
+        return;
+      }catch(e){}
+    }
+    // No TTS at all — resume after a rough reading-time estimate.
+    var ms = Math.min(7000, 700 + (text ? text.length * 55 : 0));
+    setTimeout(onEnded, ms);
+  }
+
+  function playBotTurn(text, b64, onDone){
+    stopListening();              // ECHO GUARD: mic OFF before the bot speaks
+    discardRecorder();            // bot ki awaaz record nahi karni
+    // Cancel only overlapping playback on THIS turn (queue waits for onDone).
+    if(currentAudio){
+      try{ currentAudio.onended = null; currentAudio.onerror = null; currentAudio.pause(); }catch(e){}
+      currentAudio = null;
+    }
+    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+    botSpeaking = true;
+    var myTurn = ++botTurnId;
+    setState("speaking");
+    showBotCaption(text);
+
+    var fellBack = false;
+    function done(){ finishBotTurn(myTurn, onDone); }
+    function fallback(){
+      if(fellBack) return; fellBack = true;
+      speak(text, done);
+    }
+    if(!playAudioB64(b64, done, fallback)){ fallback(); }
+  }
+
+  function finishBotTurn(turn, onDone){
+    if(turn !== botTurnId) return;     // stale callback from an old turn
+    if(!botSpeaking) return;           // already finished / interrupted
+    botSpeaking = false;
+    currentAudio = null;
+    if(typeof onDone === "function"){ onDone(); return; }
+    if(endAfterSpeak){ endCall(); return; }
+    if(callActive){
+      setState("listening");
+      setTimeout(startListening, 300);
+    }
+  }
+
+  // ---- Mic recorder: utterance audio -> server Groq STT ----------------
+  // Web Speech API endpointing accha hai par Hinglish GALAT sunta hai; isliye
+  // saath-saath MediaRecorder se raw audio bhi pakdo aur final turn ke saath
+  // audio_b64 bhejo — server Groq whisper-large-v3 se sunta hai (phone-parity).
+  // Recorder fail/unsupported = aaj jaisa text-only (zero regression).
+  var micStream = null, recorder = null, recChunks = [];
+  function initMic(){
+    if(micStream || !navigator.mediaDevices || !window.MediaRecorder) return;
+    try{
+      navigator.mediaDevices.getUserMedia({audio:true})
+        .then(function(s){
+          micStream = s;
+          startCallRecording();              // poori call ka mixed (mic+Swara) audio
+          if(callActive && recognizing) startRecorder();
+        })
+        .catch(function(){ micStream = null; });
+    }catch(e){ micStream = null; }
+  }
+
+  // ---- Full-call recording (mixed mic + Swara) — WebAudio se ek hi stream me ----
+  // User mic + bot ki EdgeTTS awaaz dono ko ek AudioContext destination me mix karke
+  // poori call ka recording banta; call-end pe server pe upload (admin "Call Recordings"
+  // + Web Test Calls me sunai dega). FULLY fail-safe: koi bhi step toote = recording
+  // chup-chaap off, CALL kabhi affect nahi (bot ki awaaz har haal me sunai degi).
+  var callAudioCtx=null, callRecDest=null, callRecorder=null, callRecChunks=[], recOn=false;
+  function startCallRecording(){
+    if(recOn || !micStream || !window.MediaRecorder) return;
+    try{
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      callAudioCtx = new Ctx();
+      try{ callAudioCtx.resume(); }catch(e){}
+      callRecDest = callAudioCtx.createMediaStreamDestination();
+      // mic -> mix (Swara ki awaaz playBotTurn me route hogi)
+      try{ callAudioCtx.createMediaStreamSource(micStream).connect(callRecDest); }catch(e){}
+      callRecChunks=[];
+      callRecorder = new MediaRecorder(callRecDest.stream);
+      callRecorder.ondataavailable = function(e){ if(e.data && e.data.size) callRecChunks.push(e.data); };
+      callRecorder.start();
+      recOn=true;
+    }catch(e){ recOn=false; callAudioCtx=null; callRecDest=null; callRecorder=null; }
+  }
+  // Bot ki <audio> element ko mix-destination me bhi bhejo (taaki Swara ki awaaz
+  // recording me aaye). createMediaElementSource ke baad element ki awaaz WebAudio
+  // graph se jaati hai — isliye ctx.destination se bhi connect (warna user ko bot
+  // sunai nahi dega). Per-element ek hi baar route; koi error = normal playback.
+  function routeBotAudioToRecorder(audioEl){
+    if(!recOn || !callAudioCtx || !callRecDest || !audioEl || audioEl._routed) return;
+    // SAFETY: ctx suspended ho (autoplay policy) to route mat karo — warna
+    // createMediaElementSource ke baad element ki awaaz graph se jaayegi par
+    // ctx.destination output nahi degi = Swara CHUP. Tab tak recording skip karo
+    // (bot ki awaaz har haal me sunai de). Resume try karke agle turn pe capture.
+    if(callAudioCtx.state !== "running"){ try{ callAudioCtx.resume(); }catch(e){} return; }
+    try{
+      var src = callAudioCtx.createMediaElementSource(audioEl);
+      src.connect(callAudioCtx.destination);   // user abhi bhi sune
+      src.connect(callRecDest);                // recording me bhi aaye
+      audioEl._routed = true;
+    }catch(e){ /* route fail = element khud bajega (default output) */ }
+  }
+  function stopCallRecordingAndUpload(){
+    if(!recOn || !callRecorder){ recOn=false; return; }
+    var rec = callRecorder; callRecorder=null; recOn=false;
+    var sid = currentSessionId, lk = LEAD_KEY;
+    var done=false;
+    function finish(){
+      if(done) return; done=true;
+      var blob=null;
+      try{ if(callRecChunks.length) blob = new Blob(callRecChunks, {type: rec.mimeType || "audio/webm"}); }catch(e){}
+      callRecChunks=[];
+      try{ if(callAudioCtx) callAudioCtx.close(); }catch(e){}
+      callAudioCtx=null; callRecDest=null;
+      if(blob && blob.size>2000 && sid){ uploadRecording(blob, sid, lk); }
+    }
+    rec.onstop = finish;
+    try{ rec.stop(); }catch(e){ finish(); }
+    setTimeout(finish, 900);
+  }
+  function uploadRecording(blob, sid, lk){
+    try{
+      var fd = new FormData();
+      var ext = (blob.type && blob.type.indexOf("mp4")>=0) ? "mp4" : (blob.type && blob.type.indexOf("ogg")>=0 ? "ogg" : "webm");
+      fd.append("file", blob, "webcall."+ext);
+      fd.append("session_id", sid);
+      fd.append("lead_key", lk || "");
+      fetch("/api/web-call/recording", {method:"POST", body:fd}).catch(function(){});
+    }catch(e){}
+  }
+  function startRecorder(){
+    if(!micStream || !window.MediaRecorder || recorder) return;
+    try{
+      recChunks = [];
+      recorder = new MediaRecorder(micStream);
+      recorder.ondataavailable = function(e){ if(e.data && e.data.size) recChunks.push(e.data); };
+      recorder.start();
+    }catch(e){ recorder = null; }
+  }
+  function stopRecorder(cb){
+    // cb(base64|null) — HAMESHA exactly ek baar (timeout-safe, kabhi hang nahi).
+    if(!recorder){ cb(null); return; }
+    var r = recorder; recorder = null;
+    var called = false;
+    function finish(){
+      if(called) return; called = true;
+      var chunks = recChunks; recChunks = [];
+      var blob = null;
+      try{ if(chunks.length) blob = new Blob(chunks, {type: r.mimeType || "audio/webm"}); }catch(e){}
+      if(!blob || blob.size < 1200 || blob.size > 1500000){ cb(null); return; }
+      try{
+        var fr = new FileReader();
+        fr.onload = function(){
+          var s = String(fr.result || ""); var i = s.indexOf(",");
+          cb(i >= 0 ? s.slice(i+1) : null);
+        };
+        fr.onerror = function(){ cb(null); };
+        fr.readAsDataURL(blob);
+      }catch(e){ cb(null); }
+    }
+    r.onstop = finish;
+    try{ r.stop(); }catch(e){ finish(); }
+    setTimeout(finish, 700);
+  }
+  function discardRecorder(){
+    if(!recorder) return;
+    var r = recorder; recorder = null; recChunks = [];
+    try{ r.onstop = null; r.ondataavailable = null; r.stop(); }catch(e){}
+  }
+
+  // ---- Continuous, hands-free speech recognition -----------------------
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recog = null;
+  // Endpointing debounce — webkitSpeechRecognition har chhote pause pe isFinal
+  // deta; pehle turant send hota tha to ruk-ruk ke boli sentence ka sirf PEHLA
+  // tukda jaata (mic OFF -> baaki DROP) = "dhang se nahi sunta". Ab finals
+  // accumulate karke ~850ms silence-grace baad POORI utterance + full audio
+  // bhejte (Groq full audio pe accurate). Competitor-grade endpointing.
+  var pendingFinal = "", endpointTimer = null;
+  var ENDPOINT_MS = 850;
+  function flushUserTurn(){
+    clearTimeout(endpointTimer); endpointTimer = null;
+    var t = (pendingFinal || "").trim(); pendingFinal = "";
+    if(t) sendUserText(t);
+  }
+  if(SR){
+    recog = new SR();
+    recog.lang = "hi-IN";
+    recog.continuous = true;
+    recog.interimResults = true;
+    recog.maxAlternatives = 1;
+
+    recog.onstart = function(){
+      recognizing = true;
+      startRecorder();   // SR ke saath raw-audio capture (server Groq STT)
+      if(callActive && !botSpeaking && !pendingBot) setState("listening");
+    };
+    recog.onresult = function(ev){
+      if(!callActive || botSpeaking || pendingBot) return;
+      var interim = "", finalText = "";
+      for(var i = ev.resultIndex; i < ev.results.length; i++){
+        var res = ev.results[i];
+        if(res.isFinal) finalText += res[0].transcript;
+        else interim += res[0].transcript;
+      }
+      if(finalText.trim()){
+        pendingFinal = (pendingFinal + " " + finalText).trim();   // accumulate, send mat karo
+      }
+      var cap = (pendingFinal + " " + interim).trim();            // live caption = jo ab tak bola
+      if(cap) showUserCaption(cap, true);
+      // Debounced endpoint: koi bhi speech aane pe timer reset; user sach me ruke
+      // (~850ms silence) tabhi poori utterance + full audio ek turn me jaaye.
+      if(pendingFinal){
+        clearTimeout(endpointTimer);
+        endpointTimer = setTimeout(flushUserTurn, ENDPOINT_MS);
+      }
+    };
+    recog.onerror = function(e){
+      recognizing = false;
+      if(e && e.error === "not-allowed"){ micDenied(); }
+      // 'no-speech' / 'aborted' are normal; onend handles the restart.
+    };
+    recog.onend = function(){
+      recognizing = false;
+      // Chrome stops continuous SR periodically — auto-restart while the call
+      // is live and the bot is NOT speaking and we're not awaiting a reply.
+      if(callActive && !botSpeaking && !pendingBot){ setTimeout(startListening, 250); }
+    };
+  } else {
+    micDenied(true);   // no Web Speech API -> typed fallback only
+  }
+
+  function startListening(){
+    if (kbdToggle && kbdToggle.classList.contains("on")) return;
+    if(!SR || !recog) return;
+    if(!callActive || botSpeaking || pendingBot || recognizing) return;
+    try{ recog.start(); }catch(e){ /* already starting / transient */ }
+  }
+  function stopListening(){
+    // turn/echo-guard pe mic OFF — pending endpoint timer + accumulated text saaf
+    // karo taaki bot-turn ke baad stale/aadha-utterance flush na ho jaaye.
+    clearTimeout(endpointTimer); endpointTimer = null; pendingFinal = "";
+    if(!SR || !recog || !recognizing) return;
+    try{ recog.stop(); }catch(e){}
+  }
+  function micDenied(noSR){
+    typedRow.classList.remove("hidden");
+    kbdToggle.classList.add("on");
+    foot.innerHTML = noSR
+      ? "Is browser me voice support nahi — niche type karke baat karein. <b>🔒 Free</b>, no charge."
+      : "Mic permission chahiye — ya niche type karke baat karein. <b>🔒 Free</b>, no charge.";
+  }
+
+  // ---- User turn -------------------------------------------------------
+  function sendUserText(text){
+    text = (text || "").trim();
+    if(!text || !callActive) return;
+    // DUP GUARD: jab tak bot ka jawab pending hai ya bot bol raha hai,
+    // dusra user-turn mat bhejo (SR ke double-final se double replies aati thin).
+    if(pendingBot || botSpeaking) return;
+    showUserCaption(text, false);
+    pendingBot = true;            // dup-guard ON pehle hi (audio read async hai)
+    setState("thinking");
+    stopListening();              // turn-based: mic OFF until the bot replies
+    stopRecorder(function(b64){   // recorded utterance -> server Groq STT
+      if(!callActive){ pendingBot = false; return; }
+      var p = withBiz({type:"user", text:text, niche:nicheSel.value, flow:flowSel.value});
+      if(b64){ p.audio_b64 = b64; }
+      if(sendJSON(p)){
+        clearTimeout(safetyTimer);
+        safetyTimer = setTimeout(function(){   // safety: never get stuck waiting
+          if(callActive && pendingBot && !botSpeaking){
+            pendingBot = false; setState("listening"); startListening();
+          }
+        }, 13000);
+      } else {
+        pendingBot = false;
+      }
+    });
+  }
+
+  // ---- Call lifecycle --------------------------------------------------
+  var endingCall = false;
+  function startCall(){
+    if(callActive) return;
+    unlockAudioPlayback();
+    callActive = true;
+    botSpeaking = false; pendingBot = false; endAfterSpeak = false; awaitingGreeting = false;
+    clearCaptions();
+    setControls(true);
+    setState("calling");
+    initMic();                    // raw-audio capture (server Groq STT) ke liye
+    connectWS();
+  }
+  function finishEndCall(){
+    endingCall = false;
+    callActive = false;
+    awaitingGreeting = false; pendingBot = false; botSpeaking = false; endAfterSpeak = false;
+    // Playback PEHLE rok do, fir recorder stop (jo ctx.close schedule karta) — taaki
+    // AudioContext band hote waqt Swara ki aakhri line na kate.
+    try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+    if(currentAudio){ try{ currentAudio.pause(); }catch(e){} currentAudio = null; }
+    stopCallRecordingAndUpload();   // currentSessionId clear hone se PEHLE upload
+    currentSessionId = null;
+    clearBotQueue();
+    clearTimeout(kickTimer); clearTimeout(safetyTimer);
+    stopListening();
+    discardRecorder();
+    if(micStream){ try{ micStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} micStream = null; }
+    try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+    if(currentAudio){ try{ currentAudio.pause(); }catch(e){} currentAudio = null; }
+    if(ws){ try{ ws.close(); }catch(e){} ws = null; }
+    stopTimer();
+    setControls(false);
+    setState("ended");
+    timerEl.classList.add("hidden");
+    loadCallHistory();
+    setTimeout(function(){ if(!callActive){ setState("idle"); clearCaptions(); } }, 1600);
+  }
+  function endCall(){
+    if(!callActive || endingCall) return;
+    endingCall = true;
+    stopListening();
+    if(ws && ws.readyState === WebSocket.OPEN){
+      sendJSON({type:"end"});
+      setTimeout(finishEndCall, 700);
+    } else {
+      finishEndCall();
+    }
+  }
+
+  // ---- Events ----------------------------------------------------------
+  startBtn.addEventListener("click", startCall);
+  endBtn.addEventListener("click", endCall);
+
+  // Barge-in: tap the avatar while the bot is speaking to interrupt it.
+  avatar.addEventListener("click", function(){
+    if(botSpeaking){
+      clearBotQueue();
+      try{ if(currentAudio) currentAudio.pause(); }catch(e){}
+      try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+      finishBotTurn(botTurnId);
+    }
+  });
+
+  // Typed fallback
+  kbdToggle.addEventListener("click", function(){
+    typedRow.classList.toggle("hidden");
+    var isOn = !typedRow.classList.contains("hidden");
+    kbdToggle.classList.toggle("on", isOn);
+    if(isOn){
+       input.focus();
+       stopListening();
+       if(callActive && !pendingBot && !botSpeaking) setState("listening"); // visual update
+    } else {
+       if(callActive && !pendingBot && !botSpeaking){
+         setState("listening");
+         startListening();
+       }
+    }
+  });
+  sendBtn.addEventListener("click", function(){
+    sendUserText(input.value); input.value = ""; input.focus();
+  });
+  input.addEventListener("keydown", function(e){
+    if(e.key === "Enter"){ e.preventDefault(); sendUserText(input.value); input.value = ""; }
+  });
+
+  // Keepalive
+  setInterval(function(){ sendJSON({type:"ping"}); }, 25000);
+
+  // Business naam yaad rakho (per-browser).
+  try{ bizName.value = localStorage.getItem("lg_bizname") || ""; }catch(e){}
+  bizName.addEventListener("change", function(){
+    try{ localStorage.setItem("lg_bizname", (bizName.value || "").trim()); }catch(e){}
+  });
+
+  nicheSel.addEventListener("change", function(){
+    if(nicheSel.value === "ai_marketing"){
+      bizName.placeholder = "Platform pitch — LeadGen AI brand";
+      bizName.disabled = true;
+    } else {
+      bizName.placeholder = "Business naam";
+      if(callActive) bizName.disabled = true;
+      else bizName.disabled = false;
+    }
+  });
+  if(nicheSel.value === "ai_marketing"){ nicheSel.dispatchEvent(new Event("change")); }
+
+  // ---- Call history (transcript log, IST time, newest first) -----------
+  function escHist(s){
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+  }
+  function toIstDate(iso){
+    if(!iso) return null;
+    try{
+      var d = new Date(iso);
+      if(isNaN(d.getTime())) return null;
+      return new Date(d.getTime() + (5 * 60 + 30) * 60000);
+    }catch(e){ return null; }
+  }
+  function formatIstTime(iso){
+    var d = toIstDate(iso);
+    if(!d) return "—";
+    var h = d.getUTCHours(), m = d.getUTCMinutes();
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+  function formatIstDayLabel(iso){
+    var d = toIstDate(iso);
+    if(!d) return "Unknown";
+    var now = toIstDate(new Date().toISOString());
+    if(!now) return d.toISOString().slice(0, 10);
+    var y = d.getUTCFullYear(), mo = d.getUTCMonth(), da = d.getUTCDate();
+    var ny = now.getUTCFullYear(), nmo = now.getUTCMonth(), nda = now.getUTCDate();
+    if(y === ny && mo === nmo && da === nda) return "Aaj";
+    var yest = new Date(now.getTime() - 86400000);
+    if(y === yest.getUTCFullYear() && mo === yest.getUTCMonth() && da === yest.getUTCDate()) return "Kal";
+    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return da + " " + months[mo] + " " + y;
+  }
+  function formatDur(sec){
+    sec = Math.max(0, parseInt(sec, 10) || 0);
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function renderTurns(turns){
+    if(!turns || !turns.length) return '<div class="hist-empty">Koi transcript nahi</div>';
+    return turns.map(function(t){
+      var role = (t.role === "user") ? "user" : "bot";
+      var lbl = role === "user" ? "Aap" : agentForFlow(flowSel.value).name;
+      var ts = t.ts ? '<span class="ts">' + escHist(formatIstTime(t.ts)) + "</span>" : "";
+      return '<div class="hist-turn ' + role + '"><b>' + lbl + "</b>" + ts + " — " + escHist(t.text || "") + "</div>";
+    }).join("");
+  }
+  function toggleHistRow(rowEl, sid){
+    if(!rowEl || !sid) return;
+    var open = rowEl.classList.contains("open");
+    if(open){ rowEl.classList.remove("open"); return; }
+    rowEl.classList.add("open");
+    var body = rowEl.querySelector(".hist-body");
+    if(!body || body.getAttribute("data-loaded") === "1") return;
+    body.innerHTML = '<div class="hist-empty">Loading transcript…</div>';
+    fetch("/api/web-call/session/" + encodeURIComponent(sid) + "?lead_key=" + encodeURIComponent(LEAD_KEY))
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if(!body) return;
+        if(!d || !d.ok || !d.session){
+          body.innerHTML = '<div class="hist-empty">Transcript load nahi hua</div>';
+          return;
+        }
+        body.setAttribute("data-loaded", "1");
+        body.innerHTML = renderTurns(d.session.turns || []);
+      })
+      .catch(function(){
+        if(body) body.innerHTML = '<div class="hist-empty">Network error</div>';
+      });
+  }
+  function renderCallHistory(sessions){
+    if(!sessions || !sessions.length){
+      historyList.innerHTML = '<div class="hist-empty">Abhi koi call save nahi — ek test call karo, transcript yahan dikhega.</div>';
+      if(histSummary) histSummary.textContent = "0 calls";
+      return;
+    }
+    if(histSummary) histSummary.textContent = sessions.length + " call" + (sessions.length === 1 ? "" : "s");
+    var groups = {}, order = [];
+    sessions.forEach(function(s){
+      var day = formatIstDayLabel(s.started_at);
+      if(!groups[day]){ groups[day] = []; order.push(day); }
+      groups[day].push(s);
+    });
+    var html = "";
+    order.forEach(function(day){
+      html += '<div class="hist-day">' + escHist(day) + "</div>";
+      groups[day].forEach(function(s){
+        var sid = s.session_id || "";
+        var niche = s.niche || "general";
+        var flow = s.flow || "qualify";
+        var biz = s.client_name && s.client_name !== "Demo Co" ? " · " + s.client_name : "";
+        html += '<div class="hist-row" data-sid="' + escHist(sid) + '">' +
+          '<div class="hist-head">' +
+          '<span class="hist-time">' + escHist(formatIstTime(s.started_at)) + "</span>" +
+          '<span class="hist-dur">' + escHist(formatDur(s.duration_s)) + "</span>" +
+          '<span class="hist-meta">' + escHist(niche) + " · " + escHist(flow) + escHist(biz) +
+          " · " + (s.turn_count || 0) + " turns</span>" +
+          '<span class="hist-chev">▶</span></div>' +
+          '<div class="hist-body"></div></div>';
+      });
+    });
+    historyList.innerHTML = html;
+    historyList.querySelectorAll(".hist-row").forEach(function(row){
+      row.querySelector(".hist-head").addEventListener("click", function(){
+        toggleHistRow(row, row.getAttribute("data-sid"));
+      });
+    });
+  }
+  function loadCallHistory(){
+    if(histSummary) histSummary.textContent = "Loading…";
+    fetch("/api/web-call/history?lead_key=" + encodeURIComponent(LEAD_KEY) + "&limit=30")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ renderCallHistory(d && d.sessions ? d.sessions : []); })
+      .catch(function(){
+        historyList.innerHTML = '<div class="hist-empty">History load fail — refresh karo</div>';
+        if(histSummary) histSummary.textContent = "—";
+      });
+  }
+
+  // ---- Inline trial-signup overlay (voice close-signal, WEBCALL_INLINE_SIGNUP) ----
+  var signupOverlay = document.getElementById("signupOverlay");
+  var suBiz         = document.getElementById("suBiz");
+  var suPhone       = document.getElementById("suPhone");
+  var suEmail       = document.getElementById("suEmail");
+  var suPassword    = document.getElementById("suPassword");
+  var signupErr     = document.getElementById("signupErr");
+  var signupSubmit  = document.getElementById("signupSubmit");
+  var signupDismiss = document.getElementById("signupDismiss");
+
+  function showSignupOverlay(businessName, niche, phone){
+    if(!signupOverlay) return;
+    suBiz.value = businessName || "";
+    suPhone.value = phone || "";
+    signupErr.classList.add("hidden");
+    signupErr.textContent = "";
+    signupOverlay.dataset.niche = niche || "general";
+    signupOverlay.classList.remove("hidden");
+  }
+  if(signupDismiss){
+    signupDismiss.onclick = function(){ signupOverlay.classList.add("hidden"); };
+  }
+  if(signupSubmit){
+    signupSubmit.onclick = function(){
+      var biz = (suBiz.value || "").trim();
+      var email = (suEmail.value || "").trim();
+      var password = suPassword.value || "";
+      var phone = (suPhone.value || "").trim();
+      if(biz.length < 2){
+        signupErr.textContent = "Business ka naam likhein (kam se kam 2 characters).";
+        signupErr.classList.remove("hidden");
+        return;
+      }
+      if(email.indexOf("@") < 0){
+        signupErr.textContent = "Sahi email daalein.";
+        signupErr.classList.remove("hidden");
+        return;
+      }
+      if(password.length < 6){
+        signupErr.textContent = "Password kam se kam 6 characters ka ho.";
+        signupErr.classList.remove("hidden");
+        return;
+      }
+      signupErr.classList.add("hidden");
+      signupSubmit.disabled = true;
+      signupSubmit.textContent = "Shuru ho raha hai…";
+      (window.turnstileToken ? window.turnstileToken() : Promise.resolve(""))
+        .then(function(tok){
+          return fetch("/api/public/signup", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+              business_name: biz,
+              email: email,
+              password: password,
+              phone: phone,
+              plan: "trial",
+              niche: signupOverlay.dataset.niche || "general",
+              _turnstile_token: tok
+            })
+          });
+        })
+        .then(function(r){ return r.json().then(function(d){ return {ok: r.ok, body: d}; }); })
+        .then(function(res){
+          if(!res.ok){
+            var errMsg = res.body && ((res.body.error && res.body.error.message) || res.body.detail);
+            signupErr.textContent = errMsg || "Signup fail hua, dobara try karein.";
+            signupErr.classList.remove("hidden");
+            signupSubmit.disabled = false;
+            signupSubmit.textContent = "Free trial shuru karo";
+            return;
+          }
+          try{
+            if(res.body && res.body.access_token){
+              localStorage.setItem("accessToken", res.body.access_token);
+            }
+          }catch(e){}
+          signupOverlay.querySelector(".signup-card").innerHTML =
+            '<div class="signup-title">✅ Trial shuru ho gaya!</div>' +
+            '<div class="signup-sub">Aapka dashboard taiyaar hai.</div>' +
+            '<button id="signupGoDash">Dashboard kholein</button>';
+          var goBtn = document.getElementById("signupGoDash");
+          if(goBtn){ goBtn.onclick = function(){ location.href = "/app/customer"; }; }
+        })
+        .catch(function(){
+          signupErr.textContent = "Network error — dobara try karein.";
+          signupErr.classList.remove("hidden");
+          signupSubmit.disabled = false;
+          signupSubmit.textContent = "Free trial shuru karo";
+        });
+    };
+  }
+
+  // ---- Boot ------------------------------------------------------------
+  loadCallHistory();
+  setControls(false);
+  setState("idle");
+})();
+</script>
+<script src="/site/turnstile.js" defer></script>
+</body>
+</html>

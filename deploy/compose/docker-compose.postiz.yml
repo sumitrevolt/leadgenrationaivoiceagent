@@ -1,0 +1,203 @@
+# Postiz self-host stack — LeadGen AI own-brand social auto-posting backend.
+# Chalao: docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d
+# Setup runbook: scripts/setup_postiz.sh (DNS + Caddy + secrets + first-run steps).
+#
+# Apna alag postgres/redis + alag network — main leadgen stack se fully isolated
+# (leadgen_db/redis ko touch nahi karta). Sirf 127.0.0.1:5000 pe exposed; public
+# access host-Caddy reverse-proxy (postiz.leadsgenai.in) se hota hai.
+#
+# 🚨 2026-07-03 INCIDENT: dono compose files (yeh + docker-compose.vps.yml) same
+# /opt/leadgen dir se chalte isliye Compose implicit project name "leadgen" dono
+# me SHARE hota — is file pe `docker compose ... up -d --remove-orphans` chalane
+# se poora main stack (app/db/redis/workers) "orphan" samajh ke STOP+DELETE ho
+# gaya tha (data volumes bache the, restart se recover hua). Explicit `name:`
+# se isolate karne ki koshish ki gayi par existing container_name clash karta
+# (migration-risk, revert kiya) — REAL fix: is file pe KABHI --remove-orphans
+# flag use mat karo. Plain `up -d` (bina flag) safe hai.
+
+services:
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    container_name: leadgen_postiz
+    restart: unless-stopped
+    environment:
+      MAIN_URL: "${POSTIZ_MAIN_URL:-https://postiz.leadsgenai.in}"
+      FRONTEND_URL: "${POSTIZ_MAIN_URL:-https://postiz.leadsgenai.in}"
+      NEXT_PUBLIC_BACKEND_URL: "${POSTIZ_MAIN_URL:-https://postiz.leadsgenai.in}/api"
+      JWT_SECRET: "${POSTIZ_JWT_SECRET:?run scripts/setup_postiz.sh to generate deploy/postiz/.env}"
+      DATABASE_URL: "postgresql://postiz:${POSTIZ_DB_PASSWORD:?}@postiz-postgres:5432/postiz"
+      REDIS_URL: "redis://postiz-redis:6379"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      # v2.12+ backend requires Temporal (BullMQ replacement) — bina iske
+      # backend port 3000 pe start hi nahi hota (ECONNREFUSED ::1:7233) aur
+      # nginx andar 502 deta hai har /api call pe (register bhi). 2026-07-03 fix.
+      TEMPORAL_ADDRESS: "temporal:7233"
+      IS_GENERAL: "true"
+      # Pehla admin account banne ke baad "true" karo (open signup band).
+      DISABLE_REGISTRATION: "${POSTIZ_DISABLE_REGISTRATION:-false}"
+      STORAGE_PROVIDER: "local"
+      UPLOAD_DIRECTORY: "/uploads"
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
+      # --- Platform OAuth app keys (optional; jo set hoga wahi channel connect hoga) ---
+      # X (free tier ~500 posts/mo): developer.x.com -> app -> keys
+      X_API_KEY: "${X_API_KEY:-}"
+      X_API_SECRET: "${X_API_SECRET:-}"
+      # LinkedIn ("Share on LinkedIn" product self-serve hai personal posting ke liye)
+      LINKEDIN_CLIENT_ID: "${LINKEDIN_CLIENT_ID:-}"
+      LINKEDIN_CLIENT_SECRET: "${LINKEDIN_CLIENT_SECRET:-}"
+      # Facebook/Instagram (dev-mode app = apne hi Pages pe kaam karta, review ke bina)
+      FACEBOOK_APP_ID: "${FACEBOOK_APP_ID:-}"
+      FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET:-}"
+      # YouTube (Google Cloud OAuth client, "LeadsGenAI" project — testing mode,
+      # sumitrevolt23@gmail.com added as test user; redirect URI
+      # https://postiz.leadsgenai.in/integrations/social/youtube)
+      YOUTUBE_CLIENT_ID: "${YOUTUBE_CLIENT_ID:-}"
+      YOUTUBE_CLIENT_SECRET: "${YOUTUBE_CLIENT_SECRET:-}"
+      # Reddit / Mastodon / Discord bhi supported — Postiz docs dekho, yahin add karo.
+    volumes:
+      - postiz-config:/config
+      - postiz-uploads:/uploads
+    ports:
+      - "127.0.0.1:5000:5000"
+    networks:
+      - postiz-network
+      - temporal-network
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: leadgen_postiz_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: "${POSTIZ_DB_PASSWORD:?}"
+      POSTGRES_USER: postiz
+      POSTGRES_DB: postiz
+    volumes:
+      - postiz-db-data:/var/lib/postgresql/data
+    networks:
+      - postiz-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postiz -d postiz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postiz-redis:
+    image: redis:7.2-alpine
+    container_name: leadgen_postiz_redis
+    restart: unless-stopped
+    volumes:
+      - postiz-redis-data:/data
+    networks:
+      - postiz-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # -----------------------------------------------------------------------
+  # Temporal stack (postiz v2.12+ hard requirement — replaces old BullMQ
+  # queue). Minimal footprint (no temporal-ui/admin-tools, debug-only tools
+  # nahi chahiye). Isolated temporal-network, sirf postiz backend ise use
+  # karta. Official ref: gitroomhq/postiz-docker-compose.
+  # -----------------------------------------------------------------------
+  temporal-postgresql:
+    image: postgres:16-alpine
+    container_name: leadgen_temporal_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: temporal  # pragma: allowlist secret — local Temporal stack default, not a prod credential
+      POSTGRES_USER: temporal
+    volumes:
+      - temporal-db-data:/var/lib/postgresql/data
+    networks:
+      - temporal-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  temporal-elasticsearch:
+    image: elasticsearch:7.17.27
+    container_name: leadgen_temporal_es
+    restart: unless-stopped
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    networks:
+      - temporal-network
+    expose:
+      - "9200"
+    volumes:
+      - temporal-es-data:/usr/share/elasticsearch/data
+
+  temporal:
+    image: temporalio/auto-setup:1.28.2
+    container_name: leadgen_temporal
+    restart: unless-stopped
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=temporal-elasticsearch
+      - ES_VERSION=v7
+      - TEMPORAL_NAMESPACE=default
+      # Bina iske server sirf apne container-IP (172.16.x.x) pe bind hota,
+      # localhost:7233 pe nahi — isliye healthcheck (nc -z localhost 7233)
+      # hamesha fail hota aur postiz kabhi start hi nahi hota. 2026-07-03 fix.
+      - BIND_ON_IP=0.0.0.0
+    networks:
+      - temporal-network
+    volumes:
+      # Path relative to this compose file (deploy/compose/) — NOT repo root.
+      # Broken 2026-08-06 when compose moved under deploy/compose/ with old
+      # ./deploy/postiz/... path → temporal missing development-sql.yaml.
+      - ../postiz/dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+      temporal-elasticsearch:
+        condition: service_started
+    # Port-open alone is NOT enough — Postiz orchestrator can bind-race Temporal
+    # gRPC and silently lose pollers (posts stuck QUEUE forever). Prefer cluster
+    # health SERVING; fall back to nc if CLI missing in older images.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "temporal operator cluster health --address 127.0.0.1:7233 2>&1 | grep -q SERVING || nc -z 127.0.0.1 7233",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 40s
+
+volumes:
+  postiz-config:
+  postiz-db-data:
+  postiz-redis-data:
+  postiz-uploads:
+  temporal-db-data:
+  temporal-es-data:
+
+networks:
+  postiz-network:
+  temporal-network:

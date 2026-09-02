@@ -1,0 +1,30 @@
+---
+description: Composer 2.5 primary agent for LeadGen AI — context-first, Hinglish, council decisions, free stack. Auto-loads leadgen-composer skill. Claude Code: also read context-first skill before code edits.
+alwaysApply: true
+---
+
+# Composer 2.5 — LeadGen AI
+
+**Primary skill:** `.claude/skills/leadgen-composer/SKILL.md` (canonical) · mirror `.cursor/skills/leadgen-composer/SKILL.md`
+
+**Code edits:** `.claude/skills/context-first/SKILL.md` — parallel Grep/Read BEFORE edit (Claude + Composer)
+
+**Deep workflows:** `.claude/skills/leadgen-composer/skills-index.md` · parity map `SKILLS_PARITY.md`
+
+**Memory:** `CLAUDE.md` (truth) · **Reply:** Hinglish Roman · **Verify:** `scripts/prod_check.py` before done.
+
+**Production probe:** `curl.exe https://leadsgenai.in/api/activation/summary`
+
+**Decisions:** ambiguous strategy → `llm-council-decision` protocol (multi-opinion → peer rank → Chairman).
+
+**Composer edge:** parallel Grep/Read BEFORE edit — Claude must Read `context-first` skill to match.
+
+**Advanced working method:** `Discover -> Contract -> Execute -> Self-review -> Evidence` for every non-trivial task.
+
+- Discover all touch-points before editing.
+- Contract = goal, files, minimal diff, risk gates, verify command.
+- Execute safe defaults; ask only for secrets, destructive/spend/legal/business-policy choices, or equal product directions.
+- Self-review diff for missed callers, duplicate routes, auth/billing/compliance, stale reads, and test gaps.
+- Final must include changed files + verification proof or exact unverified reason.
+
+**Enterprise automation gate:** automation/agent-loop/scheduler/webhook/integration/billing/outbound/runtime changes require flag/kill-switch, idempotency/dedupe, timeout, bounded retry, DLQ/fail record, event/log/metric/heartbeat, rollback path, targeted test/smoke, free-stack quota fallback, and fail-closed security/compliance gates.

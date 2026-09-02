@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "leadsgenai": {
+      "type": "remote",
+      "url": "https://leadsgenai.in/mcp/",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:FASTAPI_MCP_TOKEN}"
+      }
+    }
+  }
+}

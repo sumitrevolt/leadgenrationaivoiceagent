@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeadGen AI — Activation &amp; Integrations</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--mut:#94a3b8;
+      --ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--accent:#6366f1;--neutral:#64748b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,system-ui,Arial;background:var(--bg);color:var(--text);
+     padding:18px;min-height:100vh;font-size:14px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;
+       flex-wrap:wrap;gap:10px}
+h1{font-size:1.4rem;font-weight:700}
+.muted{color:var(--mut);font-size:.85rem}
+.banner{background:#fef3c7;color:#78350f;padding:10px 14px;border-radius:8px;margin-bottom:16px;
+        display:none}
+.banner.show{display:block}
+.banner input{background:#fff;border:1px solid #d97706;padding:6px 10px;border-radius:6px;
+              margin-left:10px;width:300px;color:#000;font-family:monospace;font-size:.85rem}
+.banner button{background:#92400e;color:#fff;border:0;padding:6px 14px;border-radius:6px;
+               margin-left:6px;cursor:pointer;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;
+      position:relative}
+.card h3{font-size:1rem;margin-bottom:10px;display:flex;justify-content:space-between;
+         align-items:center;gap:8px}
+.card h3 .lbl{display:flex;align-items:center;gap:8px}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:600;
+      letter-spacing:.3px;text-transform:uppercase}
+.pill.ok{background:rgba(16,185,129,.18);color:var(--ok)}
+.pill.warn{background:rgba(245,158,11,.18);color:var(--warn)}
+.pill.bad{background:rgba(239,68,68,.18);color:var(--bad)}
+.pill.neutral{background:rgba(100,116,139,.18);color:var(--neutral)}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:.85rem;margin:8px 0}
+.kv .k{color:var(--mut)}
+.kv .v{color:var(--text);font-family:monospace;font-size:.8rem;word-break:break-all}
+.bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
+.bar > div{height:100%;background:var(--ok);transition:width .3s}
+.bar.warn > div{background:var(--warn)}
+.bar.bad > div{background:var(--bad)}
+.actions{margin-top:10px}
+.actions ul{padding-left:18px;font-size:.8rem;color:var(--mut)}
+.actions li{margin:3px 0}
+.empty{color:var(--mut);font-style:italic;font-size:.85rem;padding:8px 0}
+.err{color:var(--bad);font-size:.8rem;padding:8px 0;font-family:monospace}
+.refresh{background:var(--accent);color:#fff;border:0;padding:6px 14px;border-radius:6px;
+         cursor:pointer;font-weight:600;font-size:.85rem}
+.refresh:hover{background:#4f46e5}
+.foot{margin-top:24px;text-align:center;color:var(--mut);font-size:.8rem}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid var(--border);
+      border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.score{font-size:2.2rem;font-weight:800;text-align:center}
+.score.ok{color:var(--ok)} .score.warn{color:var(--warn)} .score.bad{color:var(--bad)}
+.score.neutral{color:var(--mut)}
+.row{display:flex;justify-content:space-between;font-size:.85rem;padding:3px 0;
+     border-bottom:1px dotted var(--border)}
+.row:last-child{border:0}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🔌 Activation &amp; Integrations</h1>
+    <div class="muted">Feature/integration status (activation · eval-gate · MCP · webhooks · DR/cost) · auto-refresh 30s · live health → <a href="/app/control-center" style="color:var(--accent)">Control Center</a></div>
+  </div>
+  <button class="refresh" onclick="refreshAll()">⟳ Refresh all</button>
+  <span class="ao-topbar-status" style="margin-left:12px"><span class="dot"></span>AI Active</span>
+</header>
+
+<!-- R.1 wizard banner — single highest-priority next action -->
+<div id="wizardBanner" style="display:none;background:linear-gradient(90deg,#1e293b,#312e81);border:1px solid var(--accent);border-radius:12px;padding:18px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:start;gap:14px;flex-wrap:wrap">
+    <div style="flex:1;min-width:280px">
+      <div style="font-size:.75rem;color:var(--mut);text-transform:uppercase;letter-spacing:1px">Next Action</div>
+      <h2 id="wbTitle" style="font-size:1.15rem;margin:6px 0 4px">…</h2>
+      <div id="wbAction" style="font-size:.9rem;color:#cbd5e1;margin-bottom:8px"></div>
+      <div id="wbEnv" style="font-size:.78rem;font-family:monospace;color:#a5b4fc"></div>
+    </div>
+    <div style="text-align:right;min-width:160px">
+      <div id="wbPhase" class="pill neutral" style="margin-bottom:6px">…</div>
+      <div id="wbProgress" style="font-size:.72rem;color:var(--mut)"></div>
+      <div style="margin-top:8px;font-size:.7rem;color:var(--mut)">CLI: <code>python3 /opt/leadgen/scripts/activate.py</code></div>
+    </div>
+  </div>
+</div>
+<div id="wizardBannerDone" style="display:none;background:rgba(16,185,129,.08);border:1px solid var(--ok);border-radius:12px;padding:14px 18px;margin-bottom:18px;color:var(--ok);font-weight:600">
+  ✅ All activation phases green — platform is fully activated.
+</div>
+
+<div id="authBanner" class="banner">
+  No admin token detected. Paste below to load admin endpoints:
+  <input id="tokenInput" placeholder="JWT or admin token" />
+  <button onclick="saveToken()">Save</button>
+</div>
+
+<div class="grid">
+
+  <!-- Activation Readiness (F.2) -->
+  <div class="card" id="cardReadiness">
+    <h3><span class="lbl">🚦 Activation Readiness</span><span id="readyPill" class="pill neutral">…</span></h3>
+    <div id="readyBody" class="muted">Loading…</div>
+  </div>
+
+  <!-- Engineer Agents (F.5) -->
+  <div class="card" id="cardEngineers">
+    <h3><span class="lbl">🔧 Engineer Agents</span><span class="muted" style="font-size:.7rem">Pranav · Vidya · Arnav</span></h3>
+    <div id="engineersBody" class="muted">Loading…</div>
+  </div>
+
+  <!-- Eval Gate (F.3) -->
+  <div class="card" id="cardEval">
+    <h3><span class="lbl">🎯 Eval Gate</span><span id="evalPill" class="pill neutral">…</span></h3>
+    <div id="evalBody" class="muted">Loading…</div>
+  </div>
+
+  <!-- Agent Memory (F.4) -->
+  <div class="card" id="cardMemory">
+    <h3><span class="lbl">🧠 Agent Memory</span><span id="memPill" class="pill neutral">…</span></h3>
+    <div id="memBody" class="muted">Loading…</div>
+  </div>
+
+  <!-- Memory Stack: 7-layer agent-memory facade -->
+  <div class="card" id="cardMemStack">
+    <h3><span class="lbl">🧩 Memory Stack (7 layers)</span><span id="msPill" class="pill neutral">…</span></h3>
+    <div id="msBody" class="muted">Loading…</div>
+  </div>
+
+  <!-- MCP Keys (H.3) -->
+  <div class="card" id="cardMCP">
+    <h3><span class="lbl">🔑 MCP Keys (as product)</span><span id="mcpPill" class="pill neutral">…</span></h3>
+    <div id="mcpBody" class="muted">Loading…</div>
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <input id="mcpLabel" placeholder="Label (e.g. customer-acme)" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;border-radius:6px;color:var(--text);width:55%;font-size:.8rem">
+      <input id="mcpLimit" type="number" value="1000" min="1" max="1000000" style="background:var(--bg);border:1px solid var(--border);padding:6px 8px;border-radius:6px;color:var(--text);width:30%;font-size:.8rem">
+      <button onclick="issueMcpKey()" class="refresh" style="margin-top:6px;width:100%">+ Issue new key</button>
+      <div id="mcpIssueOut" style="margin-top:8px;font-size:.78rem"></div>
+    </div>
+  </div>
+
+  <!-- DR + LiteLLM (H.4) -->
+  <div class="card" id="cardH4">
+    <h3><span class="lbl">💾 DR + 💰 LiteLLM Cost</span><span id="h4Pill" class="pill neutral">…</span></h3>
+    <div id="h4Body" class="muted">Loading…</div>
+  </div>
+
+  <!-- Customer Webhooks (H.1) -->
+  <div class="card" id="cardWebhooks">
+    <h3><span class="lbl">📡 Customer Webhooks</span><span id="whPill" class="pill neutral">…</span></h3>
+    <div id="whBody" class="muted">Loading…</div>
+  </div>
+
+  <!-- Turnstile (F.1) -->
+  <div class="card" id="cardTurnstile">
+    <h3><span class="lbl">🛡️ Turnstile (bot-block)</span><span id="tsPill" class="pill neutral">…</span></h3>
+    <div id="tsBody" class="muted">Loading…</div>
+  </div>
+
+</div>
+
+<div class="foot">
+  LeadsGenAI · admin only · <a href="/app/automation">Automation Mission Control →</a>
+</div>
+
+<script>
+// ---------- auth ----------
+function getToken(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function saveToken(){ const v=document.getElementById("tokenInput").value.trim(); if(v){localStorage.setItem("adminToken",v); document.getElementById("authBanner").classList.remove("show"); refreshAll();} }
+function authHdr(){ const t=getToken(); return t?{"Authorization":"Bearer "+t}:{}; }
+if(!getToken()) document.getElementById("authBanner").classList.add("show");
+
+// ---------- fetch helper ----------
+async function api(path){
+  try{
+    const r = await fetch(path,{headers:{"Accept":"application/json",...authHdr()},cache:"no-store"});
+    if(r.status===401||r.status===403){ document.getElementById("authBanner").classList.add("show"); return {__auth:false}; }
+    if(!r.ok) return {__err:"HTTP "+r.status};
+    return await r.json();
+  }catch(e){ return {__err:String(e.message||e)}; }
+}
+function pill(el,kind,text){ const e=document.getElementById(el); e.className="pill "+kind; e.textContent=text; }
+function esc(s){ return String(s||"").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"})[c]); }
+
+// ---------- R.1: Activation Wizard banner (top of page) ----------
+async function loadWizard(){
+  const d = await api("/api/activation/wizard");
+  const banner = document.getElementById("wizardBanner");
+  const done = document.getElementById("wizardBannerDone");
+  if(d.__auth===false || d.__err){ banner.style.display="none"; done.style.display="none"; return; }
+  if(d.all_done){
+    banner.style.display="none";
+    done.style.display="block";
+    return;
+  }
+  done.style.display="none";
+  banner.style.display="block";
+  const step = d.next_step || {};
+  const phase = step.phase || d.current_phase || {n:"?",name:"?"};
+  document.getElementById("wbTitle").textContent = step.label || "Loading…";
+  document.getElementById("wbAction").textContent = step.action || "";
+  document.getElementById("wbEnv").textContent = "Set: " + (step.env_vars||[]).join(", ");
+  const pill = document.getElementById("wbPhase");
+  pill.className = "pill " + (step.status==="BLOCKER"?"bad":(step.status==="WARN"?"warn":"neutral"));
+  pill.textContent = "Phase " + phase.n + " · " + (step.status||"…");
+  const totalPhases = d.total_phases || 5;
+  const doneCount = (d.phases_done||[]).length;
+  document.getElementById("wbProgress").textContent =
+    doneCount + " of " + totalPhases + " phases complete";
+}
+
+// ---------- F.2: Activation Readiness ----------
+async function loadReadiness(){
+  const d = await api("/api/activation/readiness");
+  const body = document.getElementById("readyBody");
+  if(d.__auth===false){ pill("readyPill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ pill("readyPill","bad","error"); body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  pill("readyPill", d.blocker_count?"bad":(d.warn_count?"warn":"ok"),
+       d.blocker_count?(d.blocker_count+" blockers"):(d.warn_count?(d.warn_count+" warns"):"green"));
+  const ready = d.ready_for_first_paid_customer;
+  let html = `<div class="kv"><div class="k">Ready for paid customer</div><div class="v">${ready?'<span class="pill ok">YES</span>':'<span class="pill bad">NO</span>'}</div></div>`;
+  for(const it of (d.items||[])){
+    const klass = it.status==="BLOCKER"?"bad":(it.status==="WARN"?"warn":(it.status==="OK"?"ok":"neutral"));
+    html += `<div class="row"><span>${esc(it.label)}</span><span class="pill ${klass}">${it.status}</span></div>`;
+    if(it.action) html += `<div style="font-size:.75rem;color:var(--mut);padding-left:6px">→ ${esc(it.action)}</div>`;
+  }
+  body.innerHTML = html;
+}
+
+// ---------- F.5: Engineer Agents ----------
+async function loadEngineers(){
+  const d = await api("/api/engineer-agents/all");
+  const body = document.getElementById("engineersBody");
+  if(d.__auth===false){ body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  let html="";
+  for(const role of ["sre","finops","security"]){
+    const r = d[role]||{};
+    const score = r.score;
+    const klass = score==null?"neutral":(score>=80?"ok":(score>=60?"warn":"bad"));
+    const tag = score==null?(r.status||"…"):Math.round(score);
+    html += `<div style="border-bottom:1px solid var(--border);padding:8px 0">
+      <div style="display:flex;justify-content:space-between;font-weight:600">
+        <span>${esc(role.toUpperCase())} · ${esc(r.agent||"")}</span>
+        <span class="pill ${klass}">${tag}</span></div>
+      <div style="font-size:.78rem;color:var(--mut);margin-top:3px">${esc(r.summary||r.status||"")}</div>`;
+    if(r.actions && r.actions.length){
+      html += '<ul style="font-size:.75rem;color:var(--mut);padding-left:18px;margin-top:4px">';
+      for(const a of r.actions.slice(0,3)) html += `<li>${esc(a)}</li>`;
+      html += '</ul>';
+    }
+    html += '</div>';
+  }
+  body.innerHTML = html;
+}
+
+// ---------- F.3: Eval Gate ----------
+async function loadEval(){
+  const d = await api("/api/eval-gate/summary");
+  const body = document.getElementById("evalBody");
+  if(d.__auth===false){ pill("evalPill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ pill("evalPill","bad","error"); body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  const en = d.enabled;
+  const rd = d.recent_decisions||{};
+  pill("evalPill", en?(rd.reject?"warn":"ok"):"neutral", en?(rd.reject?(rd.reject+" rejects"):"clean"):"off");
+  let html = `<div class="kv">
+    <div class="k">Flag</div><div class="v">EVAL_GATE=${en?"1":"0"} · HARD=${d.hard_mode?"1":"0"}</div>
+    <div class="k">Total records</div><div class="v">${d.total_records||0}</div>
+    <div class="k">Accept / Reject / No-base</div><div class="v">${rd.accept||0} / ${rd.reject||0} / ${rd.no_baseline||0}</div></div>`;
+  const suites = d.suites||{};
+  const keys = Object.keys(suites);
+  if(keys.length){
+    html += '<div style="font-size:.78rem;color:var(--mut);margin-top:8px">By suite:</div>';
+    for(const s of keys.slice(0,3)){
+      for(const m of Object.keys(suites[s]).slice(0,3)){
+        const x = suites[s][m];
+        html += `<div class="row"><span>${esc(s)}/${esc(m)}</span><span>${(x.latest_score||0).toFixed(2)} · base ${(x.baseline_median||0).toFixed(2)}</span></div>`;
+      }
+    }
+  }
+  body.innerHTML = html;
+}
+
+// ---------- F.4: Agent Memory ----------
+async function loadMemory(){
+  const d = await api("/api/agent-memory/stats");
+  const body = document.getElementById("memBody");
+  if(d.__auth===false){ pill("memPill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ pill("memPill","bad","error"); body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  const en = d.enabled;
+  pill("memPill", en?"ok":"neutral", en?"armed":"off");
+  const c = d.counters||{};
+  body.innerHTML = `<div class="kv">
+    <div class="k">Flag</div><div class="v">AGENT_MEMORY=${en?"1":"0"}</div>
+    <div class="k">Stored</div><div class="v">${c.stored||0}</div>
+    <div class="k">Recall hits</div><div class="v">${c.recall_hit||0}</div>
+    <div class="k">Recall misses</div><div class="v">${c.recall_miss||0}</div>
+    <div class="k">Purged (DPDP)</div><div class="v">${c.purged||0}</div>
+    <div class="k">Errors</div><div class="v">${c.error||0}</div>
+  </div>`;
+}
+
+// ---------- Memory Stack: 7-layer facade ----------
+async function loadMemStack(){
+  const d = await api("/api/memory-stack/stats");
+  const body = document.getElementById("msBody");
+  if(!body) return;
+  if(d.__auth===false){ pill("msPill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ pill("msPill","bad","error"); body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  const en = !!d.enabled;
+  pill("msPill", en?"ok":"neutral", en?"armed":"off");
+  // NOTE: counts + config only — this card never renders memory CONTENT.
+  const p = d.prospective||{}, w = d.working||{}, c = d.counters||{}, lanes = d.lanes||{};
+  const b = d.budget||{}, cfg = d.config||{};
+  let html = `<div class="kv">
+    <div class="k">Master flag</div><div class="v">MEMORY_STACK_ENABLED=${en?"1":"0"} · tiers ${esc((cfg.tiers||[]).join("/"))}</div>
+    <div class="k">Token budget</div><div class="v">${b.effective||0} of ${b.context_tokens||0} (reserve ${b.reserve_tokens||0}) · ${b.deadline_ms||0} ms</div>
+    <div class="k">Dispatch</div><div class="v">${cfg.dispatch_ready?"ready":"BLOCKED"} — ${esc(cfg.dispatch_reason||"")}</div>
+    <div class="k">Working (L1, cache)</div><div class="v">${w.sessions||0} sessions · ${w.turns||0} turns · TTL ${w.ttl_seconds||0}s · non-authoritative</div>
+    <div class="k">Prospective (L6)</div><div class="v">${p.available?`${p.pending||0} pending · ${p.due_now||0} due · ${p.claimed||0} claimed · ${p.dispatched||0} dispatched · ${p.dead||0} dead`:"store unavailable"}</div>
+    <div class="k">Counters</div><div class="v">assembled ${c.assembled||0} · dispatched ${c.dispatched||0} · blocked ${c.drain_blocked||0} · timeouts ${c.layer_timeout||0} · errors ${(c.layer_error||0)+(c.error||0)}</div>
+  </div>`;
+  const probs = cfg.problems||[];
+  if(probs.length){
+    html += '<div style="font-size:.78rem;color:var(--bad);margin-top:8px">Config problems:</div>';
+    for(const x of probs.slice(0,4)) html += `<div class="row"><span>${esc(x)}</span></div>`;
+  }
+  const keys = Object.keys(lanes);
+  if(keys.length){
+    // configured (what env asks) vs effective (what actually runs) — never show
+    // a lane as "on" when its dependency is unhealthy.
+    html += '<div style="font-size:.78rem;color:var(--mut);margin-top:8px">Lanes — configured / effective:</div>';
+    const confMap = cfg.layers_configured||{}, depFail = cfg.dependency_failures||{};
+    for(const k of keys){
+      const conf = confMap[k]!==false, eff = !!lanes[k].enabled;
+      const state = depFail[k] ? '<span style="color:var(--bad)">on / BLOCKED</span>'
+                  : (conf?"on":"off") + " / " + (eff?"on":"off");
+      html += `<div class="row"><span>${esc(k)} <span class="muted">(${esc(lanes[k].tier||"")})</span></span><span>${state}</span></div>`;
+    }
+  }
+  const sr = cfg.suppression_rules||{};
+  html += `<div class="row"><span>Do-not-remember rules</span><span class="muted">${sr.readable===false?"UNREADABLE":(sr.lines||0)+" rules"+((sr.unparsable||0)?" · "+sr.unparsable+" damaged":"")}</span></div>`;
+  html += `<div class="row"><span>Warm (helpers resolved at startup)</span><span class="muted">${cfg.warm?"yes":"no"}</span></div>`;
+  body.innerHTML = html;
+}
+
+// ---------- H.3: MCP Keys ----------
+async function loadMCP(){
+  const d = await api("/api/admin/mcp-keys");
+  const body = document.getElementById("mcpBody");
+  if(d.__auth===false){ pill("mcpPill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ pill("mcpPill","bad","error"); body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  const ks = (d.keys||[]);
+  const enabled = ks.filter(k=>k.enabled).length;
+  pill("mcpPill", ks.length?"ok":"neutral", ks.length?(enabled+" active"):"none");
+  let html = `<div class="kv"><div class="k">Total keys</div><div class="v">${ks.length}</div></div>`;
+  const usage = (d.usage||{}).keys||[];
+  if(!usage.length) html += '<div class="empty">No keys issued yet. POST /api/admin/mcp-keys to create one.</div>';
+  else{
+    for(const u of usage.slice(0,8)){
+      const pct = u.daily_limit?(100*u.calls_today/u.daily_limit):0;
+      const klass = pct>=90?"bad":(pct>=60?"warn":"ok");
+      const en = u.enabled !== false;
+      html += `<div class="row">
+        <span>${esc(u.label||u.id)} ${en?"":'<span class="pill bad" style="margin-left:6px">disabled</span>'}</span>
+        <span>${u.calls_today}/${u.daily_limit}
+          ${en?`<button onclick="toggleMcpKey('${esc(u.id)}',false)" style="margin-left:4px;background:transparent;border:1px solid var(--warn);color:var(--warn);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem" title="Pause without revoke">⏸</button>`:
+              `<button onclick="toggleMcpKey('${esc(u.id)}',true)" style="margin-left:4px;background:transparent;border:1px solid var(--ok);color:var(--ok);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem" title="Resume">▶</button>`}
+          ${en?`<button onclick="revokeMcpKey('${esc(u.id)}','${esc(u.label||u.id)}')" style="margin-left:4px;background:transparent;border:1px solid var(--bad);color:var(--bad);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem">revoke</button>`:""}
+        </span></div>
+        ${en?`<div class="bar ${klass==="bad"?"bad":(klass==="warn"?"warn":"")}"><div style="width:${Math.min(100,pct)}%"></div></div>`:""}`;
+    }
+  }
+  body.innerHTML = html;
+}
+
+async function toggleMcpKey(id, enable){
+  try{
+    const r = await fetch("/api/admin/mcp-keys/"+encodeURIComponent(id), {
+      method:"PATCH",
+      headers: {...authHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify({enabled: enable}),
+    });
+    if(r.status===401||r.status===403){ alert("Auth required."); return; }
+    if(!r.ok){ const d=await r.json(); alert("Toggle failed: "+(d.detail||r.status)); return; }
+    loadMCP();
+  }catch(e){ alert("Error: "+e.message); }
+}
+
+async function revokeMcpKey(id, label){
+  if(!confirm("Revoke MCP key '"+label+"'? This cannot be undone — the customer using this key will start getting 401s immediately.")) return;
+  try{
+    const r = await fetch("/api/admin/mcp-keys/"+encodeURIComponent(id), {method:"DELETE", headers: authHdr()});
+    if(r.status===401||r.status===403){ alert("Auth required."); return; }
+    if(!r.ok){ const d=await r.json(); alert("Revoke failed: "+(d.detail||r.status)); return; }
+    loadMCP();
+  }catch(e){ alert("Error: "+e.message); }
+}
+
+// ---------- H.4: DR + LiteLLM ----------
+async function loadH4(){
+  const [dr,lh,ls] = await Promise.all([
+    api("/api/h4/dr-status"),
+    api("/api/h4/litellm-health"),
+    api("/api/h4/litellm-spend?hours=24"),
+  ]);
+  const body = document.getElementById("h4Body");
+  if(dr.__auth===false){ pill("h4Pill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  // Worst-of-3 pill
+  let worst = "ok";
+  for(const s of [dr.status, lh.available===false?"NEUTRAL":"OK", ls.available===false?"NEUTRAL":"OK"]){
+    if(s==="FAIL"||s==="BLOCKER"){worst="bad";break;}
+    if(s==="WARN"){if(worst!=="bad")worst="warn";}
+    if(s==="NEUTRAL" && worst==="ok") worst="neutral";
+  }
+  pill("h4Pill", worst, dr.configured?dr.status:"DR off");
+  let html = `<div class="kv">
+    <div class="k">DR replica</div><div class="v">${dr.configured?(dr.status+" · lag "+(dr.lag_s==null?"idle":dr.lag_s+"s")):"unconfigured"}</div>
+    <div class="k">LiteLLM gateway</div><div class="v">${lh.available?"reachable":"unavailable ("+esc(lh.reason||"")+")"}</div>
+    <div class="k">LiteLLM spend (24h)</div><div class="v">${ls.available?("$"+(ls.total_usd||0)+" across "+(ls.spend||[]).length+" keys"):"off"}</div>
+  </div>`;
+  if(dr.summary) html += `<div class="muted" style="margin-top:6px;font-size:.78rem">${esc(dr.summary)}</div>`;
+  body.innerHTML = html;
+}
+
+// ---------- H.1: Customer Webhooks ----------
+async function loadWebhooks(){
+  const m = await api("/api/customer/webhooks/_meta");
+  const body = document.getElementById("whBody");
+  if(m.__err){ pill("whPill","bad","error"); body.innerHTML='<div class="err">'+esc(m.__err)+'</div>'; return; }
+  pill("whPill", m.enabled?"ok":"neutral", m.enabled?"live":"off");
+  body.innerHTML = `<div class="kv">
+    <div class="k">Flag</div><div class="v">CUSTOMER_WEBHOOKS=${m.enabled?"1":"0"}</div>
+    <div class="k">Event types</div><div class="v" style="font-size:.7rem">${(m.supported_events||[]).join(", ")}</div>
+  </div><div class="muted" style="margin-top:6px;font-size:.78rem">Customers register via /api/customer/webhooks (their JWT). HMAC-SHA256 signed deliveries with 3-retry backoff.</div>`;
+}
+
+// ---------- F.1: Turnstile ----------
+async function loadTurnstile(){
+  const t = await api("/api/public/turnstile/config");
+  const body = document.getElementById("tsBody");
+  if(t.__err){ pill("tsPill","bad","error"); body.innerHTML='<div class="err">'+esc(t.__err)+'</div>'; return; }
+  pill("tsPill", t.enabled?"ok":"neutral", t.enabled?"armed":"off");
+  body.innerHTML = `<div class="kv">
+    <div class="k">Status</div><div class="v">${t.enabled?"armed (forms gated)":"INERT (forms open)"}</div>
+    <div class="k">Site-key</div><div class="v">${t.site_key?(esc(t.site_key.slice(0,12))+"…"):"unset"}</div>
+  </div><div class="muted" style="margin-top:6px;font-size:.78rem">Gates /audit /site-audit /demo /inquiry once both TURNSTILE_* env are set.</div>`;
+}
+
+// ---------- MCP issue key ----------
+async function issueMcpKey(){
+  const label = document.getElementById("mcpLabel").value.trim();
+  const limit = parseInt(document.getElementById("mcpLimit").value, 10) || 1000;
+  const out = document.getElementById("mcpIssueOut");
+  if(!label){ out.innerHTML='<span style="color:var(--bad)">label required</span>'; return; }
+  out.innerHTML='<span class="spin"></span> issuing…';
+  try{
+    const r = await fetch("/api/admin/mcp-keys", {
+      method:"POST",
+      headers:{"Content-Type":"application/json", ...authHdr()},
+      body: JSON.stringify({label, daily_limit: limit}),
+    });
+    if(r.status===401||r.status===403){ out.innerHTML='<span style="color:var(--bad)">auth required</span>'; return; }
+    const d = await r.json();
+    if(!d.ok){ out.innerHTML='<span style="color:var(--bad)">'+esc(d.detail||d.error||"failed")+'</span>'; return; }
+    out.innerHTML=`<div style="background:var(--bg);border:1px dashed var(--ok);padding:10px;border-radius:6px">
+      <div style="color:var(--ok);font-weight:600">✓ Key issued (save NOW — shown only once):</div>
+      <div style="font-family:monospace;font-size:.75rem;background:var(--card);padding:6px;margin-top:6px;border-radius:4px;word-break:break-all">${esc(d.key)}</div>
+      <button onclick="navigator.clipboard.writeText('${esc(d.key)}');this.textContent='copied ✓'" style="margin-top:6px;background:var(--accent);color:#fff;border:0;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.75rem">copy</button>
+    </div>`;
+    document.getElementById("mcpLabel").value="";
+    loadMCP();
+  }catch(e){ out.innerHTML='<span style="color:var(--bad)">'+esc(String(e))+'</span>'; }
+}
+
+// ---------- master loop ----------
+async function refreshAll(){
+  loadWizard();
+  loadReadiness(); loadEngineers(); loadEval(); loadMemory(); loadMemStack();
+  loadMCP(); loadH4(); loadWebhooks(); loadTurnstile();
+}
+refreshAll();
+setInterval(refreshAll, 30000);
+</script>
+</body>
+</html>

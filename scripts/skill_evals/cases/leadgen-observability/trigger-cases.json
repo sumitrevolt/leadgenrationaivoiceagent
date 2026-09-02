@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "id": "customer_journey_product_analytics_instrumentation",
+      "prompt": "customer journey instrumentation aur product analytics wire karo taaki failure customer ke report karne se pehle visible ho",
+      "should_trigger": true
+    },
+    {
+      "id": "enterprise_audit_log_job_visibility",
+      "prompt": "enterprise audit logs aur job visibility ke saath error monitoring ka signal catalogue banao",
+      "should_trigger": true
+    },
+    {
+      "id": "prometheus_container_bringup",
+      "prompt": "prometheus grafana alertmanager container up karo aur flower celery exporter wire karo",
+      "should_trigger": false,
+      "lexical": false
+    }
+  ]
+}

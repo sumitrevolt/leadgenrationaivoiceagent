@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Affiliate Panel — LeadGen AI</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--line:#334155;--tx:#e2e8f0;--mut:#94a3b8;--acc:#22d3ee;--ok:#34d399;--bad:#f87171;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;padding:18px;max-width:1100px;margin:0 auto}
+  h1{font-size:20px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:18px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card .v{font-size:24px;font-weight:700;color:var(--acc)}
+  .card .l{color:var(--mut);font-size:12px;margin-top:2px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px}
+  .box h2{font-size:15px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  .tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px}
+  .tag.lead{background:#1e3a5f;color:#93c5fd}
+  .tag.paid{background:#14532d;color:#86efac}
+  .btn{background:var(--acc);color:#082f49;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+  input{background:#0f172a;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:8px 10px;width:100%;margin-bottom:8px;font-size:13px}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  textarea{background:#0f172a;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:10px;width:100%;font-size:12px;min-height:120px;margin:8px 0}
+  .mut{color:var(--mut);font-size:12px}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  #toasts{position:fixed;bottom:14px;right:14px;z-index:9}
+  .toast{background:#334155;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:8px;box-shadow:0 4px 12px #0005}
+  .toast.ok{background:#14532d}
+  .hidden{display:none}
+  .tokrow{display:none}
+  .tokrow.show{display:block}
+</style>
+</head>
+<body>
+<h1>Affiliate / Referral Panel</h1>
+<div class="sub">Referral loop — code se naya customer, commission track, ek-tap shareable kit. Data: data/affiliates.jsonl + data/affiliate_referrals.jsonl (append-only).</div>
+
+<div class="tokrow" id="tokRow" style="margin-bottom:14px">
+  <input id="tokInput" placeholder="Admin token paste karo (accessToken/adminToken)">
+  <button class="btn" id="tokSave">Save token</button>
+</div>
+
+<div class="cards" id="cards"></div>
+
+<div class="box">
+  <h2>Naya affiliate + shareable kit (Jiya jaisa referral)</h2>
+  <div class="row">
+    <input id="fName" placeholder="Business / naam (e.g. Jiya Makeover)">
+    <input id="fEmail" placeholder="Email (optional)">
+    <input id="fPhone" placeholder="Phone (optional)">
+  </div>
+  <button class="btn" id="btnKit">Kit banao + WhatsApp text</button>
+  <div id="kitOut" class="hidden">
+    <div class="mut" style="margin-top:10px">Referral link (copy karke share karo):</div>
+    <input id="kitLink" readonly>
+    <div class="mut">WhatsApp-ready text (1-tap send):</div>
+    <textarea id="kitText" readonly></textarea>
+    <button class="btn ghost" id="btnCopy">Copy WhatsApp text</button>
+  </div>
+</div>
+
+<div class="box">
+  <h2>Affiliates &amp; conversions</h2>
+  <div id="affBody"><div class="mut">Load ho raha hai...</div></div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+"use strict";
+function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function hdrs(extra){
+  var h = extra || {}; var t = token();
+  if(t) h["Authorization"] = "Bearer " + t;
+  return h;
+}
+var tokRow = document.getElementById("tokRow");
+document.getElementById("tokSave").onclick = function(){
+  var v = document.getElementById("tokInput").value.trim();
+  if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+  toast(v ? "Token saved" : "Token cleared", "ok");
+  tokRow.classList.remove("show");
+  loadAll();
+};
+function needAuth(){
+  tokRow.classList.add("show");
+  document.getElementById("tokInput").value = token();
+}
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function toast(msg, kind){
+  var el = document.createElement("div");
+  el.className = "toast" + (kind ? " " + kind : "");
+  el.textContent = msg;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+  setTimeout(function(){ el.remove(); }, 4700);
+}
+async function callApi(url, opts){
+  var r = await fetch(url, opts);
+  if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+  var data = null;
+  try{ data = await r.json(); }catch(_e){}
+  if(!r.ok){ throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status)); }
+  return data;
+}
+function inr(n){ return "₹" + Number(n || 0).toLocaleString("en-IN"); }
+
+async function loadAll(){
+  try{
+    var d = await callApi("/api/growth/affiliate/stats", {headers: hdrs()});
+    var s = d.stats || {};
+    document.getElementById("cards").innerHTML =
+      '<div class="card"><div class="v">' + (s.affiliates || 0) + '</div><div class="l">Affiliates</div></div>' +
+      '<div class="card"><div class="v">' + (s.referrals || 0) + '</div><div class="l">Referrals</div></div>' +
+      '<div class="card"><div class="v">' + (s.paid_conversions || 0) + '</div><div class="l">Paid conversions</div></div>' +
+      '<div class="card"><div class="v">' + inr(s.commission_earned || 0) + '</div><div class="l">Commission due (' + (s.commission_pct || 0) + '% first month)</div></div>';
+    var rows = (d.affiliates || []);
+    if(!rows.length){ document.getElementById("affBody").innerHTML = '<div class="mut">Abhi koi affiliate nahi — upar form se pehla banao.</div>'; return; }
+    var html = '<table><tr><th>Name</th><th>Code / link</th><th>Referrals</th><th>Paid</th><th>Earned</th><th>Since</th></tr>';
+    for(var i = 0; i < rows.length; i++){
+      var a = rows[i];
+      html += '<tr><td>' + esc(a.name) + '<div class="mut">' + esc(a.email || a.phone || "") + '</div></td>' +
+        '<td><code>' + esc(a.code || "") + '</code><div class="mut">' + esc(a.link || "") + '</div></td>' +
+        '<td>' + (a.referrals || 0) + '</td><td>' + (a.paid_conversions || 0) + '</td>' +
+        '<td>' + inr(a.earned || 0) + '</td><td class="mut">' + esc(String(a.created_at || "").slice(0, 10)) + '</td></tr>';
+    }
+    html += '</table>';
+    document.getElementById("affBody").innerHTML = html;
+  }catch(e){ if(String(e.message) !== "auth"){ document.getElementById("affBody").innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; } }
+}
+
+document.getElementById("btnKit").onclick = async function(){
+  var name = document.getElementById("fName").value.trim();
+  var email = document.getElementById("fEmail").value.trim();
+  var phone = document.getElementById("fPhone").value.trim();
+  if(!name){ toast("Business/naam required", "bad"); return; }
+  try{
+    var k = await callApi("/api/growth/affiliate/kit", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({name:name, email:email, phone:phone})});
+    document.getElementById("kitLink").value = k.link || "";
+    document.getElementById("kitText").value = k.whatsapp_text || "";
+    document.getElementById("kitOut").classList.remove("hidden");
+    toast("Kit ready" + (k.existing ? " (existing code reuse)" : ""), "ok");
+    loadAll();
+  }catch(e){ if(String(e.message) !== "auth") toast("Kit fail: " + e.message, "bad"); }
+};
+
+document.getElementById("btnCopy").onclick = function(){
+  var t = document.getElementById("kitText");
+  t.select();
+  try{ document.execCommand("copy"); toast("WhatsApp text copied", "ok"); }catch(_e){ toast("Copy nahi hua — manually select karo", "bad"); }
+};
+
+loadAll();
+setInterval(loadAll, 60000);
+})();
+</script>
+</body>
+</html>

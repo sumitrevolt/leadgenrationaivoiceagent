@@ -1,0 +1,23 @@
+# Cursor indexing ignore — speeds up search/context for leadgen project
+node_modules/
+.venv/
+.git/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+logs/
+backups/
+uat_evidence/
+graphify-out/
+unity/
+voice_stack/models/
+/models/
+data/lead_magnets/
+*.log
+*.db
+*.lock
+*.xlsx
+frontend/node_modules/
+frontend/dist/
+frontend/.next/

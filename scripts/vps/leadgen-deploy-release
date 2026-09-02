@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# leadgen-deploy-release - root-owned, tightly-scoped production deploy wrapper.
+#
+# Canonical copy of the script installed at /usr/local/sbin/leadgen-deploy-release
+# on the production VPS. Invoked ONLY through the scoped sudo rule:
+#   leadgen-deploy ALL=(root) NOPASSWD: /usr/local/sbin/leadgen-deploy-release *
+# by GitHub Actions authenticating as the dedicated `leadgen-deploy` user with the
+# VPS_SSH_KEY_DEPLOY key. That user has NO docker group and NO other sudo rights,
+# so this wrapper - and its strict input validation - is the whole privileged surface.
+#
+# Contract: exactly one argument, an immutable 40-char lowercase hex git SHA.
+# Set DRY_RUN=1 to validate + acquire the lock and stop before any change.
+set -euo pipefail
+
+# --- hardened environment: fixed PATH, drop caller-controlled overrides ---
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+unset DOCKER_HOST COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES DOCKER_CONFIG \
+      BASH_ENV ENV PYTHONPATH LD_PRELOAD LD_LIBRARY_PATH 2>/dev/null || true
+
+readonly REPO="ghcr.io/sumitrevolt/leadgenrationaivoiceagent"
+readonly COMPOSE="/opt/leadgen/docker-compose.vps.yml"
+readonly DIR="/opt/leadgen"
+readonly LOG="/var/log/leadgen-deploy.log"
+readonly LOCK="/run/leadgen-deploy.lock"
+DRY_RUN="${DRY_RUN:-0}"
+
+log(){ printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" | tee -a "$LOG" >&2; }
+die(){ log "REJECT: $*"; exit 2; }
+
+# --- strict input validation (fail closed) ---
+[ "$#" -eq 1 ] || die "exactly one argument required (got $#)"
+SHA="$1"
+case "$SHA" in -*) die "leading dash rejected";; esac
+[ "${#SHA}" -eq 40 ] || die "SHA must be exactly 40 characters"
+case "$SHA" in *[!0-9a-f]*) die "SHA must be lowercase hex only";; esac
+
+readonly IMAGE="${REPO}:${SHA}"
+[ -f "$COMPOSE" ] || die "compose file missing"
+[ -d "$DIR" ] || die "deploy dir missing"
+
+# --- single-flight lock: a manual run and a CI run cannot overlap ---
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  log "another deployment holds $LOCK - refusing"
+  exit 3
+fi
+
+log "validated sha=$SHA dry_run=$DRY_RUN image=$IMAGE"
+
+if [ "$DRY_RUN" = "1" ]; then
+  log "DRY_RUN validation passed, no changes"
+  echo "DRY_RUN_OK sha=$SHA"
+  exit 0
+fi
+
+cd "$DIR"
+export APP_VERSION="$SHA"
+export COMPOSE_PROFILES=celery
+
+# record current image (immutable ref) for auto-rollback - never a floating tag
+PREV="$(docker inspect leadgen_app --format '{{.Config.Image}}' 2>/dev/null || echo '')"
+log "prev=$PREV pull=$IMAGE"
+
+do_rollback(){
+  log "$1 - AUTO-ROLLBACK to ${PREV:-none}"
+  if [ -n "$PREV" ]; then
+    docker tag "$PREV" "${REPO}:rollback" || true
+    APP_VERSION=rollback COMPOSE_PROFILES=celery docker compose -f "$COMPOSE" up -d --remove-orphans || true
+    sleep 8
+    curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1 && log "rollback healthy" || log "ROLLBACK ALSO UNHEALTHY - manual check needed"
+  else
+    log "no previous image captured - manual rollback required"
+  fi
+}
+
+# public GHCR image -> anonymous pull by exact immutable SHA, no registry login/secret
+docker compose -f "$COMPOSE" pull
+docker compose -f "$COMPOSE" up -d --remove-orphans
+
+if ! docker compose -f "$COMPOSE" run --rm app alembic upgrade head; then
+  do_rollback "MIGRATION FAILED"
+  exit 1
+fi
+
+ok=0
+for i in $(seq 1 12); do
+  curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1 && { ok=1; break; }
+  sleep 5
+done
+if [ "$ok" != "1" ]; then
+  do_rollback "HEALTH FAILED"
+  exit 1
+fi
+
+log "DEPLOY OK sha=$SHA"
+echo "DEPLOY_OK sha=$SHA"

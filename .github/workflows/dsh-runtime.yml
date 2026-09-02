@@ -1,0 +1,166 @@
+name: Hardened DSH runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/dsh-runtime.yml"
+      - ".dockerignore"
+      - "deploy/dsh/**"
+      - "docker-compose.vps.yml"
+      - "requirements-dsh.lock.txt"
+      - "app/dsh_worker.py"
+      - "app/tasks/dsh_jobs.py"
+      - "app/platform/workforce_runtime/**"
+      - "scripts/assemble_dsh_ci_evidence.py"
+      - "scripts/dsh_runtime_smoke.py"
+      - "scripts/verify_dsh_supply_chain.py"
+      - "tests/fixtures/dsh_fake_gateway.py"
+      - "tests/test_dsh_supply_chain.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dsh-runtime.yml"
+      - ".dockerignore"
+      - "deploy/dsh/**"
+      - "docker-compose.vps.yml"
+      - "requirements-dsh.lock.txt"
+      - "app/dsh_worker.py"
+      - "app/tasks/dsh_jobs.py"
+      - "app/platform/workforce_runtime/**"
+      - "scripts/assemble_dsh_ci_evidence.py"
+      - "scripts/dsh_runtime_smoke.py"
+      - "scripts/verify_dsh_supply_chain.py"
+      - "tests/fixtures/dsh_fake_gateway.py"
+      - "tests/test_dsh_supply_chain.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # DSH upstream CI: cancel superseded PR runs, never cancel a main push.
+  group: dsh-runtime-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  static-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install test runner
+        run: >-
+          python -m pip install
+          iniconfig==2.3.0
+          packaging==25.0
+          pluggy==1.6.0
+          pytest==7.4.4
+      - name: Verify pinned source policy
+        run: |
+          python scripts/verify_dsh_supply_chain.py --check
+          # Hermetic: these offline proofs must not import the app conftest graph.
+          python -m pytest tests/test_dsh_supply_chain.py -q --noconftest
+
+  linux-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: static-policy
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Build first hardened runtime
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: docker build --no-cache --file deploy/dsh/Dockerfile --tag leadgen-dsh:build-a .
+
+      - name: Extract first closure proof
+        run: |
+          mkdir -p "$RUNNER_TEMP/dsh-evidence"
+          cid="$(docker create leadgen-dsh:build-a)"
+          docker cp "$cid:/usr/share/dsh/runtime-proof.json" "$RUNNER_TEMP/dsh-evidence/runtime-proof-a.json"
+          docker cp "$cid:/usr/local/bin/dsh-jsonrpc-agent" "$RUNNER_TEMP/dsh-binary-a"
+          docker rm "$cid"
+
+      - name: Build independent hardened runtime
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: docker build --no-cache --file deploy/dsh/Dockerfile --tag leadgen-dsh:build-b .
+
+      - name: Build isolated concurrency-one DSH worker
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: >-
+          docker build
+          --no-cache
+          --file deploy/dsh/worker.Dockerfile
+          --build-arg DSH_IMAGE=leadgen-dsh:build-a
+          --tag leadgen-dsh-worker:${{ github.sha }}
+          .
+
+      - name: Validate profile-gated production topology
+        env:
+          APP_VERSION: ${{ github.sha }}
+        run: |
+          # Compose still resolves env_file paths even with --no-env-resolution.
+          : > .env
+          docker compose --file docker-compose.vps.yml --profile dsh \
+            config --no-env-resolution --quiet
+          rm -f .env
+
+      - name: Extract second closure proof
+        run: |
+          cid="$(docker create leadgen-dsh:build-b)"
+          docker cp "$cid:/usr/share/dsh/runtime-proof.json" "$RUNNER_TEMP/dsh-evidence/runtime-proof-b.json"
+          docker cp "$cid:/usr/local/bin/dsh-jsonrpc-agent" "$RUNNER_TEMP/dsh-binary-b"
+          docker rm "$cid"
+
+      - name: Generate final-image CycloneDX SBOM
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$RUNNER_TEMP/dsh-evidence:/evidence" \
+            anchore/syft@sha256:8fa5de199dc2c4b825d2c25282eb9546557e74be8c414deb24cfadba5453730f \
+            leadgen-dsh:build-a -o cyclonedx-json=/evidence/dsh-runtime-sbom.cdx.json
+
+      - name: Build fake internal gateway
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: >-
+          docker build
+          --file deploy/dsh/test-gateway.Dockerfile
+          --tag leadgen-dsh-gateway:test
+          .
+
+      - name: Prove MCP, model, shutdown, cancellation, and egress isolation
+        run: >-
+          python scripts/dsh_runtime_smoke.py
+          --image leadgen-dsh:build-a
+          --gateway-image leadgen-dsh-gateway:test
+          --output "$RUNNER_TEMP/dsh-evidence/runtime-smoke.json"
+
+      - name: Assemble fail-closed Linux evidence
+        run: >-
+          python scripts/assemble_dsh_ci_evidence.py
+          --runtime-proof-a "$RUNNER_TEMP/dsh-evidence/runtime-proof-a.json"
+          --runtime-proof-b "$RUNNER_TEMP/dsh-evidence/runtime-proof-b.json"
+          --binary-a "$RUNNER_TEMP/dsh-binary-a"
+          --binary-b "$RUNNER_TEMP/dsh-binary-b"
+          --sbom "$RUNNER_TEMP/dsh-evidence/dsh-runtime-sbom.cdx.json"
+          --smoke "$RUNNER_TEMP/dsh-evidence/runtime-smoke.json"
+          --output "$RUNNER_TEMP/dsh-evidence/DSH_LINUX_CI_EVIDENCE.json"
+
+      - name: Upload immutable proof bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dsh-linux-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/dsh-evidence/
+          if-no-files-found: error
+          retention-days: 30

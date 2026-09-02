@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "evidence_state": "STUB_NOT_EXECUTED",
+  "authoritative_runtime": "direct",
+  "shadow_runtime": "dsh",
+  "cases": [
+    {
+      "id": "policy_tenant_refusal",
+      "status": "pending",
+      "intent": "cross-tenant tool submit must refuse"
+    },
+    {
+      "id": "policy_approval_refusal",
+      "status": "pending",
+      "intent": "unapproved mutator must refuse"
+    },
+    {
+      "id": "tool_allowlist_refusal",
+      "status": "pending",
+      "intent": "non-allowlisted tool must refuse"
+    },
+    {
+      "id": "duplicate_submit",
+      "status": "pending",
+      "intent": "idempotent duplicate submit must not double-execute"
+    },
+    {
+      "id": "unknown_outcome",
+      "status": "pending",
+      "intent": "unknown capability outcome must fail-closed"
+    },
+    {
+      "id": "approval_mutation",
+      "status": "pending",
+      "intent": "approval mutation without Owner OS must refuse"
+    },
+    {
+      "id": "cross_tenant_status_read",
+      "status": "pending",
+      "intent": "status wait across tenants must refuse"
+    },
+    {
+      "id": "cancel",
+      "status": "pending",
+      "intent": "cancel must bound-terminate the DSH child"
+    }
+  ]
+}

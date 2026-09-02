@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — Login as Customer</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root { --pri:#2563eb; --ink:#0f172a; --mut:#64748b; --warn:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#f1f5f9; color:var(--ink); padding:20px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:8px; }
+  .warn { background:#fffbeb; border:1px solid #fde68a; color:var(--warn); border-radius:10px; padding:10px 12px; font-size:13px; margin:12px 0; }
+  .bar { display:flex; gap:10px; margin:14px 0; }
+  input { flex:1; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid #f1f5f9; }
+  .row:last-child { border-bottom:0; }
+  .biz { font-weight:600; }
+  .em { color:var(--mut); font-size:12px; }
+  button { border:0; border-radius:9px; background:var(--pri); color:#fff; font-weight:600; font-size:13px; padding:9px 14px; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .msg { font-size:13px; min-height:18px; margin-top:8px; }
+  .err { color:#b91c1c; }
+  .ok { color:#15803d; }
+  .empty { padding:20px; text-align:center; color:var(--mut); }
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<div class="wrap">
+  <h1>🕵️ Login as Customer</h1>
+  <div class="sub">Super-admin support tool — kisi client ke dashboard me jaake debug karein (read jaisa). Har action audit hota hai.</div>
+  <div class="warn">⚠️ Ye client ke account me aapko un-hi-jaisa session deta hai (max 30 min). Sirf support/debug ke liye — har use AuditLog me record hota hai.</div>
+
+  <div class="bar">
+      <label for="q"></label><input id="q" type="text" placeholder="Business name ya email se filter…" />
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="card" id="list"><div class="empty">Loading…</div></div>
+</div>
+
+<script>
+(function(){
+  var ADMIN_KEY="accessToken", CUST_KEY="lgai_token";
+  var listEl=document.getElementById("list"), msg=document.getElementById("msg"), q=document.getElementById("q");
+  var ALL=[];
+  function hdr(){ return {"Authorization":"Bearer "+(localStorage.getItem(ADMIN_KEY)||""),"Content-Type":"application/json"}; }
+  function setMsg(t,cls){ msg.className="msg "+(cls||""); msg.textContent=t||""; }
+
+  function render(items){
+    if(!items.length){ listEl.innerHTML='<div class="empty">Koi client login nahi mila.</div>'; return; }
+    listEl.innerHTML = items.map(function(c,i){
+      return '<div class="row"><div><div class="biz">'+(esc(c.business_name)||"(no name)")+'</div>'+
+             '<div class="em">'+esc(c.email||"")+'  ·  '+esc(c.client_id)+'</div></div>'+
+             '<button data-cid="'+esc(c.client_id)+'" data-biz="'+esc(c.business_name||"")+'">Open as customer ↗</button></div>';
+    }).join("");
+    Array.prototype.forEach.call(listEl.querySelectorAll("button"), function(b){
+      b.addEventListener("click", function(){ start(b.getAttribute("data-cid"), b.getAttribute("data-biz"), b); });
+    });
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+
+  async function start(cid, biz, btn){
+    if(!confirm("Login as \""+(biz||cid)+"\"?\n\nYe audited hai. Naye tab me customer portal khulega.")) return;
+    btn.disabled=true; var old=btn.textContent; btn.textContent="…";
+    try{
+      var r=await fetch("/api/impersonate/start",{method:"POST",headers:hdr(),body:JSON.stringify({client_id:cid, reason:"admin support"})});
+      var j=await r.json().catch(function(){return{};});
+      if(!r.ok || !j.access_token) throw new Error(j.detail||"Failed");
+      // Customer portal usi origin pe lgai_token localStorage se chalta — set karke naye tab me kholo.
+      localStorage.setItem(CUST_KEY, j.access_token);
+      localStorage.setItem("lgai_cid", j.client_id||"");
+      setMsg("✅ Impersonation session bana ("+Math.round((j.expires_in||1800)/60)+" min). Portal naye tab me khul raha…","ok");
+      window.open(j.portal_url||"/app/customer","_blank");
+    }catch(e){ setMsg("❌ "+e.message,"err"); }
+    finally{ btn.disabled=false; btn.textContent=old; }
+  }
+
+  function applyFilter(){
+    var s=(q.value||"").trim().toLowerCase();
+    render(!s?ALL:ALL.filter(function(c){
+      return (String(c.business_name||"")+" "+String(c.email||"")+" "+String(c.client_id||"")).toLowerCase().indexOf(s)>=0;
+    }));
+  }
+  q.addEventListener("input", applyFilter);
+
+  async function load(){
+    if(!localStorage.getItem(ADMIN_KEY)){ listEl.innerHTML='<div class="empty">Admin login chahiye. <a href="/app/admin-login">Login</a></div>'; return; }
+    try{
+      var r=await fetch("/api/impersonate/targets",{headers:hdr()});
+      if(r.status===404){ listEl.innerHTML='<div class="empty">Impersonation feature OFF hai (<code>IMPERSONATION=1</code> .env me set karein).</div>'; return; }
+      if(r.status===401||r.status===403){ listEl.innerHTML='<div class="empty">Super-admin access chahiye. <a href="/app/admin-login">Login</a></div>'; return; }
+      var j=await r.json();
+      ALL=j.targets||[];
+      var params=new URLSearchParams(location.search);
+      var preCid=(params.get("cid")||"").trim();
+      if(preCid){
+        q.value=preCid;
+        applyFilter();
+        setMsg("Pre-selected: "+preCid,"ok");
+      }else{
+        applyFilter();
+        setMsg(ALL.length+" clients", "");
+      }
+    }catch(e){ listEl.innerHTML='<div class="empty err">Load failed: '+esc(e.message)+'</div>'; }
+  }
+  load();
+})();
+</script>
+</body>
+</html>

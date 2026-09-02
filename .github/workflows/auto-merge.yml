@@ -1,0 +1,40 @@
+# =============================================================================
+# auto-merge.yml — token-free PR merge for parallel-agent work.
+#
+# HOW IT SAVES TOKENS: the owner (or an agent) applies the `auto-merge` label to
+# a PR. This workflow flips GitHub's native auto-merge bit. GitHub then merges
+# the PR *itself* the moment required status checks pass — no polling, no gh
+# commands driven from a chat session, zero Claude tokens. After merge to main,
+# deploy-vps.yml deploys automatically (when DEPLOY_ENABLED=true) with in-wrapper
+# auto-rollback.
+#
+# SAFETY: nothing merges unless (a) the owner explicitly labels it `auto-merge`
+# AND (b) branch protection's required checks (the deploy-vps `gate` job) are
+# green. Draft PRs are ignored. Production deploy stays gated by DEPLOY_ENABLED.
+#
+# ONE-TIME SETUP (see docs/TOKEN_FREE_SHIP_PIPELINE.md):
+#   - Settings > General > "Allow auto-merge" = ON
+#   - Settings > Branches > protect `main`, require the `Gate (import + prod_check
+#     + lint)` check + at least the CI test job.
+# =============================================================================
+name: auto-merge
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-auto-merge:
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'auto-merge')
+      && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable GitHub auto-merge (squash) — merges only when required checks pass
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"

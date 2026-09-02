@@ -1,0 +1,1187 @@
+"""
+ML Training API Endpoints
+Manage and monitor ML training for the voice agent
+"""
+
+import os
+from pathlib import Path
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
+
+from app.api.auth_deps import require_admin
+from app.ml import (
+    get_training_scheduler,
+    stop_training_scheduler,
+)
+from app.ml.data_pipeline import ConversationDataPipeline
+from app.ml.feedback_loop import FeedbackLoop
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+
+# Whole router is admin-only: every route controls or feeds the voice-agent
+# training pipeline (Vertex/brain train-now, scheduler start/stop, feedback
+# ingestion) — synchronous heavy-compute + billed GCP calls + data-poisoning
+# risk if reachable anonymously (production audit 2026-07-01, security batch 4).
+router = APIRouter(prefix="/ml", tags=["ML Training"], dependencies=[Depends(require_admin)])
+
+
+from app.api.ml_training_models import (  # noqa: F401
+    BrainFeedbackRequest,
+    BrainTrainingRequest,
+    FeedbackSubmission,
+    ManualTrainingRequest,
+    TrainingConfigUpdate,
+    VertexBehaviorRecord,
+    VertexTrainRequest,
+)
+
+
+# Endpoints
+@router.get("/status")
+async def get_ml_status():
+    """Get current ML system status"""
+
+    try:
+        scheduler = await get_training_scheduler()
+        status = await scheduler.get_training_status()
+
+        return {"status": "active", "ml_enabled": True, "scheduler": status}
+    except Exception as e:
+        logger.error(f"Failed to get ML status: {e}")
+        return {"status": "error", "ml_enabled": False, "error": str(e)}
+
+
+@router.get("/metrics")
+async def get_ml_metrics():
+    """Get ML training metrics and performance"""
+
+    try:
+        scheduler = await get_training_scheduler()
+        metrics = await scheduler.get_training_metrics()
+
+        return {"success": True, "metrics": metrics}
+    except Exception as e:
+        logger.error(f"Failed to get ML metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/train")
+async def trigger_training(request: ManualTrainingRequest, background_tasks: BackgroundTasks):
+    """Manually trigger a training run"""
+
+    try:
+        scheduler = await get_training_scheduler(tenant_id=request.tenant_id)
+
+        # Run training in background
+        background_tasks.add_task(scheduler.run_training_now, training_type=request.training_type)
+
+        return {
+            "success": True,
+            "message": f"{request.training_type} training started in background",
+            "training_type": request.training_type,
+        }
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to trigger training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/feedback")
+async def submit_call_feedback(feedback: FeedbackSubmission):
+    """Submit call outcome feedback for ML learning"""
+
+    try:
+        feedback_loop = FeedbackLoop()
+        ConversationDataPipeline()
+
+        # Record feedback
+        await feedback_loop.record_call_feedback(
+            conversation_id=feedback.conversation_id,
+            outcome=feedback.outcome,
+            duration=feedback.call_duration,
+            appointment_booked=feedback.appointment_booked,
+            callback_scheduled=feedback.callback_scheduled,
+            notes=feedback.notes,
+        )
+
+        return {
+            "success": True,
+            "message": "Feedback recorded for learning",
+            "conversation_id": feedback.conversation_id,
+        }
+    except Exception as e:
+        logger.error(f"Failed to submit feedback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/insights")
+async def get_ml_insights():
+    """Get AI-generated insights from ML analysis"""
+
+    try:
+        feedback_loop = FeedbackLoop()
+        fn = getattr(feedback_loop, "get_insights", None)
+        insights = (await fn()) if callable(fn) else {}
+        return {"success": True, "insights": insights}
+    except Exception as e:
+        logger.warning(f"Insights not available yet: {e}")
+        return {"success": True, "insights": {}, "note": "No ML insights yet — needs call data."}
+
+
+@router.get("/best-responses")
+async def get_best_responses(
+    industry: str | None = None, intent: str | None = None, limit: int = 10
+):
+    """Get best performing response patterns"""
+
+    try:
+        feedback_loop = FeedbackLoop()
+        fn = getattr(feedback_loop, "get_top_responses", None)
+        responses = (
+            (await fn(industry=industry, intent_type=intent, limit=limit)) if callable(fn) else []
+        )
+        return {"success": True, "responses": responses}
+    except Exception as e:
+        logger.warning(f"Best responses not available yet: {e}")
+        return {"success": True, "responses": [], "note": "No response data yet."}
+
+
+@router.get("/objection-handlers")
+async def get_objection_handlers(industry: str | None = None):
+    """Get best objection handling responses by industry"""
+
+    try:
+        feedback_loop = FeedbackLoop()
+        fn = getattr(feedback_loop, "get_objection_handlers", None)
+        handlers = (await fn(industry=industry)) if callable(fn) else []
+        return {"success": True, "objection_handlers": handlers}
+    except Exception as e:
+        logger.warning(f"Objection handlers not available yet: {e}")
+        return {"success": True, "objection_handlers": [], "note": "No objection data yet."}
+
+
+@router.get("/training-history")
+async def get_training_history(limit: int = 20):
+    """Get training run history"""
+
+    try:
+        scheduler = await get_training_scheduler()
+
+        history = [
+            {
+                "run_id": r.run_id,
+                "started_at": r.started_at.isoformat(),
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                "status": r.status,
+                "models_trained": r.models_trained,
+                "improvements": r.improvements,
+            }
+            for r in scheduler.training_history[-limit:]
+        ]
+
+        return {"success": True, "history": history}
+    except Exception as e:
+        logger.error(f"Failed to get training history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/data-stats")
+async def get_data_statistics():
+    """Get statistics about training data"""
+
+    try:
+        import inspect
+
+        data_pipeline = ConversationDataPipeline()
+        fn = getattr(data_pipeline, "get_stats", None)
+        stats = {}
+        if callable(fn):
+            res = fn()
+            stats = (await res) if inspect.isawaitable(res) else res  # handle sync OR async
+        return {"success": True, "stats": stats}
+    except Exception as e:
+        logger.warning(f"Data stats not available yet: {e}")
+        return {"success": True, "stats": {}, "note": "No training data yet."}
+
+
+def _file_count(pattern: str) -> int:
+    try:
+        return len(list(DATA_DIR.glob(pattern)))
+    except Exception:
+        return 0
+
+
+def _jsonl_count(path: Path, limit: int = 5000) -> int:
+    try:
+        if not path.exists():
+            return 0
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        return len([line for line in lines[-limit:] if line.strip()])
+    except Exception:
+        return 0
+
+
+def _flag_on(name: str) -> bool:
+    return os.environ.get(name, "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+@router.get("/improvement-plan")
+async def get_agent_improvement_plan():
+    """Practical project plan for improving agents without paid training dependency.
+
+    This endpoint is intentionally read-only and local-only: no network probes, no
+    Celery enqueue, no Vertex/paid provider call. It turns the vague "train all
+    agents" idea into the production-safe loop this repo should actually follow:
+    RAG -> eval gate -> prompt/tool fixes -> LoRA export only after enough data.
+    """
+    try:
+        from app.agents import eval_gate
+        from app.config import settings
+    except Exception as e:
+        logger.warning("Improvement plan degraded: %s", e)
+        eval_gate = None  # type: ignore[assignment]
+        settings = None  # type: ignore[assignment]
+
+    eval_summary = {}
+    try:
+        eval_summary = eval_gate.summary() if eval_gate else {}
+    except Exception:
+        eval_summary = {}
+
+    qdrant_configured = bool((getattr(settings, "qdrant_url", "") or "").strip())
+    counts = {
+        "eval_records": int(eval_summary.get("total_records") or 0),
+        "self_improve_runs": _jsonl_count(DATA_DIR / "self_improve_runs.jsonl"),
+        "self_improve_queue": _jsonl_count(DATA_DIR / "self_improve_queue.jsonl"),
+        "trajectory_rows": _jsonl_count(DATA_DIR / "agent_trajectories.jsonl"),
+        "brain_training_reports": _file_count("brain_training/latest_*.json"),
+    }
+    enough_for_lora = (
+        counts["eval_records"] + counts["self_improve_runs"] + counts["trajectory_rows"] >= 500
+    )
+
+    phases = [
+        {
+            "key": "rag_first",
+            "title": "RAG first",
+            "status": "ready" if qdrant_configured else "partial",
+            "why": "Client/niche KB, pricing, objections, scripts aur FAQs ko retrieval se ground karo.",
+            "next_action": (
+                "Qdrant configured hai; next KB coverage aur retrieval eval badhao."
+                if qdrant_configured
+                else "QDRANT_URL set nahi; local fallback chalega, production semantic KB ke liye Qdrant arm karo."
+            ),
+        },
+        {
+            "key": "eval_loop",
+            "title": "Evaluation loop",
+            "status": "ready" if (eval_gate and eval_gate.enabled()) else "needs_flag",
+            "why": "Har change ko scorecard se judge karo: voice quality, RAG faithfulness, lead quality, latency.",
+            "next_action": (
+                "Eval gate ON hai; baselines build hone do."
+                if (eval_gate and eval_gate.enabled())
+                else "EVAL_GATE=1 se observability mode ON karo; hard mode baad me."
+            ),
+        },
+        {
+            "key": "prompt_tool_tuning",
+            "title": "Prompt + tool tuning",
+            "status": "active",
+            "why": "Is project me fastest gain prompts, fallback chain, tool routing, retry/cooldown aur guardrails se aayega.",
+            "next_action": "Rejected eval/self-improve cases ko golden examples me convert karo.",
+        },
+        {
+            "key": "lora_later",
+            "title": "LoRA later",
+            "status": "ready" if enough_for_lora else "wait_for_data",
+            "why": "Fine-tuning tabhi useful jab 500-2000 high-quality accepted examples ho.",
+            "next_action": (
+                "Dataset export experiment Colab/Kaggle/Lightning pe chala sakte ho."
+                if enough_for_lora
+                else "Abhi LoRA mat chalao; pehle accepted examples aur eval history collect karo."
+            ),
+        },
+    ]
+
+    free_gpu_policy = {
+        "use_for": ["LoRA experiments", "batch eval", "model comparison", "dataset cleanup"],
+        "do_not_use_for": [
+            "production runtime dependency",
+            "paid Vertex-first training",
+            "ungated all-agent retraining",
+        ],
+        "recommended_order": ["Lightning AI", "Kaggle", "Colab"],
+    }
+
+    return {
+        "success": True,
+        "name": "Agent Improvement Loop",
+        "production_rule": "RAG + eval + prompt/tool fixes first; LoRA only after enough good examples.",
+        "current_stack": {
+            "qdrant_configured": qdrant_configured,
+            "eval_gate_enabled": bool(eval_gate and eval_gate.enabled()),
+            "eval_gate_hard_mode": bool(eval_gate and eval_gate.hard_mode()),
+            "self_improve_enabled": _flag_on("SELF_IMPROVE_LOOP"),
+            "voice_eval_auto": _flag_on("VOICE_EVAL_AUTO"),
+        },
+        "counts": counts,
+        "phases": phases,
+        "free_gpu_policy": free_gpu_policy,
+        "loop": [
+            "real interactions/logs",
+            "AI/human scoring",
+            "golden examples",
+            "RAG update",
+            "prompt/tool fix",
+            "eval gate",
+            "optional LoRA export",
+        ],
+    }
+
+
+@router.post("/ab-test")
+async def create_ab_test(test_name: str, variants: list[str], metric: str = "success_rate"):
+    """Create a new A/B test for response variants"""
+
+    try:
+        feedback_loop = FeedbackLoop()
+
+        test_id = await feedback_loop.create_ab_test(
+            name=test_name, variants=variants, metric=metric
+        )
+
+        return {
+            "success": True,
+            "test_id": test_id,
+            "message": f"A/B test '{test_name}' created with {len(variants)} variants",
+        }
+    except Exception as e:
+        logger.error(f"Failed to create A/B test: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ab-test/{test_id}")
+async def get_ab_test_results(test_id: str):
+    """Get results for a specific A/B test"""
+
+    try:
+        feedback_loop = FeedbackLoop()
+
+        results = await feedback_loop.get_ab_test_result(test_id)
+
+        if not results:
+            raise HTTPException(status_code=404, detail="A/B test not found")
+
+        return {"success": True, "test_id": test_id, "results": results}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get A/B test results: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/scheduler/start")
+async def start_scheduler():
+    """Start the ML training scheduler"""
+
+    try:
+        scheduler = await get_training_scheduler()
+
+        if scheduler.is_running:
+            return {"success": True, "message": "Scheduler already running"}
+
+        await scheduler.start()
+
+        return {"success": True, "message": "ML training scheduler started"}
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/scheduler/stop")
+async def stop_scheduler():
+    """Stop the ML training scheduler"""
+
+    try:
+        await stop_training_scheduler()
+
+        return {"success": True, "message": "ML training scheduler stopped"}
+    except Exception as e:
+        logger.error(f"Failed to stop scheduler: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# BRAIN TRAINING API - Billionaire Mode
+# ========================================
+
+
+@router.get("/brain/status")
+async def get_brain_training_status():
+    """
+    Get brain training status for all three brains
+
+    Returns training history, behavior counts, and last training times.
+    """
+    try:
+        from app.ml.brain_auto_trainer import get_brain_auto_trainer
+
+        trainer = get_brain_auto_trainer()
+
+        status = {
+            "billionaire_mode": True,
+            "last_training": {k: v.isoformat() for k, v in trainer.last_training.items()},
+            "behavior_counts": {k: len(v) for k, v in trainer.behaviors.items()},
+            "total_sessions": len(trainer.training_sessions),
+            "brains": ["sub_agent", "voice_agent", "production"],
+            "recent_sessions": [],
+        }
+
+        # Add last 10 training sessions
+        for session in trainer.training_sessions[-10:]:
+            status["recent_sessions"].append(
+                {
+                    "session_id": session.session_id,
+                    "brain_type": session.brain_type,
+                    "trigger": session.trigger.value,
+                    "status": session.status,
+                    "improvement": session.improvement,
+                    "behaviors_analyzed": session.behaviors_analyzed,
+                    "patterns_learned": session.patterns_learned,
+                    "web_searches": session.web_searches,
+                    "skills_enhanced": session.skills_enhanced,
+                    "started_at": session.started_at.isoformat(),
+                    "completed_at": (
+                        session.completed_at.isoformat() if session.completed_at else None
+                    ),
+                }
+            )
+
+        return {"success": True, "status": status}
+
+    except Exception as e:
+        logger.error(f"Failed to get brain training status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/brain/train")
+async def train_brains(request: BrainTrainingRequest, background_tasks: BackgroundTasks):
+    """
+    Trigger brain training manually
+
+    Can train all brains or a specific brain.
+    """
+    try:
+        if request.brain_type == "all":
+            # Use Celery for all brains training
+            from app.tasks.brain_training import train_all_brains
+
+            task = train_all_brains.delay(force=request.force)
+
+            return {
+                "success": True,
+                "message": "All brains training started",
+                "task_id": task.id,
+                "brain_type": "all",
+            }
+        else:
+            # Train specific brain
+            from app.tasks.brain_training import train_brain
+
+            task = train_brain.delay(request.brain_type, request.trigger)
+
+            return {
+                "success": True,
+                "message": f"{request.brain_type} brain training started",
+                "task_id": task.id,
+                "brain_type": request.brain_type,
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to trigger brain training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/brain/train/now")
+async def train_brains_immediate(request: BrainTrainingRequest):
+    """
+    Train brains immediately (synchronous, for testing)
+
+    WARNING: This blocks the request until training completes.
+    Use /brain/train for production workloads.
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+
+        orchestrator = get_brain_orchestrator()
+
+        if not orchestrator.auto_trainer:
+            raise HTTPException(status_code=503, detail="Brain auto-trainer not available")
+
+        from app.ml.brain_auto_trainer import TrainingTrigger
+
+        trigger_map = {
+            "behavior": TrainingTrigger.BEHAVIOR,
+            "performance": TrainingTrigger.PERFORMANCE,
+            "scheduled": TrainingTrigger.SCHEDULED,
+            "web_update": TrainingTrigger.WEB_UPDATE,
+            "user_feedback": TrainingTrigger.USER_FEEDBACK,
+            "error_rate": TrainingTrigger.ERROR_RATE,
+        }
+        trigger_enum = trigger_map.get(request.trigger, TrainingTrigger.SCHEDULED)
+
+        results = {}
+
+        if request.brain_type == "all":
+            brain_types = ["sub_agent", "voice_agent", "production"]
+        else:
+            brain_types = [request.brain_type]
+
+        for brain_type in brain_types:
+            session = await orchestrator.auto_trainer.train_brain(brain_type, trigger_enum)
+            results[brain_type] = {
+                "session_id": session.session_id,
+                "status": session.status,
+                "improvement": session.improvement,
+                "behaviors_analyzed": session.behaviors_analyzed,
+                "patterns_learned": session.patterns_learned,
+            }
+
+        return {
+            "success": True,
+            "message": "Brain training completed",
+            "results": results,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to train brains: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/brain/feedback")
+async def record_brain_feedback(request: BrainFeedbackRequest):
+    """
+    Record user feedback for brain actions
+
+    Used to improve brain training based on what users accept/reject.
+    """
+    try:
+        from app.ml.brain_auto_trainer import get_brain_auto_trainer
+
+        trainer = get_brain_auto_trainer()
+
+        # Find matching behavior and update
+        behaviors = trainer.behaviors.get(request.brain_type, [])
+        updated = False
+
+        for behavior in reversed(behaviors):
+            if behavior.action == request.action and behavior.user_accepted is None:
+                behavior.user_accepted = request.accepted
+                behavior.feedback_score = request.feedback_score
+                updated = True
+                break
+
+        if updated:
+            logger.info(
+                f"📝 Recorded feedback for {request.brain_type}/{request.action}: accepted={request.accepted}"
+            )
+            return {
+                "success": True,
+                "message": "Feedback recorded",
+                "brain_type": request.brain_type,
+                "action": request.action,
+                "accepted": request.accepted,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "No matching behavior found to update",
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to record feedback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/brain/metrics")
+async def get_brain_metrics():
+    """
+    Get detailed brain training metrics
+
+    Includes success rates, latency, and improvement trends.
+    """
+    try:
+        from app.ml.brain_auto_trainer import get_brain_auto_trainer
+
+        trainer = get_brain_auto_trainer()
+
+        metrics = {
+            "brains": {},
+            "overall": {
+                "total_behaviors": 0,
+                "total_sessions": len(trainer.training_sessions),
+                "avg_improvement": 0,
+            },
+        }
+
+        total_improvement = 0
+        completed_sessions = [s for s in trainer.training_sessions if s.status == "completed"]
+
+        for brain_type in ["sub_agent", "voice_agent", "production"]:
+            behaviors = trainer.behaviors.get(brain_type, [])
+            sessions = [s for s in completed_sessions if s.brain_type == brain_type]
+
+            # Calculate behavior metrics
+            successful = [b for b in behaviors if b.success]
+            accepted = [b for b in behaviors if b.user_accepted]
+
+            brain_metrics = {
+                "total_behaviors": len(behaviors),
+                "success_rate": len(successful) / len(behaviors) if behaviors else 0,
+                "acceptance_rate": (
+                    len(accepted) / len([b for b in behaviors if b.user_accepted is not None])
+                    if any(b.user_accepted is not None for b in behaviors)
+                    else 0
+                ),
+                "avg_latency_ms": (
+                    sum(b.latency_ms for b in behaviors) / len(behaviors) if behaviors else 0
+                ),
+                "total_sessions": len(sessions),
+                "avg_improvement": (
+                    sum(s.improvement for s in sessions) / len(sessions) if sessions else 0
+                ),
+                "last_trained": trainer.last_training.get(brain_type, None),
+            }
+
+            if brain_metrics["last_trained"]:
+                brain_metrics["last_trained"] = brain_metrics["last_trained"].isoformat()
+
+            metrics["brains"][brain_type] = brain_metrics
+            metrics["overall"]["total_behaviors"] += len(behaviors)
+            total_improvement += brain_metrics["avg_improvement"]
+
+        metrics["overall"]["avg_improvement"] = total_improvement / 3
+
+        return {"success": True, "metrics": metrics}
+
+    except Exception as e:
+        logger.error(f"Failed to get brain metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/brain/health")
+async def get_brain_health():
+    """
+    Get health status of all three brains
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+
+        orchestrator = get_brain_orchestrator()
+
+        health = {}
+        for brain_type, brain_health in orchestrator.brain_health.items():
+            health[brain_type.value] = {
+                "status": brain_health.status.value,
+                "last_used": brain_health.last_used.isoformat(),
+                "requests_handled": brain_health.requests_handled,
+                "avg_response_ms": round(brain_health.avg_response_ms, 2),
+                "error_count": brain_health.error_count,
+                "billionaire_mode": brain_health.billionaire_mode,
+            }
+
+        return {
+            "success": True,
+            "health": health,
+            "billionaire_mode": orchestrator.billionaire_mode,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get brain health: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# VERTEX AI PRODUCTION-READY CONTINUOUS TRAINING ENDPOINTS
+# Billionaire Mode - Maximum AI Leverage for Project Readiness
+# ============================================================================
+
+
+@router.get("/vertex/status")
+async def get_vertex_training_status():
+    """
+    Get Vertex AI continuous training status
+
+    Returns comprehensive status for production readiness:
+    - Training configuration
+    - Per-brain training status
+    - Billionaire metrics (revenue impact, scale readiness)
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+
+        trainer = get_vertex_continuous_trainer()
+
+        status = await trainer.get_training_status()
+        return {
+            "success": True,
+            "production_ready": True,
+            "status": status,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get Vertex status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/train")
+async def trigger_vertex_training(
+    request: VertexTrainRequest,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Trigger Vertex AI training for brains (async via Celery)
+
+    BILLIONAIRE MODE: Uses Vertex AI for intelligent training with:
+    - Behavior pattern analysis
+    - Improvement generation aligned with revenue goals
+    - Knowledge updates from latest best practices
+    """
+    try:
+        from app.tasks.brain_training import vertex_train_all, vertex_train_brain
+
+        if request.brain_type == "all":
+            task = vertex_train_all.delay()
+            return {
+                "success": True,
+                "message": "Vertex AI training started for ALL brains",
+                "task_id": task.id,
+                "billionaire_mode": True,
+            }
+        else:
+            task = vertex_train_brain.delay(
+                request.brain_type,
+                request.priority,
+                request.trigger_reason,
+            )
+            return {
+                "success": True,
+                "message": f"Vertex AI training started for {request.brain_type}",
+                "task_id": task.id,
+                "priority": request.priority,
+            }
+
+    except Exception as e:
+        logger.error(f"Failed to trigger Vertex training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/train/now")
+async def vertex_train_now(request: VertexTrainRequest):
+    """
+    Immediate Vertex AI training (synchronous)
+
+    Use this for production-critical training needs.
+    Runs training immediately and returns results.
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+
+        trainer = get_vertex_continuous_trainer()
+
+        if request.brain_type == "all":
+            results = await trainer.train_all_brains_now()
+            return {
+                "success": True,
+                "message": "Vertex AI training completed for all brains",
+                "results": results,
+            }
+        else:
+            from app.ml.vertex_continuous_trainer import TrainingPriority
+
+            priority_map = {
+                1: TrainingPriority.CRITICAL,
+                2: TrainingPriority.HIGH,
+                3: TrainingPriority.NORMAL,
+                4: TrainingPriority.LOW,
+                5: TrainingPriority.MAINTENANCE,
+            }
+            priority = priority_map.get(request.priority, TrainingPriority.NORMAL)
+
+            metrics = await trainer.train_brain_with_vertex(
+                request.brain_type,
+                priority,
+                request.trigger_reason,
+            )
+
+            return {
+                "success": True,
+                "message": f"Vertex AI training completed for {request.brain_type}",
+                "results": {
+                    "brain_type": metrics.brain_type,
+                    "improvement_percent": metrics.improvement_percent,
+                    "training_duration_seconds": metrics.training_duration_seconds,
+                    "vertex_calls": metrics.vertex_calls,
+                    "behaviors_analyzed": metrics.behaviors_analyzed,
+                    "patterns_discovered": metrics.patterns_discovered,
+                    "skills_enhanced": metrics.skills_enhanced,
+                    "revenue_impact_score": metrics.revenue_impact_score,
+                    "scale_readiness_score": metrics.scale_readiness_score,
+                    "automation_score": metrics.automation_score,
+                },
+            }
+
+    except Exception as e:
+        logger.error(f"Failed immediate Vertex training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/continuous/start")
+async def start_vertex_continuous():
+    """
+    Start Vertex AI continuous training loop
+
+    This enables 24/7 automated training with:
+    - Health checks every 15 minutes
+    - Auto-training when issues detected
+    - Revenue-focused optimization
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import (
+            start_continuous_training,
+        )
+
+        result = await start_continuous_training()
+        return {
+            "success": True,
+            "message": "Vertex AI continuous training started",
+            "billionaire_mode": True,
+            "status": result,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to start continuous training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/continuous/stop")
+async def stop_vertex_continuous():
+    """Stop Vertex AI continuous training loop"""
+    try:
+        from app.ml.vertex_continuous_trainer import stop_continuous_training
+
+        result = await stop_continuous_training()
+        return {
+            "success": True,
+            "message": "Vertex AI continuous training stopped",
+            "status": result,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to stop continuous training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/behavior")
+async def record_vertex_behavior(behavior: VertexBehaviorRecord):
+    """
+    Record a brain behavior for Vertex AI training
+
+    This feeds the continuous training system with data
+    to improve brain performance over time.
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import record_brain_behavior
+
+        record_brain_behavior(
+            brain_type=behavior.brain_type,
+            action=behavior.action,
+            success=behavior.success,
+            latency_ms=behavior.latency_ms,
+            user_accepted=behavior.user_accepted,
+        )
+
+        return {
+            "success": True,
+            "message": "Behavior recorded for training",
+            "brain_type": behavior.brain_type,
+            "action": behavior.action,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to record behavior: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/vertex/production-readiness")
+async def get_production_readiness():
+    """
+    Get production readiness assessment for all brains
+
+    BILLIONAIRE MINDSET: Ensure everything is ready for 10,000x scale
+
+    Returns scores for:
+    - Scale readiness (can handle 10,000x load)
+    - Revenue impact (aligned with revenue goals)
+    - Automation level (minimal manual intervention)
+    - Training freshness (recently trained)
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+
+        trainer = get_vertex_continuous_trainer()
+
+        status = await trainer.get_training_status()
+
+        # Calculate overall production readiness
+        brains = status.get("brains", {})
+        total_ready = sum(1 for b in brains.values() if b.get("ready_for_production", False))
+        all_trained = all(b.get("last_trained") for b in brains.values())
+
+        # Get latest training metrics
+        metrics = {}
+        for brain_type in ["sub_agent", "voice_agent", "production"]:
+            recent = [m for m in trainer.training_history if m.brain_type == brain_type][-1:]
+            if recent:
+                m = recent[0]
+                metrics[brain_type] = {
+                    "revenue_impact": m.revenue_impact_score,
+                    "scale_readiness": m.scale_readiness_score,
+                    "automation": m.automation_score,
+                    "last_improvement": f"{m.improvement_percent:.1f}%",
+                }
+            else:
+                metrics[brain_type] = {
+                    "revenue_impact": 0.5,
+                    "scale_readiness": 0.5,
+                    "automation": 0.5,
+                    "last_improvement": "N/A",
+                }
+
+        overall_score = (
+            sum(m.get("revenue_impact", 0) for m in metrics.values())
+            + sum(m.get("scale_readiness", 0) for m in metrics.values())
+            + sum(m.get("automation", 0) for m in metrics.values())
+        ) / 9  # 3 metrics * 3 brains
+
+        return {
+            "success": True,
+            "production_ready": overall_score > 0.6 and all_trained,
+            "overall_score": round(overall_score * 100, 1),
+            "brains_ready": f"{total_ready}/3",
+            "all_trained": all_trained,
+            "billionaire_mode": True,
+            "metrics": metrics,
+            "recommendations": [
+                "Run vertex/train/now to train all brains immediately" if not all_trained else None,
+                (
+                    "Start continuous training for 24/7 optimization"
+                    if not status.get("is_running")
+                    else None
+                ),
+                "Scale readiness needs improvement" if overall_score < 0.7 else None,
+            ],
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get production readiness: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# UNIFIED BRAIN + VERTEX AI TRAINING (All 13 Sub-Agents + 3 Brains)
+# ============================================================================
+
+
+@router.get("/unified/status")
+async def get_unified_training_status():
+    """
+    Get unified training status for ALL brains and sub-agents.
+
+    BILLIONAIRE MINDSET: Complete visibility into the 16-brain system:
+    - 3 main brains (sub_agent, voice_agent, production)
+    - 13 specialized sub-agents
+
+    All powered by Vertex AI for 10,000x scale.
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+
+        orchestrator = get_brain_orchestrator()
+
+        status = await orchestrator.get_vertex_training_status()
+
+        return {
+            "success": True,
+            "system": "16-brain-architecture",
+            "main_brains": 3,
+            "sub_agents": 13,
+            "total_brains": 16,
+            **status,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get unified status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unified/train")
+async def unified_train_all(background_tasks: BackgroundTasks):
+    """
+    Train ALL 16 brains with Vertex AI (Async via Celery).
+
+    BILLIONAIRE MODE: Complete brain training:
+    - 3 main brains trained with production-ready Vertex AI
+    - 13 sub-agents trained with domain-specific prompts
+    - Revenue-focused optimization
+    - 10,000x scale thinking
+    """
+    try:
+        from app.tasks.brain_training import vertex_train_all
+
+        # Trigger async training
+        task = vertex_train_all.delay()
+
+        return {
+            "success": True,
+            "message": "Unified training started for all 16 brains",
+            "task_id": task.id,
+            "brains_training": 16,
+            "billionaire_mode": True,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to start unified training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unified/train/now")
+async def unified_train_all_now():
+    """
+    Immediate training for ALL 16 brains (Synchronous).
+
+    BILLIONAIRE MODE: Complete training pipeline:
+    1. Train sub_agent brain (powers 13 sub-agents)
+    2. Train voice_agent brain (real-time calls)
+    3. Train production brain (operational excellence)
+    4. Train all 13 specialized sub-agents individually
+
+    Returns detailed results for each brain.
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+
+        orchestrator = get_brain_orchestrator()
+
+        results = await orchestrator.vertex_train_all_brains()
+
+        return {
+            "success": True,
+            "message": "All 16 brains trained with Vertex AI",
+            **results,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed immediate unified training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/unified/sub-agents")
+async def get_sub_agents_status():
+    """
+    Get status of all 13 specialized sub-agents.
+
+    The 13 Sub-Agents (powered by Sub-Agent Brain + Vertex AI):
+    1. voice_ai - Real-time call optimization
+    2. leads - Lead generation and scraping
+    3. ml - ML/AI optimization
+    4. billing - Revenue engineering
+    5. pricing - Dynamic pricing
+    6. growth - Growth hacking
+    7. integrations - CRM and webhook integration
+    8. security - Security and auth
+    9. backend - FastAPI and database
+    10. frontend - React/TypeScript
+    11. infra - DevOps and Terraform
+    12. qa - Testing and quality
+    13. product - Documentation and strategy
+    """
+    try:
+        from app.ml.brain_orchestrator import SUB_AGENTS, get_brain_orchestrator
+
+        orchestrator = get_brain_orchestrator()
+
+        sub_agent_descriptions = {
+            "voice_ai": "Voice AI Engineer - Real-time call optimization, ASR/TTS latency, LLM fallbacks",
+            "leads": "Lead Generation Architect - Web scraping, lead deduplication, DND compliance",
+            "ml": "ML/AI Optimizer - Intent classification, lead scoring, RAG, A/B testing",
+            "billing": "Revenue Engineer - Payment gateway, subscription management, webhooks",
+            "pricing": "Pricing Optimizer - Dynamic pricing, trial conversion, usage-based throttles",
+            "growth": "Growth Hacker - Tenant acquisition, activation loops, notifications",
+            "integrations": "Integration Master - CRM sync, OAuth2, webhook idempotency",
+            "security": "Security Guardian - JWT auth, RBAC, input validation, secrets",
+            "backend": "Backend Architect - FastAPI patterns, async SQLAlchemy, N+1 prevention",
+            "frontend": "Frontend Architect - React/TypeScript, Tailwind CSS, React Query",
+            "infra": "DevOps Specialist - Docker, Terraform, Cloud Run, CI/CD",
+            "qa": "QA Automator - Pytest fixtures, async tests, mock strategies",
+            "product": "Product Strategist - Documentation, API docs, feature narrative",
+        }
+
+        return {
+            "success": True,
+            "total_sub_agents": 13,
+            "powered_by": "Sub-Agent Brain + Vertex AI",
+            "sub_agents": {
+                agent: {
+                    "name": agent.replace("_", " ").title(),
+                    "description": sub_agent_descriptions.get(agent, "Specialized sub-agent"),
+                    "metrics": orchestrator.sub_agent_metrics.get(agent, {}),
+                }
+                for agent in SUB_AGENTS
+            },
+            "billionaire_mode": True,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get sub-agents status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unified/sub-agents/train")
+async def train_all_sub_agents():
+    """
+    Train all 13 sub-agents with Vertex AI.
+
+    Each sub-agent receives domain-specific training:
+    - Billionaire mindset improvements
+    - Revenue/scale optimization
+    - Automation recommendations
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+
+        orchestrator = get_brain_orchestrator()
+
+        results = await orchestrator._train_all_sub_agents_with_vertex()
+
+        trained_count = len([r for r in results.values() if r.get("status") == "trained"])
+
+        return {
+            "success": True,
+            "message": f"Trained {trained_count}/13 sub-agents with Vertex AI",
+            "trained": trained_count,
+            "total": 13,
+            "results": results,
+            "billionaire_mode": True,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to train sub-agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Control Center · L2 Stack Graph</title>
+<!--
+  P3 GRAPH ENGINE — scalable, auto-laid-out WebGL architecture graph ("L2 Stack" view).
+  Standalone page meant to be embedded via <iframe> by the main Control Center.
+  Engine: Sigma.js v3 (WebGL) + Graphology (model) + elkjs (layout), CDN UMD globals.
+  FOLLOW-UP (noted, not blocking first cut):
+    - Vendor the 3 CDN libs locally (offline/CSP hardening).
+    - Custom Sigma edge program for true orthogonal/curved edges (ELK bend-points
+      are computed but the default straight-line renderer ignores them).
+    - Origin-pin the postMessage target (currently '*').
+    - applyLiveStatus() is wired but fed no live data yet (architecture map = grey).
+-->
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
+
+/* top bar */
+#topbar{height:46px;background:#111113;border-bottom:1px solid #1e2028;display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0;z-index:30}
+.brand{font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:#f59e0b}
+.view-tabs{display:flex;gap:2px}
+.view-tab{padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;color:#64748b;border:none;background:transparent;white-space:nowrap;transition:all .12s}
+.view-tab:hover{color:#e2e8f0;background:#1a1c22}
+.view-tab.active{background:#f59e0b;color:#000;font-weight:700}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.search-wrap{position:relative;display:inline-flex;align-items:center}
+.search-wrap input{width:190px;padding:6px 10px 6px 28px;background:#161618;border:1px solid #2d3748;border-radius:5px;color:#e2e8f0;font-size:12px;outline:none}
+.search-wrap input:focus{border-color:#3b82f6}
+.search-wrap .si{position:absolute;left:9px;color:#3d4756;font-size:12px;pointer-events:none}
+.counts{font-size:10px;color:#64748b;white-space:nowrap}
+.counts b{color:#cbd5e1}
+
+/* canvas + controls */
+#stage{position:relative;flex:1;overflow:hidden;background:#0a0a0c;background-image:radial-gradient(circle,#15171f 1px,transparent 1px);background-size:26px 26px}
+#sigma-container{position:absolute;inset:0;width:100%;height:100%}
+
+#zoomctl{position:absolute;left:12px;bottom:14px;z-index:20;display:flex;flex-direction:column;gap:3px}
+.zb{width:30px;height:30px;background:#161618;border:1px solid #2d3748;border-radius:6px;color:#94a3b8;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.zb:hover{background:#1e2028;color:#e2e8f0;border-color:#4b5563}
+.zb.sm{font-size:12px}
+
+#legend{position:absolute;top:12px;right:12px;z-index:20;background:#13141accee;background:#13141aee;border:1px solid #2d3748;border-radius:8px;padding:9px 11px;font-size:9px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);max-width:170px}
+#legend .lg-title{font-size:9px;font-weight:700;letter-spacing:.6px;color:#475569;text-transform:uppercase;margin-bottom:6px}
+#legend .lg-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:#94a3b8}
+#legend .lg-row:last-child{margin-bottom:0}
+#legend .lg-sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;border:1px solid rgba(255,255,255,.12)}
+#legend .lg-note{margin-top:7px;padding-top:6px;border-top:1px solid #1e2028;font-size:9px;color:#475569;line-height:1.5}
+
+#status-legend{position:absolute;left:12px;top:12px;z-index:20;background:#13141aee;border:1px solid #2d3748;border-radius:8px;padding:8px 11px;font-size:9px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#status-legend .lg-title{font-size:9px;font-weight:700;letter-spacing:.6px;color:#475569;text-transform:uppercase;margin-bottom:6px}
+#status-legend .lg-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:#94a3b8;white-space:nowrap}
+#status-legend .lg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;border:1.5px solid}
+
+/* floating node label (on click) */
+#node-float{position:absolute;z-index:25;max-width:280px;background:#15161ef2;border:1px solid #2d3748;border-radius:9px;padding:11px 13px;font-size:11px;box-shadow:0 12px 40px rgba(0,0,0,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:none;pointer-events:auto}
+#node-float.vis{display:block}
+#node-float .nf-badge{display:inline-block;font-size:8px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:6px}
+#node-float .nf-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:5px;line-height:1.3}
+#node-float .nf-desc{font-size:10px;color:#94a3b8;line-height:1.55;margin-bottom:7px}
+#node-float .nf-files{font-size:9px;color:#64748b;font-family:ui-monospace,Menlo,monospace;word-break:break-word;line-height:1.5}
+#node-float .nf-type{font-size:9px;color:#475569;margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
+#node-float .nf-x{position:absolute;top:6px;right:9px;cursor:pointer;color:#64748b;font-size:14px;line-height:1;border:none;background:transparent}
+#node-float .nf-x:hover{color:#e2e8f0}
+
+/* loading / error overlays */
+#loading{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0a0a0c}
+#loading.hidden{display:none}
+.spinner{width:38px;height:38px;border:3px solid #1e2028;border-top-color:#f59e0b;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading .ld-text{font-size:11px;color:#64748b}
+@media (prefers-reduced-motion: reduce){
+  .spinner{animation:none;border-top-color:#f59e0b;border-right-color:#f59e0b}
+}
+
+#error-banner{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0a0a0c;padding:24px;text-align:center}
+#error-banner.vis{display:flex}
+#error-banner .eb-icon{font-size:34px}
+#error-banner .eb-title{font-size:15px;font-weight:700;color:#f87171}
+#error-banner .eb-msg{font-size:12px;color:#94a3b8;max-width:420px;line-height:1.6}
+#error-banner .eb-detail{font-size:10px;color:#475569;font-family:ui-monospace,monospace;max-width:460px;word-break:break-word}
+
+/* a11y visually-hidden */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand"><div class="dot"></div>LeadGen AI · L2 Stack</div>
+  <div class="view-tabs" role="tablist" aria-label="Architecture views">
+    <button class="view-tab active" role="tab" data-view="structural" id="tab-structural">Structural</button>
+    <button class="view-tab" role="tab" data-view="automation" id="tab-automation">Automation</button>
+    <button class="view-tab" role="tab" data-view="products" id="tab-products">Products</button>
+  </div>
+  <div class="tb-right">
+    <div class="search-wrap">
+      <span class="si">⌕</span>
+      <input type="text" id="search" placeholder="Search nodes…" aria-label="Search nodes" autocomplete="off">
+    </div>
+    <span class="counts" id="counts"><b>0</b> nodes · <b>0</b> edges</span>
+  </div>
+</div>
+
+<div id="stage">
+  <div id="sigma-container" role="img" aria-label="Architecture node graph (WebGL)"></div>
+
+  <div id="status-legend">
+    <div class="lg-title">Live status</div>
+    <div class="lg-row"><span class="lg-dot" style="border-color:#22c55e;background:#22c55e22"></span>healthy</div>
+    <div class="lg-row"><span class="lg-dot" style="border-color:#3b82f6;background:#3b82f622"></span>processing</div>
+    <div class="lg-row"><span class="lg-dot" style="border-color:#eab308;background:#eab30822"></span>waiting</div>
+    <div class="lg-row"><span class="lg-dot" style="border-color:#f97316;background:#f9731622"></span>retry</div>
+    <div class="lg-row"><span class="lg-dot" style="border-color:#ef4444;background:#ef444422"></span>failed</div>
+    <div class="lg-row"><span class="lg-dot" style="border-color:#64748b;background:#64748b22"></span>idle</div>
+  </div>
+
+  <div id="legend">
+    <div class="lg-title">Node type</div>
+    <div id="legend-rows"></div>
+    <div class="lg-note">colored borders = live (coming) · grey = architecture map</div>
+  </div>
+
+  <div id="zoomctl">
+    <button class="zb" id="zoom-in" title="Zoom in (+)" aria-label="Zoom in">+</button>
+    <button class="zb" id="zoom-out" title="Zoom out (−)" aria-label="Zoom out">−</button>
+    <button class="zb sm" id="zoom-fit" title="Fit view (f)" aria-label="Fit view">⊡</button>
+  </div>
+
+  <div id="node-float">
+    <button class="nf-x" id="nf-close" title="Close" aria-label="Close">✕</button>
+    <span class="nf-badge" id="nf-badge"></span>
+    <div class="nf-title" id="nf-title"></div>
+    <div class="nf-desc" id="nf-desc"></div>
+    <div class="nf-files" id="nf-files"></div>
+    <div class="nf-type" id="nf-type"></div>
+  </div>
+
+  <div id="loading"><div class="spinner" aria-hidden="true"></div><div class="ld-text">Graph layout compute ho raha hai…</div></div>
+
+  <div id="error-banner">
+    <div class="eb-icon">⚠️</div>
+    <div class="eb-title">Graph engine load nahi hua</div>
+    <div class="eb-msg" id="eb-msg">Network / CDN issue lag raha hai. Reload karke dekho — ya internet check karo.</div>
+    <div class="eb-detail" id="eb-detail"></div>
+  </div>
+</div>
+
+<p class="sr-only" id="a11y-summary" aria-live="polite">
+  Architecture graph. Use the view tabs to switch between Structural, Automation and Products.
+  Keyboard: plus and minus to zoom, f to fit. Click a node to inspect it.
+</p>
+
+<!-- Vendored UMD libs (offline/CSP hardened — no runtime CDN). Pinned versions:
+     graphology@0.25.4 · sigma@3.0.0 · elkjs@0.9.3. Served from frontend/design-system/ (/design-system mount).
+     Loaded as classic scripts → globals available to the inline script below. Load order preserved. -->
+<script src="/design-system/vendor/graphology.umd.min.js"></script>
+<script src="/design-system/vendor/sigma.min.js"></script>
+<script src="/design-system/vendor/elk.bundled.js"></script>
+
+<script>
+/* ============================================================================
+   DATASET — extracted + cleaned from frontend/explorer.html VIEWS object.
+   x/y/w/h DROPPED (ELK computes layout). Kept: id, type, title, desc, badge,
+   files. Edges kept: f, t, lbl (label), style.
+   ========================================================================== */
+const VIEWS = {
+  structural: {
+    label: 'Structural Architecture',
+    layout: 'layered',
+    nodes: [
+      {id:'internet',type:'platform',badge:'ENTRY',title:'Browser / Internet',desc:'Client browsers · /b/{slug}/widget.js · External webhooks',files:'Public entry'},
+      {id:'vps',type:'platform',badge:'HOST',title:'Hostinger VPS Mumbai',desc:'72.61.245.204 · Docker 13+ containers · /opt/leadgen · Caddy host TLS',files:'docker-compose.vps.yml'},
+      {id:'caddy',type:'platform',badge:'EDGE',title:'Caddy TLS Edge Proxy',desc:'HOST process. HTTPS → 127.0.0.1:8000 (leadgen_app)',files:'Caddyfile'},
+      {id:'public_pages',type:'marketing',badge:'LAYER',title:'Public Frontend',desc:'/audit · /site-audit · /pricing · /blog · /compare · /voice-agent',files:'~45 pages'},
+      {id:'embed_widget',type:'marketing',badge:'WIDGET',title:'Lead-Capture Embed',desc:'/b/{slug}/widget.js + /embed iframe · inquiry → lead + distribution',files:'embed_widget.py'},
+      {id:'admin_ui',type:'platform',badge:'LAYER',title:'Admin Dashboards',desc:'/app/admin God Mode · Automation Hub 21 workflows · /app/marketing · /app/automation · battlecard',files:'admin_dashboard.html'},
+      {id:'explorer',type:'monitor',badge:'GRAPH',title:'Architecture Explorer',desc:'/app/explorer — 35-page wiring audit · live production_ready sync · flow builder',files:'explorer.html'},
+      {id:'growth_hub',type:'monitor',badge:'GROWTH',title:'Growth & Ops Hub',desc:'/app/growth-tools · /app/dashboards · /app/outreach · /app/dialer · /app/analytics',files:'growth.py'},
+      {id:'customer_portal',type:'marketing',badge:'LAYER',title:'Customer Portal',desc:'/app/login → /app/customer · TOTP 2FA · content approve · webhooks',files:'customer_dashboard.py'},
+      {id:'marketing_hub',type:'marketing',badge:'MARKETING',title:'Marketing Command',desc:'/app/marketing 28 tabs · /api/marketing/* · AI image · scheduler · widget',files:'marketing.py · marketing.html'},
+      {id:'team_ui',type:'platform',badge:'TEAM',title:'AI Staff Dashboard',desc:'/app/team · 17 agents live · agent_events SSE · manual job runs',files:'team.py · team_dashboard.html'},
+      {id:'auth',type:'platform',badge:'LAYER',title:'Auth & RBAC',desc:'Admin JWT · Customer JWT · /app/team-access module RBAC · consent ledger',files:'admin.py · rbac.py'},
+      {id:'tenant_wl',type:'platform',badge:'TENANT',title:'White-Label Middleware',desc:'Subdomain/custom domain → client branding · FAIL-OPEN apex',files:'middleware/tenant.py'},
+      {id:'billing',type:'monitor',badge:'BILLING',title:'Billing & Usage',desc:'packages.py truth · usage ledger · GST invoices · checkout optional',files:'billing.py · usage.py'},
+      {id:'fastapi',type:'platform',badge:'LAYER',title:'FastAPI Monolith',desc:'~756 routes · uvicorn · Middleware · WS + SSE · Plan rate-limit',files:'main.py'},
+      {id:'launch',type:'monitor',badge:'LAUNCH',title:'Production Ready Gate',desc:'production_ready=true · /api/activation/summary · final_integration_check.py',files:'activation.py · scripts/'},
+      {id:'integration_gate',type:'monitor',badge:'GATE',title:'Final Integration Check',desc:'wiring + deep_wiring + cross_path_audit + live_smoke + pytest — one command PASS',files:'final_integration_check.py · cross_path_audit.py'},
+      {id:'mcp_product',type:'ai',badge:'MCP',title:'MCP-as-Product',desc:'/mcp server · /api/mcp-product/v1 · /.well-known/agent.json A2A card',files:'mcp_product.py'},
+      {id:'compliance',type:'voice',badge:'LEGAL',title:'India Telecom Compliance',desc:'TRAI DND fail-closed · consent ledger · AI disclosure · 10am-7pm',files:'compliance.py · dnd_checker.py'},
+      {id:'ai_staff',type:'ai',badge:'LAYER',title:'17 AI Staff Team',desc:'Boss · Isha · Rohan · Swara · Kavya · FDE · Pranav/Vidya/Arnav KPI',files:'team.py · team_scheduler.py'},
+      {id:'voice_brain',type:'voice',badge:'LAYER',title:'Voice Brain Pipeline',desc:'Vobiz WS → Groq STT → RAG → LLM → EdgeTTS · web-call test',files:'voice_agent/ · natural_dialog.py'},
+      {id:'voice_product',type:'voice',badge:'PRODUCT',title:'Voice Agent Product',desc:'Standalone SKU /voice-agent · band A/B/C pricing · niche scripts',files:'voice_product.py · voice_packages.py'},
+      {id:'telephony_hub',type:'voice',badge:'TELEPHONY',title:'Telephony Webhooks',desc:'Vobiz active · Twilio fallback · call state Redis · AMD voicemail',files:'telephony/webhooks.py'},
+      {id:'celery',type:'platform',badge:'LAYER',title:'Celery Queue System',desc:'Beat IST → Redis → Worker×4 · Scheduler container · DLQ',files:'worker.py'},
+      {id:'flow_runner',type:'platform',badge:'FLOW',title:'Flow Runner',desc:'Visual builder → process-as-code execution · FLOW_RUNNER · admin · linear+DAG',files:'flow_store.py · flow_compiler.py · dag_engine.py'},
+      {id:'external',type:'external',badge:'LAYER',title:'External Integrations',desc:'Vobiz · SMTP Hostinger · Google Maps · Pollinations',files:'integrations/'},
+      {id:'monitoring',type:'monitor',badge:'LAYER',title:'Monitoring Stack',desc:'Prometheus · Grafana · Loki · Tempo · ntfy · Flower · Celery exporter',files:'docker-compose.observability.yml'},
+      {id:'free_ai',type:'ai',badge:'LAYER',title:'Free AI Provider Chain',desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429',files:'free_ai.py'},
+      {id:'rag',type:'ai',badge:'LAYER',title:'RAG / Knowledge Base',desc:'Qdrant kb_main · niche: · client: · skills(241) · agentic RAG opt-in',files:'knowledge_base.py'},
+      {id:'data_layer',type:'data',badge:'LAYER',title:'Data Layer',desc:'Postgres+PgBouncer · Redis×2 · Qdrant · MinIO opt · ./data jsonl',files:'models/'},
+      {id:'gap_transfer',type:'gap',badge:'GAP P0',title:'Live Human Transfer',desc:'PARTIAL — call_transfer.py gated CALL_TRANSFER=1 · Vobiz connect-leg · needs DID+recharge',files:'call_transfer.py'},
+      {id:'brand_frames',type:'marketing',badge:'LIVE',title:'Branded Frames + Daily Feed',desc:'AdBanao-style logo overlay · daily_feed per client · /api/brand/frames · portal tab',files:'brand_frames.py · brandassets.py'},
+      {id:'geo_vis',type:'marketing',badge:'GEO',title:'GEO / AI Visibility',desc:'API + public /geo-check lead magnet LIVE · ChatGPT/AI-search probe',files:'geo_visibility.py · localseo.py'},
+      {id:'gap_meta',type:'gap',badge:'BLOCKED',title:'Meta FB/IG Auto-Post',desc:'EXTERNAL — Meta app review required · WA auto-send banned',files:'env blocked'},
+      {id:'call_recordings',type:'platform',badge:'RECORDINGS',title:'Call Recordings API',desc:'WAV caller+bot per session · VOBIZ_CALL_RECORD=1 · admin player auth-header blob fetch',files:'app/api/call_recordings.py'},
+      {id:'crm_sync',type:'external',badge:'CRM',title:'Native CRM Sync',desc:'Zoho (India DC) + HubSpot · per-client ya global creds · CRM_SYNC flag',files:'app/platform/crm_sync.py'},
+      {id:'agent_memory',type:'ai',badge:'MEMORY',title:'Agent Memory + DPDP',desc:'Per-agent memory inspect · consent-ledger bridge · DPDP purge (admin)',files:'app/api/agent_memory_admin.py'},
+      {id:'turnstile',type:'platform',badge:'BOT GATE',title:'Cloudflare Turnstile',desc:'Lead-magnet bot protection (/audit, /start) · TURNSTILE_* · flag-gated',files:'app/security/turnstile.py'},
+      {id:'vobiz_stream',type:'voice',badge:'WS STREAM',title:'Vobiz WS Stream',desc:'PCM16 → STT → LLM → TTS · _cleanup→post_call_hooks · transcripts jsonl · Turn detector opt-in',files:'app/telephony/vobiz_stream.py'},
+      {id:'post_call_hooks',type:'voice',badge:'POST-CALL',title:'Post-Call Hooks',desc:'meter_call_completion (idempotent) · apply_qualified_downstream · emit_call_report',files:'post_call_hooks.py'},
+      {id:'call_insights',type:'ai',badge:'ASK AI',title:'Call Insights NL',desc:'Qualifications + dialer + LIVE transcripts · /api/voiceai/ask · /api/ai/command',files:'call_insights.py · voiceai.py · ai.py'},
+      {id:'cross_path_audit',type:'monitor',badge:'GUARD',title:'Cross-Path Audit',desc:'Telephony lifecycle parity gate · wired prod_check + final_integration_check',files:'scripts/cross_path_audit.py'},
+      {id:'fire_calls',type:'marketing',badge:'CAMPAIGN',title:'Outbound Call Campaign',desc:'fire_calls.py · leads DB top-N → Swara AI call → mark_called · TRAI 10am-7pm gated',files:'scripts/fire_calls.py'},
+      {id:'minio',type:'data',badge:'S3 STORAGE',title:'MinIO S3 Storage',desc:'docker-compose.addons.yml :9000/:9001 · minio_client.py · local-disk fallback',files:'app/storage/minio_client.py'},
+      {id:'rate_limit_mw',type:'platform',badge:'MIDDLEWARE',title:'Plan Rate Limit MW',desc:'PlanTierRateLimitMiddleware · Starter 60rpm · Growth 200rpm · Advanced 500rpm',files:'app/middleware/__init__.py'},
+      {id:'client_snapshots',type:'marketing',badge:'GHL LIVE',title:'Client Snapshots',desc:'capture_from_niche + apply · mini-site/widget/journeys · AUTO_ONBOARD · /api/clientops/snapshots',files:'client_snapshots.py · clientops.py'}
+    ],
+    edges: [
+      {f:'internet',t:'caddy',lbl:'HTTPS',style:'sync'},{f:'internet',t:'vps',lbl:'SSH',style:'sync'},
+      {f:'vps',t:'caddy',lbl:'hosts',style:'sync'},{f:'caddy',t:'public_pages',lbl:'',style:'sync'},
+      {f:'caddy',t:'admin_ui',lbl:'',style:'sync'},{f:'caddy',t:'customer_portal',lbl:'',style:'sync'},
+      {f:'public_pages',t:'embed_widget',lbl:'embed script',style:'sync'},{f:'embed_widget',t:'fastapi',lbl:'/api/public/inquiry',style:'sync'},
+      {f:'explorer',t:'flow_runner',lbl:'builder',style:'sync'},{f:'flow_runner',t:'celery',lbl:'compile→run',style:'async'},
+      {f:'flow_runner',t:'data_layer',lbl:'flows.jsonl',style:'sync'},{f:'admin_ui',t:'explorer',lbl:'graph UI',style:'sync'},
+      {f:'admin_ui',t:'growth_hub',lbl:'ops',style:'sync'},{f:'admin_ui',t:'marketing_hub',lbl:'28 tabs',style:'sync'},
+      {f:'admin_ui',t:'team_ui',lbl:'staff',style:'sync'},{f:'public_pages',t:'auth',lbl:'JWT',style:'sync'},
+      {f:'admin_ui',t:'auth',lbl:'JWT',style:'sync'},{f:'customer_portal',t:'auth',lbl:'JWT+TOTP',style:'sync'},
+      {f:'auth',t:'tenant_wl',lbl:'host→slug',style:'sync'},{f:'tenant_wl',t:'fastapi',lbl:'branding',style:'sync'},
+      {f:'auth',t:'fastapi',lbl:'authed',style:'sync'},{f:'customer_portal',t:'billing',lbl:'plan',style:'sync'},
+      {f:'fastapi',t:'billing',lbl:'/api/billing',style:'sync'},{f:'fastapi',t:'launch',lbl:'/api/activation',style:'sync'},
+      {f:'fastapi',t:'integration_gate',lbl:'audit scripts',style:'sync'},{f:'integration_gate',t:'cross_path_audit',lbl:'guard',style:'sync'},
+      {f:'cross_path_audit',t:'vobiz_stream',lbl:'parity',style:'opt'},{f:'cross_path_audit',t:'call_insights',lbl:'transcripts',style:'opt'},
+      {f:'integration_gate',t:'launch',lbl:'PASS gate',style:'sync'},{f:'integration_gate',t:'explorer',lbl:'graph sync',style:'sync'},
+      {f:'launch',t:'admin_ui',lbl:'Launch tab',style:'sync'},{f:'launch',t:'growth_hub',lbl:'dashboards',style:'sync'},
+      {f:'vps',t:'fastapi',lbl:'leadgen_app',style:'sync'},{f:'fastapi',t:'mcp_product',lbl:'tools API',style:'sync'},
+      {f:'fastapi',t:'ai_staff',lbl:'dispatch',style:'sync'},{f:'fastapi',t:'voice_brain',lbl:'WS',style:'sync'},
+      {f:'fastapi',t:'voice_product',lbl:'SKU',style:'sync'},{f:'voice_brain',t:'telephony_hub',lbl:'streams',style:'sync'},
+      {f:'telephony_hub',t:'compliance',lbl:'DND gate',style:'sync'},{f:'telephony_hub',t:'external',lbl:'Vobiz',style:'sync'},
+      {f:'voice_brain',t:'gap_transfer',lbl:'missing',style:'opt'},{f:'fastapi',t:'celery',lbl:'enqueue',style:'async'},
+      {f:'fastapi',t:'external',lbl:'API',style:'sync'},{f:'fastapi',t:'monitoring',lbl:'/metrics',style:'opt'},
+      {f:'fastapi',t:'data_layer',lbl:'R/W',style:'sync'},{f:'marketing_hub',t:'fastapi',lbl:'/api/marketing',style:'sync'},
+      {f:'marketing_hub',t:'rag',lbl:'client KB',style:'sync'},{f:'ai_staff',t:'free_ai',lbl:'LLM',style:'sync'},
+      {f:'ai_staff',t:'rag',lbl:'RAG',style:'sync'},{f:'voice_brain',t:'free_ai',lbl:'LLM',style:'sync'},
+      {f:'voice_brain',t:'rag',lbl:'KB',style:'sync'},{f:'celery',t:'ai_staff',lbl:'jobs',style:'async'},
+      {f:'celery',t:'data_layer',lbl:'persist',style:'async'},{f:'free_ai',t:'external',lbl:'providers',style:'sync'},
+      {f:'rag',t:'data_layer',lbl:'Qdrant',style:'sync'},{f:'external',t:'gap_meta',lbl:'blocked',style:'opt'},
+      {f:'celery',t:'celery',lbl:'beat↻worker',style:'loop'},{f:'ai_staff',t:'celery',lbl:'requeue',style:'loop'},
+      {f:'team_ui',t:'ai_staff',lbl:'SSE events',style:'sync'},{f:'admin_ui',t:'call_recordings',lbl:'recordings',style:'sync'},
+      {f:'call_recordings',t:'data_layer',lbl:'WAV files',style:'sync'},{f:'voice_brain',t:'vobiz_stream',lbl:'WS sessions',style:'sync'},
+      {f:'vobiz_stream',t:'post_call_hooks',lbl:'_cleanup',style:'sync'},{f:'post_call_hooks',t:'billing',lbl:'meter minutes',style:'async'},
+      {f:'post_call_hooks',t:'data_layer',lbl:'qualifications',style:'sync'},{f:'vobiz_stream',t:'data_layer',lbl:'transcripts',style:'sync'},
+      {f:'vobiz_stream',t:'call_recordings',lbl:'save WAV',style:'async'},{f:'call_insights',t:'data_layer',lbl:'read tail',style:'sync'},
+      {f:'growth_hub',t:'call_insights',lbl:'Ask AI',style:'sync'},{f:'admin_ui',t:'call_insights',lbl:'/api/ai/command',style:'sync'},
+      {f:'telephony_hub',t:'post_call_hooks',lbl:'legacy path',style:'sync'},{f:'marketing_hub',t:'brand_frames',lbl:'daily feed',style:'sync'},
+      {f:'growth_hub',t:'geo_vis',lbl:'geo-check',style:'sync'},{f:'fastapi',t:'crm_sync',lbl:'lead sync',style:'opt'},
+      {f:'crm_sync',t:'external',lbl:'Zoho/HubSpot',style:'sync'},{f:'ai_staff',t:'agent_memory',lbl:'memory',style:'async'},
+      {f:'public_pages',t:'turnstile',lbl:'bot gate',style:'opt'},{f:'vobiz_stream',t:'telephony_hub',lbl:'events',style:'sync'},
+      {f:'celery',t:'fire_calls',lbl:'campaign',style:'async'},{f:'fire_calls',t:'telephony_hub',lbl:'outbound',style:'sync'},
+      {f:'fire_calls',t:'data_layer',lbl:'call log',style:'async'},{f:'minio',t:'data_layer',lbl:'S3 objects',style:'sync'},
+      {f:'fastapi',t:'rate_limit_mw',lbl:'plan check',style:'sync'},{f:'rate_limit_mw',t:'billing',lbl:'quota R',style:'sync'},
+      {f:'marketing_hub',t:'client_snapshots',lbl:'clone setup',style:'sync'},{f:'client_snapshots',t:'data_layer',lbl:'data/snapshots',style:'sync'},
+      {f:'client_snapshots',t:'rag',lbl:'onboard KB',style:'async'},{f:'brand_frames',t:'data_layer',lbl:'daily feed',style:'sync'},
+      {f:'geo_vis',t:'public_pages',lbl:'/geo-check',style:'sync'},{f:'mcp_product',t:'rag',lbl:'score-lead KB',style:'sync'},
+      {f:'monitoring',t:'vps',lbl:'host metrics',style:'sync'},{f:'monitoring',t:'external',lbl:'ntfy alerts',style:'async'},
+      {f:'turnstile',t:'fastapi',lbl:'verify token',style:'sync'},{f:'voice_product',t:'voice_brain',lbl:'telecaller',style:'sync'},
+      {f:'voice_product',t:'billing',lbl:'voice_packages',style:'sync'},{f:'compliance',t:'data_layer',lbl:'consent/DND log',style:'sync'},
+      {f:'agent_memory',t:'data_layer',lbl:'memory purge',style:'sync'},{f:'gap_transfer',t:'telephony_hub',lbl:'connect-leg',style:'opt'},
+      {f:'marketing_hub',t:'embed_widget',lbl:'widget tab',style:'sync'},{f:'fastapi',t:'minio',lbl:'get_storage',style:'opt'},
+      {f:'marketing_hub',t:'gap_meta',lbl:'auto-post blocked',style:'opt'}
+    ]
+  },
+
+  automation: {
+    label: 'Automation Pipeline',
+    layout: 'layered',
+    nodes: [
+      {id:'beat',type:'platform',badge:'SCHEDULER',title:'Celery Beat + team_scheduler',desc:'06:30 blog · 07:00 content · 09:30+14:30 prospect · 10:30 outreach · 11:00 pipeline · 18:30 wrap · hourly engineers',files:'worker.py · team_scheduler.py · staff_jobs.py'},
+      {id:'worker',type:'platform',badge:'QUEUE',title:'Celery Worker',desc:'Redis broker → staff_jobs queue. DLQ dlq:failed_tasks. Boot-grace on heavy jobs.',files:'app/worker.py'},
+      {id:'blog',type:'marketing',badge:'BLOG',title:'Programmatic Blog SEO',desc:'Niche×city blog posts · sitemap · IndexNow hook',files:'blog_generator · seo_pages.py · seo_blog.py'},
+      {id:'prospect',type:'marketing',badge:'SCRAPE',title:'Prospector + Lead Harvester',desc:'Google Maps · OSM · SearXNG · LEAD_HARVESTER · 39 niches rotation',files:'prospector.py · lead_harvester.py'},
+      {id:'score',type:'ai',badge:'SCORE',title:'Lead Scoring Engine',desc:'0-100 score · hot-lead flag · rescore_db after each scrape batch',files:'lead_scoring.py'},
+      {id:'outreach',type:'marketing',badge:'OUTREACH',title:'Email Outreach (Rohan)',desc:'Hinglish cold-email · Day-3/7 followups · MX verify · RFC8058 List-Unsubscribe · cap 25/day',files:'auto_outreach.py · email_unsub.py'},
+      {id:'email_unsub',type:'marketing',badge:'RFC8058',title:'One-Click Unsubscribe',desc:'List-Unsubscribe header + POST /api/lifecycle/outreach-unsub · suppression jsonl',files:'email_unsub.py · lifecycle.py'},
+      {id:'reply',type:'marketing',badge:'AUTO REPLY',title:'Reply Agent (IMAP)',desc:'Intent classify → guarded known-prospect email reply → at-most-once ledger',files:'reply_agent.py'},
+      {id:'content',type:'marketing',badge:'CONTENT',title:'Content Generator (Isha)',desc:'Daily posts · content_schedule · festival autoschedule · approval queue',files:'auto_content.py · content_schedule.py'},
+      {id:'content_approve',type:'marketing',badge:'APPROVE',title:'Content Approval Loop',desc:'clientops decide API · admin God Mode ✓/✕ · customer portal · automation Approvals tab',files:'content_approval.py · clientops.py'},
+      {id:'journey',type:'marketing',badge:'JOURNEY',title:'Journey / Cadence Engine',desc:'inquiry_received · signup · multi-channel cadence drafts',files:'journeys.py · cadence.py'},
+      {id:'onboard',type:'marketing',badge:'ONBOARD',title:'Auto Onboard + FDE',desc:'Website→KB seed · first content pack · FDE deploy skills',files:'onboarding.py · fde.py'},
+      {id:'lead_dist',type:'marketing',badge:'ROUTING',title:'Lead Distribution',desc:'Round-robin team assign · wa.me handoff link · per-client routing',files:'lead_distribution.py'},
+      {id:'stl',type:'monitor',badge:'SLA',title:'Speed-to-Lead',desc:'Inquiry→first-touch SLA · /api/clientops · 2-min target metric',files:'clientops.py · speed_to_lead.py'},
+      {id:'coordinator',type:'ai',badge:'ORCHESTRATE',title:'Multi-Agent Coordinator',desc:'Sequential · Parallel · Hierarchical · Reflexion · growth-pulse */15',files:'coordinator.py'},
+      {id:'process',type:'ai',badge:'PROCESS',title:'Process Engine',desc:'Process-as-code · event journal · human breakpoints · lead_campaign',files:'process_engine.py'},
+      {id:'self_improve',type:'loop',badge:'LOOP',title:'Self-Improve Loop',desc:'Pick task → execute → learn → Celery requeue · 15 actions incl voice_eval · SELF_IMPROVE_LOOP=1',files:'self_improve.py'},
+      {id:'eval_gate',type:'ai',badge:'SAFETY',title:'Eval Gate',desc:'Regression detection on LLM quality · wired self_improve + CI',files:'eval_gate.py · eval_metrics.py · eval_suite.py'},
+      {id:'campaign_optimizer',type:'ai',badge:'KIRAN',title:'Campaign Optimizer',desc:'Weekly/threshold optimization proposals from campaign performance · approval-first',files:'campaign_optimizer.py'},
+      {id:'objection_extractor',type:'ai',badge:'VOICE LEARN',title:'Objection Extractor',desc:'Recent call/reply objections → rebuttal patterns + Qdrant recall for Swara/Rohan',files:'objection_extractor.py'},
+      {id:'sales',type:'marketing',badge:'SALES',title:'Sales Team + Closer',desc:'BANT deep-dive · auto-proposal · pipeline stages',files:'sales_team.py · sales_pipeline.py · proposal_tracking.py'},
+      {id:'revenue',type:'monitor',badge:'REVENUE',title:'Revenue Ops (Nikhil)',desc:'Dunning · lifecycle nurture · client health · MRR digest',files:'dunning · lifecycle · client_health.py · revenue_digest.py'},
+      {id:'growth_opt',type:'ai',badge:'OPTIMIZE',title:'Growth Optimizer',desc:'Funnel snapshot · weakest stage · experiment suggestions',files:'growth_optimizer.py · growth_engine.py'},
+      {id:'channel_exp',type:'marketing',badge:'BANDIT',title:'Channel Experiments',desc:'17 legal channels · bandit drafts · no auto-post',files:'channel_experiments.py'},
+      {id:'ops',type:'monitor',badge:'WATCHDOG',title:'Ops Watchdog + Engineers',desc:'heartbeat · revive */20min · engineer_sre/finops/security/dbre/dataquality · readiness_digest · integration_health probes',files:'ops_watchdog.py · engineer_agents · infra_handler.py'},
+      {id:'whatsapp_wa',type:'external',badge:'WHATSAPP',title:'WhatsApp Campaigns',desc:'Official Cloud API only · 1-click links default · auto gated',files:'whatsapp_campaign.py · wa_campaign_runner.py'},
+      {id:'seo_pages',type:'marketing',badge:'SEO',title:'Programmatic SEO',desc:'Niche×city landing pages · FAQ schema · /audit CTA',files:'seo_pages.py'},
+      {id:'free_ai',type:'ai',badge:'LLM',title:'Free AI Chain',desc:'Mistral PRIMARY → Groq → Cerebras. Circuit-breaker on 429',files:'free_ai.py'},
+      {id:'data',type:'data',badge:'STORE',title:'Data Layer',desc:'Postgres leads/clients · Redis queue · jsonl stores · agent_events',files:'models/ · data/'},
+      {id:'events',type:'platform',badge:'EVENTS',title:'agent_events + SSE',desc:'Every job logs here → /app/team · /api/events/stream',files:'team.py · events.py'},
+      {id:'ui',type:'platform',badge:'CONTROL',title:'Mission Control UI',desc:'/app/automation 28 tabs · Approvals · ClientOps · Launch · self-improve',files:'automation.html'},
+      {id:'admin_hub',type:'platform',badge:'GOD MODE',title:'Admin Automation Hub',desc:'/app/admin — PRODUCTION READY · 21 workflow buttons · bulk email · campaign optional',files:'admin_dashboard.html'},
+      {id:'launch',type:'monitor',badge:'LAUNCH',title:'Production Ready',desc:'production_ready · blocker_count=0 · payments/calling optional',files:'activation.py · final_integration_check.py'},
+      {id:'public_in',type:'external',badge:'TRIGGER',title:'Inbound Triggers',desc:'/api/public/inquiry · signup · audit → journey + lead_dist',files:'public_site.py'},
+      {id:'customer_wh',type:'external',badge:'WEBHOOK',title:'Customer Webhooks',desc:'lead.created · lead.qualified · call.completed · call.report.ready · Svix HMAC',files:'customer_webhooks.py'},
+      {id:'gap_transfer',type:'gap',badge:'GAP P0',title:'Live Human Transfer',desc:'PARTIAL — call_transfer.py + Vobiz connect-leg (CALL_TRANSFER=1) · needs DID recharge',files:'call_transfer.py'},
+      {id:'client_snapshots',type:'marketing',badge:'LIVE',title:'Client Snapshots (GHL)',desc:'capture_from_niche + client capture → apply — mini-site/widget/journeys/festivals · AUTO_ONBOARD wired',files:'client_snapshots.py · clientops.py'},
+      {id:'fire_campaign',type:'marketing',badge:'CAMPAIGN',title:'Outbound Campaign (Swara)',desc:'fire_calls.py · leads DB top-N → AI call → disposition · mark_called · TRAI 10am-7pm gate',files:'scripts/fire_calls.py'},
+      {id:'call_review',type:'monitor',badge:'REVIEW',title:'Recording Review Loop',desc:'WAV caller+bot saved → admin player (auth-header blob fetch) → agent quality tuning feedback loop',files:'app/api/call_recordings.py · admin_dashboard.html'},
+      {id:'ntfy_alerts',type:'external',badge:'PUSH',title:'ntfy Push Alerts',desc:'https://ntfy.leadsgenai.in · ops_alerts fan-out · engineer score / eval burst / dead-letter / readiness digest',files:'app/platform/ops_alerts.py'},
+      {id:'rm_ops',type:'gap',badge:'P1 OPS',title:'Ops Unlock - First Real Call',desc:'VOBIZ_CALLER_ID + Vobiz balance → readiness 70+ → dry-run → 1 live test call. USER .env action.',files:'.env · telephony_readiness.py'},
+      {id:'rm_voiceqa',type:'gap',badge:'P2 QA',title:'Voice QA Sprint',desc:'agent_tester.py baseline → /app/test-call → _script_fallback discovery + re-greet fix + latency.',files:'telecaller_brain.py · agent_tester.py'},
+      {id:'rm_admin',type:'gap',badge:'P3 UX',title:'Admin Launch Polish',desc:'PARTIAL — client name+slug dropdown DONE. Pending: real per-run campaign history (run persistence).',files:'admin_dashboard.html'},
+      {id:'rm_upi',type:'platform',badge:'SHIPPED',title:'UPI Revenue Loop ✓',desc:'UPI_VPA live · /api/public/pay-info enabled · ready_for_first_paid_customer · admin configure API',files:'upi_config.py · activation.py'},
+      {id:'post_call_pipe',type:'voice',badge:'POST-CALL',title:'Post-Call Pipeline',desc:'vobiz _cleanup → meter_call_completion → auto_qualify → outbound call.completed + CRM downstream',files:'post_call_hooks.py · vobiz_stream.py'},
+      {id:'live_eval',type:'ai',badge:'EVAL',title:'Live-Transcript Eval',desc:'Scores REAL call transcripts → mean conversation_quality feeds eval_gate · barge stats · optional LLM_JUDGE',files:'live_eval.py'},
+      {id:'rm_postcall',type:'platform',badge:'SHIPPED',title:'Post-Call Intelligence ✓',desc:'AUTO_QUALIFY_CALLS ON · post_call_hooks metering · call_insights reads transcripts · customer call.completed',files:'post_call_hooks.py · call_insights.py'},
+      {id:'rm_obs',type:'gap',badge:'MEDIUM',title:'Observability',desc:'SENTRY_DSN + POSTHOG_API_KEY → call-fail / LLM 429 visibility (activation Phase 1).',files:'.env'},
+      {id:'rm_deploy',type:'gap',badge:'MEDIUM',title:'Deploy Automation',desc:'DEPLOY_ENABLED=true + GHCR secrets → CI auto-deploy (manual SSH loop kam).',files:'CI · .env'},
+      {id:'rm_sec',type:'platform',badge:'SHIPPED',title:'NL Command Auth ✓',desc:'/api/ai/command require_admin + tier rate-limit · call_insights action wired',files:'ai.py · auth_deps.py'},
+      {id:'rm_inbound',type:'gap',badge:'MEDIUM',title:'Inbound Auto-Callback',desc:'AUTO_CALLBACK_INQUIRY transactional → cold-call ke bina voice demo (consent already hai).',files:'missed_call.py'},
+      {id:'rm_seo',type:'gap',badge:'MEDIUM',title:'SEO Follow-through',desc:'GSC_SUBMIT_TODAY.md follow → organic inbound (free leads, marketing+voice dono).',files:'seo_pages.py'},
+      {id:'pipeline_ops',type:'marketing',badge:'PIPELINE',title:'Pipeline Ops (Neha)',desc:'Daily 11:00 lead rescore + hot-lead surfacing · 16:00 Day-3/7 followup pass · journey seed (gated)',files:'pipeline_ops.py'},
+      {id:'sched_ops',type:'platform',badge:'SCHEDULE',title:'Secondary Schedule',desc:'evening_wrap 18:30 · weekly_marketing Wed 12:30 S-tier packs · saturday_hygiene 04:00 DLQ+celery trim',files:'scheduled_ops.py · dlq_retry.py'},
+      {id:'kb_weekly',type:'ai',badge:'KB SYNC',title:'Weekly KB Refresh',desc:'Client website → KB contextual re-ingest (cursor-rotate, 5/week) · keeps RAG grounding fresh',files:'kb_refresh.py'},
+      {id:'approvals_cockpit',type:'platform',badge:'SHIPPED',title:'Agentic Approval Cockpit ✓',desc:'Unified 1-click queue — sales/coordinator/fde drafts → risk-tiered approve · Approvals tab',files:'approvals_bridge.py'},
+      {id:'meter_watch',type:'platform',badge:'SHIPPED',title:'Billing Meter Watch ✓',desc:'minute/lead meter-failure → Redis billing:meter_failures → ntfy (revenue-leak visibility)',files:'meter_watch.py · usage.py · usage_alerts.py'},
+      {id:'loop_supervisor',type:'platform',badge:'SHIPPED',title:'Loop Supervisor ✓',desc:'Re-spawns dead call-processor + boot-grace-skip ntfy visibility (SPOF hardening)',files:'loop_supervisor.py'},
+      {id:'process_autostart',type:'platform',badge:'SHIPPED',title:'Process Auto-Start ✓',desc:'Deterministic workflows auto-start (idempotent, capped, breakpoint-paused → cockpit)',files:'process_autostart.py'},
+      {id:'content_distribute',type:'marketing',badge:'SHIPPED',title:'IndexNow Submit ✓',desc:'New blog/landing URLs → IndexNow (Bing/Yandex) instant-index ping',files:'content_distribute.py'},
+      {id:'vobiz_inbound',type:'voice',badge:'SHIPPED',title:'Vobiz Inbound Webhook ✓',desc:'POST /api/webhooks/vobiz/inbound → missed_call lead capture (callback needs DID) · AMD detect gated',files:'webhooks.py · vobiz_stream.py'},
+      {id:'automation_health',type:'monitor',badge:'DEAD-MAN',title:'Automation Health',desc:'Dead-man switch — har scheduled job ka last-run + overdue/failed detection · /api/growth/infra/automation-health',files:'automation_health.py'},
+      {id:'llm_metrics',type:'monitor',badge:'LLM OBS',title:'LLM Metrics',desc:'Per-provider calls/ok-rate/latency/fallback + circuit-breaker cooldown state',files:'llm_metrics.py'},
+      {id:'code_upgrader',type:'ai',badge:'VIKRAM',title:'Code Upgrader',desc:'Signals → free-LLM patch PROPOSALS → admin approve · core code KABHI auto-apply nahi',files:'code_upgrader.py'},
+      {id:'skill_pack',type:'ai',badge:'SKILLS',title:'Skill Pack',desc:'Agents ko find/snippet_for + KB "skills" ns ingest · 241 skills (project+agency+ECC)',files:'skill_pack.py'},
+      {id:'memory_vault',type:'ai',badge:'MEMORY',title:'Memory Vault',desc:'Per-prospect/client markdown memory + call-prep briefs + live notes (compounding context)',files:'memory_vault.py · live_notes.py'},
+      {id:'obsidian_sync',type:'platform',badge:'2ND BRAIN',title:'Obsidian Second Brain',desc:'Agents write markdown → data/obsidian_staging → host-cron git push to leadsgenai-brain',files:'obsidian_sync.py · scripts/obsidian_host_push.sh'},
+      {id:'mcp_engineer',type:'platform',badge:'ARYA',title:'MCP Engineer (Arya)',desc:'3-layer MCP surface health pulse — /mcp · /api/mcp-product/v1 · A2A card · auth-fail + quota + 90d key-rotation alerts',files:'mcp_engineer.py'},
+      {id:'consent_ledger',type:'platform',badge:'TRAI',title:'Consent Ledger',desc:'Opt-out → INSTANT cross-channel suppression + 90-din recording retention (DPDP/TRAI)',files:'consent_ledger.py'},
+      {id:'review_monitor',type:'marketing',badge:'REVIEWS',title:'Review Monitor',desc:'Google review monitor → new-review alerts + AI reply drafts (reputation loop)',files:'review_monitor.py · brand_pulse.py'},
+      {id:'rank_tracker',type:'marketing',badge:'SEO RANK',title:'Rank Tracker',desc:'Free keyword-rank tracking → SEO trend + drop alerts',files:'rank_tracker.py'},
+      {id:'deliverability_monitor',type:'monitor',badge:'INBOX',title:'Deliverability Monitor',desc:'Email bounce/spam-rate watch → auto warmup-pause (sender-reputation guard)',files:'deliverability_monitor.py'},
+      {id:'niche_prospector',type:'marketing',badge:'SCRAPE',title:'Niche Prospector',desc:'Google Maps (Places New) + OSM Overpass → real phones+reviews, cap-limited · niche+city rotation',files:'niche_prospector.py'},
+      {id:'auto_trainer',type:'ai',badge:'ML TRAIN',title:'Auto Trainer (Meera)',desc:'Nightly batch ML model train/improve from collected data · ML_NIGHTLY_TRAINING',files:'auto_trainer.py'},
+      {id:'booking_reminders',type:'marketing',badge:'REMIND',title:'Booking Reminders',desc:'Calendly/HighLevel-pattern booking + no-show reminders (no-show kam karo)',files:'booking_reminders.py'},
+      {id:'service_reminders',type:'marketing',badge:'REPEAT',title:'Service Reminders',desc:'Repeat-service reminders (NiceJob parity) — recurring-revenue nudges',files:'service_reminders.py'},
+      {id:'customer_crm',type:'marketing',badge:'CRM',title:'Customer Mini-CRM + Wishes',desc:'End-customer mini-CRM + birthday/anniversary WISH engine (per-client retention)',files:'customer_crm.py'},
+      {id:'newsletter',type:'marketing',badge:'NEWSLETTER',title:'Auto Newsletter',desc:'Mailchimp-lite per-client newsletter to THEIR customers',files:'newsletter.py'},
+      {id:'client_report',type:'marketing',badge:'REPORT',title:'Client Report + Team Story',desc:'White-label monthly client report + weekly AI-team story (retention #1)',files:'client_report.py · team_report.py'}
+    ],
+    edges: [
+      {f:'beat',t:'worker',lbl:'cron fire',style:'async'},{f:'worker',t:'auto_trainer',lbl:'nightly',style:'async'},
+      {f:'worker',t:'booking_reminders',lbl:'daily',style:'async'},{f:'worker',t:'service_reminders',lbl:'daily',style:'async'},
+      {f:'worker',t:'customer_crm',lbl:'daily',style:'async'},{f:'worker',t:'newsletter',lbl:'sched',style:'async'},
+      {f:'worker',t:'client_report',lbl:'monthly',style:'async'},{f:'worker',t:'blog',lbl:'06:30',style:'async'},
+      {f:'worker',t:'prospect',lbl:'09:30',style:'async'},{f:'worker',t:'content',lbl:'07:00',style:'async'},
+      {f:'worker',t:'outreach',lbl:'10:30',style:'async'},{f:'worker',t:'reply',lbl:'hourly',style:'async'},
+      {f:'worker',t:'onboard',lbl:'hourly',style:'async'},{f:'worker',t:'ops',lbl:'hourly',style:'async'},
+      {f:'worker',t:'self_improve',lbl:'180s',style:'async'},{f:'worker',t:'growth_opt',lbl:'*/15',style:'async'},
+      {f:'blog',t:'seo_pages',lbl:'index',style:'sync'},{f:'blog',t:'data',lbl:'posts',style:'sync'},
+      {f:'prospect',t:'score',lbl:'rescore',style:'sync'},{f:'score',t:'data',lbl:'persist',style:'sync'},
+      {f:'score',t:'outreach',lbl:'hot leads',style:'sync'},{f:'outreach',t:'free_ai',lbl:'draft email',style:'sync'},
+      {f:'outreach',t:'email_unsub',lbl:'List-Unsub hdr',style:'sync'},{f:'email_unsub',t:'data',lbl:'suppression',style:'sync'},
+      {f:'outreach',t:'data',lbl:'sent log',style:'sync'},{f:'reply',t:'journey',lbl:'interested',style:'sync'},
+      {f:'reply',t:'sales',lbl:'hot reply',style:'sync'},{f:'content',t:'content_approve',lbl:'submit draft',style:'sync'},
+      {f:'content_approve',t:'data',lbl:'approved',style:'sync'},{f:'content',t:'free_ai',lbl:'generate',style:'sync'},
+      {f:'content',t:'data',lbl:'queue',style:'sync'},{f:'public_in',t:'journey',lbl:'inquiry_received',style:'sync'},
+      {f:'public_in',t:'lead_dist',lbl:'assign',style:'sync'},{f:'public_in',t:'stl',lbl:'SLA clock',style:'sync'},
+      {f:'public_in',t:'data',lbl:'lead row',style:'sync'},{f:'public_in',t:'customer_wh',lbl:'lead.created',style:'async'},
+      {f:'lead_dist',t:'whatsapp_wa',lbl:'wa handoff',style:'sync'},{f:'journey',t:'outreach',lbl:'cadence step',style:'async'},
+      {f:'journey',t:'sales',lbl:'qualify',style:'sync'},{f:'onboard',t:'data',lbl:'KB+pack',style:'sync'},
+      {f:'onboard',t:'content',lbl:'first pack',style:'sync'},{f:'onboard',t:'client_snapshots',lbl:'niche clone',style:'sync'},
+      {f:'self_improve',t:'coordinator',lbl:'pick goal',style:'sync'},{f:'self_improve',t:'eval_gate',lbl:'regression',style:'sync'},
+      {f:'worker',t:'campaign_optimizer',lbl:'digest',style:'async'},{f:'campaign_optimizer',t:'growth_opt',lbl:'proposals',style:'sync'},
+      {f:'worker',t:'objection_extractor',lbl:'digest',style:'async'},{f:'objection_extractor',t:'free_ai',lbl:'extract',style:'sync'},
+      {f:'objection_extractor',t:'data',lbl:'patterns',style:'sync'},{f:'coordinator',t:'process',lbl:'workflow',style:'sync'},
+      {f:'coordinator',t:'prospect',lbl:'scrape task',style:'async'},{f:'coordinator',t:'outreach',lbl:'campaign',style:'async'},
+      {f:'coordinator',t:'channel_exp',lbl:'experiments',style:'sync'},{f:'growth_opt',t:'channel_exp',lbl:'weakest→test',style:'sync'},
+      {f:'process',t:'sales',lbl:'deep-dive',style:'sync'},{f:'process',t:'revenue',lbl:'dunning gate',style:'sync'},
+      {f:'sales',t:'revenue',lbl:'pipeline',style:'sync'},{f:'revenue',t:'data',lbl:'billing',style:'sync'},
+      {f:'ops',t:'beat',lbl:'revive',style:'loop'},{f:'ops',t:'worker',lbl:'health',style:'sync'},
+      {f:'ops',t:'launch',lbl:'probes',style:'sync'},{f:'worker',t:'events',lbl:'log',style:'sync'},
+      {f:'events',t:'ui',lbl:'SSE live',style:'sync'},{f:'events',t:'admin_hub',lbl:'God Mode',style:'sync'},
+      {f:'admin_hub',t:'launch',lbl:'readiness',style:'sync'},{f:'ui',t:'launch',lbl:'readiness',style:'sync'},
+      {f:'launch',t:'ui',lbl:'banner',style:'loop'},{f:'self_improve',t:'worker',lbl:'requeue',style:'loop'},
+      {f:'worker',t:'self_improve',lbl:'tick',style:'loop'},{f:'reply',t:'outreach',lbl:'followup draft',style:'loop'},
+      {f:'score',t:'prospect',lbl:'niche cursor',style:'loop'},{f:'beat',t:'beat',lbl:'heartbeat',style:'loop'},
+      {f:'content_approve',t:'whatsapp_wa',lbl:'1-click post',style:'async'},{f:'sales',t:'gap_transfer',lbl:'needs transfer',style:'opt'},
+      {f:'worker',t:'fire_campaign',lbl:'campaign',style:'async'},{f:'fire_campaign',t:'free_ai',lbl:'Swara brain',style:'sync'},
+      {f:'fire_campaign',t:'data',lbl:'call log',style:'sync'},{f:'fire_campaign',t:'post_call_pipe',lbl:'hangup',style:'sync'},
+      {f:'post_call_pipe',t:'customer_wh',lbl:'call.completed',style:'async'},{f:'post_call_pipe',t:'data',lbl:'transcripts+quals',style:'sync'},
+      {f:'post_call_pipe',t:'call_review',lbl:'qualify signal',style:'async'},{f:'post_call_pipe',t:'sales',lbl:'qualified lead',style:'async'},
+      {f:'call_review',t:'self_improve',lbl:'quality signal',style:'loop'},{f:'ops',t:'ntfy_alerts',lbl:'push alert',style:'async'},
+      {f:'process_autostart',t:'process',lbl:'start_run',style:'async'},{f:'process',t:'approvals_cockpit',lbl:'breakpoint',style:'sync'},
+      {f:'sales',t:'approvals_cockpit',lbl:'deep-dive draft',style:'async'},{f:'coordinator',t:'approvals_cockpit',lbl:'plan draft',style:'async'},
+      {f:'approvals_cockpit',t:'ui',lbl:'1-click',style:'sync'},{f:'meter_watch',t:'ntfy_alerts',lbl:'leak alert',style:'async'},
+      {f:'loop_supervisor',t:'ntfy_alerts',lbl:'SPOF alert',style:'async'},{f:'content',t:'content_distribute',lbl:'ready→publish',style:'async'},
+      {f:'blog',t:'content_distribute',lbl:'blog URLs→IndexNow',style:'async'},{f:'public_in',t:'vobiz_inbound',lbl:'inbound call',style:'opt'},
+      {f:'worker',t:'automation_health',lbl:'heartbeat',style:'sync'},{f:'automation_health',t:'ntfy_alerts',lbl:'overdue',style:'async'},
+      {f:'free_ai',t:'llm_metrics',lbl:'track',style:'sync'},{f:'ops',t:'code_upgrader',lbl:'scan signals',style:'async'},
+      {f:'review_monitor',t:'ntfy_alerts',lbl:'new review',style:'async'},{f:'prospect',t:'niche_prospector',lbl:'harvest',style:'sync'},
+      {f:'launch',t:'ntfy_alerts',lbl:'readiness',style:'async'},{f:'eval_gate',t:'ntfy_alerts',lbl:'regression',style:'async'},
+      {f:'post_call_pipe',t:'live_eval',lbl:'live transcripts',style:'async'},{f:'live_eval',t:'eval_gate',lbl:'conversation_quality',style:'sync'},
+      {f:'customer_wh',t:'ntfy_alerts',lbl:'events',style:'async'},{f:'worker',t:'pipeline_ops',lbl:'11:00 + 16:00',style:'async'},
+      {f:'pipeline_ops',t:'score',lbl:'rescore',style:'sync'},{f:'pipeline_ops',t:'data',lbl:'hot leads',style:'sync'},
+      {f:'pipeline_ops',t:'outreach',lbl:'followup pass',style:'loop'},{f:'pipeline_ops',t:'events',lbl:'log',style:'sync'},
+      {f:'worker',t:'prospect',lbl:'14:30 2nd pass',style:'async'},{f:'worker',t:'sched_ops',lbl:'18:30 · Wed · Sat',style:'async'},
+      {f:'sched_ops',t:'events',lbl:'EOD wrap',style:'sync'},{f:'sched_ops',t:'data',lbl:'S-tier packs',style:'sync'},
+      {f:'sched_ops',t:'worker',lbl:'queue trim',style:'loop'},{f:'worker',t:'kb_weekly',lbl:'Sun 05:00',style:'async'},
+      {f:'kb_weekly',t:'data',lbl:'KB re-ingest',style:'sync'},{f:'beat',t:'ops',lbl:'standup 08:00',style:'async'},
+      {f:'ops',t:'launch',lbl:'readiness_digest',style:'sync'},{f:'worker',t:'skill_pack',lbl:'skill ingest',style:'async'},
+      {f:'skill_pack',t:'data',lbl:'skills ns',style:'sync'},{f:'coordinator',t:'skill_pack',lbl:'find skill',style:'sync'},
+      {f:'coordinator',t:'memory_vault',lbl:'call brief',style:'sync'},{f:'memory_vault',t:'data',lbl:'vault md',style:'sync'},
+      {f:'sales',t:'memory_vault',lbl:'prep',style:'sync'},{f:'reply',t:'memory_vault',lbl:'notes',style:'sync'},
+      {f:'events',t:'obsidian_sync',lbl:'event md',style:'async'},{f:'memory_vault',t:'obsidian_sync',lbl:'vault md',style:'async'},
+      {f:'self_improve',t:'obsidian_sync',lbl:'session md',style:'async'},{f:'obsidian_sync',t:'data',lbl:'staging→host push',style:'loop'},
+      {f:'worker',t:'mcp_engineer',lbl:'hourly :40',style:'async'},{f:'mcp_engineer',t:'ntfy_alerts',lbl:'auth-fail / quota',style:'async'},
+      {f:'mcp_engineer',t:'data',lbl:'mcp_health_audit.jsonl',style:'sync'},{f:'outreach',t:'deliverability_monitor',lbl:'reputation',style:'sync'},
+      {f:'deliverability_monitor',t:'outreach',lbl:'warmup pause',style:'loop'},{f:'outreach',t:'consent_ledger',lbl:'opt-out',style:'sync'},
+      {f:'reply',t:'consent_ledger',lbl:'unsub',style:'sync'},{f:'fire_campaign',t:'consent_ledger',lbl:'DND gate',style:'sync'},
+      {f:'consent_ledger',t:'data',lbl:'suppress log',style:'sync'},{f:'blog',t:'rank_tracker',lbl:'keywords',style:'sync'},
+      {f:'rank_tracker',t:'ntfy_alerts',lbl:'rank drop',style:'async'},{f:'worker',t:'review_monitor',lbl:'daily',style:'async'},
+      {f:'worker',t:'meter_watch',lbl:':55 hourly',style:'async'},{f:'worker',t:'process_autostart',lbl:'11:30',style:'async'},
+      {f:'worker',t:'loop_supervisor',lbl:'120s',style:'async'},{f:'ops',t:'loop_supervisor',lbl:'SPOF watch',style:'sync'},
+      {f:'client_snapshots',t:'data',lbl:'snapshots/',style:'sync'},{f:'client_snapshots',t:'journey',lbl:'template rules',style:'sync'},
+      {f:'stl',t:'data',lbl:'SLA log',style:'sync'},{f:'niche_prospector',t:'data',lbl:'prospect batch',style:'sync'},
+      {f:'auto_trainer',t:'data',lbl:'train set',style:'sync'},{f:'auto_trainer',t:'self_improve',lbl:'quality',style:'loop'},
+      {f:'booking_reminders',t:'customer_crm',lbl:'no-show',style:'sync'},{f:'service_reminders',t:'customer_crm',lbl:'repeat svc',style:'sync'},
+      {f:'customer_crm',t:'data',lbl:'end customers',style:'sync'},{f:'newsletter',t:'data',lbl:'subscribers',style:'sync'},
+      {f:'client_report',t:'revenue',lbl:'retention',style:'sync'},{f:'seo_pages',t:'data',lbl:'landing pages',style:'sync'},
+      {f:'pipeline_ops',t:'events',lbl:'midday_prospect log',style:'sync'},{f:'launch',t:'rm_upi',lbl:'payments ✓',style:'sync'},
+      {f:'launch',t:'rm_obs',lbl:'Sentry/PostHog',style:'opt'},{f:'launch',t:'rm_deploy',lbl:'CI deploy',style:'opt'},
+      {f:'revenue',t:'rm_upi',lbl:'UPI armed',style:'sync'},{f:'ops',t:'rm_ops',lbl:'Vobiz DID',style:'opt'},
+      {f:'auto_trainer',t:'rm_voiceqa',lbl:'QA sprint',style:'sync'},{f:'admin_hub',t:'rm_admin',lbl:'UX polish',style:'sync'},
+      {f:'post_call_pipe',t:'rm_postcall',lbl:'shipped ✓',style:'sync'},{f:'ui',t:'rm_sec',lbl:'auth ✓',style:'sync'},
+      {f:'vobiz_inbound',t:'rm_inbound',lbl:'callback path',style:'opt'},{f:'seo_pages',t:'rm_seo',lbl:'GSC organic',style:'sync'},
+      {f:'ops',t:'rm_obs',lbl:'obs keys',style:'opt'},{f:'rm_upi',t:'revenue',lbl:'UPI live',style:'sync'},
+      {f:'rm_postcall',t:'post_call_pipe',lbl:'parity ✓',style:'sync'},{f:'rm_sec',t:'ui',lbl:'/api/ai/command',style:'sync'},
+      {f:'rm_inbound',t:'vobiz_inbound',lbl:'needs DID',style:'opt'},{f:'rm_seo',t:'blog',lbl:'organic',style:'sync'},
+      {f:'rm_ops',t:'fire_campaign',lbl:'test call',style:'opt'},{f:'rm_voiceqa',t:'call_review',lbl:'agent_tester',style:'sync'},
+      {f:'rm_admin',t:'ui',lbl:'God Mode',style:'sync'},{f:'rm_deploy',t:'launch',lbl:'DEPLOY_ENABLED',style:'opt'},
+      {f:'rm_obs',t:'ntfy_alerts',lbl:'Sentry fan-out',style:'async'},{f:'code_upgrader',t:'data',lbl:'code_patches',style:'sync'},
+      {f:'gap_transfer',t:'sales',lbl:'human handoff',style:'opt'},{f:'llm_metrics',t:'ops',lbl:'provider health',style:'sync'}
+    ]
+  },
+
+  products: {
+    label: 'Product Split — 2 SKUs (DO NOT BUNDLE)',
+    layout: 'mrtree',
+    nodes: [
+      {id:'entry',type:'platform',badge:'ENTRY',title:'Acquisition Funnel',desc:'/audit #1 magnet · /site-audit · /pricing · /start · /compare',files:'public pages'},
+      {id:'page_compare',type:'platform',badge:'COMPARE',title:'/compare Page',desc:'Do products side-by-side — marketing vs voice agent (no bundle USP)',files:'compare.html'},
+      {id:'prod_marketing',type:'marketing',badge:'PRODUCT 1',title:'AI Automated Marketing',desc:'MAIN SKU — posts/GBP/festivals/posters/reviews/WA · 39 niches · Dhanda-class',files:'packages.py · /app/marketing'},
+      {id:'m_trial',type:'marketing',badge:'FREE 7d',title:'Marketing Trial',desc:'₹0 · 5 posts · GBP audit · widget · mini-site · branded frames · portal · NO voice',files:'TRIAL_PACKAGE'},
+      {id:'m_starter',type:'marketing',badge:'₹1,999/mo',title:'AI Marketing Automation',desc:'Roz AI posts · branded frames · festival calendar · GBP audit · review replies · 4 posters · WA pack · UPI QR · portal',files:'packages.py#starter'},
+      {id:'m_growth',type:'marketing',badge:'₹2,999/mo',title:'Growth (legacy)',desc:'+ unlimited posters · AI image · calendar/scheduler · competitor · mini-site · widget · chatbot · drip · CRM · report',files:'packages.py#growth'},
+      {id:'m_advanced',type:'marketing',badge:'₹5,999/mo',title:'Advanced Voice Agent',desc:'Growth + voice FEATURE: 2-min callback · qualify · booking · 500 min/mo · follow-ups · transcripts · speed-to-lead',files:'packages.py#advanced'},
+      {id:'m_content',type:'marketing',badge:'MODULE',title:'Content Engine',desc:'AI posts · scheduler · festivals · complete-post · AI image · 28 tabs',files:'auto_content · marketing.py'},
+      {id:'m_gbp',type:'marketing',badge:'MODULE',title:'GBP & Reviews',desc:'/audit lead magnet · review kit · sentiment · review reply drafts',files:'review_kit · gbp'},
+      {id:'m_widget',type:'marketing',badge:'MODULE',title:'Web Widget + Mini-Site',desc:'/b/{slug} · embed widget · booking · minisite builder',files:'embed_widget · mini_site'},
+      {id:'m_outreach',type:'marketing',badge:'MODULE',title:'Growth Outreach',desc:'Email cold · reply triage · cadence · journeys · /app/outreach',files:'auto_outreach · growth-tools'},
+      {id:'m_voice_feat',type:'voice',badge:'FEATURE',title:'Voice Callback (Advanced only)',desc:'NOT Product 2 — inbound inquiry callback · missed-call · NO cold DLT dialer',files:'telephony inbound only'},
+      {id:'prod_voice',type:'voice',badge:'PRODUCT 2',title:'AI Voice Calling Agent',desc:'STANDALONE telecaller SKU · flat monthly per niche band · unlimited calls',files:'voice_packages.py · /voice-agent'},
+      {id:'v_pilot',type:'voice',badge:'FREE',title:'Voice Pilot',desc:'7 din · 50 calls · zero payment · niche test',files:'voice_pilot'},
+      {id:'v_band_a',type:'voice',badge:'₹4,999/mo',title:'Band A — Volume',desc:'Insurance · coaching · solar · hospital · 39 niches tier-A',files:'voice_a_monthly'},
+      {id:'v_band_b',type:'voice',badge:'₹9,999/mo',title:'Band B — Mid',desc:'Home loans · study abroad · dental · finance advisory',files:'voice_b_monthly'},
+      {id:'v_band_c',type:'voice',badge:'₹19,999/mo',title:'Band C — Premium',desc:'IVF · immigration · commercial solar · hair transplant',files:'voice_c_monthly'},
+      {id:'v_stack',type:'voice',badge:'STACK',title:'Voice Brain Stack',desc:'Vobiz WS · Groq STT · RAG · Mistral LLM · EdgeTTS · post_call_hooks meter+qualify · call_insights',files:'voice_agent/ · post_call_hooks.py'},
+      {id:'v_dialer',type:'voice',badge:'OPS',title:'Dialer + Test Call',desc:'/app/dialer · /app/test-call FREE tuning · dispositions · leaderboard',files:'dialer · web_call'},
+      {id:'v_compliance',type:'voice',badge:'DLT',title:'TRAI Compliance Gate',desc:'DND fail-closed · AI disclosure · 10am-7pm · consent ledger · DLT blocked=cold',files:'compliance.py'},
+      {id:'v_pages',type:'voice',badge:'PAGE',title:'/voice-agent Landing',desc:'Public pricing · band picker · pilot signup · separate from /pricing',files:'voice-agent page'},
+      {id:'shared_billing',type:'monitor',badge:'BILLING',title:'Billing Hub',desc:'packages.py + voice_packages.py · usage ledger · GST · checkout optional',files:'billing.py'},
+      {id:'shared_portal',type:'marketing',badge:'PORTAL',title:'Customer Portal',desc:'/app/customer · content approve · webhooks · TOTP · per-product entitlements',files:'customer_dashboard.py'},
+      {id:'shared_admin',type:'platform',badge:'ADMIN',title:'Admin + Mission Control',desc:'/app/marketing · /app/automation · /app/battlecard · team RBAC',files:'admin · automation'},
+      {id:'shared_data',type:'data',badge:'DATA',title:'Shared Data Layer',desc:'Postgres clients · leads · calls · agent_events · jsonl stores',files:'models/'},
+      {id:'gap_bundle',type:'gap',badge:'WRONG',title:'❌ Bundle USP',desc:'GALAT framing — "marketing+voice bundle" mat bolo. Do alag products becho.',files:'sales rule'},
+      {id:'gap_dlt',type:'gap',badge:'LATER',title:'DLT Cold Calling (optional)',desc:'Product 2 cold dial — paperwork later. Marketing launch + inbound ready NOW.',files:'optional · not a launch blocker'}
+    ],
+    edges: [
+      {f:'entry',t:'page_compare',lbl:'compare',style:'sync'},{f:'entry',t:'prod_marketing',lbl:'/pricing',style:'sync'},
+      {f:'entry',t:'prod_voice',lbl:'/voice-agent',style:'sync'},{f:'page_compare',t:'prod_marketing',lbl:'SKU 1',style:'sync'},
+      {f:'page_compare',t:'prod_voice',lbl:'SKU 2',style:'sync'},{f:'page_compare',t:'gap_bundle',lbl:'avoid',style:'opt'},
+      {f:'prod_marketing',t:'m_trial',lbl:'funnel',style:'sync'},{f:'prod_marketing',t:'m_starter',lbl:'tier',style:'sync'},
+      {f:'prod_marketing',t:'m_growth',lbl:'tier',style:'sync'},{f:'prod_marketing',t:'m_advanced',lbl:'tier',style:'sync'},
+      {f:'m_starter',t:'m_content',lbl:'includes',style:'sync'},{f:'m_growth',t:'m_content',lbl:'includes',style:'sync'},
+      {f:'m_growth',t:'m_gbp',lbl:'includes',style:'sync'},{f:'m_growth',t:'m_widget',lbl:'includes',style:'sync'},
+      {f:'m_advanced',t:'m_growth',lbl:'superset',style:'sync'},{f:'m_advanced',t:'m_voice_feat',lbl:'FEATURE',style:'sync'},
+      {f:'m_advanced',t:'m_outreach',lbl:'includes',style:'sync'},{f:'m_voice_feat',t:'v_stack',lbl:'shares stack',style:'async'},
+      {f:'m_voice_feat',t:'gap_dlt',lbl:'no cold',style:'opt'},{f:'prod_voice',t:'v_pilot',lbl:'tier',style:'sync'},
+      {f:'prod_voice',t:'v_band_a',lbl:'band',style:'sync'},{f:'prod_voice',t:'v_band_b',lbl:'band',style:'sync'},
+      {f:'prod_voice',t:'v_band_c',lbl:'band',style:'sync'},{f:'prod_voice',t:'v_pages',lbl:'landing',style:'sync'},
+      {f:'v_band_a',t:'v_stack',lbl:'unlimited',style:'sync'},{f:'v_band_b',t:'v_stack',lbl:'unlimited',style:'sync'},
+      {f:'v_band_c',t:'v_stack',lbl:'unlimited',style:'sync'},{f:'v_pilot',t:'v_stack',lbl:'50 calls',style:'sync'},
+      {f:'v_stack',t:'v_compliance',lbl:'gate',style:'sync'},{f:'v_stack',t:'v_dialer',lbl:'ops UI',style:'sync'},
+      {f:'v_compliance',t:'gap_dlt',lbl:'needs DLT',style:'opt'},{f:'prod_marketing',t:'shared_billing',lbl:'checkout',style:'sync'},
+      {f:'prod_voice',t:'shared_billing',lbl:'checkout',style:'sync'},{f:'shared_billing',t:'shared_portal',lbl:'entitlements',style:'sync'},
+      {f:'shared_portal',t:'shared_admin',lbl:'ops',style:'sync'},{f:'shared_admin',t:'shared_data',lbl:'R/W',style:'sync'},
+      {f:'m_content',t:'shared_data',lbl:'queue',style:'async'},{f:'v_dialer',t:'shared_data',lbl:'calls',style:'async'},
+      {f:'m_trial',t:'m_content',lbl:'5 posts',style:'sync'},{f:'m_gbp',t:'shared_data',lbl:'reviews',style:'async'},
+      {f:'m_outreach',t:'shared_data',lbl:'prospects',style:'async'},{f:'m_outreach',t:'shared_portal',lbl:'client view',style:'sync'},
+      {f:'v_pages',t:'entry',lbl:'SEO inbound',style:'sync'},{f:'gap_bundle',t:'prod_marketing',lbl:'separate SKU',style:'opt'},
+      {f:'gap_bundle',t:'prod_voice',lbl:'separate SKU',style:'opt'},{f:'m_content',t:'m_gbp',lbl:'GBP posts',style:'sync'},
+      {f:'m_widget',t:'shared_portal',lbl:'client embed',style:'sync'}
+    ]
+  }
+};
+
+/* ============================================================================
+   PALETTE — node type → dark-readable hue. Fill is the node colour;
+   architecture-map border defaults to grey ('idle'). applyLiveStatus()
+   recolours borders by live status.
+   ========================================================================== */
+const TYPE_COLORS = {
+  platform: '#3b82f6',   // blue
+  marketing:'#2563eb',   // deep blue
+  voice:    '#fb923c',   // orange
+  ai:       '#818cf8',   // indigo
+  data:     '#22d3ee',   // cyan
+  external: '#22c55e',   // green
+  monitor:  '#f59e0b',   // amber
+  loop:     '#a855f7',   // purple
+  gap:      '#ef4444'    // red
+};
+const TYPE_LABELS = {
+  platform:'Platform', marketing:'Marketing', voice:'Voice', ai:'AI / LLM',
+  data:'Data', external:'External', monitor:'Monitor', loop:'Loop', gap:'Gap / blocked'
+};
+const STATUS_COLORS = {
+  healthy:'#22c55e', processing:'#3b82f6', waiting:'#eab308',
+  retry:'#f97316', failed:'#ef4444', idle:'#64748b'
+};
+const DEFAULT_BORDER = '#1e2630';   // curated grey (architecture map)
+const EDGE_COLORS = { sync:'#3a4453', async:'#3b6fa8', loop:'#8a5fc0', opt:'#5a4030' };
+
+/* ============================================================================
+   ENGINE
+   ========================================================================== */
+(function main(){
+  // ---- defensive UMD resolution (global shape unknown until browser) ----
+  // graphology UMD default export = base Graph class (accepts {type,multi} opts).
+  // Prefer base Graph + explicit options (stable path); named specialized
+  // ctors (MultiDirectedGraph) reject contradictory options, so we only fall
+  // back to them with NO options object (see buildGraph()).
+  const GraphLib = window.graphology;
+  const BaseGraph = GraphLib && (GraphLib.Graph || (typeof GraphLib === 'function' ? GraphLib : null));
+  const MultiDirected = GraphLib && GraphLib.MultiDirectedGraph;   // pre-specialized fallback
+  const GraphCtor = BaseGraph || MultiDirected || GraphLib;
+  const SigmaCtor = window.Sigma && (window.Sigma.Sigma || window.Sigma);
+  const ElkCtor = window.ELK || (window.elk && window.elk.default) || window.elkjs;
+
+  const $ = (id) => document.getElementById(id);
+  const loadingEl = $('loading');
+  const errEl = $('error-banner');
+
+  function fail(detail){
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (errEl){ errEl.classList.add('vis'); const d=$('eb-detail'); if(d) d.textContent = String(detail||''); }
+    try { console.error('[L2 graph] load failed:', detail); } catch(e){}
+    // Tell parent Control Center so the shell can show a truthful empty/error
+    // state + Old Explorer fallback (silent iframe blank was the old failure mode).
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'cc-graph-error', detail: String(detail || 'unknown') }, '*');
+      }
+    } catch (e) {}
+  }
+
+  function notifyReady(g){
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'cc-graph-ready',
+          nodes: g && typeof g.order === 'number' ? g.order : 0,
+          edges: g && typeof g.size === 'number' ? g.size : 0,
+          view: currentView
+        }, '*');
+      }
+    } catch (e) {}
+  }
+
+  if (!GraphCtor || !SigmaCtor || !ElkCtor){
+    const miss = [
+      !GraphCtor ? 'graphology' : null,
+      !SigmaCtor ? 'sigma' : null,
+      !ElkCtor ? 'elkjs' : null
+    ].filter(Boolean).join(', ');
+    fail('Missing CDN global(s): ' + miss);
+    return;
+  }
+
+  let elk;
+  try { elk = new ElkCtor(); }
+  catch (e){ fail('ELK init error: ' + e.message); return; }
+
+  // ---- size a node box from its label so ELK avoids overlap ----
+  function nodeSize(n){
+    const labelLen = (n.title || n.id).length;
+    const w = Math.max(140, Math.min(240, 70 + labelLen * 6.2));
+    return { width: Math.round(w), height: 46 };
+  }
+
+  // ---- build a Graphology graph (validated) for a view ----
+  function buildGraph(viewKey){
+    const view = VIEWS[viewKey];
+    // base Graph → pass options; specialized MultiDirectedGraph → no options
+    const g = BaseGraph
+      ? new GraphCtor({ type: 'directed', multi: true, allowSelfLoops: true })
+      : new GraphCtor();
+    const ids = new Set();
+    view.nodes.forEach(n => {
+      if (g.hasNode(n.id)) return;
+      ids.add(n.id);
+      g.addNode(n.id, {
+        label: n.title || n.id,
+        x: 0, y: 0,                 // ELK fills these
+        size: 9,
+        color: TYPE_COLORS[n.type] || '#64748b',
+        borderColor: DEFAULT_BORDER,
+        ntype: n.type,
+        badge: n.badge || '',
+        desc: n.desc || '',
+        files: n.files || '',
+        status: 'idle'
+      });
+    });
+    let ei = 0;
+    view.edges.forEach(e => {
+      if (!ids.has(e.f) || !ids.has(e.t)) return;     // skip dangling endpoints
+      try {
+        g.addEdgeWithKey('e' + (ei++), e.f, e.t, {
+          label: e.lbl || '',
+          size: e.style === 'loop' ? 2 : 1,
+          color: EDGE_COLORS[e.style] || EDGE_COLORS.sync,
+          estyle: e.style || 'sync'
+        });
+      } catch (err){ /* parallel/self edge dup — ignore, key already used */ }
+    });
+    return g;
+  }
+
+  // ---- ELK layout → returns map id → {x,y} (centered) ----
+  function layoutGraph(g, viewKey){
+    const algo = VIEWS[viewKey].layout === 'mrtree' ? 'mrtree' : 'layered';
+    const layoutOpts = (algo === 'layered')
+      ? {
+          'elk.algorithm': 'layered',
+          'elk.direction': 'RIGHT',
+          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '90',
+          'elk.spacing.nodeNode': '46',
+          'elk.edgeRouting': 'ORTHOGONAL'   // computed; default renderer draws straight
+        }
+      : {
+          'elk.algorithm': 'mrtree',
+          'elk.direction': 'DOWN',
+          'elk.spacing.nodeNode': '60'
+        };
+
+    const children = [];
+    const sizes = {};
+    g.forEachNode((id, attr) => {
+      const sz = nodeSize({ id, title: attr.label });
+      sizes[id] = sz;
+      children.push({ id, width: sz.width, height: sz.height });
+    });
+    const edges = [];
+    let k = 0;
+    g.forEachEdge((key, _a, src, tgt) => {
+      if (src === tgt) return;   // self-loop: ELK can choke; skip from layout
+      edges.push({ id: 'le' + (k++), sources: [src], targets: [tgt] });
+    });
+
+    const elkGraph = { id: 'root', layoutOptions: layoutOpts, children, edges };
+    return elk.layout(elkGraph).then(res => {
+      const pos = {};
+      (res.children || []).forEach(c => {
+        const sz = sizes[c.id] || { width: 0, height: 0 };
+        pos[c.id] = { x: (c.x || 0) + sz.width / 2, y: (c.y || 0) + sz.height / 2 };
+      });
+      return pos;
+    });
+  }
+
+  // ---- state ----
+  let sigma = null;
+  let currentGraph = null;
+  let currentView = 'structural';
+  const layoutCache = {};   // viewKey → {id:{x,y}}
+  const graphCache = {};    // viewKey → graphology graph
+
+  function applyPositions(g, pos){
+    g.forEachNode((id) => {
+      const p = pos[id];
+      if (p && isFinite(p.x) && isFinite(p.y)){
+        g.setNodeAttribute(id, 'x', p.x);
+        g.setNodeAttribute(id, 'y', -p.y);   // flip Y: ELK y-down → Sigma y-up
+      }
+    });
+  }
+
+  function buildSigmaSettings(){
+    return {
+      // Container may report 0-width on first construct (init runs before the
+      // browser flushes layout, e.g. inside the L2 iframe). Don't throw — Sigma's
+      // internal ResizeObserver re-renders once the stage has real dimensions.
+      allowInvalidContainer: true,
+      renderEdgeLabels: false,           // edge labels off for clarity/perf
+      labelRenderedSizeThreshold: 8,     // LOD: hide labels when zoomed far out
+      labelColor: { color: '#cbd5e1' },
+      labelFont: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      labelSize: 11,
+      defaultNodeColor: '#64748b',
+      defaultEdgeColor: '#3a4453',
+      minCameraRatio: 0.05,
+      maxCameraRatio: 6,
+      nodeReducer: (node, data) => {
+        const res = Object.assign({}, data);
+        // live status overlay: non-idle status recolours the node to its status
+        // hue (default Sigma circle program reads `color`, so this is visible).
+        // idle / no live data → keep the type colour (= architecture map).
+        if (data.status && data.status !== 'idle' && STATUS_COLORS[data.status]){
+          res.color = STATUS_COLORS[data.status];
+        }
+        if (searchTerm){
+          const hit = (data.label || '').toLowerCase().includes(searchTerm) ||
+                      node.toLowerCase().includes(searchTerm);
+          if (hit){ res.highlighted = true; res.zIndex = 2; res.size = (data.size || 9) + 4; }
+          else { res.color = '#2a2f3a'; res.label = ''; res.zIndex = 0; }
+        }
+        return res;
+      },
+      edgeReducer: (edge, data) => {
+        const res = Object.assign({}, data);
+        if (searchTerm){ res.color = '#1a1f29'; res.hidden = false; }
+        return res;
+      }
+    };
+  }
+
+  let searchTerm = '';
+
+  function renderView(viewKey){
+    currentView = viewKey;
+    const g = graphCache[viewKey];
+    const pos = layoutCache[viewKey];
+    applyPositions(g, pos);
+    currentGraph = g;
+
+    if (sigma && typeof sigma.setGraph === 'function'){
+      // reuse the WebGL context (no leak): swap the data model only
+      sigma.setGraph(g);
+      const st = buildSigmaSettings();
+      sigma.setSetting('nodeReducer', st.nodeReducer);
+      sigma.setSetting('edgeReducer', st.edgeReducer);
+    } else {
+      // first render, or a v3 build without setGraph → (re)create once
+      if (sigma && typeof sigma.kill === 'function'){ try { sigma.kill(); } catch(e){} sigma = null; }
+      sigma = new SigmaCtor(g, $('sigma-container'), buildSigmaSettings());
+      wireSigmaEvents();
+    }
+    // fit after layout settles
+    requestAnimationFrame(() => { try { fitView(); } catch(e){} sigma.refresh(); });
+
+    // counts
+    $('counts').innerHTML = '<b>' + g.order + '</b> nodes · <b>' + g.size + '</b> edges';
+    notifyReady(g);
+    // a11y summary
+    $('a11y-summary').textContent =
+      'Now showing ' + VIEWS[viewKey].label + ' — ' + g.order + ' nodes, ' + g.size +
+      ' edges. Plus/minus to zoom, f to fit, click a node to inspect.';
+    closeFloat();
+  }
+
+  // ---- Sigma camera helpers ----
+  const REDUCED_MOTION = (window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches) || false;
+
+  function fitView(){
+    if (!sigma) return;
+    const cam = sigma.getCamera();
+    // sigma v3 has no built-in "fit all"; reset to default frame which
+    // re-centres on the graph extent that Sigma computed at construction.
+    // prefers-reduced-motion → snap (no tween).
+    if (!REDUCED_MOTION && typeof cam.animatedReset === 'function') cam.animatedReset();
+    else cam.setState({ x: 0.5, y: 0.5, ratio: 1, angle: 0 });
+  }
+  function zoom(factor){
+    if (!sigma) return;
+    const cam = sigma.getCamera();
+    const ratio = cam.ratio * factor;
+    if (!REDUCED_MOTION && typeof cam.animate === 'function') cam.animate({ ratio }, { duration: 180 });
+    else cam.setState({ ratio });
+  }
+
+  // ---- node click → floating label + postMessage to parent ----
+  function showFloat(nodeId, viewportPos){
+    const attr = currentGraph.getNodeAttributes(nodeId);
+    const col = TYPE_COLORS[attr.ntype] || '#64748b';
+    $('nf-badge').textContent = attr.badge || attr.ntype || '';
+    $('nf-badge').style.background = col + '22';
+    $('nf-badge').style.color = col;
+    $('nf-title').textContent = attr.label || nodeId;
+    $('nf-desc').textContent = attr.desc || '';
+    $('nf-files').textContent = attr.files ? '📄 ' + attr.files : '';
+    $('nf-type').textContent = (TYPE_LABELS[attr.ntype] || attr.ntype || '') + ' · ' + nodeId;
+    const fl = $('node-float');
+    fl.classList.add('vis');
+    // position near click, clamped inside stage
+    const stage = $('stage').getBoundingClientRect();
+    let left = (viewportPos ? viewportPos.x : stage.width/2) + 14;
+    let top  = (viewportPos ? viewportPos.y : stage.height/2) + 14;
+    left = Math.min(left, stage.width - 300);
+    top  = Math.min(top, stage.height - 170);
+    fl.style.left = Math.max(8, left) + 'px';
+    fl.style.top = Math.max(8, top) + 'px';
+  }
+  function closeFloat(){ $('node-float').classList.remove('vis'); }
+
+  function emitNode(nodeId){
+    const attr = currentGraph.getNodeAttributes(nodeId);
+    const payload = {
+      type: 'cc-node',
+      node: {
+        id: nodeId,
+        view: currentView,
+        title: attr.label,
+        ntype: attr.ntype,
+        badge: attr.badge,
+        desc: attr.desc,
+        files: attr.files,
+        status: attr.status
+      }
+    };
+    try {
+      // FOLLOW-UP: origin-pin instead of '*'
+      if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+      window.postMessage(payload, '*');
+    } catch (e){}
+  }
+
+  function wireSigmaEvents(){
+    sigma.on('clickNode', (e) => {
+      const nodeId = e.node;
+      // e.event has viewport x/y in sigma v3
+      const vp = e.event ? { x: e.event.x, y: e.event.y } : null;
+      showFloat(nodeId, vp);
+      emitNode(nodeId);
+    });
+    sigma.on('clickStage', () => closeFloat());
+  }
+
+  /* --------------------------------------------------------------------------
+     PUBLIC: applyLiveStatus(map)
+     map = { nodeId: 'healthy'|'processing'|'waiting'|'retry'|'failed'|'idle' }
+     Sets each node's `status`; the nodeReducer then recolours non-idle nodes to
+     their status hue (visible with Sigma's default node program). No live data
+     / idle → node keeps its type colour (= the curated architecture map).
+     Exposed on window so the embedding Control Center can drive it later.
+     -------------------------------------------------------------------------- */
+  function applyLiveStatus(map){
+    if (!currentGraph || !map) return;
+    Object.keys(map).forEach(id => {
+      if (!currentGraph.hasNode(id)) return;
+      const st = map[id];
+      currentGraph.setNodeAttribute(id, 'status', st);
+      currentGraph.setNodeAttribute(id, 'borderColor', STATUS_COLORS[st] || DEFAULT_BORDER);
+    });
+    if (sigma) sigma.refresh();
+  }
+  window.applyLiveStatus = applyLiveStatus;
+  // also accept status via postMessage from the parent Control Center
+  window.addEventListener('message', (ev) => {
+    const d = ev.data;
+    if (d && d.type === 'cc-status' && d.map) applyLiveStatus(d.map);
+    if (d && d.type === 'cc-view' && d.view && VIEWS[d.view]) switchTo(d.view);
+  });
+
+  // ---- legend ----
+  function buildLegend(){
+    const rows = Object.keys(TYPE_LABELS).map(t =>
+      '<div class="lg-row"><span class="lg-sw" style="background:' + TYPE_COLORS[t] + '"></span>' +
+      TYPE_LABELS[t] + '</div>').join('');
+    $('legend-rows').innerHTML = rows;
+  }
+
+  // ---- view switching (precompute all 3 layouts once) ----
+  function switchTo(viewKey){
+    if (!VIEWS[viewKey] || !graphCache[viewKey]) return;
+    document.querySelectorAll('.view-tab').forEach(b =>
+      b.classList.toggle('active', b.dataset.view === viewKey));
+    searchTerm = '';
+    $('search').value = '';
+    renderView(viewKey);
+  }
+
+  // ---- wire UI ----
+  function wireUI(){
+    document.querySelectorAll('.view-tab').forEach(btn => {
+      btn.addEventListener('click', () => switchTo(btn.dataset.view));
+    });
+    $('zoom-in').addEventListener('click', () => zoom(1/1.3));
+    $('zoom-out').addEventListener('click', () => zoom(1.3));
+    $('zoom-fit').addEventListener('click', () => fitView());
+    $('nf-close').addEventListener('click', () => closeFloat());
+
+    const searchEl = $('search');
+    searchEl.addEventListener('input', () => {
+      searchTerm = searchEl.value.trim().toLowerCase();
+      if (sigma) sigma.refresh();
+    });
+
+    // keyboard: +/- zoom, f fit, esc clears
+    window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+        if (e.key === 'Escape'){ searchTerm=''; e.target.value=''; if(sigma) sigma.refresh(); }
+        return;
+      }
+      if (e.key === '+' || e.key === '=') { zoom(1/1.3); }
+      else if (e.key === '-' || e.key === '_') { zoom(1.3); }
+      else if (e.key === 'f' || e.key === 'F') { fitView(); }
+      else if (e.key === 'Escape') { closeFloat(); searchTerm=''; $('search').value=''; if(sigma) sigma.refresh(); }
+      else if (e.key === '1') { switchTo('structural'); }
+      else if (e.key === '2') { switchTo('automation'); }
+      else if (e.key === '3') { switchTo('products'); }
+    });
+  }
+
+  // ---- boot: build graphs, run all 3 ELK layouts, then render ----
+  function boot(){
+    buildLegend();
+    wireUI();
+    const keys = Object.keys(VIEWS);
+    keys.forEach(k => { graphCache[k] = buildGraph(k); });
+
+    Promise.all(keys.map(k => layoutGraph(graphCache[k], k).then(pos => { layoutCache[k] = pos; })))
+      .then(() => {
+        loadingEl.classList.add('hidden');
+        // Optional ?view=automation|structural|products — lets an embedder
+        // (e.g. /app/office's System Map panel) open directly on a specific
+        // view. Unknown/absent -> unchanged default 'structural' behavior.
+        const params = new URLSearchParams(window.location.search);
+        const requestedView = params.get('view');
+        if (requestedView && VIEWS[requestedView]) {
+          switchTo(requestedView);
+        } else {
+          renderView('structural');
+        }
+      })
+      .catch(err => fail('Layout error: ' + (err && err.message ? err.message : err)));
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

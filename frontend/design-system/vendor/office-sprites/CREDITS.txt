@@ -1,0 +1,14 @@
+Character sprites (char_01.png .. char_10.png) are individual 16x16px tiles
+cropped from Kenney's "RPG Urban Pack" (https://kenney.nl/assets/rpg-urban-pack).
+
+Room/furniture tiles (floor_stone_grey, floor_stone_cream, rug_teal, rug_orange,
+rug_purple, rug_cyan, desk_1, desk_2, desk_corner, chair, bookshelf, cabinet,
+plant, plant_flower, painting, door_arch) are individual 16x16px tiles cropped
+from Kenney's "Roguelike/RPG Pack" (https://kenney.nl/assets/roguelike-rpg-pack).
+
+License: Creative Commons CC0 1.0 (public domain) -- https://creativecommons.org/publicdomain/zero/1.0/
+Free to use in personal, educational and commercial projects. Attribution not
+required, but Kenney (www.kenney.nl) is credited here as a courtesy.
+
+Used by: frontend/office_map.html (admin virtual-office map — room floors,
+furniture and staff avatars).

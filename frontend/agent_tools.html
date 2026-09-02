@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1117">
+<title>LeadGen AI — Agent Tools</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1280px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:2px}.sub{color:var(--mut);font-size:.85rem;margin-bottom:12px}
+a{color:var(--acc)}.mut{color:var(--mut)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+input,textarea,select{background:#0f1320;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font-size:.85rem;font-family:inherit}
+textarea{width:100%;min-height:90px;font-family:ui-monospace,Menlo,monospace}
+input{min-width:120px}
+.btn{background:var(--acc);border:0;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600}
+.btn.ghost{background:#222636;color:var(--txt)}
+.btn:disabled{opacity:.5;cursor:wait}
+.layout{display:flex;gap:14px;align-items:flex-start}
+.side{width:210px;flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;position:sticky;top:12px}
+.side button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.85rem;margin:1px 0}
+.side button:hover{background:#222636}.side button.act{background:var(--acc);color:#fff}
+.side .grp{color:var(--mut);font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px 2px}
+.main{flex:1;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.card h2{font-size:1.05rem;margin-bottom:4px}.card .d{color:var(--mut);font-size:.8rem;margin-bottom:12px}
+.tabsec{display:none}.tabsec.act{display:block}
+pre{background:#0b0e16;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:.78rem;max-height:380px;white-space:pre-wrap;word-break:break-word;margin-top:10px}
+.danger{border-color:#5b2330;background:#1c1116}
+.badge{display:inline-block;font-size:.68rem;padding:2px 7px;border-radius:20px;background:#2a2f3e;color:var(--mut);margin-left:6px}
+.badge.sa{background:#3a1f2b;color:var(--bad)}
+#toast{position:fixed;bottom:18px;right:18px;background:#222636;border:1px solid var(--line);padding:10px 14px;border-radius:8px;font-size:.85rem;opacity:0;transition:.2s;pointer-events:none}
+#toast.show{opacity:1}
+label{font-size:.78rem;color:var(--mut);display:block;margin:8px 0 3px}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>🛠 Agent Tools</h1>
+<div class="sub">17 agent-ext capabilities (Kilo · OpenCode · Ruflo · Hermes) ka admin cockpit. Mixed: kuch tools always-on (admin), power tools flag-gated; <span class="badge sa">SA</span> = super-admin only.</div>
+<div id="extFlagsBanner" class="card" style="margin:10px 0 14px;padding:10px 12px;font-size:.82rem;color:var(--mut)">⏳ Flag status…</div>
+<div class="row">
+  <input id="tokin" type="password" placeholder="Admin token (login se auto)" style="width:300px">
+  <button class="btn ghost" onclick="saveTok()">Save token</button>
+  <a href="/app/admin-login" style="font-size:.8rem">login →</a>
+  <a href="/app/admin" class="mut" style="font-size:.8rem">← admin</a>
+  <a href="/app/owner" class="mut" style="font-size:.8rem">owner</a>
+  <a href="/app/office" class="mut" style="font-size:.8rem">office</a>
+  <a href="/app/explorer" class="mut" style="font-size:.8rem">explorer</a>
+  <a href="/app/automation" class="mut" style="font-size:.8rem">automation</a>
+</div>
+
+<div class="layout">
+<nav class="side" id="sidebar">
+  <div class="grp">Code</div>
+  <button class="act" onclick="show('search',this)">🔍 Codebase Search</button>
+  <button onclick="show('diag',this)">🩺 Diagnostics</button>
+  <button onclick="show('review',this)">📝 Code Review</button>
+  <div class="grp">Memory / Learn</div>
+  <button onclick="show('recall',this)">🧠 Agent Recall</button>
+  <button onclick="show('traj',this)">📈 Trajectories</button>
+  <div class="grp">Decide</div>
+  <button onclick="show('consensus',this)">🗳️ Consensus Vote</button>
+  <div class="grp">Governance</div>
+  <button onclick="show('perms',this)">🔐 Permissions</button>
+  <button onclick="show('hooks',this)">🪝 Lifecycle Hooks</button>
+  <button onclick="show('custom',this)">🎭 Custom Agents</button>
+  <div class="grp">Ops</div>
+  <button onclick="show('agentos',this)">🧭 Agent OS / OmniRoute</button>
+  <button onclick="show('cap',this)">⚡ Capacity</button>
+  <button onclick="show('ckpt',this)">💾 Checkpoints</button>
+  <button onclick="show('batch',this)">🚀 Batch Harness</button>
+  <div class="grp">Power (SA)</div>
+  <button onclick="show('exec',this)">⚠️ Code Exec</button>
+  <button onclick="show('browser',this)">🌐 Browser Fetch</button>
+</nav>
+
+<div class="main">
+
+  <section id="sec-search" class="tabsec act"><div class="card">
+    <h2>🔍 Codebase Search <span class="badge">Kilo</span></h2>
+    <div class="d">Semantic code retrieval (agents isi se relevant code dhoondte). Index daily training-job se banta.</div>
+    <div class="row"><input id="s-q" placeholder="query: e.g. how billing meter works" style="flex:1"><input id="s-k" type="number" value="6" style="width:70px"><button class="btn" onclick="searchCode()">Search</button></div>
+    <pre id="o-search">—</pre>
+  </div></section>
+
+  <section id="sec-diag" class="tabsec"><div class="card">
+    <h2>🩺 Diagnostics <span class="badge">OpenCode</span></h2>
+    <div class="d">Code validate karo (ast syntax + ruff lint if available) approve karne se pehle.</div>
+    <textarea id="d-code" placeholder="def foo():&#10;    return 1"></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="runDiag()">Run diagnostics</button></div>
+    <pre id="o-diag">—</pre>
+  </div></section>
+
+  <section id="sec-review" class="tabsec"><div class="card">
+    <h2>📝 Code Review <span class="badge">Kilo</span></h2>
+    <div class="d">Dedicated review agent — correctness/security/performance/style/tests.</div>
+    <textarea id="r-code" placeholder="paste code or a diff…"></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="runReview()">Review</button><span class="mut" style="font-size:.78rem">~free-LLM, 45s timeout</span></div>
+    <pre id="o-review">—</pre>
+  </div></section>
+
+  <section id="sec-recall" class="tabsec"><div class="card">
+    <h2>🧠 Agent Recall <span class="badge">Hermes</span></h2>
+    <div class="d">Agents apne past runs/decisions search karte. Record + recall.</div>
+    <div class="row"><input id="rc-q" placeholder="search query" style="flex:1"><input id="rc-k" type="number" value="6" style="width:70px"><button class="btn" onclick="recallSearch()">Recall</button></div>
+    <div class="row"><input id="rc-kind" placeholder="kind (e.g. decision)" style="width:160px"><input id="rc-text" placeholder="text to record" style="flex:1"><button class="btn ghost" onclick="recallRecord()">Record</button></div>
+    <pre id="o-recall">—</pre>
+  </div></section>
+
+  <section id="sec-traj" class="tabsec"><div class="card">
+    <h2>📈 Trajectories <span class="badge">Ruflo SONA</span></h2>
+    <div class="d">self_improve ke recorded run-traces — best dekho, training-dataset export karo.</div>
+    <div class="row"><input id="t-action" placeholder="action (e.g. reflection)" style="width:200px"><input id="t-k" type="number" value="5" style="width:70px"><button class="btn" onclick="trajBest()">Best traces</button></div>
+    <div class="row"><input id="t-min" type="number" step="0.1" value="0.5" style="width:90px"><button class="btn ghost" onclick="trajExport()">Export dataset <span class="badge sa">SA</span></button></div>
+    <pre id="o-traj">—</pre>
+  </div></section>
+
+  <section id="sec-consensus" class="tabsec"><div class="card">
+    <h2>🗳️ Consensus Vote <span class="badge">Ruflo</span></h2>
+    <div class="d">N-voter quorum decision (debate se aage). Options comma-separated.</div>
+    <label>Question</label><input id="c-q" placeholder="Pune solar — email ya WhatsApp pehle?" style="width:100%">
+    <label>Options (comma-separated)</label><input id="c-opts" placeholder="email, whatsapp" style="width:100%">
+    <div class="row" style="margin-top:8px"><input id="c-voters" type="number" value="3" style="width:70px"><button class="btn" onclick="runConsensus()">Vote</button></div>
+    <pre id="o-consensus">—</pre>
+  </div></section>
+
+  <section id="sec-perms" class="tabsec"><div class="card">
+    <h2>🔐 Per-Agent Permissions <span class="badge">OpenCode</span></h2>
+    <div class="d">Tool/side-effect ACL. HIGH_RISK (spend/place_call/send_whatsapp/execute_code) unset = deny.</div>
+    <div class="row"><button class="btn" onclick="permsList()">List matrix</button></div>
+    <div class="row"><input id="p-agent" placeholder="agent (e.g. rohan)" style="width:140px">
+      <select id="p-tool"><option>send_email</option><option>send_whatsapp</option><option>place_call</option><option>spend</option><option>write_code</option><option>execute_code</option><option>publish</option><option>external_api</option></select>
+      <select id="p-act"><option>allow</option><option>deny</option></select>
+      <button class="btn ghost" onclick="permsSet()">Set <span class="badge sa">SA</span></button></div>
+    <pre id="o-perms">—</pre>
+  </div></section>
+
+  <section id="sec-hooks" class="tabsec"><div class="card">
+    <h2>🪝 Lifecycle Hooks <span class="badge">Hermes</span></h2>
+    <div class="d">pre/post/error hooks. Webhook target SSRF-guarded (internal/private IP rejected).</div>
+    <div class="row"><button class="btn" onclick="hooksList()">List hooks</button></div>
+    <div class="row">
+      <select id="h-event"><option>pre_task</option><option>post_task</option><option>on_error</option></select>
+      <input id="h-name" placeholder="name" style="width:120px">
+      <select id="h-type"><option>log</option><option>ntfy</option><option>webhook</option></select>
+      <input id="h-target" placeholder="https://… (ntfy/webhook)" style="flex:1">
+      <button class="btn ghost" onclick="hooksReg()">Register <span class="badge sa">SA</span></button></div>
+    <pre id="o-hooks">—</pre>
+  </div></section>
+
+  <section id="sec-custom" class="tabsec"><div class="card">
+    <h2>🎭 Custom Agents <span class="badge">OpenCode</span></h2>
+    <div class="d">Data-file se naya agent persona (code-deploy ke bina). spec JSON.</div>
+    <div class="row"><button class="btn" onclick="customList()">List</button></div>
+    <textarea id="cu-spec" placeholder='{"name":"analyst","role":"Data Analyst","system_prompt":"...","allowed_tools":["external_api"]}'></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="customReg()">Register <span class="badge sa">SA</span></button></div>
+    <pre id="o-custom">—</pre>
+  </div></section>
+
+  <section id="sec-agentos" class="tabsec"><div class="card">
+    <h2>🧭 Agent OS + OmniRoute Status</h2>
+    <div class="d">Read-only operator view (ADR-109). Green flags ≠ customer traffic. Provider keys yahan dikhte nahi — dashboard me aap khud enter karte ho. VPS pe dono OmniRoute flags OFF hi healthy default hai. Daily HQ: <a href="/app/automation" style="color:var(--acc)">/app/automation</a> · <a href="/app/control-center" style="color:var(--acc)">/app/control-center</a></div>
+    <div class="row">
+      <button class="btn" onclick="loadAgentOs()">Refresh status</button>
+      <a class="mut" style="font-size:.8rem" href="/app/office" target="_blank">Operating HQ ↗</a>
+      <a class="mut" style="font-size:.8rem" href="/app/control-center" target="_blank">Control Center ↗</a>
+      <a class="mut" style="font-size:.8rem" href="/app/automation" target="_blank">Mission Control ↗</a>
+    </div>
+    <div id="agentos-summary" class="mut" style="margin-top:8px;font-size:.85rem">—</div>
+    <div id="agentos-table" style="margin-top:10px;overflow:auto;max-height:420px">—</div>
+    <pre id="o-agentos" style="margin-top:10px">—</pre>
+  </div></section>
+
+  <section id="sec-cap" class="tabsec"><div class="card">
+    <h2>⚡ Capacity & Policy <span class="badge">Hermes</span></h2>
+    <div class="d">Credential-pool key counts (values never shown) + risk-score preview.</div>
+    <div class="row"><button class="btn" onclick="capStatus()">Status</button></div>
+    <div class="row"><input id="rs-task" placeholder="task" style="width:150px"><input id="rs-cost" type="number" step="0.5" value="1" style="width:80px"><input id="rs-reason" placeholder="reason" style="flex:1"><button class="btn ghost" onclick="riskScore()">Risk score</button></div>
+    <pre id="o-cap">—</pre>
+  </div></section>
+
+  <section id="sec-ckpt" class="tabsec"><div class="card">
+    <h2>💾 Checkpoints <span class="badge">Hermes/Kilo</span></h2>
+    <div class="d">Agent data-mutation se pehle snapshot, rollback se revert. Sirf data/ + app/ paths.</div>
+    <div class="row"><button class="btn" onclick="ckptList()">List checkpoints</button></div>
+    <div class="row"><input id="ck-paths" placeholder="paths comma-sep (data/x.json)" style="flex:1"><input id="ck-label" placeholder="label" style="width:140px"><button class="btn ghost" onclick="ckptSnap()">Snapshot</button></div>
+    <div class="row"><input id="ck-id" placeholder="ckpt_id" style="width:160px"><button class="btn ghost" onclick="ckptRoll()">Rollback <span class="badge sa">SA</span></button></div>
+    <pre id="o-ckpt">—</pre>
+  </div></section>
+
+  <section id="sec-batch" class="tabsec"><div class="card">
+    <h2>🚀 Batch Harness <span class="badge">Ruflo</span></h2>
+    <div class="d">Items pe parallel run + checkpoint/resume. (HTTP demo fn: echo/normalize.)</div>
+    <div class="row"><button class="btn" onclick="batchRuns()">Recent runs</button></div>
+    <div class="row"><input id="b-items" placeholder="items comma-sep" style="flex:1">
+      <select id="b-action"><option>echo</option><option>normalize</option></select>
+      <input id="b-conc" type="number" value="4" style="width:70px"><button class="btn ghost" onclick="batchRun()">Run</button></div>
+    <pre id="o-batch">—</pre>
+  </div></section>
+
+  <section id="sec-exec" class="tabsec"><div class="card danger">
+    <h2>⚠️ Code Exec <span class="badge sa">SUPER-ADMIN</span></h2>
+    <div class="d"><b style="color:var(--bad)">DANGER:</b> guarded Python subprocess (true sandbox NAHI). Flag CODE_EXEC + super-admin + execute_code permission — teeno chahiye. Automation agents denied.</div>
+    <textarea id="e-code" placeholder="print('hello')"></textarea>
+    <div class="row" style="margin-top:8px"><input id="e-to" type="number" value="20" style="width:80px"><button class="btn" onclick="runExec()">Execute</button></div>
+    <pre id="o-exec">—</pre>
+  </div></section>
+
+  <section id="sec-browser" class="tabsec"><div class="card">
+    <h2>🌐 Browser Fetch <span class="badge sa">SA</span></h2>
+    <div class="d">Playwright headless fetch (enrichment). Inert jab tak BROWSER_TOOLS=1 + playwright installed.</div>
+    <div class="row"><input id="bf-url" placeholder="https://example.com" style="flex:1"><button class="btn" onclick="runBrowser()">Fetch</button></div>
+    <pre id="o-browser">—</pre>
+  </div></section>
+
+</div></div>
+<div id="toast"></div>
+
+<script>
+function $(id){return document.getElementById(id)}
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tokin').value.trim());toast('Token saved ✅')}
+function toast(m,ok){var t=$('toast');t.textContent=m;t.style.borderColor=(ok===false)?'#5b2330':'#2a2f3e';t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600)}
+function show(name,btn){
+  document.querySelectorAll('.tabsec').forEach(function(s){s.classList.remove('act')});
+  $('sec-'+name).classList.add('act');
+  document.querySelectorAll('.side button').forEach(function(b){b.classList.remove('act')});
+  if(btn)btn.classList.add('act');
+}
+function out(id,d){$(id).textContent=(typeof d==='string')?d:JSON.stringify(d,null,2)}
+async function api(path,opts){
+  opts=opts||{};
+  var headers={Authorization:'Bearer '+tok()};
+  if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type']='application/json';
+  var r=await fetch(path,Object.assign({},opts,{headers:Object.assign(headers,opts.headers||{})}));
+  var d=null; try{d=await r.json()}catch(e){}
+  if(r.status===401||r.status===403){toast('Token galat/expired ya super-admin chahiye',false);throw new Error('auth')}
+  if(!r.ok){var m=(d&&(d.detail&&(d.detail.msg||d.detail)||d.error))||('HTTP '+r.status);throw new Error(typeof m==='string'?m:JSON.stringify(m))}
+  return d;
+}
+function csv(s){return (s||'').split(',').map(function(x){return x.trim()}).filter(Boolean)}
+async function call(oid,fn){var b=event&&event.target;if(b)b.disabled=true;out(oid,'…');try{out(oid,await fn())}catch(e){out(oid,'❌ '+e.message)}finally{if(b)b.disabled=false}}
+
+// Code
+function searchCode(){call('o-search',function(){return api('/api/growth/upgrader/code-search?q='+encodeURIComponent($('s-q').value)+'&k='+($('s-k').value||6))})}
+function runDiag(){call('o-diag',function(){return api('/api/growth/upgrader/diagnostics',{method:'POST',body:JSON.stringify({code:$('d-code').value,lint:true})})})}
+function runReview(){call('o-review',function(){return api('/api/agents-ext/code-review',{method:'POST',body:JSON.stringify({code:$('r-code').value})})})}
+// Memory
+function recallSearch(){call('o-recall',function(){return api('/api/agents-ext/recall?q='+encodeURIComponent($('rc-q').value)+'&k='+($('rc-k').value||6))})}
+function recallRecord(){call('o-recall',function(){return api('/api/agents-ext/recall',{method:'POST',body:JSON.stringify({kind:$('rc-kind').value||'note',text:$('rc-text').value})})})}
+function trajBest(){call('o-traj',function(){return api('/api/agents-ext/trajectories?action='+encodeURIComponent($('t-action').value)+'&k='+($('t-k').value||5))})}
+function trajExport(){call('o-traj',function(){return api('/api/agents-ext/trajectory/export',{method:'POST',body:JSON.stringify({min_reward:parseFloat($('t-min').value||0.5)})})})}
+// Decide
+function runConsensus(){call('o-consensus',function(){return api('/api/agents-ext/consensus',{method:'POST',body:JSON.stringify({question:$('c-q').value,options:csv($('c-opts').value),voters:parseInt($('c-voters').value||3)})})})}
+// Governance
+function permsList(){call('o-perms',function(){return api('/api/agents-ext/permissions')})}
+function permsSet(){call('o-perms',function(){return api('/api/agents-ext/permissions',{method:'POST',body:JSON.stringify({agent:$('p-agent').value,tool:$('p-tool').value,action:$('p-act').value})})})}
+function hooksList(){call('o-hooks',function(){return api('/api/agents-ext/hooks')})}
+function hooksReg(){call('o-hooks',function(){return api('/api/agents-ext/hooks',{method:'POST',body:JSON.stringify({event:$('h-event').value,name:$('h-name').value,type:$('h-type').value,target:$('h-target').value})})})}
+function customList(){call('o-custom',function(){return api('/api/agents-ext/custom-agents')})}
+function customReg(){call('o-custom',function(){var s;try{s=JSON.parse($('cu-spec').value)}catch(e){throw new Error('spec JSON invalid')}return api('/api/agents-ext/custom-agents',{method:'POST',body:JSON.stringify({spec:s})})})}
+// Ops
+function loadAgentOs(){
+  call('o-agentos', function(){
+    return api('/api/platform/office/agent-os-status').then(function(d){
+      var o = (d && d.omniroute) || {};
+      var sum = 'Staff '+((d&&d.staff_count)||0)
+        + ' · OmniRoute eligible '+((d&&d.eligible_for_omniroute)||0)
+        + ' · forbidden '+((d&&d.forbidden_omniroute)||0)
+        + ' · flags enabled='+!!o.enabled_flag
+        + ' agents='+!!o.agents_flag
+        + ' key='+!!o.api_key_present
+        + ' hook_armed='+!!o.agents_hook_armed;
+      var el = $('agentos-summary');
+      if(el) el.textContent = sum;
+      var tbl = $('agentos-table');
+      if(tbl){
+        var rows = (d && d.agents) || [];
+        var h = '<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Agent</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Privacy</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Contact</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Publish OK?</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">OmniRoute</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Queue</th>'
+          + '</tr></thead><tbody>';
+        rows.forEach(function(a){
+          h += '<tr>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.name||a.key||'')+' <span class="mut">'+(a.key||'')+'</span></td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.privacy_class||'—')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.may_contact_customers?'yes':'no')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.requires_human_approval_before_publish?'human':'auto-ok')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.omniroute_eligible?'eligible':'forbidden')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.queue||'—')+'</td>'
+            + '</tr>';
+        });
+        h += '</tbody></table>';
+        tbl.innerHTML = rows.length ? h : '<div class="mut">No agents</div>';
+      }
+      return d;
+    });
+  });
+}
+function capStatus(){call('o-cap',function(){return api('/api/agents-ext/capacity/status')})}
+function riskScore(){call('o-cap',function(){return api('/api/agents-ext/capacity/risk-score',{method:'POST',body:JSON.stringify({task:$('rs-task').value,cost:parseFloat($('rs-cost').value||0),reason:$('rs-reason').value})})})}
+function ckptList(){call('o-ckpt',function(){return api('/api/agents-ext/checkpoints')})}
+function ckptSnap(){call('o-ckpt',function(){return api('/api/agents-ext/checkpoint',{method:'POST',body:JSON.stringify({paths:csv($('ck-paths').value),label:$('ck-label').value})})})}
+function ckptRoll(){call('o-ckpt',function(){return api('/api/agents-ext/rollback/'+encodeURIComponent($('ck-id').value),{method:'POST'})})}
+function batchRuns(){call('o-batch',function(){return api('/api/agents-ext/batch/runs')})}
+function batchRun(){call('o-batch',function(){return api('/api/agents-ext/batch',{method:'POST',body:JSON.stringify({items:csv($('b-items').value),action:$('b-action').value,concurrency:parseInt($('b-conc').value||4)})})})}
+// Power
+function runExec(){if(!confirm('Arbitrary Python chalega (guarded subprocess). Sure?'))return;call('o-exec',function(){return api('/api/agents-ext/exec',{method:'POST',body:JSON.stringify({script:$('e-code').value,timeout_s:parseInt($('e-to').value||20)})})})}
+function runBrowser(){call('o-browser',function(){return api('/api/agents-ext/browser/fetch',{method:'POST',body:JSON.stringify({url:$('bf-url').value})})})}
+
+// boot: prefill token field (masked) if present
+if(tok())$('tokin').placeholder='token saved ✓ (login se)';
+(function loadExtFlagsBanner(){
+  var el=$('extFlagsBanner'); if(!el||!tok()){ if(el) el.textContent='Token save karo — phir flag status dikhega.'; return; }
+  api('/api/agents-ext/status').then(function(d){
+    var chip=function(k,on,note){ return '<span class="badge '+(on?'ok':'')+'" style="margin-right:6px">'+(on?'🟢 ':'⚪ ')+k+(on?' ON':' OFF')+(note?' · '+note:'')+'</span>'; };
+    el.innerHTML = chip('BATCH_HARNESS', !!d.batch_harness, 'info-only gate')
+      + chip('CODE_EXEC', !!d.code_exec, 'SA')
+      + chip('BROWSER', !!d.browser_tools, 'SA')
+      + ' <span class="mut">· search/review etc admin-auth pe chal sakte (master AGENTS_EXT alag)</span>';
+  }).catch(function(e){ el.textContent='Flag status fail: '+(e&&e.message||'auth?'); });
+})();
+</script>
+</body>
+</html>

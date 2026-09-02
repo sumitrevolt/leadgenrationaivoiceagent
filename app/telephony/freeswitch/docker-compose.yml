@@ -1,0 +1,27 @@
+# FreeSWITCH (Docker) — Vobiz SIP trunk se judne wala telephony core (P3).
+# Run karne se pehle VOBIZ_* env vars shell me export karo (fs_deploy.sh yahi karta hai):
+#   export $(grep -E '^(VOBIZ_|ESL_)' /opt/leadgen/.env | xargs) && docker compose up -d
+# network_mode: host — SIP/RTP ke liye sabse simple (koi NAT/port-map nahi; VPS ka
+# public IP seedha use hota hai). RTP range 10000-20000/udp (conf/autoload_configs/switch.conf.xml).
+services:
+  freeswitch:
+    image: safarov/freeswitch:latest
+    container_name: leadgen-freeswitch
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./conf:/etc/freeswitch
+    environment:
+      # Host env se passthrough (.env source karke compose chalao) — defaults sirf non-secret.
+      - VOBIZ_SIP_USER=${VOBIZ_SIP_USER:-}
+      - VOBIZ_SIP_PASS=${VOBIZ_SIP_PASS:-}
+      - VOBIZ_SIP_REALM=${VOBIZ_SIP_REALM:-MA_RVP4WSNO.sip.vobiz.ai}
+      - VOBIZ_TRUNK_DOMAIN=${VOBIZ_TRUNK_DOMAIN:-1a7ce9d9.sip.vobiz.ai}
+      - ESL_PASSWORD=${ESL_PASSWORD:-ClueCon}
+    healthcheck:
+      # fs_cli ESL (127.0.0.1:8021) se status poochhta hai — "UP" dikhe to healthy.
+      test: ["CMD-SHELL", "fs_cli -H 127.0.0.1 -P 8021 -p \"${ESL_PASSWORD:-ClueCon}\" -x status | grep -q UP"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 25s

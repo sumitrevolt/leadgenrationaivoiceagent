@@ -1,0 +1,269 @@
+# =============================================================================
+# CI — automated quality gate (SaaS-infra: "Infrastructure → CI/CD" pillar).
+#
+# Lane layout stolen from DeepSeek Harness CI (github.com/deepseek-ai/deepseek-harness
+# `.github/workflows/ci.yml` + `scripts/run-gates.ts`, 2026-08-15): independent
+# gates enter runner allocation in parallel; a named aggregator is the only
+# required-check context; pull_request supersedes cancel, push to main does not.
+#
+# Required ruleset contexts (do NOT rename):
+#   - Lint + syntax + secrets
+#   - prod_check + pytest          ← aggregator over parallel lanes
+#   - harness real-redis integration
+#
+# Heavy pytest is PR/dispatch only. Push to main is covered by deploy-vps `gate`
+# (and optional `DEPLOY_RETEST=true` shards). Re-running the 17-min sequential
+# suite after every auto-merge was the merge-train bottleneck.
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  # NO paths-ignore on pull_request (2026-07-25). The `Protect main` ruleset
+  # requires "Lint + syntax + secrets", "prod_check + pytest" and "harness
+  # real-redis integration" — all defined in THIS workflow. With a path filter
+  # a docs-only PR never triggers them, so those required contexts never report
+  # and the PR is permanently BLOCKED (mergeable=MERGEABLE, state=BLOCKED).
+  # Running CI on docs PRs costs a few minutes; faking the contexts would
+  # weaken the gate, so we run them for real instead.
+  pull_request:
+    branches: [main]
+  # Manual escape hatch (2026-08-01). GitHub silently dropped every
+  # pull_request event for PR #204's head for over two hours (no
+  # github-actions check suite was even created on its pushes, while other
+  # PRs' events fired normally), leaving the REQUIRED contexts above
+  # permanently unreported and the PR blocked. workflow_dispatch lets a
+  # maintainer run the exact same blocking jobs on any ref when event
+  # delivery fails; check runs attach to the ref's head commit, so the PR's
+  # required contexts report normally.
+  workflow_dispatch:
+
+concurrency:
+  # DSH steal: cancel superseded PR runs, never cancel a main push mid-gate.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Fast, dependency-light gate — hamesha reliable (koi heavy ML dep nahi).
+  quality:
+    name: Lint + syntax + secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # skill CI compares the complete PR/push range
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ruff
+        run: python -m pip install --upgrade pip ruff
+      - name: Syntax check (compileall)   # MUST-PASS — syntax error = red
+        run: python -m compileall -q app scripts
+      - name: Secret scan                 # MUST-PASS — no secrets in commit
+        run: python scripts/check_secrets.py
+      - name: Security misconfig scan     # MUST-PASS — no misconfigurations in commit
+        run: python scripts/security_scan.py
+      - name: Skill quality + security ratchet  # MUST-PASS — strict on added/modified skills
+        env:
+          SKILL_CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+        run: python scripts/skill_evals/check_repo_skills.py --base-ref "$SKILL_CI_BASE"
+      - name: Queue idempotency audit     # RATCHET — static-scan gaps > baseline = fail (naye tasks bina dedup na aayen)
+        env:
+          # 2026-07-06 baseline: 117 static gaps (kai tasks ka dedup scheduler/
+          # day-key layer pe hai jo heuristic nahi dekhta). Naya gap = RED.
+          IDEM_AUDIT_MAX_GAPS: "117"
+        run: python scripts/queue_idempotency_audit.py
+      - name: Type check (mypy)            # advisory — 1522 pre-existing errors (2026-07-06); type-debt visible, merge-gate nahi
+        run: |
+          pip install mypy
+          mypy app --ignore-missing-imports --no-error-summary || true
+      - name: Ruff lint (repo config)     # informational annotations (style debt block na kare)
+        run: ruff check --output-format=github app || true
+
+  # Runtime gates that import app.platform. Parallel with pytest shards.
+  prod-check:
+    name: prod_check runtime gates
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-lock
+      - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
+        run: python scripts/runtime_data_path_scan.py validate
+      - name: Runtime-data debt ratchet  # MUST-PASS — no NEW undeclared writers
+        run: python scripts/runtime_data_path_scan.py ratchet
+      - name: Production readiness check
+        run: python scripts/prod_check.py
+
+  # MUST-PASS pip-audit of the INSTALLED environment (not a requirements file).
+  # Parallel with pytest so audit latency is not on the merge critical path.
+  pip-audit:
+    name: pip-audit installed env
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-lock
+      - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in what SHIPS
+        # Audits the INSTALLED ENVIRONMENT, not a requirements file. That matters:
+        # every real install of this project uses `--no-deps` (Dockerfile.lock:25),
+        # so the lock IS the shipped closure.
+        #
+        # Exceptions are explicit, justified and time-limited in
+        # docs/security/DEPENDENCY_REMEDIATION_2026-08-08.md, and mirrored in
+        # tests/test_dependency_security_floors.py::EXCEPTIONS.
+        #   GHSA-wj6h-64fc-37mp  ecdsa    no upstream fix exists; unreachable on HS256
+        #   GHSA-6w46-j5rx-g56g  pytest   test runner, never imported by app code
+        #   PYSEC-2017-83        scrapy   no upstream fix; transitive via advertools
+        run: |
+          python -m venv /tmp/auditvenv
+          /tmp/auditvenv/bin/pip install --quiet --upgrade pip
+          /tmp/auditvenv/bin/pip install --quiet pip-audit
+          SITE="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+          echo "auditing installed environment at: $SITE"
+          /tmp/auditvenv/bin/pip-audit \
+            --path "$SITE" \
+            --vulnerability-service osv \
+            --desc on \
+            --progress-spinner off \
+            --ignore-vuln GHSA-wj6h-64fc-37mp \
+            --ignore-vuln GHSA-6w46-j5rx-g56g \
+            --ignore-vuln PYSEC-2017-83
+
+  # Same required suite as before, wall-clock cut by running 4 shards in parallel
+  # (deploy-vps.yml already did this on 2026-08-10). Sequential `for group in
+  # 1 2 3 4` inside one job was ~17 min and blocked auto-merge.
+  pytest-shards:
+    name: pytest shard ${{ matrix.group }}/4
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-python-lock
+        with:
+          extras: "pytest-split==0.9.0"
+      - name: Pytest shard ${{ matrix.group }}/4 (skip network/LLM-key tests)
+        env:
+          APP_ENV: test
+          ENVIRONMENT: development
+          GROQ_API_KEY: ci-dummy-key-not-real  # pragma: allowlist secret
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          TOKENIZERS_PARALLELISM: "false"
+          PYTHONFAULTHANDLER: "1"
+        run: |
+          set -euo pipefail
+          set +e
+          pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
+            --splits 4 --group "${{ matrix.group }}"
+          rc=$?
+          if [ "$rc" -eq 139 ]; then
+            echo "::warning title=exit-139::shard ${{ matrix.group }}/4 cyclic-GC SIGSEGV; one retry (no skip)"
+            pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
+              --splits 4 --group "${{ matrix.group }}"
+            rc=$?
+          fi
+          exit "$rc"
+
+  # REQUIRED check name — must stay exactly `prod_check + pytest`.
+  # always() so a failed lane reports FAILURE here instead of SKIPPED (ruleset
+  # treats skipped required contexts as blocking with a worse UI).
+  tests:
+    name: prod_check + pytest
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    needs: [prod-check, pytest-shards, pip-audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Required lanes green
+        run: |
+          echo "prod-check=${{ needs['prod-check'].result }}"
+          echo "pytest-shards=${{ needs['pytest-shards'].result }}"
+          echo "pip-audit=${{ needs['pip-audit'].result }}"
+          test "${{ needs['prod-check'].result }}" = "success"
+          test "${{ needs['pytest-shards'].result }}" = "success"
+          test "${{ needs['pip-audit'].result }}" = "success"
+
+  # Mandatory real-Redis integration gate for the durable harness audit backend.
+  # Starts a real Redis with AOF + noeviction (the production durability posture)
+  # and runs the integration suite against it. A SKIPPED real-Redis suite is NOT
+  # allowed to pass here: HARNESS_REQUIRE_REDIS=1 turns "no Redis" into a failure.
+  harness-redis-integration:
+    name: harness real-redis integration
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      # Docker Hub is a THIRD-PARTY dependency of a REQUIRED check: a registry
+      # timeout here reds the PR and blocks the merge train even though nothing
+      # is wrong with the code (observed 2026-07-25 on PR #141 —
+      # `registry-1.docker.io ... Client.Timeout exceeded`, exit 125).
+      #
+      # Splitting pull from run is what makes the retry SAFE: only the network
+      # fetch is retried, and it is bounded (4 attempts, exponential backoff,
+      # per-attempt timeout). The container start below then uses `--pull=never`,
+      # so it can NEVER reach the registry — any failure there is a real Redis or
+      # application failure and fails immediately, with no retry masking it.
+      - name: Pull Redis image (bounded retry — registry/network flake ONLY)
+        run: |
+          set -uo pipefail
+          image="redis:7-alpine"
+          attempts=4
+          delay=5
+          i=1
+          while [ "$i" -le "$attempts" ]; do
+            if timeout 120 docker pull "$image"; then
+              echo "::notice title=Registry::Pulled $image on attempt $i/$attempts"
+              exit 0
+            fi
+            if [ "$i" -eq "$attempts" ]; then
+              echo "::error title=Registry infrastructure failure::Could not pull $image after $attempts attempts (Docker Hub unreachable). This is NOT an application or test failure."
+              exit 1
+            fi
+            echo "::warning title=Registry infrastructure flake::Pull attempt $i/$attempts failed; retrying in ${delay}s"
+            sleep "$delay"
+            delay=$(( delay * 2 ))
+            i=$(( i + 1 ))
+          done
+          echo "::error title=Registry infrastructure failure::Retry loop exhausted without a definitive result."
+          exit 1
+      - name: Start real Redis (AOF everysec, noeviction, persistent volume)
+        run: |
+          docker run -d --name redis-audit -p 6379:6379 --pull=never \
+            -v "${{ runner.temp }}/redis-audit-data:/data" \
+            redis:7-alpine redis-server \
+            --appendonly yes --appendfsync everysec --maxmemory-policy noeviction --dir /data
+          for i in $(seq 1 20); do docker exec redis-audit redis-cli ping 2>/dev/null | grep -q PONG && break; sleep 1; done
+      - name: Verify Redis durability posture (fail if AOF off)
+        run: |
+          test "$(docker exec redis-audit redis-cli CONFIG GET appendonly | tail -1)" = "yes"
+          test "$(docker exec redis-audit redis-cli CONFIG GET maxmemory-policy | tail -1)" = "noeviction"
+          docker exec redis-audit redis-cli EVAL "return 1" 0
+      - uses: ./.github/actions/setup-python-lock
+      - name: Real-Redis integration tests (mandatory — fail on skip)
+        env:
+          APP_ENV: test
+          ENVIRONMENT: development
+          HARNESS_TEST_REDIS_URL: redis://localhost:6379/15
+          HARNESS_REQUIRE_REDIS: "1"
+        run: |
+          pytest tests/test_harness_audit_backend_integration.py -q --no-header \
+            -p no:cacheprovider --timeout=120 -rs | tee integ.out
+          # Guard: a skipped required suite must never pass.
+          if grep -qiE "skipped|no tests ran" integ.out; then echo "REAL-REDIS SUITE SKIPPED — FAIL"; exit 1; fi

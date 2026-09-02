@@ -1,0 +1,35 @@
+# =============================================================================
+# Dependabot — automated dependency + base-image security updates (SaaS-infra
+# staple). Weekly PRs banata hai: vulnerable/outdated Python deps, GitHub-Actions
+# versions, aur Dockerfile base images. PR = review karke merge (auto-merge OFF) →
+# supply-chain CVEs pe stay-current bina manual tracking.
+# =============================================================================
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:                       # ek hi PR me minor/patch bundle (PR-noise kam)
+      python-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    ignore:
+      - dependency-name: actions/checkout
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker     # Dockerfile.lock / Dockerfile base images (CVE)
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "docker"

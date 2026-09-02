@@ -1,0 +1,368 @@
+/* LeadGen AI — shared motion/design system for HyperFrames compositions.
+ *
+ * Everything here is LOCAL: bundled OFL fonts, CSS-only animation, no CDN, no
+ * JS animation library. A production render must complete with the network off,
+ * so a @import or <script src> to any external host is a defect, not a style
+ * choice.
+ *
+ * Animation is expressed as declarative CSS @keyframes because HyperFrames
+ * seeks the timeline via document.getAnimations() — CSS/WAAPI animations are
+ * deterministically seekable, whereas rAF-driven JS animation is not.
+ *
+ * GSAP is the framework's default runtime but is deliberately NOT used: its
+ * "Standard 'no charge' license" is not an OSI licence, and this repo's
+ * provider licence gate (creative_os/licence.py) fails closed on anything it
+ * cannot classify. The CSS adapter is a first-class supported runtime.
+ *
+ * DETERMINISM: every animation below carries a FINITE animation-iteration-count.
+ * `infinite` has no computable end time, cannot be seeked through the adapter's
+ * negative-delay fallback, and is an explicit determinism violation — counts are
+ * therefore sized to cover the longest clip that uses them.
+ */
+
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/noto-sans-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+    U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("./fonts/noto-sans-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+    U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+/* Devanagari — without this, Hindi/Hinglish copy falls back to tofu boxes. */
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/noto-sans-devanagari-devanagari-400-normal.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC,
+    U+A830-A839, U+A8E0-A8FF;
+}
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("./fonts/noto-sans-devanagari-devanagari-700-normal.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC,
+    U+A830-A839, U+A8E0-A8FF;
+}
+
+/* ---------------------------------------------------------------- tokens */
+:root {
+  --brand: #e63946;
+  --accent: #f1faee;
+  --ink: #f7f5f2;
+  --ink-dim: rgba(247, 245, 242, 0.68);
+  --base-0: #0a0a0c;
+  --base-1: #141318;
+
+  /* 9:16 safe zones. Platform chrome (captions, profile row, CTA overlays)
+   * eats the top ~10% and bottom ~14% on Reels/Shorts, so no glyph may live
+   * there or it ships clipped on a real phone. */
+  --safe-x: 88px;
+  --safe-top: 210px;
+  --safe-bottom: 280px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1080px;
+  height: 1920px;
+  background: var(--base-0);
+  font-family: "LG Sans", sans-serif;
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+
+/* Timed scenes. HyperFrames toggles .clip visibility from data-start /
+ * data-duration; CSS animations inside then run against the clip's own local
+ * time, which is what keeps motion identical across re-renders. */
+.clip { position: absolute; inset: 0; }
+
+.stage {
+  position: absolute;
+  left: var(--safe-x);
+  right: var(--safe-x);
+  top: var(--safe-top);
+  bottom: var(--safe-bottom);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* -------------------------------------------------------------- backdrop */
+.bg { position: absolute; inset: 0; background: var(--base-0); }
+
+.bg-mesh {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(46% 34% at 22% 18%, color-mix(in srgb, var(--brand) 46%, transparent) 0%, transparent 62%),
+    radial-gradient(40% 30% at 82% 30%, color-mix(in srgb, var(--accent) 20%, transparent) 0%, transparent 60%),
+    radial-gradient(58% 42% at 50% 96%, color-mix(in srgb, var(--brand) 30%, transparent) 0%, transparent 70%);
+  filter: blur(28px) saturate(126%);
+  opacity: 0.92;
+  animation: meshDrift 18s ease-in-out 2 alternate both;
+}
+@keyframes meshDrift {
+  0%   { transform: translate3d(-2.2%, -1.6%, 0) scale(1.03) rotate(0deg); }
+  100% { transform: translate3d(2.6%, 2.2%, 0) scale(1.11) rotate(3.5deg); }
+}
+
+.bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(72% 56% at 50% 44%, transparent 0%, rgba(0, 0, 0, 0.58) 78%, rgba(0, 0, 0, 0.9) 100%);
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: repeating-conic-gradient(#fff 0% 25%, #000 0% 50%);
+  background-size: 4px 4px;
+}
+
+/* Particles — CSS-only. Deterministic: every value comes from an nth-child
+ * rule, never Math.random(), so frame N is identical on every render. */
+.particles { position: absolute; inset: 0; overflow: hidden; }
+.particles i {
+  position: absolute;
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  filter: blur(0.6px);
+  box-shadow: 0 0 18px 3px color-mix(in srgb, var(--accent) 55%, transparent);
+  animation: floatUp 9s linear 3 both;
+}
+@keyframes floatUp {
+  0%   { transform: translate3d(0, 140px, 0) scale(0.5); opacity: 0; }
+  14%  { opacity: 0.85; }
+  74%  { opacity: 0.5; }
+  100% { transform: translate3d(28px, -1180px, 0) scale(1.18); opacity: 0; }
+}
+.particles i:nth-child(1)  { left: 7%;  bottom: -3%; animation-delay: -0.4s;  animation-duration: 10.5s; }
+.particles i:nth-child(2)  { left: 19%; bottom: -6%; animation-delay: -3.1s;  animation-duration: 12.2s; transform: scale(0.7); }
+.particles i:nth-child(3)  { left: 31%; bottom: -2%; animation-delay: -6.4s;  animation-duration: 9.4s; }
+.particles i:nth-child(4)  { left: 44%; bottom: -8%; animation-delay: -1.7s;  animation-duration: 13.1s; }
+.particles i:nth-child(5)  { left: 56%; bottom: -4%; animation-delay: -8.2s;  animation-duration: 10.9s; }
+.particles i:nth-child(6)  { left: 68%; bottom: -7%; animation-delay: -4.6s;  animation-duration: 11.8s; }
+.particles i:nth-child(7)  { left: 79%; bottom: -3%; animation-delay: -2.3s;  animation-duration: 9.9s; }
+.particles i:nth-child(8)  { left: 89%; bottom: -6%; animation-delay: -7.5s;  animation-duration: 12.7s; }
+.particles i:nth-child(9)  { left: 13%; bottom: -9%; animation-delay: -5.2s;  animation-duration: 14.0s; }
+.particles i:nth-child(10) { left: 62%; bottom: -9%; animation-delay: -9.8s;  animation-duration: 11.2s; }
+.particles i:nth-child(11) { left: 37%; bottom: -5%; animation-delay: -11.4s; animation-duration: 10.1s; }
+.particles i:nth-child(12) { left: 95%; bottom: -8%; animation-delay: -0.9s;  animation-duration: 13.6s; }
+
+/* ------------------------------------------------------------ typography */
+.eyebrow {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+/* Headline size is set per-scene by fitType() rather than hard-coded, because
+ * a Hindi offer line can be 3x the glyph count of its English twin and a fixed
+ * size would overflow the safe zone. */
+.headline {
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+.sub { font-size: 34px; line-height: 1.42; color: var(--ink-dim); font-weight: 400; }
+
+.rule {
+  height: 3px;
+  width: 132px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--brand), var(--accent));
+  transform-origin: left center;
+}
+
+/* Word-level kinetic reveal. Words are wrapped by script (local, no library)
+ * and each gets a staggered CSS animation. */
+.w { display: inline-block; will-change: transform, opacity; }
+.rise .w { animation: wordRise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes wordRise {
+  from { opacity: 0; transform: translate3d(0, 46px, 0) rotate(1.6deg); filter: blur(7px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* ---------------------------------------------------------------- motion */
+.fade-in   { animation: fadeIn 0.66s ease both; }
+.slide-up  { animation: slideUp 0.82s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pop       { animation: pop 0.66s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.wipe      { animation: wipe 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translate3d(0, 58px, 0); } to { opacity: 1; transform: none; } }
+@keyframes pop     { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes wipe    { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Every scene gets a slow push so no frame is visually static. */
+.kb { animation: kenBurns var(--kb-dur, 6s) ease-out both; }
+@keyframes kenBurns {
+  from { transform: scale(1.0) translate3d(0, 0, 0); }
+  to   { transform: scale(1.09) translate3d(0, -18px, 0); }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -140%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  animation: sheen 2.6s ease-in-out 0.6s 2 both;
+}
+@keyframes sheen { to { left: 160%; } }
+
+/* ----------------------------------------------------------------- glass */
+.glass {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 30px;
+  backdrop-filter: blur(16px) saturate(122%);
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 40px;
+  border-radius: 999px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--brand) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 58%, transparent);
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------- monogram */
+.monogram {
+  width: 236px;
+  height: 236px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 92px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  background: conic-gradient(from 210deg, var(--brand), var(--accent), var(--brand));
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2), 0 30px 84px color-mix(in srgb, var(--brand) 46%, transparent);
+}
+.monogram span {
+  width: 206px;
+  height: 206px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--base-1);
+}
+.ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  animation: ringOut 3.1s cubic-bezier(0.22, 1, 0.36, 1) 2 both;
+}
+@keyframes ringOut {
+  from { width: 236px; height: 236px; opacity: 0.85; }
+  to   { width: 660px; height: 660px; opacity: 0; }
+}
+
+/* ----------------------------------------------------------------- cards */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  padding: 38px 42px;
+  border-radius: 28px;
+}
+.card .idx {
+  flex: 0 0 auto;
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  font-weight: 700;
+  background: linear-gradient(140deg, var(--brand), color-mix(in srgb, var(--brand) 40%, #000));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--brand) 42%, transparent);
+}
+.card .t { font-size: 42px; font-weight: 700; line-height: 1.16; }
+.card .d { font-size: 27px; color: var(--ink-dim); margin-top: 8px; line-height: 1.34; }
+
+/* ------------------------------------------------------------ photo tile */
+.photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+.photo-frame { position: absolute; inset: 0; overflow: hidden; border-radius: 34px; }
+
+/* ------------------------------------------------------------------- CTA */
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 40px 56px;
+  border-radius: 999px;
+  font-size: 46px;
+  font-weight: 700;
+  background: linear-gradient(120deg, var(--brand), color-mix(in srgb, var(--brand) 62%, #000));
+  box-shadow: 0 26px 64px color-mix(in srgb, var(--brand) 52%, transparent);
+  animation: ctaPulse 1.9s ease-in-out 3 both;
+}
+@keyframes ctaPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.043); }
+}
+.cta svg { width: 52px; height: 52px; flex: 0 0 auto; }
+
+.footer-line {
+  position: absolute;
+  left: var(--safe-x);
+  right: var(--safe-x);
+  bottom: 150px;
+  text-align: center;
+  font-size: 27px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}

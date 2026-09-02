@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGenAI — AI Marketing aur AI Voice Calling, ek hi chhat ke neeche</title>
+<style>
+  :root{
+    --brand:#4f46e5; --brand2:#22c55e; --brand-rgb:79,70,229;
+    --bg:#0a0d14; --bg2:#0f131c; --surf:#161b28; --hover:#1e2536;
+    --tx:#ffffff; --tx2:rgba(255,255,255,.72); --tx3:rgba(255,255,255,.5);
+    --line:rgba(255,255,255,.10); --ok:#22c55e; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  a{color:inherit;text-decoration:none}
+  .btn{display:inline-block;background:var(--brand);color:#fff;padding:13px 26px;border-radius:10px;font-weight:600;font-size:15px;border:none;cursor:pointer;transition:filter .2s,transform .2s}
+  .btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  .btn.ghost{background:transparent;border:1px solid var(--brand)}
+  .btn.green{background:var(--brand2)}
+  .eyebrow{display:inline-block;font-size:12.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--brand2);margin-bottom:14px}
+  section{padding:64px 0;border-top:1px solid var(--line)}
+  h1{font-size:clamp(30px,5vw,50px);font-weight:800;line-height:1.12;letter-spacing:-.02em}
+  h2{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
+  h3{font-size:19px;font-weight:600;margin-bottom:6px}
+  p.lead{font-size:18px;color:var(--tx2)}
+  .muted{color:var(--tx3);font-size:14px}
+  /* nav */
+  nav{position:sticky;top:0;z-index:50;background:rgba(10,13,20,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{font-weight:800;font-size:19px;letter-spacing:-.02em}
+  .logo span{color:var(--brand2)}
+  .navlinks{display:flex;gap:22px;align-items:center}
+  .navlinks a{font-size:14px;color:var(--tx2)}
+  .navlinks a:hover{color:#fff}
+  @media(max-width:720px){.navlinks a:not(.btn){display:none}}
+  /* hero */
+  .hero{padding:78px 0 64px;text-align:center}
+  .hero .badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:26px 0 30px}
+  .badge{background:var(--surf);border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-size:13px;color:var(--tx2)}
+  .badge b{color:#fff}
+  .hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+  @media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .stat .n{font-size:26px;font-weight:800;color:var(--brand2)}
+  .stat .l{font-size:13px;color:var(--tx3)}
+  /* two products */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:30px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .pcard{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:28px;position:relative}
+  .pcard.main{border-color:rgba(var(--brand-rgb),.5)}
+  .tag{position:absolute;top:18px;right:18px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:5px 10px;border-radius:6px}
+  .tag.m{background:rgba(var(--brand-rgb),.18);color:#a5b4fc}
+  .tag.v{background:rgba(34,197,94,.16);color:#86efac}
+  .pcard ul{list-style:none;margin:16px 0 0}
+  .pcard li{display:flex;gap:9px;align-items:flex-start;padding:6px 0;font-size:14.5px;color:var(--tx2)}
+  .pcard li::before{content:"✓";color:var(--brand2);font-weight:800}
+  .note{font-size:12.5px;color:var(--tx3);margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+  /* feature grid */
+  .fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
+  @media(max-width:820px){.fgrid{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.fgrid{grid-template-columns:1fr}}
+  .feat{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px;transition:border-color .2s,transform .2s}
+  .feat:hover{border-color:rgba(var(--brand-rgb),.5);transform:translateY(-2px)}
+  .feat .ic{font-size:22px}
+  .feat h3{font-size:15.5px;margin:8px 0 3px}
+  .feat p{font-size:13px;color:var(--tx3)}
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:30px}
+  @media(max-width:820px){.steps{grid-template-columns:1fr 1fr}}
+  .step{background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .step .num{width:30px;height:30px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:12px}
+  .step h3{font-size:15px}
+  .step p{font-size:13px;color:var(--tx3)}
+  /* pricing */
+  .ptabs{display:flex;gap:8px;justify-content:center;margin:8px 0 26px}
+  .ptab{background:var(--surf);border:1px solid var(--line);color:var(--tx2);padding:9px 18px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600}
+  .ptab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .pricegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:820px){.pricegrid{grid-template-columns:1fr}}
+  .plan{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column}
+  .plan.pop{border-color:var(--brand2);box-shadow:0 0 0 1px rgba(34,197,94,.25)}
+  .plan .pop-l{font-size:11px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  .plan .price{font-size:30px;font-weight:800;margin:6px 0}
+  .plan .price small{font-size:14px;color:var(--tx3);font-weight:500}
+  .plan ul{list-style:none;margin:14px 0 18px;flex:1}
+  .plan li{font-size:13.5px;color:var(--tx2);padding:5px 0;display:flex;gap:8px}
+  .plan li::before{content:"–";color:var(--brand2)}
+  .hide{display:none}
+  /* roi */
+  .roi{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:28px;margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  @media(max-width:720px){.roi{grid-template-columns:1fr}}
+  .roi label{display:block;font-size:13px;color:var(--tx3);margin:14px 0 6px}
+  .roi input[type=range]{width:100%}
+  .roi .val{font-weight:700;color:#fff}
+  .roi .out{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;justify-content:center}
+  .roi .big{font-size:34px;font-weight:800;color:var(--brand2);line-height:1.1}
+  /* why */
+  .why{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
+  @media(max-width:820px){.why{grid-template-columns:1fr}}
+  .why div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .why h3{font-size:16px}
+  .why p{font-size:13.5px;color:var(--tx3)}
+  /* cta */
+  .final{text-align:center;background:linear-gradient(180deg,var(--bg2),var(--bg));border-radius:18px;padding:54px 24px;margin:20px 0}
+  footer{border-top:1px solid var(--line);padding:30px 0;text-align:center;color:var(--tx3);font-size:13px}
+  .seal{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--tx3);margin-top:8px}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="logo">Lead<span>Gen</span>AI</div>
+  <div class="navlinks">
+    <a href="#products">Products</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#why">Kyun hum</a>
+    <a class="btn" href="https://leadsgenai.in/audit">Free GBP audit</a>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Local business ke liye AI staff — 100% Indian</span>
+  <h1>Marketing khud chale, leads khud aayein.<br>Aap sirf customer handle karo.</h1>
+  <p class="lead" style="max-width:680px;margin:18px auto 0">LeadGenAI do alag AI products deta hai — ek aapki <b>marketing automate</b> karta hai, doosra ek <b>AI telecaller</b> jo leads ko khud call karke qualify karta hai. Dono Hinglish me, results ke hisaab se.</p>
+  <div class="badges">
+    <span class="badge"><b>42</b> niches ready</span>
+    <span class="badge"><b>Hinglish</b> AI — desi tone</span>
+    <span class="badge"><b>TRAI + DPDP</b> compliant</span>
+    <span class="badge"><b>Done-for-you</b> setup</span>
+  </div>
+  <div class="cta">
+    <a class="btn green" href="https://leadsgenai.in/pricing">Plan dekho</a>
+    <a class="btn ghost" href="https://leadsgenai.in/demo">Free AI demo lo</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="n">₹1,199</div><div class="l">se marketing shuru</div></div>
+    <div class="stat"><div class="n">Unlimited</div><div class="l">voice calls — flat ₹4,999/mo se</div></div>
+    <div class="stat"><div class="n">Roz</div><div class="l">auto content + posters</div></div>
+    <div class="stat"><div class="n">24×7</div><div class="l">inquiry capture + callback</div></div>
+  </div>
+</div></header>
+
+<section id="products"><div class="wrap">
+  <span class="eyebrow">Do alag products — apni zaroorat chuno</span>
+  <h2>Ek company, do AI engines</h2>
+  <p class="lead" style="max-width:720px">In dono ko alag-alag bhi le sakte ho. Marketing sabke liye hai; voice agent un dhandon ke liye jinhe bahut saare leads ko khud call karke chhaanna hota hai.</p>
+  <div class="grid2">
+    <div class="pcard main">
+      <span class="tag m">Main product</span>
+      <h3>AI Automated Marketing</h3>
+      <p class="muted">Dhanda/Predis jaisa, par desi aur sasta. Aapka poora social + Google presence khud chalta hai.</p>
+      <ul>
+        <li>Roz ready posts, captions, AI posters &amp; festival creatives</li>
+        <li>Google Business audit, reviews management, mini-site + booking</li>
+        <li>WhatsApp 1-click campaigns, web enquiry widget, AI chatbot</li>
+        <li>Inquiry aane par auto AI callback (Advanced tier feature)</li>
+      </ul>
+      <p class="note">Advanced tier me AI voice ek <b>feature</b> hai (inquiry callback + qualification + follow-up) — full cold-calling nahi.</p>
+    </div>
+    <div class="pcard">
+      <span class="tag v">Standalone</span>
+      <h3>AI Voice Calling Agent</h3>
+      <p class="muted">Poora AI telecaller jo aapke leads ko Hinglish me khud call karke "interested" qualify karta hai.</p>
+      <ul>
+        <li>Natural Hinglish baat-cheet, KB-grounded — robotic nahi</li>
+        <li>Lead ko qualify karke aapko sirf garam leads bheji jaati hain</li>
+        <li>Flat monthly per niche-band — UNLIMITED calls, koi lead-counting nahi</li>
+        <li>Recording, transcript, CRM sync, human transfer option</li>
+      </ul>
+      <p class="note">Cold-calling DLT registration ke saath hi chalti hai (TRAI rule). Inbound/consented callback turant ready.</p>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Marketing product</span>
+  <h2>Aapka digital staff — bina staff rakhe</h2>
+  <p class="lead">Roz subah aapka content taiyaar, festivals pe creatives, reviews ka jawab, aur har enquiry capture.</p>
+  <div class="fgrid">
+    <div class="feat"><div class="ic">📝</div><h3>Daily content</h3><p>Posts + captions + hashtags har din auto-generate, 1-click WhatsApp share.</p></div>
+    <div class="feat"><div class="ic">🎨</div><h3>AI posters &amp; reels</h3><p>Brand-colored creatives, photo→poster, carousels aur reel scripts.</p></div>
+    <div class="feat"><div class="ic">🎉</div><h3>Festival auto-schedule</h3><p>Diwali/sale days ke liye posts pehle se queue, due date pe ready.</p></div>
+    <div class="feat"><div class="ic">⭐</div><h3>Reviews engine</h3><p>Khush customers → Google review, naraz → private feedback (rating safe).</p></div>
+    <div class="feat"><div class="ic">🌐</div><h3>Mini-site + booking</h3><p>Har client ka apna /b/page — booking calendar + enquiry form.</p></div>
+    <div class="feat"><div class="ic">🔌</div><h3>Web widget + chatbot</h3><p>Kisi bhi website pe ek line paste — floating enquiry + AI FAQ bot.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">Voice agent</span>
+  <h2>Lead aaya se "interested" tak — 4 step</h2>
+  <div class="steps">
+    <div class="step"><div class="num">1</div><h3>Lead list</h3><p>Aapke leads ya hamare scrape kiye prospects voice queue me.</p></div>
+    <div class="step"><div class="num">2</div><h3>AI call</h3><p>Hinglish telecaller Groq STT + EdgeTTS se natural baat karta hai.</p></div>
+    <div class="step"><div class="num">3</div><h3>Qualify</h3><p>Interest, budget, timing samajh ke lead ko score karta hai.</p></div>
+    <div class="step"><div class="num">4</div><h3>Handoff</h3><p>Sirf qualified ("interested") lead aapke paas — transcript ke saath.</p></div>
+  </div>
+  <p class="muted" style="margin-top:18px">Voice = flat monthly per niche-band — UNLIMITED AI calls, koi lead-counting/minute-metering nahi. Free 7-din pilot (50 calls, ₹0) se shuru.</p>
+</div></section>
+
+<section id="pricing"><div class="wrap" style="text-align:center">
+  <span class="eyebrow">Pricing — saaf aur honest</span>
+  <h2>Jo chahiye wahi chuno</h2>
+  <div class="ptabs">
+    <div class="ptab active" data-p="mkt" onclick="showP('mkt')">AI Marketing</div>
+    <div class="ptab" data-p="voice" onclick="showP('voice')">AI Voice Agent</div>
+  </div>
+
+  <div id="p-mkt">
+    <div class="pricegrid">
+      <div class="plan">
+        <div class="price">₹1,199<small>/mo</small></div>
+        <h3 style="text-align:left">Starter</h3>
+        <ul>
+          <li>Roz AI Hinglish posts + branded frames</li>
+          <li>Festival calendar + tyohar/offer posts</li>
+          <li>GBP audit + review reply drafts</li>
+          <li>4 posters/mo + WhatsApp content pack</li>
+          <li>UPI QR card + hashtag suggestions</li>
+          <li>Post approval + customer portal</li>
+          <li>GST invoices · 100% marketing-only</li>
+        </ul>
+        <a class="btn ghost" href="https://leadsgenai.in/start">Shuru karo</a>
+      </div>
+      <div class="plan pop">
+        <div class="pop-l">★ Most popular</div>
+        <div class="price">₹2,999<small>/mo</small></div>
+        <h3 style="text-align:left">Growth</h3>
+        <ul>
+          <li>Sab Starter + unlimited posters</li>
+          <li>AI image + Complete Post + A/B variants</li>
+          <li>Content calendar/scheduler + competitor</li>
+          <li>Mini-site + enquiry widget + AI chatbot</li>
+          <li>Reactivation + WhatsApp drip + review kit</li>
+          <li>Team routing + CRM/webhooks + report</li>
+        </ul>
+        <a class="btn green" href="https://leadsgenai.in/start">Growth lo</a>
+      </div>
+      <div class="plan">
+        <div class="price">₹6,999<small>/mo</small></div>
+        <h3 style="text-align:left">Advanced</h3>
+        <ul>
+          <li>Sab Growth + AI voice callback (~2 min)</li>
+          <li>Lead qualification + appointment booking</li>
+          <li>500 min/mo + weekly follow-ups</li>
+          <li>Transcripts + post-call qualify</li>
+          <li>Speed-to-lead SLA + minute tracker</li>
+          <li>TRAI AI disclosure · ek hi portal</li>
+        </ul>
+        <a class="btn ghost" href="https://leadsgenai.in/start">Advanced lo</a>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:16px">Yearly = 10 mahine ka daam (2 mahine free).</p>
+  </div>
+
+  <div id="p-voice" class="hide">
+    <div class="pricegrid">
+      <div class="plan">
+        <div class="price">₹4,999<small>/mo</small></div>
+        <h3 style="text-align:left">Band A · Volume niches</h3>
+        <ul>
+          <li>UNLIMITED AI calls — koi lead-counting nahi</li>
+          <li>Insurance · coaching · solar · hospital · travel</li>
+          <li>Transcripts + recordings + qualification report</li>
+          <li>Annual ₹49,990 (2 mahine free)</li>
+        </ul>
+        <a class="btn ghost" href="https://leadsgenai.in/voice-agent">Detail</a>
+      </div>
+      <div class="plan pop">
+        <div class="pop-l">★ Most popular</div>
+        <div class="price">₹9,999<small>/mo</small></div>
+        <h3 style="text-align:left">Band B · Mid-premium</h3>
+        <ul>
+          <li>UNLIMITED AI calls — flat monthly, koi surprise invoice nahi</li>
+          <li>Home loans · study abroad · dental · CA · finance</li>
+          <li>CRM sync + missed-call instant callback</li>
+          <li>Annual ₹99,990 (2 mahine free)</li>
+        </ul>
+        <a class="btn green" href="https://leadsgenai.in/voice-agent">Detail</a>
+      </div>
+      <div class="plan">
+        <div class="price">₹19,999<small>/mo</small></div>
+        <h3 style="text-align:left">Band C · Premium</h3>
+        <ul>
+          <li>UNLIMITED AI calls aapke niche database pe</li>
+          <li>IVF · immigration · commercial solar · HVAC · hair transplant</li>
+          <li>WhatsApp follow-up + human transfer</li>
+          <li>Annual ₹1,99,990 (2 mahine free)</li>
+        </ul>
+        <a class="btn ghost" href="https://leadsgenai.in/voice-agent">Detail</a>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:16px">FLAT monthly per niche-band — UNLIMITED AI calls, koi lead-counting/dispute nahi. Niche ki value pe band decide hota hai. <b>Free 7-din pilot — 50 calls, ₹0, no card.</b> Cold-calling ke liye DLT zaroori.</p>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <span class="eyebrow">ROI — apna number dekho</span>
+  <h2>Miss hui calls aapko kitna mehenga padti hain?</h2>
+  <div class="roi">
+    <div>
+      <label>Roz kitni enquiry/missed-call aati hain: <span class="val" id="lv-c">10</span></label>
+      <input type="range" id="r-c" min="2" max="60" value="10" oninput="calc()">
+      <label>Average order value (₹): <span class="val" id="lv-v">3000</span></label>
+      <input type="range" id="r-v" min="500" max="50000" step="500" value="3000" oninput="calc()">
+      <label>Abhi kitni % miss/ignore hoti hain: <span class="val" id="lv-m">40</span>%</label>
+      <input type="range" id="r-m" min="10" max="80" value="40" oninput="calc()">
+    </div>
+    <div class="out">
+      <div class="muted">Har mahine chhoot raha hai (potential):</div>
+      <div class="big" id="out-loss">₹—</div>
+      <div class="muted" style="margin-top:12px">Agar LeadGenAI sirf aadhi recover kare:</div>
+      <div style="font-size:20px;font-weight:700;color:#fff" id="out-rec">₹—</div>
+      <div class="muted" style="margin-top:10px">— ₹2,999/mo Growth plan ke saamne.</div>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:12px">Estimate hai, guarantee nahi — par capture + auto callback ka asar yahin dikhta hai.</p>
+</div></section>
+
+<section id="why"><div class="wrap">
+  <span class="eyebrow">Kyun LeadGenAI</span>
+  <h2>Agency se sasta, foreign tools se desi</h2>
+  <div class="why">
+    <div><h3>🇮🇳 Sahi Hinglish</h3><p>Local customer jis tarah baat karta hai — content aur calls dono usi tone me.</p></div>
+    <div><h3>💸 Flat & predictable</h3><p>Voice flat ₹4,999/mo se — unlimited calls, koi surprise bill nahi. Marketing ₹1,199 se — agency ₹10–25k.</p></div>
+    <div><h3>🛡️ Compliant</h3><p>TRAI 140-series, DLT, DND scrub, DPDP Act — sab built-in, ₹10L risk nahi.</p></div>
+    <div><h3>⚡ Done-for-you</h3><p>Onboarding pe website→knowledge, pehla content pack, sab auto set.</p></div>
+    <div><h3>🧩 39 niches</h3><p>Solar, salon, clinic, real-estate, gym… aapke dhande ke ready scripts.</p></div>
+    <div><h3>🔁 Roz chale</h3><p>AI staff har din content, outreach, follow-up khud chalata hai.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="final">
+    <span class="eyebrow">Agla kadam</span>
+    <h2>Pehle dekho, fir decide karo</h2>
+    <p class="lead" style="max-width:560px;margin:10px auto 26px">Apne business ka free AI marketing demo lo ya free Google Business audit — 2 minute me, bina kisi commitment ke.</p>
+    <div class="cta" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a class="btn green" href="https://leadsgenai.in/demo">Free AI demo</a>
+      <a class="btn ghost" href="https://leadsgenai.in/audit">Free GBP audit</a>
+      <a class="btn" href="https://leadsgenai.in/pricing">Pricing</a>
+    </div>
+    <div class="seal">🔒 leadsgenai.in · admin@leadsgenai.in</div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  LeadGenAI — AI Automated Marketing + AI Voice Calling Agent (do alag products) · 100% Indian · TRAI &amp; DPDP compliant<br>
+  <span class="muted">© 2026 LeadGenAI · leadsgenai.in</span>
+</div></footer>
+
+<script>
+  function showP(p){
+    document.querySelectorAll('.ptab').forEach(t=>t.classList.toggle('active',t.dataset.p===p));
+    document.getElementById('p-mkt').classList.toggle('hide',p!=='mkt');
+    document.getElementById('p-voice').classList.toggle('hide',p!=='voice');
+  }
+  function fmt(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
+  function calc(){
+    var c=+document.getElementById('r-c').value, v=+document.getElementById('r-v').value, m=+document.getElementById('r-m').value;
+    document.getElementById('lv-c').textContent=c;
+    document.getElementById('lv-v').textContent=v;
+    document.getElementById('lv-m').textContent=m;
+    var loss=c*30*(m/100)*v*0.2;
+    document.getElementById('out-loss').textContent=fmt(loss);
+    document.getElementById('out-rec').textContent=fmt(loss*0.5);
+  }
+  calc();
+</script>
+</body>
+</html>

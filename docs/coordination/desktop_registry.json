@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "updated": "2026-08-13",
+  "owner": "Owner OS (LG-10 Cursor Builder, A-20260813-CURSOR)",
+  "note": "Read-only registry for the Coordination Hub projection. Enrollment changes (buzzlock TOOLS, hub HMAC allowlist) are Owner OS decisions — this file only documents current truth.",
+  "apps": [
+    {
+      "id": "freebuff",
+      "name": "FreeBuff Desktop",
+      "project": "this repo (leadgenrationaiagent) — dedicated mission worktree",
+      "worktree": ".freebuff/worktrees/lg00-<mission> (one per LG-00 mission, fresh from recorded base SHA)",
+      "channel": "#build (progress) / #dev (results)",
+      "buzzlock_tool": "FREEBUFF",
+      "buzzlock_enrolled": true,
+      "harness": "GUI interactive — in-process agent (no headless CLI)",
+      "headless_cli": false,
+      "heartbeat": "manual / desktop presence; hub HMAC heartbeat when enrolled",
+      "status": "registered"
+    },
+    {
+      "id": "android",
+      "name": "Android Studio",
+      "project": "its own Gradle/Android project (not this Python repo)",
+      "worktree": "own project workspace (no shared-repo lock needed)",
+      "channel": "#dev (own-project progress)",
+      "buzzlock_tool": null,
+      "buzzlock_enrolled": false,
+      "harness": "GUI interactive — JetBrains IDE + Gemini agentic assistant (no headless CLI)",
+      "headless_cli": false,
+      "heartbeat": "none today — hub HMAC enrollment (tool id 'android') pending Owner OS",
+      "status": "documented"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode Desktop",
+      "project": "this repo — dedicated worktree per mission",
+      "worktree": "own isolated worktree (opencode.json at worktree root)",
+      "channel": "#dev (results)",
+      "buzzlock_tool": "OPENCODE",
+      "buzzlock_enrolled": true,
+      "harness": "opencode run --format json --dir <ws> (headless CLI) + desktop GUI",
+      "headless_cli": true,
+      "heartbeat": "hub HMAC heartbeat (tool id 'opencode')",
+      "status": "registered"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor Desktop",
+      "project": "this repo — dedicated worktree per mission",
+      "worktree": "own isolated worktree",
+      "channel": "#build (progress) / #dev (results)",
+      "buzzlock_tool": "CURSOR",
+      "buzzlock_enrolled": true,
+      "harness": "cursor-agent -p (headless CLI) + desktop GUI",
+      "headless_cli": true,
+      "heartbeat": "hub HMAC heartbeat (tool id 'cursor')",
+      "status": "registered"
+    },
+    {
+      "id": "hermes",
+      "name": "Hermes Desktop",
+      "project": "this repo (leadgenrationaivoiceagent) — dedicated worktree per mission",
+      "worktree": "own isolated worktree (per-mission, from recorded base SHA)",
+      "channel": "#build (progress) / #dev (results)",
+      "buzzlock_tool": "HERMES",
+      "buzzlock_enrolled": true,
+      "harness": "desktop GUI + headless CLI (MCP-coordinated); harness contract via coordination bus",
+      "headless_cli": true,
+      "heartbeat": "hub HMAC heartbeat (tool id 'hermes')",
+      "status": "registered"
+    },
+    {
+      "id": "buzz",
+      "name": "Buzz Desktop",
+      "project": "message bus owner — local relay ws://127.0.0.1:3100",
+      "worktree": "relay workspace (scripts/buzz_local_workspace.py)",
+      "channel": "#build #dev #admin #staff-pulse (all channels)",
+      "buzzlock_tool": null,
+      "buzzlock_enrolled": false,
+      "harness": "desktop GUI + local relay (bus transport for all apps)",
+      "headless_cli": false,
+      "heartbeat": "hub buzz webhook (HMAC, COORD_HUB_BUZZ_SECRET)",
+      "status": "registered"
+    }
+  ]
+}

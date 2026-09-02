@@ -1,0 +1,120 @@
+# =============================================================================
+# migrations.yml — DB migration SAFETY gate (SaaS platform-eng: "schema-change
+# safety"). Pehle CI migrations ko kabhi ek DB pe APPLY hi nahi karta tha
+# (ci.yml = lint+pytest, NO alembic). Live deploy `alembic upgrade head` chalata
+# tha — to ek toota/forgotten migration sirf PROD pe pakda jaata. Yeh wole hole
+# bharta: ek throwaway Postgres pe migrations ko round-trip + drift + lint karta.
+#
+# Postgres service GitHub-hosted runner pe chalti (VPS resource 0). Advisory abhi
+# (security-scan.yml/llm-eval.yml pattern) — pehle results dekho, phir niche diya
+# "ENFORCE" toggle uncomment karke RED-gate banao.
+#
+# Catches: (a) migration jo apply/upgrade pe TOOT-ti hai, (b) down/up round-trip
+# fail (downgrade galat), (c) DUPLICATE/forgotten head (>1 head), (d) model<->migration
+# DRIFT (`alembic check`), (e) table-locking DDL Postgres pe (Squawk advisory).
+# =============================================================================
+name: migrations
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["alembic/**", "app/models/**", "alembic.ini", ".github/workflows/migrations.yml"]
+  push:
+    branches: [main]
+    paths: ["alembic/**", "app/models/**", "alembic.ini"]
+  workflow_dispatch:
+
+concurrency:
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  migration-safety:
+    name: Alembic round-trip + drift + lint (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: leadgen_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      APP_ENV: test
+      # env.py _sync_url(): settings.database_url (pydantic reads this env) -> Postgres service.
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/leadgen_test"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: System libs (model imports — env.py imports app.models)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
+
+      - name: Install deps (mirrors Dockerfile.lock / ci.yml)
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          if [ -f requirements.lock.txt ]; then
+            grep -v -E "^(playwright|selenium)" requirements.lock.txt > req.filtered || cp requirements.lock.txt req.filtered
+            pip install --no-deps -r req.filtered
+          else
+            pip install -e ".[dev]"
+          fi
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu || true
+
+      # (a)+(b) ROUND-TRIP: upgrade head -> downgrade base -> upgrade head.
+      # Proves every migration applies AND reverses cleanly on a real Postgres.
+      - name: Round-trip (upgrade -> downgrade -> upgrade)
+        run: |
+          set -e
+          echo "== upgrade head =="
+          alembic upgrade head
+          echo "== downgrade base =="
+          alembic downgrade base
+          echo "== upgrade head again =="
+          alembic upgrade head
+
+      # (c) SINGLE HEAD: >1 head = forgotten merge / duplicate branch (deploy hazard).
+      - name: Assert single migration head
+        run: |
+          set -e
+          n=$(alembic heads | grep -c '(head)' || true)
+          echo "heads: $n"; alembic heads
+          if [ "$n" != "1" ]; then echo "::error::Expected 1 alembic head, found $n (merge needed)"; exit 1; fi
+
+      # (d) DRIFT: models vs migration state. Advisory (autogenerate not always 1:1).
+      - name: Alembic drift check (advisory)
+        continue-on-error: true
+        run: |
+          echo "== alembic check (model <-> migration drift) =="
+          alembic check || echo "::warning::alembic check reports drift — review autogenerate vs models"
+
+      # (e) Postgres-locking DDL lint via Squawk (advisory) — offline SQL of full chain.
+      - name: Squawk DDL lint (advisory)
+        continue-on-error: true
+        run: |
+          npm install -g squawk-cli >/dev/null 2>&1 || { echo "squawk install skipped"; exit 0; }
+          alembic upgrade base:head --sql > migrations_full.sql 2>/dev/null || { echo "offline SQL gen skipped (non-postgres-renderable migration)"; exit 0; }
+          echo "== squawk lint (locking DDL: ADD COLUMN+DEFAULT, FK without NOT VALID, CREATE INDEX without CONCURRENTLY) =="
+          squawk migrations_full.sql || echo "::warning::Squawk flagged potentially-locking DDL — consider CONCURRENTLY / NOT VALID / batched backfill"
+
+      - name: Upload generated SQL
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: migrations-sql
+          path: migrations_full.sql
+          retention-days: 14
+
+      # === ENFORCE (jab round-trip ek baar clean dekh lo): round-trip + single-head
+      # already hard-gate (exit 1) hain. Drift/Squawk ko bhi block banane ke liye
+      # upar ke un do steps se `continue-on-error: true` hata do. ===

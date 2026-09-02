@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeadsGenAI Battlecard — INTERNAL (June 2026)</title>
+<style>
+:root{--bg:#0a0d14;--el:#0f131c;--sf:#161b28;--hv:#1e2536;--tx:#fff;--t2:rgba(255,255,255,.7);--t3:rgba(255,255,255,.5);--ac:#3b82f6;--win:#10b981;--lose:#ef4444;--tie:#f59e0b;--bd:rgba(255,255,255,.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--tx);line-height:1.6;padding:24px}
+.wrap{max-width:1100px;margin:0 auto}
+header{margin-bottom:20px}
+h1{font-size:1.5rem}
+.meta{color:var(--t3);font-size:.85rem}
+.warn{background:#3b1d1d;border:1px solid #7f1d1d;color:#fca5a5;border-radius:10px;padding:10px 14px;font-size:.85rem;margin:12px 0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.tab{background:var(--sf);border:1px solid var(--bd);color:var(--t2);padding:9px 16px;border-radius:10px;cursor:pointer;font-size:.88rem;font-weight:600;transition:.2s}
+.tab:hover{background:var(--hv)}
+.tab.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.tab.grp{pointer-events:none;background:none;border:none;color:var(--t3);padding:9px 4px}
+.pane{display:none}
+.pane.on{display:block}
+.card{background:var(--el);border:1px solid var(--bd);border-radius:12px;padding:20px;margin-bottom:16px}
+h2{font-size:1.2rem;margin-bottom:10px}
+h3{font-size:.95rem;margin:14px 0 6px;color:var(--ac)}
+p,li{font-size:.9rem;color:var(--t2)}
+ul{padding-left:20px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.kv{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.pill{background:var(--sf);border:1px solid var(--bd);border-radius:999px;padding:4px 12px;font-size:.78rem;color:var(--t2)}
+.w{color:var(--win);font-weight:700}.l{color:var(--lose);font-weight:700}.t{color:var(--tie);font-weight:700}
+table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:760px}
+.tw{overflow-x:auto}
+th,td{padding:9px 10px;border-bottom:1px solid var(--bd);text-align:center}
+td:first-child,th:first-child{text-align:left}
+th{color:var(--t3);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.tt{background:var(--sf);border-left:3px solid var(--ac);border-radius:0 8px 8px 0;padding:10px 14px;margin:8px 0;font-size:.88rem;color:var(--t2)}
+.lm{background:var(--sf);border-left:3px solid var(--tie);border-radius:0 8px 8px 0;padding:10px 14px;margin:8px 0;font-size:.88rem;color:var(--t2)}
+.ob{background:var(--sf);border-radius:10px;padding:12px 14px;margin:8px 0}
+.ob b{color:var(--lose);font-size:.85rem}
+.ob p{margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>⚔️ LeadsGenAI Competitive Battlecard</h1>
+  <div class="meta">Generated: 12 June 2026 · Sources: public pricing pages, G2/Capterra, official announcements · Refresh: monthly ya bade deal se pehle</div>
+  <div class="warn">🔒 INTERNAL ONLY — yeh file publicly serve nahi hoti. Talk tracks customer ke saamne "category" language me use karo, competitor ko kabhi trash mat karo — landmine questions se unki weakness khud dikhne do.</div>
+</header>
+
+<div class="tabs" id="tabs">
+  <span class="tab grp">Overview:</span>
+  <button class="tab on" data-p="matrix">📊 Matrix</button>
+  <span class="tab grp">Marketing:</span>
+  <button class="tab" data-p="dhanda">Dhanda</button>
+  <button class="tab" data-p="predis">Predis.ai</button>
+  <button class="tab" data-p="adbanao">AdBanao</button>
+  <button class="tab" data-p="practina">Practina</button>
+  <button class="tab" data-p="ghl">GoHighLevel</button>
+  <span class="tab grp">Voice:</span>
+  <button class="tab" data-p="squadstack">SquadStack</button>
+  <button class="tab" data-p="vodex">Vodex.ai</button>
+  <button class="tab" data-p="exotel">Exotel</button>
+  <button class="tab" data-p="knowlarity">Knowlarity</button>
+  <button class="tab" data-p="callhippo">CallHippo</button>
+</div>
+
+<div class="pane on" id="matrix">
+  <div class="card">
+    <h2>Product 1 — AI Marketing: head-to-head</h2>
+    <div class="tw"><table>
+      <tr><th>Capability</th><th>Us</th><th>Dhanda</th><th>Predis</th><th>AdBanao</th><th>Practina</th><th>GHL</th></tr>
+      <tr><td>Entry ₹/mo (eff.)</td><td class="w">1,199</td><td>~1,000</td><td>~2,700</td><td>~150</td><td>~8,300</td><td>~8,100+</td></tr>
+      <tr><td>Done-for-you</td><td class="w">✓</td><td class="t">partial</td><td class="l">✗</td><td class="l">✗</td><td class="t">partial</td><td class="l">✗</td></tr>
+      <tr><td>Hinglish + festival auto</td><td class="w">✓</td><td class="t">partial</td><td class="l">✗</td><td class="t">templates</td><td class="l">✗</td><td class="l">✗</td></tr>
+      <tr><td>GBP/local SEO + review AI</td><td class="w">✓</td><td class="w">✓</td><td class="l">✗</td><td class="l">✗</td><td class="t">partial</td><td class="t">partial</td></tr>
+      <tr><td>Widget + chatbot + mini-site</td><td class="w">✓</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td><td class="w">✓</td></tr>
+      <tr><td>India-legal voice callback</td><td class="w">✓</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗ TRAI</td></tr>
+      <tr><td>Meta auto-publish</td><td class="l">✗ (1-click)</td><td class="w">✓</td><td class="w">✓</td><td class="l">✗</td><td class="w">✓</td><td class="w">✓</td></tr>
+      <tr><td>Paid-ads management</td><td class="l">copy only</td><td class="l">✗</td><td class="t">creatives</td><td class="l">✗</td><td class="w">✓</td><td class="w">✓</td></tr>
+    </table></div>
+    <h3>Hamare 2 honest gaps</h3>
+    <p>1) Meta auto-publish nahi (app-review pending) — "1-click approval" ko CONTROL benefit ki tarah pitch karo: "AI galat post auto-publish kar de woh risk nahi". 2) Regional languages — AdBanao 10 langs; hum Hinglish/Hindi/Marathi+multilang-9 API. Threats to watch: Practina India launch, Dhanda ka EZO hardware channel.</p>
+  </div>
+  <div class="card">
+    <h2>Product 2 — Voice Agent: head-to-head</h2>
+    <div class="tw"><table>
+      <tr><th>Capability</th><th>Us</th><th>SquadStack</th><th>Vodex</th><th>Exotel</th><th>Knowlarity</th><th>CallHippo</th></tr>
+      <tr><td>Billing unit</td><td class="w">qualified lead</td><td class="t">lead processed</td><td class="l">minute</td><td class="l">minutes/infra</td><td class="l">quote</td><td class="l">minute</td></tr>
+      <tr><td>Entry ₹</td><td class="w">3,999</td><td>~22,425</td><td>~8,500</td><td>quote</td><td>quote</td><td>~17,000</td></tr>
+      <tr><td>Hinglish tuned</td><td class="w">✓</td><td class="w">✓ 8+ langs</td><td class="t">claim</td><td class="w">✓</td><td class="t">IVR</td><td class="l">English-first</td></tr>
+      <tr><td>TRAI/DLT/DND native</td><td class="w">✓</td><td class="w">✓</td><td class="l">✗</td><td class="w">✓</td><td class="w">✓</td><td class="l">✗</td></tr>
+      <tr><td>SMB self-serve (10-60 leads/mo)</td><td class="w">✓</td><td class="l">✗</td><td class="t">USD</td><td class="l">✗</td><td class="l">✗</td><td class="t">global</td></tr>
+      <tr><td>39 niche scripts ready</td><td class="w">✓</td><td class="t">custom</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td></tr>
+      <tr><td>Human-caller fallback network</td><td class="l">transfer only</td><td class="w">✓ gig network</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td><td class="l">✗</td></tr>
+    </table></div>
+    <h3>Sabse sharp weapon</h3>
+    <p class="tt">"Koi bhi doosra SMB price pe <b>per-AI-qualified-lead</b> nahi bechta. Sab minutes bechte hain — yaani failed call ka bhi paisa. Hum sirf 'interested' lead pe charge karte hain." — har voice deal isi se kholo.</p>
+    <h3>Hamara honest gap</h3>
+    <p>Human-caller fallback network nahi (SquadStack ka moat) — sirf hot-transfer hai. CRM catalog chhota (Zoho/HubSpot naya hai — collateral me highlight karo). Risk: SquadStack downmarket aa raha (Plug-N-Play), Exotel apne rails pe SMB voicebot productize kar sakta hai.</p>
+  </div>
+</div>
+
+<div class="pane" id="dhanda">
+  <div class="card">
+    <h2>Dhanda (EZO) — sabse direct Marketing rival</h2>
+    <div class="kv"><span class="pill">Ezo Technologies, Navi Mumbai (EZO Books billing-machines)</span><span class="pill">10,000+ businesses claim</span><span class="pill">App-first, 4.8★ self-reported</span></div>
+    <p><b>Pricing:</b> 36-mo ₹29,999 (MRP ₹65k struck) · 12-mo ~₹11,999 → eff. ~₹830-1,000/mo. Hamare Starter ke just neeche.</p>
+    <p><b>Kya karta hai:</b> GBP analysis + ranking insights, AI review replies, FB/IG one-click posting, festival posts, AI image library, free Google score audit (hamara /audit jaisa).</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Price + mobile app polish</li><li>EZO billing-machine distribution channel</li><li>Real FB/IG auto-posting</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>Breadth: widget + chatbot + mini-site + voice callback — unke paas kuch nahi</li><li>Done-for-you service layer + web dashboard + customer portal</li><li>User complaints (verified): no refunds, slow support, profile updates ~1 week</li><li>Unka Advanced-tier equivalent hi nahi hai</li></ul></div>
+    </div>
+    <h3>Talk tracks</h3>
+    <p class="tt"><b>Early mention:</b> "Dhanda achha posts+GBP tool hai. Sawaal yeh: post dekh ke customer ne enquiry ki — uska kya hota hai? Humare paas widget, AI chat aur 2-min callback hai. Lead pakadna hi to asli dhanda hai."</p>
+    <p class="tt"><b>Displacement (existing Dhanda user):</b> "Jo Dhanda karta hai wo hum bhi karte hain — upar se leads capture + callback. Pehle 7-din free trial me दोनों side-by-side chalao."</p>
+    <h3>Landmines</h3>
+    <p class="lm">"Website/widget se aayi enquiry ka callback kaun karta hai Dhanda me?"</p>
+    <p class="lm">"Refund policy poochhi? Aur support ticket ka response time?"</p>
+    <p class="lm">"3 saal ka ₹30,000 lock-in vs humara monthly — pehle result dekhna better nahi?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Dhanda sasta hai"</b><p>"Sirf posts+GBP ke liye haan. Par ek miss hui lead = ₹2-10k ka customer gaya. Humara widget+chatbot+callback ek extra customer/month me poora difference cover kar deta hai."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="predis">
+  <div class="card">
+    <h2>Predis.ai — AI content tool (DIY)</h2>
+    <div class="kv"><span class="pill">Ahmednagar, 2020 · ~$3.6M ARR · 87 emp</span><span class="pill">4.7★ Capterra (184)</span><span class="pill">Jan 2026: AI video/image ads relaunch</span></div>
+    <p><b>Pricing:</b> Free (15 posts, watermark) · ~$32/mo Lite · ~$79/mo Premium · $249/mo Agency. Add-on credits recur extra.</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>AI video generation quality/quantity</li><li>True auto-publish</li><li>Brand recognition + free tier</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>DIY vs done-for-you — owner ko roz app chalana padta hai</li><li>Zero GBP/reviews/leads/voice — content-only</li><li>No Hinglish/festival depth</li><li>Review complaints: publish failures, token errors, slow support</li></ul></div>
+    </div>
+    <h3>Talk tracks</h3>
+    <p class="tt"><b>Early mention:</b> "Predis content banata hai — lekin Google ranking, review replies, lead capture, callback? Wo poora marketing department hum hain, aadhe daam pe."</p>
+    <h3>Landmines</h3>
+    <p class="lm">"$79/mo video plan se pichhle mahine kitni LEADS aayi?"</p>
+    <p class="lm">"Festival pe Hinglish post automatic schedule hota hai, ya aapko app kholna padta hai?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Predis famous hai"</b><p>"Tool famous hai, par tool chalana aapka kaam ban jata hai. Hum outcome dete hain — content + ranking + leads, bina aapke app khole."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="adbanao">
+  <div class="card">
+    <h2>AdBanao — poster app (status quo competitor)</h2>
+    <div class="kv"><span class="pill">Upscale Media, 2020 · 4.5M users · ₹2.5Cr rev FY25</span><span class="pill">10 regional langs, 50L+ templates</span><span class="pill">~₹100-200/mo eff.</span></div>
+    <p>Asli "competitor" nahi — prospect ka <b>status quo</b>. Pure DIY creative: zero automation, GBP, reviews, leads, analytics. Har dukaan ka same template.</p>
+    <h3>Talk tracks</h3>
+    <p class="tt">"AdBanao rakho — poster ke liye theek hai. Hum poster nahi, CUSTOMER laate hain. Poster = kharcha; ranking + reviews + callback = dhanda."</p>
+    <h3>Landmines</h3>
+    <p class="lm">"AdBanao se last month kitni enquiry aayi? Track hota hai kya?"</p>
+    <p class="lm">"Aapke area ki 50 dukaanon ka same template — customer ko alag kaise dikhoge?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"₹1,000/saal me sab milta hai"</b><p>"Templates milte hain, growth nahi. Dono rakho — par jo cheez paisa laati hai (Google ranking, reviews, lead capture) wo humara plan karega."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="practina">
+  <div class="card">
+    <h2>Practina — US tool, India launch prep me ⚠️</h2>
+    <div class="kv"><span class="pill">Irvine CA, 2017 · ~$2.4M rev · 22 emp</span><span class="pill">$99/mo single plan</span><span class="pill">⚠️ "Preparing to launch in India" (2025)</span></div>
+    <p><b>Unka edge:</b> Meta/Google paid-ads campaign management (hum sirf ad-copy), true auto-publish, Gallery AI, dashboard revamp.</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Paid-ads automation</li><li>Mature single-dashboard UX</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>₹8,300/mo vs ₹1,199 — 7x farak</li><li>India-native sab kuch: Hinglish, festivals, WhatsApp, GBP-India, INR/UPI</li><li>No voice, no widget/chatbot/mini-site</li><li>India support/billing abhi nahi</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"$99/mo + ads budget alag — break-even kab?"</p>
+    <p class="lm">"Diwali/Gudi Padwa Hinglish caption US ka tool karega?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Practina ads bhi chalata hai"</b><p>"Ads chahiye to hamare ad-copy packs + koi bhi freelancer. Par pehle FREE channels (ranking, reviews, content) se ROI nikalo — ₹8,300/mo software pe mat jalao."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="ghl">
+  <div class="card">
+    <h2>GoHighLevel — agency platform (India-misfit)</h2>
+    <div class="kv"><span class="pill">Dallas, 2018 · agencies ke liye</span><span class="pill">$97/$297/$497 + usage (real ₹12-25k/mo)</span><span class="pill">Feb 2026: AI Employee $97 unlimited</span></div>
+    <p><b>Critical fact:</b> Voice/SMS Twilio-based — foreign trunks India-domestic calling ke liye TRAI ke under allowed NAHI, DLT handling nahi. Unki Voice AI India me compliantly chal hi nahi sakti. (Yeh publicly bolne me careful — landmine question se nikalwao.)</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Feature depth: funnels, email/SMS automation, CRM</li><li>White-label agency model</li><li>Shipping velocity</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>Shop owner GHL khud nahi chala sakta — setup hi ₹20-50k</li><li>India-legal voice (140/DLT path) + ban-safe WhatsApp</li><li>Hinglish/festival/GBP-India native</li><li>Done-for-you vs build-it-yourself</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"GHL ki Voice AI Indian numbers pe TRAI-legal kaise chalegi? DLT kaun karega?"</p>
+    <p class="lm">"Setup kaun karega aur kitne ka? Monthly usage (SMS/AI) jod ke actual bill kya banta hai?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Meri agency GHL white-label deti hai"</b><p>"US ka generic platform Indian business pe fit kiya hai — DLT, Hinglish, festivals kuch native nahi. Wahi outcome hum direct dete hain ₹2,999 me, bina software seekhe."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="squadstack">
+  <div class="card">
+    <h2>SquadStack — closest voice model rival (enterprise)</h2>
+    <div class="kv"><span class="pill">Noida · $24.9M raised, Series B Aug 2025</span><span class="pill">Tata, IndiaMART, JustDial clients</span><span class="pill">Entry ~₹22,425 Plug-N-Play</span></div>
+    <p><b>Model:</b> AI + gig human callers hybrid, per-lead-PROCESSED billing (3 attempts ya connection = charge — qualified nahi!). Aug 2025: "Humanoid AI Agent Stack" launch. 8+ Indian langs, TRAI/DPDP compliant.</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Scale: hazaaron leads/mo</li><li>Human-caller fallback network (hamara gap)</li><li>Enterprise logos + 600M min training data</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>₹4,999/mo flat vs ₹22k+ entry — micro-SMB unka market hi nahi</li><li>Flat ₹4,999/mo — UNLIMITED calls, koi per-lead charge nahi (wo har processed lead pe paisa lete)</li><li>39 niche scripts ready, self-serve onboarding</li><li>Marketing product synergy (inbound inquiries feed)</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"Unka charge har 'processed' lead pe (3 attempts = paisa). Hum flat ₹4,999/mo — UNLIMITED calls, koi per-lead charge hi nahi. Farak samjha?"</p>
+    <p class="lm">"Minimum ticket ₹22k+ aur enterprise volumes — aapke paas mahine ke kitne leads hain?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"SquadStack ke paas Tata/JustDial hain"</b><p>"Bilkul — enterprise ke liye wo best hain. Aap 10-60 lead/mo wale business ho; unka model wahan economical nahi. Hum exactly is size ke liye bane hain."</p></div>
+    <p class="warn" style="margin-top:12px">⚠️ Watch: Plug-N-Play se downmarket aa rahe hain. Pricing pressure aaye to flat-unlimited vs per-processed-lead distinction pe double down karo.</p>
+  </div>
+</div>
+
+<div class="pane" id="vodex">
+  <div class="card">
+    <h2>Vodex.ai — US debt-collection pe pivot</h2>
+    <div class="kv"><span class="pill">Bengaluru→US (Dover DE) · $2.32M raised</span><span class="pill">Homepage ab: "Voice AI for Debt Collection"</span><span class="pill">$100/mo = 200 min · overage $0.13/min</span></div>
+    <p>Compliance badges FDCPA/TCPA/HIPAA — sab US. <b>TRAI/DLT/DND ka zikr site pe kahin nahi</b> (verified June 2026). India ab secondary market.</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Transparent self-serve + free tier (10 min)</li><li>US compliance certs, multi-agent workflows</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>Per-minute billing — failed call ka bhi paisa</li><li>₹8,500/mo floor + ₹11/min overage</li><li>India compliance story absent</li><li>Integrations alag se charged (Premium+)</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"Unka focus US debt collection hai — aapke India promo calls ka DLT scrub kaun karega?"</p>
+    <p class="lm">"Minute billing me short/failed calls ka paisa jata hai — qualified lead ki guarantee?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Vodex 96 bhashayein bolta hai"</b><p>"Bolne se zyada important samajhna hai — hamara stack Indian SMB ke Hinglish customer pe tuned hai, aur aap minute nahi, qualified lead ke liye pay karte ho."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="exotel">
+  <div class="card">
+    <h2>Exotel — vendor BHI, competitor BHI (careful)</h2>
+    <div class="kv"><span class="pill">Bengaluru, 2011 · ₹490Cr rev FY25, profitable</span><span class="pill">Aug 2025: AgentStream · Nov 2025: Harmony CX OS</span><span class="pill">Voicebot pricing: enterprise quote only</span></div>
+    <p>India ki best telephony infra — hum khud uspe chalte hain. Unka voicebot enterprise contact-centers (50k+ calls/mo) ke liye hai; SMB self-serve nahi. <b>Public me kabhi negative mat bolo — "hum unki infra pe application layer hain" framing use karo.</b></p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Infra: latency, scale, reliability</li><li>Enterprises jo khud ka bot banana chahte hain</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>No SMB price/self-serve — enterprise sales cycle</li><li>Bot configure karna aapka kaam (flows, applets, KYC, DLT)</li><li>No qualification layer, no niche scripts, minutes billing</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"Quote me voicebot + telephony + setup alag-alag — total monthly figure nikalwaya?"</p>
+    <p class="lm">"Deploy unki paid PS team karegi ya aapki engineering team?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Exotel bada brand hai"</b><p>"Infra to mil jaata hai — asli farak: hum ready-made Hinglish qualification agent + flat unlimited pricing (₹4,999/mo) dete hain; wahan yeh sab khud banwana padega."</p></div>
+    <p class="warn" style="margin-top:12px">⚠️ Strategic: Exotel SMB voicebot productize kar sakta hai. Vobiz/alternate-trunk option warm rakho (CLAUDE.md cost ladder).</p>
+  </div>
+</div>
+
+<div class="pane" id="knowlarity">
+  <div class="card">
+    <h2>Knowlarity (Gupshup) — legacy IVR brand</h2>
+    <div class="kv"><span class="pill">Gurugram 2009 · Gupshup ne 2022 me kharida</span><span class="pill">Brand limbo me — AI Gupshup ke through</span><span class="pill">Quote-based; base telephony ~₹19k/yr listings</span></div>
+    <p>Core ab bhi IVR/virtual numbers. Voice AI = Gupshup enterprise sales se. Reviews: poor onboarding, call-quality drops at peak.</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>Sasta plain IVR/virtual number</li><li>Gupshup ka WhatsApp/RCS muscle</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>IVR ≠ AI telecaller — "press 1" vs conversation</li><li>No outcome pricing, no qualification product</li><li>Post-acquisition support complaints</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"Aapko IVR chahiye ya AI jo customer se baat karke lead qualify kare?"</p>
+    <p class="lm">"Post-Gupshup onboarding/support ka experience poochha kisi se?"</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Knowlarity saalon se hai, sasta hai"</b><p>"Sasta unka IVR hai — 'press 1 dabayein' wala. Hamara agent Hinglish me baat karke 'interested' lead nikal ke deta hai. IVR missed call leta hai; hum business dete hain."</p></div>
+  </div>
+</div>
+
+<div class="pane" id="callhippo">
+  <div class="card">
+    <h2>CallHippo AI — global VoIP, India-misfit</h2>
+    <div class="kv"><span class="pill">Ahmedabad 2016 · US-market heavy</span><span class="pill">AI Pro $199/mo (2,500 min) · overage $0.16/min</span><span class="pill">Free tier: 100 min</span></div>
+    <p>English-first (reviews: non-English voices robotic/slow). International VoIP rails — India-domestic promo calling ke liye TRAI framework nahi. Real entry ~₹17k/mo.</p>
+    <div class="grid2">
+      <div><h3>Wo jeet te hain</h3><ul><li>International calling (US/global customers)</li><li>Instant self-serve + CRM catalog (Max+)</li></ul></div>
+      <div><h3>Hum jeet te hain</h3><ul><li>Hinglish quality + TRAI/DLT native</li><li>₹4,999/mo flat vs ₹17k entry, flat-unlimited vs minute-billing</li><li>India PSTN legal route (Vobiz)</li></ul></div>
+    </div>
+    <h3>Landmines</h3>
+    <p class="lm">"Unke VoIP trunks se India-domestic promo calls TRAI ke hisaab se theek hain? DLT kaun karega? Penalty ₹10L aap pe aati hai."</p>
+    <p class="lm">"Hindi me 2 demo calls karke suno — fir hamara web-call demo suno."</p>
+    <h3>Objections</h3>
+    <div class="ob"><b>"Free plan hai, try kar lete hain"</b><p>"Zaroor karo — Hindi me call karke suno. Aur India promo ke liye DLT-route chahiye jo unke paas hai hi nahi."</p></div>
+  </div>
+</div>
+
+<footer style="color:var(--t3);font-size:.8rem;margin-top:20px">Refresh monthly ya bade deal se pehle — Cowork me "competitive intel refresh" bolo. Win/loss data add karne ke liye CRM me competitor field track karo.</footer>
+</div>
+<script>
+document.getElementById('tabs').addEventListener('click',function(e){
+  var b=e.target.closest('button.tab');if(!b)return;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.remove('on')});
+  b.classList.add('on');
+  var p=document.getElementById(b.dataset.p);if(p)p.classList.add('on');
+});
+</script>
+</body>
+</html>

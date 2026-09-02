@@ -1,0 +1,136 @@
+# =============================================================================
+# uptime.yml — EXTERNAL off-VPS uptime watchdog (dead-man's switch).
+#
+# KYUN (genuine gap, dedup-verified): saara monitoring — Gatus, Uptime-Kuma,
+# Prometheus, Alertmanager, ntfy — VPS ke ANDAR (72.61.245.204) chalta hai. Jab
+# VPS hi mar jaaye (3 prod-downs ka exact scenario) to ye sab bhi mar jaate aur
+# bahar se KOI alert nahi aata. Ye workflow GitHub ke infra pe chalta (VPS se
+# bilkul independent) → leadsgenai.in/health ko BAHAR se ping karta → fail pe
+# GitHub khud repo-owner ko email karta (off-VPS channel). Optional: public
+# ntfy.sh push (NOT self-hosted ntfy.leadsgenai.in — woh bhi VPS pe hai = useless
+# when down). Zero creds, zero VPS cost, push hote hi live.
+#
+# NOTE: GitHub scheduled crons ~5-15min jitter le sakte (best-effort), aur repo
+# 60-din inactive ho to auto-disable ho jaate — ye "VPS down" detection ke liye
+# theek hai (sub-minute SLA ke liye nahi). Flap-noise se bachne ke liye 5x retry
+# + backoff; sab fail hone par hi DOWN declare hota.
+#
+# ⚠️ RETRY BUDGET **MUST** STAY UNDER `timeout-minutes` (2026-08-14 bug): pehle
+# worst-case retry budget (~13 min) job timeout (5 min) se bada tha, isliye asli
+# outage pe job CANCEL hota tha — aur cancelled job me "Fail if DOWN" + ntfy step
+# CHALTE HI NAHI, na GitHub failure-email bhejta. Matlab dead-man's switch us hi
+# scenario me chup tha jiske liye bana tha (proof: run 31768071231, deploy window
+# me "exceeded the maximum execution time of 5m0s" → cancelled, zero alert).
+# Isliye `PROBE_DEADLINE_SECS` wall-clock guard hai: naya attempt sirf tab shuru
+# hota hai jab deadline bacha ho, taaki DOWN verdict hamesha REPORT ho paaye.
+# =============================================================================
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # har ~10 min (GitHub best-effort)
+  workflow_dispatch:          # manual run / test
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false   # overlapping runs ko serialize (ek baar me ek check)
+
+permissions:
+  contents: read
+
+env:
+  TARGET_URL: "https://leadsgenai.in/health"
+  EXPECT_SUBSTR: '"environment":"production"'  # app.api.health liveness contract (not /health/platform)
+  MAX_TRIES: "5"
+  RETRY_SLEEP: "20"            # docker recreate / Caddy blip (~1-2 min) absorb
+  CONNECT_TIMEOUT: "10"
+  MAX_TIME: "20"
+  # Wall-clock cap on the whole retry loop. MUST stay comfortably below the job's
+  # timeout-minutes so a DOWN verdict is always reported instead of cancelled.
+  # Worst case = PROBE_DEADLINE_SECS + one in-flight attempt (43s) = 253s < 360s.
+  PROBE_DEADLINE_SECS: "210"
+
+jobs:
+  probe:
+    name: External health probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Probe ${{ env.TARGET_URL }} (retry on transient failure)
+        id: probe
+        run: |
+          set +e
+          ok=0
+          last_code=""
+          last_body=""
+          started="$SECONDS"
+          tries_done=0
+          for i in $(seq 1 "$MAX_TRIES"); do
+            elapsed=$(( SECONDS - started ))
+            if [ "$elapsed" -ge "$PROBE_DEADLINE_SECS" ]; then
+              echo "probe deadline ${PROBE_DEADLINE_SECS}s reached after ${tries_done} attempt(s) — reporting verdict instead of risking job cancellation"
+              break
+            fi
+            tries_done="$i"
+            echo "::group::Attempt $i/$MAX_TRIES (elapsed ${elapsed}s)"
+            body="$(curl -fsS --connect-timeout "$CONNECT_TIMEOUT" --max-time "$MAX_TIME" \
+                    --retry 1 --retry-delay 3 --retry-all-errors \
+                    -A 'leadgen-uptime-watchdog/1.0 (GitHub Actions)' \
+                    -w '\n__HTTP_CODE__%{http_code}' "$TARGET_URL" 2>&1 | tail -c 8192)"
+            rc=$?
+            last_code="$(printf '%s' "$body" | sed -n 's/.*__HTTP_CODE__//p' | tail -n1)"
+            clean="$(printf '%s' "$body" | sed 's/__HTTP_CODE__[0-9]*$//')"
+            last_body="$(printf '%s' "$clean" | head -c 400)"
+            echo "curl_rc=$rc http_code=$last_code"
+            echo "body(head): $last_body"
+            echo "::endgroup::"
+            if [ "$rc" -eq 0 ] && [ "$last_code" = "200" ] && printf '%s' "$clean" | grep -qF "$EXPECT_SUBSTR"; then
+              ok=1
+              break
+            fi
+            if [ "$i" -lt "$MAX_TRIES" ] \
+               && [ "$(( SECONDS - started + RETRY_SLEEP ))" -lt "$PROBE_DEADLINE_SECS" ]; then
+              sleep "$RETRY_SLEEP"
+            fi
+          done
+          {
+            echo "ok=$ok"
+            echo "http_code=$last_code"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$ok" -ne 1 ]; then
+            {
+              echo "### External probe failed"
+              echo ""
+              echo "- URL: $TARGET_URL"
+              echo "- Last HTTP: $last_code"
+              echo "- Expected substring: $EXPECT_SUBSTR"
+              echo "- Attempts: ${tries_done}/${MAX_TRIES} in $(( SECONDS - started ))s"
+              echo "- Body (head): \`${last_body}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "DOWN: $TARGET_URL did not return 200 with '$EXPECT_SUBSTR' after $tries_done tries (last code: $last_code)"
+          else
+            echo "UP: $TARGET_URL healthy (200, '$EXPECT_SUBSTR' present)"
+          fi
+
+      # Optional off-VPS push to a PUBLIC ntfy.sh topic. Set repo VARIABLE
+      # NTFY_TOPIC (Settings -> Secrets and variables -> Actions -> Variables) to
+      # e.g. "leadgen-uptime-xyz123". Unset = step skips (GitHub email-on-failure
+      # still works). Public ntfy.sh = off-VPS (self-hosted ntfy.leadsgenai.in
+      # would be DOWN with the VPS, so don't use that one here).
+      - name: Notify ntfy.sh on DOWN (optional)
+        if: ${{ steps.probe.outputs.ok != '1' && vars.NTFY_TOPIC != '' }}
+        run: |
+          curl -fsS \
+            -H "Title: 🔴 leadsgenai.in DOWN (external watchdog)" \
+            -H "Priority: urgent" \
+            -H "Tags: rotating_light" \
+            -d "External probe failed: $TARGET_URL (HTTP ${{ steps.probe.outputs.http_code }}). VPS/app may be down. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "https://ntfy.sh/${{ vars.NTFY_TOPIC }}" || true
+
+      # Fail the job so GitHub emails the repo owner (off-VPS alert channel that
+      # works even when the whole VPS is down). This is the always-on baseline.
+      - name: Fail if DOWN
+        if: ${{ steps.probe.outputs.ok != '1' }}
+        run: |
+          echo "::error title=Site DOWN::leadsgenai.in failed external health probe (HTTP ${{ steps.probe.outputs.http_code }})"
+          exit 1

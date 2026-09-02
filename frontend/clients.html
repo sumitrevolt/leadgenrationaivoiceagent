@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
+<title>LeadGen AI — Clients</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+
+  /* ---- Header ---- */
+  .topbar{
+    position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .chip b{color:var(--ink);font-size:13px}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  /* Token row */
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+
+  /* ---- Auto banner ---- */
+  .autoban{max-width:1180px;margin:14px auto 0;padding:0 16px}
+  .autoban .b{background:linear-gradient(135deg,#ede9fe,#f5f3ff);border:1px solid #ddd6fe;
+    border-radius:14px;padding:12px 14px;font-size:12.5px;color:#5b21b6;font-weight:600;
+    display:flex;gap:9px;align-items:flex-start}
+  .autoban .b .em{font-size:16px;flex:0 0 auto}
+  .autoban .b small{display:block;color:var(--muted);font-weight:500;margin-top:3px}
+
+  /* ---- Layout ---- */
+  .wrap{max-width:1180px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr}
+  @media(min-width:980px){.wrap{grid-template-columns:380px 1fr;align-items:start}}
+  .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;margin:0 0 10px 2px;display:flex;align-items:center;gap:7px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:16px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--muted);margin:-6px 0 12px}
+
+  /* ---- Form ---- */
+  .frm{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+  .fld{display:flex;flex-direction:column;gap:5px}
+  .fld.full{grid-column:1/-1}
+  .fld label{font-size:12px;font-weight:700;color:var(--muted)}
+  .fld input,.fld select{
+    border:1px solid var(--line);background:#fff;border-radius:10px;
+    padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);width:100%;
+  }
+  .fld select{appearance:none;cursor:pointer;font-weight:600;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+  .fld input:focus,.fld select:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .fld input[type="color"]{padding:4px 6px;height:42px;cursor:pointer}
+  .subhead{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.5px;grid-column:1/-1;margin:4px 0 -4px;border-top:1px dashed var(--line);padding-top:11px}
+
+  .btns{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+  .btn{border:none;border-radius:11px;font-weight:700;padding:11px 15px;cursor:pointer;
+    font-size:13px;display:flex;align-items:center;gap:7px;transition:filter .12s;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#4f46e5);flex:1;justify-content:center;min-width:140px}
+  .btn.sec{background:#fff;color:var(--brand);border:1.5px solid var(--brand-soft);flex:0 0 auto;min-width:0}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+  .btn.sec .spin,.spin.dark{border-color:rgba(109,40,217,.25);border-top-color:var(--brand)}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ---- Client list ---- */
+  .clist{display:flex;flex-direction:column;gap:10px}
+  .ccard{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    padding:13px;cursor:pointer;transition:border-color .12s,box-shadow .12s;position:relative}
+  .ccard:hover{border-color:#c4b5fd}
+  .ccard.sel{border-color:var(--brand);box-shadow:0 0 0 3px rgba(109,40,217,.12)}
+  .ccard .top{display:flex;align-items:flex-start;gap:9px}
+  .cavatar{width:40px;height:40px;border-radius:11px;flex:0 0 40px;font-weight:900;font-size:15px;color:#fff;
+    display:grid;place-items:center;background:linear-gradient(135deg,#a78bfa,#6366f1);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+  .cmid{flex:1;min-width:0}
+  .cmid .nm{font-weight:800;font-size:14px;word-break:break-word}
+  .cmeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+  .pill{font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--brand-soft);color:var(--brand);white-space:nowrap}
+  .pill.plan{background:#eef2ff;color:var(--brand-2);text-transform:capitalize}
+  .pill.city{background:var(--bg);color:var(--muted)}
+  .cst{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:800;white-space:nowrap;
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;background:#fff;cursor:pointer;flex:0 0 auto}
+  .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af}
+  .cst.active{color:var(--ok)} .cst.active .dot{background:var(--ok)}
+  .cst.paused{color:var(--muted)} .cst.paused .dot{background:#9ca3af}
+  .cfoot{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+  .cfoot .ph{font-weight:700;color:var(--ink)}
+  .cfoot .sitelink{font-weight:800;color:#0f766e;background:#ccfbf1;border-radius:999px;
+    padding:3px 9px;text-decoration:none;white-space:nowrap}
+  .cfoot .sitelink:hover{filter:brightness(.97)}
+  .cfoot .open{margin-left:auto;font-weight:800;color:var(--brand)}
+
+  /* ---- Content panel ---- */
+  .ph-empty{background:var(--card);border:1px dashed var(--line);border-radius:16px;padding:40px 20px;
+    text-align:center;color:var(--muted);font-size:13.5px}
+  .ph-empty .big{font-size:34px;margin-bottom:8px}
+  .panhead{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:4px}
+  .panhead .nm{font-weight:800;font-size:16px}
+  .filterbar{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}
+  .ftab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px;font-size:12px;
+    font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit}
+  .ftab.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  .citems{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:1300px){.citems{grid-template-columns:repeat(2,1fr)}}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    padding:13px;display:flex;flex-direction:column;gap:9px}
+  .item .ihead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tbadge{font-size:11px;font-weight:800;border-radius:999px;padding:3px 10px;display:inline-flex;gap:4px;align-items:center}
+  .tbadge.post{background:#eef2ff;color:var(--brand-2)}
+  .tbadge.poster{background:#fdf4ff;color:#a21caf}
+  .tbadge.reel{background:#fff1f2;color:#e11d48}
+  .tbadge.festival{background:#fffbeb;color:#b45309}
+  .item .idate{font-size:11px;color:var(--muted);font-weight:700}
+  .sbadge{margin-left:auto;font-size:10.5px;font-weight:800;border-radius:999px;padding:3px 10px;text-transform:capitalize}
+  .sbadge.draft{background:#f3f4f6;color:#6b7280}
+  .sbadge.approved{background:#ecfdf5;color:#15803d}
+  .sbadge.posted{background:var(--brand-soft);color:var(--brand)}
+  .sbadge.skipped{background:#fef2f2;color:var(--err)}
+  .item .ttl{font-weight:800;font-size:13.5px}
+  .cap{white-space:pre-wrap;font-size:13px;background:var(--bg);border:1px solid var(--line);
+    border-radius:10px;padding:11px;word-break:break-word}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:11px;font-weight:700;background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:3px 9px}
+  .psvg{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg);max-width:250px}
+  .psvg svg{display:block;width:100%;height:auto}
+  .iacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}
+  .mbtn{border:none;border-radius:9px;font-weight:700;padding:7px 12px;cursor:pointer;font-size:12px;
+    display:inline-flex;align-items:center;gap:5px;background:var(--brand-soft);color:var(--brand);transition:filter .12s}
+  .mbtn:hover{filter:brightness(.97)}
+  .mbtn.ok{background:#ecfdf5;color:#15803d}
+  .mbtn.go{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff}
+  .mbtn.done{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff}
+  .mbtn:disabled{opacity:.5;cursor:not-allowed}
+
+  .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .empty .spin{vertical-align:-2px;margin-right:7px}
+  .honest{font-size:11px;color:var(--muted);margin-top:12px;text-align:center}
+
+  /* ---- Toasts ---- */
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
+  .toast{background:#1e293b;color:#fff;border-radius:12px;padding:11px 14px;font-size:12.5px;
+    box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .25s ease}
+  .toast.err{background:#b91c1c}
+  .toast.ok{background:#15803d}
+  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">👥</span><span>Clients</span></div>
+  <div class="spacer"></div>
+  <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  <div class="chip">🟢 Active clients <b id="cActive">–</b></div>
+  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="autoban">
+  <div class="b">
+    <span class="em">🤖</span>
+    <span>Har subah 7 baje har active client ka content khud ban jaata hai — yahan approve/copy karke post karo.
+      <small>Auto-posting Insta/FB pe Meta approval ke baad aayega; abhi 1-click copy/download.</small>
+    </span>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- LEFT: add form + client list -->
+  <div>
+    <div class="card">
+      <h3>➕ Naya client</h3>
+      <div class="hint">Business add karo — brand colors ke saath roz auto content banega.</div>
+      <div class="frm">
+        <div class="fld full">
+          <label for="bizName">Business ka naam *</label>
+          <input id="bizName" type="text" placeholder="e.g. Sharma Solar Solutions" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="niche">Niche</label>
+          <select id="niche">
+            <option value="general">General</option>
+            <option value="ai_marketing">AI Marketing</option>
+            <option value="restaurant_cafe">Restaurant / Cafe</option>
+            <option value="real_estate">Real Estate</option>
+            <option value="solar_residential">Solar (Residential)</option>
+            <option value="salon_spa">Salon / Spa</option>
+            <option value="jewellery_store">Jewellery</option>
+            <option value="gym_fitness">Gym / Fitness</option>
+            <option value="dental_implants">Dental</option>
+            <option value="interior_designers">Interior Designers</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="plan">Plan</label>
+          <select id="plan">
+            <option value="starter">Starter</option>
+            <option value="growth">Growth</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="city">City</label>
+          <input id="city" type="text" placeholder="e.g. Pune" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="phone">Phone</label>
+          <input id="phone" type="tel" placeholder="98765 43210" maxlength="40" />
+        </div>
+
+        <div class="subhead">🎨 Brand</div>
+        <div class="fld full">
+          <label for="bTagline">Tagline</label>
+          <input id="bTagline" type="text" placeholder="e.g. Roshni bhi, bachat bhi" maxlength="160" />
+        </div>
+        <div class="fld">
+          <label for="bPrimary">Primary color</label>
+          <input id="bPrimary" type="color" value="#6d28d9" />
+        </div>
+        <div class="fld">
+          <label for="bAccent">Accent color</label>
+          <input id="bAccent" type="color" value="#f59e0b" />
+        </div>
+        <div class="fld full">
+          <label for="bLogo">Logo text (short)</label>
+          <input id="bLogo" type="text" placeholder="e.g. SSS" maxlength="40" />
+        </div>
+
+        <div class="subhead">🔗 Socials (optional)</div>
+        <div class="fld full">
+          <label for="sInsta">Instagram</label>
+          <input id="sInsta" type="text" placeholder="@handle ya link" maxlength="200" />
+        </div>
+        <div class="fld full">
+          <label for="sFb">Facebook</label>
+          <input id="sFb" type="text" placeholder="Page link" maxlength="200" />
+        </div>
+        <div class="fld full">
+          <label for="sGbp">Google Business (GBP)</label>
+          <input id="sGbp" type="text" placeholder="Profile link" maxlength="300" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnAdd">➕ Client add karo</button>
+      </div>
+    </div>
+
+    <h2 class="col-title" style="margin-top:18px">📂 Clients <span class="pill" id="cTotal" style="font-size:10px">–</span></h2>
+    <div class="clist" id="clientList">
+      <div class="empty"><span class="spin dark"></span> Loading clients…</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: content panel -->
+  <div>
+    <h2 class="col-title">🗂️ Content</h2>
+    <div id="contentPanel">
+      <div class="ph-empty">
+        <div class="big">👈</div>
+        Left se koi client choose karo — uska auto-content yahan dikhega.
+      </div>
+    </div>
+
+    <h2 class="col-title" style="margin-top:18px">🤖 Delivery Timeline</h2>
+    <div id="deliveryPanel">
+      <div class="ph-empty">
+        <div class="big">👈</div>
+        Client choose karo — uska delivery timeline yahan dikhega.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+    document.getElementById("tokToggle").classList.remove("on");
+    loadClients();
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+  }
+
+  // ---- Helpers -------------------------------------------------------------
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+  function setBusy(btn, busy, label){
+    if(!btn) return;
+    btn.disabled = busy;
+    btn.innerHTML = busy ? '<span class="spin"></span> ' + (btn.dataset.busy || "Ho raha hai…") : label;
+  }
+  function slug(s){
+    return (String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")) || "poster";
+  }
+  function triggerDl(href, name, revoke){
+    var a = document.createElement("a");
+    a.href = href; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    if(revoke) setTimeout(function(){ URL.revokeObjectURL(href); }, 4000);
+  }
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var data = null;
+    try{ data = await r.json(); }catch(_e){}
+    if(!r.ok){ throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status)); }
+    return data;
+  }
+  // GET endpoints may return {clients:[]}/{items:[]} OR a bare list — render defensively.
+  function asList(data, key){
+    if(Array.isArray(data)) return data;
+    if(data && Array.isArray(data[key])) return data[key];
+    return [];
+  }
+  function initials(name){
+    var p = String(name || "?").trim().split(/\s+/).filter(Boolean);
+    return ((p[0]||"?")[0] + (p[1]? p[1][0] : "")).toUpperCase();
+  }
+
+  // ---- ADR-104 Phase F (2026-07-15): in-page confirmation modal ------------
+  // Live discovery: this page's Approve/Posted/Skip buttons called
+  // markItem() -> POST /api/clients/{id}/content/{itemId}/status DIRECTLY on
+  // click with ZERO confirmation of any kind -- not even a native confirm(),
+  // which is worse than the two surfaces already fixed this session
+  // (frontend/automation.html, frontend/delivery_command_center.html; see
+  // their matching actionConfirmModal). Found while viewing Jiya Makeover
+  // Studio's real pending draft content. mark_item() only rewrites a local
+  // JSONL bookkeeping status (app/marketing/auto_content.py) -- it does NOT
+  // itself trigger a public post (own-brand/customer auto-posting is a
+  // separate, still-manual copy/download step per CLAUDE.md) -- so the label
+  // below says "record", never "publish", to stay factually accurate. Same
+  // modal contract as automation.html: resolves true ONLY from an explicit
+  // click on its own Confirm button; Escape/backdrop cancel; Enter never
+  // confirms; opening it makes no network request.
+  function actionConfirmModal(opts){
+    opts = opts || {};
+    var dangerous = !!opts.dangerous;
+    return new Promise(function(resolve){
+      var overlay = document.createElement('div');
+      overlay.setAttribute('data-testid','action-confirm-modal-overlay');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,25,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#fff;border-radius:14px;max-width:480px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#111';
+      box.innerHTML =
+        '<div style="font-weight:800;font-size:16px;margin-bottom:10px">' + (dangerous ? '⚠️ Force-deliver confirmation' : 'Confirm content status change') + '</div>' +
+        '<div style="font-size:13.5px;line-height:1.7">' +
+          '<div><b>Client:</b> ' + esc(opts.customer||'') + '</div>' +
+          (opts.contentTitle ? '<div><b>Content:</b> ' + esc(opts.contentTitle||'') + '</div>' : '') +
+          '<div><b>Action:</b> ' + esc(opts.action||'') + '</div>' +
+          '<div style="margin-top:8px;padding:8px;border-radius:8px;background:' + (dangerous ? '#fef2f2' : '#f0fdf4') + ';color:' + (dangerous ? '#991b1b' : '#166534') + '">' +
+            (dangerous
+              ? 'This bypasses normal delivery gating and WILL attempt to actually deliver/contact this real customer right now (force=True). It does not change any flag for other customers.'
+              : 'This only updates the internal status record. It does NOT post publicly and does not contact any external channel right now.') +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">' +
+          '<button data-testid="acm-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:700">Cancel</button>' +
+          '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:' + (dangerous ? '#dc2626' : '#4f46e5') + '">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function cleanup(result){
+        if(overlay.parentNode) document.body.removeChild(overlay);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      }
+      function onKey(e){
+        // Explicitly: Enter must NOT confirm. Only Escape (=cancel) is handled.
+        if(e.key === 'Escape') cleanup(false);
+      }
+      document.addEventListener('keydown', onKey);
+      overlay.addEventListener('click', function(e){ if(e.target === overlay) cleanup(false); });
+      box.querySelector('[data-testid="acm-cancel"]').onclick = function(){ cleanup(false); };
+      box.querySelector('[data-testid="acm-confirm"]').onclick = function(){ cleanup(true); };
+    });
+  }
+  var ACT_LABEL = {
+    approved: 'Approve content (internal record only)',
+    posted: 'Record as already posted (you must have manually shared it)',
+    skipped: 'Skip this content'
+  };
+
+  // ---- Copy (clipboard + execCommand fallback) -----------------------------
+  function doCopy(text, btn, restoreLabel){
+    function done(){
+      if(!btn) return;
+      btn.classList.add("done"); btn.innerHTML = "✓ Copied!";
+      setTimeout(function(){ btn.classList.remove("done"); btn.innerHTML = restoreLabel || "📋 Copy"; }, 1600);
+    }
+    function fb(){
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(_e){ toast("Copy nahi hua — manually select karo", "err"); }
+      ta.remove();
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(fb);
+    }else{ fb(); }
+  }
+
+  // ---- SVG → PNG 1080×1080 (marketing.html helper) -------------------------
+  function svgToPng(svg, name){
+    if(!svg){ toast("Poster nahi mila", "err"); return; }
+    if(!/xmlns=/.test(svg)) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+    var url = URL.createObjectURL(new Blob([svg], {type: "image/svg+xml;charset=utf-8"}));
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var c = document.createElement("canvas");
+        c.width = 1080; c.height = 1080;
+        var ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1080, 1080);
+        ctx.drawImage(img, 0, 0, 1080, 1080);
+        URL.revokeObjectURL(url);
+        if(c.toBlob){
+          c.toBlob(function(b){
+            if(!b){ toast("PNG nahi bana", "err"); return; }
+            triggerDl(URL.createObjectURL(b), name, true); toast("PNG download ✓", "ok");
+          }, "image/png");
+        }else{ triggerDl(c.toDataURL("image/png"), name, false); }
+      }catch(err){ URL.revokeObjectURL(url); toast("PNG export fail", "err"); }
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); toast("PNG nahi bana", "err"); };
+    img.src = url;
+  }
+
+  // ---- Niche dropdown: load research-finalized niches (web_call pattern) ----
+  var nicheSel = document.getElementById("niche");
+  (function loadNiches(){
+    fetch("/api/data/niches")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        var list = asList(data, "niches");
+        if(!list.length) return;
+        nicheSel.innerHTML = '<option value="general">General</option>';
+        var tiers = {"S":[],"A":[],"B":[],"C":[],"":[]};
+        list.forEach(function(n){ (tiers[n.tier]||tiers[""]).push(n); });
+        ["S","A","B","C",""].forEach(function(t){
+          tiers[t].forEach(function(n){
+            var opt = document.createElement("option");
+            opt.value = n.id;
+            var label = t === "C" ? " [custom]" : (t ? " ["+t+"]" : "");
+            opt.textContent = (n.name || n.id) + label;
+            nicheSel.appendChild(opt);
+          });
+        });
+      })
+      .catch(function(){ /* static fallback already in markup */ });
+  })();
+
+  // ============================================================================
+  // Add client
+  // ============================================================================
+  var btnAdd = document.getElementById("btnAdd");
+  btnAdd.dataset.busy = "Add ho raha hai…";
+  btnAdd.onclick = async function(){
+    var name = document.getElementById("bizName").value.trim();
+    if(!name){ toast("Business ka naam likho", "err"); document.getElementById("bizName").focus(); return; }
+    setBusy(btnAdd, true);
+    try{
+      var body = {
+        business_name: name,
+        niche: nicheSel.value || "general",
+        city: document.getElementById("city").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        plan: document.getElementById("plan").value,
+        brand: {
+          primary: document.getElementById("bPrimary").value,
+          accent: document.getElementById("bAccent").value,
+          tagline: document.getElementById("bTagline").value.trim(),
+          logo_text: document.getElementById("bLogo").value.trim(),
+        },
+        socials: {
+          instagram: document.getElementById("sInsta").value.trim(),
+          facebook: document.getElementById("sFb").value.trim(),
+          gbp: document.getElementById("sGbp").value.trim(),
+        },
+      };
+      var res = await callApi("/api/clients", {
+        method: "POST", headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify(body),
+      });
+      toast("Client add ho gaya ✓", "ok");
+      // reset name + tagline + logo (keep niche/plan/city for batch-adds)
+      document.getElementById("bizName").value = "";
+      document.getElementById("bTagline").value = "";
+      document.getElementById("bLogo").value = "";
+      document.getElementById("phone").value = "";
+      document.getElementById("sInsta").value = "";
+      document.getElementById("sFb").value = "";
+      document.getElementById("sGbp").value = "";
+      await loadClients();
+      var c = res && res.client;
+      if(c && c.id) selectClient(c.id);
+    }catch(e){
+      if(e.message !== "auth") toast("Add nahi hua: " + e.message, "err");
+    }finally{
+      setBusy(btnAdd, false, "➕ Client add karo");
+    }
+  };
+
+  // ============================================================================
+  // Client list
+  // ============================================================================
+  var CLIENTS = [];
+  var selectedId = null;
+
+  async function loadClients(){
+    var list = document.getElementById("clientList");
+    try{
+      var data = await callApi("/api/clients", {headers: hdrs()});
+      CLIENTS = asList(data, "clients");
+      renderClients();
+    }catch(e){
+      if(e.message === "auth"){
+        list.innerHTML = '<div class="empty">🔒 Admin token chahiye — upar 🔑 se add karo.</div>';
+        document.getElementById("cActive").textContent = "–";
+        document.getElementById("cTotal").textContent = "–";
+      }else{
+        list.innerHTML = '<div class="empty">Clients load nahi hue: ' + esc(e.message) + '</div>';
+      }
+    }
+  }
+
+  function renderClients(){
+    var list = document.getElementById("clientList");
+    var active = CLIENTS.filter(function(c){ return String(c.status||"").toLowerCase() === "active"; }).length;
+    document.getElementById("cActive").textContent = active;
+    document.getElementById("cTotal").textContent = CLIENTS.length;
+
+    if(!CLIENTS.length){
+      list.innerHTML = '<div class="empty">Abhi koi client nahi — upar form se pehla client add karo.</div>';
+      return;
+    }
+    list.innerHTML = CLIENTS.map(function(c){
+      var st = String(c.status||"active").toLowerCase();
+      var stc = st === "active" ? "active" : "paused";
+      var stLabel = st === "active" ? "Active" : (st.charAt(0).toUpperCase()+st.slice(1));
+      var brand = c.brand || {};
+      var color = /^#([0-9a-f]{3}){1,2}$/i.test(brand.primary||"") ? brand.primary : "";
+      var avatarStyle = color ? ' style="background:'+esc(color)+'"' : "";
+      return '<div class="ccard' + (c.id === selectedId ? " sel" : "") + '" data-cid="' + esc(c.id) + '">' +
+        '<div class="top">' +
+          '<div class="cavatar"' + avatarStyle + '>' + esc(initials(c.business_name)) + '</div>' +
+          '<div class="cmid">' +
+            '<div class="nm">' + esc(c.business_name || "(no name)") + '</div>' +
+            '<div class="cmeta">' +
+              '<span class="pill">' + esc(c.niche || "general") + '</span>' +
+              '<span class="pill plan">' + esc(c.plan || "starter") + '</span>' +
+              (c.city ? '<span class="pill city">📍 ' + esc(c.city) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<button class="cst ' + stc + '" data-toggle="' + esc(c.id) + '" title="Status toggle"><span class="dot"></span>' + esc(stLabel) + '</button>' +
+        '</div>' +
+        '<div class="cfoot">' +
+          (c.phone ? '<span class="ph">📞 ' + esc(c.phone) + '</span>' : '<span>📞 —</span>') +
+          (c.slug ? '<a class="sitelink" href="/b/' + esc(c.slug) + '" target="_blank" rel="noopener" data-nosel="1" title="Client ka mini-website">🌐 Site dekho</a>' : '') +
+          '<span class="open">Content →</span>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+
+    // wire card click (open content) — but not when status toggle clicked
+    list.querySelectorAll(".ccard").forEach(function(card){
+      card.onclick = function(ev){
+        if(ev.target.closest("[data-toggle]")) return;
+        if(ev.target.closest("[data-nosel]")) return;  // site link → naya tab, card select nahi
+        selectClient(card.getAttribute("data-cid"));
+      };
+    });
+    list.querySelectorAll("[data-toggle]").forEach(function(btn){
+      btn.onclick = function(ev){ ev.stopPropagation(); toggleStatus(btn.getAttribute("data-toggle")); };
+    });
+  }
+
+  async function toggleStatus(cid){
+    var c = CLIENTS.filter(function(x){ return x.id === cid; })[0];
+    if(!c) return;
+    var next = String(c.status||"active").toLowerCase() === "active" ? "paused" : "active";
+    try{
+      await callApi("/api/clients/" + encodeURIComponent(cid) + "/status", {
+        method: "PATCH", headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({status: next}),
+      });
+      c.status = next;
+      renderClients();
+      toast("Status: " + next, "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Status update fail: " + e.message, "err");
+    }
+  }
+
+  // ============================================================================
+  // Content panel
+  // ============================================================================
+  var contentFilter = "";   // "" = all
+  var ITEMS = [];
+
+  function selectClient(cid){
+    selectedId = cid;
+    contentFilter = "";
+    renderClients();
+    loadContent();
+    loadDeliveryPanel();
+  }
+
+  function selectedClient(){
+    return CLIENTS.filter(function(c){ return c.id === selectedId; })[0] || null;
+  }
+
+  async function loadContent(){
+    var c = selectedClient();
+    if(!c){ return; }
+    var panel = document.getElementById("contentPanel");
+    panel.innerHTML = panelShell(c, '<div class="empty"><span class="spin dark"></span> Content load ho raha hai…</div>');
+    wirePanel(c);
+    try{
+      var q = contentFilter ? ("?status=" + encodeURIComponent(contentFilter)) : "";
+      var data = await callApi("/api/clients/" + encodeURIComponent(c.id) + "/content" + q, {headers: hdrs()});
+      ITEMS = asList(data, "items");
+      renderItems(c);
+    }catch(e){
+      if(e.message === "auth"){
+        document.getElementById("citems").innerHTML = '<div class="empty">🔒 Admin token chahiye.</div>';
+      }else{
+        document.getElementById("citems").innerHTML = '<div class="empty">Content load nahi hua: ' + esc(e.message) + '</div>';
+      }
+    }
+  }
+
+  function panelShell(c, inner){
+    var filters = [["","Sab"],["draft","Draft"],["approved","Approved"],["posted","Posted"],["skipped","Skipped"]];
+    return '<div class="card">' +
+      '<div class="panhead">' +
+        '<span class="nm">🗂️ ' + esc(c.business_name) + '</span>' +
+        '<span class="pill">' + esc(c.niche || "general") + '</span>' +
+        '<span class="pill plan">' + esc(c.plan || "starter") + '</span>' +
+        '<span style="flex:1"></span>' +
+      '</div>' +
+      '<div class="hint" style="margin:8px 0 0">Roz subah 7 baje auto banta hai — ya abhi banao.</div>' +
+      '<div class="btns" style="margin-top:10px">' +
+        '<button class="btn" id="btnRun" data-busy="Ban raha hai…">▶ Aaj ka content banao</button>' +
+      '</div>' +
+      '<div class="filterbar">' +
+        filters.map(function(f){
+          return '<button class="ftab' + (contentFilter === f[0] ? " on" : "") + '" data-filter="' + f[0] + '">' + f[1] + '</button>';
+        }).join("") +
+      '</div>' +
+      '<div class="citems" id="citems">' + inner + '</div>' +
+      '<div class="honest">Auto-posting Insta/FB pe Meta approval ke baad; abhi 1-click copy/download.</div>' +
+    '</div>';
+  }
+
+  function wirePanel(c){
+    var run = document.getElementById("btnRun");
+    if(run) run.onclick = function(){ runContent(c); };
+    document.querySelectorAll("[data-filter]").forEach(function(b){
+      b.onclick = function(){ contentFilter = b.getAttribute("data-filter"); loadContent(); };
+    });
+  }
+
+  async function runContent(c){
+    var btn = document.getElementById("btnRun");
+    setBusy(btn, true);
+    try{
+      var res = await callApi("/api/clients/" + encodeURIComponent(c.id) + "/content/run", {
+        method: "POST", headers: hdrs(),
+      });
+      var n = (res && (res.added != null ? res.added : (res.items ? res.items.length : 0))) || 0;
+      toast("✓ " + n + " naye content items bane", "ok");
+      contentFilter = "";
+      await loadContent();
+    }catch(e){
+      if(e.message !== "auth") toast("Content nahi bana: " + e.message, "err");
+      setBusy(btn, false, "▶ Aaj ka content banao");
+    }
+  }
+
+  // ---- Delivery timeline + manual "Deliver Now" (Customer 360-lite) --------
+  function kindIcon(kind){
+    var m = {lead:"📥", audit:"🛠️", delivery:"🤖"};
+    return m[kind] || "•";
+  }
+  async function loadDeliveryPanel(){
+    var c = selectedClient();
+    var panel = document.getElementById("deliveryPanel");
+    if(!c){ return; }
+    panel.innerHTML = '<div class="card"><div class="empty"><span class="spin dark"></span> Timeline load ho raha hai…</div></div>';
+    try{
+      var data = await callApi("/api/admin/clients/" + encodeURIComponent(c.id) + "/timeline", {headers: hdrs()});
+      renderDeliveryPanel(c, data);
+    }catch(e){
+      if(e.message === "auth") return;
+      panel.innerHTML = '<div class="card"><div class="empty">Timeline load nahi hua: ' + esc(e.message) + '</div></div>';
+    }
+  }
+  function renderDeliveryPanel(c, data){
+    var panel = document.getElementById("deliveryPanel");
+    var events = (data && data.events) || [];
+    var body;
+    if(data && data.enabled === false){
+      body = '<div class="hint">Client timeline abhi band hai — <code>CLIENT_TIMELINE=1</code> set karke on karo (.env).</div>';
+    }else if(!events.length){
+      body = '<div class="empty">Is client ke liye abhi koi activity record nahi hui.</div>';
+    }else{
+      body = '<div class="citems">' + events.slice(0, 30).map(function(ev){
+        return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>' + kindIcon(ev.kind) + ' ' + esc(ev.kind || "event") + '</b>' +
+          '<div class="hint" style="margin:2px 0 0">' + esc(ev.summary || "") + ' — ' + esc(String(ev.ts || "").slice(0, 19)) + '</div></div>';
+      }).join("") + '</div>';
+    }
+    panel.innerHTML = '<div class="card">' +
+      '<div class="panhead">' +
+        '<span class="nm">🤖 ' + esc(c.business_name) + '</span>' +
+        '<span class="pill">' + esc(c.plan || "starter") + '</span>' +
+        '<span style="flex:1"></span>' +
+      '</div>' +
+      '<div class="hint" style="margin:8px 0 0">Human-clicked unstick — flags nahi badalta, force-send sirf is client ke liye.</div>' +
+      '<div class="btns" style="margin-top:10px">' +
+        '<button class="btn" id="btnDeliverNow" data-busy="Deliver ho raha hai…">🚀 Deliver Now</button>' +
+      '</div>' +
+      body +
+    '</div>';
+    var btn = document.getElementById("btnDeliverNow");
+    if(btn) btn.onclick = function(){ deliverNow(c); };
+  }
+  async function deliverNow(c){
+    // ADR-104 Phase F (2026-07-15): this is the highest-severity unconfirmed
+    // action found this session -- it calls POST /api/admin/clients/{id}/
+    // deliver-now -> customer_delivery.deliver_client_value(force=True),
+    // a REAL forced delivery to a real paid customer, bypassing normal
+    // gating, with zero confirmation of any kind before this fix. Discovered
+    // live while viewing Jiya Makeover Studio's Delivery Timeline panel --
+    // never clicked on Jiya's real button; gated + verified using Cancel and
+    // a synthetic test client only.
+    var ok = await actionConfirmModal({
+      customer: c.business_name || c.id,
+      action: 'Force-deliver now (bypasses normal delivery gating)',
+      confirmLabel: 'Deliver now',
+      dangerous: true
+    });
+    if(!ok) return;
+    var btn = document.getElementById("btnDeliverNow");
+    setBusy(btn, true);
+    try{
+      var res = await callApi("/api/admin/clients/" + encodeURIComponent(c.id) + "/deliver-now", {
+        method: "POST", headers: hdrs(),
+      });
+      if(res && res.delivered){
+        toast("✓ Delivered to " + c.business_name, "ok");
+      }else{
+        toast("Deliver nahi hua: " + ((res && res.reason) || "unknown reason"), "err");
+      }
+      await loadDeliveryPanel();
+    }catch(e){
+      if(e.message !== "auth") toast("Deliver-now fail: " + e.message, "err");
+      setBusy(btn, false, "🚀 Deliver Now");
+    }
+  }
+
+  var TYPE_BADGE = {
+    post:     {emoji:"📝", label:"Post"},
+    poster:   {emoji:"🖼️", label:"Poster"},
+    reel:     {emoji:"🎬", label:"Reel"},
+    festival: {emoji:"🎉", label:"Festival"},
+  };
+
+  // item-level state store (svg/copy text indexed; avoids attr-escaping issues)
+  var itemStore = [];
+
+  function renderItems(c){
+    var box = document.getElementById("citems");
+    if(!box) return;
+    itemStore = [];
+    // newest-first defensive sort (server already newest-first; keep stable)
+    var items = ITEMS.slice();
+    if(!items.length){
+      box.innerHTML = '<div class="empty">Abhi content nahi — upar ▶ se aaj ka content banao.</div>';
+      return;
+    }
+    box.innerHTML = items.map(function(it){
+      var type = TYPE_BADGE[it.type] ? it.type : "post";
+      var tb = TYPE_BADGE[type];
+      var st = String(it.status||"draft").toLowerCase();
+      var copyText = (it.caption || "") + ((it.hashtags && it.hashtags.length) ? "\n\n" + it.hashtags.join(" ") : "");
+      var ci = itemStore.push({id: it.id, svg: it.svg || "", copy: copyText, type: type, title: it.title || ""}) - 1;
+
+      var capHtml = it.caption ? '<div class="cap">' + esc(it.caption) + '</div>' : "";
+      var tagHtml = (it.hashtags && it.hashtags.length)
+        ? '<div class="tags">' + it.hashtags.map(function(h){ return '<span class="tag">' + esc(h) + '</span>'; }).join("") + '</div>'
+        : "";
+      var svgHtml = it.svg ? '<div class="psvg">' + it.svg + '</div>' : "";
+
+      var acts = '<div class="iacts">';
+      if(st !== "approved" && st !== "posted")
+        acts += '<button class="mbtn ok" data-act="approved" data-i="'+ci+'">✅ Approve</button>';
+      if(st !== "posted")
+        acts += '<button class="mbtn go" data-act="posted" data-i="'+ci+'">📤 Posted</button>';
+      if(copyText.trim())
+        acts += '<button class="mbtn" data-copy="'+ci+'">📋 Copy</button>';
+      if(it.svg)
+        acts += '<button class="mbtn" data-png="'+ci+'">⬇ PNG</button>';
+      if(st !== "skipped" && st !== "posted")
+        acts += '<button class="mbtn" data-act="skipped" data-i="'+ci+'">⏭ Skip</button>';
+      acts += '</div>';
+
+      return '<div class="item">' +
+        '<div class="ihead">' +
+          '<span class="tbadge ' + type + '">' + tb.emoji + ' ' + tb.label + '</span>' +
+          (it.date ? '<span class="idate">' + esc(it.date) + '</span>' : '') +
+          '<span class="sbadge ' + st + '">' + esc(st) + '</span>' +
+        '</div>' +
+        (it.title ? '<div class="ttl">' + esc(it.title) + '</div>' : '') +
+        capHtml + tagHtml + svgHtml + acts +
+      '</div>';
+    }).join("");
+
+    // wire actions
+    box.querySelectorAll("[data-act]").forEach(function(b){
+      b.onclick = async function(){
+        var rec = itemStore[parseInt(b.getAttribute("data-i"),10)];
+        var act = b.getAttribute("data-act");
+        var titleForModal = rec.title || (rec.type + ' content');
+        var ok = await actionConfirmModal({
+          customer: c.business_name || c.id,
+          contentTitle: titleForModal,
+          action: ACT_LABEL[act] || act,
+          confirmLabel: ACT_LABEL[act] || 'Confirm'
+        });
+        if(!ok) return;
+        markItem(c, rec.id, act, b);
+      };
+    });
+    box.querySelectorAll("[data-copy]").forEach(function(b){
+      b.onclick = function(){ doCopy(itemStore[parseInt(b.getAttribute("data-copy"),10)].copy, b); };
+    });
+    box.querySelectorAll("[data-png]").forEach(function(b){
+      b.onclick = function(){
+        var rec = itemStore[parseInt(b.getAttribute("data-png"),10)];
+        svgToPng(rec.svg, slug(c.business_name) + "_" + rec.type + ".png");
+      };
+    });
+  }
+
+  async function markItem(c, itemId, status, btn){
+    if(btn){ btn.disabled = true; }
+    try{
+      await callApi("/api/clients/" + encodeURIComponent(c.id) + "/content/" + encodeURIComponent(itemId) + "/status", {
+        method: "POST", headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({status: status}),
+      });
+      // update local + re-render (respects current filter)
+      for(var i=0;i<ITEMS.length;i++){ if(ITEMS[i].id === itemId){ ITEMS[i].status = status; break; } }
+      toast("✓ " + status, "ok");
+      if(contentFilter && contentFilter !== status){ loadContent(); }
+      else { renderItems(c); }
+    }catch(e){
+      if(btn) btn.disabled = false;
+      if(e.message !== "auth") toast("Update fail: " + e.message, "err");
+    }
+  }
+
+  // ---- Boot --------------------------------------------------------------------
+  loadClients();
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

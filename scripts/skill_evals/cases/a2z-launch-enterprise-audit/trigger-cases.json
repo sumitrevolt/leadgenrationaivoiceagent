@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "id": "full_launch_enterprise_certification",
+      "prompt": "leadgen master prompt for full launch and enterprise audit certification with three verdicts business launch ready production ready enterprise ready and a 120 score",
+      "should_trigger": true
+    },
+    {
+      "id": "go_live_gate_quarterly_review",
+      "prompt": "investor due diligence go live gate and quarterly deep review with browser proof and per product scoring for marketing and voice",
+      "should_trigger": true
+    },
+    {
+      "id": "unrelated_ops_fix",
+      "prompt": "docker compose up fails with a port conflict on the vps",
+      "should_trigger": false,
+      "lexical": false
+    }
+  ]
+}

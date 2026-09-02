@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — WhatsApp Campaigns</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--pri:#16a34a;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--bad:#b91c1c;--amber:#b45309;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:#0b1020;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:18px;margin:0;}
+  header .sp{flex:1;}
+  header input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:13px;width:230px;}
+  header button{padding:8px 12px;border:0;border-radius:8px;background:var(--pri);color:#fff;font-weight:600;cursor:pointer;}
+  .wrap{max-width:1080px;margin:18px auto;padding:0 16px;}
+  .banner{border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;font-weight:600;}
+  .banner.safe{background:#fef3c7;color:var(--amber);border:1px solid #fde68a;}
+  .banner.live{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:820px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:16px;}
+  .card h3{margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:8px;}
+  label{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px;}
+  input[type=text],input[type=date],select,textarea{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;}
+  textarea{min-height:60px;resize:vertical;}
+  .btn{margin-top:10px;padding:9px 14px;border:0;border-radius:8px;background:var(--pri);color:#fff;font-weight:600;cursor:pointer;font-size:13px;}
+  .btn.ghost{background:#e2e8f0;color:var(--ink);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #eef2f7;}
+  th{color:var(--mut);font-weight:600;font-size:12px;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;}
+  .pill.approved{background:#dcfce7;color:#166534;}
+  .pill.pending{background:#fef3c7;color:var(--amber);}
+  .pill.rejected,.pill.disabled,.pill.paused{background:#fee2e2;color:var(--bad);}
+  .pill.draft{background:#e2e8f0;color:#475569;}
+  .err{color:var(--bad);font-size:13px;margin-bottom:8px;}
+  .ok{color:#166534;font-size:13px;margin-bottom:8px;}
+  .muted{color:var(--mut);font-size:12px;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;}
+  .row > div{flex:1;min-width:120px;}
+  pre{background:#0b1020;color:#e2e8f0;padding:10px;border-radius:8px;font-size:12px;overflow:auto;max-height:220px;}
+  code{background:#e2e8f0;padding:1px 5px;border-radius:5px;font-size:12px;}
+  .qrimg{max-width:240px;border:1px solid #cbd5e1;border-radius:8px;}
+  .sh-state{margin-top:8px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.55;}
+  .sh-state.ok-box{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}
+  .sh-state.bad-box{background:#fee2e2;color:var(--bad);border:1px solid #fecaca;}
+  .sh-state.scan-box{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;}
+  .sh-state.info-box{background:#e2e8f0;color:#334155;border:1px solid #cbd5e1;}
+</style>
+</head>
+<body>
+<header>
+  <h1>WhatsApp Campaigns</h1>
+  <div class="sp"></div>
+  <input id="tok" type="password" placeholder="Admin token (paste once)" />
+  <button id="reload">Reload</button>
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
+</header>
+<div class="wrap">
+  <div class="err" id="err"></div>
+  <div id="statusBanner"></div>
+
+  <div class="grid">
+    <div>
+      <!-- Add / register template -->
+      <div class="card">
+        <h3>➕ Register template</h3>
+        <p class="muted">Templates Meta WhatsApp Manager me approve hote hain. Yahan unka record + approval-status track karo. Sirf <b>approved</b> templates auto-send hote hain.</p>
+        <label>Template name (Meta-registered)</label>
+        <input type="text" id="tName" placeholder="e.g. festival_offer_v1" />
+        <div class="row">
+          <div>
+            <label>Language</label>
+            <input type="text" id="tLang" value="en" />
+          </div>
+          <div>
+            <label>Category</label>
+            <select id="tCat"><option>MARKETING</option><option>UTILITY</option><option>AUTHENTICATION</option></select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="tStatus"><option>pending</option><option>approved</option><option>rejected</option><option>paused</option><option>draft</option></select>
+          </div>
+        </div>
+        <label>Body (for reference)</label>
+        <textarea id="tBody" placeholder="Namaste {{1}}! ..."></textarea>
+        <button class="btn" id="tSave">Save template</button>
+      </div>
+
+      <!-- Schedule campaign -->
+      <div class="card">
+        <h3>🚀 Schedule campaign</h3>
+        <p class="muted">Drip / reactivation campaign queue karo. Due hone par scheduler (ya niche "Run now") approved template ko opted-in numbers pe bhejta hai — warna 1-click links deta hai.</p>
+        <div class="row">
+          <div>
+            <label>Kind</label>
+            <select id="cKind"><option>drip</option><option>reactivation</option><option>broadcast</option></select>
+          </div>
+          <div>
+            <label>Template name</label>
+            <input type="text" id="cTemplate" placeholder="festival_offer_v1" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Language</label>
+            <input type="text" id="cLang" value="en" />
+          </div>
+          <div>
+            <label>Send date</label>
+            <input type="date" id="cDate" />
+          </div>
+        </div>
+        <label>Client ID (optional — opted-in customers auto-resolve)</label>
+        <input type="text" id="cClient" placeholder="sharma-solar-7b6f" />
+        <label>Recipients (optional, one per line: phone,name)</label>
+        <textarea id="cRecips" placeholder="9876543210,Ramesh&#10;9123456780,Sita"></textarea>
+        <label>Fallback note (used in 1-click link text)</label>
+        <input type="text" id="cNote" placeholder="Diwali special 20% off" />
+        <button class="btn" id="cSave">Queue campaign</button>
+        <button class="btn ghost" id="cRun">Run due now</button>
+      </div>
+
+      <!-- Suppression -->
+      <div class="card">
+        <h3>🚫 Suppression (opt-out / blocked)</h3>
+        <div class="row">
+          <div><label>Phone</label><input type="text" id="sPhone" placeholder="9876543210" /></div>
+          <div><label>Reason</label><input type="text" id="sReason" value="opt_out" /></div>
+        </div>
+        <button class="btn" id="sAdd">Suppress</button>
+        <button class="btn ghost" id="sRemove">Un-suppress</button>
+      </div>
+
+      <!-- Self-hosted WhatsApp stack (WAHA) -->
+      <div class="card">
+        <h3>🔌 Apna stack (WAHA self-host)</h3>
+        <p class="muted">Meta verification ke <b>bina</b> apna number link karo. VPS pe WAHA container chalao (<code>deploy/compose/docker-compose.waha.yml</code>) + <code>WHATSAPP_PROVIDER=waha</code>, fir niche <b>Start session</b> → QR scan (phone → WhatsApp → Linked devices → Link a device). <b>⚠️ Inbound/warm replies ke liye — bulk cold mat bhejo (number ban).</b></p>
+        <div id="shStatus" class="muted">Status: —</div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn" id="shStart">Start session</button>
+          <button class="btn ghost" id="shQr">Show QR</button>
+          <button class="btn ghost" id="shRefresh">↻ Status</button>
+        </div>
+        <div id="shQrBox" style="margin-top:10px;text-align:center;"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3>📄 Templates <button class="btn ghost" id="tReload" style="margin:0 0 0 auto;padding:4px 10px;">↻</button></h3>
+        <table><thead><tr><th>Name</th><th>Lang</th><th>Cat</th><th>Status</th></tr></thead><tbody id="tBodyTable"></tbody></table>
+      </div>
+      <div class="card">
+        <h3>📋 Campaigns</h3>
+        <table><thead><tr><th>Kind</th><th>Template</th><th>Date</th><th>Status</th><th>Result</th></tr></thead><tbody id="cBodyTable"></tbody></table>
+      </div>
+      <div class="card">
+        <h3>🚫 Suppressed numbers</h3>
+        <table><thead><tr><th>Phone</th><th>Reason</th><th>At</th></tr></thead><tbody id="sBodyTable"></tbody></table>
+      </div>
+      <div class="card">
+        <h3>🧾 Last run output</h3>
+        <pre id="runOut">—</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tokEl=document.getElementById("tok"), err=document.getElementById("err");
+  tokEl.value = localStorage.getItem("accessToken") || "";
+  function hdr(){ var t=(tokEl.value||"").trim(); if(t) localStorage.setItem("accessToken",t);
+    var h={"Content-Type":"application/json"}; if(t) h["Authorization"]="Bearer "+t; return h; }
+  function setErr(m){ err.textContent=m||""; err.className = m? "err":"ok"; }
+  async function getJSON(url){ try{ var r=await fetch(url,{headers:hdr()}); if(!r.ok){ setErr("API "+r.status+" — admin token sahi hai?"); return null; } return await r.json(); }catch(e){ setErr("Network error"); return null; } }
+  async function postJSON(url,body){ try{ var r=await fetch(url,{method:"POST",headers:hdr(),body:JSON.stringify(body||{})}); var j=await r.json().catch(function(){return null;}); if(!r.ok){ setErr("API "+r.status+(j&&j.detail?(": "+j.detail):"")); return null; } setErr(""); return j; }catch(e){ setErr("Network error"); return null; } }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+  function pill(s){ s=s||"draft"; return '<span class="pill '+esc(s)+'">'+esc(s)+'</span>'; }
+
+  async function loadStatus(){
+    var s = await getJSON("/api/wa/status");
+    var b = document.getElementById("statusBanner");
+    if(!s){ b.innerHTML=""; return; }
+    if(s.auto_ready){
+      b.className="banner live";
+      b.innerHTML='✅ Auto-send LIVE — approved templates opted-in numbers ko spaced bhej rahe hain. Daily cap '+s.daily_cap+', aaj bheje '+s.sent_today+'.';
+    } else {
+      b.className="banner safe";
+      b.innerHTML='🛡️ Ban-safe mode ON (default). '+esc(s.note);
+    }
+  }
+  async function loadTemplates(){
+    var d = await getJSON("/api/wa/templates"); var t=document.getElementById("tBodyTable");
+    var rows=(d&&d.templates)||[];
+    t.innerHTML = rows.length? rows.map(function(x){
+      return '<tr><td>'+esc(x.name)+'</td><td>'+esc(x.language)+'</td><td>'+esc(x.category)+'</td><td>'+pill(x.status)+'</td></tr>';
+    }).join("") : '<tr><td colspan="4" class="muted">Koi template nahi — bayein register karo.</td></tr>';
+  }
+  async function loadCampaigns(){
+    var d = await getJSON("/api/wa/campaigns"); var t=document.getElementById("cBodyTable");
+    var rows=(d&&d.campaigns)||[];
+    t.innerHTML = rows.length? rows.map(function(x){
+      var r=x.result? (("sent "+(x.result.sent||0))+", links "+(x.result.links||0)) : "—";
+      return '<tr><td>'+esc(x.kind)+'</td><td>'+esc(x.template_name)+'</td><td>'+esc(x.date)+'</td><td>'+pill(x.status)+'</td><td class="muted">'+esc(r)+'</td></tr>';
+    }).join("") : '<tr><td colspan="5" class="muted">Koi campaign queue me nahi.</td></tr>';
+  }
+  async function loadSuppression(){
+    var d = await getJSON("/api/wa/suppression"); var t=document.getElementById("sBodyTable");
+    var rows=(d&&d.suppressed)||[];
+    t.innerHTML = rows.length? rows.map(function(x){
+      return '<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.reason)+'</td><td class="muted">'+esc((x.at||"").slice(0,10))+'</td></tr>';
+    }).join("") : '<tr><td colspan="3" class="muted">Koi suppressed number nahi.</td></tr>';
+  }
+  var shLast="", shQrUrl=null, shQrTimer=null, shPollTimer=null;
+  async function loadSelfhost(){
+    var el=document.getElementById("shStatus"); if(!el) return;
+    var s = await getJSON("/api/wa/selfhost/status");
+    if(!s){ el.innerHTML="Status: <b>—</b>"; return; }
+    if(!s.configured){ el.innerHTML='Status: <b>not configured</b> — VPS pe <code>WAHA_BASE_URL</code> set + container chalao.'; return; }
+    var st=s.status||"UNKNOWN";
+    var num=s.business_number?(" · "+esc(s.business_number)):"";
+    var me=s.me_number?(" · linked <b>"+esc(s.me_number)+"</b>"):"";
+    var box="";
+    if(st==="WORKING"){
+      box='<div class="sh-state ok-box"><b>✅ WORKING</b> — number linked'+me+'. Auto-send abhi bhi <code>WHATSAPP_AUTO_SEND</code> gate pe hai.</div>';
+    } else if(st==="FAILED"){
+      box='<div class="sh-state bad-box"><b>❌ FAILED</b> — session gir gayi. Neeche <b>Start session</b> dabao (logout+relink hoga) → naya QR aayega → phone pe <b>30 sec ke andar scan</b> karo (WhatsApp → Linked devices → Link a device).<br/>Scan nahi kiya to QR expire hoke session dobara FAILED ho jayega.</div>';
+    } else if(st==="SCAN_QR_CODE"){
+      box='<div class="sh-state scan-box"><b>📷 SCAN_QR_CODE</b> — QR neeche ready hai. Phone pe WhatsApp → Linked devices → Link a device → scan karo. QR har ~20s refresh hota hai; <b>WORKING</b> dikhne tak ruko mat.</div>';
+    } else if(st==="STARTING"){
+      box='<div class="sh-state info-box"><b>⏳ STARTING</b> — session start ho raha hai, QR ban raha hai…</div>';
+    } else if(st==="UNREACHABLE"){
+      box='<div class="sh-state bad-box"><b>⚠️ UNREACHABLE</b> — app WAHA container tak nahi pahunch pa raha. VPS pe <code>docker compose -f deploy/compose/docker-compose.waha.yml ps</code> check karo, container up hona chahiye.</div>';
+    } else if(st==="NOT_CREATED"||st==="STOPPED"){
+      box='<div class="sh-state info-box"><b>⏸ '+esc(st)+'</b> — nayi session banegi. <b>Start session</b> dabao.</div>';
+    } else {
+      box='<div class="sh-state info-box"><b>'+esc(st)+'</b></div>';
+    }
+    el.innerHTML='Status: <b>'+esc(st)+'</b>'+num+me+box;
+
+    if(st==="SCAN_QR_CODE"){ shShowQr(); }
+    else if(st==="WORKING"){ shClearQr(); }
+    else if(shQrTimer){ shClearQr(); }
+
+    // Edge-transition alert: FAILED -> WORKING (recovery) ya SCAN_QR_CODE -> WORKING
+    if((shLast==="FAILED"||shLast==="SCAN_QR_CODE") && st==="WORKING"){
+      document.title="WAHA WORKING 🎉 — WhatsApp Campaigns";
+      setTimeout(function(){ document.title="WhatsApp Campaigns"; }, 6000);
+    }
+    shLast=st;
+  }
+  function shShowQr(){
+    var box=document.getElementById("shQrBox");
+    if(shQrTimer) return; // already showing + refreshing
+    function fetchQr(){
+      fetch("/api/wa/selfhost/qr",{headers:hdr()}).then(function(r){ return r.ok? r.blob() : null; })
+        .then(function(b){
+          if(!b){ if(!box.querySelector("img")) box.innerHTML='<span class="muted">QR abhi nahi — session SCAN_QR_CODE tak pahunchne do.</span>'; return; }
+          var u=URL.createObjectURL(b);
+          if(shQrUrl) URL.revokeObjectURL(shQrUrl);
+          shQrUrl=u;
+          box.innerHTML='<img alt="WhatsApp link QR" src="'+u+'" class="qrimg"/><div class="muted">WhatsApp → Linked devices → Link a device → scan (QR auto-refresh ~20s)</div>';
+        }).catch(function(){ if(!box.querySelector("img")) box.innerHTML='<span class="muted">QR load error</span>'; });
+    }
+    box.innerHTML='<span class="muted">QR load ho raha…</span>';
+    fetchQr();
+    shQrTimer=setInterval(fetchQr, 20000); // WAHA QR refs rotate — fresh scan always
+  }
+  function shClearQr(){
+    var box=document.getElementById("shQrBox");
+    if(shQrTimer){ clearInterval(shQrTimer); shQrTimer=null; }
+    if(shQrUrl){ URL.revokeObjectURL(shQrUrl); shQrUrl=null; }
+    box.innerHTML="";
+  }
+  function startShPoll(){
+    if(shPollTimer) return;
+    shPollTimer=setInterval(loadSelfhost, 10000);
+  }
+  async function loadAll(){ await loadStatus(); await loadTemplates(); await loadCampaigns(); await loadSuppression(); await loadSelfhost(); }
+
+  document.getElementById("tSave").addEventListener("click", async function(){
+    var body={ name:val("tName"), language:val("tLang")||"en", category:val("tCat"), status:val("tStatus"), body:val("tBody") };
+    if(!body.name){ setErr("Template name chahiye"); return; }
+    var r=await postJSON("/api/wa/templates", body); if(r){ setErr(""); document.getElementById("tName").value=""; loadTemplates(); }
+  });
+  document.getElementById("cSave").addEventListener("click", async function(){
+    var recips=parseRecips(val("cRecips"));
+    var body={ kind:val("cKind"), template_name:val("cTemplate"), language:val("cLang")||"en",
+      date_iso:val("cDate"), client_id:val("cClient"), recipients:recips, note:val("cNote") };
+    if(!body.template_name){ setErr("Template name chahiye"); return; }
+    var r=await postJSON("/api/wa/campaign/schedule", body); if(r){ setErr(""); loadCampaigns(); }
+  });
+  document.getElementById("cRun").addEventListener("click", async function(){
+    var r=await postJSON("/api/wa/campaign/run", {});
+    document.getElementById("runOut").textContent = r? JSON.stringify(r,null,2) : "(no output)";
+    loadCampaigns(); loadStatus();
+  });
+  document.getElementById("sAdd").addEventListener("click", async function(){
+    var r=await postJSON("/api/wa/suppression", { phone:val("sPhone"), reason:val("sReason")||"opt_out" });
+    if(r){ document.getElementById("sPhone").value=""; loadSuppression(); }
+  });
+  document.getElementById("sRemove").addEventListener("click", async function(){
+    var r=await postJSON("/api/wa/suppression", { phone:val("sPhone"), remove:true });
+    if(r){ document.getElementById("sPhone").value=""; loadSuppression(); }
+  });
+  document.getElementById("tReload").addEventListener("click", loadTemplates);
+  document.getElementById("reload").addEventListener("click", loadAll);
+  document.getElementById("shStart").addEventListener("click", async function(){
+    var btn=this; btn.disabled=true; btn.textContent="Starting…";
+    var r=await postJSON("/api/wa/selfhost/start", {});
+    btn.disabled=false; btn.textContent="Start session";
+    if(!r){ setErr("Start failed — config check karo (token sahi hai?)"); return; }
+    setErr("");
+    // FAILED pe WAHA logout+delete+recreate karta hai; SCAN_QR_CODE me QR milne me
+    // kuch second lagte hain — poll karke SCAN_QR_CODE/WORKING tak QR dikhao.
+    var tries=0;
+    var t=setInterval(async function(){
+      tries++;
+      var s = await getJSON("/api/wa/selfhost/status");
+      var st = s && s.status ? s.status : "";
+      if(st==="SCAN_QR_CODE"){ clearInterval(t); loadSelfhost(); }
+      else if(st==="WORKING"){ clearInterval(t); loadSelfhost(); }
+      else if(tries>25){ clearInterval(t); loadSelfhost(); } // ~75s timeout, manual refresh
+    }, 3000);
+  });
+  document.getElementById("shQr").addEventListener("click", shShowQr);
+  document.getElementById("shRefresh").addEventListener("click", loadSelfhost);
+
+  function val(id){ var e=document.getElementById(id); return e? (e.value||"").trim() : ""; }
+  function parseRecips(text){
+    var out=[];
+    (text||"").split("\n").forEach(function(line){
+      line=line.trim(); if(!line) return;
+      var parts=line.split(","); var phone=(parts[0]||"").trim();
+      if(phone) out.push({ phone:phone, name:(parts[1]||"").trim() });
+    });
+    return out;
+  }
+
+  loadAll();
+  startShPoll();
+  // Auto-show QR if session already in SCAN_QR_CODE on page load (10s poll handles it)
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

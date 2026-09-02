@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — Naya Client Onboard</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--pri:#2563eb;--ink:#e2e8f0;--mut:#94a3b8;--bg:#0b1020;--card:#141b2e;--bord:#26314d;--ok:#22c55e;--bad:#f87171;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:#0d1326;border-bottom:1px solid var(--bord);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:18px;margin:0;}
+  header .sp{flex:1;}
+  header input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:13px;width:230px;}
+  .wrap{max-width:760px;margin:18px auto;padding:0 16px;}
+  .steps{display:flex;gap:6px;margin-bottom:18px;}
+  .step{flex:1;text-align:center;font-size:12px;color:var(--mut);padding:8px 4px;border-bottom:3px solid var(--bord);}
+  .step.on{color:#fff;border-color:var(--pri);font-weight:700;}
+  .step.done{color:var(--ok);border-color:var(--ok);}
+  .card{background:var(--card);border:1px solid var(--bord);border-radius:14px;padding:20px;}
+  .card h3{margin:0 0 6px;font-size:17px;}
+  .hint{font-size:12.5px;color:var(--mut);margin:0 0 14px;}
+  label{display:block;font-size:12.5px;color:var(--mut);margin:10px 0 4px;}
+  input[type=text],select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--bord);background:#0f1729;color:var(--ink);font-size:14px;}
+  input[type=color]{width:60px;height:38px;padding:2px;border:1px solid var(--bord);border-radius:8px;background:#0f1729;cursor:pointer;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:600px){.row{grid-template-columns:1fr;}}
+  .nav{display:flex;gap:10px;margin-top:18px;}
+  .btn{padding:10px 20px;border:0;border-radius:9px;background:var(--pri);color:#fff;font-weight:700;cursor:pointer;font-size:14px;}
+  .btn:disabled{opacity:.5;cursor:wait;}
+  .btnB{padding:10px 18px;border:1px solid var(--bord);border-radius:9px;background:#0f1729;color:var(--ink);cursor:pointer;font-size:14px;}
+  .err{color:var(--bad);font-size:13px;margin-top:10px;white-space:pre-wrap;}
+  .okmsg{color:var(--ok);font-size:13px;margin-top:10px;}
+  .out{background:#0f1729;border:1px solid var(--bord);border-radius:10px;padding:12px;margin-top:12px;font-size:13.5px;white-space:pre-wrap;word-break:break-word;}
+  .out img{max-width:100%;border-radius:10px;margin-top:8px;}
+  .tag{display:inline-block;background:#1e293b;border:1px solid var(--bord);border-radius:6px;padding:2px 8px;margin:3px 3px 0 0;font-size:12px;color:var(--pri);}
+  .check{list-style:none;padding:0;margin:10px 0 0;}
+  .check li{padding:7px 0;border-bottom:1px dashed var(--bord);font-size:13.5px;}
+  .check li::before{content:"☐ ";color:var(--pri);}
+  a{color:var(--pri);}
+  .copybtn{margin-left:8px;padding:4px 10px;font-size:12px;border:1px solid var(--bord);border-radius:6px;background:#1e293b;color:var(--ink);cursor:pointer;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Naya Client Onboard</h1>
+  <div class="sp"></div>
+  <input id="tok" type="password" placeholder="Admin token paste karo (ek baar)" />
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
+</header>
+<div class="wrap">
+  <div class="steps">
+    <div class="step on" id="st1">1. Business</div>
+    <div class="step" id="st2">2. Brand</div>
+    <div class="step" id="st3">3. First Post</div>
+    <div class="step" id="st4">4. Done</div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="card" id="card1">
+    <h3>Business ki jaankari</h3>
+    <p class="hint">Basic details bharo — client record ban jayega (mini-site slug ke saath).</p>
+    <div class="row">
+      <div><label>Product *</label><select id="b-product">
+        <option value="marketing">AI Marketing</option>
+        <option value="voice">AI Voice Agent</option>
+        <option value="combo">Both — Marketing + Voice (optional combo)</option>
+      </select></div>
+      <div><label>Business naam *</label><input type="text" id="b-name" placeholder="Sharma Solar" /></div>
+      <div>
+        <label>Business type (template auto-setup ke liye)</label>
+        <select id="b-btype" onchange="wzBtypeChange()"><option value="">— Select karo (optional) —</option></select>
+        <div id="btype-preview" style="display:none;margin-top:6px;background:#0f1729;border:1px solid #26314d;border-radius:10px;padding:10px;font-size:12.5px"></div>
+      </div>
+      <div><label>Niche</label>
+        <select id="b-niche" onchange="wzNicheChange()"><option value="general">Loading…</option></select>
+        <input id="b-custom-niche" type="text" placeholder="Custom niche naam (e.g. Aquarium Shop)" style="display:none;width:100%;margin-top:5px;padding:6px 10px;border:1px solid #f59e0b;border-radius:6px;font-size:13px" />
+        <div id="b-custom-niche-hint" style="display:none;font-size:11px;color:#f59e0b;margin-top:3px">⚠ Custom niche — admin review ke baad list me add hogi</div>
+      </div>
+      <div><label>City</label><input type="text" id="b-city" placeholder="Pune" /></div>
+      <div><label>Phone</label><input type="text" id="b-phone" placeholder="98xxxxxxxx" /></div>
+      <div><label>Website (optional)</label><input type="text" id="b-web" placeholder="https://..." /></div>
+      <div><label>Plan</label><select id="b-plan"></select></div>
+    </div>
+    <p class="hint" id="b-plan-hint" style="margin:10px 0 0"></p>
+
+    <!-- STEP 1b: services + offer + voice script preview (business type select hone pe dikhe) -->
+    <div id="wz-services-block" style="display:none;margin-top:14px;background:#0f1729;border:1px solid #26314d;border-radius:12px;padding:14px">
+      <h3 style="margin:0 0 6px;font-size:15px">Services + Offer (voice agent ko kya batana hai)</h3>
+      <p class="hint" style="margin:0 0 10px">Yeh details voice agent ke opening aur baat-cheet me use hongi — setup truly done-for-you.</p>
+      <div class="row">
+        <div><label>Services (comma separated)</label><input type="text" id="b-services" placeholder="Haircut, Beard styling, Facial, Bridal makeup" oninput="wzRefreshScript()" /></div>
+        <div><label>Offer / USP (ek line)</label><input type="text" id="b-offer" placeholder="Weekday 20% off — pehli visit" oninput="wzRefreshScript()" /></div>
+      </div>
+      <div id="wz-script-box" style="margin-top:12px">
+        <label style="margin-top:6px">Voice agent opening line (edit kar sakte ho)</label>
+        <textarea id="b-opening" rows="3" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--bord);background:#0b1020;color:var(--ink);font-size:13.5px;resize:vertical" placeholder="Business type select karo — suggested opening yahan aayega..."></textarea>
+        <div class="hint" style="margin:6px 0 0">Niche script discovery questions + closing preview:</div>
+        <div id="b-script-detail" style="font-size:12px;color:#94a3b8;margin-top:4px;line-height:1.7"></div>
+      </div>
+    </div>
+
+    <div class="err" id="e1"></div><div class="okmsg" id="o1"></div>
+    <div class="nav"><span style="flex:1"></span><button class="btn" id="n1">Client Banao →</button></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="card" id="card2" style="display:none">
+    <h3>Brand setup</h3>
+    <p class="hint">Colors + tagline — posters/posts me auto-apply hote hain. Skip bhi kar sakte ho.</p>
+    <div class="row">
+      <div><label>Primary color</label><input type="color" id="br-pri" value="#2563eb" /></div>
+      <div><label>Accent color</label><input type="color" id="br-acc" value="#f59e0b" /></div>
+      <div><label>Tagline</label><input type="text" id="br-tag" placeholder="Roshni ka bharosa" /></div>
+      <div><label>Logo text</label><input type="text" id="br-logo" placeholder="SS" /></div>
+    </div>
+    <div class="err" id="e2"></div><div class="okmsg" id="o2"></div>
+    <div class="nav">
+      <button class="btnB" id="p2">← Back</button><span style="flex:1"></span>
+      <button class="btnB" id="skip2">Skip</button>
+      <button class="btn" id="n2">Brand Save →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="card" id="card3" style="display:none">
+    <h3>Pehla content pack</h3>
+    <p class="hint">AI se pehla complete post (caption + hashtags + image) — client ko turant value dikhao.</p>
+    <div class="err" id="e3"></div>
+    <div class="out" id="o3" style="display:none"></div>
+    <div class="nav">
+      <button class="btnB" id="p3">← Back</button><span style="flex:1"></span>
+      <button class="btnB" id="skip3">Skip</button>
+      <button class="btn" id="n3">Post Generate →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="card" id="card4" style="display:none">
+    <h3>🎉 Onboarding complete!</h3>
+    <p class="hint">Client ready hai — yeh links share/use karo.</p>
+    <div class="out" id="o4"></div>
+    <div class="err" id="e4"></div>
+    <h3 style="margin-top:16px;font-size:15px;">Agle steps</h3>
+    <ul class="check">
+      <li>Mini-site link client ke saath share karo (WhatsApp pe bhejo)</li>
+      <li>Embed snippet client ki website me paste karwao (lead widget)</li>
+      <li>/app/marketing me jaake daily content chalu karo</li>
+      <li>Client login banao: POST /api/customer/auth/set-password</li>
+      <li>Festival auto-schedule on karo (Scheduler tab)</li>
+    </ul>
+    <div class="nav">
+      <button class="btnB" id="p4">← Back</button><span style="flex:1"></span>
+      <button class="btn" id="again">+ Aur ek client</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tokEl=document.getElementById("tok");
+  tokEl.value = localStorage.getItem("accessToken") || "";
+  function hdr(json){ var t=(tokEl.value||"").trim(); if(t) localStorage.setItem("accessToken",t);
+    var h = t ? {"Authorization":"Bearer "+t} : {};
+    if(json) h["Content-Type"]="application/json";
+    return h; }
+  function friendly(status, detail){
+    if(status===401||status===403) return "Token galat/missing — upar admin token paste karo.";
+    if(status===422) return "Required field missing: "+(detail||"check karo.");
+    return "Error ("+status+"): "+(detail||"dobara try karo.");
+  }
+  async function api(method,url,body){
+    var r=await fetch(url,{method:method,headers:hdr(!!body),body:body?JSON.stringify(body):undefined});
+    var j=null; try{ j=await r.json(); }catch(e){}
+    if(!r.ok) throw new Error(friendly(r.status, j&&j.detail?(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail)):""));
+    return j||{};
+  }
+  function esc(s){ return String(s==null?"":s).replace(/</g,"&lt;"); }
+
+  // wizard state
+  var state={clientId:"",slug:"",name:"",niche:"general",phone:""};
+  var cur=1;
+  function go(n){
+    cur=n;
+    for(var i=1;i<=4;i++){
+      document.getElementById("card"+i).style.display=(i===n)?"":"none";
+      var st=document.getElementById("st"+i);
+      st.className="step"+(i===n?" on":(i<n?" done":""));
+    }
+    if(n===4) renderDone();
+  }
+
+  // product -> niche -> plan wiring (prices mirror voice_packages.py / combo_packages.py)
+  /* Embedded niche fallback (niches.py mirror). API chale to override; fail/empty pe bhi product-wise dropdown. */
+  var WZ_NICHES=[
+    {id:"ai_marketing",name:"AI Marketing Services",products:["marketing"],band:"A"},
+    {id:"studying_abroad",name:"Study Abroad Consultants",products:["voice"],band:"B"},
+    {id:"home_loans",name:"Home Loans & LAP (DSA)",products:["voice"],band:"B"},
+    {id:"solar_residential",name:"Residential Rooftop Solar",products:["marketing","voice"],band:"A"},
+    {id:"solar_commercial",name:"Commercial Solar Installers",products:["voice"],band:"C"},
+    {id:"insurance",name:"Health & Term Insurance",products:["voice"],band:"A"},
+    {id:"coaching",name:"Coaching Institutes (NEET/JEE/UPSC)",products:["marketing","voice"],band:"A"},
+    {id:"interior_designers",name:"Interior Design Studios",products:["marketing"],band:"B"},
+    {id:"modular_kitchen",name:"Modular Kitchen Manufacturers",products:["marketing","voice"],band:"B"},
+    {id:"dental_implants",name:"Dental Clinics (Implants/Aligners)",products:["marketing","voice"],band:"B"},
+    {id:"hair_transplant",name:"Hair Transplant Clinics",products:["marketing","voice"],band:"C"},
+    {id:"ivf_clinics",name:"IVF & Fertility Clinics",products:["voice"],band:"C"},
+    {id:"immigration",name:"Immigration & PR Consultants",products:["voice"],band:"C"},
+    {id:"upskilling",name:"Upskilling & EdTech Programs",products:["voice"],band:"A"},
+    {id:"recruitment",name:"Recruitment & Staffing Agencies",products:["voice"],band:"A"},
+    {id:"hvac_commercial",name:"Commercial HVAC",products:["voice"],band:"C"},
+    {id:"b2b_suppliers",name:"Manufacturing & B2B Suppliers",products:["voice"],band:"A"},
+    {id:"travel_packages",name:"International Travel Packages",products:["marketing","voice"],band:"A"},
+    {id:"packers_movers",name:"Packers & Movers",products:["voice"],band:"A"},
+    {id:"hotels_mice",name:"Hotels & Banquets (Corporate/MICE)",products:["voice"],band:"B"},
+    {id:"digital_marketing",name:"Digital Marketing Agencies",products:["voice"],band:"B"},
+    {id:"ca_legal",name:"CA & Legal Services",products:["voice"],band:"B"},
+    {id:"restaurant_cafe",name:"Restaurant / Cafe",products:["marketing"],band:"A"},
+    {id:"automobile_service",name:"Automobile / Car Service",products:["marketing"],band:"A"},
+    {id:"photography_studio",name:"Photography / Wedding Studio",products:["marketing"],band:"A"},
+    {id:"pharmacy_medical",name:"Pharmacy / Medical Store",products:["marketing"],band:"A"},
+    {id:"furniture_decor",name:"Furniture / Home Decor",products:["marketing"],band:"A"},
+    {id:"kirana_supermarket",name:"Kirana / Supermarket",products:["marketing"],band:"A"},
+    {id:"travel_agency",name:"Travel Agency / Tours",products:["marketing"],band:"A"},
+    {id:"gift_stationery",name:"Gift / Stationery Shop",products:["marketing"],band:"A"},
+    {id:"hospital_appointments",name:"Hospitals & Clinics — Appointment Booking",products:["marketing","voice"],band:"A"},
+    {id:"skin_dermatology",name:"Dermatology & Skin Clinics",products:["marketing","voice"],band:"A"},
+    {id:"finance_advisory",name:"Insurance & Mutual Fund Advisors",products:["marketing","voice"],band:"B"},
+    {id:"edtech_creators",name:"Online Educators & Course Creators",products:["marketing"],band:"A"},
+    {id:"cloud_kitchen",name:"Cloud Kitchen / Tiffin Service",products:["marketing"],band:"A"},
+    {id:"ayurveda_wellness",name:"Ayurveda & Wellness Clinics",products:["marketing","voice"],band:"A"},
+    {id:"ecommerce_d2c",name:"D2C / E-commerce Brand Owners",products:["marketing"],band:"A"},
+    {id:"event_management",name:"Corporate & Social Event Planners",products:["marketing","voice"],band:"A"},
+    {id:"hardware_paint",name:"Hardware / Paint / Electrical",products:["marketing"],band:"A"}
+  ];
+  var WZ_VOICE_BANDS={A:{m:4999,y:49990}, B:{m:9999,y:99990}, C:{m:19999,y:199990}};
+  var WZ_COMBO_TIERS={A:{key:"starter",m:4999,y:49990}, B:{key:"growth",m:9999,y:99990}, C:{key:"pro",m:21999,y:219990}};
+  var WZ_MKT_PLANS=[["starter","AI Marketing Automation — ₹1,999/mo"],["growth","Growth — ₹2,999/mo"],["advanced","Advanced Voice Agent — ₹5,999/mo"],["trial","Trial — free"]];
+  function wzInr(n){ return n ? ("₹"+Number(n).toLocaleString("en-IN")) : "Free"; }
+  function wzCurProduct(){ var e=document.getElementById("b-product"); return e?e.value:"marketing"; }
+  function wzSelectedBand(){
+    var sel=document.getElementById("b-niche"); if(!sel||sel.selectedIndex<0) return "A";
+    if(sel.value==="__custom__") return "A";
+    var b=(sel.options[sel.selectedIndex].getAttribute("data-band")||"A").toUpperCase();
+    return (["A","B","C"].indexOf(b)>=0)?b:"A";
+  }
+  function wzProductChange(){
+    var prod=wzCurProduct(), sel=document.getElementById("b-niche"); if(!sel) return;
+    var list=WZ_NICHES.filter(function(n){
+      if(prod==="marketing") return n.products.indexOf("marketing")>=0;
+      return n.products.indexOf("voice")>=0;
+    });
+    var html='<option value="general" data-band="A">General</option>';
+    list.forEach(function(n){ html+='<option value="'+esc(n.id)+'" data-band="'+esc(n.band)+'">'+esc(n.name)+(prod!=="marketing"?(" · Band "+esc(n.band)):"")+'</option>'; });
+    html+='<option value="__custom__" data-band="A">➕ Other — Custom niche (listed nahi hai)</option>';
+    sel.innerHTML=html;
+    wzNicheChange();
+    wzRefreshPlans();
+  }
+  function wzNicheChange(){
+    var sel=document.getElementById("b-niche");
+    var isCustom=sel&&sel.value==="__custom__";
+    var inp=document.getElementById("b-custom-niche"), hint=document.getElementById("b-custom-niche-hint");
+    if(inp) inp.style.display=isCustom?"block":"none";
+    if(hint) hint.style.display=isCustom?"block":"none";
+    if(isCustom&&inp) inp.focus();
+    if(wzCurProduct()!=="marketing") wzRefreshPlans();
+  }
+  function wzRefreshPlans(){
+    var prod=wzCurProduct(), sel=document.getElementById("b-plan"), hint=document.getElementById("b-plan-hint");
+    if(!sel) return; var opts=[];
+    if(prod==="marketing"){ opts=WZ_MKT_PLANS.slice(); if(hint) hint.textContent=""; }
+    else if(prod==="voice"){
+      var b=wzSelectedBand(), p=WZ_VOICE_BANDS[b];
+      opts=[["voice_pilot","Free Pilot — 7 din / 50 calls"],
+            ["voice_"+b.toLowerCase()+"_monthly","Monthly · Band "+b+" — "+wzInr(p.m)+"/mo"],
+            ["voice_"+b.toLowerCase()+"_annual","Annual · Band "+b+" — "+wzInr(p.y)+"/yr"]];
+      if(hint) hint.textContent="Voice plan band niche se auto-resolve hota hai (abhi Band "+b+").";
+    } else {
+      var b2=wzSelectedBand(), t=WZ_COMBO_TIERS[b2];
+      opts=[["combo_pilot","Free Pilot — 7 din / 50 calls"],
+            ["combo_"+t.key+"_monthly","Combo "+t.key+" · Monthly — "+wzInr(t.m)+"/mo"],
+            ["combo_"+t.key+"_annual","Combo "+t.key+" · Annual — "+wzInr(t.y)+"/yr"]];
+      if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice, optional combo).";
+    }
+    sel.innerHTML=opts.map(function(o){ return '<option value="'+esc(o[0])+'">'+esc(o[1])+'</option>'; }).join("");
+  }
+  (async function(){
+    var pe=document.getElementById("b-product"); if(pe) pe.addEventListener("change", wzProductChange);
+    var ne=document.getElementById("b-niche"); if(ne) ne.addEventListener("change", wzNicheChange);
+    var op=document.getElementById("b-opening"); if(op) op.addEventListener("input", wzMarkOpeningTouched);
+    wzProductChange();                       // turant embedded fallback se populate (API ka wait nahi)
+    try{
+      var j=await api("GET","/api/data/niches");
+      var mapped=((j&&j.niches)||[]).map(function(n){ return {id:n.id, name:n.name, products:(n.products||["marketing","voice"]), band:(n.lead_band||"A")}; });
+      if(mapped.length){ WZ_NICHES=mapped; wzProductChange(); }   // API success -> full/fresh list
+    }catch(e){ /* fallback already populated — kuch mat karo */ }
+    wzLoadBtypes();                          // business-type catalog (optional; fail pe silent)
+  })();
+
+  // ── business-type wizard: catalog load + auto-fill niche + preview ──
+  var WZ_BTYPES=[];
+  var btSel=document.getElementById("b-btype");
+  async function wzLoadBtypes(){
+    try{
+      var j=await api("GET","/api/onboard-wizard/business-types");
+      WZ_BTYPES=(j&&j.business_types)||[];
+      if(!btSel||!WZ_BTYPES.length) return;
+      var html='<option value="">— Select karo (optional) —</option>';
+      WZ_BTYPES.forEach(function(b){ html+='<option value="'+esc(b.id)+'">'+esc(b.emoji+' '+b.label)+'</option>'; });
+      btSel.innerHTML=html;
+    }catch(e){ /* catalog unavailable — business-type optional hai, niche dropdown khud kaam karega */ }
+  }
+  function wzBtypeChange(){
+    if(!btSel) return;
+    var id=btSel.value, prev=document.getElementById("btype-preview");
+    if(!id){ if(prev) prev.style.display="none"; document.getElementById("wz-services-block").style.display="none"; return; }
+    var b=null; for(var i=0;i<WZ_BTYPES.length;i++){ if(WZ_BTYPES[i].id===id){ b=WZ_BTYPES[i]; break; } }
+    if(!b){ if(prev) prev.style.display="none"; return; }
+    // niche auto-fill (agar dropdown me hai)
+    var ne=document.getElementById("b-niche");
+    if(ne){ for(var k=0;k<ne.options.length;k++){ if(ne.options[k].value===b.niche){ ne.selectedIndex=k; break; } } wzNicheChange(); }
+    if(prev){
+      var fields=(b.auto_setup_fields||[]).map(function(f){ return '<div>✓ '+esc(f)+'</div>'; }).join("");
+      prev.innerHTML='<b>'+esc(b.emoji+' '+b.label)+'</b> → niche: <code style="color:#22c55e">'+esc(b.niche)+'</code>'+
+        '<div style="margin-top:6px;color:#94a3b8">Auto-setup (client create pe apply hoga):</div>'+fields+
+        '<div style="margin-top:6px;font-size:11px;color:#64748b">Voice script: '+((b.niche in {real_estate_luxury:1,solar_residential:1,studying_abroad:1,insurance:1,coaching:1,dental_implants:1,restaurant_cafe:1,hospital_appointments:1,skin_dermatology:1,automobile_service:1,travel_agency:1,pharmacy_medical:1,tiffin_service:1,gents_salon:1,tuition_classes:1,play_school:1,salon_spa:1,gym_fitness:1,boutique_fashion:1,laundry_dryclean:1,electronics_repair:1,bakery_sweets:1,jewellery_store:1})?"✅ ready":"→ general fallback")+
+        ' · Knowledge pack: '+((b.niche in {salon_spa:1,gym_fitness:1,boutique_fashion:1,bakery_sweets:1,jewellery_store:1,restaurant_cafe:1,hospital_appointments:1,dental_implants:1,real_estate_luxury:1,automobile_service:1,travel_agency:1,pharmacy_medical:1,tiffin_service:1,gents_salon:1,tuition_classes:1,play_school:1,laundry_dryclean:1,electronics_repair:1})?"✅ ready":"→ general")+'</div>';
+      prev.style.display="";
+    }
+    // services + offer + script preview block dikhao
+    var sb=document.getElementById("wz-services-block");
+    if(sb) sb.style.display="";
+    wzRefreshScript();
+  }
+  // Voice script preview — server se niche opening + suggested line (services/offer aware)
+  var _wzScriptTimer=null;
+  async function wzRefreshScript(){
+    if(!btSel||!btSel.value){ return; }
+    var op=document.getElementById("b-opening");
+    if(op && !op.dataset.touched && !document.getElementById("b-services").value && !document.getElementById("b-offer").value){
+      // pehli baar: server suggested opening se pre-fill (sirf jab user ne edit nahi kiya)
+      try{
+        var j=await api("POST","/api/onboard-wizard/script-preview",{
+          business_type:btSel.value,
+          business_name:(document.getElementById("b-name").value||"").trim(),
+          services:(document.getElementById("b-services").value||"").trim(),
+          offer:(document.getElementById("b-offer").value||"").trim()
+        });
+        if(op && j && j.suggested_opening){ op.value=j.suggested_opening; }
+        var det=document.getElementById("b-script-detail");
+        if(det && j){
+          var qs=(j.discovery||[]).map(function(q){ return '<div>Q: '+esc(q)+'</div>'; }).join("");
+          det.innerHTML=(j.closing?('<div style="margin-top:4px;color:#22c55e">Closing: '+esc(j.closing)+'</div>'):"")+qs;
+        }
+      }catch(e){ /* script preview best-effort */ }
+    } else if(document.getElementById("b-services").value || document.getElementById("b-offer").value){
+      // user ne services/offer likhe — suggested opening refresh (agar opening untouched)
+      if(op && !op.dataset.touched){
+        try{
+          var j2=await api("POST","/api/onboard-wizard/script-preview",{
+            business_type:btSel.value,
+            business_name:(document.getElementById("b-name").value||"").trim(),
+            services:(document.getElementById("b-services").value||"").trim(),
+            offer:(document.getElementById("b-offer").value||"").trim()
+          });
+          if(op && j2 && j2.suggested_opening){ op.value=j2.suggested_opening; }
+        }catch(e){}
+      }
+    }
+  }
+  function wzMarkOpeningTouched(){ var op=document.getElementById("b-opening"); if(op) op.dataset.touched="1"; }
+  async function wzApplyAutoSetup(){
+    if(!btSel||!btSel.value||!state.clientId) return;
+    try{
+      var j=await api("POST","/api/onboard-wizard/apply",{
+        client_id:state.clientId,
+        business_type:btSel.value,
+        business_name:(document.getElementById("b-name").value||"").trim(),
+        services:(document.getElementById("b-services").value||"").trim(),
+        offer:(document.getElementById("b-offer").value||"").trim(),
+        opening_line:(document.getElementById("b-opening").value||"").trim()
+      });
+      var okel=document.getElementById("o1");
+      if(okel && j.ok) okel.textContent=(okel.textContent||"")+" | Auto-setup: "+(j.applied||[]).join(", ");
+    }catch(e){ /* non-fatal — snapshot/knowledge best-effort hai */ }
+  }
+
+  // STEP 1: create client — POST /api/clients
+  document.getElementById("n1").addEventListener("click", async function(){
+    var btn=this, err=document.getElementById("e1"), ok=document.getElementById("o1");
+    err.textContent=""; ok.textContent="";
+    var name=(document.getElementById("b-name").value||"").trim();
+    if(!name){ err.textContent="Business naam zaroori hai."; return; }
+    state.name=name;
+    var nicheRaw=document.getElementById("b-niche").value||"general";
+    var customNicheName="";
+    if(nicheRaw==="__custom__"){
+      customNicheName=(document.getElementById("b-custom-niche").value||"").trim();
+      if(!customNicheName){ err.textContent="Custom niche ka naam likhо."; return; }
+      nicheRaw="general";
+    }
+    state.niche=nicheRaw;
+    state.phone=(document.getElementById("b-phone").value||"").trim();
+    btn.disabled=true;
+    try{
+      // if custom niche — submit for pending review (fire and forget)
+      if(customNicheName){
+        try{ await api("POST","/api/data/niches/pending",{name:customNicheName, submitted_by: name}); }catch(pe){ /* non-fatal */ }
+        ok.textContent="Custom niche '"+customNicheName+"' review ke liye submit ho gayi.";
+      }
+      var j=await api("POST","/api/clients",{
+        product:wzCurProduct(),
+        business_name:name, niche:state.niche,
+        city:(document.getElementById("b-city").value||"").trim(),
+        phone:state.phone,
+        plan:document.getElementById("b-plan").value
+      });
+      var c=(j&&j.client)||{};
+      state.clientId=c.id||""; state.slug=c.slug||"";
+      ok.textContent="Client ban gaya ✓ (id: "+(c.id||"?")+", slug: "+(c.slug||"?")+")";
+      if(state.clientId){ await wzApplyAutoSetup(); }   // business-type auto-setup (best-effort)
+      setTimeout(function(){ go(2); }, 600);
+    }catch(e){
+      if(btn.dataset.failedOnce==="1"){
+        err.textContent="";
+        go(2); // dobara fail — bina client ke aage badho (har step independent)
+      }else{
+        err.textContent=(e.message||"Client create fail.")+" — button dobara dabao: retry hoga, fir bhi fail to aage badh jayega.";
+        btn.dataset.failedOnce="1";
+      }
+    }
+    btn.disabled=false;
+  });
+
+  // STEP 2: brand save — POST /api/marketing/brand/{client_id}
+  document.getElementById("p2").addEventListener("click", function(){ go(1); });
+  document.getElementById("skip2").addEventListener("click", function(){ go(3); });
+  document.getElementById("n2").addEventListener("click", async function(){
+    var btn=this, err=document.getElementById("e2"), ok=document.getElementById("o2");
+    err.textContent=""; ok.textContent="";
+    if(!state.clientId){ err.textContent="Client id nahi mila (Step 1 fail tha) — Skip karke aage badho."; return; }
+    btn.disabled=true;
+    try{
+      await api("POST","/api/marketing/brand/"+encodeURIComponent(state.clientId),{
+        business_name:state.name,
+        tagline:(document.getElementById("br-tag").value||"").trim(),
+        phone:state.phone,
+        colors:{ primary:document.getElementById("br-pri").value, accent:document.getElementById("br-acc").value },
+        tone:"",
+        logo_text:(document.getElementById("br-logo").value||"").trim()
+      });
+      ok.textContent="Brand save ho gaya ✓";
+      setTimeout(function(){ go(3); }, 600);
+    }catch(e){ err.textContent=(e.message||"Brand save fail.")+" — Skip karke aage badh sakte ho."; }
+    btn.disabled=false;
+  });
+
+  // STEP 3: first content pack — POST /api/marketing/complete-post
+  document.getElementById("p3").addEventListener("click", function(){ go(2); });
+  document.getElementById("skip3").addEventListener("click", function(){ go(4); });
+  document.getElementById("n3").addEventListener("click", async function(){
+    var btn=this, err=document.getElementById("e3"), out=document.getElementById("o3");
+    err.textContent="";
+    if(!state.name){ err.textContent="Business naam nahi hai — Step 1 pe wapas jao."; return; }
+    btn.disabled=true; btn.textContent="Generate ho raha… (~30s)";
+    try{
+      var j=await api("POST","/api/marketing/complete-post",{
+        business_name:state.name, niche:state.niche, occasion:"", offer:"", language:"hinglish"
+      });
+      var tags=(j.hashtags||[]).map(function(t){ return '<span class="tag">'+esc(t)+'</span>'; }).join("");
+      out.style.display="";
+      out.innerHTML="<b>Caption:</b>\n"+esc(j.caption||j.post_text||"-")+
+        (tags?("\n\n<b>Hashtags:</b><br>"+tags):"")+
+        (j.image_url?('<img src="'+j.image_url+'" alt="post image" onerror="this.style.display=\'none\'" />'):"");
+      btn.textContent="Aage →"; btn.disabled=false;
+      btn.onclick=function(){ go(4); };
+    }catch(e){
+      err.textContent=(e.message||"Post generate fail.")+" — Skip karke aage badh sakte ho.";
+      btn.textContent="Post Generate →"; btn.disabled=false;
+    }
+  });
+
+  // STEP 4: done — links + embed snippet
+  document.getElementById("p4").addEventListener("click", function(){ go(3); });
+  document.getElementById("again").addEventListener("click", function(){ location.reload(); });
+  async function renderDone(){
+    var out=document.getElementById("o4"), err=document.getElementById("e4");
+    err.textContent="";
+    var base=location.origin;
+    var html="<b>Client:</b> "+esc(state.name||"-")+" (id: "+esc(state.clientId||"-")+")\n";
+    var siteUrl="", snippetText="";
+    if(state.slug){
+      siteUrl=base+"/b/"+state.slug;
+      html+='<b>Mini-site:</b> <a href="'+siteUrl+'" target="_blank" rel="noopener">'+esc(siteUrl)+'</a>'+
+        ' <button class="copybtn" id="cp-url">Copy</button>\n';
+    } else html+="<b>Mini-site:</b> slug nahi mila (Step 1 dobara try karo)\n";
+    out.innerHTML=html+"\n<i>Embed snippet load ho raha…</i>";
+    if(state.slug){
+      try{
+        var j=await api("GET","/api/marketing/embed-snippet?slug="+encodeURIComponent(state.slug));
+        snippetText=j.snippet||"";
+        out.innerHTML=html+"\n<b>Website widget snippet (client ki site me paste karo):</b>\n"+
+          '<div class="out" style="margin-top:6px">'+esc(snippetText)+'</div>'+
+          '<button class="copybtn" id="cp-snip">Snippet Copy</button>';
+      }catch(e){
+        out.innerHTML=html;
+        err.textContent="Embed snippet load nahi hua: "+(e.message||"");
+      }
+    } else out.innerHTML=html;
+    function wireCopy(id,text){
+      var b=document.getElementById(id); if(!b||!text) return;
+      b.addEventListener("click", function(){
+        var ta=document.createElement("textarea");
+        ta.value=text;
+        document.body.appendChild(ta); ta.select();
+        try{ document.execCommand("copy"); b.textContent="Copied ✓"; }catch(e){}
+        document.body.removeChild(ta);
+      });
+    }
+    wireCopy("cp-url", siteUrl);
+    wireCopy("cp-snip", snippetText);
+  }
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

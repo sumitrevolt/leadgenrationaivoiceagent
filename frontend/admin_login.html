@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Login | LeadGen AI</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{--indigo:#4f46e5;--violet:#7c3aed;--ink:#0f1024;--muted:#64647e;--line:#e8e8f2;--bg:#f6f6fb}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:linear-gradient(135deg,#eef0ff,#f8f6ff);min-height:100vh;display:grid;place-items:center;padding:20px}
+  .card{width:100%;max-width:400px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px -20px rgba(15,16,36,.3);padding:32px 28px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:6px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center}
+  .brand .logo svg{width:19px;height:19px}
+  h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.35rem;margin:14px 0 4px}
+  .sub{color:var(--muted);font-size:.9rem;margin-bottom:22px}
+  label{display:block;font-size:.85rem;font-weight:600;margin:14px 0 6px}
+  input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:.97rem;font-family:inherit;outline:none}
+  input:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  button{width:100%;margin-top:22px;padding:13px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .msg{margin-top:14px;font-size:.88rem;padding:10px 12px;border-radius:9px;display:none}
+  .msg.err{display:block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  .msg.ok{display:block;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+  .links{margin-top:20px;font-size:.84rem;color:var(--muted);text-align:center}
+  .links a{color:var(--indigo);text-decoration:none}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6.5 4.5c-.7-.7-1.8-.6-2.4.2L2.7 6.6c-.6.8-.5 1.9.1 2.6 3.2 3.9 6.9 7.6 10.8 10.8.7.6 1.8.7 2.6.1l1.9-1.4c.8-.6.9-1.7.2-2.4l-2.3-2.3c-.6-.6-1.5-.6-2.2-.2l-1.3.8c-.2.1-.5.1-.7-.1-1.5-1.4-2.9-2.8-4.3-4.3-.2-.2-.2-.5-.1-.7l.8-1.3c.4-.7.4-1.6-.2-2.2L6.5 4.5Z" fill="#fff"/></svg></span>LeadGen AI</div>
+    <h1>Admin Login</h1>
+    <p class="sub">Saare dashboards (marketing, clients, team, agents, analytics) is login se unlock honge.</p>
+    <form id="f">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" placeholder="admin@leadsgenai.in" required />
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required />
+      <label for="totp">2FA Code <span style="opacity:.6">(agar enabled hai)</span></label>
+      <input id="totp" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" />
+      <button id="btn" type="submit">Login</button>
+    </form>
+    <div id="msg" class="msg"></div>
+    <div class="links"><a href="/">← Home</a> · <a href="/app/login">Customer login</a></div>
+  </div>
+<script>
+(function(){
+  "use strict";
+  var f=document.getElementById("f"), btn=document.getElementById("btn"), msg=document.getElementById("msg");
+  function show(t,cls){ msg.textContent=t; msg.className="msg "+cls; }
+  function safeNext(){
+    var p=new URLSearchParams(location.search);
+    var n=(p.get("next")||"").trim();
+    if(n&&n.charAt(0)==="/"&&n.indexOf("//")!==0) return n;
+    return "/app/admin";
+  }
+  function authHdr(){
+    var t=localStorage.getItem("accessToken")||localStorage.getItem("adminToken")||"";
+    return t?{Authorization:"Bearer "+t}:{};
+  }
+  // already logged in → admin dashboard (ya ?next=)
+  if(localStorage.getItem("accessToken")||localStorage.getItem("adminToken")){
+    fetch("/api/admin/me",{headers:authHdr(),cache:"no-store"})
+      .then(function(r){ if(r.ok) location.replace(safeNext()); })
+      .catch(function(){});
+  }
+  f.onsubmit=async function(e){
+    e.preventDefault();
+    btn.disabled=true; var lbl=btn.textContent; btn.textContent="Logging in…"; msg.className="msg";
+    try{
+      var r=await fetch("/api/admin/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email:document.getElementById("email").value.trim(),password:document.getElementById("pw").value,totp:document.getElementById("totp").value.trim()})});
+      var d=await r.json().catch(function(){return {};});
+      if(r.ok && d.access_token){
+        localStorage.setItem("accessToken", d.access_token);
+        show("Login ✓ — admin dashboard khul raha hai…","ok");
+        setTimeout(function(){ location.replace(safeNext()); }, 400);
+      } else if(r.status===401){
+        show("Galat email ya password.","err");
+      } else {
+        show(d.detail || ("Login fail (HTTP "+r.status+")"),"err");
+      }
+    }catch(err){ show("Network error — dobara try karo.","err"); }
+    btn.disabled=false; btn.textContent=lbl;
+  };
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#6d28d9">
+<title>FREE Website Audit — 10 second me apni website ka report card | LeadsGenAI</title>
+<meta name="description" content="Apni business website ka FREE AI audit — SEO, mobile, WhatsApp, contact — score + Hinglish tips 10 second me. LeadsGenAI.">
+<link rel="canonical" href="https://leadsgenai.in/site-audit">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<!-- Open Graph — WhatsApp / Facebook / LinkedIn link previews -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="LeadGen AI">
+<meta property="og:title" content="FREE Website Audit — 10 second me report card">
+<meta property="og:description" content="Apni business website ka FREE AI audit — SEO, mobile, WhatsApp, contact — score + Hinglish tips 10 second me.">
+<meta property="og:url" content="https://leadsgenai.in/site-audit">
+<meta property="og:image" content="https://leadsgenai.in/icons/icon-512.png">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FREE Website Audit — 10 second report card">
+<meta name="twitter:description" content="Apni website ka FREE AI audit — score + Hinglish fixes 10 second me.">
+<meta name="twitter:image" content="https://leadsgenai.in/icons/icon-512.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"FREE Website Audit","url":"https://leadsgenai.in/site-audit","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"hi-IN","offers":{"@type":"Offer","price":"0","priceCurrency":"INR"},"provider":{"@type":"Organization","name":"LeadGen AI","url":"https://leadsgenai.in"}}</script>
+<style>
+:root{--acc:#6d28d9;--bg:#faf8ff;--txt:#1f2430;--mut:#6b7280;--ok:#059669;--bad:#dc2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,Arial;background:var(--bg);color:var(--txt);padding:20px;max-width:680px;margin:auto}
+h1{font-size:1.5rem;margin:18px 0 6px} .sub{color:var(--mut);margin-bottom:18px}
+.card{background:#fff;border:1px solid #e7e3f4;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(109,40,217,.06)}
+input{width:100%;padding:12px;border:1.5px solid #ddd6f3;border-radius:10px;font-size:1rem}
+button{width:100%;margin-top:10px;padding:12px;background:var(--acc);color:#fff;border:0;border-radius:10px;font-size:1.05rem;cursor:pointer;font-weight:600}
+button:disabled{opacity:.6}
+.score{font-size:3rem;font-weight:800;text-align:center} .grade{text-align:center;font-size:1.1rem;color:var(--mut);margin-bottom:10px}
+.chk{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1eefb;font-size:.92rem}
+.tip{background:#f5f1ff;border-left:4px solid var(--acc);padding:10px 12px;border-radius:8px;margin:8px 0;font-size:.92rem}
+.cta{display:block;text-align:center;background:#059669;color:#fff;text-decoration:none;padding:12px;border-radius:10px;font-weight:700;margin-top:10px}
+.cta.alt{background:var(--acc)} .err{color:var(--bad);margin-top:8px} .foot{text-align:center;color:var(--mut);font-size:.8rem;margin:16px 0}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<h1>🔍 FREE Website Audit</h1>
+<div class="sub">Apni website ka URL daalo — 10 second me AI report card: SEO, mobile, WhatsApp, contact + sudhaar ke tips (Hinglish me).</div>
+<div class="card">
+  <input id="url" type="url" placeholder="aapkiwebsite.in" autofocus>
+  <div data-turnstile-host></div>
+  <button id="go" onclick="run()">Audit Karo (FREE)</button>
+  <div id="err" class="err"></div>
+</div>
+<div id="res" style="display:none">
+  <div class="card">
+    <div class="score" id="score">—</div>
+    <div class="grade" id="grade"></div>
+    <div id="checks"></div>
+    <a class="cta" id="startCtaSite" href="/start?utm_source=site-audit">🚀 FREE trial shuru karo</a>
+  </div>
+  <div class="card" id="leadCard">
+    <h3 style="margin-bottom:4px">📋 Poora fix-list + done-for-you chahiye?</h3>
+    <p class="grade" style="text-align:left;margin-bottom:10px">Number chhodo — humari team aapke score ke hisaab se poora plan WhatsApp/call pe FREE bhejegi.</p>
+    <input id="lname" type="text" placeholder="Aapka naam" autocomplete="name">
+    <input id="lbiz" type="text" placeholder="Business ka naam" autocomplete="organization" style="margin-top:10px">
+    <select id="ltype" style="margin-top:10px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font:inherit;background:#fff"><option value="">✨ Business type (optional — custom plan milega)</option></select>
+    <input id="lphone" type="tel" placeholder="📱 Phone / WhatsApp" autocomplete="tel" style="margin-top:10px">
+    <input type="text" id="lhp" name="website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button id="lgo" onclick="sendLead()">📞 Poora plan FREE me lo</button>
+    <div id="lmsg" class="grade" style="text-align:center;margin-top:8px"></div>
+    <p class="foot" style="margin:8px 0 0">✅ No spam · 24 ghante me call · Details sirf aapse contact ke liye</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-bottom:8px">🛠️ Sudhaar ke tips</h3>
+    <div id="tips"></div>
+    <a class="cta" id="ctaAudit" href="/audit?utm_source=seo">Aage badho: FREE Google Profile Audit →</a>
+    <a class="cta alt" href="/pricing?utm_source=seo">₹1,999/mo se AI marketing autopilot →</a>
+  </div>
+</div>
+<div class="foot">Koi signup nahi, koi spam nahi. Made in 🇮🇳 by <a href="/">LeadsGenAI</a></div>
+<script>
+const $=id=>document.getElementById(id);
+let lastAudit={url:'',score:null};
+let BIZ_TYPES=[];
+function selectedBiz(){const sel=$('ltype');if(!sel||!sel.value)return null;for(let i=0;i<BIZ_TYPES.length;i++){if(BIZ_TYPES[i].id===sel.value)return BIZ_TYPES[i]}return null}
+async function loadBizTypes(){
+  try{
+    const res=await fetch('/api/public/business-types');
+    if(!res.ok)return;
+    const data=await res.json();
+    BIZ_TYPES=(data.business_types||[]);
+    const sel=$('ltype');if(!sel)return;
+    BIZ_TYPES.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=(b.emoji?b.emoji+' ':'')+b.label;sel.appendChild(o)});
+  }catch(e){/* dropdown optional */}
+}
+const NAMES={https:'HTTPS (secure)',title:'Page title',meta_description:'Meta description (SEO)',h1:'H1 heading',viewport:'Mobile-friendly tag',phone_visible:'Phone number dikh raha',whatsapp_link:'WhatsApp button',contact_form:'Inquiry form',light_page:'Page speed (weight)'};
+async function run(){
+  const u=$('url').value.trim(); if(!u){$('err').textContent='URL daalo';return}
+  $('go').disabled=true;$('go').textContent='AI audit chal raha…';$('err').textContent='';
+  try{
+    const tok = window.turnstileToken ? await window.turnstileToken() : "";
+    const r=await fetch('/api/growth/tools/website-audit',{method:'POST',headers:{'Content-Type':'application/json','X-Turnstile-Token':tok},body:JSON.stringify({url:u})});
+    const d=await r.json();
+    if(!d.ok){$('err').textContent=d.error||'Kuch galat hua, dobara try karo';return}
+    lastAudit={url:d.url||u, score:d.score};
+    $('res').style.display='block';
+    $('score').textContent=d.score+'/100';$('score').style.color=d.score>=70?'#059669':(d.score>=40?'#d97706':'#dc2626');
+    $('grade').textContent='Grade '+d.grade+' — '+d.url;
+    $('checks').innerHTML=Object.entries(d.checks).map(([k,ok])=>`<div class="chk"><span>${NAMES[k]||k}</span><b>${ok?'✅':'❌'}</b></div>`).join('');
+    const startCta=$('startCtaSite');
+    if(startCta){
+      startCta.href='/start?utm_source=site-audit&score='+d.score;
+      startCta.textContent=d.score<50?'🚀 Abhi fix karo — FREE trial shuru karo':(d.score<70?'🚀 Score badhao — FREE trial shuru karo':'🚀 Autopilot par lo — FREE trial shuru karo');
+    }
+    $('tips').innerHTML=(d.tips||[]).map(t=>`<div class="tip">💡 ${t}</div>`).join('');
+    window.scrollTo({top:200,behavior:'smooth'});
+  }catch(e){$('err').textContent='Network issue — dobara try karo'}
+  finally{$('go').disabled=false;$('go').textContent='Audit Karo (FREE)'}
+}
+$('url').addEventListener('keydown',e=>{if(e.key==='Enter')run()});
+async function sendLead(){
+  const name=$('lname').value.trim(), biz=$('lbiz').value.trim(), phone=$('lphone').value.trim();
+  const digits=phone.replace(/\D/g,'');
+  if(!name||!biz){$('lmsg').textContent='Naam aur business dono bharo 🙏';return}
+  if(digits.length<10||digits.length>12){$('lmsg').textContent='Sahi 10-digit number daalo 📞';return}
+  $('lgo').disabled=true;$('lgo').textContent='Bhej rahe hain…';$('lmsg').textContent='';
+  try{
+    const tok=window.turnstileToken?await window.turnstileToken():"";
+    const bt=selectedBiz();
+    const res=await fetch('/api/public/inquiry',{method:'POST',headers:{'Content-Type':'application/json','X-Turnstile-Token':tok},body:JSON.stringify({
+      name, business_name:biz, phone,
+      package:'Free Site Audit Lead',
+      business_type:bt?bt.label:'',
+      niche:bt?bt.niche:'',
+      message:(lastAudit.score!==null?('Website audit score: '+lastAudit.score+'/100 — '+lastAudit.url+' (/site-audit)'):'/site-audit page se'),
+      website:$('lhp').value||'',
+      utm_source:new URLSearchParams(location.search).get('utm_source')||''
+    })});
+    if(res.status===429){$('lmsg').textContent='Thoda ruk ke dobara try karo ⏳';$('lgo').disabled=false;$('lgo').textContent='📞 Poora plan FREE me lo';return}
+    const data=await res.json();
+    if(!data.ok)throw new Error('fail');
+    const safe=name.replace(/[<>&"']/g,'');
+    $('leadCard').innerHTML='<div class="score" style="font-size:2rem">✅</div><h3 style="text-align:center;margin-bottom:6px">Dhanyawad '+safe+'!</h3><p class="grade" style="text-align:center">24 ghante me call aayega — poora fix-list FREE milega. Tab tak <a href="/app/test-call">🎧 AI live demo</a> try karo.</p>';
+  }catch(e){$('lmsg').textContent='Kuch problem aayi — dobara try karo ya WhatsApp 💬';$('lgo').disabled=false;$('lgo').textContent='📞 Poora plan FREE me lo'}
+}
+loadBizTypes();
+</script>
+<script src="/site/turnstile.js" defer></script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

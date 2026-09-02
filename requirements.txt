@@ -1,0 +1,194 @@
+# AI Voice Agent - B2B Lead Generation Platform
+# Production Dependencies
+
+# =============================================================================
+# Core Framework
+# =============================================================================
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+pydantic==2.13.4
+pydantic_core==2.46.4
+pydantic-settings==2.15.0
+email-validator==2.3.0
+python-multipart==0.0.32
+
+# =============================================================================
+# Database
+# =============================================================================
+sqlalchemy==2.0.52
+asyncpg==0.31.0
+psycopg2-binary==2.9.12
+aiosqlite==0.22.1
+alembic==1.19.1
+redis==8.1.0
+aioredis==2.0.1
+
+# =============================================================================
+# AI/ML - Cloud-based APIs
+# =============================================================================
+openai==2.41.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) ΓÇö see app/voice_agent/free_ai.py
+anthropic==0.122.0
+# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.5 (langgraph)
+# langchain-openai==0.0.5 # unused in codebase; same conflict
+google-generativeai==0.8.6
+google-genai>=2.18.1  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-cloud-aiplatform==1.164.0
+
+# =============================================================================
+# Vector RAG (Qdrant + fastembed e5 embeddings ΓÇö KB backend)
+# =============================================================================
+qdrant-client>=1.19.0
+fastembed>=0.4.0
+
+# =============================================================================
+# Speech Processing
+# =============================================================================
+# STT
+deepgram-sdk==7.7.0
+google-cloud-speech==2.40.0
+# Local STT for the conversational phone pipeline (app/voice_agent/phone_stream.py
+# + app/telephony/vobiz_stream.py) ΓÇö faster-whisper 'tiny' runs CPU/int8, no API key.
+faster-whisper>=1.0.0
+# audioop-lts>=0.2.1   # ONLY on Python 3.13+ (audioop stdlib se hata diya gaya); 3.12 me built-in hai
+
+# TTS
+elevenlabs==1.0.3
+azure-cognitiveservices-speech==1.51.1
+edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) ΓÇö must be 7.x
+
+# =============================================================================
+# Payment Gateways
+# =============================================================================
+stripe>=15.5.0
+# razorpay removed 2026-06-18 ΓÇö no online India gateway (payments via manual UPI)
+
+# =============================================================================
+# Web Scraping
+# =============================================================================
+playwright==1.62.0
+beautifulsoup4==4.15.0
+selenium==4.47.0
+googlemaps==4.10.0
+
+# =============================================================================
+# HTTP Clients & Email
+# =============================================================================
+requests==2.34.2
+aiohttp==3.14.3
+httpx==0.28.1
+aiosmtplib==5.1.2
+
+# =============================================================================
+# CRM Integrations
+# =============================================================================
+hubspot-api-client==8.2.1
+google-api-python-client==2.198.0
+google-auth-oauthlib==1.4.0
+gspread==6.2.1
+
+# =============================================================================
+# Utilities
+# =============================================================================
+python-dotenv==1.2.2
+pydub==0.25.1
+phonenumbers==8.13.28
+APScheduler==3.11.3
+Pillow>=12.3.0,<13   # was ==10.2.0 ΓÇö conflicted with fastembed (needs >=10.3.0); live venv already runs >=10.3
+
+# =============================================================================
+# Background Tasks
+# =============================================================================
+celery==5.6.3
+
+# =============================================================================
+# Logging & Monitoring
+# =============================================================================
+loguru==0.7.3
+sentry-sdk==1.45.1
+psutil>=5.9.0
+# --- OpenTelemetry distributed tracing (OPTIONAL ΓÇö app/observability_otel.py) ---
+# Commented so the locked Docker build (requirements.lock.txt) stays unchanged.
+# Enable: uncomment, reinstall, set ENABLE_OTEL=1 + OTEL_EXPORTER_OTLP_ENDPOINT.
+# opentelemetry-sdk>=1.27.0
+# opentelemetry-exporter-otlp>=1.27.0
+# opentelemetry-instrumentation-fastapi>=0.48b0
+# opentelemetry-instrumentation-sqlalchemy>=0.48b0
+# opentelemetry-instrumentation-redis>=0.48b0
+# opentelemetry-instrumentation-httpx>=0.48b0
+
+# =============================================================================
+# GCP Production
+# =============================================================================
+google-cloud-secret-manager>=2.30.0
+google-cloud-storage>=2.14.0
+google-cloud-logging>=3.16.2
+# S3-compatible storage (MinIO addon ΓÇö app/storage/minio_client.py). Import-safe:
+# missing => local-disk fallback. Needed only if docker-compose.addons.yml minio used.
+boto3>=1.43.72
+google-cloud-monitoring>=2.18.0
+google-auth>=2.56.3
+
+# =============================================================================
+# Authentication
+# =============================================================================
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+
+# =============================================================================
+# Data Processing
+# =============================================================================
+pandas==2.2.0
+numpy==1.26.3
+scikit-learn>=1.3.2
+
+# =============================================================================
+# Agent Orchestration (LangGraph supervisor ΓÇö app/agents/)
+# =============================================================================
+langgraph>=1.2.11
+langgraph-checkpoint-sqlite>=3.1.1
+langchain-core>=1.5.5
+# Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) ΓÇö opt-in
+# (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
+langgraph-supervisor>=0.0.27
+langchain-openai>=1.5.1  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+# Knowledge-graph RAG (app/voice_agent/graph_rag.py) ΓÇö opt-in USE_LIGHTRAG=1.
+# Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
+# (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep ΓÇö reuses KB + free_ai.)
+lightrag-hku>=1.5.6
+# AI-automation + marketing helpers (opt-in, defensive ΓÇö graceful fallback if absent):
+instructor>=1.15.4     # validated/typed LLM outputs over free providers (app/llm/structured.py)
+advertools>=0.18.0    # SEM keyword + RSA ad generation (app/marketing/seo_tools.py)
+trafilatura>=2.2.0    # high-accuracy web text + contact extraction (app/lead_scraper/web_extract.py)
+markitdown>=0.1.7     # any file/URL -> LLM-ready markdown (app/lead_scraper/to_markdown.py)
+# crawl4ai>=0.4     # deep LLM-friendly web crawl -> clean markdown (app/lead_scraper/deep_extract.py)
+#                     OPTIONAL/heavy: needs `crawl4ai-setup` (Chromium). Falls back to trafilatura.
+# Lead-gen data quality (competitor-grade ΓÇö Hunter/Instantly verify before sending):
+email-validator>=2.0  # syntax + MX deliverability (app/lead_scraper/email_verify.py) ΓÇö WIRED into auto_outreach
+phonenumbers>=8.13    # validate/format Indian mobiles (app/lead_scraper/phone_validate.py)
+fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
+
+# =============================================================================
+# Voice Pipeline (P3 ΓÇö FreeSWITCH + Pipecat, optional/heavy)
+# =============================================================================
+# pipecat-ai>=0.0.60  # P3 voice pipeline ΓÇö install when wiring audio (heavy)
+
+# Turn-taking upgrades (app/voice_agent/turn_detector.py) ΓÇö optional, OFF by
+# default, enable per detector AFTER testing on the FREE web-call:
+# silero-vad>=5.1   # robust speech gate (MIT, ~2MB ONNX, pulls torch). env USE_SILERO_VAD=1
+# smart-turn-v3 ships INSIDE pipecat-ai (LocalSmartTurnAnalyzerV3 + bundled
+#   smart-turn-v3.2-cpu ONNX) ΓÇö semantic end-of-turn, ~12ms CPU. env USE_SMART_TURN=1
+
+# Vobiz WebSocket streaming STT (app/telephony/vobiz_stream.py) ΓÇö pick ONE.
+# Both heavy + optional; the WS degrades gracefully (deaf) if neither present.
+# vosk>=0.3.45            # offline STT; set VOSK_MODEL_PATH to a model dir
+# faster-whisper>=1.0.0   # alt offline STT ("tiny" model, CPU int8)
+# TTS uses edge-tts (above) + pydub (below); both need ffmpeg on the host.
+# NOTE: ffmpeg is already installed on the VPS (deploy_vps.sh STEP 1) ΓÇö
+#       pydub shells out to it to decode EdgeTTS MP3 -> PCM for ┬╡-law.
+
+# =============================================================================
+# Testing (dev only - move to dev requirements for production)
+# =============================================================================
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0

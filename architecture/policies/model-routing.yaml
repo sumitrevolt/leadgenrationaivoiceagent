@@ -1,0 +1,115 @@
+# Model Routing Policy for LeadGenAI Autonomous Delivery
+# v1.0 2026-07-11
+
+routing_matrix:
+  deterministic_only:
+    - Inventory discovery (grep, AST, dependency extraction)
+    - Repository scanning and architecture graph generation
+    - Test execution and CI validation
+    - Formatting and code structure validation
+    - Secret scanning and compliance checks
+    - Git diff analysis
+    - Log filtering and classification
+    - JSON schema validation
+    - Docker health checks
+    - Endpoint health probes
+    preferred_tools:
+      - python scripts with ripgrep/grep
+      - pytest for testing
+      - ruff for linting
+      - bash for health checks
+    cost: "none"
+    token_budget: null
+
+  cheap_model:
+    - Documentation updates
+    - Test generation and drafts
+    - Code summarization
+    - Simple API adapters and boilerplate
+    - UI text improvements
+    - Low-risk refactoring
+    - Log classification
+    - Repository chunk summaries
+    preferred_model: "claude-opus-4-8 or cheaper free tier"
+    token_budget:
+      input_max: 50000
+      output_max: 2000
+      max_retries: 2
+    cost_per_1k_tokens: "~0.003 USD"
+
+  strong_coding_model:
+    - Multi-file implementation
+    - Complex bug fixes
+    - Database schema changes
+    - Concurrency and idempotency fixes
+    - Queue and scheduler behavior
+    - Plugin and capability wiring
+    - Security-sensitive integration code
+    - Async job implementation
+    preferred_model: "claude-sonnet-5"
+    token_budget:
+      input_max: 100000
+      output_max: 4000
+      max_retries: 2
+    cost_per_1k_tokens: "~0.005 USD"
+
+  claude_senior_reviewer:
+    - Architecture decisions
+    - Task decomposition
+    - High-risk changes (billing, compliance, tenant isolation)
+    - Security review
+    - Customer delivery correctness
+    - Blast-radius analysis
+    - Final acceptance
+    - Ambiguous requirements
+    - Automation verification (Level 4-5 evidence)
+    preferred_model: "claude-haiku-4-5"
+    token_budget:
+      input_max: 200000
+      output_max: 8000
+      max_retries: 1
+    cost_per_1k_tokens: "~0.08 USD"
+
+escalation_rules:
+  - if: "task fails 2x with cheap_model"
+    then: "escalate to strong_coding_model with revised context"
+  - if: "strong_coding_model output exceeds token budget"
+    then: "split task and create sub-tasks"
+  - if: "security or tenant isolation concern"
+    then: "escalate to claude_senior_reviewer immediately"
+  - if: "task touches billing or compliance gates (§5)"
+    then: "claude_senior_reviewer review mandatory before merge"
+
+budgets:
+  per_task:
+    input_tokens_max: 200000
+    output_tokens_max: 8000
+    max_retries: 3
+    timeout_seconds: 600
+  per_domain:
+    daily_budget_usd: 50
+  per_customer_deliverable:
+    monthly_budget_usd: 100
+  per_model:
+    daily_limit_cheap: "unlimited (no cost)"
+    daily_limit_strong: 500000
+    daily_limit_claude: 1000000
+
+cost_tracking:
+  track_by:
+    - model
+    - task
+    - domain
+    - customer_deliverable
+    - accept_vs_reject_ratio
+  report_frequency: "after every task completion"
+  alert_threshold_usd: 25
+
+context_caching:
+  strategy: "slice-based, task-specific"
+  invalidation: "on file change (git diff)"
+  reuse_rules:
+    - unchanged_files: "reuse cached summary"
+    - unchanged_architecture: "reuse graph nodes/edges"
+    - changed_test: "rescan test file, reuse implementation context"
+  cache_location: "architecture/context/"

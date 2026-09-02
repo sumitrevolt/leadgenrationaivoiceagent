@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- External SIP profile + Vobiz gateway — yahin se PSTN calls bahar jaati hain (creds vars.xml/ENV se). -->
+<profile name="external">
+
+  <gateways>
+    <gateway name="vobiz">
+      <!-- SIP digest auth — username/password/realm Vobiz console/API se provisioned (leadgenfs). -->
+      <param name="username" value="$${vobiz_user}"/>
+      <param name="password" value="$${vobiz_pass}"/>
+      <param name="realm" value="$${vobiz_realm}"/>
+      <!-- Outbound INVITEs trunk domain pe jaate hain (1a7ce9d9.sip.vobiz.ai). -->
+      <param name="proxy" value="$${vobiz_proxy}"/>
+      <!-- Vobiz outbound trunks REGISTER support nahi karte — per-call digest
+           auth hota hai (INVITE pe 401 challenge → creds). register=false se
+           gateway NOREG/UP rahega aur outbound INVITE auth se jayega. -->
+      <param name="register" value="false"/>
+      <param name="register-transport" value="udp"/>
+      <param name="from-user" value="$${vobiz_user}"/>
+      <param name="from-domain" value="$${vobiz_realm}"/>
+      <param name="retry-seconds" value="30"/>
+      <param name="expire-seconds" value="600"/>
+      <param name="caller-id-in-from" value="true"/>
+      <param name="ping" value="25"/>
+      <!-- Is gateway pe aane wali INBOUND calls dialplan me "ai_socket" extension hit karengi. -->
+      <param name="extension" value="ai_socket"/>
+    </gateway>
+  </gateways>
+
+  <settings>
+    <!-- Inbound calls ka dialplan context. -->
+    <param name="context" value="leadgen-outbound"/>
+    <param name="dialplan" value="XML"/>
+    <param name="sip-port" value="5060"/>
+    <param name="sip-ip" value="$${local_ip_v4}"/>
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <!-- Mumbai VPS = public IP seedha NIC pe (host network) — NAT auto-detect kaafi hai. -->
+    <param name="ext-sip-ip" value="auto-nat"/>
+    <param name="ext-rtp-ip" value="auto-nat"/>
+    <param name="rtp-timer-name" value="soft"/>
+    <param name="rtp-timeout-sec" value="300"/>
+    <param name="codec-prefs" value="PCMU,PCMA"/>
+    <param name="inbound-codec-negotiation" value="generous"/>
+    <param name="auth-calls" value="false"/>
+    <param name="apply-inbound-acl" value="domains"/>
+  </settings>
+
+</profile>

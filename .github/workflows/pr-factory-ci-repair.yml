@@ -1,0 +1,95 @@
+# =============================================================================
+# pr-factory-ci-repair.yml — Wave 1 READ-ONLY diagnosis (fail-closed)
+#
+# Wave 1 deliberately does NOT write code, push commits, or invoke a coding
+# agent with contents:write. Flags OFF must not allow a merged workflow to
+# mutate the tree. Code repair stays disabled until the Action is mechanically
+# bound to: EXTERNAL_AGENT_ORCHESTRATOR + PR_FACTORY_ENABLED + create_mission
+# allowed_paths + risk class + Owner OS approval_decision_id (Wave 3+).
+#
+# Triggers: workflow_dispatch ONLY (no issue_comment /pr-factory-repair).
+# Permissions: contents:read · actions:read · pull-requests:write (comment only).
+#
+# Pins:
+#   actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  (v7.0.1)
+#
+# DENY-LIST (never grant these secrets / never attempt these):
+#   - deploy / deploy_vps.sh / DEPLOY_ENABLED / prod SSH
+#   - secrets rotation / .env mutation
+#   - telephony / voice / Swara / DLT / Vobiz
+#   - billing / UPI / Stripe / invoice
+#   - production flag flips
+#   - contents:write / push / PR branch mutation
+# =============================================================================
+name: pr-factory-ci-repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to diagnose (read-only)"
+        required: true
+        type: string
+      focus:
+        description: "Optional focus (check name or failing summary)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  # Explicitly NO contents:write, packages, id-token, or deploy scopes.
+
+concurrency:
+  group: pr-factory-ci-repair-${{ github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (read-only pin)
+        # actions/checkout v7.0.1 — full commit SHA (not floating @v7)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read-only CI diagnosis comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          FOCUS: ${{ github.event.inputs.focus }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR_NUMBER="$(echo "${PR_NUMBER}" | tr -cd '0-9')"
+          if [ -z "${PR_NUMBER}" ]; then
+            echo "pr_number required (digits only)"
+            exit 1
+          fi
+          # Collect check runs — diagnosis only; never push, never edit files.
+          SUMMARY="$(gh pr checks "${PR_NUMBER}" --repo "${{ github.repository }}" 2>&1 || true)"
+          BODY="$(cat <<EOF
+          ## PR Factory Wave 1 — read-only CI diagnosis
+
+          **Mode:** diagnosis only (no code write, no push, no agent repair).
+          **Focus:** ${FOCUS:-"(none)"}
+          **Gates:** \`PR_FACTORY_ENABLED\` / \`EXTERNAL_AGENT_ORCHESTRATOR\` are **not** consulted here because this job cannot mutate the tree.
+
+          ### \`gh pr checks\`
+          \`\`\`
+          ${SUMMARY}
+          \`\`\`
+
+          Code repair stays **disabled** until Wave 3+ binds this workflow to a canonical external-agent mission (allowed_paths, risk class, Owner OS \`approval_decision_id\`).
+          EOF
+          )"
+          # Strip leading indentation from heredoc for readable comments
+          BODY="$(printf '%s\n' "${BODY}" | sed 's/^          //')"
+          gh pr comment "${PR_NUMBER}" --repo "${{ github.repository }}" --body "${BODY}"
+          echo "Posted read-only diagnosis comment on PR #${PR_NUMBER}"

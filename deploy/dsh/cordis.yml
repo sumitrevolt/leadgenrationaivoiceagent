@@ -1,0 +1,120 @@
+# LeadGen hardened DSH composition.
+# No Bash, filesystem, jobs, browser, subagent, scheduler, skills, telemetry,
+# persistence backend, direct provider adapter, workspace discovery, or UI.
+
+- id: invariants
+  name: '@deepseek-ai/dsh-invariants'
+  config:
+    enabled: true
+
+- id: llm
+  name: '@deepseek-ai/dsh-llm'
+
+- id: session
+  name: '@deepseek-ai/dsh-session'
+
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+  config:
+    includeHarnessIdentity: false
+    includeRuntimeContext: false
+    persona: |-
+      You are a bounded LeadGen workflow planner. Use only the MCP tools exposed
+      for this run. Never invent tenant identity, approval, consent, prices,
+      customer claims, or side-effect outcomes. A refused tool result is final.
+
+      You also carry the 1000-Engineers Collective Knowledge skill
+      (full reference: deploy/dsh/skills/1000-engineers.md):
+      1. Evidence over vibes — every claim needs a proof line; never "should be fine".
+      2. Primitive evidence — read the body/stack, not just status codes; the
+         exception BEFORE the handler's own crash is the truth.
+      3. Root cause, not symptom — fix the cause once; label temporary bridges.
+      4. Fail-open for read surfaces, fail-CLOSED for safety/compliance/payment/auth.
+      5. Idempotency — a retry must never duplicate a customer-visible effect.
+      6. Least privilege — minimum scope, no wildcards in new allowlists.
+      7. Everything observable — heartbeat, log, metric, kill-switch, rollback.
+      8. Review through all 10 lenses (architecture, backend, data, security, SRE,
+         performance, QA, product, AI, compliance) before finishing any step.
+      9. Secrets never in code/logs/URLs; compliance gates never weakened.
+      10. Trade-offs said aloud, then ship the decision with evidence.
+
+- id: tools
+  name: '@deepseek-ai/dsh-tools'
+  config:
+    mode: native
+
+- id: agent
+  name: '@deepseek-ai/dsh-agent'
+
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      leadgen-internal:
+        displayName: LeadGen internal free-AI proxy
+        apiKeyEnv: DSH_RUN_TOKEN  # pragma: allowlist secret (env var NAME, not a value)
+        api: openai-completions
+        baseURL: !!js process.env.DSH_LLM_BASE_URL
+        timeoutMs: 60000
+        streamIdleTimeoutMs: 30000
+        retryPolicy:
+          mode: normal
+          maxRetries: 2
+          backoff:
+            initialDelayMs: 250
+            maxDelayMs: 2000
+            jitterRatio: 0.1
+        models:
+          - id: leadgen-free
+            name: LeadGen free provider chain
+            contextWindow: 32768
+            maxTokens: 2048
+
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    maxParallelToolCalls: 1
+    agents: []
+
+- id: leadgen-mcp
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: leadgen
+    transport: streamable-http
+    url: !!js process.env.DSH_MCP_URL
+    headers:
+      Authorization: !!js '`Bearer ${process.env.DSH_RUN_TOKEN}`'
+    toolCallTimeoutMs: 30000
+    failOnStartupError: true
+    reconnect:
+      enabled: true
+      initialDelayMs: 250
+      maxDelayMs: 2000
+      maxAttempts: 3
+
+- id: sdk-jsonrpc-server
+  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+  config:
+    maxTokensAsSuccess: false
+
+# --- Tier-1 plugin adds 2026-08-23 (PR: big-project handling; INERT until armed soak) ---
+# Owner-approved 2026-08-23 ("sab karo"). ADR-182 gates apply: shadow soak -> owner
+# promotion. Persistence = session files inside hardened container only (no external
+# backend, no tenant data paths). user-approval = in-run owner gate surface (R8 map);
+# read-only planning runs never trigger it.
+
+- id: session-persistence
+  name: '@deepseek-ai/dsh-session-persistence'
+
+- id: user-approval
+  name: '@deepseek-ai/dsh-user-approval'
+
+- id: timeout
+  name: '@deepseek-ai/dsh-timeout'
+  config:
+    defaultTimeoutMs: 60000
+
+- id: llm-retry
+  name: '@deepseek-ai/dsh-llm-retry'
+  config:
+    maxAttempts: 3

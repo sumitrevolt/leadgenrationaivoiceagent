@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "warp@claude-code-warp": false
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/buzz_canonicalize_boss.py:*)",
+      "Bash(python scripts/buzz_start_harness.py:*)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}

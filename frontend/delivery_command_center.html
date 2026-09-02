@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
+<title>LeadGen AI — Command Center</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9; --brand-2:#4f46e5; --brand-soft:#ede9fe;
+    --ink:#1e1b2e; --muted:#6b7280; --line:#e9e7f2; --bg:#f6f5fb; --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+
+  .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .chip b{color:var(--ink);font-size:13px}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+  .refresh-btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 13px;
+    cursor:pointer;font-size:12.5px;font-weight:700;color:var(--brand)}
+  .refresh-btn:hover{background:var(--brand-soft)}
+  a.refresh-btn{text-decoration:none;display:inline-flex;align-items:center}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:16px}
+  .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;margin:18px 2px 10px;display:flex;align-items:center;gap:7px}
+
+  .kpi-row{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:15px}
+  .kpi .lbl{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .kpi .val{font-size:27px;font-weight:800;margin-top:5px;line-height:1}
+  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .kpi.warn .val{color:var(--warn)}
+  .kpi.err .val{color:var(--err)}
+  .kpi.ok .val{color:var(--ok)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:16px;margin-top:14px}
+  .card h3{margin:0 0 10px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--muted);margin:-4px 0 12px}
+
+  .plan-row{display:flex;gap:10px;flex-wrap:wrap}
+  .plan-pill{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 13px;font-size:12.5px}
+  .plan-pill b{display:block;font-size:15px;color:var(--ink)}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);
+    font-size:11px;text-transform:uppercase;white-space:nowrap}
+  .tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .nm{font-weight:800}
+  .pill{font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--brand-soft);
+    color:var(--brand);white-space:nowrap;display:inline-block}
+  .pill.plan{background:#eef2ff;color:var(--brand-2);text-transform:capitalize}
+  .nextaction{font-size:12px;font-weight:700}
+  .nextaction.ok{color:var(--ok)}
+  .nextaction.warn{color:var(--warn)}
+  .nextaction.err{color:var(--err)}
+  .nextaction.muted{color:var(--muted)}
+  .pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+  .stage{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+  .stage .n{font-size:20px;font-weight:900}
+  .stage .l{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .filter{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:11px;cursor:pointer}
+  .filter.on{background:var(--brand-soft);color:var(--brand);border-color:#c4b5fd}
+  .bar{height:8px;background:#eef2ff;border-radius:999px;overflow:hidden;margin-top:5px}
+  .bar span{display:block;height:100%;background:linear-gradient(90deg,#7c3aed,#22c55e);border-radius:inherit}
+  .sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+  .mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .mini.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .mini.warn{background:#fff7ed;color:#9a3412}
+  /* Delivery-health state badge — tone (ok/warn/err/muted) from server health.tone */
+  .hbadge{font-size:10.5px;font-weight:800;border-radius:999px;padding:3px 9px;white-space:nowrap;
+    display:inline-block;border:1px solid transparent}
+  .hbadge.ok{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+  .hbadge.warn{background:#fef3c7;color:#92400e;border-color:#fde68a}
+  .hbadge.err{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  .hbadge.muted{background:var(--bg);color:var(--muted);border-color:var(--line)}
+
+  .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .empty .spin{vertical-align:-2px;margin-right:7px;width:13px;height:13px;border:2px solid rgba(109,40,217,.25);
+    border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .honest{font-size:11px;color:var(--muted);margin-top:12px;text-align:center}
+
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
+  .toast{background:#1e293b;color:#fff;border-radius:12px;padding:11px 14px;font-size:12.5px;
+    box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .25s ease}
+  .toast.err{background:#b91c1c}
+  .toast.ok{background:#15803d}
+  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  @media(max-width:700px){
+    .tbl thead{display:none}
+    .tbl tr{display:block;border-bottom:1px solid var(--line);padding:8px 0}
+    .tbl td{display:block;padding:3px 10px;border-bottom:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">🚀</span><span>Delivery Cockpit</span></div>
+  <div class="spacer"></div>
+  <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  <span class="chip">🕐 <b id="lastUpdate">Loading…</b></span>
+  <a class="refresh-btn" href="/app/admin" title="Admin dashboard">← Admin</a>
+  <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
+  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <h2 class="col-title">📊 Customers — ek nazar me</h2>
+  <div class="kpi-row" id="kpiRow">
+    <div class="kpi"><div class="lbl">Total Customers</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Paying</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Stuck in Setup</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Receiving Value</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Automation Issues</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Pending Approvals</div><div class="val">–</div></div>
+  </div>
+
+  <div class="card">
+    <h3>💰 Revenue</h3>
+    <div class="hint">Active customers ka monthly recurring revenue, plan-wise.</div>
+    <div id="revenueBody"><div class="empty"><span class="spin"></span> Load ho raha hai…</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Delivery Pipeline</h3>
+    <div class="hint">Payment se renewal tak har paid customer ka current stage.</div>
+    <div class="pipeline" id="pipelineRow"><div class="empty"><span class="spin"></span> Pipeline load ho raha hai...</div></div>
+  </div>
+
+  <h2 class="col-title">👥 Har customer — kya ho raha hai</h2>
+  <div class="card" style="padding:0">
+    <div class="filters" style="padding:14px 14px 0">
+      <button class="filter on" data-filter="all">All</button>
+      <button class="filter" data-filter="risk">At Risk</button>
+      <button class="filter" data-filter="approval">Approval Pending</button>
+      <button class="filter" data-filter="renewal">Renewal Ready</button>
+      <button class="filter" data-filter="setup">Setup Incomplete</button>
+    </div>
+    <div id="customerTableWrap">
+      <div class="empty"><span class="spin"></span> Customers load ho rahe hain…</div>
+    </div>
+  </div>
+
+  <h2 class="col-title">Automation Logs — delivery se linked</h2>
+  <div class="card">
+    <div class="filters">
+      <button class="filter log-filter on" data-log-filter="">All</button>
+      <button class="filter log-filter" data-log-filter="failed_today">Failed Today</button>
+      <button class="filter log-filter" data-log-filter="manual_required">Manual Required</button>
+      <button class="filter log-filter" data-log-filter="customer_blocked">Customer Blocked</button>
+      <button class="filter log-filter" data-log-filter="ready_to_publish">Ready To Publish</button>
+      <button class="filter log-filter" data-log-filter="report_pending">Report Pending</button>
+      <button class="filter log-filter" data-log-filter="payment_received_setup_incomplete">Setup Incomplete</button>
+    </div>
+    <div id="logsBody"><div class="empty"><span class="spin"></span> Logs load ho rahe hain...</div></div>
+  </div>
+
+  <h2 class="col-title">⚙️ Automation Runs — saare background jobs</h2>
+  <div class="card">
+    <div class="hint">Har scheduled job/agent ka structured run-log (ADR-064): job type, status, time, error, retry. Isse dikhta hai 30+ automations me kaun chal raha / fail ho raha hai.</div>
+    <div class="filters">
+      <button class="filter run-filter on" data-run-status="">All</button>
+      <button class="filter run-filter" data-run-status="success">Success</button>
+      <button class="filter run-filter" data-run-status="failed">Failed</button>
+      <button class="filter run-filter" data-run-status="running">Running</button>
+      <button class="filter run-filter" data-run-status="skipped">Skipped</button>
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <input id="runJobType" placeholder="Job type (e.g. content, prospect)" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit;min-width:200px" />
+      <input id="runClientId" placeholder="Customer id (optional)" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit;min-width:150px" />
+      <select id="runDays" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit">
+        <option value="1">Aaj</option>
+        <option value="7" selected>7 din</option>
+        <option value="30">30 din</option>
+      </select>
+      <button id="runApply" class="refresh-btn">Apply</button>
+    </div>
+    <div id="autoRunsBody"><div class="empty"><span class="spin"></span> Automation runs load ho rahe hain...</div></div>
+  </div>
+
+  <h2 class="col-title">🧯 Failed Jobs — Dead-letter queue (DLQ)</h2>
+  <div class="card">
+    <div class="hint">Celery tasks jo fail hui. "Dead" = auto-retry exhausted (dlq_retry). Read-only view — sweep/retry ops <a href="/app/ops">/app/ops</a> se. Redis: dlq:failed_tasks / dlq:dead.</div>
+    <!-- ADR-104 Phase B follow-up (2026-07-15): this summary is ALWAYS computed
+         from BOTH dlq:failed_tasks + dlq:dead (never just the tab currently
+         selected below) so this card can never show "DLQ khaali" while a dead
+         task exists — the exact false-green gap Phase B fixed on the
+         Reliability Console but this page had never been wired to. -->
+    <div id="dlqSummary" class="hint" style="font-weight:700"><span class="spin"></span> Loading DLQ summary…</div>
+    <div class="filters">
+      <button class="filter dlq-filter on" data-dlq-key="failed">Failed</button>
+      <button class="filter dlq-filter" data-dlq-key="dead">Dead (exhausted)</button>
+    </div>
+    <div id="dlqBody"><div class="empty"><span class="spin"></span> DLQ load ho raha hai...</div></div>
+  </div>
+  <div class="honest">Manual fallback first-class hai: API missing ho to bhi admin proof note, manual publish, report, aur reminder record kar sakta hai.</div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+    document.getElementById("tokToggle").classList.remove("on");
+    loadAll();
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+  }
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var data = null;
+    try{ data = await r.json(); }catch(_e){}
+    if(!r.ok){ throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status)); }
+    return data;
+  }
+  function inr(n){
+    return "₹" + Number(n || 0).toLocaleString("en-IN");
+  }
+
+  // ---- Next-action hint per customer — mirrors the mission's admin framing:
+  // "value mil rahi hai ya nahi, kya stuck hai, kaunsa button dabana hai."
+  // Prefers the server-computed `health` (7-state delivery-health); the older
+  // ad-hoc rules stay as a fallback for responses without the health field. ----
+  function nextAction(c){
+    var h = c.health;
+    if(h && h.state){
+      return {cls: h.tone || "muted", text: h.next_action_hint || h.reason || "—"};
+    }
+    if(!c.setup_done) return {cls: "warn", text: "⚠️ Setup adhoora"};
+    if(c.automation_failures > 0) return {cls: "err", text: "🔴 Automation fail hui"};
+    if(c.pending_approvals > 0) return {cls: "warn", text: "📝 " + c.pending_approvals + " approval ka wait"};
+    if(c.value_delivered) return {cls: "ok", text: "✅ Value mil rahi hai"};
+    return {cls: "muted", text: "⏳ Abhi koi delivery nahi"};
+  }
+
+  // Colored delivery-health state badge (state + short Hinglish label_hi).
+  function healthBadge(c){
+    var h = c.health;
+    if(!h || !h.state) return "";
+    return '<span class="hbadge ' + esc(h.tone || "muted") + '" title="' + esc(h.reason || "") + '">' +
+      esc(h.label_hi || h.state) + '</span>';
+  }
+
+  function renderKpis(s){
+    var row = document.getElementById("kpiRow");
+    var cards = [
+      {lbl: "Total Customers", val: s.total_customers, sub: "active"},
+      {lbl: "Paying", val: s.paying_customers, sub: "payment proof confirmed"},
+      {lbl: "Stuck in Setup", val: s.stuck_in_setup, cls: s.stuck_in_setup > 0 ? "warn" : "ok", sub: "onboarding adhoora"},
+      {lbl: "Receiving Value", val: s.receiving_value, cls: "ok", sub: "kam se kam 1 delivery event"},
+      {lbl: "Automation Issues", val: s.failed_automation_count, cls: s.failed_automation_count > 0 ? "err" : "ok", sub: "kisi automation me fail"},
+      {lbl: "Pending Approvals", val: s.pending_approvals_total, cls: s.pending_approvals_total > 0 ? "warn" : "ok", sub: "customer se wait"},
+      {lbl: "At Risk", val: s.at_risk_count, cls: s.at_risk_count == null ? "" : (s.at_risk_count > 0 ? "err" : "ok"), sub: s.at_risk_count == null ? "assurance unavailable" : "value ruki / fail hui"},
+      {lbl: "Benefit This Week", val: s.benefit_this_week, cls: "ok", sub: "is hafte value mili"},
+    ];
+    row.innerHTML = cards.map(function(c){
+      return '<div class="kpi' + (c.cls ? " " + c.cls : "") + '"><div class="lbl">' + esc(c.lbl) + '</div>' +
+        '<div class="val">' + esc(c.val == null ? "–" : String(c.val)) + '</div>' +
+        '<div class="sub">' + esc(c.sub) + '</div></div>';
+    }).join("");
+  }
+
+  function renderRevenue(rev){
+    var body = document.getElementById("revenueBody");
+    var byPlan = (rev && rev.by_plan) || {};
+    var plans = Object.keys(byPlan);
+    var head = '<div class="kpi" style="margin-bottom:12px"><div class="lbl">MRR Total</div>' +
+      '<div class="val">' + inr(rev && rev.mrr_total) + '</div><div class="sub">invoice-backed paying customers, monthly</div></div>';
+    if(!plans.length){
+      body.innerHTML = head + '<div class="empty">Abhi koi paying plan nahi.</div>';
+      return;
+    }
+    body.innerHTML = head + '<div class="plan-row">' + plans.map(function(p){
+      var b = byPlan[p];
+      if(typeof b === "number") b = {mrr:b, count: b > 0 ? 1 : 0};
+      b = b || {mrr:0, count:0};
+      return '<div class="plan-pill"><b>' + inr(b.mrr) + '</b>' + esc(p) + ' · ' + esc(b.count) + ' customer' + (b.count === 1 ? "" : "s") + '</div>';
+    }).join("") + '</div>';
+  }
+
+  var ALL_CUSTOMERS = [];
+  var CURRENT_FILTER = "all";
+
+  function renderPipeline(rows){
+    var box = document.getElementById("pipelineRow");
+    if(!rows || !rows.length){ box.innerHTML = '<div class="empty">Pipeline data nahi mila.</div>'; return; }
+    box.innerHTML = rows.map(function(p){
+      return '<div class="stage"><div class="n">' + esc(p.count || 0) + '</div><div class="l">' + esc(p.label || p.key) + '</div></div>';
+    }).join("");
+  }
+
+  function matchesCustomerFilter(c){
+    if(CURRENT_FILTER === "risk") return c.risk_flag && c.risk_flag !== "ok";
+    if(CURRENT_FILTER === "approval") return Number(c.posts_waiting_for_approval || c.pending_approvals || 0) > 0;
+    if(CURRENT_FILTER === "renewal") return c.current_delivery_stage === "renewal_ready";
+    if(CURRENT_FILTER === "setup") return Number(c.setup_completion_pct || 0) < 100;
+    return true;
+  }
+
+  function renderCustomers(list){
+    var wrap = document.getElementById("customerTableWrap");
+    var filtered = (list || []).filter(matchesCustomerFilter);
+    if(!filtered.length){
+      wrap.innerHTML = '<div class="empty">Abhi koi active customer nahi — <a href="/app/clients">Clients</a> se pehla client add karo.</div>';
+      return;
+    }
+    var rows = filtered.map(function(c){
+      var na = nextAction(c);
+      var setup = Number(c.setup_completion_pct || 0);
+      var deliv = Number(c.deliverable_completion_pct || 0);
+      var missingItems = (c.pending_customer_inputs || []).map(function(m){
+        var labels = {business:"Business details", offer:"Services/offers", brand:"Brand kit", social:"Social links", approval:"Approval pref"};
+        return labels[m] || m;
+      });
+      var missingHtml = missingItems.length ? '<div class="sub" style="color:#d97706;font-size:10px;margin-top:2px">⚠️ ' + missingItems.join(', ') + ' missing</div>' : '';
+      return '<tr>' +
+        '<td class="nm">' + esc(c.customer_name || c.business_name || "(no name)") + '<div class="sub">' + esc(({"customer_blocked":"Customer Blocked","at_risk":"At Risk","churn_risk":"Churn Risk","payment_overdue":"Payment Overdue","ok":"OK"}[c.risk_flag] || (c.risk_flag||"ok").replace(/_/g," ").replace(/\b\w/g,function(l){return l.toUpperCase()}))) + '</div></td>' +
+        '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span></td>' +
+        '<td>' + healthBadge(c) + '<div class="sub">' + esc(c.stage_label || c.current_delivery_stage || "-") + '</div></td>' +
+        '<td style="min-width:90px"><b>' + setup + '%</b><div class="bar"><span style="width:' + setup + '%"></span></div>' + missingHtml + '</td>' +
+        '<td><b>' + deliv + '%</b><div class="bar"><span style="width:' + deliv + '%"></span></div></td>' +
+        '<td><span class="nextaction ' + na.cls + '">' + esc(c.next_action || na.text) + '</span><div class="sub">Owner: ' + esc(c.owner || "Sumit") + ' · Due: ' + esc(c.due_date || "-") + '</div></td>' +
+        '<td class="actions">' +
+          '<button class="mini primary" onclick="deliveryAction(\'' + esc(c.id) + '\',\'generate_content\')">Generate</button>' +
+          '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'approve_pending\',\'' + esc((c.customer_name || c.business_name || c.id || '')).replace(/'/g,"\\'") + '\')">Approve</button>' +
+          '<button class="mini warn" onclick="deliveryAction(\'' + esc(c.id) + '\',\'publish_manual\',\'' + esc((c.customer_name || c.business_name || c.id || '')).replace(/'/g,"\\'") + '\')">Manual proof</button>' +
+          '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'monthly_report\')">Report</button>' +
+        '</td>' +
+      '</tr>';
+    }).join("");
+    wrap.innerHTML = '<table class="tbl"><thead><tr>' +
+      '<th>Customer</th><th>Plan</th><th>Health</th><th>Setup</th><th>Deliverables</th><th>Next Action</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderLogs(rows){
+    var box = document.getElementById("logsBody");
+    if(!rows || !rows.length){ box.innerHTML = '<div class="empty">Is filter me koi delivery log nahi.</div>'; return; }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>Customer</th><th>Workflow</th><th>Status</th><th>Next Action</th><th>When</th></tr></thead><tbody>' +
+      rows.slice(0,80).map(function(r){
+        var cls = r.status === "failed" ? "err" : (r.status === "manual_required" ? "warn" : "ok");
+        return '<tr><td class="nm">' + esc(r.customer_name || r.customer_id) + '</td>' +
+          '<td>' + esc(r.workflow_name || r.workflow_id) + '<div class="sub">' + esc(r.trigger_source || "") + '</div></td>' +
+          '<td><span class="nextaction ' + cls + '">' + esc(r.status || "") + '</span></td>' +
+          '<td>' + esc(r.next_action || "") + (r.error_message ? '<div class="sub">' + esc(r.error_message) + '</div>' : '') + '</td>' +
+          '<td class="sub">' + esc(r.started_at || r.completed_at || "") + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+
+  async function loadLogs(filter){
+    try{
+      var url = "/api/admin/delivery-logs" + (filter ? "?filter=" + encodeURIComponent(filter) : "");
+      var data = await callApi(url, {headers: hdrs()});
+      renderLogs((data && data.events) || []);
+    }catch(e){
+      document.getElementById("logsBody").innerHTML = '<div class="empty">Logs load nahi hue: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  // ---- Automation Runs (ADR-064 DB-backed /api/admin/automation-logs) --------
+  function renderAutoRuns(rows){
+    var box = document.getElementById("autoRunsBody");
+    if(!rows || !rows.length){
+      box.innerHTML = '<div class="empty">Is filter me koi automation run nahi mila. (Jobs abhi chale nahi ya DB me log nahi.)</div>';
+      return;
+    }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th>Time</th><th>Retries</th><th>When</th><th>Detail</th><th>Proof</th></tr></thead><tbody>' +
+      rows.slice(0,200).map(function(r){
+        var st = String(r.status || "");
+        var cls = st === "failed" ? "err" : (st === "running" ? "warn" : (st === "skipped" ? "muted" : "ok"));
+        var dur = (r.duration_ms == null) ? "—" : (Math.round(Number(r.duration_ms) / 100) / 10) + "s";
+        var detail = r.error_message ? esc(r.error_message) : esc(r.output_summary || "");
+        var when = String(r.created_at || r.finished_at || "").replace("T", " ").slice(0, 16);
+        var rc = (r.retry_count == null) ? 0 : r.retry_count;
+        // Proof artifact (ADR-065 p3): report file path lives in meta_json; a
+        // published-post URL may appear in output_summary. No DB column — sourced
+        // from existing fields so no migration on the live prod DB.
+        var proof = r.evidence_url ? String(r.evidence_url) : "";
+        try { if (!proof) { var mj = r.meta_json ? (typeof r.meta_json === "string" ? JSON.parse(r.meta_json) : r.meta_json) : null; if (mj && mj.path) proof = String(mj.path); } } catch(_e){}
+        if (!proof) { var mm = String(r.output_summary || "").match(/https?:\/\/\S+/); if (mm) proof = mm[0]; }
+        var proofCell = !proof ? '—' : (/^https?:\/\//.test(proof)
+          ? '<a href="' + esc(proof) + '" target="_blank" rel="noopener">open</a>'
+          : '<span title="' + esc(proof) + '">' + esc(proof.length > 36 ? proof.slice(0, 36) + '…' : proof) + '</span>');
+        return '<tr><td class="nm">' + esc(r.job_type || "") + '</td>' +
+          '<td>' + esc(r.client_id || "platform") + '</td>' +
+          '<td><span class="nextaction ' + cls + '">' + esc(st || "-") + '</span></td>' +
+          '<td class="sub">' + esc(dur) + '</td>' +
+          '<td class="sub">' + esc(rc) + (r.next_retry_at ? ' · retry queued' : '') + '</td>' +
+          '<td class="sub">' + esc(when) + '</td>' +
+          '<td class="sub">' + (detail || '—') + '</td>' +
+          '<td class="sub">' + proofCell + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+
+  var RUN_STATUS = "";
+  async function loadAutoRuns(){
+    var box = document.getElementById("autoRunsBody");
+    try{
+      var jt = (document.getElementById("runJobType").value || "").trim();
+      var cid = (document.getElementById("runClientId").value || "").trim();
+      var days = document.getElementById("runDays").value || "7";
+      var q = "?days=" + encodeURIComponent(days) + "&limit=200";
+      if(RUN_STATUS) q += "&status=" + encodeURIComponent(RUN_STATUS);
+      if(jt) q += "&job_type=" + encodeURIComponent(jt);
+      if(cid) q += "&client_id=" + encodeURIComponent(cid);
+      var data = await callApi("/api/admin/automation-logs" + q, {headers: hdrs()});
+      renderAutoRuns((data && data.logs) || []);
+    }catch(e){
+      box.innerHTML = '<div class="empty">Automation runs load nahi hue: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  // ---- Failed Jobs / Dead-letter queue (read-only; existing /api/growth/infra/dlq) ----
+  var DLQ_KEY = "failed";
+  function renderDlq(data){
+    var box = document.getElementById("dlqBody");
+    var items = (data && data.items) || [];
+    var count = (data && data.count) || 0;
+    if(!items.length){
+      box.innerHTML = '<div class="empty">' + (count ? (esc(count) + ' items queue me (parse nahi hue).') : '✅ DLQ khaali — koi failed job nahi.') + '</div>';
+      return;
+    }
+    box.innerHTML = '<div class="hint">Total in queue: ' + esc(count) + '</div>' +
+      '<table class="tbl"><thead><tr><th>Job / Task</th><th>Error</th><th>Reason</th><th>When</th></tr></thead><tbody>' +
+      items.slice(0,80).map(function(it){
+        var job = (it && it.args && it.args.length) ? String(it.args[0]) : String(it.task_id || it.task || "?");
+        var err = String(it.error || it.exc || "");
+        var reason = String(it.dead_reason || "");
+        var when = String(it.ts || it.timestamp || "").replace("T", " ").slice(0, 16);
+        return '<tr><td class="nm">' + esc(job) + '</td>' +
+          '<td class="sub">' + (err ? esc(err.length > 80 ? err.slice(0, 80) + '…' : err) : '—') + '</td>' +
+          '<td class="sub">' + (reason ? esc(reason) : '—') + '</td>' +
+          '<td class="sub">' + esc(when) + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+  // ADR-104 Phase B follow-up (2026-07-15): renders the summary from BOTH
+  // failed + dead counts, independent of which tab (DLQ_KEY) is selected for
+  // the item table below. Mirrors office_map.html's Reliability Console,
+  // which already fetches both keys — this page previously fetched only one.
+  function renderDlqSummary(failedCount, deadCount, err){
+    var el = document.getElementById("dlqSummary");
+    if(!el) return;
+    if(err){
+      el.innerHTML = '⚠️ DLQ summary load nahi hua: ' + esc(err);
+      return;
+    }
+    var dead = Number(deadCount) || 0, failed = Number(failedCount) || 0;
+    if(dead > 0){
+      el.innerHTML = '⚠️ Failed (retry-able): ' + esc(failed) + ' · Dead (exhausted): ' + esc(dead) +
+        ' — <a href="/app/office#reliability" target="_blank" style="color:var(--err);font-weight:800">Reliability Console me dekho →</a>';
+      el.style.color = "var(--err)";
+    }else if(failed > 0){
+      el.innerHTML = '⚠️ Failed (retry-able): ' + esc(failed) + ' · Dead (exhausted): 0';
+      el.style.color = "var(--warn)";
+    }else{
+      el.innerHTML = '✅ DLQ khaali — koi failed ya dead job nahi.';
+      el.style.color = "var(--ok)";
+    }
+  }
+  async function loadDlq(){
+    var box = document.getElementById("dlqBody");
+    try{
+      // Always fetch BOTH keys for the summary, regardless of which tab is
+      // selected — a tab-scoped fetch alone is exactly how this card used to
+      // go blind to a nonzero dead count sitting behind the other tab.
+      var results = await Promise.allSettled([
+        callApi("/api/growth/infra/dlq?key=failed&limit=1", {headers: hdrs()}),
+        callApi("/api/growth/infra/dlq?key=dead&limit=1", {headers: hdrs()})
+      ]);
+      var failedRes = results[0], deadRes = results[1];
+      if(failedRes.status === "fulfilled" && deadRes.status === "fulfilled"){
+        renderDlqSummary(failedRes.value.count, deadRes.value.count, null);
+      }else{
+        var e = (failedRes.reason || deadRes.reason);
+        renderDlqSummary(0, 0, e ? e.message : "unknown error");
+      }
+      var data = await callApi("/api/growth/infra/dlq?key=" + encodeURIComponent(DLQ_KEY) + "&limit=50", {headers: hdrs()});
+      renderDlq(data);
+    }catch(e){
+      box.innerHTML = '<div class="empty">DLQ load nahi hua: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  // ADR-104 (2026-07-15): in-page confirmation modal, replacing native
+  // confirm()/prompt()-only gating for approval/publish/schedule/delivery
+  // actions. A native confirm() dialog was proven this session to auto-accept
+  // in a browser-automation context BEFORE a permission interceptor could
+  // block it, silently approving real customer content. This modal only ever
+  // resolves via an explicit click on its own Cancel/Confirm buttons (or
+  // Escape/backdrop = cancel) -- never via Enter keypress, automation
+  // default, or page load. Opening the modal alone makes zero network
+  // requests; only the caller's own follow-up code (gated on the resolved
+  // boolean) makes the actual API call.
+  function actionConfirmModal(opts){
+    opts = opts || {};
+    return new Promise(function(resolve){
+      var isPublic = !!opts.isPublic;
+      var overlay = document.createElement("div");
+      overlay.setAttribute("data-testid", "action-confirm-modal-overlay");
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,15,25,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+      var box = document.createElement("div");
+      box.style.cssText = "background:#fff;border-radius:14px;max-width:480px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#111";
+      box.innerHTML =
+        '<div style="font-weight:800;font-size:16px;margin-bottom:10px">' + (isPublic ? "⚠️ Public publish confirmation" : "Internal action confirmation") + '</div>' +
+        '<div style="font-size:13.5px;line-height:1.7">' +
+          '<div><b>Customer:</b> ' + esc(opts.customer || "") + '</div>' +
+          '<div><b>Content:</b> ' + esc(opts.contentTitle || "") + '</div>' +
+          '<div><b>Action:</b> ' + esc(opts.action || "") + '</div>' +
+          '<div><b>Target channel:</b> ' + esc(opts.channel || "none") + '</div>' +
+          '<div><b>Channel connected:</b> ' + (opts.channelConnected ? "Yes" : "No / unknown") + '</div>' +
+          '<div style="margin-top:8px;padding:8px;border-radius:8px;background:' + (isPublic ? "#fef2f2" : "#f0fdf4") + ';color:' + (isPublic ? "#991b1b" : "#166534") + '">' +
+            (isPublic
+              ? "This WILL post publicly on a live external channel. This cannot be silently undone once posted."
+              : "This only changes an internal status. It does NOT post publicly. No external channel will be contacted right now.") +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">' +
+          '<button data-testid="acm-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:700">Cancel</button>' +
+          '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:' + (isPublic ? "#dc2626" : "#4f46e5") + '">' + esc(opts.confirmLabel || "Confirm") + '</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function cleanup(result){
+        if(overlay.parentNode) document.body.removeChild(overlay);
+        document.removeEventListener("keydown", onKey);
+        resolve(result);
+      }
+      function onKey(e){
+        // Explicitly: Enter must NOT confirm. Only Escape (=cancel) is handled.
+        if(e.key === "Escape") cleanup(false);
+      }
+      document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", function(e){ if(e.target === overlay) cleanup(false); });
+      box.querySelector('[data-testid="acm-cancel"]').onclick = function(){ cleanup(false); };
+      box.querySelector('[data-testid="acm-confirm"]').onclick = function(){ cleanup(true); };
+    });
+  }
+
+  async function deliveryAction(cid, action, customerName){
+    var note = "";
+    if(action === "approve_pending"){
+      // Bulk-approves every pending content_approval row for this client --
+      // an internal status change only (no connected social channel is
+      // resolved/published from here). See app/marketing/product_one_delivery.py.
+      var okApprove = await actionConfirmModal({
+        customer: customerName || cid,
+        contentTitle: "all pending approvals for this customer",
+        action: "Approve pending content (bulk, internal)",
+        channel: "internal only -- no live publish from this button",
+        channelConnected: false,
+        isPublic: false,
+        confirmLabel: "Approve for internal review only"
+      });
+      if(!okApprove) return;
+    }
+    if(action === "publish_manual"){
+      // This records proof that a human already published manually outside
+      // this app -- it does not itself call any external publish API.
+      var okPublish = await actionConfirmModal({
+        customer: customerName || cid,
+        contentTitle: "manual publish proof note",
+        action: "Record manual publish proof (does not itself post anywhere)",
+        channel: "manual / human-published outside this app",
+        channelConnected: false,
+        isPublic: false,
+        confirmLabel: "Record manual proof"
+      });
+      if(!okPublish) return;
+      note = prompt("Manual proof note (e.g. Instagram upload done, screenshot/Drive link):") || "";
+      if(!note.trim()) return;
+    }
+    try{
+      var d = await callApi("/api/admin/clients/" + encodeURIComponent(cid) + "/delivery-action", {
+        method:"POST",
+        headers: hdrs({"Content-Type":"application/json"}),
+        body: JSON.stringify({action:action, note:note, owner:"Sumit"})
+      });
+      toast(d.ok === false ? (d.error || "Action failed") : "Action recorded", d.ok === false ? "err" : "ok");
+      loadAll();
+      loadLogs("");
+    }catch(e){ toast("Action fail: " + e.message, "err"); }
+  }
+  window.deliveryAction = deliveryAction;
+
+  async function loadAll(){
+    document.getElementById("lastUpdate").textContent = "Loading…";
+    try{
+      var data = await callApi("/api/admin/delivery-cockpit", {headers: hdrs()});
+      if(data && data.ok === false){
+        toast("Delivery Cockpit data partial/fail — dobara try karo", "err");
+      }
+      var customers = (data && data.customers) || [];
+      var assurance = (data && data.assurance) || {};
+      var assuranceUnavailable = !!assurance.error;
+      var assuranceAtRisk = assuranceUnavailable
+        ? null
+        : (Number(assurance.at_risk || 0) + Number(assurance.missed || 0));
+      var revenue = (data && data.revenue) || {};
+      var payingCustomers = Number(revenue.paying_customers);
+      // The API's revenue block is invoice-backed. Keep the KPI aligned with
+      // that same truth instead of counting selected non-trial plans, which
+      // produced the live "Paying 3 / MRR ₹0" contradiction.
+      if(!Number.isFinite(payingCustomers)){
+        payingCustomers = customers.filter(function(c){ return c.plan !== "trial"; }).length;
+      }
+      renderKpis({
+        total_customers: customers.length,
+        paying_customers: payingCustomers,
+        stuck_in_setup: (data.summary || {}).pending_customer_inputs,
+        receiving_value: customers.filter(function(c){ return Number(c.deliverable_completion_pct || 0) > 0; }).length,
+        failed_automation_count: (data.summary || {}).failed_automations,
+        pending_approvals_total: (data.summary || {}).posts_waiting_for_approval,
+        // delivery_assurance rollup — paid customers missed/at-risk (canonical ids).
+        // If assurance scan failed, show "–" (never fake green zero).
+        at_risk_count: assuranceAtRisk,
+        benefit_this_week: (data.summary || {}).posts_published
+      });
+      renderPipeline((data && data.pipeline) || []);
+      renderRevenue(revenue);
+      ALL_CUSTOMERS = customers;
+      renderCustomers(ALL_CUSTOMERS);
+      loadLogs("");
+      loadAutoRuns();
+      loadDlq();
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("en-IN");
+    }catch(e){
+      document.getElementById("lastUpdate").textContent = "Fail";
+      if(e.message === "auth"){
+        document.getElementById("customerTableWrap").innerHTML = '<div class="empty">🔒 Admin token chahiye — upar 🔑 se add karo.</div>';
+      }else{
+        toast("Load nahi hua: " + e.message, "err");
+      }
+    }
+  }
+
+  document.getElementById("btnRefresh").onclick = loadAll;
+  Array.prototype.forEach.call(document.querySelectorAll(".filter[data-filter]"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".filter[data-filter]"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      CURRENT_FILTER = btn.getAttribute("data-filter") || "all";
+      renderCustomers(ALL_CUSTOMERS);
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".log-filter"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".log-filter"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      loadLogs(btn.getAttribute("data-log-filter") || "");
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".run-filter"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".run-filter"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      RUN_STATUS = btn.getAttribute("data-run-status") || "";
+      loadAutoRuns();
+    };
+  });
+  document.getElementById("runApply").onclick = loadAutoRuns;
+  Array.prototype.forEach.call(document.querySelectorAll(".dlq-filter"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".dlq-filter"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      DLQ_KEY = btn.getAttribute("data-dlq-key") || "failed";
+      loadDlq();
+    };
+  });
+  loadAll();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Daily standup prompt → #office (schedule trigger, UTC)
+# 09:30 IST = 04:00 UTC. The workflow lives in #office (created there).
+name: Daily Digest
+description: 09:30 IST standup prompt for Boss + agents
+trigger:
+  on: schedule
+  cron: '0 4 * * *'
+steps:
+  - id: standup
+    action: send_message
+    text: '🌅 09:30 IST standup — Boss + agents: kal kya bana, kya atka, aaj kya. UPI confirmations pending? DLQ/queue check karo. /app/automation Mission Control se dekho.'

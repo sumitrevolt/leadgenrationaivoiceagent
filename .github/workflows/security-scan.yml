@@ -1,0 +1,263 @@
+# =============================================================================
+# security-scan.yml — Supply-chain security scan (SaaS-infra: "Security →
+# supply-chain" pillar). NAYA + STANDALONE — ci.yml / deploy-vps.yml ko touch
+# NAHI karta (zero prod-risk). Trivy se Python-deps CVE + IaC-misconfig + leaked
+# secret scan + CycloneDX SBOM. Repo-scan deps gate is BLOCKING on CRITICAL
+# fixable Python CVEs (CP5-3 remediation 2026-08-08); image-scan blocks when
+# DEPLOY_ENABLED. Advisory tables stay informational (artifacts) so the gate
+# failures are precise, not lost in noise.
+#
+# REPO SCAN (job 1): source-level checks (deps-CVE / misconfig / secret / SBOM) —
+# abhi NON-BLOCKING (exit-code 0) — pehle results dekho, phir gate banane ke liye
+# niche diya step uncomment karo.
+#
+# IMAGE SCAN (job 2, FAIL-CLOSED): PR/push pe Dockerfile.lock image BUILD karke
+# scan karta hai (--exit-code 1 on HIGH/CRITICAL); workflow_dispatch pe explicit
+# immutable image reference scan karta hai. Kabhi `:latest` force nahi — hamesha
+# exact ref (sha-tag/digest). SHA-labelled SBOM har run pe retain hota hai.
+# =============================================================================
+name: security-scan
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  schedule:
+    - cron: "0 2 * * 1"   # har Mon 02:00 UTC — unchanged deps me naye CVE pakadne ke liye
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: >-
+          Exact immutable image reference to scan (e.g.
+          ghcr.io/sumitrevolt/leadgenrationaivoiceagent:3cd95ba2). Leave empty to
+          build-and-scan the Dockerfile.lock image for this ref.
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) REPO SCAN — koi image build nahi chahiye -> fast + hamesha chalega.
+  #    (a) Python deps CVE (locked deps), (b) IaC misconfig + secrets, (c) SBOM.
+  # ---------------------------------------------------------------------------
+  repo-scan:
+    name: Trivy repo scan + SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Trivy (latest)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.72.0
+          trivy --version
+
+      # Trivy by-default sirf "requirements.txt" naam ko pip-deps maanta. Tera
+      # shipped lock "requirements.lock.txt" hai -> standard naam se copy karke
+      # scan karte hain (guaranteed Python CVE detection, flag-quirks se bachke).
+      - name: Prep locked deps for scanning
+        run: |
+          mkdir -p .sec
+          cp requirements.lock.txt .sec/requirements.txt
+          echo "prepared .sec/requirements.txt ($(wc -l < .sec/requirements.txt) pkgs)"
+
+      # (a) Python deps CVE — locked deps (jo image me actually ship hote).
+      - name: Trivy vuln scan — Python deps (table, advisory)
+        run: |
+          trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format table .sec
+
+      - name: Trivy vuln scan — Python deps (JSON artifact)
+        run: |
+          trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format json -o trivy-deps.json .sec
+
+      # (b) IaC misconfig (Dockerfile*/compose/terraform) + leaked secrets — poora repo.
+      - name: Trivy misconfig + secret scan (table, advisory)
+        run: |
+          trivy fs --scanners misconfig,secret --severity HIGH,CRITICAL \
+            --skip-dirs ".venv,node_modules,data,logs,backups,models,.ruff_cache,.pytest_cache,.sec" \
+            --no-progress --exit-code 0 --format table .
+
+      - name: Trivy misconfig + secret scan (JSON artifact)
+        run: |
+          trivy fs --scanners misconfig,secret --severity HIGH,CRITICAL \
+            --skip-dirs ".venv,node_modules,data,logs,backups,models,.ruff_cache,.pytest_cache,.sec" \
+            --no-progress --exit-code 0 --format json -o trivy-config.json .
+
+      # (c) CycloneDX SBOM — locked deps ka full inventory.
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          trivy fs --format cyclonedx --no-progress -o sbom.cdx.json .sec
+
+      - name: Upload scan results + SBOM
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: trivy-repo-scan
+          path: |
+            trivy-deps.json
+            trivy-config.json
+            sbom.cdx.json
+          retention-days: 30
+
+      # === ENFORCING GATE (armed 2026-08-06, owner-approved; CP5-3 2026-08-08) ===
+      # Ab tak har scan `--exit-code 0` pe tha, isliye is workflow ka green sirf
+      # "scan CHALA" matlab rakhta tha — "clean hai" nahi. Ye step wahi gate hai
+      # jo is file me pehle se likha tha, ab armed.
+      #
+      # Scope jaan-boojh kar CRITICAL + --ignore-unfixed hai:
+      #   - CRITICAL only  -> HIGH abhi blocking NAHI (repo pe already HIGH findings
+      #                       maujood hain; unhe ek jhatke me blocking karna owner ka
+      #                       kaam rok deta. Unke liye ratchet chahiye, neeche.)
+      #   - --ignore-unfixed -> sirf wahi fail kare jiska upstream fix MAUJOOD hai.
+      #                       Jo fix ho hi nahi sakta uspe build rokna bekaar shor hai.
+      #
+      # ⚠️ Pehla run hi asli proof hai. Agar ye RED hota hai to ek REAL fixable
+      # CRITICAL CVE hai — tab gate wapas mat comment karo, CVE fix karo.
+      # Post-remediation lockfile (starlette 1.3.1 + cryptography 50.0.0) has 0
+      # HIGH/CRITICAL per OSV batch reconcile (CP5-3, 2026-08-08).
+      - name: Fail on fixable CRITICAL (enforce)
+        run: |
+          trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 1 .sec
+
+      # TODO(owner): HIGH ratchet — current HIGH findings ko time-limited
+      # `.trivyignore` exceptions me baseline karo, phir HIGH ko bhi `--exit-code 1`
+      # kar do taaki NAYE HIGH block hon aur purane visible rahen. Saath hi is
+      # workflow ko `main` ruleset me required check banao — abhi required nahi hai,
+      # isliye enforcement bypass ho sakta hai.
+
+  # ---------------------------------------------------------------------------
+  # 2) IMAGE SCAN — PR/push pe Dockerfile.lock image BUILD karke scan (FAIL-CLOSED,
+  #    --exit-code 1 on HIGH/CRITICAL); workflow_dispatch pe explicit immutable
+  #    image reference scan (exact ref, kabhi `:latest` force nahi). SHA-labelled
+  #    CycloneDX SBOM har run pe retain hota hai.
+  # ---------------------------------------------------------------------------
+  image-scan:
+    name: Trivy image scan (build | explicit ref)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # NOTE: no job-level paths-ignore — GitHub Actions only supports that key
+    # under on.push/on.pull_request (workflow-level above already filters docs/*).
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Skip Dockerfile.lock rebuild unless image inputs changed (PR only)
+        id: image_needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=1" >> "$GITHUB_OUTPUT"
+            echo "non-PR event — image scan runs"
+            exit 0
+          fi
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if git diff --name-only "${BASE}...HEAD" | grep -Eq '^(Dockerfile\.lock|requirements\.lock\.txt|requirements-dsh\.lock\.txt|\.github/workflows/security-scan\.yml)$'; then
+            echo "run=1" >> "$GITHUB_OUTPUT"
+            echo "PR touches image inputs — fail-closed image scan runs"
+          else
+            echo "run=0" >> "$GITHUB_OUTPUT"
+            echo "PR does not touch image inputs — skip 14min Dockerfile.lock build"
+            echo "Fail-closed scan still runs on main push and on lockfile/Dockerfile PRs"
+          fi
+
+      - name: Log in to GHCR (least-privilege packages:read)
+        if: steps.image_needed.outputs.run == '1'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.image_needed.outputs.run == '1'
+
+      - name: Install Trivy (latest)
+        if: steps.image_needed.outputs.run == '1'
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.72.0
+          trivy --version
+
+      - name: Resolve scan target (exact ref, never :latest)
+        if: steps.image_needed.outputs.run == '1'
+        id: scan
+        run: |
+          REF="${{ github.event.inputs.image_ref }}"
+          if [ -n "$REF" ]; then
+            echo "mode=explicit" >> "$GITHUB_OUTPUT"
+            echo "image=${REF}" >> "$GITHUB_OUTPUT"
+            echo "scan_ref=$(echo "${REF}" | sed -e 's#.*:##' -e 's/[^a-zA-Z0-9._-]/-/g')" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=build" >> "$GITHUB_OUTPUT"
+            echo "image=ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "scan_ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build image from Dockerfile.lock (PR/push path)
+        if: steps.image_needed.outputs.run == '1' && steps.scan.outputs.mode == 'build'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.lock
+          push: false
+          load: true
+          tags: ${{ steps.scan.outputs.image }}
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Pull explicit immutable reference (dispatch path)
+        if: steps.image_needed.outputs.run == '1' && steps.scan.outputs.mode == 'explicit'
+        run: |
+          docker pull "${{ steps.scan.outputs.image }}"
+
+      - name: Trivy image scan (HIGH/CRITICAL — FAIL CLOSED, table)
+        if: steps.image_needed.outputs.run == '1'
+        run: |
+          trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 1 --format table \
+            "${{ steps.scan.outputs.image }}"
+
+      - name: Trivy image scan (JSON artifact)
+        if: always() && steps.image_needed.outputs.run == '1'
+        run: |
+          trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format json -o trivy-image.json \
+            "${{ steps.scan.outputs.image }}"
+
+      - name: SBOM (CycloneDX, SHA-labelled)
+        if: always() && steps.image_needed.outputs.run == '1'
+        run: |
+          trivy image --format cyclonedx --no-progress \
+            -o sbom-${{ steps.scan.outputs.scan_ref }}.cdx.json \
+            "${{ steps.scan.outputs.image }}"
+
+      - name: Upload image scan results + SBOM (ref-labelled)
+        if: always() && steps.image_needed.outputs.run == '1'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: trivy-image-scan-${{ steps.scan.outputs.scan_ref }}
+          path: |
+            trivy-image.json
+            sbom-${{ steps.scan.outputs.scan_ref }}.cdx.json
+          retention-days: 90

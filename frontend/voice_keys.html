@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LeadGen AI — Voice Keys</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root { --bg:#0f1216; --card:#1a1f27; --line:#2a313c; --txt:#e7ecf3; --mut:#9aa6b2; --ok:#1db954; --bad:#e5484d; --warn:#f5a623; --accent:#4f8cff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:14px; margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:0 0 6px; }
+  textarea { width:100%; min-height:150px; resize:vertical; background:#0d1117; color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; }
+  .row { display:flex; align-items:center; gap:10px; margin:14px 0; }
+  input[type=checkbox] { width:18px; height:18px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.55; cursor:default; }
+  .muted { color:var(--mut); font-size:13px; }
+  .status { font-size:13px; margin-top:10px; min-height:18px; }
+  table { width:100%; border-collapse:collapse; margin-top:14px; font-size:13px; }
+  th,td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  .pill { padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+  .p-ok { background:rgba(29,185,84,.15); color:var(--ok); }
+  .p-warn { background:rgba(245,166,35,.15); color:var(--warn); }
+  .p-bad { background:rgba(229,72,77,.15); color:var(--bad); }
+  code { background:#0d1117; padding:1px 6px; border-radius:6px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<div class="wrap">
+  <h1>🎙️ Voice Agent — Gemini Keys</h1>
+  <p class="sub">Apni free Gemini API keys yahan paste karo. Har key test hogi, sirf valid pool me save hongi (no restart). "Voice Gemini Primary" on = voice brain Gemini se sochega (smarter) — baaki platform untouched.</p>
+
+  <div class="card" id="statusCard">
+    <label>Current pool</label>
+    <div id="poolInfo" class="muted">Loading…</div>
+  </div>
+
+  <div class="card">
+    <label for="keys">Gemini API keys — ek line me ek (AIza… se shuru)</label>
+    <textarea id="keys" placeholder="AIzaSy....&#10;AIzaSy....&#10;AIzaSy...."></textarea>
+    <div class="row">
+      <input type="checkbox" id="vp" checked />
+      <label for="vp" style="margin:0;cursor:pointer">Voice Gemini Primary (voice brain Gemini-first karo)</label>
+    </div>
+    <button id="saveBtn" onclick="save()">Validate &amp; Save</button>
+    <div class="status" id="msg"></div>
+    <div id="results"></div>
+  </div>
+
+  <p class="muted">Key nahi hai? <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> pe free banao (alag Google accounts = zyada free quota).</p>
+</div>
+
+<script>
+function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function hdr(){ return { "Content-Type":"application/json", "Authorization":"Bearer "+token() }; }
+
+async function loadStatus(){
+  var el = document.getElementById("poolInfo");
+  if(!token()){ el.innerHTML = "Admin login chahiye — <a href='/app/admin-login'>login karo</a>."; return; }
+  try{
+    var r = await fetch("/api/admin/voice/gemini-keys", { headers: hdr() });
+    if(r.status===401||r.status===403){ el.innerHTML="Session expired — <a href='/app/admin-login'>dobara login</a>."; return; }
+    var d = await r.json();
+    var vp = d.voice_primary ? "<span class='pill p-ok'>ON</span>" : "<span class='pill p-warn'>OFF</span>";
+    el.innerHTML = "<b>"+(d.count||0)+"</b> key(s) in pool &nbsp;·&nbsp; Voice Gemini Primary: "+vp +
+      (d.keys_masked && d.keys_masked.length ? "<br><span class='muted'>"+d.keys_masked.join(", ")+"</span>" : "");
+  }catch(e){ el.textContent = "Status load nahi hua: "+e; }
+}
+
+async function save(){
+  var btn=document.getElementById("saveBtn"), msg=document.getElementById("msg"), res=document.getElementById("results");
+  res.innerHTML=""; msg.textContent="";
+  if(!token()){ msg.innerHTML="<span style='color:#e5484d'>Admin login chahiye.</span>"; return; }
+  var raw=document.getElementById("keys").value.split(/[\s,]+/).map(s=>s.trim()).filter(Boolean);
+  if(!raw.length){ msg.innerHTML="<span style='color:#f5a623'>Keys paste karo pehle.</span>"; return; }
+  btn.disabled=true; msg.textContent="Testing "+raw.length+" key(s)… (har key pe ek Gemini call)";
+  try{
+    var r=await fetch("/api/admin/voice/gemini-keys",{ method:"POST", headers:hdr(), body:JSON.stringify({keys:raw, voice_primary:document.getElementById("vp").checked}) });
+    var d=await r.json();
+    if(!r.ok){ msg.innerHTML="<span style='color:#e5484d'>"+(d.detail||"Save fail")+"</span>"; btn.disabled=false; return; }
+    msg.innerHTML="<span style='color:#1db954'>✓ "+d.usable+"/"+d.total+" usable keys saved. Pool size: "+d.pool_size+". Voice primary: "+(d.voice_primary?"ON":"OFF")+".</span>";
+    var rows=(d.results||[]).map(function(x){
+      var cls = x.status==="valid" ? "p-ok" : (x.status==="throttled" ? "p-warn" : "p-bad");
+      return "<tr><td>"+x.index+"</td><td><code>"+x.masked+"</code></td><td><span class='pill "+cls+"'>"+x.status+"</span></td></tr>";
+    }).join("");
+    res.innerHTML="<table><tr><th>#</th><th>Key</th><th>Result</th></tr>"+rows+"</table>";
+    document.getElementById("keys").value="";
+    loadStatus();
+  }catch(e){ msg.innerHTML="<span style='color:#e5484d'>Error: "+e+"</span>"; }
+  btn.disabled=false;
+}
+loadStatus();
+</script>
+</body>
+</html>

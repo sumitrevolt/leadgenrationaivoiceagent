@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="icon" type="image/svg+xml" href="/site/icons/icon.svg">
+<link rel="apple-touch-icon" href="/site/icons/icon-192.png">
+<title>LeadGen AI — Coordination Hub</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1280px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+.layout{display:flex;gap:14px;align-items:flex-start}
+.side{width:205px;flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;position:sticky;top:12px}
+.side button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.85rem;margin:1px 0}
+.side button:hover{background:#222636} .side button.act{background:var(--acc);color:#fff}
+.main{flex:1;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:1rem;margin-bottom:8px;color:var(--acc)} .card h3{font-size:.88rem;margin:10px 0 6px;color:var(--warn)}
+label{display:block;font-size:.78rem;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:7px 10px;border-radius:8px;width:100%;max-width:420px;font-size:.85rem;font-family:inherit}
+textarea{max-width:640px;min-height:80px}
+button.btn{background:var(--acc);border:0;color:#fff;padding:7px 16px;border-radius:8px;cursor:pointer;margin:8px 6px 0 0;font-size:.85rem}
+button.btn2{background:#222636;border:1px solid var(--line);color:var(--txt);padding:5px 12px;border-radius:8px;cursor:pointer;margin:4px 4px 0 0;font-size:.78rem}
+button:disabled{opacity:.5;cursor:wait}
+table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px} td,th{padding:4px 7px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--mut);font-weight:600}
+.mut{color:var(--mut);font-size:.8rem} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.tabsec{display:none}
+.result{background:#11141d;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;font-size:.85rem;overflow:auto}
+pre{white-space:pre-wrap;word-break:break-word;font-size:.78rem;background:#0c0e14;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:420px;overflow:auto}
+.toast{position:fixed;bottom:18px;right:18px;padding:10px 16px;border-radius:10px;font-size:.85rem;z-index:99;max-width:340px}
+.tok{background:#123524;color:var(--ok);border:1px solid #1d5a3c} .tbad{background:#3a1d24;color:var(--bad);border:1px solid #5b2733}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.72rem;margin:1px;background:#222636}
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.74rem;font-weight:600}
+.bg-red{background:#3a1d24;color:var(--bad)} .bg-yellow{background:#3a331d;color:var(--warn)} .bg-green{background:#123524;color:var(--ok)}
+.row{display:flex;gap:14px;flex-wrap:wrap} .row>div{flex:1;min-width:280px}
+a{color:var(--acc)}
+.toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.toolcard{background:#11141d;border:1px solid var(--line);border-radius:12px;padding:12px}
+.toolcard .name{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.dot-online{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.dot-offline{background:var(--mut)} .dot-done{background:var(--acc)}
+.httptool{display:flex;gap:6px;align-items:center;margin-top:6px}
+.httptool input{flex:1;max-width:none;font-family:monospace;font-size:.72rem}
+@media(max-width:760px){.layout{flex-direction:column}.side{width:100%;position:static;display:flex;flex-wrap:wrap}.side button{width:auto}}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><a href="/app/automation" style="color:#a5b4fc;font-size:13px;margin-right:14px;text-decoration:none">Automation →</a><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>🛰 Coordination Hub</h1>
+<div class="sub">Owner OS thin projection — 6 desktop apps (FreeBuff · Android Studio · OpenCode · Cursor · Hermes · Buzz) ek jagah: desktop registry, tools presence, git, event feed. Read-only view (mutations Owner OS / missions ke through).</div>
+<div style="margin-bottom:12px">
+  <input id="tokin" type="password" placeholder="Admin token (login se auto)" style="width:280px">
+  <button class="btn" style="margin:0 0 0 6px" onclick="saveTok()">Save</button>
+  <a href="/app/admin-login" class="mut" style="margin-left:8px;font-size:.8rem">login →</a>
+</div>
+
+<div class="layout">
+<nav class="side" id="sidebar">
+  <button id="tab-today" class="act" onclick="show('today')">🏠 Aaj</button>
+  <button id="tab-tools" onclick="show('tools')">🛠 Tools</button>
+  <button id="tab-git" onclick="show('git')">🌿 Git</button>
+  <button id="tab-events" onclick="show('events')">📜 Events</button>
+  <button id="tab-buzz" onclick="show('buzz')">🔔 Buzz</button>
+  <div style="border-top:1px solid var(--line);margin:6px 4px"></div>
+  <button id="tab-script" onclick="show('script')">🧩 Tool Script</button>
+</nav>
+
+<div class="main">
+
+<!-- ============ Aaj ============ -->
+<section class="tabsec" id="sec-today" style="display:block">
+  <div class="card">
+    <h2>🛰 Hub status</h2>
+    <div id="hubStatus" class="result mut">load ho raha...</div>
+    <button class="btn2" onclick="refresh('today')">⟳ Refresh</button>
+  </div>
+  <div class="card">
+    <h2>🛠 Tools — abhi kaun online</h2>
+    <div id="toolsGrid"></div>
+  </div>
+  <div class="card">
+    <h2>🖥 Desktop apps registry</h2>
+    <div class="mut">App → worktree, channel, buzzlock TOOL, harness, heartbeat. Registry = doc projection (enrollment = Owner OS).</div>
+    <div id="desktopRegistryBrief"></div>
+  </div>
+  <div class="card">
+    <h2>🧠 Owner OS agents + missions</h2>
+    <div id="agentsBrief"></div>
+  </div>
+  <div class="card">
+    <h2>🧭 Boss → STAFF coordination evidence</h2>
+    <div class="mut">Health pulse se alag: canonical coverage, mission assignments, handoffs aur final Boss verdict.</div>
+    <div id="staffCoordination"></div>
+  </div>
+  <div class="card">
+    <h2>🌿 Git snapshot</h2>
+    <div id="gitBrief"></div>
+  </div>
+  <div class="card">
+    <h2>📜 Recent events</h2>
+    <div id="eventBrief"></div>
+  </div>
+</section>
+
+<!-- ============ Tools ============ -->
+<section class="tabsec" id="sec-tools">
+  <div class="card">
+    <h2>📡 Tool presence</h2>
+    <div class="mut">Tools heartbeat ke through apni presence update karte hain (HMAC, per-tool secret). Projection-only — yahan se koi mutation nahi.</div>
+    <div id="toolsLive"></div>
+  </div>
+  <div class="card">
+    <h2>🔑 Tool auth status</h2>
+    <div class="mut">Kaunse tool ke HMAC secrets configured hain (booleans — values kabhi expose nahi hote).</div>
+    <div id="authStatus"></div>
+  </div>
+</section>
+
+<!-- ============ Git ============ -->
+<section class="tabsec" id="sec-git">
+  <div class="card">
+    <h2>🌿 Git probe</h2>
+    <div class="mut">Bounded read-only git probe (allowlisted commands, timeout + byte cap, secrets redacted). Ko bhi change nahi karta.</div>
+    <div id="gitFull"></div>
+    <button class="btn2" onclick="loadGit()">⟳ Refresh git</button>
+  </div>
+</section>
+
+<!-- ============ Events ============ -->
+<section class="tabsec" id="sec-events">
+  <div class="card">
+    <h2>📜 Event feed</h2>
+    <div class="mut">Append-only events — heartbeats, buzz notifications, tool activity. Chronological.</div>
+    <div id="eventsFull"></div>
+  </div>
+</section>
+
+<!-- ============ Buzz ============ -->
+<section class="tabsec" id="sec-buzz">
+  <div class="card">
+    <h2>🔔 Buzz feed</h2>
+    <div class="mut">Buzz desktop app se aane wali activity — dedicated HMAC webhook se append hota hai, admin-gated reads.</div>
+    <div id="buzzFull"></div>
+  </div>
+</section>
+
+<!-- ============ Script ============ -->
+<section class="tabsec" id="sec-script">
+  <div class="card">
+    <h2>🧩 Tool integration script</h2>
+    <div class="mut">Har coding tool (Bolt/Cursor/MonkeyCode/OpenCode) apne per-tool HMAC secret se heartbeat + buzz events bhejta hai. Admin JWT reads ke liye hai, writes ke liye nahi. Secret env me rahe — kabhi commit nahi.</div>
+    <pre id="scriptOut"></pre>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script>
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){
+  const v=document.getElementById('tokin').value||localStorage.getItem('accessToken')||''
+  if(!v){toast('Token kya hai? login se auto fill hota',1);return}
+  localStorage.setItem('accessToken',v);document.getElementById('tokin').value='';toast('Token saved ✅')
+}
+document.getElementById('tokin').value=tok()||''
+
+function show(id){
+  document.querySelectorAll('.tabsec').forEach(s=>s.style.display='none')
+  document.querySelectorAll('.side button').forEach(b=>b.classList.remove('act'))
+  document.getElementById('sec-'+id).style.display='block'
+  document.getElementById('tab-'+id).classList.add('act')
+  refresh(id)
+}
+function refresh(id){if(id==='today')loadSnapshot();if(id==='tools')loadSnapshot();if(id==='git')loadGit();if(id==='events')loadEvents();if(id==='buzz')loadEvents()}
+
+async function api(path,opts={}){
+  const h={'Content-Type':'application/json'};const t=tok();if(t)h['Authorization']='Bearer '+t
+  const r=await fetch(path,{...opts,headers:h})
+  if(r.status===401){toast('Auth required — token check karo',1);throw new Error('401')}
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error((e.detail&&e.detail.detail)||e.detail||r.status)}
+  return r.json()
+}
+function toast(msg,bad){const d=document.createElement('div');d.className='toast '+(bad?'tbad':'tok');d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),3500)}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ago(ts){
+  if(!ts)return '—'
+  const n=(Date.now()/1000)-Number(ts);if(!isFinite(n)||n<0)return '—'
+  if(n<60)return Math.round(n)+'s';if(n<3600)return Math.round(n/60)+'m';if(n<86400)return Math.round(n/3600)+'h';return Math.round(n/86400)+'d'
+}
+
+const TOOLMETA={cursor:{label:'Cursor',color:'#a78bfa'},claude:{label:'Claude',color:'#f97316'},monkeycode:{label:'MonkeyCode',color:'#34d399'},opencode:{label:'OpenCode',color:'#60a5fa'},bolt:{label:'Bolt',color:'#fbbf24'},buzz:{label:'Buzz',color:'#fbbf24'},hermes:{label:'Hermes',color:'#f472b6'}}
+
+let lastSnapshot=null
+
+async function loadSnapshot(){
+  try{
+    const d=await api('/api/admin/owner-os/coordination-hub/snapshot?include_git=true&events_limit=40')
+    lastSnapshot=d
+    const enabled=!!d.enabled
+    document.getElementById('hubStatus').innerHTML=
+      '<div>⏱ Mode: <b>'+(enabled?'<span class="ok">ENABLED</span>':'<span class="bad">inert (COORDINATION_HUB_ENABLED=0)</span>')+'</b> · role: '+esc(d.role||'—')+'</div>'+
+      '<div>🔐 Tool secrets configured: '+Object.entries(d.tool_auth&&d.tool_auth.configured||{}).map(([k,v])=>esc(k)+'='+(v?'✓':'—')).join(' · ')+'</div>'+
+      '<div>🧠 Owner agents: <b>'+esc((d.owner_agents||{}).canonical_agents||'—')+'</b> · missions enabled: <b>'+esc((d.missions||{}).enabled?'yes':'no')+'</b> · office coord rows: <b>'+((d.office_coordination||{}).rows||[]).length+'</b></div>'+
+      '<div>🌿 Git: <b>'+esc((d.git&&d.git.head)||'—')+'</b> · events: <b>'+(d.events_tail||[]).length+'</b> · desktops: <b>'+(((d.desktop_registry||{}).apps)||[]).length+'</b></div>'+
+      (enabled?'':'<div class="warn" style="margin-top:6px">🛑 Flag OFF — hub inert. Reads empty, writes (heartbeat/buzz) reject. Enable: <b>COORDINATION_HUB_ENABLED=1</b> + per-tool secrets in prod .env.</div>')
+    const tools=(d.tools_presence&&d.tools_presence.tools)||{}
+    const g=document.getElementById('toolsGrid')
+    if(!Object.keys(tools).length){g.innerHTML='<div class="mut">Koi tool abhi heartbeat nahi bheja — flag ON hone pe tools apni presence update karte hain (Tool Script tab).</div>'}
+    else g.innerHTML=Object.entries(tools).map(([tool,s])=>{
+      const m=TOOLMETA[tool]||{label:tool,color:'#8b91a5'};const st=s.status||'online'
+      const meta=(s.meta&&typeof s.meta==='object')?Object.entries(s.meta).filter(([k])=>/channel|summary|task|branch/.test(k)).map(([k,v])=>esc(k)+': '+esc(String(v))).join(' · '):''
+      return '<div class="toolcard"><div class="name"><span class="dot dot-'+(st==='offline'?'offline':(st==='done'?'done':'online'))+'"></span>'+m.label+'</div>'+
+        '<div class="mut" style="margin-top:4px">status: <b>'+esc(st)+'</b></div>'+
+        (meta?'<div class="mut" style="font-size:.72rem">'+meta+'</div>':'')+
+        '<div class="mut" style="font-size:.72rem">last seen: '+ago(s.last_seen)+' ago</div></div>'
+    }).join('')
+    const dr=d.desktop_registry||{}
+    const drb=document.getElementById('desktopRegistryBrief')
+    if(!(dr.apps||[]).length){drb.innerHTML='<div class="mut">'+(dr.error?'registry error: '+esc(dr.error):(d.enabled?'koi desktop app registered nahi.':'hub inert — flag OFF.'))+'</div>'}
+    else drb.innerHTML='<table><tr><th>app</th><th>worktree / project</th><th>channel</th><th>lock</th><th>harness</th><th>status</th></tr>'+
+      dr.apps.map(a=>'<tr><td><b>'+esc(a.name)+'</b></td><td class="mut">'+esc(a.worktree||a.project||'')+'</td><td class="mut">'+esc(a.channel||'')+'</td><td>'+(a.buzzlock_tool?'<span class="pill">'+esc(a.buzzlock_tool)+'</span>':'<span class="mut">—</span>')+'</td><td class="mut">'+esc(a.harness||'')+'</td><td><span class="badge bg-'+((a.status==='registered')?'green':'yellow')+'">'+esc(a.status||'')+'</span></td></tr>').join('')+'</table>'+
+      '<div class="mut" style="margin-top:6px">'+esc(dr.note||'')+' · v'+esc(String(dr.version||0))+' · '+esc(dr.updated||'')+'</div>'
+    const ag=document.getElementById('agentsBrief')
+    const wf=(d.owner_agents&&d.owner_agents.workforce)||{}
+    ag.innerHTML='<table><tr><th>workforce</th><th>value</th></tr>'+
+      Object.entries(wf).slice(0,8).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+esc(v)+'</td></tr>').join('')+
+      '<tr><td>missions</td><td>'+((d.missions&&d.missions.enabled)?'on · '+((d.missions.summary||{}).running||0)+' running':'off')+'</td></tr></table>'
+    const coord=d.office_coordination||{}
+    const topology=coord.topology||{}
+    const rows=coord.rows||[]
+    const sc=document.getElementById('staffCoordination')
+    sc.innerHTML='<div class="result">Coverage: <b>'+esc(topology.covered_count||0)+'/'+esc(topology.staff_count||31)+'</b> · teams: <b>'+esc(topology.team_count||0)+'</b> · Boss: <b>'+esc(topology.boss_name||'Boss')+'</b> · owner gate: <b>manual UPI confirmation</b></div>'+
+      (rows.length?'<table><tr><th>goal</th><th>assignments</th><th>handoffs</th><th>Boss verdict</th></tr>'+rows.map(r=>'<tr><td>'+esc(r.goal||'')+'</td><td>'+esc((r.assignments||[]).map(a=>a.team+': '+(a.members||[]).join(', ')).join(' | ')||'legacy run')+'</td><td>'+esc(String((r.handoffs||[]).length))+'</td><td>'+esc(((r.verdict||{}).status||'recorded')+': '+((r.verdict||{}).summary||r.outcome||''))+'</td></tr>').join('')+'</table>':'<div class="mut" style="margin-top:8px">Abhi persisted Boss mission nahi. Topology ready hai; actual run ke baad assignment → handoff → verdict yahan dikhega.</div>')
+    const gb=document.getElementById('gitBrief')
+    gb.innerHTML=(d.git&&d.git.ok)
+      ?'<div class="result">head: <b>'+esc(d.git.head||'—')+'</b> · timeout '+esc(d.git.timeout_s)+'s · byte cap '+esc(d.git.max_bytes)+' · redacted: '+esc(String(d.git.redacted))+'</div>'
+      :'<div class="mut">git probe disabled/inert</div>'
+    const eb=document.getElementById('eventBrief')
+    eb.innerHTML=(d.events_tail||[]).length
+      ?'<table><tr><th>time</th><th>tool</th><th>event</th></tr>'+(d.events_tail||[]).slice(0,10).map(e=>'<tr><td class="mut">'+ago(e.ts)+'</td><td>'+esc(e.tool_id||'—')+'</td><td>'+esc(e.event_type||'')+'</td></tr>').join('')+'</table>'
+      :'<div class="mut">koi event nahi</div>'
+    const al=document.getElementById('toolsLive')
+    al.innerHTML=Object.keys(tools).length
+      ?'<table><tr><th>tool</th><th>status</th><th>last seen</th><th>meta</th></tr>'+
+       Object.entries(tools).map(([tool,s])=>'<tr><td>'+esc((TOOLMETA[tool]||{label:tool}).label)+'</td><td><span class="badge bg-'+((s.status==='online')?'green':(s.status==='done')?'yellow':'red')+'">'+esc(s.status||'online')+'</span></td><td class="mut">'+ago(s.last_seen)+' ago</td><td class="mut">'+esc(JSON.stringify(s.meta||{}).slice(0,120))+'</td></tr>').join('')+'</table>'
+      :'<div class="mut">Koi tool presence nahi.</div>'
+    const aus=document.getElementById('authStatus')
+    aus.innerHTML='<table><tr><th>tool</th><th>secret configured</th></tr>'+
+      Object.entries(d.tool_auth&&d.tool_auth.configured||{}).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+(v?'<span class="ok">✓ yes</span>':'<span class="warn">no</span>')+'</td></tr>').join('')+'</table>'
+  }catch(e){
+    document.getElementById('hubStatus').innerHTML='<span class="bad">'+esc(e.message)+'</span>'
+    if(document.getElementById('toolsLive'))document.getElementById('toolsLive').innerHTML=''
+  }
+}
+
+async function loadGit(){
+  try{
+    const d=await api('/api/admin/owner-os/coordination-hub/git')
+    const g=document.getElementById('gitFull')
+    if(d.ok===false){g.innerHTML='<div class="bad">'+esc(d.error||'error')+'</div>';return}
+    g.innerHTML='<div class="result">head: <b>'+esc(d.head||'—')+'</b> · timeout '+esc(d.timeout_s)+'s · max bytes '+esc(d.max_bytes)+'</div>'
+    g.innerHTML+='<h3>Commands</h3><table><tr><th>cmd</th><th>ok</th><th>stdout</th><th>stderr</th></tr>'+
+      Object.entries(d.commands||{}).map(([name,c])=>'<tr><td class="mut">'+esc(name)+'</td><td>'+(c.ok?'✓':'<span class="bad">✗ '+esc(c.error||c.returncode)+'</span>')+'</td><td><pre style="max-height:90px;margin:0">'+esc(c.stdout||'')+'</pre></td><td class="mut">'+esc(c.stderr||'')+'</td></tr>').join('')+'</table>'
+  }catch(e){document.getElementById('gitFull').innerHTML='<span class="bad">'+esc(e.message)+'</span>'}
+}
+
+async function loadEvents(){
+  try{
+    const d=await api('/api/admin/owner-os/coordination-hub/events?limit=200')
+    const events=(d.events||[]).slice()
+    const e=document.getElementById('eventsFull')
+    if(!events.length){e.innerHTML='<div class="mut">'+(d.enabled?'koi event nahi.':'hub inert — flag OFF.')+'</div>';return}
+    e.innerHTML='<table><tr><th>time</th><th>tool</th><th>event</th><th>payload</th></tr>'+
+      events.map(x=>'<tr><td class="mut">'+ago(x.ts||'')+'</td><td>'+esc(x.tool_id||'')+'</td><td>'+esc(x.event_type||'')+'</td><td class="mut">'+esc(JSON.stringify(x.payload||{}).slice(0,200))+'</td></tr>').join('')+'</table>'
+    const b=document.getElementById('buzzFull')
+    const buzz=events.filter(x=>x.tool_id==='buzz'||(x.payload&&x.payload.channel))
+    b.innerHTML=buzz.length
+      ?'<table><tr><th>time</th><th>channel</th><th>event</th><th>summary</th></tr>'+buzz.map(x=>'<tr><td class="mut">'+ago(x.ts)+'</td><td>'+esc((x.payload||{}).channel||'buzz')+'</td><td>'+esc(x.event_type||'')+'</td><td>'+esc((x.payload||{}).summary||'')+'</td></tr>').join('')+'</table>'
+      :'<div class="mut">Abhi koi buzz nahi — hub flag ON hone pe Buzz webhook events yahan dikhenge.</div>'
+  }catch(err){
+    document.getElementById('eventsFull').innerHTML='<span class="bad">'+esc(err.message)+'</span>'
+    document.getElementById('buzzFull').innerHTML=''
+  }
+}
+
+function setScript(){
+  const base=location.origin
+  document.getElementById('scriptOut').textContent=
+`# ---- Coordination Hub — tool integration (Bolt / Cursor / MonkeyCode / OpenCode) ----
+# ADMIN JWT = reads only (snapshot/events/git). Writes (heartbeat/buzz) = per-tool HMAC.
+# Har tool ke paas apna secret env me: COORD_HUB_TOOL_<ID>_SECRET (>=32 chars) / COORD_HUB_BUZZ_SECRET.
+# Secret kabhi commit nahi karna — sirf VPS .env me.
+
+# 1) TOOL HEARTBEAT (har ~1-5 min) — presence update
+curl -s -X POST '${base}/api/admin/owner-os/coordination-hub/tools/cursor/heartbeat' \\
+  -H "X-CoordHub-Timestamp: \$(date +%s)" \\
+  -H "X-CoordHub-Nonce: \$(uuidgen | tr -d '-')" \\
+  -H "X-CoordHub-Event-Type: heartbeat" \\
+  -H "X-CoordHub-Signature: <hmac_sha256(timestamp+nonce+event_type+body_sha256)>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"status":"online","meta":{"task":"<kaun sa kaam>","branch":"<branch>"}}'
+
+# 2) BUZZ WEBHOOK (desktop activity push)
+curl -s -X POST '${base}/api/admin/owner-os/coordination-hub/webhooks/buzz' \\
+  -H "X-CoordHub-Timestamp: \$(date +%s)" \\
+  -H "X-CoordHub-Nonce: \$(uuidgen | tr -d '-')" \\
+  -H "X-CoordHub-Event-Type: buzz_event" \\
+  -H "X-CoordHub-Signature: <hmac_sha256(timestamp+nonce+event_type+body_sha256)>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"status":"online","channel":"desktop","summary":"Cursor ne PR merge kiya","event_type":"deploy_done"}'
+
+# 3) READ-ONLY (admin JWT)
+curl -s '${base}/api/admin/owner-os/coordination-hub/snapshot' -H "Authorization: Bearer \$ADMIN_TOKEN"
+curl -s '${base}/api/admin/owner-os/coordination-hub/events'   -H "Authorization: Bearer \$ADMIN_TOKEN"
+curl -s '${base}/api/admin/owner-os/coordination-hub/git'      -H "Authorization: Bearer \$ADMIN_TOKEN"
+
+# Mutations hub se REFUSED by design — Owner OS (/app/owner) / missions use karo.
+# Signature recipe: HMAC-SHA256(secret, timestamp+"\n"+nonce+"\n"+event_type+"\n"+body_sha256)
+# Reference: app/platform/coordination_hub_auth.py (verify_tool_attestation)`
+}
+setScript()
+
+// auto-refresh every 15s on Aaj tab
+setInterval(()=>{const a=document.getElementById('tab-today');if(a&&a.classList.contains('act'))loadSnapshot()},15000)
+</script>
+</body>
+</html>

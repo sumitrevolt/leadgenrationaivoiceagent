@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>LeadGen AI — Conversations</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:16px;max-width:1200px;margin:auto}
+h1{font-size:1.25rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:12px}
+.bar{margin-bottom:12px}
+input,textarea{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:7px 10px;border-radius:8px}
+#tok{width:260px}
+button{background:var(--acc);border:0;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;margin-left:6px}
+button.sec{background:#222636}
+.wrap{display:grid;grid-template-columns:320px 1fr;gap:12px;min-height:60vh}
+@media(max-width:760px){.wrap{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;overflow-y:auto;max-height:75vh}
+.th{padding:8px;border-radius:8px;cursor:pointer;border-bottom:1px solid var(--line)}
+.th:hover,.th.sel{background:#222636}
+.th .nm{font-weight:600;font-size:.88rem} .th .lm{color:var(--mut);font-size:.78rem;margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.pill{display:inline-block;padding:0 7px;border-radius:9px;font-size:.68rem;background:#222636;color:var(--mut);margin-left:4px}
+.msg{margin:8px 0;max-width:85%;padding:8px 11px;border-radius:10px;font-size:.85rem;white-space:pre-wrap}
+.msg.in{background:#1d2230}
+.msg.draft{background:#1c2a22;margin-left:auto;border:1px dashed #2e4a3a}
+.msg .mt{color:var(--mut);font-size:.7rem;margin-top:4px}
+.contact a{color:var(--ok);margin-right:10px;font-size:.85rem;text-decoration:none}
+#reply{width:100%;min-height:70px;margin-top:8px}
+.mut{color:var(--mut);font-size:.8rem}
+.note{font-size:.75rem;color:var(--warn);margin-top:6px}
+</style>
+</head>
+<body>
+<div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
+<h1>💬 Unified Conversations</h1>
+<div class="sub">Email replies + web chat + website inquiries — ek inbox. Replies = DRAFT only (aap khud 1-click bhejte ho, auto-send nahi = ban-safe).</div>
+<div class="bar">
+    <label for="tok"></label><input id="tok" type="password" placeholder="Admin token (login se auto)">
+  <button onclick="saveTok()">Save</button>
+  <button class="sec" onclick="loadThreads()">↻ Refresh</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem;margin-left:8px">login →</a>
+</div>
+<div class="wrap">
+  <div class="panel" id="list"><div class="mut">Threads load ho rahe…</div></div>
+  <div class="panel" id="view">
+    <div class="mut">← Koi thread chuno</div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());loadThreads()}
+async function api(p,opt){const r=await fetch(p,Object.assign({headers:{Authorization:'Bearer '+tok(),'Content-Type':'application/json'}},opt||{}));if(!r.ok)throw new Error(r.status);return r.json()}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+let curKey='';
+async function loadThreads(){
+  try{
+    const d=await api('/api/seoops/conversations?limit=100');
+    const ts=d.threads||[];
+    if(!ts.length){$('list').innerHTML='<div class="mut">Abhi koi conversation nahi.</div>';return}
+    $('list').innerHTML=ts.map(t=>`<div class="th${t.key===curKey?' sel':''}" onclick="openThread('${esc(t.key)}')">
+      <div class="nm">${esc(t.name||t.key)} ${(t.channels||[]).map(c=>`<span class="pill">${esc(c)}</span>`).join('')}</div>
+      <div class="lm">${esc(t.last_message)}</div>
+      <div class="mut">${esc((t.last_at||'').slice(0,16).replace('T',' '))} · ${t.count} msg</div></div>`).join('');
+  }catch(e){$('list').innerHTML='<div class="mut">Token chahiye (401/'+esc(e.message)+') — upar save karo.</div>'}
+}
+async function openThread(key){
+  curKey=key;
+  try{
+    const d=await api('/api/seoops/conversations/'+encodeURIComponent(key));
+    const c=d.contact||{};
+    let links='';
+    if(c.tel_link)links+=`<a href="${esc(c.tel_link)}">📞 Call</a>`;
+    if(c.wa_link)links+=`<a href="${esc(c.wa_link)}" target="_blank">🟢 WhatsApp</a>`;
+    if(c.mailto)links+=`<a href="${esc(c.mailto)}">✉️ Email</a>`;
+    const msgs=(d.messages||[]).map(m=>{
+      const main=m.direction==='draft'?(m.text||m.draft):m.text;
+      const ai=m.direction!=='draft'&&m.draft?`<div class="msg draft">🤖 AI draft: ${esc(m.draft)}<div class="mt">copy karke bhejo</div></div>`:'';
+      return `<div class="msg ${m.direction==='draft'?'draft':'in'}">${esc(main)}<div class="mt">${esc(m.channel)} · ${esc((m.at||'').slice(0,16).replace('T',' '))} ${m.intent?'· '+esc(m.intent):''}</div></div>`+ai;
+    }).join('');
+    $('view').innerHTML=`<div class="contact"><b>${esc(c.name||key)}</b><br>${links||'<span class="mut">koi direct link nahi</span>'}</div>
+      <div id="msgs">${msgs||'<div class="mut">Messages nahi mile.</div>'}</div>
+      <textarea id="reply" placeholder="Apna jawab likho (Hinglish chalega)…"></textarea>
+      <div style="margin-top:6px">
+        <button onclick="saveDraft()">💾 Draft save</button>
+        <button class="sec" onclick="copyReply()">📋 Copy</button>
+        ${c.wa_link?`<button class="sec" onclick="waSend()">🟢 WA me kholo</button>`:''}
+        ${c.mailto?`<button class="sec" onclick="mailSend()">✉️ Mail me kholo</button>`:''}
+      </div>
+      <div class="note">Draft-only — message AAP bhejte ho (1-click), system auto-send nahi karta.</div>
+      <div id="rmsg" class="mut"></div>`;
+    loadThreads();
+  }catch(e){$('view').innerHTML='<div class="mut">Thread load fail: '+esc(e.message)+'</div>'}
+}
+async function saveDraft(){
+  const t=$('reply').value.trim();if(!t)return;
+  try{
+    const d=await api('/api/seoops/conversations/'+encodeURIComponent(curKey)+'/reply',{method:'POST',body:JSON.stringify({text:t})});
+    $('rmsg').textContent=d.ok?'✅ Draft saved':'❌ '+(d.error||'fail');
+    if(d.ok)openThread(curKey);
+  }catch(e){$('rmsg').textContent='❌ '+e.message}
+}
+function copyReply(){const t=$('reply').value.trim();if(!t)return;navigator.clipboard.writeText(t).then(()=>{$('rmsg').textContent='📋 Copied!'}).catch(()=>{$('rmsg').textContent='Copy fail — manually select karo'})}
+function waSend(){const t=encodeURIComponent($('reply').value.trim());const ph=curKey.startsWith('p:')?curKey.slice(2):'';if(ph)window.open('https://wa.me/91'+ph+'?text='+t,'_blank')}
+function mailSend(){const t=encodeURIComponent($('reply').value.trim());const em=curKey.startsWith('e:')?curKey.slice(2):'';if(em)location.href='mailto:'+em+'?body='+t}
+$('tok').value=tok();
+loadThreads();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body></html>

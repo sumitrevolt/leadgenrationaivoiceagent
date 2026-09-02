@@ -1,0 +1,3035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>LeadGen AI — AI Marketing Suite</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+    --headH:97px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+
+  /* ---- Sticky head (topbar + tabbar) ---- */
+  .stickyhead{position:sticky;top:0;z-index:30;background:#fff}
+  .topbar{
+    background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .brand .sub{font-size:11.5px;color:var(--muted);font-weight:600}
+  .spacer{flex:1}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  /* Token row */
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+
+  /* Tab bar */
+  .tabbar{display:flex;gap:2px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);
+    padding:0 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabbar::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;border:none;background:none;cursor:pointer;font-family:inherit;
+    font-size:12.5px;font-weight:700;color:var(--muted);padding:11px 12px 9px;
+    border-bottom:2.5px solid transparent;display:flex;gap:5px;align-items:center;white-space:nowrap}
+  .tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+
+  /* ---- Layout ---- */
+  .wrap{max-width:760px;margin:0 auto;padding:16px 16px 56px;display:flex;flex-direction:column;gap:16px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:16px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .card h4{margin:16px 0 8px;font-size:13px;font-weight:800}
+  .hint{font-size:12px;color:var(--muted);margin:-6px 0 10px}
+
+  /* Shared sticky header card */
+  .card.shared{position:sticky;top:var(--headH);z-index:15;padding:12px 14px}
+  .frm2{display:grid;gap:10px;grid-template-columns:1fr}
+  @media(min-width:520px){.frm2{grid-template-columns:1fr 1fr}}
+
+  .tabpane{display:flex;flex-direction:column;gap:16px}
+
+  /* ---- Form ---- */
+  .frm{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:560px){.frm{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:5px}
+  .fld label{font-size:12px;font-weight:700;color:var(--muted)}
+  .fld input,.fld select,.fld textarea{
+    border:1px solid var(--line);background:#fff;border-radius:10px;
+    padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);width:100%;
+  }
+  .fld textarea{min-height:96px;resize:vertical}
+  .fld select{appearance:none;cursor:pointer;font-weight:600;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  #occasionCustom{display:none;margin-top:6px}
+  #occasionCustom.show{display:block}
+
+  .btns{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+  .btn{border:none;border-radius:11px;font-weight:700;padding:11px 15px;cursor:pointer;
+    font-size:13px;display:flex;align-items:center;gap:7px;transition:filter .12s;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#4f46e5);flex:1;justify-content:center;min-width:140px}
+  .btn.sec{background:#fff;color:var(--brand);border:1.5px solid var(--brand-soft)}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+  .btn.sec .spin,.spin.dark{border-color:rgba(109,40,217,.25);border-top-color:var(--brand)}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .linkbtn{border:none;background:none;color:var(--brand);font-weight:800;cursor:pointer;
+    font-size:inherit;text-decoration:underline;padding:0;font-family:inherit}
+
+  /* ---- Post result ---- */
+  .hidden{display:none!important}
+  .caption{white-space:pre-wrap;font-size:14px;background:var(--bg);border:1px solid var(--line);
+    border-radius:12px;padding:13px;word-break:break-word}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .tag{font-size:11.5px;font-weight:700;background:var(--brand-soft);color:var(--brand);
+    border-radius:999px;padding:4px 10px}
+  .imgidea{font-style:italic;color:var(--muted);font-size:12.5px;margin-top:10px;display:flex;gap:6px}
+  .meta{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .prov{font-size:10.5px;font-weight:700;color:var(--muted);background:var(--bg);
+    border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .copybtn{margin-left:auto;border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:8px 13px;cursor:pointer;font-size:12.5px;flex:0 0 auto}
+  .copybtn.done{background:linear-gradient(135deg,#16a34a,#15803d)}
+  .copybtn.mini{padding:6px 11px;font-size:11.5px;margin-left:0}
+
+  /* ---- Calendar rows ---- */
+  .calrow{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);align-items:baseline}
+  .calrow:last-child{border-bottom:none}
+  .calday{flex:0 0 96px;font-weight:800;font-size:12px;color:var(--brand)}
+  .caltheme{flex:0 0 auto;font-size:10.5px;font-weight:700;background:var(--brand-soft);
+    color:var(--brand);border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .calcap{flex:1;font-size:12.5px;color:var(--ink);word-break:break-word}
+  @media(max-width:520px){
+    .calrow{flex-wrap:wrap}
+    .calday{flex-basis:auto}
+    .calcap{flex-basis:100%}
+  }
+
+  /* ---- GBP tips ---- */
+  .tiprow{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
+  .tiprow:last-child{border-bottom:none}
+  .tiprow .ck{flex:0 0 auto;font-size:14px}
+  .tipbody{flex:1}
+  .tipbody .t{font-weight:700;font-size:13px}
+  .tipbody .w{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .impact{flex:0 0 auto;align-self:flex-start;font-size:10px;font-weight:800;border-radius:999px;
+    padding:3px 9px;text-transform:uppercase;letter-spacing:.4px}
+  .impact.high{background:#fef2f2;color:var(--err)}
+  .impact.med{background:#fffbeb;color:#b45309}
+
+  .empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+  .empty .spin{vertical-align:-2px;margin-right:7px}
+
+  /* ---- Audit (questions + score) ---- */
+  .psticky{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .pbar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+  .pfill{height:100%;width:0;background:linear-gradient(90deg,#6d28d9,#4f46e5);transition:width .3s;border-radius:999px}
+  .ptext{font-size:11.5px;font-weight:800;color:var(--muted);white-space:nowrap}
+  .qcard{border:1px solid var(--line);border-radius:14px;padding:13px;margin-top:10px;background:#fff}
+  .qcard.done{border-color:#c4b5fd;background:#fbfaff}
+  .qhead{font-weight:700;font-size:13.5px;display:flex;gap:8px;align-items:flex-start}
+  .qnum{flex:0 0 auto;background:var(--brand-soft);color:var(--brand);font-weight:800;font-size:11px;
+    border-radius:8px;padding:2px 8px;margin-top:1px}
+  .qopts{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+  .qopt{display:flex;gap:9px;align-items:center;border:1px solid var(--line);border-radius:10px;
+    padding:9px 11px;cursor:pointer;font-size:12.5px;background:#fff}
+  .qopt:hover{border-color:#c4b5fd}
+  .qopt input{accent-color:var(--brand);flex:0 0 auto;margin:0}
+  .qopt.sel{border-color:var(--brand);background:var(--brand-soft);font-weight:700}
+
+  .scorewrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .circlebox{position:relative;width:128px;height:128px;flex:0 0 auto;margin:0 auto}
+  .circlebox svg{width:128px;height:128px;transform:rotate(-90deg)}
+  .circlebox .track{fill:none;stroke:var(--line);stroke-width:10}
+  .circlebox .prog{fill:none;stroke:var(--ok);stroke-width:10;stroke-linecap:round;
+    transition:stroke-dashoffset 1.1s ease}
+  .scorenum{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;font-weight:900}
+  .scorenum small{font-size:11px;font-weight:800;color:var(--muted);margin-top:-4px}
+  .scoreside{flex:1;min-width:200px;display:flex;flex-direction:column;gap:9px}
+  .gradebadge{align-self:flex-start;font-weight:900;font-size:13px;border-radius:999px;
+    padding:5px 13px;background:var(--brand-soft);color:var(--brand)}
+  .impactline{font-size:12.5px;background:var(--brand-soft);border-radius:10px;padding:9px 11px}
+  .bdrow{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .bdlabel{flex:0 0 42%;font-size:12px;font-weight:700;color:var(--muted);text-transform:capitalize;word-break:break-word}
+  .bdbar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+  .bdfill{height:100%;border-radius:999px;background:var(--brand);transition:width .8s ease}
+  .bdpct{flex:0 0 38px;text-align:right;font-size:11.5px;font-weight:800}
+  .fixcard{display:flex;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;margin-top:8px}
+  .fixcard .fi{flex:0 0 auto}
+  .fixcard .fb{flex:1}
+  .fixcard .fb .t{font-weight:700;font-size:13px}
+  .fixcard .fb .w{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+  /* ---- Review stars ---- */
+  .stars{display:flex;gap:4px;font-size:26px;cursor:pointer;user-select:none;line-height:1}
+  .stars span{color:#d1d5db;transition:transform .1s}
+  .stars span.on{color:#f59e0b}
+  .stars span:active{transform:scale(1.18)}
+
+  /* ---- Generic copy items + sections ---- */
+  .copyitem{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--line);
+    border-radius:12px;padding:11px 12px;margin-top:8px}
+  .copyitem .tx{flex:1;white-space:pre-wrap;word-break:break-word;font-size:13px}
+  .copyitem .tx b{font-weight:800}
+  .sect{margin-top:14px}
+  .sect:first-child{margin-top:0}
+  .sect .sh{font-weight:800;font-size:13px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+  /* ---- Festivals timeline ---- */
+  .festrow{display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--line);align-items:flex-start}
+  .festrow:last-child{border-bottom:none}
+  .fdate{flex:0 0 64px;text-align:center;background:var(--brand-soft);color:var(--brand);
+    border-radius:10px;padding:6px 4px;font-weight:800;font-size:11.5px;line-height:1.25}
+  .fbody{flex:1}
+  .fname{font-weight:800;font-size:13.5px}
+  .fangle{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* ---- Poster ---- */
+  .tplgrid{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .tplcard{border:1.5px solid var(--line);border-radius:12px;padding:11px;cursor:pointer;background:#fff}
+  .tplcard:hover{border-color:#c4b5fd}
+  .tplcard.sel{border-color:var(--brand);background:var(--brand-soft);box-shadow:0 0 0 3px rgba(109,40,217,.10)}
+  .tplcard .tn{font-weight:800;font-size:12.5px}
+  .tplcard .tb{font-size:11px;color:var(--muted);margin-top:3px}
+  #posterBox{margin-top:2px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg)}
+  #posterBox svg{display:block;width:100%;height:auto}
+
+  /* ---- New tabs: review kit / report / reactivation / drip / crm ---- */
+  .svgshow{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px;
+    display:flex;justify-content:center;margin-top:8px;overflow:hidden}
+  .svgshow svg{display:block;width:100%;max-width:340px;height:auto}
+  .svgshow.qr svg{max-width:300px}
+  .repframe{width:100%;height:600px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:4px}
+  .daychip{background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;font-weight:800;
+    font-size:11px;border-radius:999px;padding:4px 11px;flex:0 0 auto}
+  .wabtn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#16a34a,#15803d);
+    color:#fff;font-weight:700;font-size:12px;border-radius:9px;padding:8px 13px;text-decoration:none}
+  .wabtn:hover{filter:brightness(1.07)}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .tbl th{text-align:left;font-size:11px;color:var(--muted);font-weight:800;padding:7px 8px;
+    border-bottom:1px solid var(--line);white-space:nowrap}
+  .tbl td{padding:8px;border-bottom:1px solid var(--line);word-break:break-word;vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .fld input[type="color"]{padding:4px 6px;height:42px;cursor:pointer}
+
+  /* ---- v4 tabs: UPI / Catalog / Ads / Reels / Hot Leads ---- */
+  .scorebadge{display:inline-block;min-width:36px;text-align:center;font-weight:800;
+    font-size:11.5px;border-radius:999px;padding:4px 9px;color:#fff}
+  .scorebadge.hot{background:#ef4444}
+  .scorebadge.warm{background:#f59e0b}
+  .scorebadge.cold{background:#9ca3af}
+  .cntchip{font-size:11.5px;font-weight:800;border-radius:999px;padding:4px 11px}
+  .cntchip.hot{background:#fef2f2;color:#ef4444}
+  .cntchip.warm{background:#fffbeb;color:#b45309}
+  .cntchip.cold{background:#f3f4f6;color:#6b7280}
+  .chipchar{font-weight:700;opacity:.6;margin-left:4px;font-size:10px}
+  .chipwrap{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chipwrap .tag.over{background:#fef2f2;color:#ef4444}
+
+  /* ---- Toasts ---- */
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
+  .toast{background:#1e293b;color:#fff;border-radius:12px;padding:11px 14px;font-size:12.5px;
+    box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .25s ease}
+  .toast.err{background:#b91c1c}
+  .toast.ok{background:#15803d}
+  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="stickyhead" id="stickyHead">
+  <div class="topbar">
+    <div class="brand">
+      <span class="logo">📣</span>
+      <span>AI Marketing <span class="sub">— Isha, Marketing Executive</span></span>
+    </div>
+    <div class="spacer"></div>
+    <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+    <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+    <div class="tokrow" id="tokRow">
+      <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+      <button id="tokSave">Save</button>
+    </div>
+  </div>
+  <div class="tabbar" id="tabbar">
+    <button class="tab on" data-tab="posts">✨ <span>Posts</span></button>
+    <button class="tab" data-tab="audit">📊 <span>GBP Audit</span></button>
+    <button class="tab" data-tab="review">⭐ <span>Review Reply</span></button>
+    <button class="tab" data-tab="festivals">🎉 <span>Festivals</span></button>
+    <button class="tab" data-tab="poster">🖼️ <span>Poster</span></button>
+    <button class="tab" data-tab="wa">💬 <span>WhatsApp</span></button>
+    <button class="tab" data-tab="comp">🥊 <span>Competitor</span></button>
+    <button class="tab" data-tab="rkit">⭐ <span>Review Kit</span></button>
+    <button class="tab" data-tab="report">📈 <span>Report</span></button>
+    <button class="tab" data-tab="react">🔁 <span>Reactivation</span></button>
+    <button class="tab" data-tab="drip">💧 <span>Drip</span></button>
+    <button class="tab" data-tab="crm">👥 <span>CRM + Wishes</span></button>
+    <button class="tab" data-tab="upi">💳 <span>UPI Pay</span></button>
+    <button class="tab" data-tab="catalog">📋 <span>Catalog</span></button>
+    <button class="tab" data-tab="ads">📢 <span>Ads</span></button>
+    <button class="tab" data-tab="reels">🎬 <span>Reels</span></button>
+    <button class="tab" data-tab="hotleads">🔥 <span>Hot Leads</span></button>
+    <button class="tab" data-tab="pack">📦 <span>Client Pack</span></button>
+    <button class="tab" data-tab="referral">🎁 <span>Referral</span></button>
+    <button class="tab" data-tab="aiimage">🎨 <span>AI Image</span></button>
+    <button class="tab" data-tab="complete">🚀 <span>Complete Post</span></button>
+    <button class="tab" data-tab="variations">🔀 <span>Variations</span></button>
+    <button class="tab" data-tab="chatbot">🤖 <span>Chatbot</span></button>
+    <button class="tab" data-tab="sentiment">😊 <span>Sentiment</span></button>
+    <button class="tab" data-tab="hashtags">🔖 <span>Hashtags</span></button>
+    <button class="tab" data-tab="logo">🏷️ <span>AI Logo</span></button>
+    <button class="tab" data-tab="scheduler">📅 <span>Scheduler</span></button>
+    <button class="tab" data-tab="widget">🔌 <span>Web Widget</span></button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="card" id="mktStartHere" style="border:1px solid #c7d2fe;background:linear-gradient(135deg,#eef2ff 0%,#fff 100%)">
+    <h3>☀️ Aaj kya karna hai?</h3>
+    <p class="hint" style="margin:0 0 10px">Pehle garam replies (Hot Queue), phir is page pe aaj ka post. Advanced tabs neeche hain — roz ka kaam upar.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <a href="/app/inbox" style="display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;font-weight:700;text-decoration:none">🔥 Hot Queue</a>
+      <button type="button" style="min-height:44px;padding:0 14px;border:0;border-radius:9px;background:#0f766e;color:#fff;font-weight:700;cursor:pointer" onclick="var t=document.querySelector('.tab[data-tab=posts]'); if(t) t.click();">📣 Aaj ka post</button>
+    </div>
+  </div>
+
+  <!-- ===== Shared sticky header: business + niche (sab tabs use karte) ===== -->
+  <div class="card shared">
+    <div class="frm2">
+      <div class="fld">
+        <label for="bizName">Business ka naam *</label>
+        <input id="bizName" type="text" placeholder="e.g. Sharma Solar Solutions" maxlength="120" />
+      </div>
+      <div class="fld">
+        <label for="niche">Niche / Category</label>
+        <select id="niche">
+          <!-- Populated from /api/data/niches; static fallback below -->
+          <option value="general">General</option>
+          <option value="real_estate">Real Estate</option>
+          <option value="solar_residential">Solar (Residential)</option>
+          <option value="dental_implants">Dental</option>
+          <option value="studying_abroad">Study Abroad</option>
+          <option value="insurance">Insurance</option>
+          <option value="coaching">Coaching</option>
+          <option value="home_loans">Home Loans</option>
+          <option value="interior_designers">Interior Designers</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 1: Posts (existing post + calendar) ================= -->
+  <section class="tabpane" id="pane-posts">
+    <div class="card">
+      <h3>✍️ Post details</h3>
+      <div class="frm">
+        <div class="fld">
+          <label for="occasion">Occasion / Festival</label>
+          <select id="occasion">
+            <option value="">None (normal post)</option>
+            <option value="Diwali">Diwali</option>
+            <option value="Holi">Holi</option>
+            <option value="Eid">Eid</option>
+            <option value="Christmas">Christmas</option>
+            <option value="New Year">New Year</option>
+            <option value="Independence Day">Independence Day</option>
+            <option value="__custom__">Custom likho…</option>
+          </select>
+          <input id="occasionCustom" type="text" placeholder="Custom occasion (e.g. Anniversary Sale)" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="offer">Offer (optional)</label>
+          <input id="offer" type="text" placeholder="e.g. 10% off is hafte" maxlength="200" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnPost">✨ Post banao</button>
+        <button class="btn sec" id="btnCal">📅 7-din calendar</button>
+      </div>
+    </div>
+
+    <!-- Post result -->
+    <div class="card hidden" id="postCard">
+      <h3>📝 Post preview</h3>
+      <div class="caption" id="postCaption"></div>
+      <div class="tags" id="postTags"></div>
+      <div class="imgidea" id="postImg"></div>
+      <div class="meta">
+        <span class="prov" id="postProv"></span>
+        <button class="copybtn" id="btnCopy">📋 Copy</button>
+      </div>
+    </div>
+
+    <!-- Calendar result -->
+    <div class="card hidden" id="calCard">
+      <h3>📅 7-din content calendar</h3>
+      <div id="calRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 2: GBP Audit ================= -->
+  <section class="tabpane hidden" id="pane-audit">
+    <div class="card" id="auditQWrap">
+      <h3>📊 GBP Audit <span class="tag">FREE</span></h3>
+      <div class="hint">Apna Google Business Profile score nikalo — niche ke sawaalon ka jawab do, turant score + fixes milenge.</div>
+      <div class="psticky">
+        <div class="pbar"><div class="pfill" id="auditFill"></div></div>
+        <div class="ptext" id="auditPText">0/0 jawab</div>
+      </div>
+      <div id="auditQs"></div>
+      <div class="btns">
+        <button class="btn" id="btnAuditScore" disabled>🎯 Score nikalo</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="auditResult">
+      <h3>📈 Aapka GBP Score</h3>
+      <div class="scorewrap">
+        <div class="circlebox">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="track" cx="60" cy="60" r="52"></circle>
+            <circle class="prog" id="scoreArc" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="scorenum"><span id="scoreNum">0</span></div>
+        </div>
+        <div class="scoreside">
+          <span class="gradebadge" id="gradeBadge">Grade —</span>
+          <div class="impactline" id="impactLine"></div>
+        </div>
+      </div>
+      <div id="bdWrap" class="hidden">
+        <h4>📐 Area breakdown</h4>
+        <div id="bdRows"></div>
+      </div>
+      <div id="fixWrap" class="hidden">
+        <h4>🔧 Top 5 fixes</h4>
+        <div id="fixRows"></div>
+      </div>
+      <div class="btns">
+        <button class="btn sec" id="btnRetake">🔁 Dobara test do</button>
+      </div>
+    </div>
+
+    <!-- Existing GBP tips (quick checklist) -->
+    <div class="card">
+      <h3>📍 Quick tips (bina audit ke)</h3>
+      <div class="btns" style="margin-top:2px">
+        <button class="btn sec" id="btnTips">📍 Google Profile tips</button>
+      </div>
+    </div>
+    <div class="card hidden" id="tipsCard">
+      <h3>📍 Google Business Profile checklist</h3>
+      <div id="tipRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 3: Review Reply ================= -->
+  <section class="tabpane hidden" id="pane-review">
+    <div class="card">
+      <h3>⭐ Review Reply</h3>
+      <div class="hint">Customer ka Google/JustDial review paste karo — 3 ready replies milenge.</div>
+      <div class="fld">
+        <label for="revText">Review text</label>
+        <textarea id="revText" placeholder="Customer ka review yahan paste karo…" maxlength="2000"></textarea>
+      </div>
+      <div class="frm" style="margin-top:12px">
+        <div class="fld">
+          <label>Rating</label>
+          <div class="stars" id="revStars" title="Rating choose karo"></div>
+        </div>
+        <div class="fld">
+          <label for="revTone">Tone</label>
+          <select id="revTone">
+            <option value="professional">Professional</option>
+            <option value="friendly">Friendly (dostana)</option>
+            <option value="apologetic">Apologetic (maafi-style)</option>
+          </select>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnReview">💬 Replies banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="revCard">
+      <h3>💬 Ready replies</h3>
+      <div id="revRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 4: Festivals ================= -->
+  <section class="tabpane hidden" id="pane-festivals">
+    <div class="card">
+      <h3>🎉 Aane wale festivals (60 din)</h3>
+      <div class="hint">Har festival ke saath marketing angle — post ideas ek click me.</div>
+      <div id="festList"></div>
+      <div class="btns">
+        <button class="btn" id="btnFestPosts">✨ Post ideas banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="festPostsCard">
+      <h3>📝 Festival post ideas</h3>
+      <div id="festPostRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: Scheduler ================= -->
+  <section class="tabpane hidden" id="pane-scheduler">
+    <div class="card">
+      <h3>📅 Content Scheduler</h3>
+      <div class="hint">Kisi khaas date ke liye post queue karo, ya festivals ek-click auto-schedule. Due posts roz auto-ready ho jaate (1-click human post).</div>
+      <div class="btns">
+        <button class="btn" id="btnFestAuto">🎉 Festivals auto-schedule (90 din)</button>
+        <button class="btn ghost" id="btnSchedRun">⚡ Due abhi prepare karo</button>
+        <button class="btn ghost" id="btnSchedReload">🔄 Refresh</button>
+      </div>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">➕ Manual schedule</h4>
+      <div class="frm">
+        <div class="fld">
+          <label for="schDate">Date</label>
+          <input id="schDate" type="date" />
+        </div>
+        <div class="fld">
+          <label for="schOccasion">Occasion / Theme</label>
+          <input id="schOccasion" type="text" placeholder="e.g. Diwali sale" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="schOffer">Offer (optional)</label>
+          <input id="schOffer" type="text" placeholder="e.g. Flat 20% off" maxlength="200" />
+        </div>
+      </div>
+      <div class="btns"><button class="btn" id="btnSchedAdd">➕ Schedule karo</button></div>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">🗓️ Scheduled posts</h4>
+      <div id="schedList"><div class="empty">Abhi tak kuch schedule nahi hua.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: Website Widget ================= -->
+  <section class="tabpane hidden" id="pane-widget">
+    <div class="card">
+      <h3>🔌 Website Lead-Capture Widget</h3>
+      <div class="hint">Client ki website pe ek line paste karo — floating "Enquiry" button + form aata hai. Leads seedha dashboard me (auto-linked client ke saath).</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="wgSlug">Client mini-site slug</label>
+          <input id="wgSlug" type="text" placeholder="e.g. sharma-dental-andheri" maxlength="80" />
+        </div>
+      </div>
+      <div class="btns"><button class="btn" id="btnWidgetGen">🔧 Snippet banao</button></div>
+    </div>
+    <div class="card hidden" id="wgCard">
+      <h4 style="margin-top:0">📋 Copy-paste code (client ki website me &lt;/body&gt; se pehle)</h4>
+      <div class="copyitem"><div class="tx" id="wgSnippet"></div><button class="copybtn" id="wgCopy">Copy</button></div>
+      <div class="hint" style="margin-top:10px">Live preview:</div>
+      <iframe id="wgPreview" title="widget preview" style="width:100%;max-width:380px;height:560px;border:1px solid #d4d4d8;border-radius:12px;margin-top:6px"></iframe>
+      <div class="btns"><a class="btn ghost" id="wgOpen" target="_blank" rel="noopener">↗ Embed page kholo</a></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 5: Poster ================= -->
+  <section class="tabpane hidden" id="pane-poster">
+    <div class="card">
+      <h3>🖼️ Poster banao</h3>
+      <div class="hint">Template choose karo, details bharo — ready 1080×1080 poster download karo.</div>
+      <h4 style="margin-top:4px">1) Template</h4>
+      <div class="tplgrid" id="posterTpls"></div>
+      <h4>2) Details</h4>
+      <div class="frm">
+        <div class="fld">
+          <label for="posterTagline">Tagline</label>
+          <input id="posterTagline" type="text" placeholder="e.g. Roshni bhi, bachat bhi" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="posterOffer">Offer</label>
+          <input id="posterOffer" type="text" placeholder="e.g. Flat 10% off" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="posterPhone">Phone</label>
+          <input id="posterPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20" />
+        </div>
+        <div class="fld">
+          <label for="posterFestival">Festival / Occasion (optional)</label>
+          <input id="posterFestival" type="text" placeholder="e.g. Diwali" maxlength="60" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnPoster">🖼️ Poster banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="posterCard">
+      <h3>🖼️ Poster preview</h3>
+      <div id="posterBox"></div>
+      <div class="btns">
+        <button class="btn" id="btnPng">⬇ PNG Download</button>
+        <button class="btn sec" id="btnSvg">⬇ SVG</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 6: WhatsApp ================= -->
+  <section class="tabpane hidden" id="pane-wa">
+    <div class="card">
+      <h3>💬 WhatsApp pack</h3>
+      <div class="hint">Broadcast messages + status lines + reply templates — sab copy-ready.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="waOcc">Occasion</label>
+          <input id="waOcc" type="text" placeholder="e.g. Diwali / Weekend Sale" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="waOffer">Offer</label>
+          <input id="waOffer" type="text" placeholder="e.g. 10% off is hafte" maxlength="200" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnWa">💬 Pack banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="waCard">
+      <h3>💬 WhatsApp content</h3>
+      <div id="waRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 7: Competitor ================= -->
+  <section class="tabpane hidden" id="pane-comp">
+    <div class="card">
+      <h3>🥊 Competitor analysis</h3>
+      <div class="hint">Competitor ke baare me jo pata hai paste karo — kya copy karna hai, unke gaps, aur 3-step plan milega.</div>
+      <div class="fld">
+        <label for="compText">Competitor notes</label>
+        <textarea id="compText" placeholder="Competitor ke baare me jo pata hai paste karo — naam, offers, reviews, prices, ads…" maxlength="4000"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnComp">🥊 Analysis karo</button>
+      </div>
+    </div>
+    <div class="card hidden" id="compCard">
+      <h3>🥊 Aapka battle plan</h3>
+      <div id="compRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 8: Review Kit ================= -->
+  <section class="tabpane hidden" id="pane-rkit">
+    <div class="card">
+      <h3>⭐ Review Kit <span class="tag">QR + Card</span></h3>
+      <div class="hint">Google review maangne ka poora kit — QR poster, counter card, WhatsApp/SMS messages. Print karke counter pe rakho.</div>
+      <div class="fld">
+        <label for="rkitQuery">Google Maps pe business ka naam + sheher</label>
+        <input id="rkitQuery" type="text" placeholder="e.g. Sharma Solar Solutions Pune" maxlength="200" />
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnRkit">⭐ Kit banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="rkitCard">
+      <h3>⭐ Aapka review kit</h3>
+      <div id="rkitRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 9: Monthly Report ================= -->
+  <section class="tabpane hidden" id="pane-report">
+    <div class="card">
+      <h3>📈 Monthly Report</h3>
+      <div class="hint">Is mahine kya-kya kaam hua — ready client report. Download karke WhatsApp/email pe bhejo.</div>
+      <div class="btns">
+        <button class="btn" id="btnReport">📈 Is mahine ki report banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="reportCard">
+      <h3>📈 Report preview</h3>
+      <div id="repStats"></div>
+      <iframe id="repFrame" class="repframe" sandbox="" title="Monthly report preview"></iframe>
+      <div class="btns">
+        <button class="btn" id="btnRepDl">⬇ HTML download</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 10: Reactivation ================= -->
+  <section class="tabpane hidden" id="pane-react">
+    <div class="card">
+      <h3>🔁 Purane customers wapas lao</h3>
+      <div class="hint">Har line me ek customer — personalized win-back WhatsApp message banega (max 50).</div>
+      <div class="fld">
+        <label for="reactList">Purane customers paste karo (har line: Naam, 98xxxxxxxx, last visit?)</label>
+        <textarea id="reactList" placeholder="Ramesh, 9876543210, 3 mahine pehle&#10;Suresh bhai, 9123456780"></textarea>
+      </div>
+      <div class="fld" style="margin-top:12px">
+        <label for="reactOffer">Comeback offer (optional)</label>
+        <input id="reactOffer" type="text" placeholder="e.g. 15% off agle visit pe" maxlength="200" />
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnReact">🔁 Messages banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="reactCard">
+      <h3>🔁 Win-back messages</h3>
+      <div id="reactRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 11: Drip sequence ================= -->
+  <section class="tabpane hidden" id="pane-drip">
+    <div class="card">
+      <h3>💧 Follow-up Drip (4 steps)</h3>
+      <div class="hint">Lead type choose karo — Day 0/2/5/9 ka ready WhatsApp follow-up sequence milega.</div>
+      <div class="fld">
+        <label for="dripType">Lead type</label>
+        <select id="dripType">
+          <option value="new_inquiry">Nayi inquiry</option>
+          <option value="no_reply">Reply nahi aaya</option>
+          <option value="post_purchase">Customer ban gaya</option>
+        </select>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnDrip">💧 Sequence banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="dripCard">
+      <h3>💧 4-step follow-up sequence</h3>
+      <div id="dripRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 12: CRM + Wishes ================= -->
+  <section class="tabpane hidden" id="pane-crm">
+    <div class="card">
+      <h3>👥 CRM-lite <span class="tag">🎂 Wishes</span></h3>
+      <div class="hint">Customers save karo — birthday/anniversary pe ready wish messages, ek click me WhatsApp.</div>
+      <div class="fld">
+        <label for="crmClient">Client ID</label>
+        <input id="crmClient" type="text" value="default" maxlength="64" />
+      </div>
+      <div class="fld" style="margin-top:12px">
+        <label for="crmAdd">Naye customers (har line: Naam, phone, birthday DD-MM?, anniversary DD-MM?)</label>
+        <textarea id="crmAdd" placeholder="Ramesh, 9876543210, 14-02&#10;Suresh, 9123456780, 05-09, 20-11"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnCrmSave">💾 Customers save karo</button>
+        <button class="btn sec" id="btnCrmWishes">🎂 Aaj ke wishes</button>
+      </div>
+    </div>
+    <div class="card hidden" id="crmListCard">
+      <h3>👥 Saved customers <span class="prov" id="crmTotal"></span></h3>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Naam</th><th>Phone</th><th>🎂 / 💍</th><th>Tags</th></tr></thead>
+          <tbody id="crmTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card hidden" id="wishCard">
+      <h3>🎂 Aaj ke wishes</h3>
+      <div id="wishRows"></div>
+    </div>
+    <div class="card">
+      <h3>🎨 Brand profile <span class="tag">posters me auto-apply</span></h3>
+      <div class="hint">Isi Client ID ka brand save karo — poster/post banate waqt colors + phone auto lagenge.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="brandBiz">Business naam</label>
+          <input id="brandBiz" type="text" placeholder="khali = upar wala naam" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="brandTagline">Tagline</label>
+          <input id="brandTagline" type="text" placeholder="e.g. Roshni bhi, bachat bhi" maxlength="160" />
+        </div>
+        <div class="fld">
+          <label for="brandPhone">Phone</label>
+          <input id="brandPhone" type="tel" placeholder="98765 43210" maxlength="40" />
+        </div>
+        <div class="fld">
+          <label for="brandTone">Tone</label>
+          <select id="brandTone">
+            <option value="">Default</option>
+            <option value="professional">Professional</option>
+            <option value="friendly">Friendly</option>
+            <option value="premium">Premium</option>
+            <option value="energetic">Energetic</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="brandPrimary">Primary color</label>
+          <input id="brandPrimary" type="color" value="#6d28d9" />
+        </div>
+        <div class="fld">
+          <label for="brandAccent">Accent color</label>
+          <input id="brandAccent" type="color" value="#f59e0b" />
+        </div>
+        <div class="fld" style="grid-column:1/-1">
+          <label for="brandLogo">Logo text (short)</label>
+          <input id="brandLogo" type="text" placeholder="e.g. SSS" maxlength="40" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnBrandSave">💾 Brand save</button>
+        <button class="btn sec" id="btnBrandLoad">↻ Saved brand load</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 13: UPI Payment Kit ================= -->
+  <section class="tabpane hidden" id="pane-upi">
+    <div class="card">
+      <h3>💳 UPI Payment Kit <span class="tag">QR + Slip</span></h3>
+      <div class="hint">Apna UPI ID daalo — scan-and-pay QR, branded payment slip aur WhatsApp payment message ready.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="upiVpa">UPI ID (VPA) *</label>
+          <input id="upiVpa" type="text" placeholder="e.g. 9876543210@ybl" maxlength="100" />
+        </div>
+        <div class="fld">
+          <label for="upiAmt">Amount ₹ (optional)</label>
+          <input id="upiAmt" type="number" min="0" step="0.01" placeholder="khali = customer khud bharega" />
+        </div>
+        <div class="fld" style="grid-column:1/-1">
+          <label for="upiNote">Note (optional)</label>
+          <input id="upiNote" type="text" placeholder="e.g. Order #123 / Advance" maxlength="100" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnUpi">💳 Payment kit banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="upiCard">
+      <h3>💳 Aapka payment kit</h3>
+      <div id="upiRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 14: Catalog ================= -->
+  <section class="tabpane hidden" id="pane-catalog">
+    <div class="card">
+      <h3>📋 Catalog / Price List</h3>
+      <div class="hint">Har line me ek item: "Naam, 999, chhota description (optional)" — max 12 items ka ready card banega.</div>
+      <div class="fld">
+        <label for="catItems">Items</label>
+        <textarea id="catItems" placeholder="Paneer Tikka, 249, creamy tandoori flavour&#10;Veg Biryani, 199&#10;Family Thali, 399, 4 logon ke liye"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnCatalog">📋 Catalog banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="catCard">
+      <h3>📋 Catalog preview <span class="prov" id="catProv"></span></h3>
+      <div id="catBox" class="svgshow"></div>
+      <div class="btns">
+        <button class="btn" id="btnCatPng">⬇ PNG Download</button>
+        <button class="btn sec" id="btnCatSvg">⬇ SVG</button>
+      </div>
+      <h4>💬 WhatsApp catalog text</h4>
+      <div id="catTextRow"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 15: Ads Copy ================= -->
+  <section class="tabpane hidden" id="pane-ads">
+    <div class="card">
+      <h3>📢 Ads Copy <span class="tag">Google + Meta</span></h3>
+      <div class="hint">Google ke 15 headlines (30-char safe) + 4 descriptions, aur Meta ke 3 ad texts + CTAs — copy-paste ready.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="adsOffer">Offer (optional)</label>
+          <input id="adsOffer" type="text" placeholder="e.g. Flat 20% off" maxlength="200" />
+        </div>
+        <div class="fld">
+          <label for="adsCity">City (optional)</label>
+          <input id="adsCity" type="text" placeholder="e.g. Pune" maxlength="80" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnAds">📢 Ads pack banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="adsCard">
+      <h3>📢 Aapka ads pack <span class="prov" id="adsProv"></span></h3>
+      <div id="adsRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 16: Reels ================= -->
+  <section class="tabpane hidden" id="pane-reels">
+    <div class="card">
+      <h3>🎬 Reels Scripts <span class="tag">30s ready</span></h3>
+      <div class="hint">Topic do (ya khali chhodo) — 3 ready-to-shoot Reel scripts: hook, bolne ka script, CTA, caption, hashtags.</div>
+      <div class="fld">
+        <label for="reelTopic">Topic (optional)</label>
+        <input id="reelTopic" type="text" placeholder="e.g. Diwali offer / bijli bachat tips" maxlength="120" />
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnReels">🎬 Scripts banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="reelCard">
+      <h3>🎬 Aapke Reel scripts <span class="prov" id="reelProv"></span></h3>
+      <div id="reelRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 17: Hot Leads ================= -->
+  <section class="tabpane hidden" id="pane-hotleads">
+    <div class="card">
+      <h3>🔥 Hot Leads <span class="tag">auto-scored</span></h3>
+      <div class="hint">Website inquiries ka automatic score — sabse garam lead sabse upar. Hot ko 5 min me WhatsApp karo!</div>
+      <div class="tags" id="hlCounts"></div>
+      <div style="overflow-x:auto;margin-top:10px">
+        <table class="tbl">
+          <thead><tr><th>Score</th><th>Naam / Business</th><th>Niche</th><th>Phone</th><th></th></tr></thead>
+          <tbody id="hlTbody"></tbody>
+        </table>
+      </div>
+      <div class="btns">
+        <button class="btn sec" id="btnHlRefresh">↻ Refresh</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 18: Client Pack (monthly deliverable) ================= -->
+  <section class="tabpane hidden" id="pane-pack">
+    <div class="card">
+      <h3>📦 Client Pack <span class="tag">monthly deliverable</span></h3>
+      <div class="hint">Ek click me poora monthly pack — 7-din calendar + 3 posts + 2 posters + GBP texts + WhatsApp messages + festival plan. Download karke client ko bhejo.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="packOffer">Offer (optional)</label>
+          <input id="packOffer" type="text" placeholder="e.g. 10% off is mahine" maxlength="200" />
+        </div>
+        <div class="fld">
+          <label for="packPhone">Phone (posters pe)</label>
+          <input id="packPhone" type="tel" placeholder="98765 43210" maxlength="40" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnPack">📦 Pack banao (1-click monthly deliverable)</button>
+      </div>
+    </div>
+    <div class="card hidden" id="packCard">
+      <h3>📦 Pack preview <span class="prov" id="packCounts"></span></h3>
+      <iframe id="packFrame" class="repframe" style="height:650px" sandbox="" title="Client pack preview"></iframe>
+      <div class="btns">
+        <button class="btn" id="btnPackDl">⬇ HTML Download</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 19: Referral (Refer & Earn) ================= -->
+  <section class="tabpane hidden" id="pane-referral">
+    <div class="card">
+      <h3>🎁 Refer &amp; Earn <span class="tag">code + card</span></h3>
+      <div class="hint">Customer apne dost ko bheje — dono ko reward. Ready referral code, WhatsApp share message, link aur ek printable card milta hai.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="refReward">Reward (dost + referrer dono ko)</label>
+          <input id="refReward" type="text" value="10% off" placeholder="e.g. 10% off / ₹200 cashback" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="refName">Referrer ka naam (optional)</label>
+          <input id="refName" type="text" placeholder="e.g. Ramesh" maxlength="80" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnRef">🎁 Referral kit banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="refCard">
+      <h3>🎁 Aapka referral kit</h3>
+      <div class="sect">
+        <div class="sh">🔑 Referral code</div>
+        <div class="copyitem"><div class="tx" style="font-size:22px;font-weight:900;letter-spacing:2px" id="refCodeTx"></div><span id="refCodeCopy"></span></div>
+      </div>
+      <div id="refRows"></div>
+      <h4>🖼️ Referral card</h4>
+      <div id="refBox" class="svgshow"></div>
+      <div class="btns">
+        <button class="btn" id="btnRefPng">⬇ PNG Download</button>
+        <button class="btn sec" id="btnRefSvg">⬇ SVG</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== AI Image ===== -->
+  <section class="tabpane hidden" id="pane-aiimage">
+    <div class="card">
+      <h3>🎨 AI Image <span class="tag">FREE · Flux</span></h3>
+      <div class="hint">Business + niche (upar) se asli AI marketing image (Pollinations). Style optional.</div>
+      <div class="frm"><div class="fld"><label for="aiImgStyle">Style</label><input id="aiImgStyle" type="text" value="vibrant professional" maxlength="80" /></div></div>
+      <div class="btns"><button class="btn" id="btnAiImg">🎨 Image banao</button></div>
+    </div>
+    <div class="card hidden" id="aiImgCard">
+      <h3>🖼️ AI Image</h3>
+      <div id="aiImgBox" class="svgshow"></div>
+      <div class="meta"><span class="prov" id="aiImgPrompt"></span></div>
+      <div class="btns"><a class="btn sec" id="aiImgDl" target="_blank" rel="noopener" href="#">⬇ Open / Download</a></div>
+    </div>
+  </section>
+
+  <!-- ===== Complete Post ===== -->
+  <section class="tabpane hidden" id="pane-complete">
+    <div class="card">
+      <h3>🚀 Complete Post <span class="tag">caption + hashtags + image</span></h3>
+      <div class="hint">Ek click — caption, hashtags AUR asli AI image saath me (Predis-style).</div>
+      <div class="frm"><div class="fld"><label for="cmpOffer">Offer (optional)</label><input id="cmpOffer" type="text" placeholder="e.g. 20% off is hafte" maxlength="200" /></div></div>
+      <div class="btns"><button class="btn" id="btnComplete">🚀 Complete post banao</button></div>
+    </div>
+    <div class="card hidden" id="completeCard">
+      <h3>📝 Complete Post</h3>
+      <div id="completeImg" class="svgshow"></div>
+      <div class="caption" id="completeCap"></div>
+      <div class="tags" id="completeTags"></div>
+      <div class="meta"><span class="prov" id="completeProv"></span><button class="copybtn" id="btnCompleteCopy">📋 Copy</button></div>
+    </div>
+  </section>
+
+  <!-- ===== Variations (A/B) ===== -->
+  <section class="tabpane hidden" id="pane-variations">
+    <div class="card">
+      <h3>🔀 Post Variations <span class="tag">A/B</span></h3>
+      <div class="hint">Ek hi business ke 2-4 alag posts — A/B test ke liye.</div>
+      <div class="frm">
+        <div class="fld"><label for="varOffer">Offer (optional)</label><input id="varOffer" type="text" placeholder="e.g. 10% off" maxlength="200" /></div>
+        <div class="fld"><label for="varCount">Kitne (2-4)</label><select id="varCount"><option>2</option><option selected>3</option><option>4</option></select></div>
+      </div>
+      <div class="btns"><button class="btn" id="btnVariations">🔀 Variations banao</button></div>
+    </div>
+    <div class="card hidden" id="variationsCard"><h3>🔀 Variations</h3><div id="variationsRows"></div></div>
+  </section>
+
+  <!-- ===== Chatbot ===== -->
+  <section class="tabpane hidden" id="pane-chatbot">
+    <div class="card">
+      <h3>🤖 AI Chatbot <span class="tag">client KB + lead capture</span></h3>
+      <div class="hint">Client ka FAQ + lead bot — customer ka sawaal poochho, KB se jawab; interested lage to number maangta hai.</div>
+      <div class="frm">
+        <div class="fld"><label for="chatClient">Client ID (optional)</label><input id="chatClient" type="text" placeholder="client ka id (KB namespace)" maxlength="64" /></div>
+        <div class="fld"><label for="chatQ">Customer ka sawaal</label><input id="chatQ" type="text" placeholder="e.g. home delivery karte ho?" maxlength="500" /></div>
+      </div>
+      <div class="btns"><button class="btn" id="btnChat">🤖 Jawab do</button></div>
+    </div>
+    <div class="card hidden" id="chatCard"><h3>💬 Bot ka jawab</h3><div class="caption" id="chatAns"></div><div class="meta"><span class="prov" id="chatMeta"></span></div></div>
+  </section>
+
+  <!-- ===== Sentiment ===== -->
+  <section class="tabpane hidden" id="pane-sentiment">
+    <div class="card">
+      <h3>😊 Sentiment Analysis</h3>
+      <div class="hint">Reviews/feedback paste karo (ek line me ek) — mood + themes + action.</div>
+      <div class="fld"><textarea id="sentText" rows="6" placeholder="bahut accha service tha&#10;delivery thodi slow thi&#10;staff helpful hai"></textarea></div>
+      <div class="btns"><button class="btn" id="btnSent">😊 Analyse karo</button></div>
+    </div>
+    <div class="card hidden" id="sentCard"><h3>📊 Sentiment</h3><div id="sentBreak" class="tags"></div><div class="caption" id="sentSummary"></div></div>
+  </section>
+
+  <!-- ===== Hashtags ===== -->
+  <section class="tabpane hidden" id="pane-hashtags">
+    <div class="card">
+      <h3>🔖 Trending Hashtags + Best Time</h3>
+      <div class="hint">Niche (upar) + city ke hisaab se trending hashtags aur best posting time.</div>
+      <div class="frm">
+        <div class="fld"><label for="htCity">City (optional)</label><input id="htCity" type="text" placeholder="e.g. Pune" maxlength="80" /></div>
+        <div class="fld"><label for="htCount">Kitne (5-30)</label><input id="htCount" type="number" value="15" min="5" max="30" /></div>
+      </div>
+      <div class="btns"><button class="btn" id="btnHash">🔖 Hashtags lao</button></div>
+    </div>
+    <div class="card hidden" id="hashCard"><h3>🔖 Hashtags</h3><div class="tags" id="hashTags"></div><div class="meta"><button class="copybtn" id="btnHashCopy">📋 Copy all</button></div><h4>⏰ Best time</h4><div id="hashTimes"></div></div>
+  </section>
+
+  <!-- ===== AI Logo ===== -->
+  <section class="tabpane hidden" id="pane-logo">
+    <div class="card">
+      <h3>🏷️ AI Logo <span class="tag">FREE</span></h3>
+      <div class="hint">Business + niche (upar) se AI logo. Style optional.</div>
+      <div class="frm"><div class="fld"><label for="logoStyle">Style</label><input id="logoStyle" type="text" value="modern minimalist" maxlength="80" /></div></div>
+      <div class="btns"><button class="btn" id="btnLogo">🏷️ Logo banao</button></div>
+    </div>
+    <div class="card hidden" id="logoCard"><h3>🖼️ Logo</h3><div id="logoBox" class="svgshow"></div><div class="btns"><a class="btn sec" id="logoDl" target="_blank" rel="noopener" href="#">⬇ Open / Download</a></div></div>
+  </section>
+
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+    toast("Admin token chahiye — 🔑 me paste karo", "err");
+  }
+
+  // ---- Helpers ---------------------------------------------------------------
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+  function setBusy(btn, busy, label){
+    btn.disabled = busy;
+    btn.innerHTML = busy ? '<span class="spin"></span> Ban raha hai…' : label;
+  }
+  function loadingHtml(msg){
+    return '<div class="empty"><span class="spin dark"></span> ' + esc(msg) + '</div>';
+  }
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var data = null;
+    try{ data = await r.json(); }catch(_e){}
+    if(!r.ok){
+      throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status));
+    }
+    return data;
+  }
+
+  // ---- Sticky head height → CSS var (shared card sticky offset) ---------------
+  var stickyHead = document.getElementById("stickyHead");
+  function setHeadH(){
+    document.documentElement.style.setProperty("--headH", stickyHead.offsetHeight + "px");
+  }
+  if(window.ResizeObserver){ new ResizeObserver(setHeadH).observe(stickyHead); }
+  window.addEventListener("resize", setHeadH);
+  setHeadH();
+
+  // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo","scheduler","widget"];
+  var inited = {};
+  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores, scheduler: loadScheduler };
+  document.getElementById("tabbar").addEventListener("click", function(ev){
+    var t = ev.target.closest(".tab");
+    if(!t) return;
+    switchTab(t.getAttribute("data-tab"));
+  });
+  function switchTab(name){
+    document.querySelectorAll("#tabbar .tab").forEach(function(t){
+      t.classList.toggle("on", t.getAttribute("data-tab") === name);
+    });
+    paneIds.forEach(function(k){
+      document.getElementById("pane-" + k).classList.toggle("hidden", k !== name);
+    });
+    window.scrollTo(0, 0);
+    if(!inited[name] && lazyInit[name]){ inited[name] = true; lazyInit[name](); }
+  }
+
+  // ---- Niche dropdown: load research-finalized niches (web_call pattern) -------
+  var nicheSel = document.getElementById("niche");
+  (function loadNiches(){
+    fetch("/api/data/niches")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if(!data || !data.niches || !data.niches.length) return;
+        nicheSel.innerHTML = '<option value="general">General</option>';
+        var tiers = {"S":[],"A":[],"B":[],"C":[],"":[]};
+        data.niches.forEach(function(n){ (tiers[n.tier]||tiers[""]).push(n); });
+        ["S","A","B","C",""].forEach(function(t){
+          tiers[t].forEach(function(n){
+            var opt = document.createElement("option");
+            opt.value = n.id;
+            var label = t === "C" ? " [custom]" : (t ? " ["+t+"]" : "");
+            opt.textContent = n.name + label;
+            nicheSel.appendChild(opt);
+          });
+        });
+      })
+      .catch(function(){ /* static fallback already in markup */ });
+  })();
+
+  // ---- Occasion custom toggle ---------------------------------------------------
+  var occSel = document.getElementById("occasion");
+  var occCustom = document.getElementById("occasionCustom");
+  occSel.onchange = function(){
+    occCustom.classList.toggle("show", occSel.value === "__custom__");
+    if(occSel.value === "__custom__") occCustom.focus();
+  };
+  function occasionValue(){
+    return occSel.value === "__custom__" ? occCustom.value.trim() : occSel.value;
+  }
+
+  function formData(){
+    return {
+      business_name: document.getElementById("bizName").value.trim(),
+      niche: nicheSel.value || "general",
+      occasion: occasionValue(),
+      offer: document.getElementById("offer").value.trim(),
+    };
+  }
+  function requireName(){
+    var n = document.getElementById("bizName").value.trim();
+    if(!n){ toast("Business ka naam likho pehle (upar wale box me)", "err"); document.getElementById("bizName").focus(); }
+    return n;
+  }
+
+  // ---- Generic copy buttons (delegated; text copyStore me, attr-escape issues nahi)
+  var copyStore = [];
+  function copyBtnHtml(text){
+    copyStore.push(String(text == null ? "" : text));
+    return '<button class="copybtn mini" data-ci="' + (copyStore.length - 1) + '">📋 Copy</button>';
+  }
+  function doCopy(text, btn, restoreLabel){
+    function done(){
+      if(!btn) return;
+      btn.classList.add("done"); btn.textContent = "✓ Copied!";
+      setTimeout(function(){ btn.classList.remove("done"); btn.textContent = restoreLabel || "📋 Copy"; }, 1600);
+    }
+    function fb(){
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(_e){ toast("Copy nahi hua — manually select karo", "err"); }
+      ta.remove();
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(fb);
+    }else{ fb(); }
+  }
+  document.addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest(".copybtn[data-ci]") : null;
+    if(!b) return;
+    doCopy(copyStore[parseInt(b.getAttribute("data-ci"), 10)] || "", b);
+  });
+
+  // ============================================================================
+  // TAB 1: Posts (existing functionality — unchanged)
+  // ============================================================================
+  var lastPostText = "";
+  var btnPost = document.getElementById("btnPost");
+  btnPost.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnPost, true);
+    try{
+      var d = formData();
+      var res = await callApi("/api/marketing/post", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify(d),
+      });
+      lastPostText = res.post_text || res.caption || "";
+      document.getElementById("postCaption").textContent = res.caption || "";
+      document.getElementById("postTags").innerHTML = (res.hashtags || []).map(function(h){
+        return '<span class="tag">' + esc(h) + '</span>';
+      }).join("");
+      document.getElementById("postImg").innerHTML = res.image_idea
+        ? '🖼️ <span>' + esc(res.image_idea) + '</span>' : "";
+      document.getElementById("postProv").textContent = "via " + (res.provider || "ai");
+      var copyBtn = document.getElementById("btnCopy");
+      copyBtn.classList.remove("done"); copyBtn.textContent = "📋 Copy";
+      document.getElementById("postCard").classList.remove("hidden");
+      document.getElementById("postCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Post ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Post nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnPost, false, "✨ Post banao");
+    }
+  };
+
+  // Copy post_text
+  document.getElementById("btnCopy").onclick = function(){
+    doCopy(lastPostText, this);
+  };
+
+  // 7-din calendar
+  var btnCal = document.getElementById("btnCal");
+  btnCal.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnCal, true);
+    try{
+      var d = formData();
+      var res = await callApi("/api/marketing/calendar", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({business_name: d.business_name, niche: d.niche, days: 7}),
+      });
+      var rows = (res && res.calendar) || [];
+      document.getElementById("calRows").innerHTML = rows.length
+        ? rows.map(function(c){
+            return '<div class="calrow">' +
+              '<div class="calday">' + esc(c.day) + '</div>' +
+              '<div class="caltheme">' + esc(c.theme) + '</div>' +
+              '<div class="calcap">' + esc(c.caption_short || c.caption || "") + '</div>' +
+            '</div>';
+          }).join("")
+        : '<div class="empty">Calendar nahi bana — dobara try karo.</div>';
+      document.getElementById("calCard").classList.remove("hidden");
+      document.getElementById("calCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Calendar ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Calendar nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnCal, false, "📅 7-din calendar");
+    }
+  };
+
+  // ============================================================================
+  // TAB 2: GBP Audit
+  // ============================================================================
+  var auditState = { questions: [], answers: {} };
+
+  async function loadAuditQuestions(){
+    var box = document.getElementById("auditQs");
+    box.innerHTML = loadingHtml("Sawaal load ho rahe hain…");
+    try{
+      var res = await callApi("/api/marketing/audit/questions", {headers: hdrs()});
+      auditState.questions = (res && res.questions) || [];
+      renderAuditQuestions();
+    }catch(e){
+      inited.audit = false;
+      box.innerHTML = '<div class="empty">Sawaal load nahi hue — <button class="linkbtn" id="auditRetry">dobara try karo</button></div>';
+      var rb = document.getElementById("auditRetry");
+      if(rb) rb.onclick = function(){ inited.audit = true; loadAuditQuestions(); };
+      if(e.message !== "auth") toast("Audit questions load nahi hue: " + e.message, "err");
+    }
+  }
+
+  function renderAuditQuestions(){
+    auditState.answers = {};
+    var qs = auditState.questions;
+    var box = document.getElementById("auditQs");
+    if(!qs.length){
+      box.innerHTML = '<div class="empty">Koi sawaal nahi mila.</div>';
+      updateAuditProgress();
+      return;
+    }
+    box.innerHTML = qs.map(function(q, i){
+      var opts = (q.options || []).map(function(o, j){
+        return '<label class="qopt"><input type="radio" name="aq_' + esc(String(q.id)) + '" value="' + j + '" />' +
+          '<span>' + esc(o.label) + '</span></label>';
+      }).join("");
+      return '<div class="qcard" data-qid="' + esc(String(q.id)) + '">' +
+        '<div class="qhead"><span class="qnum">Q' + (i + 1) + '</span><span>' + esc(q.q) + '</span></div>' +
+        '<div class="qopts">' + opts + '</div></div>';
+    }).join("");
+    updateAuditProgress();
+    box.querySelectorAll('input[type="radio"]').forEach(function(r){
+      r.addEventListener("change", function(){
+        var card = r.closest(".qcard");
+        auditState.answers[card.getAttribute("data-qid")] = parseInt(r.value, 10);
+        card.classList.add("done");
+        card.querySelectorAll(".qopt").forEach(function(l){
+          l.classList.toggle("sel", l.querySelector("input") === r);
+        });
+        updateAuditProgress();
+        var next = box.querySelector(".qcard:not(.done)");
+        if(next) next.scrollIntoView({behavior:"smooth", block:"center"});
+      });
+    });
+  }
+
+  function updateAuditProgress(){
+    var total = auditState.questions.length;
+    var done = Object.keys(auditState.answers).length;
+    document.getElementById("auditFill").style.width = (total ? Math.round(100 * done / total) : 0) + "%";
+    document.getElementById("auditPText").textContent = done + "/" + total + " jawab";
+    document.getElementById("btnAuditScore").disabled = !total || done < total;
+  }
+
+  function scoreColor(score){
+    return score < 50 ? "var(--err)" : score < 75 ? "var(--warn)" : "var(--ok)";
+  }
+  function scoreBg(score){
+    return score < 50 ? "#fef2f2" : score < 75 ? "#fffbeb" : "#f0fdf4";
+  }
+
+  function animateScore(score, col){
+    var arc = document.getElementById("scoreArc");
+    var num = document.getElementById("scoreNum");
+    var C = 2 * Math.PI * 52;
+    arc.style.strokeDasharray = C;
+    arc.style.transition = "none";
+    arc.style.strokeDashoffset = C;
+    arc.style.stroke = col;
+    num.parentNode.style.color = col;
+    void arc.getBoundingClientRect(); /* reflow — restart animation */
+    arc.style.transition = "stroke-dashoffset 1.1s ease";
+    arc.style.strokeDashoffset = C * (1 - score / 100);
+    var t0 = null;
+    function step(ts){
+      if(t0 === null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / 1100);
+      num.textContent = Math.round(score * p);
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function pct100(v){
+    v = Number(v);
+    if(isNaN(v)) return null;
+    if(v <= 1) v = v * 100; else if(v <= 10) v = v * 10;
+    return Math.max(0, Math.min(100, Math.round(v)));
+  }
+  function normBreakdown(b){
+    var out = [];
+    function push(label, pct){
+      if(label) out.push({label: String(label).replace(/_/g, " "), pct: pct});
+    }
+    if(Array.isArray(b)){
+      b.forEach(function(x){
+        if(x == null) return;
+        if(typeof x === "string"){ push(x, null); return; }
+        var label = x.area || x.name || x.label || x.category || x.section || "";
+        var pct = null;
+        if(typeof x.pct === "number") pct = Math.round(x.pct);
+        else if(typeof x.percent === "number") pct = Math.round(x.percent);
+        else if(typeof x.score === "number"){
+          var mx = Number(x.max || x.max_score || x.out_of || 0);
+          pct = mx > 0 ? Math.round(100 * x.score / mx) : pct100(x.score);
+        }
+        if(pct != null) pct = Math.max(0, Math.min(100, pct));
+        push(label, pct);
+      });
+    }else if(b && typeof b === "object"){
+      Object.keys(b).forEach(function(k){
+        var v = b[k];
+        if(typeof v === "number"){ push(k, pct100(v)); }
+        else if(v && typeof v === "object"){
+          var mx = Number(v.max || v.max_score || v.out_of || 0);
+          var sc = Number(v.score != null ? v.score : v.pct);
+          if(mx > 0 && !isNaN(sc)) push(k, Math.max(0, Math.min(100, Math.round(100 * sc / mx))));
+          else push(k, isNaN(sc) ? null : pct100(sc));
+        }else push(k, null);
+      });
+    }
+    return out;
+  }
+
+  function renderAuditResult(res){
+    var score = Math.max(0, Math.min(100, Math.round(Number(res.score) || 0)));
+    var col = scoreColor(score);
+    document.getElementById("auditQWrap").classList.add("hidden");
+    var rc = document.getElementById("auditResult");
+    rc.classList.remove("hidden");
+
+    var gb = document.getElementById("gradeBadge");
+    gb.textContent = "Grade " + (res.grade || "—");
+    gb.style.background = scoreBg(score);
+    gb.style.color = col;
+
+    var il = document.getElementById("impactLine");
+    if(res.impact){ il.innerHTML = "💡 " + esc(res.impact); il.classList.remove("hidden"); }
+    else{ il.classList.add("hidden"); }
+
+    var rows = normBreakdown(res.breakdown);
+    document.getElementById("bdWrap").classList.toggle("hidden", !rows.length);
+    document.getElementById("bdRows").innerHTML = rows.map(function(r){
+      var pct = r.pct == null ? null : r.pct;
+      var bcol = pct == null ? "var(--brand)" : scoreColor(pct);
+      return '<div class="bdrow">' +
+        '<div class="bdlabel">' + esc(r.label) + '</div>' +
+        '<div class="bdbar"><div class="bdfill" style="width:' + (pct == null ? 0 : pct) + '%;background:' + bcol + '"></div></div>' +
+        '<div class="bdpct">' + (pct == null ? "—" : pct + "%") + '</div>' +
+      '</div>';
+    }).join("");
+
+    var fixes = (res.fixes || res.top_fixes || []).slice(0, 5);
+    document.getElementById("fixWrap").classList.toggle("hidden", !fixes.length);
+    document.getElementById("fixRows").innerHTML = fixes.map(function(f, i){
+      var t = (typeof f === "string") ? f : (f.fix || f.tip || f.text || f.title || "");
+      var w = (typeof f === "string") ? "" : (f.why || f.detail || f.impact || "");
+      return '<div class="fixcard"><div class="fi">' + (i + 1) + '️⃣</div>' +
+        '<div class="fb"><div class="t">' + esc(t) + '</div>' +
+        (w ? '<div class="w">' + esc(w) + '</div>' : '') + '</div></div>';
+    }).join("");
+
+    animateScore(score, col);
+    rc.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  var btnAuditScore = document.getElementById("btnAuditScore");
+  btnAuditScore.onclick = async function(){
+    setBusy(btnAuditScore, true);
+    try{
+      var res = await callApi("/api/marketing/audit/score", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({answers: auditState.answers}),
+      });
+      renderAuditResult(res || {});
+      toast("Score ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Score nahi nikla: " + e.message, "err");
+    }finally{
+      setBusy(btnAuditScore, false, "🎯 Score nikalo");
+      updateAuditProgress();
+    }
+  };
+
+  document.getElementById("btnRetake").onclick = function(){
+    document.getElementById("auditResult").classList.add("hidden");
+    document.getElementById("auditQWrap").classList.remove("hidden");
+    renderAuditQuestions();
+    document.getElementById("auditQWrap").scrollIntoView({behavior:"smooth", block:"nearest"});
+  };
+
+  // GBP tips (existing functionality — unchanged)
+  var btnTips = document.getElementById("btnTips");
+  btnTips.onclick = async function(){
+    setBusy(btnTips, true);
+    try{
+      var res = await callApi("/api/marketing/gbp-tips?niche=" + encodeURIComponent(nicheSel.value || "general"),
+        {headers: hdrs()});
+      var tips = (res && res.tips) || [];
+      document.getElementById("tipRows").innerHTML = tips.length
+        ? tips.map(function(t){
+            var imp = (t.impact === "high") ? "high" : "med";
+            return '<div class="tiprow">' +
+              '<div class="ck">☑️</div>' +
+              '<div class="tipbody"><div class="t">' + esc(t.tip) + '</div>' +
+                (t.why ? '<div class="w">' + esc(t.why) + '</div>' : '') + '</div>' +
+              '<span class="impact ' + imp + '">' + imp + '</span>' +
+            '</div>';
+          }).join("")
+        : '<div class="empty">Tips nahi mile.</div>';
+      document.getElementById("tipsCard").classList.remove("hidden");
+      document.getElementById("tipsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+    }catch(e){
+      if(e.message !== "auth") toast("Tips nahi mile: " + e.message, "err");
+    }finally{
+      setBusy(btnTips, false, "📍 Google Profile tips");
+    }
+  };
+
+  // ============================================================================
+  // TAB 3: Review Reply
+  // ============================================================================
+  var revRating = 5;
+  var revStars = document.getElementById("revStars");
+  revStars.innerHTML = [1,2,3,4,5].map(function(i){
+    return '<span data-s="' + i + '">★</span>';
+  }).join("");
+  function paintStars(){
+    revStars.querySelectorAll("span").forEach(function(s, i){
+      s.classList.toggle("on", i < revRating);
+    });
+  }
+  paintStars();
+  revStars.addEventListener("click", function(ev){
+    var s = ev.target.closest("span[data-s]");
+    if(!s) return;
+    revRating = parseInt(s.getAttribute("data-s"), 10);
+    paintStars();
+  });
+
+  var btnReview = document.getElementById("btnReview");
+  btnReview.onclick = async function(){
+    var txt = document.getElementById("revText").value.trim();
+    if(!txt){ toast("Review paste karo pehle", "err"); document.getElementById("revText").focus(); return; }
+    if(!requireName()) return;
+    setBusy(btnReview, true);
+    try{
+      var res = await callApi("/api/marketing/review-reply", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          review_text: txt,
+          rating: revRating,
+          business_name: document.getElementById("bizName").value.trim(),
+          tone: document.getElementById("revTone").value,
+        }),
+      });
+      var reps = (res && res.replies) || [];
+      document.getElementById("revRows").innerHTML = reps.length
+        ? reps.map(function(r, i){
+            var label = (typeof r === "string") ? ("Reply " + (i + 1)) : (r.label || ("Reply " + (i + 1)));
+            var text = (typeof r === "string") ? r : (r.text || "");
+            return '<div class="sect"><div class="sh"><span class="tag">' + esc(label) + '</span></div>' +
+              '<div class="copyitem"><div class="tx">' + esc(text) + '</div>' + copyBtnHtml(text) + '</div></div>';
+          }).join("")
+        : '<div class="empty">Reply nahi bana — dobara try karo.</div>';
+      document.getElementById("revCard").classList.remove("hidden");
+      document.getElementById("revCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Replies ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Reply nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnReview, false, "💬 Replies banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 4: Festivals
+  // ============================================================================
+  function typeEmoji(t){
+    t = String(t || "").toLowerCase();
+    if(/relig|hindu|muslim|islam|sikh|christ|jain|buddh/.test(t)) return "🪔";
+    if(/national|patriot/.test(t)) return "🇮🇳";
+    if(/season|harvest|monsoon|winter|summer/.test(t)) return "🌾";
+    if(/shop|sale|commerc|retail/.test(t)) return "🛍️";
+    if(/inter|global|world/.test(t)) return "🌍";
+    return "🎉";
+  }
+  function fmtDate(d){
+    var dt = new Date(d);
+    if(isNaN(dt)) dt = new Date(String(d) + "T00:00:00");
+    if(isNaN(dt)) return String(d || "");
+    var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return dt.getDate() + " " + M[dt.getMonth()];
+  }
+
+  async function loadFestivals(){
+    var box = document.getElementById("festList");
+    box.innerHTML = loadingHtml("Festivals load ho rahe hain…");
+    try{
+      var res = await callApi("/api/marketing/festivals?days=60", {headers: hdrs()});
+      var list = (res && res.festivals) || [];
+      box.innerHTML = list.length
+        ? list.map(function(f){
+            return '<div class="festrow">' +
+              '<div class="fdate">' + esc(fmtDate(f.date)) + '</div>' +
+              '<div class="fbody"><div class="fname">' + typeEmoji(f.type) + ' ' + esc(f.name) + '</div>' +
+              (f.marketing_angle ? '<div class="fangle">' + esc(f.marketing_angle) + '</div>' : '') +
+              '</div></div>';
+          }).join("")
+        : '<div class="empty">Agle 60 din me koi festival nahi mila.</div>';
+    }catch(e){
+      inited.festivals = false;
+      box.innerHTML = '<div class="empty">Festivals load nahi hue — <button class="linkbtn" id="festRetry">dobara try karo</button></div>';
+      var rb = document.getElementById("festRetry");
+      if(rb) rb.onclick = function(){ inited.festivals = true; loadFestivals(); };
+      if(e.message !== "auth") toast("Festivals load nahi hue: " + e.message, "err");
+    }
+  }
+
+  var btnFestPosts = document.getElementById("btnFestPosts");
+  btnFestPosts.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnFestPosts, true);
+    try{
+      var res = await callApi("/api/marketing/festival-posts", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          days: 60,
+        }),
+      });
+      var posts = (res && res.posts) || [];
+      document.getElementById("festPostRows").innerHTML = posts.length
+        ? posts.map(function(p){
+            var cap = p.caption || "";
+            return '<div class="sect"><div class="sh">🎉 ' + esc(p.festival || "") + '</div>' +
+              '<div class="copyitem"><div class="tx">' + esc(cap) + '</div>' + copyBtnHtml(cap) + '</div></div>';
+          }).join("")
+        : '<div class="empty">Post ideas nahi bane — dobara try karo.</div>';
+      document.getElementById("festPostsCard").classList.remove("hidden");
+      document.getElementById("festPostsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Festival posts ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Post ideas nahi bane: " + e.message, "err");
+    }finally{
+      setBusy(btnFestPosts, false, "✨ Post ideas banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 5: Poster
+  // ============================================================================
+  var posterState = { sel: null, svg: "" };
+
+  async function loadPosterTemplates(){
+    var grid = document.getElementById("posterTpls");
+    grid.innerHTML = loadingHtml("Templates load ho rahe hain…");
+    try{
+      var res = await callApi("/api/marketing/poster/templates", {headers: hdrs()});
+      var tpls = (res && res.templates) || [];
+      grid.innerHTML = tpls.length
+        ? tpls.map(function(t){
+            return '<div class="tplcard" data-tid="' + esc(String(t.id)) + '">' +
+              '<div class="tn">' + esc(t.name) + '</div>' +
+              (t.best_for ? '<div class="tb">' + esc(t.best_for) + '</div>' : '') +
+            '</div>';
+          }).join("")
+        : '<div class="empty">Templates nahi mile.</div>';
+    }catch(e){
+      inited.poster = false;
+      grid.innerHTML = '<div class="empty">Templates load nahi hue — <button class="linkbtn" id="tplRetry">dobara try karo</button></div>';
+      var rb = document.getElementById("tplRetry");
+      if(rb) rb.onclick = function(){ inited.poster = true; loadPosterTemplates(); };
+      if(e.message !== "auth") toast("Templates load nahi hue: " + e.message, "err");
+    }
+  }
+
+  document.getElementById("posterTpls").addEventListener("click", function(ev){
+    var c = ev.target.closest(".tplcard");
+    if(!c) return;
+    posterState.sel = c.getAttribute("data-tid");
+    this.querySelectorAll(".tplcard").forEach(function(x){
+      x.classList.toggle("sel", x === c);
+    });
+  });
+
+  function slug(s){
+    return (String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")) || "poster";
+  }
+  function triggerDl(href, name, revoke){
+    var a = document.createElement("a");
+    a.href = href; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    if(revoke) setTimeout(function(){ URL.revokeObjectURL(href); }, 4000);
+  }
+
+  var btnPoster = document.getElementById("btnPoster");
+  btnPoster.onclick = async function(){
+    if(!requireName()) return;
+    if(!posterState.sel){ toast("Pehle template choose karo", "err"); return; }
+    setBusy(btnPoster, true);
+    try{
+      var res = await callApi("/api/marketing/poster", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          template_id: posterState.sel,
+          business_name: document.getElementById("bizName").value.trim(),
+          tagline: document.getElementById("posterTagline").value.trim(),
+          offer: document.getElementById("posterOffer").value.trim(),
+          phone: document.getElementById("posterPhone").value.trim(),
+          festival: document.getElementById("posterFestival").value.trim(),
+        }),
+      });
+      var svg = (res && res.svg) || "";
+      if(!svg) throw new Error("empty svg");
+      posterState.svg = svg;
+      document.getElementById("posterBox").innerHTML = svg; /* trusted — apna hi backend */
+      document.getElementById("posterCard").classList.remove("hidden");
+      document.getElementById("posterCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Poster ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Poster nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnPoster, false, "🖼️ Poster banao");
+    }
+  };
+
+  // PNG download: SVG → Image (blob URL) → canvas 1080×1080 → toBlob PNG
+  document.getElementById("btnPng").onclick = function(){
+    if(!posterState.svg){ toast("Pehle poster banao", "err"); return; }
+    var svg = posterState.svg;
+    if(!/xmlns=/.test(svg)) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+    var blob = new Blob([svg], {type: "image/svg+xml;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    var name = slug(document.getElementById("bizName").value) + "_poster.png";
+    img.onload = function(){
+      try{
+        var c = document.createElement("canvas");
+        c.width = 1080; c.height = 1080;
+        var ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, 1080, 1080);
+        ctx.drawImage(img, 0, 0, 1080, 1080);
+        URL.revokeObjectURL(url);
+        if(c.toBlob){
+          c.toBlob(function(b){
+            if(!b){ toast("PNG nahi bana — ⬇ SVG use karo", "err"); return; }
+            triggerDl(URL.createObjectURL(b), name, true);
+            toast("PNG download ✓", "ok");
+          }, "image/png");
+        }else{
+          triggerDl(c.toDataURL("image/png"), name, false);
+        }
+      }catch(err){
+        URL.revokeObjectURL(url);
+        toast("PNG export fail — ⬇ SVG use karo", "err");
+      }
+    };
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      toast("PNG nahi bana — ⬇ SVG use karo", "err");
+    };
+    img.src = url;
+  };
+
+  // SVG download (fallback)
+  document.getElementById("btnSvg").onclick = function(){
+    if(!posterState.svg){ toast("Pehle poster banao", "err"); return; }
+    var blob = new Blob([posterState.svg], {type: "image/svg+xml;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), slug(document.getElementById("bizName").value) + "_poster.svg", true);
+  };
+
+  // ============================================================================
+  // TAB 6: WhatsApp pack
+  // ============================================================================
+  function normList(x){
+    var out = [];
+    if(x == null) return out;
+    if(typeof x === "string") x = [x];
+    if(!Array.isArray(x)){
+      if(typeof x === "object") x = Object.keys(x).map(function(k){ return x[k]; });
+      else return out;
+    }
+    x.forEach(function(it){
+      if(it == null) return;
+      if(typeof it === "string"){
+        if(it.trim()) out.push({label: "", text: it});
+      }else if(typeof it === "object"){
+        var t = it.text || it.message || it.line || it.body || it.template || it.caption || it.tip || it.point || "";
+        if(!t){ try{ t = JSON.stringify(it); }catch(_e){ t = String(it); } }
+        out.push({label: it.label || it.title || "", text: String(t)});
+      }else{
+        out.push({label: "", text: String(it)});
+      }
+    });
+    return out;
+  }
+  function sectionHtml(title, items, numbered){
+    items = normList(items);
+    if(!items.length) return "";
+    return '<div class="sect"><div class="sh">' + title + '</div>' +
+      items.map(function(it, i){
+        var pre = "";
+        if(numbered) pre = '<b>Step ' + (i + 1) + ':</b> ';
+        else if(it.label) pre = '<b>' + esc(it.label) + ':</b> ';
+        return '<div class="copyitem"><div class="tx">' + pre + esc(it.text) + '</div>' + copyBtnHtml(it.text) + '</div>';
+      }).join("") + '</div>';
+  }
+
+  var btnWa = document.getElementById("btnWa");
+  btnWa.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnWa, true);
+    try{
+      var res = await callApi("/api/marketing/whatsapp-pack", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          occasion: document.getElementById("waOcc").value.trim(),
+          offer: document.getElementById("waOffer").value.trim(),
+        }),
+      });
+      var html =
+        sectionHtml("📢 Broadcast messages", res && res.broadcast) +
+        sectionHtml("📱 Status lines", res && res.status_lines) +
+        sectionHtml("💬 Reply templates", res && res.reply_templates);
+      document.getElementById("waRows").innerHTML = html || '<div class="empty">Content nahi bana — dobara try karo.</div>';
+      document.getElementById("waCard").classList.remove("hidden");
+      document.getElementById("waCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("WhatsApp pack ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Pack nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnWa, false, "💬 Pack banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 7: Competitor analysis
+  // ============================================================================
+  var btnComp = document.getElementById("btnComp");
+  btnComp.onclick = async function(){
+    var notes = document.getElementById("compText").value.trim();
+    if(!notes){ toast("Competitor ke baare me kuch likho pehle", "err"); document.getElementById("compText").focus(); return; }
+    if(!requireName()) return;
+    setBusy(btnComp, true);
+    try{
+      var res = await callApi("/api/marketing/competitor", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          competitor_notes: notes,
+        }),
+      });
+      var html =
+        sectionHtml("✅ Copy-worthy strengths (inse seekho)", res && res.strengths_to_copy) +
+        sectionHtml("🕳️ Unke gaps (aapka mauka)", res && res.gaps_to_exploit) +
+        sectionHtml("🪜 3-step action plan", res && res.action_plan, true);
+      document.getElementById("compRows").innerHTML = html || '<div class="empty">Analysis nahi bana — dobara try karo.</div>';
+      document.getElementById("compCard").classList.remove("hidden");
+      document.getElementById("compCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Analysis ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Analysis nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnComp, false, "🥊 Analysis karo");
+    }
+  };
+
+  // ============================================================================
+  // TAB 8: Review Kit (QR + counter card + ask messages)
+  // ============================================================================
+  var rkitSvgs = [];
+
+  function svgSizeOf(svg){
+    var w = 0, h = 0;
+    var m = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(svg);
+    if(m){ w = parseFloat(m[1]); h = parseFloat(m[2]); }
+    if(!w || !h){
+      var mw = /<svg[^>]*\swidth\s*=\s*["']?([\d.]+)/i.exec(svg);
+      var mh = /<svg[^>]*\sheight\s*=\s*["']?([\d.]+)/i.exec(svg);
+      if(mw) w = parseFloat(mw[1]);
+      if(mh) h = parseFloat(mh[1]);
+    }
+    if(!w || !h){ w = 1080; h = 1080; }
+    return {w: w, h: h};
+  }
+
+  // Generic SVG → PNG download (poster tab wale pattern ka reusable version)
+  function dlSvgPng(svg, name, scale){
+    if(!svg){ toast("Pehle generate karo", "err"); return; }
+    if(!/xmlns=/.test(svg)) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+    var sz = svgSizeOf(svg);
+    var W = Math.max(1, Math.round(sz.w * (scale || 1)));
+    var H = Math.max(1, Math.round(sz.h * (scale || 1)));
+    var url = URL.createObjectURL(new Blob([svg], {type: "image/svg+xml;charset=utf-8"}));
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        var ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(img, 0, 0, W, H);
+        URL.revokeObjectURL(url);
+        if(c.toBlob){
+          c.toBlob(function(b){
+            if(!b){ toast("PNG nahi bana", "err"); return; }
+            triggerDl(URL.createObjectURL(b), name, true);
+            toast("PNG download ✓", "ok");
+          }, "image/png");
+        }else{
+          triggerDl(c.toDataURL("image/png"), name, false);
+        }
+      }catch(err){
+        URL.revokeObjectURL(url);
+        toast("PNG export fail", "err");
+      }
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); toast("PNG nahi bana", "err"); };
+    img.src = url;
+  }
+
+  function bizSlugPrefix(){
+    var nm = document.getElementById("bizName").value.trim();
+    return nm ? slug(nm) + "_" : "";
+  }
+
+  var RKIT_LABELS = {
+    qr_svg: "📱 QR code (scan → review page)",
+    counter_card_svg: "🪧 Counter card (print karke rakho)",
+    wa_message: "💬 WhatsApp ask-message",
+    sms_line: "📩 SMS line",
+    review_url: "🔗 Review link",
+    maps_url: "🗺️ Maps link",
+    maps_search_url: "🗺️ Maps link",
+    direct_review_note: "ℹ️ Direct review link",
+    direct_review_url_prefix: "🔗 Direct link prefix",
+    how_to_get_place_id: "🧭 Place ID kaise nikale",
+    tip: "💡 Tip"
+  };
+  var RKIT_ORDER = ["qr_svg","counter_card_svg","wa_message","sms_line","review_url","maps_url","maps_search_url"];
+
+  // Defensive flatten: field naam thode alag ho sakte hain — strings (top-level +
+  // 1-level nested object + string-arrays) sab render; "<svg" = inline, baki copy rows.
+  function rkitFlat(res){
+    var flat = [];
+    function add(k, v){
+      if(typeof v === "string"){
+        if(v.trim()) flat.push([k, v]);
+      }else if(Array.isArray(v)){
+        var strs = v.filter(function(x){ return typeof x === "string" && x.trim(); });
+        if(strs.length) flat.push([k, "• " + strs.join("\n• ")]);
+      }
+    }
+    Object.keys(res || {}).forEach(function(k){
+      if(k === "provider" || k === "business_name") return;
+      var v = res[k];
+      if(v && typeof v === "object" && !Array.isArray(v)){
+        Object.keys(v).forEach(function(k2){ add(k2, v[k2]); });
+      }else{
+        add(k, v);
+      }
+    });
+    flat.sort(function(a, b){
+      var ia = RKIT_ORDER.indexOf(a[0]), ib = RKIT_ORDER.indexOf(b[0]);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    return flat;
+  }
+
+  var btnRkit = document.getElementById("btnRkit");
+  btnRkit.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnRkit, true);
+    try{
+      var res = await callApi("/api/marketing/review-kit", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          place_query: document.getElementById("rkitQuery").value.trim(),
+        }),
+      });
+      rkitSvgs = [];
+      var html = rkitFlat(res || {}).map(function(pair){
+        var k = pair[0], v = pair[1];
+        var label = RKIT_LABELS[k] || ("📄 " + esc(k.replace(/_/g, " ")));
+        if(/^\s*<svg/i.test(v)){
+          var idx = rkitSvgs.length;
+          rkitSvgs.push(v);
+          var isQr = /qr/i.test(k);
+          return '<div class="sect"><div class="sh">' + label + '</div>' +
+            '<div class="svgshow' + (isQr ? ' qr' : '') + '">' + v + '</div>' + /* trusted — apna hi backend */
+            '<div class="btns" style="margin-top:9px"><button class="btn sec" data-rkpng="' + idx +
+              '" data-rkname="' + (isQr ? 'review_qr' : 'counter_card') + '">⬇ PNG Download</button></div></div>';
+        }
+        return '<div class="sect"><div class="sh">' + label + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(v) + '</div>' + copyBtnHtml(v) + '</div></div>';
+      }).join("");
+      document.getElementById("rkitRows").innerHTML = html || '<div class="empty">Kit nahi bana — dobara try karo.</div>';
+      document.getElementById("rkitCard").classList.remove("hidden");
+      document.getElementById("rkitCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Review kit ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Kit nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnRkit, false, "⭐ Kit banao");
+    }
+  };
+
+  document.getElementById("rkitRows").addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest("[data-rkpng]") : null;
+    if(!b) return;
+    dlSvgPng(rkitSvgs[parseInt(b.getAttribute("data-rkpng"), 10)] || "",
+      bizSlugPrefix() + (b.getAttribute("data-rkname") || "image") + ".png", 2);
+  });
+
+  // ============================================================================
+  // TAB 9: Monthly Report
+  // ============================================================================
+  var reportHtmlStr = "";
+  var btnReport = document.getElementById("btnReport");
+  btnReport.onclick = async function(){
+    setBusy(btnReport, true);
+    try{
+      var cn = document.getElementById("bizName").value.trim();
+      var res = await callApi("/api/marketing/report?client_name=" + encodeURIComponent(cn), {headers: hdrs()});
+      var html = res && (res.html || res.report_html || res.report);
+      reportHtmlStr = (typeof html === "string") ? html : "";
+      if(!reportHtmlStr) throw new Error("report HTML khali aaya");
+      var chips = "";
+      if(res && res.month) chips += '<span class="tag">📆 ' + esc(String(res.month)) + '</span>';
+      var stats = (res && res.stats) || {};
+      Object.keys(stats).forEach(function(k){
+        if(typeof stats[k] === "number"){
+          chips += '<span class="tag">' + esc(k.replace(/_/g, " ")) + ': ' + esc(String(stats[k])) + '</span>';
+        }
+      });
+      document.getElementById("repStats").innerHTML = chips ? '<div class="tags" style="margin:0 0 10px">' + chips + '</div>' : "";
+      document.getElementById("repFrame").srcdoc = reportHtmlStr; /* sandboxed iframe */
+      document.getElementById("reportCard").classList.remove("hidden");
+      document.getElementById("reportCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Report ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Report nahi bani: " + e.message, "err");
+    }finally{
+      setBusy(btnReport, false, "📈 Is mahine ki report banao");
+    }
+  };
+  document.getElementById("btnRepDl").onclick = function(){
+    if(!reportHtmlStr){ toast("Pehle report banao", "err"); return; }
+    var blob = new Blob([reportHtmlStr], {type: "text/html;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "report.html", true);
+  };
+
+  // ============================================================================
+  // TAB 10: Reactivation (win-back)
+  // ============================================================================
+  function waLinkFor(phone, text){
+    var d = String(phone || "").replace(/\D/g, "");
+    if(d.length === 12 && d.indexOf("91") === 0) d = d.slice(2);
+    if(d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
+    return d.length === 10 ? ("https://wa.me/91" + d + "?text=" + encodeURIComponent(text || "")) : "";
+  }
+  function tipsSectionHtml(tips){
+    tips = normList(tips);
+    if(!tips.length) return "";
+    return '<div class="sect"><div class="sh">💡 Tips</div>' +
+      tips.map(function(t){
+        return '<div class="copyitem"><div class="tx">' + esc(t.text) + '</div></div>';
+      }).join("") + '</div>';
+  }
+
+  function parseReactLines(raw){
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      if(!line) return;
+      var parts = line.split(/[,;|\t]/).map(function(p){ return p.trim(); }).filter(Boolean);
+      var name = "", phone = "", rest = [];
+      parts.forEach(function(p){
+        var digits = p.replace(/\D/g, "");
+        if(!phone && digits.length >= 7 && !/[a-zA-Z]{3,}/.test(p)){ phone = p; }
+        else if(!name){ name = p; }
+        else{ rest.push(p); }
+      });
+      if(!name && !phone) return;
+      out.push({name: name, phone: phone, last_visit: rest.join(", "), note: ""});
+    });
+    return out.slice(0, 50);
+  }
+
+  var btnReact = document.getElementById("btnReact");
+  btnReact.onclick = async function(){
+    if(!requireName()) return;
+    var customers = parseReactLines(document.getElementById("reactList").value);
+    if(!customers.length){
+      toast("Customers paste karo pehle (har line: Naam, phone)", "err");
+      document.getElementById("reactList").focus();
+      return;
+    }
+    setBusy(btnReact, true);
+    try{
+      var res = await callApi("/api/marketing/reactivation", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          offer: document.getElementById("reactOffer").value.trim(),
+          customers: customers,
+        }),
+      });
+      var msgs = (res && (res.messages || res.campaign || res.results)) || [];
+      var html = tipsSectionHtml(res && res.tips) + msgs.map(function(m){
+        m = m || {};
+        var text = m.text || m.message || "";
+        var link = m.wa_link || m.link || waLinkFor(m.phone, text);
+        return '<div class="sect"><div class="sh">👤 ' + esc(m.name || "Customer") +
+            (m.phone ? ' <span class="prov">' + esc(m.phone) + '</span>' : '') + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(text) + '</div>' + copyBtnHtml(text) + '</div>' +
+          (link ? '<div style="margin-top:8px"><a class="wabtn" href="' + esc(link) + '" target="_blank" rel="noopener">📲 WhatsApp bhejo</a></div>' : '') +
+          '</div>';
+      }).join("");
+      document.getElementById("reactRows").innerHTML = (msgs.length || html)
+        ? html : '<div class="empty">Messages nahi bane — dobara try karo.</div>';
+      document.getElementById("reactCard").classList.remove("hidden");
+      document.getElementById("reactCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast(msgs.length + " win-back messages ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Messages nahi bane: " + e.message, "err");
+    }finally{
+      setBusy(btnReact, false, "🔁 Messages banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 11: Drip sequence
+  // ============================================================================
+  var btnDrip = document.getElementById("btnDrip");
+  btnDrip.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnDrip, true);
+    try{
+      var res = await callApi("/api/marketing/drip", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          lead_type: document.getElementById("dripType").value,
+        }),
+      });
+      var steps = (res && (res.steps || res.sequence)) || [];
+      var html = steps.map(function(s, i){
+        if(typeof s === "string") s = {message: s};
+        s = s || {};
+        var day = (s.day != null) ? s.day : (s.when != null ? s.when : i);
+        var msg = s.message || s.text || "";
+        return '<div class="sect"><div class="sh"><span class="daychip">Day ' + esc(String(day)) + '</span> ' +
+            esc(s.goal || s.title || "") + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(msg) + '</div>' + copyBtnHtml(msg) + '</div></div>';
+      }).join("") + tipsSectionHtml(res && res.tips);
+      document.getElementById("dripRows").innerHTML = steps.length
+        ? html : '<div class="empty">Sequence nahi bana — dobara try karo.</div>';
+      document.getElementById("dripCard").classList.remove("hidden");
+      document.getElementById("dripCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Drip sequence ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Sequence nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnDrip, false, "💧 Sequence banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 12: CRM-lite + Wishes (+ brand profile, same Client ID)
+  // ============================================================================
+  function crmClientId(){
+    return document.getElementById("crmClient").value.trim() || "default";
+  }
+  function crmInit(){
+    crmLoadList(true);
+    brandLoad(true);
+  }
+  document.getElementById("crmClient").addEventListener("change", function(){
+    crmLoadList(true);
+  });
+
+  function mmddHuman(s){
+    var m = /^(\d{1,2})-(\d{1,2})$/.exec(String(s || ""));
+    if(!m) return String(s || "");
+    var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return parseInt(m[2], 10) + " " + (M[parseInt(m[1], 10) - 1] || m[1]);
+  }
+
+  // Backend bare dates ko MM-DD samajhta hai; UI DD-MM promise karta hai → yahan swap
+  function parseCrmLines(raw){
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      if(!line) return;
+      var parts = line.split(/[,;|\t]/).map(function(p){ return p.trim(); }).filter(Boolean);
+      var name = "", phone = "", dates = [];
+      parts.forEach(function(p){
+        var digits = p.replace(/\D/g, "");
+        if(/^\d{4}[-\/.]\d{1,2}[-\/.]\d{1,2}$/.test(p)){
+          dates.push(p.replace(/[\/.]/g, "-"));                 /* YYYY-MM-DD as-is */
+        }else if(/^\d{1,2}[-\/.]\d{1,2}$/.test(p)){
+          var dm = p.replace(/[\/.]/g, "-").split("-");
+          dates.push(dm[1] + "-" + dm[0]);                      /* DD-MM → MM-DD */
+        }else if(!phone && digits.length >= 7 && !/[a-zA-Z]{3,}/.test(p)){
+          phone = p;
+        }else if(!name){
+          name = p;
+        }
+      });
+      if(!phone) return; /* phone required — backend dedupe key */
+      out.push({name: name, phone: phone, birthday: dates[0] || "", anniversary: dates[1] || "", tags: []});
+    });
+    return out.slice(0, 500);
+  }
+
+  async function crmLoadList(quiet){
+    try{
+      var res = await callApi("/api/marketing/crm/" + encodeURIComponent(crmClientId()) + "/customers", {headers: hdrs()});
+      var rows = (res && res.customers) || [];
+      document.getElementById("crmTotal").textContent = rows.length + " customers";
+      document.getElementById("crmTbody").innerHTML = rows.length
+        ? rows.map(function(c){
+            c = c || {};
+            var dates = [];
+            if(c.birthday) dates.push("🎂 " + mmddHuman(c.birthday));
+            if(c.anniversary) dates.push("💍 " + mmddHuman(c.anniversary));
+            var tags = (c.tags || []).map(function(t){ return '<span class="tag">' + esc(t) + '</span>'; }).join(" ");
+            return '<tr><td>' + esc(c.name || "—") + '</td><td>' + esc(c.phone || "") + '</td>' +
+              '<td>' + esc(dates.join("  ") || "—") + '</td><td>' + (tags || "—") + '</td></tr>';
+          }).join("")
+        : '<tr><td colspan="4"><div class="empty">Abhi koi customer saved nahi — upar paste karke save karo.</div></td></tr>';
+      document.getElementById("crmListCard").classList.remove("hidden");
+    }catch(e){
+      if(!quiet && e.message !== "auth") toast("Customers load nahi hue: " + e.message, "err");
+    }
+  }
+
+  var btnCrmSave = document.getElementById("btnCrmSave");
+  btnCrmSave.onclick = async function(){
+    var customers = parseCrmLines(document.getElementById("crmAdd").value);
+    if(!customers.length){
+      toast("Har line me phone zaroori hai (Naam, 98xxxxxxxx, 14-02)", "err");
+      document.getElementById("crmAdd").focus();
+      return;
+    }
+    setBusy(btnCrmSave, true);
+    try{
+      var res = await callApi("/api/marketing/crm/" + encodeURIComponent(crmClientId()) + "/customers", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({customers: customers}),
+      });
+      toast(((res && res.added) || 0) + " add hue, " + ((res && res.skipped) || 0) + " skip (duplicate/invalid) ✓", "ok");
+      document.getElementById("crmAdd").value = "";
+      crmLoadList(true);
+    }catch(e){
+      if(e.message !== "auth") toast("Save nahi hua: " + e.message, "err");
+    }finally{
+      setBusy(btnCrmSave, false, "💾 Customers save karo");
+    }
+  };
+
+  var btnCrmWishes = document.getElementById("btnCrmWishes");
+  btnCrmWishes.onclick = async function(){
+    setBusy(btnCrmWishes, true);
+    try{
+      var bn = document.getElementById("bizName").value.trim();
+      var res = await callApi("/api/marketing/crm/" + encodeURIComponent(crmClientId()) +
+        "/wishes?business_name=" + encodeURIComponent(bn), {headers: hdrs()});
+      var ws = (res && res.wishes) || [];
+      var html = ws.map(function(w){
+        w = w || {};
+        var occ = String(w.occasion || "") === "anniversary" ? "💍 Anniversary" : "🎂 Birthday";
+        var msg = w.message || w.text || "";
+        var link = w.wa_link || waLinkFor(w.phone, msg);
+        return '<div class="sect"><div class="sh">' + occ + ' — ' + esc(w.name || "") +
+            (w.phone ? ' <span class="prov">' + esc(w.phone) + '</span>' : '') + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(msg) + '</div>' + copyBtnHtml(msg) + '</div>' +
+          (link ? '<div style="margin-top:8px"><a class="wabtn" href="' + esc(link) + '" target="_blank" rel="noopener">📲 WhatsApp bhejo</a></div>' : '') +
+          '</div>';
+      }).join("");
+      document.getElementById("wishRows").innerHTML = html ||
+        '<div class="empty">Aaj' + (res && res.date ? ' (' + esc(mmddHuman(res.date)) + ')' : '') +
+        ' kisi ka birthday/anniversary nahi — customers me DD-MM dates add karo.</div>';
+      document.getElementById("wishCard").classList.remove("hidden");
+      document.getElementById("wishCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      if(ws.length) toast(ws.length + " wishes ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Wishes load nahi hue: " + e.message, "err");
+    }finally{
+      setBusy(btnCrmWishes, false, "🎂 Aaj ke wishes");
+    }
+  };
+
+  // Brand profile (same Client ID; posters/posts me auto-apply hota hai)
+  async function brandLoad(quiet){
+    try{
+      var res = await callApi("/api/marketing/brand/" + encodeURIComponent(crmClientId()), {headers: hdrs()});
+      var b = (res && res.brand) || {};
+      if(b.business_name) document.getElementById("brandBiz").value = b.business_name;
+      if(b.tagline) document.getElementById("brandTagline").value = b.tagline;
+      if(b.phone) document.getElementById("brandPhone").value = b.phone;
+      var cols = b.colors || {};
+      if(/^#[0-9a-fA-F]{6}$/.test(String(cols.primary || ""))) document.getElementById("brandPrimary").value = cols.primary;
+      if(/^#[0-9a-fA-F]{6}$/.test(String(cols.accent || ""))) document.getElementById("brandAccent").value = cols.accent;
+      if(b.tone) document.getElementById("brandTone").value = b.tone;
+      if(b.logo_text) document.getElementById("brandLogo").value = b.logo_text;
+      if(!quiet) toast("Saved brand load ho gaya ✓", "ok");
+    }catch(e){
+      /* 404 = abhi brand saved nahi — quiet init pe chup raho */
+      if(!quiet && e.message !== "auth") toast("Brand load nahi hua: " + e.message, "err");
+    }
+  }
+
+  var btnBrandSave = document.getElementById("btnBrandSave");
+  btnBrandSave.onclick = async function(){
+    setBusy(btnBrandSave, true);
+    try{
+      await callApi("/api/marketing/brand/" + encodeURIComponent(crmClientId()), {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("brandBiz").value.trim() || document.getElementById("bizName").value.trim(),
+          tagline: document.getElementById("brandTagline").value.trim(),
+          phone: document.getElementById("brandPhone").value.trim(),
+          colors: {
+            primary: document.getElementById("brandPrimary").value,
+            accent: document.getElementById("brandAccent").value,
+          },
+          tone: document.getElementById("brandTone").value,
+          logo_text: document.getElementById("brandLogo").value.trim(),
+        }),
+      });
+      toast("Brand saved ✓ — posters/posts me auto-apply hoga", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Brand save nahi hua: " + e.message, "err");
+    }finally{
+      setBusy(btnBrandSave, false, "💾 Brand save");
+    }
+  };
+
+  var btnBrandLoad = document.getElementById("btnBrandLoad");
+  btnBrandLoad.onclick = async function(){
+    setBusy(btnBrandLoad, true);
+    try{ await brandLoad(false); }
+    finally{ setBusy(btnBrandLoad, false, "↻ Saved brand load"); }
+  };
+
+  // ============================================================================
+  // TAB 13: UPI Payment Kit
+  // ============================================================================
+  var upiSvgs = [];
+
+  var btnUpi = document.getElementById("btnUpi");
+  btnUpi.onclick = async function(){
+    if(!requireName()) return;
+    var vpa = document.getElementById("upiVpa").value.trim();
+    if(!vpa){ toast("UPI ID likho pehle (naam@bank)", "err"); document.getElementById("upiVpa").focus(); return; }
+    var amtRaw = document.getElementById("upiAmt").value.trim();
+    var amt = amtRaw ? parseFloat(amtRaw) : null;
+    if(amtRaw && (isNaN(amt) || amt < 0)) amt = null;
+    setBusy(btnUpi, true);
+    try{
+      var res = await callApi("/api/marketing/upi-kit", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          vpa: vpa,
+          amount: amt,
+          note: document.getElementById("upiNote").value.trim(),
+        }),
+      });
+      upiSvgs = [];
+      var html = "";
+      if(res && res.vpa_valid === false){
+        html += '<div class="sect"><div class="copyitem"><div class="tx">⚠️ <b>UPI ID format sahi nahi lag raha</b> — sahi format: naam@bank (jaise 9876543210@ybl). Apni UPI app me "My UPI ID" check karo.</div></div></div>';
+      }
+      function svgSect(label, svg, fname, isQr){
+        if(!svg) return "";
+        var idx = upiSvgs.length;
+        upiSvgs.push(svg);
+        return '<div class="sect"><div class="sh">' + label + '</div>' +
+          '<div class="svgshow' + (isQr ? ' qr' : '') + '">' + svg + '</div>' + /* trusted — apna hi backend */
+          '<div class="btns" style="margin-top:9px"><button class="btn sec" data-upipng="' + idx +
+            '" data-upiname="' + fname + '">⬇ PNG Download</button></div></div>';
+      }
+      html += svgSect("📱 Payment QR (scan → pay)", res && res.qr_svg, "upi_qr", true);
+      html += svgSect("🪧 Payment slip (print / WhatsApp bhejo)", res && res.slip_svg, "payment_slip", false);
+      if(res && res.upi_link){
+        html += '<div class="sect"><div class="sh">🔗 UPI link (tap-to-pay)</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(res.upi_link) + '</div>' + copyBtnHtml(res.upi_link) + '</div></div>';
+      }
+      if(res && res.wa_payment_msg){
+        html += '<div class="sect"><div class="sh">💬 WhatsApp payment message</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(res.wa_payment_msg) + '</div>' + copyBtnHtml(res.wa_payment_msg) + '</div></div>';
+      }
+      html += sectionHtml("💡 Kaise use karein", res && res.instructions);
+      document.getElementById("upiRows").innerHTML = html || '<div class="empty">Kit nahi bana — dobara try karo.</div>';
+      document.getElementById("upiCard").classList.remove("hidden");
+      document.getElementById("upiCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Payment kit ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Kit nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnUpi, false, "💳 Payment kit banao");
+    }
+  };
+
+  document.getElementById("upiRows").addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest("[data-upipng]") : null;
+    if(!b) return;
+    dlSvgPng(upiSvgs[parseInt(b.getAttribute("data-upipng"), 10)] || "",
+      bizSlugPrefix() + (b.getAttribute("data-upiname") || "upi") + ".png", 2);
+  });
+
+  // ============================================================================
+  // TAB 14: Catalog
+  // ============================================================================
+  var catState = { svg: "", text: "" };
+
+  function parseCatalogLines(raw){
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      if(!line) return;
+      var parts = line.split(",");
+      var name = (parts[0] || "").trim();
+      if(!name) return;
+      out.push({
+        name: name.slice(0, 80),
+        price: (parts[1] || "").trim().slice(0, 20),
+        desc: parts.slice(2).join(",").trim().slice(0, 160),
+      });
+    });
+    return out.slice(0, 24);
+  }
+
+  var btnCatalog = document.getElementById("btnCatalog");
+  btnCatalog.onclick = async function(){
+    if(!requireName()) return;
+    var items = parseCatalogLines(document.getElementById("catItems").value);
+    if(!items.length){
+      toast("Items likho pehle (har line: Naam, 999, desc)", "err");
+      document.getElementById("catItems").focus();
+      return;
+    }
+    setBusy(btnCatalog, true);
+    try{
+      var res = await callApi("/api/marketing/catalog", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          items: items,
+        }),
+      });
+      catState.svg = (res && res.svg) || "";
+      catState.text = (res && res.wa_catalog_text) || "";
+      if(!catState.svg) throw new Error("empty svg");
+      document.getElementById("catProv").textContent = "via " + ((res && res.provider) || "ai");
+      document.getElementById("catBox").innerHTML = catState.svg; /* trusted — apna hi backend */
+      document.getElementById("catTextRow").innerHTML = catState.text
+        ? '<div class="copyitem"><div class="tx">' + esc(catState.text) + '</div>' + copyBtnHtml(catState.text) + '</div>'
+        : "";
+      document.getElementById("catCard").classList.remove("hidden");
+      document.getElementById("catCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Catalog ready ✓ (" + ((res && res.count) || items.length) + " items)", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Catalog nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnCatalog, false, "📋 Catalog banao");
+    }
+  };
+
+  document.getElementById("btnCatPng").onclick = function(){
+    dlSvgPng(catState.svg, bizSlugPrefix() + "catalog.png", 1);
+  };
+  document.getElementById("btnCatSvg").onclick = function(){
+    if(!catState.svg){ toast("Pehle catalog banao", "err"); return; }
+    var blob = new Blob([catState.svg], {type: "image/svg+xml;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "catalog.svg", true);
+  };
+
+  // ============================================================================
+  // TAB 15: Ads Copy (Google + Meta)
+  // ============================================================================
+  function chipListHtml(items, maxLen){
+    return '<div class="chipwrap">' + (items || []).map(function(t){
+      t = String(t == null ? "" : t);
+      var over = maxLen && t.length > maxLen;
+      return '<span class="tag' + (over ? ' over' : '') + '">' + esc(t) +
+        '<span class="chipchar">(' + t.length + ')</span></span>';
+    }).join("") + '</div>';
+  }
+
+  var btnAds = document.getElementById("btnAds");
+  btnAds.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnAds, true);
+    try{
+      var res = await callApi("/api/marketing/ads-pack", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          offer: document.getElementById("adsOffer").value.trim(),
+          city: document.getElementById("adsCity").value.trim(),
+        }),
+      });
+      var g = (res && res.google) || {};
+      var m = (res && res.meta) || {};
+      var heads = g.headlines || [];
+      var descs = g.descriptions || [];
+      var prims = (m.primaries || []);
+      var ctas = (m.ctas || []);
+      document.getElementById("adsProv").textContent = "via " + ((res && res.provider) || "ai");
+      var html = "";
+      if(heads.length){
+        html += '<div class="sect"><div class="sh">🔍 Google headlines (' + heads.length + ' — har ek ≤30 chars) ' +
+          copyBtnHtml(heads.join("\n")).replace('📋 Copy', '📋 Copy all') + '</div>' +
+          chipListHtml(heads, 30) + '</div>';
+      }
+      if(descs.length){
+        html += '<div class="sect"><div class="sh">📝 Google descriptions (≤90 chars) ' +
+          copyBtnHtml(descs.join("\n")).replace('📋 Copy', '📋 Copy all') + '</div>' +
+          descs.map(function(d){
+            return '<div class="copyitem"><div class="tx">' + esc(d) +
+              ' <span class="chipchar">(' + String(d).length + ')</span></div>' + copyBtnHtml(d) + '</div>';
+          }).join("") + '</div>';
+      }
+      if(prims.length){
+        html += '<div class="sect"><div class="sh">📣 Meta / Instagram primary texts ' +
+          copyBtnHtml(prims.join("\n\n---\n\n")).replace('📋 Copy', '📋 Copy all') + '</div>' +
+          prims.map(function(p, i){
+            return '<div class="copyitem"><div class="tx"><b>Ad ' + (i + 1) + ':</b> ' + esc(p) + '</div>' + copyBtnHtml(p) + '</div>';
+          }).join("") + '</div>';
+      }
+      if(ctas.length){
+        html += '<div class="sect"><div class="sh">👆 CTA buttons</div>' + chipListHtml(ctas) + '</div>';
+      }
+      var plan = (res && res.plan) || null;
+      if(plan){
+        var bs = plan.budget_split || {};
+        html += '<div class="sect"><div class="sh">🧭 Campaign plan</div>';
+        if(bs.google_pct != null){
+          html += '<div class="copyitem"><div class="tx"><b>💰 Budget split:</b> Google ' +
+            esc(bs.google_pct) + '% / Meta ' + esc(bs.meta_pct) + '%. ' + esc(bs.note || "") + '</div></div>';
+        }
+        if((plan.targeting||[]).length){
+          html += '<div class="tx" style="margin-top:6px"><b>🎯 Targeting</b></div>' +
+            plan.targeting.map(function(t){ return '<div class="tx">• ' + esc(t) + '</div>'; }).join("");
+        }
+        if((plan.keywords||[]).length){
+          html += '<div class="tx" style="margin-top:8px"><b>🔑 Keywords</b> ' +
+            copyBtnHtml(plan.keywords.join("\n")).replace('📋 Copy', '📋 Copy all') + '</div>' + chipListHtml(plan.keywords);
+        }
+        if((plan.negative_keywords||[]).length){
+          html += '<div class="tx" style="margin-top:8px"><b>🚫 Negative keywords</b></div>' + chipListHtml(plan.negative_keywords);
+        }
+        if((plan.measurement||[]).length){
+          html += '<div class="tx" style="margin-top:8px"><b>📊 Measurement</b></div>' +
+            plan.measurement.map(function(t){ return '<div class="tx">• ' + esc(t) + '</div>'; }).join("");
+        }
+        if(plan.pro_tip){
+          html += '<div class="tx" style="margin-top:8px"><b>💡 Pro tip:</b> ' + esc(plan.pro_tip) + '</div>';
+        }
+        html += '</div>';
+      }
+      var gb = (res && res.grounded_by) || [];
+      if(gb.length){
+        html += '<div class="sect"><div class="tx" style="opacity:.7;font-size:12px">⚙️ Persona-grounded: ' + esc(gb.join(", ")) + '</div></div>';
+      }
+      document.getElementById("adsRows").innerHTML = html || '<div class="empty">Ads pack nahi bana — dobara try karo.</div>';
+      document.getElementById("adsCard").classList.remove("hidden");
+      document.getElementById("adsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Ads pack ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Ads pack nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnAds, false, "📢 Ads pack banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 16: Reels scripts
+  // ============================================================================
+  var btnReels = document.getElementById("btnReels");
+  btnReels.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnReels, true);
+    try{
+      var res = await callApi("/api/marketing/reels", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          topic: document.getElementById("reelTopic").value.trim(),
+          n: 3,
+        }),
+      });
+      var scripts = (res && res.scripts) || [];
+      document.getElementById("reelProv").textContent = "via " + ((res && res.provider) || "ai");
+      var html = scripts.map(function(s, i){
+        s = s || {};
+        var tags = (s.hashtags || []).join(" ");
+        var full = "HOOK: " + (s.hook || "") + "\n\nSCRIPT: " + (s.body || "") +
+          "\n\nCTA: " + (s.cta || "") + "\n\nCAPTION: " + (s.caption || "") + "\n" + tags;
+        return '<div class="sect"><div class="sh"><span class="daychip">🎬 Script ' + (i + 1) +
+            '</span> <span class="prov">' + esc(s.duration || "30s") + '</span> ' + copyBtnHtml(full) + '</div>' +
+          '<div class="copyitem"><div class="tx"><b>🪝 Hook (3s):</b> ' + esc(s.hook || "") + '</div></div>' +
+          '<div class="copyitem"><div class="tx"><b>🗣️ Script (15s):</b> ' + esc(s.body || "") + '</div></div>' +
+          '<div class="copyitem"><div class="tx"><b>👉 CTA:</b> ' + esc(s.cta || "") + '</div></div>' +
+          '<div class="copyitem"><div class="tx"><b>✍️ Caption:</b> ' + esc(s.caption || "") + '</div>' + copyBtnHtml((s.caption || "") + "\n" + tags) + '</div>' +
+          (tags ? '<div class="tags">' + (s.hashtags || []).map(function(h){ return '<span class="tag">' + esc(h) + '</span>'; }).join("") + '</div>' : '') +
+          '</div>';
+      }).join("");
+      document.getElementById("reelRows").innerHTML = html || '<div class="empty">Scripts nahi bane — dobara try karo.</div>';
+      document.getElementById("reelCard").classList.remove("hidden");
+      document.getElementById("reelCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast(scripts.length + " Reel scripts ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Scripts nahi bane: " + e.message, "err");
+    }finally{
+      setBusy(btnReels, false, "🎬 Scripts banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 17: Hot Leads (auto-fetch on first open)
+  // ============================================================================
+  async function loadLeadScores(){
+    var tb = document.getElementById("hlTbody");
+    tb.innerHTML = '<tr><td colspan="5">' + loadingHtml("Leads score ho rahe hain…") + '</td></tr>';
+    try{
+      var res = await callApi("/api/marketing/lead-scores", {headers: hdrs()});
+      var counts = (res && res.counts) || {};
+      document.getElementById("hlCounts").innerHTML =
+        '<span class="cntchip hot">🔥 Hot: ' + (counts.hot || 0) + '</span>' +
+        '<span class="cntchip warm">🌤️ Warm: ' + (counts.warm || 0) + '</span>' +
+        '<span class="cntchip cold">🧊 Cold: ' + (counts.cold || 0) + '</span>';
+      var leads = (res && res.leads) || [];
+      tb.innerHTML = leads.length
+        ? leads.map(function(l){
+            l = l || {};
+            var label = (l.label === "hot" || l.label === "warm") ? l.label : "cold";
+            var who = esc(l.name || "—") + (l.business_name ? '<div style="font-size:11px;color:var(--muted)">' + esc(l.business_name) + '</div>' : '');
+            var link = l.wa_link || waLinkFor(l.phone, "Namaste! Aapki website inquiry mili — kab baat kar sakte hain?");
+            return '<tr>' +
+              '<td><span class="scorebadge ' + label + '">' + (Math.round(l.score) || 0) + '</span></td>' +
+              '<td>' + who + '</td>' +
+              '<td>' + esc(l.niche || "—") + '</td>' +
+              '<td>' + esc(l.phone || "—") + '</td>' +
+              '<td>' + (link ? '<a class="wabtn" href="' + esc(link) + '" target="_blank" rel="noopener">📲 WhatsApp</a>' : '—') + '</td>' +
+            '</tr>';
+          }).join("")
+        : '<tr><td colspan="5"><div class="empty">Abhi koi inquiry nahi aayi — landing page ka form share karo, leads yahan score ho kar dikhengi.</div></td></tr>';
+    }catch(e){
+      inited.hotleads = false;
+      tb.innerHTML = '<tr><td colspan="5"><div class="empty">Leads load nahi hue — <button class="linkbtn" id="hlRetry">dobara try karo</button></div></td></tr>';
+      var rb = document.getElementById("hlRetry");
+      if(rb) rb.onclick = function(){ inited.hotleads = true; loadLeadScores(); };
+      if(e.message !== "auth") toast("Leads load nahi hue: " + e.message, "err");
+    }
+  }
+
+  document.getElementById("btnHlRefresh").onclick = function(){
+    loadLeadScores();
+  };
+
+  // ============================================================================
+  // TAB 18: Client Pack (1-click monthly deliverable)
+  // ============================================================================
+  var packHtmlStr = "";
+  var btnPack = document.getElementById("btnPack");
+  btnPack.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnPack, true);
+    try{
+      var res = await callApi("/api/marketing/content-pack", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          offer: document.getElementById("packOffer").value.trim(),
+          phone: document.getElementById("packPhone").value.trim(),
+        }),
+      });
+      packHtmlStr = (res && typeof res.html === "string") ? res.html : "";
+      if(!packHtmlStr) throw new Error("pack HTML khali aaya");
+      var counts = (res && res.counts) || {};
+      document.getElementById("packCounts").textContent = Object.keys(counts).map(function(k){
+        return k.replace(/_/g, " ") + ": " + counts[k];
+      }).join(" · ");
+      document.getElementById("packFrame").srcdoc = packHtmlStr; /* sandboxed iframe */
+      document.getElementById("packCard").classList.remove("hidden");
+      document.getElementById("packCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Client pack ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Pack nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnPack, false, "📦 Pack banao (1-click monthly deliverable)");
+    }
+  };
+  document.getElementById("btnPackDl").onclick = function(){
+    if(!packHtmlStr){ toast("Pehle pack banao", "err"); return; }
+    var blob = new Blob([packHtmlStr], {type: "text/html;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "pack.html", true);
+  };
+
+  // ============================================================================
+  // TAB 19: Referral (Refer & Earn)
+  // ============================================================================
+  var refSvg = "";
+  var btnRef = document.getElementById("btnRef");
+  btnRef.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnRef, true);
+    try{
+      var res = await callApi("/api/marketing/referral", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          reward: document.getElementById("refReward").value.trim() || "10% off",
+          referrer_name: document.getElementById("refName").value.trim(),
+        }),
+      });
+      var code = (res && res.code) || "";
+      document.getElementById("refCodeTx").textContent = code;
+      document.getElementById("refCodeCopy").innerHTML = copyBtnHtml(code);
+      document.getElementById("refRows").innerHTML =
+        sectionHtml("💬 WhatsApp share message", res && res.wa_message) +
+        sectionHtml("🔗 Referral link", res && res.link);
+      refSvg = (res && res.card_svg) || "";
+      document.getElementById("refBox").innerHTML = refSvg; /* trusted — apna hi backend */
+      document.getElementById("refCard").classList.remove("hidden");
+      document.getElementById("refCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Referral kit ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Referral kit nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnRef, false, "🎁 Referral kit banao");
+    }
+  };
+  document.getElementById("btnRefPng").onclick = function(){
+    dlSvgPng(refSvg, bizSlugPrefix() + "referral.png", 1);
+  };
+  document.getElementById("btnRefSvg").onclick = function(){
+    if(!refSvg){ toast("Pehle referral kit banao", "err"); return; }
+    var blob = new Blob([refSvg], {type: "image/svg+xml;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "referral.svg", true);
+  };
+
+  // ============================================================================
+  // NEW TABS: AI Image / Complete Post / Variations / Chatbot / Sentiment / Hashtags / Logo
+  // ============================================================================
+  window.__imgErr = function(el){ try{ el.parentNode.innerHTML = '<div class="empty">⚠️ AI image load nahi hui — Pollinations ab free token maangta hai. .env me POLLINATIONS_TOKEN daalo (auth.pollinations.ai se free), ya 🖼️ Poster tab use karo.</div>'; }catch(e){} };
+  var btnAiImg = document.getElementById("btnAiImg");
+  if(btnAiImg) btnAiImg.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnAiImg, true);
+    try{
+      var res = await callApi("/api/marketing/ai-image", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", style: document.getElementById("aiImgStyle").value.trim(), width:1024, height:1024})});
+      document.getElementById("aiImgBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="AI image" loading="lazy" onerror="__imgErr(this)" style="max-width:100%;border-radius:12px"/>' : '<div class="empty">Image nahi bani</div>';
+      document.getElementById("aiImgPrompt").textContent = res.prompt ? ("prompt: "+res.prompt) : "";
+      document.getElementById("aiImgDl").href = res.url || "#";
+      var c=document.getElementById("aiImgCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast("AI image ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Image nahi bani: "+e.message,"err"); }
+    finally{ setBusy(btnAiImg, false, "🎨 Image banao"); }
+  };
+
+  var lastCompleteText = "";
+  var btnComplete = document.getElementById("btnComplete");
+  if(btnComplete) btnComplete.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnComplete, true);
+    try{
+      var res = await callApi("/api/marketing/complete-post", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", offer: document.getElementById("cmpOffer").value.trim(), language:"hinglish", width:1024, height:1024})});
+      lastCompleteText = res.post_text || res.caption || "";
+      document.getElementById("completeImg").innerHTML = res.image_url ? '<img src="'+esc(res.image_url)+'" alt="AI image" loading="lazy" onerror="__imgErr(this)" style="max-width:100%;border-radius:12px"/>' : '';
+      document.getElementById("completeCap").textContent = res.caption || "";
+      document.getElementById("completeTags").innerHTML = (res.hashtags||[]).map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
+      document.getElementById("completeProv").textContent = "via " + (res.provider||"ai");
+      var c=document.getElementById("completeCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast("Complete post ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Post nahi bana: "+e.message,"err"); }
+    finally{ setBusy(btnComplete, false, "🚀 Complete post banao"); }
+  };
+  var bcc = document.getElementById("btnCompleteCopy"); if(bcc) bcc.onclick = function(){ doCopy(lastCompleteText, this); };
+
+  var btnVariations = document.getElementById("btnVariations");
+  if(btnVariations) btnVariations.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnVariations, true);
+    try{
+      var res = await callApi("/api/marketing/post-variations", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", offer: document.getElementById("varOffer").value.trim(), language:"hinglish", count: parseInt(document.getElementById("varCount").value,10)||3})});
+      var vs = (res && res.variations) || [];
+      document.getElementById("variationsRows").innerHTML = vs.length ? vs.map(function(p,i){
+        p=p||{}; var tags=(p.hashtags||[]).map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
+        return '<div class="sect"><div class="sh"><span class="daychip">Variation '+(i+1)+'</span></div><div class="copyitem"><div class="tx">'+esc(p.caption||"")+'</div></div><div class="tags">'+tags+'</div></div>';
+      }).join("") : '<div class="empty">Variations nahi bane</div>';
+      var c=document.getElementById("variationsCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast(vs.length+" variations ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Variations nahi bane: "+e.message,"err"); }
+    finally{ setBusy(btnVariations, false, "🔀 Variations banao"); }
+  };
+
+  var btnChat = document.getElementById("btnChat");
+  if(btnChat) btnChat.onclick = async function(){
+    var q = document.getElementById("chatQ").value.trim();
+    if(!q){ toast("Sawaal likho","err"); return; }
+    setBusy(btnChat, true);
+    try{
+      var res = await callApi("/api/marketing/chatbot", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({question: q, client_id: document.getElementById("chatClient").value.trim(), niche: nicheSel.value||"general"})});
+      document.getElementById("chatAns").textContent = res.answer || "";
+      document.getElementById("chatMeta").innerHTML = (res.ask_contact ? '<span class="tag">📲 lead-capture</span> ' : '') + 'sources: ' + (res.sources||0);
+      var c=document.getElementById("chatCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+    }catch(e){ if(e.message!=="auth") toast("Bot fail: "+e.message,"err"); }
+    finally{ setBusy(btnChat, false, "🤖 Jawab do"); }
+  };
+
+  var btnSent = document.getElementById("btnSent");
+  if(btnSent) btnSent.onclick = async function(){
+    var texts = document.getElementById("sentText").value.split("\n").map(function(s){return s.trim();}).filter(Boolean);
+    if(!texts.length){ toast("Reviews paste karo","err"); return; }
+    setBusy(btnSent, true);
+    try{
+      var res = await callApi("/api/marketing/sentiment", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({texts: texts})});
+      var bd = res.breakdown || {};
+      document.getElementById("sentBreak").innerHTML = '<span class="tag">😊 +'+(bd.positive||0)+'</span> <span class="tag">😐 '+(bd.neutral||0)+'</span> <span class="tag">☹️ '+(bd.negative||0)+'</span> <span class="tag">score '+(res.score!=null?res.score:0)+'</span>';
+      document.getElementById("sentSummary").textContent = res.summary || "";
+      var c=document.getElementById("sentCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast(res.count+" reviews analysed ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Analyse fail: "+e.message,"err"); }
+    finally{ setBusy(btnSent, false, "😊 Analyse karo"); }
+  };
+
+  var lastHashStr = "";
+  var btnHash = document.getElementById("btnHash");
+  if(btnHash) btnHash.onclick = async function(){
+    setBusy(btnHash, true);
+    try{
+      var res = await callApi("/api/marketing/hashtags", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({niche: nicheSel.value||"general", city: document.getElementById("htCity").value.trim(), count: parseInt(document.getElementById("htCount").value,10)||15})});
+      var tags = res.hashtags || [];
+      lastHashStr = tags.join(" ");
+      document.getElementById("hashTags").innerHTML = tags.map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
+      document.getElementById("hashTimes").innerHTML = (res.best_times||[]).map(function(t){return '<div class="copyitem"><div class="tx">⏰ '+esc(t)+'</div></div>';}).join("");
+      var c=document.getElementById("hashCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast(tags.length+" hashtags ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Hashtags fail: "+e.message,"err"); }
+    finally{ setBusy(btnHash, false, "🔖 Hashtags lao"); }
+  };
+  var bhc = document.getElementById("btnHashCopy"); if(bhc) bhc.onclick = function(){ doCopy(lastHashStr, this); };
+
+  var btnLogo = document.getElementById("btnLogo");
+  if(btnLogo) btnLogo.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnLogo, true);
+    try{
+      var res = await callApi("/api/marketing/brand-logo", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", style: document.getElementById("logoStyle").value.trim()})});
+      document.getElementById("logoBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="logo" loading="lazy" onerror="__imgErr(this)" style="max-width:320px;border-radius:12px"/>' : '<div class="empty">Logo nahi bana</div>';
+      document.getElementById("logoDl").href = res.url || "#";
+      var c=document.getElementById("logoCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast("Logo ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Logo fail: "+e.message,"err"); }
+    finally{ setBusy(btnLogo, false, "🏷️ Logo banao"); }
+  };
+
+  // ============================================================================
+  // TAB: Scheduler (content_schedule + festival auto-schedule)
+  // ============================================================================
+  function schedStatusTag(s){
+    s = String(s||"");
+    if(s === "ready") return '<span class="tag" style="background:#1f7a3d">ready ✓</span>';
+    if(s === "posted") return '<span class="tag" style="background:#555">posted</span>';
+    return '<span class="tag">scheduled</span>';
+  }
+  async function loadScheduler(){
+    var box = document.getElementById("schedList");
+    if(!box) return;
+    box.innerHTML = loadingHtml("Schedule load ho raha hai…");
+    try{
+      var res = await callApi("/api/marketing/schedule", {headers: hdrs()});
+      var items = (res && res.items) || [];
+      items.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+      box.innerHTML = items.length
+        ? items.map(function(it){
+            var cap = (it.content && it.content.caption) ? it.content.caption : "";
+            return '<div class="sect"><div class="sh"><span class="fdate">' + esc(fmtDate(it.date)) + '</span> ' +
+              '<b>' + esc(it.occasion || it.business_name || "Post") + '</b> ' + schedStatusTag(it.status) + '</div>' +
+              (cap ? '<div class="copyitem"><div class="tx">' + esc(cap) + '</div>' + copyBtnHtml(cap) + '</div>' : '') +
+              '</div>';
+          }).join("")
+        : '<div class="empty">Abhi tak kuch schedule nahi hua. Upar se festivals auto-schedule karo ya manual add karo.</div>';
+    }catch(e){
+      inited.scheduler = false;
+      box.innerHTML = '<div class="empty">List load nahi hui — <button class="linkbtn" id="schRetry">dobara try</button></div>';
+      var rb = document.getElementById("schRetry");
+      if(rb) rb.onclick = function(){ inited.scheduler = true; loadScheduler(); };
+      if(e.message !== "auth") toast("Schedule load nahi hua: " + e.message, "err");
+    }
+  }
+  var btnFestAuto = document.getElementById("btnFestAuto");
+  if(btnFestAuto) btnFestAuto.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnFestAuto, true);
+    try{
+      var res = await callApi("/api/marketing/festival-autoschedule", {
+        method: "POST", headers: hdrs({"Content-Type":"application/json"}),
+        body: JSON.stringify({ business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value || "general", days: 90 }),
+      });
+      toast(((res && res.scheduled) || 0) + " festivals queued ✓", "ok");
+      loadScheduler();
+    }catch(e){ if(e.message !== "auth") toast("Auto-schedule fail: " + e.message, "err"); }
+    finally{ setBusy(btnFestAuto, false, "🎉 Festivals auto-schedule (90 din)"); }
+  };
+  var btnSchedAdd = document.getElementById("btnSchedAdd");
+  if(btnSchedAdd) btnSchedAdd.onclick = async function(){
+    if(!requireName()) return;
+    var d = document.getElementById("schDate").value;
+    if(!d){ toast("Date chuno pehle", "err"); return; }
+    setBusy(btnSchedAdd, true);
+    try{
+      await callApi("/api/marketing/schedule", {
+        method: "POST", headers: hdrs({"Content-Type":"application/json"}),
+        body: JSON.stringify({ business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value || "general",
+          date: d, occasion: document.getElementById("schOccasion").value.trim(), offer: document.getElementById("schOffer").value.trim() }),
+      });
+      toast("Scheduled ✓", "ok");
+      document.getElementById("schOccasion").value = ""; document.getElementById("schOffer").value = "";
+      loadScheduler();
+    }catch(e){ if(e.message !== "auth") toast("Schedule fail: " + e.message, "err"); }
+    finally{ setBusy(btnSchedAdd, false, "➕ Schedule karo"); }
+  };
+  var btnSchedRun = document.getElementById("btnSchedRun");
+  if(btnSchedRun) btnSchedRun.onclick = async function(){
+    setBusy(btnSchedRun, true);
+    try{
+      var res = await callApi("/api/marketing/schedule/run", { method: "POST", headers: hdrs({"Content-Type":"application/json"}), body: "{}" });
+      toast("Prepared: " + ((res && res.prepared) || 0) + " / due " + ((res && res.due) || 0), "ok");
+      loadScheduler();
+    }catch(e){ if(e.message !== "auth") toast("Run fail: " + e.message, "err"); }
+    finally{ setBusy(btnSchedRun, false, "⚡ Due abhi prepare karo"); }
+  };
+  var btnSchedReload = document.getElementById("btnSchedReload");
+  if(btnSchedReload) btnSchedReload.onclick = function(){ loadScheduler(); };
+
+  // ============================================================================
+  // TAB: Website Widget (embeddable lead-capture snippet generator)
+  // ============================================================================
+  var btnWidgetGen = document.getElementById("btnWidgetGen");
+  if(btnWidgetGen) btnWidgetGen.onclick = async function(){
+    var slug = (document.getElementById("wgSlug").value || "").trim();
+    if(!slug){ toast("Client slug daalo pehle", "err"); return; }
+    setBusy(btnWidgetGen, true);
+    try{
+      var res = await callApi("/api/marketing/embed-snippet?slug=" + encodeURIComponent(slug), {headers: hdrs()});
+      document.getElementById("wgSnippet").textContent = (res && res.snippet) || "";
+      var pv = document.getElementById("wgPreview"); if(res && res.embed_url) pv.src = res.embed_url;
+      var op = document.getElementById("wgOpen"); if(res && res.embed_url) op.href = res.embed_url;
+      document.getElementById("wgCard").classList.remove("hidden");
+      document.getElementById("wgCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Snippet ready ✓" + (res && res.business_name ? " — " + res.business_name : ""), "ok");
+    }catch(e){ if(e.message !== "auth") toast("Snippet fail: " + e.message, "err"); }
+    finally{ setBusy(btnWidgetGen, false, "🔧 Snippet banao"); }
+  };
+  var wgCopy = document.getElementById("wgCopy");
+  if(wgCopy) wgCopy.onclick = function(){ doCopy(document.getElementById("wgSnippet").textContent, this); };
+
+})();
+</script>
+<script src="/api/page-agent/boot.js" defer></script>
+</body>
+</html>

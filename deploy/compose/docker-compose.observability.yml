@@ -1,0 +1,225 @@
+# =============================================================================
+# docker-compose.observability.yml  —  OPTIONAL free monitoring stack.
+# -----------------------------------------------------------------------------
+# Prometheus (metrics) + Grafana (dashboards) + Uptime Kuma (uptime/alerts).
+# All free, self-hosted, bound to localhost (reach via SSH tunnel or a Caddy
+# route). Attaches to the SAME docker network as the app so Prometheus can
+# scrape leadgen_app:8080/metrics.
+#
+# Prereq: the main stack is up (docker-compose.vps.yml), which creates the
+# network `leadgen_leadgen_net`.
+#
+# Usage:
+#   docker compose -f deploy/compose/docker-compose.observability.yml up -d   (from /opt/leadgen)
+#
+# Access (from your laptop):
+#   ssh -L 3000:127.0.0.1:3000 -L 9090:127.0.0.1:9090 -L 3001:127.0.0.1:3001 root@72.61.245.204
+#   Grafana    -> http://localhost:3000   (admin / GRAFANA_PASSWORD)
+#   Prometheus -> http://localhost:9090
+#   Uptime Kuma-> http://localhost:3001
+# =============================================================================
+
+name: leadgen-obs
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: leadgen_prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - promdata:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    # cap TSDB/query memory — unbounded Prometheus growth must not OOM-kill the
+    # revenue app/db (which carry their own hard caps in docker-compose.vps.yml).
+    mem_limit: 768m
+    networks: [leadgen_net]
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: leadgen_alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # SMTP password (gitignored, deploy pe .env se likhi jaati) — secret repo me nahi.
+      - ./monitoring/alertmanager_smtp_pass:/etc/alertmanager/smtp_pass:ro
+      - amdata:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    ports:
+      - "127.0.0.1:9093:9093"
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [leadgen_net]
+
+  # Logs (Loki) + Traces (Tempo) — feed by app when ENABLE_OTEL=1. Grafana inhe
+  # data-source ke roop me jodo (Tempo: http://tempo:3200, Loki: http://loki:3100).
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: leadgen_loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - lokidata:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    restart: unless-stopped
+    mem_limit: 512m
+    networks: [leadgen_net]
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: leadgen_tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./monitoring/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"   # tempo query
+      - "127.0.0.1:4317:4317"   # OTLP gRPC (app -> OTEL_EXPORTER_OTLP_ENDPOINT)
+    restart: unless-stopped
+    mem_limit: 384m
+    networks: [leadgen_net]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: leadgen_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Auto-provision dashboards from monitoring/grafana/dashboards/ — no manual import.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/celery_tasks.json
+    volumes:
+      - grafanadata:/var/lib/grafana
+      # Auto-provisioning: dashboards + datasources yahan se load hote (restart pe bhi).
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [prometheus]
+    restart: unless-stopped
+    mem_limit: 384m
+    networks: [leadgen_net]
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: leadgen_uptime
+    volumes:
+      - kumadata:/app/data
+    ports:
+      - "127.0.0.1:3001:3001"
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [leadgen_net]
+
+  # Synthetic checks with BODY assertions (Kuma = ping-style only) — ~40MB RAM.
+  gatus:
+    image: twinproduction/gatus:latest
+    container_name: leadgen_gatus
+    volumes:
+      - ./monitoring/gatus.yaml:/config/config.yaml:ro
+      - gatusdata:/data
+    ports:
+      - "127.0.0.1:8082:8080"
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [leadgen_net]
+
+  # ===========================================================================
+  # INFRA EXPORTERS (audit infra-upgrade) — USE metrics jo abhi tak missing the.
+  # Prometheus internally scrape karta (koi host-port nahi = secure). All free +
+  # light. cAdvisor=per-container CPU/mem (P1-1 limits validate), node=host
+  # disk/mem/cpu, postgres=connections/slow (P1-2), redis=evicted_keys/mem (P0-1).
+  # ===========================================================================
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: leadgen_node_exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|rootfs)($$|/)'
+      # textfile collector — pg_backup.sh / pg_restore_drill.sh yahan .prom metrics
+      # likhte (backup/drill success+timestamp) → silent-failure alerting.
+      - '--collector.textfile.directory=/textfile'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /opt/leadgen/backups/metrics:/textfile:ro
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [leadgen_net]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: leadgen_cadvisor
+    command:
+      # Prometheus bhi 10s pe scrape karta hai; 1s collection sirf CPU/IO waste thi.
+      - --housekeeping_interval=10s
+      # Host disk alerts node-exporter deta hai. cAdvisor disk scan Postiz ke bade
+      # overlay pe 20-48s leta tha aur reclaimable inode/dentry slab ko is cgroup
+      # me charge karke 768m limit tak bhar raha tha. Per-container CPU/mem/net
+      # metrics (jinpe alerts depend hain) enabled rehte hain.
+      # Flag default deny-list ko replace karta hai (additive nahi), isliye
+      # cAdvisor v0.55 defaults ko preserve karke disk groups add karo.
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,diskIO,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    restart: unless-stopped
+    # 768m safety ceiling hai; disk metrics disable karna actual slab-growth fix.
+    # Ye MONITORING sidecar hai — iske restart pe metric gaps nahi aane chahiye.
+    mem_limit: 768m
+    networks: [leadgen_net]
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: leadgen_pg_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@db:5432/${POSTGRES_DB:-leadgen}?sslmode=disable"
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [leadgen_net]
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: leadgen_redis_exporter
+    environment:
+      REDIS_ADDR: "redis://redis:6379"   # main (noeviction) — evicted_keys 0 hona chahiye
+    restart: unless-stopped
+    mem_limit: 64m
+    networks: [leadgen_net]
+
+  redis-exporter-cache:
+    image: oliver006/redis_exporter:latest
+    container_name: leadgen_redis_exporter_cache
+    environment:
+      REDIS_ADDR: "redis://redis-cache:6379"   # cache (allkeys-lru) — evictions expected
+    restart: unless-stopped
+    mem_limit: 64m
+    networks: [leadgen_net]
+
+volumes:
+  promdata:
+  grafanadata:
+  kumadata:
+  amdata:
+  lokidata:
+  tempodata:
+  gatusdata:
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net
