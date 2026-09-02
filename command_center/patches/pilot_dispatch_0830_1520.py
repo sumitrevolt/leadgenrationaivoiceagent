@@ -7,7 +7,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 now = datetime.now(IST)
 ts = now.strftime("%Y-%m-%dT%H:%M:%S+05:30")
 ts_short = now.strftime("%H:%M")
-base = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"
+base = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "command_center", "data")
 
 # ---------- 1) LEDGER APPEND ----------
 ledger_path = os.path.join(base, "messages.jsonl")

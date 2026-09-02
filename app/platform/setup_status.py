@@ -30,6 +30,7 @@ FLAGS: dict[str, tuple[str, bool]] = {
     "USE_SMART_TURN": ("Semantic turn-taking (Smart Turn v3)", False),
     "USE_LANGGRAPH_SUPERVISOR": ("Multi-agent supervisor", False),
     "OUTREACH_VERIFY_MX": ("Email MX verify before send", True),
+    "OUTREACH_SELECT_SKIP_MX": ("Defer MX to send-batch (TimeLimitExceeded fix)", True),
 }
 
 # import name -> feature it powers

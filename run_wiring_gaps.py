@@ -8,7 +8,7 @@ repo_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, repo_root)
 
 # Determine which python to use
-venv_python = r"C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.venv\Scripts\python.exe"
+venv_python = os.path.join(repo_root, ".venv", "Scripts", "python.exe")
 if os.path.exists(venv_python):
     python_exe = venv_python
     print(f"Using venv: {venv_python}")

@@ -1,15 +1,15 @@
 {
   "mcpServers": {
     "leadgen_admin_harness": {
-      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "command": "C:\\Users\\Ratanshila\\WorkBuddy\\Worktrees\\leadgenrationaivoiceagent\\main-aececa33\\.venv\\Scripts\\python.exe",
       "args": [
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\leadgen_admin_harness_mcp.py"
+        "C:\\Users\\Ratanshila\\WorkBuddy\\Worktrees\\leadgenrationaivoiceagent\\main-aececa33\\scripts\\leadgen_admin_harness_mcp.py"
       ]
     },
     "buzz": {
-      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "command": "C:\\Users\\Ratanshila\\WorkBuddy\\Worktrees\\leadgenrationaivoiceagent\\main-aececa33\\.venv\\Scripts\\python.exe",
       "args": [
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\buzz_mcp.py"
+        "C:\\Users\\Ratanshila\\WorkBuddy\\Worktrees\\leadgenrationaivoiceagent\\main-aececa33\\scripts\\buzz_mcp.py"
       ],
       "env": {
         "BUZZ_RELAY": "https://leadsgenai.communities.buzz.xyz"
@@ -34,14 +34,14 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        "C:\\Users\\Ratanshila\\WorkBuddy\\Worktrees\\leadgenrationaivoiceagent\\main-aececa33"
       ]
     },
     "graphify": {
       "command": "C:\\Users\\Ratanshila\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\graphify-mcp.exe",
       "args": [
         "--graph",
-        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\app\\graphify-out\\graph.json"
+        "C:\\Users\\Ratanshila\\WorkBuddy\\Worktrees\\leadgenrationaivoiceagent\\main-aececa33\\app\\graphify-out\\graph.json"
       ]
     }
   }
