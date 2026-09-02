@@ -15,6 +15,7 @@ import pytest
 async def test_rate_limit_dep_returns_structured_detail():
     """Directly exercise the dep — assert the HTTPException detail shape."""
     from fastapi import HTTPException
+
     from app.api.ratelimit import rate_limit
 
     dep = rate_limit("test_bucket_a", max_requests=1, window_seconds=42)
@@ -43,6 +44,7 @@ async def test_rate_limit_dep_returns_structured_detail():
 async def test_tier_rate_limit_dep_returns_structured_detail_with_tier():
     """tier_rate_limit MUST additionally include the resolved `tier`."""
     from fastapi import HTTPException
+
     from app.api.ratelimit import tier_rate_limit
 
     dep = tier_rate_limit("test_bucket_b", base_max=1, window_seconds=15)

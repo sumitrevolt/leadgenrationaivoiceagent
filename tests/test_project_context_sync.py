@@ -14,9 +14,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import context_health as ch  # noqa: E402
 import project_context as pc  # noqa: E402
 import query_project_context as qc  # noqa: E402
-import context_health as ch  # noqa: E402
 import sync_project_context as sync  # noqa: E402
 
 

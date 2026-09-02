@@ -34,6 +34,13 @@ def append_event(
     """Append one provenanced event. Never raises; never stores secrets."""
     out: dict[str, Any] = {"ok": False}
     try:
+        fp = str(nonce_fp or "")[:64]
+        if fp:
+            recent = list_events(limit=100)
+            if any(r.get("nonce_fp") == fp for r in recent):
+                logger.debug("[coord_hub_events] deduplicated event %s", fp)
+                return {"ok": True, "deduplicated": True, "ts": int(time.time())}
+
         safe_payload = _sanitize_payload(payload or {})
         row = {
             "ts": int(time.time()),

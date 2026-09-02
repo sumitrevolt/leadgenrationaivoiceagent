@@ -18,7 +18,6 @@ from app.dev_control.governor_reviews import (
 )
 from app.dev_control.service import TaskState
 
-
 ARTIFACT = "diff --git a/app/a.py b/app/a.py\n+safe change\n"
 ARTIFACT_HASH = hashlib.sha256(ARTIFACT.encode("utf-8")).hexdigest()
 CLAUDE_SECRET = "c" * 40

@@ -1,6 +1,6 @@
 """Component 4 — common objection-types merged into every niche script."""
 
-from app.voice_agent.niche_scripts import NICHE_SCRIPTS, _COMMON_OBJECTIONS, get_script
+from app.voice_agent.niche_scripts import _COMMON_OBJECTIONS, NICHE_SCRIPTS, get_script
 
 NEW = ("fraud_suspicion", "decision_maker", "tried_before", "details_bhejo")
 

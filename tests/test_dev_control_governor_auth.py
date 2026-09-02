@@ -8,7 +8,6 @@ from app.dev_control.governor_auth import (
     verify_governor_attestation,
 )
 
-
 TASK_ID = "task-auth-1"
 ARTIFACT_HASH = "a" * 64
 CLAUDE_SECRET = "c" * 40

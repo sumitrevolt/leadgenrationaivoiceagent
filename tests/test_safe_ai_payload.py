@@ -1,15 +1,16 @@
 """Test safe_ai_payload: PII masking, secrets validation, provider blocking."""
 
 import pytest
+
 from app.platform.safe_ai_payload import (
     SafePayloadError,
-    mask_customer_data,
-    validate_no_secrets,
-    block_if_sensitive,
-    _mask_string,
+    _mask_email,
     _mask_name,
     _mask_phone,
-    _mask_email,
+    _mask_string,
+    block_if_sensitive,
+    mask_customer_data,
+    validate_no_secrets,
 )
 
 

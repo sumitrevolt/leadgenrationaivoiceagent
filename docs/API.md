@@ -1712,8 +1712,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/page-agent/config` — Page Agent Config
 - `POST  ` `/api/page-agent/v1/chat/completions` — Page Agent Chat
 
-### Platform  (20)
+### Platform  (22)
 
+- `GET   ` `/api/bot-command-center/state` — Bot Command Center State
 - `GET   ` `/api/ops/hotqueue` — Ops Hot Queue
 - `POST  ` `/api/ops/hotqueue/action` — Ops Hot Queue Action
 - `GET   ` `/api/ops/revenue-summary` — Ops Revenue Summary
@@ -1734,6 +1735,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/platform/tenants/{tenant_id}/pause` — Pause Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/resume` — Resume Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/upgrade` — Upgrade Tenant
+- `GET   ` `/app/bot-command-center` — Bot Command Center Page
 
 ### Plugin Registry  (4)
 
