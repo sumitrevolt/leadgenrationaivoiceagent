@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1382 operations)
+## Endpoint Index — auto-generated from OpenAPI (1386 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1877,15 +1877,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/team-access/members/{user_id}/reset-password` — Reset Password
 - `GET   ` `/api/team-access/modules` — List Modules
 
-### Telephony  (3)
+### Telephony  (6)
 
+- `POST  ` `/api/telephony/smartflo/endpoint` — Smartflo Dynamic Endpoint
+- `GET   ` `/api/telephony/smartflo/status` — Smartflo Status
+- `POST  ` `/api/telephony/smartflo/test-call` — Smartflo Test Call
 - `GET   ` `/api/telephony/vobiz/status` — Vobiz Status
 - `POST  ` `/api/telephony/vobiz/stream-call` — Place Stream Call
 - `POST  ` `/api/telephony/vobiz/test-call` — Place Test Call
 
-### Telephony Webhooks  (4)
+### Telephony Webhooks  (5)
 
 - `GET   ` `/api/webhooks/health` — Telephony Health
+- `POST  ` `/api/webhooks/tata-smartflo` — Smartflo Webhook
 - `POST  ` `/api/webhooks/vobiz/answer` — Vobiz Answer Webhook
 - `POST  ` `/api/webhooks/vobiz/inbound` — Vobiz Inbound Webhook
 - `POST  ` `/api/webhooks/vobiz/status` — Vobiz Status Webhook
