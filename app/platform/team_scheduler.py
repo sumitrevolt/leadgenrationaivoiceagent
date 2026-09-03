@@ -1624,6 +1624,11 @@ async def _run_job_inner(job: str) -> bool:
             from app.billing import trial_nudge as _tn
 
             await _tn.run_trial_nudge()
+        elif job == "whatsapp_automation":
+            # WhatsApp auto-outreach/nudge (gated WHATSAPP_AUTO_SEND=1)
+            from app.tasks.whatsapp_automation import run_whatsapp_automation
+
+            await asyncio.to_thread(run_whatsapp_automation)
         elif job == "afternoon_content":
             # 2nd daily content-generation pass (afternoon) — Isha extra social
             # batch (self + clients). Gated AFTERNOON_CONTENT (default OFF; LLM cost).

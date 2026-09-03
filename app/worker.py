@@ -1,23 +1,18 @@
-# -*- coding: utf-8 -*-
-"""Celery worker + beat schedule (VPS profile).
-
-entrypoints:
-- `celery -A app.worker worker -Q celery -c 4`  (default queue)
-- `celery -A app.worker worker -Q heavy -c 2`   (heavy queue)
-- `celery -A app.worker worker -Q video -c 2`   (video queue)
-- `celery -A app.worker beat`                   (beat scheduler)
-
-Beat schedule lives here — every new `staff-*` job MUST be added here.
-Order: by scheduled time (crontab).
+"""
+Celery Worker Configuration
+Production-ready background task processing
 """
 
+import logging
 import os
-from celery import Celery
+import threading
+import time
+
+from celery import Celery, signals
 from celery.schedules import crontab
 
-celery_app = Celery("leadgen", broker=os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"))
+from app.config import settings
 
-<<<<<<< HEAD
 # Setup logging for Celery
 logger = logging.getLogger(__name__)
 
@@ -40,6 +35,9 @@ celery_app = Celery(
         "app.tasks.dsh_jobs",  # Hardened DSH orchestration + governed domain bridge (INERT default)
         "app.tasks.onboard_pipeline",  # Onboarding factory pipeline (INERT unless ONBOARDING_PIPELINE=1)
         "app.marketing.content_os.tasks",  # Daily video automation: leadsgen + customer (INERT unless CONTENT_OS_ENABLED=1)
+        "app.tasks.whatsapp_automation",
+        "app.tasks.daily_social_post",
+        "app.tasks.video_generator",
     ],
 )
 
@@ -213,11 +211,6 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(minute="*/5"),
         "args": ("heartbeat",),
-    },
-    "staff-redis-keysweep-hourly": {
-        "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(minute=0),
-        "args": ("redis_keysweep",),
     },
 
     # Core daily beats (IST timezone)
