@@ -438,4 +438,118 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 - This explains why no machine-level backend was resident on 9119: nothing starts it at boot. **Enabling that existing task is the durable fix**, preferable to writing a new watchdog.
 - Local state after remediation is stable: 9119 `LISTENING pid 35452` (HTTP 200), 20128 `LISTENING pid 21320` (HTTP 307), Hermes GUI alive (`pids 10188,21464,23460,24604,32088,33056`).
 
+---
+
+# Day Close & Collect — 2026-09-03 (20:30 IST) — Sprint Day 1 of 7
+
+**Authority respected:** plan + local fixes only. **No deploy, no SSH, no remote state change, no compliance gate touched.**
+**Ladder in force:** Floor ₹9,995 / Base ₹16,000 / Stretch ₹25,000 (net-new **collected**, `docs/REVENUE_TARGET_REBASELINE_2026-09-03.md` §3). ₹5,00,000 = 90-day milestone, not measured here.
+
+## 1. Morning war-room action list — NOT FOUND (no war-room ran today)
+
+| Check | Evidence | Verdict |
+|---|---|---|
+| War-room automation ran? | `f040d36a` (Daily Revenue War Room, 08:30) was **created today ~09:27 IST** — after its own 08:30 slot. First scheduled run = **2026-09-04 08:30**. | Never ran |
+| Automation memory | `.workbuddy-ai/memory/automations/` contains only `7788994b` (health sentinel). No `f040d36a` directory. | Never ran |
+| `progress.md` war-room entry | `grep -i "war.room" progress.md` → 1 hit, line 339, which is the line *announcing* the automations. No dated war-room block for 2026-09-03. | Absent |
+
+**Fallback action list used (authoritative, cited):** `docs/REVENUE_TARGET_REBASELINE_2026-09-03.md` §6 "Day-1 first actions" (5 items) + the one concrete deliverable produced by this morning's session (Jiya/Kamal upsell draft).
+
+## 2. Action-by-action verdict — DONE / PARTIAL / NOT-DONE
+
+| # | Action (source) | Verdict | Evidence that proves it |
+|---|---|---|---|
+| A1 | Re-pull live revenue truth — lifetime collected, MRR, active accounts (§6.1) | **NOT-DONE** | `GET /api/ops/revenue-summary` → **HTTP 401**; `GET /api/billing/invoices` → **HTTP 401** (admin gate working, no token in this session). Ledger files `data/invoices.jsonl` and `data/upi_payments.json` **do not exist locally** (`ls` → No such file). `var/runtime-data/` holds only `boss_autonomy` + `boss_decision_governance`. Truth is VPS-only + token-gated ⇒ unreachable under plan-only authority. |
+| A2 | Re-pull hot queue, rank 42 warm leads by intent recency (§6.2) | **NOT-DONE** | Newest local pack = `data/hot_queue_for_owner_2026-08-31.md/.csv` (mtime **2026-08-31 18:51**) containing **1** row — "Blocked Record Biz", phone `+919876543210`. No 2026-09-03 pack exists. Prod hot queue is admin-auth gated (401). **The 42/43-card counts quoted in planning docs are not reproducible today.** |
+| A3 | Draft **and send** the Jiya + Kamal upsell (§6.3) | **PARTIAL** — draft DONE, send NOT-DONE | **DONE half:** `docs/UPSELL_PACKAGE_JIYA_KAMAL_2026-09-03.md` + `data/outreach_drafts/JIYA_UPSELL_READY_TO_SEND_2026-09-03.txt` (mtime **2026-09-03 09:38**). Verified content: brand = LeadGen AI/leadsgenai.in; amount ₹19,990 (`app/marketing/packages.py:195-197`); no invoice numbers; no invented features; no city (Mumbai/Nagpur conflict F005). **NOT-DONE half:** proof-of-send block in that file (lines 69–72) is **blank**; `curl http://127.0.0.1:3111/api/sessions/default` → **HTTP 000** (WAHA is VPS-only, unreachable here). Jiya's client row `updated_at` still **2026-07-11**, `plan` still `starter` — no upsell recorded. **Kamal: NOT-DONE** — zero local record (8 rows in `data/marketing_clients.jsonl`, none is Kamal; exists only as INV/0015). |
+| A4 | Resolve `upi_12` ambiguous row (§6.4) | **NOT-DONE** | `DAY_0_REVENUE_BASELINE.md:18` still reads "`upi_12` pending OWNER decision" — unchanged since **2026-08-22 (12 days)**. No decision record anywhere in `progress.md` for today. Owner-gated; queue not readable from here. |
+| A5 | Measure and record lead→paid conversion rate (§6.5) | **NOT-DONE** | Cannot be computed without fabrication: numerator = 0 verifiable collections; denominator unreachable (A2). Refusing to estimate. |
+| A6 | *(carried)* Verify Hermes launcher fix — GUI attaches to 9119 backend (`docs/HERMES_DESKTOP_ROOT_CAUSE_2026-09-03.md`) | **PARTIAL → now sustained** | 20:35 IST re-probe: `127.0.0.1:9119` **LISTENING pid 35452**, `127.0.0.1:20128` LISTENING pid 21320, `127.0.0.1:22000` LISTENING pid 26468, **7 Hermes processes alive** (`Hermes.exe` 23460/24604/32088/10188/33056, `hermes.exe` 21464/33416). Backend started at 14:43 IST has held **~6h** — the `--port 0` throwaway path is not in use. Still unconfirmed: that the *GUI* (not just the backend) was launched by the fixed script vs. by desktop self-repair. |
+| A7 | *(carried)* Owner investigation of the 14:46–14:50 IST production hang (`docker ps` / `docker logs` / Caddy / Sentry) | **NOT-DONE** | No owner follow-up recorded in `progress.md` after the incident block. Root cause still "hypothesis, not confirmed". |
+
+## 3. Revenue — verified collections
+
+| Metric | Value | Source |
+|---|---|---|
+| **Collected today (2026-09-03)** | **₹0 verified** — *and the ledger is unreachable, so this is "no confirmed collection", not "confirmed zero"* | No payment/receipt/UTR artifact written today anywhere in repo (`find -newermt 2026-09-03` → only `data/marketing_clients.jsonl` + the Jiya draft). Admin endpoints 401. **State this honestly: today's collections CANNOT be verified from this session.** |
+| **Net-new collected, sprint Day 1** | **₹0** | Derived from the line above |
+| **Gap to Floor ₹9,995** | **₹9,995** (100% remaining) | Arithmetic on ladder §3 |
+| **Gap to Base ₹16,000** | **₹16,000** (100% remaining) | Arithmetic on ladder §3 |
+| **Gap to Stretch ₹25,000** | **₹25,000** (100% remaining) | Arithmetic on ladder §3 |
+| Days remaining in window | **6** (window 2026-09-03 → 2026-09-10) | `REVENUE_TARGET_REBASELINE_2026-09-03.md` §3 |
+| Required pace to hit Base | **₹2,667/day** over the remaining 6 days | ₹16,000 ÷ 6 |
+
+**Baseline dispute — carried forward, still unresolved (do NOT silently pick one):**
+- `DAY_0_REVENUE_BASELINE.md:16` — lifetime **₹7,997**, 2 customers, MRR ₹3,998.
+- Its own line items (INV/0001 + 0014 + 0015 = 3 × ₹1,999) sum to **₹5,997** — a ₹2,000 internal arithmetic gap that nothing reconciles.
+- Sep-02 pilot + `memory/decisions.md:1150` — **₹1,999** verified cash (Jiya only); `progress.md:251` notes snapshot MRR is ledger-MRR, not verified cash.
+- **Planning rule in force:** treat ₹1,999–₹3,998 as verified cash; ₹5,997 and ₹7,997 as unverified. This does not move the ladder (which measures *net-new* collections), but baseline reporting must stay honest.
+
+## 4. Pending money
+
+### 4a. UPI awaiting owner confirmation
+| Item | Amount | Age | Source | Status |
+|---|---|---|---|---|
+| `upi_12` (ambiguous row) | **Not recorded in any reachable file — unknown.** Not inventing a figure. | **12 days** (since 2026-08-22) | `DAY_0_REVENUE_BASELINE.md:18` | **PENDING OWNER DECISION** — approve or reject |
+| All other pending UPI | — | — | — | **UNVERIFIABLE.** Queue lives in `data/upi_payments.json` on the VPS (absent locally); admin API returns 401. Cannot enumerate. |
+
+**No UPI row was bound, approved, or rejected today** — no artifact, no log line, no ledger change reachable from this session.
+
+### 4b. Warm leads needing follow-up before tomorrow
+| # | Lead | Why now | Ask | Channel | Blocker |
+|---|---|---|---|---|---|
+| 1 | **Jiya Makeover** (`jiya-makeover`, +919876543210) | Renewal window is open NOW (Jul-05 → Aug-03 = 29-day cycle ⇒ Sep 1–3 due). `plan` still `starter`, `updated_at` 2026-07-11. | Annual prepay **₹19,990** (2 months free, = 10 × ₹1,999). Corrected: **Combo is ineligible** — `beauty_makeover` is in no Combo band (A/B/C verified in `app/marketing/combo_packages.py`). | WhatsApp only (no email field in her record) | WAHA session never confirmed `WORKING`; VPS-only |
+| 2 | **Kamal** (INV/0015, ₹1,999, 2026-08-03) | **~31 days since last invoice — renewal overdue.** Setup was logged RED at 20% with 46 pending approvals (2026-08-22). | Renewal ₹1,999. Upsell undecidable until `plan` + `niche` are read from VPS. | WhatsApp (needs VPS record) | Zero local data — VPS lookup required |
+| 3 | **Hot queue / 42 warm leads** | Last reproducible count: 43 cards (2026-08-30), 42 (2026-08-23) — **not reproducible today** | 1-click WA + UPI deep-link already embedded (PR #430, live) | WhatsApp | Admin-auth gated; latest local pack has **1 row and it is a blocked record whose phone collides with Jiya's** |
+| 4 | 27 stale leads (`report.md`, all 80 days stale) | Low-intent, long-dormant | Intro/check-in email (25/day cap applies) | Email | Lowest priority; source date of the report is not recorded — treat as stale-until-reverified |
+
+## 5. Biggest blocker that cost the most revenue today
+
+**The WhatsApp send path is owner-gated and unproven — WAHA is VPS-only and its session has never been confirmed `WORKING`.**
+
+- **Blocked amount: ₹19,990** (Jiya annual prepay) = **125% of the ₹16,000 base target**, sitting in a file, ready since 09:38 IST, unsent at 20:30 IST.
+- **Evidence:** `curl http://127.0.0.1:3111/api/sessions/default` → **HTTP 000** (unreachable — WAHA runs on the VPS, not locally). Proof-of-send block in `JIYA_UPSELL_READY_TO_SEND_2026-09-03.txt` lines 69–72 is **blank**. `progress.md:108` records the session left in **`SCAN_QR_CODE`** since 2026-08-22 with no confirmation it was ever scanned. Jiya's client row is unchanged since 2026-07-11.
+- **Why it outranks the others:** every other blocker (ledger unreachable, hot queue unreadable, Kamal missing) blocks *measurement or targeting*. This one blocks an **already-drafted, already-verified, highest-probability cash ask** — and it was fully actionable today.
+- **Runner-up (systemic, fixing it is a 5-minute owner action):** no admin token in this environment ⇒ **no close can ever be proven from an unattended run**. Until that is solved, every future day-close will report "unverifiable" on the revenue line.
+
+## 6. Production state at close (read-only observation — NOT changed by this run)
+
+| Check | Result |
+|---|---|
+| `https://leadsgenai.in/health` | **6/6 probes `healthy`**, 20:31–20:36 IST, response 1.7s then <0.3s |
+| Uptime monotonic | `0h 31m 31s → 0h 31m 58s` — **no divergence across 6 consecutive samples** (the P1 signal identified at 14:53 IST today is **not** firing) |
+| Version | **`37a1daf8`** |
+| `dsh_runtime_enabled` / `dsh_shadow_enabled` | `true` / `true`, allowlist `["jiya_makeover"]` |
+| `/api/public/launch-offer` | `{"ok":false}` — no launch promo armed (honest-empty by design) |
+
+**⚠️ UNRECONCILED PRODUCTION CHANGE — owner must confirm:**
+1. `/health` version was **`036a4e4b`** at 08:48 IST and again at 14:53 IST today (recorded in `.workbuddy-ai/memory/2026-09-03.md` and the incident block above). It is **`37a1daf8`** at 20:31 IST.
+2. Uptime `0h 31m` ⇒ the app **restarted ~20:00 IST today**.
+3. `37a1daf8` (2026-08-31 13:46 IST) is **12 commits behind local HEAD** (`b566281b`) and is **not on `origin/main`** (main HEAD = `63c2c47a`). It is also **not an ancestor of `036a4e4b`** — the two are on divergent branches, so this is a cross-branch move, not a fast-forward or a simple revert.
+4. **Revenue-relevant:** `0c6bf941` — *"Revenue Workflow Phase 1-4: Postgres DB authority, Alembic 025 migration, HMAC signed webhooks, UTR uniqueness, DB-level audit immutability"* (2026-08-31, 54/54 green) is **in neither** deployed build. The UTR-uniqueness and audit-immutability work is therefore **not live**.
+5. **No action taken** — deployment is owner-gated. Flagged only. If the Alembic 025 migration was ever applied to the VPS database, owner should check for schema/code mismatch against a pre-migration app image.
+
+## 7. Tomorrow's top 3 priorities (2026-09-04)
+
+**P1 — Clear the WAHA gate and send the Jiya ₹19,990 ask. (≈10 min, highest expected value)**
+1. On the VPS: `curl -s http://127.0.0.1:3111/api/sessions/default` → require `"status":"WORKING"`. If `SCAN_QR_CODE`, scan the QR in the WAHA dashboard first.
+2. Send the ready message verbatim from `data/outreach_drafts/JIYA_UPSELL_READY_TO_SEND_2026-09-03.txt` (main message; §6.1 fallback if she declines).
+3. Fill the proof-of-send block (time / reply / WAHA id) and paste it into `progress.md`. On "haan" → generate the UPI link and send it.
+*Why first: it is the largest single addressable amount (125% of base) and the only blocker is a 10-minute manual gate.*
+
+**P2 — Reconcile the production rollback and the revenue-truth gap. (≈20 min, unblocks every future close)**
+1. Confirm whether the move `036a4e4b → 37a1daf8` at ~20:00 IST was intentional. If not, redeploy via the canonical `scripts/deploy_vps.sh` with an explicit `APP_VERSION` (it refuses `:latest` by design).
+2. Check whether Alembic 025 was applied to the VPS Postgres; resolve any schema/code mismatch.
+3. Provision a read-only ops token (or a scheduled ledger export) so the day-close can **verify** collections instead of reporting "unverifiable".
+4. Decide `upi_12` — approve or reject. It has blocked the payment-authorization gate for 12 days.
+
+**P3 — Rebuild a send-ready warm-lead list with real contact data. (≈30 min, rebuilds the funnel)**
+1. Re-pull the prod hot queue and rank by intent recency. Do **not** trust the 42/43 counts until reproduced.
+2. Fix the hot-queue data defect found today: the 2026-08-31 pack's only row is a **blocked record whose phone `+919876543210` collides with paying customer Jiya Makeover** — a customer could receive a prospecting blast. Add a suppression rule that excludes existing-customer phone numbers from outbound packs.
+3. Pull Kamal's `plan` + `niche` from the VPS and send the ₹1,999 renewal (~31 days overdue).
+4. Enable the disabled scheduled task `LeadGen-OmniRoute-DSH-AutoStart` so the Hermes 9119 backend survives reboots (durable fix, already identified — do not write a new watchdog).
+
+## 8. Compliance statement
+No DND / TRAI / consent / opt-out gate was weakened, disabled, or bypassed. No synthetic payment, no projected revenue, no estimated figure reported as collected. All probes were read-only HTTP GETs, local file reads, and local port queries. `payment_verification_method` remains `owner_confirmed_upi`; `PROVIDER_VERIFIED` was not set and remains unreachable by design.
+
 

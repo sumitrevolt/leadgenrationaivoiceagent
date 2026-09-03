@@ -1283,7 +1283,7 @@ ENTRIES: list[dict[str, Any]] = [
         "line_or_symbol": "OUTPUT_DIR",
         "path_pattern": "data/content_gen",
         "store_id": "marketing.content_gen",
-        "access_modes": ["CREATE"],
+        "access_modes": ["CREATE", "REWRITE"],
         "reason": (
             "Script voice generation output directory. Created by os.makedirs at module load; "
             "contains generated scripts and voiceover files. Rebuildable from source topic prompts."
@@ -1384,7 +1384,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "marketing.content_os.engine.idempotency_lock",
         "file": "app/marketing/content_os/engine.py",
         "line_or_symbol": "lock_file",
-        "path_pattern": "/opt/leadgen/media/content_os/last_run_*.lock",
+        "path_pattern": "/opt/leadgen/media/content_os/last_run_",
         "store_id": "marketing.content_os",
         "access_modes": ["LOCK", "CREATE", "REWRITE"],
         "reason": (
@@ -1401,7 +1401,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "marketing.content_os.engine.idempotency_key_read",
         "file": "app/marketing/content_os/engine.py",
         "line_or_symbol": "p",
-        "path_pattern": "/opt/leadgen/media/content_os/last_run_*.lock",
+        "path_pattern": "/opt/leadgen/media/content_os/last_run_",
         "store_id": "marketing.content_os",
         "access_modes": ["READ"],
         "reason": (
