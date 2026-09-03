@@ -24,10 +24,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.config import settings
 from app.models.user import User
+from app.telephony.tata_smartflo_handler import TataSmartfloClient
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -200,8 +202,6 @@ async def smartflo_test_call(
 
     Requires: TATA_SMARTFLO_API_TOKEN + TATA_SMARTFLO_API_KEY in env.
     """
-    from app.telephony.tata_smartflo_handler import TataSmartfloClient
-
     client = TataSmartfloClient()
     if not client.available():
         raise HTTPException(
@@ -222,7 +222,12 @@ async def smartflo_test_call(
         raise HTTPException(status_code=422, detail="'to' is required (8-20 digit number)")
 
     caller_id = (body.get("caller_id") or "").strip() or None
-    call_timeout = int(body.get("call_timeout") or 300)
+    try:
+        call_timeout = int(body.get("call_timeout") or 300)
+    except (TypeError, ValueError):
+        call_timeout = 300
+    if call_timeout < 30 or call_timeout > 3600:
+        call_timeout = 300
     niche = (body.get("niche") or "").strip() or os.environ.get(
         "SMARTFLO_DEFAULT_NICHE", "general"
     )
@@ -243,7 +248,7 @@ async def smartflo_test_call(
         result.get("status_code") == 200
         and (result.get("body") or {}).get("success") is True
     )
-    ref_id = (result.get("body") or {}).get("ref_id")
+    ref_id = (result.get("body") or {}).get("ref_id") if placed else None
 
     if not placed:
         logger.warning(f"Smartflo test-call not placed: {result}")

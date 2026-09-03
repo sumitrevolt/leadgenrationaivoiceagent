@@ -142,8 +142,14 @@ def pcm16_8k_to_16k(pcm_8k: bytes) -> bytes:
     For each pair of input samples, outputs the original + interpolated midpoint.
     Produces exactly 2× the input sample count (2N samples from N).
     """
+    if not pcm_8k:
+        return b""
     if _AUDIOOP_OK and audioop is not None:
         out, _ = audioop.ratecv(pcm_8k, 2, 1, 8000, 16000, None)
+        target_len = len(pcm_8k) * 2
+        if len(out) < target_len and out:
+            missing_samples = (target_len - len(out)) // 2
+            out += out[-2:] * missing_samples
         return out
     # Pure-Python: linear interpolation (8k→16k = 2×)
     samples = struct.unpack(f"<{len(pcm_8k) // 2}h", pcm_8k)

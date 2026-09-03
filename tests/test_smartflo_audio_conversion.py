@@ -127,7 +127,7 @@ class TestMulawToPcm16:
     def test_symmetry_positive_negative(self):
         """mulaw encode is symmetric: +X and -X should decode to similar magnitude."""
         for byte_pos in (0x80, 0xB0, 0xE0, 0xFE):
-            byte_neg = byte_pos ^ 0x7F  # flip sign bits
+            byte_neg = byte_pos ^ 0x80  # flip sign bit (bit 7 in G.711 mulaw)
             val_pos = struct.unpack("<h", mulaw_to_pcm16(bytes([byte_pos])))[0]
             val_neg = struct.unpack("<h", mulaw_to_pcm16(bytes([byte_neg])))[0]
             # Magnitudes should be close (within 1 due to quantization)
@@ -171,10 +171,10 @@ class TestPcm16ToMulaw:
             assert 0x80 <= result[0] <= 0xFE
 
     def test_negative_encode(self):
-        """Negative PCM16 → mulaw byte 0x01-0x7F."""
+        """Negative PCM16 → mulaw byte 0x00-0x7F."""
         for val in (-100, -1000, -5000, -16000, -32000):
             result = pcm16_to_mulaw(struct.pack("<h", val))
-            assert 0x01 <= result[0] <= 0x7F
+            assert 0x00 <= result[0] <= 0x7F
 
     def test_batch_encode(self):
         """Encode 320-byte frame (20ms at 16kHz)."""
@@ -202,11 +202,12 @@ class TestMulawRoundtrip:
             pcm = struct.pack(f"<{50}h", *[dc] * 50)
             mulaw = pcm16_to_mulaw(pcm)
             pcm_back = mulaw_to_pcm16(mulaw)
-            # Each sample should be within ±30 of original (8-bit quantization)
+            # Logarithmic quantization tolerance: small signals <=30, large signals <=2% of magnitude
+            tol = max(30, int(abs(dc) * 0.02))
             for i in range(0, len(pcm_back), 2):
                 orig = struct.unpack_from("<h", pcm, i)[0]
                 decoded = struct.unpack_from("<h", pcm_back, i)[0]
-                assert abs(orig - decoded) <= 30, (
+                assert abs(orig - decoded) <= tol, (
                     f"DC={dc}: orig={orig} decoded={decoded} diff={abs(orig-decoded)}"
                 )
 

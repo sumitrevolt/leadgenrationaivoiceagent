@@ -36,8 +36,13 @@ pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
 @pytest.fixture(autouse=True)
 def _clear_deps():
     """Ensure dependency overrides are clean before each test."""
+    from app.api.auth_deps import get_current_user, require_admin
+
+    app.dependency_overrides.pop(require_admin, None)
+    app.dependency_overrides.pop(get_current_user, None)
     yield
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(require_admin, None)
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def _override_admin():
