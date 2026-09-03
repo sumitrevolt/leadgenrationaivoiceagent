@@ -47,7 +47,7 @@
     "docker-compose.vps.yml": "5806d2cb5ec636d968bfa149354ae177c83f92cabb65d7fcfefce62ec9e11a9c",
     "requirements-dsh.lock.txt": "2878906d4ed49b2ab5f78a3b891d8581dd33a46fa8717ddeb0a27fb7a6650b42",
     "scripts/assemble_dsh_ci_evidence.py": "f644797a4220d8b555e959bfe626a648eb50e955e33ee5d163c0c0084e474093",
-    "scripts/dsh_runtime_smoke.py": "5ad575e4e84cbfd4a97c79a531c0d77f7317eae0c897e06db19848c5c60eee77",
+    "scripts/dsh_runtime_smoke.py": "6e21a10b6b3c9c5958e4b37f5f8f74cbbd592c8d3d7ca1cca56710991d16835b",
     "tests/fixtures/dsh_fake_gateway.py": "1d3e3f6808c58e56044ffde4a3e11a0928c8c556e60c467d4927b6ef45a45e06"
   },
   "runtime_state": "INERT_NOT_BUILT",

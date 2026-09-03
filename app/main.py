@@ -822,6 +822,15 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Ops MCP-tools router not mounted: {_e}")
 try:
+    from app.api.bot_command_center import router as _bot_cc_router
+
+    # /app/bot-command-center + /api/bot-command-center/state — Pilot multi-bot
+    # coordination surface (OWNER-facing). Admin JWT gated — same login as
+    # /app/admin, koi alag password NAHI. Rollback = ye include-block hatao.
+    app.include_router(_bot_cc_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Bot command-center router not mounted: {_e}")
+try:
     from app.api.rl import router as _rl_router
 
     # /api/rl/* — RL flywheel (Phase 0) read-only reward-spine visibility.

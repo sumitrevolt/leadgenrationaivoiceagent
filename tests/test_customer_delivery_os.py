@@ -5,9 +5,13 @@ admin command center visibility, social errors, and navigation cleanup.
 from fastapi.testclient import TestClient
 import pytest
 import uuid
-from app.main import app
-from app.api.customer_auth import require_customer
+
+import pytest
+from fastapi.testclient import TestClient
+
 from app.api.auth_deps import require_admin
+from app.api.customer_auth import require_customer
+from app.main import app
 
 
 def test_customer_dashboard_active_view_payload(monkeypatch):
@@ -101,8 +105,9 @@ def test_starter_plan_day1_value_generation(monkeypatch):
     monkeypatch.setattr("app.marketing.content_approval.submit", fake_submit, raising=False)
     monkeypatch.setattr("app.marketing.delivery_ledger.log_event", fake_log_event, raising=False)
 
-    from app.marketing import auto_content
     import asyncio
+
+    from app.marketing import auto_content
 
     result = asyncio.run(auto_content.seed_client_content(fake_client))
 

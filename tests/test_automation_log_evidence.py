@@ -30,8 +30,8 @@ def test_migration_014_present_and_chained():
 
 
 def test_log_event_and_get_logs_roundtrip_evidence_url(monkeypatch, tmp_path):
-    from app.platform import automation_log_service as svc
     import app.models.base as base
+    from app.platform import automation_log_service as svc
 
     # Force the DB path to fail so we exercise the JSONL fallback deterministically.
     monkeypatch.setattr(svc, "_JSONL_PATH", str(tmp_path / "auto.jsonl"))

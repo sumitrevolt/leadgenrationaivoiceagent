@@ -21,8 +21,8 @@ import pytest
 from app.api.growth_automation import (
     DraftDecideIn,
     PatchStatusIn,
-    approve_selfimprove_task,
     approvals_draft_decide,
+    approve_selfimprove_task,
     reject_selfimprove_task,
     upgrader_patch_status,
 )

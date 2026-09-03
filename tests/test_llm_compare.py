@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-
 # ---------------------- helpers ---------------------- #
 
 
@@ -86,7 +85,7 @@ def test_run_blind_and_vote_flow(monkeypatch):
     m = _import_module(monkeypatch)
 
     # Force ALL default providers "available" so we don't need real keys
-    fake_flags = {p: True for p in m._DEFAULT_MODELS.keys()}
+    fake_flags = dict.fromkeys(m._DEFAULT_MODELS.keys(), True)
     monkeypatch.setattr(m.free_ai, "_provider_flags", lambda: fake_flags)
 
     # Stub chat_provider — returns deterministic per-provider text
@@ -158,7 +157,7 @@ def test_run_requires_two_providers(monkeypatch):
 
 def test_unknown_label_rejected(monkeypatch):
     m = _import_module(monkeypatch)
-    fake_flags = {p: True for p in m._DEFAULT_MODELS.keys()}
+    fake_flags = dict.fromkeys(m._DEFAULT_MODELS.keys(), True)
     monkeypatch.setattr(m.free_ai, "_provider_flags", lambda: fake_flags)
 
     async def fake_chat_provider(*, provider, model, system, messages, **kwargs):
@@ -183,7 +182,7 @@ def test_unknown_label_rejected(monkeypatch):
 
 def test_vote_run_id_expired(monkeypatch):
     m = _import_module(monkeypatch)
-    fake_flags = {p: True for p in m._DEFAULT_MODELS.keys()}
+    fake_flags = dict.fromkeys(m._DEFAULT_MODELS.keys(), True)
     monkeypatch.setattr(m.free_ai, "_provider_flags", lambda: fake_flags)
 
     async def _flow():

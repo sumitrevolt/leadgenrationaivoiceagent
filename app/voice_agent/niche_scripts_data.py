@@ -3,7 +3,14 @@
 Extracted from app/voice_agent/niche_scripts.py (2026-06-20 refactor) — pure data, re-exported.
 """
 
-from app.voice_agent.universal_pitch import INTEREST_ASK, PITCH_SHORT, UNIVERSAL_AGENT_INTRO
+from app.voice_agent.universal_pitch import (
+    INTEREST_ASK,
+    PITCH_SHORT,
+    UNIVERSAL_AGENT_INTRO,
+    VOICE_AGENT_INTEREST_ASK,
+    VOICE_AGENT_INTRO,
+    VOICE_AGENT_PITCH_SHORT,
+)
 
 NICHE_SCRIPTS: dict[str, dict] = {
     # ====================================================================== #
@@ -202,6 +209,38 @@ NICHE_SCRIPTS: dict[str, dict] = {
             "Advanced me inquiry pe 2 minute me AI callback bhi — koi lead miss nahi.",
         ],
         "closing": "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj ya kal set kar doon?",
+    },
+    "ai_voice_agent": {
+        "opening": VOICE_AGENT_INTRO,
+        "pitch_short": VOICE_AGENT_PITCH_SHORT,
+        "interest_ask": VOICE_AGENT_INTEREST_ASK,
+        "yes_praise": (
+            "Bahut badiya — pehle aapki requirement samajh leti hoon. "
+            "Aapke yahan calls inbound inquiry aati hain ya outbound telecalling karte hain?"
+        ),
+        "no_convince_once": (
+            "Samajh sakti hoon — 7 din ka free pilot hai jisme 50 calls free milti hain, pehle test karke dekhiye."
+        ),
+        "close_cold": "Theek hai, shukriya — din shubh!",
+        "discovery": [
+            "Aapke yahan calls inbound customer aati hain ya outbound telecalling karte hain?",
+            "Daily kitni calls aati ya jaati hain roughly?",
+            "Abhi calls khud attend karte hain ya staff rakha hua hai?",
+            "Inquiry aane par kitni der me call back ho paata hai?",
+        ],
+        "objections": {
+            "mehenga": "₹4,999/mahina se shuru hai unlimited calls ke liye — telecaller ki 15-20K salary se 80% sasta hai aur 24 ghante active rehta hai.",
+            "abhi_nahi": "Koi baat nahi sir — 50 calls ka free pilot test karwa deti hoon bina kisi payment ke, tab decide kijiye.",
+            "soch_ke": "Zaroor sochiye — main WhatsApp par demo recording aur live test number bhej deti hoon, aaram se suniye.",
+            "pehle_se_hai": "Achha hai, par AI agent bina chhutti liye 24/7 turant 60 second me har inquiry ko call back karta hai aur appointments book karta hai.",
+            "bharosa": "Bilkul sahi sawaal — aap abhi mere se live phone call par baat kar rahe hain, hamara AI isi tarah aapke customers se natural Hindi-English me baat karega.",
+        },
+        "value_lines": [
+            "Har inquiry aate hi 60 second me instant AI call back — lead kabhi miss nahi hoti.",
+            "Natural human-like Hinglish voice — calendar appointment booking aur CRM WhatsApp sync.",
+            "100+ calls ek sath bina busy tone ke handle karta hai — 24/7 zero salary/leaves.",
+        ],
+        "closing": "Toh aapke business ke liye ek free 50-call pilot activate karwa doon — aaj setup karein ya kal?",
     },
     # ====================================================================== #
     # ADDITIONAL NICHE SCRIPTS (29 niches — professionally researched Hinglish)
@@ -1073,4 +1112,31 @@ NICHE_SCRIPTS: dict[str, dict] = {
         ],
         "closing": "Toh ek short call ya visit fix karein — aaj shaam ya kal, jo aapko convenient ho?",
     },
+}
+
+NICHE_SCRIPTS["voice_ai"] = {
+    "opening": UNIVERSAL_AGENT_INTRO,
+    "pitch_short": "Main AI Voice Calling Agent sell kar rahi hoon. Ek aisa AI jo 24/7 human-like awaaz mein aapke leads ko automatic call lagata hai.",
+    "interest_ask": "Kya aap leads filter karne ke liye ek AI Telecaller pasand karenge?",
+    "yes_praise": "Great. Abhi kitne staff ya telecallers kaam karte hain aapke yahan?",
+    "no_convince_once": "Ye AI thakan nahi manta aur din ke 1000 calls bina salary ke kar sakta hai. Ek bar demo dekhein?",
+    "close_cold": "Koi baat nahi, thank you.",
+    "discovery": [
+        "Aapke paas daily kitne naye leads/inquiries aati hain?",
+        "Kya leads ko turant 5 minute me call ho pata hai?",
+        "Telecallers ka mahine ka kharcha approx kitna hai?"
+    ],
+    "objections": {
+        "mehenga": "₹19,999/mahina start hai, ek full-time human caller ke lagbhag barabar hai lekin output 10x hota hai.",
+        "abhi_nahi": "Thik hai, par ek free demo call schedule kar sakte hain apne number par?",
+        "soch_ke": "Sure, mai brochure aur sample call recording WhatsApp karti hoon. Dekh lijiye.",
+        "pehle_se_hai": "Human caller aur AI ka hybrid model sabse best hai, AI pehla filter kar deta hai.",
+        "bharosa": "Isi waqt main ek AI hoon jo aapse live baat kar rahi hoon. Mujhe test kar lijiye!"
+    },
+    "value_lines": [
+        "Inquiry aate hi 2 minute mein automatic human-like call lag jayegi.",
+        "Pricing tier: ₹4,999, ₹9,999, aur Enterprise ₹19,999/mo volume pe depend karta hai.",
+        "DND check, call summary, CRM sync sab backend se automatic hoga."
+    ],
+    "closing": "Toh main ek live demo call book kar doon? Usme aap apne sawal AI se khud pooch lena."
 }

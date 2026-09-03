@@ -50,7 +50,6 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-
 TENANT_A = "tenant-a-7F31"
 TENANT_B = "tenant-b-9C42"
 
@@ -68,6 +67,7 @@ def _mint_customer_jwt(client_id: str, *, role: str = "customer", ttl_s: int = 3
     settings.jwt_secret_key + settings.jwt_algorithm). No mocking of the
     signing key — this is production-faithful."""
     from jose import jwt as _jwt
+
     from app.config import settings
 
     payload = {
@@ -196,6 +196,7 @@ async def test_tenant_b_jwt_never_resolves_to_tenant_a():
 async def test_expired_token_rejected_no_tenant_data():
     """Expired token → HTTPException, no tenant hint leaks into the error."""
     from fastapi import HTTPException
+
     from app.api.customer_auth import require_customer
 
     token = _mint_customer_jwt(TENANT_A, ttl_s=-60)  # already expired
@@ -210,6 +211,7 @@ async def test_wrong_role_token_rejected():
     """A token whose `role != 'customer'` (e.g. admin token) MUST be rejected
     on a customer-only route."""
     from fastapi import HTTPException
+
     from app.api.customer_auth import require_customer
 
     token = _mint_customer_jwt(TENANT_A, role="admin")
@@ -220,6 +222,7 @@ async def test_wrong_role_token_rejected():
 
 async def test_malformed_token_rejected():
     from fastapi import HTTPException
+
     from app.api.customer_auth import require_customer
 
     with pytest.raises(HTTPException) as exc:
@@ -230,8 +233,9 @@ async def test_malformed_token_rejected():
 async def test_token_without_sub_rejected():
     from fastapi import HTTPException
     from jose import jwt as _jwt
-    from app.config import settings
+
     from app.api.customer_auth import require_customer
+    from app.config import settings
 
     payload = {
         "role": "customer",
@@ -281,6 +285,7 @@ async def test_no_request_attribute_can_override_authenticated_tenant(attack_var
     See `test_static_no_customer_route_binds_client_id_via_query` for the
     handler-level guarantee.)"""
     import inspect
+
     from app.api.customer_auth import require_customer
 
     sig = inspect.signature(require_customer)
@@ -305,7 +310,6 @@ async def test_no_request_attribute_can_override_authenticated_tenant(attack_var
 def test_route_coverage_summary_recorded():
     """Records the total customer route count so a silent drop/add is
     caught. NOT an isolation assertion — a shape lock."""
-    from app.api import customer_dashboard
     import re
 
     src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()

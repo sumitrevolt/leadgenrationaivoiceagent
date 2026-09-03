@@ -144,6 +144,7 @@ def test_scheduler_24_concurrent_triggers():
 def test_login_brute_force_protection():
     """100 failed login attempts → account lockout triggers."""
     from starlette.testclient import TestClient
+
     from app.main import app
 
     client = TestClient(app)

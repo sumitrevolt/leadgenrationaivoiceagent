@@ -18,10 +18,10 @@ class _FakeQuery:
     def __init__(self, rows: list[tuple[Any, ...]]) -> None:
         self._rows = rows
 
-    def filter(self, *a: Any, **k: Any) -> "_FakeQuery":
+    def filter(self, *a: Any, **k: Any) -> _FakeQuery:
         return self
 
-    def group_by(self, *a: Any, **k: Any) -> "_FakeQuery":
+    def group_by(self, *a: Any, **k: Any) -> _FakeQuery:
         return self
 
     def all(self) -> list[tuple[Any, ...]]:

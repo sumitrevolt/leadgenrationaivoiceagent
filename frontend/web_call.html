@@ -208,6 +208,28 @@
   #signupSubmit{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
   #signupSubmit:disabled{opacity:.6;cursor:not-allowed}
   .signup-dismiss{background:transparent;color:var(--muted);margin-top:6px !important}
+
+  /* ---- Audio retry banner (mobile Chrome audio-blocked) ---- */
+  .audio-retry{
+    position:absolute;bottom:0;left:0;right:0;z-index:40;
+    background:linear-gradient(135deg,#fef3c7,#fde68a);
+    border-top:2px solid #f59e0b;padding:12px 16px;
+    display:flex;align-items:center;gap:10px;
+    font-size:13px;font-weight:700;color:#92400e;
+    box-shadow:0 -4px 16px rgba(245,158,11,.15);
+    animation:slideUp .3s ease-out;
+  }
+  .audio-retry.hidden{display:none}
+  .audio-retry .retry-icon{font-size:22px;flex-shrink:0}
+  .audio-retry .retry-msg{flex:1;line-height:1.35}
+  .audio-retry .retry-btn{
+    border:none;border-radius:10px;padding:9px 16px;
+    background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;
+    font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;
+    box-shadow:0 4px 12px rgba(245,158,11,.3);flex-shrink:0;
+  }
+  .audio-retry .retry-btn:active{transform:scale(.95)}
+  @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 </style>
 </head>
 <body>
@@ -277,6 +299,13 @@
       </div>
       <div id="historyList"><div class="hist-empty">Loading…</div></div>
     </div>
+  </div>
+
+  <!-- Audio retry banner — shown on mobile when bot audio fails to play -->
+  <div class="audio-retry hidden" id="audioRetry">
+    <span class="retry-icon">🔊</span>
+    <span class="retry-msg">Awaaz nahi aa rahi?<br>Tap to dubara try karo</span>
+    <button class="retry-btn" id="audioRetryBtn">Retry ▶</button>
   </div>
 
   <!-- Inline trial-signup overlay — shown on voice close-signal when
@@ -405,6 +434,26 @@
   var botTurnId = 0;
   var botQueue = [];           // sequential playback (3-seg opener + sentence chunks)
   var drainingBot = false;
+  var lastBotText = null, lastBotB64 = null;  // retry ke liye last bot turn store karo
+  var audioRetryEl = null, audioRetryBtnEl = null;  // DOM refs (lazy init)
+  function showAudioRetry(){
+    if(!audioRetryEl) audioRetryEl = document.getElementById("audioRetry");
+    if(audioRetryEl) audioRetryEl.classList.remove("hidden");
+  }
+  function hideAudioRetry(){
+    if(!audioRetryEl) audioRetryEl = document.getElementById("audioRetry");
+    if(audioRetryEl) audioRetryEl.classList.add("hidden");
+  }
+  function retryAudio(){
+    hideAudioRetry();
+    // Purana audio unlock stale ho sakta hai — reset karo aur user gesture se dobara unlock.
+    audioUnlocked = false;
+    unlockAudioPlayback();
+    // Last bot turn dobara play karo.
+    if(lastBotText && callActive && !endingCall){
+      playBotTurn(lastBotText, lastBotB64, null);
+    }
+  }
   var kickTimer = null, safetyTimer = null, timerInt = null, t0 = 0;
 
   // ---- Niche dropdown: load all research-finalized niches --------------
@@ -494,14 +543,22 @@
 
   // Chrome autoplay: WS se aane wali awaaz tabhi chale jab user gesture pe unlock ho.
   var audioUnlocked = false;
+  var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   function unlockAudioPlayback(){
     if(audioUnlocked) return;
     try{
+      // Silent audio unlock — user gesture ke saath play karo taaki mobile Chrome
+      // audio autoplay policy satisfy ho.
       var sil = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
       sil.volume = 0.01;
       var p = sil.play();
       if(p && p.then){ p.then(function(){ audioUnlocked = true; }).catch(function(){}); }
       else { audioUnlocked = true; }
+      // Mobile pe AudioContext bhi resume karo (getUserMedia async hai, isliye
+      // AudioContext suspended rehta hai — user gesture pe resume karo).
+      if(isMobile && callAudioCtx && callAudioCtx.state !== "running"){
+        try{ callAudioCtx.resume(); }catch(e){}
+      }
     }catch(e){}
   }
 
@@ -618,17 +675,39 @@
       // Auto-detect format: Gemini-TTS = WAV (base64 starts "UklGR" = RIFF),
       // EdgeTTS = mp3. Wrong MIME = silent no-play, so detect before wrapping.
       var mime = (b64.indexOf("UklGR") === 0) ? "audio/wav" : "audio/mp3";
-      var audio = new Audio("data:" + mime + ";base64," + b64);
+      // Mobile pe data URI unreliable hai (size limits + autoplay blocks).
+      // Blob URL use karo — mobile Chrome pe zyada reliable.
+      var audio;
+      try{
+        var binary = atob(b64);
+        var bytes = new Uint8Array(binary.length);
+        for(var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        var blob = new Blob([bytes], {type: mime});
+        var blobUrl = URL.createObjectURL(blob);
+        audio = new Audio(blobUrl);
+        audio._blobUrl = blobUrl;  // cleanup ke liye
+      }catch(blobErr){
+        // Blob fail = fallback to data URI (legacy path)
+        audio = new Audio("data:" + mime + ";base64," + b64);
+      }
       currentAudio = audio;
       routeBotAudioToRecorder(audio);   // Swara ki awaaz recording-mix me bhi
-      audio.onended = onEnded;
-      audio.onerror = onFail;
+      audio.onended = function(){
+        if(audio._blobUrl){ try{ URL.revokeObjectURL(audio._blobUrl); }catch(e){} }
+        onEnded();
+      };
+      audio.onerror = function(){
+        if(audio._blobUrl){ try{ URL.revokeObjectURL(audio._blobUrl); }catch(e){} }
+        onFail();
+      };
       var p = audio.play();
       if(p && p.catch){
         p.catch(function(err){
           if(!audioUnlocked){
             foot.innerHTML = "<b>Audio blocked</b> — browser ne awaaz roki. Green Call button dubara dabao (ya ⌨️ se type karo). <b>🔒 Free &amp; safe</b>";
           }
+          // Mobile pe audio block = retry banner dikhao (user tap karke dobara try kare)
+          if(isMobile) showAudioRetry();
           onFail();
         });
       }
@@ -662,6 +741,8 @@
       currentAudio = null;
     }
     try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+    hideAudioRetry();             // purana retry banner hatao (naya audio aa raha hai)
+    lastBotText = text; lastBotB64 = b64;  // retry ke liye store karo
     botSpeaking = true;
     var myTurn = ++botTurnId;
     setState("speaking");
@@ -742,6 +823,11 @@
     // ctx.destination output nahi degi = Swara CHUP. Tab tak recording skip karo
     // (bot ki awaaz har haal me sunai de). Resume try karke agle turn pe capture.
     if(callAudioCtx.state !== "running"){ try{ callAudioCtx.resume(); }catch(e){} return; }
+    // MOBILE SAFETY: mobile Chrome pe createMediaElementSource ne audio element ka
+    // output WebAudio graph me route kar deta hai — par mobile pe WebAudio destination
+    // output kabhi properly speakers tak nahi pahunchta (suspended-resume race).
+    // Recording skip karo par BOT KI AWAAZ HAR HAAL ME SUNAI DE.
+    if(isMobile) return;
     try{
       var src = callAudioCtx.createMediaElementSource(audioEl);
       src.connect(callAudioCtx.destination);   // user abhi bhi sune
@@ -843,9 +929,23 @@
       recognizing = true;
       startRecorder();   // SR ke saath raw-audio capture (server Groq STT)
       if(callActive && !botSpeaking && !pendingBot) setState("listening");
+      // MOBILE SR PROBE: mobile Chrome pe SR start ho jaata hai par kuch produce
+      // nahi karta (Chrome banner block). Agar 5s me koi result nahi aaya = SR broken,
+      // typed mode pe chale jao.
+      if(isMobile && !srFailed){
+        clearTimeout(srResultTimer);
+        srResultTimer = setTimeout(function(){
+          if(recognizing && callActive && !pendingBot && !botSpeaking && !srFailed){
+            srFailed = true;
+            try{ recog.stop(); }catch(x){}
+            micDenied(false);
+          }
+        }, 5000);
+      }
     };
     recog.onresult = function(ev){
       if(!callActive || botSpeaking || pendingBot) return;
+      clearTimeout(srResultTimer);  // SR kaam kar raha hai — probe timer hatao
       var interim = "", finalText = "";
       for(var i = ev.resultIndex; i < ev.results.length; i++){
         var res = ev.results[i];
@@ -879,25 +979,41 @@
     micDenied(true);   // no Web Speech API -> typed fallback only
   }
 
+  var srFailed = false;  // SR blocked ya unavailable — typed-only mode
+  var srResultTimer = null;  // mobile SR result probe timer
   function startListening(){
     if (kbdToggle && kbdToggle.classList.contains("on")) return;
-    if(!SR || !recog) return;
+    if(!SR || !recog || srFailed) return;
     if(!callActive || botSpeaking || pendingBot || recognizing) return;
-    try{ recog.start(); }catch(e){ /* already starting / transient */ }
+    try{ recog.start(); }catch(e){
+      // Mobile Chrome: recog.start() throw karta hai jab SR blocked ho
+      // ("Speech Recognition and Synthesis cannot record" banner).
+      // Turant typed mode pe fall back karo.
+      if(!srFailed){ srFailed = true; micDenied(false); }
+    }
   }
   function stopListening(){
     // turn/echo-guard pe mic OFF — pending endpoint timer + accumulated text saaf
     // karo taaki bot-turn ke baad stale/aadha-utterance flush na ho jaaye.
     clearTimeout(endpointTimer); endpointTimer = null; pendingFinal = "";
+    clearTimeout(srResultTimer); srResultTimer = null;
     if(!SR || !recog || !recognizing) return;
     try{ recog.stop(); }catch(e){}
   }
   function micDenied(noSR){
+    srFailed = true;
     typedRow.classList.remove("hidden");
     kbdToggle.classList.add("on");
-    foot.innerHTML = noSR
-      ? "Is browser me voice support nahi — niche type karke baat karein. <b>🔒 Free</b>, no charge."
-      : "Mic permission chahiye — ya niche type karke baat karein. <b>🔒 Free</b>, no charge.";
+    clearTimeout(srResultTimer);
+    if(noSR){
+      foot.innerHTML = "Is browser me voice support nahi — niche type karke baat karein. <b>🔒 Free</b>, no charge.";
+    } else if(isMobile){
+      // Mobile Chrome: "Speech Recognition and Synthesis cannot record" banner
+      // dikhta hai — user ko clear message do ki typed mode best hai.
+      foot.innerHTML = "Chrome me mic block hai — niche type karke baat karein. <b>🔒 Free</b>, no charge.";
+    } else {
+      foot.innerHTML = "Mic permission chahiye — ya niche type karke baat karein. <b>🔒 Free</b>, no charge.";
+    }
   }
 
   // ---- User turn -------------------------------------------------------
@@ -935,6 +1051,7 @@
     unlockAudioPlayback();
     callActive = true;
     botSpeaking = false; pendingBot = false; endAfterSpeak = false; awaitingGreeting = false;
+    srFailed = false; clearTimeout(srResultTimer); srResultTimer = null;
     clearCaptions();
     setControls(true);
     setState("calling");
@@ -981,6 +1098,8 @@
   // ---- Events ----------------------------------------------------------
   startBtn.addEventListener("click", startCall);
   endBtn.addEventListener("click", endCall);
+  // Audio retry button — mobile pe audio block ho to user tap karke dobara try kare.
+  document.getElementById("audioRetryBtn").addEventListener("click", retryAudio);
 
   // Barge-in: tap the avatar while the bot is speaking to interrupt it.
   avatar.addEventListener("click", function(){

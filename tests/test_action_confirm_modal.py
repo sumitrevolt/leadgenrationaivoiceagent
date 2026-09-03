@@ -153,7 +153,7 @@ def test_opening_the_modal_makes_no_network_call():
 
 def _assert_gated_call_site(body: str, guard_var: str, network_marker: str):
     modal_call_idx = body.index("actionConfirmModal(")
-    guard_idx = body.index("if(!{v}) return".format(v=guard_var))
+    guard_idx = body.index(f"if(!{guard_var}) return")
     network_idx = body.index(network_marker)
     assert modal_call_idx < guard_idx < network_idx
 

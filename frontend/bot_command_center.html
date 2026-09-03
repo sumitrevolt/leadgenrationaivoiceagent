@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot Command Center — LeadGen AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0d1117; color: #e6edf3;
+    height: 100vh; display: flex; flex-direction: column; font-size: 14px;
+  }
+  header {
+    padding: 12px 20px; border-bottom: 1px solid #30363d;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    background: #161b22;
+  }
+  header b { font-size: 16px; }
+  header span { color: #8b949e; font-size: 12.5px; }
+  .back { margin-left: auto; color: #58a6ff; text-decoration: none; font-size: 13px; }
+  .pin {
+    margin: 10px 20px 0; padding: 10px 14px; font-size: 12.5px; line-height: 1.55;
+    border-left: 3px solid #a371f7; background: rgba(163,113,247,.08); border-radius: 6px;
+  }
+  .pin .t { font-weight: 700; }
+  #feed { flex: 1; overflow-y: auto; padding: 14px 20px 20px; }
+  .msg { max-width: 78%; margin-bottom: 14px; }
+  .msg.owner-side { margin-left: auto; }
+  .meta { font-size: 12px; margin-bottom: 3px; color: #8b949e; }
+  .meta b { color: #e6edf3; font-size: 13px; }
+  .replyto {
+    font-size: 11.5px; color: #8b949e; border-left: 2px solid #a371f7;
+    padding: 1px 8px; margin-bottom: 3px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bubble {
+    background: #161b22; padding: 8px 12px; border-radius: 10px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .owner-side .bubble { background: rgba(163,113,247,.18); }
+  .taskref { color: #a371f7; }
+  .mention { color: #58a6ff; }
+  footer { padding: 8px 20px; border-top: 1px solid #30363d; color: #8b949e; font-size: 11.5px; background: #161b22; }
+  .warn { margin: 10px 20px 0; padding: 8px 12px; font-size: 12px; color: #f0883e; background: rgba(240,136,62,.08); border-radius: 6px; display: none; }
+</style>
+</head>
+<body>
+<header><b>OWNER COMMAND CENTER</b><span id="sub"></span><a class="back" href="/app/admin">← Admin Dashboard</a></header>
+<div class="pin" id="pin"></div>
+<div class="warn" id="warn"></div>
+<div id="feed"></div>
+<footer id="foot">Loading…</footer>
+<script>
+(function () {
+  "use strict";
+  var t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
+  if (!t) { location.replace("/app/admin-login?next=/app/bot-command-center"); return; }
+
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];
+    });
+  };
+  var rich = function (txt) {
+    return esc(txt)
+      .replace(/@([A-Za-z][\w-]*)/g, '<span class="mention">@$1</span>')
+      .replace(/\b((?:REV|TASK)-\d+)\b/g, '<span class="taskref">$1</span>');
+  };
+  var fmt = function (ts) {
+    try { return new Date(ts).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }
+    catch (e) { return ts; }
+  };
+
+  fetch("/api/bot-command-center/state", {headers:{Authorization:"Bearer "+t}, cache:"no-store"})
+    .then(function (r) {
+      if (r.status === 401 || r.status === 403) { location.replace("/app/admin-login?next=/app/bot-command-center"); throw new Error("auth"); }
+      return r.json();
+    })
+    .then(function (S) {
+      document.getElementById("sub").textContent = S.subtitle || "";
+      var p = S.pinned || {};
+      document.getElementById("pin").innerHTML =
+        '<span class="t">📌 OWNER OBJECTIVE</span><br>' + esc(p.text || "").replace(/\n/g, "<br>");
+      var w = document.getElementById("warn");
+      if ((S.warnings || []).length) { w.style.display = "block"; w.textContent = "⚠️ " + S.warnings.join(" · "); }
+      var feed = document.getElementById("feed");
+      (S.messages || []).forEach(function (m) {
+        var b = (S.bots || {})[m.from] || {};
+        var d = '<div class="msg' + (m.from === "OWNER" ? " owner-side" : "") + '">';
+        if (m.reply_to) d += '<div class="replyto">↳ Reply to: ' + esc(m.reply_to) + "</div>";
+        d += '<div class="meta"><b>' + esc(b.avatar || "") + " " + esc(m.from) +
+             '</b> · ' + esc(b.role || (m.from === "OWNER" ? "Owner" : "bot")) +
+             ' · ' + fmt(m.ts) + "</div>";
+        d += '<div class="bubble">' + rich(m.text) + "</div></div>";
+        feed.insertAdjacentHTML("beforeend", d);
+      });
+      feed.scrollTop = feed.scrollHeight;
+      var n = (S.messages || []).length, nt = (S.tasks || []).length;
+      document.getElementById("foot").textContent =
+        n + " messages · " + nt + " tasks tracked · single source of truth: tasks.json · generated " + (S.generated_at || "");
+    })
+    .catch(function (e) {
+      if (String(e.message) !== "auth")
+        document.getElementById("foot").textContent = "State load failed — admin login check karo.";
+    });
+})();
+</script>
+</body>
+</html>

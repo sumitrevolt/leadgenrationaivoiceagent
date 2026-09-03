@@ -89,6 +89,7 @@ _NICHE_LABELS: dict[str, str] = {
     "event_management": "event management",
     "hardware_paint": "hardware & paint store",
     "ai_marketing": "AI marketing services (B2B, business owners)",
+    "ai_voice_agent": "AI voice telecalling agent (B2B, business owners)",
     "bakery_sweets": "bakery / sweet shop",
     "jewellery_store": "jewellery store",
     "general": "general sales call",

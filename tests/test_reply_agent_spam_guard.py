@@ -14,7 +14,6 @@ import pytest
 
 from app.platform.reply_agent import _is_noise_row, _is_spam_content
 
-
 SPAM_SAMPLES = [
     ("Reddy Anna Book", "Get your cricket id now, instant withdrawal"),
     ("", "REDDYANNA online betting id available 24x7"),
