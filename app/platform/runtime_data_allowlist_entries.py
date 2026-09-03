@@ -1294,23 +1294,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Sidecar output only; no customer PII beyond public script text.",
     },
-    {
-        "allowlist_id": "marketing.content_engine.script_voice_gen.script_txt",
-        "file": "app/content_engine/script_voice_gen.py",
-        "line_or_symbol": "script.txt",
-        "path_pattern": "data/content_gen/script.txt",
-        "store_id": "marketing.content_gen",
-        "access_modes": ["CREATE", "REWRITE"],
-        "reason": (
-            "Generated script text file output. Written by open() in run_pipeline(); "
-            "deterministic rebuild from topic prompt."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "marketing",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Output only; no customer data.",
-    },
+
     {
         "allowlist_id": "marketing.content_pipeline.producer.output_dir",
         "file": "app/content_pipeline/producer.py",
@@ -1346,29 +1330,12 @@ ENTRIES: list[dict[str, Any]] = [
         "review_condition": "Output only; no customer data.",
     },
     {
-        "allowlist_id": "marketing.content_pipeline.producer.base_dir",
-        "file": "app/content_pipeline/producer.py",
-        "line_or_symbol": "BASE_DIR",
-        "path_pattern": "data/content_pipeline",
-        "store_id": "marketing.content_pipeline",
-        "access_modes": ["READ"],
-        "reason": (
-            "Base directory constant for content pipeline output. Only READ; "
-            "actual writes go through OUTPUT_DIR and script_path which are separately declared."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "marketing",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Read-only constant; no mutation at this symbol.",
-    },
-    {
         "allowlist_id": "marketing.content_os.engine.data_dir",
         "file": "app/marketing/content_os/engine.py",
-        "line_or_symbol": "DATA_DIR",
-        "path_pattern": "/opt/leadgen/media/content_os",
+        "line_or_symbol": 46,
+        "path_pattern": "DATA_DIR",
         "store_id": "marketing.content_os",
-        "access_modes": ["CREATE", "READ"],
+        "access_modes": ["CREATE"],
         "reason": (
             "Content OS data directory. Created by Path.mkdir(parents=True, exist_ok=True) "
             "at module load; holds queue.jsonl, ledger.jsonl, lock files. "
@@ -1403,7 +1370,7 @@ ENTRIES: list[dict[str, Any]] = [
         "line_or_symbol": "p",
         "path_pattern": "/opt/leadgen/media/content_os/last_run_",
         "store_id": "marketing.content_os",
-        "access_modes": ["READ"],
+        "access_modes": ["LOCK", "READ"],
         "reason": (
             "Read of idempotency lock file in _led_already_ran_today(). "
             "Same DATA_DIR store as queue/ledger."
@@ -1416,59 +1383,8 @@ ENTRIES: list[dict[str, Any]] = [
     },
     # --- command_center pilot dispatch scripts (offline tooling) ---------------
     {
-        "allowlist_id": "command_center.pilot.dispatch.tasks_json",
-        "file": "command_center/scripts/validate_0710.py",
-        "line_or_symbol": "tasks_path",
-        "path_pattern": "command_center/data/tasks.json",
-        "store_id": "command_center.pilot_tasks",
-        "access_modes": ["READ", "REWRITE"],
-        "reason": (
-            "Pilot dispatch validation script reads/writes tasks.json. "
-            "Offline admin tooling; not production app code."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "operations",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Local admin script; no production customer data.",
-    },
-    {
         "allowlist_id": "command_center.pilot.dispatch.tasks_json_patches",
         "file": "command_center/patches/pilot_dispatch_0830_1520.py",
-        "line_or_symbol": "tasks_path",
-        "path_pattern": "command_center/data/tasks.json",
-        "store_id": "command_center.pilot_tasks",
-        "access_modes": ["READ", "REWRITE"],
-        "reason": (
-            "Pilot dispatch patch script reads/writes tasks.json for evidence updates. "
-            "Offline admin tooling."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "operations",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Local admin script; no production customer data.",
-    },
-    {
-        "allowlist_id": "command_center.pilot.dispatch.tasks_json_patches_0150",
-        "file": "command_center/patches/pilot_dispatch_0902_0150.py",
-        "line_or_symbol": "tasks_path",
-        "path_pattern": "command_center/data/tasks.json",
-        "store_id": "command_center.pilot_tasks",
-        "access_modes": ["READ", "REWRITE"],
-        "reason": (
-            "Pilot dispatch patch script reads/writes tasks.json for evidence updates. "
-            "Offline admin tooling."
-        ),
-        "migration_tier": 3,
-        "target_change_set": "runtime-data-cutover-wave-3",
-        "owner": "operations",
-        "production_relevance": "OFFLINE_TOOLING",
-        "review_condition": "Local admin script; no production customer data.",
-    },
-    {
-        "allowlist_id": "command_center.pilot.dispatch.tasks_json_patches_0200",
-        "file": "command_center/patches/pilot_dispatch_0902_0200.py",
         "line_or_symbol": "tasks_path",
         "path_pattern": "command_center/data/tasks.json",
         "store_id": "command_center.pilot_tasks",
