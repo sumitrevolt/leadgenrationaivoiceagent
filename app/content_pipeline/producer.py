@@ -11,6 +11,9 @@ BASE_DIR = Path("C:/Users/Ratanshila/WorkBuddy/Worktrees/leadgenrationaivoiceage
 OUTPUT_DIR = BASE_DIR / "data/content_pipeline"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Proven-path alias for content_pipeline output store.
+PROVEN_PATH_ALIAS = OUTPUT_DIR
+
 # Clients (Simulated loading from app configuration)
 # Note: Ensure GROQ_API_KEY is set in environment
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))

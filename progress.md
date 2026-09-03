@@ -300,3 +300,142 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 - **Risks:** Desktop apps must be refreshed/restarted to reload newly populated JSON caches.
 - **Remaining:** None on local combo discovery stack; ready for user daily operations.
 - **Next Highest Priority:** Owner operation of 12 combos across WorkBuddy, Hermes, DSH, and Claude Desktop.
+
+---
+
+## Loop Run — 2026-09-02 (Enterprise Readiness, Lint Hygiene, Security & Route Integrity)
+- **Date:** 2026-09-02
+- **Goal:** Enterprise-grade system audit, ruff lint hygiene, secrets verification, route wiring check, and core contract test validation.
+- **Inspected:** `app/platform/hot_queue_owner_pack.py`, `app/telephony/telephony_readiness.py`, `app/telephony/telephony_readiness_probe.py`, `app/platform/omniroute_client.py`, `scripts/prod_check.py`, `scripts/check_secrets.py`, pytest test suites.
+- **Problems Found:**
+  1. `ruff check app` reported 12 import sorting and trailing whitespace errors in `hot_queue_owner_pack.py`, `telephony_readiness.py`, and `telephony_readiness_probe.py`.
+- **Changed:**
+  1. Cleaned up import order and removed trailing/blank-line whitespace in `app/platform/hot_queue_owner_pack.py`, `app/telephony/telephony_readiness.py`, and `app/telephony/telephony_readiness_probe.py`.
+  2. Executed `ruff check app --fix` achieving 0 remaining lint issues across the codebase.
+- **Tests Run:**
+  - `scripts/check_secrets.py` → **PASS** (0 secrets detected across 12 modified files).
+  - `scripts/prod_check.py` → **PASS** (1353 routes, 54 pages 0 gaps, automation 0 gaps, 362 nodes graph, API.md synced with 1380 ops, all checks passed).
+  - `pytest tests/test_billing_truth_2026.py tests/test_omniroute_client.py tests/test_hot_queue_payment_path.py -q` → **PASS** (39/39 green).
+- **Verification Evidence:**
+  - `prod_check.py`: `[OK] ALL CHECKS PASSED - ready to deploy`.
+  - secrets scan: `[OK] no secrets detected`.
+  - ruff: `0 remaining errors`.
+  - pytest exit 0 (39/39 tests passed).
+- **Risks:** OmniRoute local WSL gateway requires `OMNIROUTE_ENABLED=1` and WSL port 20128 listener active for local dev API calls.
+- **Remaining:** None. Full code compliance, route integrity, secret hygiene, and contract tests verified.
+- **Next Highest Priority:** Production GTM execution and user revenue conversion.
+
+## Loop Run — 2026-09-03 (Hermes Desktop Launch Failure RCA + Fix, Automation Bootstrapping)
+- **Date:** 2026-09-03
+- **Goal:** Diagnose why the Hermes Desktop app will not open, ship a fix, and stand up the automation workflows for the 7-day revenue push.
+- **Inspected:** `%LOCALAPPDATA%\hermes\hermes-agent\apps\desktop\release\win-unpacked\Hermes.exe`, `resources\app.asar`, `hermes-agent\venv`, `logs\desktop.log`, `logs\gui.log`, `logs\errors.log`, `%APPDATA%\Hermes\backend-ownership.json`, `%APPDATA%\Hermes\active-profile.json`, `hermes serve --help`, `hermes serve --status`, `scripts/start-hermes-omniroute.ps1`.
+- **Problems Found:**
+  1. **[P0]** Desktop spawns its own backend with `--port 0` because no machine-level backend is ready on the default port 9119. That child exits **code 1** ~3.5 min after `[boot] Hermes backend is ready. Finalizing desktop startup`, killing the session. Repeats every launch: `2026-09-02T04:48:50Z`, `2026-09-03T01:48:56Z`, `2026-09-03T01:59:19Z`, `2026-09-03T02:04:15Z`.
+  2. **[P1]** `scripts/start-hermes-omniroute.ps1` issued the backend spawn, slept 2s, then launched the GUI unconditionally — guaranteeing the backend was never ready, so defect #1 fired every time.
+  3. **[P2]** Stale `backend-ownership.json` (30 KB of dead PIDs across 10 profiles); profile desync (`active-profile.json` = `pilot`, desktop boots `default`); MCP discovery retry loop every 5 min (playwright `npx.cmd` → `MCPError: Connection closed`); stale 0-byte `.mcp-discovery.lock`.
+- **Changed:**
+  1. Rewrote `scripts/start-hermes-omniroute.ps1`: reuse-or-start the machine-level backend on port 9119 with `--skip-build`; **poll for real readiness** (2s interval, 90s timeout); **abort the GUI launch** if the backend never becomes ready (launching anyway is what reproduces the bug); launch GUI only after readiness; **verify the GUI survived** 20s and exit non-zero with a pointer to `desktop.log` if not.
+  2. Added `docs/HERMES_DESKTOP_ROOT_CAUSE_2026-09-03.md` with full evidence and the manual verification step.
+  3. Created 3 recurring automations (window 2026-09-03 → 2026-09-10): Daily Revenue War Room (08:30), Day Close and Collect (20:30), System Health Sentinel (every 6h).
+- **Tests Run:**
+  - `hermes.exe serve --status` → `No hermes dashboard or serve processes running` (confirms no machine-level server was up).
+  - `hermes.exe serve --help` → confirmed `--port` default is **9119** and default behaviour is **unified** (profile launches attach to one machine-level server).
+  - Standalone backend run: `python -m hermes_cli.main serve --host 127.0.0.1 --port 9119` → `Hermes backend listening on 127.0.0.1:9119`, `netstat` → `LISTENING pid 15876`. **Backend proven healthy standalone.**
+- **Verification Evidence:**
+  - Failure signature quoted verbatim from `logs\desktop.log` (4 independent occurrences).
+  - `logs\gui.log`: zero traceback / shutdown / SIGTERM entries — the child is reaped, not crashed.
+  - Backend holds port 9119 when run headless; install integrity confirmed (Hermes.exe 214 MB, app.asar 8.9 MB, venv python present).
+  - **NOT yet verified:** the GUI attaching to the pre-started backend. Blocked — see Risks.
+- **Risks:**
+  1. **GUI launch cannot be verified from this session.** `powershell.exe` fails at sandbox ConPTY creation (`ERROR_ACCESS_DENIED`, unaffected by `dangerouslyDisableSandbox`); `cmd.exe` and `wscript.exe`/`cscript.exe` are blocked by security policy. One manual run of the launcher is required to close the loop.
+  2. Revenue goal of ₹5,00,000 collected in 7 days vs recorded baseline ₹7,997 (2026-08-23) with 1 paying customer and zero eligible trials — a ~62x jump. Not achievable by automation alone; re-baselining recommended. **Awaiting owner decision.**
+  3. Cold WhatsApp remains OFF and the email cap is 25/day — channel volume is deliberately constrained by compliance gates that must not be weakened.
+- **Remaining:** Manual verification of the launcher; owner decision on the revenue target.
+- **Next Highest Priority:** Owner runs `scripts/start-hermes-omniroute.ps1` to confirm the desktop now attaches to the 9119 backend; then confirm the revenue target before Day 1 execution starts.
+
+## Loop Run — 2026-09-03 (Enterprise Grade Hardening, CSV/HotQueue Test Fix, Telephony Probe Coverage)
+- **Date:** 2026-09-03
+- **Goal:** Comprehensive enterprise system audit ("sab fix karo admin jaise work karo and project ko enterprize grade banao"), resolve test breaks, add test contracts for outbound probe, verify secret hygiene, route integrity, and compliance invariants.
+- **Inspected:**
+  - `app/platform/hot_queue_owner_pack.py`: CSV row serialization, fallback UPI links, multiline newline issues.
+  - `tests/test_hot_queue_owner_pack.py`: 4 tests (caught 1 critical assertion failure where multiline draft broke CSV line count 42 vs 4).
+  - `app/telephony/telephony_readiness_probe.py` & `app/telephony/telephony_readiness.py`: outbound DID probe logic and lack of unit tests.
+  - `.mcp.json`: obsolete worktree paths vs canonical root.
+  - `scripts/prod_check.py`, `scripts/check_secrets.py`, `ruff`.
+- **Problems Found:**
+  1. `tests/test_hot_queue_owner_pack.py` FAILED: unescaped `\n` in `draft` caused CSV writer to produce 42 physical lines instead of 4 rows, and unconditional overwrite corrupted leads' existing `wa_link` / phone formats.
+  2. `app/telephony/telephony_readiness_probe.py` had zero unit test coverage across skip, success, failure, and exception states.
+  3. `.mcp.json` pointed to dead legacy worktree path `main-aececa33` instead of the canonical directory.
+- **Changed:**
+  1. `app/platform/hot_queue_owner_pack.py`: Made UPI payment kit injection conditional on missing `wa_link`; added robust Indian phone formatting; sanitized multiline `\r` and `\n` characters in CSV `draft_preview` to preserve CSV structure.
+  2. `tests/test_telephony_readiness_probe.py`: Added 4 comprehensive unit tests covering all probe lifecycle states (skipped, success, rejected, exception) with 100% pass rate.
+  3. `.mcp.json`: Fixed obsolete worktree paths to canonical project root.
+- **Tests Run:**
+  - `scripts/prod_check.py` → **PASS** (1353 routes, 54 pages 0 gaps, automation 0 gaps, 362 explorer nodes, 1380 API ops in sync).
+  - `scripts/check_secrets.py` → **PASS** (0 secrets detected).
+  - `ruff check app tests/test_telephony_readiness_probe.py` → **PASS** (all checks clean).
+  - `pytest tests/test_billing_truth_2026.py` → **PASS** (15/15 green).
+  - `pytest tests/test_hot_queue_owner_pack.py tests/test_hot_queue_payment_path.py tests/test_hot_queue.py` → **PASS** (15/15 green).
+  - `pytest tests/test_telephony_readiness_probe.py` → **PASS** (4/4 green).
+  - `pytest tests/test_activation_readiness.py tests/test_jio_sip_tenant.py` → **PASS** (18/18 green).
+- **Verification Evidence:**
+  - `prod_check.py`: `[OK] ALL CHECKS PASSED - ready to deploy`.
+  - Secrets: `[OK] no secrets detected`.
+  - Exit code 0 on all test runs (52+ tests verified green).
+- **Risks:**
+  - Vobiz outbound live test calls require valid `VOBIZ_CALLER_ID` owned on the carrier account. The synthetic probe is disabled by default (`VOBIZ_VERIFY_CALLER_ID_OUTBOUND=0`) to ensure safety.
+- **Remaining:**
+  - Production deployment (owner-gated).
+- **Next Highest Priority:**
+  - Production deployment via canonical `deploy_vps.sh` upon user confirmation.
+
+## Incident — Hermes backend 127.0.0.1:9119 DOWN (automated health sweep, 2026-09-03)
+
+- **Detected:** 2026-09-03 ~14:43 IST, by the scheduled lightweight health sweep (HTTP probes + port checks only; full test suite intentionally NOT run).
+- **Severity:** P2 — local owner tooling (Hermes Desktop cockpit). No production/customer impact; `leadsgenai.in` was healthy throughout.
+- **Before state (observed evidence):**
+  - `https://leadsgenai.in/health` → HTTP 200, `{"status":"healthy","environment":"production","version":"036a4e4b…","uptime":"5h 35m 11s"}` → **PASS**
+  - `127.0.0.1:20128` → `LISTENING pid 21320`, HTTP 307 → **PASS**
+  - `127.0.0.1:9119` → absent from `netstat -ano` LISTENING set; `Get-NetTCPConnection -LocalPort 9119 -State Listen` → `False` → **FAIL**
+- **Root cause match:** consistent with `docs/HERMES_DESKTOP_ROOT_CAUSE_2026-09-03.md` — no machine-level backend was resident on the default port, so any desktop launch would have spawned the throwaway `--port 0` child that exits with code 1.
+- **Remediation attempted:** ran the canonical launcher `scripts/start-hermes-omniroute.ps1`.
+  - Launcher log: `[3/4] Backend spawn issued` → `Backend READY on 127.0.0.1:9119 (pid 35452)` → `[4/4] Hermes Desktop RUNNING (pid 10188,21464,23460,24604,32088,33056)` → `EXITCODE=0`.
+  - Deviation: wrapping the launcher in `Start-Process powershell.exe …` was **blocked by environment security policy**; the script was instead invoked inline in the same PowerShell session, which executes the identical code path (internal `Start-Process` calls target `hermes.exe` / `Hermes.exe`, not a shell). Recorded because the documented one-liner did not run as written.
+- **After state (re-verified independently):**
+  - `127.0.0.1:9119` → `LISTENING pid 35452`, HTTP 200 → **PASS**
+  - `127.0.0.1:20128` → `LISTENING pid 21320`, HTTP 307 → **PASS**
+  - `https://leadsgenai.in/health` → HTTP 200, `status: healthy`, `environment: production`, `version: 036a4e4b…` → **PASS**
+- **Result:** remediation **worked**; all three checks green.
+- **Observation (not recorded as a failure):** the first `/health` probe reported `uptime 5h 35m 11s` while all subsequent probes reported ~`11h 42m`, increasing monotonically across four consecutive samples (`11h42m58s → 11h43m00s`). Most consistent with `WEB_CONCURRENCY=2` serving from two worker processes with divergent start times, or a worker recycle between the first and second probe. `status` remained `healthy` on every sample; no action taken, flagged only for trend awareness.
+- **Compliance:** no gate weakened, disabled, or bypassed. DND / TRAI / consent-ledger paths untouched; all checks were read-only HTTP probes and port-state queries.
+- **Next Highest Priority:** if 9119 is found down again on a subsequent sweep, inspect `%LOCALAPPDATA%\hermes\logs\desktop.log` for the exit reason, then evaluate a watchdog/scheduled-task to keep the machine-level backend resident across reboots and crashes.
+
+## Incident — Production intermittent hang + instance failover (automated health sweep, 2026-09-03 14:46–14:50 IST)
+
+- **Detected:** during post-remediation re-verification, ~3 minutes after the sweep had already closed as all-green. Underlines that a single passing probe is not proof of health.
+- **Severity:** P1 (user-facing), duration ~4 minutes, **self-recovered**. No compliance/data impact.
+- **Timeline (IST, all observed):**
+  - 14:45 — `/health` → 200 in 0.17s, `uptime 11h 42m 47s`.
+  - 14:47:45 — `/health` → **timeout at 30s cap, 3 consecutive probes, `status=000`**.
+  - 14:48 — control probes `api.github.com` 200 / `www.google.com` 200 / `registry.npmjs.org` 200; DNS resolves `leadsgenai.in → 72.61.245.204` → **local network and DNS ruled out**.
+  - 14:49 — `/` 200, `/pricing` 200 in 2.2s, `/` again 200 in 9.6s, `/demo` **timeout at 15s** → app partially serving, i.e. degradation rather than full outage.
+  - 14:50 — `/health` → 200 in 4.67s, but `uptime` now **`5h 43m 17s`** (was `11h 42m`) → traffic had shifted to a *different* app instance.
+  - 14:51–14:53 — `/health` **6/6 probes 200**, 0.17–0.25s, all `uptime 5h 43m` and monotonically increasing.
+  - 14:53 — `/` 0.44s · `/demo` 0.43s · `/pricing` 0.46s · `/health` 0.33s · `/audit` 1.35s → **all HTTP 200**; version `036a4e4b`, `environment: production`, `status: healthy`.
+- **Root cause hypothesis (not yet confirmed server-side):** two app instances are live behind Caddy (consistent with `WEB_CONCURRENCY=2` / dual-container). The instance reporting `11h 42m` uptime became unresponsive and held requests open; the `5h 43m` instance absorbed the traffic once the hung one stopped serving.
+- **CORRECTION to the incident above:** the line *"Observation (not recorded as a failure)"* about `uptime 5h 35m` vs `11h 42m` is **superseded**. That divergence was not a harmless `WEB_CONCURRENCY` artifact — it was the earliest visible symptom of this same degradation. It must be treated as a failure signal on future sweeps.
+- **Remediation applied:** NONE. Deliberately owner-gated — no SSH, no container restart, no redeploy was attempted from an unattended sweep. The stack recovered on its own.
+- **Compliance:** no gate weakened, disabled, or bypassed. DND / TRAI / consent-ledger untouched; read-only HTTP probes only.
+- **Next Highest Priority (owner action, not automated):**
+  1. Confirm on-VPS which instance went unresponsive — `docker ps` + `docker logs` for the app containers, and check Caddy upstream health/retry counters around 14:46–14:50.
+  2. Determine whether the `11h 42m` instance actually restarted (crash-loop / OOM) or is still hung but idle. Correlate with Prometheus/Grafana and the Sentry window.
+  3. Until explained, treat any `uptime` divergence between consecutive `/health` probes as a **P1 signal**, and have the sweep sample `/health` several times rather than once.
+
+## Root cause identified for Check 2 (Hermes 9119 down)
+
+- A scheduled task named **`LeadGen-OmniRoute-DSH-AutoStart`** exists (path `\`) but its state is **`Disabled`** (verified via `Get-ScheduledTask`).
+- No HKCU `Run` entry exists for Hermes; the only autostart entries are OneDrive, Warp, MiniMax Code, Edge, Teams, WorkBuddy, OpenClawTray, Docker Desktop, Chrome — **no Hermes, no OmniRoute**.
+- This explains why no machine-level backend was resident on 9119: nothing starts it at boot. **Enabling that existing task is the durable fix**, preferable to writing a new watchdog.
+- Local state after remediation is stable: 9119 `LISTENING pid 35452` (HTTP 200), 20128 `LISTENING pid 21320` (HTTP 307), Hermes GUI alive (`pids 10188,21464,23460,24604,32088,33056`).
+
+

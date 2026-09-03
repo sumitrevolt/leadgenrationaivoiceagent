@@ -64,7 +64,7 @@ def run_checks() -> dict[str, Any]:
         20,
     )
     add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
-    
+
     # Synthetic Verification check (NEW)
     vobiz_verify_outbound = _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND") == "1"
     probe_w = 20 if vobiz_verify_outbound else 0

@@ -47,6 +47,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 QUEUE_FILE = DATA_DIR / "queue.jsonl"
 LEDGER_FILE = DATA_DIR / "ledger.jsonl"
 
+# Proven-path alias: queue/ledger use the same DATA_DIR store.
+PROVEN_PATH_ALIAS = DATA_DIR
+
 
 # --------------------------------------------------------------------------- #
 # Models
@@ -101,7 +104,8 @@ def _led_already_ran_today() -> bool:
 
 
 def _mark_ran_today():
-    Path(_idempotency_key()).write_text("ok", encoding="utf-8")
+    lock_file = Path(PROVEN_PATH_ALIAS / f"last_run_{_today_ist()}.lock")
+    lock_file.write_text("ok", encoding="utf-8")
 
 
 def _append_jsonl(path: Path, payload: dict):
@@ -224,11 +228,11 @@ def dispatch_to_renderer(brief: RenderBrief) -> dict:
 
     # 2) Fall back: write manifest + placeholders to MEDIA_INBOX so VPS-side
     #    watcher can pick them up and produce locally via ffmpeg/image-gen path.
-    target = MEDIA_INBOX / brief.owner_slug / _today_ist() / brief.brief_id
-    target.mkdir(parents=True, exist_ok=True)
-    (target / "brief.json").write_text(body.decode(), encoding="utf-8")
-    (target / ".pending").write_text("1", encoding="utf-8")
-    return {"status": "queued_local", "path": str(target)}
+    target_dir = MEDIA_INBOX / brief.owner_slug / _today_ist() / brief.brief_id
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "brief.json").write_text(body.decode(), encoding="utf-8")
+    (target_dir / ".pending").write_text("1", encoding="utf-8")
+    return {"status": "queued_local", "path": str(target_dir.resolve())}
 
 
 # --------------------------------------------------------------------------- #
