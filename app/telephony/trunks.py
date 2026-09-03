@@ -104,6 +104,27 @@ def list_active_trunks() -> list[Trunk]:
                 lanes=frozenset({"transactional"}),
             )
         )
+    # --- Tata Tele Smartflo Pro (₹1,250/license/month, unlimited India) ---
+    tata_creds = bool(_env("TATA_SMARTFLO_API_TOKEN") and _env("TATA_SMARTFLO_API_KEY"))
+    tata_enabled = _env_bool("TATA_SMARTFLO_ENABLED", False)
+    if tata_creds and tata_enabled:
+        out.append(
+            Trunk(
+                name="tata_smartflo",
+                enabled=True,
+                caller_id=_env("TATA_SMARTFLO_DID"),
+                weight=_env_int("TATA_SMARTFLO_WEIGHT", 50),
+                cps_limit=_env_int("TATA_SMARTFLO_CPS_LIMIT", 2),
+                max_concurrent=_env_int("TATA_SMARTFLO_MAX_CONCURRENT", 5),
+                cost_per_min_inr=0.0,
+                notes=(
+                    "Tata Smartflo Pro; ₹1,250/license/mo unlimited India (5000 min FUP/pool). "
+                    "₹10,000 one-time. 1 DID bundled. Click-to-Call REST API. "
+                    "⚠️ Standard DID — TRAI lanes depend on DLT registration."
+                ),
+                lanes=frozenset({"promotional", "transactional"}),
+            )
+        )
     return out
 
 
@@ -184,6 +205,41 @@ def freeswitch_gateway_xml(trunk: Trunk) -> str:
   <gateway name="jio_mobile">
 {params}
     <param name="caller-id-in-from" value="true"/>
+    <param name="contact-params" value=""/>
+    <param name="codec-prefs" value="PCMA,PCMU,G729"/>
+    <param name="transport" value="{transport}"/>
+    <param name="sip-ip" value="$${{local_ip_v4}}"/>
+    <param name="rtp-ip" value="$${{local_ip_v4}}"/>
+    <param name="expire-seconds" value="600"/>
+  </gateway>
+</include>
+"""
+    if trunk.name == "tata_smartflo":
+        # Tata Smartflo uses Click-to-Call REST API (not raw SIP gateway).
+        # For FreeSWITCH SIP gateway integration (future), configure with:
+        #   host = _env("TATA_SMARTFLO_SIP_HOST")
+        #   user = _env("TATA_SMARTFLO_SIP_USER")
+        #   pass = _env("TATA_SMARTFLO_SIP_PASS")
+        host = _env("TATA_SMARTFLO_SIP_HOST") or "api-smartflo.tatateleservices.com"
+        user = _env("TATA_SMARTFLO_SIP_USER", "smartflo")
+        password = _env("TATA_SMARTFLO_SIP_PASS", "")
+        transport = _env("TATA_SMARTFLO_TRANSPORT", "udp").lower()
+        params = (
+            f'    <param name="realm" value="{host}"/>\n'
+            f'    <param name="proxy" value="{host}"/>\n'
+            f'    <param name="from-domain" value="leadsgenai.in"/>\n'
+        )
+        if password:
+            params += (
+                f'    <param name="register" value="true"/>\n'
+                f'    <param name="username" value="{user}"/>\n'
+                f'    <param name="password" value="{password}"/>\n'
+            )
+        else:
+            params += '    <param name="register" value="false"/>\n'
+        return f"""<include>
+  <gateway name="tata_smartflo">
+{params}    <param name="caller-id-in-from" value="true"/>
     <param name="contact-params" value=""/>
     <param name="codec-prefs" value="PCMA,PCMU,G729"/>
     <param name="transport" value="{transport}"/>

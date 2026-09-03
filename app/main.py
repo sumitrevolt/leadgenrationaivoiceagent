@@ -32,6 +32,7 @@ from app.api.health import router as health_router
 from app.api.ml_training import router as ml_router
 from app.api.platform import router as platform_router
 from app.api.telephony_vobiz import router as telephony_vobiz_router
+from app.api.telephony_smartflo import router as telephony_smartflo_router
 from app.api.web_call import router as web_call_router
 from app.config import settings
 
@@ -656,6 +657,14 @@ try:
     )
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Telephony webhooks router not mounted: {_e}")
+try:
+    from app.telephony.smartflo_webhooks import router as smartflo_webhooks_router
+
+    app.include_router(
+        smartflo_webhooks_router, prefix="/api/webhooks", tags=["Telephony Webhooks"]
+    )
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Smartflo webhooks router not mounted: {_e}")
 app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
 
@@ -1351,6 +1360,9 @@ app.include_router(dev_tasks_router, prefix="/api")  # /api/dev-tasks/* (draft-s
 app.include_router(
     telephony_vobiz_router, prefix="/api", tags=["Telephony"]
 )  # /api/telephony/vobiz/*
+app.include_router(
+    telephony_smartflo_router, prefix="/api", tags=["Telephony"]
+)  # /api/telephony/smartflo/*
 
 _dsh_runtime_configured = os.environ.get("DSH_RUNTIME_ENABLED", "0").strip().lower() in (
     "1",
