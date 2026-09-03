@@ -130,3 +130,86 @@ async def system_controls(payload: dict, gates: dict = Depends(_gate_check)):
     # In production: write to .env via validated path + restart guard
     logger.info(f"Admin set {param}={new_val}")
     return {"status": "set", "parameter": param, "value": new_val, "note": msg}
+
+# ── 7. Video Gallery ─────────────────────────────────────────────
+@router.get("/videos", summary="List generated video reels")
+async def list_videos(gates: dict = Depends(_gate_check)):
+    """Return list of generated videos from data/reels/."""
+    import os, json
+    from datetime import datetime
+    
+    reels_dir = os.path.join(settings.DATA_DIR, "reels")
+    videos = []
+    
+    if os.path.exists(reels_dir):
+        for f in sorted(os.listdir(reels_dir), reverse=True):
+            if f.endswith('.mp4'):
+                path = os.path.join(reels_dir, f)
+                stat = os.stat(path)
+                # Parse info from filename if possible
+                # Format: reel_{uuid}.mp4 or reel_{uuid}_mix.mp4
+                title = f.replace('reel_', '').replace('.mp4', '').replace('_mix', ' (with music)')
+                videos.append({
+                    "title": title,
+                    "url": f"/site/data/reels/{f}",
+                    "size_kb": stat.st_size // 1024,
+                    "aspect": "9:16",
+                    "date": datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M'),
+                })
+    
+    return {"videos": videos}
+
+# ── 8. Generate Videos ───────────────────────────────────────────
+@router.post("/videos/generate", summary="Generate today's branded videos")
+async def generate_videos(gates: dict = Depends(_gate_check)):
+    """Trigger video generation for own brand + clients."""
+    from app.tasks.video_generator import sync_generate_daily_videos
+    
+    try:
+        result = sync_generate_daily_videos()
+        own = result.get("own_brand")
+        clients = result.get("clients", [])
+        
+        videos_created = 0
+        if own:
+            videos_created += 1
+        videos_created += sum(1 for c in clients if c.get("video_path"))
+        
+        return {"ok": True, "videos_created": videos_created, "detail": {"own": bool(own), "clients": len(clients)}}
+    except Exception as e:
+        logger.warning(f"Video generation failed: {e}")
+        return {"ok": False, "error": str(e)[:200]}
+
+# ── 9. Post Video to Social ──────────────────────────────────────
+@router.post("/social/post", summary="Post video to social via Postiz")
+async def post_video_to_social(payload: dict, gates: dict = Depends(_gate_check)):
+    """Post a video to connected Postiz channels."""
+    from app.integrations.postiz import publish_video, enabled as postiz_enabled
+    
+    if not postiz_enabled():
+        return {"sent": False, "reason": "POSTIZ_API_KEY not set"}
+    
+    video_url = payload.get("video_url", "")
+    if not video_url:
+        return {"sent": False, "reason": "video_url required"}
+    
+    # Extract local path from URL
+    import os
+    filename = os.path.basename(video_url)
+    local_path = os.path.join(settings.DATA_DIR, "reels", filename)
+    
+    if not os.path.exists(local_path):
+        return {"sent": False, "reason": "Video file not found locally"}
+    
+    # Use own-brand client for own videos
+    client = {"id": "leadgenai-self", "business_name": "LeadGen AI"}
+    caption = payload.get("caption", "LeadGen AI Daily Update")
+    
+    result = await publish_video(
+        client=client,
+        caption=caption,
+        video_path=local_path,
+        filename=filename,
+    )
+    
+    return result

@@ -23,7 +23,7 @@ def daily_revenue_summary():
             "status": "retrieved",
             "note": "Revenue data extracted from packages.py — single source of truth",
         }
-    return {"status": "error", "detail": "packages.py not found}
+    return {"status": "error", "detail": "packages.py not found"}
 
 def verify_uqi_status(upi_txn_id: str):
     """Check UPI transaction status — owner_confirmed_only path."""

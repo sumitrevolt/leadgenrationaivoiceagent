@@ -16,7 +16,7 @@ def prometheus_metrics():
         ["bash", "-c", "curl -s http://localhost:9090/metrics 2>/dev/null | head -20"],
         capture_output=True, text=True
     )
-    return {"status": "metrics_exported", "output": result.stdout[:500] if result.stdout else "Prometheus not reachable}
+    return {"status": "metrics_exported", "output": result.stdout[:500] if result.stdout else "Prometheus not reachable"}
 
 def sentry_alerts():
     """Check Sentry for recent errors + gate-related issues."""

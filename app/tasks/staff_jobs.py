@@ -153,7 +153,8 @@ STAFF_JOBS = (
     "reply_auto_send",  # hourly :30 safe known-prospect auto-reply (gated REPLY_AUTO_SEND; INERT off)
     "content_approval_sweep",  # daily 04:30 orphaned-pending retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
     "daily_owner_brief",  # daily 08:10 IST owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY; INERT off)
-    "trial_nudge",  # daily 09:50 IST trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED; INERT off; BLK-02 2026-08-23)
+    "trial_nudge",  # daily 09:50 IST trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED; INERT off
+    "whatsapp_automation",  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND=1); BLK-02 2026-08-23)
 )
 
 
@@ -525,3 +526,29 @@ def boss_autonomy_sweep(self):
     except Exception as e:
         logger.warning("[boss_autonomy_sweep] failed: %s", type(e).__name__)
         raise self.retry(exc=e)
+
+@shared_task(
+    bind=True,
+    base=OwnerSchedulerGuardedTask,
+    name="app.tasks.staff_jobs.whatsapp_automation",
+    max_retries=1,
+    default_retry_delay=300,
+    acks_late=True,
+)
+@idempotent_task("whatsapp_automation", ttl=3600)
+def whatsapp_automation(self):
+    """WhatsApp full automation — hourly within 9am-7pm TRAI window.
+
+    GATED: WHATSAPP_AUTO_SEND=1 + WHATSAPP_AUTO_SEND_HARD_OFF=0
+    ⚠️ HIGH RISK: cold/bulk auto-send = number ban in 72 hours
+    Called by beat entry: staff-whatsapp-automation-hourly
+    """
+    try:
+        from app.tasks.whatsapp_automation import run_whatsapp_automation
+
+        result = run_whatsapp_automation()
+        return {"ok": True, "job": "whatsapp_automation", "result": result}
+    except Exception as e:
+        logger.warning(f"[whatsapp_automation] failed: {type(e).__name__}: {e}")
+        raise self.retry(exc=e)
+
