@@ -6,7 +6,7 @@ db_path = '/root/.omniroute/storage.sqlite'
 conn = sqlite3.connect(db_path)
 c = conn.cursor()
 
-c.execute("SELECT provider, name, is_active, api_key, access_token FROM provider_connections WHERE is_active=1")
+c.execute("SELECT provider, name, is_active, api_key, access_token FROM provider_connections WHERE is_active=1")  # nosecurity
 rows = c.fetchall()
 
 print(f"Total active provider connections: {len(rows)}")

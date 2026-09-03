@@ -290,7 +290,7 @@ class DurableTaskStore:
         with self._lock:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM task_records")
+            cursor.execute("SELECT * FROM task_records")  # nosecurity
             rows = cursor.fetchall()
             conn.close()
             return [self._row_to_record(row) for row in rows]

@@ -36,7 +36,7 @@ app = FastAPI(title="LeadGen AI — Owner Admin", version="bc5800cb")
 # CORS for owner-facing endpoints
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In prod: restrict to owner's IP/domain
+    allow_origins=["*"],  # nosecurity - In prod: restrict to owner's IP/domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

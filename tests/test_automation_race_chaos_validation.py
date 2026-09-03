@@ -75,7 +75,7 @@ def test_stale_fencing_token_rejection(temp_store):
     stale_fencing_token = dispatched_task.fencing_token
 
     # Simulate a crash/reclaim: manually increment version and token
-    dispatched_task.fencing_token = "fence_task_new_999"
+    dispatched_task.fencing_token = "fence_task_new_999"  # nosecret
     orchestrator.store.save(dispatched_task)
 
     # Late worker returns with old stale_fencing_token

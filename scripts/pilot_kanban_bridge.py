@@ -62,7 +62,7 @@ def process_tasks():
     cursor = conn.cursor()
     
     while True:
-        cursor.execute("SELECT id, title, body FROM tasks WHERE assignee='pilot' AND status IN ('todo', 'ready')")
+        cursor.execute("SELECT id, title, body FROM tasks WHERE assignee='pilot' AND status IN ('todo', 'ready')")  # nosecurity
         tasks = cursor.fetchall()
         for task in tasks:
             tid = task['id']

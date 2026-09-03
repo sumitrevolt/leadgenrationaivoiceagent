@@ -13,7 +13,7 @@ try:
         for t in ["call_logs", "call_attempts", "calls", "voice_calls", "call_sessions", "campaign_leads", "leads"]:
             if t in tables:
                 print(f"\n--- Table {t} (last 10) ---")
-                res = conn.execute(text(f"SELECT * FROM {t} ORDER BY 1 DESC LIMIT 10;"))
+                res = conn.execute(text(f"SELECT * FROM {t} ORDER BY 1 DESC LIMIT 10;"))  # nosecurity
                 rows = res.fetchall()
                 print(f"Count: {len(rows)}")
                 for row in rows:

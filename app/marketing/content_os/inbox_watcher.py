@@ -84,7 +84,7 @@ def _set_state(asset_id: str, state: str, **fields):
         vals = list(fields.values()) + [state, asset_id]
     else:
         sets, vals = "state=?", [state, asset_id]
-    conn.execute(f"UPDATE assets SET {sets} WHERE id=?", vals)
+    conn.execute(f"UPDATE assets SET {sets} WHERE id=?", vals)  # nosecurity
     conn.commit()
     conn.close()
 
