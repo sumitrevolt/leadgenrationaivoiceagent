@@ -311,6 +311,7 @@ def test_route_coverage_summary_recorded():
     """Records the total customer route count so a silent drop/add is
     caught. NOT an isolation assertion — a shape lock."""
     import re
+    from app.api import customer_dashboard
 
     src = open(customer_dashboard.__file__, encoding="utf-8").read()
     # Approximate — count route decorators

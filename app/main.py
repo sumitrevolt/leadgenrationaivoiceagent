@@ -647,6 +647,15 @@ app.include_router(
     analytics.router, prefix="/api", tags=["Analytics"]
 )  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+# Buzz outbound MCP tools — voice / WhatsApp / email as safe /mcp-exposed tools.
+try:
+    from app.api.buzz_mcp_tools import router as buzz_mcp_router
+
+    app.include_router(
+        buzz_mcp_router, prefix="/api", tags=["Platform", "Agents"]
+    )
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Buzz MCP tools router not mounted: {_e}")
 # Telephony provider callbacks (Vobiz voice + status). Sentry's FastApiIntegration
 # auto-captures their errors.
 try:
