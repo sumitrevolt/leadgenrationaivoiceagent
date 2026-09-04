@@ -552,4 +552,38 @@ Upar har gate ka exit-code/output line. Local-only — DEPLOY NOT DONE (user ne 
 ## 8. Compliance statement
 No DND / TRAI / consent / opt-out gate was weakened, disabled, or bypassed. No synthetic payment, no projected revenue, no estimated figure reported as collected. All probes were read-only HTTP GETs, local file reads, and local port queries. `payment_verification_method` remains `owner_confirmed_upi`; `PROVIDER_VERIFIED` was not set and remains unreachable by design.
 
+---
+
+# Daily Revenue War Room — 2026-09-04 (08:30 IST) — Sprint Day 2 of 8
+
+**Authority:** plan + local fixes only. No deploy, no SSH, no remote state change, no gate weakened.
+**Ladder:** Floor ₹9,995 / Base ₹16,000 / Stretch ₹25,000 (net-new collected). Full report: `docs/REVENUE_WAR_ROOM_2026-09-04.md`.
+
+## Findings
+1. **Production truth UNREACHABLE** — `/api/ops/revenue-summary`, `/api/billing/invoices`, `/api/ops/hotqueue` all **HTTP 401**; `data/invoices.jsonl` + `data/upi_payments.json` absent locally; no SSH (owner-gated). Revenue line = *"₹0 confirmed"*, NOT *"confirmed zero"*.
+2. **Prod healthy** — 3/3 `/health` probes 200, `37a1daf8`, `environment: production`, uptime **monotonic** `12h44m19s → 12h44m21s` (the P1 uptime-divergence signal is **not** firing).
+3. **Bot-fleet report** (`command_center/data/esc_0904_0826.jsonl`, mtime 08:27 IST): verified revenue **₹1,999 (Jiya, INV/2026-27/0001, SOLE)** · `wa_msg_id: 0` · `sip_*_len: 0,0,0,0,0` · `dialer_proc: 0` day-5 · `leads: 0` · `hot_queue_0904: ABSENT`.
+4. **Gap:** ₹0 net-new confirmed. Floor −₹9,995 · Base −₹16,000 · Stretch −₹25,000. Pace needed **₹2,286/day × 7**.
+5. **Top unresolved blocker = `BLK-11` WhatsApp send path** (rank #1, score 900). Record is contradictory (`REVENUE_BLOCKERS.md:11-16` says resolved 08-23; `progress.md:108` says `SCAN_QR_CODE` since 08-22). **Hard evidence today:** `JIYA_UPSELL_READY_TO_SEND_2026-09-03.txt` lines 69–72 PROOF-OF-SEND **still blank after 24h**.
+6. **Plan correction — Combo ₹5,999 is NOT sellable to Jiya.** `beauty_makeover` is in **no** Combo band (`app/marketing/combo_packages.py:57,91,125`). Correct ask = **Starter annual ₹19,990** (`app/marketing/packages.py:196`).
+7. Hot-queue pack job = **09:00 IST** confirmed correct (`app/worker.py:574-578` + `timezone="Asia/Kolkata"`, `enable_utc=False` at `:195-196`). The 08:26 "ABSENT" alarm was premature, not a fault.
+
+## Priorities today (owner)
+- **A1** Send Jiya **₹19,990** annual prepay (draft ready 24h). Proof: `curl -s http://127.0.0.1:3111/api/sessions/default` → `WORKING` **and** WAHA returns non-null message `id`; fill draft lines 69–72.
+- **A2** Work the 09:00 IST pack. ⚠️ Suppression fix is local-only → manually verify no row is Jiya/Kamal before sending.
+- **A3** Kamal renewal ₹1,999 (INV/0015, ~32 days overdue); +₹4,000 only if his niche is Band A/B/C — undecidable until VPS read.
+- **A4** Decide `upi_12` (blocked 13 days). No amount claimed — none is recorded anywhere reachable.
+- **A5** Provision read-only ops token + resolve the stale ratchet (§6 of the report) **after review**.
+
+## Changed (local only — NOT deployed)
+- `app/platform/hot_queue_owner_pack.py` — **existing-customer suppression** before any `wa.me`/UPI kit is built (last-10-digit match; `wa_link`-only rows covered; **fail-visible** `customer_suppression: "unverified"` instead of silent fail-open; still never raises). Fixes a proven defect: `data/hot_queue_for_owner_2026-08-31.csv`'s only row is `+919876543210` = **Jiya's own number**.
+- `tests/test_hot_queue_owner_pack.py` — 5 new tests.
+- **Gates:** 35 passed (pack + payment-path + hot queue + billing truth) · `ruff check app` clean · `prod_check` `[OK] ALL CHECKS PASSED` (1353 routes, 0 gaps, API.md 1380 ops) · `check_secrets` clean · `/health` 3× 200.
+
+## Pre-existing red — reported, NOT auto-fixed
+`tests/test_runtime_data_a7_ratchet.py::test_no_allowlist_or_baseline_relaxation` → **`assert 98 == 85`**. Proven pre-existing: `git stash push` of today's 2 files → still fails at HEAD `2e348479`; stash popped. **Not bumped unattended** — it is a pinned anti-relaxation control. Owner should also review commit `c32378f7`, which widened `access_modes` CREATE→CREATE+REWRITE and broadened two `path_pattern`s (`last_run_*.lock` → `last_run_`).
+
+## Compliance
+No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. Cold WhatsApp OFF; email cap 25/day unchanged. No synthetic/projected/estimated revenue reported as collected. `payment_verification_method` remains `owner_confirmed_upi`; `PROVIDER_VERIFIED` unset and unreachable by design.
+
 
