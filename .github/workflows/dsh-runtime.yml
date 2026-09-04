@@ -109,7 +109,7 @@ jobs:
           APP_VERSION: ${{ github.sha }}
         run: |
           # Compose still resolves env_file paths even with --no-env-resolution.
-          echo "POSTGRES_PASSWORD=ci_validation_placeholder" > .env
+          : > .env
           docker compose --file docker-compose.vps.yml --profile dsh \
             config --no-env-resolution --quiet
           rm -f .env
