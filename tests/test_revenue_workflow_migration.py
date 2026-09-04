@@ -14,10 +14,11 @@ Tests:
 from __future__ import annotations
 
 import pytest
+
 from app.platform.automation_orchestrator import AutomationOrchestrator, DurableTaskStore
 from app.platform.revenue_workflow import (
-    RevenueWorkflowEngine,
     RevenueKanbanState,
+    RevenueWorkflowEngine,
 )
 
 

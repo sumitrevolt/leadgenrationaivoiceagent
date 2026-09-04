@@ -1,4 +1,4 @@
-from app.models.base import get_db_session, _get_sync_engine
+from app.models.base import _get_sync_engine, get_db_session
 from app.models.lead import Lead
 
 engine = _get_sync_engine()

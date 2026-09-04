@@ -14,16 +14,17 @@ Tests:
 from __future__ import annotations
 
 import os
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.revenue_pipeline import RevenueLeadModel, RevenueAuditLogModel
+from app.models.revenue_pipeline import RevenueAuditLogModel, RevenueLeadModel
 from app.platform.automation_orchestrator import AutomationOrchestrator, DurableTaskStore
 from app.platform.revenue_workflow import (
-    RevenueWorkflowEngine,
     RevenueKanbanState,
+    RevenueWorkflowEngine,
 )
 
 

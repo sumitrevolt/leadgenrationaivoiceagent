@@ -1,5 +1,5 @@
-import json
 import datetime
+import json
 
 p = 'command_center/data/tasks.json'
 with open(p, encoding='utf-8') as f:
@@ -12,11 +12,16 @@ def upd(tid, status=None, last_update=None, blocker=None, eta=None, evidence=Non
     if t is None:
         print(f'MISSING {tid}')
         return
-    if status: t['status'] = status
-    if last_update: t['last_update'] = last_update
-    if blocker is not None: t['blocker'] = blocker
-    if eta: t['eta'] = eta
-    if evidence: t['evidence'] = evidence
+    if status:
+        t['status'] = status
+    if last_update:
+        t['last_update'] = last_update
+    if blocker is not None:
+        t['blocker'] = blocker
+    if eta:
+        t['eta'] = eta
+    if evidence:
+        t['evidence'] = evidence
 
 # GATE #1 — sales DID provisioning (live evidence)
 upd('SAL-001', last_update=f"{now} PILOT: ESC#15 D-0 14:55 — live call_loop: batches 2-6 (14:38-14:52 IST) SAB FAIL '911171366938 not owned', cumulative 343 'not owned' in log, ok=0 hamesha. ENG-002 spin-fix RELEASE ab working (skip=0 fail=3 RELEASED) => DID hi LAST blocker. TRAI window ~4h left. ACC 17:30 IST: purchased/activated DID proof (Vobiz Numbers items>0 YA Jio/RMS) + .env real number + 1 dial attempt with NOT-owner-free error.")

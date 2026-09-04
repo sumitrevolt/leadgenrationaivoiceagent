@@ -1,4 +1,5 @@
 from app.platform.prospector import _scraped_reject_reason
+
 result = _scraped_reject_reason('Welworth Realty', '2025530544', '', 'osm', primary_type='', types=(), business_status='')
 print(f'Reject reason: "{result}"')
 

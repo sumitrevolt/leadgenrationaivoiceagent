@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Import guard
 # ---------------------------------------------------------------------------
@@ -387,8 +386,9 @@ class TestWebhookResilience:
 
     async def test_webhook_buffer_bounded(self):
         """Webhook buffer doesn't grow past MAX_RECENT."""
-        from app.telephony.smartflo_webhooks import _MAX_RECENT, _RECENT_WEBHOOKS
         from starlette.testclient import TestClient
+
+        from app.telephony.smartflo_webhooks import _MAX_RECENT, _RECENT_WEBHOOKS
 
         # Send 250 webhooks
         for i in range(250):

@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+
 from sqlalchemy import inspect, text
-from app.models.base import get_db_session, _get_sync_engine
+
+from app.models.base import _get_sync_engine, get_db_session
 from app.models.lead import Lead, LeadSource, LeadStatus
 
 # Ensure engine is initialized

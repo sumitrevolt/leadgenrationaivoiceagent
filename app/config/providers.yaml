@@ -151,7 +151,7 @@ providers:
     test_status: "active"
     has_token: true
     key_attr: "GITHUB_API_KEY"
-    # specific: "{\"copilotToken\":\"tid=651e3b7dd7030b2903e96dc5000d0408;exp=1787534334;iat=1787447934;sku=free_limited_copilot;proxy-ep=proxy.individual.githubcopilot.c"
+    # specific: REDACTED — copilot session token scrubbed (GitGuardian incident 36718724); token env/cred-store se aata hai
 
   github-models:
     label: "main"

@@ -1,5 +1,5 @@
-import sqlite3
 import json
+import sqlite3
 
 conn = sqlite3.connect('omniroute_storage_temp.sqlite')
 conn.row_factory = sqlite3.Row

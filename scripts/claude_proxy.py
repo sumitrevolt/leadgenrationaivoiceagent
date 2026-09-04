@@ -18,7 +18,7 @@ import urllib.request
 from http import HTTPStatus
 
 UPSTREAM = os.environ.get("OMNI_UPSTREAM", "http://127.0.0.1:20128")
-UPSTREAM_KEY = os.environ.get("OMNIROUTE_API_KEY", "sk-18effe9c5f68c04f-b87d87-c952d5da")
+UPSTREAM_KEY = os.environ.get("OMNIROUTE_API_KEY", "")
 LISTEN_HOST = os.environ.get("PROXY_HOST", "127.0.0.1")
 LISTEN_PORT = int(os.environ.get("PROXY_PORT", "22000"))
 
@@ -219,7 +219,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             with urllib.request.urlopen(req, timeout=120) as resp:
                 content_type = resp.headers.get("Content-Type", "")
                 is_stream = "text/event-stream" in content_type.lower() or "chunked" in resp.headers.get("Transfer-Encoding", "").lower()
-                
+
                 try:
                     self.send_response(resp.status)
                     for k, v in resp.headers.items():
@@ -232,7 +232,7 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                             continue
                         self.send_header(k, v)
                     self.send_header("Access-Control-Allow-Origin", "*")
-                    
+
                     if is_stream:
                         self.send_header("Transfer-Encoding", "chunked")
                         self.end_headers()

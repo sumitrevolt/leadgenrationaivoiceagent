@@ -1,5 +1,5 @@
-import json
 import datetime
+import json
 
 p = 'command_center/data/tasks.json'
 tasks = json.load(open(p, encoding='utf-8'))

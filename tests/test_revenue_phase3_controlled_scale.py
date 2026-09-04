@@ -12,17 +12,19 @@ Tests:
 
 from __future__ import annotations
 
-import time
-import json
-import hmac
 import hashlib
+import hmac
+import json
+import time
+
 import pytest
+
 from app.platform.automation_orchestrator import AutomationOrchestrator, DurableTaskStore
 from app.platform.revenue_workflow import (
-    RevenueWorkflowEngine,
     RevenueKanbanState,
-    verify_webhook_signature,
+    RevenueWorkflowEngine,
     redact_sensitive_payload,
+    verify_webhook_signature,
 )
 
 
@@ -68,7 +70,7 @@ def test_webhook_hmac_signature_and_replay_protection(temp_store):
     payload_str = json.dumps(reply_payload, sort_keys=True)
     valid_sig = hmac.new(
         secret.encode("utf-8"),
-        f"{ts}.{payload_str}".encode("utf-8"),
+        f"{ts}.{payload_str}".encode(),
         hashlib.sha256,
     ).hexdigest()
 

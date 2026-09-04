@@ -1,6 +1,9 @@
-import pytest
 import os
+
+import pytest
+
 from app.telephony.trunks import list_active_trunks
+
 
 def test_jio_sip_readiness_no_creds():
     # Ensure JIO is not listed if env vars are missing

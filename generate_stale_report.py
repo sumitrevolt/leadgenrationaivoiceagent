@@ -35,16 +35,17 @@ csv_code = """1|lead_id,last_activity_date,status,block_reason,recommended_actio
 28|e312f763-3494-4c70-b043-a284b6afca9c,2026-06-07 16:43:26.825706,NEW"""
 
 output_md = "[swarm:stale_leads_processed]\n\n"
-output_md += f"**stale_count**: 27\n\n"
+output_md += "**stale_count**: 27\n\n"
 output_md += "### Stale Leads List (14+ days no touch)\n\n"
 
 for line in csv_code.split('\n'):
-    if line.startswith('1|') or not line.strip(): continue
+    if line.startswith('1|') or not line.strip():
+        continue
     parts = line.split('|')[1].split(',')
     lead_id = parts[0]
     date_str = parts[1]
     status = parts[2]
-    
+
     stage_map = {
         'NEW': 'prospect',
         'CALLBACK': 'engaged',
@@ -53,7 +54,7 @@ for line in csv_code.split('\n'):
         'QUALIFIED': 'qualified'
     }
     stage = stage_map.get(status, status)
-    
+
     if stage == 'prospect':
         staleness_reason = "No initial calling cycle triggered"
         next_action = "draft intro email"
@@ -72,9 +73,9 @@ for line in csv_code.split('\n'):
     else:
         staleness_reason = "No activity recorded beyond touch threshold"
         next_action = "owner review needed"
-        
+
     days = 80 if "06-06" in date_str else 79
-    
+
     output_md += f"- **Lead ID**: `{lead_id}` | **Stage**: `{stage}` | **Stale**: `{days} days`\n"
     output_md += f"  - **Reason**: {staleness_reason}\n"
     output_md += f"  - **Recommended Action**: {next_action}\n"

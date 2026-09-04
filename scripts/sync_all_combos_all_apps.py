@@ -5,6 +5,10 @@ import subprocess
 
 import yaml
 
+# OmniRoute loopback auth is not enforced (ADR-167); key read from env only —
+# never hardcode it (GitGuardian incident 36739747/36798909).
+OMNIROUTE_API_KEY = os.environ.get("OMNIROUTE_API_KEY", "")
+
 # Exactly 12 clean, unique OmniRoute dynamic combos with claude-omni- IDs for Claude Desktop frontend filter
 ALL_COMBOS = [
     {
@@ -209,7 +213,7 @@ def sync_workbuddy():
                     "name": c["name"],
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:22000/v1/chat/completions",
-                    "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
+                    "apiKey": OMNIROUTE_API_KEY,
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -224,7 +228,7 @@ def sync_workbuddy():
                     "name": f"{c['name']} ({c['real']})",
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:20128/v1/chat/completions",
-                    "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
+                    "apiKey": OMNIROUTE_API_KEY,
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -323,7 +327,7 @@ def sync_hermes():
                     auth_data = json.load(f)
                 if "providers" not in auth_data:
                     auth_data["providers"] = {}
-                key_val = "sk-18effe9c5f68c04f-b87d87-c952d5da"
+                key_val = OMNIROUTE_API_KEY
                 auth_data["providers"]["omniroute"] = {
                     "provider": "omniroute",
                     "api_key": key_val,
@@ -432,7 +436,7 @@ def sync_openclaw():
     try:
         data = {}
         if os.path.exists(config_path):
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 data = json.load(f)
 
         if "models" not in data or not isinstance(data["models"], dict):
@@ -468,14 +472,14 @@ def sync_openclaw():
 
         data["models"]["providers"]["omniroute"] = {
             "baseUrl": "http://127.0.0.1:20128/v1",
-            "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
+            "apiKey": OMNIROUTE_API_KEY,
             "api": "openai-completions",
             "models": omni_models,
         }
 
         data["models"]["providers"]["custom"] = {
             "baseUrl": "http://127.0.0.1:22000/v1",
-            "apiKey": "sk-18effe9c5f68c04f-b87d87-c952d5da",
+            "apiKey": OMNIROUTE_API_KEY,
             "api": "openai-completions",
             "models": custom_models,
         }

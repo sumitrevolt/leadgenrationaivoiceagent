@@ -1126,22 +1126,22 @@ var init_client = __esm({
     };
     STORE_KEY = "lg_admin_store_v1";
     DEMO_USERS = {
-      "admin@leadsgenai.in": {
+      "admin@example.com": {
         password: "admin123",
         user: {
           id: "USR-1",
           name: "Sumit Revolt",
-          email: "admin@leadsgenai.in",
+          email: "admin@example.com",
           role: "owner",
           initials: "SR"
         }
       },
-      "ops@leadsgenai.in": {
+      "ops@example.com": {
         password: "ops123",
         user: {
           id: "USR-2",
           name: "Riya Nair",
-          email: "ops@leadsgenai.in",
+          email: "ops@example.com",
           role: "operator",
           initials: "RN"
         }
@@ -1168,12 +1168,12 @@ var results = [];
 var ok = (m2) => results.push("PASS  " + m2);
 var bad = (m2) => results.push("FAIL  " + m2);
 try {
-  await api2.auth.login({ email: "admin@leadsgenai.in", password: "wrong" });
+  await api2.auth.login({ email: "admin@example.com", password: "wrong" });
   bad("bad password rejected");
 } catch (e) {
   e instanceof ApiError2 && e.status === 401 ? ok("bad password -> 401") : bad("bad password error type");
 }
-var session = await api2.auth.login({ email: "admin@leadsgenai.in", password: "admin123" });
+var session = await api2.auth.login({ email: "admin@example.com", password: "admin123" });
 ok("login ok (" + session.user.role + ")");
 var me = await api2.auth.me(session.token);
 me.id === "USR-1" ? ok("me() resolves user") : bad("me() mismatch");

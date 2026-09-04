@@ -13,11 +13,12 @@ Tests:
 from __future__ import annotations
 
 import pytest
+
 from app.platform.automation_orchestrator import (
     AutomationOrchestrator,
     DurableTaskStore,
-    TaskStatus,
     TaskPriority,
+    TaskStatus,
 )
 
 

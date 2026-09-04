@@ -1,7 +1,8 @@
-from app.models.base import _SessionLocal, _get_sync_engine
 import sqlalchemy as sa
+
+from app.models.base import _get_sync_engine, _SessionLocal
+
 _get_sync_engine()
-from app.models.base import _SessionLocal
 db = _SessionLocal()
 for q in [
     "SELECT count(*) FROM leads",

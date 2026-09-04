@@ -23,7 +23,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Import the module — guard against import failure (deps not installed)
 # ---------------------------------------------------------------------------
