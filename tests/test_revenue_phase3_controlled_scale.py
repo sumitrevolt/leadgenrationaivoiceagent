@@ -43,7 +43,7 @@ def test_alembic_migration_025_up_down():
     spec.loader.exec_module(m025)
 
     assert m025.revision == "025"
-    assert m025.down_revision == "024"
+    assert m025.down_revision == "024_add_agent_goals"  # matches 024's actual revision id
     assert callable(m025.upgrade)
     assert callable(m025.downgrade)
 

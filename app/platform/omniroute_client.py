@@ -103,8 +103,8 @@ class OmniRouteResult:
 # auto/coding:free client-side FALLBACK — free-tokens mandate + deep failover.
 _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     "leadgen.coding_primary": OmniRouteRoute(
-        primary_model="hermes-engineer",
-        fallback_model="claude-code",
+        primary_model="leadgen-free-first",
+        fallback_model="auto/coding:free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.coding_fast": OmniRouteRoute(
@@ -132,34 +132,37 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
         fallback_model="vps-01",
         privacy_class="CUSTOMER_MASKED",
     ),
+    # hermes-content/prospect/outreach/seo/governor/master gateway me EXIST
+    # NAHI karte (2026-09-04 /v1/models 505-model probe) — un ids pe route
+    # = silent 404. Gateway-verified ids pe remap kiya.
     "leadgen.marketing_content": OmniRouteRoute(
-        primary_model="hermes-content",
+        primary_model="hermes-marketing",
         fallback_model="hermes-ops",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.prospect_enrich": OmniRouteRoute(
-        primary_model="hermes-prospect",
-        fallback_model="hermes-research",
+        primary_model="hermes-research",
+        fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.outreach_email": OmniRouteRoute(
-        primary_model="hermes-outreach",
+        primary_model="hermes-sales",
         fallback_model="hermes-ops",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.seo_keyword": OmniRouteRoute(
-        primary_model="hermes-seo",
-        fallback_model="hermes-content",
+        primary_model="hermes-research",
+        fallback_model="hermes-marketing",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.governor_review": OmniRouteRoute(
-        primary_model="hermes-governor",
-        fallback_model="hermes-qa",
+        primary_model="hermes-qa",
+        fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.project_best": OmniRouteRoute(
-        primary_model="hermes-master",
-        fallback_model="leadgen-project-best",
+        primary_model="leadgen-project-best",
+        fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
 }

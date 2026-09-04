@@ -118,11 +118,17 @@ def pause(member: str, by: str = "admin", note: str = "") -> dict[str, Any]:
     return {"ok": True, **rec}
 
 
-def resume(member: str, by: str = "admin") -> dict[str, Any]:
+def resume(member: str, by: str = "admin", note: str = "") -> dict[str, Any]:
     m = _canon(member)
     if not m:
         return {"ok": False, "error": "member required"}
-    rec = {"member": m, "paused": False, "by": (by or "admin")[:80], "note": "", "at": _now_iso()}
+    rec = {
+        "member": m,
+        "paused": False,
+        "by": (by or "admin")[:80],
+        "note": (note or "")[:200],
+        "at": _now_iso(),
+    }
     _append(rec)
     try:
         from app.platform import team
