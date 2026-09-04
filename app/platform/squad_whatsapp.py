@@ -2,7 +2,7 @@
 # Responsibility: 1-click human send, WAHA integration, post-call WA replies
 # Autopilot: Never auto-send cold (ban risk); 1-click human only path
 
-from app.config.settings import settings
+from app.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)

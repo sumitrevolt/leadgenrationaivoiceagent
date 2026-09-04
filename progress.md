@@ -692,3 +692,200 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. Cold Wha
 **Secondary:** Decide on beat redistribution (add 3 more hourly beats within 9am–7pm) — if yes, update `scheduler_config.py` + re-run prod_check.
 
 **Owner action required** to commit the layer — system has done everything autonomous; remaining is owner's `git` decision.
+
+---
+
+# Day Close & Collect — 2026-09-04 (20:30 IST) — Sprint Day 2 of 8
+
+**Authority respected:** plan + local fixes only. **No deploy, no SSH, no remote state change, no compliance gate touched.**
+**Ladder in force:** Floor ₹9,995 / Base ₹16,000 / Stretch ₹25,000 (net-new **collected**, `docs/REVENUE_TARGET_REBASELINE_2026-09-03.md` §3). ₹5,00,000 = 90-day milestone, not measured here.
+
+## 1. Morning war-room action list — FOUND
+
+Source: `progress.md` §"Daily Revenue War Room — 2026-09-04 (08:30 IST)" (A1–A5), full detail in `docs/REVENUE_WAR_ROOM_2026-09-04.md`. Unlike Day 1, the war-room automation **did** run (`f040d36a`), so this close is measured against a real, dated list.
+
+## 2. Action-by-action verdict — DONE / PARTIAL / NOT-DONE
+
+| # | Action | Verdict | Evidence that proves it |
+|---|---|---|---|
+| **A1** | Send the Jiya ₹19,990 annual-prepay ask | **NOT-DONE** | `data/outreach_drafts/JIYA_UPSELL_READY_TO_SEND_2026-09-03.txt` — PROOF-OF-SEND block (lines 69–72) **still blank after 48h** (`Sent at : 2026-09-03 ___:___ IST`, `WAHA id : _______`). `curl http://127.0.0.1:3111/api/sessions/default` → **HTTP 000** (WAHA is VPS-only). Bot-fleet escalation `command_center/data/esc_0904_1252.jsonl` (ts **12:22 IST**): `"wa_msg_id": 0`, `"wa_auto_sent_none": 1829`. Jiya row in `data/marketing_clients.jsonl`: `plan` still `starter`, `updated_at` still **2026-07-11** — unchanged. |
+| **A2** | Work the 09:00 IST hot-queue pack | **NOT-DONE — and the morning's "premature alarm" verdict is now FALSIFIED** | At 08:30 IST the war-room said the bot fleet's ABSENT alarm was premature because the 09:00 job had not run yet. `esc_0904_1252.jsonl` (ts **12:22 IST**, i.e. **3h22m after** the job) still records `"hot_queue_0904": "ABSENT"`. No `data/hot_queue_for_owner_2026-09-04.*` exists on disk. The one 09-dated pack on disk — `data/hot_queue_for_owner_2026-09-01.md`, mtime **09:25 IST** — reads **"Total hot leads: 0"**. **CORRECTION (20:30 close, verified):** that file is a **git-committed artifact** (`git ls-files` → tracked; `git diff HEAD` → **clean**), and its mtime came from a checkout, **not** from a pack build. Its "0 leads" therefore says nothing about today's prod pack. The pack tests use `monkeypatch.chdir(tmp_path)` and never write to the real `data/`. **Net: today's 09:00 IST prod pack is UNVERIFIED — neither proven absent nor proven present** (`/api/ops/hotqueue` → 401, no SSH). Local store sizes recorded for reference only: `prospects.jsonl` 41 · `cadence_leads.jsonl` 2 · `deals.jsonl` 2 · `interactions.jsonl` 17 · `marketing_clients.jsonl` 8. |
+| **A3** | Pull Kamal's record, send the ₹1,999 renewal | **NOT-DONE** | No `INV/…` dated **2026-09-04** exists anywhere local (searched `data/` + repo root for `*invoice*` / `*upi*` modified today → **zero hits**). `data/marketing_clients.jsonl` has 8 rows, **none is Kamal**. `GET /api/billing/invoices` → **HTTP 401**. INV/0015 (2026-08-03) remains **~32 days overdue**. |
+| **A4** | Decide the `upi_12` ambiguous row | **NOT-DONE** | `DAY_0_REVENUE_BASELINE.md:18` still reads "`upi_12` pending OWNER decision" — unchanged since **2026-08-22 (13 days)**. Full id recovered today: **`upi_12_bd74bae8`** ("REAL-CHECK", `REVENUE_BLOCKERS.md:8`). No decision recorded in `progress.md` or `docs/` today. **No amount is claimed** — none is recorded in any reachable file. |
+| **A5** | Make collections verifiable | **PARTIAL** — ratchet half **DONE**, ops-token half **NOT-DONE** | **DONE:** `pytest tests/test_runtime_data_a7_ratchet.py -q` → **6 passed** (was red `assert 98 == 85` at 08:30 IST). Now pinned **92 / 793**, runtime truth confirms `allowlist=92 baseline=793`. **NOT-DONE:** `GET /api/ops/revenue-summary`, `/api/billing/invoices`, `/api/ops/hotqueue` → **HTTP 401** (3/3); `/api/admin/revenue` → 404. No `OPS*`/`ADMIN*` token key exists in `.env`; `.env.example` defines **no** read-only ops token at all. |
+
+### ⚠️ New control finding — ratchet re-pin needs owner eyes (reported, NOT auto-fixed)
+
+`EXPECTED_ALLOWLIST_ENTRIES` moved **85 → 92** and `EXPECTED_BASELINE_FINGERPRINTS` moved **839 → 793** in merge commit **`79f5b0a6`** (2026-09-04 11:03 UTC = **16:33 IST**, "merge all local workspaces… (#457)").
+- The **+7** is documented in the merge log ("classify TASK_LI-001 enrichment paths (7 allowlist entries)") — appears legitimate.
+- The **−46 fingerprints** (839 → 793) has **no matching explanation** in any commit message in that merge. A *decreasing* fingerprint baseline on a ratchet is the direction that deserves scrutiny.
+- **No action taken.** This is a pinned anti-relaxation control; it was deliberately not bumped or reverted unattended. Owner should review the −46 before the next sprint day.
+
+## 3. Revenue — verified collections
+
+| Metric | Value | Source |
+|---|---|---|
+| **Collected today (2026-09-04)** | **₹0 confirmed** — *the ledger is unreachable, so this is "no confirmed collection", NOT "confirmed zero"* | No invoice / UTR / receipt artifact written today anywhere in the repo. Admin endpoints 401. Ledger files `data/invoices.jsonl`, `data/upi_payments.json`, `data/payments.jsonl` **absent locally**. |
+| **Net-new collected, sprint Day 2** | **₹0** | Derived from the line above |
+| **Running net-new total (Day 1 + Day 2)** | **₹0** | Day 1 = ₹0 (`progress.md` §"Day Close & Collect — 2026-09-03") + Day 2 = ₹0 |
+| **Gap to Floor ₹9,995** | **₹9,995** (100% remaining) · pace ₹1,666/day × 6 | Arithmetic on ladder §3 |
+| **Gap to Base ₹16,000** | **₹16,000** (100% remaining) · pace **₹2,667/day × 6** | Arithmetic on ladder §3 |
+| **Gap to Stretch ₹25,000** | **₹25,000** (100% remaining) · pace ₹4,167/day × 6 | Arithmetic on ladder §3 |
+| Days remaining in window | **6** (Sep 5–10; window Sep 3–10 = 8 days, Day 2 done) | `REVENUE_TARGET_REBASELINE_2026-09-03.md` §3 |
+
+**Independent cross-check (bot fleet, not the admin API):** `esc_0904_1252.jsonl` — `"verified_revenue": "Rs1,999 (Jiya INV/2026-27/0001 SOLE)"`, i.e. **lifetime verified cash is still the single Jiya invoice.** No second payer has appeared in 48h.
+
+**Baseline dispute — carried forward, still unresolved (do NOT silently pick one):**
+- `DAY_0_REVENUE_BASELINE.md:16` — lifetime **₹7,997**, MRR ₹3,998, 2 customers; its own line items (3 × ₹1,999) sum to **₹5,997** — an unexplained ₹2,000 gap.
+- Bot fleet + `memory/decisions.md:1150` — **₹1,999** verified cash (Jiya only).
+- **Planning rule in force:** treat ₹1,999–₹3,998 as verified cash; ₹5,997 / ₹7,997 as unverified. Does not move the ladder (which measures *net-new*), but reporting must stay honest.
+
+## 4. Pending money
+
+### 4a. UPI awaiting owner confirmation
+| Item | Amount | Age | Source | Status |
+|---|---|---|---|---|
+| **`upi_12_bd74bae8`** ("REAL-CHECK") | **Not recorded in any reachable file — no figure claimed.** | **13 days** (since 2026-08-22) | `DAY_0_REVENUE_BASELINE.md:18`; `REVENUE_BLOCKERS.md:8` | **PENDING OWNER DECISION** — approve or reject. Blocks the payment-authorization gate. |
+| All other pending UPI | — | — | — | **UNVERIFIABLE.** Queue lives in `data/upi_payments.json` on the VPS (absent locally); admin API 401. Cannot enumerate — refusing to guess. |
+
+**No UPI row was bound, approved, or rejected today.**
+
+### 4b. Warm leads needing follow-up before tomorrow
+| # | Lead | Why now | Ask | Blocker |
+|---|---|---|---|---|
+| 1 | **Jiya Makeover** (`jiya-makeover`, +919876543210) | **Only payer. Renewal overdue** (≈29-day cycle ⇒ Sep 1–3 due). `plan` still `starter` since 2026-07-11. | **Starter annual ₹19,990** (10 × ₹1,999). Combo ₹5,999 is **ineligible** — `beauty_makeover` is in no Combo band (`app/marketing/combo_packages.py`). | WhatsApp only (no email in record). WAHA unproven; draft unsent 48h. |
+| 2 | **Kamal** (INV/0015, ₹1,999, 2026-08-03) | **~32 days overdue** | Renewal ₹1,999; **+₹4,000** only if niche ∈ Band A/B/C — undecidable until VPS read | Zero local data; VPS lookup required |
+| 3 | **Hot queue (42 claimed warm leads)** | **Count still not reproducible on Day 2.** No 0904 pack; local regeneration shows **0** hot leads | 1-click WA + UPI deep-link (PR #430, live) | Admin-gated (401); 0904 pack genuinely ABSENT at 12:22 IST |
+| 4 | **Owned Task Biz** (`data/deals.jsonl:1`, stage `negotiating`, touched today 16:22 IST) | Stage advanced today | Verify first — phone `9876543210` **collides with the Sharma Solar test record** | Likely test data. Do **not** contact until confirmed genuine. |
+| 5 | **Sharma Salon** (`data/deals.jsonl:2`, stage `new`, created today **20:18 IST**) | Only genuinely new lead of the day; niche `salon_spa` | Verify, then qualify | Phone `9998887777` is a placeholder pattern. Treat as unverified until confirmed. |
+
+## 5. Biggest blocker that cost the most revenue today
+
+**BLK-11 — the WhatsApp send path has never produced a message id.** `wa_msg_id: 0` with `wa_auto_sent_none: 1829` (`esc_0904_1252.jsonl`, 12:22 IST), confirmed again by HTTP 000 on the local WAHA probe at 20:33 IST.
+
+- **Blocked amount: ₹19,990** (Jiya annual prepay) = **125% of the ₹16,000 base target**, sitting in a file, ready since 2026-09-03 09:38 IST, **unsent at close on Day 2**.
+- **Why it outranks the rest:** A2/A3/A4/A5 block *measurement or targeting*. This one blocks an **already-drafted, already-verified, highest-probability cash ask** against the **only paying customer** — and it was fully actionable today.
+
+**Systemic amplifier — recorded because it is the reason all five actions stalled at once:**
+Today's engineering output was `083944f5` (18:50 IST) and `7d6f2595` (19:10 IST), **both `feat(video)`** — HyperFrames video pipeline, knowledge-base grounding, product consoles. **Zero commits touched the revenue path.** Additionally 2 untracked console test files sit uncommitted. The morning's ranked list (A1 = send ₹19,990) was displaced by feature work on the two slots when the owner was active (18:50–19:10 IST). Gates are green on that work (38 tests passed) — it is not wasted, but it is off-ladder.
+
+**Runner-up:** no ops token ⇒ every close reports "unverifiable". Day 2 proved the cost: the ladder cannot be measured at all, and A2's "is the pack broken?" question is unanswerable from here.
+
+## 6. Production state at close (read-only observation — NOT changed by this run)
+
+| Check | Result |
+|---|---|
+| `https://leadsgenai.in/health` | **4/4 probes `healthy`**, 20:33:35–20:33:36 IST, 0.21–0.22s |
+| Version | **`37a1daf8`** — unchanged since yesterday's close (the cross-branch move flagged on 2026-09-03 is now stable, no further drift) |
+| Uptime | **7h 31m 58s → 7h 31m 59s** across 4 samples — **monotonic**. App restarted ≈ **13:01 IST today**. The P1 uptime-divergence signal is **not** firing. |
+| `environment` | `production` |
+| `dsh_runtime_enabled` / `dsh_shadow_enabled` | `true` / `true`, allowlist `["jiya_makeover"]` |
+
+**Local gates (all green, run this close):** ratchet **6 passed** · hot-queue pack **9 passed** · billing truth **15 passed** · console marketing+voice **38 passed**.
+
+**Carried local-tooling note:** Hermes backend `127.0.0.1:9119` **LISTENING pid 35452** (unchanged pid since yesterday 20:35 ⇒ **~30h sustained**, well past the ~6h mark). Ports 20128 / 22000 also listening. Only 1 `hermes.exe` process visible at close (vs 7 yesterday) — not treated as a fault, but the durable fix (enabling the disabled `LeadGen-OmniRoute-DSH-AutoStart` scheduled task) is still **not done**.
+
+## 7. Tomorrow's top 3 priorities (2026-09-05)
+
+**P1 — Send the Jiya ₹19,990 ask. Today. Before anything else. (≈10 min, 125% of base)**
+1. On the VPS: `curl -s http://127.0.0.1:3111/api/sessions/default` → require `"status":"WORKING"`. If `SCAN_QR_CODE`, scan first.
+2. Send verbatim from `data/outreach_drafts/JIYA_UPSELL_READY_TO_SEND_2026-09-03.txt`.
+3. **Fill lines 69–72** (time / reply / WAHA id) — the blank block is now the single most damaging artifact in the repo. On "haan" → generate the UPI link and send it.
+4. Fallback if she declines: the §6.1 line in the same file locks the monthly ₹1,999 (prevents churn of the only payer).
+*Non-negotiable framing:* this is Day 3 of an 8-day window with ₹0 collected. Feature work must not displace it again.
+
+**P2 — Fix the missing 09:00 IST hot-queue pack. (≈20 min, rebuilds the funnel)**
+1. The 08:30 "premature alarm" verdict was **wrong** — the pack was still ABSENT at 12:22 IST. Treat it as a real fault until proven otherwise.
+2. On the VPS: `docker exec leadgen_app ls -la /opt/leadgen/data/hot_queue_for_owner_2026-09-04.*` and check the Celery beat log for the 09:00 job.
+3. If the pack ran but wrote 0 rows, the lead store is empty (local `prospects.jsonl` = 41 rows, **0** marked hot) — then prospecting is the real gap, not the job.
+4. Manually suppress **+919876543210** (Jiya) and Kamal before any send: the deployed pack still lacks the customer-suppression guard shipped locally today.
+
+**P3 — Make Day 3's close measurable. (≈20 min, ₹0 direct)**
+1. Provision a read-only ops token — `.env.example` has **no** such key today, which is why 3/3 ops endpoints return 401.
+2. Decide **`upi_12_bd74bae8`** — approve or reject. 13 days on the payment-authorization gate.
+3. Review the ratchet re-pin in `79f5b0a6`: **+7** allowlist entries are documented, but the **−46** fingerprint drop (839 → 793) is not.
+4. Enable the disabled `LeadGen-OmniRoute-DSH-AutoStart` scheduled task (durable fix for the Hermes 9119 backend — do not write a new watchdog).
+
+## 8. Compliance statement
+No DND / TRAI / consent / opt-out gate was weakened, disabled, or bypassed. Cold WhatsApp remains OFF; the email cap is unchanged. No synthetic, projected, or estimated revenue was reported as collected — every figure is either cited to a source or explicitly marked unverifiable. All probes were read-only HTTP GETs, local file reads, local port queries, and local pytest runs. No deploy, no SSH, no remote state change. `payment_verification_method` remains `owner_confirmed_upi`; `PROVIDER_VERIFIED` was not set and remains unreachable by design.
+
+---
+
+# Loop Run — 2026-09-04 (post-close) — Dead admin/squad modules + hot-queue filename contract
+
+**Date:** 2026-09-04 · **Goal:** convert the two open questions from the day-close into answers — (1) is the 09:00 IST hot-queue pack actually broken (A2), and (2) is the ratchet's −46 fingerprint drop a silent loosening (P3.3). **Authority: plan + local fixes only — no deploy, no SSH, no remote state change.**
+
+## Inspected
+- `app/platform/hot_queue_owner_pack.py:129-131` — pack writer, date-suffixed filename, UTC date
+- `app/platform/hot_queue_followup.py:31-32,49` — second writer, date-suffixed, absolute `/opt/leadgen/data/`
+- `app/platform/admin_api.py:27-50` — `hot_queue_status` reader
+- `app/worker.py:59-60,198-199,579-580` — 09:00 IST beat registration + task registry
+- `app/config.py` + `app/config/` — settings module resolution
+- `app/platform/runtime_data_baseline.py`, `runtime_data_allowlist_entries.py` — ratchet pins
+- `command_center/data/cc_pilot_0904_*.py` — bot-fleet escalation evidence
+
+## Problems Found
+
+**P1 — Filename contract mismatch (root cause of the "hot_queue ABSENT" alarm chain).**
+Both writers emit a **date-suffixed** name (`hot_queue_for_owner_<YYYY-MM-DD>.{csv,md}`), but the reader `admin_api.hot_queue_status` looked for the **unsuffixed** `hot_queue_for_owner.csv/.md`. **No writer anywhere produces the unsuffixed name** — verified by repo-wide grep. So the status endpoint could only ever report `csv_exists: false, rows: 0`, regardless of whether the pack job succeeded. Secondary defects: the writer uses a **relative** `data/...` path (CWD-dependent) while the sibling writer uses an absolute one, and stamps the **UTC** date while the beat is **IST**.
+- Caveat, stated honestly: this fixes a **latent** bug. The bot-fleet alarm was NOT produced by this endpoint (see P2 — the module could never import), so this alone does not explain the ABSENT reports.
+
+**P2 — `app.config.settings` import is broken → 4 modules were never importable.**
+`app/config.py` is a module and `app/config/` has **no `__init__.py`**, so `from app.config.settings import settings` raises `ModuleNotFoundError`. Every other module in the repo uses `from app.config import settings`. Affected: `admin_api.py`, `squad_billing.py`, `squad_marketing.py`, `squad_whatsapp.py`, and transitively `owner_admin.py`.
+- **Blast radius verified as ZERO live impact:** `main.py` mounts `app.api.admin` (a different module); nothing in `app/` imports `owner_admin`; `hot_queue_followup` is **not** in the worker task registry. These are orphaned modules — which is also why `/api/admin/*` returned 404 in this evening's probes.
+
+**P3 — ⚠️ `check_gates` DOES NOT EXIST — fabricated verification evidence in the ledger.**
+`app/platform/hot_queue_owner_pack.py` defines only `_last10`, `_row_phones`, `_existing_customer_phones`, `build_owner_pack`, `_push_ntfy` and exports `__all__ = ["build_owner_pack"]`. There is **no `check_gates`**. Yet **6 call sites in 4 modules** import it, including `admin_api.py:13` — the `_gate_check()` dependency that gates **every** `/admin/*` endpoint.
+- The 2026-09-03 loop run recorded: *"MODIFIED: app/platform/hot_queue_owner_pack.py — `check_gates()` function enhanced to return dict with all gate statuses"* and *"Verification Evidence: GET /admin/hotqueue returns 42-lead status"*. **Neither is reproducible — the symbol is absent, so that evidence could not have been obtained.**
+- **Current failure mode is FAIL-CLOSED** (`ImportError`), which is the safe direction. **Deliberately NOT implemented here** — inventing a compliance gate risks a fail-open gate, which is far worse than an ImportError.
+- **⚠️ Second-order contract mismatch — a naive fix would brick the admin surface.** `admin_api._gate_check()` (`:16`) computes `open_gates = [k for k, v in gates.items() if v != "pass"` and raises **403 if any value is not the literal string `"pass"`**. The nearest real function, `app/telephony/voice_launch.py:1333 launch_status()`, returns a rich ops dict whose values are **bools / ints / dicts / None** (`campaign_enabled`, `admin_kill_engaged`, `daily_cap`, `attempts_today`, `circuit_open`, `recording_ok`, `state`, `dispositions_today`, …) — **zero** values are the string `"pass"`. Wiring it in as-is ⇒ **every `/admin/*` endpoint 403s permanently**. Same problem with `app/platform/squad_cicd.py:40 check_prod_gates()`, which returns `{"status", "passed", "output"}`.
+- **Therefore the fix requires an explicit adapter**, not a one-line repoint: map the real primitives onto the `{"<gate>": "pass" | "<reason>"}` contract. That mapping is a **compliance-semantics decision** (which primitives are hard gates vs. informational, and what counts as pass) — owner-owned, not to be guessed unattended.
+- **Canonical primitives located so the fix is ~10 min, not a research project:**
+  - Kill fence / eligibility / circuit / recording / campaign state → `app/telephony/voice_launch.py` (`launch_status()` `:1333`, `admin_kill_status()`, `circuit_open()`, `recording_gate_ok()`), exposed live at `app/api/admin_ops.py` `/voice-launch/status` + `/voice-launch/kill`
+  - DND scrub → `app/automation/orchestrator_pipeline.py:340 _stage_dnd_scrub`
+  - Voice-window / TRAI + flag manifest → `app/platform/automation_flag_manifest.py:263` (`VOICE_LAUNCH_KILL`) and `app/api/automation_flags.py:67`
+  - The `"pass"` string convention itself is used by `app/platform/squad_cicd.py daily_ci_status()` — adopt that convention in the adapter.
+
+**P4 — Two further broken squad imports (reported, not fixed).**
+`squad_voice_calling` → `cannot import name 'STAFF_JOBS_VALID' from app.platform.team_scheduler`. `squad_knowledge` → imports `scripts.gen_knowledge_domains`, resolving **outside the repo** to `C:\Users\Ratanshila\.openclaw\workspace\scripts\...`.
+
+**P5 — Ratchet −46: EXPLAINED, not a silent loosening (this closes P3.3 from the day-close).**
+Across merge `79f5b0a6`: baseline **REMOVED 73 · ADDED 27 · NET −46** (839 → 793). Cause: **the baseline was regenerated under a different scanner** — `SCANNER_VERSION` moved `app.platform.runtime_data_scan@cb5e19a` → `@03296608`, and the entry format changed (double→single quotes). A wholesale regeneration with a new scanner legitimately produces a different finding set. Allowlist **+7** (85→92) remains separately documented ("classify TASK_LI-001 enrichment paths"). Downgraded from *suspicious* to *explained*; a one-line owner acknowledgement is still appropriate since the two sides of the boundary are not directly comparable.
+
+## Changed (local only — NOT deployed)
+- **`app/platform/admin_api.py`** — (a) `hot_queue_status` now resolves the **date-suffixed** pack via glob, preferring the most recently modified match, with the unsuffixed name kept as a legacy fallback; timezone-agnostic, so it is correct whether the writer stamped UTC or IST. Also returns `csv_path` / `md_path` so the resolved filename is auditable. (b) Fixed the broken import to `from app.config import settings`.
+- **`app/platform/squad_billing.py`, `squad_marketing.py`, `squad_whatsapp.py`** — same one-line import fix (`from app.config import settings`).
+- The original fingerprinted assignment lines in `admin_api.py` were **preserved** so the runtime-data baseline stays matched.
+
+## Tests Run
+- `pytest tests/test_runtime_data_a1_ratchet.py tests/test_runtime_data_a7_ratchet.py -q` → **17 passed** (the pinned anti-relaxation control is **still green** — the pin was **not** touched)
+- `pytest tests/test_hot_queue_owner_pack.py -q` → **9 passed**
+- `scripts/prod_check.py` → **`[OK] ALL CHECKS PASSED - ready to deploy`**, **1382 routes** (unchanged), 58 pages 0 gaps, orphans 0, engine coverage 98/98
+- `ruff check` on all 4 changed files → **All checks passed**
+- Import sweep of 13 admin/squad modules → **9 import OK** (was 0 for admin_api + 3 squads); the 4 failures are P3/P4, deliberately not patched
+
+## Verification Evidence
+- `admin_api` now imports and exposes 9 routes: `/hotqueue`, `/compliance`, `/deploy/initiate`, `/squads`, `/knowledge/query`, `/controls`, `/videos`, `/videos/generate`, `/social/post`
+- **Route count unchanged at 1382** before/after → confirms the repaired modules are still **not mounted**, so no new public surface was created
+- `git diff HEAD -- data/hot_queue_for_owner_2026-09-01.md` → **clean**, proving that file is a committed artifact and its 09:25 IST mtime came from a checkout, not a pack build
+- Repo-wide grep confirms **zero** writers of the unsuffixed `hot_queue_for_owner.csv`
+- Worker registry confirms only `hot_queue_brief` + `hot_queue_owner_pack` are registered tasks → `hot_queue_followup`'s broken import has **no** live worker impact
+
+## Risks
+- **P3 is the real risk and it is unresolved by design.** Six call sites depend on a compliance-gate function that does not exist. Repairing it must be an owner decision with the canonical gate semantics, not an unattended patch.
+- My import fixes make previously-dead modules importable. Verified safe (nothing mounts them), but if `owner_admin` is ever wired in, **P3 must be fixed first** or every `/admin/*` endpoint will 500 on `check_gates`.
+- The filename fix is **not deployed**, so prod's status endpoint still reports `csv_exists: false` today. Do not read tomorrow's ABSENT as proof the pack is broken until this is deployed.
+
+## Remaining
+- **OWNER P0:** implement `check_gates()` in `app/platform/hot_queue_owner_pack.py` as an **adapter** over the real primitives above, returning `{"<gate>": "pass" | "<reason>"}` per the `daily_ci_status()` convention — or repoint all 6 call sites at a new canonical module. **Do NOT wire `launch_status()` in directly** (per the second-order mismatch above, that 403s the entire surface). Do not ship the admin surface before this.
+- **OWNER P1:** reconcile the 2026-09-03 loop run's verification claims against reality — that entry records evidence that cannot have been obtained.
+- **OWNER P2:** fix `squad_voice_calling` (`STAFF_JOBS_VALID`) and `squad_knowledge` (out-of-repo import into `.openclaw\workspace`).
+- Unify the pack writers on one absolute, IST-stamped path (`DATA_DIR`-based) — currently one is relative+CWD-dependent and UTC-stamped, the other absolute.
+
+## Next Highest Priority
+Deploy the two `admin_api.py` fixes (filename contract + import) via the canonical `scripts/deploy_vps.sh` with an explicit `APP_VERSION`, **but only after `check_gates` is restored** — otherwise the endpoint resolves the right file and still 500s on the gate. Alongside it, unify the pack writers onto an absolute IST-stamped path.
+
+## Compliance
+No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed — and critically, **none fabricated**: the missing `check_gates` was reported rather than invented, because an invented gate risks fail-open. No compliance gate, allowlist entry, or ratchet pin was relaxed; the ratchet pin was verified green and left untouched. Cold WhatsApp OFF, email cap unchanged. Local-only changes; no deploy, no SSH, no remote state change.
+
+---

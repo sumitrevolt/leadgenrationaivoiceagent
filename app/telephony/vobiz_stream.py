@@ -606,16 +606,35 @@ class VobizStreamSession:
         lead_phone: str | None = None,
         crm_lead_id: str | None = None,
         opening_line: str = "",
+        template_id: str | None = None,
+        voice_role: str | None = None,
     ) -> None:
         self.ws = websocket
         self.niche = (niche or "general").strip() or "general"
+        # Call template the console selected for this call (see _answer_stream_qs).
+        # Session-scoped, NOT yet consumed by TelecallerBrain — its __init__ takes
+        # (niche, client_name, client_id, voice_role) and has no template param, so
+        # threading it there would be a TypeError on every live call. Carried here
+        # so downstream consumers (CallLog / flow selection) can read it once the
+        # brain learns about templates.
+        self.template_id: str | None = (str(template_id).strip()[:64] or None) if template_id else None
         # Explicit caller-provided opener (audit auto-callback → wizard opening).
         # Same _flywheel_opening_override slot _resolve_voice_variant use karta hai;
         # caller intent wins, isliye resolve step ise overwrite nahi karta.
         self._caller_opening_line: str | None = (opening_line or "").strip() or None
         self.client_id = client_id
         self.client_name = client_name or "Demo Co"
+        # Seeded from the query string (the rail that actually reaches us — Vobiz
+        # sends no customParameters on a real call). The `start` handler still lets
+        # customParameters win if they ever appear.
         self.voice_role = "telecaller"
+        if voice_role:
+            try:
+                from app.voice_agent.voice_roles import normalize_role
+
+                self.voice_role = normalize_role(voice_role)
+            except Exception:
+                pass
         # Stable per-LEAD id for cross-session agent memory + close-signal durable
         # actions (deal write / WhatsApp send need the dialed number). 2026-07-03:
         # now threaded from start_stream_call's `to` via the answer-url/WS query
@@ -908,10 +927,16 @@ class VobizStreamSession:
             params = start.get("customParameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
             self.client_id = params.get("client_id") or self.client_id
+            _tpl = str(params.get("template_id") or "").strip()[:64]
+            if _tpl:
+                self.template_id = _tpl
             try:
                 from app.voice_agent.voice_roles import normalize_role
 
-                raw_role = params.get("voice_role") or params.get("flow") or "telecaller"
+                # customParameters win, then the query-string value seeded in
+                # __init__, then the default. Previously the fallback was a bare
+                # "telecaller", which silently discarded the constructor value.
+                raw_role = params.get("voice_role") or params.get("flow") or self.voice_role
                 self.voice_role = normalize_role(raw_role)
             except Exception:
                 self.voice_role = "telecaller"

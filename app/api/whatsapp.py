@@ -11,6 +11,9 @@ Mounted at ``/api`` -> all paths here live under ``/api/wa/*``.
   GET  /api/wa/campaigns              — queued drip/reactivation campaigns          [admin]
   POST /api/wa/campaign/schedule      — queue a campaign for a date                 [admin]
   POST /api/wa/campaign/run           — run due campaigns now (manual trigger)      [admin]
+  GET  /api/wa/drafts                 — pending would-send drafts (human queue)     [admin]
+  POST /api/wa/drafts/{id}/sent       — mark a draft as sent by hand (idempotent)   [admin]
+  POST /api/wa/drafts/{id}/dismiss    — drop a draft from the queue                 [admin]
   GET  /api/wa/webhook                — Meta verify challenge (hub.challenge)       [PUBLIC]
   POST /api/wa/webhook                — Meta inbound messages/statuses              [PUBLIC, signed]
 
@@ -31,7 +34,7 @@ import logging
 import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
@@ -83,6 +86,7 @@ async def wa_status(current_user: User = Depends(require_admin)) -> dict[str, An
         "allowlist_graduated": graduated,  # True only when the list is exactly '*'
         "sends_possible": sends_possible,  # the honest "can anything actually go out"
         "blocked_by_reason": wa_int.block_stats(),  # no PII — reason codes only
+        "pending_drafts": wa_int.pending_drafts_count(),  # human-send backlog size
         "daily_cap": wac.daily_cap(),
         "sent_today": wac.sent_today_count(),
         "send_spacing_s": wac.send_spacing_s(),
@@ -224,6 +228,71 @@ async def run_campaigns(current_user: User = Depends(require_admin)) -> dict[str
     from app.marketing import wa_campaign_runner as runner
 
     return await runner.run_due()
+
+
+# --------------------------------------------------------------------------- #
+# Pending drafts — the human-send queue
+# --------------------------------------------------------------------------- #
+# Every gate-denied send already builds a ban-safe wa.me link; that would-send is now
+# persisted instead of discarded, so there is a queue to work rather than only a
+# counter. These routes are the inbox for it.
+#
+# They TRANSMIT NOTHING. A human taps the wa.me link in their own WhatsApp, which
+# carries no ban risk — flipping WHATSAPP_AUTO_SEND is what carries the risk, and
+# nothing in this module can do that.
+@router.get("/drafts")
+async def list_drafts(
+    limit: int = 50, current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Pending would-send drafts, newest first.
+
+    Each draft carries the gate ``reason`` that blocked it. That field is not
+    decorative — a draft blocked as ``opted_out``/``suppressed`` is a number that
+    asked us not to message it, and must not be sent by hand either.
+    """
+    from app.integrations import whatsapp as wa_int
+
+    safe_limit = max(1, min(limit, 500))
+    drafts = wa_int.list_pending_drafts(safe_limit)
+    return {
+        "drafts": drafts,
+        "returned": len(drafts),
+        "total_pending": wa_int.pending_drafts_count(),
+        "cap": wa_int.draft_cap(),
+        "limit": safe_limit,
+        "note": "Human-send queue: read each draft's `reason` before sending.",
+    }
+
+
+@router.post("/drafts/{draft_id}/sent")
+async def mark_draft_sent(
+    draft_id: str, current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Mark a draft as sent by hand. Idempotent — a repeat call is a 200 no-op.
+
+    Records only that the human sent it; nothing is transmitted from here.
+    """
+    from app.integrations import whatsapp as wa_int
+
+    row = wa_int.mark_draft_sent(draft_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="draft_not_found")
+    return {"ok": True, "id": draft_id, "sent": True, "already": bool(row.get("already"))}
+
+
+@router.post("/drafts/{draft_id}/dismiss")
+async def dismiss_draft(
+    draft_id: str, current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Drop a draft from the queue — the human judged it not worth sending.
+
+    A repeat call 404s, because the row is genuinely gone by then.
+    """
+    from app.integrations import whatsapp as wa_int
+
+    if not wa_int.dismiss_draft(draft_id):
+        raise HTTPException(status_code=404, detail="draft_not_found")
+    return {"ok": True, "id": draft_id, "dismissed": True}
 
 
 # --------------------------------------------------------------------------- #

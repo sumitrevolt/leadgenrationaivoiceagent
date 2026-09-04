@@ -261,7 +261,7 @@
           </section>
 
           <section class="ax-panel">
-            <header class="ax-panel__hd"><div class="ax-panel__title"><div class="ax-title">Add knowledge</div></header>
+            <header class="ax-panel__hd"><div class="ax-panel__title"><div class="ax-title">Add knowledge</div></div></header>
             <div class="ax-panel__bd">
               <div class="ax-field">
                 <label class="ax-field__label ax-label" for="kb-source-label">Source label</label>
@@ -330,7 +330,7 @@
           </section>
 
           <section class="ax-panel">
-            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">How OAuth works here</div></header>
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">How OAuth works here</div></div></header>
             <div class="ax-panel__bd">
               <div class="ax-mono-block">
 1. Click <em>Connect</em>. A short-lived state token protects against CSRF.
@@ -407,6 +407,38 @@
               <button class="ax-btn ax-btn--primary" id="auto-save">Save &amp; check gates</button>
               <div class="ax-grow"></div>
               <span class="ax-chip ax-chip--slate" id="auto-gate-chip"><span class="ax-chip__dot"></span><span id="auto-gate-text">unsaved</span></span>
+            </div>
+          </section>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd">
+              <div class="ax-panel__title">
+                <div class="ax-title">Governed test call</div>
+                <div class="ax-body ax-muted">Fires ONE call through the same gates the campaign loop obeys — admin kill switch, circuit breaker, per-tenant daily cap, then per-lead compliance. Every gate is reported in order, with the reason it stopped. A call that cannot be placed honestly says so.</div>
+              </div>
+            </header>
+            <div class="ax-panel__bd">
+              <div class="ax-field-row">
+                <div class="ax-field">
+                  <label class="ax-field__label ax-label" for="tc-phone">Destination number</label>
+                  <input class="ax-input" id="tc-phone" type="tel" inputmode="numeric" placeholder="10-digit mobile" autocomplete="off">
+                </div>
+                <div class="ax-field">
+                  <label class="ax-field__label ax-label" for="tc-tpl">Template</label>
+                  <select class="ax-select" id="tc-tpl"><option value="">— use active template —</option></select>
+                </div>
+              </div>
+              <label class="ax-switch ax-gap-lg">
+                <input type="checkbox" id="tc-dry" checked>
+                <span class="ax-switch__track"></span>
+                <span class="ax-switch__text"><strong>Dry run</strong> — build and validate the whole chain but do not dial. Turning this off places a real, billed call.</span>
+              </label>
+              <div class="ax-row ax-row--tight" id="tc-trace" role="list" hidden></div>
+            </div>
+            <div class="ax-panel__ft">
+              <button class="ax-btn ax-btn--primary" id="tc-run">Run governed test call</button>
+              <div class="ax-grow"></div>
+              <span class="ax-chip ax-chip--slate" id="tc-chip"><span class="ax-chip__dot"></span><span id="tc-chip-text">idle</span></span>
             </div>
           </section>
         </section>
@@ -859,6 +891,7 @@
       $$('[data-tpl]').forEach((b) => b.addEventListener("click", () => openTemplate(b.dataset.tpl)));
 
       $("#auto-gate-text").textContent = (a.active && a.active.template_id) ? "configured" : "no template";
+      renderTestCallTemplates();
     }
     async function openTemplate(tid) {
       try {
@@ -907,6 +940,62 @@
         toast(r.live ? "Automation is live" : "Saved · " + (r.gates[0] || "gates pending"), r.live ? "ok" : "warn");
         await load();
       } catch (e) { toast(e.message, "error"); }
+    });
+
+    /* ---------- governed test call ---------- */
+    function renderTestCallTemplates() {
+      const a = B.automation || {};
+      const sel = $("#tc-tpl");
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— use active template —</option>' +
+        (a.templates || []).map((t) => `<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)}</option>`).join("");
+      sel.value = cur || ((a.active && a.active.template_id) || "");
+    }
+
+    function renderTrace(steps) {
+      const box = $("#tc-trace");
+      if (!steps || !steps.length) { box.hidden = true; box.innerHTML = ""; return; }
+      box.hidden = false;
+      box.innerHTML = steps.map((s, i) => `
+        <div class="ax-step" role="listitem" data-state="${s.ok ? "done" : "blocked"}">
+          <div class="ax-step__idx" aria-hidden="true">${i + 1}</div>
+          <div class="ax-step__body">
+            <div class="ax-step__t">${escapeHtml(s.step)}</div>
+            <div class="ax-step__d ax-muted">${escapeHtml(s.detail || (s.ok ? "passed" : "stopped"))}</div>
+          </div>
+          <div class="ax-step__act"><span class="ax-chip ${s.ok ? "ax-chip--green" : "ax-chip--rose"}"><span class="ax-chip__dot"></span>${s.ok ? "pass" : "stop"}</span></div>
+        </div>`).join("");
+    }
+
+    $("#tc-run").addEventListener("click", async () => {
+      const btn = $("#tc-run");
+      btn.disabled = true; btn.textContent = "Running…";
+      try {
+        const r = await api("/api/consoles/automation/test-call", {
+          method: "POST",
+          body: JSON.stringify({
+            phone: $("#tc-phone").value,
+            template_id: $("#tc-tpl").value,
+            dry_run: !!$("#tc-dry").checked,
+          }),
+        });
+        renderTrace(r.steps);
+        const note = r.note ? (" " + r.note) : "";
+        if (r.placed && r.dry_run) {
+          $("#tc-chip-text").textContent = "chain verified · no call placed";
+          $("#tc-chip").className = "ax-chip ax-chip--cyan";
+          toast("Chain verified — dry run, no call was placed.", "ok");
+        } else if (r.placed) {
+          $("#tc-chip-text").textContent = "call placed";
+          $("#tc-chip").className = "ax-chip ax-chip--green";
+          toast("Test call placed.", "ok");
+        } else {
+          $("#tc-chip-text").textContent = "blocked · " + (r.reason || "unknown");
+          $("#tc-chip").className = "ax-chip ax-chip--amber";
+          toast("Blocked at " + (r.reason || "unknown") + "." + note, "warn");
+        }
+      } catch (e) { toast(e.message, "error"); }
+      finally { btn.disabled = false; btn.textContent = "Run governed test call"; }
     });
 
     /* ---------- logout ---------- */

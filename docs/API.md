@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1402 operations)
+## Endpoint Index — auto-generated from OpenAPI (1406 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1770,11 +1770,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/privacy/requests/{request_id}/done` — Request Done
 - `POST  ` `/api/privacy/retention/run` — Retention Run
 
-### Product Consoles  (13)
+### Product Consoles  (14)
 
 - `PUT   ` `/api/consoles/automation` — Save Automation
 - `GET   ` `/api/consoles/automation/templates` — List Templates
 - `GET   ` `/api/consoles/automation/templates/{template_id}` — Template Detail
+- `POST  ` `/api/consoles/automation/test-call` — Automation Test Call
 - `GET   ` `/api/consoles/bootstrap` — Bootstrap
 - `PUT   ` `/api/consoles/business-config` — Save Business Config
 - `GET   ` `/api/consoles/connections` — Connections
@@ -1965,11 +1966,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/webhooks/whatsapp` — Whatsapp Webhook Verify
 - `POST  ` `/api/webhooks/whatsapp` — Whatsapp Webhook Inbound
 
-### WhatsApp  (15)
+### WhatsApp  (18)
 
 - `POST  ` `/api/wa/campaign/run` — Run Campaigns
 - `POST  ` `/api/wa/campaign/schedule` — Schedule Campaign
 - `GET   ` `/api/wa/campaigns` — List Campaigns
+- `GET   ` `/api/wa/drafts` — List Drafts
+- `POST  ` `/api/wa/drafts/{draft_id}/dismiss` — Dismiss Draft
+- `POST  ` `/api/wa/drafts/{draft_id}/sent` — Mark Draft Sent
 - `GET   ` `/api/wa/selfhost/qr` — Selfhost Qr
 - `POST  ` `/api/wa/selfhost/start` — Selfhost Start
 - `GET   ` `/api/wa/selfhost/status` — Selfhost Status

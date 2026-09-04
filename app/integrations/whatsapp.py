@@ -39,14 +39,18 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
 from app.config import settings
+from app.utils.file_lock import file_lock
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -120,16 +124,38 @@ def auto_send_blocked(
     whatsapp_campaign.py:162), so a shape without it would be read as a successful send.
     NOT recorded as an integration failure — nothing is broken, the operator just has
     auto-send off.
+
+    The would-send is ALSO persisted to the pending-drafts inbox (see
+    :func:`_persist_pending_draft`) so the block counter is not the only artefact of a
+    real customer intent. Persistence is strictly best-effort: it sits on a hot
+    outbound path and must leave this function's return value byte-for-byte identical
+    even when storage is unavailable.
     """
     _record_block(reason)
     logger.info("whatsapp auto-send BLOCKED (%s) — 1-click link only (§5 ban-safety)", reason)
-    return {
+    result = {
         "error": reason,
         "status": "blocked",
         "mode": "link",
         "would_send": True,
         "link": _wa_link(to_number, message),
     }
+    try:
+        _persist_pending_draft(
+            {
+                "id": _new_draft_id(),
+                "ts": _now_iso(),
+                "to": _digits_only(to_number),
+                "message": (message or "")[:_DRAFT_MSG_MAX],
+                "link": result["link"],
+                "reason": reason,
+                "sent": False,
+                "sent_ts": None,
+            }
+        )
+    except Exception as exc:  # pragma: no cover - storage must never break a send path
+        logger.debug("whatsapp draft not persisted (send path unaffected): %s", exc)
+    return result
 
 
 # --------------------------------------------------------------------------- #
@@ -250,6 +276,229 @@ def _record_block(reason: str) -> None:
 def block_stats() -> dict[str, int]:
     """Blocked-send counts by reason, for admin visibility. No PII."""
     return dict(_BLOCK_COUNTS)
+
+
+# --------------------------------------------------------------------------- #
+# Pending-drafts inbox — the queue a human actually works
+# --------------------------------------------------------------------------- #
+# `_record_block` above counts a blocked send but throws the would-send away: the
+# wa.me link and the message it just built were discarded, so 1800+ real customer
+# intents a day produced a counter and nothing to click. This store is that inbox.
+# It is an OPERATOR queue for HUMAN sending — it never POSTs anything anywhere.
+#
+# PII: rows contain phone numbers and message bodies. They live under `data/`
+# (runtime, untracked) like every other store in this repo, and must never be logged.
+_DRAFT_MSG_MAX = 2000
+_DEFAULT_DRAFT_CAP = 500
+_DRAFT_CAP_MAX = 5000
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _drafts_path() -> str:
+    """Resolved per call (never frozen at import) so tests can monkeypatch."""
+    try:
+        from app.platform import runtime_data_authority as _auth
+
+        return str(
+            _auth.resolve_store_path(
+                store_id="whatsapp.pending_drafts",
+                legacy_path=Path("data/whatsapp_pending_drafts.jsonl"),
+                target_segments=("messaging", "whatsapp_pending_drafts.jsonl"),
+            )
+        )
+    except Exception:
+        return os.path.join("data", "whatsapp_pending_drafts.jsonl")
+
+
+def draft_cap() -> int:
+    """Pending rows retained. Garbage -> 500, <=0 -> 1, huge -> 5000."""
+    try:
+        cap = int((os.getenv("WHATSAPP_DRAFT_CAP", "") or "").strip())
+    except Exception:
+        return _DEFAULT_DRAFT_CAP
+    return max(1, min(cap, _DRAFT_CAP_MAX))
+
+
+def _new_draft_id() -> str:
+    """12 hex chars. Seeded from urandom, NOT from the number/message."""
+    return hashlib.sha256(os.urandom(24)).hexdigest()[:12]
+
+
+def _msg_hash(message: str) -> str:
+    return hashlib.sha256((message or "").encode("utf-8")).hexdigest()[:16]
+
+
+def _read_drafts() -> list[dict[str, Any]]:
+    """Every row in file order. Unparseable lines skipped. Never raises."""
+    rows: list[dict[str, Any]] = []
+    try:
+        path = _drafts_path()
+        if not os.path.exists(path):
+            return rows
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except Exception:
+                    continue
+                if isinstance(row, dict) and row.get("id"):
+                    rows.append(row)
+    except Exception:
+        return rows
+    return rows
+
+
+def _write_drafts_locked(path: str, rows: list[dict[str, Any]]) -> bool:
+    """Atomic replace of the whole store. Caller MUST hold `file_lock(path)`.
+
+    Deliberately NOT `locked_rewrite`: that re-takes the same sidecar lock from a
+    second handle, and `file_lock` is non-blocking — on Windows the inner attempt
+    spins for its full 5s timeout before giving up, which would add 5s to every
+    blocked send on a hot path. Never raises.
+    """
+    tmp = f"{path}.tmp.{os.getpid()}"
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            for row in rows:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        os.replace(tmp, path)
+        return True
+    except Exception:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+        return False
+
+
+def _trim_drafts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep the newest `cap` PENDING rows; bound the sent history to `cap` too.
+
+    Pending rows are trimmed first because they are the queue someone works —
+    sent/dismissed history is only kept bounded so the file cannot grow forever.
+    """
+    cap = draft_cap()
+    pending = [r for r in rows if not r.get("sent")]
+    sent = [r for r in rows if r.get("sent")]
+    key = lambda r: str(r.get("ts") or "")  # noqa: E731 - ISO sorts lexicographically
+    pending.sort(key=key)
+    sent.sort(key=key)
+    return pending[-cap:] + sent[-cap:]
+
+
+def _persist_pending_draft(record: dict[str, Any]) -> bool:
+    """Append one would-send draft, or refresh an identical pending one. Never raises.
+
+    Dedupe key is (to, sha256(message)[:16]). Without it the hourly onboarding job
+    alone (~1800 blocked sends/day, mostly the same message to the same number)
+    would bury the operator in identical rows. On a repeat we refresh `ts` AND
+    `reason`: the LATEST gate reason is the one a human must see, because a row that
+    later blocks as `opted_out` must not be resent off the back of an older
+    `auto_send_disabled` draft.
+
+    Phone numbers / message bodies are persisted under `data/` (runtime, untracked),
+    consistent with the other stores here, and are never logged.
+    """
+    try:
+        path = _drafts_path()
+        to = str(record.get("to") or "")
+        mh = _msg_hash(str(record.get("message") or ""))
+        with file_lock(path):
+            rows = _read_drafts()
+            hit = None
+            for row in rows:
+                if (
+                    not row.get("sent")
+                    and str(row.get("to") or "") == to
+                    and _msg_hash(str(row.get("message") or "")) == mh
+                ):
+                    hit = row
+                    break
+            if hit is not None:
+                hit["ts"] = record["ts"]
+                hit["link"] = record["link"]
+                hit["reason"] = record["reason"]
+            else:
+                rows.append(record)
+            return _write_drafts_locked(path, _trim_drafts(rows))
+    except Exception as exc:  # pragma: no cover - a queue must never break a send
+        logger.debug("whatsapp draft store unavailable: %s", exc)
+        return False
+
+
+def pending_drafts_count() -> int:
+    """Not-sent rows — the operator's backlog size. Never raises."""
+    try:
+        return sum(1 for r in _read_drafts() if not r.get("sent"))
+    except Exception:
+        return 0
+
+
+def list_pending_drafts(limit: int = 50) -> list[dict[str, Any]]:
+    """Pending drafts, newest first. Never raises."""
+    try:
+        rows = [r for r in _read_drafts() if not r.get("sent")]
+        rows.sort(key=lambda r: str(r.get("ts") or ""), reverse=True)
+        return rows[: max(1, limit)]
+    except Exception:
+        return []
+
+
+def mark_draft_sent(draft_id: str) -> dict[str, Any] | None:
+    """Mark a draft sent. Idempotent — a second call is a no-op. Never raises.
+
+    Returns the row (plus an `already` flag) or ``None`` for an unknown id. Nothing is
+    transmitted here: the human tapped the wa.me link themselves.
+    """
+    did = (draft_id or "").strip()
+    if not did:
+        return None
+    try:
+        path = _drafts_path()
+        with file_lock(path):
+            rows = _read_drafts()
+            for row in rows:
+                if str(row.get("id") or "") != did:
+                    continue
+                already = bool(row.get("sent"))
+                if not already:
+                    row["sent"] = True
+                    row["sent_ts"] = _now_iso()
+                    _write_drafts_locked(path, _trim_drafts(rows))
+                return {**row, "already": already}
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("whatsapp mark-sent failed: %s", exc)
+    return None
+
+
+def dismiss_draft(draft_id: str) -> bool:
+    """Drop a row from pending — a human judged it not worth sending.
+
+    ``False`` when the id is unknown (so a repeat call 404s). Never raises.
+    """
+    did = (draft_id or "").strip()
+    if not did:
+        return False
+    try:
+        path = _drafts_path()
+        with file_lock(path):
+            rows = _read_drafts()
+            kept = [r for r in rows if str(r.get("id") or "") != did]
+            if len(kept) == len(rows):
+                return False
+            _write_drafts_locked(path, _trim_drafts(kept))
+            return True
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("whatsapp dismiss failed: %s", exc)
+        return False
 
 
 def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
