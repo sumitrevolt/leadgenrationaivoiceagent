@@ -1685,6 +1685,70 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "OFFLINE_TOOLING",
         "review_condition": "Directory creation only; no file writes at this symbol.",
     },
+    # ------------------------------------------------ M2 console dispatcher
+    # Per-tenant JSONL envelopes. Two entries split the gate's CREATE (mkdir on
+    # the dir) from the gate's APPEND + REWRITE (per-tenant JSONL trim/clear).
+    # path_pattern uses the SCANNER-EMITTED expression, not a human shape:
+    #   * `root` resolves through DEFAULT_STORE_ROOT -> data/console_events
+    #   * `store_path` is the helper call `_tenant_path(root, tenant_id)` whose
+    #     return body has no ast.Name ref to a module sym (FormattedValue), so
+    #     naming the helper itself is the honest match (cf. marketing.brand_kits
+    #     which uses the same convention for `_BRAND_DIR`).
+    {
+        "allowlist_id": "automation.console_events.root",
+        "file": "app/automation/console_dispatcher.py",
+        "line_or_symbol": "root",
+        # `_resolved_path_of` walks `root` -> `DEFAULT_STORE_ROOT` -> the
+        # truncated `Path(os.environ.get('CONSOLE_EVENT_STORE_ROOT',
+        # 'data/console_events'))`. The basename matcher compares the
+        # declared pattern against the WALKED path, so we name the literal
+        # default rather than the constant or the env var (which appears
+        # inside the walked text but is not a path component).
+        "path_pattern": "data/console_events",
+        "store_id": "automation.console_events",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Per-tenant store root directory for console event envelopes "
+            "(M2 dispatcher). Override via CONSOLE_EVENT_STORE_ROOT env var; "
+            "default is data/console_events. Created on demand by _ensure_root."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "automation",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Dirs only at this symbol; the per-tenant JSONL writes land on the "
+            "store_path entry below."
+        ),
+    },
+    {
+        "allowlist_id": "automation.console_events.store_path",
+        "file": "app/automation/console_dispatcher.py",
+        "line_or_symbol": "store_path",
+        # The helper's return body is `store_root / f\"{safe}.jsonl\"`. The f-string
+        # has no ast.Name references to module-level symbols, so the scanner's
+        # helper-pattern inference cannot resolve it through the symbol table.
+        # Naming the helper itself is the honest match — same precedent as
+        # marketing.brand_kits.path -> \"_BRAND_DIR\".
+        "path_pattern": "_tenant_path",
+        "store_id": "automation.console_events",
+        "access_modes": ["APPEND", "REWRITE"],
+        "reason": (
+            "Per-tenant JSONL file data/console_events/<tenant>.jsonl. "
+            "emit_console_event opens with mode='a'; _trim_to_cap writes back "
+            "the tail; drain_console_events clears after read. The dispatcher "
+            "is fail-closed — every storage op is wrapped and a write error is "
+            "logged, never raised into the caller's hot path."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "automation",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Cap-trim keeps the tail; trim/best-effort only. drain's clear is "
+            "gated behind clear_after=True so admin peeks stay non-destructive."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

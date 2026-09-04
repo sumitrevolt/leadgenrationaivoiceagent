@@ -1221,6 +1221,38 @@ STORES: list[dict[str, Any]] = [
             "fabricated evidence."
         ),
     ),
+    # ------------------------------------------------ M2 console dispatcher (TIER 3)
+    # Per-tenant JSONL envelopes; durable contract between
+    # app/api/product_consoles.EVENT_SLOTS and the worker. Same shape as the
+    # other marketing/feature-tier stores: rebuildable from source-of-truth
+    # rows in leadgen_core + telephony, single-process append + cap-trim.
+    _e(
+        store_id="automation.console_events",
+        display_name="Console event envelopes (per-tenant JSONL, M2 dispatcher)",
+        legacy_paths=["data/console_events/<tenant_id>.jsonl"],
+        writer_modules=["app/automation/console_dispatcher.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="automation",
+        durability_class="rebuildable",
+        concurrency_model=(
+            "single-process JSONL append + best-effort cap-trim per tenant"
+        ),
+        tenant_scope="per-tenant_id files (one JSONL per tenant)",
+        target_runtime_subpath="automation/console_events/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "M2 console dispatcher (2026-09-04) — append-only per-tenant "
+            "JSONL envelopes. Cap-trim keeps the most-recent N rows. "
+            "Rebuildable from product_consoles.EVENT_SLOTS + downstream "
+            "side-effects, so this is REBUILDABLE_CACHE not authoritative. "
+            "The handler ring (HANDLERS) handles delivery; this file only "
+            "durably persists dispatched envelopes."
+        ),
+    ),
 ]
 
 
