@@ -220,6 +220,9 @@ _last_ran: dict[str, str | None] = {
     "content_approval_sweep": None,  # daily 04:30: orphaned-pending approval retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
     "daily_owner_brief": None,  # daily 08:10: owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
     "trial_nudge": None,  # daily 09:50: trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED)
+    "whatsapp_automation": None,  # hourly: WhatsApp automation (gated WHATSAPP_AUTO_SEND; INERT off)
+    "heartbeat": None,  # every 5m: owner alive heartbeat
+    "content_approval_notify": None,  # hourly :40: pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
 }
 
 

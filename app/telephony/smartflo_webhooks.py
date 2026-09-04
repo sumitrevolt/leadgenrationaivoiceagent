@@ -39,6 +39,16 @@ from fastapi.responses import JSONResponse
 
 from app.utils.logger import setup_logger
 
+# Module-level imports — tests patch these attributes directly.
+# Wrapped in try/except to avoid circular import at module load time.
+try:
+    from app.telephony.post_call_hooks import meter_call_completion
+    from app.marketing import niche_database
+except ImportError:
+    # Lazy fallback — functions are imported when first needed.
+    meter_call_completion = None
+    niche_database = None
+
 logger = setup_logger(__name__)
 
 router = APIRouter()
@@ -135,8 +145,6 @@ async def _meter_call(
 ) -> None:
     """Trigger billing metering for a completed Smartflo call."""
     try:
-        from app.telephony.post_call_hooks import meter_call_completion
-
         client_id = custom_id.get("client_id")
         await meter_call_completion(
             client_id=client_id,
@@ -157,8 +165,6 @@ async def _update_lead_status(
 ) -> None:
     """Update CRM lead status after a completed Smartflo call."""
     try:
-        from app.marketing import niche_database
-
         # Map Smartflo status to our lead disposition
         if status in ("completed", "connected"):
             disposition = "called"

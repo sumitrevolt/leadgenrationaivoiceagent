@@ -246,6 +246,9 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "daily 08:10",
         "owner": "platform",
     },
+    "whatsapp_automation": {"label": "WhatsApp automation", "cadence": "hourly", "owner": "marketing"},
+    "heartbeat": {"label": "Owner alive heartbeat", "cadence": "every 5m", "owner": "platform"},
+    "content_approval_notify": {"label": "Content approval notify", "cadence": "hourly :40", "owner": "marketing"},
 }
 
 
