@@ -889,3 +889,75 @@ Deploy the two `admin_api.py` fixes (filename contract + import) via the canonic
 No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed — and critically, **none fabricated**: the missing `check_gates` was reported rather than invented, because an invented gate risks fail-open. No compliance gate, allowlist entry, or ratchet pin was relaxed; the ratchet pin was verified green and left untouched. Cold WhatsApp OFF, email cap unchanged. Local-only changes; no deploy, no SSH, no remote state change.
 
 ---
+
+## Loop Run — 2026-09-04 22:08 IST — M1 + M2 (Owner explicit "1" → A1+B+M2+M5 by EOD)
+
+- **Goal:** M1 Revenue Evidence + M2 Automation Dispatch Contract — flip the 3 env vars locally, build the durable console-event contract, prepare M5 deploy packet.
+- **Inspected:**
+  - Git state: `HEAD = origin/main = 7e6c76766ffc68a59465742f0a7a2f93bfa25cfc`, ahead/behind `0/0` (A1 already on main via PR #461).
+  - `.env` lines 8, 29-30: `VOICE_LAUNCH_KILL=1`, `SOCIAL_ENGINE` unset, `SOCIAL_PREFS_HONOR` unset.
+  - `app/api/product_consoles.py:338-403` — 8 EVENT_SLOTS declarative, no worker dispatch.
+  - `app/automation/flow_triggers.py` — uses dotted event names, 60s in-memory dedupe, incompatible with the 8 underscore keys.
+  - `app/platform/automation_flag_manifest.py:263` — VOICE_LAUNCH_KILL governance: SAFETY_INVARIANT, kill when 1.
+  - `app/social_engine/engine.py:39`, `app/marketing/auto_content.py:104`, `app/api/product_consoles.py:1352` — consumers of SOCIAL_ENGINE / SOCIAL_PREFS_HONOR.
+  - `app/worker.py` cron registry — no `EVENT_SLOTS` reference, no console-event handler job.
+- **Problems Found:**
+  - **B (env flip):** `VOICE_LAUNCH_KILL=1` is in `.env` (kill engaged, voice blocked). `SOCIAL_ENGINE` and `SOCIAL_PREFS_HONOR` not set (so `os.getenv(...)` returns `""` and consumers treat as OFF). `.env` is `.gitignore`'d — flips are local-only, will need re-application on VPS at M5.
+  - **M2 (dispatch contract):** The 8 EVENT_SLOTS in `product_consoles.py` are pure declarative metadata. No code path emits a console event from the worker tick or the production lifecycle. The `flow_triggers.py` dispatcher uses dotted names (`lead.created`) — incompatible with the underscore keys in EVENT_SLOTS. Even with `FLOW_RUNNER=1`, today the 8 console events silently route to nothing.
+- **Changed:**
+  - `.env`: flipped `VOICE_LAUNCH_KILL=1 → 0` (line 8) and added `SOCIAL_ENGINE=1` (line 29), `SOCIAL_PREFS_HONOR=1` (line 30), all annotated with the M1 timestamp + reason.
+  - `app/automation/console_dispatcher.py` (new, 405 lines):
+    - `emit_console_event(event_key, tenant_id, payload, source, store_root, dry_run, override_dedupe_key)` — fail-closed, never raises, returns a typed `{emitted, event_id, reason, dedupe_key, store_path}` dict.
+    - Per-tenant JSONL store at `data/console_events/<tenant_id>.jsonl` (legacy pattern, same as WhatsApp drafts — deferred authority cutover).
+    - In-process bounded dedupe ring (4096 cap) with 60s window keyed on `tenant|event_key|payload_hash`.
+    - Trim-to-cap (default 200) protects against runaway emitters.
+    - VOICE_LAUNCH_KILL awareness: voice-channel events blocked when kill=1.
+    - Storage failure isolated via try/except — caller never sees an OSError.
+    - Tenant ID path-traversal sanitisation (replaces `/` and `\` with `_`).
+    - `drain_console_events(tenant_id, max_count, clear_after)` for the worker tick side.
+    - `pending_event_count(tenant_id)` for admin views.
+    - Typed `HANDLERS` map (8 keys → noop default); `register_handler(key, fn)` + `dispatch_envelope(env, ctx)` for real handlers to plug in.
+    - Pure-stdlib — no new dependencies.
+  - `tests/test_console_dispatcher.py` (new, 27 tests):
+    - happy path / dedupe (same payload collapses) / dedupe (different payload passes) / dedupe (different tenants isolated)
+    - unknown_event_key rejected / empty_tenant rejected / valid_event_keys (8 keys match product_consoles)
+    - voice kill blocks voice-channel events / kill does not change for non-existent non-voice slot
+    - storage failure isolated (mock OSError) / storage failure does not corrupt dedupe state
+    - drain peek preserves queue / drain clear resets queue / drain respects max_count / pending_count = 0 when no file / drain skips corrupt lines
+    - cap trim keeps recent N (default + override via env var)
+    - default handlers noop / register_handler for known / unknown / dispatch unknown → noop / dispatch handler exception isolated
+    - dry_run returns envelope inline without writing
+    - per-tenant isolation / tenant ID with path separators sanitised
+    - sanity: dispatcher slots match `app.api.product_consoles.EVENT_SLOTS`
+- **Tests Run:**
+  - `pytest tests/test_console_dispatcher.py` → **27/27 PASS, EXIT 0**
+  - `pytest tests/test_console_dispatcher.py tests/test_whatsapp_pending_drafts.py tests/test_whatsapp_auto_send_gate.py tests/test_whatsapp_selfhost.py tests/test_console_voice_governance.py tests/test_console_marketing_launch.py` → **137/137 PASS, EXIT 0** (zero regressions in pre-existing 110 M1 tests)
+  - `scripts/prod_check.py` → **`[OK] ALL CHECKS PASSED - ready to deploy`**, **1385 routes registered**, 58 pages 0 gaps, API.md in sync (1406 ops), engine coverage 98/98
+  - `ruff check app/automation/console_dispatcher.py tests/test_console_dispatcher.py` → **All checks passed** (after `--fix` for 5 trailing-newline / line-length nits)
+  - secrets regex scan on the 2 new files → **0 hits** (openai/google/github/aws/slack patterns)
+- **Verification Evidence:**
+  - Smoke `python -c "emit...; drain...; dispatch..."` returned correct typed dicts: `emit 1 → {emitted: True, reason: 'ok'}`, `emit 2 dup → {emitted: False, reason: 'duplicate'}`, `emit unknown → {emitted: False, reason: 'unknown_event_key'}`.
+  - `valid_event_keys()` returns all 8 EVENT_SLOTS keys (`appointment_due, customer_dormant, inbound_answered, inbound_missed, lead_created, outbound_no_answer, payment_due, service_completed`).
+  - Storage failure test: `mock.mock_open(side_effect=OSError("disk on fire"))` returns `{emitted: False, reason: 'storage_error', event_id: <built>}` — caller never sees the exception.
+  - Cap trim test: with `CONSOLE_EVENT_MAX_PER_TENANT=3`, 7 distinct emits leave exactly 3 envelopes (tail-kept, oldest dropped).
+  - `.env` post-flip line 8 reads `VOICE_LAUNCH_KILL=0`; lines 29-30 read `SOCIAL_ENGINE=1` and `SOCIAL_PREFS_HONOR=1`. dotenv load confirms env values.
+- **Decisions:**
+  - **B was applied locally** (`.env` is `.gitignore`'d, never committed). VPS-side flip happens at M5 via the hardened deploy script — owner one-word "deploy" approval gates that step.
+  - **M2 contract uses legacy JSONL pattern** (`data/console_events/<tenant>.jsonl`), same as WhatsApp drafts. NOT routed through `runtime_data_authority` — this is a new store, not a migrated one; adding authority coupling now would lock the wrong layer when cutover is finalised.
+  - **No real emit-call wiring in this checkpoint** — M2 is the *contract*, not the wiring. Real emit sites (`voice_launch.py`, `lead_capture.py`, billing, scheduler tick) are deliberately deferred to M3 ("Product entitlement + UX hardening") so each emit site can be wired with its own compliance review (DLT-required vs not, kill-switch semantics, ban-safety for WhatsApp).
+  - **Default handlers are noop** — so the dispatcher is safe to deploy *before* real handlers exist. The queue accumulates envelopes, the worker tick can drain, and no real-world side-effect happens until a handler is registered.
+  - **Cap=200 default, 60s dedupe window, 4096 ring cap** — all configurable via env (`CONSOLE_EVENT_MAX_PER_TENANT`, `CONSOLE_EVENT_DEDUPE_WINDOW_S`) for canary tuning.
+- **Risks:**
+  - **M5 deploy has not happened yet.** Local env flips and M2 code are ready, but VPS still runs the pre-flip state. No production traffic is affected by today's work.
+  - **Emit-site wiring deferred** — until M3 wires real emit points, the dispatcher just sits there ready. A motivated deploy would see envelopes start flowing as soon as M3 lands.
+  - **No worker tick exists yet for console events** — drain is wired but not cron-mounted. The store will accumulate until M3 adds a `staff-console-drain-Nmin` beat (planned alongside the real handlers).
+- **Remaining:**
+  - **OWNER P0:** explicit `deploy` word to trigger M5 (controlled production activation): VPS `.env` flip, M2 commit push, restart worker, smoke `/api/wa/drafts` + console `/api/console/events`. Pre-flight checklist and deploy packet ready in the runbook below.
+  - **M3 (Product entitlement + UX hardening):** wire real emit sites for the 8 events; add `staff-console-drain-5min` worker beat; tier-aware Advanced gap; orphaned console JS decision; dead `daily_social_post.py` decision. Pending M5 confirmation.
+  - **M4 (Release candidate + owner gate):** assemble exact SHA, full commit inventory, owner approval checklist — already drafted in the runbook, runs on deploy approval.
+- **Next Highest Priority**
+Awaiting owner's explicit `deploy` (or alternative like `pause` / `M3 first`). Pre-flight is GREEN; the deploy script is idempotent and kill-fenced.
+- **Compliance**
+No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_LAUNCH_KILL=0` is the **voice-launch** kill, not a compliance gate — it gates outbound dial attempts, which still flow through `launch_status()`'s DND-scrub + circuit + recording gates before any call is placed. Cold WhatsApp OFF unchanged. Email cap unchanged. Owner packet unchanged. No deploy, no SSH, no remote state change in this loop run.
+
+---
