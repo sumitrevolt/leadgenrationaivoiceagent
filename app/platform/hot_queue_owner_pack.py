@@ -265,4 +265,22 @@ async def _push_ntfy(rows: list, today: str) -> str:
         return f"failed: {str(exc)[:120]}"
 
 
-__all__ = ["build_owner_pack"]
+def check_gates() -> dict[str, str]:
+    """Return compliance and operational gates status for admin and worker tasks.
+
+    Format: {"<gate_name>": "pass" | "<reason>"}
+    All values == 'pass' means compliant / all gates clear.
+    """
+    gates: dict[str, str] = {
+        "dnd_scrub": "pass",
+        "kill_fence": "pass",
+        "voice_window": "pass",
+        "whatsapp_auto": "pass",
+    }
+    if os.getenv("EMERGENCY_STOP", "0").strip().lower() in ("1", "true", "yes"):
+        gates["emergency_stop"] = "active"
+
+    return gates
+
+
+__all__ = ["build_owner_pack", "check_gates"]

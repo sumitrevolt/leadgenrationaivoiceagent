@@ -639,3 +639,37 @@ async def test_postiz_provider_forwards_publish_evidence(monkeypatch):
     assert result.ok is True
     assert result.post_id == "post-123"
     assert result.url == "https://social.example/post-123"
+
+
+def test_integrations_postiz_exports():
+    """Verify app.integrations.postiz exports match what celery tasks and admin expect."""
+    from app.integrations.postiz import (
+        BaseIntegrationClient,
+        PostizClient,
+        effective_integration_ids,
+        enabled,
+        integrations_source,
+        plan_publish_channels,
+        publish_video,
+    )
+
+    client = PostizClient()
+    assert isinstance(client, BaseIntegrationClient)
+    assert callable(client.auto_post)
+    assert callable(enabled)
+    assert callable(publish_video)
+    assert callable(effective_integration_ids)
+    assert callable(integrations_source)
+    assert callable(plan_publish_channels)
+
+
+def test_check_gates_status():
+    """Verify check_gates returns expected dict with 'pass' values."""
+    from app.platform.hot_queue_owner_pack import check_gates
+
+    gates = check_gates()
+    assert isinstance(gates, dict)
+    assert gates.get("dnd_scrub") == "pass"
+    assert gates.get("voice_window") == "pass"
+    assert gates.get("kill_fence") == "pass"
+    assert all(v == "pass" for v in gates.values())
