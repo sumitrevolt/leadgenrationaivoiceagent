@@ -118,6 +118,24 @@ def _office_coordination_slice() -> dict[str, Any]:
         return {"ok": False, "error": str(e)[:120], "rows": []}
 
 
+def _automation_orchestrator_slice() -> dict[str, Any]:
+    try:
+        from app.platform.automation_orchestrator import AutomationOrchestrator
+
+        orch = AutomationOrchestrator()
+        kanban = orch.get_kanban_board()
+        metrics = orch.get_metrics()
+        return {
+            "ok": True,
+            "kanban": kanban,
+            "metrics": metrics,
+            "note": "Projected from automation_orchestrator task ledger",
+        }
+    except Exception as e:
+        logger.debug("[coord_hub] automation orchestrator: %s", e)
+        return {"ok": False, "error": str(e)[:120], "kanban": {}, "metrics": {}}
+
+
 def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, Any]:
     """Assemble Hub dashboard payload. Safe when flag OFF (inert empty)."""
     enabled = hub_enabled()
@@ -130,6 +148,7 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
             "owner_agents": {},
             "missions": {"enabled": False, "rows": []},
             "office_coordination": {"rows": []},
+            "automation_orchestrator": _automation_orchestrator_slice(),
             "tools_presence": {"tools": {}},
             "tool_auth": tool_auth_status(),
             "desktop_registry": {
@@ -161,6 +180,7 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
         "owner_agents": _owner_agents_slice(),
         "missions": _missions_slice(),
         "office_coordination": _office_coordination_slice(),
+        "automation_orchestrator": _automation_orchestrator_slice(),
         "tools_presence": list_presence(),
         "tool_auth": tool_auth_status(),
         "desktop_registry": registry_slice(),
@@ -176,3 +196,4 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
 
 
 __all__ = ["snapshot", "mutation_refused", "hub_enabled"]
+

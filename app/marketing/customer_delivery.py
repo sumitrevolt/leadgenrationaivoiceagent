@@ -291,13 +291,44 @@ async def deliver_client_value(client: dict[str, Any], force: bool = False) -> d
         sender = get_whatsapp_sender()
         sent = await sender.send_text_message(phone, build_delivery_message(client))
         ok = bool(sent) and not (isinstance(sent, dict) and sent.get("error"))
+        wa_err = str(sent.get("error") or "") if isinstance(sent, dict) else ""
     except Exception as exc:
         _record_stuck(client, f"send_error:{type(exc).__name__}")
         res["error"] = str(exc)
         return res
     if not ok:
-        _record_stuck(client, "send_failed")
-        res["error"] = "send_failed"
+        # NEW (gated, additive, default OFF): WhatsApp blocked/undeliverable (e.g.
+        # recipient_not_on_whatsapp)? Deliver the SAME value-drop via email so a paid
+        # customer is never silently lost. OFF-by-default = zero behaviour change
+        # until DELIVERY_EMAIL_FALLBACK=1 (project convention: additive + inert).
+        if _flag_on("DELIVERY_EMAIL_FALLBACK"):
+            email_ok, note = await _try_email_delivery(client)
+            if email_ok:
+                try:
+                    from app.marketing import clients_store
+
+                    clients_store.update_client(
+                        str(client.get("id") or ""),
+                        delivery_state="delivered",
+                        delivered_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.warning("delivery email-fallback state-update err: %s", exc)
+                res["delivered"] = True
+                res["channel"] = "email_fallback"
+                logger.info(
+                    "[delivery] WA blocked (%s) -> value delivered via EMAIL for %s",
+                    wa_err or "blocked",
+                    client.get("business_name"),
+                )
+                return res
+            logger.info(
+                "[delivery] email fallback did not deliver (%s; wa_err=%s)",
+                note,
+                wa_err or "?",
+            )
+        _record_stuck(client, wa_err or "send_failed")
+        res["error"] = wa_err or "send_failed"
         return res
     try:
         from app.marketing import clients_store
@@ -311,6 +342,26 @@ async def deliver_client_value(client: dict[str, Any], force: bool = False) -> d
         logger.warning("deliver_client_value state-update err: %s", exc)
     res["delivered"] = True
     return res
+
+
+async def _try_email_delivery(client: dict[str, Any]) -> tuple[bool, str]:
+    """WA blocked -> deliver the same value-drop message via email (additive; gated
+    by DELIVERY_EMAIL_FALLBACK in the caller). Returns (sent, note). Never raises."""
+    to_email = str(client.get("email") or client.get("contact_email") or "").strip()
+    if not to_email:
+        return False, "no_customer_email"
+    try:
+        from app.integrations.email_sender import EmailSender
+
+        sender = EmailSender()
+        biz = str(client.get("business_name") or "aapka business").strip() or "aapka business"
+        subject = f"🎉 {biz} — aapka LeadGen AI setup ready hai"
+        body = build_delivery_message(client)
+        ok = bool(await sender.send_email([to_email], subject, body))
+        return (True, "sent") if ok else (False, "email_send_failed")
+    except Exception as exc:  # noqa: BLE001 - defensive, never raise into delivery
+        logger.warning("[delivery] email fallback failed: %s", exc)
+        return False, f"email_error:{type(exc).__name__}"
 
 
 async def run_delivery_sweep(limit: int = 20) -> dict[str, Any]:

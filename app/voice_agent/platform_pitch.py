@@ -174,6 +174,12 @@ _PRODUCT_Q_WORDS: tuple[str, ...] = (
     "matlab kya",
     "demo",
     "samjhao",
+    "calling",
+    "telecaller",
+    "voice agent",
+    "ai calling",
+    "call karne wala",
+    "auto call",
     # English product asks (bilingual / web demo)
     "what do you",
     "what you do",
@@ -184,6 +190,10 @@ _PRODUCT_Q_WORDS: tuple[str, ...] = (
     "how it works",
     "tell me about your",
     # Devanagari (Whisper hi script)
+    "कॉलिंग",
+    "टेलीकॉलर",
+    "वॉइस",
+    "वायस",
     "फीचर",
     "फ़ीचर",
     "सर्विस",

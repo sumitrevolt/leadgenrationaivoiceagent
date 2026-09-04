@@ -28,6 +28,8 @@ AUTOMATION_FLAGS = [
     "RUN_IN_PROCESS_SCHEDULER",
     "NICHE_ROTATION",
     "AUTO_EMAIL_OUTREACH",
+    "OUTREACH_VERIFY_MX",  # MX DNS verify before send (default ON — bounce protection)
+    "OUTREACH_SELECT_SKIP_MX",  # defer MX from per-candidate selection to final <=25 send batch (TimeLimitExceeded fix)
     "JOURNEY_ENGINE",
     "AUTO_QUALIFY_CALLS",
     "REPLY_AGENT",

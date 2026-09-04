@@ -73,8 +73,13 @@ EXPECTED_BLOCKERS = 0
 # 2026-08-27: 83 -> 85. ADR-OWNER-1 added 2 allowlist entries for the new
 # hot_queue_owner_pack CSV+MD files. CLASSIFIED, not tolerated — baseline
 # fingerprint count unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 85
-EXPECTED_BASELINE_FINGERPRINTS = 839
+# 2026-09-04: 85 -> 92 re-pin. Workbuddy+main consolidation merge (ea2f8c95):
+# +7 classified allowlist rows (marketing offline tooling + hot-queue pack)
+# already reviewed inline; owner-approved ratchet re-pin during merge train.
+# Baseline 839 -> 793: main-line smartflo/cutover reconcile paid down 46
+# stale fingerprints (resolved debt, not new debt).
+EXPECTED_ALLOWLIST_ENTRIES = 92
+EXPECTED_BASELINE_FINGERPRINTS = 793
 
 
 def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:

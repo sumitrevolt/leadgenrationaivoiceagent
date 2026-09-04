@@ -1,5 +1,5 @@
 # autostart_omniroute_dsh.ps1
-# Logon-time auto-start wrapper: OmniRoute gateway (WSL, port 20128) + DSH web UI (port 3000).
+# Logon-time auto-start wrapper: OmniRoute gateway (WSL, port 20128) + DSH web UI (port 3080).
 # Dono underlying launchers IDEMPOTENT hain (already-listening = skip), isliye re-run safe.
 # Triggered by Scheduled Task "LeadGen-OmniRoute-DSH-AutoStart" (At log on).
 

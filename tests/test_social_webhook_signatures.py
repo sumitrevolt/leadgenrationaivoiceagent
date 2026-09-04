@@ -82,8 +82,8 @@ def test_bare_hex_header_also_accepted():
 
 def test_dispatch_status_update_no_match_is_ok(monkeypatch, tmp_path):
     """Ledger emit + no store crash when the post_id doesn't match a queued job."""
-    from app.social_engine import store as _store
     from app.marketing import delivery_ledger
+    from app.social_engine import store as _store
 
     monkeypatch.setattr(_store, "_PATH", str(tmp_path / "jobs.jsonl"))
     monkeypatch.setattr(_store, "_mirror", lambda job: None)

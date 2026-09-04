@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "skills": {
+    "1password": {
+      "version": "1.0.1",
+      "installedAt": 1788257711515,
+      "registry": "https://clawhub.ai",
+      "artifact": {
+        "kind": "archive",
+        "sha256": "e94bd0479c4d01c5eb7499b53af43f1b12ec840396901f72e8e3e940ee809c95",
+        "integrity": "sha256-6UvQR5xNAcXrdJm1OvQ/GxLshAOWkB9y6OPpQO6AnJU="
+      },
+      "skillFile": {
+        "path": "SKILL.md",
+        "sha256": "5cc0b694c2c26264eff5edc954491bd66cc6b0729f9cdfcdd3d0f9d70d5c93cc"
+      },
+      "verification": {
+        "schema": "clawhub.skill.verify.v1",
+        "ok": false,
+        "decision": "fail",
+        "reasons": [
+          "security.status_not_clean"
+        ],
+        "card": {
+          "available": true,
+          "path": "skill-card.md",
+          "url": "https://wry-manatee-359.convex.site/api/v1/skills/1password/card?ownerHandle=steipete&version=1.0.1",
+          "sha256": "19b5acd7b2cdcca00053708e4753b157aa87bd9780b7178418672413d09f8670",
+          "size": 2254,
+          "contentType": "text/markdown; charset=utf-8"
+        },
+        "artifact": {
+          "sourceFingerprint": "69a4e7d9e1a7c79b96a20e5b8854590d7245657e8f733eab6977679ac38e424f",
+          "bundleFingerprints": [
+            "39bbffc279ee9fe3cb42051cc31d0939d1b293a104cc9eeb8ecdb1cf24ba46e7",
+            "2adafe198a0531302213b944878b9cff45ffebcc584693e999b6d9daa2961266"
+          ],
+          "files": [
+            {
+              "path": "SKILL.md",
+              "size": 2408,
+              "sha256": "5cc0b694c2c26264eff5edc954491bd66cc6b0729f9cdfcdd3d0f9d70d5c93cc",
+              "contentType": "text/markdown"
+            },
+            {
+              "path": "references/cli-examples.md",
+              "size": 720,
+              "sha256": "7df8fb39623b7cd222766e33255d47c271f772ca53198f256f1270fd9054d20e",
+              "contentType": "text/markdown"
+            },
+            {
+              "path": "references/get-started.md",
+              "size": 994,
+              "sha256": "e5fc5c4fbfd61fa590a2ba903eb7c22bd8d8c622bd47287ff66c20d00d7156b4",
+              "contentType": "text/markdown"
+            }
+          ]
+        },
+        "provenance": {
+          "source": "unavailable",
+          "reason": "No server-resolved GitHub import provenance is stored for this version."
+        },
+        "security": {
+          "status": "suspicious",
+          "passed": false,
+          "rawStatus": "suspicious",
+          "verdict": "suspicious",
+          "confidence": "high",
+          "summary": "This is a legitimate 1Password CLI helper, but its examples include unsafe ways to print or persist secrets without enough warning.",
+          "model": "gpt-5.5",
+          "checkedAt": 1783651520206,
+          "signals": {
+            "staticScan": {
+              "status": "clean",
+              "rawStatus": "clean",
+              "reasonCodes": [],
+              "summary": "No suspicious patterns detected.",
+              "engineVersion": "v2.4.5",
+              "checkedAt": 1777524885247
+            },
+            "virusTotal": {
+              "status": "clean",
+              "rawStatus": "clean",
+              "verdict": "benign",
+              "analysis": "Type: OpenClaw Skill\nName: 1password\nVersion: 1.0.1\n\nThe skill is designed to integrate with and utilize the 1Password CLI (`op`) for secret management. All instructions and examples, including the complex `tmux` session management in `SKILL.md`, are consistent with the legitimate and secure operation of the `op` CLI within an agent environment. There is no evidence of intentional malicious behavior such as unauthorized data exfiltration, malicious execution, persistence, or prompt injection aimed at subverting the agent for harmful purposes. The guardrails explicitly advise against insecure secret handling.",
+              "source": "palm",
+              "scanner": "code_insight",
+              "engineStats": {
+                "harmless": 0,
+                "malicious": 0,
+                "suspicious": 0,
+                "undetected": 63
+              },
+              "checkedAt": 1779159644656
+            },
+            "skillSpector": {
+              "status": "suspicious",
+              "rawStatus": "suspicious",
+              "score": 48,
+              "severity": "MEDIUM",
+              "recommendation": "CAUTION",
+              "issueCount": 4,
+              "scannerVersion": "2.3.5",
+              "summary": null,
+              "error": null,
+              "checkedAt": 1783651475363
+            },
+            "dependencyRegistry": null
+          }
+        },
+        "signature": {
+          "status": "unsigned"
+        }
+      }
+    }
+  }
+}

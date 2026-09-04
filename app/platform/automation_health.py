@@ -114,6 +114,12 @@ EXPECTED_GAP_MIN = {
     * 60,  # daily 08:10 owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
     "trial_nudge": 30
     * 60,  # daily 09:50 IST trial expiry/expired UPI nudge email (gated TRIAL_NUDGE_ENABLED; BLK-02)
+    "whatsapp_automation": 65
+    * 60,  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND; BLK-02 2026-08-23)
+    "heartbeat": 10
+    * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
+    "content_approval_notify": 65
+    * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
 }
 
 
@@ -578,6 +584,27 @@ def wiring_gaps() -> list[dict[str, Any]]:
                         "flag_on": True,
                         "missing": "WAHA_BASE_URL / whatsapp_business_token",
                         "note": "WhatsApp auto-send armed but no WA backend configured",
+                    }
+                )
+        except Exception:
+            pass
+
+    # Buzz connectivity gap (CTRL-001B): checking send->receive pipeline
+    if _on("STAFF_BUS_ENABLED") or os.getenv("COORD_HUB_BUZZ_SECRET"):
+        try:
+            import time
+
+            from app.platform.coordination_hub_events import list_presence
+            tools = list_presence().get("tools") or {}
+            buzz = tools.get("buzz") or {}
+            if buzz and (int(time.time()) - (buzz.get("last_seen") or 0)) > 7200:
+                gaps.append(
+                    {
+                        "key": "CTRL-001B",
+                        "flag_on": True,
+                        "status": "RED",
+                        "missing": "Recent Buzz webhooks",
+                        "note": "Buzz connectivity failing (no reliable send->receive in last 2h) — marked RED",
                     }
                 )
         except Exception:

@@ -108,49 +108,70 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.coding_fast": OmniRouteRoute(
-        primary_model="leadgen-free-first",
-        fallback_model="auto/coding:free",
+        primary_model="claude-code",
+        fallback_model="vps-01",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.repo_analysis": OmniRouteRoute(
-        primary_model="leadgen-free-first",
-        fallback_model="auto/best-free",
+        primary_model="hermes-research",
+        fallback_model="hermes-qa",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.test_generation": OmniRouteRoute(
-        primary_model="leadgen-free-first",
-        fallback_model="auto/coding:free",
+        primary_model="hermes-qa",
+        fallback_model="hermes-engineer",
         privacy_class="INTERNAL_SANITIZED",
     ),
-    # ADR-108 (2026-07-16): staff-agent bulk work (content/analysis/digests) — user
-    # explicitly approved agent-enable. Realtime/voice hot-path is NOT routed here
-    # (free_ai.chat hook engages only for profile=bulk). Payload is sanitized by
-    # generate() (mask_customer_data + validate_no_secrets) before any network call.
     "leadgen.agent_ops": OmniRouteRoute(
-        primary_model="leadgen-free-first",
+        primary_model="hermes-ops",
+        fallback_model="hermes-owner",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.swara_live": OmniRouteRoute(
+        primary_model="hermes-voice",
+        fallback_model="vps-01",
+        privacy_class="CUSTOMER_MASKED",
+    ),
+    # hermes-content/prospect/outreach/seo/governor/master gateway me EXIST
+    # NAHI karte (2026-09-04 /v1/models 505-model probe) — un ids pe route
+    # = silent 404. Gateway-verified ids pe remap kiya.
+    "leadgen.marketing_content": OmniRouteRoute(
+        primary_model="hermes-marketing",
+        fallback_model="hermes-ops",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.prospect_enrich": OmniRouteRoute(
+        primary_model="hermes-research",
         fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
-    # ADR-108 voice extension (2026-07-17): Swara live turn — masked customer
-    # speech only (mask_customer_data + validate_no_secrets before network).
-    # Gated by OMNIROUTE_VOICE=1; streaming via omniroute_voice.py.
-    # 2026-07-18 latency fix: leadgen-free-first's first model
-    # (opencode/deepseek-v4-flash-free) burns the whole voice max_tokens budget on
-    # reasoning_content and returns HTTP 200 with zero `content` deltas — combo
-    # never fails over, Swara gets empty streams (canary: 5/6 empty, 4.5s first
-    # token on the 1 success). Voice hot-path now uses the dedicated gateway combo
-    # `leadgen-swara-live` (groq -> mistral -> gemini, no reasoning-only models);
-    # direct groq is the client-side fallback. Coding/bulk routes stay free-first.
-    # 2026-08-23 OWNER DIRECTIVE: Swara (test-call + live calls) flagship combo
-    # `leadgen-swara-flagship` use kare — antigravity Gemini 3.1 Pro / Claude
-    # Opus 4.6 head (bunny + sunny accounts), smoke-verified 200 same day.
-    # Old swara-live combo DB me untouched fallback ke liye preserved hai.
-    "leadgen.swara_live": OmniRouteRoute(
-        primary_model="leadgen-swara-flagship",
-        fallback_model="groq/openai/gpt-oss-120b",
-        privacy_class="CUSTOMER_MASKED",
+    "leadgen.outreach_email": OmniRouteRoute(
+        primary_model="hermes-sales",
+        fallback_model="hermes-ops",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.seo_keyword": OmniRouteRoute(
+        primary_model="hermes-research",
+        fallback_model="hermes-marketing",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.governor_review": OmniRouteRoute(
+        primary_model="hermes-qa",
+        fallback_model="auto/best-free",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.project_best": OmniRouteRoute(
+        primary_model="leadgen-project-best",
+        fallback_model="auto/best-free",
+        privacy_class="INTERNAL_SANITIZED",
     ),
 }
+
+
+def list_task_routes() -> dict[str, OmniRouteRoute]:
+    """Return an immutable copy of all 12 registered OmniRoute combo task routes."""
+    return dict(_TASK_ROUTES)
+
 
 
 def omniroute_enabled() -> bool:

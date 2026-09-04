@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "registry": "https://clawhub.ai",
+  "slug": "1password",
+  "installedVersion": "1.0.1",
+  "installedAt": 1788257711515,
+  "artifact": {
+    "kind": "archive",
+    "sha256": "e94bd0479c4d01c5eb7499b53af43f1b12ec840396901f72e8e3e940ee809c95",
+    "integrity": "sha256-6UvQR5xNAcXrdJm1OvQ/GxLshAOWkB9y6OPpQO6AnJU="
+  },
+  "skillFile": {
+    "path": "SKILL.md",
+    "sha256": "5cc0b694c2c26264eff5edc954491bd66cc6b0729f9cdfcdd3d0f9d70d5c93cc"
+  }
+}

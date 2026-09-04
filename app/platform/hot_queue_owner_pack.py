@@ -8,19 +8,79 @@ Outputs:
   data/hot_queue_for_owner_<YYYY-MM-DD>.csv — Excel-friendly, WA link column
   data/hot_queue_for_owner_<YYYY-MM-DD>.md  — top-15 with clickable wa.me links
   ntfy push → owner phone topic `leadgen-d6b984bd`
-
 Idempotent: re-running on same day overwrites the file. Reads token from
 `NTFY_TOKEN` env (matches what app/notifier.py uses). Never raises — wraps in
 broad except so the scheduler mark stays ok even if ntfy down.
+
+Customer suppression (2026-09-04): paying/active customer phone numbers are
+stripped from the pack BEFORE any wa.me link or UPI kit is generated. See
+`_existing_customer_phones` for the fail-visible contract.
 """
 from __future__ import annotations
 
 import csv
+import logging
 import os
 import urllib.request
 from datetime import datetime, timezone
 
-from app.platform import reply_agent  # type: ignore
+from app.marketing.upi_kit import payment_kit
+from app.platform import reply_agent
+
+logger = logging.getLogger(__name__)
+
+
+def _last10(value: object) -> str:
+    """Normalise any phone shape to its last 10 digits ('' when not usable).
+
+    Matching on the last 10 digits is deliberate: the hot queue carries a mix
+    of `+91…`, `91…`, bare 10-digit and formatted numbers, and a prospect row
+    that differs only by country prefix is still the same human being.
+    """
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits[-10:] if len(digits) >= 10 else ""
+
+
+def _row_phones(row: dict) -> set[str]:
+    """Every phone identity a hot-queue row could be sent to."""
+    out: set[str] = set()
+    direct = _last10(row.get("phone"))
+    if direct:
+        out.add(direct)
+    wa = str(row.get("wa_link") or "")
+    if "wa.me/" in wa:
+        tail = wa.split("wa.me/", 1)[1].split("?", 1)[0].split("/", 1)[0]
+        parsed = _last10(tail)
+        if parsed:
+            out.add(parsed)
+    return out
+
+
+def _existing_customer_phones() -> tuple[set[str], bool]:
+    """Phones of active customers, plus whether the lookup actually succeeded.
+
+    Returns `(phones, ok)`. `ok=False` means the client store could not be read,
+    so the returned set is EMPTY and NOT trustworthy. Callers must surface that
+    rather than silently behaving as if there were no customers — a silent
+    fail-open here is how a paying customer ends up inside a prospecting blast.
+    """
+    try:
+        from app.marketing import clients_store
+    except Exception as exc:  # import-time failure = unverifiable, not "no customers"
+        logger.warning("hot_queue_pack: clients_store import failed: %s", exc)
+        return set(), False
+    try:
+        phones: set[str] = set()
+        for c in clients_store.list_clients() or []:
+            if str(c.get("status") or "active").lower() in {"churned", "cancelled", "deleted"}:
+                continue
+            digits = _last10(c.get("phone"))
+            if digits:
+                phones.add(digits)
+        return phones, True
+    except Exception as exc:
+        logger.warning("hot_queue_pack: customer phone lookup failed: %s", exc)
+        return set(), False
 
 
 async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
@@ -29,6 +89,42 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
         rows = reply_agent.hot_queue(limit=limit, scope="boss") or []
     except Exception as exc:  # never raise — defensive surface
         return {"ok": False, "error": f"hot_queue_unavailable: {exc}", "rows": 0}
+
+    # Drop existing customers BEFORE any link/kit is built — a suppressed row
+    # must never have a sendable wa.me URL attached to it.
+    try:
+        customer_phones, suppression_ok = _existing_customer_phones()
+    except Exception as exc:  # pack contract: never raise, but never hide it either
+        logger.error("hot_queue_pack: suppression aborted: %s", exc)
+        customer_phones, suppression_ok = set(), False
+    excluded_customers = 0
+    if customer_phones:
+        kept = []
+        for x in rows:
+            if _row_phones(x) & customer_phones:
+                excluded_customers += 1
+                continue
+            kept.append(x)
+        rows = kept
+    suppression_state = "active" if suppression_ok else "unverified"
+
+    # Inject fallback UPI Payment Flows if card doesn't already have wa_link
+    for x in rows:
+        if not x.get("wa_link") and x.get("phone"):
+            raw_phone = str(x.get("phone") or "").strip().lstrip("+")
+            if raw_phone.startswith("91") and len(raw_phone) == 12:
+                clean_phone = raw_phone
+            elif len(raw_phone) == 10:
+                clean_phone = f"91{raw_phone}"
+            else:
+                clean_phone = raw_phone
+            vpa = x.get("vpa", "default.upi@bank")
+            amount = x.get("amount", 499)
+            kit = payment_kit(x.get("business_name", "Lead"), vpa, amount, "LeadGen Payment")
+            from urllib.parse import quote
+            x["wa_link"] = f"https://wa.me/{clean_phone}?text={quote(kit['wa_payment_msg'])}"
+            if not x.get("draft"):
+                x["draft"] = kit["wa_payment_msg"]
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     csv_path = f"data/hot_queue_for_owner_{today}.csv"
@@ -65,7 +161,7 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                         x.get("intent", ""),
                         phone,
                         wa,
-                        (x.get("draft") or "")[:120],
+                        (x.get("draft") or "").replace("\r", " ").replace("\n", " ").strip()[:120],
                     ]
                 )
     except Exception as exc:
@@ -76,8 +172,19 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
             f.write(f"# Owner Hot-Queue Day Action Pack — {today}\n\n")
             f.write(
                 f"**Total hot leads:** {len(rows)} | "
-                "**All have WA link + UPI deep-link pre-embedded**\n\n"
+                f"**All have WA link + UPI deep-link pre-embedded**\n\n"
             )
+            if excluded_customers:
+                f.write(
+                    f"> {excluded_customers} row(s) removed: phone belongs to an "
+                    f"existing customer (prospecting blast guard).\n\n"
+                )
+            if suppression_state == "unverified":
+                f.write(
+                    "> **WARNING — customer suppression UNVERIFIED:** the client store "
+                    "could not be read, so no customer was excluded. Verify before "
+                    "sending this pack.\n\n"
+                )
             f.write("## Top 15 (action these first)\n\n")
             for i, x in enumerate(rows[:15], 1):
                 wa = x.get("wa_link", "") or ""
@@ -92,8 +199,8 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                     f"{(x.get('draft') or '')[:140]}\n\n"
                 )
             f.write(
-                f"\n---\n*Generated by Hermes Owner OS. "
-                f"Full CSV: `data/hot_queue_for_owner_{today}.csv`*\n"
+                f"\n---*\n*Generated by Hermes Owner OS. "
+                f"Full CSV: `data/hot_queue_for_owner_{today}.csv`*\\n"
             )
     except Exception:
         pass  # md is nice-to-have
@@ -108,6 +215,8 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
         "csv": csv_path,
         "md": md_path,
         "ntfy": ntfy_status,
+        "excluded_existing_customers": excluded_customers,
+        "customer_suppression": suppression_state,
     }
 
 
@@ -122,7 +231,6 @@ async def _push_ntfy(rows: list, today: str) -> str:
         if not base or not topic:
             return "skip_no_config"
         url = f"{base.rstrip('/')}/{topic}"
-
         top3 = rows[:3]
         lines = [
             f"Hot Queue Day Pack ready — {len(rows)} leads",
@@ -148,7 +256,6 @@ async def _push_ntfy(rows: list, today: str) -> str:
         }
         if token:
             headers["Authorization"] = f"Bearer {token}"
-
         req = urllib.request.Request(
             url, data=body, headers=headers, method="POST"
         )

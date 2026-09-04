@@ -15,11 +15,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-# Task routes that exist in app.platform.omniroute_client._TASK_ROUTES
-OMNIROUTE_TASK_AGENT_OPS = "leadgen.agent_ops"
+# Task routes that exist in app.platform.omniroute_client._TASK_ROUTES (All 12 Combos)
 OMNIROUTE_TASK_CODING = "leadgen.coding_primary"
+OMNIROUTE_TASK_CODING_FAST = "leadgen.coding_fast"
 OMNIROUTE_TASK_REPO = "leadgen.repo_analysis"
 OMNIROUTE_TASK_TEST = "leadgen.test_generation"
+OMNIROUTE_TASK_AGENT_OPS = "leadgen.agent_ops"
+OMNIROUTE_TASK_SWARA_LIVE = "leadgen.swara_live"
+OMNIROUTE_TASK_MARKETING = "leadgen.marketing_content"
+OMNIROUTE_TASK_PROSPECT = "leadgen.prospect_enrich"
+OMNIROUTE_TASK_OUTREACH = "leadgen.outreach_email"
+OMNIROUTE_TASK_SEO = "leadgen.seo_keyword"
+OMNIROUTE_TASK_GOVERNOR = "leadgen.governor_review"
+OMNIROUTE_TASK_MASTER = "leadgen.project_best"
 
 PRIVACY_INTERNAL = "INTERNAL_SANITIZED"
 PRIVACY_CUSTOMER = "CUSTOMER_SENSITIVE"

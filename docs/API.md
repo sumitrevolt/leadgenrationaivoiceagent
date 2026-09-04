@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1372 operations)
+## Endpoint Index — auto-generated from OpenAPI (1386 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -600,6 +600,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/contentauto/repurpose` — Repurpose Pack
 - `GET   ` `/api/contentauto/team-report` — Team Report
 - `POST  ` `/api/contentauto/team-report/run` — Team Report Run
+
+### ContentOS  (6)
+
+- `POST  ` `/api/api/content-os/approve` — Approve
+- `POST  ` `/api/api/content-os/lead` — Capture Lead
+- `GET   ` `/api/api/content-os/pending` — Pending
+- `POST  ` `/api/api/content-os/run-for-client/{slug}` — Run For Client
+- `POST  ` `/api/api/content-os/run-now` — Run Now
+- `GET   ` `/api/api/content-os/status` — Status
 
 ### ContentPlus  (12)
 
@@ -971,7 +980,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (77)
+### Frontend  (78)
 
 - `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
@@ -1005,6 +1014,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/customer/support` — Customer View Alias Support
 - `GET   ` `/app/customer/voice` — Customer Voice Page
 - `GET   ` `/app/dashboard` — Legacy Alias App Dashboard
+- `GET   ` `/app/dashboard-v2` — Customer Dashboard V2 Page
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
 - `GET   ` `/app/delivery-command-center` — Delivery Command Center Page
@@ -1712,8 +1722,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/page-agent/config` — Page Agent Config
 - `POST  ` `/api/page-agent/v1/chat/completions` — Page Agent Chat
 
-### Platform  (20)
+### Platform  (22)
 
+- `GET   ` `/api/bot-command-center/state` — Bot Command Center State
 - `GET   ` `/api/ops/hotqueue` — Ops Hot Queue
 - `POST  ` `/api/ops/hotqueue/action` — Ops Hot Queue Action
 - `GET   ` `/api/ops/revenue-summary` — Ops Revenue Summary
@@ -1734,6 +1745,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/platform/tenants/{tenant_id}/pause` — Pause Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/resume` — Resume Tenant
 - `POST  ` `/api/platform/tenants/{tenant_id}/upgrade` — Upgrade Tenant
+- `GET   ` `/app/bot-command-center` — Bot Command Center Page
 
 ### Plugin Registry  (4)
 
@@ -1865,15 +1877,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/team-access/members/{user_id}/reset-password` — Reset Password
 - `GET   ` `/api/team-access/modules` — List Modules
 
-### Telephony  (3)
+### Telephony  (6)
 
+- `POST  ` `/api/telephony/smartflo/endpoint` — Smartflo Dynamic Endpoint
+- `GET   ` `/api/telephony/smartflo/status` — Smartflo Status
+- `POST  ` `/api/telephony/smartflo/test-call` — Smartflo Test Call
 - `GET   ` `/api/telephony/vobiz/status` — Vobiz Status
 - `POST  ` `/api/telephony/vobiz/stream-call` — Place Stream Call
 - `POST  ` `/api/telephony/vobiz/test-call` — Place Test Call
 
-### Telephony Webhooks  (4)
+### Telephony Webhooks  (5)
 
 - `GET   ` `/api/webhooks/health` — Telephony Health
+- `POST  ` `/api/webhooks/tata-smartflo` — Smartflo Webhook
 - `POST  ` `/api/webhooks/vobiz/answer` — Vobiz Answer Webhook
 - `POST  ` `/api/webhooks/vobiz/inbound` — Vobiz Inbound Webhook
 - `POST  ` `/api/webhooks/vobiz/status` — Vobiz Status Webhook
@@ -1963,5 +1979,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/widgets/popup-wheel-coupons` — Popup Wheel Coupons
 - `GET   ` `/api/widgets/popup.js` — Popup Js
 - `GET   ` `/api/widgets/site-stats` — Site Stats
+
+### content-os  (1)
+
+- `POST  ` `/internal/render/done` — Render Done
 
 <!-- AUTO-OPENAPI:END -->

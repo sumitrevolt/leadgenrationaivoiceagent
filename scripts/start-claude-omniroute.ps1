@@ -23,11 +23,14 @@
 param(
     [switch]$DryRun,
     [string]$Prompt,
-    [string]$Model
+    [string]$Model,
+    [string]$Combo = "leadgen-coding-primary",
+    [string]$OmniHost = "127.0.0.1",
+    [int]$Port = 22000
 )
 
 $ErrorActionPreference = "Stop"
-$OmniRouteUrl = "http://127.0.0.1:20128"
+$OmniRouteUrl = "http://${OmniHost}:${Port}"
 $OmniRouteApiBase = "$OmniRouteUrl/v1"
 $ClaudeExe = "C:\Users\Ratanshila\.local\bin\claude.exe"
 $StartScript = Join-Path $PSScriptRoot "start-omniroute.ps1"
@@ -113,8 +116,10 @@ if (-not (Test-Path $ClaudeExe)) {
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $ClaudeExe
 $psi.UseShellExecute = $false
+$targetModel = if ($Model) { $Model } else { $Combo }
 $psi.EnvironmentVariables["ANTHROPIC_BASE_URL"] = $OmniRouteApiBase
 $psi.EnvironmentVariables["ANTHROPIC_API_KEY"] = $apiKey
+$psi.EnvironmentVariables["ANTHROPIC_MODEL"] = $targetModel
 
 if ($Prompt) {
     # One-shot, non-interactive, isolated test run.

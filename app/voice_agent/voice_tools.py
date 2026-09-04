@@ -138,14 +138,14 @@ def confirmation_line(name: str, result: object) -> str:
             return (
                 "In time pe slot available hai — aapko kaunsa theek rahega?"
                 if data.get("slots")
-                else "Main availability check kar rahi hoon, ek second."
+                else "Main availability check kar rahi hoon."
             )
         if name == "reschedule_appointment":
             return "Theek hai, aapki appointment naye time pe move kar di hai. Confirmation mil jayega."
         if name == "capture_lead_info":
             return "Ji, aapki detail note kar li hai."
         if name == "transfer_to_human":
-            return "Ek second, main aapko hamare expert se connect kar rahi hoon."
+            return "Ji bilkul, main aapko hamare expert se connect kar rahi hoon."
         if name == "get_pricing_info":
             return str(data.get("summary") or "Pricing main aapko bata deti hoon.")
         if name == "end_call":

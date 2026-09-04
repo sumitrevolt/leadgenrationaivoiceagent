@@ -239,9 +239,14 @@ def test_hot_queue_includes_inquiry_channel(tmp_path, monkeypatch):
 def test_speed_to_lead_summary_has_5min_fields(monkeypatch):
     from app.platform import speed_to_lead as stl
 
+    # Relative dates: summary() filters to the last N days, so absolute dates
+    # rot out of the window as real time passes (2026-09-04 catch: hardcoded
+    # 2026-08-01 fell outside the 30-day cutoff). Keep inquiries 1 day old.
+    at0 = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    at1 = (datetime.now(timezone.utc) - timedelta(days=1, hours=1)).isoformat()
     rows = [
-        {"phone": "9876543210", "at": "2026-08-01T10:00:00+00:00"},
-        {"phone": "9876543211", "at": "2026-08-01T11:00:00+00:00"},
+        {"phone": "9876543210", "at": at0},
+        {"phone": "9876543211", "at": at1},
     ]
     monkeypatch.setattr(
         stl,
@@ -250,8 +255,8 @@ def test_speed_to_lead_summary_has_5min_fields(monkeypatch):
     )
 
     def _evidence():
-        t0 = datetime.fromisoformat("2026-08-01T10:00:00+00:00").timestamp()
-        t1 = datetime.fromisoformat("2026-08-01T11:00:00+00:00").timestamp()
+        t0 = datetime.fromisoformat(at0).timestamp()
+        t1 = datetime.fromisoformat(at1).timestamp()
         return {
             "9876543210": [(t0 + 90, "alert")],
             "9876543211": [(t1 + 400, "dialer_call")],

@@ -79,7 +79,15 @@ def _make_branded_frame(
 
     primary = brand.get("primary") or "#2563eb"
     bg = _hex(primary, (37, 99, 235))
-    img = Image.new("RGB", (width, height), bg)
+    bg_img_path = brand.get("background_image_path") or brand.get("bg_image")
+    if bg_img_path and os.path.exists(bg_img_path):
+        try:
+            img = Image.open(bg_img_path).convert("RGB").resize((width, height))
+        except Exception as e:
+            logger.warning(f"[video_pipeline] custom background load failed: {e}")
+            img = Image.new("RGB", (width, height), bg)
+    else:
+        img = Image.new("RGB", (width, height), bg)
     dr = ImageDraw.Draw(img)
 
     try:

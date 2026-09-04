@@ -34,6 +34,10 @@ celery_app = Celery(
         "app.tasks.kb_niche_refresh",  # ADR-104 A4.5 — owned single-niche KB catalog refresh (default queue)
         "app.tasks.dsh_jobs",  # Hardened DSH orchestration + governed domain bridge (INERT default)
         "app.tasks.onboard_pipeline",  # Onboarding factory pipeline (INERT unless ONBOARDING_PIPELINE=1)
+        "app.marketing.content_os.tasks",  # Daily video automation: leadsgen + customer (INERT unless CONTENT_OS_ENABLED=1)
+        "app.tasks.whatsapp_automation",  # 1-click human WA queue drain (GATED: WHATSAPP_AUTO_SEND=1; cold bulk = ban)
+        "app.tasks.daily_social_post",  # 3x daily branded social posting via Postiz (GATED: POSTIZ_API_KEY + VIDEO_AD_CYCLE=1)
+        "app.tasks.video_generator",  # Creative video render helper for daily_social_post
     ],
 )
 
@@ -617,12 +621,12 @@ celery_app.conf.beat_schedule = {
     },
     "staff-engineer-finops-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=9, minute=0),
+        "schedule": crontab(hour=9, minute=5),
         "args": ("engineer_finops",),
     },
     "staff-engineer-security-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=9, minute=30),
+        "schedule": crontab(hour=9, minute=35),
         "args": ("engineer_security",),
     },
     # council 2026-06-25 — 3 new engineer agents (gated INERT in run_X())
@@ -650,7 +654,7 @@ celery_app.conf.beat_schedule = {
     },
     "staff-readiness-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=8, minute=30),
+        "schedule": crontab(hour=8, minute=35),
         "args": ("readiness_digest",),
     },
     "staff-pipeline-daily": {
@@ -815,6 +819,48 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.staff_jobs.self_improve_revive",
         "schedule": crontab(minute="*/20"),
     },
+
+    # System heartbeat (main-line 2026-09: 5-min liveness tick into staff_jobs).
+    "staff-heartbeat-5m": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute="*/5"),
+        "args": ("heartbeat",),
+    },
+    # Content-approval notifications — gated CONTENT_APPROVAL_NOTIFY
+    # INERT flag = run_staff_job no-op; no duplicate route/page.
+    "staff-content-approval-notify-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=35),
+        "args": ("content_approval_notify",),
+    },
+
+    # Daily social + video posting — 3x within 9am–7pm TRAI window
+    # GATED: POSTIZ_API_KEY + VIDEO_AD_CYCLE=1 (auto-post gate)
+    # Generates branded videos + posts via Postiz (own brand + clients)
+    "staff-daily-social-post-morning": {
+        "task": "app.tasks.daily_social_post.run_daily_social_post",
+        "schedule": crontab(hour=9, minute=30),
+        "options": {"expires": 10800},
+    },
+    "staff-daily-social-post-midday": {
+        "task": "app.tasks.daily_social_post.run_daily_social_post",
+        "schedule": crontab(hour=13, minute=0),
+        "options": {"expires": 10800},
+    },
+    "staff-daily-social-post-evening": {
+        "task": "app.tasks.daily_social_post.run_daily_social_post",
+        "schedule": crontab(hour=16, minute=0),
+        "options": {"expires": 10800},
+    },
+
+    # WhatsApp full automation — hourly within 9am–7pm TRAI window
+    # GATED: WHATSAPP_AUTO_SEND=1 + WHATSAPP_AUTO_SEND_HARD_OFF=0
+    # ⚠️ HIGH RISK: cold/bulk auto-send = number ban in 72 hours
+    "staff-whatsapp-automation-hourly": {
+        "task": "app.tasks.whatsapp_automation.run_whatsapp_automation",
+        "schedule": crontab(hour="9,10,11,12,13,14,15,16,17,18,19", minute=0),
+        "options": {"expires": 3600},
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -822,11 +868,16 @@ celery_app.conf.beat_schedule = {
 # Bina GCP/Vertex creds ke ye tasks heavy/no-op hain, aur `process_queue`
 # jaise entries call-side-effects rakh sakte. Celery-beat switch ka core =
 # sirf `staff-*` jobs (team_scheduler._run_job dispatcher — saare naye
-# engines included). Puraane entries chahiye to ENABLE_LEGACY_BEAT=1.
+# engines included) + `process-voice-followups` (production-critical
+# transactional callback drain, not a legacy entry). Puraane entries chahiye
+# to ENABLE_LEGACY_BEAT=1.
 # ---------------------------------------------------------------------------
 if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true", "yes"):
+    _KEEP_KEYS = {"process-voice-followups"}  # production-critical, not legacy
     celery_app.conf.beat_schedule = {
-        k: v for k, v in celery_app.conf.beat_schedule.items() if k.startswith("staff-")
+        k: v
+        for k, v in celery_app.conf.beat_schedule.items()
+        if k.startswith("staff-") or k in _KEEP_KEYS
     }
 
 # Boss autonomy sweep — always scheduled; the TASK is flag-gated inert itself
@@ -835,6 +886,23 @@ if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true"
 celery_app.conf.beat_schedule["boss-autonomy-sweep"] = {
     "task": "app.tasks.staff_jobs.boss_autonomy_sweep",
     "schedule": crontab(minute="*/5"),
+    "args": (),
+}
+
+# ContentOS daily video automation tasks
+celery_app.conf.beat_schedule["content_os.daily_video_run"] = {
+    "task": "content_os.daily_video_run",
+    "schedule": crontab(hour=9, minute=0),
+    "args": (),
+}
+celery_app.conf.beat_schedule["content_os.scan_inbox"] = {
+    "task": "content_os.scan_inbox",
+    "schedule": crontab(minute="*/2"),
+    "args": (),
+}
+celery_app.conf.beat_schedule["content_os.notify_owner"] = {
+    "task": "content_os.notify_owner",
+    "schedule": crontab(minute="*/15"),
     "args": (),
 }
 

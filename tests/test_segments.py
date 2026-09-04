@@ -11,7 +11,6 @@ import pytest
 
 from app.platform import segments
 
-
 # --------------------------- _match_record ops --------------------------- #
 REC = {
     "id": "p1",

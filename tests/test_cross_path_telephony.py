@@ -11,7 +11,7 @@ from app.telephony.post_call_hooks import (
     classify_stream_outcome,
     meter_call_completion,
 )
-from app.telephony.vobiz_stream import VobizStreamSession
+from app.telephony.vobiz_stream import FRAME_PCM, VobizStreamSession
 
 
 def _run(coro):
@@ -121,3 +121,45 @@ def test_vobiz_cleanup_logs_no_answer_for_dead_call(monkeypatch):
 
     assert recorded and recorded[-1]["outcome"] == "no_answer"
     assert emitted and emitted[-1][1]["outcome"] == "no_answer"
+
+
+def test_recording_master_clock_advances_on_bot(monkeypatch):
+    """Regression (2026-08-24): the call-recording master clock must advance on BOT
+    audio too. It only advanced on caller frames, so during Swara's reply it froze
+    and the caller's NEXT utterance was written at a stale position, OVERWRITING the
+    bot's audio -> mixed WAV garbled / missing Swara. Verify a later caller utterance
+    lands AFTER the bot (bot audio preserved)."""
+    import struct
+
+    marker_a = struct.pack("<h", 1) * FRAME_PCM  # caller
+    marker_bot = struct.pack("<h", 2)            # Swara
+    marker_c = struct.pack("<h", 3) * FRAME_PCM  # caller (2nd)
+
+    sess = VobizStreamSession(MagicMock(), client_id="c", client_name="T")
+    sess._speaking = True
+    sess._rec_enabled = True
+    sess._rec_mixed = bytearray()
+    sess._rec_timeline_samples = 0
+    sess._rec_bot_playhead = None
+    sess._send = AsyncMock()
+
+    # caller's 1st utterance
+    sess._rec_mix_caller(sess._rec_timeline_samples, marker_a)
+    sess._rec_timeline_samples += len(marker_a) // 2
+    caller_end = sess._rec_timeline_samples
+
+    # Swara plays a multi-frame reply (the fix advances the master clock here)
+    sess._rec_begin_bot_playback()
+    bot_pcm = marker_bot * (FRAME_PCM * 5)
+    _run(sess._play_frames(bot_pcm))
+    assert sess._rec_timeline_samples > caller_end  # master clock advanced with the bot
+
+    # caller's 2nd utterance must land AFTER the bot (no overwrite of Swara's audio)
+    bot_end = sess._rec_timeline_samples
+    sess._rec_mix_caller(sess._rec_timeline_samples, marker_c)
+    # Swara's audio value at the bot's start is preserved (2), not overwritten to 3
+    val_at_bot_start = struct.unpack_from("<h", bytes(sess._rec_mixed), caller_end * 2)[0]
+    assert val_at_bot_start == 2
+    # caller-2 value is present at bot_end
+    val_at_bot_end = struct.unpack_from("<h", bytes(sess._rec_mixed), bot_end * 2)[0]
+    assert val_at_bot_end == 3

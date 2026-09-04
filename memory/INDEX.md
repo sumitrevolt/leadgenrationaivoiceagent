@@ -25,3 +25,34 @@
 ## OKF curated bundle (Tier-2 companion)
 
 Repo-root **`knowledge/`** = Open Knowledge Format v0.1 draft bundle (ADR-119). Curated product/agent/ops/architecture pointers for agents. **Not** a RAG replacement — large-scale retrieval stays Qdrant; live truth stays Postgres; deep ADRs stay in `decisions.md`. No secrets in OKF.
+
+## FILE STATUS (2026-09-02 consolidation)
+
+| File | Lines | Last updated | Notes |
+|---|---|---|---|
+| `decisions.md` | ~2872 | 2026-08-27 | Append-only ADRs 183-189 + ADR-OWNER-1; ~180 entries total. **Durable** — all architectural decisions. |
+| `glossary.md` | ~100 | 2026-08-21 | Core terms stable. **Durable** — add new terms as they appear. |
+| `integrations.md` | ~50 | 2026-08-21 | Core providers stable. **Durable** — update rate limits/failure modes as observed. |
+| `incidents.md` | ~141 | 2026-08-14 | 20 postmortems. **Durable** — prevention rules = operational knowledge. |
+| `playbooks.md` | ~298 | 2026-08-23 | 14 playbooks. **Durable** — runbooks updated per ADR-186/187/188/189/OWNER-1. |
+| `backlog.md` | ~250 | 2026-09-02 | **Consolidated** — 23 active/parked items + 33 archived (shipped/superseded). Competitor research appended. |
+
+## CONSOLIDATION NOTES (2026-09-02)
+
+### Durable keep (no action needed)
+- `decisions.md` — all ADRs remain authoritative
+- `glossary.md` — stable domain vocabulary
+- `integrations.md` — provider contracts stable
+- `incidents.md` — postmortems with prevention rules
+- `playbooks.md` — operational runbooks current
+
+### Dated/retired → ARCHIVED in backlog.md (see ARCHIVED section)
+- 33 items moved to backlog.md ARCHIVED section with SESSION_LOG.md date references (Unity, GSC deployed, referral/evergreen DONE, meta-brand-posting DONE, OpenClaw Stage A LIVE, Customer Delivery OS complete, DKIM/SPF/DMARC, Postiz channels, etc.)
+
+### Active backlog (23 items)
+- DeepSeek Harness patterns #2-4, FREEBUFF Hot Queue, GSC enable, Cloudflare OS patterns, MetaGPT steals #2-4, Social channels (LinkedIn/Threads/Pinterest), WAHA secret rotation, Approval-reminder idem key, RL flywheel lopsided, Agentic/LightRAG eval, .env.example drift, pytest CI-blocking, key rotations, STUDIO_ENTITLEMENT_GATE, enterprise audit follow-ups, own telephony, missed-call callback, GBP API, Hybrid RAG, OKF ingest Phase-2/3, Voice fine-tune, vobiz_stream refactor, P4-3 eval_gate, Competitor research
+
+### Cross-file overlaps (merge/fix)
+- `CURRENT_SESSION.md` (OmniRoute audit 2026-07-12/13) → **DELETED** — content merged into `decisions.md` ADR-081 through ADR-084 and `integrations.md` OmniRoute entry. This file was a temporary session scratchpad.
+- `docs/SESSION_LOG.md` — dated history archive, keep as-is (append-only)
+- `docs/context/CURRENT_STATE.md` + `ACTIVE_WORK.md` + `SESSION_HANDOFF.md` — Tier 1 hot cache, sync from `CLAUDE.md ## Current State`

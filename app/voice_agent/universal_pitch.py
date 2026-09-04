@@ -20,16 +20,20 @@ def _marketing_start_price() -> str:
     return "₹1,999"
 
 
-# LEAN OPENER (2026-06-27): pehle intro ek hi segment me 4-5 ideas thunsta tha
-# (~45 shabd, ~20 sec bolne me) — "pitch lambi hai" user-feedback. Ab intro = sirf
-# identity + ek hook; price/trial pitch-segment me; ask chhota. Total ~90→~50 shabd
-# (telephony-cheap + caller bore na ho). AI-disclosure helper (ensure_ai_disclosure)
-# iske aage "Main ek AI assistant hoon." prepend karta — isliye yahan dobara mat likho.
-# Permission-opener (2026-07-02): self-test ne har platform-opener pe
-# MISSING_PERMISSION flag kiya — intro kabhi "do minute hai?" nahi poochta tha.
-# Gong-research: permission/timing ask se cold-call ~5-10x behtar convert hoti +
-# caller ko control deta (kam pushy). Ek chhota timing-ask turn-1 me add — segment
-# lean rehta (telephony-cheap), qa_checks.has_permission_ask ab pass karta.
+def _voice_start_price() -> str:
+    try:
+        from app.marketing.voice_packages import BANDS
+
+        price = BANDS.get("A", {}).get("price_month") or 4999
+        return f"₹{int(price):,}"
+    except Exception:
+        pass
+    return "₹4,999"
+
+
+# =========================================================================== #
+# PRODUCT 1: AI Marketing Automation (Main Product)
+# =========================================================================== #
 UNIVERSAL_AGENT_INTRO = (
     "Namaste! Main LeadGen AI se bol rahi hoon. Hum local businesses ko roz "
     "Instagram, Facebook aur Google par active rakhte hain — taki naye customers "
@@ -45,6 +49,24 @@ PITCH_SHORT = (
 INTEREST_ASK = "Ek baar free me try karke dekhna chahenge?"
 
 
+# =========================================================================== #
+# PRODUCT 2: AI Voice Calling Agent (Standalone AI Telecaller)
+# =========================================================================== #
+VOICE_AGENT_INTRO = (
+    "Namaste! Main LeadGen AI se bol rahi hoon. Hum businesses ke liye human-like "
+    "AI telecaller provide karte hain jo incoming aur outgoing calls, lead followups "
+    "aur appointment booking 24 ghante sambhalta hai. Do minute baat ho sakti hai?"
+)
+
+VOICE_AGENT_PITCH_SHORT = (
+    "Hamara AI telecaller bilkul insaan ki tarah Hinglish me baat karta hai, ek sath 100+ calls "
+    f"handle karta hai aur calendar me appointment book kar deta hai. {_voice_start_price()} mahine se "
+    "unlimited calls — traditional telecalling team se 80% sasta, aur 7 din free pilot."
+)
+
+VOICE_AGENT_INTEREST_ASK = "Kya aap apne business ke liye AI calling ka free demo dekhna chahenge?"
+
+
 def platform_opening_segments() -> list[str]:
     """ai_marketing greet — single short opener (wait for caller before pitch)."""
     from app.voice_agent.platform_pitch import opening_segments
@@ -56,5 +78,9 @@ __all__ = [
     "INTEREST_ASK",
     "PITCH_SHORT",
     "UNIVERSAL_AGENT_INTRO",
+    "VOICE_AGENT_INTEREST_ASK",
+    "VOICE_AGENT_INTRO",
+    "VOICE_AGENT_PITCH_SHORT",
     "platform_opening_segments",
 ]
+

@@ -132,6 +132,29 @@ docker compose -f "$env:USERPROFILE\Documents\buzz\deploy\compose\compose.yml" u
   (empty pubkey) + local copies of Boss/Honey/Fizz/Bumble. Workspace script skips
   empty pubkeys and keeps last active per name — Desktop me stale stubs archive/
   delete manually.
+- **Duplicate relay channels (2026-08-24):** ek hi naam ke channels (`general`,
+  `incidents`, `agents`, `engineering`, `office`) 2-2 baar mile — doosri identity
+  ne dobara create kiya. Archive sirf channel-admin identity kar sakta hai;
+  credential-store owner key un dupes pe admin NAHI hai → Desktop UI se owner ko
+  manually archive karna hoga (empty wale: cc17a64a/47d8c8b9/04989474/04b2d0ec).
+  Naya tooling kabhi bina list-first ke channel create na kare.
+- **Folder-rename scheduled-task trap (2026-08-24):** repo rename
+  (`leadgenrationaiagent` → `leadgenrationaivoiceagent`) ke baad "LeadGen Buzz
+  Staff Pulse" task purane bat ko point karta raha — hourly silent-fail, log me
+  kuch nahi (cmd bat hi na mile to exit bhi log nahi hota). Fix: bat ab
+  self-relative hai (`%~dp0..`), task path updated. **Koi bhi naya .bat wrapper
+  hardcoded REPO path kabhi na rakhe.**
+- **Relay-stored mojibake:** kuch purani sends cp1252-double-encoded ("â€”")
+  relay pe stored hain — send-time bug tha, read-time nahi. `buzz_owner_digest.py`
+  display-time repair karta hai (`cp1252`→`utf-8` round-trip). Naya tooling UTF-8
+  bytes mode me CLI output decode kare (locale-proof), aur Windows stdout
+  reconfigure kare warna emoji/em-dash pe UnicodeEncodeError (cp1252).
+- **Owner readability (2026-08-24):** relay-posts Desktop me collapsed cards ki
+  tarah dikhte hain + channels scattered hain → `scripts/buzz_owner_digest.py`
+  sab channels ka readable markdown digest banata hai
+  (`~/.buzz/OUTBOX/buzz_digest_<ts>.md`, `--hours N`, `--post` = #admin summary).
+  Owner agents ko wake karne ke liye RESOLVED @mention chip bheje — plain-text
+  `@Name` mention trigger NahI hota (CLI me `--mention <pubkey>` use karo).
 
 
 ## Security & containment (2026-08-10)

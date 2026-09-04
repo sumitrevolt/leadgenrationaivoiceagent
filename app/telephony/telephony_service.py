@@ -72,7 +72,7 @@ class TelephonyService:
     runs. Use validate_config() to inspect the active provider and gaps.
     """
 
-    VALID_PROVIDERS = ("vobiz", "sip", "none", "simulation")
+    VALID_PROVIDERS = ("vobiz", "sip", "tata_smartflo", "none", "simulation")
 
     def __init__(self, provider: str | None = None):
         self.provider = (provider or self._detect_provider()).lower()
@@ -112,9 +112,11 @@ class TelephonyService:
                 f"Valid: {self.VALID_PROVIDERS}. Auto-detecting instead."
             )
 
-        # Auto-detect: cheapest-first (sip), then vobiz (India).
+        # Auto-detect: cheapest-first (sip), then tata_smartflo, then vobiz.
         if _env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD"):
             return "sip"
+        if _env("TATA_SMARTFLO_API_TOKEN") and _env("TATA_SMARTFLO_API_KEY"):
+            return "tata_smartflo"
         if _env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN"):
             return "vobiz"
 
@@ -131,6 +133,10 @@ class TelephonyService:
             from app.telephony.sip_handler import SIPHandler
 
             return SIPHandler()
+        if provider == "tata_smartflo":
+            from app.telephony.tata_smartflo_handler import TataSmartfloClient
+
+            return TataSmartfloClient()
         raise ValueError(f"Unknown provider: {provider}")
 
     # ------------------------------------------------------------------ #
@@ -206,6 +212,45 @@ class TelephonyService:
                     duration=sip_result.duration,
                     provider=sip_result.provider,
                     error=sip_result.error,
+                )
+
+            if self.provider == "tata_smartflo":
+                # TataSmartfloClient.place_call returns ref_id on success.
+                # The C2C Support API is customer-first: Smartflo dials customer,
+                # then bridges to the destination configured on the API key.
+                call_id = str(uuid.uuid4())
+                caller = from_number or _env("TATA_SMARTFLO_DID")
+                result = await self._handler.place_call(
+                    to=to_number,
+                    caller_id=caller,
+                    custom_identifier={
+                        "source": "leadgen",
+                        "call_id": call_id,
+                    },
+                )
+                if result.get("status_code") == 200 and (
+                    result.get("body") or {}
+                ).get("success"):
+                    ref_id = str(
+                        (result.get("body") or {}).get("ref_id") or call_id
+                    )
+                    return CallResult(
+                        call_id=ref_id,
+                        status="initiated",
+                        duration=0,
+                        provider=self.provider,
+                        error=None,
+                    )
+                return CallResult(
+                    call_id=call_id,
+                    status="failed",
+                    duration=0,
+                    provider=self.provider,
+                    error=str(
+                        (result.get("body") or {}).get("message")
+                        or (result.get("body") or {}).get("error")
+                        or "tata_smartflo: call not accepted"
+                    ),
                 )
 
             if self.provider == "vobiz":

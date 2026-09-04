@@ -1797,3 +1797,14 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 - **Automation truth**: generation auto (content 07:00 + afternoon 15:00 + blog 06:30 IST) → approval-gated drafts → approved/hands-free items social_engine queue → hourly drain → Postiz/WhatsApp. Own-brand + prefs-consent customers = hands-free; baaki approval pe.
 - **YouTube OAuth PUBLISHED** (same session, user-requested, Chrome MCP): Google Console → LeadsGenAI project (`nomadic-pipe-501417-e3`) → Auth Platform Audience → Publish app → Confirm → status **"In production"** verified. NOTE: purana testing-mode refresh token apni 7-day expiry rakhta hai — USER ko Postiz me YT channel ek baar reconnect karna hai, uske baad token permanent. Unverified-app warning sirf naye OAuth grants pe dikhega (khud ke account ke liye "continue" theek hai).
 - **Postiz YT reconnect DONE** (same session, Chrome MCP): Add Channel → YouTube → account sumitrevolt23 → brand account "sandeep maheswari" (user-confirmed — LeadsGenAI channel isi ke under) → unverified warning Advanced→continue → all scopes → LeadsGenAI @leadsgenai select → Save → "Channel Added". Verified: integration id UNCHANGED `cmr6oak910001qu6v418i0g6u` (env match, no duplicate), 4 channels enabled. Token ab production-grant = no 7-day expiry. GOTCHA: YT channel brand-account ke under hai, personal nahi — future reconnects me "sandeep maheswari" chunna.
+
+## 2026-08-30 — Production Readiness Hardening [Owner-Operator]
+- **Audit**: Verified pricing consistency (10-month yearly logic in pp/billing/subscription.py aligns with pp/marketing/packages.py).
+- **Deploy**: Hardened production .env (added strong secrets, JWT, MCP token, configured PROD mode).
+- **Result**: scripts/prod_check.py --deployment now PASSING [OK]. Calling/Voice kill-switch armed correctly; ready for operational deployment.
+
+# #   A c t i o n   L o g   ( 2 0 2 6 - 0 8 - 3 1 )  
+ -   S u c c e s s f u l l y   p r o c e s s e d   t h e   H o t   Q u e u e   i t e m   ' B l o c k e d   R e c o r d   B i z '   ( I D :   4 f 2 0 4 8 f 5 9 f 1 5 ) .  
+ -   V e r i f i e d   t h e   a c t i o n   v i a    p p . p l a t f o r m . a u t o _ o u t r e a c h . m a r k _ h o t _ q u e u e _ c a n d i d a t e .  
+ R e v e n u e   r e m a i n s   R s   7 , 9 9 7   v e r i f i e d .  
+ 

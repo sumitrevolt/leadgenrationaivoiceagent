@@ -11,7 +11,6 @@ import importlib
 
 import pytest
 
-
 # ================================================================
 # Phase 2 · Model Cookbook
 # ================================================================
@@ -297,9 +296,9 @@ def test_all_flags_registered():
 
 
 def test_routers_expose_expected_paths():
-    import app.api.model_cookbook as mc
     import app.api.deep_research as dr
     import app.api.docs_ai_edit as dx
+    import app.api.model_cookbook as mc
 
     for m, expected in [
         (mc, ["/api/cookbook/models", "/api/cookbook/recommend", "/api/cookbook/ui"]),

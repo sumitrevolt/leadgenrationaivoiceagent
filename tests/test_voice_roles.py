@@ -58,8 +58,9 @@ def test_telecaller_brain_receptionist_role():
 
 
 def test_voice_product_agents_route():
-    from app.api.voice_product import voice_agents
     import asyncio
+
+    from app.api.voice_product import voice_agents
 
     out = asyncio.run(voice_agents())
     assert out["count"] == 3

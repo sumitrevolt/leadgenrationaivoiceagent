@@ -60,7 +60,7 @@ try {
 if (-not $ready) {
     Write-Output "OmniRoute is NOT ready at $ApiBase."
     Write-Output ""
-    Write-Output "Bring it up first (WSL Ubuntu-24.04 + Redis + tmux 'leadgen-omni'):"
+    Write-Output "Bring it up first (Docker: Redis + OmniRoute gateway):"
     Write-Output "  powershell -ExecutionPolicy Bypass -File scripts\start-leadgen-dev.ps1"
     Write-Output "  powershell -ExecutionPolicy Bypass -File scripts\omniroute-check.ps1"
     Write-Output ""

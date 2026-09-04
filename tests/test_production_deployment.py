@@ -5,6 +5,7 @@ These tests verify that the actual deployed code contains the fixes.
 
 import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -42,6 +43,7 @@ def test_logout_invalidates_token():
 def test_require_customer_is_async():
     """Verify require_customer dependency is now async (supports Redis blacklist check)."""
     import inspect
+
     from app.api.customer_auth import require_customer
 
     # Should be an async function
@@ -51,6 +53,7 @@ def test_require_customer_is_async():
 def test_billing_invoices_endpoint_queries_both_sources():
     """Verify /api/billing/invoices reads both Postgres and JSONL (code inspection)."""
     import inspect
+
     from app.api import billing
 
     source = inspect.getsource(billing.get_invoices)
@@ -68,9 +71,9 @@ def test_billing_invoices_endpoint_queries_both_sources():
 
 def test_customer_portal_logout_calls_api():
     """Verify login + customer dashboard logout call the revoke API."""
-    with open("frontend/login.html", "r", encoding="utf-8") as f:
+    with open("frontend/login.html", encoding="utf-8") as f:
         login = f.read()
-    with open("frontend/customer_dashboard.html", "r", encoding="utf-8") as f:
+    with open("frontend/customer_dashboard.html", encoding="utf-8") as f:
         dash = f.read()
 
     assert "/api/customer/auth/logout" in login, "login.html should call logout API"
@@ -88,6 +91,7 @@ def test_customer_portal_logout_calls_api():
 def test_no_silent_failures_in_logout():
     """Verify logout endpoint gracefully handles Redis unavailability."""
     import inspect
+
     from app.api.customer_auth import logout
 
     source = inspect.getsource(logout)

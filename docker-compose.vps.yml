@@ -62,7 +62,7 @@ services:
       # `environment:` overrides env_file, so .env's host URLs are ignored here.
       # DB ab PgBouncer (session mode) ke through — connection pooling. Direct DB
       # chahiye to host wapas `@db:5432` karo (revert).
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -110,6 +110,70 @@ services:
     networks: [leadgen_net, dsh_net]
 
   # ---------------------------------------------------------------------------
+  # Dedicated SINGLE-WORKER MCP backend (MCP 404 fix, docs/MCP_MULTIWORKER_FIX.md).
+  # fastapi-mcp SSE/StreamableHTTPSessions are in-memory PER uvicorn worker, so
+  # /mcp must NOT run on the multi-worker app (WEB_CONCURRENCY=2): a GET (SSE) and a
+  # POST /mcp/messages/ can land on different workers -> 404 "Could not find session".
+  # This service runs the SAME image at WEB_CONCURRENCY=1 so sessions stay on one
+  # worker. Main app keeps 2 workers for throughput. REQUIRES a host Caddy rule:
+  #   handle_path /mcp* { reverse_proxy 127.0.0.1:8090 }   (see runbook)
+  # ---------------------------------------------------------------------------
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.lock
+      args:
+        APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_mcp
+    mem_limit: 2g
+    mem_reservation: 1g
+    cpus: "1.0"
+    user: "0:0"   # root, matches app — keeps bind-mounted root-owned ./data writable
+    env_file: .env
+    environment:
+      APP_ENV: production
+      PORT: 8080
+      WEB_CONCURRENCY: 1            # single worker -> SSE session affinity works
+      RUN_IN_PROCESS_SCHEDULER: 0   # no in-process scheduler dup (durable celery path)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      QDRANT_URL: http://qdrant:6333
+      CACHE_REDIS_URL: redis://redis-cache:6379/0
+      DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
+      DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
+      DSH_AGENT_ALLOWLIST: ${DSH_AGENT_ALLOWLIST:-}
+    ports:
+      - "127.0.0.1:8090:8080"       # Caddy proxies /mcp* -> here
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks: [leadgen_net, dsh_net]
+
+  # ---------------------------------------------------------------------------
   # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
   # in docker-compose.prod.yml). Data persisted in the named volume `pgdata`.
   # ---------------------------------------------------------------------------
@@ -125,7 +189,7 @@ services:
       - "127.0.0.1:5432:5432"   # host-published so the systemd app / venv migration can reach it (localhost only)
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}
       POSTGRES_DB: ${POSTGRES_DB:-leadgen}
     command: >
       postgres
@@ -162,7 +226,7 @@ services:
       DB_HOST: db
       DB_PORT: "5432"
       DB_USER: ${POSTGRES_USER:-leadgen}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}
       DB_NAME: ${POSTGRES_DB:-leadgen}
       POOL_MODE: session
       AUTH_TYPE: plain
@@ -274,7 +338,7 @@ services:
     environment:
       # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container
       # ke andar khud container hote (galat). PgBouncer session-mode pool ke through.
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -326,7 +390,7 @@ services:
     command: celery -A app.worker worker -Q heavy --loglevel=info --concurrency=1
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -379,7 +443,7 @@ services:
     command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -490,7 +554,7 @@ services:
       - ./logs:/app/logs
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}

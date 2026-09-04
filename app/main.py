@@ -31,6 +31,7 @@ from app.api.dev_tasks import router as dev_tasks_router
 from app.api.health import router as health_router
 from app.api.ml_training import router as ml_router
 from app.api.platform import router as platform_router
+from app.api.telephony_smartflo import router as telephony_smartflo_router
 from app.api.telephony_vobiz import router as telephony_vobiz_router
 from app.api.web_call import router as web_call_router
 from app.config import settings
@@ -646,6 +647,15 @@ app.include_router(
     analytics.router, prefix="/api", tags=["Analytics"]
 )  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+# Buzz outbound MCP tools — voice / WhatsApp / email as safe /mcp-exposed tools.
+try:
+    from app.api.buzz_mcp_tools import router as buzz_mcp_router
+
+    app.include_router(
+        buzz_mcp_router, prefix="/api", tags=["Platform", "Agents"]
+    )
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Buzz MCP tools router not mounted: {_e}")
 # Telephony provider callbacks (Vobiz voice + status). Sentry's FastApiIntegration
 # auto-captures their errors.
 try:
@@ -656,6 +666,14 @@ try:
     )
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Telephony webhooks router not mounted: {_e}")
+try:
+    from app.telephony.smartflo_webhooks import router as smartflo_webhooks_router
+
+    app.include_router(
+        smartflo_webhooks_router, prefix="/api/webhooks", tags=["Telephony Webhooks"]
+    )
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Smartflo webhooks router not mounted: {_e}")
 app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
 
@@ -690,6 +708,14 @@ try:
     app.include_router(public_site_router, prefix="/api")  # /api/public/* (website inquiry form)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Public site router not mounted: {_e}")
+try:
+    from app.api.internal_media import public as content_public_router
+    from app.api.internal_media import router as content_internal_router
+
+    app.include_router(content_internal_router)  # /internal/*  (HMAC-protected; renderer webhooks)
+    app.include_router(content_public_router, prefix="/api", tags=["ContentOS"])  # /api/content-os/*  (admin/owner)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"ContentOS router not mounted: {_e}")
 try:
     from app.api.page_agent import router as page_agent_router
 
@@ -813,6 +839,15 @@ try:
     app.include_router(_ops_mcp_tools_router, prefix="/api")
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Ops MCP-tools router not mounted: {_e}")
+try:
+    from app.api.bot_command_center import router as _bot_cc_router
+
+    # /app/bot-command-center + /api/bot-command-center/state — Pilot multi-bot
+    # coordination surface (OWNER-facing). Admin JWT gated — same login as
+    # /app/admin, koi alag password NAHI. Rollback = ye include-block hatao.
+    app.include_router(_bot_cc_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Bot command-center router not mounted: {_e}")
 try:
     from app.api.rl import router as _rl_router
 
@@ -1343,6 +1378,9 @@ app.include_router(dev_tasks_router, prefix="/api")  # /api/dev-tasks/* (draft-s
 app.include_router(
     telephony_vobiz_router, prefix="/api", tags=["Telephony"]
 )  # /api/telephony/vobiz/*
+app.include_router(
+    telephony_smartflo_router, prefix="/api", tags=["Telephony"]
+)  # /api/telephony/smartflo/*
 
 _dsh_runtime_configured = os.environ.get("DSH_RUNTIME_ENABLED", "0").strip().lower() in (
     "1",

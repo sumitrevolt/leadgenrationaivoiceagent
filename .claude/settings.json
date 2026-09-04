@@ -1,4 +1,5 @@
 {
+  "enableAllProjectMcpServers": true,
   "enabledPlugins": {
     "warp@claude-code-warp": false
   },

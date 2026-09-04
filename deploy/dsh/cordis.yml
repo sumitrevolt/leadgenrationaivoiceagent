@@ -69,6 +69,102 @@
             name: LeadGen free provider chain
             contextWindow: 32768
             maxTokens: 2048
+          - id: leadgen-coding-primary
+            name: LeadGen Coding & Logic Primary
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.coding_primary
+            name: LeadGen Coding & Logic Primary (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-coding-fast
+            name: LeadGen Fast Syntax & Quick Edits
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.coding_fast
+            name: LeadGen Fast Syntax & Quick Edits (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-repo-analysis
+            name: LeadGen Repo Architecture Deep Scan
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.repo_analysis
+            name: LeadGen Repo Architecture Deep Scan (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-test-generation
+            name: LeadGen Automated Test & QA
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.test_generation
+            name: LeadGen Automated Test & QA (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-agent-ops
+            name: LeadGen Agent Workforce & Operations
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.agent_ops
+            name: LeadGen Agent Workforce & Operations (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-swara-live
+            name: LeadGen Voice Realtime Fallback
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.swara_live
+            name: LeadGen Voice Realtime Fallback (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-marketing-content
+            name: LeadGen Marketing Content & Copywriting
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.marketing_content
+            name: LeadGen Marketing Content & Copywriting (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-prospect-enrich
+            name: LeadGen Prospecting & Data Enrichment
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.prospect_enrich
+            name: LeadGen Prospecting & Data Enrichment (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-outreach-email
+            name: LeadGen Outreach Email & Drafts
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.outreach_email
+            name: LeadGen Outreach Email & Drafts (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-seo-keyword
+            name: LeadGen SEO & SEM Keyword Clustering
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.seo_keyword
+            name: LeadGen SEO & SEM Keyword Clustering (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-governor-review
+            name: LeadGen Dual Governor Code Review
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.governor_review
+            name: LeadGen Dual Governor Code Review (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen-project-best
+            name: LeadGen 50-Model Master Flagship Combo
+            contextWindow: 32768
+            maxTokens: 4096
+          - id: leadgen.project_best
+            name: LeadGen 50-Model Master Flagship Combo (Alias)
+            contextWindow: 32768
+            maxTokens: 4096
 
 - id: agent-loop
   name: '@deepseek-ai/dsh-agent-loop'

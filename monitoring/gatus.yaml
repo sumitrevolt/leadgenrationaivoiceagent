@@ -12,29 +12,25 @@ storage:
   type: sqlite
   path: /data/gatus.db
 
-# --- OPT-IN: independent ntfy alert path (OBS-005) ---------------------------
+# --- ntfy independent alert path (OBS-005) -------------------------------
 # Gatus runs independently of Prometheus/Alertmanager, so ntfy here is a
 # LAST-RESORT detector that still fires even if Prometheus itself is down. It is
-# a SEPARATE channel from Alertmanager email (non-duplicating), so the
-# no-duplication note above does not apply. Left commented because the gatus
-# container does not yet receive NTFY_* env. To enable:
-#   1. pass NTFY_URL + NTFY_TOPIC (+ optional NTFY_TOKEN) into the gatus service
-#      env in deploy/compose/docker-compose.observability.yml,
-#   2. uncomment the block below,
-#   3. restart gatus and confirm it starts cleanly.
+# a SEPARATE channel from Alertmanager email (non-duplicating).
+# NTFY_URL + NTFY_TOPIC (+ optional NTFY_TOKEN) are passed via env to the gatus
+# service in deploy/compose/docker-compose.observability.yml.
 # With default-alert every endpoint below inherits the ntfy alert automatically.
-# alerting:
-#   ntfy:
-#     url: "${NTFY_URL}"
-#     topic: "${NTFY_TOPIC}"
-#     token: "${NTFY_TOKEN}"
-#     priority: 4
-#     default-alert:
-#       enabled: true
-#       failure-threshold: 3
-#       success-threshold: 2
-#       send-on-resolved: true
-# -----------------------------------------------------------------------------
+alerting:
+  ntfy:
+    url: "${NTFY_URL}"
+    topic: "${NTFY_TOPIC}"
+    token: "${NTFY_TOKEN}"
+    priority: 4
+    default-alert:
+      enabled: true
+      failure-threshold: 3
+      success-threshold: 2
+      send-on-resolved: true
+# -----------------------------------------------------------------------
 
 endpoints:
   - name: health-ready (db+redis)

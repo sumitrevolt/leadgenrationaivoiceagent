@@ -39,7 +39,9 @@ def off(tmp_path, monkeypatch):
 def aff(tmp_path, monkeypatch):
     from app.marketing import affiliate as mod
 
-    monkeypatch.setattr(mod, "_REFERRALS", str(tmp_path / "affiliate_referrals.jsonl"))
+    monkeypatch.setattr(
+        mod, "_REFERRALS", str(tmp_path / "affiliate_referrals.jsonl")
+    )
     return mod
 
 
@@ -177,7 +179,9 @@ def test_apply_max_redemptions_exhausted(pc, off):
 def test_apply_fail_closed_on_unpayable_order(pc, off):
     pc.create_code("Z1", "fixed_inr", 100)
     assert pc.apply_promo_to_order("", "Z1")["ok"] is False
-    assert pc.apply_promo_to_order("LG-nonexistent", "Z1")["reason"].startswith("order_not_payable")
+    assert pc.apply_promo_to_order("LG-nonexistent", "Z1")["reason"].startswith(
+        "order_not_payable"
+    )
 
 
 # --------------------------------------------------------- issue_custom_offer

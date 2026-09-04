@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI -- Owner Dashboard</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  #topbar{height:56px;background:#111113;border-bottom:1px solid #1e2028;display:flex;align-items:center;padding:0 20px;gap:12px;z-index:200;flex-shrink:0}
+  .brand{font-size:14px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:#f59e0b}
+  .home-btn{padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;color:#64748b;border:1px solid #2d3748;background:#161618;white-space:nowrap;transition:all .12s}
+  .home-btn:hover{color:#e2e8f0;border-color:#4b5563;background:#1a1c22}
+  .home-btn.on{background:#059669;border-color:#166534;color:#10b981}
+  .notif-btn{position:relative;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;color:#64748b;border:1px solid #2d3748;background:#161618;white-space:nowrap;transition:all .12s}
+  .notif-btn:hover{color:#e2e8f0;border-color:#4b5563;background:#1a1c22}
+  .notif-btn.dot{box-shadow:0 0 
+**Reasoning:** KI-gestützte Analyse zeigt aktuellen Markttrend und Impulse. Der Bot hat den Bot gestartet,1.5px 0 0 #f59e0b,2.5px 0 0 #f59e0b}
+  .header-title{font-size:16px;font-weight:600;color:#fff;white-space:nowrap}
+  .header-sub{font-size:11px;color:#64748b;white-space:nowrap}
+  #main{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:20px}
+  .card{background:#111113;border:1px solid #1e2028;border-radius:12px;padding:24px;min-height:320px}
+  .card h2{color:#fff;font-size:14px;margin-bottom:16px;border-bottom:1px solid #1e2028;padding-bottom:8px}
+  .metric-row{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+  .metric-label{color:#64748b;font-size:12px}
+  .metric-value{color:#fff;font-size:16px;font-weight:600}
+  .metric-ok{border-left:3px solid #16a34a;padding-left:12px}
+  .metric-warn{border-left:3px solid #d97706;padding-left:12px}
+  .metric-bad{border-left:3px solid #dc2626;padding-left:12px}
+  .quick-action{width:100%;padding:12px;border-radius:8px;border:1px solid #2d3748;background:#161618;color:#e2e8f0;font-size:13px;cursor:pointer;margin:8px 0;transition:all .12s}
+  .quick-action:hover{background:#1a1c22;border-color:#3b82f6;color:#e2e8f0}
+  .quick-action.primary{background:#059669;border-color:#166534;color:#10b981}
+  .quick-action.secondary{background:#7c3aed;border-color:#8b5cf6;color:#a78bfa}
+  .quick-action.warning{background:#d97706;border-color:#b45309;color:#fbbf24}
+  .status-dot{width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .status-dot.ok{background:#16a34a;box-shadow:0 0 6px #16a34a}
+  .status-dot.warn{background:#d97706;box-shadow:0 0 6px #d97706}
+  .status-dot{bad}{background:#dc2626;box-shadow:0 0 6px #dc2626}
+  .footer{margin-top:auto;padding-top:12px;border-top:1px solid #1e2028;color:#64748b;font-size:11px;text-align:center}
+  @media(max-width:640px){.card{padding:16px}.metric-row{flex-direction:column;align-items:flex-start;gap:4px}.quick-action{font-size:12px;padding:8px}}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="brand">LEADGEN AI <span class="dot"></span></div>
+  <div class="header-title">Owner Dashboard</div>
+  <div class="header-sub">2026-09-03 · Asia/Calcutta</div>
+</div>
+
+<div id="main">
+  <!-- HOT QUEUE CARD -->
+  <div class="card" id="hotqueue-card">
+    <h2>📞 Hot Queue (42 Leads)</h2>
+    <div class="metric-row">
+      <span class="metric-label">Pack Status</span>
+      <span class="metric-value" id="hq-status">Loading...</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Last Generated</span>
+      <span class="metric-value" id="hq-last">--</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">NTFY Push</span>
+      <span class="metric-value" id="hq-ntfy">--</span>
+    </div>
+    <button class="quick-action primary" onclick="viewHotQueue()">View Details</button>
+  </div>
+
+  <!-- COMPLIANCE CARD -->
+  <div class="card" id="compliance-card">
+    <h2>🛡️ Compliance Gates</h2>
+    <div class="metric-row">
+      <span class="metric-label">TRAI Window</span>
+      <span class="metric-value ok" id="trai-status">Checking...</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">DND Scrub</span>
+      <span class="metric-value ok" id="dnd-status">Checking...</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Kill-Fence</span>
+      <span class="metric-value ok" id="kf-status">Checking...</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">WhatsApp Auto</span>
+      <span class="metric-value warn" id="wa-status">OFF (by design)</span>
+    </div>
+  </div>
+
+  <!-- CAMPAIGN METRICS CARD -->
+  <div class="card" id="metrics-card">
+    <h2>📊 Campaign Metrics</h2>
+    <div class="metric-row">
+      <span class="metric-label">MRR</span>
+      <span class="metric-value">₹5,997</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Paying Customers</span>
+      <span class="metric-value">1 (Jiya)</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Outreach Today</span>
+      <span class="metric-value" id="outreach-today">0/80</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Voice Daily Cap</span>
+      <span class="metric-value">100/run</span>
+    </div>
+  </div>
+
+  <!-- SQUAD HEALTH CARD -->
+  <div class="card" id="squads-card">
+    <h2>👷 Squad Health (15 Teams)</h2>
+    <div id="squads-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:12px">
+      <!-- Dynamically loaded -->
+    </div>
+  </div>
+
+  <!-- VIDEO GALLERY CARD -->
+  <div class="card" id="video-gallery-card">
+    <h2>🎬 Video Gallery (Generated Reels)</h2>
+    <div id="video-gallery" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px">
+      <div class="metric-row" style="grid-column:1/-1;justify-content:center;color:#64748b">Loading videos...</div>
+    </div>
+    <button class="quick-action secondary" onclick="loadVideos()" style="margin-top:12px">Refresh Gallery</button>
+    <button class="quick-action" onclick="generateVideos()" style="margin-top:8px">Generate Today's Videos</button>
+  </div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div style="background:#111113;border:1px solid #1e2028;border-radius:12px;padding:20px;margin-top:12px">
+  <h3 style="color:#fff;margin-bottom:12px;">⚙️ Quick Actions</h3>
+  <button class="quick-action primary" onclick="adminApi('/admin/hotqueue')">View Hot Queue Status</button>
+  <button class="quick-action secondary" onclick="adminApi('/admin/compliance')">Check Compliance Gates</button>
+  <button class="quick-action secondary" onclick="adminApi('/admin/deploy/initiate')">Initiate Deploy (2-step)</button>
+  <button class="quick-action" onclick="adminApi('/admin/squads')">Squad Health Summary</button>
+  <button class="quick-action" onclick="adminApi('/admin/knowledge/query', {query: 'How does DND scrub work?'})">Ask Knowledge Base</button>
+</div>
+
+<footer class="footer">
+  <span>LeadGen AI Owner Dashboard · Autopilot: 1000 engineers × 15 squads</span>
+</footer>
+
+<script>
+async function adminApi(endpoint, body) {
+  const url = `/admin${endpoint}`;
+  const opts = {method: 'POST', headers: {'Content-Type': 'application/json'}};
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(url, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'API error');
+    // Show result in alert (or could update specific card)
+    if (endpoint.includes('/hotqueue')) updateHotQueue(data);
+    else if (endpoint.includes('/compliance')) updateCompliance(data);
+    else console.log('Admin API result:', data);
+    alert(JSON.stringify(data, null, 2));
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function updateHotQueue(data) {
+  const el = document.getElementById('hq-status');
+  el.textContent = data.csv_exists ? 'Pack Ready (' + data.rows + ' leads)' : 'No pack yet';
+  document.getElementById('hq-last').textContent = data.md_exists ? 'MD present' : '--';
+  document.getElementById('hq-ntfy').textContent = data.ntfy || '--';
+  // Change card background
+  const card = document.getElementById('hotqueue-card');
+  card.style.background = data.csv_exists ? '#0c2c1e' : '#1a1a24';
+}
+
+function updateCompliance(data) {
+  const gates = data || {};
+  const trai = gates.voice_window === 'pass' || gates.voice_window === 'active' ? 'ok' : 'bad';
+  const dnd = gates.dnd_scrub === 'pass' ? 'ok' : 'bad';
+  const kf = gates.kill_fence === 'pass' || gates.kill_fence === 0 ? 'ok' : 'bad';
+  const wa = gates.whatsapp_auto === 'pass' || gates.whatsapp_auto === 'off' ? 'ok' : 'bad';
+  
+  const labels = {'trai-status': trai, 'dnd-status': dnd, 'kf-status': kf, 'wa-status': wa === 'ok' ? 'ON' : 'OFF (by design)'};
+  const colors = {'trai-status': 'ok', 'dnd-status': 'ok', 'kf-status': 'ok', 'wa-status': 'warn'};
+  
+  Object.entries(labels).forEach(([id, label]) => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = label; el.className = 'metric-value ' + colors[id]; }
+  });
+  
+  // Update card backgrounds
+  const card = document.getElementById('compliance-card');
+  const bg = Object.values(gates).every(v => v === 'pass' || v === 0 || v === 'ok') 
+    ? '#0c2c1e' : '#2a1a1f';
+  card.style.background = bg;
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+  // Auto-refresh every 30 seconds
+  setInterval(() => {
+    adminApi('/admin/hotqueue');
+    adminApi('/admin/compliance');
+    loadVideos();
+  }, 30000);
+  
+  // Initial load
+  adminApi('/admin/hotqueue');
+  adminApi('/admin/compliance');
+  loadVideos();
+});
+
+async function loadVideos() {
+  try {
+    const res = await fetch('/admin/videos');
+    if (!res.ok) throw new Error('Failed to load videos');
+    const data = await res.json();
+    renderVideoGallery(data);
+  } catch (e) {
+    document.getElementById('video-gallery').innerHTML = 
+      '<div class="metric-row" style="grid-column:1/-1;justify-content:center;color:#f87171">Error loading videos: ' + e.message + '</div>';
+  }
+}
+
+function renderVideoGallery(data) {
+  const container = document.getElementById('video-gallery');
+  if (!data.videos || data.videos.length === 0) {
+    container.innerHTML = '<div class="metric-row" style="grid-column:1/-1;justify-content:center;color:#64748b">No videos generated yet. Click "Generate Today\'s Videos" to create them.</div>';
+    return;
+  }
+  
+  container.innerHTML = data.videos.map(v => `
+    <div style="background:#161618;border:1px solid #2d3748;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
+      <video src="${v.url}" controls style="width:100%;border-radius:4px;background:#000"></video>
+      <div style="font-size:11px;color:#e2e8f0;font-weight:600">${v.title}</div>
+      <div style="font-size:10px;color:#64748b">${v.size_kb} KB • ${v.aspect} • ${v.date}</div>
+      <div style="display:flex;gap:4px">
+        <button class="quick-action" onclick="downloadVideo('${v.url}', '${v.title}.mp4')" style="flex:1;font-size:10px;padding:6px">Download</button>
+        <button class="quick-action secondary" onclick="postToSocial('${v.url}')" style="flex:1;font-size:10px;padding:6px">Post to Social</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function generateVideos() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  try {
+    const res = await fetch('/admin/videos/generate', {method: 'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      alert('Videos generated! Refreshing gallery...');
+      loadVideos();
+    } else {
+      alert('Generation failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate Today\'s Videos';
+  }
+}
+
+function downloadVideo(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+function postToSocial(videoUrl) {
+  adminApi('/admin/social/post', {video_url: videoUrl});
+}
+
+function viewHotQueue() {
+  adminApi('/admin/hotqueue');
+}
+</script>
+</body>
+</html>

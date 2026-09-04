@@ -1278,6 +1278,126 @@ ENTRIES: list[dict[str, Any]] = [
         "review_condition": "Drip send path must keep email warmup + suppression gates.",
     },
     {
+        "allowlist_id": "marketing.content_engine.script_voice_gen.output_dir",
+        "file": "app/content_engine/script_voice_gen.py",
+        "line_or_symbol": "OUTPUT_DIR",
+        "path_pattern": "data/content_gen",
+        "store_id": "marketing.content_gen",
+        "access_modes": ["CREATE", "REWRITE"],
+        "reason": (
+            "Script voice generation output directory. Created by os.makedirs at module load; "
+            "contains generated scripts and voiceover files. Rebuildable from source topic prompts."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar output only; no customer PII beyond public script text.",
+    },
+    {
+        "allowlist_id": "marketing.content_pipeline.producer.output_dir",
+        "file": "app/content_pipeline/producer.py",
+        "line_or_symbol": "OUTPUT_DIR",
+        "path_pattern": "data/content_pipeline",
+        "store_id": "marketing.content_pipeline",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Content pipeline output directory. Created by os.makedirs at module load; "
+            "contains generated scripts and voiceover files. Rebuildable from source topic prompts."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Sidecar output only; no customer PII beyond public script text.",
+    },
+    {
+        "allowlist_id": "marketing.content_pipeline.producer.script_txt",
+        "file": "app/content_pipeline/producer.py",
+        "line_or_symbol": "script_path",
+        "path_pattern": "data/content_pipeline/script.txt",
+        "store_id": "marketing.content_pipeline",
+        "access_modes": ["REWRITE"],
+        "reason": (
+            "Generated script text file output. Written by write_text() in main(); "
+            "deterministic rebuild from topic prompt."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Output only; no customer data.",
+    },
+    {
+        "allowlist_id": "marketing.content_os.engine.idempotency_lock",
+        "file": "app/marketing/content_os/engine.py",
+        "line_or_symbol": "lock_file",
+        "path_pattern": "/opt/leadgen/media/content_os/last_run_",
+        "store_id": "marketing.content_os",
+        "access_modes": ["LOCK", "CREATE", "REWRITE"],
+        "reason": (
+            "Day-scoped idempotency lock file. Written by _mark_ran_today() via Path.write_text; "
+            "read by _led_already_ran_today(). Same DATA_DIR store as queue/ledger."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Lock file only; no customer data.",
+    },
+    {
+        "allowlist_id": "marketing.content_os.engine.idempotency_key_read",
+        "file": "app/marketing/content_os/engine.py",
+        "line_or_symbol": "p",
+        "path_pattern": "/opt/leadgen/media/content_os/last_run_",
+        "store_id": "marketing.content_os",
+        "access_modes": ["LOCK", "READ"],
+        "reason": (
+            "Read of idempotency lock file in _led_already_ran_today(). "
+            "Same DATA_DIR store as queue/ledger."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "marketing",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Lock file read only; no customer data.",
+    },
+    # --- command_center pilot dispatch scripts (offline tooling) ---------------
+    {
+        "allowlist_id": "command_center.pilot.dispatch.tasks_json_patches",
+        "file": "command_center/patches/pilot_dispatch_0830_1520.py",
+        "line_or_symbol": "tasks_path",
+        "path_pattern": "command_center/data/tasks.json",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["READ", "REWRITE"],
+        "reason": (
+            "Pilot dispatch patch script reads/writes tasks.json for evidence updates. "
+            "Offline admin tooling."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "operations",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Local admin script; no production customer data.",
+    },
+    {
+        "allowlist_id": "command_center.pilot.dispatch.ledger_messages_jsonl",
+        "file": "command_center/patches/pilot_dispatch_0830_1520.py",
+        "line_or_symbol": "ledger_path",
+        "path_pattern": "command_center/data/messages.jsonl",
+        "store_id": "command_center.pilot_tasks",
+        "access_modes": ["APPEND", "READ"],
+        "reason": (
+            "Pilot dispatch patch script appends evidence to messages.jsonl. "
+            "Offline admin tooling."
+        ),
+        "migration_tier": 3,
+        "target_change_set": "runtime-data-cutover-wave-3",
+        "owner": "operations",
+        "production_relevance": "OFFLINE_TOOLING",
+        "review_condition": "Local admin script; no production customer data.",
+    },
+    {
         "allowlist_id": "marketing.email_drips.runs",
         "file": "app/marketing/email_drips.py",
         "line_or_symbol": "_RUNS_STORE",

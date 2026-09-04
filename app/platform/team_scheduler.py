@@ -220,6 +220,9 @@ _last_ran: dict[str, str | None] = {
     "content_approval_sweep": None,  # daily 04:30: orphaned-pending approval retirement (gated CONTENT_APPROVAL_SWEEP; dry_run default)
     "daily_owner_brief": None,  # daily 08:10: owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
     "trial_nudge": None,  # daily 09:50: trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED)
+    "whatsapp_automation": None,  # hourly: WhatsApp automation (gated WHATSAPP_AUTO_SEND; INERT off)
+    "heartbeat": None,  # every 5m: owner alive heartbeat
+    "content_approval_notify": None,  # hourly :40: pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
 }
 
 
@@ -1624,6 +1627,11 @@ async def _run_job_inner(job: str) -> bool:
             from app.billing import trial_nudge as _tn
 
             await _tn.run_trial_nudge()
+        elif job == "whatsapp_automation":
+            # WhatsApp auto-outreach/nudge (gated WHATSAPP_AUTO_SEND=1)
+            from app.tasks.whatsapp_automation import run_whatsapp_automation
+
+            await asyncio.to_thread(run_whatsapp_automation)
         elif job == "afternoon_content":
             # 2nd daily content-generation pass (afternoon) — Isha extra social
             # batch (self + clients). Gated AFTERNOON_CONTENT (default OFF; LLM cost).
