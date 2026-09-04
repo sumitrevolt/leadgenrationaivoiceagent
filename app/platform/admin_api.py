@@ -176,9 +176,9 @@ async def generate_videos(gates: dict = Depends(_gate_check)):
         videos_created += sum(1 for c in clients if c.get("video_path"))
         
         return {"ok": True, "videos_created": videos_created, "detail": {"own": bool(own), "clients": len(clients)}}
-    except Exception as e:
-        logger.warning(f"Video generation failed: {e}")
-        return {"ok": False, "error": str(e)[:200]}
+    except Exception:
+        logger.exception("Video generation failed")
+        return {"ok": False, "error": "Video generation failed due to an internal error"}
 
 # ── 9. Post Video to Social ──────────────────────────────────────
 @router.post("/social/post", summary="Post video to social via Postiz")
