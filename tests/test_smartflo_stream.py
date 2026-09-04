@@ -65,7 +65,20 @@ class _FakeWS:
 
     async def receive_text(self) -> str:
         self._receive_count += 1
-        return await self._receive_queue.get()
+        if self._receive_queue.empty():
+            if self.closed:
+                # Real WS semantics: receive after server-side close raises —
+                # lets handle()'s read loop exit instead of blocking forever
+                # (2026-09-04 CI shard-4 hang: tests enqueued only `stop`, so
+                # handle() blocked on queue.get() until the 60s idle timeout).
+                raise RuntimeError("WebSocket disconnected after close")
+            # Mirror prod idle-timeout with a bounded wait so a misbehaving
+            # test fails fast instead of hanging the whole shard.
+            try:
+                return await asyncio.wait_for(self._receive_queue.get(), timeout=5.0)
+            except asyncio.TimeoutError:
+                raise RuntimeError("FakeWS receive idle timeout (5s)") from None
+        return self._receive_queue.get_nowait()
 
     async def close(self) -> None:
         self.closed = True
@@ -98,8 +111,10 @@ def _make_silence_mulaw(n_bytes: int = 160) -> str:
 
 def _make_speech_mulaw(n_bytes: int = 160) -> str:
     """Generate base64-encoded speech-like audio (non-zero mulaw bytes)."""
-    # Mulaw bytes 0x80-0xFE map to positive PCM16 values (non-silence)
-    return base64.b64encode(bytes(range(0x80, 0x80 + n_bytes))).decode()
+    # Mulaw bytes 0x80-0xFE map to positive PCM16 values (non-silence);
+    # wrap mod 256 so n_bytes > 128 stays valid (2026-09-04 fix: range
+    # 0x80..0x120 raised ValueError for the default 160-byte payload).
+    return base64.b64encode(bytes((0x80 + i) % 256 for i in range(n_bytes))).decode()
 
 
 def _session(ws: _FakeWS | None = None, **kwargs: Any) -> SmartfloStreamSession:

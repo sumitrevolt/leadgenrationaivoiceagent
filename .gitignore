@@ -17,6 +17,10 @@ uat_evidence/
 # Local tool directories
 .commandcode/
 
+# PII exports (DPDP Act 2023 — phone/email/wa_link columns; test_no_tracked_pii_exports enforces)
+data/prospect_export*.csv
+data/hot_queue_for_owner*.csv
+
 # C extensions
 *.so
 
