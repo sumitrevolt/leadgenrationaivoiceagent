@@ -193,10 +193,24 @@ async def post_video_to_social(payload: dict, gates: dict = Depends(_gate_check)
     if not video_url:
         return {"sent": False, "reason": "video_url required"}
     
-    # Extract local path from URL
+    # Extract and validate local file path from URL
     import os
-    filename = os.path.basename(video_url)
-    local_path = os.path.join(settings.DATA_DIR, "reels", filename)
+    import re
+    from urllib.parse import urlparse
+
+    parsed = urlparse(video_url)
+    filename = os.path.basename(parsed.path or "")
+    if not filename:
+        return {"sent": False, "reason": "Invalid video_url"}
+    if not filename.endswith(".mp4"):
+        return {"sent": False, "reason": "Only .mp4 files are supported"}
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", filename):
+        return {"sent": False, "reason": "Invalid video filename"}
+
+    reels_dir = os.path.realpath(os.path.join(settings.DATA_DIR, "reels"))
+    local_path = os.path.realpath(os.path.join(reels_dir, filename))
+    if os.path.commonpath([reels_dir, local_path]) != reels_dir:
+        return {"sent": False, "reason": "Invalid video path"}
     
     if not os.path.exists(local_path):
         return {"sent": False, "reason": "Video file not found locally"}
