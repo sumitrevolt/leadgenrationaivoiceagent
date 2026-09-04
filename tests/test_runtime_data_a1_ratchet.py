@@ -77,8 +77,9 @@ EXPECTED_BLOCKERS = 0
 # +7 classified allowlist rows (marketing offline tooling + hot-queue pack)
 # already reviewed inline; owner-approved ratchet re-pin during merge train.
 # Baseline 839 -> 793: main-line smartflo/cutover reconcile paid down 46
-# stale fingerprints (resolved debt, not new debt).
-EXPECTED_ALLOWLIST_ENTRIES = 92
+# 2026-09-04: 92 -> 94 re-pin. Added 2 classified allowlist entries for
+# automation.console_events (M2 console dispatcher).
+EXPECTED_ALLOWLIST_ENTRIES = 94
 EXPECTED_BASELINE_FINGERPRINTS = 793
 
 
