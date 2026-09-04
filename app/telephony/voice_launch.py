@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -42,9 +42,16 @@ logger = setup_logger(__name__)
 _DAILY_CAP_CEILING = 100
 _DEFAULT_DAILY_CAP = 100
 _DEFAULT_TEST_CAP = 25  # internal test calls (allowlist) — campaign quota se ALAG
+# Per-tenant console test calls. Same order as the internal test quota (25, not
+# the campaign default 100): this path is a self-serve demo dial, so an
+# unconfigured tenant must not inherit campaign-scale volume by accident.
+_DEFAULT_TENANT_CAP = 25
 _DEFAULT_CONCURRENCY = 1
 _TRAIN_BATCH = 30  # 30-call batches: pause@30/60/90 → train → resume
 _COUNTER_TTL_S = 129600  # 36h — IST-date counter, midnight rollover buffer
+# Charset allowed in a sanitized tenant id inside a Redis key (see
+# _tenant_counter_key). Anything else is dropped, not escaped.
+_TENANT_ID_SAFE = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_.:-")
 
 # Session-scoped ceiling — exactly VOICE_CALLS_PER_SESSION attempts per launch
 # session (default 30). Redis-backed → worker/scheduler restart counter RESET
@@ -391,6 +398,33 @@ def daily_cap(kind: str = "campaign") -> int:
     return max(1, min(n, _DAILY_CAP_CEILING))
 
 
+def tenant_cap(requested: int | None = None) -> int:
+    """Per-tenant attempt ceiling for a tenant-scoped test call.
+
+    Env VOICE_TENANT_DAILY_CAP is the platform-wide default; an explicit
+    `requested` from tenant config is clamped into [1, ceiling].
+
+    CEILING NOTE: clamped to the SAME ``_DAILY_CAP_CEILING`` as the campaign
+    cap, deliberately. A tenant can store max_calls_per_day up to 5000 in
+    console config, but that field describes an automation plan, not a licence
+    to exceed the platform's per-day dial ceiling. Clamping a tenant-supplied
+    number UP would be the one place an untrusted input could raise a spend /
+    compliance limit, so it is floored at 1 and capped at the shared ceiling.
+    """
+    try:
+        n = int(_env("VOICE_TENANT_DAILY_CAP", str(_DEFAULT_TENANT_CAP)))
+    except Exception:
+        n = _DEFAULT_TENANT_CAP
+    n = max(1, min(n, _DAILY_CAP_CEILING))
+    if requested is None:
+        return n
+    try:
+        want = int(requested)
+    except Exception:
+        return n
+    return max(1, min(want, _DAILY_CAP_CEILING))
+
+
 def session_cap() -> int:
     """Per-SESSION attempt ceiling — ``VOICE_CALLS_PER_SESSION`` (default 30,
     hard-clamped ≤200). One session = one operator launch (create_voice_session);
@@ -517,6 +551,76 @@ async def reserve_call_slot(kind: str = "campaign") -> SlotReservation:
     except Exception as e:
         logger.warning(f"[voice_launch] reserve_call_slot fail-CLOSED ({e})")
         return SlotReservation(False, -1, cap, reason="counter_unavailable")
+
+
+def _tenant_counter_key(client_id: str) -> str:
+    """Redis key for one tenant's IST-day attempts.
+
+    `client_id` is tenant-controlled and lands INSIDE a Redis key, so it is
+    sanitized: strip -> lowercase -> keep [a-z0-9_.:-] -> truncate 64. Without
+    this a cid containing "\n" or a wildcard-ish byte could collide with, or
+    pollute, an unrelated keyspace.
+    """
+    cid = str(client_id or "").strip().lower()
+    safe = "".join(ch for ch in cid if ch in _TENANT_ID_SAFE)
+    safe = safe[:64]
+    return f"voice_launch:attempts:tenant:{safe or 'unknown'}:{_ist_date()}"
+
+
+async def reserve_tenant_slot(client_id: str, limit: int | None = None) -> SlotReservation:
+    """Atomically claim ONE of this tenant's attempt slots for today (IST).
+
+    Deliberately a SEPARATE counter from ``reserve_call_slot``: campaign/
+    test quotas are platform-wide, so a single tenant's console test calls
+    must not consume (or be masked by) the shared campaign allowance. Both
+    counters still sit under the same admin kill / circuit / compliance gates.
+
+    Same contract as reserve_call_slot — ok=False on over-cap OR unavailable
+    counter (FAIL-CLOSED), single INCR for multi-worker atomicity, 36h TTL set
+    on first increment, over-cap rolled back to `cap`.
+    """
+    cap = tenant_cap(limit)
+    try:
+        r = await _redis()
+        key = _tenant_counter_key(client_id)
+        count = int(await r.incr(key))
+        if count == 1:
+            try:
+                await r.expire(key, _COUNTER_TTL_S)
+            except Exception:
+                pass
+        if count > cap:
+            try:
+                await r.set(key, str(cap), ex=_COUNTER_TTL_S)
+            except Exception:
+                pass
+            return SlotReservation(False, cap, cap, reason="tenant_daily_limit_reached")
+        return SlotReservation(True, count, cap)
+    except Exception as e:
+        logger.warning(f"[voice_launch] reserve_tenant_slot fail-CLOSED ({e})")
+        return SlotReservation(False, -1, cap, reason="counter_unavailable")
+
+
+async def release_tenant_slot(client_id: str) -> int:
+    """Roll back ONE reserved tenant slot — the slot was claimed but the call
+    never became a provider-accepted attempt (console dry-run, or the provider
+    rejected it). Mirror of ``release_call_slot`` on the per-tenant counter.
+
+    Why this exists: the console reserves BEFORE dialling so the cap is always
+    exercised, but a dry_run dials nothing. Without the rollback, a tenant who
+    pressed "test call" a few times with the default dry_run=True would exhaust
+    their daily quota without a single call ever ringing. Never raises.
+    """
+    try:
+        r = await _redis()
+        key = _tenant_counter_key(client_id)
+        cur = await r.get(key)
+        n = max(0, (int(cur) if cur is not None else 0) - 1)
+        await r.set(key, str(n), ex=_COUNTER_TTL_S)
+        return n
+    except Exception as e:
+        logger.warning(f"[voice_launch] release_tenant_slot noop ({e})")
+        return -1
 
 
 # --------------------------------------------------------------------------- #

@@ -4,7 +4,7 @@
 
 import os
 
-from app.config.settings import settings
+from app.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)

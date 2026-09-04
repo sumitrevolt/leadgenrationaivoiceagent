@@ -70,76 +70,231 @@ def _logo_temp_file(logo_data_uri: str, tmp_dir: str) -> str | None:
 
 
 def _make_branded_frame(
-    text: str, idx: int, brand: dict[str, Any], tmp_dir: str, width: int = _W, height: int = _H
+    text: str,
+    idx: int,
+    brand: dict[str, Any],
+    tmp_dir: str,
+    width: int = _W,
+    height: int = _H,
+    total_slides: int = 4,
 ) -> str:
-    """PIL frame: brand-color bg + top-left logo (if any) + lower-third caption
-    bar (not full-screen giant text — closer to real short-form-video captions)
-    + bottom brand strip (business name + phone)."""
+    """Creates a high-aesthetic, enterprise-grade video frame.
+    
+    Features:
+    - Deep midnight slate gradient or blended custom background
+    - Ambient radial glow accents + subtle grid lines
+    - Floating brand header pill with logo/monogram + verified badge
+    - Centered frosted glassmorphism hero card with step chip & drop-shadowed text
+    - Sleek bottom CTA pill
+    """
     from PIL import Image, ImageDraw, ImageFont
 
     primary = brand.get("primary") or "#2563eb"
-    bg = _hex(primary, (37, 99, 235))
+    bg_color = _hex(primary, (37, 99, 235))
     bg_img_path = brand.get("background_image_path") or brand.get("bg_image")
+
+    # 1. Base Canvas
     if bg_img_path and os.path.exists(bg_img_path):
         try:
-            img = Image.open(bg_img_path).convert("RGB").resize((width, height))
+            base = Image.open(bg_img_path).convert("RGBA").resize((width, height))
+            # Dark gradient scrim over photo for perfect contrast
+            scrim = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            scrim_draw = ImageDraw.Draw(scrim)
+            for y in range(height):
+                alpha = int(140 + (y / height) * 90)
+                scrim_draw.line([(0, y), (width, y)], fill=(8, 12, 28, alpha))
+            base = Image.alpha_composite(base, scrim)
         except Exception as e:
             logger.warning(f"[video_pipeline] custom background load failed: {e}")
-            img = Image.new("RGB", (width, height), bg)
+            base = Image.new("RGBA", (width, height), (6, 10, 26, 255))
     else:
-        img = Image.new("RGB", (width, height), bg)
-    dr = ImageDraw.Draw(img)
+        # Rich vertical dark gradient: deep midnight navy to obsidian
+        base = Image.new("RGBA", (width, height), (6, 10, 26, 255))
+        draw_tmp = ImageDraw.Draw(base)
+        for y in range(height):
+            ratio = y / height
+            r = int(6 + ratio * 12)
+            g = int(10 + ratio * 18)
+            b = int(26 + ratio * 38)
+            draw_tmp.line([(0, y), (width, y)], fill=(r, g, b, 255))
+
+        # Ambient glowing radial accents
+        glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        glow_draw = ImageDraw.Draw(glow)
+        glow_draw.ellipse([width - 250, -100, width + 250, 400], fill=(56, 189, 248, 28))
+        glow_draw.ellipse([-150, height // 2 - 200, 300, height // 2 + 250], fill=(99, 102, 241, 32))
+        glow_draw.ellipse([width // 2 - 300, height - 350, width // 2 + 300, height + 250], fill=(37, 99, 235, 36))
+        base = Image.alpha_composite(base, glow)
+
+        # Subtle decorative tech grid
+        grid = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        grid_draw = ImageDraw.Draw(grid)
+        for gx in range(0, width, 80):
+            grid_draw.line([(gx, 0), (gx, height)], fill=(255, 255, 255, 6), width=1)
+        for gy in range(0, height, 80):
+            grid_draw.line([(0, gy), (width, gy)], fill=(255, 255, 255, 6), width=1)
+        base = Image.alpha_composite(base, grid)
+
+    draw = ImageDraw.Draw(base)
+
+    # Fonts selection
+    font_bold = "C:/Windows/Fonts/segoeuib.ttf" if os.path.exists("C:/Windows/Fonts/segoeuib.ttf") else "DejaVuSans-Bold.ttf"
+    font_reg = "C:/Windows/Fonts/segoeui.ttf" if os.path.exists("C:/Windows/Fonts/segoeui.ttf") else "DejaVuSans.ttf"
 
     try:
-        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 40)
-        small_font = ImageFont.truetype("DejaVuSans.ttf", 28)
+        title_font = ImageFont.truetype(font_bold, 40)
+        body_font = ImageFont.truetype(font_bold, 36)
+        badge_font = ImageFont.truetype(font_bold, 20)
+        small_font = ImageFont.truetype(font_reg, 22)
+        logo_font = ImageFont.truetype(font_bold, 26)
     except Exception:
-        font = ImageFont.load_default()
-        small_font = font
+        title_font = ImageFont.load_default()
+        body_font = title_font
+        badge_font = title_font
+        small_font = title_font
+        logo_font = title_font
 
-    # Logo, top-left, 90x90, if present
+    biz_name = str(brand.get("business_name") or "LeadGen AI").strip()
+    phone = str(brand.get("phone") or "leadsgenai.in").strip()
+    niche_label = str(brand.get("niche") or "AI MARKETING").upper()
+
+    # 2. Top Header Brand Bar (Floating Pill)
+    header_w = width - 80
+    header_h = 68
+    header_x = 40
+    header_y = 48
+
+    hdr_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    hdr_draw = ImageDraw.Draw(hdr_overlay)
+    hdr_draw.rounded_rectangle(
+        [header_x, header_y, header_x + header_w, header_y + header_h],
+        radius=34,
+        fill=(15, 23, 42, 210),
+        outline=(56, 189, 248, 120),
+        width=2,
+    )
+    base = Image.alpha_composite(base, hdr_overlay)
+    draw = ImageDraw.Draw(base)
+
+    # Logo Avatar or Monogram
     logo_path = _logo_temp_file(str(brand.get("logo_data_uri") or ""), tmp_dir)
-    if logo_path:
+    avatar_x = header_x + 10
+    avatar_y = header_y + 9
+    if logo_path and os.path.exists(logo_path):
         try:
-            logo = Image.open(logo_path).convert("RGBA").resize((90, 90))
-            img.paste(logo, (30, 30), logo)
-        except Exception as e:
-            logger.warning(f"[video_pipeline] logo paste failed: {e}")
+            logo_img = Image.open(logo_path).convert("RGBA").resize((50, 50))
+            base.paste(logo_img, (avatar_x, avatar_y), logo_img)
+            draw = ImageDraw.Draw(base)
+        except Exception:
+            logo_path = None
 
-    # Lower-third caption bar: semi-transparent dark strip + word-wrapped white text
-    bar_h = max(180, height // 5)
-    bar_top = height - bar_h - max(100, height // 10)
-    overlay = Image.new("RGBA", (width, bar_h), (0, 0, 0, 150))
-    img.paste(overlay, (0, bar_top), overlay)
+    if not logo_path:
+        draw.ellipse([avatar_x, avatar_y, avatar_x + 50, avatar_y + 50], fill=bg_color, outline=(56, 189, 248, 180), width=2)
+        mono = (biz_name[:2] if len(biz_name) >= 2 else "AI").upper()
+        draw.text((avatar_x + 10, avatar_y + 11), mono, font=logo_font, fill=(255, 255, 255))
 
-    wrap_cols = max(18, width // 30)
-    words, lines, cur = text.split(), [], ""
+    # Business Name in Header
+    disp_biz = biz_name[:18].upper()
+    draw.text((avatar_x + 62, header_y + 17), disp_biz, font=logo_font, fill=(255, 255, 255))
+
+    # Verified Pill (Right)
+    badge_text = "VERIFIED AI"
+    bb = draw.textbbox((0, 0), badge_text, font=badge_font)
+    bw = bb[2] - bb[0] + 20
+    bx = header_x + header_w - bw - 14
+    by = header_y + 16
+    draw.rounded_rectangle([bx, by, bx + bw, by + 36], radius=18, fill=(16, 185, 129, 36), outline=(16, 185, 129, 180), width=1)
+    draw.text((bx + 10, by + 7), badge_text, font=badge_font, fill=(52, 211, 153))
+
+    # 3. Middle Frosted Glass Card (Hero Content)
+    card_margin = 40
+    card_w = width - (card_margin * 2)
+    card_h = min(580, int(height * 0.48))
+    card_x = card_margin
+    card_y = (height - card_h) // 2 - 20
+
+    card_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    card_draw = ImageDraw.Draw(card_overlay)
+    card_draw.rounded_rectangle(
+        [card_x, card_y, card_x + card_w, card_y + card_h],
+        radius=26,
+        fill=(15, 23, 42, 230),
+        outline=(56, 189, 248, 130),
+        width=2,
+    )
+    base = Image.alpha_composite(base, card_overlay)
+    draw = ImageDraw.Draw(base)
+
+    # Category & Step Chip on Top of Card
+    chip_text = f"{niche_label}  |  STEP {idx + 1:02d}/{max(idx + 1, total_slides):02d}"
+    cbb = draw.textbbox((0, 0), chip_text, font=badge_font)
+    cw = cbb[2] - cbb[0] + 30
+    cx = card_x + (card_w - cw) // 2
+    cy = card_y + 32
+    draw.rounded_rectangle([cx, cy, cx + cw, cy + 38], radius=19, fill=(99, 102, 241, 45), outline=(129, 140, 248, 200), width=2)
+    draw.text((cx + 15, cy + 8), chip_text, font=badge_font, fill=(199, 210, 254))
+
+    # Main Text inside Glass Card
+    words = text.split()
+    lines, cur = [], ""
+    wrap_max = max(18, width // 30)
     for w in words:
-        if len(cur) + len(w) + 1 > wrap_cols:
+        if len(cur) + len(w) + 1 > wrap_max:
             lines.append(cur)
             cur = w
         else:
             cur = (cur + " " + w).strip()
     if cur:
         lines.append(cur)
-    y = bar_top + (bar_h - len(lines[:5]) * 50) // 2
-    for ln in lines[:5]:
-        bb = dr.textbbox((0, 0), ln, font=font)
-        dr.text(((width - (bb[2] - bb[0])) / 2, y), ln, fill="white", font=font)
-        y += 50
 
-    # Bottom brand strip: business name + phone
-    biz = str(brand.get("business_name") or "").strip()
-    phone = str(brand.get("phone") or "").strip()
-    strip_text = " | ".join(t for t in (biz, phone) if t)
-    if strip_text:
-        bb = dr.textbbox((0, 0), strip_text, font=small_font)
-        dr.text(
-            ((width - (bb[2] - bb[0])) / 2, height - 90), strip_text, fill="white", font=small_font
-        )
+    text_start_y = card_y + 115
+    line_spacing = 60
+    for i, ln in enumerate(lines[:6]):
+        bb = draw.textbbox((0, 0), ln, font=body_font)
+        lx = card_x + (card_w - (bb[2] - bb[0])) // 2
+        ly = text_start_y + (i * line_spacing)
+        # Drop shadow for readability
+        draw.text((lx + 2, ly + 2), ln, font=body_font, fill=(0, 0, 0, 160))
+        # High contrast white text
+        draw.text((lx, ly), ln, font=body_font, fill=(255, 255, 255, 255))
 
+    # Metric / Trust Accent Footer inside Card
+    trust_y = card_y + card_h - 70
+    draw.line([(card_x + 25, trust_y), (card_x + card_w - 25, trust_y)], fill=(56, 189, 248, 50), width=1)
+    trust_text = "Instant 24/7 Response  •  100% Free Demo"
+    tbb = draw.textbbox((0, 0), trust_text, font=small_font)
+    tx = card_x + (card_w - (tbb[2] - tbb[0])) // 2
+    draw.text((tx, trust_y + 16), trust_text, font=small_font, fill=(148, 163, 184))
+
+    # 4. Bottom CTA Pill Bar
+    cta_w = width - 80
+    cta_h = 72
+    cta_x = 40
+    cta_y = height - cta_h - 75
+
+    cta_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    cta_draw = ImageDraw.Draw(cta_overlay)
+    cta_draw.rounded_rectangle(
+        [cta_x, cta_y, cta_x + cta_w, cta_y + cta_h],
+        radius=36,
+        fill=bg_color + (240,),
+        outline=(96, 165, 250, 220),
+        width=2,
+    )
+    base = Image.alpha_composite(base, cta_overlay)
+    draw = ImageDraw.Draw(base)
+
+    offer_tag = str(brand.get("offer") or "Free Demo").strip()
+    cta_label = f"> {phone}  •  {offer_tag}"[:35]
+    cbb = draw.textbbox((0, 0), cta_label, font=title_font)
+    cx = cta_x + (cta_w - (cbb[2] - cbb[0])) // 2
+    cy = cta_y + 14
+    draw.text((cx, cy), cta_label, font=title_font, fill=(255, 255, 255))
+
+    # Save output frame
+    rgb_img = base.convert("RGB")
     path = os.path.join(tmp_dir, f"frame{idx:02d}.png")
-    img.save(path)
+    rgb_img.save(path, quality=95)
     return path
 
 
@@ -338,6 +493,10 @@ async def _render_generic(
         if not brand.get("business_name"):
             brand["business_name"] = business_name
         brand.setdefault("primary", "#2563eb")
+        if niche and not brand.get("niche"):
+            brand["niche"] = niche.replace("_", " ").upper()
+        if offer and not brand.get("offer"):
+            brand["offer"] = offer
 
         used_slides = slides or [
             business_name,
@@ -354,7 +513,9 @@ async def _render_generic(
 
         segs: list[str] = []
         for i, text in enumerate(used_slides):
-            frame = _make_branded_frame(text, i, brand, tmp, width=width, height=height)
+            frame = _make_branded_frame(
+                text, i, brand, tmp, width=width, height=height, total_slides=len(used_slides)
+            )
             audio = os.path.join(tmp, f"audio{i:02d}.mp3")
             has_audio = await reel_video._tts(text, audio)
             seg = os.path.join(tmp, f"seg{i:02d}.mp4")

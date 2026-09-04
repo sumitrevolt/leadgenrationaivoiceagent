@@ -91,6 +91,48 @@ def _biz_name(client_id: str) -> str:
         return ""
 
 
+def _client_product(client_id: str) -> str:
+    """Product enum for a client: marketing | voice | combo (ADR-009 two-product split).
+
+    Normalisation mirrors ``app/api/customer_auth.py::me`` so both surfaces always
+    agree on what a client is entitled to. Unknown/missing collapses to
+    ``marketing`` — same safe default as the auth endpoint.
+    """
+    try:
+        from app.marketing.clients_store import get_client
+
+        p = str((get_client(client_id) or {}).get("product") or "").strip().lower()
+    except Exception:
+        p = ""
+    if p not in ("marketing", "voice", "combo"):
+        return "marketing"
+    return p
+
+
+# Landing targets an impersonating operator may be sent to. Strict allowlist:
+# `portal_url` is echoed to the browser and followed by the frontend, so a free-
+# form value here would be an open redirect. Anything not listed falls back to
+# /app/customer rather than erroring — a bad hint must never break impersonation.
+PORTAL_ALLOWLIST: tuple[str, ...] = (
+    "/app/customer",
+    "/app/customer/marketing",
+    "/app/customer/voice",
+    "/app/voice-console",
+    "/app/marketing-console",
+)
+
+
+def _safe_portal_url(to: str) -> str:
+    """Validate the requested landing target; default to /app/customer.
+
+    Exact-match against the allowlist is the whole check: anything carrying a
+    scheme, host, query or trailing path simply is not a member and therefore
+    falls back. No string surgery is needed, which is the point — every rewrite
+    is a place for an open-redirect bypass to hide.
+    """
+    return str(to or "").strip() if str(to or "").strip() in PORTAL_ALLOWLIST else "/app/customer"
+
+
 def _mint_impersonation_token(client_id: str, email: str, admin_id: str, admin_email: str) -> str:
     """Customer-role JWT with impersonation markers. Short-lived."""
     from jose import jwt
@@ -135,6 +177,10 @@ async def impersonation_targets(admin=Depends(require_super_admin)):
                     "client_id": cid,
                     "email": str(r.get("email") or ""),
                     "business_name": _biz_name(cid),
+                    # Lets the admin UI pick the right console per client instead
+                    # of guessing: voice -> voice console, marketing -> marketing
+                    # console, combo -> either.
+                    "product": _client_product(cid),
                 }
             )
             if len(out) >= 500:
@@ -148,6 +194,10 @@ async def impersonation_targets(admin=Depends(require_super_admin)):
 class ImpersonateIn(BaseModel):
     client_id: str = Field(..., min_length=1, max_length=64)
     reason: str = Field("", max_length=300)
+    # Optional landing hint. Validated against PORTAL_ALLOWLIST by
+    # _safe_portal_url(); unknown values fall back to /app/customer rather than
+    # failing, so an outdated caller degrades instead of breaking.
+    to: str = Field("", max_length=200)
 
 
 @router.post("/start")
@@ -182,6 +232,7 @@ async def impersonation_start(
                 "client_email": email,
                 "reason": body.reason or "",
                 "ttl_min": _ttl_min(),
+                "portal_url": _safe_portal_url(body.to),
             },
             ip_address=_client_ip(request),
             severity="warning",
@@ -202,7 +253,10 @@ async def impersonation_start(
         "business_name": biz,
         "impersonation": True,
         "expires_in": _ttl_min() * 60,
-        "portal_url": "/app/customer",
+        # The frontend already honours this field (frontend/impersonate.html:77);
+        # until now the backend hard-coded it, so operators could only ever land
+        # on /app/customer and had no supported way to reach a console.
+        "portal_url": _safe_portal_url(body.to),
     }
 
 

@@ -38,7 +38,7 @@ def comfyui_enabled() -> bool:
 
 def learning_enabled() -> bool:
     """Recommendations surface only — never auto-mutates prompts."""
-    return os_enabled() and _on("CREATIVE_LEARNING_ENABLED")
+    return os_enabled() and _on("CREATIVE_LEARNING_ENABLED", "1")
 
 
 def max_revisions() -> int:

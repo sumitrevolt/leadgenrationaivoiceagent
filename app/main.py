@@ -935,6 +935,19 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer-onboard router not mounted: {_e}")
 try:
+    from app.api.product_consoles import router as _product_consoles_router
+
+    # Archify-styled customer consoles:
+    #   /app/voice-console          — Product 1 (Voice AI Configuration & Knowledge)
+    #   /app/marketing-console      — Product 2 (Marketing Launch Panel)
+    #   /static/archify_console.css — shared design system
+    #   /api/consoles/*             — APIs (bootstrap, business-config, knowledge,
+    #                                 connections, automation templates, marketing launch)
+    # All routes are customer-JWT gated (require_customer) and never-500.
+    app.include_router(_product_consoles_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Product consoles router not mounted: {_e}")
+try:
     from app.api.customer_webhooks import router as _customer_webhooks_router
 
     # /api/customer/webhooks/* — H.1 customer-facing webhooks (sellable SaaS
@@ -1548,6 +1561,10 @@ if _website_dir.is_dir():
 _ds_dir = FRONTEND_DIR / "design-system"
 if _ds_dir.is_dir():
     app.mount("/design-system", StaticFiles(directory=str(_ds_dir)), name="design_system")
+
+_reels_dir = Path("data/reels")
+if _reels_dir.is_dir():
+    app.mount("/reels", StaticFiles(directory=str(_reels_dir)), name="reels")
 
 
 # Unity WebGL build artifacts (Blueprint Virtual Office). Mounted ONLY when a versioned
