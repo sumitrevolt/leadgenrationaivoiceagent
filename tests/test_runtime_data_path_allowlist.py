@@ -144,7 +144,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # (referral kit) plus sales.prospects TASK_LI-001 enrichment tooling
     # entries re-bound to real code symbols; scratch temp_enrich_write.py
     # deleted instead of classified. CLASSIFIED, not tolerated.
-    assert len(entries) == 93
+    assert len(entries) == 98
     assert len(families) == 32, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
