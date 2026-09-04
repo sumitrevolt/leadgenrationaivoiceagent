@@ -144,8 +144,8 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # (referral kit) plus sales.prospects TASK_LI-001 enrichment tooling
     # entries re-bound to real code symbols; scratch temp_enrich_write.py
     # deleted instead of classified. CLASSIFIED, not tolerated.
-    assert len(entries) == 85
-    assert len(families) == 28, sorted(families)
+    assert len(entries) == 93
+    assert len(families) == 32, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -159,6 +159,9 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "marketing.affiliates",
         "marketing.appointment_reminders",
         "marketing.brand_kits",
+        "marketing.content_gen",
+        "marketing.content_os",
+        "marketing.content_pipeline",
         "marketing.customer_health",
         "marketing.email_drips",
         "marketing.form_builder",
@@ -168,6 +171,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "platform.memory_governance",
         "platform.staff_bus",
         "platform.workforce_memory",
+        "command_center.pilot_tasks",
         "devcontrol.external_missions",
         "governance.mission_control",
         "owner_os.coordination_hub",
@@ -180,8 +184,8 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    # 11 since 2026-08-04: owner_os joined (Coordination Hub projection).
-    assert len({f.split(".")[0] for f in families}) == 11
+    # 12 since 2026-08-24: command_center joined (Pilot dispatch tasks store).
+    assert len({f.split(".")[0] for f in families}) == 12
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -450,7 +454,7 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-24: +2 revenue-sprint families — billing.promo_codes (coupon
     # engine ledger) and marketing.affiliates (referral kit), both tier-3
     # rebuildable INERT-by-default stores via evidence-backed manifest edit.
-    assert counts["unique_families"] == 46
+    assert counts["unique_families"] == 50
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
