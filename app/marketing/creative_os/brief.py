@@ -50,8 +50,14 @@ class BrandProfile:
     accent_color: str = ""
     tagline: str = ""
     logo_text: str = ""
+    phone: str = ""
+    contact_display: str = ""
+    offer_badge: str = ""
     socials: dict[str, str] = field(default_factory=dict)
     services: list[dict[str, Any]] = field(default_factory=list)
+    verified_trust: list[str] = field(default_factory=list)
+    verified_metrics: list[dict[str, str]] = field(default_factory=list)
+    kb_facts: list[str] = field(default_factory=list)
     plan: str = ""
     status: str = ""
     sources: dict[str, str] = field(default_factory=dict)
@@ -224,6 +230,53 @@ def resolve_brand_profile(tenant_id: str) -> BrandProfile:
         if prof.services:
             prof.sources["services"] = "clients_store" if rec.get("services") else "brand_kit"
 
+    prof.phone = str(rec.get("phone") or kit.get("phone") or "").strip()
+    if prof.phone:
+        prof.sources["phone"] = "clients_store" if rec.get("phone") else "brand_kit"
+
+    prof.contact_display = str(
+        rec.get("contact_display") or kit.get("contact_display") or prof.phone or ""
+    ).strip()
+    prof.offer_badge = str(
+        rec.get("offer_badge") or rec.get("offer") or kit.get("offer") or ""
+    ).strip()
+
+    trust = rec.get("verified_trust") or kit.get("verified_trust") or []
+    if isinstance(trust, list):
+        prof.verified_trust = [str(x).strip() for x in trust if str(x).strip()]
+        if prof.verified_trust:
+            prof.sources["verified_trust"] = (
+                "clients_store" if rec.get("verified_trust") else "brand_kit"
+            )
+
+    metrics = rec.get("verified_metrics") or kit.get("verified_metrics") or []
+    if isinstance(metrics, list):
+        prof.verified_metrics = [m for m in metrics if isinstance(m, dict)]
+        if prof.verified_metrics:
+            prof.sources["verified_metrics"] = (
+                "clients_store" if rec.get("verified_metrics") else "brand_kit"
+            )
+
+    try:
+        from app.marketing.kb_personalize import client_context
+
+        kb_facts = client_context(tid, query="services offers speciality experience trust", k=4)
+        if kb_facts:
+            prof.kb_facts = [str(f).strip() for f in kb_facts if str(f).strip()]
+            prof.sources["kb_facts"] = "knowledge_base"
+            if not prof.verified_trust:
+                extracted_trust: list[str] = []
+                for fact in prof.kb_facts:
+                    clean_fact = re.sub(r"[\r\n\t]+", " ", fact).strip()
+                    first_part = clean_fact.split(".")[0].split("—")[0].split("|")[0].strip()
+                    if 4 <= len(first_part) <= 40:
+                        extracted_trust.append(first_part)
+                if extracted_trust:
+                    prof.verified_trust = extracted_trust[:3]
+                    prof.sources["verified_trust"] = "knowledge_base"
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("creative_os.brief kb_facts skip (%s): %s", tid, exc)
+
     prof.missing = [f for f in REQUIRED_BRAND_FIELDS if not getattr(prof, f, "")]
     return prof
 
@@ -325,11 +378,12 @@ def resolve_brief(
         aspect_ratio=str(aspect_ratio or "9:16").strip(),
         language=str(language or "hinglish").strip().lower(),
         brand=brand,
-        offer=str(offer or "").strip(),
+        offer=str(offer or brand.offer_badge or "").strip(),
         cta=str(cta or "").strip(),
         requested_duration_s=float(requested_duration_s or 20.0),
         brand_revision=str(brand_revision or "v1"),
         calendar_slot=str(calendar_slot or ""),
+        verified_claims=list(brand.kb_facts or []),
     )
     return {
         "ok": True,

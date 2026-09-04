@@ -434,13 +434,29 @@ def _enqueue_advanced(client: dict[str, Any]) -> dict[str, Any]:
     """Creative OS already persists a spec and dispatches to the video queue."""
     cid = str(client.get("id") or "")
     try:
+        from app.marketing.creative_os import flags
         from app.marketing.creative_os.service import enqueue_generate
+
+        recipe = (
+            os.getenv("DAILY_VIDEO_RECIPE", "offer_announcement").strip() or "offer_announcement"
+        )
+        if flags.learning_enabled():
+            try:
+                from app.marketing.creative_os.learning import suggest_next_creative_strategy
+
+                strategy = suggest_next_creative_strategy(cid)
+                if strategy.get("prefer_recipe"):
+                    recipe = strategy["prefer_recipe"]
+                    logger.info(
+                        "[daily_video] Learned recipe '%s' selected for tenant %s", recipe, cid
+                    )
+            except Exception as e:
+                logger.debug("[daily_video] learning strategy skip: %s", e)
 
         out = enqueue_generate(
             tenant_id=cid,
             business_name=str(client.get("business_name") or "").strip(),
-            recipe=os.getenv("DAILY_VIDEO_RECIPE", "offer_announcement").strip()
-            or "offer_announcement",
+            recipe=recipe,
             offer=str(client.get("offer") or "").strip(),
             niche=str(client.get("niche") or "general").strip(),
             language=str(client.get("language") or "hinglish").strip(),
@@ -450,6 +466,7 @@ def _enqueue_advanced(client: dict[str, Any]) -> dict[str, Any]:
         )
         out = dict(out or {})
         out["engine"] = ENGINE_ADVANCED
+        out["recipe_selected"] = recipe
         return out
     except Exception as e:
         logger.warning(f"[daily_video] advanced enqueue failed for {cid}: {e}")

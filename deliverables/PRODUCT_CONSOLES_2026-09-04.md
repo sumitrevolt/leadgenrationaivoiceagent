@@ -23,6 +23,56 @@ Two enterprise consoles sharing one design system and one runtime, served at:
 
 Mounted in `app/main.py` inside a guarded `try`, immediately before the `customer_onboard` block.
 
+## Discovery: the consoles were orphans
+
+Building the pages was not sufficient — nothing linked to them, so a logged-in
+customer could never find them. Wiring was added in a second pass (2026-09-04):
+
+| Surface | File | Behaviour |
+|---|---|---|
+| Customer sidebar (combo/marketing/voice) | `frontend/customer_dashboard.html:564-565` | Voice link carries `voice-only`, marketing link carries `marketing-only`. The existing body-class CSS (`.prod-marketing .voice-only` / `.prod-voice .marketing-only`) gives per-product visibility for free — no new gating logic. |
+| Customer mobile "More" sheet | `frontend/customer_dashboard.html:1466-1471` | Same classes, so the existing mobile gating keeps working. The 6-slot bottom bar was left alone; it was full. |
+| Customer dashboard v2 | `frontend/customer_dashboard_v2.html:249-250` + gate IIFE | v2 has **no** product gating of its own — it shows every nav item to every customer. Pasting the links in would have shown unentitled entries, so a small token-based gate was added: it reads `/api/customer/auth/me`, and **fails closed** (hides both) on missing token, bad response, or unknown product. |
+| Admin / operator reach | `app/api/impersonation.py`, `frontend/impersonate.html` | See below. |
+
+Resulting visibility:
+
+| Route / product | Voice Console | Marketing Console |
+|---|---|---|
+| `/app/customer` (combo) | visible | visible |
+| `/app/customer/marketing` | hidden | visible |
+| `/app/customer/voice` | visible | hidden |
+
+**Admin reach — why no plain admin nav link was added.** An admin JWT carries no
+`client_id`, so `/api/consoles/bootstrap` rejects it and a naive sidebar link
+would have been broken on arrival. The correct path is impersonation, and it was
+already 90% built: the frontend honoured `portal_url`
+(`frontend/impersonate.html:77`) but the backend hard-coded it to `/app/customer`
+(`impersonation.py:205`). The minimal fix was entirely server-side:
+
+- `ImpersonateIn` gained an optional `to` field, validated against
+  `PORTAL_ALLOWLIST` by `_safe_portal_url()`. **Exact-match only** — anything with
+  a scheme, host, query or trailing path is not a member and falls back to
+  `/app/customer`. This closes an open redirect, since the value is echoed to the
+  browser and then followed.
+- `GET /api/impersonate/targets` now returns each client's `product`, so the
+  operator is shown the console that client is actually entitled to.
+- `/app/impersonate` renders one action per entitled console (two for combo
+  clients) and displays the product as a chip.
+
+Locked down by `tests/test_impersonation_portal_target.py` (35 checks), including
+13 hostile-input cases — absolute URLs, protocol-relative `//host`, `javascript:`,
+query smuggling, path traversal, trailing slash, and case variation.
+
+### One deliberate non-fix
+
+The entitlement signal is the `marketing` / `voice` / `combo` product enum, which
+is **not** price-tier aware. A `marketing` customer on the ₹5,999 Advanced plan
+therefore does not see the Voice Console, even though voice callback is a feature
+of that tier per the charter. Correcting this needs a `plan`-aware signal on the
+server; the existing `product`-only model cannot express it. Flagged rather than
+guessed — inventing gating here would have been worse than the gap.
+
 ## Design language
 
 Derived from `tt-a1i/archify` `DESIGN.md` — north star **"The Evidence Console"**.
@@ -66,14 +116,26 @@ Per-tenant config persists to `data/console_configs.jsonl` (jsonl-first, append-
 - `\_scratch/smoke_consoles.py` — 69 checks against the real app via `TestClient` with `require_customer` overridden: pages, static assets, bootstrap for both products, business config, full knowledge lifecycle (ingest → probe → evidence → delete), template gallery and detail, event-binding normalisation, blocked-launch path, readiness computed from real state, and 401 on every route without auth.
 - `\_scratch/smoke_consoles_fast.py` — 10 targeted regression checks for the two failures found below.
 - `ruff check app/api/product_consoles.py --select E,F,W --line-length 110` — clean.
-- `prod_check.py` — **ALL CHECKS PASSED**, 1380 routes, 58 pages 0 gaps, `app.main` imports OK.
+- `prod_check.py` — **ALL CHECKS PASSED**, 1381 routes, 58 pages 0 gaps, `app.main` imports OK, no duplicate (method, path) collisions, 0 orphans in the explorer graph (362 nodes, 98/98 engine coverage).
 - `scripts/sync_api_docs.py` re-run — `docs/API.md` in sync (1402 ops).
-- JS: `node --check` clean on the shared runtime; both inline page scripts parse; all `getElementById` references resolve against DOM ids.
+- JS: `node --check` clean on the shared runtime; both inline page scripts and the edited `impersonate.html` script parse.
+- `tests/test_impersonation_portal_target.py` — 35 checks (portal-target allowlist, hostile-input rejection, product normalisation, targets payload).
+- `tests/test_impersonation.py` — 6 checks, no regression from the `to` field addition.
 
-### Two real defects found and fixed during verification
+A note on the route count: `prod_check` reports 1381 while an earlier run this
+session reported 1380. The delta is **not** attributable to this work — `git diff`
+confirms no route decorator was added by any console or impersonation change, and
+the count is stable at 1381 across three separate processes with byte-identical
+path lists. It comes from unrelated in-flight work in the same working tree
+(`video_pipeline.py`, `render_engine.py`). `prod_check`'s own guards — expected-route
+presence and duplicate-collision detection — both pass.
+
+### Defects found and fixed during verification
 
 1. **`PUT /api/consoles/business-config` with `{}` returned 200.** `model_dump()` always carried the `language` and `timezone` defaults, which made the "no fields to save" 400 unreachable and silently overwrote stored values on a partial save. Fixed with `model_dump(exclude_unset=True)`; a partial save now persists only the fields actually sent.
 2. **The URL scheme check was unreachable.** `Field(min_length=8)` rejected the 7-character test input with 422 before the handler ran. This was a test defect, not a code defect — the test now uses `ftp://example.com/page` to exercise the handler's 400 path, and keeps a separate 422 length case.
+3. **Duplicate router mount in `app/main.py`.** The `product_consoles` router was mounted twice, producing five FastAPI duplicate-operation-id warnings. Removed the earlier, less-documented block; every route now carries an explicit `operation_id`.
+4. **A dead-end on session loss.** The boot-time no-token guard existed, but a 401 *mid-session* (expired token) only produced an error toast, leaving a half-rendered shell with no way forward. `archify_console.js` now redirects to `/app/login` on 401. No return-path parameter is passed — `/app/login` does not honour one (verified), so passing `next=` would have been dead code. A one-shot flag stops several concurrent in-flight calls from racing the redirect.
 
 ## Known limitations
 
