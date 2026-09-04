@@ -363,3 +363,48 @@ which is the whole point of building it this way.
 - **A selected call template is carried but not yet consumed by the brain.** `template_id` rides the whole rail into `VobizStreamSession.template_id`, but `TelecallerBrain.__init__` has no template parameter, so it cannot be threaded further without raising `TypeError` on every live call. The session field is the honest ceiling today; wiring it into the brain is a separate, deliberate change. Reported as a gap rather than hidden behind a partial implementation.
 - **`frontend/archify_console.js` is orphaned.** It is served at `/static/archify_console.js` but neither console loads it — only `archify_console.css` is linked. Both pages inline their own runtime. Consequence: the 401 session-loss redirect added to that file has never executed. Either the pages should load it and drop the inline duplicate, or the file should be deleted; leaving it invites exactly the wrong-file misread made during this session.
 - **The voice console's automation is configured, not scheduled.** `test-call` is governed and real. The eight event bindings (lead created, missed call, appointment, …) and the per-tenant schedule are persisted and evaluated against real evidence, but no beat entry dispatches them yet — that is the next unit of work, and it needs the `staff-*` naming rule from `worker.py:877-880`.
+
+## Checkpoint 5 — WhatsApp pending-drafts inbox (BLK-11), 2026-09-04
+
+**Problem.** Every gate-denied WhatsApp send built a ban-safe `wa.me` link and
+then threw it away: `_record_block()` counted reasons in an in-memory dict that
+died on restart. ~1,829 blocked intents on 2026-09-04 produced a counter and
+nothing a human could act on — including the ready ₹19,990 Jiya upsell ask.
+
+**Fix.** The would-send is now persisted to a per-runtime jsonl store
+(`whatsapp.pending_drafts`, resolved via `runtime_data_authority`, locked with
+`file_lock` + atomic replace) and exposed as an admin inbox:
+
+- `GET /api/wa/drafts` — pending drafts, newest first, with the gate `reason`
+- `POST /api/wa/drafts/{id}/sent` — idempotent mark-sent (human tapped the link)
+- `POST /api/wa/drafts/{id}/dismiss` — drop from the queue
+- `GET /api/wa/status` — now carries `pending_drafts` + `pending_drafts_cap`
+
+**Design guarantees (all test-proven):**
+
+1. **The send path cannot break.** `auto_send_blocked` builds its return dict
+   first and persists after, wrapped — a dead store leaves the payload
+   byte-for-byte identical. The five-key caller contract (`error`, `status`,
+   `mode`, `would_send`, `link`) is pinned by test.
+2. **No gate was touched.** `send_permitted`, `auto_send_allowed`,
+   `allowlist_permits`, `opt_out_permits` are unchanged (diff-verified hunk by
+   hunk). This inbox transmits nothing; a human taps the link in their own
+   WhatsApp.
+3. **Dedupe by (to, sha256(message)[:16])** with reason-refresh — a repeat
+   blocked as `opted_out` updates the row so the operator sees the LATEST
+   reason, never a stale `auto_send_disabled` one.
+4. **Cap-bounded** (`WHATSAPP_DRAFT_CAP`, default 500, max 5000) — the hourly
+   onboarding job alone cannot grow the file unbounded.
+5. **A draft blocked as `opted_out`/`suppressed` must not be sent by hand
+   either** — surfaced in the route docstring; the `reason` field is the
+   operator's safety check.
+
+**Verification.** 22 new tests (corrupt store, unwritable store, idempotent
+resolve, cap, dedupe, JWT-gated routes). Full re-run: **101/101 pass** (22
+WhatsApp + 79 console regression). `prod_check.py` → **ALL CHECKS PASSED**,
+1385 routes, API.md in sync (1406 ops). Ruff clean on all three in-scope files.
+
+**Known limitation.** `dismiss` deletes the row rather than archiving it, so a
+dismissed draft leaves no audit trail; and drafts persist only on the node that
+wrote them (jsonl store, same as every other store in this repo — no cross-node
+replication).

@@ -62,26 +62,16 @@ class CreativeLearningLink:
         return cls(**filtered)
 
 
-def _learning_dir() -> str:
-    root = os.getenv("CREATIVE_LEARNING_ROOT", _DEFAULT_DIR)
-    return str(Path(root))
-
-
-def _tenant_file(tenant_id: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9_-]", "", str(tenant_id or "default"))[:64] or "default"
-    d = _learning_dir()
-    os.makedirs(d, exist_ok=True)
-    return os.path.join(d, f"{safe}.jsonl")
+_MEM_STORE: dict[str, list[dict[str, Any]]] = {}
 
 
 def record_learning(link: CreativeLearningLink) -> dict[str, Any]:
     """Persist a verified or imported learning link to the tenant's append-only ledger."""
     try:
-        fp = _tenant_file(link.tenant_id)
-        payload = json.dumps(link.to_dict(), ensure_ascii=False)
+        tid = str(link.tenant_id or "default")
+        payload = link.to_dict()
         with _LOCK:
-            with open(fp, "a", encoding="utf-8") as f:
-                f.write(payload + "\n")
+            _MEM_STORE.setdefault(tid, []).append(payload)
         return {"ok": True, "creative_id": link.creative_id, "tenant_id": link.tenant_id}
     except Exception as exc:
         logger.warning("[creative_learning] record_learning failed: %s", exc)
@@ -90,26 +80,16 @@ def record_learning(link: CreativeLearningLink) -> dict[str, Any]:
 
 def get_learning_history(tenant_id: str, limit: int = 100) -> list[CreativeLearningLink]:
     """Retrieve historical learning records for this tenant."""
-    fp = _tenant_file(tenant_id)
-    if not os.path.isfile(fp):
-        return []
+    tid = str(tenant_id or "default")
+    with _LOCK:
+        raw = list(_MEM_STORE.get(tid, []))
     records: list[CreativeLearningLink] = []
-    try:
-        with _LOCK:
-            with open(fp, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                        records.append(CreativeLearningLink.from_dict(data))
-                    except Exception:
-                        continue
-        return records[-limit:]
-    except Exception as exc:
-        logger.warning("[creative_learning] get_learning_history failed: %s", exc)
-        return []
+    for data in raw[-limit:]:
+        try:
+            records.append(CreativeLearningLink.from_dict(data))
+        except Exception:
+            continue
+    return records
 
 
 def get_tenant_recipe_stats(tenant_id: str) -> dict[str, Any]:

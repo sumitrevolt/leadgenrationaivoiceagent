@@ -1563,8 +1563,8 @@ if _ds_dir.is_dir():
     app.mount("/design-system", StaticFiles(directory=str(_ds_dir)), name="design_system")
 
 _reels_dir = Path("data/reels")
-_reels_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/reels", StaticFiles(directory=str(_reels_dir)), name="reels")
+if _reels_dir.is_dir():
+    app.mount("/reels", StaticFiles(directory=str(_reels_dir)), name="reels")
 
 
 # Unity WebGL build artifacts (Blueprint Virtual Office). Mounted ONLY when a versioned

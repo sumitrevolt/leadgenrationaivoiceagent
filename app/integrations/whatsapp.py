@@ -355,27 +355,14 @@ def _read_drafts() -> list[dict[str, Any]]:
 
 
 def _write_drafts_locked(path: str, rows: list[dict[str, Any]]) -> bool:
-    """Atomic replace of the whole store. Caller MUST hold `file_lock(path)`.
-
-    Deliberately NOT `locked_rewrite`: that re-takes the same sidecar lock from a
-    second handle, and `file_lock` is non-blocking — on Windows the inner attempt
-    spins for its full 5s timeout before giving up, which would add 5s to every
-    blocked send on a hot path. Never raises.
-    """
-    tmp = f"{path}.tmp.{os.getpid()}"
+    """Rewrite of the whole store. Caller MUST hold `file_lock(path)`. Never raises."""
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(tmp, "w", encoding="utf-8") as fh:
+        with open(path, "w", encoding="utf-8") as fh:
             for row in rows:
                 fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-        os.replace(tmp, path)
         return True
     except Exception:
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        except Exception:
-            pass
         return False
 
 
