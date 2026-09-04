@@ -64,8 +64,8 @@ class TestOmniRouteResponsesAdapter:
     def test_registry_exposes_only_sanitized_dev_routes(self):
         route = get_task_route("leadgen.coding_primary", "INTERNAL_SANITIZED")
         assert route == OmniRouteRoute(
-            primary_model="hermes-engineer",
-            fallback_model="claude-code",
+            primary_model="leadgen-free-first",
+            fallback_model="auto/coding:free",
             privacy_class="INTERNAL_SANITIZED",
         )
         agent_ops = get_task_route("leadgen.agent_ops", "INTERNAL_SANITIZED")
@@ -141,7 +141,7 @@ class TestOmniRouteResponsesAdapter:
         assert result.text == "safe result"
         assert result.provider == "combo"  # bare combo id — not faked as a provider
         assert seen["url"].endswith("/v1/responses")
-        assert seen["payload"]["model"] == "hermes-engineer"
+        assert seen["payload"]["model"] == "leadgen-free-first"
         assert "9876543210" not in str(seen["payload"])
 
     @pytest.mark.asyncio
@@ -168,7 +168,7 @@ class TestOmniRouteResponsesAdapter:
         assert result is not None
         assert result.text == "fallback ok"
         assert result.fallback_reason == "http_429"
-        assert models == ["hermes-engineer", "claude-code"]
+        assert models == ["leadgen-free-first", "auto/coding:free"]
 
     @pytest.mark.asyncio
     async def test_non_retryable_primary_failure_does_not_fallback(self, monkeypatch):
