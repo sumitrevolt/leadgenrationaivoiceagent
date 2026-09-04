@@ -85,6 +85,10 @@ def assert_consistent_running_tags(
         raise ValueError("invalid/missing/malformed service tag(s): " + ", ".join(bad))
 
     if len(values) != 1:
+        min_len = min(len(t) for t in values)
+        shortest = min(values, key=len)
+        if min_len >= 7 and all(t.startswith(shortest) for t in values):
+            return shortest
         raise ValueError(
             "inconsistent pre-deploy app-image tags: "
             + ", ".join(f"{k}={v}" for k, v in sorted(service_tags.items()))

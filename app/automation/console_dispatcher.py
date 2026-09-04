@@ -208,7 +208,15 @@ def emit_console_event(
     """
     payload = payload or {}
     now = time.time()
-    root = Path(store_root) if store_root is not None else DEFAULT_STORE_ROOT
+    # Resolve the store root as a plain assignment so the runtime-data
+    # allowlist walker can resolve `root` through `DEFAULT_STORE_ROOT`
+    # to the underlying `data/console_events` literal. The ternary shape
+    # `... if ... else ...` is opaque to the symbol table and would
+    # leave this writer UNDECLARED in CI (see automation.console_events).
+    if store_root is None:
+        root = DEFAULT_STORE_ROOT
+    else:
+        root = Path(store_root)
     store_path = _tenant_path(root, tenant_id)
 
     if not (tenant_id or "").strip():
@@ -351,7 +359,15 @@ def drain_console_events(
     next drain starts fresh. With ``clear_after=False`` (default), this is a
     peek — useful for admin/inspect views.
     """
-    root = Path(store_root) if store_root is not None else DEFAULT_STORE_ROOT
+    # Resolve the store root as a plain assignment so the runtime-data
+    # allowlist walker can resolve `root` through `DEFAULT_STORE_ROOT`
+    # to the underlying `data/console_events` literal. The ternary shape
+    # `... if ... else ...` is opaque to the symbol table and would
+    # leave this writer UNDECLARED in CI (see automation.console_events).
+    if store_root is None:
+        root = DEFAULT_STORE_ROOT
+    else:
+        root = Path(store_root)
     store_path = _tenant_path(root, tenant_id)
     if not store_path.exists():
         return []
@@ -392,7 +408,13 @@ def pending_event_count(
     store_root: Path | str | None = None,
 ) -> int:
     """How many envelopes are queued for ``tenant_id``. Zero if no file."""
-    root = Path(store_root) if store_root is not None else DEFAULT_STORE_ROOT
+    # Resolve the store root via plain if/else — see emit_console_event for
+    # the runtime-data allowlist rationale (ternaries are opaque to the
+    # symbol walker; CI requires this branch shape).
+    if store_root is None:
+        root = DEFAULT_STORE_ROOT
+    else:
+        root = Path(store_root)
     store_path = _tenant_path(root, tenant_id)
     if not store_path.exists():
         return 0

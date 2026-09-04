@@ -144,12 +144,19 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # (referral kit) plus sales.prospects TASK_LI-001 enrichment tooling
     # entries re-bound to real code symbols; scratch temp_enrich_write.py
     # deleted instead of classified. CLASSIFIED, not tolerated.
-    assert len(entries) == 92
-    assert len(families) == 32, sorted(families)
+    # 2026-09-04 +2 entries / +1 family: automation.console_events (M2 console
+    # dispatcher — per-tenant JSONL envelopes under CONSOLE_EVENT_STORE_ROOT;
+    # append + trim + drain-clear). CLASSIFIED, not tolerated — UNDECLARED
+    # findings bound via path_pattern named for the walked literal
+    # (data/console_events) and the helper name (_tenant_path), same
+    # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
+    assert len(entries) == 94
+    assert len(families) == 33, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
     assert families == {
+        "automation.console_events",
         "billing.invoices",
         "billing.promo_codes",
         "billing.upi_payments",
@@ -184,8 +191,9 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    # 12 since 2026-08-24: command_center joined (Pilot dispatch tasks store).
-    assert len({f.split(".")[0] for f in families}) == 12
+    # 13 since 2026-09-04: automation joined for the M2 console dispatcher
+    # (per-tenant JSONL envelopes under CONSOLE_EVENT_STORE_ROOT).
+    assert len({f.split(".")[0] for f in families}) == 13
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -454,7 +462,11 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-24: +2 revenue-sprint families — billing.promo_codes (coupon
     # engine ledger) and marketing.affiliates (referral kit), both tier-3
     # rebuildable INERT-by-default stores via evidence-backed manifest edit.
-    assert counts["unique_families"] == 50
+    # 2026-09-04: +1 automation.console_events (M2 dispatcher; tier-3
+    # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
+    # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
+    # bound through allowlist.
+    assert counts["unique_families"] == 51
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]

@@ -75,6 +75,17 @@ def test_inconsistent_pre_deploy_service_tags_fail_closed():
         mod.assert_consistent_running_tags(skewed)
 
 
+def test_prefix_compatible_service_tags_pass():
+    mod = _load_retention()
+    compat = dict(FIVE)
+    compat["app"] = "9b09a8081234567890abcdef1234567890abcdef"
+    compat["scheduler"] = "9b09a8081234567890abcdef1234567890abcdef"
+    compat["worker"] = "9b09a8081234567890abcdef1234567890abcdef"
+    compat["worker-heavy"] = "9b09a808"
+    compat["worker-video"] = "9b09a808"
+    assert mod.assert_consistent_running_tags(compat) == "9b09a808"
+
+
 def test_one_missing_or_empty_service_tag_fails():
     mod = _load_retention()
     incomplete = dict(FIVE)
