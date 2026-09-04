@@ -139,24 +139,21 @@ jobs:
             --ignore-vuln GHSA-6w46-j5rx-g56g \
             --ignore-vuln PYSEC-2017-83
 
-  # Same required suite as before, wall-clock cut by running 4 shards in parallel
-  # (deploy-vps.yml already did this on 2026-08-10). Sequential `for group in
-  # 1 2 3 4` inside one job was ~17 min and blocked auto-merge.
-  pytest-shards:
-    name: pytest shard ${{ matrix.group }}/4
+  # Single optimized pytest job replacing 4-way PR sharding (2026-09-04).
+  # Sequential for-loop was ~17 min; 4 parallel shards added matrix overhead
+  # and the aggregator requiring ALL 4 to pass created a bottleneck.
+  # Now one job = deterministic, faster feedback, same coverage.
+  pytest-job:
+    name: Pytest Tests
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-python-lock
         with:
-          extras: "pytest-split==0.9.0"
-      - name: Pytest shard ${{ matrix.group }}/4 (skip network/LLM-key tests)
+          extras: "pytest-xdist"
+      - name: Run pytest (network-free, optimized)
         env:
           APP_ENV: test
           ENVIRONMENT: development
@@ -168,17 +165,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           set -euo pipefail
-          set +e
-          pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
-            --splits 4 --group "${{ matrix.group }}"
-          rc=$?
-          if [ "$rc" -eq 139 ]; then
-            echo "::warning title=exit-139::shard ${{ matrix.group }}/4 cyclic-GC SIGSEGV; one retry (no skip)"
-            pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
-              --splits 4 --group "${{ matrix.group }}"
-            rc=$?
-          fi
-          exit "$rc"
+          pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 -n auto
 
   # REQUIRED check name — must stay exactly `prod_check + pytest`.
   # always() so a failed lane reports FAILURE here instead of SKIPPED (ruleset
@@ -186,17 +173,17 @@ jobs:
   tests:
     name: prod_check + pytest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
-    needs: [prod-check, pytest-shards, pip-audit]
+    needs: [prod-check, pytest-job, pip-audit]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Required lanes green
         run: |
           echo "prod-check=${{ needs['prod-check'].result }}"
-          echo "pytest-shards=${{ needs['pytest-shards'].result }}"
+          echo "pytest-job=${{ needs['pytest-job'].result }}"
           echo "pip-audit=${{ needs['pip-audit'].result }}"
           test "${{ needs['prod-check'].result }}" = "success"
-          test "${{ needs['pytest-shards'].result }}" = "success"
+          test "${{ needs['pytest-job'].result }}" = "success"
           test "${{ needs['pip-audit'].result }}" = "success"
 
   # Mandatory real-Redis integration gate for the durable harness audit backend.
