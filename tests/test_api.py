@@ -30,8 +30,9 @@ class TestLeadsAPI:
         """P0-2 regression: /stats/summary reads the REAL `Lead` table, not a
         volatile dict. Point the app's base sync session at the same engine the
         test reads/writes so the HTTP route and the insert share one DB."""
-        import app.models.base as base_mod
         from sqlalchemy.orm import sessionmaker
+
+        import app.models.base as base_mod
 
         _engine = db_session.bind
         _SessionLocal = sessionmaker(bind=_engine)
@@ -80,8 +81,9 @@ class TestLeadsAPI:
     def test_scraped_lead_persists_not_volatile(self, db_session, monkeypatch):
         """P0-2 regression: a scraped lead persists as a durable `Lead` row and
         dedups a repeat phone to the same existing row (no duplicate)."""
-        import app.models.base as base_mod
         from sqlalchemy.orm import sessionmaker
+
+        import app.models.base as base_mod
 
         _engine = db_session.bind
         _SessionLocal = sessionmaker(bind=_engine)

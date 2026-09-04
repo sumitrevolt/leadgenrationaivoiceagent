@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 HTML = Path("frontend/customer_dashboard.html")
 
 

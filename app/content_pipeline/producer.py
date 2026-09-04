@@ -7,8 +7,8 @@ import edge_tts
 from groq import Groq
 
 # Settings
-BASE_DIR = Path("C:/Users/Ratanshila/WorkBuddy/Worktrees/leadgenrationaivoiceagent/main-554fb586")
-OUTPUT_DIR = BASE_DIR / "data/content_pipeline"
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = Path("data/content_pipeline")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Proven-path alias for content_pipeline output store.

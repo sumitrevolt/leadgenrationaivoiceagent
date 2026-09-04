@@ -20,7 +20,6 @@ import pytest
 
 from app.marketing import delivery_ledger
 
-
 NEW_EVENTS = (
     "social_account_connected",
     "social_account_disconnected",

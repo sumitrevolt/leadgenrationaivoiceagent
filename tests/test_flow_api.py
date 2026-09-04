@@ -1,7 +1,8 @@
 import asyncio
 
-import app.automation.flow_store as fs
 from fastapi.testclient import TestClient
+
+import app.automation.flow_store as fs
 
 
 def _client(tmp_path, monkeypatch, flag="1"):

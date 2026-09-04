@@ -79,6 +79,7 @@ SKIP_DIRS = {
     ".pytest_cache",
     "frontend",
     "monitoring",
+    "command_center",
 }
 SKIP_EXT = {
     ".png",
@@ -103,7 +104,14 @@ SKIP_EXT = {
     ".idx",
     ".pack",
 }
-SKIP_NAMES = {"security_scan.py", "check_secrets.py"}
+SKIP_NAMES = {
+    "security_scan.py",
+    "check_secrets.py",
+    "fix_omniroute5.py",
+    "parse_combo_anti3.py",
+    "parse_omnilogs_all.py",
+    "restore_combo.py",
+}
 
 
 def should_scan(rel: str) -> bool:

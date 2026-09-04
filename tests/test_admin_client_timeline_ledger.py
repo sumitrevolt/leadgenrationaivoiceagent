@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 
 def test_client_timeline_includes_ledger_events(monkeypatch):
-    from app.main import app
     from app.api.auth_deps import require_admin
+    from app.main import app
 
     app.dependency_overrides[require_admin] = lambda: {"username": "test"}
     monkeypatch.setenv("CLIENT_TIMELINE", "1")

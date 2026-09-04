@@ -58,7 +58,7 @@ def test_no_duplicate_node_ids():
 
 def test_edges_resolve_and_no_orphans():
     idset = {n["id"] for n in bg.NODES}
-    deg = {i: 0 for i in idset}
+    deg = dict.fromkeys(idset, 0)
     for e in bg.EDGES:
         assert e["source"] in idset and e["target"] in idset, e
         assert e["kind"] in bg.EDGE_KINDS

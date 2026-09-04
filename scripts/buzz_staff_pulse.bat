@@ -2,7 +2,8 @@
 REM Hourly Buzz #staff-pulse post. Registered as scheduled task "LeadGen Buzz Staff Pulse".
 REM Read-only: pulls team_status() from the VPS, posts a digest, changes nothing.
 setlocal
-set REPO=C:\Users\Ratanshila\Documents\leadgenrationaiagent
+REM Self-relative: bat hamesha apne hi checkout ka venv use kare (folder-rename proof).
+set "REPO=%~dp0.."
 set LOG=%USERPROFILE%\.buzz\WORK_LOGS\staff_pulse.log
 
 cd /d "%REPO%" || exit /b 1

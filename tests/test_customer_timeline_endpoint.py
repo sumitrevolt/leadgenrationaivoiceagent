@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 
 
 def test_customer_timeline_returns_own_events_only(monkeypatch):
-    from app.main import app
     from app.api.customer_auth import require_customer
+    from app.main import app
 
     app.dependency_overrides[require_customer] = lambda: "client_A"
 
@@ -45,8 +45,8 @@ def test_customer_timeline_backfills_pre_ledger_customer(monkeypatch):
     """Existing (pre-ledger) customers like jiya makeover ka historical timeline
     tabhi bharega jab endpoint read se PEHLE ensure_backfilled() bulaaye. Ye wire
     pehle missing tha (function exported par zero callers) — regression guard."""
-    from app.main import app
     from app.api.customer_auth import require_customer
+    from app.main import app
 
     app.dependency_overrides[require_customer] = lambda: "client_A"
     called = {"backfill_cid": None, "order": []}
@@ -74,8 +74,8 @@ def test_customer_timeline_backfills_pre_ledger_customer(monkeypatch):
 
 
 def test_customer_timeline_empty_state_is_graceful(monkeypatch):
-    from app.main import app
     from app.api.customer_auth import require_customer
+    from app.main import app
 
     app.dependency_overrides[require_customer] = lambda: "client_B"
     monkeypatch.setattr("app.marketing.delivery_ledger.timeline", lambda *a, **k: [], raising=False)

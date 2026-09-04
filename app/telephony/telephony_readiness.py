@@ -85,11 +85,27 @@ def run_checks() -> dict[str, Any]:
     jio_w = 5 if jio_enabled else 0
     add("jio_sip_creds", jio_creds, "JIO_SIP_HOST + JIO_SIP_USER + JIO_SIP_PASS", jio_w)
     add("jio_sip_did", bool(_env("JIO_SIP_DID")), "JIO_SIP_DID (mobile DID)", jio_w)
-    add(
-        "jio_sip_enabled",
+    add("jio_sip_enabled",
         jio_enabled,
         "JIO_TRUNK_ENABLED=1 (INERT default — live test ke baad arming)",
         jio_w,
+    )
+    # Tata Tele Smartflo Pro (₹1,250/license/month unlimited)
+    tata_token = _env("TATA_SMARTFLO_API_TOKEN")
+    tata_key = _env("TATA_SMARTFLO_API_KEY")
+    tata_did = _env("TATA_SMARTFLO_DID")
+    tata_creds = bool(tata_token and tata_key)
+    tata_enabled = os.environ.get("TATA_SMARTFLO_ENABLED", "0").strip().lower() in (
+        "1", "true", "yes",
+    )
+    tata_w = 10 if tata_enabled else 0
+    add("tata_smartflo_creds", tata_creds, "TATA_SMARTFLO_API_TOKEN + API_KEY", tata_w)
+    add("tata_smartflo_did", bool(tata_did), "TATA_SMARTFLO_DID (bundled DID)", tata_w)
+    add(
+        "tata_smartflo_enabled",
+        tata_enabled,
+        "TATA_SMARTFLO_ENABLED=1 (INERT default — live test ke baad arming)",
+        tata_w,
     )
     telephony_ok = bool(vobiz_id and vobiz_tok)
     # Voice AI chain

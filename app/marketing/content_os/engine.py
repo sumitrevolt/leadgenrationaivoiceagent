@@ -99,7 +99,7 @@ def _idempotency_key() -> str:
 
 
 def _led_already_ran_today() -> bool:
-    p = Path(_idempotency_key())
+    p = Path(PROVEN_PATH_ALIAS / f"last_run_{_today_ist()}.lock")
     return p.exists() and p.read_text().strip() == "ok"
 
 

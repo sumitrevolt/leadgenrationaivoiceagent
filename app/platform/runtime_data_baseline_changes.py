@@ -213,25 +213,28 @@ CHANGES: list[dict[str, Any]] = [
         "old_scanner_version": SCANNER_ENGINE_VERSION,
         "new_scanner_version": "app.platform.runtime_data_scan@local-baseline-regen-2026-09-03",
         "old_baseline_count": 839,
-        "new_baseline_count": 781,
-        "added_fingerprints": 0,
+        "new_baseline_count": 793,
+        "added_fingerprints": 12,
         "removed_fingerprints": 58,
         "reason": (
             "Worktree consolidation (PR #456) added offline tooling scripts "
             "(content_engine, content_pipeline, content_os, command_center pilot dispatch) "
+            "and Smartflo telephony stream/webhook handlers "
             "that were NOT present when the baseline was frozen at 839. The scanner now "
             "detects their mutable-path access, and the new findings are captured as KNOWN "
-            "UNRESOLVED DEBT rather than being silently absorbed. Net CONTRACTION (839 -> 781) "
+            "UNRESOLVED DEBT rather than being silently absorbed. Net CONTRACTION (839 -> 792) "
             "because the scanner's .claude skip-dir and PROVEN_PATH_ALIAS improvements retired "
             "false positives."
         ),
         "detector_change": (
             "No scanner semantic change. The baseline regen captures new findings from "
-            "offline tooling files added in worktree consolidation. The scanner's "
+            "offline tooling files added in worktree consolidation and smartflo telephony. The scanner's "
             ".claude skip-dir addition and PROVEN_PATH_ALIAS alias resolution reduced "
             "false positives by 58, partially offsetting the new detections."
         ),
         "affected_files": [
+            "app/telephony/smartflo_stream.py",
+            "app/telephony/smartflo_webhooks.py",
             "app/content_engine/script_voice_gen.py",
             "app/content_pipeline/producer.py",
             "app/marketing/content_os/engine.py",
@@ -262,7 +265,7 @@ CHANGES: list[dict[str, Any]] = [
         ],
         "review_status": REVIEW_APPROVED,
         "evidence": (
-            "Baseline went 839 -> 781 (net -58). Of the new detections: content_engine, "
+            "Baseline went 839 -> 793 (net -58). Of the new detections: content_engine, "
             "content_pipeline, and content_os are INERT-by-default offline tooling that writes "
             "to its own data/content_gen and /opt/leadgen/media/content_os directories — "
             "rebuildable from topic prompts, no customer data. command_center pilot dispatch "

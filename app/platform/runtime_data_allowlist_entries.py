@@ -1349,9 +1349,9 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "marketing.content_os.engine.idempotency_key_read",
         "file": "app/marketing/content_os/engine.py",
         "line_or_symbol": "p",
-        "path_pattern": "_idempotency_key",
+        "path_pattern": "/opt/leadgen/media/content_os/last_run_",
         "store_id": "marketing.content_os",
-        "access_modes": ["READ"],
+        "access_modes": ["LOCK", "READ"],
         "reason": (
             "Read of idempotency lock file in _led_already_ran_today(). "
             "Same DATA_DIR store as queue/ledger."

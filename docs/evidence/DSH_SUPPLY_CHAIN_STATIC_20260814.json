@@ -35,19 +35,19 @@
   "input_sha256": {
     ".github/workflows/dsh-runtime.yml": "8f5026da6b457dd1cc19a97268ab567b8e1ad6e1e28dcbfe827a7101921028f1",
     "app/tasks/dsh_jobs.py": "314fe2a3f031296d0ceb2892627da7d0b08f37fb1a67dbadd657f2cb890acd65",
-    "deploy/dsh/Dockerfile": "9a7698780d0ecdfb127c0fe270a1e783daee09c9ec44709a81e0b26b4abf5854",
+    "deploy/dsh/Dockerfile": "6588866d6c9854c90c7082230587fb3f208a688c275815a9750a2b3d06eaa2a5",
     "deploy/dsh/cordis.yml": "0084052e28a3702e7f7cb3633c145b8b2ae8dfc59cd8e909cb3746f892c164d6",
     "deploy/dsh/hardening.patch": "6f3da7d7a0f8b96c56452537d73df8cb3cb4190b0b875069f94099004a8d42d0",
     "deploy/dsh/normalize_sea_binary.py": "2202d7587b2dc14d829614e546a757f74d6398e41e1e5a3e5b6cc9ce00c2e0c4",
     "deploy/dsh/runtime.package.json": "6649cd3a3fc2626c4dc3dbf33d010d935e498e3f2e55db49937c2df486f31c6c",
     "deploy/dsh/test-gateway.Dockerfile": "09ab7a2b3609f337e463c11a210d056a465d5309fa107162d3c715e2bf014cae",
-    "deploy/dsh/upstream.lock.json": "14418463376e7de37afd2a7c2dc8dfd6e8156345ca708238e140c54db6ecb061",
+    "deploy/dsh/upstream.lock.json": "f8893cf4c3c82f8204bc7fe5ed3c9a3fbfc26765e6643a86d8e1561dc790cb96",
     "deploy/dsh/verify_runtime.mjs": "3a8ac329227052d6b6cc111d8fad1b7d215ab7206aa527efc8a240487834e68e",
     "deploy/dsh/worker.Dockerfile": "e06f38abb2405d68305516c41d0260a89596c0a7adb10e8cb71745cd442e4567",
-    "docker-compose.vps.yml": "5806d2cb5ec636d968bfa149354ae177c83f92cabb65d7fcfefce62ec9e11a9c",
+    "docker-compose.vps.yml": "8509917c13d66ac54cc07d6045adf29df589be7049adf5ddec5920c40f29000a",
     "requirements-dsh.lock.txt": "2878906d4ed49b2ab5f78a3b891d8581dd33a46fa8717ddeb0a27fb7a6650b42",
     "scripts/assemble_dsh_ci_evidence.py": "f644797a4220d8b555e959bfe626a648eb50e955e33ee5d163c0c0084e474093",
-    "scripts/dsh_runtime_smoke.py": "5ad575e4e84cbfd4a97c79a531c0d77f7317eae0c897e06db19848c5c60eee77",
+    "scripts/dsh_runtime_smoke.py": "6e21a10b6b3c9c5958e4b37f5f8f74cbbd592c8d3d7ca1cca56710991d16835b",
     "tests/fixtures/dsh_fake_gateway.py": "1d3e3f6808c58e56044ffde4a3e11a0928c8c556e60c467d4927b6ef45a45e06"
   },
   "runtime_state": "INERT_NOT_BUILT",
@@ -62,12 +62,12 @@
     "isolated_network_egress"
   ],
   "upstream": {
-    "commit": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-    "git_archive_bytes": 66887680,
-    "git_archive_sha256": "1fe7d2380d3e53eac2f6ee92ee5c81850ddc9b735b5910bae132cf1fc12b7211",
+    "commit": "47f943859bef60e4160492346772ded9b24f765a",
+    "git_archive_bytes": 54077440,
+    "git_archive_sha256": "c2d8d1e9ec24f0500da431288d2c0c80cf3f502d4dbda2026bd87ac099f3e2e6",
     "license": "MIT",
     "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
-    "source_date_epoch": 1787849863,
-    "tree": "a712eec535b48badc4fefb4df5176a7002e4280b"
+    "source_date_epoch": 1786621126,
+    "tree": "f904efab9ef435201d6ba4da88a34d6366568272"
   }
 }

@@ -1,6 +1,7 @@
-import app.automation.flow_store as fs
 import pytest
 from fastapi.testclient import TestClient
+
+import app.automation.flow_store as fs
 
 
 @pytest.fixture(autouse=True)

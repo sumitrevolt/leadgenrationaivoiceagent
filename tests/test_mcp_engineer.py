@@ -1,10 +1,12 @@
 """Unit tests for app/platform/mcp_engineer.py (Arya)."""
 
 from __future__ import annotations
+
 import json
 import os
 import time
 from pathlib import Path
+
 import pytest
 
 
@@ -12,6 +14,7 @@ import pytest
 def _isolate_data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     import importlib
+
     from app.platform import mcp_engineer
 
     importlib.reload(mcp_engineer)
@@ -78,6 +81,7 @@ def test_probe_auth_failures_counted_under_threshold(_isolate_data_dir):
 def test_probe_auth_failures_alert_threshold(_isolate_data_dir, monkeypatch):
     monkeypatch.setenv("MCP_AUTH_FAIL_ALERT", "5")
     import importlib
+
     from app.platform import mcp_engineer as m
 
     importlib.reload(m)
