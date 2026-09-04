@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1386 operations)
+## Endpoint Index — auto-generated from OpenAPI (1402 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1722,9 +1722,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/page-agent/config` — Page Agent Config
 - `POST  ` `/api/page-agent/v1/chat/completions` — Page Agent Chat
 
-### Platform  (22)
+### Platform  (25)
 
 - `GET   ` `/api/bot-command-center/state` — Bot Command Center State
+- `POST  ` `/api/buzz/email-send` — Buzz Email Send
+- `POST  ` `/api/buzz/voice-call` — Buzz Voice Call
+- `POST  ` `/api/buzz/whatsapp-message` — Buzz Whatsapp Message
 - `GET   ` `/api/ops/hotqueue` — Ops Hot Queue
 - `POST  ` `/api/ops/hotqueue/action` — Ops Hot Queue Action
 - `GET   ` `/api/ops/revenue-summary` — Ops Revenue Summary
@@ -1766,6 +1769,22 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/privacy/requests` — Get Requests
 - `POST  ` `/api/privacy/requests/{request_id}/done` — Request Done
 - `POST  ` `/api/privacy/retention/run` — Retention Run
+
+### Product Consoles  (13)
+
+- `PUT   ` `/api/consoles/automation` — Save Automation
+- `GET   ` `/api/consoles/automation/templates` — List Templates
+- `GET   ` `/api/consoles/automation/templates/{template_id}` — Template Detail
+- `GET   ` `/api/consoles/bootstrap` — Bootstrap
+- `PUT   ` `/api/consoles/business-config` — Save Business Config
+- `GET   ` `/api/consoles/connections` — Connections
+- `DELETE` `/api/consoles/connections/{platform}` — Revoke Connection
+- `GET   ` `/api/consoles/knowledge` — Kb State
+- `POST  ` `/api/consoles/knowledge/probe` — Kb Probe
+- `DELETE` `/api/consoles/knowledge/source` — Kb Delete Source
+- `POST  ` `/api/consoles/knowledge/text` — Kb Add Text
+- `POST  ` `/api/consoles/knowledge/url` — Kb Add Url
+- `POST  ` `/api/consoles/marketing/launch` — Marketing Launch
 
 ### Public  (9)
 

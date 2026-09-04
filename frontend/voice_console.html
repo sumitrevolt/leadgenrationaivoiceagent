@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice AI Console — LeadGen AI</title>
+  <meta name="description" content="Customer Configuration & Knowledge Panel — Voice AI.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/archify_console.css">
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230F172A'/><text x='50%25' y='58%25' fill='%2322D3EE' font-family='monospace' font-size='14' font-weight='700' text-anchor='middle'>VS</text></svg>">
+</head>
+<body>
+  <a href="#canvas" class="ax-sr">Skip to main content</a>
+
+  <div class="ax-shell">
+    <header class="ax-topbar">
+      <div class="ax-brand">
+        <div class="ax-brand__mark" aria-hidden="true">VS</div>
+        <div class="ax-brand__name">Voice Console · LeadGen AI</div>
+      </div>
+      <span class="ax-chip ax-chip--violet"><span class="ax-chip__dot"></span>Voice AI</span>
+      <span class="ax-chip ax-chip--slate"><span class="ax-chip__dot"></span>env:production</span>
+      <div class="ax-topbar__spacer"></div>
+      <span class="ax-chip ax-chip--cyan ax-hidden" id="tenant-chip"><span class="ax-chip__dot"></span><span data-bind="tenant">tenant</span></span>
+      <button class="ax-btn ax-btn--ghost ax-btn--sm" id="logout-btn">Sign out</button>
+    </header>
+
+    <nav class="ax-rail" aria-label="Primary">
+      <div class="ax-rail__group"><span class="ax-label">Provisioning</span></div>
+      <button class="ax-nav" data-view="readiness" aria-current="page">
+        <span class="ax-nav__idx">01</span><span class="ax-nav__label">Readiness</span>
+        <span class="ax-nav__dot" data-state="active" id="rail-dot-readiness" aria-hidden="true"></span>
+      </button>
+      <button class="ax-nav" data-view="business">
+        <span class="ax-nav__idx">02</span><span class="ax-nav__label">Business</span>
+        <span class="ax-nav__dot" id="rail-dot-business" aria-hidden="true"></span>
+      </button>
+      <button class="ax-nav" data-view="knowledge">
+        <span class="ax-nav__idx">03</span><span class="ax-nav__label">Knowledge</span>
+        <span class="ax-nav__dot" id="rail-dot-knowledge" aria-hidden="true"></span>
+      </button>
+      <button class="ax-nav" data-view="connections">
+        <span class="ax-nav__idx">04</span><span class="ax-nav__label">Connections</span>
+        <span class="ax-nav__dot" id="rail-dot-connections" aria-hidden="true"></span>
+      </button>
+      <button class="ax-nav" data-view="automation">
+        <span class="ax-nav__idx">05</span><span class="ax-nav__label">Call Automation</span>
+        <span class="ax-nav__dot" id="rail-dot-automation" aria-hidden="true"></span>
+      </button>
+      <div class="ax-rail__foot">v1 · evidence console</div>
+    </nav>
+
+    <main class="ax-main" id="canvas">
+      <div class="ax-canvas">
+
+        <!-- ============================================ READINESS -->
+        <section class="ax-view" data-view="readiness" data-active="true">
+          <header class="ax-view__hd">
+            <span class="ax-label ax-view__eyebrow">Overview</span>
+            <h1 class="ax-h1">Provisioning readiness</h1>
+            <p class="ax-body ax-view__sub">A live map of your Voice AI setup. Every node reflects real, authoritative evidence — connect a channel, train your knowledge, then activate.</p>
+          </header>
+
+          <div class="ax-metrics" id="metrics" role="group" aria-label="Key metrics"></div>
+
+          <section class="ax-panel" aria-labelledby="map-h">
+            <header class="ax-panel__hd ax-panel__hd--bare">
+              <div class="ax-panel__title">
+                <div class="ax-title" id="map-h">Live system map</div>
+                <div class="ax-body ax-muted">Grounded in your live configuration. Click a node to open its section.</div>
+              </div>
+            </header>
+            <div class="ax-panel__bd">
+              <div class="ax-map" id="map">
+                <svg class="ax-map__svg" viewBox="0 0 880 360" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Voice AI provisioning map">
+                  <path class="ax-edge" data-edge="b-k" d="M210 130 H330" />
+                  <path class="ax-edge" data-edge="k-c" d="M560 130 H680" />
+                  <path class="ax-edge" data-edge="k-a" d="M450 200 V270 H580" />
+                  <path class="ax-edge" data-edge="c-a" d="M740 200 V270 H650" />
+                  <path class="ax-edge" data-edge="a-v" d="M740 290 H820" />
+
+                  <g class="ax-node" data-node="business" tabindex="0" role="button" aria-label="Open Business">
+                    <rect class="ax-node-box" data-state="idle" x="40" y="90" width="170" height="80" rx="8" />
+                    <text class="ax-node-s" x="125" y="115" text-anchor="middle">Business Config</text>
+                    <text class="ax-node-t" x="125" y="135" text-anchor="middle" data-bind="business-name">—</text>
+                    <text class="ax-node-s" x="125" y="155" text-anchor="middle" data-bind="business-state">Not configured</text>
+                  </g>
+                  <g class="ax-node" data-node="knowledge" tabindex="0" role="button" aria-label="Open Knowledge">
+                    <rect class="ax-node-box" data-state="store" x="340" y="90" width="220" height="80" rx="8" />
+                    <text class="ax-node-s" x="450" y="115" text-anchor="middle">Knowledge Base</text>
+                    <text class="ax-node-t" x="450" y="135" text-anchor="middle" data-bind="kb-chunks">0 chunks</text>
+                    <text class="ax-node-s" x="450" y="155" text-anchor="middle" data-bind="kb-backend">unavailable</text>
+                  </g>
+                  <g class="ax-node" data-node="channels" tabindex="0" role="button" aria-label="Open Connections">
+                    <rect class="ax-node-box" data-state="idle" x="690" y="90" width="150" height="80" rx="8" />
+                    <text class="ax-node-s" x="765" y="115" text-anchor="middle">Channels</text>
+                    <text class="ax-node-t" x="765" y="135" text-anchor="middle" data-bind="conn-count">0 connected</text>
+                    <text class="ax-node-s" x="765" y="155" text-anchor="middle" data-bind="conn-state">No integrations</text>
+                  </g>
+                  <g class="ax-node" data-node="automation" tabindex="0" role="button" aria-label="Open Automation">
+                    <rect class="ax-node-box" data-state="idle" x="500" y="270" width="170" height="60" rx="8" />
+                    <text class="ax-node-s" x="585" y="295" text-anchor="middle">Automation</text>
+                    <text class="ax-node-t" x="585" y="316" text-anchor="middle" data-bind="auto-state">No template</text>
+                  </g>
+                  <g class="ax-node" data-node="voice" tabindex="0" role="button" aria-label="Voice agent status">
+                    <rect class="ax-node-box" data-state="idle" x="720" y="270" width="120" height="60" rx="8" />
+                    <text class="ax-node-s" x="780" y="295" text-anchor="middle">Voice Agent</text>
+                    <text class="ax-node-t" x="780" y="316" text-anchor="middle" data-bind="voice-state">Inactive</text>
+                  </g>
+                </svg>
+                <div class="ax-map__legend">
+                  <span class="ax-chip ax-chip--green"><span class="ax-chip__dot"></span>verified</span>
+                  <span class="ax-chip ax-chip--cyan"><span class="ax-chip__dot"></span>active</span>
+                  <span class="ax-chip ax-chip--violet"><span class="ax-chip__dot"></span>store</span>
+                  <span class="ax-chip ax-chip--amber"><span class="ax-chip__dot"></span>pending</span>
+                  <span class="ax-chip ax-chip--rose"><span class="ax-chip__dot"></span>blocked</span>
+                  <span class="ax-chip ax-chip--slate"><span class="ax-chip__dot"></span>idle</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="ax-panel" aria-labelledby="steps-h">
+            <header class="ax-panel__hd">
+              <div class="ax-panel__title">
+                <div class="ax-title" id="steps-h">Provisioning steps</div>
+                <div class="ax-body ax-muted">Auto-checked from real evidence. Click a step to jump to its section.</div>
+              </div>
+              <label class="ax-switch">
+                <input type="checkbox" id="hide-completed">
+                <span class="ax-switch__track"></span>
+                <span class="ax-switch__text ax-label">Hide completed</span>
+              </label>
+            </header>
+            <div class="ax-panel__bd">
+              <div class="ax-readiness" aria-label="Overall readiness"><div class="ax-readiness__fill" id="readiness-fill" style="width:0%"></div></div>
+              <div class="ax-steps" id="steps" role="list"></div>
+            </div>
+            <div class="ax-panel__ft" id="gates-ft"></div>
+          </section>
+        </section>
+
+        <!-- ============================================ BUSINESS -->
+        <section class="ax-view" data-view="business">
+          <header class="ax-view__hd">
+            <span class="ax-label ax-view__eyebrow">Section · 02</span>
+            <h1 class="ax-h1">Business configuration</h1>
+            <p class="ax-body ax-view__sub">What the agent should know about you — hours, services, greeting and language. Saved here flows into every conversation.</p>
+          </header>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">Identity</div></div></header>
+            <div class="ax-panel__bd">
+              <form id="biz-form" autocomplete="off" novalidate>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-name">Business name</label>
+                    <input class="ax-input" id="biz-name" name="business_name" maxlength="200" required>
+                    <span class="ax-field__hint">Shown to callers and used in the greeting.</span>
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-niche">Niche</label>
+                    <input class="ax-input" id="biz-niche" name="niche" maxlength="80" placeholder="e.g. solar-commercial">
+                  </div>
+                </div>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-phone">Phone</label>
+                    <input class="ax-input" id="biz-phone" name="phone" type="tel" maxlength="20">
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-email">Email</label>
+                    <input class="ax-input" id="biz-email" name="email" type="email" maxlength="200">
+                  </div>
+                </div>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-city">City</label>
+                    <input class="ax-input" id="biz-city" name="city" maxlength="80">
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-website">Website</label>
+                    <input class="ax-input" id="biz-website" name="website" type="url" maxlength="300" placeholder="https://">
+                  </div>
+                </div>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-lang">Primary language</label>
+                    <select class="ax-select" id="biz-lang" name="language">
+                      <option value="hinglish">Hinglish</option>
+                      <option value="hi-IN">Hindi</option>
+                      <option value="en-IN">English</option>
+                    </select>
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-tz">Timezone</label>
+                    <select class="ax-select" id="biz-tz" name="timezone">
+                      <option>Asia/Kolkata</option>
+                      <option>Asia/Dubai</option>
+                      <option>Asia/Singapore</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-open">Open (24h)</label>
+                    <input class="ax-input" id="biz-open" name="open" type="time">
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="biz-close">Close (24h)</label>
+                    <input class="ax-input" id="biz-close" name="close" type="time">
+                  </div>
+                </div>
+                <div class="ax-field">
+                  <label class="ax-field__label ax-label" for="biz-services">Services (one per line)</label>
+                  <textarea class="ax-textarea" id="biz-services" name="services" rows="4" maxlength="2000" placeholder="Solar rooftop installation&#10;Annual maintenance&#10;Subsidy paperwork"></textarea>
+                </div>
+                <div class="ax-field">
+                  <label class="ax-field__label ax-label" for="biz-greeting">Greeting</label>
+                  <input class="ax-input" id="biz-greeting" name="greeting" maxlength="500" placeholder="Namaste, welcome to {{business_name}}.">
+                </div>
+                <div class="ax-field">
+                  <label class="ax-field__label ax-label" for="biz-voice">Brand voice notes</label>
+                  <textarea class="ax-textarea" id="biz-voice" name="brand_voice" rows="3" maxlength="2000" placeholder="Tone, formality, do/don't list, common objections to handle…"></textarea>
+                </div>
+              </form>
+            </div>
+            <div class="ax-panel__ft">
+              <button class="ax-btn ax-btn--primary" id="biz-save">Save business profile</button>
+              <button class="ax-btn ax-btn--ghost" id="biz-reset" type="button">Reset</button>
+              <div class="ax-grow"></div>
+              <span class="ax-label" id="biz-saved-label">unsaved</span>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================================ KNOWLEDGE -->
+        <section class="ax-view" data-view="knowledge">
+          <header class="ax-view__hd">
+            <span class="ax-label ax-view__eyebrow">Section · 03</span>
+            <h1 class="ax-h1">Knowledge training</h1>
+            <p class="ax-body ax-view__sub">Your agent answers <strong>only</strong> from this knowledge. Test it below — no phone number, no commitment, instant.</p>
+          </header>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">Sources</div></div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-row ax-row--between">
+                <span class="ax-muted">Every source is namespaced to <code class="ax-mono" id="kb-ns">client:—</code>. Other tenants cannot read it.</span>
+                <span class="ax-chip ax-chip--violet"><span class="ax-chip__dot"></span><span id="kb-backend-chip">backend:—</span></span>
+              </div>
+              <div class="ax-table-wrap ax-gap-lg">
+                <table class="ax-table">
+                  <thead><tr><th>Source</th><th>Kind</th><th class="ax-table__num">Chunks</th><th>Added</th><th></th></tr></thead>
+                  <tbody id="kb-sources-tbody"><tr><td colspan="5"><div class="ax-empty"><div class="ax-empty__t">No knowledge yet</div><div class="ax-empty__d">Add a FAQ document or sync your website. The agent starts giving grounded answers as soon as the first source lands.</div></div></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd"><div class="ax-panel__title"><div class="ax-title">Add knowledge</div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-field">
+                <label class="ax-field__label ax-label" for="kb-source-label">Source label</label>
+                <input class="ax-input" id="kb-source-label" maxlength="120" placeholder="faq-pricing">
+              </div>
+              <div class="ax-field">
+                <label class="ax-field__label ax-label" for="kb-text">Pasted text</label>
+                <textarea class="ax-textarea" id="kb-text" rows="6" maxlength="50000" placeholder="Paste FAQs, pricing, policies, objection handling — anything your agent should be able to quote."></textarea>
+                <span class="ax-field__hint">Min 10 characters. Existing source with the same label will be replaced if you check <em>Replace</em>.</span>
+              </div>
+            </div>
+            <div class="ax-panel__ft">
+              <label class="ax-switch"><input type="checkbox" id="kb-replace"><span class="ax-switch__track"></span><span class="ax-switch__text ax-label">Replace</span></label>
+              <button class="ax-btn ax-btn--primary" id="kb-add-text">Ingest text</button>
+            </div>
+          </section>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">Sync from website</div></div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-field">
+                <label class="ax-field__label ax-label" for="kb-url">Public URL</label>
+                <input class="ax-input" id="kb-url" type="url" placeholder="https://your-site.com/about">
+                <span class="ax-field__hint">We fetch once, strip HTML, chunk and ingest. Failed fetches are reported back; nothing partial is stored.</span>
+              </div>
+            </div>
+            <div class="ax-panel__ft">
+              <button class="ax-btn ax-btn--primary" id="kb-add-url">Sync URL</button>
+            </div>
+          </section>
+
+          <section class="ax-panel" aria-labelledby="probe-h">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title" id="probe-h">Commitment-free test</div><div class="ax-body ax-muted">Ask anything — the agent answers only from your stored knowledge and shows its receipts.</div></div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-field">
+                <label class="ax-field__label ax-label" for="kb-probe-q">Question</label>
+                <input class="ax-input" id="kb-probe-q" placeholder="e.g. installation kitne din me ho jaata hai?">
+              </div>
+              <div class="ax-mono-block ax-hidden" id="kb-probe-answer" aria-live="polite"></div>
+              <div class="ax-hidden" id="kb-probe-evidence-wrap">
+                <div class="ax-label">Evidence</div>
+                <ol class="ax-mono-block" id="kb-probe-evidence"></ol>
+              </div>
+            </div>
+            <div class="ax-panel__ft">
+              <button class="ax-btn ax-btn--primary" id="kb-probe">Probe</button>
+              <span class="ax-grow"></span>
+              <span class="ax-chip ax-chip--slate"><span class="ax-chip__dot"></span>no phone · no card</span>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================================ CONNECTIONS -->
+        <section class="ax-view" data-view="connections">
+          <header class="ax-view__hd">
+            <span class="ax-label ax-view__eyebrow">Section · 04</span>
+            <h1 class="ax-h1">Social &amp; credential connections</h1>
+            <p class="ax-body ax-view__sub">Connect the channels your agent will post from or hand off to. Tokens are encrypted at rest. Revoke any time.</p>
+          </header>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">Available channels</div><div class="ax-body ax-muted">Three states — never_configured · healthy · needs-reconnect. We never show your tokens.</div></div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-col" id="conn-grid"></div>
+            </div>
+          </section>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">How OAuth works here</div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-mono-block">
+1. Click <em>Connect</em>. A short-lived state token protects against CSRF.
+2. Provider shows the scopes we need. We never ask for more.
+3. Token is stored encrypted (Fernet, key from SOCIAL_TOKEN_KEY).
+4. Silent refresh runs 5 min before expiry. Revocation is immediate and stops all background work.
+5. <em>Disconnect</em> sends POST /revoke, clears tokens, keeps already-synced data.
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================================ AUTOMATION -->
+        <section class="ax-view" data-view="automation">
+          <header class="ax-view__hd">
+            <span class="ax-label ax-view__eyebrow">Section · 05</span>
+            <h1 class="ax-h1">Call automation</h1>
+            <p class="ax-body ax-view__sub">Pick a template, preview the script, then activate. We will not report <em>live</em> until knowledge, channel and template are all in place.</p>
+          </header>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd ax-panel__hd--bare"><div class="ax-panel__title"><div class="ax-title">Template gallery</div><div class="ax-body ax-muted">Preview before apply. Selecting creates an editable copy of the template; it never modifies your live config until you click <em>Activate</em>.</div></div></header>
+            <div class="ax-panel__bd">
+              <div class="ax-row ax-row--tight" id="tpl-grid" role="list"></div>
+            </div>
+          </section>
+
+          <section class="ax-panel">
+            <header class="ax-panel__hd"><div class="ax-panel__title"><div class="ax-title">Activate call automation</div><div class="ax-body ax-muted">Schedule, cap and enable.</div></div></header>
+            <div class="ax-panel__bd">
+              <form id="auto-form" autocomplete="off" novalidate>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="auto-tpl">Active template</label>
+                    <select class="ax-select" id="auto-tpl" name="template_id">
+                      <option value="">— none —</option>
+                    </select>
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="auto-cap">Max calls per day</label>
+                    <input class="ax-input ax-num" id="auto-cap" name="max_calls_per_day" type="number" min="1" max="5000" value="50">
+                  </div>
+                </div>
+                <div class="ax-field-row">
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="auto-start">Window start</label>
+                    <input class="ax-input" id="auto-start" type="time" value="10:00">
+                  </div>
+                  <div class="ax-field">
+                    <label class="ax-field__label ax-label" for="auto-end">Window end</label>
+                    <input class="ax-input" id="auto-end" type="time" value="19:00">
+                  </div>
+                </div>
+                <div class="ax-field">
+                  <span class="ax-field__label ax-label">Days</span>
+                  <div class="ax-row ax-row--tight" id="auto-days" role="group" aria-label="Active days">
+                    <label class="ax-chip"><input type="checkbox" value="mon" hidden>Mon</label>
+                    <label class="ax-chip"><input type="checkbox" value="tue" hidden>Tue</label>
+                    <label class="ax-chip"><input type="checkbox" value="wed" hidden>Wed</label>
+                    <label class="ax-chip"><input type="checkbox" value="thu" hidden>Thu</label>
+                    <label class="ax-chip"><input type="checkbox" value="fri" hidden>Fri</label>
+                    <label class="ax-chip"><input type="checkbox" value="sat" hidden>Sat</label>
+                    <label class="ax-chip"><input type="checkbox" value="sun" hidden>Sun</label>
+                  </div>
+                </div>
+                <label class="ax-switch ax-gap-lg">
+                  <input type="checkbox" id="auto-enabled">
+                  <span class="ax-switch__track"></span>
+                  <span class="ax-switch__text"><strong>Enable call automation</strong></span>
+                </label>
+              </form>
+            </div>
+            <div class="ax-panel__ft">
+              <button class="ax-btn ax-btn--primary" id="auto-save">Save &amp; check gates</button>
+              <div class="ax-grow"></div>
+              <span class="ax-chip ax-chip--slate" id="auto-gate-chip"><span class="ax-chip__dot"></span><span id="auto-gate-text">unsaved</span></span>
+            </div>
+          </section>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Drawer (one focused detail surface — Archify "Semantic Passport") -->
+  <div class="ax-scrim" id="scrim" hidden></div>
+  <aside class="ax-drawer" id="drawer" aria-hidden="true" aria-labelledby="drawer-title">
+    <header class="ax-drawer__hd">
+      <div class="ax-panel__title"><div class="ax-title" id="drawer-title">Detail</div><div class="ax-body ax-muted" id="drawer-sub">—</div></div>
+      <button class="ax-btn ax-btn--ghost ax-btn--sm" id="drawer-close">Close</button>
+    </header>
+    <div class="ax-drawer__bd" id="drawer-bd"></div>
+    <div class="ax-drawer__ft" id="drawer-ft"></div>
+  </aside>
+
+  <div class="ax-toasts" id="toasts" aria-live="polite"></div>
+
+  <script>
+  /* ==========================================================================
+     Voice Console — client. Single-file vanilla JS, no framework, no fake data.
+     Every state mutation is a real API call. Failures are shown verbatim.
+     ========================================================================== */
+  (function () {
+    "use strict";
+
+    const TOKEN_KEY = "customer_token"; // nosecret
+    const PRODUCT = "voice";
+    const $  = (s, r) => (r || document).querySelector(s);
+    const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+    const fmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" });
+
+    /* ---------- auth + fetch ---------- */
+    function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
+    async function api(path, opts) {
+      opts = opts || {};
+      const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+      const t = token();
+      if (t) headers["Authorization"] = "Bearer " + t;
+      const res = await fetch(path, Object.assign({}, opts, { headers }));
+      const txt = await res.text();
+      let data; try { data = txt ? JSON.parse(txt) : {}; } catch (_) { data = { raw: txt }; }
+      if (!res.ok) {
+        const msg = (data && (data.detail || data.message)) || (res.status + " " + res.statusText);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    /* ---------- toast ---------- */
+    function toast(msg, tone) {
+      const node = document.createElement("div");
+      node.className = "ax-toast";
+      node.dataset.tone = tone || "info";
+      node.textContent = msg;
+      $("#toasts").appendChild(node);
+      setTimeout(() => node.remove(), 5000);
+    }
+
+    /* ---------- drawer ---------- */
+    const drawer = {
+      open(title, sub, html, ft) {
+        $("#drawer-title").textContent = title;
+        $("#drawer-sub").textContent = sub || "—";
+        $("#drawer-bd").innerHTML = html;
+        $("#drawer-ft").innerHTML = ft || "";
+        $("#drawer").dataset.open = "true";
+        $("#drawer").setAttribute("aria-hidden", "false");
+        $("#scrim").dataset.open = "true";
+        $("#scrim").hidden = false;
+      },
+      close() {
+        $("#drawer").dataset.open = "false";
+        $("#drawer").setAttribute("aria-hidden", "true");
+        $("#scrim").dataset.open = "false";
+        $("#scrim").hidden = true;
+      },
+    };
+    $("#drawer-close").addEventListener("click", drawer.close);
+    $("#scrim").addEventListener("click", drawer.close);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") drawer.close(); });
+
+    /* ---------- nav ---------- */
+    function nav(view) {
+      $$(".ax-nav").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
+      $$(".ax-view").forEach((s) => (s.dataset.active = (s.dataset.view === view ? "true" : "false")));
+      const url = new URL(location.href); url.searchParams.set("view", view); history.replaceState({}, "", url);
+    }
+    $$(".ax-nav").forEach((b) => b.addEventListener("click", () => nav(b.dataset.view)));
+
+    /* ---------- bootstrap ---------- */
+    let B = null;
+    async function load() {
+      if (!token()) {
+        $(".ax-canvas").innerHTML =
+          '<div class="ax-empty"><div class="ax-empty__t">Auth required</div>' +
+          '<div class="ax-empty__d">Sign in to your customer dashboard, then return here.</div>' +
+          '<a class="ax-btn ax-btn--primary" href="/app/customer">Sign in</a></div>';
+        return;
+      }
+      try {
+        B = await api("/api/consoles/bootstrap?product=" + PRODUCT);
+      } catch (e) {
+        toast("Failed to load console: " + e.message, "error");
+        return;
+      }
+      const tenantEl = $('[data-bind="tenant"]');
+      if (tenantEl) tenantEl.textContent = "tenant:" + (B.client_id || "").slice(0, 10);
+      $("#tenant-chip").classList.remove("ax-hidden");
+
+      renderMetrics(); renderMap(); renderSteps();
+      renderBusinessForm();
+      renderKnowledge();
+      renderConnections();
+      renderAutomation();
+
+      // restore view from query
+      const url = new URL(location.href);
+      const v = url.searchParams.get("view");
+      if (v && ["readiness", "business", "knowledge", "connections", "automation"].includes(v)) nav(v);
+    }
+
+    /* ---------- metrics strip ---------- */
+    function renderMetrics() {
+      const r = B.readiness || {};
+      const kb = B.knowledge || {};
+      const conns = B.connections || {};
+      const auto = B.automation || {};
+      const cells = [
+        { k: "Readiness",  v: (r.percent || 0) + "%", sub: (r.done || 0) + " / " + (r.total || 0) + " gates cleared", tone: r.percent === 100 ? "green" : "cyan" },
+        { k: "Knowledge",  v: (kb.chunks || 0) + " chunks", sub: "backend: " + (kb.backend || "n/a"), tone: kb.chunks ? "violet" : "amber" },
+        { k: "Connections", v: (conns.connected || 0) + " / " + (conns.total || 0), sub: "channels ready", tone: conns.connected ? "green" : "amber" },
+        { k: "Template", v: (auto.active && auto.active.template_id) || "none", sub: auto.active && auto.active.enabled ? "enabled" : "disabled", tone: (auto.active && auto.active.enabled) ? "cyan" : "slate" },
+      ];
+      $("#metrics").innerHTML = cells.map((c) =>
+        `<div class="ax-metric"><span class="ax-label ax-metric__k">${c.k}</span><span class="ax-metric__v" data-tone="${c.tone}">${c.v}</span><span class="ax-body ax-muted">${c.sub}</span></div>`
+      ).join("");
+    }
+
+    /* ---------- live system map ---------- */
+    function setNode(name, state, binds) {
+      const g = $('.ax-node[data-node="' + name + '"]');
+      if (!g) return;
+      const box = $(".ax-node-box", g);
+      if (box) box.dataset.state = state;
+      if (binds) for (const [k, v] of Object.entries(binds)) {
+        const t = $('[data-bind="' + k + '"]', g);
+        if (t) t.textContent = v;
+      }
+    }
+    function setEdge(name, state) {
+      const e = $('[data-edge="' + name + '"]');
+      if (e) e.dataset.state = state;
+    }
+    function renderMap() {
+      const r = B.readiness || {};
+      const kb = B.knowledge || {};
+      const conns = B.connections || {};
+      const auto = B.automation || {};
+      const biz = B.business || {};
+      const businessDone = !!(biz.business_name && biz.business_hours);
+      const kbChunks = kb.chunks || 0;
+      const connCount = conns.connected || 0;
+
+      // Business node
+      setNode("business", businessDone ? "ok" : "active",
+        { "business-name": biz.business_name || "Add name", "business-state": businessDone ? "verified" : "needs setup" });
+      // Knowledge node
+      setNode("knowledge", kbChunks ? "store" : "active",
+        { "kb-chunks": kbChunks + " chunks", "kb-backend": "backend: " + (kb.backend || "n/a") });
+      // Channels node
+      const healthy = (conns.platforms || []).filter((p) => p.status === "healthy").length;
+      const unhealthy = (conns.platforms || []).filter((p) => ["expired", "unauthorized", "revoked", "unreachable"].includes(p.status)).length;
+      const channelsState = unhealthy > 0 ? "error" : (connCount > 0 ? "ok" : "active");
+      setNode("channels", channelsState,
+        { "conn-count": connCount + " connected", "conn-state": unhealthy > 0 ? "needs reconnect" : (connCount > 0 ? "verified" : "no integrations") });
+      // Automation node
+      const tplId = (auto.active && auto.active.template_id) || "";
+      const enabled = !!(auto.active && auto.active.enabled);
+      const autoState = enabled && tplId ? "ok" : (tplId ? "active" : "idle");
+      setNode("automation", autoState, { "auto-state": tplId ? (enabled ? "live" : "configured") : "no template" });
+      // Voice node (final output)
+      const live = enabled && tplId && kbChunks && connCount;
+      setNode("voice", live ? "ok" : (tplId ? "pending" : "idle"),
+        { "voice-state": live ? "live" : (tplId ? "gated" : "inactive") });
+
+      // Edges
+      const okEdge = (cond) => setEdge(cond, cond ? "ok" : "dim");
+      // business feeds knowledge
+      const bk = !!(businessDone && kbChunks) ? "ok" : (businessDone ? "live" : "dim");
+      setEdge("b-k", bk);
+      // knowledge feeds channels? No — channels enable automation. So k->a and c->a.
+      setEdge("k-c", "dim");
+      setEdge("k-a", (kbChunks && tplId) ? "ok" : (kbChunks ? "live" : "dim"));
+      setEdge("c-a", (connCount && tplId) ? "ok" : (connCount ? "live" : "dim"));
+      setEdge("a-v", live ? "ok" : "dim");
+
+      // Click node → jump to section
+      $$(".ax-node").forEach((g) => {
+        const map = { business: "business", knowledge: "knowledge", channels: "connections", automation: "automation", voice: "automation" };
+        g.addEventListener("click", () => nav(map[g.dataset.node] || "readiness"));
+        g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); g.click(); } });
+      });
+    }
+
+    /* ---------- provisioning steps ---------- */
+    function renderSteps() {
+      const hide = $("#hide-completed").checked;
+      const r = B.readiness || {};
+      const steps = r.steps || [];
+      const html = steps
+        .filter((s) => !(hide && s.done))
+        .map((s, i) => `
+          <div class="ax-step" role="listitem" data-state="${s.state}" data-target="${s.target}">
+            <div class="ax-step__idx" aria-hidden="true">${i + 1}</div>
+            <div class="ax-step__body">
+                <div class="ax-step__t">${escapeHtml(s.title)}</div>
+                <div class="ax-step__d ax-muted">${escapeHtml(s.detail)}</div>
+              </div>
+            <div class="ax-step__act">
+              <span class="ax-chip ax-chip--${s.state === 'done' ? 'green' : s.state === 'active' ? 'cyan' : s.state === 'blocked' ? 'rose' : 'slate'}">
+                <span class="ax-chip__dot"></span>${s.state}
+              </span>
+              <button class="ax-btn ax-btn--ghost ax-btn--sm" data-jump="${s.target}">Open</button>
+            </div>
+          </div>`).join("");
+      $("#steps").innerHTML = html || '<div class="ax-empty"><div class="ax-empty__t">All steps hidden</div><div class="ax-empty__d">Uncheck "Hide completed" to see the full ladder.</div></div>';
+      $("#readiness-fill").style.width = (r.percent || 0) + "%";
+      $("#readiness-fill").style.background = r.percent === 100 ? "var(--backend)" : "var(--frontend)";
+
+      const gates = r.gates || [];
+      $("#gates-ft").innerHTML = gates.length
+        ? gates.map((g) => `<span class="ax-chip ax-chip--${g.severity === 'error' ? 'rose' : 'amber'}"><span class="ax-chip__dot"></span>${escapeHtml(g.message)}</span>`).join("")
+        : '<span class="ax-chip ax-chip--green"><span class="ax-chip__dot"></span>no outstanding gates</span>';
+
+      $$('[data-jump]').forEach((b) => b.addEventListener("click", () => nav(b.dataset.jump)));
+    }
+    $("#hide-completed").addEventListener("change", renderSteps);
+
+    /* ---------- business form ---------- */
+    function renderBusinessForm() {
+      const b = B.business || {};
+      $("#biz-name").value = b.business_name || "";
+      $("#biz-niche").value = b.niche || "";
+      $("#biz-city").value = b.city || "";
+      $("#biz-phone").value = b.phone || "";
+      $("#biz-email").value = b.email || "";
+      $("#biz-website").value = b.website || "";
+      $("#biz-lang").value = b.language || "hinglish";
+      $("#biz-tz").value = b.timezone || "Asia/Kolkata";
+      $("#biz-greeting").value = b.greeting || "";
+      $("#biz-voice").value = b.brand_voice || "";
+      const h = b.business_hours || {};
+      $("#biz-open").value = h.open || "";
+      $("#biz-close").value = h.close || "";
+      $("#biz-services").value = (b.services || []).join("\n");
+      $("#biz-saved-label").textContent = "synced";
+    }
+    function readBusinessForm() {
+      const open = $("#biz-open").value, close = $("#biz-close").value;
+      const services = $("#biz-services").value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      return {
+        business_name: $("#biz-name").value.trim(),
+        niche: $("#biz-niche").value.trim(),
+        city: $("#biz-city").value.trim(),
+        phone: $("#biz-phone").value.trim(),
+        email: $("#biz-email").value.trim(),
+        website: $("#biz-website").value.trim(),
+        language: $("#biz-lang").value,
+        timezone: $("#biz-tz").value,
+        greeting: $("#biz-greeting").value.trim(),
+        brand_voice: $("#biz-voice").value.trim(),
+        services,
+        business_hours: (open || close) ? { open, close } : null,
+      };
+    }
+    $("#biz-save").addEventListener("click", async () => {
+      const payload = readBusinessForm();
+      $("#biz-saved-label").textContent = "saving…";
+      try {
+        await api("/api/consoles/business-config", { method: "PUT", body: JSON.stringify(payload) });
+        $("#biz-saved-label").textContent = "saved " + fmt.format(new Date());
+        toast("Business profile saved", "ok");
+        await load();
+      } catch (e) { toast(e.message, "error"); $("#biz-saved-label").textContent = "error"; }
+    });
+    $("#biz-reset").addEventListener("click", renderBusinessForm);
+
+    /* ---------- knowledge ---------- */
+    function renderKnowledge() {
+      const k = B.knowledge || {};
+      $("#kb-ns").textContent = k.namespace || "client:—";
+      $("#kb-backend-chip").textContent = "backend: " + (k.backend || "n/a");
+      const sources = k.sources || [];
+      const tbody = $("#kb-sources-tbody");
+      if (!sources.length) {
+        tbody.innerHTML = '<tr><td colspan="5"><div class="ax-empty"><div class="ax-empty__t">No knowledge yet</div><div class="ax-empty__d">Add a FAQ document or sync your website. The agent starts giving grounded answers as soon as the first source lands.</div></div></td></tr>';
+      } else {
+        tbody.innerHTML = sources.map((s) => `
+          <tr>
+            <td class="ax-table__clip" title="${escapeAttr(s.source)}">${escapeHtml(s.source)}</td>
+            <td><span class="ax-chip ax-chip--slate"><span class="ax-chip__dot"></span>${escapeHtml(s.kind)}</span></td>
+            <td class="ax-table__num">${s.chunks || 0}</td>
+            <td class="ax-muted">${s.added_at ? new Date(s.added_at).toLocaleString("en-IN") : "—"}</td>
+            <td><button class="ax-btn ax-btn--ghost ax-btn--sm" data-del-source="${escapeAttr(s.source)}">Delete</button></td>
+          </tr>`).join("");
+        $$('[data-del-source]').forEach((b) => b.addEventListener("click", async () => {
+          if (!confirm("Delete this source? " + b.dataset.delSource)) return;
+          try { await api("/api/consoles/knowledge/source?source=" + encodeURIComponent(b.dataset.delSource), { method: "DELETE" }); toast("Source deleted", "ok"); await load(); }
+          catch (e) { toast(e.message, "error"); }
+        }));
+      }
+
+      // also refresh selects for templates that might show KB stats
+    }
+    $("#kb-add-text").addEventListener("click", async () => {
+      const source = $("#kb-source-label").value.trim();
+      const text = $("#kb-text").value.trim();
+      const replace = $("#kb-replace").checked;
+      if (!source) return toast("Source label is required", "warn");
+      if (text.length < 10) return toast("Text must be at least 10 characters", "warn");
+      try {
+        await api("/api/consoles/knowledge/text", { method: "POST", body: JSON.stringify({ source, text, replace }) });
+        $("#kb-text").value = ""; $("#kb-source-label").value = "";
+        toast("Knowledge added", "ok"); await load();
+      } catch (e) { toast(e.message, "error"); }
+    });
+    $("#kb-add-url").addEventListener("click", async () => {
+      const url = $("#kb-url").value.trim();
+      if (!url.startsWith("http")) return toast("URL must start with http(s)://", "warn");
+      try {
+        const r = await api("/api/consoles/knowledge/url", { method: "POST", body: JSON.stringify({ url }) });
+        $("#kb-url").value = "";
+        toast(`Synced ${r.chunks_added} chunks from URL`, "ok");
+        await load();
+      } catch (e) { toast(e.message, "error"); }
+    });
+    $("#kb-probe").addEventListener("click", async () => {
+      const q = $("#kb-probe-q").value.trim();
+      if (q.length < 2) return toast("Question is too short", "warn");
+      try {
+        const r = await api("/api/consoles/knowledge/probe", { method: "POST", body: JSON.stringify({ query: q }) });
+        const ans = $("#kb-probe-answer"); ans.classList.remove("ax-hidden");
+        ans.textContent = r.answer || "(no grounded answer)";
+        const ew = $("#kb-probe-evidence-wrap"), el = $("#kb-probe-evidence");
+        if (r.evidence && r.evidence.length) {
+          ew.classList.remove("ax-hidden");
+          el.innerHTML = r.evidence.map((h, i) => `<li><strong>[${i + 1}] score=${h.score}</strong> — ${escapeHtml(h.text.slice(0, 220))}${h.text.length > 220 ? "…" : ""} <em class="ax-muted">(${escapeHtml(h.source)})</em></li>`).join("");
+        } else { ew.classList.add("ax-hidden"); }
+      } catch (e) { toast(e.message, "error"); }
+    });
+
+    /* ---------- connections ---------- */
+    function renderConnections() {
+      const c = B.connections || {};
+      const platforms = c.platforms || [];
+      const html = platforms.map((p) => {
+        const status = p.status || "never_configured";
+        const tone = status === "healthy" ? "green"
+          : ["expired", "unauthorized", "revoked", "unreachable"].includes(status) ? "rose"
+          : status === "transient_failure" || status === "expiring_soon" ? "amber"
+          : "slate";
+        const label = p.label || "Not connected";
+        const action = p.recommended_action || (p.external_blocker || "");
+        const actionText = action
+          ? escapeHtml(action)
+          : status === "healthy"
+            ? `Last verified · scopes: ${(p.scopes_required || []).length} granted`
+            : "Click connect — no card required.";
+        return `
+          <div class="ax-panel" style="margin:0">
+            <header class="ax-panel__hd">
+              <div class="ax-panel__title">
+                <div class="ax-title">${escapeHtml(prettyName(p.platform))}</div>
+                <div class="ax-body ax-muted">${actionText}</div>
+              </div>
+              <span class="ax-chip ax-chip--${tone}"><span class="ax-chip__dot"></span>${escapeHtml(label)}</span>
+            </header>
+            <div class="ax-panel__bd ax-panel__bd--tight">
+              <div class="ax-dl">
+                <dt>Status</dt><dd>${escapeHtml(status)}</dd>
+                <dt>OAuth ready</dt><dd>${p.oauth_ready ? "yes" : "blocked"}</dd>
+                <dt>Scopes</dt><dd>${(p.scopes_required || []).map(escapeHtml).join(", ") || "—"}</dd>
+                ${p.action_required ? '<dt>Action</dt><dd>' + escapeHtml(p.recommended_action || "Reconnect required") + '</dd>' : ''}
+              </div>
+            </div>
+            <div class="ax-panel__ft">
+              ${status === "never_configured"
+                ? `<button class="ax-btn ax-btn--primary ax-btn--sm" data-connect="${escapeAttr(p.platform)}" ${p.oauth_ready ? '' : 'disabled title="' + escapeAttr(p.external_blocker || 'Not approved in this environment') + '"'}>Connect</button>`
+                : `<button class="ax-btn ax-btn--danger ax-btn--sm" data-revoke="${escapeAttr(p.platform)}">Disconnect</button>`}
+              <div class="ax-grow"></div>
+              <span class="ax-muted ax-label">scopes are not shown to the agent</span>
+            </div>
+          </div>`;
+      }).join("");
+      $("#conn-grid").innerHTML = html || '<div class="ax-empty"><div class="ax-empty__t">No channels available</div><div class="ax-empty__d">Owner has not enabled any social providers yet. Check back after approval.</div></div>';
+
+      $$('[data-connect]').forEach((b) => b.addEventListener("click", async () => {
+        const plat = b.dataset.connect;
+        try {
+          const r = await api("/api/social/oauth/" + encodeURIComponent(plat) + "/start?return_to=" + encodeURIComponent("/app/voice-console"));
+          if (r && r.authorize_url) location.href = r.authorize_url;
+          else toast("Could not start OAuth: " + (r && (r.message || r.reason) || "unknown"), "error");
+        } catch (e) { toast(e.message, "error"); }
+      }));
+      $$('[data-revoke]').forEach((b) => b.addEventListener("click", async () => {
+        if (!confirm("Disconnect " + prettyName(b.dataset.revoke) + "? Background jobs will stop.")) return;
+        try {
+          const r = await api("/api/consoles/connections/" + b.dataset.revoke, { method: "DELETE" });
+          toast(`Removed ${r.accounts_removed} account(s)`, "ok"); await load();
+        } catch (e) { toast(e.message, "error"); }
+      }));
+    }
+
+    /* ---------- automation ---------- */
+    function renderAutomation() {
+      const a = B.automation || {};
+      const sel = $("#auto-tpl");
+      sel.innerHTML = '<option value="">— none —</option>' +
+        (a.templates || []).map((t) => `<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)} · ${escapeHtml(t.category)}</option>`).join("");
+      sel.value = (a.active && a.active.template_id) || "";
+
+      const sch = (a.active && a.active.schedule) || {};
+      $("#auto-start").value = sch.window_start || "10:00";
+      $("#auto-end").value = sch.window_end || "19:00";
+      const days = new Set(sch.days || ["mon","tue","wed","thu","fri","sat"]);
+      $$("#auto-days .ax-chip").forEach((chip) => {
+        const cb = $("input", chip);
+        cb.checked = days.has(chip.querySelector("input").value);
+        chip.dataset.state = cb.checked ? "on" : "off";
+        chip.style.borderColor = cb.checked ? "var(--frontend)" : "var(--border-2)";
+        chip.style.color = cb.checked ? "var(--frontend)" : "var(--muted)";
+        chip.style.cursor = "pointer";
+        chip.addEventListener("click", () => { cb.checked = !cb.checked; chip.style.borderColor = cb.checked ? "var(--frontend)" : "var(--border-2)"; chip.style.color = cb.checked ? "var(--frontend)" : "var(--muted)"; }, { once: false });
+      });
+      $("#auto-cap").value = (a.active && a.active.max_calls_per_day) || 50;
+      $("#auto-enabled").checked = !!(a.active && a.active.enabled);
+
+      const grid = $("#tpl-grid");
+      grid.innerHTML = (a.templates || []).map((t) => `
+        <button class="ax-btn ax-btn--ghost" data-tpl="${escapeAttr(t.id)}" style="text-align:left;justify-content:flex-start;flex:1 1 220px;flex-direction:column;align-items:flex-start;height:auto;padding:.75rem .875rem;gap:.25rem">
+          <span class="ax-title">${escapeHtml(t.name)}</span>
+          <span class="ax-label ax-muted">${escapeHtml(t.category)}</span>
+          <span class="ax-body ax-muted">${escapeHtml((t.description || "").slice(0, 100))}${t.description && t.description.length > 100 ? "…" : ""}</span>
+          <span class="ax-label" style="margin-top:.4rem"><span class="ax-chip ax-chip--slate" style="margin-right:.4rem"><span class="ax-chip__dot"></span>${escapeHtml(t.channels.join(","))}</span></span>
+        </button>`).join("");
+      $$('[data-tpl]').forEach((b) => b.addEventListener("click", () => openTemplate(b.dataset.tpl)));
+
+      $("#auto-gate-text").textContent = (a.active && a.active.template_id) ? "configured" : "no template";
+    }
+    async function openTemplate(tid) {
+      try {
+        const r = await api("/api/consoles/automation/templates/" + tid);
+        const t = r.template;
+        const stepsHtml = (t.steps || []).map((s, i) => `<li><strong>${i + 1}.</strong> ${escapeHtml(s)}</li>`).join("");
+        const html = `
+          <p class="ax-body">${escapeHtml(t.description)}</p>
+          <dl class="ax-dl ax-gap-lg">
+            <dt>Category</dt><dd>${escapeHtml(t.category)}</dd>
+            <dt>Channels</dt><dd>${escapeHtml(t.channels.join(", "))}</dd>
+            <dt>Compliance</dt><dd>${escapeHtml(t.dlt_note)}</dd>
+          </dl>
+          <div class="ax-label">Scripted steps</div>
+          <ol class="ax-mono-block">${stepsHtml}</ol>
+          <div class="ax-label">Flow spec</div>
+          <pre class="ax-mono-block">${escapeHtml(JSON.stringify(t.spec, null, 2))}</pre>`;
+        const ft = `
+          <button class="ax-btn ax-btn--ghost" id="drawer-close-2">Close</button>
+          <div class="ax-grow"></div>
+          <button class="ax-btn ax-btn--primary" id="apply-tpl" data-tpl="${escapeAttr(t.id)}">Apply this template</button>`;
+        drawer.open(t.name, t.category, html, ft);
+        $("#drawer-close-2").addEventListener("click", drawer.close);
+        $("#apply-tpl").addEventListener("click", () => {
+          sel.value = tid; $("#auto-tpl").value = tid; drawer.close(); toast("Template selected — review and Save & check gates.", "info");
+        });
+      } catch (e) { toast(e.message, "error"); }
+    }
+    $("#auto-save").addEventListener("click", async () => {
+      const days = $$("#auto-days .ax-chip input").filter((cb) => cb.checked).map((cb) => cb.value);
+      const payload = {
+        template_id: $("#auto-tpl").value,
+        enabled: $("#auto-enabled").checked,
+        max_calls_per_day: parseInt($("#auto-cap").value || "0", 10),
+        schedule: {
+          window_start: $("#auto-start").value,
+          window_end: $("#auto-end").value,
+          timezone: (B.business && B.business.timezone) || "Asia/Kolkata",
+          days,
+        },
+      };
+      try {
+        const r = await api("/api/consoles/automation", { method: "PUT", body: JSON.stringify(payload) });
+        $("#auto-gate-text").textContent = r.live ? "LIVE" : (r.gates.length ? ("gated · " + r.gates[0]) : "configured");
+        $("#auto-gate-chip").className = "ax-chip " + (r.live ? "ax-chip--green" : "ax-chip--amber");
+        toast(r.live ? "Automation is live" : "Saved · " + (r.gates[0] || "gates pending"), r.live ? "ok" : "warn");
+        await load();
+      } catch (e) { toast(e.message, "error"); }
+    });
+
+    /* ---------- logout ---------- */
+    $("#logout-btn").addEventListener("click", () => { localStorage.removeItem(TOKEN_KEY); location.href = "/app/customer"; });
+
+    /* ---------- helpers ---------- */
+    function escapeHtml(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function escapeAttr(s) { return escapeHtml(s).replace(/"/g, "&quot;"); }
+    function prettyName(p) {
+      return ({ facebook: "Facebook", instagram: "Instagram", linkedin: "LinkedIn", gbp: "Google Business Profile", x: "X (Twitter)", youtube: "YouTube", telegram: "Telegram" })[p] || p;
+    }
+
+    load();
+  })();
+  </script>
+</body>
+</html>

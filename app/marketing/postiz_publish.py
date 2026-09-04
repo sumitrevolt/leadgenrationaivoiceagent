@@ -524,7 +524,11 @@ async def publish_video(
         # Per-platform caption truncation: X (280) vs Instagram/LinkedIn/etc.
         provider_type = platform_map.get(integration_id) or ""
         limit = _caption_limit(provider_type)
-        return [{"content": caption_clean[:limit], "image": media_list}]
+        content = caption_clean[:limit]
+        # X enforces weighted character count: non-ASCII, Devanagari & emojis count 2 weights
+        if provider_type in ("x", "twitter") and len(content.encode("utf-8")) > 280:
+            content = content[:140]
+        return [{"content": content, "image": media_list}]
 
     # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
     # ("should not be null or undefined") — every platform needs this. X also
