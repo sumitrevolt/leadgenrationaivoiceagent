@@ -34,7 +34,7 @@ next-30-day bookings ko 2-3x kar sakta hai.
 Aage badhne ke liye pricing: leadsgenai.in/pricing
 1-tap UPI: upi://pay?pa=8459012607@axl&pn=LeadsGenAI&tn=KitchenAudit&cu=INR
 
-— 
+—
 LeadGen AI | Bharat ke 200+ kitchen brands ke saath""",
         ),
         EmailTemplate(
@@ -87,7 +87,7 @@ studio you send our way + free audit for your next client pitch.
 
 UPI: upi://pay?pa=8459012607@axl&pn=LeadsGenAI&tn=DesignerAudit&cu=INR
 
-— 
+—
 LeadGen AI | Designer referral program: 20% commission""",
         ),
         EmailTemplate(
