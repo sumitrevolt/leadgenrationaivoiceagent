@@ -1,0 +1,118 @@
+# FINAL REVIEW PROMPT - OpenClaw Day 7 Consolidation & Target Verification
+# Execute this prompt on Day 7 to consolidate all results and verify 5 lakh goal
+# Mode: Master Admin Review | Authority: Full System Access
+
+OPENCLAW_FINAL_REVIEW=true
+REVIEW_DAY=7
+TARGET_REVENUE=500000  # INR - 5 lakh
+
+# --- CONSOLIDATION DATA SOURCES ---
+# Pull from all 7 departmental EOD reports (days 1-7)
+# Pull from all 1000 agent output metrics
+# Pull from task completion signatures
+# Pull from revenue attribution tracking
+
+DATA_SOURCES={
+  "engineering": ["all_daily_eod_reports", "code_metrics", "feature_delivery_logs"],
+  "marketing": ["all_daily_eod_reports", "lead_metrics", "campaign_performance", "revenue_attribution"],
+  "sales": ["all_daily_eod_reports", "call_logs", "meeting_logs", "closed_deals", "pipeline_value"],
+  "content": ["all_daily_eod_reports", "engagement_metrics", "content_performance", "distribution_reach"],
+  "qa": ["all_daily_eod_reports", "test_coverage_reports", "bug_metrics", "release_readiness"],
+  "ops": ["all_daily_eod_reports", "deployment_logs", "uptime_metrics", "cost_metrics"],
+  "support": ["all_daily_eod_reports", "ticket_metrics", "csat_scores", "retention_metrics"]
+}
+
+# --- AGGREGATION CALCULATIONS ---
+# For each department, calculate:
+CALCULATIONS={
+  "total_revenue_generated": "sum across all departments (marketing leads converted + sales closed + content attribution + support retention)",
+  "total_code_output": "sum of lines_of_code across all engineering agents (7 days)",
+  "total_leads_generated": "sum across marketing and sales agents",
+  "total_content_pieces": "sum across content agents",
+  "total_test_coverage": "weighted average across QA agents",
+  "total_deployments": "sum across ops agents",
+  "total_tickets_resolved": "sum across support agents",
+  "overall_quality_score": "weighted average of departmental quality scores",
+  "goal_achievement_percentage": "(total_revenue_generated / 500000) * 100"
+}
+
+# --- VERIFICATION CHECKLIST ---
+VERIFICATION_CHECKLIST={
+  "revenue_target_met": "total_revenue_generated >= 500000",
+  "quality_threshold_met": "overall_quality_score >= 0.85",
+  "all_milestones_completed": "each day_1 through day_7 objectives marked complete",
+  "no_critical_blockers_remaining": "all blockers resolved or documented with mitigation",
+  "production_ready": "engineering code_frozen + QA signoff + Ops deployment_verified",
+  "compliance_verified": "all guardrails maintained throughout 7 days",
+  "agent_utilization_healthy": "all 1000 agents contributed measurable output",
+  "documentation_complete": "handover docs created for all departments"
+}
+
+# --- OUTPUT FORMAT ---
+# Generate final report with:
+FINAL_REPORT={
+  "executive_summary": {
+    "goal": "5 lakh INR in 7 days",
+    "actual_revenue": "<calculated>",
+    "achievement_percentage": "<calculated>",
+    "status": "MET / NOT_MET"
+  },
+  "departmental_breakdown": {
+    "engineering": {"revenue_contribution": "<value>", "key_metrics": "<summary>"},
+    "marketing": {"revenue_contribution": "<value>", "key_metrics": "<summary>"},
+    "sales": {"revenue_contribution": "<value>", "key_metrics": "<summary>"},
+    "content": {"revenue_contribution": "<value>", "key_metrics": "<summary>"},
+    "qa": {"revenue_contribution": "<value>", "key_metrics": "<summary>"},
+    "ops": {"revenue_contribution": "<value>", "key_metrics": "<summary>"},
+    "support": {"revenue_contribution": "<value>", "key_metrics": "<summary>"}
+  },
+  "daily_milestone_verification": {
+    "day_1": {"target": 20000, "actual": "<value>", "status": "MET/NOT_MET"},
+    "day_2": {"target": 70000, "actual": "<value>", "status": "MET/NOT_MET"},
+    "day_3": {"target": 75000, "actual": "<value>", "status": "MET/NOT_MET"},
+    "day_4": {"target": 75000, "actual": "<value>", "status": "MET/NOT_MET"},
+    "day_5": {"target": 70000, "actual": "<value>", "status": "MET/NOT_MET"},
+    "day_6": {"target": 80000, "actual": "<value>", "status": "MET/NOT_MET"},
+    "day_7": {"target": 120000, "actual": "<value>", "status": "MET/NOT_MET"}
+  },
+  "guardrail_compliance": {
+    "code_quality": "PASS/FAIL",
+    "compliance": "PASS/FAIL",
+    "rate_limits": "PASS/FAIL",
+    "security": "PASS/FAIL"
+  },
+  "agent_performance_summary": {
+    "total_agents": 1000,
+    "active_agents": "<count>",
+    "avg_output_per_agent": "<value>",
+    "top_performers": "<list>",
+    "underperformers": "<list>"
+  },
+  "blocker_log": "summary of all blockers encountered and resolution",
+  "recommendations": "for future cycles based on learnings"
+}
+
+# --- DECISION LOGIC ---
+IF actual_revenue >= 500000 AND all guardrails PASS:
+  VERDICT = "GOAL_ACHIEVED - SYSTEM_SUCCESS"
+  ACTION = "CELEBRATE + DOCUMENT_BEST_PRACTICES + PREPARE_NEXT_CYCLE"
+
+IF actual_revenue < 500000 BUT >= 400000:
+  VERDICT = "PARTIAL_SUCCESS - NEEDS_EXTENSION"
+  ACTION = "EXTEND_2_DAYS + FOCUS_ON_TOP_REVENUE_CHANNELS"
+
+IF actual_revenue < 400000:
+  VERDICT = "TARGET_MISSED - ROOT_CAUSE_ANALYSIS_REQUIRED"
+  ACTION = "FULL_AUDIT + STRATEGY_PIVOT + REPLAN"
+
+# --- EXECUTION INSTRUCTION ---
+# 1. Query all departmental EOD reports for days 1-7
+# 2. Aggregate metrics per CALCULATIONS
+# 3. Verify against VERIFICATION_CHECKLIST
+# 4. Generate FINAL_REPORT format
+# 5. Apply DECISION LOGIC
+# 6. Output final verdict and report
+# 7. Archive all 7 days of data
+# 8. Generate handover documentation
+
+# --- END OF FINAL REVIEW PROMPT ---

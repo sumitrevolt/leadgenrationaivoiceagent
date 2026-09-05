@@ -1176,3 +1176,18 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_L
 - **Compliance:** No compliance gate touched — reward spine is logging-only (Phase 0, no policy change); no prod data written from this loop (probes read-only, values redacted); no deploy, no secrets.
 
 ---
+
+## Loop Run — 2026-09-05 (omniroute live-tier re-seed: 14/14 combos alive on opencode + opencode-zen)
+- **Goal:** Probe live status of the 42 combo slots in OmniRoute gateway; purge dead keys; restore all 14 combos to real 200 responses.
+- **Inspected:** gateway DB `provider_connections` (15 rows, all `is_active=1`), `usage_history` (22,606 rows; table has PRE-EXISTING corrupted index pages — timestamp/WHERE+GROUP BY queries fail, id-range scans work), `model_context_overrides` (426 rows = openrouter only), `/v1/models` dump (3,572 ids), real `/v1/responses` probes. Read error bodies (R1): "Model X is not available in the active live catalog" = routing gate; `upstream_401` = dead key; `[opencode] All connections auth expired`.
+- **Problems Found (evidence, real 200s only):**
+  1. **All five named providers are DEAD** — every real request returns 401/400: NVIDIA (upstream_401 on nemotron-70b/gpt-oss-20b), Ollama Cloud (upstream_401 on kimi/glm/qwen/nemotron), Fireworks (`apiKeyHealth.invalid`, 401 + model_unavailable), OpenRouter ("All 1 connection(s) authentication expired"), DigitalOcean (0 models anywhere). Gateway `test_status`/`apiKeyHealth` said active/warning — **health-check status is shallow; real inference proves keys rotated upstream**.
+  2. Seed's own pool had gone stale since the morning rebuild: `opencode/muse-spark-1.2-contributor-free` now **502**, `opencode/laguna-s-2.1-free` now **401**, `opencode/mimo-v2.5-free` returns **200-with-EMPTY output** (unusable → watchdog strike).
+  3. Gemini connection also dead (upstream 400 "API key not valid"); local `.env` only has GEMINI key.
+- **Changed:** `scripts/seed_omniroute_14combos.py` `_LIVE` pool → re-verified live set only. Discovery: opencode anonymous free tier is served under **TWO live routable labels** — `opencode/*` AND `opencode-zen/*` (same noauth backend, distinct routing names) — both return real 200 + output_text on nemotron-3.5-lightning-free / nemotron-3-ultra-free / big-pickle (each verified twice). Pool = 3 models × 2 labels = **6 genuinely-live lanes**; dead muse-spark/laguna/mimo dropped; 42 slots re-projected. Comment block rewritten with probe evidence + owner action (refresh keys in dashboard to extend further).
+- **Tests Run:** ruff clean; check_secrets clean; seed re-ran idempotently (backup written, SEED_OK).
+- **Verification Evidence:** DB shows all 14 combos = mix of opencode + opencode-zen lanes; **LIVE VERIFY 14/14 combos answered 200 with output_text** (nemotron-3.5-lightning-free / nemotron-3-ultra-free / big-pickle across combos).
+- **Risks:** No true multi-provider diversity until owner refreshes provider keys in the gateway dashboard (documented in seed + handoff). opencode lanes are free-tier → throttling/empty occasionally; watchdog watches.
+- **Remaining / Next:** Owner: refresh NVIDIA/Ollama/DO/Fireworks/OpenRouter/Gemini keys in dashboard → re-run seed to extend pool beyond opencode family. Commit/deploy owner-gated.
+
+---

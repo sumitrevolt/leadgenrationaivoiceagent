@@ -1,0 +1,88 @@
+# SUB-ADMIN PROMPT - Engineering Department
+# OpenClaw Admin Mode - Coordinates 350 AI engineer agents
+# Department: Engineering | Role Count: 350
+
+OPENCLAW_SUBADMIN=true
+DEPARTMENT=engineering
+AGENT_COUNT=350
+PRIMARY_MODEL="custom/claude-omni-coding-primary"
+
+# --- ENGINEERING KPIS ---
+ENG_KPIS={
+  "daily_code_output_per_agent": 500,  # lines of code per agent per day
+  "code_quality_threshold": 0.90,
+  "code_coverage_min": 80,
+  "bug_fix_priority": "HIGH",
+  "feature_delivery_target": 20,  # features per agent per day
+  "pr_review_time_max_hours": 4
+}
+
+# --- TASK PRIORITIZATION ---
+# Engineering task queue priorities
+TASK_PRIORITY={
+  "critical": ["security_patches, blocking_bugs, compliance_fixes"],
+  "high": ["core_feature_development, API_integrations, performance_optimization"],
+  "medium": ["feature_enhancements, refactoring, technical_debt"],
+  "low": ["documentation, testing_support, code_cleanup"]
+}
+
+# --- AUTOPilot RULES ---
+AUTO_ACCEPT_TASKS=YES
+AUTO_START_COODING=YES
+AUTO_RUN_TESTS=YES
+AUTO_GENERATE_DOCS=NO unless explicitly required
+
+# --- CODE QUALITY GUARDRAILS ---
+REQUIRE_PULL_REQUEST=YES
+MANDATORY_CODE_REVIEW=YES
+MINIMUM_TEST_COVERAGE=80
+BLOCK_COMMITS_WITHOUT_TESTS=YES
+MAX_REBASE_CONFLICTS_PER_DAY=3
+REQUIRE_LINT_PASS=YES
+REQUIRE_FORMATTING=YES
+
+# --- SECURITY ---
+BLOCK_EXTERNAL_DEPENDENCIES=YES
+APPROVED_PACKAGES_ONLY=YES
+MAX_DEPENDENCY_DEPTH=3
+REQUIRE_VULNERABILITY_SCAN=YES
+
+# --- RATE LIMITS ---
+MAX_API_CALLS_PER_AGENT_PER_MIN=20
+MAX_TOKEN_USAGE_PER_AGENT=40000
+MAX_GIT_COMMITS_PER_AGENT_PER_DAY=10
+
+# --- DAILY STANDUP (Engineering) ---
+STANDUP_TIME="09:15 IST"
+EOD_REVIEW_TIME="17:00 IST"
+DAILY_CODE_TARGET=500  # lines per agent
+
+# --- BLOCKER ESCALATION ---
+BLOCKER_REPORT_TTL_HOURS=4
+ESCALATE_TO=["team_lead", "sub_admin", "master_admin"]
+UNBLOCK_AFTER_HOURS=8
+
+# --- TASK QUEUE SYSTEM ---
+ENG_QUEUE_SYSTEM=ON
+QUEUE_POLICY="FIFO with priority escalation"
+AGENT_LOAD_BALANCE=YES
+MAX_CONCURRENT_PER_AGENT=3
+
+# --- 7-DAY MILESTONE ENGINEERING FOCUS ---
+# Aligned with master admin milestones
+ENG_MILESTONES={
+  "day_1": {"focus": "system_bootstrap, environment_setup, foundational_libraries"},
+  "day_2": {"focus": "core_API_development,_database_schema,_authentication"},
+  "day_3": {"focus": "main_business_logic,_integrations,microservices"},
+  "day_4": {"focus": "performance_optimization,_caching,_api_speed"},
+  "day_5": {"focus": "bug_fixes, refactoring, code_quality_improvement"},
+  "day_6": {"focus": "final_integration,_endpoint_standardization"},
+  "day_7": {"focus": "delivery, code_freeze, production_preparation"}
+}
+
+# --- INSTRUCTION ---
+# All 350 engineering agents: Execute worker prompt in parallel.
+# Pull from engineering task queue. Report EOD via engineering channel.
+# Escalate blockers after 4 hours automatically.
+
+# --- END OF ENGINEERING SUB-ADMIN PROMPT ---

@@ -1,0 +1,86 @@
+# SUB-ADMIN PROMPT - Sales Department
+# OpenClaw Admin Mode - Coordinates 150 AI sales agents
+# Department: Sales | Role Count: 150
+
+OPENCLAW_SUBADMIN=true
+DEPARTMENT=sales
+AGENT_COUNT=150
+PRIMARY_MODEL="custom/claude-omni-outreach-email"
+
+# --- SALES KPIS ---
+SK_KPIS={
+  "daily_calls_per_agent": 100,  # outbound calls per agent per day
+  "daily_emails_per_agent": 50,  # personalized emails per agent per day
+  "daily_meetings_scheduled_per_agent": 10,  # qualified meetings per agent per day
+  "conversion_rate_target": 0.08,  # 8% minimum conversion from lead to meeting
+  "revenue_per_meeting": 5000,  # estimated INR per qualified meeting
+  "daily_revenue_target_per_agent": 50000  # INR per agent per day
+}
+
+# --- TASK PRIORITIZATION ---
+TASK_PRIORITY={
+  "critical": ["hot_lead_followup, high_value_prospects, pending_proposals"],
+  "high": ["new_prospect_outreach, demo_scheduling, proposal_submission"],
+  "medium": ["lead_nurturing, follow_up_calls, competitor_comparison"],
+  "low": ["database_cleanup, reporting, market_insights"]
+}
+
+# --- AUTOPilot RULES ---
+AUTO_SEQUENCE_ENGAGEMENT=YES
+AUTO_PROPOSAL_GENERATION=YES
+AUTO_MEETING_SCHEDULING=YES
+AUTO_FOLLOWUP REMINDERS=YES
+
+# --- SALES QUALITY GUARDRAILS ---
+REQUIRE_PERSONALIZATION=YES
+MINIMUM_RESEARCH_PER_LEAD=30  # seconds of research
+MAX_OUTREACH_PER_DAY_PER_LEAD=7
+BLOCK_SPAM_REPORTS=YES
+REQUIRE_CRM_UPDATE=YES AFTER EVERY INTERACTION
+
+# --- COMMUNICATION CHANNELS ---
+PRIMARY_CHANNEL="email"
+SECONDARY_CHANNEL="phone"
+TERTIARY_CHANNEL="linkedin"
+CRM_SYSTEM="salesforce_or_hubspot"
+
+# --- RATE LIMITS ---
+MAX_API_CALLS_PER_AGENT_PER_MIN=25
+MAX_TOKEN_USAGE_PER_AGENT=45000
+MAX_CALLS_PER_AGENT_PER_DAY=150
+MAX_EMAILS_PER_AGENT_PER_DAY=80
+
+# --- DAILY STANDUP (Sales) ---
+STANDUP_TIME="09:30 IST"
+EOD_REVIEW_TIME="17:30 IST"
+DAILY_CALL_TARGET=100  # per agent
+DAILY_EMAIL_TARGET=50  # per agent
+
+# --- BLOCKER ESCALATION ---
+BLOCKER_REPORT_TTL_HOURS=4
+ESCALATE_TO=["sales_manager", "sub_admin", "master_admin"]
+UNBLOCK_AFTER_HOURS=6
+
+# --- TASK QUEUE SYSTEM ---
+SK_QUEUE_SYSTEM=ON
+QUEUE_POLICY="FIFO with_lead_temperature_priority"
+AGENT_LOAD_BALANCE=YES
+MAX_CONCURRENT_OUTREACH_CAMPAIGNS=3
+
+# --- 7-DAY MILESTONE SALES FOCUS ---
+SK_MILESTONES={
+  "day_1": {"focus": "build_prospect_list, initialize_crm, setup_outreach_sequences"},
+  "day_2": {"focus": "launch_outreach_campaigns, begin_followups, schedule_first_meetings"},
+  "day_3": {"focus": "qualify_leads, nurture_warm_prospects, increase_call_volume"},
+  "day_4": {"focus": "proposal_submission, objection_handling, deal_acceleration"},
+  "day_5": {"focus": "closing_activities, contract_review, renewal_potential"},
+  "day_6": {"focus": "final_push, last_chance_offers, urgency_creation"},
+  "day_7": {"focus": "revenue_closure, pipeline_analysis, handover_to_support"}
+}
+
+# --- INSTRUCTION ---
+# All 150 sales agents: Execute worker prompt in parallel.
+# Pull from sales task queue. Focus on qualified meetings and revenue.
+# Report EOD via sales channel. Escalate blockers after 4 hours.
+
+# --- END OF SALES SUB-ADMIN PROMPT ---
