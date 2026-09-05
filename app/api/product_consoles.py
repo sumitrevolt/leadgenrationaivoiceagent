@@ -45,6 +45,14 @@ _CSS_FILE = _FRONTEND_DIR / "archify_console.css"
 _JS_FILE = _FRONTEND_DIR / "archify_console.js"
 _VOICE_HTML = _FRONTEND_DIR / "voice_console.html"
 _MARKETING_HTML = _FRONTEND_DIR / "marketing_console.html"
+_ARCHIFY_HOME_HTML = _FRONTEND_DIR / "archify_console_home.html"
+_ARCHIFY_MKT_HTML = _FRONTEND_DIR / "archify_marketing.html"
+_ARCHIFY_CUST_HTML = _FRONTEND_DIR / "archify_customer.html"
+_ARCHIFY_DS_CSS = _FRONTEND_DIR / "archify-design-system.css"
+_ARCHIFY_LAYOUT_CSS = _FRONTEND_DIR / "archify-layout.css"
+_ARCHIFY_APP_JS = _FRONTEND_DIR / "archify-app.js"
+_SEED_CUST_JS = _FRONTEND_DIR / "seed-customer.js"
+_SEED_MKT_JS = _FRONTEND_DIR / "seed-marketing.js"
 
 
 def _now_iso() -> str:
@@ -656,6 +664,65 @@ async def marketing_console_page():
     if not _MARKETING_HTML.exists():
         raise HTTPException(status_code=404, detail="marketing console not found")
     return FileResponse(str(_MARKETING_HTML), media_type="text/html")
+
+
+@router.get("/app/archify", include_in_schema=False)
+async def archify_home_page():
+    """Archify Enterprise Console Home."""
+    if not _ARCHIFY_HOME_HTML.exists():
+        raise HTTPException(status_code=404, detail="archify home not found")
+    return FileResponse(str(_ARCHIFY_HOME_HTML), media_type="text/html")
+
+
+@router.get("/app/archify/marketing", include_in_schema=False)
+async def archify_marketing_page():
+    """Archify Dashboard 2 — Marketing Product Launch Panel."""
+    if not _ARCHIFY_MKT_HTML.exists():
+        raise HTTPException(status_code=404, detail="archify marketing not found")
+    return FileResponse(str(_ARCHIFY_MKT_HTML), media_type="text/html")
+
+
+@router.get("/app/archify/customer", include_in_schema=False)
+async def archify_customer_page():
+    """Archify Dashboard 1 — Customer Configuration & Knowledge Panel."""
+    if not _ARCHIFY_CUST_HTML.exists():
+        raise HTTPException(status_code=404, detail="archify customer not found")
+    return FileResponse(str(_ARCHIFY_CUST_HTML), media_type="text/html")
+
+
+@router.get("/archify-design-system.css", include_in_schema=False)
+async def archify_ds_css():
+    if not _ARCHIFY_DS_CSS.exists():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(str(_ARCHIFY_DS_CSS), media_type="text/css")
+
+
+@router.get("/archify-layout.css", include_in_schema=False)
+async def archify_layout_css():
+    if not _ARCHIFY_LAYOUT_CSS.exists():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(str(_ARCHIFY_LAYOUT_CSS), media_type="text/css")
+
+
+@router.get("/archify-app.js", include_in_schema=False)
+async def archify_app_js():
+    if not _ARCHIFY_APP_JS.exists():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(str(_ARCHIFY_APP_JS), media_type="application/javascript")
+
+
+@router.get("/seed-customer.js", include_in_schema=False)
+async def archify_seed_customer_js():
+    if not _SEED_CUST_JS.exists():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(str(_SEED_CUST_JS), media_type="application/javascript")
+
+
+@router.get("/seed-marketing.js", include_in_schema=False)
+async def archify_seed_marketing_js():
+    if not _SEED_MKT_JS.exists():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(str(_SEED_MKT_JS), media_type="application/javascript")
 
 
 # =========================================================================== #

@@ -552,6 +552,7 @@
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
     <div class="nav-group">Menu</div>
     <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home / This Month</a>
+    <a class="navlink marketing-only" href="/app/marketing-console" style="background:rgba(99,102,241,0.22);border:1px solid rgba(99,102,241,0.45);color:#fff;font-weight:700" aria-label="Marketing Console"><span class="ic" aria-hidden="true">✨</span> Marketing Console <span style="background:#6366f1;color:#fff;font-size:10px;padding:2px 6px;border-radius:999px;margin-left:auto">NEW</span></a>
     <a class="navlink" data-nav="delivery" href="#" onclick="showView('delivery');return false;" aria-label="My Delivery status"><span class="ic" aria-hidden="true">📦</span> My Delivery</a>
     <a class="navlink" data-nav="setup" href="#" onclick="showView('setup');return false;" aria-label="Setup Wizard self-serve"><span class="ic" aria-hidden="true">🧙</span> Setup Wizard</a>
     <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Content &amp; Approvals</a>
@@ -637,6 +638,20 @@
     </div>
 
     <div class="content" role="main" id="mainContent" data-active-view="home">
+
+      <!-- Enterprise Archify Console Switcher Banner -->
+      <div style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border:1px solid #6366f1;border-radius:12px;padding:12px 18px;margin:0 0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;color:#fff;box-shadow:0 4px 16px rgba(99,102,241,0.25)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:24px">✨</span>
+          <div>
+            <div style="font-weight:800;font-size:14px;color:#fff">Naya Enterprise Archify Console Live Hai!</div>
+            <div style="font-size:12px;color:#c7d2fe;margin-top:2px">Dark mode, 1-click batch approvals, live system map &amp; channel connectors.</div>
+          </div>
+        </div>
+        <a href="/app/marketing-console" style="background:#6366f1;color:#fff;font-weight:700;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap">
+          Open Archify Console ↗
+        </a>
+      </div>
 
       <!-- ===== 0) Owner hero — non-technical intro ===== -->
       <div data-view="home" class="owner-hero" aria-label="Aapka dashboard">
