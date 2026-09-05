@@ -19,7 +19,7 @@ async function main() {
   const apiKeyMatch = envContent.match(/OMNIROUTE_API_KEY=(.+)/);
   const apiKey = apiKeyMatch ? apiKeyMatch[1].trim() : 'sk-e9f8e4d8c3b2a1f6e9d7c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0';
   
-  console.log('Using API Key:', apiKey.substring(0, 20) + '...');
+  console.log('Using API key for requests.');
   
   // Get existing combos
   console.log('\n=== GET /api/v1/combos ===');
