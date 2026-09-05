@@ -961,3 +961,18 @@ Awaiting owner's explicit `deploy` (or alternative like `pause` / `M3 first`). P
 No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_LAUNCH_KILL=0` is the **voice-launch** kill, not a compliance gate — it gates outbound dial attempts, which still flow through `launch_status()`'s DND-scrub + circuit + recording gates before any call is placed. Cold WhatsApp OFF unchanged. Email cap unchanged. Owner packet unchanged. No deploy, no SSH, no remote state change in this loop run.
 
 ---
+
+## Loop Run — 2026-09-05 (checkpoint 1: merge-train reconcile + prod verify)
+- **Date:** 2026-09-05
+- **Goal:** PR #458 close-without-merge reconcile — prove zero content loss; verify prod is current main tip; record loop ledger.
+- **Inspected:** PR #458 (CLOSED unmerged 2026-09-04T11:07Z) + PR #464 (MERGED 19:31Z → `719dbbd6`); merge-base of branch tip `7a143d55` vs `origin/main` = `63c2c47a` (#453 era) → branch NOT ancestor; full numstat diff `origin/main ↔ 7a143d55` (63 files, +156/−10250); `/health`; `app/platform/team.py:843` team_pulse; progress.md tail.
+- **Problems Found:** Branch tip `7a143d55` missing from main ancestry → potential lost-work risk. Suspected team_pulse full-suite hang.
+- **Changed:** None — verify-only loop, no code edits needed.
+- **Tests Run:** `pytest tests/test_team_pulse_no_hang.py tests/test_team_pulse.py -q --timeout=90` → **5/5 PASS**.
+- **Verification Evidence:** Every diverging diff hunk shows main strictly ahead (impersonation portal-allowlist feature, vobiz `template_id`/`voice_role` console test-call, date-suffixed hot-queue glob, `check_gates()` restoration = the #464 fix itself, ratchet 94>92, staff jobs 54>51) → #458 closure CORRECT (superseded by #457/#461/#463/#464), zero salvage needed. Prod `/health` = `719dbbd6` = `origin/main` tip, `environment:production`; smoke 5/5 pages 200 (`/`, `/pricing`, `/demo`, `/login`, `/health`).
+- **Risks:** Dirty worktree holds a parallel pilot's WIP (`frontend/archify-*`, `command_center/*pilot*`, `deliverables/PLANNING_2026-09-05`) — untouched here. 2 historical-blob GitGuardian incidents need owner-side key rotation. `worker.py` beat entries and omniroute remaps identical in main and branch (arrived via #457).
+- **Remaining:** Root scratch files cleanup (referenced by `scripts/security_scan.py` / `runtime_data_baseline.py`) as separate verified commit. Historical secrets rotation = OWNER action.
+- **Next Highest Priority:** Scratch cleanup commit → next-loop P1 from backlog (hot-queue owner workflow M3 wiring blocked on owner deploy approval per previous block).
+- **Compliance:** No gate touched; verify-only + docs append. No deploy, no remote state change in this loop run.
+
+---
