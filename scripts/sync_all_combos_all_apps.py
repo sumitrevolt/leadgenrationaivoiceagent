@@ -9,60 +9,28 @@ import yaml
 # never hardcode it (GitGuardian incident 36739747/36798909).
 OMNIROUTE_API_KEY = os.environ.get("OMNIROUTE_API_KEY", "")
 
-# Exactly 12 clean, unique OmniRoute dynamic combos with claude-omni- IDs for Claude Desktop frontend filter
+# Exactly 14 canonical OmniRoute combos — `leadsgen combo N` (2026-09-05
+# council: the gateway now holds exactly these 14; legacy leadgen-*/claude-omni-*
+# names are registered as same-UUID aliases in the gateway DB and stay here as
+# display/alias ids so app _TASK_ROUTES and the Claude Desktop filter resolve).
+# (id, real, name) per combo — id is the canonical claude-omni-* alias used by
+# the Claude Desktop frontend filter; real is the app-facing leadgen-* alias;
+# name is the human label. canonical = the exact `leadsgen combo N` gateway id.
 ALL_COMBOS = [
-    {
-        "id": "claude-omni-coding-primary",
-        "real": "leadgen-coding-primary",
-        "name": "OmniRoute Coding Primary",
-    },
-    {
-        "id": "claude-omni-coding-fast",
-        "real": "leadgen-coding-fast",
-        "name": "OmniRoute Coding Fast",
-    },
-    {
-        "id": "claude-omni-repo-analysis",
-        "real": "leadgen-repo-analysis",
-        "name": "OmniRoute Repo Analysis",
-    },
-    {
-        "id": "claude-omni-test-generation",
-        "real": "leadgen-test-generation",
-        "name": "OmniRoute Test Generation",
-    },
-    {"id": "claude-omni-agent-ops", "real": "leadgen-agent-ops", "name": "OmniRoute Agent Ops"},
-    {"id": "claude-omni-swara-live", "real": "leadgen-swara-live", "name": "OmniRoute Swara Live"},
-    {
-        "id": "claude-omni-marketing-content",
-        "real": "leadgen-marketing-content",
-        "name": "OmniRoute Marketing Content",
-    },
-    {
-        "id": "claude-omni-prospect-enrich",
-        "real": "leadgen-prospect-enrich",
-        "name": "OmniRoute Prospect Enrich",
-    },
-    {
-        "id": "claude-omni-outreach-email",
-        "real": "leadgen-outreach-email",
-        "name": "OmniRoute Outreach Email",
-    },
-    {
-        "id": "claude-omni-seo-keyword",
-        "real": "leadgen-seo-keyword",
-        "name": "OmniRoute SEO Keyword",
-    },
-    {
-        "id": "claude-omni-governor-review",
-        "real": "leadgen-governor-review",
-        "name": "OmniRoute Governor Review",
-    },
-    {
-        "id": "claude-omni-project-best",
-        "real": "leadgen-project-best",
-        "name": "OmniRoute Project Best",
-    },
+    {"id": "claude-omni-coding-primary", "real": "leadgen-coding-primary", "canonical": "leadsgen combo 1", "name": "LeadsGen Combo 1 — Coding Primary"},
+    {"id": "claude-omni-coding-fast", "real": "leadgen-coding-fast", "canonical": "leadsgen combo 2", "name": "LeadsGen Combo 2 — Coding Fast"},
+    {"id": "claude-omni-repo-analysis", "real": "leadgen-repo-analysis", "canonical": "leadsgen combo 3", "name": "LeadsGen Combo 3 — Repo Analysis"},
+    {"id": "claude-omni-test-generation", "real": "leadgen-test-generation", "canonical": "leadsgen combo 4", "name": "LeadsGen Combo 4 — Test Generation"},
+    {"id": "claude-omni-agent-ops", "real": "leadgen-agent-ops", "canonical": "leadsgen combo 5", "name": "LeadsGen Combo 5 — Agent Ops"},
+    {"id": "claude-omni-swara-live", "real": "leadgen-swara-live", "canonical": "leadsgen combo 6", "name": "LeadsGen Combo 6 — Swara Live"},
+    {"id": "claude-omni-marketing-content", "real": "leadgen-marketing-content", "canonical": "leadsgen combo 7", "name": "LeadsGen Combo 7 — Marketing Content"},
+    {"id": "claude-omni-prospect-enrich", "real": "leadgen-prospect-enrich", "canonical": "leadsgen combo 8", "name": "LeadsGen Combo 8 — Prospect Enrich"},
+    {"id": "claude-omni-outreach-email", "real": "leadgen-outreach-email", "canonical": "leadsgen combo 9", "name": "LeadsGen Combo 9 — Outreach Email"},
+    {"id": "claude-omni-seo-keyword", "real": "leadgen-seo-keyword", "canonical": "leadsgen combo 10", "name": "LeadsGen Combo 10 — SEO Keyword"},
+    {"id": "claude-omni-governor-review", "real": "leadgen-governor-review", "canonical": "leadsgen combo 11", "name": "LeadsGen Combo 11 — Governor Review"},
+    {"id": "claude-omni-project-best", "real": "leadgen-project-best", "canonical": "leadsgen combo 12", "name": "LeadsGen Combo 12 — Project Best"},
+    {"id": "claude-omni-free-first", "real": "leadgen-14th-combo", "canonical": "leadsgen combo 13", "name": "LeadsGen Combo 13 — Free First (VPS)"},
+    {"id": "claude-omni-general", "real": "leadsgen-combo-14", "canonical": "leadsgen combo 14", "name": "LeadsGen Combo 14 — General"},
 ]
 
 COMBO_IDS = [c["id"] for c in ALL_COMBOS]
@@ -181,7 +149,7 @@ def sync_workbuddy():
 
         data["omniroute"] = {
             "baseURL": "http://127.0.0.1:22000",
-            "apiKey": "sk-18effe9c5f68c04f-fb461e-b60524ad",
+            "apiKey": OMNIROUTE_API_KEY,
             "models": COMBO_IDS,
         }
         data["mcpServers"] = UNIVERSAL_MCP_SERVERS
@@ -521,39 +489,87 @@ def sync_workspace_mcp():
 
 
 def sync_omniroute_sqlite():
-    """Seed OmniRoute SQLite inside the Docker container (ADR-189: Docker-only, WSL removed)."""
-    seed_script_win = os.path.join(os.path.dirname(__file__), "seed_omniroute_12combos.py")
+    """Seed OmniRoute SQLite via the CANONICAL 14-combo seed (2026-09-05)."""
+    seed_script_win = os.path.join(os.path.dirname(__file__), "seed_omniroute_14combos.py")
     if not os.path.exists(seed_script_win):
         print(f"[WARN] Seed script not found: {seed_script_win}")
         return
     try:
-        # Copy seed script into container and run it
-        # The container has Python and SQLite at /root/.omniroute/storage.sqlite
+        # The 14-combo seed is self-contained Python — run it directly (it does
+        # its own docker cp + node:sqlite execution + DB backup).
+        env = dict(os.environ)
         res = subprocess.run(
-            ["docker", "exec", "-i", "leadgen_omniroute", "python3"],
-            input=open(seed_script_win, "rb").read(),
+            [PYTHON_PATH, seed_script_win],
             capture_output=True,
-            timeout=15,
+            timeout=120,
+            env=env,
         )
         if res.returncode == 0:
-            print("[OK] OmniRoute SQLite seeded (via Docker exec)")
-            print(res.stdout.decode() if res.stdout else "")
+            print("[OK] OmniRoute SQLite seeded (14 combos via canonical seed)")
+            print(res.stdout.decode().strip() if res.stdout else "")
         else:
             print(f"[WARN] OmniRoute SQLite seeding failed (exit {res.returncode}):")
-            print(res.stderr.decode() if res.stderr else "")
+            print(res.stderr.decode() if res.stderr else res.stdout.decode() if res.stdout else "")
     except subprocess.TimeoutExpired:
         print("[WARN] OmniRoute SQLite seeding timeout")
     except Exception as e:
         print(f"[WARN] OmniRoute SQLite seeding note: {e}")
 
 
+def sync_verdant():
+    """Best-effort Verdant Desktop sync (Verdant not installed yet — create the
+    config file if the app dir appears later; harmless no-op otherwise)."""
+    verdant_dirs = [
+        os.path.expanduser(r"~\AppData\Roaming\Verdant"),
+        os.path.expanduser(r"~\AppData\Roaming\verdant"),
+        os.path.expanduser(r"~\AppData\Roaming\verdant-ai"),
+    ]
+    target = next((d for d in verdant_dirs if os.path.exists(d)), None)
+    if not target:
+        print("[SKIP] Verdant Desktop not installed yet — config dir absent (no-op)")
+        return
+
+    models = [
+        {
+            "id": c["canonical"],
+            "name": c["name"],
+            "vendor": "OmniRoute",
+            "baseURL": "http://127.0.0.1:20128/v1",
+            "apiKey": OMNIROUTE_API_KEY,
+            "models": [c["canonical"], c["real"], c["id"]],
+        }
+        for c in ALL_COMBOS
+    ]
+    config = {
+        "version": 2,
+        "providers": {
+            "omniroute": {
+                "name": "OmniRoute (14 LeadsGen Combos - 1M Context)",
+                "base_url": "http://127.0.0.1:20128/v1",
+                "apiKeyEnv": "OMNIROUTE_API_KEY",
+                "models": models,
+                "context_length": 1048576,
+            }
+        },
+        "mcpServers": UNIVERSAL_MCP_SERVERS,
+    }
+    config_path = os.path.join(target, "config.json")
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+        print(f"[OK] Verdant Desktop synced ({len(models)} OmniRoute combos) -> {config_path}")
+    except Exception as e:
+        print(f"[WARN] Verdant sync note: {e}")
+
+
 if __name__ == "__main__":
-    print("=== Syncing 12 Dynamic OmniRoute Combos (1M+ Context & MCP) Across All Apps ===")
+    print("=== Syncing 14 Canonical OmniRoute Combos (1M+ Context & MCP) Across All Apps ===")
     sync_omniroute_sqlite()
     sync_dsh()
     sync_claude()
     sync_workbuddy()
     sync_hermes()
     sync_openclaw()
+    sync_verdant()
     sync_workspace_mcp()
     print("=== All Client App Configs Successfully Synced! ===")

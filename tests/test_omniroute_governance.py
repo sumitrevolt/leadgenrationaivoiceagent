@@ -175,9 +175,10 @@ async def test_bridge_redacts_secret_shaped_provider_output(monkeypatch):
 
 def test_verified_combo_routes_are_safe_then_quality():
     route = get_task_route("leadgen.coding_primary", "INTERNAL_SANITIZED")
-    # Authority = omniroute_client._TASK_ROUTES (leadgen-free-first combo + coding:free fallback)
-    assert route.primary_model == "leadgen-free-first"
-    assert route.fallback_model == "auto/coding:free"
+    # Authority = omniroute_client._TASK_ROUTES (canonical 14-combo map 2026-09-05:
+    # combo 1 = coding-primary worker, combo 2 = coding-fast fallback lane).
+    assert route.primary_model == "leadsgen combo 1"
+    assert route.fallback_model == "leadsgen combo 2"
 
 
 @pytest.mark.xfail(

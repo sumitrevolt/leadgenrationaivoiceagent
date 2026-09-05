@@ -5,33 +5,31 @@ Owner whatsApp: +91xxxxxx or web at /admin
 All commands gated through compliance checks — no gate weakening allowed.
 """
 
-import asyncio
 import json
 import os
-import subprocess
-import sys
 from datetime import datetime
-
-# Add workspace to path
-sys.path.insert(0, "/opt/leadgen")
-sys.path.insert(0, "C:\\Users\\Ratanshila\\.openclaw\\workspace")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.platform.admin_api import router as admin_router
-from app.platform.squad_billing import *
-from app.platform.squad_cicd import *
-from app.platform.squad_compliance import *
-from app.platform.squad_data import *
-from app.platform.squad_deploy import *
-from app.platform.squad_knowledge import *
-from app.platform.squad_marketing import *
-from app.platform.squad_monitoring import *
-from app.platform.squad_qa import *
-from app.platform.squad_voice_calling import *
-from app.platform.squad_whatsapp import *
+from app.platform.squad_billing import (
+    daily_revenue_summary as squad_billing_daily_revenue_summary,
+)
+from app.platform.squad_billing import (
+    squad_name as squad_billing_name,
+)
+from app.platform.squad_cicd import check_prod_gates as squad_cicd_check_prod_gates
+from app.platform.squad_compliance import daily_compliance_audit
+from app.platform.squad_data import vector_backup
+from app.platform.squad_deploy import health_check as squad_deploy_health_check
+from app.platform.squad_knowledge import daily_index_update
+from app.platform.squad_marketing import run_hourly_campaign
+from app.platform.squad_monitoring import gate_health_dashboard
+from app.platform.squad_qa import run_contract_tests
+from app.platform.squad_voice_calling import run_daily_beat as squad_voice_run_daily_beat
+from app.platform.squad_whatsapp import check_wa_status
 
 # Initialize FastAPI app
 app = FastAPI(title="LeadGen AI — Owner Admin", version="bc5800cb")
@@ -94,17 +92,17 @@ def cmd_wa_status():
 def cmd_squad_task(squad_num: int):
     """Execute task for specific squad."""
     squads = {
-        1: ("Voice Calling", lambda: squad_voice_calling().run_daily_beat()),
-        2: ("Marketing", lambda: squad_marketing().run_hourly_campaign()),
-        3: ("Compliance", lambda: squad_compliance().daily_compliance_audit()),
-        4: ("Deploy", lambda: squad_deploy().health_check()),
-        5: ("Knowledge", lambda: squad_knowledge().daily_index_update()),
-        6: ("QA", lambda: squad_qa().run_contract_tests()),
-        7: ("Data", lambda: squad_data().vector_backup()),
-        8: ("Billing", lambda: squad_billing().daily_revenue_summary()),
-        9: ("WA", lambda: squad_whatsapp().check_wa_status()),
-        10: ("Monitoring", lambda: squad_monitoring().gate_health_dashboard()),
-        11: ("CI/CD", lambda: squad_cicd().check_prod_gates()),
+        1: ("Voice Calling", lambda: squad_voice_run_daily_beat()),
+        2: ("Marketing", lambda: run_hourly_campaign()),
+        3: ("Compliance", lambda: daily_compliance_audit()),
+        4: ("Deploy", lambda: squad_deploy_health_check()),
+        5: ("Knowledge", lambda: daily_index_update()),
+        6: ("QA", lambda: run_contract_tests()),
+        7: ("Data", lambda: vector_backup()),
+        8: ("Billing", lambda: squad_billing_daily_revenue_summary()),
+        9: ("WA", lambda: check_wa_status()),
+        10: ("Monitoring", lambda: gate_health_dashboard()),
+        11: ("CI/CD", lambda: squad_cicd_check_prod_gates()),
     }
     if squad_num in squads:
         name, func = squads[squad_num]

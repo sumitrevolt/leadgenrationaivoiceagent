@@ -42,8 +42,8 @@ from app.utils.logger import setup_logger
 # Module-level imports — tests patch these attributes directly.
 # Wrapped in try/except to avoid circular import at module load time.
 try:
-    from app.telephony.post_call_hooks import meter_call_completion
     from app.marketing import niche_database
+    from app.telephony.post_call_hooks import meter_call_completion
 except ImportError:
     # Lazy fallback — functions are imported when first needed.
     meter_call_completion = None

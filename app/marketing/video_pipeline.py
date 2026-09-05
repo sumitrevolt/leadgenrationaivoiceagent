@@ -79,7 +79,7 @@ def _make_branded_frame(
     total_slides: int = 4,
 ) -> str:
     """Creates a high-aesthetic, enterprise-grade video frame.
-    
+
     Features:
     - Deep midnight slate gradient or blended custom background
     - Ambient radial glow accents + subtle grid lines
