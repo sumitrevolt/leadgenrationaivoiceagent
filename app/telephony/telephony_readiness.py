@@ -37,6 +37,23 @@ def _env(name: str) -> str:
         return ""
 
 
+def _sync_run(coro):
+    """Run an async coroutine from a sync context (best-effort, never raise)."""
+    import asyncio
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        # Already in an event loop — use a thread to avoid deadlock.
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result(timeout=10)
+    return asyncio.run(coro)
+
+
 def _active_provider() -> str:
     """Live telephony provider — vobiz (outbound stream)."""
     return (_env("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
@@ -63,16 +80,42 @@ def run_checks() -> dict[str, Any]:
         "VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN",
         20,
     )
-    add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
+    # NOTE: non-empty caller_id ≠ owned caller_id. The Vobiz API may accept
+    # a caller-ID in the payload but reject it at call-time with "not owned by
+    # this account". The outbound_probe (above) catches this when armed.
+    add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID set (ownership verified by outbound_probe)", 15)
 
-    # Synthetic Verification check (NEW)
-    vobiz_verify_outbound = _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND") == "1"
+    # Synthetic Verification check — caller-ID ownership probe.
+    # 2026-08-30 FIX: previous code hardcoded outbound_ok=True which gave a
+    # false-green readiness score even when the caller-ID was NOT owned by the
+    # account (prod failure: "The from number 911171366938 is not owned by this
+    # account"). Now defaults to False; only passes when the probe explicitly
+    # succeeds or is not configured (weight=0).
+    vobiz_verify_outbound = _env("VOBIZ_VERIFY_CALLER_ID_OUTBOUND").lower() in (
+        "1", "true", "yes",
+    )
     probe_w = 20 if vobiz_verify_outbound else 0
-    try:
-        outbound_ok = True
-        add("outbound_probe", outbound_ok, "Outbound Connectivity Probe", probe_w)
-    except Exception:
-        add("outbound_probe", False, "Outbound Probe Failed", probe_w)
+    if vobiz_verify_outbound:
+        try:
+            from app.telephony.telephony_readiness_probe import (
+                verify_outbound_connectivity,
+            )
+
+            probe_result = _sync_run(verify_outbound_connectivity())
+            outbound_ok = probe_result.get("ok", False)
+            probe_why = probe_result.get("why", "probe result unknown")
+            add("outbound_probe", outbound_ok, probe_why, probe_w)
+        except Exception as exc:
+            add("outbound_probe", False, f"probe error: {exc}", probe_w)
+    else:
+        # Probe not armed — weight=0 so it does NOT affect the score, but we
+        # record the honest state so operators see it in the readiness report.
+        add(
+            "outbound_probe",
+            True,
+            "skipped (VOBIZ_VERIFY_CALLER_ID_OUTBOUND=0 — weight=0, not scored)",
+            0,
+        )
 
     add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
     # Jio Mobile SIP trunk (INERT-by-default — sirf tab active jab JIO_TRUNK_ENABLED=1)

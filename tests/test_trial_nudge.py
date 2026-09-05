@@ -234,6 +234,32 @@ def test_messages_contain_pricing_url_and_unsub():
         assert "unsubscribe" in msg["body"].lower()
 
 
+def test_messages_embed_pay_link_when_provided():
+    """pay_link is embedded directly in the message (UPI deep-link, 1-tap pay)."""
+    pay = "upi://pay?pa=test@upi&am=1999&tn=LeadGen+Biz&cu=INR"
+    for stage in ("expiring", "expired"):
+        msg = tn.build_message(stage, "Biz", 1, price=1999, pay_link=pay)
+        assert pay in msg["body"]
+        assert pay in msg["wa_text"]
+        # UPI deep-link is primary CTA — appears before the generic pricing page
+        assert msg["body"].index(pay) < msg["body"].index("leadsgenai.in/pricing")
+
+
+def test_messages_fallback_to_pricing_when_no_pay_link():
+    """pay_link default (empty) falls back to the pricing URL — backward-compatible."""
+    for stage in ("expiring", "expired"):
+        msg = tn.build_message(stage, "Biz", 2)
+        assert "leadsgenai.in/pricing" in msg["body"]
+
+
+def test_expiring_urgency_escalates_to_today():
+    """<=1 day left uses 'aaj' urgency wording (conversion lever, honest)."""
+    msg_today = tn.build_message("expiring", "Biz", 1)
+    assert "aaj" in msg_today["subject"].lower() or "aaj" in msg_today["body"].lower()
+    msg_later = tn.build_message("expiring", "Biz", 2)
+    assert "2 din" in msg_later["subject"].lower() or "2 din" in msg_later["body"].lower()
+
+
 # ------------------------------------------------------------ WA ban-safety
 
 

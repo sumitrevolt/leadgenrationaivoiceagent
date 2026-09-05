@@ -866,10 +866,12 @@ def isha_execution_snapshot() -> dict[str, Any]:
         from app.platform.agent_os_routing import get_agent_policy
 
         p = get_agent_policy("isha", "marketing")
+        # Display-only snapshot; task→combo resolution lives in omniroute_client
+        # _TASK_ROUTES (canonical 14-combo map, 2026-09-05).
         route = {
             "work_type": p.category,
             "primary_route": p.omniroute_task,
-            "fallback_route": "auto/best-free",
+            "fallback_route": "leadsgen combo 13",
             "timeout_seconds": p.timeout_seconds,
             "latency_target_ms": 5000,
             "privacy_class": p.privacy_class,

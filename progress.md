@@ -1,5 +1,145 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
+## Loop Run — 2026-09-05 (local OmniRoute combo watchdog: 14-combo lane pinger + ntfy alerts)
+- **Goal:** Add a local watchdog that periodically pings all 14 `leadsgen combo N` lanes and alerts (ntfy) when any lane stops returning 200 — so a dead combo surfaces before mapped scheduler/staff jobs degrade.
+- **Inspected:** Repo conventions — `app/integrations/ntfy.py` (canonical alert helper, gated NTFY_URL+NTFY_TOPIC), `app/platform/ops_watchdog.py` (strike/state pattern, `data/` state), `scripts/omniroute_latency_probe.py` (gateway probe via urllib), `scripts/setup_autoboot.ps1` (Task Scheduler registration pattern). Gateway has NO /health endpoint — the only truthful lane check is a real `/v1/responses` call with the combo name (same path `app.platform.omniroute_client.generate()` uses). `/v1/models` self-discovers the 14 canonical combos.
+- **Problems Found:** No per-combo liveness monitor existed (`omniroute-check.ps1` only checks container/gateway reachability, not lanes). Empty-output 200s observed on slow free lanes (combo 2/10 returned `empty_output` when throttled ~28 s) — a 200 with no output_text is unusable for the app, so it must count toward strikes.
+- **Changed:**
+  1. `scripts/omniroute_combo_watchdog.py` (NEW) — discovers the 14 canonical combos from `/v1/models`, probes each via `/v1/responses` (concurrency 4, timeout default 40 s), persists consecutive-failure counters to `data/omniroute_combo_state.json` (gitignored), alerts exactly once at `--strikes` (default 3) consecutive failures + once on recovery, never re-alerts while down, exit 0/1/2 (all-OK / down-past-strikes / gateway-unreachable). `--loop N` for resident periodic runs; `--quiet`/`--json` for wrapper/Task-Scheduler use.
+  2. `scripts/register_omniroute_watchdog.ps1` (NEW) — OPT-IN Task Scheduler registration (pattern = setup_autoboot.ps1); registers `LeadGen-OmniRoute-Combo-Watchdog` running the watchdog every N minutes as current user (env NTFY_URL/TOPIC resolve). NOT run/registered.
+  3. `tests/test_omniroute_combo_watchdog.py` (NEW, 4 hermetic tests) — stubbed probes/ntfy: single blip never alerts + recovers; 3 consecutive failures alert once then exit 1 every pass (incl. already-alerted stays exit 1); recovery clears state + sends recovery ping; gateway-unreachable → exit 2 + urgent alert. (Tests caught + fixed a real bug: exit code used to drop to 0 once a down combo was already alerted.)
+- **Tests Run:** `test_omniroute_combo_watchdog.py` 4/4 green; ruff clean on script+test; `check_secrets` clean (27 files).
+- **Verification Evidence:** Two live one-shot passes against the real gateway: pass 1 = 12/14 OK (combos 2,10 empty-output throttled → strike 1 recorded, no alert); pass 2 = combo 2 recovered (state reset), combo 10 at 2 strikes — strike/alert state machine proven live. Clean-state `--quiet` pass → exit 0.
+- **Risks:** Alerts no-op (print-only) until NTFY_URL+NTFY_TOPIC are set — documented. Free opencode lanes intermittently return empty-output under load; strikes=3 threshold absorbs single blips.
+- **Remaining / Next:** Owner: run `register_omniroute_watchdog.ps1` to arm periodic scheduling (or `--loop` in a terminal). Commit/deploy owner-gated.
+
+## Loop Run — 2026-09-05 (app/platform worker routing → canonical 14-combo map, verified end-to-end)
+- **Goal:** Configure app-side worker routing so the 14 `leadsgen combo N` gateway combos actually power the scheduler/staff jobs they're mapped to — verified by real end-to-end dispatch (not alias-name illusion).
+- **Inspected:** `app/platform/omniroute_client.py` `_TASK_ROUTES` (the single control point: feeds `generate()` → free_ai bulk hook → staff agents, owner_os route_matrix/health probes, office HQ status, `omniroute_voice` wrapper); `app/platform/agent_os_routing.py` (31-agent task policy); `app/platform/automation_orchestrator.py` (task ledger default model); `app/platform/owner_agent_execution.py` (isha snapshot display); pinned tests (`test_omniroute_client`, `test_omniroute_governance`); live gateway DB (`docker exec leadgen_omniroute node:sqlite`) → 14 canonical combos, 42 slots, 26 alias rows present; `voice_sticky_route.py` (voice = FROZEN, left untouched).
+- **Problems Found:** `_TASK_ROUTES` still pointed at LEGACY alias ids (`leadgen-free-first`, `claude-code`, `hermes-*`, `vps-01`) — routing depended on the alias layer, some routes had primary+fallback mapping to the SAME combo (swara: hermes-voice+vps-01 both = combo 6; outreach: hermes-sales+hermes-ops both = combo 5), and combos 13/14 had no mapped work. Aliases could be retired/deleted independently of app intent; jobs did not deterministically own their worker combo.
+- **Changed:**
+  1. Rewrote `_TASK_ROUTES` to CANONICAL ids — every route primary = its owning combo (1 coding, 2 coding-fast, 3 repo, 4 test, 5 agent-ops, 6 swara-voice, 7 marketing, 8 prospect, 9 outreach, 10 seo, 11 governor, 12 project-best), fallback = a DIFFERENT combo, with 13 (vps/free-first) + 14 (general) as failover lanes so ALL 14 combos receive traffic and no route self-routes. Privacy classes unchanged (voice stays CUSTOMER_MASKED).
+  2. `automation_orchestrator.py` default task model → `leadsgen combo 1` (3 spots).
+  3. `owner_agent_execution.py` isha-snapshot display fallback → `leadsgen combo 13`.
+  4. Updated pinned tests to canonical ids + NEW `tests/test_omniroute_canonical_combos.py` (6 contract tests: canonical naming, primary≠fallback, all 14 referenced, ≤1 primary per combo, 12 task types, every agent task resolves).
+- **Tests Run:** `test_omniroute_canonical_combos` + `test_omniroute_client` + `test_omniroute_governance` + `test_agent_os_routing` = 53 passed / 1 pre-existing xfail; `test_omniroute_voice` + `test_automation_orchestrator` + governance re-run green (2 pre-existing xfails). Ruff clean on all touched files. Voice surface untouched (voice_sticky_route back to HEAD).
+- **Verification Evidence:** **LIVE end-to-end — 12/12 task routes answered through the real gateway** (`generate()` per route, HTTP 200 / output_text on every combo): coding_primary→combo1 (nemotron-3.5-lightning-free), coding_fast→combo2, repo→combo3 (big-pickle), test→combo4 (mimo), agent_ops→combo5, swara_live→combo6 (CUSTOMER_MASKED path OK), marketing→combo7, prospect→combo8, outreach→combo9, seo→combo10, governor→combo11 (muse-spark), project_best→combo12. 14/14 combos referenced across the table (13/14 as fallback lanes).
+- **Risks:** Deploy is owner-gated (local-only, not pushed). Gateway provider keys are still mostly opencode-free-lane (upstream keys rotated — owner dashboard refresh re-arms 42 multi-provider slots, seed structure already supports it).
+- **Remaining / Next:** Commit+deploy when owner asks. If owner later recreates `leadgen-swara-flagship` on the VPS gateway, unmark the voice xfail; until then swara stays on combo 6 (gateway-verified).
+
+## Loop Run — 2026-09-05 (OmniRoute 14-combo canonical rebuild + live-lane repoint)
+- **Goal:** Owner directive (Hinglish, autopilot): OmniRoute mess cleanup → exactly 14 combos `leadsgen combo 1..14`, each with its own email key + 3 free-tier model slots (42 slots total), powering workers; some combos on VPS, some project-local; same config across all 5 desktop apps (Hermes, Claude, WorkBuddy, OpenClaw, Verdant) + DSH/workspace MCPs.
+- **Inspected:**
+  - Gateway = Docker container `leadgen_omniroute`, port 20128 loopback, DB at **`/app/data/storage.sqlite`** (NOT `/root/.omniroute/` which the old seed scripts targeted — that path bug meant old seeds never landed).
+  - DB had **67 combos** (dupes/aliases/test entries) and 14 email API keys — the mess.
+  - Old seeds: `seed_omniroute_12combos.py`, `update_combos_42.py`, `harness_omniroute_12combos.py`, `sync_all_combos_all_apps.py` (had a **hardcoded `sk-…` API key — secret leak**), `start-omniroute.ps1` (Docker launcher ADR-189), `deploy/compose/docker-compose.omniroute.yml`.
+  - App-side: `app/platform/omniroute_client.py` `_TASK_ROUTES` references `leadgen-*`/`hermes-engineer`/`claude-code` alias names → aliases must keep resolving.
+  - App dirs present: Hermes (Roaming+Local), Claude Desktop, WorkBuddy (`.workbuddy-ai`), OpenClaw (`.openclaw`) — **Verdant NOT installed** (best-effort sync added, no-op SKIP).
+- **Problems Found:**
+  1. **67 stray combos** in gateway DB (aliases/dupes/tests) — canonical structure missing.
+  2. Old seeds pointed at the **wrong DB path** (`/root/.omniroute`) → seeds silently never applied.
+  3. `sync_all_combos_all_apps.py` had a **committed hardcoded API key** (`sk-18effe…`) — GitGuardian-class leak; also only knew 12 combos and no Verdant.
+  4. Seed SQL generation broke on Python 3.11 nested-quote f-strings; node wrapper >32KB broke the Windows command line (fixed with temp file + `docker cp`).
+  5. **Upstream provider keys in the gateway are DEAD** (rotated since 2026-09-01 provisioning): live probes → groq/gemini/cerebras/deepinfra/together/sambanova/huggingface/pollinations/qoder/fireworks ALL 401/expired. The gateway `/v1/models` dump is NOT the routing live catalog — only actual HTTP 200s are truth. **Proven-live = opencode ANONYMOUS free tier** (account=noauth; 5000+ real 200s/3d: big-pickle 1817, nemotron-3-ultra-free 1258, nemotron-3.5-lightning-free 1247, laguna-s-2.1-free 688, muse-spark-1.2-contributor-free, mimo-v2.5-free).
+- **Changed:**
+  1. NEW `scripts/seed_omniroute_14combos.py` (canonical): deletes non-default/auto/canonical mess (DB backup first into `/app/data/db_backups`), inserts **14 `leadsgen combo N`** + 38 legacy aliases (`leadgen-*`, `hermes-*`, `claude-code`, `claude-omni-*`, `vps-01/02`) as same-UUID rows so `_TASK_ROUTES` resolves; binds each combo to ONE email key (`allowed_combos`); idempotent upsert.
+  2. **42 slots rebuilt from PROVEN-LIVE opencode free lanes** — 6 live models round-robined so each combo has 3 DISTINCT lanes and consecutive combos rotate primaries (anti-thunder spread); dead-provider slots removed so no combo is a dead-end.
+  3. `scripts/sync_all_combos_all_apps.py` — removed hardcoded key (env-only `OMNIROUTE_API_KEY`); ALL_COMBOS now the 14 canonical (id/real/canonical/name); `sync_omniroute_sqlite()` delegates to the canonical seed; added `sync_verdant()` (best-effort); runs Hermes/Claude/WorkBuddy/OpenClaw/DSH/workspace MCP sync.
+  4. Re-ran full sync: DSH settings, Claude Desktop MCP, WorkBuddy settings+models+mcp, Hermes roaming+local (connections/auth/config.yaml/provider cache), OpenClaw config, workspace `.mcp.json` — all written.
+- **Tests Run:** seed syntax+execution (SEED_OK); DB verify (14 canonical / 42 slots / 14 email keys bound / 38 aliases → 13 combos); **smoke: all 14 combos → HTTP 200 with real completions**; alias smoke `leadgen-coding-primary`/`hermes-engineer`/`claude-omni-project-best`/`hermes-voice` → 200; provider health audit via DB `test_status` + live probes.
+- **Verification Evidence:** 14/14 combos answer with content (not just 200 headers — `finish_reason` present); 42 slots all opencode live lanes; all aliases resolve to the same combo UUIDs; sync prints `[OK]` for every app; Verdant `[SKIP] not installed (no-op)`; DB backups in `/app/data/db_backups/pre_14combos_*`.
+- **Risks:**
+  - All 14 combos now ride the **opencode anonymous free tier** — single-egress dependency. If opencode throttles/420s, combos fall to the other opencode lanes; they do NOT re-route to dead providers (by design). Owner action to broaden: re-enter current provider keys in the gateway dashboard (Settings → Providers) — the DB rows exist (`provider_connections`), only the key VALUES are stale. Until then this is the only lane that answers.
+  - Local-only desktop gateway (ADR-189, ADR-111: OmniRoute stays OUT of VPS prod compose). "Some combos on VPS" = the VPS app consumes the desktop gateway's aliases over the tunnel where reachable; prod compose untouched.
+  - Loopback-only auth model unchanged (gateway holds provider keys; never publish 20128/20129).
+  - No commit/push/deploy made (owner gate §8).
+- **Remaining:** Owner: (a) refresh provider keys in gateway dashboard to re-enable multi-provider lanes, (b) install Verdant Desktop → re-run sync for Verdant config, (c) commit/push this worktree. The 14 email keys already exist and are bound — no new accounts needed.
+- **Next Highest Priority:** Re-arm the non-opencode providers (paste current free keys in gateway dashboard) → then the 14 combos become true 42-provider multi-lane routers instead of opencode-only.
+
+## Loop Run
+- **Date:** 2026-09-05 (Freebuff autopilot session 2 — squad/owner_admin repair)
+- **Goal:** Continue autopilot hardening — fix the remaining 22 ruff F403/F405 star-import errors and the broken squad-module import chains they hid; make the whole `app/` tree lint-clean.
+- **Inspected:**
+  - `app/platform/owner_admin.py` — star-imported 11 `squad_*` modules then called `squad_voice_calling()` etc. as callables; the squad modules export plain functions → NameError at dispatch time; also hardcoded machine-specific `sys.path.insert` broke imports on every machine.
+  - `app/platform/squad_voice_calling.py` — imported non-existent `STAFF_JOBS_VALID` from `team_scheduler` → module import crash.
+  - `app/platform/squad_knowledge.py` — imported non-existent `gen_domain_briefs` / `validate_full_os` → import crash.
+  - `data/delivery_ledger/jiya-makeover.jsonl` — test-run noise (15 lines) restored to HEAD.
+  - Prod `/health` = `719dbbd6` healthy production (re-probed 08:24Z, 7h42m uptime, DSH shadow jiya_makeover).
+- **Problems Found:**
+  1. `owner_admin.py` cmd_squad_task: `squad_voice_calling().run_daily_beat()` — module-name-as-callable → NameError on ANY squad dispatch (11/11 broken).
+  2. `squad_voice_calling.py`: `STAFF_JOBS_VALID` import — symbol removed from team_scheduler long ago.
+  3. `squad_knowledge.py`: `gen_domain_briefs`/`validate_full_os` — never existed in the scripts; real entrypoints are `main()` and `run()`.
+  4. `owner_admin.py` sys.path: `/opt/leadgen` + `C:\Users\Ratanshila\.openclaw\workspace` hardcoded → import pollution on non-owner machines.
+- **Changed:**
+  1. `app/platform/owner_admin.py` — removed both hardcoded sys.path lines; replaced all 11 star-imports with explicit named imports; rewrote `cmd_squad_task` dispatch to call real functions (`squad_voice_run_daily_beat()`, `run_hourly_campaign()`, `daily_compliance_audit()`, ...).
+  2. `app/platform/squad_voice_calling.py` — removed stale `STAFF_JOBS_VALID` import; wrapped async `build_owner_pack` in `_run_async` helper so `run_daily_beat()` returns a real dict, not an un-awaited coroutine.
+  3. `app/platform/squad_knowledge.py` — lazy defensive imports (copy-neighbor pattern): validation via `validate_knowledge_os.run()`, domain regeneration via `gen_knowledge_domains.main()`.
+  4. NEW `tests/test_owner_admin_squad_dispatch.py` (6 tests: import-clean, no-star-imports, dispatch resolves, squad_voice_calling runs, squad_knowledge lazy, all 11 squad modules import).
+  5. NEW `tests/test_telephony_readiness_run_checks.py` (5 tests: no hardcoded True, unarmed weight=0, armed-fail drags score, armed-ok keeps score, exception fail-closed).
+  6. `tests/test_trial_nudge.py` — +4 tests (pay_link embedded before pricing URL, fallback when empty, urgency 'aaj' for ≤1 day).
+- **Tests Run:**
+  - `test_owner_admin_squad_dispatch` (6) + `test_trial_nudge` (18) + `test_telephony_readiness_run_checks` (5) + `test_telephony_readiness_probe` (4) + `test_billing_truth_2026` (15) + `test_activation_readiness` (15) + `test_jio_sip_tenant` (13) + `test_suppression_compliance_gates` (30) + `test_compliance` + revenue-path suites (hot_queue_payment_path, reply_offer_payment_block, reply_auto_send, reply_noise_filter, hot_queue, revenue_funnel_p0, revenue_automation_gtm) = **~200 tests GREEN** across all touched areas.
+- **Verification Evidence:**
+  - `ruff check app` → **0 errors** (was 28; now 100% lint-clean — F403/F405 star-imports GONE).
+  - `prod_check.py` → ALL CHECKS PASSED (routes verified, 58 pages 0 gaps, automation 0 gaps, 362 nodes, API.md in sync).
+  - `check_secrets.py` → no secrets detected (15 changed files).
+  - `owner_admin` module imports cleanly + squad dispatch returns real results (verified via direct probe).
+  - Prod `/health` = `719dbbd6` healthy production.
+- **Risks:**
+  - `owner_admin.py` is a standalone module (own FastAPI app, port 8080, not mounted in main app) — fixes are local-only; nothing in prod reads it.
+  - `squad_knowledge.daily_index_update()` now actually writes knowledge domain index files on run (was dead code before) — additive, files are repo-tracked .md.
+  - Voice paths: ZERO logic touched (only trailing-whitespace in natural_dialog.py).
+- **Remaining:**
+  - All changes LOCAL-ONLY — NOT committed/pushed (owner-ask required per CLAUDE.md §8).
+  - `test_upi_payments.py` needs real Redis (infra dep, pre-existing); `test_call_learning_2026_07_06.py` needs API keys (pre-existing env dep) — both unrelated to this session.
+  - Owner blockers unchanged: Hot Queue blitz, UPI confirm, Vobiz caller-ID ownership.
+- **Next Highest Priority:**
+  - Owner: commit + deploy (clean diff, all gates green, ruff 0).
+  - Owner: arm `VOBIZ_VERIFY_CALLER_ID_OUTBOUND=1` once Vobiz ownership resolved.
+  - Owner: Hot Queue 42-card blitz with embedded UPI links.
+
+## Loop Run
+- **Date:** 2026-09-05 (Freebuff autopilot session)
+- **Goal:** Autopilot mode — analyze project, maximize automation, ship highest-impact improvements without owner action.
+- **Inspected:**
+  - Prod `/health` = `719dbbd6` healthy production (5h23m uptime, DSH shadow with jiya_makeover allowlist).
+  - Local worktree: clean, synced with `origin/main` (`719dbbd6`). HEAD 1 commit behind origin/main (docs-only commit `602db193`).
+  - `scripts/prod_check.py` baseline: ALL CHECKS PASSED (1385 routes, 58 pages, 1406 ops, 0 gaps, 362 nodes).
+  - Ruff baseline: 28 errors (whitespace W293/W291 + import sort I001 + F403/F405 star-imports in owner_admin.py).
+  - Revenue sprint code (promo_codes, pay.html, revenue_kit.html, revenue_sprint.py): ALL present and routes mounted via OpenAPI (1340 paths).
+  - 859 test files, 272 dependencies, 2160 source files parsed by prod_check.
+- **Problems Found:**
+  1. Ruff: 28 pre-existing lint errors (6 whitespace/import + 22 star-import F403/F405).
+  2. Telephony readiness gate: `outbound_probe` hardcoded `True` (false-green — caller-ID ownership never verified).
+  3. Trial nudge emails: no UPI deep-link in body (only appended separately), no social proof, no urgency escalation for expiring trials.
+- **Changed:**
+  1. `app/tasks/daily_social_post.py`, `app/tasks/social_post_beats.py`, `app/tasks/video_generator.py`, `app/marketing/video_pipeline.py`, `app/voice_agent/natural_dialog.py` — fixed trailing whitespace + blank-line whitespace (W293/W291).
+  2. `app/telephony/telephony_readiness.py` — replaced hardcoded `outbound_ok = True` with actual probe integration (`verify_outbound_connectivity()` when `VOBIZ_VERIFY_CALLER_ID_OUTBOUND=1`); added `_sync_run` helper for async-to-sync bridge; updated caller_id check description to reflect ownership caveat.
+  3. `app/billing/trial_nudge.py` — enhanced `build_message()` with `pay_link` parameter for UPI deep-link in message body, social proof line ("100+ businesses"), urgency escalation ("aaj" for ≤1 day), and updated caller to pass pay_link directly.
+- **Tests Run:**
+  - `tests/test_billing_truth_2026.py` — 15 passed
+  - `tests/test_trial_nudge.py` — 14 passed
+  - `tests/test_telephony_readiness_probe.py` — 4 passed
+  - `tests/test_jio_sip_tenant.py` — 13 passed
+  - Total: 46 targeted tests GREEN, pytest exit 0.
+- **Verification Evidence:**
+  - `prod_check.py` → ALL CHECKS PASSED (1385 routes, 1406 ops, 58 pages, 0 gaps, 362 nodes, API.md synced).
+  - `check_secrets.py` → no secrets detected (8 changed files).
+  - `ruff check app` → 22 errors (down from 28; 6 whitespace/import fixes; remaining 22 = F403/F405 star-imports in owner_admin.py, pre-existing).
+  - Prod `/health` = `719dbbd6` healthy production (re-probed during session).
+- **Risks:**
+  - Telephony readiness probe change: `outbound_probe` weight=0 when `VOBIZ_VERIFY_CALLER_ID_OUTBOUND=0` (INERT default) — does NOT affect the readiness score; only matters when owner arms the probe.
+  - Trial nudge message changes are backward-compatible (pay_link defaults to PRICING_URL when empty).
+  - Voice paths: ZERO touched.
+- **Remaining:**
+  - All changes LOCAL-ONLY — NOT committed/pushed (owner-ask required per CLAUDE.md §8).
+  - Owner blockers unchanged: Hot Queue 42-card blitz, UPI confirm, Vobiz caller-ID ownership (vendor+owner).
+  - 22 F403/F405 star-imports in owner_admin.py: pre-existing architectural pattern (10 squad_* modules via `from x import *`); fix requires explicit imports across 10 files — separate review.
+- **Next Highest Priority:**
+  - Owner: commit + deploy the changes (clean diff, all gates green).
+  - Owner: arm `VOBIZ_VERIFY_CALLER_ID_OUTBOUND=1` after caller-ID ownership is resolved with Vobiz.
+  - Owner: Hot Queue blitz (42 warm leads with UPI payment links embedded).
+
 ## Loop Run
 - **Date:** 2026-09-04
 - **Goal:** Consolidate all branches (`workbuddy/automation-fixes-merge-20260902`, `merge-all-workspaces-to-main`, `feature/tata-smartflo-integration`), fix failing CI checks, and merge all PRs into `main`.

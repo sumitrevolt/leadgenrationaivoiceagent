@@ -83,93 +83,92 @@ class OmniRouteResult:
     fallback_reason: str | None = None
 
 
-# Only models proven by a real, sanitized Responses API call belong here. The
-# catalogued Gemini 2.5 Flash entry was rejected upstream as retired on 2026-07-14.
+# 2026-09-05 CANONICAL 14-COMBO MAP (see scripts/seed_omniroute_14combos.py).
 #
-# 2026-07-16 (fresh WSL Ubuntu-24.04 reinstall, gateway v3.8.48): purane
-# provider-connected model IDs (groq/llama-3.3-70b-versatile, mistral/
-# mistral-small-latest) fresh instance me EXIST nahi karte (providers reconnect
-# nahi hue) — un pe request = 404. User-mandate: OmniRoute ke bundled FREE-token
-# models use karne hain. `auto/coding:free` + `auto/best-free` dono REAL sanitized
-# /v1/responses PONG calls se proven (HTTP 200, output_text + usage sahi shape).
-# Ye auto-aliases hain — gateway khud free pool me se resolve karta hai, isliye
-# kisi ek free provider ke retire hone pe route nahi tootta.
-# 2026-07-16 (same-day update 2): user ne dashboard me ~25 provider accounts
-# reconnect kiye aur custom combo `leadgen-free-first` banaya (strategy=priority,
-# 4-deep gateway-side failover: opencode/deepseek-v4-flash-free FREE →
-# groq/llama-3.3-70b-versatile → mistral/mistral-small-latest →
-# gemini/gemini-flash-latest). Combo id REAL sanitized /v1/responses PONG se
-# proven (HTTP 200, free model ne resolve kiya). Routes ab combo PRIMARY +
-# auto/coding:free client-side FALLBACK — free-tokens mandate + deep failover.
+# The gateway (leadgen_omniroute Docker, :20128) now holds EXACTLY 14 canonical
+# combos `leadsgen combo 1..14` — each with 3 live free-tier model lanes, each
+# bound to ONE worker email API key. Legacy names (leadgen-free-first, claude-code,
+# hermes-*, vps-01/02) are registered as SAME-UUID aliases for backward compat, but
+# the app routing now points at the CANONICAL ids so every combo actually powers
+# its mapped jobs and the alias layer can be retired later without an app change.
+#
+# Combo ownership (matches seed descriptions):
+#   1 coding-primary   2 coding-fast     3 repo-analysis  4 test-generation
+#   5 agent-ops        6 swara/voice     7 marketing      8 prospect-enrich
+#   9 outreach-email  10 seo-keyword    11 governor       12 project-best
+#  13 vps/free-first failover lane     14 general-purpose lane
+#
+# Each route: primary = combo that owns that job; fallback = a DIFFERENT combo so a
+# dead lane never routes to itself, and combos 13/14 (failover/general lanes) get
+# real traffic too. All 42 model slots are opencode free-tier lanes proven live by
+# real HTTP 200 probes on 2026-09-05 (gateway-side priority retry rides inside the
+# combo). privacy_class is unchanged per route (voice stays CUSTOMER_MASKED).
 _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     "leadgen.coding_primary": OmniRouteRoute(
-        primary_model="leadgen-free-first",
-        fallback_model="auto/coding:free",
+        primary_model="leadsgen combo 1",
+        fallback_model="leadsgen combo 2",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.coding_fast": OmniRouteRoute(
-        primary_model="claude-code",
-        fallback_model="vps-01",
+        primary_model="leadsgen combo 2",
+        fallback_model="leadsgen combo 13",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.repo_analysis": OmniRouteRoute(
-        primary_model="hermes-research",
-        fallback_model="hermes-qa",
+        primary_model="leadsgen combo 3",
+        fallback_model="leadsgen combo 4",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.test_generation": OmniRouteRoute(
-        primary_model="hermes-qa",
-        fallback_model="hermes-engineer",
+        primary_model="leadsgen combo 4",
+        fallback_model="leadsgen combo 3",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.agent_ops": OmniRouteRoute(
-        primary_model="hermes-ops",
-        fallback_model="hermes-owner",
+        primary_model="leadsgen combo 5",
+        fallback_model="leadsgen combo 13",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.swara_live": OmniRouteRoute(
-        primary_model="hermes-voice",
-        fallback_model="vps-01",
+        primary_model="leadsgen combo 6",
+        fallback_model="leadsgen combo 14",
         privacy_class="CUSTOMER_MASKED",
     ),
-    # hermes-content/prospect/outreach/seo/governor/master gateway me EXIST
-    # NAHI karte (2026-09-04 /v1/models 505-model probe) — un ids pe route
-    # = silent 404. Gateway-verified ids pe remap kiya.
     "leadgen.marketing_content": OmniRouteRoute(
-        primary_model="hermes-marketing",
-        fallback_model="hermes-ops",
+        primary_model="leadsgen combo 7",
+        fallback_model="leadsgen combo 5",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.prospect_enrich": OmniRouteRoute(
-        primary_model="hermes-research",
-        fallback_model="auto/best-free",
+        primary_model="leadsgen combo 8",
+        fallback_model="leadsgen combo 3",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.outreach_email": OmniRouteRoute(
-        primary_model="hermes-sales",
-        fallback_model="hermes-ops",
+        primary_model="leadsgen combo 9",
+        fallback_model="leadsgen combo 8",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.seo_keyword": OmniRouteRoute(
-        primary_model="hermes-research",
-        fallback_model="hermes-marketing",
+        primary_model="leadsgen combo 10",
+        fallback_model="leadsgen combo 7",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.governor_review": OmniRouteRoute(
-        primary_model="hermes-qa",
-        fallback_model="auto/best-free",
+        primary_model="leadsgen combo 11",
+        fallback_model="leadsgen combo 4",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.project_best": OmniRouteRoute(
-        primary_model="leadgen-project-best",
-        fallback_model="auto/best-free",
+        primary_model="leadsgen combo 12",
+        fallback_model="leadsgen combo 14",
         privacy_class="INTERNAL_SANITIZED",
     ),
 }
 
 
 def list_task_routes() -> dict[str, OmniRouteRoute]:
-    """Return an immutable copy of all 12 registered OmniRoute combo task routes."""
+    """Return an immutable copy of the 12 task routes over the 14 canonical combos."""
     return dict(_TASK_ROUTES)
 
 

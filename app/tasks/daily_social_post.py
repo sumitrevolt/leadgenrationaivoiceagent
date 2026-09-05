@@ -35,7 +35,7 @@ capacity = 1  # Single run per beat
 
 def run_daily_social_post():
     """Execute the daily social + video posting cycle.
-    
+
     Called by Celery beat 3x daily (9:30, 13:00, 16:00 IST).
     """
     # 1. Compliance gate check
