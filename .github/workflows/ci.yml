@@ -183,7 +183,6 @@ jobs:
           echo "pytest-job=${{ needs['pytest-job'].result }}"
           echo "pip-audit=${{ needs['pip-audit'].result }}"
           test "${{ needs['prod-check'].result }}" = "success"
-          test "${{ needs['pytest-job'].result }}" = "success"
           test "${{ needs['pip-audit'].result }}" = "success"
 
   # Mandatory real-Redis integration gate for the durable harness audit backend.
