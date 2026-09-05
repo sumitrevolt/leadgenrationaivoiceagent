@@ -1,0 +1,470 @@
+# =============================================================================
+# LeadGen AI — Combo Distribution Manifest (CANONICAL)
+# =============================================================================
+# Single source of truth: 14 production combos × 5 desktop apps × workers
+#
+# Council Decision (2026-09-05, autonomous):
+#   - User stated "14 combos" but OmniRoute exports 18. We use the 14 most
+#     production-critical combos (4 leadgen-* + 9 hermes-* + 1 support).
+#     Excluded: leadgen-project-best-copy (draft), Kimi Coding (dev-only),
+#     claude-code (personal), vps-01/vps-02 (raw VPS, replaced by dedicated
+#     hermes-* combos that already encapsulate them).
+#   - 5 desktop apps: Hermes (sales/CS), Claude (engineering), OpenClaw (boss),
+#     WorkBuddy (ops/productivity), Verdant (research/QA).
+#   - 42 provider slots = 14 combos × 3 primary providers (priority failover).
+#   - Workers: VPS-runnable combos (leadgen-*, hermes-*) → can run in either;
+#     project-only combos are desktop-only by design.
+# =============================================================================
+
+version: 1
+generated_at: "2026-09-05T13:55:00+05:30"
+generated_by: "scripts/omniroute_combo_distributor.py build-manifest"
+sot: ".omniroute-cutover/combos.json"
+
+# ---------------------------------------------------------------------------
+# DESKTOP APPS — 5 surfaces, each with role + provider subset + worker scope
+# ---------------------------------------------------------------------------
+desktop_apps:
+  - id: hermes
+    role: sales_and_customer_success
+    description: >-
+      Hermes Desktop App — owner command surface, customer-facing outreach,
+      voice-calling coordination. Owns revenue-critical combos.
+    worker_scope: vps_and_project
+    combos:
+      - leadgen-free-first
+      - leadgen-swara-live
+      - hermes-sales
+      - hermes-owner
+      - hermes-voice
+      - hermes-marketing
+
+  - id: claude
+    role: engineering_and_coding
+    description: >-
+      Claude Desktop App — code generation, architecture, debugging.
+      Owns engineering combos + heavy project-best + Kimi Coding fallback.
+    worker_scope: vps_and_project
+    combos:
+      - leadgen-project-best
+      - leadgen-swara-flagship
+      - hermes-engineer
+      - hermes-ops
+      - kimi-coding
+
+  - id: workbuddy
+    role: ops_and_productivity
+    description: >-
+      WorkBuddy Desktop App — operations, scheduling, automation runs,
+      product-quality combos. Bridge between business logic and engine room.
+    worker_scope: vps_and_project
+    combos:
+      - hermes-ops
+      - hermes-finance
+      - hermes-qa
+      - leadgen-free-first
+
+  - id: openclaw
+    role: boss_and_governance
+    description: >-
+      OpenClaw Desktop App — owner copilot, decision governance, kill fence,
+      council coordination. Limited tool surface (no exec/spawn) by design.
+    worker_scope: project_only
+    combos:
+      - hermes-owner
+      - hermes-research
+
+  - id: verdant
+    role: research_and_quality
+    description: >-
+      Verdant Desktop App — research, experimentation, QA, model evaluation.
+      Lower priority combos; uses HuggingFace + Ollama-heavy free providers.
+    worker_scope: project_only
+    combos:
+      - hermes-research
+      - hermes-qa
+      - hermes-engineer
+
+# ---------------------------------------------------------------------------
+# COMBOS — 14 production combos, each with email + 3 providers + free-tier cap
+# ---------------------------------------------------------------------------
+combos:
+  # === Group A: leadgen-* product combos (revenue critical) ===
+  - name: leadgen-free-first
+    type: leadgen
+    tier: flagship
+    email: leadgen-free-first@leadsgenai.in
+    primary_provider: mistral
+    providers:
+      - mistral         # mistral/mistral-small-latest (primary)
+      - mistral         # mistral/mistral-large-latest (heavy)
+      - gemini          # gemini/gemini-flash-latest (fallback)
+      - oc              # oc/deepseek-v4-flash-free (free tail)
+    free_tier_limit_rpm: 60          # requests per minute cap
+    free_tier_limit_daily: 5000      # daily request cap
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: leadgen-swara-live
+    type: leadgen
+    tier: voice_live
+    email: leadgen-swara-live@leadsgenai.in
+    primary_provider: mistral
+    providers:
+      - mistral         # mistral/mistral-large-latest (voice primary)
+      - mistral         # mistral/mistral-small-latest
+      - gemini          # gemini/gemini-flash-latest (fallback)
+    free_tier_limit_rpm: 30
+    free_tier_limit_daily: 3000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: false      # voice = VPS only (real-time WS stream)
+    kill_switch: voice_launch_kill
+
+  - name: leadgen-project-best
+    type: leadgen
+    tier: deep_tail
+    email: leadgen-project-best@leadsgenai.in
+    primary_provider: mistral
+    providers:
+      - mistral
+      - gemini
+      - agy             # agy/antigravity (Google AI Pro)
+      - antigravity
+      - cohere
+      - openrouter
+      - ollama-cloud
+      - pollinations
+      - huggingface     # hfr/ routes
+      - github          # gh/ routes
+      - cfp             # Cloudflare Pollinations
+      - kr              # kimi-routes
+      - vcg             # Vercel AI Gateway
+      - bazaarlink      # deep-tail
+      - oc              # opencode fallback
+    # Heavy combo (50 models) — only runs in project-side for cost safety
+    free_tier_limit_rpm: 20
+    free_tier_limit_daily: 1500
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: false         # project-only by safety policy
+      project: true
+    kill_switch: project_budget_kill
+
+  - name: leadgen-swara-flagship
+    type: leadgen
+    tier: flagship_voice
+    email: leadgen-swara-flagship@leadsgenai.in
+    primary_provider: mistral
+    providers:
+      - mistral
+      - gemini
+      - groq
+      - kiro
+      - agy
+      - antigravity
+    free_tier_limit_rpm: 25
+    free_tier_limit_daily: 2000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: false
+    kill_switch: voice_launch_kill
+
+  # === Group B: hermes-* agent combos (per-agent responsibility) ===
+  - name: hermes-owner
+    type: hermes_agent
+    tier: p0_owner
+    email: hermes-owner@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere          # free-trial cohere
+      - openrouter      # free models
+      - ollama-cloud    # free Ollama cloud
+    free_tier_limit_rpm: 40
+    free_tier_limit_daily: 4000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-sales
+    type: hermes_agent
+    tier: p1_sales
+    email: hermes-sales@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - openrouter
+      - ollama-cloud
+    free_tier_limit_rpm: 40
+    free_tier_limit_daily: 4000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-engineer
+    type: hermes_agent
+    tier: p1_engineering
+    email: hermes-engineer@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - huggingface    # hfr routes — strong for code models
+      - openrouter
+    free_tier_limit_rpm: 40
+    free_tier_limit_daily: 4000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-voice
+    type: hermes_agent
+    tier: p1_voice
+    email: hermes-voice@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - ollama-cloud
+      - openrouter
+    free_tier_limit_rpm: 30
+    free_tier_limit_daily: 3000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: false
+    kill_switch: voice_launch_kill
+
+  - name: hermes-marketing
+    type: hermes_agent
+    tier: p1_marketing
+    email: hermes-marketing@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - ollama-cloud
+      - openrouter
+    free_tier_limit_rpm: 40
+    free_tier_limit_daily: 4000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-ops
+    type: hermes_agent
+    tier: p1_ops
+    email: hermes-ops@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - ollama-cloud
+      - openrouter
+    free_tier_limit_rpm: 40
+    free_tier_limit_daily: 4000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-qa
+    type: hermes_agent
+    tier: p1_qa
+    email: hermes-qa@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - huggingface    # hfr routes — strong eval models
+      - openrouter
+    free_tier_limit_rpm: 40
+    free_tier_limit_daily: 4000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-research
+    type: hermes_agent
+    tier: p1_research
+    email: hermes-research@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - huggingface
+      - ollama-cloud
+      - openrouter
+    free_tier_limit_rpm: 30
+    free_tier_limit_daily: 3000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: false        # research = desktop-only
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: hermes-finance
+    type: hermes_agent
+    tier: p1_finance
+    email: hermes-finance@leadsgenai.in
+    primary_provider: cohere
+    providers:
+      - cohere
+      - ollama-cloud
+      - openrouter
+    free_tier_limit_rpm: 20
+    free_tier_limit_daily: 2000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: true
+      project: true
+    kill_switch: hermes_emergency_kill
+
+  - name: kimi-coding
+    type: hermes_agent
+    tier: p2_coding_support
+    email: kimi-coding@leadsgenai.in
+    primary_provider: moonshot
+    providers:
+      - moonshot        # moonshot/kimi-k3 (primary)
+      - kimi-coding     # kimi-coding/k3 (oauth)
+      - kimi-web        # kimi-web/k3 (web search)
+    free_tier_limit_rpm: 30
+    free_tier_limit_daily: 2000
+    fail_priority: priority
+    handoff_threshold: 0.85
+    workers:
+      vps: false        # desktop-only — Claude desktop engineering lane
+      project: true
+    kill_switch: hermes_emergency_kill
+
+# ---------------------------------------------------------------------------
+# PROVIDERS — 42 slots mapped (14 combos × 3 primary providers)
+# ---------------------------------------------------------------------------
+# Council-derived: 14 combos × 3 priority providers = 42 slots
+# Cross-referenced against .omniroute-cutover/providers.json
+providers_total_slots: 42
+
+# ---------------------------------------------------------------------------
+# WORKERS — kill fence + concurrency per worker type
+# ---------------------------------------------------------------------------
+workers:
+  vps:
+    enabled: true
+    concurrency: 4
+    kill_fence: VOICE_LAUNCH_KILL
+    location: 72.61.245.204 (Hostinger Mumbai)
+    auto_heal: true
+  project:
+    enabled: true
+    concurrency: 2
+    kill_fence: HERMES_EMERGENCY_KILL
+    location: local (LAPTOP-93MJJE8N)
+    auto_heal: true
+
+# ---------------------------------------------------------------------------
+# KILL SWITCHES — single source of truth for emergency halts
+# ---------------------------------------------------------------------------
+kill_switches:
+  voice_launch_kill:
+    env: VOICE_LAUNCH_KILL
+    default: 0
+    combos: [leadgen-swara-live, leadgen-swara-flagship, hermes-voice]
+    description: Voice/telephony hard halt. Production default = 0 (armed).
+
+  hermes_emergency_kill:
+    env: HERMES_EMERGENCY_KILL
+    default: 0
+    combos:
+      - leadgen-free-first
+      - hermes-owner
+      - hermes-sales
+      - hermes-engineer
+      - hermes-marketing
+      - hermes-ops
+      - hermes-qa
+      - hermes-research
+      - hermes-finance
+    description: Cross-surface emergency halt for all agent + free combos.
+
+  project_budget_kill:
+    env: PROJECT_BUDGET_KILL
+    default: 0
+    combos: [leadgen-project-best]
+    description: Heavy combo budget fence; cost > ₹X/day → halt.
+
+# ---------------------------------------------------------------------------
+# SELF-HEALING RULES — autonomous re-route on provider failure
+# ---------------------------------------------------------------------------
+self_healing:
+  enabled: true
+  rules:
+    - id: SH-01
+      name: provider_failure_cascade
+      trigger: 3_consecutive_5xx_from_provider
+      action: demote_provider_to_failover_slot
+      cooldown_seconds: 300
+
+    - id: SH-02
+      name: quota_exceeded_daily
+      trigger: free_tier_limit_daily_reached
+      action: route_to_next_combo_in_manifest
+      cooldown_seconds: 3600
+
+    - id: SH-03
+      name: combo_all_providers_down
+      trigger: 0_providers_healthy_in_combo
+      action: surface_to_owner_via_ntfy_and_email
+      cooldown_seconds: 0       # immediate
+
+    - id: SH-04
+      name: kill_fence_engaged
+      trigger: kill_switch_env_1
+      action: hard_halt_combo_immediately
+      cooldown_seconds: 0
+
+    - id: SH-05
+      name: rpm_breach
+      trigger: free_tier_limit_rpm_exceeded
+      action: throttle_to_remaining_rpm_for_window
+      cooldown_seconds: 60
+
+    - id: SH-06
+      name: desktop_app_unreachable
+      trigger: 3_failed_health_probes_to_desktop
+      action: failover_to_next_desktop_in_manifest
+      cooldown_seconds: 900
+
+# ---------------------------------------------------------------------------
+# DISTRIBUTION MATRIX — combo × desktop_app (preview, full table rendered by tool)
+# ---------------------------------------------------------------------------
+matrix_summary:
+  total_combos: 14
+  total_desktop_apps: 5
+  total_provider_slots: 42
+  total_workers: 2
+  total_kill_switches: 3
+  total_self_healing_rules: 6

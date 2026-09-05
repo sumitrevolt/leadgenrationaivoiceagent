@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marketing Launch · Archify Console</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="archify-design-system.css">
+  <link rel="stylesheet" href="archify-layout.css">
+  <style>
+    /* Page-specific bits */
+    .section-title {
+      display: flex; align-items: center; gap: var(--s-sm);
+      font-size: var(--t-label); font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin: var(--s-xl) 0 var(--s-md);
+    }
+    .section-title:not(:first-child) { margin-top: var(--s-page); }
+    .lifecycle-rail {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--s-md);
+    }
+    .lifecycle-step {
+      background: var(--mask);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-lg);
+      display: flex; flex-direction: column; gap: var(--s-sm);
+      cursor: pointer;
+      transition: border-color 150ms ease, transform 150ms ease;
+      position: relative;
+    }
+    .lifecycle-step:hover { border-color: var(--frontend); transform: translateY(-1px); }
+    .lifecycle-step.active {
+      border-color: var(--frontend);
+      background: rgba(34, 211, 238, 0.06);
+    }
+    .lifecycle-step .ls-ord { font-size: var(--t-label); color: var(--dim); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+    .lifecycle-step .ls-name { font-size: var(--t-title); font-weight: 600; }
+    .lifecycle-step .ls-count {
+      margin-top: auto;
+      font-size: var(--t-label);
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .lifecycle-step .ls-count b { color: var(--frontend); font-weight: 700; }
+    .lifecycle-step.active .ls-count b { color: var(--frontend); }
+
+    .channel-card {
+      display: flex; flex-direction: column; gap: var(--s-md);
+      padding: var(--s-lg);
+      background: var(--mask); border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      transition: border-color 150ms ease;
+    }
+    .channel-card.connected { border-color: rgba(52, 211, 153, 0.4); }
+    .channel-card.pending { border-color: rgba(251, 191, 36, 0.4); }
+    .channel-card .cc-head { display: flex; align-items: center; gap: var(--s-sm); }
+    .channel-card .cc-icon {
+      width: 32px; height: 32px;
+      border-radius: var(--r-control);
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--canvas); border: 1px solid var(--border-strong);
+      flex-shrink: 0;
+    }
+    .channel-card .cc-name { font-size: var(--t-body); font-weight: 600; display: flex; align-items: center; gap: var(--s-xs); }
+    .channel-card .cc-handle { font-size: var(--t-label); color: var(--muted); }
+    .channel-card .cc-scopes { display: flex; flex-wrap: wrap; gap: var(--s-xs); }
+    .channel-card .cc-scope {
+      font-size: var(--t-label);
+      color: var(--muted);
+      padding: 2px var(--s-sm);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      letter-spacing: 0.04em;
+    }
+    .channel-card .cc-actions { display: flex; gap: var(--s-sm); margin-top: var(--s-xs); }
+
+    /* Campaign row */
+    .campaign-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 130px 130px 120px 120px 100px;
+      gap: var(--s-md);
+      align-items: center;
+      padding: var(--s-md) var(--s-lg);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .campaign-row:hover { background: rgba(34, 211, 238, 0.04); }
+    .campaign-row.active { background: rgba(34, 211, 238, 0.08); border-left: 2px solid var(--frontend); padding-left: calc(var(--s-lg) - 2px); }
+    .campaign-row .cr-name { font-weight: 600; }
+    .campaign-row .cr-name small { display: block; color: var(--muted); font-size: var(--t-label); margin-top: 2px; font-weight: 400; }
+
+    .stage-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--t-label);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px var(--s-sm);
+      border-radius: var(--r-pill);
+      border: 1px solid;
+    }
+    .stage-pill.plan { color: var(--dim); border-color: var(--border-strong); }
+    .stage-pill.build { color: var(--cloud); border-color: rgba(251, 191, 36, 0.4); }
+    .stage-pill.test { color: var(--database); border-color: rgba(167, 139, 250, 0.4); }
+    .stage-pill.live { color: var(--success); border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.08); }
+    .stage-pill.wrap { color: var(--muted); border-color: var(--border); }
+
+    /* Kanban */
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--s-md);
+    }
+    .kanban-col {
+      background: var(--mask);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-md);
+      min-height: 320px;
+    }
+    .kanban-col-title {
+      font-size: var(--t-label); font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: var(--s-sm);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .kanban-col-title .count {
+      background: var(--canvas); color: var(--ink);
+      padding: 2px var(--s-sm);
+      border-radius: var(--r-pill);
+      border: 1px solid var(--border);
+    }
+    .kanban-card {
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-md);
+      margin-bottom: var(--s-sm);
+      cursor: grab;
+      transition: border-color 150ms ease;
+    }
+    .kanban-card:hover { border-color: var(--frontend); }
+    .kanban-card .kc-name { font-weight: 600; font-size: var(--t-body); margin-bottom: var(--s-xs); }
+    .kanban-card .kc-meta { font-size: var(--t-label); color: var(--muted); }
+    .kanban-card .kc-foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--s-sm); }
+    .kanban-card .kc-foot .chips { display: flex; gap: 4px; }
+    .kanban-card .kc-foot .mini-chip {
+      width: 18px; height: 18px;
+      border-radius: var(--r-precise);
+      background: var(--mask);
+      border: 1px solid var(--border);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    /* Chart card */
+    .chart-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+      padding: var(--s-xl);
+    }
+    .chart-card h3 { margin: 0 0 var(--s-md); font-size: var(--t-title); font-weight: 600; }
+    .chart-card p.sub { margin: 0 0 var(--s-lg); color: var(--muted); font-size: var(--t-body); }
+
+    /* Schedule timeline */
+    .timeline {
+      display: flex; flex-direction: column; gap: var(--s-md);
+    }
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 110px;
+      gap: var(--s-md);
+      align-items: center;
+      padding: var(--s-md) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .timeline-row:last-child { border-bottom: 0; }
+    .timeline-row .tr-date { color: var(--muted); font-size: var(--t-label); letter-spacing: 0.08em; }
+    .timeline-row .tr-bar {
+      height: 28px;
+      background: var(--mask);
+      border-radius: var(--r-precise);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .timeline-row .tr-bar-fill {
+      position: absolute;
+      top: 0; bottom: 0;
+      background: linear-gradient(90deg, rgba(34, 211, 238, 0.3), rgba(34, 211, 238, 0.1));
+      border-right: 2px solid var(--frontend);
+    }
+    .timeline-row .tr-bar-fill.build { background: linear-gradient(90deg, rgba(251, 191, 36, 0.3), rgba(251, 191, 36, 0.1)); border-color: var(--cloud); }
+    .timeline-row .tr-bar-fill.test { background: linear-gradient(90deg, rgba(167, 139, 250, 0.3), rgba(167, 139, 250, 0.1)); border-color: var(--database); }
+    .timeline-row .tr-bar-fill.live { background: linear-gradient(90deg, rgba(52, 211, 153, 0.3), rgba(52, 211, 153, 0.1)); border-color: var(--success); }
+    .timeline-row .tr-bar-fill.wrap { background: linear-gradient(90deg, rgba(148, 163, 184, 0.3), rgba(148, 163, 184, 0.1)); border-color: var(--muted); }
+    .timeline-row .tr-name { font-weight: 600; font-size: var(--t-body); }
+
+    /* Audience list */
+    .audience-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px 100px;
+      gap: var(--s-md);
+      align-items: center;
+      padding: var(--s-md) var(--s-lg);
+      border-bottom: 1px solid var(--border);
+    }
+    .audience-row:last-child { border-bottom: 0; }
+    .audience-row .ar-name { font-weight: 600; font-size: var(--t-body); }
+    .audience-row .ar-source { font-size: var(--t-label); color: var(--muted); }
+
+    /* Creative card */
+    .creative-card {
+      display: flex; flex-direction: column; gap: var(--s-sm);
+      padding: var(--s-md);
+      background: var(--mask); border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      cursor: pointer;
+      transition: border-color 150ms ease;
+    }
+    .creative-card:hover { border-color: var(--frontend); }
+    .creative-card .cc-thumb {
+      width: 100%; aspect-ratio: 16/9;
+      border-radius: var(--r-precise);
+      background:
+        linear-gradient(135deg, var(--frontend-fill), var(--database-fill));
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+      margin-bottom: var(--s-xs);
+    }
+    .creative-card .cc-title { font-weight: 600; font-size: var(--t-body); }
+    .creative-card .cc-meta { font-size: var(--t-label); color: var(--muted); }
+    .creative-card .cc-tags { display: flex; flex-wrap: wrap; gap: var(--s-xs); margin-top: var(--s-xs); }
+    .creative-card .cc-tag {
+      font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 1px var(--s-sm);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-pill);
+      color: var(--muted);
+    }
+
+    /* Lifecycle intro stepper */
+    .lifecycle-stepper {
+      display: flex; align-items: center; gap: var(--s-md);
+      padding: var(--s-md) var(--s-lg);
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      margin-bottom: var(--s-lg);
+    }
+    .lifecycle-stepper .ls-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--mask);
+      border: 1px solid var(--border-strong);
+      color: var(--muted);
+      font-size: var(--t-label); font-weight: 700;
+    }
+    .lifecycle-stepper .ls-dot.active { background: var(--frontend); color: var(--canvas); border-color: var(--frontend); }
+    .lifecycle-stepper .ls-dot.done { background: var(--backend); color: var(--canvas); border-color: var(--backend); }
+    .lifecycle-stepper .ls-label { font-size: var(--t-body); color: var(--ink); font-weight: 500; }
+    .lifecycle-stepper .ls-sub { font-size: var(--t-label); color: var(--muted); }
+    .lifecycle-stepper .ls-line { flex: 1; height: 1px; background: var(--border-strong); }
+
+    @media (max-width: 1200px) {
+      .lifecycle-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kanban { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Brand -->
+    <div class="app-brand">
+      <span class="mark">A</span>
+      <span class="name">Archify <small>Console</small></span>
+    </div>
+
+    <!-- Topbar -->
+    <div class="app-topbar">
+      <div class="crumbs">Console / <b>Marketing Launch</b></div>
+      <div class="actions">
+        <div class="product-switch">
+          <a class="console" href="archify_console_home.html"><span class="dot"></span>Overview</a>
+          <a href="archify_customer.html"><span class="dot"></span>Customer</a>
+          <a class="marketing active" href="archify_marketing.html"><span class="dot"></span>Marketing</a>
+        </div>
+        <button class="btn btn-sm btn-ghost" data-theme-toggle aria-label="Toggle theme">
+          <span class="theme-icon-moon">☾</span>
+        </button>
+        <button class="btn btn-sm btn-ghost" id="btn-help">Docs</button>
+        <div class="avatar">KB</div>
+      </div>
+    </div>
+
+    <!-- Side nav -->
+    <nav class="app-sidenav">
+      <div class="nav-section-title">Pipeline</div>
+      <a class="nav-item active" href="#"><span>Overview</span></a>
+      <a class="nav-item" href="#"><span>Campaigns</span><span class="badge">5</span></a>
+      <a class="nav-item" href="#"><span>Schedule</span></a>
+      <a class="nav-item" href="#"><span>Audiences</span><span class="badge">5</span></a>
+
+      <div class="nav-section-title">Creative</div>
+      <a class="nav-item" href="#"><span>Assets</span><span class="badge">6</span></a>
+      <a class="nav-item" href="#"><span>Templates</span></a>
+      <a class="nav-item" href="#"><span>Copy library</span></a>
+
+      <div class="nav-section-title">Channels</div>
+      <a class="nav-item" href="#"><span>Social logins</span><span class="badge">5/6</span></a>
+      <a class="nav-item" href="#"><span>Pixels & tracking</span></a>
+
+      <div class="nav-section-title">Reporting</div>
+      <a class="nav-item" href="#"><span>Performance</span></a>
+      <a class="nav-item" href="#"><span>Attribution</span></a>
+      <a class="nav-item" href="#"><span>Audit log</span></a>
+    </nav>
+
+    <!-- Main -->
+    <main class="app-main">
+
+      <div class="page-header">
+        <div class="page-title">
+          <div class="row center gap-sm">
+            <span class="chip chip-backend"><span class="dot"></span>Marketing Launch</span>
+            <span class="t-mute">Q3 → Q4 · 12 active campaigns · ₹14.6L committed</span>
+          </div>
+          <h1>Product launch pipeline</h1>
+          <p>Plan, build, test, launch, and learn — every Archify go-to-market motion lives here.</p>
+        </div>
+        <div class="row gap-sm">
+          <button class="btn btn-sm btn-ghost" id="btn-export">Export report</button>
+          <button class="btn btn-sm">+ New campaign</button>
+          <button class="btn btn-sm btn-primary" id="btn-start-launch">Start launch</button>
+        </div>
+      </div>
+
+      <!-- Lifecycle rail -->
+      <div class="lifecycle-stepper">
+        <div class="row center gap-sm">
+          <span class="ls-dot done">1</span>
+          <div class="col">
+            <span class="ls-label">Plan</span>
+            <span class="ls-sub">Audience, budget, channels</span>
+          </div>
+        </div>
+        <span class="ls-line"></span>
+        <div class="row center gap-sm">
+          <span class="ls-dot active">2</span>
+          <div class="col">
+            <span class="ls-label">Build</span>
+            <span class="ls-sub">Creative, copy, landing pages</span>
+          </div>
+        </div>
+        <span class="ls-line"></span>
+        <div class="row center gap-sm">
+          <span class="ls-dot">3</span>
+          <div class="col">
+            <span class="ls-label">Test</span>
+            <span class="ls-sub">A/B variants, segment proofs</span>
+          </div>
+        </div>
+        <span class="ls-line"></span>
+        <div class="row center gap-sm">
+          <span class="ls-dot">4</span>
+          <div class="col">
+            <span class="ls-label">Launch</span>
+            <span class="ls-sub">Spend on, monitor vitals</span>
+          </div>
+        </div>
+        <span class="ls-line"></span>
+        <div class="row center gap-sm">
+          <span class="ls-dot">5</span>
+          <div class="col">
+            <span class="ls-label">Wrap-up</span>
+            <span class="ls-sub">Report, archive, learnings</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI ROW -->
+      <div class="kpi-row" id="kpi-row"></div>
+
+      <!-- Section: ACTIVE CAMPAIGNS -->
+      <div class="section-title">Campaign Pipeline</div>
+      <div class="grid" style="grid-template-columns: 380px 1fr; gap: var(--s-lg); align-items: stretch;">
+        <div class="panel" style="display: flex; flex-direction: column;">
+          <div class="row between center mb-md">
+            <div>
+              <div class="t-title">Lifecycle</div>
+              <div class="panel-sub">Click a stage to filter</div>
+            </div>
+            <button class="btn btn-sm btn-ghost" id="view-toggle">View · Kanban</button>
+          </div>
+          <div class="lifecycle-rail" id="lifecycle-rail"></div>
+
+          <div class="divider"></div>
+
+          <div class="t-title mb-md">Filters</div>
+          <div class="col col-tight">
+            <div class="field">
+              <label class="field-label">Product</label>
+              <select class="select">
+                <option>All products</option>
+                <option>Archify Enterprise</option>
+                <option>Archify Studio</option>
+                <option>Archify Cloud</option>
+                <option>Archify OSS</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Owner</label>
+              <select class="select">
+                <option>All owners</option>
+                <option>Anjali Rao</option>
+                <option>Karan Bhatia</option>
+                <option>Riya Mukherjee</option>
+                <option>Vikram Shah</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Date range</label>
+              <input class="input" value="Sep 1 — Sep 30, 2026">
+            </div>
+            <div class="field">
+              <label class="field-label">Min budget (₹)</label>
+              <input class="input" type="number" value="10000">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="display: flex; flex-direction: column; min-height: 0;">
+          <div class="row between center mb-md">
+            <div>
+              <div class="t-title" id="campaigns-title">All campaigns</div>
+              <div class="panel-sub" id="campaigns-sub">5 campaigns · ₹3.58L spent</div>
+            </div>
+            <div class="row gap-sm">
+              <div class="input-search" style="height: 2rem; padding: 0 var(--s-sm);">
+                <span data-icon="search"></span>
+                <input placeholder="Search...">
+              </div>
+              <button class="btn btn-sm">+ Campaign</button>
+            </div>
+          </div>
+
+          <div id="campaigns-table">
+            <div class="campaign-row" style="background: rgba(15, 23, 42, 0.5);">
+              <div class="t-label">Campaign</div>
+              <div class="t-label">Stage</div>
+              <div class="t-label">Channels</div>
+              <div class="t-label">Budget</div>
+              <div class="t-label">Spent</div>
+              <div class="t-label">Leads / MQL</div>
+              <div class="t-label">Owner</div>
+            </div>
+            <div id="campaigns-list"></div>
+          </div>
+
+          <div id="campaigns-kanban" style="display: none;">
+            <div class="kanban" id="kanban-board"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: PERFORMANCE -->
+      <div class="section-title">Performance · Last 30 days</div>
+      <div class="grid grid-2 gap-md">
+        <div class="chart-card">
+          <h3>Spend by channel</h3>
+          <p class="sub">Impressions + spend, normalized to weekly</p>
+          <svg class="chart-svg" viewBox="0 0 400 220" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#22d3ee" stop-opacity="0.5"/>
+                <stop offset="1" stop-color="#22d3ee" stop-opacity="0.05"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#34d399" stop-opacity="0.5"/>
+                <stop offset="1" stop-color="#34d399" stop-opacity="0.05"/>
+              </linearGradient>
+            </defs>
+            <!-- grid -->
+            <g stroke="#1e293b" stroke-dasharray="2 4">
+              <line x1="0" y1="40" x2="400" y2="40"/>
+              <line x1="0" y1="80" x2="400" y2="80"/>
+              <line x1="0" y1="120" x2="400" y2="120"/>
+              <line x1="0" y1="160" x2="400" y2="160"/>
+              <line x1="0" y1="200" x2="400" y2="200"/>
+            </g>
+            <!-- spend area (cyan) -->
+            <path d="M 0 180 L 40 170 L 80 160 L 120 145 L 160 130 L 200 110 L 240 95 L 280 80 L 320 70 L 360 60 L 400 50 L 400 220 L 0 220 Z" fill="url(#g1)"/>
+            <path d="M 0 180 L 40 170 L 80 160 L 120 145 L 160 130 L 200 110 L 240 95 L 280 80 L 320 70 L 360 60 L 400 50" stroke="#22d3ee" stroke-width="2" fill="none"/>
+            <!-- leads area (green) -->
+            <path d="M 0 200 L 40 195 L 80 190 L 120 180 L 160 170 L 200 155 L 240 140 L 280 130 L 320 120 L 360 110 L 400 105 L 400 220 L 0 220 Z" fill="url(#g2)"/>
+            <path d="M 0 200 L 40 195 L 80 190 L 120 180 L 160 170 L 200 155 L 240 140 L 280 130 L 320 120 L 360 110 L 400 105" stroke="#34d399" stroke-width="2" fill="none"/>
+            <!-- labels -->
+            <text x="0" y="12" fill="#94a3b8" font-family="JetBrains Mono" font-size="9">SPEND (₹) · LEADS</text>
+            <text x="0" y="218" fill="#475569" font-family="JetBrains Mono" font-size="8">WK1</text>
+            <text x="100" y="218" fill="#475569" font-family="JetBrains Mono" font-size="8">WK2</text>
+            <text x="200" y="218" fill="#475569" font-family="JetBrains Mono" font-size="8">WK3</text>
+            <text x="300" y="218" fill="#475569" font-family="JetBrains Mono" font-size="8">WK4</text>
+            <text x="395" y="218" fill="#475569" font-family="JetBrains Mono" font-size="8" text-anchor="end">WK5</text>
+            <circle cx="400" cy="50" r="3" fill="#22d3ee"/>
+            <circle cx="400" cy="105" r="3" fill="#34d399"/>
+            <text x="380" y="42" fill="#94a3b8" font-family="JetBrains Mono" font-size="9" text-anchor="end">Spend  ₹3.58L</text>
+            <text x="380" y="98" fill="#94a3b8" font-family="JetBrains Mono" font-size="9" text-anchor="end">Leads 304</text>
+          </svg>
+          <div class="row between center mt-md">
+            <div class="row gap-md">
+              <span class="row center gap-sm"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--frontend);"></span><span class="t-label">SPEND</span></span>
+              <span class="row center gap-sm"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--backend);"></span><span class="t-label">LEADS</span></span>
+            </div>
+            <span class="t-mute t-label">data refreshed 4m ago</span>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Funnel · impression → MQL</h3>
+          <p class="sub">Volume at each stage</p>
+          <div class="col col-tight" style="margin-top: var(--s-md);">
+            <div class="row between center">
+              <span class="t-label">Impressions</span>
+              <span class="t-label">2.0M</span>
+            </div>
+            <div class="meter"><div class="meter-fill" style="width: 100%"></div></div>
+            <div class="row between center mt-sm">
+              <span class="t-label">Clicks</span>
+              <span class="t-label">38.4K (1.9% CTR)</span>
+            </div>
+            <div class="meter"><div class="meter-fill meter-fill-database" style="width: 60%"></div></div>
+            <div class="row between center mt-sm">
+              <span class="t-label">Leads</span>
+              <span class="t-label">304 (0.79% conv.)</span>
+            </div>
+            <div class="meter"><div class="meter-fill meter-fill-backend" style="width: 30%"></div></div>
+            <div class="row between center mt-sm">
+              <span class="t-label">MQLs</span>
+              <span class="t-label">101 (33% lead→MQL)</span>
+            </div>
+            <div class="meter"><div class="meter-fill meter-fill-cloud" style="width: 12%"></div></div>
+            <div class="row between center mt-sm">
+              <span class="t-label">SQLs</span>
+              <span class="t-label">38 (38% MQL→SQL)</span>
+            </div>
+            <div class="meter"><div class="meter-fill meter-fill-security" style="width: 4%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: SCHEDULE -->
+      <div class="section-title">Launch Schedule</div>
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">September — October 2026</div>
+            <div class="panel-sub">All campaigns, with current stage overlays.</div>
+          </div>
+          <div class="row gap-sm">
+            <button class="btn btn-sm btn-ghost">Month</button>
+            <button class="btn btn-sm">Week</button>
+            <button class="btn btn-sm">List</button>
+          </div>
+        </div>
+
+        <div class="timeline" id="schedule-list"></div>
+      </div>
+
+      <!-- Section: AUDIENCES -->
+      <div class="section-title">Audiences</div>
+      <div class="grid grid-2 gap-md">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Segments</div>
+              <div class="panel-sub">Imported, modelled, and pixel-based audiences.</div>
+            </div>
+            <button class="btn btn-sm">+ Segment</button>
+          </div>
+          <div style="border: 1px solid var(--border); border-radius: var(--r-control); overflow: hidden;">
+            <div class="audience-row" style="background: rgba(15,23,42,0.5);">
+              <div class="t-label">Audience</div>
+              <div class="t-label">Size</div>
+              <div class="t-label">Source</div>
+              <div class="t-label">Updated</div>
+            </div>
+            <div id="audiences-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Audience overlap</div>
+              <div class="panel-sub">How the active segments intersect.</div>
+            </div>
+            <button class="btn btn-sm btn-ghost">Rebuild</button>
+          </div>
+          <svg class="chart-svg" viewBox="0 0 400 220">
+            <defs>
+              <radialGradient id="r1"><stop offset="0" stop-color="#22d3ee" stop-opacity="0.3"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.05"/></radialGradient>
+              <radialGradient id="r2"><stop offset="0" stop-color="#34d399" stop-opacity="0.3"/><stop offset="1" stop-color="#34d399" stop-opacity="0.05"/></radialGradient>
+              <radialGradient id="r3"><stop offset="0" stop-color="#a78bfa" stop-opacity="0.3"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0.05"/></radialGradient>
+            </defs>
+            <circle cx="140" cy="110" r="70" fill="url(#r1)" stroke="#22d3ee" stroke-width="1"/>
+            <circle cx="220" cy="80" r="60" fill="url(#r2)" stroke="#34d399" stroke-width="1"/>
+            <circle cx="260" cy="140" r="55" fill="url(#r3)" stroke="#a78bfa" stroke-width="1"/>
+            <text x="120" y="115" fill="#22d3ee" font-family="JetBrains Mono" font-size="10" text-anchor="middle">CTO · APAC</text>
+            <text x="180" y="65" fill="#34d399" font-family="JetBrains Mono" font-size="10" text-anchor="middle">VP Eng</text>
+            <text x="280" y="155" fill="#a78bfa" font-family="JetBrains Mono" font-size="10" text-anchor="middle">Pixel</text>
+            <text x="200" y="20" fill="#94a3b8" font-family="JetBrains Mono" font-size="10" text-anchor="middle">3-Segment Overlap · 12%</text>
+            <text x="200" y="200" fill="#475569" font-family="JetBrains Mono" font-size="9" text-anchor="middle">53.3K unique across 3 segments</text>
+          </svg>
+          <div class="row between center mt-md">
+            <div class="col gap-md">
+              <div class="row center gap-sm"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--frontend);"></span><span class="t-label">CTO APAC · 14.2K</span></div>
+              <div class="row center gap-sm"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--backend);"></span><span class="t-label">VP Eng · 4.8K</span></div>
+              <div class="row center gap-sm"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--database);"></span><span class="t-label">Pixel · 3.1K</span></div>
+            </div>
+            <div class="col" style="text-align: right;">
+              <span class="t-label t-dim">UNIQUE</span>
+              <span class="t-title">21.1K</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: CREATIVE ASSETS -->
+      <div class="section-title">Creative Assets</div>
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Asset library</div>
+            <div class="panel-sub">LPs, videos, carousels, and image posts.</div>
+          </div>
+          <div class="row gap-sm">
+            <button class="btn btn-sm btn-ghost">Filter</button>
+            <button class="btn btn-sm">+ Upload</button>
+          </div>
+        </div>
+        <div class="grid grid-3 gap-md" id="creative-grid"></div>
+      </div>
+
+      <!-- Section: SOCIAL LOGINS -->
+      <div class="section-title">Marketing Social Logins</div>
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Connected channels</div>
+            <div class="panel-sub">OAuth-managed ad accounts. Required before any campaign can spend.</div>
+          </div>
+          <span class="chip chip-backend" id="social-count">5/6 CONNECTED</span>
+        </div>
+        <div class="grid grid-3 gap-md" id="social-grid"></div>
+      </div>
+
+      <!-- Section: AUDIT LOG -->
+      <div class="section-title">Launch Audit</div>
+      <div class="panel panel-tight" style="padding: 0;">
+        <div class="row center gap-md" style="padding: var(--s-md) var(--s-lg); border-bottom: 1px solid var(--border);">
+          <span class="t-label">RECENT EVENTS</span>
+          <div class="grow"></div>
+          <select class="select" style="width: 180px; height: 2rem; font-size: var(--t-label);">
+            <option>All events</option>
+            <option>Channel connect</option>
+            <option>Stage change</option>
+            <option>Spend update</option>
+          </select>
+        </div>
+        <div id="audit-log"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Drawer -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div>
+        <div class="t-title" id="drawer-title">Detail</div>
+        <div class="panel-sub" id="drawer-sub">—</div>
+      </div>
+      <button class="icon-btn" id="drawer-close" aria-label="Close"><span data-icon="close"></span></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+    <div class="drawer-footer">
+      <button class="btn btn-sm btn-ghost" id="drawer-cancel">Cancel</button>
+      <button class="btn btn-sm btn-primary" id="drawer-save">Save</button>
+    </div>
+  </aside>
+
+  <!-- Modal: New campaign -->
+  <div class="modal" id="modal-new">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <div class="t-title">Start a new campaign</div>
+        <button class="icon-btn" id="modal-new-close" aria-label="Close"><span data-icon="close"></span></button>
+      </div>
+      <div class="modal-card-body">
+        <div class="col col-tight">
+          <div class="field">
+            <label class="field-label">Campaign name</label>
+            <input class="input" id="nc-name" placeholder="e.g. Enterprise · Q4 Push">
+          </div>
+          <div class="grid grid-2 gap-md">
+            <div class="field">
+              <label class="field-label">Product</label>
+              <select class="select" id="nc-product">
+                <option>Archify Enterprise</option>
+                <option>Archify Studio</option>
+                <option>Archify Cloud</option>
+                <option>Archify OSS</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Stage</label>
+              <select class="select" id="nc-stage">
+                <option value="plan">Plan</option>
+                <option value="build">Build</option>
+                <option value="test">Test</option>
+                <option value="live">Launch</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Budget (₹)</label>
+              <input class="input" id="nc-budget" type="number" placeholder="50000">
+            </div>
+            <div class="field">
+              <label class="field-label">Owner</label>
+              <select class="select" id="nc-owner">
+                <option>Anjali Rao</option>
+                <option>Karan Bhatia</option>
+                <option>Riya Mukherjee</option>
+                <option>Vikram Shah</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Start date</label>
+              <input class="input" id="nc-start" type="date" value="2026-09-12">
+            </div>
+            <div class="field">
+              <label class="field-label">End date</label>
+              <input class="input" id="nc-end" type="date" value="2026-10-12">
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Target audience</label>
+            <input class="input" id="nc-audience" placeholder="e.g. CTO · APAC · 500+ seats">
+          </div>
+          <div class="field">
+            <label class="field-label">Channels</label>
+            <div class="row gap-sm wrap" id="nc-channels">
+              <label class="chip chip-frontend"><input type="checkbox" checked> linkedin-ads</label>
+              <label class="chip chip-frontend"><input type="checkbox"> x-ads</label>
+              <label class="chip chip-frontend"><input type="checkbox"> facebook-ads</label>
+              <label class="chip chip-frontend"><input type="checkbox"> google-ads</label>
+              <label class="chip chip-frontend"><input type="checkbox"> youtube-ads</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-card-footer">
+        <button class="btn btn-sm btn-ghost" id="modal-new-cancel">Cancel</button>
+        <button class="btn btn-sm">Save draft</button>
+        <button class="btn btn-sm btn-primary" id="modal-new-create">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="archify-app.js"></script>
+  <script src="seed-marketing.js"></script>
+  <script>
+    Archify.initTheme();
+    function syncThemeIcon() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.querySelectorAll('.theme-icon-moon, .theme-icon-sun').forEach(el => {
+        el.textContent = isDark ? '☾' : '☀';
+      });
+    }
+    syncThemeIcon();
+    new MutationObserver(syncThemeIcon).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    // ====== State ======
+    let accounts = Archify.load(Archify.STORAGE_KEYS.integrations) || SEED_MARKETING_ACCOUNTS;
+    let campaigns = Archify.load(Archify.STORAGE_KEYS.campaigns) || SEED_CAMPAIGNS;
+    if (!Archify.load(Archify.STORAGE_KEYS.integrations)) Archify.save(Archify.STORAGE_KEYS.integrations, accounts);
+    if (!Archify.load(Archify.STORAGE_KEYS.campaigns)) Archify.save(Archify.STORAGE_KEYS.campaigns, campaigns);
+
+    let activeStage = null; // null = all
+    let activeCampaignId = null;
+    let viewMode = 'list'; // list | kanban
+
+    function $(s, c = document) { return c.querySelector(s); }
+    function $$(s, c = document) { return Array.from(c.querySelectorAll(s)); }
+    function renderIcons(scope = document) {
+      $$('[data-icon]', scope).forEach(el => {
+        const name = el.getAttribute('data-icon');
+        if (Archify.icons[name]) el.innerHTML = Archify.icons[name];
+      });
+    }
+
+    // ====== Renderers ======
+    function renderKpis() {
+      const totalBudget = campaigns.reduce((a, c) => a + c.budget, 0);
+      const totalSpent = campaigns.reduce((a, c) => a + c.spent, 0);
+      const totalLeads = campaigns.reduce((a, c) => a + c.kpi.leads, 0);
+      const totalMqls = campaigns.reduce((a, c) => a + c.kpi.mqls, 0);
+      const live = campaigns.filter(c => c.stage === 'live').length;
+
+      $('#kpi-row').innerHTML = `
+        <div class="kpi">
+          <div class="kpi-label">Pipeline value</div>
+          <div class="kpi-value">${Archify.fmtINR(totalBudget)}</div>
+          <div class="kpi-delta t-success">+18% vs Q2</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Spent (30d)</div>
+          <div class="kpi-value">${Archify.fmtINR(totalSpent)}</div>
+          <div class="kpi-delta t-warn">${Math.round(totalSpent / totalBudget * 100)}% burn</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Leads / MQL</div>
+          <div class="kpi-value">${Archify.fmtNum(totalLeads)} / ${Archify.fmtNum(totalMqls)}</div>
+          <div class="kpi-delta t-success">${Math.round(totalMqls / totalLeads * 100)}% lead→MQL</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Live campaigns</div>
+          <div class="kpi-value">${live} <span class="t-dim" style="font-size: 0.875rem; font-weight: 400;">/ ${campaigns.length}</span></div>
+          <div class="kpi-delta t-info">target 8 by Sep 30</div>
+        </div>
+      `;
+    }
+
+    function renderLifecycle() {
+      const counts = {};
+      STAGES.forEach(s => counts[s.id] = 0);
+      campaigns.forEach(c => counts[c.stage] = (counts[c.stage] || 0) + 1);
+
+      $('#lifecycle-rail').innerHTML = STAGES.map(s => `
+        <div class="lifecycle-step ${activeStage === s.id ? 'active' : ''}" data-stage="${s.id}">
+          <div class="ls-ord">STEP ${STAGES.indexOf(s) + 1}</div>
+          <div class="ls-name">${s.name}</div>
+          <div class="panel-sub">${s.desc}</div>
+          <div class="ls-count"><b>${counts[s.id]}</b> campaign${counts[s.id] === 1 ? '' : 's'}</div>
+        </div>
+      `).join('');
+
+      $$('#lifecycle-rail .lifecycle-step').forEach(el => {
+        el.addEventListener('click', () => {
+          const stage = el.dataset.stage;
+          activeStage = activeStage === stage ? null : stage;
+          renderLifecycle();
+          renderCampaigns();
+        });
+      });
+    }
+
+    function channelChipHtml(key) {
+      const acc = accounts.find(a => a.key === key);
+      if (!acc) return '';
+      return `<span class="row center gap-sm" title="${acc.name}"><span style="color: ${acc.color}; display: inline-flex;">${Archify.icons[acc.icon]}</span><span class="t-label">${acc.name.split(' ')[0]}</span></span>`;
+    }
+
+    function renderCampaigns() {
+      const filtered = activeStage ? campaigns.filter(c => c.stage === activeStage) : campaigns;
+
+      // Title
+      const stage = STAGES.find(s => s.id === activeStage);
+      $('#campaigns-title').textContent = stage ? `Stage · ${stage.name}` : 'All campaigns';
+      const totalSpent = filtered.reduce((a, c) => a + c.spent, 0);
+      $('#campaigns-sub').textContent = `${filtered.length} campaign${filtered.length === 1 ? '' : 's'} · ${Archify.fmtINR(totalSpent)} spent`;
+
+      // List
+      if (viewMode === 'list') {
+        $('#campaigns-table').style.display = '';
+        $('#campaigns-kanban').style.display = 'none';
+        $('#campaigns-list').innerHTML = filtered.map(c => `
+          <div class="campaign-row ${activeCampaignId === c.id ? 'active' : ''}" data-campaign="${c.id}">
+            <div class="cr-name">${c.name}<small>${c.audience}</small></div>
+            <div><span class="stage-pill ${c.stage}">${c.stage}</span></div>
+            <div class="row gap-sm">${c.channels.map(ch => channelChipHtml(ch)).join('')}</div>
+            <div class="t-mute">${Archify.fmtINR(c.budget)}</div>
+            <div>${Archify.fmtINR(c.spent)} <div class="meter" style="height: 4px; margin-top: 4px;"><div class="meter-fill ${c.stage === 'live' ? 'meter-fill-backend' : ''}" style="width: ${Math.min(100, c.spent / c.budget * 100)}%"></div></div></div>
+            <div class="t-mute">${c.kpi.leads} / <span class="t-success">${c.kpi.mqls}</span></div>
+            <div class="row center gap-sm">
+              <div class="avatar" style="width: 1.5rem; height: 1.5rem; font-size: 0.55rem;">${c.owner.split(' ').map(x => x[0]).join('').slice(0, 2)}</div>
+              <span class="t-label">${c.owner.split(' ')[0]}</span>
+            </div>
+          </div>
+        `).join('');
+        $$('#campaigns-list .campaign-row').forEach(el => {
+          el.addEventListener('click', () => openCampaignDrawer(el.dataset.campaign));
+        });
+      } else {
+        $('#campaigns-table').style.display = 'none';
+        $('#campaigns-kanban').style.display = '';
+        const byStage = {};
+        STAGES.forEach(s => byStage[s.id] = []);
+        filtered.forEach(c => byStage[c.stage].push(c));
+        $('#kanban-board').innerHTML = STAGES.map(s => `
+          <div class="kanban-col">
+            <div class="kanban-col-title">
+              <span>${s.name}</span>
+              <span class="count">${byStage[s.id].length}</span>
+            </div>
+            ${byStage[s.id].map(c => `
+              <div class="kanban-card" data-campaign="${c.id}">
+                <div class="kc-name">${c.name}</div>
+                <div class="kc-meta">${c.audience}</div>
+                <div class="kc-meta">${Archify.fmtINR(c.spent)} / ${Archify.fmtINR(c.budget)} · ${c.kpi.leads} leads</div>
+                <div class="kc-foot">
+                  <div class="chips">${c.channels.slice(0, 3).map(ch => {
+                    const acc = accounts.find(a => a.key === ch);
+                    return `<span class="mini-chip" style="color: ${acc?.color || '#fff'};">${Archify.icons[acc?.icon] || ''}</span>`;
+                  }).join('')}</div>
+                  <div class="row center gap-sm">
+                    <div class="avatar" style="width: 1.25rem; height: 1.25rem; font-size: 0.5rem;">${c.owner.split(' ').map(x => x[0]).join('').slice(0, 2)}</div>
+                    <span class="t-label">${c.owner.split(' ')[0]}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+        $$('#kanban-board .kanban-card').forEach(el => {
+          el.addEventListener('click', () => openCampaignDrawer(el.dataset.campaign));
+        });
+      }
+    }
+
+    function renderSchedule() {
+      const min = new Date('2026-08-30').getTime();
+      const max = new Date('2026-10-15').getTime();
+      const range = max - min;
+      $('#schedule-list').innerHTML = campaigns.map(c => {
+        const s = new Date(c.start).getTime();
+        const e = new Date(c.end).getTime();
+        const left = (s - min) / range * 100;
+        const width = (e - s) / range * 100;
+        return `
+          <div class="timeline-row">
+            <div class="col">
+              <div class="tr-date">${Archify.fmtDate(c.start)}</div>
+              <div class="tr-date">→ ${Archify.fmtDate(c.end)}</div>
+            </div>
+            <div class="col">
+              <div class="tr-name">${c.name}</div>
+              <div class="tr-bar mt-sm">
+                <div class="tr-bar-fill ${c.stage}" style="left: ${left}%; width: ${width}%;"></div>
+              </div>
+            </div>
+            <div class="row gap-sm center">
+              <span class="stage-pill ${c.stage}">${c.stage}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAudiences() {
+      $('#audiences-list').innerHTML = SEED_AUDIENCES.map(a => `
+        <div class="audience-row">
+          <div>
+            <div class="ar-name">${a.name}</div>
+          </div>
+          <div class="t-mute">${Archify.fmtNum(a.size)}</div>
+          <div class="ar-source">${a.source}</div>
+          <div class="t-mute">${Archify.timeAgo(a.updated)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderCreatives() {
+      $('#creative-grid').innerHTML = SEED_CREATIVES.map(c => `
+        <div class="creative-card">
+          <div class="cc-thumb">
+            <span data-icon="${c.type === 'Video' ? 'play' : c.type === 'LP' ? 'globe' : c.type === 'Carousel' ? 'inbox' : 'image'}"></span>
+          </div>
+          <div class="cc-title">${c.title}</div>
+          <div class="cc-meta">${c.format} · ${c.size}</div>
+          <div class="cc-tags">${c.tags.map(t => `<span class="cc-tag">${t}</span>`).join('')}</div>
+        </div>
+      `).join('');
+      renderIcons($('#creative-grid'));
+    }
+
+    function renderSocial() {
+      const connected = accounts.filter(a => a.status === 'connected').length;
+      $('#social-count').textContent = `${connected}/${accounts.length} CONNECTED`;
+
+      $('#social-grid').innerHTML = accounts.map(a => {
+        const isConn = a.status === 'connected';
+        const isPend = a.status === 'pending';
+        return `
+          <div class="channel-card ${isConn ? 'connected' : ''} ${isPend ? 'pending' : ''}">
+            <div class="cc-head">
+              <div class="cc-icon" style="color: ${a.color};">${Archify.icons[a.icon]}</div>
+              <div>
+                <div class="cc-name">${a.name} ${isConn ? '<span class="chip chip-success" style="margin-left: var(--s-xs); font-size: 0.55rem;">CONNECTED</span>' : isPend ? '<span class="chip chip-warning" style="margin-left: var(--s-xs); font-size: 0.55rem;">PENDING</span>' : '<span class="chip chip-external" style="margin-left: var(--s-xs); font-size: 0.55rem;">OFFLINE</span>'}</div>
+                <div class="cc-handle">${a.handle || '—'}</div>
+              </div>
+            </div>
+            <div class="cc-scopes">${(a.scopes || []).map(s => `<span class="cc-scope">${s}</span>`).join('')}</div>
+            <div class="t-mute" style="font-size: var(--t-label);">
+              ${isConn ? `Last sync · ${Archify.timeAgo(a.lastSync)}` : isPend ? 'Awaiting admin consent' : 'Not connected'}
+            </div>
+            <div class="cc-actions">
+              ${isConn
+                ? `<button class="btn btn-sm btn-ghost" data-action="acct-test" data-key="${a.key}">Test</button>
+                   <button class="btn btn-sm btn-ghost" data-action="acct-manage" data-key="${a.key}">Manage</button>`
+                : isPend
+                  ? `<button class="btn btn-sm btn-primary" data-action="acct-resume" data-key="${a.key}">Resume</button>`
+                  : `<button class="btn btn-sm btn-primary" data-action="acct-connect" data-key="${a.key}">Connect</button>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAudit() {
+      const audit = [
+        { ts: '2026-09-05T05:00:00Z', kind: 'spend.update', actor: 'system', target: 'cmp-001', detail: 'Daily cap reached — paused for 6h', status: 'warn' },
+        { ts: '2026-09-05T04:14:00Z', kind: 'stage.change', actor: 'anjali.rao', target: 'cmp-001', detail: 'Plan → Live (auto)', status: 'success' },
+        { ts: '2026-09-05T03:30:00Z', kind: 'channel.sync', actor: 'system', target: 'instagram-ads', detail: 'OAuth refresh completed', status: 'info' },
+        { ts: '2026-09-04T22:00:00Z', kind: 'creative.published', actor: 'karan.bhatia', target: 'cmp-002', detail: '"Founder AMA reel" uploaded and approved', status: 'success' },
+        { ts: '2026-09-04T18:00:00Z', kind: 'audience.refresh', actor: 'system', target: 'a-3', detail: '9.2K members · GitHub stargazers', status: 'info' },
+        { ts: '2026-09-03T11:00:00Z', kind: 'ab.variant', actor: 'vikram.shah', target: 'cmp-004', detail: 'Hero copy v3 launched · variant B leading +18% CTR', status: 'success' },
+        { ts: '2026-09-02T09:30:00Z', kind: 'channel.connect', actor: 'karan.bhatia', target: 'google-ads', detail: 'OAuth completed', status: 'info' },
+      ];
+      $('#audit-log').innerHTML = audit.map(ev => `
+        <div class="log-row ${ev.status}">
+          <span class="ts">${Archify.timeAgo(ev.ts)}</span>
+          <span class="kind">${ev.kind}</span>
+          <span>${ev.actor} → <b>${ev.target}</b> · <span class="t-mute">${ev.detail}</span></span>
+        </div>
+      `).join('');
+    }
+
+    function renderAll() {
+      renderKpis();
+      renderLifecycle();
+      renderCampaigns();
+      renderSchedule();
+      renderAudiences();
+      renderCreatives();
+      renderSocial();
+      renderAudit();
+      renderIcons();
+    }
+
+    // ====== Campaign drawer ======
+    function openCampaignDrawer(id) {
+      const c = campaigns.find(x => x.id === id);
+      if (!c) return;
+      activeCampaignId = id;
+      $('#drawer-title').textContent = c.name;
+      $('#drawer-sub').innerHTML = `<span class="stage-pill ${c.stage}">${c.stage}</span> · ${c.product} · ${Archify.fmtINR(c.budget)} budget`;
+      $('#drawer-body').innerHTML = `
+        <div class="kv mb-lg">
+          <dt>Audience</dt><dd>${c.audience}</dd>
+          <dt>Dates</dt><dd>${Archify.fmtDate(c.start)} → ${Archify.fmtDate(c.end)}</dd>
+          <dt>Owner</dt><dd>${c.owner}</dd>
+          <dt>Spent</dt><dd>${Archify.fmtINR(c.spent)} · ${Math.round(c.spent / c.budget * 100)}%</dd>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="t-title mb-md">Performance</div>
+        <div class="grid grid-2 gap-md mb-lg">
+          <div class="kpi">
+            <div class="kpi-label">Impressions</div>
+            <div class="kpi-value">${Archify.fmtNum(c.kpi.impressions)}</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">CTR</div>
+            <div class="kpi-value">${(c.kpi.ctr * 100).toFixed(2)}%</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Leads</div>
+            <div class="kpi-value t-backend">${c.kpi.leads}</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">CPL</div>
+            <div class="kpi-value t-warn">${Archify.fmtINR(c.kpi.cpl)}</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">MQLs</div>
+            <div class="kpi-value t-success">${c.kpi.mqls}</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Lead → MQL</div>
+            <div class="kpi-value">${Math.round(c.kpi.mqls / c.kpi.leads * 100)}%</div>
+          </div>
+        </div>
+
+        <div class="t-title mb-md">Channels</div>
+        <div class="col gap-sm mb-lg">
+          ${c.channels.map(ch => {
+            const acc = accounts.find(a => a.key === ch);
+            return acc ? `
+              <div class="row between center" style="padding: var(--s-sm) var(--s-md); background: var(--canvas); border: 1px solid var(--border); border-radius: var(--r-control);">
+                <div class="row center gap-sm">
+                  <span style="color: ${acc.color};">${Archify.icons[acc.icon]}</span>
+                  <span>${acc.name}</span>
+                </div>
+                <span class="t-mute t-label">${acc.status.toUpperCase()}</span>
+              </div>
+            ` : '';
+          }).join('')}
+        </div>
+
+        <div class="t-title mb-md">Creative</div>
+        <div class="col gap-sm mb-lg">
+          ${c.creative.map(cr => `
+            <div class="row center gap-sm" style="padding: var(--s-sm) var(--s-md); background: var(--canvas); border: 1px solid var(--border); border-radius: var(--r-control);">
+              <span data-icon="inbox"></span>
+              <span>${cr}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="t-title mb-md">Stage control</div>
+        <div class="row gap-sm wrap">
+          ${STAGES.map(s => `
+            <button class="btn btn-sm ${c.stage === s.id ? 'btn-primary' : ''}" data-stage-go="${s.id}">${s.name}</button>
+          `).join('')}
+        </div>
+      `;
+      $('#drawer-save').textContent = 'Save changes';
+      const saveBtn = $('#drawer-save');
+      const newSave = saveBtn.cloneNode(true);
+      saveBtn.parentNode.replaceChild(newSave, saveBtn);
+      newSave.addEventListener('click', () => {
+        Archify.toast('Campaign updated', 'success');
+        closeDrawer();
+      });
+      $$('#drawer-body [data-stage-go]').forEach(b => {
+        b.addEventListener('click', () => {
+          const target = b.dataset.stageGo;
+          c.stage = target;
+          Archify.save(Archify.STORAGE_KEYS.campaigns, campaigns);
+          Archify.toast(`Stage moved → ${target}`, 'success');
+          closeDrawer();
+          renderAll();
+        });
+      });
+      renderIcons($('#drawer-body'));
+      $('#scrim').classList.add('open');
+      $('#drawer').classList.add('open');
+    }
+
+    function closeDrawer() {
+      $('#scrim').classList.remove('open');
+      $('#drawer').classList.remove('open');
+      activeCampaignId = null;
+    }
+    $('#drawer-close').addEventListener('click', closeDrawer);
+    $('#drawer-cancel').addEventListener('click', closeDrawer);
+    $('#scrim').addEventListener('click', closeDrawer);
+
+    // ====== Social actions ======
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-action]');
+      if (!t) return;
+      const action = t.dataset.action;
+      const key = t.dataset.key;
+      const acc = accounts.find(a => a.key === key);
+
+      if (action === 'acct-connect' || action === 'acct-resume') {
+        openDrawer({
+          title: 'Connect ' + acc.name,
+          sub: 'OAuth flow · marketing ad account scopes',
+          body: `
+            <p>This will grant <b>${acc.name}</b> the following scopes for Archify Console:</p>
+            <ul class="t-body" style="margin: 0 0 var(--s-lg) var(--s-lg); padding: 0;">
+              ${(acc.scopes || ['ads_read']).map(s => '<li>' + s + '</li>').join('')}
+              <li>Manage campaigns and creatives</li>
+              <li>Read spend and performance</li>
+            </ul>
+            <div class="field">
+              <label class="field-label">Ad account</label>
+              <input class="input" value="${acc.handle || ''}" placeholder="@your-handle">
+            </div>
+            <div class="field">
+              <label class="field-label">Default audience template</label>
+              <select class="select">
+                <option>CTO · APAC · 500+ seats</option>
+                <option>VP Eng · India</option>
+                <option>Lookalike · top customers</option>
+              </select>
+            </div>
+          `,
+          onSave: () => {
+            acc.status = 'connected';
+            acc.handle = acc.handle || '@archify-marketing';
+            acc.lastSync = new Date().toISOString();
+            Archify.save(Archify.STORAGE_KEYS.integrations, accounts);
+            renderSocial();
+            Archify.toast(`${acc.name} connected`, 'success');
+            closeDrawer();
+          }
+        });
+      }
+
+      if (action === 'acct-manage') {
+        openDrawer({
+          title: 'Manage ' + acc.name,
+          sub: acc.handle,
+          body: `
+            <div class="field"><label class="field-label">Handle</label><input class="input" value="${acc.handle || ''}"></div>
+            <div class="field"><label class="field-label">Last sync</label><span class="t-mute">${Archify.timeAgo(acc.lastSync)}</span></div>
+            <div class="field"><label class="field-label">Active campaigns</label><span class="t-mute">${campaigns.filter(c => c.channels.includes(acc.key)).length} of ${campaigns.length}</span></div>
+            <hr>
+            <button class="btn btn-sm btn-danger" id="drawer-disconnect">Disconnect</button>
+          `,
+          onSave: () => {
+            acc.lastSync = new Date().toISOString();
+            Archify.save(Archify.STORAGE_KEYS.integrations, accounts);
+            renderSocial();
+            Archify.toast(`${acc.name} refreshed`, 'success');
+            closeDrawer();
+          },
+          onExtra: (body) => {
+            const disc = body.querySelector('#drawer-disconnect');
+            if (disc) disc.addEventListener('click', () => {
+              acc.status = 'offline';
+              acc.lastSync = null;
+              Archify.save(Archify.STORAGE_KEYS.integrations, accounts);
+              renderSocial();
+              Archify.toast(`${acc.name} disconnected`, 'warning');
+              closeDrawer();
+            });
+          }
+        });
+      }
+
+      if (action === 'acct-test') {
+        Archify.toast(`Test ping sent to ${acc.name} ad account`, 'success');
+      }
+    });
+
+    // ====== View toggle ======
+    $('#view-toggle').addEventListener('click', () => {
+      viewMode = viewMode === 'list' ? 'kanban' : 'list';
+      $('#view-toggle').textContent = 'View · ' + (viewMode === 'list' ? 'Kanban' : 'List');
+      renderCampaigns();
+    });
+
+    // ====== New campaign modal ======
+    function openNewCampaign() {
+      $('#modal-new').classList.add('open');
+    }
+    function closeNewCampaign() { $('#modal-new').classList.remove('open'); }
+    document.querySelectorAll('button.btn').forEach(b => {
+      if (b.textContent.trim() === '+ Campaign' || b.textContent.trim() === '+ New campaign') {
+        b.addEventListener('click', openNewCampaign);
+      }
+    });
+    $('#modal-new-close').addEventListener('click', closeNewCampaign);
+    $('#modal-new-cancel').addEventListener('click', closeNewCampaign);
+    $('#modal-new-create').addEventListener('click', () => {
+      const name = $('#nc-name').value || 'Untitled campaign';
+      const budget = parseInt($('#nc-budget').value) || 0;
+      const c = {
+        id: Archify.uid('cmp'),
+        name,
+        stage: $('#nc-stage').value,
+        product: $('#nc-product').value,
+        audience: $('#nc-audience').value || '—',
+        budget,
+        spent: 0,
+        channels: Array.from($('#nc-channels input:checked')).map(i => i.parentElement.textContent.trim()),
+        start: $('#nc-start').value,
+        end: $('#nc-end').value,
+        kpi: { impressions: 0, ctr: 0, leads: 0, cpl: 0, mqls: 0 },
+        owner: $('#nc-owner').value,
+        creative: ['Untitled · LP'],
+      };
+      campaigns.push(c);
+      Archify.save(Archify.STORAGE_KEYS.campaigns, campaigns);
+      closeNewCampaign();
+      renderAll();
+      Archify.toast(`Campaign "${c.name}" created`, 'success');
+    });
+
+    // ====== Start launch (top right) ======
+    $('#btn-start-launch').addEventListener('click', () => {
+      const build = campaigns.filter(c => c.stage === 'build');
+      if (build.length === 0) {
+        Archify.toast('No campaigns in Build stage', 'warning');
+      } else {
+        build.forEach(c => { c.stage = 'live'; });
+        Archify.save(Archify.STORAGE_KEYS.campaigns, campaigns);
+        renderAll();
+        Archify.toast(`${build.length} campaigns moved to Launch`, 'success');
+      }
+    });
+
+    // ====== Export ======
+    $('#btn-export').addEventListener('click', () => {
+      const data = JSON.stringify({ accounts, campaigns }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'archify-marketing-export.json'; a.click();
+      URL.revokeObjectURL(url);
+      Archify.toast('Marketing data exported', 'success');
+    });
+
+    // ====== Boot ======
+    renderAll();
+  </script>
+</body>
+</html>

@@ -266,19 +266,77 @@ async def _push_ntfy(rows: list, today: str) -> str:
 
 
 def check_gates() -> dict[str, str]:
-    """Return compliance and operational gates status for admin and worker tasks.
+    """Compliance + operational gates snapshot for /admin/* and worker tasks.
 
-    Format: {"<gate_name>": "pass" | "<reason>"}
-    All values == 'pass' means compliant / all gates clear.
+    Contract (consumed by ``admin_api._gate_check``):
+      ``{"<gate_name>": "pass" | "<reason>"}``
+    ANY value != "pass" is treated as an OPEN gate and causes the admin
+    endpoint to 403. Therefore this function MUST default to FAIL-CLOSED:
+    if a primitive cannot be read, the gate reports a non-"pass" reason
+    rather than silently passing.
+
+    Gates composed (real primitives, not stubbed):
+
+      * ``kill_fence``    — admin kill engaged? (`voice_launch.admin_kill_engaged`)
+      * ``recording_ok``  — recording gate green? (`voice_launch.recording_gate_ok`)
+      * ``campaign_on``   — campaign enabled flag? (`voice_launch.campaign_enabled`)
+      * ``voice_window``  — TRAI 09:00–21:00 IST? (local-time math; pure)
+      * ``emergency_stop``— `EMERGENCY_STOP=1`? (env, hard halt)
+      * ``whatsapp_auto`` — WA auto-send gate (env, off by default)
+
+    No new compliance gates are invented here — only canonical primitives
+    are composed. Owner can extend the list (add a key) without re-wiring
+    callers, because ``admin_api._gate_check`` is gate-name agnostic.
     """
-    gates: dict[str, str] = {
-        "dnd_scrub": "pass",
-        "kill_fence": "pass",
-        "voice_window": "pass",
-        "whatsapp_auto": "pass",
-    }
+    gates: dict[str, str] = {}
+
+    # ---- 1. Kill fence (canonical: voice_launch admin_kill_engaged) ----
+    try:
+        from app.telephony import voice_launch
+
+        kill = bool(voice_launch.admin_kill_engaged())
+        gates["kill_fence"] = "pass" if not kill else "admin_kill_engaged"
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("check_gates: kill_fence unreadable (%s)", exc.__class__.__name__)
+        gates["kill_fence"] = "unverified:kill_fence"
+
+    # ---- 2. Recording gate (canonical: voice_launch.recording_gate_ok) ----
+    try:
+        from app.telephony import voice_launch as _vl
+
+        rec_ok, rec_reason = _vl.recording_gate_ok()
+        gates["recording_ok"] = "pass" if rec_ok else f"recording:{rec_reason or 'unavailable'}"
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("check_gates: recording unreadable (%s)", exc.__class__.__name__)
+        gates["recording_ok"] = "unverified:recording"
+
+    # ---- 3. Campaign enabled flag (master voice gate) ----
+    try:
+        from app.telephony import voice_launch as _vl2
+
+        gates["campaign_on"] = "pass" if bool(_vl2.campaign_enabled()) else "campaign_disabled"
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("check_gates: campaign unreadable (%s)", exc.__class__.__name__)
+        gates["campaign_on"] = "unverified:campaign"
+
+    # ---- 4. Voice window (TRAI 09:00–21:00 IST, local time) ----
+    try:
+        hh = datetime.now().hour  # naive local; container TZ = IST on VPS
+        in_window = 9 <= hh < 21
+        gates["voice_window"] = "pass" if in_window else f"outside_ist_window(hour={hh})"
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("check_gates: voice_window unreadable (%s)", exc.__class__.__name__)
+        gates["voice_window"] = "unverified:voice_window"
+
+    # ---- 5. EMERGENCY_STOP (env-level, hard halt) ----
     if os.getenv("EMERGENCY_STOP", "0").strip().lower() in ("1", "true", "yes"):
         gates["emergency_stop"] = "active"
+
+    # ---- 6. WhatsApp auto-send gate (legacy, off by default) ----
+    wa = os.getenv("WHATSAPP_AUTO_SEND", "0").strip().lower()
+    if wa in ("1", "true", "yes"):
+        gates["whatsapp_auto"] = "pass"  # opt-in by owner
+    # else: key absent = no signal = admin not blocked on WA
 
     return gates
 

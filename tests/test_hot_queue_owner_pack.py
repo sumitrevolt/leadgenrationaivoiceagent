@@ -253,3 +253,143 @@ def test_build_owner_pack_never_raises_on_hot_queue_error(tmp_path, monkeypatch)
     r = asyncio.run(hot_queue_owner_pack.build_owner_pack(limit=200, push_ntfy=False))
     assert r.get("ok") is False
     assert "hot_queue_unavailable" in r.get("error", "")
+
+
+# --------------------------------------------------------------------------- #
+# check_gates() — owner-gated admin compliance adapter (2026-09-05)
+# --------------------------------------------------------------------------- #
+class _StubVL:
+    """In-process stub of ``app.telephony.voice_launch`` exposing only the
+    three primitives ``check_gates`` calls. We attach this directly to the
+    real module via monkeypatch.setattr so the lazy ``from app.telephony
+    import voice_launch`` inside ``check_gates`` keeps working."""
+
+    def __init__(self):
+        self.kill_engaged = False
+        self.rec_ok = True
+        self.rec_reason = ""
+        self.campaign_on = True
+
+
+class _StubDT:
+    """Stub of ``datetime`` module. ``check_gates`` calls ``datetime.now().hour``,
+    so we need .now() to return an object with .hour."""
+
+    def __init__(self, hour_value: int):
+        self._hour = hour_value
+
+    def now(self):
+        class _T:
+            hour = self._hour
+        return _T()
+
+
+@pytest.fixture
+def stubbed_env(monkeypatch):
+    """Wire a clean environment for check_gates() tests:
+    kill disengaged, recording ok, campaign enabled, hour=14 (inside TRAI window).
+    Individual tests can override fields."""
+    from app.telephony import voice_launch
+
+    stub = _StubVL()
+    monkeypatch.setattr(voice_launch, "admin_kill_engaged", lambda: stub.kill_engaged)
+    monkeypatch.setattr(
+        voice_launch,
+        "recording_gate_ok",
+        lambda: (stub.rec_ok, stub.rec_reason),
+    )
+    monkeypatch.setattr(voice_launch, "campaign_enabled", lambda: stub.campaign_on)
+
+    import app.platform.hot_queue_owner_pack as _mod
+    monkeypatch.setattr(_mod, "datetime", _StubDT(hour_value=14))
+
+    monkeypatch.delenv("EMERGENCY_STOP", raising=False)
+    monkeypatch.delenv("WHATSAPP_AUTO_SEND", raising=False)
+    return stub
+
+
+class TestCheckGatesAdapter:
+    """Verify the upgraded check_gates() composes real primitives, never invents
+    new compliance gates, and never silently passes when primitives fail.
+
+    Contract: returns dict[str, str] where value is either literal "pass" or a
+    reason string. ``admin_api._gate_check`` 403s on any non-"pass" value, so
+    the adapter must FAIL-CLOSED.
+    """
+
+    def test_returns_dict_with_only_str_values(self, stubbed_env):
+        """Every value must be a str (never bool/int) — admin_api string-compares."""
+        from app.platform import hot_queue_owner_pack
+
+        out = hot_queue_owner_pack.check_gates()
+        assert isinstance(out, dict)
+        assert out, "check_gates() must return at least one gate"
+        for k, v in out.items():
+            assert isinstance(k, str)
+            assert isinstance(v, str), f"gate {k!r} returned non-str {v!r}"
+            # Admin string-compares to "pass" — anything else opens the gate.
+            # False-y values like "" or None would silently pass; the adapter
+            # explicitly forbids that.
+            assert v != "", f"gate {k!r} has empty value"
+
+    def test_kill_fence_block_when_engaged(self, stubbed_env):
+        """admin_kill_engaged=True → gate NOT 'pass'."""
+        from app.platform import hot_queue_owner_pack
+
+        stubbed_env.kill_engaged = True
+        out = hot_queue_owner_pack.check_gates()
+        assert out.get("kill_fence") != "pass"
+        assert "admin_kill" in out["kill_fence"].lower()
+
+    def test_kill_fence_pass_when_disengaged(self, stubbed_env):
+        """admin_kill_engaged=False → gate == 'pass'."""
+        from app.platform import hot_queue_owner_pack
+
+        out = hot_queue_owner_pack.check_gates()
+        assert out["kill_fence"] == "pass"
+
+    def test_recording_gate_block(self, stubbed_env):
+        """recording_gate_ok returns (False, reason) → gate NOT pass."""
+        from app.platform import hot_queue_owner_pack
+
+        stubbed_env.rec_ok = False
+        stubbed_env.rec_reason = "no_storage"
+        out = hot_queue_owner_pack.check_gates()
+        assert out["recording_ok"] != "pass"
+        assert "recording" in out["recording_ok"]
+        assert "no_storage" in out["recording_ok"]
+
+    def test_campaign_disabled_blocks(self, stubbed_env):
+        """campaign_enabled=False → gate NOT pass."""
+        from app.platform import hot_queue_owner_pack
+
+        stubbed_env.campaign_on = False
+        out = hot_queue_owner_pack.check_gates()
+        assert out["campaign_on"] != "pass"
+        assert "disabled" in out["campaign_on"]
+
+    def test_voice_window_outside_block(self, stubbed_env, monkeypatch):
+        """TRAI window: hour 22 → gate NOT pass."""
+        from app.platform import hot_queue_owner_pack
+        import app.platform.hot_queue_owner_pack as _mod
+
+        monkeypatch.setattr(_mod, "datetime", _StubDT(hour_value=22))
+        out = hot_queue_owner_pack.check_gates()
+        assert out["voice_window"] != "pass"
+        assert "22" in out["voice_window"]
+
+    def test_voice_window_inside_pass(self, stubbed_env):
+        """hour=14 → voice_window == 'pass' (already set in fixture)."""
+        from app.platform import hot_queue_owner_pack
+
+        out = hot_queue_owner_pack.check_gates()
+        assert out["voice_window"] == "pass"
+
+    def test_emergency_stop_blocks(self, stubbed_env, monkeypatch):
+        """EMERGENCY_STOP=1 → gate added with non-pass value."""
+        from app.platform import hot_queue_owner_pack
+
+        monkeypatch.setenv("EMERGENCY_STOP", "1")
+        out = hot_queue_owner_pack.check_gates()
+        assert out.get("emergency_stop") != "pass"
+

@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+> **Note**: alongside this React template, the `frontend/` folder also hosts the Archify product console system — see `ARCHIFY_DASHBOARDS.md`. The two coexist: existing pages use the shared `archify_console.css` / `archify_console.js` design system; the new Archify dashboards add their own extension layer (`archify-design-system.css`, `archify-layout.css`, `archify-app.js`) so existing pages are not modified.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
