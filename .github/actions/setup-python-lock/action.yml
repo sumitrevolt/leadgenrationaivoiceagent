@@ -30,7 +30,7 @@ runs:
         else
           pip install -e ".[dev,monitoring]"
         fi
-        pip install --no-deps "pytest-timeout==2.4.0"
+        pip install --no-deps "pytest-timeout==2.4.0" "execnet>=2.1.0"
         # Guard: later extras must not drift pydantic-core past pydantic 2.13.4.
         pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
         extras="${{ inputs.extras }}"

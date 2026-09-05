@@ -3,8 +3,6 @@
 # Autopilot: Auto-validation, daily indexing, owner query endpoint
 
 from app.utils.logger import setup_logger
-from scripts.gen_knowledge_domains import gen_domain_briefs
-from scripts.validate_knowledge_os import validate_full_os
 
 logger = setup_logger(__name__)
 squad_name = "Knowledge-OS"
@@ -12,14 +10,32 @@ status = "GREEN"
 capacity = 66
 
 def daily_index_update():
-    """Run daily knowledge-OS validation + indexing."""
-    # Run the existing validator
-    result = validate_full_os()
+    """Run daily knowledge-OS validation + indexing.
+
+    Uses lazy imports (copy-neighbor defensive pattern) so the module imports
+    cleanly even when scripts/ deps are unavailable. Validation result is the
+    ``run()`` exit code; domain-brief regeneration is best-effort.
+    """
+    try:
+        from scripts.validate_knowledge_os import run as validate_run
+
+        code = validate_run(verbose=False)
+        result = {"overall_status": "ok" if code == 0 else "errors", "exit_code": code}
+    except Exception as e:
+        logger.warning(f"[squad_knowledge] validation skipped: {e}")
+        result = {"overall_status": "skipped", "reason": str(e)[:120]}
     logger.info(f"Squad 5 knowledge index update: {result['overall_status']}")
 
-    # Regenerate domain briefs if needed
-    briefs_result = gen_domain_briefs()
-    logger.info(f"Domain briefs: {briefs_result.get('generated', 0)} new/updated")
+    # Regenerate domain briefs (best-effort; the script's main() writes index files)
+    briefs_result = {"generated": 0}
+    try:
+        from scripts.gen_knowledge_domains import DOMAINS
+        from scripts.gen_knowledge_domains import main as gen_main
+
+        gen_main()
+        briefs_result = {"generated": len(DOMAINS), "source": "scripts.gen_knowledge_domains.main()"}
+    except Exception as e:
+        logger.warning(f"[squad_knowledge] domain briefs skipped: {e}")
 
     return {"status": "index_updated", "validation": result, "briefs": briefs_result}
 

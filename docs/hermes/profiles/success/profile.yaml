@@ -1,0 +1,15 @@
+display_name: success
+description: 'Customer Success / Revenue Ops. Onboarding, tenant provisioning, integrations,
+  campaign setup, first value, account health, usage, renewal, upsell, churn risk.
+  North star: activation, retention, upsell.'
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: squircle
+    color: hsl(227 68% 58%)
+    imageKind: photo
+    title: success
+    custom: true
+    chat: 20260821_123050_2c577a
+_ui_meta_revisions:
+  hermes-bots: 3

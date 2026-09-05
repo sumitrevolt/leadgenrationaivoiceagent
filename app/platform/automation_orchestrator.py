@@ -105,7 +105,7 @@ class TaskRecord:
     max_retries: int = 3
     deadline_s: int = 300
     provider: str = "omniroute"
-    model: str = "leadgen-free-first"
+    model: str = "leadsgen combo 1"  # canonical combo (14-combo map 2026-09-05)
     idempotency_key: str = ""
     input_payload: dict[str, Any] = field(default_factory=dict)
     evidence: dict[str, Any] | None = None
@@ -151,7 +151,7 @@ class TaskRecord:
             max_retries=data.get("max_retries", 3),
             deadline_s=data.get("deadline_s", 300),
             provider=data.get("provider", "omniroute"),
-            model=data.get("model", "leadgen-free-first"),
+            model=data.get("model", "leadsgen combo 1"),
             idempotency_key=data.get("idempotency_key", ""),
             input_payload=data.get("input_payload", {}),
             evidence=data.get("evidence"),
@@ -474,7 +474,7 @@ class AutomationOrchestrator:
         input_payload: dict[str, Any] | None = None,
         idempotency_key: str | None = None,
         provider: str = "omniroute",
-        model: str = "leadgen-free-first",
+        model: str = "leadsgen combo 1",
         deadline_s: int = 300,
     ) -> tuple[TaskRecord, bool]:
         if owner_bot not in self.HERMES_BOTS:

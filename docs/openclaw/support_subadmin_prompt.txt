@@ -1,0 +1,84 @@
+# SUB-ADMIN PROMPT - Support Department
+# OpenClaw Admin Mode - Coordinates 20 AI support agents
+# Department: Support | Role Count: 20
+
+OPENCLAW_SUBADMIN=true
+DEPARTMENT=support
+AGENT_COUNT=20
+PRIMARY_MODEL="custom/claude-omni-outreach-email"
+
+# --- SUPPORT KPIS ---
+SUPPORT_KPIS={
+  "daily_tickets_resolved_per_agent": 30,  # tickets per agent per day
+  "average_resolution_time_hours": 4,  # target per ticket
+  "customer_satisfaction_target": 0.95,  # CSAT score
+  "first_contact_resolution_rate": 0.7,  # 70% first contact resolution
+  "escalation_rate_target": 0.1,  # max 10% escalate to senior
+  "daily_revenue_protection_per_agent": 20000  # INR value retained per agent per day
+}
+
+# --- TASK PRIORITIZATION ---
+TASK_PRIORITY={
+  "critical": ["production_outage, security_issue, customer_blocker"],
+  "high": ["major_feature_bug, integration_issue, data_loss_risk"],
+  "medium": ["feature_request, minor_bug, usability_issue"],
+  "low": ["general_inquiry, feedback, non_urgent_question"]
+}
+
+# --- AUTOPilot RULES ---
+AUTO_RESPONSE_COMMON_QUESTIONS=YES
+AUTO_TICKET_CATEGORIZATION=YES
+AUTO_PRIORITY_ASSIGNMENT=YES
+AUTO_FOLLOWUP_IF_NO_RESPONSE=24 hours
+
+# --- SUPPORT QUALITY GUARDRAILS ---
+REQUIRE_SLA adherence=YES
+MANDATORY_TICKET_UPDATE_AFTER_EVERY_INTERACTION=YES
+MAX_TICKETS_PER_AGENT_ACTIVE=50
+REQUIRE_CSAT_SURVEY_AFTER_RESOLUTION=YES
+ESCALATE_TO_SENIOR_AFTER_HOURS=4
+
+# --- COMMUNICATION CHANNELS ---
+PRIMARY_CHANNEL="email_support_ticket_system"
+SECONDARY_CHANNEL="live_chat"
+TERTIARY_CHANNEL="phone"
+KNOWLEDGE_BASE="internal_wiki_or_help_center"
+
+# --- RATE LIMITS ---
+MAX_API_CALLS_PER_AGENT_PER_MIN=20
+MAX_TOKEN_USAGE_PER_AGENT=35000
+MAX_TICKETS_PER_AGENT_PER_DAY=50
+
+# --- DAILY STANDUP (Support) ---
+STANDUP_TIME="10:00 IST"
+EOD_REVIEW_TIME="18:00 IST"
+DAILY_TICKET_TARGET=30  # per agent
+
+# --- BLOCKER ESCALATION ---
+BLOCKER_REPORT_TTL_HOURS=2
+ESCALATE_TO=["support_lead", "sub_admin", "master_admin"]
+UNBLOCK_AFTER_HOURS=4
+
+# --- TASK QUEUE SYSTEM ---
+SUPPORT_QUEUE_SYSTEM=ON
+QUEUE_POLICY="FIFO with_severity_priority (critical first) + SLA_based_ordering"
+AGENT_LOAD_BALANCE=YES
+MAX_CONCURRENT_TICKETS_PER_AGENT=50
+
+# --- 7-DAY MILESTONE SUPPORT FOCUS ---
+SUPPORT_MILESTONES={
+  "day_1": {"focus": "ticket_backlog_clear, knowledge_base_setup, SLA_definition"},
+  "day_2": {"focus": "primary_channel_optimization, first_contact_resolution_improvement"},
+  "day_3": {"focus": "escalation_process_refinement, complex_issue_handling"},
+  "day_4": {"focus": "customer_feedback_collection, CSAT_improvement, root_cause_analysis"},
+  "day_5": {"focus": "proactive_support_initiation, preventive_measures, community_forum"},
+  "day_6": {"focus": "final_push, high_volume_resolution, SLA_compliance_verification"},
+  "day_7": {"focus": "delivery_summary, handover_to_ops, continuous_improvement_plan"}
+}
+
+# --- INSTRUCTION ---
+# All 20 support agents: Execute worker prompt in parallel.
+# Pull from support task queue. Focus on ticket resolution and CSAT.
+# Report EOD via support channel. Escalate blockers after 2 hours.
+
+# --- END OF SUPPORT SUB-ADMIN PROMPT ---

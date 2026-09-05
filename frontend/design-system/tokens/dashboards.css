@@ -1,0 +1,408 @@
+/* LeadGen AI — Dashboard primitives
+   Reusable building blocks for the Customer Config & Knowledge Panel and
+   the Marketing Product Launch Panel. Imports from existing tokens (colors,
+   typography, spacing, effects). Emoji-first iconography is at the call site.
+
+   Conventions:
+   - All primitives respect the 44px mobile tap target.
+   - Dark-mode overrides live at body.dark { } below; page-level <style>
+     blocks can layer on top.
+   - All animations honor prefers-reduced-motion (effects.css already covers
+     hover lifts + pulse; this file opts in via inherit, not new keyframes).
+*/
+
+/* =========================================================================
+   KPI tile primitive (extends --ao-kpi-* gradient bar system)
+   - Reuses existing card + --shadow-card + token-driven top gradient bar
+   - Used by both dashboards for 5-KPI overview strips (Stripe rule: 5 max)
+   ========================================================================= */
+.kpi-tile {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-card);
+  padding: 17px 18px 15px;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--dur, 0.2s) var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
+              box-shadow var(--dur) var(--ease);
+  min-height: 96px;
+}
+.kpi-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpi-tile::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--ao-kpi-1, linear-gradient(90deg, #4f46e5, #7c3aed));
+}
+.kpi-tile.kpi-2::before { background: var(--ao-kpi-2); }
+.kpi-tile.kpi-3::before { background: var(--ao-kpi-3); }
+.kpi-tile.kpi-4::before { background: var(--ao-kpi-4); }
+.kpi-tile.kpi-5::before { background: var(--ao-kpi-5); }
+.kpi-tile .kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64647e);
+}
+.kpi-tile .kpi-val {
+  font-family: var(--font-display, 'Plus Jakarta Sans');
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -.03em;
+  margin-top: 8px;
+  line-height: 1;
+  font-variant-numeric: tabular;
+  color: var(--text-strong, #0f1024);
+}
+.kpi-tile .kpi-sub {
+  font-size: 11.5px;
+  color: var(--text-muted, #64647e);
+  margin-top: 8px;
+}
+
+/* Trend pill — green ↑ / red ↓ / grey flat (Vobiz pattern) */
+.trend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+}
+.trend-pill.up   { background: var(--success-bg, #dcfce7); color: var(--success-ink, #15803d); }
+.trend-pill.down { background: var(--danger-bg,  #fef2f2); color: var(--danger,       #b91c1c); }
+.trend-pill.flat { background: var(--neutral-bg, #f1f5f9); color: var(--neutral,      #64748b); }
+.trend-pill .arrow { font-size: 11px; line-height: 1; }
+
+/* =========================================================================
+   Kanban card primitive (Marketing Launch Panel)
+   - 5 columns × N cards per stage; click → opens right drawer with details
+   - Drag-and-drop deferred to v2; v1 uses status buttons (.kn-action)
+   - days-in-stage badge auto-color-codes to --stage-stale when > 7 days
+   ========================================================================= */
+.kn-col {
+  background: var(--bg-soft, #f6f6fb);
+  border: 1px solid var(--border-faint, #f1eff8);
+  border-radius: var(--radius-lg, 14px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 280px;
+}
+.kn-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64647e);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-faint, #f1eff8);
+}
+.kn-col-head .stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 8px;
+}
+.kn-col[data-stage="prep"]       .kn-col-head .stage-dot { background: var(--stage-prep); }
+.kn-col[data-stage="inprogress"] .kn-col-head .stage-dot { background: var(--stage-inprogress); }
+.kn-col[data-stage="review"]     .kn-col-head .stage-dot { background: var(--stage-review); }
+.kn-col[data-stage="launch"]     .kn-col-head .stage-dot { background: var(--stage-launch); }
+.kn-col[data-stage="postlaunch"] .kn-col-head .stage-dot { background: var(--stage-postlaunch); }
+
+.kn-card {
+  background: var(--surface-card, #fff);
+  border: 1px solid var(--border-subtle, #e8e8f2);
+  border-radius: var(--radius-md, 12px);
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color var(--dur-fast, .12s) ease, transform var(--dur) var(--ease);
+}
+.kn-card:hover { border-color: var(--border-focus, var(--indigo-600)); transform: translateY(-1px); }
+.kn-card .kn-name {
+  font-family: var(--font-display, 'Plus Jakarta Sans');
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-strong);
+  letter-spacing: -.01em;
+  line-height: 1.3;
+}
+.kn-card .kn-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.kn-card .kn-channels {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.kn-card .ch-chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg-soft-2, #faf9ff);
+  color: var(--text-muted);
+  border: 1px solid var(--border-faint);
+}
+.kn-card .days-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg-soft-2, #faf9ff);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.kn-card .days-pill.stale {
+  background: var(--stage-stale-bg);
+  color: var(--stage-stale);
+}
+
+/* =========================================================================
+   Step indicator (numbered 1-2-3-4-5 with state circles)
+   - Used in onboarding flows and stage-transitions visualizers
+   - Tata Tele / MyOperator "Connect → Manage → Analyze" pattern
+   ========================================================================= */
+.step-ind {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.step-ind .step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.step-ind .step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-soft-2);
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--border-faint);
+  flex: 0 0 28px;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.step-ind .step.done .step-num { background: var(--success-bg); color: var(--success-ink); border-color: var(--success); }
+.step-ind .step.active .step-num { background: var(--grad-brand); color: #fff; border-color: transparent; box-shadow: var(--ring); }
+.step-ind .step-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.step-ind .step.done .step-label,
+.step-ind .step.active .step-label { color: var(--text-strong); }
+.step-ind .step-bar {
+  flex: 1;
+  height: 2px;
+  background: var(--border-faint);
+  border-radius: 2px;
+  margin: 0 10px;
+  min-width: 16px;
+}
+.step-ind .step-bar.done { background: var(--success); }
+
+/* =========================================================================
+   Reveal field (credential vault — Vobiz-style masked + reveal/copy + audit)
+   - Single-shot reveal: plaintext shown for 10s then auto-clears
+   - Audit badge: "Reveal audited · 2 min ago" with timestamp
+   - Rate-limited server-side (10/min via @limiter.limit on POST /reveal)
+   ========================================================================= */
+.reveal-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface-card);
+  font-family: var(--font-mono, ui-monospace);
+  font-size: 12.5px;
+  color: var(--text-body);
+  min-height: 44px;
+}
+.reveal-field .rf-mask {
+  flex: 1;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+}
+.reveal-field .rf-plain {
+  flex: 1;
+  color: var(--text-strong);
+  font-weight: 600;
+  background: var(--vault-revealed-bg);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vault-revealed);
+  word-break: break-all;
+}
+.reveal-field .rf-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm, 9px);
+  background: var(--bg-soft-2);
+  border: 1px solid var(--border-faint);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.reveal-field .rf-btn:hover { background: var(--indigo-50); color: var(--indigo-600); }
+.reveal-field .rf-btn.copied { background: var(--success-bg); color: var(--success-ink); border-color: var(--success); }
+
+.reveal-audit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-soft-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--border-faint);
+}
+.reveal-audit .audit-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex: 0 0 6px;
+}
+
+/* Vault status pill (per-credential status indicator) */
+.vault-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid;
+}
+.vault-pill.connected { background: var(--vault-connected-bg); color: var(--vault-connected); border-color: var(--vault-connected); }
+.vault-pill.stale     { background: var(--vault-stale-bg);     color: var(--vault-stale);     border-color: var(--vault-stale); }
+.vault-pill.error     { background: var(--vault-error-bg);     color: var(--vault-error);     border-color: var(--vault-error); }
+.vault-pill.pending   { background: var(--vault-pending-bg);   color: var(--vault-pending);   border-color: var(--vault-pending); }
+.vault-pill .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 6px; }
+
+/* =========================================================================
+   Provenance / audit strip (Archify pattern: "what data / when / why")
+   - Renders on every Dashboard 2 panel as footer
+   - Per-page override: include <footer class="provenance-strip">...</footer>
+     in each section, OR call prov.refresh(panel_id) from JS to re-render
+   ========================================================================= */
+.provenance-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  margin-top: 12px;
+  background: var(--bg-soft-2, #faf9ff);
+  border: 1px solid var(--border-faint, #f1eff8);
+  border-radius: var(--radius-md, 12px);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.provenance-strip .ps-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border-radius: 50%;
+  background: var(--grad-brand);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.provenance-strip .ps-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.provenance-strip .ps-meta b {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+.provenance-strip .ps-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border-faint);
+}
+
+/* =========================================================================
+   Launch Console button — the ONE place --neon-launch is used
+   - LaunchDarkly rule: never use second accent arbitrarily; this is THE spot
+   ========================================================================= */
+.btn-launch {
+  background: var(--neon-launch);
+  color: var(--neon-launch-ink);
+  border: none;
+  border-radius: var(--radius-md, 12px);
+  padding: 0 22px;
+  height: 48px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--neon-launch-glow);
+  transition: filter var(--dur-fast) ease, transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.btn-launch:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 0 30px rgba(212, 255, 46, .55); }
+.btn-launch:disabled { opacity: .55; cursor: not-allowed; }
+
+/* =========================================================================
+   Dark-mode overrides — token aliases only; no layout changes.
+   Pages link styles.css which already declares body.dark { } alias block.
+   We only need to re-alias the NEW tokens for dark parity.
+   ========================================================================= */
+body.dark {
+  --vault-revealed-bg: rgba(139, 92, 246, .16);
+  --neon-launch-glow: 0 0 24px rgba(212, 255, 46, .5);
+}
+
+/* =========================================================================
+   Responsive — these primitives inherit page-level media queries. Only add
+   here for primitive-internal behavior that MUST hold across all pages.
+   ========================================================================= */
+@media (max-width: 760px) {
+  .step-ind .step-bar { display: none; }
+  .step-ind .step { flex: 0 0 auto; }
+}

@@ -1,0 +1,82 @@
+# SUB-ADMIN PROMPT - Content Department
+# OpenClaw Admin Mode - Coordinates 150 AI content agents
+# Department: Content | Role Count: 150
+
+OPENCLAW_SUBADMIN=true
+DEPARTMENT=content
+AGENT_COUNT=150
+PRIMARY_MODEL="custom/claude-omni-marketing-content"
+
+# --- CONTENT KPIS ---
+CONTENT_KPIS={
+  "daily_articles_per_agent": 2,  # long-form articles per agent per day
+  "daily_social_posts_per_agent": 15,  # posts per agent per day
+  "daily_video_script_per_agent": 1,  # script per agent per day
+  "minimum_word_count_per_article": 800,
+  "engagement_rate_target": 0.12,
+  "plagiarism_check_threshold": 95  # percentage originality required
+}
+
+# --- TASK PRIORITIZATION ---
+TASK_PRIORITY={
+  "critical": ["viral_content_boost, trending_topic_coverage, time_sensitive_announcements"],
+  "high": ["core_blog_series, landing_page_copy, product_descriptions"],
+  "medium": ["content_repurposing, newsletter_edition, case_study_writing"],
+  "low": ["topic_research, outline_creation, formatting"]
+}
+
+# --- AUTOPilot RULES ---
+AUTO_CREATE_ARTICLES=YES
+AUTO_SCHEDULE_POSTS=YES
+AUTO_GENERATE_SOCIAL_THREADS=YES
+AUTO_REPURPOSE_CONTENT=YES
+
+# --- CONTENT QUALITY GUARDRAILS ---
+REQUIRE_FACT_CHECKING=YES
+MANDATORY_SOURCE_CITATION=YES
+MINIMUM_READABILITY_SCORE=70  # Flesch-Kincaid or similar
+CONSISTENT_BRAND_VOICE=["authoritative, helpful, customer-centric"]
+MAX_AI_DETECTION_SCORE=30  # percentage AI-generated content allowed
+
+# --- CONTENT FORMATS ---
+SUPPORTED_FORMATS=["article", "social_post", "video_script", "email", "case_study", "whitepaper"]
+PREFERRED_TOPICS=["industry_trends, how_to_guides, product_showcases, customer_stories"]
+
+# --- RATE LIMITS ---
+MAX_API_CALLS_PER_AGENT_PER_MIN=30
+MAX_TOKEN_USAGE_PER_AGENT=50000
+DAILY_CONTENT_PIECE_LIMIT=20  # per agent (combined across formats)
+
+# --- DAILY STANDUP (Content) ---
+STANDUP_TIME="10:30 IST"
+EOD_REVIEW_TIME="18:30 IST"
+DAILY_OUTPUT_TARGET=2  # articles OR equivalent in other formats per agent
+
+# --- BLOCKER ESCALATION ---
+BLOCKER_REPORT_TTL_HOURS=4
+ESCALATE_TO=["content_manager", "sub_admin", "master_admin"]
+UNBLOCK_AFTER_HOURS=8
+
+# --- TASK QUEUE SYSTEM ---
+CONTENT_QUEUE_SYSTEM=ON
+QUEUE_POLICY="FIFO with_topic_urgency_priority"
+AGENT_LOAD_BALANCE=YES
+MAX_CONCURRENT_PIECES_PER_AGENT=3
+
+# --- 7-DAY MILESTONE CONTENT FOCUS ---
+CONTENT_MILESTONES={
+  "day_1": {"focus": "audit_existing_content, setup_style_guide, research_key_topics"},
+  "day_2": {"focus": "launch_primary_content_series, create_ cornerstone_articles"},
+  "day_3": {"focus": "optimize_performance, repurpose_high_performers, expand_topics"},
+  "day_4": {"focus": "industry_trend_coverage, thought_leadership_pieces, guest_articles"},
+  "day_5": {"focus": "customer_story_collection, case_study_writing, success_stories"},
+  "day_6": {"focus": "final_optimization, high_performer_amplification, content_polish"},
+  "day_7": {"focus": "content_archive, evergreen_compilation, final_distribution"}
+}
+
+# --- INSTRUCTION ---
+# All 150 content agents: Execute worker prompt in parallel.
+# Pull from content task queue. Focus on engagement and originality.
+# Report EOD via content channel. Escalate blockers after 4 hours.
+
+# --- END OF CONTENT SUB-ADMIN PROMPT ---

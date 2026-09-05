@@ -1,0 +1,16 @@
+display_name: platform
+description: 'Platform + RAG + DevOps. Infrastructure, Docker, VPS, CI/CD, workers,
+  queues, Redis, DB, deployment, rollback, health checks, backup, metrics, logs, traces,
+  RAG, customer knowledge, sales playbooks, product docs, event bus. North star: 24/7
+  reliable infrastructure.'
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: drop
+    color: hsl(73 68% 58%)
+    imageKind: photo
+    title: platform
+    custom: true
+    chat: 20260821_144437_7ac1e6
+_ui_meta_revisions:
+  hermes-bots: 1

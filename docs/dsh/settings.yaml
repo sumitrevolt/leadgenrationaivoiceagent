@@ -1,0 +1,123 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+agent-default-model:
+  provider: omniroute
+  model: leadgen-coding-primary
+agent-presets:
+  default: cordis
+ui-theme:
+  preference: dark
+web:
+  host: 127.0.0.1
+  port: 3000
+llm-pi-ai:
+  providers:
+    omniroute:
+      displayName: OmniRoute (12 Combos - 1M Context)
+      api: openai-completions
+      baseURL: http://127.0.0.1:20128/v1
+      apiKeyEnv: OMNIROUTE_API_KEY
+      models:
+      - id: leadgen-coding-primary
+        name: "LeadsGen Combo 1 \u2014 Coding Primary"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-coding-fast
+        name: "LeadsGen Combo 2 \u2014 Coding Fast"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-repo-analysis
+        name: "LeadsGen Combo 3 \u2014 Repo Analysis"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-test-generation
+        name: "LeadsGen Combo 4 \u2014 Test Generation"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-agent-ops
+        name: "LeadsGen Combo 5 \u2014 Agent Ops"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-swara-live
+        name: "LeadsGen Combo 6 \u2014 Swara Live"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-marketing-content
+        name: "LeadsGen Combo 7 \u2014 Marketing Content"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-prospect-enrich
+        name: "LeadsGen Combo 8 \u2014 Prospect Enrich"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-outreach-email
+        name: "LeadsGen Combo 9 \u2014 Outreach Email"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-seo-keyword
+        name: "LeadsGen Combo 10 \u2014 SEO Keyword"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-governor-review
+        name: "LeadsGen Combo 11 \u2014 Governor Review"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-project-best
+        name: "LeadsGen Combo 12 \u2014 Project Best"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadgen-14th-combo
+        name: "LeadsGen Combo 13 \u2014 Free First (VPS)"
+        contextWindow: 1048576
+        maxTokens: 16384
+      - id: leadsgen-combo-14
+        name: "LeadsGen Combo 14 \u2014 General"
+        contextWindow: 1048576
+        maxTokens: 16384
+    gmicloud:
+      displayName: GMI Cloud
+      api: openai-completions
+      baseURL: https://api.gmicloud.ai/v1
+      apiKeyEnv: GMICLOUD_API_KEY
+      compat:
+        supportsDeveloperRole: false
+        maxTokensField: max_tokens
+      models:
+      - id: MiniMaxAI/MiniMax-M3
+        name: MiniMax-M3
+        contextWindow: 524288
+        maxTokens: 128000
+permission:
+  defaultPreset: safe-local-eval
+mcpServers:
+  leadgen_admin_harness:
+    command: C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.venv\Scripts\python.exe
+    args:
+    - C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\scripts\leadgen_admin_harness_mcp.py
+  buzz:
+    command: C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.venv\Scripts\python.exe
+    args:
+    - C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\scripts\buzz_mcp.py
+    env:
+      BUZZ_RELAY: https://leadsgenai.communities.buzz.xyz
+  puppeteer:
+    command: npx.cmd
+    args:
+    - -y
+    - '@modelcontextprotocol/server-puppeteer'
+  playwright:
+    command: npx.cmd
+    args:
+    - -y
+    - '@executeautomation/playwright-mcp-server'
+  filesystem:
+    command: npx.cmd
+    args:
+    - -y
+    - '@modelcontextprotocol/server-filesystem'
+    - C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent
+  graphify:
+    command: C:\Users\Ratanshila\AppData\Roaming\uv\tools\graphifyy\Scripts\graphify-mcp.exe
+    args:
+    - --graph
+    - C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\app\graphify-out\graph.json

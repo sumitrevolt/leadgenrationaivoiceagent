@@ -1,0 +1,58 @@
+## Style: topology
+
+### Intent
+
+Use for relationship-first views: dependency graphs, execution graphs, DAGs, service maps, and module relationship diagrams.
+
+### Layout Preferences
+
+- Root `Board` should usually use `layout: "column"`.
+- The primary child should usually be a single `Topology` element.
+- Keep topology node cards concise.
+- If there are many unrelated subgraphs, split them into separate groups instead of forcing one giant mesh.
+
+### Component Preferences
+
+- Relationship container: `Topology`.
+- Nodes: `Card` children inside `Topology`.
+- Node detail: `Badge`, `Text`, `List`, standalone `Tag`, or `TagList`, only when it improves graph readability.
+- Summary outside topology: at most one `StatCard`, `Text`, or `Callout`.
+- Metadata: `KeyValue` only for brief concrete string pairs.
+
+### Patterns
+
+#### Dependency Graph
+
+Use when: dependencies or relationships are the primary information.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `column`
+- Include one `Topology` element.
+- Put `Card` elements inside `Topology.children`.
+- Represent relationships only with `Topology.props.edges`.
+- Edge `source` and `target` must reference Card element ids.
+
+Validator notes:
+- `Topology` children must be `Card` elements.
+- `Topology.props.edges` must be a concrete array.
+- Do not generate `Topology.props.items`, `Topology.props.nodes`, or custom graph payloads.
+
+#### Grouped Relationship Map
+
+Use when: the graph has multiple clusters or an explanatory summary.
+
+Required shape:
+- Place a short `Text` or `Callout` before the topology only when it changes interpretation.
+- Use separate `Topology` elements or `Column` sections for unrelated clusters.
+- Keep each node card focused on name, status, and a small `TagList` only when multiple labels improve readability.
+
+Validator notes:
+- Avoid redundant edges when a simple chain explains the structure.
+- Do not use chart components inside topology nodes.
+
+### Avoid
+
+- Do not use topology for ordinary task browsing.
+- Do not generate non-Card topology children.
+- Do not generate custom graph schemas outside `Topology.props.edges`.

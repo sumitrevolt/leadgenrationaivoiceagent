@@ -1,0 +1,60 @@
+## Style: compact
+
+### Intent
+
+Use for dense summaries, quick scans, status digests, and lightweight progress boards.
+
+### Layout Preferences
+
+- Preferred root layouts: `list` or lightweight `column`.
+- Keep cards short and information-dense.
+- Use one supporting child component per card unless more detail is essential.
+- Avoid deep nesting and avoid splitting content into too many small groups.
+
+### Component Preferences
+
+- Primary cards: `Card`, `Text`, `Badge`, `Tag`, `TagList`, `Row`.
+- Lists: `List` for short static item lists.
+- Metadata: `KeyValue` with inline layout only when values are concrete strings.
+- Progress: `ProgressBar` only for meaningful 0-100 progress.
+- Avoid charts: `DonutChart`, `BarChart`, `LineChart`, `StackedBar`, and `Gauge`.
+- Avoid `CodeBlock`; use `Text` with `variant: "code"` for brief code/path labels.
+- Single status/action chips: use standalone `Tag` or `Badge`.
+- Multi-tag clusters: use `TagList`; do not wrap chips in `Row`.
+
+### Patterns
+
+#### Concise Digest
+
+Use when: the user asks for a short board, quick scan, or minimal status summary.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `list`
+- First child may be a summary `Card` or `ProgressBar` when meaningful.
+- Follow with compact `Card` elements using title, subtitle, and at most 1-2 child components.
+
+Validator notes:
+- `ProgressBar.value` must be a concrete number from 0 to 100.
+- Leaf components must not have children.
+
+#### Live Step Progress
+
+Use when: the board tracks active steps across tasks or sessions.
+
+Required shape:
+- Seed `spec.state.steps` from bootstrap task/session data.
+- Use one repeated `Card` with `repeat.statePath: "steps"`.
+- Include status with scalar `$item` bindings on `Text` or `Badge`.
+- Include an `ipc-event` subscription when data comes from task/session lifecycle.
+
+Validator notes:
+- `Badge.label` and `Badge.variant` may use scalar `$item` bindings.
+- Do not bind whole arrays to props that require concrete arrays.
+
+### Avoid
+
+- Do not use chart components in compact style.
+- Do not use `Accordion`; compact style is already dense.
+- Do not create card walls with many low-signal cards.
+- Do not include more than 2 child components inside most cards.

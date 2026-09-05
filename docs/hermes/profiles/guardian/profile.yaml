@@ -1,0 +1,17 @@
+display_name: guardian
+description: 'QA + Security + Compliance. Independent from FORGE. Owns QA, integration,
+  E2E, security, RBAC, tenant isolation, compliance, voice policy tests, DND, suppression,
+  idempotency, duplicate sends, rate limits, payment safety, regression, production
+  verification. Can veto production. Results: PASS / PASS_WITH_RISK / FAIL / BLOCKED.
+  North star: zero unsafe or regressive releases.'
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: triangle
+    color: hsl(287 68% 58%)
+    imageKind: photo
+    title: guardian
+    custom: true
+    chat: 20260821_122038_ce5335
+_ui_meta_revisions:
+  hermes-bots: 1

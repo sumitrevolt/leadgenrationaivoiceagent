@@ -1,0 +1,666 @@
+## Component Catalog
+
+> `Button` is currently unsupported. Interactive behavior MUST be implemented with `Tag.props.script`.
+>
+> ActionBar is a deprecated compatibility component. Old ActionBar payloads remain supported, but new templates MUST use `Tag.props.script` instead.
+
+**Universal props**: Every component accepts optional `style` (object, inline CSS overrides e.g. `{ "borderRadius": "0px" }`) and `className` (string, additional CSS class names). These are omitted from individual tables below for brevity.
+
+### Component Selection Quick Reference
+
+- Layout shell: `Board`, `Column`, `Row`, `Card`
+- Status and actions: `Badge`, `Tag` (`Tag.props.script` for navigation/browser actions), `TagList` for compact multi-tag clusters
+- Text and simple detail: `Text`, `List`, `KeyValue`, `Checklist`
+- Tables and records: `DataTable`
+- Metrics and charts: `StatCard`, `ProgressBar`, `BarChart`, `DonutChart`, `LineChart`, `StackedBar`, `Gauge`
+- Structure and relationships: `TabGroup`, `TabPanel`, `Timeline`, `Topology`, `Callout`, `Divider`
+- Media and embeds: `Image`, `Iframe`, `Link`, `CodeBlock`, `Quote`
+- Runtime refresh: `subscriptions` (`ipc-event`, `file-watch`, `bash-once`, `file-hash`)
+
+### 1. Board (container)
+The top-level board. Usually the root element.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| title | string | yes | Board heading |
+| layout | `"masonry"` \| `"column"` \| `"list"` | no | Default: `"masonry"` |
+| gap | `"none"` \| `"sm"` \| `"md"` \| `"lg"` | no | Gap between direct children. sm=8px, md=12px, lg=16px. Default when omitted: renderer uses md. |
+
+Can have `children` (typically Column, Card, or EmptyState).
+
+### 2. Column (container)
+Groups cards by category.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| title | string | no | Optional column heading. When omitted, Column renders only its children. |
+
+Can have `children` (typically Card, Row, Text, or other layout/content blocks).
+
+**Compatibility**: If `title` is provided, legacy header rendering remains supported.
+**Recommendation**: Prefer composing column headings explicitly with `Text` (`variant: "heading"`, `level: 4`) when building new templates.
+
+### 3. Row (container)
+Structured horizontal layout container for comparable columns.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| gap | number | no | Horizontal and vertical gap between children |
+| align | `"start"` \| `"center"` \| `"end"` \| `"stretch"` | no | Cross-axis alignment |
+| justify | `"start"` \| `"center"` \| `"end"` \| `"between"` \| `"around"` | no | Main-axis distribution |
+| widths | string[] | no | Optional child widths using percentages or `fr` units |
+| wrap | boolean | no | Allow children to wrap onto multiple lines |
+
+Can have `children` (typically Text, StatCard, compact cards, or other content that should share row width).
+
+Important:
+- Row auto-grids children into equal-width columns by default. This is good for structured summaries, metrics, or label/value regions.
+- Use Row for metric strips: 2-6 peer `StatCard` elements that summarize the same scope should usually be grouped in one Row so they render as a horizontal KPI band. Do not set `widths` for equal KPI cards.
+- **Do NOT use Row for free-floating Tag/Badge chip clusters.** Row stretches chips to equal columns and makes short tags look like long buttons.
+- For multiple short tags that should appear as a compact chip cluster, use `TagList`.
+- For a single action/status chip, use a standalone `Tag` or `Badge` in Card children, `Card.props.footer`, or `Card.props.headerExtra`.
+- Only set `widths` when you explicitly need unequal column proportions (e.g. `["1fr", "2fr"]`).
+
+Example — unequal text/detail columns:
+```json
+{ "type": "Row", "props": { "gap": 12, "align": "center", "widths": ["1fr", "2fr"] }, "children": ["summary-label", "summary-value"] }
+```
+
+Example — equal KPI metric strip:
+```json
+{ "type": "Row", "props": { "gap": 12 }, "children": ["stat-total", "stat-active", "stat-done"] }
+```
+
+### 4. Card (container)
+Represents a single item — a task, file, module, or work unit. Generic information card.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| id | string | no | Unique identifier |
+| title | string | no | Primary label |
+| status | `"todo"` \| `"in_progress"` \| `"done"` | no | Optional status indicator |
+| subtitle | string | no | Secondary label |
+| icon | string | no | Emoji character for visual anchor (e.g. "🔧", "📦", "🚀") |
+| footer | string \| children[] | no | Bottom area. A string renders muted footer text; a children array renders child components such as Tag or Text. |
+| headerExtra | children[] | no | Header right-side action/content area. Only rendered when `title` exists. |
+| gap | `"none"` \| `"sm"` \| `"md"` \| `"lg"` | no | Spacing between the card's child sections. Default: `"md"` |
+| padding | `"none"` \| `"sm"` \| `"md"` \| `"lg"` | no | Internal spacing preset. Default: `"md"` |
+
+Can have `children` (typically Badge, Tag, TagList, Text, List, ProgressBar, Row).
+
+`closable` and `taskId` are runtime-managed internal fields; do not generate them in `render.json`.
+
+### 5. Badge (leaf)
+Displays a colored indicator with a label.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| label | string | yes | Display text |
+| variant | `"info"` \| `"success"` \| `"warning"` \| `"error"` \| `"neutral"` | no | Color variant. Default: `"neutral"` |
+
+**No children allowed.**
+
+### 6. Tag (leaf)
+Displays a single text tag with border-only styling and optional interaction.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| label | string | yes | Display text |
+| script | PreviewTaskScript | no | Optional interaction payload |
+| description | string | no | Optional tooltip / assistive description |
+
+**Difference from Badge**: Tag has no colored dot and no tinted background — only border + muted text.
+
+`script` enables click / navigation behavior for tags. Supported script types are:
+- `navigate_session`
+- `navigate_project`
+- `browser`
+
+Example:
+```json
+{ "type": "Tag", "props": { "label": "frontend", "script": { "type": "browser", "description": "Open docs", "url": "https://example.com/docs" } } }
+```
+
+**No children allowed.**
+
+### 7. TagList (leaf)
+Displays multiple short tags as a compact chip cluster.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| tags | Array<string | { key: string, label: string, script?: PreviewTaskScript }> | yes | Short tag strings or interactive tag items |
+
+Use `TagList` when a card needs multiple short labels that should read as one wrapping chip cluster. Use standalone `Tag` for a single action, single status marker, or one-off navigation target.
+**Compatibility**: Legacy `TagList` payloads remain supported, including the older object item shape `{ key, label, script? }`.
+
+**No children allowed.**
+
+### PreviewTaskScript
+Interactive payload used by `Tag.props.script`.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| type | `"navigate_project"` \| `"navigate_session"` \| `"browser"` | yes | Script action type |
+| description | string | yes | Human-readable action description |
+| projectName | string | conditional | Required when `type = "navigate_project"` |
+| sessionId | string | conditional | Required when `type = "navigate_session"` |
+| url | string | conditional | Required when `type = "browser"` |
+
+Subtype requirements:
+- `navigate_project`: requires `projectName`
+- `navigate_session`: requires `sessionId`
+- `browser`: requires `url`
+
+Other PreviewTaskScript types are reserved for internal system use and must not be generated in `render.json`.
+
+Hard constraint:
+- For `navigate_session` and `navigate_project`, you MUST use real `sessionId` / `projectName` values provided by the input data JSON. Never invent or guess them.
+- If the input data JSON does not include session/project data, do NOT generate `navigate_session` or `navigate_project` scripts.
+
+**Deprecated compatibility note — ActionBar**: Old `ActionBar` payloads remain compatible, but new templates MUST NOT generate `ActionBar`. Use direct `Tag` elements with `script` in `Card.props.headerExtra`, `Card.props.footer`, or `Card.children` instead.
+
+### 8. Text (leaf)
+Displays a block of text content with configurable style.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| content | string | yes | The text to display |
+| variant | `"heading"` \| `"body"` \| `"caption"` \| `"code"` | no | Text style variant. Default: `"body"` |
+| level | `2` \| `3` \| `4` \| `5` | no | Heading level (H2-H5). Only used when variant is `"heading"`. Default: `4`. Renders the corresponding HTML tag. |
+| size | `"lg"` \| `"md"` \| `"sm"` \| `"xs"` | no | Font size override. Default varies by level (H2→lg, H3→md, H4→sm, H5→xs). |
+| weight | `"bold"` \| `"semibold"` \| `"medium"` | no | Font weight override. Default varies by level (H2→bold, H3-H5→semibold). |
+| divider | boolean | no | Show bottom border divider. Default varies by level (H3-H4→true, H2/H5→false). |
+
+**Heading defaults by level** (each can be overridden via size/weight/divider):
+- **H2**: lg / bold / no divider — section title
+- **H3**: md / semibold / divider — sub-section title
+- **H4**: sm / semibold / divider — small label (default)
+- **H5**: xs / semibold / no divider — overline, uppercase
+
+Note: H1 is not available — the outer container renders the page title.
+
+**No children allowed.**
+
+### 9. List (leaf)
+Displays a structured list of items.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| items | ListItem[] | yes | Array of list item objects |
+
+ListItem object shape:
+```
+{ \"label\": string, \"description\"?: string, \"status\"?: \"todo\" | \"in_progress\" | \"done\" }
+```
+
+`status` is an internal progress token, not a display label. Use only `"todo"`, `"in_progress"`, or `"done"`. For labels like "review", "blocked", "active", "failed", or "completed", omit `status` and put the visible text in `label` or `description`.
+
+**No children allowed.**
+
+### 10. EmptyState (leaf)
+Placeholder when there is no content.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| message | string | no | Custom empty message |
+| icon | `"task"` \| `"search"` \| `"filter"` | no | Icon variant |
+
+**No children allowed.**
+
+### 11. TabGroup (container)
+A tabbed container that switches between TabPanel children. Only one panel is visible at a time.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| defaultIndex | number | no | Index of the initially active tab. Default: 0 |
+
+**Children**: Must be `TabPanel` elements only.
+
+### 12. TabPanel (container)
+A panel within a TabGroup. Each TabPanel represents one tab page.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| label | string | yes | Text displayed on the tab button |
+
+**Children**: Any component (Card, Text, List, etc.).
+
+**TabGroup + TabPanel usage example:**
+```json
+{
+  "tab-group": {
+    "type": "TabGroup",
+    "props": {},
+    "children": ["panel-overview", "panel-details"]
+  },
+  "panel-overview": {
+    "type": "TabPanel",
+    "props": { "label": "Overview" },
+    "children": ["summary-text"]
+  },
+  "panel-details": {
+    "type": "TabPanel",
+    "props": { "label": "Details" },
+    "children": ["details-card"]
+  }
+}
+```
+
+### 13. ProgressBar (leaf)
+Displays progress toward completion.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| value | number | yes | Progress percentage, 0-100 |
+| label | string | no | Text displayed above the bar |
+| color | `"info"` \| `"success"` \| `"warning"` \| `"error"` \| `"neutral"` | no | Color variant. Default: `"info"` |
+| showValue | boolean | no | Show percentage text. Default: true |
+
+**No children allowed.**
+
+### 14. StatCard (leaf)
+Displays a key metric / KPI with value, label, and optional trend indicator.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| label | string | yes | Metric name (e.g. "Tasks Done") |
+| value | string | yes | Main metric value |
+| trend | string | no | Optional trend text (e.g. "+12%") |
+| variant | `"info"` \| `"success"` \| `"warning"` \| `"error"` \| `"neutral"` | no | Accent color. Default: `"neutral"` |
+
+**Trigger**: Use when the user asks for KPIs, key metrics, dashboard summary, or numeric overview. Only include StatCard when the context involves numeric metrics or KPIs.
+
+**No children allowed.**
+
+### 15. Callout (leaf)
+Displays an emphasized inline message block.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| content | string | yes | Message text |
+| variant | `"info"` \| `"success"` \| `"warning"` \| `"error"` | no | Visual emphasis. Default: `"info"` |
+
+**No children allowed.**
+
+**Do NOT** use Callout for regular descriptive text — use Text instead.
+
+### 16. Divider (leaf)
+Displays a horizontal rule separator.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| label | string | no | Optional centered label (e.g. "Details") |
+
+**No children allowed.**
+
+### 17. KeyValue (leaf)
+Displays aligned key-value rows.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| items | Array<{ key: string, value: string }> | yes | Key-value pairs |
+
+**No children allowed.**
+
+**Difference from List**: KeyValue has key-value alignment; List is single-label items.
+
+### 18. Link (leaf)
+Displays a navigable hyperlink.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| href | string | yes | URL or hash target |
+| text | string | no | Link display text |
+| target | string | no | Target attribute, e.g. `"_blank"` |
+
+**No children allowed.**
+
+### 19. Image (leaf)
+Displays an image.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| src | string | yes | Image URL |
+| alt | string | no | Alt text for accessibility |
+| width | number | no | Render width in pixels |
+| height | number | no | Render height in pixels |
+| objectFit | `"contain"` \| `"cover"` | no | Default: `"contain"` |
+| borderRadius | number | no | Corner radius in pixels |
+
+**No children allowed.**
+
+**Best practice**: Pair with a caption for context. Use objectFit `"cover"` for hero/banner images, `"contain"` (default) for diagrams/screenshots.
+
+### 20. Quote (leaf)
+Displays highlighted quotation text.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| content | string | yes | Quote text |
+| author | string | no | Attribution |
+
+**No children allowed.**
+
+### 21. Checklist (leaf)
+Displays a concise checklist.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| items | Array<{ label: string, checked?: boolean }> | yes | Checklist rows |
+
+**Best range**: 2-6 items. Content should be concise text.
+
+**No children allowed.**
+
+### 22. Topology (container)
+Displays Card children as a topology / dependency graph.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| edges | Edge[] | no | Canonical topology dependency edges using Card element keys as `source` / `target` |
+| nodeWidth | number | no | Fixed width for each topology card in px |
+| visible | boolean | no | Default: true |
+
+Important:
+- Put `Card` elements inside this component as its `children`.
+- Use `Topology.props.edges` to describe dependency edges. This is the only supported dependency format in generated output.
+- Do NOT generate an `items` prop for this component.
+- Do NOT generate custom nodes or graph payloads beyond `Topology.props.edges`.
+
+Edge object shape:
+```json
+{ "id": "auth->api", "source": "authCard", "target": "apiCard", "label": "optional", "variant": "default|dashed|bold", "animated": false }
+```
+
+Can have `children` (typically Card).
+
+### 23. DataTable (leaf)
+Displays tabular data with columns and rows.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| columns | Column[] | yes | Array of column definitions |
+| rows | Record<string, string \| number \| RichCell>[] | yes | Array of row data objects |
+| caption | string | no | Optional table caption |
+| compact | boolean | no | Use compact row height. Default: false |
+| columnWidth | Record<string, string> | no | Optional column width mapping keyed by column `key` |
+| emptyMessage | string | no | Message shown when `rows` is empty |
+
+Column object shape:
+```
+{ "key": string, "label": string, "align"?: "left" | "center" | "right" }
+```
+
+RichCell object shape:
+```
+{ "text": string, "variant"?: "success" | "warning" | "error" | "info" | "muted" }
+```
+
+**No children allowed.**
+
+### Chart Color Assignment
+
+Chart `color` fields are optional for multi-color charts. Prefer omitting them; `write-render.mjs` assigns stable unique `#RRGGBB` colors from variant-inspired ranges (info blue/cyan, success green/teal, warning amber/orange, error red/rose, neutral violet/slate) before validation. If a color is provided manually, use either a semantic token (`"info"`, `"success"`, `"warning"`, `"error"`, `"neutral"`) or `#RRGGBB`.
+
+### 24. BarChart (leaf)
+Displays a horizontal bar chart for comparing values.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| items | BarChartItem[] | yes | Array of data items |
+| title | string | no | Chart heading |
+| maxValue | number | no | Override auto-calculated max. Default: max of all values |
+| showValues | boolean | no | Show numeric values. Default: true |
+
+BarChartItem object shape:
+```
+{ "label": string, "value": number, "color"?: "info" | "success" | "warning" | "error" | "neutral" | "#RRGGBB" }
+```
+
+**No children allowed.**
+
+### 25. DonutChart (leaf)
+Displays a donut/ring chart for showing proportions.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| segments | DonutChartSegment[] | yes | Array of segments |
+| title | string | no | Chart heading |
+| size | number | no | Diameter in pixels. Default: 120 |
+| strokeWidth | number | no | Ring thickness in pixels. Default: 12 |
+| showLegend | boolean | no | Show legend beside the chart. Default: true |
+
+DonutChartSegment object shape:
+```
+{ "label": string, "value": number, "color"?: "info" | "success" | "warning" | "error" | "neutral" | "#RRGGBB" }
+```
+
+**No children allowed.**
+
+### 26. LineChart (leaf)
+Displays a line/trend chart for time-series or continuous data.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| series | LineChartSeries[] | yes | Array of data series |
+| labels | string[] | yes | X-axis labels. Length must match each series.data length. |
+| title | string | no | Chart heading |
+| showDots | boolean | no | Show data point dots. Default: true |
+| height | number | no | Chart height in pixels. Default: 120 |
+
+LineChartSeries object shape:
+```
+{ "label": string, "data": number[], "color"?: "info" | "success" | "warning" | "error" | "neutral" | "#RRGGBB" }
+```
+
+**No children allowed.**
+
+### 27. StackedBar (leaf)
+Displays a stacked horizontal bar chart for multi-dimensional composition comparison.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| categories | string[] | yes | Row category names |
+| series | StackedBarSeries[] | yes | Data series |
+| title | string | no | Chart heading |
+| showValues | boolean | no | Show total values. Default: true |
+| showLegend | boolean | no | Show series legend. Default: true |
+
+StackedBarSeries object shape:
+```
+{ "label": string, "values": number[], "color"?: "info" | "success" | "warning" | "error" | "neutral" | "#RRGGBB" }
+```
+
+**No children allowed.**
+
+### 28. Gauge (leaf)
+Displays a semi-circle gauge for target-vs-actual comparison.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| value | number | yes | Current value |
+| max | number | no | Maximum value. Default: 100 |
+| target | number | no | Target marker value |
+| label | string | no | Metric label |
+| color | `"info"` \| `"success"` \| `"warning"` \| `"error"` | no | Gauge color. Default: `"info"` |
+| size | number | no | Diameter in pixels. Default: 80 |
+
+**No children allowed.**
+
+### 29. Timeline (leaf)
+Displays a chronological sequence of events with status indicators and timestamps.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| events | TimelineEvent[] | yes | Array of event objects |
+
+TimelineEvent object shape:
+```
+{ "title": string, "description"?: string, "timestamp"?: string, "status"?: "todo" | "in_progress" | "done" }
+```
+
+**No children allowed.**
+
+### 30. CodeBlock (leaf)
+Displays a code snippet with optional title bar and language label.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| code | string | yes | Code content |
+| language | string | no | Language identifier (e.g. "bash", "typescript") |
+| title | string | no | Title bar text (e.g. file path) |
+
+**No children allowed.**
+
+### 31. Iframe (leaf)
+Embeds a preview of HTML content or a URL inside a sandboxed iframe.
+
+| Prop | Type | Required | Notes |
+|------|------|----------|-------|
+| src | string | yes | HTML content (starts with `<`) rendered via srcdoc, or a URL (`http://`, `https://`, `localhost`) loaded via src attribute |
+| height | number | no | Iframe height in pixels. Default: 400 |
+| title | string | no | Accessible title for the iframe |
+| device | `'mobile'` \| `'tablet'` | no | Wraps iframe in a device shell. mobile: 375×667, tablet: 768×1024. Omit for full-width. |
+
+**When to use**: user wants to view or preview a result — e.g. "show me the outcome", "let me see the page", "preview this". Use when the target is a browsable file (HTML, etc.), a localhost service URL, or inline HTML content that should be rendered visually rather than shown as code.
+**Device detection**: if the context involves a mobile app (Expo, React Native, mobile H5, etc.) or the user mentions mobile/phone keywords, set `device: "mobile"`. If the user mentions tablet/iPad keywords, set `device: "tablet"`. Otherwise omit `device` for full-width preview.
+**No children allowed.**
+
+### Canvas Configuration
+
+The optional `canvas` object customizes the board's visual appearance at a global level. It sits inside `spec`, sibling to `root` and `elements`.
+
+```json
+"spec": {
+  "root": "board",
+  "elements": { ... },
+  "canvas": {
+    "backgroundImage": "data:image/png;base64,iVBORw0KGgo...",
+    "fontColor": "#FFFFFF"
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| backgroundImage | string | no | Background image for the entire board. Accepts a base64 data URI (`data:image/<type>;base64,…`) or a remote URL (`https://…`). |
+| fontColor | string | no | Global font color override applied to all text in the board (e.g. `"#FFFFFF"`, `"rgba(255,255,255,0.9)"`). Use when the background image is dark and the default text color would be unreadable. |
+
+**When to use canvas:**
+- The user explicitly asks for a background image or themed board appearance.
+- The user provides a URL or says "use this image as background".
+- The user provides a base64 string to embed directly.
+
+**Example — board with dark background image:**
+
+```json
+{
+  "spec": {
+    "root": "board",
+    "elements": {
+      "board": {
+        "type": "Board",
+        "props": { "title": "Dark Theme Board", "layout": "masonry" },
+        "children": []
+      }
+    },
+    "canvas": {
+      "backgroundImage": "https://example.com/dark-bg.jpg",
+      "fontColor": "#FFFFFF"
+    }
+  }
+}
+```
+
+---
+
+## Hard Rules
+
+1. Output ONLY raw JSON — no markdown fences, no commentary, no explanation text.
+2. Use ONLY the component types listed in this catalog.
+3. `spec.root` must reference an existing key in `spec.elements`.
+4. Every string in any `children` array must reference an existing key in `spec.elements`.
+5. Leaf components MUST NOT have `children`.
+6. `TabGroup` children MUST be `TabPanel` only.
+7. All required props must be present and match their documented types.
+8. `version` must be `"1"`. `target` must be `"taskflow"`.
+9. Element ids should be descriptive kebab-case strings.
+10. `meta.generatedAt` must be ISO 8601 format.
+11. `meta.managerSessionId` and `meta.skillVersion` use caller-provided values as-is.
+12. `Topology` must use Card children plus optional `Topology.props.edges`; never generate `items`/`nodes` props.
+13. Do NOT generate `ActionBar` in new output — use direct `Tag` composition instead.
+14. `Image.src` must come from user input or subscription/state data — never fabricate URLs.
+15. `Link.href` must start with `http://`, `https://`, `mailto:`, `tel:`, or `#`.
+16. Status enum fields (`Card.status`, `List.items[].status`, `Timeline.events[].status`) must be `"todo"`, `"in_progress"`, or `"done"` only. Do not put display labels in status fields.
+17. Chart color fields (`BarChart.items[].color`, `DonutChart.segments[].color`, `LineChart.series[].color`, `StackedBar.series[].color`) are optional; prefer omitting them so `write-render.mjs` can assign stable unique `#RRGGBB` colors. If provided manually, use a semantic token or `#RRGGBB`.
+18. Every subscription entry must include a stable non-empty `id` string.
+
+---
+
+## Subscription Types
+
+Every subscription object must include:
+
+```json
+{ "id": "stable-non-empty-id", "type": "<subscription-type>", "config": {}, "action": { "type": "llm-update" } }
+```
+
+Use a short kebab-case `id` that describes the source, such as `"task-events"`, `"git-status"`, `"source-file-watch"`, or `"project-list-seed"`.
+
+| Type | Config Fields | Description |
+|------|---------------|-------------|
+| `bash-once` | `command` (required), `cwd` (optional) | Runs a command once at activation |
+| `file-watch` | `paths` (required, string[]), `debounceMs` (optional, default 1000) | Watches file paths for changes. Only use when the prompt or bootstrap data contains an explicit file path — never fabricate a path by guessing. If the board was bootstrapped from files, the snapshot should carry both content and source-path metadata so the same files can be watched legally. |
+| `file-hash` | `paths` (required, string[]) | Periodically hashes file contents. Same rule as file-watch: only use with explicit paths from the prompt or bootstrap data. If the board was bootstrapped from files, carry source-path metadata in the snapshot. |
+| `ipc-event` | `events` (required, string[]) | Listens to internal IPC events (e.g. task lifecycle) |
+
+### Action Types
+
+All subscriptions use `"action": { "type": "llm-update" }`. The `patch` type (static RFC 6902 patches) is reserved for system use and must not be generated.
+
+### Subscription Decision (by data source)
+
+**Step 1 — Classify the data source of every displayed element.**
+
+Ask: "Where does this content *really* come from at runtime?" Decision is based on the source, not on whether a `--data-file` snapshot was provided.
+
+| Category | Examples | Subscription requirement |
+|----------|----------|--------------------------|
+| **Must generate subscriptions** | task board, project/session overview, progress/status tracking, git/code status board, file-driven dashboard (logs, configs, reports), any board referencing task data regardless of how it was initially collected | `subscriptions` MUST be non-empty |
+| **May use `subscriptions: []`** | purely conceptual diagram or mock, static summary typed verbatim from the user's prompt, decorative topology with no real backing data, one-off visual explanation | `[]` is allowed |
+
+Any board that shows `verdent-manager` task / session / project data belongs to the first category **even if a bootstrap snapshot was already collected**. Task data is inherently dynamic and must be kept live via `ipc-event`.
+
+**Step 2 — Pick a type per source.**
+
+Preference order: `ipc-event` > `file-watch` > `bash-once` > `file-hash`.
+
+| Data comes from... | → Type |
+|---------------------|--------|
+| Internal lifecycle / task signals (session:created, session:completed, session:deleted, session:control) | `ipc-event` |
+| A file that needs real-time change detection | `file-watch` |
+| A command that seeds the board once on activation | `bash-once` |
+| A file where periodic content comparison is sufficient | `file-hash` |
+
+For task-related boards, `ipc-event` is mandatory; `bash-once` may be added to seed the initial list. All subscriptions use `"action": { "type": "llm-update" }`. Generate one subscription entry per distinct source.
+
+**Step 3 — Populate config fields using the Subscription Types table above.**
+
+### Command Safety Rules (bash-once)
+
+Allowed executables: `verdent-manager`, `git`, `cat`, `head`, `tail`, `ls`, `wc`, `grep`, `find`, `date`, `echo`, `pwd`, `jq`, `which`, `stat`
+Pipes allowed: every command in the pipeline must use an allowed executable.
+Path restriction: only reference paths within the project directory or verdent workspace. No absolute paths outside these directories. No `../` traversal out of allowed directories.
+
+Forbidden:
+- Output redirects: `>` `>>`
+- Subshells: `$()` or backticks
+- Process substitution: `<()` or `>()`
+- Here documents: `<<`
+- Background execution: trailing `&`
+- `find` with `-exec`, `-execdir`, `-delete`, or `-ok`
+- git write operations: `push`, `commit`, `reset`, `checkout`, `rebase`, `merge`, `clean`, `rm`, `mv`, `restore`, `switch`, `pull`, `fetch`, `clone`, `init`, `add`, `stash` (and any other non-read-only subcommand)
+
+git restriction: only read-only subcommands allowed (`status`, `log`, `diff`, `branch`, `show`, `rev-parse`, `tag`, `describe`, `shortlog`, `ls-files`, `ls-tree`, `cat-file`, `name-rev`, `for-each-ref`, `remote`, `config`, `blame`, `reflog`). Write operations are blocked.
+
+Use `cwd` in config to set working directory. Do not use `cd`.

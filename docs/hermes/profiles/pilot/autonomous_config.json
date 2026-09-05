@@ -1,0 +1,19 @@
+{
+  "autonomous_mode": true,
+  "council_decision_enabled": true,
+  "owner_question_blocked": true,
+  "self_healing": true,
+  "max_automation": true,
+  "continue_without_pause": true,
+  "retry_failed_tasks": true,
+  "monitor_revenue_gap": true,
+  "target_revenue": 500000,
+  "current_gap": 498001,
+  "conversion_needed_percent": 2.17,
+  "combo_type": "leadsgen",
+  "provider_tier": "free_tier",
+  "active_bots": 8,
+  "hierarchy": "OWNER (human) -> PILOT (Commander) -> specialist bots",
+  "last_updated": "2026-09-05",
+  "status": "autopilot_active"
+}

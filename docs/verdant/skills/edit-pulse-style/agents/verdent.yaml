@@ -1,0 +1,8 @@
+category: System
+min_client_version: '2.7.0'
+interface:
+  display_name: 'Edit Pulse Style'
+  short_description: 'Generate taskflow.render.json for taskflow visualization. Accepts a user prompt, produces a validated JSON spec from the component catalog, and writes it via the bundled script for automatic frontend rendering.'
+  default_prompt: 'Generate a taskflow visualization based on current task state.'
+  builtin: true
+  hidden: true

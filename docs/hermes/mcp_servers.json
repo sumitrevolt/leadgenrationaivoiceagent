@@ -1,0 +1,48 @@
+{
+  "mcpServers": {
+    "leadgen_admin_harness": {
+      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\leadgen_admin_harness_mcp.py"
+      ]
+    },
+    "buzz": {
+      "command": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\scripts\\buzz_mcp.py"
+      ],
+      "env": {
+        "BUZZ_RELAY": "https://leadsgenai.communities.buzz.xyz"
+      }
+    },
+    "puppeteer": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "playwright": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ]
+    },
+    "filesystem": {
+      "command": "npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+      ]
+    },
+    "graphify": {
+      "command": "C:\\Users\\Ratanshila\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\graphify-mcp.exe",
+      "args": [
+        "--graph",
+        "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent\\app\\graphify-out\\graph.json"
+      ]
+    }
+  }
+}

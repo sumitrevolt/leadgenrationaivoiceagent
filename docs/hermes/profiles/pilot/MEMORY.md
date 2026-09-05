@@ -1,0 +1,11 @@
+LeadGen AI: repo C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent; VPS root@72.61.245.204 (key C:/Users/Ratanshila/.ssh/id_rsa); site https://leadsgenai.in; ~45 containers; Celery queues celery/heavy/calling/scraping/reporting/sync/training/video/dsh; BOSS_FULL_AUTONOMY=1; app.models.base._SessionLocal (not SessionLocal).
+§
+OmniRoute: Runtime DB = /root/.omniroute/storage.sqlite (WSL Ubuntu-24.04, 27 combos). Local SQLite (repo/omniroute_storage_temp.sqlite) = STALE 5 combos. Gateway via wslrelay.exe:20128. 14 combos verified (12 prod + 2 legacy). 9 unique working models, 15 routes. 29+ free flagship claim = FALSE (0 free flagship).
+§
+Outage: 08-23 503=OMNIROUTE_MEMORY_MB 2048→4096; 08-24/25 VPS blip self-resolved. Buzz relay VPS :3110 (check_buzz.py probes 72.61.245.204:3110/_liveness). VOBIZ 08-26: creds VALID call-scoped (Call/ 200; Numbers/Trunks/Balance 401); 'Unauthorised'=307 misread, NOT stale. Mass carrier USER_BUSY (answer_time null, bill_dur 0) = caller-ID/DLT/trunk registration issue, operator-console fix. Webhook /vobiz/status 200; Caddy routes fine.
+§
+Swara voice routing (owner 08-23): leadgen.swara_live pins combo 'leadgen-swara-flagship' for test+live; fallback groq gpt-oss-120b (needs >=512 max_tokens); headroom fix free_ai.py chat(). Voice deploy gate: owner runs deploy_vps.sh then agent_tester re-score.
+§
+SIP: provider=sip + SIP_HOST/USERNAME/PASSWORD/DID wired. Owner NO GST; B2B=TCCCPR-exempt NO DLT-140. India 'unlimited' SIP=FUP ~3000-3600 min/ch/mo (NOT infinite); user target 5000c/day, per-min REJECTED (costly) → needs ~42ch @5min, 10ch≈1200-3000/day @2-5min, rec Jio 30ch ₹999/mo. Jio via Call Soft (wa.me/917599967999, GST 09BWSPS2260P1ZI): ₹499/10ch ₹999/30ch unlimited dom, no own GSTIN; order+followup sent WA 08-26. RMS Tech backup (Rajnikant 080-47652298). Vilpower PE done PAN BONPD6321P Sole-prop Nagpur LeadGen AI Solutions.
+§
+OmniRoute: 14 leadgen combos, 12 email keys, 15 providers, 178 models, all routing OK. VPS: 27 leads, 10 clients, 8 campaigns. Billing: ₹1,15,00,000 PAID + ₹23,00,000 INVOICED.

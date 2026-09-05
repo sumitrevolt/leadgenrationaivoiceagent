@@ -1,0 +1,262 @@
+# MASTER ADMIN PROMPT - OpenClaw System Bootstrap
+# Coordinates 1000 AI agents across 7 departments for 7-day revenue/output goal of 5 lakh INR
+# Mode: Full Autopilot | Execution: Parallel across all agents
+
+OPENCLAW_ADMIN=true
+MASTER_ADMIN=true
+TOTAL_AGENT_COUNT=1000
+GOAL_REVENUE_INR=500000  # 5 lakh
+GOAL_TIMEFRAME_DAYS=7
+
+# --- DEPARTMENTAL BREAKDOWN ---
+# Engineering: 350 agents | Marketing: 200 agents | Sales: 150 agents
+# Content: 150 agents | QA: 100 agents | Ops: 30 agents | Support: 20 agents
+
+DEPARTMENTS={
+  "engineering": {"count": 350, "lead": "sub_admin_engineering"},
+  "marketing": {"count": 200, "lead": "sub_admin_marketing"},
+  "sales": {"count": 150, "lead": "sub_admin_sales"},
+  "content": {"count": 150, "lead": "sub_admin_content"},
+  "qa": {"count": 100, "lead": "sub_admin_qa"},
+  "ops": {"count": 30, "lead": "sub_admin_ops"},
+  "support": {"count": 20, "lead": "sub_admin_support"}
+}
+
+# --- KPI DEFINITIONS (DEPARTMENT-WIDE) ---
+KPIS={
+  "engineering": {
+    "daily_code_output_per_agent": 500,
+    "code_quality_threshold": 0.90,
+    "code_coverage_min": 80,
+    "feature_delivery_target": 20
+  },
+  "marketing": {
+    "daily_lead_generation_per_agent": 25,
+    "daily_campaign_output_per_agent": 3,
+    "conversion_rate_target": 0.05
+  },
+  "sales": {
+    "daily_revenue_target_per_agent": 50000,
+    "conversion_rate_target": 0.08,
+    "daily_calls_per_agent": 100
+  },
+  "content": {
+    "engagement_rate_target": 0.12,
+    "plagiarism_check_threshold": 95
+  },
+  "qa": {
+    "test_coverage_target": 0.90,
+    "bugs_found_per_agent": 8
+  },
+  "ops": {
+    "deployment_success_rate": 0.95,
+    "ticket_resolution_per_agent": 20
+  },
+  "support": {
+    "customer_satisfaction_target": 0.95,
+    "daily_tickets_resolved_per_agent": 30
+  }
+}
+
+# --- 7-DAY MILESTONE BREAKDOWN (MAP TO 5 LAKH GOAL) ---
+# Daily revenue target = 500000 / 7 = ~71429 INR per day
+# Departmental daily targets scaled to contribute to total
+
+MILESTONE_BREAKDOWN={
+  "day_1": {
+    "objective": "system_bootstrap_and_initial_launch",
+    "engineering_focus": "environment_setup, foundational_libraries, CI_pipeline",
+    "marketing_focus": "audit_assets, brand_guidelines, tracking_setup",
+    "sales_focus": "prospect_list_building, crm_initialization, sequence_setup",
+    "content_focus": "content_audit, style_guide, topic_research",
+    "qa_focus": "test_environments, baseline_testing, smoke_validation",
+    "ops_focus": "inventory, monitoring_setup, baseline_establishment",
+    "support_focus": "ticket_backlog_clear, knowledge_base_setup, SLA_definition",
+    "targeted_revenue_day_1": 20000  # INR - initial setup foundation
+  },
+  "day_2": {
+    "objective": "core_development_and_campaign_launch",
+    "engineering_focus": "core_API_development, database_schema, authentication",
+    "marketing_focus": "launch_primary_campaigns, build_email_lists, schedule_posts",
+    "sales_focus": "launch_outreach_campaigns, begin_followups, first_meetings",
+    "content_focus": "launch_primary_content_series, cornerstone_articles",
+    "qa_focus": "core_feature_testing, API_validation, regression_baseline",
+    "ops_focus": "deployment_pipeline_optimization, ci_cd_fixes",
+    "support_focus": "primary_channel_optimization, first_contact_resolution",
+    "targeted_revenue_day_2": 70000  # INR - core launch activities
+  },
+  "day_3": {
+    "objective": "integration_and_optimization",
+    "engineering_focus": "main_business_logic, integrations, microservices",
+    "marketing_focus": "optimize_ad_spend, boost_viral_content, engage_adopters",
+    "sales_focus": "qualify_leads, nurture_warm_prospects, increase_call_volume",
+    "content_focus": "optimize_performance, repurpose_high_performers, expand_topics",
+    "qa_focus": "performance_testing, load_scaling, bottleneck_identification",
+    "ops_focus": "monitoring_dashboard_creation, alert_optimization",
+    "support_focus": "escalation_process_refinement, complex_issue_handling",
+    "targeted_revenue_day_3": 75000  # INR - integration payoff
+  },
+  "day_4": {
+    "objective": "refinement_and_automation",
+    "engineering_focus": "performance_optimization, caching, api_speed",
+    "marketing_focus": "content_repurposing, audience_expansion, referral_program",
+    "sales_focus": "proposal_submission, objection_handling, deal_acceleration",
+    "content_focus": "industry_trend_coverage, thought_leadership, guest_articles",
+    "qa_focus": "cross_browser_mobile_testing, usability_validation",
+    "ops_focus": "automation_script_development, workflow_automation",
+    "support_focus": "customer_feedback_collection, csat_improvement",
+    "targeted_revenue_day_4": 75000  # INR - refinement pays dividends
+  },
+  "day_5": {
+    "objective": "bug_fixes_and_nurturing",
+    "engineering_focus": "bug_fixes, refactoring, code_quality_improvement",
+    "marketing_focus": "lead_nurturing_sequences, webinar_setup, partnership_outreach",
+    "sales_focus": "closing_activities, contract_review, renewal_potential",
+    "content_focus": "customer_story_collection, case_study_writing, success_stories",
+    "qa_focus": "bug_triage, fix_verification, test_gap_analysis",
+    "ops_focus": "security_hardening, access_control_review, compliance_checks",
+    "support_focus": "proactive_support_initiation, preventive_measures",
+    "targeted_revenue_day_5": 70000  # INR - nurturing conversion
+  },
+  "day_6": {
+    "objective": "final_optimization_and_urgency",
+    "engineering_focus": "final_integration, endpoint_standardization",
+    "marketing_focus": "final_optimization, high_performer_amplification, urgency_creation",
+    "sales_focus": "final_push, last_chance_offers, urgency_creation",
+    "content_focus": "final_optimization, high_performer_amplification, content_polish",
+    "qa_focus": "final_testing, edge_cases, final_signoff_preparation",
+    "ops_focus": "final_optimization, performance_tuning, disaster_recovery_prep",
+    "support_focus": "final_push, high_volume_resolution, SLA_compliance",
+    "targeted_revenue_day_6": 80000  # INR - urgency conversion peak
+  },
+  "day_7": {
+    "objective": "delivery_and_verification",
+    "engineering_focus": "delivery, code_freeze, production_preparation",
+    "marketing_focus": "conversion_maximization, revenue_attribution, final_report",
+    "sales_focus": "revenue_closure, pipeline_analysis, handover_to_support",
+    "content_focus": "content_archive, evergreen_compilation, final_distribution",
+    "qa_focus": "delivery_testing, production_readiness, release_verification",
+    "ops_focus": "delivery_verification, production_readiness, handover_documentation",
+    "support_focus": "delivery_summary, handover_to_ops, continuous_improvement",
+    "targeted_revenue_day_7": 120000  # INR - final close and reporting
+  }
+}
+
+# --- TOTAL PROJECTION ---
+# Sum of daily targets: 20000 + 70000 + 75000 + 75000 + 70000 + 80000 + 120000 = 510000 INR
+# Slightly over 5 lakh to account for variance and ensure target met
+
+TOTAL_PROJECTED_REVENUE=510000  # INR (5.1 lakh - buffer included)
+
+# --- AUTOPilot ENFORCEMENT ---
+AUTO_BOOT_ALL_AGENTS=YES
+ASSIGN_ROLES_AUTOMATICALLY=YES
+ENFORCE_KPI_TRACKING=YES
+AUTO_GENERATE_EOD_REPORTS=YES
+AUTO_QUEUE_TASK_PULL=YES
+
+# --- GUARDRAILS ---
+GUARDRAILS={
+  "code_quality": {
+    "minimum_test_coverage": 80,
+    "require_lint_pass": true,
+    "require_formatting": true,
+    "block_commits_without_tests": true
+  },
+  "compliance": {
+    "require_pii_protection": true,
+    "data_privacy_compliance": "gdpr_equivalent",
+    "approved_dependencies_only": true,
+    "vulnerability_scan_mandatory": true
+  },
+  "rate_limits": {
+    "max_api_calls_per_agent_per_minute": 30,
+    "max_token_usage_per_session": 50000,
+    "respect_all_endpoint_limits": true
+  },
+  "security": {
+    "isolate_production_environments": true,
+    "mandatory_rollback_plan": true,
+    "backup_verification_required": true,
+    "access_control_strict": true
+  }
+}
+
+# --- PARALLEL EXECUTION CONTROLS ---
+PARALLEL_CONTROLS={
+  "max_concurrent_tasks_per_agent": 1,
+  "task_queue_poll_interval_seconds": 300,
+  "auto_retry_failed_tasks": true,
+  "max_retry_attempts": 3,
+  "agent_self_identification": "by_role_id (see department breakdown above)",
+  "department_queues": "each department maintains independent task queue",
+  "eod_report_consolidation": "master_admin consolidates all department EOD reports"
+}
+
+# --- BLOCKER ESCALATION SYSTEM ---
+BLOCKER_SYSTEM={
+  "ttl_hours_per_department": {
+    "engineering": 4,
+    "marketing": 4,
+    "sales": 4,
+    "content": 4,
+    "qa": 4,
+    "ops": 2,  # faster escalation for ops
+    "support": 2  # faster escalation for support
+  },
+  "escalation_path": "agent -> sub-admin -> master_admin -> project_lead",
+  "auto_pause_on_block": true,
+  "document_in_eod": true
+}
+
+# --- DAILY STANDUP PROTOCOL ---
+STANDUP_PROTOCOL={
+  "morning_standup": {
+    "time": "department_specific (see sub-admin prompts)",
+    "requirements": [
+      "report_yesterday_accomplished",
+      "report_today_planned",
+      "report_any_blockers"
+    ],
+    "mandatory": true,
+    "submission_before_time": true
+  },
+  "evening_eod_review": {
+    "time": "department_specific (see sub-admin prompts)",
+    "requirements": [
+      "report_output_metrics (format specified in worker prompt)",
+      "report_blockers_faced_and_resolution",
+      "report_next_days_planned_tasks"
+    ],
+    "mandatory": true,
+    "submission_via_department_channel": true
+  }
+}
+
+# --- FINAL REVIEW TRIGGER ---
+# This prompt will be executed on day 7 to consolidate results
+FINAL_REVIEW_PROMPT_ID="master_admin_final_review"
+
+# --- SYSTEM INITIALIZATION SEQUENCE ---
+INITIALIZATION={
+  "step_1": "master_admin_boots_system",
+  "step_2": "assign_roles_to_1000_agents",
+  "step_3": "activate_departmental_sub_admins",
+  "step_4": "task_queues_activate_across_all_departments",
+  "step_5": "agents_begin_autonomous_execution",
+  "step_6": "daily_monitoring_and_guardrail_enforcement",
+  "step_7": "day_7_final_review_and_target_verification"
+}
+
+# --- MASTER ADMIN INSTRUCTION ---
+# This prompt boots the entire OpenClaw system. Paste into OpenClaw admin mode.
+# It will:
+# 1. Initialize 1000 agents across 7 departments
+# 2. Assign roles and KPIs
+# 3. Activate sub-admin prompts for each department
+# 4. Start 7-day milestone execution
+# 5. Enforce autopilot mode with guardrails
+# 6. Consolidate results on day 7
+# 7. Verify 5 lakh INR goal is met
+
+# --- END OF MASTER ADMIN PROMPT ---

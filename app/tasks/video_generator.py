@@ -76,7 +76,7 @@ CLIENT_TEMPLATES = {
 
 async def generate_daily_videos():
     """Generate videos for own brand + active clients.
-    
+
     Returns dict with video paths for posting.
     """
     from app.marketing.video_pipeline import render_creative_video

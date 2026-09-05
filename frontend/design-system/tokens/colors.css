@@ -73,4 +73,25 @@
 
   --accent-soft-bg: var(--indigo-50);
   --accent-soft-ink: var(--indigo-600);
+
+  /* ---- Launch Console accent (LaunchDarkly rule: NEVER use as a second
+         brand accent — reserved for .btn-launch only) ---- */
+  --neon-launch: #d4ff2e;
+  --neon-launch-ink: #1a1d04;
+  --neon-launch-glow: 0 0 24px rgba(212, 255, 46, .35);
+
+  /* ---- Marketing launch lifecycle (Prep → InProgress → Review → Launch → PostLaunch) ---- */
+  --stage-prep: #6366f1;          --stage-prep-bg: #eef0ff;
+  --stage-inprogress: #0ea5e9;    --stage-inprogress-bg: #e0f2fe;
+  --stage-review: #f59e0b;        --stage-review-bg: #fffbeb;
+  --stage-launch: #16a34a;        --stage-launch-bg: #dcfce7;
+  --stage-postlaunch: #8b5cf6;    --stage-postlaunch-bg: #ede9fe;
+  --stage-stale: #b91c1c;         --stage-stale-bg: #fef2f2;     /* days-in-stage > 7 */
+
+  /* ---- Vault credential states (social-credential + launch-credential vaults) ---- */
+  --vault-connected: #16a34a;     --vault-connected-bg: #dcfce7;
+  --vault-stale: #d97706;         --vault-stale-bg: #fef3c7;
+  --vault-error: #b91c1c;         --vault-error-bg: #fef2f2;
+  --vault-pending: #6366f1;       --vault-pending-bg: #eef0ff;
+  --vault-revealed: #8b5cf6;      --vault-revealed-bg: #ede9fe;  /* currently displayed plaintext */
 }

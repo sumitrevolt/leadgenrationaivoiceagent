@@ -1,0 +1,64 @@
+{
+  "omniroute": {
+    "gatewayUrl": "http://127.0.0.1:18789",
+    "authToken": "2KB50FH46ltVD04w7XLWFjbVpA0WTvHeSuCQjuYz",
+    "providerPool": "42_free_flagship",
+    "comboCount": 14,
+    "emailCount": 14,
+    "providerAssignment": {
+      "chinese": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+      "international": [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
+    },
+    "comboRoles": {
+      "leadgen-coding-primary": ["DeepSeek-V4-Pro", "Qwen3.7-Max", "GLM-5.2", "Doubao-Seed-2.0-Pro", "TeleChat3"],
+      "leadgen-coding-fast": ["DeepSeek-V4-Flash", "Spark-X2", "TeleChat3", "MoMA-300B", "Nemotron-3-Super-120B"],
+      "leadgen-agent-ops": ["GLM-5.2", "Qwen3.7-Max", "Nemotron-3-Super-120B", "Llama-3.3-70B", "Command-R+"],
+      "leadgen-governor-review": ["Doubao-Seed-2.0-Pro", "LongCat-2.0", "ERNIE-5.1", "Hunyuan-Hy3", "SenseNova-6.7-Flash"],
+      "leadgen-repo-analysis": ["GLM-5.2", "Qwen3.7-Max", "ERNIE-5.1", "TeleChat3", "Nemotron-3-Super-120B"],
+      "leadgen-test-generation": ["DeepSeek-V4-Flash", "Qwen3.7-Max", "Doubao-Seed-2.0-Pro", "Nemotron-3-Super-120B", "Llama-3.3-70B"],
+      "leadgen-prospect-enrich": ["Spark-X2", "TeleChat3", "MoMA-300B", "Hunyuan-Hy3", "GPT-4o"],
+      "leadgen-outreach-email": ["Doubao-Seed-2.0-Pro", "LongCat-2.0", "Yi-Lightning", "Nemotron-3-Super-120B", "Gemini-3.5-Flash"],
+      "leadgen-marketing-content": ["Qwen3.7-Max", "GLM-5.2", "Doubao-Seed-2.0-Pro", "Llama-3.3-70B", "Command-R+"],
+      "leadgen-seo-keyword": ["TeleChat3", "ERNIE-5.1", "Hunyuan-Hy3", "MoMA-300B", "SenseNova-6.7-Flash"],
+      "leadgen-swara-live": ["DeepSeek-V4-Flash", "Spark-X2", "TeleChat3", "Doubao-Seed-2.0-Pro", "Llama-3.3-70B"],
+      "leadgen-free-first": ["All 42 providers in rotating order"]
+    },
+    "emailComboAssignment": {
+      "email_1": ["leadgen-coding-primary", "leadgen-coding-fast"],
+      "email_2": ["leadgen-agent-ops", "leadgen-governor-review"],
+      "email_3": ["leadgen-repo-analysis", "leadgen-test-generation"],
+      "email_4": ["leadgen-prospect-enrich", "leadgen-outreach-email"],
+      "email_5": ["leadgen-marketing-content", "leadgen-seo-keyword"],
+      "email_6": ["leadgen-swara-live", "leadgen-free-first"],
+      "email_7": ["leadgen-coding-primary", "leadgen-agent-ops"],
+      "email_8": ["leadgen-coding-fast", "leadgen-governor-review"],
+      "email_9": ["leadgen-repo-analysis", "leadgen-test-generation"],
+      "email_10": ["leadgen-prospect-enrich", "leadgen-outreach-email"],
+      "email_11": ["leadgen-marketing-content", "leadgen-seo-keyword"],
+      "email_12": ["leadgen-swara-live", "leadgen-free-first"],
+      "email_13": ["leadgen-coding-primary", "leadgen-repo-analysis"],
+      "email_14": ["leadgen-coding-fast", "leadgen-governor-review"]
+    },
+    "complianceGates": {
+      "DNDFailClosed": true,
+      "TRAIWindow9am7pmIST": true,
+      "DLTApproved": true,
+      "AIDisclosureAtCallStart": true,
+      "ConsentLedgerOptOut": true,
+      "CallingWindow": "9am-7pm IST"
+    },
+    "rateLimits": {
+      "perProviderPerDay": "free_tier_default",
+      "circuitBreaker": "60s_30min_escalation",
+      "maxRetries": 3
+    },
+    "ownerVisibility": {
+      "guiEnabled": true,
+      "mouseTracking": true,
+      "providerStatusRealTime": true,
+      "routingLogsVisible": true,
+      "failoverEventsVisible": true,
+      "dashboardPort": 18789
+    }
+  }
+}

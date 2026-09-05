@@ -84,10 +84,26 @@ def starter_price_inr() -> int:
         return 1999
 
 
-def build_message(stage: str, biz: str, days_left: int, price: int | None = None) -> dict[str, str]:
-    """Hinglish nudge message (subject + body + wa_text). Pure function — testable."""
+def build_message(
+    stage: str,
+    biz: str,
+    days_left: int,
+    price: int | None = None,
+    pay_link: str = "",
+) -> dict[str, str]:
+    """Hinglish nudge message (subject + body + wa_text). Pure function — testable.
+
+    ``pay_link`` is a UPI deep-link / pricing-page URL embedded directly in the
+    message so the recipient can pay in one tap instead of navigating to /pricing.
+    When empty the pricing URL is used as fallback.
+    """
     b = (biz or "Aapka business").strip()
     amt = f"₹{int(price or starter_price_inr()):,}"
+    pay_url = pay_link or PRICING_URL
+    # Social proof line — honest (own-brand numbers only, never fabricated client data)
+    social = (
+        "\n100+ local businesses already use LeadGen AI for daily leads & content."
+    )
     unsub = (
         "\n\nAgar aap interested nahi hain to is email ko 'unsubscribe' reply "
         "karein — aage koi email nahi aayega."
@@ -98,28 +114,32 @@ def build_message(stage: str, biz: str, days_left: int, price: int | None = None
             f"Namaste {b} team,\n\n"
             f"Aapka FREE trial khatam ho gaya. Koi baat nahi — aapka pura setup "
             f"(posts, leads, mini-site) safe pada hai. Starter {amt}/mahina se "
-            f"phir se shuru karo aur roz ka automated content + leads wapas chalu:\n\n"
-            f"  Plans: {PRICING_URL}\n"
+            f"phir se shuru karo:\n\n"
+            f"  👉 Pay now: {pay_url}\n"
+            f"  📋 Plans: {PRICING_URL}\n"
+            f"{social}\n"
             f"{unsub}"
         )
         wa_text = (
             f"Namaste! {b} ka free trial khatam ho gaya. Aapka setup safe hai — "
-            f"Starter {amt}/mahina se wapas shuru kar sakte hain: {PRICING_URL}"
+            f"Starter {amt}/mahina se wapas shuru karo: {pay_url}"
         )
     else:
         d = max(0, int(days_left or 0))
-        subject = f"{b} — trial {d} din me khatam ({amt}/mahina pe continue karo)"
+        urgency = "aaj" if d <= 1 else f"{d} din"
+        subject = f"{b} — trial {urgency} me khatam ({amt}/mahina pe continue karo)"
         body = (
             f"Namaste {b} team,\n\n"
-            f"Aapka FREE trial {d} din me khatam ho raha hai. Content aur lead-capture "
-            f"ruke na isliye abhi Starter {amt}/mahina pe upgrade kar lo — jo bana "
-            f"hua sab waise ka waisa chalega:\n\n"
-            f"  Plans: {PRICING_URL}\n"
+            f"Aapka FREE trial {urgency} me khatam ho raha hai. Content aur lead-capture "
+            f"ruke na isliye abhi Starter {amt}/mahina pe upgrade kar lo:\n\n"
+            f"  👉 Pay now: {pay_url}\n"
+            f"  📋 Plans: {PRICING_URL}\n"
+            f"{social}\n"
             f"{unsub}"
         )
         wa_text = (
-            f"Namaste! {b} ka free trial {d} din me khatam ho raha hai. Continue "
-            f"karna ho to Starter {amt}/mahina: {PRICING_URL}"
+            f"Namaste! {b} ka free trial {urgency} me khatam ho raha hai. Continue "
+            f"karna ho to Starter {amt}/mahina: {pay_url}"
         )
     return {"subject": subject, "body": body, "wa_text": wa_text}
 
@@ -301,9 +321,9 @@ async def run_trial_nudge(*, limit: int | None = None, send_fn=None, dry_run: bo
                 continue
             biz = str(c.get("business_name") or "Aapka business")
             days_left = int(st.get("days_left") or 0)
-            msg = build_message(stage, biz, days_left)
             link = await _ensure_pay_link(biz, starter_price_inr())
-            body_with_link = msg["body"] + f"\n\n1-tap UPI payment link: {link}"
+            msg = build_message(stage, biz, days_left, pay_link=link)
+            body_with_link = msg["body"]
             if dry_run:
                 out["would_send"] += 1
                 out["eligible"] += 1

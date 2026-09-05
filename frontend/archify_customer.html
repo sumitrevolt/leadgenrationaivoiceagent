@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Configuration · Archify Console</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="archify-design-system.css">
+  <link rel="stylesheet" href="archify-layout.css">
+  <style>
+    /* Page-level custom bits */
+    .section-title {
+      display: flex; align-items: center; gap: var(--s-sm);
+      font-size: var(--t-label); font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin: var(--s-xl) 0 var(--s-md);
+    }
+    .section-title:not(:first-child) { margin-top: var(--s-page); }
+    .integration-card {
+      display: flex; flex-direction: column; gap: var(--s-md);
+      padding: var(--s-lg);
+      background: var(--mask); border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      transition: border-color 150ms ease;
+    }
+    .integration-card.connected { border-color: rgba(52, 211, 153, 0.4); }
+    .integration-card .ic-head {
+      display: flex; align-items: center; gap: var(--s-sm);
+    }
+    .integration-card .ic-icon {
+      width: 32px; height: 32px;
+      border-radius: var(--r-control);
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--canvas); border: 1px solid var(--border-strong);
+      flex-shrink: 0;
+    }
+    .integration-card .ic-name {
+      font-size: var(--t-body); font-weight: 600;
+      display: flex; align-items: center; gap: var(--s-xs);
+    }
+    .integration-card .ic-handle { font-size: var(--t-label); color: var(--muted); }
+    .integration-card .ic-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: var(--t-label); color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .integration-card .ic-actions { display: flex; gap: var(--s-sm); }
+    .template-card {
+      display: flex; flex-direction: column; gap: var(--s-md);
+      padding: var(--s-lg);
+      background: var(--mask);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+    .template-card:hover { border-color: var(--frontend); }
+    .template-card.active { border-color: var(--frontend); background: rgba(34, 211, 238, 0.06); }
+    .template-card .t-meta {
+      display: flex; align-items: center; gap: var(--s-sm); flex-wrap: wrap;
+    }
+    .template-card .t-stat {
+      font-size: var(--t-label);
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .template-card .t-stat b { color: var(--ink); font-weight: 700; }
+    .knowledge-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 90px 120px 130px 110px;
+      gap: var(--s-md);
+      align-items: center;
+      padding: var(--s-md) var(--s-lg);
+      border-bottom: 1px solid var(--border);
+      font-size: var(--t-body);
+    }
+    .knowledge-row:last-child { border-bottom: 0; }
+    .knowledge-row .kd-name { font-weight: 500; }
+    .knowledge-row .kd-name small { display: block; color: var(--muted); font-size: var(--t-label); margin-top: 2px; }
+    .icon-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted);
+      width: 2rem; height: 2rem;
+      border-radius: var(--r-control);
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+    .icon-btn:hover { color: var(--ink); border-color: var(--border-strong); }
+    .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+    /* Big editor overlay */
+    .editor-card {
+      display: grid; grid-template-columns: 280px 1fr; gap: var(--s-lg);
+      min-height: 480px;
+    }
+    .editor-card .palette {
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-md);
+    }
+    .editor-card .palette-title {
+      font-size: var(--t-label); font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: var(--s-sm);
+    }
+    .palette-item {
+      display: flex; align-items: center; gap: var(--s-sm);
+      padding: var(--s-sm);
+      border-radius: var(--r-control);
+      font-size: var(--t-body);
+      cursor: grab;
+      color: var(--ink);
+      background: var(--mask);
+      border: 1px solid var(--border);
+      margin-bottom: var(--s-xs);
+      transition: border-color 150ms ease;
+    }
+    .palette-item:hover { border-color: var(--frontend); }
+    .palette-item .pi-icon {
+      width: 28px; height: 28px;
+      border-radius: var(--r-precise);
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--canvas);
+    }
+    .palette-item .pi-name { font-size: var(--t-body); }
+    .palette-item .pi-sub { font-size: var(--t-label); color: var(--muted); margin-left: auto; }
+
+    .flow-canvas {
+      background:
+        linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 24px 24px,
+        linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 24px 24px,
+        var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-xl);
+      min-height: 480px;
+    }
+    .flow-row {
+      display: flex; align-items: center; gap: var(--s-md);
+      flex-wrap: wrap;
+    }
+    .flow-node {
+      background: var(--mask);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-control);
+      padding: var(--s-md);
+      min-width: 200px;
+      display: flex; flex-direction: column; gap: var(--s-xs);
+    }
+    .flow-node .fn-kind { font-size: var(--t-label); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .flow-node .fn-name { font-weight: 600; font-size: var(--t-body); }
+    .flow-node.start { border-left: 3px solid var(--frontend); }
+    .flow-node.branch { border-left: 3px solid var(--cloud); }
+    .flow-node.action { border-left: 3px solid var(--backend); }
+    .flow-node.escalate { border-left: 3px solid var(--security); }
+    .flow-node.end { border-left: 3px solid var(--dim); }
+    .flow-arrow {
+      color: var(--dim);
+      flex-shrink: 0;
+    }
+    .flow-branch {
+      display: flex; gap: var(--s-md); margin-top: var(--s-md); padding-left: 32px;
+    }
+    .flow-branch-label {
+      font-size: var(--t-label); color: var(--muted); letter-spacing: 0.08em;
+      text-transform: uppercase; margin-bottom: var(--s-xs);
+    }
+
+    /* Drawing flow columns */
+    .script-list { display: flex; flex-direction: column; gap: var(--s-md); }
+    .script-card {
+      display: grid;
+      grid-template-columns: 60px 1fr auto;
+      gap: var(--s-md);
+      padding: var(--s-md);
+      background: var(--mask);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      align-items: center;
+    }
+    .script-card .ord {
+      font-size: var(--t-title); font-weight: 700; color: var(--dim);
+    }
+    .script-card .body strong { display: block; margin-bottom: var(--s-xs); }
+    .script-card .body p { margin: 0; color: var(--muted); font-size: var(--t-body); }
+
+    .training-meter {
+      display: grid; grid-template-columns: 1fr auto; gap: var(--s-md);
+      align-items: center;
+    }
+
+    .quick-stat {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-md);
+    }
+    .quick-stat .item {
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-md);
+    }
+    .quick-stat .item .lbl { font-size: var(--t-label); color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: var(--s-xs); }
+    .quick-stat .item .val { font-size: 1.5rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Brand -->
+    <div class="app-brand">
+      <span class="mark">A</span>
+      <span class="name">Archify <small>Console</small></span>
+    </div>
+
+    <!-- Topbar -->
+    <div class="app-topbar">
+      <div class="crumbs">Console / <b>Customer Configuration</b></div>
+      <div class="actions">
+        <div class="product-switch">
+          <a class="console" href="archify_console_home.html"><span class="dot"></span>Overview</a>
+          <a class="active" href="archify_customer.html"><span class="dot"></span>Customer</a>
+          <a class="marketing" href="archify_marketing.html"><span class="dot"></span>Marketing</a>
+        </div>
+        <button class="btn btn-sm btn-ghost" data-theme-toggle aria-label="Toggle theme">
+          <span class="theme-icon-moon">☾</span>
+        </button>
+        <button class="btn btn-sm btn-ghost" id="btn-help">Docs</button>
+        <div class="avatar">AR</div>
+      </div>
+    </div>
+
+    <!-- Side nav -->
+    <nav class="app-sidenav">
+      <div class="nav-section-title">Workspace</div>
+      <a class="nav-item active" href="#"><span>Customers</span><span class="badge">4</span></a>
+      <a class="nav-item" href="#"><span>Knowledge</span><span class="badge">6</span></a>
+      <a class="nav-item" href="#"><span>Templates</span><span class="badge">6</span></a>
+
+      <div class="nav-section-title">Channels</div>
+      <a class="nav-item" href="#"><span>Voice</span></a>
+      <a class="nav-item" href="#"><span>WhatsApp</span></a>
+      <a class="nav-item" href="#"><span>Web Chat</span></a>
+      <a class="nav-item" href="#"><span>Social</span></a>
+
+      <div class="nav-section-title">Operations</div>
+      <a class="nav-item" href="#"><span>Audit Log</span></a>
+      <a class="nav-item" href="#"><span>Billing</span></a>
+      <a class="nav-item" href="#"><span>Settings</span></a>
+    </nav>
+
+    <!-- Main -->
+    <main class="app-main">
+
+      <div class="page-header">
+        <div class="page-title">
+          <div class="row center gap-sm">
+            <span class="chip chip-frontend"><span class="dot"></span>Customer Configuration</span>
+            <span class="t-mute" id="last-updated"></span>
+          </div>
+          <h1 id="page-customer-name">—</h1>
+          <p id="page-customer-meta">—</p>
+        </div>
+        <div class="row gap-sm">
+          <button class="btn btn-sm btn-ghost" id="btn-export">Export</button>
+          <button class="btn btn-sm" id="btn-save">Save changes</button>
+          <button class="btn btn-sm btn-primary" id="btn-retrain">Retrain knowledge</button>
+        </div>
+      </div>
+
+      <!-- Customer selector strip -->
+      <div class="panel panel-flat panel-tight mb-lg" style="padding: var(--s-md);">
+        <div class="row center gap-md wrap">
+          <span class="t-label" style="color: var(--dim);">CUSTOMER</span>
+          <select class="select" id="customer-select" style="max-width: 320px;"></select>
+          <span class="t-dim" id="customer-status"></span>
+          <div class="grow"></div>
+          <button class="btn btn-sm btn-ghost" id="btn-add-customer">+ Add customer</button>
+        </div>
+      </div>
+
+      <!-- KPI ROW -->
+      <div class="kpi-row" id="kpi-row"></div>
+
+      <!-- Section: BUSINESS CONFIGURATION -->
+      <div class="section-title">Business Configuration</div>
+      <div class="grid grid-2 gap-md">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Company profile</div>
+                <div class="panel-sub">Public-facing details used across channels.</div>
+              </div>
+              <button class="icon-btn" aria-label="Edit"><span data-icon="edit"></span></button>
+            </div>
+            <dl class="kv">
+              <dt>Industry</dt><dd id="profile-industry">—</dd>
+              <dt>Region</dt><dd id="profile-region">—</dd>
+              <dt>Plan</dt><dd><span class="chip chip-frontend" id="profile-plan">—</span></dd>
+              <dt>Seats</dt><dd id="profile-seats">—</dd>
+              <dt>Point of contact</dt><dd id="profile-poc">—</dd>
+              <dt>Monthly budget</dt><dd id="profile-budget">—</dd>
+            </dl>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Voice & language</div>
+                <div class="panel-sub">Persona, tone, primary channel.</div>
+              </div>
+              <button class="icon-btn" aria-label="Edit"><span data-icon="edit"></span></button>
+            </div>
+            <div class="grid grid-2 gap-md">
+              <div class="field">
+                <label class="field-label">Voice persona</label>
+                <select class="select" id="voice-persona"></select>
+                <div class="field-hint">22 voices · 9 languages</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Tone</label>
+                <input class="input" id="voice-tone">
+              </div>
+              <div class="field">
+                <label class="field-label">Languages</label>
+                <input class="input" id="voice-languages">
+                <div class="field-hint">Comma-separated BCP-47 codes</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Primary channel</label>
+                <select class="select" id="voice-channel"></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Operational hours</div>
+                <div class="panel-sub">Routing rules respect these windows.</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="opt-auto-recall">
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Auto-recall on missed calls</span>
+              </label>
+            </div>
+            <div class="grid grid-2 gap-md">
+              <div class="field">
+                <label class="field-label">Business hours</label>
+                <input class="input" id="opt-hours">
+              </div>
+              <div class="field">
+                <label class="field-label">Timezone</label>
+                <select class="select" id="opt-timezone"></select>
+              </div>
+              <div class="field">
+                <label class="field-label">Escalation threshold</label>
+                <input class="input" id="opt-escalation" type="number" min="1" max="5">
+                <div class="field-hint">Retries before live agent handoff</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Customer-specific preferences</div>
+                <div class="panel-sub">Set by customer admins. Read-only for operators.</div>
+              </div>
+              <span class="chip chip-backend">3 ACTIVE</span>
+            </div>
+            <div class="col col-tight">
+              <label class="toggle"><input type="checkbox" checked> <span class="toggle-track"></span><span class="toggle-label">Allow DTMF fallback for IVR menus</span></label>
+              <label class="toggle"><input type="checkbox" checked> <span class="toggle-track"></span><span class="toggle-label">Transcribe calls in real time</span></label>
+              <label class="toggle"><input type="checkbox" checked> <span class="toggle-track"></span><span class="toggle-label">Send WhatsApp summary post-call</span></label>
+              <label class="toggle"><input type="checkbox"> <span class="toggle-track"></span><span class="toggle-label">Mask PII in recordings (PII redaction)</span></label>
+              <label class="toggle"><input type="checkbox" checked> <span class="toggle-track"></span><span class="toggle-label">Send CSAT survey after every interaction</span></label>
+            </div>
+          </div>
+        </div>
+
+      <!-- Section: KNOWLEDGE BASE -->
+      <div class="section-title">Customer Knowledge</div>
+      <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Training corpus</div>
+              <div class="panel-sub">Indexed sources, intents, and answer scripts.</div>
+            </div>
+            <div class="row gap-sm">
+              <div class="input-search" style="height: 2rem; padding: 0 var(--s-sm);">
+                <span data-icon="search"></span>
+                <input placeholder="Search corpus...">
+              </div>
+              <button class="btn btn-sm">+ Add source</button>
+              <button class="btn btn-sm btn-ghost">Bulk retrain</button>
+            </div>
+          </div>
+
+          <!-- Training stats -->
+          <div class="quick-stat mb-lg">
+            <div class="item">
+              <div class="lbl">Indexed tokens</div>
+              <div class="val t-frontend" id="kb-tokens">—</div>
+            </div>
+            <div class="item">
+              <div class="lbl">FAQs</div>
+              <div class="val t-database" id="kb-faqs">—</div>
+            </div>
+            <div class="item">
+              <div class="lbl">Intents</div>
+              <div class="val t-backend" id="kb-intents">—</div>
+            </div>
+            <div class="item">
+              <div class="lbl">Scripts</div>
+              <div class="val t-cloud" id="kb-scripts">—</div>
+            </div>
+            <div class="item">
+              <div class="lbl">Voice lines</div>
+              <div class="val" id="kb-voices">—</div>
+            </div>
+            <div class="item">
+              <div class="lbl">Training status</div>
+              <div class="val" id="kb-status" style="font-size: 1rem;">—</div>
+            </div>
+          </div>
+
+          <!-- Sources table -->
+          <div style="border: 1px solid var(--border); border-radius: var(--r-control); overflow: hidden;">
+            <div class="knowledge-row" style="background: rgba(15,23,42,0.5);">
+              <div class="t-label">Source</div>
+              <div class="t-label">Type</div>
+              <div class="t-label">Size</div>
+              <div class="t-label">Tokens</div>
+              <div class="t-label">Status</div>
+              <div class="t-label">Updated</div>
+            </div>
+            <div id="kb-docs"></div>
+          </div>
+
+          <!-- Answer script library -->
+          <div class="mt-lg">
+            <div class="row between center mb-md">
+              <div>
+                <div class="t-title">Answer scripts</div>
+                <div class="panel-sub">Authored responses the agent uses to answer FAQs.</div>
+              </div>
+              <button class="btn btn-sm">+ New script</button>
+            </div>
+            <div class="script-list" id="kb-scripts-list"></div>
+          </div>
+
+          <!-- Training run -->
+          <div class="mt-lg">
+            <div class="t-title mb-md">Latest training run</div>
+            <div class="training-meter">
+              <div class="meter"><div class="meter-fill meter-fill-backend" style="width: 100%"></div></div>
+              <div class="t-label t-success">100% · INDEXED</div>
+            </div>
+            <div class="row between mt-sm">
+              <span class="t-dim">Last trained <span id="kb-last-trained">—</span></span>
+              <button class="btn btn-sm btn-ghost" id="btn-retrain-2">Retrain now</button>
+            </div>
+          </div>
+        </div>
+
+      <!-- Section: SOCIAL INTEGRATIONS -->
+      <div class="section-title">Social Network Login & Credentials</div>
+      <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Connected channels</div>
+              <div class="panel-sub">OAuth-managed. Tokens auto-refresh 7 days before expiry.</div>
+            </div>
+            <span class="chip chip-backend" id="social-count">0/6 CONNECTED</span>
+          </div>
+          <div class="grid grid-3 gap-md" id="social-grid"></div>
+        </div>
+
+      <!-- Section: CALL AUTOMATION -->
+      <div class="section-title">Call Automation</div>
+      <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Active template</div>
+              <div class="panel-sub">Drag a template to change the active automation for this customer.</div>
+            </div>
+            <div class="row gap-sm">
+              <button class="btn btn-sm btn-ghost">Clone</button>
+              <button class="btn btn-sm btn-primary" id="btn-open-flow">Edit flow</button>
+            </div>
+          </div>
+
+          <div class="row between center mb-md">
+            <div>
+              <span class="t-title" id="active-template-name">—</span>
+              <p class="t-mute mt-0" style="margin: 0;">Live in production · A/B test ended 2026-09-04</p>
+            </div>
+            <div class="row gap-md">
+              <div class="kpi" style="min-width: 120px;">
+                <div class="kpi-label">Calls / mo</div>
+                <div class="kpi-value" id="calls-monthly">—</div>
+              </div>
+              <div class="kpi" style="min-width: 120px;">
+                <div class="kpi-label">Avg duration</div>
+                <div class="kpi-value" id="calls-avg">—</div>
+              </div>
+              <div class="kpi" style="min-width: 120px;">
+                <div class="kpi-label">Containment</div>
+                <div class="kpi-value t-backend" id="calls-containment">—</div>
+              </div>
+              <div class="kpi" style="min-width: 120px;">
+                <div class="kpi-label">CSAT</div>
+                <div class="kpi-value t-warn" id="calls-csat">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="template-flow mb-lg" id="flow-preview">
+            <div class="flow-row">
+              <div class="flow-node start"><span class="fn-kind">Start</span><span class="fn-name">Inbound Call</span></div>
+              <span class="flow-arrow" data-icon="arrow"></span>
+              <div class="flow-node"><span class="fn-kind">Greeting</span><span class="fn-name">Welcome · Aria Voice</span></div>
+              <span class="flow-arrow" data-icon="arrow"></span>
+              <div class="flow-node"><span class="fn-kind">Identify</span><span class="fn-name">DTMF + Voice</span></div>
+              <span class="flow-arrow" data-icon="arrow"></span>
+              <div class="flow-node branch"><span class="fn-kind">Branch</span><span class="fn-name">Intent routing</span></div>
+            </div>
+          </div>
+
+          <div class="t-title mb-md">Templates</div>
+          <div class="grid grid-3 gap-md" id="templates-grid"></div>
+        </div>
+
+      <!-- Section: AUDIT LOG -->
+      <div class="section-title">Audit Log</div>
+      <div class="panel panel-tight" style="padding: 0;">
+          <div class="row center gap-md" style="padding: var(--s-md) var(--s-lg); border-bottom: 1px solid var(--border);">
+            <span class="t-label">RECENT EVENTS</span>
+            <div class="grow"></div>
+            <select class="select" style="width: 180px; height: 2rem; font-size: var(--t-label);">
+              <option>All actors</option>
+              <option>Customer</option>
+              <option>System</option>
+            </select>
+            <select class="select" style="width: 180px; height: 2rem; font-size: var(--t-label);">
+              <option>All kinds</option>
+              <option>integration.connected</option>
+              <option>knowledge.retrained</option>
+              <option>template.activated</option>
+              <option>settings.updated</option>
+            </select>
+          </div>
+          <div id="audit-log"></div>
+        </div>
+
+    </main>
+  </div>
+
+  <!-- Drawer for integration detail / retrain -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div>
+        <div class="t-title" id="drawer-title">Detail</div>
+        <div class="panel-sub" id="drawer-sub">—</div>
+      </div>
+      <button class="icon-btn" id="drawer-close" aria-label="Close"><span data-icon="close"></span></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+    <div class="drawer-footer">
+      <button class="btn btn-sm btn-ghost" id="drawer-cancel">Cancel</button>
+      <button class="btn btn-sm btn-primary" id="drawer-save">Save</button>
+    </div>
+  </aside>
+
+  <!-- Modal for template / flow editor -->
+  <div class="modal" id="modal-flow">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-card-header">
+        <div>
+          <div class="t-title">Flow editor · <span id="modal-flow-name">—</span></div>
+          <div class="panel-sub">Drag blocks from the palette. Click a node to edit its settings.</div>
+        </div>
+        <button class="icon-btn" id="modal-flow-close" aria-label="Close"><span data-icon="close"></span></button>
+      </div>
+      <div class="modal-card-body">
+        <div class="editor-card">
+          <div class="palette">
+            <div class="palette-title">Palette</div>
+            <div class="palette-item">
+              <span class="pi-icon t-frontend"><span data-icon="phone"></span></span>
+              <span class="pi-name">Greeting</span>
+              <span class="pi-sub">voice</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-backend"><span data-icon="bot"></span></span>
+              <span class="pi-name">Intent</span>
+              <span class="pi-sub">branch</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-database"><span data-icon="inbox"></span></span>
+              <span class="pi-name">Knowledge lookup</span>
+              <span class="pi-sub">RAG</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-cloud"><span data-icon="zap"></span></span>
+              <span class="pi-name">Action</span>
+              <span class="pi-sub">api</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-security"><span data-icon="user"></span></span>
+              <span class="pi-name">Escalate</span>
+              <span class="pi-sub">agent</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-dim"><span data-icon="close"></span></span>
+              <span class="pi-name">End call</span>
+              <span class="pi-sub">exit</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-mute"><span data-icon="whatsapp"></span></span>
+              <span class="pi-name">WhatsApp send</span>
+              <span class="pi-sub">channel</span>
+            </div>
+            <div class="palette-item">
+              <span class="pi-icon t-mute"><span data-icon="globe"></span></span>
+              <span class="pi-name">Webhook</span>
+              <span class="pi-sub">http</span>
+            </div>
+          </div>
+          <div class="flow-canvas" id="flow-canvas"></div>
+        </div>
+      </div>
+      <div class="modal-card-footer">
+        <button class="btn btn-sm btn-ghost" id="modal-flow-cancel">Cancel</button>
+        <button class="btn btn-sm">Validate flow</button>
+        <button class="btn btn-sm btn-primary" id="modal-flow-save">Save & publish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="archify-app.js"></script>
+  <script src="seed-customer.js"></script>
+  <script>
+    // ====== Boot ======
+    Archify.initTheme();
+
+    // Inject theme icon swap
+    function syncThemeIcon() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.querySelectorAll('.theme-icon-moon, .theme-icon-sun').forEach(el => {
+        el.textContent = isDark ? '☾' : '☀';
+      });
+    }
+    syncThemeIcon();
+    new MutationObserver(syncThemeIcon).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    // ====== State ======
+    let customers = Archify.load(Archify.STORAGE_KEYS.customers) || SEED_CUSTOMERS;
+    let activeId = customers[0].id;
+    let activeTemplate = null;
+    function activeCustomer() { return customers.find(c => c.id === activeId); }
+
+    // Persist on first load if empty
+    if (!Archify.load(Archify.STORAGE_KEYS.customers)) {
+      Archify.save(Archify.STORAGE_KEYS.customers, customers);
+    }
+
+    // ====== Helpers ======
+    function $(sel, scope = document) { return scope.querySelector(sel); }
+    function $$(sel, scope = document) { return Array.from(scope.querySelectorAll(sel)); }
+
+    function renderIcons(scope = document) {
+      $$('[data-icon]', scope).forEach(el => {
+        const name = el.getAttribute('data-icon');
+        if (Archify.icons[name]) el.innerHTML = Archify.icons[name];
+      });
+    }
+
+    function statusChip(status) {
+      if (status === 'active') return '<span class="chip chip-success"><span class="dot"></span>ACTIVE</span>';
+      if (status === 'onboarding') return '<span class="chip chip-warning"><span class="dot"></span>ONBOARDING</span>';
+      if (status === 'paused') return '<span class="chip chip-external"><span class="dot"></span>PAUSED</span>';
+      return '<span class="chip chip-external">' + status + '</span>';
+    }
+
+    function renderKpis(c) {
+      const kpis = [
+        { label: 'Monthly calls', value: Archify.fmtNum(c.automation.monthlyCalls), delta: '+8.4%', deltaCls: 't-success' },
+        { label: 'Avg duration', value: Math.floor(c.automation.avgDuration / 60) + 'm ' + (c.automation.avgDuration % 60) + 's', delta: '-12s', deltaCls: 't-backend' },
+        { label: 'CSAT', value: c.automation.csat ? c.automation.csat.toFixed(1) : '—', delta: '+0.2', deltaCls: 't-success' },
+        { label: 'Monthly spend', value: Archify.fmtINR(c.monthlyBudget), delta: '62% used', deltaCls: 't-warn' },
+      ];
+      $('#kpi-row').innerHTML = kpis.map(k => `
+        <div class="kpi">
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+          <div class="kpi-delta ${k.deltaCls}">${k.delta}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderProfile(c) {
+      $('#page-customer-name').textContent = c.name;
+      $('#page-customer-meta').innerHTML = `${statusChip(c.status)} <span class="t-mute" style="margin-left: var(--s-sm);">${c.industry} · ${c.region} · ${c.plan}</span>`;
+      $('#profile-industry').textContent = c.industry;
+      $('#profile-region').textContent = c.region;
+      $('#profile-plan').textContent = c.plan;
+      $('#profile-seats').textContent = c.seats + ' seats';
+      $('#profile-poc').innerHTML = `${c.contact.poc} <span class="t-mute">· ${c.contact.email}</span>`;
+      $('#profile-budget').textContent = Archify.fmtINR(c.monthlyBudget);
+      $('#last-updated').textContent = 'Last saved · just now';
+    }
+
+    function renderSettings(c) {
+      $('#voice-persona').innerHTML = `
+        <option ${c.settings.voice.startsWith('Aria') ? 'selected' : ''}>Aria (Hindi-English)</option>
+        <option ${c.settings.voice.startsWith('Sage') ? 'selected' : ''}>Sage (Multilingual)</option>
+        <option ${c.settings.voice.startsWith('Nova') ? 'selected' : ''}>Nova (Friendly)</option>
+        <option ${c.settings.voice.startsWith('Pulse') ? 'selected' : ''}>Pulse (Energetic)</option>
+        <option ${c.settings.voice.startsWith('Echo') ? 'selected' : ''}>Echo (Deep)</option>
+      `;
+      $('#voice-tone').value = c.settings.tone;
+      $('#voice-languages').value = c.settings.language;
+      $('#voice-channel').innerHTML = `
+        <option ${c.settings.primaryChannel === 'voice' ? 'selected' : ''}>voice</option>
+        <option ${c.settings.primaryChannel === 'whatsapp' ? 'selected' : ''}>whatsapp</option>
+        <option ${c.settings.primaryChannel === 'voice+whatsapp' ? 'selected' : ''}>voice+whatsapp</option>
+        <option ${c.settings.primaryChannel === 'web' ? 'selected' : ''}>web</option>
+      `;
+      $('#opt-hours').value = c.settings.businessHours;
+      $('#opt-timezone').innerHTML = `
+        <option ${c.settings.timezone === 'Asia/Kolkata' ? 'selected' : ''}>Asia/Kolkata (IST)</option>
+        <option ${c.settings.timezone === 'Asia/Singapore' ? 'selected' : ''}>Asia/Singapore</option>
+        <option ${c.settings.timezone === 'Asia/Dubai' ? 'selected' : ''}>Asia/Dubai</option>
+        <option ${c.settings.timezone === 'Europe/London' ? 'selected' : ''}>Europe/London</option>
+        <option ${c.settings.timezone === 'America/New_York' ? 'selected' : ''}>America/New_York</option>
+      `;
+      $('#opt-escalation').value = c.settings.escalationThreshold;
+      $('#opt-auto-recall').checked = c.settings.autoRecall;
+    }
+
+    function renderKnowledge(c) {
+      const k = c.knowledge;
+      $('#kb-tokens').textContent = k.trainingTokens ? Archify.fmtNum(k.trainingTokens) : '0';
+      $('#kb-faqs').textContent = k.faqs;
+      $('#kb-intents').textContent = k.intents;
+      $('#kb-scripts').textContent = k.scripts;
+      $('#kb-voices').textContent = Math.floor(k.scripts * 4);
+      $('#kb-status').innerHTML = k.trained
+        ? '<span class="t-success">Trained</span>'
+        : '<span class="t-warn">Pending</span>';
+      $('#kb-last-trained').textContent = k.lastTrained ? Archify.timeAgo(k.lastTrained) : 'never';
+
+      // Docs
+      const docs = SEED_KNOWLEDGE_DOCS.filter(d => {
+        // Filter docs by industry matching customer
+        if (d.id === 'kd-1' && c.industry !== 'Telecommunications') return false;
+        if (d.id === 'kd-2' && c.industry !== 'BFSI') return false;
+        if (d.id === 'kd-3' && c.industry !== 'Retail · D2C') return false;
+        if (d.id === 'kd-4' && c.industry !== 'Health & Fitness') return false;
+        return true;
+      });
+      docs.push(SEED_KNOWLEDGE_DOCS[4]); // always include general FAQ
+      docs.push(SEED_KNOWLEDGE_DOCS[5]); // always include voice scripts
+
+      $('#kb-docs').innerHTML = docs.map(d => {
+        const status = d.status === 'indexed'
+          ? '<span class="chip chip-success"><span class="dot"></span>INDEXED</span>'
+          : '<span class="chip chip-warning"><span class="dot"></span>PENDING</span>';
+        return `
+          <div class="knowledge-row">
+            <div class="kd-name">${d.title}</div>
+            <div class="t-mute">${d.type}</div>
+            <div class="t-mute">${d.size}</div>
+            <div class="t-mute">${Archify.fmtNum(d.tokens)}</div>
+            <div>${status}</div>
+            <div class="t-mute">${Archify.timeAgo(d.updated)}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Scripts
+      const sampleScripts = [
+        { title: 'Plan upgrade greeting', body: 'Thanks for calling {{' + c.name + '}}. I can help you with plans, billing, or service — what would you like to start with?' },
+        { title: 'Escalation handoff', body: 'I want to make sure this is solved properly — let me get a specialist on the line. You will be transferred within 30 seconds.' },
+        { title: 'Outbound reminder', body: 'Hi {{customer.name}}, this is {{agent.name}} from ' + c.name + '. Quick reminder for your appointment on {{appointment.date}}.' },
+        { title: 'CSAT survey prompt', body: 'Before you go — on a scale of 1 to 5, how would you rate this conversation? You can press any number on your keypad.' },
+      ];
+      $('#kb-scripts-list').innerHTML = sampleScripts.map((s, i) => `
+        <div class="script-card">
+          <div class="ord">${String(i + 1).padStart(2, '0')}</div>
+          <div class="body">
+            <strong>${s.title}</strong>
+            <p>${s.body}</p>
+          </div>
+          <div class="row gap-sm">
+            <button class="icon-btn" aria-label="Edit"><span data-icon="edit"></span></button>
+            <button class="icon-btn danger" aria-label="Delete"><span data-icon="trash"></span></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderIntegrations(c) {
+      const providers = [
+        { key: 'facebook', name: 'Facebook', icon: 'facebook', color: '#1877F2', sub: 'Page + Messenger' },
+        { key: 'instagram', name: 'Instagram', icon: 'instagram', color: '#E1306C', sub: 'DM + Mentions' },
+        { key: 'twitter', name: 'X (Twitter)', icon: 'twitter', color: '#ffffff', sub: 'DM + Mentions' },
+        { key: 'linkedin', name: 'LinkedIn', icon: 'linkedin', color: '#0A66C2', sub: 'Page + InMail' },
+        { key: 'youtube', name: 'YouTube', icon: 'youtube', color: '#FF0000', sub: 'Comments' },
+        { key: 'whatsapp', name: 'WhatsApp Business', icon: 'whatsapp', color: '#25D366', sub: 'WABA + Templates' },
+      ];
+      const connected = providers.filter(p => c.integrations[p.key]?.connected).length;
+      $('#social-count').textContent = `${connected}/${providers.length} CONNECTED`;
+
+      $('#social-grid').innerHTML = providers.map(p => {
+        const i = c.integrations[p.key] || {};
+        const isConn = i.connected;
+        const meta = isConn
+          ? `<span class="t-mute">${i.handle || i.pageId || i.channel || i.waba || '—'}</span>
+             <div class="ic-row"><span>Last sync</span><span class="t-mute">${i.lastSync ? Archify.timeAgo(i.lastSync) : '—'}</span></div>`
+          : `<span class="t-mute">Not connected</span>
+             <div class="ic-row"><span>OAuth scope</span><span class="t-mute">${p.sub}</span></div>`;
+
+        return `
+          <div class="integration-card ${isConn ? 'connected' : ''}">
+            <div class="ic-head">
+              <div class="ic-icon" style="color: ${p.color};">${Archify.icons[p.icon]}</div>
+              <div>
+                <div class="ic-name">${p.name} ${isConn ? '<span class="chip chip-success" style="margin-left: var(--s-xs); font-size: 0.55rem;">CONNECTED</span>' : '<span class="chip chip-external" style="margin-left: var(--s-xs); font-size: 0.55rem;">OFFLINE</span>'}</div>
+                <div class="ic-handle">${p.sub}</div>
+              </div>
+            </div>
+            ${meta}
+            <div class="ic-actions">
+              ${isConn
+                ? `<button class="btn btn-sm btn-ghost" data-action="test" data-key="${p.key}">Send test</button>
+                   <button class="btn btn-sm btn-ghost" data-action="manage" data-key="${p.key}">Manage</button>`
+                : `<button class="btn btn-sm btn-primary" data-action="connect" data-key="${p.key}">Connect</button>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderTemplates(c) {
+      const tpls = SEED_TEMPLATES;
+      const active = c.automation.activeTemplate;
+      $('#templates-grid').innerHTML = tpls.map(t => `
+        <div class="template-card ${t.name === active ? 'active' : ''}" data-template="${t.id}">
+          <div class="row between center">
+            <div class="row center gap-sm">
+              <span class="t-${t.icon === 'phone' ? 'frontend' : t.icon === 'security' ? 'security' : t.icon === 'bell' ? 'cloud' : t.icon === 'zap' ? 'cloud' : t.icon === 'rocket' ? 'messagebus' : 'backend'}">${Archify.icons[t.icon]}</span>
+              <span class="t-title">${t.name}</span>
+            </div>
+            ${t.name === active ? '<span class="chip chip-frontend">ACTIVE</span>' : '<span class="chip chip-external">' + t.category.toUpperCase() + '</span>'}
+          </div>
+          <p class="t-mute mt-0" style="margin: 0;">${t.description}</p>
+          <div class="t-meta">
+            <span class="t-stat"><b>${t.blocks}</b> blocks</span>
+            <span class="t-stat"><b>${t.est}</b> setup</span>
+            <span class="t-stat"><b>${t.adoption}%</b> adoption</span>
+          </div>
+          <div class="row gap-sm">
+            ${t.name === active
+              ? '<button class="btn btn-sm" disabled>Active</button><button class="btn btn-sm btn-ghost">A/B test</button>'
+              : '<button class="btn btn-sm btn-primary" data-action="activate" data-tpl="' + t.id + '">Activate</button><button class="btn btn-sm btn-ghost">Preview</button>'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderAutomationMetrics(c) {
+      $('#active-template-name').textContent = c.automation.activeTemplate || 'No template active';
+      $('#calls-monthly').textContent = Archify.fmtNum(c.automation.monthlyCalls);
+      $('#calls-avg').textContent = c.automation.avgDuration ? Math.floor(c.automation.avgDuration / 60) + 'm ' + (c.automation.avgDuration % 60) + 's' : '—';
+      $('#calls-containment').textContent = c.automation.containment ? Math.round(c.automation.containment * 100) + '%' : '—';
+      $('#calls-csat').textContent = c.automation.csat ? c.automation.csat.toFixed(1) : '—';
+    }
+
+    function renderAudit() {
+      $('#audit-log').innerHTML = SEED_AUDIT.map(ev => {
+        const kindCls = ev.kind.startsWith('integration') ? 'success' :
+                        ev.kind.startsWith('knowledge') ? 'info' :
+                        ev.kind.startsWith('template') ? 'success' :
+                        ev.kind.startsWith('settings') ? 'warn' :
+                        ev.kind.startsWith('customer') ? 'success' : 'info';
+        return `
+          <div class="log-row ${kindCls}">
+            <span class="ts">${Archify.timeAgo(ev.ts)}</span>
+            <span class="kind">${ev.kind}</span>
+            <span>${ev.actor} → <b>${ev.target}</b> · <span class="t-mute">${ev.detail}</span></span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAll() {
+      const c = customers.find(x => x.id === activeId);
+      renderKpis(c);
+      renderProfile(c);
+      renderSettings(c);
+      renderKnowledge(c);
+      renderIntegrations(c);
+      renderTemplates(c);
+      renderAutomationMetrics(c);
+      renderAudit();
+      renderIcons();
+      renderCustomerSelect();
+    }
+
+    function renderCustomerSelect() {
+      $('#customer-select').innerHTML = customers.map(c =>
+        `<option value="${c.id}" ${c.id === activeId ? 'selected' : ''}>${c.name} · ${c.plan}</option>`
+      ).join('');
+      const c = customers.find(x => x.id === activeId);
+      $('#customer-status').innerHTML = statusChip(c.status) + ' <span class="t-mute" style="margin-left: var(--s-sm);">' + c.region + '</span>';
+    }
+
+    // ====== Interactions ======
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-action]');
+      if (!t) return;
+      const action = t.dataset.action;
+      const key = t.dataset.key;
+      const tpl = t.dataset.tpl;
+      const c = customers.find(x => x.id === activeId);
+
+      if (action === 'connect') {
+        openDrawer({
+          title: 'Connect ' + key,
+          sub: 'OAuth flow · standard scopes',
+          body: `
+            <p>Connecting <b>${key}</b> for <b>${c.name}</b> will request these scopes:</p>
+            <ul class="t-body" style="margin: 0 0 var(--s-lg) var(--s-lg); padding: 0;">
+              <li>Read profile + handle</li>
+              <li>Read messages and mentions</li>
+              <li>Post replies on behalf of the page</li>
+              <li>Manage webhooks for incoming messages</li>
+            </ul>
+            <div class="field">
+              <label class="field-label">Redirect URI</label>
+              <input class="input" value="https://console.archify.io/oauth/callback" readonly>
+            </div>
+            <div class="field">
+              <label class="field-label">Requested by</label>
+              <input class="input" value="${c.contact.email}" readonly>
+            </div>
+          `,
+          onSave: () => {
+            c.integrations[key] = {
+              connected: true,
+              handle: '@' + c.slug + '_' + key,
+              pageId: key === 'facebook' || key === 'linkedin' ? c.slug : undefined,
+              waba: key === 'whatsapp' ? '91' + Math.floor(Math.random() * 1e9) : undefined,
+              channel: key === 'youtube' ? 'UC' + c.slug : undefined,
+              lastSync: new Date().toISOString(),
+            };
+            Archify.save(Archify.STORAGE_KEYS.customers, customers);
+            renderAll();
+            Archify.toast(`${key} connected for ${c.name}`, 'success');
+            SEED_AUDIT.unshift({
+              id: Archify.uid('ev'), ts: new Date().toISOString(), actor: c.contact.email,
+              kind: 'integration.connected', target: key,
+              detail: `OAuth flow completed via console`,
+            });
+            renderAudit();
+            closeDrawer();
+          }
+        });
+      }
+      if (action === 'manage') {
+        openDrawer({
+          title: 'Manage ' + key,
+          sub: c.integrations[key].handle || c.integrations[key].pageId || c.integrations[key].channel || c.integrations[key].waba,
+          body: `
+            <div class="field"><label class="field-label">Handle / ID</label><input class="input" value="${c.integrations[key].handle || c.integrations[key].pageId || c.integrations[key].channel || c.integrations[key].waba || ''}"></div>
+            <div class="field"><label class="field-label">Webhook URL</label><input class="input" value="https://api.archify.io/v1/hook/${c.slug}/${key}"></div>
+            <div class="field"><label class="field-label">Auto-refresh tokens</label>
+              <label class="toggle"><input type="checkbox" checked> <span class="toggle-track"></span><span class="toggle-label">Enabled (7 days before expiry)</span></label>
+            </div>
+            <div class="field"><label class="field-label">Last sync</label><span class="t-mute">${Archify.timeAgo(c.integrations[key].lastSync)}</span></div>
+            <hr>
+            <button class="btn btn-sm btn-danger" id="drawer-disconnect">Disconnect</button>
+          `,
+          onSave: () => {
+            c.integrations[key].lastSync = new Date().toISOString();
+            Archify.save(Archify.STORAGE_KEYS.customers, customers);
+            renderAll();
+            Archify.toast(`${key} settings updated`, 'success');
+            closeDrawer();
+          },
+          onExtra: (drawerBody) => {
+            const disc = drawerBody.querySelector('#drawer-disconnect');
+            if (disc) disc.addEventListener('click', () => {
+              c.integrations[key] = { connected: false };
+              Archify.save(Archify.STORAGE_KEYS.customers, customers);
+              renderAll();
+              Archify.toast(`${key} disconnected`, 'warning');
+              closeDrawer();
+            });
+          }
+        });
+      }
+      if (action === 'test') {
+        Archify.toast(`Sent test message via ${key} to ${c.contact.email}`, 'success');
+      }
+      if (action === 'activate') {
+        const tplObj = SEED_TEMPLATES.find(x => x.id === tpl);
+        c.automation.activeTemplate = tplObj.name;
+        Archify.save(Archify.STORAGE_KEYS.customers, customers);
+        renderTemplates(c);
+        renderAutomationMetrics(c);
+        Archify.toast(`Template "${tplObj.name}" activated for ${c.name}`, 'success');
+      }
+    });
+
+    // Drawer
+    function openDrawer({ title, sub, body, onSave, onExtra }) {
+      $('#drawer-title').textContent = title;
+      $('#drawer-sub').textContent = sub;
+      $('#drawer-body').innerHTML = body;
+      $('#scrim').classList.add('open');
+      $('#drawer').classList.add('open');
+      const saveBtn = $('#drawer-save');
+      const newSave = saveBtn.cloneNode(true);
+      saveBtn.parentNode.replaceChild(newSave, saveBtn);
+      newSave.addEventListener('click', onSave);
+      if (onExtra) onExtra($('#drawer-body'));
+      renderIcons($('#drawer'));
+    }
+    function closeDrawer() {
+      $('#scrim').classList.remove('open');
+      $('#drawer').classList.remove('open');
+    }
+    $('#drawer-close').addEventListener('click', closeDrawer);
+    $('#drawer-cancel').addEventListener('click', closeDrawer);
+    $('#scrim').addEventListener('click', closeDrawer);
+
+    // Flow editor modal
+    const FLOW_STEPS = [
+      { kind: 'start', name: 'Inbound Call' },
+      { kind: 'branch', name: 'Language detect' },
+      { kind: 'branch', name: 'Identify customer' },
+      { kind: 'branch', name: 'Intent classification' },
+      { kind: 'action', name: 'Knowledge lookup (RAG)' },
+      { kind: 'branch', name: 'Confidence check' },
+      { kind: 'escalate', name: 'Live agent handoff' },
+      { kind: 'end', name: 'End call · CSAT' },
+    ];
+    function renderFlowCanvas() {
+      const canvas = $('#flow-canvas');
+      const rows = [];
+      rows.push(`<div class="flow-row"><div class="flow-node start"><span class="fn-kind">Start</span><span class="fn-name">${FLOW_STEPS[0].name}</span></div></div>`);
+      rows.push('<div class="flow-arrow" style="text-align: center; padding: 4px 0;" data-icon="arrow"></div>');
+      rows.push(`<div class="flow-row"><div class="flow-node branch"><span class="fn-kind">Branch</span><span class="fn-name">${FLOW_STEPS[1].name}</span></div></div>`);
+      rows.push('<div class="flow-arrow" style="text-align: center; padding: 4px 0;" data-icon="arrow"></div>');
+      rows.push(`<div class="flow-row"><div class="flow-node branch"><span class="fn-kind">Branch</span><span class="fn-name">${FLOW_STEPS[2].name}</span></div></div>`);
+      rows.push('<div class="flow-arrow" style="text-align: center; padding: 4px 0;" data-icon="arrow"></div>');
+      rows.push(`<div class="flow-row"><div class="flow-node branch"><span class="fn-kind">Branch</span><span class="fn-name">${FLOW_STEPS[3].name}</span></div></div>`);
+      rows.push('<div class="flow-arrow" style="text-align: center; padding: 4px 0;" data-icon="arrow"></div>');
+      rows.push(`<div class="flow-row">
+        <div class="flow-node action"><span class="fn-kind">Action</span><span class="fn-name">${FLOW_STEPS[4].name}</span></div>
+        <span class="flow-arrow" data-icon="arrow"></span>
+        <div class="flow-node branch"><span class="fn-kind">Branch</span><span class="fn-name">${FLOW_STEPS[5].name}</span></div>
+      </div>`);
+      rows.push('<div class="flow-branch">');
+      rows.push(`<div class="col" style="flex: 1;"><div class="flow-branch-label">High confidence (≥ 0.78)</div><div class="flow-node action"><span class="fn-kind">Action</span><span class="fn-name">Reply with knowledge</span></div></div>`);
+      rows.push(`<div class="col" style="flex: 1;"><div class="flow-branch-label">Low confidence</div><div class="flow-node escalate"><span class="fn-kind">Escalate</span><span class="fn-name">${FLOW_STEPS[6].name}</span></div></div>`);
+      rows.push('</div>');
+      rows.push('<div class="flow-arrow" style="text-align: center; padding: 4px 0;" data-icon="arrow"></div>');
+      rows.push(`<div class="flow-row"><div class="flow-node end"><span class="fn-kind">End</span><span class="fn-name">${FLOW_STEPS[7].name}</span></div></div>`);
+      canvas.innerHTML = rows.join('');
+      renderIcons(canvas);
+    }
+    function openFlowModal() {
+      const c = customers.find(x => x.id === activeId);
+      $('#modal-flow-name').textContent = c.automation.activeTemplate || 'Untitled';
+      renderFlowCanvas();
+      $('#modal-flow').classList.add('open');
+    }
+    function closeFlowModal() { $('#modal-flow').classList.remove('open'); }
+    $('#btn-open-flow').addEventListener('click', openFlowModal);
+    $('#modal-flow-close').addEventListener('click', closeFlowModal);
+    $('#modal-flow-cancel').addEventListener('click', closeFlowModal);
+    $('#modal-flow-save').addEventListener('click', () => {
+      Archify.toast('Flow saved & republished', 'success');
+      closeFlowModal();
+    });
+
+    // Customer switch
+    $('#customer-select').addEventListener('change', (e) => {
+      activeId = e.target.value;
+      renderAll();
+    });
+
+    // Save changes (no-op since inputs already persist on action)
+    $('#btn-save').addEventListener('click', () => {
+      Archify.save(Archify.STORAGE_KEYS.customers, customers);
+      Archify.toast('Customer configuration saved', 'success');
+    });
+
+    // Retrain
+    function retrain() {
+      const c = customers.find(x => x.id === activeId);
+      c.knowledge.lastTrained = new Date().toISOString();
+      c.knowledge.trained = true;
+      c.knowledge.trainingTokens += 12000;
+      Archify.save(Archify.STORAGE_KEYS.customers, customers);
+      SEED_AUDIT.unshift({
+        id: Archify.uid('ev'), ts: new Date().toISOString(), actor: 'system',
+        kind: 'knowledge.retrained', target: c.name + ' knowledge base',
+        detail: `${Archify.fmtNum(c.knowledge.trainingTokens)} tokens · ${c.knowledge.faqs} FAQs · ${c.knowledge.intents} intents`,
+      });
+      renderKnowledge(c);
+      renderAudit();
+      renderCustomerSelect();
+      Archify.toast('Knowledge retrained · ' + c.name, 'success');
+    }
+    $('#btn-retrain').addEventListener('click', retrain);
+    $('#btn-retrain-2').addEventListener('click', retrain);
+
+    // Add customer
+    $('#btn-add-customer').addEventListener('click', () => {
+      const id = Archify.uid('cust');
+      const c = {
+        id, name: 'New Customer ' + (customers.length + 1),
+        slug: 'new-' + customers.length, industry: '—', plan: 'Trial',
+        status: 'onboarding', region: 'India', seats: 1,
+        monthlyBudget: 10000,
+        settings: { businessHours: '09:00-18:00', timezone: 'Asia/Kolkata', language: 'en-IN', escalationThreshold: 3, autoRecall: true, voice: 'Aria (Hindi-English)', tone: 'Professional', primaryChannel: 'voice' },
+        knowledge: { faqs: 0, scripts: 0, intents: 0, trained: false, lastTrained: null, trainingTokens: 0 },
+        integrations: { facebook: { connected: false }, instagram: { connected: false }, twitter: { connected: false }, linkedin: { connected: false }, youtube: { connected: false }, whatsapp: { connected: false } },
+        automation: { activeTemplate: null, monthlyCalls: 0, avgDuration: 0, csat: 0, containment: 0 },
+        contact: { poc: '—', email: 'pending@archify.io', phone: '—' },
+      };
+      customers.push(c);
+      activeId = id;
+      Archify.save(Archify.STORAGE_KEYS.customers, customers);
+      renderAll();
+      Archify.toast('Customer created — fill in profile details', 'info');
+    });
+
+    // Export
+    $('#btn-export').addEventListener('click', () => {
+      const c = customers.find(x => x.id === activeId);
+      const data = JSON.stringify(c, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = c.slug + '-config.json'; a.click();
+      URL.revokeObjectURL(url);
+      Archify.toast('Customer configuration exported', 'success');
+    });
+
+    // ====== Boot render ======
+    renderAll();
+    setInterval(() => {
+      const last = $('#last-updated');
+      if (last) last.textContent = 'Last saved · ' + new Date().toLocaleTimeString('en-IN');
+    }, 30000);
+  </script>
+</body>
+</html>

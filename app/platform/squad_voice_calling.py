@@ -3,7 +3,6 @@
 # Autopilot: Beat-driven, priority-queued, compliance-gated
 
 from app.platform.hot_queue_owner_pack import build_owner_pack
-from app.platform.team_scheduler import STAFF_JOBS_VALID
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -36,9 +35,24 @@ def run_daily_beat():
     if not check_compliance():
         return {"status": "skipped", "reason": "compliance_or_window"}
 
-    result = build_owner_pack(limit=42, push_ntfy=True)
+    result = _run_async(build_owner_pack(limit=42, push_ntfy=True))
     logger.info(f"Squad 1 beat completed: {result}")
     return result
+
+
+def _run_async(coro):
+    """Run an async coroutine from a sync context (best-effort, never raise)."""
+    import asyncio
+    import concurrent.futures
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result(timeout=30)
+    return asyncio.run(coro)
 
 def run_hourly_outreach():
     """Execute hourly outreach within daily cap (80/day = ~3/hour peak)."""

@@ -1,0 +1,11 @@
+category: Media & Files
+min_client_version: '2.7.4'
+interface:
+  display_name: 'Create Image'
+  short_description: 'Generate and edit images via the create_image and edit_image tools.'
+  default_prompt: 'Generate an image of a scene I describe, or edit this image with my instructions.'
+  icon_dark: './assets/icon-dark.png'
+  icon_light: './assets/icon-light.png'
+  builtin: true
+  hidden: false
+  undeletable: true

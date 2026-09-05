@@ -1,0 +1,9 @@
+Config: `C:\Users\Ratanshila\AppData\Local\hermes\config.yaml` — `backend: local`, `cwd: C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent`, `docker_mount_cwd_to_workspace: false`. Default terminal cwd is stale `/opt/leadgen` (NOT a real path on this host) — every `terminal` call gets prefixed with `cd /opt/leadgen && ...` and fails with exit 126. MUST pass `workdir='/'` (or any real path) to bypass. PowerShell works fine in cron when workdir is set. GPU: NVIDIA RTX 3050 Laptop, driver 566.07. Cron terminal IS available — no SSH tunnel.
+§
+User operates autonomously: self-repair before escalation, 19-point structured recovery protocol, clear escalation criteria (SECRET_REQUIRED, HIGH_RISK_IRREVERSIBLE, BUSINESS_DECISION, ACCESS_REQUIRED only). Prefers Kanban over scattered tasks. Bot creation: core-first (Atlas/Forge/Sentinel/Relay), specialist later.
+§
+User communicates in Hinglish (terse, mixed Hindi/English). Shortcuts: 'omniroute' = project-local OmniRoute gateway. Uses explicit recovery ladder: local terminal → file tools → GitHub API → browser → Docker → SSH → escalate only if all fail.
+§
+Active model: gmi / MiniMaxAI/MiniMax-M3 / base_url=https://api.gmi-serving.com/v1 / key_env=GMI_API_KEY. Permanent. Old Gemini 3 Pro runtime is dead.
+§
+Cron safety guard blocks `powershell -Command`/`bash -c`/`-e` (no user to approve); use direct native invocations (`nvidia-smi`, `ls`, `cat`) or `read_file`/`write_file`/`patch` tools instead. **Path translation table (cron, 2026-08-28 verified)**: `Get-Content X` → `read_file(X)`; `Get-ChildItem X` → `search_files(target='files', path=X, pattern='*')`; PowerShell `Select-String` content scan → `search_files(target='content', path=X, pattern=...)` with `output_mode='content'`. Config path is `C:\Users\Ratanshila\AppData\Local\hermes\config.yaml` — `~/.hermes/config.yaml` does NOT exist.

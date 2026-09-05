@@ -1,0 +1,559 @@
+# =============================================================================
+# docker-compose.vps.yml  —  CANONICAL production stack for the Hostinger VPS
+# -----------------------------------------------------------------------------
+# Single source of truth for the LIVE deployment. Replaces the lean
+# "systemd + SQLite + single uvicorn" setup with a reproducible, auto-healing
+# container stack ON THE SAME BOX:  App (uvicorn) + Postgres + Redis.
+#
+# The host Caddy keeps terminating TLS for leadsgenai.in and proxies to
+# 127.0.0.1:8000 (this stack's published app port) — so NO TLS change needed.
+#
+# Quick start (build locally / on VPS from source):
+#   APP_VERSION=<git-sha> docker compose -f docker-compose.vps.yml up -d --build
+#   docker compose -f docker-compose.vps.yml run --rm app alembic upgrade head
+#
+# CI/pull-based deploy (image already on GHCR):
+#   docker compose -f docker-compose.vps.yml pull && \
+#   docker compose -f docker-compose.vps.yml up -d
+#
+# Celery workers. NOTE: LIVE VPS runs the DURABLE Celery path since 2026-06-10
+# (.env: RUN_IN_PROCESS_SCHEDULER=0 + --profile celery). The :-1 defaults below
+# = rollback-safe in-process fallback. Bring up durable workers:
+#   docker compose -f docker-compose.vps.yml --profile celery up -d
+#
+# Rollback: `docker compose -f docker-compose.vps.yml down` then
+#           `systemctl start leadgen` (old SQLite service stays installed).
+# =============================================================================
+
+name: leadgen
+
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI app (web + in-process AI-staff scheduler when WEB_CONCURRENCY=1)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.lock
+      args:
+        APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_app
+    # Resource caps (audit P1-1) — VPS 16GB/4-core. App = embedder+torch loaded per
+    # uvicorn worker (×2); cap rok-ta hai ki leak/spike db/redis ko OOM-kill kare.
+    # mem_reservation = soft floor (scheduling). Tune to `docker stats` after deploy.
+    mem_limit: 3g
+    mem_reservation: 1g
+    cpus: "2.0"
+    user: "0:0"   # root, matches the systemd app — keeps bind-mounted root-owned ./data writable
+    env_file: .env
+    environment:
+      APP_ENV: production
+      PORT: 8080
+      # 2026-07-20: 2 web workers (concurrent-burst 502 fix). HARDCODED literal (NOT
+      # ${..}) taaki env_file .env ka WEB_CONCURRENCY=1 override ho jaaye — compose me
+      # `environment:` block, `env_file:` se UPAR precedence rakhta hai. SAFE:
+      # RUN_IN_PROCESS_SCHEDULER=0 (no in-process scheduler dup) + app 3GiB mem_limit
+      # (~1GB/worker, 4.6Gi sys free). Tune karna ho to YAHIN badlo (.env nahi).
+      WEB_CONCURRENCY: 2
+      RUN_IN_PROCESS_SCHEDULER: ${RUN_IN_PROCESS_SCHEDULER:-1}
+      # Container ALWAYS uses in-stack internal DNS (db/redis), NOT the host's
+      # 127.0.0.1 DATABASE_URL in .env (that's for the systemd-host app + migration).
+      # `environment:` overrides env_file, so .env's host URLs are ignored here.
+      # DB ab PgBouncer (session mode) ke through — connection pooling. Direct DB
+      # chahiye to host wapas `@db:5432` karo (revert).
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      DSH_ALLOWLIST_CSV: ${DSH_ALLOWLIST_CSV:-}
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
+      CELERY_HEAVY_QUEUE: "1"   # app bhi sender hai (API dlq retry/sweep dispatch) — routing consistent rahe
+      # DSH internal MCP mount must share the same one-shot/runtime flags as
+      # dsh-worker. Defaults remain OFF, but canary deploys that pass
+      # DSH_RUNTIME_ENABLED=1 need the app to mount /internal/dsh/mcp too.
+      DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
+      DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
+      DSH_AGENT_ALLOWLIST: ${DSH_AGENT_ALLOWLIST:-}
+      # In-stack Qdrant DNS — .env ka 127.0.0.1 override (container localhost trap)
+      QDRANT_URL: http://qdrant:6333
+      WEB_CALL_EDGE_TTS: "1"   # test-call = real Swara voice (free EdgeTTS)
+      # FLOW_RUNNER + OUTREACH_AB: .env se control karo (flag registry via admin UI)
+    ports:
+      - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      - ./data:/app/data        # persisted app data (brains, jsonl stores, logos)
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks: [leadgen_net, dsh_net]
+
+  # ---------------------------------------------------------------------------
+  # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
+  # in docker-compose.prod.yml). Data persisted in the named volume `pgdata`.
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: leadgen_db
+    # Generous cap (audit P1-1) — Postgres ko OOM-kill se bachao (data integrity).
+    # shared_buffers=256MB + work_mem ke saath 2g comfortable headroom.
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: "2.0"
+    ports:
+      - "127.0.0.1:5432:5432"   # host-published so the systemd app / venv migration can reach it (localhost only)
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-leadgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      POSTGRES_DB: ${POSTGRES_DB:-leadgen}
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c wal_compression=on
+      -c checkpoint_completion_target=0.9
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - walarchive:/var/lib/postgresql/wal_archive  # PITR WAL archive (pg_pitr_enable.sh)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leadgen} -d ${POSTGRES_DB:-leadgen}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # PgBouncer — connection pooler (session mode = asyncpg-safe). Additive: app
+  # abhi bhi DIRECT db:5432 pe (zero change). Switch karne ke liye app ka
+  # DATABASE_URL `@pgbouncer:6432` pe point karo (staging pe verify karke).
+  # AUTH_TYPE=plain — internal docker network only (host-published nahi), safe.
+  # ---------------------------------------------------------------------------
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: leadgen_pgbouncer
+    mem_limit: 256m
+    cpus: "0.5"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-leadgen}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      DB_NAME: ${POSTGRES_DB:-leadgen}
+      POOL_MODE: session
+      AUTH_TYPE: plain
+      MAX_CLIENT_CONN: "1000"
+      DEFAULT_POOL_SIZE: "25"
+      LISTEN_PORT: "6432"
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+    # Audit 2026-07-04: pgbouncer itself was the only unmonitored link in the DB
+    # chain — a wedged/misconfigured pooler let app containers start and fail
+    # later on the first query. Image ships pg_isready + nc (verified live).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 || nc -z 127.0.0.1 6432"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — BROKER + critical state ONLY: Celery broker/result, DLQ, distributed
+  # call-state, rate-limit, locks. NOTE: maxmemory-policy = noeviction (NOT lru) —
+  # in keys ko KABHI evict mat karo. Pehle allkeys-lru tha + cache bhi yahi tha →
+  # memory pressure pe queued tasks/live-call-state silently evict ho sakte the
+  # (Celery+Redis ka documented data-loss bug). Ab cache alag `redis-cache` me
+  # gaya (neeche) → yeh instance chhota rehta, noeviction safe. Full hone pe write
+  # LOUDLY fail karega (visible/alertable) — silent loss se behtar.
+  # maxmemory tune-to-RAM: broker+state small hai; 256mb se shuru, `evicted_keys`/
+  # OOM dikhe to badhao (audit P1-1 container limits ke saath).
+  # AOF persistence so it survives restarts.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: leadgen_redis
+    mem_limit: 512m   # maxmemory 256mb + AOF/overhead headroom (audit P1-1)
+    cpus: "1.0"
+    ports:
+      - "127.0.0.1:6379:6379"   # host-published so the systemd app can reach it (localhost only)
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [leadgen_net, dsh_net]
+
+  # ---------------------------------------------------------------------------
+  # redis-cache — EVICTABLE cache only (app.cache.Cache). Alag instance taaki
+  # high-volume cache writes broker/call-state wali Redis ko fill/evict na karein
+  # (audit P0-1 proper fix). allkeys-lru yahan SAHI hai — cache evict hona expected.
+  # App `CACHE_REDIS_URL` set hone pe yahi use karta; UNSET = main redis fallback
+  # (backwards-compatible — code is safe to merge before this container deploys).
+  # RAM-neutral: 256mb (main) + 256mb (cache) = 512mb (= pehle wala single 512mb).
+  # ---------------------------------------------------------------------------
+  redis-cache:
+    image: redis:7-alpine
+    container_name: leadgen_redis_cache
+    mem_limit: 384m   # maxmemory 256mb + overhead (audit P1-1)
+    cpus: "0.5"
+    command: >
+      redis-server
+      --save ""
+      --appendonly no
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL Celery worker + beat (profile: celery). Off by default so prod
+  # behaviour is unchanged. Turn on when migrating jobs off the in-process
+  # scheduler for horizontal scaling.
+  # ---------------------------------------------------------------------------
+  worker:
+    profiles: ["celery"]
+    # Built once by `app`; all runtime roles share the exact same image/tag.
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: "1.5"
+    user: "0:0"   # root — bind-mounted root-owned ./data writable (app jaisa)
+    # -Q explicit (2026-07-02): a bare `celery worker` with no -Q only drains
+    # the default "celery" queue. task_routes in app/worker.py sends
+    # app.tasks.{scraping,calling,reporting,sync,brain_training}.* to their
+    # OWN named queues — without listing them here those tasks enqueue
+    # successfully (send_task/beat succeeds, status shows "running"/queued)
+    # but NO worker ever consumes them; they sit in Redis forever. Found while
+    # wiring the durable Celery campaign-launch task (app.tasks.calling.*
+    # routes to "calling") — same gap silently affected the pre-existing
+    # beat-scheduled process-call-queue task too. "heavy" stays exclusive to
+    # worker-heavy below (starve-prevention), so it's deliberately omitted here.
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training --loglevel=info --concurrency=4
+    env_file: .env
+    environment:
+      # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container
+      # ke andar khud container hote (galat). PgBouncer session-mode pool ke through.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      DSH_ALLOWLIST_CSV: ${DSH_ALLOWLIST_CSV:-}
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
+      RUN_IN_PROCESS_SCHEDULER: "0"
+      CELERY_HEAVY_QUEUE: "1"   # heavy staff-jobs alag 'heavy' queue me (worker-heavy consume karta)
+      QDRANT_URL: http://qdrant:6333
+      # OUTREACH_AB: .env se control karo (flag registry via admin UI)
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      # Fail-closed: Broken pipe / no pong = unhealthy (not "grep miss = ignore").
+      test: ["CMD-SHELL", "sh /app/scripts/celery_worker_healthcheck.sh"]
+      interval: 60s
+      timeout: 15s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # HEAVY worker — qa/trainer/blog/content/digest/prospect (ML/LLM/network-bulk)
+  # alag pool (concurrency=1) me, taaki light jobs (alerts/dunning/triage) kabhi
+  # starve na hon (prod-down qa-job lesson, worker-level fix). CELERY_HEAVY_QUEUE
+  # flag SEND-side routing on karta (scheduler/app/worker pe bhi set).
+  # ---------------------------------------------------------------------------
+  worker-heavy:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_heavy
+    mem_limit: 2500m   # heavy ML/LLM/bulk jobs — thoda zyada headroom
+    mem_reservation: 512m
+    cpus: "1.5"
+    user: "0:0"
+    command: celery -A app.worker worker -Q heavy --loglevel=info --concurrency=1
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      DSH_ALLOWLIST_CSV: ${DSH_ALLOWLIST_CSV:-}
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
+      RUN_IN_PROCESS_SCHEDULER: "0"
+      CELERY_HEAVY_QUEUE: "1"
+      CELERY_HEAVY_WORKER: "1"   # process-role marker: Qdrant/ONNX warm-up only here
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "sh /app/scripts/celery_worker_healthcheck.sh"]
+      interval: 60s
+      timeout: 15s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # VIDEO worker — video-creative pipeline (ffmpeg-heavy) isolated onto its own
+  # queue/process, same starve-prevention shape as worker-heavy above.
+  # CELERY_VIDEO_QUEUE flag SEND-side routing on karta (scheduler/app/worker
+  # pe bhi set — see app/worker.py _route_video_task). Default OFF (INERT) —
+  # unset means video tasks fall back to the default "celery" queue, so this
+  # ships safely before this service is ever started.
+  # ---------------------------------------------------------------------------
+  worker-video:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_worker_video
+    mem_limit: 2000m
+    mem_reservation: 512m
+    cpus: "1.5"
+    user: "0:0"
+    command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      DSH_ALLOWLIST_CSV: ${DSH_ALLOWLIST_CSV:-}
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      CACHE_REDIS_URL: redis://redis-cache:6379/0
+      RUN_IN_PROCESS_SCHEDULER: "0"
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "sh /app/scripts/celery_worker_healthcheck.sh"]
+      interval: 60s
+      timeout: 15s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # Hardened DeepSeek Harness worker — profile-gated and INERT unless the service
+  # is explicitly started and authority or shadow is enabled. It receives no
+  # env_file/database/provider credentials and can reach only app + Redis on
+  # the internal dsh_net. One Celery job owns one source-built DSH process.
+  # ---------------------------------------------------------------------------
+  dsh-worker:
+    profiles: ["dsh"]
+    build:
+      context: .
+      dockerfile: deploy/dsh/worker.Dockerfile
+      args:
+        DSH_IMAGE: ${DSH_RUNTIME_IMAGE:-leadgen-dsh:47f94385}
+    image: ${DSH_WORKER_IMAGE_REPOSITORY:-leadgen-dsh-worker}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_dsh_worker
+    mem_limit: 768m
+    mem_reservation: 256m
+    cpus: "1.0"
+    pids_limit: 128
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      APP_VERSION: ${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+      REDIS_URL: redis://redis:6379/0
+      DSH_ALLOWLIST_CSV: ${DSH_ALLOWLIST_CSV:-}
+      DSH_RUNTIME_ENABLED: ${DSH_RUNTIME_ENABLED:-0}
+      DSH_SHADOW_ENABLED: ${DSH_SHADOW_ENABLED:-0}
+      DSH_MCP_URL: http://app:8080/internal/dsh/mcp
+      DSH_LLM_BASE_URL: http://app:8080/internal/dsh/v1
+      DSH_TOKEN_BACKEND: redis
+      DSH_RUN_STORE_BACKEND: redis
+      HOME: /tmp
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=65532,gid=65532
+      - /run/dsh:rw,noexec,nosuid,size=32m,uid=65532,gid=65532
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 10s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -m celery -A app.dsh_worker:celery_app inspect ping --destination celery@$$HOSTNAME --timeout 5 >/dev/null 2>&1",
+        ]
+      interval: 30s
+      timeout: 8s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [dsh_net]
+
+  scheduler:
+    profiles: ["celery"]
+    image: ${APP_IMAGE_REPOSITORY:-ghcr.io/sumitrevolt/leadgenrationaivoiceagent}:${APP_VERSION:?set APP_VERSION to the immutable git SHA}
+    container_name: leadgen_scheduler
+    mem_limit: 512m
+    cpus: "0.5"
+    user: "0:0"
+    command: celery -A app.worker beat --loglevel=info --schedule /app/data/celerybeat-schedule
+    # Persist the beat schedule across recreates (SCHED-001 council fix). /tmp was
+    # ephemeral, so a redeploy / selfheal restart re-fired every job whose window
+    # was currently active (duplicate sends, wasted free-tier quota). ./data is the
+    # same bind-mount the app + worker use.
+    volumes:
+      - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
+      - ./logs:/app/logs
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      DSH_ALLOWLIST_CSV: ${DSH_ALLOWLIST_CSV:-}
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
+      CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
+      CELERY_HEAVY_QUEUE: "1"   # beat = SENDER — routing yahi evaluate hota hai
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      # NOTE: image me pgrep NAHI hai (procps absent) → pgrep check hamesha fail
+      # hota tha → 'unhealthy' → vps_selfheal cron har 10 min beat restart kar
+      # raha tha. /proc scan se beat process dhundo (busybox/sh-safe).
+      test: ["CMD-SHELL", "grep -lq beat /proc/[0-9]*/cmdline 2>/dev/null || exit 1"]
+      interval: 60s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — vector RAG (reuses legacy /opt/qdrant_storage bind mount).
+  # Migrate: stop standalone `qdrant` container, then `up -d qdrant` (scripts/vps_migrate_qdrant.sh).
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.18.0
+    container_name: leadgen_qdrant
+    mem_limit: 768m
+    cpus: "1.0"
+    volumes:
+      - /opt/qdrant_storage:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"
+    restart: unless-stopped
+    healthcheck:
+      # qdrant image has no curl/wget — use bash /dev/tcp TCP probe (bash IS present).
+      # Old curl check failed forever (false "unhealthy", FailingStreak 448).
+      test: ["CMD", "bash", "-c", ": < /dev/tcp/127.0.0.1/6333"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [leadgen_net]
+
+volumes:
+  pgdata:
+  redisdata:
+  walarchive:
+
+networks:
+  leadgen_net:
+    driver: bridge
+  dsh_net:
+    driver: bridge
+    internal: true

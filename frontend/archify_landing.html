@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Archify Console · Enterprise Dashboard Suite</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="archify-design-system.css">
+  <link rel="stylesheet" href="archify-layout.css">
+  <style>
+    body { padding: 0; }
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      padding: var(--s-page);
+      background:
+        radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.08), transparent 50%),
+        radial-gradient(circle at 20% 80%, rgba(52, 211, 153, 0.06), transparent 50%),
+        var(--canvas);
+    }
+    .hero-top { display: flex; align-items: center; justify-content: space-between; }
+    .hero-top .brand { display: flex; align-items: center; gap: var(--s-md); font-weight: 700; }
+    .hero-top .brand .mark {
+      width: 36px; height: 36px;
+      border-radius: var(--r-precise);
+      background: linear-gradient(135deg, var(--frontend), var(--backend));
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--canvas); font-weight: 800;
+    }
+    .hero-title { margin-top: auto; }
+    .hero-title h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.1;
+      margin: var(--s-lg) 0 var(--s-md);
+      max-width: 720px;
+    }
+    .hero-title p {
+      color: var(--muted);
+      max-width: 600px;
+      font-size: var(--t-body);
+      margin: 0;
+    }
+    .hero-chips { display: flex; gap: var(--s-sm); margin-top: var(--s-xl); flex-wrap: wrap; }
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s-lg);
+      margin-top: var(--s-page);
+    }
+    .product-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+      padding: var(--s-xl);
+      display: flex; flex-direction: column; gap: var(--s-md);
+      transition: border-color 150ms ease, transform 150ms ease;
+    }
+    .product-card:hover { border-color: var(--frontend); transform: translateY(-2px); }
+    .product-card .pc-head {
+      display: flex; align-items: center; gap: var(--s-md);
+    }
+    .product-card .pc-icon {
+      width: 48px; height: 48px;
+      border-radius: var(--r-control);
+      background: rgba(34, 211, 238, 0.10);
+      border: 1px solid rgba(34, 211, 238, 0.4);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--frontend);
+    }
+    .product-card.marketing .pc-icon {
+      background: rgba(52, 211, 153, 0.10);
+      border-color: rgba(52, 211, 153, 0.4);
+      color: var(--backend);
+    }
+    .product-card h2 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+    .product-card .pc-sub { color: var(--muted); margin: 0; font-size: var(--t-body); }
+    .product-card ul { margin: 0; padding-left: var(--s-lg); color: var(--muted); font-size: var(--t-body); }
+    .product-card ul li { margin-bottom: 4px; }
+    .product-card .pc-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: auto;
+      padding-top: var(--s-lg);
+      border-top: 1px solid var(--border);
+    }
+    .product-card .pc-foot .price { color: var(--frontend); font-weight: 700; }
+    .product-card.marketing .pc-foot .price { color: var(--backend); }
+
+    .monetize {
+      margin-top: var(--s-page);
+      padding: var(--s-xl);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+    }
+    .monetize h2 { margin: 0 0 var(--s-md); font-size: 1.25rem; font-weight: 700; }
+    .monetize p { color: var(--muted); margin: 0 0 var(--s-lg); font-size: var(--t-body); }
+    .monetize-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-md); }
+    .monetize-cell {
+      background: var(--canvas);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      padding: var(--s-md);
+    }
+    .monetize-cell .mc-label { font-size: var(--t-label); color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: var(--s-xs); }
+    .monetize-cell .mc-val { font-size: 1.25rem; font-weight: 700; }
+    .monetize-cell .mc-val.t-success { color: var(--success); }
+    .monetize-cell .mc-detail { color: var(--muted); font-size: var(--t-label); margin-top: var(--s-xs); }
+
+    .footer { margin-top: var(--s-page); padding-top: var(--s-lg); border-top: 1px solid var(--border); color: var(--dim); font-size: var(--t-label); display: flex; justify-content: space-between; }
+
+    @media (max-width: 900px) {
+      .product-grid { grid-template-columns: 1fr; }
+      .monetize-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <span class="mark">A</span>
+        <span style="font-size: var(--t-title);">Archify <small style="color: var(--muted); font-weight: 400;">Console</small></span>
+      </div>
+      <div class="row gap-sm">
+        <button class="btn btn-sm btn-ghost" data-theme-toggle aria-label="Toggle theme">
+          <span class="theme-icon-moon">☾</span>
+        </button>
+        <a class="btn btn-sm btn-ghost" href="archify_console_home.html">Overview</a>
+        <a class="btn btn-sm btn-ghost" href="archify_customer.html" target="_blank">Customer ↗</a>
+        <a class="btn btn-sm btn-ghost" href="archify_marketing.html" target="_blank">Marketing ↗</a>
+      </div>
+    </div>
+
+    <div class="hero-title">
+      <div class="row center gap-sm">
+        <span class="chip chip-frontend"><span class="dot"></span>v2.17 · MIT</span>
+        <span class="chip chip-backend"><span class="dot"></span>enterprise-grade</span>
+        <span class="chip chip-external">Archify-styled</span>
+      </div>
+      <h1>Two enterprise dashboards for the Archify platform.</h1>
+      <p>Customer Configuration for per-tenant business settings, knowledge, social logins, and call automation. Marketing Launch for the full go-to-market pipeline — plan, build, test, launch, and learn.</p>
+      <div class="hero-chips">
+        <span class="chip chip-frontend">JetBrains Mono</span>
+        <span class="chip chip-frontend">Semantic color</span>
+        <span class="chip chip-frontend">Dark · Light parity</span>
+        <span class="chip chip-frontend">localStorage persistence</span>
+        <span class="chip chip-frontend">OAuth-ready UI</span>
+        <span class="chip chip-frontend">IVR flow editor</span>
+        <span class="chip chip-frontend">Kanban + List view</span>
+        <span class="chip chip-frontend">PWA-ready offline</span>
+      </div>
+    </div>
+
+    <div class="product-grid">
+      <a class="product-card" href="archify_customer.html" target="_blank">
+        <div class="pc-head">
+          <div class="pc-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <div>
+            <h2>Customer Configuration</h2>
+            <div class="pc-sub">Per-tenant business settings · knowledge · social · voice</div>
+          </div>
+        </div>
+        <ul>
+          <li>Per-customer business settings, voice persona, hours, escalation</li>
+          <li>Customer-specific domain knowledge — training corpus, scripts, intents</li>
+          <li>OAuth-style social logins: Facebook, Instagram, X, LinkedIn, YouTube, WhatsApp</li>
+          <li>Call automation: template picker, IVR flow editor, live metrics</li>
+          <li>Activity / audit log with full provenance</li>
+        </ul>
+        <div class="pc-foot">
+          <span class="price">₹4L ARR target</span>
+          <span class="btn btn-sm btn-primary">Open dashboard →</span>
+        </div>
+      </a>
+
+      <a class="product-card marketing" href="archify_marketing.html" target="_blank">
+        <div class="pc-head">
+          <div class="pc-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path></svg>
+          </div>
+          <div>
+            <h2>Marketing Launch</h2>
+            <div class="pc-sub">Lifecycle pipeline · campaigns · audiences · creatives</div>
+          </div>
+        </div>
+        <ul>
+          <li>Full lifecycle rail: Plan → Build → Test → Launch → Wrap-up</li>
+          <li>Campaigns in list or Kanban view · schedule timeline</li>
+          <li>Performance: spend chart, funnel, audience overlap</li>
+          <li>Creative asset library · segments · marketing social logins</li>
+          <li>One-click launch: move all Build-stage campaigns to Live</li>
+        </ul>
+        <div class="pc-foot">
+          <span class="price">₹1L ARR target</span>
+          <span class="btn btn-sm btn-primary">Open dashboard →</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="monetize">
+      <h2>Monetization plan · ₹5L within 7 days</h2>
+      <p>Both dashboards ship with concrete revenue mechanics. The targets below are the source of truth.</p>
+      <div class="monetize-grid">
+        <div class="monetize-cell">
+          <div class="mc-label">Customer tier · Pro</div>
+          <div class="mc-val t-success">₹49,999/mo</div>
+          <div class="mc-detail">4 onboarded · 3 mo upfront = ₹4.5L cash</div>
+        </div>
+        <div class="monetize-cell">
+          <div class="mc-label">Knowledge retrain fee</div>
+          <div class="mc-val t-success">₹4,999 / retrain</div>
+          <div class="mc-detail">20 retrains · channel expansion = ₹1L</div>
+        </div>
+        <div class="monetize-cell">
+          <div class="mc-label">Marketing Launch seats</div>
+          <div class="mc-val t-success">₹19,999/mo</div>
+          <div class="mc-detail">3 teams × 3 mo upfront = ₹1.8L</div>
+        </div>
+        <div class="monetize-cell">
+          <div class="mc-label">Add-on services</div>
+          <div class="mc-val t-success">₹9,999 / sprint</div>
+          <div class="mc-detail">Templates, A/B audits = ₹1L pipeline</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Archify Console · MIT · v2.17</span>
+      <span>Built from tt-a1i/archify design language</span>
+    </div>
+  </main>
+
+  <script src="archify-app.js"></script>
+  <script>Archify.initTheme();
+    function syncIcon() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.querySelectorAll('.theme-icon-moon').forEach(el => el.textContent = isDark ? '☾' : '☀');
+    }
+    syncIcon();
+    new MutationObserver(syncIcon).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  </script>
+</body>
+</html>
