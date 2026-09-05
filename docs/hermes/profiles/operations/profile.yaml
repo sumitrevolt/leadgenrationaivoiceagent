@@ -1,0 +1,16 @@
+display_name: operations
+description: COO / Chief Orchestrator. Coordinates all bots day-to-day. Routes tasks,
+  prevents duplicate work, manages dependencies, ensures no task without owner, no
+  incident without escalation, no deployment without verification. Decides WHO and
+  WHEN.
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: circle
+    color: hsl(192 68% 58%)
+    imageKind: photo
+    title: operations
+    custom: true
+    chat: 20260821_121042_64781f
+_ui_meta_revisions:
+  hermes-bots: 1

@@ -1,0 +1,16 @@
+display_name: engineering
+description: 'CTO + Engineering. Architecture, backend, frontend, database, APIs,
+  agent tools, integrations, automations, admin dashboard, customer dashboard, bug
+  fixing, migrations. Execution: reproduce, root cause, smallest fix, test, PR. North
+  star: product and automation delivery.'
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: hexagon
+    color: hsl(111 68% 58%)
+    imageKind: photo
+    title: engineering
+    custom: true
+    chat: 20260822_113623_40eb3b
+_ui_meta_revisions:
+  hermes-bots: 1

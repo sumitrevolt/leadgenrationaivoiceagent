@@ -1,0 +1,16 @@
+display_name: board
+description: Autonomous Owner / Board Control. Revenue targets, budgets, model/API
+  budgets, voice-call budgets, kill switches, deployment authorization, campaigns
+  enable/disable, agent performance review, daily business report. Decides WHAT and
+  WHY.
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: drop
+    color: hsl(150 68% 58%)
+    imageKind: photo
+    title: board
+    custom: true
+    chat: '20260822_113553_079662'
+_ui_meta_revisions:
+  hermes-bots: 1

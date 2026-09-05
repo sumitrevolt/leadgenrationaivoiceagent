@@ -1,0 +1,16 @@
+display_name: sales
+description: 'AI Sales + Voice Calling Agent. Owns voice sales, inbound calls, WhatsApp,
+  email, objections, discovery, demos, proposals, negotiations, follow-ups, payment
+  links, meeting booking, closing, CRM updates. North star: PAID_CUSTOMERS.'
+description_auto: false
+ui_meta:
+  hermes-bots:
+    shape: circle
+    color: hsl(138 68% 58%)
+    imageKind: photo
+    title: sales
+    custom: true
+    groups: []
+    group: null
+_ui_meta_revisions:
+  hermes-bots: 3
