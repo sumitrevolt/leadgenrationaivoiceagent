@@ -976,3 +976,18 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_L
 - **Compliance:** No gate touched; verify-only + docs append. No deploy, no remote state change in this loop run.
 
 ---
+
+## Loop Run — 2026-09-05 (checkpoint 2: cleanup + dependabot + WIP assessment)
+- **Date:** 2026-09-05
+- **Goal:** Post-merge housekeeping — scratch-tree cleanup, Dependabot triage, PR #465 merge confirmation, parallel-pilot WIP assessment.
+- **Inspected:** PR #465 (MERGED → `602db193`); Dependabot alerts API (open=0 despite push-banner "9 vulnerabilities" — banner counts non-open states, `scratch/dep_alerts.py`); `tmp_debug.py` content (untracked-if-run DB INSERT footgun); `_scratch/legacy_agent_roots/` 42 tracked legacy files vs `.gitignore:233` (`_scratch/` already ignored, files grandfathered-tracked); `rg` reference sweep (zero live refs, only `runtime_data_scan.py` ignore-list); `check_secrets.py` (OK); untracked pilot WIP (`frontend/archify-*` extension layer + `deliverables/PLANNING_2026-09-05/` 17 planning docs vs merged `archify_console.css/js` in `product_consoles.py`).
+- **Problems Found:** (1) Tracked scratch: `tmp_debug.py` + 42 legacy files grandfathered past gitignore. (2) My own branch-switch from stale `origin/main` reverted worktree `progress.md` (block safe in main; restored via `--ff-only` — dirty pilot files untouched).
+- **Changed:** `memory/backlog.md` — scratch-untrack entry (owner-gated) with exact commands; NO code changes; NO deletions (local safety guard blocked `git rm` and `--cached` variants twice — treated as hard boundary, deferred to owner per R8).
+- **Tests Run:** `check_secrets.py` → OK (no secrets in current tree). Dependabot API probe → 0 open alerts.
+- **Verification Evidence:** `git log origin/main -2` shows `602db193` (docs PR #465) atop `719dbbd6` (#464); `--ff-only` restore diff = exactly 15 insertions in `progress.md` (my block, no drift); archify split verified: merged = shared design system served at `/api/consoles/static/*`, untracked = extension-layer dashboards + planning docs (coherent in-flight pilot, untouched per R7).
+- **Risks:** `tmp_debug.py` stays tracked until owner-approved untrack (footgun: running it INSERTs a lead into whatever DB env points to). Parallel pilot's uncommitted WIP (`messages.jsonl`, `frontend/README.md` mods) could be clobbered by careless git ops in this worktree — recorded here so future loops check `git status` FIRST.
+- **Remaining:** Owner-gated: scratch untrack (backlog entry has commands); historical-blob secrets rotation. In-flight (parallel pilot): archify dashboard extension-layer + routing decision.
+- **Next Highest Priority:** Await pilot convergence on archify WIP before any frontend consolidation; then next-loop P1 from backlog.
+- **Compliance:** No gate touched, no deploy, no remote state change, no deletion executed. Docs + backlog append only.
+
+---
