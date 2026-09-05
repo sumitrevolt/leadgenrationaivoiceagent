@@ -82,6 +82,7 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 - **WAHA QR scan** (2026-06-08 — session linked 2026-08-23: `default` session WORKING, volume-persisted, 2607 sweep sent:2/2)
 - **Trial-nudge ADMIN UI tab** (2026-08-23 — job LIVE, API-only surface pending; Sharma-trials reconciliation noted)
 - **Full test-suite drift sweeps** (2026-07-06) — 8 stale tests fixed, full-suite sweep now standard per wave end
+- **Scratch untrack (owner-gated, 2026-09-05)** — `tmp_debug.py` (tracked; running it INSERTs a test lead into whatever DB env points to — prod footgun) + 42 tracked files under `_scratch/legacy_agent_roots/` (legacy agent briefings; `_scratch/` already gitignored line 233, files are grandfathered-tracked). Zero live code references (only `runtime_data_scan.py` ignore-list). Untrack blocked twice by local safety guard (`git rm` + `--cached` variants) → needs owner-approved execution: `git rm -r --cached _scratch tmp_debug.py && git commit` (+ add `/tmp_*.py` to .gitignore). Content stays in history; no secrets found by check_secrets in current tree.
 
 ## COMPETITOR RESEARCH (2026-08-17)
 **Product 1 (Marketing) Gaps:** CRM Pipeline (Kanban deal view), Social media scheduling (deeper Postiz), Google Business Profile auto-posting (moat at ₹1,999).
