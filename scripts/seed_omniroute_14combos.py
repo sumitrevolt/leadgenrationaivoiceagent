@@ -61,18 +61,26 @@ def _docker_bin() -> str:
 # ---------------------------------------------------------------------------
 # The 42 free model slots (3 per combo).
 #
-# 2026-09-05 LIVE-CATALOG AUDIT: the gateway's /v1/models dump lists thousands
-# of models, but routing consults a DIFFERENT per-connection live catalog. The
-# only trustworthy signal is an actual HTTP 200. Live probing on 2026-09-05
-# proved EVERY stored upstream provider key (groq/gemini/cerebras/deepinfra/
-# together/sambanova/huggingface/pollinations/qoder/fireworks) is DEAD
-# (401/expired since the 2026-09-01 provisioning) — except the opencode
-# ANONYMOUS free tier, which served 5000+ real 200s in the last 3 days with
-# account=noauth (big-pickle 1817, nemotron-3-ultra-free 1258, nemotron-3.5-
-# lightning-free 1247, laguna-s-2.1-free 688, muse-spark-1.2-contributor-free,
-# mimo-v2.5-free). So the slot pool is rebuilt from PROVEN-LIVE opencode free
-# models only — a combo whose 3 lanes are dead keys answers nothing, which is
-# the exact failure the worker wiring must avoid.
+# 2026-09-05 LIVE-CATALOG AUDIT (2nd pass, same day): the gateway's /v1/models
+# dump lists thousands of models, but routing consults a DIFFERENT per-connection
+# live catalog. The only trustworthy signal is an actual HTTP 200 on /v1/responses.
+#
+# PROBED 2026-09-05 (real requests, not config): NVIDIA (NIM), Ollama Cloud,
+# DigitalOcean, Fireworks and OpenRouter connections ALL still fail — every model
+# returns upstream 401/400 because their stored keys were rotated upstream (the
+# gateway DB's `test_status`/`apiKeyHealth` says active/warning but real inference
+# proves the keys dead). There is NO 200 model on those five connections today,
+# so the pool is NOT extended with them — seeding dead lanes is the exact failure
+# this file exists to prevent. Fix = refresh keys in the gateway dashboard.
+#
+# What IS live: the opencode ANONYMOUS free tier (account=noauth) is served under
+# TWO routable labels — `opencode/*` and `opencode-zen/*` — and BOTH return real
+# 200 + output_text on the same free models (verified twice each: nemotron-3.5-
+# lightning-free, nemotron-3-ultra-free, big-pickle). Same-day re-probe also found
+# the ORIGINAL pool's `muse-spark-1.2-contributor-free` (502) and `laguna-s-2.1-
+# free` (401) lanes had since died, and `mimo-v2.5-free` returns 200-with-EMPTY
+# output (unusable). So the pool below is the re-verified live set: 3 models x 2
+# labels = 6 genuinely-live lanes, every slot answers.
 #
 # Round-robin distribution gives each combo 3 DISTINCT live lanes (slot 1 = the
 # strongest lane) so priority failover actually fires. If the owner later
@@ -82,9 +90,9 @@ _LIVE = [
     ("opencode/nemotron-3.5-lightning-free", "opencode", "ocd-nemotron35-lightning"),
     ("opencode/nemotron-3-ultra-free", "opencode", "ocd-nemotron3-ultra"),
     ("opencode/big-pickle", "opencode", "ocd-big-pickle"),
-    ("opencode/mimo-v2.5-free", "opencode", "ocd-mimo25"),
-    ("opencode/muse-spark-1.2-contributor-free", "opencode", "ocd-muse12"),
-    ("opencode/laguna-s-2.1-free", "opencode", "ocd-laguna21"),
+    ("opencode-zen/nemotron-3.5-lightning-free", "opencode-zen", "ocdzen-nemotron35-lightning"),
+    ("opencode-zen/nemotron-3-ultra-free", "opencode-zen", "ocdzen-nemotron3-ultra"),
+    ("opencode-zen/big-pickle", "opencode-zen", "ocdzen-big-pickle"),
 ]
 
 MODEL_POOL: list[dict] = []
