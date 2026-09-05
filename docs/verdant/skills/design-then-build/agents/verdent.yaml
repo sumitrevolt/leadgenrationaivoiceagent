@@ -1,0 +1,11 @@
+category: System
+min_client_version: '2.7.4'
+interface:
+  display_name: 'Design Then Build'
+  short_description: 'Turn a product idea into visual direction, page designs, spec, and faithful code restoration before building.'
+  icon_dark: './assets/icon-dark.png'
+  icon_light: './assets/icon-light.png'
+  default_prompt: 'I have a product idea but no design yet. Help me explore a visual direction and turn it into UI.'
+  builtin: true
+  undeletable: true
+  hidden: false

@@ -1,0 +1,8 @@
+category: System
+min_client_version: '2.7.0'
+interface:
+  display_name: 'Gateway File'
+  short_description: 'Access Feishu docs and send gateway attachments.'
+  default_prompt: 'When a task requires Feishu doc/wiki access or delivering a file, image, or video through a Feishu, Slack, or Telegram gateway channel, use gateway-file before asking the user to paste content or saying the capability is unavailable.'
+  builtin: true
+  hidden: true

@@ -1,0 +1,15 @@
+category: System
+min_client_version: '2.7.4'
+interface:
+  display_name: Find Skills
+  short_description: Discover and install skills from the open agent skills ecosystem.
+  icon_dark: './assets/icon-dark.png'
+  icon_light: './assets/icon-light.png'
+  default_prompt: Find a skill for this task.
+  builtin: true
+  hidden: false
+  undeletable: true
+  label:
+    - discovery
+    - productivity
+    - workflow

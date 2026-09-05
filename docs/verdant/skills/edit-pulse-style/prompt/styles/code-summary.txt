@@ -1,0 +1,74 @@
+## Style: code-summary
+
+### Intent
+
+Use for code changes, file summaries, implementation reports, and backend/frontend/module breakdowns.
+
+### Layout Preferences
+
+- Prefer card-based summaries over fake task-flow columns.
+- Group by module, package, runtime boundary, file area, or responsibility when it creates a clearer narrative.
+- Use `masonry` for comparable implementation slices.
+- Use `list` for concise per-file or per-session reports.
+- Avoid topology unless the user explicitly asks for dependency structure.
+
+### Component Preferences
+
+- Overview: `Card` with `BarChart` or `StackedBar` when numeric change data exists.
+- Unit cards: `Card` representing a file, folder, service, or implementation slice.
+- Technical tags: use `TagList` for multiple short tags; use standalone `Tag` only for one-off interactive tags. Do not wrap chips in `Row`.
+- Code/config: `CodeBlock` only for snippets with genuine display value.
+- Metadata: `KeyValue` only for concrete string pairs; use `Text`, `Badge`, or `Tag` for repeated dynamic scalar values.
+- Tables: `DataTable` for 3+ shared columns across uniform records.
+- Callouts: migration notes, breaking changes, or risk summaries.
+
+### Patterns
+
+#### Module Change Summary
+
+Use when: the user asks what changed across modules, packages, or code areas.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `masonry`
+- Include one overview `Card` when there is aggregate change data.
+- Add one high-signal `Card` per module or area, not one card per tiny file.
+- Use `TagList` for technologies, APIs, protocols, or notable implementation details when there are multiple labels.
+
+Validator notes:
+- Chart `items`, `categories`, and `series` must be concrete arrays derived during generation/update.
+- Do not bind chart array props directly to `$state`.
+
+#### Live Structured Code Report
+
+Use when: code summaries are driven by task/session activity and should refresh after task updates.
+
+Required shape:
+- Seed `spec.state.changedFiles` or a similarly named array from bootstrap task/session data.
+- Use one repeated `Card` with `repeat.statePath` for changed files or sessions.
+- Include an `ipc-event` subscription for session lifecycle events.
+- Keep each repeated card to 2-3 child sections.
+
+Validator notes:
+- Bind scalar props with `$item`, such as card title, badge label, badge variant, or text content.
+- Do not set `KeyValue.props.items`, `DataTable.props.rows`, or chart arrays to expression objects.
+- Use `KeyValue` only when the `items` array can be concrete string pairs.
+
+#### Dependency or Boundary Summary
+
+Use when: the user explicitly asks for dependencies, service boundaries, or module relationships.
+
+Required shape:
+- Prefer `Topology` only when relationships are the primary information.
+- Topology children must be `Card` elements.
+- Dependencies must be represented with `Topology.props.edges`.
+
+Validator notes:
+- Do not generate `Topology.props.items` or custom graph node payloads.
+
+### Avoid
+
+- Do not create exhaustive low-signal file walls.
+- Do not put `CodeBlock` in every card.
+- Do not use status badges as the dominant visual when this is a code summary, not live execution tracking.
+- Do not use `Timeline` unless the data is genuinely time-ordered.

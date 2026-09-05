@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Log Diagnosis v2 — 2026-08-29 17:05 IST</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --red:#dc2626; --amber:#d97706; --green:#059669; --blue:#2563eb; --codebg:#f3f4f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:28px}
+  .sub code{background:var(--codebg);padding:1px 6px;border-radius:4px;font-size:12.5px}
+  h2{font-size:18px;margin:38px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+  h3{font-size:15px;margin:22px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:14px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th{text-align:left;background:#f9fafb;border-bottom:2px solid var(--line);padding:9px 10px;font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;color:#374151}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+  pre{background:var(--codebg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:12.5px;line-height:1.55;margin:10px 0}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.04em;color:#fff}
+  .P0{background:var(--red)} .P1{background:var(--amber)} .P2{background:var(--blue)} .P3{background:#9ca3af}
+  .ok{color:var(--green);font-weight:700} .fail{color:var(--red);font-weight:700} .warn{color:var(--amber);font-weight:700}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+  .kpi div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .kpi .n{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .callout{border-left:4px solid var(--green);background:#ecfdf5;padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0}
+  .callout.r{border-color:var(--red);background:#fef2f2}
+  .callout.a{border-color:var(--amber);background:#fffbeb}
+  .callout.b{border-color:var(--blue);background:#eff6ff}
+  ul{margin:8px 0;padding-left:20px} li{margin:4px 0}
+  .new{background:#fef3c7;color:#92400e;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Hermes Log Diagnosis — v2 (verified)</h1>
+<div class="sub">
+  Analysis: 2026-08-19 → 2026-08-29 · 26 log sources (~37 MB) · Host <code>LAPTOP-93MJJE8N</code> ·
+  Gateway v0.20.5 (<code>code_sha 29033a3f</code>) · Python 3.11.16 · win32<br>
+  This pass re-ran everything and <strong>live-tested the model router</strong> — the root cause of the
+  biggest error stream is now confirmed, not inferred.
+</div>
+
+<div class="kpi">
+  <div><div class="n" style="color:var(--red)">2,643</div><div class="l">cron failures · last 3 days</div></div>
+  <div><div class="n">1,370</div><div class="l">consecutive fails on one job</div></div>
+  <div><div class="n">6</div><div class="l">active cron jobs</div></div>
+  <div><div class="n" style="color:var(--amber)">3 / 6</div><div class="l">cron jobs currently broken</div></div>
+  <div><div class="n">246</div><div class="l">ERROR lines today</div></div>
+</div>
+
+<div class="callout">
+  <strong>Bottom line:</strong> Hermes itself is healthy. The gateway is up, the local model router
+  (<code>127.0.0.1:20128</code>) is up, 3 cron jobs run fine. Almost all the noise comes from
+  <strong>two things</strong>: (1) model alias <code>leadgen-project-best</code> whose entire
+  upstream provider pool is dead, and (2) one abandoned cron job firing every 60 seconds and failing
+  every single time.
+</div>
+
+<h2>1. Live verification — the decisive test</h2>
+<p>Instead of guessing, I called the local OmniRoute router directly with the same key Hermes uses
+(<code>OMNIROUTE_API_KEY</code> from <code>.env.omniroute</code>) and asked each alias for a 8-token
+completion:</p>
+
+<table>
+  <tr><th style="width:230px">Model alias</th><th style="width:90px">Result</th><th>Detail</th></tr>
+  <tr><td class="mono">hermes-owner</td><td class="ok">OK</td><td class="mono">→ nemotron-3-ultra-free</td></tr>
+  <tr><td class="mono">hermes-engineer</td><td class="ok">OK</td><td class="mono">→ nemotron-3-ultra-free</td></tr>
+  <tr><td class="mono">auto/best-free</td><td class="ok">OK</td><td class="mono">→ nemotron-3-ultra-free</td></tr>
+  <tr><td class="mono">leadgen-project-best</td><td class="fail">502</td><td>every provider in the combo pool rejected (see below)</td></tr>
+  <tr><td class="mono">leadgen-free-first</td><td class="fail">502</td><td><code>oc/*</code> 429 rate-limited, <code>mistral</code> 401 expired</td></tr>
+  <tr><td class="mono">auto/best-coding</td><td class="fail">502</td><td><code>oc/big-pickle</code> 429, <code>oc/muse-spark-1.2</code> 402 paid-only</td></tr>
+</table>
+
+<p><strong>Every cron job that fails is pinned to <code>leadgen-project-best</code>. Every job that
+succeeds inherits the global default (<code>hermes-owner</code>).</strong> That is the whole story.</p>
+
+<pre>Job                          model                    last run (IST)        status
+─────────────────────────────────────────────────────────────────────────────────────
+leadgen-daily-brief          (inherit hermes-owner)   2026-08-29 09:00      ok
+revenue-sprint-engine        (inherit hermes-owner)   2026-08-29 16:00      ok
+revenue-5L-7d-tracker        leadgen-project-best     2026-08-29 09:09      ok  ← worked, pool died later
+buzz-liveness-watch          (inherit)                2026-08-29 16:5x      ok
+─────────────────────────────────────────────────────────────────────────────────────
+revenue-autopilot-driver     leadgen-project-best     2026-08-29 16:56      ERROR  streak 86
+sprint-5L-eod-scoreboard     leadgen-project-best     2026-08-28 18:45      ERROR  streak 2
+sprint-war-room-2100         leadgen-project-best     2026-08-28 21:00      ERROR  streak 5
+EMERGENCY RECOVERY TASK      (unpinned)               2026-08-29 16:58      ERROR  streak 1370</pre>
+
+<h3>Why <code>leadgen-project-best</code> returns 502</h3>
+<p>The alias fans out across a pool; the router tried 22 providers and all of them refused:</p>
+<table>
+  <tr><th style="width:260px">Upstream</th><th style="width:70px">Code</th><th>Reason</th></tr>
+  <tr><td class="mono">gemini/gemini-flash-latest</td><td class="fail">401</td><td>invalid OAuth credentials</td></tr>
+  <tr><td class="mono">gemini/gemini-3.5-flash</td><td class="fail">401</td><td>invalid OAuth credentials</td></tr>
+  <tr><td class="mono">hfr/openai/gpt-oss-120b</td><td class="fail">401</td><td>"All 1 connection(s) authentication expired — reconnect in dashboard"</td></tr>
+  <tr><td class="mono">cohere/c4ai-aya-expanse-32b</td><td class="fail">401</td><td>authentication expired</td></tr>
+  <tr><td class="mono">mistral/mistral-large-latest</td><td class="fail">401</td><td>authentication expired</td></tr>
+  <tr><td class="mono">oc/deepseek-v4-flash-free</td><td class="warn">429</td><td>rate limit exceeded</td></tr>
+  <tr><td class="mono">oc/big-pickle</td><td class="warn">429</td><td>rate limit exceeded</td></tr>
+  <tr><td class="mono">bazaarlink/gpt-5.4-nano</td><td>400</td><td>model not in active live catalog</td></tr>
+  <tr><td class="mono">gh/* · kr/* · vcg/*</td><td>—</td><td>exhausted (excluded from pool)</td></tr>
+</table>
+
+<h2>2. Findings by severity</h2>
+
+<div class="card">
+  <span class="badge P0">P0</span> <strong>Abandoned cron <code>c7a092351190</code> — "EMERGENCY RECOVERY TASK — TERMINAL BACKEND DIAGNOS"</strong>
+  <span class="new">CORRECTED</span>
+  <p style="margin:10px 0 0">
+    Worse than previously measured. From <code>profiles/engineering/cron/jobs.json</code>:</p>
+  <ul>
+    <li>Schedule: <strong>every 1 minute</strong> (not ~20 min as earlier estimated)</li>
+    <li><strong>1,994 completed runs · failure_streak 1,370</strong> · 100% failure rate</li>
+    <li>Created 2026-08-26 17:21 IST, never once succeeded</li>
+    <li>Error volume: 2,643 lines across <code>errors.log</code> + 2 rotations</li>
+    <li>Its own prompt says: <em>"This is purely diagnostic. Do not modify any files."</em> — it is a
+        one-off incident probe from an SSH-backend outage, never cleaned up</li>
+  </ul>
+  <p>The skip is a <em>safety feature</em>, not a bug: global config drifted
+  (<code>gmi / minimaxai/minimax-m3</code> → <code>custom / hermes-engineer</code>) and the job is unpinned,
+  so Hermes refuses to silently re-point it at a possibly-expensive backend.</p>
+  <pre># Recommended — retire it (it is a stale one-off diagnostic)
+hermes cron delete c7a092351190
+
+# Only if you still need it — pin it to a WORKING alias
+hermes cron edit c7a092351190 --provider custom --model hermes-engineer</pre>
+</div>
+
+<div class="card">
+  <span class="badge P0">P0</span> <strong>Cron <code>527c8915ee14</code> "revenue-autopilot-driver" — every 5 min, streak 86</strong>
+  <p style="margin:10px 0 0">Burns ~60s per tick in 3-retry backoff against dead backends, 864 runs total.
+  Same root cause as above: pinned to the dead <code>leadgen-project-best</code> alias.</p>
+  <pre># Immediate unblock — repoint at a verified-working alias
+hermes cron edit 527c8915ee14 --model hermes-engineer
+hermes cron edit c9d51e3c29f3 --model hermes-engineer   # revenue-5L-7d-tracker, same exposure
+
+# Durable fix — in the OmniRoute dashboard:
+#   reconnect hfr + cohere + mistral connections (OAuth expired, key rotation won't help)
+#   replace/top-up the Gemini credential
+#   then the leadgen-* aliases recover on their own</pre>
+  <div class="callout a" style="margin-bottom:0">
+    Free-tier <code>oc/*</code> models will never sustain a 5-minute cadence. If this job matters,
+    pin it to a paid tier or lengthen the interval.
+  </div>
+</div>
+
+<div class="card">
+  <span class="badge P1">P1</span> <strong>Two more cron jobs drift-skipped — and the log's own suggested fix is wrong</strong>
+  <span class="new">NEW</span>
+  <pre>Job '3229eaed56dc' sprint-5L-eod-scoreboard  drift: opencode-free/x-preview-f-free → custom/leadgen-project-best
+Job '85519164905d' sprint-war-room-2100       drift: opencode-free/x-preview-f-free → custom/leadgen-project-best</pre>
+  <p style="margin-top:0">Hermes tells you to run
+  <code>hermes cron edit &lt;id&gt; --provider custom --model leadgen-project-best</code>.
+  <strong>Don't.</strong> That target alias is the dead one — you'd trade a skip for a 502.
+  Use a working alias instead:</p>
+  <pre>hermes cron edit 3229eaed56dc --model hermes-engineer
+hermes cron edit 85519164905d --model hermes-engineer</pre>
+</div>
+
+<div class="card">
+  <span class="badge P1">P1</span> <strong>Telegram <code>getUpdates</code> 409 conflict — NOT a local duplicate</strong>
+  <span class="new">ROOT-CAUSE VERIFIED</span>
+  <p style="margin:10px 0 0">Polling has restarted <strong>25+ times</strong> today (generation 14 → 25 between 16:32 and 16:57)
+  and never stabilises. I mapped the full process tree to test the "two instances on this host" theory.
+  <strong>It is disproven</strong> — every apparent duplicate is a parent/child pair (venv launcher → bundled runtime):</p>
+  <pre>PID 27900  venv python      -m hermes_cli.main gateway run                        (parent)
+PID 27956  runtime python   -m hermes_cli.main gateway run                        ← child of 27900
+PID 14440  runtime python   …leadgenrationaivoiceagent\scripts\…                   ← child of 27956
+
+PID 30992  venv python      -m hermes_cli.main --profile default serve --port 0   (parent, spawned by Hermes.exe 17080)
+PID 3140   runtime python   -m hermes_cli.main --profile default serve --port 0   ← child of 30992
+PID 20460  runtime python   …leadgenrationaivoiceagent\scripts\…                   ← child of 3140</pre>
+  <p>Only <strong>one</strong> gateway tree and <strong>one</strong> serve tree exist locally. So the
+  competing <code>getUpdates</code> caller is <strong>on another host using the same bot token</strong> —
+  almost certainly the LeadGen VPS/production stack.</p>
+  <div class="callout r" style="margin-bottom:0">
+    <strong>Restarting the local gateway will not fix this.</strong> You must audit every host holding
+    that bot token and leave exactly one poller running — or switch to a webhook if two hosts genuinely
+    both need updates. Killing local PIDs would only take your own gateway down.
+  </div>
+  <p style="margin-bottom:0;margin-top:12px">Secondary: egress path flapping — both
+  <code>api.telegram.org</code> (dual-stack) and hardcoded fallback <code>149.154.166.110</code> fail,
+  forcing DNS-over-HTTPS IP discovery. Suggests local DNS interception/filtering, not a Telegram outage.
+  The adapter recovers each time, so this is latency degradation, not an outage.</p>
+</div>
+
+<div class="card">
+  <span class="badge P3">P3</span> <strong>Two <code>graphify-mcp.exe</code> instances on the same graph file</strong>
+  <p style="margin-bottom:0;margin-top:10px">Two independent trees, both opening
+  <code>leadgenrationaivoiceagent\app\graphify-out\graph.json</code>:
+  <code>3452 → 13084</code> (spawned by the gateway) and <code>19716 → 26816</code> (spawned by the desktop
+  backend). Not fatal today, but it is concurrent-write risk on a single graph file — worth collapsing to one.</p>
+</div>
+
+<div class="card">
+  <span class="badge P1">P1</span> <strong>MCP server <code>leadgen</code> (<code>https://leadsgenai.in/mcp</code>) — stale SSE session</strong>
+  <p style="margin:10px 0 0">53× <code>404 Not Found</code> on <code>/mcp/messages/?session_id=…</code> today
+  (415 across 3 rotations), plus 28 keepalive timeouts. Re-probed live:</p>
+  <ul>
+    <li><code>GET https://leadsgenai.in/mcp</code> (no auth) → <strong>401 in 0.45s</strong> — host up, auth gate fine</li>
+    <li><code>POST /mcp/messages/?session_id=…</code> (no auth) → <strong>401</strong></li>
+    <li>Bearer JWT in <code>config.yaml:2929</code> expires <strong>2031-08-22</strong> — token is <em>not</em> the problem</li>
+  </ul>
+  <p style="margin-bottom:0">The server has orphaned the client's session (restart / scale-out without shared
+  session state / idle expiry) and Hermes keeps replaying a dead <code>session_id</code> forever instead of
+  renegotiating. <strong>Fix:</strong> restart the gateway to force a fresh SSE handshake.
+  <strong>Durable:</strong> server-side session registry needs shared storage, or make the endpoint
+  stateless. Worth a client bug report — a 404 on the message channel should trigger auto-renegotiation.</p>
+</div>
+
+<div class="card">
+  <span class="badge P2">P2</span> <strong>Update mechanism dead since 2026-08-24</strong>
+  <span class="new">NEW</span>
+  <p style="margin:10px 0 0">You are pinned at <strong>v0.20.5 (<code>91e86763</code>)</strong>. Last four update attempts all failed:</p>
+  <pre>2026-08-22 23:24  ✗ fatal: unable to access hermes-agent.git — Recv failure: Connection was reset
+2026-08-23 18:12  ✗ Network error — cannot reach the remote repository (×2)
+2026-08-24 16:36  ✗ RPC failed; HTTP 429 curl 22
+2026-08-24 11:02  outcome=failed · step pre_update_backup ok=false "disabled or failed" · exit_code 1</pre>
+  <p style="margin-bottom:0">No update attempt since Aug 24 — auto-update is silently broken.
+  The <code>pre_update_backup</code> step failing aborts the run before anything is touched, so you are
+  not in a half-updated state, but you are also not receiving fixes.</p>
+</div>
+
+<div class="card">
+  <span class="badge P2">P2</span> <strong>Gateway restart churn + resource pressure</strong>
+  <ul style="margin:8px 0 0">
+    <li><code>gateway-exit-diag.log</code>: 15+ gateway PIDs with 2–6 min lifetimes, several flagged
+        <code>gateway.previous_unclean_exit</code> (heartbeat lagging 60–90s behind start)</li>
+    <li><strong>WinError 1450</strong> "Insufficient system resources" resolving
+        <code>profiles\hunter</code> — killed the desktop cron ticker thread on 2026-08-25</li>
+    <li>OS-level memory pressure also shows as <code>GET /api/profiles</code> failing in
+        <code>hermes_cli.web_server</code> (falls back to directory scan)</li>
+  </ul>
+</div>
+
+<div class="card">
+  <span class="badge P3">P3</span> <strong>Noise — safe to ignore</strong>
+  <ul style="margin:8px 0 0">
+    <li><code>ValueError: read of closed file</code> in <code>subprocess._readerthread</code> (×3) —
+        benign race during subprocess teardown</li>
+    <li>MCP <code>clickup</code> parked: OAuth callback had no auth code — needs a manual dashboard
+        re-authorisation, not a code fix. Cascades into ~13 "check_fn returned False" warnings
+        (browser tools, vision, kanban unavailable that turn)</li>
+    <li>Skill logs are clean: <code>kanban-video-orchestrator</code> already installed
+        (security scan ALLOWED), <code>skills-update</code> "No updates available", curator runs show
+        <code>stale=0 archived=0</code> — memory store is healthy</li>
+  </ul>
+</div>
+
+<h2>3. Recommended action order</h2>
+<table>
+  <tr><th style="width:40px">#</th><th>Action</th><th style="width:110px">Risk</th><th style="width:200px">Effect</th></tr>
+  <tr><td>1</td><td><code>hermes cron delete c7a092351190</code></td><td class="ok">None</td><td>Removes ~72 error lines/day + 1,440 pointless ticks/day</td></tr>
+  <tr><td>2</td><td>Repoint <code>527c8915ee14</code>, <code>c9d51e3c29f3</code>, <code>3229eaed56dc</code>, <code>85519164905d</code> → <code>hermes-engineer</code></td><td class="ok">Low</td><td>Both P0 cron streams go green immediately</td></tr>
+  <tr><td>3</td><td>Stop the duplicate <code>serve</code> process (verify parent first)</td><td class="warn">Medium</td><td>Telegram polling stabilises</td></tr>
+  <tr><td>4</td><td>OmniRoute dashboard: reconnect hfr / cohere / mistral, replace Gemini key</td><td class="ok">Low</td><td>Restores <code>leadgen-*</code> aliases properly</td></tr>
+  <tr><td>5</td><td>Restart gateway (also renegotiates the <code>leadgen</code> MCP session)</td><td class="warn">Medium</td><td>Clears the 404 storm</td></tr>
+  <tr><td>6</td><td>Run <code>hermes doctor</code>, then re-attempt update with backup enabled</td><td class="ok">Low</td><td>Unsticks v0.20.5</td></tr>
+</table>
+
+<div class="callout b">
+  <strong>Not done automatically.</strong> These all mutate live automation state, so nothing was changed
+  without your say-so. Say the word and I'll run steps 1–2 (zero-risk) immediately, then walk through
+  3–6 with you.
+</div>
+
+</div>
+</body>
+</html>

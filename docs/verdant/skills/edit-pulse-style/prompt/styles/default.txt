@@ -1,0 +1,95 @@
+## Style: default
+
+### Intent
+
+Use for balanced dashboards, trackers, reports, and mixed-detail boards when no narrower style is clearly better.
+
+### Layout Preferences
+
+- Preferred root layouts: `masonry`, `column`, or `list`.
+- Use `column` when a few strong groups improve scanning.
+- Use `masonry` when there are many comparable cards.
+- Use `list` for task/session browsing or concise operational updates.
+- Prefer 4-8 high-signal cards over many tiny low-signal cards.
+
+### Component Preferences
+
+- Summary: `StatCard`, `DonutChart`, `BarChart` only when the request needs metrics or KPIs.
+- Overview: `Card`, `Column`, `Row`.
+- Detail: `Text`, `List`, `DataTable`, `KeyValue`, `CodeBlock`.
+- Single status/action chips: use standalone `Tag` or `Badge`.
+- Multi-tag clusters: use `TagList`; do not wrap chips in `Row`.
+- Notices: `Callout` only for information that needs attention.
+- Timeline: use only when events have real chronological order.
+
+### Patterns
+
+#### Metrics Overview
+
+Use when: the user asks for KPIs, statistics, status distribution, or quantitative summary.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `masonry`
+- Children:
+  - 1-6 `StatCard` elements with concrete string/number values
+  - For 2-6 peer KPIs, put the `StatCard` elements inside one `Row` metric strip without `widths`
+  - optional `Card` containing one chart
+  - optional `Column` groups for drill-down cards
+
+Validator notes:
+- `StatCard.value` must be a concrete string or number.
+- Chart array props such as `items`, `segments`, `categories`, and `series` must be concrete arrays.
+
+#### Triage Board
+
+Use when: the user wants to review, triage, or act on groups of items.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `masonry` or `column`
+- Put important `Callout` first when there is a warning/info notice.
+- Use `TabGroup` only for 2-5 parallel categories.
+- Each `Card` should contain only the details needed for the next decision.
+
+Validator notes:
+- `TabGroup` children must be `TabPanel` elements.
+- `Callout` is a leaf and must not have children.
+
+#### Timeline Progress
+
+Use when: the data has chronological order, phases, milestones, or event history.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `masonry` or `list`
+- Include one `Timeline` with at least 2 events.
+- Put next actions or risks in separate `Card` elements.
+
+Validator notes:
+- `Timeline.events` must be a concrete array.
+- Do not create a `Timeline` with only one event.
+
+#### Live Task Board
+
+Use when: displayed content comes from task/session data.
+
+Required shape:
+- Root: `Board`
+- Preferred layout: `list`
+- Seed `spec.state.tasks` from bootstrap task/session rows.
+- Use one repeated `Card` with `repeat.statePath: "tasks"`.
+- Include an `ipc-event` subscription for session lifecycle events.
+- Add a `Tag.props.script.type = "navigate_session"` only when the row has a real `sessionId`.
+
+Validator notes:
+- Do not invent task, project, or session ids.
+- If no usable `sessionId` exists, omit the navigation `Tag`.
+- `repeat.statePath` must name a path seeded in `spec.state`.
+
+### Avoid
+
+- Do not mechanically put Badge + Tag + List in every card.
+- Do not repeat a card title in subtitles, badges, or tags.
+- Do not use charts as decoration.
+- Do not use `ActionBar` or `Row`-wrapped chip clusters for new output.

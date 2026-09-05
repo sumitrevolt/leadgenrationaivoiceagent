@@ -1,0 +1,7 @@
+category: System
+min_client_version: '2.7.0'
+interface:
+  display_name: 'Verdent Hooks'
+  short_description: 'Manage Verdent hooks — list, add, remove, enable/disable hooks in hooks.json.'
+  builtin: true
+  hidden: true

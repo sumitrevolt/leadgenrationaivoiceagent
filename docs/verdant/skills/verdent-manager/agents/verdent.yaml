@@ -1,0 +1,8 @@
+category: System
+min_client_version: '2.8.0'
+interface:
+  display_name: 'Verdent Manager'
+  short_description: 'Manage tasks, messages, workspaces, and projects via verdent-manager CLI.'
+  default_prompt: 'Create a workspace, create a task in it, and send the first message.'
+  builtin: true
+  hidden: true
