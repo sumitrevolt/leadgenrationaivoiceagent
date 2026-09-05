@@ -17,20 +17,20 @@ OMNIROUTE_API_KEY = os.environ.get("OMNIROUTE_API_KEY", "")
 # the Claude Desktop frontend filter; real is the app-facing leadgen-* alias;
 # name is the human label. canonical = the exact `leadsgen combo N` gateway id.
 ALL_COMBOS = [
-    {"id": "claude-omni-coding-primary", "real": "leadgen-coding-primary", "canonical": "leadsgen combo 1", "name": "LeadsGen Combo 1 — Coding Primary"},
-    {"id": "claude-omni-coding-fast", "real": "leadgen-coding-fast", "canonical": "leadsgen combo 2", "name": "LeadsGen Combo 2 — Coding Fast"},
-    {"id": "claude-omni-repo-analysis", "real": "leadgen-repo-analysis", "canonical": "leadsgen combo 3", "name": "LeadsGen Combo 3 — Repo Analysis"},
-    {"id": "claude-omni-test-generation", "real": "leadgen-test-generation", "canonical": "leadsgen combo 4", "name": "LeadsGen Combo 4 — Test Generation"},
-    {"id": "claude-omni-agent-ops", "real": "leadgen-agent-ops", "canonical": "leadsgen combo 5", "name": "LeadsGen Combo 5 — Agent Ops"},
-    {"id": "claude-omni-swara-live", "real": "leadgen-swara-live", "canonical": "leadsgen combo 6", "name": "LeadsGen Combo 6 — Swara Live"},
-    {"id": "claude-omni-marketing-content", "real": "leadgen-marketing-content", "canonical": "leadsgen combo 7", "name": "LeadsGen Combo 7 — Marketing Content"},
-    {"id": "claude-omni-prospect-enrich", "real": "leadgen-prospect-enrich", "canonical": "leadsgen combo 8", "name": "LeadsGen Combo 8 — Prospect Enrich"},
-    {"id": "claude-omni-outreach-email", "real": "leadgen-outreach-email", "canonical": "leadsgen combo 9", "name": "LeadsGen Combo 9 — Outreach Email"},
-    {"id": "claude-omni-seo-keyword", "real": "leadgen-seo-keyword", "canonical": "leadsgen combo 10", "name": "LeadsGen Combo 10 — SEO Keyword"},
-    {"id": "claude-omni-governor-review", "real": "leadgen-governor-review", "canonical": "leadsgen combo 11", "name": "LeadsGen Combo 11 — Governor Review"},
-    {"id": "claude-omni-project-best", "real": "leadgen-project-best", "canonical": "leadsgen combo 12", "name": "LeadsGen Combo 12 — Project Best"},
-    {"id": "claude-omni-free-first", "real": "leadgen-14th-combo", "canonical": "leadsgen combo 13", "name": "LeadsGen Combo 13 — Free First (VPS)"},
-    {"id": "claude-omni-general", "real": "leadsgen-combo-14", "canonical": "leadsgen combo 14", "name": "LeadsGen Combo 14 — General"},
+    {"id": "claude-omni-coding-primary", "real": "leadgen-coding-primary", "canonical": "leadsgen combo 1", "name": "LeadsGen Combo 1 — Coding Primary", "email": "admin@leadsgenai.in", "role": "Coding & Logic Primary (Worker #1)"},
+    {"id": "claude-omni-coding-fast", "real": "leadgen-coding-fast", "canonical": "leadsgen combo 2", "name": "LeadsGen Combo 2 — Coding Fast", "email": "ops@leadsgenai.in", "role": "Coding Fast Lane (Worker #2)"},
+    {"id": "claude-omni-repo-analysis", "real": "leadgen-repo-analysis", "canonical": "leadsgen combo 3", "name": "LeadsGen Combo 3 — Repo Analysis", "email": "hello@leadsgenai.in", "role": "Repo Architecture Deep Scan (Worker #3)"},
+    {"id": "claude-omni-test-generation", "real": "leadgen-test-generation", "canonical": "leadsgen combo 4", "name": "LeadsGen Combo 4 — Test Generation", "email": "support@leadsgenai.in", "role": "Automated Test & QA (Worker #4)"},
+    {"id": "claude-omni-agent-ops", "real": "leadgen-agent-ops", "canonical": "leadsgen combo 5", "name": "LeadsGen Combo 5 — Agent Ops", "email": "sunny@leadsgenai.in", "role": "Agent Workforce Operations (Worker #5)"},
+    {"id": "claude-omni-swara-live", "real": "leadgen-swara-live", "canonical": "leadsgen combo 6", "name": "LeadsGen Combo 6 — Swara Live", "email": "sumit20016@gmail.com", "role": "Voice Realtime Fallback (Worker #6 / VPS)"},
+    {"id": "claude-omni-marketing-content", "real": "leadgen-marketing-content", "canonical": "leadsgen combo 7", "name": "LeadsGen Combo 7 — Marketing Content", "email": "bunnybunnysunny49@gmail.com", "role": "Marketing Content & Copy (Worker #7)"},
+    {"id": "claude-omni-prospect-enrich", "real": "leadgen-prospect-enrich", "canonical": "leadsgen combo 8", "name": "LeadsGen Combo 8 — Prospect Enrich", "email": "bunnysunnysunny49@gmail.com", "role": "Prospecting & Lead Enrichment (Worker #8)"},
+    {"id": "claude-omni-outreach-email", "real": "leadgen-outreach-email", "canonical": "leadsgen combo 9", "name": "LeadsGen Combo 9 — Outreach Email", "email": "damsamsamdam39@gmail.com", "role": "Outreach Email & Follow-up (Worker #9)"},
+    {"id": "claude-omni-seo-keyword", "real": "leadgen-seo-keyword", "canonical": "leadsgen combo 10", "name": "LeadsGen Combo 10 — SEO Keyword", "email": "daryananisumit440@gmail.com", "role": "SEO & SEM Keyword Clustering (Worker #10)"},
+    {"id": "claude-omni-governor-review", "real": "leadgen-governor-review", "canonical": "leadsgen combo 11", "name": "LeadsGen Combo 11 — Governor Review", "email": "sunnybunny23211@gmail.com", "role": "Dual Governor Code Review (Worker #11)"},
+    {"id": "claude-omni-project-best", "real": "leadgen-project-best", "canonical": "leadsgen combo 12", "name": "LeadsGen Combo 12 — Project Best", "email": "sunnydaryanani2@gmail.com", "role": "50-Model Master Flagship (Worker #12)"},
+    {"id": "claude-omni-free-first", "real": "leadgen-14th-combo", "canonical": "leadsgen combo 13", "name": "LeadsGen Combo 13 — Free First (VPS)", "email": "CLI Auto-Key", "role": "Free-First Failover Lane (Worker #13 / VPS)"},
+    {"id": "claude-omni-general", "real": "leadsgen-combo-14", "canonical": "leadsgen combo 14", "name": "LeadsGen Combo 14 — General", "email": "OmniRoute Master Key", "role": "General Purpose Free-Tier (Worker #14)"},
 ]
 
 COMBO_IDS = [c["id"] for c in ALL_COMBOS]
@@ -517,17 +517,12 @@ def sync_omniroute_sqlite():
 
 
 def sync_verdant():
-    """Best-effort Verdant Desktop sync (Verdant not installed yet — create the
-    config file if the app dir appears later; harmless no-op otherwise)."""
-    verdant_dirs = [
-        os.path.expanduser(r"~\AppData\Roaming\Verdant"),
-        os.path.expanduser(r"~\AppData\Roaming\verdant"),
-        os.path.expanduser(r"~\AppData\Roaming\verdant-ai"),
-    ]
-    target = next((d for d in verdant_dirs if os.path.exists(d)), None)
-    if not target:
-        print("[SKIP] Verdant Desktop not installed yet — config dir absent (no-op)")
-        return
+    """Enterprise Verdant Desktop sync — ensure directories exist and full 14 combos + MCPs are provisioned."""
+    target_roaming = os.path.expanduser(r"~\AppData\Roaming\Verdant")
+    target_dot = os.path.expanduser(r"~\.verdant")
+    
+    for t in (target_roaming, target_dot):
+        os.makedirs(t, exist_ok=True)
 
     models = [
         {
@@ -537,11 +532,17 @@ def sync_verdant():
             "baseURL": "http://127.0.0.1:20128/v1",
             "apiKey": OMNIROUTE_API_KEY,
             "models": [c["canonical"], c["real"], c["id"]],
+            "contextLength": 1048576,
+            "maxTokens": 16384,
+            "workerEmail": c.get("email", ""),
+            "workerRole": c.get("role", ""),
         }
         for c in ALL_COMBOS
     ]
+    
     config = {
         "version": 2,
+        "defaultModel": "leadsgen combo 1",
         "providers": {
             "omniroute": {
                 "name": "OmniRoute (14 LeadsGen Combos - 1M Context)",
@@ -549,17 +550,45 @@ def sync_verdant():
                 "apiKeyEnv": "OMNIROUTE_API_KEY",
                 "models": models,
                 "context_length": 1048576,
+            },
+            "claude_proxy": {
+                "name": "Claude Proxy (Port 22000)",
+                "base_url": "http://127.0.0.1:22000/v1",
+                "apiKeyEnv": "OMNIROUTE_API_KEY",
+                "models": models,
+                "context_length": 1048576,
             }
         },
         "mcpServers": UNIVERSAL_MCP_SERVERS,
     }
-    config_path = os.path.join(target, "config.json")
-    try:
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2)
-        print(f"[OK] Verdant Desktop synced ({len(models)} OmniRoute combos) -> {config_path}")
-    except Exception as e:
-        print(f"[WARN] Verdant sync note: {e}")
+    
+    for target in (target_roaming, target_dot):
+        try:
+            cfg_file = os.path.join(target, "config.json")
+            with open(cfg_file, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
+                
+            models_file = os.path.join(target, "models.json")
+            with open(models_file, "w", encoding="utf-8") as f:
+                json.dump(models, f, indent=2)
+                
+            mcp_file = os.path.join(target, "mcp_servers.json")
+            with open(mcp_file, "w", encoding="utf-8") as f:
+                json.dump({"mcpServers": UNIVERSAL_MCP_SERVERS}, f, indent=2)
+                
+            settings_file = os.path.join(target, "settings.json")
+            with open(settings_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "activeProvider": "omniroute",
+                    "activeModel": "leadsgen combo 1",
+                    "autoFallback": True,
+                    "mcpEnabled": True,
+                    "workerEmail": "admin@leadsgenai.in"
+                }, f, indent=2)
+                
+            print(f"[OK] Verdant Desktop provisioned ({len(models)} combos + MCPs) -> {target}")
+        except Exception as e:
+            print(f"[WARN] Verdant sync note for {target}: {e}")
 
 
 if __name__ == "__main__":
