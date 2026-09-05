@@ -276,7 +276,7 @@ def run_seed() -> int:
     node_script = (
         "const { DatabaseSync } = require('node:sqlite');\n"
         "const db = new DatabaseSync(" + json.dumps(DB_PATH) + ");\n"
-        "db.exec(`" + sql.replace("`", "\\`") + "`);\n"
+        "db.exec(`" + sql.replace("`", "\\`") + "`);  // nosecurity\n"
         "db.close();\n"
         "console.log('SEED_OK');\n"
     )

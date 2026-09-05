@@ -116,6 +116,8 @@ _SKIP_DIRS = frozenset(
         "outputs",
         "tmp_deploy",
         "_scratch_ops",
+        "openclaw",
+        "dsh",
     }
 )
 

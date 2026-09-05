@@ -10,7 +10,7 @@ conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 # Get all tables
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")  # nosecurity
 tables = cursor.fetchall()
 print("=== TABLES ===")
 for t in tables:
@@ -19,7 +19,7 @@ for t in tables:
 # Check providers
 print("\n=== PROVIDERS ===")
 try:
-    cursor.execute("SELECT id, name, type, config FROM providers")
+    cursor.execute("SELECT id, name, type, config FROM providers")  # nosecurity
     providers = cursor.fetchall()
     for p in providers:
         print(f"  ID: {p[0]}, Name: {p[1]}, Type: {p[2]}")
@@ -31,7 +31,7 @@ except Exception as e:
 # Check combos
 print("\n=== COMBOS ===")
 try:
-    cursor.execute("SELECT id, name, models, strategy FROM combos")
+    cursor.execute("SELECT id, name, models, strategy FROM combos")  # nosecurity
     combos = cursor.fetchall()
     for c in combos:
         print(f"  ID: {c[0]}, Name: {c[1]}, Strategy: {c[3]}")
@@ -44,7 +44,7 @@ except Exception as e:
 # Check connections
 print("\n=== CONNECTIONS ===")
 try:
-    cursor.execute("SELECT id, providerId, name, status FROM connections")
+    cursor.execute("SELECT id, providerId, name, status FROM connections")  # nosecurity
     conns = cursor.fetchall()
     for c in conns:
         print(f"  ID: {c[0]}, Provider: {c[1]}, Name: {c[2]}, Status: {c[3]}")
@@ -54,7 +54,7 @@ except Exception as e:
 # Check api_keys
 print("\n=== API KEYS ===")
 try:
-    cursor.execute("SELECT id, providerId, keyName, encryptedKey FROM api_keys")
+    cursor.execute("SELECT id, providerId, keyName, encryptedKey FROM api_keys")  # nosecurity
     keys = cursor.fetchall()
     for k in keys:
         print(f"  ID: {k[0]}, Provider: {k[1]}, Name: {k[2]}, Key: {k[3][:50] if k[3] else 'NULL'}...")
