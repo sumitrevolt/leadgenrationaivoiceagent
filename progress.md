@@ -1006,3 +1006,18 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_L
 - **Compliance:** No compliance gate touched (sweep re-checks gates + TRAI window before firing); no deploy executed from this loop; no secrets added.
 
 ---
+
+## Loop Run — 2026-09-05 (checkpoint 4: trial-nudge admin UI surface)
+- **Date:** 2026-09-05
+- **Goal:** Close the last open BLK-02 gap — trial-nudge job LIVE but API-only; add admin status/preview/trigger surface per the "API-only = adhoora" rule.
+- **Inspected:** `app/billing/trial_nudge.py` (return-shape, gates); `tests/test_trial_nudge.py` fixtures; admin_dashboard router pattern (`require_admin` + fail-soft dict returns); marketing.html tab/pane/lazy-init pattern (scheduler + widget tabs as neighbours).
+- **Problems Found:** No admin API or UI for the nudge job — owner could not see eligibility or trigger a run without code.
+- **Changed:** (1) `run_trial_nudge(dry_run=True)`: eligibility loop runs with ENABLED gate bypassed (arming-decision helper) but HARD_OFF still blocks; no emails, no stamps; items expose stage/email/owner-1click-WA-text. (2) `status_flags()` snapshot (enabled/hard_off/days_before/remind_h/max_per_client/batch/price — no PII). (3) Admin endpoints: `GET /api/admin/trial-nudge/status` (flags + dry-run preview, limit 20) and `POST /api/admin/trial-nudge/run` (manual run — ALL internal gates still apply; disabled job returns skip_reason so admin sees why). (4) marketing.html: naya "🧪 Trials" tab (18th pane) — flags line, dry-run eligible preview with skip-bucket counts, manual-run button with confirm() + result panel; lazy-loaded, neighbour-convention JS (esc/toast/setBusy/hdrs).
+- **Tests Run:** `tests/test_trial_nudge.py` — 7 naye tests (dry-run bypass+hard-off-block+no-send/no-stamp, real-run fail-closed unchanged, status_flags shape, status endpoint preview buckets, run endpoint disabled-skip) → **20/20 PASS**; ruff clean; `check_secrets` OK; `prod_check` ALL CHECKS PASSED.
+- **Verification Evidence:** Dry-run asserts `sent==0` AND `store.updates==[]` (no side effects); status endpoint asserts `would_send==1, eligible==1, skipped_active==1` with converted-trial fixture; fail-closed path (`skip_reason=trial_nudge_disabled`) unchanged for real runs.
+- **Risks:** Manual-run button sends REAL emails only when job gates pass (TRIAL_NUDGE_ENABLED=1, no HARD_OFF) — otherwise shows skip reason; double-send protection remains per-stage cooldown stamps. Preview endpoint bypasses only the ENABLED flag (never suppression/active/cooldown gates).
+- **Remaining:** Owner-gated: `TRIAL_NUDGE_ENABLED` arming; historical secrets rotation; scratch untrack. Next-loop: post-deploy verify social job + this UI on prod.
+- **Next Highest Priority:** Post-deploy smoke (social job execution + trial tab render); remaining backlog P1s.
+- **Compliance:** Compliance gates untouched — dry-run adds NO new send path; suppression (DPDP) and billing-truth gates unchanged and test-pinned; no deploy, no secrets.
+
+---
