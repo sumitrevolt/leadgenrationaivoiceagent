@@ -149,6 +149,8 @@ def audit_beat() -> None:
         "watchdog-revive",
         "daily-social-post",
         "daily_social_post",
+        "social-stale-sweep",  # own-task dispatch (run_social_stale_sweep); INERT via SOCIAL_STALE_SWEEP
+        "social_stale_sweep",
     }
     unknown = []
     for name in names:

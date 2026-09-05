@@ -39,6 +39,7 @@ AUTOMATION_FLAGS = [
     "AUTO_ONBOARD",
     "SIGNUP_AUTO_ONBOARD",  # public signup → auto client onboard path (checked in public_site/customer_onboard)
     "SOCIAL_PREFS_HONOR",
+    "SOCIAL_STALE_SWEEP",  # 10:30 IST sweep re-fires daily social post when today has no success marker; INERT default (daily_social_post.run_social_stale_sweep)
     "USE_STRUCTURED_CONTENT",
     "USE_AGENTIC_RAG",
     "USE_RERANKER",

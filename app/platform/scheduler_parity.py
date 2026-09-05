@@ -76,6 +76,7 @@ REQUIRED_RUN_DUE_EXCLUDE: frozenset[str] = frozenset(
 _NON_STAFF_RUN_TASKS: frozenset[str] = frozenset({
     "app.tasks.whatsapp_automation.run_whatsapp_automation",
     "app.tasks.daily_social_post.run_daily_social_post",
+    "app.tasks.daily_social_post.run_social_stale_sweep",
 })
 
 # Customer / provider contact risk lanes for staff jobs.

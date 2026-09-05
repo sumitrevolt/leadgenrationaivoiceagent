@@ -15,6 +15,7 @@ Each run:
 import datetime
 import json
 import os
+from typing import Any
 
 from app.integrations.postiz import (
     effective_integration_ids,
@@ -28,14 +29,64 @@ from app.integrations.postiz import (
 from app.platform.hot_queue_owner_pack import check_gates
 from app.tasks.video_generator import sync_generate_daily_videos
 from app.utils.logger import setup_logger
+from app.worker import celery_app
 
 logger = setup_logger(__name__)
 status = "GREEN"
 capacity = 1  # Single run per beat
 
+# --- Stale-sweep markers (Redis; fail-open if Redis unavailable) ---
+# 2026-09-05: run_daily_social_post was previously NEVER registered as a Celery
+# task (plain function) — the 3x daily beat entries sent a name the worker
+# rejected as unregistered, so the daily social job silently never ran. The
+# sweep (SOCIAL_STALE_SWEEP, INERT default) re-fires the job once/day when no
+# successful post marker exists yet.
+SWEEP_SUCCESS_KEY = "social_post:last_success_ymd"
+SWEEP_FIRED_KEY = "social_post:sweep_fired_ymd"
+SWEEP_SUCCESS_TTL_S = 8 * 86400   # a week of silence stays detectable
+SWEEP_FIRED_TTL_S = 36 * 3600     # one sweep attempt per IST-day (idempotency)
+
+
+def _redis_client():
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        return _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+    except Exception:
+        return None
+
+
+def _redis_value(val: Any) -> str:
+    if isinstance(val, bytes):
+        try:
+            return val.decode("utf-8")
+        except Exception:
+            return ""
+    return str(val or "")
+
+
+def _mark_success_if_any(result: dict) -> None:
+    """Set today's success marker when at least one post actually went out."""
+    try:
+        own_posted = bool((result.get("own_brand") or {}).get("posted"))
+        any_client = any(bool(c.get("posted")) for c in result.get("clients") or [])
+        if not (own_posted or any_client):
+            return
+        r = _redis_client()
+        if r is None:
+            return
+        ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        r.set(SWEEP_SUCCESS_KEY, datetime.datetime.now(ist).strftime("%Y-%m-%d"), ex=SWEEP_SUCCESS_TTL_S)
+    except Exception as e:
+        logger.debug(f"[daily_social] success-marker set failed: {e}")
+
+
+@celery_app.task(name="app.tasks.daily_social_post.run_daily_social_post")
 def run_daily_social_post():
     """Execute the daily social + video posting cycle.
-    
+
     Called by Celery beat 3x daily (9:30, 13:00, 16:00 IST).
     """
     # 1. Compliance gate check
@@ -79,10 +130,56 @@ def run_daily_social_post():
     # 5. Client posting
     result["clients"] = _post_client_videos(client_videos, now_ist)
 
+    # 5.5 Success marker for the stale-sweep (any successful post = healthy day)
+    _mark_success_if_any(result)
+
     # 6. Log + ntfy summary to owner
     _log_and_notify(result, now_ist)
 
     return result
+
+
+@celery_app.task(name="app.tasks.daily_social_post.run_social_stale_sweep")
+def run_social_stale_sweep(now_ist: "datetime.datetime | None" = None):
+    """Late-morning sweep: re-fire the daily social job when today had no success.
+
+    Backlog 2026-07-18 (deferred-retry gap): a lost/failed 9:30 beat run left
+    zero posts for the day with no recovery until the next slot (or forever,
+    pre-2026-09-05, when the task name wasn't even registered). Sweep fires
+    AT MOST once per IST-day (Redis fired-marker = idempotency) and only when
+    no success marker exists for today. INERT until SOCIAL_STALE_SWEEP=1.
+    """
+    if os.getenv("SOCIAL_STALE_SWEEP", "0").strip().lower() not in ("1", "true", "yes"):
+        return {"status": "inert", "reason": "SOCIAL_STALE_SWEEP off"}
+
+    gates = check_gates()
+    open_gates = [k for k, v in gates.items() if v != "pass"]
+    if open_gates:
+        return {"status": "skipped", "reason": "open_compliance_gates", "gates": gates}
+
+    ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+    if now_ist is None:
+        now_ist = datetime.datetime.now(ist)
+    if now_ist.hour < 9 or now_ist.hour >= 19:
+        return {"status": "skipped", "reason": "outside_trai_window", "hour": now_ist.hour}
+
+    r = _redis_client()
+    if r is None:
+        return {"status": "skipped", "reason": "redis_unavailable"}
+
+    today = now_ist.strftime("%Y-%m-%d")
+    try:
+        if _redis_value(r.get(SWEEP_SUCCESS_KEY)) == today:
+            return {"status": "healthy", "last_success": today}
+        if _redis_value(r.get(SWEEP_FIRED_KEY)) == today:
+            return {"status": "already_swept", "last_success": _redis_value(r.get(SWEEP_SUCCESS_KEY)) or "unknown"}
+        r.set(SWEEP_FIRED_KEY, today, ex=SWEEP_FIRED_TTL_S)
+        run_daily_social_post.delay()
+        logger.info("[daily_social] stale sweep re-fired daily social post (no success marker for %s)", today)
+        return {"status": "rescheduled", "date": today}
+    except Exception as e:
+        logger.warning(f"[daily_social] stale sweep error: {e}")
+        return {"status": "error", "reason": str(e)[:150]}
 
 
 def _post_own_brand(video_path: str, now_ist: datetime.datetime):
