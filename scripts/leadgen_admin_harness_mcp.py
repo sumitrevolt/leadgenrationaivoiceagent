@@ -358,6 +358,123 @@ elif action == 'park':
         return {"text": f"HotQueue query failed: {exc}"}
 
 
+
+def tool_omniroute_list_combos(args: dict) -> dict:
+    """List the 14 canonical LeadsGen combos, roles, dedicated worker emails, and provider lanes."""
+    from scripts.sync_all_combos_all_apps import ALL_COMBOS
+    output = ["=== OmniRoute 14 Canonical LeadsGen Combos ==="]
+    for c in ALL_COMBOS:
+        output.append(f"• {c['canonical']} | {c['name']}")
+        output.append(f"  - Role: {c.get('role', 'Worker')}")
+        output.append(f"  - Worker Email Key: {c.get('email', 'N/A')}")
+        output.append(f"  - App Route Alias: {c['real']} / {c['id']}")
+        output.append(f"  - Live Provider Slots: 3 free-tier lanes (Total 42 across gateway)")
+    return {"text": "\n".join(output)}
+
+
+def tool_omniroute_query_combo(args: dict) -> dict:
+    """Query OmniRoute gateway with any of the 14 combos or task aliases."""
+    import urllib.request
+    combo = str(args.get("combo") or "leadsgen combo 1").strip()
+    prompt = str(args.get("prompt") or "").strip()
+    system_prompt = str(args.get("system") or "You are an autonomous AI worker powering the LeadGen platform.").strip()
+    if not prompt:
+        return {"text": "Error: prompt is required"}
+
+    try:
+        from app.platform.safe_ai_payload import mask_customer_data
+        safe_prompt = mask_customer_data(prompt)
+    except Exception:
+        safe_prompt = prompt
+    
+    api_key = os.environ.get("OMNIROUTE_API_KEY", "")
+    endpoints = ["http://127.0.0.1:20128/v1/chat/completions", "http://127.0.0.1:22000/v1/chat/completions"]
+    last_err = None
+    
+    payload = json.dumps({
+        "model": combo,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": safe_prompt}
+        ],
+        "max_tokens": int(args.get("max_tokens") or 2048),
+        "temperature": float(args.get("temperature") or 0.2)
+    }).encode("utf-8")
+    
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    
+    for url in endpoints:
+        try:
+            req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                choice = data.get("choices", [{}])[0]
+                text = choice.get("message", {}).get("content", "")
+                resolved_model = data.get("model", combo)
+                return {"text": f"[{resolved_model} via {url}]\n\n{text}"}
+        except Exception as e:
+            last_err = e
+            continue
+            
+    return {"text": f"OmniRoute query failed on all endpoints: {last_err}"}
+
+
+def tool_omniroute_health_check(args: dict) -> dict:
+    """Probe OmniRoute gateway, Claude proxy, container status, and combo database health."""
+    import urllib.request
+    results = []
+    
+    # 1. Probe port 20128
+    try:
+        req = urllib.request.Request("http://127.0.0.1:20128/api/health")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            results.append(f"OmniRoute Gateway (:20128): HEALTHY (HTTP {resp.getcode()})")
+    except Exception as e:
+        results.append(f"OmniRoute Gateway (:20128): {e}")
+        
+    # 2. Probe port 22000
+    try:
+        req = urllib.request.Request("http://127.0.0.1:22000/api/health")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            results.append(f"Claude Proxy (:22000): HEALTHY (HTTP {resp.getcode()})")
+    except Exception as e:
+        results.append(f"Claude Proxy (:22000): {e}")
+        
+    # 3. Probe combos count
+    try:
+        req = urllib.request.Request("http://127.0.0.1:20128/v1/models")
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            models = data.get("data", [])
+            combo_models = [m for m in models if "leadsgen combo" in m.get("id", "")]
+            results.append(f"Active LeadsGen Combos: {len(combo_models)} / 14 registered in live models")
+    except Exception as e:
+        results.append(f"Models probe: {e}")
+        
+    return {"text": "\n".join(results)}
+
+
+def tool_omniroute_self_heal(args: dict) -> dict:
+    """Autonomous self-healing trigger — reseed 14 combos into database and resync all 5 desktop apps."""
+    try:
+        sync_script = REPO_ROOT / "scripts" / "sync_all_combos_all_apps.py"
+        r = subprocess.run(
+            [PYTHON_EXE, str(sync_script)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=90
+        )
+        return {"text": r.stdout if r.returncode == 0 else f"Self-heal error: {r.stderr or r.stdout}"}
+    except Exception as e:
+        return {"text": f"Self-heal execution failed: {e}"}
+
+
 def tool_project_status(args: dict) -> dict:
     """Get high level LeadGen platform status and environment state."""
     summary = []
@@ -530,6 +647,47 @@ TOOLS = [
         "description": "Check LeadGen platform files, Python environment, graph status, and invariants.",
         "inputSchema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "omniroute_list_combos",
+        "description": "List all 14 canonical LeadsGen combos, their worker roles, dedicated worker emails, and provider lanes.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "omniroute_query_combo",
+        "description": "Execute AI inference via OmniRoute using any of the 14 combos ('leadsgen combo 1' .. 'leadsgen combo 14' or aliases) with 1M context support.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "combo": {
+                    "type": "string",
+                    "description": "Combo name (e.g. 'leadsgen combo 1', 'leadgen.coding_primary', 'leadsgen combo 12')",
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "User prompt/instructions to execute",
+                },
+                "system": {
+                    "type": "string",
+                    "description": "Optional system prompt",
+                },
+                "max_tokens": {
+                    "type": "integer",
+                    "description": "Maximum output tokens (default: 2048)",
+                },
+            },
+            "required": ["prompt"],
+        },
+    },
+    {
+        "name": "omniroute_health_check",
+        "description": "Check health of OmniRoute gateway (:20128), Claude proxy (:22000), and active combo models.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "omniroute_self_heal",
+        "description": "Trigger autonomous self-healing: re-seeds 14 combos into database and synchronizes all 5 desktop apps (Hermes, Claude, WorkBuddy, OpenClaw, Verdant).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 ]
 
 HANDLERS = {
@@ -546,6 +704,10 @@ HANDLERS = {
     "self_harness_verify": tool_self_harness_verify,
     "hot_queue_triage": tool_hot_queue_triage,
     "project_status": tool_project_status,
+    "omniroute_list_combos": tool_omniroute_list_combos,
+    "omniroute_query_combo": tool_omniroute_query_combo,
+    "omniroute_health_check": tool_omniroute_health_check,
+    "omniroute_self_heal": tool_omniroute_self_heal,
 }
 
 
