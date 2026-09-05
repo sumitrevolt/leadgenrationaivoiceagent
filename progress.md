@@ -991,3 +991,18 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_L
 - **Compliance:** No gate touched, no deploy, no remote state change, no deletion executed. Docs + backlog append only.
 
 ---
+
+## Loop Run — 2026-09-05 (checkpoint 3: drift-fix + silent social-post bug)
+- **Date:** 2026-09-05
+- **Goal:** Backlog 2026-07-05 `.env.example`/`pyproject.toml` drift cleanup; then inspect the 2026-07-18 social deferred-retry gap.
+- **Inspected:** `.env.example` (STT/TTS already aligned — backlog note stale); `pyproject.toml` deps vs `requirements.lock.txt` + app imports (all deps used; edge-tts floor 6.1.9 vs landmine >=7.2.0); Stripe section (advertised live option, actually fail-closed stub); `app/tasks/daily_social_post.py` + `app/worker.py` beat + `app/platform/scheduler_parity.py` + `scripts/automation_wiring_audit.py`; Celery registry probe `run_daily_social_post in celery_app.tasks`.
+- **Problems Found:** 🚨 `app.tasks.daily_social_post.run_daily_social_post` was a PLAIN function — never a registered Celery task. The 3x daily beat entries sent a name the worker rejects as unregistered → daily social posting silently never ran (root cause of the 2026-07-18 "content job deferred-retry" backlog item, deeper than assumed).
+- **Changed:** (1) Registered `run_daily_social_post` + new `run_social_stale_sweep` as Celery tasks (copy `kb_niche_refresh` pattern). (2) `run_social_stale_sweep`: 10:30 IST beat entry re-fires the daily job ONCE/IST-day when no success marker exists (Redis `social_post:last_success_ymd` / `sweep_fired_ymd`, fail-open); INERT via `SOCIAL_STALE_SWEEP=0` default; TRAI window + compliance-gate checks first. (3) Success marker set on any successful post. (4) `run_daily_social_post` added to `_route_video_task` tuple (video-queue isolation when `CELERY_VIDEO_QUEUE=1` — SRE guard for render-in-default-queue OOM class). (5) Parity: task added to `_NON_STAFF_RUN_TASKS`; `NON_JOB` allowlist entry in `automation_wiring_audit.py`; `SOCIAL_STALE_SWEEP` in AUTOMATION_FLAGS + `.env.example`. (6) PR #467: pyproject edge-tts floor + `.env.example` Stripe/legacy-gateway correction + stale CLAUDE.md landmine line + backlog archive.
+- **Tests Run:** `tests/test_social_post_registration_2026_09_05.py` (new, 11 tests: registration guard, sweep inert/idempotent/healthy/TRAI/gates/redis-skip, markers, beat wiring) + parity suite + routing suite → 23/23 PASS; ruff clean; `check_secrets` OK; `prod_check` PASS (after NON_JOB allowlist entry; 1406 ops).
+- **Verification Evidence:** Registry probe False→True for both task names; `beat_task_targets_ok()==[]` test-pinned; `staff_job_count` stays 54 (sweep key excluded from beat map by cadence-suffix regex); prod_check ALL CHECKS PASSED.
+- **Risks:** On next deploy, the registration fix ACTIVATES daily social posting for the first time (#457 shipped the entries but the job was dead code): own-brand posts 3x/day via Postiz (ADR-099-approved surface, POSTIZ_API_KEY present in prod; client posts still gated by VIDEO_AD_CYCLE=1). Video render load lands in worker (or worker-video when CELERY_VIDEO_QUEUE=1) — watch memcg after deploy. Sweep itself stays INERT until owner sets SOCIAL_STALE_SWEEP=1.
+- **Remaining:** Owner-gated: SOCIAL_STALE_SWEEP arming decision; historical secrets rotation; scratch untrack. Next-loop: post-deploy verify social job actually executes (Sentry + worker logs + Postiz).
+- **Next Highest Priority:** Post-deploy smoke of the activated social job; then remaining backlog P1s.
+- **Compliance:** No compliance gate touched (sweep re-checks gates + TRAI window before firing); no deploy executed from this loop; no secrets added.
+
+---

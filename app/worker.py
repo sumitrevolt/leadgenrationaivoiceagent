@@ -107,6 +107,7 @@ def _route_video_task(name, args, kwargs, options, task=None, **kw):
                 "app.tasks.video_jobs.build_creative_video_task",
                 "app.tasks.video_jobs.render_creative_os_task",
                 "app.tasks.video_jobs.daily_video_client_task",
+                "app.tasks.daily_social_post.run_daily_social_post",
             )
             and _video_queue_enabled()
         ):
@@ -851,6 +852,14 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.daily_social_post.run_daily_social_post",
         "schedule": crontab(hour=16, minute=0),
         "options": {"expires": 10800},
+    },
+    # Late-morning stale sweep (backlog 2026-07-18 deferred-retry gap): re-fires
+    # the daily social job ONCE when today has no success marker. INERT until
+    # SOCIAL_STALE_SWEEP=1 (task returns {"status":"inert"} otherwise).
+    "staff-social-stale-sweep": {
+        "task": "app.tasks.daily_social_post.run_social_stale_sweep",
+        "schedule": crontab(hour=10, minute=30),
+        "options": {"expires": 5400},
     },
 
     # WhatsApp full automation — hourly within 9am–7pm TRAI window
