@@ -1,0 +1,40 @@
+{
+  "unit": {
+    "name": "workspace",
+    "version": 2
+  },
+  "global": {
+    "initialized": true,
+    "workspaceIds": [
+      "6ae3d85c-2b54-4dbc-a494-0cf925253e7d"
+    ],
+    "archivedSessionIds": []
+  },
+  "tables": {
+    "workspaces": {
+      "6ae3d85c-2b54-4dbc-a494-0cf925253e7d": {
+        "path": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent",
+        "title": "leadgenrationaivoiceagent",
+        "sessionIds": [
+          "session-8a259385-c73f-422c-a03b-5a609ff887af",
+          "session-35cbb89f-dcdd-4b85-9ac8-5231ec4ec87c",
+          "session-f64b49d1-4c1e-4ffc-928d-a52bbd177cc9",
+          "session-624006c9-7c80-4bf8-b68d-143e87ee4a45",
+          "session-5ccd172e-e33c-43a7-83ac-1a482b551ce6",
+          "session-5cd89a63-4063-4ea4-8128-881d66ca97b4",
+          "session-0e06e884-0243-4471-ad7b-2b980f933c53",
+          "session-ca2395d6-f944-4c21-8743-69ef9b51f00c",
+          "session-d65cebc5-0d99-4bfc-80aa-24c7134ffcdd",
+          "session-52bf92b4-2cdd-4ed2-a080-d1a1a226564b",
+          "session-a79370e6-d0c0-4e80-b3d7-c3cf3fb50ac8",
+          "session-63961226-1f91-4fde-a676-7da1f22970e0",
+          "session-5f8dc876-b578-4ce3-983f-2c8331451ca1",
+          "session-57949826-3f0f-4866-ae02-de729d293bd9",
+          "session-cf70bb65-5e42-4148-9fa9-dd1a911ebe73"
+        ],
+        "createdAt": "2026-08-21T17:39:20.952Z",
+        "updatedAt": "2026-09-03T03:37:26.573Z"
+      }
+    }
+  }
+}

@@ -1,0 +1,5291 @@
+{
+  "unit": {
+    "name": "session_projcache",
+    "version": 3
+  },
+  "global": null,
+  "tables": {
+    "sessions": {
+      "session-9c53a309-a4e3-4c18-a813-764385fd1bae": {
+        "identity": {
+          "createdAt": 1786855937399,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 37851,
+            "val": {
+              "turns": 22,
+              "steps": 162,
+              "llmMs": 2574237,
+              "toolMs": 1603822,
+              "ttftMs": 1833610,
+              "ttftSteps": 149,
+              "decodeMs": 740627,
+              "decodeTokens": 82489,
+              "lastTurn": 22,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 37851,
+            "val": "analyze the ProJet and gear"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 37851,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 37851,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 19005291,
+                "outputTokens": 82489,
+                "cacheReadTokens": 559709,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 22,
+                "step": 2,
+                "buckets": {
+                  "uncachedInputTokens": 205502,
+                  "outputTokens": 491,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 37851,
+            "val": {
+              "surfaceTokens": 148097,
+              "contextWindow": 262144,
+              "pressureTokens": 205502,
+              "sampledSurfaceTokens": 147595
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 37851,
+            "val": {
+              "systemTokens": 9243,
+              "toolsTokens": 224,
+              "messageTokens": 148097
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 37851,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 37851,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 37851,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 37851,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786870466275
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 37851,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 37851,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 37851,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-6f31ecc2-44d8-474d-90e0-096879155b62": {
+        "identity": {
+          "createdAt": 1786856666462,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 18,
+            "val": {
+              "turns": 1,
+              "steps": 1,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 18,
+            "val": "hi"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 18,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 18,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 18,
+            "val": {
+              "surfaceTokens": 10844,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 10844
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 18,
+            "val": {
+              "systemTokens": 9243,
+              "toolsTokens": 224,
+              "messageTokens": 10844
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 18,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 18,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 18,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 18,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786859511821
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 18,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 18,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 18,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-ec383f34-31cb-4bce-8032-25d8100125ac": {
+        "identity": {
+          "createdAt": 1786861111588,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 454,
+            "val": {
+              "turns": 2,
+              "steps": 2,
+              "llmMs": 102511,
+              "toolMs": 139160,
+              "ttftMs": 85820,
+              "ttftSteps": 2,
+              "decodeMs": 16691,
+              "decodeTokens": 1629,
+              "lastTurn": 2,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 454,
+            "val": "Reply with exactly: OMNI_DSH_SMOKE_OK"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 454,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 454,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 54029,
+                "outputTokens": 1629,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 2,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 32440,
+                  "outputTokens": 1580,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 454,
+            "val": {
+              "surfaceTokens": 21315,
+              "contextWindow": 262144,
+              "pressureTokens": 32440,
+              "sampledSurfaceTokens": 19687
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 454,
+            "val": {
+              "systemTokens": 9242,
+              "toolsTokens": 224,
+              "messageTokens": 21315
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 454,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 454,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 454,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 454,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786942802639
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 454,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 454,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 454,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-845ea990-7cea-410e-a986-efa64af43f65": {
+        "identity": {
+          "createdAt": 1786870515181,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 207803,
+            "val": {
+              "turns": 28,
+              "steps": 927,
+              "llmMs": 14754701,
+              "toolMs": 30458846,
+              "ttftMs": 10330441,
+              "ttftSteps": 920,
+              "decodeMs": 4424260,
+              "decodeTokens": 413352,
+              "lastTurn": 28,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 207803,
+            "val": "Continue from last session"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 207803,
+            "val": {
+              "goal": {
+                "id": "goal-8f266d8b-5119-4566-a393-3b2272b301a7",
+                "revision": 2,
+                "objective": "Autonomously continue LeadGen AI production/revenue/automation readiness work under owner authorization: inspect current truth, fix safe blockers, verify, PR/merge/deploy when green, canary/observe/rollback as needed, and produce evidence-backed 17-section final report.",
+                "phase": "complete",
+                "maxGoalRounds": 10
+              },
+              "roundsStarted": 2,
+              "createdAt": 1786916229873,
+              "updatedAt": 1786934688421
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 207803,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 53563600,
+                "outputTokens": 413352,
+                "cacheReadTokens": 98372936,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 27,
+                "step": 24,
+                "buckets": {
+                  "uncachedInputTokens": 92538,
+                  "outputTokens": 646,
+                  "cacheReadTokens": 88576,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 207803,
+            "val": {
+              "surfaceTokens": 76520,
+              "contextWindow": 262144,
+              "pressureTokens": 181114,
+              "sampledSurfaceTokens": 75559
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 207803,
+            "val": {
+              "systemTokens": 9243,
+              "toolsTokens": 224,
+              "messageTokens": 76520
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 207803,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 207803,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 207803,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 207803,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786941994151
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 207803,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 207803,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 207803,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "a3df1705-0118-4ead-be46-3091024a6ee9": {
+        "identity": {
+          "createdAt": 1786875794094,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 8527,
+            "val": {
+              "turns": 1,
+              "steps": 21,
+              "llmMs": 968503,
+              "toolMs": 38160,
+              "ttftMs": 747369,
+              "ttftSteps": 21,
+              "decodeMs": 221134,
+              "decodeTokens": 15665,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 8527,
+            "val": "You are auditing the LeadGen"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 8527,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 8527,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 1298195,
+                "outputTokens": 15665,
+                "cacheReadTokens": 1238507,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 21,
+                "buckets": {
+                  "uncachedInputTokens": 103122,
+                  "outputTokens": 381,
+                  "cacheReadTokens": 95744,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 8527,
+            "val": {
+              "surfaceTokens": 84274,
+              "contextWindow": 262144,
+              "pressureTokens": 198866,
+              "sampledSurfaceTokens": 83906
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 8527,
+            "val": {
+              "systemTokens": 9534,
+              "toolsTokens": 224,
+              "messageTokens": 84274
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 8527,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 1008771
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 8527,
+            "val": {
+              "identity": {
+                "mode": "continuable",
+                "label": "Audit performance hotspots",
+                "seq": 0
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 8527,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 8527,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786875794646
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 8527,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 8527,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 8527,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "31d51c0b-681f-4061-a1da-a87f017111ca": {
+        "identity": {
+          "createdAt": 1786875794166,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 353,
+            "val": {
+              "turns": 1,
+              "steps": 18,
+              "llmMs": 568790,
+              "toolMs": 16275,
+              "ttftMs": 550169,
+              "ttftSteps": 17,
+              "decodeMs": 18621,
+              "decodeTokens": 10221,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 353,
+            "val": "You are auditing the LeadGen"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 353,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 353,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 309529,
+                "outputTokens": 10221,
+                "cacheReadTokens": 878906,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 18,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 353,
+            "val": {
+              "surfaceTokens": 69093,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 69093
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 353,
+            "val": {
+              "systemTokens": 9534,
+              "toolsTokens": 224,
+              "messageTokens": 69093
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 353,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 587456
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 353,
+            "val": {
+              "identity": {
+                "mode": "continuable",
+                "label": "Audit error resilience gaps",
+                "seq": 0
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 353,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 353,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786875794670
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 353,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 353,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 353,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "b7b8f0ab-cac4-445d-bfa5-6bae80acdfb0": {
+        "identity": {
+          "createdAt": 1786875794215,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 310,
+            "val": {
+              "turns": 1,
+              "steps": 11,
+              "llmMs": 601826,
+              "toolMs": 9698,
+              "ttftMs": 553792,
+              "ttftSteps": 10,
+              "decodeMs": 48034,
+              "decodeTokens": 4648,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 310,
+            "val": "You are auditing the LeadGen"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 310,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 310,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 353444,
+                "outputTokens": 4648,
+                "cacheReadTokens": 279111,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 11,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 310,
+            "val": {
+              "surfaceTokens": 64647,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 64647
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 310,
+            "val": {
+              "systemTokens": 9534,
+              "toolsTokens": 224,
+              "messageTokens": 64647
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 310,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 612758
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 310,
+            "val": {
+              "identity": {
+                "mode": "continuable",
+                "label": "Audit conversion + security",
+                "seq": 0
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 310,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 310,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786875794698
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 310,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 310,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 310,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "9f165a8c-3b7c-4c68-bb2f-9e4a6e4f206c": {
+        "identity": {
+          "createdAt": 1786881885007,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 5066,
+            "val": {
+              "turns": 1,
+              "steps": 18,
+              "llmMs": 331162,
+              "toolMs": 402259,
+              "ttftMs": 210386,
+              "ttftSteps": 18,
+              "decodeMs": 120776,
+              "decodeTokens": 6693,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 5066,
+            "val": "You are an independent read-only"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 5066,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 5066,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 1259221,
+                "outputTokens": 6693,
+                "cacheReadTokens": 1085440,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 18,
+                "buckets": {
+                  "uncachedInputTokens": 48607,
+                  "outputTokens": 333,
+                  "cacheReadTokens": 19968,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 5066,
+            "val": {
+              "surfaceTokens": 35180,
+              "contextWindow": 262144,
+              "pressureTokens": 68575,
+              "sampledSurfaceTokens": 34784
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 5066,
+            "val": {
+              "systemTokens": 9534,
+              "toolsTokens": 224,
+              "messageTokens": 35180
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 5066,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 739678
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 5066,
+            "val": {
+              "identity": {
+                "mode": "continuable",
+                "label": "Independent launch review",
+                "seq": 0
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 5066,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 5066,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786881885746
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 5066,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 5066,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 5066,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "0814361a-8f4c-419b-ba21-6ab1bd325a3a": {
+        "identity": {
+          "createdAt": 1786888937127,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 3828,
+            "val": {
+              "turns": 1,
+              "steps": 15,
+              "llmMs": 174044,
+              "toolMs": 51720,
+              "ttftMs": 84070,
+              "ttftSteps": 15,
+              "decodeMs": 89974,
+              "decodeTokens": 6278,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 3828,
+            "val": "Review PR #381 in repo"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 3828,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 3828,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 722304,
+                "outputTokens": 6278,
+                "cacheReadTokens": 622592,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 15,
+                "buckets": {
+                  "uncachedInputTokens": 64727,
+                  "outputTokens": 338,
+                  "cacheReadTokens": 60928,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 3828,
+            "val": {
+              "surfaceTokens": 48196,
+              "contextWindow": 262144,
+              "pressureTokens": 125655,
+              "sampledSurfaceTokens": 47833
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 3828,
+            "val": {
+              "systemTokens": 9534,
+              "toolsTokens": 224,
+              "messageTokens": 48196
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 3828,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 230777
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 3828,
+            "val": {
+              "identity": {
+                "mode": "continuable",
+                "label": "Review PR safety",
+                "seq": 0
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 3828,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 3828,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786888939269
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 3828,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 3828,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 3828,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "24570117-b9a9-4a8d-96d2-ce685a4df3c3": {
+        "identity": {
+          "createdAt": 1786897020507,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 7052,
+            "val": {
+              "turns": 1,
+              "steps": 30,
+              "llmMs": 284575,
+              "toolMs": 74579,
+              "ttftMs": 130476,
+              "ttftSteps": 30,
+              "decodeMs": 154099,
+              "decodeTokens": 9898,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 7052,
+            "val": "You are reviewing a large"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 7052,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 7052,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 2041702,
+                "outputTokens": 9898,
+                "cacheReadTokens": 1869824,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 30,
+                "buckets": {
+                  "uncachedInputTokens": 106370,
+                  "outputTokens": 286,
+                  "cacheReadTokens": 102912,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 7052,
+            "val": {
+              "surfaceTokens": 88105,
+              "contextWindow": 262144,
+              "pressureTokens": 209282,
+              "sampledSurfaceTokens": 87797
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 7052,
+            "val": {
+              "systemTokens": 9534,
+              "toolsTokens": 224,
+              "messageTokens": 88105
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 7052,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 361702
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 7052,
+            "val": {
+              "identity": {
+                "mode": "continuable",
+                "label": "Review FreeBuff branch",
+                "seq": 0
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 7052,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 7052,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786897020930
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 7052,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 7052,
+            "val": [
+              {
+                "content": "Identify changed files and diff against base SHA",
+                "status": "completed"
+              },
+              {
+                "content": "Inspect high-risk compliance, billing, voice, routes, admin, worker and secret changes",
+                "status": "completed"
+              },
+              {
+                "content": "Run read-only checks for route collisions and tests where feasible",
+                "status": "completed"
+              },
+              {
+                "content": "Compile severity findings with exact file lines and merge recommendation",
+                "status": "in_progress"
+              }
+            ]
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 7052,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-c3ca46e1-62ca-4061-8b00-f5c8350ee9f1": {
+        "identity": {
+          "createdAt": 1786942119548,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 25280,
+            "val": {
+              "turns": 10,
+              "steps": 297,
+              "llmMs": 7384569,
+              "toolMs": 1497170,
+              "ttftMs": 6680779,
+              "ttftSteps": 295,
+              "decodeMs": 703790,
+              "decodeTokens": 89330,
+              "lastTurn": 10,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 25280,
+            "val": "DSH Authority ON, lekin canary"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 25280,
+            "val": {
+              "goal": {
+                "id": "goal-d6f252f4-8e7b-4510-a115-a31f960eae5f",
+                "revision": 2,
+                "objective": "Fix the audited defects: (1) root-cause DSH canary dsh_authority_no_capability_submission, (2) close /api/agents/status anonymous leak, (3) admin dashboard stale banner/dup logout/overflow/anonymous privileged UI, (4) inbox Hot Queue count mismatch, (5) Automation Mission Control stuck loaders — with targeted tests + prod_check verification, without arming DSH flags or touching frozen voice surfaces without owner gate.",
+                "phase": "complete",
+                "maxGoalRounds": 8
+              },
+              "roundsStarted": 0,
+              "createdAt": 1786942243502,
+              "updatedAt": 1786943690983
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 25280,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 13196929,
+                "outputTokens": 89330,
+                "cacheReadTokens": 31373360,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 10,
+                "step": 35,
+                "buckets": {
+                  "uncachedInputTokens": 7783,
+                  "outputTokens": 522,
+                  "cacheReadTokens": 117784,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 25280,
+            "val": {
+              "surfaceTokens": 83996,
+              "contextWindow": 262144,
+              "pressureTokens": 125567,
+              "sampledSurfaceTokens": 83418
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 25280,
+            "val": {
+              "systemTokens": 4455,
+              "toolsTokens": 8541,
+              "messageTokens": 83996
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 25280,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 25280,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 25280,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 25280,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786959812073
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 25280,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 25280,
+            "val": [
+              {
+                "content": "Fix DSH canary remaining no-submit by adding safe server-side tool-call fallback for forced submit",
+                "status": "completed"
+              },
+              {
+                "content": "Fix Swara opener claim to avoid unverifiable outcome promise",
+                "status": "completed"
+              },
+              {
+                "content": "Fix typed mode mic privacy so speech cannot overwrite typed turn",
+                "status": "completed"
+              },
+              {
+                "content": "Fix Today dashboard empty-table rendering and remaining UI leftovers",
+                "status": "completed"
+              },
+              {
+                "content": "Run targeted tests + prod_check/check_secrets",
+                "status": "completed"
+              },
+              {
+                "content": "Commit/PR/deploy and run live canary + smoke verification",
+                "status": "completed"
+              },
+              {
+                "content": "Record progress/handoff truthfully",
+                "status": "completed"
+              }
+            ]
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 25280,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-07e0b08e-5e01-4233-afb6-3ac023ab7c59": {
+        "identity": {
+          "createdAt": 1786945341701,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 918,
+            "val": {
+              "turns": 3,
+              "steps": 77,
+              "llmMs": 1176200,
+              "toolMs": 259854,
+              "ttftMs": 1048485,
+              "ttftSteps": 75,
+              "decodeMs": 127715,
+              "decodeTokens": 28353,
+              "lastTurn": 3,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 918,
+            "val": "WORK the live handoff —"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 918,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 918,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 777384,
+                "outputTokens": 28353,
+                "cacheReadTokens": 4193538,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 3,
+                "step": 5,
+                "buckets": {
+                  "uncachedInputTokens": 4588,
+                  "outputTokens": 196,
+                  "cacheReadTokens": 101546,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 918,
+            "val": {
+              "surfaceTokens": 65809,
+              "contextWindow": 262144,
+              "pressureTokens": 106134,
+              "sampledSurfaceTokens": 65618
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 918,
+            "val": {
+              "systemTokens": 4455,
+              "toolsTokens": 8541,
+              "messageTokens": 65809
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 918,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 918,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 918,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 918,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786946842751
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 918,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 918,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 918,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-d2ad46e4-4099-4126-91ed-a6a3b36b8d59": {
+        "identity": {
+          "createdAt": 1786962045559,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 4018,
+            "val": {
+              "turns": 9,
+              "steps": 278,
+              "llmMs": 6006987,
+              "toolMs": 1254012,
+              "ttftMs": 5865721,
+              "ttftSteps": 277,
+              "decodeMs": 141266,
+              "decodeTokens": 89933,
+              "lastTurn": 9,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 4018,
+            "val": "# ROLE: OWNER-DELEGATED SUPER ADMIN"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 4018,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 4018,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 3034085,
+                "outputTokens": 89933,
+                "cacheReadTokens": 37542159,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 9,
+                "step": 27,
+                "buckets": {
+                  "uncachedInputTokens": 5537,
+                  "outputTokens": 734,
+                  "cacheReadTokens": 93161,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 4018,
+            "val": {
+              "surfaceTokens": 66102,
+              "contextWindow": 262144,
+              "pressureTokens": 98698,
+              "sampledSurfaceTokens": 65320
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 4018,
+            "val": {
+              "systemTokens": 9243,
+              "toolsTokens": 224,
+              "messageTokens": 66102
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 4018,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 4018,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 4018,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 4018,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786973168002
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 4018,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 4018,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 4018,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-f3b00fdb-1506-469e-926e-05e1f45e4d56": {
+        "identity": {
+          "createdAt": 1786973634767,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 1374,
+            "val": {
+              "turns": 6,
+              "steps": 109,
+              "llmMs": 2358127,
+              "toolMs": 1729118,
+              "ttftMs": 2299109,
+              "ttftSteps": 109,
+              "decodeMs": 59018,
+              "decodeTokens": 30881,
+              "lastTurn": 6,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 1374,
+            "val": "compitiotr reserch and improvements for"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 1374,
+            "val": {
+              "goal": {
+                "id": "goal-e44488f1-da34-4d86-8d67-1850273a0698",
+                "revision": 2,
+                "objective": "Conduct competitor research on web and GitHub for AI Marketing and Voice Calling products, propose improvements, and implement upgrades based on findings.",
+                "phase": "complete",
+                "maxGoalRounds": 256
+              },
+              "roundsStarted": 0,
+              "createdAt": 1786973774897,
+              "updatedAt": 1786974742309
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 1374,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 876129,
+                "outputTokens": 30881,
+                "cacheReadTokens": 7333701,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 6,
+                "step": 12,
+                "buckets": {
+                  "uncachedInputTokens": 4139,
+                  "outputTokens": 329,
+                  "cacheReadTokens": 105268,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 1374,
+            "val": {
+              "surfaceTokens": 68960,
+              "contextWindow": 262144,
+              "pressureTokens": 109407,
+              "sampledSurfaceTokens": 68653
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 1374,
+            "val": {
+              "systemTokens": 4455,
+              "toolsTokens": 8541,
+              "messageTokens": 68960
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 1374,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 1374,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 1374,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 1374,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1786979383608
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 1374,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 1374,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 1374,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-8cbcb0f0-78eb-41ec-8b40-f9ccdcd79f97": {
+        "identity": {
+          "createdAt": 1787017640018,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 34068,
+            "val": {
+              "turns": 32,
+              "steps": 717,
+              "llmMs": 14490146,
+              "toolMs": 5630205,
+              "ttftMs": 13103356,
+              "ttftSteps": 714,
+              "decodeMs": 1386790,
+              "decodeTokens": 258210,
+              "lastTurn": 32,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 34068,
+            "val": "mer all pr and freebuff"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 34068,
+            "val": {
+              "goal": {
+                "id": "goal-83f46980-50f0-4aef-aada-627ef9466d09",
+                "revision": 3,
+                "objective": "Audit LeadGen AI production automations, identify what is running/not running, fix safe revenue-blocking issues, verify VPS health/scheduler/outreach/social/voice status, and report evidence in Hinglish.",
+                "phase": "complete",
+                "maxGoalRounds": 5
+              },
+              "roundsStarted": 0,
+              "createdAt": 1787034383981,
+              "updatedAt": 1787036995071
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 34068,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 13794882,
+                "outputTokens": 258210,
+                "cacheReadTokens": 82365493,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 32,
+                "step": 9,
+                "buckets": {
+                  "uncachedInputTokens": 4468,
+                  "outputTokens": 230,
+                  "cacheReadTokens": 117721,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 34068,
+            "val": {
+              "surfaceTokens": 73816,
+              "contextWindow": 262144,
+              "pressureTokens": 122189,
+              "sampledSurfaceTokens": 73579
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 34068,
+            "val": {
+              "systemTokens": 9243,
+              "toolsTokens": 224,
+              "messageTokens": 73816
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 34068,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 34068,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 34068,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 34068,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787047323694
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 34068,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 34068,
+            "val": [
+              {
+                "content": "Replay 129 legacy billing webhook failures",
+                "status": "completed"
+              },
+              {
+                "content": "Merge uncommitted branches into PR and update GitHub integration",
+                "status": "completed"
+              },
+              {
+                "content": "Hotfix Pytest asyncio task leak to unblock CI merge checks",
+                "status": "completed"
+              },
+              {
+                "content": "Fix DSH supply chain evidence and graph configurations explicitly for Pytest",
+                "status": "completed"
+              },
+              {
+                "content": "Deep-level monkeypatch asyncio.base_events to bypass ephemeral test loops",
+                "status": "completed"
+              },
+              {
+                "content": "Fix test_social_setup_wizard missing assertion update causing Shard 4 crash",
+                "status": "completed"
+              },
+              {
+                "content": "Execute final strict-gated Canonical Deployment sequence directly on VPS",
+                "status": "completed"
+              }
+            ]
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 34068,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-c2255ebd-376a-4965-a708-d2833bb8d473": {
+        "identity": {
+          "createdAt": 1787049666752,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 3095,
+            "val": {
+              "turns": 18,
+              "steps": 237,
+              "llmMs": 4116513,
+              "toolMs": 901785,
+              "ttftMs": 3904038,
+              "ttftSteps": 237,
+              "decodeMs": 212475,
+              "decodeTokens": 64100,
+              "lastTurn": 18,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 3095,
+            "val": "# MASTER PROMPT — TODAY"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 3095,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 3095,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 2695936,
+                "outputTokens": 64100,
+                "cacheReadTokens": 28952024,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 18,
+                "step": 30,
+                "buckets": {
+                  "uncachedInputTokens": 5064,
+                  "outputTokens": 352,
+                  "cacheReadTokens": 169857,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 3095,
+            "val": {
+              "surfaceTokens": 114079,
+              "contextWindow": 262144,
+              "pressureTokens": 174921,
+              "sampledSurfaceTokens": 113790
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 3095,
+            "val": {
+              "systemTokens": 4456,
+              "toolsTokens": 8541,
+              "messageTokens": 114079
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 3095,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 3095,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 3095,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 3095,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787058822284
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 3095,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 3095,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 3095,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-bad03822-401a-433e-bc96-e6890d81d78a": {
+        "identity": {
+          "createdAt": 1787111203880,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 22159,
+            "val": {
+              "turns": 17,
+              "steps": 191,
+              "llmMs": 10100070,
+              "toolMs": 89460,
+              "ttftMs": 9350797,
+              "ttftSteps": 179,
+              "decodeMs": 749273,
+              "decodeTokens": 85205,
+              "lastTurn": 17,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 22159,
+            "val": "# MASTER MISSION — REBUILD"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 22159,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 22159,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 10074747,
+                "outputTokens": 85205,
+                "cacheReadTokens": 10075001,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 17,
+                "step": 23,
+                "buckets": {
+                  "uncachedInputTokens": 8066,
+                  "outputTokens": 412,
+                  "cacheReadTokens": 181632,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 22159,
+            "val": {
+              "surfaceTokens": 166993,
+              "contextWindow": 262144,
+              "pressureTokens": 189698,
+              "sampledSurfaceTokens": 166307
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 22159,
+            "val": {
+              "systemTokens": 9274,
+              "toolsTokens": 240,
+              "messageTokens": 166993
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 22159,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 22159,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 22159,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 22159,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787129370445
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 22159,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 22159,
+            "val": [
+              {
+                "content": "Phase 0: Repository state audit (DONE)",
+                "status": "completed"
+              },
+              {
+                "content": "Create branch fix/fast-ci-cd-20260819 and remove .freebuff/worktrees gitlink safely",
+                "status": "completed"
+              },
+              {
+                "content": "Build scripts/ci/ — change classifier + targeted test selector",
+                "status": "completed"
+              },
+              {
+                "content": "Rewrite ci.yml: parallel Fast Gate + risk-based targeted tests; remove duplicate full pytest from main critical path",
+                "status": "completed"
+              },
+              {
+                "content": "Rewrite deploy-vps.yml: minimal preflight only, no full suite rerun; immutable SHA + cache-from/cache-to",
+                "status": "completed"
+              },
+              {
+                "content": "Reduce tests.yml to dispatch/nightly only",
+                "status": "completed"
+              },
+              {
+                "content": "Convert pr-factory-gate-a.yml to workflow_dispatch only and fix checkout gitlink contamination",
+                "status": "completed"
+              },
+              {
+                "content": "Convert pr-factory-ci-repair.yml to read-only diagnosis (already is — confirm)",
+                "status": "completed"
+              },
+              {
+                "content": "Add concurrency cancellation + paths-ignore where safe; align auto-merge required checks",
+                "status": "completed"
+              },
+              {
+                "content": "Local validation of CI scripts (smoke run on multiple change profiles)",
+                "status": "in_progress"
+              },
+              {
+                "content": "Commit, push branch, create PR, monitor CI, verify timing, attempt merge",
+                "status": "pending"
+              },
+              {
+                "content": "Verify production deployment and report measured before/after",
+                "status": "pending"
+              }
+            ]
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 22159,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-4b478104-ecb5-40f4-8d45-f34168e0a07b": {
+        "identity": {
+          "createdAt": 1787129866119,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 547,
+            "val": {
+              "turns": 1,
+              "steps": 3,
+              "llmMs": 690430,
+              "toolMs": 272,
+              "ttftMs": 681404,
+              "ttftSteps": 3,
+              "decodeMs": 9026,
+              "decodeTokens": 592,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 547,
+            "val": "I’m unable to run Git"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 547,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 547,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 68882,
+                "outputTokens": 592,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 3,
+                "buckets": {
+                  "uncachedInputTokens": 23414,
+                  "outputTokens": 398,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 547,
+            "val": {
+              "surfaceTokens": 12273,
+              "contextWindow": 262144,
+              "pressureTokens": 23414,
+              "sampledSurfaceTokens": 11905
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 547,
+            "val": {
+              "systemTokens": 9274,
+              "toolsTokens": 240,
+              "messageTokens": 12273
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 547,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 547,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 547,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 547,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787140285041
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 547,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 547,
+            "val": null
+          },
+          "plan": {
+            "ver": 1,
+            "seq": 547,
+            "val": {
+              "active": false,
+              "wanted": null
+            }
+          }
+        }
+      },
+      "session-2f27d839-b7e7-4ef0-99b0-ceaf79dc49c8": {
+        "identity": {
+          "createdAt": 1787191124734,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 375506,
+            "val": {
+              "turns": 11,
+              "steps": 238,
+              "llmMs": 5708518,
+              "toolMs": 5955768,
+              "ttftMs": 715038,
+              "ttftSteps": 235,
+              "decodeMs": 4993480,
+              "decodeTokens": 380381,
+              "lastTurn": 11,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 375506,
+            "val": "MASTER EXECUTION PROMPT LeadGen AI"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 375506,
+            "val": {
+              "goal": {
+                "id": "goal-5de80fb5-dc01-4b94-87ee-4b3ace08e027",
+                "revision": 2,
+                "objective": "Audit and fix real problems across scraping, automation, agents, coordination, tenancy, memory, skills, audits, and training subsystems — using existing audit scripts + test suites to find concrete issues, fix agent-actionable ones, and verify each with tests.",
+                "phase": "complete",
+                "maxGoalRounds": 15
+              },
+              "roundsStarted": 0,
+              "createdAt": 1787208770293,
+              "updatedAt": 1787209472471
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 375506,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 240624,
+                "outputTokens": 380381,
+                "cacheReadTokens": 82034688,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 9,
+                "step": 8,
+                "buckets": {
+                  "uncachedInputTokens": 155,
+                  "outputTokens": 2841,
+                  "cacheReadTokens": 589952,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 375506,
+            "val": {
+              "surfaceTokens": 516037,
+              "contextWindow": 1000000,
+              "pressureTokens": 590107,
+              "sampledSurfaceTokens": 513006
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 375506,
+            "val": {
+              "systemTokens": 9369,
+              "toolsTokens": 240,
+              "messageTokens": 516037
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 375506,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 375506,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 375506,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 375506,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787214886047
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 375506,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 375506,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 375506,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-53239935-b223-4ae8-99ef-552ed7729db2": {
+        "identity": {
+          "createdAt": 1787214899633,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 235565,
+            "val": {
+              "turns": 12,
+              "steps": 190,
+              "llmMs": 3798752,
+              "toolMs": 2157495,
+              "ttftMs": 532897,
+              "ttftSteps": 190,
+              "decodeMs": 3265855,
+              "decodeTokens": 239769,
+              "lastTurn": 12,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 235565,
+            "val": "Connect Pages and 24/7 Agents Status"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 235565,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 235565,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 200254,
+                "outputTokens": 239769,
+                "cacheReadTokens": 44492800,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 12,
+                "step": 13,
+                "buckets": {
+                  "uncachedInputTokens": 110,
+                  "outputTokens": 912,
+                  "cacheReadTokens": 425600,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 235565,
+            "val": {
+              "surfaceTokens": 360681,
+              "contextWindow": 1000000,
+              "pressureTokens": 425710,
+              "sampledSurfaceTokens": 359885
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 235565,
+            "val": {
+              "systemTokens": 9369,
+              "toolsTokens": 240,
+              "messageTokens": 360681
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 235565,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 235565,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 235565,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 235565,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787223151360
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 235565,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 235565,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 235565,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-7871727b-db47-4d39-a445-4b212b06505c": {
+        "identity": {
+          "createdAt": 1787223599893,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 22071,
+            "val": {
+              "turns": 2,
+              "steps": 16,
+              "llmMs": 365390,
+              "toolMs": 24407,
+              "ttftMs": 35047,
+              "ttftSteps": 16,
+              "decodeMs": 330238,
+              "decodeTokens": 22806,
+              "lastTurn": 2,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 22071,
+            "val": "Google Service Account Key Setup"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 22071,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 22071,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 54143,
+                "outputTokens": 22806,
+                "cacheReadTokens": 786688,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 2,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 76,
+                  "outputTokens": 2559,
+                  "cacheReadTokens": 73344,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 22071,
+            "val": {
+              "surfaceTokens": 55225,
+              "contextWindow": 1000000,
+              "pressureTokens": 73420,
+              "sampledSurfaceTokens": 52381
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 22071,
+            "val": {
+              "systemTokens": 4525,
+              "toolsTokens": 8574,
+              "messageTokens": 55225
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 22071,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 22071,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 22071,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 22071,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787224354856
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 22071,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 22071,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 22071,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-33192178-baec-4add-9982-215eb2f0f264": {
+        "identity": {
+          "createdAt": 1787224403082,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 151151,
+            "val": {
+              "turns": 8,
+              "steps": 130,
+              "llmMs": 7105751,
+              "toolMs": 1734926,
+              "ttftMs": 4898030,
+              "ttftSteps": 128,
+              "decodeMs": 2207721,
+              "decodeTokens": 170734,
+              "lastTurn": 8,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 151151,
+            "val": "Project Status and Issues Overview"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 151151,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 151151,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 1529228,
+                "outputTokens": 170734,
+                "cacheReadTokens": 23531520,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 8,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 151151,
+            "val": {
+              "surfaceTokens": 241603,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 241603
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 151151,
+            "val": {
+              "systemTokens": 4526,
+              "toolsTokens": 8574,
+              "messageTokens": 241603
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 151151,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 151151,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 151151,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 151151,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787262276213
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 151151,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 151151,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 151151,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-d4fb2ea7-1e7c-4d60-b933-0f434812d444": {
+        "identity": {
+          "createdAt": 1787230555798,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 277969,
+            "val": {
+              "turns": 9,
+              "steps": 224,
+              "llmMs": 4455563,
+              "toolMs": 6499461,
+              "ttftMs": 714510,
+              "ttftSteps": 223,
+              "decodeMs": 3741053,
+              "decodeTokens": 280443,
+              "lastTurn": 9,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 277969,
+            "val": "MASTER AUTONOMOUS EXECUTION PROMPT —"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 277969,
+            "val": {
+              "goal": {
+                "id": "goal-8775cf6a-59a8-49ef-a620-49e7bf54dab3",
+                "revision": 2,
+                "objective": "LeadGen Product 1 (AI Automated Marketing) aur Product 2 (AI Voice Calling) ka end-to-end operational truth establish karo: CP0-CP10 ke through prod/runtime evidence verify karo, safe code-level gaps fix karo (tests ke saath), aur canonical nine-field report do with honest GO/WAIT/NO-GO verdicts — bina revenue fabricate kiye, compliance gates weaken kiye, ya owner-gated human inputs bypass kiye.",
+                "phase": "complete",
+                "maxGoalRounds": 24
+              },
+              "roundsStarted": 0,
+              "createdAt": 1787230669807,
+              "updatedAt": 1787231582634
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 277969,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 264186,
+                "outputTokens": 280443,
+                "cacheReadTokens": 78812032,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 9,
+                "step": 2,
+                "buckets": {
+                  "uncachedInputTokens": 1860,
+                  "outputTokens": 1491,
+                  "cacheReadTokens": 536320,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 277969,
+            "val": {
+              "surfaceTokens": 458045,
+              "contextWindow": 1000000,
+              "pressureTokens": 538180,
+              "sampledSurfaceTokens": 456636
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 277969,
+            "val": {
+              "systemTokens": 9369,
+              "toolsTokens": 240,
+              "messageTokens": 458045
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 277969,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 277969,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 277969,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 277969,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787268997260
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 277969,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 277969,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 277969,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-9e0144ca-7b37-494f-8c65-628c28c1d871": {
+        "identity": {
+          "createdAt": 1787333942608,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaiagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 2,
+            "val": {
+              "turns": 0,
+              "steps": 0,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": null,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 2,
+            "val": null
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 2,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 2,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": null
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 2,
+            "val": {
+              "surfaceTokens": 0
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 2,
+            "val": {
+              "systemTokens": 0,
+              "toolsTokens": 0,
+              "messageTokens": 0
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 2,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 2,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 2,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 2,
+            "val": {
+              "blank": true,
+              "lastPromptAt": null
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 2,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 2,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 2,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-cf70bb65-5e42-4148-9fa9-dd1a911ebe73": {
+        "identity": {
+          "createdAt": 1787333961020,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 38,
+            "val": {
+              "turns": 1,
+              "steps": 1,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 38,
+            "val": "hello"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 38,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 38,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 38,
+            "val": {
+              "surfaceTokens": 11391,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 11391
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 38,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 11391
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 38,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 38,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 38,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 38,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787334076476
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 38,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 38,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 38,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-57949826-3f0f-4866-ae02-de729d293bd9": {
+        "identity": {
+          "createdAt": 1787393108827,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 11937,
+            "val": {
+              "turns": 10,
+              "steps": 76,
+              "llmMs": 4306556,
+              "toolMs": 30742,
+              "ttftMs": 3408778,
+              "ttftSteps": 70,
+              "decodeMs": 897778,
+              "decodeTokens": 40276,
+              "lastTurn": 10,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 11937,
+            "val": "# DEEPSEEK × HERMES DESKTOP"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 11937,
+            "val": {
+              "goal": {
+                "id": "goal-49d289b1-8589-40fa-91be-c62fdde84b92",
+                "revision": 1,
+                "objective": "Increase real collected revenue by 5× versus baseline (₹1,999 → ₹9,995) in 7 days using legitimate, measurable, production-safe automation. Follow DAY 1 plan: fix BLK-01 (Hot Queue owner bottleneck), verify end-to-end money path (lead → outreach → reply → conversation → offer → payment → onboarding), and run verification steps for revenue blockers BLK-02 through BLK-10.",
+                "phase": "active",
+                "maxGoalRounds": 7
+              },
+              "roundsStarted": 0,
+              "createdAt": 1787411924863,
+              "updatedAt": 1787411924863
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 11937,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 3122399,
+                "outputTokens": 40276,
+                "cacheReadTokens": 1779622,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 9,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 107637,
+                  "outputTokens": 596,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 11937,
+            "val": {
+              "surfaceTokens": 104672,
+              "contextWindow": 262144,
+              "pressureTokens": 107637,
+              "sampledSurfaceTokens": 104113
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 11937,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 104672
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 11937,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 11937,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 11937,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 11937,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787417615265
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 11937,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 11937,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 11937,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-5f8dc876-b578-4ce3-983f-2c8331451ca1": {
+        "identity": {
+          "createdAt": 1787405045882,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 71592,
+            "val": {
+              "turns": 4,
+              "steps": 80,
+              "llmMs": 724988,
+              "toolMs": 983421,
+              "ttftMs": 142045,
+              "ttftSteps": 80,
+              "decodeMs": 582943,
+              "decodeTokens": 74322,
+              "lastTurn": 4,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 71592,
+            "val": "# HERMES DESKTOP — VISIBLE"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 71592,
+            "val": {
+              "goal": {
+                "id": "goal-f6e297fc-ab07-4483-b804-956d3d1ea38e",
+                "revision": 2,
+                "objective": "Operate the real LeadGenAI revenue engine at leadsgenai.in within this session's honest limits: (1) verify the money path end-to-end in a visible browser so a real lead reaches /start with zero friction; (2) confirm and, where genuinely broken, fix real funnel/compliance/automation defects in the repo (Loop Engineer mode, tests+prod_check evidence); (3) run real, compliance-safe prospecting into the valid pipeline without fabrication. Never fabricate leads, conversions, meetings, payments, or revenue; the owner-gated UPI/bank-confirm unlock stays owner-executed. Objective is measured by verified system state and real defect fixes, not by a fabricated ₹5L figure.",
+                "phase": "complete",
+                "maxGoalRounds": 8
+              },
+              "roundsStarted": 0,
+              "createdAt": 1787422424568,
+              "updatedAt": 1787422711761
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 71592,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 112608,
+                "outputTokens": 74322,
+                "cacheReadTokens": 10036608,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 4,
+                "step": 15,
+                "buckets": {
+                  "uncachedInputTokens": 328,
+                  "outputTokens": 557,
+                  "cacheReadTokens": 179584,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 71592,
+            "val": {
+              "surfaceTokens": 146762,
+              "contextWindow": 1000000,
+              "pressureTokens": 179912,
+              "sampledSurfaceTokens": 146268
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 71592,
+            "val": {
+              "systemTokens": 4530,
+              "toolsTokens": 8640,
+              "messageTokens": 146762
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 71592,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 71592,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 71592,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 71592,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787424738273
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 71592,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 71592,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 71592,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-63961226-1f91-4fde-a676-7da1f22970e0": {
+        "identity": {
+          "createdAt": 1787496882492,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 1059,
+            "val": {
+              "turns": 6,
+              "steps": 84,
+              "llmMs": 1927578,
+              "toolMs": 463418,
+              "ttftMs": 1869770,
+              "ttftSteps": 81,
+              "decodeMs": 46914,
+              "decodeTokens": 20224,
+              "lastTurn": 6,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 1059,
+            "val": "# DEEPSEEK — LEADGEN AI"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 1059,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 1059,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 846572,
+                "outputTokens": 20224,
+                "cacheReadTokens": 7122045,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 6,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 1059,
+            "val": {
+              "surfaceTokens": 126175,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 126175
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 1059,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 126175
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 1059,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 1059,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 1059,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 1059,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787522488352
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 1059,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 1059,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 1059,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-a79370e6-d0c0-4e80-b3d7-c3cf3fb50ac8": {
+        "identity": {
+          "createdAt": 1787542230309,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 27,
+            "val": {
+              "turns": 2,
+              "steps": 2,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": 2,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 27,
+            "val": "kya tum hermes desktop app"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 27,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 27,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 27,
+            "val": {
+              "surfaceTokens": 12522,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 12500
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 27,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 12522
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 27,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 27,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 27,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 27,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787546249655
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 27,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 27,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 27,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-52bf92b4-2cdd-4ed2-a080-d1a1a226564b": {
+        "identity": {
+          "createdAt": 1787546309668,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 322785,
+            "val": {
+              "turns": 32,
+              "steps": 236,
+              "llmMs": 4264218,
+              "toolMs": 2120825,
+              "ttftMs": 1308255,
+              "ttftSteps": 236,
+              "decodeMs": 2955963,
+              "decodeTokens": 328862,
+              "lastTurn": 32,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 322785,
+            "val": "CLI se Hermes Desktop app control"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 322785,
+            "val": {
+              "goal": {
+                "id": "goal-9c52ac4e-d8ba-4ade-b034-c291b6d2f485",
+                "revision": 4,
+                "objective": "Fix Swara (voice telecaller) live phone-call communication on the LeadGen platform. Symptoms (owner-reported, live Vobiz calls): (1) Swara hears the customer and speaks, but on the 2nd exchange she hiccups/gets confused — turn-taking/echo/VAD misfire, so the bot does not communicate properly with the customer; (2) call recordings are being created (admin sees them) but are inaudible/blank to the owner — channel/recording mix. Deliverables: pin the root cause with repo-code + config evidence, apply a verified fix (config or minimal code edit), and verify (self-test green; owner confirms live call + recording audible). Note: voice/Swara was FROZEN; owner explicitly authorized fixing it via \"sab karo\". Do not disable any compliance gate (DND/TRAI/consent).",
+                "phase": "blocked",
+                "maxGoalRounds": 12,
+                "blockedReason": {
+                  "code": "model-reported",
+                  "message": "The repo/VPS-side work is complete and evidenced: fixes ea3fd86a (recording master-clock caller-overwrite) and ca31020f (_speaking stuck-leak), regression test 2d502191, runbook 1e18962b; voice self-test SCORE=1.0, py_compile OK, 7/7 regression green. VPS read-only evidence confirms the roots: recordings exist in /var/lib/leadgen/runtime/artifacts/call_recordings/2026-08-23/ but are one-sided/missing Swara (maxamp 8861-17779, rms 283-647), USE_SILERO_VAD=0 (not culprit), VOBIZ_SILENCE_MS unset (500ms default), and turn metrics show 13-21s turns with turn-1 interrupted=true and llm_first=15.1s. The final deliverable — 'owner confirms live call + recording audible' — requires deploying fix/swara-recording-timeline and an owner live-call test, which I cannot perform (deploy is owner-gated; I have no live-call ability). This external condition has persisted across rounds 3-8; the owner has not deployed/confirmed or provided further input."
+                }
+              },
+              "roundsStarted": 8,
+              "createdAt": 1787556637797,
+              "updatedAt": 1787559035044
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 322785,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 311212,
+                "outputTokens": 328862,
+                "cacheReadTokens": 81826816,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 32,
+                "step": 19,
+                "buckets": {
+                  "uncachedInputTokens": 611,
+                  "outputTokens": 1583,
+                  "cacheReadTokens": 599552,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 322785,
+            "val": {
+              "surfaceTokens": 522162,
+              "contextWindow": 1000000,
+              "pressureTokens": 600163,
+              "sampledSurfaceTokens": 520683
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 322785,
+            "val": {
+              "systemTokens": 4530,
+              "toolsTokens": 8640,
+              "messageTokens": 522162
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 322785,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 322785,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 322785,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 322785,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787559383910
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 322785,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 322785,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 322785,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-d65cebc5-0d99-4bfc-80aa-24c7134ffcdd": {
+        "identity": {
+          "createdAt": 1787629325436,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 10257,
+            "val": {
+              "turns": 2,
+              "steps": 16,
+              "llmMs": 120457,
+              "toolMs": 1492470,
+              "ttftMs": 21456,
+              "ttftSteps": 16,
+              "decodeMs": 99001,
+              "decodeTokens": 10799,
+              "lastTurn": 2,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 10257,
+            "val": "Website issues blocking 7 lakh goal"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 10257,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 10257,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 17146,
+                "outputTokens": 10799,
+                "cacheReadTokens": 508032,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 2,
+                "step": 4,
+                "buckets": {
+                  "uncachedInputTokens": 68,
+                  "outputTokens": 813,
+                  "cacheReadTokens": 38144,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 10257,
+            "val": {
+              "surfaceTokens": 23656,
+              "contextWindow": 1000000,
+              "pressureTokens": 38212,
+              "sampledSurfaceTokens": 23004
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 10257,
+            "val": {
+              "systemTokens": 4530,
+              "toolsTokens": 8640,
+              "messageTokens": 23656
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 10257,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 10257,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 10257,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 10257,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787649534922
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 10257,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 10257,
+            "val": [
+              {
+                "content": "Live website + /health probe (leadsgenai.in)",
+                "status": "completed"
+              },
+              {
+                "content": "Diagnose what 'website not working' means (which pages/errors)",
+                "status": "completed"
+              },
+              {
+                "content": "Verify /health.version + deploy state once VPS is reachable",
+                "status": "pending"
+              },
+              {
+                "content": "Reboot verification: VPS still unreachable after reboot",
+                "status": "completed"
+              }
+            ]
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 10257,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-ca2395d6-f944-4c21-8743-69ef9b51f00c": {
+        "identity": {
+          "createdAt": 1787651053952,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 116098,
+            "val": {
+              "turns": 7,
+              "steps": 90,
+              "llmMs": 1226959,
+              "toolMs": 336587,
+              "ttftMs": 190713,
+              "ttftSteps": 90,
+              "decodeMs": 1036246,
+              "decodeTokens": 118912,
+              "lastTurn": 7,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 116098,
+            "val": "WSL with Docker: Local Setup Needed?"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 116098,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 116098,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 114704,
+                "outputTokens": 118912,
+                "cacheReadTokens": 12694784,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 7,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 170,
+                  "outputTokens": 3286,
+                  "cacheReadTokens": 227456,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 116098,
+            "val": {
+              "surfaceTokens": 185762,
+              "contextWindow": 1000000,
+              "pressureTokens": 227626,
+              "sampledSurfaceTokens": 182731
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 116098,
+            "val": {
+              "systemTokens": 4530,
+              "toolsTokens": 8640,
+              "messageTokens": 185762
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 116098,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 116098,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 116098,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 116098,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787653773220
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 116098,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 116098,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 116098,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-0e06e884-0243-4471-ad7b-2b980f933c53": {
+        "identity": {
+          "createdAt": 1787714054589,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 61109,
+            "val": {
+              "turns": 4,
+              "steps": 39,
+              "llmMs": 654791,
+              "toolMs": 756220,
+              "ttftMs": 108477,
+              "ttftSteps": 39,
+              "decodeMs": 546314,
+              "decodeTokens": 62442,
+              "lastTurn": 4,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 61109,
+            "val": "MiniMax M3 API Key Not Showing in Provider List"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 61109,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 61109,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 116006,
+                "outputTokens": 62442,
+                "cacheReadTokens": 4295424,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 4,
+                "step": 2,
+                "buckets": {
+                  "uncachedInputTokens": 1023,
+                  "outputTokens": 1753,
+                  "cacheReadTokens": 173568,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 61109,
+            "val": {
+              "surfaceTokens": 145626,
+              "contextWindow": 1000000,
+              "pressureTokens": 174591,
+              "sampledSurfaceTokens": 143852
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 61109,
+            "val": {
+              "systemTokens": 1638,
+              "toolsTokens": 6769,
+              "messageTokens": 145626
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 61109,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 61109,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 61109,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 61109,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787716396907
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 61109,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 61109,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 61109,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "356820d0-6cb8-49c4-9c8d-d5923e30725a": {
+        "identity": {
+          "createdAt": 1787714992082,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 9652,
+            "val": {
+              "turns": 1,
+              "steps": 20,
+              "llmMs": 139749,
+              "toolMs": 368669,
+              "ttftMs": 47183,
+              "ttftSteps": 20,
+              "decodeMs": 92566,
+              "decodeTokens": 10230,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 9652,
+            "val": "I need the exact technical"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 9652,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 9652,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 34236,
+                "outputTokens": 10230,
+                "cacheReadTokens": 610816,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 20,
+                "buckets": {
+                  "uncachedInputTokens": 478,
+                  "outputTokens": 1681,
+                  "cacheReadTokens": 41344,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 9652,
+            "val": {
+              "surfaceTokens": 30123,
+              "contextWindow": 1000000,
+              "pressureTokens": 41822,
+              "sampledSurfaceTokens": 28702
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 9652,
+            "val": {
+              "systemTokens": 1638,
+              "toolsTokens": 6769,
+              "messageTokens": 30123
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 9652,
+            "val": {
+              "descriptorSeen": true,
+              "settledMs": 422629
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 9652,
+            "val": {
+              "identity": {
+                "mode": "one-shot",
+                "label": "Research GMI Cloud API details",
+                "seq": 5
+              }
+            }
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 9652,
+            "val": {
+              "preset": null,
+              "sandbox": "workspace-write",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 9652,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787714992365
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 9652,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 9652,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 9652,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-5cd89a63-4063-4ea4-8128-881d66ca97b4": {
+        "identity": {
+          "createdAt": 1787727728491,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 2465,
+            "val": {
+              "turns": 1,
+              "steps": 4,
+              "llmMs": 182829,
+              "toolMs": 259,
+              "ttftMs": 91465,
+              "ttftSteps": 3,
+              "decodeMs": 91364,
+              "decodeTokens": 2534,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 2465,
+            "val": "Fixing Calling Setup Issue"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 2465,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 2465,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 40678,
+                "outputTokens": 2534,
+                "cacheReadTokens": 67584,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 3,
+                "buckets": {
+                  "uncachedInputTokens": 26236,
+                  "outputTokens": 1010,
+                  "cacheReadTokens": 28032,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 2465,
+            "val": {
+              "surfaceTokens": 35790,
+              "contextWindow": 1000000,
+              "pressureTokens": 54268,
+              "sampledSurfaceTokens": 34736
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 2465,
+            "val": {
+              "systemTokens": 4530,
+              "toolsTokens": 8640,
+              "messageTokens": 35790
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 2465,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 2465,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 2465,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 2465,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1787727751325
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 2465,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 2465,
+            "val": [
+              {
+                "content": "Identify what 'calling setup' refers to (route/page/flow) and gather evidence of breakage",
+                "status": "in_progress"
+              },
+              {
+                "content": "Read relevant calling/voice code and trace the failing path",
+                "status": "pending"
+              },
+              {
+                "content": "Reproduce/confirm the defect with tests or probes",
+                "status": "pending"
+              },
+              {
+                "content": "Implement fix following existing patterns + compliance gates",
+                "status": "pending"
+              },
+              {
+                "content": "Run targeted tests + prod_check + secrets scan",
+                "status": "pending"
+              },
+              {
+                "content": "Record loop run in progress.md",
+                "status": "pending"
+              }
+            ]
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 2465,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-5ccd172e-e33c-43a7-83ac-1a482b551ce6": {
+        "identity": {
+          "createdAt": 1788091164549,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 77,
+            "val": {
+              "turns": 2,
+              "steps": 2,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": 2,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 77,
+            "val": "sab kuch harnesses hai kya"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 77,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 77,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 2,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 77,
+            "val": {
+              "surfaceTokens": 12512,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 12512
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 77,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 12512
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 77,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 77,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 77,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 77,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1788091295477
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 77,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 77,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 77,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-624006c9-7c80-4bf8-b68d-143e87ee4a45": {
+        "identity": {
+          "createdAt": 1788091317501,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 37,
+            "val": {
+              "turns": 1,
+              "steps": 1,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": 1,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 37,
+            "val": "# DEEPSEEK HARNESS — OWNER"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 37,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 37,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 1,
+                "step": 1,
+                "buckets": {
+                  "uncachedInputTokens": 0,
+                  "outputTokens": 0,
+                  "cacheReadTokens": 0,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 37,
+            "val": {
+              "surfaceTokens": 14741,
+              "contextWindow": 262144,
+              "pressureTokens": 0,
+              "sampledSurfaceTokens": 14741
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 37,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 14741
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 37,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 37,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 37,
+            "val": {
+              "preset": "workspace-write",
+              "sandbox": "workspace-write",
+              "approval": "ask"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 37,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1788091430131
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 37,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 37,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 37,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-f64b49d1-4c1e-4ffc-928d-a52bbd177cc9": {
+        "identity": {
+          "createdAt": 1788093168518,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 1296,
+            "val": {
+              "turns": 7,
+              "steps": 115,
+              "llmMs": 1907089,
+              "toolMs": 499151,
+              "ttftMs": 1885194,
+              "ttftSteps": 115,
+              "decodeMs": 21895,
+              "decodeTokens": 10815,
+              "lastTurn": 7,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 1296,
+            "val": "# DEEPSEEK HARNESS — OWNER"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 1296,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 1296,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 1554363,
+                "outputTokens": 10815,
+                "cacheReadTokens": 12340066,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 7,
+                "step": 2,
+                "buckets": {
+                  "uncachedInputTokens": 8143,
+                  "outputTokens": 291,
+                  "cacheReadTokens": 163850,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 1296,
+            "val": {
+              "surfaceTokens": 126777,
+              "contextWindow": 262144,
+              "pressureTokens": 171993,
+              "sampledSurfaceTokens": 126533
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 1296,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 126777
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 1296,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 1296,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 1296,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 1296,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1788096328435
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 1296,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 1296,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 1296,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-35cbb89f-dcdd-4b85-9ac8-5231ec4ec87c": {
+        "identity": {
+          "createdAt": 1788138002560,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 3775,
+            "val": {
+              "turns": 12,
+              "steps": 121,
+              "llmMs": 3592438,
+              "toolMs": 578873,
+              "ttftMs": 2990036,
+              "ttftSteps": 119,
+              "decodeMs": 602402,
+              "decodeTokens": 22231,
+              "lastTurn": 12,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 3775,
+            "val": "# FINAL MASTER PROMPT —"
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 3775,
+            "val": {
+              "goal": {
+                "id": "goal-ca3413ef-d6c1-4148-bd32-e9e59625e8ae",
+                "revision": 2,
+                "objective": "Execute a 10-hour non-stop autonomous loop as Admin (1000 Engineers Talent) to fix live production bugs and system operational issues until 100% bugs are resolved.",
+                "phase": "complete",
+                "maxGoalRounds": 10
+              },
+              "roundsStarted": 1,
+              "createdAt": 1788235183522,
+              "updatedAt": 1788237011894
+            }
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 3775,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 2486797,
+                "outputTokens": 22231,
+                "cacheReadTokens": 9048438,
+                "cacheWriteTokens": 0
+              },
+              "last": {
+                "turn": 12,
+                "step": 2,
+                "buckets": {
+                  "uncachedInputTokens": 5728,
+                  "outputTokens": 605,
+                  "cacheReadTokens": 168960,
+                  "cacheWriteTokens": 0
+                }
+              }
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 3775,
+            "val": {
+              "surfaceTokens": 132182,
+              "contextWindow": 1048576,
+              "pressureTokens": 174688,
+              "sampledSurfaceTokens": 130964
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 3775,
+            "val": {
+              "systemTokens": 4528,
+              "toolsTokens": 8640,
+              "messageTokens": 132182
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 3775,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 3775,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 3775,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 3775,
+            "val": {
+              "blank": false,
+              "lastPromptAt": 1788235170197
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 3775,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 3775,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 3775,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      },
+      "session-8a259385-c73f-422c-a03b-5a609ff887af": {
+        "identity": {
+          "createdAt": 1788406646458,
+          "cwd": "C:\\Users\\Ratanshila\\Documents\\leadgenrationaivoiceagent"
+        },
+        "rows": {
+          "sessionStats": {
+            "ver": 1,
+            "seq": 8,
+            "val": {
+              "turns": 0,
+              "steps": 0,
+              "llmMs": 0,
+              "toolMs": 0,
+              "ttftMs": 0,
+              "ttftSteps": 0,
+              "decodeMs": 0,
+              "decodeTokens": 0,
+              "lastTurn": null,
+              "openStep": null,
+              "pendingCalls": {}
+            }
+          },
+          "title": {
+            "ver": 1,
+            "seq": 8,
+            "val": null
+          },
+          "goal": {
+            "ver": 4,
+            "seq": 8,
+            "val": null
+          },
+          "tokenUsage": {
+            "ver": 1,
+            "seq": 8,
+            "val": {
+              "totals": {
+                "uncachedInputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0
+              },
+              "last": null
+            }
+          },
+          "contextPressure": {
+            "ver": 4,
+            "seq": 8,
+            "val": {
+              "surfaceTokens": 0
+            }
+          },
+          "contextBreakdown": {
+            "ver": 2,
+            "seq": 8,
+            "val": {
+              "systemTokens": 0,
+              "toolsTokens": 0,
+              "messageTokens": 0
+            }
+          },
+          "subagentTiming": {
+            "ver": 2,
+            "seq": 8,
+            "val": {
+              "descriptorSeen": false,
+              "settledMs": 0
+            }
+          },
+          "subagent": {
+            "ver": 2,
+            "seq": 8,
+            "val": {}
+          },
+          "permissions": {
+            "ver": 1,
+            "seq": 8,
+            "val": {
+              "preset": "danger-full-access",
+              "sandbox": "danger-full-access",
+              "approval": "never"
+            }
+          },
+          "sessionListMetadata": {
+            "ver": 1,
+            "seq": 8,
+            "val": {
+              "blank": true,
+              "lastPromptAt": null
+            }
+          },
+          "imageLimits": {
+            "ver": 1,
+            "seq": 8,
+            "val": null
+          },
+          "todos": {
+            "ver": 2,
+            "seq": 8,
+            "val": null
+          },
+          "plan": {
+            "ver": 2,
+            "seq": 8,
+            "val": {
+              "active": false,
+              "wanted": null,
+              "running": null
+            }
+          }
+        }
+      }
+    }
+  }
+}
