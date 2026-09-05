@@ -57,6 +57,15 @@
 - Sync ran across DSH/Claude Desktop/WorkBuddy/Hermes (roaming+local)/OpenClaw/workspace `.mcp.json`. **Verdant not installed** → SKIP no-op (config writer ready).
 - DB backups: `/app/data/db_backups/pre_14combos_*`.
 
+### Workstream F — alive-provider deep probe + pool re-verify (session 6)
+| Finding/Change | Detail | Status |
+|---|---|---|
+| Probed NVIDIA / Ollama Cloud / DigitalOcean / Fireworks / OpenRouter | Real `/v1/responses` calls → **ALL dead**: every model upstream_401/400 (keys rotated upstream). `test_status`/`apiKeyHealth` in DB said active/warning but real inference proves the keys dead. Gemini also dead (400). | ✅ evidence in progress.md |
+| Seed pool re-verified | `opencode/muse-spark-1.2-contributor-free` → 502, `opencode/laguna-s-2.1-free` → 401, `opencode/mimo-v2.5-free` → 200-empty (all dropped). Discovered opencode anonymous tier serves TWO live labels — `opencode/*` + `opencode-zen/*` — both 200 on nemotron-3.5-lightning-free / nemotron-3-ultra-free / big-pickle (verified ×2). Pool = 3 models × 2 labels = 6 live lanes. | ✅ |
+| Seed updated + re-run | `scripts/seed_omniroute_14combos.py` `_LIVE` → live set; re-seeded idempotently (backup + SEED_OK). **LIVE VERIFY 14/14 combos → 200 with output_text.** Ruff + secrets clean. | ✅ |
+
+**Provider-key truth (2026-09-05):** only the opencode family answers. Owner action to get true multi-provider diversity: refresh keys in the gateway dashboard (Settings → Providers) → re-run seed (pool comment documents this).
+
 ### Workstream E — OmniRoute combo watchdog (session 5)
 | Change | File | Status |
 |---|---|---|
