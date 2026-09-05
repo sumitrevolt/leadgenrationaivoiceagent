@@ -30,9 +30,7 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 
 [2026-07-07] **Agentic RAG / LightRAG evaluation** — Agentic RAG (`agentic_rag.py`) opt-in `USE_AGENTIC_RAG=1` never tested against real call data; LightRAG (`graph_rag.py`) opt-in `USE_LIGHTRAG=1` never exercised | unblocks: `agent_tester.py` comparison → telecaller_brain KB-grounding me wire (better answers on vague/misspelled queries).
 
-[2026-07-05] **`.env.example` + `pyproject.toml` drift cleanup** — both advertise paid/stale stack (Deepgram/ElevenLabs/gemini-1.5/DEFAULT_STT=deepgram) vs real free stack; onboarding-misleading | small PR; keep requirements.lock.txt authoritative.
-
-[2026-07-05] **Make full pytest CI-blocking** — currently continue-on-error; regressions can reach main | fix team_pulse-area hang first, then flip gate in `deploy-vps.yml`.
+[2026-07-05] **Make full pytest CI-blocking** — currently continue-on-error; regressions can reach main | fix team_pulse-area hang first, then flip gate in `deploy-vps.yml`. (2026-09-05 note: team_pulse hang root-caused+fixed — FakeWS bounded wait + pyproject ini timeout; CI-gate flip still parked due to GitHub runner-freeze infra issue.)
 
 [2026-07-04] **POSTHOG_API_KEY + .codex key rotate** — analytics wired-but-off; old stitch key revoke provider-side | user actions.
 
@@ -59,6 +57,7 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 [2026-06-29] **Agentic RAG / LightRAG evaluation** — opt-in flags never tested against real data | `agent_tester.py` comparison → telecaller_brain wire.
 
 ## ARCHIVED (shipped/superseded — see SESSION_LOG.md for dates)
+- **`.env.example` + `pyproject.toml` drift cleanup** (2026-09-05) — .env.example pehle se hi STT/TTS aligned tha (Deepgram/ElevenLabs notes correct); is PR me Stripe→fail-closed-stub note + legacy `AUTO_DETECT_PAYMENT_GATEWAY` comment-out. pyproject: `edge-tts>=6.1.9` → `>=7.2.0` (403 landmine; lock=7.2.8); baaki deps sab app-used + lock-present. lock.txt remains authoritative.
 - **Unity WebGL build** (2026-08-04 LIVE on prod `041501c2`; `/app/office?mode=3d`; `UNITY_VIRTUAL_OFFICE_ENABLED=1`; artifacts in `frontend/office_unity/`) — moved to SESSION_LOG 2026-06-08 entry
 - **Meta/FB/IG auto-posting (own brand)** (2026-07-14, ADR-099) — Postiz LIVE with 4 channels (FB/IG/X/YT); own-brand social poora wired
 - **Marketing Calendar view** (2026-07-07, Loop 4) — customer-facing UI + backend wired (3 new events: post_approved/post_published/post_failed)
