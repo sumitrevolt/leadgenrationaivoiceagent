@@ -3577,6 +3577,22 @@ class VobizStreamSession:
                 os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8"
             ) as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            # RL reward spine (Phase 0) — parity with post_call_hooks path
+            # (2026-09-05: live stream path was the ONLY qual writer without a
+            # reward hook -> voice domain had 0 rewards despite 159 quals).
+            # ref=stream_sid dedupes against the post_call_hooks mirror.
+            try:
+                from app.agents.rl import reward as _rl_reward
+
+                _rl_reward.record_reward(
+                    "voice",
+                    self.niche or "general",
+                    _rl_reward.voice_reward(q),
+                    ref=str(self.stream_sid or rec.get("ts", "")),
+                    context={"niche": self.niche or "", "path": "vobiz_stream"},
+                )
+            except Exception:
+                pass
             logger.info(
                 f"[vobiz-stream] auto-qualify sid={self.stream_sid} "
                 f"score={q.get('interest_score')} qualified={q.get('qualified')}"

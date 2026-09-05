@@ -1021,3 +1021,18 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_L
 - **Compliance:** Compliance gates untouched — dry-run adds NO new send path; suppression (DPDP) and billing-truth gates unchanged and test-pinned; no deploy, no secrets.
 
 ---
+
+## Loop Run — 2026-09-05 (checkpoint 5: RL voice-reward parity fix)
+- **Date:** 2026-09-05
+- **Goal:** Backlog 2026-07-05 "RL flywheel signal lopsided (funnel-only)" — prod evidence-first re-triage, root-cause the missing voice domain.
+- **Inspected:** `app/agents/rl/reward.py` (all reward fns + ref-dedupe); callers (`self_improve.py:1680` funnel, `channel_experiments.py:280` outreach, `post_call_hooks.py:336` voice); prod probe (read-only SSH): `data/rl_rewards.jsonl` = 3860 rows (funnel 3856, outreach 4, **voice 0**), last funnel 2026-08-25; `data/call_qualifications.jsonl` = 159 rows (last 2026-08-24); prod env `AUTO_QUALIFY_CALLS=1` + `RL_ENGINE=1` SET (names only, values redacted); container import probe `from app.agents.rl import reward` OK in app+worker.
+- **Problems Found:** 🚨 Voice domain 0 rewards DESPITE wiring + flags ON + 159 real qualifications. Root cause: of the 3 qualification writers, only `post_call_hooks.auto_qualify_and_downstream` had the reward hook — the **LIVE `vobiz_stream._auto_qualify`** path (source of the 08-24 quals) and legacy `call_manager` wrote quals without any reward call. Also noted: funnel rewards stalled 08-25 (self_improve loop cadence — separate observation); smartflo path does not qualify at all (separate gap); outreach rewards rare because channel_experiments rarely fires (4 total — by usage, not by wiring).
+- **Changed:** (1) `vobiz_stream._auto_qualify`: reward hook added post-qual-write (ref=`stream_sid`, context `path=vobiz_stream`). (2) `call_manager` legacy writer: same hook (ref=`call_id`, `path=call_manager`). Dedupe safety: `record_reward` ref-idempotency makes double-record impossible when both paths fire for one call. (3) Regression tests `tests/test_rl_voice_reward_parity.py` (5): all-writers-have-hook pin (static, import-safe — vobiz_stream pulls whisper at import), hook-after-qual-write structure, vobiz context fields, ref-dedupe end-to-end, voice_reward sanity. (4) Backlog RL entry archived with corrected evidence.
+- **Tests Run:** `tests/test_rl_voice_reward_parity.py` + `tests/test_rl_reward.py` → **16/16 PASS**; ruff clean; `check_secrets` OK; `prod_check` ALL CHECKS PASSED.
+- **Verification Evidence:** Prod probes quoted above (counts + flag names only, zero secret exposure); static pin proves no qual-writer can silently skip the reward spine again; dedupe test proves mirror-path double-fire yields 1 row.
+- **Risks:** Rewards will flow for NEW calls post-deploy; the 159 historical quals are NOT backfilled (write-to-prod-data from a script rejected — append-only log stays pipeline-fed; backfill is a deliberate owner decision if wanted). Thompson Phase-1 for voice still needs ~200 samples (RL_GRADUATION_N) — arms will populate as calls run under the FULL CAMPAIGN (100/day).
+- **Remaining:** Owner-gated: deploy, `SOCIAL_STALE_SWEEP`/`TRIAL_NUDGE_ENABLED` arming, secrets rotation, scratch untrack. Separate gaps (not this PR): smartflo-path qualification (no AI qualify on smartflo calls), funnel self_improve cadence since 08-25.
+- **Next Highest Priority:** Post-deploy: confirm voice rewards appear after next real stream call; then smartflo-qualify gap assessment.
+- **Compliance:** No compliance gate touched — reward spine is logging-only (Phase 0, no policy change); no prod data written from this loop (probes read-only, values redacted); no deploy, no secrets.
+
+---
