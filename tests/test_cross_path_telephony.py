@@ -11,7 +11,7 @@ from app.telephony.post_call_hooks import (
     classify_stream_outcome,
     meter_call_completion,
 )
-from app.telephony.vobiz_stream import VobizStreamSession, FRAME_PCM
+from app.telephony.vobiz_stream import FRAME_PCM, VobizStreamSession
 
 
 def _run(coro):

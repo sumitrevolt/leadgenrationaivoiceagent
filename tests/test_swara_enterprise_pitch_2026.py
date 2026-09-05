@@ -8,15 +8,16 @@ Regression and contract tests for Swara Enterprise Voice Agent Upgrade:
 from __future__ import annotations
 
 import pytest
-from app.voice_agent.fillers import FILLERS, pick_filler, FillerPlayer
+
+from app.voice_agent.fillers import FILLERS, FillerPlayer, pick_filler
+from app.voice_agent.platform_pitch import is_product_question
+from app.voice_agent.telecaller_brain import TelecallerBrain
 from app.voice_agent.universal_pitch import (
-    UNIVERSAL_AGENT_INTRO,
     PITCH_SHORT,
+    UNIVERSAL_AGENT_INTRO,
     VOICE_AGENT_INTRO,
     VOICE_AGENT_PITCH_SHORT,
 )
-from app.voice_agent.telecaller_brain import TelecallerBrain
-from app.voice_agent.platform_pitch import is_product_question
 
 
 def test_no_ek_second_in_fillers():
@@ -42,12 +43,12 @@ def test_universal_pitches_defined():
 
 def test_telecaller_brain_voice_product_qa():
     brain = TelecallerBrain(niche="ai_voice_agent")
-    
+
     # Price ask for voice calling
     res_price = brain._customer_qa_reply("AI voice agent calling ka kitna charge hai?")
     assert "₹4,999" in res_price
     assert "ek second" not in res_price.lower()
-    
+
     # Feature ask for voice calling
     res_feat = brain._customer_qa_reply("Aapka voice telecaller kya karta hai?")
     assert "AI Voice Telecaller" in res_feat or "60s" in res_feat or "calls" in res_feat
@@ -56,7 +57,7 @@ def test_telecaller_brain_voice_product_qa():
 
 def test_telecaller_brain_marketing_product_qa():
     brain = TelecallerBrain(niche="ai_marketing")
-    
+
     # General price ask
     res_price = brain._customer_qa_reply("Aapka monthly pricing kitna hai?")
     assert "₹1,999" in res_price or "₹4,999" in res_price

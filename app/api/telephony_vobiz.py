@@ -52,6 +52,9 @@ def _answer_stream_qs(
     lead_phone: str | None = None,
     lead_id: str | None = None,
     opening_line: str = "",
+    *,
+    template_id: str | None = None,
+    voice_role: str | None = None,
 ) -> str:
     """Query string embedded in answer_url — survives cross-process pending loss.
 
@@ -72,7 +75,13 @@ def _answer_stream_qs(
 
     NOTE: this is `crm_lead_id` on the wire, never `lead_id`, because the WS
     custom-parameter loop in vobiz_stream already treats a `lead_id` key as a
-    PHONE alias. Reusing the name there would silently overwrite _lead_phone."""
+    PHONE alias. Reusing the name there would silently overwrite _lead_phone.
+
+    template_id / voice_role (console test-call): which call template the
+    tenant picked, and the voice role to speak it in. Safe wire names — neither
+    is touched by the phone-alias loop above. Both are optional and truncated
+    (they ride in a URL), so an over-long tenant-supplied value cannot bloat
+    the answer_url past what Vobiz will fetch."""
     qs: dict[str, str] = {"niche": (niche or "general").strip() or "general"}
     if client_id:
         qs["client_id"] = str(client_id)
@@ -82,6 +91,10 @@ def _answer_stream_qs(
         qs["crm_lead_id"] = str(lead_id)
     if opening_line:
         qs["opening_line"] = str(opening_line)[:500]
+    if template_id:
+        qs["template_id"] = str(template_id)[:64]
+    if voice_role:
+        qs["voice_role"] = str(voice_role)[:64]
     return urlencode(qs)
 
 
@@ -281,6 +294,8 @@ async def start_stream_call(
     lead_id: str | None = None,
     opening_line: str = "",
     dry_run: bool = False,
+    template_id: str | None = None,
+    voice_role: str | None = None,
 ) -> dict[str, Any]:
     """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
 
@@ -310,13 +325,26 @@ async def start_stream_call(
                 "lead_phone": to,
                 "crm_lead_id": lead_id or "",
                 "opening_line": (opening_line or "").strip()[:500] or None,
+                # Console test-call context. Stored alongside the rest so a
+                # mid-call WS reconnect (pending state is popped on first fetch)
+                # still recovers the template/role from Redis.
+                "template_id": (template_id or "").strip()[:64] or None,
+                "voice_role": (voice_role or "").strip()[:64] or None,
             },
         )
 
         _opening_qs = (opening_line or "").strip()[:500]
+        _qs = _answer_stream_qs(
+            niche_key,
+            client_id,
+            lead_phone=to,
+            lead_id=lead_id,
+            opening_line=_opening_qs,
+            template_id=template_id,
+            voice_role=voice_role,
+        )
         answer_url = (
-            f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-            f"?{_answer_stream_qs(niche_key, client_id, lead_phone=to, lead_id=lead_id, opening_line=_opening_qs)}"
+            f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}?{_qs}"
         )
         # Per-call hangup_url so Vobiz posts HangupCause/CallStatus → disposition
         # tally (NUP/no_answer/answered). Without this, stream-calls never hit
@@ -438,6 +466,8 @@ async def answer_stream_xml(token: str, request: Request) -> Response:
     lead_phone = request.query_params.get("lead_phone") or pend.get("lead_phone")
     crm_lead_id = request.query_params.get("crm_lead_id") or pend.get("crm_lead_id")
     opening_line = request.query_params.get("opening_line") or pend.get("opening_line") or ""
+    template_id = request.query_params.get("template_id") or pend.get("template_id")
+    voice_role = request.query_params.get("voice_role") or pend.get("voice_role")
     qs: dict[str, str] = {"niche": niche or "general"}
     if client_id:
         qs["client_id"] = str(client_id)
@@ -447,6 +477,13 @@ async def answer_stream_xml(token: str, request: Request) -> Response:
         qs["crm_lead_id"] = str(crm_lead_id)
     if opening_line:
         qs["opening_line"] = str(opening_line)[:500]
+    # Console test-call context. These ride the SAME query-string rail as niche:
+    # Vobiz sends no customParameters on a real call, so anything only read from
+    # the start event is unreachable in production.
+    if template_id:
+        qs["template_id"] = str(template_id)[:64]
+    if voice_role:
+        qs["voice_role"] = str(voice_role)[:64]
     ws_url = f"wss://{_wss_host()}/api/telephony/vobiz/stream/{token}?{urlencode(qs)}"
     return Response(content=build_stream_xml(ws_url), media_type="application/xml")
 
@@ -460,6 +497,8 @@ async def vobiz_stream_ws(
     lead_phone: str | None = None,
     crm_lead_id: str | None = None,
     opening_line: str = "",
+    template_id: str | None = None,
+    voice_role: str | None = None,
 ) -> None:
     """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
     conversation loop. niche/client/lead_phone/crm_lead_id come from query
@@ -500,6 +539,8 @@ async def vobiz_stream_ws(
         lead_phone = pend.get("lead_phone") or lead_phone
         crm_lead_id = pend.get("crm_lead_id") or crm_lead_id
         opening_line = pend.get("opening_line") or opening_line
+        template_id = pend.get("template_id") or template_id
+        voice_role = pend.get("voice_role") or voice_role
 
     # Resolve real client name + niche from client_id so the INSTANT greeting
     # (played at WS-open) isn't generic "Demo Co" / niche=general. Never-raise.
@@ -524,6 +565,8 @@ async def vobiz_stream_ws(
         lead_phone=lead_phone,
         crm_lead_id=crm_lead_id,
         opening_line=opening_line,
+        template_id=template_id,
+        voice_role=voice_role,
     )
     await session.handle()
 

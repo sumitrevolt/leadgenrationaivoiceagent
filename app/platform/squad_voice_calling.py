@@ -2,9 +2,9 @@
 # Responsibility: Outbound calls within TRAI 9am–7pm window, DND scrub, DLT-gated
 # Autopilot: Beat-driven, priority-queued, compliance-gated
 
-from app.utils.logger import setup_logger
 from app.platform.hot_queue_owner_pack import build_owner_pack
 from app.platform.team_scheduler import STAFF_JOBS_VALID
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 squad_name = "Voice Calling"
@@ -20,7 +20,9 @@ def check_compliance():
         logger.warning(f"Squad {squad_name} blocked by open gates: {open_gates}")
         return False
     # Verify we're within 9am–7pm IST
-    import datetime, pytz
+    import datetime
+
+    import pytz
     ist = pytz.timezone("Asia/Calcutta")
     now_ist = datetime.datetime.now(ist)
     hour = now_ist.hour
@@ -33,7 +35,7 @@ def run_daily_beat():
     """Execute the daily hot-queue owner pack generation."""
     if not check_compliance():
         return {"status": "skipped", "reason": "compliance_or_window"}
-    
+
     result = build_owner_pack(limit=42, push_ntfy=True)
     logger.info(f"Squad 1 beat completed: {result}")
     return result
@@ -42,7 +44,7 @@ def run_hourly_outreach():
     """Execute hourly outreach within daily cap (80/day = ~3/hour peak)."""
     if not check_compliance():
         return {"status": "skipped", "reason": "compliance"}
-    
+
     # Celery beat handles hourly 9-19 distribution
     # This function is called by the beat entry
     from app.tasks.staff_jobs import process_outreach_cycle

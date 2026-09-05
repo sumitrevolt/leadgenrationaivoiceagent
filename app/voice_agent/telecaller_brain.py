@@ -1364,7 +1364,7 @@ class TelecallerBrain:
             if is_platform_pitch(self.niche) or self.niche in ("ai_marketing", "ai_voice_agent", "voice_agent"):
                 platform_pitch_block = """
 
-SELF-PITCH ENTERPRISE MODE (tum apna hi LeadGen AI platform bech rahi ho — yeh rules sabse upar priority pe hain):
+SELF-PITCH MODE (ENTERPRISE) (tum apna hi LeadGen AI platform bech rahi ho — yeh rules sabse upar priority pe hain):
 - LeadGen AI ke DO FLAGSHIP PRODUCTS hain:
   1. AI Automated Marketing: Starter ₹1,999/mo (Social posts, Google Business Profile, ads, WhatsApp follow-ups, 7-din FREE trial bina card). Advanced ₹5,999/mo me voice callback feature included hai.
   2. AI Voice Calling Agent: Standalone AI telecaller (Band A ₹4,999/mo, Band B ₹9,999/mo, Band C ₹19,999/mo, Starter ₹1,999/mo). 24/7 human-like calling, instant 60s inquiry callbacks, calendar booking, 50-call free pilot.
@@ -1715,7 +1715,25 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             )
             # Paid-vs-free or price asks
-            _price_ask = any(
+            _paid_free_ask = (
+                any(w in low for w in ("free", "फ्री", "मुफ्त", "muft"))
+                and any(
+                    w in low
+                    for w in (
+                        "paid",
+                        "पेड",
+                        "feature",
+                        "service",
+                        "plan",
+                        "hai ki",
+                        "hai ke",
+                        "ya ",
+                        " or ",
+                    )
+                )
+                and "trial" not in low
+            )
+            _price_ask = _paid_free_ask or any(
                 w in low
                 for w in (
                     "paid",
@@ -1745,6 +1763,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "पैकेज",
                     "महीन",
                     "monthly",
+                    "plan",
+                    "wala plan",
+                    "free",
+                    "फ्री",
+                    "मुफ्त",
+                    "muft",
                 )
             )
 
@@ -1761,7 +1785,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
             if _price_ask:
                 return self._clean(
-                    f"AI Marketing {_marketing_plan_price_line('starter')}, aur "
+                    f"{_marketing_plan_price_line('starter')}; "
+                    f"{_marketing_plan_price_line('advanced')}. "
                     "AI Voice Calling Agent ₹4,999/mahine se shuru hai. 7 din FREE trial bina card ke."
                 )
             if any(

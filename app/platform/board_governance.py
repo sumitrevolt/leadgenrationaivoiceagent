@@ -236,23 +236,46 @@ def emergency_stop(*, by: str = "admin") -> dict[str, Any]:
 
 
 def resume_all(*, by: str = "admin") -> dict[str, Any]:
-    """Resume ALL agents after emergency stop."""
+    """Resume ALL agents after emergency stop.
+
+    D1 regression (guardian verdict 2026-08-25): emergency stops write pause
+    records under keys that need not be STAFF ids (job aliases), so iterate the
+    pause store itself — and report `still_paused` honestly instead of assuming
+    ok=True. A resume write that silently no-ops must NOT read as success.
+    """
     try:
         from app.platform import agent_controls
-        from app.platform.team import STAFF
 
         resumed = []
-        for key in STAFF:
+        errors: dict[str, str] = {}
+        for key in list(agent_controls.list_paused().keys()):
             try:
                 agent_controls.resume(key, by=by, note="Board governance: resume all")
                 resumed.append(key)
-            except Exception:
-                pass
+            except Exception as exc:
+                errors[key] = str(exc)
 
-        _log_event("manager", "resume_all", f"✅ ALL {len(resumed)} agents resumed by {by}")
-        return {"ok": True, "resumed": resumed, "count": len(resumed)}
+        still_paused = sorted(agent_controls.list_paused().keys())
+        ok = not still_paused
+        if ok:
+            _log_event(
+                "manager", "resume_all", f"✅ ALL {len(resumed)} agents resumed by {by}"
+            )
+        else:
+            _log_event(
+                "manager",
+                "resume_all",
+                f"⚠️ resume_all by {by}: {len(still_paused)} agents still paused",
+            )
+        return {
+            "ok": ok,
+            "resumed": resumed,
+            "count": len(resumed),
+            "still_paused": still_paused,
+            **({"errors": errors} if errors else {}),
+        }
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": str(e), "still_paused": []}
 
 
 def governance_dashboard() -> dict[str, Any]:

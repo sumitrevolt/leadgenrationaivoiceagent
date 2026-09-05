@@ -62,7 +62,7 @@ services:
       # `environment:` overrides env_file, so .env's host URLs are ignored here.
       # DB ab PgBouncer (session mode) ke through — connection pooling. Direct DB
       # chahiye to host wapas `@db:5432` karo (revert).
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -136,7 +136,7 @@ services:
       PORT: 8080
       WEB_CONCURRENCY: 1            # single worker -> SSE session affinity works
       RUN_IN_PROCESS_SCHEDULER: 0   # no in-process scheduler dup (durable celery path)
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       QDRANT_URL: http://qdrant:6333
@@ -189,7 +189,7 @@ services:
       - "127.0.0.1:5432:5432"   # host-published so the systemd app / venv migration can reach it (localhost only)
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}
       POSTGRES_DB: ${POSTGRES_DB:-leadgen}
     command: >
       postgres
@@ -226,7 +226,7 @@ services:
       DB_HOST: db
       DB_PORT: "5432"
       DB_USER: ${POSTGRES_USER:-leadgen}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}
       DB_NAME: ${POSTGRES_DB:-leadgen}
       POOL_MODE: session
       AUTH_TYPE: plain
@@ -338,7 +338,7 @@ services:
     environment:
       # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container
       # ke andar khud container hote (galat). PgBouncer session-mode pool ke through.
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -390,7 +390,7 @@ services:
     command: celery -A app.worker worker -Q heavy --loglevel=info --concurrency=1
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -443,7 +443,7 @@ services:
     command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
@@ -554,7 +554,7 @@ services:
       - ./logs:/app/logs
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:?set_POSTGRES_PASSWORD_in_.env}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
       LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
       LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}

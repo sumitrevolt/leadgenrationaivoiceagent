@@ -114,6 +114,12 @@ EXPECTED_GAP_MIN = {
     * 60,  # daily 08:10 owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY)
     "trial_nudge": 30
     * 60,  # daily 09:50 IST trial expiry/expired UPI nudge email (gated TRIAL_NUDGE_ENABLED; BLK-02)
+    "whatsapp_automation": 65
+    * 60,  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND; BLK-02 2026-08-23)
+    "heartbeat": 10
+    * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
+    "content_approval_notify": 65
+    * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
 }
 
 

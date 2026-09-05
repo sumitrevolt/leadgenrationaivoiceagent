@@ -155,6 +155,8 @@ STAFF_JOBS = (
     "daily_owner_brief",  # daily 08:10 IST owner brief + ntfy push (gated DAILY_OWNER_BRIEF_NTFY; INERT off)
     "trial_nudge",  # daily 09:50 IST trial expiry/expired Starter UPI nudge EMAIL (gated TRIAL_NUDGE_ENABLED; INERT off
     "whatsapp_automation",  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND=1); BLK-02 2026-08-23)
+    "heartbeat",  # every 5m: owner alive check (self_improve revive gate)
+    "content_approval_notify",  # hourly :40: bounded pending-approval EMAIL sweep (gated CONTENT_APPROVAL_NOTIFY; INERT off)
 )
 
 

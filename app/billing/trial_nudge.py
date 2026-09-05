@@ -215,17 +215,24 @@ def _hours_since(iso_raw: str) -> float | None:
         return None
 
 
-async def run_trial_nudge(*, limit: int | None = None, send_fn=None) -> dict[str, Any]:
+async def run_trial_nudge(*, limit: int | None = None, send_fn=None, dry_run: bool = False) -> dict[str, Any]:
     """Daily sweep: expiring/expired trials -> Starter UPI nudge email.
 
     Always gated by ``TRIAL_NUDGE_ENABLED=1`` (+ HARD_OFF precedence) —
     fail-closed default. ``send_fn`` injectable for tests. Never raises.
+
+    ``dry_run=True`` (admin preview surface): eligibility loop runs with the
+    ENABLED gate bypassed (preview helps decide arming) but HARD_OFF still
+    blocks, no email is sent and no client-record stamp is written. Real
+    sends stay fail-closed exactly as before.
     """
     out: dict[str, Any] = {
         "enabled": _enabled(),
         "hard_off": _hard_off(),
+        "dry_run": bool(dry_run),
         "seen": 0,
         "eligible": 0,
+        "would_send": 0,
         "sent": 0,
         "failed": 0,
         "skipped_not_trial": 0,
@@ -239,7 +246,7 @@ async def run_trial_nudge(*, limit: int | None = None, send_fn=None) -> dict[str
     if _hard_off():
         out["skip_reason"] = "trial_nudge_hard_off"
         return out
-    if not _enabled():
+    if not _enabled() and not dry_run:
         out["skip_reason"] = "trial_nudge_disabled"
         return out
     try:
@@ -297,6 +304,19 @@ async def run_trial_nudge(*, limit: int | None = None, send_fn=None) -> dict[str
             msg = build_message(stage, biz, days_left)
             link = await _ensure_pay_link(biz, starter_price_inr())
             body_with_link = msg["body"] + f"\n\n1-tap UPI payment link: {link}"
+            if dry_run:
+                out["would_send"] += 1
+                out["eligible"] += 1
+                out["items"].append(
+                    {
+                        "client_id": cid,
+                        "stage": stage,
+                        "email": email,
+                        "wa_text_owner_1click": msg["wa_text"],
+                        "would_send": True,
+                    }
+                )
+                continue
             fn = send_fn or _send_nudge_email
             try:
                 sent = bool(await fn(email, msg["subject"], body_with_link))
@@ -345,4 +365,20 @@ async def run_trial_nudge(*, limit: int | None = None, send_fn=None) -> dict[str
         return out
 
 
-__all__ = ["build_message", "run_trial_nudge", "starter_price_inr"]
+def status_flags() -> dict[str, Any]:
+    """Admin-surface flag snapshot (no client data, no PII). Never raises."""
+    try:
+        return {
+            "enabled": _enabled(),
+            "hard_off": _hard_off(),
+            "days_before": _int_env(_DAYS_ENV, _DEFAULT_DAYS),
+            "remind_h": _int_env(_REMIND_ENV, _DEFAULT_REMIND_H),
+            "max_per_client": _int_env(_MAX_ENV, _DEFAULT_MAX),
+            "batch": _int_env(_BATCH_ENV, _DEFAULT_BATCH),
+            "starter_price_inr": starter_price_inr(),
+        }
+    except Exception as e:  # pragma: no cover - defensive
+        return {"error": str(e)[:120]}
+
+
+__all__ = ["build_message", "run_trial_nudge", "starter_price_inr", "status_flags"]

@@ -103,7 +103,7 @@ def test_static_no_customer_route_binds_client_id_via_query():
     """
     from app.api import customer_dashboard
 
-    src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()
+    src = open(customer_dashboard.__file__, encoding="utf-8").read()
     tree = ast.parse(src)
 
     offenders: list[tuple[str, str]] = []
@@ -154,7 +154,7 @@ def test_static_every_customer_handler_uses_require_customer_dep():
     removal is caught."""
     from app.api import customer_dashboard
 
-    src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()
+    src = open(customer_dashboard.__file__, encoding="utf-8").read()
     count = src.count("Depends(require_customer)")
     assert count >= 20, (
         f"expected >=20 customer routes bound via Depends(require_customer), "
@@ -311,8 +311,9 @@ def test_route_coverage_summary_recorded():
     """Records the total customer route count so a silent drop/add is
     caught. NOT an isolation assertion — a shape lock."""
     import re
+    from app.api import customer_dashboard
 
-    src = open(customer_dashboard.__file__, "r", encoding="utf-8").read()
+    src = open(customer_dashboard.__file__, encoding="utf-8").read()
     # Approximate — count route decorators
     routes = re.findall(r"@router\.(get|post|put|patch|delete)\(", src)
     assert len(routes) >= 25, (

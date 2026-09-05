@@ -2,8 +2,9 @@
 # Responsibility: Qdrant vector store, RAG pipeline, kb_main namespace
 # Autopilot: Auto-scaling, daily vector backup, retrieval quality checks
 
-from app.utils.logger import setup_logger
 import subprocess
+
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 squad_name = "Data & RAG"

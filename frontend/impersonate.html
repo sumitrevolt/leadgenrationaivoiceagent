@@ -22,6 +22,10 @@
   .em { color:var(--mut); font-size:12px; }
   button { border:0; border-radius:9px; background:var(--pri); color:#fff; font-weight:600; font-size:13px; padding:9px 14px; cursor:pointer; }
   button:disabled { opacity:.5; cursor:default; }
+  /* Combo clients are entitled to both consoles, so a row can carry two actions. */
+  .btns { display:flex; gap:8px; flex-shrink:0; }
+  .prod { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:999px; background:#eef2ff;
+          color:#4338ca; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
   .msg { font-size:13px; min-height:18px; margin-top:8px; }
   .err { color:#b91c1c; }
   .ok { color:#15803d; }
@@ -50,24 +54,41 @@
   function hdr(){ return {"Authorization":"Bearer "+(localStorage.getItem(ADMIN_KEY)||""),"Content-Type":"application/json"}; }
   function setMsg(t,cls){ msg.className="msg "+(cls||""); msg.textContent=t||""; }
 
+  /* Landing target per client product (ADR-009 two-product split). The server
+     allow-lists `to` (app/api/impersonation.py PORTAL_ALLOWLIST) and degrades an
+     unknown value to /app/customer, so a stale or missing product is harmless. */
+  function consoleTargets(p){
+    if(p==="combo")     return [{label:"Voice console ↗", to:"/app/voice-console"},
+                                {label:"Marketing console ↗", to:"/app/marketing-console"}];
+    if(p==="voice")     return [{label:"Voice console ↗", to:"/app/voice-console"}];
+    if(p==="marketing") return [{label:"Marketing console ↗", to:"/app/marketing-console"}];
+    return [{label:"Open as customer ↗", to:"/app/customer"}];
+  }
+
   function render(items){
     if(!items.length){ listEl.innerHTML='<div class="empty">Koi client login nahi mila.</div>'; return; }
     listEl.innerHTML = items.map(function(c,i){
+      var p = c.product || "";
+      var btns = consoleTargets(p).map(function(t){
+        return '<button data-cid="'+esc(c.client_id)+'" data-biz="'+esc(c.business_name||"")+
+               '" data-to="'+esc(t.to)+'">'+esc(t.label)+'</button>';
+      }).join("");
       return '<div class="row"><div><div class="biz">'+(esc(c.business_name)||"(no name)")+'</div>'+
-             '<div class="em">'+esc(c.email||"")+'  ·  '+esc(c.client_id)+'</div></div>'+
-             '<button data-cid="'+esc(c.client_id)+'" data-biz="'+esc(c.business_name||"")+'">Open as customer ↗</button></div>';
+             '<div class="em">'+esc(c.email||"")+'  ·  '+esc(c.client_id)+
+             (p?'<span class="prod">'+esc(p)+'</span>':'')+'</div></div>'+
+             '<span class="btns">'+btns+'</span></div>';
     }).join("");
     Array.prototype.forEach.call(listEl.querySelectorAll("button"), function(b){
-      b.addEventListener("click", function(){ start(b.getAttribute("data-cid"), b.getAttribute("data-biz"), b); });
+      b.addEventListener("click", function(){ start(b.getAttribute("data-cid"), b.getAttribute("data-biz"), b.getAttribute("data-to"), b); });
     });
   }
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
 
-  async function start(cid, biz, btn){
+  async function start(cid, biz, to, btn){
     if(!confirm("Login as \""+(biz||cid)+"\"?\n\nYe audited hai. Naye tab me customer portal khulega.")) return;
     btn.disabled=true; var old=btn.textContent; btn.textContent="…";
     try{
-      var r=await fetch("/api/impersonate/start",{method:"POST",headers:hdr(),body:JSON.stringify({client_id:cid, reason:"admin support"})});
+      var r=await fetch("/api/impersonate/start",{method:"POST",headers:hdr(),body:JSON.stringify({client_id:cid, reason:"admin support", to:to||"/app/customer"})});
       var j=await r.json().catch(function(){return{};});
       if(!r.ok || !j.access_token) throw new Error(j.detail||"Failed");
       // Customer portal usi origin pe lgai_token localStorage se chalta — set karke naye tab me kholo.

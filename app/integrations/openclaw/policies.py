@@ -131,15 +131,8 @@ def is_production_env() -> bool:
     CI often sets ENVIRONMENT=development with APP_ENV=test. Stage A tests may
     set APP_ENV=production via monkeypatch — that must win even if ENVIRONMENT
     remains development. Never treat unknown/empty as production unless
-    settings.is_production is already True.
+    explicitly set.
     """
-    try:
-        from app.config import settings
-
-        if bool(getattr(settings, "is_production", False)):
-            return True
-    except Exception:
-        pass
     values = {
         (os.getenv("ENVIRONMENT") or "").strip().lower(),
         (os.getenv("APP_ENV") or "").strip().lower(),

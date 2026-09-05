@@ -44,6 +44,18 @@ INTENTIONAL_EXCEPTIONS: tuple[RegistryException, ...] = (
         owner="boss",
         safety="Chain has own slot + daily cap; exclude from staff beat parity",
     ),
+    RegistryException(
+        job_id="whatsapp_automation",
+        registry="beat_staff_jobs",
+        relation="missing",
+        reason=(
+            "Staff job dispatches via app.tasks.whatsapp_automation.run_whatsapp_automation "
+            "(not run_staff_job) so it doesn't appear in the staff- beat map. Own beat key "
+            "staff-whatsapp-automation-hourly handles dispatch."
+        ),
+        owner="marketing",
+        safety="Separate beat entry dispatches it; parity exception logged for audit",
+    ),
 )
 
 # Jobs that MUST stay in RUN_DUE_EXCLUDE (unsafe catch-up).
@@ -58,6 +70,14 @@ REQUIRED_RUN_DUE_EXCLUDE: frozenset[str] = frozenset(
         "reply_auto_send",
     }
 )
+
+# Staff jobs that dispatch via their own Celery task (not run_staff_job).
+# These have dedicated beat entries that call the task directly.
+_NON_STAFF_RUN_TASKS: frozenset[str] = frozenset({
+    "app.tasks.whatsapp_automation.run_whatsapp_automation",
+    "app.tasks.daily_social_post.run_daily_social_post",
+    "app.tasks.daily_social_post.run_social_stale_sweep",
+})
 
 # Customer / provider contact risk lanes for staff jobs.
 CUSTOMER_CONTACT_JOBS: frozenset[str] = frozenset(
@@ -133,9 +153,21 @@ def _staff_beat_map() -> dict[str, list[str]]:
         if task.endswith("self_improve_tick") or "selfimprove" in str(key).replace("-", ""):
             # revive beat — not a STAFF_JOB arg
             continue
-        if not args:
+        if task == "app.tasks.staff_jobs.run_staff_job":
+            if not args:
+                continue
+            job = str(args[0])
+        elif task in _NON_STAFF_RUN_TASKS:
+            # Staff jobs dispatched via own task: infer job name from beat key.
+            # e.g. staff-whatsapp-automation-hourly -> whatsapp_automation
+            import re as _re
+            m = _re.match(r"^staff-(.+?)-(?:hourly|daily|5m|every|minute|min|-m)$", str(key))
+            if m:
+                job = m.group(1).replace("-", "_")
+            else:
+                continue
+        else:
             continue
-        job = str(args[0])
         out.setdefault(job, []).append(str(key))
     return out
 
@@ -254,6 +286,9 @@ def beat_task_targets_ok() -> list[str]:
                 problems.append(f"beat '{key}' selfimprove key but unexpected task={task}")
             continue
         if task != "app.tasks.staff_jobs.run_staff_job":
+            # Staff jobs that dispatch via own task (not run_staff_job) — intentional.
+            if task in _NON_STAFF_RUN_TASKS:
+                continue
             problems.append(f"beat '{key}' task={task} expected run_staff_job")
             continue
         if not args or str(args[0]) not in staff:

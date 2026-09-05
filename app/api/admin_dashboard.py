@@ -195,6 +195,66 @@ async def get_admin_dashboard(
     return resp
 
 
+@router.get("/trial-nudge/status")
+async def admin_trial_nudge_status(_user=Depends(require_admin)) -> dict:
+    """Trial-nudge admin surface: flag snapshot + dry-run eligible preview.
+
+    Preview = run_trial_nudge(dry_run=True) — NO emails sent, NO stamps
+    written; ENABLED gate bypassed for preview (arming decision helper) but
+    HARD_OFF still blocks. BLK-02 UI-tab rule: admin feature = UI tab SAATH.
+    """
+    out: dict = {}
+    try:
+        from app.billing.trial_nudge import run_trial_nudge, status_flags
+
+        out.update(status_flags())
+        preview = await run_trial_nudge(dry_run=True, limit=20)
+        out["preview"] = {
+            "seen": preview.get("seen", 0),
+            "eligible": preview.get("eligible", 0),
+            "would_send": preview.get("would_send", 0),
+            "skipped_active": preview.get("skipped_active", 0),
+            "skipped_not_due": preview.get("skipped_not_due", 0),
+            "skipped_no_email": preview.get("skipped_no_email", 0),
+            "skipped_suppressed": preview.get("skipped_suppressed", 0),
+            "skipped_cooldown": preview.get("skipped_cooldown", 0),
+            "skip_reason": preview.get("skip_reason"),
+            "items": preview.get("items", []),
+        }
+    except Exception as e:
+        logger.warning("admin_dashboard: trial-nudge status failed (%s)", e)
+        out["error"] = str(e)[:160]
+    return out
+
+
+@router.post("/trial-nudge/run")
+async def admin_trial_nudge_run(request: Request, admin=Depends(require_admin)) -> dict:
+    """Manual trial-nudge run (admin). ALL internal gates still apply —
+    HARD_OFF blocks; TRIAL_NUDGE_ENABLED off => skip result returned so the
+    admin sees exactly why nothing was sent. Real emails go out only when
+    the job's own gates pass."""
+    try:
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        limit = body.get("limit") if isinstance(body, dict) else None
+        from app.billing.trial_nudge import run_trial_nudge
+
+        result = await run_trial_nudge(limit=limit)
+        logger.info(
+            "admin trial-nudge run by %s: sent=%s skipped=%s",
+            (admin or {}).get("username", "?"),
+            result.get("sent"),
+            result.get("skip_reason"),
+        )
+        return result
+    except Exception as e:
+        logger.warning("admin_dashboard: trial-nudge run failed (%s)", e)
+        return {"error": str(e)[:160]}
+
+
 @router.get("/revenue-analytics")
 async def get_revenue_analytics(_user=Depends(require_admin)) -> dict:
     """MRR, churn-risk, LTV estimate — powers admin revenue analytics panel."""

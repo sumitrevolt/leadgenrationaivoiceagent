@@ -2,9 +2,10 @@
 # Responsibility: Email outreach, campaign management, lead nurture
 # Autopilot: Hourly cron within OUTREACH_DAILY_CAP=80, TRAI-compliant windows
 
-from app.utils.logger import setup_logger
-from app.config.settings import settings
 import os
+
+from app.config import settings
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 squad_name = "Marketing Automation"
@@ -25,7 +26,7 @@ def run_hourly_campaign():
     """Execute one hour of outreach within daily cap."""
     if not check_compliance():
         return {"status": "skipped", "reason": "compliance"}
-    
+
     # Read current count from Redis or file
     daily_cap = int(os.getenv("OUTREACH_DAILY_CAP", "80"))
     # In production: check Redis INCR for today's count
@@ -35,16 +36,17 @@ def run_hourly_campaign():
 
 def run_daily_stats():
     """Generate outreach statistics for owner dashboard."""
-    import os, json
+    import json
+    import os
     data_dir = settings.DATA_DIR
     stats_path = os.path.join(data_dir, "outreach_stats.json")
-    
+
     if os.path.exists(stats_path):
         with open(stats_path) as f:
             stats = json.load(f)
     else:
         stats = {"total_outreach": 0, "replies": 0, "closes": 0, "date": None}
-    
+
     return {"status": "retrieved", "stats": stats}
 
 # Export for autopilot registration

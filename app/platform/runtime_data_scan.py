@@ -105,6 +105,7 @@ _SKIP_DIRS = frozenset(
         "_agent_fetch",
         ".freebuff",
         ".worktrees",
+        ".claude",
         "backups",
         "artifacts",
         "uat_evidence",

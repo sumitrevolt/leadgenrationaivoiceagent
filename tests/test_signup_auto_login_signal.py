@@ -182,6 +182,7 @@ def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
     """When activate_plan raises → response has plan_provisioned=False + WARNING log."""
     import app.api.customer_auth as ca
     import app.billing.usage as usage
+    import app.marketing.clients_store as cs
 
     monkeypatch.setattr(
         cs, "add_client", lambda **k: {"id": "c_ppr", "business_name": k.get("business_name")}

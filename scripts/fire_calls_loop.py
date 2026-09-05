@@ -101,7 +101,13 @@ async def run_loop(
             break
 
         batch_n += 1
-        niche_filter = "ai_marketing" if platform else niche
+        # 2026-08-30 HOTFIX (PILOT): platform mode pehle niche='ai_marketing' force
+        # karta tha -> sirf 4 uncontacted ai_marketing leads => loop hamesha leads=0
+        # (pool: 18,670 uncontacted across coaching/dental/b2b_suppliers/... ).
+        # Ab niche filter sirf tab lagta hai jab user --niche de; platform pitch ka
+        # LABEL fire_vobiz() me hi decide hota hai (niche='ai_marketing' for CALL),
+        # prospect SELECTION sab niches se hota hai.
+        niche_filter = ""
         prospects = fc.get_prospects(batch_size, niche_filter)
         print(f"\n[loop] === BATCH {batch_n} | {win_msg} | leads={len(prospects)} ===")
 

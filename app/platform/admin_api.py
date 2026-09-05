@@ -1,7 +1,8 @@
 # Admin API — owner control panel (all gates gated through /health/check)
 from fastapi import APIRouter, Depends, HTTPException
+
+from app.config import settings
 from app.utils.logger import setup_logger
-from app.config.settings import settings
 
 router = APIRouter(tags=["admin"])
 logger = setup_logger(__name__)
@@ -24,11 +25,35 @@ def _gate_check():
 # ── 1. Hot Queue Status ────────────────────────────────────────────
 @router.get("/hotqueue", summary="42 flagged leads status")
 async def hot_queue_status(gates: dict = Depends(_gate_check)):
-    """Return hot queue pack status — CSV/MD file + ntfy + lead counts."""
-    import os, json
+    """Return hot queue pack status — CSV/MD file + ntfy + lead counts.
+
+    Filename contract (fixed 2026-09-04): both pack writers emit a
+    DATE-SUFFIXED name, ``hot_queue_for_owner_<YYYY-MM-DD>.{csv,md}``:
+
+      * ``app/platform/hot_queue_owner_pack.py``  (the 09:00 IST beat)
+      * ``app/platform/hot_queue_followup.py``
+
+    The unsuffixed ``hot_queue_for_owner.csv`` below is kept ONLY as a legacy
+    fallback for packs written by older builds. Resolution is glob-based and
+    picks the most recently modified match, so it stays correct regardless of
+    whether the writer stamped the date in UTC or IST.
+    """
+    import glob
+    import os
+
     base = settings.DATA_DIR  # /opt/leadgen/data
     csv_path = os.path.join(base, "hot_queue_for_owner.csv")
     md_path = os.path.join(base, "hot_queue_for_owner.md")
+
+    def _newest(pattern: str, legacy: str) -> str:
+        """Most recent dated match, else the legacy unsuffixed file."""
+        candidates = glob.glob(pattern)
+        if candidates:
+            return max(candidates, key=os.path.getmtime)
+        return legacy
+
+    csv_path = _newest(os.path.join(base, "hot_queue_for_owner_2*.csv"), csv_path)
+    md_path = _newest(os.path.join(base, "hot_queue_for_owner_2*.md"), md_path)
 
     info = {"csv_exists": False, "md_exists": False, "rows": 0, "ntfy": None}
 
@@ -41,6 +66,9 @@ async def hot_queue_status(gates: dict = Depends(_gate_check)):
         info["md_exists"] = True
         with open(md_path) as f:
             info["md_content"] = f.read()[:200]  # preview
+
+    info["csv_path"] = os.path.basename(csv_path)
+    info["md_path"] = os.path.basename(md_path)
 
     # Check ntfy status via env or recent push
     info["ntfy"] = "sent_today"  # simplified — real check via ntfy topic
@@ -58,7 +86,8 @@ async def compliance_snapshot(gates: dict = Depends(_gate_check)):
 @router.post("/deploy/initiate", summary="Start 2-step deploy flow")
 async def deploy_initiate(gates: dict = Depends(_gate_check)):
     """Owner flips kill-fence ON — system records intent, validates, waits for confirm."""
-    import subprocess, os
+    import os
+    import subprocess
     env = os.environ.copy()
     # Step 1: flip kill-fence ON
     result = subprocess.run(
@@ -135,12 +164,13 @@ async def system_controls(payload: dict, gates: dict = Depends(_gate_check)):
 @router.get("/videos", summary="List generated video reels")
 async def list_videos(gates: dict = Depends(_gate_check)):
     """Return list of generated videos from data/reels/."""
-    import os, json
+    import json
+    import os
     from datetime import datetime
-    
+
     reels_dir = os.path.join(settings.DATA_DIR, "reels")
     videos = []
-    
+
     if os.path.exists(reels_dir):
         for f in sorted(os.listdir(reels_dir), reverse=True):
             if f.endswith('.mp4'):
@@ -156,7 +186,7 @@ async def list_videos(gates: dict = Depends(_gate_check)):
                     "aspect": "9:16",
                     "date": datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M'),
                 })
-    
+
     return {"videos": videos}
 
 # ── 8. Generate Videos ───────────────────────────────────────────
@@ -164,17 +194,17 @@ async def list_videos(gates: dict = Depends(_gate_check)):
 async def generate_videos(gates: dict = Depends(_gate_check)):
     """Trigger video generation for own brand + clients."""
     from app.tasks.video_generator import sync_generate_daily_videos
-    
+
     try:
         result = sync_generate_daily_videos()
         own = result.get("own_brand")
         clients = result.get("clients", [])
-        
+
         videos_created = 0
         if own:
             videos_created += 1
         videos_created += sum(1 for c in clients if c.get("video_path"))
-        
+
         return {"ok": True, "videos_created": videos_created, "detail": {"own": bool(own), "clients": len(clients)}}
     except Exception:
         logger.exception("Video generation failed")
@@ -184,16 +214,16 @@ async def generate_videos(gates: dict = Depends(_gate_check)):
 @router.post("/social/post", summary="Post video to social via Postiz")
 async def post_video_to_social(payload: dict, gates: dict = Depends(_gate_check)):
     """Post a video to connected Postiz channels."""
-    from app.integrations.postiz import publish_video, enabled as postiz_enabled
-    
+    from app.integrations.postiz import enabled as postiz_enabled
+    from app.integrations.postiz import publish_video
+
     if not postiz_enabled():
         return {"sent": False, "reason": "POSTIZ_API_KEY not set"}
-    
+
     video_url = payload.get("video_url", "")
     if not video_url:
         return {"sent": False, "reason": "video_url required"}
-    
-    # Extract and validate local file path from URL
+    # Extract and validate local file path from URL (CodeQL: path injection)
     import os
     import re
     from urllib.parse import urlparse
@@ -211,19 +241,19 @@ async def post_video_to_social(payload: dict, gates: dict = Depends(_gate_check)
     local_path = os.path.realpath(os.path.join(reels_dir, filename))
     if os.path.commonpath([reels_dir, local_path]) != reels_dir:
         return {"sent": False, "reason": "Invalid video path"}
-    
+
     if not os.path.exists(local_path):
         return {"sent": False, "reason": "Video file not found locally"}
-    
+
     # Use own-brand client for own videos
     client = {"id": "leadgenai-self", "business_name": "LeadGen AI"}
     caption = payload.get("caption", "LeadGen AI Daily Update")
-    
+
     result = await publish_video(
         client=client,
         caption=caption,
         video_path=local_path,
         filename=filename,
     )
-    
+
     return result

@@ -241,3 +241,117 @@ def test_no_whatsapp_send_path_in_module():
     src = inspect.getsource(tn)
     assert "integrations.whatsapp" not in src
     assert "import whatsapp" not in src
+
+
+# ------------------------------------------------- admin dry-run preview surface
+
+
+def test_dry_run_bypasses_enabled_gate_but_not_hard_off(wired, monkeypatch):
+    """Preview works even when job disarmed (arming-decision helper), but
+    HARD_OFF still blocks and NOTHING is sent/stamped in dry-run."""
+    monkeypatch.delenv("TRIAL_NUDGE_ENABLED", raising=False)
+    monkeypatch.delenv("TRIAL_NUDGE_HARD_OFF", raising=False)
+    wired.set_clients(
+        [_client("t1", days_left=1), _client("paid1", trial=False, status="active")]
+    )
+    out = _run(wired, dry_run=True)
+    assert out["dry_run"] is True
+    assert out.get("skip_reason") is None
+    assert out["eligible"] == 1
+    assert out["would_send"] == 1
+    assert out["sent"] == 0
+    assert wired.sent == []           # NO real send in dry-run
+    assert wired.store.updates == []  # NO stamps written in dry-run
+    item = out["items"][0]
+    assert item["client_id"] == "t1"
+    assert item["stage"] == "expiring"
+    assert item["would_send"] is True
+
+
+def test_dry_run_respects_hard_off(wired, monkeypatch):
+    monkeypatch.setenv("TRIAL_NUDGE_HARD_OFF", "1")
+    wired.set_clients([_client()])
+    out = _run(wired, dry_run=True)
+    assert out["skip_reason"] == "trial_nudge_hard_off"
+    assert out["would_send"] == 0
+
+
+def test_real_run_still_fail_closed_without_flag(wired, monkeypatch):
+    monkeypatch.delenv("TRIAL_NUDGE_ENABLED", raising=False)
+    wired.set_clients([_client()])
+    out = _run(wired)
+    assert out["skip_reason"] == "trial_nudge_disabled"
+    assert wired.sent == []
+
+
+def test_status_flags_shape(monkeypatch):
+    monkeypatch.delenv("TRIAL_NUDGE_HARD_OFF", raising=False)
+    f = tn.status_flags()
+    assert f["hard_off"] is False
+    assert f["starter_price_inr"] == int(tn.starter_price_inr())
+    assert set(f) >= {
+        "enabled",
+        "hard_off",
+        "days_before",
+        "remind_h",
+        "max_per_client",
+        "batch",
+        "starter_price_inr",
+    }
+
+
+# ------------------------------------------------------------ admin endpoints
+
+
+def _api(monkeypatch, rows):
+    from fastapi.testclient import TestClient
+
+    from app.api.auth_deps import require_admin
+    from app.main import app
+    from app.marketing import clients_store
+
+    app.dependency_overrides[require_admin] = lambda: {"username": "test"}
+    monkeypatch.setattr(
+        clients_store, "list_clients", lambda: [dict(r) for r in rows], raising=False
+    )
+    monkeypatch.setattr(
+        clients_store, "update_client", lambda cid, **fields: None, raising=False
+    )
+    return TestClient(app)
+
+
+def test_admin_status_endpoint_dry_run_no_sends(monkeypatch):
+    rows = [
+        _client("t1", days_left=1),
+        # Converted trial: trial flag still set, but status=active (paid) ->
+        # billing-truth gate bucket (skipped_active), never eligible.
+        _client("paid1", trial=True, days_left=99, status="active"),
+    ]
+    c = _api(monkeypatch, rows)
+    from app.main import app
+
+    try:
+        r = c.get("/api/admin/trial-nudge/status")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["preview"]["would_send"] == 1
+        assert d["preview"]["eligible"] == 1
+        assert d["preview"]["skipped_active"] == 1
+        assert d["starter_price_inr"] == int(tn.starter_price_inr())
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_run_endpoint_disabled_returns_skip(monkeypatch):
+    rows = [_client("t1", days_left=1)]
+    c = _api(monkeypatch, rows)
+    from app.main import app
+
+    try:
+        r = c.post("/api/admin/trial-nudge/run", json={})
+        assert r.status_code == 200
+        d = r.json()
+        assert d.get("skip_reason") == "trial_nudge_disabled"
+        assert d.get("sent", 0) == 0
+    finally:
+        app.dependency_overrides.clear()

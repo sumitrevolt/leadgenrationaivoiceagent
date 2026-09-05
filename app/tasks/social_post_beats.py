@@ -17,7 +17,7 @@ BEAT_ENTRIES = {
         "args": (),
         "options": {"expires": 10800},  # 3h expiry
     },
-    
+
     # Midday: 13:00 IST
     "staff-daily-social-post-midday": {
         "task": "app.tasks.daily_social_post.run_daily_social_post",
@@ -25,7 +25,7 @@ BEAT_ENTRIES = {
         "args": (),
         "options": {"expires": 10800},
     },
-    
+
     # Evening: 16:00 IST (before 7pm TRAI cutoff)
     "staff-daily-social-post-evening": {
         "task": "app.tasks.daily_social_post.run_daily_social_post",

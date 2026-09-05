@@ -2,8 +2,8 @@
 # Responsibility: TRAI/DPDP compliance, DND lookup, consent ledger
 # Autopilot: Auto-scrub on lead add, daily compliance report, gate monitoring
 
-from app.utils.logger import setup_logger
 from app.platform.hot_queue_owner_pack import check_gates
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 squad_name = "Compliance & DND"
@@ -22,7 +22,7 @@ def daily_compliance_audit():
         "status": "PASS" if all(v == "pass" for v in gates.values()) else "REVIEW",
     }
     logger.info(f"Squad 3 compliance audit: {audit}")
-    
+
     # Push to owner ntfy topic for awareness
     # (in production: ntfy push via app/platform/ntfy_utils.py)
     return {"status": "audit_complete", "audit": audit}

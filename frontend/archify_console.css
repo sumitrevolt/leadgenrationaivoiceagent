@@ -1,0 +1,887 @@
+/* ============================================================================
+   ARCHIFY CONSOLE — shared design system for the LeadGen AI product consoles
+   ----------------------------------------------------------------------------
+   Creative North Star : "The Evidence Console"
+   Derived from        : tt-a1i/archify — DESIGN.md
+
+   Applied rules (non-negotiable, lifted from Archify):
+     1. Semantic Color Rule    — saturated colour maps to a MEANING, never
+                                 decoration. Never add an accent to liven a surface.
+     2. Flat-at-Rest Rule      — borders + tone carry structure; shadow appears
+                                 only to explain layering (drawer, menu, focus).
+     3. One Voice Rule         — JetBrains Mono throughout. Hierarchy comes from
+                                 weight, scale, spacing and case — never a
+                                 decorative display face.
+     4. Legibility Floor Rule  — tiny labels are metadata; prose is promoted to
+                                 body size. Never ship a sentence at label size.
+     5. Progressive Disclosure — one spatial narrative (the map) stays dominant.
+                                 Detail opens on demand into one focused surface.
+     6. Theme Parity Rule      — light mode preserves category identity and
+                                 information priority; it is not a second product.
+     7. Motion                 — 140-200ms state transitions, honour
+                                 prefers-reduced-motion. Motion never carries
+                                 meaning that disappears in a still frame.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   1. TOKENS
+   --------------------------------------------------------------------------- */
+:root {
+  /* Surface ladder */
+  --canvas:  #020617;
+  --mask:    #0F172A;
+  --mask-2:  #131F35;
+  --ink:     #FFFFFF;
+  --muted:   #94A3B8;
+  --dim:     #475569;
+  --border:  #1E293B;
+  --border-2:#2A3A52;
+
+  /* Semantic signals — each maps to a meaning, never to decoration */
+  --frontend:   #22D3EE;  /* active / primary / selected / front-end       */
+  --backend:    #34D399;  /* verified / healthy / connected / success      */
+  --database:   #A78BFA;  /* persisted state / knowledge / store           */
+  --cloud:      #FBBF24;  /* pending / needs-attention / external cloud    */
+  --security:   #FB7185;  /* error / revoked / blocked / policy            */
+  --messagebus: #FB923C;  /* in-transit / running / queued                 */
+  --external:   #94A3B8;  /* external system / neutral                     */
+
+  /* Derived, low-alpha washes (kept as explicit rgba: no colour-mix deps) */
+  --frontend-wash:   rgba(34, 211, 238, 0.10);
+  --backend-wash:    rgba(52, 211, 153, 0.10);
+  --database-wash:   rgba(167, 139, 250, 0.10);
+  --cloud-wash:      rgba(251, 191, 36, 0.10);
+  --security-wash:   rgba(251, 113, 133, 0.10);
+  --messagebus-wash: rgba(251, 146, 60, 0.10);
+
+  /* Typography */
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  --fs-headline: 1.5rem;
+  --fs-title:    0.875rem;
+  --fs-body:     0.75rem;
+  --fs-label:    0.625rem;
+
+  /* Geometry */
+  --r-precise: 0.2rem;
+  --r-control: 0.5rem;
+  --r-panel:   1rem;
+  --r-pill:    999px;
+
+  /* Spacing */
+  --s-xs: 0.25rem;
+  --s-sm: 0.5rem;
+  --s-md: 0.75rem;
+  --s-lg: 1rem;
+  --s-xl: 1.5rem;
+  --s-page: 2rem;
+
+  /* Motion */
+  --t-fast: 140ms;
+  --t-base: 180ms;
+  --t-slow: 200ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Elevation — flat at rest; these exist only for genuine layering */
+  --lift-float:  0 18px 48px rgba(0, 0, 0, 0.30);
+  --lift-canvas: 0 28px 80px rgba(0, 0, 0, 0.34);
+
+  /* Rail */
+  --rail-w: 232px;
+}
+
+/* Theme parity — light preserves category identity, not a separate product. */
+:root[data-theme="light"] {
+  --canvas:  #F6F8FC;
+  --mask:    #FFFFFF;
+  --mask-2:  #F1F5FA;
+  --ink:     #0B1220;
+  --muted:   #55637A;
+  --dim:     #8A97AC;
+  --border:  #D9E1EC;
+  --border-2:#C3CEDD;
+
+  --frontend:   #0891B2;
+  --backend:    #059669;
+  --database:   #7C3AED;
+  --cloud:      #B45309;
+  --security:   #E11D48;
+  --messagebus: #EA580C;
+  --external:   #55637A;
+
+  --frontend-wash:   rgba(8, 145, 178, 0.10);
+  --backend-wash:    rgba(5, 150, 105, 0.10);
+  --database-wash:   rgba(124, 58, 237, 0.10);
+  --cloud-wash:      rgba(180, 83, 9, 0.10);
+  --security-wash:   rgba(225, 29, 72, 0.10);
+  --messagebus-wash: rgba(234, 88, 12, 0.10);
+
+  --lift-float:  0 18px 48px rgba(15, 23, 42, 0.14);
+  --lift-canvas: 0 28px 80px rgba(15, 23, 42, 0.10);
+}
+
+/* ---------------------------------------------------------------------------
+   2. BASE
+   --------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+
+a { color: var(--frontend); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+::selection { background: var(--frontend); color: var(--canvas); }
+
+/* Visible focus — 2px cyan ring, 2px offset. Never removed. */
+:focus-visible {
+  outline: 2px solid var(--frontend);
+  outline-offset: 2px;
+  border-radius: var(--r-precise);
+}
+
+/* Scrollbars: quiet, structural */
+* { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-2);
+  border-radius: var(--r-pill);
+  border: 3px solid var(--canvas);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+/* ---------------------------------------------------------------------------
+   3. TYPOGRAPHY
+   --------------------------------------------------------------------------- */
+.ax-h1 {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+.ax-h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+.ax-title {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.ax-body { font-size: var(--fs-body); font-weight: 400; line-height: 1.55; }
+.ax-label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ax-muted { color: var(--muted); }
+.ax-dim   { color: var(--dim); }
+.ax-num   { font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------------------
+   4. SHELL — rail + dominant canvas
+   --------------------------------------------------------------------------- */
+.ax-shell {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "rail topbar"
+    "rail main";
+  height: 100vh;
+}
+
+/* --- topbar --------------------------------------------------------------- */
+.ax-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  height: 60px;
+  padding: 0 var(--s-page);
+  border-bottom: 1px solid var(--border);
+  background: var(--canvas);
+}
+.ax-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  min-width: 0;
+}
+.ax-brand__mark {
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  flex: none;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-precise);
+  background: var(--mask);
+  color: var(--frontend);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.ax-brand__name {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ax-topbar__spacer { flex: 1 1 auto; }
+
+/* --- rail ----------------------------------------------------------------- */
+.ax-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  padding: var(--s-lg) var(--s-sm) var(--s-lg) var(--s-sm);
+  border-right: 1px solid var(--border);
+  background: var(--canvas);
+  overflow-y: auto;
+}
+.ax-rail__group { padding: var(--s-lg) var(--s-sm) var(--s-xs); }
+.ax-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  width: 100%;
+  min-height: 34px;
+  padding: 0 var(--s-md);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease);
+}
+.ax-nav:hover { background: var(--mask); color: var(--ink); }
+/* Active state = text + border + marker, NOT colour alone (a11y) */
+.ax-nav[aria-current="page"] {
+  background: var(--mask);
+  border-color: var(--border-2);
+  color: var(--ink);
+  font-weight: 600;
+}
+.ax-nav[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 2px; height: 16px;
+  border-radius: var(--r-pill);
+  background: var(--frontend);
+}
+.ax-nav { position: relative; }
+.ax-nav__idx {
+  flex: none;
+  width: 1.25em;
+  color: var(--dim);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.ax-nav[aria-current="page"] .ax-nav__idx { color: var(--frontend); }
+.ax-nav__label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Non-colour state cue for rail item health */
+.ax-nav__dot {
+  flex: none;
+  width: 6px; height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--dim);
+}
+.ax-nav__dot[data-state="ok"]      { background: var(--backend); }
+.ax-nav__dot[data-state="pending"] { background: var(--cloud); }
+.ax-nav__dot[data-state="error"]   { background: var(--security); }
+.ax-nav__dot[data-state="active"]  { background: var(--frontend); }
+
+.ax-rail__foot {
+  margin-top: auto;
+  padding: var(--s-md) var(--s-md) 0;
+  border-top: 1px solid var(--border);
+  color: var(--dim);
+  font-size: var(--fs-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* --- main ----------------------------------------------------------------- */
+.ax-main {
+  grid-area: main;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--s-page);
+}
+.ax-canvas { max-width: 1180px; margin: 0 auto; }
+
+/* View sections: progressive disclosure — one narrative at a time. */
+.ax-view { display: none; }
+.ax-view[data-active="true"] { display: block; animation: ax-fade var(--t-slow) var(--ease); }
+@keyframes ax-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.ax-view__hd { margin-bottom: var(--s-lg); }
+.ax-view__eyebrow { display: block; margin-bottom: var(--s-xs); }
+.ax-view__sub { margin-top: var(--s-xs); max-width: 68ch; color: var(--muted); }
+
+/* ---------------------------------------------------------------------------
+   5. PANELS — flat at rest, tonal, 1px border
+   --------------------------------------------------------------------------- */
+.ax-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--mask);
+  margin-bottom: var(--s-lg);
+  overflow: hidden;
+}
+.ax-panel__hd {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-lg) var(--s-xl);
+  border-bottom: 1px solid var(--border);
+}
+.ax-panel__hd--bare { border-bottom: none; padding-bottom: 0; }
+.ax-panel__title { flex: 1 1 auto; min-width: 0; }
+.ax-panel__bd { padding: var(--s-xl); }
+.ax-panel__bd--tight { padding: var(--s-lg); }
+.ax-panel__ft {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-md) var(--s-xl);
+  border-top: 1px solid var(--border);
+  background: var(--mask-2);
+}
+
+/* ---------------------------------------------------------------------------
+   6. BUTTONS — compact, mono label, one saturated hierarchy
+   --------------------------------------------------------------------------- */
+.ax-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  min-height: 34px;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-control);
+  background: var(--mask);
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease),
+              opacity var(--t-fast) var(--ease);
+}
+.ax-btn:hover:not(:disabled) { border-color: var(--dim); background: var(--mask-2); }
+.ax-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Primary is the ONLY saturated fill. Cyan stays scarce. */
+.ax-btn--primary {
+  border-color: var(--frontend);
+  background: var(--frontend-wash);
+  color: var(--frontend);
+}
+.ax-btn--primary:hover:not(:disabled) { background: rgba(34, 211, 238, 0.18); border-color: var(--frontend); }
+
+.ax-btn--ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.ax-btn--ghost:hover:not(:disabled) { background: var(--mask); color: var(--ink); }
+
+.ax-btn--danger { border-color: var(--security); background: var(--security-wash); color: var(--security); }
+.ax-btn--danger:hover:not(:disabled) { background: rgba(251, 113, 133, 0.18); }
+
+.ax-btn--sm { min-height: 28px; padding: 0.25rem 0.625rem; font-size: var(--fs-label); letter-spacing: 0.08em; text-transform: uppercase; }
+.ax-btn--block { width: 100%; }
+
+/* ---------------------------------------------------------------------------
+   7. CHIPS — quiet bordered capsules; selected uses the owning semantic colour
+   --------------------------------------------------------------------------- */
+.ax-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-xs);
+  height: 22px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ax-chip--cyan   { border-color: var(--frontend);   color: var(--frontend);   background: var(--frontend-wash); }
+.ax-chip--green  { border-color: var(--backend);    color: var(--backend);    background: var(--backend-wash); }
+.ax-chip--violet { border-color: var(--database);   color: var(--database);   background: var(--database-wash); }
+.ax-chip--amber  { border-color: var(--cloud);      color: var(--cloud);      background: var(--cloud-wash); }
+.ax-chip--rose   { border-color: var(--security);   color: var(--security);   background: var(--security-wash); }
+.ax-chip--orange { border-color: var(--messagebus); color: var(--messagebus); background: var(--messagebus-wash); }
+.ax-chip--slate  { border-color: var(--border-2);   color: var(--muted); }
+
+/* Non-colour state cue: shape marker alongside colour */
+.ax-chip__dot { width: 5px; height: 5px; border-radius: var(--r-pill); background: currentColor; flex: none; }
+
+/* ---------------------------------------------------------------------------
+   8. FORM CONTROLS — one continuous bordered field
+   --------------------------------------------------------------------------- */
+.ax-field { display: block; margin-bottom: var(--s-lg); }
+.ax-field:last-child { margin-bottom: 0; }
+.ax-field__label { display: block; margin-bottom: var(--s-xs); }
+.ax-field__hint  { margin-top: var(--s-xs); color: var(--dim); font-size: var(--fs-label); letter-spacing: 0.04em; }
+.ax-field__err   { margin-top: var(--s-xs); color: var(--security); font-size: var(--fs-label); letter-spacing: 0.04em; }
+.ax-field__err[hidden] { display: none; }
+/* Error preserves readable text and adds a non-colour cue (left bar). */
+.ax-field[data-invalid="true"] .ax-input,
+.ax-field[data-invalid="true"] .ax-textarea,
+.ax-field[data-invalid="true"] .ax-select {
+  border-color: var(--security);
+  border-left-width: 3px;
+  padding-left: calc(0.65rem - 2px);
+}
+
+.ax-input, .ax-textarea, .ax-select {
+  width: 100%;
+  padding: 0.58rem 0.65rem;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-control);
+  background: var(--mask);
+  color: var(--ink);
+  font-size: var(--fs-body);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.ax-input::placeholder, .ax-textarea::placeholder { color: var(--dim); }
+.ax-textarea { min-height: 96px; resize: vertical; line-height: 1.6; }
+.ax-select { appearance: none; cursor: pointer; padding-right: 2rem;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.ax-select option { background: var(--mask); color: var(--ink); }
+
+/* Focus: no browser outline; border shifts to cyan + restrained 2px halo. */
+.ax-input:focus, .ax-textarea:focus, .ax-select:focus {
+  outline: none;
+  border-color: var(--frontend);
+  box-shadow: 0 0 0 2px var(--frontend-wash);
+}
+
+.ax-field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s-lg); }
+
+/* Switch — non-colour cue via knob position */
+.ax-switch { display: inline-flex; align-items: center; gap: var(--s-md); cursor: pointer; }
+.ax-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ax-switch__track {
+  position: relative;
+  width: 38px; height: 22px;
+  flex: none;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-pill);
+  background: var(--mask-2);
+  transition: background var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
+}
+.ax-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  border-radius: var(--r-pill);
+  background: var(--dim);
+  transition: transform var(--t-base) var(--ease), background var(--t-base) var(--ease);
+}
+.ax-switch input:checked + .ax-switch__track { border-color: var(--backend); background: var(--backend-wash); }
+.ax-switch input:checked + .ax-switch__track::after { transform: translateX(16px); background: var(--backend); }
+.ax-switch input:focus-visible + .ax-switch__track { outline: 2px solid var(--frontend); outline-offset: 2px; }
+.ax-switch__text { font-size: var(--fs-body); }
+
+/* ---------------------------------------------------------------------------
+   9. METRIC STRIP — a single quiet band, never a grid of identical cards
+   --------------------------------------------------------------------------- */
+.ax-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--mask);
+  overflow: hidden;
+  margin-bottom: var(--s-lg);
+}
+.ax-metric {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: var(--s-lg) var(--s-xl);
+  border-right: 1px solid var(--border);
+}
+.ax-metric:last-child { border-right: none; }
+.ax-metric__k { display: block; margin-bottom: var(--s-xs); }
+.ax-metric__v {
+  display: block;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ax-metric__v[data-tone="cyan"]   { color: var(--frontend); }
+.ax-metric__v[data-tone="green"]  { color: var(--backend); }
+.ax-metric__v[data-tone="violet"] { color: var(--database); }
+.ax-metric__v[data-tone="amber"]  { color: var(--cloud); }
+
+/* ---------------------------------------------------------------------------
+   10. PROVISIONING STEPS — Tata-Tele-style stepped provisioning breadcrumb
+   --------------------------------------------------------------------------- */
+.ax-steps { display: flex; flex-direction: column; }
+.ax-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-md);
+  padding: var(--s-lg) 0;
+  border-top: 1px solid var(--border);
+}
+.ax-step:first-child { border-top: none; }
+.ax-step__idx {
+  display: grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-pill);
+  color: var(--dim);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.ax-step[data-state="done"]    .ax-step__idx { border-color: var(--backend);  color: var(--backend);  background: var(--backend-wash); }
+.ax-step[data-state="active"]  .ax-step__idx { border-color: var(--frontend); color: var(--frontend); background: var(--frontend-wash); }
+.ax-step[data-state="blocked"] .ax-step__idx { border-color: var(--security); color: var(--security); background: var(--security-wash); }
+.ax-step__body { min-width: 0; }
+.ax-step__t { font-size: var(--fs-body); font-weight: 600; }
+.ax-step__d { margin-top: 2px; color: var(--muted); max-width: 62ch; }
+.ax-step__act { display: flex; align-items: center; gap: var(--s-sm); }
+
+/* Readiness rail: one thin deterministic bar, no shimmer */
+.ax-readiness {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--border);
+  overflow: hidden;
+  margin-top: var(--s-md);
+}
+.ax-readiness__fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--backend);
+  transition: width var(--t-slow) var(--ease);
+}
+
+/* ---------------------------------------------------------------------------
+   11. TABLES — dense, mono, tabular numerals
+   --------------------------------------------------------------------------- */
+.ax-table-wrap { overflow-x: auto; }
+.ax-table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
+.ax-table th {
+  padding: var(--s-md) var(--s-lg);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+.ax-table td {
+  padding: var(--s-md) var(--s-lg);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.ax-table tbody tr:last-child td { border-bottom: none; }
+.ax-table tbody tr { transition: background var(--t-fast) var(--ease); }
+.ax-table tbody tr:hover { background: var(--mask-2); }
+.ax-table__num { text-align: right; font-variant-numeric: tabular-nums; }
+.ax-table__clip { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------------------
+   12. SYSTEM MAP — the Evidence Console canvas. Deterministic SVG, semantic
+       palette only. Node fill/border encode state; never decoration.
+   --------------------------------------------------------------------------- */
+.ax-map {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--canvas);
+  padding: var(--s-lg);
+  overflow: hidden;
+}
+.ax-map__svg { display: block; width: 100%; height: auto; }
+
+.ax-node-box {
+  fill: var(--mask);
+  stroke: var(--border-2);
+  stroke-width: 1;
+  transition: fill var(--t-base) var(--ease), stroke var(--t-base) var(--ease);
+  cursor: pointer;
+}
+.ax-node-box[data-state="ok"]      { stroke: var(--backend);  fill: var(--backend-wash); }
+.ax-node-box[data-state="active"]  { stroke: var(--frontend); fill: var(--frontend-wash); }
+.ax-node-box[data-state="pending"] { stroke: var(--cloud);    fill: var(--cloud-wash); }
+.ax-node-box[data-state="error"]   { stroke: var(--security); fill: var(--security-wash); }
+.ax-node-box[data-state="store"]   { stroke: var(--database); fill: var(--database-wash); }
+.ax-node-box[data-state="idle"]    { stroke: var(--border-2); fill: var(--mask); }
+.ax-node-box:hover { stroke-width: 2; }
+
+.ax-node-t {
+  fill: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.ax-node-s {
+  fill: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.ax-node-box[data-state="ok"]      ~ .ax-node-t { fill: var(--ink); }
+.ax-node-box[data-state="idle"]    ~ .ax-node-t { fill: var(--muted); }
+
+.ax-edge {
+  fill: none;
+  stroke: var(--border-2);
+  stroke-width: 1.5;
+  transition: stroke var(--t-base) var(--ease);
+}
+.ax-edge[data-state="ok"]     { stroke: var(--backend); }
+.ax-edge[data-state="live"]   { stroke: var(--frontend); }
+.ax-edge[data-state="dim"]    { stroke: var(--border); }
+.ax-edge[data-state="broken"] { stroke: var(--security); stroke-dasharray: 4 3; }
+
+.ax-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-lg);
+  margin-top: var(--s-md);
+  padding-top: var(--s-md);
+  border-top: 1px solid var(--border);
+}
+
+/* ---------------------------------------------------------------------------
+   13. DRAWER — the single focused detail surface (Archify "Semantic Passport
+       analogue"). New capability routes here instead of adding another panel.
+   --------------------------------------------------------------------------- */
+.ax-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--t-base) var(--ease), visibility var(--t-base) var(--ease);
+  z-index: 40;
+}
+.ax-scrim[data-open="true"] { opacity: 1; visibility: visible; }
+
+.ax-drawer {
+  position: fixed;
+  top: 0; right: 0;
+  width: min(520px, 100vw);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--mask);
+  box-shadow: var(--lift-float);   /* explains layering — allowed */
+  transform: translateX(100%);
+  transition: transform var(--t-slow) var(--ease);
+  z-index: 50;
+}
+.ax-drawer[data-open="true"] { transform: none; }
+.ax-drawer__hd {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: var(--s-lg) var(--s-xl);
+  border-bottom: 1px solid var(--border);
+}
+.ax-drawer__bd { flex: 1 1 auto; overflow-y: auto; padding: var(--s-xl); }
+.ax-drawer__ft {
+  display: flex;
+  gap: var(--s-md);
+  padding: var(--s-lg) var(--s-xl);
+  border-top: 1px solid var(--border);
+  background: var(--mask-2);
+}
+
+/* Definition list — compact proof blocks */
+.ax-dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-sm) var(--s-lg); }
+.ax-dl dt { color: var(--muted); font-size: var(--fs-label); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.ax-dl dd { margin: 0; font-size: var(--fs-body); word-break: break-word; }
+
+/* ---------------------------------------------------------------------------
+   14. EMPTY STATE — honest, actionable. Never invents data.
+   --------------------------------------------------------------------------- */
+.ax-empty {
+  padding: var(--s-xl);
+  border: 1px dashed var(--border-2);
+  border-radius: var(--r-panel);
+  text-align: center;
+  color: var(--muted);
+}
+.ax-empty__t { color: var(--ink); font-size: var(--fs-title); font-weight: 600; margin-bottom: var(--s-xs); }
+.ax-empty__d { max-width: 52ch; margin: 0 auto var(--s-lg); }
+
+/* ---------------------------------------------------------------------------
+   15. TOAST — temporary, bottom-right, non-blocking
+   --------------------------------------------------------------------------- */
+.ax-toasts {
+  position: fixed;
+  right: var(--s-lg);
+  bottom: var(--s-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  z-index: 60;
+  max-width: min(420px, calc(100vw - 2rem));
+}
+.ax-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-md);
+  padding: var(--s-md) var(--s-lg);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-control);
+  background: var(--mask);
+  box-shadow: var(--lift-float);
+  font-size: var(--fs-body);
+  animation: ax-toast-in var(--t-slow) var(--ease);
+}
+@keyframes ax-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ax-toast[data-tone="ok"]    { border-left: 3px solid var(--backend); }
+.ax-toast[data-tone="error"] { border-left: 3px solid var(--security); }
+.ax-toast[data-tone="warn"]  { border-left: 3px solid var(--cloud); }
+.ax-toast[data-tone="info"]  { border-left: 3px solid var(--frontend); }
+
+/* ---------------------------------------------------------------------------
+   16. UTILITIES
+   --------------------------------------------------------------------------- */
+.ax-row   { display: flex; align-items: center; gap: var(--s-md); flex-wrap: wrap; }
+.ax-row--tight { gap: var(--s-sm); }
+.ax-row--between { justify-content: space-between; }
+.ax-col   { display: flex; flex-direction: column; gap: var(--s-md); }
+.ax-grow  { flex: 1 1 auto; min-width: 0; }
+.ax-sep   { height: 1px; background: var(--border); border: 0; margin: var(--s-lg) 0; }
+.ax-gap-lg { margin-top: var(--s-lg); }
+.ax-gap-xl { margin-top: var(--s-xl); }
+.ax-wrap  { flex-wrap: wrap; }
+.ax-nowrap { white-space: nowrap; }
+.ax-hidden { display: none !important; }
+.ax-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.ax-mono-block {
+  padding: var(--s-md);
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--canvas);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Skeleton — deterministic, no shimmer (motion must never imply liveness) */
+.ax-skel {
+  height: 12px;
+  border-radius: var(--r-precise);
+  background: var(--border);
+  opacity: 0.5;
+}
+
+/* ---------------------------------------------------------------------------
+   17. RESPONSIVE CONTAINMENT — safe stacking, not a second mobile product
+   --------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  :root { --rail-w: 64px; }
+  .ax-rail__group, .ax-nav__label, .ax-rail__foot { display: none; }
+  .ax-nav { justify-content: center; padding: 0; }
+  .ax-main { padding: var(--s-lg); }
+}
+@media (max-width: 720px) {
+  .ax-shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main"; height: auto; min-height: 100vh; }
+  .ax-rail {
+    grid-area: main;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+    flex-direction: row; justify-content: space-around;
+    border-right: none; border-top: 1px solid var(--border);
+    padding: var(--s-sm);
+    overflow-x: auto;
+  }
+  .ax-rail__group { display: none; }
+  .ax-nav { width: auto; }
+  .ax-nav__label { display: none; }
+  .ax-main { padding-bottom: 76px; }
+  .ax-metric { flex-basis: 50%; border-bottom: 1px solid var(--border); }
+}
+
+/* ---------------------------------------------------------------------------
+   18. MOTION PREFERENCES
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   19. PRINT / EXPORT — canonical clean: drop runtime chrome
+   --------------------------------------------------------------------------- */
+@media print {
+  .ax-rail, .ax-toasts, .ax-scrim { display: none !important; }
+  .ax-shell { display: block; }
+  body { background: #fff; color: #000; }
+}

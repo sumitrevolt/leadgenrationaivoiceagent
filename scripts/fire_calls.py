@@ -83,11 +83,21 @@ def get_db_conn():
 def get_prospects(limit: int, niche: str = "") -> list[dict]:
     conn = get_db_conn()
     cur = conn.cursor()
+    # MOBILE-only pre-filter (2026-08-30 PILOT): dial_gate ka phone_type_gate
+    # FIXED_LINE/TOLL_FREE ko promotional pe block karta hai -> top-score leads
+    # (mostly CA/business links) hamesha SKIP(phone_type_blocked) hote the aur
+    # loop leads=0 / skip-loop me phas jata tha. SQL me hi valid IN mobile-fmt
+    # numbers select karo (regex reuses OPS-004 verified pattern; phonenumbers
+    # lib authority bhi isi se MILTI hai kyunki 91 prefix valid IN mobiles hi
+    # dial_gate me pass karte hain). Gate INTACT (PHONE_TYPE_GATE=1), policy
+    # compliant (promo dial sirf person-reachable mobile). Compliance safe hai.
+    mobile_where = "phone ~ '(^|\\+)(91)9[0-9]{9}$'"
     if niche:
         cur.execute(
-            """SELECT phone, company_name, niche, city FROM leads
+            f"""SELECT phone, company_name, niche, city FROM leads
             WHERE phone IS NOT NULL AND phone != ''
             AND (call_attempts IS NULL OR call_attempts = 0)
+            AND {mobile_where}
             AND LOWER(COALESCE(niche,'')) = LOWER(%s)
             ORDER BY lead_score DESC NULLS LAST, created_at DESC
             LIMIT %s""",
@@ -95,9 +105,10 @@ def get_prospects(limit: int, niche: str = "") -> list[dict]:
         )
     else:
         cur.execute(
-            """SELECT phone, company_name, niche, city FROM leads
+            f"""SELECT phone, company_name, niche, city FROM leads
             WHERE phone IS NOT NULL AND phone != ''
             AND (call_attempts IS NULL OR call_attempts = 0)
+            AND {mobile_where}
             ORDER BY lead_score DESC NULLS LAST, created_at DESC
             LIMIT %s""",
             (limit,),

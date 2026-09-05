@@ -2,8 +2,9 @@
 # Responsibility: GitHub Actions, Trivy scan, CodeQL, lint, prod_check gate
 # Autopilot: Auto-run on every push, daily status, gate compliance
 
-from app.utils.logger import setup_logger
 import subprocess
+
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 squad_name = "CI/CD Pipeline"
@@ -54,7 +55,7 @@ def daily_ci_status():
     return {
         "status": "daily_ci_check",
         "lint": "pass",
-        "trivy": "pass", 
+        "trivy": "pass",
         "codeql": "queued",
         "prod_check": "pending",
     }

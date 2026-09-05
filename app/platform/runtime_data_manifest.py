@@ -792,6 +792,79 @@ STORES: list[dict[str, Any]] = [
         ),
     ),
     _e(
+        store_id="marketing.content_gen",
+        display_name="Generated AI voice scripts (offline tooling)",
+        legacy_paths=["data/content_gen/"],
+        writer_modules=["app/content_engine/script_voice_gen.py"],
+        production_activity="OFFLINE_TOOLING",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="content",
+        durability_class="rebuildable",
+        concurrency_model="single-process; offline only",
+        target_runtime_subpath="marketing/content_gen/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence="Offline content generation tooling; rebuildable from topic prompts.",
+    ),
+    _e(
+        store_id="marketing.content_pipeline",
+        display_name="Content pipeline output (offline tooling)",
+        legacy_paths=["data/content_pipeline/"],
+        writer_modules=["app/content_pipeline/producer.py"],
+        production_activity="OFFLINE_TOOLING",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="content",
+        durability_class="rebuildable",
+        concurrency_model="single-process; offline only",
+        target_runtime_subpath="marketing/content_pipeline/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence="Offline content pipeline; rebuildable from source.",
+    ),
+    _e(
+        store_id="marketing.content_os",
+        display_name="Content OS state files (offline tooling)",
+        legacy_paths=["data/content_os/"],
+        writer_modules=["app/marketing/content_os/engine.py"],
+        production_activity="OFFLINE_TOOLING",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="content",
+        durability_class="rebuildable",
+        concurrency_model="single-process; offline only",
+        target_runtime_subpath="marketing/content_os/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence="Offline content OS engine; queue/ledger/lock files, rebuildable.",
+    ),
+    _e(
+        store_id="command_center.pilot_tasks",
+        display_name="Pilot dispatch task files (offline tooling)",
+        legacy_paths=["command_center/data/"],
+        writer_modules=[
+            "command_center/scripts/validate_0710.py",
+            "command_center/patches/pilot_dispatch_0830_1520.py",
+            "command_center/patches/pilot_dispatch_0902_0150.py",
+            "command_center/patches/pilot_dispatch_0902_0200.py",
+        ],
+        production_activity="OFFLINE_TOOLING",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="operations",
+        durability_class="rebuildable",
+        concurrency_model="single-process; offline admin tooling only",
+        target_runtime_subpath="command_center/data/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence="Offline admin tooling; not production app code.",
+    ),
+    _e(
         store_id="content.queue",
         display_name="Per-tenant content queue",
         legacy_paths=["data/content_queue/"],
@@ -1146,6 +1219,38 @@ STORES: list[dict[str, Any]] = [
             "retention window is set by policy elsewhere and is NOT restated here, "
             "because inventing a number the code does not contain would be "
             "fabricated evidence."
+        ),
+    ),
+    # ------------------------------------------------ M2 console dispatcher (TIER 3)
+    # Per-tenant JSONL envelopes; durable contract between
+    # app/api/product_consoles.EVENT_SLOTS and the worker. Same shape as the
+    # other marketing/feature-tier stores: rebuildable from source-of-truth
+    # rows in leadgen_core + telephony, single-process append + cap-trim.
+    _e(
+        store_id="automation.console_events",
+        display_name="Console event envelopes (per-tenant JSONL, M2 dispatcher)",
+        legacy_paths=["data/console_events/<tenant_id>.jsonl"],
+        writer_modules=["app/automation/console_dispatcher.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="automation",
+        durability_class="rebuildable",
+        concurrency_model=(
+            "single-process JSONL append + best-effort cap-trim per tenant"
+        ),
+        tenant_scope="per-tenant_id files (one JSONL per tenant)",
+        target_runtime_subpath="automation/console_events/",
+        migration_tier=TIER_3,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "M2 console dispatcher (2026-09-04) — append-only per-tenant "
+            "JSONL envelopes. Cap-trim keeps the most-recent N rows. "
+            "Rebuildable from product_consoles.EVENT_SLOTS + downstream "
+            "side-effects, so this is REBUILDABLE_CACHE not authoritative. "
+            "The handler ring (HANDLERS) handles delivery; this file only "
+            "durably persists dispatched envelopes."
         ),
     ),
 ]

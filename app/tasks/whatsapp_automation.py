@@ -11,8 +11,12 @@ GATES (can be enabled/disabled via env):
 - WHATSAPP_AUTO_SEND_BATCH=10     # Per-run batch limit
 """
 
+import json
+import os
+
+import httpx
+
 from app.utils.logger import setup_logger
-import os, httpx, json
 
 logger = setup_logger(__name__)
 
@@ -69,13 +73,13 @@ async def send_template_message(
     """Send a template message via Meta Cloud API."""
     if not whatsapp_enabled():
         return {"sent": False, "reason": "WHATSAPP_AUTO_SEND not enabled"}
-    
+
     cfg = _meta_config()
     if not cfg["token"] or not cfg["phone_id"]:
         return {"sent": False, "reason": "Meta credentials not configured"}
-    
+
     url = f"https://graph.facebook.com/v18.0/{cfg['phone_id']}/messages"
-    
+
     payload = {
         "messaging_product": "whatsapp",
         "to": to_phone,
@@ -85,14 +89,14 @@ async def send_template_message(
             "language": {"code": language},
         },
     }
-    
+
     if components:
         payload["template"]["components"] = components
-    
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(url, headers=_headers(), json=payload)
-        
+
         if response.status_code // 100 == 2:
             return {"sent": True, "response": response.json()}
         else:
@@ -107,7 +111,7 @@ async def auto_send_lead_followup(lead_phone: str, lead_name: str = "") -> dict:
     """Auto-send follow-up to new lead."""
     if not whatsapp_enabled():
         return {"sent": False, "reason": "WhatsApp auto disabled"}
-    
+
     template = _get_template_name("lead_followup")
     components = [{
         "type": "body",
@@ -115,14 +119,14 @@ async def auto_send_lead_followup(lead_phone: str, lead_name: str = "") -> dict:
             {"type": "text", "text": lead_name or "Customer"},
         ]
     }]
-    
+
     return await send_template_message(lead_phone, template, components=components)
 
 async def auto_send_post_call_interested(lead_phone: str, niche: str = "") -> dict:
     """Auto-send to leads who showed interest post-call."""
     if not whatsapp_enabled():
         return {"sent": False, "reason": "WhatsApp auto disabled"}
-    
+
     template = _get_template_name("post_call")
     components = [{
         "type": "body",
@@ -130,20 +134,20 @@ async def auto_send_post_call_interested(lead_phone: str, niche: str = "") -> di
             {"type": "text", "text": niche or "your business"},
         ]
     }]
-    
+
     return await send_template_message(lead_phone, template, components=components)
 
 async def auto_send_daily_tip(phone: str, tip: str) -> dict:
     """Auto-send daily business tip."""
     if not whatsapp_enabled():
         return {"sent": False, "reason": "WhatsApp auto disabled"}
-    
+
     template = _get_template_name("daily_tip")
     components = [{
         "type": "body",
         "parameters": [{"type": "text", "text": tip[:1024]}]
     }]
-    
+
     return await send_template_message(phone, template, components=components)
 
 # ── Batch Runner (for scheduler) ───────────────────────────────────
@@ -151,17 +155,17 @@ async def run_whatsapp_batch(leads: list) -> dict:
     """Process a batch of leads for WhatsApp automation."""
     if not whatsapp_enabled():
         return {"processed": 0, "sent": 0, "reason": "disabled"}
-    
+
     cap = daily_cap()
     batch = min(batch_limit(), len(leads))
-    
+
     sent = 0
     failed = 0
-    
+
     for i, lead in enumerate(leads[:batch]):
         if sent >= cap:
             break
-        
+
         # Determine message type based on lead status
         if lead.get("status") == "interested":
             result = await auto_send_post_call_interested(
@@ -171,16 +175,16 @@ async def run_whatsapp_batch(leads: list) -> dict:
             result = await auto_send_lead_followup(
                 lead["phone"], lead.get("name", "")
             )
-        
+
         if result.get("sent"):
             sent += 1
         else:
             failed += 1
-        
+
         # Small delay to avoid rate limiting
         import asyncio
         await asyncio.sleep(0.5)
-    
+
     return {
         "processed": min(batch, len(leads)),
         "sent": sent,
@@ -194,7 +198,7 @@ def run_whatsapp_automation():
     if not whatsapp_enabled():
         logger.info("WhatsApp automation disabled (WHATSAPP_AUTO_SEND=0)")
         return {"status": "skipped", "reason": "disabled"}
-    
+
     # In production: fetch leads from DB with status = new/interested
     # For now: return status
     return {

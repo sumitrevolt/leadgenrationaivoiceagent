@@ -2,8 +2,9 @@
 # Responsibility: Prometheus metrics, Sentry alerts, gate health dashboards
 # Autopilot: Auto-metrics-export, alert-on-drift, daily summary to owner
 
-from app.utils.logger import setup_logger
 import subprocess
+
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 squad_name = "Monitoring & Observability"

@@ -2,8 +2,6 @@
 admin command center visibility, social errors, and navigation cleanup.
 """
 
-from fastapi.testclient import TestClient
-import pytest
 import uuid
 
 import pytest

@@ -311,6 +311,7 @@
     <button class="tab" data-tab="logo">🏷️ <span>AI Logo</span></button>
     <button class="tab" data-tab="scheduler">📅 <span>Scheduler</span></button>
     <button class="tab" data-tab="widget">🔌 <span>Web Widget</span></button>
+    <button class="tab" data-tab="trial">🧪 <span>Trials</span></button>
   </div>
 </div>
 
@@ -558,6 +559,27 @@
       <div class="hint" style="margin-top:10px">Live preview:</div>
       <iframe id="wgPreview" title="widget preview" style="width:100%;max-width:380px;height:560px;border:1px solid #d4d4d8;border-radius:12px;margin-top:6px"></iframe>
       <div class="btns"><a class="btn ghost" id="wgOpen" target="_blank" rel="noopener">↗ Embed page kholo</a></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: Trial Nudges ================= -->
+  <section class="tabpane hidden" id="pane-trial">
+    <div class="card">
+      <h3>🧪 Trial-to-Paid Nudges (BLK-02)</h3>
+      <div class="hint">Expiring/expired trials ko Starter UPI nudge email. Har email one-to-one + unsubscribe headers — paid clients KABHI eligible nahi. Job daily 09:50 IST chalti hai (fail-closed: flag off = sirf preview).</div>
+      <div class="btns">
+        <button class="btn ghost" id="btnTrialRefresh">🔄 Dry-run preview refresh</button>
+        <button class="btn" id="btnTrialRun">📧 Abhi nudge run karo (real send)</button>
+      </div>
+      <div id="trialFlags" class="hint" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">👀 Eligible preview (dry-run — kuch send nahi hota)</h4>
+      <div id="trialPreview"><div class="empty">Refresh dabao — eligible trials yahan dikhenge.</div></div>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">📤 Last run result</h4>
+      <div id="trialResult"><div class="empty">Abhi tak manual run nahi hua.</div></div>
     </div>
   </section>
 
@@ -1158,9 +1180,9 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo","scheduler","widget"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo","scheduler","widget","trial"];
   var inited = {};
-  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores, scheduler: loadScheduler };
+  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores, scheduler: loadScheduler, trial: loadTrialNudge };
   document.getElementById("tabbar").addEventListener("click", function(ev){
     var t = ev.target.closest(".tab");
     if(!t) return;
@@ -3005,6 +3027,69 @@
   };
   var btnSchedReload = document.getElementById("btnSchedReload");
   if(btnSchedReload) btnSchedReload.onclick = function(){ loadScheduler(); };
+
+  // ============================================================================
+  // TAB: Trial-to-Paid Nudges (BLK-02) — status + dry-run preview + manual run
+  // ============================================================================
+  async function loadTrialNudge(){
+    var fbox = document.getElementById("trialFlags");
+    var pbox = document.getElementById("trialPreview");
+    if(!fbox || !pbox) return;
+    fbox.textContent = "Flags load ho rahe hain…";
+    pbox.innerHTML = loadingHtml("Eligible trials scan ho rahe hain (dry-run — kuch send nahi hota)…");
+    try{
+      var res = await callApi("/api/admin/trial-nudge/status", {headers: hdrs()});
+      if(res && res.hard_off){
+        fbox.innerHTML = '<b style="color:#b91c1c">⛔ HARD_OFF armed</b> — emergency kill active, kuch send nahi hoga.';
+      } else if(res && res.enabled){
+        fbox.innerHTML = '✅ Job armed (daily 09:50 IST) · batch=' + esc(res.batch) + ' · max/client=' + esc(res.max_per_client) + ' · remind gap=' + esc(res.remind_h) + 'h · days_before=' + esc(res.days_before) + ' · Starter ₹' + esc(res.starter_price_inr) + '/mo';
+      } else {
+        fbox.innerHTML = '⚠️ Job <b>disarmed</b> (TRIAL_NUDGE_ENABLED off) — daily auto-send band; preview upar dekh sakte ho.';
+      }
+      var pv = (res && res.preview) || {};
+      if(pv.skip_reason === "trial_nudge_hard_off"){
+        pbox.innerHTML = '<div class="empty">⛔ HARD_OFF — preview bhi blocked.</div>';
+        return;
+      }
+      var items = pv.items || [];
+      pbox.innerHTML = items.length
+        ? '<div class="hint" style="margin-bottom:8px">' + esc(pv.would_send) + ' eligible (seen=' + esc(pv.seen) + ' · active-skip=' + esc(pv.skipped_active) + ' · not-due=' + esc(pv.skipped_not_due) + ' · cooldown=' + esc(pv.skipped_cooldown) + ' · suppressed=' + esc(pv.skipped_suppressed) + ' · no-email=' + esc(pv.skipped_no_email) + ')</div>' +
+          items.map(function(it){
+            return '<div class="sect"><div class="sh"><b>' + esc(it.client_id) + '</b> — ' + esc(it.stage) + '</div>' +
+              '<div class="tx">' + esc(it.email) + '</div></div>';
+          }).join("")
+        : '<div class="empty">Koi eligible trial nahi mila (seen=' + esc(pv.seen || 0) + ').</div>';
+    }catch(e){
+      inited.trial = false;
+      fbox.textContent = "";
+      pbox.innerHTML = '<div class="empty">Status load nahi hua — <button class="linkbtn" id="trialRetry">dobara try</button></div>';
+      var rb = document.getElementById("trialRetry");
+      if(rb) rb.onclick = function(){ inited.trial = true; loadTrialNudge(); };
+      if(e.message !== "auth") toast("Trial-nudge status fail: " + e.message, "err");
+    }
+  }
+  var btnTrialRefresh = document.getElementById("btnTrialRefresh");
+  if(btnTrialRefresh) btnTrialRefresh.onclick = function(){ loadTrialNudge(); };
+  var btnTrialRun = document.getElementById("btnTrialRun");
+  if(btnTrialRun) btnTrialRun.onclick = async function(){
+    if(!confirm("REAL emails jaayenge eligible trials ko (job ke saare gates apply honge). Continue?")) return;
+    setBusy(btnTrialRun, true);
+    var rbox = document.getElementById("trialResult");
+    try{
+      var res = await callApi("/api/admin/trial-nudge/run", { method: "POST", headers: hdrs({"Content-Type":"application/json"}), body: "{}" });
+      if(res && res.skip_reason){
+        rbox.innerHTML = '<div class="empty">Skip: ' + esc(res.skip_reason) + (res.hard_off ? ' (HARD_OFF armed)' : '') + '</div>';
+        toast("Run skipped: " + res.skip_reason, "err");
+      } else {
+        rbox.innerHTML = '<div class="hint">sent=' + esc((res && res.sent) || 0) + ' · failed=' + esc((res && res.failed) || 0) + ' · eligible=' + esc((res && res.eligible) || 0) + ' · cooldown-skip=' + esc((res && res.skipped_cooldown) || 0) + '</div>';
+        toast(((res && res.sent) || 0) + " nudge emails bheje ✓", "ok");
+      }
+      loadTrialNudge();
+    }catch(e){
+      if(e.message !== "auth") toast("Run fail: " + e.message, "err");
+    }
+    finally{ setBusy(btnTrialRun, false, "📧 Abhi nudge run karo (real send)"); }
+  };
 
   // ============================================================================
   // TAB: Website Widget (embeddable lead-capture snippet generator)

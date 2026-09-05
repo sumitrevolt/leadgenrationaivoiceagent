@@ -2,9 +2,11 @@
 # Responsibility: packages.py single source, UPI verification, subscription management
 # Autopilot: Policy-gated (owner_confirmed_upi only), daily revenue metrics
 
+import json
+import os
+
+from app.config import settings
 from app.utils.logger import setup_logger
-from app.config.settings import settings
-import os, json
 
 logger = setup_logger(__name__)
 squad_name = "Billing & UPI"

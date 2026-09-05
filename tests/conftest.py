@@ -692,7 +692,6 @@ def _reset_rate_limit_state():
     yield
 
 
-import asyncio
 import pytest
 
 

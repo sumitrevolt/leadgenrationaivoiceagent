@@ -29,8 +29,8 @@ help:
 	@echo "  make docker-logs  - View logs"
 	@echo ""
 	@echo "Production:"
-	@echo "  make deploy       - Deploy to production"
-	@echo "  make deploy-staging - Deploy to staging"
+	@echo "  make deploy         - Deploy to production (git push -> CI/CD)"
+	@echo "  make deploy-staging - Deploy to VPS via scripts/deploy_vps.sh"
 	@echo ""
 
 # ============================================================================
@@ -67,7 +67,7 @@ test-fast:
 
 test-coverage:
 	pytest tests/ --cov=app --cov-report=html
-	open htmlcov/index.html
+	@echo "Coverage report: open htmlcov/index.html"
 
 # ============================================================================
 # CODE QUALITY
@@ -149,12 +149,9 @@ docker-clean:
 # ============================================================================
 
 deploy-staging:
-	@echo "Deploying to staging..."
-	gcloud run deploy leadgen-ai-api-staging \
-		--source . \
-		--region asia-south1 \
-		--platform managed \
-		--allow-unauthenticated
+	@echo "Deploying to staging (VPS)..."
+	@echo "Usage: bash scripts/deploy_vps.sh"
+	@bash scripts/deploy_vps.sh
 
 deploy:
 	@echo "Deploying to production..."
@@ -231,19 +228,18 @@ validate-full:
 	python scripts/validate_deployment.py --env production
 
 setup-secrets:
-	@echo "Setting up secrets in GCP Secret Manager..."
-	@read -p "GCP Project ID: " project; \
-	python scripts/setup_secrets.py --project-id $$project --env production --interactive  # pragma: allowlist secret
+	@echo "Secrets are managed via .env on the VPS (Hostinger)."
+	@echo "Edit /opt/leadgen/.env on the VPS directly, or use:"
+	@echo "  ssh root@72.61.245.204 'nano /opt/leadgen/.env'"
+	@echo "Run scripts/check_secrets.py locally to verify required keys are set."
 
 setup-secrets-staging:
-	@echo "Setting up staging secrets..."
-	@read -p "GCP Project ID: " project; \
-	python scripts/setup_secrets.py --project-id $$project --env staging --interactive  # pragma: allowlist secret
+	@echo "Staging secrets are managed via .env on the VPS (Hostinger)."
+	@echo "Run scripts/check_secrets.py to verify required keys are set."
 
 setup-secrets-dry-run:
-	@echo "Dry run - checking what secrets would be created..."
-	@read -p "GCP Project ID: " project; \
-	python scripts/setup_secrets.py --project-id $$project --env production --dry-run  # pragma: allowlist secret
+	@echo "Dry run - checking which required secrets are missing..."
+	python scripts/check_secrets.py
 
 deploy-full:
 	@echo "Retired: use scripts/deploy_vps.sh so production deploys one immutable SHA image."

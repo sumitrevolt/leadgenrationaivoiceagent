@@ -1,24 +1,52 @@
-# start-leadgen-dev.ps1 — one-command local dev bring-up.
-# Brings up: WSL Redis broker + gateway-only OmniRoute (Node 22) + verifies Windows venv.
-# Dev-only, loopback-only, idempotent. Does NOT touch production, .env, or Docker.
+# start-leadgen-dev.ps1 — one-command local dev bring-up (ADR-189: Docker-only, WSL removed).
+# Brings up: Docker Redis broker + Docker OmniRoute gateway + verifies Windows venv.
+# Dev-only, loopback-only, idempotent. Does NOT touch production, .env, or VPS stack.
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\start-leadgen-dev.ps1
+
 $ErrorActionPreference = 'Continue'
 $repo = Split-Path -Parent $PSScriptRoot
+$ComposeOmni = Join-Path $repo 'deploy\compose\docker-compose.omniroute.yml'
+
 Write-Host '==================================================='
-Write-Host ' LeadGen local dev bring-up (OmniRoute + Redis)'
+Write-Host ' LeadGen local dev bring-up (Docker: Redis + OmniRoute)'
 Write-Host '==================================================='
 
-# 1) WSL side: Redis + OmniRoute tmux (CRLF-stripped, base64-piped for quoting safety)
-$sh = Join-Path $PSScriptRoot '_leadgen_dev_up.sh'
-if (Test-Path $sh) {
-    $script = (Get-Content $sh -Raw) -replace "`r", ""
-    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($script))
-    wsl.exe -d Ubuntu-24.04 --cd ~ -- bash -lc "echo $b64 | base64 -d | bash"
+# 1) Docker engine check
+Write-Host ''
+Write-Host '== Docker Engine =='
+docker version --format '{{.Server.Version}}' *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host '[FAIL] Docker engine not reachable. Start Docker Desktop, then re-run.'
 } else {
-    Write-Host "MISSING: $sh"
+    Write-Host '[OK] Docker engine reachable'
 }
 
-# 2) Windows venv sanity
+# 2) Start OmniRoute gateway (idempotent)
+Write-Host ''
+Write-Host '== OmniRoute Gateway =='
+if (Test-Path $ComposeOmni) {
+    & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start-omniroute.ps1')
+} else {
+    Write-Host "[WARN] Compose file not found: $ComposeOmni"
+}
+
+# 3) Start Redis broker (idempotent) - standalone container
+Write-Host ''
+Write-Host '== Redis Broker (loopback) =='
+$redisStatus = docker ps --filter "name=leadgen_redis" --format "{{.Status}}" 2>$null
+if (-not $redisStatus) {
+    Write-Host "Starting Redis container..."
+    docker run -d --name leadgen_redis -p 127.0.0.1:6379:6379 redis:7-alpine 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] Redis started on 127.0.0.1:6379"
+    } else {
+        Write-Host "[FAIL] Redis container start failed"
+    }
+} else {
+    Write-Host "[OK] Redis already running: $redisStatus"
+}
+
+# 4) Windows venv sanity
 Write-Host ''
 Write-Host '== Windows venv =='
 $venv = Join-Path $repo '.venv\Scripts\python.exe'
@@ -29,13 +57,15 @@ if (Test-Path $venv) {
     Write-Host 'venv missing — create: python -m venv .venv; .venv\Scripts\pip install --no-deps -r requirements.lock.txt'
 }
 
-# 3) Summary
+# 5) Summary
 Write-Host ''
 Write-Host '== Ready =='
 Write-Host 'OmniRoute dashboard : http://127.0.0.1:20128   (live-WS 20129 loopback-locked)'
-Write-Host 'Redis broker        : 127.0.0.1:6379  (WSL Ubuntu-24.04)'
-Write-Host 'Gateway-only tmux   : wsl -d Ubuntu-24.04 -- tmux attach -t leadgen-omni'
-Write-Host 'Worktrees are owned by Claude/ChatGPT; providers receive sanitized text only.'
+Write-Host 'Redis broker        : 127.0.0.1:6379  (Docker redis:7-alpine)'
+Write-Host 'OmniRoute logs      : docker compose -f deploy/compose/docker-compose.omniroute.yml logs -f omniroute'
+Write-Host 'Redis logs          : docker logs -f leadgen_redis'
+Write-Host ''
+Write-Host 'Providers receive sanitized text only. No secrets in Docker.'
 Write-Host ''
 Write-Host 'Unity WebGL build (pending USER action): add Windows Defender exclusion for'
 Write-Host '  C:\Program Files\Unity\Hub\Editor\2022.3.62f3'

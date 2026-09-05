@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --canvas: 246 248 251;
+    --surface: 255 255 255;
+    --elevated: 248 250 252;
+    --line: 226 232 240;
+    --ink: 15 23 42;
+    --muted: 71 85 105;
+    --faint: 148 163 184;
+    --brand: 79 70 229;
+    --brand-soft: 224 231 255;
+    --brand-ink: 55 48 163;
+    --ok: 22 163 74;
+    --warn: 202 106 10;
+    --danger: 225 29 72;
+    --info: 2 132 199;
+    color-scheme: light;
+  }
+
+  .dark {
+    --canvas: 11 15 22;
+    --surface: 17 24 34;
+    --elevated: 24 32 45;
+    --line: 38 49 66;
+    --ink: 232 237 245;
+    --muted: 148 163 184;
+    --faint: 100 116 139;
+    --brand: 129 140 248;
+    --brand-soft: 49 46 129;
+    --brand-ink: 199 210 254;
+    --ok: 52 211 153;
+    --warn: 251 191 36;
+    --danger: 251 113 133;
+    --info: 56 189 248;
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-line;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum';
+  }
+
+  ::selection {
+    @apply bg-brand/30;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand/70 ring-offset-2 ring-offset-canvas;
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--line));
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--faint));
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-elevated;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.07] to-transparent;
+    animation: shimmer 1.4s infinite;
+  }
+  .dark .skeleton::after {
+    @apply via-white/[0.06];
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Recharts tweaks so tooltips/axes inherit the theme */
+.recharts-cartesian-axis-tick text {
+  fill: rgb(var(--faint));
+  font-size: 11px;
+}
+.recharts-cartesian-grid line {
+  stroke: rgb(var(--line));
+}
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+.recharts-surface {
+  overflow: visible;
+}

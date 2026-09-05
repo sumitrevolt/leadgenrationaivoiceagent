@@ -246,6 +246,8 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
       <a class="nav-item" href="/app/customer/voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg> Voice Agent</a>
       <a class="nav-item" href="/app/customer/marketing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-mega"/></svg> Campaigns</a>
       <a class="nav-item" href="/app/plugins"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg> Content Studio</a>
+      <a class="nav-item" data-product="voice" href="/app/voice-console"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-phone"/></svg> Voice AI Console</a>
+      <a class="nav-item" data-product="marketing" href="/app/marketing-console"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-mega"/></svg> Marketing Console</a>
       <div class="nav-label">Automations</div>
       <a class="nav-item" href="/app/automation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg> Mission Control</a>
       <a class="nav-item" href="/app/office"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chart"/></svg> AI Office</a>
@@ -705,6 +707,34 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else { boot(); }
+})();
+</script>
+<script>
+/* Product entitlement gate for console nav — this page has no per-product CSS
+   gating, so anything marked [data-product] is hidden unless /api/customer/auth/me
+   confirms the customer is entitled. Fails closed: any error = hide. */
+(function () {
+  try {
+    var nodes = document.querySelectorAll("[data-product]");
+    function hideAll() {
+      nodes.forEach(function (el) { el.style.display = "none"; });
+    }
+    if (!nodes.length) return;
+    var token = localStorage.getItem("lgai_token");
+    if (!token) { hideAll(); return; }
+    fetch("/api/customer/auth/me", { headers: { "Authorization": "Bearer " + token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var p = j && j.product ? String(j.product).toLowerCase() : "";
+        if (p !== "voice" && p !== "marketing" && p !== "combo") { hideAll(); return; }
+        nodes.forEach(function (el) {
+          var want = el.getAttribute("data-product");
+          var ok = (p === "combo") || (p === want);
+          if (!ok) el.style.display = "none";
+        });
+      })
+      .catch(function () { hideAll(); });
+  } catch (e) {}
 })();
 </script>
 </body>

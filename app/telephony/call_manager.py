@@ -535,6 +535,21 @@ class CallManager:
                             )
                             + "\n"
                         )
+                    # RL reward spine (Phase 0) — parity with post_call_hooks path
+                    # (2026-09-05: legacy qual writer had no reward hook). ref=call_id
+                    # dedupes against the post_call_hooks mirror.
+                    try:
+                        from app.agents.rl import reward as _rl_reward
+
+                        _rl_reward.record_reward(
+                            "voice",
+                            str(getattr(context, "niche", "") or "general"),
+                            _rl_reward.voice_reward(_q),
+                            ref=str(call_id or ""),
+                            context={"path": "call_manager"},
+                        )
+                    except Exception:
+                        pass
                     logger.info(
                         f"[call_qualifier] {call_id}: score={_q.get('interest_score')} "
                         f"qualified={_q.get('qualified')}"

@@ -3,8 +3,8 @@
 # Autopilot: Auto-validation, daily indexing, owner query endpoint
 
 from app.utils.logger import setup_logger
-from scripts.validate_knowledge_os import validate_full_os
 from scripts.gen_knowledge_domains import gen_domain_briefs
+from scripts.validate_knowledge_os import validate_full_os
 
 logger = setup_logger(__name__)
 squad_name = "Knowledge-OS"
@@ -16,11 +16,11 @@ def daily_index_update():
     # Run the existing validator
     result = validate_full_os()
     logger.info(f"Squad 5 knowledge index update: {result['overall_status']}")
-    
+
     # Regenerate domain briefs if needed
     briefs_result = gen_domain_briefs()
     logger.info(f"Domain briefs: {briefs_result.get('generated', 0)} new/updated")
-    
+
     return {"status": "index_updated", "validation": result, "briefs": briefs_result}
 
 def owner_query(query: str):
@@ -28,7 +28,7 @@ def owner_query(query: str):
     # Simple keyword-based answer from INDEX.md
     import os
     index_path = os.path.join(os.getenv("DATA_DIR", "/opt/leadgen"), "knowledge", "INDEX.md")
-    
+
     if os.path.exists(index_path):
         with open(index_path) as f:
             content = f.read().lower()
@@ -37,7 +37,7 @@ def owner_query(query: str):
         matches = [k for k in keywords if k in content]
         if matches:
             return {"status": "answered", "answer": f"Knowledge base has info on: {', '.join(matches)}"}
-    
+
     return {"status": "partial", "answer": "Check memory/INDEX.md manually — under construction"}
 
 def runbook_status():
@@ -52,7 +52,7 @@ def runbook_status():
     green = sum(1 for v in runbooks.values() if v == "GREEN")
     amber = sum(1 for v in runbooks.values() if v == "AMBER")
     red = sum(1 for v in runbooks.values() if v == "RED")
-    
+
     return {"status": "check_complete", "runbooks": {"total": total, "green": green, "amber": amber, "red": red}}
 
 # Export for autopilot registration

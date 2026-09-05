@@ -239,6 +239,18 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Trial nudge email (subah 09:50)",
         "kya": "Trial khatam hone wale/khatam hue users ko Starter UPI upgrade email bhejta hai (gated TRIAL_NUDGE_ENABLED, off by default)",
     },
+    "whatsapp_automation": {
+        "label": "WhatsApp automation (hourly)",
+        "kya": "Bounded pending-approval notify sweep (gated WHATSAPP_AUTO_SEND; INERT off)",
+    },
+    "heartbeat": {
+        "label": "Owner alive heartbeat (every 5m)",
+        "kya": "Owner zinda hai signal — self_improve revive gate",
+    },
+    "content_approval_notify": {
+        "label": "Content approval notify (hourly :40)",
+        "kya": "Bounded pending-approval notify sweep (gated CONTENT_APPROVAL_NOTIFY; INERT off)",
+    },
     "meter_watch": {
         "label": "Billing meter-watch (har ghante :55)",
         "kya": "Minute-billing meter fail ho to alert",

@@ -347,13 +347,17 @@ def build_manifest(
 
     def scene_text(role: str, index: int = -1) -> str:
         for sc in scenes:
-            if str(getattr(sc, "role", "")).lower() == role:
-                return _clean(getattr(sc, "text", ""), 220)
+            sc_role = getattr(sc, "role", None) or (sc.get("role") if isinstance(sc, dict) else "")
+            if str(sc_role).lower() == role:
+                t = getattr(sc, "text", None) or (sc.get("text") if isinstance(sc, dict) else "")
+                return _clean(t, 220)
         if 0 <= index < len(scenes):
-            return _clean(getattr(scenes[index], "text", ""), 220)
+            sc = scenes[index]
+            t = getattr(sc, "text", None) or (sc.get("text") if isinstance(sc, dict) else "")
+            return _clean(t, 220)
         return ""
 
-    hook = scene_text("hook", 0)
+    hook = scene_text("hook", 0) or scene_text("problem", 0)
     # Prefer the verified tagline: scene index 1 is usually the FIRST service,
     # which would make the showcase card repeat a line the services scene just
     # showed. Falls back to scene copy when the tenant has no tagline.
@@ -363,11 +367,24 @@ def build_manifest(
 
     body_items = []
     for sc in scenes:
-        role = str(getattr(sc, "role", "")).lower()
-        if role in ("service", "benefit", "body", "step", "feature"):
-            title = _clean(getattr(sc, "text", ""), 60)
+        role = getattr(sc, "role", None) or (sc.get("role") if isinstance(sc, dict) else "")
+        if str(role).lower() in ("service", "benefit", "body", "step", "feature"):
+            title = getattr(sc, "text", None) or (sc.get("text") if isinstance(sc, dict) else "")
+            title = _clean(title, 60)
             if title:
                 body_items.append({"title": title, "subtitle": ""})
+    if not body_items and b.get("services"):
+        for svc in b.get("services", [])[:4]:
+            if isinstance(svc, dict) and svc.get("name"):
+                name = _clean(svc.get("name"), 40)
+                price = svc.get("price_inr")
+                sub = f"₹{price}" if price else ""
+                body_items.append({"title": name, "subtitle": sub})
+    if not body_items and b.get("kb_facts"):
+        for fact in b.get("kb_facts", [])[:3]:
+            short_fact = _clean(str(fact).split(".")[0].split("—")[0], 40)
+            if short_fact:
+                body_items.append({"title": short_fact, "subtitle": ""})
     body_items = body_items[:4]
 
     photos: list[str] = []
@@ -731,6 +748,12 @@ def _brand_facts(tenant_id: str) -> dict[str, Any]:
     from app.marketing.creative_os.brief import resolve_brand_profile
 
     prof = resolve_brand_profile(tenant_id)
+    contact = (
+        prof.contact_display
+        or prof.phone
+        or (prof.socials.get("whatsapp") if prof.socials else "")
+        or (prof.socials.get("instagram") if prof.socials else "")
+    )
     return {
         "business_name": prof.business_name,
         "city": prof.city,
@@ -738,8 +761,12 @@ def _brand_facts(tenant_id: str) -> dict[str, Any]:
         "accent_color": prof.accent_color,
         "tagline": prof.tagline,
         "logo_text": prof.logo_text,
-        "contact_display": "",
-        "offer_badge": "",
+        "contact_display": contact,
+        "offer_badge": prof.offer_badge,
+        "verified_trust": prof.verified_trust,
+        "verified_metrics": prof.verified_metrics,
+        "kb_facts": prof.kb_facts,
+        "services": prof.services,
     }
 
 

@@ -17,6 +17,10 @@ uat_evidence/
 # Local tool directories
 .commandcode/
 
+# PII exports (DPDP Act 2023 — phone/email/wa_link columns; test_no_tracked_pii_exports enforces)
+data/prospect_export*.csv
+data/hot_queue_for_owner*.csv
+
 # C extensions
 *.so
 
@@ -228,6 +232,9 @@ config/openclaw/.local/
 # Reorg scratch (AUDIT 2026-08-05): quarantined _tmp_* litter + legacy agent roots land here
 _scratch/
 
+# Multi-agent task artifacts (docs/MULTI_AGENT_WORKFLOW.md section 4): README tracked, task dirs ephemeral
+_work/*/
+
 # Local artifacts that must never ship
 source.tar.gz
 *.tar.gz
@@ -328,9 +335,20 @@ deploy/buzz/env/gh-events.response
 # The blanket `*.json` above silently excluded it.
 !docs/coordination/desktop_registry.json
 
-# pytest basetemp + agent(checkpoint)-scratch dirs — `git add -A` must NEVER trip on
-# these (a nested-git 'dsh-check/' aborts add; a locked pytest dir denies read).
-# Local test/agent scratch only; never track.
+# --- Local scratch / tool workspaces (2026-08-29 housekeeping) -------------
+# These are regenerable or tool-owned. Keeping them untracked stops a bulk
+# `git add -A` from sweeping throwaway artifacts into a real commit.
 .pytest_tmp/
+.worktrees/
+.workbuddy-ai/
+.omniroute-cutover/
+scratch/
+notebook_exports/
+command_center/data/
 pytest-of-Ratanshila/
 dsh-check/
+
+# Windows reserved-name artifact: created by a `> nul` redirect that git-bash
+# turned into a real 60-byte file. Never meaningful.
+nul
+nul.*

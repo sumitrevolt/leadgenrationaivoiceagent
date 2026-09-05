@@ -140,7 +140,18 @@ def audit_beat() -> None:
     # Full beat task names "staff-<middle>-<freq>"; job names use underscores,
     # beat names use hyphens (staff-email-outreach-daily -> job email_outreach).
     names = re.findall(r'"(staff-[a-z0-9-]+)"', worker)
-    NON_JOB = {"selfimprove", "self-improve", "revive", "heartbeat", "growth", "watchdog-revive"}
+    NON_JOB = {
+        "selfimprove",
+        "self-improve",
+        "revive",
+        "heartbeat",
+        "growth",
+        "watchdog-revive",
+        "daily-social-post",
+        "daily_social_post",
+        "social-stale-sweep",  # own-task dispatch (run_social_stale_sweep); INERT via SOCIAL_STALE_SWEEP
+        "social_stale_sweep",
+    }
     unknown = []
     for name in names:
         mid = name[len("staff-") :].replace("-", "_")  # e.g. reply_triage_hourly

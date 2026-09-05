@@ -5,30 +5,33 @@ Owner whatsApp: +91xxxxxx or web at /admin
 All commands gated through compliance checks — no gate weakening allowed.
 """
 
-import os, sys, json, subprocess
-from datetime import datetime
 import asyncio
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
 
 # Add workspace to path
 sys.path.insert(0, "/opt/leadgen")
 sys.path.insert(0, "C:\\Users\\Ratanshila\\.openclaw\\workspace")
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.platform.admin_api import router as admin_router
-from app.platform.squad_voice_calling import *
-from app.platform.squad_marketing import *
+from app.platform.squad_billing import *
+from app.platform.squad_cicd import *
 from app.platform.squad_compliance import *
+from app.platform.squad_data import *
 from app.platform.squad_deploy import *
 from app.platform.squad_knowledge import *
-from app.platform.squad_qa import *
-from app.platform.squad_data import *
-from app.platform.squad_billing import *
-from app.platform.squad_whatsapp import *
+from app.platform.squad_marketing import *
 from app.platform.squad_monitoring import *
-from app.platform.squad_cicd import *
+from app.platform.squad_qa import *
+from app.platform.squad_voice_calling import *
+from app.platform.squad_whatsapp import *
 
 # Initialize FastAPI app
 app = FastAPI(title="LeadGen AI — Owner Admin", version="bc5800cb")
@@ -36,7 +39,7 @@ app = FastAPI(title="LeadGen AI — Owner Admin", version="bc5800cb")
 # CORS for owner-facing endpoints
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In prod: restrict to owner's IP/domain
+    allow_origins=["*"],  # nosecurity - In prod: restrict to owner's IP/domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -117,7 +120,7 @@ async def admin_health():
     """Quick health of all admin endpoints + compliance gates."""
     from app.platform.hot_queue_owner_pack import check_gates
     gates = check_gates()
-    
+
     return {
         "status": "healthy" if all(v == "pass" for v in gates.values()) else "gates_open",
         "version": "bc5800cb",

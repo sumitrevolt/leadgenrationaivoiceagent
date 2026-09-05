@@ -28,6 +28,8 @@ AUTOMATION_FLAGS = [
     "RUN_IN_PROCESS_SCHEDULER",
     "NICHE_ROTATION",
     "AUTO_EMAIL_OUTREACH",
+    "OUTREACH_VERIFY_MX",  # MX DNS verify before send (default ON — bounce protection)
+    "OUTREACH_SELECT_SKIP_MX",  # defer MX from per-candidate selection to final <=25 send batch (TimeLimitExceeded fix)
     "JOURNEY_ENGINE",
     "AUTO_QUALIFY_CALLS",
     "REPLY_AGENT",
@@ -37,6 +39,7 @@ AUTOMATION_FLAGS = [
     "AUTO_ONBOARD",
     "SIGNUP_AUTO_ONBOARD",  # public signup → auto client onboard path (checked in public_site/customer_onboard)
     "SOCIAL_PREFS_HONOR",
+    "SOCIAL_STALE_SWEEP",  # 10:30 IST sweep re-fires daily social post when today has no success marker; INERT default (daily_social_post.run_social_stale_sweep)
     "USE_STRUCTURED_CONTENT",
     "USE_AGENTIC_RAG",
     "USE_RERANKER",

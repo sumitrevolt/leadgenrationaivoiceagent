@@ -2,8 +2,10 @@
 # Responsibility: Targeted pytest suites, smoke tests, contract tests, landmine detection
 # Autopilot: Auto-run on every commit, daily full suite, landmine alert
 
+import json
+import subprocess
+
 from app.utils.logger import setup_logger
-import subprocess, json
 
 logger = setup_logger(__name__)
 squad_name = "QA & Testing"
@@ -20,7 +22,7 @@ def run_contract_tests():
     output = result.stdout + result.stderr
     pass_count = output.count("PASS") if "PASS" in output else 0
     fail_count = output.count("FAIL") if "FAIL" in output else 0
-    
+
     result_data = {
         "status": "run_complete",
         "pass_count": pass_count,
@@ -48,9 +50,10 @@ def run_pytest_shards():
 
 def check_landmines():
     """Scan codebase for known landmines from AGENT_WORK_RULES.md."""
-    import os, re
+    import os
+    import re
     landmines_found = []
-    
+
     # Check for common anti-patterns
     for root, dirs, files in os.walk("C:\\Users\\Ratanshila\\.openclaw\\workspace\\app"):
         # Skip .venv
@@ -70,7 +73,7 @@ def check_landmines():
                         landmines_found.append(f"{filepath}: git add -A detected")
                 except:
                     pass
-    
+
     return {"status": "landmine_scan", "found": len(landmines_found), "details": landmines_found[:10]}
 
 # Export for autopilot registration
