@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """OmniRoute 12-Combo & Dual-Computer Harness Verification & Config Tool.
 
-Sets up and verifies all 12 OmniRoute combos across Hermes Desktop and Claude Desktop
-for both Computer 1 (Local Host) and Computer 2 (Peer PC / Remote).
+Sets up and verifies all 12 OmniRoute combos across Hermes Desktop and Claude Code CLI
+for both Computer 1 (Local Host) and Computer 2 (Peer PC / Remote). Claude Desktop is NOT
+routable to the gateway (no custom-endpoint support; MCP-only).
 """
 
 from __future__ import annotations
@@ -37,7 +38,8 @@ def check_gateway_health(host: str = "127.0.0.1", port: int = 20128) -> tuple[bo
 
 
 def generate_claude_desktop_config(host: str = "127.0.0.1", port: int = 20128) -> dict:
-    """Generate the claude_desktop_config.json snippet for Claude Desktop integration."""
+    """Return a legacy/informational snippet. Claude Desktop does NOT honor env ANTHROPIC_BASE_URL for its model;
+    use Claude Code CLI (env) for gateway routing instead."""
     base_url = f"http://{host}:{port}/v1"
     api_key = os.getenv("OMNIROUTE_API_KEY", "<YOUR_OMNIROUTE_API_KEY>")
     return {
@@ -106,7 +108,8 @@ def print_harness_status(host: str, port: int) -> None:
         print(f"{idx:<3} | {task_id:<26} | {route.primary_model:<18} | {fallback:<18}")
     
     print("-" * 72)
-    print("CLAUDE DESKTOP CONFIG SNIPPET (%APPDATA%\\Claude\\claude_desktop_config.json):")
+    print("CLAUDE CODE GATEWAY ENV TEMPLATE (NOT claude_desktop_config.json - Claude Desktop")
+    print("does not route models via ANTHROPIC_BASE_URL; only Claude Code CLI env does):")
     claude_cfg = generate_claude_desktop_config(host, port)
     print(json.dumps(claude_cfg, indent=2))
     

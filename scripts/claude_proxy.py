@@ -3,8 +3,10 @@
 Claude-format model proxy in front of OmniRoute Gateway.
 
 Sitting at http://127.0.0.1:22000
-Advertises 12 Claude-prefixed OmniRoute combos (claude-omni-*) so Claude Desktop's
-frontend filter passes all 12 dynamic combos into the UI dropdown.
+Advertises 14 Claude-prefixed OmniRoute combos (claude-omni-*) for Claude-format API
+clients configured at :22000 (Claude Code via start-claude-omniroute.ps1, WorkBuddy custom
+provider, Hermes/OpenClaw/Verdant custom providers). Note: Claude Desktop does NOT consume
+this proxy — it has no custom-endpoint support and stays on the Claude subscription.
 Proxies all chat, completions, and messages requests to OmniRoute (http://127.0.0.1:20128/v1).
 """
 
@@ -107,7 +109,7 @@ def build_models_response():
     now = 1787911502
     data = []
 
-    # 12 Claude-Prefixed Dynamic Combos (MANDATORY claude- prefix for Claude Desktop filter)
+    # 14 Claude-Prefixed Dynamic Combos (claude- prefix consumed by Claude-format clients)
     for combo in ALL_COMBOS:
         jls_extract_var = False
         data.append(
