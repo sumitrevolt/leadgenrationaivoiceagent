@@ -284,7 +284,7 @@ def run_continuous_batch(cycle_num: int, workers_count: int = 4):
         "peer_rescues_count": len(recent_healing_events),
         "desktop_apps": {
             "hermes": "ACTIVE (14 Combos · Port :9119)",
-            "claude": "ACTIVE (Claude Proxy :22000 · 14 Combos)",
+            "claude": "ACTIVE (Claude Code CLI via OmniRoute :20128 · Desktop NOT wired - Claude sub)",
             "workbuddy": "ACTIVE (OmniRoute :20128 & :22000)",
             "openclaw": "ACTIVE (Governance & Boss Surface)",
             "verdant": "ACTIVE (Research & QA Engine)",
