@@ -501,6 +501,77 @@ def queue_depth() -> dict[str, Any]:
 
 QUEUE_BACKLOG_ALERT = 50  # itne pending tasks = worker problem
 
+_BEAT_REG_CACHE: dict[str, Any] = {"ts": 0.0, "gaps": []}
+_BEAT_REG_TTL_S = 600  # > poll interval (daily brief + manual MC loads)
+
+
+def _beat_registration_gaps() -> list[dict[str, Any]]:
+    """Har beat entry ka task name REGISTERED Celery task hona chahiye.
+
+    Fail-open (kabhi raise nahi); TTL-cached; per-entry module import so ek
+    broken module sirf apna gap banata hai, poora check nahi marti."""
+    import time as _time
+
+    now = _time.time()
+    if now - float(_BEAT_REG_CACHE.get("ts") or 0) < _BEAT_REG_TTL_S:
+        return list(_BEAT_REG_CACHE.get("gaps") or [])
+
+    gaps: list[dict[str, Any]] = []
+    try:
+        import importlib
+
+        from app.worker import celery_app
+
+        # Import the canonical include list first — task registration happens
+        # at module import, and some beat task names (content_os.*) don't map
+        # 1:1 to a module path, so the per-entry heuristic below can't find
+        # them. The include list IS the worker's own registration surface.
+        for inc in (celery_app.conf.include or []):
+            try:
+                importlib.import_module(str(inc))
+            except Exception:
+                pass
+
+        beat = celery_app.conf.beat_schedule or {}
+        for entry_name, entry in beat.items():
+            try:
+                task_name = str(entry.get("task") or "")
+                if not task_name:
+                    continue
+                if task_name in celery_app.tasks:
+                    continue
+                mod_name = task_name.rsplit(".", 1)[0]
+                try:
+                    importlib.import_module(mod_name)
+                except Exception as e:
+                    gaps.append(
+                        {
+                            "key": f"BEAT_REG:{entry_name}",
+                            "flag_on": True,
+                            "missing": task_name,
+                            "note": f"Beat task module import failed — job silently never runs: {str(e)[:100]}",
+                        }
+                    )
+                    continue
+                if task_name not in celery_app.tasks:
+                    gaps.append(
+                        {
+                            "key": f"BEAT_REG:{entry_name}",
+                            "flag_on": True,
+                            "missing": task_name,
+                            "note": "Beat entry points to an UNREGISTERED Celery task (module imports, task name absent) — job silently never runs",
+                        }
+                    )
+            except Exception:
+                continue
+    except Exception:
+        # Celery app unavailable (import chain broke) — fail-open, retry next call
+        return list(_BEAT_REG_CACHE.get("gaps") or [])
+
+    _BEAT_REG_CACHE["ts"] = now
+    _BEAT_REG_CACHE["gaps"] = gaps
+    return list(gaps)
+
 
 def wiring_gaps() -> list[dict[str, Any]]:
     """'Flag ON but backend missing' — armed automation jo silently no-op kar
@@ -510,6 +581,17 @@ def wiring_gaps() -> list[dict[str, Any]]:
 
     def _on(flag: str) -> bool:
         return (os.getenv(flag, "0") or "0").strip().lower() in ("1", "true", "yes")
+
+    # Beat-registration gaps (dormant-wiring class, 2026-09-06): every beat
+    # entry's task name must resolve to a REGISTERED Celery task. The
+    # daily-social incident (#468) shipped beat entries whose task function
+    # was never registered — worker rejected the name as unregistered and the
+    # job silently never ran. "Flag on" checks alone cannot see this class.
+    # Per-entry module import (NOT all-or-nothing import_default_modules) so a
+    # single broken module reports its own gap instead of killing the check.
+    # TTL-cached (600s > poll interval) — wiring_gaps() runs per Mission
+    # Control load and daily brief; the import sweep is bounded to once.
+    gaps.extend(_beat_registration_gaps())
 
     # CRM sync: armed but no provider wired (Zoho refresh token / HubSpot key)
     if _on("CRM_SYNC") or _on("CRM_SYNC_PULL"):

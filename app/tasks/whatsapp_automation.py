@@ -17,6 +17,7 @@ import os
 import httpx
 
 from app.utils.logger import setup_logger
+from app.worker import celery_app
 
 logger = setup_logger(__name__)
 
@@ -193,6 +194,14 @@ async def run_whatsapp_batch(leads: list) -> dict:
     }
 
 # ── Scheduler Entry Point ──────────────────────────────────────────
+# 2026-09-06: registered as a Celery task — beat entry "staff-whatsapp-automation-hourly"
+# pointed at this name but the function was plain, so the worker rejected it as
+# unregistered and the hourly queue-drain silently never ran (same dormant-wiring
+# class as the daily-social incident #468). Direct in-process callers
+# (team_scheduler, staff_jobs) are unaffected: calling a task object runs it
+# synchronously; only .delay()/beat enqueues. Internal WHATSAPP_AUTO_SEND gate +
+# hard-off + daily cap remain the compliance spine (fail-closed).
+@celery_app.task(name="app.tasks.whatsapp_automation.run_whatsapp_automation")
 def run_whatsapp_automation():
     """Celery beat entry: run WhatsApp automation batch."""
     if not whatsapp_enabled():
