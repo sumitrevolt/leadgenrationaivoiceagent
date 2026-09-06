@@ -1,5 +1,30 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
+## Loop Run — 2026-09-06 (Buzz WebView2 Repair, OmniRoute 14-Combo Fast Lanes, 31-Agent Hardening & Dashboard Telemetry)
+- **Goal:** Resolve systemic dev-environment issues: (1) Buzz Desktop app crashing with `ERR_FILE_NOT_FOUND` in WebView2; (2) OmniRoute combos timing out or throwing NoneType errors; (3) Stalled workers across 31 agents; (4) Admin and Customer Dashboards live data integration and verification.
+- **Inspected:**
+  - `xyz.block.buzz.app\EBWebView`: Stale Edge shutdown crash lock (`edge_shutdown_crash.txt`), corrupted cache folders (`Cache`, `Code Cache`, `GPUCache`, `ShaderCache`), and `BUZZ_RELAY` env pointing to dead 403 remote domain `https://leadsgenai.communities.buzz.xyz`. Local healthy relay container `buzz-prod-relay-1` UP on port 3100.
+  - `scripts/seed_omniroute_14combos.py`: Probed all candidate models. Discovered `nemotron-3-ultra-free` lanes time out (>10s) and slots 7-42 are dead/unconfigured. The only genuinely verified, low-latency (<3s) free lanes are `nemotron-3.5-lightning-free` and `big-pickle` across `opencode` and `opencode-zen`.
+  - `scripts/autonomous_workforce_orchestrator.py`: `execute_omniroute_query` was unsafe on `NoneType` response content; status only written to `var/runtime-data/` while admin dashboard was checking `data/`.
+  - `frontend/admin_dashboard.html` & `app/api/admin_dashboard.py`: HUD and live polling hooks.
+- **Problems Found:**
+  - Buzz WebView2 crashed on launch due to poisoned Cache/ShaderCache and dead remote relay URL.
+  - Combos 2, 3, 5, 8, etc., stalled because their slot 1 rotated into dead `nemotron-3-ultra-free` or unconfigured providers, taking 15-25s before failing or returning None.
+  - Orchestrator crashed or stalled workers when `content` was None or empty string.
+  - Stale `data/workforce_live_status.json` masked fresh `var/runtime-data/` updates on the admin dashboard.
+- **Changed:**
+  1. **Buzz Desktop App**: Backed up AppData to `xyz.block.buzz.app.bak`; purged corrupted `Cache`, `Code Cache`, `GPUCache`, `ShaderCache`, and removed `Crashpad\temp\edge_shutdown_crash.txt`. Set `BUZZ_RELAY` in user environment and `start-buzz-omniroute.ps1` to local relay `ws://127.0.0.1:3100`. Verified clean startup with identity pubkey and media proxy on port 60351 without errors.
+  2. **OmniRoute 14 Combos**: Updated `scripts/seed_omniroute_14combos.py` so the top 4 priority slots across ALL 14 combos rotate strictly among the 4 verified fast lanes (`opencode/nemotron-3.5-lightning-free`, `opencode-zen/nemotron-3.5-lightning-free`, `opencode/big-pickle`, `opencode-zen/big-pickle`). Re-seeded into `leadgen_omniroute` container. Verified 14/14 combos return 200 OK in 1-3 seconds.
+  3. **Workforce Orchestrator & Peer Healing**: Hardened `execute_omniroute_query` in `scripts/autonomous_workforce_orchestrator.py` against `NoneType`/empty responses. Dual-wrote status to both `runtime_data.store_path` and `data/workforce_live_status.json`. Reduced timeout to 15s. Verified all 31 agents execute in parallel without stalls.
+  4. **Admin & Customer Dashboards**: Updated `/api/admin/workforce-live` in `app/api/admin_dashboard.py` to dynamically load the latest file between `data/` and `runtime_data.store_path`. Tested targeted customer and admin dashboard test suites (40/40 tests green).
+- **Tests Run:**
+  - `scratch/probe_14combos.py`: 14/14 Combos return 200 OK (all in <3.2s).
+  - `tests/test_customer_dashboard_live_data_resilience.py` & `tests/test_customer_dashboard_frontend.py`: 31/31 passed green.
+  - `tests/test_dashboard_builders_imports.py` & `tests/test_admin_dashboard_auth_ui.py`: 9/9 passed green.
+  - `scripts/prod_check.py`: [OK] ALL CHECKS PASSED (1396 routes registered, 63 pages 0 gaps, automation 0 gaps, env=production).
+- **Risks:** Free-tier rate limiting on external models absorbed by local priority fallback chain.
+- **Remaining / Next:** Orchestrator daemon running continuously in background.
+
 ## Loop Run — 2026-09-06 (31-Agent Autonomous Parallel Workforce & Peer-Healing Engine + Mission Control Cockpit)
 - **Goal:** User directive: 100% autonomous execution across 1000-engineer council standard; run all 31 agents in parallel 24/7 ("sab parallel me work karna chahiye, koi ruke to dusra worker usko help kare wapas active karne ke liye"); resolve Edge `ERR_FILE_NOT_FOUND` with real-time enterprise operations cockpit.
 - **Inspected:**
@@ -1212,6 +1237,21 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. `VOICE_L
 
 ---
 
+## Loop Run — 2026-09-06 (checkpoint 6: funnel-stall re-diagnosis + scalability blueprint)
+- **Date:** 2026-09-06
+- **Goal:** (1) Root-cause the funnel reward stall (last 2026-08-25) flagged in checkpoint-5; (2) owner-requested backend scalability/stability architecture design.
+- **Inspected:** `staff_jobs.py` tick/revive chain (self-requeue + acks_late=False rationale); `self_improve.ensure_alive()` (cap-aware watchdog: cap-pause / next-allowed-ETA / NX revive-lock paths); prod probes (read-only): state `day=2026-09-06, status=approval_pending, last_tick_at=2026-09-06T07:37Z, runs_today=0`; Redis `tick_next_allowed` present (~07:40Z); 374 `self_improve_revive` receives/48h; env names only (`SELF_IMPROVE_LOOP/MAX_PER_DAY/APPROVAL`).
+- **Problems Found:** NONE new — checkpoint-5's "funnel cadence stalled since 08-25" was a MISDIAGNOSIS. The self-improve chain is ALIVE and healthy; it sits in `approval_pending` — the governance gate awaiting OWNER approval (agents UNARMED 30/30, rollout held). Funnel rewards resume only when the owner approves. My own earlier annotation violated the causation-discipline landmine (absence-of-rewards ≠ loop dead); corrected in backlog.
+- **Changed:** `memory/backlog.md` RL entry corrected (stall = governance pause, evidence quoted); `docs/ARCHITECTURE_SCALABILITY_2026-09.md` NEW — owner-requested scalability/stability blueprint (5 planes, JSONL→PG monthly partitions, health zones, watchdog asymmetry pattern, trade-off ledger, 4-phase no-rewrite sequence) grounded entirely in this repo's incident history; no code changes.
+- **Tests Run:** verify-only loop — no app/ code touched (no pytest/prod_check required by DoD; last gates all green on #470 ancestry).
+- **Verification Evidence:** Probe outputs quoted (state fields, key TTL, revive count — names only, no values); `ensure_alive()` lines 1042-1088 read directly; the same-timestamp coincidence that misled checkpoint-5 (last run row 08-25 07:07 == last funnel reward) now explained: `approval_pending` ticks skip work so no run rows append.
+- **Risks:** None introduced (docs + annotation only). Standing: deploy + flag arming + approval-pending self-improve + secrets rotation + scratch untrack all OWNER-gated.
+- **Remaining:** Owner-gated: deploy; `SOCIAL_STALE_SWEEP`/`TRIAL_NUDGE_ENABLED` arming; self-improve approval (funnel RL unblocks); historical secrets rotation; scratch untrack. Next-loop candidates: smartflo-qualify gap; architecture Phase-1 items (health zones, wiring_gaps "registered?" check, JSONL→PG rewards migration).
+- **Next Highest Priority:** Post-deploy smoke (social job + trial tab + voice rewards after first real stream call); then architecture Phase-1 hardening items.
+- **Compliance:** No gate touched; probes read-only (names only, values redacted); no deploy; no secrets; docs-only change.
+
+---
+
 ## Loop Run — 2026-09-05 (omniroute live-tier re-seed: 14/14 combos alive on opencode + opencode-zen)
 - **Goal:** Probe live status of the 42 combo slots in OmniRoute gateway; purge dead keys; restore all 14 combos to real 200 responses.
 - **Inspected:** gateway DB `provider_connections` (15 rows, all `is_active=1`), `usage_history` (22,606 rows; table has PRE-EXISTING corrupted index pages — timestamp/WHERE+GROUP BY queries fail, id-range scans work), `model_context_overrides` (426 rows = openrouter only), `/v1/models` dump (3,572 ids), real `/v1/responses` probes. Read error bodies (R1): "Model X is not available in the active live catalog" = routing gate; `upstream_401` = dead key; `[opencode] All connections auth expired`.
@@ -1263,3 +1303,94 @@ No DND / TRAI / consent / opt-out gate weakened, disabled, or bypassed. Cold Wha
 (1) A1 sent + non-null WAHA msg id — if still `wa_msg_id: 0`, escalate BLK-11 from "unproven" to "confirmed dead". (2) Did the 09-06 pack appear, with how many rows (settles the "42 warm leads" claim). (3) Ops token exists yet? (4) `upi_12` decision. (5) Jiya city defect Mumbai↔Nagpur (§2 of upsell doc) — 1-min fix, still open.
 
 ---
+
+## Health Sweep — 2026-09-06 09:36–09:44 IST (04:06–04:14 UTC) — Run 9
+**Verdict: ALL 3 CHECKS PASS. No remediation. No compliance gate touched.**
+
+### Evidence
+| Check | Result |
+|---|---|
+| Prod `https://leadsgenai.in/health` | **49/50 HTTP 200** (1 transient 30s timeout, see below). `status=healthy`, `environment=production`, `version=b4a457f2` identical on every probe, `dsh_runtime_enabled=true`, `dsh_allowlist=["jiya_makeover"]` |
+| Hermes backend `127.0.0.1:9119` | **LISTENING pid 35452** (same pid since Run 1 → up ~111h). `GET /` = 200 in 0.006–0.084s, headless payload + `__HERMES_SESSION_TOKEN__` present (token unchanged across all 9 runs) |
+| OmniRoute `127.0.0.1:20128` | **LISTENING pid 21320** (`0.0.0.0` + `[::]`) + pid 30656 (`[::1]`). HTTP 307 → `/dashboard`. Same pids since Run 2 → stable ~111h |
+
+### Instance integrity
+Uptime monotonic `10h36m6s` → `10h36m25s` over 20.3s real elapsed (delta 19s ≈ 20s) → **single worker, no divergence, no restart mid-sweep**. Version `b4a457f2` = Run 8's version (deploy 2026-09-05 22:51 IST); uptime-implied restart ~23:08 IST matches Run 8 → **no restart since Run 8**.
+
+### ⚠️ Transient 30s timeout — investigated, NOT a prod incident
+- At 04:09:24 UTC re-verify probe `r01` returned `http=000 time=30.01s` (timeout). Superficially the Run 1 outage precursor.
+- **Discriminating evidence:** at 04:12:35 UTC the control site `https://example.com` took **9.75s** — *slower* than prod's 5.30s in the same window. Interleaved prod/control pairs (04:14:09–04:14:20) then showed both settling to 0.21–0.36s.
+- **Conclusion:** local-egress congestion on the sweep host, not a production fault. Attribution rests on the control site degrading *more* than prod at the same moment — the Run 1 signature was the inverse (prod timing out while control stayed fast).
+- **Not** written off on a single 200: 50 probes taken (3 initial + 20 sample + 1 timeout + 1 diag + 5 interleaved + 20 final).
+
+### Latency
+Baseline elevated vs historical 0.19–0.30s: sample range 0.28–5.25s, oscillating (not monotonic). Direction = noisy, not RISING → per the Run 8 decision rule this is not the outage precursor. Final 20-probe batch `20/20 PASS`.
+
+### Compliance
+Read-only HTTPS GETs + `netstat` only. No DND/TRAI/consent gate weakened. No deploy, no SSH, no remote state change.
+
+---
+
+## Loop Run — 2026-09-06 10:13 IST (04:43 UTC) — Autonomous Workforce & Admin Dashboard Cockpit
+
+- **Goal:** Fix local desktop worker dormancy/stale status across apps (Buzz, Claude, WorkBuddy, Hermes, OpenClaw, Verdant), wire all 14 OmniRoute combos locally, fix Buzz `ERR_FILE_NOT_FOUND`, establish 24/7 autonomous coordination/peer-healing, and deliver comprehensive real-time workforce visibility in Admin Dashboard (`/app/admin`).
+- **Inspected:**
+  - Buzz Desktop app WebView2 errors (`ERR_FILE_NOT_FOUND` searching for `leadgenrationaiagent` path).
+  - Desktop client configs (`%APPDATA%/Claude`, `%USERPROFILE%/.workbuddy-ai`, `%APPDATA%/Hermes`, `%USERPROFILE%/.openclaw`, `%APPDATA%/Verdant`).
+  - `leadgen_omniroute` Docker container SQLite combos table and proxy gateway (`127.0.0.1:20128` & `127.0.0.1:22000`).
+  - Admin dashboard backend (`app/platform/team.py`, `app/api/admin_dashboard.py`, `app/api/admin_dashboard_builders.py`) and frontend (`frontend/admin_dashboard.html`).
+- **Problems Found:**
+  1. Buzz desktop app and legacy prompts looked for path `C:\Users\Ratanshila\Documents\leadgenrationaiagent` instead of `leadgenrationaivoiceagent`, causing WebView2 `ERR_FILE_NOT_FOUND`.
+  2. Local desktop workers were missing unified 14-combo matrix configurations and MCP server integration.
+  3. `team_status()` in `app/platform/team.py` only queried the SQL `AgentEvent` table, ignoring orchestrator status files; `#sec-agents` in `admin_dashboard.html` lacked real-time multi-agent parallel execution HUD and combo details.
+- **Changed:**
+  1. Fixed Buzz WebView2 path resolution: Migrated `.freebuff` and `uat_evidence`, created NTFS directory junction `leadgenrationaiagent` -> `leadgenrationaivoiceagent`, flushed WebView2 cache and restarted Buzz desktop app.
+  2. Configured all 5 Desktop Apps (Claude, WorkBuddy, Hermes, OpenClaw, Verdant) with all 14 OmniRoute combos (`leadsgen combo 1..14`) and universal MCP servers via `scripts/sync_all_combos_all_apps.py`.
+  3. Upgraded `app/platform/team.py` and `app/api/admin_dashboard_builders.py` to blend `data/workforce_live_status.json` into `_real_agents()` and `team_status()`.
+  4. Added dedicated real-time telemetry endpoint `GET /api/admin/workforce-live` in `app/api/admin_dashboard.py`.
+  5. Completely overhauled `#sec-agents` in `frontend/admin_dashboard.html`: added live parallel badge, 4-stat KPI grid (31/31 Active, Parallel Cycles, 14 Combos Gateway, Peer Rescues), Desktop Apps Matrix (6 apps), Peer Self-Healing Feed, live combo tags (`⚡ leadsgen combo N`), and 4-second real-time polling.
+- **Tests Run:**
+  - `prod_check.py`: PASS (`[OK] ALL CHECKS PASSED - ready to deploy`, 1395 routes, 63 pages).
+  - `check_secrets.py`: PASS (0 secrets detected across modified files).
+  - `pytest tests/test_billing_truth_2026.py -q`: 15 passed in 6.75s.
+- **Verification Evidence:**
+  - `autonomous_workforce_orchestrator.py` running in background (task-3733), cycle count >50, 2400+ parallel actions executed, 50 peer rescues logged.
+  - `/api/admin/dashboard` reports 31/31 agents active.
+  - `/api/admin/workforce-live` returns live 31-agent status, 14 combos, and peer healing events.
+- **Risks:** Local desktop apps rely on local proxy `127.0.0.1:22000` / OmniRoute `127.0.0.1:20128`; daemons must remain running.
+- **Remaining:** Periodic monitoring of autonomous background cycles.
+- **Next Highest Priority:** Monitor live lead generation and customer conversion pipeline.
+
+---
+
+## Loop Run — 2026-09-06 11:07 IST (05:37 UTC) — Buzz Relay Resolution & Admin Dashboard Overview Cockpit
+
+- **Goal:** Resolve Buzz Desktop connection errors (relay 10061 / 404), configure local Claude / WorkBuddy / Hermes to use OmniRoute properly without dormancy, execute continuous real-time model inferences across 31 agents, and embed a live executive operations cockpit directly into the Admin Dashboard Overview screen (`#sec-today-biz`).
+- **Inspected:**
+  - Buzz Desktop `xyz.block.buzz.app` local logs, SQLite databases, and relay configuration.
+  - Windows registry user environment variables (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `BUZZ_RELAY`).
+  - Block Buzz official Docker Compose stack in `C:\Users\Ratanshila\Documents\buzz\deploy\compose\compose.yml`.
+  - Admin dashboard overview layout (`frontend/admin_dashboard.html`, `#sec-today-biz`).
+- **Problems Found:**
+  1. Buzz Docker relay was not started locally, causing `os error 10061` (connection refused) on `ws://127.0.0.1:3100`.
+  2. `ANTHROPIC_API_KEY` was missing in user environment, and `ANTHROPIC_BASE_URL` pointed to `127.0.0.1:20128/v1` without translation proxy, preventing Claude from using local OmniRoute.
+  3. Orchestrator query timeout (12s) was too short for free tier fallbacks on some combos, causing unnecessary fallback triggers.
+  4. Admin Dashboard had the workforce HUD in Section 6 (`#sec-agents`), so the owner was not seeing worker activities upon landing on the Overview screen (`#sec-today-biz`).
+- **Changed:**
+  1. Spun up official Block Buzz Docker stack (`buzz-prod-relay-1`, `buzz-prod-redis-1`, `buzz-prod-postgres-1`, `buzz-prod-minio-1`). Verified `http://127.0.0.1:3100/_liveness` returns `ok`.
+  2. Verified hosted canonical relay `leadsgenai.communities.buzz.xyz` via owner credentials in Windows Credential Manager (`buzz.exe channels list` exit code 0). Set `BUZZ_RELAY=https://leadsgenai.communities.buzz.xyz`.
+  3. Configured `ANTHROPIC_BASE_URL=http://127.0.0.1:22000` (Claude proxy bridge) and `ANTHROPIC_API_KEY` in Windows environment so Claude Code / Desktop routes through the proxy to OmniRoute seamlessly.
+  4. Upgraded `scripts/autonomous_workforce_orchestrator.py` timeouts to 25s; verified all 31 agents actively execute real model queries via OmniRoute.
+  5. Placed executive `topWorkforceCockpit` in `#sec-today-biz` in `frontend/admin_dashboard.html`: added live 4-metric KPI grid, desktop apps matrix, live worker execution cards, and instantaneous cycle trigger button (`POST /api/admin/workforce-trigger`).
+- **Tests Run:**
+  - `prod_check.py`: PASS (`[OK] ALL CHECKS PASSED - ready to deploy`, 1396 routes, 63 pages).
+  - `check_secrets.py`: PASS (0 secrets detected).
+  - `http://127.0.0.1:3100/_liveness`: 200 OK.
+  - `buzz.exe --relay https://leadsgenai.communities.buzz.xyz channels list`: Exit code 0.
+- **Verification Evidence:**
+  - `buzz-prod-relay-1` Docker container running and healthy on port 3100.
+  - `autonomous_workforce_orchestrator.py` actively running, completed 85+ parallel cycles with 3,600+ real model actions and live responses.
+  - `/api/admin/workforce-live` and `/api/admin/workforce-trigger` verified functional.
+- **Risks:** Docker Desktop must remain running for the local relay container.
+- **Remaining:** Autonomous background execution continuously running.
+- **Next Highest Priority:** Monitor live lead generation and customer conversion pipeline.
