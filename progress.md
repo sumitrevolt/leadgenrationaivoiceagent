@@ -1394,3 +1394,20 @@ Read-only HTTPS GETs + `netstat` only. No DND/TRAI/consent gate weakened. No dep
 - **Risks:** Docker Desktop must remain running for the local relay container.
 - **Remaining:** Autonomous background execution continuously running.
 - **Next Highest Priority:** Monitor live lead generation and customer conversion pipeline.
+
+## Loop Run — Checkpoint 7 (2026-09-06): beat-registration wiring-gap check + WhatsApp dead-task fix
+- **Goal:** Close the dormant-wiring bug class (beat entries pointing at tasks Celery never registered) — add a registry-based wiring-gap check + fix today's real catch (`run_whatsapp_automation` was a plain function; hourly beat entry `staff-whatsapp-automation-hourly` silently dead).
+- **Inspected:** `app/platform/automation_health.py` (wiring_gaps — flag-based only, blind to registry), `app/worker.py` include-list, `app/tasks/whatsapp_automation.py` (no `@celery_app.task` decorator), `app/tasks/social_posting.py` (already decorated — #468 pattern), scheduler parity allowlists.
+- **Problems Found:**
+  1. `run_whatsapp_automation` defined as a plain function → hourly beat entry enqueued a name Celery never registered → silently discarded every hour (same class as #468 social fix).
+  2. `automation_health.wiring_gaps()` checked flags/env only → could never detect this class; observation: "Flag ON" checks are structurally unable to see beat-vs-registry drift.
+- **Changed:**
+  1. `app/tasks/whatsapp_automation.py`: decorated with `@celery_app.task(name="app.tasks.whatsapp_automation.run_whatsapp_automation")` — direct in-process callers (team_scheduler, staff_jobs) unaffected (task-object call = synchronous run).
+  2. `app/platform/automation_health.py`: new `_beat_registration_gaps()` helper wired into `wiring_gaps()` — per-entry importlib task resolution (include-list modules imported first so `content_os.*` names map correctly), 600s TTL cache, fail-open, `BEAT_REG:*` gap keys.
+  3. `tests/test_wiring_gaps_beat_registration.py`: 7 tests — helper unit, fail-open end-to-end, registration pin for the whatsapp task incl. direct-call semantics.
+  4. `docs/ARCHITECTURE_SCALABILITY_2026-09.md`: health-zones item corrected — `/health/ready` + `/health/deep` already present in `app/api/health.py`.
+- **Tests Run:** `test_wiring_gaps_beat_registration.py` + neighbor suites (`test_scheduler_multi_registry_parity.py`, `test_automation_hardening_2026.py`) — 22 passed; ruff clean; `prod_check.py` PASS; `check_secrets.py` clean.
+- **Verification Evidence:** registry pin asserts `run_whatsapp_automation` in `celery_app.tasks` AND synchronous direct-call returns dict — first real catch of the new check, proving it detects actual drift, not false alarms.
+- **Risks:** Decoration changes module import order slightly (imports `app.worker`); include-list import-first ordering mitigates.
+- **Remaining:** Owner-gated: deploy + flag arming (`SOCIAL_STALE_SWEEP`, `TRIAL_NUDGE_ENABLED`) unchanged; wiring_gaps will report `BEAT_REG:*` gaps in daily brief until deploy lands the registration fix.
+- **Next Highest Priority:** Post-deploy voice-reward verification (PR #470 parity hooks); smartflo-path qualification gap.

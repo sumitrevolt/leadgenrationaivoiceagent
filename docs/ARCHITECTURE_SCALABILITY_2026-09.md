@@ -116,10 +116,12 @@ The project's strongest existing pattern — **codify the open/closed split:**
    of 3 writers. Rule now: every beat/task/writer contract-test
    (registry-pin tests exist post-#468/#470) AND `automation_health`
    wiring_gaps daily brief must include "task registered?" not just "flag on?".
-2. **Health zones** — `/health` gains `zone: liveness|readiness|
-   dependency-degraded` so Caddy can shed traffic on dependency loss without
-   container restarts (today a PgBouncer blip still 200s the liveness path —
-   correct — but readiness signals for LB are absent).
+2. **Health zones — VERIFIED ALREADY PRESENT (2026-09-06 correction):**
+   `/health` (liveness), `/health/ready` (DB+Redis unhealthy→503, LLM/disk/
+   memory degraded-ok), `/health/deep` (metrics-auth) all exist in
+   `app/api/health.py`. Remaining work is runbook, not code: confirm Caddy
+   fallback/active probes point at `/health/ready` (not just `/health`) so
+   LB sheds traffic on dependency loss without container restarts.
 3. **Watchdog asymmetry** — cap-paused vs dead distinction (ensure_alive
    docstring) must be replicated for every self-requeue chain; the generic
    pattern is: heartbeat + next-allowed-ETA check + NX revive-lock + day-scoped
