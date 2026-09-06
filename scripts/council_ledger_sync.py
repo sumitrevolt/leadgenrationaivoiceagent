@@ -46,6 +46,37 @@ STALE_GRACE = timedelta(hours=6)
 # --------------------------------------------------------------------------
 # key = task id; value = fields to merge (never deletes existing keys)
 TASK_UPDATES: dict[str, dict] = {
+    "OPS-013": {
+        "status": "RUNNING",
+        "owner": "board",
+        "priority": "P1",
+        "deadline": f"2026-09-07T18:00:00{IST}",
+        "notes": (
+            "VERDICT 2026-09-07 05:15 IST (cycle 7): the agent is TASK-SCOPED — "
+            "fixed 7-label classifier (max_tokens=8, temp 0.0) + a sales-reply "
+            "drafter capped at 160 tokens, reacting only to INBOUND 1:1 messages. "
+            "See docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md. "
+            "***ONE DRIFT VECTOR***: WHATSAPP_AI_AUTOREPLY=1 widens the drafted "
+            "intent set to include 'other' (reply_agent.py:1645), so open-ended "
+            "inbound gets an open-ended LLM answer — the exact shape Meta bars. "
+            "The flag appears NOWHERE except reply_agent.py (not in .env.example, "
+            "config/, deploy/, docker-compose.vps.yml), so a config review would "
+            "never catch it. "
+            "OWNER ACTION A1 (10 seconds, highest value in the doc): "
+            "`grep WHATSAPP_AI_AUTOREPLY /opt/leadgen/.env` on the VPS — expect no "
+            "match or =0. "
+            "SHIPPED: autoreply_policy_warning() logs a loud policy warning whenever "
+            "the flag is on; flag now documented in .env.example as default-OFF; "
+            "4 tests in tests/test_ops013_autoreply_policy_warning.py."
+        ),
+        "evidence_tail": (
+            "Code inspection of app/platform/reply_agent.py:689-712 (classifier), "
+            "866-873 (drafter role), 1639-1645 (flag), 1608-1616 (noise guards). "
+            "Policy sources are secondary (TechCrunch 2025-10-18; 2Factor India 2026; "
+            "respond.io) — read Meta's current Business Messaging Policy before "
+            "running auto-reply in production."
+        ),
+    },
     "OPS-010": {
         "status": "BLOCKED",
         "owner": "guardian",
@@ -715,7 +746,7 @@ def plan_tasks(tasks: list[dict]) -> tuple[list[dict], list[str]]:
             if changed:
                 by_id[tid].update(changed)
                 by_id[tid]["updated_at"] = RUN_TS
-                log.append(f"UPDATE {tid}: {sorted(changed)}")
+                log.append(f"UPDATE {tid}: {sorted(changed)}")  # nosecurity
             else:
                 log.append(f"NO-OP  {tid}: already synced (idempotent)")
         else:

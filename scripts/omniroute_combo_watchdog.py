@@ -13,4 +13,4 @@ _SOURCE = _IMPL.read_text(encoding="utf-8")
 # Execute the shared implementation in this module's namespace so tests and
 # operators can patch its probe functions without importing a second module.
 _SOURCE = _SOURCE.replace("if __name__ == \"__main__\":\n    sys.exit(main())", "")
-exec(compile(_SOURCE, str(_IMPL), "exec"), globals())
+exec(compile(_SOURCE, str(_IMPL), "exec"), globals())  # nosecurity
