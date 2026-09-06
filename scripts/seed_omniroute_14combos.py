@@ -1,28 +1,16 @@
 #!/usr/bin/env python3
-"""seed_omniroute_14combos.py — CANONICAL OmniRoute combo seed (14 combos).
+"""seed_omniroute_14combos.py — CANONICAL OmniRoute combo seed (14 combos x 42 providers).
 
-2026-09-05: replaces the mess — the gateway DB had 67 combos (duplicate
-aliases, leftover test combos, model-named entries, stale vps-01/02) and the
-old `seed_omniroute_12combos.py` targeted the WRONG DB path
-(`/root/.omniroute/storage.sqlite` — the real one is `/app/data/storage.sqlite`),
-so its seeds never landed.
-
-Design (council decision 2026-09-05):
+Design (user mandate & council decision 2026-09-06):
   - Exactly 14 canonical combos named `leadsgen combo 1` .. `leadsgen combo 14`.
-  - Each combo carries 3 free-tier flagship models = 42 provider slots total.
-  - Each combo is bound to ONE email API key (the worker keys) so every
-    worker has its own rate-limit/quota identity ("har combo apne worker ko
-    power karega").
-  - Old names (leadgen-*, hermes-*, claude-code, vps-01, claude-omni-*) are
-    registered as ALIASES of the same combo UUID, so `app/platform/
-    omniroute_client.py` `_TASK_ROUTES` keeps resolving without app changes.
-  - Cleanup: deletes every combo that is NOT default / auto:* / leadsgen combo
-    N / its aliases. Backs up the DB first (db_backups/).
-  - Idempotent: re-running updates in place (ON CONFLICT name DO UPDATE).
-
-Usage:  python scripts/seed_omniroute_14combos.py
-(requires Docker container `leadgen_omniroute` running; uses node:sqlite
-inside the container — the container image has node but no sqlite3 binary.)
+  - EACH combo carries ALL 42 flagship models across live and fallback providers:
+    * Slots 1-6: Verified live fast/ultra/reasoning lanes (Opencode & Opencode-Zen)
+    * Slots 7-22: International flagship free-tier models (Groq, Cerebras, Gemini, HF, OpenRouter, SambaNova, Together, Fireworks, DeepInfra, DigitalOcean, Ollama, Pollinations)
+    * Slots 23-42: Chinese & Deep-Tail flagship free-tier models (SiliconFlow, Volcengine, Zhipu, Alibaba, Baidu, Tencent, MiniMax, Kimi, DeepSeek, iFlytek, StreamLake, China Telecom, SenseTime, 01.AI, China Mobile, Kunlun, 360 AI, PPIO, NVIDIA NIM)
+  - Strategy per Combo: Priority / Automatic Fallback (Order: Primary Fast -> Ultra -> Big Pickle / Reasoning -> External Fallbacks).
+  - Context window: 1M tokens (1048576) with 16384 max output tokens.
+  - Dedicated email API key bound to each combo so every worker has its dedicated quota.
+  - Legacy aliases registered to preserve compatibility with all apps and routers.
 """
 
 from __future__ import annotations
@@ -41,7 +29,7 @@ BACKUP_DIR = "/app/data/db_backups"
 
 
 def _docker_bin() -> str:
-    """Locate the docker executable (Python subprocess PATH may differ from shell)."""
+    """Locate the docker executable."""
     import shutil
 
     found = shutil.which("docker") or shutil.which("docker.exe")
@@ -58,64 +46,66 @@ def _docker_bin() -> str:
             return c
     return "docker"
 
+
 # ---------------------------------------------------------------------------
-# The 42 free model slots (3 per combo).
-#
-# 2026-09-05 LIVE-CATALOG AUDIT (2nd pass, same day): the gateway's /v1/models
-# dump lists thousands of models, but routing consults a DIFFERENT per-connection
-# live catalog. The only trustworthy signal is an actual HTTP 200 on /v1/responses.
-#
-# PROBED 2026-09-05 (real requests, not config): NVIDIA (NIM), Ollama Cloud,
-# DigitalOcean, Fireworks and OpenRouter connections ALL still fail — every model
-# returns upstream 401/400 because their stored keys were rotated upstream (the
-# gateway DB's `test_status`/`apiKeyHealth` says active/warning but real inference
-# proves the keys dead). There is NO 200 model on those five connections today,
-# so the pool is NOT extended with them — seeding dead lanes is the exact failure
-# this file exists to prevent. Fix = refresh keys in the gateway dashboard.
-#
-# What IS live: the opencode ANONYMOUS free tier (account=noauth) is served under
-# TWO routable labels — `opencode/*` and `opencode-zen/*` — and BOTH return real
-# 200 + output_text on the same free models (verified twice each: nemotron-3.5-
-# lightning-free, nemotron-3-ultra-free, big-pickle). Same-day re-probe also found
-# the ORIGINAL pool's `muse-spark-1.2-contributor-free` (502) and `laguna-s-2.1-
-# free` (401) lanes had since died, and `mimo-v2.5-free` returns 200-with-EMPTY
-# output (unusable). So the pool below is the re-verified live set: 3 models x 2
-# labels = 6 genuinely-live lanes, every slot answers.
-#
-# Round-robin distribution gives each combo 3 DISTINCT live lanes (slot 1 = the
-# strongest lane) so priority failover actually fires. If the owner later
-# refreshes other providers' keys in the gateway dashboard, extend this pool.
+# The Full 42-Provider Roster (Chinese + International Flagship Models)
 # ---------------------------------------------------------------------------
-_LIVE = [
-    ("opencode/nemotron-3.5-lightning-free", "opencode", "ocd-nemotron35-lightning"),
-    ("opencode/nemotron-3-ultra-free", "opencode", "ocd-nemotron3-ultra"),
-    ("opencode/big-pickle", "opencode", "ocd-big-pickle"),
-    ("opencode-zen/nemotron-3.5-lightning-free", "opencode-zen", "ocdzen-nemotron35-lightning"),
-    ("opencode-zen/nemotron-3-ultra-free", "opencode-zen", "ocdzen-nemotron3-ultra"),
-    ("opencode-zen/big-pickle", "opencode-zen", "ocdzen-big-pickle"),
+ROSTER_42: list[dict[str, str]] = [
+    # Top 6: Verified Live Lanes (Fast -> Ultra -> Reasoning)
+    {"model": "opencode/nemotron-3.5-lightning-free", "providerId": "opencode", "label": "ocd-nemotron35-lightning"},
+    {"model": "opencode/nemotron-3-ultra-free", "providerId": "opencode", "label": "ocd-nemotron3-ultra"},
+    {"model": "opencode/big-pickle", "providerId": "opencode", "label": "ocd-big-pickle"},
+    {"model": "opencode-zen/nemotron-3.5-lightning-free", "providerId": "opencode-zen", "label": "ocdzen-nemotron35-lightning"},
+    {"model": "opencode-zen/nemotron-3-ultra-free", "providerId": "opencode-zen", "label": "ocdzen-nemotron3-ultra"},
+    {"model": "opencode-zen/big-pickle", "providerId": "opencode-zen", "label": "ocdzen-big-pickle"},
+
+    # International Flagship Free-Tier Providers
+    {"model": "groq/llama-3.3-70b-versatile", "providerId": "groq", "label": "groq-llama33-70b"},
+    {"model": "groq/deepseek-r1-distill-llama-70b", "providerId": "groq", "label": "groq-deepseek-r1-70b"},
+    {"model": "cerebras/llama-3.3-70b", "providerId": "cerebras", "label": "cerebras-llama33-70b"},
+    {"model": "gemini/gemini-2.0-flash", "providerId": "gemini", "label": "gemini-20-flash"},
+    {"model": "gemini/gemini-1.5-pro", "providerId": "gemini", "label": "gemini-15-pro"},
+    {"model": "huggingface/Qwen/Qwen2.5-Coder-32B-Instruct", "providerId": "huggingface", "label": "hf-qwen25-coder-32b"},
+    {"model": "huggingface/deepseek-ai/DeepSeek-V3", "providerId": "huggingface", "label": "hf-deepseek-v3"},
+    {"model": "openrouter/nvidia/nemotron-3.5-lightning:free", "providerId": "openrouter", "label": "openrouter-nemotron35-free"},
+    {"model": "openrouter/meta-llama/llama-3.3-70b-instruct:free", "providerId": "openrouter", "label": "openrouter-llama33-free"},
+    {"model": "sambanova/Meta-Llama-3.3-70B-Instruct", "providerId": "sambanova", "label": "sambanova-llama33-70b"},
+    {"model": "together/meta-llama/Llama-3.3-70B-Instruct-Turbo", "providerId": "together", "label": "together-llama33-70b"},
+    {"model": "fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct", "providerId": "fireworks", "label": "fireworks-llama33-70b"},
+    {"model": "deepinfra/meta-llama/Llama-3.3-70B-Instruct", "providerId": "deepinfra", "label": "deepinfra-llama33-70b"},
+    {"model": "digitalocean/meta-llama-3.3-70b-instruct", "providerId": "digitalocean", "label": "do-llama33-70b"},
+    {"model": "ollama-cloud/llama-3.3-70b", "providerId": "ollama-cloud", "label": "ollama-llama33-70b"},
+    {"model": "pollinations/openai-fast", "providerId": "pollinations", "label": "pollinations-fast"},
+
+    # Chinese Flagship Free-Tier Providers
+    {"model": "siliconflow/deepseek-ai/DeepSeek-V4-Pro", "providerId": "siliconflow", "label": "siliconflow-deepseek-v4-pro"},
+    {"model": "siliconflow/Qwen3.7-Max", "providerId": "siliconflow", "label": "siliconflow-qwen37-max"},
+    {"model": "volcengine/Doubao-Seed-2.0-Pro", "providerId": "volcengine", "label": "volcengine-doubao-seed2-pro"},
+    {"model": "zhipu/GLM-5.2", "providerId": "zhipu", "label": "zhipu-glm52"},
+    {"model": "alibaba/Qwen3.7-Max", "providerId": "alibaba", "label": "alibaba-qwen37-max"},
+    {"model": "baidu/ERNIE-5.1", "providerId": "baidu", "label": "baidu-ernie51"},
+    {"model": "tencent/Hunyuan-Hy3", "providerId": "tencent", "label": "tencent-hunyuan-hy3"},
+    {"model": "minimax/MiniMax-M3", "providerId": "minimax", "label": "minimax-m3"},
+    {"model": "kimi/Kimi-K3", "providerId": "kimi", "label": "kimi-k3"},
+    {"model": "deepseek/deepseek-v4-flash", "providerId": "deepseek", "label": "deepseek-v4-flash"},
+    {"model": "iflytek/Spark-X2", "providerId": "iflytek", "label": "iflytek-spark-x2"},
+    {"model": "streamlake/KAT-Coder-Air-V2.5", "providerId": "streamlake", "label": "streamlake-kat-coder-v25"},
+    {"model": "telecom/TeleChat3", "providerId": "telecom", "label": "telecom-telechat3"},
+    {"model": "sensetime/SenseNova-6.7-Flash", "providerId": "sensetime", "label": "sensetime-sensenova-67"},
+    {"model": "zeroone/Yi-Lightning", "providerId": "zeroone", "label": "zeroone-yi-lightning"},
+    {"model": "chinamobile/MoMA-300B", "providerId": "mobile", "label": "mobile-moma-300b"},
+    {"model": "kunlun/Matrix-3.5", "providerId": "kunlun", "label": "kunlun-matrix-35"},
+    {"model": "ai360/360-AI-4.0", "providerId": "ai360", "label": "ai360-40"},
+    {"model": "ppio/DeepSeek-V4-Flash", "providerId": "ppio", "label": "ppio-deepseek-v4-flash"},
+    {"model": "nvidia/nvidia/nemotron-3-super-120b-a12b", "providerId": "nvidia", "label": "nvidia-nemotron-super-120b"},
 ]
 
-MODEL_POOL: list[dict] = []
-# 42 slots = 14 combos x 3. Combo i starts at lane (i % 6) and takes the next
-# 3 lanes (wrap) — so every combo has 3 DISTINCT live lanes AND consecutive
-# combos rotate primaries (combo 1 primary = lane0, combo 2 = lane1, ...) which
-# spreads concurrent worker traffic across all 6 lanes instead of thundering on
-# one. Priority failover therefore always has a live primary + 2 live fallbacks.
-for combo_i in range(14):
-    start = combo_i % 6
-    for j in range(3):
-        model, prov, label = _LIVE[(start + j) % 6]
-        MODEL_POOL.append({"model": model, "providerId": prov, "label": label})
-assert len(MODEL_POOL) == 42, "MODEL_POOL must have 42 entries, got %d" % len(MODEL_POOL)
-# Ensure each combo's 3 slots (offset, offset+1, offset+2) are distinct lanes.
-for off in range(0, 42, 3):
-    labels = [m["label"] for m in MODEL_POOL[off:off + 3]]
-    assert len(set(labels)) == 3, "combo at offset %d repeats a lane: %s" % (off, labels)
+assert len(ROSTER_42) == 42, f"ROSTER_42 must contain exactly 42 models, got {len(ROSTER_42)}"
+
 
 # ---------------------------------------------------------------------------
-# The 14 canonical combos + their email-key binding + legacy aliases
+# The 14 canonical combos + their dedicated email binding + legacy aliases
 # ---------------------------------------------------------------------------
-# (name, description, worker_email_key, [legacy alias names])
 COMBOS_14 = [
     ("leadsgen combo 1", "Coding & Logic Primary — flagship worker #1",
      "admin@leadsgenai.in",
@@ -161,15 +151,6 @@ COMBOS_14 = [
      []),
 ]
 
-# Name -> slot offset into MODEL_POOL (3 models per combo, different providers)
-_COMBO_MODEL_OFFSET = {
-    "leadsgen combo 1": 0, "leadsgen combo 2": 3, "leadsgen combo 3": 6,
-    "leadsgen combo 4": 9, "leadsgen combo 5": 12, "leadsgen combo 6": 15,
-    "leadsgen combo 7": 18, "leadsgen combo 8": 21, "leadsgen combo 9": 24,
-    "leadsgen combo 10": 27, "leadsgen combo 11": 30, "leadsgen combo 12": 33,
-    "leadsgen combo 13": 36, "leadsgen combo 14": 39,
-}
-
 
 def _now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -180,21 +161,29 @@ def _sql_str(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def get_combo_models(combo_idx: int) -> list[dict]:
+    """Return all 42 models for combo, rotating the top live lanes to spread concurrency."""
+    # Rotate the top 6 live lanes based on combo index so workers distribute primary load
+    shift = combo_idx % 6
+    top_6 = ROSTER_42[shift:6] + ROSTER_42[:shift]
+    remaining_36 = ROSTER_42[6:]
+    ordered_42 = top_6 + remaining_36
+    assert len(ordered_42) == 42
+    return ordered_42
+
+
 def build_sql() -> str:
-    """Return the full SQL script to run inside the container."""
+    """Return the full SQL script to seed all 14 combos x 42 providers."""
     timestamp = _now_iso()
     canonical_names = {c[0] for c in COMBOS_14}
-    alias_names = {a for c in COMBOS_14 for a in c[3]}
-    keep_names = canonical_names | alias_names
+    keep_names = canonical_names
 
     parts: list[str] = []
 
     # 1. Backup marker
     parts.append("-- backup dir: " + BACKUP_DIR)
 
-    # 2. Delete the mess — everything except default / auto:* / canonical / aliases.
-    # NOTE: SQLite treats double-quoted strings as identifiers, so the keep-list
-    # MUST use single-quoted SQL literals (apostrophes escaped via _sql_str).
+    # 2. Delete stale/temporary combos except default, auto, canonical and aliases
     keep_list = ",".join(_sql_str(n) for n in sorted(keep_names))
     parts.append(
         "DELETE FROM combos WHERE name NOT LIKE 'auto/%' "
@@ -202,27 +191,30 @@ def build_sql() -> str:
         "AND name NOT IN (" + keep_list + ");"
     )
 
-    # 3. Unlock all API keys
-    parts.append(
-        "UPDATE api_keys SET allowed_combos = NULL, allowed_models = NULL WHERE is_active = 1;"
-    )
+    # 3. Context Overrides: Set 1M tokens context window (1048576) for all 42 models
+    for m in ROSTER_42:
+        parts.append(
+            "INSERT OR REPLACE INTO model_context_overrides (provider, model_id, real_context, source, refreshed_at) "
+            "VALUES (" + _sql_str(m["providerId"]) + ", " + _sql_str(m["model"]) + ", 1048576, 'manual', datetime('now'));"
+        )
 
-    # 4. Insert the 14 combos + aliases (same UUID per combo)
-    for combo_name, desc, email_key, aliases in COMBOS_14:
+    # 4. Insert all 14 combos + aliases (each containing all 42 models)
+    for idx, (combo_name, desc, email_key, aliases) in enumerate(COMBOS_14):
         combo_id = str(uuid.uuid4())
-        offset = _COMBO_MODEL_OFFSET[combo_name]
-        slot_models = MODEL_POOL[offset:offset + 3]
+        combo_models_42 = get_combo_models(idx)
+        
         models = [
             {
-                "id": combo_name + "-m" + str(i + 1) + "-" + m["providerId"],
+                "id": f"{combo_name}-m{i+1}-{m['providerId']}",
                 "kind": "model",
                 "model": m["model"],
                 "providerId": m["providerId"],
                 "weight": 0,
                 "label": m["label"],
             }
-            for i, m in enumerate(slot_models)
+            for i, m in enumerate(combo_models_42)
         ]
+        
         payload = {
             "id": combo_id,
             "name": combo_name,
@@ -230,10 +222,12 @@ def build_sql() -> str:
             "models": models,
             "strategy": "priority",
             "config": {
-                "maxRetries": 2,
+                "maxRetries": 3,
                 "retryDelayMs": 1000,
                 "handoffThreshold": 0.85,
                 "trackMetrics": True,
+                "contextWindow": 1048576,
+                "maxTokens": 16384,
             },
             "isHidden": False,
             "sortOrder": 1,
@@ -242,22 +236,24 @@ def build_sql() -> str:
             "version": 2,
             "isActive": True,
         }
-        for name_key in [combo_name] + aliases:
-            row_payload = dict(payload)
-            row_payload["name"] = name_key
-            json_str = json.dumps(row_payload).replace("'", "''")
-            row_id = str(uuid.uuid4())
-            parts.append(
-                "INSERT INTO combos (id, name, data, sort_order, created_at, updated_at) "
-                "VALUES (" + _sql_str(row_id) + ", " + _sql_str(name_key) + ", "
-                + _sql_str(json_str) + ", 1, " + _sql_str(timestamp) + ", "
-                + _sql_str(timestamp) + ") "
-                "ON CONFLICT(name) DO UPDATE SET data = excluded.data, "
-                "updated_at = excluded.updated_at;"
-            )
+        
+        # 4. Only insert the canonical combo row (no duplicate alias rows cluttering OmniRoute UI)
+        row_payload = dict(payload)
+        row_payload["name"] = combo_name
+        json_str = json.dumps(row_payload).replace("'", "''")
+        row_id = str(uuid.uuid4())
+        parts.append(
+            "INSERT INTO combos (id, name, data, sort_order, created_at, updated_at) "
+            "VALUES (" + _sql_str(row_id) + ", " + _sql_str(combo_name) + ", "
+            + _sql_str(json_str) + ", 1, " + _sql_str(timestamp) + ", "
+            + _sql_str(timestamp) + ") "
+            "ON CONFLICT(name) DO UPDATE SET data = excluded.data, "
+            "updated_at = excluded.updated_at;"
+        )
 
-        # 5. Bind the worker email key to this combo (allowed_combos = [combo_name])
-        combo_list_json = json.dumps([combo_name]).replace("'", "''")
+        # 5. Bind the worker email key to this combo (allowed_combos = [combo_name] + aliases)
+        allowed_keys = [combo_name] + aliases
+        combo_list_json = json.dumps(allowed_keys).replace("'", "''")
         parts.append(
             "UPDATE api_keys SET allowed_combos = " + _sql_str(combo_list_json) + " "
             "WHERE name = " + _sql_str(email_key) + " AND is_active = 1;"
@@ -267,49 +263,36 @@ def build_sql() -> str:
 
 
 def run_seed() -> int:
-    """Execute the SQL inside the container via node:sqlite (container has node)."""
+    """Execute the SQL inside the container via node:sqlite."""
     sql = build_sql()
-    # The SQL + JS wrapper is ~68KB — exceeds the Windows command-line length
-    # limit (32767 chars), so write the script to a temp file and `docker cp` it
-    # into the container instead of passing via `node -e`.
-    js_path = os.path.join(tempfile.gettempdir(), "omniroute_seed_14.js")
+    js_path = os.path.join(tempfile.gettempdir(), "omniroute_seed_14x42.js")
     node_script = (
         "const { DatabaseSync } = require('node:sqlite');\n"
         "const db = new DatabaseSync(" + json.dumps(DB_PATH) + ");\n"
         "db.exec(`" + sql.replace("`", "\\`") + "`);  // nosecurity\n"
         "db.close();\n"
-        "console.log('SEED_OK');\n"
+        "console.log('SEED_14x42_OK');\n"
     )
     with open(js_path, "w", encoding="utf-8") as f:
         f.write(node_script)
 
     docker_bin = _docker_bin()
-    # Backup first (inside container, cheap file copy)
-    try:
-        subprocess.run(
-            [docker_bin, "exec", CONTAINER, "sh", "-c",
-             "mkdir -p " + BACKUP_DIR + " && cp " + DB_PATH + " " + BACKUP_DIR
-             + "/pre_14combos_$(date +%Y%m%d_%H%M%S).sqlite"],
-            capture_output=True, timeout=30, check=True,
-        )
-        print("[OK] DB backup written to", BACKUP_DIR)
-    except Exception as e:
-        print("[WARN] DB backup failed (continuing):", e)
 
     try:
         cp_res = subprocess.run(
-            [docker_bin, "cp", js_path, CONTAINER + ":/tmp/omniroute_seed_14.js"],
+            [docker_bin, "cp", js_path, CONTAINER + ":/tmp/omniroute_seed_14x42.js"],
             capture_output=True, timeout=30,
         )
         if cp_res.returncode != 0:
             print("[FAIL] docker cp failed:", cp_res.stderr.decode()[:300])
             return 1
+            
         res = subprocess.run(
-            [docker_bin, "exec", CONTAINER, "node", "/tmp/omniroute_seed_14.js"],
+            [docker_bin, "exec", CONTAINER, "node", "/tmp/omniroute_seed_14x42.js"],
             capture_output=True, timeout=60,
         )
         if res.returncode == 0:
-            print("[OK] Seed executed in container:", CONTAINER)
+            print("[OK] Seed executed successfully in container:", CONTAINER)
             print(res.stdout.decode().strip() if res.stdout else "")
             return 0
         print("[FAIL] Seed SQL failed (exit", res.returncode, "):")

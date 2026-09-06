@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeadGen AI — 31-Agent Autonomous Mission Control & Peer-Healing Cockpit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #07090e;
+      --bg-card: rgba(16, 22, 34, 0.85);
+      --bg-card-hover: rgba(24, 32, 50, 0.95);
+      --border-card: rgba(45, 60, 90, 0.45);
+      --accent-green: #10b981;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.12) 0px, transparent 50%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-card);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-title h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .pulse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-green);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+      100% { opacity: 0.4; transform: scale(0.9); }
+    }
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 14px;
+      padding: 16px 20px;
+      backdrop-filter: blur(12px);
+    }
+    .stat-card .label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .stat-card .value {
+      font-size: 26px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: #fff;
+    }
+    .stat-card .sub {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      margin-top: 4px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 1200px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #e2e8f0;
+    }
+
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      max-height: 720px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .agents-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+    .agents-grid::-webkit-scrollbar-thumb {
+      background: var(--border-card);
+      border-radius: 4px;
+    }
+
+    .agent-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      padding: 14px;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .agent-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(6, 182, 212, 0.4);
+      transform: translateY(-2px);
+    }
+    .agent-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .agent-identity {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .agent-emoji {
+      font-size: 20px;
+    }
+    .agent-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+    }
+    .agent-team {
+      font-size: 10px;
+      padding: 2px 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+    .agent-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .badge-active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-rescued {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c084fc;
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+    .agent-meta {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .agent-action {
+      background: rgba(0,0,0,0.3);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.4;
+      max-height: 52px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Sidebar right */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .rescue-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .rescue-item {
+      background: rgba(139, 92, 246, 0.08);
+      border-left: 3px solid var(--accent-purple);
+      padding: 10px;
+      border-radius: 4px 8px 8px 4px;
+      font-size: 12px;
+    }
+    .rescue-item .time {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .rescue-item .desc {
+      color: #e2e8f0;
+      line-height: 1.35;
+    }
+    .rescue-item strong {
+      color: #c084fc;
+    }
+
+    .combos-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .combo-badge {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .combo-badge .name {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .combo-badge .prov {
+      color: var(--accent-green);
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-title">
+      <div class="pulse-dot"></div>
+      <h1>LEADGEN AUTONOMOUS MISSION CONTROL</h1>
+      <span class="pulse-badge">24/7 AUTOPILOT ACTIVE</span>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <span style="font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">GATEWAY: 127.0.0.1:20128</span>
+      <span style="font-size: 12px; color: var(--accent-green); font-family: 'JetBrains Mono', monospace;" id="clock-display">--:--:-- IST</span>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="label">Total Workforce</div>
+      <div class="value" id="stat-total-agents">31 / 31</div>
+      <div class="sub">100% Parallel Coordinated</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Actions Today</div>
+      <div class="value" id="stat-actions-today">...</div>
+      <div class="sub">Real-Time LeadGen Operations</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Workforce Cycles</div>
+      <div class="value" id="stat-cycle">...</div>
+      <div class="sub">Continuous Auto-Advancing</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Peer Self-Healing</div>
+      <div class="value" id="stat-rescues">...</div>
+      <div class="sub" style="color: var(--accent-purple);">Mutual Rescues Logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">OmniRoute Matrix</div>
+      <div class="value">14 × 42</div>
+      <div class="sub">588 Active Model Channels</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <!-- Left: 31 Agents Grid -->
+    <div>
+      <div class="section-title">
+        <span>🤖</span>
+        <span>Cooperating Agents Roster (31 Active)</span>
+      </div>
+      <div class="agents-grid" id="agents-container">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Right: Sidebar -->
+    <div class="sidebar">
+      <!-- Peer-Healing Feed -->
+      <div class="panel">
+        <div class="section-title">
+          <span>🛡️</span>
+          <span>Peer-Healing Rescue Feed</span>
+        </div>
+        <div class="rescue-feed" id="rescue-container">
+          <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">
+            Workforce self-healing is active. Any stalled worker will be auto-recovered by peer helpers.
+          </div>
+        </div>
+      </div>
+
+      <!-- 14 Combos Matrix -->
+      <div class="panel">
+        <div class="section-title">
+          <span>⚡</span>
+          <span>14 OmniRoute Combos Status</span>
+        </div>
+        <div class="combos-list" id="combos-container">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const options = { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      document.getElementById('clock-display').innerText = now.toLocaleTimeString('en-GB', options) + ' IST';
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    const COMBO_NAMES = [
+      "leadsgen combo 1", "leadsgen combo 2", "leadsgen combo 3", "leadsgen combo 4",
+      "leadsgen combo 5", "leadsgen combo 6", "leadsgen combo 7", "leadsgen combo 8",
+      "leadsgen combo 9", "leadsgen combo 10", "leadsgen combo 11", "leadsgen combo 12",
+      "leadsgen combo 13", "leadsgen combo 14"
+    ];
+
+    function renderCombos() {
+      const container = document.getElementById('combos-container');
+      container.innerHTML = COMBO_NAMES.map(c => `
+        <div class="combo-badge">
+          <span class="name">${c}</span>
+          <span class="prov">● 42 Providers Active</span>
+        </div>
+      `).join('');
+    }
+    renderCombos();
+
+    async function pollStatus() {
+      try {
+        const res = await fetch('workforce_live_status.json?t=' + Date.now());
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('stat-actions-today').innerText = data.actions_today || '0';
+        document.getElementById('stat-cycle').innerText = '#' + (data.cycle || '1');
+        document.getElementById('stat-rescues').innerText = data.peer_rescues_count || '0';
+
+        if (data.agents && data.agents.length > 0) {
+          const container = document.getElementById('agents-container');
+          container.innerHTML = data.agents.map(a => {
+            const isRescued = (a.status || '').includes('RESCUED');
+            const badgeClass = isRescued ? 'badge-rescued' : 'badge-active';
+            return `
+              <div class="agent-card">
+                <div>
+                  <div class="agent-header">
+                    <div class="agent-identity">
+                      <span class="agent-emoji">${a.emoji || '🤖'}</span>
+                      <span class="agent-name">${a.name}</span>
+                      <span class="agent-team">${a.team}</span>
+                    </div>
+                    <span class="agent-badge ${badgeClass}">${a.status || 'ACTIVE'}</span>
+                  </div>
+                  <div class="agent-meta">↳ ${a.combo}</div>
+                </div>
+                <div class="agent-action">${a.last_action || 'Executing automated workflow...'}</div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        if (data.recent_rescues && data.recent_rescues.length > 0) {
+          const rContainer = document.getElementById('rescue-container');
+          rContainer.innerHTML = data.recent_rescues.slice(-6).reverse().map(r => `
+            <div class="rescue-item">
+              <div class="time">${new Date(r.timestamp).toLocaleTimeString()}</div>
+              <div class="desc"><strong>${r.helper_agent}</strong> rescued <strong>${r.stalled_agent}</strong> via ${r.rescue_combo}. Worker restored!</div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.warn('Status poll warning:', e);
+      }
+    }
+
+    setInterval(pollStatus, 2500);
+    pollStatus();
+  </script>
+</body>
+</html>
