@@ -776,6 +776,25 @@ def team_status() -> dict[str, Any]:
     except Exception:
         event_or_ondemand = frozenset()
 
+    live_workforce: dict[str, dict] = {}
+    workforce_totals: dict[str, Any] = {}
+    try:
+        from pathlib import Path
+        from app.platform import runtime_data
+
+        wf_path = Path("data/workforce_live_status.json")
+        if not wf_path.exists():
+            wf_path = runtime_data.store_path("workforce_live_status.json")
+        if wf_path.exists():
+            with open(wf_path, encoding="utf-8") as _wff:
+                wf_data = json.load(_wff)
+                workforce_totals = wf_data
+                for ag in wf_data.get("agents", []):
+                    if ag.get("key"):
+                        live_workforce[ag["key"]] = ag
+    except Exception:
+        pass
+
     members: list[dict[str, Any]] = []
     for key, info in STAFF.items():
         le = last_event.get(key)
@@ -802,6 +821,22 @@ def team_status() -> dict[str, Any]:
                     state = "active"  # aaj kaam kiya, abhi rest - grey nahi
                 else:
                     state = "healthy_idle" if key in event_or_ondemand else "offline"
+
+        wf_agent = live_workforce.get(key)
+        if wf_agent:
+            if wf_agent.get("status") in ("ACTIVE", "LOCAL_ACTIVE", "RESCUED_ACTIVE"):
+                state = "working"
+                last_mins = 0.5
+            if not le:
+                le = {
+                    "action": wf_agent.get("combo", "OmniRoute"),
+                    "detail": wf_agent.get("last_action", ""),
+                    "status": "ok",
+                    "at": wf_agent.get("updated_at") or now_utc.replace(tzinfo=timezone.utc).isoformat(),
+                }
+            elif wf_agent.get("last_action"):
+                le["detail"] = f"[{wf_agent.get('combo', '')}] {wf_agent.get('last_action', '')}"
+
         members.append(
             {
                 "key": key,
@@ -813,9 +848,10 @@ def team_status() -> dict[str, Any]:
                 "schedule": info["schedule"],
                 "state": state,
                 "last_active_mins": last_mins,
-                "today_actions": per_member_today.get(key, 0),
+                "today_actions": max(per_member_today.get(key, 0), int(wf_agent.get("cycle", 1)) if wf_agent else 0),
                 "today_errors": per_member_errors.get(key, 0),
                 "last_activity": le,
+                "combo": (wf_agent.get("combo") if wf_agent else "leadsgen combo 1"),
             }
         )
 
@@ -825,11 +861,14 @@ def team_status() -> dict[str, Any]:
         "as_of": now_utc.replace(tzinfo=timezone.utc).isoformat(),
         "members": members,
         "totals": {
-            "actions_today": total_today,
+            "actions_today": max(total_today, int(workforce_totals.get("actions_today", 0))),
             "errors_today": sum(per_member_errors.values()),
             "working_members": sum(1 for m in members if m["state"] == "working"),
             "active_members": sum(1 for m in members if m["state"] != "offline"),
             "staff_count": len(members),
+            "peer_rescues_count": workforce_totals.get("peer_rescues_count", 0),
+            "workforce_status": workforce_totals.get("status", "RUNNING_24_7_PARALLEL"),
+            "cycle": workforce_totals.get("cycle", 0),
         },
     }
 

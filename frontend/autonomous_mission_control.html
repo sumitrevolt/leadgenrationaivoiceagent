@@ -308,6 +308,11 @@
     </div>
   </div>
 
+  <!-- Fleet liveness banner (mirrors scripts/workforce_staleness_watchdog.py semantics):
+       fresh = hidden · >15 min since last cycle write = STALE · status file unreachable = MISSING -->
+  <div id="staleness-banner" style="display:none; margin: 12px 24px 0; padding: 10px 16px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+  </div>
+
   <div class="stats-bar">
     <div class="stat-card">
       <div class="label">Total Workforce</div>
@@ -403,11 +408,42 @@
     }
     renderCombos();
 
+    const STALE_THRESHOLD_S = 900; // keep in sync with scripts/workforce_staleness_watchdog.py
+
+    function setStalenessBanner(state, detail) {
+      const el = document.getElementById('staleness-banner');
+      if (state === 'ok') { el.style.display = 'none'; el.innerHTML = ''; return; }
+      el.style.display = 'block';
+      if (state === 'stale') {
+        el.style.background = 'rgba(255,170,0,0.12)';
+        el.style.border = '1px solid #ffaa00';
+        el.style.color = '#ffcc66';
+        el.innerHTML = `⚠️ FLEET STATUS STALE — last cycle write ${detail} ago (threshold ${STALE_THRESHOLD_S / 60} min). Orchestrator may be hung. Fix: scripts\\ensure_workforce_orchestrator.ps1`;
+      } else {
+        el.style.background = 'rgba(255,68,68,0.12)';
+        el.style.border = '1px solid #ff4444';
+        el.style.color = '#ff8888';
+        el.innerHTML = '🚨 FLEET STATUS MISSING — workforce_live_status.json unreachable. Orchestrator not running. Fix: scripts\\ensure_workforce_orchestrator.ps1';
+      }
+    }
+
     async function pollStatus() {
       try {
         const res = await fetch('workforce_live_status.json?t=' + Date.now());
-        if (!res.ok) return;
+        if (!res.ok) {
+          setStalenessBanner('missing');
+          return;
+        }
         const data = await res.json();
+
+        const ageS = data.timestamp ? (Date.now() - new Date(data.timestamp).getTime()) / 1000 : null;
+        if (ageS === null || isNaN(ageS)) {
+          setStalenessBanner('stale', 'unknown');
+        } else if (ageS > STALE_THRESHOLD_S) {
+          setStalenessBanner('stale', Math.round(ageS / 60) + ' min');
+        } else {
+          setStalenessBanner('ok');
+        }
 
         document.getElementById('stat-actions-today').innerText = data.actions_today || '0';
         document.getElementById('stat-cycle').innerText = '#' + (data.cycle || '1');
@@ -448,6 +484,7 @@
         }
       } catch (e) {
         console.warn('Status poll warning:', e);
+        setStalenessBanner('missing');
       }
     }
 

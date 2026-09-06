@@ -12,6 +12,47 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# --------------------------------------------------------------------------
+# Opt-out authority (OPS-012b — REVISED 2026-09-07, cycle 6)
+#
+# There is exactly ONE canonical cross-channel opt-out/suppression authority in
+# this codebase: app/telephony/consent_ledger.py. It is DB-backed when
+# CONSENT_DB=1, falls back to data/compliance/voice_suppression.jsonl, and is
+# FAIL-CLOSED when the list cannot be resolved. It is what
+# app/integrations/whatsapp.py::send_permitted() -> opt_out_permits() already
+# consults on every automated WhatsApp send.
+#
+# A previous revision of this file created a SECOND store
+# (data/dnd_optouts.jsonl). That was a duplicate workflow and it was REMOVED in
+# cycle 6: two opt-out lists means two places to forget to check, and the one
+# you forget is the one that gets you fined. DNDChecker now DELEGATES.
+#
+# Layering (unchanged): opt-out beats cache beats provider. A recorded STOP must
+# never be overridden by a stale cached "not DND" or by any registry result.
+# --------------------------------------------------------------------------
+OPTOUT_SOURCE = "consent_ledger_optout"
+
+
+def _suppression_authority():
+    """Return the canonical opt-out ledger module (lazy import: no import cycle)."""
+    from app.telephony import consent_ledger
+
+    return consent_ledger
+
+
+def _is_suppressed(phone: str) -> bool:
+    """True if the canonical ledger says this number opted out. FAIL-CLOSED.
+
+    An unreachable authority must never be answered as "did not opt out" — the
+    caller is about to decide whether to contact somebody. `is_suppressed()`
+    already fails closed; an exception here is logged and treated the same way.
+    """
+    try:
+        return bool(_suppression_authority().is_suppressed(phone))
+    except Exception as e:  # noqa: BLE001 - authority must never break the gate
+        logger.error(f"Opt-out authority unavailable for ***{str(phone)[-4:]}: {e}")
+        return True
+
 
 @dataclass
 class DNDCheckResult:
@@ -62,6 +103,18 @@ class DNDChecker:
         Returns:
             DNDCheckResult with DND status
         """
+        # Canonical opt-out ledger wins over EVERYTHING (cache, provider, carrier).
+        # A recorded STOP must never be overridden by a stale cached "not DND".
+        if _is_suppressed(phone):
+            return DNDCheckResult(
+                phone=phone,
+                is_dnd=True,
+                checked_at=datetime.now(),
+                source=OPTOUT_SOURCE,
+                category="opt_out",
+                verified=True,
+            )
+
         # Check cache first
         cached = self._get_from_cache(phone)
         if cached:
@@ -224,7 +277,12 @@ class DNDChecker:
 
     def add_to_local_dnd(self, phone: str, category: str = "user_request"):
         """
-        Add a number to local DND list (user opt-out)
+        Add a number to local DND list (user opt-out) — DURABLE via consent_ledger.
+
+        Writes through to the CANONICAL cross-channel suppression authority, so
+        the opt-out survives restarts, is honoured on every channel (voice +
+        WhatsApp), and never expires. The 7-day in-memory entry is kept only as
+        a fast read path. Idempotent: re-adding is a no-op downstream.
 
         Args:
             phone: Phone number
@@ -233,41 +291,101 @@ class DNDChecker:
         self._cache[phone] = DNDCheckResult(
             phone=phone, is_dnd=True, checked_at=datetime.now(), source="local", category=category
         )
-
+        try:
+            # record_opt_out returns {"phone":..., "suppressed": bool, ...}.
+            res = _suppression_authority().record_opt_out(
+                phone, reason=category or "user_request", channel="dnd_local"
+            )
+            if isinstance(res, dict) and res.get("suppressed") is False:
+                logger.error(
+                    f"Opt-out NOT persisted for ***{str(phone)[-4:]} — consent_ledger "
+                    "reported suppressed=False. Treat as a compliance incident."
+                )
+        except Exception as e:  # noqa: BLE001 - never break the STOP handler
+            logger.error(f"Opt-out persistence FAILED for ***{str(phone)[-4:]}: {e}")
         logger.info(f"Added ***{str(phone)[-4:]} to local DND list: {category}")
 
     def remove_from_local_dnd(self, phone: str):
-        """Remove a number from local DND list"""
+        """Clear the IN-MEMORY entry only. This does NOT lift a real opt-out.
+
+        Lifting a user's opt-out is an authorised, evidenced action (documented
+        re-consent), never a side effect of a cache clear — use
+        ``consent_ledger.opt_back_in()`` with the consent record. Lifting it
+        silently here would be the easiest way in this codebase to re-contact
+        somebody who said STOP.
+        """
         if phone in self._cache:
             del self._cache[phone]
-            logger.info(f"Removed ***{str(phone)[-4:]} from local DND list")
+        logger.warning(
+            f"Removed in-memory entry for ***{str(phone)[-4:]} — the durable opt-out "
+            "in consent_ledger is UNCHANGED; lift it only via opt_back_in()."
+        )
+
+    def is_opted_out(self, phone: str) -> bool:
+        """True if the canonical ledger records an opt-out for this number."""
+        return _is_suppressed(phone)
 
     def export_local_dnd(self) -> list[dict]:
-        """Export local DND list for backup"""
-        return [
-            {
-                "phone": result.phone,
-                "is_dnd": result.is_dnd,
-                "checked_at": result.checked_at.isoformat(),
-                "source": result.source,
-                "category": result.category,
-            }
-            for result in self._cache.values()
-            if result.is_dnd and result.source == "local"
-        ]
+        """Export the DURABLE opt-out list (canonical ledger + memory fallback)."""
+        rows: list[dict] = []
+        try:
+            for rec in _suppression_authority().suppression_list():
+                rows.append(
+                    {
+                        "phone": rec.get("phone"),
+                        "is_dnd": True,
+                        "checked_at": (
+                            rec.get("ts") or rec.get("at") or rec.get("created_at") or ""
+                        ),
+                        "source": "local",
+                        "category": rec.get("reason") or rec.get("channel") or "opt_out",
+                    }
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Could not read canonical suppression list: {e}")
+        # Backwards-compatible: include in-memory-only entries not yet persisted.
+        for result in self._cache.values():
+            if result.is_dnd and result.source == "local":
+                if not any(str(r["phone"]) == str(result.phone) for r in rows):
+                    rows.append(
+                        {
+                            "phone": result.phone,
+                            "is_dnd": True,
+                            "checked_at": result.checked_at.isoformat(),
+                            "source": result.source,
+                            "category": result.category,
+                        }
+                    )
+        return rows
 
     def import_local_dnd(self, data: list[dict]):
-        """Import local DND list from backup"""
+        """Import opt-outs into the CANONICAL ledger — never a second store."""
+        count = 0
         for item in data:
-            self._cache[item["phone"]] = DNDCheckResult(
-                phone=item["phone"],
+            phone = item.get("phone")
+            if not phone:
+                continue
+            raw_ts = item.get("checked_at") or ""
+            try:
+                ts = datetime.fromisoformat(raw_ts) if raw_ts else datetime.now()
+            except ValueError:
+                ts = datetime.now()
+            self._cache[phone] = DNDCheckResult(
+                phone=phone,
                 is_dnd=True,
-                checked_at=datetime.fromisoformat(item["checked_at"]),
+                checked_at=ts,
                 source="local",
                 category=item.get("category"),
             )
+            try:
+                _suppression_authority().record_opt_out(
+                    phone, reason=item.get("category") or "user_request", channel="dnd_import"
+                )
+                count += 1
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"Opt-out import failed for ***{str(phone)[-4:]}: {e}")
 
-        logger.info(f"Imported {len(data)} numbers to local DND list")
+        logger.info(f"Imported {len(data)} numbers to local DND list ({count} newly persisted)")
 
     @classmethod
     def get_compliance_message(cls) -> str:

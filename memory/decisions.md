@@ -2836,7 +2836,9 @@ Current production is **byte-identical to the original state**, and `REPLY_AUTO_
 
 **Consequence:** BOSS_FULL_AUTONOMY + BOSS_DECISION_GOVERNANCE remain OFF (inert). manager rollout = held. Production canary execute step gated on obsidian advice + a dedicated mutating canary promotion.
 
-**ADR-186 — Ops MCP tools (/api/ops/*) LIVE (2026-08-23).** Owner-approved ("sab karo"). PR #432 merged, prod f1153e9. /api/ops/hotqueue + /api/ops/hotqueue/action (done/park) + /api/ops/revenue-summary = thin admin surfaces REUSE-ing eply_agent + gst_invoice engines (zero logic dup). 	ag=Platform => existing /mcp fastapi-mcp mount auto-exposes them as MCP tools; auth double-layered (route equire_admin + /mcp Bearer/IP fail-closed middleware). Verified: unauth=401 both, 9 tests green, ruff+prod_check+API.md synced. Rollback: main.py include-block hatao. Note: mcp_keys store EMPTY = B2B product layer armed par koi customer key issued nahi (dormant revenue line, jab pehla customer aaye tab issue karo).
+**ADR-186 — Ops MCP tools (/api/ops/*) LIVE (2026-08-23).** Owner-approved ("sab karo"). PR #432 merged, prod f1153e9. /api/ops/hotqueue + /api/ops/hotqueue/action (done/park) + /api/ops/revenue-summary = thin admin surfaces REUSE-ing 
+eply_agent + gst_invoice engines (zero logic dup). 	ag=Platform => existing /mcp fastapi-mcp mount auto-exposes them as MCP tools; auth double-layered (route 
+equire_admin + /mcp Bearer/IP fail-closed middleware). Verified: unauth=401 both, 9 tests green, ruff+prod_check+API.md synced. Rollback: main.py include-block hatao. Note: mcp_keys store EMPTY = B2B product layer armed par koi customer key issued nahi (dormant revenue line, jab pehla customer aaye tab issue karo).
 
 **ADR-187 — HARNESS_SESSION_EVENTS=1 ARMED (2026-08-23).** Owner-approved flag flip (pehla non-INERT harness observability step; ADR-180 ka "DO NOT ARM" gate se owner ne permission di). Backup .env.bak-harness-20260822201443. Hash-chained SessionEvent traces (session.py seq/prev_hash/event_hash SHA-256) ab prod me record honge; AGENT_HARNESS executor loop STILL OFF (wo alag owner gate hai). Maturity impact: OB-01 partial→live = L2-L3 → L3 path. Rollback: .env restore backup + container recreate.
 
@@ -2885,3 +2887,28 @@ Current production is **byte-identical to the original state**, and `REPLY_AUTO_
 **Consequence:** Agents can now query a symptom → get classed runbook + playbook + incident + truth bundle (knowledge_query.py). Compliance/irreversible runbooks are RED (human-only); fail-closed on unknown. Execution authority unchanged (Owner OS + permissions + sandbox; Notebook is knowledge-only). Rollback: delete ops/, notebook_exports/, incidents/TEMPLATE.md, scripts/*knowledge*, tests/test_knowledge_os.py.
 
 **Verification:** 12/12 pytest green · validator 0 errors · acceptance A-D ✓ · check_secrets 131 files clean.
+
+## ADR-190 — Workforce orchestrator self-heal chain: keepalive + staleness watchdog + dashboard truth (2026-09-06, LOCAL dev-machine ops)
+
+**Decision:** 31-agent workforce orchestrator (`scripts/autonomous_workforce_orchestrator.py`, `while True` daemon, ~15s cycles) ko 3-layer self-heal chain diya, sab repo-conventions copy karke (koi naya engine/dashboard/watchdog-pattern NAHI):
+1. `scripts/ensure_workforce_orchestrator.ps1` — idempotent ensure (Win32_Process cmdline match = evidence-first liveness; running=no-op, missing=detached hidden start). Task Scheduler task `LeadGen-Workforce-Orchestrator-Keepalive` (every 5 min, pattern = `register_omniroute_watchdog.ps1`). Rollback: `-Unregister`.
+2. `scripts/workforce_staleness_watchdog.py` + 6 hermetic tests — progress-signal check: dual-write status files ka NEWEST mtime > 900s = ntfy alert-once + exit 1; recovery ping; missing file = exit 2 urgent. State machine = `omniroute_combo_watchdog.py` copy; alert sink = `app/integrations/ntfy.py` (gated, never-raises, unset=print-only). Dono branches (no-op + restart) me ensure-script se wire.
+3. `frontend/autonomous_mission_control.html` additive staleness banner — fresh=hidden · >15 min=amber STALE+fix-cmd · unreachable=red MISSING+fix-cmd (SRE symptom-oriented black-box pattern; dashboard silently-stale jhoot band).
+
+**Context:** Loop 1 me orchestrator DEAD mila (status 6.5h stale; prior loop ka "daemon running" claim false — session ke saath mar gaya). Process-liveness-only keepalive ka blind spot = alive-but-hung; dono failure modes ab covered. Real-window proof: orchestrator beech me ek baar restart hua aur keepalive chain (result=0, 0 misses) ke neeche wapas chal pada.
+
+**Alternatives rejected:** Naya orchestrator/watchdog/dashboard banana (duplicate-engine risk, CURRENT_STATE verdict) · orchestrator ko Windows-service banana (heavy, Task Scheduler kaafi hai) · mtime ki jagah content-hash (mtime hi progress signal hai, orchestrator har cycle rewrite karta hai).
+
+**Consequence:** Fleet liveness ab process + progress + dashboard teen layers pe observable. Phone-push NTFY_URL/NTFY_TOPIC env me set hone pe active hoga (abhi print-only local). Scheduled task current-user context me hai — reboot ke baad ≤5 min self-heal. Orchestrator script rename = keepalive loud-fail (silent nahi).
+
+**Verification:** ensure no-op live (exit 0) · task State=Ready + manual fire → status advance · forced-stale (30-min temp file) → alert exit 1 · node DOM-stub teeno banner branches true · 6/6 pytest · ruff clean · prod_check PASS · check_secrets clean. Loop ledger: progress.md Loop Runs 1-4 (2026-09-06).
+
+## ADR-191 — OmniRoute readiness separates gateway health from desktop authentication (2026-09-06, LOCAL)
+
+**Decision:** `scripts/omniroute_self_healing_watchdog.py` ab five-app config presence aur local gateway canary ke saath separate presence-only `DesktopAuth` gate report karta hai. Kisi known desktop config me `OMNIROUTE_API_KEY` reference ho aur active environment me variable absent ho, to cycle fail-closed `DesktopAuth=False`, `ALL_HEALTHY=False` aur exit 1 deta hai. Secret value kabhi log/read/copy nahi hoti; self-healer missing credential invent nahi karta.
+
+**Why:** DeepSeek Harness screenshot ne `MISSING_CREDENTIAL` prove kiya jab existing watchdog `ALL_HEALTHY=True` bol raha tha. Root cause split readiness tha: loopback gateway anonymous synthetic canary accept karta hai, par desktop profile env-key presence require karta hai. Gateway availability ko desktop authentication proof maana ja raha tha.
+
+**Operational consequence:** Scheduler red rehna expected hai jab tak owner exposed historical key revoke/rotate karke replacement approved credential store me provision nahi karta. `OPS-013` canonical task ledger me P0/BLOCKED hai. Post-rotation proof = ek natural scheduler cycle with `DesktopAuth=True`, `ALL_HEALTHY=True`, result 0; key value kisi evidence me nahi.
+
+**Verification:** red-first 3 tests failed on missing API, then 11 targeted pass; complete OmniRoute suite 78 passed + 3 documented xfails; ruff clean; prod_check pass; changed-file secrets scan and thousand-engineers preflight pass. Natural 22:12 cycle: Gateway/MemoryGuard/five configs/Canary true, DesktopAuth false, terminal scheduler result 1.

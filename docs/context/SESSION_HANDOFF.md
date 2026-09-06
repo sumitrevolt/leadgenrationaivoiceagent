@@ -1,102 +1,78 @@
-# SESSION HANDOFF — 2026-09-05 (Freebuff autopilot: hardening sweep + OmniRoute 14-combo rebuild + worker routing)
+# SESSION HANDOFF — 2026-09-07 (Latest: central-ledger stale-state normalization)
 
-> Autopilot mode (owner: "jo best hai wo karo, don't ask, keep going"). Four
-> workstreams completed: revenue-conversion hardening, squad/owner_admin repair,
-> the OmniRoute 14-combo canonical rebuild, and app/platform worker routing onto
-> the canonical 14-combo map. All changes LOCAL-ONLY (not committed/pushed — §8
-> owner gate).
+## Latest loop — 04:35 IST council truth refresh
+- Current local runtime: OmniRoute `/v1/models` 200 with 14/14 combos, image 3.8.46, memory ~62%/2GiB, OOM=false, restart=0. Credential presence false in Process/User/Machine, so scheduled result 1 remains expected `DesktopAuth=False`; alert-once state reached fails=65 without repeat alerts.
+- Workforce keepalive result 0/missed 0; status cycle 194, 31/31 active. Canonical ledger 38 tasks, 9 bots, duplicate IDs 0.
+- Root cause of misleading Kanban activity: six `RUNNING/UPDATE` rows were 1–5 days overdue with no fresh evidence. Existing `council_ledger_sync.py` now marks only overdue active rows stale after a 6h evidence grace; blocked/standby/done/closed remain untouched.
+- Red-first 2 failures, then 3 council tests pass. Apply backups `*-20260907-043538`; immediate second dry-run no stale changes/new messages. Stale rows: OPS-006, SUC-002, GRD-004, OPS-007, BRD-003, SAL-007. Current owner lanes remain OPS-009/SUC-004/GRD-005/SAL-006; no duplicate task/workflow/dashboard.
+- Human-readable `docs/coordination/CENTRAL_LEDGER.md` header/delta refreshed without rewriting unverified VPS/revenue snapshots. OPS-013 owner-only rotation/provisioning remains open.
 
-## What shipped this session (verified)
+## Concurrent OPS-014 security review — 04:47 IST
+- Parallel worker added distinct OPS-014 (workers 8→4 + one 2s retry on 503), taking canonical count to 39. Its initial resolver attempted raw key extraction from gateway SQLite/Docker, conflicting with OPS-013 credential ownership.
+- Red test first false-greened because broad exception handling swallowed the assertion; call-observation then proved one extraction attempt. Extraction branches removed; only explicit per-combo/global env credentials are accepted. Four hermetic contracts pass.
+- Existing orchestrator was controlled-restarted through `ensure_workforce_orchestrator.ps1` to load the security fix. Apparent two Python PIDs were verified parent→child (venv launcher PID 35624 → Hermes runtime PID 29736), one logical daemon—not duplicate orchestration.
+- New cycle logs 403 and documented local fallback; no real inference claimed. OPS-014 marked BLOCKED on OPS-013 with owner/evidence/handoff. Compliance worker narrative reused OPS-013/014 labels, but canonical machine JSON remains authoritative; those narrative labels must not overwrite canonical OmniRoute/workforce rows.
 
-### Workstream A — revenue conversion (session 1)
-| Change | File | Status |
-|---|---|---|
-| Telephony readiness false-green FIX | `app/telephony/telephony_readiness.py` | ✅ `outbound_probe` no longer hardcoded `True`; consults `verify_outbound_connectivity()` when `VOBIZ_VERIFY_CALLER_ID_OUTBOUND=1`, weight=0 when unarmed |
-| Trial nudge conversion upgrade | `app/billing/trial_nudge.py` | ✅ UPI deep-link in body (`pay_link` param), "100+ businesses" social proof, "aaj" urgency ≤1 day |
-| Whitespace/import-sort cleanup | 5 files (`daily_social_post`, `social_post_beats`, `video_generator`, `video_pipeline`, `natural_dialog`) | ✅ W293/W291/I001 fixed |
+## Latest loop — OPS-013 alert noise containment
+- `scripts/omniroute_self_healing_watchdog.py` ab missing desktop credential par ek sanitized transition alert aur credential wapas aane par ek recovery alert deta hai; har 5-minute cycle me duplicate warning nahi. State `data/omniroute_desktop_auth_state.json` me hai (gitignored), credential value kabhi persist/log nahi hoti.
+- Red-first contracts pehle 3 expected failures the; implementation ke baad complete OmniRoute suite 75 passed + 3 documented xfails. Ruff aur secrets gate pass.
+- 23:07 aur 23:12 natural scheduler cycles result 1/missed 0: gateway/memory/five configs/canary true, DesktopAuth false. State `fails=1` se `fails=2` hua par sanitized alert count exactly 1 raha—duplicate suppression live-proven. OPS-013 existing task hi update hua; koi duplicate task/workflow/dashboard nahi.
+- Owner-only blocker unchanged: exposed historical credential ko revoke/rotate karke approved credential store me replacement provision karna. Next natural cycle recovery/result 0 prove karega.
 
-### Workstream B — squad/owner_admin repair (session 2)
-| Change | File | Status |
-|---|---|---|
-| Star-imports → explicit imports + dispatch rewrite | `app/platform/owner_admin.py` | ✅ `cmd_squad_task` previously NameError on ALL 11 squads (`squad_voice_calling()` as callable); now calls real functions |
-| Removed machine-specific sys.path | `app/platform/owner_admin.py` | ✅ `/opt/leadgen` + `C:\Users\Ratanshila\.openclaw\workspace` hardcoded paths deleted |
-| Stale import removed | `app/platform/squad_voice_calling.py` | ✅ `STAFF_JOBS_VALID` (gone from team_scheduler); async wrapped via `_run_async` |
-| Lazy defensive imports | `app/platform/squad_knowledge.py` | ✅ `gen_domain_briefs`/`validate_full_os` never existed; now `run()`/`main()` |
+## Latest loop — ledger duplicate-note repair
+- `scripts/council_ledger_sync.py` blocked reasons har apply par duplicate append karta tha; task IDs stable hone ke bawajood content idempotent nahi tha.
+- Red-first `tests/test_council_ledger_sync.py` reproduced marker count 3. Fix exact note segments order-preserving dedupe karta hai, timestamp sirf real change par update karta hai, second run `NO-OP GATE` bolta hai.
+- Canonical local apply backups `*-20260906-222244` bana kar 10 affected tasks normalize hua. Immediate dry-run: 10/10 no-op, 38 tasks, 9 bots, 0 duplicate IDs, 0 new messages. No external send/deploy.
+- Preflight ruff/secrets/pytest pass; prod_check pass. OmniRoute 22:22 cycle still honest expected red only on `DesktopAuth=False`; gateway/memory/config/canary healthy. Workforce result 0/rc 0.
 
-### Tests added
-- `tests/test_owner_admin_squad_dispatch.py` (NEW, 6 tests)
-- `tests/test_telephony_readiness_run_checks.py` (NEW, 5 tests)
-- `tests/test_trial_nudge.py` (+4 pay_link/urgency tests)
-- `tests/test_omniroute_canonical_combos.py` (NEW, 6 tests)
-- `tests/test_omniroute_combo_watchdog.py` (NEW, 4 tests)
-### Workstream C — OmniRoute 14-combo canonical rebuild (session 3)
-| Change | File | Status |
-|---|---|---|
-| Canonical 14-combo seed | `scripts/seed_omniroute_14combos.py` (NEW) | ✅ deletes 67-combo mess (backup first), inserts `leadsgen combo 1..14` + 38 legacy aliases (same UUID), binds each combo to ONE email key, idempotent |
-| Hardcoded API key removed | `scripts/sync_all_combos_all_apps.py` | ✅ `sk-…` literal gone; reads `OMNIROUTE_API_KEY` env only |
-| Sync updated to 14 combos + Verdant | `scripts/sync_all_combos_all_apps.py` | ✅ 14 canonical (id/real/canonical/name); `sync_verdant()` added (best-effort); delegates SQLite seed |
-| Live-lane slot repoint | `scripts/seed_omniroute_14combos.py` | ✅ 42 slots rebuilt from PROVEN-LIVE opencode free models after upstream provider keys found dead |
+## Monitoring continuation — 22:29 IST
+- 22:27 natural OmniRoute cycle terminal result 1/missed 0; gateway/memory/five configs/canary healthy, only DesktopAuth false. Credential Process/User/Machine scopes still absent.
+- DeepSeek Harness visible process mapping = Chrome window title, not standalone native Harness executable. Browser-control bridge unavailable in this task, so no in-tab navigation/credential interaction attempted.
+- OPS-013 evidence/handoff refreshed in the existing ledger. No duplicate task/message/dashboard created; workforce keepalive result 0 and staleness rc 0.
 
-### Workstream D — app/platform worker routing → canonical 14-combo map (session 4)
-| Change | File | Status |
-|---|---|---|
-| `_TASK_ROUTES` rewired to CANONICAL combo ids | `app/platform/omniroute_client.py` | ✅ every route primary = owning combo (1 coding, 2 coding-fast, 3 repo, 4 test, 5 agent-ops, 6 swara, 7 marketing, 8 prospect, 9 outreach, 10 seo, 11 governor, 12 project-best); fallback = DIFFERENT combo; 13/14 = failover/general lanes; **all 14 combos get traffic**, no self-route; privacy unchanged (swara CUSTOMER_MASKED) |
-| Orchestrator ledger default → combo 1 | `app/platform/automation_orchestrator.py` | ✅ 3 spots (`leadsgen combo 1`) |
-| Isha snapshot display fallback | `app/platform/owner_agent_execution.py` | ✅ `leadsgen combo 13` |
-| Canonical-coverage contract tests (NEW) | `tests/test_omniroute_canonical_combos.py` | ✅ 6 tests: canonical naming, primary≠fallback, 14/14 referenced, ≤1 primary/combo, 12 tasks, all 31 agents resolve |
-| Pinned tests updated | `tests/test_omniroute_client.py`, `tests/test_omniroute_governance.py` | ✅ canonical ids |
+# Prior latest — OmniRoute honest desktop-auth readiness
 
-**Worker-routing end-to-end evidence (2026-09-05):**
-- **LIVE dispatch: 12/12 `_TASK_ROUTES` answered through the real gateway** — real `generate()` per route → output_text on every combo: combo1 (nemotron-3.5-lightning-free), combo2 (nemotron-3-ultra-free), combo3 (big-pickle), combo4 (mimo-v2.5-free), combo5, combo6 (CUSTOMER_MASKED swara path), combo7, combo8, combo9, combo10, combo11 (muse-spark-1.2-contributor-free), combo12. Fallback lanes 13/14 referenced.
-- Tests: 53 passed / 1 pre-existing xfail (omniroute_client+governance+agent_os_routing+canonical), voice+orchestrator suites green (2 pre-existing xfails). Ruff clean. **Voice surface untouched** (FROZEN — voice_sticky_route reverted to HEAD).
+## Latest loop — OPS-013
+- DeepSeek Harness `MISSING_CREDENTIAL` ko gateway outage se separate kiya. `scripts/omniroute_self_healing_watchdog.py` ab presence-only `DesktopAuth` gate report karta hai; value kabhi log/copy nahi hoti.
+- Natural 22:12 aur 22:17 cycles: gateway, memory, all five configs, canary true; `DesktopAuth=False`; `ALL_HEALTHY=False`; scheduler terminal result 1/missed 0. Yeh expected honest red hai, 503/OOM nahi.
+- Historical Antigravity IDE history me hardcoded fallback mila; value exposed treat hai aur reuse mana. Process/User/Machine scopes me active variable absent. Owner-only next: revoke/rotate, approved credential store me replacement provision, then natural cycle result 0 verify.
+- Canonical ledger task `OPS-013` P0/BLOCKED, owner `platform`; 38 tasks, duplicate IDs 0, one GHANTI handoff. Tests 78 pass + 3 documented xfails; ruff/prod_check/secrets/preflight pass.
+- Pytest operational-log pollution bhi fixed: watchdog tests temp log paths use karte hain; proof real log hash/mtime test run me unchanged.
 
-**OmniRoute live evidence (2026-09-05):**
-- Gateway = Docker `leadgen_omniroute` :20128 loopback. DB at **`/app/data/storage.sqlite`** (old seeds targeted `/root/.omniroute/` = wrong path, never landed).
-- **14/14 `leadsgen combo N` → HTTP 200 with real completions** (smoke-tested all). 42 slots (3/combo), 14 email keys bound, 38 aliases resolve (`leadgen-*`/`hermes-engineer`/`claude-omni-*`/`claude-code`/`vps-*`).
-- **ALL upstream provider keys in the gateway are dead** (groq/gemini/cerebras/deepinfra/together/sambanova/hf/pollinations/qoder/fireworks 401 — rotated since 2026-09-01 provisioning). Only **opencode anonymous free tier** answers (5000+ real 200s/3d). Slots therefore point at the 6 proven opencode free lanes; each combo = 3 distinct live lanes, rotated primaries.
-- Sync ran across DSH/Claude Desktop/WorkBuddy/Hermes (roaming+local)/OpenClaw/workspace `.mcp.json`. **Verdant not installed** → SKIP no-op (config writer ready).
-- DB backups: `/app/data/db_backups/pre_14combos_*`.
+# Prior handoff — workforce self-heal chain shipped + proven
 
-### Workstream F — alive-provider deep probe + pool re-verify (session 6)
-| Finding/Change | Detail | Status |
-|---|---|---|
-| Probed NVIDIA / Ollama Cloud / DigitalOcean / Fireworks / OpenRouter | Real `/v1/responses` calls → **ALL dead**: every model upstream_401/400 (keys rotated upstream). `test_status`/`apiKeyHealth` in DB said active/warning but real inference proves the keys dead. Gemini also dead (400). | ✅ evidence in progress.md |
-| Seed pool re-verified | `opencode/muse-spark-1.2-contributor-free` → 502, `opencode/laguna-s-2.1-free` → 401, `opencode/mimo-v2.5-free` → 200-empty (all dropped). Discovered opencode anonymous tier serves TWO live labels — `opencode/*` + `opencode-zen/*` — both 200 on nemotron-3.5-lightning-free / nemotron-3-ultra-free / big-pickle (verified ×2). Pool = 3 models × 2 labels = 6 live lanes. | ✅ |
-| Seed updated + re-run | `scripts/seed_omniroute_14combos.py` `_LIVE` → live set; re-seeded idempotently (backup + SEED_OK). **LIVE VERIFY 14/14 combos → 200 with output_text.** Ruff + secrets clean. | ✅ |
+## Git state forensics (Loop 6, 2026-09-06 — owner commit se pehle ZAROORI padhna)
+- Working tree me is session ke 5 files KE ALAWA prior sessions ka bhi uncommitted kaam hai (app/api/admin_dashboard.py, app/tasks/whatsapp_automation.py, app/platform/team.py, omniroute scripts/tests/compose, .env.example, frontend/admin_dashboard.html, docs/API.md, untracked `.agents/` + ~10 scripts/tests). **`git add -A` MAT karna (R7)** — per-file staged review karo, kya-kya jana hai wo pehle decide karo.
+- `memory/decisions.md` ka diff 2874+/2857- dikhega — ye whole-file LINE-ENDING churn hai (HEAD blob CRLF, `core.autocrlf=true` add pe LF normalize karta hai), content-rewrite NAHI. Commit pe ek-baar benign normalization aayega. `progress.md`/`playbooks.md` pure additions hain (+1289/-0, +26/-0).
+- Untracked `.agents/` dir ADR-131 ke baad stray lag sakta hai — is session ne delete NAHI kiya (ownership unclear), owner decide kare.
 
-**Provider-key truth (2026-09-05):** only the opencode family answers. Owner action to get true multi-provider diversity: refresh keys in the gateway dashboard (Settings → Providers) → re-run seed (pool comment documents this).
+## Kya hua (5 Loop Runs, sab `progress.md` me full 9-field evidence ke saath)
 
-### Workstream E — OmniRoute combo watchdog (session 5)
-| Change | File | Status |
-|---|---|---|
-| 14-combo lane watchdog (NEW) | `scripts/omniroute_combo_watchdog.py` | ✅ self-discovers combos from `/v1/models`, probes via real `/v1/responses` (the app's own path), strike counter → ntfy alert once at 3 consecutive failures + recovery ping; `--loop N` / `--quiet` / `--json`; exit 0/1/2 |
-| Opt-in Task Scheduler registration (NEW) | `scripts/register_omniroute_watchdog.ps1` | ✅ every-N-minutes registration (pattern = setup_autoboot.ps1); **NOT registered yet** (owner opt-in) |
-| Hermetic state-machine tests (NEW) | `tests/test_omniroute_combo_watchdog.py` | ✅ 4/4 — blip never alerts, 3-strike alert once + persistent exit 1, recovery clears + pings, gateway-down exit 2 (caught a real exit-code bug) |
+**Start state:** Workforce orchestrator DEAD (status 6.5h stale; prior session ka "daemon running" claim false tha — daemon session ke saath mar gaya).
 
-Watchdog evidence: live passes → combo 2 throttled `empty_output` recovered next pass (state reset), combo 10 strike-accumulated — state machine proven against the real gateway. State = `data/omniroute_combo_state.json` (gitignored). Alerts gated NTFY_URL+NTFY_TOPIC (unset = print-only).
+**Ship hua (sab LOCAL, uncommitted — §8 owner gate):**
+1. **Loop 1 — Recovery:** orchestrator background detached relaunch → Cycle finish + 31/31 agents + peer rescues live-proven.
+2. **Loop 2 — Keepalive:** `scripts/ensure_workforce_orchestrator.ps1` (idempotent: running=no-op / missing=detached start) + Task Scheduler task `LeadGen-Workforce-Orchestrator-Keepalive` (every 5 min). Rollback: `-Unregister`.
+3. **Loop 3 — Staleness watchdog:** `scripts/workforce_staleness_watchdog.py` (alive-but-hung catch; dual-write newest-mtime > 900s = ntfy alert-once + recovery ping; exit 0/1/2) + `tests/test_workforce_staleness_watchdog.py` (6/6 green) + ensure-script dono branches me wired.
+4. **Loop 4 — Dashboard truth:** `frontend/autonomous_mission_control.html` additive staleness banner (fresh hidden / amber STALE / red MISSING, fix-cmd embedded; SRE symptom-oriented pattern — sre.google). Verified node DOM-stub se teeno branches. Real-window proof: orchestrator beech me restart hua, keepalive chain ne wapas chalaya.
+5. **Loop 5 — Memory write-back:** **ADR-190** (`memory/decisions.md`) + keepalive runbook (`memory/playbooks.md`) + `INDEX.md` status sync. INDEX rule 2 (incomplete-session guard) ab satisfied.
 
-## Verification evidence
-- `ruff check app` → **0 errors** (was 28; 100% lint-clean)
-- `prod_check.py` → ALL CHECKS PASSED (58 pages 0 gaps, automation 0 gaps, 362 nodes, API.md synced)
-- `check_secrets.py` → no secrets (27 changed files)
-- Watchdog tests 4/4 green; live two-pass strike/recovery verified; canonical-combo routing tests 6/6 green
-- ~200 targeted tests GREEN across touched areas (billing truth, trial nudge, telephony readiness probe+run_checks, owner_admin dispatch, activation readiness, jio sip, suppression gates, compliance, hot-queue payment path, reply offer block, reply auto-send, revenue funnel)
-- Prod `/health` = `719dbbd6` healthy production (DSH shadow jiya_makeover)
+## Production proof (Loop 5 waqt)
+- Task: `LastRunTime=21:38:49, LastTaskResult=0, NumberOfMissedRuns=0`
+- Fleet: cycle=10 fresh, 31/31 agents, rescues=50, log continuous cycles.
 
-## Pre-existing env-deps (NOT regressions)
-- `test_upi_payments.py` needs real Redis
-- `test_call_learning_2026_07_06.py` needs API keys (Gemini/Groq/Cerebras)
-- Full `tests/` sweep hangs on team_pulse area (known landmine) — use targeted suites
+## Owner gates (AGENT INAUTHORIZE — main ye nahi karunga)
+1. **`/app/inbox` Hot Queue blitz + UPI bank confirm** — revenue ka ASLI bottleneck (₹84K potential owner-action pending; daily 9 AM owner pack already pushes).
+2. `buzz_start_harness.py --agent Boss` (owner Desktop in-process mint chahiye).
+3. `NTFY_URL`/`NTFY_TOPIC` env arming — watchdog alerts print-only hain jab tak (chaaho to phone-push on karo).
+4. Commit/push/deploy — §8: bina owner ke kehne NAHI. Saare naye files: `scripts/ensure_workforce_orchestrator.ps1`, `scripts/workforce_staleness_watchdog.py`, `tests/test_workforce_staleness_watchdog.py`, `frontend/autonomous_mission_control.html` (edit), `memory/` (3 files), `progress.md`.
 
-## Owner actions still required (unchanged)
-1. Hot Queue `/app/inbox` blitz (42 warm cards, UPI links embedded)
-2. UPI bind/bank-credit confirm
-3. Vobiz caller-ID ownership (vendor) → then arm `VOBIZ_VERIFY_CALLER_ID_OUTBOUND=1`
-4. Commit + deploy this worktree (owner gate)
-5. **OmniRoute: refresh provider keys in the gateway dashboard** (Settings → Providers) to re-enable the non-opencode lanes; install Verdant → re-run `sync_all_combos_all_apps.py`
-6. **OmniRoute combo watchdog (NEW, opt-in):** run `scripts/register_omniroute_watchdog.ps1` to arm periodic 14-combo lane checks (or `python scripts/omniroute_combo_watchdog.py --loop 300`); set `NTFY_URL` + `NTFY_TOPIC` for phone alerts (unset = print-only, no crash)
+## Agent-side state
+Observability chain (process + progress + dashboard) COMPLETE hai. Koi parked agent-side item nahi jo bina owner direction safely ship ho — agla loop sirf naye incident/regression/owner-direction pe. Idle busywork = duplicate-drift risk (deliberate stop, laziness nahi).
 
-## Landmines touched this session
-- Test runs can dirty `data/` files (e.g. `data/delivery_ledger/jiya-makeover.jsonl`) — `git checkout --` restore before commit.
-- Full pytest needs `pytest-asyncio`, `pytest-timeout`, `requests` installed (were missing in fresh venv).
-- `squad_knowledge.daily_index_update()` now actually writes knowledge domain index files on run (was dead code) — additive, files are repo-tracked .md.
+## Env / how to verify anytime
+```powershell
+Get-ScheduledTaskInfo -TaskName 'LeadGen-Workforce-Orchestrator-Keepalive' | Select LastRunTime, LastTaskResult
+powershell -ExecutionPolicy Bypass -File scripts\ensure_workforce_orchestrator.ps1   # no-op expected
+.venv\Scripts\python.exe -m pytest tests\test_workforce_staleness_watchdog.py -q     # 6 passed
+```

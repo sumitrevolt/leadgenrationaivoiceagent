@@ -37,4 +37,16 @@ try {
     Write-WrapLog "ERROR start-dsh.ps1: $($_.Exception.Message)"
 }
 
+# --- 3) Hermes machine-level backend (127.0.0.1:9119) ---
+# OPS-012: 9119 had NO autostart, so every reboot left the fleet's backend down
+# until a manual run. ensure-hermes-backend.ps1 is backend-only + idempotent
+# (already-listening = no-op), so adding it here is safe on every logon.
+try {
+    Write-WrapLog "Invoking ensure-hermes-backend.ps1..."
+    & (Join-Path $PSScriptRoot "ensure-hermes-backend.ps1") | Out-Null
+    Write-WrapLog "ensure-hermes-backend.ps1 exit code: $LASTEXITCODE"
+} catch {
+    Write-WrapLog "ERROR ensure-hermes-backend.ps1: $($_.Exception.Message)"
+}
+
 Write-WrapLog "=== autostart wrapper done ==="

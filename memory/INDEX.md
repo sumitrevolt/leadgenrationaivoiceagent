@@ -30,11 +30,11 @@ Repo-root **`knowledge/`** = Open Knowledge Format v0.1 draft bundle (ADR-119). 
 
 | File | Lines | Last updated | Notes |
 |---|---|---|---|
-| `decisions.md` | ~2872 | 2026-08-27 | Append-only ADRs 183-189 + ADR-OWNER-1; ~180 entries total. **Durable** — all architectural decisions. |
+| `decisions.md` | ~2915 | 2026-09-06 | Append-only ADRs; latest ADR-191 (OmniRoute gateway health vs desktop-auth readiness). ~182 entries. **Durable.** |
 | `glossary.md` | ~100 | 2026-08-21 | Core terms stable. **Durable** — add new terms as they appear. |
 | `integrations.md` | ~50 | 2026-08-21 | Core providers stable. **Durable** — update rate limits/failure modes as observed. |
-| `incidents.md` | ~141 | 2026-08-14 | 20 postmortems. **Durable** — prevention rules = operational knowledge. |
-| `playbooks.md` | ~298 | 2026-08-23 | 14 playbooks. **Durable** — runbooks updated per ADR-186/187/188/189/OWNER-1. |
+| `incidents.md` | ~150 | 2026-09-07 | Latest covers central-ledger overdue-active truth normalization. **Durable** — prevention rules = operational knowledge. |
+| `playbooks.md` | ~350 | 2026-09-07 | Canonical council-ledger sync now includes 6h temporal stale rule. **Durable.** |
 | `backlog.md` | ~250 | 2026-09-02 | **Consolidated** — 23 active/parked items + 33 archived (shipped/superseded). Competitor research appended. |
 
 ## CONSOLIDATION NOTES (2026-09-02)

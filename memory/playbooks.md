@@ -305,3 +305,51 @@ Layout now: `_archive_2026-08-02` (worktrees + backups + loop27/28 patch), `_tra
 - `manager` rollout = held → Boss self-execution blocked until a dedicated mutating canary promotes it; use canary executors (`hermes`/`kavya`/`isha`) as `agent_id`.
 - Advisory-absence defers (never auto-executes): execution needs obsidian second-brain notes with score ≥ 0.65.
 - RED / UPI / unknown types refuse; AMBER → `needs_owner` (Owner OS decides).
+
+## Workforce orchestrator keepalive + staleness runbook (2026-09-06, ADR-190)
+
+**State:** LOCAL dev-machine ops (Windows). Orchestrator = `scripts/autonomous_workforce_orchestrator.py` (31 agents, ~15s cycles, status dual-write `var/runtime-data/` + `data/workforce_live_status.json`). Self-heal = Task Scheduler task `LeadGen-Workforce-Orchestrator-Keepalive` (every 5 min, pattern = openclaw_watchdog).
+
+**Health check (30 sec):**
+```powershell
+# 1. Status fresh? (>15 min = stale)
+$j = Get-Content data\workforce_live_status.json -Raw | ConvertFrom-Json; $j.timestamp; $j.cycle
+# 2. Task alive?
+Get-ScheduledTaskInfo -TaskName 'LeadGen-Workforce-Orchestrator-Keepalive' | Select LastRunTime, LastTaskResult, NextRunTime
+# 3. Full one-shot (no-op ya restart + staleness check):
+powershell -ExecutionPolicy Bypass -File scripts\ensure_workforce_orchestrator.ps1
+```
+`LastTaskResult=0` + fresh timestamp = healthy. Watchdog exit codes: 0 fresh · 1 stale · 2 missing.
+
+**Recovery (hung = process alive par cycle write nahi — keepalive no-op path):**
+1. Kill: `Get-CimInstance Win32_Process -Filter "Name='python.exe'" | ? { $_.CommandLine -like '*autonomous_workforce_orchestrator*' } | % { Stop-Process -Id $_.ProcessId -Force }`
+2. `powershell -File scripts\ensure_workforce_orchestrator.ps1` (detached hidden start)
+3. Verify: status JSON `cycle` advance + `var\runtime-data\workforce_orchestrator.log` me naya Cycle line.
+
+**Rollback / disable:** `powershell -File scripts\ensure_workforce_orchestrator.ps1 -Unregister` — task removed; orchestrator phir session-bound ho jayega (pata rakhna).
+
+**Alerts:** ntfy push jab NTFY_URL/NTFY_TOPIC set ho (unset = print-only). Alert-once + recovery-ping; state `data/workforce_staleness_state.json` (gitignored). Dashboard truth = Mission Control staleness banner (amber STALE / red MISSING, `frontend/autonomous_mission_control.html`).
+
+**Never:** doosra orchestrator/keepalive/watchdog mat banana (duplicate-engine) · orchestrator foreground chhod ke session band mat karna (yehi original death tha, Loop 1) · staleness threshold dono jagah sync rakhna (watchdog `DEFAULT_MAX_AGE_S` 900 + banner `STALE_THRESHOLD_S`) · orchestrator script rename kiya to keepalive loud-fail karega — expected behavior.
+
+## Canonical council-ledger sync (2026-09-06)
+
+Existing source of truth only: `command_center/data/tasks.json`, `bots.json`, `messages.jsonl`. Naya ledger/dashboard/orchestrator mat banao.
+
+1. `python scripts/council_ledger_sync.py --dry-run` — proposed updates inspect karo.
+2. Output stale task overwrite ya unexpected create dikhaye to apply mat karo. Expected normalization/no-op hi ho.
+3. `python scripts/council_ledger_sync.py --apply` — script timestamped backups + atomic JSON replace use karta hai.
+4. Turant same `--dry-run` repeat karo. Acceptance: every blocked gate `NO-OP GATE`, task count stable, `new_messages=0`.
+5. JSON parse + task-id uniqueness + exact bot count (9) verify karo. Repeated exact note segments forbidden hain.
+
+Temporal truth rule: `RUNNING/UPDATE` task ka deadline pass ho aur `updated_at` bhi 6h se purana ho to sync usse `STALE` mark karta hai. Yeh completion/reassignment guess nahi hai; owner/objective/evidence/handoff preserved rehte hain. `BLOCKED/STANDBY/DONE/CLOSED` deadlines ko auto-change mat karo. Apply se pehle exact `STALE <id>` list review karo; unexpected row aaye to apply stop.
+
+Rollback: latest `tasks.json.bak-*`, `bots.json.bak-*`, `messages.jsonl.bak-*` ko exact corresponding file par restore karo only after target paths/date verify. Never `git add -A`; ledger files shared/dirty ho sakte hain.
+
+## OmniRoute desktop-auth alert state (2026-09-06)
+
+- Canonical watchdog/task: `scripts/omniroute_self_healing_watchdog.py` via `LeadGen-OmniRoute-Combo-Watchdog`; duplicate monitor mat banao.
+- Missing required `OMNIROUTE_API_KEY`: health/result red rehna expected; first transition ek sanitized urgent alert deta hai, later cycles quiet rehte hain.
+- Recovery: approved credential store provisioning ke baad natural cycle ek recovery alert deta hai, state clear karta hai, aur all other gates green hon to task result 0 hota hai.
+- State: `data/omniroute_desktop_auth_state.json` (gitignored). Isko manually edit/delete karke green claim mat karo; credential value repo, state, log, chat, URL, ledger me kabhi mat rakho.
+- Verification: do natural cycles inspect karo—first missing transition par exactly one alert, repeated missing par no second alert; recovery claim ke liye `DesktopAuth=True`, `ALL_HEALTHY=True`, scheduler result 0 mandatory.

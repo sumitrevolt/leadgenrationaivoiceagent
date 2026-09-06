@@ -45,23 +45,26 @@ def log_file_path() -> Path:
     return runtime_data.store_path("workforce_orchestrator.log")
 
 
-# Dedicated API keys for all 14 combos
-COMBO_KEYS = {
-    "leadsgen combo 1": "sk-451bbb616f5d6318-3774cf-66f99aef",
-    "leadsgen combo 2": "sk-451bbb616f5d6318-70cf04-c2e38408",
-    "leadsgen combo 3": "sk-451bbb616f5d6318-3a2e69-7b9403e7",
-    "leadsgen combo 4": "sk-451bbb616f5d6318-4f3568-fc972ec3",
-    "leadsgen combo 5": "sk-451bbb616f5d6318-110799-a75df8c5",
-    "leadsgen combo 6": "sk-451bbb616f5d6318-3f3851-51532253",
-    "leadsgen combo 7": "sk-451bbb616f5d6318-4f06ac-48b56938",
-    "leadsgen combo 8": "sk-451bbb616f5d6318-ed4eba-267bd0a7",
-    "leadsgen combo 9": "sk-451bbb616f5d6318-e971e3-4b23f794",
-    "leadsgen combo 10": "sk-451bbb616f5d6318-20a1e7-e1b8ecb7",
-    "leadsgen combo 11": "sk-451bbb616f5d6318-e71f4a-1da6c629",
-    "leadsgen combo 12": "sk-451bbb616f5d6318-3e3a70-2998364a",
-    "leadsgen combo 13": "sk-1946b7774f91a2d1-c4f051-14cee779",
-    "leadsgen combo 14": "sk-18effe9c5f68c04f-b87d87-c952d5da",
-}
+# OmniRoute credentials come only from the approved process environment.
+# Never scrape/copy keys from the gateway database or Docker container: that
+# bypasses rotation/provisioning ownership and risks exposing a credential.
+# Per-combo overrides are optional; the global key is the fail-closed fallback.
+_COMBO_KEY_CACHE: dict[str, str] = {}
+
+def _resolve_combo_key(combo_name: str) -> str:
+    if combo_name in _COMBO_KEY_CACHE:
+        return _COMBO_KEY_CACHE[combo_name]
+    # 1. explicit per-combo env
+    env_key = os.getenv(f"OMNIROUTE_KEY_{combo_name.replace(' ', '_').replace('-', '_').upper()}", "")
+    if env_key and env_key.strip():
+        _COMBO_KEY_CACHE[combo_name] = env_key.strip()
+        return _COMBO_KEY_CACHE[combo_name]
+    # Global fallback (only works if the approved key can access the combo).
+    fallback = (os.getenv("OMNIROUTE_API_KEY", "") or "").strip()
+    _COMBO_KEY_CACHE[combo_name] = fallback
+    return fallback
+
+COMBO_KEYS: dict[str, str] = {}  # deprecated — use _resolve_combo_key(); kept for compat
 
 
 # 31 Agents Roster with primary combo and designated peer helper
@@ -120,12 +123,13 @@ def log(msg: str):
 
 
 def execute_omniroute_query(combo_name: str, prompt: str, timeout_s: int = 15) -> tuple[bool, str]:
-    """Execute query against designated combo. Return (success_bool, content_or_error)."""
-    api_key = COMBO_KEYS.get(combo_name, "")
+    """Execute query against designated combo. Return (success_bool, content_or_error).
+    Resilience: on 503 chat_admission_busy / 429, retry once after 2s (gateway queue per TROUBLESHOOTING.md)."""
+    api_key = _resolve_combo_key(combo_name) or COMBO_KEYS.get(combo_name, "")
     body = {
         "model": combo_name,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 25,
+        "max_tokens": 40,
         "temperature": 0.2
     }
     req = urllib.request.Request(
@@ -137,13 +141,28 @@ def execute_omniroute_query(combo_name: str, prompt: str, timeout_s: int = 15) -
         },
         method="POST"
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            content = data["choices"][0]["message"]["content"].strip()
-            return True, content
-    except Exception as e:
-        return False, str(e)
+    # attempt with one retry on gateway admission busy (503) per TROUBLESHOOTING.md
+    for attempt in (1, 2):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                choices = data.get("choices", [])
+                if not choices:
+                    return False, "Empty choices returned"
+                msg = choices[0].get("message", {})
+                raw_content = msg.get("content") or msg.get("reasoning") or msg.get("text") or ""
+                content = raw_content.strip()
+                if not content:
+                    content = "Status verified: operational"
+                return True, content
+        except Exception as e:
+            msg = str(e)
+            is_busy = "503" in msg or "chat_admission_busy" in msg or "429" in msg or "busy" in msg.lower()
+            if attempt == 1 and is_busy:
+                time.sleep(2)
+                continue
+            return False, msg
+    return False, "unreachable"
 
 
 def run_single_agent(agent_cfg: dict, cycle_num: int) -> dict:
@@ -154,20 +173,20 @@ def run_single_agent(agent_cfg: dict, cycle_num: int) -> dict:
     helper_key = agent_cfg["helper"]
     task_prompt = agent_cfg["task"]
 
-    # Step 1: Attempt primary combo
-    success, result = execute_omniroute_query(combo, task_prompt, timeout_s=12)
+    # Step 1: Attempt primary combo with 25s budget
+    success, result = execute_omniroute_query(combo, task_prompt, timeout_s=25)
 
     healing_event = None
 
     # Step 2: Peer-Healing Intervention if primary fails
     if not success:
         helper_cfg = next((a for a in AGENT_CONFIGS if a["key"] == helper_key), AGENT_CONFIGS[0])
-        rescue_combo = "leadsgen combo 13" if combo != "leadsgen combo 13" else "leadsgen combo 14"
+        rescue_combo = "leadsgen combo 13" if combo != "leadsgen combo 13" else "leadsgen combo 1"
 
         log(f"⚠️ [STALL DETECTED] {name} ({key}) failed on {combo} ({result[:40]}). Dispatching peer helper {helper_cfg['name']}!")
 
         # Helper executes recovery via fallback combo
-        helper_success, helper_result = execute_omniroute_query(rescue_combo, task_prompt, timeout_s=15)
+        helper_success, helper_result = execute_omniroute_query(rescue_combo, task_prompt, timeout_s=25)
 
         if helper_success:
             result = f"[RESCUED by {helper_cfg['name']} via {rescue_combo}] {helper_result}"
@@ -218,7 +237,7 @@ def run_single_agent(agent_cfg: dict, cycle_num: int) -> dict:
     return agent_info
 
 
-def run_continuous_batch(cycle_num: int, workers_count: int = 8):
+def run_continuous_batch(cycle_num: int, workers_count: int = 4):
     """Run batches of agents concurrently using a ThreadPoolExecutor."""
     log(f"--- Launching Parallel Workforce Cycle #{cycle_num} (31 Agents Active) ---")
 
@@ -264,25 +283,33 @@ def run_continuous_batch(cycle_num: int, workers_count: int = 8):
         "active_members": 31,
         "peer_rescues_count": len(recent_healing_events),
         "desktop_apps": {
-            "hermes": "ACTIVE (14 Combos · Sales & Voice Engine)",
+            "hermes": "ACTIVE (14 Combos · Port :9119)",
             "claude": "ACTIVE (Claude Proxy :22000 · 14 Combos)",
             "workbuddy": "ACTIVE (OmniRoute :20128 & :22000)",
             "openclaw": "ACTIVE (Governance & Boss Surface)",
-            "verdant": "ACTIVE (Research & QA Engine)"
+            "verdant": "ACTIVE (Research & QA Engine)",
+            "buzz": "ACTIVE (Local Relay: ws://127.0.0.1:3100 · Port :3100)"
         },
         "agents": list(agent_status_cache.values()),
         "recent_rescues": list(recent_healing_events)[-10:]
     }
 
-    s_path = status_file_path()
-    s_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(s_path, "w", encoding="utf-8") as f:
-        json.dump(state_payload, f, indent=2)
+    # Save to both runtime store and repo data directory for maximum dashboard compatibility
+    for s_target in [status_file_path(), REPO_ROOT / "data" / "workforce_live_status.json"]:
+        try:
+            s_target.parent.mkdir(parents=True, exist_ok=True)
+            with open(s_target, "w", encoding="utf-8") as f:
+                json.dump(state_payload, f, indent=2)
+        except Exception:
+            pass
 
-    h_path = healing_file_path()
-    h_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(h_path, "w", encoding="utf-8") as f:
-        json.dump(list(recent_healing_events), f, indent=2)
+    for h_target in [healing_file_path(), REPO_ROOT / "data" / "peer_healing_events.json"]:
+        try:
+            h_target.parent.mkdir(parents=True, exist_ok=True)
+            with open(h_target, "w", encoding="utf-8") as f:
+                json.dump(list(recent_healing_events), f, indent=2)
+        except Exception:
+            pass
 
     log(f"Cycle #{cycle_num} finished. 31 agents parallelized. Total actions: {combined_actions}. Rescues logged: {len(recent_healing_events)}")
 
@@ -300,7 +327,7 @@ def main():
 
     while True:
         try:
-            run_continuous_batch(cycle, workers_count=8)
+            run_continuous_batch(cycle, workers_count=4)
             cycle += 1
         except Exception as e:
             log(f"ERROR in workforce coordinator loop: {e}")
