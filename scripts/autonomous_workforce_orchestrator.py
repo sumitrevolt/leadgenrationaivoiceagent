@@ -28,12 +28,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-OMNI_URL = "http://127.0.0.1:20128/v1/chat/completions"
-STATUS_FILE = REPO_ROOT / "data" / "workforce_live_status.json"
-HEALING_FILE = REPO_ROOT / "data" / "peer_healing_events.json"
-LOG_FILE = REPO_ROOT / "data" / "workforce_orchestrator.log"
+from app.platform import runtime_data
 
-os.makedirs(REPO_ROOT / "data", exist_ok=True)
+OMNI_URL = "http://127.0.0.1:20128/v1/chat/completions"
+STATUS_FILE = runtime_data.store_path("workforce_live_status.json")
+HEALING_FILE = runtime_data.store_path("peer_healing_events.json")
+LOG_FILE = runtime_data.store_path("workforce_orchestrator.log")
+
+
 
 # Dedicated API keys for all 14 combos
 COMBO_KEYS = {
