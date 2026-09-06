@@ -23,19 +23,24 @@ from app.worker import celery_app
 
 logger = setup_logger(__name__)
 
+
 # ── Config ──────────────────────────────────────────────────────────
 def whatsapp_enabled() -> bool:
     """Check if full WhatsApp automation is enabled."""
-    return (
-        os.getenv("WHATSAPP_AUTO_SEND", "0").strip().lower() in ("1", "true", "yes")
-        and os.getenv("WHATSAPP_AUTO_SEND_HARD_OFF", "0").strip().lower() not in ("1", "true", "yes")
-    )
+    return os.getenv("WHATSAPP_AUTO_SEND", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ) and os.getenv("WHATSAPP_AUTO_SEND_HARD_OFF", "0").strip().lower() not in ("1", "true", "yes")
+
 
 def daily_cap() -> int:
     return int(os.getenv("WHATSAPP_AUTO_SEND_DAILY_CAP", "50"))
 
+
 def batch_limit() -> int:
     return int(os.getenv("WHATSAPP_AUTO_SEND_BATCH", "10"))
+
 
 def _meta_config() -> dict:
     """Get Meta Cloud API config."""
@@ -47,6 +52,7 @@ def _meta_config() -> dict:
         "provider": os.getenv("WHATSAPP_PROVIDER", "cloud").strip(),
     }
 
+
 def _headers() -> dict:
     cfg = _meta_config()
     return {
@@ -54,17 +60,19 @@ def _headers() -> dict:
         "Content-Type": "application/json",
     }
 
+
 # ── Template Management ─────────────────────────────────────────────
 def _get_template_name(purpose: str) -> str:
     """Map purpose to approved template name."""
     templates = {
-        "lead_followup": "lead_followup_v1",      # Must be pre-approved in Meta
-        "post_call": "post_call_interested_v1",   # For interested leads
-        "daily_tip": "daily_business_tip_v1",     # Value-add content
-        "appointment": "appointment_reminder_v1", # Appointment reminders
-        "offer": "special_offer_v1",              # Promotional offers
+        "lead_followup": "lead_followup_v1",  # Must be pre-approved in Meta
+        "post_call": "post_call_interested_v1",  # For interested leads
+        "daily_tip": "daily_business_tip_v1",  # Value-add content
+        "appointment": "appointment_reminder_v1",  # Appointment reminders
+        "offer": "special_offer_v1",  # Promotional offers
     }
     return templates.get(purpose, "lead_followup_v1")
+
 
 # ── Core Send Function ──────────────────────────────────────────────
 async def send_template_message(
@@ -104,10 +112,14 @@ async def send_template_message(
             return {"sent": True, "response": response.json()}
         else:
             logger.warning(f"WhatsApp send failed {response.status_code}: {response.text[:200]}")
-            return {"sent": False, "reason": f"API error {response.status_code}: {response.text[:200]}"}
+            return {
+                "sent": False,
+                "reason": f"API error {response.status_code}: {response.text[:200]}",
+            }
     except Exception as e:
         logger.error(f"WhatsApp send exception: {e}")
         return {"sent": False, "reason": str(e)[:150]}
+
 
 # ── Automated Flows ────────────────────────────────────────────────
 async def auto_send_lead_followup(lead_phone: str, lead_name: str = "") -> dict:
@@ -116,14 +128,17 @@ async def auto_send_lead_followup(lead_phone: str, lead_name: str = "") -> dict:
         return {"sent": False, "reason": "WhatsApp auto disabled"}
 
     template = _get_template_name("lead_followup")
-    components = [{
-        "type": "body",
-        "parameters": [
-            {"type": "text", "text": lead_name or "Customer"},
-        ]
-    }]
+    components = [
+        {
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": lead_name or "Customer"},
+            ],
+        }
+    ]
 
     return await send_template_message(lead_phone, template, components=components)
+
 
 async def auto_send_post_call_interested(lead_phone: str, niche: str = "") -> dict:
     """Auto-send to leads who showed interest post-call."""
@@ -131,14 +146,17 @@ async def auto_send_post_call_interested(lead_phone: str, niche: str = "") -> di
         return {"sent": False, "reason": "WhatsApp auto disabled"}
 
     template = _get_template_name("post_call")
-    components = [{
-        "type": "body",
-        "parameters": [
-            {"type": "text", "text": niche or "your business"},
-        ]
-    }]
+    components = [
+        {
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": niche or "your business"},
+            ],
+        }
+    ]
 
     return await send_template_message(lead_phone, template, components=components)
+
 
 async def auto_send_daily_tip(phone: str, tip: str) -> dict:
     """Auto-send daily business tip."""
@@ -146,12 +164,10 @@ async def auto_send_daily_tip(phone: str, tip: str) -> dict:
         return {"sent": False, "reason": "WhatsApp auto disabled"}
 
     template = _get_template_name("daily_tip")
-    components = [{
-        "type": "body",
-        "parameters": [{"type": "text", "text": tip[:1024]}]
-    }]
+    components = [{"type": "body", "parameters": [{"type": "text", "text": tip[:1024]}]}]
 
     return await send_template_message(phone, template, components=components)
+
 
 # ── Batch Runner (for scheduler) ───────────────────────────────────
 async def run_whatsapp_batch(leads: list) -> dict:
@@ -171,13 +187,9 @@ async def run_whatsapp_batch(leads: list) -> dict:
 
         # Determine message type based on lead status
         if lead.get("status") == "interested":
-            result = await auto_send_post_call_interested(
-                lead["phone"], lead.get("niche", "")
-            )
+            result = await auto_send_post_call_interested(lead["phone"], lead.get("niche", ""))
         else:
-            result = await auto_send_lead_followup(
-                lead["phone"], lead.get("name", "")
-            )
+            result = await auto_send_lead_followup(lead["phone"], lead.get("name", ""))
 
         if result.get("sent"):
             sent += 1
@@ -186,6 +198,7 @@ async def run_whatsapp_batch(leads: list) -> dict:
 
         # Small delay to avoid rate limiting
         import asyncio
+
         await asyncio.sleep(0.5)
 
     return {
@@ -359,9 +372,6 @@ def _run_async(coro):
 # #468). Direct in-process callers (team_scheduler, staff_jobs) are unaffected:
 # calling a task object runs it synchronously; only .delay()/beat enqueues.
 #
-# 2026-09-06 (body): the registered task was still a STUB returning
-# status=ready, so even after the wiring fix auto_sent would stay 0. It now
-# actually drains the queue — behind four fail-closed gates (see docstring).
 @celery_app.task(name="app.tasks.whatsapp_automation.run_whatsapp_automation")
 def run_whatsapp_automation():
     """Celery beat entry: run WhatsApp automation batch.
@@ -444,15 +454,23 @@ def run_whatsapp_automation():
         "daily_cap": cap,
     }
 
+
 # ── Emergency Stop ─────────────────────────────────────────────────
 def emergency_stop():
     """Set hard off flag."""
     import subprocess
+
     subprocess.run(
-        ["bash", "-c", "sed -i 's/WHATSAPP_AUTO_SEND_HARD_OFF=0/WHATSAPP_AUTO_SEND_HARD_OFF=1/' .env"],
-        cwd="/opt/leadgen", capture_output=True
+        [
+            "bash",
+            "-c",
+            "sed -i 's/WHATSAPP_AUTO_SEND_HARD_OFF=0/WHATSAPP_AUTO_SEND_HARD_OFF=1/' .env",
+        ],
+        cwd="/opt/leadgen",
+        capture_output=True,
     )
     logger.warning("WHATSAPP EMERGENCY STOP ACTIVATED")
+
 
 __all__ = [
     "whatsapp_enabled",
