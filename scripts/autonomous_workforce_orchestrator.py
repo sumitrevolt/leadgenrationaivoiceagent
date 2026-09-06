@@ -31,10 +31,18 @@ sys.path.insert(0, str(REPO_ROOT))
 from app.platform import runtime_data
 
 OMNI_URL = "http://127.0.0.1:20128/v1/chat/completions"
-STATUS_FILE = runtime_data.store_path("workforce_live_status.json")
-HEALING_FILE = runtime_data.store_path("peer_healing_events.json")
-LOG_FILE = runtime_data.store_path("workforce_orchestrator.log")
 
+
+def status_file_path() -> Path:
+    return runtime_data.store_path("workforce_live_status.json")
+
+
+def healing_file_path() -> Path:
+    return runtime_data.store_path("peer_healing_events.json")
+
+
+def log_file_path() -> Path:
+    return runtime_data.store_path("workforce_orchestrator.log")
 
 
 # Dedicated API keys for all 14 combos
@@ -54,6 +62,7 @@ COMBO_KEYS = {
     "leadsgen combo 13": "sk-1946b7774f91a2d1-c4f051-14cee779",
     "leadsgen combo 14": "sk-18effe9c5f68c04f-b87d87-c952d5da",
 }
+
 
 # 31 Agents Roster with primary combo and designated peer helper
 AGENT_CONFIGS = [
@@ -103,8 +112,11 @@ def log(msg: str):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] {msg}"
     print(line, flush=True)
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
+    p = log_file_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "a", encoding="utf-8") as f:
         f.write(line + "\n")
+
 
 
 def execute_omniroute_query(combo_name: str, prompt: str, timeout_s: int = 15) -> tuple[bool, str]:
@@ -262,13 +274,18 @@ def run_continuous_batch(cycle_num: int, workers_count: int = 8):
         "recent_rescues": list(recent_healing_events)[-10:]
     }
 
-    with open(STATUS_FILE, "w", encoding="utf-8") as f:
+    s_path = status_file_path()
+    s_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(s_path, "w", encoding="utf-8") as f:
         json.dump(state_payload, f, indent=2)
 
-    with open(HEALING_FILE, "w", encoding="utf-8") as f:
+    h_path = healing_file_path()
+    h_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(h_path, "w", encoding="utf-8") as f:
         json.dump(list(recent_healing_events), f, indent=2)
 
     log(f"Cycle #{cycle_num} finished. 31 agents parallelized. Total actions: {combined_actions}. Rescues logged: {len(recent_healing_events)}")
+
 
 
 def main():
