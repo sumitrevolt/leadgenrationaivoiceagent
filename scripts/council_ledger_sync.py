@@ -520,6 +520,91 @@ NEW_TASKS: list[dict] = [
         "updated_at": RUN_TS,
     },
     {
+        "id": "OPS-017",
+        "objective": (
+            "Scope the blanket DND_CARRIER_SCRUB allowance to the VOICE channel so "
+            "one env var can never mark every number 'verified non-DND' for "
+            "promotional messaging."
+        ),
+        "status": "DONE",
+        "owner": "operations",
+        "priority": "P0",
+        "deadline": f"2026-09-07T06:00:00{IST}",
+        "acceptance": (
+            "carrier scrub verifies only on channel='voice'; messaging (and an "
+            "omitted/unknown channel) falls through to no_provider/unverified so "
+            "the §5 gate fails CLOSED; the verdict is never cached; opt-out still "
+            "beats carrier scrub."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "Cycle 9 find: DND_CARRIER_SCRUB=1 returns is_dnd=False, verified=True "
+            "for EVERY number with no per-number lookup. It was introduced for voice "
+            "(scripts/vps_deploy_call_learn.py:23 arms it next to VOBIZ_CALL_RECORD / "
+            "DLT_APPROVED) but DNDChecker is SHARED: "
+            "app/tasks/whatsapp_automation.py::_scrub_dnd() — the promotional "
+            "WhatsApp §5 gate — calls the same checker, and that function's own "
+            "docstring claimed 'any number not already cached returns UNVERIFIED and "
+            "is therefore BLOCKED'. One env var silently inverted it. "
+            "WHY VOICE IS DIFFERENT: TCCCPR 2018 allows a call to a DND number with "
+            "documented consent (consent_ledger); for promotional messaging NCPR "
+            "scrubbing is mandatory and no consent overrides a DND registration "
+            "(ADR §3.1). "
+            "SHIPPED: CARRIER_SCRUB_CHANNELS={'voice'}; DEFAULT_CHANNEL='messaging'; "
+            "carrier_scrub_armed / carrier_scrub_verifies / carrier_scrub_warning; "
+            "check_single/check_batch/filter_dnd take channel=; carrier-scrub "
+            "verdict is NOT cached (else a voice allowance is laundered into the "
+            "messaging path). Call sites: compliance.py + call_manager -> voice; "
+            "whatsapp_automation -> messaging; orchestrator_pipeline stage 3 scrubs "
+            "on the strictest channel in use (messaging when WhatsApp is enabled, "
+            "which is the default)."
+        ),
+        "evidence_tail": (
+            "15 tests in tests/test_dnd_carrier_scrub_channel_scope.py, incl. "
+            "test_carrier_scrub_does_not_verify_messaging (the regression guard) and "
+            "test_carrier_scrub_verdict_is_never_cached. 72 passed across 12 suites; "
+            "the only failure is the pre-existing "
+            "test_dnd_fail_open_honoured_outside_production (identical at HEAD). "
+            "ruff clean on changed files; prod_check ALL PASSED 1396 routes "
+            "UNCHANGED. NOT DEPLOYED — local only."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-018",
+        "objective": (
+            "OWNER (10s): confirm whether DND_CARRIER_SCRUB=1 is armed on the VPS — "
+            "grep DND_CARRIER_SCRUB /opt/leadgen/.env"
+        ),
+        "status": "TODO",
+        "owner": "owner",
+        "priority": "P0",
+        "deadline": f"2026-09-07T20:00:00{IST}",
+        "acceptance": (
+            "Owner reports the value. If it is 1, the pre-OPS-017 code was sending "
+            "promotional WhatsApp to every number regardless of NCPR status; treat "
+            "any send in that window as a compliance incident and review the log."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "scripts/vps_deploy_call_learn.py:23 and .bat:33 both run "
+            "scripts/env_set.py ... DND_CARRIER_SCRUB=1 on the VPS, so if that "
+            "one-shot was ever executed the flag is live. docs/SESSION_LOG.md:1744 "
+            "records cold-calling running with 'DND via DND_CARRIER_SCRUB=1'. "
+            "OPS-017 makes the flag harmless for messaging once deployed, but until "
+            "then the messaging gate may be open. Requires SSH — owner-only; the "
+            "orchestrator must NOT do this."
+        ),
+        "evidence_tail": (
+            "Local grep: scripts/vps_deploy_call_learn.py:23, "
+            "scripts/vps_deploy_call_learn.bat:33, docs/SESSION_LOG.md:1744, "
+            "docs/SWARA_HANDOFF_SOP.md:118/158/316/422."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
         "id": "GRD-005",
         "objective": (
             "Independent verdict: after 94439e74 deploys, will run_whatsapp_"
