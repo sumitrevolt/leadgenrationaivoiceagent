@@ -122,7 +122,7 @@ def _read_worker_task(profile: str) -> str | None:
             files = sorted(os.listdir(memory_dir), reverse=True)
             if files:
                 latest = os.path.join(memory_dir, files[0])
-                with open(latest, "r", encoding="utf-8", errors="ignore") as f:
+                with open(latest, encoding="utf-8", errors="ignore") as f:
                     content = f.read(500)
                     # Extract first meaningful line as task
                     for line in content.split("\n"):

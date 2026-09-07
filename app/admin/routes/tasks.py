@@ -30,9 +30,9 @@ router = APIRouter()
 
 @router.get("/admin/api/tasks", response_model=list[Task])
 async def get_tasks(
-    status: Optional[str] = Query(None, description="Filter by status"),
-    owner: Optional[str] = Query(None, description="Filter by owner"),
-    priority: Optional[str] = Query(None, description="Filter by priority"),
+    status: str | None = Query(None, description="Filter by status"),
+    owner: str | None = Query(None, description="Filter by owner"),
+    priority: str | None = Query(None, description="Filter by priority"),
 ):
     """List all tasks with optional filters."""
     return list_tasks(status_filter=status, owner_filter=owner, priority_filter=priority)

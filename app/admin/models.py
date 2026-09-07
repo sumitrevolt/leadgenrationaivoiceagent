@@ -24,12 +24,12 @@ class Status(str, Enum):
 
 class TaskBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
-    description: Optional[str] = None
-    owner: Optional[str] = None
+    description: str | None = None
+    owner: str | None = None
     priority: Priority = Priority.P2
     status: Status = Status.BACKLOG
-    deadline: Optional[str] = None
-    evidence: Optional[str] = None
+    deadline: str | None = None
+    evidence: str | None = None
 
 
 class TaskCreate(TaskBase):
@@ -37,13 +37,13 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    owner: Optional[str] = None
-    priority: Optional[Priority] = None
-    status: Optional[Status] = None
-    deadline: Optional[str] = None
-    evidence: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    owner: str | None = None
+    priority: Priority | None = None
+    status: Status | None = None
+    deadline: str | None = None
+    evidence: str | None = None
 
 
 class Task(TaskBase):

@@ -5,10 +5,10 @@ Combines all admin sub-routers into a single router.
 
 from fastapi import APIRouter
 
-from app.admin.routes.system import router as system_router
-from app.admin.routes.workers import router as workers_router
 from app.admin.routes.docker import router as docker_router
+from app.admin.routes.system import router as system_router
 from app.admin.routes.tasks import router as tasks_router
+from app.admin.routes.workers import router as workers_router
 
 admin_router = APIRouter(tags=["Admin Command Center"])
 
