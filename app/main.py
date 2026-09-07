@@ -1,4 +1,3 @@
-from app.admin.main import router as admin_command_center_router
 """
 LeadGen AI - AI Automated Marketing + Voice Agent Platform
 FastAPI Main Application - PRODUCTION READY
@@ -1239,7 +1238,7 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer flows router not mounted: {_e}")
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
-    app.include_router(admin_command_center_router)  # /admin/api/*
+app.include_router(admin_command_center_router)  # /admin/api/* (Command Center)
 try:
     from app.api.system_health import router as system_health_router
 
@@ -1266,6 +1265,18 @@ try:
     app.include_router(admin_ops_router)  # /api/admin/campaign/* + /api/admin/system/*
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin ops router not mounted: {_e}")
+try:
+    from app.admin.routes.docker import router as docker_admin_router
+
+    app.include_router(docker_admin_router)  # /admin/api/docker/* — Docker container control
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Docker admin router not mounted: {_e}")
+try:
+    from app.admin.routes.workers import router as workers_admin_router
+
+    app.include_router(workers_admin_router)  # /admin/api/workers/* — Hermes bot coordination
+except Exception as _e:  # pragma: no cover - never block boot
+    logger.warning(f"Workers admin router not mounted: {_e}")
 try:
     from app.api.owner_os import router as owner_os_router
 
@@ -1791,6 +1802,15 @@ async def customer_dashboard_v2_page():
     """
     return FileResponse(
         str(FRONTEND_DIR / "customer_dashboard_v2.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
+
+
+@app.get("/app/command-center", tags=["Frontend"])
+async def command_center_page():
+    """Command Center - Real-time system monitoring and worker coordination."""
+    return FileResponse(
+        str(FRONTEND_DIR / "admin_command_center.html"),
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
     )
 
