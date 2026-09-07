@@ -51,6 +51,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 # ---------------------------------------------------------------------------
 # Capability detection (same pattern as vobiz_stream.py)
 # ---------------------------------------------------------------------------
@@ -66,6 +67,7 @@ def _groq_key() -> str:
     if not k:
         try:
             from app.config import settings
+
             k = (getattr(settings, "groq_api_key", "") or "").strip()
         except Exception:
             pass
@@ -83,10 +85,12 @@ TTS_AVAILABLE = _have("edge_tts") and _have("pydub")
 # audioop (stdlib ≤3.12, backport 3.13+)
 try:
     import audioop  # type: ignore
+
     _AUDIOOP_OK = True
 except Exception:
     try:
         import audioop_lts as audioop  # type: ignore
+
         _AUDIOOP_OK = True
     except Exception:
         audioop = None  # type: ignore
@@ -95,11 +99,11 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Audio constants
 # ---------------------------------------------------------------------------
-SMARTFLO_SAMPLE_RATE = 8000    # mulaw 8kHz
-INTERNAL_SAMPLE_RATE = 16000   # our pipeline runs at 16kHz
-FRAME_MS = 20                  # 20ms frames
-MULAW_FRAME_BYTES = 160        # 8kHz * 20ms = 160 bytes mulaw
-PCM16_FRAME_BYTES = 320        # 16kHz * 20ms = 320 bytes PCM16 (×2 for 16-bit)
+SMARTFLO_SAMPLE_RATE = 8000  # mulaw 8kHz
+INTERNAL_SAMPLE_RATE = 16000  # our pipeline runs at 16kHz
+FRAME_MS = 20  # 20ms frames
+MULAW_FRAME_BYTES = 160  # 8kHz * 20ms = 160 bytes mulaw
+PCM16_FRAME_BYTES = 320  # 16kHz * 20ms = 320 bytes PCM16 (×2 for 16-bit)
 
 # VAD thresholds (same as vobiz_stream defaults)
 _DEF_VAD_RMS = 300
@@ -206,12 +210,31 @@ def pcm16_to_mulaw(pcm16_bytes: bytes) -> bytes:
     return bytes(result)
 
 
+def pcm16_to_wav(pcm16: bytes, rate: int = INTERNAL_SAMPLE_RATE) -> bytes:
+    """Wrap raw PCM16 mono in a RIFF/WAV container (STT uploads need a header).
+
+    2026-09-07: Groq Whisper was being sent RAW PCM labelled ``audio.wav`` →
+    400 "invalid file" on every utterance, silently falling through to the
+    slower fallbacks. Mirrors ``vobiz_stream._pcm_to_wav``.
+    """
+    import wave
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(rate)
+        wf.writeframes(pcm16)
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # Transcript directory helper
 # ---------------------------------------------------------------------------
 def _call_transcripts_dir() -> str:
     try:
         from app.platform.runtime_recording_paths import call_transcripts_dir
+
         return str(call_transcripts_dir())
     except Exception:
         return "data/call_transcripts"
@@ -267,6 +290,11 @@ class SmartfloStreamSession:
         # Playback state
         self._speaking = False
         self._barge_frames = 0
+        # Background TTS+playback task (2026-09-07): playback used to run
+        # inline in the receive loop, so inbound media was not read while the
+        # bot spoke → barge-in could never fire. Now _say() schedules a task
+        # and the loop keeps consuming frames.
+        self._play_task: asyncio.Task | None = None
 
         # Diagnostics
         self._media_frames = 0
@@ -322,12 +350,25 @@ class SmartfloStreamSession:
 
         elif event == "start":
             start = data.get("start") or {}
-            self.stream_sid = data.get("streamSid") or start.get("streamSid")
-            self.call_sid = start.get("callSid")
+            # Tolerate both Twilio-style camelCase and snake_case keys — the
+            # exact casing Smartflo emits is confirmed only on the first live
+            # demo call; log the key-set (no PII) so a mismatch is obvious.
+            logger.info(
+                f"[smartflo-stream] start schema top={sorted(data.keys())} "
+                f"start={sorted(start.keys())} "
+                f"mediaFormat={start.get('mediaFormat') or start.get('media_format')}"
+            )
+            self.stream_sid = (
+                data.get("streamSid")
+                or data.get("stream_sid")
+                or start.get("streamSid")
+                or start.get("stream_sid")
+            )
+            self.call_sid = start.get("callSid") or start.get("call_sid")
             self.from_number = start.get("from")
             self.to_number = start.get("to")
             # Pull niche/client from customParameters (if set in Smartflo portal)
-            params = start.get("customParameters") or {}
+            params = start.get("customParameters") or start.get("custom_parameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
             self.client_id = params.get("client_id") or self.client_id
             self._lead_phone = (
@@ -345,6 +386,7 @@ class SmartfloStreamSession:
             if self.client_id:
                 try:
                     from app.marketing import clients_store
+
                     _c = clients_store.get_client(self.client_id)
                     if _c:
                         self.client_name = (
@@ -355,10 +397,12 @@ class SmartfloStreamSession:
                 except Exception:
                     pass
             # Send start ack back to Smartflo
-            await self._send({
-                "event": "start",
-                "streamSid": self.stream_sid,
-            })
+            await self._send(
+                {
+                    "event": "start",
+                    "streamSid": self.stream_sid,
+                }
+            )
             # Greet
             await self._maybe_greet()
 
@@ -380,6 +424,7 @@ class SmartfloStreamSession:
             if str(digit) == "9":
                 try:
                     from app.telephony.consent_ledger import ConsentAction, persist_opt_out
+
                     persist_opt_out(
                         phone=self._lead_phone or "",
                         action=ConsentAction.OPT_OUT,
@@ -500,10 +545,11 @@ class SmartfloStreamSession:
     async def _groq_stt(self, pcm_16k: bytes) -> str:
         """Groq Whisper-large-v3 STT (free tier)."""
         import httpx
+
         key = _groq_key()
-        audio_b64 = base64.b64encode(pcm_16k).decode()
-        # Groq expects file upload, but base64 works via the API
-        files = {"file": ("audio.wav", io.BytesIO(pcm_16k), "audio/wav")}
+        # Groq expects a real audio container — wrap PCM16 16kHz in a WAV header
+        wav = pcm16_to_wav(pcm_16k, INTERNAL_SAMPLE_RATE)
+        files = {"file": ("audio.wav", io.BytesIO(wav), "audio/wav")}
         data = {
             "model": "whisper-large-v3",
             "language": "hi",
@@ -523,11 +569,13 @@ class SmartfloStreamSession:
     async def _gemini_stt(self, pcm_16k: bytes) -> str:
         """Gemini multimodal audio-in STT."""
         from app.voice_agent.free_ai import gemini_audio_transcribe
+
         return await gemini_audio_transcribe(pcm_16k, sample_rate=16000)
 
     async def _local_stt(self, pcm_16k: bytes) -> str:
         """Local vosk/faster-whisper STT fallback."""
         from app.voice_agent.free_ai import local_stt
+
         return await local_stt(pcm_16k, sample_rate=16000)
 
     # ------------------------------------------------------------------ #
@@ -539,6 +587,7 @@ class SmartfloStreamSession:
             if self._telecaller is None and not getattr(self, "_telecaller_tried", False):
                 self._telecaller_tried = True
                 from app.voice_agent.telecaller_brain import TelecallerBrain
+
                 self._telecaller = TelecallerBrain(
                     niche=self.niche,
                     client_id=self.client_id,
@@ -552,6 +601,7 @@ class SmartfloStreamSession:
         # Fallback to free_ai chain
         try:
             from app.voice_agent.free_ai import chat
+
             messages = self.hist[-10:]  # bounded context
             return await chat(messages, niche=self.niche)
         except Exception as e:
@@ -562,25 +612,59 @@ class SmartfloStreamSession:
     # TTS + send (PCM16 16kHz → downsample → mulaw → WS media event)
     # ------------------------------------------------------------------ #
     async def _say(self, text: str) -> None:
-        """Synthesize text → TTS → send to caller via mulaw media events."""
+        """Synthesize text → TTS → send to caller via mulaw media events.
+
+        Non-blocking: schedules ``_speak_task`` in the background so the WS
+        receive loop keeps reading inbound frames (barge-in stays live). A
+        previous playback still in flight is cancelled first — the newer
+        reply always wins.
+        """
         if not TTS_AVAILABLE:
             logger.warning("[smartflo-stream] TTS unavailable — text-only reply")
             return
+        if self._closed:
+            return
+        self._cancel_playback()
+        self._play_task = asyncio.create_task(self._speak_task(text))
+
+    async def _speak_task(self, text: str) -> None:
         try:
             pcm_16k = await self._tts(text)
-            if not pcm_16k:
+            if not pcm_16k or self._closed:
                 return
             # Downsample 16kHz → 8kHz, encode to mulaw
             pcm_8k = pcm16_16k_to_8k(pcm_16k)
             mulaw = pcm16_to_mulaw(pcm_8k)
             # Send in chunks (160 bytes = 20ms)
             await self._send_mulaw_audio(mulaw)
+        except asyncio.CancelledError:
+            self._speaking = False
+            raise
         except Exception as e:
             logger.warning(f"[smartflo-stream] TTS/send failed: {e}")
+
+    def _cancel_playback(self) -> None:
+        """Cancel an in-flight TTS/playback task (idempotent, never raises)."""
+        self._speaking = False
+        task = self._play_task
+        self._play_task = None
+        if task is not None and not task.done():
+            task.cancel()
+
+    async def wait_playback(self, timeout: float = 30.0) -> None:
+        """Await the current playback task (tests / graceful shutdown)."""
+        task = self._play_task
+        if task is None:
+            return
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
+        except Exception:
+            pass
 
     async def _tts(self, text: str) -> bytes:
         """Text → PCM16 16kHz audio via EdgeTTS."""
         import edge_tts
+
         rate = os.environ.get("SMARTFLO_TTS_RATE", "+26%")
         pitch = os.environ.get("SMARTFLO_TTS_PITCH", "+2Hz")
         voice = os.environ.get("SMARTFLO_TTS_VOICE", "hi-IN-SwaraNeural")
@@ -594,6 +678,7 @@ class SmartfloStreamSession:
             return b""
         # Decode MP3 → PCM16 via pydub
         from pydub import AudioSegment
+
         seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
         seg = seg.set_frame_rate(16000).set_channels(1).set_sample_width(2)
         return seg.raw_data
@@ -611,14 +696,16 @@ class SmartfloStreamSession:
             payload_b64 = base64.b64encode(frame).decode()
             try:
                 await asyncio.wait_for(
-                    self._send({
-                        "event": "media",
-                        "streamSid": self.stream_sid,
-                        "media": {
-                            "payload": payload_b64,
-                            "chunk": str(chunk_num),
-                        },
-                    }),
+                    self._send(
+                        {
+                            "event": "media",
+                            "streamSid": self.stream_sid,
+                            "media": {
+                                "payload": payload_b64,
+                                "chunk": str(chunk_num),
+                            },
+                        }
+                    ),
                     timeout=_SEND_TIMEOUT_S,
                 )
             except asyncio.TimeoutError:
@@ -630,11 +717,13 @@ class SmartfloStreamSession:
         # Send mark to signal end of playback
         if self.stream_sid:
             try:
-                await self._send({
-                    "event": "mark",
-                    "streamSid": self.stream_sid,
-                    "mark": {"name": f"bot-{chunk_num}"},
-                })
+                await self._send(
+                    {
+                        "event": "mark",
+                        "streamSid": self.stream_sid,
+                        "mark": {"name": f"bot-{chunk_num}"},
+                    }
+                )
             except Exception:
                 pass
 
@@ -643,15 +732,17 @@ class SmartfloStreamSession:
     # ------------------------------------------------------------------ #
     async def _barge_in(self) -> None:
         """Interrupt bot playback, clear Smartflo buffer."""
-        self._speaking = False
+        self._cancel_playback()
         self._barge_frames = 0
         if self.stream_sid:
             try:
                 await asyncio.wait_for(
-                    self._send({
-                        "event": "clear",
-                        "streamSid": self.stream_sid,
-                    }),
+                    self._send(
+                        {
+                            "event": "clear",
+                            "streamSid": self.stream_sid,
+                        }
+                    ),
                     timeout=_SEND_TIMEOUT_S,
                 )
             except Exception:
@@ -666,8 +757,9 @@ class SmartfloStreamSession:
         self._greeted = True
         opener = self._caller_opening_line
         if not opener:
+            # TRAI/§5 invariant: AI-disclosure at call start ("ek AI assistant").
             opener = (
-                f"Namaste! Main {self.client_name} ki virtual assistant bol rahi hoon. "
+                f"Namaste! Main {self.client_name} ki AI assistant bol rahi hoon. "
                 "Aapki kya madad kar sakti hoon?"
             )
         self.hist.append({"role": "assistant", "content": opener})
@@ -700,6 +792,8 @@ class SmartfloStreamSession:
         if self._closed:
             return
         self._closed = True
+        # Stop any in-flight playback before tearing down the socket
+        self._cancel_playback()
         # Persist transcript (best-effort)
         try:
             await self._persist_transcript()
@@ -708,6 +802,7 @@ class SmartfloStreamSession:
         # Meter call completion
         try:
             from app.telephony.post_call_hooks import meter_call_completion
+
             user_turns = sum(1 for m in self.hist if m.get("role") == "user")
             await meter_call_completion(
                 client_id=self.client_id,
@@ -737,6 +832,7 @@ class SmartfloStreamSession:
         if not self.hist:
             return
         import os
+
         transcript_dir = _call_transcripts_dir()
         os.makedirs(transcript_dir, exist_ok=True)
         ts = self._started_at.strftime("%Y%m%d_%H%M%S")
@@ -768,6 +864,7 @@ __all__ = [
     "TTS_AVAILABLE",
     "mulaw_to_pcm16",
     "pcm16_to_mulaw",
+    "pcm16_to_wav",
     "pcm16_8k_to_16k",
     "pcm16_16k_to_8k",
 ]
