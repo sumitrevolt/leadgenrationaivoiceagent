@@ -43,7 +43,7 @@ pytestmark = pytest.mark.skipif(not _IMPORT_OK, reason="app not importable")
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _build_request(payload: dict, headers: dict | None = None, form: bool = False) -> "Request":
+def _build_request(payload: dict, headers: dict | None = None, form: bool = False) -> Request:
     """Build a minimal Starlette Request carrying ``payload``."""
     if form:
         body = urlencode(payload).encode()
@@ -99,6 +99,7 @@ def _clean(monkeypatch):
     monkeypatch.setattr(sw, "meter_call_completion", _noop_meter)
 
     if sw.niche_database is not None:
+
         def _noop_lead_update(*_a, **_kw):
             return True
 
@@ -138,7 +139,7 @@ class TestSmartfloDollarFormat:
         assert logged["call_id"] == "CA-SF-001"
         assert logged["ref_id"] == "ref-sf-001"
         assert logged["status"] == "completed"
-        assert logged["duration"] == 95          # string coerced to int
+        assert logged["duration"] == 95  # string coerced to int
         assert logged["billsec"] == 90
         assert logged["from"] == "918012345678"
         assert logged["to"] == "918590126070"
