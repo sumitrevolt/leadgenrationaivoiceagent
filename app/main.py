@@ -19,10 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.admin.main import router as admin_command_center_router
 from app.api import analytics, campaigns, leads, webhooks
 from app.api.admin import router as admin_router
 from app.api.admin_dashboard import router as admin_dashboard_router
-from app.admin.main import router as admin_command_center_router
 from app.api.agents import router as agents_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
