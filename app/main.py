@@ -2027,12 +2027,6 @@ async def growth_tools_page():
     return FileResponse(str(FRONTEND_DIR / "growth_tools.html"))
 
 
-@app.get("/app/command-center", tags=["Frontend"])
-async def command_center_page():
-    """MERGED→DELETED 2026-07-07 (ADR-034): the old Ops Command Center duplicated
-    /app/control-center + /app/ops (LLM health, staff roster, automation flags).
-    Route kept as a permanent redirect so old bookmarks/links still land on the
-    canonical ops cockpit; command_center.html deleted. Merge-before-delete per
     user mandate."""
     from fastapi.responses import RedirectResponse
 
