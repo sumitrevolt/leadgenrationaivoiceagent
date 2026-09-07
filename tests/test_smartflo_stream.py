@@ -636,3 +636,158 @@ class TestCustomParameters:
 class TestConstants:
     def test_mulaw_frame_bytes(self):
         assert MULAW_FRAME_BYTES == 160  # 8kHz * 20ms
+
+
+# ---------------------------------------------------------------------------
+# 13. Demo-readiness regressions (2026-09-07, pre Tata demo-account live test)
+# ---------------------------------------------------------------------------
+class TestDemoReadinessRegressions:
+    async def test_groq_stt_uploads_wav_container_not_raw_pcm(self):
+        """Regression: raw PCM was posted as 'audio.wav' → Groq 400 every time."""
+        import app.telephony.smartflo_stream as ss
+
+        s = _session()
+        captured: dict[str, Any] = {}
+
+        class _Resp:
+            status_code = 200
+            text = "namaste"
+
+        class _Client:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, url, headers=None, files=None, data=None):
+                captured["files"] = files
+                captured["data"] = data
+                return _Resp()
+
+        fake_httpx = MagicMock()
+        fake_httpx.AsyncClient = _Client
+        pcm = b"\x00\x01" * 1600  # 100ms PCM16 16kHz
+        with patch.dict("sys.modules", {"httpx": fake_httpx}):
+            with patch.object(ss, "_groq_key", return_value="gsk_test"):
+                text = await s._groq_stt(pcm)
+        assert text == "namaste"
+        name, fileobj, mime = captured["files"]["file"]
+        body = fileobj.getvalue()
+        assert name.endswith(".wav") and mime == "audio/wav"
+        assert body[:4] == b"RIFF" and body[8:12] == b"WAVE"
+        assert body.endswith(pcm)  # payload preserved after the 44-byte header
+        assert captured["data"]["model"] == "whisper-large-v3"
+
+    def test_pcm16_to_wav_header_declares_16k_mono(self):
+        import wave
+        import io as _io
+
+        from app.telephony.smartflo_stream import pcm16_to_wav
+
+        pcm = b"\x10\x00" * 320
+        with wave.open(_io.BytesIO(pcm16_to_wav(pcm)), "rb") as wf:
+            assert wf.getframerate() == 16000
+            assert wf.getnchannels() == 1
+            assert wf.getsampwidth() == 2
+            assert wf.readframes(wf.getnframes()) == pcm
+
+    async def test_say_does_not_block_receive_loop_and_barge_in_cancels(self):
+        """Regression: playback ran inline → no inbound frames read while
+        speaking → barge-in dead. Now _say() returns immediately, playback runs
+        as a task, and caller speech cancels it + emits `clear`."""
+        import app.telephony.smartflo_stream as ss
+
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-1"
+        # 2 s of "speech" = 100 frames of 160 mulaw bytes → would take ~2 s inline
+        long_audio = b"\x00\x00" * 16000
+
+        async def _fake_tts(_text: str) -> bytes:
+            return long_audio
+
+        with patch.object(ss, "TTS_AVAILABLE", True):
+            with patch.object(s, "_tts", side_effect=_fake_tts):
+                t0 = asyncio.get_event_loop().time()
+                await s._say("lambi baat")
+                assert asyncio.get_event_loop().time() - t0 < 0.5  # non-blocking
+                assert s._play_task is not None and not s._play_task.done()
+                # Let a few frames go out
+                await asyncio.sleep(0.15)
+                assert s._speaking is True
+                sent_before = len([m for m in ws.sent if m.get("event") == "media"])
+                assert sent_before >= 3
+                # Caller speaks over the bot → barge-in
+                for _ in range(3):
+                    await s._on_media(_make_speech_mulaw())
+                await asyncio.sleep(0.05)
+                assert s._speaking is False
+                assert s._play_task is None
+                assert any(m.get("event") == "clear" for m in ws.sent)
+                sent_after = len([m for m in ws.sent if m.get("event") == "media"])
+                # Playback truncated well short of the full 100 frames
+                assert sent_after < 60
+
+    async def test_cleanup_cancels_in_flight_playback(self):
+        import app.telephony.smartflo_stream as ss
+
+        ws = _FakeWS()
+        s = _session(ws)
+        s.stream_sid = "MZ-1"
+
+        async def _slow_tts(_text: str) -> bytes:
+            await asyncio.sleep(5)
+            return b"\x00\x00" * 160
+
+        with patch.object(ss, "TTS_AVAILABLE", True):
+            with patch.object(s, "_tts", side_effect=_slow_tts):
+                await s._say("hello")
+                task = s._play_task
+                assert task is not None
+                await s._cleanup()
+                await asyncio.sleep(0)
+                assert task.cancelled() or task.done()
+                assert s._play_task is None
+                assert ws.closed
+
+    async def test_start_accepts_snake_case_keys(self):
+        """Smartflo's exact casing is unconfirmed until the live call — accept both."""
+        ws = _FakeWS()
+        s = _session(ws)
+        ws.enqueue({
+            "event": "start",
+            "stream_sid": "SN-1",
+            "start": {
+                "stream_sid": "SN-1",
+                "call_sid": "CS-1",
+                "from": "919999999999",
+                "to": "918000000000",
+                "custom_parameters": {"niche": "salon", "client_id": "c-1"},
+            },
+        })
+        ws.enqueue_stop()
+        await s.handle()
+        assert s.stream_sid == "SN-1"
+        assert s.call_sid == "CS-1"
+        assert s.niche == "salon"
+        assert s.client_id == "c-1"
+
+    async def test_default_greeting_discloses_ai(self):
+        """§5 TRAI invariant: AI-disclosure at call start."""
+        ws = _FakeWS()
+        s = _session(ws, client_name="Sharma Salon")
+        ws.enqueue({
+            "event": "start",
+            "streamSid": "MZ-1",
+            "start": {"streamSid": "MZ-1", "callSid": "CA-1"},
+        })
+        ws.enqueue_stop()
+        with patch("app.telephony.smartflo_stream.TTS_AVAILABLE", True):
+            with patch.object(s, "_say", new_callable=AsyncMock):
+                await s.handle()
+        opener = [m for m in s.hist if m["role"] == "assistant"][0]["content"]
+        assert "AI assistant" in opener
