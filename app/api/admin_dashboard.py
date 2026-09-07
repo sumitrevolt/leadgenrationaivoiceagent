@@ -1498,16 +1498,8 @@ async def get_workforce_live(_user=Depends(require_admin)) -> dict:
     from app.platform import runtime_data
 
     try:
-        def _get_latest_path(filename: str) -> Path:
-            p_data = Path("data") / filename
-            p_runtime = runtime_data.store_path(filename)
-            candidates = [p for p in (p_data, p_runtime) if p.exists()]
-            if not candidates:
-                return p_runtime
-            return max(candidates, key=lambda p: p.stat().st_mtime)
-
-        status_p = _get_latest_path("workforce_live_status.json")
-        healing_p = _get_latest_path("peer_healing_events.json")
+        status_p = runtime_data.store_path("workforce_live_status.json")
+        healing_p = runtime_data.store_path("peer_healing_events.json")
 
         status_data: dict = {}
         if status_p.exists():

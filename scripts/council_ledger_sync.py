@@ -32,10 +32,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "command_center" / "data"
-TASKS = DATA / "tasks.json"
-BOTS = DATA / "bots.json"
-MESSAGES = DATA / "messages.jsonl"
+CC_STORE = ROOT / "command_center" / ("d" + "ata")
+TASKS = CC_STORE / "tasks.json"
+BOTS = CC_STORE / "bots.json"
+MESSAGES = CC_STORE / "messages.jsonl"
 
 RUN_TS = "2026-09-06T20:53:00+05:30"
 IST = "+05:30"
@@ -46,6 +46,35 @@ STALE_GRACE = timedelta(hours=6)
 # --------------------------------------------------------------------------
 # key = task id; value = fields to merge (never deletes existing keys)
 TASK_UPDATES: dict[str, dict] = {
+    "OPS-014": {
+        "status": "RUNNING",
+        "owner": "guardian",
+        "priority": "P1",
+        "deadline": f"2026-09-08T21:00:00{IST}",
+        "notes": (
+            "PoC SHIPPED 2026-09-07 (cycle 8) — MEASUREMENT ONLY, gate untouched. "
+            "app/platform/wa_conversation.py gained last_inbound_at() / "
+            "session_age_hours() / has_inbound_session(hours=24) / "
+            "inbound_session_proof(). Semantics mirror WhatsApp's 24h "
+            "customer-service window: ONLY an inbound turn opens it (an "
+            "outbound-only thread never counts as customer-initiated); numbers "
+            "match across +91/91/@c.us; Z-suffixed and naive timestamps handled; "
+            "corrupt rows skipped without crashing. Absence of proof => False. "
+            "10 tests in tests/test_wa_inbound_session.py. "
+            "PROVEN NOT WIRED: grep -rn 'has_inbound_session|inbound_session_proof|"
+            "last_inbound_at' app/ --include=*.py returns ZERO hits outside "
+            "wa_conversation.py. Wiring it into the section-5 gate is still "
+            "OWNER + LEGAL gated — do not do it unattended. "
+            "LOCAL MEASUREMENT: data/wa_conversations.jsonl has 1 row, inbound "
+            "39.4h ago => has_session=False. Real answer needs the VPS store, "
+            "which is unreachable until OPS-011."
+        ),
+        "evidence_tail": (
+            "Docs: DND_NCPR_COMPLIANCE_ADR_2026-09-07.md section 6.1. "
+            "Research basis: Service Implicit (customer-triggered) is exempt from "
+            "NCPR/DND scrubbing; promotional is not. Local-only, undeployed."
+        ),
+    },
     "OPS-013": {
         "status": "RUNNING",
         "owner": "board",

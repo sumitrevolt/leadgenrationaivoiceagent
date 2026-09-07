@@ -113,6 +113,21 @@ Write-through · idempotency across three spellings of one number · survives a 
 ### 6.1 D4 — message-category re-classification (touches the §5 gate)
 Proposed: automated sends carry `category ∈ {promotional, service_implicit}`. `service_implicit` requires **proof** of an inbound-initiated session (inbound message timestamp within the WhatsApp 24h window). Promotional stays exactly as today — fail-closed. This is a *narrowing with proof*, not a bypass, but it edits a compliance gate, so it is **not** being done unattended.
 
+**Proof-of-concept shipped 2026-09-07 (cycle 8) — MEASUREMENT ONLY.** `app/platform/wa_conversation.py` gained:
+
+| Function | Contract |
+|---|---|
+| `last_inbound_at(number)` | most recent **inbound** turn (UTC) or `None` |
+| `session_age_hours(number)` | hours since that turn, or `None` |
+| `has_inbound_session(number, hours=24)` | **True only with proof** — no inbound turn, unreadable store, or unusable timestamp ⇒ `False` |
+| `inbound_session_proof(number, hours=24)` | machine-readable evidence dict for audit |
+
+Rules encoded: **only an inbound turn opens the window** (an outbound-only thread never counts as customer-initiated); numbers match across `+91…` / `91…` / `@c.us` via the existing `_digits`; `Z` and naive timestamps are handled; corrupt rows are skipped without crashing. 10 tests in `tests/test_wa_inbound_session.py`.
+
+**Verified NOT wired into any gate:** `grep -rn "has_inbound_session\|inbound_session_proof\|last_inbound_at" app/ --include=*.py` returns zero hits outside `wa_conversation.py`. Wiring it in is the OPS-014 decision and needs owner + legal sign-off.
+
+**Local measurement (honest, and deliberately small):** `data/wa_conversations.jsonl` holds 1 row for one number, inbound **39.4 h** ago ⇒ `has_session=False`. So even the PoC says: nothing to send to locally. The real answer needs the VPS store, which is unreachable without OPS-011.
+
 ### 6.2 D5 — BSP with NCPR scrubbing
 Needed from the provider, in writing: (a) scrubbing performed at send time, (b) list freshness/refresh cadence, (c) scrubbing logs retained, (d) promotional window enforcement.
 

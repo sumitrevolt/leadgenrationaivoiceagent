@@ -339,7 +339,10 @@ async def _scrub_dnd(candidates: list) -> tuple:
         if not phone:
             continue
         try:
-            res = await checker.check_single(phone)
+            # channel="messaging" (OPS-017): promotional WhatsApp needs a real
+            # NCPR scrub. The blanket DND_CARRIER_SCRUB voice allowance must
+            # NOT be able to mark every number "verified non-DND" here.
+            res = await checker.check_single(phone, channel="messaging")
             verified = bool(getattr(res, "verified", True))
             is_dnd = bool(getattr(res, "is_dnd", False))
             if not verified or is_dnd:

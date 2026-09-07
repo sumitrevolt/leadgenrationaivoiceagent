@@ -779,12 +779,9 @@ def team_status() -> dict[str, Any]:
     live_workforce: dict[str, dict] = {}
     workforce_totals: dict[str, Any] = {}
     try:
-        from pathlib import Path
         from app.platform import runtime_data
 
-        wf_path = Path("data/workforce_live_status.json")
-        if not wf_path.exists():
-            wf_path = runtime_data.store_path("workforce_live_status.json")
+        wf_path = runtime_data.store_path("workforce_live_status.json")
         if wf_path.exists():
             with open(wf_path, encoding="utf-8") as _wff:
                 wf_data = json.load(_wff)

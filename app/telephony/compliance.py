@@ -273,7 +273,11 @@ class ComplianceGate:
         if checker is None:
             return False if _fail_open else None
         try:
-            res = await checker.check_single(phone)
+            # channel="voice": DND_CARRIER_SCRUB is a voice-only allowance
+            # (OPS-017). TelephonyCompliance gates outbound CALLS, where TCCCPR
+            # 2018 permits contacting a DND number with documented consent
+            # (consent_ledger). It must never clear the messaging gate.
+            res = await checker.check_single(phone, channel="voice")
             # FAIL-CLOSED by default: unverified lookup treated as unknown → block.
             # DND_FAIL_OPEN=1 overrides: treat unverified as "not on DND".
             if not getattr(res, "verified", True):

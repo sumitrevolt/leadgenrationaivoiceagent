@@ -113,7 +113,10 @@ def test_scrub_fails_closed_on_unverified_lookup(monkeypatch):
         verified = False  # lookup could not be verified
 
     class _Checker:
-        async def check_single(self, phone):
+        async def check_single(self, phone, channel=None):
+            # OPS-017: the WhatsApp gate must declare the messaging channel so a
+            # voice-only carrier-scrub allowance can never clear it.
+            assert channel == "messaging", f"expected messaging scrub, got {channel!r}"
             return _Res()
 
     monkeypatch.setattr(dc, "DNDChecker", _Checker)
@@ -146,7 +149,8 @@ def test_scrub_keeps_confirmed_non_dnd(monkeypatch):
         verified = True
 
     class _Checker:
-        async def check_single(self, phone):
+        async def check_single(self, phone, channel=None):
+            assert channel == "messaging", f"expected messaging scrub, got {channel!r}"
             return _Res()
 
     monkeypatch.setattr(dc, "DNDChecker", _Checker)
