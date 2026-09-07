@@ -19,10 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.admin.main import command_center_router as admin_command_center_router
 from app.api import analytics, campaigns, leads, webhooks
 from app.api.admin import router as admin_router
 from app.api.admin_dashboard import router as admin_dashboard_router
-from app.admin.main import command_center_router as admin_command_center_router
 from app.api.agents import router as agents_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
@@ -2027,12 +2027,6 @@ async def growth_tools_page():
     return FileResponse(str(FRONTEND_DIR / "growth_tools.html"))
 
 
-@app.get("/app/command-center", tags=["Frontend"])
-async def command_center_page():
-    """MERGED→DELETED 2026-07-07 (ADR-034): the old Ops Command Center duplicated
-    /app/control-center + /app/ops (LLM health, staff roster, automation flags).
-    Route kept as a permanent redirect so old bookmarks/links still land on the
-    canonical ops cockpit; command_center.html deleted. Merge-before-delete per
     user mandate."""
     from fastapi.responses import RedirectResponse
 
