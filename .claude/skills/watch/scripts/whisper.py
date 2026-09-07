@@ -24,7 +24,6 @@ import uuid
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_MODEL = "whisper-large-v3"
 
@@ -120,22 +119,28 @@ def _build_multipart(fields: dict[str, str], file_path: Path) -> tuple[bytes, st
     buf = io.BytesIO()
 
     for name, value in fields.items():
-        buf.write(f"--{boundary}".encode()); buf.write(eol)
-        buf.write(f'Content-Disposition: form-data; name="{name}"'.encode()); buf.write(eol)
+        buf.write(f"--{boundary}".encode())
         buf.write(eol)
-        buf.write(str(value).encode()); buf.write(eol)
+        buf.write(f'Content-Disposition: form-data; name="{name}"'.encode())
+        buf.write(eol)
+        buf.write(eol)
+        buf.write(str(value).encode())
+        buf.write(eol)
 
     mimetype = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    buf.write(f"--{boundary}".encode()); buf.write(eol)
+    buf.write(f"--{boundary}".encode())
+    buf.write(eol)
     buf.write(
         f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"'.encode()
     )
     buf.write(eol)
-    buf.write(f"Content-Type: {mimetype}".encode()); buf.write(eol)
+    buf.write(f"Content-Type: {mimetype}".encode())
+    buf.write(eol)
     buf.write(eol)
     buf.write(file_path.read_bytes())
     buf.write(eol)
-    buf.write(f"--{boundary}--".encode()); buf.write(eol)
+    buf.write(f"--{boundary}--".encode())
+    buf.write(eol)
 
     return buf.getvalue(), boundary
 

@@ -26,7 +26,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REQUIRED_BINARIES = ["ffmpeg", "ffprobe", "yt-dlp"]
 CONFIG_DIR = Path.home() / ".config" / "watch"
 CONFIG_FILE = CONFIG_DIR / ".env"

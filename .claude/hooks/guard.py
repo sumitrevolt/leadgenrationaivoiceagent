@@ -14,10 +14,9 @@ Decision model (PreToolUse):
 Fail-OPEN: any parse/internal error -> exit 0 silently. A guard must never
 break the session; worst case it simply does not fire.
 """
-import sys
 import json
 import re
-
+import sys
 
 # Command-boundary anchor: a dangerous command must START the line or follow a
 # shell separator (newline, ;, |, &, &&, ||). This stops false-positives on the

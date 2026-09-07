@@ -14,7 +14,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 MAX_FPS = 2.0
 
 
@@ -206,15 +205,20 @@ if __name__ == "__main__":
     i = 0
     while i < len(args):
         if args[i] == "--fps":
-            fps_override = float(args[i + 1]); i += 2
+            fps_override = float(args[i + 1])
+            i += 2
         elif args[i] == "--resolution":
-            resolution = int(args[i + 1]); i += 2
+            resolution = int(args[i + 1])
+            i += 2
         elif args[i] == "--max-frames":
-            max_frames = int(args[i + 1]); i += 2
+            max_frames = int(args[i + 1])
+            i += 2
         elif args[i] == "--start":
-            start_arg = args[i + 1]; i += 2
+            start_arg = args[i + 1]
+            i += 2
         elif args[i] == "--end":
-            end_arg = args[i + 1]; i += 2
+            end_arg = args[i + 1]
+            i += 2
         else:
             i += 1
 

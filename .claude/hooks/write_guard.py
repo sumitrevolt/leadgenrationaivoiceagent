@@ -17,11 +17,10 @@ Decision model mirrors guard.py: DENY / ASK / else silent-exit-0 (never
 auto-allow). Fail-OPEN: any parse/internal error -> exit 0 silently. A guard
 must never break editing; worst case it simply does not fire.
 """
-import sys
 import json
 import os
 import re
-
+import sys
 
 # Reference env files that are legitimately edited (NOT the real secret .env).
 _ENV_SAFE_SUFFIX = (".example", ".sample", ".template", ".dist", ".local.example")

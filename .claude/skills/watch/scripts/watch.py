@@ -11,12 +11,19 @@ import sys
 import tempfile
 from pathlib import Path
 
-
 SCRIPT_DIR = Path(__file__).parent.resolve()
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from download import download, is_url  # noqa: E402
-from frames import MAX_FPS, auto_fps, auto_fps_focus, extract, format_time, get_metadata, parse_time  # noqa: E402
+from frames import (  # noqa: E402
+    MAX_FPS,
+    auto_fps,
+    auto_fps_focus,
+    extract,
+    format_time,
+    get_metadata,
+    parse_time,
+)
 from transcribe import filter_range, format_transcript, parse_vtt  # noqa: E402
 from whisper import load_api_key, transcribe_video  # noqa: E402
 

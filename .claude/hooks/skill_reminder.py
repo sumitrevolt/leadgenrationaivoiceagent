@@ -14,8 +14,8 @@ Output contract: stdout = JSON with hookSpecificOutput.additionalContext.
 Empty / no relevant skills -> print nothing, exit 0.
 Any internal error -> exit 0 silently (hook must never break editing).
 """
-import sys
 import json
+import sys
 
 
 def relevant_skills(path: str):
@@ -25,7 +25,7 @@ def relevant_skills(path: str):
     # Skip non-code surfaces entirely (docs, memory, the skills/config dir).
     if any(seg in p for seg in ("/.claude/", "/docs/", "/memory/", "/.git/")):
         return []
-    if not p.rsplit(".", 1)[-1] in ("py", "html", "css", "js", "ts", "jsx", "tsx"):
+    if p.rsplit(".", 1)[-1] not in ("py", "html", "css", "js", "ts", "jsx", "tsx"):
         return []
 
     skills = []
