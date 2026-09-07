@@ -2912,3 +2912,17 @@ equire_admin + /mcp Bearer/IP fail-closed middleware). Verified: unauth=401 both
 **Operational consequence:** Scheduler red rehna expected hai jab tak owner exposed historical key revoke/rotate karke replacement approved credential store me provision nahi karta. `OPS-013` canonical task ledger me P0/BLOCKED hai. Post-rotation proof = ek natural scheduler cycle with `DesktopAuth=True`, `ALL_HEALTHY=True`, result 0; key value kisi evidence me nahi.
 
 **Verification:** red-first 3 tests failed on missing API, then 11 targeted pass; complete OmniRoute suite 78 passed + 3 documented xfails; ruff clean; prod_check pass; changed-file secrets scan and thousand-engineers preflight pass. Natural 22:12 cycle: Gateway/MemoryGuard/five configs/Canary true, DesktopAuth false, terminal scheduler result 1.
+
+## ADR-192 — Canonical Project-Best is combo 12 with a verified free-first head (2026-09-07, LOCAL LIVE)
+
+**Decision:** Keep exactly 14 canonical `leadsgen combo N` identities and make `leadsgen combo 12` the Project-Best profile. Its first four routes are explicit `-free`, live-proven OpenCode/OpenCode-Zen Nemotron lanes; the two live but not explicitly free-labelled Big Pickle routes follow them, then the remaining 36 catalog entries. Desktop sync emits only canonical ids, and all 14 email bindings must be unique. Legacy aliases remain deleted and are never recreated.
+
+**Evidence and trade-off:** Direct canaries succeeded for OpenCode and OpenCode-Zen (~2.3-2.9s). Groq and Cerebras returned `No active credentials`; Gemini returned `API key not valid`. Therefore catalog presence is not readiness and the 42-slot tail is fallback inventory, not 42 verified-free providers. This preserves the requested 42 model slots while keeping the only currently proven free lanes first. Backup: `.omniroute-cutover/backups/storage-pre-canonical-20260907-065713.sqlite`.
+
+**Verification:** focused OmniRoute tests 18 pass + 1 documented xfail; `prod_check.py` all checks passed (1394 routes); secrets scan clean; live DB read-back showed combo 12 count=42 with the expected six heads; real combo inference was served by `nemotron-3.5-lightning-free` in ~2.8s. No production deploy, commit, push, `.env`, or provider credential mutation.
+
+## ADR-193 — OmniRoute distribution has one canonical source and five-app parity (2026-09-07, LOCAL LIVE)
+
+**Decision:** `config/desktop_apps/combo_distribution.yaml` now describes only `leadsgen combo 1..14`, maps all 14 unique emails, distinguishes 42 model slots from 33 provider IDs, and assigns all 14 combos to each of the five desktop surfaces. `scripts/sync_all_combos_all_apps.py` purges known legacy routing IDs from active Hermes caches/config and OpenClaw defaults, while preserving unrelated native provider catalogs and audit history. OpenClaw defaults to canonical Project-Best combo 12. Distributor reconciliation now reads live `/v1/combos` before the stale snapshot fallback and compares authoritative `providerId` before parsing the model path.
+
+**Verification:** live reconciliation: manifest=14, gateway=14, missing both ways=0, provider mismatches=0, status=OK. Active DSH, WorkBuddy, OpenClaw, Hermes and Verdant configs have zero checked legacy routing references; focused suite 20 pass + 1 documented xfail; preflight ruff/secrets/pytest PASS; `prod_check.py` ALL CHECKS PASSED (1394 routes). No production deploy, commit, push, `.env`, provider-account, or API-key mutation.
