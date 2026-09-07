@@ -304,8 +304,11 @@ def run_for_client(slug: str) -> dict:
     try:
         from app.marketing.brand_kit import get_client  # type: ignore
         client = get_client(slug)
-    except Exception as e:
-        return {"ok": False, "error": f"unknown_client:{e}"}
+    except Exception:
+        # CodeQL: do not echo the exception into the API response — it can leak
+        # internal paths/state. Log server-side, return a stable opaque code.
+        logger.exception("run_for_client: failed to load client for slug '%s'", slug)
+        return {"ok": False, "error": "unknown_client"}
     if not client:
         return {"ok": False, "error": "unknown_client"}
 
