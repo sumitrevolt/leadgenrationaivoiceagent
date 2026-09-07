@@ -180,9 +180,7 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
     # Smartflo documents variables with a ``$`` sigil; accept both forms.
     data = _normalize_keys(body)
 
-    call_id = str(
-        _pick(data, "call_id", "callId", "callid", "uuid", "id", default="unknown")
-    )
+    call_id = str(_pick(data, "call_id", "callId", "callid", "uuid", "id", default="unknown"))
     ref_id = str(_pick(data, "ref_id", "refId", "refid", default=""))
     status = str(
         _pick(
@@ -225,9 +223,7 @@ async def smartflo_webhook(request: Request) -> JSONResponse:
 
     # Extra Smartflo fields worth keeping (no-op for the simplified format).
     hangup_cause = str(_pick(data, "hangup_cause", "reason_key", default=""))
-    recording_url = str(
-        _pick(data, "recording_url", "aws_call_recording_identifier", default="")
-    )
+    recording_url = str(_pick(data, "recording_url", "aws_call_recording_identifier", default=""))
     start_stamp = str(_pick(data, "start_stamp", "start_date", default=""))
     end_stamp = str(_pick(data, "end_stamp", "end_date", default=""))
     call_connected_raw = _pick(data, "call_connected", default=None)
@@ -316,9 +312,7 @@ def get_recent_webhooks(limit: int = 50) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Downstream actions (best-effort, never raise)
 # ---------------------------------------------------------------------------
-async def _meter_call(
-    call_id: str, duration_s: int, custom_id: dict[str, Any]
-) -> None:
+async def _meter_call(call_id: str, duration_s: int, custom_id: dict[str, Any]) -> None:
     """Trigger billing metering for a connected Smartflo call."""
     try:
         client_id = custom_id.get("client_id")
