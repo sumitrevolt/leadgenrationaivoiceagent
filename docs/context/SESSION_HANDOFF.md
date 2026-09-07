@@ -1,4 +1,12 @@
-# SESSION HANDOFF — 2026-09-07 (Latest: central-ledger stale-state normalization)
+# SESSION HANDOFF — 2026-09-07 (Latest: workforce evidence correction)
+
+## 10:04 IST — OPS-WORKFORCE-TRUTH (LOCAL-ONLY)
+- Existing canonical tasks.json now records owner engineering, P1, deadline and handoff. No new fleet/dashboard/daemon.
+- Reproduced fabricated LOCAL_ACTIVE after both inference attempts failed. Now BLOCKED/FAILED, healed=false; empty completion fails; reasoning is not copied to output. Removed cycle*31 action inflation and hardcoded desktop ACTIVE claims. Counts reflect current-cycle inference responses, explicitly not task execution.
+- Focused workforce/auth/watchdog/council tests: 14 passed exit 0; secrets scan exit 0; diff check exit 0. prod_check ALL CHECKS PASSED exit 0, 1394 registered routes. Ledger read-back: 51 tasks, zero duplicate IDs, one OPS-WORKFORCE-TRUTH.
+- Running daemon has NOT been restarted: source fix is not live evidence. Next: add empty-completion/aggregate tests, finish gates, controlled local reload and read-back; then connect authorized ledger tasks to execution without model prose as proof.
+- App heartbeat leadgen-existing-ledger-follow-up ACTIVE hourly, same task, quiet when unchanged. Existing OS keepalive retained.
+- No production changes, customer sends, secret mutation, commit or deploy.
 
 ## Latest loop — 04:35 IST council truth refresh
 - Current local runtime: OmniRoute `/v1/models` 200 with 14/14 combos, image 3.8.46, memory ~62%/2GiB, OOM=false, restart=0. Credential presence false in Process/User/Machine, so scheduled result 1 remains expected `DesktopAuth=False`; alert-once state reached fails=65 without repeat alerts.

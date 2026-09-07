@@ -3109,3 +3109,14 @@ Carry-forward: decide `upi_12_bd74bae8`; pull Kamal's VPS record; pull + manuall
 - **Top-up packs (`packages.py:353-355`):** 100 min ₹1,499 · 250 min ₹3,499 · 500 min ₹5,999 — added to A4 as a low-friction add-on if Kamal stalls on the ₹5,999 jump.
 - Re-probe 08:42 IST: `/health` unchanged `bdf82eec`, uptime 2h54m; `/api/ops/revenue-summary` still **401**. Stable, no drift during the run.
 - 09:00 IST hot-queue pack had **not fired yet** at 08:42 — A5's pack check must run after 09:00.
+# Loop Run — 2026-09-07 10:05 IST — workforce evidence correction
+
+- Goal: eliminate fabricated recovery before central-ledger execution integration.
+- Inspected: existing council ledger, workforce script, watchdog, keepalive, context, consumers and auth tests.
+- Problems Found: failed primary+fallback became LOCAL_ACTIVE/RECOVERED/success; empty output fabricated operational text; counts inflated by cycle*31; desktop activity hardcoded.
+- Changed: local failure truth and current-cycle counts; explicit inference-only evidence; canonical OPS-WORKFORCE-TRUTH assigned engineering P1, deadline 18:00 IST. Existing-thread hourly follow-up, no duplicate daemon.
+- Tests Run: regression red first; focused auth/watchdog/council 14 passed EXIT=0; prod_check ALL CHECKS PASSED EXIT=0 (1394 routes); check_secrets EXIT=0; diff check EXIT=0.
+- Verification Evidence: ledger 51 tasks, duplicate IDs 0, new task count exactly 1.
+- Risks: source changes not loaded into existing daemon; generated replies still not tool-executed work; historical event counts remain historical.
+- Remaining: aggregate/empty-output contracts, controlled local reload/read-back, real ledger-task execution wiring. No production deployment or customer action taken.
+- Next Highest Priority: OPS-WORKFORCE-TRUTH runtime verification and authorized task integration; preserve existing owners and frozen lanes.

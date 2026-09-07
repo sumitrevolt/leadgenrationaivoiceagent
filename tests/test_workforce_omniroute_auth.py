@@ -5,8 +5,24 @@ from __future__ import annotations
 import inspect
 import json
 import subprocess
+import sys
+from types import SimpleNamespace
 
 import scripts.autonomous_workforce_orchestrator as orchestrator
+
+
+def test_failed_primary_and_helper_never_claim_recovery(monkeypatch):
+    events = []
+    monkeypatch.setattr(orchestrator, "execute_omniroute_query", lambda *a, **k: (False, "unavailable"))
+    monkeypatch.setattr(orchestrator, "log", lambda *a: None)
+    monkeypatch.setattr(orchestrator, "recent_healing_events", [])
+    monkeypatch.setattr(orchestrator, "agent_status_cache", {})
+    monkeypatch.setitem(sys.modules, "app.platform.team", SimpleNamespace(log_event=lambda *a: events.append(a)))
+    result = orchestrator.run_single_agent(orchestrator.AGENT_CONFIGS[0], 1)
+    assert result["status"] == "BLOCKED"
+    assert orchestrator.recent_healing_events[-1]["status"] == "FAILED"
+    assert events[-1][3] == "failed"
+    assert events[-1][4]["healed"] is False
 
 
 def test_combo_key_resolver_never_extracts_keys_from_gateway_storage(monkeypatch):

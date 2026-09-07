@@ -150,10 +150,10 @@ def execute_omniroute_query(combo_name: str, prompt: str, timeout_s: int = 15) -
                 if not choices:
                     return False, "Empty choices returned"
                 msg = choices[0].get("message", {})
-                raw_content = msg.get("content") or msg.get("reasoning") or msg.get("text") or ""
+                raw_content = msg.get("content") or msg.get("text") or ""
                 content = raw_content.strip()
                 if not content:
-                    content = "Status verified: operational"
+                    return False, "Empty completion returned"
                 return True, content
         except Exception as e:
             msg = str(e)
@@ -192,9 +192,8 @@ def run_single_agent(agent_cfg: dict, cycle_num: int) -> dict:
             result = f"[RESCUED by {helper_cfg['name']} via {rescue_combo}] {helper_result}"
             status_label = "RESCUED_ACTIVE"
         else:
-            # Fallback to local rule engine so the agent NEVER stays stalled
-            result = f"[SELF-RECOVERED via Local Engine] Invariant maintained for {name} ({task_prompt[:25]}...)"
-            status_label = "LOCAL_ACTIVE"
+            result = "Primary and fallback inference failed; task execution unverified."
+            status_label = "BLOCKED"
 
         healing_event = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -204,20 +203,22 @@ def run_single_agent(agent_cfg: dict, cycle_num: int) -> dict:
             "helper_agent": helper_cfg["name"],
             "rescue_combo": rescue_combo,
             "reason": str(result)[:80],
-            "status": "RECOVERED"
+            "status": "RECOVERED" if helper_success else "FAILED"
         }
         recent_healing_events.append(healing_event)
-        log(f"🛡️ [PEER RESCUE SUCCESS] {helper_cfg['name']} recovered {name}. Worker back online!")
+        log(f"[FALLBACK {'SUCCEEDED' if helper_success else 'FAILED'}] {name}: inference only; no task completion proof.")
     else:
         status_label = "ACTIVE"
 
     # Step 3: Record to platform DB agent_events
     try:
         from app.platform.team import log_event
-        log_event(key, f"cycle_{cycle_num}", result[:140], "success", {
+        log_event(key, f"cycle_{cycle_num}", result[:140], "failed" if status_label == "BLOCKED" else "success", {
             "cycle": cycle_num,
             "combo": combo,
-            "healed": healing_event is not None
+            "healed": healing_event is not None and healing_event["status"] == "RECOVERED",
+            "evidence_kind": "inference_probe",
+            "task_execution_verified": False
         })
     except Exception:
         pass
@@ -271,26 +272,26 @@ def run_continuous_batch(cycle_num: int, workers_count: int = 4):
     except Exception:
         pass
 
-    combined_actions = max(totals.get("actions_today", 0), vps_actions) + (cycle_num * 31)
+    combined_actions = max(totals.get("actions_today", 0), vps_actions)
+    current_agents = [a for a in agent_status_cache.values() if a.get("cycle") == cycle_num]
+    responsive = sum(a["status"] in {"ACTIVE", "RESCUED_ACTIVE"} for a in current_agents)
 
     state_payload = {
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "cycle": cycle_num,
         "status": "RUNNING_24_7_PARALLEL",
-        "active_workers": 31,
+        "active_workers": responsive,
         "actions_today": combined_actions,
-        "working_members": 31,
-        "active_members": 31,
-        "peer_rescues_count": len(recent_healing_events),
-        "desktop_apps": {
-            "hermes": "ACTIVE (14 Combos · Port :9119)",
-            "claude": "ACTIVE (Claude Code CLI via OmniRoute :20128 · Desktop NOT wired - Claude sub)",
-            "workbuddy": "ACTIVE (OmniRoute :20128 & :22000)",
-            "openclaw": "ACTIVE (Governance & Boss Surface)",
-            "verdant": "ACTIVE (Research & QA Engine)",
-            "buzz": "ACTIVE (Local Relay: ws://127.0.0.1:3100 · Port :3100)"
-        },
-        "agents": list(agent_status_cache.values()),
+        "working_members": responsive,
+        "active_members": responsive,
+        "evidence_kind": "inference_probe_only",
+        "task_execution_verified": False,
+        "peer_rescues_count": sum(e["status"] == "RECOVERED" for e in recent_healing_events),
+        "desktop_apps": dict.fromkeys(
+            ("hermes", "claude", "workbuddy", "openclaw", "verdant", "buzz"),
+            "UNVERIFIED (no desktop execution probe)",
+        ),
+        "agents": current_agents,
         "recent_rescues": list(recent_healing_events)[-10:]
     }
 
@@ -318,7 +319,7 @@ def run_continuous_batch(cycle_num: int, workers_count: int = 4):
 def main():
     log("==================================================================")
     log("  LEADGEN 31-AGENT AUTONOMOUS PARALLEL WORKFORCE & PEER-HEALER    ")
-    log("  14 Combos × 42 Providers Active · 24/7 Autonomous Autopilot     ")
+    log("  Inference probes only; provider and task execution not verified")
     log("==================================================================")
 
     cycle = 1
