@@ -4,6 +4,7 @@ Runs independently from main app - no main.py modification needed.
 """
 
 from fastapi import FastAPI
+
 from app.admin.main import admin_router
 
 app = FastAPI(
