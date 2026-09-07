@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from app.api.auth_deps import require_admin
 from app.config import settings
 from app.models.user import User
+from app.telephony.compliance import CallType, get_compliance_gate
 from app.telephony.tata_smartflo_handler import TataSmartfloClient
 from app.utils.logger import setup_logger
 
@@ -220,6 +221,22 @@ async def smartflo_test_call(
     to_number = (body.get("to") or "").strip()
     if not to_number or len(to_number) < 8:
         raise HTTPException(status_code=422, detail="'to' is required (8-20 digit number)")
+
+    # Even an admin-initiated provider test can originate a real PSTN call.
+    # Limit this route to a number the owner has explicitly marked as an
+    # consented test destination.  The regular compliance gate remains the
+    # authority for phone normalisation and the audit decision.
+    decision = await get_compliance_gate().check(
+        to_number, CallType.TRANSACTIONAL
+    )
+    if not decision.allowed or "allowlisted" not in decision.reasons:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Smartflo test call blocked by compliance. Add the explicitly "
+                "consented test number to COMPLIANCE_ALLOWLIST before retrying."
+            ),
+        )
 
     caller_id = (body.get("caller_id") or "").strip() or None
     try:
