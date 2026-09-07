@@ -1,7 +1,9 @@
+import argparse
 import json
 import os
 import sqlite3
 import subprocess
+import urllib.request
 
 import yaml
 
@@ -34,6 +36,9 @@ ALL_COMBOS = [
 ]
 
 COMBO_IDS = [c["id"] for c in ALL_COMBOS]
+CANONICAL_COMBO_IDS = [c["canonical"] for c in ALL_COMBOS]
+LEGACY_COMBO_IDS = [c["real"] for c in ALL_COMBOS] + COMBO_IDS
+ALL_MODEL_IDS = CANONICAL_COMBO_IDS + LEGACY_COMBO_IDS
 
 
 PYTHON_PATH = r"C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.venv\Scripts\python.exe"
@@ -50,7 +55,7 @@ UNIVERSAL_MCP_SERVERS = {
     "buzz": {
         "command": PYTHON_PATH,
         "args": [os.path.join(REPO_DIR, r"scripts\buzz_mcp.py")],
-        "env": {"BUZZ_RELAY": "https://leadsgenai.communities.buzz.xyz"},
+        "env": {"BUZZ_RELAY": "ws://127.0.0.1:3100"},
     },
     "puppeteer": {
         "command": "npx.cmd",
@@ -84,11 +89,15 @@ def sync_dsh():
 
         models_list = [
             {
-                "id": c["real"],
+                "id": c["canonical"],
                 "name": c["name"],
                 "contextWindow": 1048576,
                 "maxTokens": 16384,
             }
+            for c in ALL_COMBOS
+        ]
+        models_list += [
+            {"id": c["real"], "name": f"{c['name']} (legacy)", "contextWindow": 1048576, "maxTokens": 16384}
             for c in ALL_COMBOS
         ]
         data["llm-pi-ai"]["providers"]["omniroute"] = {
@@ -150,7 +159,7 @@ def sync_workbuddy():
         data["omniroute"] = {
             "baseURL": "http://127.0.0.1:22000",
             "apiKey": OMNIROUTE_API_KEY,
-            "models": COMBO_IDS,
+            "models": ALL_MODEL_IDS,
         }
         data["mcpServers"] = UNIVERSAL_MCP_SERVERS
 
@@ -175,6 +184,21 @@ def sync_workbuddy():
                 wb_models = []
 
         for c in ALL_COMBOS:
+            wb_models.append(
+                {
+                    "id": c["canonical"],
+                    "name": c["name"],
+                    "vendor": "OmniRoute",
+                    "url": "http://127.0.0.1:22000/v1/chat/completions",
+                    "apiKey": OMNIROUTE_API_KEY,
+                    "supportsToolCall": True,
+                    "supportsImages": False,
+                    "supportsReasoning": True,
+                    "useCustomProtocol": False,
+                    "contextLength": 1048576,
+                    "maxTokens": 16384,
+                }
+            )
             wb_models.append(
                 {
                     "id": c["id"],
@@ -253,8 +277,7 @@ def sync_hermes():
     hermes_local = os.path.expanduser(r"~\AppData\Local\hermes")
     if os.path.exists(hermes_local):
         all_combo_models = (
-            [c["real"] for c in ALL_COMBOS]
-            + [c["id"] for c in ALL_COMBOS]
+            ALL_MODEL_IDS
             + [
                 "hermes-engineer",
                 "claude-code",
@@ -321,7 +344,7 @@ def sync_hermes():
                     cfg_data = yaml.safe_load(f) or {}
                 if "model" not in cfg_data:
                     cfg_data["model"] = {}
-                cfg_data["model"]["default"] = "leadgen-coding-primary"
+                cfg_data["model"]["default"] = "leadsgen combo 1"
                 cfg_data["model"]["provider"] = "omniroute"
                 cfg_data["model"]["base_url"] = "http://127.0.0.1:20128/v1"
                 cfg_data["model"]["max_tokens"] = 16384
@@ -333,7 +356,7 @@ def sync_hermes():
                     "name": "OmniRoute (12 Combos - 1M Context)",
                     "base_url": "http://127.0.0.1:20128/v1",
                     "key_env": "OMNIROUTE_API_KEY",
-                    "model": "leadgen-coding-primary",
+                    "model": "leadsgen combo 1",
                     "models": all_combo_models,
                     "discover_models": True,
                     "context_length": 1048576,
@@ -355,8 +378,8 @@ def sync_hermes():
                         "name": c["name"],
                         "base_url": "http://127.0.0.1:20128/v1",
                         "key_env": "OMNIROUTE_API_KEY",
-                        "model": c["real"],
-                        "models": [c["real"], c["id"]],
+                        "model": c["canonical"],
+                        "models": [c["canonical"], c["real"], c["id"]],
                         "discover_models": False,
                         "context_length": 1048576,
                     }
@@ -414,7 +437,7 @@ def sync_openclaw():
 
         omni_models = [
             {
-                "id": c["real"],
+                "id": c["canonical"],
                 "name": f"{c['name']} (OmniRoute 1M)",
                 "reasoning": False,
                 "input": ["text"],
@@ -427,7 +450,7 @@ def sync_openclaw():
 
         custom_models = [
             {
-                "id": c["id"],
+                "id": c["canonical"],
                 "name": f"{c['name']} (Claude Proxy 1M)",
                 "reasoning": False,
                 "input": ["text"],
@@ -490,6 +513,23 @@ def sync_workspace_mcp():
 
 def sync_omniroute_sqlite():
     """Seed OmniRoute SQLite via the CANONICAL 14-combo seed (2026-09-05)."""
+    # The live gateway keeps SQLite open while serving requests.  A recovery
+    # sync must not race that connection: the runtime API is authoritative for
+    # readiness, and seeding is only needed when the canonical catalog is
+    # actually absent.  This also makes the watchdog idempotent during normal
+    # healthy operation instead of producing a misleading "database locked"
+    # warning every time it reconciles desktop configuration.
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:20128/v1/models", timeout=60) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+        model_ids = {str(item.get("id", "")) for item in payload.get("data", []) if isinstance(item, dict)}
+        if set(CANONICAL_COMBO_IDS).issubset(model_ids):
+            print("[OK] OmniRoute live gateway already exposes all 14 canonical combos; SQLite seed skipped")
+            return
+    except Exception:
+        # Gateway unavailable or malformed: fall through to the recovery seed.
+        pass
+
     seed_script_win = os.path.join(os.path.dirname(__file__), "seed_omniroute_14combos.py")
     if not os.path.exists(seed_script_win):
         print(f"[WARN] Seed script not found: {seed_script_win}")
@@ -498,6 +538,21 @@ def sync_omniroute_sqlite():
         # The 14-combo seed is self-contained Python — run it directly (it does
         # its own docker cp + node:sqlite execution + DB backup).
         env = dict(os.environ)
+        # The legacy locally-running image stores its DB under /app/data;
+        # the pinned image uses /root/.omniroute. Detect the active container
+        # mount so recovery never seeds an unused database.
+        container = env.get("OMNIROUTE_CONTAINER", "leadgen_omniroute")
+        try:
+            mount = subprocess.run(
+                ["docker", "inspect", "--format", "{{json .Mounts}}", container],
+                capture_output=True, text=True, timeout=10,
+            )
+            if "/app/data" in (mount.stdout or ""):
+                env["OMNIROUTE_DB_PATH"] = "/app/data/storage.sqlite"
+            else:
+                env.setdefault("OMNIROUTE_DB_PATH", "/root/.omniroute/storage.sqlite")
+        except Exception:
+            env.setdefault("OMNIROUTE_DB_PATH", "/root/.omniroute/storage.sqlite")
         res = subprocess.run(
             [PYTHON_PATH, seed_script_win],
             capture_output=True,
@@ -520,7 +575,7 @@ def sync_verdant():
     """Enterprise Verdant Desktop sync — ensure directories exist and full 14 combos + MCPs are provisioned."""
     target_roaming = os.path.expanduser(r"~\AppData\Roaming\Verdant")
     target_dot = os.path.expanduser(r"~\.verdant")
-    
+
     for t in (target_roaming, target_dot):
         os.makedirs(t, exist_ok=True)
 
@@ -539,7 +594,7 @@ def sync_verdant():
         }
         for c in ALL_COMBOS
     ]
-    
+
     config = {
         "version": 2,
         "defaultModel": "leadsgen combo 1",
@@ -561,21 +616,21 @@ def sync_verdant():
         },
         "mcpServers": UNIVERSAL_MCP_SERVERS,
     }
-    
+
     for target in (target_roaming, target_dot):
         try:
             cfg_file = os.path.join(target, "config.json")
             with open(cfg_file, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
-                
+
             models_file = os.path.join(target, "models.json")
             with open(models_file, "w", encoding="utf-8") as f:
                 json.dump(models, f, indent=2)
-                
+
             mcp_file = os.path.join(target, "mcp_servers.json")
             with open(mcp_file, "w", encoding="utf-8") as f:
                 json.dump({"mcpServers": UNIVERSAL_MCP_SERVERS}, f, indent=2)
-                
+
             settings_file = os.path.join(target, "settings.json")
             with open(settings_file, "w", encoding="utf-8") as f:
                 json.dump({
@@ -585,13 +640,17 @@ def sync_verdant():
                     "mcpEnabled": True,
                     "workerEmail": "admin@leadsgenai.in"
                 }, f, indent=2)
-                
+
             print(f"[OK] Verdant Desktop provisioned ({len(models)} combos + MCPs) -> {target}")
         except Exception as e:
             print(f"[WARN] Verdant sync note for {target}: {e}")
 
 
-if __name__ == "__main__":
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Synchronize the canonical 14 OmniRoute combos across local desktop clients."
+    )
+    parser.parse_args()
     print("=== Syncing 14 Canonical OmniRoute Combos (1M+ Context & MCP) Across All Apps ===")
     sync_omniroute_sqlite()
     sync_dsh()
@@ -602,3 +661,8 @@ if __name__ == "__main__":
     sync_verdant()
     sync_workspace_mcp()
     print("=== All Client App Configs Successfully Synced! ===")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

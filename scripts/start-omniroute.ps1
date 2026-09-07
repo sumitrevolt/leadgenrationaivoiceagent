@@ -5,7 +5,9 @@
 # - Does NOT print secrets. Only sanitized status lines.
 # Exit codes: 0 = healthy (already running or started), 1 = failed to reach healthy state.
 
-$ErrorActionPreference = 'Stop'
+# Compose writes progress to stderr even on success. Treat that stream as
+# informational; use LASTEXITCODE for the actual process result.
+$ErrorActionPreference = 'Continue'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $ComposeFile = Join-Path $RepoRoot 'deploy\compose\docker-compose.omniroute.yml'
 $LogPath = Join-Path $RepoRoot 'uat_evidence\omniroute_setup\launcher_log.txt'

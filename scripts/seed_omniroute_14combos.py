@@ -24,7 +24,7 @@ import tempfile
 import uuid
 
 CONTAINER = os.environ.get("OMNIROUTE_CONTAINER", "leadgen_omniroute")
-DB_PATH = os.environ.get("OMNIROUTE_DB_PATH", "/app/data/storage.sqlite")
+DB_PATH = os.environ.get("OMNIROUTE_DB_PATH", "/root/.omniroute/storage.sqlite")
 BACKUP_DIR = "/app/data/db_backups"
 
 
@@ -51,13 +51,15 @@ def _docker_bin() -> str:
 # The Full 42-Provider Roster (Chinese + International Flagship Models)
 # ---------------------------------------------------------------------------
 ROSTER_42: list[dict[str, str]] = [
-    # Top 6: Verified Live Lanes (Fast -> Ultra -> Reasoning)
+    # Top 4: Verified Live Lanes (<3s guaranteed response, fast & reasoning)
     {"model": "opencode/nemotron-3.5-lightning-free", "providerId": "opencode", "label": "ocd-nemotron35-lightning"},
-    {"model": "opencode/nemotron-3-ultra-free", "providerId": "opencode", "label": "ocd-nemotron3-ultra"},
-    {"model": "opencode/big-pickle", "providerId": "opencode", "label": "ocd-big-pickle"},
     {"model": "opencode-zen/nemotron-3.5-lightning-free", "providerId": "opencode-zen", "label": "ocdzen-nemotron35-lightning"},
-    {"model": "opencode-zen/nemotron-3-ultra-free", "providerId": "opencode-zen", "label": "ocdzen-nemotron3-ultra"},
+    {"model": "opencode/big-pickle", "providerId": "opencode", "label": "ocd-big-pickle"},
     {"model": "opencode-zen/big-pickle", "providerId": "opencode-zen", "label": "ocdzen-big-pickle"},
+
+    # Fallback free models
+    {"model": "opencode/nemotron-3-ultra-free", "providerId": "opencode", "label": "ocd-nemotron3-ultra"},
+    {"model": "opencode-zen/nemotron-3-ultra-free", "providerId": "opencode-zen", "label": "ocdzen-nemotron3-ultra"},
 
     # International Flagship Free-Tier Providers
     {"model": "groq/llama-3.3-70b-versatile", "providerId": "groq", "label": "groq-llama33-70b"},
@@ -162,12 +164,12 @@ def _sql_str(value: str) -> str:
 
 
 def get_combo_models(combo_idx: int) -> list[dict]:
-    """Return all 42 models for combo, rotating the top live lanes to spread concurrency."""
-    # Rotate the top 6 live lanes based on combo index so workers distribute primary load
-    shift = combo_idx % 6
-    top_6 = ROSTER_42[shift:6] + ROSTER_42[:shift]
-    remaining_36 = ROSTER_42[6:]
-    ordered_42 = top_6 + remaining_36
+    """Return all 42 models for combo, rotating the top 4 verified live lanes to spread concurrency."""
+    # Rotate the top 4 verified fast lanes so workers distribute primary load
+    shift = combo_idx % 4
+    top_4 = ROSTER_42[:4][shift:] + ROSTER_42[:4][:shift]
+    remaining_38 = ROSTER_42[4:]
+    ordered_42 = top_4 + remaining_38
     assert len(ordered_42) == 42
     return ordered_42
 
@@ -176,7 +178,10 @@ def build_sql() -> str:
     """Return the full SQL script to seed all 14 combos x 42 providers."""
     timestamp = _now_iso()
     canonical_names = {c[0] for c in COMBOS_14}
-    keep_names = canonical_names
+    all_alias_names = set()
+    for _, _, _, aliases in COMBOS_14:
+        all_alias_names.update(aliases)
+    keep_names = canonical_names | all_alias_names
 
     parts: list[str] = []
 
@@ -237,7 +242,7 @@ def build_sql() -> str:
             "isActive": True,
         }
         
-        # 4. Only insert the canonical combo row (no duplicate alias rows cluttering OmniRoute UI)
+        # 4a. Insert the canonical combo row
         row_payload = dict(payload)
         row_payload["name"] = combo_name
         json_str = json.dumps(row_payload).replace("'", "''")
@@ -250,6 +255,22 @@ def build_sql() -> str:
             "ON CONFLICT(name) DO UPDATE SET data = excluded.data, "
             "updated_at = excluded.updated_at;"
         )
+
+        # 4b. Insert all alias rows pointing to the same 42 models
+        for alias_name in aliases:
+            alias_payload = dict(payload)
+            alias_payload["name"] = alias_name
+            alias_payload["id"] = str(uuid.uuid4())
+            alias_json_str = json.dumps(alias_payload).replace("'", "''")
+            alias_row_id = str(uuid.uuid4())
+            parts.append(
+                "INSERT INTO combos (id, name, data, sort_order, created_at, updated_at) "
+                "VALUES (" + _sql_str(alias_row_id) + ", " + _sql_str(alias_name) + ", "
+                + _sql_str(alias_json_str) + ", 2, " + _sql_str(timestamp) + ", "
+                + _sql_str(timestamp) + ") "
+                "ON CONFLICT(name) DO UPDATE SET data = excluded.data, "
+                "updated_at = excluded.updated_at;"
+            )
 
         # 5. Bind the worker email key to this combo (allowed_combos = [combo_name] + aliases)
         allowed_keys = [combo_name] + aliases

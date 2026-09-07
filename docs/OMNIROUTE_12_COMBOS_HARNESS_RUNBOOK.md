@@ -2,7 +2,7 @@
 
 > **Setup Status**: VERIFIED LIVE (2026-08-30)  
 > **OmniRoute Gateway**: `http://127.0.0.1:20128/v1` (Docker compose managed, 40+ free flagship models per combo).  
-> **Supported Clients**: Hermes Desktop, Claude Desktop, Antigravity IDE, LeadGen AI Agent OS.
+> **Supported Clients**: Hermes Desktop, Claude Code CLI, Antigravity IDE, LeadGen AI Agent OS (Claude Desktop is MCP-only — no gateway model routing, see §4).
 
 ---
 
@@ -46,9 +46,11 @@ powershell -ExecutionPolicy Bypass -File scripts\start-hermes-omniroute.ps1 -Com
 powershell -ExecutionPolicy Bypass -File scripts\start-hermes-omniroute.ps1 -OmniHost 192.168.1.10 -Combo leadgen.project_best
 ```
 
-### Claude Desktop
+### Claude Code CLI — OmniRoute launch (Claude Desktop is NOT supported)
 
-To run Claude Desktop / Claude Code with OmniRoute:
+`start-claude-omniroute.ps1` launches the **Claude Code CLI** (`claude.exe`) through the
+OmniRoute gateway with a SEPARATE env-block — it never routes Claude Desktop. Claude Desktop
+has no custom-endpoint support and stays on your Claude subscription (see §4).
 
 ```powershell
 # Interactive session with Coding Primary combo
@@ -86,32 +88,17 @@ powershell -ExecutionPolicy Bypass -File scripts\start-claude-omniroute.ps1 -Omn
 
 ---
 
-## 4. Claude Desktop Configuration (`claude_desktop_config.json`)
+## 4. Claude Desktop — NOT gateway-routable (MCP only)
 
-To wire Claude Desktop directly on either computer, add the following to `%APPDATA%\Claude\claude_desktop_config.json`:
+Claude Desktop has **no custom-model-endpoint support**: its chat traffic always goes to your
+Claude subscription. `%APPDATA%\Claude\claude_desktop_config.json` only carries `mcpServers` —
+an `env` block there does NOT reroute the assistant's model. The earlier "wire Claude Desktop
+with `ANTHROPIC_BASE_URL`" recipe was wrong and must not be used (config has no gateway refs).
 
-```json
-{
-  "mcpServers": {
-    "omniroute_12combos": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-fetch",
-        "http://127.0.0.1:20128/v1/responses"
-      ],
-      "env": {
-        "OMNIROUTE_BASE_URL": "http://127.0.0.1:20128/v1",
-        "OMNIROUTE_API_KEY": "%OMNIROUTE_API_KEY%"
-      }
-    }
-  },
-  "env": {
-    "ANTHROPIC_BASE_URL": "http://127.0.0.1:20128/v1",
-    "ANTHROPIC_API_KEY": "%OMNIROUTE_API_KEY%"
-  }
-}
-```
+For the Claude family on the OmniRoute gateway, use **Claude Code CLI** instead:
+- `scripts\start-claude-omniroute.ps1` — separate env-blocked launch, default `-Port 22000`;
+- or set `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` under `env` in `~/.claude/settings.json`
+  (current machine state: `ANTHROPIC_BASE_URL=http://127.0.0.1:20128` direct to gateway).
 
 ---
 

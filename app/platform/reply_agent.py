@@ -1579,6 +1579,33 @@ def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
         return result
 
 
+def autoreply_policy_warning(enabled: bool) -> str:
+    """OPS-013 (2026-09-07): loud, quotable warning when the AI auto-answers chats.
+
+    Meta's WhatsApp Business API policy bars GENERAL-PURPOSE AI chatbots (policy
+    change Oct 2025, reported effective 2026-01-15); task-scoped bots for
+    support/bookings/orders remain allowed. This agent is task-scoped by
+    construction (fixed 7-label classifier + a sales-reply drafter capped at 160
+    tokens), but with ``WHATSAPP_AI_AUTOREPLY=1`` the drafted intent set widens to
+    include ``other`` — i.e. open-ended inbound gets an open-ended LLM answer.
+    That is the single drift vector, so it must never be silent.
+
+    Returns the warning text (empty string when the flag is off) so it is testable
+    without triggering any network or file side effects.
+    """
+    if not enabled:
+        return ""
+    msg = (
+        "WHATSAPP_AI_AUTOREPLY=1 — the AI is answering inbound 1:1 chats, INCLUDING "
+        "open-ended 'other' intents. Meta's WhatsApp Business API policy bars "
+        "GENERAL-PURPOSE AI chatbots (OPS-013, docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md). "
+        "Keep replies scoped to LeadGen sales inquiries (audit/demo/pricing) or the "
+        "number risks a platform ban."
+    )
+    logger.warning(msg)
+    return msg
+
+
 async def whatsapp_reply(
     from_number: str,
     text: str,
@@ -1642,6 +1669,7 @@ async def whatsapp_reply(
         "yes",
         "on",
     }
+    autoreply_policy_warning(_auto)  # OPS-013: never enable this silently.
     _draft_intents = ("interested", "question", "objection") + (("other",) if _auto else ())
     draft = ""
     if intent in _draft_intents:

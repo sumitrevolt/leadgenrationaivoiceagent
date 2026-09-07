@@ -51,10 +51,18 @@ Write-Output ""
 # 200 is. A 401 on /api/health means alive-but-auth-protected, not broken.
 $ready = $false
 try {
-    $resp = Invoke-WebRequest -Uri "$ApiBase/models" -TimeoutSec 8 -UseBasicParsing -ErrorAction Stop
-    $ready = ($resp.StatusCode -eq 200)
+    $code = (curl.exe -s --max-time 10 -o NUL -w "%{http_code}" "$ApiBase/models").Trim()
+    $ready = ($code -eq "200")
 } catch {
     $ready = $false
+}
+if (-not $ready) {
+    try {
+        $resp = Invoke-WebRequest -Uri "$ApiBase/models" -TimeoutSec 8 -UseBasicParsing -ErrorAction Stop
+        $ready = ($resp.StatusCode -eq 200)
+    } catch {
+        $ready = $false
+    }
 }
 
 if (-not $ready) {
@@ -89,6 +97,7 @@ $envBlock = @{
     "ANTHROPIC_BASE_URL"   = $ApiBase
     "ANTHROPIC_AUTH_TOKEN" = "<OMNIROUTE_API_KEY>"
     "ANTHROPIC_MODEL"      = $Combo
+    "BUZZ_RELAY"           = "ws://127.0.0.1:3100"
 }
 
 Write-Output ""
@@ -116,13 +125,18 @@ Write-Output ""
 
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $BuzzDesktop
+$psi.WorkingDirectory = Split-Path $BuzzDesktop
 $psi.UseShellExecute = $false
 $psi.EnvironmentVariables["ANTHROPIC_BASE_URL"] = $ApiBase
 $psi.EnvironmentVariables["ANTHROPIC_AUTH_TOKEN"] = $key
 $psi.EnvironmentVariables["ANTHROPIC_MODEL"] = $Combo
-[void][System.Diagnostics.Process]::Start($psi)
-
-Write-Output "[ok] Buzz Desktop launched with process-scoped OmniRoute routing."
+$psi.EnvironmentVariables["BUZZ_RELAY"] = "ws://127.0.0.1:3100"
+$proc = [System.Diagnostics.Process]::Start($psi)
+if ($proc) {
+    Write-Output ("[ok] Buzz Desktop launched (PID {0}) with process-scoped OmniRoute routing." -f $proc.Id)
+} else {
+    Write-Output "[ok] Buzz Desktop launched with process-scoped OmniRoute routing."
+}
 Write-Output ""
 Write-Output "NOW VERIFY (launching is not evidence):"
 Write-Output "  1. @mention an agent in #dev using a resolved mention chip."

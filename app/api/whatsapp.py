@@ -371,6 +371,15 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
                     _store_inbound(frm, text, msg.get("id", ""))
                     if text.lower() in ("stop", "unsubscribe", "stop promotions", "band karo"):
                         runner.suppress(frm, reason="opt_out_inbound")
+                        # TCCCPR: revocation applies to ALL commercial comms, so it
+                        # must land in the canonical cross-channel suppression
+                        # ledger too — otherwise a WA STOP stays invisible to voice.
+                        try:
+                            from app.telephony.consent_ledger import record_opt_out
+
+                            record_opt_out(frm, reason="wa_stop", channel="whatsapp")
+                        except Exception:
+                            pass
                         res["suppressed"] += 1
                     elif text:
                         # Feed the message to the reply agent -> Hinglish draft (1-click send).
@@ -530,6 +539,13 @@ async def selfhost_webhook(request: Request) -> dict[str, Any]:
         _store_inbound(frm, text, mid)
         if text.lower() in ("stop", "unsubscribe", "stop promotions", "band karo"):
             runner.suppress(frm, reason="opt_out_inbound")
+            # Canonical cross-channel opt-out ledger (same as app/api/webhooks.py).
+            try:
+                from app.telephony.consent_ledger import record_opt_out
+
+                record_opt_out(frm, reason="wa_stop", channel="whatsapp")
+            except Exception:
+                pass
             res["suppressed"] += 1
         elif text:
             # Delivered paid customer ka reply = acknowledgment (council: 'delivered =

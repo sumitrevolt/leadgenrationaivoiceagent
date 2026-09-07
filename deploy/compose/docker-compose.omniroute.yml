@@ -13,8 +13,8 @@
 #     and can be reached without auth on loopback (2026-08-09 smoke: an anonymous
 #     request also returned 200) — loopback binding is the whole security model.
 #
-# Producer / provider connections live in the named volume `omniroute_data`
-# (container path /root/.omniroute — matches the WSL config dir). If you are
+# Provider connections and combo state live in the named volume `omniroute_data`
+# (container path /root/.omniroute — the pinned 3.8.46 runtime path). If you are
 # migrating from the WSL instance, seed this volume from the WSL
 # /root/.omniroute (or re-establish provider/OAuth connections in the dashboard).
 #
@@ -33,12 +33,20 @@ services:
     container_name: leadgen_omniroute
     restart: unless-stopped
     environment:
-      # V8 heap (MB). Default 4096 = prod-proven on an 8GB box (2048 -> HTTP 503 under
-      # heap pressure). The launcher auto-detects host RAM and clamps to [1024, 4096];
-      # set OMNIROUTE_MEMORY_MB to override for manual control.
-      OMNIROUTE_MEMORY_MB: "${OMNIROUTE_MEMORY_MB:-4096}"
+      # Local Docker Desktop has a 4 GiB VM budget on this machine. Keep the
+      # gateway bounded so Chrome/Desktop MCP workers retain headroom.
+      # Override only for a measured larger Docker allocation.
+      OMNIROUTE_MEMORY_MB: "${OMNIROUTE_MEMORY_MB:-1536}"
+      # Free-tier inference admits one heavy request. Keep waiting requests in
+      # the bounded byte queue long enough for a slow provider turn to finish,
+      # instead of shedding them after OmniRoute's 2s default. This does not
+      # increase heavy concurrency or remove the heap valve.
+      OMNIROUTE_CHAT_ADMISSION_QUEUE_MS: "${OMNIROUTE_CHAT_ADMISSION_QUEUE_MS:-120000}"
+      OMNIROUTE_CHAT_ADMISSION_MAX_QUEUED_BYTES: "${OMNIROUTE_CHAT_ADMISSION_MAX_QUEUED_BYTES:-4194304}"
     volumes:
       # Persist config / provider connections / logs across restarts.
+      # Reuse the existing local data volume so combo/provider state survives
+      # the Docker-era image/port correction. It is preserved for rollback.
       - omniroute_data:/root/.omniroute
     ports:
       # Loopback-only — the security boundary. Do not change to 0.0.0.0.
@@ -47,11 +55,13 @@ services:
     # Hard container memory backstop (well above Node's ~heap*1.3-1.5 RSS) so a
     # runaway gateway never starves Docker Desktop, and so GC pressure is never an
     # OOM tripwire. The adaptive heap (OMNIROUTE_MEMORY_MB) is the real clamp.
-    # Override with OMNIROUTE_MEM_LIMIT_MB.
-    mem_limit: "${OMNIROUTE_MEM_LIMIT_MB:-8192}m"
+    # Override with OMNIROUTE_MEM_LIMIT_MB after measuring Docker headroom.
+    mem_limit: "${OMNIROUTE_MEM_LIMIT_MB:-2048}m"
     logging:
       driver: json-file
       options: { max-size: "5m", max-file: "2" }
 
 volumes:
   omniroute_data:
+    external: true
+    name: leadgen_omniroute_data

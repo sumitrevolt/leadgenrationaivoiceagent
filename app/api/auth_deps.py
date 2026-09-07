@@ -3,6 +3,8 @@ Authentication Dependencies
 Centralized authentication for all API endpoints
 """
 
+import hmac
+
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -118,6 +120,63 @@ async def require_admin(request: Request, user: User = Depends(get_current_user)
     except Exception:
         pass  # rbac issue = fail-closed (sirf admin+ pass)
     raise HTTPException(status_code=403, detail="Admin access required (ya module grant missing)")
+
+
+# ── OPS-008: read-only ops API key ──────────────────────────────────
+# Why: every day-close has been BLIND because ops truth endpoints require a JWT
+# admin session and no read-only token existed. This adds a narrowly scoped key
+# that unlocks REVENUE MEASUREMENT only.
+#
+# Invariants (do NOT loosen):
+#   * Empty/unsed token  -> key path disabled entirely (fail-closed).
+#   * GET only, and only for the exact (method, path) pairs below.
+#   * /api/ops/hotqueue/action and every mutation are NOT in the allowlist, so
+#     they always fall through to the full admin path.
+#   * Constant-time comparison.
+OPS_READONLY_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("GET", "/api/ops/revenue-summary"),
+        ("GET", "/api/ops/hotqueue"),
+    }
+)
+
+
+def _ops_readonly_allows(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
+) -> bool:
+    """True only when a configured ops key is presented for an allowed GET path."""
+    token = (getattr(settings, "ops_readonly_token", "") or "").strip()
+    if not token:
+        return False  # not armed => disabled (fail-closed)
+
+    if (request.method.upper(), (request.url.path or "").rstrip("/")) not in OPS_READONLY_ALLOWLIST:
+        return False
+
+    if not credentials:
+        return False
+    provided = (credentials.credentials or "").strip()
+    if not provided:
+        return False
+    return hmac.compare_digest(provided, token)
+
+
+async def require_admin_or_ops_readonly(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Admin (JWT) OR the read-only ops API key.
+
+    Ops key is honoured ONLY for OPS_READONLY_ALLOWLIST GET endpoints; every
+    other path/method falls through to the unchanged admin path. Returns the
+    admin User, or None when the read-only key was used.
+    """
+    if _ops_readonly_allows(request, credentials):
+        logger.info(f"ops-readonly key used for {request.method} {request.url.path}")
+        return None
+    user = await get_current_user(credentials, db)
+    return await require_admin(request, user)
 
 
 async def require_super_admin(user: User = Depends(get_current_user)) -> User:

@@ -61,6 +61,18 @@ def test_one_command_dev_launcher_retains_omniroute_memory_limit():
     assert "OMNIROUTE_MEMORY_MB=2048" not in text
 
 
+def test_watchdog_task_action_pins_repo_working_directory():
+    text = (ROOT / "scripts" / "register_omniroute_watchdog.ps1").read_text(encoding="utf-8")
+    assert "-WorkingDirectory $repo" in text
+
+
+def test_sync_script_uses_live_catalog_before_sqlite_seed():
+    text = (ROOT / "scripts" / "sync_all_combos_all_apps.py").read_text(encoding="utf-8")
+    assert 'urlopen("http://127.0.0.1:20128/v1/models", timeout=60)' in text
+    assert "SQLite seed skipped" in text
+    assert "argparse.ArgumentParser" in text
+
+
 def test_agent_smoke_script_is_synthetic_only_and_never_prints_secrets():
     """ADR-108 local smoke — permanent script, public prompt, bool-only key check."""
     text = (ROOT / "scripts" / "omniroute_agent_smoke.py").read_text(encoding="utf-8")

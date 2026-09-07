@@ -116,8 +116,7 @@ EXPECTED_GAP_MIN = {
     * 60,  # daily 09:50 IST trial expiry/expired UPI nudge email (gated TRIAL_NUDGE_ENABLED; BLK-02)
     "whatsapp_automation": 65
     * 60,  # hourly WhatsApp automation (gated WHATSAPP_AUTO_SEND; BLK-02 2026-08-23)
-    "heartbeat": 10
-    * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
+    "heartbeat": 10 * 60,  # every 5m owner alive heartbeat (self_improve revive gate)
     "content_approval_notify": 65
     * 60,  # hourly :40 pending-approval notify (gated CONTENT_APPROVAL_NOTIFY; INERT off)
 }
@@ -526,7 +525,7 @@ def _beat_registration_gaps() -> list[dict[str, Any]]:
         # at module import, and some beat task names (content_os.*) don't map
         # 1:1 to a module path, so the per-entry heuristic below can't find
         # them. The include list IS the worker's own registration surface.
-        for inc in (celery_app.conf.include or []):
+        for inc in celery_app.conf.include or []:
             try:
                 importlib.import_module(str(inc))
             except Exception:
@@ -677,6 +676,7 @@ def wiring_gaps() -> list[dict[str, Any]]:
             import time
 
             from app.platform.coordination_hub_events import list_presence
+
             tools = list_presence().get("tools") or {}
             buzz = tools.get("buzz") or {}
             if buzz and (int(time.time()) - (buzz.get("last_seen") or 0)) > 7200:

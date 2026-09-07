@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     )
     redis_url: str = "redis://localhost:6379/0"
 
+    # Read-only ops API key (OPS-008). Empty = DISABLED (fail-closed): the key
+    # path in require_admin_or_ops_readonly() is inert until armed. Honoured ONLY
+    # for the GET endpoints listed in auth_deps.OPS_READONLY_ALLOWLIST — never for
+    # a mutation, never for /api/ops/hotqueue/action.
+    # Generate: python -c "import secrets; print(secrets.token_urlsafe(48))"
+    ops_readonly_token: str = ""
+
     # Vector RAG (Qdrant) — empty = disabled; KB falls back to Chroma/keyword
     qdrant_url: str = ""
 

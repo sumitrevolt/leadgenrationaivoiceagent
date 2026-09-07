@@ -217,7 +217,7 @@ class LeadGenPipeline:
         leads = self._stage_clean(leads, result)
 
         # Stage 3: DND / NCPR scrub
-        leads = await self._stage_dnd_scrub(leads, result)
+        leads = await self._stage_dnd_scrub(leads, result, channels=channels)
 
         # Stage 4: Compliance time-window gate
         if not self._within_calling_window():
@@ -337,7 +337,9 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     # Stage 3: DND / NCPR scrub
     # ------------------------------------------------------------------ #
-    async def _stage_dnd_scrub(self, leads: list[Any], result) -> list[Any]:
+    async def _stage_dnd_scrub(
+        self, leads: list[Any], result, channels: list[str] | None = None
+    ) -> list[Any]:
         # COMPLIANCE (CLAUDE.md §5): DND scrub FAIL-CLOSED — lookup fail ya checker
         # unavailable = promotional contact BLOCK (pehle yahan fail-OPEN tha:
         # checker missing par poori list pass, per-lead error par number allow —
@@ -345,6 +347,15 @@ class LeadGenPipeline:
         # ILLEGAL hai; jab DND verify nahi ho sakta to woh number is promotional
         # pipeline se HATA do. (Yeh sirf is qualify+call harness pe; asli prod
         # calling path VobizClient + tasks/calling me apna DND/window gate rakhta.)
+        #
+        # OPS-017: this stage feeds BOTH Stage 5 (WhatsApp warm-up) and Stage 6
+        # (voice). A number that may legally be CALLED still may not receive a
+        # promotional MESSAGE — NCPR scrubbing is mandatory for messaging and
+        # consent does not override a DND registration there. So scrub on the
+        # STRICTEST channel this run actually uses: if WhatsApp is enabled (or
+        # channels is unknown), scrub as messaging and refuse the blanket
+        # carrier-scrub allowance.
+        channel = "messaging" if (not channels or "whatsapp" in channels) else "voice"
         if not self.dnd_checker:
             logger.warning(
                 "DND checker unavailable — FAIL-CLOSED: promotional contact BLOCKED "
@@ -359,7 +370,7 @@ class LeadGenPipeline:
             if not phone:
                 continue
             try:
-                is_dnd = await self._is_dnd(phone)
+                is_dnd = await self._is_dnd(phone, channel=channel)
             except Exception as e:
                 logger.debug(f"DND check error for ***{str(phone)[-4:]}: {e}")
                 is_dnd = True  # FAIL-CLOSED (§5): lookup fail = promotional BLOCK
@@ -371,8 +382,12 @@ class LeadGenPipeline:
         logger.info(f"Stage 3 DND scrub: removed {result.skipped_dnd}, kept {len(kept)}")
         return kept
 
-    async def _is_dnd(self, phone: str) -> bool:
+    async def _is_dnd(self, phone: str, channel: str = "messaging") -> bool:
         """Defensively call whichever DND API the checker exposes.
+
+        ``channel`` is forwarded to the DND checker (OPS-017): the blanket
+        DND_CARRIER_SCRUB allowance is voice-only, so a messaging scrub must
+        not inherit it.
 
         FAIL-CLOSED (2026-08-01, enterprise-audit fix): pehle yeh unverified result
         (`is_dnd=False, verified=False`) ko non-DND maan leta tha — no-provider case me
@@ -381,7 +396,11 @@ class LeadGenPipeline:
         """
         checker = self.dnd_checker
         if hasattr(checker, "check_single"):
-            res = await checker.check_single(phone)
+            try:
+                res = await checker.check_single(phone, channel=channel)
+            except TypeError:
+                # Test double / older signature without the channel kwarg.
+                res = await checker.check_single(phone)
             verified = bool(getattr(res, "verified", True))
             if not verified:
                 return True  # unverified lookup = DND (fail-closed)

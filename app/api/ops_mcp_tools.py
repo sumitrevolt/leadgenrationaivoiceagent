@@ -22,7 +22,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.api.auth_deps import require_admin
+from app.api.auth_deps import require_admin, require_admin_or_ops_readonly
 from app.api.ratelimit import rate_limit
 from app.utils.logger import setup_logger
 
@@ -38,7 +38,7 @@ router = APIRouter(
 async def ops_hot_queue(
     limit: int = 50,
     scope: str = "boss",
-    _user=Depends(require_admin),
+    _user=Depends(require_admin_or_ops_readonly),
 ) -> dict[str, Any]:
     """Hot Queue snapshot for MCP agents — warm/intent rows + summary counts.
 
@@ -102,7 +102,7 @@ async def ops_hot_queue_action(
 @router.get("/revenue-summary", operation_id="ops_revenue_summary")
 async def ops_revenue_summary(
     recent_limit: int = 10,
-    _user=Depends(require_admin),
+    _user=Depends(require_admin_or_ops_readonly),
 ) -> dict[str, Any]:
     """Verified collected-revenue digest for MCP agents — GST invoice ledger
     (data/invoices.jsonl) se. HONEST numbers only; voided alag count hote hain."""
