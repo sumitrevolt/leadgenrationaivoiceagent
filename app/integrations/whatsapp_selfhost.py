@@ -153,19 +153,51 @@ def _chat_id(number: str) -> str:
     return f"{digits}@c.us"
 
 
+# One-time CRITICAL log guard for a production fail-open refusal (below).
+_recipient_fail_open_refused_logged = False
+
+
 def _recipient_check_fail_open() -> bool:
     """Ops escape hatch for the recipient-check gate. Default ``0`` = fail-CLOSED.
 
     Set ``WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN=1`` only to restore the old behaviour where
     a recipient check that never completed (transport/HTTP error) still let the send
     through. Exists so a WAHA-side outage can be worked around without a code deploy.
+
+    OPS-019 (2026-09-07): in PRODUCTION the flag is now IGNORED (stay
+    fail-CLOSED) with a one-time CRITICAL log — the same pattern
+    ``DND_FAIL_OPEN`` has always used. Before this, one env var on the VPS could
+    silently turn the only guard on this send path back into fail-OPEN, and
+    unlike ``DND_FAIL_OPEN`` nothing refused it. Never raises.
     """
-    return os.getenv("WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN", "0").strip().lower() in (
+    if os.getenv("WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN", "0").strip().lower() not in (
         "1",
         "true",
         "yes",
         "on",
-    )
+    ):
+        return False
+    try:
+        from app.utils.env_probe import is_production
+
+        if not is_production():
+            return True
+    except Exception:  # noqa: BLE001 - a probe must never open the gate
+        logger.error(
+            "waha: production probe failed while evaluating "
+            "WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN — refusing (staying fail-CLOSED)."
+        )
+        return False
+    global _recipient_fail_open_refused_logged
+    if not _recipient_fail_open_refused_logged:
+        _recipient_fail_open_refused_logged = True
+        logger.error(
+            "🚨 WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN=1 IGNORED in production — the "
+            "recipient-check gate stays fail-CLOSED (a check that never completed "
+            "=> send BLOCKED). There is NO legitimate prod use; unset "
+            "WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN."
+        )
+    return False
 
 
 def _render(body: str, params: list[str] | None) -> str:

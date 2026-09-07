@@ -51,7 +51,8 @@ def _docker_bin() -> str:
 # The Full 42-Provider Roster (Chinese + International Flagship Models)
 # ---------------------------------------------------------------------------
 ROSTER_42: list[dict[str, str]] = [
-    # Top 4: Verified Live Lanes (<3s guaranteed response, fast & reasoning)
+    # Verified live free-first lanes. Runtime canaries still decide health;
+    # catalog presence alone is never treated as provider readiness.
     {"model": "opencode/nemotron-3.5-lightning-free", "providerId": "opencode", "label": "ocd-nemotron35-lightning"},
     {"model": "opencode-zen/nemotron-3.5-lightning-free", "providerId": "opencode-zen", "label": "ocdzen-nemotron35-lightning"},
     {"model": "opencode/big-pickle", "providerId": "opencode", "label": "ocd-big-pickle"},
@@ -142,14 +143,14 @@ COMBOS_14 = [
     ("leadsgen combo 11", "Dual Governor Code Review — governor worker #11",
      "sunnybunny23211@gmail.com",
      ["leadgen-governor-review", "claude-omni-governor-review"]),
-    ("leadsgen combo 12", "50-Model Master Flagship — master worker #12",
+    ("leadsgen combo 12", "Project-Best — 42-model free-first master worker #12",
      "sunnydaryanani2@gmail.com",
      ["leadgen-project-best", "claude-omni-project-best"]),
     ("leadsgen combo 13", "Free-first failover lane — vps worker #13",
-     "CLI Auto-Key",
+     "jiyawasnik11@gmail.com",
      ["leadgen-14th-combo", "vps-02"]),
     ("leadsgen combo 14", "General purpose free-tier worker #14",
-     "OmniRoute Master Key",
+     "sumitrevolt23@gmail.com",
      []),
 ]
 
@@ -165,6 +166,18 @@ def _sql_str(value: str) -> str:
 
 def get_combo_models(combo_idx: int) -> list[dict]:
     """Return all 42 models for combo, rotating the top 4 verified live lanes to spread concurrency."""
+    if combo_idx == 11:
+        # Project-Best: explicit-free, live-proven models lead. Big-pickle stays
+        # behind them because its model id does not prove free-tier status.
+        project_best_head = [
+            ROSTER_42[1],
+            ROSTER_42[0],
+            ROSTER_42[5],
+            ROSTER_42[4],
+            ROSTER_42[3],
+            ROSTER_42[2],
+        ]
+        return project_best_head + ROSTER_42[6:]
     # Rotate the top 4 verified fast lanes so workers distribute primary load
     shift = combo_idx % 4
     top_4 = ROSTER_42[:4][shift:] + ROSTER_42[:4][:shift]
@@ -178,10 +191,8 @@ def build_sql() -> str:
     """Return the full SQL script to seed all 14 combos x 42 providers."""
     timestamp = _now_iso()
     canonical_names = {c[0] for c in COMBOS_14}
-    all_alias_names = set()
-    for _, _, _, aliases in COMBOS_14:
-        all_alias_names.update(aliases)
-    keep_names = canonical_names | all_alias_names
+    # Canonical-only mode: legacy aliases must not be recreated or preserved.
+    keep_names = canonical_names
 
     parts: list[str] = []
 
@@ -207,7 +218,7 @@ def build_sql() -> str:
     for idx, (combo_name, desc, email_key, aliases) in enumerate(COMBOS_14):
         combo_id = str(uuid.uuid4())
         combo_models_42 = get_combo_models(idx)
-        
+
         models = [
             {
                 "id": f"{combo_name}-m{i+1}-{m['providerId']}",
@@ -219,7 +230,7 @@ def build_sql() -> str:
             }
             for i, m in enumerate(combo_models_42)
         ]
-        
+
         payload = {
             "id": combo_id,
             "name": combo_name,
@@ -241,7 +252,7 @@ def build_sql() -> str:
             "version": 2,
             "isActive": True,
         }
-        
+
         # 4a. Insert the canonical combo row
         row_payload = dict(payload)
         row_payload["name"] = combo_name
@@ -257,7 +268,7 @@ def build_sql() -> str:
         )
 
         # 4b. Insert all alias rows pointing to the same 42 models
-        for alias_name in aliases:
+        for alias_name in ():
             alias_payload = dict(payload)
             alias_payload["name"] = alias_name
             alias_payload["id"] = str(uuid.uuid4())
@@ -273,7 +284,7 @@ def build_sql() -> str:
             )
 
         # 5. Bind the worker email key to this combo (allowed_combos = [combo_name] + aliases)
-        allowed_keys = [combo_name] + aliases
+        allowed_keys = [combo_name]
         combo_list_json = json.dumps(allowed_keys).replace("'", "''")
         parts.append(
             "UPDATE api_keys SET allowed_combos = " + _sql_str(combo_list_json) + " "
@@ -307,7 +318,7 @@ def run_seed() -> int:
         if cp_res.returncode != 0:
             print("[FAIL] docker cp failed:", cp_res.stderr.decode()[:300])
             return 1
-            
+
         res = subprocess.run(
             [docker_bin, "exec", CONTAINER, "node", "/tmp/omniroute_seed_14x42.js"],
             capture_output=True, timeout=60,

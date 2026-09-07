@@ -7,17 +7,16 @@ import urllib.request
 
 import yaml
 
+from scripts.seed_omniroute_14combos import COMBOS_14
+
 # OmniRoute loopback auth is not enforced (ADR-167); key read from env only —
 # never hardcode it (GitGuardian incident 36739747/36798909).
-OMNIROUTE_API_KEY = os.environ.get("OMNIROUTE_API_KEY", "")
+OMNIROUTE_ENV_NAME = "OMNIROUTE" + "_API_KEY"
 
 # Exactly 14 canonical OmniRoute combos — `leadsgen combo N` (2026-09-05
 # council: the gateway now holds exactly these 14; legacy leadgen-*/claude-omni-*
-# names are registered as same-UUID aliases in the gateway DB and stay here as
-# display/alias ids so app _TASK_ROUTES and the Claude Desktop filter resolve).
-# (id, real, name) per combo — id is the canonical claude-omni-* alias used by
-# the Claude Desktop frontend filter; real is the app-facing leadgen-* alias;
-# name is the human label. canonical = the exact `leadsgen combo N` gateway id.
+# names are intentionally excluded from every desktop client configuration.
+# Each client receives only the exact `leadsgen combo N` gateway id.
 ALL_COMBOS = [
     {"id": "claude-omni-coding-primary", "real": "leadgen-coding-primary", "canonical": "leadsgen combo 1", "name": "LeadsGen Combo 1 — Coding Primary", "email": "admin@leadsgenai.in", "role": "Coding & Logic Primary (Worker #1)"},
     {"id": "claude-omni-coding-fast", "real": "leadgen-coding-fast", "canonical": "leadsgen combo 2", "name": "LeadsGen Combo 2 — Coding Fast", "email": "ops@leadsgenai.in", "role": "Coding Fast Lane (Worker #2)"},
@@ -31,14 +30,43 @@ ALL_COMBOS = [
     {"id": "claude-omni-seo-keyword", "real": "leadgen-seo-keyword", "canonical": "leadsgen combo 10", "name": "LeadsGen Combo 10 — SEO Keyword", "email": "daryananisumit440@gmail.com", "role": "SEO & SEM Keyword Clustering (Worker #10)"},
     {"id": "claude-omni-governor-review", "real": "leadgen-governor-review", "canonical": "leadsgen combo 11", "name": "LeadsGen Combo 11 — Governor Review", "email": "sunnybunny23211@gmail.com", "role": "Dual Governor Code Review (Worker #11)"},
     {"id": "claude-omni-project-best", "real": "leadgen-project-best", "canonical": "leadsgen combo 12", "name": "LeadsGen Combo 12 — Project Best", "email": "sunnydaryanani2@gmail.com", "role": "50-Model Master Flagship (Worker #12)"},
-    {"id": "claude-omni-free-first", "real": "leadgen-14th-combo", "canonical": "leadsgen combo 13", "name": "LeadsGen Combo 13 — Free First (VPS)", "email": "CLI Auto-Key", "role": "Free-First Failover Lane (Worker #13 / VPS)"},
-    {"id": "claude-omni-general", "real": "leadsgen-combo-14", "canonical": "leadsgen combo 14", "name": "LeadsGen Combo 14 — General", "email": "OmniRoute Master Key", "role": "General Purpose Free-Tier (Worker #14)"},
+    {"id": "leadsgen combo 13", "real": "leadsgen combo 13", "canonical": "leadsgen combo 13", "name": "LeadsGen Combo 13 — Free First (VPS)", "email": "jiyawasnik11@gmail.com", "role": "Free-First Failover Lane (Worker #13 / VPS)"},
+    {"id": "leadsgen combo 14", "real": "leadsgen combo 14", "canonical": "leadsgen combo 14", "name": "LeadsGen Combo 14 — General", "email": "sumitrevolt23@gmail.com", "role": "General Purpose Free-Tier (Worker #14)"},
 ]
+
+# Canonical ids are the only app-facing ids. The literal alias-shaped fields
+# above remain only as role-history metadata and never leave this module.
+STALE_CLIENT_MODEL_IDS = {
+    value
+    for combo in ALL_COMBOS
+    for value in (combo["id"], combo["real"])
+    if value != combo["canonical"]
+}
+STALE_CLIENT_MODEL_IDS.update(
+    {
+        "hermes-content",
+        "hermes-prospect",
+        "hermes-outreach",
+        "hermes-seo",
+        "hermes-governor",
+        "hermes-master",
+        "claude-omni-free-first",
+        "claude-omni-general",
+    }
+)
+STALE_CLIENT_MODEL_IDS.update(
+    alias
+    for _, _, _, aliases in COMBOS_14
+    for alias in aliases
+)
+for _combo in ALL_COMBOS:
+    _combo["id"] = _combo["canonical"]
+    _combo["real"] = _combo["canonical"]
 
 COMBO_IDS = [c["id"] for c in ALL_COMBOS]
 CANONICAL_COMBO_IDS = [c["canonical"] for c in ALL_COMBOS]
-LEGACY_COMBO_IDS = [c["real"] for c in ALL_COMBOS] + COMBO_IDS
-ALL_MODEL_IDS = CANONICAL_COMBO_IDS + LEGACY_COMBO_IDS
+LEGACY_COMBO_IDS = []
+ALL_MODEL_IDS = CANONICAL_COMBO_IDS
 
 
 PYTHON_PATH = r"C:\Users\Ratanshila\Documents\leadgenrationaivoiceagent\.venv\Scripts\python.exe"
@@ -96,15 +124,11 @@ def sync_dsh():
             }
             for c in ALL_COMBOS
         ]
-        models_list += [
-            {"id": c["real"], "name": f"{c['name']} (legacy)", "contextWindow": 1048576, "maxTokens": 16384}
-            for c in ALL_COMBOS
-        ]
         data["llm-pi-ai"]["providers"]["omniroute"] = {
-            "displayName": "OmniRoute (12 Combos - 1M Context)",
+            "displayName": "OmniRoute (14 Combos - 42 Model Slots Each - 1M Context)",
             "api": "openai-completions",
             "baseURL": "http://127.0.0.1:20128/v1",
-            "apiKeyEnv": "OMNIROUTE_API_KEY",
+            "apiKeyEnv": OMNIROUTE_ENV_NAME,
             "models": models_list,
         }
         data["mcpServers"] = UNIVERSAL_MCP_SERVERS
@@ -158,7 +182,7 @@ def sync_workbuddy():
 
         data["omniroute"] = {
             "baseURL": "http://127.0.0.1:22000",
-            "apiKey": OMNIROUTE_API_KEY,
+            "apiKeyEnv": OMNIROUTE_ENV_NAME,
             "models": ALL_MODEL_IDS,
         }
         data["mcpServers"] = UNIVERSAL_MCP_SERVERS
@@ -190,7 +214,7 @@ def sync_workbuddy():
                     "name": c["name"],
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:22000/v1/chat/completions",
-                    "apiKey": OMNIROUTE_API_KEY,
+                    "apiKeyEnv": OMNIROUTE_ENV_NAME,
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -205,7 +229,7 @@ def sync_workbuddy():
                     "name": c["name"],
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:22000/v1/chat/completions",
-                    "apiKey": OMNIROUTE_API_KEY,
+                    "apiKeyEnv": OMNIROUTE_ENV_NAME,
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -220,7 +244,7 @@ def sync_workbuddy():
                     "name": f"{c['name']} ({c['real']})",
                     "vendor": "OmniRoute",
                     "url": "http://127.0.0.1:20128/v1/chat/completions",
-                    "apiKey": OMNIROUTE_API_KEY,
+                    "apiKeyEnv": OMNIROUTE_ENV_NAME,
                     "supportsToolCall": True,
                     "supportsImages": False,
                     "supportsReasoning": True,
@@ -276,23 +300,7 @@ def sync_hermes():
     # 2. Local AppData hermes cache, auth & mcp
     hermes_local = os.path.expanduser(r"~\AppData\Local\hermes")
     if os.path.exists(hermes_local):
-        all_combo_models = (
-            ALL_MODEL_IDS
-            + [
-                "hermes-engineer",
-                "claude-code",
-                "hermes-research",
-                "hermes-qa",
-                "hermes-ops",
-                "hermes-voice",
-                "hermes-content",
-                "hermes-prospect",
-                "hermes-outreach",
-                "hermes-seo",
-                "hermes-governor",
-                "hermes-master",
-            ]
-        )
+        all_combo_models = list(ALL_MODEL_IDS)
 
         # provider_models_cache.json
         cache_path = os.path.join(hermes_local, "provider_models_cache.json")
@@ -304,37 +312,24 @@ def sync_hermes():
             except Exception:
                 cache_data = {}
 
+        for cached_provider in cache_data.values():
+            if not isinstance(cached_provider, dict):
+                continue
+            cached_models = cached_provider.get("models")
+            if isinstance(cached_models, list):
+                cached_provider["models"] = [
+                    model for model in cached_models if model not in STALE_CLIENT_MODEL_IDS
+                ]
+
         now_ts = 1888106106.0
-        cache_data["omniroute"] = {"fp": "omni12combos", "at": now_ts, "models": all_combo_models}
-        cache_data["custom"] = {"fp": "custom12combos", "at": now_ts, "models": all_combo_models}
+        cache_data["omniroute"] = {"fp": "omni14combos", "at": now_ts, "models": all_combo_models}
+        cache_data["custom"] = {"fp": "custom14combos", "at": now_ts, "models": all_combo_models}
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(cache_data, f, indent=2)
 
-        # auth.json
-        auth_path = os.path.join(hermes_local, "auth.json")
-        if os.path.exists(auth_path):
-            try:
-                with open(auth_path, encoding="utf-8") as f:
-                    auth_data = json.load(f)
-                if "providers" not in auth_data:
-                    auth_data["providers"] = {}
-                key_val = OMNIROUTE_API_KEY
-                auth_data["providers"]["omniroute"] = {
-                    "provider": "omniroute",
-                    "api_key": key_val,
-                    "auth_type": "api_key",
-                    "token": key_val,
-                }
-                auth_data["providers"]["custom"] = {
-                    "provider": "custom",
-                    "api_key": key_val,
-                    "auth_type": "api_key",
-                    "token": key_val,
-                }
-                with open(auth_path, "w", encoding="utf-8") as f:
-                    json.dump(auth_data, f, indent=2)
-            except Exception as e:
-                print(f"[WARN] Hermes auth.json sync note: {e}")
+        # auth.json is intentionally not modified. Credentials belong in the
+        # OS credential store or user environment, never in client JSON.
+        print("[OK] Hermes auth.json preserved; clients use OMNIROUTE_API_KEY by name")
 
         # config.yaml
         config_path = os.path.join(hermes_local, "config.yaml")
@@ -352,8 +347,22 @@ def sync_hermes():
 
                 if "providers" not in cfg_data:
                     cfg_data["providers"] = {}
+                for provider_key, provider_config in list(cfg_data["providers"].items()):
+                    if not isinstance(provider_config, dict):
+                        continue
+                    configured_models = provider_config.get("models", [])
+                    if not isinstance(configured_models, list):
+                        configured_models = []
+                    if (
+                        provider_config.get("model") in STALE_CLIENT_MODEL_IDS
+                        or any(model in STALE_CLIENT_MODEL_IDS for model in configured_models)
+                    ):
+                        cfg_data["providers"].pop(provider_key, None)
+                for stale_id in STALE_CLIENT_MODEL_IDS:
+                    cfg_data["providers"].pop(stale_id, None)
+                    cfg_data["providers"].pop(f"custom:{stale_id}", None)
                 cfg_data["providers"]["omniroute"] = {
-                    "name": "OmniRoute (12 Combos - 1M Context)",
+                    "name": "OmniRoute (14 Combos - 42 Model Slots Each - 1M Context)",
                     "base_url": "http://127.0.0.1:20128/v1",
                     "key_env": "OMNIROUTE_API_KEY",
                     "model": "leadsgen combo 1",
@@ -362,10 +371,10 @@ def sync_hermes():
                     "context_length": 1048576,
                 }
                 cfg_data["providers"]["custom"] = {
-                    "name": "Claude Proxy (12 Combos - 1M Context)",
+                    "name": "Claude Proxy (14 Combos - 42 Model Slots Each - 1M Context)",
                     "base_url": "http://127.0.0.1:22000/v1",
                     "key_env": "OMNIROUTE_API_KEY",
-                    "model": "claude-omni-coding-primary",
+                    "model": "leadsgen combo 12",
                     "models": all_combo_models,
                     "discover_models": True,
                     "context_length": 1048576,
@@ -379,7 +388,7 @@ def sync_hermes():
                         "base_url": "http://127.0.0.1:20128/v1",
                         "key_env": "OMNIROUTE_API_KEY",
                         "model": c["canonical"],
-                        "models": [c["canonical"], c["real"], c["id"]],
+                        "models": [c["canonical"]],
                         "discover_models": False,
                         "context_length": 1048576,
                     }
@@ -463,14 +472,14 @@ def sync_openclaw():
 
         data["models"]["providers"]["omniroute"] = {
             "baseUrl": "http://127.0.0.1:20128/v1",
-            "apiKey": OMNIROUTE_API_KEY,
+            "apiKeyEnv": OMNIROUTE_ENV_NAME,
             "api": "openai-completions",
             "models": omni_models,
         }
 
         data["models"]["providers"]["custom"] = {
             "baseUrl": "http://127.0.0.1:22000/v1",
-            "apiKey": OMNIROUTE_API_KEY,
+            "apiKeyEnv": OMNIROUTE_ENV_NAME,
             "api": "openai-completions",
             "models": custom_models,
         }
@@ -481,21 +490,22 @@ def sync_openclaw():
             data["agents"]["defaults"] = {}
 
         data["agents"]["defaults"]["model"] = {
-            "primary": "custom/claude-omni-coding-primary"
+            "primary": "omniroute/leadsgen combo 12"
         }
 
         if "models" not in data["agents"]["defaults"] or not isinstance(data["agents"]["defaults"]["models"], dict):
             data["agents"]["defaults"]["models"] = {}
 
-        data["agents"]["defaults"]["models"]["custom/*"] = {}
-        data["agents"]["defaults"]["models"]["omniroute/*"] = {}
-        data["agents"]["defaults"]["models"]["custom/claude-omni-coding-primary"] = {}
-        data["agents"]["defaults"]["models"]["omniroute/leadgen-coding-primary"] = {}
+        data["agents"]["defaults"]["models"] = {
+            "custom/*": {},
+            "omniroute/*": {},
+            "omniroute/leadsgen combo 12": {},
+        }
 
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-        print(f"[OK] OpenClaw config synced with OmniRoute & Claude Proxy 12 Combos -> {config_path}")
+        print(f"[OK] OpenClaw config synced with OmniRoute & Claude Proxy 14 Combos -> {config_path}")
     except Exception as e:
         print(f"[WARN] OpenClaw sync note: {e}")
 
@@ -585,7 +595,7 @@ def sync_verdant():
             "name": c["name"],
             "vendor": "OmniRoute",
             "baseURL": "http://127.0.0.1:20128/v1",
-            "apiKey": OMNIROUTE_API_KEY,
+            "apiKeyEnv": OMNIROUTE_ENV_NAME,
             "models": [c["canonical"], c["real"], c["id"]],
             "contextLength": 1048576,
             "maxTokens": 16384,

@@ -46,6 +46,41 @@ STALE_GRACE = timedelta(hours=6)
 # --------------------------------------------------------------------------
 # key = task id; value = fields to merge (never deletes existing keys)
 TASK_UPDATES: dict[str, dict] = {
+    "HNT-006": {
+        "status": "DONE",
+        "owner": "hunter",
+        "priority": "P2",
+        "deadline": f"2026-09-07T16:00:00{IST}",
+        "notes": (
+            "QA AUDIT COMPLETE 2026-09-07: data/prospect_export.csv audited. "
+            "Total lead rows: 26 (lines 2-27). Only 6/26 (23.1%) have phone numbers "
+            "(5 mobile: lines 4, 5, 7, 8; 1 fixed/landline +912025530544 line 6); "
+            "20/26 (76.9%) have empty phone. DND field: NONE (0/21 columns track DND). "
+            "Client cross-check with data/marketing_clients.jsonl: 0 customer collisions. "
+            "VERDICT: export is UNUSABLE for cold dialer without mobile enrichment & DND scrub."
+        ),
+        "evidence_tail": (
+            "data/prospect_export.csv lines 1-27: 26 leads, 5 mobile, 1 fixed, 20 empty; "
+            "0 DND columns. data/marketing_clients.jsonl: 0 overlap."
+        ),
+    },
+    "OPS-020": {
+        "status": "DONE",
+        "owner": "engineering",
+        "priority": "P2",
+        "deadline": f"2026-09-08T20:00:00{IST}",
+        "notes": (
+            "SHIPPED 2026-09-07: app/middleware/__init__.py RequestGuardMiddleware.__init__ "
+            "now unions custom paths in REQUEST_GUARD_SKIP with default skip endpoints "
+            "(/ws, /health, /metrics, /api/web-call, /api/voiceai, etc.) using dict.fromkeys "
+            "preserving order. Adding custom paths no longer silently un-skips critical voice "
+            "and health routes. 2 tests in tests/test_ops020_request_guard_skip.py."
+        ),
+        "evidence_tail": (
+            "pytest tests/test_ops020_request_guard_skip.py -> 2 passed. "
+            "prod_check ALL PASSED 1396 routes registered. check_secrets clean."
+        ),
+    },
     "OPS-014": {
         "status": "RUNNING",
         "owner": "guardian",
@@ -601,6 +636,320 @@ NEW_TASKS: list[dict] = [
             "Local grep: scripts/vps_deploy_call_learn.py:23, "
             "scripts/vps_deploy_call_learn.bat:33, docs/SESSION_LOG.md:1744, "
             "docs/SWARA_HANDOFF_SOP.md:118/158/316/422."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-019",
+        "objective": (
+            "Refuse fail-OPEN escape hatches in production and give the codebase "
+            "ONE 'are we in production?' authority."
+        ),
+        "status": "DONE",
+        "owner": "operations",
+        "priority": "P0",
+        "deadline": f"2026-09-07T06:30:00{IST}",
+        "acceptance": (
+            "WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN=1 is refused in production with a "
+            "one-time CRITICAL log; DND_FAIL_OPEN behaviour unchanged; a broken "
+            "production probe closes the gate instead of opening it."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "Cycle 10 sweep (prompted by OPS-017: how many other env vars can open "
+            "a §5 gate?). Findings: "
+            "(1) DND_FAIL_OPEN was ALREADY refused in prod — the good pattern. "
+            "(2) WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN (app/integrations/"
+            "whatsapp_selfhost.py) was NOT: default 0 is fail-closed, but setting "
+            "it to 1 on the VPS turned the only guard on the WAHA send path back "
+            "into fail-OPEN with nothing objecting. FIXED with the same pattern. "
+            "(3) There were FOUR independent is_production implementations "
+            "(telephony/compliance, platform/runtime_data, integrations/openclaw/"
+            "policies, config). Four answers to one safety question is how a flag "
+            "ends up honoured in prod. Added app/utils/env_probe.py as the single "
+            "authority (strongest semantics: settings first, ENVIRONMENT/APP_ENV "
+            "fallback, never raises) and pointed compliance._is_production at it. "
+            "runtime_data + openclaw left alone (behaviour change in two unrelated "
+            "domains) — recorded as OPS-021."
+        ),
+        "evidence_tail": (
+            "17 tests in tests/test_fail_open_refused_in_production.py, incl. "
+            "test_recipient_check_fail_open_refused_in_production (the regression "
+            "guard — returned True before this) and "
+            "test_recipient_check_fail_open_refused_when_probe_breaks. Combo of 13 "
+            "suites: 89 passed, 1 failed (only the pre-existing "
+            "test_dnd_fail_open_honoured_outside_production). ruff clean; "
+            "check_secrets OK (11 files); prod_check ALL PASSED 1396 routes "
+            "UNCHANGED (2199 source files, +2 = env_probe + this test). "
+            "NOT DEPLOYED — local only."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-020",
+        "objective": (
+            "REQUEST_GUARD_SKIP REPLACES the default skip list instead of "
+            "extending it — one added path silently un-skips /ws, /health, "
+            "/api/voiceai"
+        ),
+        "status": "TODO",
+        "owner": "engineering",
+        "priority": "P2",
+        "deadline": f"2026-09-08T20:00:00{IST}",
+        "acceptance": (
+            "Env value is unioned with the defaults, or the operator is warned at "
+            "startup when the defaults are dropped."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "app/middleware/__init__.py:690 — os.environ.get('REQUEST_GUARD_SKIP', "
+            "_default_skip) means setting ONE path discards the whole default list "
+            "(/ws,/health,/metrics,/api/web-call,/api/voiceai,/agents/coordinate,"
+            "/api/agents/run,/api/ml,/api/ai). Voice/WS paths would then get the "
+            "55s request timeout applied — calls cut mid-flight. Availability "
+            "foot-gun, not a compliance gate; found during the OPS-019 sweep and "
+            "deliberately NOT changed unattended (middleware behaviour)."
+        ),
+        "evidence_tail": "Code read at app/middleware/__init__.py:672-700.",
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-021",
+        "objective": (
+            "Fold the remaining is_production implementations into "
+            "app/utils/env_probe.is_production"
+        ),
+        "status": "TODO",
+        "owner": "engineering",
+        "priority": "P3",
+        "deadline": f"2026-09-10T20:00:00{IST}",
+        "acceptance": (
+            "app/platform/runtime_data.py::is_production and "
+            "app/integrations/openclaw/policies.py::is_production_env delegate to "
+            "env_probe, with tests proving no caller changed behaviour."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "Left out of OPS-019 on purpose: runtime_data accepts 'prod' as well as "
+            "'production' and openclaw uses set membership over both vars, so "
+            "unifying them is a behaviour change in two unrelated domains and must "
+            "not be done unattended. Until then, note the semantic difference: "
+            "env_probe is the authority for COMPLIANCE gates."
+        ),
+        "evidence_tail": (
+            "app/platform/runtime_data.py:82, "
+            "app/integrations/openclaw/policies.py:128."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-022",
+        "objective": (
+            "Concurrency risk: a second worker reverted an edit to "
+            "app/telephony/compliance.py mid-cycle"
+        ),
+        "status": "TODO",
+        "owner": "owner",
+        "priority": "P1",
+        "deadline": f"2026-09-07T20:00:00{IST}",
+        "acceptance": (
+            "Decide whether multiple agents may edit app/ concurrently; if yes, "
+            "require a per-file lock or a file-ownership map in the ledger."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "During cycle 10 the TypeError fallback added in cycle 9 to "
+            "compliance.py::_is_dnd (so test doubles without the new channel kwarg "
+            "are not misread as a lookup failure) was GONE from the file — verified "
+            "by reading the current source. Re-added; tests went 5 failures -> 1. "
+            "Other workers are demonstrably editing the same tree (git status showed "
+            "admin_dashboard.py, runtime_data_scan.py, team.py modified by someone "
+            "else, and a git stash push in cycle 9 silently swallowed my uncommitted "
+            "edits). A silent revert inside a COMPLIANCE gate is the dangerous case: "
+            "the code looked fine and the tests caught it only by accident."
+        ),
+        "evidence_tail": (
+            "app/telephony/compliance.py::_is_dnd current source re-read at cycle "
+            "10; tests/test_compliance.py went 1 -> 5 failures and back to 1."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-023",
+        "objective": (
+            "Pin the channel-forwarding contract with behavioural tests so a "
+            "silent revert of OPS-017 fails loudly instead of quietly."
+        ),
+        "status": "DONE",
+        "owner": "operations",
+        "priority": "P1",
+        "deadline": f"2026-09-07T06:45:00{IST}",
+        "acceptance": (
+            "compliance forwards channel='voice'; whatsapp_automation forwards "
+            "channel='messaging'; orchestrator_pipeline stage 3 scrubs messaging "
+            "whenever WhatsApp is enabled or channels is unknown, voice only for a "
+            "voice-only run; a revert of any of these turns the suite red."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "OPS-022 showed a concurrent worker can silently remove "
+            "compliance-gate code. Auditing what would NOT have been caught: "
+            "NOTHING pinned that the call sites forward channel= at all. Delete "
+            "channel=\"voice\" from compliance.py and every test stays green while "
+            "voice silently loses its carrier-scrub allowance and the cold-call "
+            "path goes fail-closed. Delete the strictest-channel logic from "
+            "orchestrator_pipeline and stage 5 would WhatsApp-blast leads that were "
+            "only cleared for a call. Both silent, both compliance-shaped. "
+            "SHIPPED: tests/test_channel_forwarding_contract.py (13 tests) records "
+            "the channel each call site asks for — behavioural, not source-scraping, "
+            "so it survives refactors and still fails on a revert. Also pins "
+            "CARRIER_SCRUB_CHANNELS={'voice'}, DEFAULT_CHANNEL='messaging', "
+            "check_single's channel default, and that promotional window constants "
+            "(09:00-21:00) are unchanged."
+        ),
+        "evidence_tail": (
+            "13 tests. 14-suite combo: 103 passed, 1 failed (only the pre-existing "
+            "test_dnd_fail_open_honoured_outside_production). ruff clean (9 files); "
+            "check_secrets OK (13 files); prod_check ALL PASSED 1396 routes "
+            "UNCHANGED (2200 source files). NOT DEPLOYED — local only."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-016",
+        "objective": (
+            "Close the OPS-013 drift vector: exclude 'other' from _draft_intents "
+            "so the WhatsApp AI's scope is flag-independent."
+        ),
+        "status": "DONE",
+        "owner": "operations",
+        "priority": "P1",
+        "deadline": f"2026-09-07T02:00:00{IST}",
+        "acceptance": (
+            "With WHATSAPP_AI_AUTOREPLY=1 an 'other' intent still produces no "
+            "draft and no send; interested/question/objection still draft and "
+            "send; behaviour is identical with the flag on vs unset; a revert "
+            "turns the suite red."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "A3 from docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md, executed. "
+            "_draft_intents is now the constant ('interested','question',"
+            "'objection'); 'other' is also named explicitly in the auto-send "
+            "exclusion tuple as defence-in-depth. ZERO behaviour change in the "
+            "shipped default (flag OFF) because 'other' was already excluded "
+            "there — the flag simply can no longer widen scope. "
+            "autoreply_policy_warning() text updated so it describes the capped "
+            "scope rather than a behaviour that no longer exists. "
+            "Guard: tests/test_ops016_autoreply_scope.py (14 behavioural tests). "
+            "Executing this surfaced OPS-024 — see that entry."
+        ),
+        "evidence_tail": (
+            "17-suite combo: 257 collected, 256 passed, 1 pre-existing failure "
+            "(test_dnd_fail_open_honoured_outside_production). ruff clean; "
+            "check_secrets OK (17 files); prod_check ALL PASSED 1396 routes "
+            "UNCHANGED. NOT DEPLOYED — local only."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-024",
+        "objective": (
+            "Fix _classify: it matched the intent label by SUBSTRING in _CATS "
+            "order, so 'not_interested' always resolved to 'interested'."
+        ),
+        "status": "DONE",
+        "owner": "operations",
+        "priority": "P1",
+        "deadline": f"2026-09-07T02:00:00{IST}",
+        "acceptance": (
+            "'not_interested' classifies as 'not_interested'; every _CATS member "
+            "round-trips under both original and reversed _CATS order; prose "
+            "labels still resolve; unrecognised output still falls back to "
+            "'other'."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "FOUND BY OPS-016's own failing test. 'not_interested' CONTAINS "
+            "'interested', and 'interested' is checked first, so the "
+            "not_interested branch was UNREACHABLE. Impact: rejections became "
+            "hot leads (sales draft + Hot-Queue + calling_priority high); with "
+            "auto-reply on they got a sales pitch auto-sent right after "
+            "declining (ban/report risk); and the auto-send guard "
+            "'intent not in (..., not_interested, ...)' was DEAD CODE because "
+            "intent was never not_interested. Shared by the EMAIL and WhatsApp "
+            "paths, so both channels were affected. "
+            "FIX: exact match on a separator-normalised label first, then a "
+            "word-boundary fallback for chatty output; _CATS order can no longer "
+            "decide a verdict. Full write-up: "
+            "docs/OPS_024_INTENT_CLASSIFY_EXACT_MATCH_2026-09-07.md. "
+            "Guard: tests/test_ops024_classify_exact_label.py (21 tests). "
+            "OPS-022 reverted this fix TWICE mid-cycle — re-verify with grep "
+            "before trusting any test run."
+        ),
+        "evidence_tail": (
+            "Proven directly: not_interested->interested, all other _CATS "
+            "members correct. 21 new tests green, incl. reversed-_CATS ordering "
+            "test. Same 17-suite combo as OPS-016: 256 passed / 1 pre-existing. "
+            "NOT DEPLOYED — prod still misclassifies until cycles 2-12 ship."
+        ),
+        "updated_at": RUN_TS,
+    },
+    {
+        "id": "OPS-026",
+        "objective": (
+            "Sweep the codebase for the OPS-024 bug class (substring match over "
+            "an ordered constant) and assess every instance."
+        ),
+        "status": "DONE",
+        "owner": "operations",
+        "priority": "P3",
+        "deadline": f"2026-09-07T08:00:00{IST}",
+        "acceptance": (
+            "Every 'first constant contained in the input wins' site enumerated; "
+            "the one in a budget/authority path pinned by tests; no behaviour "
+            "changed where a change would harm paying customers."
+        ),
+        "assigned_at": RUN_TS,
+        "acknowledged_at": None,
+        "notes": (
+            "Found ONE more instance: app/api/ratelimit.py::_client_tier (line "
+            "117) does `for key in _TIER_MULT: if key in t: return key`, which "
+            "decides the budget for the WHOLE /ai router (app/api/ai.py:19, "
+            "tier_rate_limit('ai',30,60)). LATENT, NOT ACTIVE: the tenant plan "
+            "is server-derived (spoofable header removed 2026-07-01) and no real "
+            "plan string (free/trial/starter/growth/advanced/voice/admin) "
+            "contains another, so substring == exact today. "
+            "DELIBERATELY NOT CHANGED (decision D14): exact matching would drop "
+            "a plan like 'voice_4999' from 8x to 1x = throttling paying "
+            "customers 8x harder; longest-match makes it WORSE ('free_admin' "
+            "-> admin 20x); lowest-match is a behaviour-identical no-op. Rate "
+            "limiting is an availability/cost control whose default is already "
+            "safe, so this needs the owner's plan-vocabulary decision. "
+            "SHIPPED INSTEAD: tests/test_ops026_rate_tier_resolution.py (19 "
+            "tests) — pins that no tier key contains another, that resolution "
+            "is order-independent under reversed dict order, that the real plan "
+            "vocabulary is collision-free, that unknown/broken tenant still -> "
+            "'free', plus a TRIPWIRE asserting the current over-grant so "
+            "fixing it later is a visible event. "
+            "Doc: docs/OPS_026_RATE_TIER_SUBSTRING_2026-09-07.md. Also "
+            "reviewed and cleared as benign: 7 any-match detectors (banned "
+            "words / injection / secrets / error markers) — they return a "
+            "boolean so ordering cannot mislabel. Low-stakes and left alone: "
+            "ml/codebase_indexer.py:344, niche_knowledge.py:236."
+        ),
+        "evidence_tail": (
+            "19 new tests green. Full combo: 276 collected, 275 passed, 1 "
+            "pre-existing failure. ruff clean; check_secrets OK; prod_check "
+            "ALL PASSED 1396 routes UNCHANGED. NOT DEPLOYED — and nothing in "
+            "app/ was modified this cycle on purpose."
         ),
         "updated_at": RUN_TS,
     },

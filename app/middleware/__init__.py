@@ -685,11 +685,14 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
             "/ws,/health,/metrics,/api/web-call,/api/voiceai,/agents/coordinate,"
             "/api/agents/run,/api/ml,/api/ai"
         )
-        self.skip = tuple(
+        _defaults = [p.strip() for p in _default_skip.split(",") if p.strip()]
+        _custom = [
             p.strip()
-            for p in os.environ.get("REQUEST_GUARD_SKIP", _default_skip).split(",")
+            for p in os.environ.get("REQUEST_GUARD_SKIP", "").split(",")
             if p.strip()
-        )
+        ]
+        # OPS-020: union custom paths with defaults so essential endpoints (/ws, /health, etc.) are never dropped
+        self.skip = tuple(dict.fromkeys(_defaults + _custom))
 
     def _skip(self, path: str) -> bool:
         return path.startswith(self.skip) or "stream" in path
