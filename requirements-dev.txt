@@ -21,7 +21,7 @@ faker==22.0.0  # Fake data generation
 # LLM/RAG eval (CI-only, ADVISORY) — DeepEval gates RAG output quality
 # (faithfulness / answer-relevancy) using a FREE judge (Cerebras/Groq). NOT in
 # prod requirements.lock. See evals/test_rag_quality.py + evals/deepeval_judge.py.
-deepeval>=1.4,<4
+deepeval>=4.2.1,<5
 
 # =============================================================================
 # Code Quality
