@@ -164,10 +164,9 @@ class TataSmartfloClient:
             body = self._safe_body(resp)
             if resp.status_code == 200 and body.get("success"):
                 ref_id = body.get("ref_id", "unknown")
-                logger.info(
-                    f"📞 Tata Smartflo call queued → ref_id={ref_id} "
-                    f"(to={to_clean[-4:]:>4})"
-                )
+                # CodeQL: do not log any part of the destination number —
+                # ref_id is sufficient correlation and is not PII.
+                logger.info(f"📞 Tata Smartflo call queued → ref_id={ref_id}")
             else:
                 logger.warning(
                     f"Tata Smartflo call rejected: {resp.status_code} "
