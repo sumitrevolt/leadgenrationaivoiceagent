@@ -2026,10 +2026,6 @@ async def growth_tools_page():
     catalog, customer CRM, short links, reviews widget, memory, lead webhook."""
     return FileResponse(str(FRONTEND_DIR / "growth_tools.html"))
 
-    from fastapi.responses import RedirectResponse
-
-    return RedirectResponse(url="/app/control-center", status_code=307)
-
 
 @app.get("/app/delivery-command-center", tags=["Frontend"])
 async def delivery_command_center_page():
