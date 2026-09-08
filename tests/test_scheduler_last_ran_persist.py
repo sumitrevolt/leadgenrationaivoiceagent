@@ -1,12 +1,12 @@
-"""W1.7 — scheduler `_last_ran` must persist across restarts (no re-fire on restart).
+"""W1.7 - scheduler `_last_ran` must persist across restarts (no re-fire on restart).
 
 Bug: `_last_ran` was an in-memory dict that reset to all-None on process restart, so
 hourly/slot jobs (`ops` hourly, `growth` 15-min, `flow_cron` 5-min) re-fired for the
 same window they had already run. Fix: persist `_last_ran` to `data/` (load on boot,
 save each changed tick). Boot-grace still handles heavy daily jobs in-window at boot.
 
-Covers both the mechanism (save→restart→load round-trip) AND the wiring (scheduler_loop
-actually calls load-on-boot + save-per-tick) — the wiring is the real regression risk.
+Covers both the mechanism (save->restart->load round-trip) AND the wiring (scheduler_loop
+actually calls load-on-boot + save-per-tick) - the wiring is the real regression risk.
 """
 
 from __future__ import annotations

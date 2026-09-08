@@ -1,4 +1,4 @@
-"""Boss Autonomy service — contract tests.
+"""Boss Autonomy service - contract tests.
 
 Proves the canonical flag-gated autonomy loop over boss_decision_governance:
   * autonomy OFF leaves governance untouched

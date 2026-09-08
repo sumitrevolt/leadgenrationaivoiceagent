@@ -1,4 +1,4 @@
-"""Case-closure guard — stops ticketing auto-responders faking "interested".
+"""Case-closure guard - stops ticketing auto-responders faking "interested".
 
 Production audit 2026-07-25:
 
@@ -39,13 +39,13 @@ REAL_CLOSURES = [
 # inspected in production: every one is an autoresponder/rejection, not a
 # prospect. Kept here so a future narrowing of the regex has to face them.
 REAL_NON_PROSPECT_UNDER_OTHER_OUTCOMES = [
-    # was outcome='question' — bulk institutional autoresponder, not a question
+    # was outcome='question' - bulk institutional autoresponder, not a question
     "Dear Student,\n\nThank you for raising your concern. We regret to inform you "
     "that the information you have provided is insufficient. Kindly visit the portal.",
-    # was outcome='question' — wrong-recipient rejection
+    # was outcome='question' - wrong-recipient rejection
     "Dear Customer,\n\nUnfortunately, it appears that your query is not related to "
     "Birla Opus Paints. You have reached the wrong desk.",
-    # was outcome='objection' — explicit refusal
+    # was outcome='objection' - explicit refusal
     "Dear Customer,\n\nWe regret to inform you that after careful consideration, "
     "we have decided not to proceed with this.",
 ]
@@ -62,7 +62,7 @@ def test_catches_rejections_filed_under_other_outcomes(body):
 
     Production check: the guard's only overlap with non-"interested" human
     replies was 6 rows matching `we regret to inform` and 1 matching
-    `not related to` — every one an autoresponder or an explicit no.
+    `not related to` - every one an autoresponder or an explicit no.
     """
     assert _is_case_closure("", body) is True
 
@@ -72,7 +72,7 @@ def test_catches_closure_in_subject_too():
 
 
 def test_scans_body_not_just_subject():
-    """The 07-07 auto-ack guard only read the subject — that is how these got through."""
+    """The 07-07 auto-ack guard only read the subject - that is how these got through."""
     assert _is_case_closure("Re: your enquiry", "Not required as of now.") is True
 
 
@@ -95,7 +95,7 @@ def test_catches_closure_variants(text):
     "body",
     [
         "Yes, we are interested. Please share pricing.",
-        "Sounds good — can you do a demo on Tuesday?",
+        "Sounds good - can you do a demo on Tuesday?",
         "What is the cost for 3 months?",
         "Please call me tomorrow, I want to know more.",
         "We already have a vendor but send details anyway.",
@@ -135,7 +135,7 @@ def test_never_raises(monkeypatch):
 # --- wiring ----------------------------------------------------------------
 def test_guard_runs_before_llm_classification():
     """Dropping after the LLM call would still burn tokens and could still write
-    a fake-hot row — it must short-circuit like the other guards."""
+    a fake-hot row - it must short-circuit like the other guards."""
     from pathlib import Path
 
     src = (

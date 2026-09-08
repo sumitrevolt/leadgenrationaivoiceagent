@@ -1,4 +1,4 @@
-"""Tests — prod-batch 2026-06-10: NPS collector, payment recon, IndexNow.
+"""Tests - prod-batch 2026-06-10: NPS collector, payment recon, IndexNow.
 Project convention: sync + asyncio.run, tmp stores monkeypatch, no DB/network.
 """
 

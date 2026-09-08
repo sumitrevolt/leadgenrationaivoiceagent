@@ -1,12 +1,12 @@
-"""UPI-invoice hook + customer-studio wrappers — audit-2026-07-05 delivery fixes.
+"""UPI-invoice hook + customer-studio wrappers - audit-2026-07-05 delivery fixes.
 
 Covers three gaps that stopped the platform delivering promised features to
 per-client paying customers (jiya makeover / trending tattoos):
 
   1. UPI approve/auto-activate now fires the GST invoice hook (parity with the
-     Stripe path in billing._provision_usage). Mocked on_payment_success — no DB.
+     Stripe path in billing._provision_usage). Mocked on_payment_success - no DB.
   2. New customer studio wrappers:
-       - POST /studio/upi-qr   → persists client's own VPA + returns QR pack
+       - POST /studio/upi-qr   -> persists client's own VPA + returns QR pack
        - POST /studio/ai-image, /studio/complete-post (customer-scoped, IDOR-safe)
      and the quote-draft tool now drafts the CLIENT's OWN price-quote (no LeadGen
      self-pitch / hidden Growth ₹2,999 leak).
@@ -27,10 +27,10 @@ from tests._api_helpers import iter_mounted_routes
 
 
 # --------------------------------------------------------------------------- #
-# Gap 1 — UPI activation fires the GST invoice hook (best-effort, never-raise)  #
+# Gap 1 - UPI activation fires the GST invoice hook (best-effort, never-raise)  #
 # --------------------------------------------------------------------------- #
 def test_upi_decide_fires_gst_invoice(tmp_path, monkeypatch):
-    """Admin approve of a pending UPI payment → on_payment_success called once
+    """Admin approve of a pending UPI payment -> on_payment_success called once
     with the client_id + plan. _try_activate is forced True (no real billing DB);
     on_payment_success is an ASYNC mock so the sync asyncio.run() path awaits it."""
     from app.platform import upi_payments
@@ -57,14 +57,14 @@ def test_upi_decide_fires_gst_invoice(tmp_path, monkeypatch):
 
     monkeypatch.setattr(gst_invoice, "on_payment_success", _fake_on_payment_success)
 
-    # Seed a pending record (UPI_AUTO_ACTIVATE unset → stays pending on submit).
+    # Seed a pending record (UPI_AUTO_ACTIVATE unset -> stays pending on submit).
     monkeypatch.delenv("UPI_AUTO_ACTIVATE", raising=False)
     sub = upi_payments.submit_payment(
         client_id="cust-abc", plan="starter", upi_ref="TXN123", amount=1999
     )
     assert sub["ok"] is True and sub["status"] == "pending"
 
-    # Admin approves → invoice hook must fire (sync caller → asyncio.run path).
+    # Admin approves -> invoice hook must fire (sync caller -> asyncio.run path).
     rec = upi_payments.decide(sub["id"], approve=True, decided_by="tester")
     assert rec.get("status") == "approved" and rec.get("activated") is True
 
@@ -93,7 +93,7 @@ def test_upi_invoice_hook_never_raises(tmp_path, monkeypatch):
 
     sub = upi_payments.submit_payment(client_id="c2", plan="starter", upi_ref="T2", amount=1999)
     rec = upi_payments.decide(sub["id"], approve=True)
-    # Activation still marked done — invoice failure swallowed.
+    # Activation still marked done - invoice failure swallowed.
     assert rec.get("activated") is True and rec.get("status") == "approved"
 
 
@@ -120,7 +120,7 @@ def _seed_client(
 
 
 # --------------------------------------------------------------------------- #
-# Gap 2a — quote-draft = customer's OWN quote, NOT LeadGen's self-pitch         #
+# Gap 2a - quote-draft = customer's OWN quote, NOT LeadGen's self-pitch         #
 # --------------------------------------------------------------------------- #
 def test_studio_quote_is_client_scoped_not_leadgen(tmp_path, monkeypatch):
     cid, H = _seed_client(monkeypatch, tmp_path, business_name="Glow Studio Nagpur")
@@ -166,7 +166,7 @@ def test_studio_quote_fields_updated_in_tools_card(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Gap 2b — /studio/upi-qr persists VPA + returns pack; ai-image/complete-post   #
+# Gap 2b - /studio/upi-qr persists VPA + returns pack; ai-image/complete-post   #
 # --------------------------------------------------------------------------- #
 def test_studio_upi_qr_persists_vpa_and_returns_pack(tmp_path, monkeypatch):
     from app.marketing import clients_store
@@ -194,7 +194,7 @@ def test_studio_upi_qr_persists_vpa_and_returns_pack(tmp_path, monkeypatch):
 
 
 def test_studio_upi_qr_no_vpa_graceful(tmp_path, monkeypatch):
-    """No VPA set + none in record → actionable message, not a 5xx."""
+    """No VPA set + none in record -> actionable message, not a 5xx."""
     _cid, H = _seed_client(monkeypatch, tmp_path)
     c = TestClient(app)
     r = c.post("/api/customer/studio/upi-qr", headers=H, json={})

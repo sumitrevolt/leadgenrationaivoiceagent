@@ -1,4 +1,4 @@
-# Squad Lead — Data & RAG (Squad 7)
+# Squad Lead - Data & RAG (Squad 7)
 # Responsibility: Qdrant vector store, RAG pipeline, kb_main namespace
 # Autopilot: Auto-scaling, daily vector backup, retrieval quality checks
 

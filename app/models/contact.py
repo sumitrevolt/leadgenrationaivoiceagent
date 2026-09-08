@@ -1,4 +1,4 @@
-"""Contact model — person at an account (enterprise flywheel)."""
+"""Contact model - person at an account (enterprise flywheel)."""
 
 from __future__ import annotations
 

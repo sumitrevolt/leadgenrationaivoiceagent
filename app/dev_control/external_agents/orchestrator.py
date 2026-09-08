@@ -1,4 +1,4 @@
-"""Mission orchestration glue — the only place missions change state.
+"""Mission orchestration glue - the only place missions change state.
 
 Flow (all of it fail-closed):
 
@@ -30,12 +30,12 @@ DEFAULT_LEASE_S = 900
 
 
 class OrchestratorDisabled(RuntimeError):
-    """EXTERNAL_AGENT_ORCHESTRATOR is off — nothing may run."""
+    """EXTERNAL_AGENT_ORCHESTRATOR is off - nothing may run."""
 
 
 def _require_enabled() -> None:
     if not policy.orchestrator_enabled():
-        raise OrchestratorDisabled(f"{policy.FLAG}=0 — external agent orchestrator is inert")
+        raise OrchestratorDisabled(f"{policy.FLAG}=0 - external agent orchestrator is inert")
 
 
 def _ok(mission: Mission, **extra: Any) -> dict[str, Any]:
@@ -82,7 +82,7 @@ def create_mission(
     """Create a mission shell.
 
     ``initial_evidence`` (optional) is attached on the in-memory mission
-    *before* the final canonical ``store.save`` in this function — callers
+    *before* the final canonical ``store.save`` in this function - callers
     must not ``store.get`` + mutate + ``store.save`` after return (lost-update
     risk vs later ``apply_cas`` writers). Each item is
     ``{"kind": str, "ref": Any, "note": str?}``.
@@ -112,7 +112,7 @@ def create_mission(
     if (executor or "").strip().lower() not in adapters.known_executors():
         return _fail("unknown_executor", executors=adapters.known_executors())
 
-    # Cursor executors must declare a non-empty allowed scope — empty allowed_paths
+    # Cursor executors must declare a non-empty allowed scope - empty allowed_paths
     # would otherwise silently skip the allowed-scope breach check (Claude review).
     if (executor or "").strip().lower() == adapters.CURSOR and not (allowed_paths or []):
         return _fail(
@@ -144,7 +144,7 @@ def create_mission(
     mission = Mission.create(**create_kwargs)
 
     # Atomic first-writer-wins BEFORE any side effects. Concurrent creator with
-    # the same key loses and returns the winner's mission — no duplicate docs.
+    # the same key loses and returns the winner's mission - no duplicate docs.
     reg = store.register_idempotency(idempotency_key, mission.mission_id)
     if not reg.get("created"):
         winner = _wait_for_mission(str(reg.get("mission_id") or ""), idempotency_key)
@@ -567,7 +567,7 @@ def rollback_package(mission_id: str) -> dict[str, Any]:
         "base_sha": mission.base_sha,
         "branch": mission.branch,
         "worktree": mission.worktree,
-        "plan": mission.rollback_plan or "no rollback plan recorded — treat as blocker",
+        "plan": mission.rollback_plan or "no rollback plan recorded - treat as blocker",
         "evidence_refs": policy.redact(mission.evidence_refs),
         "note": "orchestrator never executes rollback; operator runs the documented runbook",
     }

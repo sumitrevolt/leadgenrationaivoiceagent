@@ -5,13 +5,13 @@ sendable. Root causes fixed here:
 
   1. ``lead_harvester.enrich_missing_emails`` re-tried the SAME head-of-file
      rows every run (no attempt marker) so the scan never advanced past the
-     first few failures — 4,137 ready+website rows sat email-less.
+     first few failures - 4,137 ready+website rows sat email-less.
   2. A found email never promoted ``needs_enrich``/``new`` -> ``ready``, so
      enriched rows stayed invisible to outreach (which only reads 'ready').
-  3. ``udyam_pipeline`` ingested every row as ``status='new'`` — a status no
+  3. ``udyam_pipeline`` ingested every row as ``status='new'`` - a status no
      job ever advances (1,736 rows stuck).
   4. The only bulk drain path awaited ``enrich_missing_emails`` INLINE in an HTTP
-     request (live site fetches, hours) — now a bounded, lease-deduped,
+     request (live site fetches, hours) - now a bounded, lease-deduped,
      flag-gated Celery sweep on the existing ``scraping`` queue.
   5. ``scripts/backfill_prospect_status.py`` reclassifies the rows already
      stranded at ``new`` using the same ingest rule.
@@ -70,7 +70,7 @@ def _fake_finder(monkeypatch, ok_marker: str = "ok."):
 
 
 # ---------------------------------------------------------------------------
-# enrich_missing_emails — scan must ADVANCE past previously-failed rows
+# enrich_missing_emails - scan must ADVANCE past previously-failed rows
 # ---------------------------------------------------------------------------
 
 
@@ -94,7 +94,7 @@ async def test_enrich_advances_past_failed_rows(store, monkeypatch):
     assert rows["b"]["email_enrich_attempts"] == 1
     assert "email_enrich_attempts" not in rows["c"]
 
-    # Second run must SKIP the exhausted failures and reach row c —
+    # Second run must SKIP the exhausted failures and reach row c -
     # the old code retried a+b forever and never got here.
     r2 = await lead_harvester.enrich_missing_emails(limit=2)
     assert r2["found"] == 1
@@ -179,7 +179,7 @@ async def test_enrich_skips_rows_without_website_or_with_email(store, monkeypatc
 
 
 # ---------------------------------------------------------------------------
-# udyam ingest — status must mirror harvester semantics, never black-hole "new"
+# udyam ingest - status must mirror harvester semantics, never black-hole "new"
 # ---------------------------------------------------------------------------
 
 
@@ -217,14 +217,14 @@ async def test_udyam_ingest_status_ready_or_needs_enrich(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# hard per-run deadline — a batch must never die unflushed inside Celery
+# hard per-run deadline - a batch must never die unflushed inside Celery
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_enrich_deadline_stops_early_but_keeps_progress(store, monkeypatch):
     """deadline_s expiring must break the scan AND still persist the attempt
-    markers for rows already tried — otherwise a timed-out run leaves the file
+    markers for rows already tried - otherwise a timed-out run leaves the file
     untouched and the next run repeats the same head rows (the original stall)."""
     monkeypatch.setenv("EMAIL_ENRICH_ROW_DELAY_S", "0")
     clock = {"t": 0.0}
@@ -268,7 +268,7 @@ async def test_enrich_no_deadline_is_unbounded_as_before(store, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Celery sweep task — flag gate, single-flight lease, bounded batching
+# Celery sweep task - flag gate, single-flight lease, bounded batching
 # ---------------------------------------------------------------------------
 
 
@@ -311,7 +311,7 @@ def test_sweep_inert_when_flag_off(sweep, monkeypatch):
 
 def test_sweep_fails_closed_without_redis(sweep, monkeypatch):
     """No Redis = no dedupe guarantee. Two concurrent runs would each _read_all()
-    and rewrite the whole JSONL, silently clobbering each other's markers — so
+    and rewrite the whole JSONL, silently clobbering each other's markers - so
     refuse to run rather than risk it."""
     monkeypatch.setenv("EMAIL_ENRICH_SWEEP", "1")
     monkeypatch.setattr(sweep, "_sweep_redis", lambda: None)
@@ -370,7 +370,7 @@ def test_sweep_respects_max_rows_cap(sweep, store, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# scripts/backfill_prospect_status.py — one-time hygiene for stranded 'new' rows
+# scripts/backfill_prospect_status.py - one-time hygiene for stranded 'new' rows
 # ---------------------------------------------------------------------------
 
 
@@ -403,7 +403,7 @@ def test_backfill_plan_applies_ingest_rule_only_to_new_rows():
         "p3": {"status": "needs_enrich"},
         "p4": {"status": "needs_enrich"},  # junk placeholders are not a contact
     }
-    # ready / dead / replied are never re-touched — no downgrade, no resurrection
+    # ready / dead / replied are never re-touched - no downgrade, no resurrection
     assert not {"p5", "p6", "p7"} & set(p["updates"])
     assert p["stats"]["to_ready"] == 2 and p["stats"]["to_needs_enrich"] == 2
 

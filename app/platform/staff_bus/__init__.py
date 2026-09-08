@@ -1,4 +1,4 @@
-"""STAFF collaboration bus — Buzz-facing projections over the 31-agent workforce.
+"""STAFF collaboration bus - Buzz-facing projections over the 31-agent workforce.
 
 Canonical workforce = ``team.STAFF`` (31). Comb is reviewer infrastructure, NOT
 STAFF #32. Celery / Owner OS remain execution authority

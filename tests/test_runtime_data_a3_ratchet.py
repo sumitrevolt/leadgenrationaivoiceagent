@@ -1,4 +1,4 @@
-"""A3 ratchet — the remaining compliance stores must stay migrated.
+"""A3 ratchet - the remaining compliance stores must stay migrated.
 
 A1 proved the shared authority on telephony kill switches. A2 (when present)
 applies it to WhatsApp/consent/voice suppression. A3 finishes the compliance
@@ -54,7 +54,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
     "app/platform/email_unsub.py": {},
     "app/platform/dpdp.py": {
         # Subject-data JSONL stores (_STORES / _CRM_DIR) scanned for erasure
-        # discovery — other families, not compliance.dpdp_audit. Folding them
+        # discovery - other families, not compliance.dpdp_audit. Folding them
         # into this wave would migrate stores nobody classified under the audit
         # row. A2's scanner reconstructs literal joins, so each path is named.
         "data/inquiries.jsonl": "erasure-scan subject store (not dpdp_audit)",
@@ -80,7 +80,7 @@ def test_a3_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
 
     stale = sorted(set(declared) - observed)
     assert not stale, (
-        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
+        f"{module_path}: {stale} no longer appears - delete the exclusion rather "
         "than leaving a hole the next literal can hide in"
     )
 
@@ -114,7 +114,7 @@ def test_a3_modules_resolve_at_call_time_not_import_time(module_path):
             targets = [node.target.id]
         for name in targets:
             assert name not in RETIRED_CONSTANTS, (
-                f"{module_path} reintroduced module-level {name} — a path frozen "
+                f"{module_path} reintroduced module-level {name} - a path frozen "
                 "at import cannot follow a cutover"
             )
 
@@ -123,7 +123,7 @@ def test_a3_modules_resolve_at_call_time_not_import_time(module_path):
 def test_the_a3_rows_are_still_dual_read():
     """A3's own rows, asserted by A3's own file.
 
-    Subset only — the exact global set is asserted once in
+    Subset only - the exact global set is asserted once in
     ``test_runtime_data_waves.py`` as the union of every declared wave.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
@@ -135,7 +135,7 @@ def test_manifest_still_validates():
 
 
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
-    """Migrated stores, and the count is still 21 — that is the honest answer.
+    """Migrated stores, and the count is still 21 - that is the honest answer.
 
     Writers can now follow a cutover
     authoritative bytes are still inside the

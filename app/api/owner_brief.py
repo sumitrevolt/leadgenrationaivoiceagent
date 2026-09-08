@@ -1,6 +1,6 @@
-"""Owner Brief — single-call operational intelligence for the owner admin.
+"""Owner Brief - single-call operational intelligence for the owner admin.
 
-GET /api/admin/owner-brief → unified operational snapshot answering:
+GET /api/admin/owner-brief -> unified operational snapshot answering:
   - What is happening right now?
   - What failed?
   - What needs owner action?
@@ -8,7 +8,7 @@ GET /api/admin/owner-brief → unified operational snapshot answering:
   - What should happen next?
 
 Composes EXISTING modules (today_overview, automation_health, command_center,
-paid_activations, upi_payments, customer_delivery) — never raises, partial data
+paid_activations, upi_payments, customer_delivery) - never raises, partial data
 is fine.  require_admin-gated.
 
 Mounted in app/main.py via include_router.
@@ -52,10 +52,10 @@ def _classify_exception(item: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Builder — one composite dict, every sub-block in its own try/except
+# Builder - one composite dict, every sub-block in its own try/except
 # ---------------------------------------------------------------------------
 def _build_owner_brief() -> dict[str, Any]:
-    """Build the owner brief. Never raises — partial data is fine."""
+    """Build the owner brief. Never raises - partial data is fine."""
     out: dict[str, Any] = {
         "ok": True,
         "at": _now_iso(),
@@ -147,7 +147,7 @@ def _build_owner_brief() -> dict[str, Any]:
                     "category": "payment",
                     "label": f"UPI payment pending: {row.get('plan', '?')} from {row.get('payer_name', 'unknown')}",
                     "detail": f"Ref: {row.get('upi_ref', '?')} · ID: {row.get('id', '?')}",
-                    "action": "Approve/Reject in Admin → UPI queue",
+                    "action": "Approve/Reject in Admin -> UPI queue",
                     "severity": "p1",
                 }
             )
@@ -206,7 +206,7 @@ def _build_owner_brief() -> dict[str, Any]:
                     "category": "dlq_backlog",
                     "label": f"DLQ has {out['automation']['dlq_depth']} tasks",
                     "detail": "Dead-letter queue has unprocessed failed tasks",
-                    "action": "Inspect DLQ → manual retry or root-cause fix",
+                    "action": "Inspect DLQ -> manual retry or root-cause fix",
                     "severity": "p2",
                 }
             )
@@ -218,13 +218,13 @@ def _build_owner_brief() -> dict[str, Any]:
                     "type": "automation",
                     "category": "dead_tasks",
                     "label": f"{out['automation']['dead_depth']} tasks dead/exhausted",
-                    "detail": "Retry budget exhausted — these tasks will not auto-recover",
+                    "detail": "Retry budget exhausted - these tasks will not auto-recover",
                     "action": "Root-cause investigation required",
                     "severity": "p1",
                 }
             )
 
-        # Surface wiring gaps — flags ON but backend/creds missing (armed no-op).
+        # Surface wiring gaps - flags ON but backend/creds missing (armed no-op).
         # This is the difference between "automation chalu hai" and "automation
         # actually kaam kar rahi hai": a green heartbeat with no wired backend.
         for g in (h.get("wiring_gaps") or [])[:5]:
@@ -233,7 +233,7 @@ def _build_owner_brief() -> dict[str, Any]:
                     "type": "automation",
                     "category": "wiring_gap",
                     "label": f"Armed but unwired: {g.get('key', '?')}",
-                    "detail": f"{g.get('note') or ''} — missing: {g.get('missing') or '?'}",
+                    "detail": f"{g.get('note') or ''} - missing: {g.get('missing') or '?'}",
                     "action": "Add the missing credential/backend in .env, then recreate app",
                     "severity": "p2",
                 }
@@ -360,7 +360,7 @@ def _build_owner_brief() -> dict[str, Any]:
         out["next_actions"].append(
             {
                 "priority": 99,
-                "action": "All clear — no immediate actions required",
+                "action": "All clear - no immediate actions required",
                 "detail": "System operating normally",
             }
         )

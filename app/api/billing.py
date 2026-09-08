@@ -38,7 +38,7 @@ router = APIRouter()
 _FALLBACK_EMAIL = "admin@leadsgenai.in"
 
 # --------------------------------------------------------------------------- #
-# Auth dependency — resolve client_id from the caller's TOKEN, not a query param.
+# Auth dependency - resolve client_id from the caller's TOKEN, not a query param.
 # Previously every billing endpoint trusted `client_id=...` from the query string
 # (no auth) => cross-tenant IDOR: anyone could cancel/upgrade/credit/read any
 # account. Now: customer token -> its own id; admin/super_admin/manager token ->
@@ -148,7 +148,7 @@ def _client_name(client_id: str) -> str:
 def _ev(x):
     """Enum-or-str value: enum member ho to `.value`, warna as-is (None-safe).
     DB rows written outside the enum path (manual UPI activation) store plain
-    strings — `.value` on those crashed the first real subscription response."""
+    strings - `.value` on those crashed the first real subscription response."""
     return getattr(x, "value", x)
 
 
@@ -159,13 +159,13 @@ def _billing_client_ids(client_id: str) -> list[str]:
     rows owned by legacy billing id `d79d690f61b3` while the marketing record is
     `jiya-makeover`. JWT may carry either id depending on login provisioning.
     Uses `resolve_client` so BOTH directions load the same id set for `.in_()`
-    filters. Never raises — falls back to [client_id]."""
+    filters. Never raises - falls back to [client_id]."""
     ids = [str(client_id or "").strip()]
     try:
         from app.marketing.clients_store import resolve_client
 
         # resolve_client covers BOTH directions: marketing JWT (direct hit) and
-        # billing-alias JWT (alias → marketing record). get_client alone missed
+        # billing-alias JWT (alias -> marketing record). get_client alone missed
         # the billing-alias login case, so aliases never loaded for that JWT.
         rec = resolve_client(client_id) or {}
         canon = str(rec.get("id") or "").strip()
@@ -186,16 +186,16 @@ def _billing_client_ids(client_id: str) -> list[str]:
 
 
 def _stripe_configured() -> bool:
-    # Stripe removed 2026-07-10 — always returns False.
+    # Stripe removed 2026-07-10 - always returns False.
     return False
 
 
 def _stripe_webhook_configured() -> bool:
-    # Stripe removed 2026-07-10 — always returns False.
+    # Stripe removed 2026-07-10 - always returns False.
     return False
 
 
-# Razorpay removed 2026-06-18 — no online India gateway (payments via manual UPI).
+# Razorpay removed 2026-06-18 - no online India gateway (payments via manual UPI).
 
 
 def _provision_usage(
@@ -219,7 +219,7 @@ def _provision_usage(
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"usage provisioning skipped for {client_id}: {e}")
 
-    # GST invoice (additive, fire-and-forget) — record hamesha; email gated AUTO_INVOICE=1.
+    # GST invoice (additive, fire-and-forget) - record hamesha; email gated AUTO_INVOICE=1.
     # payment_ref = sub-id + month => monthly renewals invoice hote, double-webhooks dedupe.
     try:
         if client_id and plan_id:
@@ -234,11 +234,11 @@ def _provision_usage(
                 )
             )
     except RuntimeError:
-        pass  # no running loop (sync caller) — invoice manual API se ban sakta
+        pass  # no running loop (sync caller) - invoice manual API se ban sakta
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"invoice hook skipped for {client_id}: {e}")
 
-    # Dunning: a successful pay/renew closes any open recovery case — else cases
+    # Dunning: a successful pay/renew closes any open recovery case - else cases
     # stay open forever (BILL-002 council fix). Best-effort, never raises.
     try:
         if client_id:
@@ -280,7 +280,7 @@ async def get_pricing_plans():
     """
     # PUBLIC pricing = sirf marketing packages wale plans (merged marketing automation
     # + advanced voice). Legacy internal plans (enterprise/per_lead/hybrid/data_*)
-    # public page pe NAHI — /pricing page yahi endpoint render karta hai.
+    # public page pe NAHI - /pricing page yahi endpoint render karta hai.
     try:
         from app.marketing.packages import get_public_packages as _get_public_packages
 
@@ -333,7 +333,7 @@ async def get_plan_details(plan_id: str):
     Get details for a specific pricing plan
     """
     if plan_id not in _public_plan_keys():
-        # Hidden/legacy/internal plan — don't expose pricing via the public per-id vector.
+        # Hidden/legacy/internal plan - don't expose pricing via the public per-id vector.
         raise HTTPException(status_code=404, detail="Plan not found")
     plan = billing_manager.get_plan(plan_id)
     if not plan:
@@ -416,7 +416,7 @@ async def create_checkout_session(
     )
 
 
-# /billing/verify-payment removed 2026-06-18 — Razorpay frontend signature
+# /billing/verify-payment removed 2026-06-18 - Razorpay frontend signature
 # verification gone (no online India gateway; payments via manual UPI).
 
 
@@ -425,7 +425,7 @@ async def get_current_subscription(
     client_id: str = Depends(_authed_client_id), db: AsyncSession = Depends(get_async_db)
 ):
     """
-    Get current subscription for a client (TRIAL / ACTIVE / PAUSED — so the UI can
+    Get current subscription for a client (TRIAL / ACTIVE / PAUSED - so the UI can
     show a Resume control for a paused plan).
     """
     result = await db.execute(
@@ -454,7 +454,7 @@ async def get_current_subscription(
         plan_id=subscription.plan_id,
         plan_name=subscription.plan_name,
         # ADR-106 addendum: DB me kuch fields plain str hain (manual-UPI activation
-        # ne payment_gateway='upi' raw string likha tha, enum member nahi) — `.value`
+        # ne payment_gateway='upi' raw string likha tha, enum member nahi) - `.value`
         # on str = AttributeError = 500 on the FIRST-EVER real subscription response.
         # `_ev()` enum ho to .value, warna value as-is (never raises).
         status=_ev(subscription.status),
@@ -508,9 +508,9 @@ async def cancel_subscription(
     try:
         # Cancel in payment gateway if applicable
         if subscription.stripe_subscription_id:
-            # Stripe removed 2026-07-10 — no online gateway to cancel.
+            # Stripe removed 2026-07-10 - no online gateway to cancel.
             pass
-        # Razorpay removed 2026-06-18 — any legacy gateway row cancelled DB-side only.
+        # Razorpay removed 2026-06-18 - any legacy gateway row cancelled DB-side only.
 
         # Update database
         subscription.status = SubscriptionStatus.CANCELLED
@@ -523,7 +523,7 @@ async def cancel_subscription(
         await db.commit()
 
         # Customer webhook / flow-trigger fan-out (audit 2026-07-07: this was the
-        # only SUPPORTED_EVENTS type with zero emit call-sites — a customer who
+        # only SUPPORTED_EVENTS type with zero emit call-sites - a customer who
         # registered a "subscription.cancelled" webhook never received it).
         _emit_billing_customer_webhook(
             client_id,
@@ -602,7 +602,7 @@ async def get_invoices(
     except Exception as e:
         logger.debug(f"[get_invoices] JSONL read failed: {e}")
 
-    # Add Postgres invoices (dedup by invoice_number) — full InvoiceResponse fields
+    # Add Postgres invoices (dedup by invoice_number) - full InvoiceResponse fields
     seen_numbers = {inv.invoice_number for inv in all_invoices if inv.invoice_number}
     for inv in pg_invoices:
         if inv.invoice_number in seen_numbers:
@@ -742,7 +742,7 @@ async def add_account_balance(
 ):
     """
     Add balance to account (for per-lead pricing model).
-    Stripe removed 2026-07-10 — returns clean 503.
+    Stripe removed 2026-07-10 - returns clean 503.
     """
     # SECURITY FIX (P0-2, 2026-07-19): Validate redirect URLs to prevent open redirects
     _ = validate_redirect_url(success_url, is_dev=settings.app_env == "development")
@@ -750,7 +750,7 @@ async def add_account_balance(
 
     raise HTTPException(
         status_code=503,
-        detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
+        detail="Online payment abhi setup ho raha hai - UPI ya contact se pay karein.",
     )
 
 
@@ -810,12 +810,12 @@ async def unified_payment_webhook(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Unified payment webhook — Stripe + Razorpay both removed.
+    """Unified payment webhook - Stripe + Razorpay both removed.
     Returns 400 for any unrecognized webhook header (UPI-only payments).
     """
     raise HTTPException(
         status_code=400,
-        detail="Payments via manual UPI only — no webhook gateway active (Stripe removed 2026-07-10).",
+        detail="Payments via manual UPI only - no webhook gateway active (Stripe removed 2026-07-10).",
     )
 
 
@@ -829,7 +829,7 @@ async def upgrade_subscription(
     Upgrade subscription to a new plan.
 
     ADMIN-ONLY: this performs a direct plan swap with NO payment/proration. A customer
-    must not self-upgrade for free — customer-initiated upgrades go through
+    must not self-upgrade for free - customer-initiated upgrades go through
     /billing/checkout (which charges the new plan) and the webhook updates the plan.
     """
     # SECURITY FIX (P0-3, 2026-07-19): Add row-level locking to prevent concurrent modification
@@ -906,7 +906,7 @@ async def create_billing_portal(
         if not _stripe_configured():
             raise HTTPException(status_code=503, detail="Stripe gateway not configured")
         try:
-            # Stripe removed 2026-07-10 — no billing portal available.
+            # Stripe removed 2026-07-10 - no billing portal available.
             raise HTTPException(
                 status_code=503, detail="Billing portal not available (UPI-only payments)"
             )
@@ -914,11 +914,11 @@ async def create_billing_portal(
             logger.error(f"Failed to create billing portal: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    # Razorpay (or unknown) — no hosted portal.
+    # Razorpay (or unknown) - no hosted portal.
     return {
         "portal_url": None,
         "gateway": (subscription.payment_gateway if subscription else None) or "razorpay",
-        "message": "No hosted portal — manage your plan via pause/resume/cancel.",
+        "message": "No hosted portal - manage your plan via pause/resume/cancel.",
     }
 
 
@@ -959,9 +959,9 @@ async def pause_subscription(
     subscription = await _get_active_or_paused_sub(db, client_id)
     try:
         if subscription.stripe_subscription_id and _stripe_configured():
-            # Stripe removed 2026-07-10 — pause DB-side only.
+            # Stripe removed 2026-07-10 - pause DB-side only.
             pass
-        # Razorpay removed 2026-06-18 — legacy gateway rows pause DB-side only.
+        # Razorpay removed 2026-06-18 - legacy gateway rows pause DB-side only.
     except HTTPException:
         raise
     except Exception as e:
@@ -983,9 +983,9 @@ async def resume_subscription(
     subscription = await _get_active_or_paused_sub(db, client_id)
     try:
         if subscription.stripe_subscription_id and _stripe_configured():
-            # Stripe removed 2026-07-10 — resume DB-side only.
+            # Stripe removed 2026-07-10 - resume DB-side only.
             pass
-        # Razorpay removed 2026-06-18 — legacy gateway rows resume DB-side only.
+        # Razorpay removed 2026-06-18 - legacy gateway rows resume DB-side only.
     except HTTPException:
         raise
     except Exception as e:
@@ -1142,7 +1142,7 @@ async def stripe_webhook_removed(request: Request):
     from executing against an unverified payload: a forged
     `checkout.session.completed` carrying any `metadata.client_id` could have
     activated a paid plan for an arbitrary tenant. A guard above dead code is
-    not a fix — removing the capability is. Regression-locked by
+    not a fix - removing the capability is. Regression-locked by
     `tests/test_stripe_webhook_fail_closed.py`.
 
     400 is kept (not 410) because that is the status the endpoint already
@@ -1151,16 +1151,16 @@ async def stripe_webhook_removed(request: Request):
 
     Owner decision 2026-08-05: manual UPI only (issue #243, not_planned).
     Payments are reconciled through `/api/upi/*` with
-    `payment_verification_method = owner_confirmed_upi` — never
+    `payment_verification_method = owner_confirmed_upi` - never
     `PROVIDER_VERIFIED`.
     """
     raise HTTPException(
         status_code=400,
-        detail="Stripe gateway removed — manual UPI is the canonical payment method",
+        detail="Stripe gateway removed - manual UPI is the canonical payment method",
     )
 
 
-# /billing/webhooks/razorpay route removed 2026-06-18 — Razorpay gateway gone
+# /billing/webhooks/razorpay route removed 2026-06-18 - Razorpay gateway gone
 # (no online India gateway; payments via manual UPI). Stripe webhook above remains
 # the source of truth for subscription provisioning. Voice-minute / lead-pack
 # top-ups now reconcile via manual UPI + admin tooling, not a payment webhook.

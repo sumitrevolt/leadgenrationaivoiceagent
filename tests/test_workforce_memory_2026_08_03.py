@@ -1,4 +1,4 @@
-"""ADR-154 workforce memory hub — layered assets, bindings, offload, dual-write bridges."""
+"""ADR-154 workforce memory hub - layered assets, bindings, offload, dual-write bridges."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ def test_offload_and_drilldown(wfm_env):
     bulky = "RAW TRACE\n" + ("x" * 2000)
     out = wm.remember(
         "manager",
-        "Run failed at step 3 — see offload",
+        "Run failed at step 3 - see offload",
         layer=wm.LAYER_L0,
         asset=wm.ASSET_CHAT,
         topic="run_fail",

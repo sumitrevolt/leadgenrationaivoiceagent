@@ -1,7 +1,7 @@
 """Pure-python tests for the zero-dep text/semantic endpoint check in
 ``app.voice_agent.turn_detector``.
 
-No network / DB / LLM / audio model — the text rule is plain string logic.
+No network / DB / LLM / audio model - the text rule is plain string logic.
 Covers: affirmative (terminal punctuation), dangling conjunction, thinking
 filler, empty/undecided, and the USE_TEXT_ENDPOINT gating in confirm_end_of_turn.
 """
@@ -10,7 +10,7 @@ from app.voice_agent import turn_detector as TD
 
 
 # --------------------------------------------------------------------------- #
-# text_end_of_turn — the standalone rule
+# text_end_of_turn - the standalone rule
 # --------------------------------------------------------------------------- #
 def test_terminal_punctuation_is_complete():
     assert TD.text_end_of_turn("haan bilkul.") is True
@@ -59,7 +59,7 @@ def test_never_raises_on_weird_input():
 
 
 # --------------------------------------------------------------------------- #
-# confirm_end_of_turn — gating behaviour (default OFF = unchanged)
+# confirm_end_of_turn - gating behaviour (default OFF = unchanged)
 # --------------------------------------------------------------------------- #
 def test_confirm_default_off_ignores_text(monkeypatch):
     monkeypatch.delenv("USE_TEXT_ENDPOINT", raising=False)

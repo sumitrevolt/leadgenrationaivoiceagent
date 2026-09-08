@@ -1,4 +1,4 @@
-"""Quick production readiness check — import + routes + old-SDK (no frontend wiring timeout).
+"""Quick production readiness check - import + routes + old-SDK (no frontend wiring timeout).
 
 Usage: python scripts/prod_quick_check.py
 Supplements the full scripts/prod_check.py (which has a frontend wiring pass that can be slow).
@@ -40,7 +40,7 @@ print(f"[1] {n} source files parsed, {len(problems)} problems")
 try:
     from app.main import app  # noqa: F401
 
-    print(f"[2] app imports OK — {len(app.routes)} routes")
+    print(f"[2] app imports OK - {len(app.routes)} routes")
 except Exception as exc:
     problems.append(f"APP IMPORT FAILED: {exc}")
     print(f"[2] FAILED: {exc}")
@@ -82,7 +82,7 @@ except Exception as exc:
 
 print("-" * 50)
 if problems:
-    print(f"FAIL — {len(problems)} problem(s):")
+    print(f"FAIL - {len(problems)} problem(s):")
     for p in problems:
         print(f"  - {p}")
     sys.exit(1)

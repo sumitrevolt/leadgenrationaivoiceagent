@@ -1,4 +1,4 @@
-"""judge_calibration.py — offline calibration of LLM/agent "judges" vs human ground-truth.
+"""judge_calibration.py - offline calibration of LLM/agent "judges" vs human ground-truth.
 
 Problem
 -------
@@ -9,7 +9,7 @@ SIGNAL before a human ever looks at the item:
   - coordinator produces a draft plan (substance == "this plan is good enough").
 The human then approves/rejects in:
   - data/code_patches.jsonl   (status updates: approved | rejected | applied)
-  - data/approval_decisions.jsonl  ({source,item_id,status,by,at} — approvals_bridge)
+  - data/approval_decisions.jsonl  ({source,item_id,status,by,at} - approvals_bridge)
 
 This module reads those jsonl files OFFLINE (no LLM, no network, no DB) and, per
 judge source, computes how well the judge's signal agreed with the eventual human
@@ -22,7 +22,7 @@ a verdict per judge:
 Design rules (project gold-pattern)
 - Pure-python, read-only, NEVER raises. One bad file => that source is
   insufficient-data, the rest still compute.
-- Sparse/empty data is the COMMON case (these jsonl files start empty) — every
+- Sparse/empty data is the COMMON case (these jsonl files start empty) - every
   path degrades to {"verdict": "insufficient-data"} rather than blowing up.
 - No imports of heavy/agent modules at call time (only stdlib + logger).
 """
@@ -51,7 +51,7 @@ _COORD_RUNS = os.path.join(_DATA, "coordination_runs.jsonl")
 # Minimum paired samples before kappa is even meaningful. Below this the verdict
 # is always insufficient-data regardless of agreement (small-N kappa is noise).
 _MIN_PAIRS = 8
-# Landis & Koch "moderate" floor — below this a judge is advisory-only.
+# Landis & Koch "moderate" floor - below this a judge is advisory-only.
 _KAPPA_RELIABLE = 0.41
 
 # Human-decision normalisation: many synonyms collapse to a binary.

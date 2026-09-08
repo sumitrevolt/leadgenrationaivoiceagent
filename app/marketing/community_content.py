@@ -1,8 +1,8 @@
-"""Community / Q&A content drafter — inbound via communities (telephony-free).
+"""Community / Q&A content drafter - inbound via communities (telephony-free).
 
 Quora/Reddit answers, WhatsApp/FB-group value posts, LinkedIn articles,
-Medium syndication — sab VALUE-first (spam nahi), soft CTA → /audit. AI platform-
-appropriate draft deta (insaan khud post kare — ban-safe). free-LLM, template fallback.
+Medium syndication - sab VALUE-first (spam nahi), soft CTA -> /audit. AI platform-
+appropriate draft deta (insaan khud post kare - ban-safe). free-LLM, template fallback.
 """
 
 from __future__ import annotations
@@ -14,11 +14,11 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 PLATFORMS = {
-    "quora": "Quora answer — detailed, helpful, 1 soft mention at end",
-    "reddit": "Reddit comment — genuine, no salesy tone, value-first (r/india business)",
-    "whatsapp_group": "WhatsApp business-group post — short, useful tip + free-audit offer",
-    "linkedin_article": "LinkedIn article — 150-200 word professional, thought-leadership",
-    "medium": "Medium blog intro — SEO-friendly, useful, CTA at end",
+    "quora": "Quora answer - detailed, helpful, 1 soft mention at end",
+    "reddit": "Reddit comment - genuine, no salesy tone, value-first (r/india business)",
+    "whatsapp_group": "WhatsApp business-group post - short, useful tip + free-audit offer",
+    "linkedin_article": "LinkedIn article - 150-200 word professional, thought-leadership",
+    "medium": "Medium blog intro - SEO-friendly, useful, CTA at end",
 }
 
 
@@ -30,7 +30,7 @@ def _fallback(platform: str, topic: str, niche: str) -> str:
     nm = (niche or "local business").replace("_", " ")
     return (
         f"[{platform}] {nm} ke liye {topic or 'naye customers laana'}: sabse bada gap hai inquiry ka "
-        f"5-min me follow-up na hona — 80% leads yahi khote hain. Ek AI voice agent har inquiry ko "
+        f"5-min me follow-up na hona - 80% leads yahi khote hain. Ek AI voice agent har inquiry ko "
         f"turant call karke qualify kar sakta hai. Free Google audit se shuru karo: leadsgenai.in/audit"
     )
 
@@ -71,7 +71,7 @@ async def draft_content(platform: str, topic: str = "", niche: str = "general") 
 async def draft_batch(
     topic: str = "", niche: str = "general", platforms: list[str] | None = None
 ) -> dict[str, Any]:
-    """Multiple platforms ke liye content pack (ek topic → har jagah)."""
+    """Multiple platforms ke liye content pack (ek topic -> har jagah)."""
     plats = platforms or ["quora", "reddit", "whatsapp_group", "linkedin_article"]
     out = []
     for p in plats[:6]:

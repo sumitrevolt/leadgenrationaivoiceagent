@@ -29,7 +29,7 @@ def band_from_mid(mid: float) -> str:
 
 def main() -> int:
     if not DATA.exists():
-        print("NO_FILE (ok) — koi custom niches nahi")
+        print("NO_FILE (ok) - koi custom niches nahi")
         return 0
     try:
         data = json.loads(DATA.read_text(encoding="utf-8")) or {}

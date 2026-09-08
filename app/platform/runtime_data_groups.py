@@ -11,7 +11,7 @@ still has to establish reader/writer/authority before anything is declared.
 
 The grouping key deliberately does NOT include the package alone. A package
 like `app/marketing` contains suppression, delivery ledgers, caches and
-generated media — a directory rule would map unrelated authorities onto one
+generated media - a directory rule would map unrelated authorities onto one
 store, which is exactly the bulk shortcut that must not happen.
 """
 
@@ -101,7 +101,7 @@ def _confidence(group: dict[str, Any]) -> str:
     if len(stores) == 1:
         return MEDIUM
     if len(stores) > 1:
-        return LOW  # ambiguous authority — a guess here would be a bad mapping
+        return LOW  # ambiguous authority - a guess here would be a bad mapping
     return UNRESOLVED
 
 
@@ -150,9 +150,9 @@ def build(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _evidence_required(g: dict[str, Any]) -> list[str]:
     need = []
     if not g["probable_store_ids"]:
-        need.append("store authority unknown — inspect executable readers/writers")
+        need.append("store authority unknown - inspect executable readers/writers")
     if len(g["probable_store_ids"]) > 1:
-        need.append("multiple candidate stores — filename resemblance is not authority")
+        need.append("multiple candidate stores - filename resemblance is not authority")
     if g["mutating_count"]:
         need.append("writer modules + access modes")
     if _scan.AMBIGUOUS_REQUIRES_REVIEW in g["classifications"]:
@@ -164,12 +164,12 @@ def _evidence_required(g: dict[str, Any]) -> list[str]:
 
 def _next_action(g: dict[str, Any]) -> str:
     if g["classifications"] == {_scan.CANONICAL_RUNTIME_PATH}:
-        return "none — already canonical"
+        return "none - already canonical"
     if g["classifications"] <= {
         _scan.DECLARED_LEGACY_READ,
         _scan.DECLARED_LEGACY_WRITE,
     }:
-        return "none — already declared"
+        return "none - already declared"
     if g["confidence"] == HIGH and g["mutating_count"]:
         return "verify readers/writers, then add ONE symbol-level allowlist entry"
     if g["confidence"] in (MEDIUM, LOW):
@@ -182,7 +182,7 @@ def reconcile(findings: list[dict[str, Any]]) -> dict[str, Any]:
 
     A fingerprint covering two call sites of one store is fine. A fingerprint
     covering two different files, symbols or operations would mean distinct
-    mutations were collapsed — which would hide real debt, so it is counted
+    mutations were collapsed - which would hide real debt, so it is counted
     and surfaced rather than assumed benign.
     """
     from app.platform import runtime_data_ratchet as _ratchet

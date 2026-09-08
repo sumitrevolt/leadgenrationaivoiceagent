@@ -1,9 +1,9 @@
-"""Activation-readiness probe — admin endpoint behavior matrix.
+"""Activation-readiness probe - admin endpoint behavior matrix.
 
 The probe must:
 - Distinguish BLOCKER (revenue/trust) from WARN (visibility) from NEUTRAL (opt-in).
 - Catch the exact 2026-06-14 root cause: placeholder Razorpay keys that look set.
-- Stay shape-check only — never make outbound calls.
+- Stay shape-check only - never make outbound calls.
 - Flip `ready_for_first_paid_customer` to true only when zero BLOCKERs remain.
 """
 
@@ -17,7 +17,7 @@ from app.api import activation as ax
 
 
 # --------------------------------------------------------------------------- #
-# Per-probe logic (no FastAPI — pure functions, deterministic)
+# Per-probe logic (no FastAPI - pure functions, deterministic)
 # --------------------------------------------------------------------------- #
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -38,13 +38,13 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(k, raising=False)
 
 
-# Razorpay activation probe removed 2026-06-18 — gateway gone (manual UPI only).
+# Razorpay activation probe removed 2026-06-18 - gateway gone (manual UPI only).
 # payments_ready is hard-coded True now; the razorpay probe tests were deleted.
 
 
 def test_sentry_unset_is_warn_not_blocker() -> None:
     r = ax._sentry()
-    assert r["status"] == "WARN"  # not a blocker — funnel runs without it
+    assert r["status"] == "WARN"  # not a blocker - funnel runs without it
 
 
 def test_sentry_armed_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -93,7 +93,7 @@ def test_turnstile_armed_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_cloudflare_tunnel_unset_is_neutral_not_blocker() -> None:
-    """Origin-hide is opt-in — absence is neutral, not a blocker."""
+    """Origin-hide is opt-in - absence is neutral, not a blocker."""
     r = ax._cloudflare_tunnel()
     assert r["status"] == "NEUTRAL"
 
@@ -105,14 +105,14 @@ def test_cloudflare_tunnel_armed_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Aggregate readiness — the single number that matters
+# Aggregate readiness - the single number that matters
 # --------------------------------------------------------------------------- #
 async def test_activation_summary_public(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.api.activation import activation_summary_public
     from app.platform import upi_config as uc
 
-    # Hermetic: payments-state UPI-arming se derive hota — developer/CI env pe
-    # depend nahi karna (CI me UPI_VPA unset → payments_deferred True ho jata tha).
+    # Hermetic: payments-state UPI-arming se derive hota - developer/CI env pe
+    # depend nahi karna (CI me UPI_VPA unset -> payments_deferred True ho jata tha).
     monkeypatch.setattr(uc, "is_armed", lambda: True)
     out = await activation_summary_public()
     assert out["ready_for_launch"] is True
@@ -124,10 +124,10 @@ async def test_activation_summary_public(monkeypatch: pytest.MonkeyPatch) -> Non
 
 async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default empty env -> no BLOCKERs; marketing launch OK. Razorpay removed
-    2026-06-18 — payments via manual UPI, so payments_ready is always True."""
+    2026-06-18 - payments via manual UPI, so payments_ready is always True."""
     from app.platform import upi_config as uc
 
-    # Hermetic (CI me UPI unarmed → payments_ready False ho jata tha; unarmed-case
+    # Hermetic (CI me UPI unarmed -> payments_ready False ho jata tha; unarmed-case
     # ka apna dedicated test niche hai).
     monkeypatch.setattr(uc, "is_armed", lambda: True)
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
@@ -138,7 +138,7 @@ async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatc
     keys = {it["key"] for it in out["items"]}
     # Launch-critical probes that MUST be present. Asserted as a SUBSET (not exact
     # match) so adding new probes over time (e.g. qdrant_rag, track_b_admin) does
-    # not break this guard — the point is "no blockers + core probes present".
+    # not break this guard - the point is "no blockers + core probes present".
     # Razorpay removed 2026-06-18; UPI revenue probe added.
     required = {
         "sentry",

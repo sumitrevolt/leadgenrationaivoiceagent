@@ -1,6 +1,6 @@
 """Contract for booking-cancel possession factor (audit 2026-07-06, 2nd-pass sec fix).
 
-`/booking/cancel` used to cancel on booking_id ALONE — a leaked/guessed id could
+`/booking/cancel` used to cancel on booking_id ALONE - a leaked/guessed id could
 cancel someone else's appointment. `cancel()` now requires the caller's phone to
 match the booking's stored phone (last-10). Internal callers (reschedule) pass no
 phone and stay unaffected.
@@ -41,7 +41,7 @@ async def test_last10_match_ignores_formatting():
 
 
 async def test_internal_caller_no_phone_still_cancels():
-    # reschedule() calls self.cancel(old_bid) with no phone — must keep working
+    # reschedule() calls self.cancel(old_bid) with no phone - must keep working
     cal = CalendarBooking(provider=None)
     bid = _seed(cal)
     assert await cal.cancel(bid) is True

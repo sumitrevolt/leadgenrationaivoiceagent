@@ -136,7 +136,7 @@ def test_resolve_client_by_billing_alias(monkeypatch, tmp_path):
 
 
 def test_build_report_uses_marketing_id_not_billing_alias(monkeypatch, tmp_path):
-    """Sync + asyncio.run — pytest-asyncio session loop ke baad asyncio.run loop todta hai."""
+    """Sync + asyncio.run - pytest-asyncio session loop ke baad asyncio.run loop todta hai."""
     import asyncio
 
     monkeypatch.setattr(

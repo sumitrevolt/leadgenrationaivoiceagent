@@ -1,4 +1,4 @@
-"""Maps key smoke — real scraper returns phones + rating + personalized pitch."""
+"""Maps key smoke - real scraper returns phones + rating + personalized pitch."""
 
 import asyncio
 

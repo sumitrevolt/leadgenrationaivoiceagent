@@ -1,4 +1,4 @@
-"""Loop-social-14 (2026-07-11): Phase 8 completeness — backoff, per-platform
+"""Loop-social-14 (2026-07-11): Phase 8 completeness - backoff, per-platform
 QPM rate limit, stale-job recovery.
 """
 
@@ -34,7 +34,7 @@ def test_next_ready_at_for_retry_row():
             "updated_at": ts,
         }
     )
-    # attempts=2 → 120s backoff — should be exactly 120s past parsed ts.
+    # attempts=2 -> 120s backoff - should be exactly 120s past parsed ts.
     # Store writes UTC ISO; production parses naive-as-UTC so timestamp() is
     # timezone-safe on IST machines (see scheduling.next_ready_at).
     import datetime as _dt

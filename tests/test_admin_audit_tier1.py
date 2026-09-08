@@ -1,4 +1,4 @@
-"""Tier-1 governance — regression tests for the centralized admin audit helper.
+"""Tier-1 governance - regression tests for the centralized admin audit helper.
 
 Covers request-metadata capture, redaction, actor extraction, row construction for
 success + rejected results, and the fail-open-but-loud vs fail-closed persistence
@@ -193,7 +193,7 @@ def test_record_admin_action_persists_success(monkeypatch):
 
 
 def test_record_admin_action_fail_open_returns_false(monkeypatch):
-    # audit DB down → default policy must NOT raise (post-action fail-open) and returns False
+    # audit DB down -> default policy must NOT raise (post-action fail-open) and returns False
     sess = _FakeSession(fail=True)
     _patch_session(monkeypatch, sess)
     ok = asyncio.run(

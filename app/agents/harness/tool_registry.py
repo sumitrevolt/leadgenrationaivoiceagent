@@ -1,5 +1,5 @@
 """
-Tool registry — the real one (VA-01 / VA-02 / PM-01).
+Tool registry - the real one (VA-01 / VA-02 / PM-01).
 
 The audit found that `dev_control/registry.py` is a *model/provider* catalog,
 not a *tool* catalog, and that `agent_permissions.can()` checks only the tool

@@ -1,4 +1,4 @@
-"""Quick smoke test for niche_db endpoints — run via SSH on VPS."""
+"""Quick smoke test for niche_db endpoints - run via SSH on VPS."""
 
 import json
 import sys

@@ -2,7 +2,7 @@
 ``app.voice_agent.turn_detector``: ``is_backchannel`` (pure ack detection) and
 the ``barge_guard_*`` frame-window helpers (BARGE_GUARD).
 
-No network / DB / LLM / audio model — all plain logic + env gating. Mirrors the
+No network / DB / LLM / audio model - all plain logic + env gating. Mirrors the
 research from LiveKit "adaptive interruption" + Pipecat semantic turn-taking:
 a cough / one-word "haan" must not stop the bot, and a pure ack that still barges
 is not a real turn.
@@ -12,7 +12,7 @@ from app.voice_agent import turn_detector as TD
 
 
 # --------------------------------------------------------------------------- #
-# is_backchannel — pure acknowledgments
+# is_backchannel - pure acknowledgments
 # --------------------------------------------------------------------------- #
 def test_pure_backchannels_are_true():
     for t in (
@@ -86,7 +86,7 @@ def test_backchannel_never_raises():
 
 
 # --------------------------------------------------------------------------- #
-# barge_guard — frame-window helpers + env gating
+# barge_guard - frame-window helpers + env gating
 # --------------------------------------------------------------------------- #
 def test_guard_off_matches_snappy_barge(monkeypatch):
     monkeypatch.delenv("BARGE_GUARD", raising=False)

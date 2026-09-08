@@ -61,7 +61,7 @@ async def test_scheduled_ops_hygiene_trims_every_routed_queue(monkeypatch):
     """2026-07-02: Saturday hygiene used to only ever check/trim the default
     "celery" queue. leadgen_worker was fixed to actually consume
     calling/scraping/reporting/sync/training/heavy (previously undrained,
-    silently accumulating) — hygiene must now watch all of them, not just
+    silently accumulating) - hygiene must now watch all of them, not just
     the one it always watched."""
     from app.platform import scheduled_ops
 
@@ -108,10 +108,10 @@ async def test_scheduled_ops_hygiene_trims_every_routed_queue(monkeypatch):
 @pytest.mark.asyncio
 async def test_scheduled_ops_hygiene_never_auto_deletes_calling_queue(monkeypatch):
     """ "calling" carries run_campaign_task (admin-launched, never
-    beat-regenerated — deleting a queued one silently drops the campaign AND
+    beat-regenerated - deleting a queued one silently drops the campaign AND
     leaks its launch lock since the delete skips the task's own `finally:
     release_campaign_lock()`) and process_callbacks' make_call_task (only
-    re-enqueued inside a 1-hour window — past that, gone for good). Unlike
+    re-enqueued inside a 1-hour window - past that, gone for good). Unlike
     every other routed queue, it must be ALERT-ONLY here, never
     auto-deleted, even when its depth blows past the trim threshold."""
     from app.platform import scheduled_ops

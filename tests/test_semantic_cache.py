@@ -1,7 +1,7 @@
 """
-test_semantic_cache.py — unit tests for app/cache/semantic_cache.py.
+test_semantic_cache.py - unit tests for app/cache/semantic_cache.py.
 
-Fake backend use karte hain (deterministic vectors + real cosine) — koi Redis /
+Fake backend use karte hain (deterministic vectors + real cosine) - koi Redis /
 Qdrant / fastembed / LLM key nahi chahiye. CI me `-m "not network"` ke saath
 safely chalega (network marker nahi lagaya).
 """

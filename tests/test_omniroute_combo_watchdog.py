@@ -1,6 +1,6 @@
 """Tests for scripts/omniroute_combo_watchdog.py strike/alert/recovery logic.
 
-Hermetic: probes and ntfy are stubbed — no gateway, no network, no real state.
+Hermetic: probes and ntfy are stubbed - no gateway, no network, no real state.
 The live gateway path (real /v1/responses per combo) is exercised manually via
 the script
 these tests pin the state machine: 3 consecutive failures alert
@@ -46,7 +46,7 @@ class TestWatchdogStateMachine:
         # Pass 1: one blip records a strike but stays below threshold.
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 0
         assert env == []
-        # Pass 2: everything healthy → all strike counters reset to 0.
+        # Pass 2: everything healthy -> all strike counters reset to 0.
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 0
         assert env == []
         state = wd._load_state()
@@ -57,16 +57,16 @@ class TestWatchdogStateMachine:
             return _fail(c) if c == "leadsgen combo 2" else _ok(c)
 
         monkeypatch.setattr(wd, "probe_combo", only_down)
-        # Pass 1 and 2: strikes accumulate below threshold → exit 0, no alert.
+        # Pass 1 and 2: strikes accumulate below threshold -> exit 0, no alert.
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 0
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 0
         assert env == []
-        # Pass 3: combo 2 hits 3 strikes → alert + exit 1.
+        # Pass 3: combo 2 hits 3 strikes -> alert + exit 1.
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 1
         assert len(env) == 1
         assert "DOWN" in env[0][0]
         assert "leadsgen combo 2" in env[0][1]
-        # Pass 4: still failing → already alerted, no re-alert (no spam).
+        # Pass 4: still failing -> already alerted, no re-alert (no spam).
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 1
         assert len(env) == 1
 
@@ -78,7 +78,7 @@ class TestWatchdogStateMachine:
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 1
         assert len(env) == 1
 
-        # Combo 2 recovers → recovery alert, its state cleared; combo 1 now fails.
+        # Combo 2 recovers -> recovery alert, its state cleared; combo 1 now fails.
         monkeypatch.setattr(
             wd, "probe_combo", lambda b, k, c, t: _fail(c) if c == "leadsgen combo 1" else _ok(c)
         )
@@ -88,7 +88,7 @@ class TestWatchdogStateMachine:
         state = wd._load_state()
         assert state["leadsgen combo 2"]["fails"] == 0
         assert state["leadsgen combo 2"]["alerted"] is False
-        # Drive the new failure (combo 1) to threshold → exit 1 + its own alert.
+        # Drive the new failure (combo 1) to threshold -> exit 1 + its own alert.
         wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True)
         assert wd.run_once("http://x/v1", "k", 5, strikes=3, workers=2, quiet=True) == 1
         assert len(env) == 3

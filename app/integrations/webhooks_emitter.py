@@ -2,15 +2,15 @@
 Webhooks / Events Emitter
 =========================
 External systems ko events ke baare me notify karta hai (Retell/Vapi style
-webhooks). Jab pipeline me kuch hota hai — call start/end, lead scrape/qualify,
-appointment book, transfer, voicemail, campaign complete, error — to ye emitter
+webhooks). Jab pipeline me kuch hota hai - call start/end, lead scrape/qualify,
+appointment book, transfer, voicemail, campaign complete, error - to ye emitter
 har subscribed URL par ek signed JSON envelope POST kar deta hai.
 
 Design (lead_delivery.py jaisa defensive):
-  - httpx LAZILY import hota hai (import-safe) — agar httpx installed na ho to
+  - httpx LAZILY import hota hai (import-safe) - agar httpx installed na ho to
     module import phir bhi nahi todhta
     emit gracefully fail (logs) ho jata hai.
-  - emit() KABHI raise nahi karta — har failure log hoke EmitResult me aa jata hai.
+  - emit() KABHI raise nahi karta - har failure log hoke EmitResult me aa jata hai.
   - Zero config (koi URL nahi) => no-op, sirf log. Bilkul safe.
   - Har request retry hota hai exponential backoff ke saath (max 3 attempts).
   - HMAC-SHA256 signature `X-Signature` header me bheji jaati hai (sha256=<hex>).
@@ -48,7 +48,7 @@ Usage example:
     )
     print(result.delivered, result.failed)   # e.g. 1 0
 
-    # Receiver side — incoming webhook verify karo
+    # Receiver side - incoming webhook verify karo
     ok = WebhookEmitter.verify_signature(
         secret="my-secret",
         body=raw_request_body_bytes,
@@ -121,7 +121,7 @@ class WebhookEvent:
 @dataclass
 class EmitResult:
     """
-    Ek emit() call ka result — kaunse subscribers ko deliver hua / fail.
+    Ek emit() call ka result - kaunse subscribers ko deliver hua / fail.
 
     delivered : kitne URLs par successfully POST hua
     failed    : kitne URLs par fail hua (sab retries ke baad)
@@ -170,10 +170,10 @@ class _Subscriber:
 
 class WebhookEmitter:
     """
-    Signed webhook event emitter — Retell/Vapi style.
+    Signed webhook event emitter - Retell/Vapi style.
 
     httpx ko lazily import karta hai (import-safe), taaki httpx missing hone par
-    bhi module import na todhe. emit() kabhi raise nahi karta — har failure log
+    bhi module import na todhe. emit() kabhi raise nahi karta - har failure log
     hoke EmitResult me aata hai.
 
     Config sources (env/settings):
@@ -211,12 +211,12 @@ class WebhookEmitter:
 
         if self._subscribers:
             logger.info(
-                f"🔔 WebhookEmitter initialized — {len(self._subscribers)} endpoint(s) "
+                f"🔔 WebhookEmitter initialized - {len(self._subscribers)} endpoint(s) "
                 f"configured, signing={'on' if self.secret else 'off'}"
             )
         else:
             logger.info(
-                "🔔 WebhookEmitter initialized — no WEBHOOK_URLS configured "
+                "🔔 WebhookEmitter initialized - no WEBHOOK_URLS configured "
                 "(emit will be a safe no-op until subscribers are added)"
             )
 
@@ -232,7 +232,7 @@ class WebhookEmitter:
 
                 self._httpx = httpx
             except Exception as e:
-                logger.error(f"httpx not available — webhooks disabled: {e}")
+                logger.error(f"httpx not available - webhooks disabled: {e}")
                 self._httpx = False  # sentinel: load failed
         return self._httpx or None
 
@@ -246,7 +246,7 @@ class WebhookEmitter:
 
         Args:
             url    : endpoint URL (POST yahan hoga)
-            events : optional list of WebhookEvent values — sirf in events par
+            events : optional list of WebhookEvent values - sirf in events par
                      bhejo. None => saare events.
 
         Returns:
@@ -282,7 +282,7 @@ class WebhookEmitter:
         ]
 
     # ---------------------------------------------------------------------
-    # PUBLIC API — emit
+    # PUBLIC API - emit
     # ---------------------------------------------------------------------
 
     async def emit(
@@ -300,7 +300,7 @@ class WebhookEmitter:
             client_id : optional tenant/client id (envelope.client_id)
 
         Returns:
-            EmitResult — delivered/failed counts + per-url results.
+            EmitResult - delivered/failed counts + per-url results.
         """
         result = EmitResult(event=str(event))
 
@@ -312,15 +312,15 @@ class WebhookEmitter:
             targets = [s for s in self._subscribers.values() if s.wants(event)]
 
             if not targets:
-                # No-op path — zero config safe
+                # No-op path - zero config safe
                 logger.info(
-                    f"emit({event}): no matching subscribers — skipped (event_id={result.event_id})"
+                    f"emit({event}): no matching subscribers - skipped (event_id={result.event_id})"
                 )
                 return result
 
             httpx_mod = self._get_httpx()
             if httpx_mod is None:
-                # httpx missing — har target ko failed mark karo, par raise nahi
+                # httpx missing - har target ko failed mark karo, par raise nahi
                 logger.error(f"emit({event}): httpx unavailable, cannot deliver")
                 for sub in targets:
                     result.failed += 1
@@ -367,13 +367,13 @@ class WebhookEmitter:
                     result.failed += 1
 
             logger.info(
-                f"emit({event}) done — delivered={result.delivered} "
+                f"emit({event}) done - delivered={result.delivered} "
                 f"failed={result.failed} event_id={result.event_id}"
             )
             return result
 
         except Exception as e:
-            # Top-level safety net — emit NEVER raises
+            # Top-level safety net - emit NEVER raises
             logger.error(f"emit({event}): unexpected top-level error: {e}")
             return result
 
@@ -386,13 +386,13 @@ class WebhookEmitter:
 
         Args:
             events : iterable of (event, payload, client_id) tuples.
-                     payload/client_id optional hain — tuple chhota bhi ho sakta:
+                     payload/client_id optional hain - tuple chhota bhi ho sakta:
                        (event,)
                        (event, payload)
                        (event, payload, client_id)
 
         Returns:
-            List[EmitResult] — har event ka result. Ek fail ho to baaki continue.
+            List[EmitResult] - har event ka result. Ek fail ho to baaki continue.
         """
         results: list[EmitResult] = []
         for item in events or []:
@@ -425,7 +425,7 @@ class WebhookEmitter:
         Args:
             secret    : wahi WEBHOOK_SECRET jo emit karte waqt use hua
             body      : raw request body (bytes ya str)
-            signature : "X-Signature" header value — "sha256=<hex>" ya raw "<hex>"
+            signature : "X-Signature" header value - "sha256=<hex>" ya raw "<hex>"
 
         Returns:
             True agar signature valid hai. Constant-time compare use karta hai.
@@ -517,7 +517,7 @@ class WebhookEmitter:
         headers: dict[str, str],
     ) -> dict[str, Any]:
         """
-        Ek URL par POST with exponential backoff retry. Kabhi raise nahi karta —
+        Ek URL par POST with exponential backoff retry. Kabhi raise nahi karta -
         per-url result dict return karta hai.
         """
         attempts = 0
@@ -539,7 +539,7 @@ class WebhookEmitter:
                             "attempts": attempt,
                             "error": None,
                         }
-                    # Non-2xx — retryable for 5xx / 429, else give up
+                    # Non-2xx - retryable for 5xx / 429, else give up
                     last_error = f"HTTP {resp.status_code}"
                     if resp.status_code < 500 and resp.status_code != 429:
                         logger.error(f"webhook POST non-retryable: {url} status={resp.status_code}")

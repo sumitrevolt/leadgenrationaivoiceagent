@@ -1,4 +1,4 @@
-"""Delivery-health STATE machine (admin Command Center — At-Risk detection).
+"""Delivery-health STATE machine (admin Command Center - At-Risk detection).
 
 Covers (1) each of the 7 reachable states of
 `admin_dashboard_builders.delivery_health()` via synthetic client+summary+recent
@@ -9,8 +9,8 @@ boundaries of `delivery_ledger.recent_counts()` (the additive windowed helper
 that feeds delivery_health) written as temp jsonl through the module's own
 `_LEDGER_DIR` call-time resolver (same monkeypatch style as the other ledger tests)
 (4) the
-_build_command_center wiring — new `at_risk_count`/`benefit_this_week` scalars +
-per-customer `health` — AND that every pre-existing response field is still
+_build_command_center wiring - new `at_risk_count`/`benefit_this_week` scalars +
+per-customer `health` - AND that every pre-existing response field is still
 present (frontends depend on them)."""
 
 import json
@@ -134,7 +134,7 @@ def test_state_blocked_when_setup_stuck_over_24h():
 
 
 def test_state_not_started_early_when_incomplete_but_recent():
-    """Not setup_done, has events, but <24h old / no parseable created_at →
+    """Not setup_done, has events, but <24h old / no parseable created_at ->
     still early-setup (not_started), NOT blocked."""
     h = delivery_health(_client(setup_done=False), _summary(events_total=2), 0, _recent())
     assert h["state"] == "not_started"
@@ -154,7 +154,7 @@ def test_state_pending_approval():
         _client(setup_done=True),
         _summary(events_total=5, posts_created=2, posts_approved=1, posts_published=1),
         1,
-        _recent(value=True),  # value present → not at_risk
+        _recent(value=True),  # value present -> not at_risk
     )
     assert h["state"] == "pending_approval"
     assert h["next_action"] == "approve_content"
@@ -287,7 +287,7 @@ def test_recent_counts_missing_file_is_all_zero(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# _build_command_center wiring — new scalars + per-customer health, existing
+# _build_command_center wiring - new scalars + per-customer health, existing
 # fields byte-preserved.
 # --------------------------------------------------------------------------- #
 def _cc_client(cid, **kw):
@@ -348,8 +348,8 @@ def test_command_center_adds_at_risk_and_benefit_scalars(monkeypatch):
         },
     }
     recents = {
-        "risk1": {"value_events_in_window": False, "failures_24h": 0},  # no value 7d → at_risk
-        "ok1": {"value_events_in_window": True, "failures_24h": 0},  # value 7d → delivered
+        "risk1": {"value_events_in_window": False, "failures_24h": 0},  # no value 7d -> at_risk
+        "ok1": {"value_events_in_window": True, "failures_24h": 0},  # value 7d -> delivered
     }
     _patch_cc(monkeypatch, clients, summaries, recents, [])
 

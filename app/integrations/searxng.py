@@ -1,11 +1,11 @@
 """Self-hosted SearXNG meta-search client (FREE unlimited web search).
 
-Paid search APIs (Brave $5/mo ≈ 1k queries) ki jagah apna SearXNG container —
+Paid search APIs (Brave $5/mo ≈ 1k queries) ki jagah apna SearXNG container -
 70+ engines aggregate, JSON API, zero per-query cost. `deploy/compose/docker-compose.tools.yml`
 me `searxng` service (app ke SAME docker network pe).
 
 GATED: `SEARXNG_URL` env (e.g. http://searxng:8080). Unset = inert (callers
-gracefully fallback — lead_harvester Brave key pe, baaki skip). NEVER raises.
+gracefully fallback - lead_harvester Brave key pe, baaki skip). NEVER raises.
 
 Use:
     from app.integrations import searxng
@@ -40,7 +40,7 @@ async def search(
 ) -> list[dict[str, Any]]:
     """Search via self-hosted SearXNG. Returns [{title, url, content, engine}].
 
-    Empty list on any failure / when disabled — caller decides fallback.
+    Empty list on any failure / when disabled - caller decides fallback.
     """
     url = base_url()
     q = (query or "").strip()

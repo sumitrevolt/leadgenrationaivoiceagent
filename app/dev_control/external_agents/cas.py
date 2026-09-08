@@ -1,17 +1,17 @@
-"""Cross-process CAS for external missions — reuses project Redis / file-lock primitives.
+"""Cross-process CAS for external missions - reuses project Redis / file-lock primitives.
 
 Correctness boundary (NOT ``threading.RLock``):
 
-1. **Redis** when reachable — same client pattern as ``dev_control.locks.RedisOwnershipLock``
+1. **Redis** when reachable - same client pattern as ``dev_control.locks.RedisOwnershipLock``
    and ``openclaw.idempotency.RedisIdempotencyStore``. Lease claim is a Lua compare-and-set.
-2. **portalocker file locks** on the shared mission directory — project already depends on
+2. **portalocker file locks** on the shared mission directory - project already depends on
    ``portalocker``
    production bind-mounts ``./data:/app/data`` across app/worker/scheduler,
    so a lock under ``data/external_missions/.locks/`` is visible to every VPS container.
 3. Process-local mutex is only a nested optimisation *inside* an already-held CAS lock.
 
 Without Redis AND without a writable shared mission dir, CAS operations fail closed
-with ``shared_store_unavailable`` — never silently fall back to "thread lock only".
+with ``shared_store_unavailable`` - never silently fall back to "thread lock only".
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ end
 return 1
 """
 
-# Atomic compare-and-delete for doc locks — avoids the classic GET-then-DELETE
+# Atomic compare-and-delete for doc locks - avoids the classic GET-then-DELETE
 # TOCTOU where a stale releaser deletes a newer owner's lock after expiry.
 _RELEASE_LOCK_LUA = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -125,7 +125,7 @@ def resolve_coordination_mode() -> str:
     Precedence:
     1. ``EXTERNAL_AGENT_COORDINATION_BACKEND`` = redis|local-file|required-file
     2. ``EXTERNAL_MISSION_CAS`` = redis|filelock (compat)
-    3. If ``REDIS_URL`` / ``EXTERNAL_MISSION_REDIS_URL`` is set → ``redis`` (fail-closed)
+    3. If ``REDIS_URL`` / ``EXTERNAL_MISSION_REDIS_URL`` is set -> ``redis`` (fail-closed)
     4. Else ``local-file`` (explicit single-host / test default)
     """
     explicit = (os.getenv("EXTERNAL_AGENT_COORDINATION_BACKEND") or "").strip().lower()
@@ -175,7 +175,7 @@ class RedisCasBackend:
     def claim_lease(self, mission_id: str, owner: str, *, ttl_s: int, now: float) -> dict[str, Any]:
         until = now + max(1, int(ttl_s))
         redis_ttl = max(int(ttl_s) * 2, 3600)
-        # Redis Lua EVAL (not Python eval) — use execute_command so security_scan
+        # Redis Lua EVAL (not Python eval) - use execute_command so security_scan
         # does not flag redis-py's .eval helper as unsafe eval/exec.
         out = self._r.execute_command(
             "EVAL",
@@ -254,7 +254,7 @@ class RedisCasBackend:
 
     def register_idempotency(self, key: str, mission_id: str) -> dict[str, Any]:
         rkey = _PREFIX + "idem:" + key
-        # SET NX — first writer wins; loser reads the canonical mission id.
+        # SET NX - first writer wins; loser reads the canonical mission id.
         # EX binds a retention window so the namespace cannot grow forever.
         if self._r.set(rkey, mission_id, nx=True, ex=_IDEM_TTL_S):
             return {"created": True, "mission_id": mission_id}
@@ -406,13 +406,13 @@ _BACKEND: CasBackend | None = None
 
 
 def reset_backend() -> None:
-    """Test helper — drop the cached backend so the next call re-probes."""
+    """Test helper - drop the cached backend so the next call re-probes."""
     global _BACKEND
     _BACKEND = None
 
 
 def get_backend(*, root: str | None = None) -> CasBackend:
-    """Resolve coordination backend from explicit mode — never silent Redis→FileLock."""
+    """Resolve coordination backend from explicit mode - never silent Redis->FileLock."""
     global _BACKEND
     if _BACKEND is not None:
         return _BACKEND
@@ -430,7 +430,7 @@ def get_backend(*, root: str | None = None) -> CasBackend:
 
         from app.platform import runtime_data_authority as _auth
 
-        # Keep the local name `mission_root` — allowlist binds to it (A3 lesson).
+        # Keep the local name `mission_root` - allowlist binds to it (A3 lesson).
         mission_root = str(
             _auth.resolve_store_path(
                 store_id="devcontrol.external_missions",
@@ -467,11 +467,11 @@ def shared_store_status(*, root: str | None = None) -> dict[str, Any]:
         "distributed": mode == "redis",
         "error": err,
         "note": (
-            "Redis coordination required but unreachable — runner/CAS fail-closed "
+            "Redis coordination required but unreachable - runner/CAS fail-closed "
             "(no FileLock fallback)."
             if mode == "redis" and not reachable
             else (
-                "local-file mode: single-host / shared EXTERNAL_MISSION_DIR only — "
+                "local-file mode: single-host / shared EXTERNAL_MISSION_DIR only - "
                 "not multi-host distributed coordination."
                 if mode == "local-file"
                 else "Redis coordination backend active."

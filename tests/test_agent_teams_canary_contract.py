@@ -1,4 +1,4 @@
-"""Agent Teams canary contract — doc must exist; fail-not-skip when missing (F4)."""
+"""Agent Teams canary contract - doc must exist; fail-not-skip when missing (F4)."""
 
 from __future__ import annotations
 

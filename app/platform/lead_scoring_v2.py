@@ -1,8 +1,8 @@
-"""Prospect Score V2 — evidence-based qualified volume (2026-07-31).
+"""Prospect Score V2 - evidence-based qualified volume (2026-07-31).
 
 WHY (ADR: prospect-score-v2): V1 (`lead_scoring.score_lead`) reads DB-Lead
 fields (`source`, `phone_verified`, `email_verified`, `call_attempts`,
-`created_at`) jo JSONL prospect records me NAHI hain — while the fields the
+`created_at`) jo JSONL prospect records me NAHI hain - while the fields the
 JSONL actually stores (`rating`, `reviews_count`, `website`, `has_website`,
 `wa_link`, `found_at`, `source_query`) are ignored. Result: max cold-ready
 score = status(4)+source(6)+verification(3)+recency(≤12)+niche(6)+engagement(2)
@@ -14,11 +14,11 @@ V2 = schema-drift fix: score the signals that are actually stored, keep the
 side-effects. Pure, deterministic, idempotent, import-safe, never raises.
 
 Design rules (mission §3):
-- additive features, each → deterministic int, breakdown sum == total;
+- additive features, each -> deterministic int, breakdown sum == total;
 - quality-approval stays MANDATORY upstream (`prospector.is_quality_approved`);
 - V1 read path untouched (this module is a new additive scorer
 wiring behind
-  a feature flag with V1 default — backward-compatible);
+  a feature flag with V1 default - backward-compatible);
 - no consent claim derived from score (score is qualification signal only);
 - no automatic send / call
 `counts_contact` stays False in the runtime.
@@ -42,7 +42,7 @@ logger = setup_logger(__name__)
 
 SCORE_VERSION = "2"
 
-# Feature weights (single source of truth — testy bhi inhi pe assert karte hain).
+# Feature weights (single source of truth - testy bhi inhi pe assert karte hain).
 # Calibrated 2026-07-31 via shadow eval: cap ~85 so only genuinely strong,
 # multi-signal prospects cross 50; every feature must be EARNED (missing = 0,
 # never positive). Reviews are tiered DESC (100+ = strongest proof of a real,
@@ -58,7 +58,7 @@ COMPLETENESS_PTS = 7
 NICHE_PTS = 5
 SOURCE_PTS = 5
 FRESH_PTS = {30: 7, 90: 4, 180: 2}
-# Negative (explicit penalties — absence/quality is penalized, never rewarded).
+# Negative (explicit penalties - absence/quality is penalized, never rewarded).
 PENALTY_NO_PHONE = -18
 PENALTY_LOW_REVIEWS = -4
 PENALTY_NO_EMAIL = -5
@@ -110,7 +110,7 @@ def is_valid_india_mobile(rec: dict[str, Any]) -> bool:
     """10-digit India mobile: first digit 6-9 (true mobile ranges).
 
     Normalizes `91`/`0` prefixes (with or without +), rejects toll-free
-    (1800/1860) and landline/STD patterns — a dialer cannot reach those.
+    (1800/1860) and landline/STD patterns - a dialer cannot reach those.
     """
     digits = "".join(ch for ch in str(rec.get("phone") or "") if ch.isdigit())
     if not digits:
@@ -149,7 +149,7 @@ def _rating(rec: dict[str, Any]) -> float:
 
 
 def _fresh_days(rec: dict[str, Any]) -> int | None:
-    """found_at age in days (None = missing/parse-fail → 0 points)."""
+    """found_at age in days (None = missing/parse-fail -> 0 points)."""
     raw = _as_str(rec.get("found_at")) or _as_str(rec.get("created_at"))
     if not raw:
         return None
@@ -170,7 +170,7 @@ def _is_junk_name(rec: dict[str, Any]) -> bool:
 
 
 def score_components_v2(rec: dict[str, Any]) -> dict[str, int]:
-    """Deterministic feature breakdown (sum == final score). Missing → 0."""
+    """Deterministic feature breakdown (sum == final score). Missing -> 0."""
     c: dict[str, int] = {}
 
     c["india_phone"] = PHONE_PTS if is_valid_india_mobile(rec) else 0
@@ -229,9 +229,9 @@ def score_components_v2(rec: dict[str, Any]) -> dict[str, int]:
 
 
 def score_lead_v2(rec: dict[str, Any]) -> int:
-    """Bounded 0-100 score (V2). Deterministic; same record → same score.
+    """Bounded 0-100 score (V2). Deterministic; same record -> same score.
 
-    Junk/test/QA-name records are HARD-disqualified (score 0, fail-closed) —
+    Junk/test/QA-name records are HARD-disqualified (score 0, fail-closed) -
     a fake name means it is not a real prospect, regardless of how rich the
     other fields look (prevents volume manufacturing via test/demo rows).
     """

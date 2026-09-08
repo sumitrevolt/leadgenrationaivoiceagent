@@ -1,5 +1,5 @@
 """
-content_os.inbox_watcher — VPS-side Celery task.
+content_os.inbox_watcher - VPS-side Celery task.
 
 Scans MEDIA_INBOX periodically. Anything sitting in a folder that has a
 brief.json + at least one .mp4 (per aspect) is registered as a MediaAsset
@@ -9,7 +9,7 @@ only on Approve do we move
 the draft to scheduled.
 
 This keeps the GATING intent intact: nothing ever gets posted without
-explicit human sign-off. And the auto part still runs 24/7 — drafts
+explicit human sign-off. And the auto part still runs 24/7 - drafts
 accumulate automatically, owner only needs to approve.
 """
 from __future__ import annotations
@@ -182,7 +182,7 @@ def approve(asset_id: str) -> dict:
                postiz_id=str(postiz_id) if postiz_id else "")
 
     # Notify owner (best-effort ntfy push).
-    _notify_owner(f"✅ Asset APPROVED: {asset['title']} → Postiz{' id='+postiz_id if postiz_id else ' (queued local)'}")
+    _notify_owner(f"✅ Asset APPROVED: {asset['title']} -> Postiz{' id='+postiz_id if postiz_id else ' (queued local)'}")
     return {"ok": True, "asset_id": asset_id, "postiz_id": postiz_id}
 
 
@@ -195,7 +195,7 @@ def recreate(asset_id: str, feedback: str = "") -> dict:
     (media_dir / ".recreate").write_text(feedback or "owner wants changes", encoding="utf-8")
 
     _set_state(asset_id, "recreated")
-    _notify_owner(f"🔁 Asset RECREATE queued: {asset['title']} — feedback='{feedback[:80]}'")
+    _notify_owner(f"🔁 Asset RECREATE queued: {asset['title']} - feedback='{feedback[:80]}'")
     return {"ok": True, "asset_id": asset_id}
 
 

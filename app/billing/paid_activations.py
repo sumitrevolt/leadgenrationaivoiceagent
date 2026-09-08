@@ -1,24 +1,24 @@
-"""Ledger-backed daily Product-1 (Marketing) paid activations — IST day.
+"""Ledger-backed daily Product-1 (Marketing) paid activations - IST day.
 
 WHY (docs/gtm/PRODUCT1_50_PAID_DAY_90D.md): us plan ka north-star KPI "new paid
 Marketing activations / day" hai aur Phase 1 ka exit criteria uska ledger-backed
-admin number maangta hai. Ab tak iske liye koi count tha hi nahi — sirf MRR
+admin number maangta hai. Ab tak iske liye koi count tha hi nahi - sirf MRR
 snapshot delta (``revenue_snapshots``) tha, jo price change / plan edit / churn se
 bhi hilta hai, isliye wo paid activation ka PROOF nahi hai.
 
-TRUTH SOURCES (dono pehle se maujood ledgers — koi naya store nahi):
-  - ``app.billing.gst_invoice``   → non-void invoice rows (``created_at``, ``plan``)
-  - ``app.platform.upi_payments`` → approved / auto_activated rows (``decided_at``)
+TRUTH SOURCES (dono pehle se maujood ledgers - koi naya store nahi):
+  - ``app.billing.gst_invoice``   -> non-void invoice rows (``created_at``, ``plan``)
+  - ``app.platform.upi_payments`` -> approved / auto_activated rows (``decided_at``)
 
-Manual UPI hi canonical rail hai: yeh module sirf PADHTA hai — kabhi approve /
+Manual UPI hi canonical rail hai: yeh module sirf PADHTA hai - kabhi approve /
 activate / invoice create nahi karta, aur owner-confirm gate ko kabhi bypass nahi
 karta. Kabhi raise nahi karta (partial/zero data = 0, fabricate kabhi nahi).
 
 Honest definitions (dono alag hain, isliye dono report hote hain):
   - ``paid_today``        = aaj (IST) jitne DISTINCT marketing clients ka koi
-    paid ledger event mila — naya ya renewal, dono.
+    paid ledger event mila - naya ya renewal, dono.
   - ``activations_today`` = unme se woh clients jinka SABSE PEHLA paid event bhi
-    aaj hi hai → yehi "new paid activation" KPI hai.
+    aaj hi hai -> yehi "new paid activation" KPI hai.
 """
 
 from __future__ import annotations
@@ -32,17 +32,17 @@ logger = setup_logger(__name__)
 
 _IST = "Asia/Kolkata"
 
-# "Owner ne bank credit confirm kar diya" — wahi set jo pay_truth.has_payment_proof()
+# "Owner ne bank credit confirm kar diya" - wahi set jo pay_truth.has_payment_proof()
 # ledger-proof maanta hai. Yahan naya/alag payment semantics invent nahi kar rahe.
 _PAID_UPI_STATUSES = ("approved", "auto_activated")
 
-# gst_invoice.list_invoices() khud 500 pe hard-cap karta hai — lookback isi window
+# gst_invoice.list_invoices() khud 500 pe hard-cap karta hai - lookback isi window
 # tak bounded hai, aur wahi baat ``scan`` me honestly report hoti hai.
 _INVOICE_WINDOW = 500
 
 
 def _ist_day(raw: Any) -> str:
-    """ISO/date string → ``YYYY-MM-DD`` in IST. Blank/garbage → ``""``.
+    """ISO/date string -> ``YYYY-MM-DD`` in IST. Blank/garbage -> ``""``.
 
     Ledger timestamps UTC me likhe jaate hain
     IST day boundary 05:30 UTC pe
@@ -72,13 +72,13 @@ def today_ist() -> str:
 
 
 def marketing_plan_keys() -> set[str]:
-    """Paid Product-1 plan keys — ``packages.py`` hi single source of truth hai.
+    """Paid Product-1 plan keys - ``packages.py`` hi single source of truth hai.
 
     Trial / ₹0 excluded (free ≠ paid). Voice-band aur combo plan ids ``PACKAGES``
     me hote hi nahi, phir bhi unhe explicitly subtract kiya jaata hai taaki koi
     future catalogue merge chupke se Marketing KPI ko inflate na kar de.
 
-    Fail-CLOSED: packages padha hi na jaye to empty set → count 0. Ek metric ke
+    Fail-CLOSED: packages padha hi na jaye to empty set -> count 0. Ek metric ke
     liye under-report safe hai
     guess karke paid count banana NAHI.
     """
@@ -115,10 +115,10 @@ def marketing_plan_keys() -> set[str]:
 def _paid_events(
     plans: set[str], invoice_limit: int
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Har visible Marketing paid ledger event → ``{client_id, day, source, gross_inr}``.
+    """Har visible Marketing paid ledger event -> ``{client_id, day, source, gross_inr}``.
 
     ``gross_inr`` sirf invoice se aata hai: UPI submissions ``amount: 0`` record
-    karte hain (frontend me amount field hai hi nahi — upi_payments me documented),
+    karte hain (frontend me amount field hai hi nahi - upi_payments me documented),
     aur approve karte hi wahi payment ek GST invoice bhi fire karta hai, to UPI ka
     amount jodna double-count hota.
     """
@@ -178,10 +178,10 @@ def _paid_events(
 def daily_paid_activations(
     day: str = "", *, invoice_limit: int = _INVOICE_WINDOW
 ) -> dict[str, Any]:
-    """Aaj (ya diye gaye IST ``day``) ke Product-1 paid activations — ledger se.
+    """Aaj (ya diye gaye IST ``day``) ke Product-1 paid activations - ledger se.
 
     Dedupe ``client_id`` + din pe hota hai: ek hi UPI approve ek invoice bhi fire
-    karta hai, aur dono ledger me alag row banti hai — bina dedupe ke ek customer
+    karta hai, aur dono ledger me alag row banti hai - bina dedupe ke ek customer
     do baar ginta. Never raises
     kuch bhi tootne pe zeroes.
     """
@@ -199,7 +199,7 @@ def daily_paid_activations(
     try:
         plans = marketing_plan_keys()
         if not plans:
-            logger.debug("[paid_activations] no marketing plan keys resolved — reporting 0")
+            logger.debug("[paid_activations] no marketing plan keys resolved - reporting 0")
             return out
         events, scan = _paid_events(plans, invoice_limit)
         out["scan"] = scan

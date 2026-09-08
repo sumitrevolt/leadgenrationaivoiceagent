@@ -1,6 +1,6 @@
 """
 Webhooks API
-(Stripe deleted 2026-07-10, Exotel+Razorpay removed 2026-06-18, Twilio removed 2026-07-07 —
+(Stripe deleted 2026-07-10, Exotel+Razorpay removed 2026-06-18, Twilio removed 2026-07-07 -
 payments via manual UPI
 voice via Vobiz telephony/webhooks.py)
 """
@@ -28,7 +28,7 @@ def _provision_minutes(
     """Best-effort: refresh a client's plan calling-minutes after a paid pay/renew.
 
     Sets the client's plan (so the PLAN_MINUTES cap is right) and drops a usage
-    watermark (mid-period renewal zeroes metered usage). NEVER raises — a billing
+    watermark (mid-period renewal zeroes metered usage). NEVER raises - a billing
     hiccup must not 500 a provider webhook (Stripe would just retry).
     """
     try:
@@ -52,21 +52,21 @@ def _provision_minutes(
 
 
 # =============================================================================
-# STRIPE WEBHOOKS — deleted 2026-07-10 (project me Stripe use nahi hota; payments
+# STRIPE WEBHOOKS - deleted 2026-07-10 (project me Stripe use nahi hota; payments
 # via manual UPI only). The /stripe route, all handle_stripe_* handlers, and the
 # Stripe Gateway class were removed. Reference: git history before this commit.
 # =============================================================================
 
 
 # =============================================================================
-# RAZORPAY WEBHOOKS — removed 2026-06-18 (no online gateway; manual UPI only).
+# RAZORPAY WEBHOOKS - removed 2026-06-18 (no online gateway; manual UPI only).
 # The /razorpay route + all handle_razorpay_* handlers were deleted. The unified
 # /billing/webhook now rejects X-Razorpay-Signature with 400.
 # =============================================================================
 
 
 # =============================================================================
-# WHATSAPP CLOUD API WEBHOOK (Meta) — inbound replies -> reply_agent drafts
+# WHATSAPP CLOUD API WEBHOOK (Meta) - inbound replies -> reply_agent drafts
 # =============================================================================
 def _wa_verify_token() -> str:
     """Meta webhook GET-handshake token (settings -> env fallback)."""
@@ -82,7 +82,7 @@ def _wa_verify_token() -> str:
 async def whatsapp_webhook_verify(request: Request):
     """Meta webhook verification handshake (echo hub.challenge if verify token matches).
 
-    PUBLIC — Meta GETs this with hub.mode=subscribe&hub.verify_token=..&hub.challenge=..
+    PUBLIC - Meta GETs this with hub.mode=subscribe&hub.verify_token=..&hub.challenge=..
     """
     from fastapi.responses import PlainTextResponse
 
@@ -158,7 +158,7 @@ async def whatsapp_webhook_inbound(request: Request):
                                 _runner.suppress(frm, reason="opt_out_inbound")
                             except Exception:
                                 pass
-                        # TCCCPR: revocation sab commercial comms pe — voice ledger bhi.
+                        # TCCCPR: revocation sab commercial comms pe - voice ledger bhi.
                         try:
                             from app.telephony.consent_ledger import record_opt_out
 

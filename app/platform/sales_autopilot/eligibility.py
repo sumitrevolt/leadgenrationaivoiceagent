@@ -1,4 +1,4 @@
-"""Sales Autopilot eligibility — the ONE canonical gate function.
+"""Sales Autopilot eligibility - the ONE canonical gate function.
 
 :func:`evaluate` returns a decision in
 ``ELIGIBLE | INELIGIBLE | DEFERRED | OWNER_EXCEPTION_REQUIRED`` plus machine-readable
@@ -129,7 +129,7 @@ def evaluate(
         if not pol.enabled:
             return _result(INELIGIBLE, "engine_disabled")
 
-        # 2. Owner global kills (all agents / schedulers) — fail-closed.
+        # 2. Owner global kills (all agents / schedulers) - fail-closed.
         if _owner_kill("owner_all_agents"):
             return _result(INELIGIBLE, "owner_all_agents_killed")
         if _owner_kill("owner_schedulers"):
@@ -152,7 +152,7 @@ def evaluate(
             return _result(INELIGIBLE, "channel_not_in_policy", channel=channel)
 
         # 6. ESTIQUE / manual-owner-confirmed HARD guard.
-        #    Owner already hand-contacted → NEVER auto-send the initial touch again.
+        #    Owner already hand-contacted -> NEVER auto-send the initial touch again.
         est_match = (
             pid == _store.ESTIQUE_ID
             or _store.digits(prospect.get("phone", "")) == _store.digits(_store.ESTIQUE_PHONE)
@@ -198,7 +198,7 @@ def evaluate(
             return _result(INELIGIBLE, "no_channel_contact", channel=channel)
         if channel == "whatsapp" and _is_suppressed(contact):
             return _result(INELIGIBLE, "suppressed")
-        # Canonical suppression authority — covers BOTH channels. The check above
+        # Canonical suppression authority - covers BOTH channels. The check above
         # only consults the WhatsApp campaign list, so an explicit opt-out (or a
         # hard bounce) recorded in the suppression ledger did not block this
         # engine at all, on either channel.
@@ -209,7 +209,7 @@ def evaluate(
         if not _icp_ok(prospect, pol):
             return _result(INELIGIBLE, "icp_mismatch")
 
-        # 11. Idempotency — step already completed?
+        # 11. Idempotency - step already completed?
         steps_done = list(rec.get("steps_done") or prospect.get("steps_done") or [])
         step_key = f"{step}_{channel}"
         if step_key in steps_done or step in steps_done:

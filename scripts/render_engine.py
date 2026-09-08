@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""render_engine.py — Automated Video & Thumbnail Render Engine with SDXL / Flux Generation.
+"""render_engine.py - Automated Video & Thumbnail Render Engine with SDXL / Flux Generation.
 
 Provides:
 1. generate_background_asset: Uses local/free SDXL or Flux to generate HD background/thumbnail images.

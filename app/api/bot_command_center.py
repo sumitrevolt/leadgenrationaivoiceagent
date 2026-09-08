@@ -1,18 +1,18 @@
-"""Bot Command Center — Pilot multi-bot coordination surface (OWNER-facing).
+"""Bot Command Center - Pilot multi-bot coordination surface (OWNER-facing).
 
 Telegram-style chronological feed of task assignments / ACKs / status across the
-9-bot fleet. Admin JWT-gated (same email+password as admin dashboard login —
+9-bot fleet. Admin JWT-gated (same email+password as admin dashboard login -
 koi alag basic-auth password NAHI).
 
 Routes:
-    GET /app/bot-command-center            → page (frontend/bot_command_center.html)
-    GET /api/bot-command-center/state      → JSON state (bots/tasks/messages/pinned)
+    GET /app/bot-command-center            -> page (frontend/bot_command_center.html)
+    GET /api/bot-command-center/state      -> JSON state (bots/tasks/messages/pinned)
 
-Data source: command_center/data/*.json(l) — single source of truth shared with
+Data source: command_center/data/*.json(l) - single source of truth shared with
 Kanban/chat. Container me volume path /app/data/command_center (host:
 /opt/leadgen/data/command_center) taaki redeploy pe data bache.
 
-Rollback = ye router include-block main.py se hatao. Never raises — partial
+Rollback = ye router include-block main.py se hatao. Never raises - partial
 state bhi valid response deta hai (house style: fail-open read-only surface).
 """
 
@@ -38,7 +38,7 @@ _FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
 
 
 def _data_dir() -> Path:
-    """Data dir resolution: env override → repo layout (dev) → volume (prod)."""
+    """Data dir resolution: env override -> repo layout (dev) -> volume (prod)."""
     env = os.getenv("BOT_CC_DATA_DIR")
     if env:
         return Path(env)
@@ -54,7 +54,7 @@ def _read_json(path: Path, default: Any) -> Any:
             return default
         with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:  # corrupt file → empty default, surface in warnings
+    except Exception as e:  # corrupt file -> empty default, surface in warnings
         logger.warning("bot_cc._read_json failed %s: %s", path.name, e)
         return default
 
@@ -135,7 +135,7 @@ def _build_state() -> dict[str, Any]:
 
 @router.get("/api/bot-command-center/state")
 async def bot_command_center_state(_user=Depends(require_admin)) -> dict[str, Any]:
-    """Full CC state — admin JWT gated (same login as /app/admin)."""
+    """Full CC state - admin JWT gated (same login as /app/admin)."""
     return _build_state()
 
 

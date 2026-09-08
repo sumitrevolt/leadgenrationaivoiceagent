@@ -60,7 +60,7 @@ from app.utils import logger as log_mod
         ),
         # Bearer token in Authorization header string
         (
-            "outgoing headers: Authorization=Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqaXlhIn0.SIG",  # nosecret — synthetic JWT for redaction test
+            "outgoing headers: Authorization=Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqaXlhIn0.SIG",  # nosecret - synthetic JWT for redaction test
             ("eyJhbGciOiJIUzI1NiJ9",),  # nosecret
             "[REDACTED]",
         ),
@@ -122,7 +122,7 @@ def test_redact_message_preserves_non_sensitive_context():
     ],
 )
 def test_redact_message_hides_envvar_style_credential(raw, secret):
-    """Env-var-style names (sensitive word inside the identifier) must redact —
+    """Env-var-style names (sensitive word inside the identifier) must redact -
     2026-07-12 gap: these leaked past the word-boundary KV/JSON passes."""
     out = log_mod.redact_message(raw)
     assert secret not in out, f"env-var credential leaked: {secret!r} in {out!r}"
@@ -146,7 +146,7 @@ def test_redact_message_does_not_over_redact_non_secrets(raw, preserved):
 
 
 def test_redact_message_fail_safe_returns_original_on_error(monkeypatch):
-    """Regex error must NOT break logging — return original (safer)."""
+    """Regex error must NOT break logging - return original (safer)."""
 
     class _EvilStr(str):
         def __str__(self):
@@ -221,7 +221,7 @@ def test_env_flag_defaults_to_on(monkeypatch):
 
 # --------------------------------------------------------------------------- #
 # _SENSITIVE_KEY_NAMES coverage lock: the P0 loop-flagged sensitive names must
-# ALL be in the redactor's name set — regression-prevention if someone shrinks
+# ALL be in the redactor's name set - regression-prevention if someone shrinks
 # the list.
 # --------------------------------------------------------------------------- #
 
@@ -249,7 +249,7 @@ def test_required_credential_name_gets_redacted(name):
     payload = f"outbound https://api.example.com/?{name}=SENSITIVE_VALUE_XYZ&x=1"
     out = log_mod.redact_message(payload)
     assert "SENSITIVE_VALUE_XYZ" not in out, (
-        f"credential name {name!r} did not trigger redaction — "
+        f"credential name {name!r} did not trigger redaction - "
         "reopens the 2026-07-11 P0 log-leak regression"
     )
     assert "[REDACTED]" in out

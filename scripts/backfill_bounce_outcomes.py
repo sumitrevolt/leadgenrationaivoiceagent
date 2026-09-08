@@ -5,7 +5,7 @@ WHY
 Measured on production 2026-07-25: ``interactions.outcome`` has exactly six live
 values (interested / other / question / objection / ooo / unsubscribe). There is
 no bounce or complaint category. Every mailer-daemon NDR silently landed in
-``other`` (286 rows) — invisible to deliverability maths, and historically fed
+``other`` (286 rows) - invisible to deliverability maths, and historically fed
 to the LLM as if it were a human reply.
 
 The forward fix lives in ``app/platform/reply_agent.classify_delivery_report``
@@ -17,15 +17,15 @@ HARD SCOPE
 * ONLY ``outcome='other'`` inbound email rows are candidates.
 * Already-correct ``hard_bounce`` / ``soft_bounce`` / ``complaint`` rows are skipped
   (idempotent).
-* Detection REUSES ``reply_agent.classify_delivery_report`` — no duplicated regexes.
+* Detection REUSES ``reply_agent.classify_delivery_report`` - no duplicated regexes.
 * Subject-only rows stay ``other`` (HARD RULE: never guess from subject alone).
 
 SAFETY
 ------
-* dry-run by DEFAULT — ``--apply`` required to write
-* idempotent — ``WHERE outcome='other'`` SQL guard + classifier re-check
-* fail-CLOSED — any error exits non-zero
-* no PII printed — counts only
+* dry-run by DEFAULT - ``--apply`` required to write
+* idempotent - ``WHERE outcome='other'`` SQL guard + classifier re-check
+* fail-CLOSED - any error exits non-zero
+* no PII printed - counts only
 
 Usage:
     python scripts/backfill_bounce_outcomes.py            # dry run
@@ -47,8 +47,8 @@ from typing import Any, Iterable
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Known prod send denominator (2026-06-11 → 2026-07-21). Used only for the
-# printed rate formula — never invented counts.
+# Known prod send denominator (2026-06-11 -> 2026-07-21). Used only for the
+# printed rate formula - never invented counts.
 KNOWN_SEND_DENOMINATOR = 2543
 
 
@@ -75,7 +75,7 @@ def classify_row(
     meta_json: Any = None,
     classify_fn: Any,
 ) -> str | None:
-    """Pure — map one interaction row to a delivery outcome or None.
+    """Pure - map one interaction row to a delivery outcome or None.
 
     Interaction table has no From/email column
     we recover structural signals
@@ -91,7 +91,7 @@ def classify_row(
         low = body.lower()
         for lp in ("mailer-daemon@", "postmaster@", "bounce@", "complaint@", "abuse@"):
             if lp in low:
-                # synthetic address — localpart is what the classifier reads
+                # synthetic address - localpart is what the classifier reads
                 frm = lp.rstrip("@") + "@ndr.invalid"
                 break
     return classify_fn(
@@ -109,7 +109,7 @@ def plan(
     rows: Iterable[tuple[str, str | None, Any]],
     classify_fn: Any,
 ) -> dict[str, Any]:
-    """Pure — no DB. ``rows`` = (id, body_summary, meta_json) for outcome='other'.
+    """Pure - no DB. ``rows`` = (id, body_summary, meta_json) for outcome='other'.
 
     Returns deterministic update map + counts. Never prints PII.
     """

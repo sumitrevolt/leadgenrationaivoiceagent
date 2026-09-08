@@ -1,9 +1,9 @@
-"""Beat entry: staff-daily-social-post — runs 3x daily within 9am–7pm TRAI window.
+"""Beat entry: staff-daily-social-post - runs 3x daily within 9am–7pm TRAI window.
 
 Added to app/worker.py beat schedule:
-- 9:30 IST — Morning batch (own brand + active clients)
-- 13:00 IST — Midday batch (own brand + active clients)
-- 16:00 IST — Evening batch (own brand + active clients)
+- 9:30 IST - Morning batch (own brand + active clients)
+- 13:00 IST - Midday batch (own brand + active clients)
+- 16:00 IST - Evening batch (own brand + active clients)
 
 Each run generates 1 video per target (own brand + clients) and posts via Postiz.
 """

@@ -1,4 +1,4 @@
-"""Growth v3 VPS smoke — QR, report, reactivation, drip, brand, crm (no LLM needed)."""
+"""Growth v3 VPS smoke - QR, report, reactivation, drip, brand, crm (no LLM needed)."""
 
 import asyncio
 

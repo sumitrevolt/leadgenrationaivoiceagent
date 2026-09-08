@@ -1,4 +1,4 @@
-"""COORD_PLAN_NODE — MetaGPT-ActionNode-style structured plan fill/review/revise.
+"""COORD_PLAN_NODE - MetaGPT-ActionNode-style structured plan fill/review/revise.
 
 Steal-item #1 from the MetaGPT evaluation (2026-08-05). Covers the pure
 parse/validate step, the fill -> review -> revise cycle (fake LLM), and the

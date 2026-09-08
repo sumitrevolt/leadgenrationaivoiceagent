@@ -24,7 +24,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 
 # Whole router is admin-only: every route controls or feeds the voice-agent
 # training pipeline (Vertex/brain train-now, scheduler start/stop, feedback
-# ingestion) — synchronous heavy-compute + billed GCP calls + data-poisoning
+# ingestion) - synchronous heavy-compute + billed GCP calls + data-poisoning
 # risk if reachable anonymously (production audit 2026-07-01, security batch 4).
 router = APIRouter(prefix="/ml", tags=["ML Training"], dependencies=[Depends(require_admin)])
 
@@ -130,7 +130,7 @@ async def get_ml_insights():
         return {"success": True, "insights": insights}
     except Exception as e:
         logger.warning(f"Insights not available yet: {e}")
-        return {"success": True, "insights": {}, "note": "No ML insights yet — needs call data."}
+        return {"success": True, "insights": {}, "note": "No ML insights yet - needs call data."}
 
 
 @router.get("/best-responses")

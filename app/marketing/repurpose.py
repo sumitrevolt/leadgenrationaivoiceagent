@@ -1,18 +1,18 @@
-"""repurpose.py — "1 input → 7 formats" content pipeline (Repurpose.io-style, free-stack).
+"""repurpose.py - "1 input -> 7 formats" content pipeline (Repurpose.io-style, free-stack).
 
-Ek topic (ya URL) do → 7 ready formats ek saath (asyncio.gather COMPOSE over
-EXISTING generators — kuch bhi rebuild NAHI):
+Ek topic (ya URL) do -> 7 ready formats ek saath (asyncio.gather COMPOSE over
+EXISTING generators - kuch bhi rebuild NAHI):
 
-  1. post              → post_generator.generate_post (caption+hashtags+image idea)
-  2. carousel          → carousel.generate_carousel (3 SVG slides)
-  3. reel              → reels.reels_scripts (1 ready-to-shoot script)
-  4. gbp_post          → gbp_text.gbp_texts ka pehla Google-post update
-  5. whatsapp_status   → free_ai 1-liner (template fallback)
-  6. email_paragraph   → free_ai short para (template fallback)
-  7. hashtags          → hashtags.research (trending + best times)
+  1. post              -> post_generator.generate_post (caption+hashtags+image idea)
+  2. carousel          -> carousel.generate_carousel (3 SVG slides)
+  3. reel              -> reels.reels_scripts (1 ready-to-shoot script)
+  4. gbp_post          -> gbp_text.gbp_texts ka pehla Google-post update
+  5. whatsapp_status   -> free_ai 1-liner (template fallback)
+  6. email_paragraph   -> free_ai short para (template fallback)
+  7. hashtags          -> hashtags.research (trending + best times)
 
-URL input → httpx fetch (10s, polite UA) + lead_scraper.web_extract.clean_text.
-PARTIAL-FAIL OK: har format apna try/except — jo bana wo milta hai, baaki me
+URL input -> httpx fetch (10s, polite UA) + lead_scraper.web_extract.clean_text.
+PARTIAL-FAIL OK: har format apna try/except - jo bana wo milta hai, baaki me
 {"error": ...}. Module NEVER raises, sab imports lazy (import-safe).
 """
 
@@ -37,7 +37,7 @@ def _is_url(s: str) -> bool:
 
 
 async def _fetch_url_text(url: str) -> str:
-    """URL → clean body text (httpx 10s + web_extract reuse). Fail = ""."""
+    """URL -> clean body text (httpx 10s + web_extract reuse). Fail = ""."""
     try:
         import httpx
 
@@ -61,11 +61,11 @@ async def _fetch_url_text(url: str) -> str:
 
 async def _wa_and_email(business: str, niche: str, topic: str) -> tuple[str, str]:
     """Ek hi free_ai call me WhatsApp-status line + email paragraph (fallback templates)."""
-    wa = f"✨ {topic[:60] or 'Naya update'} — {business} se jaano! Reply karo 'INFO' 📲"
+    wa = f"✨ {topic[:60] or 'Naya update'} - {business} se jaano! Reply karo 'INFO' 📲"
     email = (
-        f"Namaste! {business} ki taraf se ek kaam ki baat — {topic[:120] or 'hamari nayi update'}. "
+        f"Namaste! {business} ki taraf se ek kaam ki baat - {topic[:120] or 'hamari nayi update'}. "
         "Aapke business/ghar ke liye yeh kaise useful hai, 2 minute me samjhate hain. "
-        "Reply karein ya call karein — pehli baat bilkul free."
+        "Reply karein ya call karein - pehli baat bilkul free."
     )
     try:
         from app.voice_agent import free_ai
@@ -97,7 +97,7 @@ async def _wa_and_email(business: str, niche: str, topic: str) -> tuple[str, str
 
 
 async def _safe(coro) -> Any:
-    """Ek format ka guard — exception ko {'error': ...} bana do (partial-fail OK)."""
+    """Ek format ka guard - exception ko {'error': ...} bana do (partial-fail OK)."""
     try:
         return await coro
     except Exception as e:
@@ -111,11 +111,11 @@ async def repurpose(
     slug: str | None = None,
     business_name: str = "",
 ) -> dict[str, Any]:
-    """1 input → 7 formats. COMPOSE-only (existing generators), kabhi raise nahi."""
+    """1 input -> 7 formats. COMPOSE-only (existing generators), kabhi raise nahi."""
     raw = (topic_or_url or "").strip()
     niche = (niche or "general").strip().lower() or "general"
 
-    # slug se client resolve (business name + niche default) — best-effort
+    # slug se client resolve (business name + niche default) - best-effort
     business = (business_name or "").strip()
     if slug and not business:
         try:
@@ -134,7 +134,7 @@ async def repurpose(
     if _is_url(raw):
         text = await _fetch_url_text(raw)
         source = {"type": "url", "url": raw[:300], "extracted_chars": len(text)}
-        topic = text[:300] or raw  # fetch fail → URL hi topic, partial OK
+        topic = text[:300] or raw  # fetch fail -> URL hi topic, partial OK
     topic = (topic or "naye customers kaise laaye").strip()
 
     async def _post():
@@ -175,7 +175,7 @@ async def repurpose(
     post, caro, reel, gbp, wa_email, tags = results
     if isinstance(wa_email, tuple):
         wa, email = wa_email
-    else:  # _wa_and_email khud fallback deta — yeh sirf _safe error-dict case
+    else:  # _wa_and_email khud fallback deta - yeh sirf _safe error-dict case
         wa, email = "", ""
 
     formats: dict[str, Any] = {

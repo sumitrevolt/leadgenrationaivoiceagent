@@ -1,33 +1,33 @@
-"""loop_supervisor.py — single-loop SPOF hardening (SP3).
+"""loop_supervisor.py - single-loop SPOF hardening (SP3).
 
-PROBLEM: do single-points-of-failure jinhe koi watch nahi karta —
+PROBLEM: do single-points-of-failure jinhe koi watch nahi karta -
   1. **Call-processor task** (`CallManager.start_call_processor`) ek hi
      long-lived asyncio task hai jo main.py lifespan me spawn hota hai. Agar
      wo task kisi un-caught error se die ho jaye (ya kabhi spawn hi na ho), to
-     queue silently bharti rehti hai — koi alert nahi, koi re-spawn nahi.
-  2. **Boot-grace skip** (team_scheduler / boot_grace) — restart pe heavy daily
+     queue silently bharti rehti hai - koi alert nahi, koi re-spawn nahi.
+  2. **Boot-grace skip** (team_scheduler / boot_grace) - restart pe heavy daily
      job apne window me ho to wo SKIP ho jaata hai (restart-storm prevent). Yeh
      by-design sahi hai, par operator ko KABHI pata nahi chalta ki aaj qa/blog/
      content run hi nahi hua. Agar din me 2-3 restart isi window me hue to job
-     us din kabhi nahi chala — chupchaap.
+     us din kabhi nahi chala - chupchaap.
 
 Yeh module dono ke liye thin, NEVER-RAISE helpers deta hai:
-  * `ensure_call_processor_alive(app)` — lifespan periodically call kare. Task
+  * `ensure_call_processor_alive(app)` - lifespan periodically call kare. Task
     dead-non-cancel mile to re-spawn + ntfy alert (cooldown). Heartbeat record.
-  * `alert_boot_grace_skip(job)` — boot-grace skip ke time call ho
+  * `alert_boot_grace_skip(job)` - boot-grace skip ke time call ho
   ops_alerts
     ntfy fire kare taaki operator ko pata chale ki aaj job skip hua.
 
 Design rules (project-proven):
 - **Flag-gated, default OFF**: `LOOP_SUPERVISOR=1` unset = INERT. Bina flag ke
-  dono helpers ek `{"ok": True, "reason": "disabled"}` no-op return karte hain —
+  dono helpers ek `{"ok": True, "reason": "disabled"}` no-op return karte hain -
   shipping karne se kuch nahi badalta.
 - **NEVER raises**: har cheez try/except
 failure = graceful skip. Lifespan ya
   scheduler ko kabhi crash nahi karega.
 - **Reuses** `app.platform.ops_alerts._ntfy` (same ntfy channel + cooldown
   pattern) aur `automation_health.record_run` (heartbeat).
-- Lazy imports (heavy / circular se bachne ke liye) — sab function ke andar.
+- Lazy imports (heavy / circular se bachne ke liye) - sab function ke andar.
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ def _heartbeat(job: str, ok: bool = True, note: str = "") -> None:
 def _task_is_dead_non_cancel(task: Any) -> bool:
     """True if `task` finished for a reason OTHER than cancellation.
 
-    A cancelled task = intentional shutdown, NOT a failure — don't re-spawn.
+    A cancelled task = intentional shutdown, NOT a failure - don't re-spawn.
     A task that raised (or returned) = the processor loop exited = dead, re-spawn.
     None / not-a-task = treat as dead (nothing alive to process the queue).
     """
@@ -104,7 +104,7 @@ def _task_is_dead_non_cancel(task: Any) -> bool:
             return True
         if not task.done():
             return False
-        # done() — distinguish cancel from error/return.
+        # done() - distinguish cancel from error/return.
         try:
             if task.cancelled():
                 return False
@@ -142,7 +142,7 @@ def ensure_call_processor_alive(app: Any) -> dict[str, Any]:
         cm = getattr(state, "call_manager", None)
         if cm is None:
             # Processor was never started (telephony unconfigured / flag off in
-            # main). Nothing to supervise — not an error.
+            # main). Nothing to supervise - not an error.
             return {"ok": True, "reason": "no_call_manager"}
 
         task = getattr(state, "call_processor_task", None)
@@ -150,11 +150,11 @@ def ensure_call_processor_alive(app: Any) -> dict[str, Any]:
             _heartbeat("call_processor", ok=True, note="alive")
             return {"ok": True, "reason": "alive"}
 
-        # Dead (or never tracked) — re-spawn.
+        # Dead (or never tracked) - re-spawn.
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            # No running loop — can't spawn here; report so caller can decide.
+            # No running loop - can't spawn here; report so caller can decide.
             return {"ok": False, "reason": "no_running_loop"}
 
         new_task = loop.create_task(cm.start_call_processor())
@@ -163,11 +163,11 @@ def ensure_call_processor_alive(app: Any) -> dict[str, Any]:
         except Exception:
             pass
         _heartbeat("call_processor", ok=False, note="respawned")
-        logger.warning("[loop_supervisor] call-processor was dead — re-spawned")
+        logger.warning("[loop_supervisor] call-processor was dead - re-spawned")
         if _cooldown_ok("respawn:call_processor", _RESPAWN_COOLDOWN_S):
             _alert(
                 "🔁 Call-processor re-spawned",
-                "Outbound call queue processor task was dead (non-cancel) — "
+                "Outbound call queue processor task was dead (non-cancel) - "
                 "loop_supervisor re-spawned it. Queued calls were stalled till now.",
                 priority="urgent",
                 tags=["rotating_light", "telephony"],
@@ -182,7 +182,7 @@ async def supervisor_loop(app: Any, interval_s: int = 120) -> None:
     """Optional long-lived watchdog the lifespan can spawn as one task.
 
     Periodically (every `interval_s`) calls ensure_call_processor_alive. Inert
-    when the flag is OFF — it still loops cheaply but does nothing. NEVER raises
+    when the flag is OFF - it still loops cheaply but does nothing. NEVER raises
     out of the loop (so it can't take down the process). Stops on cancellation.
     """
     logger.info("[loop_supervisor] watchdog loop started (interval=%ss)", interval_s)
@@ -228,7 +228,7 @@ def alert_boot_grace_skip(job: str) -> dict[str, Any]:
         _alert(
             f"⏭️ Boot-grace skip: {j}",
             f"Heavy daily job '{j}' was SKIPPED this boot (worker/scheduler "
-            f"restarted inside its window). It will run next cycle — but if "
+            f"restarted inside its window). It will run next cycle - but if "
             f"restarts repeat in-window, '{j}' may not run today.",
             priority="default",
             tags=["warning", "scheduler"],

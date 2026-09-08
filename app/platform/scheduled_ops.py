@@ -1,4 +1,4 @@
-"""Secondary scheduled automation — evening wrap, weekly marketing bank, Sat hygiene.
+"""Secondary scheduled automation - evening wrap, weekly marketing bank, Sat hygiene.
 
 Project ke baaki engines (content/digest/prospect) ke ALAWA yeh slots cover
 karte hain jo pehle handler the par beat/loop me missing the. Kabhi raise nahi.
@@ -15,7 +15,7 @@ logger = setup_logger(__name__)
 
 
 async def run_evening_wrap() -> dict[str, Any]:
-    """18:30 IST — din ka wrap-up Boss event + hot leads recap."""
+    """18:30 IST - din ka wrap-up Boss event + hot leads recap."""
     out: dict[str, Any] = {"ok": True}
     try:
         from app.platform import team, today_overview
@@ -54,7 +54,7 @@ async def run_evening_wrap() -> dict[str, Any]:
 
 
 async def run_weekly_marketing() -> dict[str, Any]:
-    """Wed 12:30 IST — niche content bank top-up (organic + client packs)."""
+    """Wed 12:30 IST - niche content bank top-up (organic + client packs)."""
     if os.environ.get("WEEKLY_MARKETING_PACK", "1").strip().lower() not in ("1", "true", "yes"):
         return {"ok": True, "skipped": "WEEKLY_MARKETING_PACK off"}
     try:
@@ -74,7 +74,7 @@ async def run_weekly_marketing() -> dict[str, Any]:
 
 
 async def run_saturday_hygiene() -> dict[str, Any]:
-    """Sat 04:00 IST — DLQ sweep + celery backlog trim (gated SCHEDULER_HYGIENE)."""
+    """Sat 04:00 IST - DLQ sweep + celery backlog trim (gated SCHEDULER_HYGIENE)."""
     if os.environ.get("SCHEDULER_HYGIENE", "1").strip().lower() not in ("1", "true", "yes"):
         return {"ok": True, "skipped": "SCHEDULER_HYGIENE off"}
     out: dict[str, Any] = {"ok": True}
@@ -102,22 +102,22 @@ async def run_saturday_hygiene() -> dict[str, Any]:
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
         min_depth = int(os.environ.get("CELERY_TRIM_MIN_DEPTH", "800") or 800)
         # Every queue app/worker.py's task_routes can send work to (2026-07-02)
-        # — not just the default "celery" queue. leadgen_worker previously had
+        # - not just the default "celery" queue. leadgen_worker previously had
         # no -Q flag and silently never consumed calling/scraping/reporting/
         # sync/training/heavy, so those are equally capable of building an
         # unbounded backlog now that a worker actually drains them. BUT: only
         # celery/scraping/reporting/sync/training/heavy are safe to
-        # auto-delete unattended — every task on them is beat-driven and
+        # auto-delete unattended - every task on them is beat-driven and
         # re-enqueued on its own schedule regardless. "calling" is NOT: it
-        # carries run_campaign_task (admin-launched, never beat-regenerated —
+        # carries run_campaign_task (admin-launched, never beat-regenerated -
         # deleting a queued one silently drops the campaign AND leaks its
         # launch lock, since the delete skips the task's own `finally:
         # release_campaign_lock()`) and process_callbacks' make_call_task
         # (only re-enqueued while the lead is still inside its 1-hour
-        # next_call_at window — past that, gone for good). So "calling" is
+        # next_call_at window - past that, gone for good). So "calling" is
         # ALERT-ONLY here; an oversized backlog there needs a human decision,
         # via the one-time `scripts/vps_celery_trim.py` (which does include
-        # it, deliberately, as a reviewed manual action) — not an unattended
+        # it, deliberately, as a reviewed manual action) - not an unattended
         # weekly auto-delete.
         trim_queues = ["celery", "scraping", "reporting", "sync", "training", "heavy"]
         alert_only_queues = ["calling"]
@@ -140,7 +140,7 @@ async def run_saturday_hygiene() -> dict[str, Any]:
             team.log_event(
                 "kavya",
                 "hygiene_queue",
-                f"✂️ queues trimmed: {trimmed} (all beat re-scheduled — safe)",
+                f"✂️ queues trimmed: {trimmed} (all beat re-scheduled - safe)",
                 status="warn",
             )
             out["queues_trimmed"] = trimmed
@@ -148,7 +148,7 @@ async def run_saturday_hygiene() -> dict[str, Any]:
             team.log_event(
                 "kavya",
                 "hygiene_queue_alert",
-                f"⚠️ calling queue backlog {alerts} — NOT auto-trimmed (carries "
+                f"⚠️ calling queue backlog {alerts} - NOT auto-trimmed (carries "
                 f"admin campaigns + callbacks) "
                 f"review + run "
                 f"scripts/vps_celery_trim.py manually if stale",

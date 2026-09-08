@@ -1,11 +1,11 @@
 """
-Agent Runtime workforce factory — all 31 STAFF → real capability adapters.
+Agent Runtime workforce factory - all 31 STAFF -> real capability adapters.
 ==========================================================================
 
 REUSE-not-duplicate: har capability EXISTING engine / staff wrapper ko call
 karti hai. Naya queue, naya scheduler, naya command bus NAHI.
 
-Swara / Ananya (RED): sirf ``frozen_transfer_status`` capability register —
+Swara / Ananya (RED): sirf ``frozen_transfer_status`` capability register -
 voice modules / STT / TTS / dial paths ZERO touch. Dispatch RED lane pe
 hamesha blocked (evaluate_policy). OpenClaw unhe Owner OS status se dekhta hai.
 
@@ -38,18 +38,18 @@ ACTION_OWNED = "run_owned_workflow"
 ACTION_FROZEN = "frozen_transfer_status"
 ACTION_DELIVERY_SCAN = "scan_delivery_assurance"
 
-# Voice / RED — OpenClaw transfer only; never dispatchable via runtime.
+# Voice / RED - OpenClaw transfer only; never dispatchable via runtime.
 FROZEN_VOICE_AGENTS: frozenset[str] = frozenset({"swara", "ananya"})
 
-# Customer-touch / inbound AMBER — capability wired, rollout OFF by default.
+# Customer-touch / inbound AMBER - capability wired, rollout OFF by default.
 AMBER_HOLD_AGENTS: frozenset[str] = frozenset(
     {"rohan", "kiran", "priya", "anika", "ira", "riya", "raksha"}
 )
 
-# Voice-adjacent GREEN held this wave (Swara frozen mandate → no voice QA churn).
+# Voice-adjacent GREEN held this wave (Swara frozen mandate -> no voice QA churn).
 VOICE_HOLD_AGENTS: frozenset[str] = frozenset({"arjun", "meera", "tara"})
 
-# GREEN engines that WRITE (DB/files/email/KB) — capability registered, NOT in
+# GREEN engines that WRITE (DB/files/email/KB) - capability registered, NOT in
 # PILOT_AGENTS until a dedicated mutating canary. side_effect honesty = internal.
 GREEN_MUTATE_HOLD: frozenset[str] = frozenset(
     {"manager", "lekha", "neha", "ravi", "dev", "guru", "vikram"}
@@ -57,7 +57,7 @@ GREEN_MUTATE_HOLD: frozenset[str] = frozenset(
 
 
 def _refuse_error_dict(out: Any, label: str) -> dict[str, Any]:
-    """Staff/engine often return {"error": ...} without raising — refuse as fail."""
+    """Staff/engine often return {"error": ...} without raising - refuse as fail."""
     if isinstance(out, dict) and out.get("error"):
         raise RuntimeError(f"{label}:{out.get('error')}")
     if isinstance(out, dict):
@@ -77,7 +77,7 @@ def _flag_skip(flag: str) -> None:
 # Capability implementations (thin engine wraps)
 # --------------------------------------------------------------------------- #
 async def frozen_transfer_status(ctx: AgentExecutionContext) -> dict[str, Any]:
-    """Swara/Ananya OpenClaw transfer package — NO voice execution.
+    """Swara/Ananya OpenClaw transfer package - NO voice execution.
 
     Policy blocks RED before this runs
     kept for capability inventory + tests
@@ -93,7 +93,7 @@ async def frozen_transfer_status(ctx: AgentExecutionContext) -> dict[str, Any]:
         "runtime_dispatch": "blocked_red_lane",
         "note": (
             "Agent Runtime RED lane blocks Swara/Ananya dispatch here. "
-            "This does NOT report platform_dial / voice_launch campaign posture — "
+            "This does NOT report platform_dial / voice_launch campaign posture - "
             "see owner_os.calling_posture() / runtime_status calling_badge for that. "
             "Voice code stays frozen; compliance gates unchanged."
         ),
@@ -102,7 +102,7 @@ async def frozen_transfer_status(ctx: AgentExecutionContext) -> dict[str, Any]:
 
 
 async def nikhil_scan_delivery_assurance(ctx: AgentExecutionContext) -> dict[str, Any]:
-    """Read-only missed/at-risk paid-customer scan — no dunning sends."""
+    """Read-only missed/at-risk paid-customer scan - no dunning sends."""
     _flag_skip("DELIVERY_ASSURANCE_AGENT")
     from app.marketing import delivery_assurance
 
@@ -301,7 +301,7 @@ _WAVE_B_CAPS: list[tuple[str, str, Callable, str, bool, bool]] = [
     ("aryan", ACTION_OWNED, aryan_deps, "none", False, False),
     ("arya", ACTION_OWNED, arya_mcp, "none", False, False),
     ("nikhil", ACTION_DELIVERY_SCAN, nikhil_scan_delivery_assurance, "none", False, False),
-    # Capability inventory — NOT in PILOT_AGENTS (GREEN_MUTATE_HOLD)
+    # Capability inventory - NOT in PILOT_AGENTS (GREEN_MUTATE_HOLD)
     ("manager", ACTION_OWNED, manager_digest, "internal", False, False),
     ("lekha", ACTION_OWNED, lekha_kpi, "internal", False, False),
     ("neha", ACTION_OWNED, neha_pipeline, "internal", False, False),
@@ -329,7 +329,7 @@ def ensure_workforce_registered() -> None:
                 fn=frozen_transfer_status,
                 side_effect="none",
                 tenant_scoped=False,
-                description=f"{aid} OpenClaw frozen transfer status (RED — never dispatch)",
+                description=f"{aid} OpenClaw frozen transfer status (RED - never dispatch)",
             )
         )
 
@@ -364,7 +364,7 @@ def ensure_workforce_registered() -> None:
                 side_effect="customer" if amber else "none",
                 tenant_scoped=False,
                 requires_approval=bool(amber),
-                description=f"{aid} owned workflow (rollout hold — capability ready)",
+                description=f"{aid} owned workflow (rollout hold - capability ready)",
             )
         )
 

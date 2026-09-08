@@ -1,6 +1,6 @@
 """Pure-python tests for app.agents.judge_calibration.
 
-No network/DB/LLM — we seed temp jsonl files and monkeypatch the module's path
+No network/DB/LLM - we seed temp jsonl files and monkeypatch the module's path
 constants. Covers: empty/sparse -> insufficient-data, kappa math edge cases,
 reliable vs advisory verdicts, collapse-to-latest, malformed lines.
 """
@@ -51,7 +51,7 @@ def test_kappa_judge_constant_human_mixed():
 
 
 # --------------------------------------------------------------------------- #
-# calibrate() — sparse / empty
+# calibrate() - sparse / empty
 # --------------------------------------------------------------------------- #
 def test_calibrate_empty_all_insufficient(tmp_path, monkeypatch):
     monkeypatch.setattr(jc, "_DECISIONS", str(tmp_path / "approval_decisions.jsonl"))
@@ -67,7 +67,7 @@ def test_calibrate_empty_all_insufficient(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# calibrate() — code_upgrader reliable path + collapse-to-latest
+# calibrate() - code_upgrader reliable path + collapse-to-latest
 # --------------------------------------------------------------------------- #
 def test_code_patches_reliable_and_collapse(tmp_path, monkeypatch):
     cp = tmp_path / "code_patches.jsonl"
@@ -97,7 +97,7 @@ def test_code_patches_reliable_and_collapse(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# calibrate() — coordinator judge matches human via approval_decisions
+# calibrate() - coordinator judge matches human via approval_decisions
 # --------------------------------------------------------------------------- #
 def test_coordinator_reliable(tmp_path, monkeypatch):
     coord = tmp_path / "coordination_runs.jsonl"

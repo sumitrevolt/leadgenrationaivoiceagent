@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Coordinator Audit CLI — inspect and validate coordinator runs.
+Coordinator Audit CLI - inspect and validate coordinator runs.
 
 Usage:
     python scripts/coordinator_audit.py --last-run
@@ -181,7 +181,7 @@ def cmd_cost_report():
 
 
 def cmd_validate_chain(run_id: str):
-    """Validate agent chain in a specific run (step N output → step N+1 input)."""
+    """Validate agent chain in a specific run (step N output -> step N+1 input)."""
     runs = load_runs()
     matching = [r for r in runs if r.get("run_id", "").startswith(run_id)]
 

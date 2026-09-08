@@ -1,4 +1,4 @@
-"""Stage 1 — approval binds to the bytes the customer actually previewed.
+"""Stage 1 - approval binds to the bytes the customer actually previewed.
 
 Before this, approve carried only `expected_revision`: an in-place re-render at
 the same revision between preview and approve was invisible. Now the preview
@@ -31,7 +31,7 @@ def preview_client(monkeypatch, tmp_path):
     # HERMETIC PRECONDITION (do not remove): approve() snapshots to the host filesystem
     # and refuses `insufficient_disk_headroom` below VIDEO_SNAPSHOT_MIN_FREE_PCT. These
     # tests are about preview/approve IDENTITY, so the host's free space must not decide
-    # the result — unpinned, they go red on any box under the default floor. The floor
+    # the result - unpinned, they go red on any box under the default floor. The floor
     # has dedicated coverage in tests/test_video_snapshot_primitive.py.
     monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "1")
 
@@ -51,7 +51,7 @@ def preview_client(monkeypatch, tmp_path):
     monkeypatch.setattr(V, "_STATE", str(tmp_path / ".cycle.json"))
     monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
     # Stage 3B-close: approval now requires two POSITIVE server-side facts that
-    # require_customer does not establish — the tenant really resolves, and the
+    # require_customer does not establish - the tenant really resolves, and the
     # logout blacklist was actually reachable (its check fails OPEN, which is
     # not acceptable for a mutation). Both are stubbed here so this fixture
     # represents a healthy authenticated session.
@@ -73,7 +73,7 @@ def preview_client(monkeypatch, tmp_path):
     monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
     # Approval emits a queue row. Without this every consumer of this fixture
     # wrote fixture tenants into the REPO's data/content_queue, where they
-    # survived between runs — and auto_content dedupes on date|type, so a
+    # survived between runs - and auto_content dedupes on date|type, so a
     # leftover row silently suppresses a later enqueue.
     queue_dir = tmp_path / "content_queue"
     queue_dir.mkdir()
@@ -98,7 +98,7 @@ def preview_client(monkeypatch, tmp_path):
         # require_customer is overridden, but the approval path ALSO reads the
         # bearer credential directly to re-check the logout blacklist. Without a
         # header there is no credential to verify, and approval correctly fails
-        # closed — so a healthy session must actually present one.
+        # closed - so a healthy session must actually present one.
         _fixture_auth = "Bearer fixture-session-token"  # nosecret - test fixture
         c.headers.update({"Authorization": _fixture_auth})
         yield c, artifact

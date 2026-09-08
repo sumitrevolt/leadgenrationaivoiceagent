@@ -1,6 +1,6 @@
-"""Admin dashboard response models — Pydantic schemas for app/api/admin_dashboard.py.
+"""Admin dashboard response models - Pydantic schemas for app/api/admin_dashboard.py.
 
-Extracted from admin_dashboard.py (2026-06-20 refactor) — data/route separation.
+Extracted from admin_dashboard.py (2026-06-20 refactor) - data/route separation.
 Re-imported by admin_dashboard.py so external imports keep working.
 """
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PILOT Sep-03 14:30 IST sweep — FRESH LIVE re-verify (evidence-first).
+"""PILOT Sep-03 14:30 IST sweep - FRESH LIVE re-verify (evidence-first).
 
 LIVE VERIFIED 14:27 IST (VPS date Thu Sep 3 08:57 UTC = 14:27 IST):
   - /health 200 (auth-gated), containers Up 18h healthy (worker/app/scheduler).
@@ -40,21 +40,21 @@ def save(p, obj):
 # Consolidated REVENUE COMMAND + per-bot rebump (max 1 msg/bot). Anti-spam.
 msgs = [
     {"ts": TS, "from": "PILOT", "to": "ALL", "task_id": "REV-COMMAND", "type": "REVENUE_COMMAND", "priority": "P0",
-     "msg": "🎯 REVENUE COMMAND 14:30 IST (Sep3): TARGET Rs5,00,000 | VERIFIED Rs1,999 (Jiya SOLE INV-0001) | GAP Rs4,98,001 | PIPELINE: hot-queue 09-03 44 dirty (0 genuine buyer) + wa_conversations 0 warm; dialer DEAD day5; WA auto_sent=0 | HOT: Jiya churn-risk P0 + koi genuine buyer nahi | BOTTLENECK #1: WA-rail CONFIG-DEAD (placeholder token) — OWNER-GATED real Meta creds unblock; #2 genuine close (SAL-005 manual WAHA); #3 DID NOT landed (PLT-005 vendor). 14:30 gate MISSED (0 evidence 13:45 ke baad). FLEET 0-ACK ~56h. 15:30 IST gate — EK bhi evidence. OWNER ESCALATION RECORDED. 🐦"},
+     "msg": "🎯 REVENUE COMMAND 14:30 IST (Sep3): TARGET Rs5,00,000 | VERIFIED Rs1,999 (Jiya SOLE INV-0001) | GAP Rs4,98,001 | PIPELINE: hot-queue 09-03 44 dirty (0 genuine buyer) + wa_conversations 0 warm; dialer DEAD day5; WA auto_sent=0 | HOT: Jiya churn-risk P0 + koi genuine buyer nahi | BOTTLENECK #1: WA-rail CONFIG-DEAD (placeholder token) - OWNER-GATED real Meta creds unblock; #2 genuine close (SAL-005 manual WAHA); #3 DID NOT landed (PLT-005 vendor). 14:30 gate MISSED (0 evidence 13:45 ke baad). FLEET 0-ACK ~56h. 15:30 IST gate - EK bhi evidence. OWNER ESCALATION RECORDED. 🐦"},
     {"ts": TS, "from": "PILOT", "to": "engineering", "task_id": "ENG-004", "type": "TASK_REBUMP", "priority": "P0",
-     "msg": "ENG-004 (14:30): WA auto-send CONFIG-DEAD root (placeholder token your-whatsapp-token). Tumhara executable = diag/validator + real-creds-ready send pipeline + graceful MetaAPI-400 handling. 15:30: diag+validator + send-pipeline evidence. Bina owner real token ke auto_sent=0 rahega — report honestly."},
+     "msg": "ENG-004 (14:30): WA auto-send CONFIG-DEAD root (placeholder token your-whatsapp-token). Tumhara executable = diag/validator + real-creds-ready send pipeline + graceful MetaAPI-400 handling. 15:30: diag+validator + send-pipeline evidence. Bina owner real token ke auto_sent=0 rahega - report honestly."},
     {"ts": TS, "from": "PILOT", "to": "sales", "task_id": "SAL-005", "type": "TASK_REBUMP", "priority": "P0",
      "msg": "SAL-005 (14:30): dirty blast HARD STOP. MANUAL WAHA sendText sirf GENUINE-intent thread pe -> close msg-id -> UPI deep-link. WAHA session default WORKING (with-key 200). 15:30: >=3 genuine DELIVERED msg-id + DID vendor status (WA Call Soft + RMS)."},
     {"ts": TS, "from": "PILOT", "to": "platform", "task_id": "PLT-005", "type": "TASK_REBUMP", "priority": "P0",
      "msg": "PLT-005 (14:30): SIP 5 vars ALL empty reconfirm (DID NOT landed), CLI +9111 REVOKED, dialer DEAD day5 (proc0 mtime Aug31 batch211 ok0/fail3). Vendor DID proof/ETA OR env-swap-ready. 15:30. 0-ACK ~56h."},
     {"ts": TS, "from": "PILOT", "to": "success", "task_id": "SUC-004", "type": "TASK_REBUMP", "priority": "P0",
-     "msg": "SUC-004 (14:30): Jiya SOLE payer Rs1,999 — churn = Rs0. Hostinger SMTP recovery email SENT artifact + WA follow-up + fallback offer. DID-independent. 15:30. 0 proof day3+. 0-ACK ~56h."},
+     "msg": "SUC-004 (14:30): Jiya SOLE payer Rs1,999 - churn = Rs0. Hostinger SMTP recovery email SENT artifact + WA follow-up + fallback offer. DID-independent. 15:30. 0 proof day3+. 0-ACK ~56h."},
     {"ts": TS, "from": "PILOT", "to": "hunter", "task_id": "HNT-005", "type": "TASK_REBUMP", "priority": "P0",
      "msg": "HNT-005 (14:30): leads/ EMPTY ammo day5. 50 QUALIFIED e164-valid mobile, WA-reachable, DND-scrub, business-owner high-intent CSV to /opt/leadgen/data/leads/ + pool refill. dirty REJECT. 15:30. 0-ACK ~56h."},
     {"ts": TS, "from": "PILOT", "to": "guardian", "task_id": "GRD-004", "type": "TASK_REBUMP", "priority": "P1",
-     "msg": "GRD-004 (14:30): PASS/FAIL verdicts file — WA placeholder-cred config-dead + auto_sent=0 + revenue-truth (snap vs ledger) + dialer-dead + DID-0 + dirty-hot-queue. File command_center/data. 15:30. 0-ACK ~56h."},
+     "msg": "GRD-004 (14:30): PASS/FAIL verdicts file - WA placeholder-cred config-dead + auto_sent=0 + revenue-truth (snap vs ledger) + dialer-dead + DID-0 + dirty-hot-queue. File command_center/data. 15:30. 0-ACK ~56h."},
     {"ts": TS, "from": "PILOT", "to": "operations", "task_id": "OPS-007", "type": "TASK_REBUMP", "priority": "P1",
-     "msg": "OPS-007 (14:30): digest — WA CONFIG-DEAD placeholder root + dialer restart cadence (post-DID, TRAI window) + 09-04 hot-queue watch. 15:30. 0-ACK ~56h."},
+     "msg": "OPS-007 (14:30): digest - WA CONFIG-DEAD placeholder root + dialer restart cadence (post-DID, TRAI window) + 09-04 hot-queue watch. 15:30. 0-ACK ~56h."},
     {"ts": TS, "from": "PILOT", "to": "board", "task_id": "BRD-003", "type": "TASK_REBUMP", "priority": "P2",
      "msg": "BRD-003 (14:30): VPS mirror + /app/bot-command-center page verify (PILOT fresh push abhi). 15:30. Visualization ONLY."},
 ]
@@ -66,7 +66,7 @@ print("messages appended:", len(msgs))
 bp = os.path.join(BASE, "bots.json")
 bots = load(bp)
 sts = {
-    "Pilot": "14:27 IST Sep3 (FRESH): /health 200; WA flip LIVE par auto_sent=0 RE-CONFIRMED — ROOT: placeholder token CONFIG-DEAD (owner-gated real Meta creds); SIP 5 vars EMPTY DID not landed (CLI revoked); dialer DEAD day5 (leads0); rev Rs1,999 Jiya sole; GAP Rs4,98,001. 14:30 gate MISSED, 0 evidence 13:45 ke baad; FLEET 0-ACK ~56h; 15:30 gate + OWNER escalation recorded.",
+    "Pilot": "14:27 IST Sep3 (FRESH): /health 200; WA flip LIVE par auto_sent=0 RE-CONFIRMED - ROOT: placeholder token CONFIG-DEAD (owner-gated real Meta creds); SIP 5 vars EMPTY DID not landed (CLI revoked); dialer DEAD day5 (leads0); rev Rs1,999 Jiya sole; GAP Rs4,98,001. 14:30 gate MISSED, 0 evidence 13:45 ke baad; FLEET 0-ACK ~56h; 15:30 gate + OWNER escalation recorded.",
     "engineering": "ENG-004 P0: WA CONFIG-DEAD root (placeholder token); diag/validator/send-pipeline 15:30.",
     "platform": "PLT-005 P0: SIP 5 vars EMPTY (DID NOT landed), CLI revoked, dialer dead day5. 15:30.",
     "operations": "OPS-007 P1: WA config-dead digest + restart cadence + 09-04 watch. 15:30.",
@@ -84,7 +84,7 @@ print("bots.json updated")
 
 tp = os.path.join(BASE, "tasks.json")
 tasks = load(tp)
-tail = "PILOT 14:30 IST Sep3 GHANTI: 14:30 gate MISSED — 0 evidence since 13:45 (auto_sent=0, invoices mtime Aug24, leads/ empty, SIP_DID empty). SIP 5 vars EMPTY DID NOT landed
+tail = "PILOT 14:30 IST Sep3 GHANTI: 14:30 gate MISSED - 0 evidence since 13:45 (auto_sent=0, invoices mtime Aug24, leads/ empty, SIP_DID empty). SIP 5 vars EMPTY DID NOT landed
 dialer DEAD day5
 WA CONFIG-DEAD placeholder. GAP Rs4,98,001. FLEET 0-ACK ~56h. OWNER ESCALATION RECORDED
 15:30 IST gate."
@@ -103,7 +103,7 @@ except Exception:
     pin = {}
 pin["last_updated"] = "2026-09-03T14:30+05:30"
 pin["vps_status"] = ("/health 200
-WA flip LIVE par auto_sent=0 RE-CONFIRMED — ROOT: placeholder token "
+WA flip LIVE par auto_sent=0 RE-CONFIRMED - ROOT: placeholder token "
                      "CONFIG-DEAD (owner-gated real Meta creds); SIP 5 vars EMPTY DID not landed (CLI revoked); "
                      "dialer DEAD day5; hot-queue 09-03 44 dirty; VERIFIED rev Rs1,999 (Jiya sole); GAP Rs4,98,001. "
                      "14:30 gate MISSED. FLEET 0-ACK ~56h -> 15:30 gate; OWNER escalation recorded.")

@@ -7,13 +7,13 @@ def describe_mcp_import_failure(error: ImportError) -> tuple[str, str]:
     """Return logger level and a safe message for an MCP import failure."""
     missing_module = getattr(error, "name", "") or ""
     if missing_module == "fastapi_mcp":
-        return "info", "fastapi-mcp not installed — MCP exposure disabled"
+        return "info", "fastapi-mcp not installed - MCP exposure disabled"
 
     dependency = missing_module or type(error).__name__
     return (
         "warning",
         "fastapi-mcp dependency import failed "
-        f"(missing module: {dependency}) — MCP exposure disabled",
+        f"(missing module: {dependency}) - MCP exposure disabled",
     )
 
 

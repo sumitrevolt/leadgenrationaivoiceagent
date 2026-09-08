@@ -1,13 +1,13 @@
-"""P0-2026-07-12 — jiya-makeover mobile dashboard: Playwright browser regression.
+"""P0-2026-07-12 - jiya-makeover mobile dashboard: Playwright browser regression.
 
 Real Chrome/Chromium evidence for the "Demo Data stuck" / "Load ho raha hai...
 stuck forever" incident (see progress.md + memory/incidents.md 2026-07-12 for
-the full root-cause trace). curl/jsdom/source-grep are supplementary only —
+the full root-cause trace). curl/jsdom/source-grep are supplementary only -
 this file is the mandatory real-browser layer.
 
 Two independent suites, deliberately separated per the incident runbook:
 
-1. ``TestMockedDashboardRegression`` — deterministic, CI-safe, needs ZERO
+1. ``TestMockedDashboardRegression`` - deterministic, CI-safe, needs ZERO
    credentials. Serves the actual `frontend/customer_dashboard.html` from a
    local static file server and drives a real Chromium engine against it,
    intercepting every `/api/customer/*` + `/health` call with
@@ -19,10 +19,10 @@ Two independent suites, deliberately separated per the incident runbook:
    fix: bounded timeout, persistent error banner, independent card
    rendering, chart-crash isolation, build marker.
 
-2. ``TestProductionSmoke`` — the real, credentialed, production-safe smoke
+2. ``TestProductionSmoke`` - the real, credentialed, production-safe smoke
    test against https://leadsgenai.in with the actual jiya-makeover account.
    Skipped automatically unless JIYA_TEST_PASSWORD (and optionally
-   JIYA_TEST_EMAIL) are present in the environment — this file, and any CI
+   JIYA_TEST_EMAIL) are present in the environment - this file, and any CI
    log it produces, must never contain the password or a full JWT. Only
    token *presence*, *length*, and non-sensitive decoded claims (e.g. `exp`)
    are ever asserted or printed.
@@ -35,7 +35,7 @@ Run:
     JIYA_TEST_EMAIL=... JIYA_TEST_PASSWORD=... pytest tests/e2e/test_jiya_dashboard_playwright.py -v -k Production
 
 STATUS AS OF 2026-07-12 (second P0 session): written but NOT executed in the
-sandbox this was authored in — no working Chromium binary could be installed
+sandbox this was authored in - no working Chromium binary could be installed
 there (no root for Playwright's --with-deps system packages, and browser
 binary downloads were killed mid-transfer because sandbox shell calls do not
 persist background processes across tool invocations). Needs a real run in
@@ -251,7 +251,7 @@ class TestMockedDashboardRegression:
     """Deterministic, CI-safe. Real Chromium, mocked backend."""
 
     def test_unauthenticated_dashboard_redirects_to_login(self, browser, static_server):
-        """#1 — a fresh context with no token must never show the loading
+        """#1 - a fresh context with no token must never show the loading
         shell forever
         it must redirect to login promptly."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
@@ -265,7 +265,7 @@ class TestMockedDashboardRegression:
         context.close()
 
     def test_real_dashboard_renders_no_demo_no_stuck_loaders(self, browser, static_server):
-        """#5, #6, #7, #14, #15 — the core fix: with a well-formed live
+        """#5, #6, #7, #14, #15 - the core fix: with a well-formed live
         response, Demo Data must be absent and both loading strings must
         resolve within the bounded timeout, and Setup Wizard / Social
         Networking must reach a real (non-"Load ho raha hai...") state."""
@@ -345,7 +345,7 @@ class TestMockedDashboardRegression:
         context.close()
 
     def test_dashboard_timeout_shows_persistent_error_banner(self, browser, static_server):
-        """#10 (authenticated API failure) — a hung dashboard request must
+        """#10 (authenticated API failure) - a hung dashboard request must
         surface the persistent #liveDataErrorBanner with a working retry
         control, not leave the customer silently on Demo Data forever."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
@@ -363,7 +363,7 @@ class TestMockedDashboardRegression:
         context.close()
 
     def test_bearer_header_sent_on_protected_requests(self, browser, static_server):
-        """#4 — every protected request must carry Authorization: Bearer
+        """#4 - every protected request must carry Authorization: Bearer
         <token>, using the same canonical token the page stored it under."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
         page = context.new_page()
@@ -413,7 +413,7 @@ class TestMockedDashboardRegression:
         context.close()
 
     def test_invalid_token_clears_state_and_redirects_to_login(self, browser, static_server):
-        """#9 — a 401/403 on the dashboard call must clear the canonical
+        """#9 - a 401/403 on the dashboard call must clear the canonical
         token and redirect to login, never fall back to demo silently."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
         page = context.new_page()
@@ -432,7 +432,7 @@ class TestMockedDashboardRegression:
         context.close()
 
     def test_refresh_persists_session_and_rerenders_live_data(self, browser, static_server):
-        """#8 — reload must keep reading the same canonical key and render
+        """#8 - reload must keep reading the same canonical key and render
         real data again, no demo badge reappearing."""
         context = browser.new_context(viewport=MOBILE_VIEWPORT)
         page = context.new_page()
@@ -448,7 +448,7 @@ class TestMockedDashboardRegression:
         context.close()
 
     def test_ui_build_marker_is_present_in_dom(self, browser, static_server):
-        """#12 (build marker) — proves the marker mechanism itself works in
+        """#12 (build marker) - proves the marker mechanism itself works in
         a real browser
         the *value* only becomes the true deployed short SHA
         once this fix is actually deployed (see TestProductionSmoke)."""
@@ -471,7 +471,7 @@ class TestMockedDashboardRegression:
 
 PROD_URL = "https://leadsgenai.in"
 _missing_prod_creds_reason = (
-    "JIYA_TEST_EMAIL / JIYA_TEST_PASSWORD not set — production smoke test skipped. "
+    "JIYA_TEST_EMAIL / JIYA_TEST_PASSWORD not set - production smoke test skipped. "
     "Set both env vars (never hardcode them here) to run the real authenticated login trace."
 )
 
@@ -482,7 +482,7 @@ _missing_prod_creds_reason = (
 )
 class TestProductionSmoke:
     """Real, credentialed, production-safe smoke test. Never logs the
-    password or a full JWT — only token presence/length/non-sensitive
+    password or a full JWT - only token presence/length/non-sensitive
     decoded claims. Read-only against the real jiya-makeover account."""
 
     def test_full_login_to_live_dashboard_trace(self, browser):
@@ -510,9 +510,9 @@ class TestProductionSmoke:
         final_url = page.url
         assert "/app/customer" in urlparse(final_url).path
 
-        # Step 3: canonical token — presence/length only, never the value
+        # Step 3: canonical token - presence/length only, never the value
         token = page.evaluate("() => localStorage.getItem('lgai_token')")
-        assert token, "lgai_token missing after login — canonical storage key not populated"
+        assert token, "lgai_token missing after login - canonical storage key not populated"
         assert len(token) > 20
         # decode exp claim only (non-sensitive), never print the token itself
         try:
@@ -551,6 +551,6 @@ class TestProductionSmoke:
         }
         print("PRODUCTION SMOKE REPORT:", json.dumps(report, indent=2))
 
-        assert not demo_badge_visible, "Demo Data badge visible after real login — P0 regression"
+        assert not demo_badge_visible, "Demo Data badge visible after real login - P0 regression"
         assert console_errors == [], f"console errors during real login: {console_errors}"
         context.close()

@@ -1,4 +1,4 @@
-"""Cancellation store unit tests — memory/file backends (no silent prod fallback)."""
+"""Cancellation store unit tests - memory/file backends (no silent prod fallback)."""
 
 from __future__ import annotations
 

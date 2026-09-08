@@ -1,16 +1,16 @@
 """Unified Conversation Inbox v1 (GHL-signature, hamara drafts-only flavour).
 
-Kyun: replies/chats/inquiries 3 alag jsonl stores me bikhri hain — ek jagah
+Kyun: replies/chats/inquiries 3 alag jsonl stores me bikhri hain - ek jagah
 thread-view chahiye taaki human 1-click follow-up kar sake. Yeh module sirf
 AGGREGATE karta hai (read-only over existing stores) + manual reply DRAFTS
-likhta hai — KOI auto-send nahi (ban-safe).
+likhta hai - KOI auto-send nahi (ban-safe).
 
-Sources (sab defensive — file missing/corrupt = silently empty):
-- data/reply_drafts.jsonl        (reply_agent — email/whatsapp replies + AI drafts)
-- data/widget_chats.jsonl        (web chat widget — dusra agent aaj bana raha;
-                                  schema unknown → multi-key defensive parse)
-- data/inquiries.jsonl           (public_site — website/mini-site inquiries)
-- data/conversation_replies.jsonl (HAMARE manual reply drafts — yahi ek write)
+Sources (sab defensive - file missing/corrupt = silently empty):
+- data/reply_drafts.jsonl        (reply_agent - email/whatsapp replies + AI drafts)
+- data/widget_chats.jsonl        (web chat widget - dusra agent aaj bana raha;
+                                  schema unknown -> multi-key defensive parse)
+- data/inquiries.jsonl           (public_site - website/mini-site inquiries)
+- data/conversation_replies.jsonl (HAMARE manual reply drafts - yahi ek write)
 
 Thread key = phone digits (last-10) > email > session id. Never raises.
 """
@@ -34,7 +34,7 @@ _OUR_REPLIES = os.path.join("data", "conversation_replies.jsonl")
 
 
 def _CALL_TRANSCRIPTS_DIR() -> str:
-    """Call transcripts dir — resolved per call, never frozen at import."""
+    """Call transcripts dir - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
@@ -79,7 +79,7 @@ def _email_of(raw: Any) -> str:
 
 
 def thread_key(rec: dict[str, Any]) -> str:
-    """Stable thread key — phone > email > session. '' = unkeyable (skip).
+    """Stable thread key - phone > email > session. '' = unkeyable (skip).
 
     Pure function (tests ke liye)."""
     try:
@@ -129,7 +129,7 @@ def _collect_messages() -> list[dict[str, Any]]:
     # 1) reply_agent drafts (email + whatsapp replies, AI draft saath me)
     try:
         # Legacy noise (status/@broadcast, DMARC, auto-ack, case-closure, spam)
-        # ko conversation tab me bhi hide karo — same guard jo Hot Queue use
+        # ko conversation tab me bhi hide karo - same guard jo Hot Queue use
         # karti hai (2026-08-11 retro-hide; drafts write-path pe already drop).
         from app.platform.reply_agent import _is_noise_row
 
@@ -155,7 +155,7 @@ def _collect_messages() -> list[dict[str, Any]]:
     except Exception as e:
         logger.debug(f"[conv] reply_drafts parse: {e}")
 
-    # 2) web chat widget (schema dusre agent ka — multi-key defensive)
+    # 2) web chat widget (schema dusre agent ka - multi-key defensive)
     try:
         for r in _read_jsonl(_WIDGET_CHATS):
             k = thread_key(r)
@@ -357,7 +357,7 @@ def get_thread(key: str) -> dict[str, Any]:
 
 
 def add_manual_reply_draft(key: str, text: str, channel: str = "manual") -> dict[str, Any]:
-    """Thread me human ka reply DRAFT save karo (auto-send NAHI — ban-safe).
+    """Thread me human ka reply DRAFT save karo (auto-send NAHI - ban-safe).
 
     Human ise copy / wa.me / mailto se khud bhejta hai. Never raises.
     """

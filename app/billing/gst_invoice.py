@@ -1,22 +1,22 @@
-"""GST-compliant invoice engine — revenue loop ka missing piece (payment hota tha, invoice nahi banta tha).
+"""GST-compliant invoice engine - revenue loop ka missing piece (payment hota tha, invoice nahi banta tha).
 
 Research (Rule 46 CGST, June 2026): unique sequential number ≤16 chars per FY
 (`INV/2026-27/0001`), SAC SaaS = 998313, intra-state = CGST 9% + SGST 9%,
 inter-state = IGST 18%. GST registration sirf >₹20L services turnover pe
-mandatory — tab tak GSTIN unset rakho aur invoice BINA tax-lines banta hai
-("GST not applicable — unregistered"). E-invoicing IRP threshold ₹5Cr — irrelevant.
-GST invoice fields per CGST Rule-46 (statutory mandatory fields — public-domain schema, clean-room implementation).
+mandatory - tab tak GSTIN unset rakho aur invoice BINA tax-lines banta hai
+("GST not applicable - unregistered"). E-invoicing IRP threshold ₹5Cr - irrelevant.
+GST invoice fields per CGST Rule-46 (statutory mandatory fields - public-domain schema, clean-room implementation).
 
 Design:
   - Store: data/invoices.jsonl (append
   numbering = FY-count+1, file_lock atomic).
   - Amount: charged plan price = GROSS (inclusive). Registered mode me taxable
-    back-calculate hota hai (gross/1.18) — jo actually pay hua wahi invoice total.
+    back-calculate hota hai (gross/1.18) - jo actually pay hua wahi invoice total.
   - Place of supply: client `state_code` (clients_store, optional) vs supplier
     `GST_SUPPLIER_STATE_CODE` (default 27 = Maharashtra). Match/blank = intra.
   - Hook: app/api/billing._provision_usage (saare gateways ka single choke-point)
-    -> on_payment_success() — payment_ref/period dedupe (double webhooks safe).
-  - Email send GATED `AUTO_INVOICE=1` (record HAMESHA banta — additive, send nahi).
+    -> on_payment_success() - payment_ref/period dedupe (double webhooks safe).
+  - Email send GATED `AUTO_INVOICE=1` (record HAMESHA banta - additive, send nahi).
 
 Env (sab optional): GST_SUPPLIER_NAME, GST_GSTIN, GST_SUPPLIER_ADDRESS,
 GST_SUPPLIER_STATE_CODE, AUTO_INVOICE. Kabhi raise nahi karta.
@@ -37,7 +37,7 @@ logger = setup_logger(__name__)
 
 
 def _STORE() -> str:
-    """GST invoice ledger — resolved per call, never frozen at import."""
+    """GST invoice ledger - resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -109,7 +109,7 @@ def fy_label(when: datetime | None = None) -> str:
 def _read() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     try:
-        # Resolver at each I/O site — binding to a local re-attributes the
+        # Resolver at each I/O site - binding to a local re-attributes the
         # scanner finding and unbinds the allowlist (A3 lesson).
         if os.path.exists(_STORE()):
             with open(_STORE(), encoding="utf-8") as f:
@@ -136,7 +136,7 @@ def _append(rec: dict[str, Any]) -> None:
 def _void_map(rows: list[dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
     """number -> void-marker record. Void markers = append-only rows with
     ``kind: "void"`` + ``voids: <number>`` (2026-07-18 accountant-safe correction:
-    Rule-46 sequential ledger me DELETE forbidden — original row preserved, number
+    Rule-46 sequential ledger me DELETE forbidden - original row preserved, number
     consumed rehta hai, reporting/dedupe voided ko exclude karti hai)."""
     out: dict[str, dict[str, Any]] = {}
     for r in rows if rows is not None else _read():
@@ -150,7 +150,7 @@ def next_number(fy: str | None = None) -> str:
 
     NOTE: count-based
     MUST be called inside ``_reserve_number_and_append`` so the
-    read-count and the append are atomic — otherwise two concurrent invoices compute
+    read-count and the append are atomic - otherwise two concurrent invoices compute
     the same number (duplicate Rule-46 number = GST violation). Void markers carry
     no ``fy`` key, so they never inflate the count
     voided invoices DO keep their
@@ -170,7 +170,7 @@ def _reserve_number_and_append(inv: dict[str, Any], fy: str) -> None:
     the threading.Lock covers in-process
     both degrade gracefully where flock
     is unavailable (Windows dev)."""
-    # Resolver at each I/O site — do not bind to a local (A3 allowlist lesson).
+    # Resolver at each I/O site - do not bind to a local (A3 allowlist lesson).
     with _LOCK:
         fh = None
         try:
@@ -181,7 +181,7 @@ def _reserve_number_and_append(inv: dict[str, Any], fy: str) -> None:
                 fh = open(_lock_path(), "w")
                 fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
             except Exception:
-                fh = None  # no fcntl (Windows) — in-process _LOCK still applies
+                fh = None  # no fcntl (Windows) - in-process _LOCK still applies
             inv["number"] = next_number(fy)
             _append(inv)
         finally:
@@ -225,7 +225,7 @@ def _tax_lines(gross: float, recipient_state: str, supplier: dict[str, str]) -> 
             "cgst": 0.0,
             "sgst": 0.0,
             "igst": 0.0,
-            "note": "GST not applicable — supplier not registered under GST (turnover below threshold).",
+            "note": "GST not applicable - supplier not registered under GST (turnover below threshold).",
         }
     taxable = round(gross / (1 + GST_RATE), 2)
     tax = round(gross - taxable, 2)
@@ -285,7 +285,7 @@ def create_invoice(
             },
             "supplier": sup,
             "sac_code": SAC_CODE,
-            "description": description or f"LeadsGenAI subscription — {plan_k or 'plan'} (monthly)",
+            "description": description or f"LeadsGenAI subscription - {plan_k or 'plan'} (monthly)",
             "plan": plan_k,
             "gross_inr": round(gross, 2),
             "place_of_supply": rstate or sup["state_code"],
@@ -336,7 +336,7 @@ def invoice_html(inv: dict[str, Any]) -> str:
             '
             f'font-weight:bold
             padding:8px
-            margin:8px 0">VOIDED — '
+            margin:8px 0">VOIDED - '
             f"{e(str(inv.get('void_reason', '') or 'cancelled'))} "
             f"({e(str(inv.get('voided_at', ''))[:10])})</div>"
             if inv.get("voided")
@@ -366,7 +366,7 @@ Place of supply: {e(str(inv.get("place_of_supply", "")))}<br>Reverse charge: No<
 text-align:right">Amount</th></tr>{rows}{tax_rows}
 <tr class="tot"><td>Total</td><td style="text-align:right">₹{inv.get("gross_inr", 0):,.2f}</td></tr></table>
 {note}<p style="color:#777
-font-size:12px">Payment ref: {e(str(inv.get("payment_ref", "") or "—"))} ({e(str(inv.get("gateway", "") or "online"))})
+font-size:12px">Payment ref: {e(str(inv.get("payment_ref", "") or "-"))} ({e(str(inv.get("gateway", "") or "online"))})
 · Computer-generated invoice. · leadsgenai.in</p></body></html>"""
     except Exception as e:
         logger.warning(f"[invoice] html failed: {e}")
@@ -374,7 +374,7 @@ font-size:12px">Payment ref: {e(str(inv.get("payment_ref", "") or "—"))} ({e(s
 
 
 def _already_invoiced(client_id: str, plan: str, payment_ref: str) -> bool:
-    """Dedupe — same payment_ref, ya (ref na ho to) same client+plan pichhle 20h me.
+    """Dedupe - same payment_ref, ya (ref na ho to) same client+plan pichhle 20h me.
     Voided invoices dedupe me COUNT nahi hote (galat invoice void karke same ref pe
     corrected reissue possible rahe)."""
     try:
@@ -408,7 +408,7 @@ async def on_payment_success(
     gateway: str = "",
     amount_inr: float | None = None,
 ) -> dict[str, Any]:
-    """Pay/renew hook (billing._provision_usage se) — invoice record + gated email. Never raises."""
+    """Pay/renew hook (billing._provision_usage se) - invoice record + gated email. Never raises."""
     try:
         cid = (client_id or "").strip()
         if not cid or not (plan or "").strip():
@@ -427,12 +427,12 @@ async def on_payment_success(
                 html = invoice_html(inv)
                 body = (
                     f"Namaste {inv['recipient']['name']},\n\n"
-                    f"Aapki payment mil gayi — dhanyavaad! Invoice {inv['number']} "
-                    f"(₹{inv['gross_inr']:,.2f}) attached/below hai.\n\n— Team LeadsGenAI"
+                    f"Aapki payment mil gayi - dhanyavaad! Invoice {inv['number']} "
+                    f"(₹{inv['gross_inr']:,.2f}) attached/below hai.\n\n- Team LeadsGenAI"
                 )
                 sent = await email_sender.send_email(
                     [inv["recipient"]["email"]],
-                    f"Invoice {inv['number']} — LeadsGenAI",
+                    f"Invoice {inv['number']} - LeadsGenAI",
                     body,
                     html_body=html,
                 )
@@ -447,7 +447,7 @@ async def on_payment_success(
 
 def void_invoice(number: str, reason: str = "", by: str = "") -> dict[str, Any]:
     """Accountant-safe VOID (2026-07-18 billing containment): original invoice row
-    kabhi delete/rewrite NAHI hota — ek append-only void marker judta hai. Number
+    kabhi delete/rewrite NAHI hota - ek append-only void marker judta hai. Number
     consumed rehta hai (Rule-46 sequence intact), reporting gross me count nahi
     hota, aur payment_ref dedupe se free ho jata hai (corrected reissue possible).
     Idempotent: dobara void = deduped:True. Never raises."""

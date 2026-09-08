@@ -1,7 +1,7 @@
-"""2026-07-03 — close/proceed-intent Devanagari words were missing from the
+"""2026-07-03 - close/proceed-intent Devanagari words were missing from the
 STT gate-vocabulary map (hinglish_normalize.to_roman), so a caller saying
 "प्री प्लान एक्टिवेट करो" (a real utterance from a live test call) never
-matched telecaller_brain's roman-only _CLOSE_HARD_RE — the close-signal /
+matched telecaller_brain's roman-only _CLOSE_HARD_RE - the close-signal /
 WhatsApp-handoff path silently never fired even though the caller clearly
 signalled "activate it now"."""
 

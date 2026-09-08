@@ -2,7 +2,7 @@
 
 Full interactive browser login needs operator credentials (not in CI). This suite
 proves the authenticated surfaces with FastAPI dependency overrides + static UI
-markers — the same routes a real browser session would hit after login.
+markers - the same routes a real browser session would hit after login.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def client(monkeypatch, tmp_path):
     # Stage 3B-close: approval additionally requires two POSITIVE server-side
     # facts (tenant really resolves; the logout blacklist was reachable). The
     # session dependency establishes neither, and its revocation check fails
-    # OPEN — unacceptable for a mutation. Stubbed here to represent a healthy
+    # OPEN - unacceptable for a mutation. Stubbed here to represent a healthy
     # session; a test that omits them proves the fail-closed path instead.
     monkeypatch.setattr(
         clients_store,
@@ -375,7 +375,7 @@ def test_customer_video_approve_revision_zero_is_idempotent(client, monkeypatch,
 
 def test_admin_video_ops_route(client):
     # Admin dependency override may not apply if require_admin is imported differently;
-    # accept 200 or 401/403 as "wired" — prefer 200 when override works.
+    # accept 200 or 401/403 as "wired" - prefer 200 when override works.
     r = client.get("/api/clientops/video-production/ops")
     assert r.status_code in (200, 401, 403)
     if r.status_code == 200:

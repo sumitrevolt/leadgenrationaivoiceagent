@@ -39,7 +39,7 @@ def record(provider: str, ok: bool, ms: float, error: str = "", kind: str = "cha
                 )
                 + "\n"
             )
-        # occasional trim (1% chance per call — file kabhi unbounded na ho)
+        # occasional trim (1% chance per call - file kabhi unbounded na ho)
         if hash(datetime.now().microsecond) % 100 == 0:
             _trim()
     except Exception:
@@ -47,20 +47,20 @@ def record(provider: str, ok: bool, ms: float, error: str = "", kind: str = "cha
 
 
 def record_cache(hit: bool) -> None:
-    """LLM response-cache lookup record (hit/miss) — W1.12 revisit-trigger prereq:
+    """LLM response-cache lookup record (hit/miss) - W1.12 revisit-trigger prereq:
     cache hit-rate ke data ke bina L2/Redis-cache decision hunch hota. kind="cache"
     rows stats() me provider aggregation se ALAG rehti hain (fallback-rate/capacity
     -alert skew nahi). record() reuse = same never-raise + trim. Ultra-light."""
     record("cache", bool(hit), 0.0, "" if hit else "miss", kind="cache")
 
 
-# Rate-limit-class error keywords — free_ai._trip_cooldown ke is_rate_limit jaisa
+# Rate-limit-class error keywords - free_ai._trip_cooldown ke is_rate_limit jaisa
 # (429/quota/TPD family). stats() me per-provider explicit count ke liye.
 _RL_KEYS = ("429", "rate", "quota", "queue", "too_many", "exhaust")
 
 
 def _trim() -> None:
-    # READ-MODIFY-WRITE — multi-worker me lock zaroori (do process ek saath
+    # READ-MODIFY-WRITE - multi-worker me lock zaroori (do process ek saath
     # trim karein to file truncate ho sakti thi). Lock + atomic os.replace.
     try:
         from app.utils.file_lock import file_lock
@@ -96,7 +96,7 @@ def _read_tail(n: int = 2000) -> list[dict[str, Any]]:
 def stats(window: int = 2000) -> dict[str, Any]:
     """Per-provider health + overall fallback rate + cache hit-rate. Kabhi raise nahi."""
     all_rows = _read_tail(window)
-    # kind="cache" rows alag — provider health/fallback-rate (capacity-alert input)
+    # kind="cache" rows alag - provider health/fallback-rate (capacity-alert input)
     # ko cache lookups pollute na karein.
     rows = [r for r in all_rows if r.get("k") != "cache"]
     cache_rows = [r for r in all_rows if r.get("k") == "cache"]
@@ -135,7 +135,7 @@ def stats(window: int = 2000) -> dict[str, Any]:
 
 
 async def run_capacity_watch() -> dict[str, Any]:
-    """LLM gateway CAPACITY/RELIABILITY alert (competitor best-practice — LiteLLM/Vapi:
+    """LLM gateway CAPACITY/RELIABILITY alert (competitor best-practice - LiteLLM/Vapi:
     alert jab fallback-rate high ya provider-headroom low). Free providers exhaust hote
     (groq TPD, gemini quota-0, openrouter 404) -> voice latency + content quality girti =
     project ka #1 live bottleneck. Ye bottleneck system KHUD flag kare (observability->
@@ -190,10 +190,10 @@ async def run_capacity_watch() -> dict[str, Any]:
 
                 if ops_watchdog._should_alert("llm_capacity"):
                     body = (
-                        f"LLM capacity DEGRADED — fallback/fail-rate {rate}, healthy providers "
+                        f"LLM capacity DEGRADED - fallback/fail-rate {rate}, healthy providers "
                         f"{len(healthy)} ({', '.join(healthy) or 'NONE'}), exhausted: {', '.join(exhausted) or '-'}.\n"
                         f"Asar: voice latency badhti (script-fallback), content quality template pe girti.\n"
-                        f"Fix (highest ROI): ek headroom/paid LLM key add karo — Groq Dev tier ya 1 paid provider."
+                        f"Fix (highest ROI): ek headroom/paid LLM key add karo - Groq Dev tier ya 1 paid provider."
                     )
                     await ops_watchdog._alert(
                         "⚠️ LeadGenAI: LLM capacity low (voice/content affected)", body

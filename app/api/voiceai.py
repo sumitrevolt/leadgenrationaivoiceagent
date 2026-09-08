@@ -1,17 +1,17 @@
-"""Voice-AI API — live human transfer + 'Ask AI' call insights + dialer leaderboard.
+"""Voice-AI API - live human transfer + 'Ask AI' call insights + dialer leaderboard.
 
-Routes (admin, mount `app.include_router(voiceai_router, prefix="/api")` → /api/voiceai/*):
-  POST /voiceai/transfer     — AI call → owner live-transfer w/ Hinglish context (CALL_TRANSFER gate)
-  GET  /voiceai/transfers    — recent transfer log
-  POST /voiceai/ask          — NL question over call/lead data (Vodex-style, 10/60s)
-  GET  /voiceai/call-stats   — pure-python call/dialer/cadence counts
-  GET  /voiceai/leaderboard  — telecaller gamification ranking (?days=1|7)
-  POST /voiceai/consent/{record,opt-out,opt-in,retention-sweep} — TCCCPR/DPDP consent ledger
-  GET  /voiceai/consent/{suppressed,history}                    — suppression list + per-phone audit
+Routes (admin, mount `app.include_router(voiceai_router, prefix="/api")` -> /api/voiceai/*):
+  POST /voiceai/transfer     - AI call -> owner live-transfer w/ Hinglish context (CALL_TRANSFER gate)
+  GET  /voiceai/transfers    - recent transfer log
+  POST /voiceai/ask          - NL question over call/lead data (Vodex-style, 10/60s)
+  GET  /voiceai/call-stats   - pure-python call/dialer/cadence counts
+  GET  /voiceai/leaderboard  - telecaller gamification ranking (?days=1|7)
+  POST /voiceai/consent/{record,opt-out,opt-in,retention-sweep} - TCCCPR/DPDP consent ledger
+  GET  /voiceai/consent/{suppressed,history}                    - suppression list + per-phone audit
 
-Pattern: ai.py jaisa — router-level per-IP rate limit (LLM abuse guard, FAIL-OPEN)
+Pattern: ai.py jaisa - router-level per-IP rate limit (LLM abuse guard, FAIL-OPEN)
 + require_admin har endpoint pe. LLM calls async free_ai + asyncio.wait_for hard
-timeout (event-loop kabhi block nahi — widget-chat prod-down lesson). Lazy imports,
+timeout (event-loop kabhi block nahi - widget-chat prod-down lesson). Lazy imports,
 endpoints kabhi 500 nahi (except validation 422).
 """
 
@@ -34,7 +34,7 @@ router = APIRouter(
     prefix="/voiceai", tags=["Voice AI"], dependencies=[Depends(rate_limit("voiceai", 30, 60))]
 )
 
-_LLM_TIMEOUT = 25  # seconds — free_ai chain hard cap (loop-safe)
+_LLM_TIMEOUT = 25  # seconds - free_ai chain hard cap (loop-safe)
 
 
 # --------------------------------------------------------------------------- #
@@ -54,11 +54,11 @@ class AskIn(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# F1 — Live human transfer w/ context (gated CALL_TRANSFER=1)
+# F1 - Live human transfer w/ context (gated CALL_TRANSFER=1)
 # --------------------------------------------------------------------------- #
 @router.post("/transfer")
 async def transfer_call(body: TransferIn, _user: User = Depends(require_admin)):
-    """AI call → owner live-transfer: Hinglish summary + Vobiz connect-leg
+    """AI call -> owner live-transfer: Hinglish summary + Vobiz connect-leg
     (creds pe) + WA 1-click link + email draft. Flag OFF = inert."""
     if not (body.owner_phone or "").strip():
         raise HTTPException(status_code=422, detail="owner_phone chahiye (10-digit).")
@@ -69,7 +69,7 @@ async def transfer_call(body: TransferIn, _user: User = Depends(require_admin)):
             request_transfer(body.call_context or {}, body.owner_phone), timeout=_LLM_TIMEOUT + 10
         )
     except asyncio.TimeoutError:
-        return {"ok": False, "reason": "timeout — dobara try karo"}
+        return {"ok": False, "reason": "timeout - dobara try karo"}
     except Exception as e:  # request_transfer never raises
     belt-and-braces
         logger.warning(f"[voiceai] transfer failed: {e}")
@@ -85,7 +85,7 @@ async def recent_transfers(limit: int = 50, _user: User = Depends(require_admin)
 
 
 # --------------------------------------------------------------------------- #
-# F2 — 'Ask AI' over call/lead data (Vodex-style)
+# F2 - 'Ask AI' over call/lead data (Vodex-style)
 # --------------------------------------------------------------------------- #
 @router.post("/ask", dependencies=[Depends(rate_limit("voiceai_ask", 10, 60))])
 async def ask_calls(body: AskIn, _user: User = Depends(require_admin)):
@@ -95,7 +95,7 @@ async def ask_calls(body: AskIn, _user: User = Depends(require_admin)):
     if len(q) < 3:
         raise HTTPException(
             status_code=422,
-            detail="Sawaal likho — e.g. 'aaj kitne interested the?' ya 'callbacks kitne pending?'",
+            detail="Sawaal likho - e.g. 'aaj kitne interested the?' ya 'callbacks kitne pending?'",
         )
     from app.platform import call_insights
 
@@ -108,11 +108,11 @@ async def ask_calls(body: AskIn, _user: User = Depends(require_admin)):
             "answer": call_insights._stats_answer(stats),
             "stats": stats,
             "provider": "",
-            "note": "AI timeout — direct counts diye.",
+            "note": "AI timeout - direct counts diye.",
         }
     except Exception as e:
         logger.warning(f"[voiceai] ask failed: {e}")
-        return {"ok": False, "answer": "Abhi process nahi hua — dobara try karo.", "stats": {}}
+        return {"ok": False, "answer": "Abhi process nahi hua - dobara try karo.", "stats": {}}
 
 
 @router.get("/call-stats")
@@ -124,7 +124,7 @@ async def call_stats(_user: User = Depends(require_admin)):
 
 
 # --------------------------------------------------------------------------- #
-# F3 — Dialer leaderboard (telecaller gamification)
+# F3 - Dialer leaderboard (telecaller gamification)
 # --------------------------------------------------------------------------- #
 @router.get("/leaderboard")
 async def dialer_leaderboard(days: int = 1, _user: User = Depends(require_admin)):
@@ -135,7 +135,7 @@ async def dialer_leaderboard(days: int = 1, _user: User = Depends(require_admin)
 
 
 # --------------------------------------------------------------------------- #
-# F4 — Consent + opt-out ledger (TCCCPR/DPDP) — app/telephony/consent_ledger.py
+# F4 - Consent + opt-out ledger (TCCCPR/DPDP) - app/telephony/consent_ledger.py
 # --------------------------------------------------------------------------- #
 class ConsentIn(BaseModel):
     phone: str
@@ -169,7 +169,7 @@ async def consent_record(body: ConsentIn, _user: User = Depends(require_admin)):
 
 @router.post("/consent/opt-out")
 async def consent_opt_out(body: OptOutIn, _user: User = Depends(require_admin)):
-    """Manual opt-out → instant suppression (voice + WA cross-channel)."""
+    """Manual opt-out -> instant suppression (voice + WA cross-channel)."""
     from app.telephony import consent_ledger
 
     return consent_ledger.record_opt_out(body.phone, reason=body.reason, channel=body.channel)

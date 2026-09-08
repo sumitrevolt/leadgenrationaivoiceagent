@@ -1,5 +1,5 @@
 """
-business_card.py — digital visiting card per client (mobile-first + .vcf).
+business_card.py - digital visiting card per client (mobile-first + .vcf).
 ===========================================================================
 
 Har client ko ek share-karne-laayak digital card: naam, business, call/WhatsApp
@@ -12,7 +12,7 @@ QR encoder reuse) + "Save Contact" (.vcf vCard 3.0).
 
 Sab user-text HTML-escaped
 vcf values comma/semicolon-escaped. Kabhi raise
-nahi — error pe {"ok": False, "error": ...}.
+nahi - error pe {"ok": False, "error": ...}.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def _base_url() -> str:
 
 
 def _wa_number(phone: str) -> str:
-    """Phone → wa.me digits (91-prefixed 10-digit Indian mobile)."""
+    """Phone -> wa.me digits (91-prefixed 10-digit Indian mobile)."""
     d = re.sub(r"\D", "", str(phone or ""))
     if len(d) == 10:
         return "91" + d
@@ -72,7 +72,7 @@ def card_data(slug: str) -> dict[str, Any]:
         key = str(slug or "").strip()
         client = clients_store.get_by_slug(key) or clients_store.get_client(key)
         if not client:
-            return {"ok": False, "error": "client nahi mila — pehle onboard karo."}
+            return {"ok": False, "error": "client nahi mila - pehle onboard karo."}
         brand = brand_frames.resolve_brand(client.get("slug") or key)
         the_slug = str(client.get("slug") or key)
         phone = str(client.get("phone") or "").strip()
@@ -113,7 +113,7 @@ def _vcf_escape(v: str) -> str:
 
 
 def render_vcf(slug: str) -> dict[str, Any]:
-    """vCard 3.0 text — phone me 'Save Contact' 1-tap. Kabhi raise nahi."""
+    """vCard 3.0 text - phone me 'Save Contact' 1-tap. Kabhi raise nahi."""
     try:
         d = card_data(slug)
         if not d.get("ok"):
@@ -167,7 +167,7 @@ def render_card_html(slug: str) -> dict[str, Any]:
         site_href = escape(d["minisite_url"], quote=True)
         vcf_href = escape(d["vcf_url"], quote=True)
 
-        # QR — review_kit ka pure-python encoder (kabhi raise nahi, fallback "")
+        # QR - review_kit ka pure-python encoder (kabhi raise nahi, fallback "")
         qr = ""
         try:
             from app.marketing.review_kit import qr_svg
@@ -199,7 +199,7 @@ def render_card_html(slug: str) -> dict[str, Any]:
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>{name} — Digital Card</title>
+<title>{name} - Digital Card</title>
 <style>
   *{{box-sizing:border-box
   margin:0
@@ -274,7 +274,7 @@ def render_card_html(slug: str) -> dict[str, Any]:
     <a class="btn site" href="{site_href}">\U0001f310 Hamari website dekhein</a>
     <div class="qr">{qr}<p>QR scan karke website kholo / aage share karo</p></div>
   </div>
-  <footer>Phone: {phone or "—"} · Powered by <a href="https://leadsgenai.in">LeadGen AI</a></footer>
+  <footer>Phone: {phone or "-"} · Powered by <a href="https://leadsgenai.in">LeadGen AI</a></footer>
 </div>
 </body>
 </html>"""

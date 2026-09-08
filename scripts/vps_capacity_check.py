@@ -13,7 +13,7 @@ live VPS that can OOM-kill uvicorn or fill the disk. So this script ONLY:
   2. prints a SAFE / TIGHT / UNSAFE verdict against conservative thresholds,
   3. PRINTS the exact pip + env commands for YOU to run by hand if SAFE.
 
-It NEVER installs anything and never touches torch/silero/pipecat. Pure stdlib —
+It NEVER installs anything and never touches torch/silero/pipecat. Pure stdlib -
 runs anywhere (Linux VPS, Windows dev). On the VPS run:
 
     cd /opt/leadgen && python scripts/vps_capacity_check.py
@@ -54,7 +54,7 @@ def _free_ram_mb() -> float | None:
     """Available RAM in MB. Prefers /proc/meminfo MemAvailable (Linux); falls
     back to psutil if present
     None if neither works (e.g. Windows w/o psutil)."""
-    # 1) Linux /proc/meminfo — most accurate, no deps.
+    # 1) Linux /proc/meminfo - most accurate, no deps.
     try:
         with open("/proc/meminfo", encoding="utf-8") as f:
             info = {}
@@ -127,16 +127,16 @@ def _swap_mb() -> float:
 INSTALL_COMMANDS = """\
 # ── INSTALL COMMANDS (run by hand on the VPS, ONLY if the verdict above is SAFE) ──
 # Use the app's venv so the running uvicorn picks the libs up. Torch CPU wheel is
-# the heavy one — pin the CPU index so you don't pull the ~2 GB CUDA build.
+# the heavy one - pin the CPU index so you don't pull the ~2 GB CUDA build.
 
 cd /opt/leadgen
 
-# 1) torch (CPU-only) + silero-vad  — the speech gate (USE_SILERO_VAD)
+# 1) torch (CPU-only) + silero-vad  - the speech gate (USE_SILERO_VAD)
 .venv/bin/pip install --no-cache-dir \\
     torch --index-url https://download.pytorch.org/whl/cpu
 .venv/bin/pip install --no-cache-dir silero-vad
 
-# 2) pipecat-ai (bundles smart-turn-v3 ONNX) — semantic end-of-turn (USE_SMART_TURN)
+# 2) pipecat-ai (bundles smart-turn-v3 ONNX) - semantic end-of-turn (USE_SMART_TURN)
 #    onnxruntime comes as a dep; it's light (~15 MB) vs torch.
 .venv/bin/pip install --no-cache-dir "pipecat-ai[silero]"
 
@@ -154,7 +154,7 @@ cd /opt/leadgen
 #    python scripts/voice_latency_scorecard.py   # p50/p95 turn + TTFT
 #    python scripts/agent_tester.py              # double/empty/repeat/slow scorecard
 #
-# ROLLBACK (instant, no uninstall needed): just remove/0 the flags + restart —
+# ROLLBACK (instant, no uninstall needed): just remove/0 the flags + restart -
 #    USE_SILERO_VAD / USE_SMART_TURN unset => gates return None => RMS/silence
 #    fallback => identical to today. The wheels can stay installed harmlessly.
 """
@@ -168,14 +168,14 @@ def main() -> int:
     swap = _swap_mb()
 
     print("=" * 64)
-    print(" VPS CAPACITY CHECK — Silero VAD + Smart Turn (torch, heavy/optional)")
+    print(" VPS CAPACITY CHECK - Silero VAD + Smart Turn (torch, heavy/optional)")
     print("=" * 64)
     print(f" Install dir   : {_INSTALL_DIR}")
     print(
         f" RAM           : free {free_ram:.0f} MB"
         + (f" / total {total_ram:.0f} MB" if total_ram else "")
         if free_ram is not None
-        else " RAM           : (unknown — no /proc/meminfo, no psutil)"
+        else " RAM           : (unknown - no /proc/meminfo, no psutil)"
     )
     print(f" Swap          : {swap:.0f} MB")
     print(
@@ -197,7 +197,7 @@ def main() -> int:
     # RAM (effective = free + swap, but swap is slow so only counts partially).
     eff_ram = (free_ram or 0.0) + min(swap, 1024.0) * 0.5
     if free_ram is None:
-        reasons.append("RAM unknown — measure manually (`free -m`) before installing.")
+        reasons.append("RAM unknown - measure manually (`free -m`) before installing.")
         tight = True
     elif eff_ram < MIN_FREE_RAM_MB * 0.7:
         reasons.append(
@@ -212,7 +212,7 @@ def main() -> int:
 
     # Disk.
     if free_disk is None:
-        reasons.append("Disk free unknown — check `df -h /opt/leadgen` before installing.")
+        reasons.append("Disk free unknown - check `df -h /opt/leadgen` before installing.")
         tight = True
     elif free_disk < MIN_FREE_DISK_MB:
         reasons.append(
@@ -221,7 +221,7 @@ def main() -> int:
         unsafe = True
     elif free_disk < MIN_FREE_DISK_MB * 1.5:
         reasons.append(
-            f"Disk okay but not roomy ({free_disk:.0f} MB) — clear pip cache after install."
+            f"Disk okay but not roomy ({free_disk:.0f} MB) - clear pip cache after install."
         )
         tight = True
 
@@ -234,9 +234,9 @@ def main() -> int:
         tight = True
 
     if unsafe:
-        verdict, code = "UNSAFE — DO NOT INSTALL yet", 2
+        verdict, code = "UNSAFE - DO NOT INSTALL yet", 2
     elif tight:
-        verdict, code = "TIGHT — proceed only after addressing the notes below", 1
+        verdict, code = "TIGHT - proceed only after addressing the notes below", 1
     else:
         verdict, code = "SAFE to install (still test on the FREE web-call first)", 0
 
@@ -249,7 +249,7 @@ def main() -> int:
     print(INSTALL_COMMANDS)
 
     if code == 0:
-        print(">> Verdict SAFE. The flags stay OFF until you set them — nothing changed yet.")
+        print(">> Verdict SAFE. The flags stay OFF until you set them - nothing changed yet.")
     elif code == 1:
         print(
             ">> Verdict TIGHT. Address the notes (add swap / free disk / low-traffic window) first."

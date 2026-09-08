@@ -1,16 +1,16 @@
-"""Memory API — Rowboat-inspired compounding memory (vault + call-prep + live notes).
+"""Memory API - Rowboat-inspired compounding memory (vault + call-prep + live notes).
 
-Routes (admin, mount `app.include_router(memory_router, prefix="/api")` → /api/memory/*):
-  GET    /memory/entities?kind=          — memory files list (prospects|clients|topics)
-  GET    /memory/entity?kind=&key=       — ek entity ka raw markdown
-  PUT    /memory/entity                  — human edit (full overwrite, 64KB cap)
-  POST   /memory/sync                    — jsonl stores → memory sync (manual run)
-  GET    /memory/prep?phone=&client_id=  — call-prep Hinglish brief (dialer/sales)
+Routes (admin, mount `app.include_router(memory_router, prefix="/api")` -> /api/memory/*):
+  GET    /memory/entities?kind=          - memory files list (prospects|clients|topics)
+  GET    /memory/entity?kind=&key=       - ek entity ka raw markdown
+  PUT    /memory/entity                  - human edit (full overwrite, 64KB cap)
+  POST   /memory/sync                    - jsonl stores -> memory sync (manual run)
+  GET    /memory/prep?phone=&client_id=  - call-prep Hinglish brief (dialer/sales)
   GET    /memory/topics · POST /memory/topics · DELETE /memory/topics/{id}
-  POST   /memory/topics/{id}/refresh     — ek topic ka aaj ka live-note update
+  POST   /memory/topics/{id}/refresh     - ek topic ka aaj ka live-note update
 
 Sab lazy-import + never-raise (modules error dict dete). Flags: MEMORY_VAULT /
-LIVE_NOTES sirf SCHEDULER runs gate karte — manual admin endpoints hamesha chalte.
+LIVE_NOTES sirf SCHEDULER runs gate karte - manual admin endpoints hamesha chalte.
 """
 
 from __future__ import annotations
@@ -67,8 +67,8 @@ async def entity_edit(body: EntityEdit, _user=Depends(require_admin)):
 
 @router.post("/sync", dependencies=[Depends(rate_limit("memsync", 6, 60))])
 async def sync_now(_user=Depends(require_admin)):
-    """Manual sync (flag-independent) — jsonl stores tail → memory files.
-    Thread me (event loop block nahi — prod-down lesson)."""
+    """Manual sync (flag-independent) - jsonl stores tail -> memory files.
+    Thread me (event loop block nahi - prod-down lesson)."""
     import asyncio
 
     from app.platform import memory_vault

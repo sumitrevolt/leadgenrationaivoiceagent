@@ -30,7 +30,7 @@ router = APIRouter()  # No prefix - main.py adds /api/leads
 
 # Job-status cache for in-flight scrape tasks. This is intentionally ephemeral
 # (a scrape id only matters for the duration of the request's background task)
-# and MUST NOT be the source of truth for lead data — that is the `Lead` table.
+# and MUST NOT be the source of truth for lead data - that is the `Lead` table.
 scrape_tasks: dict = {}
 scraper = LeadScraperManager()
 
@@ -55,7 +55,7 @@ def _save_scraped_lead_to_db(lead_dict: dict) -> None:
     """Persist a scraped lead into the real `Lead` table (dedup-by-phone).
 
     Mirrors app/api/public_site.py::_save_lead_db: a repeat phone appends to the
-    existing lead's notes instead of creating a duplicate row. Fail-safe — any
+    existing lead's notes instead of creating a duplicate row. Fail-safe - any
     DB error is logged and swallowed
     the scrape job must never crash because of
     one bad lead row. Returns the lead id (new or existing) or None.
@@ -131,7 +131,7 @@ async def scrape_leads(
                 max_leads=request.max_leads,
                 # ToS-safe: is endpoint se JustDial/IndiaMart auto-scrape KABHI nahi (ban risk).
                 # Sirf google_maps (andar OSM fallback). Blocked sources ka path = manual CSV import.
-                # (Pehle sources=None tha → default ["google_maps","indiamart","justdial"] = ToS landmine.)
+                # (Pehle sources=None tha -> default ["google_maps","indiamart","justdial"] = ToS landmine.)
                 sources=["google_maps"],
             )
 
@@ -174,7 +174,7 @@ async def get_scrape_status(task_id: str, current_user: User = Depends(get_curre
 @router.get("/stats/summary")
 async def get_leads_summary(current_user: User = Depends(get_current_user)):
     """
-    Get leads summary statistics — reads the REAL `Lead` table, not a volatile dict.
+    Get leads summary statistics - reads the REAL `Lead` table, not a volatile dict.
     """
     try:
         from app.models.base import _get_sync_engine, _SessionLocal

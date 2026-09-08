@@ -1,25 +1,25 @@
-"""Memory Stack — 7-layer AGENT MEMORY facade over the lanes we already have.
+"""Memory Stack - 7-layer AGENT MEMORY facade over the lanes we already have.
 
 KYUN (gap): is repo me memory ke saat lane already the, par koi ek jagah nahi
-jahan se agent "is kaam ke liye jo yaad hai wo do" maang sake — har caller apna
+jahan se agent "is kaam ke liye jo yaad hai wo do" maang sake - har caller apna
 prompt khud jodta hai (coordinator me hardcoded `hint[:600]`). Natija: koi TOKEN
 budget nahi, koi DEADLINE nahi, aur do layers (working window + prospective
 "baad me yeh karna hai") kahin the hi nahi.
 
-  L1 working      — is module ka bounded FIFO turn buffer (TTL + eviction)
-  L2 episodic     — voice_agent.agent_memory (Qdrant lead/client facts)
-  L3 semantic     — platform.workforce_memory L2/L3 (scenario/persona)
-  L4 procedural   — platform.skill_library (lessons + success-rate tactics)
-  L5 hierarchical — YEH module: hot -> warm -> cold, token budget + deadline
-  L6 prospective  — platform.prospective_store (DURABLE: claim/lease/idempotency)
-  L7 shared       — platform.workforce_memory shared/equip mirror (ACL-respecting)
+  L1 working      - is module ka bounded FIFO turn buffer (TTL + eviction)
+  L2 episodic     - voice_agent.agent_memory (Qdrant lead/client facts)
+  L3 semantic     - platform.workforce_memory L2/L3 (scenario/persona)
+  L4 procedural   - platform.skill_library (lessons + success-rate tactics)
+  L5 hierarchical - YEH module: hot -> warm -> cold, token budget + deadline
+  L6 prospective  - platform.prospective_store (DURABLE: claim/lease/idempotency)
+  L7 shared       - platform.workforce_memory shared/equip mirror (ACL-respecting)
 
 REVIEW-DRIVEN CORRECTIONS (v2, 2026-08-05):
-  - L6 ab JSONL pe NAHI — durable table + atomic claim (`prospective_store`).
+  - L6 ab JSONL pe NAHI - durable table + atomic claim (`prospective_store`).
     JSONL read-modify-write exactly-once nahi tha
     wo path hata diya gaya hai.
   - `tenant_id` har read/write/assemble/dispatch pe MANDATORY. Koi global
-    fallback tenant nahi — blank tenant = refuse.
+    fallback tenant nahi - blank tenant = refuse.
   - Budget ab TOKEN-based (repo ka `estimate_tokens`), completion headroom
     reserve ke saath
     char-slicing gaya.
@@ -146,20 +146,20 @@ def validate_config() -> dict[str, Any]:
 
     if master:
         if lanes["episodic"] and not _truthy(os.getenv("AGENT_MEMORY")):
-            problems.append("episodic layer on but AGENT_MEMORY off — lane will stay empty")
+            problems.append("episodic layer on but AGENT_MEMORY off - lane will stay empty")
         if (lanes["semantic"] or lanes["shared"]) and not _truthy(os.getenv("WORKFORCE_MEMORY")):
             problems.append(
-                "semantic/shared layer on but WORKFORCE_MEMORY off — lanes will stay empty"
+                "semantic/shared layer on but WORKFORCE_MEMORY off - lanes will stay empty"
             )
         ok, why = dispatch_ready()
         if lanes["prospective"] and not ok:
             problems.append(f"prospective dispatch blocked: {why}")
         if _token_budget() + _reserve_tokens() > _context_tokens():
             problems.append(
-                "token budget + completion reserve exceeds context window — budget will be clamped"
+                "token budget + completion reserve exceeds context window - budget will be clamped"
             )
         if not any(lanes.values()):
-            problems.append("master flag on but every layer disabled — assemble returns nothing")
+            problems.append("master flag on but every layer disabled - assemble returns nothing")
 
     ok_dispatch, why_dispatch = dispatch_ready()
     health: dict[str, Any] = {}
@@ -169,11 +169,11 @@ def validate_config() -> dict[str, Any]:
         health = rules_health()
         if not health.get("readable", True) or health.get("unparsable"):
             problems.append(
-                "do-not-remember authority damaged — ALL durable memory writes are "
+                "do-not-remember authority damaged - ALL durable memory writes are "
                 "refused (fail-closed); agents answer without remembering"
             )
     except Exception:
-        problems.append("governance module unavailable — durable memory writes refused")
+        problems.append("governance module unavailable - durable memory writes refused")
     return {
         "ok": not problems,
         "master": master,
@@ -233,7 +233,7 @@ def _warm_sync() -> None:
 
     Bug caught in harness (2026-08-05): the first `assemble()` after boot spent
     ~580ms importing `context_packets` (redaction + tokenizer), which blew the
-    250ms deadline and timed out EVERY lane — the first agent turn silently got
+    250ms deadline and timed out EVERY lane - the first agent turn silently got
     an empty memory block. Import cost now happens before the clock starts.
     """
     global _WARM, _TOKENIZER
@@ -285,7 +285,7 @@ def _truncate_to_tokens(text: str, max_tokens: int) -> tuple[str, bool]:
             break
         kept.append(ln)
         used += t
-    if not kept:  # single oversized line — hard char cut, still deterministic
+    if not kept:  # single oversized line - hard char cut, still deterministic
         return (text or "")[: max_tokens * 4].rstrip() + " …", True
     return "\n".join(kept) + "\n…", True
 
@@ -305,7 +305,7 @@ def _write_decision(
 
     If the DNR authority cannot be trusted (unreadable/malformed/unavailable, or
     this module cannot even be imported) the decision is `deferred`: the caller
-    must NOT persist the content — not in the row, not in retry state, not in
+    must NOT persist the content - not in the row, not in retry state, not in
     `last_error`, not in an audit payload. The foreground agent may still answer;
     it just answers WITHOUT remembering.
     """
@@ -361,12 +361,12 @@ def _dedupe_lines(text: str, seen: set[str]) -> str:
 #   POLICY A `scrub_secrets`        -> prompt-bound text (this hot path)
 #   POLICY B `mask_for_observability` -> logs/audit/admin/UI/errors
 # Measured 2026-08-05: the canonical PII+secret redactor costs ~80ms per call,
-# so it cannot run six times inside a 250ms assembly. It is NOT weakened — it
+# so it cannot run six times inside a 250ms assembly. It is NOT weakened - it
 # still runs on every observability destination; the prompt path (already
 # tenant-scoped and authorized) only needs secrets removed, because the lead's
 # phone/name IS the memory payload.
 def _redact(text: str) -> str:
-    """POLICY A — prompt-bound secret scrub. Never raises."""
+    """POLICY A - prompt-bound secret scrub. Never raises."""
     try:
         from app.platform.memory_governance import scrub_secrets
 
@@ -376,7 +376,7 @@ def _redact(text: str) -> str:
 
 
 def _mask(text: str) -> str:
-    """POLICY B — anything an operator/log/API can see. Never raises."""
+    """POLICY B - anything an operator/log/API can see. Never raises."""
     try:
         from app.platform.memory_governance import mask_for_observability
 
@@ -412,7 +412,7 @@ def _working_max_sessions() -> int:
 
 
 def _working_max_per_tenant() -> int:
-    """Per-tenant session cap — one noisy tenant cannot evict everyone else."""
+    """Per-tenant session cap - one noisy tenant cannot evict everyone else."""
     return _env_int("MEMORY_STACK_WORKING_MAX_PER_TENANT", 50, lo=1, hi=10_000)
 
 
@@ -442,7 +442,7 @@ def _sweep_working(now: float | None = None, *, tenant_id: str = "") -> int:
 def _enforce_caps(tenant_id: str = "") -> int:
     """Per-tenant cap + total hard capacity. Called AFTER a write, so the new
     entry itself counts against the cap (pre-write sweeping let the cap be
-    exceeded by one — caught by harness 2026-08-05)."""
+    exceeded by one - caught by harness 2026-08-05)."""
     evicted = 0
     if tenant_id:
         prefix = f"{str(tenant_id).strip()[:64]}::"
@@ -464,13 +464,13 @@ def _enforce_caps(tenant_id: str = "") -> int:
 
 
 def push_turn(tenant_id: str, session_id: str, role: str, content: str) -> bool:
-    """Ek turn hot cache me. Tenant mandatory — koi shared/global window nahi.
+    """Ek turn hot cache me. Tenant mandatory - koi shared/global window nahi.
 
     Do-not-remember rules are enforced HERE, at the write boundary, so
     suppressed content never reaches memory in the first place.
 
     L1 is process-local, TTL-bounded and NON-durable, so it is the one place
-    allowed to keep a turn while governance is unavailable — that is exactly
+    allowed to keep a turn while governance is unavailable - that is exactly
     "answer without remembering". The session is marked degraded and can never
     be promoted (nothing promotes L1 into a durable lane
     locked by a test).
@@ -497,7 +497,7 @@ def push_turn(tenant_id: str, session_id: str, role: str, content: str) -> bool:
         _WORKING.move_to_end(key)
         _WORKING_SEEN[key] = time.time()
         buf.append({"role": (role or "user")[:16], "content": _redact(text)[:2000]})
-        _enforce_caps(tenant_id)  # after the write — the new entry counts too
+        _enforce_caps(tenant_id)  # after the write - the new entry counts too
         return True
     except Exception:
         _STATS["error"] += 1
@@ -607,7 +607,7 @@ def schedule(
                 "ok": False,
                 "deferred": True,
                 "code": decision["code"],
-                "error": decision["reason"],  # reason only — never the content
+                "error": decision["reason"],  # reason only - never the content
             }
 
         when = due_at
@@ -641,7 +641,7 @@ async def _default_dispatch(row: dict[str, Any]) -> str:
 
     Review P0 (duplicate side effect): the task id is derived from
     tenant+row, so a worker that crashed after `assign()` but before the ack
-    re-derives the SAME id — the retry finds the existing task instead of
+    re-derives the SAME id - the retry finds the existing task instead of
     creating a second one. Guarantee: exactly one LOGICAL internal task per
     prospective row, no matter how many dispatch attempts happen.
     """
@@ -689,7 +689,7 @@ async def drain_due(
 
     fired = 0
     failed = 0
-    for row in rows:  # no session held here — dispatch is a network/DB call of its own
+    for row in rows:  # no session held here - dispatch is a network/DB call of its own
         try:
             fn = handler or _default_dispatch
             res = fn(row)
@@ -735,7 +735,7 @@ def _lane_prospective(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: 
     lines: list[str] = []
     used = 0
     for r in rows:
-        line = f"- {str(r.get('due_at') or '')[:16]} — {r.get('action', '')}"
+        line = f"- {str(r.get('due_at') or '')[:16]} - {r.get('action', '')}"
         t = count_tokens(line) + 1
         if used + t > mt:
             break
@@ -757,7 +757,7 @@ def _lane_procedural(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: i
 
 
 def _lane_shared(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: int) -> str:
-    """Cross-agent shared entries — workforce_memory ka ACL respect karta."""
+    """Cross-agent shared entries - workforce_memory ka ACL respect karta."""
     from app.platform import workforce_memory as wm
 
     rows = (
@@ -861,7 +861,7 @@ async def assemble(
         _STATS["disabled"] += 1
         return _empty("tenant_id required")  # no global fallback tenant, ever
 
-    # Import/warm cost is paid BEFORE the deadline clock starts — otherwise the
+    # Import/warm cost is paid BEFORE the deadline clock starts - otherwise the
     # first call after boot times out every lane (see _warm_sync docstring).
     await prewarm()
 
@@ -986,7 +986,7 @@ async def assemble(
 
 
 async def assemble_block(tenant_id: str, agent_id: str, query: str = "", **kw) -> str:
-    """Prompt-injection convenience — sirf string, kabhi raise nahi."""
+    """Prompt-injection convenience - sirf string, kabhi raise nahi."""
     try:
         return str((await assemble(tenant_id, agent_id, query, **kw)).get("block") or "")
     except Exception:
@@ -1001,15 +1001,15 @@ def stats() -> dict[str, int]:
 _BACKING = {
     "working": "memory_stack in-process FIFO (NON-authoritative, TTL+LRU)",
     "prospective": "prospective_store (Postgres: claim/lease/idempotency)",
-    "episodic": "voice_agent.agent_memory (Qdrant) — needs AGENT_MEMORY",
-    "semantic": "platform.workforce_memory L2/L3 — needs WORKFORCE_MEMORY",
+    "episodic": "voice_agent.agent_memory (Qdrant) - needs AGENT_MEMORY",
+    "semantic": "platform.workforce_memory L2/L3 - needs WORKFORCE_MEMORY",
     "procedural": "platform.skill_library",
-    "shared": "platform.workforce_memory shared/equip — needs WORKFORCE_MEMORY",
+    "shared": "platform.workforce_memory shared/equip - needs WORKFORCE_MEMORY",
 }
 
 
 def snapshot(tenant_id: str = "") -> dict[str, Any]:
-    """Ops view. Counts + config only — never memory CONTENT (no leak surface)."""
+    """Ops view. Counts + config only - never memory CONTENT (no leak surface)."""
     lanes: dict[str, Any] = {}
     for key, tier, share in LAYER_SPECS:
         lanes[key] = {

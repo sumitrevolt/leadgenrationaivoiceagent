@@ -1,6 +1,6 @@
-"""AI sales-closer — objection handling + push-to-close (inbound chat/WhatsApp/email).
+"""AI sales-closer - objection handling + push-to-close (inbound chat/WhatsApp/email).
 
-Prospect ka message → objection classify (price/trust/works/timing/info/ready) →
+Prospect ka message -> objection classify (price/trust/works/timing/info/ready) ->
 confident Hinglish reply + sahi CTA (demo / pricing / booking). Self-serve close ko
 push karta. free-LLM (template fallback). Ban-safe (replies
 auto-send channel pe).
@@ -16,26 +16,26 @@ logger = setup_logger(__name__)
 
 BASE = "https://leadsgenai.in"
 
-# Objection → ready rebuttal (template) + CTA
+# Objection -> ready rebuttal (template) + CTA
 REBUTTALS: dict[str, dict[str, str]] = {
     "price": {
-        "reply": "Samajh sakta hoon. Socho — ek missed inquiry ka nuksan ₹15-20K ho sakta. ₹1,999/mo us se kam hai, aur pehle 10 leads FREE. Risk zero.",
+        "reply": "Samajh sakta hoon. Socho - ek missed inquiry ka nuksan ₹15-20K ho sakta. ₹1,999/mo us se kam hai, aur pehle 10 leads FREE. Risk zero.",
         "cta": "/pricing",
     },
     "trust": {
-        "reply": "Bilkul valid. Isliye 2-min ki live demo hai — khud AI agent se baat karke dekho, phir decide karo. Cancel anytime, koi lock-in nahi.",
+        "reply": "Bilkul valid. Isliye 2-min ki live demo hai - khud AI agent se baat karke dekho, phir decide karo. Cancel anytime, koi lock-in nahi.",
         "cta": "/app/test-call",
     },
     "works": {
-        "reply": "Kaam karta hai — AI har inquiry ko 2 min me call karke qualify karta hai. 2-min demo suno, aapko khud feel aayega.",
+        "reply": "Kaam karta hai - AI har inquiry ko 2 min me call karke qualify karta hai. 2-min demo suno, aapko khud feel aayega.",
         "cta": "/app/test-call",
     },
     "timing": {
-        "reply": "Koi jaldi nahi. Par jab tak wait karenge, leads nikalte rahenge. Free audit le lo abhi — pata chalega kahan paisa ja raha.",
+        "reply": "Koi jaldi nahi. Par jab tak wait karenge, leads nikalte rahenge. Free audit le lo abhi - pata chalega kahan paisa ja raha.",
         "cta": "/audit",
     },
     "info": {
-        "reply": "Zaroor! Hum AI se aapki marketing + Google ranking + inquiry-calling sambhalte hain. Sabse aasaan — 2-min demo dekho:",
+        "reply": "Zaroor! Hum AI se aapki marketing + Google ranking + inquiry-calling sambhalte hain. Sabse aasaan - 2-min demo dekho:",
         "cta": "/app/test-call",
     },
     "ready": {
@@ -49,10 +49,10 @@ _CATS = list(REBUTTALS.keys())
 async def handle_message(
     message: str, business_name: str = "", niche: str = "general", phone: str = ""
 ) -> dict[str, Any]:
-    """Prospect message → objection-aware sales reply + CTA. Kabhi raise nahi.
+    """Prospect message -> objection-aware sales reply + CTA. Kabhi raise nahi.
 
     `phone` (optional) ho to memory_vault se prospect history LLM context me
-    jaati (Rowboat-style compounding memory) — memory na ho = aaj jaisa."""
+    jaati (Rowboat-style compounding memory) - memory na ho = aaj jaisa."""
     msg = (message or "").strip()
     if not msg:
         return {"ok": False, "reason": "empty"}

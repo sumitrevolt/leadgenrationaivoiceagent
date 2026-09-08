@@ -44,7 +44,7 @@ class HubSpotIntegration:
     """
 
     def __init__(self, api_key: str | None = None):
-        # Per-client token override (client apna HubSpot private-app token de) —
+        # Per-client token override (client apna HubSpot private-app token de) -
         # default = global settings (backward-compatible).
         self.api_key = (api_key or settings.hubspot_api_key or "").strip()
         self.base_url = "https://api.hubapi.com"
@@ -430,7 +430,7 @@ class HubSpotIntegration:
 
 class ZohoCRMIntegration:
     """
-    Zoho CRM Integration — delegates to the real implementation in
+    Zoho CRM Integration - delegates to the real implementation in
     app.integrations.zoho_crm.ZohoCRM (which uses proper OAuth + upsert).
     Kept for backward-compat imports
     real usage via crm_sync.push_lead().
@@ -485,7 +485,7 @@ class ZohoCRMIntegration:
             return False
         try:
             note = call_data.get("summary") or call_data.get("notes") or str(call_data)[:500]
-            await self._zoho.add_note(lead_id, "LeadGen AI — Call Log", note)
+            await self._zoho.add_note(lead_id, "LeadGen AI - Call Log", note)
             return True
         except Exception as e:
             logger.warning(f"Zoho log_call failed: {e}")

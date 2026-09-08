@@ -2,7 +2,7 @@
 
 WHY THIS SUITE EXISTS: an owner review caught a report claiming 21 families with
 tier buckets summing to 22, and 14 blockers against a list of 16. The *manifest*
-was correct both times — the prose summary was not. Numbers that are re-typed by
+was correct both times - the prose summary was not. Numbers that are re-typed by
 hand drift from the collection they describe.
 
 Every count below is derived from `STORES` and asserted against an independent
@@ -92,7 +92,7 @@ def test_rebuildable_cache_may_sit_in_checkout_without_blocking() -> None:
 
 
 def test_documented_safe_loss_does_not_block() -> None:
-    """A resumable tick marker is safe to lose — but must SAY why."""
+    """A resumable tick marker is safe to lose - but must SAY why."""
     tick = next(s for s in m.STORES if s["store_id"] == "automation.autopilot_tick")
     assert tick["deployment_blocker"] is False
     assert tick.get("blocker_reason"), "a non-blocking mutable store must justify itself"

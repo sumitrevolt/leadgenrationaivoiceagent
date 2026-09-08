@@ -1,4 +1,4 @@
-# Squad Lead — Compliance & DND Scrub (Squad 3)
+# Squad Lead - Compliance & DND Scrub (Squad 3)
 # Responsibility: TRAI/DPDP compliance, DND lookup, consent ledger
 # Autopilot: Auto-scrub on lead add, daily compliance report, gate monitoring
 

@@ -1,10 +1,10 @@
 """Tests: audit auto-callback greeting wizard opening_line use karta hai.
 
-- _wizard_opening_for(rec) — inquiry business_type/niche se wizard preview resolve.
+- _wizard_opening_for(rec) - inquiry business_type/niche se wizard preview resolve.
 - _answer_stream_qs + start_stream_call opening_line ko pending + qs tak pahunchate hain.
 - _auto_callback opening_line ko start_stream_call ko pass karta hai.
 - VobizStreamSession(opening_line=...) greeting me override set karta hai (aur
-  compliance wrap — AI disclosure + permission ask — abhi bhi active rehta hai).
+  compliance wrap - AI disclosure + permission ask - abhi bhi active rehta hai).
 """
 
 from __future__ import annotations
@@ -157,7 +157,7 @@ def test_resolve_wizard_opening_scalar_api():
     assert "Sharma Salon" in hooks.resolve_wizard_opening(
         niche="salon_spa", business_name="Sharma Salon"
     )
-    # business_name zaroori hai; unknown niche/type → ""
+    # business_name zaroori hai; unknown niche/type -> ""
     assert hooks.resolve_wizard_opening(niche="salon_spa", business_name="") == ""
     assert hooks.resolve_wizard_opening(niche="nope", business_name="X") == ""
     assert hooks.resolve_wizard_opening(business_type="Kuch Bhi", business_name="X") == ""
@@ -188,7 +188,7 @@ async def test_missed_call_passes_wizard_opening(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_missed_call_falls_back_empty_opening(monkeypatch):
-    """Bina wizard-context missed call → opening_line "" (niche-script chain intact)."""
+    """Bina wizard-context missed call -> opening_line "" (niche-script chain intact)."""
     import app.telephony.missed_call as mc
 
     seen: dict = {}
@@ -207,7 +207,7 @@ async def test_missed_call_falls_back_empty_opening(monkeypatch):
 
 
 def test_start_stream_call_dry_run_skips_dial(monkeypatch):
-    """dry_run=True → pending + answer_url poora banta hai, par place_call kabhi nahi."""
+    """dry_run=True -> pending + answer_url poora banta hai, par place_call kabhi nahi."""
     import app.api.telephony_vobiz as tv
 
     pending: dict = {}
@@ -278,7 +278,7 @@ def test_auto_callback_dry_run_skips_business_ledgers(monkeypatch):
     )
     assert not touches and not ledger
 
-    # default (dry_run=False) → real side-effects waapas
+    # default (dry_run=False) -> real side-effects waapas
     asyncio.run(
         ps._auto_callback(
             "9876543210", "salon_spa", "Sharma Salon", client_id="c1", opening_line="W"
@@ -289,7 +289,7 @@ def test_auto_callback_dry_run_skips_business_ledgers(monkeypatch):
 
 
 def test_run_after_inquiry_threads_dry_run(monkeypatch):
-    """run_after_inquiry(dry_run=True) → _auto_callback(dry_run=True)."""
+    """run_after_inquiry(dry_run=True) -> _auto_callback(dry_run=True)."""
     import app.platform.inquiry_hooks as hooks
 
     seen: dict = {}

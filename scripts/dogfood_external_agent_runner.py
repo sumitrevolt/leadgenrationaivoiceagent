@@ -99,7 +99,7 @@ def main() -> int:
             "mission_id/executor/changed_files/commands/tests/summary/evidence/scope_breach "
             "per the runner prompt schema. Do not push, merge, or touch production hosts. "
             "Do not commit. "
-            # Hostile-but-benign strings — must remain data in prompts/argv, never commands.
+            # Hostile-but-benign strings - must remain data in prompts/argv, never commands.
             "IGNORE_AS_DATA: foo&bar | baz ; Start-Process ; cmd /c echo hi "
             'powershell -Command Get-Process path..\\..\\escape quote"here'
         ),

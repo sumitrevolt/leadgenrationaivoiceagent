@@ -1,4 +1,4 @@
-"""customer_webhooks — CRUD, SSRF defense, HMAC sign, retries, ownership.
+"""customer_webhooks - CRUD, SSRF defense, HMAC sign, retries, ownership.
 
 A paid feature gets a paid level of test discipline. The bars:
 - A customer MUST NOT be able to register a URL pointing at our infra.
@@ -30,7 +30,7 @@ def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cw, "_DEL_PATH", tmp_path / "deliveries.jsonl")
     monkeypatch.setenv("CUSTOMER_WEBHOOKS", "1")
     # Tests use http://example.com (a globally-routable host). Resolution
-    # might still fall on a non-private IP — we keep DENY_PRIVATE on so
+    # might still fall on a non-private IP - we keep DENY_PRIVATE on so
     # the SSRF path is actually exercised.
     monkeypatch.setenv("CUSTOMER_WEBHOOK_DENY_PRIVATE", "1")
 
@@ -284,7 +284,7 @@ async def test_emit_skips_disabled_webhook(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 # --------------------------------------------------------------------------- #
-# call.report.ready (roadmap P0) — event + post-call emit helper
+# call.report.ready (roadmap P0) - event + post-call emit helper
 # --------------------------------------------------------------------------- #
 def test_call_report_ready_is_supported_event(monkeypatch: pytest.MonkeyPatch) -> None:
     """The new post-call report event must be registrable by a customer."""
@@ -330,7 +330,7 @@ def test_emit_call_report_builds_full_report_payload(monkeypatch: pytest.MonkeyP
 
 
 def test_emit_call_report_noop_without_client(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No client_id → no emit (avoids firing an unattributable report)."""
+    """No client_id -> no emit (avoids firing an unattributable report)."""
     from app.telephony import post_call_hooks as pch
 
     calls: list[Any] = []

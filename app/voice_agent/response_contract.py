@@ -2,7 +2,7 @@
 
 Model may emit JSON
 we always return a safe spoken Hinglish line.
-Server decides hangup / tools — model only suggests.
+Server decides hangup / tools - model only suggests.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def _strip_markdown(text: str) -> str:
 
 
 def _one_question(text: str) -> str:
-    """Keep at most one '?'. Extra questions → first sentence only."""
+    """Keep at most one '?'. Extra questions -> first sentence only."""
     t = (text or "").strip()
     if t.count("?") <= 1:
         return t

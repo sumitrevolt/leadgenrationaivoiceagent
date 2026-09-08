@@ -13,7 +13,7 @@ from app.models.base import Base
 
 
 def _enum_values(enum_cls):
-    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    """values_callable so the DB stores .value not .name - VARCHAR-backed
     (native_enum=False), matching app/models/payment.py (production audit
     2026-07-01, F-DB4)."""
     return [member.value for member in enum_cls]

@@ -1,22 +1,22 @@
 """
-free_ai.py — Free multi-provider AI layer (STT + LLM) for the phone voice agent.
+free_ai.py - Free multi-provider AI layer (STT + LLM) for the phone voice agent.
 ================================================================================
 
 WHY THIS EXISTS
 ---------------
 Gemini free-tier quota (STT + LLM ek hi key par) din-bhar ke calls/tests me khatam
-ho jaati hai → agent "samajhta/bolta nahi". Yeh module Gemini ke aage (STT) aur
+ho jaati hai -> agent "samajhta/bolta nahi". Yeh module Gemini ke aage (STT) aur
 peeche (LLM) FREE, OpenAI-compatible providers ka chain lagata hai taaki quota
 khatam hone par bhi agent sunta + bolta rahe:
 
-  STT chain (vobiz_stream._stt me): Groq whisper-large-v3 → Gemini audio → local faster-whisper
-  LLM chain (yahan chat() me):      Groq gpt-oss-20b → Cerebras gpt-oss-120b → Mistral/OpenRouter fallbacks
+  STT chain (vobiz_stream._stt me): Groq whisper-large-v3 -> Gemini audio -> local faster-whisper
+  LLM chain (yahan chat() me):      Groq gpt-oss-20b -> Cerebras gpt-oss-120b -> Mistral/OpenRouter fallbacks
 
-Groq, Cerebras, OpenRouter — teeno OpenAI-compatible hain (sirf base_url + api_key
+Groq, Cerebras, OpenRouter - teeno OpenAI-compatible hain (sirf base_url + api_key
 badalta hai, wahi `openai` SDK seedha chalta hai). Keys env se:
 GROQ_API_KEY / CEREBRAS_API_KEY / OPENROUTER_API_KEY.
 
-SAB OPTIONAL — koi key na ho to woh provider chup-chaap skip ho jaata hai. Yeh
+SAB OPTIONAL - koi key na ho to woh provider chup-chaap skip ho jaata hai. Yeh
 module import-safe hai aur KABHI raise nahi karta: zero keys par bhi app boot karti
 hai, transcribe_audio()/chat() bas ("","") return karte hain (caller agle link par
 fall back kar leta hai).
@@ -33,7 +33,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# LLM observability (G1) — optional OTel/Langfuse trace per call. Hot path ko
+# LLM observability (G1) - optional OTel/Langfuse trace per call. Hot path ko
 # KABHI nahi todta agar module/deps absent ho (graceful no-op fallback).
 try:
     from app.observability_llm import llm_span as _llm_span
@@ -115,21 +115,21 @@ async def _vertex_bearer_token() -> str:
         return ""
 
 
-# Provider endpoints — sab OpenAI-compatible /v1.
+# Provider endpoints - sab OpenAI-compatible /v1.
 # COMPLETELY FREE providers only (no credit card, no paid credits required).
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _CEREBRAS_BASE = "https://api.cerebras.ai/v1"
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _XAI_BASE = "https://api.x.ai/v1"  # credits-based, kept for config compat only
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
-_SAMBANOVA_BASE = "https://api.sambanova.ai/v1"  # 100% free, no card — cloud.sambanova.ai
-_MISTRAL_BASE = "https://api.mistral.ai/v1"  # free tier La Plateforme — console.mistral.ai
-# NVIDIA NIM — OpenAI-compatible (/v1). FREE tier = 40 RPM (upgradable ~200) + METERED
+_SAMBANOVA_BASE = "https://api.sambanova.ai/v1"  # 100% free, no card - cloud.sambanova.ai
+_MISTRAL_BASE = "https://api.mistral.ai/v1"  # free tier La Plateforme - console.mistral.ai
+# NVIDIA NIM - OpenAI-compatible (/v1). FREE tier = 40 RPM (upgradable ~200) + METERED
 # inference credits (~1k-5k lifetime, NOT free-unlimited like Groq/Cerebras). Deep-tail
-# fallback only — fires when proven primaries are all circuit-broken; conserves credits.
+# fallback only - fires when proven primaries are all circuit-broken; conserves credits.
 _NVIDIA_BASE = "https://integrate.api.nvidia.com/v1"  # build.nvidia.com
 
-# Models — all free tier.
+# Models - all free tier.
 # STT accuracy-first for Hinglish: web test-calls showed `-turbo` garbling short
 # code-switched utterances ("I'm interested" -> "वो इंट तर सेलू"), which broke the
 # brain's question-detection. `whisper-large-v3` (non-turbo) is more accurate on
@@ -142,12 +142,12 @@ _CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # free, fastest 120B
 # Env override keeps emergency pin until shutdown day if needed.
 _GROQ_LLM_MODEL = _os.environ.get("GROQ_LLM_MODEL", "").strip() or "openai/gpt-oss-20b"
 _GEMINI_LLM_MODEL = (
-    "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
+    "gemini-2.5-flash"  # paid tier - key set, 2.5-flash works (2.0-flash-lite free_tier=0)
 )
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
-_NVIDIA_LLM_MODEL = "meta/llama-3.3-70b-instruct"  # NVIDIA NIM free — quality fallback (env override: NVIDIA_LLM_MODEL)
-# 2026 EXTRA low-priority free models — sirf tab hit hote hain jab proven primaries
+_NVIDIA_LLM_MODEL = "meta/llama-3.3-70b-instruct"  # NVIDIA NIM free - quality fallback (env override: NVIDIA_LLM_MODEL)
+# 2026 EXTRA low-priority free models - sirf tab hit hote hain jab proven primaries
 # (mistral/groq-head/cerebras) exhaust ho jaayein. Dead ids REMOVED (research 2026-08-01):
 # qwen/qwen3-32b shut 2026-07-17; moonshotai/kimi-k2-instruct shut 2025-10-10.
 _GROQ_QWEN3_MODEL = (
@@ -157,21 +157,21 @@ _GROQ_LLAMA70B_MODEL = (
     _os.environ.get("GROQ_LLAMA70B_MODEL", "").strip() or "openai/gpt-oss-120b"
 )  # name kept for callers
 id is gpt-oss-120b (not Llama)
-# OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404;
+# OpenRouter free models - cascade (deepseek/deepseek-chat:free deprecated 2026-06 -> 404;
 # 2026-07-05: llama-3.1-8b-instruct:free / deepseek-r1:free / gemma-2-9b-it:free ALL
-# deprecated too → 404 on every openrouter_1..4 account, live-verified via
+# deprecated too -> 404 on every openrouter_1..4 account, live-verified via
 # openrouter.ai/api/v1/models $0-pricing listing. Swapped to currently-live free ids.)
 _OPENROUTER_LLM_MODEL = "meta-llama/llama-3.3-70b-instruct:free"  # primary (llama 70B free)
 _OPENROUTER_LLM_MODEL2 = "openai/gpt-oss-20b:free"  # gpt-oss 20B free
 _OPENROUTER_LLM_MODEL3 = "google/gemma-4-31b-it:free"  # gemma-4 fallback (gemma-2 line retired)
-_XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key compat
+_XAI_LLM_MODEL = "grok-3-mini"  # credits-based - NOT in chain, kept for key compat
 
 
 # --------------------------------------------------------------------------- #
-# SELF-HOSTED LLM (OWN STACK — kisi free/paid tier pe NIRBHAR nahi). Ollama
-# OpenAI-compatible (/v1). OLLAMA_URL set hote hi provider ACTIVE — UNLIMITED,
+# SELF-HOSTED LLM (OWN STACK - kisi free/paid tier pe NIRBHAR nahi). Ollama
+# OpenAI-compatible (/v1). OLLAMA_URL set hote hi provider ACTIVE - UNLIMITED,
 # no quota, no 429, no per-call cost (sirf apna compute). Free providers exhaust
-# (groq TPD, gemini quota) hone par bhi yeh KABHI down nahi — true independence.
+# (groq TPD, gemini quota) hone par bhi yeh KABHI down nahi - true independence.
 # CPU inference slow hai isliye apna lamba timeout. Default model Hinglish-strong.
 # OLLAMA_PRIMARY=1 -> chain me sabse pehle (pure self-reliance); warna reliable
 # fallback (fast cloud pehle, own-LLM guaranteed catch).
@@ -216,7 +216,7 @@ _CALL_TIMEOUT_S = 8.0
 
 # STREAMING token-loop deadlines (chat_stream). The OLD code wrapped only stream
 # CREATION in a timeout; the `async for chunk in stream` token loop was UNBOUNDED,
-# so a free provider that stalls mid-stream (TCP open, no more bytes — common under
+# so a free provider that stalls mid-stream (TCP open, no more bytes - common under
 # throttle) hung the generator FOREVER. On the live phone path that froze the call's
 # `_thinking` flag => agent went permanently deaf after ~1 turn (root cause, 2026-06-22).
 # Now every token wait is bounded: a generous FIRST-token deadline (the thinking
@@ -233,18 +233,18 @@ _STREAM_FIRST_TOKEN_S = _stream_num("LLM_STREAM_FIRST_TOKEN_S", 5.0)  # wait for
 _STREAM_IDLE_S = _stream_num("LLM_STREAM_IDLE_S", 3.0)  # max gap between deltas once flowing
 _STREAM_TOTAL_S = _stream_num("LLM_STREAM_TOTAL_S", 12.0)  # overall wall budget per provider
 # 2026-08-23 realtime RACE budgets (top-2 providers simultaneous; tighter than the
-# sequential ladder because a loser costs nothing — winner's clock is what matters).
+# sequential ladder because a loser costs nothing - winner's clock is what matters).
 _RACE_CREATE_S = _stream_num("LLM_RACE_CREATE_S", 3.5)  # race: create() handshake deadline
 _RACE_FIRST_TOKEN_S = _stream_num("LLM_RACE_FIRST_TOKEN_S", 2.5)  # race: 1st delta deadline
 
 
 def _realtime_race_enabled(profile: str) -> bool:
     """Owner directive 2026-08-23 ("enterprise grade chat, 1s bhi dead-air nahi"):
-    realtime turns apne top-2 providers ko SIMULTANEOUSLY race karte hain — jo
+    realtime turns apne top-2 providers ko SIMULTANEOUSLY race karte hain - jo
     pehla content token de wahi jeeta
     loser cancel. Slow/429-ing primary ab turn
     ko block nahi karta (pehle sequential ladder me ek stalled primary poora
-    _CALL_TIMEOUT_S=8s kha sakta tha — live call me llm_first 6.8s naapa gaya).
+    _CALL_TIMEOUT_S=8s kha sakta tha - live call me llm_first 6.8s naapa gaya).
     Sirf realtime/voice profile
     bulk untouched. Kill-switch: LLM_REALTIME_RACE=0."""
     if profile != "realtime":
@@ -259,11 +259,11 @@ def _realtime_race_enabled(profile: str) -> bool:
 
 # Circuit-breaker: jab koi provider 429/rate-limit de, use skip karo (har call pe
 # wasted retry-latency na ho). Auto-reopen. UPGRADE (patches 6e7af062/c01b6766):
-# flat 60s kaafi nahi tha — daily-quota (Groq TPD) exhaust hone pe provider poore din
+# flat 60s kaafi nahi tha - daily-quota (Groq TPD) exhaust hone pe provider poore din
 # har 60s pe retry karke fail hota raha (ok-rate 0.4-0.48 tank). Ab ESCALATING backoff:
-# consecutive trips pe 60s → 2min → 4min ... cap 30min; "per day/TPD/daily" wording
+# consecutive trips pe 60s -> 2min -> 4min ... cap 30min; "per day/TPD/daily" wording
 # dikhe to seedha 30min (din-bhar ke liye repeated useless retries band). Success pe
-# streak reset — provider wapas aate hi normal 60s sensitivity.
+# streak reset - provider wapas aate hi normal 60s sensitivity.
 _LLM_COOLDOWN_UNTIL: dict[str, float] = {}
 _LLM_COOLDOWN_S = 60.0
 _LLM_COOLDOWN_MAX_S = 1800.0
@@ -278,7 +278,7 @@ def _err_str(e: BaseException | str) -> str:
     """str(exception) ko never-empty banao (dashboard/breaker dono ke liye).
 
     httpx/openai-sdk kabhi bare ConnectTimeout/ConnectError raise karte jinka
-    str() khaali hota hai ("") — isse llm_metrics dashboard pe blank error
+    str() khaali hota hai ("") - isse llm_metrics dashboard pe blank error
     dikhta (2026-07-05 live: nvidia 0% ok, blank last_error) AND _trip_cooldown
     ka koi keyword-branch match nahi karta (neither 429 na 403/404) => provider
     KABHI cooldown nahi hota, har single chat() call pe dobara retry hota rehta
@@ -294,10 +294,10 @@ def _err_str(e: BaseException | str) -> str:
 def _trip_cooldown(p: str, err: str) -> None:
     e = (err or "").lower()
     # 403 = no credits/permission · 404 = model not found/deprecated (OpenRouter :free
-    # variants rotate → 404) · 402/out-of-credits = metered-credit exhaustion (NVIDIA NIM
-    # free tier ~5k lifetime credits — once spent, returns persistent error, NOT a
-    # transient 429). DONO ko LONG cooldown (max, ~restart tak) do — warna dead endpoint
-    # har chat() fallback pe dobara retry hota hai (LIVE: openrouter :free 404 → 52% LLM
+    # variants rotate -> 404) · 402/out-of-credits = metered-credit exhaustion (NVIDIA NIM
+    # free tier ~5k lifetime credits - once spent, returns persistent error, NOT a
+    # transient 429). DONO ko LONG cooldown (max, ~restart tak) do - warna dead endpoint
+    # har chat() fallback pe dobara retry hota hai (LIVE: openrouter :free 404 -> 52% LLM
     # fallback waste). Provider-agnostic dead-model/dead-credit sideline.
     if any(
         k in e
@@ -323,7 +323,7 @@ def _trip_cooldown(p: str, err: str) -> None:
     is_rate_limit = any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust"))
     # CATCH-ALL (added 2026-07-05): connection errors ("Connection error.", DNS/refused,
     # self-hosted Ollama down), timeouts, and blank/unrecognized exception strings (see
-    # _err_str) matched NEITHER branch above → this function returned silently, so a
+    # _err_str) matched NEITHER branch above -> this function returned silently, so a
     # genuinely-broken provider (ollama connection-error, nvidia blank-error) got ZERO
     # cooldown and was retried on every single chat() call forever (live: ollama 26% ok,
     # nvidia 0% ok, both with no backoff). Any non-empty error now trips at least the
@@ -341,11 +341,11 @@ def _trip_cooldown(p: str, err: str) -> None:
 
 
 def _reset_cooldown_streak(p: str) -> None:
-    """Provider ne kaam kiya — backoff streak reset (60s base pe wapas)."""
+    """Provider ne kaam kiya - backoff streak reset (60s base pe wapas)."""
     _LLM_TRIP_STREAK.pop(p, None)
 
 
-# OpenRouter multi-key rotation — 4 accounts, har ek alag circuit-breaker
+# OpenRouter multi-key rotation - 4 accounts, har ek alag circuit-breaker
 # Keys: OPENROUTER_API_KEY (primary) + OPENROUTER_API_KEY_2/3/4 (rotation)
 def _or_keys() -> list[str]:
     """Return all non-empty OpenRouter keys in order."""
@@ -377,21 +377,21 @@ _PROVIDER_CFG: dict[str, tuple[str, str]] = {
     "openrouter_4": ("openrouter_api_key_4", _OPENROUTER_BASE),
     "xai": ("xai_api_key", _XAI_BASE),  # credits-based, chain me nahi
     "gemini": ("gemini_api_key", _GEMINI_BASE),
-    "sambanova": ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
-    "mistral": ("mistral_api_key", _MISTRAL_BASE),  # free tier — console.mistral.ai
+    "sambanova": ("sambanova_api_key", _SAMBANOVA_BASE),  # free - cloud.sambanova.ai
+    "mistral": ("mistral_api_key", _MISTRAL_BASE),  # free tier - console.mistral.ai
     "nvidia": (
         "nvidia_api_key",
         _NVIDIA_BASE,
-    ),  # NVIDIA NIM free-tier fallback — integrate.api.nvidia.com
+    ),  # NVIDIA NIM free-tier fallback - integrate.api.nvidia.com
 }
 
 
 def _key(attr: str) -> str:
     """settings.<attr> ka stripped value (gracefully empty agar settings tooti ho).
 
-    CRED_POOLS=1 pe multi-key round-robin (cred_pool) — load <attr>_2.._5 env keys
+    CRED_POOLS=1 pe multi-key round-robin (cred_pool) - load <attr>_2.._5 env keys
     par spread hota (higher aggregate free rate-limit). Default OFF = base value
-    unchanged. Never-raise (pool error → base key).
+    unchanged. Never-raise (pool error -> base key).
     """
     try:
         from app.config import settings
@@ -432,12 +432,12 @@ _CLIENTS: dict[str, Any | None] = {}
 
 
 def _client(provider: str) -> Any | None:
-    """Lazy AsyncOpenAI client for a provider — None agar SDK missing ya key absent.
+    """Lazy AsyncOpenAI client for a provider - None agar SDK missing ya key absent.
     Result cache hota hai (None bhi), taaki bar-bar build na ho."""
     if not _OPENAI_OK:
         return None
     if provider == "gemini_vertex":
-        # Dynamic token — cache nahi karte (token expire hota hai).
+        # Dynamic token - cache nahi karte (token expire hota hai).
         # Caller `chat_provider` / `_chat_one` is token ko fresh call pe inject karta.
         # Yahan None return karo; special path `_vertex_chat_one` se handle hoga.
         return None
@@ -448,7 +448,7 @@ def _client(provider: str) -> Any | None:
         client = None
         if url:
             try:
-                # Ollama api_key ignore karta — dummy. CPU inference slow -> lamba timeout.
+                # Ollama api_key ignore karta - dummy. CPU inference slow -> lamba timeout.
                 client = AsyncOpenAI(api_key="ollama", base_url=url, timeout=_ollama_timeout())
             except Exception as e:  # pragma: no cover
                 logger.warning(f"[free_ai] ollama client init failed: {e}")
@@ -469,7 +469,7 @@ def _client(provider: str) -> Any | None:
 
 
 # --------------------------------------------------------------------------- #
-# STT — Groq whisper-large-v3 (free, OpenAI-compatible audio.transcriptions)
+# STT - Groq whisper-large-v3 (free, OpenAI-compatible audio.transcriptions)
 # --------------------------------------------------------------------------- #
 async def transcribe_audio(
     wav_bytes: bytes,
@@ -482,8 +482,8 @@ async def transcribe_audio(
 
     Default WAV (phone paths unchanged)
     web-call webm/ogg bhi bhej sakta hai
-    (`filename`/`mime` se format batao — Groq extension se pehchanta hai).
-    `prompt` (D-11, optional): niche/brand bias string — Whisper isse domain
+    (`filename`/`mime` se format batao - Groq extension se pehchanta hai).
+    `prompt` (D-11, optional): niche/brand bias string - Whisper isse domain
     entities + Hinglish register ki taraf bias hota hai (default "" = unchanged).
     Returns (text, "groq") on success, ya ("","") on any failure/absence.
     (Gemini audio-in + local faster-whisper caller ke agle links hain.)
@@ -513,9 +513,9 @@ async def transcribe_audio(
 
 
 # --------------------------------------------------------------------------- #
-# LLM — chain: Cerebras → Groq → OpenRouter (pehla non-empty reply jeet jaata)
+# LLM - chain: Cerebras -> Groq -> OpenRouter (pehla non-empty reply jeet jaata)
 # --------------------------------------------------------------------------- #
-# --- LLM response cache (R11#4) — gated LLM_CACHE=1 (default OFF = zero change).
+# --- LLM response cache (R11#4) - gated LLM_CACHE=1 (default OFF = zero change).
 # Identical (system+messages+params) -> reuse reply, API calls bachao. In-memory
 # TTL cache, never-raise. Default off taaki dynamic/varied replies pe asar na ho.
 import hashlib as _hashlib
@@ -528,10 +528,10 @@ _LLM_CACHE_MAX = 500
 
 def _llm_cache_on(prof: str = "") -> bool:
     """W1.10: bulk/content profile DEFAULT-ON (identical content/blog/SEO prompts cache
-    → duplicate free-provider API calls + 429 bacho)
+    -> duplicate free-provider API calls + 429 bacho)
     realtime/voice OFF (dynamic replies
     pe asar na ho). Global `LLM_CACHE` env override: =1 force-on (saare profiles), =0
-    force-off (sab). Unset → profile-based default."""
+    force-off (sab). Unset -> profile-based default."""
     env = _os.environ.get("LLM_CACHE", "").strip().lower()
     if env in ("1", "true", "yes", "on"):
         return True
@@ -565,8 +565,8 @@ def _llm_cache_get(key: str):
 
 
 def _llm_cache_evict() -> None:
-    """W1.11: bound pe poora `.clear()` (saara cache nuke, hit-rate→0) ki jagah
-    TTL+LRU-ish — pehle expired entries drop
+    """W1.11: bound pe poora `.clear()` (saara cache nuke, hit-rate->0) ki jagah
+    TTL+LRU-ish - pehle expired entries drop
     phir bhi full ho to oldest-by-timestamp
     ~20% nikalo. Hot entries survive. Never-raise (caller guarded bhi hai)."""
     now = time.time()
@@ -604,7 +604,7 @@ def _resolve_llm_profile(profile: str | None, max_tokens: int) -> str:
 
 
 def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
-    """Provider order — realtime favours latency; bulk favours Cerebras throughput."""
+    """Provider order - realtime favours latency; bulk favours Cerebras throughput."""
     import os as _os
 
     gemini_model = (_os.getenv("GEMINI_LLM_MODEL", "") or "").strip() or _GEMINI_LLM_MODEL
@@ -629,7 +629,7 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
             or _GEMINI_LLM_MODEL
         )
 
-    # NVIDIA NIM (free tier: 40 RPM + metered credits) — deep-tail FALLBACK by default.
+    # NVIDIA NIM (free tier: 40 RPM + metered credits) - deep-tail FALLBACK by default.
     # Model env-overridable; NVIDIA_PRIMARY=1 promotes it to the chain HEAD (NOT
     # recommended: latency + 40 RPM + finite credits make it unfit for the hot path).
     nvidia_model = _os.getenv("NVIDIA_LLM_MODEL", _NVIDIA_LLM_MODEL)
@@ -644,8 +644,8 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         ]
     else:
         # realtime = latency-first: Groq fastest free inference, Cerebras ~instant,
-        # Mistral = reliable but p50 latency higher → bulk primary, not realtime.
-        # (audit §10 [LOW] 2026-07-06: old order was mistral→groq→cerebras)
+        # Mistral = reliable but p50 latency higher -> bulk primary, not realtime.
+        # (audit §10 [LOW] 2026-07-06: old order was mistral->groq->cerebras)
         core = [
             ("groq", _GROQ_LLM_MODEL),
             ("cerebras", _CEREBRAS_LLM_MODEL),
@@ -654,10 +654,10 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     chain: list[tuple[str, str]] = []
 
     if gemini_primary:
-        # Vertex AI (subscription/Cloud) pehle — API key se zyada stable quota
+        # Vertex AI (subscription/Cloud) pehle - API key se zyada stable quota
         if _vertex_available():
             chain.append(("gemini_vertex", gemini_model))
-        # API-key Gemini bhi — agar key available ho (fallback ya standalone)
+        # API-key Gemini bhi - agar key available ho (fallback ya standalone)
         chain.append(("gemini", gemini_model))
 
     if _ollama_primary():
@@ -665,11 +665,11 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     chain += core
     if not _ollama_primary():
         chain.append(_ollama_entry)
-    # 2026 EXTRA free models — proven primaries (mistral/groq-head/cerebras) ke BAAD,
+    # 2026 EXTRA free models - proven primaries (mistral/groq-head/cerebras) ke BAAD,
     # weaker gemini/openrouter-:free tail se PEHLE. Yeh tab kaam aate jab primary model
     # 429/TPD/decommission ho par provider zinda ho (Groq-TPD ke baad bhi Groq dusre
-    # model serve kar sakta). Pure additive low-priority entries — koi flag nahi.
-    # Kimi K2 + qwen3-32b removed (already decommissioned on Groq — research 2026-08-01).
+    # model serve kar sakta). Pure additive low-priority entries - koi flag nahi.
+    # Kimi K2 + qwen3-32b removed (already decommissioned on Groq - research 2026-08-01).
     chain += [
         ("groq", _GROQ_LLAMA70B_MODEL),
         ("groq", _GROQ_QWEN3_MODEL),
@@ -677,7 +677,7 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
 
     if not gemini_primary:
         # BUGFIX (2026-07-05): yahan hardcoded _GEMINI_LLM_MODEL (paid 2.5-flash) tha
-        # jo GEMINI_LLM_MODEL/DEFAULT_LLM override ko IGNORE karta — free keys pe paid
+        # jo GEMINI_LLM_MODEL/DEFAULT_LLM override ko IGNORE karta - free keys pe paid
         # model = 429/quota burn. Ab wahi overridable `gemini_model` (line ~544) use karo
         # jo gemini_primary path bhi use karta.
         chain.append(("gemini", gemini_model))
@@ -696,7 +696,7 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         ("openrouter", _OPENROUTER_LLM_MODEL3),
     ]
     if nvidia_primary:
-        # Explicit opt-in only — put NVIDIA first (tail entry stays as harmless fallback;
+        # Explicit opt-in only - put NVIDIA first (tail entry stays as harmless fallback;
         # shares the per-provider "nvidia" circuit-breaker so a tripped head skips the tail).
         chain.insert(0, ("nvidia", nvidia_model))
     return chain
@@ -707,7 +707,7 @@ def _blocked_for_provider(msgs: Any, provider: str) -> bool:
 
     Defense-in-depth after mask_customer_data(): catches anything the regex-based
     masker missed (e.g. a secret-looking token) before it reaches a free/unsafe
-    external provider. Fail-open on unrelated errors — never breaks the chat path.
+    external provider. Fail-open on unrelated errors - never breaks the chat path.
     """
     # Never stringify arbitrary objects: their repr may contain a hexadecimal memory
     # address that accidentally satisfies the phone-number matcher. Real call paths
@@ -736,7 +736,7 @@ async def chat_provider(
     scope: str = "council",
     timeout_s: float | None = None,
 ) -> tuple[str, str]:
-    """Single forced provider+model call — LLM Council diversity ke liye.
+    """Single forced provider+model call - LLM Council diversity ke liye.
 
     Chain fallback NAHI
     provider down/missing ho to ("", provider). Never raises.
@@ -773,7 +773,7 @@ async def chat_provider(
                 return "", p
     except Exception:
         pass
-    # PII masking — chat_provider bhi external providers use karta hai.
+    # PII masking - chat_provider bhi external providers use karta hai.
     _msgs_original = msgs
     try:
         from app.platform.safe_ai_payload import mask_customer_data
@@ -787,7 +787,7 @@ async def chat_provider(
         return "", p
 
     tlim = timeout_s if timeout_s and timeout_s > 0 else max(_CALL_TIMEOUT_S, 30.0)
-    # 2026-08-23 fix: gpt-oss* = REASONING models — hidden reasoning tokens
+    # 2026-08-23 fix: gpt-oss* = REASONING models - hidden reasoning tokens
     # `max_tokens` se pehle khate hain. Prod evidence: telecaller max_tokens=56
     # par Groq gpt-oss-20b ne finish='length' + content='' diya (T1 probe);
     # max_tokens=512 par 'GROQ_OK' (T2). Bina headroom ke har voice turn top-2
@@ -871,12 +871,12 @@ async def chat(
     """Free LLM chain par ek short reply lo.
 
     ``profile``: ``realtime`` (voice/low-latency, default) ya ``bulk`` (content/blog).
-    Unset → ``bulk`` auto jab ``max_tokens >= LLM_BULK_TOKEN_THRESHOLD`` (default 180).
+    Unset -> ``bulk`` auto jab ``max_tokens >= LLM_BULK_TOKEN_THRESHOLD`` (default 180).
     ``agent_key`` / ``product``: Agent OS governance for OmniRoute bulk hook (ADR-108/109).
 
     Chain order:
-      realtime — mistral → groq → cerebras → …
-      bulk     — cerebras → groq → mistral → …  (high-throughput content gen)
+      realtime - mistral -> groq -> cerebras -> …
+      bulk     - cerebras -> groq -> mistral -> …  (high-throughput content gen)
     """
     msgs: list[dict[str, str]] = []
     if system and system.strip():
@@ -891,7 +891,7 @@ async def chat(
     if not msgs:
         return "", ""
 
-    # Response cache — bulk/content profile DEFAULT cached (W1.10), realtime nahi.
+    # Response cache - bulk/content profile DEFAULT cached (W1.10), realtime nahi.
     # Budget guard ke PEHLE: cached reply ka zero real LLM cost hai, isliye over-budget
     # hone par bhi cache-hit serve hona chahiye (review finding #5).
     prof = _resolve_llm_profile(profile, max_tokens)
@@ -899,7 +899,7 @@ async def chat(
     if _ck:
         _hit = _llm_cache_get(_ck)
         try:
-            # Cache hit-rate observability (W1.12 revisit-trigger prereq) — sirf jab
+            # Cache hit-rate observability (W1.12 revisit-trigger prereq) - sirf jab
             # cache ON ho tab record; never-raise, file-append ultra-light.
             from app.platform import llm_metrics
 
@@ -911,7 +911,7 @@ async def chat(
 
     # Per-scope LLM budget guard (gated LLM_BUDGET_GUARD ya emergency LLM_BUDGET_HARD_KILL).
     # Over-budget / hard-kill = graceful ("","") jaise saare providers exhaust. Fail-open.
-    # active() = guard ON YA hard-kill ON — taaki sirf hard-kill set karne pe bhi block ho.
+    # active() = guard ON YA hard-kill ON - taaki sirf hard-kill set karne pe bhi block ho.
     try:
         from app.llm import budget_guard
 
@@ -925,7 +925,7 @@ async def chat(
     except Exception:
         pass  # guard error = proceed normally (fail-open)
 
-    # PII masking — messages me customer data mask karo before any external provider call.
+    # PII masking - messages me customer data mask karo before any external provider call.
     # fail-OPEN: masking crash = message bhej do raw (keep agent alive), but log the error.
     _msgs_original = msgs
     try:
@@ -939,7 +939,7 @@ async def chat(
 
     # --- OmniRoute optional agent pre-hook (ADR-108, 2026-07-16) -------------
     # Double-gated (OMNIROUTE_ENABLED + OMNIROUTE_AGENTS, dono OFF default = INERT).
-    # SIRF explicit bulk profile — realtime/default/other profiles NEVER enter
+    # SIRF explicit bulk profile - realtime/default/other profiles NEVER enter
     # (ADR contract: bulk-only; `!= realtime` over-routed non-bulk). Fail-open.
     # Payload omniroute_client.generate() me dobara sanitize hota hai.
     _omni_agents_on = os.getenv("OMNIROUTE_AGENTS", "0").strip().lower() in ("1", "true", "yes")
@@ -951,7 +951,7 @@ async def chat(
             _omni_text = await try_agent_chat(msgs, agent_key=agent_key, product=product)
             if _omni_text:
                 return _omni_text, "omniroute"
-        except Exception as _omni_exc:  # defensive — hook kabhi chain nahi girayega
+        except Exception as _omni_exc:  # defensive - hook kabhi chain nahi girayega
             logger.debug("[free_ai] omniroute agent hook bypass: %s", type(_omni_exc).__name__)
 
     chain = _build_llm_chain(prof)
@@ -959,7 +959,7 @@ async def chat(
         if _provider_down(provider):
             continue  # circuit-breaker: provider abhi cooldown me hai
 
-        # Vertex AI (subscription plan) — dynamic bearer token, fresh client per-call
+        # Vertex AI (subscription plan) - dynamic bearer token, fresh client per-call
         if provider == "gemini_vertex":
             if not _OPENAI_OK or not _vertex_available():
                 continue
@@ -1211,7 +1211,7 @@ async def chat_stream(
     except Exception:
         pass
 
-    # PII masking — chat_stream bhi external providers use karta hai.
+    # PII masking - chat_stream bhi external providers use karta hai.
     _msgs_original = msgs
     try:
         from app.platform.safe_ai_payload import mask_customer_data
@@ -1226,7 +1226,7 @@ async def chat_stream(
 
     chain = _build_llm_chain(prof)
 
-    # REALTIME RACE (owner 2026-08-23): top-2 providers simultaneous — pehla
+    # REALTIME RACE (owner 2026-08-23): top-2 providers simultaneous - pehla
     # content token jeeta. Winner ko sequential loop jaisi hi budgets (idle/total),
     # breaker aur metrics treatment milti hai; dono legs fail ho to cooldowns trip
     # hoke sequential tail (mistral + extras) normal chalta hai.
@@ -1293,7 +1293,7 @@ async def chat_stream(
                 ),
                 timeout=_CALL_TIMEOUT_S,
             )
-            # BOUNDED token loop (was an unbounded `async for` — see _STREAM_* notes).
+            # BOUNDED token loop (was an unbounded `async for` - see _STREAM_* notes).
             # Manual __anext__ so each token wait gets a deadline: a longer one for the
             # FIRST delta, a tight idle one after tokens start flowing, plus an overall
             # wall cap. A stalled stream now raises TimeoutError instead of hanging,
@@ -1333,7 +1333,7 @@ async def chat_stream(
                     await stream.aclose()
                 except Exception:
                     pass
-            # If we already streamed partial tokens to the caller, STOP — restarting on
+            # If we already streamed partial tokens to the caller, STOP - restarting on
             # another provider would duplicate/garble the spoken reply. Caller's own
             # non-stream fallback finishes the turn. Nothing streamed => try next provider.
             if got:
@@ -1342,7 +1342,7 @@ async def chat_stream(
 
 
 def describe() -> dict[str, Any]:
-    """/status diagnostics — kaunse free providers configured hain + chains."""
+    """/status diagnostics - kaunse free providers configured hain + chains."""
     chain = _build_llm_chain("realtime")
     llm_chain_desc = [f"{p}:{m}" for p, m in chain]
     return {

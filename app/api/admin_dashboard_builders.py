@@ -1,4 +1,4 @@
-"""Admin dashboard data-assembly helpers — collect live stats, build real clients/agents/
+"""Admin dashboard data-assembly helpers - collect live stats, build real clients/agents/
 kpis/charts/health from files + DB, automation snapshot, MRR/plan-price utilities.
 
 Extracted from app/api/admin_dashboard.py (2026-06-20 refactor). Re-exported by
@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 
 # Restored in the 2026-06-20 godfile split (was lost when extracted from
 # admin_dashboard.py). Without it _read_inquiries() and _build_real() raised
-# NameError (caught upstream) → the admin dashboard silently fell back to all-zeros.
+# NameError (caught upstream) -> the admin dashboard silently fell back to all-zeros.
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 
 def _read_inquiries() -> list[dict]:
-    """data/inquiries.jsonl rows (parse-safe; corrupt/missing → [])."""
+    """data/inquiries.jsonl rows (parse-safe; corrupt/missing -> [])."""
     rows: list[dict] = []
     try:
         if not os.path.isfile(_INQUIRIES_FILE):
@@ -71,11 +71,11 @@ def _is_today_iso(ts: object) -> bool:
 
 
 def _plan_price(plan: str) -> int:
-    """Marketing plan key → monthly ₹ from packages (fallback = starter price).
+    """Marketing plan key -> monthly ₹ from packages (fallback = starter price).
 
     include_trial=True so plan="trial" resolves to its real ₹0 price instead
     of falling through to the "unknown plan" min-nonzero-price fallback (found
-    2026-07-07 building Command Center — was silently attributing ₹1,999 MRR
+    2026-07-07 building Command Center - was silently attributing ₹1,999 MRR
     to every free-trial signup in revenue-trend/revenue-analytics too)."""
     try:
         from app.marketing.packages import get_packages, get_starter_price_inr
@@ -92,7 +92,7 @@ def _plan_price(plan: str) -> int:
 
 
 def _client_product(c: dict) -> str:
-    """Resolve product lane — delegates to clients_store (single source of truth)."""
+    """Resolve product lane - delegates to clients_store (single source of truth)."""
     try:
         from app.marketing.clients_store import resolve_product
 
@@ -105,7 +105,7 @@ def _has_paid_evidence(c: dict) -> bool:
     """Does an immutable invoice actually back this client? (ADR-095 helper, reused.)
 
     Thin seam over `customer_delivery.has_paid_evidence` so revenue aggregation and
-    the dead-man alert share ONE definition of "paid" instead of drifting apart —
+    the dead-man alert share ONE definition of "paid" instead of drifting apart -
     drift is exactly what produced ADR-101. Fail-OPEN on error (keep the estimate;
     never make real revenue vanish because a lookup hiccuped).
     """
@@ -123,20 +123,20 @@ def _paid_mrr_total(clients: list[dict]) -> int:
 
     ADR-101: `estimated_mrr` used to sum every `status == "active"` client, so the
     headline number counted the synthetic `Test Biz` (plan=growth, zero invoices)
-    and `leadgenai-self` (own internal tenant) as revenue — ₹8.0K reported vs ₹1,999
+    and `leadgenai-self` (own internal tenant) as revenue - ₹8.0K reported vs ₹1,999
     real, a 4x overstatement contradicted by the Revenue Analytics panel on the SAME
     page. A plan is SELECTED at signup before money moves, so plan+status is
     eligibility, NOT payment. `has_paid_evidence()` (ADR-095) is the existing,
-    invoice-backed, self-brand-excluding, fail-OPEN definition — reuse it here.
+    invoice-backed, self-brand-excluding, fail-OPEN definition - reuse it here.
     """
     return sum(_client_mrr(c) for c in clients if _has_paid_evidence(c))
 
 
 def _client_mrr(c: dict) -> int:
-    """Active client monthly ₹ — product-aware (marketing / voice / combo plans).
+    """Active client monthly ₹ - product-aware (marketing / voice / combo plans).
 
     NOTE: this is PRICE-of-plan, not proof-of-payment. Callers aggregating revenue
-    must gate on `_has_paid_evidence()` (see `_paid_mrr_total`) — ADR-101.
+    must gate on `_has_paid_evidence()` (see `_paid_mrr_total`) - ADR-101.
     """
     if str(c.get("status") or "active").strip().lower() != "active":
         return 0
@@ -170,8 +170,8 @@ def _clients_by_product(clients: list[dict]) -> dict[str, int]:
 
 
 def _age_hours(created_at: object) -> float | None:
-    """Hours since an ISO `created_at` (handles `Z` and `+00:00`; naive → UTC).
-    Returns None when missing/unparseable — callers then SKIP age-based states
+    """Hours since an ISO `created_at` (handles `Z` and `+00:00`; naive -> UTC).
+    Returns None when missing/unparseable - callers then SKIP age-based states
     (so command-center fixtures without created_at don't break). Never raises."""
     s = str(created_at or "").strip()
     if not s:
@@ -188,13 +188,13 @@ def _age_hours(created_at: object) -> float | None:
         return None
 
 
-# next_action enum (exactly one of these per customer) → Hinglish UI hint.
+# next_action enum (exactly one of these per customer) -> Hinglish UI hint.
 _NEXT_ACTION_HINTS: dict[str, str] = {
-    "open_setup": "Setup kholo — onboarding poora karwao",
+    "open_setup": "Setup kholo - onboarding poora karwao",
     "generate_campaign": "Pehla campaign generate karwao",
     "approve_content": "Pending content approve karwao",
-    "investigate_failure": "Delivery ruk gayi — turant dekho",
-    "none": "Sab theek — koi action nahi",
+    "investigate_failure": "Delivery ruk gayi - turant dekho",
+    "none": "Sab theek - koi action nahi",
 }
 
 
@@ -205,19 +205,19 @@ def delivery_health(
     recent: dict[str, Any],
 ) -> dict[str, Any]:
     """Compute a single delivery-health STATE for one customer. Pure + never-raises
-    (any error → safe "unknown" dict).
+    (any error -> safe "unknown" dict).
 
-    Precedence (first match wins) — TUNED for reachability (see below):
-      1. at_risk        — active & paid & setup_done & posts_created>0 AND
+    Precedence (first match wins) - TUNED for reachability (see below):
+      1. at_risk        - active & paid & setup_done & posts_created>0 AND
                           (no value event in last 7d  OR  any failure in last 24h)
-      2. not_started    — not setup_done AND zero ledger events
-      3. blocked        — not setup_done AND created_at older than 24h (setup stuck)
-      4. not_started    — (remaining not-setup-done: <24h / has events → still early)
-      5. setup_ready    — setup_done but posts_created == 0 (first campaign pending)
-      6. pending_approval — pending approvals > 0
-      7. live           — posts_approved > posts_published (approved/queued, unpublished)
-      8. delivered      — a value event within the last 7 days
-      fallback          — "unknown" (never fires for real records)
+      2. not_started    - not setup_done AND zero ledger events
+      3. blocked        - not setup_done AND created_at older than 24h (setup stuck)
+      4. not_started    - (remaining not-setup-done: <24h / has events -> still early)
+      5. setup_ready    - setup_done but posts_created == 0 (first campaign pending)
+      6. pending_approval - pending approvals > 0
+      7. live           - posts_approved > posts_published (approved/queued, unpublished)
+      8. delivered      - a value event within the last 7 days
+      fallback          - "unknown" (never fires for real records)
 
     Two deliberate deviations from the raw spec, both to keep every state REACHABLE:
       * at_risk is scoped to `setup_done AND posts_created>0`. The literal
@@ -256,7 +256,7 @@ def delivery_health(
                 "tone": tone,
             }
 
-        # 1. AT RISK — established (set-up, producing) account that went quiet/broke.
+        # 1. AT RISK - established (set-up, producing) account that went quiet/broke.
         if (
             active
             and paid
@@ -270,44 +270,44 @@ def delivery_health(
                 reason = "7 din se koi value-event nahi (delivery ruki)"
             return _out("at_risk", "Risk pe", reason, "investigate_failure", "err")
 
-        # 2. NOT STARTED — nothing has happened yet at all.
+        # 2. NOT STARTED - nothing has happened yet at all.
         if not setup_done and events_total == 0:
             return _out(
                 "not_started",
                 "Shuru nahi hua",
-                "Abhi tak koi activity nahi — setup baaki",
+                "Abhi tak koi activity nahi - setup baaki",
                 "open_setup",
                 "warn",
             )
 
-        # 3. BLOCKED — setup incomplete and it's been stuck >24h.
+        # 3. BLOCKED - setup incomplete and it's been stuck >24h.
         age = _age_hours(client.get("created_at"))
         if not setup_done and age is not None and age > 24:
             return _out(
-                "blocked", "Setup ruka", "Setup 24h+ se adhoora — investigate", "open_setup", "err"
+                "blocked", "Setup ruka", "Setup 24h+ se adhoora - investigate", "open_setup", "err"
             )
 
-        # 4. NOT STARTED (early) — still not set up, but recent / has some events.
+        # 4. NOT STARTED (early) - still not set up, but recent / has some events.
         if not setup_done:
             return _out(
                 "not_started",
                 "Shuru nahi hua",
-                "Setup chal raha — abhi poora nahi hua",
+                "Setup chal raha - abhi poora nahi hua",
                 "open_setup",
                 "warn",
             )
 
-        # 5. SETUP READY — onboarded but first campaign not generated.
+        # 5. SETUP READY - onboarded but first campaign not generated.
         if posts_created == 0:
             return _out(
                 "setup_ready",
                 "Campaign baaki",
-                "Setup ho gaya — pehla campaign generate karo",
+                "Setup ho gaya - pehla campaign generate karo",
                 "generate_campaign",
                 "warn",
             )
 
-        # 6. PENDING APPROVAL — waiting on the customer to approve drafts.
+        # 6. PENDING APPROVAL - waiting on the customer to approve drafts.
         if pending > 0:
             return _out(
                 "pending_approval",
@@ -317,28 +317,28 @@ def delivery_health(
                 "warn",
             )
 
-        # 7. LIVE — approved/queued content not yet published (rollout in flight).
+        # 7. LIVE - approved/queued content not yet published (rollout in flight).
         if posts_approved > posts_published:
             return _out(
                 "live",
                 "Live chal raha",
-                "Content approve/queue ho gaya — publish hone waala",
+                "Content approve/queue ho gaya - publish hone waala",
                 "none",
                 "ok",
             )
 
-        # 8. DELIVERED — value landed within the last 7 days.
+        # 8. DELIVERED - value landed within the last 7 days.
         if value_7d:
             return _out(
                 "delivered", "Value mil rahi", "Pichhle 7 din me value deliver hui", "none", "ok"
             )
 
-        return _out("unknown", "—", "State compute nahi ho paayi", "none", "muted")
-    except Exception as e:  # pragma: no cover — defensive, never break the rollup
+        return _out("unknown", "-", "State compute nahi ho paayi", "none", "muted")
+    except Exception as e:  # pragma: no cover - defensive, never break the rollup
         logger.debug("delivery_health failed: %s", e)
         return {
             "state": "unknown",
-            "label_hi": "—",
+            "label_hi": "-",
             "reason": "",
             "next_action": "none",
             "next_action_hint": "",
@@ -347,10 +347,10 @@ def delivery_health(
 
 
 def _build_command_center() -> dict[str, Any]:
-    """Business-outcome front door for admin (Customer Delivery OS Phase 2) —
+    """Business-outcome front door for admin (Customer Delivery OS Phase 2) -
     total/paying/stuck-in-setup/receiving-value/failed-automation customers +
     pending approvals + revenue. Composes list_clients + delivery_ledger.summary
-    + content_approval.pending + _client_mrr — deliberately NOT a new
+    + content_approval.pending + _client_mrr - deliberately NOT a new
     independent aggregator (2026-07-07 backlog flagged 3 duplicate ones
     already
     this reuses, it doesn't add a 4th). Never raises."""
@@ -362,7 +362,7 @@ def _build_command_center() -> dict[str, Any]:
         logger.warning("command_center: list_clients failed: %s", e)
         clients = []
 
-    # Fetched ONCE and bucketed in-memory below — per-client
+    # Fetched ONCE and bucketed in-memory below - per-client
     # content_approval.pending(cid) calls would be a second per-customer file
     # scan stacked on the ledger-summary scan in the loop below.
     approvals_by_client: dict[str, int] = {}
@@ -406,7 +406,7 @@ def _build_command_center() -> dict[str, Any]:
         except Exception as e:
             logger.debug("command_center: ledger summary failed for %s: %s", cid, e)
             s = {}
-        # Time-WINDOWED counts (last 7d / 24h) for delivery-health + at-risk — a
+        # Time-WINDOWED counts (last 7d / 24h) for delivery-health + at-risk - a
         # separate additive read (summary() is all-time only). Never raises.
         try:
             recent = delivery_ledger.recent_counts(cid)
@@ -415,7 +415,7 @@ def _build_command_center() -> dict[str, Any]:
             recent = {}
         value_delivered = bool(s.get("value_delivered"))
         # automation_failed (account/setup stuck) + post_failed (one publish
-        # attempt failed) are both real "something needs attention" signals —
+        # attempt failed) are both real "something needs attention" signals -
         # summed so a customer whose ONLY issue is a failed post still surfaces
         # here (found while wiring post_failed in the Marketing Calendar loop).
         automation_failures = int(s.get("automation_failures") or 0) + int(
@@ -427,7 +427,7 @@ def _build_command_center() -> dict[str, Any]:
             failed_automation += 1
 
         # Computed delivery-health STATE (7-state, precedence-ordered) + at-risk +
-        # this-week-benefit rollups. Additive — existing scalars above unchanged.
+        # this-week-benefit rollups. Additive - existing scalars above unchanged.
         health = delivery_health(c, s, approvals_by_client.get(cid, 0), recent)
         if health.get("state") == "at_risk":
             at_risk_count += 1
@@ -665,7 +665,7 @@ def _collect_live_stats() -> dict:
     try:
         from app.marketing import clients_store
 
-        # ADR-121b: deduplicate by id — JSONL can have duplicate rows
+        # ADR-121b: deduplicate by id - JSONL can have duplicate rows
         _seen: set[str] = set()
         for _c in clients_store.list_clients():
             _cid = str(_c.get("id") or "").strip()
@@ -680,7 +680,7 @@ def _collect_live_stats() -> dict:
         stats["clients_active_by_product"] = _clients_by_product(active)
         # ADR-101: revenue counts money, not intentions. Gate every lane on real
         # invoice evidence so a synthetic/self-brand tenant cannot inflate MRR
-        # (was: ₹8.0K reported vs ₹1,999 real — Test Biz + leadgenai-self counted).
+        # (was: ₹8.0K reported vs ₹1,999 real - Test Biz + leadgenai-self counted).
         mrr_by: dict[str, int] = {"marketing": 0, "voice": 0, "combo": 0}
         for c in active:
             if not _has_paid_evidence(c):
@@ -758,7 +758,7 @@ def _collect_live_stats() -> dict:
     except Exception as e:
         logger.debug("admin_dashboard: automation_snapshot hook failed: %s", e)
 
-    # --- today overview glue (Aaj kya hua — same as /app/automation) ---
+    # --- today overview glue (Aaj kya hua - same as /app/automation) ---
     try:
         from app.platform.today_overview import build as today_build
 
@@ -799,7 +799,7 @@ def _inquiry_count_for_client(c: dict) -> int:
 
 
 def _real_clients() -> list[Client]:
-    """Real marketing clients → Client rows (empty list if none). No samples."""
+    """Real marketing clients -> Client rows (empty list if none). No samples."""
     out: list[Client] = []
     try:
         from app.marketing import clients_store
@@ -828,7 +828,7 @@ def _real_clients() -> list[Client]:
 
 
 def _real_agents() -> list[Agent]:
-    """Real AI staff (team.STAFF) → Agent cards with today's action counts."""
+    """Real AI staff (team.STAFF) -> Agent cards with today's action counts."""
     out: list[Agent] = []
     try:
         from app.platform.team import team_status
@@ -939,7 +939,7 @@ def _build_real() -> DashboardResponse:
         kpis=_real_kpis(live),
         clients=_real_clients(),
         agents=_real_agents(),
-        campaigns=[],  # no fake campaigns — real campaigns wired when DB has them
+        campaigns=[],  # no fake campaigns - real campaigns wired when DB has them
         health=_real_health(),
         charts=_real_charts(live),
         live=live,
@@ -975,7 +975,7 @@ def _real_health() -> Health:
 
 
 # ----------------------------------------------------------------------------
-# (Removed) Hardcoded SAMPLE builders — the dashboard now serves REAL data only.
+# (Removed) Hardcoded SAMPLE builders - the dashboard now serves REAL data only.
 # The SunVolt/Prestige/etc. fake clients, fake agents, fake campaigns and fake
 # charts have been deleted on purpose. See _build_real() above for the live
 # pipeline. _build_from_db() below is kept for DB-backed deployments (real).
@@ -990,7 +990,7 @@ def _build_from_db() -> DashboardResponse | None:
     """
     Aggregate the admin dashboard from the real relational DB (clients /
     campaigns / agents / calls / billing tables). Returns None when the DB is
-    unavailable OR has no clients — the caller then serves the file-based REAL
+    unavailable OR has no clients - the caller then serves the file-based REAL
     aggregates instead (never sample data).
     """
     try:
@@ -1022,7 +1022,7 @@ def _build_from_db() -> DashboardResponse | None:
 
             # ----- clients panel + MRR -----
             # Lead counts in ONE GROUP BY (was N+1: a COUNT per client saturated the
-            # small sync pool at scale — DL-001 council fix 2026-06-26).
+            # small sync pool at scale - DL-001 council fix 2026-06-26).
             from sqlalchemy import func as _sqlfunc
 
             _lead_counts = dict(

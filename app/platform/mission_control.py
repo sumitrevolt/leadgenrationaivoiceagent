@@ -1,8 +1,8 @@
-"""Chat-first mission control plane — Owner OS authority, not a 32nd agent.
+"""Chat-first mission control plane - Owner OS authority, not a 32nd agent.
 
 Converts short owner commands into durable mission packets + append-only ledger.
 Does NOT dispatch RED outbound. Executors must prove a real session/job ID or be
-marked ``unavailable`` — never fabricate parallelism.
+marked ``unavailable`` - never fabricate parallelism.
 
 Architecture credit (concepts only, no vendored runtime):
 - Awesome Agent Orchestrators catalog patterns (control-plane / loop runners)
@@ -26,7 +26,7 @@ _LEDGER = Path("data/mission_control/ledger.jsonl")
 _MISSIONS = Path("data/mission_control/missions")
 _IDEM_INDEX = Path("data/mission_control/idempotency_index.json")
 
-# Chat aliases → mission templates (GREEN prep; RED gates listed, not armed).
+# Chat aliases -> mission templates (GREEN prep; RED gates listed, not armed).
 _CHAT_ALIASES = {
     "launch-ready": "launch_ready",
     "launch ready": "launch_ready",
@@ -203,7 +203,7 @@ def _read_mission(mission_id: str) -> dict[str, Any] | None:
 
 
 def probe_executors() -> dict[str, Any]:
-    """Prove which executors are callable — never invent remote session IDs."""
+    """Prove which executors are callable - never invent remote session IDs."""
     out: dict[str, Any] = {}
     # This process may implement work, but it is NOT a proven Cursor Cloud session.
     out["cursor"] = {
@@ -211,7 +211,7 @@ def probe_executors() -> dict[str, Any]:
         "session_id": None,
         "note": (
             "Super Admin may implement in an isolated worktree; "
-            "no automatic Cursor job/session adapter — do not claim READY auto-dispatch"
+            "no automatic Cursor job/session adapter - do not claim READY auto-dispatch"
         ),
         "pid_hint": os.getpid(),
     }
@@ -316,7 +316,7 @@ def create_mission(
                 "ROLLED_BACK",
             ):
                 return {"ok": True, "deduped": True, "mission": old}
-            # Terminal / missing — allow re-issue under same key by clearing stale map.
+            # Terminal / missing - allow re-issue under same key by clearing stale map.
             index.pop(key, None)
 
         mid = f"msn_{uuid.uuid4().hex[:16]}"
@@ -375,7 +375,7 @@ def create_mission(
                     "https://github.com/openclaw/openclaw",
                 ],
                 "vendored_code": False,
-                "note": "Concepts only — repo-native Owner OS / agent_runtime remain authority",
+                "note": "Concepts only - repo-native Owner OS / agent_runtime remain authority",
             },
         }
         _write_mission(mission)
@@ -432,7 +432,7 @@ def apply_amber_action(
     actor: str,
     confirm: bool = False,
 ) -> dict[str, Any]:
-    """AMBER control — parks unless confirm=True (Owner OS explicit)."""
+    """AMBER control - parks unless confirm=True (Owner OS explicit)."""
     if not confirm:
         return {
             "ok": True,
@@ -458,7 +458,7 @@ def apply_amber_action(
         return {"ok": True, "status": verb.upper() + "D", "lane": arg, "actor": actor}
     if verb == "approve":
         _append_ledger({"event": "gate_approved", "gate": arg, "actor": actor})
-        # Never silently arm RED env from chat — record scoped approval only.
+        # Never silently arm RED env from chat - record scoped approval only.
         return {
             "ok": True,
             "status": "APPROVAL_RECORDED",
@@ -477,7 +477,7 @@ def dispatch_openclaw_lane(
 ) -> dict[str, Any]:
     """Execute the OpenClaw ops lane with a real edge receipt + draft-only sprint work.
 
-    Never arms RED outbound. WA/email drafts only — human approval still required to send.
+    Never arms RED outbound. WA/email drafts only - human approval still required to send.
     """
     import asyncio
 
@@ -541,7 +541,7 @@ def dispatch_openclaw_lane(
         if not url.startswith("http://127.0.0.1:") and not url.startswith("http://localhost:"):
             raise ValueError("loopback_only")
         req = urllib.request.Request(url, headers={"User-Agent": "mission-openclaw-dispatch/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 — loopback scheme-gated
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 - loopback scheme-gated
             body = resp.read().decode("utf-8", errors="replace")
             evidence["money_path"] = {
                 "code": int(resp.status),
@@ -563,7 +563,7 @@ def dispatch_openclaw_lane(
     try:
         asyncio.run(_run_sprint())
     except RuntimeError:
-        # Nested event loop (rare) — create a fresh loop.
+        # Nested event loop (rare) - create a fresh loop.
         loop = asyncio.new_event_loop()
         try:
             try:
@@ -575,7 +575,7 @@ def dispatch_openclaw_lane(
     except Exception as e:
         evidence["sprint_error"] = type(e).__name__
 
-    # Email drafts: no auto-send path — park as owner action if drafts not produced here.
+    # Email drafts: no auto-send path - park as owner action if drafts not produced here.
     wa_n = int((evidence.get("hot_wa_draft") or {}).get("drafted") or 0)
     prep_n = int((evidence.get("dialer_prep") or {}).get("prepped") or 0)
     if wa_n < 5:
@@ -616,7 +616,7 @@ def dispatch_openclaw_lane(
         "wa_drafted": wa_n,
         "prep_briefs": prep_n,
     }
-    # Mission stays CREATED/RUNNING until verifier + cursor lanes done — do not fake COMPLETE.
+    # Mission stays CREATED/RUNNING until verifier + cursor lanes done - do not fake COMPLETE.
     if m.get("state") == "CREATED":
         m["state"] = "IN_PROGRESS"
     _write_mission(m)
@@ -672,7 +672,7 @@ def handle_chat(
             "verb": verb,
             "arg": parsed.get("arg"),
             "note": (
-                "Parked — use typed Owner OS mission.pause|resume|approve|rollback "
+                "Parked - use typed Owner OS mission.pause|resume|approve|rollback "
                 "with explicit confirm; chat cannot mutate"
             ),
             "actor": actor,

@@ -1,5 +1,5 @@
 """
-Tests for app.voice_agent.intent_softno — D-8 polite-no 2-strike de-escalation.
+Tests for app.voice_agent.intent_softno - D-8 polite-no 2-strike de-escalation.
 Pure policy
 no LLM/network.
 """

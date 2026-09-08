@@ -1,4 +1,4 @@
-"""Growth feature endpoints — marketing-AI upgrades (feedback/trends/reel/personalize),
+"""Growth feature endpoints - marketing-AI upgrades (feedback/trends/reel/personalize),
 loyalty/coupons, client reports, client API keys, NPS, IndexNow.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
@@ -30,7 +30,7 @@ class FeedbackIn(BaseModel):
 
 @router.post("/content/feedback")
 async def content_feedback_record(body: FeedbackIn, _user=Depends(require_admin)):
-    """1-click 'post chala/nahi' — theme-level learning + channel bandit credit."""
+    """1-click 'post chala/nahi' - theme-level learning + channel bandit credit."""
     from app.marketing import content_feedback
 
     return content_feedback.record_feedback(
@@ -49,7 +49,7 @@ async def content_feedback_stats(niche: str = "", _user=Depends(require_admin)):
 async def content_trends(
     niche: str = "general", business_name: str = "", _user=Depends(require_admin)
 ):
-    """Google Trends (IN) → niche ke liye fresh Hinglish content angles."""
+    """Google Trends (IN) -> niche ke liye fresh Hinglish content angles."""
     from app.marketing import trends
 
     return await trends.trend_angles(niche, business_name)
@@ -65,7 +65,7 @@ class ReelIn(BaseModel):
 
 @router.post("/content/reel-video")
 async def content_reel_video(body: ReelIn, _user=Depends(require_admin)):
-    """Faceless reel MP4 (PIL+EdgeTTS+ffmpeg) — heavy, human upload karta hai."""
+    """Faceless reel MP4 (PIL+EdgeTTS+ffmpeg) - heavy, human upload karta hai."""
     from app.marketing import reel_video
 
     return await reel_video.build_reel(
@@ -90,7 +90,7 @@ async def content_personalize(body: PersonalizeIn, _user=Depends(require_admin))
 # ------------- Competitor-parity batch-2: templates / loyalty / reports / client API keys ------------- #
 @router.get("/content/templates")
 async def content_templates(niche: str = "", occasion: str = "", _user=Depends(require_admin)):
-    """Curated template gallery (AdBanao-style) — studio prefill ke liye."""
+    """Curated template gallery (AdBanao-style) - studio prefill ke liye."""
     from app.marketing import template_library
 
     return template_library.list_templates(niche, occasion)
@@ -247,7 +247,7 @@ async def nps_request_drafts(limit: int = 20, _user=Depends(require_admin)):
     return {"drafts": nps.request_drafts(limit)}
 
 
-# /revenue/recon + /revenue/recon/run routes removed 2026-06-18 — Razorpay gateway
+# /revenue/recon + /revenue/recon/run routes removed 2026-06-18 - Razorpay gateway
 # gone, so there is no payment rail to reconcile against (payments via manual UPI).
 
 
@@ -257,7 +257,7 @@ class IndexNowIn(BaseModel):
 
 @router.post("/seo/indexnow")
 async def seo_indexnow(body: IndexNowIn, _user=Depends(require_admin)):
-    """Bing/Yandex IndexNow submit — urls do ya khali chodo (sitemap sweep)."""
+    """Bing/Yandex IndexNow submit - urls do ya khali chodo (sitemap sweep)."""
     from app.marketing import indexnow
 
     if body.urls:

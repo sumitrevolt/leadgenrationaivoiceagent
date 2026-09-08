@@ -1,4 +1,4 @@
-"""Agent automation-ops endpoints — self-improve loop, skill library/pack, code
+"""Agent automation-ops endpoints - self-improve loop, skill library/pack, code
 upgrader, social drafts, lead harvester, approval cockpit, self-improve gates.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
@@ -28,7 +28,7 @@ async def selfimprove_status(_user=Depends(require_admin)):
 
 @router.post("/selfimprove/run")
 async def selfimprove_run(_user=Depends(require_admin)):
-    """Loop tick ABHI enqueue karo (Celery worker me chalega — web process block
+    """Loop tick ABHI enqueue karo (Celery worker me chalega - web process block
     nahi hota). Flag OFF ho to bhi one-shot enqueue ho jata (tick khud gate check
     karta, requeue sirf flag ON pe). Celery down ho to in-process fallback."""
     try:
@@ -58,7 +58,7 @@ class SelfImproveTaskIn(BaseModel):
 
 @router.post("/selfimprove/task")
 async def selfimprove_add_task(body: SelfImproveTaskIn, _user=Depends(require_admin)):
-    """Manual task queue me daalo — loop agle tick pe ise pehle uthayega.
+    """Manual task queue me daalo - loop agle tick pe ise pehle uthayega.
     Valid actions: self_improve.ACTIONS keys (khali = auto-pick)."""
     from app.agents import self_improve
 
@@ -92,16 +92,16 @@ class LessonIn(BaseModel):
 
 @router.post("/skills/lesson")
 async def skills_add_lesson(body: LessonIn, _user=Depends(require_admin)):
-    """Manual lesson add (human coaching → agents agle runs me use karte)."""
+    """Manual lesson add (human coaching -> agents agle runs me use karte)."""
     from app.platform import skill_library
 
     return skill_library.record_lesson(body.topic, body.lesson, source="manual", agent="sumit")
 
 
-# ------------- Skill pack (Claude project skills → VPS agents) + code upgrader ------------- #
+# ------------- Skill pack (Claude project skills -> VPS agents) + code upgrader ------------- #
 @router.get("/skills/pack")
 async def skills_pack_list(q: str = "", _user=Depends(require_admin)):
-    """35+ project skills (+agent-authored extras) — list ya keyword search."""
+    """35+ project skills (+agent-authored extras) - list ya keyword search."""
     from app.platform import skill_pack
 
     if q:
@@ -134,7 +134,7 @@ class SkillAuthorIn(BaseModel):
 
 @router.post("/skills/pack/author")
 async def skills_pack_author(body: SkillAuthorIn, _user=Depends(require_admin)):
-    """Tier-1 SAFE write — naya/updated skill data/skills_extra/ me (runtime-live)."""
+    """Tier-1 SAFE write - naya/updated skill data/skills_extra/ me (runtime-live)."""
     from app.platform import skill_pack
 
     return skill_pack.author(body.name, body.text)
@@ -142,7 +142,7 @@ async def skills_pack_author(body: SkillAuthorIn, _user=Depends(require_admin)):
 
 @router.post("/upgrader/scan")
 async def upgrader_scan(_user=Depends(require_admin)):
-    """Vikram: observability signals → code-upgrade proposals (flag-independent manual run)."""
+    """Vikram: observability signals -> code-upgrade proposals (flag-independent manual run)."""
     from app.agents import code_upgrader
 
     return await code_upgrader.scan_and_propose()
@@ -166,11 +166,11 @@ class PatchStatusIn(BaseModel):
 async def upgrader_patch_status(
     patch_id: str, body: PatchStatusIn, _user=Depends(require_super_admin)
 ):
-    """Hybrid gate: core-code patch approve/reject — SUPER_ADMIN only (RBAC design)."""
+    """Hybrid gate: core-code patch approve/reject - SUPER_ADMIN only (RBAC design)."""
     from app.agents import code_upgrader
 
     result = code_upgrader.set_status(patch_id, body.status, body.note)
-    try:  # office HQ Approvals-panel cache — see decide() sibling above
+    try:  # office HQ Approvals-panel cache - see decide() sibling above
         from app.platform import office_hq
 
         await office_hq.invalidate_snapshot_cache()
@@ -181,10 +181,10 @@ async def upgrader_patch_status(
 
 @router.get("/upgrader/code-search")
 async def upgrader_code_search(q: str, k: int = 6, _user=Depends(require_admin)):
-    """Semantic codebase search (Kilo-Code "codebase_search" parity) — engineering
+    """Semantic codebase search (Kilo-Code "codebase_search" parity) - engineering
     agents (Vikram) isi se relevant code dhoondte hain. Index daily training job se
     banta
-    khaali / deps missing → []. Read-only, flag-independent (admin-gated)."""
+    khaali / deps missing -> []. Read-only, flag-independent (admin-gated)."""
     from app.agents import code_search
 
     hits = await code_search.search(q, k=k)
@@ -205,7 +205,7 @@ class CodeDiagnosticsIn(BaseModel):
 
 @router.post("/upgrader/diagnostics")
 async def upgrader_diagnostics(body: CodeDiagnosticsIn, _user=Depends(require_admin)):
-    """Static code diagnostics (OpenCode LSP-diagnostics parity) — admin patch-code
+    """Static code diagnostics (OpenCode LSP-diagnostics parity) - admin patch-code
     ko approve karne se PEHLE validate kare: ast syntax (+ ruff lint if available) +
     referenced-path existence. Read-only, never-raise."""
     from app.agents import code_diagnostics
@@ -276,7 +276,7 @@ class PostizConfigIn(BaseModel):
 @router.post("/social/postiz/configure")
 async def social_postiz_configure(body: PostizConfigIn, _user=Depends(require_admin)):
     """Postiz key/url/channel-ids RUNTIME pe set karo (encrypted vault, client
-    '_global') — container recreate ki zaroorat nahi (upi_config pattern). Key
+    '_global') - container recreate ki zaroorat nahi (upi_config pattern). Key
     response me kabhi wapas nahi aati."""
     from app.social_engine import vault
 
@@ -332,12 +332,12 @@ async def social_postiz_status(_user=Depends(require_admin)):
     vault_integrations = str(meta.get("integrations") or "")
 
     # 2026-07-14 (ADR-099): report the EFFECTIVE resolved config, not just the
-    # vault field. `_integration_ids()` resolves client → env → vault, so env
+    # vault field. `_integration_ids()` resolves client -> env -> vault, so env
     # silently wins; counting only vault made this endpoint say
     # `integrations_count: 0` while all 4 channels were wired via
     # POSTIZ_INTEGRATIONS and publishing was fully functional. A status surface
     # that under-reports readiness is the same failure class as ADR-095/096/098
-    # (fake state on a real status surface) — it sent an operator chasing a
+    # (fake state on a real status surface) - it sent an operator chasing a
     # non-existent misconfiguration. `vault_integrations_count` is kept so the
     # configure endpoint's own write is still observable.
     effective_ids = postiz_publish.effective_integration_ids()
@@ -365,7 +365,7 @@ async def social_postiz_status(_user=Depends(require_admin)):
         "live_channels": live.get("channels") or [],
         "youtube_refresh_needed": youtube_refresh,
         "youtube_oauth_action": (
-            "Google Cloud Console → OAuth consent screen → Publish app (testing mode = refresh token ~7d death)"
+            "Google Cloud Console -> OAuth consent screen -> Publish app (testing mode = refresh token ~7d death)"
             if youtube_refresh or not live.get("ok")
             else ""
         ),
@@ -375,7 +375,7 @@ async def social_postiz_status(_user=Depends(require_admin)):
 # --------------------------------------------------------------------------- #
 # Admin Social-Delivery COCKPIT (2026-07-11)                                  #
 #                                                                             #
-# Read-only triage surface over `social_engine.store.list_jobs()` — customer  #
+# Read-only triage surface over `social_engine.store.list_jobs()` - customer  #
 # social publish queue ka health/DLQ/retry view. `POST /jobs/{id}/retry` re-  #
 # marks a dead/failed row queued so the next drain picks it up (idempotent    #
 # under the store's latest-wins invariant). No creds ever leaked.             #
@@ -405,7 +405,7 @@ async def admin_social_jobs(
             status=st,
             limit=max(1, min(int(limit or 100), 500)),
         )
-        # Platform filter is post-fetch (store doesn't take it) — keeps store API stable.
+        # Platform filter is post-fetch (store doesn't take it) - keeps store API stable.
         plat = (platform or "").strip().lower()
         if plat:
             rows = [r for r in rows if str(r.get("platform") or "").lower() == plat]
@@ -444,7 +444,7 @@ class SocialPauseIn(BaseModel):
 
 @router.get("/social/pause")
 async def admin_social_pause_status(_user=Depends(require_admin)):
-    """Read current pause state — env + config-file merged, corruption-safe."""
+    """Read current pause state - env + config-file merged, corruption-safe."""
     from app.social_engine import pause as _pause
 
     return {
@@ -457,7 +457,7 @@ async def admin_social_pause_status(_user=Depends(require_admin)):
 
 @router.post("/social/pause")
 async def admin_social_pause_set(body: SocialPauseIn, _user=Depends(require_admin)):
-    """Runtime pause toggle — writes `data/social_engine.json`. Env vars still
+    """Runtime pause toggle - writes `data/social_engine.json`. Env vars still
     take precedence (env explicit wins per pause module contract). Any field
     left None preserves the current value."""
     from app.social_engine import pause as _pause
@@ -488,7 +488,7 @@ async def admin_social_pause_set(body: SocialPauseIn, _user=Depends(require_admi
 async def admin_social_job_run_now(job_id: str, _user=Depends(require_admin)):
     """Loop-social-14 (2026-07-11): admin run-now control (Phase 8). Marks any
     non-terminal job as queued so the next drain picks it up immediately.
-    Bypasses backoff (last_error cleared). Idempotent — already-queued = no-op."""
+    Bypasses backoff (last_error cleared). Idempotent - already-queued = no-op."""
     try:
         from app.social_engine import store
 
@@ -502,7 +502,7 @@ async def admin_social_job_run_now(job_id: str, _user=Depends(require_admin)):
                 "ok": False,
                 "error": "terminal",
                 "job_id": jid,
-                "message": "Published — cannot re-run (use cancel + new post)",
+                "message": "Published - cannot re-run (use cancel + new post)",
             }
         store.mark(
             jid,
@@ -555,7 +555,7 @@ async def admin_social_latest_events(limit: int = 50, _user=Depends(require_admi
             "token_expired",
             "token_refreshed",
         }
-        # Ledger is per-client JSONL — walk the ledger dir.
+        # Ledger is per-client JSONL - walk the ledger dir.
         import os as _os
 
         rows: list[dict] = []
@@ -616,7 +616,7 @@ async def admin_social_job_cancel(job_id: str, _user=Depends(require_admin)):
 @router.post("/social/recover-stale")
 async def admin_social_recover_stale(older_than_min: int = 15, _user=Depends(require_admin)):
     """Loop-social-14: Phase 8 stale-job recovery. Any 'processing' row older
-    than N minutes → reset to queued (worker crash mid-publish assumed)."""
+    than N minutes -> reset to queued (worker crash mid-publish assumed)."""
     try:
         from app.social_engine import scheduling, store
 
@@ -692,16 +692,16 @@ async def harvest_sources(_user=Depends(require_admin)):
 
 @router.post("/harvest/enrich")
 async def harvest_enrich(limit: int = 100, sync: bool = False, _user=Depends(require_admin)):
-    """Email-less prospects pe enrich waterfall — DEFAULT: Celery pe enqueue.
+    """Email-less prospects pe enrich waterfall - DEFAULT: Celery pe enqueue.
 
     Pehle yeh `await enrich_missing_emails(limit)` INLINE karta tha. Har row ek
     live site fetch (2 × 10s timeout) + MX lookups + politeness sleep hai, to
-    bada limit ek web worker ko ghanton block karta — CLAUDE.md §5 ka seedha
-    violation ("Web process KABHI heavy job na chalaye — Celery only"). Ab ye
+    bada limit ek web worker ko ghanton block karta - CLAUDE.md §5 ka seedha
+    violation ("Web process KABHI heavy job na chalaye - Celery only"). Ab ye
     `scraping` queue pe task enqueue karke task_id lautata hai.
 
     `sync=true` = chhota INLINE smoke-test path (limit ≤25, 60s hard deadline),
-    manual-admin only — `harvest/run` ke "manual = flag-independent" precedent
+    manual-admin only - `harvest/run` ke "manual = flag-independent" precedent
     jaisa. Bulk drain hamesha queued rehta hai.
     """
     from app.platform import lead_harvester
@@ -729,7 +729,7 @@ async def harvest_enrich(limit: int = 100, sync: bool = False, _user=Depends(req
 
 @router.get("/harvest/gtm-coverage")
 async def harvest_gtm_coverage(_user=Depends(require_admin)):
-    """GTM City x Niche coverage matrix status — total/covered pairs, %, leads harvested,
+    """GTM City x Niche coverage matrix status - total/covered pairs, %, leads harvested,
     top uncovered (next up). Gated GTM_TARGETING (else enabled:false)."""
     from app.platform import gtm_targeting
 
@@ -752,7 +752,7 @@ async def harvest_indiamart_run(
     days: int = 1, niche: str = "general", _user=Depends(require_admin)
 ):
     """Pull the seller's own IndiaMART buyer-leads (official Lead Manager API) + persist.
-    Gated INDIAMART_CRM_KEY (seller account). Legal — NOT directory scraping."""
+    Gated INDIAMART_CRM_KEY (seller account). Legal - NOT directory scraping."""
     from app.integrations import indiamart_leads
 
     return await indiamart_leads.fetch_and_persist(days=max(1, min(int(days or 1), 7)), niche=niche)
@@ -777,7 +777,7 @@ router.include_router(_process_router)
 # --------------------- Agentic-Output Approval Cockpit (sub-project D V1) ----- #
 @router.get("/approvals/drafts")
 async def approvals_drafts(include_decided: bool = False, _user=Depends(require_admin)):
-    """Unified agentic-draft queue (sales/coordinator/fde) — risk-tiered cockpit.
+    """Unified agentic-draft queue (sales/coordinator/fde) - risk-tiered cockpit.
 
     Bridge-first V1: surfaces the orphan agentic outputs that otherwise rot in
     data/*.jsonl. code_upgrader/process-breakpoint/self_improve keep their own
@@ -804,11 +804,11 @@ async def approvals_draft_decide(
     result = approvals_bridge.decide(
         source, item_id, body.decision, by=getattr(_user, "email", "admin") or "admin"
     )
-    # Office HQ snapshot caches build_approvals() for 18s — without invalidating
+    # Office HQ snapshot caches build_approvals() for 18s - without invalidating
     # here, the very next Approvals-panel refresh (fired immediately after this
     # click) re-serves the stale cache and the just-decided item looks stuck,
     # i.e. "click nahi hora". Same fix already applied to every other office_hq
-    # mutation (pause/resume/assign/next-action/move) — this decide path used a
+    # mutation (pause/resume/assign/next-action/move) - this decide path used a
     # pre-existing admin API outside office_hq's own router, so it was missed.
     try:
         from app.platform import office_hq
@@ -865,7 +865,7 @@ async def approve_selfimprove_task(
             )
         except Exception:
             pass
-        try:  # office HQ Approvals-panel cache — see decide() sibling above
+        try:  # office HQ Approvals-panel cache - see decide() sibling above
             from app.platform import office_hq
 
             await office_hq.invalidate_snapshot_cache()
@@ -897,7 +897,7 @@ async def reject_selfimprove_task(
             )
         except Exception:
             pass
-        try:  # office HQ Approvals-panel cache — see decide() sibling above
+        try:  # office HQ Approvals-panel cache - see decide() sibling above
             from app.platform import office_hq
 
             await office_hq.invalidate_snapshot_cache()

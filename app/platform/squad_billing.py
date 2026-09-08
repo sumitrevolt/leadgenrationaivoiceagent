@@ -1,4 +1,4 @@
-# Squad Lead — Billing & UPI Verification (Squad 8)
+# Squad Lead - Billing & UPI Verification (Squad 8)
 # Responsibility: packages.py single source, UPI verification, subscription management
 # Autopilot: Policy-gated (owner_confirmed_upi only), daily revenue metrics
 
@@ -23,12 +23,12 @@ def daily_revenue_summary():
         # Extract plan prices from packages.py
         return {
             "status": "retrieved",
-            "note": "Revenue data extracted from packages.py — single source of truth",
+            "note": "Revenue data extracted from packages.py - single source of truth",
         }
     return {"status": "error", "detail": "packages.py not found"}
 
 def verify_uqi_status(upi_txn_id: str):
-    """Check UPI transaction status — owner_confirmed_only path."""
+    """Check UPI transaction status - owner_confirmed_only path."""
     # System only marks; owner must confirm bank credit
     return {
         "status": "pending_owner_confirmation",

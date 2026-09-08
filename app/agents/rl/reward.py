@@ -1,4 +1,4 @@
-"""RL reward spine (Phase 0) — consolidate existing outcome signals into a
+"""RL reward spine (Phase 0) - consolidate existing outcome signals into a
 versioned scalar reward log. Logging-only: NO policy/decision change.
 
 Flag-gated (RL_ENGINE), fail-open, idempotent on `ref`, auto-trimmed. Mirrors
@@ -260,7 +260,7 @@ def arm_stats(domain: str) -> dict[str, Any]:
             "n": n,
             "mean_reward": round(d["sum"] / n, 4) if n else 0.0,
             "success_rate": round((succ + 1) / (n + 2), 4),  # Laplace
-            "alpha": succ + 1,  # Beta posterior — Phase-1 Thompson will sample this
+            "alpha": succ + 1,  # Beta posterior - Phase-1 Thompson will sample this
             "beta": (n - succ) + 1,
         }
     return out

@@ -1,16 +1,16 @@
-"""agent_controls — pause/resume sidecar (mirrors approvals_bridge's proven
+"""agent_controls - pause/resume sidecar (mirrors approvals_bridge's proven
 collapse-to-latest pattern).
 
 Bars:
 - pause()/resume()/is_paused() roundtrip correctly.
 - Job-name aliases (qa/trainer/ops/digest/content/email_outreach) canonicalize
-  to the same STAFF member they dispatch to in staff.run_member()'s table —
+  to the same STAFF member they dispatch to in staff.run_member()'s table -
   pausing "arjun" must also block a call made via the "qa" alias.
 - list_paused() only returns currently-paused members (collapse-to-latest).
 - Never raises on a missing/corrupt store file.
 - staff.run_member() actually honors the pause flag (integration bar) and a
   SCHEDULED job (staff.run_qa() called directly, as team_scheduler.py does)
-  is completely unaffected by a pause — this is the documented safety scope.
+  is completely unaffected by a pause - this is the documented safety scope.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ async def test_run_member_honors_pause_for_manual_run_path(monkeypatch, tmp_path
 
 async def test_scheduled_job_path_bypasses_run_member_entirely(monkeypatch, tmp_path):
     """team_scheduler.py's _run_job_inner calls staff.run_qa() DIRECTLY, never
-    through run_member() — so pausing arjun must NOT block a direct run_qa()
+    through run_member() - so pausing arjun must NOT block a direct run_qa()
     call. This is the documented safety boundary
     regress-guard it."""
     from app.agents import staff

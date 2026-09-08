@@ -1,17 +1,17 @@
-"""Speed-to-lead metric — READ-ONLY compute from existing stores (no hooks).
+"""Speed-to-lead metric - READ-ONLY compute from existing stores (no hooks).
 
 "5 minute me jawab = 21x zyada conversion" (classic lead-response research).
 Yeh module sirf MEASURE karta hai ki inquiry aane ke kitni der baad pehla
-touch (alert/callback/dialer call) hua — koi naya hot-path hook NAHI.
+touch (alert/callback/dialer call) hua - koi naya hot-path hook NAHI.
 
 Evidence sources (sab existing, append-only):
-  * data/inquiries.jsonl    — inquiry record (`at` UTC ISO, `phone`)
+  * data/inquiries.jsonl    - inquiry record (`at` UTC ISO, `phone`)
                               [shape: public_site.submit_inquiry]
-  * data/lead_alerts.jsonl  — instant alert evidence (`phone` digits, `epoch`)
+  * data/lead_alerts.jsonl  - instant alert evidence (`phone` digits, `epoch`)
                               [shape: lead_alerts._log_alert]
-  * data/dialer_logs.jsonl  — human dialer call (`phone`, ts/at best-effort)
+  * data/dialer_logs.jsonl  - human dialer call (`phone`, ts/at best-effort)
 
-first_touch_seconds = earliest evidence AFTER inquiry, per phone (estimate —
+first_touch_seconds = earliest evidence AFTER inquiry, per phone (estimate -
 alert ~ same second as inquiry, dialer = real human touch).
 
   per_inquiry(days)  -> list of {phone, inquiry_at, first_touch_seconds, via}
@@ -88,8 +88,8 @@ def _phone10(val: Any) -> str:
 
 
 def _to_epoch(val: Any) -> float | None:
-    """ISO string (Z/offset/naive-local) ya epoch number → epoch seconds.
-    Defensive — kuch bhi parse na ho to None."""
+    """ISO string (Z/offset/naive-local) ya epoch number -> epoch seconds.
+    Defensive - kuch bhi parse na ho to None."""
     try:
         if val is None:
             return None
@@ -111,7 +111,7 @@ def _to_epoch(val: Any) -> float | None:
 
 
 def _evidence_epochs() -> dict[str, list[tuple[float, str]]]:
-    """phone10 → [(epoch, via), ...] from alerts + dialer logs."""
+    """phone10 -> [(epoch, via), ...] from alerts + dialer logs."""
     ev: dict[str, list[tuple[float, str]]] = {}
 
     for rec in _read_jsonl(_ALERTS_FILE):
@@ -192,7 +192,7 @@ def summary(days: int = 30) -> dict[str, Any]:
                 "target_seconds": _TARGET_SECONDS,
                 "world_class_target_seconds": 300,
                 "verdict": (
-                    "Abhi koi first-touch data nahi — inquiry aate hi 2 minute me "
+                    "Abhi koi first-touch data nahi - inquiry aate hi 2 minute me "
                     "callback/alert ka system on rakho (lead 5 min me thanda hota hai)."
                 ),
                 "inquiries": rows[-50:],
@@ -213,17 +213,17 @@ def summary(days: int = 30) -> dict[str, Any]:
         avg_min = avg / 60.0
         if under_pct >= 80:
             verdict = (
-                f"Zabardast! {under_pct}% inquiries ko 2 min ke andar touch — "
+                f"Zabardast! {under_pct}% inquiries ko 2 min ke andar touch - "
                 f"avg {avg_min:.1f} min. Yahi speed conversion jeetati hai. 🏆"
             )
         elif under_pct >= 50:
             verdict = (
-                f"Theek chal raha hai — avg {avg_min:.1f} min me jawab, {under_pct}% "
+                f"Theek chal raha hai - avg {avg_min:.1f} min me jawab, {under_pct}% "
                 f"2-min target ke andar. Thoda aur tez = zyada conversion."
             )
         else:
             verdict = (
-                f"Aap avg {avg_min:.1f} min me jawab dete ho — 2-min target hai. "
+                f"Aap avg {avg_min:.1f} min me jawab dete ho - 2-min target hai. "
                 f"Sirf {under_pct}% leads ko 2 min me touch mila
                 auto-callback/alert "
                 f"on karke yeh number badhao (5 min baad lead thanda)."
@@ -337,7 +337,7 @@ def summary_for_client(
                 "under_2min_pct": 0.0,
                 "target_seconds": _TARGET_SECONDS,
                 "verdict": (
-                    "Abhi koi inquiry response data nahi — enquiry aate hi 2 minute me "
+                    "Abhi koi inquiry response data nahi - enquiry aate hi 2 minute me "
                     "jawab dena conversion badhata hai."
                 ),
                 "inquiries": rows[-20:],
@@ -355,14 +355,14 @@ def summary_for_client(
         avg_min = avg / 60.0
         if under_pct >= 80:
             verdict = (
-                f"Zabardast! {under_pct}% inquiries ko 2 min ke andar touch — "
+                f"Zabardast! {under_pct}% inquiries ko 2 min ke andar touch - "
                 f"avg {avg_min:.1f} min. 🏆"
             )
         elif under_pct >= 50:
-            verdict = f"Theek — avg {avg_min:.1f} min me jawab, {under_pct}% 2-min target ke andar."
+            verdict = f"Theek - avg {avg_min:.1f} min me jawab, {under_pct}% 2-min target ke andar."
         else:
             verdict = (
-                f"Avg {avg_min:.1f} min me jawab — 2-min target rakho
+                f"Avg {avg_min:.1f} min me jawab - 2-min target rakho
                 "
                 f"auto-callback/alert se yeh number badhega."
             )

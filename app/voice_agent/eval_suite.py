@@ -8,10 +8,10 @@ customer hai jo bot ke jawab ke hisaab se apni agli line deta hai. Suite poori
 conversation drive karti hai aur check karti hai ki bot ne sahi outcome diya ya
 nahi (qualified / not_interested / voicemail / callback...).
 
-Yeh module `NaturalDialogManager` ko *as-is* use karta hai (edit nahi karta) —
+Yeh module `NaturalDialogManager` ko *as-is* use karta hai (edit nahi karta) -
 `new_conversation()` + `async respond(text, state)` loop chalata hai.
 
-Run (no keys / no external services — brain=None rule-based):
+Run (no keys / no external services - brain=None rule-based):
     python -m app.voice_agent.eval_suite
 or import:
     from app.voice_agent.eval_suite import run_suite, PERSONAS
@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover
 
     logger = logging.getLogger(__name__)
 
-try:  # D-13 conversation QA judges (pure, import-safe) — reused in criteria.
+try:  # D-13 conversation QA judges (pure, import-safe) - reused in criteria.
     from app.voice_agent import qa_checks as _qc
 except Exception:  # pragma: no cover
     _qc = None  # type: ignore[assignment]
@@ -123,7 +123,7 @@ def _never_pushy(run: EvalRun, max_followups: int = 3) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Built-in personas — rule-based "agar bot ne X bola to main Y bolunga"
+# Built-in personas - rule-based "agar bot ne X bola to main Y bolunga"
 # --------------------------------------------------------------------------- #
 def _interested_next(bot_text: str, turn: int) -> str:
     bl = (bot_text or "").lower()
@@ -198,7 +198,7 @@ def _language_switcher_next(bot_text: str, turn: int) -> str:
 PERSONAS: list[Persona] = [
     Persona(
         name="interested_buyer",
-        description="Keen decision-maker — demo book karna chahta hai.",
+        description="Keen decision-maker - demo book karna chahta hai.",
         opening="Haan boliye, kya kaam hai?",
         next_line=_interested_next,
         expected_outcome="qualified",
@@ -215,14 +215,14 @@ PERSONAS: list[Persona] = [
     ),
     Persona(
         name="busy_rude",
-        description="Irritated, jaldi me — phone rakh dega.",
+        description="Irritated, jaldi me - phone rakh dega.",
         opening="Yaar main bahut busy hoon abhi, jaldi bolo!",
         next_line=_busy_rude_next,
         expected_outcome="callback",
         success_criteria=lambda run: (
             (
                 run.outcome in ("callback", "ended", "not_interested") or run.turns <= 8,
-                "busy customer ka time respect ho — callback/short close",
+                "busy customer ka time respect ho - callback/short close",
             )
         ),
     ),
@@ -280,7 +280,7 @@ PERSONAS: list[Persona] = [
     ),
     Persona(
         name="not_interested",
-        description="Saaf mana karta hai — politely close hona chahiye.",
+        description="Saaf mana karta hai - politely close hona chahiye.",
         opening="Nahi bhai, mujhe interest nahi hai.",
         next_line=_not_interested_next,
         expected_outcome="not_interested",
@@ -313,9 +313,9 @@ PERSONAS: list[Persona] = [
 
 
 # --------------------------------------------------------------------------- #
-# EXTENDED personas (D-13 / P4) — the India failure-modes that drive D-8/D-10.
+# EXTENDED personas (D-13 / P4) - the India failure-modes that drive D-8/D-10.
 # Kept SEPARATE from the default PERSONAS so the baseline suite contract stays
-# stable; these are ASPIRATIONAL (some FAIL against today's rule-based bot — that
+# stable; these are ASPIRATIONAL (some FAIL against today's rule-based bot - that
 # is the signal). Opt in: run_suite(factory, personas=PERSONAS + EXTENDED_PERSONAS).
 # --------------------------------------------------------------------------- #
 def _bot_turns_text(run: EvalRun) -> str:
@@ -328,7 +328,7 @@ def _no_refusal(run: EvalRun) -> bool:
 
 
 def _polite_no_next(bot_text: str, turn: int) -> str:
-    # Escalating soft-no's — a good bot stops pitching after the 2nd.
+    # Escalating soft-no's - a good bot stops pitching after the 2nd.
     seq = [
         "Haan boliye?",
         "Achha... dekhte hain baad me.",
@@ -379,7 +379,7 @@ def _english_dominant_next(bot_text: str, turn: int) -> str:
 EXTENDED_PERSONAS: list[Persona] = [
     Persona(
         name="polite_no_indian",
-        description="2+ soft refusals — bot ko 2nd soft-no ke baad push BAND karna hai.",
+        description="2+ soft refusals - bot ko 2nd soft-no ke baad push BAND karna hai.",
         opening="Haan boliye?",
         next_line=_polite_no_next,
         expected_outcome="not_interested",
@@ -390,7 +390,7 @@ EXTENDED_PERSONAS: list[Persona] = [
     ),
     Persona(
         name="whatsapp_brushoff",
-        description="'WhatsApp pe bhej do' brush-off — bot ko qualify-before-send karna hai.",
+        description="'WhatsApp pe bhej do' brush-off - bot ko qualify-before-send karna hai.",
         opening="Haan, WhatsApp pe bhej do na details.",
         next_line=_whatsapp_brushoff_next,
         expected_outcome="callback",
@@ -401,7 +401,7 @@ EXTENDED_PERSONAS: list[Persona] = [
     ),
     Persona(
         name="incumbent_user",
-        description="Already dusri company use karta — bot ko incumbent trash NAHI karna.",
+        description="Already dusri company use karta - bot ko incumbent trash NAHI karna.",
         opening="Hum already ek dusri company se marketing karwa rahe hain.",
         next_line=_incumbent_next,
         expected_outcome="qualified",
@@ -415,7 +415,7 @@ EXTENDED_PERSONAS: list[Persona] = [
     ),
     Persona(
         name="formal_hindi_speaker",
-        description="Shuddh formal Hindi — bot natural register mirror kare, robotic nahi.",
+        description="Shuddh formal Hindi - bot natural register mirror kare, robotic nahi.",
         opening="Namaskar, kripya bataiye aap kaun bol rahe hain?",
         next_line=_formal_hindi_next,
         expected_outcome="qualified",
@@ -435,7 +435,7 @@ EXTENDED_PERSONAS: list[Persona] = [
     ),
     Persona(
         name="english_dominant",
-        description="English-heavy caller — bot ko Hindi-only force NAHI karna, engage kare.",
+        description="English-heavy caller - bot ko Hindi-only force NAHI karna, engage kare.",
         opening="Yeah hi, who is this? What is this regarding?",
         next_line=_english_dominant_next,
         expected_outcome="qualified",
@@ -527,7 +527,7 @@ async def run_suite(
     max_turns: int = 12,
 ) -> EvalReport:
     """
-    Saare personas chalao — har ek ke liye FRESH manager (isolation).
+    Saare personas chalao - har ek ke liye FRESH manager (isolation).
     `manager_factory()` ek naya NaturalDialogManager return kare.
     """
     personas = personas if personas is not None else PERSONAS
@@ -570,7 +570,7 @@ async def demo() -> EvalReport:
 
     # pretty print
     print("=" * 64)
-    print(" AGENT EVAL SUITE — solar / rule-based (brain=None)")
+    print(" AGENT EVAL SUITE - solar / rule-based (brain=None)")
     print("=" * 64)
     for run in report.runs:
         status = "PASS" if run.passed else "FAIL"

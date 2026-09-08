@@ -1,7 +1,7 @@
 """Tests for engineering-agent code diagnostics (OpenCode LSP-diagnostics parity).
 
 Covers: enabled() env gate, ast syntax detection, clean-code path, reference-existence
-check, summary shaping, never-raise. Offline-clean — ruff is OPTIONAL so we assert only
+check, summary shaping, never-raise. Offline-clean - ruff is OPTIONAL so we assert only
 the stdlib `ast` baseline + path checks (no ruff dependency in assertions).
 """
 
@@ -61,7 +61,7 @@ def test_check_references_all_present(tmp_path):
 
 
 def test_summary_shapes():
-    assert code_diagnostics.summary([]) == "ok — no diagnostics"
+    assert code_diagnostics.summary([]) == "ok - no diagnostics"
     diags = [
         {"level": "error", "code": "syntax", "line": 2, "col": 1, "message": "bad"},
         {"level": "warning", "code": "F821", "line": 5, "col": 1, "message": "undef"},

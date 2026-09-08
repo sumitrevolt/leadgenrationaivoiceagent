@@ -4,7 +4,7 @@ deliverables ko REAL content se poora karta hai (audit 2026-07-19 / Jiya 60%).
 - generate_gbp_pack     -> ek `gbp` content item (prioritised profile fixes)
 - generate_review_reply_pack -> ek `review_reply` item (3 reply drafts)
 Dono self-guarding (dobara chalane pe dupe nahi), aur customer_delivery_status
-inhe dekh kar dono deliverables ko "done" karta hai. External LLM test me OFF —
+inhe dekh kar dono deliverables ko "done" karta hai. External LLM test me OFF -
 deterministic fallback guarantee karta hai content kabhi empty na ho.
 """
 

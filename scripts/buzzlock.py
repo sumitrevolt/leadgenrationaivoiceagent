@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""buzzlock — claim-before-edit file locks for coding agents.
+"""buzzlock - claim-before-edit file locks for coding agents.
 
 Cursor, Claude Code, Codex, OpenCode and Monkey Code all edit this checkout. This
 is the registry that stops them overwriting each other, plus the matching #build
@@ -12,7 +12,7 @@ post.
     python scripts/buzzlock.py break app/api/growth_revenue.py --tool CURSOR
 
 Exit codes: 0 ok · 1 usage/arg error · 2 refused (file held by another tool).
-Check the exit code — a refused claim is not a warning, it means stop.
+Check the exit code - a refused claim is not a warning, it means stop.
 
 Buzz posting is best-effort: if buzz.exe or the owner credential is missing the
 lock file is still authoritative and the command still succeeds. LOCKS.json is the
@@ -60,7 +60,7 @@ def _parse(ts: str) -> datetime | None:
 def load() -> dict:
     """LOCKS.json is gitignored and per-checkout, so a fresh tree has none yet.
 
-    Self-initialise instead of raising — a missing registry means "no claims",
+    Self-initialise instead of raising - a missing registry means "no claims",
     not a broken tool. Every worktree used to crash on the first status call.
     """
     try:
@@ -68,7 +68,7 @@ def load() -> dict:
     except FileNotFoundError:
         data = {}
     except json.JSONDecodeError as exc:
-        raise SystemExit(f"LOCKS.json is corrupt ({exc}) — fix or delete it: {LOCKS}") from exc
+        raise SystemExit(f"LOCKS.json is corrupt ({exc}) - fix or delete it: {LOCKS}") from exc
     if not isinstance(data, dict):
         raise SystemExit(f"LOCKS.json must be a JSON object: {LOCKS}")
     data.setdefault("locks", [])
@@ -77,7 +77,7 @@ def load() -> dict:
 
 
 def save(data: dict) -> None:
-    """Atomic write — a half-written registry is worse than no registry."""
+    """Atomic write - a half-written registry is worse than no registry."""
     data["updated_at"] = _iso(_now())
     fd, tmp = tempfile.mkstemp(dir=str(LOCKS.parent), suffix=".tmp")
     try:
@@ -117,7 +117,7 @@ def age_str(lock: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Buzz posting — best effort, never blocks the lock operation
+# Buzz posting - best effort, never blocks the lock operation
 # --------------------------------------------------------------------------- #
 def _owner_nsec() -> str | None:
     if os.name != "nt":
@@ -203,7 +203,7 @@ def cmd_status(args) -> int:
     stale_after = data["stale_after_minutes"]
     locks = data["locks"]
     if not locks:
-        print("no active claims — the tree is free")
+        print("no active claims - the tree is free")
         return 0
     print(f"{len(locks)} active claim(s), stale after {stale_after}m:\n")
     for lk in locks:
@@ -227,7 +227,7 @@ def cmd_claim(args) -> int:
     if blocked:
         for p, lk in blocked:
             print(
-                f"REFUSED: {p} is held by [{lk['tool']}] for {age_str(lk)} — {lk.get('reason')}",
+                f"REFUSED: {p} is held by [{lk['tool']}] for {age_str(lk)} - {lk.get('reason')}",
                 file=sys.stderr,
             )
         print(
@@ -254,7 +254,7 @@ def cmd_claim(args) -> int:
 
     files = ", ".join(f"`{p}`" for p in paths)
     status = post_build(f"`[{args.tool}] CLAIM` {files}\nreason: {args.reason}")
-    print(f"CLAIMED {len(paths)} file(s) as [{args.tool}] — {status}")
+    print(f"CLAIMED {len(paths)} file(s) as [{args.tool}] - {status}")
     return 0
 
 
@@ -274,7 +274,7 @@ def cmd_release(args) -> int:
 
     files = ", ".join(f"`{lk['path']}`" for lk in mine)
     status = post_build(f"`[{args.tool}] RELEASE` {files}\nevidence: {args.evidence}")
-    print(f"RELEASED {before - len(data['locks'])} file(s) — {status}")
+    print(f"RELEASED {before - len(data['locks'])} file(s) - {status}")
     return 0
 
 
@@ -289,7 +289,7 @@ def cmd_break(args) -> int:
     if not is_stale(match, stale_after):
         print(
             f"REFUSED: {p} held by [{match['tool']}] for only {age_str(match)} "
-            f"(stale at {stale_after}m). Not stale — leave it alone.",
+            f"(stale at {stale_after}m). Not stale - leave it alone.",
             file=sys.stderr,
         )
         return 2
@@ -297,9 +297,9 @@ def cmd_break(args) -> int:
     data["locks"] = [lk for lk in data["locks"] if lk["path"] != p]
     save(data)
     status = post_build(
-        f"`[{args.tool}] STALE-BREAK` `{p}` — was held by [{match['tool']}] for {age_str(match)}"
+        f"`[{args.tool}] STALE-BREAK` `{p}` - was held by [{match['tool']}] for {age_str(match)}"
     )
-    print(f"STALE-BREAK {p} (was [{match['tool']}], {age_str(match)}) — {status}")
+    print(f"STALE-BREAK {p} (was [{match['tool']}], {age_str(match)}) - {status}")
     return 0
 
 
@@ -321,7 +321,7 @@ def cmd_handoff(args) -> int:
     evidence = (args.evidence or "").strip()
     if not evidence:
         print(
-            "REFUSED: Evidence line required — a handoff without it is a rumour.", file=sys.stderr
+            "REFUSED: Evidence line required - a handoff without it is a rumour.", file=sys.stderr
         )
         return 1
     body = format_handoff(
@@ -340,7 +340,7 @@ def cmd_handoff(args) -> int:
 
 
 class _Parser(argparse.ArgumentParser):
-    """argparse exits 2 on usage errors — the same code we use for REFUSED.
+    """argparse exits 2 on usage errors - the same code we use for REFUSED.
 
     A caller branching on `rc == 2` would read a typo'd `--tool` as "another tool
     holds this file" and quietly take different work. Found by an independent
@@ -371,7 +371,7 @@ def main() -> int:
     r = sub.add_parser("release", help="release files when you stop")
     r.add_argument("paths", nargs="+")
     r.add_argument("--tool", required=True, choices=TOOLS)
-    r.add_argument("--evidence", required=True, help="exit code / test result — required")
+    r.add_argument("--evidence", required=True, help="exit code / test result - required")
     r.set_defaults(func=cmd_release)
 
     b = sub.add_parser("break", help="take over a stale claim")
@@ -384,7 +384,7 @@ def main() -> int:
     h.add_argument("--next", dest="next_tool", required=True, help="next tool or Boss")
     h.add_argument("--goal", required=True)
     h.add_argument("--done", required=True)
-    h.add_argument("--evidence", required=True, help="exit code / test result — required")
+    h.add_argument("--evidence", required=True, help="exit code / test result - required")
     h.add_argument("--left", required=True)
     h.add_argument("--touched", required=True)
     h.set_defaults(func=cmd_handoff)

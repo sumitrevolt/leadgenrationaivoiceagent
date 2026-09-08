@@ -41,7 +41,7 @@ def run_dev_task_task(self, task_id: str, worker_id: str = "celery-dev-worker"):
 
     try:
         return run_async(_go())
-    except Exception as exc:  # noqa: BLE001 — bounded retry, DLQ records the failure
+    except Exception as exc:  # noqa: BLE001 - bounded retry, DLQ records the failure
         logger.error("dev_worker run failed for %s: %s", task_id, exc)
         raise self.retry(exc=exc, countdown=30)
 

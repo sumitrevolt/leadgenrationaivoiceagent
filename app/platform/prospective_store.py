@@ -1,4 +1,4 @@
-"""Prospective store — DURABLE claim/lease protocol for L6 agent memory.
+"""Prospective store - DURABLE claim/lease protocol for L6 agent memory.
 
 Review P0: JSONL read-modify-write is not exactly-once. Two workers, an
 overlapping scheduler tick, or a restart mid-write can each dispatch the same
@@ -34,7 +34,7 @@ the caller with no session held. `mark_dispatched` / `mark_failed` open a fresh
 short session.
 
 ISOLATION: every function takes an explicit `tenant_id` (reads, writes, cancel,
-purge, stats). There is NO global/default tenant — a blank tenant is rejected.
+purge, stats). There is NO global/default tenant - a blank tenant is rejected.
 Only `claim_batch` (the scheduler's own drain) crosses tenants by design, and it
 returns each row's `tenant_id` so the dispatcher stays scoped.
 """
@@ -65,7 +65,7 @@ DEFAULT_MAX_ATTEMPTS = 3
 
 
 def _now() -> datetime:
-    """Naive UTC — column type is DateTime (AgentTask ka same convention)."""
+    """Naive UTC - column type is DateTime (AgentTask ka same convention)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
@@ -122,7 +122,7 @@ def _redact(text: str) -> str:
 
 
 def _mask(text: str) -> str:
-    """POLICY B: anything an operator, log or API can read — secrets AND PII."""
+    """POLICY B: anything an operator, log or API can read - secrets AND PII."""
     try:
         from app.platform.memory_governance import mask_for_observability
 
@@ -183,7 +183,7 @@ def enqueue(
 
     # Governance gate at the DURABLE boundary: if the do-not-remember authority
     # cannot be trusted we refuse to persist. The refusal carries a code and a
-    # reason — never the content (which must not land in a row, a log or a retry).
+    # reason - never the content (which must not land in a row, a log or a retry).
     try:
         from app.platform.memory_governance import guard_durable_write
 
@@ -214,7 +214,7 @@ def enqueue(
             existing = db.query(PM).filter(PM.idempotency_key == key).first()
             if existing is not None:
                 # idempotent producer: same intent, same row (cross-tenant key
-                # collision is impossible — tenant_id is part of the hash basis)
+                # collision is impossible - tenant_id is part of the hash basis)
                 return {"ok": True, "duplicate": True, "row": _row_dict(existing)}
             row = PM(
                 id=str(uuid.uuid4()),
@@ -301,7 +301,7 @@ def claim_batch(
                         synchronize_session=False,
                     )
                 )
-                db.commit()  # release immediately — never hold a lock over dispatch
+                db.commit()  # release immediately - never hold a lock over dispatch
                 if rows == 1:
                     fresh = db.query(PM).filter(PM.id == cand.id).first()
                     if fresh is not None:
@@ -366,7 +366,7 @@ def mark_dispatched(row_id: str, task_id: str = "") -> bool:
 def mark_failed(row_id: str, error: str = "", *, max_attempts: int = DEFAULT_MAX_ATTEMPTS) -> str:
     """claimed -> pending (retry) or dead (attempts exhausted). Returns new status.
 
-    A handler failure NEVER marks completion — that was the first cut's bug.
+    A handler failure NEVER marks completion - that was the first cut's bug.
     """
     try:
         PM, get_db_session = _models()
@@ -431,7 +431,7 @@ def recover_expired(now: datetime | None = None, *, limit: int = 200) -> int:
                             "claimed_by": None,
                             "lease_until": None,
                             "checkout_version": ver + 1,
-                            "last_error": "lease expired — worker lost",
+                            "last_error": "lease expired - worker lost",
                             "updated_at": _now(),
                         },
                         synchronize_session=False,
@@ -475,7 +475,7 @@ def list_rows(
 
 
 def cancel(tenant_id: str, row_id: str) -> dict[str, Any]:
-    """Operator cancel — tenant-scoped: another tenant's id simply does not match."""
+    """Operator cancel - tenant-scoped: another tenant's id simply does not match."""
     tid = _clean_tenant(tenant_id)
     if not tid:
         return {"ok": False, "error": "tenant_id required"}
@@ -508,7 +508,7 @@ def cancel(tenant_id: str, row_id: str) -> dict[str, Any]:
 
 
 def purge(tenant_id: str, *, agent_id: str = "") -> dict[str, Any]:
-    """DPDP delete — hard removal, tenant-scoped (optionally one agent)."""
+    """DPDP delete - hard removal, tenant-scoped (optionally one agent)."""
     tid = _clean_tenant(tenant_id)
     if not tid:
         return {"ok": False, "purged": 0, "error": "tenant_id required"}

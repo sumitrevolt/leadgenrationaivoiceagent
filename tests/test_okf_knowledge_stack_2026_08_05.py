@@ -1,4 +1,4 @@
-"""OKF knowledge-stack polish — ADR-119 Phase-1 (bundle + ingest gate + public path)."""
+"""OKF knowledge-stack polish - ADR-119 Phase-1 (bundle + ingest gate + public path)."""
 
 from __future__ import annotations
 

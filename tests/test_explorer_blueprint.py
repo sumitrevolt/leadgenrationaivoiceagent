@@ -44,16 +44,16 @@ REQUIRED_SECTIONS = [
 ]
 
 REQUIRED_WORKFLOWS = [
-    "Lead discovery → scoring → outreach",
-    "Inquiry → Hot Queue → human follow-up",
-    "Content generation → approval → social publish",
-    "Reply agent → classification → guarded response",
-    "Customer signup → onboarding → delivery assurance",
-    "UPI/payment → subscription → invoice",
-    "AI agents → scheduler → execution → audit",
-    "Self-improve → evaluation → approval/requeue",
-    "Runtime health → alert → recovery/DLQ",
-    "Inbound/missed-call → consent gate → callback",
+    "Lead discovery -> scoring -> outreach",
+    "Inquiry -> Hot Queue -> human follow-up",
+    "Content generation -> approval -> social publish",
+    "Reply agent -> classification -> guarded response",
+    "Customer signup -> onboarding -> delivery assurance",
+    "UPI/payment -> subscription -> invoice",
+    "AI agents -> scheduler -> execution -> audit",
+    "Self-improve -> evaluation -> approval/requeue",
+    "Runtime health -> alert -> recovery/DLQ",
+    "Inbound/missed-call -> consent gate -> callback",
 ]
 
 EVIDENCE_LABELS = [

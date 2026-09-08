@@ -1,10 +1,10 @@
-"""Review Request Automation — automated sequences for Google/Facebook review collection.
+"""Review Request Automation - automated sequences for Google/Facebook review collection.
 
 Inspired by GoHighLevel Reviews AI, Birdeye, Podium:
   - Triggered after: service completion, appointment show, NPS promoter detection
-  - Multi-step sequence: initial request → reminder → escalation
-  - Sentiment-gate: happy → Google public review
-  unhappy → private feedback
+  - Multi-step sequence: initial request -> reminder -> escalation
+  - Sentiment-gate: happy -> Google public review
+  unhappy -> private feedback
   - Channel: WhatsApp / SMS / Email (existing integrations, free stack)
   - Track: data/review_sequences.jsonl
   - Feature flag: REVIEW_AUTOMATION (default OFF)
@@ -48,7 +48,7 @@ SEQUENCE_STEPS = [
         "channel": "sms",
         "template": (
             "Hi {customer_name} ji, {business_name} ke review ka link: {review_link} "
-            "— sirf 30 second lagenge! ⭐⭐⭐⭐⭐"
+            "- sirf 30 second lagenge! ⭐⭐⭐⭐⭐"
         ),
         "sentiment_gate": True,
     },
@@ -58,7 +58,7 @@ SEQUENCE_STEPS = [
         "channel": "whatsapp",
         "template": (
             "{customer_name} ji, humne aapka feedback bahut important hai! 🙏\n"
-            "Agar abhi tak review nahi diya to please dedo — hum improve karenge.\n\n"
+            "Agar abhi tak review nahi diya to please dedo - hum improve karenge.\n\n"
             "{review_link}"
         ),
         "sentiment_gate": True,
@@ -69,7 +69,7 @@ SEQUENCE_STEPS = [
         "channel": "whatsapp",
         "template": (
             "{customer_name} ji, hume pata hai experience perfect nahi raha. "
-            "Aap 1 line me bataiye kya improve karein — seedha owner tak jaayega. "
+            "Aap 1 line me bataiye kya improve karein - seedha owner tak jaayega. "
             "Dhanyawad! 🙏"
         ),
         "sentiment_gate": False,  # always for unhappy customers
@@ -174,7 +174,7 @@ async def start_review_sequence(
     """Start an automated review request sequence for a customer.
 
     - client_id: tenant scope
-    - sentiment_score: 1-5 (None = unknown → assume happy)
+    - sentiment_score: 1-5 (None = unknown -> assume happy)
     - trigger_event: what triggered the sequence
 
     Returns sequence_id + first step draft.

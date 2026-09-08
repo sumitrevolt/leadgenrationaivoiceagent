@@ -1,9 +1,9 @@
-"""Central Agent OS → OmniRoute routing + governance policy (ADR-109).
+"""Central Agent OS -> OmniRoute routing + governance policy (ADR-109).
 
 Code = truth for admin runbooks and `scripts/gen_agent_os_specs.py`.
 OmniRoute remains double-gated (`OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS`) and
 INERT by default. Voice/realtime and billing/compliance agents never get an
-OmniRoute task — they stay on the existing free_ai / deterministic paths.
+OmniRoute task - they stay on the existing free_ai / deterministic paths.
 
 Privacy rule: OmniRoute only admits INTERNAL_SANITIZED (see omniroute_client
 `_TASK_ROUTES`). Agents marked CUSTOMER_SENSITIVE / PROHIBITED_EXTERNAL have
@@ -53,7 +53,7 @@ class AgentRoutePolicy:
     notes: str = ""
 
 
-# Product-level defaults — overridden per-agent below when needed.
+# Product-level defaults - overridden per-agent below when needed.
 _PRODUCT_DEFAULTS: dict[str, AgentRoutePolicy] = {
     "voice": AgentRoutePolicy(
         category="voice_calling",
@@ -101,7 +101,7 @@ _PRODUCT_DEFAULTS: dict[str, AgentRoutePolicy] = {
     ),
 }
 
-# Explicit overrides — every STAFF key should resolve via product default or here.
+# Explicit overrides - every STAFF key should resolve via product default or here.
 _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
     "manager": AgentRoutePolicy(
         category="admin_operations",
@@ -147,7 +147,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=60,
         queue="celery",
-        notes="Call QA may see transcripts — keep on free_ai, never OmniRoute.",
+        notes="Call QA may see transcripts - keep on free_ai, never OmniRoute.",
     ),
     "meera": AgentRoutePolicy(
         category="training",
@@ -174,7 +174,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=45,
         queue="celery",
-        notes="KPIs from call data — no OmniRoute.",
+        notes="KPIs from call data - no OmniRoute.",
     ),
     "raksha": AgentRoutePolicy(
         category="customer_success",
@@ -188,7 +188,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=30,
         queue="celery",
-        notes="Human escalation — live call path, OmniRoute forbidden.",
+        notes="Human escalation - live call path, OmniRoute forbidden.",
     ),
     "tara": AgentRoutePolicy(
         category="monitoring",
@@ -202,7 +202,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=30,
         queue="celery",
-        notes="Voice infra watchdog — local/deterministic preferred.",
+        notes="Voice infra watchdog - local/deterministic preferred.",
     ),
     "dev": AgentRoutePolicy(
         category="reporting",
@@ -295,7 +295,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=30,
         queue="celery",
-        notes="CRM sync may carry PII — OmniRoute forbidden.",
+        notes="CRM sync may carry PII - OmniRoute forbidden.",
     ),
     "zara": AgentRoutePolicy(
         category="social_media",
@@ -377,7 +377,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=30,
         queue="celery",
-        notes="Revenue digests — billing/payment data never to OmniRoute.",
+        notes="Revenue digests - billing/payment data never to OmniRoute.",
     ),
     "vikram": AgentRoutePolicy(
         category="admin_operations",
@@ -432,7 +432,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=30,
         queue="celery",
-        notes="FinOps — cost/margin data stays off OmniRoute.",
+        notes="FinOps - cost/margin data stays off OmniRoute.",
     ),
     "arnav": AgentRoutePolicy(
         category="compliance_privacy",
@@ -446,7 +446,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=45,
         queue="celery",
-        notes="Security/compliance posture — local/deterministic only.",
+        notes="Security/compliance posture - local/deterministic only.",
     ),
     "kabir": AgentRoutePolicy(
         category="recovery_incident",
@@ -460,7 +460,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=1,
         timeout_seconds=45,
         queue="celery",
-        notes="DBRE — schema/ops sensitive
+        notes="DBRE - schema/ops sensitive
         no OmniRoute.",
     ),
     "diya": AgentRoutePolicy(
@@ -475,7 +475,7 @@ _AGENT_OVERRIDES: dict[str, AgentRoutePolicy] = {
         max_retries=2,
         timeout_seconds=45,
         queue="celery",
-        notes="Data-integrity may touch tenant rows — no OmniRoute.",
+        notes="Data-integrity may touch tenant rows - no OmniRoute.",
     ),
     "aryan": AgentRoutePolicy(
         category="testing_qa",
@@ -525,7 +525,7 @@ def get_agent_policy(agent_key: str, product: str | None = None) -> AgentRoutePo
         max_retries=0,
         timeout_seconds=15,
         queue="celery",
-        notes="Unknown agent — fail-closed (no OmniRoute, no auto-run).",
+        notes="Unknown agent - fail-closed (no OmniRoute, no auto-run).",
     )
 
 
@@ -536,7 +536,7 @@ def omniroute_allowed_for_agent(agent_key: str, product: str | None = None) -> b
 
 
 def agent_route_table() -> dict[str, dict[str, Any]]:
-    """Operator-visible map: agent_key → policy fields (no secrets)."""
+    """Operator-visible map: agent_key -> policy fields (no secrets)."""
     # Prefer override keys; product defaults fill gaps when specs regenerate from STAFF.
     keys = sorted(_AGENT_OVERRIDES.keys())
     out: dict[str, dict[str, Any]] = {}
@@ -579,8 +579,8 @@ def policy_markdown_block(agent_key: str, product: str) -> list[str]:
         f"- **Free models OK:** {'yes' if p.may_use_free_models else 'no'}",
         f"- **Auto-run allowed:** {'yes' if p.auto_run_allowed else 'no'}",
         f"- **Max retries / timeout / queue:** {p.max_retries} / {p.timeout_seconds}s / `{p.queue}`",
-        f"- **Notes:** {p.notes or '—'}",
+        f"- **Notes:** {p.notes or '-'}",
         "",
-        "Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.",
+        "Disable one agent: uska feature gate env unset karo (ya Office HQ pause) - poora system band mat karo.",
         "",
     ]

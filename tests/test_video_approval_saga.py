@@ -1,10 +1,10 @@
-"""Stage 3A — coordinator, transaction identity, failure matrix, recovery.
+"""Stage 3A - coordinator, transaction identity, failure matrix, recovery.
 
 Two JSONL stores cannot be written atomically. What is proven here is a
 COMPENSATED RECOVERABLE SAGA: every durable step is recorded, no partial state
 is publishable, and a retry resumes rather than duplicating.
 
-Failures are injected by monkeypatching REAL I/O seams — production code
+Failures are injected by monkeypatching REAL I/O seams - production code
 contains no test-only hooks.
 """
 
@@ -22,7 +22,7 @@ from tests.test_video_preview_identity import preview_client  # noqa: F401
 
 @pytest.fixture(autouse=True)
 def _isolate_snapshot_root(tmp_path, monkeypatch):
-    """Keep approved snapshots inside tmp — never the repo's real data/ dir."""
+    """Keep approved snapshots inside tmp - never the repo's real data/ dir."""
     from app.marketing import video_media_paths as vmp
 
     root = tmp_path / "approved"
@@ -159,7 +159,7 @@ def test_snapshot_failure_leaves_no_approval(preview_client, monkeypatch):
     # publishable", which is precisely the hole the audit found: the publish
     # gate never called this function, so a legacy hash-only record published.
     # An absent transaction is now a refusal, which also matches this test's own
-    # name — a failed snapshot must leave nothing publishable.
+    # name - a failed snapshot must leave nothing publishable.
     assert SAGA.is_publishable(rec) is False
 
 

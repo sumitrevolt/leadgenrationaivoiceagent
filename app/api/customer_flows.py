@@ -1,4 +1,4 @@
-"""Customer-portal flow builder API (Phase 7) — tenant-scoped, draft-only, gated.
+"""Customer-portal flow builder API (Phase 7) - tenant-scoped, draft-only, gated.
 
 Customers (require_customer -> client_id) CRUD + run + monitor flows scoped to
 THEIR client_id, using ONLY CUSTOMER_SAFE_ACTIONS. Hard tenant isolation: every
@@ -66,7 +66,7 @@ async def cf_list(cid: str = Depends(require_customer)):
 
 @router.get("/flow-templates")
 async def cf_templates(cid: str = Depends(require_customer)):
-    """Starter flow templates — 1-click apply seeds a real, runnable flow."""
+    """Starter flow templates - 1-click apply seeds a real, runnable flow."""
     g = _gate()
     if g:
         return g
@@ -211,7 +211,7 @@ async def cf_run(flow_id: str, cid: str = Depends(require_customer)):
     )
     if errs:
         return {"ok": False, "error": "not runnable", "compile_errors": errs}
-    # Hydrate the calling tenant's client context into run inputs — executors read
+    # Hydrate the calling tenant's client context into run inputs - executors read
     # inputs.client_id/business_name/niche (e.g. brand_pulse needs business_name,
     # client_report needs client_id); without these the shipped templates fail.
     from app.marketing import clients_store

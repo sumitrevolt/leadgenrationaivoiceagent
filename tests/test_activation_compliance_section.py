@@ -1,8 +1,8 @@
-"""Activation readiness — advisory compliance section (2026-07 audit fix).
+"""Activation readiness - advisory compliance section (2026-07 audit fix).
 
 Adds a `compliance` block to GET /api/activation/readiness that surfaces
 recording-retention arming, a DND fail-open (TRAI) risk warning, and the
-effective (post-clamp) promotional calling window — WITHOUT changing the
+effective (post-clamp) promotional calling window - WITHOUT changing the
 existing `ready_for_first_paid_customer` boolean for existing consumers.
 """
 

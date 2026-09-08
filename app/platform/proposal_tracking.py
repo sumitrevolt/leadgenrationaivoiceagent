@@ -1,7 +1,7 @@
-"""Trackable proposals — "client ne proposal khola ya nahi" pata chale.
+"""Trackable proposals - "client ne proposal khola ya nahi" pata chale.
 
-Proposal bhejo to plain link nahi — tracking link bhejo. Client kholta hai to
-view log hota hai (ts + UA + coarse IP). views>0 = "proposal khola" — sales
+Proposal bhejo to plain link nahi - tracking link bhejo. Client kholta hai to
+view log hota hai (ts + UA + coarse IP). views>0 = "proposal khola" - sales
 follow-up ka PERFECT timing signal.
 
   make_tracked(url|html, phone?, label?) -> token + tracking URL (/api/clientops/p/{token})
@@ -80,12 +80,12 @@ def _site_base() -> str:
 
 
 def _coarse_ip(ip: str) -> str:
-    """Privacy-coarse IP — last octet mask (DPDP-friendly view log)."""
+    """Privacy-coarse IP - last octet mask (DPDP-friendly view log)."""
     try:
         parts = str(ip or "").strip().split(".")
         if len(parts) == 4:
             return ".".join(parts[:3]) + ".x"
-        return str(ip or "")[:24]  # ipv6/other — truncate
+        return str(ip or "")[:24]  # ipv6/other - truncate
     except Exception:
         return ""
 
@@ -101,7 +101,7 @@ def make_tracked(
     phone: str = "",
     label: str = "",
 ) -> dict[str, Any]:
-    """Tracking link banao — `url` (redirect) YA `html` (stored page). Never raises."""
+    """Tracking link banao - `url` (redirect) YA `html` (stored page). Never raises."""
     try:
         url = str(url or "").strip()
         html = str(html or "")
@@ -151,7 +151,7 @@ def _find(token: str) -> dict[str, Any] | None:
 
 
 def resolve(token: str) -> dict[str, Any] | None:
-    """Token → {"url": ...} ya {"html": ...}. Unknown = None. Never raises."""
+    """Token -> {"url": ...} ya {"html": ...}. Unknown = None. Never raises."""
     try:
         rec = _find(str(token or "").strip())
         if rec is None:
@@ -161,7 +161,7 @@ def resolve(token: str) -> dict[str, Any] | None:
                 with open(_html_path(str(rec["token"])), encoding="utf-8") as f:
                     return {"html": f.read()}
             except Exception:
-                pass  # html gum — url fallback
+                pass  # html gum - url fallback
         u = str(rec.get("url") or "")
         return {"url": u} if u else None
     except Exception as e:
@@ -189,7 +189,7 @@ def record_view(token: str, ua: str = "", ip: str = "") -> None:
 
 
 def views(token: str) -> dict[str, Any]:
-    """Ek proposal ke views — opened detection (views>0). Never raises."""
+    """Ek proposal ke views - opened detection (views>0). Never raises."""
     try:
         token = str(token or "").strip()
         rows = [v for v in _read_all(_VIEWS_FILE) if v.get("token") == token]
@@ -204,9 +204,9 @@ def views(token: str) -> dict[str, Any]:
             "last_view": rows[-1].get("ts") if rows else None,
             "views": rows[-50:],
             "hint": (
-                "Client ne proposal khol liya — abhi follow-up call karo! 🔥"
+                "Client ne proposal khol liya - abhi follow-up call karo! 🔥"
                 if rows
-                else "Abhi nahi khola — kal yaad dilao."
+                else "Abhi nahi khola - kal yaad dilao."
             ),
         }
     except Exception as e:
@@ -245,8 +245,8 @@ _SWEEP_CURSOR = os.path.join("data", "proposal_sweep_cursor.json")
 
 
 def sweep_new_opens() -> dict[str, Any]:
-    """Naye proposal-opens ka sweep (watchdog-job se hourly) — "client ne proposal
-    khola — abhi call karo" team-event. Cursor se dedupe
+    """Naye proposal-opens ka sweep (watchdog-job se hourly) - "client ne proposal
+    khola - abhi call karo" team-event. Cursor se dedupe
     sirf event log, NO send.
     Never raises."""
     try:
@@ -275,7 +275,7 @@ def sweep_new_opens() -> dict[str, Any]:
                     log_event(
                         "rohan",
                         "proposal_opened",
-                        f"📂 Proposal khola: {label} — abhi follow-up call ka best time!",
+                        f"📂 Proposal khola: {label} - abhi follow-up call ka best time!",
                     )
             except Exception as e:
                 logger.warning(f"[proposal_tracking] sweep event failed: {e}")

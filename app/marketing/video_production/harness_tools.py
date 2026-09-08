@@ -2,7 +2,7 @@
 
 Shadow-friendly: definitions only
 enforcement gated by VIDEO_HARNESS_ENFORCE.
-Agents map to existing STAFF (isha / zara / arnav) — no 32nd persona.
+Agents map to existing STAFF (isha / zara / arnav) - no 32nd persona.
 """
 
 from __future__ import annotations

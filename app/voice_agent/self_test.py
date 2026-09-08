@@ -1,31 +1,31 @@
 """
-Voice Self-Test (built-in) — one on-demand health + quality scorecard for Swara.
+Voice Self-Test (built-in) - one on-demand health + quality scorecard for Swara.
 ================================================================================
 
 Project me voice-QA ke alag-alag engines already the, par sab sirf NIGHTLY (Arjun,
-``VOICE_EVAL_AUTO``) ya MANUAL CLI se chalte the — koi ek "abhi chala ke dekho"
+``VOICE_EVAL_AUTO``) ya MANUAL CLI se chalte the - koi ek "abhi chala ke dekho"
 self-test nahi tha. Yeh module wahi GAP bharta hai: ek hi call me poora voice
 stack apne aap ko test karta hai aur ek structured scorecard deta hai.
 
-Compose karta hai (rebuild NAHI — wire-not-build):
-  * personas — ``eval_suite.run_suite`` (brain=None, rule-based = FREE + deterministic,
+Compose karta hai (rebuild NAHI - wire-not-build):
+  * personas - ``eval_suite.run_suite`` (brain=None, rule-based = FREE + deterministic,
     no network): conversation-logic regression (double/repeat/pushy/goodbye/outcome).
-  * stack    — live AI-stack probes jo isse ek *voice* test banate hain, na ki sirf
-    logic test: TTS (EdgeTTS synth → bytes>0), STT (free_stt provider availability),
-    LLM (free_ai ek chhota ping — OPT-IN, free-tier ceiling bachane ke liye).
-  * live     — ``live_eval.eval_recent_calls`` (local transcripts, no network):
+  * stack    - live AI-stack probes jo isse ek *voice* test banate hain, na ki sirf
+    logic test: TTS (EdgeTTS synth -> bytes>0), STT (free_stt provider availability),
+    LLM (free_ai ek chhota ping - OPT-IN, free-tier ceiling bachane ke liye).
+  * live     - ``live_eval.eval_recent_calls`` (local transcripts, no network):
     pichhli REAL calls ki quality + D-13 qa_checks findings.
 
 Safety (3 prod-down lessons ka respect):
   * Har network-probe OFF-LOOP / bounded (``asyncio.wait_for`` async ke liye,
-    ``asyncio.to_thread`` blocking model-load ke liye) — ek dead provider bhi
+    ``asyncio.to_thread`` blocking model-load ke liye) - ek dead provider bhi
     request ko hang na kare.
-  * Import-safe (lazy imports), KABHI raise nahi karta — har component apna
+  * Import-safe (lazy imports), KABHI raise nahi karta - har component apna
     ``ok``/``error`` deta hai. Hard deadline har probe pe + caller pe.
   * Read-only, koi side-effect nahi (eval_gate recording sirf jab live_eval
     khud apne ``EVAL_GATE`` flag pe ON ho).
 
-Run (no keys needed — personas + stack TTS/STT, LLM off):
+Run (no keys needed - personas + stack TTS/STT, LLM off):
     python -m app.voice_agent.self_test
     python -m app.voice_agent.self_test --llm        # LLM ping bhi (free-tier kharcha)
 or import:
@@ -54,10 +54,10 @@ _TTS_VOICE = "hi-IN-SwaraNeural"
 
 
 # --------------------------------------------------------------------------- #
-# Component 1 — persona conversation suite (free, deterministic, no network)
+# Component 1 - persona conversation suite (free, deterministic, no network)
 # --------------------------------------------------------------------------- #
 async def _run_personas(niche: str, deadline_s: float) -> dict[str, Any]:
-    """eval_suite ko brain=None (rule-based) factory ke saath chalao. Pure logic —
+    """eval_suite ko brain=None (rule-based) factory ke saath chalao. Pure logic -
     no LLM/network. Returns pass_rate + by_persona + failing-persona notes."""
     t0 = time.time()
     try:
@@ -65,16 +65,16 @@ async def _run_personas(niche: str, deadline_s: float) -> dict[str, Any]:
         from app.voice_agent.natural_dialog import NaturalDialogManager
 
         def _factory():
-            # brain=None + use_llm_fallback=False intent → GENUINELY network-free:
+            # brain=None + use_llm_fallback=False intent -> GENUINELY network-free:
             # warna NaturalDialogManager ek live-LLM IntentDetector banata hai jo har
-            # turn Gemini call karta (flaky + slow → nightly Arjun isiliye 300s budget
+            # turn Gemini call karta (flaky + slow -> nightly Arjun isiliye 300s budget
             # rakhta). On-demand self-test ko fast + free + deterministic rakhna hai.
             intent = None
             try:
                 from app.voice_agent.intent_detector import IntentDetector
 
                 intent = IntentDetector(use_llm_fallback=False)
-            except Exception:  # pragma: no cover - import fail → __init__ rule-based fallback
+            except Exception:  # pragma: no cover - import fail -> __init__ rule-based fallback
                 intent = None
             return NaturalDialogManager(niche=niche, brain=None, intent_detector=intent)
 
@@ -101,11 +101,11 @@ async def _run_personas(niche: str, deadline_s: float) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Component 2 — live AI-stack probes (network → each bounded + graceful)
+# Component 2 - live AI-stack probes (network -> each bounded + graceful)
 # --------------------------------------------------------------------------- #
 async def _probe_tts(deadline_s: float) -> dict[str, Any]:
     """EdgeTTS se ek Hindi line synth karke audio-bytes gino. EdgeTTS async hai
-    (loop block nahi karta) — wait_for hi kaafi bound hai. Key nahi chahiye."""
+    (loop block nahi karta) - wait_for hi kaafi bound hai. Key nahi chahiye."""
     t0 = time.time()
     try:
         import edge_tts
@@ -133,9 +133,9 @@ async def _probe_tts(deadline_s: float) -> dict[str, Any]:
 
 
 async def _probe_stt(deadline_s: float) -> dict[str, Any]:
-    """STT manager construct ho jaata hai aur kaun-se providers available hain —
+    """STT manager construct ho jaata hai aur kaun-se providers available hain -
     yahi probe (actual transcribe ke liye audio chahiye, isliye sirf availability).
-    Manager-init blocking model-load kar sakta → to_thread me wrap."""
+    Manager-init blocking model-load kar sakta -> to_thread me wrap."""
     t0 = time.time()
     try:
         from app.voice_agent.free_stt import get_free_stt
@@ -161,7 +161,7 @@ async def _probe_stt(deadline_s: float) -> dict[str, Any]:
 
 
 async def _probe_llm(deadline_s: float) -> dict[str, Any]:
-    """free_ai chain ko ek chhota ping bhejo (max_tokens chhota). OPT-IN — har run
+    """free_ai chain ko ek chhota ping bhejo (max_tokens chhota). OPT-IN - har run
     free-tier ka ek token jalaata hai, isliye default OFF."""
     t0 = time.time()
     try:
@@ -192,7 +192,7 @@ async def _probe_llm(deadline_s: float) -> dict[str, Any]:
 
 
 async def _run_stack(llm: bool, deadline_s: float) -> dict[str, Any]:
-    """TTS + STT (+ optional LLM) probes — concurrently, har ek apne bound ke saath."""
+    """TTS + STT (+ optional LLM) probes - concurrently, har ek apne bound ke saath."""
     tasks = {"tts": _probe_tts(deadline_s), "stt": _probe_stt(deadline_s)}
     if llm:
         tasks["llm"] = _probe_llm(deadline_s)
@@ -209,7 +209,7 @@ async def _run_stack(llm: bool, deadline_s: float) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Component 3 — recent LIVE-call quality (local jsonl, no network)
+# Component 3 - recent LIVE-call quality (local jsonl, no network)
 # --------------------------------------------------------------------------- #
 async def _run_live(n: int, deadline_s: float) -> dict[str, Any]:
     """live_eval se pichhli N real calls score karo (deterministic, no network)."""
@@ -290,18 +290,18 @@ async def run_voice_self_test(
     live_n: int = 5,
     deadline_s: float = 60.0,
 ) -> dict[str, Any]:
-    """Built-in voice self-test — ek scorecard.
+    """Built-in voice self-test - ek scorecard.
 
     Args:
         personas: rule-based persona conversation suite chalao (free, deterministic).
         stack:    live TTS/STT probes (LLM tab jab ``llm=True``).
         live:     pichhli ``live_n`` real calls ki quality (local transcripts).
-        llm:      LLM ping probe (OPT-IN — free-tier token jalaata hai).
+        llm:      LLM ping probe (OPT-IN - free-tier token jalaata hai).
         niche:    persona suite kis niche pe (default ``solar``).
         deadline_s: per-component hard deadline (seconds).
 
     Returns:
-        ``{ok, score, status, personas, stack, live, ms}`` — KABHI raise nahi karta.
+        ``{ok, score, status, personas, stack, live, ms}`` - KABHI raise nahi karta.
     """
     t0 = time.time()
     report: dict[str, Any] = {}
@@ -321,7 +321,7 @@ async def run_voice_self_test(
 
 
 # --------------------------------------------------------------------------- #
-# CLI — python -m app.voice_agent.self_test [--llm] [--niche solar]
+# CLI - python -m app.voice_agent.self_test [--llm] [--niche solar]
 # --------------------------------------------------------------------------- #
 async def _main(argv: list[str]) -> int:
     llm = "--llm" in argv
@@ -335,7 +335,7 @@ async def _main(argv: list[str]) -> int:
     rep = await run_voice_self_test(personas=True, stack=True, live=True, llm=llm, niche=niche)
 
     print("=" * 64)
-    print(f" VOICE SELF-TEST — niche={niche}  llm={'on' if llm else 'off'}")
+    print(f" VOICE SELF-TEST - niche={niche}  llm={'on' if llm else 'off'}")
     print("=" * 64)
     p = rep.get("personas") or {}
     if p:

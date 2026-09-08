@@ -22,7 +22,7 @@ def overlapping(requested: list[str], held_by_others: list[str]) -> list[str]:
 
 
 class InMemoryOwnershipLock:
-    """Process-local ownership lock — correct for a single worker; test backend."""
+    """Process-local ownership lock - correct for a single worker; test backend."""
 
     def __init__(self) -> None:
         self._held: dict[str, tuple[str, float]] = {}

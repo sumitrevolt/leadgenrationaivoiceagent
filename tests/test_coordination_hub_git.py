@@ -1,4 +1,4 @@
-"""Bounded git probe — redaction + allowlist + timeout surface."""
+"""Bounded git probe - redaction + allowlist + timeout surface."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Creative Automation OS orchestration — API enqueues; Celery video worker renders."""
+"""Creative Automation OS orchestration - API enqueues; Celery video worker renders."""
 
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ def enqueue_generate(
             return {"ok": False, "error": "CREATIVE_OS_ENABLED off"}
 
         # Fail-closed customer brief: entitlement + verified brand facts before any queue write.
-        # Missing required fields → NEEDS_CUSTOMER_INPUT (never fabricate a generic video).
+        # Missing required fields -> NEEDS_CUSTOMER_INPUT (never fabricate a generic video).
         brief_out = resolve_brief(
             tenant_id=tenant_id,
             objective=niche or business_name or "general",
@@ -127,7 +127,7 @@ def enqueue_generate(
 
         brief = brief_out.get("brief")
         brand = getattr(brief, "brand", None)
-        # Bind render copy to verified brief facts — caller overrides cannot inject
+        # Bind render copy to verified brief facts - caller overrides cannot inject
         # unverified business_name / niche into on-screen scene text.
         biz_name = str(getattr(brand, "business_name", "") or business_name or "").strip()
         niche_use = str(getattr(brand, "niche", "") or niche or "general").strip()
@@ -238,7 +238,7 @@ async def generate_preview(**kwargs: Any) -> dict[str, Any]:
 
 
 def process_generation(tenant_id: str, creative_id: str) -> dict[str, Any]:
-    """Celery worker entry — heavy render + QA. Never called from web request path."""
+    """Celery worker entry - heavy render + QA. Never called from web request path."""
     import asyncio
 
     try:
@@ -261,7 +261,7 @@ def process_generation(tenant_id: str, creative_id: str) -> dict[str, Any]:
 
         tr = assert_transition(spec.status, "generating")
         if not tr.get("ok") and spec.status not in ("queued", "generating", "changes_requested"):
-            # Allow queued/changes_requested→generating; if already generating, continue
+            # Allow queued/changes_requested->generating; if already generating, continue
             if spec.status != "generating":
                 return tr
 
@@ -350,7 +350,7 @@ def process_generation(tenant_id: str, creative_id: str) -> dict[str, Any]:
 
         # Enterprise deliverable classification. Recorded for EVERY provider so
         # the cockpit can tell a draft from sellable agency work, but only
-        # ENFORCED for providers that promise a customer-grade deliverable —
+        # ENFORCED for providers that promise a customer-grade deliverable -
         # enforcing it globally would retroactively fail the deterministic
         # provider's legitimate 720p drafts.
         try:
@@ -618,7 +618,7 @@ def publish_gate(tenant_id: str, creative_id: str) -> dict[str, Any]:
 
 
 def customer_view(tenant_id: str, creative_id: str) -> dict[str, Any]:
-    """Customer-safe projection — no paths, providers, or infra."""
+    """Customer-safe projection - no paths, providers, or infra."""
     got = get_record(tenant_id, creative_id)
     if not got.get("ok"):
         return got

@@ -1,8 +1,8 @@
-"""AI FAQ + lead-capture chatbot — customer-facing, grounded in the client's KB.
+"""AI FAQ + lead-capture chatbot - customer-facing, grounded in the client's KB.
 
 Competitors (Tidio/Elfsight/Katrix) sell a website chatbot trained on the business's data
 that answers customers 24/7 AND captures leads. Onboarding ab har client ki website se KB
-seed karta hai (ns `client:<id>`), to har client ka apna bot ho sakta hai — free_ai +
+seed karta hai (ns `client:<id>`), to har client ka apna bot ho sakta hai - free_ai +
 knowledge_base se. Powers a future embeddable website/WhatsApp widget.
 
 reply(question, client_id, niche) -> {answer, ask_contact, sources}  (never raises)
@@ -17,7 +17,7 @@ import os
 logger = logging.getLogger(__name__)
 
 _FALLBACK = (
-    "Iska jawab main team se confirm karke bata deta hoon — apna number/WhatsApp share "
+    "Iska jawab main team se confirm karke bata deta hoon - apna number/WhatsApp share "
     "kar dijiye, hum turant contact karenge. 🙏"
 )
 
@@ -35,7 +35,7 @@ def _guardrails_on() -> bool:
 
 
 def _agentic_rag_on() -> bool:
-    """Corrective (CRAG) retrieval fallback for the public chatbot — query-rewrite +
+    """Corrective (CRAG) retrieval fallback for the public chatbot - query-rewrite +
     retry + grounded answer when the cheap KB retrieval comes back EMPTY. GATED
     USE_AGENTIC_RAG=1 (default OFF = byte-identical). Closes the wiring gap noted in
     docs/RAG_KnowledgeGraph_Agentic.md (the module had zero call-sites). Never-raise."""
@@ -43,9 +43,9 @@ def _agentic_rag_on() -> bool:
 
 
 def _kb_context_sync(q: str, client_id: str, niche: str, k: int) -> list[str]:
-    """SYNC KB retrieval — SIRF thread me chalao (model first-load + embed = heavy
+    """SYNC KB retrieval - SIRF thread me chalao (model first-load + embed = heavy
     sync CPU/network
-    event loop pe chala to HTTP starve — qa-job prod-down lesson)."""
+    event loop pe chala to HTTP starve - qa-job prod-down lesson)."""
     ctx: list[str] = []
     try:
         from app.voice_agent.knowledge_base import get_knowledge_base
@@ -92,8 +92,8 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
             logger.debug("chatbot guardrail input skip (fail-open): %s", e)
             _guard = None
 
-    # KB retrieval thread me + hard timeout — event loop KABHI block nahi hota.
-    # (Fresh container me fastembed model first-load minutes le sakta hai → us request
+    # KB retrieval thread me + hard timeout - event loop KABHI block nahi hota.
+    # (Fresh container me fastembed model first-load minutes le sakta hai -> us request
     # ko fallback milega, baad ki requests ko loaded model.)
     ctx: list[str] = []
     try:
@@ -104,8 +104,8 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
         logger.info("chatbot KB skip (timeout/err): %s", e)
 
     # Corrective fallback (CRAG): agar cheap multi-ns retrieval KHAALI aaya AND
-    # USE_AGENTIC_RAG on, to agentic loop (grade → query-rewrite → retry → grounded
-    # answer) try karo. SIRF is weak/empty path pe — common path (context mil gaya)
+    # USE_AGENTIC_RAG on, to agentic loop (grade -> query-rewrite -> retry -> grounded
+    # answer) try karo. SIRF is weak/empty path pe - common path (context mil gaya)
     # bilkul unchanged + zero extra latency. Gated + bounded + never-raise.
     if not ctx and _agentic_rag_on():
         try:

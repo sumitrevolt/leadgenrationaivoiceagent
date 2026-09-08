@@ -1,4 +1,4 @@
-"""W2.1 — validate content captions before they enter the draft queue.
+"""W2.1 - validate content captions before they enter the draft queue.
 
 `_append_items` wrote every generated item straight to the client's draft queue with
 no output check, so a caption carrying a BANNED phrase (brand/compliance risk) or junk
@@ -16,7 +16,7 @@ import app.marketing.auto_content as ac
 def test_caption_ok_rules(monkeypatch):
     monkeypatch.setattr(staff, "BANNED", ["spammy"])
     assert ac._caption_ok({"caption": "A nice normal caption for a local shop."})[0] is True
-    assert ac._caption_ok({"caption": ""})[0] is True  # poster/svg — no caption to check
+    assert ac._caption_ok({"caption": ""})[0] is True  # poster/svg - no caption to check
     assert ac._caption_ok({"caption": "short"})[0] is False  # too short
     assert ac._caption_ok({"caption": "this is spammy stuff indeed"})[0] is False  # banned
 

@@ -1,11 +1,11 @@
-"""DLT-compliant SMS sender (India) — ready-to-flip.
+"""DLT-compliant SMS sender (India) - ready-to-flip.
 
 TRAI DLT framework: India me commercial SMS ke liye entity + header (6-char sender
 ID) + template DLT pe registered hone chahiye. SMS/RCS ko WhatsApp-jaisa app-opt-in
-NAHI chahiye — sirf DLT consent. ₹0.10–0.20/msg, 100% reach (feature-phone + rural).
+NAHI chahiye - sirf DLT consent. ₹0.10–0.20/msg, 100% reach (feature-phone + rural).
 
 Yeh module ek **generic BSP HTTP sender** hai (MSG91 / AiSensy / Fast2SMS / koi bhi
-DLT BSP). Default INERT — creds na ho to bhejta nahi (sirf {"ok":false,"inert":true}).
+DLT BSP). Default INERT - creds na ho to bhejta nahi (sirf {"ok":false,"inert":true}).
 Ready-to-flip: DLT register ke baad ye env set karo aur 1-switch live:
     SMS_PROVIDER_URL   = BSP ka send endpoint
     SMS_API_KEY        = BSP API key
@@ -55,7 +55,7 @@ def _creds() -> tuple[str, str, str]:
 
 
 def render(template_key: str, **params: Any) -> str:
-    """Template render (safe — missing var blank)."""
+    """Template render (safe - missing var blank)."""
     tpl = TEMPLATES.get(template_key, TEMPLATES["intro"])
     try:
         return tpl.format_map(
@@ -87,7 +87,7 @@ async def send_sms(to: str, message: str, template_id: str | None = None) -> dic
     try:
         import httpx
 
-        # Generic BSP payload — adjust keys to your BSP (MSG91/AiSensy/Fast2SMS).
+        # Generic BSP payload - adjust keys to your BSP (MSG91/AiSensy/Fast2SMS).
         payload = {
             "sender": sender,
             "to": "91" + ph,

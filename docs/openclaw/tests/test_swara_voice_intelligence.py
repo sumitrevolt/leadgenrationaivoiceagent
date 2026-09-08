@@ -5,7 +5,7 @@ Tests verify:
 - Rule 1:  Single canonical voice identity (SWARA_VOICE_ID)
 - Rule 2:  Natural Hinglish as default language
 - Rule 4:  voice_learning_event capture
-- Rule 5:  English → Hinglish adaptation (meaning-preserving)
+- Rule 5:  English -> Hinglish adaptation (meaning-preserving)
 - Rule 6:  Owner corrections create high-priority learning events
 - Rule 7:  Pronunciation dictionary with project-specific entries
 - Rule 8:  Golden utterances library by intent
@@ -497,7 +497,7 @@ class TestVersioning:
 # ============================================================
 
 class TestSingleVoiceConfiguration:
-    """Rule 20: Single voice configuration pattern — no duplicates"""
+    """Rule 20: Single voice configuration pattern - no duplicates"""
 
     def test_env_pattern_exists(self):
         """Verify the .env.example has the single configuration pattern"""

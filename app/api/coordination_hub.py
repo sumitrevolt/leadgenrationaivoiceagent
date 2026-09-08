@@ -1,4 +1,4 @@
-"""Coordination Hub API — Owner OS namespaced thin projection.
+"""Coordination Hub API - Owner OS namespaced thin projection.
 
 Prefix: /api/admin/owner-os/coordination-hub
 Admin JWT for reads. Tool heartbeat + Buzz webhook = HMAC only (no admin bearer).
@@ -135,7 +135,7 @@ async def tool_heartbeat(tool_id: str, request: Request) -> dict[str, Any]:
 
 @router.post("/webhooks/buzz")
 async def buzz_webhook(request: Request) -> dict[str, Any]:
-    """Dedicated Buzz HMAC webhook — append event only; never admin token."""
+    """Dedicated Buzz HMAC webhook - append event only; never admin token."""
     _require_hub_on()
     verified, raw = await _verify_inbound(request, tool_id="buzz", default_event="buzz_event")
     body = _parse_json_body(raw)
@@ -167,7 +167,7 @@ async def refuse_mutation(
     body: MutationProbeIn,
     _user: User = Depends(require_admin),
 ) -> dict[str, Any]:
-    """Explicit refuse surface — documents that Hub is projection-only."""
+    """Explicit refuse surface - documents that Hub is projection-only."""
     return hub.mutation_refused(body.action)
 
 

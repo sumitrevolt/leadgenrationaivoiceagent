@@ -1,15 +1,15 @@
 """DLQ auto-retry sweep (failed Celery staff-jobs ko khud dobara chalao).
 
 PROBLEM: worker.py `on_task_failure` failed tasks ko Redis `dlq:failed_tasks`
-me record karta hai — par wahan se nikaalna MANUAL tha (`POST /infra/dlq/retry`).
+me record karta hai - par wahan se nikaalna MANUAL tha (`POST /infra/dlq/retry`).
 Koi dekhe hi nahi to failed job pade-pade automation gap ban jata.
 
-YEH MODULE: watchdog job (hourly) me wired sweep —
+YEH MODULE: watchdog job (hourly) me wired sweep -
   - DLQ se items pop karo, sirf STAFF_JOBS parse karo (side-effect-safe:
-    legacy/unknown tasks blindly retry NAHI hote → `dlq:dead` me move).
-  - Per-job attempt count Redis key `dlq:retry:{job}` me (12h TTL) —
+    legacy/unknown tasks blindly retry NAHI hote -> `dlq:dead` me move).
+  - Per-job attempt count Redis key `dlq:retry:{job}` me (12h TTL) -
     MAX_ATTEMPTS ke baad job `dlq:dead` me + (gated) email alert.
-    (Shared-hash TTL hata diya — kisi job ka incr doosri job ka cap reset na kare.)
+    (Shared-hash TTL hata diya - kisi job ka incr doosri job ka cap reset na kare.)
   - Re-dispatch: Celery owner ho (RUN_IN_PROCESS_SCHEDULER=0) to
     `run_staff_job.apply_async(countdown=backoff)`
     warna direct in-process
@@ -34,10 +34,10 @@ DLQ_KEY = "dlq:failed_tasks"
 DEAD_KEY = "dlq:dead"
 COUNTS_KEY = "dlq:retry_counts"  # legacy shared-hash (unused for writes
 kept for ops grep)
-COUNT_KEY_PREFIX = "dlq:retry:"  # per-job key → deterministic TTL / MAX_ATTEMPTS
+COUNT_KEY_PREFIX = "dlq:retry:"  # per-job key -> deterministic TTL / MAX_ATTEMPTS
 COUNTS_TTL_S = 12 * 3600  # attempt-counts 12h baad reset (transient-failure count zinda rahe)
-MAX_ATTEMPTS = 3  # 3 auto-retries before dead-queue — transient 429/500/timeout ko recover hone ka extra chance (tha 2)
-BACKOFF_BASE_S = 120  # attempt n → n*120s countdown (celery path)
+MAX_ATTEMPTS = 3  # 3 auto-retries before dead-queue - transient 429/500/timeout ko recover hone ka extra chance (tha 2)
+BACKOFF_BASE_S = 120  # attempt n -> n*120s countdown (celery path)
 
 
 def _enabled() -> bool:
@@ -59,7 +59,7 @@ def _redis():
 
 def parse_staff_job(rec: dict[str, Any]) -> str | None:
     """DLQ record ke `args` str se staff-job naam nikaalo (warna None).
-    on_task_failure args ko str() karke save karta — e.g. "('content',)"."""
+    on_task_failure args ko str() karke save karta - e.g. "('content',)"."""
     try:
         from app.tasks.staff_jobs import STAFF_JOBS
 
@@ -97,7 +97,7 @@ async def _dispatch(job: str, attempt: int) -> str:
 
         run_staff_job.apply_async(args=(job,), countdown=attempt * BACKOFF_BASE_S)
         return "celery"
-    # in-process mode: seedha chalao (defensive — _run_job kabhi raise nahi karta
+    # in-process mode: seedha chalao (defensive - _run_job kabhi raise nahi karta
     # except job-level, jo heartbeat me dikh jata)
     from app.platform import team_scheduler
 
@@ -117,10 +117,10 @@ async def _alert_dead(dead_jobs: list[str]) -> None:
 
         await email_sender.send_email(
             [notify],
-            f"⚠️ DLQ: {len(dead_jobs)} job(s) retry ke baad bhi FAIL — manual dekho",
+            f"⚠️ DLQ: {len(dead_jobs)} job(s) retry ke baad bhi FAIL - manual dekho",
             "Yeh jobs auto-retry (max "
             + str(MAX_ATTEMPTS)
-            + " attempts) ke baad bhi fail rahe — ab `dlq:dead` me hain:\n\n- "
+            + " attempts) ke baad bhi fail rahe - ab `dlq:dead` me hain:\n\n- "
             + "\n- ".join(dead_jobs)
             + "\n\nInspect: GET /api/growth/infra/dlq?key=dead · logs: docker logs leadgen_worker (dlq_retry)",
         )
@@ -129,11 +129,11 @@ async def _alert_dead(dead_jobs: list[str]) -> None:
 
 
 def _queue_flooded(r=None) -> bool:
-    """D3: celery queue depth cap se zyada hai? Tab DLQ retry-sweep DEFER karo —
+    """D3: celery queue depth cap se zyada hai? Tab DLQ retry-sweep DEFER karo -
     flooded queue pe rpop+re-enqueue = retry-storm (known 'llen celery >500 = del'
     gotcha). Items DLQ me rehte (no loss), agla sweep retry karega. Gated
     QUEUE_DEPTH_BACKPRESSURE
-    INERT (False) unset pe. Best-effort — error = not flooded."""
+    INERT (False) unset pe. Best-effort - error = not flooded."""
     if os.environ.get("QUEUE_DEPTH_BACKPRESSURE", "0").strip().lower() not in (
         "1",
         "true",
@@ -149,7 +149,7 @@ def _queue_flooded(r=None) -> bool:
         depth = int(r.llen("celery") or 0)
         if depth > cap:
             logger.warning(
-                f"[dlq_retry] queue backpressure: celery depth {depth} > {cap} — DLQ sweep deferred"
+                f"[dlq_retry] queue backpressure: celery depth {depth} > {cap} - DLQ sweep deferred"
             )
             return True
     except Exception:
@@ -158,14 +158,14 @@ def _queue_flooded(r=None) -> bool:
 
 
 async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[str, Any]:
-    """DLQ sweep: staff-jobs retry (backoff), exhausted/unknown → dlq:dead.
+    """DLQ sweep: staff-jobs retry (backoff), exhausted/unknown -> dlq:dead.
     KABHI raise nahi. Flag off = no-op summary (force=True manual API ke liye)."""
     out: dict[str, Any] = {"enabled": _enabled(), "retried": [], "dead": [], "skipped": 0}
     if not (_enabled() or force):
         return out
     try:
         r = r or _redis()
-        # D3: agar celery queue flooded hai to retry-storm mat banao — DLQ items
+        # D3: agar celery queue flooded hai to retry-storm mat banao - DLQ items
         # rehne do (no loss), manual force=True isko bypass karta.
         if not force and _queue_flooded(r):
             out["deferred"] = "queue_flooded"
@@ -183,7 +183,7 @@ async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[st
                 continue
             job = parse_staff_job(rec)
             if not job:
-                # legacy/unknown task — blind retry side-effect risk (calls/emails) → dead
+                # legacy/unknown task - blind retry side-effect risk (calls/emails) -> dead
                 r.lpush(DEAD_KEY, json.dumps(rec, ensure_ascii=False))
                 out["skipped"] += 1
                 continue

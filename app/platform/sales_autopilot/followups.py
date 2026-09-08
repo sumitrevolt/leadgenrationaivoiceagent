@@ -1,4 +1,4 @@
-"""Sales Autopilot follow-ups — max 2, reply/opt-out/payment stop, IST hours.
+"""Sales Autopilot follow-ups - max 2, reply/opt-out/payment stop, IST hours.
 
 Selection only: :func:`due_followups` returns the (prospect, step) pairs that are *due* a
 follow-up. Whether they actually send is still decided by eligibility + send (dry-run

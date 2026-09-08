@@ -2,7 +2,7 @@
 
 `/api/customer/auth/me` now returns `first_hour_setup: {active, minutes_elapsed,
 minutes_remaining, message}` so the dashboard FE can render "🚀 AI setup ho rahi
-hai — X min me pehla content" instead of showing empty zeros to a customer who
+hai - X min me pehla content" instead of showing empty zeros to a customer who
 signed up 5 minutes ago and is waiting on the auto_onboard job.
 
 RED-first: field wasn't in the response before this loop.
@@ -20,7 +20,7 @@ def _iso(dt: datetime) -> str:
 
 
 def test_me_first_hour_setup_active_for_fresh_customer(monkeypatch):
-    """Signed up 5 min ago + no content → active=True with a helpful message."""
+    """Signed up 5 min ago + no content -> active=True with a helpful message."""
     # Zero content queued.
     import app.marketing.auto_content as ac
     from app.api.customer_auth import _first_hour_setup_state
@@ -36,7 +36,7 @@ def test_me_first_hour_setup_active_for_fresh_customer(monkeypatch):
 
 
 def test_me_first_hour_setup_inactive_after_60_minutes(monkeypatch):
-    """Signed up 65 min ago → active=False (window closed regardless of content)."""
+    """Signed up 65 min ago -> active=False (window closed regardless of content)."""
     import app.marketing.auto_content as ac
     from app.api.customer_auth import _first_hour_setup_state
 
@@ -48,7 +48,7 @@ def test_me_first_hour_setup_inactive_after_60_minutes(monkeypatch):
 
 
 def test_me_first_hour_setup_inactive_when_content_ready(monkeypatch):
-    """Fresh customer BUT auto_onboard already produced content → no banner
+    """Fresh customer BUT auto_onboard already produced content -> no banner
     (customer sees real content, not the setup message)."""
     import app.marketing.auto_content as ac
     from app.api.customer_auth import _first_hour_setup_state
@@ -58,12 +58,12 @@ def test_me_first_hour_setup_inactive_when_content_ready(monkeypatch):
     rec = {"id": "c_ready", "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=10))}
     state = _first_hour_setup_state(rec)
     assert state["active"] is False, (
-        "content already exists — customer doesn't need the setup banner"
+        "content already exists - customer doesn't need the setup banner"
     )
 
 
 def test_me_first_hour_setup_defensive_on_missing_created_at(monkeypatch):
-    """Legacy client without created_at → safe inactive default, no exception."""
+    """Legacy client without created_at -> safe inactive default, no exception."""
     from app.api.customer_auth import _first_hour_setup_state
 
     state = _first_hour_setup_state({"id": "c_legacy"})
@@ -72,7 +72,7 @@ def test_me_first_hour_setup_defensive_on_missing_created_at(monkeypatch):
 
 
 def test_me_first_hour_setup_defensive_on_none(monkeypatch):
-    """None client rec (unknown cid) → safe inactive default."""
+    """None client rec (unknown cid) -> safe inactive default."""
     from app.api.customer_auth import _first_hour_setup_state
 
     state = _first_hour_setup_state(None)

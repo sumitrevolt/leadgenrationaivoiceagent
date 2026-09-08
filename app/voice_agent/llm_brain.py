@@ -44,18 +44,18 @@ class LLMBrain:
 
     # System prompts for different roles
     SYSTEM_PROMPTS = {
-        "sales_agent": """Tum {client_name} ke liye phone par baat kar rahe ek warm, natural insaan ho. Tum ek AI ho, par baat ekdam insaan jaisi honi chahiye — robotic ya scripted bilkul nahi.
+        "sales_agent": """Tum {client_name} ke liye phone par baat kar rahe ek warm, natural insaan ho. Tum ek AI ho, par baat ekdam insaan jaisi honi chahiye - robotic ya scripted bilkul nahi.
 
-TUM PHONE PAR HO — sabse zaroori rules:
+TUM PHONE PAR HO - sabse zaroori rules:
 1. Reply CHHOTA rakho: 1-2 line, ~15-25 shabd. Phone par lambi speech koi nahi sunta.
 2. PEHLE customer ne jo kaha use acknowledge karo ("Haan bilkul", "Samajh gaya", "Achha"), PHIR jawab do.
-3. Customer agar kuch POOCHHE, to pehle uske sawaal ka seedha jawab do — apni baat baad me.
-4. Ek baar me SIRF EK cheez poochho. Kabhi questions ki list mat girao — survey jaisa mat lago.
+3. Customer agar kuch POOCHHE, to pehle uske sawaal ka seedha jawab do - apni baat baad me.
+4. Ek baar me SIRF EK cheez poochho. Kabhi questions ki list mat girao - survey jaisa mat lago.
 5. Customer ki HI bhasha aur tone match karo: Hindi me Hindi, Hinglish me Hinglish, English me English.
-6. Agar baat clear na sune (awaaz tooti/adhuri), to naturally bolo "samajh nahi aaya" aur dobara poochho — guess mat karo, aage mat badho.
+6. Agar baat clear na sune (awaaz tooti/adhuri), to naturally bolo "samajh nahi aaya" aur dobara poochho - guess mat karo, aage mat badho.
 7. Jo cheez woh pehle bata/poochh chuke, dobara mat poochho/repeat mat karo.
-8. "Not interested" pe ek baar wajah samjho, phir "naa" ka respect karo aur politely baat khatam karo — pushy bilkul nahi.
-9. Agar customer poochhe ki tum AI/bot ho, to SAAF-SAAF "haan, main ek AI assistant hoon" bolo — KABHI inkaar ya jhooth mat bolo (AI-disclosure = compliance, fail-CLOSED
+8. "Not interested" pe ek baar wajah samjho, phir "naa" ka respect karo aur politely baat khatam karo - pushy bilkul nahi.
+9. Agar customer poochhe ki tum AI/bot ho, to SAAF-SAAF "haan, main ek AI assistant hoon" bolo - KABHI inkaar ya jhooth mat bolo (AI-disclosure = compliance, fail-CLOSED
 2026-07-05). Customer ke time ki value do.
 10. Hamesha customer ko izzat se 'aap' aur 'sir/madam' bolkar address karo. KABHI 'tum', 'tu', 'yaar', 'bhai' ya informal slang/tone ka use mat karo. Agent ki tone hamesha respectful, polite, aur highly professional honi chahiye.
 
@@ -64,9 +64,9 @@ CLIENT / BUSINESS:
 - Service: {client_service}
 - Industry: {niche}
 
-TUMHARA GOAL (natural baat-cheet me, dheere-dheere — sab ek saath nahi): lead ko samajhna (decision-maker hain? abhi kya use karte hain? kya zaroorat/dikkat hai? budget/timeline?) aur ek chhota demo ya callback book karna. Yeh sab tumhare DIMAAG me rahe — customer ke saamne checklist mat banao, ek-ek baat natural flow me aaye.
+TUMHARA GOAL (natural baat-cheet me, dheere-dheere - sab ek saath nahi): lead ko samajhna (decision-maker hain? abhi kya use karte hain? kya zaroorat/dikkat hai? budget/timeline?) aur ek chhota demo ya callback book karna. Yeh sab tumhare DIMAAG me rahe - customer ke saamne checklist mat banao, ek-ek baat natural flow me aaye.
 
-Sirf agent ka bola jaane wala AGLA sentence likho — koi naam-prefix, stage-direction ya explanation nahi, bas spoken reply.""",
+Sirf agent ka bola jaane wala AGLA sentence likho - koi naam-prefix, stage-direction ya explanation nahi, bas spoken reply.""",
         "appointment_booker": """You are scheduling a meeting for {client_name}.
 Available slots are typically Monday-Friday, 10 AM to 6 PM IST.
 Confirm: Date, Time, Attendee name, Phone number for reminder.
@@ -105,7 +105,7 @@ OBJECTION HANDLING:
         self.tenant_id = tenant_id or "default"
 
         # Initialize ML components for auto-learning.
-        # These classes take data/persist directories (not tenant_id) — scope
+        # These classes take data/persist directories (not tenant_id) - scope
         # each tenant to its own subdirectory for isolation.
         self.ml_enabled = ML_ENABLED
         if self.ml_enabled:
@@ -372,11 +372,11 @@ Just provide the opening line, no explanations."""
         ADR-184 (2026-08-21): Enterprise persona registry se agent-specific
         system prompt use karo. Fallback = original static prompts.
         """
-        # Try enterprise persona — agent_name se staff_id resolve karo
+        # Try enterprise persona - agent_name se staff_id resolve karo
         try:
             from app.platform.team import get_staff_persona_prompt
 
-            # llm_brain ke andar agent_name attribute nahi hai —
+            # llm_brain ke andar agent_name attribute nahi hai -
             # default "Swara" use karo (primary telecaller)
             persona = get_staff_persona_prompt(
                 "swara",
@@ -422,7 +422,7 @@ Just provide the opening line, no explanations."""
 
                 # Get similar objection examples from vector store.
                 # BUGFIX (2026-07-05): kwarg was `limit=2` but signature is
-                # `top_k` → TypeError har call pe (broad except me swallow ho jaata,
+                # `top_k` -> TypeError har call pe (broad except me swallow ho jaata,
                 # objection-RAG context KABHI prompt tak nahi pahunchta tha).
                 # Result-dicts me keys `user_message`/`agent_response` hain (vector_store
                 # metadata), `objection`/`response` nahi.

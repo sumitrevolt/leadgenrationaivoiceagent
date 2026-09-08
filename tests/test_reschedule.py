@@ -1,4 +1,4 @@
-"""P3a (2026-06-28): reschedule flow in calendar_booking — find existing by phone
+"""P3a (2026-06-28): reschedule flow in calendar_booking - find existing by phone
 (durable ledger), free old slot, book new. Plus the voice-tool registration.
 """
 

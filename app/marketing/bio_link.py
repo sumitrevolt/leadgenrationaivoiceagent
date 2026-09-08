@@ -1,4 +1,4 @@
-"""Bio-link page (Linktree-killer, free-stack) — per-client mobile-first link page:
+"""Bio-link page (Linktree-killer, free-stack) - per-client mobile-first link page:
 WhatsApp / call / UPI / catalog / video / offer blocks bade buttons me, brand
 colors (brand_kit + clients_store reuse), per-block CLICK TRACKING via redirect.
 
@@ -9,7 +9,7 @@ colors (brand_kit + clients_store reuse), per-block CLICK TRACKING via redirect.
   render_bio_html(slug)         -> standalone page (serve at /b/{slug}/bio)
 
 Security: target URLs sirf http(s)/own-relative ya HUMARE banaye wa.me/tel:/upi:
-schemes — javascript:/data: kabhi nahi (open-redirect lock). Sab user text
+schemes - javascript:/data: kabhi nahi (open-redirect lock). Sab user text
 HTML-escaped. Pure-logic (NO LLM, no network). Never raises.
 """
 
@@ -80,7 +80,7 @@ def _clean_color(v: Any) -> str:
 
 
 def _brand_colors(slug: str, client: dict[str, Any] | None = None) -> tuple[str, str]:
-    """(primary, accent) — brand_kit > client record > defaults."""
+    """(primary, accent) - brand_kit > client record > defaults."""
     primary, accent = "", ""
     try:
         client = client if isinstance(client, dict) else _load_client(slug)
@@ -139,7 +139,7 @@ def save_bio(
             if not c:
                 continue
             base, n = c["id"], 2
-            while c["id"] in seen_ids:  # bounded — n <= _MAX_BLOCKS
+            while c["id"] in seen_ids:  # bounded - n <= _MAX_BLOCKS
                 c["id"] = f"{base[:20]}-{n}"
                 n += 1
             seen_ids.add(c["id"])
@@ -192,7 +192,7 @@ def get_bio(slug: str) -> dict[str, Any] | None:
 # Target URL build + click tracking
 # --------------------------------------------------------------------------- #
 def _indian_digits(value: str) -> str:
-    """10-digit Indian mobile normalize → '91XXXXXXXXXX' | ''."""
+    """10-digit Indian mobile normalize -> '91XXXXXXXXXX' | ''."""
     d = re.sub(r"\D", "", value or "")
     if len(d) == 11 and d.startswith("0"):
         d = d[1:]  # common "0XXXXXXXXXX" format
@@ -204,7 +204,7 @@ def _indian_digits(value: str) -> str:
 
 
 def _block_target(block: dict[str, Any], slug: str, client: dict[str, Any]) -> str | None:
-    """Final URL banao — sirf safe schemes (http/https/own-relative/tel/upi/wa.me)."""
+    """Final URL banao - sirf safe schemes (http/https/own-relative/tel/upi/wa.me)."""
     btype = block.get("type") or "link"
     value = str(block.get("value") or "").strip()
     if btype == "whatsapp":
@@ -221,7 +221,7 @@ def _block_target(block: dict[str, Any], slug: str, client: dict[str, Any]) -> s
         return None
     if btype == "catalog" and not value:
         return f"/b/{slug}"  # mini-site catalog default
-    # link | video | offer | catalog-with-url — http(s) ya own-relative hi
+    # link | video | offer | catalog-with-url - http(s) ya own-relative hi
     if value.startswith(("http://", "https://")) or (
         value.startswith("/") and not value.startswith("//")
     ):
@@ -263,7 +263,7 @@ def resolve_block(slug: str, block_id: str, ua: str = "", ref: str = "") -> str 
                     + "\n"
                 )
         except Exception:
-            pass  # click log best-effort — redirect kabhi na ruke
+            pass  # click log best-effort - redirect kabhi na ruke
         return url
     except Exception as e:
         logger.warning(f"[bio_link] resolve failed: {e}")
@@ -302,12 +302,12 @@ def bio_stats(slug: str) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Page render (standalone, mobile-first) — serve at /b/{slug}/bio
+# Page render (standalone, mobile-first) - serve at /b/{slug}/bio
 # --------------------------------------------------------------------------- #
 _PAGE_TEMPLATE = """<!doctype html><html lang="hi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>__TITLE__ — Links</title>
-<meta name="description" content="__TITLE__ — saare links ek jagah.">
+<title>__TITLE__ - Links</title>
+<meta name="description" content="__TITLE__ - saare links ek jagah.">
 <style>
  *{box-sizing:border-box}
  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -354,12 +354,12 @@ _PAGE_TEMPLATE = """<!doctype html><html lang="hi"><head>
 
 
 def render_bio_html(slug: str) -> dict[str, Any]:
-    """{ok, html} — config na ho to ok=False (caller 302 kare). Never raises."""
+    """{ok, html} - config na ho to ok=False (caller 302 kare). Never raises."""
     try:
         key = _slug_key(slug)
         cfg = get_bio(key)
         if not cfg:
-            # Default bio: client record se auto-blocks (WA/call/mini-site) —
+            # Default bio: client record se auto-blocks (WA/call/mini-site) -
             # pehli visit pe hi kaam kare, config baad me customize. Save karte
             # hain taaki click-redirect ids resolve ho (kabhi 302-blank nahi).
             client = _load_client(key)

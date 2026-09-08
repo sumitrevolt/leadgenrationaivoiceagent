@@ -1,10 +1,10 @@
 """
-Advanced voice-agent self-test — drives the FREE web-call brain over scripted
+Advanced voice-agent self-test - drives the FREE web-call brain over scripted
 conversations and returns a CI-gateable verdict.
 ================================================================================
 
 Runs the SAME TelecallerBrain the phone agent uses, over the web-call WebSocket
-(`/api/web-call/ws`) in text mode — FREE, no telephony, no paid STT/TTS/LLM key.
+(`/api/web-call/ws`) in text mode - FREE, no telephony, no paid STT/TTS/LLM key.
 
 What it checks per scenario (catalogue in app/voice_agent/voice_selftest.py):
   MECHANICAL (gates the build, exit 1):
@@ -21,19 +21,19 @@ Objective numbers in the scorecard:
   * latency P50/P95/P99 (distribution, not average)
   * quality_score = mean goal pass-rate (feeds eval_gate baseline when EVAL_GATE=1)
   * roundtrip-WER/CER per Swara line (opt-in --audio
-  FREE via Groq-whisper) —
+  FREE via Groq-whisper) -
     DIAGNOSTIC only, never gates (Devanagari↔roman folded via hinglish_normalize).
 
-VOICE-ENGINE TESTER (2026-08-06): this script is ALSO the voice-engine tester —
+VOICE-ENGINE TESTER (2026-08-06): this script is ALSO the voice-engine tester -
 every run can persist the driven test-call transcripts + audio into the SAME
 stores the call-analysis pipeline reads (data/call_transcripts/YYYY-MM-DD.jsonl +
 data/call_recordings/YYYY-MM-DD/webcall_test_*.mp3), so synthetic test data flows
 into scripts/voice_call_analysis.py / live_eval / campaign_optimizer exactly like
-real Vobiz calls — and --baseline diffing turns it into a before/after regression
+real Vobiz calls - and --baseline diffing turns it into a before/after regression
 harness for latency + quality.
 
 Exit codes:
-  0 = pass (or SKIP when no server is reachable — a local box with no app running
+  0 = pass (or SKIP when no server is reachable - a local box with no app running
       is NOT a failure), 1 = a real run found a gating finding.
 
 Run:
@@ -59,7 +59,7 @@ import time
 
 import aiohttp
 
-# Windows cp1252 console can't encode emojis (❌/✅/⏱) used below — force UTF-8
+# Windows cp1252 console can't encode emojis (❌/✅/⏱) used below - force UTF-8
 # so the scorecard prints instead of crashing mid-print. No-op on Linux/Mac.
 try:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
@@ -67,7 +67,7 @@ except Exception:  # pragma: no cover - older python
     pass
 
 # In --json mode, ONLY the JSON object may reach stdout (CI runs json.loads on
-# it) — but the app logger writes INFO to stdout the moment app.* is imported.
+# it) - but the app logger writes INFO to stdout the moment app.* is imported.
 # Capture all import-time + runtime stdout into a buffer here (before importing
 # app.*) and emit the JSON to the saved real stdout at the very end.
 _JSON_MODE = "--json" in sys.argv
@@ -93,7 +93,7 @@ except Exception:  # pragma: no cover
     _vm = None
 
 # Host/local default. IN-CONTAINER the app listens on :8080 (compose maps host
-# 127.0.0.1:8000 -> container 8080) — set AGENT_TESTER_WS to ws://127.0.0.1:8080/...
+# 127.0.0.1:8000 -> container 8080) - set AGENT_TESTER_WS to ws://127.0.0.1:8080/...
 DEFAULT_WS = os.environ.get("AGENT_TESTER_WS") or "ws://127.0.0.1:8000/api/web-call/ws"
 
 BANNED = [
@@ -103,7 +103,7 @@ BANNED = [
     "maaf kij",
     "[echo",
     "(no response)",
-    "<think",  # chain-of-thought/reasoning leak — never speakable to a caller
+    "<think",  # chain-of-thought/reasoning leak - never speakable to a caller
     "thinking process",
 ]
 
@@ -111,7 +111,7 @@ _SCN_BY_NAME = {s.name: s for s in vs.SCENARIOS}
 
 
 # --------------------------------------------------------------------------- #
-# WS collection — one logical reply per bot turn (streaming chunks merged).
+# WS collection - one logical reply per bot turn (streaming chunks merged).
 # --------------------------------------------------------------------------- #
 async def _collect_replies(ws, first_timeout=12.0, settle=2.5):
     """Collect bot replies in a window. Returns (replies, ws_closed) where each
@@ -142,7 +142,7 @@ async def _collect_replies(ws, first_timeout=12.0, settle=2.5):
                 replies.append(
                     {"text": (d.get("full_text") or d.get("text") or "").strip(), "audio_b64": None}
                 )
-            # later chunks of the same reply — skip
+            # later chunks of the same reply - skip
         else:
             replies.append({"text": (d.get("text") or "").strip(), "audio_b64": d.get("audio_b64")})
     return replies, False
@@ -266,7 +266,7 @@ async def run_scenario(session, scenario, ws_url, *, collect_audio=False, verbos
 async def roundtrip_block(audio_pairs, *, flag_cer=0.35) -> dict:
     """text -> (already-synthesised Swara mp3) -> Groq-whisper -> WER/CER vs text.
     Devanagari↔roman folded via hinglish_normalize so the score reflects Swara
-    intelligibility, not script mismatch. DIAGNOSTIC only — never gates."""
+    intelligibility, not script mismatch. DIAGNOSTIC only - never gates."""
     try:
         import base64
 
@@ -349,7 +349,7 @@ def build_report(results, *, strict=False) -> dict:
     latency = _vm.latency_summary(latencies) if (_vm and latencies) else None
     # VAQI (Deepgram-style): Interruptions / Missed responses / Latency. Our
     # text-mode WS harness has no overlapping audio, so interruption legs stay
-    # None here — only real telephony calls can populate those (see
+    # None here - only real telephony calls can populate those (see
     # observability.Tracer.record_interruption for the live-call counterpart).
     vaqi = (
         _vm.vaqi_summary(latencies_ms=latencies, turns_total=turns_total, missed_count=missed_total)
@@ -375,11 +375,11 @@ def persist_test_calls(results, *, verbose=True) -> dict:
     """Write driven test-call transcripts + audio into the SAME stores the
     call-analysis pipeline reads (call_transcripts_dir / call_recordings_dir).
 
-    Transcripts: data/call_transcripts/YYYY-MM-DD.jsonl, vobiz_stream schema —
+    Transcripts: data/call_transcripts/YYYY-MM-DD.jsonl, vobiz_stream schema -
     so scripts/voice_call_analysis.py, live_eval and campaign_optimizer pick the
     synthetic calls up exactly like real Vobiz calls. Audio: decoded b64 mp3s
     into data/call_recordings/YYYY-MM-DD/webcall_test_{name}_{i}.mp3.
-    Never raises — persistence is best-effort, does not gate.
+    Never raises - persistence is best-effort, does not gate.
     """
     import base64
     import uuid
@@ -457,7 +457,7 @@ def persist_test_calls(results, *, verbose=True) -> dict:
 
 
 def diff_reports(before: dict, after: dict) -> dict:
-    """Before/after regression diff for the voice-engine tester — latency
+    """Before/after regression diff for the voice-engine tester - latency
     percentiles, quality, and critical/warn finding counts. Missing keys on
     either side degrade to None (no fabricated zeros)."""
 
@@ -519,7 +519,7 @@ def print_diff(diff: dict) -> None:
             print(f"  {group}.{label:<12} {b} -> {a}  {arrow}{abs(d)}")
             n += 1
     if not n:
-        print("  (no comparable metrics — baseline may be a skip/stale run)")
+        print("  (no comparable metrics - baseline may be a skip/stale run)")
     print("-" * 60)
 
 
@@ -602,15 +602,15 @@ def print_human(report, roundtrip, gate_verdict, strict):
     _dump("· advisory", g["advisory"])
     print("-" * 60)
     if g["status"] == "skip":
-        print("  ⏭  SKIPPED — no server reachable (exit 0, not a failure).")
+        print("  ⏭  SKIPPED - no server reachable (exit 0, not a failure).")
     elif g["exit_code"] == 0:
         n_adv = len(g["advisory"]) + len(g["warn"])
-        extra = f" ({n_adv} advisory/warn — informational)" if n_adv else ""
+        extra = f" ({n_adv} advisory/warn - informational)" if n_adv else ""
         print(f"  ✅ PASS{extra}")
     else:
         mode = "strict" if strict else "default"
         print(
-            f"  ❌ FAIL ({mode} gate) — {len(g['critical'])} critical"
+            f"  ❌ FAIL ({mode} gate) - {len(g['critical'])} critical"
             + (f", +{len(g['warn']) + len(g['advisory'])} promoted" if strict else "")
         )
     print("=" * 60)

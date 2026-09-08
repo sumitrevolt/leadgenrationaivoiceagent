@@ -1,6 +1,6 @@
 """A producer that runs but stops producing must be visible.
 
-The liveness dead-man only knows a job RAN and did not raise — `record_run`
+The liveness dead-man only knows a job RAN and did not raise - `record_run`
 stores `{job, ok, s, duration_ms, note, at, trigger, started_at}` and nothing
 about whether the run did any work. That stayed true for every one of the 15
 days `video_ad_cycle` was gated inert (2026-07-22 -> 2026-08-06) while the
@@ -69,7 +69,7 @@ def test_output_past_budget_is_reported_with_age_and_hint(_registry):
 
 
 def test_missing_store_is_unknown_not_a_false_alarm(_registry, tmp_path):
-    """A fresh deployment legitimately has no file yet — that must not page."""
+    """A fresh deployment legitimately has no file yet - that must not page."""
     _registry(resolver=lambda: str(tmp_path / "never_written.jsonl"))
     out = automation_health.stale_outputs()
     assert len(out) == 1
@@ -156,7 +156,7 @@ def test_unknown_status_does_not_reach_the_aaj_tab(monkeypatch):
 
 # --------------------------- registry integrity ----------------------------- #
 def test_the_real_registry_resolves_every_producer():
-    """Each entry must point at a resolvable path — a typo'd resolver would
+    """Each entry must point at a resolvable path - a typo'd resolver would
     silently degrade to 'unknown' and protect nothing."""
     for name, spec in automation_health.OUTPUT_FRESHNESS.items():
         assert callable(spec["resolver"]), name

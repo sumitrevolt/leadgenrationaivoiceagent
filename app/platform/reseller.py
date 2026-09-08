@@ -1,14 +1,14 @@
-"""Reseller / Agency program — applications store + static program info.
+"""Reseller / Agency program - applications store + static program info.
 
 LeadGen AI ko marketing agencies apne local-business clients ko resell karein
 (ek reseller = many customers = leverage). Free audit (``/audit``) reseller ka
 sales weapon, white-label tenant (``app/middleware/tenant.py``) already exists,
-aur commission har month — client relationship reseller ke paas rehta hai.
+aur commission har month - client relationship reseller ke paas rehta hai.
 
 Design (pattern-match ``app/platform/upi_config.py``):
-- JSON store under ``data/reseller_applications.json`` — ``_read_store()`` /
+- JSON store under ``data/reseller_applications.json`` - ``_read_store()`` /
   ``_write_store()`` kabhi raise nahi karte (safe defaults).
-- Har public-facing function ADDITIVE + never-raise: try/except → safe default,
+- Har public-facing function ADDITIVE + never-raise: try/except -> safe default,
   exception kabhi request-path tak nahi pahunchta (no 500s).
 - Lazy/defensive imports
 module load kabhi fail na ho.
@@ -31,7 +31,7 @@ _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 # --------------------------------------------------------------------------- #
-# Store (never-raise) — pattern-match upi_config._read_store/_write_store
+# Store (never-raise) - pattern-match upi_config._read_store/_write_store
 # --------------------------------------------------------------------------- #
 def _read_store() -> dict:
     """Return ``{"seq": int, "items": [..]}``; any error = empty default."""
@@ -86,7 +86,7 @@ def _notify_admin(message: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Public API — all never-raise
+# Public API - all never-raise
 # --------------------------------------------------------------------------- #
 def submit_application(
     name: str,
@@ -110,10 +110,10 @@ def submit_application(
             return {"ok": False, "error": "Naam zaroori hai."}
         if not _valid_email(em):
             return {"ok": False, "error": "Sahi email zaroori hai (name@domain)."}
-        # email or phone present — email already validated above, so this passes,
+        # email or phone present - email already validated above, so this passes,
         # but keep the contract explicit per spec.
         if not (em or ph):
-            return {"ok": False, "error": "Email ya phone — kam se kam ek zaroori hai."}
+            return {"ok": False, "error": "Email ya phone - kam se kam ek zaroori hai."}
 
         try:
             est = int(clients_estimate or 0)
@@ -141,16 +141,16 @@ def submit_application(
         store["items"].append(record)
         ok = _write_store(store)
         if not ok:
-            return {"ok": False, "error": "Save nahi ho paya — thodi der baad try karo."}
+            return {"ok": False, "error": "Save nahi ho paya - thodi der baad try karo."}
 
         _notify_admin(
-            f"{record['name']} ({record['agency'] or 'agency'}) — {record['email']} "
+            f"{record['name']} ({record['agency'] or 'agency'}) - {record['email']} "
             f"· ~{record['clients_estimate']} clients · {record['city'] or 'city n/a'}"
         )
         return {"ok": True, **record}
     except Exception as e:  # pragma: no cover - defensive top-level guard
         logger.warning("submit_application failed: %s", e)
-        return {"ok": False, "error": "Kuch galat ho gaya — thodi der baad try karo."}
+        return {"ok": False, "error": "Kuch galat ho gaya - thodi der baad try karo."}
 
 
 def list_applications(status: str | None = None) -> list[dict]:
@@ -192,22 +192,22 @@ def decide(app_id: str, approve: bool, decided_by: str = "admin") -> dict:
 
 
 def program_info() -> dict:
-    """STATIC program description — commission tiers + what's included.
+    """STATIC program description - commission tiers + what's included.
 
     No prices invented beyond commission % (those are program terms, generic).
     """
     return {
         "name": "LeadGen AI Reseller / Agency Program",
-        "tagline_hi": "Apni agency se LeadGen AI becho — har local business pe recurring commission.",
-        "tagline_en": "Resell LeadGen AI to your local-business clients and earn recurring commission — you keep the relationship.",
+        "tagline_hi": "Apni agency se LeadGen AI becho - har local business pe recurring commission.",
+        "tagline_en": "Resell LeadGen AI to your local-business clients and earn recurring commission - you keep the relationship.",
         "blurb_hi": (
-            "Free audit tool (/audit) aapka sales weapon hai — prospect ko uska "
+            "Free audit tool (/audit) aapka sales weapon hai - prospect ko uska "
             "marketing gap dikhao, white-label LeadGen unke naam pe deploy karo "
             "(done-for-you onboarding hamari FDE team se), aur har month commission kamao. "
             "Client relationship hamesha aapke paas rehta hai."
         ),
         "blurb_en": (
-            "The free audit tool is your sales weapon — show prospects their marketing "
+            "The free audit tool is your sales weapon - show prospects their marketing "
             "gap, deploy white-label LeadGen under your brand (done-for-you onboarding "
             "by our FDE team), and earn monthly commission. You always own the client "
             "relationship."
@@ -217,35 +217,35 @@ def program_info() -> dict:
                 "name": "Partner",
                 "active_clients": "1-5 active clients",
                 "rate_pct": 20,
-                "desc_hi": "Shuruaat — pehle 5 clients tak 20% recurring commission.",
-                "desc_en": "Get started — 20% recurring commission up to your first 5 clients.",
+                "desc_hi": "Shuruaat - pehle 5 clients tak 20% recurring commission.",
+                "desc_en": "Get started - 20% recurring commission up to your first 5 clients.",
             },
             {
                 "name": "Growth Partner",
                 "active_clients": "6-15 active clients",
                 "rate_pct": 25,
-                "desc_hi": "Scale karne par 25% recurring — jitne zyada clients, utna zyada rate.",
+                "desc_hi": "Scale karne par 25% recurring - jitne zyada clients, utna zyada rate.",
                 "desc_en": "Scale up to 25% recurring as your active-client base grows.",
             },
             {
                 "name": "Elite Partner",
                 "active_clients": "16+ active clients",
                 "rate_pct": 30,
-                "desc_hi": "Top tier — 30% recurring commission + priority FDE support.",
-                "desc_en": "Top tier — 30% recurring commission plus priority FDE support.",
+                "desc_hi": "Top tier - 30% recurring commission + priority FDE support.",
+                "desc_en": "Top tier - 30% recurring commission plus priority FDE support.",
             },
         ],
         "whats_included": [
             {
                 "title_hi": "White-label platform",
                 "title_en": "White-label platform",
-                "desc_hi": "Aapke brand/subdomain pe — clients ko LeadGen ka naam nahi dikhta.",
-                "desc_en": "Runs on your brand/subdomain — clients see you, not LeadGen.",
+                "desc_hi": "Aapke brand/subdomain pe - clients ko LeadGen ka naam nahi dikhta.",
+                "desc_en": "Runs on your brand/subdomain - clients see you, not LeadGen.",
             },
             {
                 "title_hi": "Free audit = sales tool",
                 "title_en": "Free audit = sales tool",
-                "desc_hi": "/audit se prospect ka gap dikhao — meeting book karna aasaan.",
+                "desc_hi": "/audit se prospect ka gap dikhao - meeting book karna aasaan.",
                 "desc_en": "Use /audit to show each prospect their gap and book meetings faster.",
             },
             {
@@ -257,7 +257,7 @@ def program_info() -> dict:
             {
                 "title_hi": "Monthly payouts",
                 "title_en": "Monthly payouts",
-                "desc_hi": "Har month commission — transparent reporting.",
+                "desc_hi": "Har month commission - transparent reporting.",
                 "desc_en": "Recurring commission paid out monthly with transparent reporting.",
             },
         ],

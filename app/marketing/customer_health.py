@@ -1,4 +1,4 @@
-"""Customer Health Score — automated churn prediction + engagement tracking.
+"""Customer Health Score - automated churn prediction + engagement tracking.
 
 Inspired by HubSpot Customer Health, Totango, Gainsight:
   - Multi-factor scoring: engagement, usage, payment, satisfaction, growth
@@ -129,7 +129,7 @@ def calculate_health_score(
     # Satisfaction score (0-100)
     sat = satisfaction_data or {}
     nps = sat.get("nps_score", 5)
-    sat_score = nps * 10  # NPS 0-10 → 0-100
+    sat_score = nps * 10  # NPS 0-10 -> 0-100
     if sat.get("support_tickets_open", 0) > 3:
         sat_score -= 20
     if sat.get("review_sentiment", 3) >= 4:
@@ -178,13 +178,13 @@ def _build_recommendation(classification: str, scores: dict) -> str:
     """Generate actionable recommendation based on scores."""
     if classification == "healthy":
         return (
-            "Customer healthy hai. Growth opportunities explore karo — upsell ya referral program."
+            "Customer healthy hai. Growth opportunities explore karo - upsell ya referral program."
         )
 
     weakest = min(scores, key=scores.get) if scores else "engagement"
 
     recs = {
-        "engagement": "Customer kam engage ho raha hai. Personal outreach karo — call ya WhatsApp pe check karo.",
+        "engagement": "Customer kam engage ho raha hai. Personal outreach karo - call ya WhatsApp pe check karo.",
         "usage": "Features kaam me nahi aa rahe. Training session offer karo ya quick walkthrough bhejo.",
         "payment": "Payment issue hai. Dunning sequence activate karo ya owner ko alert karo.",
         "satisfaction": "Customer khush nahi hai. NPS survey bhejo ya personal call karo feedback lene.",

@@ -1,9 +1,9 @@
-"""frontend/customer_dashboard.html — Setup Wizard card (business profile/
+"""frontend/customer_dashboard.html - Setup Wizard card (business profile/
 social/WhatsApp/brand-tone). Static-HTML guard, mirrors the established pattern
-(tests/test_admin_clients_delivery_panel.py) — confirms the card/functions
+(tests/test_admin_clients_delivery_panel.py) - confirms the card/functions
 exist and call the real endpoints, without needing a live authenticated
 browser session. Originally piloted on customer_marketing.html/customer_voice.html
-(deleted 2026-07-07 — both were unreachable duplicates of this consolidated file,
+(deleted 2026-07-07 - both were unreachable duplicates of this consolidated file,
 see tests/test_customer_dashboard_product_routing.py)."""
 
 
@@ -60,7 +60,7 @@ def test_save_setup_wizard_calls_real_profile_post_endpoint():
 
 def test_send_kb_info_reuses_existing_dormant_endpoint():
     """The mission's real find: /api/customer/kb-info already existed and
-    worked, it just had no UI button — this wires it, doesn't reinvent it."""
+    worked, it just had no UI button - this wires it, doesn't reinvent it."""
     html = _html()
     idx = html.index("async function sendKbInfo")
     snippet = html[idx : idx + 700]
@@ -70,7 +70,7 @@ def test_send_kb_info_reuses_existing_dormant_endpoint():
 
 def test_social_and_brand_sections_are_marketing_only():
     """Voice-only customers shouldn't see social/brand-tone fields (a voice
-    telecaller product has no posts to brand) — business profile + the
+    telecaller product has no posts to brand) - business profile + the
     kb-info textarea stay universal (the AI voice agent uses the same KB)."""
     html = _html()
     idx = html.index("function renderSetupWizard")
@@ -85,7 +85,7 @@ def test_social_and_brand_sections_are_marketing_only():
 
 def test_setup_wizard_reuses_real_helpers_not_invented_ones():
     """Loop 2's exact self-review lesson: confirm no invented CSS classes or
-    helper names — only real ones (escH/toast/billAuthHdr/billToken/.btn/.card-h/.card-b)."""
+    helper names - only real ones (escH/toast/billAuthHdr/billToken/.btn/.card-h/.card-b)."""
     html = _html()
     idx = html.index('id="setupWizardCard"')
     card_snippet = html[idx : idx + 400]

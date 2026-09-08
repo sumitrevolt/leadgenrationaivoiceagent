@@ -1,12 +1,12 @@
-"""analytics_inject.py — PostHog snippet auto-inject into HTML (G3). GATED.
+"""analytics_inject.py - PostHog snippet auto-inject into HTML (G3). GATED.
 
 KYU: frontend/ me 30+ standalone .html (StaticFiles + HTMLResponse) serve hote.
 Har file edit karne ki jagah ye middleware `</head>` se pehle PostHog snippet
-inject karta — session-replay + autocapture + web-funnels for /audit /demo /pricing
+inject karta - session-replay + autocapture + web-funnels for /audit /demo /pricing
 /start. **OFF by default**: `POSTHOG_API_KEY` set nahi -> har response untouched
 (turant passthrough, zero overhead). Never-raise: koi bhi issue -> original response.
 
-Register (main.py app-factory me, middleware stack ke END me — sabse bahar):
+Register (main.py app-factory me, middleware stack ke END me - sabse bahar):
     from app.middleware.analytics_inject import PostHogInjectMiddleware
     app.add_middleware(PostHogInjectMiddleware)
 """
@@ -18,7 +18,7 @@ from starlette.responses import Response
 
 from app.platform import posthog_config
 
-# 2MB se badi HTML inject karne ka risk nahi (file-serve etc.) — skip.
+# 2MB se badi HTML inject karne ka risk nahi (file-serve etc.) - skip.
 _MAX_INJECT_BYTES = 2 * 1024 * 1024
 
 
@@ -35,7 +35,7 @@ def _posthog_head() -> str:
     host = _host()
     # Official PostHog array-stub loader, VERBATIM (posthog.com JS web snippet).
     # BUGFIX 2026-07-02: the previous hand-transcribed variant renamed init's
-    # params to (t,e,a), shadowing the outer stub-array `e` — so
+    # params to (t,e,a), shadowing the outer stub-array `e` - so
     # `u._i.push([t,e,a])` ran against the CONFIG OBJECT (which has no `_i`)
     # and threw `TypeError: Cannot read properties of undefined (reading
     # 'push') at r.init` on EVERY injected page load (seen live on /app/office

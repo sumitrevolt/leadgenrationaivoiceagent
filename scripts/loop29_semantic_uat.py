@@ -1,4 +1,4 @@
-"""Loop 29 semantic UAT — validates the LIVE production HTML at leadsgenai.in.
+"""Loop 29 semantic UAT - validates the LIVE production HTML at leadsgenai.in.
 Not a real browser render (no Playwright/Chrome MCP available), but does a
 structural check that no real orphan handlers exist, no duplicate IDs are
 served, and every Loop 27/28/29 marker is present in the deployed HTML.
@@ -47,7 +47,7 @@ def analyze(label: str, html: str) -> dict:
             "sec-upi-selfserve",
         ]
     marker_check = {m: (m in html) for m in markers}
-    # prompt() calls in the touched paths — count only inline template strings we shipped
+    # prompt() calls in the touched paths - count only inline template strings we shipped
     # (the c360 and connect modals used to use prompt; count residuals)
     prompt_hits = re.findall(r"\bprompt\s*\([^)]{0,80}", html)
     return {

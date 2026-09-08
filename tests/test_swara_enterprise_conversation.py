@@ -85,7 +85,7 @@ def test_audit_loop_pivot_after_repeated_audit_offers():
         {"role": "assistant", "content": "Tab tak FREE audit karwa doon?"},
     ]
     pivot = b._apply_audit_loop_guard(
-        "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj set kar doon?",
+        "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial - aaj set kar doon?",
         history,
     )
     assert "whatsapp number confirm" in pivot.lower()
@@ -173,7 +173,7 @@ def test_stt_clarify_then_failure_close():
 def test_opener_guard_on_tools_path_logic():
     """_looks_like_greeting must detect Swara opener for tools-path block."""
     opener = (
-        "Namaste, main Swara bol rahi hoon, LeadsGen AI ki taraf se — "
+        "Namaste, main Swara bol rahi hoon, LeadsGen AI ki taraf se - "
         "ek AI assistant. Do minute baat kar sakti hoon?"
     )
     assert TelecallerBrain._looks_like_greeting(opener) is True
@@ -290,7 +290,7 @@ def test_question_discipline_strips_extra_q_when_customer_silent():
         {"role": "assistant", "content": "Marketing abhi khud karte ho, staff se, ya agency?"},
         {"role": "user", "content": "khud karta hoon"},
     ]
-    raw = "Roz posts automatic hain — social pe time milta hai kya?"
+    raw = "Roz posts automatic hain - social pe time milta hai kya?"
     out = b._apply_question_discipline(raw, "khud karta hoon", hist)
     assert "?" not in out
 
@@ -299,7 +299,7 @@ def test_question_discipline_preserves_pricing_after_customer_question():
     """Rhetorical double-? must not cut pricing/setup detail after the 2nd ?."""
     b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     hist = [{"role": "user", "content": "price kya hai aapka?"}]
-    raw = "Interested hain? Budget kitna? Basic plan 1999 se start hota hai — setup free hai."
+    raw = "Interested hain? Budget kitna? Basic plan 1999 se start hota hai - setup free hai."
     out = b._apply_question_discipline(raw, "price kya hai aapka?", hist)
     assert "1999" in out
     assert "setup free" in out.lower()

@@ -1,4 +1,4 @@
-"""W4.3 — Office momentum alerts built on W4.2 day-over-day trends.
+"""W4.3 - Office momentum alerts built on W4.2 day-over-day trends.
 
 Trends give numbers
 this turns worsening momentum into an explicit founder signal in

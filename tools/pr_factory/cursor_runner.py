@@ -1,4 +1,4 @@
-"""Wrap ``runner/cursor_exec`` — no new shell surface."""
+"""Wrap ``runner/cursor_exec`` - no new shell surface."""
 
 from __future__ import annotations
 

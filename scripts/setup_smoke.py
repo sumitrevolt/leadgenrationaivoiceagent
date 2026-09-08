@@ -1,4 +1,4 @@
-"""Customer-ready setup smoke — client store + auto content + scraper (no paid key)."""
+"""Customer-ready setup smoke - client store + auto content + scraper (no paid key)."""
 
 import asyncio
 
@@ -36,7 +36,7 @@ async def main() -> None:
     q = auto_content.list_queue(cid)
     print("QUEUE:", len(q))
 
-    # 4) scraper free OSM (network — best effort, short)
+    # 4) scraper free OSM (network - best effort, short)
     try:
         from app.platform import prospector
 

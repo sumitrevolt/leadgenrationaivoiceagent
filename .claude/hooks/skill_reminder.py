@@ -90,11 +90,11 @@ def main():
         return 0
 
     msg = (
-        "🧭 Skill check for this edit — invoke the ones that apply (reading a "
+        "🧭 Skill check for this edit - invoke the ones that apply (reading a "
         "skill's name is not invoking it): "
         + ", ".join(skills)
         + ". Before declaring done: self-code-review -> /verify. "
-        "(Hook is a reminder, not a gate — skip a skill only if it truly does not apply.)"
+        "(Hook is a reminder, not a gate - skip a skill only if it truly does not apply.)"
     )
     out = {
         "hookSpecificOutput": {

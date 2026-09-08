@@ -1,4 +1,4 @@
-"""ICP generator — per-client ideal customer profile from niche + KB + free_ai."""
+"""ICP generator - per-client ideal customer profile from niche + KB + free_ai."""
 
 from __future__ import annotations
 

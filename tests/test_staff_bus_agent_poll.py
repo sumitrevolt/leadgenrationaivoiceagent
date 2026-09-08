@@ -205,7 +205,7 @@ class TestPollAndClaim:
     """Integration tests using mock ATQ."""
 
     def test_poll_and_claim_returns_none_when_empty(self, tmp_path):
-        """No tasks in ATQ → returns None."""
+        """No tasks in ATQ -> returns None."""
         from app.platform.staff_bus.agent_poll import AgentPoller
 
         events_file = str(tmp_path / "nonexistent.jsonl")

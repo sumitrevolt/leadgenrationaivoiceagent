@@ -1,18 +1,18 @@
 """
-Customer Studio — Media tools (image generate/transform with secure upload+serve).
+Customer Studio - Media tools (image generate/transform with secure upload+serve).
 ==================================================================================
 Powers the "Media Studio" tools that produce/consume image FILES (vs the 83
 text/SVG Studio tools). Free-stack: PIL (pillow, baked) for gif/sticker/resize;
-rembg (optional) for background removal — graceful if absent.
+rembg (optional) for background removal - graceful if absent.
 
-Security model (file uploads on a payments platform — see plan
+Security model (file uploads on a payments platform - see plan
 docs/superpowers/plans/STUDIO_IMAGE_VIDEO_TOOLS_PLAN.md):
   * require_customer on every route
   rate-limited.
   * Upload: size cap + content-type allowlist + MAGIC-BYTE sniff (not extension) +
     PIL verify + decompression-bomb pixel bound. Stored under a per-client dir.
   * IDOR-safe BY CONSTRUCTION: every path is data/studio_*/<client_id>/... where
-    client_id comes from the JWT — a client can never name another client's file.
+    client_id comes from the JWT - a client can never name another client's file.
   * Opaque hex ids (uuid). Serve validates id is hex (no path traversal) and only
     looks inside the authed client's own dir.
   * Heavy PIL/IO runs in asyncio.to_thread (NEVER block the event loop).
@@ -53,13 +53,13 @@ router = APIRouter(prefix="/api/customer/studio", tags=["Customer Studio Media"]
 _UPLOAD_DIR = os.path.join("data", "studio_uploads")
 _MEDIA_DIR = os.path.join("data", "studio_media")
 _MAX_UPLOAD = 8 * 1024 * 1024  # 8 MB image cap
-_MAX_PIXELS = 40_000_000  # ~6300x6300 — decompression-bomb guard
+_MAX_PIXELS = 40_000_000  # ~6300x6300 - decompression-bomb guard
 _TTL_SECONDS = 48 * 3600
 _HEXID = re.compile(r"^[a-f0-9]{32}$")
 _GEN = rate_limit("cust_studio_media", 30, 60)
 _UPLOAD_RL = rate_limit("cust_studio_upload", 15, 60)
 
-# magic-byte → extension (content sniff, NOT the client-sent filename/type)
+# magic-byte -> extension (content sniff, NOT the client-sent filename/type)
 _MAGIC = (
     (b"\x89PNG\r\n\x1a\n", "png"),
     (b"\xff\xd8\xff", "jpg"),
@@ -185,7 +185,7 @@ async def studio_upload(
 
 @router.get("/media/{media_id}")
 def studio_serve_media(media_id: str, client_id: str = Depends(require_customer)):
-    """Serve a generated file — ONLY from the authed client's own media dir."""
+    """Serve a generated file - ONLY from the authed client's own media dir."""
     if not _HEXID.match(media_id or ""):
         raise HTTPException(status_code=404, detail="Not found")
     d = os.path.join(_MEDIA_DIR, _safe_cid(client_id))
@@ -234,7 +234,7 @@ async def studio_img_gif(
         out = await asyncio.to_thread(gif_maker.make_gif, req.text, _slug_of(client_id), req.style)
     except Exception as e:
         logger.error("img-gif failed: %s", e)
-        raise HTTPException(status_code=503, detail="GIF abhi nahi bana — baad me try karo.")
+        raise HTTPException(status_code=503, detail="GIF abhi nahi bana - baad me try karo.")
     if not out.get("ok") or not out.get("path"):
         return {
             "ok": False,
@@ -279,10 +279,10 @@ async def studio_img_sticker(client_id: str = Depends(require_customer)) -> dict
 
 @router.post("/img-resize", dependencies=[Depends(_GEN)])
 async def studio_img_resize(req: ResizeReq, client_id: str = Depends(require_customer)) -> dict:
-    """Uploaded image → all social sizes (square / story / banner / WhatsApp status)."""
+    """Uploaded image -> all social sizes (square / story / banner / WhatsApp status)."""
     path = _resolve_upload(client_id, req.upload_id)
     if not path:
-        raise HTTPException(status_code=404, detail="Upload nahi mila — phir se upload karo.")
+        raise HTTPException(status_code=404, detail="Upload nahi mila - phir se upload karo.")
     try:
         from app.marketing import magic_resize
 
@@ -303,7 +303,7 @@ async def studio_img_resize(req: ResizeReq, client_id: str = Depends(require_cus
 
 @router.post("/img-bgremove", dependencies=[Depends(_GEN)])
 async def studio_img_bgremove(req: BgReq, client_id: str = Depends(require_customer)) -> dict:
-    """Uploaded image → transparent background (needs rembg; graceful if absent)."""
+    """Uploaded image -> transparent background (needs rembg; graceful if absent)."""
     try:
         from app.marketing import bg_remove
 
@@ -321,7 +321,7 @@ async def studio_img_bgremove(req: BgReq, client_id: str = Depends(require_custo
         }
     path = _resolve_upload(client_id, req.upload_id)
     if not path:
-        raise HTTPException(status_code=404, detail="Upload nahi mila — phir se upload karo.")
+        raise HTTPException(status_code=404, detail="Upload nahi mila - phir se upload karo.")
     try:
         with open(path, "rb") as f:
             data = f.read()
@@ -340,7 +340,7 @@ _MEDIA_TOOLS = [
         "key": "img-gif",
         "icon": "🎞️",
         "title": "Animated GIF",
-        "desc": "Text → WhatsApp status GIF",
+        "desc": "Text -> WhatsApp status GIF",
         "upload": False,
     },
     {
@@ -354,7 +354,7 @@ _MEDIA_TOOLS = [
         "key": "img-resize",
         "icon": "🔁",
         "title": "Magic Resize",
-        "desc": "Photo → sab social sizes",
+        "desc": "Photo -> sab social sizes",
         "upload": True,
     },
     {
@@ -368,7 +368,7 @@ _MEDIA_TOOLS = [
         "key": "video-reel",
         "icon": "🎬",
         "title": "Faceless Reel",
-        "desc": "Text → short video reel",
+        "desc": "Text -> short video reel",
         "upload": False,
         "job": True,
     },
@@ -382,8 +382,8 @@ def studio_media_tools(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Video reel — CPU-heavy (ffmpeg). Background-thread JOB pattern (file-based
-# status so any uvicorn worker can poll). Submit → poll → serve media.
+# Video reel - CPU-heavy (ffmpeg). Background-thread JOB pattern (file-based
+# status so any uvicorn worker can poll). Submit -> poll -> serve media.
 # --------------------------------------------------------------------------- #
 import json as _json
 import threading as _threading
@@ -444,7 +444,7 @@ def _reel_worker(client_id: str, job_id: str, slides, offer: str) -> None:
     except Exception as e:
         logger.error("reel worker failed: %s", e)
         _write_job(
-            client_id, job_id, {"status": "error", "note": "Reel render fail — baad me try karo."}
+            client_id, job_id, {"status": "error", "note": "Reel render fail - baad me try karo."}
         )
 
 
@@ -476,7 +476,7 @@ def studio_video_reel(
         "tool": "video-reel",
         "job_id": job_id,
         "status": "processing",
-        "note": "Reel ban raha hai — 30-60 sec lagte. Status check karo.",
+        "note": "Reel ban raha hai - 30-60 sec lagte. Status check karo.",
     }
 
 

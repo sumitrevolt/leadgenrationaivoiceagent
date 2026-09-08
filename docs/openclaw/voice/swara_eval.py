@@ -1,5 +1,5 @@
 """
-Swara Evaluation Framework — Quality Gates & Shadow Mode Evaluation.
+Swara Evaluation Framework - Quality Gates & Shadow Mode Evaluation.
 
 Rule 10: A Swara language improvement must pass:
     Meaning preservation ≥ 98%
@@ -12,10 +12,10 @@ Rule 10: A Swara language improvement must pass:
     Customer-specific data leakage = ZERO
     Critical regression = ZERO
 
-Rule 11: A/B and Shadow Mode — new behavior runs in shadow first, compared against
+Rule 11: A/B and Shadow Mode - new behavior runs in shadow first, compared against
          production Swara before promotion.
 
-Rule 9: Observe → Candidate → Test → Score → Approve → Version → Deploy → Monitor → Rollback
+Rule 9: Observe -> Candidate -> Test -> Score -> Approve -> Version -> Deploy -> Monitor -> Rollback
 """
 
 from __future__ import annotations

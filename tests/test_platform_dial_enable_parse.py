@@ -1,7 +1,7 @@
-"""PLATFORM_DIAL_DAILY parsing — the switch that silently disabled the campaign.
+"""PLATFORM_DIAL_DAILY parsing - the switch that silently disabled the campaign.
 
 Found in prod on 2026-08-03: `.env` had VOICE_LAUNCH_KILL=0, DIAL_TEST_MODE=0,
-DLT_APPROVED=1 and PLATFORM_DIAL_DAILY=100, so the campaign looked fully armed —
+DLT_APPROVED=1 and PLATFORM_DIAL_DAILY=100, so the campaign looked fully armed -
 yet automation_health reported the daily dial job as `mandate_paused` because
 `enabled()` was False.
 
@@ -77,7 +77,7 @@ def test_count_and_cap_are_separate_knobs(monkeypatch):
 
 
 def test_dial_limit_stays_bounded(monkeypatch):
-    """Cap is clamped 1..200 — an operator typo cannot dial unbounded."""
+    """Cap is clamped 1..200 - an operator typo cannot dial unbounded."""
     monkeypatch.setenv("PLATFORM_DIAL_LIMIT", "99999")
     assert PD.dial_limit() == 200
     monkeypatch.setenv("PLATFORM_DIAL_LIMIT", "-5")

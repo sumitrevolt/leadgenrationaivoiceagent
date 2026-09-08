@@ -1,4 +1,4 @@
-"""Self-serve UPI payments — submit queue, list filter, approve/reject, auto-activate.
+"""Self-serve UPI payments - submit queue, list filter, approve/reject, auto-activate.
 
 Pure python: store path monkeypatched to tmp_path, no network/DB.
 ``usage.activate_plan`` is stubbed where activation behaviour is asserted.
@@ -46,7 +46,7 @@ def test_list_payments_filters_by_status(up):
     up.submit_payment("cli_2", "growth", "T2")
     all_rows = up.list_payments()
     assert len(all_rows) == 2
-    # reject one → it leaves the pending filter
+    # reject one -> it leaves the pending filter
     rid = all_rows[0]["id"]
     up.decide(rid, False)
     pend = up.list_payments("pending")
@@ -70,7 +70,7 @@ def test_decide_approve_flips_to_approved(up, monkeypatch):
     assert rec["status"] == "approved"
     assert rec["decided_by"] == "boss"
     assert rec["decided_at"] is not None
-    # approve with client_id → activate_plan invoked
+    # approve with client_id -> activate_plan invoked
     assert calls == [("cli_9", "advanced")]
 
 
@@ -144,14 +144,14 @@ def test_auto_activate_skipped_without_client(up, monkeypatch):
     monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
 
-    # no client_id → cannot auto-activate, stays pending
+    # no client_id -> cannot auto-activate, stays pending
     out = up.submit_payment("", "growth", "TXNNOCID")
     assert out["status"] == "pending"
     assert out["auto_activated"] is False
 
 
 def test_decide_approve_triggers_onboarding(up, monkeypatch):
-    """Admin approve → plan activates → onboarding is front-run (no <=1h wait)."""
+    """Admin approve -> plan activates -> onboarding is front-run (no <=1h wait)."""
     monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0, **kw: True)
     fired: list[int] = []
     monkeypatch.setattr(up, "_trigger_onboarding", lambda *_a, **_k: fired.append(1))
@@ -222,7 +222,7 @@ def test_auto_activate_nudges_founder_spot_check(up, monkeypatch):
 
 def test_auto_activate_nudge_never_raises(up, monkeypatch):
     """A broken/misconfigured ntfy must never undo an already-successful
-    activation — the customer's plan stays active even if the nudge fails."""
+    activation - the customer's plan stays active even if the nudge fails."""
     from app.billing import usage
     from app.platform import ops_alerts
 
@@ -252,7 +252,7 @@ def test_trigger_onboarding_never_raises(up, monkeypatch):
 
 
 def test_decide_approve_invalid_plan_no_activation(up, monkeypatch):
-    """An UNKNOWN/typo plan must be rejected BEFORE activate_plan is ever called —
+    """An UNKNOWN/typo plan must be rejected BEFORE activate_plan is ever called -
     the plan does not provision and the record is not marked auto_activated."""
     from app.billing import usage
 
@@ -263,7 +263,7 @@ def test_decide_approve_invalid_plan_no_activation(up, monkeypatch):
 
     sub = up.submit_payment("cli_bad", "bogus_plan_xyz", "TXNBAD")
     rec = up.decide(sub["id"], True, decided_by="boss")
-    # plan rejected → activate_plan NEVER invoked
+    # plan rejected -> activate_plan NEVER invoked
     assert calls == []
     # record not auto-activated by the rejected plan
     assert rec.get("auto_activated") is False
@@ -271,7 +271,7 @@ def test_decide_approve_invalid_plan_no_activation(up, monkeypatch):
 
 def test_decide_approve_resets_usage_period(up, monkeypatch):
     """A successful activation on a VALID plan also resets the metered-usage
-    watermark (parity with the Stripe webhook path) — reset fires exactly once."""
+    watermark (parity with the Stripe webhook path) - reset fires exactly once."""
     from app.billing import usage
 
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
@@ -285,7 +285,7 @@ def test_decide_approve_resets_usage_period(up, monkeypatch):
 
 def test_auto_activate_rejects_fabricated_low_amount(up, monkeypatch):
     """Production audit 2026-07-01: UPI_AUTO_ACTIVATE only checked the plan key,
-    not the paid amount — a self-serve submission claiming amount:0 (or any
+    not the paid amount - a self-serve submission claiming amount:0 (or any
     amount below the plan's real price) could auto-activate a paid plan for
     free. Must stay pending, not silently provision."""
     from app.billing import usage
@@ -297,7 +297,7 @@ def test_auto_activate_rejects_fabricated_low_amount(up, monkeypatch):
         usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
     )
 
-    # advanced plan costs ₹5999 — submitting ₹0 must NOT activate it.
+    # advanced plan costs ₹5999 - submitting ₹0 must NOT activate it.
     out = up.submit_payment("cli_cheap", "advanced", "TXNCHEAP", amount=0)
     assert out["status"] == "pending"
     assert out["auto_activated"] is False
@@ -305,7 +305,7 @@ def test_auto_activate_rejects_fabricated_low_amount(up, monkeypatch):
 
 
 def test_auto_activate_accepts_real_amount(up, monkeypatch):
-    """Sanity check: the fix doesn't break the legitimate case — a real,
+    """Sanity check: the fix doesn't break the legitimate case - a real,
     at-or-above-price amount still auto-activates."""
     from app.billing import usage
 
@@ -321,7 +321,7 @@ def test_auto_activate_accepts_real_amount(up, monkeypatch):
 def test_decide_approve_activates_amount_zero_submission(up, monkeypatch):
     """P0 audit 2026-07-04: every frontend submit records amount=0 (no amount
     field in the UPI modals), and decide() re-ran the price floor against that
-    recorded amount — so the admin Approve button NEVER activated a real-world
+    recorded amount - so the admin Approve button NEVER activated a real-world
     submission. Human approval = payment verified out-of-band in the UPI app;
     the floor must only gate UNattended auto-activation."""
     from app.billing import usage
@@ -342,8 +342,8 @@ def test_decide_approve_activates_amount_zero_submission(up, monkeypatch):
 
 def test_min_plan_price_resolves_voice_and_combo_plans(up):
     """Missing-work audit 2026-07-04: the floor lookup scraped
-    get_voice_packages() (single-band payload — voice_b/voice_c never found)
-    and get_combo_packages()["plans"] (real key is "tiers" — combo never
+    get_voice_packages() (single-band payload - voice_b/voice_c never found)
+    and get_combo_packages()["plans"] (real key is "tiers" - combo never
     found), so the price floor silently never applied to the most expensive
     plans. Must resolve every paid voice band + combo tier."""
     from app.marketing.combo_packages import COMBO_TIERS
@@ -352,7 +352,7 @@ def test_min_plan_price_resolves_voice_and_combo_plans(up):
     for band, info in BANDS.items():
         expected = float(info["price_month"])
         if expected == 0:
-            # Freemium ₹0 — no min-price floor applies (fail-open → None)
+            # Freemium ₹0 - no min-price floor applies (fail-open -> None)
             assert up._min_plan_price(info["plan_monthly"].lower()) is None, band
             assert up._min_plan_price(info["plan_annual"].lower()) is None, band
             continue
@@ -366,7 +366,7 @@ def test_min_plan_price_resolves_voice_and_combo_plans(up):
 
 def test_auto_activate_rejects_low_amount_for_voice_and_combo(up, monkeypatch):
     """amount:0 self-serve submit must stay pending for voice B/C and combo
-    plans too — not just the marketing plans covered by the 2026-07-01 fix."""
+    plans too - not just the marketing plans covered by the 2026-07-01 fix."""
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
@@ -396,7 +396,7 @@ def sp(tmp_path, monkeypatch):
 def test_auto_activate_marks_matching_voice_deal_won(up, monkeypatch, sp):
     """A customer Swara closed on a call (deal at 'negotiating', keyed by the
     WhatsApp number she learned) who then actually pays must have that SAME
-    deal flipped to 'won' — "finalize the deal" — not left stuck forever."""
+    deal flipped to 'won' - "finalize the deal" - not left stuck forever."""
     from app.billing import usage
 
     sp.upsert_deal(
@@ -429,7 +429,7 @@ def test_decide_approve_marks_matching_voice_deal_won(up, monkeypatch, sp):
 
 def test_mark_deal_won_no_matching_deal_is_noop(up, sp):
     """No deal for this phone (e.g. a customer who signed up without ever
-    talking to Swara) → silent no-op, never an error."""
+    talking to Swara) -> silent no-op, never an error."""
     up._mark_deal_won("9000000000")
     assert sp.list_deals() == []
 
@@ -445,7 +445,7 @@ def test_mark_deal_won_never_raises_on_storage_failure(up, monkeypatch):
 
 
 def test_mark_deal_won_does_not_resurrect_lost_deal(up, sp):
-    """A deal already marked lost must stay lost — a coincidental phone reuse
+    """A deal already marked lost must stay lost - a coincidental phone reuse
     (e.g. a different plan/signup) must not silently revive a churned deal."""
     deal = sp.upsert_deal(
         {"phone": "9111111111", "business_name": "Churned Co"}, stage="negotiating"

@@ -1,4 +1,4 @@
-"""Stage 3C — publish consumes a once-opened verified snapshot descriptor.
+"""Stage 3C - publish consumes a once-opened verified snapshot descriptor.
 
 Identity and local publish-reservation helpers. Never opens the mutable
 ``video_path``. Provider upload MUST stream from the same file descriptor that
@@ -7,7 +7,7 @@ hashing a path and then re-opening that path is NOT a closed race.
 
 Postiz public API (docs inspected 2026-07-30) does **not** document an
 idempotency-key contract for ``/public/v1/posts`` or ``/upload``. Therefore this
-module never claims exactly-once *external* publication — only durable local
+module never claims exactly-once *external* publication - only durable local
 reservation / outcome states.
 """
 
@@ -44,7 +44,7 @@ def canonical_publish_identity(
     snapshot_bytes: int,
     channel: str,
 ) -> dict[str, Any]:
-    """Canonical identity object — JSON-serialised for the local reservation key.
+    """Canonical identity object - JSON-serialised for the local reservation key.
 
     Deliberately excludes filename, mutable path, and pipe-joined strings.
     """
@@ -75,8 +75,8 @@ def open_verified_snapshot(
 ) -> dict[str, Any]:
     """Open the snapshot exactly once (``O_NOFOLLOW``) and verify on that fd.
 
-    Sequence: resolve → ``os.open`` once → ``fstat`` → streaming hash → ``fstat``
-    → compare expected digest/size → ``seek(0)``. Caller owns ``fh`` and MUST
+    Sequence: resolve -> ``os.open`` once -> ``fstat`` -> streaming hash -> ``fstat``
+    -> compare expected digest/size -> ``seek(0)``. Caller owns ``fh`` and MUST
     close it on success, error, or disconnect. A second path open for upload is
     a contract violation.
     """
@@ -147,7 +147,7 @@ def verify_snapshot_descriptor(
     expected_sha256: str,
     expected_bytes: int,
 ) -> dict[str, Any]:
-    """Compatibility wrapper — opens, verifies, then CLOSES.
+    """Compatibility wrapper - opens, verifies, then CLOSES.
 
     Prefer :func:`open_verified_snapshot` on the publish path so the provider
     can stream from the same descriptor. This helper exists for gate-style

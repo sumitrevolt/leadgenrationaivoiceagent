@@ -1,4 +1,4 @@
-"""Bounce / complaint classification — measurable deliverability outcomes.
+"""Bounce / complaint classification - measurable deliverability outcomes.
 
 HARD RULE: subject text alone must NEVER classify as bounce/complaint.
 Classified delivery reports must never reach the LLM path.
@@ -139,7 +139,7 @@ def test_genuine_human_reply_not_bounce():
         classify_delivery_report(
             "sharma.solar@gmail.com",
             _msg(),
-            "Re: your email — interested",
+            "Re: your email - interested",
             "Yes please share pricing for 3 shops.",
         )
         is None

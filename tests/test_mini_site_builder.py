@@ -1,6 +1,6 @@
 """
 Offline tests for the mini-site BUILDER (config / logo validation / reviews /
-render integration). No network, no DB — pure in-process. Each test redirects
+render integration). No network, no DB - pure in-process. Each test redirects
 the builder's storage paths to a tmp dir via monkeypatch.
 """
 
@@ -103,7 +103,7 @@ def test_validate_logo_rejects_oversize():
 
 
 def test_validate_logo_rejects_ext_content_mismatch():
-    # .png extension but JPEG bytes → magic-byte sniff blocks it
+    # .png extension but JPEG bytes -> magic-byte sniff blocks it
     ok, _, err = mb.validate_logo("spoof.png", _JPG)
     assert ok is False
     assert "does not match" in err
@@ -135,9 +135,9 @@ def test_valid_logo_url():
 def test_review_add_pending_not_in_public_until_approved():
     rec = mb.add_review("shop-1", "Rahul", 5, "Great service")
     assert rec["approved"] is False
-    # public = approved only → empty
+    # public = approved only -> empty
     assert mb.list_reviews("shop-1", approved_only=True) == []
-    # admin = all → 1
+    # admin = all -> 1
     assert len(mb.list_reviews("shop-1", approved_only=False)) == 1
 
 
@@ -225,7 +225,7 @@ def test_render_never_raises_on_none():
 
 def test_render_default_logo_text_fallback_when_no_logo():
     html = ms.render_site({"business_name": "Zeta", "slug": "zeta-shop"})
-    # no logo_url configured → text-initial badge, not an <img>
+    # no logo_url configured -> text-initial badge, not an <img>
     assert 'class="logo"' in html
 
 

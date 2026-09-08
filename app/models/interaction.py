@@ -1,4 +1,4 @@
-"""Interaction model — omnichannel timeline (enterprise flywheel)."""
+"""Interaction model - omnichannel timeline (enterprise flywheel)."""
 
 from __future__ import annotations
 

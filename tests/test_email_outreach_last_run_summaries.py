@@ -2,7 +2,7 @@
 
 ISSUE-11: scheduler email_outreach ka run-outcome (sent/failed/cap/...) ab
 Schedule tab me dikhta hai. Data already AgentEvent meta me hota hai
-(_log_event -> team.log_event) — humaara function sirf filtered read karta hai,
+(_log_event -> team.log_event) - humaara function sirf filtered read karta hai,
 koi naya persistence nahi. Hermetic: team.recent_events monkeypatch se stub,
 koi DB / network nahi."""
 

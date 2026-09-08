@@ -37,7 +37,7 @@ def _http_json(url: str) -> dict[str, Any]:
         full,
         headers={"Cache-Control": "no-cache", "User-Agent": "leadgen-next-todos-ready"},
     )
-    with urllib.request.urlopen(req, timeout=20) as resp:  # nosec B310 — scheme gated above
+    with urllib.request.urlopen(req, timeout=20) as resp:  # nosec B310 - scheme gated above
         raw = resp.read().decode("utf-8", errors="replace")
     return json.loads(raw)
 
@@ -157,7 +157,7 @@ def render_md(row: dict[str, Any]) -> str:
     dsh = row.get("dsh_plan") or {}
     sha = h2.get("version") or "offline"
     lines = [
-        "# NEXT todos READY — " + str(row.get("probed_at")),
+        "# NEXT todos READY - " + str(row.get("probed_at")),
         "",
         f"Prod `/health` = `{sha}` · `{h2.get('status')}` · `{h2.get('environment')}` · uptime `{h2.get('uptime')}`.",
         f"Activation: `payments_ready={act.get('payments_ready')}` · `blocker_count={act.get('blocker_count')}` · `ready_for_first_paid_customer={act.get('ready_for_first_paid_customer')}`.",
@@ -172,7 +172,7 @@ def render_md(row: dict[str, Any]) -> str:
         + " shell
         token-paste `#tok`
         cards need admin token |",
-        "| 2 UPI Bind → Re-Approve | OWNER-WAIT | `/app/admin#sec-upi-selfserve`; named blocker `upi_pending_unactioned`; `payments_ready=true` |",
+        "| 2 UPI Bind -> Re-Approve | OWNER-WAIT | `/app/admin#sec-upi-selfserve`; named blocker `upi_pending_unactioned`; `payments_ready=true` |",
         "| 3 Bank-credit confirm | OWNER-WAIT | `owner_confirmed_upi` only; do not fake `paid_today` |",
         "| 4 Phase 0 exit | GATED | Jiya + 1 not on ledger |",
         "| 5 Boss harness canary | OWNER-WAIT | `--dry-run` rc="
@@ -193,7 +193,7 @@ def render_md(row: dict[str, Any]) -> str:
         f"frozen={dsh.get('frozen_agents')}.",
         f"File gates: `{json.dumps(gates, sort_keys=True)}`.",
         "",
-        "Owner clicks (order): `/app/admin-login` → `/app/inbox` 15–30 min → UPI Bind/Approve → bank confirm → optional `python scripts/buzz_start_harness.py --agent Boss`.",
+        "Owner clicks (order): `/app/admin-login` -> `/app/inbox` 15–30 min -> UPI Bind/Approve -> bank confirm -> optional `python scripts/buzz_start_harness.py --agent Boss`.",
         "",
     ]
     return "\n".join(lines)

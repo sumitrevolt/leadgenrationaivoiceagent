@@ -2,8 +2,8 @@
 
 Loop 8 covered password-only login failures. The 2FA verify step has two failure
 modes (invalid challenge, bad TOTP code) that each carry their own attack signal:
-- invalid challenge → replay / CSRF probe
-- bad TOTP code → targeted 2FA guessing on a known account
+- invalid challenge -> replay / CSRF probe
+- bad TOTP code -> targeted 2FA guessing on a known account
 
 Both now emit `login_failed` AutomationLog rows with the failure-mode encoded in
 `error_message` + `meta.stage` so admins can distinguish them.
@@ -15,7 +15,7 @@ import pytest
 
 
 def test_2fa_verify_invalid_challenge_emits_admin_log(client, monkeypatch):
-    """Invalid or expired challenge → login_failed with stage=challenge_consume."""
+    """Invalid or expired challenge -> login_failed with stage=challenge_consume."""
     import app.api.customer_totp as ctt
     import app.platform.customer_totp as ct_mod
 
@@ -40,7 +40,7 @@ def test_2fa_verify_invalid_challenge_emits_admin_log(client, monkeypatch):
 
 
 def test_2fa_verify_bad_code_emits_admin_log_with_client_id(client, monkeypatch):
-    """Bad TOTP code → login_failed with client_id attribution (targeted-2FA-guess signal)."""
+    """Bad TOTP code -> login_failed with client_id attribution (targeted-2FA-guess signal)."""
     import app.platform.customer_totp as ct_mod
 
     monkeypatch.setattr(ct_mod, "consume_challenge", lambda t: "c_targeted")

@@ -1,15 +1,15 @@
 """
-Call Analytics (staff: Lekha) — call-center KPIs from the durable logs we already
+Call Analytics (staff: Lekha) - call-center KPIs from the durable logs we already
 keep. FREE, pure-stdlib + voice_metrics. The genuinely-missing piece flagged in the
 2026-06-28 voice-production audit (no agent owned call-center metrics).
 
 Sources (all already persisted):
   * web test-calls  -> web_call_store (duration, user-turns, per-turn reply latency_ms
-                       + heard — the instrumentation shipped 2026-06-28)
+                       + heard - the instrumentation shipped 2026-06-28)
   * bookings        -> calendar_booking durable ledger (data/bookings/)
   * qualifications  -> data/call_qualifications.jsonl (phone calls, if present)
 
-Import-safe, never raises — returns a plain dict for /api/admin/web-calls/kpis.
+Import-safe, never raises - returns a plain dict for /api/admin/web-calls/kpis.
 """
 
 from __future__ import annotations
@@ -144,12 +144,12 @@ def compute_call_kpis(days: int = 7) -> dict[str, Any]:
 
 
 def run_daily_digest() -> dict[str, Any]:
-    """Lekha's daily call-KPI digest — the missing piece that makes her show
+    """Lekha's daily call-KPI digest - the missing piece that makes her show
     'working' on the office map. compute_call_kpis() itself is only called
     on-demand from the admin dashboard today (app/api/web_call_admin.py) and
     never logs a team event
     this wrapper is what a scheduled job calls.
-    Never raises — degrades to {} on any failure so a scheduler tick can't
+    Never raises - degrades to {} on any failure so a scheduler tick can't
     break on this job."""
     try:
         kpis = compute_call_kpis(days=1)

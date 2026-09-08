@@ -1,10 +1,10 @@
-"""Risk-scored auto-approve — OpenCode/Hermes spirit. LOW-risk self-improve actions skip
+"""Risk-scored auto-approve - OpenCode/Hermes spirit. LOW-risk self-improve actions skip
 the human approval gate by policy
 risky ones still queue. Wired into
 `self_improve.ApprovalQueue.queue_task` (gated RISK_AUTO_APPROVE, default OFF = every
 queued task waits for a human, i.e. zero behaviour change).
 
-Heuristic risk score 0.0 (safe) .. 1.0 (risky). Fail-safe: any uncertainty → risky →
+Heuristic risk score 0.0 (safe) .. 1.0 (risky). Fail-safe: any uncertainty -> risky ->
 NOT auto-approved. Ban-risk actions (send/call/whatsapp/pay/publish/delete) push the score
 up so they keep needing a human.
 
@@ -37,7 +37,7 @@ def _max_cost() -> float:
 
 
 def score(task_name: str, cost_estimate: float = 0.0, reason: str = "") -> float:
-    """0.0 safe .. 1.0 risky. Never raises (unknown → 1.0 = risky)."""
+    """0.0 safe .. 1.0 risky. Never raises (unknown -> 1.0 = risky)."""
     try:
         s = 0.0
         if (task_name or "") in _HIGH_RISK_ACTIONS:

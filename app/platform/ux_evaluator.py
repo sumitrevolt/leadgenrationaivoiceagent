@@ -1,5 +1,5 @@
 """
-UX Evaluator — static heuristic analysis of dashboard HTML files.
+UX Evaluator - static heuristic analysis of dashboard HTML files.
 Uses regex only (no BeautifulSoup/lxml dependency).
 Evaluates 9 UX dimensions and produces UXIssue objects with WCAG metadata.
 
@@ -81,7 +81,7 @@ def _next_id(counter: list[int]) -> str:
 
 # ---------------------------------------------------------------------------
 # Individual check functions
-# Each returns Optional[UXIssue] — None means check passed.
+# Each returns Optional[UXIssue] - None means check passed.
 # ---------------------------------------------------------------------------
 
 
@@ -148,12 +148,12 @@ def _check_empty_states(html: str, dashboard: str, counter: list[int]) -> UXIssu
         wcag_criterion=None,
         user_impact=(
             "When tables or lists have no data, the user sees a blank area "
-            "with no guidance — feels broken."
+            "with no guidance - feels broken."
         ),
         evidence=Evidence(line_numbers=[], code_snippets=[]),
         remediation=(
             "Add empty-state <div> with an SVG illustration and a helpful CTA "
-            "(e.g. 'No leads yet — Import your first CSV')."
+            "(e.g. 'No leads yet - Import your first CSV')."
         ),
     )
 
@@ -461,12 +461,12 @@ def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> list[UXIs
         dashboard_name:  "customer" or "admin" (used for issue labelling).
 
     Returns:
-        List[UXIssue] — one entry per failed check
+        List[UXIssue] - one entry per failed check
         passed checks are omitted.
     """
     html = _read_html(filepath)
     if not html:
-        # File missing / unreadable — return a single critical issue
+        # File missing / unreadable - return a single critical issue
         return [
             UXIssue(
                 id="ux_001",
@@ -545,7 +545,7 @@ def get_all_ux_issues(
     admin_issues = evaluate_dashboard(admin_path, "admin")
 
     log.info(
-        "UX evaluation complete — customer: %d issues, admin: %d issues",
+        "UX evaluation complete - customer: %d issues, admin: %d issues",
         len(customer_issues),
         len(admin_issues),
     )

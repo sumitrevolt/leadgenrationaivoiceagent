@@ -1,9 +1,9 @@
-"""Dunning / Revenue-Recovery Engine — involuntary churn ka free-stack ilaaj.
+"""Dunning / Revenue-Recovery Engine - involuntary churn ka free-stack ilaaj.
 
 2026 research: SaaS ~9% MRR failed payments me khota hai
 automated dunning
 40-70% recover karta (Baremetrics/Churn Buster pattern). Razorpay/Stripe webhook
-PAST_DUE sirf mark karte the — yeh engine us par RECOVERY sequence chalata:
+PAST_DUE sirf mark karte the - yeh engine us par RECOVERY sequence chalata:
 
   payment_failed -> day-0 Hinglish recovery email + WA 1-click link (human send)
                  -> day-3 gentle reminder -> day-7 urgency -> day-14 win-back + lapse
@@ -11,7 +11,7 @@ PAST_DUE sirf mark karte the — yeh engine us par RECOVERY sequence chalata:
   recovered      -> payment success webhook pe case auto-close (MRR saved track)
 
 GATED `DUNNING_ENGINE=1` (default OFF = run_due no-op, zero behaviour change).
-`on_payment_failed` hamesha case+draft RECORD karta (additive, send nahi) — auto
+`on_payment_failed` hamesha case+draft RECORD karta (additive, send nahi) - auto
 email-send sirf flag ON pe. Store: data/dunning_cases.jsonl + dunning_runs.jsonl.
 Reuse only: email_sender, clients_store, customer_auth store. Kabhi raise nahi.
 """
@@ -34,7 +34,7 @@ _RUNS = os.path.join("data", "dunning_runs.jsonl")
 PRICING_URL = "https://leadsgenai.in/pricing"
 SUPPORT_EMAIL = "admin@leadsgenai.in"
 RENEWAL_REMINDER_DAYS = 5
-# Recovery touch schedule (din since failure) — research-backed 0/3/7 + day-14 win-back.
+# Recovery touch schedule (din since failure) - research-backed 0/3/7 + day-14 win-back.
 _TOUCHES = [
     {"day": 0, "key": "failed_now"},
     {"day": 3, "key": "reminder"},
@@ -68,7 +68,7 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
-    # Lock + atomic — web (webhooks) + celery (run_due) dono likhte hain.
+    # Lock + atomic - web (webhooks) + celery (run_due) dono likhte hain.
     try:
         from app.utils.file_lock import locked_rewrite
 
@@ -118,37 +118,37 @@ def _client_info(client_id: str) -> dict[str, Any]:
 def build_message(
     touch_key: str, business_name: str, amount: Any = None, plan: str = ""
 ) -> dict[str, str]:
-    """Hinglish recovery message (subject + body + WA text). Pure function — testable."""
+    """Hinglish recovery message (subject + body + WA text). Pure function - testable."""
     biz = (business_name or "Aapka business").strip()
     amt = f"₹{amount}" if amount else "payment"
     if touch_key == "failed_now":
-        subject = f"{biz} — payment fail ho gaya, service chalu rakhne ke liye 1-click renew"
+        subject = f"{biz} - payment fail ho gaya, service chalu rakhne ke liye 1-click renew"
         body = (
             f"Namaste {biz} team,\n\n"
             f"Aapka {amt} process nahi ho paya (card/UPI issue ho sakta hai). Aapki AI "
-            f"marketing service abhi chal rahi hai — bas payment retry kar dijiye:\n\n"
+            f"marketing service abhi chal rahi hai - bas payment retry kar dijiye:\n\n"
             f"  Renew/Pay: {PRICING_URL}\n\n"
-            f"Koi dikkat ho to is email ka reply karo ya {SUPPORT_EMAIL} pe likho — turant sort karenge.\n"
+            f"Koi dikkat ho to is email ka reply karo ya {SUPPORT_EMAIL} pe likho - turant sort karenge.\n"
         )
     elif touch_key == "reminder":
-        subject = f"{biz} — reminder: payment pending hai (service pause na ho)"
+        subject = f"{biz} - reminder: payment pending hai (service pause na ho)"
         body = (
             f"Namaste,\n\n{biz} ka {amt} abhi bhi pending hai. Aapke daily posts, "
             f"lead-capture aur reports na rukein isliye jaldi renew kar lo:\n\n"
             f"  {PRICING_URL}\n\nUPI/card dono chalta hai. Help chahiye to reply karo.\n"
         )
     elif touch_key == "urgent":
-        subject = f"{biz} — aakhri reminder: 7 din ho gaye, service pause hone wali hai"
+        subject = f"{biz} - aakhri reminder: 7 din ho gaye, service pause hone wali hai"
         body = (
-            f"Namaste,\n\n{amt} 7 din se pending hai — system jald aapki marketing "
+            f"Namaste,\n\n{amt} 7 din se pending hai - system jald aapki marketing "
             f"automation pause kar dega. 2 minute me renew karo:\n\n  {PRICING_URL}\n\n"
-            f"Agar plan change karna hai ya koi issue hai, reply karo — hum adjust kar denge.\n"
+            f"Agar plan change karna hai ya koi issue hai, reply karo - hum adjust kar denge.\n"
         )
     else:  # winback
-        subject = f"{biz} — wapas aao, aapka data + setup safe hai (special offer)"
+        subject = f"{biz} - wapas aao, aapka data + setup safe hai (special offer)"
         body = (
             f"Namaste,\n\nAapki service lapse ho gayi, lekin aapka pura setup (posts, "
-            f"leads, mini-site) safe hai. Wapas aao to wahi se continue hoga — is mahine "
+            f"leads, mini-site) safe hai. Wapas aao to wahi se continue hoga - is mahine "
             f"renew karne par hum onboarding dobara FREE karenge:\n\n  {PRICING_URL}\n\n"
             f"Sawal ho to seedha reply karo.\n"
         )
@@ -173,7 +173,7 @@ async def _send_email(to_email: str, subject: str, body: str) -> bool:
 async def _ensure_pay_link(case: dict[str, Any]) -> str:
     """UPI intent deep-link for recovery email (Razorpay removed 2026-06-18).
 
-    UPI intent URL = no-login, opens any UPI app directly. Amount missing → pricing
+    UPI intent URL = no-login, opens any UPI app directly. Amount missing -> pricing
     page fallback. Never raises.
     """
     try:
@@ -306,7 +306,7 @@ def mark_recovered(client_id: str) -> bool:
 
 async def _renewal_reminders() -> int:
     """Pre-dunning: active subscriptions jinka period RENEWAL_REMINDER_DAYS me khatam
-    ho raha — ek reminder per period (dedupe by period_end date). Best-effort."""
+    ho raha - ek reminder per period (dedupe by period_end date). Best-effort."""
     sent = 0
     try:
         from sqlalchemy import select
@@ -339,7 +339,7 @@ async def _renewal_reminders() -> int:
                 info = _client_info(cid)
                 biz = str(info.get("business_name") or "Aapka business")
                 email = _client_email(cid)
-                subject = f"{biz} — renewal {pe_aware.date().isoformat()} ko due hai (service na rukne dein)"
+                subject = f"{biz} - renewal {pe_aware.date().isoformat()} ko due hai (service na rukne dein)"
                 body = (
                     f"Namaste,\n\n{biz} ka plan {pe_aware.date().isoformat()} ko renew hoga. "
                     f"UPI mandate/card active rakho taaki marketing automation na ruke. "
@@ -368,7 +368,7 @@ async def _renewal_reminders() -> int:
 
 
 async def run_due() -> dict[str, Any]:
-    """Daily sweep (scheduler se). GATED DUNNING_ENGINE=1 — off = no-op."""
+    """Daily sweep (scheduler se). GATED DUNNING_ENGINE=1 - off = no-op."""
     if not _enabled():
         return {"enabled": False}
     touched = 0
@@ -473,7 +473,7 @@ async def send_renewal_reminders() -> dict[str, Any]:
 
     Independent of DUNNING_ENGINE only when dunning is OFF. When
     ``DUNNING_ENGINE=1``, ``run_due()`` already sends period-deduped
-    ``_renewal_reminders`` — a second sender would double-email Jiya.
+    ``_renewal_reminders`` - a second sender would double-email Jiya.
     Safe: sirf email reminder, koi payment retry. Manual UPI path intact.
     NEVER raises.
     """

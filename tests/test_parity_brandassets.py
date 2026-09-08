@@ -1,4 +1,4 @@
-"""Tests — brand assets batch (brand_frames, business_card, magic_resize,
+"""Tests - brand assets batch (brand_frames, business_card, magic_resize,
 review_to_post, sticker_pack + /api/brand router).
 
 Pure-python: tmp stores (clients_store/brand_kit monkeypatched), free_ai.chat

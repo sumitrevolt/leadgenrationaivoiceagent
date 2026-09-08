@@ -243,9 +243,9 @@ def test_admin_and_customer_delivery_endpoints(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Acceptance Test 5 — Monthly proof round-trip (end-to-end via HTTP)
+# Acceptance Test 5 - Monthly proof round-trip (end-to-end via HTTP)
 # ---------------------------------------------------------------------------
-# User brief: "Test 5: Monthly proof — Admin/customer can see what was delivered.
+# User brief: "Test 5: Monthly proof - Admin/customer can see what was delivered.
 # Report includes completed deliverables, pending items, and next month plan."
 #
 # This test drives the full pipeline from the perspective of a real paying
@@ -441,9 +441,9 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Product 1 Customer Deliverability layer (2026-07-08) — Customer Health,
+# Product 1 Customer Deliverability layer (2026-07-08) - Customer Health,
 # Approval Reminder, and SLA Recovery agents. These sit on top of the state
-# already computed above (no new store) — tests assert the derived
+# already computed above (no new store) - tests assert the derived
 # health_status/approval_escalation fields and the scheduled sweep function.
 # ---------------------------------------------------------------------------
 def test_health_status_red_for_blank_timeline_paid_customer(monkeypatch, tmp_path):
@@ -451,7 +451,7 @@ def test_health_status_red_for_blank_timeline_paid_customer(monkeypatch, tmp_pat
     from app.marketing import product_one_delivery
 
     # Fully set up (business/brand/social/approval all present) but ZERO
-    # content and ZERO ledger events — a paid customer with a blank timeline,
+    # content and ZERO ledger events - a paid customer with a blank timeline,
     # exactly the "customer portal must never be blank" risk case.
     state = product_one_delivery.customer_delivery_status("c1", _client())
 
@@ -539,7 +539,7 @@ def test_delivery_cockpit_sorts_red_customers_first(monkeypatch, tmp_path):
         product_one_delivery.record_manual_action("c_green", "monthly_report", owner="ops-team")
     )
 
-    # List order deliberately puts the healthy customer FIRST — sort must fix it.
+    # List order deliberately puts the healthy customer FIRST - sort must fix it.
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
         lambda status=None, product=None: [green, red],
@@ -573,7 +573,7 @@ def test_sla_recovery_sweep_is_idempotent_and_never_sends_messages(monkeypatch, 
 
     monkeypatch.setattr(auto_content, "seed_client_content", _fake_seed, raising=False)
 
-    # SLA Recovery must never touch any WhatsApp/email sender — assert none of
+    # SLA Recovery must never touch any WhatsApp/email sender - assert none of
     # the known sender modules are imported/called by making them explode if used.
     def _boom(*a, **k):
         raise AssertionError("SLA Recovery sweep must never send a customer message")
@@ -600,10 +600,10 @@ def test_sla_recovery_sweep_is_idempotent_and_never_sends_messages(monkeypatch, 
 
 
 # ---------------------------------------------------------------------------
-# Integration Health Agent (2026-07-08) — maps platform integration failures
+# Integration Health Agent (2026-07-08) - maps platform integration failures
 # + scheduler/queue health to the SPECIFIC paid customers affected. Reuses
 # app.platform.integration_health.snapshot / automation_health.health (no new
-# failure-counting logic) — tests mock those two primitives directly.
+# failure-counting logic) - tests mock those two primitives directly.
 # ---------------------------------------------------------------------------
 def test_integration_readiness_scopes_vobiz_failure_to_voice_customers_only(monkeypatch, tmp_path):
     _wire_tmp(monkeypatch, tmp_path)

@@ -1,8 +1,8 @@
-"""ADR-106 — customer billing API must resolve legacy billing-id aliases.
+"""ADR-106 - customer billing API must resolve legacy billing-id aliases.
 
 Context (2026-07-16 browser acceptance): jiya-makeover (the only real paying
 customer, Starter ₹1,999, invoice INV/2026-27/0001) logged in and saw
-"NO PLAN — Free / Trial" + a fresh UPI QR, because her Subscription/Invoice
+"NO PLAN - Free / Trial" + a fresh UPI QR, because her Subscription/Invoice
 rows are owned by legacy billing id `d79d690f61b3` while her JWT carries
 `jiya-makeover`. ADR-095 fixed this identity split for the alert path via
 `billing_client_ids`
@@ -11,14 +11,14 @@ rows are owned by legacy billing id `d79d690f61b3` while her JWT carries
 2026-07-19 hardening: helper now uses `resolve_client` so a billing-alias JWT
 (`d79d690f61b3`) also loads the marketing record and returns both ids.
 
-Offline contract tests — no DB, no network.
+Offline contract tests - no DB, no network.
 """
 
 from __future__ import annotations
 
 from app.api import billing as billing_api
 
-# Known public fixture id (Jiya billing alias) — not a credential.
+# Known public fixture id (Jiya billing alias) - not a credential.
 _BILL_ID = "d79d690f61b3"  # pragma: allowlist secret
 _MKT_ID = "jiya-makeover"
 
@@ -102,7 +102,7 @@ def test_no_direct_dot_value_on_subscription_fields():
         "sub.status.value",
         "inv.status.value",
     ):
-        assert bad not in src, f"{bad} regressed — use _ev() (str-safe)"
+        assert bad not in src, f"{bad} regressed - use _ev() (str-safe)"
 
 
 def test_every_where_clause_uses_alias_resolution():
@@ -113,14 +113,14 @@ def test_every_where_clause_uses_alias_resolution():
     src = inspect.getsource(billing_api)
     for model in ("Subscription", "Invoice", "PaymentMethod", "UsageRecord"):
         assert f"{model}.client_id == client_id" not in src, (
-            f"{model} query regressed to direct equality — use "
+            f"{model} query regressed to direct equality - use "
             "_billing_client_ids(client_id) with .in_()"
         )
     assert src.count("_billing_client_ids(") >= 10
 
 
 def test_get_invoices_jsonl_uses_alias_set():
-    """JSONL GST ledger may store legacy billing id — filter must use aliases."""
+    """JSONL GST ledger may store legacy billing id - filter must use aliases."""
     import inspect
 
     src = inspect.getsource(billing_api.get_invoices)

@@ -1,4 +1,4 @@
-"""Thin wrap of ``external_agents.runner.worktrees`` — no new shell surface."""
+"""Thin wrap of ``external_agents.runner.worktrees`` - no new shell surface."""
 
 from __future__ import annotations
 

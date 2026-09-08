@@ -9,12 +9,12 @@ Modes:
 Design:
 - Silent on success: --check exits 0 with no output when everything's ready so
   that /watch doesn't spam "setup is complete" on every turn.
-- Idempotent: re-running the installer is safe — it never clobbers existing
+- Idempotent: re-running the installer is safe - it never clobbers existing
   keys and only appends missing ones.
 - SETUP_COMPLETE=true in ~/.config/watch/.env tells us the user has been
   through a successful installer run at least once.
 - Never sudo. On macOS, auto-install via brew. Elsewhere, print exact commands.
-- Never write an API key to disk automatically — only scaffold placeholders.
+- Never write an API key to disk automatically - only scaffold placeholders.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ CONFIG_DIR = Path.home() / ".config" / "watch"
 CONFIG_FILE = CONFIG_DIR / ".env"
 ENV_TEMPLATE = """# /watch API configuration
 #
-# Whisper transcription fallback — used only when yt-dlp cannot get captions
+# Whisper transcription fallback - used only when yt-dlp cannot get captions
 # (or when you point /watch at a local file with no subtitles).
 #
 # Groq is preferred: it runs whisper-large-v3 at a fraction of OpenAI's price
@@ -40,7 +40,7 @@ ENV_TEMPLATE = """# /watch API configuration
 # Get a Groq key:  https://console.groq.com/keys
 # Get an OpenAI key:  https://platform.openai.com/api-keys
 #
-# Leave both blank to disable Whisper — /watch will still work, but videos
+# Leave both blank to disable Whisper - /watch will still work, but videos
 # without native captions will come back frames-only.
 
 GROQ_API_KEY=
@@ -225,9 +225,9 @@ def cmd_check() -> int:
 
     Exit 0 with no output when ready. On failure, print one actionable line
     to stderr and return:
-      2 → binaries missing
-      3 → API key missing
-      4 → both missing
+      2 -> binaries missing
+      3 -> API key missing
+      4 -> both missing
     """
     s = _status()
     if s["status"] == "ready":
@@ -275,11 +275,11 @@ def cmd_install() -> int:
                 return 2
             installed_deps = True
         elif system == "Linux":
-            print("[setup] dependencies missing on Linux — please install:", file=sys.stderr)
+            print("[setup] dependencies missing on Linux - please install:", file=sys.stderr)
             print("  " + _install_hint_linux(missing), file=sys.stderr)
             return 2
         elif system == "Windows":
-            print("[setup] dependencies missing on Windows — please install:", file=sys.stderr)
+            print("[setup] dependencies missing on Windows - please install:", file=sys.stderr)
             print("  " + _install_hint_windows(missing), file=sys.stderr)
             return 2
         else:
@@ -306,7 +306,7 @@ def cmd_install() -> int:
     print("[setup] one step left: add a Whisper API key.")
     print("")
     print(f"  Edit {CONFIG_FILE} and set either:")
-    print("    GROQ_API_KEY=...    (preferred — cheaper, faster
+    print("    GROQ_API_KEY=...    (preferred - cheaper, faster
     get one at console.groq.com/keys)")
     print("    OPENAI_API_KEY=...  (fallback
     get one at platform.openai.com/api-keys)")

@@ -1,7 +1,7 @@
-"""Memory Vault — Rowboat-inspired compounding MARKDOWN memory per entity.
+"""Memory Vault - Rowboat-inspired compounding MARKDOWN memory per entity.
 
 Har prospect / client / topic ka ek long-lived .md file jo events se BADHTA
-rehta hai (cold retrieval nahi — accumulated context):
+rehta hai (cold retrieval nahi - accumulated context):
 
     data/memory/prospects/<phone10>.md
     data/memory/clients/<client_id>.md
@@ -9,16 +9,16 @@ rehta hai (cold retrieval nahi — accumulated context):
 
 File structure:
     # <title>
-    ## Profile      — key facts (dedupe'd bullet lines)
-    ## Timeline     — append-only "- YYYY-MM-DD HH:MM — event" (newest LAST)
-    ## Summary      — compacted digest (timeline > 80 bullets → compact + trim to 30)
+    ## Profile      - key facts (dedupe'd bullet lines)
+    ## Timeline     - append-only "- YYYY-MM-DD HH:MM - event" (newest LAST)
+    ## Summary      - compacted digest (timeline > 80 bullets -> compact + trim to 30)
 
-SYNC JOB pattern (HOT-PATH HOOK NAHI — prod-down lesson): `sync_all()` existing
+SYNC JOB pattern (HOT-PATH HOOK NAHI - prod-down lesson): `sync_all()` existing
 jsonl stores (inquiries / widget_chats / dialer_logs / deals) ko line-count
 CURSOR se tail karta (data/memory/_cursor.json). Scheduler se `sync_if_enabled()`
-(gated `MEMORY_VAULT=1`, default OFF) — sync_all khud sync+cheap, no LLM/network.
+(gated `MEMORY_VAULT=1`, default OFF) - sync_all khud sync+cheap, no LLM/network.
 
-LLM sirf optional `regen_summary()` me (async, wait_for 25s) — sync path me
+LLM sirf optional `regen_summary()` me (async, wait_for 25s) - sync path me
 STATIC digest (job kabhi network pe na atke). Import-safe, kabhi raise nahi.
 """
 
@@ -44,7 +44,7 @@ _DEALS = os.path.join("data", "deals.jsonl")
 KINDS = ("prospects", "clients", "topics")
 
 _MAX_FILE_BYTES = 64 * 1024  # edit_memory hard cap
-_COMPACT_AT = 80  # timeline bullets isse zyada → compact
+_COMPACT_AT = 80  # timeline bullets isse zyada -> compact
 _KEEP_AFTER_COMPACT = 30  # compact ke baad itne recent bullets rakho
 _MAX_PROFILE_FACTS = 40
 
@@ -93,7 +93,7 @@ def _now_ist() -> str:
 # Markdown parse / serialize
 # --------------------------------------------------------------------------- #
 def _parse(md: str) -> dict[str, Any]:
-    """md text → {title, profile[], timeline[], summary}. Tolerant parser."""
+    """md text -> {title, profile[], timeline[], summary}. Tolerant parser."""
     out: dict[str, Any] = {"title": "", "profile": [], "timeline": [], "summary": ""}
     section = ""
     summary_lines: list[str] = []
@@ -185,7 +185,7 @@ def edit_memory(kind: str, key: str, content: str) -> dict[str, Any]:
             return {"ok": False, "error": "valid key chahiye"}
         text = str(content or "")
         if len(text.encode("utf-8")) > _MAX_FILE_BYTES:
-            return {"ok": False, "error": "content 64KB se bada hai — chhota karo"}
+            return {"ok": False, "error": "content 64KB se bada hai - chhota karo"}
         from app.utils.file_lock import locked_rewrite
 
         locked_rewrite(p, text)  # atomic+locked (was bare open("w") truncate-then-write)
@@ -196,7 +196,7 @@ def edit_memory(kind: str, key: str, content: str) -> dict[str, Any]:
 
 
 def list_entities(kind: str) -> list[dict[str, Any]]:
-    """Kind ke saare memory files (key, mtime, size) — newest first. Kabhi raise nahi."""
+    """Kind ke saare memory files (key, mtime, size) - newest first. Kabhi raise nahi."""
     out: list[dict[str, Any]] = []
     try:
         if kind not in KINDS:
@@ -250,7 +250,7 @@ def upsert_profile_fact(kind: str, key: str, fact: str, title: str = "") -> bool
 
 
 def add_event(kind: str, key: str, event: str, title: str = "") -> bool:
-    """Timeline me dated bullet append (newest LAST). >80 bullets → static
+    """Timeline me dated bullet append (newest LAST). >80 bullets -> static
     compact (digest Summary me, timeline trim to 30). Kabhi raise nahi."""
     try:
         ev = re.sub(r"\s+", " ", str(event or "")).strip()[:240]
@@ -261,9 +261,9 @@ def add_event(kind: str, key: str, event: str, title: str = "") -> bool:
             return False
         if title and not mem.get("title"):
             mem["title"] = title[:120]
-        bullet = f"{_now_ist()} — {ev}"
+        bullet = f"{_now_ist()} - {ev}"
         # consecutive-duplicate guard (same event do baar tail hua to)
-        if mem["timeline"] and mem["timeline"][-1].split(" — ", 1)[-1] == ev:
+        if mem["timeline"] and mem["timeline"][-1].split(" - ", 1)[-1] == ev:
             return True
         mem["timeline"].append(bullet)
         if len(mem["timeline"]) > _COMPACT_AT:
@@ -275,8 +275,8 @@ def add_event(kind: str, key: str, event: str, title: str = "") -> bool:
 
 
 def _compact_static(mem: dict[str, Any]) -> None:
-    """Purane bullets → chhota static digest Summary me; timeline trim.
-    Sync path me LLM NAHI (job kabhi network pe na atke) — LLM regen alag."""
+    """Purane bullets -> chhota static digest Summary me; timeline trim.
+    Sync path me LLM NAHI (job kabhi network pe na atke) - LLM regen alag."""
     old = mem["timeline"][:-_KEEP_AFTER_COMPACT]
     mem["timeline"] = mem["timeline"][-_KEEP_AFTER_COMPACT:]
     if not old:
@@ -286,11 +286,11 @@ def _compact_static(mem: dict[str, Any]) -> None:
     # event-type rough counts (pehla word group)
     counts: dict[str, int] = {}
     for b in old:
-        tail = b.split(" — ", 1)[-1]
+        tail = b.split(" - ", 1)[-1]
         head = tail.split(":")[0].split(" ")[0].strip().lower() or "event"
         counts[head] = counts.get(head, 0) + 1
     top = ", ".join(f"{k}×{v}" for k, v in sorted(counts.items(), key=lambda x: -x[1])[:5])
-    digest = f"[{first_d} → {last_d}] {len(old)} purani events compact: {top}."
+    digest = f"[{first_d} -> {last_d}] {len(old)} purani events compact: {top}."
     mem["summary"] = (mem.get("summary", "") + "\n" + digest).strip()[:4000]
 
 
@@ -364,7 +364,7 @@ def context_snippet(
 
 
 # --------------------------------------------------------------------------- #
-# Sync job — jsonl stores ko cursor se tail karo (NO hot-path hooks)
+# Sync job - jsonl stores ko cursor se tail karo (NO hot-path hooks)
 # --------------------------------------------------------------------------- #
 def _read_cursor() -> dict[str, int]:
     try:
@@ -386,7 +386,7 @@ def _write_cursor(cur: dict[str, int]) -> None:
 
 def _tail_new(path: str, done: int, limit: int) -> tuple[list[dict[str, Any]], int]:
     """File ki `done` ke baad wali max-`limit` NEW jsonl lines. Returns (records,
-    new_done). File chhota ho gaya (rewrite/trim) to cursor reset — reprocess
+    new_done). File chhota ho gaya (rewrite/trim) to cursor reset - reprocess
     nahi karte (duplicate events se behtar miss). Kabhi raise nahi."""
     recs: list[dict[str, Any]] = []
     last_n = 0
@@ -401,7 +401,7 @@ def _tail_new(path: str, done: int, limit: int) -> tuple[list[dict[str, Any]], i
                     continue
                 if len(recs) >= limit:
                     break
-                new_done = n  # consumed (corrupt ho ya na ho — cursor drift na ho)
+                new_done = n  # consumed (corrupt ho ya na ho - cursor drift na ho)
                 try:
                     r = json.loads(line)
                     if isinstance(r, dict):
@@ -423,7 +423,7 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
     try:
         cur = _read_cursor()
 
-        # 1) inquiries.jsonl → prospect (+ client agar mini-site/client_id)
+        # 1) inquiries.jsonl -> prospect (+ client agar mini-site/client_id)
         try:
             recs, cur[_INQUIRIES] = _tail_new(_INQUIRIES, cur.get(_INQUIRIES, 0), limit_per_store)
             n = 0
@@ -452,7 +452,7 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
                     if add_event(
                         "clients",
                         cid,
-                        f"Mini-site inquiry: {who}" + (f" — {msg[:60]}" if msg else ""),
+                        f"Mini-site inquiry: {who}" + (f" - {msg[:60]}" if msg else ""),
                         title=f"Client {cid}",
                     ):
                         n += 1
@@ -461,11 +461,11 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
             logger.debug(f"[memory] inquiries sync skip: {e}")
             summary["inquiries"] = 0
 
-        # 2) widget_chats.jsonl → prospect (sirf un sessions ke user-turns jinme phone mila)
+        # 2) widget_chats.jsonl -> prospect (sirf un sessions ke user-turns jinme phone mila)
         try:
             recs, cur[_CHATS] = _tail_new(_CHATS, cur.get(_CHATS, 0), limit_per_store)
             sess_phone: dict[str, str] = {}
-            for r in recs:  # pass 1: session → phone map (batch ke andar)
+            for r in recs:  # pass 1: session -> phone map (batch ke andar)
                 sid = str(r.get("session_id") or "")
                 if not sid or sid in sess_phone:
                     continue
@@ -487,7 +487,7 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
             logger.debug(f"[memory] chats sync skip: {e}")
             summary["widget_chats"] = 0
 
-        # 3) dialer_logs.jsonl → prospect (disposition + notes)
+        # 3) dialer_logs.jsonl -> prospect (disposition + notes)
         try:
             recs, cur[_DIALER] = _tail_new(_DIALER, cur.get(_DIALER, 0), limit_per_store)
             n = 0
@@ -497,7 +497,7 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
                     continue
                 disp = str(r.get("disposition") or "call").strip()
                 notes = str(r.get("notes") or "").strip()[:60]
-                ev = f"Call (dialer): {disp}" + (f" — {notes}" if notes else "")
+                ev = f"Call (dialer): {disp}" + (f" - {notes}" if notes else "")
                 if add_event("prospects", ph, ev, title=f"Prospect {ph}"):
                     n += 1
             summary["dialer_logs"] = n
@@ -506,7 +506,7 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
             summary["dialer_logs"] = 0
 
         # 4) deals.jsonl (rewrite-store: sirf NAYE deals new-line banate; in-place
-        #    stage edits cursor se nahi dikhte — acceptable, dialer/inquiry cover karte)
+        #    stage edits cursor se nahi dikhte - acceptable, dialer/inquiry cover karte)
         try:
             recs, cur[_DEALS] = _tail_new(_DEALS, cur.get(_DEALS, 0), limit_per_store)
             n = 0
@@ -516,7 +516,7 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
                     continue
                 biz = str(r.get("business_name") or "Lead").strip()[:60]
                 stage = str(r.get("stage") or "new")
-                if add_event("prospects", ph, f"Deal '{biz}' — stage: {stage}", title=biz):
+                if add_event("prospects", ph, f"Deal '{biz}' - stage: {stage}", title=biz):
                     n += 1
             summary["deals"] = n
         except Exception as e:
@@ -535,7 +535,7 @@ def enabled() -> bool:
 
 
 async def sync_if_enabled() -> dict[str, Any]:
-    """Scheduler hook — gated MEMORY_VAULT=1 (default OFF). sync_all thread me
+    """Scheduler hook - gated MEMORY_VAULT=1 (default OFF). sync_all thread me
     (event loop block na ho). Kabhi raise nahi."""
     if not enabled():
         return {"ok": False, "skipped": "MEMORY_VAULT off"}
@@ -560,7 +560,7 @@ async def sync_if_enabled() -> dict[str, Any]:
 
         result = await asyncio.to_thread(sync_all)
 
-        # Obsidian — write vault sync summary to System/ (INERT if OBSIDIAN_SYNC unset).
+        # Obsidian - write vault sync summary to System/ (INERT if OBSIDIAN_SYNC unset).
         try:
             from app.platform import obsidian_sync as _obs
 

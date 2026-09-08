@@ -1,4 +1,4 @@
-"""Durable prospective store (L6) — claim/lease/idempotency + tenant isolation.
+"""Durable prospective store (L6) - claim/lease/idempotency + tenant isolation.
 
 These lock the P0 properties the JSONL first cut could not provide:
   - concurrent claimers produce exactly ONE dispatch per row
@@ -61,7 +61,7 @@ def test_enqueue_validates_and_is_idempotent(store):
     assert first["ok"] and first["duplicate"] is False
     assert again["duplicate"] is True and again["row"]["id"] == first["row"]["id"]
 
-    # the idempotency basis includes tenant — same action, different tenant, new row
+    # the idempotency basis includes tenant - same action, different tenant, new row
     other = store.enqueue("tenantB", "rohan", "call back lead", in_minutes=-1)
     assert other["row"]["id"] != first["row"]["id"]
 

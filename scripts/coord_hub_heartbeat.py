@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Coordination Hub heartbeat — coding tools ko live presence bhejne ka primitive.
+"""Coordination Hub heartbeat - coding tools ko live presence bhejne ka primitive.
 
 Koi bhi tool (opencode/cursor/claude/bolt/monkeycode) session start/end pe isse
 call karke apni presence Coordination Hub dashboard (/app/coordination) me
 update karta hai. HMAC-signed
-secret env se aata hai — kabhi commit nahi.
+secret env se aata hai - kabhi commit nahi.
 
 Usage (bash / powershell, secret env me):
   COORD_HUB_TOOL_OPENCODE_SECRET=<secret> python scripts/coord_hub_heartbeat.py opencode
@@ -15,7 +15,7 @@ Optional env (meta tagging):
   COORD_HUB_WORKTREE   worktree name (dashboards me dikhta hai)
 
 Signs with the SAME canonical payload the deployed backend verifies
-(app/platform/coordination_hub_auth.py _canonical_payload) — 200 = verified.
+(app/platform/coordination_hub_auth.py _canonical_payload) - 200 = verified.
 """
 
 from __future__ import annotations

@@ -1,10 +1,10 @@
 """
-Voice agent roles — Product 2 ke alag personas (Swara telecaller ke alawa).
+Voice agent roles - Product 2 ke alag personas (Swara telecaller ke alawa).
 
 Roles:
-  - telecaller   → Swara (default) — outbound qualify + pitch
-  - booking_agent → Ananya — appointment / site-visit / demo BOOK (har niche)
-  - receptionist  → Riya — inbound customer reception (route, message, book)
+  - telecaller   -> Swara (default) - outbound qualify + pitch
+  - booking_agent -> Ananya - appointment / site-visit / demo BOOK (har niche)
+  - receptionist  -> Riya - inbound customer reception (route, message, book)
 
 Consumers: TelecallerBrain, vobiz_stream, web_call, voice_product API, team.py STAFF.
 Import-safe
@@ -45,7 +45,7 @@ VOICE_ROLES: dict[str, dict[str, Any]] = {
         "title": "AI Receptionist",
         "product": "voice",
         "direction": "inbound",
-        "goal": "Customer calls answer karna — department route, message, appointment book",
+        "goal": "Customer calls answer karna - department route, message, appointment book",
     },
 }
 
@@ -65,7 +65,7 @@ _FLOW_ALIASES: dict[str, str] = {
 
 
 def normalize_role(raw: str | None) -> str:
-    """Map flow/role string → canonical role id. Unknown → telecaller."""
+    """Map flow/role string -> canonical role id. Unknown -> telecaller."""
     key = (raw or "telecaller").strip().lower().replace("-", "_")
     if key in VOICE_ROLES:
         return key
@@ -110,7 +110,7 @@ def build_role_system_prompt(
     niche_script_context: str = "",
     discovery_questions: list[str] | None = None,
 ) -> str | None:
-    """Role-specific system prompt. telecaller → None (Swara default in brain)."""
+    """Role-specific system prompt. telecaller -> None (Swara default in brain)."""
     rid = normalize_role(role)
     if rid == "telecaller":
         return None
@@ -130,10 +130,10 @@ def build_role_system_prompt(
     ctx = f"\nNICHE CONTEXT: {niche_script_context}" if niche_script_context else ""
 
     if rid == "booking_agent":
-        return f"""Tum "{agent_name}" ho — {client_name} ki professional Indian female appointment coordinator.
+        return f"""Tum "{agent_name}" ho - {client_name} ki professional Indian female appointment coordinator.
 Tum LIVE PHONE CALL par ho
 natural Hinglish, warm, efficient. Goal = caller ki appointment,
-site-visit ya demo slot CONFIRM karna — phone pe sale close nahi.
+site-visit ya demo slot CONFIRM karna - phone pe sale close nahi.
 
 CLIENT: {client_name} | NICHE: {niche_name}{ctx}
 
@@ -144,18 +144,18 @@ HARD RULES:
 1. MAX 1 vakya, 10-18 shabd. Ek turn me EK hi sawaal.
 2. Pehle caller ki need suno, phir date/time options do (do specific slots).
 3. Naam + phone confirm karo booking se pehle.
-4. Medical/legal advice mat do — sirf appointment logistics.
-5. "AI ho?" → haan, AI assistant hoon appointment ke liye — phir aage badho.
-6. Customer ko hamesha 'aap' / sir-madam — informal slang banned.
+4. Medical/legal advice mat do - sirf appointment logistics.
+5. "AI ho?" -> haan, AI assistant hoon appointment ke liye - phir aage badho.
+6. Customer ko hamesha 'aap' / sir-madam - informal slang banned.
 7. Output = sirf bolne wala text, koi prefix/emoji nahi.
 
-GOOD: "Theek hai, kal subah 11 baje slot hai — aapka naam confirm kar doon?"
+GOOD: "Theek hai, kal subah 11 baje slot hai - aapka naam confirm kar doon?"
 BAD: "Bahut achha choice sir, main aapki booking process start karti hoon..." """
 
     if rid == "receptionist":
-        return f"""Tum "{agent_name}" ho — {client_name} ki professional Indian female front-desk receptionist.
+        return f"""Tum "{agent_name}" ho - {client_name} ki professional Indian female front-desk receptionist.
 Tum INBOUND LIVE CALL par ho
-natural Hinglish, polite, helpful. Tum sales telecaller NAHI ho —
+natural Hinglish, polite, helpful. Tum sales telecaller NAHI ho -
 caller ki madad karo: sahi department, message, ya appointment.
 
 CLIENT: {client_name} | NICHE: {niche_name}{ctx}
@@ -163,25 +163,25 @@ CLIENT: {client_name} | NICHE: {niche_name}{ctx}
 RECEPTION FLOW:
 1. Greeting + "main kaise madad kar sakti hoon?"
 2. Intent samjho (appointment / inquiry / complaint / human chahiye).
-3. Agar appointment → date/time + naam + phone confirm.
-4. Agar complex → human transfer offer (CALL_TRANSFER available ho to).
-5. FAQ short jawab (KB facts se) — guess mat karo.
+3. Agar appointment -> date/time + naam + phone confirm.
+4. Agar complex -> human transfer offer (CALL_TRANSFER available ho to).
+5. FAQ short jawab (KB facts se) - guess mat karo.
 
 HARD RULES:
 1. MAX 1 vakya, warm tone. Ek turn = ek sawaal ya ek clear jawab.
-2. Pushy sales pitch BANNED — sirf help aur routing.
-3. "AI ho?" → haan, AI reception assistant hoon — kaise madad karun?
+2. Pushy sales pitch BANNED - sirf help aur routing.
+3. "AI ho?" -> haan, AI reception assistant hoon - kaise madad karun?
 4. Respectful 'aap' / sir-madam always.
 5. Output = sirf spoken text.
 
-GOOD: "Namaste, {client_name} me aapka swagat hai — main aapki kya madad kar sakti hoon?"
+GOOD: "Namaste, {client_name} me aapka swagat hai - main aapki kya madad kar sakti hoon?"
 BAD: "Hamari premium services ke baare me batati hoon..." """
 
     return None
 
 
 def build_role_opening(role: str, *, client_name: str, niche_name: str) -> str | None:
-    """Role-specific opener. telecaller → None (brain.opening_line Swara)."""
+    """Role-specific opener. telecaller -> None (brain.opening_line Swara)."""
     rid = normalize_role(role)
     if rid == "telecaller":
         return None
@@ -192,13 +192,13 @@ def build_role_opening(role: str, *, client_name: str, niche_name: str) -> str |
     if rid == "booking_agent":
         return (
             f"Namaste, main {agent_name} bol rahi hoon {client_name} ki taraf se. "
-            f"Aapki {niche_name} ke liye appointment book karne ke liye call kiya tha — "
+            f"Aapki {niche_name} ke liye appointment book karne ke liye call kiya tha - "
             "abhi 2 minute denge?"
         )
 
     if rid == "receptionist":
         return (
-            f"Namaste, {client_name} me aapka swagat hai — main {agent_name} hoon. "
+            f"Namaste, {client_name} me aapka swagat hai - main {agent_name} hoon. "
             "Main aapki kaise madad kar sakti hoon?"
         )
 

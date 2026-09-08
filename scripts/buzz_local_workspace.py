@@ -5,7 +5,7 @@ Owner decision 2026-08-10: local-first relay (ws://localhost:3000). This script
 creates the canonical channel structure on the local relay with FRESH local IDs
 and regenerates ~/.buzz/GUIDES/CHANNEL_IDS.json. Hosted-relay IDs are NEVER reused.
 
-NOTE (2026-08-11 fix): relay URL MUST use host `localhost`, NOT `127.0.0.1` — the
+NOTE (2026-08-11 fix): relay URL MUST use host `localhost`, NOT `127.0.0.1` - the
 relay routes communities by HTTP Host header (BUZZ_DOMAIN=localhost) and
 `127.0.0.1` gets "no community is configured for this host" 404 on sends.
 
@@ -186,7 +186,7 @@ def create_channel(name: str, description: str, env: dict) -> str | None:
         return None
     cid = _channel_id(parsed) if isinstance(parsed, dict) else None
     if not cid:
-        # create response may omit id — resolve via list/search
+        # create response may omit id - resolve via list/search
         time.sleep(0.3)
         cid = find_channel(name, env)
     if not cid:

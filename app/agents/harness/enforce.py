@@ -1,7 +1,7 @@
 """Inert enforcement pipeline for the agent harness (canary-preparation).
 
 This module adds the *decision + execution* tier that turns the canonical
-registry from a record-only classifier into an enforceable gate — for exactly
+registry from a record-only classifier into an enforceable gate - for exactly
 ONE registered internal GREEN tool, and ONLY when explicit per-agent, per-loop,
 per-tool allowlists are set. It is INERT by default:
 
@@ -12,7 +12,7 @@ Design invariants (see docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md):
   * execute_registered() runs ONLY the registry-BOUND executor, at most once
     per (deterministic) execution key, and re-checks the live kill switch.
   * The caller-supplied arbitrary callable is NEVER authoritative in ENFORCE
-    mode — the registry-bound executor wins.
+    mode - the registry-bound executor wins.
   * Owner OS stays the sole mutation authority: OWNER_OS_REQUIRED / APPROVAL /
     ALWAYS_REFUSED / RED / non-GREEN all DENY here (executor never called).
   * No dynamic import / dotted-path / callable scanning: bindings are explicit.
@@ -119,7 +119,7 @@ def resolve_mode(
         loops = _csv_set("AGENT_HARNESS_ENFORCE_LOOPS")
         agents = _csv_set("AGENT_HARNESS_ENFORCE_AGENTS")
         tools = _csv_set("AGENT_HARNESS_ENFORCE_TOOLS")
-        # No wildcard support in the first canary — a wildcard is a config error.
+        # No wildcard support in the first canary - a wildcard is a config error.
         if "*" in loops or "*" in agents or "*" in tools:
             return HarnessMode.OFF, ["INVALID_MODE:wildcard_not_allowed_in_first_canary"]
         if not loops or loop not in loops:
@@ -249,7 +249,7 @@ def _reset_guard() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Enforcement gate — separates evaluation from execution
+# Enforcement gate - separates evaluation from execution
 # --------------------------------------------------------------------------- #
 class EnforcementGate:
     def __init__(
@@ -340,7 +340,7 @@ class EnforcementGate:
             # tool must be in the exact canary allowlist
             if not tools or token not in tools:
                 reasons.append(DenialReason.TOOL_NOT_ALLOWLISTED.value)
-            # authority + risk (registry authoritative — a claim cannot downgrade)
+            # authority + risk (registry authoritative - a claim cannot downgrade)
             if defn.authority is AuthorityClass.ALWAYS_REFUSED:
                 reasons.append(DenialReason.ALWAYS_REFUSED.value)
             if defn.risk_class is not RiskLane.GREEN:
@@ -459,7 +459,7 @@ async def enforce_batch_item(
     gate: EnforcementGate | None = None,
 ) -> dict:
     """Governed execution of ONE batch item in ENFORCE mode. The caller's
-    arbitrary `fn` is NOT passed here and NEVER runs — only the registry-bound
+    arbitrary `fn` is NOT passed here and NEVER runs - only the registry-bound
     executor for `tool_name@tool_version` may execute, and only if every gate
     passes. NEVER raises into the batch."""
     gate = gate or EnforcementGate()
@@ -584,7 +584,7 @@ _SAFE_CALLS = {"n": 0}  # observable call counter for proofs (no system side eff
 
 async def _safe_calculation_executor(id: str) -> dict:
     """Deterministic, internal, read-only calculation over one bounded item.
-    No I/O, no network, no mutation — the only GREEN enforcement candidate."""
+    No I/O, no network, no mutation - the only GREEN enforcement candidate."""
     _SAFE_CALLS["n"] += 1
     digest = 0
     for ch in str(id):

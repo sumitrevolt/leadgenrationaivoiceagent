@@ -1,11 +1,11 @@
-"""Kokoro TTS — self-hosted FREE fallback for EdgeTTS (resilience + tail-latency).
+"""Kokoro TTS - self-hosted FREE fallback for EdgeTTS (resilience + tail-latency).
 
 EdgeTTS (`hi-IN-SwaraNeural`) is network-dependent and occasionally 403s. Kokoro
 (82M params, Apache-2.0, runs on CPU) is a self-hosted floor used ONLY when the
 primary TTS fails/times out AND `USE_KOKORO_TTS=1`.
 
 INERT by design: `available()` is False until the `kokoro` package + model are
-baked into the image (Dockerfile.lock) — exactly the Smart Turn pattern. So this
+baked into the image (Dockerfile.lock) - exactly the Smart Turn pattern. So this
 module ships safe (zero behaviour change) and activates only after the dep bake +
 flag flip. Never-raise: `synthesize()` returns b"" on any failure so callers can
 fall through cleanly.
@@ -13,7 +13,7 @@ fall through cleanly.
 Caveats (documented for the voice-path owner): Kokoro outputs ~24 kHz
 the live
 Vobiz stream needs L16/16 kHz, so adoption there needs a resample step. Hindi
-naturalness < EdgeTTS → keep EdgeTTS primary, Kokoro = failover only.
+naturalness < EdgeTTS -> keep EdgeTTS primary, Kokoro = failover only.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def _get_pipeline():
 
         _PIPELINE = KPipeline(lang_code=os.environ.get("KOKORO_LANG", "h"))  # 'h' = Hindi
         logger.info("[kokoro] pipeline ready")
-    except Exception as e:  # dep not baked yet → stay inert
+    except Exception as e:  # dep not baked yet -> stay inert
         logger.debug("[kokoro] unavailable: %s", e)
         _PIPELINE = None
     return _PIPELINE
@@ -57,7 +57,7 @@ def available() -> bool:
 def synthesize(text: str, voice: str | None = None, sample_rate: int = 24000) -> bytes:
     """PCM16 mono WAV bytes for `text`, or b"" if unavailable/failed. NEVER raises.
 
-    Synchronous + CPU-bound — call via asyncio.to_thread from async paths.
+    Synchronous + CPU-bound - call via asyncio.to_thread from async paths.
     """
     if not text or not text.strip():
         return b""
@@ -85,7 +85,7 @@ def synthesize(text: str, voice: str | None = None, sample_rate: int = 24000) ->
             wf.setframerate(int(sample_rate))
             wf.writeframes(pcm16)
         return buf.getvalue()
-    except Exception as e:  # pragma: no cover — never-raise
+    except Exception as e:  # pragma: no cover - never-raise
         logger.debug("[kokoro] synth failed: %s", e)
         return b""
 

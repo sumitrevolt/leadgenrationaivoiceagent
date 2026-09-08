@@ -1,16 +1,16 @@
-"""Guest UPI bind workflow — resolves the ``approved_but_unbound`` stall (#304).
+"""Guest UPI bind workflow - resolves the ``approved_but_unbound`` stall (#304).
 
 A guest "maine pay kiya" submission carries no client_id and lands with
 ``needs_client_bind=True``. Approving it fails closed (no activation, order
 still closed) with ``activation_blocked="empty_client_id"``. This suite proves
 the operator queue action that recovers it: ``bind_client`` attaches the
 verified marketing client (fail-closed: unknown client / cross-tenant re-point
-refused / already-activated refused), and the owner's Approve — the single
-activation gate — then activates.
+refused / already-activated refused), and the owner's Approve - the single
+activation gate - then activates.
 
 Pure python + hermetic: stores (upi, offers), ``clients_store.resolve_client``
 and the activation side-effect hooks (usage.activate_plan, onboarding,
-deal-won, gst invoice) are monkeypatched — no network/DB/Celery, no real
+deal-won, gst invoice) are monkeypatched - no network/DB/Celery, no real
 ``data/`` writes.
 """
 
@@ -81,7 +81,7 @@ def test_approve_unbound_fails_closed_and_bind_then_reapprove_activates(up, act)
     """Owner approve on unbound = fail-closed warning; bind + re-approve activates."""
     sub = _guest_submit(up)
 
-    # 1. Owner approves the guest payment (bank credit confirmed) — must NOT
+    # 1. Owner approves the guest payment (bank credit confirmed) - must NOT
     #    activate (no identity) and must surface a recoverable state.
     decided = up.decide(sub["id"], True, decided_by="admin")
     assert decided.get("status") == "approved"
@@ -103,7 +103,7 @@ def test_approve_unbound_fails_closed_and_bind_then_reapprove_activates(up, act)
     assert act == []  # bind itself NEVER activates
     assert [row["id"] for row in up.list_actionable()] == [sub["id"]]
 
-    # 3. Re-approve (owner gate) → activates exactly once.
+    # 3. Re-approve (owner gate) -> activates exactly once.
     final = up.decide(sub["id"], True, decided_by="admin")
     assert final.get("activated") is True
     assert act == [("cli_real", "starter")]
@@ -152,7 +152,7 @@ def test_admin_pending_api_returns_full_actionable_queue(up, monkeypatch):
 
 
 def test_bind_before_approve_single_owner_gate(up, act):
-    """Bind first, then one Approve activates — Approve remains the only gate."""
+    """Bind first, then one Approve activates - Approve remains the only gate."""
     sub = _guest_submit(up)
     bound = up.bind_client(sub["id"], "cli_real")
     assert bound.get("ok") is True
@@ -170,7 +170,7 @@ def test_duplicate_reapprove_does_not_double_activate(up, act):
     up.decide(sub["id"], True)
     assert act == [("cli_real", "starter")]
 
-    # Second + third approve: idempotent — no extra activation calls.
+    # Second + third approve: idempotent - no extra activation calls.
     up.decide(sub["id"], True)
     up.decide(sub["id"], True)
     assert act == [("cli_real", "starter")]

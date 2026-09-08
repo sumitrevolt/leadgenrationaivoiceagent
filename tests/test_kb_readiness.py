@@ -1,10 +1,10 @@
-"""ADR-104 — bare metadata-only niche readiness tests.
+"""ADR-104 - bare metadata-only niche readiness tests.
 
 Guards the measured design (addendum #6/#7):
   * readiness must NEVER go through `_get_qdrant_client()` / `_get_qdrant_embedder()`
     (measured >239s because it force-loads FastEmbed
     bare ctor = 13.6ms)
-  * filter must be namespace AND source="niche:<key>" — ns-only false-readies
+  * filter must be namespace AND source="niche:<key>" - ns-only false-readies
   * `real_estate` (QA target, NOT a catalog key) must degrade, never raise
 """
 
@@ -34,7 +34,7 @@ class FakeClient:
 
 
 def _conds(flt):
-    """(key, value) pairs from a qdrant Filter — proves ns+source are both applied."""
+    """(key, value) pairs from a qdrant Filter - proves ns+source are both applied."""
     out = []
     for c in getattr(flt, "must", []) or []:
         out.append((getattr(c, "key", None), getattr(getattr(c, "match", None), "value", None)))
@@ -45,7 +45,7 @@ def _conds(flt):
 
 
 def test_catalog_membership_not_hardcoded_size():
-    """NOTE: catalog size is RUNTIME-VARIABLE — local repo showed 39 keys but the
+    """NOTE: catalog size is RUNTIME-VARIABLE - local repo showed 39 keys but the
     production container showed 42 (same code SHA lineage), so NICHES is extended at
     runtime. Never assert an exact count
     assert membership."""

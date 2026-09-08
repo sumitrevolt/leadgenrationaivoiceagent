@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Full workflow + loop debugger — all major automation loops (NDJSON → debug-6e326c.log).
+"""Full workflow + loop debugger - all major automation loops (NDJSON -> debug-6e326c.log).
 
 Loops checked:
   A cadence enroll path   B journey engine + ensure_active_defaults
   C staff job heartbeats  D cadence run_due stats
-  E self-improve loop     F inquiry→cadence→journey chain (dry)
+  E self-improve loop     F inquiry->cadence->journey chain (dry)
   G celery/DLQ backlog
 
 Run: python scripts/workflow_loop_debug.py
@@ -146,7 +146,7 @@ async def probe_inquiry_chain() -> None:
     _log(
         "F",
         "loop:inquiry_chain",
-        "inquiry → cadence + journey emit",
+        "inquiry -> cadence + journey emit",
         {
             "cadence_id": c.get("id"),
             "journey_runs": len(runs),

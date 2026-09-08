@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post-deploy smoke — run ON the VPS after git pull + container recreate.
+"""Post-deploy smoke - run ON the VPS after git pull + container recreate.
 
 Checks: /health, public activation summary, optional in-container Qdrant ping.
 Exit 0 = safe to announce deploy done. Never mutates state.
@@ -113,9 +113,9 @@ def main() -> int:
 
     print("---")
     if FAIL:
-        print(f"RESULT: {FAIL} check(s) FAILED — rollback ya fix before calling deploy done")
+        print(f"RESULT: {FAIL} check(s) FAILED - rollback ya fix before calling deploy done")
         return 1
-    print("RESULT: PASS — production deploy verified")
+    print("RESULT: PASS - production deploy verified")
     return 0
 
 

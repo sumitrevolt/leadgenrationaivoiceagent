@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""run_prospect.py — manual one-shot Google-Maps prospecting + CSV export.
+"""run_prospect.py - manual one-shot Google-Maps prospecting + CSV export.
 
 Container me: docker exec leadgen_app python scripts/run_prospect.py [limit_per_query]
 Yeh wahi `prospector.run_prospecting` chalata jo daily 09:30 cron chalata (real

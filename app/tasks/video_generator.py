@@ -1,7 +1,7 @@
 """Video generation wrapper for daily social posts.
 
 Uses existing video_pipeline.py + reel_video.py to generate branded videos.
-Runs in worker (heavy CPU) — never in web process.
+Runs in worker (heavy CPU) - never in web process.
 """
 
 import asyncio
@@ -12,7 +12,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Video specs for our two distinct products (AGENTS.md Charter)
-# Product 1: AI Automated Marketing (MAIN Product — ₹1,999/mo)
+# Product 1: AI Automated Marketing (MAIN Product - ₹1,999/mo)
 PRODUCT_1_MARKETING_SPEC = {
     "business_name": "LeadGen AI",
     "niche": "ai_marketing",
@@ -26,7 +26,7 @@ PRODUCT_1_MARKETING_SPEC = {
     "ratio": "9:16",
 }
 
-# Product 2: AI Voice Calling Agent (Standalone Telecaller — ₹4,999/mo)
+# Product 2: AI Voice Calling Agent (Standalone Telecaller - ₹4,999/mo)
 PRODUCT_2_VOICE_AGENT_SPEC = {
     "business_name": "LeadGen AI",
     "niche": "ai_telecaller",
@@ -34,7 +34,7 @@ PRODUCT_2_VOICE_AGENT_SPEC = {
         "100% Autonomous AI Telecaller for Indian businesses",
         "Zero latency Hindi & Hinglish natural voice calling",
         "TRAI & DLT compliant 9am to 7pm safe calling window",
-        "Instant lead qualification in 10 seconds — demo at leadsgenai.in",
+        "Instant lead qualification in 10 seconds - demo at leadsgenai.in",
     ],
     "offer": "Free Live Telecaller Demo",
     "ratio": "9:16",
@@ -47,27 +47,27 @@ CLIENT_TEMPLATES = {
     "residential_solar": {
         "slides": [
             "Solar lagao, bijli bill 80% bachao",
-            "Free survey + ROI report — turant call karein",
-            "EMI available — 0 down payment",
-            "25 saal warranty — sarkari subsidy sahit",
+            "Free survey + ROI report - turant call karein",
+            "EMI available - 0 down payment",
+            "25 saal warranty - sarkari subsidy sahit",
         ],
         "offer": "Free solar survey",
     },
     "home_renovation": {
         "slides": [
-            "Ghar banayen ya renovate karein — expert team",
-            "Free estimate + 3D design — 24h mein",
+            "Ghar banayen ya renovate karein - expert team",
+            "Free estimate + 3D design - 24h mein",
             "Quality material + on-time delivery",
-            "WhatsApp pe photos bhejein — instant quote",
+            "WhatsApp pe photos bhejein - instant quote",
         ],
         "offer": "Free estimate + 3D design",
     },
     "general_local": {
         "slides": [
-            "{business_name} — aapke area ka expert",
-            "Call ya WhatsApp karo — turant response",
-            "Free consultation — no obligation",
-            "500+ happy customers — trust karo",
+            "{business_name} - aapke area ka expert",
+            "Call ya WhatsApp karo - turant response",
+            "Free consultation - no obligation",
+            "500+ happy customers - trust karo",
         ],
         "offer": "Free consultation",
     },
@@ -101,7 +101,7 @@ async def generate_daily_videos():
         logger.warning(f"[video_gen] Own brand video failed: {own_result['error']}")
         results["own_brand"] = None
 
-    # 2. Client videos (sample — production would query active clients)
+    # 2. Client videos (sample - production would query active clients)
     # For now: generate 2 sample client videos
     sample_clients = [
         {
@@ -153,8 +153,8 @@ async def generate_daily_videos():
 
 async def generate_both_product_videos():
     """Generates enterprise videos for BOTH LeadGen AI products:
-    1. Product 1: AI Automated Marketing (Main Product — ₹1,999/mo)
-    2. Product 2: AI Voice Calling Agent (Standalone Telecaller — ₹4,999/mo)
+    1. Product 1: AI Automated Marketing (Main Product - ₹1,999/mo)
+    2. Product 2: AI Voice Calling Agent (Standalone Telecaller - ₹4,999/mo)
     """
     from app.marketing.video_pipeline import render_creative_video
 

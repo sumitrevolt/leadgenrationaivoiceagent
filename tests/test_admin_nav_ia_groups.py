@@ -5,9 +5,9 @@ numbered, task-oriented groups:
   1. Today  2. Sales  3. Customers  4. Content & Delivery
   5. Automations  6. Agents  7. System  8. Owner Controls
 
-This is a streamlined "daily workflow" layout — an admin opens the panel and
-scans top-to-bottom through their workday: morning overview → sales outreach →
-client management → content/delivery → automations → agents → system health →
+This is a streamlined "daily workflow" layout - an admin opens the panel and
+scans top-to-bottom through their workday: morning overview -> sales outreach ->
+client management -> content/delivery -> automations -> agents -> system health ->
 owner-only controls.
 
 Links that were previously in the sidebar were consolidated or moved to
@@ -133,9 +133,9 @@ def test_active_dashboard_link_and_handlers_preserved():
 
 
 def test_command_center_duplicate_stays_unlinked():
-    # /app/command-center (old Ops cockpit) was MERGED→DELETED (route now
+    # /app/command-center (old Ops cockpit) was MERGED->DELETED (route now
     # redirects to /app/control-center). Its redirect route must stay UNLINKED
-    # from nav — re-linking it would re-introduce the duplicate entry point.
+    # from nav - re-linking it would re-introduce the duplicate entry point.
     nav = _nav_block(_admin_html())
     assert 'href="/app/command-center"' not in nav
 

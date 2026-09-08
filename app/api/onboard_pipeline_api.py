@@ -1,11 +1,11 @@
 """
 Onboarding Pipeline Admin API
 =============================
-GET  /api/admin/onboard-pipeline/status           → all pipelines + metrics
-GET  /api/admin/onboard-pipeline/status/{cid}     → single client pipeline
-POST /api/admin/onboard-pipeline/run              → trigger pipeline for a client
-POST /api/admin/onboard-pipeline/retry/{cid}/{stage} → retry a failed stage
-GET  /api/admin/onboard-pipeline/metrics          → capacity metrics (p50/p95/failure)
+GET  /api/admin/onboard-pipeline/status           -> all pipelines + metrics
+GET  /api/admin/onboard-pipeline/status/{cid}     -> single client pipeline
+POST /api/admin/onboard-pipeline/run              -> trigger pipeline for a client
+POST /api/admin/onboard-pipeline/retry/{cid}/{stage} -> retry a failed stage
+GET  /api/admin/onboard-pipeline/metrics          -> capacity metrics (p50/p95/failure)
 
 Auth: require_admin (Bearer JWT from /app/admin-login).
 """

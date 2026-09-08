@@ -2,7 +2,7 @@
 """PreToolUse(Edit|Write) content safety guard.
 
 Companion to guard.py (which only sees Bash|PowerShell commands). This closes
-two auto-enforcement gaps the command-guard is blind to — both tied to CLAUDE.md
+two auto-enforcement gaps the command-guard is blind to - both tied to CLAUDE.md
 invariants that were previously SOFT (model-discipline only):
 
   1. .env overwrite  (§5/§8 "never .env values touch/overwrite"). The command
@@ -27,7 +27,7 @@ import sys
 _ENV_SAFE_SUFFIX = (".example", ".sample", ".template", ".dist", ".local.example")
 
 # High-confidence live-secret signatures. Length/charset requirements keep
-# false-positives low — placeholders and env-var NAMES won't match.
+# false-positives low - placeholders and env-var NAMES won't match.
 _SECRET_PATTERNS = [
     (re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP |DSA )?PRIVATE KEY-----"),
      "a private key block"),
@@ -59,14 +59,14 @@ def _scan_secret(text: str):
 def _decide(path: str, content: str):
     if path and _is_real_env(path):
         return "ask", (
-            "Writing to `.env` (real secret file) — CLAUDE.md forbids touching "
+            "Writing to `.env` (real secret file) - CLAUDE.md forbids touching "
             ".env values without an explicit user confirm. Confirm this is "
             "intended; reference edits belong in `.env.example` (`careful` skill)."
         )
     label = _scan_secret(content)
     if label:
         return "ask", (
-            f"This edit looks like it hardcodes {label} into a file — CLAUDE.md "
+            f"This edit looks like it hardcodes {label} into a file - CLAUDE.md "
             "§5: secrets live ONLY in .env, never in committed/source files. "
             "Confirm, or move the value to .env and read it via os.getenv."
         )
@@ -91,7 +91,7 @@ def main():
 
     decision, reason = _decide(path, content)
     if not decision:
-        return 0  # normal flow — never auto-allow
+        return 0  # normal flow - never auto-allow
 
     out = {
         "hookSpecificOutput": {

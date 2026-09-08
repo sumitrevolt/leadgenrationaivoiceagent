@@ -1,6 +1,6 @@
 """UPI submission binds to an immutable offer, fail-closed (#240).
 
-`order_ref` is never trusted as submitted — it is re-resolved server-side. The
+`order_ref` is never trusted as submitted - it is re-resolved server-side. The
 offer owns the commercial truth, so a client cannot substitute another deal's
 reference, replay a paid order, or override the quoted package.
 
@@ -123,7 +123,7 @@ def test_offer_store_failure_refuses_rather_than_recording_unverified(env, monke
 
 
 def test_submission_without_order_ref_is_unchanged(env):
-    """Pre-#240 behaviour preserved — historical records have no order fields."""
+    """Pre-#240 behaviour preserved - historical records have no order fields."""
     upi, _ = env
 
     out = upi.submit_payment("cli1", "starter", "TXN1", amount=1999)
@@ -147,7 +147,7 @@ def test_idempotent_resubmit_still_works_with_order_ref(env):
 
 
 def test_retry_after_offer_leaves_issued_still_returns_duplicate(env):
-    """Post-merge review of #241 — retry safety must survive approval/expiry.
+    """Post-merge review of #241 - retry safety must survive approval/expiry.
 
     Gating the order BEFORE the duplicate check meant that once the owner
     approved (offer -> paid) or the quote expired, a legitimate resubmit of an
@@ -168,7 +168,7 @@ def test_retry_after_offer_leaves_issued_still_returns_duplicate(env):
 
 
 def test_new_submission_against_a_paid_offer_is_still_refused(env):
-    """The gate must still bite for a genuinely new payment — no replay hole."""
+    """The gate must still bite for a genuinely new payment - no replay hole."""
     upi, offers = env
     o = offers.issue_offer("deal1", "starter")
     upi.submit_payment("cli1", "starter", "TXN9", amount=1999, order_ref=o["order_ref"])

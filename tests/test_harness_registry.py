@@ -382,7 +382,7 @@ def test_real_batch_registered_vs_unregistered(monkeypatch, tmp_path):
     assert all(r["extra"]["registry_comparison"] == "REGISTRY_MATCH" for r in reg_acts)
     assert all(r["extra"]["execution_comparison"] == "MATCH" for r in reg_acts)
 
-    # unregistered legacy (no tool_name) — still executes, records UNREGISTERED_TOOL
+    # unregistered legacy (no tool_name) - still executes, records UNREGISTERED_TOOL
     calls["n"] = 0
     out2 = asyncio.run(
         bh.run_batch(green_calc, items, concurrency=2, ckpt_id="unreg", agent_id="nikhil")

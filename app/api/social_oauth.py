@@ -1,4 +1,4 @@
-"""app/api/social_oauth.py — Social OAuth + Telegram bot readiness.
+"""app/api/social_oauth.py - Social OAuth + Telegram bot readiness.
 
 Wired when env-approved AND credentials present:
   - Meta facebook/instagram (META_APP_* / FACEBOOK_*)
@@ -7,7 +7,7 @@ Wired when env-approved AND credentials present:
 
 Honest stubs (never fake oauth_ready): GBP, X.
 
-Telegram is NOT OAuth — bot_token readiness is reported on /state only.
+Telegram is NOT OAuth - bot_token readiness is reported on /state only.
 Do not re-add Telegram to social_engine default_providers (ban-risk).
 
 Own-brand publish rail remains Postiz.
@@ -79,16 +79,16 @@ _OWNER_ACTION_NOTES = {
         "Pages still need Meta App Review (Advanced Access)."
     ),
     "instagram": (
-        "Same Meta app as Facebook — instagram_content_publish. Own-brand IG OK; "
+        "Same Meta app as Facebook - instagram_content_publish. Own-brand IG OK; "
         "customer IG accounts need App Review Advanced Access."
     ),
     "gbp": (
         "Google Business Profile API access request required. Google Cloud Console "
-        "→ APIs & Services → Business Profile API."
+        "-> APIs & Services -> Business Profile API."
     ),
     "linkedin": (
         "LinkedIn Marketing / Community Management API partner access required for "
-        "org posting. Console: linkedin.com/developers → Auth → Redirect URLs."
+        "org posting. Console: linkedin.com/developers -> Auth -> Redirect URLs."
     ),
     "x": ("X API v2 free tier is READ-ONLY. `tweet.write` needs Basic ($100/mo) or Pro tier."),
     "youtube": (
@@ -688,9 +688,9 @@ def oauth_start(
         "reason": reason,
         "message": (
             "Platform env-approved, lekin authorize URL / token exchange abhi activate "
-            "nahi — manual paste use karo."
+            "nahi - manual paste use karo."
             if reason == "oauth_authorize_url_not_wired"
-            else f"{reason} — console/env se set karo."
+            else f"{reason} - console/env se set karo."
         ),
         "platform": p,
         "scopes_required": _REQUIRED_SCOPES.get(p, []),

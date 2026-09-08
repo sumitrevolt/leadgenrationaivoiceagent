@@ -1,5 +1,5 @@
 """
-Network Guard for pytest — blocks real external network calls so the full
+Network Guard for pytest - blocks real external network calls so the full
 test suite completes offline without hanging.
 
 HOW IT WORKS
@@ -13,14 +13,14 @@ WHAT IS ALLOWED
 ---------------
   • localhost / 127.0.0.1 / ::1  (local DB, in-process TestClient, etc.)
   • UNIX-domain sockets           (path-based, e.g. /var/run/…)
-  • Any call that passes through ASGITransport — TestClient never opens a
+  • Any call that passes through ASGITransport - TestClient never opens a
     real socket at all, so it is completely unaffected.
 
 WHAT IS BLOCKED
 ---------------
 Everything else: LLM providers (Cerebras, Groq, Gemini, OpenRouter),
 Exotel, HuggingFace model downloads, Google Maps, SMTP, Redis on VPS, etc.
-They raise RuntimeError immediately → app's try/except catches it → fast
+They raise RuntimeError immediately -> app's try/except catches it -> fast
 fallback / skip, NO hang.
 
 Usage (called from conftest.py at import time)::
@@ -54,7 +54,7 @@ def _addr_is_local(address) -> bool:
 
     # UNIX domain socket: address is a string path or bytes
     if isinstance(address, (str, bytes)):
-        # A path-based UNIX socket — always local
+        # A path-based UNIX socket - always local
         return True
 
     # TCP/UDP: address is (host, port) or (host, port, flowinfo, scope_id)
@@ -66,7 +66,7 @@ def _addr_is_local(address) -> bool:
         if isinstance(host, bytes):
             return host in (b"", b"127.0.0.1", b"::1", b"localhost")
 
-    return False  # unknown shape → block to be safe
+    return False  # unknown shape -> block to be safe
 
 
 def _block(address):
@@ -110,7 +110,7 @@ def _patched_create_connection(
 ):
     if not _addr_is_local(address):
         _block(address)
-    # Forward to original — signature varies across Python 3.10/3.11/3.12
+    # Forward to original - signature varies across Python 3.10/3.11/3.12
     try:
         return _orig_create_connection(address, timeout, source_address, all_errors=all_errors)
     except TypeError:
@@ -122,7 +122,7 @@ def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     host_str = host if isinstance(host, str) else (host.decode() if host else "")
     host_lower = host_str.lower().strip()
     if host_lower and host_lower not in _LOCAL_HOSTS:
-        # Check if it looks like an IP (do NOT block numeric IPs — they go
+        # Check if it looks like an IP (do NOT block numeric IPs - they go
         # straight to connect which we also guard, but let getaddrinfo pass
         # so we get a clean socket error rather than a dns-level one for
         # numeric addresses like "127.0.0.1").
@@ -167,7 +167,7 @@ def enable() -> None:
 
         _enabled = True
     except Exception as exc:
-        # NEVER break pytest collection — silently log and give up
+        # NEVER break pytest collection - silently log and give up
         import warnings
 
         warnings.warn(

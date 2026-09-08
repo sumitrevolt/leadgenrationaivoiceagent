@@ -307,7 +307,7 @@ class SeoPageIn(BaseModel):
 
 @router.post("/seo/page")
 async def seo_page(body: SeoPageIn, _user=Depends(require_admin)):
-    """Ek nicheÃ—city SEO landing page generate karo (inbound)."""
+    """Ek nicheÃ-city SEO landing page generate karo (inbound)."""
     from app.marketing import seo_pages
 
     return await seo_pages.generate_page(body.niche, body.city)
@@ -320,7 +320,7 @@ class SeoBatchIn(BaseModel):
 
 @router.post("/seo/batch")
 async def seo_batch(body: SeoBatchIn, _user=Depends(require_admin)):
-    """Multiple nicheÃ—city SEO pages (LLM-heavy; limit)."""
+    """Multiple nicheÃ-city SEO pages (LLM-heavy; limit)."""
     from app.marketing import seo_pages
 
     return await seo_pages.generate_batch(tier=body.tier, limit=body.limit)

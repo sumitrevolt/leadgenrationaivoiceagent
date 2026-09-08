@@ -1,4 +1,4 @@
-"""Voice brain: conversation must ALWAYS advance — no dead-air / robotic-repeat
+"""Voice brain: conversation must ALWAYS advance - no dead-air / robotic-repeat
 after discovery exhausts. Repros the "2-3 conversation ke baad agent ko aage kya
 karna nahi pata" bug: once discovery + value + closing are all covered,
 _next_discovery_line returned "" (blank) or the SAME closing again (repeat), so the
@@ -15,7 +15,7 @@ def _brain():
 
 def _exhaust(b):
     """History where every scripted line (discovery + value + closing) is already
-    asked by the assistant — the exact state after 2-3 real turns."""
+    asked by the assistant - the exact state after 2-3 real turns."""
     try:
         from app.voice_agent.niche_scripts import get_script
 
@@ -36,7 +36,7 @@ def test_advances_after_everything_asked():
     assert line, (
         "discovery+value+closing exhaust ke baad bhi ek next-step aana chahiye (no dead-air)"
     )
-    assert line not in asked, "wahi closing/sawaal repeat na ho — conversation ADVANCE kare"
+    assert line not in asked, "wahi closing/sawaal repeat na ho - conversation ADVANCE kare"
 
 
 def test_script_fallback_never_blank_after_exhaust():

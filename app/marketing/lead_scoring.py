@@ -1,9 +1,9 @@
 """
-lead_scoring.py — website inquiries ka rule-based hot/warm/cold scoring.
+lead_scoring.py - website inquiries ka rule-based hot/warm/cold scoring.
 =========================================================================
 
 data/inquiries.jsonl (public_site.py jo likhta hai) padh kar har lead ko
-0-100 score deta hai — PURE RULES, koi LLM nahi, kabhi raise nahi:
+0-100 score deta hai - PURE RULES, koi LLM nahi, kabhi raise nahi:
 
   phone valid (10-12 digits)            +20
   niche S-tier                          +20
@@ -29,7 +29,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# public_site.py ke saath same path — tests isse monkeypatch karte hain.
+# public_site.py ke saath same path - tests isse monkeypatch karte hain.
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 # S-tier niches (CLAUDE.md / niches.py research-finalized list)
@@ -85,7 +85,7 @@ def _wa_link(raw: Any) -> str:
         d = d[1:]
     if len(d) != 10:
         return ""
-    msg = "Namaste! Aapki website inquiry mili — kab baat kar sakte hain?"
+    msg = "Namaste! Aapki website inquiry mili - kab baat kar sakte hain?"
     return f"https://wa.me/91{d}?text={quote(msg)}"
 
 
@@ -163,6 +163,6 @@ def score_leads() -> dict[str, Any]:
         "total": len(leads),
         "counts": counts,
         "leads": leads,
-        "tip": "Hot leads ko 5 minute ke andar WhatsApp/call karo — response "
+        "tip": "Hot leads ko 5 minute ke andar WhatsApp/call karo - response "
         "rate 8-10x hota hai. Warm ko aaj, cold ko drip me daalo.",
     }

@@ -1,9 +1,9 @@
 """Accountant-safe invoice void/correction contracts (2026-07-18 billing containment).
 
 Background: prod `data/invoices.jsonl` me 12 synthetic invoices (INV/2026-27/0002..0013)
-ghus gaye — VPS pe targeted pytest run ne real store me likh diya (tests `upi_payments._STORE`
+ghus gaye - VPS pe targeted pytest run ne real store me likh diya (tests `upi_payments._STORE`
 patch karte the par `gst_invoice._STORE` nahi). Rule-46 sequential numbering ki wajah se
-DELETE forbidden — correction = append-only VOID marker jo original record ko preserve
+DELETE forbidden - correction = append-only VOID marker jo original record ko preserve
 karta hai, number consumed hi rehta hai, aur reporting/dedupe voided ko exclude karti hai.
 """
 
@@ -98,7 +98,7 @@ def test_numbering_continues_after_void_no_reuse(inv):
     a = _mk(inv)
     inv.void_invoice(a["number"], reason="x")
     b = _mk(inv, cid="c2")
-    # Voided number is consumed — next invoice gets a NEW sequential number.
+    # Voided number is consumed - next invoice gets a NEW sequential number.
     assert b["number"] != a["number"]
     na = int(a["number"].rsplit("/", 1)[-1])
     nb = int(b["number"].rsplit("/", 1)[-1])
@@ -107,7 +107,7 @@ def test_numbering_continues_after_void_no_reuse(inv):
 
 @pytest.mark.asyncio
 async def test_voided_payment_ref_can_be_reinvoiced(inv):
-    """Dedupe must ignore voided invoices — a corrected reissue for the SAME
+    """Dedupe must ignore voided invoices - a corrected reissue for the SAME
     payment_ref must not be blocked by the voided original."""
     rec = _mk(inv, cid="c1", ref="upi:c1:starter:2026-07")
     inv.void_invoice(rec["number"], reason="wrong amount")
@@ -117,7 +117,7 @@ async def test_voided_payment_ref_can_be_reinvoiced(inv):
 
 
 def test_admin_void_route_wired(client, monkeypatch, tmp_path):
-    """POST /api/growth/revenue/invoice-void — admin route exists and voids."""
+    """POST /api/growth/revenue/invoice-void - admin route exists and voids."""
     from app.billing import gst_invoice as mod
 
     monkeypatch.setattr(mod, "_STORE", lambda: str(tmp_path / "invoices.jsonl"))

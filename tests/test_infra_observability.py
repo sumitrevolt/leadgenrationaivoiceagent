@@ -1,5 +1,5 @@
-"""Tests — AI-automation infra batch (llm_metrics, automation_health, flags API).
-Sync + tmp stores. No network/Redis needed (DLQ routes defensive — yahan sirf
+"""Tests - AI-automation infra batch (llm_metrics, automation_health, flags API).
+Sync + tmp stores. No network/Redis needed (DLQ routes defensive - yahan sirf
 pure parts test hote).
 """
 
@@ -35,7 +35,7 @@ def test_llm_metrics_record_and_stats(tmp_path, monkeypatch):
     assert cer["last_error"].startswith("429")
     assert cer["avg_ms"] > 300
     assert st["fallback_or_fail_rate"] == 0.25
-    # kabhi raise nahi — bad inputs
+    # kabhi raise nahi - bad inputs
     lm.record("", True, -1)
     assert lm.stats()["total_calls"] == 5
 
@@ -101,7 +101,7 @@ def test_self_improve_tick_records_automation_heartbeat(tmp_path, monkeypatch):
     queued: list[dict] = []
     monkeypatch.setattr(si, "run_once", fake_run_once)
     monkeypatch.setattr(si, "enabled", lambda: True)
-    # W1.5: acquire_tick_slot Redis-down pe fail-CLOSED ("" = skip) hai — is test ka
+    # W1.5: acquire_tick_slot Redis-down pe fail-CLOSED ("" = skip) hai - is test ka
     # intent heartbeat-recording hai, slot-gating nahi (uska apna test hai:
     # test_self_improve_failclosed.py). Slot grant stub karo taaki tick aage chale.
     monkeypatch.setattr(si, "acquire_tick_slot", lambda: "test-slot-token")
@@ -141,7 +141,7 @@ def test_automation_health_suppresses_future_scheduled_never_ran(tmp_path, monke
     monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
 
     def fake_due_yet(job, **_kw):
-        # `**_kw` absorbs the injected `now=` — health() threads one captured
+        # `**_kw` absorbs the injected `now=` - health() threads one captured
         # timestamp into every scheduling helper.
         return job not in {"obsidian_push", "engineer_dbre", "engineer_dataquality"}
 
@@ -240,14 +240,14 @@ def test_automation_health_audit_dlq_uses_queue_depth(monkeypatch):
 def test_automation_health_audit_anomalies_uses_real_dlq_depth(tmp_path, monkeypatch):
     """check_anomalies() (used by --daily-check) must reflect the real
     Redis-backed DLQ depth (check_dlq_status), not the legacy
-    data/dlq_failed_tasks.jsonl file — that file is never written in
+    data/dlq_failed_tasks.jsonl file - that file is never written in
     production (DLQ lives in Redis dlq:failed_tasks/dlq:dead) so reading it
     always reported 0 and masked a real backlog."""
     aha = _load_automation_health_audit()
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     monkeypatch.chdir(tmp_path)
-    # Stale legacy file present with zero rows — must NOT be the source read.
+    # Stale legacy file present with zero rows - must NOT be the source read.
     (data_dir / "dlq_failed_tasks.jsonl").write_text("", encoding="utf-8")
 
     monkeypatch.setattr(aha, "check_dlq_status", lambda: {"depths": {"dlq": 2, "dead": 27}})
@@ -258,8 +258,8 @@ def test_automation_health_audit_anomalies_uses_real_dlq_depth(tmp_path, monkeyp
 
 
 def test_automation_health_audit_optout_check_uses_real_ledger_not_dead_file(tmp_path, monkeypatch):
-    """The old check watched data/dnd_cache.json — a file no code path ever
-    writes — so it always false-flagged opt-out enforcement as stale. It must
+    """The old check watched data/dnd_cache.json - a file no code path ever
+    writes - so it always false-flagged opt-out enforcement as stale. It must
     now check the real store (app.telephony.consent_ledger.suppression_path())
     is writable
     a quiet day with zero new opt-outs is healthy, not stale."""

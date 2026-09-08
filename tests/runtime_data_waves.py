@@ -1,15 +1,15 @@
-"""Declared registry: wave name → store ids that wave migrated.
+"""Declared registry: wave name -> store ids that wave migrated.
 
 Each wave ratchet used to hardcode an exact global set (moved == A1 | A2,
 moved == A1 | A3, …). Those assertions are true alone and false once another
-wave lands — and because manifest edits touch different rows, git merges them
+wave lands - and because manifest edits touch different rows, git merges them
 without complaint. The failure then shows up in CI on whichever branch merged
 second.
 
-This module is the single declared source of wave → ids. The exact-global
+This module is the single declared source of wave -> ids. The exact-global
 assertion lives in ``test_runtime_data_waves.py`` and is derived from the
 union of every wave here. Ids are taken from the existing ratchet files, not
-retyped from the manifest — the non-vacuity test is what proves the two
+retyped from the manifest - the non-vacuity test is what proves the two
 sources agree.
 """
 
@@ -68,21 +68,21 @@ A6_STORE_IDS = frozenset(
     }
 )
 
-#: Stores A7 migrated (sales prospect JSONL — large file, code-only this wave).
+#: Stores A7 migrated (sales prospect JSONL - large file, code-only this wave).
 A7_STORE_IDS = frozenset(
     {
         "sales.prospects",
     }
 )
 
-#: Stores A8 migrated (external agent mission root — EXTERNAL_MISSION_DIR).
+#: Stores A8 migrated (external agent mission root - EXTERNAL_MISSION_DIR).
 A8_STORE_IDS = frozenset(
     {
         "devcontrol.external_missions",
     }
 )
 
-#: Stores A9 migrated (call recordings + transcripts — last LEGACY blockers).
+#: Stores A9 migrated (call recordings + transcripts - last LEGACY blockers).
 A9_STORE_IDS = frozenset(
     {
         "artifacts.call_recordings",
@@ -90,7 +90,7 @@ A9_STORE_IDS = frozenset(
     }
 )
 
-#: wave name → frozenset of store ids. Add a new wave here; do not invent a
+#: wave name -> frozenset of store ids. Add a new wave here; do not invent a
 #: second exact-global assertion in that wave's own ratchet.
 WAVE_STORE_IDS: dict[str, frozenset[str]] = {
     "A1": A1_STORE_IDS,

@@ -9,7 +9,7 @@ leads on the dashboard. A future regression that widened or dropped that filter 
 leak another tenant's leads with no failing test.
 
 These use a REAL in-memory SQLite session (mirrors _office_db in test_customer_office.py)
-so the actual SQLAlchemy `.filter(Lead.assigned_to == ...)` runs — a mocked DB that
+so the actual SQLAlchemy `.filter(Lead.assigned_to == ...)` runs - a mocked DB that
 ignored the filter would hide exactly the bug this guards.
 """
 
@@ -78,7 +78,7 @@ def test_dashboard_leads_scoped_to_own_client(monkeypatch):
 
 
 def test_dashboard_zero_for_client_with_no_data(monkeypatch):
-    """A client with no rows gets an honest empty list — never another tenant's leads."""
+    """A client with no rows gets an honest empty list - never another tenant's leads."""
     Session = _iso_db(monkeypatch)
     _seed_two_clients(Session)
     from app.api.customer_dashboard_builders import _build_from_db

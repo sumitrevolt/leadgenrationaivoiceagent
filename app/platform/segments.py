@@ -1,11 +1,11 @@
-"""Dynamic segments (Mautic parity) — condition-based LIVE auto-grouping.
+"""Dynamic segments (Mautic parity) - condition-based LIVE auto-grouping.
 
 Static saved lists (app/platform/prospect_lists.py) = frozen snapshots.
 Yeh module = DYNAMIC segments: ek segment = conditions ka set jo HAR baar
 live prospect/lead pool ke against evaluate hota hai (recompute on demand,
 NOT a frozen snapshot).
 
-Pool loader REUSE karta hai — app/platform/prospect_lists.search() (jo already
+Pool loader REUSE karta hai - app/platform/prospect_lists.search() (jo already
 niche/city/status/has_email/min_score filter + live score compute karta).
 Koi naya pool data-file invent NAHI.
 
@@ -13,7 +13,7 @@ Segment record:
   {id, name, match: "all"|"any", conditions: [{field, op, value}],
    created_at, updated_at}
 
-Store: data/segments.jsonl (atomic locked rewrite — sales_pipeline pattern).
+Store: data/segments.jsonl (atomic locked rewrite - sales_pipeline pattern).
 Import-safe, lazy app.* imports, kabhi raise nahi.
 """
 
@@ -75,7 +75,7 @@ def _write_all(rows: list[dict[str, Any]]) -> None:
         if not locked_rewrite(_STORE, content):
             logger.warning(f"[segments] locked write failed: {_STORE}")
     except Exception as e:
-        # Fallback: simple rewrite — never raise.
+        # Fallback: simple rewrite - never raise.
         try:
             os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
             with open(_STORE, "w", encoding="utf-8") as f:
@@ -104,7 +104,7 @@ def _field_value(record: dict[str, Any], field: str) -> Any:
 
 
 def _apply_op(actual: Any, op: str, expected: Any) -> bool:
-    """Single (field, op, value) check. Never raise — bad op/type = False."""
+    """Single (field, op, value) check. Never raise - bad op/type = False."""
     try:
         if op == "exists":
             # truthy expected => must be present/truthy; falsy => must be absent/empty.
@@ -123,7 +123,7 @@ def _apply_op(actual: Any, op: str, expected: Any) -> bool:
             return present if want else (not present)
 
         if op == "in":
-            # expected is a list (or comma string) — actual must be one of them.
+            # expected is a list (or comma string) - actual must be one of them.
             opts: list[Any]
             if isinstance(expected, (list, tuple, set)):
                 opts = list(expected)
@@ -177,7 +177,7 @@ def _match_record(
     conditions: list[dict[str, Any]],
     match_mode: str = "all",
 ) -> bool:
-    """PURE helper — does `record` satisfy `conditions` under all/any mode?
+    """PURE helper - does `record` satisfy `conditions` under all/any mode?
 
     Empty conditions => match everyone (segment = whole pool). Never raise.
     This is the unit-test target.
@@ -273,7 +273,7 @@ def delete_segment(segment_id: str) -> bool:
 
 # --------------------------- evaluation --------------------------- #
 def _load_pool(limit: int = 500) -> list[dict[str, Any]]:
-    """REUSE the existing prospect/lead loader (prospect_lists.search) —
+    """REUSE the existing prospect/lead loader (prospect_lists.search) -
     no new data source. Returns scored prospector records. Kabhi raise nahi."""
     try:
         from app.platform import prospect_lists

@@ -12,14 +12,14 @@ scheduler job::
         -> POST http://waha:3000/api/sendText          # no flag anywhere in this chain
 
 Production logs showed that POST firing 4x per run, hourly, against every active
-client's ``contact_phone`` — the paying customer included. The ONLY thing stopping real
+client's ``contact_phone`` - the paying customer included. The ONLY thing stopping real
 delivery was a WAHA session stuck in FAILED. The moment the owner scanned the QR it
-would have become real automatic bulk WhatsApp — exactly the §5 invariant
+would have become real automatic bulk WhatsApp - exactly the §5 invariant
 ("WhatsApp bulk auto-send = number ban
 1-click human send only
 auto gated OFF").
 
-So these tests assert the gate at the boundary, NOT in onboarding — a per-caller fix
+So these tests assert the gate at the boundary, NOT in onboarding - a per-caller fix
 would leave the next caller to remember it, which is how this happened.
 
 NO live HTTP anywhere: httpx is faked and every request is recorded, so "no POST" is
@@ -37,7 +37,7 @@ from app.integrations import whatsapp_selfhost as wahost
 
 
 # --------------------------------------------------------------------------- #
-# Recording fake httpx — every call lands in `calls`, so a silent GET can't hide
+# Recording fake httpx - every call lands in `calls`, so a silent GET can't hide
 # --------------------------------------------------------------------------- #
 class _Resp:
     def __init__(self, json_data, status=200, content=b"{}"):
@@ -93,7 +93,7 @@ class _Recorder:
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    """Neutralise env AND settings so the gate — not a stray .env value — is what decides."""
+    """Neutralise env AND settings so the gate - not a stray .env value - is what decides."""
     for k in (
         "WHATSAPP_AUTO_SEND",
         "WAHA_BASE_URL",
@@ -115,7 +115,7 @@ def _clean_env(monkeypatch):
     monkeypatch.setattr(settings, "whatsapp_business_token", "", raising=False)
     monkeypatch.setattr(settings, "whatsapp_phone_number_id", "", raising=False)
     monkeypatch.setattr(settings, "whatsapp_business_number", "", raising=False)
-    # The linked-number probe is cached module-wide for 5 min — stale state would
+    # The linked-number probe is cached module-wide for 5 min - stale state would
     # leak the business-number guard's verdict between tests.
     wahost._LINKED_CACHE["digits"] = None
     wahost._LINKED_CACHE["at"] = 0.0
@@ -129,7 +129,7 @@ def _clean_env(monkeypatch):
 
     monkeypatch.setattr(owner_os, "kill_engaged", lambda _name: False, raising=False)
     # The opt-out gate reads real relative data/ paths. Pin both suppression authorities
-    # to "not suppressed" so no test touches (or is decided by) live customer data —
+    # to "not suppressed" so no test touches (or is decided by) live customer data -
     # the opt-out tests below flip them explicitly. Same lesson as the 2026-07-18
     # billing-ledger contamination: a test must never resolve a real data store.
     from app.marketing import wa_campaign_runner
@@ -157,7 +157,7 @@ def _arm_selfhost(monkeypatch, rec: _Recorder, auto_send: bool) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# (a) THE LIVE DEFECT — the onboard job must make NO HTTP call when the flag is off
+# (a) THE LIVE DEFECT - the onboard job must make NO HTTP call when the flag is off
 # --------------------------------------------------------------------------- #
 def test_onboarding_send_makes_no_http_call_when_flag_unset(monkeypatch):
     from app.marketing import onboarding
@@ -175,7 +175,7 @@ def test_onboarding_send_makes_no_http_call_when_flag_unset(monkeypatch):
 
 def test_onboarding_renudge_message_is_also_gated(monkeypatch):
     """_renudge_awaiting_interviews re-nudges up to 25 clients through the SAME
-    helper — the repetition is what turns one leak into a bulk-send."""
+    helper - the repetition is what turns one leak into a bulk-send."""
     from app.marketing import onboarding
 
     rec = _Recorder()
@@ -248,7 +248,7 @@ def test_recipient_check_fail_open_kill_switch(monkeypatch):
 
 def test_unreadable_check_shape_still_proceeds(monkeypatch):
     """Backward-compat, asserted on purpose: an OLDER WAHA that answers WITHOUT
-    `numberExists` is not a transport failure — it answered, we just can't read it.
+    `numberExists` is not a transport failure - it answered, we just can't read it.
     Tightening this would break real deployments, so make it a deliberate change."""
 
     class _NoField(_Recorder):
@@ -264,13 +264,13 @@ def test_unreadable_check_shape_still_proceeds(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Boundary coverage — the point of the fix is that NO caller has to remember
+# Boundary coverage - the point of the fix is that NO caller has to remember
 # --------------------------------------------------------------------------- #
 def test_blocked_result_carries_an_error_key_and_a_1click_link():
     """Every caller in this repo detects success with
     ``bool(res) and not res.get("error")`` (onboarding:215, reply_agent:1493,
     whatsapp_campaign:162). A blocked result WITHOUT `error` would be logged as a
-    successful send — a silent lie in a paying customer's delivery ledger."""
+    successful send - a silent lie in a paying customer's delivery ledger."""
     res = wa.auto_send_blocked("9876543210", "hello")
 
     assert res["error"] == "auto_send_disabled"
@@ -283,7 +283,7 @@ def test_blocked_result_carries_an_error_key_and_a_1click_link():
 def test_owner_kill_switch_blocks_even_when_flag_on(monkeypatch):
     """The boundary gate delegates to whatsapp_campaign.auto_send_enabled(), which
     short-circuits on the Owner-OS `owner_whatsapp_outbound` kill BEFORE reading the
-    env var. Assert the delegation really carries that authority through — otherwise
+    env var. Assert the delegation really carries that authority through - otherwise
     the owner's kill switch would stop campaigns but not the boundary."""
     from app.platform import owner_os
 
@@ -310,7 +310,7 @@ def test_gate_fails_closed_when_unreadable(monkeypatch):
 
 
 def test_direct_selfhost_instantiation_is_gated(monkeypatch):
-    """Three call sites bypass get_whatsapp_sender() entirely — api/whatsapp.py:470,
+    """Three call sites bypass get_whatsapp_sender() entirely - api/whatsapp.py:470,
     video_production/review_whatsapp.py:173, marketing/whatsapp_flows.py:83. Gating
     the SELECTOR would have missed all three
     gating the METHOD catches them."""
@@ -352,7 +352,7 @@ def test_selfhost_post_backstop_is_gated(monkeypatch):
 
 def test_mixin_notification_helpers_are_gated(monkeypatch):
     """send_lead_alert / send_daily_report / appointment / callback all funnel into
-    send_text_message, so the boundary gate covers them for free — assert it, because
+    send_text_message, so the boundary gate covers them for free - assert it, because
     they are the helpers most likely to be wired up by a future caller."""
     rec = _Recorder()
     _arm_selfhost(monkeypatch, rec, auto_send=False)
@@ -367,7 +367,7 @@ def test_mixin_notification_helpers_are_gated(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Cloud (Meta) engine — inert today without a token, but must not be the next hole
+# Cloud (Meta) engine - inert today without a token, but must not be the next hole
 # --------------------------------------------------------------------------- #
 def _cloud_client(monkeypatch, rec: _Recorder):
     monkeypatch.setattr(wa.httpx, "AsyncClient", rec)
@@ -389,7 +389,7 @@ def test_cloud_text_send_is_gated(monkeypatch):
 
 
 def test_cloud_template_send_is_gated(monkeypatch):
-    """Templates build their own payload and call _send_message directly — gating
+    """Templates build their own payload and call _send_message directly - gating
     send_text_message alone would have left this path wide open."""
     rec = _Recorder()
     client = _cloud_client(monkeypatch, rec)
@@ -423,7 +423,7 @@ def test_cloud_send_works_when_flag_on(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Canary allowlist — the flag alone must NOT reach every customer on day one
+# Canary allowlist - the flag alone must NOT reach every customer on day one
 # --------------------------------------------------------------------------- #
 def test_empty_allowlist_blocks_even_with_flag_on(monkeypatch):
     """The whole point of the canary posture: flipping WHATSAPP_AUTO_SEND=1 must not
@@ -452,7 +452,7 @@ def test_unlisted_recipient_blocked_while_listed_one_sends(monkeypatch):
 
 
 def test_allowlist_normalises_indian_number_forms(monkeypatch):
-    """A canary listed as 9876543210 must match a send to +91 98765 43210 — otherwise
+    """A canary listed as 9876543210 must match a send to +91 98765 43210 - otherwise
     the operator 'allowlisted' a number and it silently stayed blocked."""
     rec = _Recorder()
     _arm_selfhost(monkeypatch, rec, auto_send=True)
@@ -483,7 +483,7 @@ def test_allowlist_unreadable_denies(monkeypatch):
 # Opt-out / suppression at the boundary (DPDP + §5 instant cross-channel suppression)
 # --------------------------------------------------------------------------- #
 def test_opted_out_number_is_blocked_at_the_boundary(monkeypatch):
-    """Before this, ONLY the campaign path consulted suppression — onboarding,
+    """Before this, ONLY the campaign path consulted suppression - onboarding,
     customer_delivery, lead_delivery and post_call_hooks could message a number that
     had explicitly opted out, the moment the flag went on."""
     from app.telephony import consent_ledger
@@ -534,7 +534,7 @@ def test_unreadable_opt_out_store_denies(monkeypatch, mod_path, attr, expected):
 
 
 # --------------------------------------------------------------------------- #
-# Observability — reason codes only, never PII
+# Observability - reason codes only, never PII
 # --------------------------------------------------------------------------- #
 def test_block_stats_count_reasons_and_carry_no_pii(monkeypatch):
     rec = _Recorder()
@@ -551,12 +551,12 @@ def test_block_stats_count_reasons_and_carry_no_pii(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Static bypass ratchet — a future caller must not be able to reintroduce a hole
+# Static bypass ratchet - a future caller must not be able to reintroduce a hole
 # --------------------------------------------------------------------------- #
 def test_no_provider_egress_outside_the_guarded_boundary():
     """RATCHET. Every real WhatsApp egress must live inside the two integration modules,
     behind send_permitted(). If a future change adds a raw WAHA `sendText` POST or a
-    Meta `/messages` POST anywhere else, this fails — which is exactly how the original
+    Meta `/messages` POST anywhere else, this fails - which is exactly how the original
     defect would have been caught before it reached prod.
 
     Scoped to WhatsApp messaging only: meta_graph.py and social_engine/providers.py post

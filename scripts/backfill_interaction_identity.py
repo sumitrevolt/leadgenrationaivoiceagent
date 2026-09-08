@@ -1,20 +1,20 @@
-"""backfill_interaction_identity.py — link orphaned interactions to leads/contacts.
+"""backfill_interaction_identity.py - link orphaned interactions to leads/contacts.
 
 WHY
 ---
 ``interaction_log.record()`` historically resolved identity from PHONE only.
 Outreach is overwhelmingly EMAIL, and an email interaction carries no phone, so
 every email interaction landed with ``lead_id = NULL``. Measured on production
-2026-07-25: 2,611 interaction rows, **zero** with a ``lead_id`` — including 295
+2026-07-25: 2,611 interaction rows, **zero** with a ``lead_id`` - including 295
 replies whose outcome was ``interested``. Those warm prospects were invisible to
 the lead pipeline, which is why all 10,559 leads sat at ``status='new'`` and
 ``lead_status_history`` was empty.
 
 The forward fix lives in ``app/platform/interaction_log.py``. This script repairs
-the HISTORY, using ``data/interactions.jsonl`` — the JSONL keeps the ``email``
+the HISTORY, using ``data/interactions.jsonl`` - the JSONL keeps the ``email``
 field that the ``interactions`` table never had a column for.
 
-SCOPE — deliberately linkage only
+SCOPE - deliberately linkage only
 ---------------------------------
 This sets ``lead_id`` / ``contact_id`` on existing rows. It does NOT change
 ``leads.status`` and does NOT write ``lead_status_history``: deciding that a
@@ -25,11 +25,11 @@ an opinion.
 
 SAFETY
 ------
-* dry-run by DEFAULT — ``--apply`` is required to write
+* dry-run by DEFAULT - ``--apply`` is required to write
 * only ever fills a NULL ``lead_id`` / ``contact_id``
 never overwrites
 * never invents an id: an unmatched email is left alone and counted
-* no PII printed — counts and domains only
+* no PII printed - counts and domains only
 
 Usage:
     python scripts/backfill_interaction_identity.py            # dry run
@@ -49,7 +49,7 @@ JSONL = ROOT / "data" / "interactions.jsonl"
 
 
 def _ensure_repo_importable() -> None:
-    """CLI-only sys.path fix — never at import time (see ADR-147)."""
+    """CLI-only sys.path fix - never at import time (see ADR-147)."""
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
 
@@ -76,7 +76,7 @@ def plan(
     contact_by_email: dict[str, str],
     orphan_ids: set[str],
 ) -> dict[str, Any]:
-    """Compute the (deterministic) set of updates. Pure — no DB writes."""
+    """Compute the (deterministic) set of updates. Pure - no DB writes."""
     updates: list[tuple[str, str | None, str | None]] = []
     unmatched_domains: collections.Counter = collections.Counter()
     stats = collections.Counter()
@@ -155,7 +155,7 @@ def main(argv: list[str]) -> int:
     p = plan(records, lead_by_email, contact_by_email, orphan_ids)
 
     print("=" * 62)
-    print("INTERACTION IDENTITY BACKFILL — " + ("APPLY" if apply else "DRY RUN"))
+    print("INTERACTION IDENTITY BACKFILL - " + ("APPLY" if apply else "DRY RUN"))
     print("=" * 62)
     print(f"jsonl records          : {len(records)}")
     print(f"orphan rows in DB      : {len(orphan_ids)}")

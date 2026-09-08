@@ -1,27 +1,27 @@
-"""posthog_funnel.py — inquiry → paid funnel insight (PostHog), split by
+"""posthog_funnel.py - inquiry -> paid funnel insight (PostHog), split by
 business_type / niche.
 
 Funnel steps (events, both server-side captured):
-  1. ``lead_captured``      — /api/public/inquiry (app/platform/inquiry_hooks.py)
-  2. ``payment_activated``  — real UPI activation (app/platform/upi_payments.py)
+  1. ``lead_captured``      - /api/public/inquiry (app/platform/inquiry_hooks.py)
+  2. ``payment_activated``  - real UPI activation (app/platform/upi_payments.py)
 
 Dono events ab ``business_type`` + ``niche`` properties carry karte hain, isliye
-PostHog funnel ko inme se kisi pe bhi breakdown kiya ja sakta hai — top-converting
+PostHog funnel ko inme se kisi pe bhi breakdown kiya ja sakta hai - top-converting
 niches budget allokation drive karein. Identity: dono steps **phone-keyed**
-(distinct_id = inquiry phone / client record phone) — isliye funnel same person
-pe inquiry → payment match karta hai (cid-based identities alag persons hote).
+(distinct_id = inquiry phone / client record phone) - isliye funnel same person
+pe inquiry -> payment match karta hai (cid-based identities alag persons hote).
 
 Insight creation: ``ensure_insight()`` PostHog API se funnel insight banata hai
-(breakdown: business_type). RESTRICTION: insights/query endpoints PRIVATE hain —
+(breakdown: business_type). RESTRICTION: insights/query endpoints PRIVATE hain -
 sirf personal API key (``phx_``) chalta hai
 repo ka ``POSTHOG_API_KEY`` (``phc_``)
 ingestion-only hai. Isliye:
 
-  ENV (optional — bina inke INERT, graceful):
+  ENV (optional - bina inke INERT, graceful):
     POSTHOG_PERSONAL_API_KEY=phx_xxx   # Project settings -> Personal API keys
-    POSTHOG_PROJECT_ID=12345           # optional — unset ho to /api/projects/ se resolve
+    POSTHOG_PROJECT_ID=12345           # optional - unset ho to /api/projects/ se resolve
 
-Never raises — har call graceful no-op/error-dict. Testable: insight_payload()
+Never raises - har call graceful no-op/error-dict. Testable: insight_payload()
 pure hai
 ensure_insight() HTTP path monkeypatch-able.
 """
@@ -36,17 +36,17 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_INSIGHT_NAME = "Inquiry → Paid (by business type)"
+_INSIGHT_NAME = "Inquiry -> Paid (by business type)"
 
 
 # --------------------------------------------------------------------------- #
-# Client → funnel properties (payment side ka business_type/niche)
+# Client -> funnel properties (payment side ka business_type/niche)
 # --------------------------------------------------------------------------- #
 def client_business_type(cid: str) -> dict[str, str | None]:
     """Client record se niche + wizard business-type label resolve karo.
 
     payment_activated capture isi se properties bharata hai (paid side bhi
-    split ho sake). Best-effort — client missing ho to {} (funnel fir bhi
+    split ho sake). Best-effort - client missing ho to {} (funnel fir bhi
     chalta hai, sirf split bina dimension ke)."""
     try:
         from app.marketing.clients_store import get_client
@@ -76,10 +76,10 @@ def client_business_type(cid: str) -> dict[str, str | None]:
 
 
 # --------------------------------------------------------------------------- #
-# Insight payload (pure — PostHog UI me paste karne ke liye bhi kaam aata hai)
+# Insight payload (pure - PostHog UI me paste karne ke liye bhi kaam aata hai)
 # --------------------------------------------------------------------------- #
 def insight_payload() -> dict[str, Any]:
-    """FUNNELS insight filters — lead_captured → payment_activated, breakdown by
+    """FUNNELS insight filters - lead_captured -> payment_activated, breakdown by
     business_type (event property). Strict ordering: pehle inquiry, phir payment."""
     return {
         "name": _INSIGHT_NAME,
@@ -149,17 +149,17 @@ def ensure_insight(create: bool = False) -> dict[str, Any]:
     """Funnel insight ki status + URL. ``create=True`` pe PostHog API se banao.
 
     Returns: {"status": inert|exists|created|error, "url"?, "note"?}
-    - inert: POSTHOG_PERSONAL_API_KEY (phx_) nahi — phc_ key private endpoints
+    - inert: POSTHOG_PERSONAL_API_KEY (phx_) nahi - phc_ key private endpoints
       pe nahi chalta
       owner personal key daale ya payload UI me paste kare.
-    - error: key hai par API call fail (401/network) — note me reason.
+    - error: key hai par API call fail (401/network) - note me reason.
     """
     key = _personal_key()
     if not key:
         return {
             "status": "inert",
             "note": (
-                "POSTHOG_PERSONAL_API_KEY (phx_) set nahi — repo ka phc_ key "
+                "POSTHOG_PERSONAL_API_KEY (phx_) set nahi - repo ka phc_ key "
                 "ingestion-only hai. Key daalo ya insight UI me paste karo "
                 "(payload /api/clientops/posthog/funnel?payload=1 se)."
             ),
@@ -175,7 +175,7 @@ def ensure_insight(create: bool = False) -> dict[str, Any]:
 
         base = f"{_api_host()}/api/projects/{pid}"
         headers = {"Authorization": f"Bearer {key}"}
-        # Existing search karo — duplicate insights nahi banenge
+        # Existing search karo - duplicate insights nahi banenge
         r = httpx.get(
             f"{base}/insights/", params={"search": _INSIGHT_NAME}, headers=headers, timeout=8
         )
@@ -193,7 +193,7 @@ def ensure_insight(create: bool = False) -> dict[str, Any]:
                 created = r2.json()
                 return {"status": "created", "url": _insight_url(pid, created)}
             return {"status": "error", "note": f"create failed: HTTP {r2.status_code}"}
-        return {"status": "exists_missing", "note": "insight abhi nahi — ?create=1 se banao."}
+        return {"status": "exists_missing", "note": "insight abhi nahi - ?create=1 se banao."}
     except Exception as e:  # pragma: no cover - network
         logger.debug("[posthog-funnel] insight call failed: %s", e)
         return {"status": "error", "note": f"{type(e).__name__}: {str(e)[:120]}"}

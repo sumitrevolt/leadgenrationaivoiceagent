@@ -1,4 +1,4 @@
-"""New automation jobs wiring contracts — 2026-08-15 revenue automation batch.
+"""New automation jobs wiring contracts - 2026-08-15 revenue automation batch.
 
 Verifies the three new jobs (``hq_auto_chase``, ``reply_auto_send``,
 ``content_approval_sweep``) are registered in every scheduler surface a dead
@@ -52,7 +52,7 @@ def test_new_jobs_registered_in_celery_beat():
 
 
 def test_content_approval_sweep_dry_run_default():
-    """Sweep job must be dry-run by default — CONTENT_APPROVAL_SWEEP_LIVE actuates."""
+    """Sweep job must be dry-run by default - CONTENT_APPROVAL_SWEEP_LIVE actuates."""
     src = team_scheduler.__file__
     with open(src, encoding="utf-8") as f:
         text = f.read()

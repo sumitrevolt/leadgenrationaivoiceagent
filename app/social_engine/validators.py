@@ -1,13 +1,13 @@
-"""social_engine.validators — Phase 6 platform-adaptation validators.
+"""social_engine.validators - Phase 6 platform-adaptation validators.
 
-Per-platform limits (2026-07 reference — verify at activation, since platforms
+Per-platform limits (2026-07 reference - verify at activation, since platforms
 adjust). Enforces:
   - caption_length         (per-platform char cap)
   - hashtag_limit          (per-platform tag count cap)
   - unsupported_media      (media_type × platform matrix)
   - unsupported_characters (control-byte + zero-width injections)
   - duplicate_content      (same caption+platform+client within window)
-  - prohibited_claims      (e.g. "guaranteed", "risk-free" — India ad code)
+  - prohibited_claims      (e.g. "guaranteed", "risk-free" - India ad code)
   - missing_disclaimer     (paid promo / affiliate CTA needs a disclosure)
 
 `validate_post(platform, post, recent_captions=None)` returns list[dict] of
@@ -39,7 +39,7 @@ _CAPTION_LIMITS: dict[str, int] = {
 _HASHTAG_LIMITS: dict[str, int] = {
     "facebook": 30,
     "instagram": 30,
-    "gbp": 0,  # GBP posts don't officially cap tags — keep sane
+    "gbp": 0,  # GBP posts don't officially cap tags - keep sane
     "linkedin": 30,
     "x": 0,  # X counts hashtags against 280 char limit only
     "youtube": 15,  # description-hashtag effective visible cap
@@ -47,7 +47,7 @@ _HASHTAG_LIMITS: dict[str, int] = {
     "postiz": 30,
 }
 
-# Supported media types per platform (broad — matches provider dispatch shape).
+# Supported media types per platform (broad - matches provider dispatch shape).
 _MEDIA_SUPPORT: dict[str, set[str]] = {
     "facebook": {"text", "image", "video"},
     "instagram": {"image", "video"},  # IG post needs media
@@ -59,7 +59,7 @@ _MEDIA_SUPPORT: dict[str, set[str]] = {
     "postiz": {"text", "image", "video"},
 }
 
-# ASCI 2019+ Indian advertising code — disallowed unqualified claims for
+# ASCI 2019+ Indian advertising code - disallowed unqualified claims for
 # consumer promo posts. `warn` for now (not error) because context can qualify.
 _PROHIBITED_CLAIMS = (
     r"\bguaranteed\b",
@@ -156,7 +156,7 @@ def validate_post(
                 _issue(
                     "unsupported_characters",
                     "warn",
-                    "Caption contains zero-width / bidi characters — will be stripped",
+                    "Caption contains zero-width / bidi characters - will be stripped",
                 )
             )
 
@@ -167,7 +167,7 @@ def validate_post(
                 _issue(
                     "prohibited_claims",
                     "warn",
-                    f"Caption contains restricted claim '{m.group(0)}' — verify with owner",
+                    f"Caption contains restricted claim '{m.group(0)}' - verify with owner",
                     match=m.group(0),
                 )
             )
@@ -200,7 +200,7 @@ def validate_post(
                     _issue(
                         "duplicate_content",
                         "warn",
-                        "Same caption published recently on this platform — may look spammy",
+                        "Same caption published recently on this platform - may look spammy",
                     )
                 )
     except Exception as e:

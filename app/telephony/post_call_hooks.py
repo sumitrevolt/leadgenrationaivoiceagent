@@ -1,7 +1,7 @@
-"""Shared post-call lifecycle hooks — parity across telephony paths.
+"""Shared post-call lifecycle hooks - parity across telephony paths.
 
 The LIVE Vobiz stream WS path does not register CallManager.active_calls, so
-status-webhook → handle_call_completed often no-ops. These helpers let stream
+status-webhook -> handle_call_completed often no-ops. These helpers let stream
 cleanup mirror call_manager metering + qualified-lead downstream actions.
 
 Never raises. All side-effects are best-effort and flag-gated where applicable.
@@ -22,7 +22,7 @@ logger = setup_logger(__name__)
 
 
 def _CALL_TRANSCRIPTS_DIR() -> str:
-    """Call transcripts dir — resolved per call, never frozen at import."""
+    """Call transcripts dir - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
@@ -74,11 +74,11 @@ async def meter_call_completion(
             client_name=client_name or "",
         )
     except Exception as e:
-        # ENTERPRISE FIX (2026-07-10): call-minute billing failure WAS debug-level —
+        # ENTERPRISE FIX (2026-07-10): call-minute billing failure WAS debug-level -
         # invisible in production. Ab WARNING so ops knows immediately (call completed
         # but billing ledger never got the record = revenue leakage).
         logger.warning(
-            "[post_call] meter_call_completion FAILED — billing record LOST for call_id=%s duration=%s (%s: %s)",
+            "[post_call] meter_call_completion FAILED - billing record LOST for call_id=%s duration=%s (%s: %s)",
             cid_key,
             duration_seconds,
             type(e).__name__,
@@ -86,7 +86,7 @@ async def meter_call_completion(
         )
         return False
 
-    # Obsidian second-brain — append call summary (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian second-brain - append call summary (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
 
@@ -94,7 +94,7 @@ async def meter_call_completion(
         _obs.append_note(
             "Leads",
             phone_slug,
-            f"call completed — {duration_seconds}s client={client_name or client_id or '?'} campaign={campaign_id or '?'}",
+            f"call completed - {duration_seconds}s client={client_name or client_id or '?'} campaign={campaign_id or '?'}",
             tags=["call"],
         )
     except Exception:
@@ -114,10 +114,10 @@ async def apply_qualified_downstream(
     city: str = "",
     campaign_variant_id: str = "",
 ) -> None:
-    """CRM sync, sales pipeline, cadence — mirrors call_manager qualify block."""
+    """CRM sync, sales pipeline, cadence - mirrors call_manager qualify block."""
     if not q.get("qualified"):
         return
-    # Native CRM sync (Zoho/HubSpot) — GATED CRM_SYNC=1
+    # Native CRM sync (Zoho/HubSpot) - GATED CRM_SYNC=1
     try:
         from app.platform import crm_sync as _crm
 
@@ -139,7 +139,7 @@ async def apply_qualified_downstream(
             )
     except Exception:
         pass
-    # Sales pipeline: qualified voice call → interested stage
+    # Sales pipeline: qualified voice call -> interested stage
     try:
         from app.marketing import sales_pipeline as _sp
 
@@ -155,7 +155,7 @@ async def apply_qualified_downstream(
         )
     except Exception:
         pass
-    # Cadence enroll — GATED CADENCE_ENGINE=1
+    # Cadence enroll - GATED CADENCE_ENGINE=1
     try:
         if os.environ.get("CADENCE_ENGINE", "").strip().lower() in ("1", "true", "yes"):
             from app.marketing import cadence as _cad
@@ -188,9 +188,9 @@ async def apply_qualified_downstream(
 
             _biz = client_name or "aapke business"
             _msg = (
-                f"Namaste! Abhi humari AI se aapki baat hui — dhanyavaad. 🙏\n\n"
+                f"Namaste! Abhi humari AI se aapki baat hui - dhanyavaad. 🙏\n\n"
                 f"{_biz} ke liye LeadGen AI: roz ki marketing posts, Google par upar "
-                "aana, aur leads — sab automatic.\n\n"
+                "aana, aur leads - sab automatic.\n\n"
                 "FREE 7-din trial (koi card nahi): https://leadsgenai.in/start\n"
                 "Koi sawaal ho to isi number pe reply karein."
             )
@@ -217,7 +217,7 @@ def emit_call_report(
     Unlike `lead.qualified` (a billing-meter event with a minimal payload), this
     carries the FULL report (score/summary/next_action) so a customer's CRM or
     automation can act without polling. Fires for EVERY call that produced a
-    report (qualified or not) — the customer opted in by subscribing to this
+    report (qualified or not) - the customer opted in by subscribing to this
     event
     the subscription model does the filtering.
 
@@ -259,7 +259,7 @@ def persist_transcript(
     user_turns: int = 0,
     extra: dict[str, Any] | None = None,
 ) -> None:
-    """Append call transcript JSONL — shared by vobiz_stream + phone_stream."""
+    """Append call transcript JSONL - shared by vobiz_stream + phone_stream."""
     if not history:
         return
     try:
@@ -285,7 +285,7 @@ def persist_transcript(
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
         logger.warning(
-            "[post_call] persist_transcript FAILED for call_id=%s — transcript LOST (%s: %s)",
+            "[post_call] persist_transcript FAILED for call_id=%s - transcript LOST (%s: %s)",
             str(call_id or "")[:40],
             type(e).__name__,
             e,
@@ -330,7 +330,7 @@ async def auto_qualify_and_downstream(
         os.makedirs("data", exist_ok=True)
         with open(os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        # RL reward spine (Phase 0) — voice outcome → unified reward log.
+        # RL reward spine (Phase 0) - voice outcome -> unified reward log.
         try:
             from app.agents.rl import reward as _rl_reward
 
@@ -361,7 +361,7 @@ async def auto_qualify_and_downstream(
                 pass
         # ADR-027 self-improve loop: qualifier ne bot/IVR CONFIRM kiya -> number+
         # prefix dial_blocklist me seekho + prospect dial_block tag (in-call
-        # IVR-strike hook ka post-call parity — ADR-006 cross-path rule).
+        # IVR-strike hook ka post-call parity - ADR-006 cross-path rule).
         try:
             if q.get("bot_suspected") and str(q.get("bot_reason") or "").startswith("ivr_phrase"):
                 from app.telephony import call_feedback
@@ -383,7 +383,7 @@ async def auto_qualify_and_downstream(
             niche=niche or "",
             city=city or "",
         )
-        # AI post-call summary → WhatsApp (qualified calls only). Gated
+        # AI post-call summary -> WhatsApp (qualified calls only). Gated
         # POST_CALL_SUMMARY (default OFF) + WHATSAPP_AUTO_SEND. Best-effort.
         if q.get("qualified"):
             try:
@@ -406,7 +406,7 @@ async def auto_qualify_and_downstream(
 
 
 def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns: int):
-    """Map (classify_stream_outcome string + qualification dict) → CallOutcome enum.
+    """Map (classify_stream_outcome string + qualification dict) -> CallOutcome enum.
     Returns None when nothing definitive is known (column is nullable)."""
     try:
         from app.models.call_log import CallOutcome
@@ -414,13 +414,13 @@ def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns:
         return None
     so = (stream_outcome or "").strip().lower()
     if so == "test_session":
-        # WS test/dev session (no lead phone) — koi real outcome mat gadho
-        # (qualifier agent-monologue se "interested" tak hallucinate kar deta —
+        # WS test/dev session (no lead phone) - koi real outcome mat gadho
+        # (qualifier agent-monologue se "interested" tak hallucinate kar deta -
         # 2026-07-02 me hua); column nullable hai, analytics phone='unknown' +
         # null-outcome se filter kare. Yeh check appointment/qualified se PEHLE.
         return None
     if q and q.get("bot_suspected"):
-        # IVR/answering-bot suspect (2026-07-05 lesson) — na interested na
+        # IVR/answering-bot suspect (2026-07-05 lesson) - na interested na
         # not_interested gadho; NULL = "unknown/unverified", analytics filter kare.
         return None
     if q and q.get("appointment_requested"):
@@ -437,7 +437,7 @@ def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns:
 
 
 def crm_sync_enabled() -> bool:
-    """CALL_LEAD_CRM_SYNC — write the call outcome back onto the lead row.
+    """CALL_LEAD_CRM_SYNC - write the call outcome back onto the lead row.
 
     Default OFF. Read at call time, never frozen at import.
     """
@@ -467,12 +467,12 @@ def niche_outcome_for(
 
     Ordering matters:
 
-    1. **DND wins over everything.** Read from ``consent_ledger`` — the
+    1. **DND wins over everything.** Read from ``consent_ledger`` - the
        authoritative cross-channel suppression store written by the agent's own
        ``_handle_opt_out``. Never inferred from LLM output.
     2. Otherwise defer to ``_map_call_outcome``.
     3. ``None`` from that classifier means "unknown / bot-suspected", and maps
-       to ``voicemail`` — a RETRYABLE bucket, never a terminal one. Marking an
+       to ``voicemail`` - a RETRYABLE bucket, never a terminal one. Marking an
        IVR tree ``not_interested`` would silently burn the lead (2026-07-05).
     """
     if phone:
@@ -566,7 +566,7 @@ def build_call_log(
 
     ``q`` is the ``call_qualifier.qualify_transcript`` dict (interest_score 1-5,
     qualified, appointment_requested, summary, ...) or None when qualification
-    was skipped (AUTO_QUALIFY_CALLS off) — the row is still useful for
+    was skipped (AUTO_QUALIFY_CALLS off) - the row is still useful for
     outcome/duration analytics.
     """
     if os.environ.get("CALL_LOG_DB", "1").strip().lower() not in ("1", "true", "yes"):
@@ -600,8 +600,8 @@ def build_call_log(
         )
     except Exception:
         qual_json = None
-    # Cost metering (2026-07-05 gap: call_cost hamesha 0 tha — spend invisible).
-    # Paise me, per-minute ceil billing — env VOBIZ_COST_PAISE_PER_MIN (default 45
+    # Cost metering (2026-07-05 gap: call_cost hamesha 0 tha - spend invisible).
+    # Paise me, per-minute ceil billing - env VOBIZ_COST_PAISE_PER_MIN (default 45
     # = Vobiz ₹0.45/min ladder). Sirf real dials (phone + >0s) pe.
     cost_paise = 0
     try:
@@ -663,7 +663,7 @@ async def persist_call_log(
     analytics dashboard (`/api/analytics/*`, /app/analytics) lights up with real
     data instead of falling back to the empty in-memory store.
 
-    Independent of AUTO_QUALIFY_CALLS — fires for EVERY completed call (q optional).
+    Independent of AUTO_QUALIFY_CALLS - fires for EVERY completed call (q optional).
     Off-loop sync INSERT (`asyncio.to_thread`, never blocks the event loop),
     idempotent on ``call_sid``, FK-safe (``client_id`` linked only when it exists
     in ``clients``). GATED CALL_LOG_DB (default ON). Never raises.
@@ -696,7 +696,7 @@ async def persist_call_log(
 
         with get_db_session() as db:
             # Idempotency: skip if a row for this call_sid already exists.
-            # Returning "" here is what makes the CRM sync idempotent too — a
+            # Returning "" here is what makes the CRM sync idempotent too - a
             # replayed status callback must not re-apply a status transition.
             if row.call_sid:
                 exists = db.query(CallLog.id).filter(CallLog.call_sid == row.call_sid).first()
@@ -733,7 +733,7 @@ async def persist_call_log(
         logger.debug("[post_call] persist_call_log skip: %s", e)
         return
 
-    # CRM bucket sync — the lead row itself (status / next_call_at / hot flag).
+    # CRM bucket sync - the lead row itself (status / next_call_at / hot flag).
     # Lives HERE and not in call_manager because CallManager.active_calls is an
     # in-process dict: campaign calls are placed by the Celery worker while the
     # status callback lands on the web container, so handle_call_completed()
@@ -765,7 +765,7 @@ async def finalize_stream_session(
     turn_metrics: list[dict[str, Any]] | None = None,
     lead_id: str = "",
 ) -> None:
-    """Meter + transcript + qualify — one call for WS stream cleanup paths.
+    """Meter + transcript + qualify - one call for WS stream cleanup paths.
 
     ``lead_id`` mirrors ``persist_call_log``: this helper currently has no
     callers in-tree, but it wraps the same writer, so leaving it without the

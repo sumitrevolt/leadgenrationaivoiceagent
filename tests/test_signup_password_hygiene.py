@@ -1,7 +1,7 @@
 """Loop 13B (2026-07-10): reject the most obvious credential-stuffing passwords.
 
 Blocking these at signup prevents an account whose first login attempt would
-tripwire our Loop 8 `login_failed` monitoring — the credential-stuffing detection
+tripwire our Loop 8 `login_failed` monitoring - the credential-stuffing detection
 signal-to-noise ratio improves. Real customers with `password` / `qwerty` are
 indistinguishable from bot signups and are steered toward a stronger choice.
 """
@@ -45,7 +45,7 @@ def _stub(monkeypatch, cid="c_pw"):
     ],
 )
 def test_signup_rejects_common_breached_passwords(client, monkeypatch, bad_pw, expected_hint):
-    """Top-N breached password list → 422 with a helpful hint, not silent
+    """Top-N breached password list -> 422 with a helpful hint, not silent
     account creation that immediately gets brute-forced."""
     _stub(monkeypatch)
     r = client.post(
@@ -85,7 +85,7 @@ def test_signup_accepts_reasonable_password(client, monkeypatch):
 
 
 def test_signup_still_rejects_too_short(client, monkeypatch):
-    """Pre-existing < 6-char check must survive Loop 13B — order of validation
+    """Pre-existing < 6-char check must survive Loop 13B - order of validation
     keeps it before the block-list."""
     _stub(monkeypatch)
     r = client.post(

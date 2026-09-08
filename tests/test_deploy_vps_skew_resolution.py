@@ -1,6 +1,6 @@
 """Contract tests: deploy_vps.sh skew check resolves via compose services.
 
-RISKS B3 — hardcoded leadgen_app / leadgen_worker names false-FATAL when compose
+RISKS B3 - hardcoded leadgen_app / leadgen_worker names false-FATAL when compose
 uses project-prefixed/hashed container names even though /health SHA matches.
 These are static text assertions (no docker required), same pattern as
 test_deploy_vps_retention.py.

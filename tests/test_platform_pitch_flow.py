@@ -1,4 +1,4 @@
-"""Platform pitch flow (ai_marketing outbound) — unit tests."""
+"""Platform pitch flow (ai_marketing outbound) - unit tests."""
 
 from __future__ import annotations
 

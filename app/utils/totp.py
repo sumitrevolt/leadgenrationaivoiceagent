@@ -1,4 +1,4 @@
-"""Stdlib TOTP (RFC 6238) — 2FA bina kisi dep ke. ADMIN_TOTP_SECRET env se gate hota."""
+"""Stdlib TOTP (RFC 6238) - 2FA bina kisi dep ke. ADMIN_TOTP_SECRET env se gate hota."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 
 def generate_secret(length: int = 20) -> str:
-    """Random base32 TOTP secret (RFC 4648, unpadded). length=20 bytes → 160-bit, 32 chars."""
+    """Random base32 TOTP secret (RFC 4648, unpadded). length=20 bytes -> 160-bit, 32 chars."""
     return base64.b32encode(secrets.token_bytes(length)).decode().rstrip("=")
 
 
@@ -40,7 +40,7 @@ def totp_now(secret_b32: str, step: int = 30) -> str:
 
 
 def verify_totp(secret_b32: str, code: str, window: int = 1, step: int = 30) -> bool:
-    """±window steps tolerance (clock skew). Never raises — bad input = False."""
+    """±window steps tolerance (clock skew). Never raises - bad input = False."""
     try:
         code = (code or "").strip()
         if not code:

@@ -1,5 +1,5 @@
 """
-Tests for app.agents.live_eval (P4-3) — live-transcript scoring + eval_gate feed.
+Tests for app.agents.live_eval (P4-3) - live-transcript scoring + eval_gate feed.
 Deterministic layers only
 LLM judge tested in its disabled (free) path.
 """

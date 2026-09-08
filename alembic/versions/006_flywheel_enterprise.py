@@ -1,4 +1,4 @@
-"""Enterprise flywheel tables — accounts, contacts, interactions, campaign_variants.
+"""Enterprise flywheel tables - accounts, contacts, interactions, campaign_variants.
 
 Idempotent: skip if tables already exist (create_all on live DB).
 Revision ID: 006_flywheel_enterprise

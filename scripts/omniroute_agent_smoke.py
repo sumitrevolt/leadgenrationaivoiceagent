@@ -1,4 +1,4 @@
-r"""OmniRoute agent-hook smoke (ADR-108) — synthetic/public prompt ONLY.
+r"""OmniRoute agent-hook smoke (ADR-108) - synthetic/public prompt ONLY.
 
 Local dev-only verification: gates status + try_agent_chat() end-to-end via the
 REAL local gateway. Kabhi secret print nahi karta
@@ -35,18 +35,18 @@ async def main() -> int:
 
     if not agents_enabled():
         print(
-            "[skip] double gate closed — smoke needs OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key (process env)."
+            "[skip] double gate closed - smoke needs OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key (process env)."
         )
         return 2
 
-    # SYNTHETIC prompt only (runbook rule) — koi customer/lead data nahi.
+    # SYNTHETIC prompt only (runbook rule) - koi customer/lead data nahi.
     msgs = [{"role": "user", "content": "Reply with exactly: AGENT_OS_SMOKE_OK"}]
     text = await try_agent_chat(msgs)
     if text:
         print(f"[ok] gateway replied ({len(text)} chars): {text[:80]!r}")
         return 0
     print(
-        "[fail-open] try_agent_chat returned None — gateway/provider fault; free chain would have handled this call."
+        "[fail-open] try_agent_chat returned None - gateway/provider fault; free chain would have handled this call."
     )
     return 1
 

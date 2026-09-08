@@ -1,4 +1,4 @@
-"""Tier-1 governance — centralized server-side audit for consequential admin actions.
+"""Tier-1 governance - centralized server-side audit for consequential admin actions.
 
 Writes an ``AuditLog`` row capturing full request metadata (request_id, user_agent,
 source IP), actor identity + role, tenant/target scope, before/after state (redacted),
@@ -6,14 +6,14 @@ result/status, error reason and the idempotency key. Runs on its OWN db session 
 never interferes with the caller's transaction.
 
 FAIL POLICY (explicit, per Tier-1 spec):
-  These are POST-ACTION audits — the side effect has already happened by the time we
+  These are POST-ACTION audits - the side effect has already happened by the time we
   record it, so failing the HTTP request on an audit-write error would NOT undo the
   action and would only harm availability. Therefore the default policy is
   **FAIL-OPEN-BUT-LOUD**: on audit-write failure we log.error + emit a best-effort ops
   alert (observable), and return False. Callers that audit an INTENT *before* executing
   a high-risk action may pass ``fail_closed=True`` to raise instead (write-ahead).
 
-Server-side only — never depends on frontend JavaScript. Sensitive keys are redacted
+Server-side only - never depends on frontend JavaScript. Sensitive keys are redacted
 before persistence so secrets never land in the audit trail.
 """
 
@@ -27,7 +27,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Substrings that mark a value as sensitive → redacted before persistence.
+# Substrings that mark a value as sensitive -> redacted before persistence.
 _SENSITIVE = (
     "password",
     "passwd",
@@ -78,7 +78,7 @@ def _actor_fields(actor: Any) -> tuple[str | None, str | None]:
     if aid is None and isinstance(actor, dict):
         aid = actor.get("id") or actor.get("user_id")
         role = actor.get("role")
-    role_str = getattr(role, "value", role)  # UserRole enum → str
+    role_str = getattr(role, "value", role)  # UserRole enum -> str
     return (str(aid) if aid is not None else None), (
         str(role_str) if role_str is not None else None
     )
@@ -225,7 +225,7 @@ async def record_admin_action(
             return True
         except Exception as e:
             # First failure is often a FK violation (synthetic admin with no users row).
-            # Drop the FK and retry once — actor_id is preserved in new_value payload.
+            # Drop the FK and retry once - actor_id is preserved in new_value payload.
             if attempt == 1 and getattr(row, "user_id", None):
                 logger.warning("AUDIT retry without FK action=%s err=%s", action, e)
                 try:

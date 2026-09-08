@@ -1,12 +1,12 @@
 """Lightweight per-IP rate-limit dependency (reuses app.cache.RateLimiter).
 
-Kyun: AI/LLM aur public inbound endpoints pe koi auth nahi tha → ek script
+Kyun: AI/LLM aur public inbound endpoints pe koi auth nahi tha -> ek script
 spam karke free-LLM cost/abuse kar sakti thi. Yeh dependency per-IP sliding
 window se requests cap karti hai.
 
 Design:
 - **FAIL-OPEN**: limiter/Redis error ho to request BLOCK nahi hoti (legit
-  traffic kabhi na ruke) — sirf abuse rokna hai, availability todna nahi.
+  traffic kabhi na ruke) - sirf abuse rokna hai, availability todna nahi.
 - Caddy reverse-proxy ke peeche real client IP `X-Forwarded-For`/`X-Real-IP`
   se aata hai (warna sab 127.0.0.1 share karte = ek saath limit).
 - Redis ho to distributed
@@ -30,7 +30,7 @@ logger = setup_logger(__name__)
 
 
 def _client_ip(request: Request) -> str:
-    """Canonical trusted client IP — MUST match ``app.middleware._real_client_ip``.
+    """Canonical trusted client IP - MUST match ``app.middleware._real_client_ip``.
 
     SECURITY: rightmost X-Forwarded-For only. Leftmost is client-spoofable
     (CWE-20). Lazy import avoids any future circular import with middleware.
@@ -41,7 +41,7 @@ def _client_ip(request: Request) -> str:
 
 
 def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):
-    """FastAPI dependency factory — per-IP rate limit for a route/router.
+    """FastAPI dependency factory - per-IP rate limit for a route/router.
 
     Args:
         prefix: bucket name (alag endpoints ka alag budget, e.g. "ai", "tools").
@@ -70,7 +70,7 @@ def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):
                 status_code=429,
                 detail={
                     "error": "rate_limited",
-                    "message": "Bahut zyada requests — thodi der baad try karo.",
+                    "message": "Bahut zyada requests - thodi der baad try karo.",
                     "retry_after": int(window_seconds),
                     "scope": prefix,
                 },
@@ -81,9 +81,9 @@ def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):
 
 
 # --------------------------------------------------------------------------- #
-# Tier-aware rate limiting (R1#1) — per client-tier budget. Higher tiers = more
-# headroom. Tier resolve hota hai: request.state.tenant (server-derived) → default
-# "free" — client-supplied header REMOVED 2026-07-01 (self-report spoofing risk,
+# Tier-aware rate limiting (R1#1) - per client-tier budget. Higher tiers = more
+# headroom. Tier resolve hota hai: request.state.tenant (server-derived) -> default
+# "free" - client-supplied header REMOVED 2026-07-01 (self-report spoofing risk,
 # see _client_tier docstring). Base limit ko tier-multiplier se scale karte.
 # FAIL-OPEN, additive (existing rate_limit untouched). Routes opt-in karein:
 #   dependencies=[Depends(tier_rate_limit("ai", base_max=20, window=60))]
@@ -100,10 +100,10 @@ _TIER_MULT: dict[str, float] = {
 
 
 def _client_tier(request: Request) -> str:
-    """Requester ka tier — server-derived tenant state only, never 'free'.
+    """Requester ka tier - server-derived tenant state only, never 'free'.
 
     A client-supplied X-Client-Tier header was previously trusted here (checked
-    before the tenant state) — any caller could self-report "admin" for a 20x
+    before the tenant state) - any caller could self-report "admin" for a 20x
     rate-limit budget. Header is never set anywhere in this codebase (grepped),
     so there was no legitimate internal use to preserve. Removed entirely
     (production audit 2026-07-01, security batch 4). Never-raise.
@@ -144,7 +144,7 @@ def tier_rate_limit(prefix: str, base_max: int = 20, window_seconds: int = 60):
                 status_code=429,
                 detail={
                     "error": "rate_limited",
-                    "message": "Bahut zyada requests — thodi der baad try karo (ya plan upgrade).",
+                    "message": "Bahut zyada requests - thodi der baad try karo (ya plan upgrade).",
                     "retry_after": int(window_seconds),
                     "scope": prefix,
                     "tier": tier,

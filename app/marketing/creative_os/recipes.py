@@ -1,4 +1,4 @@
-"""Recipe engine — structured shot/scene plans (not unstructured prompt dumps)."""
+"""Recipe engine - structured shot/scene plans (not unstructured prompt dumps)."""
 
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ def build_scene_plan(
     dur = float(meta.get("default_duration_s") or 4.0)
     biz = (business_name or "Business").strip()
     off = (offer or "").strip() or f"{niche} services"
-    call = (cta or "").strip() or "Call ya WhatsApp karo — aaj hi"
+    call = (cta or "").strip() or "Call ya WhatsApp karo - aaj hi"
     texts = _texts_for(
         name,
         biz=biz,
@@ -150,9 +150,9 @@ def _texts_for(
         ]
     if recipe == "service_showcase":
         return [
-            f"{biz} — aapke area ka trusted {niche}" if hi else f"{biz} — trusted local {niche}",
+            f"{biz} - aapke area ka trusted {niche}" if hi else f"{biz} - trusted local {niche}",
             f"Service highlight: {offer}",
-            f"Quality + speed — {biz} style" if hi else f"Quality and speed — the {biz} way",
+            f"Quality + speed - {biz} style" if hi else f"Quality and speed - the {biz} way",
             cta,
         ]
     if recipe == "faq_reel":
@@ -171,9 +171,9 @@ def _texts_for(
     if recipe == "festival_local":
         fest = festival or ("Festive season" if not hi else "Tyohar special")
         return [
-            f"{fest} ki shubhkamnayen — {biz}" if hi else f"{fest} greetings from {biz}",
+            f"{fest} ki shubhkamnayen - {biz}" if hi else f"{fest} greetings from {biz}",
             f"Local offer: {offer}",
-            "Limited slots — aaj confirm karo" if hi else "Limited slots — confirm today",
+            "Limited slots - aaj confirm karo" if hi else "Limited slots - confirm today",
             cta,
         ]
     if recipe == "educational_tip":
@@ -192,7 +192,7 @@ def _texts_for(
     return [
         f"{biz} ki nayi offer" if hi else f"New offer from {biz}",
         offer,
-        f"Verified local {niche} — {biz}",
+        f"Verified local {niche} - {biz}",
         cta,
     ]
 

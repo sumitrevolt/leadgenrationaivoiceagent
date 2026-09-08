@@ -1,10 +1,10 @@
 # alembic/versions/017_add_lead_pipeline_tables.py
 """lead_pipeline_batches / lead_pipeline_stage_runs / lead_pipeline_quality_issues
 tables + leads.score_reason / leads.source_batch_id columns (2026-07-08, lead-gen
-pipeline automation vertical slice — see
+pipeline automation vertical slice - see
 docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md).
 
-Idempotent: skip if a table/column already exists — same pattern as
+Idempotent: skip if a table/column already exists - same pattern as
 008_add_agents_agent_events.py / 016_add_dev_task_usage.py. Never ALTERs
 an existing table's existing columns, only adds genuinely new tables/columns.
 
@@ -66,7 +66,7 @@ def upgrade() -> None:
         )
         op.create_index("ix_pipeline_stage_runs_batch", "lead_pipeline_stage_runs", ["batch_id", "stage_name"])
         # FK column itself also gets its own index (matches Column(..., index=True)
-        # in app/models/lead_pipeline.py — SQLAlchemy's default auto-generated name).
+        # in app/models/lead_pipeline.py - SQLAlchemy's default auto-generated name).
         op.create_index("ix_lead_pipeline_stage_runs_batch_id", "lead_pipeline_stage_runs", ["batch_id"])
 
     if "lead_pipeline_quality_issues" not in existing:
@@ -85,7 +85,7 @@ def upgrade() -> None:
         op.create_index("ix_pipeline_issues_resolved", "lead_pipeline_quality_issues", ["resolved", "severity"])
         # batch_id and resolved both also declare index=True on the Column itself
         # (app/models/lead_pipeline.py) in addition to the composite Index()s above
-        # — create_all() emits both; mirror here so alembic-managed DBs match.
+        # - create_all() emits both; mirror here so alembic-managed DBs match.
         op.create_index("ix_lead_pipeline_quality_issues_batch_id", "lead_pipeline_quality_issues", ["batch_id"])
         op.create_index("ix_lead_pipeline_quality_issues_resolved", "lead_pipeline_quality_issues", ["resolved"])
 
@@ -95,7 +95,7 @@ def upgrade() -> None:
     if "source_batch_id" not in lead_cols:
         # Raw SQL, not op.add_column(Column(..., ForeignKey(...))): Alembic's
         # add_column, when the Column carries a ForeignKey, emits ADD COLUMN
-        # then a SEPARATE ADD CONSTRAINT statement — SQLite's dialect has no
+        # then a SEPARATE ADD CONSTRAINT statement - SQLite's dialect has no
         # support for the latter (NotImplementedError: "No support for ALTER
         # of constraints in SQLite dialect", verified locally). Wrapping in
         # batch_alter_table (its documented workaround) then trips on the
@@ -103,7 +103,7 @@ def upgrade() -> None:
         # campaign_id) during its copy-and-move recreate: "ValueError:
         # Constraint must have a name" (also verified locally). A single raw
         # ALTER ... ADD COLUMN ... REFERENCES is valid SQL in ONE statement on
-        # both SQLite (3.35+) and Postgres — the same raw-SQL escape hatch
+        # both SQLite (3.35+) and Postgres - the same raw-SQL escape hatch
         # already used by 009_leads_phone_unique_if_clean.py/
         # 010_enum_columns_to_varchar.py for similar cross-dialect gaps, and
         # it doesn't touch the rest of the table at all.
@@ -113,14 +113,14 @@ def upgrade() -> None:
                 "REFERENCES lead_pipeline_batches(id)"
             )
         )
-        # Model declares source_batch_id with index=True (app/models/lead.py) —
+        # Model declares source_batch_id with index=True (app/models/lead.py) -
         # create_all()-based test DBs get this index for free; an alembic-managed
         # DB needs it explicit or the two schema-provisioning paths silently drift.
         op.create_index("ix_leads_source_batch_id", "leads", ["source_batch_id"])
 
 
 def downgrade() -> None:
-    # Drop leads.source_batch_id BEFORE dropping lead_pipeline_batches — it FKs
+    # Drop leads.source_batch_id BEFORE dropping lead_pipeline_batches - it FKs
     # into that table, so on Postgres dropping the table first would fail with
     # a dependency error.
     try:

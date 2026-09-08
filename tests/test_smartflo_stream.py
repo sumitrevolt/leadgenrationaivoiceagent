@@ -2,11 +2,11 @@
 Integration tests for Smartflo Voice Streaming WebSocket handler.
 
 Tests the SmartfloStreamSession event lifecycle, media processing, DTMF
-handling, greeting, and cleanup — all using mock WebSocket events (no real
+handling, greeting, and cleanup - all using mock WebSocket events (no real
 Smartflo connection needed).
 
 Protocol events tested:
-  connected → start → media (speech/silence) → stop
+  connected -> start -> media (speech/silence) -> stop
   DTMF press-9 (opt-out)
   Mark events
   Non-JSON frames (error resilience)
@@ -67,7 +67,7 @@ class _FakeWS:
         self._receive_count += 1
         if self._receive_queue.empty():
             if self.closed:
-                # Real WS semantics: receive after server-side close raises —
+                # Real WS semantics: receive after server-side close raises -
                 # lets handle()'s read loop exit instead of blocking forever
                 # (2026-09-04 CI shard-4 hang: tests enqueued only `stop`, so
                 # handle() blocked on queue.get() until the 60s idle timeout).
@@ -136,7 +136,7 @@ def _session(ws: _FakeWS | None = None, **kwargs: Any) -> SmartfloStreamSession:
 # 1. WebSocket lifecycle
 # ---------------------------------------------------------------------------
 class TestWebSocketLifecycle:
-    """WS accept → event loop → cleanup on stop."""
+    """WS accept -> event loop -> cleanup on stop."""
 
     async def test_accept_called_on_handle(self):
         ws = _FakeWS()
@@ -519,7 +519,7 @@ class TestGreeting:
 # 9. Full event sequence
 # ---------------------------------------------------------------------------
 class TestFullSequence:
-    """End-to-end event sequence: connected → start → media × N → stop."""
+    """End-to-end event sequence: connected -> start -> media × N -> stop."""
 
     async def test_full_lifecycle(self):
         ws = _FakeWS()
@@ -697,7 +697,7 @@ class TestConstants:
 # ---------------------------------------------------------------------------
 class TestDemoReadinessRegressions:
     async def test_groq_stt_uploads_wav_container_not_raw_pcm(self):
-        """Regression: raw PCM was posted as 'audio.wav' → Groq 400 every time."""
+        """Regression: raw PCM was posted as 'audio.wav' -> Groq 400 every time."""
         import app.telephony.smartflo_stream as ss
 
         s = _session()
@@ -750,15 +750,15 @@ class TestDemoReadinessRegressions:
             assert wf.readframes(wf.getnframes()) == pcm
 
     async def test_say_does_not_block_receive_loop_and_barge_in_cancels(self):
-        """Regression: playback ran inline → no inbound frames read while
-        speaking → barge-in dead. Now _say() returns immediately, playback runs
+        """Regression: playback ran inline -> no inbound frames read while
+        speaking -> barge-in dead. Now _say() returns immediately, playback runs
         as a task, and caller speech cancels it + emits `clear`."""
         import app.telephony.smartflo_stream as ss
 
         ws = _FakeWS()
         s = _session(ws)
         s.stream_sid = "MZ-1"
-        # 2 s of "speech" = 100 frames of 160 mulaw bytes → would take ~2 s inline
+        # 2 s of "speech" = 100 frames of 160 mulaw bytes -> would take ~2 s inline
         long_audio = b"\x00\x00" * 16000
 
         async def _fake_tts(_text: str) -> bytes:
@@ -775,7 +775,7 @@ class TestDemoReadinessRegressions:
                 assert s._speaking is True
                 sent_before = len([m for m in ws.sent if m.get("event") == "media"])
                 assert sent_before >= 3
-                # Caller speaks over the bot → barge-in
+                # Caller speaks over the bot -> barge-in
                 for _ in range(3):
                     await s._on_media(_make_speech_mulaw())
                 await asyncio.sleep(0.05)
@@ -809,7 +809,7 @@ class TestDemoReadinessRegressions:
                 assert ws.closed
 
     async def test_start_accepts_snake_case_keys(self):
-        """Smartflo's exact casing is unconfirmed until the live call — accept both."""
+        """Smartflo's exact casing is unconfirmed until the live call - accept both."""
         ws = _FakeWS()
         s = _session(ws)
         ws.enqueue(

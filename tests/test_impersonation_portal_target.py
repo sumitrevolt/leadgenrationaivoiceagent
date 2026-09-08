@@ -7,7 +7,7 @@ value would be an open redirect, which is why it is validated against
 
 Also covers `/api/impersonate/targets` exposing each client's `product`, which is
 what lets an operator pick the right console per client instead of guessing.
-No full app / DB — pure-function tests plus coroutines with faked deps.
+No full app / DB - pure-function tests plus coroutines with faked deps.
 """
 
 import asyncio
@@ -19,7 +19,7 @@ from app.api import impersonation as imp
 
 
 # --------------------------------------------------------------------------
-# _safe_portal_url — the open-redirect gate
+# _safe_portal_url - the open-redirect gate
 # --------------------------------------------------------------------------
 
 @pytest.mark.parametrize("target", list(imp.PORTAL_ALLOWLIST))
@@ -64,7 +64,7 @@ def test_allowlist_contains_no_external_or_relative_entries():
 
 
 # --------------------------------------------------------------------------
-# _client_product — entitlement normalisation
+# _client_product - entitlement normalisation
 # --------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
@@ -96,7 +96,7 @@ def test_client_product_normalisation(monkeypatch, raw, expected):
 
 
 def test_client_product_defaults_when_store_raises(monkeypatch):
-    """A broken client store must not break impersonation — fail safe."""
+    """A broken client store must not break impersonation - fail safe."""
     import sys
     import types
 

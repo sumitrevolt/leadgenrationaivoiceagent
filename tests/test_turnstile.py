@@ -1,4 +1,4 @@
-"""Cloudflare Turnstile bot-protection — full behaviour matrix.
+"""Cloudflare Turnstile bot-protection - full behaviour matrix.
 
 Behaviour matrix this guards:
     SECRET unset                  -> dep is a no-op (INERT, today's behaviour)
@@ -77,7 +77,7 @@ def _patch_siteverify(
 
 
 # --------------------------------------------------------------------------- #
-# INERT mode — secret unset
+# INERT mode - secret unset
 # --------------------------------------------------------------------------- #
 def test_inert_when_secret_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     """Today's behaviour preserved: no secret -> no check, no Cloudflare call."""
@@ -100,12 +100,12 @@ def test_site_key_helper_reads_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ARMED mode — secret set
+# ARMED mode - secret set
 # --------------------------------------------------------------------------- #
 def test_armed_missing_token_fails_open(monkeypatch: pytest.MonkeyPatch) -> None:
     """MISSING token = widget didn't render for this client (broken site-key/
     domain, blocked CDN, mobile browser). Client-side loader already fails-OPEN,
-    so the server must too — hard-403 blocked 100% of real customers whenever
+    so the server must too - hard-403 blocked 100% of real customers whenever
     the widget was down (2026-07-04 launch incident). Fail-OPEN on missing;
     fail-CLOSED stays for PRESENT-but-INVALID tokens (real caught bots)."""
     monkeypatch.setenv("TURNSTILE_SECRET_KEY", "sk_test_secret")
@@ -115,7 +115,7 @@ def test_armed_missing_token_fails_open(monkeypatch: pytest.MonkeyPatch) -> None
 
     r = client.post("/probe", json={})
     assert r.status_code == 200
-    # Did NOT call Cloudflare — no token to verify
+    # Did NOT call Cloudflare - no token to verify
     assert captured == {}
 
 
@@ -186,12 +186,12 @@ def test_armed_cloudflare_exception_fails_open(monkeypatch: pytest.MonkeyPatch) 
 
 
 # --------------------------------------------------------------------------- #
-# Real-app wiring — /api/localseo/geo-check (2026-07-01 hardening: this fans out
+# Real-app wiring - /api/localseo/geo-check (2026-07-01 hardening: this fans out
 # multiple free-LLM calls per public request, same abuse class as /api/public/
 # ai-demo, but was previously rate-limit-only).
 # --------------------------------------------------------------------------- #
 def test_geo_check_inert_when_secret_unset(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Today's default (no Turnstile creds) — geo-check works with no token."""
+    """Today's default (no Turnstile creds) - geo-check works with no token."""
     monkeypatch.delenv("TURNSTILE_SECRET_KEY", raising=False)
     from app.marketing import geo_visibility
 

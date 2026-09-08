@@ -26,10 +26,10 @@ def test_split_sentences_short_fragment():
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-17 — live-call quality parity: web (test/demo) path must match the
-# phone agent — no "ji/sir" habit fillers spoken; Swara prosody consistent.
-# 2026-08-23 owner tune: pace +28%→+32% ("abhi bhi slow"), pitch -8Hz (deeper),
-# turn-end silence 650ms→500ms ("1 second to bolna hi nahi chahiye").
+# 2026-07-17 - live-call quality parity: web (test/demo) path must match the
+# phone agent - no "ji/sir" habit fillers spoken; Swara prosody consistent.
+# 2026-08-23 owner tune: pace +28%->+32% ("abhi bhi slow"), pitch -8Hz (deeper),
+# turn-end silence 650ms->500ms ("1 second to bolna hi nahi chahiye").
 # --------------------------------------------------------------------------- #
 def test_web_filler_lines_have_no_address_fillers():
     banned = ("ji", "sir", "madam", "haji", "haan ji", "achha ji")
@@ -42,7 +42,7 @@ def test_web_filler_lines_have_no_address_fillers():
 
 def test_swara_prosody_defaults_phone_and_web_match():
     # Real contract (R4): source literals pin karo, env-read tautology nahi.
-    # Web path default = phone path default — dono +32% rate, -8Hz pitch.
+    # Web path default = phone path default - dono +32% rate, -8Hz pitch.
     import inspect
 
     import app.telephony.vobiz_stream as vs
@@ -75,4 +75,4 @@ def test_web_never_hang_fallback_source_has_no_ji_sir():
 
     src = inspect.getsource(wc.web_call_ws)
     assert "Ji sir, sun rahi" not in src
-    assert "Sun rahi hoon — thoda detail me bataye?" in src
+    assert "Sun rahi hoon - thoda detail me bataye?" in src

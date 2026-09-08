@@ -1,11 +1,11 @@
-"""Trial-to-paid nudge — BLK-02: expiring/expired trials ko Starter UPI email.
+"""Trial-to-paid nudge - BLK-02: expiring/expired trials ko Starter UPI email.
 
 Trial signup (consent basis = website signup, DPDP purpose limitation) ke baad
 jo user pay nahi karta, uske liye automated EMAIL nudge with 1-tap UPI link.
 Portal-side banner pehle se tha (customer_dashboard_builders._trial_banner);
 yeh OUTBOUND half hai jo REVENUE_BLOCKERS.md BLK-02 close karta hai.
 
-Design (additive, INERT default, fail-closed) — copy-neighbor hq_auto_chase +
+Design (additive, INERT default, fail-closed) - copy-neighbor hq_auto_chase +
 billing/dunning:
   - GATED ``TRIAL_NUDGE_ENABLED=1`` (default OFF = run no-op).
     ``TRIAL_NUDGE_HARD_OFF=1`` emergency precedence (hamesha blocks).
@@ -13,10 +13,10 @@ billing/dunning:
     72h same-client re-nudge gap), ``TRIAL_NUDGE_MAX_PER_CLIENT`` (default 3),
     ``TRIAL_NUDGE_BATCH`` (default 5/run == daily, job daily hai).
   - Email only. WhatsApp text sirf OWNER 1-click human send ke liye return
-    hota hai — kabhi auto-send NAHI (ban-safety invariant).
-  - Paid/active clients KABHI eligible nahi (status gate — billing truth).
+    hota hai - kabhi auto-send NAHI (ban-safety invariant).
+  - Paid/active clients KABHI eligible nahi (status gate - billing truth).
   - Idempotent: client record pe ``trial_nudge_stage/at/count`` stamps
-    (clients_store whitelist) — koi naya data-file store NAHI.
+    (clients_store whitelist) - koi naya data-file store NAHI.
   - Safety: email_unsub suppression = instant skip; one-to-one recipient;
     List-Unsubscribe headers
     SMTP-missing = silent skip. Never raises.
@@ -25,7 +25,7 @@ billing/dunning:
     RUN_DUE_EXCLUDE (no catch-up flood).
 
 Price single source = marketing/packages.py (get_starter_price_inr / PACKAGES)
-— billing truth contract, portal banner jaisa hi.
+- billing truth contract, portal banner jaisa hi.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def _now() -> datetime:
 
 
 def starter_price_inr() -> int:
-    """Canonical Starter price — packages.py single source. Kabhi raise nahi."""
+    """Canonical Starter price - packages.py single source. Kabhi raise nahi."""
     try:
         from app.marketing.packages import PACKAGES, get_starter_price_inr
 
@@ -93,7 +93,7 @@ def build_message(
     price: int | None = None,
     pay_link: str = "",
 ) -> dict[str, str]:
-    """Hinglish nudge message (subject + body + wa_text). Pure function — testable.
+    """Hinglish nudge message (subject + body + wa_text). Pure function - testable.
 
     ``pay_link`` is a UPI deep-link / pricing-page URL embedded directly in the
     message so the recipient can pay in one tap instead of navigating to /pricing.
@@ -102,19 +102,19 @@ def build_message(
     b = (biz or "Aapka business").strip()
     amt = f"₹{int(price or starter_price_inr()):,}"
     pay_url = pay_link or PRICING_URL
-    # Social proof line — honest (own-brand numbers only, never fabricated client data)
+    # Social proof line - honest (own-brand numbers only, never fabricated client data)
     social = (
         "\n100+ local businesses already use LeadGen AI for daily leads & content."
     )
     unsub = (
         "\n\nAgar aap interested nahi hain to is email ko 'unsubscribe' reply "
-        "karein — aage koi email nahi aayega."
+        "karein - aage koi email nahi aayega."
     )
     if stage == "expired":
-        subject = f"{b} — trial khatam, aapka setup safe hai (1-click restart {amt}/mahina)"
+        subject = f"{b} - trial khatam, aapka setup safe hai (1-click restart {amt}/mahina)"
         body = (
             f"Namaste {b} team,\n\n"
-            f"Aapka FREE trial khatam ho gaya. Koi baat nahi — aapka pura setup "
+            f"Aapka FREE trial khatam ho gaya. Koi baat nahi - aapka pura setup "
             f"(posts, leads, mini-site) safe pada hai. Starter {amt}/mahina se "
             f"phir se shuru karo:\n\n"
             f"  👉 Pay now: {pay_url}\n"
@@ -123,13 +123,13 @@ def build_message(
             f"{unsub}"
         )
         wa_text = (
-            f"Namaste! {b} ka free trial khatam ho gaya. Aapka setup safe hai — "
+            f"Namaste! {b} ka free trial khatam ho gaya. Aapka setup safe hai - "
             f"Starter {amt}/mahina se wapas shuru karo: {pay_url}"
         )
     else:
         d = max(0, int(days_left or 0))
         urgency = "aaj" if d <= 1 else f"{d} din"
-        subject = f"{b} — trial {urgency} me khatam ({amt}/mahina pe continue karo)"
+        subject = f"{b} - trial {urgency} me khatam ({amt}/mahina pe continue karo)"
         body = (
             f"Namaste {b} team,\n\n"
             f"Aapka FREE trial {urgency} me khatam ho raha hai. Content aur lead-capture "
@@ -175,7 +175,7 @@ async def _send_nudge_email(to_email: str, subject: str, body: str) -> bool:
     """One-to-one email via canonical EmailSender + List-Unsubscribe headers.
 
     SMTP/API missing = fail-closed False. Same integration as
-    hq_auto_chase._send_chase_email — no second engine. Never raises.
+    hq_auto_chase._send_chase_email - no second engine. Never raises.
     """
     import html
 
@@ -241,7 +241,7 @@ def _hours_since(iso_raw: str) -> float | None:
 async def run_trial_nudge(*, limit: int | None = None, send_fn=None, dry_run: bool = False) -> dict[str, Any]:
     """Daily sweep: expiring/expired trials -> Starter UPI nudge email.
 
-    Always gated by ``TRIAL_NUDGE_ENABLED=1`` (+ HARD_OFF precedence) —
+    Always gated by ``TRIAL_NUDGE_ENABLED=1`` (+ HARD_OFF precedence) -
     fail-closed default. ``send_fn`` injectable for tests. Never raises.
 
     ``dry_run=True`` (admin preview surface): eligibility loop runs with the

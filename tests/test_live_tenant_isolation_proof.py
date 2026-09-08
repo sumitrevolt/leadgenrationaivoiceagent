@@ -1,7 +1,7 @@
 """
 Live production tenant-isolation proof.
 Tests actual API behavior with two separate tenant identities.
-Safe test data only — no customer data touched.
+Safe test data only - no customer data touched.
 """
 
 import pytest

@@ -1,9 +1,9 @@
-"""Goals API — admin-gated router over app.platform.goals.
+"""Goals API - admin-gated router over app.platform.goals.
 
-Mounted at /api/goals. Goals are the tracked "why" hierarchy (company → team →
+Mounted at /api/goals. Goals are the tracked "why" hierarchy (company -> team ->
 agent) above the task queue
 tasks keep their own free-text goal fields and
-link to goals advisory-style. Deliberately NO project/workspace endpoints —
+link to goals advisory-style. Deliberately NO project/workspace endpoints -
 LeadGen is single-repo (Paperclip projects do not map, see
 docs/PAPERCLIP_INTEGRATION_ANALYSIS.md verdict #10).
 """

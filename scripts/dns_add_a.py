@@ -1,10 +1,10 @@
-"""Hostinger DNS — ek A record ADD karo (subdomain → IP).
+"""Hostinger DNS - ek A record ADD karo (subdomain -> IP).
 
 Usage (VPS ya local, .env me HOSTINGER_API_TOKEN chahiye):
     python3 scripts/dns_add_a.py <name> <ip> [ttl]
     python3 scripts/dns_add_a.py ntfy 72.61.245.204
 
-GOTCHA (CLAUDE.md): PUT overwrite=false = ADD (replace nahi) — naya subdomain ke
+GOTCHA (CLAUDE.md): PUT overwrite=false = ADD (replace nahi) - naya subdomain ke
 liye perfect. overwrite=true KABHI nahi (zone partial-overwrite = site down).
 Browser UA header zaroori warna Cloudflare err-1010.
 """
@@ -49,7 +49,7 @@ def main() -> int:
         return 1
     body = json.dumps(
         {
-            "overwrite": False,  # ADD semantics — zone untouched
+            "overwrite": False,  # ADD semantics - zone untouched
             "zone": [{"name": name, "type": "A", "ttl": ttl, "records": [{"content": ip}]}],
         }
     ).encode()

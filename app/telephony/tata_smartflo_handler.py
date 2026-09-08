@@ -15,7 +15,7 @@ Auth:
   - Authorization: Bearer <TATA_SMARTFLO_API_TOKEN>
   - Request body: api_key (Click-to-Call Support API Key from Smartflo portal)
 
-The API is ASYNC — it returns ref_id immediately and actual call status
+The API is ASYNC - it returns ref_id immediately and actual call status
 comes via webhooks. Webhook URL must be configured in the Smartflo portal.
 
 Env vars (from .env):
@@ -55,7 +55,7 @@ class TataSmartfloClient:
     """
     Thin async client for the Tata Smartflo Click-to-Call Support API.
 
-    Follows the same pattern as VobizClient — methods return
+    Follows the same pattern as VobizClient - methods return
     {"status_code": int, "body": dict}, never raise.
     """
 
@@ -92,12 +92,12 @@ class TataSmartfloClient:
         **extra: Any,
     ) -> dict[str, Any]:
         """
-        POST click_to_call_support — place an outbound call.
+        POST click_to_call_support - place an outbound call.
 
         The Smartflo C2C Support flow:
           1. Smartflo first dials the customer_number (first leg)
           2. Once customer ANSWERS, Smartflo dials the configured destination
-             (second leg — the agent/destination bound to the api_key)
+             (second leg - the agent/destination bound to the api_key)
           3. Customer + destination are bridged
 
         For our AI voice agent use case: the destination (second leg) should
@@ -113,7 +113,7 @@ class TataSmartfloClient:
             **extra:        Forwarded to API payload
 
         Returns:
-            {"status_code": int, "body": dict} — never raises.
+            {"status_code": int, "body": dict} - never raises.
 
         On success (200):
             body = {"success": true, "message": "Originate successfully queued", "ref_id": "..."}
@@ -125,7 +125,7 @@ class TataSmartfloClient:
                 "body": {
                     "error": (
                         "TATA_SMARTFLO_API_TOKEN / TATA_SMARTFLO_API_KEY missing. "
-                        "Get them from the Smartflo portal → API section."
+                        "Get them from the Smartflo portal -> API section."
                     )
                 },
             }
@@ -166,7 +166,7 @@ class TataSmartfloClient:
             if resp.status_code == 200 and body.get("success"):
                 ref_id = body.get("ref_id", "unknown")
                 logger.info(
-                    f"📞 Tata Smartflo call queued → ref_id={ref_id} "
+                    f"📞 Tata Smartflo call queued -> ref_id={ref_id} "
                     f"(to={to_clean[-4:]:>4})"
                 )
             else:

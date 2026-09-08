@@ -2,7 +2,7 @@
 
 One place both the upload path and the snapshot path can consume. Previously
 `snapshot.py` imported `contentplus._UPLOAD_MAX_BYTES` (a private API constant)
-and documented `staff.py`'s alert threshold as its source — reaching across
+and documented `staff.py`'s alert threshold as its source - reaching across
 modules into private state, and leaving two copies free to drift.
 
 Ceilings are ADMISSION limits: a value here is the most that may be accepted,
@@ -25,7 +25,7 @@ _MIN_FREE_PCT_DEFAULT = 10.0
 
 
 class MediaLimitConfigError(ValueError):
-    """Configuration is out of contract — callers must fail closed."""
+    """Configuration is out of contract - callers must fail closed."""
 
 
 def _int_env(name: str, *, low: int, high: int) -> int | None:
@@ -48,7 +48,7 @@ def max_upload_bytes() -> int:
 
 
 def max_snapshot_bytes() -> int:
-    """Snapshot admission ceiling — may EQUAL or LOWER the upload ceiling.
+    """Snapshot admission ceiling - may EQUAL or LOWER the upload ceiling.
 
     ``VIDEO_SNAPSHOT_MAX_MB`` can only tighten. An override above the canonical
     upload cap is a configuration error, not a silent contract expansion: the

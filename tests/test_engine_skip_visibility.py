@@ -7,7 +7,7 @@ and no log naming the engine, so an engine could stop running for weeks while
 every dashboard said "healthy".
 
 Prod evidence that the mechanism really trips: the `content` job exceeded its
-420s budget on 15 consecutive daily runs (2026-07-18 → 2026-08-01, 452–530s).
+420s budget on 15 consecutive daily runs (2026-07-18 -> 2026-08-01, 452–530s).
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def _isolated_skip_ledger(tmp_path, monkeypatch):
 
 
 class _ExhaustedBudget(JobBudget):
-    """A budget with nothing left — what the 15 over-budget prod runs produced."""
+    """A budget with nothing left - what the 15 over-budget prod runs produced."""
 
     def __init__(self) -> None:
         super().__init__(0.0, label="content")
@@ -48,7 +48,7 @@ def test_skip_is_recorded_with_job_and_engine_names(_isolated_skip_ledger):
 
 
 def test_skip_is_logged_before_it_is_persisted(monkeypatch, caplog):
-    """A storage failure must not also swallow the signal — that is the exact bug
+    """A storage failure must not also swallow the signal - that is the exact bug
     class being fixed, so the warning is emitted before any write is attempted."""
 
     def _boom():
@@ -98,7 +98,7 @@ def test_healthy_budget_runs_the_engine_and_records_nothing():
 
 
 def test_engine_failure_still_isolated_and_not_counted_as_a_skip(caplog):
-    """An engine that RAISES is a different failure than one that never ran —
+    """An engine that RAISES is a different failure than one that never ran -
     keep them distinguishable, or the new signal becomes noise."""
     from app.platform import team_scheduler
 
@@ -116,7 +116,7 @@ def test_engine_failure_still_isolated_and_not_counted_as_a_skip(caplog):
 
 
 def test_health_reports_degraded_and_names_the_engines(monkeypatch):
-    """A skipped engine is real un-run work — 'healthy' would be a lie."""
+    """A skipped engine is real un-run work - 'healthy' would be a lie."""
     automation_health.record_engine_skip("content", "video_ad_cycle")
     automation_health.record_engine_skip("content", "cadence")
 

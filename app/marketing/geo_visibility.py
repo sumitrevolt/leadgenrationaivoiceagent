@@ -1,21 +1,21 @@
-"""GEO visibility report — "AI search me aapka business dikh raha hai?" (lead magnet #3).
+"""GEO visibility report - "AI search me aapka business dikh raha hai?" (lead magnet #3).
 
 Birdeye Search-AI parity, free-stack: ChatGPT/Gemini-type AI search ab naya
-local-discovery channel hai — customers AI se poochte hain "best dentist in
+local-discovery channel hai - customers AI se poochte hain "best dentist in
 Pune?". Yeh module free_ai chain se 3-4 probe questions poochta hai aur check
-karta hai ki business ka naam AI ke jawab me aata hai ya nahi → 0-100 score +
+karta hai ki business ka naam AI ke jawab me aata hai ya nahi -> 0-100 score +
 Hinglish verdict + fix tips + CTA (/audit, /pricing).
 
 Design (project patterns):
-- NEVER raises — har failure pe {"ok": False, "error": ...}.
+- NEVER raises - har failure pe {"ok": False, "error": ...}.
 - Lazy imports (free_ai handler ke andar).
-- 1-hr cache (in-memory + jsonl log) keyed (name, city) — PUBLIC endpoint hai,
+- 1-hr cache (in-memory + jsonl log) keyed (name, city) - PUBLIC endpoint hai,
   abuse-safe: same business dobara check = pollen-free cache hit.
 - LLM call ASYNC hai
 endpoint `asyncio.wait_for(..., 20)` se wrap karta
   (prod-down lesson: event loop kabhi block nahi).
-- Deterministic fallback: LLM poori tarah down → ok=False "ai_unavailable"
-  (galat 0-score report kabhi nahi dete — lead magnet ki credibility).
+- Deterministic fallback: LLM poori tarah down -> ok=False "ai_unavailable"
+  (galat 0-score report kabhi nahi dete - lead magnet ki credibility).
 
 Store: data/geo_checks.jsonl (append-only, inquiries.jsonl pattern).
 """
@@ -102,7 +102,7 @@ def _tokens(text: str) -> set[str]:
 
 def _mentions(answer: str, business_name: str) -> bool:
     """Fuzzy: AI ke jawab me business ka naam aaya? (lowercase substring ya
-    token overlap >= 60% of business tokens). Pure function — tests isi pe."""
+    token overlap >= 60% of business tokens). Pure function - tests isi pe."""
     a = " ".join((answer or "").lower().split())
     b = " ".join((business_name or "").lower().split())
     if not a or not b:
@@ -117,45 +117,45 @@ def _mentions(answer: str, business_name: str) -> bool:
 
 
 def build_probes(niche: str, city: str) -> list[str]:
-    """3-4 probe questions — English + Hinglish mix (real AI-search queries jaisi)."""
+    """3-4 probe questions - English + Hinglish mix (real AI-search queries jaisi)."""
     niche = (niche or "local business").strip()
     city = (city or "").strip()
     return [
         f"Best {niche} in {city}? Naam batao.",
         f"{city} me sabse accha {niche} kaun sa hai?",
-        f"Top rated {niche} near {city} — 2-3 recommend karo.",
+        f"Top rated {niche} near {city} - 2-3 recommend karo.",
         f"Mujhe {city} me ek reliable {niche} chahiye, kise contact karu?",
     ]
 
 
 def _verdict(score: int, mentioned: int, answered: int) -> str:
     if answered and mentioned == answered:
-        return "Badhiya! AI search me aapka business consistently dikh raha hai — yeh edge banaye rakho."
+        return "Badhiya! AI search me aapka business consistently dikh raha hai - yeh edge banaye rakho."
     if score >= 40:
         return (
-            f"AI me aapka business {answered} me se sirf {mentioned} baar dikha — "
+            f"AI me aapka business {answered} me se sirf {mentioned} baar dikha - "
             "partial visibility hai, aur push chahiye."
         )
     return (
-        "AI me aapka business NAHI dikh raha — yeh naya search hai, customers AI se "
+        "AI me aapka business NAHI dikh raha - yeh naya search hai, customers AI se "
         "pooch rahe hain aur competitor ka naam aa raha hai."
     )
 
 
 _TIPS = [
-    "GBP (Google Business Profile) 100% complete karo — category, photos, hours, services.",
-    "Reviews badhao — AI recommendations me high-review businesses pehle aate hain.",
+    "GBP (Google Business Profile) 100% complete karo - category, photos, hours, services.",
+    "Reviews badhao - AI recommendations me high-review businesses pehle aate hain.",
     "Website pe naam+city+niche clear likho aur LocalBusiness schema (JSON-LD) lagao.",
     "Justdial/Sulekha/IndiaMART jaise directories me consistent NAP (name-address-phone) rakho.",
-    "FAQ/blog content banao jo customer ke sawaal directly answer kare — AI wahi se uthata hai.",
+    "FAQ/blog content banao jo customer ke sawaal directly answer kare - AI wahi se uthata hai.",
 ]
 
 
 # --------------------------------------------------------------------------- #
-# Main check (async — endpoint wait_for se wrap karta hai)
+# Main check (async - endpoint wait_for se wrap karta hai)
 # --------------------------------------------------------------------------- #
 async def check(business_name: str, niche: str, city: str) -> dict[str, Any]:
-    """AI-search visibility check → score 0-100 + Hinglish verdict + tips + CTA.
+    """AI-search visibility check -> score 0-100 + Hinglish verdict + tips + CTA.
 
     Cache-first (1 hr, keyed name+city). Never raises.
     """
@@ -188,7 +188,7 @@ async def check(business_name: str, niche: str, city: str) -> dict[str, Any]:
                     reply, _provider = await free_ai.chat(
                         system=(
                             "Tu ek local business recommendation assistant hai (AI search "
-                            "engine jaisa). User ke sawaal ka seedha jawab de — 2-4 actual "
+                            "engine jaisa). User ke sawaal ka seedha jawab de - 2-4 actual "
                             "business naam suggest kar, short me."
                         ),
                         messages=[{"role": "user", "content": q}],
@@ -209,11 +209,11 @@ async def check(business_name: str, niche: str, city: str) -> dict[str, Any]:
             )
 
         if answered == 0:
-            # Deterministic fallback — galat 0-score kabhi report nahi karte
+            # Deterministic fallback - galat 0-score kabhi report nahi karte
             return {
                 "ok": False,
                 "error": "ai_unavailable",
-                "message": "AI check abhi nahi ho paya — thodi der baad try karo.",
+                "message": "AI check abhi nahi ho paya - thodi der baad try karo.",
             }
 
         score = round(100 * mentioned / answered)
@@ -231,7 +231,7 @@ async def check(business_name: str, niche: str, city: str) -> dict[str, Any]:
             "cta": {
                 "audit": "/audit",
                 "pricing": "/pricing",
-                "line": "FREE GBP audit lo → /audit · AI-era marketing shuru karo → /pricing",
+                "line": "FREE GBP audit lo -> /audit · AI-era marketing shuru karo -> /pricing",
             },
             "checked_at": _now(),
         }

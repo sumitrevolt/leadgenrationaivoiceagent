@@ -1,5 +1,5 @@
 """
-content_os.bot_actions — Tiny handler table that maps legacy Telegram callbacks
+content_os.bot_actions - Tiny handler table that maps legacy Telegram callbacks
 + 'app content approve <asset_id>' style owner inputs to the public /api/content-os
 routes. Useful for any external bot (Hermes / openclaw / ntfy action button)
 to drive the daily video queue.
@@ -42,10 +42,10 @@ def handle_owner_command(text: str) -> str:
     if sub == "pending":
         items = list_pending_for_owner()
         if not items:
-            return "[content_os] queue empty — looks good."
+            return "[content_os] queue empty - looks good."
         lines = [f"[content_os] {len(items)} pending:"]
         for i, it in enumerate(items[:10], 1):
-            lines.append(f"  {i}. {it.get('title','?')[:40]} — {it.get('id')}")
+            lines.append(f"  {i}. {it.get('title','?')[:40]} - {it.get('id')}")
         lines.append("\nReply `content approve N` / `recreate N ...` / `skip N`.")
         return "\n".join(lines)
 
@@ -53,7 +53,7 @@ def handle_owner_command(text: str) -> str:
         try:
             idx = int(parts[2].split()[0]) - 1
         except Exception:
-            return "Bad index — `content approve 1`"
+            return "Bad index - `content approve 1`"
         items = list_pending_for_owner()
         if not (0 <= idx < len(items)):
             return "Index out of range."
@@ -80,7 +80,7 @@ def handle_owner_command(text: str) -> str:
                 res = _recreate_act(asset_id, feedback or "")
             else:
                 res = _skip_act(asset_id)
-            return f"[content_os] {sub} → {res}"
+            return f"[content_os] {sub} -> {res}"
         except Exception as e:
             return f"[content_os] failed: {e}"
 

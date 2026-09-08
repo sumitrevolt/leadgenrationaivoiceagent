@@ -1,4 +1,4 @@
-"""Static assertions on frontend/delivery_command_center.html — the new
+"""Static assertions on frontend/delivery_command_center.html - the new
 'Automation Runs' admin panel (Task 6: automation-log visibility) that surfaces
 the ADR-064 DB-backed /api/admin/automation-logs endpoint (was API-only, no UI).
 

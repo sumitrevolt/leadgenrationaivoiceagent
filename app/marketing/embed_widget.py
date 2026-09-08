@@ -1,6 +1,6 @@
-"""Embeddable lead-capture widget — client apni KISI BHI website pe ek line paste kare,
+"""Embeddable lead-capture widget - client apni KISI BHI website pe ek line paste kare,
 floating "Enquiry" button + form (ya AI CHAT) aa jata hai. Submissions seedha leads
-dashboard me (reuses POST /api/public/inquiry + source_slug → client auto-resolve).
+dashboard me (reuses POST /api/public/inquiry + source_slug -> client auto-resolve).
 
 CORS-free design: form ek IFRAME me hamare origin (leadsgenai.in) se serve hota hai,
 isliye cross-origin POST ki zaroorat nahi (Calendly/Tally jaisa). Fulfils Growth-tier
@@ -8,7 +8,7 @@ isliye cross-origin POST ki zaroorat nahi (Calendly/Tally jaisa). Fulfils Growth
 
   embed_page_html(client) -> full HTML page (served at /b/{slug}/embed, iframe-able).
                              ?mode=chat query par CHAT UI (AI assistant, /api/public/
-                             widget-chat) — default FORM = zero behaviour change.
+                             widget-chat) - default FORM = zero behaviour change.
   widget_js(slug)         -> JS injector (served at /b/{slug}/widget.js). Script src me
                              ?mode=chat ho to chat-mode iframe kholta hai.
   snippet(slug, mode)     -> copy-paste <script> one-liner for the client
@@ -48,7 +48,7 @@ def _brand_color(client: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Form-builder-lite — per-slug custom fields (data/widget_forms.jsonl)
+# Form-builder-lite - per-slug custom fields (data/widget_forms.jsonl)
 # --------------------------------------------------------------------------- #
 def default_fields() -> list[dict]:
     """Aaj ka form jaisa-ka-taisa (zero behaviour change bina config)."""
@@ -90,7 +90,7 @@ def _clean_field(f: dict) -> dict | None:
 
 
 def get_form_config(slug: str) -> list[dict] | None:
-    """Per-slug custom form fields (last write wins) — None = default form."""
+    """Per-slug custom form fields (last write wins) - None = default form."""
     try:
         key = (slug or "").strip().lower()
         if not key or not os.path.isfile(_FORMS_FILE):
@@ -182,12 +182,12 @@ def _field_html(f: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Embed page (iframe content) — FORM default, ?mode=chat = AI chat UI
+# Embed page (iframe content) - FORM default, ?mode=chat = AI chat UI
 # --------------------------------------------------------------------------- #
 def embed_page_html(client: dict) -> str:
-    """Standalone branded page (iframe content). Form POST → /api/public/inquiry;
-    chat mode POST → /api/public/widget-chat. Mode CLIENT-SIDE query (?mode=chat)
-    se decide hota — server route untouched (main.py edit nahi chahiye)."""
+    """Standalone branded page (iframe content). Form POST -> /api/public/inquiry;
+    chat mode POST -> /api/public/widget-chat. Mode CLIENT-SIDE query (?mode=chat)
+    se decide hota - server route untouched (main.py edit nahi chahiye)."""
     client = client or {}
     biz = html.escape(str(client.get("business_name") or "Hamse judiye"))
     slug = html.escape(str(client.get("slug") or ""))
@@ -199,7 +199,7 @@ def embed_page_html(client: dict) -> str:
     return f"""<!doctype html><html lang="hi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>{biz} — Enquiry</title>
+<title>{biz} - Enquiry</title>
 <style>
  *{{box-sizing:border-box}}
  html,body{{height:100%}}
@@ -299,7 +299,7 @@ def embed_page_html(client: dict) -> str:
 </style></head><body>
 <div class="wrap" id="lgaiRoot">
   <h2>{biz}</h2>
-  <div class="sub">Apni detail chhodiye — hum aapko jald call karenge. 📞</div>
+  <div class="sub">Apni detail chhodiye - hum aapko jald call karenge. 📞</div>
   <form id="lgaiForm" autocomplete="on">
     {fields_html}
     <input type="text" id="lgHP" name="website" tabindex="-1" autocomplete="off"
@@ -313,7 +313,7 @@ def embed_page_html(client: dict) -> str:
   <div class="pw">Powered by <a href="{site_base()}" target="_blank" rel="noopener">LeadsGenAI</a></div>
 </div>
 <div id="lgaiChat">
-  <div class="chead">{biz}<small>AI assistant — turant jawab 24/7</small></div>
+  <div class="chead">{biz}<small>AI assistant - turant jawab 24/7</small></div>
   <div class="cmsgs" id="lgC"></div>
   <form class="cbar" id="lgCF">
     <input id="lgCI" maxlength="500" placeholder="Apna sawaal likhiye…" autocomplete="off" />
@@ -325,7 +325,7 @@ def embed_page_html(client: dict) -> str:
   var SLUG="{slug}", BIZ="{biz}";
   var MODE=(/[?&]mode=chat/.test(location.search||""))?"chat":"form";
 
-  /* ---------- FORM MODE (default — pehle jaisa) ---------- */
+  /* ---------- FORM MODE (default - pehle jaisa) ---------- */
   var f=document.getElementById("lgaiForm"),b=document.getElementById("lgBtn"),e=document.getElementById("lgErr");
   f.addEventListener("submit",function(ev){{
     ev.preventDefault(); e.textContent="";
@@ -357,15 +357,15 @@ def embed_page_html(client: dict) -> str:
     .then(function(o){{
       if(o.ok){{ document.getElementById("lgaiRoot").innerHTML='<div class="ok"><div class="tick">✅</div><h2>Dhanyawad!</h2><div class="sub">Hum jald aapko call karenge.</div></div>'
       }}
-      else {{ e.textContent=(o.j&&o.j.detail)?o.j.detail:"Kuch galat hua — dobara try karein."
+      else {{ e.textContent=(o.j&&o.j.detail)?o.j.detail:"Kuch galat hua - dobara try karein."
       b.disabled=false
       b.textContent="Callback chahiye"
       }}
     }})
-    .catch(function(){{ e.textContent="Network issue — dobara try karein."; b.disabled=false; b.textContent="Callback chahiye"; }});
+    .catch(function(){{ e.textContent="Network issue - dobara try karein."; b.disabled=false; b.textContent="Callback chahiye"; }});
   }});
 
-  /* ---------- CHAT MODE (?mode=chat — AI assistant) ---------- */
+  /* ---------- CHAT MODE (?mode=chat - AI assistant) ---------- */
   if(MODE==="chat"){{
     document.getElementById("lgaiRoot").style.display="none";
     var chat=document.getElementById("lgaiChat"); chat.style.display="flex";
@@ -383,7 +383,7 @@ def embed_page_html(client: dict) -> str:
     box.scrollTop=box.scrollHeight
     return d
     }}
-    add("Namaste! 🙏 "+BIZ+" me aapka swagat hai. Apna sawaal poochhiye — ya apna 10-digit number chhod dijiye, hum turant call karenge.","bot");
+    add("Namaste! 🙏 "+BIZ+" me aapka swagat hai. Apna sawaal poochhiye - ya apna 10-digit number chhod dijiye, hum turant call karenge.","bot");
     var busy=false;
     cf.addEventListener("submit",function(ev){{
       ev.preventDefault();
@@ -396,10 +396,10 @@ def embed_page_html(client: dict) -> str:
       }})
       }})
       .then(function(j){{ tp.remove()
-      add((j&&j.reply)?j.reply:"Hmm, abhi jawab nahi de paya — apna number chhod dijiye, hum call karenge. 🙏","bot")
+      add((j&&j.reply)?j.reply:"Hmm, abhi jawab nahi de paya - apna number chhod dijiye, hum call karenge. 🙏","bot")
       busy=false
       }})
-      .catch(function(){{ tp.remove(); add("Network issue — dobara try karein.","bot"); busy=false; }});
+      .catch(function(){{ tp.remove(); add("Network issue - dobara try karein.","bot"); busy=false; }});
     }});
   }}
 }})();

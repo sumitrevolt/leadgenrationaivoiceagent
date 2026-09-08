@@ -1,4 +1,4 @@
-"""customer_totp.py — TOTP-based 2FA for customer accounts.
+"""customer_totp.py - TOTP-based 2FA for customer accounts.
 
 Mirrors the admin TOTP pattern (`app/utils/totp.py` + `ADMIN_TOTP_SECRET`) but
 opt-in per-customer. Customer enrols, scans an authenticator-app QR (from the
@@ -8,7 +8,7 @@ onwards the customer-login flow demands a TOTP code before issuing a JWT.
 Design:
 - **Storage**: data/customer_totp.jsonl, atomic rewrite on enrol/disable.
   One row per client_id: {client_id, secret, enabled_at, recovery_hashes[]}.
-  Secrets are stored plain (the customer can already see them at enrol —
+  Secrets are stored plain (the customer can already see them at enrol -
   not a meaningful incremental risk for a v1 self-hosted SaaS).
 - **Recovery codes**: 8 single-use codes shown ONCE at enrol
 stored as
@@ -145,13 +145,13 @@ def _hash_recovery(code: str) -> str:
 
 def begin_enroll(client_id: str, email: str) -> dict:
     """Generate a fresh secret + recovery codes WITHOUT enabling yet. Customer
-    must confirm with the first TOTP code via confirm_enroll() — until then no
+    must confirm with the first TOTP code via confirm_enroll() - until then no
     state is persisted (avoids leaving half-enrolled rows around)."""
     cid = (client_id or "").strip()
     if not cid:
         return {"ok": False, "error": "client_id required"}
     if is_enabled(cid):
-        return {"ok": False, "error": "2fa already enabled — disable first"}
+        return {"ok": False, "error": "2fa already enabled - disable first"}
     secret = _gen_secret()
     recovery = _gen_recovery_codes()
     label = (email or cid).replace(" ", "")
@@ -167,7 +167,7 @@ def begin_enroll(client_id: str, email: str) -> dict:
 
 def confirm_enroll(client_id: str, secret: str, code: str, recovery_codes: list[str]) -> dict:
     """Customer scanned the QR and typed the first code from their app +
-    saved their recovery codes — verify + persist. Both `secret` and
+    saved their recovery codes - verify + persist. Both `secret` and
     `recovery_codes` came from begin_enroll()
     the customer is the trust
     boundary that kept them between calls (they're shown once)."""
@@ -177,7 +177,7 @@ def confirm_enroll(client_id: str, secret: str, code: str, recovery_codes: list[
     if is_enabled(cid):
         return {"ok": False, "error": "2fa already enabled"}
     if not _verify_totp(secret, code):
-        return {"ok": False, "error": "bad TOTP code — re-scan and try again"}
+        return {"ok": False, "error": "bad TOTP code - re-scan and try again"}
     row = {
         "client_id": cid,
         "secret": secret,
@@ -219,7 +219,7 @@ def disable(client_id: str, code_or_recovery: str) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Login challenge — short-lived signed token between password and TOTP step
+# Login challenge - short-lived signed token between password and TOTP step
 # --------------------------------------------------------------------------- #
 def _challenge_key() -> bytes:
     """HMAC key for the login challenge. Falls back to a per-process random
@@ -252,7 +252,7 @@ def create_challenge(client_id: str) -> str:
 
 def consume_challenge(token: str) -> str | None:
     """Verify the challenge signature + expiry. Return client_id or None.
-    NB: not actually single-use — verifying the TOTP code is what gates the
+    NB: not actually single-use - verifying the TOTP code is what gates the
     JWT issuance, and TOTP codes are themselves single-use per step."""
     try:
         body_b64, sig = (token or "").split(".", 1)

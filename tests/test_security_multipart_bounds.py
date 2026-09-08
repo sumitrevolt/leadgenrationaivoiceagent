@@ -1,7 +1,7 @@
 """CP5-3 regression: multipart parsing must stay bounded (DoS guard).
 
 Guards the reachable multipart denial-of-service class
-(GHSA-2c2j-9gv5-cj73 / GHSA-f96h-pmfr-66vw — unbounded per-part size and
+(GHSA-2c2j-9gv5-cj73 / GHSA-f96h-pmfr-66vw - unbounded per-part size and
 part-count parsing in older Starlette). Starlette's fixed versions enforce a
 per-part size ceiling and a part-count ceiling
 an oversized or multi-thousand
@@ -26,7 +26,7 @@ def test_parser_has_bounded_defaults() -> None:
     max_part = getattr(MultiPartParser, "max_part_size", None)
     max_count = getattr(MultiPartParser, "max_part_count", None)
     assert max_part is not None or max_count is not None, (
-        "MultiPartParser exposes neither max_part_size nor max_part_count — "
+        "MultiPartParser exposes neither max_part_size nor max_part_count - "
         "unbounded multipart parsing reintroduced"
     )
     if max_part is not None:
@@ -86,7 +86,7 @@ def test_oversized_single_part_rejected(client: TestClient) -> None:
         400,
         413,
         422,
-    ), f"oversized part was accepted (status {r.status_code}) — unbounded parse"
+    ), f"oversized part was accepted (status {r.status_code}) - unbounded parse"
 
 
 def test_many_parts_rejected_within_budget(client: TestClient) -> None:

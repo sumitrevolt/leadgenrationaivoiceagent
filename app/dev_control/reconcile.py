@@ -1,6 +1,6 @@
 """Restart reconciliation + read-only status for the control plane (Phase 4).
 
-The DATABASE is the single source of truth for task state — never tmux, never a
+The DATABASE is the single source of truth for task state - never tmux, never a
 worker's memory. On restart (or on a cadence) ``reconcile_leases`` reclaims tasks
 whose worker died mid-flight: an expired lease moves the task out of the in-flight
 states and either requeues it (under the retry cap) or fails it. All transitions
@@ -63,7 +63,7 @@ async def reconcile_leases(
 
 
 async def status_snapshot(db) -> dict[str, Any]:
-    """Read-only rollup for tmux/admin observation — no mutations."""
+    """Read-only rollup for tmux/admin observation - no mutations."""
     from app.models.dev_task import DevTask
 
     by_state: dict[str, int] = {}

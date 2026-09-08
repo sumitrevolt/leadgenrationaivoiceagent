@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""buzz_agent_cost — what the Buzz coding-agent plane actually costs per day.
+"""buzz_agent_cost - what the Buzz coding-agent plane actually costs per day.
 
 The Buzz video quotes $200/day. This project runs a free/subscription-only stack,
-so the number that matters here is NOT dollars — it is **quota burn**. Codex
+so the number that matters here is NOT dollars - it is **quota burn**. Codex
 reports a real `used_percent` against the subscription
 Claude Code reports
 tokens. Both are read from local session logs. Nothing is estimated from
@@ -14,7 +14,7 @@ guesswork and nothing is sent anywhere unless you pass --post.
     python scripts/buzz_agent_cost.py --post          # post to Buzz #ops
 
 The USD column is a COUNTERFACTUAL: what these tokens would have cost on
-metered API pricing. On a subscription the marginal cost is zero — the column
+metered API pricing. On a subscription the marginal cost is zero - the column
 exists to show when a harness is burning enough to be worth re-tuning, not to
 claim money was spent. Per-MTok rates are Anthropic list prices
 edit PRICES if
@@ -42,7 +42,7 @@ CLAUDE_SESSIONS = Path.home() / ".claude" / "projects"
 CODEX_SESSIONS = Path.home() / ".codex" / "sessions"
 
 # USD per million tokens: (input, output). Cache write = 1.25x input (5m TTL),
-# cache read = 0.1x input. Counterfactual only — see module docstring.
+# cache read = 0.1x input. Counterfactual only - see module docstring.
 PRICES = {
     "claude-opus-5": (5.0, 25.0),
     "claude-opus-4-8": (5.0, 25.0),
@@ -88,7 +88,7 @@ def _add(bucket: dict, **kw) -> None:
 def scan_claude(cutoff: str, project: str | None) -> dict:
     """Per-day, per-model token totals from Claude Code session logs.
 
-    Deduped by message uuid — the same assistant message can appear more than
+    Deduped by message uuid - the same assistant message can appear more than
     once in a transcript after a resume, and double counting inflates the day.
     """
     days: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(_blank))
@@ -242,17 +242,17 @@ def render(report: dict, usd_inr: float) -> str:
     if quota is None:
         quota_txt = "n/a"
     else:
-        # The latest reading alone is misleading right after a quota reset —
+        # The latest reading alone is misleading right after a quota reset -
         # the window peak is what tells you whether you nearly ran out.
         quota_txt = f"{quota:.0f}% now, peak {peak:.0f}%"
 
     lines = [
-        f"**[COST] {report['generated_at']}** — last {report['window_days']}d, "
+        f"**[COST] {report['generated_at']}** - last {report['window_days']}d, "
         f"Codex subscription **{quota_txt}**",
         "",
         f"Claude Code **{_m(t['claude_tokens'])}** tok · Codex **{_m(t['codex_tokens'])}** tok",
         f"Counterfactual at API list price: **${t['claude_usd']:.2f}** "
-        f"(≈₹{t['claude_usd'] * usd_inr:,.0f} at ₹{usd_inr:g}/$) — "
+        f"(≈₹{t['claude_usd'] * usd_inr:,.0f} at ₹{usd_inr:g}/$) - "
         "actual marginal cost on the subscription stack is **₹0**.",
         "",
         "`day        | claude tok | calls |     ~usd | codex tok | calls`",
@@ -271,13 +271,13 @@ def render(report: dict, usd_inr: float) -> str:
 
 
 def post(body: str) -> None:
-    """Best-effort post to #ops. Import kept local — buzzlock owns the helper."""
+    """Best-effort post to #ops. Import kept local - buzzlock owns the helper."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from buzzlock import _owner_nsec  # noqa: PLC0415
 
     local = os.environ.get("LOCALAPPDATA")
     if not local:
-        raise RuntimeError("no LOCALAPPDATA — cannot locate buzz.exe")
+        raise RuntimeError("no LOCALAPPDATA - cannot locate buzz.exe")
     exe = Path(local) / "Buzz" / "buzz.exe"
     if not exe.exists():
         raise RuntimeError(f"buzz.exe not found at {exe}")
@@ -331,7 +331,7 @@ def main() -> int:
     ap.add_argument("--post", action="store_true", help="post the table to Buzz #ops")
     args = ap.parse_args()
 
-    # Windows consoles default to cp1252 and die on ₹ / ≈ — reconfigure, don't
+    # Windows consoles default to cp1252 and die on ₹ / ≈ - reconfigure, don't
     # drop the characters (this table is meant to be pasted into Buzz as-is).
     for stream in (sys.stdout, sys.stderr):
         try:

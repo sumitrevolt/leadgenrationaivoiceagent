@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PILOT 09-02 06:10 IST sweep — FRESH live evidence (00:40Z):
+"""PILOT 09-02 06:10 IST sweep - FRESH live evidence (00:40Z):
 /health 200; call loop DEAD 48h+ (batch 211 mtime Aug31 08:39:55Z, proc 0, cron 0);
 SIP_HOST/USERNAME/PASSWORD/DID/PROVIDER len=0 (DID NOT landed); VOBIZ_CALLER_ID len=13 REVOKED;
 containers leadgen_worker+leadgen_app SALES_AUTOPILOT_WHATSAPP_ENABLED=0 INERT (disk .env=1);
@@ -29,9 +29,9 @@ def save(p, obj):
 ledger_path = os.path.join(base, "messages.jsonl")
 lines = [
     {"ts": ts, "from": "PILOT", "to": "ALL", "task_id": "REV-COMMAND", "type": "REVENUE_COMMAND", "priority": "P0",
-     "msg": f"🎯 REVENUE COMMAND {ts_short} IST (Sep2): TARGET ₹5,00,000 | VERIFIED ₹1,999 (Jiya INV-0001 sole) | GAP ₹4,98,001 | PIPELINE: hot-queue 09-01 43/43 wa_link+UPI (09-02 ABSENT), dialer 0 connects (loop DEAD 48h+, batch211 REVOKED CLI, proc0 cron0), WA-sent 0 (auto_sent true=0/378) | HOT: 43 WA closes + Jiya P0 | BOTTLENECK: DID gate (SAL-003 09:00; SIP 5 vars len=0) -> Vobiz egress 000 d5 + WA container flip INERT (PLT-004 09:00) -> loop+watchdog (OPS-006 10:30 / ENG-003 09:30) -> ammo (HNT-004 09:30) | ACTION: WA manual-send ABHI (WAHA with-key 200 WORKING; hot-queue 43 UPI deep-links), vendor DID follow-up; gates 09:00-12:00 IST | NEXT: 09:00 vendor DID + WA>=10 -> env swap -> 10:00 TRAI batch -> pehla UPI close | FLEET 0 ACK since 00:12Z — poll messages.jsonl, ACK TASK-ID + evidence file. Fresh 06:10 sweep filed."},
+     "msg": f"🎯 REVENUE COMMAND {ts_short} IST (Sep2): TARGET ₹5,00,000 | VERIFIED ₹1,999 (Jiya INV-0001 sole) | GAP ₹4,98,001 | PIPELINE: hot-queue 09-01 43/43 wa_link+UPI (09-02 ABSENT), dialer 0 connects (loop DEAD 48h+, batch211 REVOKED CLI, proc0 cron0), WA-sent 0 (auto_sent true=0/378) | HOT: 43 WA closes + Jiya P0 | BOTTLENECK: DID gate (SAL-003 09:00; SIP 5 vars len=0) -> Vobiz egress 000 d5 + WA container flip INERT (PLT-004 09:00) -> loop+watchdog (OPS-006 10:30 / ENG-003 09:30) -> ammo (HNT-004 09:30) | ACTION: WA manual-send ABHI (WAHA with-key 200 WORKING; hot-queue 43 UPI deep-links), vendor DID follow-up; gates 09:00-12:00 IST | NEXT: 09:00 vendor DID + WA>=10 -> env swap -> 10:00 TRAI batch -> pehla UPI close | FLEET 0 ACK since 00:12Z - poll messages.jsonl, ACK TASK-ID + evidence file. Fresh 06:10 sweep filed."},
     {"ts": ts, "from": "PILOT", "to": "sales", "task_id": "SAL-003", "type": "REINFORCE", "priority": "P0",
-     "msg": f"SAL-003 ({ts_short}) NO NEW TASK-ID. FRESH: 06:10 sweep — SIP vars ab bhi len=0, DID nahi. WAHA path OPEN (with-key 200). ACC 09:00 BOTH: >=10 WA-send real proof + vendor DID number (Call Soft + RMS dono tracks). YEHI SINGLE REVENUE RAIL HAI — EXECUTE ABHI. ACK SAL-003."},
+     "msg": f"SAL-003 ({ts_short}) NO NEW TASK-ID. FRESH: 06:10 sweep - SIP vars ab bhi len=0, DID nahi. WAHA path OPEN (with-key 200). ACC 09:00 BOTH: >=10 WA-send real proof + vendor DID number (Call Soft + RMS dono tracks). YEHI SINGLE REVENUE RAIL HAI - EXECUTE ABHI. ACK SAL-003."},
     {"ts": ts, "from": "PILOT", "to": "platform", "task_id": "PLT-004", "type": "REINFORCE", "priority": "P0",
      "msg": f"PLT-004 ({ts_short}) NO NEW TASK-ID. FRESH 06:10: egress api.vobiz.com 000 @6.0s (day5); SIP 5 vars len=0; VOBIZ_CALLER_ID 13 REVOKED in .env; WA flip INERT (containers WA=0, disk=1). ACC 09:00: egress verdict + re-test + Jio SIP env swap template + restart-approval escalation. ACK PLT-004."},
     {"ts": ts, "from": "PILOT", "to": "operations", "task_id": "OPS-006", "type": "REINFORCE", "priority": "P0",
@@ -77,7 +77,7 @@ print(f"TASKS: {n} evidence-updated")
 # ---------- 3) BOTS.JSON ----------
 bots_path = os.path.join(base, "bots.json")
 bots = load(bots_path)
-bots["Pilot"]["status"] = (f"{ts_short} IST SWEEP: state UNCHANGED — loop DEAD 48h+ (batch211, proc0, cron0)
+bots["Pilot"]["status"] = (f"{ts_short} IST SWEEP: state UNCHANGED - loop DEAD 48h+ (batch211, proc0, cron0)
 "
                            f"SIP 5 vars len=0 (DID NOT landed)
                            VOBIZ_CALLER_ID REVOKED len13
@@ -88,7 +88,7 @@ bots["Pilot"]["status"] = (f"{ts_short} IST SWEEP: state UNCHANGED — loop DEAD
                            egress 000 d5
                            /health 200
                            "
-                           f"hot-queue 09-01 43/43. FLEET 0 ACK — REINFORCE {ts_short} sent. Gates 09:00-12:00 IST.")
+                           f"hot-queue 09-01 43/43. FLEET 0 ACK - REINFORCE {ts_short} sent. Gates 09:00-12:00 IST.")
 bots["sales"]["status"] = f"SAL-003 P0: WA manual-send ABHI (WAHA with-key 200
 hot-queue 43 UPI
 auto_sent 0)
@@ -115,7 +115,7 @@ pinned["gap"] = "₹4,98,001"
 pinned["pipeline"] = "43 HOT WA closes (blocked), 0 dialer connects, 0 WA sends, Jiya P0"
 pinned["bottleneck"] = "DID gate (SAL-003 09:00) -> SIP swap (PLT-004 09:00) -> loop+watchdog (OPS/ENG) -> ammo (HNT) -> verify (GRD) -> Jiya (SUC)"
 pinned["action"] = "WA hot-queue manual-send ABHI (WAHA 200 WORKING) + vendor DID -> env swap -> 10:00 TRAI batch -> UPI close"
-pinned["next_expected_payment"] = "WA hot-queue close ya Jiya retention — evidence ke saath, vaada nahi"
+pinned["next_expected_payment"] = "WA hot-queue close ya Jiya retention - evidence ke saath, vaada nahi"
 save(pinned_path, pinned)
 print("PINNED: refreshed")
 print("DONE")

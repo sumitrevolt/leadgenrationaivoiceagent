@@ -9,7 +9,7 @@ import json
 
 
 # --------------------------------------------------------------------------- #
-# conversion.extract_phone — in-chat lead capture
+# conversion.extract_phone - in-chat lead capture
 # --------------------------------------------------------------------------- #
 def test_extract_phone_variants():
     from app.api.conversion import extract_phone
@@ -18,7 +18,7 @@ def test_extract_phone_variants():
     assert extract_phone("call me at +91 9876543210") == "+919876543210"
     assert extract_phone("ph: 09876543210") == "+919876543210"
     assert extract_phone("price kya hai?") is None
-    # landline-style (starts with 1-5) / short / long → None
+    # landline-style (starts with 1-5) / short / long -> None
     assert extract_phone("1234567890") is None
     assert extract_phone("98765") is None
     assert extract_phone("98765432101234") is None
@@ -27,7 +27,7 @@ def test_extract_phone_variants():
 
 
 # --------------------------------------------------------------------------- #
-# conversion.map_lead_fields — flexible webhook payloads
+# conversion.map_lead_fields - flexible webhook payloads
 # --------------------------------------------------------------------------- #
 def test_map_lead_fields_aliases():
     from app.api.conversion import map_lead_fields
@@ -63,14 +63,14 @@ def test_map_lead_fields_fb_and_extras():
     m = map_lead_fields(fb)
     assert m["name"] == "Sita"
     assert "9812345678" in m["phone"]
-    assert "budget" in m["message"]  # unknown extra → message me append
+    assert "budget" in m["message"]  # unknown extra -> message me append
     # defensive: non-dict input
     assert map_lead_fields(None) == {}
     assert map_lead_fields([1, 2]) == {}
 
 
 # --------------------------------------------------------------------------- #
-# conversion._log_chat — jsonl turn log
+# conversion._log_chat - jsonl turn log
 # --------------------------------------------------------------------------- #
 def test_chat_log_append(tmp_path, monkeypatch):
     from app.api import conversion
@@ -87,7 +87,7 @@ def test_chat_log_append(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# embed_widget — form-builder-lite config + chat mode markup
+# embed_widget - form-builder-lite config + chat mode markup
 # --------------------------------------------------------------------------- #
 def test_form_config_save_get(tmp_path, monkeypatch):
     from app.marketing import embed_widget
@@ -105,7 +105,7 @@ def test_form_config_save_get(tmp_path, monkeypatch):
                 "type": "select",
                 "options": ["AC", "Fridge"],
             },
-            {"name": "bad type", "type": "weird"},  # name sanitized, type→text
+            {"name": "bad type", "type": "weird"},  # name sanitized, type->text
         ],
     )
     assert res["ok"] is True
@@ -113,7 +113,7 @@ def test_form_config_save_get(tmp_path, monkeypatch):
     assert cfg is not None and len(cfg) == 4
     sel = [f for f in cfg if f["type"] == "select"][0]
     assert sel["options"] == ["AC", "Fridge"]
-    # select bina options → text fallback
+    # select bina options -> text fallback
     res2 = embed_widget.save_form_config("xyz", [{"name": "pick", "type": "select"}])
     assert res2["fields"][0]["type"] == "text"
     # invalid inputs
@@ -140,7 +140,7 @@ def test_embed_page_html_form_and_chat(tmp_path, monkeypatch):
     monkeypatch.setattr(embed_widget, "_FORMS_FILE", str(tmp_path / "forms.jsonl"))
     client = {"business_name": "Sharma Solar", "slug": "sharma-solar-7b6f"}
     page = embed_widget.embed_page_html(client)
-    # form (default) — inquiry POST + honeypot intact
+    # form (default) - inquiry POST + honeypot intact
     assert "/api/public/inquiry" in page
     assert 'data-lgf="name"' in page and 'data-lgf="phone"' in page
     assert "lgHP" in page
@@ -167,7 +167,7 @@ def test_widget_js_and_snippet_modes():
 
 
 # --------------------------------------------------------------------------- #
-# packages — trial additive + status helper
+# packages - trial additive + status helper
 # --------------------------------------------------------------------------- #
 def test_packages_backward_compatible():
     from app.marketing.packages import get_packages
@@ -196,7 +196,7 @@ def test_trial_status_active_expired():
     past = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
     st2 = trial_status({"trial": True, "trial_expires": past})
     assert st2["expired"] is True and st2["active"] is False
-    # garbage expiry — no raise
+    # garbage expiry - no raise
     st3 = trial_status({"trial": True, "trial_expires": "not-a-date"})
     assert st3["trial"] is True and st3["active"] is False
 

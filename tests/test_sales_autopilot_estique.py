@@ -1,4 +1,4 @@
-"""Sales Autopilot — Estique protection regression.
+"""Sales Autopilot - Estique protection regression.
 
 Owner already manually contacted Estique. The engine must NEVER auto-send the initial
 touch again: eligibility returns OWNER_EXCEPTION_REQUIRED and send BLOCKS it.

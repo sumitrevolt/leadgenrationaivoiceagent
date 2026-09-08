@@ -1,4 +1,4 @@
-"""Voice follow-up scheduler — trial day 8/9 + interested-not-converted callbacks.
+"""Voice follow-up scheduler - trial day 8/9 + interested-not-converted callbacks.
 
 Consented transactional callbacks only (existing customer / prior voice contact).
 NOT platform_dial cold outbound. Gated VOICE_FOLLOWUP=1 (default OFF).
@@ -320,7 +320,7 @@ async def run_post_call_workflows(
     not_interested: bool = False,
     trial_activated: bool = False,
 ) -> dict[str, Any]:
-    """Unified post-call automation hook — idempotent per call_id."""
+    """Unified post-call automation hook - idempotent per call_id."""
     out: dict[str, Any] = {"ok": True, "actions": []}
     cid = str(call_id or "").strip()
     if cid:
@@ -452,9 +452,9 @@ async def run_due(limit: int = 20) -> dict[str, Any]:
                 niche=str(rec.get("niche") or "ai_marketing"),
                 client_id=cid or None,
                 call_type="transactional",
-                # Business-type-aware followup (wizard niche + name) — wizard
+                # Business-type-aware followup (wizard niche + name) - wizard
                 # opening se greet, generic niche script nahi. Resolve fail = ""
-                # → purana niche-script chain (unchanged).
+                # -> purana niche-script chain (unchanged).
                 opening_line=resolve_wizard_opening(
                     niche=str(rec.get("niche") or ""),
                     business_name=str(rec.get("business_name") or ""),

@@ -1,10 +1,10 @@
-"""Free interactive lead-magnet tools — PLG inbound (telephony-free).
+"""Free interactive lead-magnet tools - PLG inbound (telephony-free).
 
 Calculators/checkers jo VALUE dikhate + lead capture karte. Audit ke alawa naye
 top-of-funnel magnets: missed-call revenue calc, lead-cost savings, Google-presence
-score. Result + ek strong CTA → /audit ya signup. Pure-Python (calc), import-safe.
+score. Result + ek strong CTA -> /audit ya signup. Pure-Python (calc), import-safe.
 
-Capture: tool use karne ke baad email/phone maango → existing inquiry path. Inbound.
+Capture: tool use karne ke baad email/phone maango -> existing inquiry path. Inbound.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ logger = setup_logger(__name__)
 def missed_call_revenue(
     missed_per_day: float, avg_deal_value: float, close_rate: float = 0.2
 ) -> dict[str, Any]:
-    """Roz missed inquiries × deal-value × close-rate → mahine/saal ka khoya revenue."""
+    """Roz missed inquiries × deal-value × close-rate -> mahine/saal ka khoya revenue."""
     try:
         m = max(0.0, float(missed_per_day))
         v = max(0.0, float(avg_deal_value))
@@ -34,13 +34,13 @@ def missed_call_revenue(
         "lost_per_month": round(lost_month),
         "lost_per_year": round(lost_month * 12),
         "headline": f"Aap har mahine ~₹{round(lost_month):,} kho rahe ho missed inquiries se.",
-        "fix": "AI voice agent har inquiry ko 2-min me call karke qualify karta — ye revenue bachao.",
+        "fix": "AI voice agent har inquiry ko 2-min me call karke qualify karta - ye revenue bachao.",
         "cta": {"text": "Free Google audit lein", "url": "/audit"},
     }
 
 
 def lead_cost_savings(current_cost_per_lead: float, leads_per_month: float) -> dict[str, Any]:
-    """Current lead-cost vs AI lead-gen (assume ~60% sasta) → monthly savings."""
+    """Current lead-cost vs AI lead-gen (assume ~60% sasta) -> monthly savings."""
     try:
         c = max(0.0, float(current_cost_per_lead))
         n = max(0.0, float(leads_per_month))

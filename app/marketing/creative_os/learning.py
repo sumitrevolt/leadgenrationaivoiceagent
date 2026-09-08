@@ -1,4 +1,4 @@
-"""Performance-learning data contract — recommendations, recipe learning, and KB feedback loop.
+"""Performance-learning data contract - recommendations, recipe learning, and KB feedback loop.
 
 Learns from verified post-publish metrics (watch time, hook retention, CTR, leads)
 to optimize future video recipe selection and scene hook pacing.
@@ -24,7 +24,7 @@ _DEFAULT_DIR = os.path.join("data", "creative_os", "learning")
 
 @dataclass
 class CreativeLearningLink:
-    """creative_revision → publish → platform metrics → leads → booking/revenue."""
+    """creative_revision -> publish -> platform metrics -> leads -> booking/revenue."""
 
     creative_id: str
     revision: int
@@ -235,7 +235,7 @@ def recommend(
     """Produce non-mutating recommendations. Never silently changes production prompts."""
     recs: list[str] = []
     metrics = link.metrics or {}
-    # Only recommend when metrics are verified — never fabricate
+    # Only recommend when metrics are verified - never fabricate
     if not link.verified or not metrics:
         return {
             "ok": True,

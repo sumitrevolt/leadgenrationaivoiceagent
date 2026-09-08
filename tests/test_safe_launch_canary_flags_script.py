@@ -82,7 +82,7 @@ def test_automation_max_self_improve_not_clobbered_by_default():
 
 
 def test_automation_max_self_improve_containment(tmp_path, monkeypatch, capsys):
-    """Containment is still reachable — deliberately, via --force-self-improve-off."""
+    """Containment is still reachable - deliberately, via --force-self-improve-off."""
     env_file = tmp_path / ".env"
     env_file.write_text("SELF_IMPROVE_LOOP=1\n", encoding="utf-8")
     monkeypatch.setenv("LEADGEN_ENV", str(env_file))

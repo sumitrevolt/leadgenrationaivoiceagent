@@ -1,4 +1,4 @@
-"""PR Factory — thin Symphony-shaped dispatcher onto external_agents.
+"""PR Factory - thin Symphony-shaped dispatcher onto external_agents.
 
 Inert unless ``PR_FACTORY_ENABLED=1`` **and** ``EXTERNAL_AGENT_ORCHESTRATOR=1``.
 Never owns a second mission ledger (ADR-156).

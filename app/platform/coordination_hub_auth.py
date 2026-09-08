@@ -53,7 +53,7 @@ def _configured_secret(tool_id: str) -> str:
 
 
 def tool_auth_status() -> dict[str, Any]:
-    """Booleans only — never return secret names' values or fingerprints."""
+    """Booleans only - never return secret names' values or fingerprints."""
     configured: dict[str, bool] = {}
     for tid in _KNOWN_TOOLS:
         configured[tid] = bool(_configured_secret(tid))

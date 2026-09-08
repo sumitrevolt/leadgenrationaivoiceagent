@@ -69,7 +69,7 @@ def test_openssl_runtime_inspectable() -> None:
 
 
 def test_fastapi_imports_with_new_starlette() -> None:
-    """fastapi 0.141.1 declares starlette>=0.46.0 — 1.3.1 must import cleanly."""
+    """fastapi 0.141.1 declares starlette>=0.46.0 - 1.3.1 must import cleanly."""
     import fastapi  # noqa: F401
     from fastapi.testclient import TestClient  # noqa: F401
 

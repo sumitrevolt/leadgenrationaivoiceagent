@@ -16,7 +16,7 @@ from app.utils.logger import setup_logger
 from app.utils.phone_validator import PhoneValidator
 
 if TYPE_CHECKING:
-    # Type-only imports — kept out of runtime to preserve the lazy cold-start
+    # Type-only imports - kept out of runtime to preserve the lazy cold-start
     # design (heavy source scrapers stay un-imported until a @property needs them).
     from app.lead_scraper.google_maps import BusinessLead
     from app.lead_scraper.indiamart import IndiaMartLead
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from app.lead_scraper.web_search import WebSearchLead
 
 # NOTE: the heavy source scrapers (google_maps/indiamart/justdial/linkedin/web_search/
-# social_media) are imported LAZILY inside the per-source @property accessors below — so
+# social_media) are imported LAZILY inside the per-source @property accessors below - so
 # importing OR constructing LeadScraperManager never pulls their deps (faster cold-start;
 # contract guarded by tests/test_scraper_lazy_import.py). The *Lead dataclasses are used
 # only as type annotations (duck-typed at runtime), so __future__ annotations keeps them
@@ -133,7 +133,7 @@ class LeadScraperManager:
     ]
 
     def __init__(self):
-        # Lazy source scrapers — constructed (and their modules imported) on first use.
+        # Lazy source scrapers - constructed (and their modules imported) on first use.
         self._google_maps = None
         self._indiamart = None
         self._justdial = None
@@ -214,12 +214,12 @@ class LeadScraperManager:
         """
         cities = cities or self.INDIAN_CITIES[:5]  # Default to top 5 cities
         # Default = google_maps ONLY. indiamart/justdial are ToS-blocked (CLAUDE.md:
-        # manual-CSV import only) — must be explicitly opted in by the caller, never
+        # manual-CSV import only) - must be explicitly opted in by the caller, never
         # auto-fired by a caller that omits sources=.
         sources = sources or ["google_maps"]
 
         # Hard refuse ToS-blocked auto-scrape unless ALLOW_TOS_SCRAPE=1 (manual
-        # research / CSV path only — §5 compliance; comment-only gate was insufficient).
+        # research / CSV path only - §5 compliance; comment-only gate was insufficient).
         import os as _os
 
         _tos_blocked = frozenset(
@@ -294,7 +294,7 @@ class LeadScraperManager:
 
         # Deduplicate leads
         unique_leads = self._deduplicate_leads(all_leads)
-        logger.info(f"Deduplicated: {len(all_leads)} → {len(unique_leads)} leads")
+        logger.info(f"Deduplicated: {len(all_leads)} -> {len(unique_leads)} leads")
 
         # Validate phone numbers if requested
         if validate_phones:

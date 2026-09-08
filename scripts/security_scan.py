@@ -1,8 +1,8 @@
-"""Security scan — pre-push + periodic audit gate.
+"""Security scan - pre-push + periodic audit gate.
 
 Runs multiple security checks:
 1. Secrets scan (delegates to check_secrets.py)
-2. Dependency vulnerability check (basic — requires `pip-audit` or warns)
+2. Dependency vulnerability check (basic - requires `pip-audit` or warns)
 3. Common security misconfigurations grep (with false-positive suppression)
 4. Unsafe eval/exec detection
 5. Missing input validation detection
@@ -187,7 +187,7 @@ def check_pip_audit() -> list[str]:
         if result.returncode != 0 and result.stdout:
             findings.append(f"[pip-audit] vulnerabilities found: {result.stdout[:500]}")
     except FileNotFoundError:
-        findings.append("[WARN] pip-audit not installed — run: pip install pip-audit")
+        findings.append("[WARN] pip-audit not installed - run: pip install pip-audit")
     except Exception as e:
         findings.append(f"[WARN] pip-audit failed: {e}")
     return findings

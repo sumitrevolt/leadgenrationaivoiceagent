@@ -1,4 +1,4 @@
-"""Campaign variant model — champion/challenger A/B for scripts and outreach."""
+"""Campaign variant model - champion/challenger A/B for scripts and outreach."""
 
 from __future__ import annotations
 

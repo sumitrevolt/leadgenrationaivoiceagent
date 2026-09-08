@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Hermes Owner Admin — Automated Revenue Collection Loop
+Hermes Owner Admin - Automated Revenue Collection Loop
 
 End-to-end automated loop:
-  LEAD_QUALIFIED → OFFER_SENT → OFFER_ACCEPTED → PAYMENT_REQUEST_CREATED
-  → PAYMENT_REQUEST_SENT → PAYMENT_PENDING → PAYMENT_DETECTED
-  → PAYMENT_RECONCILED → VERIFIED_PAID → INVOICE_SETTLED → CUSTOMER_ACTIVE
+  LEAD_QUALIFIED -> OFFER_SENT -> OFFER_ACCEPTED -> PAYMENT_REQUEST_CREATED
+  -> PAYMENT_REQUEST_SENT -> PAYMENT_PENDING -> PAYMENT_DETECTED
+  -> PAYMENT_RECONCILED -> VERIFIED_PAID -> INVOICE_SETTLED -> CUSTOMER_ACTIVE
 
 Every transition requires evidence
 never skips PAYMENT_REQUEST_SENT
-→ VERIFIED_PAID without verified transaction evidence.
+-> VERIFIED_PAID without verified transaction evidence.
 """
 
 import json
@@ -112,12 +112,12 @@ def process_event(event):
         invoice = cursor.fetchone()
 
         if not invoice:
-            logger.warning(f"Invoice {invoice_id} not found — skipping")
+            logger.warning(f"Invoice {invoice_id} not found - skipping")
             return False
 
         inv_id, inv_customer_id, expected_amount, inv_status, inv_campaign_eligible = invoice
 
-        # Transition 1: Invoice already paid → skip
+        # Transition 1: Invoice already paid -> skip
         if inv_status == 'PAID':
             cursor.execute("UPDATE upi_submissions SET status = 'SKIPPED_ALREADY_PAID' WHERE id = %s", (event_id,))
             conn.commit()
@@ -144,7 +144,7 @@ def process_event(event):
             logger.info(f"Event {event_id}: Outside campaign period")
             return False
 
-        # ALL CHECKS PASSED → VERIFIED_PAID
+        # ALL CHECKS PASSED -> VERIFIED_PAID
 
         # Update UPI submission status
         cursor.execute("UPDATE upi_submissions SET status = 'VERIFIED_PAID' WHERE id = %s", (event_id,))
@@ -167,7 +167,7 @@ def process_event(event):
         except Exception as e:
             logger.error(f"Provisioning trigger failed: {e}")
 
-        logger.info(f"Event {event_id}: → VERIFIED_PAID → ₹{amount} → Progress {progress}%")
+        logger.info(f"Event {event_id}: -> VERIFIED_PAID -> ₹{amount} -> Progress {progress}%")
         return True
 
     finally:
@@ -179,7 +179,7 @@ def revenue_loop():
     global SHUTDOWN_REQUESTED
 
     if WORKER_KILL:
-        logger.warning("WORKER_KILL=1 active — exiting immediately")
+        logger.warning("WORKER_KILL=1 active - exiting immediately")
         return
 
     logger.info("Starting automated revenue collection loop")
@@ -188,7 +188,7 @@ def revenue_loop():
     while not SHUTDOWN_REQUESTED:
         # Check kill switch every iteration
         if WORKER_KILL:
-            logger.info("Kill switch activated — stopping revenue loop")
+            logger.info("Kill switch activated - stopping revenue loop")
             break
 
         # Scan and process pending UPI submissions
@@ -201,7 +201,7 @@ def revenue_loop():
                     break
                 process_event(event)
         else:
-            logger.debug("No pending UPI events — waiting")
+            logger.debug("No pending UPI events - waiting")
 
         # Poll every 10 seconds, but check for shutdown
         for _ in range(10):
@@ -225,7 +225,7 @@ def main():
 
     # Check kill switch
     if WORKER_KILL:
-        logger.warning("WORKER_KILL=1 active at startup — exiting")
+        logger.warning("WORKER_KILL=1 active at startup - exiting")
         sys.exit(0)
 
     if args.mode == 'once':

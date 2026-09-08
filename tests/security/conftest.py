@@ -1,4 +1,4 @@
-"""Security tests must exercise REAL auth — not the mocked-open test harness.
+"""Security tests must exercise REAL auth - not the mocked-open test harness.
 
 The top-level `tests/conftest.py` overrides every auth dependency
 (`require_admin` / `require_super_admin` / `require_agent` / `require_manager` /
@@ -7,7 +7,7 @@ reach protected endpoints without juggling tokens.
 
 For the SECURITY suite that override is fatal: every request would arrive
 pre-authenticated as super-admin, so "unauthenticated request must be rejected"
-assertions would be meaningless — a `require_admin` endpoint would return 200 to
+assertions would be meaningless - a `require_admin` endpoint would return 200 to
 an anonymous caller and the test would (correctly, but uselessly) flag a bypass
 that only exists because the harness mocked auth open.
 

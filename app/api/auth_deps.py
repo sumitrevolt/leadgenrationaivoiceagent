@@ -21,7 +21,7 @@ logger = setup_logger(__name__)
 security = HTTPBearer(auto_error=False)  # auto_error=False allows optional auth
 
 # JWT Configuration
-# settings.jwt_secret_key is loaded from env/.env by pydantic-settings —
+# settings.jwt_secret_key is loaded from env/.env by pydantic-settings -
 # os.environ.get() would miss values that only exist in the .env file.
 JWT_SECRET = settings.jwt_secret_key
 JWT_ALGORITHM = settings.jwt_algorithm
@@ -108,7 +108,7 @@ async def get_current_user_optional(
 
 async def require_admin(request: Request, user: User = Depends(get_current_user)) -> User:
     """Admin access: super_admin/admin = full pass; manager/agent/viewer = sirf
-    apne GRANTED module ke paths (rbac.MODULES, preferences JSON me grants —
+    apne GRANTED module ke paths (rbac.MODULES, preferences JSON me grants -
     docs/ADMIN_RBAC_DESIGN.md). Unmapped path member ke liye 403 (fail-closed)."""
     if user.can_access_admin():
         return user
@@ -230,4 +230,4 @@ async def require_customer(*args, **kwargs):
 # NOTE: Webhook signature verification (Stripe) lives in app.api.webhooks with
 # real HMAC checks. The always-True stubs that used to live here were removed
 # so nobody accidentally imports a no-op verifier. (Twilio verifier removed
-# 2026-07-07 — telephony provider is Vobiz-only, which doesn't sign callbacks.)
+# 2026-07-07 - telephony provider is Vobiz-only, which doesn't sign callbacks.)

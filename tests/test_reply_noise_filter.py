@@ -1,6 +1,6 @@
 """Reply noise-filter tests (2026-07-07 deliverability audit fixes).
 
-Background: reply_drafts.jsonl 1803 rows me sirf ~9 genuine the — 312 rows ek
+Background: reply_drafts.jsonl 1803 rows me sirf ~9 genuine the - 312 rows ek
 adityabirla.com auto-responder loop se ("Thank you for your interest..." mails
 LLM se "interested" classify ho rahi thi), WhatsApp status/broadcast bhi
 "interested" tak class ho raha tha. Fix: auto-ack guard (known-prospect pe bhi),
@@ -36,7 +36,7 @@ def test_auto_ack_header():
 
 def test_auto_ack_real_replies_pass():
     # Genuine human replies must NOT be swallowed by the guard.
-    assert not reply_agent._is_auto_ack(_msg(), "Re: quick question — pricing?")
+    assert not reply_agent._is_auto_ack(_msg(), "Re: quick question - pricing?")
     assert not reply_agent._is_auto_ack(_msg(), "haan interested hoon, demo kab?")
     assert not reply_agent._is_auto_ack(_msg(), "Tattoo ki services dete h")
 
@@ -84,7 +84,7 @@ def test_blocklist_unset_blocks_nothing(monkeypatch):
 
 # --------------------------------------------------------------- WhatsApp guards
 def test_wa_status_and_broadcast_skipped(monkeypatch):
-    # Guard must fire BEFORE any LLM classify — fail loudly if classify is reached.
+    # Guard must fire BEFORE any LLM classify - fail loudly if classify is reached.
     async def _boom(*a, **k):  # pragma: no cover - must not run
         raise AssertionError("classify should not be called for status/broadcast")
 
@@ -118,7 +118,7 @@ def test_noise_row_detection(monkeypatch):
 
 # ------------------------------------------- legacy-noise retro-hide (2026-08-11)
 def test_noise_row_dmarc_sender():
-    # DMARC aggregate/forensic reports (64 prod rows) — structural noise.
+    # DMARC aggregate/forensic reports (64 prod rows) - structural noise.
     assert reply_agent._is_noise_row(
         {"from": "noreply-dmarc-support@google.com", "subject": "DMARC report"}
     )
@@ -126,7 +126,7 @@ def test_noise_row_dmarc_sender():
 
 def test_noise_row_closure_body_in_draft_field():
     # 2026-07-25 se pehle saved adityabirla ticketing rows: body `draft` key me
-    # hai, intent=interested — read-path pe fake-hot dikhna band hona chahiye.
+    # hai, intent=interested - read-path pe fake-hot dikhna band hona chahiye.
     assert reply_agent._is_noise_row(
         {
             "from": "opuscare@adityabirla.com",

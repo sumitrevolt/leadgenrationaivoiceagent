@@ -1,5 +1,5 @@
 """
-internal_media — HMAC-protected routes that the local GPU renderer hits, plus
+internal_media - HMAC-protected routes that the local GPU renderer hits, plus
 public admin routes for owner 1-clicks (approval/recrate/skip).
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ async def _hmac_check(request: Request, x_render_signature: str | None = Header(
 
 
 # --------------------------------------------------------------------------- #
-# Internal — renderer → VPS
+# Internal - renderer -> VPS
 # --------------------------------------------------------------------------- #
 class RenderDoneIn(BaseModel):
     brief_id: str
@@ -79,7 +79,7 @@ def render_done(inp: RenderDoneIn):
 
 
 # --------------------------------------------------------------------------- #
-# Public — owner/admin one-click approvals
+# Public - owner/admin one-click approvals
 # --------------------------------------------------------------------------- #
 class ApprovalIn(BaseModel):
     asset_id: str
@@ -145,9 +145,9 @@ class LeadIn(BaseModel):
 
 @public.post("/lead")
 def capture_lead(inp: LeadIn):
-    """Capture → Hot Queue → customer_crm → DM auto-reply (best-effort).
+    """Capture -> Hot Queue -> customer_crm -> DM auto-reply (best-effort).
 
-    Never raises — failures end up in the audit trail for manual follow-up."""
+    Never raises - failures end up in the audit trail for manual follow-up."""
     try:
         from app.marketing.customer_crm import create_lead
         lead = create_lead(

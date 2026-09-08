@@ -1,4 +1,4 @@
-"""Segments API — dynamic condition-based lead/prospect segments (admin).
+"""Segments API - dynamic condition-based lead/prospect segments (admin).
 
 Mautic parity: ek segment = conditions ka live-evaluated set (NOT a snapshot).
 Backed by app/platform/segments.py. Sab admin-gated, additive, kabhi raise nahi

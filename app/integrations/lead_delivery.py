@@ -10,7 +10,7 @@ configured channels par deliver kar deta hai:
   - Email : lead client ko email par bhejta hai
 
 Har channel try/except + hasattr/getattr defensive checks ke saath wrapped hai.
-Agar koi channel configured nahi hai (keys missing), to wo "skipped" ho jata hai —
+Agar koi channel configured nahi hai (keys missing), to wo "skipped" ho jata hai -
 service kabhi crash nahi karta.
 """
 
@@ -31,7 +31,7 @@ logger = setup_logger(__name__)
 @dataclass
 class DeliveryResult:
     """
-    Ek lead ki delivery ka result — kaunsa channel succeed/fail/skip hua.
+    Ek lead ki delivery ka result - kaunsa channel succeed/fail/skip hua.
 
     succeeded : channels jo successfully deliver hue
     failed    : channels jo error ke karan fail hue (dict: channel -> error str)
@@ -90,7 +90,7 @@ class LeadDelivery:
     """
 
     def __init__(self):
-        # Per-channel master enable flags (.env). Default True — jiske keys
+        # Per-channel master enable flags (.env). Default True - jiske keys
         # configured honge wahi actually deliver karega, baaki skip ho jayega.
         self.whatsapp_enabled = getattr(settings, "delivery_whatsapp_enabled", True)
         self.sheets_enabled = getattr(settings, "delivery_sheets_enabled", True)
@@ -180,7 +180,7 @@ class LeadDelivery:
                   - channels (list[str])              : sirf in channels par bhejo
 
         Returns:
-            DeliveryResult — kaunse channels succeeded/failed/skipped.
+            DeliveryResult - kaunse channels succeeded/failed/skipped.
         """
         client_config = client_config or {}
         lead = lead or {}
@@ -209,7 +209,7 @@ class LeadDelivery:
             await self._deliver_email(lead, client_config, result)
 
         logger.info(
-            f"Lead '{result.lead_ref}' delivery done — "
+            f"Lead '{result.lead_ref}' delivery done - "
             f"ok={result.succeeded} skipped={result.skipped} failed={list(result.failed)}"
         )
         return result
@@ -221,7 +221,7 @@ class LeadDelivery:
     ) -> list[DeliveryResult]:
         """
         Multiple leads ko deliver karta hai. Har lead independently process hoti
-        hai — ek lead fail ho to baaki continue rehti hain.
+        hai - ek lead fail ho to baaki continue rehti hain.
         """
         results: list[DeliveryResult] = []
         for lead in leads or []:
@@ -483,7 +483,7 @@ class LeadDelivery:
                 or client_config.get("notify_email")
                 or self.default_notify
             )
-            # default_notify ek number bhi ho sakta hai — basic email check
+            # default_notify ek number bhi ho sakta hai - basic email check
             if not to_email or "@" not in str(to_email):
                 logger.info(f"{channel}: skipped (no client email)")
                 result.mark_skipped(channel)
@@ -547,7 +547,7 @@ class LeadDelivery:
 📝 *Qualification Notes:*
 {qualification}
 
-— Delivered by LeadGen AI Voice Agent"""
+- Delivered by LeadGen AI Voice Agent"""
 
         return message
 

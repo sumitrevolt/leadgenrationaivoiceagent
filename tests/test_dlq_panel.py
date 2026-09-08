@@ -1,6 +1,6 @@
 """Read-only Failed Jobs / DLQ panel in the delivery cockpit.
 
-Surfaces the EXISTING GET /api/growth/infra/dlq (key=failed/dead) — no new
+Surfaces the EXISTING GET /api/growth/infra/dlq (key=failed/dead) - no new
 route, no backend change. Mirrors tests/test_automation_runs_panel.py.
 """
 

@@ -1,7 +1,7 @@
 """Loop 14 (2026-07-10): signup-path targeted health probe.
 
 `/health/signup` catches JWT-mint / clients_store / auth-store / automation-log
-outages so an ops uptime monitor pages the team the moment signup breaks —
+outages so an ops uptime monitor pages the team the moment signup breaks -
 instead of "why is nobody signing up" observation on the CRM.
 """
 
@@ -11,7 +11,7 @@ import pytest
 
 
 def test_health_signup_all_green_when_deps_healthy(client):
-    """Happy path: all four checks pass → 200 with per-check `healthy`."""
+    """Happy path: all four checks pass -> 200 with per-check `healthy`."""
     r = client.get("/health/signup")
     assert r.status_code == 200, r.text
     d = r.json()
@@ -26,7 +26,7 @@ def test_health_signup_all_green_when_deps_healthy(client):
 
 
 def test_health_signup_reports_503_when_jwt_mint_fails(client, monkeypatch):
-    """JWT mint broken → 503 with per-check error class so ops can page immediately."""
+    """JWT mint broken -> 503 with per-check error class so ops can page immediately."""
     import app.api.admin as admin_mod
 
     def _boom(*a, **k):
@@ -49,7 +49,7 @@ def test_health_signup_reports_503_when_jwt_mint_fails(client, monkeypatch):
 
 
 def test_health_signup_reports_503_when_automation_log_missing(client, monkeypatch):
-    """Loops 2/3B/7/8 depend on automation_log_service — probe MUST fail if
+    """Loops 2/3B/7/8 depend on automation_log_service - probe MUST fail if
     log_event isn't callable (e.g. import regression)."""
     import app.platform.automation_log_service as als
 
@@ -63,7 +63,7 @@ def test_health_signup_reports_503_when_automation_log_missing(client, monkeypat
 
 def test_health_signup_never_raises_even_on_import_pathology(client, monkeypatch):
     """Every probe MUST be wrapped so a single import bug never brings /health/signup
-    down — it should still report 503 with a structured error, not 500."""
+    down - it should still report 503 with a structured error, not 500."""
     r = client.get("/health/signup")
     assert r.status_code in (200, 503)
     assert isinstance(r.json().get("checks"), dict)

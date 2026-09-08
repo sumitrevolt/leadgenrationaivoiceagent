@@ -1,8 +1,8 @@
-"""Testimonial/reviews embed widget — client apni website pe APPROVED reviews
+"""Testimonial/reviews embed widget - client apni website pe APPROVED reviews
 (social proof) ek script line se dikhaye. embed_widget (lead-capture) ka sibling:
 wahi CORS-free iframe pattern, par yeh READ-only social-proof feed hai.
 
-Data source: minisite_builder ka reviews store (data/reviews/<slug>.jsonl) —
+Data source: minisite_builder ka reviews store (data/reviews/<slug>.jsonl) -
 SIRF `approved=True` (admin-moderated) reviews render hote hain. Rebuild NAHI:
 list_reviews() reuse.
 
@@ -42,7 +42,7 @@ def _client(slug: str) -> dict[str, Any]:
 
 
 def _brand_color(client: dict[str, Any]) -> str:
-    """Brand color — pehle brand.primary (clients_store ka norm), fir flat keys."""
+    """Brand color - pehle brand.primary (clients_store ka norm), fir flat keys."""
     try:
         b = client.get("brand") or {}
         if isinstance(b, dict):
@@ -85,7 +85,7 @@ def _card(rec: dict[str, Any], color: str) -> str:
         '<div class="rv">'
         f'<div class="st" style="color:{color}">{stars}</div>'
         f'<div class="tx">"{text}"</div>'
-        f'<div class="nm">— {name}</div>'
+        f'<div class="nm">- {name}</div>'
         "</div>"
     )
 
@@ -104,18 +104,18 @@ def reviews_widget_html(slug: str) -> str:
             except Exception:
                 avg = 5.0
             head = (
-                f'<div class="hd"><b>{biz}</b> — customers kya kehte hain '
+                f'<div class="hd"><b>{biz}</b> - customers kya kehte hain '
                 f'<span class="avg" style="color:{color}">{_stars(round(avg))} {avg}/5</span></div>'
             )
             cards = "".join(_card(r, color) for r in rows)
         else:
             head = f'<div class="hd"><b>{biz}</b></div>'
-            cards = '<div class="rv"><div class="tx">Reviews jald aa rahe hain — pehla review aap dijiye! 🙏</div></div>'
+            cards = '<div class="rv"><div class="tx">Reviews jald aa rahe hain - pehla review aap dijiye! 🙏</div></div>'
         base = _site_base()
         return f"""<!doctype html><html lang="hi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>{biz} — Reviews</title>
+<title>{biz} - Reviews</title>
 <style>
  *{{box-sizing:border-box}}
  body{{margin:0
@@ -166,7 +166,7 @@ def reviews_widget_html(slug: str) -> str:
 
 
 def widget_js(slug: str) -> str:
-    """Inline iframe injector — jahan <script> paste hua wahi reviews strip aati
+    """Inline iframe injector - jahan <script> paste hua wahi reviews strip aati
     (lead-widget ke floating-button se alag: social proof content-flow me hota)."""
     slug = (slug or "").strip().lower()
     src = f"{_site_base()}/api/engage/reviews-widget/{slug}"

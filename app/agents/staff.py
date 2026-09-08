@@ -1,5 +1,5 @@
 """
-AI Staff workers — in-app jobs jo team roster ke naam se chalte hain.
+AI Staff workers - in-app jobs jo team roster ke naam se chalte hain.
 =====================================================================
 
 Har worker apna kaam karke `app.platform.team.log_event(...)` se record
@@ -7,13 +7,13 @@ karta hai (Team dashboard isi feed se "kaun kya kar raha" dikhata hai):
 
   - arjun (QA Engineer)  -> run_qa():      TelecallerBrain ko scripted convos
                                            se TEXT-mode me test karta (no WS,
-                                           no phone — FREE), issues report.
+                                           no phone - FREE), issues report.
   - meera (Trainer)      -> run_trainer(): data/call_transcripts/*.jsonl padh
                                            ke quality analysis + Hinglish
                                            tuning suggestions.
   - kavya (Ops Monitor)  -> run_ops():     providers/DB/disk health snapshot.
 
-Sab functions import-safe hain aur KABHI raise nahi karte — error pe
+Sab functions import-safe hain aur KABHI raise nahi karte - error pe
 {"error": "..."} return hota hai (scheduler/API kabhi nahi girte).
 """
 
@@ -32,7 +32,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------- #
-# QA conversation scripts (scripts/agent_tester.py ke SCRIPTS ka in-app copy —
+# QA conversation scripts (scripts/agent_tester.py ke SCRIPTS ka in-app copy -
 # wahan WS drive hota hai, yahan brain.reply() DIRECT call hota hai).
 # --------------------------------------------------------------------------- #
 SCRIPTS: dict[str, list[str]] = {
@@ -141,10 +141,10 @@ async def _log_trainer_event_bounded(
 
 
 # --------------------------------------------------------------------------- #
-# arjun — QA run (text mode, brain direct)
+# arjun - QA run (text mode, brain direct)
 # --------------------------------------------------------------------------- #
 def _staff_job_failed(job: str, err: str) -> None:
-    """W1.14: staff job ne {"error":...} return kiya (raise nahi → record_run ise
+    """W1.14: staff job ne {"error":...} return kiya (raise nahi -> record_run ise
     ok=True samajhta). Dedicated fail metric + ntfy alert. Best-effort, never-raise."""
     try:
         from app.platform import job_metrics
@@ -161,7 +161,7 @@ def _staff_job_failed(job: str, err: str) -> None:
 
 
 def _qa_default_niches() -> list[str]:
-    """W2.2: QA niche set parametrized — env `QA_NICHES` (comma-sep) se override,
+    """W2.2: QA niche set parametrized - env `QA_NICHES` (comma-sep) se override,
     warna SCRIPTS ke 3 default. Bina-script niche = `_GENERIC_TURNS` (already handled),
     to koi bhi niche testable. Additive: QA_NICHES unset = purana 3-niche default."""
     raw = os.getenv("QA_NICHES", "").strip()
@@ -174,9 +174,9 @@ def _qa_default_niches() -> list[str]:
 
 def _real_transcript_turns(max_per_niche: int = 6, files_n: int = 2) -> dict[str, list[str]]:
     """W2.2-half2: recent REAL call transcripts (data/call_transcripts/*.jsonl) se
-    per-niche USER turns — QA canned scripts ke bajaye asli utterances (Hinglish-STT
+    per-niche USER turns - QA canned scripts ke bajaye asli utterances (Hinglish-STT
     quirks samet) replay kar sake (run_qa me gated QA_REAL_TRANSCRIPTS). Junk-STT
-    skip + dedupe + bounded. Never-raise → {}."""
+    skip + dedupe + bounded. Never-raise -> {}."""
     out: dict[str, list[str]] = {}
     try:
         d = str(_TRANSCRIPTS_DIR())
@@ -226,7 +226,7 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
 
         targets = [n for n in (niches or _qa_default_niches()) if n]
         # W2.2-half2 (gated, default OFF = inert): real transcript user-turns replay
-        # + transcript ke niches QA targets me (bounded +3) — QA wahi test kare jo
+        # + transcript ke niches QA targets me (bounded +3) - QA wahi test kare jo
         # asli calls pe hota hai.
         real_turns: dict[str, list[str]] = {}
         if os.getenv("QA_REAL_TRANSCRIPTS", "").strip().lower() in ("1", "true", "yes", "on"):
@@ -326,10 +326,10 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# meera — trainer (transcript analysis)
+# meera - trainer (transcript analysis)
 # --------------------------------------------------------------------------- #
 def _is_junk_stt(text: str) -> bool:
-    """STT garbage heuristic — bahut chhota ya sirf punctuation."""
+    """STT garbage heuristic - bahut chhota ya sirf punctuation."""
     t = (text or "").strip()
     if len(t) < 3:
         return True
@@ -337,7 +337,7 @@ def _is_junk_stt(text: str) -> bool:
 
 
 def _trainer_thresholds() -> tuple[int, float, int]:
-    """W2.3: trainer suggestion thresholds env-tunable (pehle hardcoded 2 / 0.3 / 28) —
+    """W2.3: trainer suggestion thresholds env-tunable (pehle hardcoded 2 / 0.3 / 28) -
     deployment apne call-profile ke hisaab se retune kar sake. Garbage env = default."""
 
     def _num(env: str, default, cast):
@@ -354,7 +354,7 @@ def _trainer_thresholds() -> tuple[int, float, int]:
     )
 
 
-# W2.3-half2: per-niche signal ke liye minimum user-turns — 1-2 turn wali niche
+# W2.3-half2: per-niche signal ke liye minimum user-turns - 1-2 turn wali niche
 # ka junk-ratio noise hota, us par targeted suggestion nahi banate.
 _NICHE_MIN_TURNS = 3
 
@@ -379,7 +379,7 @@ async def run_trainer() -> dict[str, Any]:
             await _log_trainer_event_bounded(
                 team,
                 "training_analysis",
-                "koi call transcript nahi mila — analyse karne ko kuch nahi",
+                "koi call transcript nahi mila - analyse karne ko kuch nahi",
             )
             return {"calls": 0}
 
@@ -390,7 +390,7 @@ async def run_trainer() -> dict[str, Any]:
         repeats = 0
         junk_user = 0
         user_msgs = 0
-        # W2.3-half2: per-niche accumulation — aggregate ek noisy niche ko mask
+        # W2.3-half2: per-niche accumulation - aggregate ek noisy niche ko mask
         # kar deta tha (global junk threshold ke niche, ek niche 100% junk).
         niche_stats: dict[str, dict[str, Any]] = {}
 
@@ -469,23 +469,23 @@ async def run_trainer() -> dict[str, Any]:
         suggestions: list[str] = []
         if repeats > _rep_max:
             suggestions.append(
-                "Bot replies repeat ho rahi hain — script fallback rotate ho raha hai, prompts vary karo ya flow aage badhao."
+                "Bot replies repeat ho rahi hain - script fallback rotate ho raha hai, prompts vary karo ya flow aage badhao."
             )
         if junk_ratio > _junk_max:
             suggestions.append(
-                f"STT junk zyada hai ({int(junk_ratio * 100)}% user turns garbage) — VAD/SILENCE_MS tune karo, Groq STT key check karo."
+                f"STT junk zyada hai ({int(junk_ratio * 100)}% user turns garbage) - VAD/SILENCE_MS tune karo, Groq STT key check karo."
             )
         if avg_reply_len > _words_max:
             suggestions.append(
-                f"Replies lambi hain (avg {avg_reply_len} words) — brevity cap aur tight karo (target <=25w)."
+                f"Replies lambi hain (avg {avg_reply_len} words) - brevity cap aur tight karo (target <=25w)."
             )
         groq_n = stt_counts.get("groq", 0)
         other_n = sum(v for k, v in stt_counts.items() if k != "groq")
         if other_n > groq_n and (groq_n + other_n) > 0:
             suggestions.append(
-                "Groq STT primary nahi chal raha (fallback zyada use hua) — GROQ_API_KEY / quota check karo."
+                "Groq STT primary nahi chal raha (fallback zyada use hua) - GROQ_API_KEY / quota check karo."
             )
-        # W2.3-half2: aggregate ke piche chhupi noisy-STT niche flag karo — global
+        # W2.3-half2: aggregate ke piche chhupi noisy-STT niche flag karo - global
         # junk threshold ke NICHE ho tab bhi ek niche cross kar sakti hai (masked).
         if junk_ratio <= _junk_max and len(by_niche) >= 2:
             _sig = [(n, d) for n, d in by_niche.items() if d["user_turns"] >= _NICHE_MIN_TURNS]
@@ -494,11 +494,11 @@ async def run_trainer() -> dict[str, Any]:
                 if worst_d["junk_stt_ratio"] > _junk_max:
                     suggestions.append(
                         f"Niche '{worst_n}' me STT junk {int(worst_d['junk_stt_ratio'] * 100)}% hai "
-                        "(baaki niches theek) — us niche ke calls/VAD/mic-path check karo."
+                        "(baaki niches theek) - us niche ke calls/VAD/mic-path check karo."
                     )
         if not suggestions:
             suggestions.append(
-                "Calls healthy lag rahi hain — koi major issue nahi, aise hi monitor karte raho."
+                "Calls healthy lag rahi hain - koi major issue nahi, aise hi monitor karte raho."
             )
         suggestions = suggestions[:3]
 
@@ -554,10 +554,10 @@ async def run_trainer() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# kavya — ops health snapshot + data retention
+# kavya - ops health snapshot + data retention
 # --------------------------------------------------------------------------- #
 def _TRANSCRIPTS_DIR() -> str:
-    """Call transcripts dir — resolved per call, never frozen at import."""
+    """Call transcripts dir - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
@@ -566,7 +566,7 @@ def _TRANSCRIPTS_DIR() -> str:
 _EVENT_RETENTION_DAYS = 60
 _TRANSCRIPT_RETENTION_DAYS = 90
 
-# W1.8: unbounded JSONL stores — append-only, koi prune nahi tha → disk unbounded grow.
+# W1.8: unbounded JSONL stores - append-only, koi prune nahi tha -> disk unbounded grow.
 # Line-cap rotation (newest rakho). Cap env-overridable; garbage env = default 20000.
 try:
     _JSONL_MAX_LINES = max(1000, int(os.getenv("JSONL_ROTATE_MAX_LINES", "20000")))
@@ -580,7 +580,7 @@ _JSONL_ROTATE_FILES = [
 
 
 def _JSONL_ROTATE_DIR() -> str:
-    """Per-tenant content queue dir — same store id as auto_content writers."""
+    """Per-tenant content queue dir - same store id as auto_content writers."""
     from pathlib import Path
 
     from app.platform import runtime_data_authority as _auth
@@ -598,7 +598,7 @@ def _prune_old_events(days: int = _EVENT_RETENTION_DAYS) -> int:
     """agent_events me `days` se purane rows delete karo (best-effort).
 
     Deleted count lautata hai
-    DB na ho ya kuch bhi fail ho to 0 — KABHI raise nahi.
+    DB na ho ya kuch bhi fail ho to 0 - KABHI raise nahi.
     """
     try:
         from datetime import datetime, timedelta
@@ -649,7 +649,7 @@ def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
 
 
 def _trim_jsonl(target: str, max_lines: int = _JSONL_MAX_LINES) -> int:
-    """W1.8: append-only JSONL ko last `max_lines` tak trim (newest rakho) — unbounded
+    """W1.8: append-only JSONL ko last `max_lines` tak trim (newest rakho) - unbounded
     growth rok. Atomic tmp+os.replace, best-effort (site_beacon pattern). Removed count.
 
     Parameter is deliberately NOT named ``path``: a co-located
@@ -677,13 +677,13 @@ def _trim_jsonl(target: str, max_lines: int = _JSONL_MAX_LINES) -> int:
 
 
 def _prune_jsonl_stores(max_lines: int = _JSONL_MAX_LINES) -> int:
-    """W1.8: kavya hygiene — unbounded JSONL stores (self_improve_runs, content_feedback,
+    """W1.8: kavya hygiene - unbounded JSONL stores (self_improve_runs, content_feedback,
     reply_drafts, + content_queue/<id>.jsonl) ko cap pe trim. Total removed rows."""
     total = 0
     for _p in _JSONL_ROTATE_FILES:
         total += _trim_jsonl(_p, max_lines)
     try:
-        # Probe then re-resolve at each I/O site — no local bind.
+        # Probe then re-resolve at each I/O site - no local bind.
         _JSONL_ROTATE_DIR()
         if os.path.isdir(_JSONL_ROTATE_DIR()):
             for _fn in os.listdir(_JSONL_ROTATE_DIR()):
@@ -703,7 +703,7 @@ async def run_ops() -> dict[str, Any]:
     """Health snapshot: free-AI provider flags + DB reachability + disk free %.
     status="warn" agar koi provider off, DB down ya disk <10% free.
     Saath me data retention (best-effort): agent_events >60 din delete,
-    call transcripts >90 din delete — pruned counts result me."""
+    call transcripts >90 din delete - pruned counts result me."""
     from app.platform import team
 
     try:
@@ -735,7 +735,7 @@ async def run_ops() -> dict[str, Any]:
         except Exception:
             pass
 
-        # Data retention (best-effort pruning — har piece apne andar guarded)
+        # Data retention (best-effort pruning - har piece apne andar guarded)
         pruned_events = _prune_old_events()
         pruned_transcripts = _prune_old_transcripts()
         pruned_jsonl = _prune_jsonl_stores()  # W1.8: unbounded JSONL rotation
@@ -788,7 +788,7 @@ async def run_ops() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# manager — daily digest (subah 08:30 IST scheduler se; on-demand bhi)
+# manager - daily digest (subah 08:30 IST scheduler se; on-demand bhi)
 # --------------------------------------------------------------------------- #
 def _count_recent_inquiries(hours: float = 24.0) -> int:
     """data/inquiries.jsonl me last-`hours` ki entries count karo (parse-safe)."""
@@ -854,7 +854,7 @@ async def run_digest() -> dict[str, Any]:
                     if at >= cutoff:
                         qa_issues += 1
                 except Exception:
-                    qa_issues += 1  # timestamp parse fail — count it anyway
+                    qa_issues += 1  # timestamp parse fail - count it anyway
         except Exception as e:
             logger.debug(f"[staff] digest: qa events failed: {e}")
 
@@ -871,19 +871,19 @@ async def run_digest() -> dict[str, Any]:
         # ---- 4-5 line Hinglish digest text ----
         today = datetime.now().strftime("%d-%m-%Y")
         lines = [
-            f"📊 LeadGen AI — Daily Digest ({today})",
+            f"📊 LeadGen AI - Daily Digest ({today})",
             f"1) Inquiries (24h): {inquiries_24h} nayi inquiry aayi"
-            + ("" if inquiries_24h else " — landing/WhatsApp push badhao"),
-            f"2) Outreach: {prospects_ready} prospects ready hain — aaj pitch bhejo",
+            + ("" if inquiries_24h else " - landing/WhatsApp push badhao"),
+            f"2) Outreach: {prospects_ready} prospects ready hain - aaj pitch bhejo",
             f"3) QA: {qa_issues} issue events (Arjun, 24h)"
-            + (" — transcripts check karo" if qa_issues else " — voice agent healthy"),
+            + (" - transcripts check karo" if qa_issues else " - voice agent healthy"),
             f"4) AI providers: {providers_on}/{len(providers) or 0} on"
-            + ("" if providers and providers_on == len(providers) else " — keys/quota check karo"),
+            + ("" if providers and providers_on == len(providers) else " - keys/quota check karo"),
         ]
         text = "\n".join(lines)
 
-        # ---- W2.4: optional cheap-LLM synthesis (why + next action) — gated DIGEST_LLM
-        # (default OFF → pure rule-based). Free bulk profile (W1.10 cached). Fail-open. ----
+        # ---- W2.4: optional cheap-LLM synthesis (why + next action) - gated DIGEST_LLM
+        # (default OFF -> pure rule-based). Free bulk profile (W1.10 cached). Fail-open. ----
         try:
             if os.getenv("DIGEST_LLM", "").strip().lower() in ("1", "true", "yes", "on"):
                 from app.voice_agent import free_ai
@@ -931,18 +931,18 @@ async def run_digest() -> dict[str, Any]:
             if to and settings.smtp_user and settings.smtp_password:
                 from app.integrations.email_sender import EmailSender
 
-                await EmailSender().send_email([to], f"📊 LeadGen AI daily digest — {today}", text)
+                await EmailSender().send_email([to], f"📊 LeadGen AI daily digest - {today}", text)
         except Exception as e:
             logger.debug(f"[staff] digest: email skipped: {e}")
 
-        # ---- W1.15: best-effort phone push (ntfy) — daily digest founder ke phone pe.
+        # ---- W1.15: best-effort phone push (ntfy) - daily digest founder ke phone pe.
         # Gated DIGEST_NTFY (default OFF, additive/inert); ntfy khud config-gate karta.
         try:
             if os.getenv("DIGEST_NTFY", "").strip().lower() in ("1", "true", "yes", "on"):
                 from app.integrations import ntfy as _ntfy_mod
 
                 await _ntfy_mod.push(
-                    f"📊 Daily Digest — {today}", text, priority="default", tags=["bar_chart"]
+                    f"📊 Daily Digest - {today}", text, priority="default", tags=["bar_chart"]
                 )
         except Exception as e:
             logger.debug(f"[staff] digest: ntfy push skipped: {e}")
@@ -959,7 +959,7 @@ async def run_digest() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# OWNER BRIEF — daily autonomous morning ntfy push when blockers/exceptions found
+# OWNER BRIEF - daily autonomous morning ntfy push when blockers/exceptions found
 # --------------------------------------------------------------------------- #
 async def run_daily_owner_brief() -> dict[str, Any]:
     """Roz subah owner-brief build karo. Agar P0/P1 exceptions ya pending owner
@@ -998,7 +998,7 @@ async def run_daily_owner_brief() -> dict[str, Any]:
 
         # Build Hinglish ntfy message
         lines: list[str] = []
-        lines.append(f"📊 Owner Brief — {status.upper()}")
+        lines.append(f"📊 Owner Brief - {status.upper()}")
         lines.append(
             f"MRR ₹{revenue.get('mrr', 0)} | Paid {revenue.get('paid_customers', 0)} | "
             f"Pending UPI {revenue.get('pending_payments', 0)}"
@@ -1060,7 +1060,7 @@ async def run_daily_owner_brief() -> dict[str, Any]:
                 priority = "urgent" if p0 > 0 else "high"
                 tags = ["rotating_light"] if p0 > 0 else ["memo", "chart_with_upwards_trend"]
                 await _ntfy_mod.push(
-                    f"🎯 Owner Brief — {status.upper()}",
+                    f"🎯 Owner Brief - {status.upper()}",
                     text,
                     priority=priority,
                     tags=tags,
@@ -1089,7 +1089,7 @@ async def run_daily_owner_brief() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# isha — per-client auto social-media content (run_daily_content wrapper)
+# isha - per-client auto social-media content (run_daily_content wrapper)
 # --------------------------------------------------------------------------- #
 async def run_content() -> dict[str, Any]:
     """Sab active marketing clients ke liye aaj ka social content generate karo
@@ -1105,7 +1105,7 @@ async def run_content() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# isha — programmatic SEO blog (run_daily_blog wrapper)
+# isha - programmatic SEO blog (run_daily_blog wrapper)
 # --------------------------------------------------------------------------- #
 async def run_blog(n: int = 3) -> dict[str, Any]:
     """n naye niche×city SEO articles publish karo (/blog + sitemap me aate).
@@ -1121,7 +1121,7 @@ async def run_blog(n: int = 3) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# rohan — automated email outreach (run_email_outreach wrapper)
+# rohan - automated email outreach (run_email_outreach wrapper)
 # --------------------------------------------------------------------------- #
 async def run_email_outreach() -> dict[str, Any]:
     """Ready prospects ko auto cold email bhejo (auto_outreach engine).
@@ -1137,10 +1137,10 @@ async def run_email_outreach() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# manager — growth pulse (self-run/self-improve tick; har 15 min scheduler se)
+# manager - growth pulse (self-run/self-improve tick; har 15 min scheduler se)
 # --------------------------------------------------------------------------- #
 async def run_growth() -> dict[str, Any]:
-    """Growth-engine pulse — metrics + pipeline self-heal + pitch-learning.
+    """Growth-engine pulse - metrics + pipeline self-heal + pitch-learning.
     Import-safe, KABHI raise nahi karta."""
     try:
         from app.platform import growth_engine
@@ -1153,20 +1153,20 @@ async def run_growth() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Extended run_* wrappers — 25 previously non-runnable agents ko manual-trigger
+# Extended run_* wrappers - 25 previously non-runnable agents ko manual-trigger
 # surface dete hain. Har wrapper apne engine ko delegate karta hai, env-flag
 # check karta hai, aur KABHI raise nahi karta. Log via team.log_event().
-# Pattern: try/import → flag check → engine call → log → result dict.
+# Pattern: try/import -> flag check -> engine call -> log -> result dict.
 # --------------------------------------------------------------------------- #
 
 
 def _flag_on(flag: str) -> bool:
-    """Env flag active hai ya nahi — util for gated agents."""
+    """Env flag active hai ya nahi - util for gated agents."""
     return (os.environ.get(flag) or "").strip().lower() in ("1", "true", "yes")
 
 
 def _log(member: str, action: str, detail: str, status: str = "ok") -> None:
-    """Safe team.log_event wrapper — never raises."""
+    """Safe team.log_event wrapper - never raises."""
     try:
         from app.platform import team
 
@@ -1192,8 +1192,8 @@ def _track_agent_cost(agent_id: str, result: dict[str, Any], elapsed_s: float) -
 
 
 async def run_swara() -> dict[str, Any]:
-    """Swara (Voice Agent) — readiness status check. On-demand voice actor,
-    no standalone batch — reports voice subsystem health."""
+    """Swara (Voice Agent) - readiness status check. On-demand voice actor,
+    no standalone batch - reports voice subsystem health."""
     try:
         from app.voice_agent import free_ai
 
@@ -1206,7 +1206,7 @@ async def run_swara() -> dict[str, Any]:
 
 
 async def run_ananya() -> dict[str, Any]:
-    """Ananya (Booking Campaigns) — booking reminders + callback queue."""
+    """Ananya (Booking Campaigns) - booking reminders + callback queue."""
     try:
         from app.platform import booking_reminders
 
@@ -1219,7 +1219,7 @@ async def run_ananya() -> dict[str, Any]:
 
 
 async def run_riya() -> dict[str, Any]:
-    """Riya (Inbound/Widget) — readiness check. Event-driven agent."""
+    """Riya (Inbound/Widget) - readiness check. Event-driven agent."""
     try:
         _log("riya", "readiness_check", "Inbound widget agent ready")
         return {"ok": True, "type": "readiness", "detail": "event-driven, no batch run"}
@@ -1228,7 +1228,7 @@ async def run_riya() -> dict[str, Any]:
 
 
 async def run_dev() -> dict[str, Any]:
-    """Dev (New Client Setup) — onboarding sweep + ML training status."""
+    """Dev (New Client Setup) - onboarding sweep + ML training status."""
     try:
         from app.marketing import onboarding
 
@@ -1241,7 +1241,7 @@ async def run_dev() -> dict[str, Any]:
 
 
 async def run_lekha() -> dict[str, Any]:
-    """Lekha (Call KPI Analyst) — daily call analytics digest."""
+    """Lekha (Call KPI Analyst) - daily call analytics digest."""
     try:
         from app.voice_agent import call_analytics
 
@@ -1254,7 +1254,7 @@ async def run_lekha() -> dict[str, Any]:
 
 
 async def run_raksha() -> dict[str, Any]:
-    """Raksha (Live Call Monitor) — call transfer readiness (gated CALL_TRANSFER)."""
+    """Raksha (Live Call Monitor) - call transfer readiness (gated CALL_TRANSFER)."""
     try:
         if not _flag_on("CALL_TRANSFER"):
             return {"ok": True, "status": "flag_off:CALL_TRANSFER"}
@@ -1265,7 +1265,7 @@ async def run_raksha() -> dict[str, Any]:
 
 
 async def run_hermes() -> dict[str, Any]:
-    """Hermes (Infra Watchdog) — ops watchdog safety checks (gated INFRA_HANDLER)."""
+    """Hermes (Infra Watchdog) - ops watchdog safety checks (gated INFRA_HANDLER)."""
     try:
         from app.platform import ops_watchdog
 
@@ -1278,7 +1278,7 @@ async def run_hermes() -> dict[str, Any]:
 
 
 async def run_tara() -> dict[str, Any]:
-    """Tara (Voice Watchdog) — voice subsystem monitoring."""
+    """Tara (Voice Watchdog) - voice subsystem monitoring."""
     try:
         from app.platform import ops_watchdog
 
@@ -1291,7 +1291,7 @@ async def run_tara() -> dict[str, Any]:
 
 
 async def run_nikhil() -> dict[str, Any]:
-    """Nikhil (Revenue Ops) — revenue digest + client health + usage alerts."""
+    """Nikhil (Revenue Ops) - revenue digest + client health + usage alerts."""
     try:
         results = {}
         try:
@@ -1319,7 +1319,7 @@ async def run_nikhil() -> dict[str, Any]:
 
 
 async def run_vikram() -> dict[str, Any]:
-    """Vikram (Code Upgrader) — code-upgrade proposals (gated CODE_UPGRADER)."""
+    """Vikram (Code Upgrader) - code-upgrade proposals (gated CODE_UPGRADER)."""
     try:
         from app.agents import code_upgrader
 
@@ -1332,14 +1332,14 @@ async def run_vikram() -> dict[str, Any]:
 
 
 async def run_guru() -> dict[str, Any]:
-    """Guru (Skill Pack) — skill KB ingest (gated SKILL_PACK)."""
+    """Guru (Skill Pack) - skill KB ingest (gated SKILL_PACK)."""
     try:
         from app.platform import skill_pack
 
         if not skill_pack.enabled():
             return {"ok": True, "status": "flag_off:SKILL_PACK"}
         res = skill_pack.ingest_to_kb()
-        _log("guru", "skill_ingest", f"Skills → KB: {res}")
+        _log("guru", "skill_ingest", f"Skills -> KB: {res}")
         return {"ok": True, "result": res}
     except Exception as e:
         _log("guru", "skill_ingest", str(e), "error")
@@ -1347,7 +1347,7 @@ async def run_guru() -> dict[str, Any]:
 
 
 async def run_pranav() -> dict[str, Any]:
-    """Pranav (SRE) — reliability score (gated SRE_AGENT)."""
+    """Pranav (SRE) - reliability score (gated SRE_AGENT)."""
     try:
         from app.platform import engineer_agents
 
@@ -1360,7 +1360,7 @@ async def run_pranav() -> dict[str, Any]:
 
 
 async def run_vidya() -> dict[str, Any]:
-    """Vidya (FinOps) — margin digest (gated FINOPS_AGENT)."""
+    """Vidya (FinOps) - margin digest (gated FINOPS_AGENT)."""
     try:
         from app.platform import engineer_agents
 
@@ -1373,7 +1373,7 @@ async def run_vidya() -> dict[str, Any]:
 
 
 async def run_arnav() -> dict[str, Any]:
-    """Arnav (Security) — compliance posture (gated SECURITY_AGENT)."""
+    """Arnav (Security) - compliance posture (gated SECURITY_AGENT)."""
     try:
         from app.platform import engineer_agents
 
@@ -1386,7 +1386,7 @@ async def run_arnav() -> dict[str, Any]:
 
 
 async def run_kabir() -> dict[str, Any]:
-    """Kabir (DBRE) — Postgres reliability (gated DBRE_AGENT)."""
+    """Kabir (DBRE) - Postgres reliability (gated DBRE_AGENT)."""
     try:
         from app.platform import engineer_agents
 
@@ -1399,7 +1399,7 @@ async def run_kabir() -> dict[str, Any]:
 
 
 async def run_diya() -> dict[str, Any]:
-    """Diya (Data Integrity) — lead/CRM data integrity (gated DATA_INTEGRITY_AGENT)."""
+    """Diya (Data Integrity) - lead/CRM data integrity (gated DATA_INTEGRITY_AGENT)."""
     try:
         from app.platform import engineer_agents
 
@@ -1412,7 +1412,7 @@ async def run_diya() -> dict[str, Any]:
 
 
 async def run_aryan() -> dict[str, Any]:
-    """Aryan (Deps Audit) — dependency CVE audit (gated DEPS_AGENT)."""
+    """Aryan (Deps Audit) - dependency CVE audit (gated DEPS_AGENT)."""
     try:
         from app.platform import engineer_agents
 
@@ -1425,7 +1425,7 @@ async def run_aryan() -> dict[str, Any]:
 
 
 async def run_arya() -> dict[str, Any]:
-    """Arya (MCP Engineer) — MCP health pulse (gated MCP_ENGINEER)."""
+    """Arya (MCP Engineer) - MCP health pulse (gated MCP_ENGINEER)."""
     try:
         from app.platform import mcp_engineer
 
@@ -1438,7 +1438,7 @@ async def run_arya() -> dict[str, Any]:
 
 
 async def run_ravi() -> dict[str, Any]:
-    """Ravi (SEO/Blog) — programmatic SEO blog articles."""
+    """Ravi (SEO/Blog) - programmatic SEO blog articles."""
     try:
         return await run_blog(n=3)
     except Exception as e:
@@ -1447,7 +1447,7 @@ async def run_ravi() -> dict[str, Any]:
 
 
 async def run_neha() -> dict[str, Any]:
-    """Neha (Pipeline Ops) — lead rescore + hot-lead surfacing."""
+    """Neha (Pipeline Ops) - lead rescore + hot-lead surfacing."""
     try:
         from app.platform import pipeline_ops
 
@@ -1460,7 +1460,7 @@ async def run_neha() -> dict[str, Any]:
 
 
 async def run_kiran() -> dict[str, Any]:
-    """Kiran (Campaign Optimizer) — campaign optimization (gated CAMPAIGN_OPTIMIZER)."""
+    """Kiran (Campaign Optimizer) - campaign optimization (gated CAMPAIGN_OPTIMIZER)."""
     try:
         from app.agents import campaign_optimizer
 
@@ -1473,7 +1473,7 @@ async def run_kiran() -> dict[str, Any]:
 
 
 async def run_priya() -> dict[str, Any]:
-    """Priya (CRM Sync) — customer CRM sync + wishes (gated CRM_SYNC)."""
+    """Priya (CRM Sync) - customer CRM sync + wishes (gated CRM_SYNC)."""
     try:
         if not _flag_on("CRM_SYNC"):
             return {"ok": True, "status": "flag_off:CRM_SYNC"}
@@ -1488,7 +1488,7 @@ async def run_priya() -> dict[str, Any]:
 
 
 async def run_zara() -> dict[str, Any]:
-    """Zara (Social Publisher) — social queue drain (gated SOCIAL_ENGINE)."""
+    """Zara (Social Publisher) - social queue drain (gated SOCIAL_ENGINE)."""
     try:
         if not _flag_on("SOCIAL_ENGINE"):
             return {"ok": True, "status": "flag_off:SOCIAL_ENGINE"}
@@ -1503,7 +1503,7 @@ async def run_zara() -> dict[str, Any]:
 
 
 async def run_anika() -> dict[str, Any]:
-    """Anika (Cadence) — omnichannel cadence advance (gated CADENCE_ENGINE)."""
+    """Anika (Cadence) - omnichannel cadence advance (gated CADENCE_ENGINE)."""
     try:
         if not _flag_on("CADENCE_ENGINE"):
             return {"ok": True, "status": "flag_off:CADENCE_ENGINE"}
@@ -1518,7 +1518,7 @@ async def run_anika() -> dict[str, Any]:
 
 
 async def run_ira() -> dict[str, Any]:
-    """Ira (Journey/Hooks) — lifecycle nurture (gated JOURNEY_ENGINE)."""
+    """Ira (Journey/Hooks) - lifecycle nurture (gated JOURNEY_ENGINE)."""
     try:
         if not _flag_on("JOURNEY_ENGINE"):
             return {"ok": True, "status": "flag_off:JOURNEY_ENGINE"}
@@ -1533,7 +1533,7 @@ async def run_ira() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Dispatcher — member/job naam se sahi run_* function chalao (API + scheduler).
+# Dispatcher - member/job naam se sahi run_* function chalao (API + scheduler).
 # --------------------------------------------------------------------------- #
 async def run_member(member: str) -> dict[str, Any]:
     """Staff member ya job-name se kaam dispatch karo. Unknown -> {"error":...}.
@@ -1542,19 +1542,19 @@ async def run_member(member: str) -> dict[str, Any]:
     NOTE: this is the manual "Run now" path (called from app.api.team's
     `POST /run/{member}`) ONLY. team_scheduler.py's `_run_job_inner` calls the
     individual `run_qa()`/`run_ops()`/etc. functions DIRECTLY and never goes
-    through this dispatcher — so the pause-check below cannot and does not
+    through this dispatcher - so the pause-check below cannot and does not
     affect scheduled/automatic runs, only this manual trigger."""
     key = (member or "").strip().lower()
     try:
         from app.platform import agent_controls
 
         if agent_controls.is_paused(key):
-            logger.info(f"[staff] run_member({key}) skipped — paused by admin")
+            logger.info(f"[staff] run_member({key}) skipped - paused by admin")
             try:
                 from app.platform import team
 
                 team.log_event(
-                    key, "run_skipped_paused", "Manual run blocked — paused by admin", status="warn"
+                    key, "run_skipped_paused", "Manual run blocked - paused by admin", status="warn"
                 )
             except Exception:
                 pass
@@ -1569,7 +1569,7 @@ async def run_member(member: str) -> dict[str, Any]:
         budget_result = agent_budget.check(key)
         if not budget_result.get("allowed", True):
             logger.info(
-                f"[staff] run_member({key}) blocked — budget exceeded (tier {budget_result.get('tier')})"
+                f"[staff] run_member({key}) blocked - budget exceeded (tier {budget_result.get('tier')})"
             )
             try:
                 from app.platform import team
@@ -1678,7 +1678,7 @@ __all__ = [
     "run_email_outreach",
     "run_growth",
     "run_member",
-    # Extended roster — all 25 previously non-runnable agents
+    # Extended roster - all 25 previously non-runnable agents
     "run_swara",
     "run_ananya",
     "run_riya",

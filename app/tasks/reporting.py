@@ -94,7 +94,7 @@ def _get_notification_recipients(db) -> dict[str, list[str]]:
     """Get notification recipients from active clients"""
     recipients = {"whatsapp": [], "email": []}
 
-    # Get active clients (status is an Enum column → compare to the member, not the
+    # Get active clients (status is an Enum column -> compare to the member, not the
     # lowercase string; native PG enum stores the member name, so "active" matched 0 rows
     # / raised InvalidTextRepresentation. Contact fields are contact_phone/contact_email.)
     active_clients = db.query(Client).filter(Client.status == ClientStatus.ACTIVE).all()
@@ -118,7 +118,7 @@ def generate_daily_report():
     Generate and send daily report.
 
     # idempotency: read-only DB aggregation (no mutations); duplicate runs produce
-    # the same report for the same date — safe to re-run. Notification dedup is
+    # the same report for the same date - safe to re-run. Notification dedup is
     # at recipient level (email/WA already-sent check in EmailSender/WhatsApp).
     """
     logger.info("Generating daily report")
@@ -178,7 +178,7 @@ def generate_weekly_report():
     """
     Generate and send weekly report.
 
-    # idempotency: read-only DB aggregation — no side-effecting mutations;
+    # idempotency: read-only DB aggregation - no side-effecting mutations;
     # duplicate runs produce identical stats for the same week window, safe to retry.
     """
     logger.info("Generating weekly report")
@@ -264,7 +264,7 @@ def generate_monthly_report(year: int = None, month: int = None):
     """
     Generate monthly report.
 
-    # idempotency: read-only DB aggregation keyed on (year, month) — no mutations;
+    # idempotency: read-only DB aggregation keyed on (year, month) - no mutations;
     # duplicate runs for the same month produce identical output, safe to retry.
     """
     now = datetime.now()
@@ -343,7 +343,7 @@ def clean_old_logs(days: int = 30):
     Clean log files older than specified days.
 
     # idempotency: already-deleted folders are skipped (os.path.exists guard);
-    # duplicate runs are safe — absent files produce no error, cutoff window is stable.
+    # duplicate runs are safe - absent files produce no error, cutoff window is stable.
     """
     logger.info(f"Cleaning logs older than {days} days")
 
@@ -378,7 +378,7 @@ def export_campaign_report(campaign_id: str, format: str = "csv"):
 
     # idempotency: read-only query on campaign_id; output file uses timestamp suffix
     # to avoid collision. Duplicate task runs produce separate timestamped files
-    # (idempotent from a data-mutation standpoint — no DB writes).
+    # (idempotent from a data-mutation standpoint - no DB writes).
     """
     logger.info(f"Exporting campaign {campaign_id} to {format}")
 
@@ -467,16 +467,16 @@ def export_campaign_report(campaign_id: str, format: str = "csv"):
 
 
 # =============================================================================
-# Social auto-poster (Track 3) — publish content_schedule 'ready' items via Meta
+# Social auto-poster (Track 3) - publish content_schedule 'ready' items via Meta
 # =============================================================================
 async def run_social_autopost(limit: int = 20) -> dict[str, Any]:
     """Publish scheduled 'ready' posts to clients' connected Meta (FB Page / Instagram).
 
     For each ``content_schedule`` item with status='ready' (up to ``limit``): resolve the
     client's Meta connection and publish via the Graph API. Real publishing only when
-    ``SOCIAL_AUTOPOST=1`` AND a token exists — otherwise the publisher returns a MOCK
+    ``SOCIAL_AUTOPOST=1`` AND a token exists - otherwise the publisher returns a MOCK
     result and the item STAYS 'ready' (a later real run can still post it). On a real post
-    the item is marked 'posted' (idempotent — never re-posted). NEVER raises.
+    the item is marked 'posted' (idempotent - never re-posted). NEVER raises.
 
     Returns a counters dict: ``{"ready", "posted", "mock", "failed"}``.
     """
@@ -526,7 +526,7 @@ def social_autopost_task(limit: int = 20):
     """Celery entrypoint for the social auto-poster (wraps the async core).
 
     # idempotency: run_social_autopost marks posted items 'posted' before returning;
-    # duplicate runs skip already-posted items (status != 'ready') — safe to retry.
+    # duplicate runs skip already-posted items (status != 'ready') - safe to retry.
     """
     from app.platform.celery_async import run as run_async
 

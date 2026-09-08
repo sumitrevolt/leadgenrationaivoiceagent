@@ -1,4 +1,4 @@
-"""Duplicate checker — main.py routes + frontend files + key modules"""
+"""Duplicate checker - main.py routes + frontend files + key modules"""
 
 import os
 import re
@@ -37,7 +37,7 @@ print(f"\n=== command_center lines in main.py ({len(cc)}) ===")
 for l in cc:
     print(" ", l.strip())
 
-# 4. Frontend HTML — command* files
+# 4. Frontend HTML - command* files
 fe_dir = rf"{BASE}\frontend"
 html_files = os.listdir(fe_dir)
 cc_files = [f for f in html_files if "command" in f.lower()]

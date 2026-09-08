@@ -16,7 +16,7 @@ best-effort + never-500, mirror admin_dashboard.py's real-data approach:
   - data/marketing_clients.jsonl                      -> the client's own record
 
 When NOTHING real exists for a client, the dashboard returns honest ZEROS with
-is_sample_data=True (so the UI can show a "no data yet" state) — it NEVER invents
+is_sample_data=True (so the UI can show a "no data yet" state) - it NEVER invents
 businesses/leads. This module stays import-safe: heavy imports are local+guarded.
 
 Mount in main.py with:
@@ -55,7 +55,7 @@ _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 
 # --------------------------------------------------------------------------- #
-# Onboarding checklist — drives customer portal getting-started wizard         #
+# Onboarding checklist - drives customer portal getting-started wizard         #
 # --------------------------------------------------------------------------- #
 from app.api.customer_dashboard_builders import (  # noqa: F401  (helpers extracted 2026-06-20)
     _build_from_db,
@@ -106,15 +106,15 @@ def get_customer_dashboard(
     client_id: str = Depends(require_customer),
 ) -> DashboardResponse:
     """
-    Return the full dashboard payload for a customer — REAL data only.
+    Return the full dashboard payload for a customer - REAL data only.
 
-    1. Real DB (Lead, CallLog, Campaign) keyed by client_id + campaign — richest.
+    1. Real DB (Lead, CallLog, Campaign) keyed by client_id + campaign - richest.
     2. Else FILE-based real builder: this client's inquiries (inquiries.jsonl,
        matched by source_slug / client_id / business / phone) + content-queue
        posts + agent-event call counts.
     No fictional "SunVolt Energy" sample. If a client genuinely has zero
     activity the response carries honest zeros with is_sample_data=True (UI
-    shows a clean "no data yet" state) — never invented businesses or leads.
+    shows a clean "no data yet" state) - never invented businesses or leads.
     """
     resp = _build_from_db(client_id=client_id, campaign=campaign)
     if resp is None:
@@ -130,11 +130,11 @@ def get_customer_dashboard(
 
 @router.get("/office")
 def get_customer_office(client_id: str = Depends(require_customer)):
-    """🏢 Aapka Office — plain-Hinglish virtual-office view for the customer.
+    """🏢 Aapka Office - plain-Hinglish virtual-office view for the customer.
 
     Ek nazar me: (a) AI team ne aapke liye kya kiya (activity feed), (b) summary
     counts, aur (c) **customer ko khud kya manual karna hai** with automation-impact
-    ("website do → behtar content", "X post approve → auto-publish"). Product-aware
+    ("website do -> behtar content", "X post approve -> auto-publish"). Product-aware
     (marketing/voice/combo). client_id JWT se (require_customer) => IDOR-safe.
     Read-only, never-500, gated by CUSTOMER_OFFICE (default ON
     '0' => disabled)."""
@@ -153,12 +153,12 @@ def _voice_team_response(
     has_profile: bool,
     niche: str,
 ) -> CustomerTeamResponse:
-    """Voice-product customer's AI team — Swara/Ananya/Meera + Boss, with
+    """Voice-product customer's AI team - Swara/Ananya/Meera + Boss, with
     call-based activity derived ONLY from this client's own leads (IDOR-safe).
 
     ADR-009 two-product split: a voice-only dashboard must NOT show the marketing
     roster (Isha/Rohan/Dev). Mirrors get_customer_team's best-effort, never-500
-    contract — every value comes from already-validated, client-scoped inputs.
+    contract - every value comes from already-validated, client-scoped inputs.
     """
     try:
         from app.platform.team import STAFF
@@ -171,11 +171,11 @@ def _voice_team_response(
 
     agents: list[TeamAgentCard] = []
 
-    # 📞 Swara — Telecaller (calls + qualifies this client's leads)
+    # 📞 Swara - Telecaller (calls + qualifies this client's leads)
     sname, semoji = _meta("swara", "Swara", "📞")
     if hot > 0:
         s_status, s_label = "working", "Call pe"
-        s_task = f"{hot} hot lead ko call karke qualify kiya — ready to buy. 🔥"
+        s_task = f"{hot} hot lead ko call karke qualify kiya - ready to buy. 🔥"
     elif total_leads > 0:
         s_status, s_label = "active", "Active"
         s_task = f"{total_leads} leads ko call karke qualify kiya."
@@ -197,7 +197,7 @@ def _voice_team_response(
         )
     )
 
-    # 📅 Ananya — Appointment Booker
+    # 📅 Ananya - Appointment Booker
     aname, aemoji = _meta("ananya", "Ananya", "📅")
     if hot > 0:
         a_status, a_label = "working", "Slot book kar rahi"
@@ -220,7 +220,7 @@ def _voice_team_response(
         )
     )
 
-    # 🎓 Meera — Call Quality Trainer (trust: calls sound human + fast)
+    # 🎓 Meera - Call Quality Trainer (trust: calls sound human + fast)
     mname, memoji = _meta("meera", "Meera", "🎓")
     agents.append(
         TeamAgentCard(
@@ -231,21 +231,21 @@ def _voice_team_response(
             duties="Har call ki quality monitor karti hai",
             status="active",
             status_label="Monitor kar rahi",
-            task="Har call ki quality check — saaf, natural aur fast awaaz.",
+            task="Har call ki quality check - saaf, natural aur fast awaaz.",
             metric="Quality ✓",
             accent="#7c3aed",
         )
     )
 
-    # 🧑‍💼 Boss — Team Lead (coordinator summary)
+    # 🧑‍💼 Boss - Team Lead (coordinator summary)
     busy_count = sum(1 for a in agents if a.status == "working")
     bname, bemoji = _meta("manager", "Boss", "🧑‍💼")
     if busy_count > 0:
         b_status, b_label = "working", "Coordinate kar raha hai"
-        b_task = f"{busy_count} agent abhi call/booking pe — main monitor kar raha hoon."
+        b_task = f"{busy_count} agent abhi call/booking pe - main monitor kar raha hoon."
     else:
         b_status, b_label = "active", "Active"
-        b_task = "Team ready hai — naya lead aate hi calling shuru."
+        b_task = "Team ready hai - naya lead aate hi calling shuru."
     agents.append(
         TeamAgentCard(
             key="manager",
@@ -266,7 +266,7 @@ def _voice_team_response(
     if total_today > 0:
         headline = f"Aaj aapki AI voice team ne {total_today} lead handle kiye"
     else:
-        headline = "Aapki AI voice team active hai — lead aate hi call shuru"
+        headline = "Aapki AI voice team active hai - lead aate hi call shuru"
     summary = (
         f"{busy_count} agent abhi kaam pe · {total_leads} lead · {hot} hot"
         if total_today
@@ -286,11 +286,11 @@ def _voice_team_response(
 
 @router.get("/team", response_model=CustomerTeamResponse)
 def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTeamResponse:
-    """Customer-facing **AI Marketing Team** — a virtual agentic office that shows
+    """Customer-facing **AI Marketing Team** - a virtual agentic office that shows
     each AI staff member and what they are doing FOR THIS client right now.
 
-    Privacy: the roster (name/emoji/role) is read from app.platform.team.STAFF —
-    the single source of truth — but every activity line / metric is derived ONLY
+    Privacy: the roster (name/emoji/role) is read from app.platform.team.STAFF -
+    the single source of truth - but every activity line / metric is derived ONLY
     from *this* client's own data (content queue + their inquiries). The
     agency-wide event feed is never exposed here, so one customer can never see
     another customer's work. client_id comes from the JWT (require_customer) =>
@@ -351,11 +351,11 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
     if _product == "voice":
         return _voice_team_response(client_id, client_rec, total_leads, hot, has_profile, niche)
 
-    # 📣 Isha — Content Writer
+    # 📣 Isha - Content Writer
     iname, iemoji = _meta("isha", "Isha", "📣")
     if drafts > 0:
         i_status, i_label = "working", "Likh rahi hai"
-        i_task = f"{drafts} naye post taiyaar — aapke approve ka intezaar."
+        i_task = f"{drafts} naye post taiyaar - aapke approve ka intezaar."
     elif total_posts > 0:
         i_status, i_label = "active", "Active"
         i_task = f"{posted or total_posts} post share/publish ke liye ready hain."
@@ -377,11 +377,11 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
         )
     )
 
-    # 🎯 Rohan — Leads Manager
+    # 🎯 Rohan - Leads Manager
     rname, remoji = _meta("rohan", "Rohan", "🎯")
     if hot > 0:
         r_status, r_label = "working", "Follow-up pe"
-        r_task = f"{hot} hot lead mile — abhi follow-up karna best hai."
+        r_task = f"{hot} hot lead mile - abhi follow-up karna best hai."
     elif total_leads > 0:
         r_status, r_label = "active", "Active"
         r_task = f"{total_leads} leads handle kiye, scoring ho gayi."
@@ -403,7 +403,7 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
         )
     )
 
-    # 📚 Dev — Business Researcher
+    # 📚 Dev - Business Researcher
     dname, demoji = _meta("dev", "Dev", "📚")
     if has_profile:
         d_status, d_label = "active", "Active"
@@ -411,7 +411,7 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
         d_metric = niche.title() if niche else "Profile ready"
     else:
         d_status, d_label = "working", "Setup kar raha hai"
-        d_task = "Aapka business samajh raha hoon — profile complete karo."
+        d_task = "Aapka business samajh raha hoon - profile complete karo."
         d_metric = "Setup pending"
     agents.append(
         TeamAgentCard(
@@ -428,15 +428,15 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
         )
     )
 
-    # 🧑‍💼 Boss — Team Lead (coordinator; summary card)
+    # 🧑‍💼 Boss - Team Lead (coordinator; summary card)
     busy_count = sum(1 for a in agents if a.status == "working")
     bname, bemoji = _meta("manager", "Boss", "🧑‍💼")
     if busy_count > 0:
         b_status, b_label = "working", "Coordinate kar raha hai"
-        b_task = f"{busy_count} agent abhi kaam pe — main monitor kar raha hoon."
+        b_task = f"{busy_count} agent abhi kaam pe - main monitor kar raha hoon."
     else:
         b_status, b_label = "active", "Active"
-        b_task = "Team ready hai — naya kaam aate hi assign kar dunga."
+        b_task = "Team ready hai - naya kaam aate hi assign kar dunga."
     agents.append(
         TeamAgentCard(
             key="manager",
@@ -457,7 +457,7 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
     if total_today > 0:
         headline = f"Aaj aapki AI team ne {total_today} cheezein handle ki"
     else:
-        headline = "Aapki AI team active hai — kaam aate hi yahan dikhega"
+        headline = "Aapki AI team active hai - kaam aate hi yahan dikhega"
     summary = (
         f"{busy_count} agent abhi kaam pe · {total_posts} post · {total_leads} lead"
         if total_today
@@ -477,7 +477,7 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
 
 
 # --------------------------------------------------------------------------- #
-# Phase-1 self-serve marketing tools (council 2026-06-26) — customer-scoped,   #
+# Phase-1 self-serve marketing tools (council 2026-06-26) - customer-scoped,   #
 # IDOR-safe versions of the admin "done-for-you" generators. Each reuses the   #
 # same underlying generator module the admin console uses; client_id comes     #
 # from the JWT (require_customer) so a customer only ever touches its own data. #
@@ -494,7 +494,7 @@ _GBP_DIR = os.path.join("data", "gbp_audits")
 def customer_gbp_questions(client_id: str = Depends(require_customer)) -> dict:
     """GBP self-audit ke 16 Hinglish sawal + is client ka last saved score.
 
-    Customer khud apna Google Business Profile audit kar sakta hai — scoring
+    Customer khud apna Google Business Profile audit kar sakta hai - scoring
     PURE LOGIC hai (koi LLM cost nahi). Last result per-client file me save hota
     hai taaki card pe "pichla score" dikhe."""
     out: dict = {"questions": [], "total": 0, "last": None, "suggested": None}
@@ -549,7 +549,7 @@ def customer_gbp_score(
     dependencies=[Depends(rate_limit("gbp_council", 4, 60))],
 )
 async def customer_gbp_council_suggest(client_id: str = Depends(require_customer)) -> dict:
-    """Council + heuristic answer suggestions. Score SAVE nahi hota — boss confirm kare."""
+    """Council + heuristic answer suggestions. Score SAVE nahi hota - boss confirm kare."""
     from app.platform import boss_council
 
     client = _client_record(client_id) or {"id": client_id}
@@ -560,7 +560,7 @@ async def customer_gbp_council_suggest(client_id: str = Depends(require_customer
 
 @router.get("/creatives")
 def customer_creatives(client_id: str = Depends(require_customer)) -> dict:
-    """Creatives & Festival gallery — upcoming Indian festivals (static calendar)
+    """Creatives & Festival gallery - upcoming Indian festivals (static calendar)
     + is client ke ready content posts/posters (content queue se). Read-only,
     near-zero cost. Festival captions/posters generation admin/AI karta hai;
     yahan customer ready creatives dekh+download kar sakta hai."""
@@ -605,13 +605,13 @@ def customer_creatives(client_id: str = Depends(require_customer)) -> dict:
 
 @router.get("/autopilot")
 def customer_autopilot_drafts(client_id: str = Depends(require_customer)) -> dict:
-    """ "Aapki AI team ne ye taiyaar kiya" — the hands-free autopilot drafts
+    """ "Aapki AI team ne ye taiyaar kiya" - the hands-free autopilot drafts
     (owner-brief / feedback survey / stale-inquiry nudge / evergreen post) the AI
     prepared for THIS business. Draft-only: 1-click send stays the customer's
-    choice (no bulk auto-send — ban-safe). client_id from the JWT (require_customer)
+    choice (no bulk auto-send - ban-safe). client_id from the JWT (require_customer)
     => customer sees ONLY its own drafts. GAP-1 fix (2026-07-06): these drafts had
     no customer-facing route before. Empty until the autopilot flags are armed and
-    drafts accumulate (see docs — SIGNUP_AUTO_ONBOARD / OWNER_BRIEF_DAILY / etc.)."""
+    drafts accumulate (see docs - SIGNUP_AUTO_ONBOARD / OWNER_BRIEF_DAILY / etc.)."""
     slug = ""
     try:
         rec = _client_record(client_id) or {}
@@ -629,15 +629,15 @@ def customer_autopilot_drafts(client_id: str = Depends(require_customer)) -> dic
 
 
 # --------------------------------------------------------------------------- #
-# Product-2 (Voice) self-serve calling — GAP-1 fix (council decision 2026-07-06)
+# Product-2 (Voice) self-serve calling - GAP-1 fix (council decision 2026-07-06)
 # ---------------------------------------------------------------------------
 # The flat-fee "AI calls your leads" value was admin-only (campaigns.py require_admin)
-# — a paying voice customer had no way to trigger, or even SEE, calling. These two
-# routes close it SAFELY: every call is routed through call_manager.queue_call() — the
+# - a paying voice customer had no way to trigger, or even SEE, calling. These two
+# routes close it SAFELY: every call is routed through call_manager.queue_call() - the
 # SINGLE compliance chokepoint (DND fail-closed + 9am-7pm TRAI window + DLT/140 +
-# prepaid-minutes + voice-quota + lead-score) — so this route CANNOT bypass any gate.
+# prepaid-minutes + voice-quota + lead-score) - so this route CANNOT bypass any gate.
 # client_id is forced from the JWT (IDOR-safe). POST is gated CUSTOMER_VOICE_SELFSERVE
-# (default OFF => 503) and NEVER auto-schedules — one explicit customer action per
+# (default OFF => 503) and NEVER auto-schedules - one explicit customer action per
 # batch. Enable only after a live outbound test call (voice = phone-final-verify).
 
 
@@ -668,7 +668,7 @@ def _voice_call_manager():
 
 @router.get("/voice/queue-status")
 def customer_voice_queue_status(client_id: str = Depends(require_customer)) -> dict:
-    """Read-only voice activity for THIS client (no calls placed) — so the customer
+    """Read-only voice activity for THIS client (no calls placed) - so the customer
     can SEE calling even before self-serve is enabled. client_id from the JWT."""
     total, called, today_calls = 0, 0, 0
     try:
@@ -719,9 +719,9 @@ async def customer_voice_call_queue(
 
     Every call goes through `queue_call` (the sole compliance chokepoint), so a
     non-compliant number (DND / outside 9am-7pm / no DLT / out of minutes/quota) is
-    simply NOT queued — this route bypasses nothing. NO REPEAT-DIAL: skips leads that
+    simply NOT queued - this route bypasses nothing. NO REPEAT-DIAL: skips leads that
     have a CallLog row AND an in-flight Redis set (`voice_inflight:{cid}`, TTL) so the
-    same person isn't re-queued in the queue→dial→log window (2026-07-06 sec-audit
+    same person isn't re-queued in the queue->dial->log window (2026-07-06 sec-audit
     fix)
     plus a per-client daily cap (`VOICE_SELFSERVE_DAILY_CAP`, default 200) and a
     per-IP rate limit. client_id forced from JWT (IDOR-safe). Gated
@@ -729,12 +729,12 @@ async def customer_voice_call_queue(
     if not _voice_selfserve_enabled():
         raise HTTPException(
             status_code=503,
-            detail="Voice self-serve calling abhi enable nahi hai — admin se activate karwayein.",
+            detail="Voice self-serve calling abhi enable nahi hai - admin se activate karwayein.",
         )
     lim = max(1, min(int(limit or 20), 50))
     rec = _client_record(client_id) or {}
     # PLAN/PRODUCT GATE (2026-07-07 audit fix): AI voice calling is a separate
-    # standalone product (₹4,999-19,999/mo) — a Marketing-only ("starter")
+    # standalone product (₹4,999-19,999/mo) - a Marketing-only ("starter")
     # customer must not get free AI calls just because this flag+DLT happen to
     # both be armed one day. queue_call()'s minute/lead-quota checks fail-OPEN
     # for non-metered plans (no cap = not blocked), so this route-level check
@@ -744,7 +744,7 @@ async def customer_voice_call_queue(
     if _clients_store.resolve_product(rec) not in ("voice", "combo"):
         raise HTTPException(
             status_code=403,
-            detail="AI Voice Calling aapke plan me included nahi hai — Voice ya Combo product chahiye.",
+            detail="AI Voice Calling aapke plan me included nahi hai - Voice ya Combo product chahiye.",
         )
     client_name = str(rec.get("business_name") or "Aapka business")
     niche_default = str(rec.get("niche") or "general")
@@ -760,7 +760,7 @@ async def customer_voice_call_queue(
                 for r in db.query(CallLog.lead_id).filter(CallLog.client_id == client_id).all()
                 if r[0]
             }
-            # Materialize plain column rows INSIDE the session — building CallRequests
+            # Materialize plain column rows INSIDE the session - building CallRequests
             # after the `with` closes on ORM objects would raise DetachedInstanceError.
             leads = [
                 {
@@ -788,7 +788,7 @@ async def customer_voice_call_queue(
             ]
     except Exception as e:
         logger.warning("voice call-queue: lead fetch failed (%s)", e)
-        raise HTTPException(status_code=503, detail="Leads abhi load nahi ho paaye — baad me.")
+        raise HTTPException(status_code=503, detail="Leads abhi load nahi ho paaye - baad me.")
 
     from app.telephony.call_manager import CallRequest
 
@@ -796,7 +796,7 @@ async def customer_voice_call_queue(
     # only Redis-enqueues; the CallLog row lands POST-call, so `called_ids` alone
     # leaves a TOCTOU window where the SAME lead (a real person's phone) could be
     # re-queued/re-dialled before its call logs. A short-TTL Redis SET of in-flight
-    # lead_ids + a per-client daily counter close it. Best-effort / fail-open — the
+    # lead_ids + a per-client daily counter close it. Best-effort / fail-open - the
     # per-call compliance gate in queue_call stays the hard control regardless.
     _redis = None
     _inflight: set[str] = set()
@@ -898,7 +898,7 @@ async def customer_voice_call_queue(
         "skipped_no_phone": no_phone,
         "daily_cap_reached": capped,
         "reasons": reasons,
-        "note": "Sirf compliant leads (DND-clear, 9am-7pm window, DLT) queue hue — AI team inhe call karegi.",
+        "note": "Sirf compliant leads (DND-clear, 9am-7pm window, DLT) queue hue - AI team inhe call karegi.",
     }
 
 
@@ -913,7 +913,7 @@ async def customer_monthly_report(
     blank => current month"),
     client_id: str = Depends(require_customer),
 ) -> dict:
-    """Customer-facing monthly marketing report (read-only deliverable) — kya
+    """Customer-facing monthly marketing report (read-only deliverable) - kya
     kaam hua is mahine. build_report team events se banta hai + 1 free-LLM
     Hinglish summary
     result short-TTL cache hota hai (cost guard)."""
@@ -967,7 +967,7 @@ def _client_owns_lead(client_id: str, lead_id: str) -> tuple[bool, bool]:
     if not lid:
         return False, False
     infra_error = False
-    # 1) File/inquiry path — same scoping as _build_from_files. Never raises.
+    # 1) File/inquiry path - same scoping as _build_from_files. Never raises.
     try:
         rec = _client_record(client_id)
         for r in _inquiries_for_client(client_id, rec):
@@ -976,7 +976,7 @@ def _client_owns_lead(client_id: str, lead_id: str) -> tuple[bool, bool]:
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("lead ownership: inquiry lookup failed (%s)", e)
         infra_error = True
-    # 2) DB path — same scoping as _build_from_db (Lead.assigned_to == client_id).
+    # 2) DB path - same scoping as _build_from_db (Lead.assigned_to == client_id).
     try:
         from app.models.base import get_db_session
         from app.models.lead import Lead
@@ -1005,7 +1005,7 @@ async def patch_lead_status(
     read collapses to one record per lead_id (latest wins). Without an ownership
     check, client B could PATCH client A's lead_id and silently EVICT A's own
     override (A's Kanban edit would revert). So we verify the lead belongs to the
-    authenticated client BEFORE recording — non-owned lead_id => 404 (generic, no
+    authenticated client BEFORE recording - non-owned lead_id => 404 (generic, no
     existence leak, matching customer_flows). Ownership-lookup infra error =>
     fail-CLOSED (503, write refused), never a blind unverified write."""
     from app.platform.lead_overrides import ALLOWED_STATUSES, set_status
@@ -1017,7 +1017,7 @@ async def patch_lead_status(
     owned, infra_error = _client_owns_lead(client_id, lead_id)
     if not owned:
         if infra_error:
-            # Could not verify ownership (backend error) — refuse rather than risk
+            # Could not verify ownership (backend error) - refuse rather than risk
             # evicting another tenant's override.
             raise HTTPException(status_code=503, detail="lead ownership check unavailable")
         raise HTTPException(status_code=404, detail="not found")
@@ -1189,7 +1189,7 @@ def customer_kb_info(
     """Portal self-serve business-info entry.
 
     Aaj tak customer sirf onboarding wale EK WhatsApp reply se apni business-info
-    de sakta tha — agar woh miss ho gaya to AI agent ko client ke business ka pata
+    de sakta tha - agar woh miss ho gaya to AI agent ko client ke business ka pata
     hi nahi chalta. Yeh route customer ko portal se hi text daal ke apni KB
     (namespace client:<id>) seed karne deta hai + awaiting_kb_interview clear.
 
@@ -1207,7 +1207,7 @@ def customer_kb_info(
     except Exception as e:
         logger.debug("customer kb-info add_documents failed: %s", e)
         raise HTTPException(status_code=503, detail="KB abhi available nahi, thodi der me try karo")
-    # Interview pending flag clear — portal se info aa gayi (best-effort).
+    # Interview pending flag clear - portal se info aa gayi (best-effort).
     try:
         from app.marketing import clients_store
 
@@ -1218,7 +1218,7 @@ def customer_kb_info(
 
 
 class ProfileUpdateIn(BaseModel):
-    """Setup Wizard write path. Deliberately NO plan/status/trial/niche field —
+    """Setup Wizard write path. Deliberately NO plan/status/trial/niche field -
     those stay admin-only via clients_store.update_client's own whitelist AND
     this schema's absence of them (defense in depth, not either/or)."""
 
@@ -1241,12 +1241,12 @@ class ProfileUpdateIn(BaseModel):
 
 @router.get("/profile")
 def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
-    """Setup Wizard read path — current business profile/socials/brand-tone so
+    """Setup Wizard read path - current business profile/socials/brand-tone so
     the portal form can pre-fill instead of showing blank fields. Never raises."""
     try:
         from app.marketing import brand_kit, clients_store
 
-        # Profile/brand marketing id pe keyed — billing/login alias canonicalize.
+        # Profile/brand marketing id pe keyed - billing/login alias canonicalize.
         mcid = clients_store.canonical_client_id(client_id)
         c = clients_store.resolve_client(client_id) or {}
         brand = c.get("brand") or {}
@@ -1283,17 +1283,17 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
 def customer_update_profile(
     body: ProfileUpdateIn, client_id: str = Depends(require_customer)
 ) -> dict:
-    """Setup Wizard write path — business profile/social/WhatsApp/brand-tone,
+    """Setup Wizard write path - business profile/social/WhatsApp/brand-tone,
     Customer Delivery OS mission's 4 wizard dimensions. IDOR-safe (client_id
     from JWT)
-    only the fields named on ProfileUpdateIn can ever be set — no
+    only the fields named on ProfileUpdateIn can ever be set - no
     plan/status/trial/niche path exists here even though clients_store.update_client
     itself would allow them. Never-500."""
     try:
         from app.marketing import brand_kit, clients_store
 
         # Marketing record + brand_kit marketing id pe keyed. Billing/login alias
-        # (Jiya `d79d690f61b3`) se update_client(alias) pehle 404 deta tha — profile
+        # (Jiya `d79d690f61b3`) se update_client(alias) pehle 404 deta tha - profile
         # wizard save hi nahi hota tha. Canonicalize once for every write below.
         mcid = clients_store.canonical_client_id(client_id)
 
@@ -1346,7 +1346,7 @@ def customer_update_profile(
             raise HTTPException(status_code=404, detail="Client not found")
 
         # tone isn't part of update_client's brand->brand_kit mirror (it only
-        # carries tagline/colors/logo_text) — read-modify-write so we add tone
+        # carries tagline/colors/logo_text) - read-modify-write so we add tone
         # without clobbering whatever the mirror above just wrote.
         if body.tone.strip():
             try:
@@ -1365,16 +1365,16 @@ def customer_update_profile(
 
 @router.post("/campaigns/generate-first-week")
 def customer_generate_first_week(client_id: str = Depends(require_customer)) -> dict:
-    """Setup Wizard ka "pehla 7-din ka plan banao" button — seed ko WORKER me
+    """Setup Wizard ka "pehla 7-din ka plan banao" button - seed ko WORKER me
     enqueue karta hai (seed = multi LLM-call, web process me kabhi heavy job
     nahi, CLAUDE.md). Idempotent: upcoming non-skipped items pehle se hon to
-    enqueue hi nahi hota (seed re-run content_approval me duplicates banata —
+    enqueue hi nahi hota (seed re-run content_approval me duplicates banata -
     guard auto_content.upcoming_item_count single-source, worker task bhi wahi
     re-check karta hai). IDOR-safe: client_id JWT se. Never-500."""
     try:
         from app.marketing import auto_content, clients_store
 
-        # Seed/content pipeline marketing id pe keyed — billing/login alias canonicalize.
+        # Seed/content pipeline marketing id pe keyed - billing/login alias canonicalize.
         mcid = clients_store.canonical_client_id(client_id)
         if not clients_store.resolve_client(client_id):
             raise HTTPException(status_code=404, detail="Client not found")
@@ -1385,7 +1385,7 @@ def customer_generate_first_week(client_id: str = Depends(require_customer)) -> 
                 "queued": False,
                 "already": True,
                 "upcoming_items": upcoming,
-                "message": "Aapke aane wale dino ka plan pehle se taiyaar hai — 📅 Calendar me dekhein.",
+                "message": "Aapke aane wale dino ka plan pehle se taiyaar hai - 📅 Calendar me dekhein.",
             }
         try:
             from app.tasks.staff_jobs import seed_first_week
@@ -1396,32 +1396,32 @@ def customer_generate_first_week(client_id: str = Depends(require_customer)) -> 
             return {
                 "ok": False,
                 "queued": False,
-                "error": "Abhi generate nahi ho paya — thodi der baad try karein.",
+                "error": "Abhi generate nahi ho paya - thodi der baad try karein.",
             }
         return {
             "ok": True,
             "queued": True,
             "already": False,
-            "message": "🎉 AI aapka 7-din ka plan bana rahi hai — 1-2 minute me 📅 Calendar aur approvals me dikhega.",
+            "message": "🎉 AI aapka 7-din ka plan bana rahi hai - 1-2 minute me 📅 Calendar aur approvals me dikhega.",
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.debug("customer generate-first-week failed: %s", e)
-        return {"ok": False, "error": "Campaign generate nahi hua — baad me try karein."}
+        return {"ok": False, "error": "Campaign generate nahi hua - baad me try karein."}
 
 
 # --------------------------------------------------------------------------- #
-# Social Networking Setup Wizard — "apne social channels connect/configure karo" #
+# Social Networking Setup Wizard - "apne social channels connect/configure karo" #
 # for the AI to prepare + (when admin-enabled) publish content. This is the     #
 # missing piece over the profile wizard (ADR-030), which only captured link     #
 # URLs + brand tone. Here the customer picks WHICH channels + cadence +          #
-# approval-mode. Auto-posting stays gated/INERT: saving config never posts —     #
+# approval-mode. Auto-posting stays gated/INERT: saving config never posts -     #
 # real publish still needs SOCIAL_ENGINE master gate + a configured provider.    #
 # IDOR-safe: client_id from JWT only, never from the body.                       #
 # --------------------------------------------------------------------------- #
 class SocialConfigIn(BaseModel):
-    """Social wizard write path. Handles (links) + posting preferences only —
+    """Social wizard write path. Handles (links) + posting preferences only -
     NO plan/status/niche path (defense-in-depth, same as ProfileUpdateIn)."""
 
     instagram: str = Field("", max_length=200)
@@ -1434,7 +1434,7 @@ class SocialConfigIn(BaseModel):
     cadence: str = Field("", max_length=16)
     approval_mode: str = Field("", max_length=16)
     postiz_integrations: list[str] = Field(default_factory=list, max_length=20)
-    # Loop-social-19 (2026-07-11): Phase-3 Step-1 + Step-4 fields — all optional
+    # Loop-social-19 (2026-07-11): Phase-3 Step-1 + Step-4 fields - all optional
     # so existing callers/UI stay backward-compat.
     timezone: str = Field("", max_length=64)
     website: str = Field("", max_length=300)
@@ -1454,7 +1454,7 @@ def _social_status(client_rec: dict | None) -> dict:
     Never raises. States: ready | manual | soon | need_phone.
 
     Auto-publish is ready ONLY when THIS customer has their own Postiz channel
-    ids (clients_store or social_config) — global POSTIZ_API_KEY alone is not
+    ids (clients_store or social_config) - global POSTIZ_API_KEY alone is not
     enough (audit 2026-07-17 false-ready + tenant isolation).
     """
     import os as _os
@@ -1501,10 +1501,10 @@ def _social_status(client_rec: dict | None) -> dict:
     except Exception:
         wa_ready = bool(str(rec.get("phone") or "").strip())
 
-    # Ownership: customer must own channels via client/social_config — never env leak.
+    # Ownership: customer must own channels via client/social_config - never env leak.
     ownership_ok = bool(client_channels and integrations_source in ("client", "social_config"))
     customer_postiz_ready = bool(postiz_key_on and ownership_ok)
-    # Publish-path ready (approve → Postiz) vs hands-free (approval_mode=auto).
+    # Publish-path ready (approve -> Postiz) vs hands-free (approval_mode=auto).
     publish_path_active = bool(engine_on and customer_postiz_ready)
     consent_auto = bool(prefs_honored and approval_mode == "auto")
     hands_free_active = bool(publish_path_active and consent_auto)
@@ -1521,9 +1521,9 @@ def _social_status(client_rec: dict | None) -> dict:
             "label": "WhatsApp delivery (aapke number pe)",
             "state": "ready" if wa_ready else "need_phone",
             "note": (
-                "Approved post aapke apne WhatsApp pe aayega — 1-click forward. (Ban-safe, koi bulk nahi.)"
+                "Approved post aapke apne WhatsApp pe aayega - 1-click forward. (Ban-safe, koi bulk nahi.)"
                 if wa_ready
-                else "Pehle apna WhatsApp/contact number add karo — phir yahan delivery start."
+                else "Pehle apna WhatsApp/contact number add karo - phir yahan delivery start."
             ),
         },
         {
@@ -1531,17 +1531,17 @@ def _social_status(client_rec: dict | None) -> dict:
             "label": "Auto-publish (Instagram/Facebook/YouTube via Postiz)",
             "state": "ready" if publish_path_active else "soon",
             "note": (
-                f"Hands-free ON — aapke {len(client_channels)} channel(s), approval=auto."
+                f"Hands-free ON - aapke {len(client_channels)} channel(s), approval=auto."
                 if hands_free_active
                 else (
-                    f"Aapke {len(client_channels)} owned channel(s) — approve ke baad publish. "
+                    f"Aapke {len(client_channels)} owned channel(s) - approve ke baad publish. "
                     "Hands-free chahiye to Approval=Auto choose karo."
                     if publish_path_active
                     else (
-                        "Postiz platform ready hai — abhi aapke account channels connect karo "
+                        "Postiz platform ready hai - abhi aapke account channels connect karo "
                         "(Postiz me apne pages link + integration IDs save)."
                         if postiz_key_on
-                        else "Setup chal raha hai — abhi tak content approve karke manual/1-click post karo."
+                        else "Setup chal raha hai - abhi tak content approve karke manual/1-click post karo."
                     )
                 )
             ),
@@ -1550,7 +1550,7 @@ def _social_status(client_rec: dict | None) -> dict:
             "key": "direct",
             "label": "Direct API posting (Google Business / LinkedIn)",
             "state": "soon",
-            "note": "Platform approval process me — tab tak draft + manual post.",
+            "note": "Platform approval process me - tab tak draft + manual post.",
         },
     ]
     return {
@@ -1564,7 +1564,7 @@ def _social_status(client_rec: dict | None) -> dict:
         "approval_mode": approval_mode,
         "consent_auto": consent_auto,
         "hands_free_active": hands_free_active,
-        # Publish path armed (engine + owned channels) — not the same as hands-free.
+        # Publish path armed (engine + owned channels) - not the same as hands-free.
         "auto_posting_active": publish_path_active,
         "channels": channels,
     }
@@ -1572,14 +1572,14 @@ def _social_status(client_rec: dict | None) -> dict:
 
 @router.get("/social/config")
 def customer_social_get(client_id: str = Depends(require_customer)) -> dict:
-    """Social Setup Wizard read path — current handles + posting prefs + honest
+    """Social Setup Wizard read path - current handles + posting prefs + honest
     connection status so the portal can pre-fill. Never raises."""
     try:
         from app.marketing import clients_store
         from app.social_engine import client_config
 
         # Profile socials marketing id pe; social_config may be under either id
-        # (legacy connects) — prefer canonical, fall back to raw login id.
+        # (legacy connects) - prefer canonical, fall back to raw login id.
         mcid = clients_store.canonical_client_id(client_id)
         rec = clients_store.resolve_client(client_id) or {}
         socials = rec.get("socials") or {}
@@ -1623,7 +1623,7 @@ def customer_social_get(client_id: str = Depends(require_customer)) -> dict:
 
 @router.post("/social/config")
 def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_customer)) -> dict:
-    """Social Setup Wizard write path — handles + posting preferences. IDOR-safe
+    """Social Setup Wizard write path - handles + posting preferences. IDOR-safe
     (client_id from JWT). Saving NEVER auto-posts: it only records preferences;
     real publish stays behind SOCIAL_ENGINE + a configured provider. Never-500."""
     try:
@@ -1659,7 +1659,7 @@ def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_
             brand_safety_instructions=body.brand_safety_instructions or None,
         )
         # Mirror the 3 legacy handles into clients_store.socials so the mini-site /
-        # page-kit (jo `socials` padhta) in-sync rahe — profile wizard jaisi hi
+        # page-kit (jo `socials` padhta) in-sync rahe - profile wizard jaisi hi
         # replace-semantics (khali value = clear). Best-effort, never raises.
         legacy = {k: handles[k] for k in ("instagram", "facebook", "gbp")}
         try:
@@ -1668,7 +1668,7 @@ def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_
             logger.debug("customer social socials-mirror skip: %s", e)
         if not cfg:
             return {"ok": False, "error": "save nahi hua, dobara try karo"}
-        # Sync delivery stage — social setup saved = advance to social_setup_completed
+        # Sync delivery stage - social setup saved = advance to social_setup_completed
         _sync_social_delivery_stage(client_id, cfg)
         return {"ok": True, "config": cfg}
     except Exception as e:
@@ -1677,7 +1677,7 @@ def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_
 
 
 def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
-    """Best-effort: social config saved → advance delivery_stage. Never raises."""
+    """Best-effort: social config saved -> advance delivery_stage. Never raises."""
     try:
         handles = cfg.get("handles", {})
         has_social = any(str(handles.get(k, "")).strip() for k in ("instagram", "facebook", "gbp"))
@@ -1685,9 +1685,9 @@ def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
             return
         from app.marketing.delivery_ledger import log_event
 
-        # log_event me `customer_visible` param hai hi nahi — visibility LABELS se
+        # log_event me `customer_visible` param hai hi nahi - visibility LABELS se
         # derive hoti (social_setup_completed already customer_visible=True). Purana
-        # kwarg TypeError phenkta tha jo neeche `except: pass` swallow kar leta →
+        # kwarg TypeError phenkta tha jo neeche `except: pass` swallow kar leta ->
         # milestone kabhi timeline me nahi aata tha. `key` = idempotency (re-save
         # pe duplicate milestone nahi).
         log_event(client_id, "social_setup_completed", key="social_setup:done")
@@ -1696,14 +1696,14 @@ def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Social Account CONNECT wizard — provider-mediated fallback (2026-07-11)      #
+# Social Account CONNECT wizard - provider-mediated fallback (2026-07-11)      #
 #                                                                             #
 # WHY: The `/social/config` wizard above captures HANDLES (public URLs) + prefs.
 # It does NOT give the engine a way to actually publish, because every direct-  #
 # API provider (`MetaProvider`, `GBPProvider`, `LinkedInProvider`, `XProvider`,#
 # `YouTubeProvider`) needs a per-client **access token** in the encrypted vault#
 # (`social_engine.vault.put`). Meta/LinkedIn/GBP OAuth apps are still under    #
-# app-review — so the interim connect flow is a **provider-mediated fallback**:#
+# app-review - so the interim connect flow is a **provider-mediated fallback**:#
 # customer pastes a Page/Business token they obtained externally (Meta Graph   #
 # Explorer / LI Developer app / GBP-linked location owner), we encrypt-and-    #
 # store it via the existing Fernet vault, mark the account connected. Once the #
@@ -1728,7 +1728,7 @@ def _mask_ref(ref: str) -> str:
 
 
 def _mask_token_present(present: bool) -> str:
-    return "✓ stored" if present else "—"
+    return "✓ stored" if present else "-"
 
 
 class SocialConnectIn(BaseModel):
@@ -1741,7 +1741,7 @@ class SocialConnectIn(BaseModel):
       linkedin  = urn:li:organization:{id} OR urn:li:person:{id}
       x         = "" (Bearer token is enough for basic tweet post)
       youtube   = Channel ID
-      postiz    = "" (global admin cfg drives Postiz — customer route mainly declarative)
+      postiz    = "" (global admin cfg drives Postiz - customer route mainly declarative)
     """
 
     platform: str = Field(..., max_length=32)
@@ -1757,14 +1757,14 @@ class SocialConnectIn(BaseModel):
 
 @router.get("/social/accounts")
 def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict:
-    """List all social accounts stored for this customer. TOKEN NEVER LEAKED —
+    """List all social accounts stored for this customer. TOKEN NEVER LEAKED -
     only presence + masked account_ref + updated_at + meta.source. IDOR-safe
     (client_id from JWT). Never raises. States:
-        connected            → row exists + token stored + not deleted
-        provider_review_pending → platform requires app-review
+        connected            -> row exists + token stored + not deleted
+        provider_review_pending -> platform requires app-review
         will publish only
                                   once SOCIAL_ENGINE + Meta app-review both pass
-        not_connected        → nothing stored for this platform yet"""
+        not_connected        -> nothing stored for this platform yet"""
     try:
         from app.social_engine import vault
 
@@ -1800,7 +1800,7 @@ def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict
                 }
             )
 
-        # Platform-level summary — customer wizard consumes this to render per-platform
+        # Platform-level summary - customer wizard consumes this to render per-platform
         # "Connect / Reconnect / Disconnect" buttons + honest state text.
         _review_pending = {"facebook", "instagram", "gbp", "linkedin", "x", "youtube"}
         platforms = []
@@ -1844,7 +1844,7 @@ def customer_social_accounts_connect(
 
     NEVER auto-posts. Just registers the account so `social_engine` can dispatch
     once `SOCIAL_ENGINE` is enabled by the operator. Token is Fernet-encrypted
-    at rest (`vault._encrypt` — warns loudly if `SOCIAL_TOKEN_KEY`/`SECRET_KEY`
+    at rest (`vault._encrypt` - warns loudly if `SOCIAL_TOKEN_KEY`/`SECRET_KEY`
     both unset). Never-500."""
     try:
         from app.social_engine import vault
@@ -1869,7 +1869,7 @@ def customer_social_accounts_connect(
             )
         ref = str(body.account_ref or "").strip()[:255]
         # Meta / GBP / LI ke liye account_ref MANDATORY (dispatch node id). X/YT
-        # ke liye optional — provider unhe token alone se resolve karta.
+        # ke liye optional - provider unhe token alone se resolve karta.
         if plat in ("facebook", "instagram", "gbp", "linkedin") and not ref:
             raise HTTPException(
                 status_code=400,
@@ -1945,10 +1945,10 @@ def customer_social_accounts_disconnect(
     account_id: str = Query("", max_length=32),
     client_id: str = Depends(require_customer),
 ) -> dict:
-    """Soft-delete a stored social account (`vault.delete` → deleted marker in
+    """Soft-delete a stored social account (`vault.delete` -> deleted marker in
     JSONL, latest-wins). IDOR-safe (client_id from JWT). Never-500.
 
-    Loop 27 (2026-07-11): now accepts either `account_ref` (legacy — full ref)
+    Loop 27 (2026-07-11): now accepts either `account_ref` (legacy - full ref)
     OR `account_id` (opaque sha1 hash returned by GET /social/accounts). Frontend
     only ever sees masked `…tail` for privacy, so `account_id` is the reliable
     handle for DELETE
@@ -1963,7 +1963,7 @@ def customer_social_accounts_disconnect(
         resolved_ref = (account_ref or "").strip()[:255]
         aid = (account_id or "").strip()[:32]
         if aid and not resolved_ref:
-            # Resolve opaque id → full account_ref by rescanning the vault for
+            # Resolve opaque id -> full account_ref by rescanning the vault for
             # a matching sha1(client|plat|ref)[:16]. Bounded by per-customer
             # account count (small); safe to iterate.
             try:
@@ -2008,10 +2008,10 @@ def customer_social_readiness(client_id: str = Depends(require_customer)) -> dic
     """Loop-social-16 (2026-07-11): Phase-3 Step-5 readiness check. Aggregates
     signals from business profile + brand assets + social accounts + prefs
     into a single completeness score + missing-piece list so the wizard shows
-    "80% ready — 2 items pending" and the customer never leaves setup blindly.
+    "80% ready - 2 items pending" and the customer never leaves setup blindly.
 
     Never raises
-    empty client → all-required."""
+    empty client -> all-required."""
     try:
         from app.marketing import clients_store
         from app.social_engine import client_config as _cc
@@ -2131,7 +2131,7 @@ def customer_social_readiness(client_id: str = Depends(require_customer)) -> dic
 
 @router.get("/branded-feed")
 async def customer_branded_feed(client_id: str = Depends(require_customer)):
-    """AdBanao-style aaj ke 3 branded posts (logo+naam frame) — customer scoped."""
+    """AdBanao-style aaj ke 3 branded posts (logo+naam frame) - customer scoped."""
     try:
         from app.marketing import brand_frames
         from app.marketing.clients_store import resolve_client
@@ -2146,7 +2146,7 @@ async def customer_branded_feed(client_id: str = Depends(require_customer)):
 
 @router.get("/timeline")
 def customer_delivery_timeline(client_id: str = Depends(require_customer), limit: int = 30) -> dict:
-    """'AI ne aapke liye kya kiya' — customer's own delivery-ledger timeline.
+    """'AI ne aapke liye kya kiya' - customer's own delivery-ledger timeline.
     client_id JWT (require_customer) se aata hai => customer sirf apni hi
     timeline dekhta hai. Never raises
     empty list on any error."""
@@ -2154,11 +2154,11 @@ def customer_delivery_timeline(client_id: str = Depends(require_customer), limit
         from app.marketing import clients_store
         from app.marketing.delivery_ledger import ensure_backfilled, timeline
 
-        # Ledger files marketing id pe keyed hain — billing/login alias (Jiya
+        # Ledger files marketing id pe keyed hain - billing/login alias (Jiya
         # `d79d690f61b3`) ko canonicalize kiye bina timeline blank dikhti thi.
         mcid = clients_store.canonical_client_id(client_id)
         # Pre-ledger (purane paid) customers ka historical timeline pehli read pe
-        # lazily backfill karo — warna jiya jaise existing customer ko "AI ne kya
+        # lazily backfill karo - warna jiya jaise existing customer ko "AI ne kya
         # kiya" blank dikhta. Idempotent (marker file), never-raises.
         ensure_backfilled(mcid)
         events = timeline(mcid, limit=limit, customer_only=True)
@@ -2301,13 +2301,13 @@ def customer_decide_approval(
     body: ApprovalDecideIn,
     client_id: str = Depends(require_customer),
 ):
-    """Portal se approve/reject/escalate — token link ki zaroorat nahi."""
+    """Portal se approve/reject/escalate - token link ki zaroorat nahi."""
     from app.marketing import clients_store, content_approval
 
     # Approval records marketing id pe keyed hain aur decide/escalate ownership
     # check `rec.client_id == cid` karta hai. UPI/billing alias se login (Jiya
     # `d79d690f61b3`) ko canonical marketing id (`jiya-makeover`) pe map kiye bina
-    # ownership check kabhi match nahi hota → customer apna content approve hi
+    # ownership check kabhi match nahi hota -> customer apna content approve hi
     # nahi kar pata tha. canonical_client_id sirf isi tenant ke record pe map
     # karta (billing_client_ids), isliye cross-tenant access nahi khulta.
     cid = clients_store.canonical_client_id(client_id)
@@ -2325,11 +2325,11 @@ async def customer_approval_council_decide(
     body: ApprovalCouncilIn | None = None,
     client_id: str = Depends(require_customer),
 ):
-    """Samajh nahi aaya → LLM Council decide (APPROVE / PARK_ADMIN / KEEP)."""
+    """Samajh nahi aaya -> LLM Council decide (APPROVE / PARK_ADMIN / KEEP)."""
     from app.marketing import clients_store
     from app.platform import boss_council
 
-    # Council ownership check `_by_id_for_client` marketing id pe match karta —
+    # Council ownership check `_by_id_for_client` marketing id pe match karta -
     # billing alias se login pe "pending approval nahi mila" aata tha.
     apply = True if body is None else bool(body.apply)
     return await boss_council.decide_approval(
@@ -2374,7 +2374,7 @@ def _customer_video_context(client_id: str) -> tuple[str, bool]:
 
 @router.get("/videos")
 def customer_videos_list(client_id: str = Depends(require_customer)):
-    """Customer Video Production Cell — own videos only (tenant-isolated)."""
+    """Customer Video Production Cell - own videos only (tenant-isolated)."""
     try:
         from app.marketing import video_ad_cycle
 
@@ -2464,7 +2464,7 @@ def customer_video_media(
 ):
     """Serve an exact customer-owned video version with HTTP Range (seek) support.
 
-    Starlette FileResponse lacks reliable Range for HTML5 video scrubbing — stream
+    Starlette FileResponse lacks reliable Range for HTML5 video scrubbing - stream
     bytes ourselves while keeping the revision gate fail-closed.
     """
     mcid, enabled = _customer_video_context(client_id)
@@ -2555,7 +2555,7 @@ def customer_video_media(
         }
 
         def iter_range():
-            # Same descriptor the ETag was computed from — no re-open, so a path
+            # Same descriptor the ETag was computed from - no re-open, so a path
             # replacement cannot change the bytes served. Closed deterministically
             # on completion, exception, or client disconnect (GeneratorExit).
             try:
@@ -2622,7 +2622,7 @@ async def _approval_session_facts(client_id: str, creds) -> tuple[bool, bool]:
 
     Returns ``(tenant_verified, revocation_verified)``. Both are POSITIVE
     checks: an error anywhere yields False, so approval fails closed. The read
-    paths deliberately keep their existing fail-open behaviour — this stricter
+    paths deliberately keep their existing fail-open behaviour - this stricter
     rule applies only to the approval mutation.
     """
     tenant_verified = False
@@ -2656,7 +2656,7 @@ async def customer_video_feedback(
     client_id: str = Depends(require_customer),
     creds: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
 ):
-    """Dashboard video review — same intents as WhatsApp (version-bound)."""
+    """Dashboard video review - same intents as WhatsApp (version-bound)."""
     from app.marketing import clients_store, content_approval, video_ad_cycle
     from app.marketing.video_production import cell, flags, states
     from app.marketing.video_production.feedback import classify_feedback
@@ -2692,7 +2692,7 @@ async def customer_video_feedback(
             if txn_state == "finalized" and hash_ok and snap_ok:
                 return {"ok": True, "already_decided": True, "status": "approved"}
             if txn_state == "":
-                # Legacy approved with no saga transaction — fall through to fresh approve.
+                # Legacy approved with no saga transaction - fall through to fresh approve.
                 current_status = "pending"
             else:
                 raise HTTPException(
@@ -2727,7 +2727,7 @@ async def customer_video_feedback(
 
         # Server-constructed from the verified session. `mcid` is the canonical
         # tenant from require_customer, never request input. Tenant existence
-        # and session revocation are proven POSITIVELY here — require_customer's
+        # and session revocation are proven POSITIVELY here - require_customer's
         # revocation check fails open, which is not acceptable for a mutation.
         tenant_ok, revocation_ok = await _approval_session_facts(mcid, creds)
         try:
@@ -2787,7 +2787,7 @@ async def customer_video_feedback(
     return {"ok": True, "classified": classified, "approval": out}
 
 
-# ---------- Creative Automation OS (ADR-143) — customer review surface ---------- #
+# ---------- Creative Automation OS (ADR-143) - customer review surface ---------- #
 class CreativeFeedbackIn(BaseModel):
     text: str = Field("", max_length=300)
     action: str = "changes"  # approve | changes
@@ -2796,7 +2796,7 @@ class CreativeFeedbackIn(BaseModel):
 
 @router.get("/creative-os")
 def customer_creative_os_list(client_id: str = Depends(require_customer)):
-    """Customer-owned Creative OS items — JWT tenant only, no infra leak."""
+    """Customer-owned Creative OS items - JWT tenant only, no infra leak."""
     try:
         from app.marketing import clients_store
         from app.marketing.creative_os import flags as cflags
@@ -2823,7 +2823,7 @@ def customer_creative_os_media(
     revision: int = Query(..., ge=0),
     client_id: str = Depends(require_customer),
 ):
-    """Serve Creative OS media via authenticated path resolve — no raw path exposure."""
+    """Serve Creative OS media via authenticated path resolve - no raw path exposure."""
     from app.marketing import clients_store
     from app.marketing.creative_os import flags as cflags
     from app.marketing.creative_os.service import resolve_output_path
@@ -2856,7 +2856,7 @@ def customer_creative_os_feedback(
     body: CreativeFeedbackIn,
     client_id: str = Depends(require_customer),
 ):
-    """Customer approve / request-changes — same exact-hash authority as admin."""
+    """Customer approve / request-changes - same exact-hash authority as admin."""
     from app.marketing import clients_store
     from app.marketing.creative_os import flags as cflags
     from app.marketing.creative_os.service import approve_exact, request_changes
@@ -2903,7 +2903,7 @@ def customer_routing_set(
     body: RoutingConfigIn,
     client_id: str = Depends(require_customer),
 ):
-    """Team members set karo — naye leads round-robin me bantenge."""
+    """Team members set karo - naye leads round-robin me bantenge."""
     from app.platform import lead_distribution as ld
 
     members = [{"name": m.name, "phone": m.phone} for m in body.members]

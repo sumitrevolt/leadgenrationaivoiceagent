@@ -2,7 +2,7 @@
 
 WHY THIS EXISTS
 ---------------
-Mutable production state currently lives at ``/opt/leadgen/data`` — *inside the
+Mutable production state currently lives at ``/opt/leadgen/data`` - *inside the
 Git checkout*, bind-mounted into all five application services. Three concrete
 failures follow from that, all of them already observed:
 
@@ -18,7 +18,7 @@ failures follow from that, all of them already observed:
 3. **Paths disagree.** Several modules hardcode ``os.path.join("data", ...)``
    past their own module constant, so there is no single knob to move anything.
 
-The fix is one resolver, consulted **at operation time** — never a module-level
+The fix is one resolver, consulted **at operation time** - never a module-level
 constant captured at import, because that is what makes a path impossible to
 redirect from a test fixture that runs later.
 
@@ -32,11 +32,11 @@ convention rather than competing with it.
 
 Environment behaviour:
 
-* **production** — must be set, absolute, existing, writable, and resolve
+* **production** - must be set, absolute, existing, writable, and resolve
   OUTSIDE the repository checkout. Anything else fails closed.
-* **development** — a documented local default under the repo, but never on top
+* **development** - a documented local default under the repo, but never on top
   of committed fixtures.
-* **tests** — must be explicitly isolated
+* **tests** - must be explicitly isolated
 see :func:`use_test_root`.
 """
 
@@ -84,7 +84,7 @@ def is_production() -> bool:
     return _app_env() in {"production", "prod"}
 
 
-#: Host-side path. NEVER passed to application code — the container sees
+#: Host-side path. NEVER passed to application code - the container sees
 #: ENV_KEY. Declared here so the deployment preflight can validate both halves
 #: of the mount from one authority.
 HOST_ENV_KEY = "LEADGEN_RUNTIME_DATA_HOST_DIR"
@@ -114,7 +114,7 @@ def _configured() -> str:
     `DATA_DIR` predates this module (eval_gate, ml_training, lead_usage and
     meter_watch already read it), so it is honoured rather than competed with.
     But two settings that DISAGREE in production is exactly the ambiguity that
-    puts mutable state somewhere nobody expects — that fails closed.
+    puts mutable state somewhere nobody expects - that fails closed.
     """
     canonical = (os.environ.get(ENV_KEY) or "").strip()
     legacy = (os.environ.get(LEGACY_ENV_KEY) or "").strip()
@@ -135,7 +135,7 @@ def _configured() -> str:
 
 
 def runtime_root(*, validate: bool = True, require_writable: bool = True) -> Path:
-    """Resolve the runtime-data root. Never cached — see module docstring.
+    """Resolve the runtime-data root. Never cached - see module docstring.
 
     Fails CLOSED in production: an unset, relative, missing, unwritable, or
     inside-the-checkout path raises rather than silently falling back to the
@@ -152,7 +152,7 @@ def runtime_root(*, validate: bool = True, require_writable: bool = True) -> Pat
         if prod:
             raise RuntimeDataError(
                 f"{ENV_KEY} is not set. Production must store mutable state OUTSIDE "
-                "the Git checkout — a deploy that resets the repo would otherwise "
+                "the Git checkout - a deploy that resets the repo would otherwise "
                 "destroy live customer data."
             )
         root = _repo_root() / DEV_DEFAULT
@@ -220,7 +220,7 @@ def store_dir(*segments: str) -> Path:
 
 
 def lock_path(*segments: str) -> Path:
-    """Lock file for a store — deliberately beside its ledger.
+    """Lock file for a store - deliberately beside its ledger.
 
     A lock resolving somewhere other than the shared mount coordinates nothing:
     five containers would each take a private lock and all write at once.
@@ -235,7 +235,7 @@ def use_test_root(tmp_path: os.PathLike[str] | str) -> None:
 
 
 def describe() -> dict[str, object]:
-    """Safe diagnostic summary — paths and booleans only, never secrets."""
+    """Safe diagnostic summary - paths and booleans only, never secrets."""
     try:
         root = runtime_root()
         return {

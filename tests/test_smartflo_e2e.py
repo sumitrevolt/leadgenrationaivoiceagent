@@ -1,5 +1,5 @@
 """
-End-to-end test: Smartflo test-call → webhook callback simulation.
+End-to-end test: Smartflo test-call -> webhook callback simulation.
 
 Chains the full outbound call lifecycle:
   1. Admin places a test call via POST /api/telephony/smartflo/test-call
@@ -7,8 +7,8 @@ Chains the full outbound call lifecycle:
   3. Smartflo later sends a status webhook to POST /api/webhooks/tata-smartflo
   4. Webhook handler logs CDR, meters the call, updates lead status
 
-No network — both the TataSmartfloClient and downstream services are mocked.
-Verifies the complete chain: admin API → provider → webhook → CDR + billing.
+No network - both the TataSmartfloClient and downstream services are mocked.
+Verifies the complete chain: admin API -> provider -> webhook -> CDR + billing.
 """
 
 from __future__ import annotations
@@ -81,11 +81,11 @@ class _RecordingClient:
 
 
 # ---------------------------------------------------------------------------
-# 1. Happy path: test-call → webhook completed
+# 1. Happy path: test-call -> webhook completed
 # ---------------------------------------------------------------------------
 class TestHappyPath:
     async def test_call_placed_then_webhook_completed(self):
-        """Full lifecycle: admin places call → Smartflo accepts → webhook fires."""
+        """Full lifecycle: admin places call -> Smartflo accepts -> webhook fires."""
         from starlette.testclient import TestClient
 
         client = _RecordingClient()
@@ -148,7 +148,7 @@ class TestHappyPath:
         assert logged["duration"] == 125
 
     async def test_call_placed_then_webhook_failed(self):
-        """Lifecycle: call placed → Smartflo reports failure."""
+        """Lifecycle: call placed -> Smartflo reports failure."""
         from starlette.testclient import TestClient
 
         client = _RecordingClient()
@@ -184,7 +184,7 @@ class TestHappyPath:
         assert recent[-1]["duration"] == 0
 
     async def test_call_placed_then_webhook_no_answer(self):
-        """Lifecycle: call placed → no answer."""
+        """Lifecycle: call placed -> no answer."""
         from starlette.testclient import TestClient
 
         client = _RecordingClient()
@@ -218,7 +218,7 @@ class TestHappyPath:
 
 
 # ---------------------------------------------------------------------------
-# 2. Webhook → billing metering chain
+# 2. Webhook -> billing metering chain
 # ---------------------------------------------------------------------------
 class TestBillingChain:
     async def test_completed_webhook_triggers_metering(self):
@@ -286,7 +286,7 @@ class TestBillingChain:
 
 
 # ---------------------------------------------------------------------------
-# 3. Webhook → lead status update chain
+# 3. Webhook -> lead status update chain
 # ---------------------------------------------------------------------------
 class TestLeadStatusChain:
     async def test_completed_webhook_updates_lead(self):
@@ -327,7 +327,7 @@ class TestLeadStatusChain:
         assert lead_updates.get("duration") == 90
 
     async def test_short_call_updates_lead_as_called(self):
-        """Short completed call (< 60s) → disposition=called, not qualified."""
+        """Short completed call (< 60s) -> disposition=called, not qualified."""
         from starlette.testclient import TestClient
 
         lead_updates = {}
@@ -364,7 +364,7 @@ class TestLeadStatusChain:
 # ---------------------------------------------------------------------------
 class TestWebhookResilience:
     async def test_empty_body_returns_200(self):
-        """Empty webhook body should not crash — always 200."""
+        """Empty webhook body should not crash - always 200."""
         from starlette.testclient import TestClient
 
         with TestClient(app, raise_server_exceptions=False) as tc:
@@ -373,7 +373,7 @@ class TestWebhookResilience:
         assert r.json()["ok"] is True
 
     async def test_malformed_json_returns_200(self):
-        """Malformed body should not crash — always 200."""
+        """Malformed body should not crash - always 200."""
         from starlette.testclient import TestClient
 
         with TestClient(app, raise_server_exceptions=False) as tc:
@@ -409,7 +409,7 @@ class TestWebhookResilience:
 # ---------------------------------------------------------------------------
 class TestMultipleCalls:
     async def test_two_calls_independently_tracked(self):
-        """Two test-calls → two webhooks, each tracked independently."""
+        """Two test-calls -> two webhooks, each tracked independently."""
         from starlette.testclient import TestClient
 
         client = _RecordingClient()

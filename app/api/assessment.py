@@ -1,9 +1,9 @@
 """
-assessment.py — REST API for dashboard assessment system.
-GET /api/assessment/run   — run full assessment + save report
-GET /api/assessment/latest — return latest assessment JSON metrics
-GET /api/assessment/history — list past assessments
-GET /api/assessment/diff  — compare latest vs baseline
+assessment.py - REST API for dashboard assessment system.
+GET /api/assessment/run   - run full assessment + save report
+GET /api/assessment/latest - return latest assessment JSON metrics
+GET /api/assessment/history - list past assessments
+GET /api/assessment/diff  - compare latest vs baseline
 """
 
 from __future__ import annotations

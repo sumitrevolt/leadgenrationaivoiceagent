@@ -1,4 +1,4 @@
-"""Account model — company-level entity for enterprise flywheel SSOT."""
+"""Account model - company-level entity for enterprise flywheel SSOT."""
 
 from __future__ import annotations
 

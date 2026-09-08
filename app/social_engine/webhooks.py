@@ -1,7 +1,7 @@
-"""social_engine.webhooks — Phase 4/12 provider webhook signature verifiers.
+"""social_engine.webhooks - Phase 4/12 provider webhook signature verifiers.
 
 Provider webhook (Meta / LinkedIn / GBP push / X) signatures MUST be verified
-before we accept any status update — otherwise a forged POST could flip a
+before we accept any status update - otherwise a forged POST could flip a
 customer's ledger to "published" or "failed" without evidence.
 
   verify_meta_signature(payload_bytes, signature_header, app_secret) -> bool
@@ -11,13 +11,13 @@ customer's ledger to "published" or "failed" without evidence.
 All functions:
   - constant-time compare (hmac.compare_digest)
   - never raise
-  - Fail-CLOSED: unknown/empty header → False
+  - Fail-CLOSED: unknown/empty header -> False
   - Case-insensitive on the `sha256=` prefix
 
 Reference:
   Meta: `X-Hub-Signature-256: sha256=<hex>`
   LinkedIn: `X-Li-Signature: sha256=<hex>` (member webhooks;
-    Community-Management is different — verify at activation)
+    Community-Management is different - verify at activation)
 """
 
 from __future__ import annotations
@@ -74,14 +74,14 @@ def verify_generic_hmac_sha256(
 
 
 def verify_meta_signature(payload: bytes, signature_header: str, app_secret: str) -> bool:
-    """Meta / Facebook Graph webhook — `X-Hub-Signature-256` header.
+    """Meta / Facebook Graph webhook - `X-Hub-Signature-256` header.
     See https://developers.facebook.com/docs/graph-api/webhooks/getting-started"""
     return verify_generic_hmac_sha256(payload, signature_header, app_secret)
 
 
 def verify_linkedin_signature(payload: bytes, signature_header: str, client_secret: str) -> bool:
-    """LinkedIn webhook — `X-Li-Signature: sha256=<hex>` (verify at activation
-    — LinkedIn ran a v2 migration recently). Same math as Meta."""
+    """LinkedIn webhook - `X-Li-Signature: sha256=<hex>` (verify at activation
+    - LinkedIn ran a v2 migration recently). Same math as Meta."""
     return verify_generic_hmac_sha256(payload, signature_header, client_secret)
 
 

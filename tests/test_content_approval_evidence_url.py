@@ -176,7 +176,7 @@ def test_history_capped_at_5(isolated_store):
 
 
 def test_history_never_contains_raw_client_id(isolated_store):
-    """History must not retain a URL containing `client_id=<tenant>` — even
+    """History must not retain a URL containing `client_id=<tenant>` - even
     though the field is called history, tenant-bearing raw URLs are still PII."""
     aid = _seed_published_record(
         isolated_store,
@@ -209,7 +209,7 @@ def test_fingerprint_deterministic():
     b = ca._fingerprint_url("https://leadsgenai.in/x?client_id=foo")
     assert a == b
     assert len(a) == 16
-    # Different URLs → different fingerprints
+    # Different URLs -> different fingerprints
     c = ca._fingerprint_url("https://leadsgenai.in/x?client_id=bar")
     assert a != c
 

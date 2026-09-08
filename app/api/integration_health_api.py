@@ -1,4 +1,4 @@
-"""Integration expiry/health honesty API — admin (sanitized diagnostics) + customer
+"""Integration expiry/health honesty API - admin (sanitized diagnostics) + customer
 (tenant-scoped, redacted). Reads stored evidence only (bounded)
 makes no live
 provider calls, sends nothing, and never returns tokens/secrets/raw payloads.

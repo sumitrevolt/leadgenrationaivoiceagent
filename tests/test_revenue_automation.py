@@ -1,6 +1,6 @@
-"""Tests — revenue automation batch (dunning, client_health, lifecycle_nurture,
+"""Tests - revenue automation batch (dunning, client_health, lifecycle_nurture,
 revenue_digest). Sab sync + asyncio.run pattern (project convention), tmp stores
-monkeypatch se. DB/network nahi chahiye — defensive paths hi test hote.
+monkeypatch se. DB/network nahi chahiye - defensive paths hi test hote.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def test_dunning_run_due_touches(tmp_path, monkeypatch):
     assert out["enabled"] is True
     assert (
         out["touches"] >= 2
-    )  # reminder + urgent (email send fail ho sakta — draft phir bhi recorded)
+    )  # reminder + urgent (email send fail ho sakta - draft phir bhi recorded)
     runs = dunning._read(dunning._RUNS)
     keys = {r["touch"] for r in runs}
     assert {"failed_now", "reminder", "urgent"} <= keys
@@ -91,7 +91,7 @@ def test_client_health_score_bands():
 def test_client_health_report_defensive():
     from app.platform import client_health
 
-    # DB/clients na ho to bhi kabhi raise nahi — list lautata
+    # DB/clients na ho to bhi kabhi raise nahi - list lautata
     rep = asyncio.run(client_health.health_report())
     assert isinstance(rep, list)
 

@@ -1,9 +1,9 @@
-"""Human Dialer Mode — disposition logging (NeoDove-style telecaller productivity).
+"""Human Dialer Mode - disposition logging (NeoDove-style telecaller productivity).
 
 Kyun: jin clients ke paas khud ka staff hai, unke telecallers ko ek simple
-"agla lead → call → disposition" loop chahiye. Yeh module sirf dispositions
+"agla lead -> call -> disposition" loop chahiye. Yeh module sirf dispositions
 LOG karta hai (data/dialer_logs.jsonl) + best-effort prospect status update
-(EXISTING prospector.mark_prospect / set_prospect_fields — koi naya store
+(EXISTING prospector.mark_prospect / set_prospect_fields - koi naya store
 nahi). Auto-call/auto-send kuch NAHI (tel:/wa.me links frontend pe human
 click karta hai). Never raises.
 """
@@ -21,10 +21,10 @@ logger = setup_logger(__name__)
 
 _DIALER_LOGS = os.path.join("data", "dialer_logs.jsonl")
 
-# Telecaller dispositions → prospector VALID_STATUSES ("ready","sent","replied","client","dead")
+# Telecaller dispositions -> prospector VALID_STATUSES ("ready","sent","replied","client","dead")
 DISPOSITIONS = ("interested", "callback", "no-answer", "wrong-number", "not-interested")
 _STATUS_MAP = {
-    "interested": "replied",  # hot — follow-up pipeline me
+    "interested": "replied",  # hot - follow-up pipeline me
     "callback": None,  # status mat chhedo; callback_at field set hota
     "no-answer": None,  # status same; attempt count field me
     "wrong-number": "dead",
@@ -43,7 +43,7 @@ def _phone_digits(raw: Any) -> str:
 
 def status_for(disposition: str) -> str | None:
     """Disposition ka prospect-status mapping (None = status untouched).
-    Pure function — tests ke liye."""
+    Pure function - tests ke liye."""
     return _STATUS_MAP.get((disposition or "").strip().lower())
 
 

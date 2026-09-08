@@ -1,4 +1,4 @@
-"""Stage 1 shadow harness — observe + compare, zero customer/social side effects.
+"""Stage 1 shadow harness - observe + compare, zero customer/social side effects.
 
 Does NOT execute WhatsApp, Postiz, or live tenant campaign mutations.
 Writes structured comparison records under data/video_stage1_shadow/ (gitignored).
@@ -20,7 +20,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Process-local counters — Stage 1 observability only (not multi-worker durable).
+# Process-local counters - Stage 1 observability only (not multi-worker durable).
 _COUNTERS: dict[str, int] = {
     "shadow_runs": 0,
     "shadow_successes": 0,
@@ -166,7 +166,7 @@ def _compare_publish_gate(case: str) -> dict[str, Any]:
         # Stage 3B-close: publish eligibility also requires a FINALIZED
         # saga-owned snapshot identity. The `approval_present` scenario exists
         # to prove the gate's OK path, so its fixture must now be a properly
-        # COORDINATED approval — otherwise the row would be asserting that an
+        # COORDINATED approval - otherwise the row would be asserting that an
         # uncoordinated legacy record publishes, which is the bypass itself.
         # The refusal cases below all still refuse, for their own reasons.
         "approval_txn_state": "finalized",
@@ -185,14 +185,14 @@ def _compare_publish_gate(case: str) -> dict[str, Any]:
         rec = approved
         expect_ok = False  # production cell ON + social OFF
     elif case == "approval_present":
-        # Temporarily allow social to prove gate ok path, then restore — caller sets env.
+        # Temporarily allow social to prove gate ok path, then restore - caller sets env.
         rec = approved
         expect_ok = True
     else:
         rec = approved
         expect_ok = False
 
-    # PURE evaluation only — no hashing, no file access, no mutation.
+    # PURE evaluation only - no hashing, no file access, no mutation.
     gate = evaluate_publish_gate(
         rec,
         observed_sha256=_SHADOW_OBSERVED_SHA256,
@@ -331,14 +331,14 @@ def run_shadow_matrix(*, write_report: bool = True) -> dict[str, Any]:
         rows.append(row)
         bump("shadow_successes" if row.get("ok") else "shadow_failures")
 
-    # --- WA/Postiz isolation (flags OFF → no mutation) ---
+    # --- WA/Postiz isolation (flags OFF -> no mutation) ---
     from app.marketing.video_production import review_whatsapp
 
     bump("shadow_runs")
     wa_out = review_whatsapp.send_review_whatsapp(
         {"id": "fixture-video-project-a", "revision": 0, "client_id": "fixture-tenant-a"}
     )
-    # send_review_whatsapp returns early — count as attempt only if it tried network
+    # send_review_whatsapp returns early - count as attempt only if it tried network
     if wa_out.get("sent") or wa_out.get("detail"):
         bump("whatsapp_outbound_attempts")
     wa_ok = wa_out.get("sent") is False and "VIDEO_WHATSAPP_REVIEW_ENABLED" in str(
@@ -467,7 +467,7 @@ def run_shadow_matrix(*, write_report: bool = True) -> dict[str, Any]:
 
 
 def rollback_stage1_env() -> None:
-    """Flag rollback drill — all VIDEO_* back to OFF."""
+    """Flag rollback drill - all VIDEO_* back to OFF."""
     for k in (
         "VIDEO_PRODUCTION_ENABLED",
         "VIDEO_HARNESS_SHADOW_ENABLED",

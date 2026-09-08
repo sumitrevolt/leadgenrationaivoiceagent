@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PILOT 08:02 IST (Sep4 CRON) — decisive GHANTI re-issue on #1 executable blocker + stand-notes refresh.
+"""PILOT 08:02 IST (Sep4 CRON) - decisive GHANTI re-issue on #1 executable blocker + stand-notes refresh.
 
 Live re-verify 08:01 IST THIS run (independent): state FROZEN day5+ vs 08:00 esc.
   - /health 37a1daf8 healthy uptime12h0m env=production.
@@ -10,7 +10,7 @@ Live re-verify 08:01 IST THIS run (independent): state FROZEN day5+ vs 08:00 esc
   - Fleet 0-ACK ~5d
   08:00 OWNER-ESC on record.
 
-Action: re-issue DECISIVE GHANTI to ENGINEERING (ENG-004) — single highest-value executable action
+Action: re-issue DECISIVE GHANTI to ENGINEERING (ENG-004) - single highest-value executable action
 (WA sendText firing = pehla real UPI close-rail). Stand-notes for other owners refreshed. Mirror pushed.
 """
 import json
@@ -23,7 +23,7 @@ TS = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5, minutes
 
 EV = ("PILOT 08:02 IST Sep4 (LIVE 08:01 SSH): /health 37a1daf8 healthy uptime12h0m prod
 "
-      "WA flip=1 par msg_id=0/auto_sent TRUE=0 of 2298 (ENG-004 sendText NEVER fired — #1 blocker); "
+      "WA flip=1 par msg_id=0/auto_sent TRUE=0 of 2298 (ENG-004 sendText NEVER fired - #1 blocker); "
       "SIP 5 vars EMPTY DID not landed (VOBIZ_CALLER_ID len13 REVOKED, dialer DEAD day5 mtime Aug31 batch211); "
       "leads/ ABSENT ammo 0; hot-queue 09-04 ABSENT 2nd day; rev Rs1,999 Jiya sole; GAP Rs4,98,001. "
       "Fleet 0-ACK ~5d; 08:00 OWNER-ESC on record.")
@@ -33,11 +33,11 @@ with open(os.path.join(BASE, "tasks.json"), encoding="utf-8") as f:
 
 for t in tasks:
     if t["id"] == "ENG-004":
-        # DECISIVE GHANTI re-issue — #1 executable revenue path
+        # DECISIVE GHANTI re-issue - #1 executable revenue path
         t["status"] = "RUNNING"
         t["updated_at"] = TS
         t["evidence_tail"] = EV
-        t["notes"] = ("GHANTI 08:02 IST (Sep4 CRON) DECISIVE: WA flip LIVE=1 BOTH containers par auto_sent TRUE=0/msg_id=0 of 2298 — "
+        t["notes"] = ("GHANTI 08:02 IST (Sep4 CRON) DECISIVE: WA flip LIVE=1 BOTH containers par auto_sent TRUE=0/msg_id=0 of 2298 - "
                       "sendText kisi bhi tarah fire nahi hua. YEHI #1 executable close-path #1 blocker hai. "
                       "FIX auto_outreach -> real WAHA sendText (session:'default'+X-Api-Key, capture msg-id). "
                       "HARD ACC 16:00 IST: >=1 reply_drafts row auto_sent=true WITH msg-id + commit sha. "
@@ -46,7 +46,7 @@ for t in tasks:
         t["updated_at"] = TS
         t["evidence_tail"] = EV
         # keep status as-is (RUNNING/BLOCKED); re-pin standing gate
-        t["notes"] = (t.get("notes","") + f" || 08:02 IST GAte STANDS: {t['id']} owner — deliver ACC, 0-proof = OWNER-ESC on record (08:00).").strip()
+        t["notes"] = (t.get("notes","") + f" || 08:02 IST GAte STANDS: {t['id']} owner - deliver ACC, 0-proof = OWNER-ESC on record (08:00).").strip()
 
 with open(os.path.join(BASE, "tasks.json"), "w", encoding="utf-8") as f:
     json.dump(tasks, f, ensure_ascii=False, indent=1)

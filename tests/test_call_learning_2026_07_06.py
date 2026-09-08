@@ -2,17 +2,17 @@
 
 Real failures fixed (data/call_transcripts/2026-07-05.jsonl):
 1. IVR phrases the live batch said but _IVR_PATTERNS missed ("Welcome to
-   LiveSpace", "प्रेस वन", "connect your call", voicemail scripts) — agent
+   LiveSpace", "प्रेस वन", "connect your call", voicemail scripts) - agent
    167s tak HDFC-Ergo IVR se discovery karta raha.
-2. In-call IVR strike counter + hangup (IVR_HANGUP, default ON) — pehle sirf
+2. In-call IVR strike counter + hangup (IVR_HANGUP, default ON) - pehle sirf
    voicemail-reply bolta tha, call chalti rehti thi (paisa burn).
 3. Whisper noise-hallucination loops ("Aam shabd, Aam Shabd, ..." x6) LLM tak
-   pahunch ke turns kharab karte the — _is_junk repetition filter.
+   pahunch ke turns kharab karte the - _is_junk repetition filter.
 4. Good call f452cce6: value-statement ke baad customer "Okay." bola aur bot ne
-   AGLA discovery-sawaal puchha (close nahi) — hot lead bina next-step ke gaya.
+   AGLA discovery-sawaal puchha (close nahi) - hot lead bina next-step ke gaya.
    ACK_TRIAL_CLOSE (default ON) ab trial-close ask deta hai.
 5. Dialed path par post-close affirm ("haan yahi number") durable close
-   (_on_close_signal) fire nahi karta tha — sirf web path karta tha.
+   (_on_close_signal) fire nahi karta tha - sirf web path karta tha.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from app.voice_agent.call_qualifier import detect_bot_or_ivr
 from app.voice_agent.telecaller_brain import TelecallerBrain
 
 # --------------------------------------------------------------------------- #
-# 1. call_qualifier — observed-in-prod IVR phrases now detected
+# 1. call_qualifier - observed-in-prod IVR phrases now detected
 # --------------------------------------------------------------------------- #
 OBSERVED_IVR_LINES = [
     "Welcome to LiveSpace.",
@@ -53,7 +53,7 @@ def test_detect_bot_or_ivr_real_human_not_flagged():
 
 
 # --------------------------------------------------------------------------- #
-# 2. vobiz_stream._is_ivr_prompt — shared _IVR_RE consult
+# 2. vobiz_stream._is_ivr_prompt - shared _IVR_RE consult
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "line",
@@ -93,10 +93,10 @@ def test_ivr_max_hits_default_and_floor(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# 3. _is_junk — Whisper repetition-hallucination filter
+# 3. _is_junk - Whisper repetition-hallucination filter
 # --------------------------------------------------------------------------- #
 def test_is_junk_drops_hallucination_loop():
-    # Verbatim from call 9 (sid bfccd8ad) — reached the LLM in prod.
+    # Verbatim from call 9 (sid bfccd8ad) - reached the LLM in prod.
     assert (
         VobizStreamSession._is_junk(
             "Aam shabd, Aam Shabd, Aam shabd, Aam shabd, Aam shabd, Aam shabd. Hello."
@@ -108,10 +108,10 @@ def test_is_junk_drops_hallucination_loop():
 @pytest.mark.parametrize(
     "line",
     [
-        "haan haan",  # genuine double-ack — 2 tokens, below threshold
-        "ok ok ji",  # 3 tokens — below threshold
-        "Aam shabd, agency,",  # carries real info ("agency") — must survive
-        "achha theek hai ji bilkul",  # varied tokens — unique ratio high
+        "haan haan",  # genuine double-ack - 2 tokens, below threshold
+        "ok ok ji",  # 3 tokens - below threshold
+        "Aam shabd, agency,",  # carries real info ("agency") - must survive
+        "achha theek hai ji bilkul",  # varied tokens - unique ratio high
         "haan haan haan bilkul karna hai",  # affirm burst w/ real content
     ],
 )
@@ -123,7 +123,7 @@ def test_is_junk_keeps_real_speech(line):
 # 4. ACK -> TRIAL-CLOSE (good-call f452cce6 learning)
 # --------------------------------------------------------------------------- #
 VALUE_STATEMENT = (
-    "Achha sir — agency 15-25K leti hai, hum 1,999 se. Inquiry follow-up bhi AI se ho jaata hai."
+    "Achha sir - agency 15-25K leti hai, hum 1,999 se. Inquiry follow-up bhi AI se ho jaata hai."
 )
 
 
@@ -193,7 +193,7 @@ def test_dialed_path_affirm_fires_close_signal(monkeypatch):
         {
             "role": "assistant",
             "content": (
-                "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
+                "Bilkul sir! Aaj hi shuru kar deti hoon - bas aapka WhatsApp "
                 "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
             ),
         }

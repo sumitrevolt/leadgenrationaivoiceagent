@@ -1,4 +1,4 @@
-"""Fail-closed publish gate — approval must bind to exact video version."""
+"""Fail-closed publish gate - approval must bind to exact video version."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ never read_bytes() a whole render
 def hash_video_file(video_path: str) -> tuple[str, int]:
     """Streaming SHA-256 + byte size of the artifact. ``("", 0)`` if unverifiable.
 
-    Path trust is NOT decided here — ``video_media_paths.resolve_video_media_file``
+    Path trust is NOT decided here - ``video_media_paths.resolve_video_media_file``
     is the single authority for that, shared with the customer serve path.
     """
     from app.marketing.video_media_paths import resolve_video_media_file
@@ -44,7 +44,7 @@ def evaluate_publish_gate(
     observed_sha256: str,
     observed_bytes: int,
 ) -> dict[str, Any]:
-    """PURE decision function — no file I/O, no writes, no queue, no providers.
+    """PURE decision function - no file I/O, no writes, no queue, no providers.
 
     Takes the record plus an ALREADY-OBSERVED content identity and returns the
     same decision/reason contract as :func:`assert_can_publish`. Splitting the
@@ -52,7 +52,7 @@ def evaluate_publish_gate(
     deterministically without touching the filesystem.
 
     Deliberately not exposed as an API endpoint or as a bypass on the real
-    publishing path — the only production caller is ``assert_can_publish``,
+    publishing path - the only production caller is ``assert_can_publish``,
     which supplies a REAL observation.
     """
     try:
@@ -80,7 +80,7 @@ def evaluate_publish_gate(
                 "current_revision": rec.get("revision"),
             }
 
-        # Editing after approve invalidates — status must still be approved
+        # Editing after approve invalidates - status must still be approved
         if str(rec.get("status") or "") not in ("approved",):
             if str(rec.get("workflow_state") or "") not in (
                 states.APPROVED,
@@ -100,11 +100,11 @@ def evaluate_publish_gate(
             return {
                 "ok": False,
                 "error": "approval_hash_missing",
-                "remedy": "re-approval required — this approval predates content binding",
+                "remedy": "re-approval required - this approval predates content binding",
             }
 
         # Saga eligibility BEFORE observation. Stage 3C: only a finalized
-        # transaction that owns an immutable snapshot may be observed at all —
+        # transaction that owns an immutable snapshot may be observed at all -
         # never hash the mutable ``video_path`` as a publish identity.
         eligible = _saga_eligibility(rec, approved_hash=approved_hash)
         if not eligible["ok"]:
@@ -149,7 +149,7 @@ def _saga_eligibility(rec: dict[str, Any], *, approved_hash: str) -> dict[str, A
 
     There is no fallback to ``final_approved``, to the mutable ``video_path``,
     to a re-hash at publish time, or to the legacy hash-only shape. A record
-    that predates the saga is NOT publishable — it needs re-approval, which is
+    that predates the saga is NOT publishable - it needs re-approval, which is
     a deliberate human act, not a backfill.
     """
     from app.marketing.video_production.approval_saga import TXN_FINALIZED, is_publishable
@@ -160,7 +160,7 @@ def _saga_eligibility(rec: dict[str, Any], *, approved_hash: str) -> dict[str, A
             "ok": False,
             "error": "approval_not_finalized",
             "txn_state": state or "absent",
-            "remedy": "re-approval required — approval was not saga-coordinated",
+            "remedy": "re-approval required - approval was not saga-coordinated",
         }
     if not str(rec.get("approval_txn") or "").strip():
         return {"ok": False, "error": "approval_not_finalized", "txn_state": "txn_id_missing"}
@@ -202,7 +202,7 @@ def mark_version_approved(
     video_path: str = "",
     actor: str = "",
 ) -> dict[str, Any]:
-    """RETIRED (Stage 3B-close) — refuses. Kept only so callers fail loudly.
+    """RETIRED (Stage 3B-close) - refuses. Kept only so callers fail loudly.
 
     This was a second writer into ``record_approval`` reachable with a free-form
     ``actor`` string and no transaction, i.e. the same bypass shape as the
@@ -213,14 +213,14 @@ def mark_version_approved(
 
     There is exactly one implementation of approval mutation and it lives in
     ``video_ad_cycle`` (the module that owns ``_update`` and ``_latest``).
-    ``video_path`` is compatibility-only. Omitted → the authoritative record's
-    path is used. Supplied and canonically equal → allowed. Supplied and
-    DIFFERENT → refused (``approval_video_path_mismatch``)
+    ``video_path`` is compatibility-only. Omitted -> the authoritative record's
+    path is used. Supplied and canonically equal -> allowed. Supplied and
+    DIFFERENT -> refused (``approval_video_path_mismatch``)
     silently hashing
     caller-selected bytes instead of record-selected bytes is the whole attack.
     """
     logger.warning(
-        "[video_ad] mark_version_approved REFUSED — retired uncoordinated writer (%s)",
+        "[video_ad] mark_version_approved REFUSED - retired uncoordinated writer (%s)",
         str(rec_id)[:40],
     )
     return {

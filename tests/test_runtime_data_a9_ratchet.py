@@ -1,14 +1,14 @@
-"""A9 ratchet — call recordings/transcripts must stay migrated.
+"""A9 ratchet - call recordings/transcripts must stay migrated.
 
 A1–A8 moved telephony kill switches, compliance ledgers, delivery, billing,
 ops telemetry, prospects, and external missions. A9 clears the last LEGACY
 deploy blockers:
 
-  * artifacts.call_recordings — data/call_recordings/ + data/call_transcripts/
-  * telephony.call_recordings — data/recordings/ (RECORDINGS_DIR override)
+  * artifacts.call_recordings - data/call_recordings/ + data/call_transcripts/
+  * telephony.call_recordings - data/recordings/ (RECORDINGS_DIR override)
 
 Shared resolvers live in ``app/platform/runtime_recording_paths.py``. Writer
-modules call those (or thin wrappers) at operation time — never import-time
+modules call those (or thin wrappers) at operation time - never import-time
 Path/str constants.
 
 Two properties the repo-wide debt ratchet cannot give:
@@ -100,7 +100,7 @@ RETIRED_CONSTANTS = (
 )
 
 #: Paths that live in an A9 module but belong to a store A9 did NOT migrate.
-#: Fat on purpose — several modules host unrelated ops paths beside recordings.
+#: Fat on purpose - several modules host unrelated ops paths beside recordings.
 OUT_OF_SCOPE: dict[str, dict[str, str]] = {
     "app/platform/runtime_recording_paths.py": {},
     "app/telephony/voice_launch.py": {},
@@ -123,7 +123,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data/voice_selfimprove_counter.json": "self-improve counter (not A9)",
     },
     "app/platform/call_insights.py": {
-        "data/cadence_runs.jsonl": "A6 store — insights reads it, A9 does not own it",
+        "data/cadence_runs.jsonl": "A6 store - insights reads it, A9 does not own it",
         "data/call_qualifications.jsonl": "qualify log (not A9)",
         "data/dialer_logs.jsonl": "human dialer log (not A9)",
     },
@@ -140,10 +140,10 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data/trainer_suggestions.jsonl": "trainer suggestions (not A9)",
     },
     "app/platform/conversations.py": {
-        "data/cadence_runs.jsonl": "A6 store — inbox aggregate only",
+        "data/cadence_runs.jsonl": "A6 store - inbox aggregate only",
         "data/conversation_replies.jsonl": "manual reply drafts (not A9)",
         "data/inquiries.jsonl": "public inquiries (not A9)",
-        "data/interactions.jsonl": "A6 store — inbox aggregate only",
+        "data/interactions.jsonl": "A6 store - inbox aggregate only",
         "data/reply_drafts.jsonl": "reply drafts (not A9)",
         "data/widget_chats.jsonl": "widget chats (not A9)",
     },
@@ -151,7 +151,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data/voice_training_proposals.jsonl": "training proposals (not A9)",
     },
     "app/agents/campaign_optimizer.py": {
-        "data/cadence_runs.jsonl": "A6 store — interaction counter input",
+        "data/cadence_runs.jsonl": "A6 store - interaction counter input",
         "data/campaign_optimization": "optimizer own store (not A9)",
         "data/channel_outcomes.jsonl": "channel outcomes (not A9)",
         "data/content_feedback.jsonl": "content feedback (not A9)",
@@ -162,10 +162,10 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data/objection_patterns.jsonl": "objection patterns store (not A9)",
     },
     "app/platform/team.py": {
-        "data/content_queue": "A4 content.queue — pulse status only",
+        "data/content_queue": "A4 content.queue - pulse status only",
         "data/harvest_runs.jsonl": "harvest runs (not A9)",
-        "data/job_heartbeats.json": "A6 job heartbeats — SRE pulse only",
-        "data/prospects.jsonl": "A7 sales.prospects — pulse status only",
+        "data/job_heartbeats.json": "A6 job heartbeats - SRE pulse only",
+        "data/prospects.jsonl": "A7 sales.prospects - pulse status only",
     },
 }
 
@@ -181,7 +181,7 @@ def test_a9_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
 
     stale = sorted(set(declared) - observed)
     assert not stale, (
-        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
+        f"{module_path}: {stale} no longer appears - delete the exclusion rather "
         "than leaving a hole the next literal can hide in"
     )
 
@@ -215,7 +215,7 @@ def test_a9_modules_resolve_at_call_time_not_import_time(module_path):
             targets = [node.target.id]
         for name in targets:
             assert name not in RETIRED_CONSTANTS, (
-                f"{module_path} reintroduced module-level {name} — a path frozen "
+                f"{module_path} reintroduced module-level {name} - a path frozen "
                 "at import cannot follow a cutover"
             )
 
@@ -232,7 +232,7 @@ def test_a9_shared_resolvers_use_override_env_for_telephony():
 def test_the_a9_rows_are_still_dual_read():
     """A9's own rows, asserted by A9's own file.
 
-    Subset only — the exact global set is asserted once in
+    Subset only - the exact global set is asserted once in
     ``test_runtime_data_waves.py`` as the union of every declared wave.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
@@ -244,7 +244,7 @@ def test_manifest_still_validates():
 
 
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
-    """Migrated stores, and the count is still 21 — that is the honest answer.
+    """Migrated stores, and the count is still 21 - that is the honest answer.
 
     Writers can now follow a cutover
     authoritative bytes are still inside the

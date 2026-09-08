@@ -18,7 +18,7 @@ InterestVerdict = Literal["yes", "no", "unclear"]
 PLATFORM_NICHE = "ai_marketing"
 SAMPLE_RATE = 16000
 
-# Interest-gate patterns (bare haan/ji — generic intent_detector misses these).
+# Interest-gate patterns (bare haan/ji - generic intent_detector misses these).
 _YES_PATTERNS: tuple[str, ...] = (
     r"^ha+a+n?\b",
     r"^ji+\b",
@@ -40,8 +40,8 @@ _YES_PATTERNS: tuple[str, ...] = (
     r"(haan|ji|yes).*(interested|batao|sunao|bolo)",
     r"sounds?\s+good",
     r"tell\s+me\s+more",
-    # Devanagari — Groq Whisper (language="hi") outputs native script, so the
-    # romanized-only patterns above missed bare "हाँ"/"जी" → endless clarify loop
+    # Devanagari - Groq Whisper (language="hi") outputs native script, so the
+    # romanized-only patterns above missed bare "हाँ"/"जी" -> endless clarify loop
     # (web transcripts). Clean affirmatives now match; garbled ones fall to discovery.
     r"हाँ|हां|^\s*हा\b|^\s*जी|ठीक|बिल्कुल|बिलकुल|ज़रूर|जरूर|इंटर[ेेिी]स्ट|बता\s*[ओदo]|सुना|चाहत|करना\s*है",
 )
@@ -88,10 +88,10 @@ def _script() -> dict:
 
 
 def opening_segments() -> list[str]:
-    """ONE short greet only — then WAIT for the caller.
+    """ONE short greet only - then WAIT for the caller.
 
     2026-07-17 live defect: 3-part opener (intro+pitch+ask) spoke ~40s back-to-
-    back with barge locked → user_turns=0 → Vobiz "End Of XML Instructions"
+    back with barge locked -> user_turns=0 -> Vobiz "End Of XML Instructions"
     hangup. Owner wants 10–15 conversation turns: so opener = identity +
     permission ask ONLY
     price/pitch comes AFTER the caller says haan (see
@@ -114,7 +114,7 @@ def line_yes_praise() -> str:
     """After permission yes: deliver SHORT pitch + one discovery question.
 
     Pitch moved out of the opener (2026-07-17) so the first breath is short
-    enough for the caller to answer — then we give price/trial here."""
+    enough for the caller to answer - then we give price/trial here."""
     from app.voice_agent.universal_pitch import PITCH_SHORT
 
     s = _script()
@@ -124,18 +124,18 @@ def line_yes_praise() -> str:
         return f"{pitch} {praise}"
     disc = [str(q).strip() for q in (s.get("discovery") or []) if str(q).strip()]
     if disc:
-        return f"Theek — {pitch} {disc[0]}"
-    return f"Theek — {pitch} Marketing abhi khud karte ho, staff se, ya agency?"
+        return f"Theek - {pitch} {disc[0]}"
+    return f"Theek - {pitch} Marketing abhi khud karte ho, staff se, ya agency?"
 
 
 def line_no_convince() -> str:
     return (_script().get("no_convince_once") or "").strip() or (
-        "Samajh sakti hoon — 7 din ka FREE trial hai, pehle result dekho phir decide."
+        "Samajh sakti hoon - 7 din ka FREE trial hai, pehle result dekho phir decide."
     )
 
 
 def line_close_cold() -> str:
-    return (_script().get("close_cold") or "").strip() or ("Theek hai, shukriya — din shubh!")
+    return (_script().get("close_cold") or "").strip() or ("Theek hai, shukriya - din shubh!")
 
 
 def line_clarify() -> str:
@@ -143,7 +143,7 @@ def line_clarify() -> str:
 
 
 # Direct product questions ("kya kya features", "kitne ka", "price", "kaise kaam")
-# interest-gate ke yes/no me fit NAHI hote — inhe TelecallerBrain answer kare (uska
+# interest-gate ke yes/no me fit NAHI hote - inhe TelecallerBrain answer kare (uska
 # _customer_qa_reply seedha jawab deta). Warna "features BATAO" galti se YES-pattern
 # (batao/bolo/sunao) match kar ke discovery-sawaal de deta tha ("marketing khud karte
 # ho?") = dodge/noob (real-call 2026-06-28: user "ulta aap mere se puchh rahe ho").
@@ -213,7 +213,7 @@ _PRODUCT_Q_WORDS: tuple[str, ...] = (
 
 
 def is_product_question(text: str) -> bool:
-    """User seedha product-sawaal puchh raha (yes/no nahi) — TelecallerBrain answer kare."""
+    """User seedha product-sawaal puchh raha (yes/no nahi) - TelecallerBrain answer kare."""
     low = re.sub(r"\s+", " ", (text or "").lower()).strip()
     if not low:
         return False
@@ -252,21 +252,21 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
 
     low = re.sub(r"\s+", " ", (user_text or "").lower()).strip()
     if any(w in low for w in ("busy", "meeting", "time nahi")):
-        return "Bilkul — shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
+        return "Bilkul - shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
     if low in ("kya", "kya?", "huh", "what"):
         return (
-            f"LeadGen AI se Swara — {PITCH_SHORT} Interested hain?",
+            f"LeadGen AI se Swara - {PITCH_SHORT} Interested hain?",
             state,
         )
     if "samjha nahi" in low:
         return (
-            f"Simple me — {PITCH_SHORT} Try karna chahenge?",
+            f"Simple me - {PITCH_SHORT} Try karna chahenge?",
             state,
         )
     if "kaun ho" in low or "aap kaun" in low:
         state.phase = "discovery"
         return (
-            "Main Swara hoon LeadGen AI se — AI se social posts, ads aur Google boost; "
+            "Main Swara hoon LeadGen AI se - AI se social posts, ads aur Google boost; "
             "marketing abhi aap khud karte ho ya koi aur?",
             state,
         )
@@ -276,8 +276,8 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
         state.phase = "discovery"
         return None, state
 
-    # DIRECT PRODUCT QUESTION → TelecallerBrain ko do (answer-first). Interest gate ke
-    # yes/no classification SE PEHLE — warna "features batao"/"kitne features" galti se
+    # DIRECT PRODUCT QUESTION -> TelecallerBrain ko do (answer-first). Interest gate ke
+    # yes/no classification SE PEHLE - warna "features batao"/"kitne features" galti se
     # YES match kar ke discovery-sawaal de deta tha (dodge). Brain ab seedha jawab dega.
     if is_product_question(user_text):
         state.phase = "discovery"
@@ -285,12 +285,12 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
 
     verdict = classify_interest(user_text)
     if verdict == "unclear":
-        # Substantive reply (not yes/no) = customer bol raha hai — discovery pe le jao.
+        # Substantive reply (not yes/no) = customer bol raha hai - discovery pe le jao.
         if len(low) >= 12 and low not in ("haan", "ji", "ok", "okay", "theek"):
             state.phase = "discovery"
             return None, state
         # Repetition guard: clarify ONCE; a second unclear (garbled/short STT) must
-        # NOT loop the same line (web transcripts showed it 3x) — hand to the brain.
+        # NOT loop the same line (web transcripts showed it 3x) - hand to the brain.
         if state.clarify_count >= 1:
             state.phase = "discovery"
             return None, state
@@ -309,7 +309,7 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
 
 
 def generate_celebration_pcm(sample_rate: int = SAMPLE_RATE) -> bytes:
-    """Short festive ascending chime (~1.4s) — no external file required."""
+    """Short festive ascending chime (~1.4s) - no external file required."""
     freqs = (523.25, 659.25, 783.99, 1046.50)
     pcm = bytearray()
     ms_per = 320

@@ -1,7 +1,7 @@
 """One-time purge: SERP-junk prospects ko "ready" pool se nikalo (backlog 2026-07-05).
 
 KYU: lead_harvester ka websearch source SERP page-titles ko business_name aur page
-ke kisi bhi 10-digit ko phone bana deta tha — ~94 junk records (bank helplines,
+ke kisi bhi 10-digit ko phone bana deta tha - ~94 junk records (bank helplines,
 "Top 10 ..." listicles) "ready" pool me the = platform_dial IVR-disaster ka
 root-enabler. Ingest gate (HARVEST_INGEST_VALIDATION) ab naya junk rokta hai;
 yeh script PURANA junk saaf karta hai.
@@ -11,13 +11,13 @@ Kya karta hai:
     jo ab ingest par lagta hai (single source of truth = lead_harvester).
   - DEFAULT = DRY-RUN: sirf table print (kuch nahi likhta).
   - --apply: pehle backup (prospects.jsonl.bak-<ts>), phir matched records ko
-    status="dead" + junk_reason set karke ATOMIC rewrite (tmp + os.replace —
+    status="dead" + junk_reason set karke ATOMIC rewrite (tmp + os.replace -
     prospector.mark_prospect ka pattern). DELETE nahi karta (audit trail).
   - --niche <key>: us niche ke SAARE "ready" records bhi include (e.g.
     home_loans jo mostly garbage tha).
 
 DB mirror note: jsonl = source of truth. Relational `leads` table / niche_database
-call-queue me mirrors reh sakte hain — script end me dead-marked phones ki list
+call-queue me mirrors reh sakte hain - script end me dead-marked phones ki list
 print karta hai taaki zaroorat ho to alag se saaf karo (yahan DB touch NAHI hota).
 
 Run (local):    python scripts/purge_junk_prospects.py
@@ -86,7 +86,7 @@ def main() -> int:
 
     rows = _load()
     if not rows:
-        print(f"{_PROSPECTS_FILE} empty/missing — kuch nahi karna.")
+        print(f"{_PROSPECTS_FILE} empty/missing - kuch nahi karna.")
         return 0
 
     matched: list[tuple[dict, str]] = []
@@ -114,7 +114,7 @@ def main() -> int:
     if not matched:
         return 0
     if not args.apply:
-        print("\nDRY-RUN tha — kuch nahi likha. Apply karne ke liye: --apply")
+        print("\nDRY-RUN tha - kuch nahi likha. Apply karne ke liye: --apply")
         return 0
 
     # Backup, phir atomic rewrite (prospector.mark_prospect pattern)
@@ -142,7 +142,7 @@ def main() -> int:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
     os.replace(tmp, _PROSPECTS_FILE)
-    print(f"DONE: {len(matched)} records -> status=dead (delete NAHI kiya — audit trail).")
+    print(f"DONE: {len(matched)} records -> status=dead (delete NAHI kiya - audit trail).")
     if dead_phones:
         print("DB-mirror cleanup reference (dead phones):")
         print("  " + ",".join(sorted(set(dead_phones))))

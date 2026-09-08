@@ -1,11 +1,11 @@
 """
-Web Test-Call Transcripts API — Admin
+Web Test-Call Transcripts API - Admin
 =====================================
-GET /api/admin/web-calls              → list saved web test-call sessions (all browsers)
-GET /api/admin/web-calls/{sid}        → one session + full transcript
+GET /api/admin/web-calls              -> list saved web test-call sessions (all browsers)
+GET /api/admin/web-calls/{sid}        -> one session + full transcript
 
 Web test-calls (/app/test-call) produce a TEXT transcript only (no audio/WAV),
-saved by web_call.py → data/web_call_sessions.jsonl. The "Call Recordings"
+saved by web_call.py -> data/web_call_sessions.jsonl. The "Call Recordings"
 section (call_recordings.py) lists phone-call WAVs only, so without this view
 web test-calls never surface in the admin dashboard.
 
@@ -30,7 +30,7 @@ _REC_EXTS = ("webm", "mp4", "ogg", "wav")
 
 def _recording_url(session_id: str | None, started_at: str | None) -> str | None:
     """Disk-check for an uploaded web-call recording (webcall_{sid}.<ext>) under the
-    session's date dir → admin /api/admin/call-recordings serve URL, or None."""
+    session's date dir -> admin /api/admin/call-recordings serve URL, or None."""
     sid = (session_id or "").strip()
     day = str(started_at or "")[:10]
     if not sid or len(day) != 10:
@@ -43,7 +43,7 @@ def _recording_url(session_id: str | None, started_at: str | None) -> str | None
 
 
 def _CALL_RECORDINGS_DIR() -> str:
-    """Call recordings root — resolved per call, never frozen at import."""
+    """Call recordings root - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_recordings_dir
 
     return str(call_recordings_dir())
@@ -68,7 +68,7 @@ async def list_web_calls(
         return {"total": 0, "shown": 0, "sessions": []}
 
 
-@router.get("/kpis", summary="Call-center KPIs (Lekha — Call Analytics)")
+@router.get("/kpis", summary="Call-center KPIs (Lekha - Call Analytics)")
 async def web_call_kpis(_user=Depends(require_admin), days: int = Query(7, ge=1, le=90)) -> dict:
     """Aggregate call KPIs (latency p50/p95, duration, booking/dead-air rates) over
     the window. Defined BEFORE /{session_id} so the literal path isn't shadowed."""
@@ -88,7 +88,7 @@ async def list_voice_proposals(
     status: str = Query("", description="proposed | promoted | rejected"),
 ) -> dict:
     """Per-call improvement proposals (failing calls). Each carries a candidate reply
-    + a deterministic promotion-gate verdict. NEVER auto-applied — admin reviews."""
+    + a deterministic promotion-gate verdict. NEVER auto-applied - admin reviews."""
     try:
         from app.voice_agent.voice_self_improve import list_proposals
 
@@ -119,7 +119,7 @@ async def promote_voice_proposal(proposal_id: str, _user=Depends(require_admin))
             return {"ok": False, "error": "gate_failed", "gate": gate}
         ok = set_proposal_status(proposal_id, "promoted")
         if ok:
-            # Component 3 — close the learn-from-calls loop: feed the admin-approved
+            # Component 3 - close the learn-from-calls loop: feed the admin-approved
             # correction to the LIVE agent (telecaller_brain injects top-N learned
             # replies per niche). Gated + bounded inside voice_learned; never blocks.
             try:
@@ -148,7 +148,7 @@ async def reject_voice_proposal(proposal_id: str, _user=Depends(require_admin)) 
 
 @router.get("/{session_id}", summary="One web test-call + full transcript")
 async def web_call_detail(session_id: str, _user=Depends(require_admin)) -> dict:
-    """Full transcript for one saved session (no lead_key required — admin view)."""
+    """Full transcript for one saved session (no lead_key required - admin view)."""
     try:
         from app.voice_agent.web_call_store import get_session_any
 

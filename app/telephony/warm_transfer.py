@@ -3,21 +3,21 @@ Warm Transfer Service
 =====================
 
 "In-call action" feature jaise Retell/Vapi/Bland dete hain: AI agent call ke
-beech me hi ek HUMAN agent ko transfer kar sakta hai — par cold transfer nahi.
+beech me hi ek HUMAN agent ko transfer kar sakta hai - par cold transfer nahi.
 Warm transfer matlab: pehle human ko ek short CONTEXT brief diya jaata hai
 (kaun hai lead, kya chahiye, ab tak kya hua), phir dono ko bridge/conference
 karke jod diya jaata hai. Lead ko dobara apni baat repeat nahi karni padti.
 
 Warm-transfer pattern (emulated):
-    1. HOLD  — lead ko hold pe daalo (hold music / "ek second ruko").
-    2. WHISPER — human agent ko call/whisper karke chhota context brief sunao
+    1. HOLD  - lead ko hold pe daalo (hold music / "ek second ruko").
+    2. WHISPER - human agent ko call/whisper karke chhota context brief sunao
                  (LLM se summarize karte hain agar brain available ho).
-    3. BRIDGE — lead + human ko conference me bridge kar do
+    3. BRIDGE - lead + human ko conference me bridge kar do
     AI step back.
 
 Telephony legs `telephony_service` ke through jaate hain. Jab koi real provider
 configured nahi hota, to SIMULATION mode me har step log hota hai aur ek
-TransferResult return hota hai — pura flow bina keys ke chalta hai.
+TransferResult return hota hai - pura flow bina keys ke chalta hai.
 
 Usage:
     from app.telephony.warm_transfer import get_warm_transfer
@@ -71,7 +71,7 @@ class WarmTransfer:
     """
     Orchestrates a warm transfer of a live call to a human agent.
 
-    Defensive: telephony ya brain available na ho to bhi crash nahi karta —
+    Defensive: telephony ya brain available na ho to bhi crash nahi karta -
     steps log karke ek TransferResult deta hai (SIMULATION).
     """
 
@@ -122,7 +122,7 @@ class WarmTransfer:
         Warm-transfer the live `call_id` to `to_human_number`, whispering
         `context_summary` to the human before bridging.
 
-        Never raises — degrades to a simulated TransferResult on any failure.
+        Never raises - degrades to a simulated TransferResult on any failure.
         """
         steps: list[str] = []
         to_human_number = (to_human_number or "").strip()
@@ -134,25 +134,25 @@ class WarmTransfer:
                 call_id=call_id,
                 brief=context_summary,
                 error="No human agent number provided.",
-                steps=["No to_human_number — cannot transfer."],
+                steps=["No to_human_number - cannot transfer."],
             )
 
         telephony = self._get_telephony()
         provider = getattr(telephony, "provider", "simulation") if telephony else "simulation"
 
-        # STEP 1 — put the lead on hold.
+        # STEP 1 - put the lead on hold.
         steps.append(f"[HOLD] Lead call {call_id} placed on hold (hold music).")
         logger.info(f"🤝 [WARM-TRANSFER] Hold lead {call_id}")
         await self._safe_hold(telephony, call_id)
 
-        # STEP 2 — dial the human agent and whisper the context brief.
+        # STEP 2 - dial the human agent and whisper the context brief.
         steps.append(f"[WHISPER] Dialing human agent {to_human_number} and whispering brief.")
         logger.info(f"🤝 [WARM-TRANSFER] Whisper brief to agent {to_human_number}")
         human_call_id = None
         try:
             if telephony is not None and provider != "simulation":
                 # Human-agent leg = transactional (lead asked for a human on a
-                # live call) — promotional default put this leg through the DND
+                # live call) - promotional default put this leg through the DND
                 # gate, which fail-closes without a DND provider and killed
                 # every warm transfer (audit 2026-07-04).
                 result = await telephony.place_call(to_human_number, call_type="transactional")
@@ -160,7 +160,7 @@ class WarmTransfer:
                 status = getattr(result, "status", "")
                 steps.append(f"[WHISPER] Agent leg status: {status}")
                 if status in ("failed", "no_answer", "busy"):
-                    steps.append("[ABORT] Human agent unreachable — return lead to AI.")
+                    steps.append("[ABORT] Human agent unreachable - return lead to AI.")
                     await self._safe_unhold(telephony, call_id)
                     return TransferResult(
                         ok=False,
@@ -198,7 +198,7 @@ class WarmTransfer:
         logger.info(f"🤝 [WARM-TRANSFER] Brief to agent:\n{context_summary}")
         steps.append("[WHISPER] Brief: " + context_summary.replace("\n", " / "))
 
-        # STEP 3 — bridge the lead + human into a conference; AI steps back.
+        # STEP 3 - bridge the lead + human into a conference; AI steps back.
         steps.append(f"[BRIDGE] Conferencing lead {call_id} + agent {human_call_id}.")
         logger.info(f"🤝 [WARM-TRANSFER] Bridge {call_id} <-> {human_call_id}")
         await self._safe_bridge(telephony, call_id, human_call_id)
@@ -248,7 +248,7 @@ class WarmTransfer:
             lines.append(f"Interest: {interest}.")
         if recent:
             lines.append(f"They said: {recent}.")
-        lines.append("Lead is on the line and ready — please take over warmly.")
+        lines.append("Lead is on the line and ready - please take over warmly.")
         return " ".join(lines)
 
     async def build_brief_async(

@@ -3,7 +3,7 @@
 
 Reads SMTP creds straight from /opt/leadgen/.env (no app import, no extra deps) and
 emails NOTIFY_EMAIL (falls back to EMAIL_FROM / SMTP_USER). Reuses the existing
-Hostinger mailbox already configured for the app. Never raises — a mail hiccup must
+Hostinger mailbox already configured for the app. Never raises - a mail hiccup must
 not break the monitor.
 
 Usage:  python3 alert_email.py "the alert message"

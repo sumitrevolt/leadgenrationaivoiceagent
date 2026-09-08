@@ -1,4 +1,4 @@
-"""eval_gate — close-the-loop reward signal for self_improve.
+"""eval_gate - close-the-loop reward signal for self_improve.
 
 Guards the decision logic precisely so a regression cannot bootstrap-pollute
 its own baseline, and so cold start is correctly recognized as `no_baseline`.
@@ -19,7 +19,7 @@ def _isolated_storage(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Each test gets its own data dir + history file."""
     monkeypatch.setattr(eval_gate, "_DATA_DIR", tmp_path)
     monkeypatch.setattr(eval_gate, "_HISTORY_PATH", tmp_path / "eval_history.jsonl")
-    # Default ON so record_score actually writes — individual tests can flip OFF.
+    # Default ON so record_score actually writes - individual tests can flip OFF.
     monkeypatch.setenv("EVAL_GATE", "1")
     monkeypatch.delenv("EVAL_GATE_HARD", raising=False)
 
@@ -79,7 +79,7 @@ def test_baseline_returns_none_below_min_history() -> None:
 
 
 def test_baseline_is_median_not_mean() -> None:
-    """Median resists a single anomalous spike — that's the whole point."""
+    """Median resists a single anomalous spike - that's the whole point."""
     for s in (0.80, 0.81, 0.82, 0.83, 0.84, 99.0):
         eval_gate.record_score("rag", "faithfulness", s)
     base = eval_gate.baseline("rag", "faithfulness")
@@ -125,7 +125,7 @@ def test_accept_within_tolerance_band() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# score_and_gate convenience — records WITH decision tag
+# score_and_gate convenience - records WITH decision tag
 # --------------------------------------------------------------------------- #
 def test_score_and_gate_persists_decision_in_extra() -> None:
     for s in (0.85, 0.86, 0.85, 0.87, 0.86):

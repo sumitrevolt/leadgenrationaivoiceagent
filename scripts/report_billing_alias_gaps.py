@@ -66,7 +66,7 @@ def main() -> int:
         if len(gaps) > 50:
             print(f"  ... +{len(gaps) - 50} more")
         print(
-            "DRY_RUN only — no mutations. To link a unique email match, use "
+            "DRY_RUN only - no mutations. To link a unique email match, use "
             "clients_store.link_billing_alias(marketing_id, billing_id) or "
             "POST /api/admin/upi/activate with billing_client_id=..."
         )

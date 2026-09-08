@@ -1,4 +1,4 @@
-"""Marketing Features API — reviews, drips, reminders, health, forms, proposals.
+"""Marketing Features API - reviews, drips, reminders, health, forms, proposals.
 
 Mounts under /api/marketing-features with admin auth. FORM_BUILDER and
 PROPOSAL_BUILDER stay INERT (503) until the matching env flag is 1.

@@ -8,8 +8,8 @@ Three defects this pins:
    sender is in our database.
 2. Ledger write and durable cancellation are two separate writes. A failure
    between them was reported as plain success, hiding a real inconsistency.
-3. `event_id` was an unqualified raw id, so the same id from two providers — or
-   a bounce and a complaint sharing one message id — collapsed into one event.
+3. `event_id` was an unqualified raw id, so the same id from two providers - or
+   a bounce and a complaint sharing one message id - collapsed into one event.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def test_explicit_optout_recognized(text: str) -> None:
     ],
 )
 def test_ordinary_replies_not_treated_as_optout(text: str) -> None:
-    """False positives here would suppress live prospects — worse than a miss."""
+    """False positives here would suppress live prospects - worse than a miss."""
     assert reply_agent._is_explicit_optout("", text) is False
 
 

@@ -1,5 +1,5 @@
 """
-CONVO TRACE — drive TelecallerBrain through LONG, messy, realistic conversations
+CONVO TRACE - drive TelecallerBrain through LONG, messy, realistic conversations
 and TAG every reply with the code-path that produced it (deescalate / fast-path /
 llm / script-fallback / safe-fallback). Surfaces WHERE the agent gets confused
 after a few turns (the "noob baat karta, 1-2 turn baad confuse" complaint).
@@ -26,7 +26,7 @@ from app.voice_agent import telecaller_brain as tb  # noqa: E402
 from app.voice_agent.telecaller_brain import TelecallerBrain  # noqa: E402
 
 # Realistic skeptical-customer conversations (messy: follow-ups, tangents,
-# objections, vague answers, topic-switches — the stuff competitors handle).
+# objections, vague answers, topic-switches - the stuff competitors handle).
 CONVOS = {
     "ai_marketing": [
         "haan kaun bol raha",
@@ -115,7 +115,7 @@ async def run(niche, turns):
             and reply.strip().endswith("?")
             and "?" not in reply[:-1]
         ):
-            # reply is purely a question back — may have dodged
+            # reply is purely a question back - may have dodged
             if not any(w in reply.lower() for w in ut.lower().split()[:3]):
                 warn.append("DODGED-Q?")
         seen_replies.append(reply)

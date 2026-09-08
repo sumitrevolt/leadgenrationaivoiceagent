@@ -1,7 +1,7 @@
-"""2026-07-19 loop fixes — 3 regression tests for the 72h-verdict open concerns.
+"""2026-07-19 loop fixes - 3 regression tests for the 72h-verdict open concerns.
 
 Fix 1: self_improve_tick must stop (without requeue) when tick_slot is denied
-       but flag is ON — denied duplicates must not multiply the queue. The slot
+       but flag is ON - denied duplicates must not multiply the queue. The slot
        owner already schedules the next tick
        watchdog revival is single-locked.
 
@@ -205,7 +205,7 @@ class TestVobizGetBalanceTimeoutHardening:
 # ============================================================ Fix 3
 class TestSentryIssueApiDiagnostic:
     """Startup must warn when SENTRY_DSN is armed but SENTRY_AUTH_TOKEN/ORG/PROJECT
-    are missing — surfaces the issue-level API review gap (operator-action)."""
+    are missing - surfaces the issue-level API review gap (operator-action)."""
 
     def test_warning_when_dsn_set_but_api_creds_missing(self, monkeypatch):
         from app.config import settings

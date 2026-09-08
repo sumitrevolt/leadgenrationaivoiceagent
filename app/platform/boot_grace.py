@@ -1,4 +1,4 @@
-"""Celery worker boot-grace — heavy daily jobs skip on restart inside their window.
+"""Celery worker boot-grace - heavy daily jobs skip on restart inside their window.
 
 Mirrors team_scheduler.scheduler_loop boot-grace for the durable Celery path.
 """
@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 _IST = ZoneInfo("Asia/Kolkata")
 _WORKER_START = time.time()
 
-# job -> ((hour, minute) start inclusive, end exclusive) — IST
+# job -> ((hour, minute) start inclusive, end exclusive) - IST
 _HEAVY_WINDOWS: dict[str, tuple[tuple[int, int], tuple[int, int]]] = {
     "qa": ((2, 30), (4, 0)),
     "trainer": ((3, 0), (4, 30)),
@@ -33,7 +33,7 @@ _HEAVY_WINDOWS: dict[str, tuple[tuple[int, int], tuple[int, int]]] = {
 
 
 def defer_seconds(job: str) -> int:
-    """Seconds until heavy-window ends (+ buffer) — boot-grace skip ke baad retry."""
+    """Seconds until heavy-window ends (+ buffer) - boot-grace skip ke baad retry."""
     win = _HEAVY_WINDOWS.get(job)
     if not win:
         return 600
@@ -65,7 +65,7 @@ def marker_still_active(job: str, marker_at: datetime, *, now: datetime | None =
 
     Intentional skip is only "scheduled_off" while we are still inside (or just past)
     today's heavy window. After the window ends, a lone boot_grace marker usually
-    means the deferred Celery countdown was lost (worker recreate / broker drop) —
+    means the deferred Celery countdown was lost (worker recreate / broker drop) -
     fall through so dead-man + run_due can recover the job the same day.
     """
     win = _HEAVY_WINDOWS.get(job)

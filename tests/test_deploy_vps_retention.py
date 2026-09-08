@@ -1,12 +1,12 @@
-"""ADR-104 Phase C (2026-07-15) — scripts/deploy_vps.sh pre-build disk guard +
+"""ADR-104 Phase C (2026-07-15) - scripts/deploy_vps.sh pre-build disk guard +
 build-cache retention.
 
 This is the canonical, high-blast-radius deploy script (CLAUDE.md ⁠"docker
-commands haath se mat likho" — this script IS the deploy). No shell test
+commands haath se mat likho" - this script IS the deploy). No shell test
 runner is assumed to be on PATH in every environment, so these tests are
 pure text/structure assertions (same pattern this repo already uses for
 docker-compose.*.yml in test_celery_queue_routing.py) rather than executing
-the script — cheap, portable, and still catches the concrete regressions
+the script - cheap, portable, and still catches the concrete regressions
 that matter: guard missing, guard placed after the build already started,
 DRY_RUN accidentally deleting something, or the two retention steps
 colliding/duplicated.
@@ -48,7 +48,7 @@ def test_disk_guard_hard_stop_exits_nonzero_outside_dry_run():
 
 def test_disk_guard_runs_before_the_actual_build():
     """The whole point of a PRE-build guard is that it runs before `docker
-    compose build` — a guard placed after the build started only reports a
+    compose build` - a guard placed after the build started only reports a
     problem that already happened."""
     t = _text()
     guard_idx = t.index("=== DISK GUARD")
@@ -57,7 +57,7 @@ def test_disk_guard_runs_before_the_actual_build():
 
 
 def test_dry_run_exits_zero_before_any_build_or_up_command():
-    """DRY_RUN must remain fully non-destructive — the exit must occur
+    """DRY_RUN must remain fully non-destructive - the exit must occur
     before the real `docker compose build`/`up` calls, and its preview
     logic must only use read-only docker commands (images/system df),
     never rmi/prune/builder prune."""
@@ -101,7 +101,7 @@ def test_build_cache_retention_present_with_age_and_storage_floor():
 
 def test_build_cache_retention_runs_after_verified_deploy_not_before():
     """Must run after health/skew/smoke verification, same precedence as the
-    existing image-tag retention — never as a pre-build step (that would
+    existing image-tag retention - never as a pre-build step (that would
     risk evicting cache the CURRENT build still needs)."""
     t = _text()
     smoke_idx = t.index("=== SMOKE")
@@ -113,7 +113,7 @@ def test_build_cache_retention_runs_after_verified_deploy_not_before():
 
 def test_build_cache_prune_never_uses_bare_dash_a():
     """`docker builder prune -a` (or `docker system prune -a`) would nuke ALL
-    cache regardless of age/size — that's the "unsafe broad deletion" this
+    cache regardless of age/size - that's the "unsafe broad deletion" this
     phase explicitly must avoid. Only the filtered, floor-bounded form is
     allowed."""
     t = _text()
@@ -139,7 +139,7 @@ def test_image_retention_never_removes_the_just_deployed_tag():
 
 def test_planner_refusal_skips_image_and_build_cache_prune():
     t = _text()
-    assert "BUILD CACHE skipped — zero destructive cleanup executed" in t
+    assert "BUILD CACHE skipped - zero destructive cleanup executed" in t
     retention_to_deployed = t[
         t.index("=== RETENTION (lineage-aware") : t.index('echo "=== DEPLOYED $VER OK ===')
     ]
@@ -181,7 +181,7 @@ def test_lineage_state_write_only_after_health_verification():
 
 def test_retention_never_uses_rmi_force_flag():
     """`docker rmi -f` bypasses docker's own "still referenced" safety check
-    — the existing retention comment explicitly calls this out as a rule
+    - the existing retention comment explicitly calls this out as a rule
     (and that same comment's PROSE contains the substring "rmi -f", so this
     checks actual command invocations, not comment text, to avoid a false
     positive against the rule's own explanation)."""
@@ -197,7 +197,7 @@ def test_pull_fail_aborts_before_container_replacement():
     the log header claimed a different APP_VERSION.
 
     Since 2026-07-28 the build happens BEFORE the pull, against an isolated
-    candidate worktree — a build replaces no container and moves no HEAD, so the
+    candidate worktree - a build replaces no container and moves no HEAD, so the
     property that matters is no longer "abort before build" but "abort before
     anything is replaced". Asserting the old order would now demand that the
     gates run against code nobody has checked out.
@@ -214,13 +214,13 @@ def test_pull_fail_aborts_before_container_replacement():
 
 
 def test_gated_sha_and_live_head_must_agree_before_containers_start():
-    """No silent code/tag skew — restated for the isolated-candidate flow.
+    """No silent code/tag skew - restated for the isolated-candidate flow.
 
     The old invariant was "an explicit APP_VERSION arg must already equal live
     HEAD". That is now impossible by construction: the release sha is resolved
     from the fetched object database and gated in its own worktree precisely so
     the live checkout can stay put until the gates pass. The equivalent, and
-    stronger, guarantee is asserted instead — the candidate is proven to be at
+    stronger, guarantee is asserted instead - the candidate is proven to be at
     the release sha, and the live checkout is proven to equal the GATED sha
     before a single container is replaced.
     """
@@ -228,7 +228,7 @@ def test_gated_sha_and_live_head_must_agree_before_containers_start():
     assert "candidate tree drifted from" in t
     assert "Refusing to start containers on code that was never gated." in t
     # The worktree's own sha proof lives in the candidate helper, which is where
-    # the worktree is created — asserting it here keeps the two halves of the
+    # the worktree is created - asserting it here keeps the two halves of the
     # invariant from drifting apart.
     candidate_helper = (REPO_ROOT / "scripts" / "_deploy_candidate.sh").read_text(encoding="utf-8")
     assert "Refusing to gate one tree and deploy another." in candidate_helper
@@ -240,7 +240,7 @@ def test_gated_sha_and_live_head_must_agree_before_containers_start():
 
 
 def test_compose_up_has_bounded_recreate_retry():
-    """2026-07-16: compose recreate race left prod down — cleanup+retry must exist."""
+    """2026-07-16: compose recreate race left prod down - cleanup+retry must exist."""
     t = _text()
     assert "_cleanup_recreate_ghosts" in t
     assert "UP_RETRY_RC" in t

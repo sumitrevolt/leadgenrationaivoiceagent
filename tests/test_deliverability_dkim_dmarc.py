@@ -1,5 +1,5 @@
 """Pure-python tests for DKIM presence + DMARC policy-strength checks in the
-deliverability monitor. No real DNS — _txt_lookup is monkeypatched.
+deliverability monitor. No real DNS - _txt_lookup is monkeypatched.
 """
 
 from __future__ import annotations

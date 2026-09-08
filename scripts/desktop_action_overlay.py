@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""desktop_action_overlay.py — Visual Screen HUD & Action Indicator for Computer Use.
+"""desktop_action_overlay.py - Visual Screen HUD & Action Indicator for Computer Use.
 
 Provides:
 1. show_action_hud: Spawns a sleek, modern, top-right floating dark HUD on Windows

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sales ops batch — phone-only lead email enrichment + dialer sprint stats.
+"""Sales ops batch - phone-only lead email enrichment + dialer sprint stats.
 
 Run on VPS (needs DB):
   docker exec leadgen_app python scripts/sales_ops_batch.py
@@ -131,7 +131,7 @@ async def _enrich(limit: int) -> dict:
 async def _run(limit: int, apply: bool) -> int:
     stats = await _stats()
     print("DIALER_SPRINT_STATS", json.dumps(stats, ensure_ascii=False))
-    print(f"\nHuman action: /app/dialer se 20-30 calls/day — phone-only pool={stats['phone_only']}")
+    print(f"\nHuman action: /app/dialer se 20-30 calls/day - phone-only pool={stats['phone_only']}")
     if not apply:
         print("\nDry-run only. Re-run with --apply to enrich emails.")
         return 0

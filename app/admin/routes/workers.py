@@ -1,11 +1,11 @@
 """
 Admin Worker Manager API routes.
 
-GET /admin/api/workers            — all workers with status
-GET /admin/api/workers/{name}     — single worker detail
-GET /admin/api/workers/idle       — idle workers for assignment
-POST /admin/api/workers/{name}/kill — kill worker process
-POST /admin/api/workers/{name}/restart — restart worker (kill + relaunch)
+GET /admin/api/workers            - all workers with status
+GET /admin/api/workers/{name}     - single worker detail
+GET /admin/api/workers/idle       - idle workers for assignment
+POST /admin/api/workers/{name}/kill - kill worker process
+POST /admin/api/workers/{name}/restart - restart worker (kill + relaunch)
 """
 
 from __future__ import annotations

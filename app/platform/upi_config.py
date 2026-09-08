@@ -1,4 +1,4 @@
-"""Runtime UPI VPA — env first, admin data-file fallback.
+"""Runtime UPI VPA - env first, admin data-file fallback.
 
 Razorpay removed 2026-06-18
 manual UPI is the India payment path.
@@ -24,7 +24,7 @@ _VPA_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
 
 
 def _STORE() -> str:
-    """Platform UPI VPA config — same store family as upi_payments, sibling file."""
+    """Platform UPI VPA config - same store family as upi_payments, sibling file."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -43,7 +43,7 @@ def _valid_vpa(vpa: str) -> bool:
 
 def _read_store() -> dict:
     try:
-        # Resolver at each I/O site — binding to a local unbinds the allowlist.
+        # Resolver at each I/O site - binding to a local unbinds the allowlist.
         if os.path.isfile(_STORE()):
             with open(_STORE(), encoding="utf-8") as f:
                 data = json.load(f)
@@ -65,7 +65,7 @@ def _write_store(data: dict) -> bool:
 
 
 def get_vpa() -> str:
-    """Effective VPA: ``UPI_VPA`` env → settings → data file."""
+    """Effective VPA: ``UPI_VPA`` env -> settings -> data file."""
     env_v = (os.environ.get("UPI_VPA") or "").strip()
     if env_v:
         return env_v
@@ -106,7 +106,7 @@ def set_vpa(vpa: str, *, set_by: str = "admin") -> dict:
     """Persist VPA to data file (env still wins on read if later set)."""
     v = (vpa or "").strip()
     if not _valid_vpa(v):
-        return {"ok": False, "error": "Invalid UPI VPA — format: name@bank (e.g. shop@ybl)"}
+        return {"ok": False, "error": "Invalid UPI VPA - format: name@bank (e.g. shop@ybl)"}
     row = {
         "vpa": v,
         "set_by": (set_by or "admin")[:80],
@@ -121,7 +121,7 @@ def info() -> dict:
     vpa = get_vpa()
     src = source()
     wa = (os.environ.get("UPI_VERIFY_WA") or "918459012607").strip().lstrip("+")
-    wa_link = f"https://wa.me/{wa}?text=" + quote("Payment screenshot — plan activate karo please")
+    wa_link = f"https://wa.me/{wa}?text=" + quote("Payment screenshot - plan activate karo please")
     out: dict = {
         "enabled": is_armed(),
         "vpa": vpa,

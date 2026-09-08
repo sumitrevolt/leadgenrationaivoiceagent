@@ -1,22 +1,22 @@
-"""dial_gate — PROMOTIONAL outbound test-mode allowlist (USER-MANDATE 2026-07-05).
+"""dial_gate - PROMOTIONAL outbound test-mode allowlist (USER-MANDATE 2026-07-05).
 
 KYUN: 05-Jul ke platform_dial batch me real Vobiz paisa jala aur agent company
 IVR/bots ko "interested" mark kar raha tha. User ka mandate: jab tak quality
 prove na ho, promotional/cold AI calls SIRF approved (company/test) numbers pe.
 
-DESIGN (platform_dial.py / upi_config pattern — env pehle, warna bind-mounted
+DESIGN (platform_dial.py / upi_config pattern - env pehle, warna bind-mounted
 data-file
 container recreate ke bina toggle):
 - ``DIAL_TEST_MODE`` env explicit 0/1 = final
 warna ``data/dial_test_mode.json``
   ``{"enabled": ...}``
   DONO absent => **DEFAULT ON** (fail-CLOSED for
-  promotional — cold-calling DLT bhi user-side pending hai, so conservative
+  promotional - cold-calling DLT bhi user-side pending hai, so conservative
   default is also the compliance-correct default).
 - Allowlist = env ``DIAL_TEST_ALLOWLIST`` (comma-separated) + data-file
   ``numbers`` list, MERGED. Matching last-10-digits pe (E.164/+91/0-prefix sab
   normalize ho jate).
-- SIRF ``promotional`` call_type gate hota hai — transactional (consented
+- SIRF ``promotional`` call_type gate hota hai - transactional (consented
   callback / test-call to owner) untouched.
 
 Never raises. Import-safe.
@@ -35,7 +35,7 @@ logger = setup_logger(__name__)
 
 
 def _cfg_path() -> Path:
-    """Resolved per call — the other half of the calling-safety config family.
+    """Resolved per call - the other half of the calling-safety config family.
 
     Same store id as `platform_dial.json`, so both files move together or not
     at all.
@@ -92,8 +92,8 @@ def allowlist() -> set[str]:
 # --------------------------------------------------------------------------- #
 # Phone-type gate + learned DID blocklist (COUNCIL DECISION 2026-07-06, ADR-027)
 # KYUN: prospect store me 649 FIXED_LINE cloud-IVR DIDs (Livspace/HDFC blocks)
-# "ready" the — 05-Jul batch ne unhe dial karke IVR-machines ko pitch kiya.
-# MOBILE + FIXED_LINE_OR_MOBILE dialable (real hot lead FLOM type ka tha —
+# "ready" the - 05-Jul batch ne unhe dial karke IVR-machines ko pitch kiya.
+# MOBILE + FIXED_LINE_OR_MOBILE dialable (real hot lead FLOM type ka tha -
 # hard-block nahi); FIXED_LINE/TOLL_FREE promotional-dial BLOCK (email-only
 # route, prospect delete nahi hota). Learned blocklist = self-improving loop:
 # call me IVR confirm hua -> call_feedback.py yahan likhta hai; prefix
@@ -107,7 +107,7 @@ def _blocklist_path() -> Path:
 
     A missing blocklist is a legitimate state (no number has ever been
     suppressed), so resolution must not bring the file or its parent into
-    existence — only a real write does that.
+    existence - only a real write does that.
     """
     from app.platform import runtime_data_authority as _auth
 
@@ -128,7 +128,7 @@ def _blocklist() -> dict:
 
 
 def _phone_type_gate_on() -> bool:
-    """PHONE_TYPE_GATE (default ON) — promotional dial pe FIXED_LINE/TOLL_FREE block."""
+    """PHONE_TYPE_GATE (default ON) - promotional dial pe FIXED_LINE/TOLL_FREE block."""
     return (os.environ.get("PHONE_TYPE_GATE", "1") or "1").strip().lower() not in (
         "0",
         "false",
@@ -138,7 +138,7 @@ def _phone_type_gate_on() -> bool:
 
 
 def _learned_blocklist_on() -> bool:
-    """LEARNED_DID_BLOCKLIST (default ON) — IVR-confirmed numbers/prefixes block."""
+    """LEARNED_DID_BLOCKLIST (default ON) - IVR-confirmed numbers/prefixes block."""
     return (os.environ.get("LEARNED_DID_BLOCKLIST", "1") or "1").strip().lower() not in (
         "0",
         "false",
@@ -149,7 +149,7 @@ def _learned_blocklist_on() -> bool:
 
 def _prefix_threshold() -> int:
     """Kitne DISTINCT confirmed-IVR numbers ke baad poora 6-digit prefix block
-    ho (default 3 — council/risk guard: over-fit se genuine mobiles na maren)."""
+    ho (default 3 - council/risk guard: over-fit se genuine mobiles na maren)."""
     try:
         return max(2, int(os.environ.get("LEARNED_BLOCK_THRESHOLD", "3")))
     except Exception:
@@ -161,7 +161,7 @@ def phone_quality(number: str) -> str:
 
     libphonenumber (IN numbering plan) se
     lib absent/error => 'unknown'
-    (dialing ko lib-failure par brick mat karo — allowlist/test-mode gates
+    (dialing ko lib-failure par brick mat karo - allowlist/test-mode gates
     apni jagah hain)."""
     try:
         import phonenumbers
@@ -181,13 +181,13 @@ def phone_quality(number: str) -> str:
             return "tollfree"
         if t == phonenumbers.PhoneNumberType.FIXED_LINE:
             return "fixed"
-        return "fixed"  # premium/VOIP/pager etc — promotional-dial ke liye NOT a person
+        return "fixed"  # premium/VOIP/pager etc - promotional-dial ke liye NOT a person
     except Exception:
         return "unknown"
 
 
 def learned_block_reason(number: str) -> str:
-    """'' = clear; warna block-reason. data/dial_blocklist.json consult karta —
+    """'' = clear; warna block-reason. data/dial_blocklist.json consult karta -
     exact IVR-confirmed number, ya prefix jiske >= threshold distinct hits."""
     try:
         if not _learned_blocklist_on():
@@ -233,11 +233,11 @@ def check(to: str, call_type: str = "transactional") -> tuple[bool, str]:
             if q in ("fixed", "tollfree", "invalid"):
                 return False, (
                     f"phone_type_gate: {q} number promotional-dial ke liye blocked "
-                    "(IVR/DID — email-only route; council 2026-07-06)"
+                    "(IVR/DID - email-only route; council 2026-07-06)"
                 )
         return True, "gates_passed"
-    except Exception as e:  # pragma: no cover — never block transactional on error
-        logger.warning(f"[dial_gate] check error ({e}) — promotional=block, else allow")
+    except Exception as e:  # pragma: no cover - never block transactional on error
+        logger.warning(f"[dial_gate] check error ({e}) - promotional=block, else allow")
         return (call_type or "").strip().lower() != "promotional", f"gate_error:{e}"
 
 

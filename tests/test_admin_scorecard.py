@@ -1,4 +1,4 @@
-"""Test admin dashboard scorecard — live elements + JS function present."""
+"""Test admin dashboard scorecard - live elements + JS function present."""
 
 from __future__ import annotations
 

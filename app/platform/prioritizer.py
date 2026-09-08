@@ -24,7 +24,7 @@ from app.platform.assessment_models import (
 _Item = Union[Gap, UXIssue]
 
 # ---------------------------------------------------------------------------
-# Effort → estimated days mapping
+# Effort -> estimated days mapping
 # ---------------------------------------------------------------------------
 _EFFORT_DAYS: dict[Effort, int] = {
     Effort.LOW: 1,
@@ -84,7 +84,7 @@ def _classify_ux_issue(issue: UXIssue) -> MoSCoW:
     if issue.wcag_violation and issue.severity == Severity.MAJOR:
         return MoSCoW.SHOULD_HAVE
 
-    # COULD HAVE — minor severity UX issues
+    # COULD HAVE - minor severity UX issues
     if issue.severity == Severity.MINOR:
         return MoSCoW.COULD_HAVE
 
@@ -93,32 +93,32 @@ def _classify_ux_issue(issue: UXIssue) -> MoSCoW:
 
 
 def _classify_gap(gap: Gap) -> MoSCoW:
-    # WONT HAVE — expensive, obscure, backend-heavy
+    # WONT HAVE - expensive, obscure, backend-heavy
     if gap.backend_dependency and gap.effort == Effort.HIGH and gap.prevalence <= 2:
         return MoSCoW.WONT_HAVE
 
-    # MUST HAVE — high prevalence + high impact
+    # MUST HAVE - high prevalence + high impact
     if gap.prevalence >= 6 and gap.impact == Impact.HIGH:
         return MoSCoW.MUST_HAVE
 
-    # MUST HAVE — blocks core workflow (navigation or action, highly prevalent)
+    # MUST HAVE - blocks core workflow (navigation or action, highly prevalent)
     _core_categories = {"navigation", "action"}
     if gap.prevalence >= 6 and gap.category.lower() in _core_categories:
         return MoSCoW.MUST_HAVE
 
-    # SHOULD HAVE — moderately prevalent + high impact
+    # SHOULD HAVE - moderately prevalent + high impact
     if gap.prevalence >= 3 and gap.impact == Impact.HIGH:
         return MoSCoW.SHOULD_HAVE
 
-    # SHOULD HAVE — common feature (prevalence >= 4)
+    # SHOULD HAVE - common feature (prevalence >= 4)
     if gap.prevalence >= 4:
         return MoSCoW.SHOULD_HAVE
 
-    # COULD HAVE — easy wins on medium-impact features
+    # COULD HAVE - easy wins on medium-impact features
     if gap.effort == Effort.LOW and gap.impact == Impact.MEDIUM:
         return MoSCoW.COULD_HAVE
 
-    # COULD HAVE — low prevalence / niche
+    # COULD HAVE - low prevalence / niche
     if gap.prevalence <= 2:
         return MoSCoW.COULD_HAVE
 
@@ -150,7 +150,7 @@ def _make_backlog_item(item: _Item) -> BacklogItem:
         dashboard = item.dashboard
         name = item.name
     else:  # UXIssue
-        # UXIssue doesn't carry Impact/Effort enums — derive from severity
+        # UXIssue doesn't carry Impact/Effort enums - derive from severity
         _sev_impact = {
             Severity.CRITICAL: 10,
             Severity.MAJOR: 5,

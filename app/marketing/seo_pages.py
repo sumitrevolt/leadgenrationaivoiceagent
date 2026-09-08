@@ -1,11 +1,11 @@
-"""Programmatic SEO page generator — niche×city landing pages for organic INBOUND.
+"""Programmatic SEO page generator - niche×city landing pages for organic INBOUND.
 
 Inbound = customer khud aata hai (sabse sasta long-term channel). 42 niches × top
 cities = sencrypted hundreds of indexable pages. Har page genuinely useful content
-(thin spam = Google penalty) + H1 keyword + FAQ schema + CTA → /audit.
+(thin spam = Google penalty) + H1 keyword + FAQ schema + CTA -> /audit.
 
 Reuse: NICHES (keywords/pain) + free_ai. Pages JSONL me store hote (`data/seo_pages.jsonl`)
-— existing `/blog` ya sitemap inhe serve/index kar sakta. Import-safe, kabhi raise nahi.
+- existing `/blog` ya sitemap inhe serve/index kar sakta. Import-safe, kabhi raise nahi.
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
     city = (city or "India").strip()
     kw = f"{label} marketing & lead generation in {city}"
     title = f"AI Marketing & Lead Generation for {label} in {city} | LeadGenAI"
-    h1 = f"{label} ke liye AI Marketing + Lead Generation — {city}"
+    h1 = f"{label} ke liye AI Marketing + Lead Generation - {city}"
 
     body = ""
     faqs = [
@@ -107,7 +107,7 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
 
         sys = (
             f"Tum ek local-SEO copywriter ho. {city} me '{label}' businesses ke liye ek 150-200 "
-            "word Hinglish landing-page intro likho — keyword '" + kw + "' natural use karo, pain "
+            "word Hinglish landing-page intro likho - keyword '" + kw + "' natural use karo, pain "
             "+ AI-solution + free-audit CTA. Genuinely useful, no spam. Sirf paragraph text."
         )
         txt, _ = await free_ai.chat(
@@ -120,7 +120,7 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
         body = (
             f"{city} ke {label} businesses ke liye naye customers tak pahunchna mehenga aur slow ho "
             f"gaya hai. LeadGenAI AI se aapki marketing, Google ranking, aur inquiry-calling automate "
-            f"karta hai — har lead ko 2 minute me call karke qualified banata hai. Aaj hi free Google "
+            f"karta hai - har lead ko 2 minute me call karke qualified banata hai. Aaj hi free Google "
             f"audit lijiye aur dekhiye aap kahan leads kho rahe hain."
         )
 
@@ -143,7 +143,7 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
 async def generate_batch(
     tier: str | None = None, cities: list[str] | None = None, limit: int = 8
 ) -> dict[str, Any]:
-    """Multiple niche×city pages (LLM-heavy → default limit 8)."""
+    """Multiple niche×city pages (LLM-heavy -> default limit 8)."""
     try:
         from app.niches import NICHES
     except Exception:

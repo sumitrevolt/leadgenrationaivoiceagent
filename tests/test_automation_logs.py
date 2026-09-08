@@ -91,7 +91,7 @@ def test_get_logs_jsonl_empty(tmp_path, monkeypatch):
 
 
 def test_log_event_never_raises(monkeypatch, tmp_path):
-    """log_event never raises — returns ID even on catastrophic failure."""
+    """log_event never raises - returns ID even on catastrophic failure."""
     # Force all paths to fail
     monkeypatch.setattr(
         "app.models.base.get_db_session",

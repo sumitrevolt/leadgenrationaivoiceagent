@@ -13,7 +13,7 @@ from typing import Any
 
 
 def _TRANSCRIPTS() -> Path:
-    """Call transcripts dir — resolved per call, never frozen at import."""
+    """Call transcripts dir - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return call_transcripts_dir()

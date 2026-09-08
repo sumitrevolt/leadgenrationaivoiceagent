@@ -1,9 +1,9 @@
-"""A7 ratchet — sales.prospects must stay migrated.
+"""A7 ratchet - sales.prospects must stay migrated.
 
 A1–A6 proved the shared authority on telephony, compliance, delivery, billing,
 and ops telemetry. A7 applies it to the prospect store:
 
-  * sales.prospects — data/prospects.jsonl (~20MB
+  * sales.prospects - data/prospects.jsonl (~20MB
   append + whole-file rewrite)
 
 Two properties the repo-wide debt ratchet cannot give:
@@ -65,7 +65,7 @@ def test_a7_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
 
     stale = sorted(set(declared) - observed)
     assert not stale, (
-        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
+        f"{module_path}: {stale} no longer appears - delete the exclusion rather "
         "than leaving a hole the next literal can hide in"
     )
 
@@ -99,7 +99,7 @@ def test_a7_modules_resolve_at_call_time_not_import_time(module_path):
             targets = [node.target.id]
         for name in targets:
             assert name not in RETIRED_CONSTANTS, (
-                f"{module_path} reintroduced module-level {name} — a path frozen "
+                f"{module_path} reintroduced module-level {name} - a path frozen "
                 "at import cannot follow a cutover"
             )
 
@@ -108,7 +108,7 @@ def test_a7_modules_resolve_at_call_time_not_import_time(module_path):
 def test_the_a7_rows_are_still_dual_read():
     """A7's own rows, asserted by A7's own file.
 
-    Subset only — the exact global set is asserted once in
+    Subset only - the exact global set is asserted once in
     ``test_runtime_data_waves.py`` as the union of every declared wave.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
@@ -120,7 +120,7 @@ def test_manifest_still_validates():
 
 
 def test_migrating_the_code_does_not_reduce_the_blocker_count():
-    """Migrated stores, and the count is still 21 — that is the honest answer.
+    """Migrated stores, and the count is still 21 - that is the honest answer.
 
     Writers can now follow a cutover
     authoritative bytes are still inside the

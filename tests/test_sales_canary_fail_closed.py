@@ -21,7 +21,7 @@ from app.platform.sales_autopilot import send as _send
 
 
 class ProviderCalled(AssertionError):
-    """Raised by the bomb — a live provider call escaped the dry-run boundary."""
+    """Raised by the bomb - a live provider call escaped the dry-run boundary."""
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def test_forced_dry_run_coercion_fails_closed(value: Any, expected: bool) -> Non
 
 
 def test_only_explicit_false_or_none_allows_live() -> None:
-    """The permissive set must stay exactly {None, False} — nothing may be added."""
+    """The permissive set must stay exactly {None, False} - nothing may be added."""
     allows_live = [
         v
         for v in [None, False, True, "false", "no", 0, 1, [], {}, object()]
@@ -71,7 +71,7 @@ def test_only_explicit_false_or_none_allows_live() -> None:
 # 3 + 4. A live-enabled stored policy is still overridden at the canary boundary.
 # --------------------------------------------------------------------------
 class _LivePolicy:
-    """A policy configured for LIVE sending — the dangerous case."""
+    """A policy configured for LIVE sending - the dangerous case."""
 
     enabled = True
     dry_run = False
@@ -95,7 +95,7 @@ def _arm(monkeypatch: pytest.MonkeyPatch) -> None:
     Without this the first version of these tests passed VACUOUSLY: eligibility
     blocked the prospect, send() returned at step 1, and the provider-bomb
     assertion held for the wrong reason. Stubbing eligibility/build/validate
-    keeps each test focused on the one thing it is pinning — the dry-run boundary.
+    keeps each test focused on the one thing it is pinning - the dry-run boundary.
     """
     monkeypatch.setattr(_send._elig, "evaluate", lambda *a, **k: {"decision": _send._elig.ELIGIBLE})
     monkeypatch.setattr(
@@ -169,7 +169,7 @@ def test_malformed_mode_also_beats_live_policy(provider_bomb, monkeypatch) -> No
 
 
 # --------------------------------------------------------------------------
-# 5. Normal (non-canary) execution is UNCHANGED — the guard must not over-block.
+# 5. Normal (non-canary) execution is UNCHANGED - the guard must not over-block.
 # --------------------------------------------------------------------------
 def test_non_canary_live_path_still_reaches_provider(monkeypatch) -> None:
     """Without force_dry_run, a live policy must still be able to send.

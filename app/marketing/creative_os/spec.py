@@ -1,4 +1,4 @@
-"""Typed, versioned CreativeSpec — serializable, deterministic, queue-safe."""
+"""Typed, versioned CreativeSpec - serializable, deterministic, queue-safe."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ class SceneSpec:
 
 @dataclass
 class CreativeSpec:
-    """Versioned creative brief — worker-queue safe (JSON serializable)."""
+    """Versioned creative brief - worker-queue safe (JSON serializable)."""
 
     creative_id: str
     tenant_id: str

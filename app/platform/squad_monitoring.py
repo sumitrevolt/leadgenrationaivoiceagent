@@ -1,4 +1,4 @@
-# Squad Lead — Monitoring & Observability (Squad 10)
+# Squad Lead - Monitoring & Observability (Squad 10)
 # Responsibility: Prometheus metrics, Sentry alerts, gate health dashboards
 # Autopilot: Auto-metrics-export, alert-on-drift, daily summary to owner
 

@@ -7,7 +7,7 @@ Two ban-safety / attribution rules hold here:
     §5). A human sends it via the existing 1-click surface.
   * If the task carries a customer_id, a per-customer AutomationLog row is written
     (via the canonical automation_log_service) so the admin cockpit's customer
-    filter attributes the work — mirroring ADR-065/066.
+    filter attributes the work - mirroring ADR-065/066.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ def build_delivery_notification_draft(objective: str, customer_id: str | None) -
             + ". Team review ke baad aapko confirm karegi."
         ),
         "auto_send": False,
-        "note": "DRAFT only — a human sends this via the 1-click surface (ban-safe).",
+        "note": "DRAFT only - a human sends this via the 1-click surface (ban-safe).",
     }
 
 

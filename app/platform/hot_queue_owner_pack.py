@@ -1,15 +1,15 @@
-"""Owner Hot-Queue Day Action Pack — daily build of CSV+MD for the owner + ntfy push.
+"""Owner Hot-Queue Day Action Pack - daily build of CSV+MD for the owner + ntfy push.
 
 Goal: turn the 42 (or however many) `calling_flagged` / hot-reply cards in
 `/api/ops/hotqueue` into a single click-ready file the owner can blast from
 their phone in 10 minutes.
 
 Outputs:
-  data/hot_queue_for_owner_<YYYY-MM-DD>.csv — Excel-friendly, WA link column
-  data/hot_queue_for_owner_<YYYY-MM-DD>.md  — top-15 with clickable wa.me links
-  ntfy push → owner phone topic `leadgen-d6b984bd`
+  data/hot_queue_for_owner_<YYYY-MM-DD>.csv - Excel-friendly, WA link column
+  data/hot_queue_for_owner_<YYYY-MM-DD>.md  - top-15 with clickable wa.me links
+  ntfy push -> owner phone topic `leadgen-d6b984bd`
 Idempotent: re-running on same day overwrites the file. Reads token from
-`NTFY_TOKEN` env (matches what app/notifier.py uses). Never raises — wraps in
+`NTFY_TOKEN` env (matches what app/notifier.py uses). Never raises - wraps in
 broad except so the scheduler mark stays ok even if ntfy down.
 
 Customer suppression (2026-09-04): paying/active customer phone numbers are
@@ -61,7 +61,7 @@ def _existing_customer_phones() -> tuple[set[str], bool]:
 
     Returns `(phones, ok)`. `ok=False` means the client store could not be read,
     so the returned set is EMPTY and NOT trustworthy. Callers must surface that
-    rather than silently behaving as if there were no customers — a silent
+    rather than silently behaving as if there were no customers - a silent
     fail-open here is how a paying customer ends up inside a prospecting blast.
     """
     try:
@@ -87,10 +87,10 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
     """Build today's owner action pack + optional ntfy push. Never raises."""
     try:
         rows = reply_agent.hot_queue(limit=limit, scope="boss") or []
-    except Exception as exc:  # never raise — defensive surface
+    except Exception as exc:  # never raise - defensive surface
         return {"ok": False, "error": f"hot_queue_unavailable: {exc}", "rows": 0}
 
-    # Drop existing customers BEFORE any link/kit is built — a suppressed row
+    # Drop existing customers BEFORE any link/kit is built - a suppressed row
     # must never have a sendable wa.me URL attached to it.
     try:
         customer_phones, suppression_ok = _existing_customer_phones()
@@ -169,7 +169,7 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
 
     try:
         with open(md_path, "w", encoding="utf-8") as f:
-            f.write(f"# Owner Hot-Queue Day Action Pack — {today}\n\n")
+            f.write(f"# Owner Hot-Queue Day Action Pack - {today}\n\n")
             f.write(
                 f"**Total hot leads:** {len(rows)} | "
                 f"**All have WA link + UPI deep-link pre-embedded**\n\n"
@@ -181,7 +181,7 @@ async def build_owner_pack(limit: int = 200, push_ntfy: bool = True) -> dict:
                 )
             if suppression_state == "unverified":
                 f.write(
-                    "> **WARNING — customer suppression UNVERIFIED:** the client store "
+                    "> **WARNING - customer suppression UNVERIFIED:** the client store "
                     "could not be read, so no customer was excluded. Verify before "
                     "sending this pack.\n\n"
                 )
@@ -233,7 +233,7 @@ async def _push_ntfy(rows: list, today: str) -> str:
         url = f"{base.rstrip('/')}/{topic}"
         top3 = rows[:3]
         lines = [
-            f"Hot Queue Day Pack ready — {len(rows)} leads",
+            f"Hot Queue Day Pack ready - {len(rows)} leads",
             "",
         ]
         for x in top3:
@@ -277,15 +277,15 @@ def check_gates() -> dict[str, str]:
 
     Gates composed (real primitives, not stubbed):
 
-      * ``kill_fence``    — admin kill engaged? (`voice_launch.admin_kill_engaged`)
-      * ``recording_ok``  — recording gate green? (`voice_launch.recording_gate_ok`)
-      * ``campaign_on``   — campaign enabled flag? (`voice_launch.campaign_enabled`)
-      * ``voice_window``  — TRAI 09:00–21:00 IST? (local-time math
+      * ``kill_fence``    - admin kill engaged? (`voice_launch.admin_kill_engaged`)
+      * ``recording_ok``  - recording gate green? (`voice_launch.recording_gate_ok`)
+      * ``campaign_on``   - campaign enabled flag? (`voice_launch.campaign_enabled`)
+      * ``voice_window``  - TRAI 09:00–21:00 IST? (local-time math
       pure)
-      * ``emergency_stop``— `EMERGENCY_STOP=1`? (env, hard halt)
-      * ``whatsapp_auto`` — WA auto-send gate (env, off by default)
+      * ``emergency_stop``- `EMERGENCY_STOP=1`? (env, hard halt)
+      * ``whatsapp_auto`` - WA auto-send gate (env, off by default)
 
-    No new compliance gates are invented here — only canonical primitives
+    No new compliance gates are invented here - only canonical primitives
     are composed. Owner can extend the list (add a key) without re-wiring
     callers, because ``admin_api._gate_check`` is gate-name agnostic.
     """

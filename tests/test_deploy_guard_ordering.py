@@ -4,7 +4,7 @@ A guard that runs *after* `git reset --hard` protects nothing. These tests read
 the scripts as text and assert ordering by line number, because that is the only
 property that actually matters here.
 
-Scope note: a repo-wide scan found 15 production-capable destructive paths — six
+Scope note: a repo-wide scan found 15 production-capable destructive paths - six
 `git reset --hard`, one `git clean -fd`, and eight `git pull`. The earlier
 working assumption of three was wrong, and this suite exists so the list cannot
 silently grow again.
@@ -42,23 +42,23 @@ PY_GUARDED = {"vps_force_pull.py": "tests/test_force_pull_guard.py"}
 #: Evidence-based reclassification. The pattern scanner marks a file
 #: "production-capable" when it mentions /opt/leadgen, docker-compose.vps.yml,
 #: leadsgenai.in or the VPS IP. That heuristic produced false positives, and a
-#: heuristic must not decide guard policy — reading the file must.
+#: heuristic must not decide guard policy - reading the file must.
 RECLASSIFIED = {
     ".github/workflows/tests.yml": (
-        "TEST_ONLY — runs-on: ubuntu-latest; its `git clean -fdxq` and "
+        "TEST_ONLY - runs-on: ubuntu-latest; its `git clean -fdxq` and "
         "`git checkout --orphan ci-debug` act on the RUNNER's ephemeral checkout "
         "and push to a ci-debug branch. No /opt/leadgen, no ssh, no production "
         "compose. The scanner matched only the git config email ci@leadsgenai.in."
     ),
     "pg_restore_drill.sh": (
-        "DATABASE_RESTORE — restores a backup into a THROWAWAY container "
+        "DATABASE_RESTORE - restores a backup into a THROWAWAY container "
         "(`docker run -d --rm --name $TMP`) and its `docker rm -f` targets that "
         "same temp container. It never touches the production checkout or "
         "production services. Needs its own backup preconditions, NOT the "
         "normal-release parent."
     ),
     "sops_decrypt_env.sh": (
-        "SECRET_CONFIG_PREPARATION — writes /opt/leadgen/.env. Its only "
+        "SECRET_CONFIG_PREPARATION - writes /opt/leadgen/.env. Its only "
         "`docker compose` string is inside an echo instructing the operator what "
         "to run next; it is not an executed command. Mutates configuration, not "
         "release or runtime state."
@@ -68,45 +68,45 @@ RECLASSIFIED = {
 #: Known-destructive paths not yet guarded. Each entry is debt with an owner,
 #: not an exemption: the accompanying test asserts the list only shrinks.
 UNGUARDED_DEBT = {
-    "hostinger_hermes_bootstrap.sh": "sandbox clone, not /opt/leadgen — verify then guard",
-    "vps_build_deploy.py": "python remote-command builder — wave 2",
-    "vps_deploy_dashboard.py": "python remote-command builder — wave 2",
-    "vps_deploy_workflow_fix.py": "python remote-command builder — wave 2",
-    "vps_deploy_automation_fix.py": "git pull || true — wave 2",
-    "vps_deploy_smoke.py": "git pull — wave 2",
-    "vps_flywheel_deploy.sh": "git pull — wave 2",
-    "deploy_adr095.sh": "one-off ADR deploy — wave 2",
-    "deploy_adr096.sh": "one-off ADR deploy — wave 2",
-    "deploy_adr097.sh": "one-off ADR deploy — wave 2",
-    "deploy_all.sh": "git pull — wave 2",
+    "hostinger_hermes_bootstrap.sh": "sandbox clone, not /opt/leadgen - verify then guard",
+    "vps_build_deploy.py": "python remote-command builder - wave 2",
+    "vps_deploy_dashboard.py": "python remote-command builder - wave 2",
+    "vps_deploy_workflow_fix.py": "python remote-command builder - wave 2",
+    "vps_deploy_automation_fix.py": "git pull || true - wave 2",
+    "vps_deploy_smoke.py": "git pull - wave 2",
+    "vps_flywheel_deploy.sh": "git pull - wave 2",
+    "deploy_adr095.sh": "one-off ADR deploy - wave 2",
+    "deploy_adr096.sh": "one-off ADR deploy - wave 2",
+    "deploy_adr097.sh": "one-off ADR deploy - wave 2",
+    "deploy_all.sh": "git pull - wave 2",
     # --- container-replacement paths -------------------------------------
     # Found only when the scan included `docker compose up -d`. Recreating a
     # container does not by itself revert data/, but these scripts run against
     # production and several also pull/checkout, so they are in scope.
     # This block is why the earlier "3 destructive scripts" figure was wrong by
-    # an order of magnitude — the real surface is ~33 paths.
-    "activate.py": "container replacement — wave 2",
-    "activate_waha_vps.sh": "container replacement — wave 2",
-    "chaos_test.sh": "test harness; verify it never targets prod — wave 2",
-    "fs_deploy.sh": "container replacement — wave 2",
-    "infra_activate.sh": "container replacement — wave 2",
-    "set_kv.sh": "container replacement — wave 2",
-    "setup_postiz.sh": "container replacement — wave 2",
-    "verify_mcp_engineer.py": "verification helper — classify as diagnostic — wave 2",
-    "vps_activate_rag_flags.py": "container replacement — wave 2",
-    "vps_deploy_call_learn.py": "container replacement — wave 2",
-    "vps_deploy_selfimprove.sh": "container replacement — wave 2",
-    "vps_enable_deferred_backlog.py": "container replacement — wave 2",
-    "vps_flags_smoke.py": "container replacement — wave 2",
-    "vps_infra_setup.py": "container replacement — wave 2",
-    "vps_migrate_qdrant.sh": "container replacement — wave 2",
-    "vps_post_deploy_verify.py": "post-deploy verification — classify as diagnostic — wave 2",
-    "vps_prod_finish.sh": "container replacement — wave 2",
-    "vps_production_harden.sh": "container replacement — wave 2",
+    # an order of magnitude - the real surface is ~33 paths.
+    "activate.py": "container replacement - wave 2",
+    "activate_waha_vps.sh": "container replacement - wave 2",
+    "chaos_test.sh": "test harness; verify it never targets prod - wave 2",
+    "fs_deploy.sh": "container replacement - wave 2",
+    "infra_activate.sh": "container replacement - wave 2",
+    "set_kv.sh": "container replacement - wave 2",
+    "setup_postiz.sh": "container replacement - wave 2",
+    "verify_mcp_engineer.py": "verification helper - classify as diagnostic - wave 2",
+    "vps_activate_rag_flags.py": "container replacement - wave 2",
+    "vps_deploy_call_learn.py": "container replacement - wave 2",
+    "vps_deploy_selfimprove.sh": "container replacement - wave 2",
+    "vps_enable_deferred_backlog.py": "container replacement - wave 2",
+    "vps_flags_smoke.py": "container replacement - wave 2",
+    "vps_infra_setup.py": "container replacement - wave 2",
+    "vps_migrate_qdrant.sh": "container replacement - wave 2",
+    "vps_post_deploy_verify.py": "post-deploy verification - classify as diagnostic - wave 2",
+    "vps_prod_finish.sh": "container replacement - wave 2",
+    "vps_production_harden.sh": "container replacement - wave 2",
     # Cutover tooling ships the plan/copy/verify/activate parent cited by
     # deploy_vps.sh. It can mutate production bytes outside git; treat as
     # known debt until it sources _runtime_data_guard.sh like other parents.
-    "runtime_data_cutover.py": "cutover parent — guard then shrink — wave A5",
+    "runtime_data_cutover.py": "cutover parent - guard then shrink - wave A5",
 }
 
 
@@ -139,7 +139,7 @@ def test_guard_script_exists_and_has_no_bypass() -> None:
     assert PREFLIGHT in text
     assert "check-deploy" in text
     # A bypass variable or `|| true` would make the guard decorative.
-    # Comments are excluded — the guard's own docstring *mentions* `|| true`
+    # Comments are excluded - the guard's own docstring *mentions* `|| true`
     # precisely to forbid it, and a naive substring check flagged that.
     code = "\n".join(ln for ln in text.splitlines() if not ln.strip().startswith("#"))
     assert "|| true" not in code
@@ -168,7 +168,7 @@ def test_guard_precedes_first_destructive_command(name: str) -> None:
     d = _first_destructive_line(text)
 
     assert g is not None, f"{name} does not source {GUARD}"
-    assert d is not None, f"{name} no longer contains a destructive command — update this test"
+    assert d is not None, f"{name} no longer contains a destructive command - update this test"
     assert g < d, (
         f"{name}: guard is on line {g} but the first destructive command is on line {d}. "
         "A guard after the reset protects nothing."
@@ -209,7 +209,7 @@ def test_no_undeclared_destructive_script() -> None:
     assert not undeclared, (
         "undeclared destructive production path(s): "
         + ", ".join(undeclared)
-        + " — guard them or add them to UNGUARDED_DEBT with an owner and wave"
+        + " - guard them or add them to UNGUARDED_DEBT with an owner and wave"
     )
 
 
@@ -218,7 +218,7 @@ def test_reclassified_paths_are_not_treated_as_release_paths() -> None:
 
     Each entry here was marked production-capable by the scanner heuristic and
     then reclassified by READING the file. Routing them through the
-    normal-release parent would break their semantics — a restore drill is not
+    normal-release parent would break their semantics - a restore drill is not
     a release, and CI is not production.
     """
     for name, reason in RECLASSIFIED.items():

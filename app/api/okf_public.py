@@ -1,4 +1,4 @@
-"""Public OKF bundle surface — agent-readable Markdown at /okf/ (ADR-119 + ai-seo).
+"""Public OKF bundle surface - agent-readable Markdown at /okf/ (ADR-119 + ai-seo).
 
 Serves curated ``knowledge/*.md`` only. Path-traversal refuse. Secret-pattern
 docs return 404 (never leak). Gated by OKF_PUBLIC_BUNDLE (default ON).
@@ -27,7 +27,7 @@ async def okf_index() -> PlainTextResponse:
     if path is None:
         raise HTTPException(status_code=404, detail="okf_index_missing")
     raw = path.read_text(encoding="utf-8", errors="replace")
-    if okf_bundle._secret_blocked(raw):  # noqa: SLF001 — shared guard
+    if okf_bundle._secret_blocked(raw):  # noqa: SLF001 - shared guard
         raise HTTPException(status_code=404, detail="okf_blocked")
     return PlainTextResponse(raw, media_type="text/markdown
     charset=utf-8")

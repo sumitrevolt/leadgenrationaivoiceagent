@@ -1,8 +1,8 @@
 """
-Phase 3 — LABEL: weak-label our recordings with IndicWhisper (offline, accuracy-first).
+Phase 3 - LABEL: weak-label our recordings with IndicWhisper (offline, accuracy-first).
 ============================================================================
-Standalone OFFLINE tool — run on a GPU box / Colab (transformers + ffmpeg). It does
-NOT touch the live app. Latency does not matter here (offline) → we use the more
+Standalone OFFLINE tool - run on a GPU box / Colab (transformers + ffmpeg). It does
+NOT touch the live app. Latency does not matter here (offline) -> we use the more
 accurate IndicWhisper, not the fast live Conformer.
 
 Reads:   data/voice_train/raw.jsonl              (from extract_dataset.py)
@@ -82,7 +82,7 @@ def _build_asr(model_id: str):
             chunk_length_s=20, generate_kwargs=gen,
         )
     except Exception:
-        # some checkpoints reject generate_kwargs at construction — retry bare
+        # some checkpoints reject generate_kwargs at construction - retry bare
         pipe = pipeline("automatic-speech-recognition", model=model_id, device=device,
                         chunk_length_s=20)
 
@@ -99,7 +99,7 @@ def label(in_path: str, out_path: str, review_path: str, model_id: str,
           limit: int = 0, disagree: float = 0.5) -> dict:
     rows = _read_jsonl(in_path)
     if not rows:
-        print(f"[label] no rows in {in_path} — run extract_dataset.py first")
+        print(f"[label] no rows in {in_path} - run extract_dataset.py first")
         return {"labeled": 0, "review": 0}
 
     done = _done_paths(out_path)

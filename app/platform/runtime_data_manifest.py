@@ -1,4 +1,4 @@
-"""Deduplicated store-family manifest — one entry per logical AUTHORITY.
+"""Deduplicated store-family manifest - one entry per logical AUTHORITY.
 
 Not one entry per source literal. The raw scan found ~250 `data/` path literals
 across ~150 modules, but a literal count is not a store count: several literals
@@ -8,7 +8,7 @@ and some name files that do not exist in production at all.
 Every `current_authority` and `production_activity` value below is backed by
 read-only production evidence (file `stat`, `wc -l`, and `pg_stat_user_tables`
 row counts taken 2026-07-26). Where evidence is absent the entry says `UNKNOWN`
-rather than guessing — an unknown authoritative store is a deployment blocker.
+rather than guessing - an unknown authoritative store is a deployment blocker.
 
 This module is DATA. It performs no I/O and moves no files.
 """
@@ -54,7 +54,7 @@ VALID_STATES = frozenset(
 #: holds live authority inside the Git checkout, so `git reset --hard` destroys
 #: it. UNKNOWN blocks too: "we did not check" is not evidence of safety.
 #: DUAL_READ_PRE_CUTOVER blocks too (added 2026-07-28, A1). The state means the
-#: CODE can follow a cutover — the DATA has not moved, so the authoritative copy
+#: CODE can follow a cutover - the DATA has not moved, so the authoritative copy
 #: is still inside the checkout and `git reset --hard` still destroys it.
 #: Excluding it would have dropped the blocker count from 21 to 18 the moment a
 #: resolver landed, which is a false green: resolver-ready is not data-safe.
@@ -68,7 +68,7 @@ TIER_2 = "tier2"  # retention-sensitive artifacts
 TIER_3 = "tier3"  # rebuildable
 TIER_NONE = "none"  # not a file-cutover concern
 
-#: Disjoint buckets — every store has exactly one, so they must sum to len(STORES).
+#: Disjoint buckets - every store has exactly one, so they must sum to len(STORES).
 TIERS = (TIER_0, TIER_1, TIER_2, TIER_3, TIER_NONE)
 
 
@@ -93,7 +93,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="billing/invoices.jsonl",
         migration_tier=TIER_0,
         # A5 (2026-07-29): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="25 lines
@@ -114,7 +114,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="billing/upi_payments.json",
         migration_tier=TIER_0,
         # A5 (2026-07-29): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="UPI is the primary payment path (Stripe intl-only)
@@ -137,7 +137,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="compliance/email_suppression.jsonl",
         migration_tier=TIER_0,
         # A3 (2026-07-28): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="PR #144 canonical authority
@@ -193,7 +193,7 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_0,
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
-        evidence="currently EMPTY (0 bytes) — empty is not the same as absent
+        evidence="currently EMPTY (0 bytes) - empty is not the same as absent
         "
         "the file is the authority and must survive cutover",
     ),
@@ -212,11 +212,11 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="compliance/dpdp_audit.jsonl",
         migration_tier=TIER_0,
         # A3 (2026-07-28): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="app/models/compliance_audit.py declares compliance_audit_logs but "
-        "the table does not exist in production — verified architecture gap",
+        "the table does not exist in production - verified architecture gap",
     ),
     _e(
         store_id="customers.identity",
@@ -234,7 +234,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="customers/marketing_clients.jsonl",
         migration_tier=TIER_0,
         # A5 (2026-07-29): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="8 JSONL rows vs 1 DB row
@@ -256,7 +256,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="sales/prospects.jsonl",
         migration_tier=TIER_1,
         # A7 (2026-07-29): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         # Host cutover is a SEPARATE PR; this wave is code-only.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
@@ -289,7 +289,7 @@ STORES: list[dict[str, Any]] = [
         engine INERT (SALES_AUTOPILOT_ENABLED unset)",
         evidence="production `ls` 2026-07-26 shows the directory holds exactly ONE file, "
         "last_tick.json (120 bytes). The prospects/attempts/policy stores this entry "
-        "previously assumed do not exist as files in production — the directory is not "
+        "previously assumed do not exist as files in production - the directory is not "
         "a multi-store family.",
     ),
     _e(
@@ -347,7 +347,7 @@ STORES: list[dict[str, Any]] = [
         ),
         evidence=(
             "declared 2026-08-14 with Hot Queue owner reminder; "
-            "*.owner-notified is O_EXCL claim only — no prospect auto-send"
+            "*.owner-notified is O_EXCL claim only - no prospect auto-send"
         ),
     ),
     _e(
@@ -511,7 +511,7 @@ STORES: list[dict[str, Any]] = [
             "Declared 2026-08-03 with ADR-154 Workforce Memory Hub. Layered L0–L3 "
             "JSONL + refs under data/workforce_memory/{agent}/. Losing files degrades "
             "agent continuity (lessons/persona) but does not destroy billing, consent, "
-            "or invoice authority — hence rebuildable. Admin purge/prune are DPDP/ops "
+            "or invoice authority - hence rebuildable. Admin purge/prune are DPDP/ops "
             "erase paths; chat/L0 stays private; team share is skill/wiki only."
         ),
     ),
@@ -632,7 +632,7 @@ STORES: list[dict[str, Any]] = [
         business_category="growth",
         durability_class="rebuildable",
         concurrency_model="append for registrations
-        locked atomic rewrite for lead→paid flip",
+        locked atomic rewrite for lead->paid flip",
         tenant_scope="platform-global (referral partners
         contact keys only)",
         target_runtime_subpath="marketing/affiliates/",
@@ -641,7 +641,7 @@ STORES: list[dict[str, Any]] = [
         deployment_blocker=False,
         evidence=(
             "Declared 2026-08-23 when the revenue-sprint batch added the "
-            "lead→paid flip on UPI activation (previously referrals never "
+            "lead->paid flip on UPI activation (previously referrals never "
             "reached 'paid', so commission_earned was permanently ₹0). "
             "Re-enterable from affiliate re-registration + payment ledger."
         ),
@@ -671,8 +671,8 @@ STORES: list[dict[str, Any]] = [
         deployment_blocker=False,
         evidence=(
             "Declared 2026-08-12 with PR #333 staff_bus. Append-only JSONL family "
-            "for Owner→Boss→7-team envelopes. INERT until STAFF_BUS_ENABLED=1; "
-            "default OFF. Comb NIP-OA auth_tag may be null (WAIT) — not a store "
+            "for Owner->Boss->7-team envelopes. INERT until STAFF_BUS_ENABLED=1; "
+            "default OFF. Comb NIP-OA auth_tag may be null (WAIT) - not a store "
             "blocker. No customer outbound from these files alone."
         ),
     ),
@@ -941,11 +941,11 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="automation",
         durability_class="operational-telemetry",
-        retention_policy="NONE DEFINED — unbounded growth",
+        retention_policy="NONE DEFINED - unbounded growth",
         target_runtime_subpath="automation/job_runs.jsonl",
         migration_tier=TIER_1,
         # A6 (2026-07-29): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="27.9 MB and growing daily
@@ -966,7 +966,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="automation/cadence_runs.jsonl",
         migration_tier=TIER_1,
         # A6 (2026-07-29): writers resolve through runtime_data_authority.
-        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        # Host cutover verified - CUTOVER_COMPLETE (bytes external; checkout retained).
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
     ),
@@ -986,7 +986,7 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="communications/interactions.jsonl",
         migration_tier=TIER_1,
         # A6 (2026-07-29): JSONL path resolves through runtime_data_authority;
-        # DB dual-write unchanged. Bytes have not moved — still a blocker.
+        # DB dual-write unchanged. Bytes have not moved - still a blocker.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence="NEITHER store is safe to delete. DB has resolved identity and drives "
@@ -1015,7 +1015,7 @@ STORES: list[dict[str, Any]] = [
         deployment_blocker=False,
         evidence="422 owner_os_audit_events rows in production
         all three JSONL files "
-        "ABSENT on the VPS — the file paths are a fallback that production never uses",
+        "ABSENT on the VPS - the file paths are a fallback that production never uses",
     ),
     _e(
         store_id="sales.leads",
@@ -1041,7 +1041,7 @@ STORES: list[dict[str, Any]] = [
         current_authority="FILE",
         business_category="compliance",
         durability_class="retention-sensitive-artifact",
-        retention_policy="90 days (DPDP) — enforcement not verified",
+        retention_policy="90 days (DPDP) - enforcement not verified",
         production_active=True,
         mutable=True,
         authoritative_or_required=True,
@@ -1053,12 +1053,12 @@ STORES: list[dict[str, Any]] = [
         ],
         target_runtime_subpath="artifacts/call_recordings/",
         migration_tier=TIER_2,
-        # A9 (2026-07-29) — code follows shared authority; host byte copy is a
+        # A9 (2026-07-29) - code follows shared authority; host byte copy is a
         # separate CUTOVER_COMPLETE step. DUAL_READ stays a blocker until then.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         blocker_reason="DPDP personal data with a 90-day retention duty, living inside "
-        "the Git checkout — `git reset --hard` would destroy customer call evidence",
+        "the Git checkout - `git reset --hard` would destroy customer call evidence",
         evidence="182 MB. Personal data. NOT an ordinary disposable artifact. "
         "Originally recorded here as non-blocking; the manifest validator rejected that, "
         "because it is production-active, mutable, required and unprotected inside the "
@@ -1098,7 +1098,7 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_3,
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
-        evidence="1.97 GB — 82% of the whole data dir, and re-downloadable. "
+        evidence="1.97 GB - 82% of the whole data dir, and re-downloadable. "
         "Must NOT be dragged into a JSONL migration wave",
     ),
     _e(
@@ -1114,7 +1114,7 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_NONE,
         migration_state=STATIC_ASSET,
         deployment_blocker=False,
-        evidence="static PDFs unmodified since Jun 8 / Jun 25 — documents, not ledgers",
+        evidence="static PDFs unmodified since Jun 8 / Jun 25 - documents, not ledgers",
     ),
     # ---------------------------------------------------------------- TIER 1
     _e(
@@ -1132,11 +1132,11 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="external_missions/",
         migration_tier=TIER_1,
         # A8 (2026-07-29): default root resolves through runtime_data_authority
-        # with EXTERNAL_MISSION_DIR override. Bytes have not moved — still a blocker.
+        # with EXTERNAL_MISSION_DIR override. Bytes have not moved - still a blocker.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence=(
-            "Root is EXTERNAL_MISSION_DIR, defaulting to data/external_missions — "
+            "Root is EXTERNAL_MISSION_DIR, defaulting to data/external_missions - "
             "INSIDE the checkout. Per-mission JSON is durable state written via "
             "_atomic_write -> os.replace(tmp, path) from six call sites, plus an "
             "events log beside it. The module's own docstring notes container "
@@ -1145,7 +1145,7 @@ STORES: list[dict[str, Any]] = [
             "no evidence yet that production sets the variable to a mounted root."
         ),
     ),
-    # ------------------------------------------------ TIER 0 — calling safety
+    # ------------------------------------------------ TIER 0 - calling safety
     # Found 2026-07-27 by the path-return-helper provenance pass. Every one of
     # these defaults INSIDE the checkout, so a deploy that resets the tree drops
     # the file and each control silently returns to its permissive default.
@@ -1168,7 +1168,7 @@ STORES: list[dict[str, Any]] = [
         # A1 (2026-07-28): the writers now resolve through
         # runtime_data_authority, so the CODE can follow a cutover. The DATA has
         # not moved and the runtime root is unset, so the legacy files remain
-        # authoritative — which is exactly what DUAL_READ_PRE_CUTOVER records.
+        # authoritative - which is exactly what DUAL_READ_PRE_CUTOVER records.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence=(
@@ -1194,16 +1194,16 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="telephony/dial_blocklist.json",
         migration_tier=TIER_0,
-        # A1 (2026-07-28) — see telephony.calling_safety_config above.
+        # A1 (2026-07-28) - see telephony.calling_safety_config above.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence=(
             "DIAL_BLOCKLIST_FILE -> data/dial_blocklist.json. dial_gate.py reads "
             "it and call_feedback.py._save() writes it atomically "
             "(tmp.write_text -> os.replace(tmp, p)); call_feedback's own comment "
-            "says 'dial_gate ke saath SAME env/naam — single source'. Suppression "
+            "says 'dial_gate ke saath SAME env/naam - single source'. Suppression "
             "is Tier 0. The audit ledger DIAL_BLOCKLIST_AUDIT is deliberately NOT "
-            "folded in here — it needs its own reader/writer evidence first."
+            "folded in here - it needs its own reader/writer evidence first."
         ),
     ),
     _e(
@@ -1217,7 +1217,7 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="telephony/voice_launch_kill.json",
         migration_tier=TIER_0,
-        # A1 (2026-07-28) — see telephony.calling_safety_config above.
+        # A1 (2026-07-28) - see telephony.calling_safety_config above.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         evidence=(
@@ -1225,11 +1225,11 @@ STORES: list[dict[str, Any]] = [
             "from calling_safety_config: emergency semantics, independent toggle "
             "lifecycle, stricter fail-closed requirement, separate incident "
             "evidence. Its docstring states the file exists so the kill can flip "
-            "'container-recreate ke bina — data/ bind-mount', which is exactly why "
+            "'container-recreate ke bina - data/ bind-mount', which is exactly why "
             "losing the file must not disengage the kill."
         ),
     ),
-    # ------------------------------------------------------ TIER 2 — retention
+    # ------------------------------------------------------ TIER 2 - retention
     _e(
         store_id="telephony.call_recordings",
         display_name="Call recordings (retention-governed)",
@@ -1244,7 +1244,7 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="telephony/recordings/",
         migration_tier=TIER_2,
-        # A9 (2026-07-29) — RECORDINGS_DIR override preserved; code-only flip.
+        # A9 (2026-07-29) - RECORDINGS_DIR override preserved; code-only flip.
         migration_state=CUTOVER_COMPLETE,
         deployment_blocker=False,
         retention_governed=True,
@@ -1279,7 +1279,7 @@ STORES: list[dict[str, Any]] = [
         migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
         evidence=(
-            "M2 console dispatcher (2026-09-04) — append-only per-tenant "
+            "M2 console dispatcher (2026-09-04) - append-only per-tenant "
             "JSONL envelopes. Cap-trim keeps the most-recent N rows. "
             "Rebuildable from product_consoles.EVENT_SLOTS + downstream "
             "side-effects, so this is REBUILDABLE_CACHE not authoritative. "
@@ -1370,7 +1370,7 @@ def blocking_stores() -> list[dict[str, Any]]:
 
 
 def counts() -> dict[str, int]:
-    """Verified counts — derived, never hand-written."""
+    """Verified counts - derived, never hand-written."""
     out: dict[str, int] = {
         "unique_families": len(STORES),
         "production_active": 0,

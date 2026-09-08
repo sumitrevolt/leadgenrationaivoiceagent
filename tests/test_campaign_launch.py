@@ -1,11 +1,11 @@
 """Durable Celery campaign launch (2026-07-02, P2-1).
 
 Covers:
-  - app/telephony/campaign_compliance.py — shared TRAI-window/readiness gate
+  - app/telephony/campaign_compliance.py - shared TRAI-window/readiness gate
     (single source of truth for both scripts/fire_calls.py and the Celery task).
-  - app/tasks/calling.py::run_campaign_task — the durable replacement for the
+  - app/tasks/calling.py::run_campaign_task - the durable replacement for the
     web-process asyncio-subprocess path, + the single-flight Redis lock.
-  - app/api/admin_ops.py::launch_campaign — prefers Celery, falls back to
+  - app/api/admin_ops.py::launch_campaign - prefers Celery, falls back to
     subprocess on broker failure, refuses a second launch while one runs.
 """
 
@@ -24,14 +24,14 @@ def _fake_ctx(session):
 
 
 # --------------------------------------------------------------------------- #
-# campaign_compliance — shared gate
+# campaign_compliance - shared gate
 # --------------------------------------------------------------------------- #
 def test_trai_window_ok_inside_promo_window(monkeypatch):
     from app.telephony.campaign_compliance import trai_window_ok
 
     monkeypatch.delenv("COMPLIANCE_PROMO_START", raising=False)
     monkeypatch.delenv("COMPLIANCE_PROMO_END", raising=False)
-    # 12:00 IST = 06:30 UTC — inside default 10:00-19:00 IST promo window
+    # 12:00 IST = 06:30 UTC - inside default 10:00-19:00 IST promo window
     now_utc = datetime(2026, 1, 1, 6, 30)
     ok, reason = trai_window_ok(False, now_utc=now_utc)
     assert ok is True and reason == ""
@@ -42,7 +42,7 @@ def test_trai_window_blocks_outside_promo_window(monkeypatch):
 
     monkeypatch.delenv("COMPLIANCE_PROMO_START", raising=False)
     monkeypatch.delenv("COMPLIANCE_PROMO_END", raising=False)
-    # 22:00 IST = 16:30 UTC — well outside 10:00-19:00 IST
+    # 22:00 IST = 16:30 UTC - well outside 10:00-19:00 IST
     now_utc = datetime(2026, 1, 1, 16, 30)
     ok, reason = trai_window_ok(False, now_utc=now_utc)
     assert ok is False
@@ -54,7 +54,7 @@ def test_trai_window_transactional_has_wider_hours(monkeypatch):
 
     monkeypatch.delenv("COMPLIANCE_TXN_START", raising=False)
     monkeypatch.delenv("COMPLIANCE_TXN_END", raising=False)
-    # 20:00 IST = 14:30 UTC — inside transactional 9:00-21:00 IST, outside promo 10-19
+    # 20:00 IST = 14:30 UTC - inside transactional 9:00-21:00 IST, outside promo 10-19
     now_utc = datetime(2026, 1, 1, 14, 30)
     promo_ok, _ = trai_window_ok(False, now_utc=now_utc)
     txn_ok, _ = trai_window_ok(True, now_utc=now_utc)
@@ -79,19 +79,19 @@ def test_readiness_ok_never_raises(monkeypatch):
 
     monkeypatch.setattr(tr, "run_checks", boom)
     ok, score, actions = cc.readiness_ok()
-    # fails OPEN on its own bug — never blocks a campaign on a readiness-check crash
+    # fails OPEN on its own bug - never blocks a campaign on a readiness-check crash
     assert ok is True and score == 100 and actions == []
 
 
 # --------------------------------------------------------------------------- #
-# run_campaign_task — lock + gates + dial loop (mocked DB/dial, no real Celery
-# worker or network needed — a @shared_task is still callable via .run()).
+# run_campaign_task - lock + gates + dial loop (mocked DB/dial, no real Celery
+# worker or network needed - a @shared_task is still callable via .run()).
 # --------------------------------------------------------------------------- #
 @pytest.fixture
 def fake_redis():
     """Minimal in-memory stand-in for the redis-py client used by calling.py's
     lock/status helpers, so lock behaviour is deterministic in tests (the real
-    REDIS_URL is deliberately unreachable in the test env — see conftest.py)."""
+    REDIS_URL is deliberately unreachable in the test env - see conftest.py)."""
 
     class _Fake:
         def __init__(self):
@@ -213,7 +213,7 @@ def test_run_campaign_task_no_prospects_never_dials(monkeypatch, fake_redis):
 
 def test_run_campaign_task_marks_placed_leads_and_releases_lock(monkeypatch, fake_redis):
     """run_campaign_task threads its db session through to _dial_vobiz_campaign
-    (which now does the per-lead mark_called commit itself — see
+    (which now does the per-lead mark_called commit itself - see
     test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead below for the
     crash-safety property of that inline commit)."""
     from app.tasks import calling as ct
@@ -297,7 +297,7 @@ class _FakeCampaignLead:
 def kill_disengaged(monkeypatch):
     """Opt-in: state the calling-safety precondition for tests about OTHER gates.
 
-    The admin kill reader is fail-CLOSED — a missing, unreadable or malformed
+    The admin kill reader is fail-CLOSED - a missing, unreadable or malformed
     authority file ENGAGES the kill. The dialer tests below predate that and
     silently relied on "no kill file" meaning "safe to dial", so they were
     asserting call_attempts bookkeeping against a run in which no provider was
@@ -305,7 +305,7 @@ def kill_disengaged(monkeypatch):
     breaking.
 
     ENV is final in the reader, so `0` is the explicit, valid, disengaged
-    authority — the same shape tests/test_voice_launch.py already uses.
+    authority - the same shape tests/test_voice_launch.py already uses.
 
     Deliberately NOT autouse: a global disengage would re-open the fail-open
     hole for every future test in this file. The tests that PROVE an absent or
@@ -319,7 +319,7 @@ def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
     kill_disengaged, monkeypatch, fake_campaign_db
 ):
     """Each placed call commits its own Lead.call_attempts update immediately
-    (fire_calls.py-style crash-safety) — not one batched update after the
+    (fire_calls.py-style crash-safety) - not one batched update after the
     whole (possibly minutes-long) dial loop finishes. A batched-after approach
     loses every already-dialed lead's mark if the task is killed mid-run
     (e.g. campaign/stop's revoke(terminate=True)), causing a relaunch to
@@ -361,7 +361,7 @@ def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
     kill_disengaged, monkeypatch, fake_campaign_db
 ):
     """If the 2nd call blows up mid-loop, lead_1's mark_called commit must
-    already have happened — proving a crash/kill after this point does not
+    already have happened - proving a crash/kill after this point does not
     lose lead_1's call_attempts (would otherwise get re-dialed on relaunch)."""
     from app.tasks import calling as ct
 
@@ -403,9 +403,9 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
     kill_disengaged, monkeypatch
 ):
     """The mocked-query tests above (fake_campaign_db) only record the update
-    dict passed to .update() — they never execute real SQL, so they can't
+    dict passed to .update() - they never execute real SQL, so they can't
     catch `Lead.call_attempts + 1` compiling to `NULL + 1 = NULL` for a
-    never-called lead (call_attempts IS NULL — exactly what the prospect
+    never-called lead (call_attempts IS NULL - exactly what the prospect
     filter's `or_(Lead.call_attempts.is_(None), ...)` admits). This test runs
     the real UPDATE against a real (in-memory) SQLite engine so a regression
     to the non-coalesced form would actually fail it."""
@@ -431,7 +431,7 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
         session.commit()
         # Force a genuine NULL at the DB level (bulk-imported/pre-migration
         # row). Setting `lead.call_attempts = None` on the ORM object BEFORE
-        # flush does NOT reproduce this — SQLAlchemy's column-level
+        # flush does NOT reproduce this - SQLAlchemy's column-level
         # `default=0` still fires and the row lands as 0, not NULL, which
         # would make this test pass trivially (0 + 1 = 1 needs no coalesce)
         # regardless of whether the fix is present. Raw SQL bypasses that.
@@ -468,7 +468,7 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
         session.expire_all()
         refreshed = session.query(Lead).filter(Lead.id == "lead_null_attempts").one()
         assert refreshed.call_attempts == 1, (
-            "NULL call_attempts must become 1 (coalesced), not stay NULL — a "
+            "NULL call_attempts must become 1 (coalesced), not stay NULL - a "
             "NULL result means the lead stays re-selectable and gets re-dialed"
         )
     finally:
@@ -505,10 +505,10 @@ def test_run_campaign_task_never_raises_on_dial_exception(monkeypatch, fake_redi
 
 
 # --------------------------------------------------------------------------- #
-# process_callbacks — same NULL call_attempts class of bug, different (older,
+# process_callbacks - same NULL call_attempts class of bug, different (older,
 # pre-existing) function. `lead.call_attempts += 1` on a real ORM object
 # TypeErrors when the loaded value is None, aborting the loop's db.commit()
-# for the WHOLE batch — including leads already dispatched via
+# for the WHOLE batch - including leads already dispatched via
 # make_call_task.delay() earlier in the same run, whose last_called_at never
 # gets persisted and so stay re-queuable on the next tick.
 # --------------------------------------------------------------------------- #
@@ -550,7 +550,7 @@ def test_process_callbacks_handles_null_call_attempts_against_real_db(monkeypatc
             ]
         )
         session.commit()
-        # cb_2 gets a genuine NULL call_attempts (bulk-imported row) — see the
+        # cb_2 gets a genuine NULL call_attempts (bulk-imported row) - see the
         # note in test_dial_vobiz_campaign_increments_null_call_attempts_
         # against_real_db above on why ORM-attribute assignment can't fake this.
         session.execute(
@@ -572,7 +572,7 @@ def test_process_callbacks_handles_null_call_attempts_against_real_db(monkeypatc
         try:
             cb1 = check.query(Lead).filter(Lead.id == "cb_1").one()
             cb2 = check.query(Lead).filter(Lead.id == "cb_2").one()
-            # both commits must have landed — a TypeError on cb_2's None would
+            # both commits must have landed - a TypeError on cb_2's None would
             # previously abort db.commit() for the whole batch, including cb_1.
             assert cb1.call_attempts == 1 and cb1.last_called_at is not None
             assert cb2.call_attempts == 1 and cb2.last_called_at is not None
@@ -586,7 +586,7 @@ def test_process_callbacks_handles_null_call_attempts_against_real_db(monkeypatc
 
 
 # --------------------------------------------------------------------------- #
-# admin_ops.py::launch_campaign — Celery-preferred, subprocess-fallback, lock
+# admin_ops.py::launch_campaign - Celery-preferred, subprocess-fallback, lock
 # --------------------------------------------------------------------------- #
 def test_launch_campaign_rejects_bad_limit(client):
     r = client.post("/api/admin/campaign/launch", json={"limit": 0})

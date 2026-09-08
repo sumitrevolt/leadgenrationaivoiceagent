@@ -2,12 +2,12 @@
 
 Covers the safe fixes landed in the audit + the highest-ROI coverage GAPS the audit found:
 
-1. Public-page smoke (Area #2 — was ZERO coverage): revenue-critical pages must render 200.
+1. Public-page smoke (Area #2 - was ZERO coverage): revenue-critical pages must render 200.
    Catches template/route-shadow breakage on the acquisition funnel.
-2. Lead capture HTTP (Area #6 — only indirect coverage before): POST /api/public/inquiry
+2. Lead capture HTTP (Area #6 - only indirect coverage before): POST /api/public/inquiry
    must accept a valid inquiry (never-lose) and stay ban-safe on the honeypot path.
 3. Fix B (app/api/leads.py scrape ToS-safe default): /api/leads/scrape must restrict sources
-   to google_maps — it must NOT auto-scrape JustDial/IndiaMart (TRAI/ToS ban risk). Before the
+   to google_maps - it must NOT auto-scrape JustDial/IndiaMart (TRAI/ToS ban risk). Before the
    fix, sources=None defaulted to ["google_maps","indiamart","justdial"].
 """
 
@@ -133,7 +133,7 @@ def test_upi_submit_offloads_blocking_store_work():
 
 
 def test_lead_capture_honeypot_stays_ban_safe(client):
-    # `website` is a honeypot — a filled value means bot. Must not 5xx (silently dropped, ban-safe).
+    # `website` is a honeypot - a filled value means bot. Must not 5xx (silently dropped, ban-safe).
     r = client.post(
         "/api/public/inquiry",
         json={"name": "Bot", "phone": "9999999999", "website": "http://spam.example"},
@@ -210,7 +210,7 @@ def _stub_signup_side_effects(monkeypatch, cid="c_prov"):
 
 def test_public_signup_provisions_paid_plan(client, monkeypatch):
     """Audit #7: canonical public_signup must provision the plan (activate_plan +
-    reset_usage_period) for a PAID signup — was missing on the live funnel path."""
+    reset_usage_period) for a PAID signup - was missing on the live funnel path."""
     import app.billing.usage as usage
 
     _stub_signup_side_effects(monkeypatch)
@@ -234,7 +234,7 @@ def test_public_signup_provisions_paid_plan(client, monkeypatch):
 
 
 def test_public_signup_skips_provision_on_trial(client, monkeypatch):
-    """Trial (₹0) must NOT activate a paid plan — provisioning is paid-only."""
+    """Trial (₹0) must NOT activate a paid plan - provisioning is paid-only."""
     import app.billing.usage as usage
 
     _stub_signup_side_effects(monkeypatch, cid="c_trial")
@@ -256,7 +256,7 @@ def test_public_signup_skips_provision_on_trial(client, monkeypatch):
 
 def test_public_signup_captures_business_website(client, monkeypatch):
     """Audit 2026-07-04: the honeypot squatted the `website` field name, so the
-    self-serve funnel never captured a real site and AUTO_ONBOARD's website→KB
+    self-serve funnel never captured a real site and AUTO_ONBOARD's website->KB
     seed was dead. business_website must land in clients_store, scheme added."""
     import app.billing.usage as usage
     import app.marketing.clients_store as cs
@@ -283,7 +283,7 @@ def test_public_signup_captures_business_website(client, monkeypatch):
 
 
 def test_public_signup_honeypot_still_rejects(client, monkeypatch):
-    """The bot-trap `website` field must keep rejecting — the new REAL field is
+    """The bot-trap `website` field must keep rejecting - the new REAL field is
     business_website, the honeypot is untouched."""
     _stub_signup_side_effects(monkeypatch)
     r = client.post(

@@ -55,7 +55,7 @@ except Exception:
 # 1) Create trunk (idempotent by name)
 if existing:
     trunk = existing
-    print("trunk already exists — reusing")
+    print("trunk already exists - reusing")
 else:
     r = requests.post(
         f"{BASE}/trunks",
@@ -97,7 +97,7 @@ for path, payload in [
         break
 
 if not cred_ok:
-    print("CREDENTIAL CREATE FAILED — console me manually banana padega")
+    print("CREDENTIAL CREATE FAILED - console me manually banana padega")
     sys.exit(2)
 
 # 3) Attach credential to trunk (best-effort)
@@ -113,4 +113,4 @@ jprint("ATTACH cred->trunk:", r)
 with ENV.open("a", encoding="utf-8") as f:
     f.write(f"\nVOBIZ_TRUNK_ID={trunk_id}\nVOBIZ_TRUNK_DOMAIN={domain}\n")
     f.write(f"VOBIZ_SIP_USER={sip_user}\nVOBIZ_SIP_PASS={sip_pass}\n")
-print("DONE — .env updated (trunk id/domain/sip user+pass). pass masked:", sip_pass[:4] + "***")
+print("DONE - .env updated (trunk id/domain/sip user+pass). pass masked:", sip_pass[:4] + "***")

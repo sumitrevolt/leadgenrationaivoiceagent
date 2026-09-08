@@ -1,8 +1,8 @@
-"""GET/POST /api/customer/profile — Setup Wizard's read/write path (business
+"""GET/POST /api/customer/profile - Setup Wizard's read/write path (business
 profile/social/WhatsApp/brand-tone, the mission's 4 wizard dimensions).
 
 IDOR-safe (require_customer, same pattern as every other /api/customer/* route).
-Real file I/O against tmp-path-redirected clients_store/brand_kit (not mocks) —
+Real file I/O against tmp-path-redirected clients_store/brand_kit (not mocks) -
 this is the only way to actually prove the privileged-field-ignored contract
 (advisor's concern: don't just trust the Pydantic model, prove plan/status/
 trial/niche never reach the client record even if present in the raw body)."""
@@ -135,7 +135,7 @@ def test_post_profile_tone_does_not_clobber_previously_saved_brand_fields(monkey
 
 def test_post_profile_ignores_privileged_fields_even_if_present_in_raw_body(monkeypatch, tmp_path):
     """The mission-critical guard advisor flagged: plan/status/trial/niche must
-    never be settable here, even if a crafted request includes them — proven
+    never be settable here, even if a crafted request includes them - proven
     against the REAL clients_store record, not just by trusting the Pydantic
     model's declared fields."""
     from app.main import app
@@ -163,7 +163,7 @@ def test_post_profile_ignores_privileged_fields_even_if_present_in_raw_body(monk
 
     saved = clients_store.get_client(rec["id"])
     assert saved["business_name"] == "Renamed Biz"  # the real, allowed field DID save
-    assert saved["plan"] == "starter"  # unchanged — privileged field ignored
+    assert saved["plan"] == "starter"  # unchanged - privileged field ignored
     assert saved["status"] == "active"  # unchanged
     assert saved["niche"] == "general"  # unchanged
     app.dependency_overrides.clear()

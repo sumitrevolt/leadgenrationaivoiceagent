@@ -1,4 +1,4 @@
-"""Council ledger sync — idempotent upsert into the EXISTING central task ledger.
+"""Council ledger sync - idempotent upsert into the EXISTING central task ledger.
 
 Does NOT create a new orchestrator, dashboard, or bot fleet. Writes into the
 canonical source of truth that the 9 Hermes bots already read:
@@ -52,7 +52,7 @@ TASK_UPDATES: dict[str, dict] = {
         "priority": "P1",
         "deadline": f"2026-09-08T21:00:00{IST}",
         "notes": (
-            "PoC SHIPPED 2026-09-07 (cycle 8) — MEASUREMENT ONLY, gate untouched. "
+            "PoC SHIPPED 2026-09-07 (cycle 8) - MEASUREMENT ONLY, gate untouched. "
             "app/platform/wa_conversation.py gained last_inbound_at() / "
             "session_age_hours() / has_inbound_session(hours=24) / "
             "inbound_session_proof(). Semantics mirror WhatsApp's 24h "
@@ -64,7 +64,7 @@ TASK_UPDATES: dict[str, dict] = {
             "PROVEN NOT WIRED: grep -rn 'has_inbound_session|inbound_session_proof|"
             "last_inbound_at' app/ --include=*.py returns ZERO hits outside "
             "wa_conversation.py. Wiring it into the section-5 gate is still "
-            "OWNER + LEGAL gated — do not do it unattended. "
+            "OWNER + LEGAL gated - do not do it unattended. "
             "LOCAL MEASUREMENT: data/wa_conversations.jsonl has 1 row, inbound "
             "39.4h ago => has_session=False. Real answer needs the VPS store, "
             "which is unreachable until OPS-011."
@@ -81,18 +81,18 @@ TASK_UPDATES: dict[str, dict] = {
         "priority": "P1",
         "deadline": f"2026-09-07T18:00:00{IST}",
         "notes": (
-            "VERDICT 2026-09-07 05:15 IST (cycle 7): the agent is TASK-SCOPED — "
+            "VERDICT 2026-09-07 05:15 IST (cycle 7): the agent is TASK-SCOPED - "
             "fixed 7-label classifier (max_tokens=8, temp 0.0) + a sales-reply "
             "drafter capped at 160 tokens, reacting only to INBOUND 1:1 messages. "
             "See docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md. "
             "***ONE DRIFT VECTOR***: WHATSAPP_AI_AUTOREPLY=1 widens the drafted "
             "intent set to include 'other' (reply_agent.py:1645), so open-ended "
-            "inbound gets an open-ended LLM answer — the exact shape Meta bars. "
+            "inbound gets an open-ended LLM answer - the exact shape Meta bars. "
             "The flag appears NOWHERE except reply_agent.py (not in .env.example, "
             "config/, deploy/, docker-compose.vps.yml), so a config review would "
             "never catch it. "
             "OWNER ACTION A1 (10 seconds, highest value in the doc): "
-            "`grep WHATSAPP_AI_AUTOREPLY /opt/leadgen/.env` on the VPS — expect no "
+            "`grep WHATSAPP_AI_AUTOREPLY /opt/leadgen/.env` on the VPS - expect no "
             "match or =0. "
             "SHIPPED: autoreply_policy_warning() logs a loud policy warning whenever "
             "the flag is on; flag now documented in .env.example as default-OFF; "
@@ -102,7 +102,7 @@ TASK_UPDATES: dict[str, dict] = {
             "Code inspection of app/platform/reply_agent.py:689-712 (classifier), "
             "866-873 (drafter role), 1639-1645 (flag), 1608-1616 (noise guards). "
             "Policy sources are secondary (TechCrunch 2025-10-18; 2Factor India 2026; "
-            "respond.io) — read Meta's current Business Messaging Policy before "
+            "respond.io) - read Meta's current Business Messaging Policy before "
             "running auto-reply in production."
         ),
     },
@@ -114,10 +114,10 @@ TASK_UPDATES: dict[str, dict] = {
         "notes": (
             "RESEARCHED 2026-09-07 (docs/DND_NCPR_COMPLIANCE_ADR_2026-09-07.md). "
             "THREE findings that change the fix: "
-            "(1) ***CONSENT DOES NOT OVERRIDE DND FOR PROMOTIONAL CONTENT*** — "
+            "(1) ***CONSENT DOES NOT OVERRIDE DND FOR PROMOTIONAL CONTENT*** - "
             "'There is no consent mechanism that overrides a DND registration for "
             "genuinely promotional content' (SMPPCenter NCPR/DND scrubbing guide). "
-            "A consent-ledger override was EVALUATED AND REJECTED — it would be a "
+            "A consent-ledger override was EVALUATED AND REJECTED - it would be a "
             "compliance regression dressed as a fix. (Voice differs: TCCCPR 2018 "
             "allows calls to DND numbers WITH documented explicit consent, so a "
             "consent path is legitimate for voice only.) "
@@ -126,12 +126,12 @@ TASK_UPDATES: dict[str, dict] = {
             "not subject to DND gating -> the rail should send only into "
             "inbound-initiated sessions, not cold blasts. "
             "(3) NCPR scrubbing is done BY THE SENDING PLATFORM/AGGREGATOR at send "
-            "time — there is no business-to-TRAI query API to buy. "
+            "time - there is no business-to-TRAI query API to buy. "
             "ALSO FOUND: DND_CARRIER_SCRUB=1 (dnd_checker.py:187-201) is a GLOBAL "
-            "FAIL-OPEN (verified=True, is_dnd=False for EVERY number) — must NOT be "
+            "FAIL-OPEN (verified=True, is_dnd=False for EVERY number) - must NOT be "
             "armed as a workaround. "
             "Mitigation shipped locally: durable opt-out ledger (see OPS-012b note "
-            "in dnd_checker.py) — opt-outs were 7-day in-memory with ZERO callers."
+            "in dnd_checker.py) - opt-outs were 7-day in-memory with ZERO callers."
         ),
         "evidence_tail": (
             "ADR cites verbatim sources (SMPPCenter NCPR scrubbing; Scalify Labs "
@@ -152,16 +152,16 @@ TASK_UPDATES: dict[str, dict] = {
             "WHATSAPP_AUTO_SEND gate + HARD_OFF + daily cap stay fail-closed."
         ),
         "notes": (
-            "BODY IMPLEMENTED LOCAL 2026-09-06 21:2x IST — NOT DEPLOYED (owner-gated). "
+            "BODY IMPLEMENTED LOCAL 2026-09-06 21:2x IST - NOT DEPLOYED (owner-gated). "
             "app/tasks/whatsapp_automation.py::run_whatsapp_automation now fetches "
             "NEW/CONTACTED/QUALIFIED leads (existing-customer + DND-status excluded by "
-            "construction), applies a genuine Redis DAILY cap (was a per-run clamp — 11 "
+            "construction), applies a genuine Redis DAILY cap (was a per-run clamp - 11 "
             "hourly beats could blow past it), a per-day idempotency set, and a "
             "fail-closed DND/TRAI scrub; then delegates to the existing "
             "run_whatsapp_batch(). Any Redis/DB/DND failure ABORTS instead of sending. "
             "10 new tests in tests/test_whatsapp_automation_body.py + 6 wiring + 29 "
             "regression all green; ruff clean; prod_check 1396 routes UNCHANGED. "
-            "***EXPECT auto_sent TO STAY 0 EVEN AFTER DEPLOY*** — see OPS-010. "
+            "***EXPECT auto_sent TO STAY 0 EVEN AFTER DEPLOY*** - see OPS-010. "
             "ROOT CAUSE of the dead beat, found 2026-09-06 20:53 IST (do NOT "
             "re-litigate 'is sendText broken'): the hourly beat entry "
             "'staff-whatsapp-automation-hourly' "
@@ -223,23 +223,23 @@ TASK_UPDATES: dict[str, dict] = {
             "stats, while POST /api/ops/hotqueue/action still returns 401/403."
         ),
         "notes": (
-            "CODE DONE LOCAL 2026-09-06 21:4x IST — NOT DEPLOYED, NOT ARMED. "
+            "CODE DONE LOCAL 2026-09-06 21:4x IST - NOT DEPLOYED, NOT ARMED. "
             "Added settings.ops_readonly_token (app/config.py, default '' = "
             "DISABLED, fail-closed) + auth_deps.OPS_READONLY_ALLOWLIST and "
             "require_admin_or_ops_readonly() (hmac.compare_digest, constant-time). "
             "Swapped into GET /api/ops/revenue-summary and GET /api/ops/hotqueue "
-            "ONLY — POST /api/ops/hotqueue/action deliberately left on plain "
+            "ONLY - POST /api/ops/hotqueue/action deliberately left on plain "
             "require_admin and is not in the allowlist. 8 tests in "
             "tests/test_ops_readonly_token.py pin that mutations and "
             "hotqueue/action are never allowed. prod_check 1396 routes UNCHANGED; "
             "ruff clean. blocker: token must be generated + set on the VPS by the "
-            "owner (OPS-011) — until then prod still returns 401 by design."
+            "owner (OPS-011) - until then prod still returns 401 by design."
         ),
         "evidence_tail": (
             "Allowlist = {('GET','/api/ops/revenue-summary'), "
             "('GET','/api/ops/hotqueue')} only. /api/billing/invoices was "
             "EXCLUDED: it is client-scoped (_authed_client_id), not admin-gated, "
-            "so a single ops key cannot express 'which client' — recorded rather "
+            "so a single ops key cannot express 'which client' - recorded rather "
             "than forced. Prod re-probe after the change: revenue-summary 401, "
             "hotqueue 401 (unchanged, change not deployed)."
         ),
@@ -318,7 +318,7 @@ NEW_TASKS: list[dict] = [
         "id": "OPS-010",
         "objective": (
             "Wire a DND/NDNC lookup provider (or seed the consent ledger with "
-            "explicit opt-ins) — without it the automated WhatsApp rail can "
+            "explicit opt-ins) - without it the automated WhatsApp rail can "
             "legally send to ZERO leads."
         ),
         "status": "BLOCKED",
@@ -339,13 +339,13 @@ NEW_TASKS: list[dict] = [
             "§5 fail-closed rule treats UNVERIFIED as DND = BLOCK. So the now-"
             "implemented automation will correctly refuse to send to essentially "
             "every lead until either (a) a DND provider is wired, or (b) explicit "
-            "consent is recorded. This — not the send channel — is the real "
+            "consent is recorded. This - not the send channel - is the real "
             "ceiling on the auto rail. It also retroactively explains why the "
             "86 warm UPI deep-links produced no closes. OWNER-GATED (vendor/"
             "credential decision): do NOT weaken the gate to work around it."
         ),
         "evidence_tail": (
-            "app/utils/dnd_checker.py:28-76 — DNDChecker.__init__ is a no-op, "
+            "app/utils/dnd_checker.py:28-76 - DNDChecker.__init__ is a no-op, "
             "check_single() returns an unverified result for any uncached number. "
             "Comment at :115-121 states promotional gates treat unverified as DND."
         ),
@@ -371,12 +371,12 @@ NEW_TASKS: list[dict] = [
         "notes": (
             "OWNER-GATED (requires SSH + deploy; agents must not do this). "
             "Generate: python -c \"import secrets; print(secrets.token_urlsafe(48))\". "
-            "Set OPS_READONLY_TOKEN in /opt/leadgen/.env — never in local .env, and "
+            "Set OPS_READONLY_TOKEN in /opt/leadgen/.env - never in local .env, and "
             "never commit it. This is the unlock that ends blind day-closes."
         ),
         "evidence_tail": (
             "Code ships disabled by default (ops_readonly_token = ''), so an "
-            "unarmed deploy stays 401 — fail-closed, no exposure window."
+            "unarmed deploy stays 401 - fail-closed, no exposure window."
         ),
         "updated_at": RUN_TS,
     },
@@ -437,7 +437,7 @@ NEW_TASKS: list[dict] = [
         "assigned_at": RUN_TS,
         "acknowledged_at": None,
         "notes": (
-            "OWNER-GATED — product/legal decision, agents must not redefine the "
+            "OWNER-GATED - product/legal decision, agents must not redefine the "
             "product. Evidence: TechCrunch 2025-10-18 (Meta changed Business API "
             "terms to bar general-purpose chatbots); 2Factor India 2026 guide "
             "(effective 2026-01-15; task-scoped bots for support/bookings/orders "
@@ -469,10 +469,10 @@ NEW_TASKS: list[dict] = [
         "assigned_at": RUN_TS,
         "acknowledged_at": None,
         "notes": (
-            "OWNER/LEGAL-GATED — this EDITS the section-5 compliance gate, so it was "
+            "OWNER/LEGAL-GATED - this EDITS the section-5 compliance gate, so it was "
             "deliberately NOT implemented unattended. It is a narrowing with proof, "
             "not a bypass: unknown/absent session proof still BLOCKS. Sources are "
-            "vendor guides, not TRAI primary text — legal confirmation required."
+            "vendor guides, not TRAI primary text - legal confirmation required."
         ),
         "evidence_tail": (
             "Proposed in docs/DND_NCPR_COMPLIANCE_ADR_2026-09-07.md section 6.1. "
@@ -499,14 +499,14 @@ NEW_TASKS: list[dict] = [
         "acknowledged_at": None,
         "notes": (
             "SELF-CORRECTION cycle 6: cycle 5 created data/dnd_optouts.jsonl, a "
-            "SECOND opt-out store. That violated the no-duplicate-workflow rule — "
+            "SECOND opt-out store. That violated the no-duplicate-workflow rule - "
             "app/telephony/consent_ledger.py is already the canonical cross-channel "
             "suppression authority (DB-backed when CONSENT_DB=1, JSONL fallback, "
             "fail-closed) and app/integrations/whatsapp.py::send_permitted() already "
             "consults it. Duplicate REMOVED; DNDChecker now delegates "
             "(_suppression_authority / _is_suppressed). "
             "ALSO FIXED: app/api/whatsapp.py had 2 inbound STOP handlers that called "
-            "only runner.suppress() — unlike app/api/webhooks.py:161, they never "
+            "only runner.suppress() - unlike app/api/webhooks.py:161, they never "
             "recorded record_opt_out(), so a WhatsApp STOP was invisible to voice. "
             "Both sites now record it (guarded, never raises)."
         ),
@@ -515,7 +515,7 @@ NEW_TASKS: list[dict] = [
             "test_no_duplicate_optout_store_is_created (regression guard) and "
             "test_unreachable_authority_blocks_not_crashes. ruff clean; "
             "check_secrets OK; prod_check ALL PASSED 1396 routes UNCHANGED. "
-            "NOT DEPLOYED — local only."
+            "NOT DEPLOYED - local only."
         ),
         "updated_at": RUN_TS,
     },

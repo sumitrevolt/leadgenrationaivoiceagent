@@ -31,7 +31,7 @@ def test_strips_jailbreak_and_dev_mode():
 
 
 def test_preserves_legit_business_copy():
-    # These ambiguous phrases appear in REAL business KB and must NOT be mangled —
+    # These ambiguous phrases appear in REAL business KB and must NOT be mangled -
     # they are deliberately excluded from the conservative marker set.
     txt = (
         "We act as your marketing partner and help you reveal your best glow. "

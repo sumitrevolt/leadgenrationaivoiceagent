@@ -1,4 +1,4 @@
-"""Cross-path telephony lifecycle — Vobiz stream metering + qualified-lead idempotency."""
+"""Cross-path telephony lifecycle - Vobiz stream metering + qualified-lead idempotency."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def _run(coro):
 
 
 def test_meter_call_completion_idempotent(monkeypatch):
-    """Same call_id twice → record_call_usage runs once."""
+    """Same call_id twice -> record_call_usage runs once."""
     calls: list[tuple] = []
 
     def _fake_record(**kw):
@@ -43,7 +43,7 @@ def test_meter_call_completion_idempotent(monkeypatch):
 
 
 def test_record_qualified_lead_ref_idempotent(tmp_path, monkeypatch):
-    """Same ref twice → one ledger row."""
+    """Same ref twice -> one ledger row."""
     store = tmp_path / "lead_usage.jsonl"
     monkeypatch.setattr(lead_usage, "_STORE", store)
 

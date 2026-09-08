@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automation wiring audit — every declared flag actually read, every staff job dispatchable.
+"""Automation wiring audit - every declared flag actually read, every staff job dispatchable.
 
 Catches "declared-but-not-connected" automation gaps:
   1. AUTOMATION_FLAGS (growth.py) entries that are NEVER read anywhere in app/
@@ -24,7 +24,7 @@ PROBLEMS: list[str] = []
 
 # Registry-only / value-carrying env names that are read indirectly (URL-valued
 # "set = ON", or consumed by config/middleware/compose, not a plain getenv gate).
-# These are intentionally not simple boolean gates — exclude from "dead" check.
+# These are intentionally not simple boolean gates - exclude from "dead" check.
 KNOWN_INDIRECT = {
     "OLLAMA_URL",
     "OLLAMA_PRIMARY",
@@ -54,7 +54,7 @@ KNOWN_INDIRECT = {
     "DLT_",
     "EVAL_GATE_HARD",
     # Read DYNAMICALLY via f-string os.getenv(f"MEMORY_STACK_LAYER_{layer.upper()}")
-    # in app/platform/memory_stack.py:106 — literal names never appear in source.
+    # in app/platform/memory_stack.py:106 - literal names never appear in source.
     "MEMORY_STACK_LAYER_WORKING",
     "MEMORY_STACK_LAYER_PROSPECTIVE",
     "MEMORY_STACK_LAYER_EPISODIC",
@@ -64,10 +64,10 @@ KNOWN_INDIRECT = {
 }
 
 # Intentionally-reserved future flags (declared now, engine ships later). Documented
-# with a "# Phase-N future" comment in the registry — not a wiring bug.
+# with a "# Phase-N future" comment in the registry - not a wiring bug.
 RESERVED_FUTURE = {
     "HERMES_HANDOFF",  # Phase-2: code_upgrader -> Hostinger Hermes draft-PR executor
-    "CONSENT_CONFIRM",  # TRAI verbal/DTMF consent-confirm gate — ships at DLT unlock (docs/TRAI_CONSENT_CONFIRM_SPEC.md)
+    "CONSENT_CONFIRM",  # TRAI verbal/DTMF consent-confirm gate - ships at DLT unlock (docs/TRAI_CONSENT_CONFIRM_SPEC.md)
 }
 
 

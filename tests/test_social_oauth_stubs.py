@@ -1,7 +1,7 @@
-"""Social OAuth — Meta + LinkedIn + YouTube wired; X/GBP stubs; Telegram bot_ready.
+"""Social OAuth - Meta + LinkedIn + YouTube wired; X/GBP stubs; Telegram bot_ready.
 
 Contract:
-- GET /state → per-platform readiness + telegram bot_ready (non-OAuth).
+- GET /state -> per-platform readiness + telegram bot_ready (non-OAuth).
 - Meta/LI/YT oauth_ready only when APPROVED + client creds present.
 - X/GBP stay manual_paste even if APPROVED (unwired).
 - Telegram: oauth_ready=false, bot_ready when TELEGRAM_BOT_TOKEN+CHAT_ID.
@@ -162,7 +162,7 @@ def test_oauth_approval_flags_registered():
 
 
 def test_start_honest_when_approved_but_creds_missing(client, monkeypatch):
-    """Env flag ON ≠ OAuth ready — missing App ID/Secret must never be ok:True."""
+    """Env flag ON ≠ OAuth ready - missing App ID/Secret must never be ok:True."""
     monkeypatch.setenv("META_OAUTH_APPROVED", "1")
     r = client.get("/api/social/oauth/facebook/start")
     body = r.json()

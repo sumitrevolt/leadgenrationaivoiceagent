@@ -1,4 +1,4 @@
-"""Contract tests — ledger-backed daily Product-1 paid activations (IST).
+"""Contract tests - ledger-backed daily Product-1 paid activations (IST).
 
 Product-1 ka north-star KPI (`docs/gtm/PRODUCT1_50_PAID_DAY_90D.md`) ab admin ke
 "Aaj" snapshot pe number banta hai, isliye uski definition test me LOCK hai:
@@ -6,7 +6,7 @@ non-void marketing invoice YA approved/auto_activated UPI row, IST din pe, clien
 + din pe dedupe, voided/voice/trial bahar.
 
 Har test apni precondition khud set karta hai (R4): dono ledgers monkeypatch se
-inject hote hain aur `day=` explicitly pass hota hai — koi wall-clock ya real
+inject hote hain aur `day=` explicitly pass hota hai - koi wall-clock ya real
 `data/` file pe depend nahi karta.
 """
 
@@ -66,7 +66,7 @@ def test_marketing_plan_keys_from_packages_only():
 
 
 def test_marketing_plan_keys_fail_closed_when_packages_unreadable(monkeypatch):
-    """Pricing source na padhe to 0 report karo — guessed paid count kabhi nahi."""
+    """Pricing source na padhe to 0 report karo - guessed paid count kabhi nahi."""
     import app.marketing.packages as packages
 
     monkeypatch.delattr(packages, "PACKAGES")
@@ -138,7 +138,7 @@ def test_pending_upi_is_not_paid(ledgers):
 
 
 def test_same_client_invoice_plus_upi_dedupes_to_one(ledgers):
-    """UPI approve khud ek GST invoice fire karta hai — bina dedupe ke 1 customer 2 ginta."""
+    """UPI approve khud ek GST invoice fire karta hai - bina dedupe ke 1 customer 2 ginta."""
     ledgers(
         invoices=[_invoice("c_dup", "2026-08-15T07:05:00+00:00")],
         upi=[_upi("c_dup", "2026-08-15T07:00:00+00:00")],

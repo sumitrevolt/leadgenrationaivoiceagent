@@ -1,18 +1,18 @@
-"""Agent trajectory learning — Ruflo SONA "learn from successful traces" parity.
+"""Agent trajectory learning - Ruflo SONA "learn from successful traces" parity.
 
 Idea (free-stack): har agent-run ka pura trace (action + steps + outcome + reward)
 record karo. Jo runs ACTUALLY chale (high reward) unhe replay-hint me ground karke
 future runs ko unke jaisa bias do, aur saare winning traces ko ek training-dataset
-ke roop me export karo (local ML brains fine-tune karne ke liye — Hermes/Ruflo
+ke roop me export karo (local ML brains fine-tune karne ke liye - Hermes/Ruflo
 trajectory export pattern).
 
 Design (project patterns):
-  - `enabled()` sirf AUTOMATIC trajectory-grounding ko gate karta — default OFF =
+  - `enabled()` sirf AUTOMATIC trajectory-grounding ko gate karta - default OFF =
     zero behaviour change. Saare helper (record/best/replay/export) khud hamesha
     safe-callable hain (admin endpoint + tests ke liye).
-  - Store = data/agent_trajectories.jsonl (append-only, JSONL — self_improve jaisa).
-  - Export default → data/exports/trajectories_dataset.jsonl.
-  - Kabhi raise nahi karta — koi error / file missing / corrupt line → graceful skip.
+  - Store = data/agent_trajectories.jsonl (append-only, JSONL - self_improve jaisa).
+  - Export default -> data/exports/trajectories_dataset.jsonl.
+  - Kabhi raise nahi karta - koi error / file missing / corrupt line -> graceful skip.
 
 Flag: TRAJECTORY_LEARN=1
 """
@@ -76,7 +76,7 @@ def record_trajectory(
     reward: float = 0.0,
     meta: dict | None = None,
 ) -> str:
-    """Ek pura agent-run trace record karo → data/agent_trajectories.jsonl.
+    """Ek pura agent-run trace record karo -> data/agent_trajectories.jsonl.
 
     Returns trace id (empty string sirf agar action khali ho). Never raises.
     """
@@ -170,7 +170,7 @@ def replay_hint(action: str, max_chars: int = 1200) -> str:
     if not out:
         return ""
     return (
-        "Yeh past me jo runs actually kaam kar gaye — inke jaisa approach follow karo:\n\n"
+        "Yeh past me jo runs actually kaam kar gaye - inke jaisa approach follow karo:\n\n"
         + "\n\n".join(out)
     )
 

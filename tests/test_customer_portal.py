@@ -1,4 +1,4 @@
-"""P2 Customer login portal tests — hashing, credential store, JWT role gate, routes."""
+"""P2 Customer login portal tests - hashing, credential store, JWT role gate, routes."""
 
 from fastapi.testclient import TestClient
 

@@ -1,4 +1,4 @@
-"""Typed OpenClaw command catalogue — each handler calls Owner OS / read adapters only."""
+"""Typed OpenClaw command catalogue - each handler calls Owner OS / read adapters only."""
 
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ def _agent_status(params: dict[str, Any], *, actor: str, correlation_id: str) ->
         "control": ctrl,
         "calling_hard_off": True,
     }
-    # Swara / Ananya — OpenClaw transfer package (voice code untouched).
+    # Swara / Ananya - OpenClaw transfer package (voice code untouched).
     if agent_id in ("swara", "ananya"):
         result["openclaw_transfer"] = {
             "status": "FROZEN",
@@ -115,11 +115,11 @@ def _agent_status(params: dict[str, Any], *, actor: str, correlation_id: str) ->
             "calling": "HARD_OFF",
             "runtime_dispatch": "blocked_red_lane",
             "note": (
-                "Fully configured voice agent — OpenClaw observes via Owner OS; "
+                "Fully configured voice agent - OpenClaw observes via Owner OS; "
                 "no voice/STT/TTS/dial mutation through Copilot."
             ),
         }
-    # Automation-Max agents — observe package (cadence/ops/content/outreach).
+    # Automation-Max agents - observe package (cadence/ops/content/outreach).
     try:
         from app.integrations.openclaw.automation_commands import automation_agent_package
 
@@ -287,7 +287,7 @@ def _delivery_status(params: dict[str, Any], *, actor: str, correlation_id: str)
             "next_action": "Use canonical marketing client id or known billing alias",
         }
     tenant = canonical_client_id(requested)
-    # Reuse Owner OS safe status report — publish/notify forced off upstream.
+    # Reuse Owner OS safe status report - publish/notify forced off upstream.
     if hasattr(owner_os, "_build_status_report"):
         rep = owner_os._build_status_report(tenant)  # noqa: SLF001
     else:
@@ -348,7 +348,7 @@ def _hinglish_summary(ctx: dict[str, Any]) -> str:
 
 
 def _amber_stub(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
-    """Should not be reached without approval path — safety net."""
+    """Should not be reached without approval path - safety net."""
     return {
         "status": "APPROVAL_REQUIRED",
         "approval_required": True,
@@ -434,12 +434,12 @@ def execute_typed_command(
 
 
 def classify_nl(text: str) -> dict[str, Any]:
-    """Deterministic NL → typed command. Ambiguous → read-only preference."""
+    """Deterministic NL -> typed command. Ambiguous -> read-only preference."""
     raw = (text or "").strip()
     low = raw.lower()
     params: dict[str, Any] = {}
 
-    # RED phrases first — never escalate.
+    # RED phrases first - never escalate.
     if any(
         x in low
         for x in (
@@ -478,7 +478,7 @@ def classify_nl(text: str) -> dict[str, Any]:
             "safety_lane": "RED",
             "confidence": "high",
             "original": raw[:2000],
-            "note": "RED — OpenClaw refuse; existing admin workflow use karo",
+            "note": "RED - OpenClaw refuse; existing admin workflow use karo",
         }
 
     # Agent extract (reuse Owner OS helper when available). Never invent a tenant.
@@ -566,13 +566,13 @@ def classify_nl(text: str) -> dict[str, Any]:
         params["objective"] = raw[:500]
         return _prop("agent.assign_mission", params, raw, "AMBER")
 
-    # Ambiguous → safest read.
+    # Ambiguous -> safest read.
     return _prop(
         "platform.status",
         params,
         raw,
         "GREEN",
-        note="Ambiguous NL → read-only platform.status (fail-safe)",
+        note="Ambiguous NL -> read-only platform.status (fail-safe)",
         confidence="low",
     )
 

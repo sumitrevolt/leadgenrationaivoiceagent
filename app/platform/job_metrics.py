@@ -2,15 +2,15 @@
 
 Core marketing/agent engines emitted zero Prometheus job metrics. This records
 per-job success/fail counts + total duration, fed from the ONE common completion
-path (``automation_health.record_run`` — which W1.2 made status-accurate) so every
+path (``automation_health.record_run`` - which W1.2 made status-accurate) so every
 scheduler job is covered without touching each engine.
 
 Design mirrors ``app/middleware/http_metrics.py``:
-- Dependency-free (``prometheus_client`` is not vendored) — plain dicts + hand-built
+- Dependency-free (``prometheus_client`` is not vendored) - plain dicts + hand-built
   text exposition appended to /metrics.
-- asyncio single-threaded per worker → plain dict increments are safe (no lock).
+- asyncio single-threaded per worker -> plain dict increments are safe (no lock).
 - Fail-open: a recording error never affects the caller.
-- Flag-gated exposition (``PROMETHEUS_JOB_METRICS``) → additive rollout, metric
+- Flag-gated exposition (``PROMETHEUS_JOB_METRICS``) -> additive rollout, metric
   surface unchanged until enabled.
 - Bounded cardinality: ``job`` (truncated) × ``status`` (ok/fail)
 ~40 known jobs.
@@ -49,7 +49,7 @@ def record(job: str, ok: bool, seconds: float = 0.0) -> None:
 
 
 def record_error(job: str) -> None:
-    """W1.14: staff job jo {"error":...} return karta (raise nahi) — dedicated error
+    """W1.14: staff job jo {"error":...} return karta (raise nahi) - dedicated error
     counter (record_run ke ok=True se double-count avoid karta). Fail-open."""
     try:
         j = (job or "?")[:40]

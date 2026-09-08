@@ -1,4 +1,4 @@
-"""ops_alerts.py — turn the new F-track signals into actual notifications.
+"""ops_alerts.py - turn the new F-track signals into actual notifications.
 
 After the F.1-F.5 + C-track deploy the modules existed but **nothing told the
 operator when they fired**. Engineer-agent scores dropped silently
@@ -9,12 +9,12 @@ closes that loop with three thin, idempotent alert helpers wired into the
 existing ntfy push channel.
 
 Design:
-- **Single master flag** `OPS_ALERTS=1` — OFF default = no notifications,
+- **Single master flag** `OPS_ALERTS=1` - OFF default = no notifications,
   zero behaviour change vs today. Once on, individual alerts still respect
   their own thresholds + cooldowns so the operator's phone doesn't buzz on
   every benign blip.
 - **Cooldown jsonl** at `data/ops_alerts_state.jsonl` records the last fire
-  time per alert key. Re-firing requires the cooldown to elapse — no alert
+  time per alert key. Re-firing requires the cooldown to elapse - no alert
   storms when a metric oscillates around a threshold.
 - **Fire-and-forget**: every helper schedules the ntfy push via
   `ntfy.push_bg()` so the caller (engineer-agent run, eval_gate.score_and_gate,
@@ -43,7 +43,7 @@ _FLAG = "OPS_ALERTS"
 _DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 _STATE_PATH = _DATA_DIR / "ops_alerts_state.jsonl"
 
-# Cooldowns (seconds) per alert kind — picked to balance signal and noise.
+# Cooldowns (seconds) per alert kind - picked to balance signal and noise.
 _COOLDOWN = {
     "engineer_score": 4 * 3600,  # at most one per role per 4h
     "eval_reject": 6 * 3600,  # at most one per suite/metric per 6h
@@ -53,10 +53,10 @@ _COOLDOWN = {
     "payment_failed": 1 * 3600,  # payment-failure page, at most one per 1h
     "smtp_disabled": 2 * 3600,  # SMTP account-block page, at most one per 2h
     "paid_customer_stuck": 3
-    * 3600,  # jiya-class ghosting bug — page founder, at most one per client per 3h
+    * 3600,  # jiya-class ghosting bug - page founder, at most one per client per 3h
 }
 
-# Thresholds — override via env if the operator wants tighter/looser.
+# Thresholds - override via env if the operator wants tighter/looser.
 _ENG_THRESHOLD = float(os.environ.get("OPS_ALERT_ENGINEER_THRESHOLD", "60"))
 _EVAL_REJECT_BURST = int(os.environ.get("OPS_ALERT_EVAL_REJECT_BURST", "3"))
 _EVAL_REJECT_WINDOW_SEC = int(os.environ.get("OPS_ALERT_EVAL_REJECT_WINDOW", str(24 * 3600)))
@@ -68,7 +68,7 @@ def enabled() -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Cooldown ledger — append-only jsonl, tail-read.
+# Cooldown ledger - append-only jsonl, tail-read.
 # --------------------------------------------------------------------------- #
 def _ensure_dir() -> None:
     try:
@@ -129,7 +129,7 @@ def _ntfy(title: str, message: str, priority: str = "high", tags: list[str] | No
         try:
             asyncio.get_running_loop().create_task(_do())
         except RuntimeError:
-            # No running loop — fire synchronously
+            # No running loop - fire synchronously
             try:
                 asyncio.run(_do())
             except Exception:
@@ -139,7 +139,7 @@ def _ntfy(title: str, message: str, priority: str = "high", tags: list[str] | No
 
 
 def alert_staff_failure(job: str, detail: str = "") -> dict[str, Any]:
-    """W1.14: ek staff job crash (result ki jagah error return) — ops ko page karo
+    """W1.14: ek staff job crash (result ki jagah error return) - ops ko page karo
     (OPS_ALERTS-gated + per-job cooldown'd). Pehle failure sirf {"error"} me silent tha."""
     if not enabled():
         return {"alerted": False, "reason": "disabled"}
@@ -158,7 +158,7 @@ def alert_staff_failure(job: str, detail: str = "") -> dict[str, Any]:
 
 def alert_voice_circuit_breaker(reason: str = "") -> dict[str, Any]:
     """Voice controlled-calling circuit breaker tripped (provider-failure spike /
-    compliance-unavailable / recording-unhealthy) — campaign auto-paused. Pages ops
+    compliance-unavailable / recording-unhealthy) - campaign auto-paused. Pages ops
     via ntfy (OPS_ALERTS-gated + cooldown'd so a sustained outage doesn't spam)."""
     if not enabled():
         return {"alerted": False, "reason": "disabled"}
@@ -166,7 +166,7 @@ def alert_voice_circuit_breaker(reason: str = "") -> dict[str, Any]:
     if _cooldown_active(key, "voice_circuit_breaker"):
         return {"alerted": False, "reason": "cooldown"}
     _ntfy(
-        "\U0001f6d1 voice campaign PAUSED — circuit breaker",
+        "\U0001f6d1 voice campaign PAUSED - circuit breaker",
         (f"Controlled calling auto-paused: {reason}")[:480],
         priority="high",
         tags=["stop_sign", "voice"],
@@ -178,11 +178,11 @@ def alert_voice_circuit_breaker(reason: str = "") -> dict[str, Any]:
 def alert_paid_customer_stuck(client_id: str, business_name: str, reason: str) -> dict[str, Any]:
     """The jiya-makeover-class bug, closed: a PAID customer's value-delivery got
     stuck (WhatsApp send failed, no phone on file, AUTO_DELIVER_VALUE off, etc.)
-    and — until this — the only trace was a jsonl line + a log WARNING nobody
+    and - until this - the only trace was a jsonl line + a log WARNING nobody
     was watching. This pages the founder's phone directly via ntfy, same as
     every other real page in this module. OPS_ALERTS-gated + per-client
     cooldown'd (won't spam every scheduler tick while the same customer stays
-    stuck) — but WILL re-fire every 3h until the underlying cause is fixed, by
+    stuck) - but WILL re-fire every 3h until the underlying cause is fixed, by
     design (a paid customer left undelivered is not a one-time nudge).
     """
     if not enabled():
@@ -204,7 +204,7 @@ def alert_paid_customer_stuck(client_id: str, business_name: str, reason: str) -
 
 
 def alert_warm_sla(stuck: int, warm: int) -> dict[str, Any]:
-    """W4.1: warm/stuck leads SLA nudge — FOUNDER ko ntfy (cooldown'd). Caller (office_hq)
+    """W4.1: warm/stuck leads SLA nudge - FOUNDER ko ntfy (cooldown'd). Caller (office_hq)
     WARM_SLA_NUDGE se gate karta
     yahan sirf cooldown + send. Founder-only, koi customer send NAHI.
     """
@@ -213,7 +213,7 @@ def alert_warm_sla(stuck: int, warm: int) -> dict[str, Any]:
         return {"alerted": False, "reason": "cooldown"}
     _ntfy(
         f"⏰ {stuck} leads pending >SLA · {warm} warm",
-        f"Hot Queue /app/inbox: {stuck} stuck (>24h) + {warm} warm (40-69) — aaj action lo.",
+        f"Hot Queue /app/inbox: {stuck} stuck (>24h) + {warm} warm (40-69) - aaj action lo.",
         priority="default",
         tags=["hourglass_flowing_sand", "leads"],
     )
@@ -222,11 +222,11 @@ def alert_warm_sla(stuck: int, warm: int) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Alert 0 — ComplianceGate kill-switch active (legal liability) [D-1 / P0-3]
+# Alert 0 - ComplianceGate kill-switch active (legal liability) [D-1 / P0-3]
 # --------------------------------------------------------------------------- #
 def alert_compliance_disabled(detail: str = "") -> dict[str, Any]:
     """Page ops when COMPLIANCE_ENABLED=0 lets a call bypass the TCCCPR/TRAI gate
-    (DND + calling-window + DLT) — a legal liability that must never be silent.
+    (DND + calling-window + DLT) - a legal liability that must never be silent.
     Cooldown'd so a call-storm can't spam the channel. OPS_ALERTS-gated +
     never raises (the loud per-call log in compliance.py is the always-on path)."""
     if not enabled():
@@ -236,7 +236,7 @@ def alert_compliance_disabled(detail: str = "") -> dict[str, Any]:
         return {"alerted": False, "reason": "cooldown"}
     title = "🚨 ComplianceGate DISABLED (legal liability)"
     body = (
-        "COMPLIANCE_ENABLED=0 — outbound calls are BYPASSING the TCCCPR/TRAI gate "
+        "COMPLIANCE_ENABLED=0 - outbound calls are BYPASSING the TCCCPR/TRAI gate "
         "(DND / calling-window / DLT). Re-arm immediately by unsetting "
         "COMPLIANCE_ENABLED. " + (detail or "")
     )[:480]
@@ -246,7 +246,7 @@ def alert_compliance_disabled(detail: str = "") -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Alert 1 — engineer-agent low score
+# Alert 1 - engineer-agent low score
 # --------------------------------------------------------------------------- #
 def maybe_alert_engineer_score(role: str, score: float | None, summary: str = "") -> dict[str, Any]:
     """Push ntfy when an engineer agent's score drops below threshold.
@@ -271,12 +271,12 @@ def maybe_alert_engineer_score(role: str, score: float | None, summary: str = ""
 
 
 # --------------------------------------------------------------------------- #
-# Alert 2 — eval_gate burst of rejects
+# Alert 2 - eval_gate burst of rejects
 # --------------------------------------------------------------------------- #
 def maybe_alert_eval_reject(suite: str, metric: str, verdict: dict[str, Any]) -> dict[str, Any]:
     """When eval_gate rejects, check if there's a BURST of recent rejects for
     (suite, metric) and push ntfy on threshold. A single isolated reject is
-    not pageable — three within the window is.
+    not pageable - three within the window is.
     """
     if not enabled():
         return {"alerted": False, "reason": "disabled"}
@@ -320,12 +320,12 @@ def maybe_alert_eval_reject(suite: str, metric: str, verdict: dict[str, Any]) ->
 
 
 # --------------------------------------------------------------------------- #
-# Alert 3 — daily activation-readiness digest
+# Alert 3 - daily activation-readiness digest
 # --------------------------------------------------------------------------- #
 def daily_readiness_digest() -> dict[str, Any]:
     """Run activation-readiness probes; ntfy if any BLOCKER is present.
 
-    Quiet by design — green days produce nothing on the phone. Only the first
+    Quiet by design - green days produce nothing on the phone. Only the first
     blocker-day in 20h triggers a push, so a stuck blocker doesn't re-page.
     """
     if not enabled():
@@ -357,7 +357,7 @@ def daily_readiness_digest() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Alert 4 — webhook dead-letter (L.3)
+# Alert 4 - webhook dead-letter (L.3)
 # --------------------------------------------------------------------------- #
 _DEAD_LETTER_THRESHOLD = int(os.environ.get("OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD", "3"))
 
@@ -388,7 +388,7 @@ def maybe_alert_webhook_dead_letter(webhook_id: str, client_id: str, url: str) -
 
     title = f"🚨 Webhook dead-letter ({n} consecutive fails)"
     body = (
-        f"client={client_id} url={url} — last {n} deliveries failed. "
+        f"client={client_id} url={url} - last {n} deliveries failed. "
         f"Likely the customer's endpoint is down or rejecting our signature."
     )[:1500]
     _ntfy(title, body, priority="urgent", tags=["rotating_light", "webhook"])
@@ -397,7 +397,7 @@ def maybe_alert_webhook_dead_letter(webhook_id: str, client_id: str, url: str) -
 
 
 # --------------------------------------------------------------------------- #
-# Alert 5 — payment failed (revenue signal)
+# Alert 5 - payment failed (revenue signal)
 # --------------------------------------------------------------------------- #
 def maybe_alert_payment_failed(detail: str = "") -> dict[str, Any]:
     """Push ntfy when a payment attempt fails (gateway error, declined card,
@@ -413,18 +413,18 @@ def maybe_alert_payment_failed(detail: str = "") -> dict[str, Any]:
     if _cooldown_active(key, "payment_failed"):
         return {"alerted": False, "reason": "cooldown"}
     title = "💳 Payment failed"
-    body = ("A payment attempt failed — check the billing logs. " + (detail or ""))[:480]
+    body = ("A payment attempt failed - check the billing logs. " + (detail or ""))[:480]
     _ntfy(title, body, priority="high", tags=["credit_card", "billing"])
     _record_fire(key)
     return {"alerted": True}
 
 
 # --------------------------------------------------------------------------- #
-# Alert 6 — SMTP account disabled / email outreach blocked
+# Alert 6 - SMTP account disabled / email outreach blocked
 # --------------------------------------------------------------------------- #
 def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
     """Push ntfy when the SMTP account is disabled (e.g. Hostinger 554
-    "Disabled by user") — every automated/outreach email is now blocked, a
+    "Disabled by user") - every automated/outreach email is now blocked, a
     silent revenue/deliverability killer.
 
     Cooldown'd so a send-burst against the dead account can't spam the channel.
@@ -439,7 +439,7 @@ def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
         return {"alerted": False, "reason": "cooldown"}
     title = "📭 SMTP disabled / email outreach blocked"
     body = (
-        "The SMTP account looks disabled — outbound email (alerts, outreach, "
+        "The SMTP account looks disabled - outbound email (alerts, outreach, "
         "followups) is BLOCKED. Check the mailbox / provider. " + (detail or "")
     )[:480]
     _ntfy(title, body, priority="urgent", tags=["no_entry", "email"])
@@ -448,7 +448,7 @@ def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Alert 7 — UPI auto-activated (spot-check nudge, not a failure signal)
+# Alert 7 - UPI auto-activated (spot-check nudge, not a failure signal)
 # --------------------------------------------------------------------------- #
 def maybe_alert_upi_auto_activated(
     payment_id: str, client_id: str, plan: str, amount: float
@@ -456,7 +456,7 @@ def maybe_alert_upi_auto_activated(
     """Push a low-priority ntfy heads-up whenever UPI_AUTO_ACTIVATE instantly
     activates a plan on a self-reported (unverified) payment claim, so a fake
     claim gets a real founder glance instead of silently disappearing into a
-    JSONL file no one reads. Keyed per payment_id (not a shared key) — this is
+    JSONL file no one reads. Keyed per payment_id (not a shared key) - this is
     NOT a failure/spam scenario like the other alerts, every distinct payment
     should get its own nudge, so no cross-payment cooldown suppression.
     OPS_ALERTS-gated + never raises
@@ -468,7 +468,7 @@ def maybe_alert_upi_auto_activated(
     key = f"upi_auto_activated:{payment_id}"
     if _cooldown_active(key, "upi_auto_activated"):
         return {"alerted": False, "reason": "cooldown"}
-    title = "⚡ UPI auto-activated — spot-check"
+    title = "⚡ UPI auto-activated - spot-check"
     body = (
         f"client={client_id} plan={plan} amount=₹{amount} auto-activated instantly "
         f"(self-reported UPI ref, no bank verification). Glance at it when convenient."

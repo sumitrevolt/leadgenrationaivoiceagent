@@ -1,4 +1,4 @@
-"""Owner OS persistence — Postgres primary, hardened JSONL fallback.
+"""Owner OS persistence - Postgres primary, hardened JSONL fallback.
 
 TECH DEBT (temporary): when DB is unavailable or OWNER_OS_STORAGE=jsonl,
 sidecars under data/ are used with file_lock + atomic replace + fsync.
@@ -51,7 +51,7 @@ def storage_mode() -> str:
             db.query(OwnerCommand.command_id).limit(1).all()
         _STORAGE_MODE = "db"
     except Exception as e:
-        logger.info("[owner_os_store] DB unavailable → JSONL fallback: %s", type(e).__name__)
+        logger.info("[owner_os_store] DB unavailable -> JSONL fallback: %s", type(e).__name__)
         _STORAGE_MODE = "jsonl"
     return _STORAGE_MODE
 
@@ -121,7 +121,7 @@ def _append_jsonl(path: str, rec: dict[str, Any]) -> None:
 
 
 def _cmd_to_api(row: dict[str, Any]) -> dict[str, Any]:
-    """Normalize DB/API shape → UI/test command dict."""
+    """Normalize DB/API shape -> UI/test command dict."""
     status = row.get("status") or row.get("execution_state") or "DRAFT"
     return {
         "command_id": row.get("command_id"),
@@ -346,7 +346,7 @@ def insert_command(cmd: dict[str, Any]) -> dict[str, Any]:
                 db.add(row)
             return get_command(api["command_id"]) or api
         except Exception as e:
-            logger.warning("[owner_os_store] insert_command db fail → jsonl: %s", type(e).__name__)
+            logger.warning("[owner_os_store] insert_command db fail -> jsonl: %s", type(e).__name__)
     # Process-safe dedupe under lock (concurrent writers / multi-worker).
     with file_lock(CMD_STORE):
         latest: dict[str, dict[str, Any]] = {}
@@ -528,7 +528,7 @@ def set_kill_record(key: str, engaged: bool, by: str, reason: str = "") -> dict[
                     )
             return rec
         except Exception as e:
-            logger.warning("[owner_os_store] set_kill db fail → jsonl: %s", type(e).__name__)
+            logger.warning("[owner_os_store] set_kill db fail -> jsonl: %s", type(e).__name__)
     _append_jsonl(KILL_STORE, rec)
     return rec
 

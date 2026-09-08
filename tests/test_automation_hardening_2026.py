@@ -5,11 +5,11 @@ Covers the concrete fixes made in this audit:
     ya per-lead lookup error = promotional contact BLOCK (pehle fail-OPEN tha).
   - orchestrator_pipeline._within_calling_window IST-aware + explicit-now respect.
   - automation_health.health() additive `ok` key (team_pulse._kavya false-healthy fix)
-    — `ok` MUST invert the degraded condition (overdue/queue-backlog).
+    - `ok` MUST invert the degraded condition (overdue/queue-backlog).
 
 Dependency-light by design: pipeline instance `object.__new__` se banta hai (heavy
 dep builders skip), aur async method `asyncio.run` se drive hoti (no pytest-asyncio
-dependency). Module import fail ho to `importorskip` skip — suite kabhi nahi tootegi.
+dependency). Module import fail ho to `importorskip` skip - suite kabhi nahi tootegi.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class _Result:
 
 
 def _bare_pipeline():
-    """LeadGenPipeline instance BINA __init__ ke — sirf DND-scrub path chahiye,
+    """LeadGenPipeline instance BINA __init__ ke - sirf DND-scrub path chahiye,
     heavy builders (scraper/voice/telephony) na chalein."""
     op = pytest.importorskip("app.automation.orchestrator_pipeline")
     return object.__new__(op.LeadGenPipeline)
@@ -79,7 +79,7 @@ def test_automation_health_has_ok_key_inverting_degraded():
     h = ah.health()
     assert "ok" in h, "health() must expose additive `ok` boolean (false-healthy fix)"
     # ADR-104 Phase B (2026-07-15): `ok` also inverts dead/retryable_failed now
-    # (previously only overdue/backlog — dead-letter tasks could sit unaddressed
+    # (previously only overdue/backlog - dead-letter tasks could sit unaddressed
     # while this claimed "healthy"). See automation_health.health() docstring.
     degraded = (
         bool(h.get("overdue"))

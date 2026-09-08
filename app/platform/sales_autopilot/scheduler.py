@@ -1,11 +1,11 @@
-"""Sales Autopilot scheduler tick — distributed-locked, one-at-a-time, canary-batched.
+"""Sales Autopilot scheduler tick - distributed-locked, one-at-a-time, canary-batched.
 
 :func:`run_tick` is the real engine loop. It is INERT when the master flag is off
 (returns ``{"enabled": False}`` immediately, no work). When on, it:
 
   - takes a Redis distributed lock (SET NX) so only ONE tick runs at a time (no double
     fan-out across worker + in-process scheduler),
-  - selects at most ``canary_batch_size`` (default 1) new-outreach + follow-up targets —
+  - selects at most ``canary_batch_size`` (default 1) new-outreach + follow-up targets -
     NO catch-up flood: a backlog is processed one small batch per tick,
   - routes every target through :func:`send.send` (dry-run default
   live only when all
@@ -50,7 +50,7 @@ def _acquire_lock() -> str | None:
     """Distributed single-flight. Returns a token if acquired, else None.
 
     Fail-closed: if Redis is unavailable we still return a local token so a single-process
-    run works in dev/tests, but log it — production always has Redis.
+    run works in dev/tests, but log it - production always has Redis.
     """
     token = uuid.uuid4().hex
     r = _redis()
@@ -80,7 +80,7 @@ def _release_lock(token: str) -> None:
 def _primary_channel(pol: _policy_mod.Policy) -> str:
     """Pick the enabled outbound channel. WhatsApp preferred when on, else email.
 
-    Neither enabled → whatsapp (send() still simulates/refuses on channel gate, so this
+    Neither enabled -> whatsapp (send() still simulates/refuses on channel gate, so this
     never produces a live provider call on a disabled channel).
     """
     if pol.get("whatsapp_enabled", False):
@@ -122,7 +122,7 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
 
     token = _acquire_lock()
     if not token:
-        # Another tick holds the single-flight lock — skip (no overlap, no catch-up).
+        # Another tick holds the single-flight lock - skip (no overlap, no catch-up).
         res = {"enabled": True, "skipped": "lock_held", "processed": 0}
         _store.record_tick(res)
         return res
@@ -138,7 +138,7 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
     try:
         batch = pol.canary_batch() if limit is None else max(1, int(limit))
 
-        # 0. Pipeline refill (flag-gated) + pay-truth reconcile — never sends.
+        # 0. Pipeline refill (flag-gated) + pay-truth reconcile - never sends.
         try:
             from app.platform.sales_autopilot import refill as _refill
 
@@ -162,7 +162,7 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
             due = _followups.due_followups(pol, channel=_primary_channel(pol))
             targets.extend(due[: batch - len(targets)])
 
-        # Empty queue is a NORMAL state, not silent success — record why so Mission
+        # Empty queue is a NORMAL state, not silent success - record why so Mission
         # Control doesn't read processed=0 as a failure or a lie. (ISSUE-03)
         if not targets:
             counts: dict[str, int] = {}
@@ -172,7 +172,7 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
             summary["idle_reason"] = "no_eligible_prospects"
             summary["prospect_status_counts"] = counts
             summary["notes"] = (
-                "processed=0 kyunki koi eligible NEW/follow-up prospect nahi — "
+                "processed=0 kyunki koi eligible NEW/follow-up prospect nahi - "
                 "yeh expected idle hai, engine fail nahi hua."
             )
 

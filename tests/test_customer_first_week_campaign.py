@@ -1,12 +1,12 @@
-"""POST /api/customer/campaigns/generate-first-week — Setup Wizard ka customer-
+"""POST /api/customer/campaigns/generate-first-week - Setup Wizard ka customer-
 triggerable first-campaign path (CDOS spec: "First 7-day campaign generation").
 
 Contract yahan prove hota hai:
-(1) IDOR/auth-safe — require_customer ke bina 401/403;
+(1) IDOR/auth-safe - require_customer ke bina 401/403;
 (2) upcoming items pehle se hon to ENQUEUE hi nahi (seed re-run =
-    content_approval me duplicate submissions — isliye guard load-bearing hai);
-(3) khali queue → Celery worker task enqueue hota hai (seed multi-LLM-call hai,
-    web process me kabhi inline nahi — CLAUDE.md);
+    content_approval me duplicate submissions - isliye guard load-bearing hai);
+(3) khali queue -> Celery worker task enqueue hota hai (seed multi-LLM-call hai,
+    web process me kabhi inline nahi - CLAUDE.md);
 (4) worker task khud bhi guard RE-check karta hai (double-click race window).
 """
 
@@ -21,7 +21,7 @@ from app.tasks import staff_jobs
 
 
 def _patch_seed_task(monkeypatch, calls: list):
-    """seed_first_week ek celery shared_task PROXY hai — woh har access pe current
+    """seed_first_week ek celery shared_task PROXY hai - woh har access pe current
     Celery-app registry se resolve hota hai, isliye `.delay` attribute patch
     unreliable hai. Module attribute ko hi fake se replace karo: endpoint
     request-time par `from app.tasks.staff_jobs import seed_first_week` karta
@@ -95,7 +95,7 @@ def test_upcoming_items_skip_enqueue(monkeypatch, tmp_path):
                 "date": today_s,
                 "type": "post",
                 "title": "T",
-                "caption": "Aaj ka post — dandruff-free hair offer!",
+                "caption": "Aaj ka post - dandruff-free hair offer!",
                 "status": "draft",
             },
         ],
@@ -156,14 +156,14 @@ def test_upcoming_item_count_counts_only_future_nonskipped(monkeypatch, tmp_path
                 "date": y,
                 "type": "post",
                 "status": "draft",
-            },  # past → nahi
+            },  # past -> nahi
             {
                 "id": "p2",
                 "client_id": cid,
                 "date": t,
                 "type": "poster",
                 "status": "skipped",
-            },  # skipped → nahi
+            },  # skipped -> nahi
             {"id": "p3", "client_id": cid, "date": t, "type": "post", "status": "draft"},  # haan
             {
                 "id": "p4",
@@ -180,7 +180,7 @@ def test_upcoming_item_count_counts_only_future_nonskipped(monkeypatch, tmp_path
 
 def test_worker_task_recheck_skips_when_upcoming_exists(monkeypatch):
     """Double-click race: enqueue ke waqt queue khali thi par task chalne tak
-    pehla seed complete — task khud guard re-check karke seed skip kare."""
+    pehla seed complete - task khud guard re-check karke seed skip kare."""
     monkeypatch.setattr(clients_store, "get_client", lambda cid: {"id": cid, "business_name": "X"})
     monkeypatch.setattr(auto_content, "upcoming_item_count", lambda cid: 7)
 

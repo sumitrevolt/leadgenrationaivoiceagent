@@ -1,7 +1,7 @@
-"""platform_dial config — daily self-sale AI cold-call batch knobs (Swara).
+"""platform_dial config - daily self-sale AI cold-call batch knobs (Swara).
 
 Env pehle (explicit 0/1 = final kill-switch), warna bind-mounted
-``data/platform_dial.json`` fallback — upi_config pattern: container recreate
+``data/platform_dial.json`` fallback - upi_config pattern: container recreate
 ke bina toggle ho sakta (data/ bind-mount har container me live hai) aur
 docker-cp-drift wale containers me bhi kaam karta jahan naya .env var
 recreate ke bina inject nahi ho sakta. Never raises.
@@ -20,7 +20,7 @@ _DEFAULT_LIMIT = 15
 
 
 def _cfg_path() -> Path:
-    """Resolved per call — one half of the calling-safety config family.
+    """Resolved per call - one half of the calling-safety config family.
 
     `platform_dial.json` and `dial_test_mode.json` share ONE store id, so the
     authority resolves both through the same mode and root by construction.
@@ -53,7 +53,7 @@ def enabled() -> bool:
     were the same knob, and on 2026-08-03 prod was found with
     ``PLATFORM_DIAL_DAILY=100``: the operator meant "100 calls a day", the value
     matched neither the true nor the false token, and the old code SILENTLY fell
-    through to the data-file — which said disabled. Result: the campaign looked
+    through to the data-file - which said disabled. Result: the campaign looked
     armed in ``.env`` (kill=0, DLT approved, cap 100) while the daily dial job
     reported ``mandate_paused`` and never ran.
 

@@ -1,4 +1,4 @@
-"""Customer dashboard data-assembly helpers — build KPIs/charts/leads/onboarding from
+"""Customer dashboard data-assembly helpers - build KPIs/charts/leads/onboarding from
 files (jsonl) or DB, masking + scoring utilities.
 
 Extracted from app/api/customer_dashboard.py (2026-06-20 refactor). Re-exported by
@@ -29,7 +29,7 @@ from app.api.customer_dashboard_models import (
 logger = logging.getLogger(__name__)
 
 # Restored in the 2026-06-20 godfile split (was lost when extracted from
-# customer_dashboard.py) — without it _read_inquiries() silently returned [].
+# customer_dashboard.py) - without it _read_inquiries() silently returned [].
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 
@@ -56,7 +56,7 @@ def _build_onboarding_checklist(
     try:
         from app.marketing import brand_kit, clients_store
 
-        # Brand marketing id pe keyed — alias/login id ko canonicalize karo.
+        # Brand marketing id pe keyed - alias/login id ko canonicalize karo.
         tone = str(
             (brand_kit.get_brand(clients_store.canonical_client_id(client_id)) or {}).get("tone")
             or ""
@@ -121,7 +121,7 @@ def _build_onboarding_checklist(
 
 
 def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> TrialBanner | None:
-    """Trial expiry nudge — day 5+ ya expired pe pay CTA."""
+    """Trial expiry nudge - day 5+ ya expired pe pay CTA."""
     from app.api.customer_dashboard_models import TrialBanner
     from app.marketing.packages import PACKAGES, get_starter_price_inr, trial_status
 
@@ -134,7 +134,7 @@ def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> Tr
         days = int(st.get("days_left") or 0)
         expired = bool(st.get("expired"))
         show = expired or days <= 7
-        starter = get_starter_price_inr()  # canonical ₹1,999 — packages.py single source
+        starter = get_starter_price_inr()  # canonical ₹1,999 - packages.py single source
         for p in PACKAGES:
             if str(p.get("key") or "") == "starter":
                 starter = int(
@@ -143,17 +143,17 @@ def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> Tr
                 break
         if expired:
             msg = (
-                f"Aapka FREE trial khatam ho gaya — Starter ₹{starter:,}/mahina se "
+                f"Aapka FREE trial khatam ho gaya - Starter ₹{starter:,}/mahina se "
                 "phir se shuru karo. Neeche UPI se pay karo."
             )
         elif days <= 2:
             msg = (
-                f"Trial {days} din me khatam — abhi pay karo taaki roz ka content "
+                f"Trial {days} din me khatam - abhi pay karo taaki roz ka content "
                 f"band na ho. Starter sirf ₹{starter:,}/mahina."
             )
         else:
             msg = (
-                f"Trial me {days} din bache — pasand aaye to Starter ₹{starter:,}/mahina "
+                f"Trial me {days} din bache - pasand aaye to Starter ₹{starter:,}/mahina "
                 "pe upgrade karo (UPI neeche)."
             )
         return TrialBanner(
@@ -203,7 +203,7 @@ def _approval_banner(client_id: str):
     try:
         from app.marketing import clients_store, content_approval
 
-        # Approvals marketing id pe keyed hain — billing/login alias ko canonicalize
+        # Approvals marketing id pe keyed hain - billing/login alias ko canonicalize
         # karo warna alias-login customer (Jiya) ko apne pending approvals nahi dikhte.
         count = len(content_approval.pending(clients_store.canonical_client_id(client_id)) or [])
     except Exception:
@@ -215,7 +215,7 @@ def _approval_banner(client_id: str):
         show=True,
         count=count,
         urgency="high" if count >= 3 else "normal",
-        message=f"Aapke {count} {noun} approval ka wait kar rahe hain — approve karte hi delivery aage badhegi.",
+        message=f"Aapke {count} {noun} approval ka wait kar rahe hain - approve karte hi delivery aage badhegi.",
     )
 
 
@@ -250,7 +250,7 @@ def _client_record(client_id: str) -> dict | None:
 
     UPI-activated customers apni billing/login id (e.g. Jiya `d79d690f61b3`) se
     login karte hain, par marketing record marketing id (`jiya-makeover`) pe keyed
-    hai — billing id us record ke `billing_client_ids` me carry hoti hai.
+    hai - billing id us record ke `billing_client_ids` me carry hoti hai.
     `resolve_client` alias ko canonical record pe map karta
     warna customer
     dashboard ko orphaned partial view (content/plan/onboarding sab khali) dikhta
@@ -265,7 +265,7 @@ def _client_record(client_id: str) -> dict | None:
 
 
 def _inquiries_for_client(client_id: str, client_rec: dict | None) -> list[dict]:
-    """Is client se related inquiries — source_slug / client_id / business / phone
+    """Is client se related inquiries - source_slug / client_id / business / phone
     par match. client "demo" ho aur koi record na ho to ALL inquiries (platform
     overview), warna sirf is client ki."""
     rows = _read_inquiries()
@@ -302,7 +302,7 @@ def _inquiries_for_client(client_id: str, client_rec: dict | None) -> list[dict]
 
 
 def _content_posts_count(client_id: str, client_rec: dict | None) -> int:
-    """Is client ke content-queue items (posted+approved+draft) — posts ka proxy."""
+    """Is client ke content-queue items (posted+approved+draft) - posts ka proxy."""
     try:
         from app.marketing.auto_content import list_queue
 
@@ -466,18 +466,18 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
 
 
 def _calls_from_events(client_id: str, client_rec: dict | None):
-    """AI-staff (swara) call activity → CallRow list + connected + calls_today.
+    """AI-staff (swara) call activity -> CallRow list + connected + calls_today.
 
-    Client-scoped via meta_json.client_id (2026-07-02) — call events now carry
+    Client-scoped via meta_json.client_id (2026-07-02) - call events now carry
     client_id at the source (vobiz_stream.py call_finished, telephony_vobiz.py
     call_placed, public_site._auto_callback). Events logged BEFORE this fix have
     no client_id in meta and are correctly excluded (honest zero, not counted
-    toward any client — the prior behaviour showed every customer the SAME
+    toward any client - the prior behaviour showed every customer the SAME
     platform-wide total under their own name, which this replaces).
 
     The client_id filter runs IN SQL (meta_json LIKE, matching log_event's
     json.dumps `"client_id": "..."` serialization) before the row limit, not
-    after — a naive "fetch latest 2000 platform-wide, then filter in Python"
+    after - a naive "fetch latest 2000 platform-wide, then filter in Python"
     would silently undercount a client's calls to 0 once platform-wide call
     volume outpaces the window. The `.limit()` here bounds THIS client's own
     rows, which realistically never approaches it. Python still re-checks the
@@ -734,10 +734,10 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
 
 
 # --------------------------------------------------------------------------- #
-# Aapka Office — virtual-office aggregator (2026-06-28)                        #
+# Aapka Office - virtual-office aggregator (2026-06-28)                        #
 # Plain-Hinglish "kya ho raha · AI team ne kya kiya · customer ko khud kya     #
 # karna hai (+ automation-impact)" for the 3 customer dashboards. Reuses the   #
-# onboarding / approvals / trial / inquiry builders above — NO new store, no   #
+# onboarding / approvals / trial / inquiry builders above - NO new store, no   #
 # LLM, never raises. Product-aware (marketing | voice | combo) so each         #
 # dashboard shows the RIGHT tasks. Drives frontend "🏢 Aapka Office" block.    #
 # --------------------------------------------------------------------------- #
@@ -783,7 +783,7 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
 
     tasks: list[dict] = []
 
-    # 0) Payment / trial — blocks ALL automation
+    # 0) Payment / trial - blocks ALL automation
     if trial and getattr(trial, "show_pay_cta", False):
         expired = bool(getattr(trial, "expired", False))
         tasks.append(
@@ -795,20 +795,20 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
                 "title": (
                     "Plan activate karo (UPI)"
                     if expired
-                    else "Trial chal raha — abhi pay karke pakka karo"
+                    else "Trial chal raha - abhi pay karke pakka karo"
                 ),
                 "why": (
-                    "Trial khatam — roz ka automation ruk jayega"
+                    "Trial khatam - roz ka automation ruk jayega"
                     if expired
                     else f"Trial me {int(getattr(trial, 'days_left', 0))} din bache"
                 ),
-                "impact": "content + calls + leads — sab chalu rahega",
+                "impact": "content + calls + leads - sab chalu rahega",
                 "cta_label": "Pay karo",
                 "cta_target": "billingCard",
             }
         )
 
-    # 1) Business profile (naam + phone) — sab products
+    # 1) Business profile (naam + phone) - sab products
     if not _done("profile"):
         tasks.append(
             {
@@ -840,7 +840,7 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
             }
         )
 
-    # 3) Mini-site live — lead capture (marketing/combo)
+    # 3) Mini-site live - lead capture (marketing/combo)
     if is_mkt and not _done("minisite"):
         tasks.append(
             {
@@ -872,7 +872,7 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
             }
         )
 
-    # 5) Call routing (voice/combo) — kis team-member ko lead jaaye
+    # 5) Call routing (voice/combo) - kis team-member ko lead jaaye
     if is_voice and not routing_set:
         tasks.append(
             {
@@ -881,14 +881,14 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
                 "severity": "medium",
                 "priority": 3,
                 "title": "Call routing set karo (team numbers)",
-                "why": "Lead aane pe kise bheje — abhi set nahi",
+                "why": "Lead aane pe kise bheje - abhi set nahi",
                 "impact": "koi lead miss nahi hoga (round-robin)",
                 "cta_label": "Set karo",
                 "cta_target": "routingCard",
             }
         )
 
-    # 6) Hot leads waiting (voice/combo) — abhi contact karo
+    # 6) Hot leads waiting (voice/combo) - abhi contact karo
     if is_voice and hot_leads > 0:
         tasks.append(
             {
@@ -896,7 +896,7 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
                 "icon": "🔥",
                 "severity": "high",
                 "priority": 2,
-                "title": f"{hot_leads} hot lead{'s' if hot_leads > 1 else ''} — jaldi call/WhatsApp karo",
+                "title": f"{hot_leads} hot lead{'s' if hot_leads > 1 else ''} - jaldi call/WhatsApp karo",
                 "why": "Inka intent high hai, der = customer chala jayega",
                 "impact": "fast contact = zyada deals close",
                 "cta_label": "Leads dekho",
@@ -926,7 +926,7 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
 
 
 def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[dict]:
-    """Derived "AI team ne aapke liye kya kiya" feed — inquiries + content posts,
+    """Derived "AI team ne aapke liye kya kiya" feed - inquiries + content posts,
     real per-client data, chronological. No agent_events client-scoping needed."""
     items: list[dict] = []
     try:
@@ -941,7 +941,7 @@ def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[
                     "_dt": dt,
                     "when": _rel_time(dt),
                     "who": "📥 Mini-site",
-                    "did": f"Nayi enquiry: {nm}{loc}" + (" — 🔥 hot" if tier == "Hot" else ""),
+                    "did": f"Nayi enquiry: {nm}{loc}" + (" - 🔥 hot" if tier == "Hot" else ""),
                     "status": "ok",
                 }
             )
@@ -986,11 +986,11 @@ def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[
 def _office_call_stats(client_id: str) -> tuple[int, int]:
     """Client-scoped (calls_completed, bookings) for the office summary.
 
-    Deliberately does NOT reuse ``_calls_from_events`` — that helper counts ALL
+    Deliberately does NOT reuse ``_calls_from_events`` - that helper counts ALL
     platform "swara" call events (call events don't carry client_id in meta_json
     today), which would show every customer the same platform-wide number under
     their own name. Uses CallLog.client_id (properly scoped, same source as the
-    DB-backed dashboard builder) instead. Never raises — (0, 0) on any failure,
+    DB-backed dashboard builder) instead. Never raises - (0, 0) on any failure,
     including "no DB rows for this client" (honest zero, not someone else's data)."""
     try:
         from app.models.base import get_db_session
@@ -1065,11 +1065,11 @@ def _build_office(client_id: str) -> dict:
         high = [t for t in tasks if t.get("severity") == "high"]
 
         if not tasks:
-            headline = "✅ Sab set hai — aapki AI team kaam pe lagi hai"
+            headline = "✅ Sab set hai - aapki AI team kaam pe lagi hai"
         elif high:
-            headline = f"⚠️ {len(high)} zaroori kaam aapke taraf — neeche dekho"
+            headline = f"⚠️ {len(high)} zaroori kaam aapke taraf - neeche dekho"
         else:
-            headline = f"📋 {len(tasks)} chhota kaam baaki — baaki AI team sambhaal rahi"
+            headline = f"📋 {len(tasks)} chhota kaam baaki - baaki AI team sambhaal rahi"
 
         next_best_action = (
             {
@@ -1080,7 +1080,7 @@ def _build_office(client_id: str) -> dict:
             if tasks
             else {
                 "title": "Abhi kuch nahi karna",
-                "why": "Sab set hai — AI team kaam pe lagi hai",
+                "why": "Sab set hai - AI team kaam pe lagi hai",
                 "cta_target": "",
             }
         )

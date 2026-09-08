@@ -1,4 +1,4 @@
-"""W2.3 deferred-half — trainer per-niche metric aggregation.
+"""W2.3 deferred-half - trainer per-niche metric aggregation.
 
 run_trainer aggregated ALL niches together, so a noisy-STT niche was masked by
 the aggregate: global junk_ratio stayed under the threshold while one niche was
@@ -52,7 +52,7 @@ def test_by_niche_breakdown(tmp_path, monkeypatch):
 
 def test_niche_masked_junk_gets_targeted_suggestion(tmp_path, monkeypatch):
     """Global junk 3/12 = 0.25 <= 0.3 threshold (no global suggestion), but the
-    salon niche is 100% junk — the trainer must name it."""
+    salon niche is 100% junk - the trainer must name it."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
     clean = [f"haan bhaiya point number {i} batao" for i in range(9)]

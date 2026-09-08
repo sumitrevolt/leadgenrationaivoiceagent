@@ -1,4 +1,4 @@
-# Squad Lead — Voice Calling Agent (Squad 1)
+# Squad Lead - Voice Calling Agent (Squad 1)
 # Responsibility: Outbound calls within TRAI 9am–7pm window, DND scrub, DLT-gated
 # Autopilot: Beat-driven, priority-queued, compliance-gated
 
@@ -26,7 +26,7 @@ def check_compliance():
     now_ist = datetime.datetime.now(ist)
     hour = now_ist.hour
     if hour < 9 or hour > 19:  # 9am–7pm inclusive
-        logger.info(f"Outside TRAI window (hour={hour}) — skipping calls")
+        logger.info(f"Outside TRAI window (hour={hour}) - skipping calls")
         return False
     return True
 

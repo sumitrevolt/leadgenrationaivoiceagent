@@ -1,4 +1,4 @@
-"""Compatibility shim — forwards to scripts/boss_autonomy.py CLI.
+"""Compatibility shim - forwards to scripts/boss_autonomy.py CLI.
 
 The canonical thin CLI is scripts/boss_autonomy.py. This entrypoint exists so
 older invocations of scripts/boss_autonomy_cli.py keep working unchanged.

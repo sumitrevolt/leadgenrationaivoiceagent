@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only LIVE operational snapshot — run INSIDE the prod container:
+"""Read-only LIVE operational snapshot - run INSIDE the prod container:
 
     ssh root@VPS "docker exec -i leadgen_app python -" < scripts/vps_morning_report.py
 
@@ -25,7 +25,7 @@ def hr(t):
     print("\n" + "=" * 56 + f"\n{t}\n" + "=" * 56)
 
 
-print(f"LIVE OPS SNAPSHOT  —  {now.strftime('%Y-%m-%d %H:%M IST')}  (today={today})")
+print(f"LIVE OPS SNAPSHOT  -  {now.strftime('%Y-%m-%d %H:%M IST')}  (today={today})")
 
 # ── key automation flags ────────────────────────────────────────────────────
 hr("AUTOMATION FLAGS (what is ON)")

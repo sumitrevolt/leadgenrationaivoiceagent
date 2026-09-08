@@ -14,7 +14,7 @@ from app.voice_agent.telecaller_brain import TelecallerBrain
 
 def _brain(niche: str) -> TelecallerBrain:
     # Bypass the heavy __init__ (KB / niche-DB load). Stream/close paths still
-    # need the close-state attrs that __init__ would set — missing ones get
+    # need the close-state attrs that __init__ would set - missing ones get
     # swallowed by reply_stream_sentences try/except and silently miss close.
     b = TelecallerBrain.__new__(TelecallerBrain)
     b.niche = niche
@@ -35,7 +35,7 @@ def _brain(niche: str) -> TelecallerBrain:
 
 
 # --------------------------------------------------------------------------- #
-# V2 — mid-call re-greet guard
+# V2 - mid-call re-greet guard
 # --------------------------------------------------------------------------- #
 def test_looks_like_greeting_catches_regreet_variants() -> None:
     g = TelecallerBrain._looks_like_greeting
@@ -54,7 +54,7 @@ def test_looks_like_greeting_allows_normal_replies() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# V1 — discovery-skip (opener must not consume a discovery slot)
+# V1 - discovery-skip (opener must not consume a discovery slot)
 # --------------------------------------------------------------------------- #
 def test_script_fallback_starts_at_first_discovery() -> None:
     from app.voice_agent.niche_scripts import get_script
@@ -62,7 +62,7 @@ def test_script_fallback_starts_at_first_discovery() -> None:
     niche = "solar_residential"
     disc = [d for d in ((get_script(niche) or {}).get("discovery") or []) if d]
     if not disc:
-        return  # niche script unavailable — nothing to assert
+        return  # niche script unavailable - nothing to assert
     b = _brain(niche)
     # opener = 1 assistant turn already in history; first user reply just arrived
     hist = [
@@ -158,9 +158,9 @@ def test_fast_path_discloses_ai_identity() -> None:
 def test_fast_path_whatsapp_is_a_handoff_not_a_qualify() -> None:
     """2026-07-03 contract change (user mandate + all-transcript analysis): a
     WhatsApp ask = channel handoff (wrap the paid call, details move to
-    WhatsApp) — NOT another qualify question. The old 'leads chahiye ya
+    WhatsApp) - NOT another qualify question. The old 'leads chahiye ya
     content?' fired even right after an explicit commit in 3 real calls."""
-    # Web path (no dialed number): ask them to confirm the number — the line
+    # Web path (no dialed number): ask them to confirm the number - the line
     # must contain 'whatsapp number confirm' so the next turn's post-close-wrap
     # catches the spoken number.
     b = _brain("ai_marketing")
@@ -198,7 +198,7 @@ def test_fast_path_whatsapp_negation_does_not_handoff() -> None:
 # Fluency/coherence fixes (the "1-2 turn baad confuse, noob baat karta" batch).
 # --------------------------------------------------------------------------- #
 def test_clean_cuts_hallucinated_transcript() -> None:
-    # Small free models kabhi poora dialogue continue kar dete hain — Swara ka
+    # Small free models kabhi poora dialogue continue kar dete hain - Swara ka
     # sirf pehla turn bolna chahiye, "User:"/"Swara:" leak nahi.
     # 2026-07-17: leading "Ji … sir" habit fillers bhi strip hote hain.
     b = _brain("general")
@@ -210,7 +210,7 @@ def test_clean_cuts_hallucinated_transcript() -> None:
 
 
 def test_clean_strips_unclosed_paren_leak() -> None:
-    # Reasoning/meta leak ek un-closed parenthetical me — cut ho jaaye.
+    # Reasoning/meta leak ek un-closed parenthetical me - cut ho jaaye.
     b = _brain("general")
     out = TelecallerBrain._clean(b, "Aap yeh kaise manage karte ho? (Lagta hai ki user")
     assert "(" not in out
@@ -220,7 +220,7 @@ def test_clean_strips_unclosed_paren_leak() -> None:
 def test_clean_strips_think_block_leak() -> None:
     # 2026-08-18 agent_tester: free model ne literal "<think> Here's a thinking
     # process:..." bol diya (laundry/electronics scorecard). TTS usse bol deta
-    # — strip karo, real answer bachao.
+    # - strip karo, real answer bachao.
     b = _brain("general")
     out = TelecallerBrain._clean(
         b,
@@ -234,7 +234,7 @@ def test_clean_strips_think_block_leak() -> None:
 
 
 def test_clean_strips_unclosed_think_tag() -> None:
-    # Unclosed <think... (koi closing tag nahi) — tag se pehle ka hissa bachao.
+    # Unclosed <think... (koi closing tag nahi) - tag se pehle ka hissa bachao.
     b = _brain("general")
     out = TelecallerBrain._clean(b, "Namaste! <think> yahan reasoning hai bina close")
     assert "<think" not in out.lower()
@@ -270,7 +270,7 @@ def test_customer_qa_no_blanket_valueline_dump() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Opener parity — vertical niches MUST open with their own researched script
+# Opener parity - vertical niches MUST open with their own researched script
 # opening, NOT the ai_marketing platform pitch (the "noob baat kar rahi" bug:
 # web-call used brain.opening_line() which always returned UNIVERSAL_AGENT_INTRO).
 # --------------------------------------------------------------------------- #
@@ -299,14 +299,14 @@ def test_opening_line_vertical_uses_niche_script_not_platform_pitch() -> None:
 
 
 def test_opening_line_platform_niche_still_pitches_platform() -> None:
-    # ai_marketing IS the platform-selling call — it should still pitch the platform.
+    # ai_marketing IS the platform-selling call - it should still pitch the platform.
     opener = TelecallerBrain.opening_line(_opener_brain("ai_marketing"))
     low = opener.lower()
     assert "leads generation ai" in low or "instagram" in low
 
 
 # --------------------------------------------------------------------------- #
-# 2026-06-27 — "kya kya service/feature provide karte ho" deterministic answer.
+# 2026-06-27 - "kya kya service/feature provide karte ho" deterministic answer.
 # Yeh sabse common discovery sawaal roman me kisi keyword se match NAHI hota tha,
 # isliye throttled free-LLM pe gir ke deflect ho jaata ("dobara boliye" / "detail
 # bhej deti hoon" = noob). Ab fast-path canned answer dena chahiye (LLM-independent).
@@ -330,7 +330,7 @@ def test_what_services_question_gets_concrete_answer() -> None:
 
 
 def test_what_services_devanagari_features_word() -> None:
-    # Whisper(hi) Devanagari output — "फीचर"/"सर्विस" bhi route hona chahiye.
+    # Whisper(hi) Devanagari output - "फीचर"/"सर्विस" bhi route hona chahiye.
     b = _brain("ai_marketing")
     b._interest_confirmed = False
     ans = TelecallerBrain._customer_qa_reply(b, "इसमें क्या क्या फीचर हैं")
@@ -339,8 +339,8 @@ def test_what_services_devanagari_features_word() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 2026-06-27 — leftover [placeholder] never spoken. The SOURCE prompt-rule /
-# KB doc ("aapka number [website/inquiry] se mila") got parroted raw → TTS bola
+# 2026-06-27 - leftover [placeholder] never spoken. The SOURCE prompt-rule /
+# KB doc ("aapka number [website/inquiry] se mila") got parroted raw -> TTS bola
 # "bracket website slash inquiry" = noob (live call 2026-06-26). _fill must strip.
 # --------------------------------------------------------------------------- #
 def test_fill_strips_leftover_source_placeholder() -> None:
@@ -367,12 +367,12 @@ def test_fill_still_replaces_known_placeholders() -> None:
 def test_fill_noop_without_brackets() -> None:
     b = _brain("ai_marketing")
     b.client_name = "X"
-    s = "Ji sir, bilkul — aaj setup kar doon?"
+    s = "Ji sir, bilkul - aaj setup kar doon?"
     assert TelecallerBrain._fill(b, s) == s
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-03 — self-pitch mode: assumptive sell + fast WhatsApp handoff,
+# 2026-07-03 - self-pitch mode: assumptive sell + fast WhatsApp handoff,
 # scoped ONLY to the ai_marketing (self-marketing) niche.
 # --------------------------------------------------------------------------- #
 def _system_prompt_brain(niche: str) -> TelecallerBrain:
@@ -400,11 +400,11 @@ def test_self_pitch_block_absent_for_client_niche() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-03 — reply_stream_sentences() was missing the post-close-wrap and
+# 2026-07-03 - reply_stream_sentences() was missing the post-close-wrap and
 # buy/close-signal short-circuits that reply() already had. Since
 # USE_LLM_STREAM_TTS=1 routes every real phone call through the STREAM path
 # (not reply()), a real caller's explicit close signal never short-circuited
-# on a live call — confirmed with a real 2026-07-03 test-call transcript
+# on a live call - confirmed with a real 2026-07-03 test-call transcript
 # ("प्री प्लान एक्टिवेट करो" got "Ji, zara dobara boliye?" instead of a
 # close-confirm). These tests lock in that the stream path now matches reply().
 # --------------------------------------------------------------------------- #
@@ -440,7 +440,7 @@ async def test_stream_reply_post_close_wrap_pivots_to_whatsapp() -> None:
     history = [
         {
             "role": "assistant",
-            "content": "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp number confirm kar dijiye.",
+            "content": "Bilkul sir! Aaj hi shuru kar deti hoon - bas aapka WhatsApp number confirm kar dijiye.",
         }
     ]
     out: list[str] = []
@@ -454,7 +454,7 @@ async def test_stream_reply_post_close_wrap_pivots_to_whatsapp() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-03 — all-transcript learnings: repeat-ask hard cap (rule 12 was
+# 2026-07-03 - all-transcript learnings: repeat-ask hard cap (rule 12 was
 # prompt-only; 5 real calls had 2-4x "zara dobara boliye") + stream first-
 # sentence guards (the stream path yielded raw LLM output with none of
 # reply()'s post-LLM protections).
@@ -468,7 +468,7 @@ def test_note_repeat_ask_allows_exactly_one_per_call() -> None:
 
 async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypatch) -> None:
     """LLM streams 'Ji, zara dobara boliye?' against a fully clear substantive
-    complaint (verbatim shape from a real 2026-07-03 call) — the stream must NOT
+    complaint (verbatim shape from a real 2026-07-03 call) - the stream must NOT
     speak it
     it abandons the stream and uses reply()'s guarded output."""
     b = _brain("ai_marketing")
@@ -491,7 +491,7 @@ async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypat
     monkeypatch.setattr(free_ai, "chat_stream", _fake_tokens)
 
     async def _guarded_reply(_h, _u):
-        return "Aapko product marketing ke liye ready leads chahiye — Instagram ya Google se?"
+        return "Aapko product marketing ke liye ready leads chahiye - Instagram ya Google se?"
 
     monkeypatch.setattr(b, "reply", _guarded_reply, raising=False)
 
@@ -508,7 +508,7 @@ async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypat
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-03 — THIRD parallel-brain gap: with VOICE_TOOLS=1 (live on VPS),
+# 2026-07-03 - THIRD parallel-brain gap: with VOICE_TOOLS=1 (live on VPS),
 # _on_utterance routes every turn through reply_with_tools() FIRST, which was
 # "fully isolated" from reply()/reply_stream_sentences and had NO close-signal
 # guards. Real 21:42 IST call: "final karo, pre-plan start karo." (verified
@@ -537,7 +537,7 @@ async def test_tools_path_post_close_wrap_pivots_to_whatsapp() -> None:
     history = [
         {
             "role": "assistant",
-            "content": "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp number confirm kar dijiye.",
+            "content": "Bilkul sir! Aaj hi shuru kar deti hoon - bas aapka WhatsApp number confirm kar dijiye.",
         }
     ]
     spoken, tool_call = await TelecallerBrain.reply_with_tools(
@@ -549,11 +549,11 @@ async def test_tools_path_post_close_wrap_pivots_to_whatsapp() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-17 — live-call quality: no habit fillers; clear product facts
+# 2026-07-17 - live-call quality: no habit fillers; clear product facts
 # --------------------------------------------------------------------------- #
 def test_clean_strips_banned_habit_fillers() -> None:
     b = _brain("ai_marketing")
-    out = TelecallerBrain._clean(b, "Ji sir, haan ji — AI se posts aur ads automatic.")
+    out = TelecallerBrain._clean(b, "Ji sir, haan ji - AI se posts aur ads automatic.")
     low = out.lower()
     assert "ji sir" not in low
     assert "haan ji" not in low
@@ -573,7 +573,7 @@ def test_product_qa_has_clear_facts_without_sir_filler() -> None:
     assert any(w in low for w in ("instagram", "facebook", "posts", "ads", "google"))
     assert " ji" not in f" {low}"
     assert not low.startswith("sir")
-    assert "sir —" not in low and "sir," not in low
+    assert "sir -" not in low and "sir," not in low
     price = TelecallerBrain._customer_qa_reply(b, "price kitna hai")
     assert "1,999" in price or "1999" in price
     assert "5,999" in price or "5999" in price

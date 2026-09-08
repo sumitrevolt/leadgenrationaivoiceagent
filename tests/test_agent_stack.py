@@ -1,7 +1,7 @@
 """
 Tests: agent stack (P1 Qdrant RAG + P2 LangGraph supervisor).
 
-Sab tests network/Qdrant/Gemini ke BINA chalte hain — pure logic + TestClient.
+Sab tests network/Qdrant/Gemini ke BINA chalte hain - pure logic + TestClient.
 - /api/agents/* endpoints (status hamesha
 run ko stub karke, taaki langgraph
   installed ho tab bhi koi graph/LLM call na ho).
@@ -55,14 +55,14 @@ class TestAgentsAPI:
             assert "route" in r.json()
 
     def test_run_rejects_too_short_task(self, client: TestClient):
-        # AgentRunRequest.task has min_length=3 — validation 422 deta hai,
+        # AgentRunRequest.task has min_length=3 - validation 422 deta hai,
         # availability se pehle hi (deterministic dono environments me).
         r = client.post("/api/agents/run", json={"task": "x"})
         assert r.status_code == 422
 
 
 class TestSupervisorRouting:
-    """route_for_task — pure function, langgraph ki zaroorat nahi."""
+    """route_for_task - pure function, langgraph ki zaroorat nahi."""
 
     def test_data_task_routes_to_data_agent(self):
         assert sup.route_for_task("seed kb research profile") == "data_agent"
@@ -75,7 +75,7 @@ class TestSupervisorRouting:
         assert sup.route_for_task("") == "leads_agent"
 
     def test_data_keywords_checked_before_leads(self):
-        # mixed task: "research" (data) + "leads"/"campaign" (leads) → data wins
+        # mixed task: "research" (data) + "leads"/"campaign" (leads) -> data wins
         assert sup.route_for_task("research leads for campaign") == "data_agent"
 
     def test_routing_is_case_insensitive(self):
@@ -84,8 +84,8 @@ class TestSupervisorRouting:
 
     def test_supervisor_node_uses_router(self, monkeypatch):
         # Phase-2: node ab ASYNC hai (semantic free-LLM router + keyword
-        # fallback). LLM ko deterministic keyword fallback se replace karo —
-        # no network — aur node ke route-contract ko assert karo.
+        # fallback). LLM ko deterministic keyword fallback se replace karo -
+        # no network - aur node ke route-contract ko assert karo.
         async def _kw_only(task):
             return sup.route_for_task(task)
 
@@ -110,7 +110,7 @@ class TestKnowledgeBackends:
     @pytest.fixture
     def kb(self, no_qdrant):
         # prefer_chroma=False => deterministic pure-python keyword backend
-        # (Chroma path heavyweight embedder load try kar sakta hai — tests me nahi).
+        # (Chroma path heavyweight embedder load try kar sakta hai - tests me nahi).
         return KnowledgeBase(prefer_chroma=False)
 
     def test_backend_not_qdrant_when_url_empty(self, kb):
@@ -164,7 +164,7 @@ class TestQdrantIndexUnit:
         assert KnowledgeBase._try_qdrant("any_ns") is None
 
     def test_try_qdrant_empty_url_does_not_set_disabled_flag(self, no_qdrant, monkeypatch):
-        # empty url ko _QDRANT_DISABLED se PEHLE short-circuit hona chahiye —
+        # empty url ko _QDRANT_DISABLED se PEHLE short-circuit hona chahiye -
         # warna baad me URL configure karne par bhi backend permanently band rehta.
         monkeypatch.setattr(kbmod, "_QDRANT_DISABLED", False)
         assert KnowledgeBase._try_qdrant("ns") is None

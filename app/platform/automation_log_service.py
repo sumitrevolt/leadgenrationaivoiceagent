@@ -1,7 +1,7 @@
 """Centralized automation log write + read service (ADR-064, 2026-07-09).
 
 Every automation/agent/job writes logs through this service. Falls back to
-JSONL file if DB is unavailable — never crashes the scheduler.
+JSONL file if DB is unavailable - never crashes the scheduler.
 """
 
 from __future__ import annotations

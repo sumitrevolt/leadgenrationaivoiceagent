@@ -1,4 +1,4 @@
-"""Memory Stack (7-layer facade) — flag contract, tenant scoping, token budget, drain.
+"""Memory Stack (7-layer facade) - flag contract, tenant scoping, token budget, drain.
 
 Durable claim/lease semantics live in `tests/test_prospective_store.py`
 this

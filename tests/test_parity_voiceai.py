@@ -1,4 +1,4 @@
-"""Tests — voice/AI parity batch (call_transfer, call_insights, dialer_leaderboard).
+"""Tests - voice/AI parity batch (call_transfer, call_insights, dialer_leaderboard).
 
 Offline + isolated: koi network/DB nahi. Stores tmp_path pe monkeypatch,
 free_ai.chat mocked, Exotel leg stubbed. Style: tests/test_parity_memory.py jaisa.
@@ -20,7 +20,7 @@ def _now_iso(days_ago: float = 0) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# F1 — call_transfer (gated CALL_TRANSFER, Hinglish summary, drafts, jsonl log)
+# F1 - call_transfer (gated CALL_TRANSFER, Hinglish summary, drafts, jsonl log)
 # --------------------------------------------------------------------------- #
 def test_detect_transfer_intent():
     from app.telephony import call_transfer as ct
@@ -29,7 +29,7 @@ def test_detect_transfer_intent():
     assert ct.detect_transfer_intent("Aap mujhe TRANSFER KARO kisi insaan ko") is True
     assert ct.detect_transfer_intent("I want to talk to a human please") is True
     assert ct.detect_transfer_intent("manager se baat karwao") is True
-    # negatives — normal conversation pe trigger nahi hona chahiye
+    # negatives - normal conversation pe trigger nahi hona chahiye
     assert ct.detect_transfer_intent("haan theek hai, price batao") is False
     assert ct.detect_transfer_intent("") is False
     assert ct.detect_transfer_intent(None) is False
@@ -64,7 +64,7 @@ def test_transfer_enabled_flow(tmp_path, monkeypatch):
     import app.voice_agent.free_ai as free_ai
 
     async def fake_chat(system=None, messages=None, **kw):
-        return ("Ravi Solar (Pune) solar quote chahta hai, budget high — turant baat karo.", "mock")
+        return ("Ravi Solar (Pune) solar quote chahta hai, budget high - turant baat karo.", "mock")
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
@@ -113,7 +113,7 @@ def test_transfer_llm_fallback_and_no_exotel(tmp_path, monkeypatch):
 
     ctx = {"name": "Meena Gym", "phone": "9811111111", "transcript": "membership price poocha"}
     r = asyncio.run(ct.request_transfer(ctx, "9876543210"))
-    # LLM down → template fallback summary, fir bhi ok + drafts
+    # LLM down -> template fallback summary, fir bhi ok + drafts
     assert r["ok"] is True and r["transferred"] is False
     assert "Live transfer" in r["summary"] and "Meena Gym" in r["summary"]
     assert r["wa_link"] and r["email_draft"]["subject"]
@@ -129,7 +129,7 @@ def test_transfer_invalid_owner(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# F2 — call_insights (quick_stats pure-python + ask LLM/fallback)
+# F2 - call_insights (quick_stats pure-python + ask LLM/fallback)
 # --------------------------------------------------------------------------- #
 def _seed_insights(tmp_path, monkeypatch):
     from app.platform import call_insights as ci
@@ -244,7 +244,7 @@ def test_ask_with_llm(tmp_path, monkeypatch):
 
     async def fake_chat(system=None, messages=None, **kw):
         captured["user"] = messages[0]["content"]
-        return ("Aaj 1 interested mila (9876543210) — turant follow-up karo.", "mock")
+        return ("Aaj 1 interested mila (9876543210) - turant follow-up karo.", "mock")
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
@@ -268,16 +268,16 @@ def test_ask_llm_fail_stats_fallback(tmp_path, monkeypatch):
 
     r = asyncio.run(ci.ask("kitne calls hue?"))
     assert r["ok"] is True and r["provider"] == ""
-    # stats-based fallback — phir bhi numbers ke saath useful answer
+    # stats-based fallback - phir bhi numbers ke saath useful answer
     assert "2" in r["answer"] and "interested 1" in r["answer"]
 
-    # khaali question → fallback answer, ok False
+    # khaali question -> fallback answer, ok False
     r2 = asyncio.run(ci.ask(""))
     assert r2["ok"] is False and r2["answer"]
 
 
 # --------------------------------------------------------------------------- #
-# F3 — dialer_leaderboard (ranks, score math, days filter, shoutout)
+# F3 - dialer_leaderboard (ranks, score math, days filter, shoutout)
 # --------------------------------------------------------------------------- #
 def test_leaderboard_ranks_and_score(tmp_path, monkeypatch):
     from app.platform import dialer_leaderboard as lb
@@ -302,7 +302,7 @@ def test_leaderboard_ranks_and_score(tmp_path, monkeypatch):
                 "caller": "Amit",
                 "at": _now_iso(),
             },
-            # caller field nahi → "Team" bucket: 1 call + connect = 3
+            # caller field nahi -> "Team" bucket: 1 call + connect = 3
             {"phone": "9000000005", "disposition": "not-interested", "at": _now_iso()},
         ],
     )
@@ -341,14 +341,14 @@ def test_leaderboard_days_filter_and_empty(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(lb, "_DIALER_LOGS", str(df))
 
-    # days=1 → sirf Amit (Priya 5 din purani)
+    # days=1 -> sirf Amit (Priya 5 din purani)
     r1 = lb.leaderboard(days=1)
     assert r1["total_calls"] == 1 and r1["ranking"][0]["caller"] == "Amit"
-    # days=7 → dono
+    # days=7 -> dono
     r7 = lb.leaderboard(days=7)
     assert r7["total_calls"] == 2 and len(r7["ranking"]) == 2
 
-    # empty store → friendly shoutout, no crash
+    # empty store -> friendly shoutout, no crash
     monkeypatch.setattr(lb, "_DIALER_LOGS", str(tmp_path / "missing.jsonl"))
     r0 = lb.leaderboard(days=1)
     assert r0["total_calls"] == 0 and r0["ranking"] == [] and "📞" in r0["shoutout"]

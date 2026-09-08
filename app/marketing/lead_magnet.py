@@ -1,20 +1,20 @@
 """
-lead_magnet.py — niche guide generator (Beacon.by-style branded lead magnet).
+lead_magnet.py - niche guide generator (Beacon.by-style branded lead magnet).
 ==============================================================================
 
 Client ke liye ek branded HTML guide ("<Niche> business <City> me grow karne
-ki 10-point checklist") — free_ai se 8-10 points (static NICHES content_focus
+ki 10-point checklist") - free_ai se 8-10 points (static NICHES content_focus
 fallback hamesha) + brand-color cover + CTA (mini-site /b/{slug} + WhatsApp +
 free audit). File: data/lead_magnets/<slug>-<niche>.html (regex-safe name,
 public serve route ke liye).
 
-Capture/gating: NAYA form NAHI banaya — EXISTING embed widget
+Capture/gating: NAYA form NAHI banaya - EXISTING embed widget
 (`/b/{slug}/widget.js`) hi capture form hai
 guide me uska note + link daala
 jata hai (reuse, rebuild nahi).
 
 PDF: agar `weasyprint` ya `pdfkit` installed ho to PDF bhi banti hai
-(`available()` pattern) — warna HTML-only, koi nayi dependency NAHI.
+(`available()` pattern) - warna HTML-only, koi nayi dependency NAHI.
 
 Public API (never-raise):
   - available()                                    -> {"weasyprint": bool, "pdfkit": bool}
@@ -43,13 +43,13 @@ _DEFAULT_PRIMARY = "#4f46e5"
 
 # Generic local-marketing checklist (universal fallback tail)
 _GENERIC_POINTS = [
-    "Google Business Profile 100% complete karo — photos, timing, services, sab.",
+    "Google Business Profile 100% complete karo - photos, timing, services, sab.",
     "Har khush customer se Google review maango (QR code counter pe rakho).",
-    "Hafte me kam se kam 3 social media posts — festival, offer, behind-the-scenes.",
-    "Har inquiry ka jawab 5 minute ke andar do — late reply = gaya customer.",
-    "WhatsApp Business use karo — catalog, auto-greeting, quick replies set karo.",
-    "Apne top 3 competitors ke reviews padho — jo unke customers complain karte hain, wahi aap better karo.",
-    "Purane customers ko mahine me ek baar yaad karo — repeat business sabse sasta business hai.",
+    "Hafte me kam se kam 3 social media posts - festival, offer, behind-the-scenes.",
+    "Har inquiry ka jawab 5 minute ke andar do - late reply = gaya customer.",
+    "WhatsApp Business use karo - catalog, auto-greeting, quick replies set karo.",
+    "Apne top 3 competitors ke reviews padho - jo unke customers complain karte hain, wahi aap better karo.",
+    "Purane customers ko mahine me ek baar yaad karo - repeat business sabse sasta business hai.",
     "Apni website/mini-site pe clear phone number + booking button rakho.",
 ]
 
@@ -60,7 +60,7 @@ def _safe_part(s: str) -> str:
 
 
 def available() -> dict[str, bool]:
-    """Optional PDF deps check (no new dep — jo installed ho wahi use)."""
+    """Optional PDF deps check (no new dep - jo installed ho wahi use)."""
     out = {"weasyprint": False, "pdfkit": False}
     try:
         import weasyprint  # noqa: F401
@@ -103,7 +103,7 @@ def _static_points(niche: str, city: str) -> list[str]:
         cfg = NICHES.get(str(niche or "").strip().lower()) or {}
         for focus in cfg.get("content_focus") or []:
             points.append(
-                f"{str(focus).strip().capitalize()} pe regular kaam karo — "
+                f"{str(focus).strip().capitalize()} pe regular kaam karo - "
                 f"{city or 'aapke area'} ke customers yahi dekh ke decide karte hain."
             )
         hook = str(cfg.get("pitch_hook") or "").strip()
@@ -119,13 +119,13 @@ def _static_points(niche: str, city: str) -> list[str]:
 
 
 async def _llm_points(niche: str, city: str, business_name: str) -> list[str]:
-    """Free-LLM 8-10 checklist points — fail par [] (caller static use kare)."""
+    """Free-LLM 8-10 checklist points - fail par [] (caller static use kare)."""
     try:
         from app.voice_agent import free_ai
 
         system = (
             "Tu ek Indian local-business marketing expert hai. Hinglish (Roman "
-            "script) me EK numbered checklist de — 8 se 10 practical, specific "
+            "script) me EK numbered checklist de - 8 se 10 practical, specific "
             "points. Har point ek line (max 25 shabd). Sirf points, koi intro/"
             "outro/heading nahi. Format: har line '1. ...' jaisi."
         )
@@ -288,7 +288,7 @@ async def generate(niche: str, city: str, business_name: str, slug: str = "") ->
         slug = str(slug or "").strip().lower()
 
         niche_label = (niche or "local business").replace("_", " ").title()
-        title = f"{niche_label} {('in ' + city) if city else ''} — naye customers laane ki checklist".strip()
+        title = f"{niche_label} {('in ' + city) if city else ''} - naye customers laane ki checklist".strip()
 
         points = await _llm_points(niche, city, business_name)
         source = "llm"
@@ -320,9 +320,9 @@ async def generate(niche: str, city: str, business_name: str, slug: str = "") ->
         pdf_path = _try_pdf(path, html_content)
 
         capture_note = (
-            "Capture/gating ke liye NAYA form nahi chahiye — apni website pe EXISTING "
+            "Capture/gating ke liye NAYA form nahi chahiye - apni website pe EXISTING "
             f"embed widget lagao (script: {_SITE_URL}/b/{slug or '<slug>'}/widget.js) "
-            "aur 'Free guide chahiye? Enquiry karo' CTA me yeh guide link do — "
+            "aur 'Free guide chahiye? Enquiry karo' CTA me yeh guide link do - "
             "lead aate hi dashboard me dikhegi."
         )
         return {

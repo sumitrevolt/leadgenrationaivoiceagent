@@ -1,11 +1,11 @@
 """Publish-outcome truth on content items (CDOS spec: published_at) +
 calendar status-color truth.
 
-2026-07-07 audit finding: mark_item sirf status+updated_at set karta tha —
+2026-07-07 audit finding: mark_item sirf status+updated_at set karta tha -
 item record kabhi nahi batata tha post KAB publish hua (woh sirf
 delivery_ledger event me tha), aur customer calendar ka color-code
 "published" pe key karta tha jo queue me kabhi occur hi nahi hota
-(asli success-status = "posted") → posted items draft-amber dikhte the.
+(asli success-status = "posted") -> posted items draft-amber dikhte the.
 """
 
 import json
@@ -86,7 +86,7 @@ def test_repeat_posted_keeps_original_published_at(monkeypatch, tmp_path):
 
 
 def test_calendar_colors_cover_real_statuses():
-    """Calendar JS asli queue statuses ko color kare — 'posted' success-color me
+    """Calendar JS asli queue statuses ko color kare - 'posted' success-color me
     (sirf dead 'published' key pe nahi) aur 'skipped' muted me."""
     html = TEMPLATE.read_text(encoding="utf-8")
     assert 'status === "published" || status === "posted"' in html

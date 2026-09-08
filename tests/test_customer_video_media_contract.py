@@ -1,7 +1,7 @@
 """Contract tests for /api/customer/videos/{id}/media HTTP Range + revision gate.
 
 Ported from antigravity/ws3-video-preview-clean (PR #101) and adapted for main's
-revision-gated media endpoint — Range is additive
+revision-gated media endpoint - Range is additive
 version mismatch stays 409.
 """
 

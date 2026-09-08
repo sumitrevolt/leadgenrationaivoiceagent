@@ -1,4 +1,4 @@
-"""STAFF bus — 31-agent manifest, envelope security, synthetic canaries."""
+"""STAFF bus - 31-agent manifest, envelope security, synthetic canaries."""
 
 from __future__ import annotations
 

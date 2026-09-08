@@ -1,7 +1,7 @@
-"""W1.15 — daily digest gets a phone push channel (ntfy), gated + additive.
+"""W1.15 - daily digest gets a phone push channel (ntfy), gated + additive.
 
 `run_digest` persisted to a file, logged a manager event, and (if NOTIFY_EMAIL set)
-emailed — but had NO phone-push channel, so the founder's daily digest could sit unseen
+emailed - but had NO phone-push channel, so the founder's daily digest could sit unseen
 in an inbox. Fix: a best-effort ntfy push, gated by DIGEST_NTFY (default OFF = inert),
 so it ships additively and is switched on by the user.
 """

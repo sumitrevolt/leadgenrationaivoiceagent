@@ -1,4 +1,4 @@
-"""blueprint_ownership.py — reviewed, evidence-backed domain ownership rules.
+"""blueprint_ownership.py - reviewed, evidence-backed domain ownership rules.
 
 This is NOT a "package prefix equals domain" heuristic. Every prefix below was
 opened and read file-by-file
@@ -6,7 +6,7 @@ packages that turned out to mix domains are
 either carved up with explicit ``exclude_prefixes`` / ``exclude_stems`` or
 REJECTED outright (see ``REJECTED_ROOTS``).
 
-Ownership is only ONE signal. It can never produce HIGH confidence on its own —
+Ownership is only ONE signal. It can never produce HIGH confidence on its own -
 ``scripts/blueprint_derive.py`` still requires independent corroboration, and
 critical domains require two non-AST signals. A directory or file name is never
 sufficient evidence.
@@ -22,18 +22,18 @@ from typing import Any
 # public_landing).
 REJECTED_ROOTS: dict[str, str] = {
     "app/api/": "113 modules spanning every domain (routers for billing, voice, "
-    "growth, admin, customer, marketing) — shared HTTP surface.",
+    "growth, admin, customer, marketing) - shared HTTP surface.",
     "app/platform/": "160 modules: scheduler, team, owner_os, delivery, tenancy, "
-    "agent runtime — the widest shared package in the repo.",
+    "agent runtime - the widest shared package in the repo.",
     "app/models/": "shared SQLAlchemy models used by every domain.",
     "app/utils/": "logging/helpers used everywhere.",
     "app/middleware/": "cross-cutting request middleware.",
     "app/integrations/": "mixed: third-party connectors AND a nested Owner-OS "
     "subtree (owner_os_adapter, harness_commands, policies, "
-    "auth, audit) — carve out by exact file instead.",
+    "auth, audit) - carve out by exact file instead.",
     "app/tasks/": "Celery task modules whose business domains differ per file "
     "(calling, video_jobs, scraping, reporting).",
-    "app/agents/": "agent runtime plus growth/sales optimisers — needs per-file "
+    "app/agents/": "agent runtime plus growth/sales optimisers - needs per-file "
     "review before any wholesale claim.",
     "app/ml/": "shared model training/serving utilities.",
     "app/llm/": "shared provider plumbing.",
@@ -110,7 +110,7 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
         "exclude_stems": ["idempotency"],
         "exact_files": [],
         "evidence": [
-            "app/billing/ read: 10 modules — subscription, invoice, "
+            "app/billing/ read: 10 modules - subscription, invoice, "
             "usage, dunning, entitlement. Only idempotency.py is shared."
         ],
         "critical": True,
@@ -155,7 +155,7 @@ DOMAIN_OWNERSHIP_RULES: dict[str, dict[str, Any]] = {
         ],
         "evidence": [
             "OpenClaw Owner-Copilot subtree nested under "
-            "app/integrations/ — ADR-OPENCLAW-OWNER-COPILOT."
+            "app/integrations/ - ADR-OPENCLAW-OWNER-COPILOT."
         ],
         "critical": True,
         "requires_corroboration": True,

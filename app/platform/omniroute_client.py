@@ -1,10 +1,10 @@
-"""OmniRoute dev-tooling gateway — optional additive AI-routing fallback.
+"""OmniRoute dev-tooling gateway - optional additive AI-routing fallback.
 
 Audit 2026-07-12 (see docs/OMNIROUTE_ENGINEERING_RUNBOOK.md for full context).
 
 STATUS: INERT by default. `OMNIROUTE_ENABLED` unset/0 = this module is never called
 by anything in the request path. free_ai.py's existing provider chain is completely
-unmodified and unconditional — this file does NOT replace or wrap it.
+unmodified and unconditional - this file does NOT replace or wrap it.
 
 Why INERT: the local OmniRoute instance (WSL, v3.8.46, http://127.0.0.1:20128) has
 authenticated dashboard and data-plane access, but LeadGen intentionally does not
@@ -14,7 +14,7 @@ never become a mandatory dependency or a production customer-data route.
 
 Once Sumit completes setup and an OMNIROUTE_API_KEY exists (Windows user env var,
 never committed), this module is the additive hook LeadGen code MAY optionally call
-— it must NOT become mandatory, and free_ai.py's existing fallback chain must keep
+- it must NOT become mandatory, and free_ai.py's existing fallback chain must keep
 working even if OmniRoute is fully down (degraded mode, not a hard dependency).
 
 Usage (only after a sanitized dev-only route is verified and explicitly enabled):
@@ -47,7 +47,7 @@ _DEFAULT_MAX_OUTPUT_TOKENS = 1024
 def _provider_label(requested_model: str, resolved_model: str | None = None) -> str:
     """Honest provider tag for logs/metrics.
 
-    Gateway combo ids (e.g. ``leadgen-free-first``) have no ``provider/`` prefix —
+    Gateway combo ids (e.g. ``leadgen-free-first``) have no ``provider/`` prefix -
     do NOT pretend the combo name is a provider. Prefer the gateway-resolved
     model when it carries ``provider/model``
     else label bare/combo ids ``combo``.
@@ -87,7 +87,7 @@ class OmniRouteResult:
 # 2026-09-05 CANONICAL 14-COMBO MAP (see scripts/seed_omniroute_14combos.py).
 #
 # The gateway (leadgen_omniroute Docker, :20128) now holds EXACTLY 14 canonical
-# combos `leadsgen combo 1..14` — each with 3 live free-tier model lanes, each
+# combos `leadsgen combo 1..14` - each with 3 live free-tier model lanes, each
 # bound to ONE worker email API key. Legacy names (leadgen-free-first, claude-code,
 # hermes-*, vps-01/02) are registered as SAME-UUID aliases for backward compat, but
 # the app routing now points at the CANONICAL ids so every combo actually powers
@@ -175,7 +175,7 @@ def list_task_routes() -> dict[str, OmniRouteRoute]:
 
 
 def omniroute_enabled() -> bool:
-    """Master flag check — mirrors the AUTOMATION_FLAGS registry entry."""
+    """Master flag check - mirrors the AUTOMATION_FLAGS registry entry."""
     return os.getenv("OMNIROUTE_ENABLED", "0").strip().lower() in ("1", "true", "yes")
 
 
@@ -189,7 +189,7 @@ def omniroute_available() -> bool:
         return False
     if not os.getenv("OMNIROUTE_API_KEY"):
         logger.warning(
-            "[omniroute_client] OMNIROUTE_ENABLED=1 but OMNIROUTE_API_KEY is not set — "
+            "[omniroute_client] OMNIROUTE_ENABLED=1 but OMNIROUTE_API_KEY is not set - "
             "treating as unavailable (fail-open, existing free_ai chain handles the call)."
         )
         return False
@@ -206,15 +206,15 @@ def agents_enabled() -> bool:
 def resolve_agent_task(agent_key: str | None = None, product: str | None = None) -> str | None:
     """Pick OmniRoute task for a staff agent, or None if policy forbids.
 
-    Unknown/sensitive agents return None → caller stays on free_ai (fail-open).
+    Unknown/sensitive agents return None -> caller stays on free_ai (fail-open).
     """
     try:
         from app.platform.agent_os_routing import get_agent_policy, omniroute_allowed_for_agent
-    except Exception:  # pragma: no cover — defensive import
+    except Exception:  # pragma: no cover - defensive import
         return "leadgen.agent_ops" if agent_key is None else None
 
     if not agent_key:
-        # Generic bulk hook (free_ai) — shared sanitized ops route only.
+        # Generic bulk hook (free_ai) - shared sanitized ops route only.
         return "leadgen.agent_ops"
     if not omniroute_allowed_for_agent(agent_key, product):
         logger.info(
@@ -262,11 +262,11 @@ async def try_agent_chat(
     agent_key: str | None = None,
     product: str | None = None,
 ) -> str | None:
-    """Optional staff-agent pre-hook (ADR-108/109) — NEVER raises, fail-open.
+    """Optional staff-agent pre-hook (ADR-108/109) - NEVER raises, fail-open.
 
     Returns sanitized OmniRoute text ya None (None = caller apni existing free_ai
     chain use kare, unchanged). Voice/realtime callers ko yeh function call hi
-    nahi karna chahiye — free_ai.chat hook sirf profile=bulk pe engage hota hai.
+    nahi karna chahiye - free_ai.chat hook sirf profile=bulk pe engage hota hai.
 
     When ``agent_key`` is set, ``agent_os_routing`` may forbid OmniRoute entirely
     (billing/voice/compliance) even if flags are ON.
@@ -296,7 +296,7 @@ async def try_agent_chat(
             skip_reason="safe_payload_error",
         )
         return None
-    except Exception as exc:  # pragma: no cover — defensive, agent kabhi na gire
+    except Exception as exc:  # pragma: no cover - defensive, agent kabhi na gire
         logger.warning("[omniroute_client] agent hook error: %s", type(exc).__name__)
         _log_route_decision(
             task_type=task,
@@ -333,7 +333,7 @@ async def try_agent_chat(
 def omniroute_client() -> Any | None:
     """Return an AsyncOpenAI-compatible client pointed at OmniRoute, or None.
 
-    Never raises — callers should always have a fallback path if this returns None.
+    Never raises - callers should always have a fallback path if this returns None.
     """
     if not omniroute_available():
         return None

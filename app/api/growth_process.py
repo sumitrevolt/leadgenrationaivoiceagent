@@ -81,7 +81,7 @@ class ProcessApproveIn(BaseModel):
 
 @router.post("/process/run/{run_id}/approve")
 async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(require_admin)):
-    """Breakpoint APPROVE → run resume (Celery tick)."""
+    """Breakpoint APPROVE -> run resume (Celery tick)."""
     from app.agents import flow_dispatch
 
     r = flow_dispatch.approve(
@@ -109,7 +109,7 @@ async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(req
 
 @router.post("/process/run/{run_id}/reject")
 async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(require_admin)):
-    """Breakpoint REJECT → run failed (audit trail)."""
+    """Breakpoint REJECT -> run failed (audit trail)."""
     from app.agents import flow_dispatch
 
     return flow_dispatch.reject(

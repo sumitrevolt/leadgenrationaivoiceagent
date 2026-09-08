@@ -41,7 +41,7 @@ def test_bulk_sender_never_raises():
 
 # --------------------------------------------------------------------------- #
 # Bounce/NDR guard (2026-07-04): mailer-daemon/postmaster bounces were falling
-# into the junk-guard above and silently discarded — email_warmup never learned
+# into the junk-guard above and silently discarded - email_warmup never learned
 # about real bounces, so bounce_rate_7d stayed ~0% regardless of actual
 # deliverability (outreach_quality funnel: 0 replies / 1875 sends, no visibility
 # into why). These lock in the fix: bounce mail must be detected BEFORE the
@@ -63,7 +63,7 @@ def test_bounce_message_subject_patterns():
         "system@example.com", _msg(), "Mail delivery failed: returning message to sender"
     )
     assert not reply_agent._is_bounce_message(
-        "sharma.solar@gmail.com", _msg(), "Re: your email — interested"
+        "sharma.solar@gmail.com", _msg(), "Re: your email - interested"
     )
 
 

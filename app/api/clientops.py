@@ -1,20 +1,20 @@
-"""ClientOps API — agency client-operations batch (speed-to-lead, approvals,
+"""ClientOps API - agency client-operations batch (speed-to-lead, approvals,
 snapshots, lead routing, proposal tracking).
 
   GET  /api/clientops/speed-to-lead               (admin)  first-touch metric + verdict
   POST /api/clientops/approval                    (admin)  content approval submit
   GET  /api/clientops/approvals                   (admin)  list (pending/all)
   GET  /api/clientops/approve/{token}             (PUBLIC, 10/60s) client 1-click
-                                                  approve|reject — Hinglish HTML
+                                                  approve|reject - Hinglish HTML
   POST /api/clientops/snapshots/capture           (admin)  GHL-style setup snapshot
   POST /api/clientops/snapshots/capture-niche     (admin)  niche template snapshot
   GET  /api/clientops/snapshots                   (admin)  list snapshots
   GET  /api/clientops/snapshots/{id}              (admin)  snapshot detail
   POST /api/clientops/snapshots/{id}/apply        (admin)  apply on target client
-  POST /api/clientops/snapshots/apply-niche       (admin)  1-click niche → client
+  POST /api/clientops/snapshots/apply-niche       (admin)  1-click niche -> client
   POST /api/clientops/routing                     (admin)  team round-robin config
   GET  /api/clientops/routing                     (admin)  config view
-  POST /api/clientops/routing/assign              (admin)  assign lead → member + wa link
+  POST /api/clientops/routing/assign              (admin)  assign lead -> member + wa link
   GET  /api/clientops/routing/assignments         (admin)  recent assignments
   POST /api/clientops/track-proposal              (admin)  trackable proposal link
   GET  /api/clientops/p/{token}                   (PUBLIC, 60/60s) view-log + 302/HTML
@@ -25,8 +25,8 @@ Mount (main session):
     app.include_router(clientops_router, prefix="/api")   # /api/clientops/*
 
 Sab additive + free-stack + never-raise (modules error dicts dete). Koi
-ML/KB/LLM/heavy-sync NAHI — public paths pure file-IO light (prod-down lesson).
-Koi naya env flag nahi — sab read/draft-safe by design.
+ML/KB/LLM/heavy-sync NAHI - public paths pure file-IO light (prod-down lesson).
+Koi naya env flag nahi - sab read/draft-safe by design.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ router = APIRouter(prefix="/clientops", tags=["ClientOps"])
 # ------------------------- F1: speed-to-lead (admin) ----------------------- #
 @router.get("/speed-to-lead")
 async def speed_to_lead(days: int = Query(30, ge=1, le=365), _user=Depends(require_admin)):
-    """Inquiry → first-touch time (alerts/dialer evidence se, READ-only) + verdict."""
+    """Inquiry -> first-touch time (alerts/dialer evidence se, READ-only) + verdict."""
     from app.platform import speed_to_lead as stl
 
     return stl.summary(days)
@@ -62,7 +62,7 @@ class ApprovalIn(BaseModel):
 
 @router.post("/approval")
 async def submit_approval(body: ApprovalIn, _user=Depends(require_admin)):
-    """Content client-approval me daalo — token link + WA share draft milta."""
+    """Content client-approval me daalo - token link + WA share draft milta."""
     from app.marketing import content_approval
 
     return content_approval.submit(body.client_id, body.content)
@@ -74,13 +74,13 @@ async def list_approvals(
     status: str = Query("", max_length=12),
     _user=Depends(require_admin),
 ):
-    """Approvals list — ?status=pending se sirf pending.
+    """Approvals list - ?status=pending se sirf pending.
 
     ADR-104 (2026-07-15, Priority 3): each row now also carries
     ``business_name`` (and ``client_status``) so the admin Approvals table
     can show a readable business name instead of the raw opaque client id.
-    One bulk ``list_clients()`` call builds an id→name map (single file
-    read, not a per-row lookup) — deleted/missing clients degrade to the
+    One bulk ``list_clients()`` call builds an id->name map (single file
+    read, not a per-row lookup) - deleted/missing clients degrade to the
     raw id, never raise. Only the public business name is exposed here,
     never phone/email/other client fields.
     """
@@ -100,7 +100,7 @@ async def list_approvals(
             for c in list_clients()
             if c.get("id")
         }
-    except Exception as _e:  # pragma: no cover — never let enrichment break the list
+    except Exception as _e:  # pragma: no cover - never let enrichment break the list
         logger.debug("approvals business_name enrichment skipped: %s", _e)
         name_by_id = {}
 
@@ -124,7 +124,7 @@ async def admin_decide_approval(
     body: ApprovalDecideIn,
     _user=Depends(require_admin),
 ):
-    """Admin dashboard se content approve/reject — token link ki zaroorat nahi."""
+    """Admin dashboard se content approve/reject - token link ki zaroorat nahi."""
     from app.marketing import content_approval
 
     act = "reject" if str(body.action or "").strip().lower() == "reject" else "approve"
@@ -168,14 +168,14 @@ async def public_approve(
     action: str = Query("approve", max_length=10),
     note: str = Query("", max_length=300),
 ):
-    """Client ka 1-click approve/reject (PUBLIC, rate-limited) — Hinglish HTML.
+    """Client ka 1-click approve/reject (PUBLIC, rate-limited) - Hinglish HTML.
 
     CONTAINMENT (Stage 3B-close): a VIDEO approval may no longer be decided
     here. This route is unauthenticated and the token carries no binding to
     tenant, record, revision or content hash, so possession of a URL used to be
     enough to mark a video finally approved and publishable.
 
-    The refusal happens BEFORE any decision is persisted — not after — so the
+    The refusal happens BEFORE any decision is persisted - not after - so the
     approval record and the video record are left byte-identical.
     """
     from fastapi.responses import HTMLResponse
@@ -192,7 +192,7 @@ async def public_approve(
                 "error": "approval_token_regeneration_required",
                 "detail": (
                     "Is video ka approval link purana hai. Dashboard se approve "
-                    "karein — hum naya secure link bhej rahe hain."
+                    "karein - hum naya secure link bhej rahe hain."
                 ),
             }
             return HTMLResponse(
@@ -228,7 +228,7 @@ async def snapshot_capture(body: SnapshotCaptureIn, _user=Depends(require_admin)
 
 @router.post("/snapshots/capture-niche")
 async def snapshot_capture_niche(body: SnapshotNicheCaptureIn, _user=Depends(require_admin)):
-    """Niche se GHL-style template snapshot — golden client ki zaroorat nahi."""
+    """Niche se GHL-style template snapshot - golden client ki zaroorat nahi."""
     from app.platform import client_snapshots
 
     return client_snapshots.capture_from_niche(body.niche, body.name or "")
@@ -264,7 +264,7 @@ class SnapshotApplyIn(BaseModel):
 
 @router.post("/snapshots/{snapshot_id}/apply")
 async def snapshot_apply(snapshot_id: str, body: SnapshotApplyIn, _user=Depends(require_admin)):
-    """Snapshot naye client pe lagao — naye records append, source untouched."""
+    """Snapshot naye client pe lagao - naye records append, source untouched."""
     from app.platform import client_snapshots
 
     return client_snapshots.apply(snapshot_id, body.target_client_id)
@@ -292,7 +292,7 @@ class RoutingConfigIn(BaseModel):
 
 @router.post("/routing")
 async def routing_set(body: RoutingConfigIn, _user=Depends(require_admin)):
-    """Client ki team set karo — leads round-robin me bantenge."""
+    """Client ki team set karo - leads round-robin me bantenge."""
     from app.platform import lead_distribution
 
     return lead_distribution.set_config(body.client_id, body.members, body.mode or "round_robin")
@@ -316,7 +316,7 @@ class AssignIn(BaseModel):
 
 @router.post("/routing/assign")
 async def routing_assign(body: AssignIn, _user=Depends(require_admin)):
-    """Lead next member ko do — assignment log + WA 1-click handoff link."""
+    """Lead next member ko do - assignment log + WA 1-click handoff link."""
     from app.platform import lead_distribution
 
     return lead_distribution.assign(body.client_id, body.lead)
@@ -352,8 +352,8 @@ async def track_proposal(body: TrackProposalIn, _user=Depends(require_admin)):
 
 @router.get("/p/{token}", dependencies=[Depends(rate_limit("proposal_view", 60, 60))])
 async def proposal_open(token: str, request: Request):
-    """PUBLIC — view log karke proposal dikhao (302 ya stored HTML).
-    Unknown token → homepage redirect (kabhi 404 nahi — purane links graceful)."""
+    """PUBLIC - view log karke proposal dikhao (302 ya stored HTML).
+    Unknown token -> homepage redirect (kabhi 404 nahi - purane links graceful)."""
     from fastapi.responses import HTMLResponse, RedirectResponse
 
     from app.platform import proposal_tracking
@@ -389,7 +389,7 @@ async def proposal_views(token: str = Query("", max_length=64), _user=Depends(re
 # ----------------------- F6: AI video-ad cycle (every-N-day) ---------------- #
 @router.get("/video-ads")
 async def video_ads_list(client_id: str = Query("", max_length=60), _user=Depends(require_admin)):
-    """AI video ads list (admin) — ?client_id= filter. Status: pending/approved/
+    """AI video ads list (admin) - ?client_id= filter. Status: pending/approved/
     published/changes_requested/held_max_revisions."""
     from app.marketing import video_ad_cycle
 
@@ -427,7 +427,7 @@ class VideoAdChangesIn(BaseModel):
 async def video_ads_request_changes(
     approval_id: str, body: VideoAdChangesIn, _user=Depends(require_admin)
 ):
-    """Client ne change maanga (admin/support entry) — reject + naya version queue."""
+    """Client ne change maanga (admin/support entry) - reject + naya version queue."""
     from app.marketing import video_ad_cycle
 
     return await video_ad_cycle.request_changes(approval_id, body.note or "")
@@ -463,7 +463,7 @@ async def video_daily_run(_user=Depends(require_admin)):
     """Manually fire one daily-video producer pass (enqueue-only, no ffmpeg here).
 
     Safe to call from the web process precisely because the producer never
-    renders — it dispatches to the video Celery queue. Same-day duplicates are
+    renders - it dispatches to the video Celery queue. Same-day duplicates are
     refused by the producer's state file and the task's Redis idempotency key.
     """
     from app.marketing import daily_video
@@ -479,7 +479,7 @@ async def video_daily_clear_block(
 
     A `needs_customer_input` / `blocked` refusal from Creative OS will not fix
     itself, and retrying it daily burns CREATIVE_TENANT_DAILY_BUDGET on records
-    that never render — so the producer parks the tenant on the classic engine.
+    that never render - so the producer parks the tenant on the classic engine.
     Call this after completing the customer's offer/brand facts. Blocks also
     auto-expire after DAILY_VIDEO_ADVANCED_BLOCK_DAYS.
     """
@@ -499,7 +499,7 @@ class VideoCellGenIn(BaseModel):
 
 @router.post("/video-production/generate")
 async def video_production_generate(body: VideoCellGenIn, _user=Depends(require_admin)):
-    """Governed generate via Video Production Cell (HEAVY — background)."""
+    """Governed generate via Video Production Cell (HEAVY - background)."""
     import asyncio
 
     from app.marketing.video_production import cell
@@ -645,7 +645,7 @@ async def creative_os_publish_gate(
     client_id: str = Query(..., max_length=60),
     _user=Depends(require_admin),
 ):
-    """Exact-hash + VIDEO_SOCIAL_PUBLISH gate — never auto-publishes."""
+    """Exact-hash + VIDEO_SOCIAL_PUBLISH gate - never auto-publishes."""
     from app.marketing.creative_os.service import publish_gate
 
     return publish_gate(client_id, creative_id)
@@ -665,9 +665,9 @@ async def creative_os_customer_view(
 
 @router.get("/gsc/overview")
 async def gsc_overview(_user=Depends(require_admin)):
-    """Google Search Console rank snapshot overview — latest aggregates +
+    """Google Search Console rank snapshot overview - latest aggregates +
     30-day trend for the admin control surface. No-op/empty if GSC_ENABLED=0
-    ya creds nahi hain (integration INERT by design — app/integrations/gsc.py)."""
+    ya creds nahi hain (integration INERT by design - app/integrations/gsc.py)."""
     from app.integrations import gsc
 
     return {
@@ -684,15 +684,15 @@ async def posthog_funnel_overview(
     payload: int = Query(0, ge=0, le=1),
     _user=Depends(require_admin),
 ):
-    """Inquiry → paid funnel insight (PostHog) — business_type/niche split.
+    """Inquiry -> paid funnel insight (PostHog) - business_type/niche split.
 
     - capture_enabled: lead_captured/payment_activated events dono ab business_type
       + niche properties carry karte hain (PostHog me funnel breakdown chalta hai).
-    - payload=1: exact FUNNELS filters JSON — PostHog UI me paste karne ke liye
+    - payload=1: exact FUNNELS filters JSON - PostHog UI me paste karne ke liye
       (jab personal API key nahi hai).
     - create=1: PostHog API se insight banao (POSTHOG_PERSONAL_API_KEY phx_
       chahiye
-      phc_ key private endpoints pe nahi chalta — INERT by design).
+      phc_ key private endpoints pe nahi chalta - INERT by design).
     """
     from app.analytics import posthog_client as _ph
     from app.integrations import posthog_funnel as pf

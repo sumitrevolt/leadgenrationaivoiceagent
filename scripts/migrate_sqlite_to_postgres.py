@@ -4,7 +4,7 @@ Safe, verified SQLite -> Postgres data migration.
 
 WHAT IT DOES
   1. Builds the FULL, correctly-typed schema on the target Postgres using the
-     app's own ORM models (Base.metadata.create_all) — same path the app uses.
+     app's own ORM models (Base.metadata.create_all) - same path the app uses.
   2. Reflects the source SQLite DB to discover the tables/rows that actually exist.
   3. Copies every table present in BOTH, in FK-safe order, coercing SQLite's
      loosely-typed values (0/1 -> bool, ISO strings -> datetime) into the proper
@@ -16,7 +16,7 @@ SAFETY
   * Read-only on the source SQLite file.
   * Idempotent: a target table that ALREADY has rows is SKIPPED (warning),
     unless you pass --wipe (TRUNCATE first) or --force (insert anyway).
-  * `alembic_version` is intentionally NOT copied — run `alembic upgrade head`
+  * `alembic_version` is intentionally NOT copied - run `alembic upgrade head`
     after this (or let app startup stamp it).
 
 USAGE
@@ -63,7 +63,7 @@ def _load_models_metadata() -> MetaData:
             __import__(mod)
         except Exception:
             pass
-    # Most reliable: import the full app — it wires up EVERY model module exactly
+    # Most reliable: import the full app - it wires up EVERY model module exactly
     # like the live app's create_all() does, so no table is silently missed.
     try:
         import app.main  # noqa: F401
@@ -116,7 +116,7 @@ def migrate(sqlite_url: str, pg_url: str, *, wipe: bool, force: bool, batch: int
     print(f"TARGET : {dst.url.render_as_string(hide_password=True)}")
     print(f"TABLES : {len(metadata.tables)} known to the ORM\n")
 
-    # 1) Build schema on target (idempotent — only creates missing tables).
+    # 1) Build schema on target (idempotent - only creates missing tables).
     metadata.create_all(dst)
     print("[schema] create_all() done on target\n")
 
@@ -128,7 +128,7 @@ def migrate(sqlite_url: str, pg_url: str, *, wipe: bool, force: bool, batch: int
 
     with src.connect() as sconn, dst.begin() as dconn:
         # Disable FK enforcement on Postgres during bulk load so the copy faithfully
-        # replicates SQLite (which doesn't enforce FKs — prod has some orphan rows).
+        # replicates SQLite (which doesn't enforce FKs - prod has some orphan rows).
         is_pg = dconn.dialect.name == "postgresql"
         if is_pg:
             dconn.execute(text("SET session_replication_role = replica"))

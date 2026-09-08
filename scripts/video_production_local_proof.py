@@ -1,4 +1,4 @@
-"""Stage-0 local render proof — 9:16 / 1:1 / 16:9 sample videos + ffprobe QA.
+"""Stage-0 local render proof - 9:16 / 1:1 / 16:9 sample videos + ffprobe QA.
 
 Usage:
   .venv\\Scripts\\python.exe scripts\\video_production_local_proof.py
@@ -30,7 +30,7 @@ async def main() -> int:
     video_pipeline._OUT_DIR = OUT  # noqa: SLF001
 
     slides = [
-        "LeadGen AI — Daily Video Proof",
+        "LeadGen AI - Daily Video Proof",
         "Free-stack FFmpeg render",
         "Customer approval required before publish",
     ]

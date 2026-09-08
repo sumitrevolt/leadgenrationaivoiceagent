@@ -1,5 +1,5 @@
 """
-missed_call.py — Missed call WhatsApp auto-reply generator.
+missed_call.py - Missed call WhatsApp auto-reply generator.
 =============================================================
 
 Generates follow-up messages for clients when they miss a call from a customer.

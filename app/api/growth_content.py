@@ -56,7 +56,7 @@ class MultilangIn(BaseModel):
 
 @router.post("/content/multilang")
 async def content_multilang(body: MultilangIn, _user=Depends(require_admin)):
-    """Caption → Hindi/Marathi/Hinglish versions (local reach 2-3x)."""
+    """Caption -> Hindi/Marathi/Hinglish versions (local reach 2-3x)."""
     from app.marketing import multilang_post
 
     return await multilang_post.translate_post(body.caption, body.langs)

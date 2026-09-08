@@ -1,4 +1,4 @@
-"""W3.2 — staff-job happy-path smoke tests (run_ops / run_trainer).
+"""W3.2 - staff-job happy-path smoke tests (run_ops / run_trainer).
 
 run_qa and run_digest already have behavioural tests (W2.2 niches, W1.15 push, W2.4
 synthesis) and every job's failure path is covered by W1.14. This closes the gap:
@@ -16,7 +16,7 @@ from app.platform import team
 
 def test_run_ops_returns_health_dict(monkeypatch):
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
-    # keep the health snapshot pure — no real DB deletes / file trims
+    # keep the health snapshot pure - no real DB deletes / file trims
     monkeypatch.setattr(staff, "_prune_old_events", lambda *a, **k: 0)
     monkeypatch.setattr(staff, "_prune_old_transcripts", lambda *a, **k: 0)
     monkeypatch.setattr(staff, "_prune_jsonl_stores", lambda *a, **k: 0)
@@ -31,7 +31,7 @@ def test_run_trainer_returns_dict(monkeypatch):
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
     res = asyncio.run(staff.run_trainer())
     assert isinstance(res, dict)
-    # no transcripts in the test env → {"calls": 0}; otherwise a suggestions payload
+    # no transcripts in the test env -> {"calls": 0}; otherwise a suggestions payload
     assert "calls" in res or "suggestions" in res
 
 

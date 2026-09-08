@@ -2,7 +2,7 @@
 Guardrails Layer (Production)
 =============================
 
-Retell / Bland / Galileo / Arthur jaisa GUARDRAILS layer — AI voice agent ko
+Retell / Bland / Galileo / Arthur jaisa GUARDRAILS layer - AI voice agent ko
 production-safe banata hai. Do jagah lagta hai:
 
   PRE-LLM  (check_input)  -> customer ka text LLM tak jaane se PEHLE:
@@ -85,18 +85,18 @@ class GuardrailResult:
 # --------------------------------------------------------------------------- #
 # Pre-compiled patterns (fast, pure-python, no external services)
 # --------------------------------------------------------------------------- #
-# PII — ORDER MATTERS: Aadhaar/card (longer digit runs) ko phone se PEHLE redact
+# PII - ORDER MATTERS: Aadhaar/card (longer digit runs) ko phone se PEHLE redact
 # karo, warna phone regex unke andar match kar lega.
 _PII_PATTERNS: list[tuple[str, Pattern]] = [
-    # Email — phone se pehle (warna numbers in email accidentally match ho sakte hain)
+    # Email - phone se pehle (warna numbers in email accidentally match ho sakte hain)
     ("[REDACTED_EMAIL]", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
-    # Credit/debit card — 13-16 digits, optional space/hyphen separators
+    # Credit/debit card - 13-16 digits, optional space/hyphen separators
     ("[REDACTED_CARD]", re.compile(r"\b(?:\d[ \-]?){13,16}\b")),
-    # Aadhaar — 12 digits, often grouped 4-4-4
+    # Aadhaar - 12 digits, often grouped 4-4-4
     ("[REDACTED_AADHAAR]", re.compile(r"\b\d{4}[ \-]?\d{4}[ \-]?\d{4}\b")),
-    # PAN — 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)
+    # PAN - 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)
     ("[REDACTED_PAN]", re.compile(r"\b[A-Za-z]{5}\d{4}[A-Za-z]\b")),
-    # UPI id — name@bank (e.g. ratan@okhdfc, 9876543210@ybl)
+    # UPI id - name@bank (e.g. ratan@okhdfc, 9876543210@ybl)
     (
         "[REDACTED_UPI]",
         re.compile(
@@ -104,13 +104,13 @@ _PII_PATTERNS: list[tuple[str, Pattern]] = [
             re.IGNORECASE,
         ),
     ),
-    # Indian phone — +91 / 0 prefix optional, 10 digits starting 6-9.
+    # Indian phone - +91 / 0 prefix optional, 10 digits starting 6-9.
     # Allow arbitrary single space/hyphen grouping inside the 10 digits
     # (e.g. 9876543210, 98765-43210, 98765 43210, +91 987 654 3210).
     ("[REDACTED_PHONE]", re.compile(r"(?<!\d)(?:\+?91[\-\s]?|0)?[6-9]\d(?:[\-\s]?\d){8}(?!\d)")),
 ]
 
-# Prompt-injection / jailbreak — substring (lowercased) match, fast.
+# Prompt-injection / jailbreak - substring (lowercased) match, fast.
 _INJECTION_PHRASES: list[str] = [
     "ignore previous instructions",
     "ignore all previous instructions",
@@ -150,7 +150,7 @@ _INJECTION_PHRASES: list[str] = [
     "tum ab",
 ]
 
-# Profanity — mild hi+en list (flag only, not auto-block).
+# Profanity - mild hi+en list (flag only, not auto-block).
 _PROFANITY_WORDS: list[str] = [
     "fuck",
     "shit",
@@ -245,7 +245,7 @@ _ADVICE_TRIGGERS: list[str] = [
     "kanooni salah",
 ]
 
-# Robotic phrases — rewrite (strip), not block.
+# Robotic phrases - rewrite (strip), not block.
 _ROBOTIC_PHRASES: list[str] = [
     "as an ai language model",
     "as an ai",
@@ -259,11 +259,11 @@ _ROBOTIC_PHRASES: list[str] = [
 
 # Safe fallback lines (jab output block ho jaye).
 _SAFE_OUTPUT_FALLBACK = (
-    "Maaf kijiye, woh detail main yahin confirm nahi kar sakti — "
+    "Maaf kijiye, woh detail main yahin confirm nahi kar sakti - "
     "main aapke liye humari team se exact info confirm karwa deti hoon."
 )
 _SAFE_REWRITE_FALLBACK = (
-    "Achha sawaal — exact detail main aapke liye team se confirm karwa deti hoon."
+    "Achha sawaal - exact detail main aapke liye team se confirm karwa deti hoon."
 )
 
 
@@ -275,7 +275,7 @@ class Guardrails:
     Rule-based, sub-200ms guardrails for the voice agent.
 
     Defensive by design: koi bhi check exception de to woh check skip ho jata hai
-    (fail-open for the specific rule) — poora pipeline kabhi crash nahi karta.
+    (fail-open for the specific rule) - poora pipeline kabhi crash nahi karta.
 
     Args:
         extra_blocklist     : extra injection/jailbreak phrases (lowercased match).
@@ -322,7 +322,7 @@ class Guardrails:
         """
         Reusable PII redaction (logs / transcripts ke liye bhi).
         Phone, email, Aadhaar, PAN, credit-card, UPI -> [REDACTED_*].
-        Kabhi crash nahi — error pe original text wapas.
+        Kabhi crash nahi - error pe original text wapas.
         """
         if not text:
             return text or ""
@@ -366,7 +366,7 @@ class Guardrails:
             original = text or ""
             violations: list[str] = []
 
-            # 1) PII redact (hamesha — chahe block ho ya na ho)
+            # 1) PII redact (hamesha - chahe block ho ya na ho)
             redacted = self.redact_pii(original)
             if redacted != original:
                 violations.append("pii_redacted")
@@ -531,7 +531,7 @@ class Guardrails:
                 )
 
             if violations:
-                # sirf robotic-strip type changes the —> rewrite/allow
+                # sirf robotic-strip type changes the -> rewrite/allow
                 action = "rewrite" if safe != original else "allow"
                 return GuardrailResult(
                     allowed=True,
@@ -572,7 +572,7 @@ class Guardrails:
                 if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", low_text):
                     return p
             except Exception:
-                if p in low_text:  # regex edge-case → safe substring fallback
+                if p in low_text:  # regex edge-case -> safe substring fallback
                     return p
         return None
 

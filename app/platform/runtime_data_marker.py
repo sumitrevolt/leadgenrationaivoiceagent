@@ -1,11 +1,11 @@
-"""Cutover marker — schema and validator ONLY. Never written to production here.
+"""Cutover marker - schema and validator ONLY. Never written to production here.
 
 The marker answers one question: *has the external runtime root been verified to
 hold this exact set of migrated stores, from this exact release?*
 
 It must represent **verified** state, not merely configured state. A marker that
 says "configured" would let a destructive deploy proceed over data nobody
-actually checked — which is the whole failure this control plane exists to stop.
+actually checked - which is the whole failure this control plane exists to stop.
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ def validate_marker(
 
     if not str(marker["rollback_reference"] or "").strip():
         problems.append(
-            "rollback_reference is empty — a cutover without a documented rollback is not a cutover"
+            "rollback_reference is empty - a cutover without a documented rollback is not a cutover"
         )
 
     ids = list(marker["migrated_store_ids"] or [])

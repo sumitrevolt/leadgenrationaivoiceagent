@@ -54,7 +54,7 @@ def test_protected_path_hits_fail_closed():
     assert "app/billing/packages.py" in hits
     assert ".env" in hits
     assert "tests/ok.py" not in hits
-    # an unparseable path (absolute) is itself a hit — never silently ignored
+    # an unparseable path (absolute) is itself a hit - never silently ignored
     assert protected_path_hits(["C:/Windows/evil.py"]) != []
 
 

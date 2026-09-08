@@ -77,7 +77,7 @@ TEMPLATE_REGISTRY: dict[str, dict[str, Any]] = {
         "template_id": "local_service_promo_v1",
         "template_version": "1.0.0",
         "dir": "templates/local_service_promo_v1",
-        "label": "Local SMB service promo (problem → solution → proof → offer → CTA)",
+        "label": "Local SMB service promo (problem -> solution -> proof -> offer -> CTA)",
         "scene_count": 6,
         "duration_s": 25.4,
         "aspect_ratios": ("9:16",),
@@ -163,7 +163,7 @@ def renderer_root() -> Path:
 
 def get_template(template_id: str) -> dict[str, Any] | None:
     """Exact-match lookup. Unknown id = None (caller must fail closed)."""
-    # Deliberately NOT normalised — no strip(), no lower(), no separator fixing.
+    # Deliberately NOT normalised - no strip(), no lower(), no separator fixing.
     # Normalisation is what lets a hostile or malformed id be *rewritten* into a
     # real one; callers that read from env normalise at their own edge (see
     # `hyperframes_provider.default_template`) so this boundary stays exact.
@@ -174,7 +174,7 @@ def get_template(template_id: str) -> dict[str, Any] | None:
 def template_dir(template_id: str) -> Path | None:
     """Resolved template project directory, or None when not allowlisted.
 
-    Returns None if the resolved directory escapes the renderer root — defence
+    Returns None if the resolved directory escapes the renderer root - defence
     in depth behind the allowlist, so a bad registry edit cannot become a path
     traversal.
     """

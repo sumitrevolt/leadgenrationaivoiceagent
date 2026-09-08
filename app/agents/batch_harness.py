@@ -1,17 +1,17 @@
-"""Batch harness — async callable ko many inputs pe PARALLEL chalao + checkpoint/resume.
+"""Batch harness - async callable ko many inputs pe PARALLEL chalao + checkpoint/resume.
 
 Ruflo/Hermes "batch run" parity (free-stack). Koi bhi `async def fn(item) -> dict`
 ko list-of-items pe bounded concurrency me chalata, har completed item ka progress
 checkpoint karta (data/batch_runs/<ckpt_id>.jsonl), aur same ckpt_id pe RESUME karne
 pe already-done indices SKIP karta (idempotent restart). Ek item fail = poora batch
-nahi marta — har item never-raise wrapper me chalta.
+nahi marta - har item never-raise wrapper me chalta.
 
 Design (project patterns):
-  - `enabled()` sirf info-flag (BATCH_HARNESS) — run_batch khud hamesha safe-callable
+  - `enabled()` sirf info-flag (BATCH_HARNESS) - run_batch khud hamesha safe-callable
     (programmatic callers + admin demo endpoint dono use karte). Flag default OFF.
   - Concurrency [1,16] me bound (resource-safety
   asyncio.Semaphore).
-  - Per-item hard never-raise: exception → {ok:False} record, batch continue.
+  - Per-item hard never-raise: exception -> {ok:False} record, batch continue.
   - Checkpoint = append-only jsonl (one line per completed index). Resume = read
     done-indices, skip. Crash-safe (har item ke baad flush).
   - Import-safe, kabhi raise nahi (top-level helpers defensive).
@@ -36,7 +36,7 @@ _SUMMARY_CAP = 400  # result_summary truncate (checkpoint line bloat na ho)
 
 
 def enabled() -> bool:
-    """Info-flag only — run_batch flag-independent safe-callable hai (admin/programmatic)."""
+    """Info-flag only - run_batch flag-independent safe-callable hai (admin/programmatic)."""
     return (os.getenv("BATCH_HARNESS") or "").strip().lower() in ("1", "true", "yes")
 
 
@@ -49,7 +49,7 @@ def _ckpt_path(ckpt_id: str) -> str:
 
 
 def _item_key(item: Any) -> str:
-    """Stable-ish human key for an item (logging/checkpoint only — not a uniqueness id)."""
+    """Stable-ish human key for an item (logging/checkpoint only - not a uniqueness id)."""
     try:
         if isinstance(item, dict):
             for k in ("id", "key", "name", "url", "email", "slug"):
@@ -61,7 +61,7 @@ def _item_key(item: Any) -> str:
 
 
 def _done_indices(ckpt_id: str) -> set[int]:
-    """Resume support — already-completed indices padho (corrupt lines skip)."""
+    """Resume support - already-completed indices padho (corrupt lines skip)."""
     done: set[int] = set()
     path = _ckpt_path(ckpt_id)
     try:
@@ -110,8 +110,8 @@ async def run_batch(
 
     - concurrency [1,16] me clamp
     asyncio.Semaphore se gate.
-    - Har item never-raise wrapper me — ek failure batch ko nahi marti.
-    - ckpt_id diya → progress data/batch_runs/<ckpt_id>.jsonl me
+    - Har item never-raise wrapper me - ek failure batch ko nahi marti.
+    - ckpt_id diya -> progress data/batch_runs/<ckpt_id>.jsonl me
     same ckpt_id pe
       dobara call = already-done indices SKIP (resume).
     Returns {ok, total, done, failed, skipped, ckpt_id, label}.
@@ -278,7 +278,7 @@ async def run_batch(
                 },
             )
         # Observe AFTER releasing the semaphore (record-only; never re-runs fn).
-        # SHADOW observation only — ENFORCE mode emits its own enforcement_* audit
+        # SHADOW observation only - ENFORCE mode emits its own enforcement_* audit
         # events inside enforce_batch_item and must not also shadow-observe.
         if not _enforce:
             _obs_batch(
@@ -309,7 +309,7 @@ async def run_batch(
 
 
 def list_batches(limit: int = 50) -> list[dict[str, Any]]:
-    """Recent checkpoint runs (file-level summary) — newest first. Never-raise."""
+    """Recent checkpoint runs (file-level summary) - newest first. Never-raise."""
     out: list[dict[str, Any]] = []
     try:
         if not os.path.isdir(_DIR):

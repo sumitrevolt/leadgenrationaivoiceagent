@@ -76,7 +76,7 @@ def run_onboard_pipeline(
 
     Backpressure: checks active pipeline count before starting.
     Idempotency: completed stages are skipped on re-run.
-    Never raises — returns result dict.
+    Never raises - returns result dict.
     """
     if not _flag("ONBOARDING_PIPELINE"):
         return {"ok": False, "client_id": cid, "skipped": "flag_off"}
@@ -149,7 +149,7 @@ def run_onboard_pipeline(
         )
         return {"ok": False, "client_id": cid, "error": "max_retries_exceeded"}
     except Exception as exc:
-        # Unexpected error — don't retry, record to DLQ
+        # Unexpected error - don't retry, record to DLQ
         logger.warning("[onboard_pipeline] unexpected error for %s: %s", cid, exc)
         return {"ok": False, "client_id": cid, "error": str(exc)[:200]}
     finally:

@@ -14,7 +14,7 @@ from app.api.auth_deps import require_admin
 router = APIRouter(tags=["Growth"])
 
 
-# ------------- Native CRM sync (Zoho/HubSpot — Indian SMB) ------------- #
+# ------------- Native CRM sync (Zoho/HubSpot - Indian SMB) ------------- #
 @router.get("/crm/status")
 async def crm_status(client_id: str = "", user=Depends(require_admin)):
     """CRM sync armed status (global ya per-client). Creds kabhi expose nahi hote."""

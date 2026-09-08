@@ -28,7 +28,7 @@ def root(tmp_path, monkeypatch):
     r = tmp_path / "reels"
     r.mkdir()
     # Patch the authority's own root accessors so this module never imports the
-    # renderer (PIL / edge-tts) — keeps the Linux container minimal and offline.
+    # renderer (PIL / edge-tts) - keeps the Linux container minimal and offline.
     monkeypatch.setattr(vmp, "reels_dir", lambda: r)
     monkeypatch.setattr(vmp, "video_ads_dir", lambda: r)
     return r

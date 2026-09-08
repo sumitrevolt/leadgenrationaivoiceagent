@@ -1,4 +1,4 @@
-"""Master Project Blueprint — canonical, versioned architecture graph.
+"""Master Project Blueprint - canonical, versioned architecture graph.
 
 Single source of truth for the ``/app/explorer`` **Master Blueprint** mode,
 served read-only by :mod:`app.api.blueprint` (``GET /api/blueprint/graph``).
@@ -8,17 +8,17 @@ this module is the *additive* canonical contract the mission asked
 for so the frontend stops hard-coding its own architecture truth.
 
 Design discipline (Agent Harness Engineering Standard v0.1, 2026-07-22,
-``C:\\Users\\Ratanshila\\Downloads\\Agent_Harness_Engineering_Standard.docx`` —
+``C:\\Users\\Ratanshila\\Downloads\\Agent_Harness_Engineering_Standard.docx`` -
 owner-declared authoritative):
-  * **Schema-validated contract** — every node/edge/flow has required fields and
+  * **Schema-validated contract** - every node/edge/flow has required fields and
     :func:`validate_graph` is the pass/fail gate (the M2 tool-contract analogue).
-  * **Evidence artifacts** — every implemented node names real repo files
+  * **Evidence artifacts** - every implemented node names real repo files
   the
     validator refuses an "implemented" node with no evidence.
-  * **Honest status** — unverified runtime is ``UNKNOWN``, never a fabricated
+  * **Honest status** - unverified runtime is ``UNKNOWN``, never a fabricated
     "healthy"; roadmap items are ``PLANNED``; retired items ``LEGACY`` /
     ``DEPRECATED``. Never invent a node.
-  * **Fail-closed safety** — cold outbound runs FULL CAMPAIGN LIVE (owner
+  * **Fail-closed safety** - cold outbound runs FULL CAMPAIGN LIVE (owner
     go-ahead 2026-08-02) with the compliance spine ACTIVE in the call path
     (DND fail-closed, TRAI window, AI-disclosure, consent, DLT, phone-type
     gate, IVR blocklist, circuit breaker, concurrency=1, recording gate).
@@ -33,15 +33,15 @@ import pathlib
 import re
 from typing import Any
 
-# Canonical schema version — bump on any breaking node/edge/flow field change.
+# Canonical schema version - bump on any breaking node/edge/flow field change.
 SCHEMA_VERSION = "2026-08-03-mbp-v4"
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # Canonical workforce truth lives in app.platform.team.STAFF (code-defined roster,
-# includes the "manager"/Boss persona — NOT a 32nd employee). The graph MUST NOT
+# includes the "manager"/Boss persona - NOT a 32nd employee). The graph MUST NOT
 # hard-code a drifting number; it derives from the registry at build time. If the
-# registry cannot be imported the count is honestly Unknown (null) — NEVER a
+# registry cannot be imported the count is honestly Unknown (null) - NEVER a
 # fabricated last-known number (Unknown-stays-Unknown invariant).
 
 
@@ -52,7 +52,7 @@ def _workforce() -> dict[str, Any]:
     ``app.platform.team.STAFF`` roster so the blueprint stays in lock-step with
     code. On import failure it degrades HONESTLY: ``count`` and
     ``includes_manager`` are ``None`` (Unknown), ``by_product`` empty, and
-    ``source`` is ``unavailable`` — no fabricated number."""
+    ``source`` is ``unavailable`` - no fabricated number."""
     try:
         from app.platform.team import STAFF
 
@@ -68,7 +68,7 @@ def _workforce() -> dict[str, Any]:
         }
     except Exception:
         return {
-            "count": None,  # Unknown — never fabricate a last-known number
+            "count": None,  # Unknown - never fabricate a last-known number
             "by_product": {},
             "includes_manager": None,
             "source": "unavailable",
@@ -88,7 +88,7 @@ EVIDENCE_LABELS = (
     "DEPRECATED",
     "UNKNOWN",
 )
-# statuses that assert working code → MUST carry file evidence.
+# statuses that assert working code -> MUST carry file evidence.
 _IMPLEMENTED = {"PRODUCTION-PROVEN", "TEST-PROVEN", "CODE-PRESENT"}
 
 # NODE_TYPES = the VISUAL grouping the frontend renders (lens colours, swimlane
@@ -170,7 +170,7 @@ EDGE_KINDS = (
     "depends_on",
 )
 
-# Default visual-type → semantic-role mapping (derived, not invented). A node may
+# Default visual-type -> semantic-role mapping (derived, not invented). A node may
 # override with an explicit ``role``; otherwise this honest default applies.
 _TYPE_ROLE = {
     "edge": "deployment",
@@ -187,7 +187,7 @@ _TYPE_ROLE = {
 }
 
 # Required node fields (validated present). Optional fields default to
-# None/empty/UNKNOWN — NEVER invented.
+# None/empty/UNKNOWN - NEVER invented.
 # --- depth projections (progressive disclosure over ONE registry) ---------
 # L0 = curated owner-facing overview (loads by default, must stay readable)
 # L1 = domain / flow internals (trigger -> ... -> outcome / recovery)
@@ -196,7 +196,7 @@ DEPTH_LEVELS = (0, 1, 2)
 
 # --- Agent Harness Engineering control surface ----------------------------
 # Each field names a REAL control and is expected to cite its implementation
-# (module/flag/queue). A control left as None means "not represented yet" —
+# (module/flag/queue). A control left as None means "not represented yet" -
 # it must NEVER be read as "control exists". Honest-Unknown beats a green tick.
 HARNESS_CONTROL_FIELDS = (
     "trigger_contract",  # how the agent/automation is invoked
@@ -235,7 +235,7 @@ _OPTIONAL_NODE_FIELDS = (
     "tech_refs",  # list of legacy technical-graph module/id hints
     # --- agreed v3 contract fields (Unknown = null/empty) ---
     "implementation_status",  # derived from evidence label
-    "runtime_status",  # joined live (client) — None here, never fabricated
+    "runtime_status",  # joined live (client) - None here, never fabricated
     "lifecycle_status",  # active | preview | deprecated | None
     "owner",
     "owner_agent",
@@ -469,7 +469,7 @@ NODES: list[dict[str, Any]] = [
         "edge",
         "PRODUCTION-PROVEN",
         ["deploy/compose/docker-compose.edge.yml", "docker-compose.vps.yml"],
-        "Host TLS for leadsgenai.in → app:8080.",
+        "Host TLS for leadsgenai.in -> app:8080.",
     ),
     # L2 App core
     _n(
@@ -482,7 +482,7 @@ NODES: list[dict[str, Any]] = [
         ["app/main.py"],
         "ASGI app, ~700 routes, port 8080 (host 8000).",
     ),
-    # Domain 1 — Public funnel
+    # Domain 1 - Public funnel
     _n(
         "public_landing",
         "Marketing landing + lead magnets",
@@ -504,7 +504,7 @@ NODES: list[dict[str, Any]] = [
         "Public readiness snapshot (no secrets).",
         runtime="activation",
     ),
-    # Domain 2 — Pricing
+    # Domain 2 - Pricing
     _n(
         "pricing_page",
         "Pricing page",
@@ -525,7 +525,7 @@ NODES: list[dict[str, Any]] = [
         ["app/api/voice_product.py", "app/api/combo_product.py"],
         "Public package contract feeding pricing + billing.",
     ),
-    # Domain 3 — Signup/onboarding
+    # Domain 3 - Signup/onboarding
     _n(
         "signup_start",
         "Signup / start flow",
@@ -534,7 +534,7 @@ NODES: list[dict[str, Any]] = [
         "frontend",
         "PRODUCTION-PROVEN",
         ["frontend/onboard.html", "app/api/customer_onboard.py"],
-        "/start → account → plan selection.",
+        "/start -> account -> plan selection.",
     ),
     _n(
         "customer_auth",
@@ -546,7 +546,7 @@ NODES: list[dict[str, Any]] = [
         ["app/api/customer_auth.py", "app/api/customer_totp.py"],
         "Customer login + optional TOTP.",
     ),
-    # Domain 4 — Billing/payments
+    # Domain 4 - Billing/payments
     _n(
         "upi_payments",
         "Manual UPI payments (primary)",
@@ -555,7 +555,7 @@ NODES: list[dict[str, Any]] = [
         "integration",
         "PRODUCTION-PROVEN",
         ["app/api/upi_payments.py", "app/platform/upi_payments.py"],
-        "Manual UPI intent → admin approval → activation.",
+        "Manual UPI intent -> admin approval -> activation.",
     ),
     _n(
         "stripe_intl",
@@ -588,7 +588,7 @@ NODES: list[dict[str, Any]] = [
         ["app/billing/gst_invoice.py"],
         "Sequential INV/FY numbering; GST only when GSTIN set.",
     ),
-    # Domain 5 — Lead pipeline
+    # Domain 5 - Lead pipeline
     _n(
         "prospector",
         "Prospecting (Maps/niche)",
@@ -619,7 +619,7 @@ NODES: list[dict[str, Any]] = [
         ["app/platform/lead_scoring.py"],
         "Score prospects Hot/Warm/Cold.",
     ),
-    # Domain 6 — CRM/Hot queue
+    # Domain 6 - CRM/Hot queue
     _n(
         "crm",
         "Client CRM",
@@ -638,9 +638,9 @@ NODES: list[dict[str, Any]] = [
         "frontend",
         "PRODUCTION-PROVEN",
         ["frontend/inbox.html", "app/platform/speed_to_lead.py"],
-        "Inbound inquiry → human follow-up mid-funnel.",
+        "Inbound inquiry -> human follow-up mid-funnel.",
     ),
-    # Domain 7 — Email outreach
+    # Domain 7 - Email outreach
     _n(
         "auto_outreach",
         "Auto email outreach",
@@ -680,9 +680,9 @@ NODES: list[dict[str, Any]] = [
         "agent",
         "CODE-PRESENT",
         ["app/platform/reply_agent.py"],
-        "IMAP reply classification → guarded response.",
+        "IMAP reply classification -> guarded response.",
     ),
-    # Domain 8 — Content
+    # Domain 8 - Content
     _n(
         "content_auto",
         "Content generation",
@@ -691,9 +691,9 @@ NODES: list[dict[str, Any]] = [
         "engine",
         "CODE-PRESENT",
         ["app/api/contentauto.py", "app/api/growth_content.py"],
-        "AI content gen → approval → publish.",
+        "AI content gen -> approval -> publish.",
     ),
-    # Domain 9 — Social
+    # Domain 9 - Social
     _n(
         "social_publish",
         "Social publishing (Postiz)",
@@ -704,7 +704,7 @@ NODES: list[dict[str, Any]] = [
         ["app/api/social_oauth.py", "app/platform/brand_pulse.py"],
         "Own-brand social publish via Postiz (4 channels).",
     ),
-    # Domain 10 — Voice (FROZEN)
+    # Domain 10 - Voice (FROZEN)
     _n(
         "voice_agent",
         "Voice agent (Swara/Kavya)",
@@ -713,7 +713,7 @@ NODES: list[dict[str, Any]] = [
         "agent",
         "CODE-PRESENT",
         ["app/voice_agent/agent.py"],
-        "FROZEN this wave — visualize only.",
+        "FROZEN this wave - visualize only.",
         flags=["AGENT_RUNTIME"],
     ),
     _n(
@@ -734,9 +734,9 @@ NODES: list[dict[str, Any]] = [
         "provider",
         "CODE-PRESENT",
         ["app/voice_agent/free_ai.py"],
-        "Mistral→Groq→Cerebras→…; 429 breaker.",
+        "Mistral->Groq->Cerebras->…; 429 breaker.",
     ),
-    # Domain 11 — AI staff runtime
+    # Domain 11 - AI staff runtime
     _n(
         "agent_runtime",
         "Agent runtime (canary)",
@@ -775,7 +775,7 @@ NODES: list[dict[str, Any]] = [
         "LangGraph-supervisor multi-agent orchestration over the STAFF roster "
         "(coordinate / fanout / coordinate-advanced / debate / council). Engine "
         "live (available:true); scheduled path gated AGENT_STANDUP (default 0) "
-        "— no executed coordination runs yet.",
+        "- no executed coordination runs yet.",
         runtime="coordinator",
         process="Dispatch a goal to STAFF agents via supervisor + worker pool.",
         io={
@@ -790,7 +790,7 @@ NODES: list[dict[str, Any]] = [
         flags=["AGENT_STANDUP", "COORDINATOR_LLM_CAP_PER_MIN"],
         rate_limit="15/60 per route (scope-coordinate/fanout/…)",
     ),
-    # Domain 12 — Scheduler / flow runner
+    # Domain 12 - Scheduler / flow runner
     _n(
         "scheduler",
         "Celery beat scheduler",
@@ -821,7 +821,7 @@ NODES: list[dict[str, Any]] = [
         ["app/api/growth_process.py"],
         "Flow runs, journal, replay.",
     ),
-    # Domain 13 — Owner OS
+    # Domain 13 - Owner OS
     _n(
         "owner_os",
         "Owner OS (sole authority)",
@@ -847,7 +847,7 @@ NODES: list[dict[str, Any]] = [
         ],
         "OpenClaw Admin Stage A (PR #105). Owner OS = sole action authority; "
         "GREEN-only structural (allowed_commands strip); edge layer gated "
-        "OPENCLAW_ENABLED (default off); workforce stays 31 — Boss/OpenClaw is "
+        "OPENCLAW_ENABLED (default off); workforce stays 31 - Boss/OpenClaw is "
         "a Copilot surface, not a 32nd agent.",
         flags=["OPENCLAW_ENABLED"],
     ),
@@ -864,12 +864,12 @@ NODES: list[dict[str, Any]] = [
             "app/voice_agent/omniroute_voice.py",
         ],
         "Local WSL dev gateway for sanitized operator/coding review (Responses "
-        "API). NOT part of the prod customer/voice/billing path — inert until "
+        "API). NOT part of the prod customer/voice/billing path - inert until "
         "OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key.",
         flags=["OMNIROUTE_ENABLED", "OMNIROUTE_AGENTS"],
         disabled=True,
     ),
-    # Domain 14 — Customer delivery
+    # Domain 14 - Customer delivery
     _n(
         "customer_dashboard",
         "Customer dashboard",
@@ -890,7 +890,7 @@ NODES: list[dict[str, Any]] = [
         ["app/platform/client_health.py", "frontend/delivery_command_center.html"],
         "Per-client delivery health + proof.",
     ),
-    # Domain 15 — KB / RAG
+    # Domain 15 - KB / RAG
     _n(
         "kb_refresh",
         "KB / RAG refresh",
@@ -921,7 +921,7 @@ NODES: list[dict[str, Any]] = [
         ["docker-compose.vps.yml"],
         "127.0.0.1:6333 single kb_main.",
     ),
-    # Domain 16 — Integrations / webhooks
+    # Domain 16 - Integrations / webhooks
     _n(
         "whatsapp",
         "WhatsApp (Meta + WAHA)",
@@ -943,7 +943,7 @@ NODES: list[dict[str, Any]] = [
         ["app/api/webhooks.py", "app/api/customer_webhooks.py"],
         "In-network hooks use app:8080.",
     ),
-    # Domain 17 — Observability
+    # Domain 17 - Observability
     _n(
         "automation_health",
         "Automation health aggregator",
@@ -975,7 +975,7 @@ NODES: list[dict[str, Any]] = [
         ["deploy/compose/docker-compose.observability.yml"],
         "~13 obs containers + Sentry.",
     ),
-    # Domain 18 — Security & compliance
+    # Domain 18 - Security & compliance
     _n(
         "rbac",
         "RBAC + tenant isolation",
@@ -1036,7 +1036,7 @@ NODES: list[dict[str, Any]] = [
     ),
 ]
 
-# --- EDGES (source→target within the canonical node set) ------------------
+# --- EDGES (source->target within the canonical node set) ------------------
 # --- verified L1/L2 detail nodes (split source file, ONE registry) ---------
 # blueprint_detail_nodes holds evidence-cleared legacy migrations. They are
 # appended to THIS list so ids, validators, traversal and the public whitelist
@@ -1044,7 +1044,7 @@ NODES: list[dict[str, Any]] = [
 #
 # FAIL-CLOSED ON PURPOSE. This is a committed canonical module, not an optional
 # runtime plugin. A syntax error, malformed spec or factory error must surface
-# immediately — silently reverting 53 nodes to 48 and still reporting a healthy
+# immediately - silently reverting 53 nodes to 48 and still reporting a healthy
 # graph would be worse than crashing. No circular import exists: the detail
 # module imports nothing from this one (it receives ``_n`` as an argument).
 from app.platform.blueprint_detail_nodes import build_detail_nodes as _build_detail
@@ -1115,57 +1115,57 @@ EDGES: list[dict[str, Any]] = [
 FLOWS: list[dict[str, Any]] = [
     {
         "id": "9.1",
-        "title": "Lead discovery → scoring → outreach",
+        "title": "Lead discovery -> scoring -> outreach",
         "steps": ["prospector", "lead_scoring", "crm", "auto_outreach"],
     },
     {
         "id": "9.2",
-        "title": "Inquiry → Hot Queue → human follow-up",
+        "title": "Inquiry -> Hot Queue -> human follow-up",
         "steps": ["public_landing", "webhooks", "hot_queue"],
     },
     {
         "id": "9.3",
-        "title": "Content generation → approval → social publish",
+        "title": "Content generation -> approval -> social publish",
         "steps": ["content_auto", "social_publish"],
     },
     {
         "id": "9.4",
-        "title": "Reply agent → classification → guarded response",
+        "title": "Reply agent -> classification -> guarded response",
         "steps": ["auto_outreach", "reply_agent", "hot_queue"],
     },
     {
         "id": "9.5",
-        "title": "Customer signup → onboarding → delivery assurance",
+        "title": "Customer signup -> onboarding -> delivery assurance",
         "steps": ["signup_start", "customer_auth", "customer_dashboard", "delivery_assurance"],
     },
     {
         "id": "9.6",
-        "title": "UPI/payment → subscription → invoice",
+        "title": "UPI/payment -> subscription -> invoice",
         "steps": ["pricing_page", "upi_payments", "subscription", "gst_invoice"],
     },
     {
         "id": "9.7",
-        "title": "AI staff → scheduler → execution → audit",
+        "title": "AI staff -> scheduler -> execution -> audit",
         "steps": ["scheduler", "staff_jobs", "agent_runtime", "team_roster"],
     },
     {
         "id": "9.8",
-        "title": "Self-improve / flow runner → evaluation → requeue",
+        "title": "Self-improve / flow runner -> evaluation -> requeue",
         "steps": ["staff_jobs", "flow_runner", "skill_library"],
     },
     {
         "id": "9.9",
-        "title": "Runtime health → alert → recovery/DLQ",
+        "title": "Runtime health -> alert -> recovery/DLQ",
         "steps": ["scheduler", "automation_health", "obs_stack"],
     },
     {
         "id": "9.10",
-        "title": "Inbound/callback → consent gate → voice (DLT-gated)",
+        "title": "Inbound/callback -> consent gate -> voice (DLT-gated)",
         "steps": ["telephony_vobiz", "dpdp", "voice_agent"],
     },
     {
         "id": "9.11",
-        "title": "KB/RAG refresh → vector store → LLM retrieval",
+        "title": "KB/RAG refresh -> vector store -> LLM retrieval",
         "steps": ["kb_refresh", "qdrant", "free_ai_chain"],
     },
 ]
@@ -1186,8 +1186,8 @@ EDGE_CONTRACT_FIELDS = (
     "on_failure",  # node id reached on failure | None
     "on_retry",  # node id / policy for retry | None
     "audit_event",  # audit/telemetry event emitted
-    "propagates_tenant",  # bool | None — tenant context carried across
-    "propagates_idempotency",  # bool | None — dedupe key carried across
+    "propagates_tenant",  # bool | None - tenant context carried across
+    "propagates_idempotency",  # bool | None - dedupe key carried across
     "evidence",  # file/route proving this connection exists
 )
 
@@ -1210,7 +1210,7 @@ def normalize_edge(e: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_graph(*, check_files: bool = False) -> dict[str, Any]:
-    """Return the FULL canonical graph payload (ADMIN-only — carries repo file
+    """Return the FULL canonical graph payload (ADMIN-only - carries repo file
     paths, flags, runtime keys, tech_refs). ``check_files`` adds a per-node
     ``file_ok`` marker for the drift HUD
     off by default (hot path)."""
@@ -1250,7 +1250,7 @@ def build_graph(*, check_files: bool = False) -> dict[str, Any]:
             "domains": len(DOMAINS),
             "flows": len(FLOWS),
             "workforce": wf["count"],
-            # depth projections of the SAME registry — L0 must stay stable and
+            # depth projections of the SAME registry - L0 must stay stable and
             # readable while total depth grows.
             "l0": sum(1 for n in NODES if n.get("depth_level", 0) == 0),
             "l1": sum(1 for n in NODES if n.get("depth_level", 0) == 1),
@@ -1362,8 +1362,8 @@ def traverse(start: str, direction: str = "down", depth: int = 3) -> list[str]:
 
 
 def shortest_path(src: str, tgt: str) -> list[str]:
-    """Directed (downstream) shortest path src→tgt (BFS). [] if none / unknown
-    node. Same src==tgt → [src]. Deterministic (sorted neighbour expansion)."""
+    """Directed (downstream) shortest path src->tgt (BFS). [] if none / unknown
+    node. Same src==tgt -> [src]. Deterministic (sorted neighbour expansion)."""
     down, _ = _adjacency()
     if src not in down or tgt not in down:
         return []
@@ -1461,7 +1461,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
         # --- "no unreachable detail" gate, per depth ------------------------
         # L1 = domain/flow internals. A domain-rooted L1 node is legitimately
         # reached by expanding its DOMAIN, so it must NOT be forced under an L0
-        # aggregate — inventing that parent is exactly how false mappings
+        # aggregate - inventing that parent is exactly how false mappings
         # (admin_ui -> public_landing) get created. parent_domain_id is
         # validated above, so an L1 node is always reachable.
         # L2 = concrete implementation detail. It must resolve through a real
@@ -1472,7 +1472,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
         ):
             errors.append(
                 f"{n['id']}: depth_level {n['depth_level']} (L2 detail) needs a "
-                "parent_node_id group or parent_flow_id — domain-only placement "
+                "parent_node_id group or parent_flow_id - domain-only placement "
                 "would leave it unreachable"
             )
         if n.get("safety_lane") not in (None, "GREEN", "AMBER", "RED"):
@@ -1488,7 +1488,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
                     errors.append(f"{n['id']}: file ref not on disk: {f}")
         if _SECRET_RE.search(n.get("desc", "") + " ".join(n["files"])):
             errors.append(f"{n['id']}: secret-shaped literal in node")
-        # workforce-truth guard — the stale "18 AI staff" number must never return
+        # workforce-truth guard - the stale "18 AI staff" number must never return
         if "18 AI staff" in (n.get("desc", "") + " " + n.get("title", "")):
             errors.append(f"{n['id']}: stale '18 AI staff' workforce number")
 
@@ -1509,7 +1509,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
                     f"above child depth {n.get('depth_level')}"
                 )
             # an L2 detail node must hang off an L1 group, never straight off an
-            # L0 aggregate — that skips the domain/flow layer entirely
+            # L0 aggregate - that skips the domain/flow layer entirely
             if n.get("depth_level", 0) >= 2 and parent.get("depth_level", 0) != 1:
                 errors.append(
                     f"{n['id']}: L2 node parented on depth-"
@@ -1534,7 +1534,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
                     f"{_seen_legacy[lg]} (a legacy node maps to exactly one canonical node)"
                 )
             _seen_legacy[lg] = n["id"]
-    # parent chains must terminate (no cycles) — otherwise expand/collapse hangs
+    # parent chains must terminate (no cycles) - otherwise expand/collapse hangs
     for n in NODES:
         seen_chain, cur, hops = {n["id"]}, n.get("parent_node_id"), 0
         while cur and hops < len(NODES) + 1:
@@ -1558,7 +1558,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             errors.append(f"edge {s}->{t}: bad kind {e.get('kind')}")
     # Orphan rule applies to the L0 overview only. L1/L2 detail nodes are
     # reached by HIERARCHY (domain / flow / group expansion), not by overview
-    # edges — the depth gates above already prove that reachability. Requiring
+    # edges - the depth gates above already prove that reachability. Requiring
     # an overview edge here would force fabricated connections.
     _depth = {n["id"]: n.get("depth_level", 0) for n in NODES}
     orphans = sorted(i for i, d in deg.items() if d == 0 and _depth.get(i, 0) == 0)
@@ -1574,13 +1574,13 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             if step not in idset:
                 errors.append(f"flow {f['id']}: step not a node: {step}")
 
-    # safety invariant — cold outbound is FULL CAMPAIGN LIVE (owner go-ahead
+    # safety invariant - cold outbound is FULL CAMPAIGN LIVE (owner go-ahead
     # 2026-08-02). The compliance spine (DND fail-closed, TRAI window,
     # AI-disclosure, consent, DLT, phone-type gate, IVR blocklist, circuit
     # breaker, concurrency=1, recording gate) stays ACTIVE in the call path.
     pd = next((n for n in NODES if n["id"] == "platform_dial"), None)
     if not pd or pd.get("disabled"):
-        errors.append("platform_dial must be active (disabled=False) — FULL CAMPAIGN LIVE")
+        errors.append("platform_dial must be active (disabled=False) - FULL CAMPAIGN LIVE")
     if pd and pd.get("status") != "PRODUCTION-PROVEN":
         errors.append("platform_dial status must be PRODUCTION-PROVEN")
 
@@ -1599,7 +1599,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
         if d not in covered_domains:
             warnings.append(f"domain {d} has no node")
 
-    # workforce truth — degraded (registry unavailable) is a WARNING, not a crash
+    # workforce truth - degraded (registry unavailable) is a WARNING, not a crash
     wf = _workforce()
     if wf["source"] != "registry" or wf["count"] is None:
         warnings.append("workforce truth degraded: STAFF registry unavailable (count Unknown)")

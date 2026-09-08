@@ -1,12 +1,12 @@
 """Structured, validated LLM outputs via **Instructor** over the free providers.
 
-The marketing/automation code asks the LLM for JSON and then parses it by hand —
+The marketing/automation code asks the LLM for JSON and then parses it by hand -
 which breaks when a free model adds prose or drops a field. Instructor pins the
 output to a Pydantic model and **auto-retries** until it validates, so callers get a
 typed object instead of fragile text. Works over our free OpenAI-compatible providers
-(Cerebras → Groq) via JSON mode.
+(Cerebras -> Groq) via JSON mode.
 
-No env flag — it's a utility: if `instructor`/`openai` or a provider key is missing,
+No env flag - it's a utility: if `instructor`/`openai` or a provider key is missing,
 ``extract`` returns ``None`` and the caller keeps its existing template fallback.
 Never raises.
 
@@ -29,7 +29,7 @@ from typing import Optional, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 
-# LLM observability (G1) — optional, NEVER breaks this path if module absent.
+# LLM observability (G1) - optional, NEVER breaks this path if module absent.
 try:
     from app.observability_llm import llm_span as _llm_span
 except Exception:  # pragma: no cover
@@ -53,7 +53,7 @@ def _provider() -> tuple | None:
         return "https://api.cerebras.ai/v1", cb, os.getenv("DEFAULT_LLM", "gpt-oss-120b")
     gq = os.getenv("GROQ_API_KEY")
     if gq:
-        # Groq llama-3.3-70b-versatile decommissions 2026-08-16 → gpt-oss-120b.
+        # Groq llama-3.3-70b-versatile decommissions 2026-08-16 -> gpt-oss-120b.
         return (
             "https://api.groq.com/openai/v1",
             gq,
@@ -80,7 +80,7 @@ def _strict_model(base_url: str) -> str | None:
             configured = os.getenv("STRUCTURED_STRICT_MODEL", "gpt-oss-120b").strip()
             return "gpt-oss-120b" if configured == "qwen-3-32b" else configured
         if "groq" in bu:
-            # Groq strict path: prefer qwen3.6-27b (langchain-groq migration note —
+            # Groq strict path: prefer qwen3.6-27b (langchain-groq migration note -
             # gpt-oss may not honour strict json_schema the same way).
             return os.getenv("STRUCTURED_STRICT_MODEL", "qwen/qwen3.6-27b")
     except Exception:
@@ -160,7 +160,7 @@ def extract(
         try:
             return _run(_strict_mode, _strict_mdl)
         except Exception as exc:
-            logger.info("structured.extract strict json_schema failed (%s) — JSON fallback", exc)
+            logger.info("structured.extract strict json_schema failed (%s) - JSON fallback", exc)
 
     # Attempt 2: existing Mode.JSON path (unchanged behaviour).
     try:
@@ -168,7 +168,7 @@ def extract(
 
         return _run(instructor.Mode.JSON, model)
     except Exception as exc:
-        logger.info("structured.extract failed (%s) — caller should use fallback", exc)
+        logger.info("structured.extract failed (%s) - caller should use fallback", exc)
         return None
 
 
@@ -217,7 +217,7 @@ async def aextract(
         try:
             return await _run(_strict_mode, _strict_mdl)
         except Exception as exc:
-            logger.info("structured.aextract strict json_schema failed (%s) — JSON fallback", exc)
+            logger.info("structured.aextract strict json_schema failed (%s) - JSON fallback", exc)
 
     # Attempt 2: existing Mode.JSON path (unchanged behaviour).
     try:
@@ -225,7 +225,7 @@ async def aextract(
 
         return await _run(instructor.Mode.JSON, model)
     except Exception as exc:
-        logger.info("structured.aextract failed (%s) — caller should use fallback", exc)
+        logger.info("structured.aextract failed (%s) - caller should use fallback", exc)
         return None
 
 

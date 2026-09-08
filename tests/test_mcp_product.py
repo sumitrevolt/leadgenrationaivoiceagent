@@ -1,6 +1,6 @@
-"""mcp_keys — issuance, auth, metering, quota, revoke.
+"""mcp_keys - issuance, auth, metering, quota, revoke.
 
-The product surface monetizes on quota — quota MUST be enforced.
+The product surface monetizes on quota - quota MUST be enforced.
 """
 
 from __future__ import annotations
@@ -76,7 +76,7 @@ def test_authenticate_rejects_revoked() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Meter — the revenue-critical contract
+# Meter - the revenue-critical contract
 # --------------------------------------------------------------------------- #
 def test_check_and_meter_allows_under_quota() -> None:
     out = mcp_keys.issue("x", daily_limit=3)

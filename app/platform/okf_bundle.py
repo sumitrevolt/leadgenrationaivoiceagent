@@ -1,4 +1,4 @@
-"""OKF (Open Knowledge Format) bundle helpers — ADR-119 curated layer.
+"""OKF (Open Knowledge Format) bundle helpers - ADR-119 curated layer.
 
 Reads repo-root ``knowledge/`` Markdown + YAML frontmatter. Not a vector DB.
 Secrets never belong here
@@ -68,7 +68,7 @@ def bundle_root() -> Path:
     override = (os.getenv("OKF_BUNDLE_DIR") or "").strip()
     if override:
         return Path(override).resolve()
-    # app/platform/okf_bundle.py → parents[2] = repo root
+    # app/platform/okf_bundle.py -> parents[2] = repo root
     return Path(__file__).resolve().parents[2] / "knowledge"
 
 
@@ -79,7 +79,7 @@ def public_bundle_enabled() -> bool:
 
 
 def ingest_enabled() -> bool:
-    """Qdrant ingest bridge. Default OFF — owner must arm OKF_INGEST_ENABLED=1."""
+    """Qdrant ingest bridge. Default OFF - owner must arm OKF_INGEST_ENABLED=1."""
     v = (os.getenv("OKF_INGEST_ENABLED") or "0").strip().lower()
     return v in ("1", "true", "yes", "on")
 
@@ -152,7 +152,7 @@ def resolve_public_path(rel: str, *, root: Path | None = None) -> Path | None:
     if ".." in rel.split("/") or rel.startswith("/") or ":" in rel:
         return None
     if not rel.endswith(".md"):
-        # allow /okf/product/pricing-rules → pricing-rules.md
+        # allow /okf/product/pricing-rules -> pricing-rules.md
         candidate = root / f"{rel}.md"
         if candidate.is_file():
             target = candidate.resolve()

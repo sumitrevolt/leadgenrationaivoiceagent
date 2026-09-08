@@ -1,9 +1,9 @@
-"""Creative API — jingles + background removal (AdBanao-parity creative tools).
+"""Creative API - jingles + background removal (AdBanao-parity creative tools).
 
-- POST /api/creative/jingle (admin) → 15-20s Hinglish radio-ad mp3 (free-LLM + EdgeTTS)
+- POST /api/creative/jingle (admin) -> 15-20s Hinglish radio-ad mp3 (free-LLM + EdgeTTS)
 - GET  /api/creative/jingle-file/{name} (public, rate-limited, regex-locked serve)
-- POST /api/creative/bg-remove (admin, multipart) → transparent PNG cutout (rembg lazy)
-- GET  /api/creative/status (admin) → deps availability + supported langs
+- POST /api/creative/bg-remove (admin, multipart) -> transparent PNG cutout (rembg lazy)
+- GET  /api/creative/status (admin) -> deps availability + supported langs
 
 Sab additive + free-stack + never-raise (modules error dict dete). Mount:
 `app.include_router(creative_router, prefix="/api")` (growth.py pattern).
@@ -33,7 +33,7 @@ class JingleIn(BaseModel):
 
 @router.post("/jingle", dependencies=[Depends(rate_limit("jingle", 10, 60))])
 async def create_jingle(body: JingleIn, _user=Depends(require_admin)):
-    """Audio jingle banao — script (free-LLM) + EdgeTTS mp3. HEAVY-ish (~10-25s)."""
+    """Audio jingle banao - script (free-LLM) + EdgeTTS mp3. HEAVY-ish (~10-25s)."""
     from app.marketing import jingle
 
     res = await jingle.generate_jingle(
@@ -50,7 +50,7 @@ async def create_jingle(body: JingleIn, _user=Depends(require_admin)):
 
 @router.get("/jingle-file/{name}", dependencies=[Depends(rate_limit("jinglef", 60, 60))])
 async def jingle_file(name: str):
-    """Jingle mp3 serve (public, filename regex-locked — ai-img-file pattern)."""
+    """Jingle mp3 serve (public, filename regex-locked - ai-img-file pattern)."""
     from fastapi.responses import FileResponse as _FR
 
     from app.marketing import jingle
@@ -64,7 +64,7 @@ async def jingle_file(name: str):
 # -------------------------- Background removal (F2) ------------------------ #
 @router.post("/bg-remove", dependencies=[Depends(rate_limit("bgrm", 10, 60))])
 async def bg_remove_endpoint(file: UploadFile = File(...), _user=Depends(require_admin)):
-    """Photo → transparent PNG cutout (1-click bg remove). rembg na ho to
+    """Photo -> transparent PNG cutout (1-click bg remove). rembg na ho to
     graceful JSON error (install = user decision, heavy dep)."""
     from fastapi.responses import JSONResponse, Response
 
@@ -76,7 +76,7 @@ async def bg_remove_endpoint(file: UploadFile = File(...), _user=Depends(require
         data = b""
     if not data:
         return JSONResponse(
-            {"ok": False, "error": "photo missing — file choose karo."}, status_code=400
+            {"ok": False, "error": "photo missing - file choose karo."}, status_code=400
         )
 
     out = bg_remove.remove_bg(data)
@@ -93,7 +93,7 @@ async def bg_remove_endpoint(file: UploadFile = File(...), _user=Depends(require
 # ------------------------------- Status ----------------------------------- #
 @router.get("/status")
 async def creative_status(_user=Depends(require_admin)):
-    """Creative deps ka health — jingle/bg-remove availability + multilang langs."""
+    """Creative deps ka health - jingle/bg-remove availability + multilang langs."""
     out: dict = {}
     try:
         from app.marketing import jingle

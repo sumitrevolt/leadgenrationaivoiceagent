@@ -1,4 +1,4 @@
-"""Partnership / reseller outreach agent — B2B2B leverage (telephony-free).
+"""Partnership / reseller outreach agent - B2B2B leverage (telephony-free).
 
 Complementary businesses (CA/accountant, web-designer, IT-vendor, business-consultant,
 marketing-agency, printer) WAHI local SMBs serve karte jo humein chahiye. Inse
@@ -21,32 +21,32 @@ PARTNER_TYPES: dict[str, dict[str, str]] = {
     "ca": {
         "label": "Chartered Accountant / Accountant",
         "serves": "har local business (filing/GST)",
-        "model": "refer — har client jo marketing-help maange, hamein bhejo; commission per close",
+        "model": "refer - har client jo marketing-help maange, hamein bhejo; commission per close",
     },
     "web_designer": {
         "label": "Web Designer / Developer",
         "serves": "businesses jinko website chahiye",
-        "model": "bundle — website ke saath hamara AI lead-gen bechо; revenue-share",
+        "model": "bundle - website ke saath hamara AI lead-gen bechо; revenue-share",
     },
     "it_vendor": {
         "label": "IT / Software Vendor",
         "serves": "SMBs ka tech setup",
-        "model": "add-on — apne clients ko hamara AI marketing offer karo",
+        "model": "add-on - apne clients ko hamara AI marketing offer karo",
     },
     "business_consultant": {
         "label": "Business Consultant / Coach",
         "serves": "growth chahne wale businesses",
-        "model": "refer — growth-advice ke saath hamein recommend karo",
+        "model": "refer - growth-advice ke saath hamein recommend karo",
     },
     "marketing_agency": {
         "label": "Small Marketing Agency",
         "serves": "clients jinko marketing chahiye",
-        "model": "WHITE-LABEL — hamara AI voice-agent apne brand me bechо (B2B2B)",
+        "model": "WHITE-LABEL - hamara AI voice-agent apne brand me bechо (B2B2B)",
     },
     "printer": {
         "label": "Printing / Signage Shop",
         "serves": "local shop-owners",
-        "model": "refer — har shop-owner ko hamara Google/marketing audit bhejo",
+        "model": "refer - har shop-owner ko hamara Google/marketing audit bhejo",
     },
 }
 
@@ -62,7 +62,7 @@ def _tpl(ptype: str, name: str) -> str:
     who = name or label
     return (
         f"Namaste {who} ji 🙏 Main Sumit, LeadGen AI se. Aap jaise {label.lower()} ke clients ko "
-        f"naye customers + Google presence chahiye hi hota hai — hum AI se woh sambhalte hain "
+        f"naye customers + Google presence chahiye hi hota hai - hum AI se woh sambhalte hain "
         f"(har inquiry ko 2-min me call karke qualified lead). Aap {model}. "
         f"Aapke liye zero kaam, extra income. 10-min baat karein? Free demo: leadsgenai.in/audit"
     )

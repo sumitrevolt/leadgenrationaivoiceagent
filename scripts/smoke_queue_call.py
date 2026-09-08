@@ -10,7 +10,7 @@ tests = [
     ("GET  /api/niche/schema/home_loans", f"{BASE}/api/niche/schema/home_loans", "GET", None),
     ("GET  /api/niche/voice-niches", f"{BASE}/api/niche/voice-niches", "GET", None),
     (
-        "POST /api/niche/queue-call (no auth → 401/422)",
+        "POST /api/niche/queue-call (no auth -> 401/422)",
         f"{BASE}/api/niche/queue-call",
         "POST",
         json.dumps({"client_id": "test", "niche": "home_loans"}).encode(),
@@ -30,12 +30,12 @@ for label, url, method, data in tests:
         except urllib.error.HTTPError as e:
             code = e.code
             body = {}
-        print(f"[{'OK' if code in (200, 401, 422) else 'FAIL'}] {label} → HTTP {code}")
+        print(f"[{'OK' if code in (200, 401, 422) else 'FAIL'}] {label} -> HTTP {code}")
         if method == "GET" and code == 200:
             if "ok" in body and not body.get("ok"):
-                print(f"     WARNING: ok=False — {body.get('error')}")
+                print(f"     WARNING: ok=False - {body.get('error')}")
     except Exception as e:
-        print(f"[FAIL] {label} → {e}")
+        print(f"[FAIL] {label} -> {e}")
         all_ok = False
 
 # Also check TelecallerBrain niche schema injection via logs

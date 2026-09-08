@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Queue depth alert — monitor Celery queue + alert if > threshold.
+"""Queue depth alert - monitor Celery queue + alert if > threshold.
 
 Usage:
     python scripts/queue_depth_alert.py              # check + alert if needed
     python scripts/queue_depth_alert.py --prometheus # emit Prometheus metrics
 
-Playbook ref: Queue System — every queue must have alert thresholds.
+Playbook ref: Queue System - every queue must have alert thresholds.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def check_queue_depth() -> dict[str, int]:
     """Return {queue_name: depth} for all Celery queues."""
     r = _redis_client()
     if not r:
-        print("[WARN] Redis not available — cannot check queue depth")
+        print("[WARN] Redis not available - cannot check queue depth")
         return {}
 
     depths = {}

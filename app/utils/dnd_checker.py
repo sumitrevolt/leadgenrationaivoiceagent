@@ -13,7 +13,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------
-# Opt-out authority (OPS-012b — REVISED 2026-09-07, cycle 6)
+# Opt-out authority (OPS-012b - REVISED 2026-09-07, cycle 6)
 #
 # There is exactly ONE canonical cross-channel opt-out/suppression authority in
 # this codebase: app/telephony/consent_ledger.py. It is DB-backed when
@@ -33,7 +33,7 @@ logger = setup_logger(__name__)
 OPTOUT_SOURCE = "consent_ledger_optout"
 
 # --------------------------------------------------------------------------
-# Carrier-scrub channel scoping (OPS-017 — 2026-09-07, cycle 9)
+# Carrier-scrub channel scoping (OPS-017 - 2026-09-07, cycle 9)
 #
 # `DND_CARRIER_SCRUB=1` is a BLANKET assertion: "our carrier scrubs NDNC, so
 # treat every number as verified non-DND". It performs no per-number lookup.
@@ -47,7 +47,7 @@ OPTOUT_SOURCE = "consent_ledger_optout"
 # docs/DND_NCPR_COMPLIANCE_ADR_2026-09-07.md §3.1, there is NO consent
 # mechanism that overrides a DND registration for promotional content. A single
 # env var must therefore never be able to turn the messaging gate into "every
-# number is fine" — which is exactly what it did, because
+# number is fine" - which is exactly what it did, because
 # app/tasks/whatsapp_automation.py::_scrub_dnd() calls this same checker.
 #
 # Fix: carrier scrub may only produce a VERIFIED result on channels listed in
@@ -90,7 +90,7 @@ def carrier_scrub_warning(channel: str | None) -> str:
         return ""
     msg = (
         "DND_CARRIER_SCRUB=1 is armed but does NOT verify channel "
-        f"'{(channel or DEFAULT_CHANNEL)}' — the blanket carrier-scrub assertion "
+        f"'{(channel or DEFAULT_CHANNEL)}' - the blanket carrier-scrub assertion "
         "is voice-only (OPS-017). Treating it as verified non-DND for promotional "
         "messaging would bypass NCPR scrubbing; falling through to "
         "unverified so the §5 gate fails CLOSED."
@@ -113,7 +113,7 @@ def _suppression_authority():
 def _is_suppressed(phone: str) -> bool:
     """True if the canonical ledger says this number opted out. FAIL-CLOSED.
 
-    An unreachable authority must never be answered as "did not opt out" — the
+    An unreachable authority must never be answered as "did not opt out" - the
     caller is about to decide whether to contact somebody. `is_suppressed()`
     already fails closed
     an exception here is logged and treated the same way.
@@ -146,7 +146,7 @@ class DNDChecker:
 
     This implementation:
     1. Local DND cache + opt-out ledger (always-on, authoritative for opt-outs)
-    2. No external DND-lookup provider wired (Exotel removed 2026-06-18) — an
+    2. No external DND-lookup provider wired (Exotel removed 2026-06-18) - an
        un-cached number returns UNVERIFIED so the compliance gate fails CLOSED
        for promotional calls (TCCCPR-safe).
     3. Supports batch checking
@@ -172,10 +172,10 @@ class DNDChecker:
 
         Args:
             phone: Phone number to check
-            channel: Outreach channel — ``"voice"`` or ``"messaging"``
+            channel: Outreach channel - ``"voice"`` or ``"messaging"``
                 (default ``"messaging"``, the strict one). It decides whether the
                 blanket ``DND_CARRIER_SCRUB`` assertion may count as a VERIFIED
-                answer (voice only — see OPS-017).
+                answer (voice only - see OPS-017).
 
         Returns:
             DNDCheckResult with DND status
@@ -198,10 +198,10 @@ class DNDChecker:
         if cached:
             return cached
 
-        # No external lookup provider — return unverified (gate fails CLOSED).
+        # No external lookup provider - return unverified (gate fails CLOSED).
         result = await self._check_via_registry(phone, channel=channel)
 
-        # Cache the result — EXCEPT a blanket carrier-scrub assertion (OPS-017).
+        # Cache the result - EXCEPT a blanket carrier-scrub assertion (OPS-017).
         # That verdict is a channel-scoped assertion about the carrier, not a
         # fact about the number; caching it would launder a voice-only allowance
         # into the messaging path on the next lookup.
@@ -254,8 +254,8 @@ class DNDChecker:
                     logger.error(f"DND check failed for ***{str(phone)[-4:]}: {result}")
                     # Not flagged DND, but UNVERIFIED (verified=False). Promotional gates
                     # (compliance.py, orchestrator_pipeline, filter_dnd) treat unverified as
-                    # DND — so an error here = promotional BLOCK, not a pass. (2026-08-01:
-                    # comment was "fail open for business continuity" — misleading; only
+                    # DND - so an error here = promotional BLOCK, not a pass. (2026-08-01:
+                    # comment was "fail open for business continuity" - misleading; only
                     # confirmed non-DND numbers may be contacted. §5 TRAI fail-CLOSED.)
                     result = DNDCheckResult(
                         phone=phone,
@@ -276,14 +276,14 @@ class DNDChecker:
 
         Args:
             phones: List of phone numbers
-            channel: Outreach channel (see ``check_single``) — decides whether the
+            channel: Outreach channel (see ``check_single``) - decides whether the
                 blanket carrier-scrub assertion may count as verified.
 
         Returns:
             List of non-DND phone numbers
 
         FAIL-CLOSED (2026-08-01, enterprise-audit fix): unverified results
-        (``verified=False`` — lookup error / no provider wired) ko non-DND maanna
+        (``verified=False`` - lookup error / no provider wired) ko non-DND maanna
         §5 TRAI invariant todta hai. Ab sirf PROVEN non-DND numbers pass hote hain.
         """
         results = await self.check_batch(phones, channel=channel)
@@ -296,10 +296,10 @@ class DNDChecker:
 
         Vobiz scrubs NDNC on outbound path (docs.vobiz.ai/compliance/india/ucc).
         When ``DND_CARRIER_SCRUB=1`` + Vobiz creds, treat as verified (carrier
-        scrubs) — **voice channel only** (OPS-017). On a messaging channel the
+        scrubs) - **voice channel only** (OPS-017). On a messaging channel the
         blanket assertion must not clear the §5 gate, so it is ignored and the
         honest ``no_provider / verified=False`` answer is returned instead.
-        Without either, return UNVERIFIED → compliance gate fails CLOSED for promo.
+        Without either, return UNVERIFIED -> compliance gate fails CLOSED for promo.
         """
         url = (os.environ.get("DND_API_URL") or "").strip()
         key = (os.environ.get("DND_API_KEY") or "").strip()
@@ -372,7 +372,7 @@ class DNDChecker:
 
     def add_to_local_dnd(self, phone: str, category: str = "user_request"):
         """
-        Add a number to local DND list (user opt-out) — DURABLE via consent_ledger.
+        Add a number to local DND list (user opt-out) - DURABLE via consent_ledger.
 
         Writes through to the CANONICAL cross-channel suppression authority, so
         the opt-out survives restarts, is honoured on every channel (voice +
@@ -393,7 +393,7 @@ class DNDChecker:
             )
             if isinstance(res, dict) and res.get("suppressed") is False:
                 logger.error(
-                    f"Opt-out NOT persisted for ***{str(phone)[-4:]} — consent_ledger "
+                    f"Opt-out NOT persisted for ***{str(phone)[-4:]} - consent_ledger "
                     "reported suppressed=False. Treat as a compliance incident."
                 )
         except Exception as e:  # noqa: BLE001 - never break the STOP handler
@@ -404,7 +404,7 @@ class DNDChecker:
         """Clear the IN-MEMORY entry only. This does NOT lift a real opt-out.
 
         Lifting a user's opt-out is an authorised, evidenced action (documented
-        re-consent), never a side effect of a cache clear — use
+        re-consent), never a side effect of a cache clear - use
         ``consent_ledger.opt_back_in()`` with the consent record. Lifting it
         silently here would be the easiest way in this codebase to re-contact
         somebody who said STOP.
@@ -412,7 +412,7 @@ class DNDChecker:
         if phone in self._cache:
             del self._cache[phone]
         logger.warning(
-            f"Removed in-memory entry for ***{str(phone)[-4:]} — the durable opt-out "
+            f"Removed in-memory entry for ***{str(phone)[-4:]} - the durable opt-out "
             "in consent_ledger is UNCHANGED; lift it only via opt_back_in()."
         )
 
@@ -454,7 +454,7 @@ class DNDChecker:
         return rows
 
     def import_local_dnd(self, data: list[dict]):
-        """Import opt-outs into the CANONICAL ledger — never a second store."""
+        """Import opt-outs into the CANONICAL ledger - never a second store."""
         count = 0
         for item in data:
             phone = item.get("phone")

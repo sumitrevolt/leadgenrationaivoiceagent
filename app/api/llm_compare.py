@@ -1,28 +1,28 @@
-"""LLM Compare — blind side-by-side model arena (admin-only, INERT default).
+"""LLM Compare - blind side-by-side model arena (admin-only, INERT default).
 
 Kya karta hai
 -------------
-Odysseus-style "Compare" surface — ek prompt lo, N providers pe parallel run karo,
+Odysseus-style "Compare" surface - ek prompt lo, N providers pe parallel run karo,
 responses ko BLIND (A/B/C/... labels) admin ko dikhao, admin winner vote kare,
 tabhi provider identity reveal ho jaati. Vote Redis me ELO-lite pair counters
 me record hota (leaderboard).
 
 Kaha fit hota
 -------------
-Aap ke 8+ free-LLM chain (free_ai.py — mistral/groq/cerebras/gemini/nvidia/
+Aap ke 8+ free-LLM chain (free_ai.py - mistral/groq/cerebras/gemini/nvidia/
 sambanova/openrouter x4) ke A/B testing ke liye. Objective evidence ki koi
-provider "kaunse niche ke reply" pe best hai — chain reorder / model swap
+provider "kaunse niche ke reply" pe best hai - chain reorder / model swap
 decisions data-backed ho jaate hain.
 
 Additive + INERT
 ----------------
-`LLM_COMPARE_ENABLED=1` set na ho to poora router 503 return karta —
+`LLM_COMPARE_ENABLED=1` set na ho to poora router 503 return karta -
 frontend page 404 rehta. Zero blast radius. Free stack only (koi paid AI
-add nahi). Reuses free_ai.chat_provider() — koi naya external API call
+add nahi). Reuses free_ai.chat_provider() - koi naya external API call
 pattern nahi.
 
 License: LeadGen proprietary. Odysseus (AGPL) se sirf HIGH-LEVEL concept
-(blind arena UX) liya hai — code independent. Kabhi Odysseus source me
+(blind arena UX) liya hai - code independent. Kabhi Odysseus source me
 peek nahi kiya.
 """
 
@@ -53,7 +53,7 @@ _FLAG_ENV = "LLM_COMPARE_ENABLED"
 
 
 def _enabled() -> bool:
-    """INERT-default gate — env unset/0/false/no => OFF."""
+    """INERT-default gate - env unset/0/false/no => OFF."""
     return (os.getenv(_FLAG_ENV, "0") or "0").strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -86,7 +86,7 @@ _DEFAULT_MODELS: dict[str, str] = {
 
 
 def _list_available_providers() -> list[dict[str, Any]]:
-    """Live snapshot — sirf woh providers jinka key + SDK dono hain."""
+    """Live snapshot - sirf woh providers jinka key + SDK dono hain."""
     try:
         live = free_ai._provider_flags()  # {provider: bool}
     except Exception:
@@ -95,7 +95,7 @@ def _list_available_providers() -> list[dict[str, Any]]:
     for prov, model in _DEFAULT_MODELS.items():
         ok = bool(live.get(prov))
         out.append({"provider": prov, "model": model, "available": ok})
-    # deterministic order — available first, then alpha
+    # deterministic order - available first, then alpha
     out.sort(key=lambda x: (not x["available"], x["provider"]))
     return out
 
@@ -238,7 +238,7 @@ async def stats(_user=Depends(require_admin)) -> dict:
 
 @router.post("/run")
 async def run_compare(payload: CompareRunIn, _user=Depends(require_admin)) -> dict:
-    """Parallel fanout — blind labels A/B/C/... map server-side."""
+    """Parallel fanout - blind labels A/B/C/... map server-side."""
     _require_enabled()
 
     # 1) filter to configured providers
@@ -247,13 +247,13 @@ async def run_compare(payload: CompareRunIn, _user=Depends(require_admin)) -> di
     requested = [p for p in payload.providers if p] or sorted(available_ids)
     requested = [p for p in requested if p in available_ids]
 
-    # sane bounds — atleast 2, at most 6 (fanout burn control)
+    # sane bounds - atleast 2, at most 6 (fanout burn control)
     if len(requested) < 2:
         raise HTTPException(status_code=400, detail="At least 2 available providers required.")
     if len(requested) > 6:
         requested = requested[:6]
 
-    # 2) fanout — chat_provider (no chain fallback, single call per provider)
+    # 2) fanout - chat_provider (no chain fallback, single call per provider)
     msgs = [{"role": "user", "content": payload.prompt}]
 
     async def _one(prov: str) -> dict[str, Any]:
@@ -344,7 +344,7 @@ async def vote(payload: CompareVoteIn, _user=Depends(require_admin)) -> dict:
 
 @router.get("/status")
 async def status(request: Request) -> dict:
-    """Public status — flag on/off. No auth so admin dashboard can peek."""
+    """Public status - flag on/off. No auth so admin dashboard can peek."""
     return {
         "enabled": _enabled(),
         "flag_env": _FLAG_ENV,
@@ -355,7 +355,7 @@ async def status(request: Request) -> dict:
 # --------------------------- html page --------------------------- #
 
 _PAGE_HTML = """<!doctype html>
-<html><head><meta charset="utf-8"><title>LLM Compare — Blind Arena</title>
+<html><head><meta charset="utf-8"><title>LLM Compare - Blind Arena</title>
 <style>
  body{font-family:system-ui,Segoe UI,Roboto,sans-serif
  margin:0
@@ -465,7 +465,7 @@ _PAGE_HTML = """<!doctype html>
 </style></head>
 <body><div class="wrap">
  <h1>LLM Compare · Blind Arena</h1>
- <div class="sub">Same prompt → parallel run across free-tier providers → vote blind → data-backed chain tuning.</div>
+ <div class="sub">Same prompt -> parallel run across free-tier providers -> vote blind -> data-backed chain tuning.</div>
  <div id="warn"></div>
 
  <div class="card">
@@ -561,7 +561,7 @@ $('run').onclick = async () => {
     })});
     CURRENT = j;
     renderArena(j.entries);
-    $('msg').textContent = 'Vote karo — winner reveal karega.';
+    $('msg').textContent = 'Vote karo - winner reveal karega.';
   }catch(e){
     $('msg').textContent = 'Fail: '+e.message;
   }finally{ $('run').disabled = false

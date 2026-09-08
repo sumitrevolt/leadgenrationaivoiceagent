@@ -76,7 +76,7 @@ class ResourceNotFoundException(LeadGenException):
     """Resource not found"""
 
     def __init__(self, resource: str, identifier: str):
-        # Don't echo the raw identifier back in the message — it may contain
+        # Don't echo the raw identifier back in the message - it may contain
         # user-supplied input that could appear in logs or error UIs (CWE-209).
         super().__init__(
             message=f"{resource} not found",

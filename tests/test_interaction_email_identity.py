@@ -1,4 +1,4 @@
-"""Email identity resolution for interactions — the funnel-linkage gate.
+"""Email identity resolution for interactions - the funnel-linkage gate.
 
 The bug this pins (found on production 2026-07-25):
 
@@ -10,7 +10,7 @@ The bug this pins (found on production 2026-07-25):
 
 Cause: ``interaction_log.record()`` resolved identity from PHONE only, but
 outreach is overwhelmingly EMAIL and an email interaction carries no phone. So
-every reply — including "interested" ones — landed unlinked, and no lead could
+every reply - including "interested" ones - landed unlinked, and no lead could
 ever advance.
 
 These tests lock the resolution rules and the backfill's honesty. They avoid a
@@ -72,7 +72,7 @@ def test_never_invents_an_id_for_unmatched_email():
 
 
 def test_skips_rows_that_are_already_linked():
-    """Only NULL lead_id rows are candidates — never overwrite."""
+    """Only NULL lead_id rows are candidates - never overwrite."""
     p = bf.plan(
         [_rec("i1", "owner@shop.com")],
         lead_by_email={"owner@shop.com": "lead-1"},
@@ -116,7 +116,7 @@ def test_plan_is_deterministic_and_sorted():
 
 
 def test_plan_writes_nothing():
-    """plan() must stay pure — the dry run has to be trustworthy."""
+    """plan() must stay pure - the dry run has to be trustworthy."""
     import inspect
 
     src = inspect.getsource(bf.plan)
@@ -150,7 +150,7 @@ def test_backfill_uses_coalesce_so_it_never_overwrites():
 
 
 def test_backfill_does_not_touch_lead_status():
-    """Linking is fact; declaring a lead 'interested' is an opinion — out of scope."""
+    """Linking is fact; declaring a lead 'interested' is an opinion - out of scope."""
     src = (bf.ROOT / "scripts" / "backfill_interaction_identity.py").read_text(encoding="utf-8")
     low = src.lower()
     assert "update leads" not in low

@@ -1,4 +1,4 @@
-"""Per-client appointment-slot scoping — regression for the shared-singleton bug.
+"""Per-client appointment-slot scoping - regression for the shared-singleton bug.
 
 AUDIT BUG: the slot pool (`_taken`) was a single process-wide set, so a slot booked
 on one business's mini-site (e.g. "jiya makeover") blocked that exact wall-clock slot
@@ -10,7 +10,7 @@ Hermetic: no network / no real calendar (internal durable-ledger provider). Cove
   2. Double-book same slot + same client -> rejected.
   3. No-client (legacy/global) booking still guards itself
   legacy ledger rows
-     (rows WITHOUT a client_id) load without crash and stay global-only — they do
+     (rows WITHOUT a client_id) load without crash and stay global-only - they do
      NOT poison a per-client bucket.
   4. Availability is per-client (a slot taken by one client is still offered to another).
   5. API layer: slug -> client_id resolution isolates two mini-sites.

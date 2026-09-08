@@ -1,7 +1,7 @@
 """
 Customer Plugins / AI Capabilities API
 =======================================
-GET /api/customer/plugins  → active AI capabilities for this customer
+GET /api/customer/plugins  -> active AI capabilities for this customer
 
 Auth: require_customer (JWT from customer portal).
 """
@@ -57,7 +57,7 @@ _MARKETING_CAPABILITIES = [
     Capability(
         id="content_creation",
         title="AI Content Creation",
-        desc="Aapke business ke liye automatically social media posts, banners, aur content banta hai — daily.",
+        desc="Aapke business ke liye automatically social media posts, banners, aur content banta hai - daily.",
         icon="📝",
         features=[
             "Daily social media posts",
@@ -83,7 +83,7 @@ _MARKETING_CAPABILITIES = [
     Capability(
         id="marketing_calendar",
         title="Marketing Calendar",
-        desc="Poora mahine ka content plan automatically ban jata hai — approve karo aur publish ho jayega.",
+        desc="Poora mahine ka content plan automatically ban jata hai - approve karo aur publish ho jayega.",
         icon="📅",
         features=[
             "30-day content calendar",
@@ -109,7 +109,7 @@ _MARKETING_CAPABILITIES = [
     Capability(
         id="ai_assistant",
         title="AI Business Assistant",
-        desc="Aapke customer ke sawalon ka AI jawab deta hai — 24/7, turant.",
+        desc="Aapke customer ke sawalon ka AI jawab deta hai - 24/7, turant.",
         icon="🤖",
         features=[
             "Customer queries ka instant reply",
@@ -122,7 +122,7 @@ _MARKETING_CAPABILITIES = [
     Capability(
         id="analytics",
         title="Analytics & Reporting",
-        desc="Aapka marketing kitna kaam kar raha hai — ye sab data dikhta hai.",
+        desc="Aapka marketing kitna kaam kar raha hai - ye sab data dikhta hai.",
         icon="📊",
         features=[
             "Lead conversion tracking",
@@ -148,7 +148,7 @@ _MARKETING_CAPABILITIES = [
     Capability(
         id="email_outreach",
         title="Email Outreach",
-        desc="Potential customers ko automatically email karta hai — personalized, smart.",
+        desc="Potential customers ko automatically email karta hai - personalized, smart.",
         icon="📧",
         features=[
             "Cold email sequences",
@@ -164,7 +164,7 @@ _VOICE_CAPABILITIES = [
     Capability(
         id="ai_calling",
         title="AI Voice Calling",
-        desc="AI-powered telecaller jo automatically calls karta hai — 24/7, multilingual.",
+        desc="AI-powered telecaller jo automatically calls karta hai - 24/7, multilingual.",
         icon="📞",
         features=[
             "Automated outbound calling",
@@ -177,7 +177,7 @@ _VOICE_CAPABILITIES = [
     Capability(
         id="call_analytics",
         title="Call Analytics",
-        desc="Har call ka data — kisne kaha kya, kitni der baat hui, interest level.",
+        desc="Har call ka data - kisne kaha kya, kitni der baat hui, interest level.",
         icon="📊",
         features=[
             "Call duration aur outcome tracking",
@@ -203,7 +203,7 @@ _VOICE_CAPABILITIES = [
     Capability(
         id="ai_assistant",
         title="AI Receptionist",
-        desc="Incoming calls ka AI jawab deta hai — greet, route, message, book.",
+        desc="Incoming calls ka AI jawab deta hai - greet, route, message, book.",
         icon="🤖",
         features=[
             "24/7 call answering",

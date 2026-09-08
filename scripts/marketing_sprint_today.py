@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot marketing launch sprint — run inside leadgen_app container on VPS.
+"""One-shot marketing launch sprint - run inside leadgen_app container on VPS.
 
   docker exec leadgen_app python scripts/marketing_sprint_today.py
 
@@ -31,7 +31,7 @@ def log(status: str, name: str, detail: str = "") -> None:
     mark = {"OK": "✓", "FAIL": "✗", "WARN": "?"}.get(status, "·")
     line = f"  [{mark}] {name}"
     if detail:
-        line += f" — {detail}"
+        line += f" - {detail}"
     print(line)
 
 
@@ -41,7 +41,7 @@ def check_env() -> None:
         if val:
             log(PASS, f"env {key}", "SET")
         else:
-            log(FAIL, f"env {key}", "UNSET — .env me set karo + app recreate")
+            log(FAIL, f"env {key}", "UNSET - .env me set karo + app recreate")
 
 
 def check_live_urls() -> None:
@@ -74,7 +74,7 @@ def check_live_urls() -> None:
 
 
 async def test_inquiry() -> None:
-    """Submit test inquiry — direct store path (container me localhost:8000 often unreachable)."""
+    """Submit test inquiry - direct store path (container me localhost:8000 often unreachable)."""
 
     rec = {
         "id": str(uuid.uuid4()),
@@ -132,7 +132,7 @@ async def test_inquiry() -> None:
 
 async def fire_outreach() -> None:
     if os.environ.get("AUTO_EMAIL_OUTREACH", "").strip().lower() not in ("1", "true", "yes", "on"):
-        log(WARN, "email outreach", "AUTO_EMAIL_OUTREACH off — skip")
+        log(WARN, "email outreach", "AUTO_EMAIL_OUTREACH off - skip")
         return
     try:
         from app.platform import auto_outreach

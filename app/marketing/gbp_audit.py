@@ -1,12 +1,12 @@
 """
-gbp_audit.py — Dhanda-style Google Business Profile self-audit (NO Google API).
+gbp_audit.py - Dhanda-style Google Business Profile self-audit (NO Google API).
 ===============================================================================
 
-Business owner 16 sawalon ke jawab deta hai (multiple-choice) → weighted
+Business owner 16 sawalon ke jawab deta hai (multiple-choice) -> weighted
 0-100 score + grade + per-area breakdown + top-5 concrete Hinglish fixes.
 
-PURE LOGIC — koi LLM nahi, koi network nahi, kabhi raise nahi karta.
-Missing/galat answers ko worst-case (score 0) maana jaata hai — audit
+PURE LOGIC - koi LLM nahi, koi network nahi, kabhi raise nahi karta.
+Missing/galat answers ko worst-case (score 0) maana jaata hai - audit
 conservative rehta hai, owner motivated rehta hai.
 """
 
@@ -20,9 +20,9 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # ============================================================================ #
-# 16 audit questions — {id, q (Hinglish), weight, options:[{label, score 0-1}]}
+# 16 audit questions - {id, q (Hinglish), weight, options:[{label, score 0-1}]}
 # weight: 3 = ranking-critical, 2 = strong signal, 1 = nice-to-have
-# Options BEST → WORST order me hain (index 0 = best) — par score hi truth hai.
+# Options BEST -> WORST order me hain (index 0 = best) - par score hi truth hai.
 # ============================================================================ #
 
 AUDIT_QUESTIONS: list[dict[str, Any]] = [
@@ -174,7 +174,7 @@ AUDIT_QUESTIONS: list[dict[str, Any]] = [
     },
     {
         "id": "nap",
-        "q": "NAP consistency — Name/Address/Phone har jagah (website, JustDial, directories) SAME hai?",
+        "q": "NAP consistency - Name/Address/Phone har jagah (website, JustDial, directories) SAME hai?",
         "weight": 3,
         "options": [
             {"label": "Haan, sab jagah bilkul same", "score": 1.0},
@@ -196,22 +196,22 @@ AUDIT_QUESTIONS: list[dict[str, Any]] = [
 
 # Concrete Hinglish fix-action per area (lowest scorers me se top-5 dikhte hain)
 _FIXES: dict[str, str] = {
-    "claimed": "Sabse pehle business.google.com par jaake profile claim karo aur postcard/phone se verify karwao — bina iske kuch bhi rank nahi hoga.",
-    "description": "Aaj hi 600-750 characters ka description likho — apna area + service keywords daalo (jaise 'Andheri me rooftop solar installation').",
+    "claimed": "Sabse pehle business.google.com par jaake profile claim karo aur postcard/phone se verify karwao - bina iske kuch bhi rank nahi hoga.",
+    "description": "Aaj hi 600-750 characters ka description likho - apna area + service keywords daalo (jaise 'Andheri me rooftop solar installation').",
     "categories": "Google par apne top competitor ka profile kholo, unki primary category dekho, apni wahi sahi karo + 2-3 secondary categories add karo.",
-    "photos": "Is hafte 5 naye photos dalo (kaam karte hue, team, before/after) — phir har hafte 2-3 ka routine banao.",
-    "posts": "Har Somvaar ek GBP post daalo — offer ya kaam ka update, photo ke saath. 10 minute ka kaam hai, freshness signal milta hai.",
-    "reviews_count": "Counter/bill par review QR-code rakho aur har khush customer se turant Google review maango — target: har hafte 3 naye reviews.",
-    "rating": "Naraz customers ko pehle personally call karke solve karo, phir review update karne ki request karo — naye 5-star reviews se average upar khinch jaayega.",
+    "photos": "Is hafte 5 naye photos dalo (kaam karte hue, team, before/after) - phir har hafte 2-3 ka routine banao.",
+    "posts": "Har Somvaar ek GBP post daalo - offer ya kaam ka update, photo ke saath. 10 minute ka kaam hai, freshness signal milta hai.",
+    "reviews_count": "Counter/bill par review QR-code rakho aur har khush customer se turant Google review maango - target: har hafte 3 naye reviews.",
+    "rating": "Naraz customers ko pehle personally call karke solve karo, phir review update karne ki request karo - naye 5-star reviews se average upar khinch jaayega.",
     "review_replies": "Aaj hi SAB purane reviews ka reply likho (negative ka sabse pehle), aur aage 24-ghante-reply ka rule banao.",
-    "qna": "Q&A me khud 5-6 common sawal poochho aur jawab do (price-range, timing, area-coverage) — objections pehle hi cut ho jaate hain.",
-    "services": "Products/Services section me har service ka naam + price-range + ek photo dalo — ye search results me directly dikhta hai.",
-    "hours": "Hours abhi check karke sahi karo + agle 3 mahine ke holidays ke special hours set karo — 'galat hours' wali negative review free me aati hai.",
-    "contact": "Working phone number + website (ya Instagram/WhatsApp link) profile par lagao — bina iske lead jaane ka rasta hi nahi.",
-    "booking": "Free Calendly ya WhatsApp wa.me link ko booking-link me lagao — call chhoot bhi jaaye to lead capture hota hai.",
-    "geo_photos": "Phone camera me location ON karke shop/site ki naye photos kheencho aur wahi upload karo — free local-relevance signal hai.",
-    "nap": "Apna Name/Address/Phone website, JustDial, IndiaMart, Facebook — har jagah ek jaisa karo (spelling tak same). Mismatch se Google ka trust girta hai.",
-    "messaging": "GBP messaging ON karo aur phone par notifications laga lo — chat se aaya customer sabse garam lead hota hai.",
+    "qna": "Q&A me khud 5-6 common sawal poochho aur jawab do (price-range, timing, area-coverage) - objections pehle hi cut ho jaate hain.",
+    "services": "Products/Services section me har service ka naam + price-range + ek photo dalo - ye search results me directly dikhta hai.",
+    "hours": "Hours abhi check karke sahi karo + agle 3 mahine ke holidays ke special hours set karo - 'galat hours' wali negative review free me aati hai.",
+    "contact": "Working phone number + website (ya Instagram/WhatsApp link) profile par lagao - bina iske lead jaane ka rasta hi nahi.",
+    "booking": "Free Calendly ya WhatsApp wa.me link ko booking-link me lagao - call chhoot bhi jaaye to lead capture hota hai.",
+    "geo_photos": "Phone camera me location ON karke shop/site ki naye photos kheencho aur wahi upload karo - free local-relevance signal hai.",
+    "nap": "Apna Name/Address/Phone website, JustDial, IndiaMart, Facebook - har jagah ek jaisa karo (spelling tak same). Mismatch se Google ka trust girta hai.",
+    "messaging": "GBP messaging ON karo aur phone par notifications laga lo - chat se aaya customer sabse garam lead hota hai.",
 }
 
 _GRADES = [(85, "A"), (70, "B"), (50, "C")]  # else "D"
@@ -228,7 +228,7 @@ def score_audit(answers: dict[str, Any]) -> dict[str, Any]:
     """Weighted 0-100 GBP score + grade + breakdown + top-5 Hinglish fixes.
 
     `answers` = {question_id: option_index}. Missing/invalid => worst (0).
-    Pure logic — kabhi raise nahi karta, hamesha complete dict deta hai.
+    Pure logic - kabhi raise nahi karta, hamesha complete dict deta hai.
     """
     answers = answers if isinstance(answers, dict) else {}
     total_weight = sum(q["weight"] for q in AUDIT_QUESTIONS) or 1
@@ -282,14 +282,14 @@ def score_audit(answers: dict[str, Any]) -> dict[str, Any]:
     potential = min(100, score + round(100.0 * recoverable / total_weight))
     if score >= 90:
         impact = (
-            f"Zabardast! {score}/100 — profile top shape me hai. "
+            f"Zabardast! {score}/100 - profile top shape me hai. "
             "Bas weekly photos + posts ka routine banaye rakho."
         )
     else:
         impact = (
-            f"Abhi {score}/100 — sirf top-5 fixes karne se score ~{potential} tak jaa "
+            f"Abhi {score}/100 - sirf top-5 fixes karne se score ~{potential} tak jaa "
             "sakta hai. Google data: complete profiles ko ~2.7x zyada calls/direction "
-            "requests milti hain — ye free leads hain."
+            "requests milti hain - ye free leads hain."
         )
 
     return {
@@ -304,7 +304,7 @@ def score_audit(answers: dict[str, Any]) -> dict[str, Any]:
 
 
 def _worst_idx(qid: str) -> int:
-    """Unknown → sabse conservative (last) option."""
+    """Unknown -> sabse conservative (last) option."""
     for q in AUDIT_QUESTIONS:
         if q["id"] == qid:
             return max(0, len(q["options"]) - 1)
@@ -326,7 +326,7 @@ def _clamp_idx(qid: str, idx: int) -> int:
 def heuristic_suggest(client: dict[str, Any] | None) -> dict[str, Any]:
     """Profile se CONSERVATIVE answer suggestions. Score SAVE nahi karta.
 
-    Unknown facts → worst/pata-nahi option. Sirf clear signals pe mid/better.
+    Unknown facts -> worst/pata-nahi option. Sirf clear signals pe mid/better.
     """
     c = client if isinstance(client, dict) else {}
     socials = c.get("socials") if isinstance(c.get("socials"), dict) else {}
@@ -346,7 +346,7 @@ def heuristic_suggest(client: dict[str, Any] | None) -> dict[str, Any]:
     sources: dict[str, str] = {}
 
     if gbp:
-        answers["claimed"] = 1  # claimed? verify unknown — mid, not best
+        answers["claimed"] = 1  # claimed? verify unknown - mid, not best
         sources["claimed"] = "gbp_link_present"
     if phone and website:
         answers["contact"] = 0
@@ -366,7 +366,7 @@ def heuristic_suggest(client: dict[str, Any] | None) -> dict[str, Any]:
         answers["messaging"] = 2  # still unknown if GBP chat on
         sources["messaging"] = "wa_exists_gbp_chat_unknown"
 
-    # Photos/reviews/hours/posts/qna/nap/geo — live GBP bina invent nahi
+    # Photos/reviews/hours/posts/qna/nap/geo - live GBP bina invent nahi
     for qid in (
         "photos",
         "posts",
@@ -388,7 +388,7 @@ def heuristic_suggest(client: dict[str, Any] | None) -> dict[str, Any]:
         "mode": "heuristic",
         "note_hi": (
             "Profile se conservative suggestions. Photos/reviews/hours jaise facts "
-            "GBP pe dekh ke boss confirm kare — Score tabhi save hoga."
+            "GBP pe dekh ke boss confirm kare - Score tabhi save hoga."
         ),
     }
 

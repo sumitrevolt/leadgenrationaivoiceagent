@@ -1,4 +1,4 @@
-"""Flow Runner starter templates — shape + compile validity (Phase: starter content).
+"""Flow Runner starter templates - shape + compile validity (Phase: starter content).
 
 Guards the "dormant-but-wireable" fix: FLOW_RUNNER shipped with an empty builder;
 these 3 templates must stay compile-valid under the STRICTEST (customer) gate so a

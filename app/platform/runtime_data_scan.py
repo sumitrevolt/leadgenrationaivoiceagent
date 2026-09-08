@@ -349,7 +349,7 @@ def path_provenance(
                         return PROVEN_STATIC_PATH
                 return NOT_PATH
         if _is_env_read(node):
-            # `os.getenv("X", "data/store")` — configurable root with a
+            # `os.getenv("X", "data/store")` - configurable root with a
             # statically bounded default is a path PATTERN, not a fixed path.
             # A default that is not itself a path proves nothing, and an env
             # read with NO default is unbounded, so it stays ENV_READ and only
@@ -371,7 +371,7 @@ def path_provenance(
         return UNSUPPORTED_EXPRESSION
 
     if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
-        # `os.getenv("X") or DEFAULT` — the value is the first truthy operand,
+        # `os.getenv("X") or DEFAULT` - the value is the first truthy operand,
         # so it is bounded only when the LAST operand is proven. Anything else
         # in the chain must be an env read or itself proven, otherwise an
         # arbitrary object could reach a filesystem call.
@@ -403,7 +403,7 @@ def path_provenance(
         return NOT_PATH  # .name/.stem/.suffix and arbitrary attributes
 
     if isinstance(node, ast.IfExp):
-        # `store_path(*segments) if segments else runtime_root()` — the value is
+        # `store_path(*segments) if segments else runtime_root()` - the value is
         # one of two expressions, so it is proven exactly when BOTH are. Half a
         # proof is not a proof: accepting a single proven branch would let an
         # arbitrary receiver through on the other one, which is the failure this
@@ -431,7 +431,7 @@ _ENV_READ = "ENV_READ"
 
 
 def _is_env_read(node: ast.Call) -> bool:
-    """`os.getenv(...)` / `os.environ.get(...)` — structural, not by name alone."""
+    """`os.getenv(...)` / `os.environ.get(...)` - structural, not by name alone."""
     fn = node.func
     if not isinstance(fn, ast.Attribute):
         return False
@@ -448,7 +448,7 @@ def _path_return_helpers(tree: ast.Module, table: dict[str, Any]) -> dict[str, s
 
     A helper qualifies only when every reachable `return <value>` resolves to a
     PROVEN_* status. One non-path branch makes the whole function AMBIGUOUS_PATH,
-    and an unknown call supplying the root leaves it UNSUPPORTED_EXPRESSION —
+    and an unknown call supplying the root leaves it UNSUPPORTED_EXPRESSION -
     the function name, its docstring and its annotation are never evidence.
 
     Two passes so `def a(): return b()` can see `b`, with the in-progress set
@@ -516,7 +516,7 @@ def _pattern_of(node: ast.AST, helpers: dict[str, str], _depth: int = 0) -> str:
             return f"<${var}|{dflt}>"
         fname = getattr(node.func, "id", None)
         fattr = getattr(node.func, "attr", None)
-        # `str(<path>)` is a no-op for structure — unwrap so A4 dual-read
+        # `str(<path>)` is a no-op for structure - unwrap so A4 dual-read
         # helpers that wrap resolve_store_path still render the resolver.
         if fname == "str" and len(node.args) == 1:
             return _pattern_of(node.args[0], helpers, _depth + 1)
@@ -526,7 +526,7 @@ def _pattern_of(node: ast.AST, helpers: dict[str, str], _depth: int = 0) -> str:
             return helpers[fname] or f"<{fname}>"
         # Canonical resolvers must render by name so classify / fingerprints
         # can see them. Falling through to `<*>` previously left the pattern
-        # as the provenance status string ("PROVEN_STATIC_PATH") — fingerprint
+        # as the provenance status string ("PROVEN_STATIC_PATH") - fingerprint
         # poison (2026-07-28 A4).
         canon = fname or fattr
         if canon in _CANONICAL_FUNCS or canon == "runtime_root":
@@ -550,7 +550,7 @@ def _pattern_of(node: ast.AST, helpers: dict[str, str], _depth: int = 0) -> str:
     if isinstance(node, ast.Name):
         return helpers.get(node.id) or "<*>"
     if isinstance(node, ast.BoolOp):
-        # `os.getenv("X") or DEFAULT` — render the env var WITH its real
+        # `os.getenv("X") or DEFAULT` - render the env var WITH its real
         # fallback. Taking the first operand alone left the default as
         # `<unset>` even though the code plainly supplies one.
         pats = [_pattern_of(v, helpers, _depth + 1) for v in node.values]
@@ -676,7 +676,7 @@ def _receiver_is_pathlike(recv: ast.AST, symbols: dict[str, ast.AST] | None) -> 
     A method name is not evidence. `text.replace(a, b)`, `items.remove(x)` and
     `stream.write(data)` all look like file APIs and none of them touch a
     filesystem. Treating the name as proof classified a prompt builder as a
-    REPLACE writer and turned a READ into a destructive operation — a
+    REPLACE writer and turned a READ into a destructive operation - a
     regression, not new visibility, and one a capability record must never
     launder.
 
@@ -708,7 +708,7 @@ def _path_argument(
         if base in _PATH_MODULES:
             return node.args[0] if node.args else None
         if not _receiver_is_pathlike(fn.value, symbols):
-            return None  # arbitrary receiver — the method name proves nothing
+            return None  # arbitrary receiver - the method name proves nothing
         return fn.value  # p.write_text(data) -> p
     return node.args[0] if node.args else None
 
@@ -734,7 +734,7 @@ def _path_taking_writers(tree: ast.Module) -> dict[str, str]:
     WHICH parameter is the path matters as much as whether one is written. The
     first version recorded only the operation and then took `args[0]` at the
     call site, so `def write_text(content, destination)` would have had the
-    CONTENT read as the path — a wrong finding and a secret-leak surface in one.
+    CONTENT read as the path - a wrong finding and a secret-leak surface in one.
     The parameter is therefore derived from the write target itself.
     """
     # STRUCTURAL method detection. `self` is a receiver, never a call-site path
@@ -871,8 +871,8 @@ def _path_taking_writers(tree: ast.Module) -> dict[str, str]:
                     # slot. A SOURCE / TEMPORARY / companion binding is real
                     # and stays in `path_bindings`, but binding a write to it
                     # is what marked a read-only argument as a rewrite.
-                    # (A READ legitimately binds to a SOURCE — that is its
-                    # authority — so the gate is mutation-specific.)
+                    # (A READ legitimately binds to a SOURCE - that is its
+                    # authority - so the gate is mutation-specific.)
                     continue
                 if best is None or _OP_SEVERITY.get(cand, 0) > _OP_SEVERITY.get(
                     best["operation"], 0
@@ -929,7 +929,7 @@ def _binding_role(operation: str) -> str:
 
 
 def _arg_for_param(call: ast.Call, name: str, index: int) -> ast.AST | None:
-    """Argument bound to a named parameter — keyword first, then position.
+    """Argument bound to a named parameter - keyword first, then position.
 
     Keyword call sites are normal for these helpers
     (`_write_all(records=items, destination=STORE)`), and positional-only
@@ -978,7 +978,7 @@ def _mutable_symbols(tree: ast.Module) -> dict[str, str]:
             expr = _expr_source(value)
             # Canonical assignments count as mutable-path symbols too. Without
             # this, `path = store_path(...)` never enters the symbol table, so
-            # the `path.mkdir()` on the next line is invisible — which is why
+            # the `path.mkdir()` on the next line is invisible - which is why
             # canonical findings read 0 even for runtime_data.py itself.
             if (
                 _looks_mutable(_literal_strings(value), expr)
@@ -1115,7 +1115,7 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
         # was skipped entirely -- which is why canonical findings read 0 even
         # though runtime_data.store_dir does exactly that.
         if use_local:
-            # Follow the helper's DECLARED path parameter — by keyword if the
+            # Follow the helper's DECLARED path parameter - by keyword if the
             # call site uses one. Taking args[0] blindly would read the content
             # argument of a content-first helper as a filesystem path.
             spec = local_writers[name]
@@ -1163,7 +1163,7 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
             op = SQLITE
         # Lock detection must look at the symbol's DEFINITION too. `open(_LOCK,"w")`
         # carries no ".lock" at the call site, so checking only the call-site
-        # expression silently reclassified every lock as a plain REWRITE — and
+        # expression silently reclassified every lock as a plain REWRITE - and
         # the lock-to-store mapping is exactly what must survive migration
         # (splitting a lock from its data across filesystems breaks atomicity).
         lock_haystack = expr + " ".join(strings) + " " + (symbols.get(via_symbol) or "")
@@ -1339,12 +1339,12 @@ def classify(finding: dict[str, Any], allowlist_index: dict[str, dict[str, Any]]
     # checking it kept canonical at 0 even for runtime_data.py itself, which is
     # the most canonical module in the repo.
     #
-    # Match function names at a token boundary — NEVER bare `store_path(` as a
+    # Match function names at a token boundary - NEVER bare `store_path(` as a
     # substring, or `resolve_store_path(` falsely collapses to CANONICAL while
     # the call is still unresolved for fingerprint purposes.
     resolved = str(finding.get("resolved_pattern") or "")
     _canon_names = set(_CANONICAL_FUNCS) | {"runtime_root"}
-    # Lookbehind is word-char only — MUST allow `rd.store_path(` (dot prefix).
+    # Lookbehind is word-char only - MUST allow `rd.store_path(` (dot prefix).
     if any(re.search(rf"(?<!\w){re.escape(fn)}\(", resolved) for fn in _canon_names):
         finding["canonical_resolver_used"] = True
         return CANONICAL_RUNTIME_PATH

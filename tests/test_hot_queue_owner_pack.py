@@ -40,7 +40,7 @@ def test_build_owner_pack_empty_rows_is_ok(tmp_path, monkeypatch):
 
 
 def test_build_owner_pack_with_rows_writes_csv_and_md(tmp_path, monkeypatch):
-    """3 fake rows → 3 CSV lines + a non-empty MD file."""
+    """3 fake rows -> 3 CSV lines + a non-empty MD file."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data").mkdir()
     from app.platform import hot_queue_owner_pack, reply_agent
@@ -256,7 +256,7 @@ def test_build_owner_pack_never_raises_on_hot_queue_error(tmp_path, monkeypatch)
 
 
 # --------------------------------------------------------------------------- #
-# check_gates() — owner-gated admin compliance adapter (2026-09-05)
+# check_gates() - owner-gated admin compliance adapter (2026-09-05)
 # --------------------------------------------------------------------------- #
 class _StubVL:
     """In-process stub of ``app.telephony.voice_launch`` exposing only the
@@ -318,7 +318,7 @@ class TestCheckGatesAdapter:
     """
 
     def test_returns_dict_with_only_str_values(self, stubbed_env):
-        """Every value must be a str (never bool/int) — admin_api string-compares."""
+        """Every value must be a str (never bool/int) - admin_api string-compares."""
         from app.platform import hot_queue_owner_pack
 
         out = hot_queue_owner_pack.check_gates()
@@ -327,13 +327,13 @@ class TestCheckGatesAdapter:
         for k, v in out.items():
             assert isinstance(k, str)
             assert isinstance(v, str), f"gate {k!r} returned non-str {v!r}"
-            # Admin string-compares to "pass" — anything else opens the gate.
+            # Admin string-compares to "pass" - anything else opens the gate.
             # False-y values like "" or None would silently pass; the adapter
             # explicitly forbids that.
             assert v != "", f"gate {k!r} has empty value"
 
     def test_kill_fence_block_when_engaged(self, stubbed_env):
-        """admin_kill_engaged=True → gate NOT 'pass'."""
+        """admin_kill_engaged=True -> gate NOT 'pass'."""
         from app.platform import hot_queue_owner_pack
 
         stubbed_env.kill_engaged = True
@@ -342,14 +342,14 @@ class TestCheckGatesAdapter:
         assert "admin_kill" in out["kill_fence"].lower()
 
     def test_kill_fence_pass_when_disengaged(self, stubbed_env):
-        """admin_kill_engaged=False → gate == 'pass'."""
+        """admin_kill_engaged=False -> gate == 'pass'."""
         from app.platform import hot_queue_owner_pack
 
         out = hot_queue_owner_pack.check_gates()
         assert out["kill_fence"] == "pass"
 
     def test_recording_gate_block(self, stubbed_env):
-        """recording_gate_ok returns (False, reason) → gate NOT pass."""
+        """recording_gate_ok returns (False, reason) -> gate NOT pass."""
         from app.platform import hot_queue_owner_pack
 
         stubbed_env.rec_ok = False
@@ -360,7 +360,7 @@ class TestCheckGatesAdapter:
         assert "no_storage" in out["recording_ok"]
 
     def test_campaign_disabled_blocks(self, stubbed_env):
-        """campaign_enabled=False → gate NOT pass."""
+        """campaign_enabled=False -> gate NOT pass."""
         from app.platform import hot_queue_owner_pack
 
         stubbed_env.campaign_on = False
@@ -369,7 +369,7 @@ class TestCheckGatesAdapter:
         assert "disabled" in out["campaign_on"]
 
     def test_voice_window_outside_block(self, stubbed_env, monkeypatch):
-        """TRAI window: hour 22 → gate NOT pass."""
+        """TRAI window: hour 22 -> gate NOT pass."""
         from app.platform import hot_queue_owner_pack
         import app.platform.hot_queue_owner_pack as _mod
 
@@ -379,14 +379,14 @@ class TestCheckGatesAdapter:
         assert "22" in out["voice_window"]
 
     def test_voice_window_inside_pass(self, stubbed_env):
-        """hour=14 → voice_window == 'pass' (already set in fixture)."""
+        """hour=14 -> voice_window == 'pass' (already set in fixture)."""
         from app.platform import hot_queue_owner_pack
 
         out = hot_queue_owner_pack.check_gates()
         assert out["voice_window"] == "pass"
 
     def test_emergency_stop_blocks(self, stubbed_env, monkeypatch):
-        """EMERGENCY_STOP=1 → gate added with non-pass value."""
+        """EMERGENCY_STOP=1 -> gate added with non-pass value."""
         from app.platform import hot_queue_owner_pack
 
         monkeypatch.setenv("EMERGENCY_STOP", "1")

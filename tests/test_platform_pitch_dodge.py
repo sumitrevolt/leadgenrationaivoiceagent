@@ -1,7 +1,7 @@
 """Platform-pitch dodge fix (2026-06-28): direct product questions after the
 'interested hain?' opener must route to TelecallerBrain (None) so they get ANSWERED
-— not mis-classified as 'yes' (via the batao/bolo YES patterns) and dodged with a
-discovery question. From the user's real call: "features batao" → "marketing khud
+- not mis-classified as 'yes' (via the batao/bolo YES patterns) and dodged with a
+discovery question. From the user's real call: "features batao" -> "marketing khud
 karte ho?" (dodge).
 """
 
@@ -37,7 +37,7 @@ def test_product_questions_route_to_brain_not_dodge():
 
 
 def test_pure_interest_still_classified_yes():
-    # "haan batao" (no product word) = genuine interest → praise + discovery, NOT
+    # "haan batao" (no product word) = genuine interest -> praise + discovery, NOT
     # treated as a product question.
     assert is_product_question("haan batao") is False
     reply, st = next_reply(_gate(), "haan batao sunao")

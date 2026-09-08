@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only deploy verification — run inside the prod container:
+"""Read-only deploy verification - run inside the prod container:
 
     ssh root@VPS "docker exec -i leadgen_app python -" < scripts/vps_verify_deploy.py
 
@@ -42,7 +42,7 @@ try:
     print("skills source extra  :", "extra" in sources)
 except Exception as e:
     print("skills sources    :", "ERR", e)
-# numpy/sklearn drift that Cursor's f674f6c fixed — confirm no breakage
+# numpy/sklearn drift that Cursor's f674f6c fixed - confirm no breakage
 try:
     import numpy  # noqa
     import scipy

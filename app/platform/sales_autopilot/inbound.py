@@ -1,4 +1,4 @@
-"""Sales Autopilot inbound reply handling — classify + fail-closed opt-out.
+"""Sales Autopilot inbound reply handling - classify + fail-closed opt-out.
 
 :func:`classify_reply` is a deterministic keyword classifier (LLM not required). Categories:
 ``OPT_OUT | INTERESTED | PRICING_QUESTION | DEMO_REQUEST | NOT_INTERESTED | PAYMENT_DONE |
@@ -90,7 +90,7 @@ def handle_inbound(prospect_id: str, text: str, *, channel: str = "whatsapp") ->
 
         rec = _store.get_prospect(prospect_id) or {"id": str(prospect_id)}
 
-        # 1. OPT-OUT — fail-closed, instant cross-channel suppression. ALWAYS acted on.
+        # 1. OPT-OUT - fail-closed, instant cross-channel suppression. ALWAYS acted on.
         if category == OPT_OUT:
             phone = rec.get("phone")
             if phone:
@@ -106,7 +106,7 @@ def handle_inbound(prospect_id: str, text: str, *, channel: str = "whatsapp") ->
             result["auto_reply_family"] = "optout_ack"
             return result
 
-        # 2. Record reply → stop-on-reply engages for future cadence.
+        # 2. Record reply -> stop-on-reply engages for future cadence.
         _store.mark_status(
             prospect_id,
             _store.STATUS_REPLIED,
@@ -114,7 +114,7 @@ def handle_inbound(prospect_id: str, text: str, *, channel: str = "whatsapp") ->
             last_reply_category=category,
         )
         if category == PAYMENT_DONE:
-            # Hand off to onboarding/activation adapter — never mutate billing here.
+            # Hand off to onboarding/activation adapter - never mutate billing here.
             result["action"] = "handoff_payment"
             return result
 
@@ -133,7 +133,7 @@ def handle_inbound(prospect_id: str, text: str, *, channel: str = "whatsapp") ->
             result["preview"] = env["body"]
             return result
 
-        # 4. Everything else → escalate to a human (Owner OS).
+        # 4. Everything else -> escalate to a human (Owner OS).
         _escalate(prospect_id, category, text or "")
         result["action"] = "escalate_owner"
         result["auto_reply_family"] = family

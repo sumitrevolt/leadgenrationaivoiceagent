@@ -1,7 +1,7 @@
-"""Booking reminders (Calendly/HighLevel-pattern) — no-show kam karo.
+"""Booking reminders (Calendly/HighLevel-pattern) - no-show kam karo.
 
-Booking hote hi yahan persistent record hota (calendar_booking in-memory hai —
-restart pe gum). Daily sweep: kal ki bookings → reminder email/WA-link draft;
+Booking hote hi yahan persistent record hota (calendar_booking in-memory hai -
+restart pe gum). Daily sweep: kal ki bookings -> reminder email/WA-link draft;
 auto-email **gated `BOOKING_REMINDERS=1`** (off = draft record-only).
 
 Store: data/bookings.jsonl + booking_reminder_runs.jsonl. Reuse: email_sender.
@@ -60,7 +60,7 @@ def _append(path: str, rec: dict[str, Any]) -> None:
 def record_booking(
     slot_iso: str, name: str = "", phone: str = "", email: str = "", notes: str = "", slug: str = ""
 ) -> dict[str, Any]:
-    """Booking API hook — persistent record (dedupe by slot+phone). Kabhi raise nahi."""
+    """Booking API hook - persistent record (dedupe by slot+phone). Kabhi raise nahi."""
     try:
         key_phone = "".join(c for c in str(phone or "") if c.isdigit())[-10:]
         rows = _read(_STORE)
@@ -86,7 +86,7 @@ def record_booking(
 
 
 def build_reminder(rec: dict[str, Any]) -> dict[str, str]:
-    """Hinglish reminder (pure fn — testable)."""
+    """Hinglish reminder (pure fn - testable)."""
     nm = rec.get("name") or "ji"
     slot = str(rec.get("slot", ""))[:16].replace("T", " ")
     body = (
@@ -94,11 +94,11 @@ def build_reminder(rec: dict[str, Any]) -> dict[str, str]:
         f"Time se 5 min pehle ready rahiye.\n\nReschedule karna ho to is email ka reply karo.\n"
     )
     wa = f"Namaste {nm}! Reminder: aapki appointment {slot} pe hai. Confirm karne ke liye 👍 bhejo."
-    return {"subject": f"⏰ Kal ki appointment ka reminder — {slot}", "body": body, "wa_text": wa}
+    return {"subject": f"⏰ Kal ki appointment ka reminder - {slot}", "body": body, "wa_text": wa}
 
 
 async def run_due() -> dict[str, Any]:
-    """Daily: agle 24h ki un-reminded bookings → reminder. GATED (off = no-op)."""
+    """Daily: agle 24h ki un-reminded bookings -> reminder. GATED (off = no-op)."""
     if not _enabled():
         return {"enabled": False}
     sent = 0
@@ -139,7 +139,7 @@ async def run_due() -> dict[str, Any]:
                 continue
         if changed:
             try:
-                # Lock + atomic — web (booking hook) + celery (run_due) dono likhte.
+                # Lock + atomic - web (booking hook) + celery (run_due) dono likhte.
                 from app.utils.file_lock import locked_rewrite
 
                 locked_rewrite(
@@ -160,7 +160,7 @@ def upcoming(limit: int = 20) -> list[dict[str, Any]]:
 
 
 def list_all(limit: int = 50) -> list[dict[str, Any]]:
-    """Admin calendar — saari active bookings (no-show excluded)."""
+    """Admin calendar - saari active bookings (no-show excluded)."""
     rows = [r for r in _read(_STORE) if not r.get("no_show")]
     return rows[-limit:]
 

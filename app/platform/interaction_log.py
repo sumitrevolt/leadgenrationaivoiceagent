@@ -1,4 +1,4 @@
-"""Interaction log — append omnichannel touches to DB + jsonl audit.
+"""Interaction log - append omnichannel touches to DB + jsonl audit.
 
 Every outreach/call/reply writes here when INTERACTION_LOG=1 (default ON).
 An OUTBOUND touch also promotes the resolved lead NEW -> CONTACTED via
@@ -21,7 +21,7 @@ logger = setup_logger(__name__)
 
 
 def _JSONL() -> str:
-    """Omnichannel interaction JSONL audit — resolved per call, never frozen at import.
+    """Omnichannel interaction JSONL audit - resolved per call, never frozen at import.
 
     DB dual-write stays in ``record()``
     only this file path follows the shared
@@ -60,7 +60,7 @@ async def record(
     campaign_variant_id: str = "",
     meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Record one interaction — jsonl always, Postgres best-effort."""
+    """Record one interaction - jsonl always, Postgres best-effort."""
     if not _enabled():
         return {"skipped": "INTERACTION_LOG off"}
     iid = str(uuid.uuid4())
@@ -79,7 +79,7 @@ async def record(
         "occurred_at": _now().isoformat(),
     }
     try:
-        # Resolver at each I/O site — derive dir from the active file (A4 lesson:
+        # Resolver at each I/O site - derive dir from the active file (A4 lesson:
         # bare os.makedirs("data") is a permanent hole for the next literal).
         os.makedirs(os.path.dirname(_JSONL()) or ".", exist_ok=True)
         with open(_JSONL(), "a", encoding="utf-8") as f:
@@ -112,7 +112,7 @@ async def record(
 
             # --- email identity resolution (2026-07-25) --------------------
             # Outreach is overwhelmingly EMAIL (1,951 of 2,611 interactions),
-            # and an email interaction carries no phone — so the phone-only
+            # and an email interaction carries no phone - so the phone-only
             # lookup above left EVERY email interaction orphaned: 2,611 rows
             # with lead_id=0, incl. 295 replies whose outcome was "interested".
             # Those warm prospects were invisible to the lead pipeline, which
@@ -158,7 +158,7 @@ async def record(
             # have now contacted this lead. Promote NEW -> CONTACTED via the model
             # helper so a lead_status_history row (changed_by='outreach') is written
             # in the SAME commit. Only direction=='out' (never inbound replies or
-            # drafts) and only NEW leads advance — mark_contacted() never downgrades.
+            # drafts) and only NEW leads advance - mark_contacted() never downgrades.
             # Best-effort: any failure here must not drop the interaction write.
             if lead_id and (direction or "").strip().lower() == "out":
                 try:

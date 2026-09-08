@@ -1,4 +1,4 @@
-"""Agent Scheduler (scheduler_config) — admin toggle + run-due contract.
+"""Agent Scheduler (scheduler_config) - admin toggle + run-due contract.
 
 Pins:
 - FAIL-OPEN default: bina override file ke har job enabled.
@@ -132,7 +132,7 @@ def test_run_due_endpoint_auth(monkeypatch):
     monkeypatch.setenv("LEADGEN_SCHEDULER_SECRET", "s3cret-token")
     assert client.post(url, headers={"Authorization": "Bearer wrong"}).status_code == 401
 
-    # sahi token => 200 (run_due stubbed — koi real dispatch nahi)
+    # sahi token => 200 (run_due stubbed - koi real dispatch nahi)
     from app.platform import scheduler_config
 
     monkeypatch.setattr(scheduler_config, "run_due", lambda max_jobs=3: {"ok": True, "due": []})

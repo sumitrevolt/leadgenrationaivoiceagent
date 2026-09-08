@@ -1,10 +1,10 @@
 """
-email_api.py — API-based email sending (Resend / Brevo), SMTP se zyada reliable.
+email_api.py - API-based email sending (Resend / Brevo), SMTP se zyada reliable.
 ================================================================================
 
-SMTP creds (Hostinger) flaky the → API providers (HTTPS) cleaner. Jo bhi key
+SMTP creds (Hostinger) flaky the -> API providers (HTTPS) cleaner. Jo bhi key
 .env me set hai (RESEND_API_KEY ya BREVO_API_KEY) usse bhejta hai. Dono ka free
-tier hai. NEVER raises — (ok, info) tuple return karta hai.
+tier hai. NEVER raises - (ok, info) tuple return karta hai.
 
   Resend : POST https://api.resend.com/emails        (Bearer key)
   Brevo  : POST https://api.brevo.com/v3/smtp/email   (api-key header)

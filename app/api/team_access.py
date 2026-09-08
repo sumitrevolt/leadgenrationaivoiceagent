@@ -1,4 +1,4 @@
-"""Team access API — sub-admins + module-limited members (docs/ADMIN_RBAC_DESIGN.md).
+"""Team access API - sub-admins + module-limited members (docs/ADMIN_RBAC_DESIGN.md).
 
 EXISTING /api/admin/users/* (CRUD/status) ke UPAR thin layer: module grants
 (rbac, preferences JSON), temp-password onboarding (must_change_password flag),
@@ -75,7 +75,7 @@ async def create_member(
     admin: User = Depends(require_super_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Naya team member (super_admin only) — temp password + first-login change forced."""
+    """Naya team member (super_admin only) - temp password + first-login change forced."""
     if body.role not in _MEMBER_ROLES:
         raise HTTPException(status_code=400, detail=f"role must be one of {_MEMBER_ROLES}")
     existing = (await db.execute(select(User).where(User.email == body.email))).scalar_one_or_none()
@@ -164,7 +164,7 @@ async def reset_password(
     admin: User = Depends(require_super_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Temp password set (super_admin only) — agla login pe change forced."""
+    """Temp password set (super_admin only) - agla login pe change forced."""
     u = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="User not found")
@@ -188,7 +188,7 @@ class ChangePasswordIn(BaseModel):
 
 # Defense-in-depth: password-verify write stays under route ``rate_limit``
 # (same 5/300 budget as customer change-password) in addition to the global
-# flat middleware — no prefix bypass.
+# flat middleware - no prefix bypass.
 @router.post(
     "/auth/change-password",
     dependencies=[Depends(rate_limit("team_pw_change", 5, 300))],
@@ -198,7 +198,7 @@ async def change_own_password(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Apna password change (koi bhi logged-in role) — must_change flag clear hota."""
+    """Apna password change (koi bhi logged-in role) - must_change flag clear hota."""
     u = (await db.execute(select(User).where(User.id == user.id))).scalar_one_or_none()
     if not u or not u.verify_password(body.current_password):
         raise HTTPException(status_code=401, detail="Current password galat hai")
@@ -217,7 +217,7 @@ async def change_own_password(
 
 @router.get("/me")
 async def my_access(request_user: User = Depends(get_current_user)):
-    """Apna access view — role, modules, change-password flag (UI bootstrap)."""
+    """Apna access view - role, modules, change-password flag (UI bootstrap)."""
     return {
         "email": request_user.email,
         "role": request_user.role.value if request_user.role else None,

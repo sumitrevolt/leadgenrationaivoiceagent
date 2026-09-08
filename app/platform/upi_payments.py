@@ -1,8 +1,8 @@
-"""Self-serve UPI payment submissions — kill manual WhatsApp-screenshot friction.
+"""Self-serve UPI payment submissions - kill manual WhatsApp-screenshot friction.
 
 Customer pays via UPI, then submits "maine pay kiya" (ref + plan) from the site.
 Record lands in a pending queue (``data/upi_payments.json``). Admin approves/rejects,
-OR — when ``UPI_AUTO_ACTIVATE=1`` — the plan auto-activates instantly on submit.
+OR - when ``UPI_AUTO_ACTIVATE=1`` - the plan auto-activates instantly on submit.
 
 Patterned on ``app.platform.upi_config`` (json data-file store, never raises).
 ADDITIVE + defensive: every function wraps work in try/except and returns a safe
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def _STORE() -> str:
-    """UPI payment records — resolved per call, never frozen at import."""
+    """UPI payment records - resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -60,9 +60,9 @@ def auto_activate_clients_allowed(client_id: str) -> bool:
 
 
 def _read_store() -> list[dict]:
-    """Read the payment records list. Never raises — bad/missing file → []."""
+    """Read the payment records list. Never raises - bad/missing file -> []."""
     try:
-        # Resolver at each I/O site — binding to a local unbinds the allowlist.
+        # Resolver at each I/O site - binding to a local unbinds the allowlist.
         if os.path.isfile(_STORE()):
             with open(_STORE(), encoding="utf-8") as f:
                 data = json.load(f)
@@ -73,7 +73,7 @@ def _read_store() -> list[dict]:
 
 
 def _write_store(rows: list[dict]) -> bool:
-    """Persist the records list. Never raises — returns False on failure."""
+    """Persist the records list. Never raises - returns False on failure."""
     try:
         os.makedirs(os.path.dirname(_STORE()) or ".", exist_ok=True)
         with open(_STORE(), "w", encoding="utf-8") as f:
@@ -112,10 +112,10 @@ def _valid_plan_keys() -> set[str]:
     """Canonical set of activatable plan keys (lowercased). Never raises.
 
     Built from the pure-data pricing source-of-truth modules (import-safe, no DB):
-      - marketing packages incl. FREE trial  → {trial, starter, growth, advanced}
-      - voice product plan ids               → VOICE_PLAN_IDS (7)
-      - combo product plan ids               → COMBO_PLAN_IDS (7)
-    NB: ``subscription.PRICING_PLANS`` is NOT used — those marketing/voice/combo keys
+      - marketing packages incl. FREE trial  -> {trial, starter, growth, advanced}
+      - voice product plan ids               -> VOICE_PLAN_IDS (7)
+      - combo product plan ids               -> COMBO_PLAN_IDS (7)
+    NB: ``subscription.PRICING_PLANS`` is NOT used - those marketing/voice/combo keys
     are injected at RUNTIME by billing_manager sync (not at import), so it would be
     empty/partial here. Each source is unioned best-effort so a missing/broken module
     never breaks validation (the others still gate). Empty set only if ALL fail.
@@ -146,10 +146,10 @@ def _valid_plan_keys() -> set[str]:
 
 
 def _min_plan_price(plan_key: str) -> float | None:
-    """Cheapest legitimate amount (INR) for `plan_key` — the monthly price, which
+    """Cheapest legitimate amount (INR) for `plan_key` - the monthly price, which
     is always <= the annual price, so `amount >= this` accepts either billing
     period without needing to know which one was submitted. Returns None if the
-    plan isn't found in any pricing source (caller must not block on None — same
+    plan isn't found in any pricing source (caller must not block on None - same
     fail-open-on-missing-data posture as `_valid_plan_keys()`)."""
     try:
         from app.marketing.packages import get_packages
@@ -160,7 +160,7 @@ def _min_plan_price(plan_key: str) -> float | None:
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("upi_payments min-price packages skipped: %s", e)
     try:
-        # Band-aware helper — get_voice_packages() only returns ONE band's
+        # Band-aware helper - get_voice_packages() only returns ONE band's
         # payload, so scraping it missed voice_b_*/voice_c_* entirely and the
         # price floor silently never applied to the most expensive voice plans.
         from app.marketing.voice_packages import voice_plan_price
@@ -172,7 +172,7 @@ def _min_plan_price(plan_key: str) -> float | None:
         logger.debug("upi_payments min-price voice skipped: %s", e)
     try:
         # get_combo_packages() payload keys plans under "tiers" (not "plans"),
-        # so the old scrape resolved None for every combo plan — use the
+        # so the old scrape resolved None for every combo plan - use the
         # dedicated price helper instead.
         from app.marketing.combo_packages import combo_plan_price
 
@@ -185,13 +185,13 @@ def _min_plan_price(plan_key: str) -> float | None:
 
 
 def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: bool = True) -> bool:
-    """Best-effort plan activation. Never raises — returns activation success bool.
+    """Best-effort plan activation. Never raises - returns activation success bool.
 
     Validates the plan against the canonical activatable set BEFORE provisioning so a
     typo/retired/unknown plan can never silently activate (record stays pending). Also
     rejects if `amount` is below the plan's real listed price (production audit
     2026-07-01: UPI_AUTO_ACTIVATE previously only checked the plan key, not the paid
-    amount — a fabricated amount:0 self-serve submission could auto-activate the
+    amount - a fabricated amount:0 self-serve submission could auto-activate the
     highest paid tier for free). On a successful activation also drops the renewal
     usage watermark (parity with the Stripe webhook path) so a renew/upgrade zeroes
     the minute counter for the period.
@@ -200,7 +200,7 @@ def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: b
     2026-07-04): every frontend submit records ``amount: 0`` (no amount field), so
     enforcing the floor on ``decide()`` made the admin "Approve" button silently
     fail to activate ANY real submission. A human approving has already verified
-    the payment in the bank/UPI app — the floor exists to stop UNattended
+    the payment in the bank/UPI app - the floor exists to stop UNattended
     auto-activation, not attended approval.
     """
     cid = (client_id or "").strip()
@@ -214,17 +214,17 @@ def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: b
     # source failed to import (valid == empty) we don't block legitimate activation.
     if valid and plan_k not in valid:
         logger.warning(
-            "upi_payments activation REJECTED — unknown plan %r (not in %d known plans)",
+            "upi_payments activation REJECTED - unknown plan %r (not in %d known plans)",
             plan,
             len(valid),
         )
         return False
     min_price = _min_plan_price(plan_k) if enforce_floor else None
-    # Only enforce when we actually resolved a real price — same fail-open-on-missing-
+    # Only enforce when we actually resolved a real price - same fail-open-on-missing-
     # data posture as the plan-key check above (never block on our own lookup failure).
     if min_price and float(amount or 0) < min_price:
         logger.warning(
-            "upi_payments activation REJECTED — amount %r below plan %r price floor %r",
+            "upi_payments activation REJECTED - amount %r below plan %r price floor %r",
             amount,
             plan,
             min_price,
@@ -233,19 +233,19 @@ def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: b
     try:
         from app.billing import usage
 
-        # ensure_subscription: real UPI payment — create/activate the Subscription
+        # ensure_subscription: real UPI payment - create/activate the Subscription
         # row too (portal /billing/subscription 404s without one; audit 2026-07-04).
         if not bool(usage.activate_plan(cid, plan, ensure_subscription=True)):
             return False
         # Parity with Stripe path: reset the metered-usage watermark on activation so a
-        # renewal/upgrade zeroes the minute counter. Best-effort — never raises.
+        # renewal/upgrade zeroes the minute counter. Best-effort - never raises.
         try:
             usage.reset_usage_period(cid)
         except Exception as e:  # pragma: no cover - defensive
             logger.debug("upi_payments reset_usage_period skipped: %s", e)
-        # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+        # Funnel event (audit 2026-07-04) - silent no-op without POSTHOG_API_KEY.
         # niche + business_type properties paid side pe bhi + distinct_id = phone
-        # (lead_captured bhi phone-keyed hai — inquiry → paid funnel same person pe
+        # (lead_captured bhi phone-keyed hai - inquiry -> paid funnel same person pe
         # match karta hai; posthog_funnel module). Client ka phone record se aata
         # hai; na ho to cid fallback.
         try:
@@ -268,8 +268,8 @@ def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: b
 
 
 def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
-    """Best-effort GST invoice on a successful UPI activation — parity with the
-    Stripe path (``billing._provision_usage`` → ``gst_invoice.on_payment_success``).
+    """Best-effort GST invoice on a successful UPI activation - parity with the
+    Stripe path (``billing._provision_usage`` -> ``gst_invoice.on_payment_success``).
     Without this a UPI-paying customer got NO invoice record (audit 2026-07-05:
     real paying client had a live plan but zero downloadable bill). Record hamesha
     banta
@@ -281,7 +281,7 @@ def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
     on_payment_success is ``async``
     this helper runs from SYNC callers (submit auto-
     activate + admin decide), so we prefer scheduling on a running loop when one
-    exists and otherwise run it to completion. NEVER raises — a billing hiccup must
+    exists and otherwise run it to completion. NEVER raises - a billing hiccup must
     never break the activation/onboarding that already succeeded.
     """
     try:
@@ -303,20 +303,20 @@ def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
         except RuntimeError:
             _loop = None
         if _loop is not None:
-            # Async context (called from within a request coroutine) — schedule it.
+            # Async context (called from within a request coroutine) - schedule it.
             _loop.create_task(coro)
         else:
-            # Pure-sync caller (Celery worker / admin CLI) — run to completion.
+            # Pure-sync caller (Celery worker / admin CLI) - run to completion.
             _aio.run(coro)
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("upi_payments gst invoice hook skipped: %s", e)
 
 
 def _credit_referral(record: dict) -> None:
-    """Best-effort referral 'lead' → 'paid' flip on a successful activation.
+    """Best-effort referral 'lead' -> 'paid' flip on a successful activation.
 
     Revenue sprint (2026-08-23): affiliate referrals signup par record hote the
-    par payment hone par kabhi 'paid' nahi hote the — commission ledger dead
+    par payment hone par kabhi 'paid' nahi hote the - commission ledger dead
     tha. Match payer_contact (ya client ka email) se
     idempotent, never raises.
     """
@@ -358,13 +358,13 @@ def _trigger_onboarding(client_id: str = "") -> None:
         if cid:
             from app.tasks.staff_jobs import onboard_client
 
-            # send_welcome=False — payment path already has its own notifies; avoid
+            # send_welcome=False - payment path already has its own notifies; avoid
             # double WhatsApp on activate (ban-safety + signup parity).
             onboard_client.delay(cid, False)
             return
         from app.worker import celery_app
 
-        # ignore_result=True → fire-and-forget; skips the Redis result-backend
+        # ignore_result=True -> fire-and-forget; skips the Redis result-backend
         # pre-subscription that can block (unbounded retry) if the backend is slow/down.
         # Broker send stays bounded by broker_connection_timeout (10s).
         celery_app.send_task(
@@ -375,11 +375,11 @@ def _trigger_onboarding(client_id: str = "") -> None:
 
 
 def _mark_deal_won(phone: str) -> None:
-    """A real payment just activated — if a sales_pipeline deal exists for this
+    """A real payment just activated - if a sales_pipeline deal exists for this
     phone (e.g. the AI voice agent closed it to "negotiating" on a call), mark
     it won so the Sales dashboard reflects what actually happened instead of
     showing it stuck forever. Best-effort/read-after-write on the jsonl store;
-    a missing/ambiguous match is a silent no-op — never affects the payment or
+    a missing/ambiguous match is a silent no-op - never affects the payment or
     onboarding that already succeeded. Safe from double-onboard: voice-call
     deals never carry a client_id, so run_pipeline's own "won -> onboard"
     auto-action (which requires client_id) cannot fire a second time from this.
@@ -399,20 +399,20 @@ def _mark_deal_won(phone: str) -> None:
 
 
 def _close_order(record: dict, by: str = "system") -> None:
-    """Money for this record is confirmed → flip its bound offer to ``paid``.
+    """Money for this record is confirmed -> flip its bound offer to ``paid``.
 
     ``submit_payment`` already refuses a reference that is not payable right now,
     and its own comment (see the order gate) relies on the offer leaving `issued`
     "once the owner approves". Nothing performed that transition, so an order
     stayed payable forever: a second submission under the SAME order_ref with a
     different upi_ref slips past the (upi_ref, client, plan) duplicate guard,
-    lands as a fresh pending row, and on approve runs `_try_activate` again —
+    lands as a fresh pending row, and on approve runs `_try_activate` again -
     re-zeroing a metered client's usage period and firing a second GST invoice.
 
     Called on approve and on auto-activation. NOT called on reject: a rejected
     claim means the money never arrived, so the order must stay payable for the
     prospect who really does pay. `offers.mark_status` is idempotent, so a
-    re-approve of an already-closed order is a no-op. Best-effort — a failure
+    re-approve of an already-closed order is a no-op. Best-effort - a failure
     here never affects a payment that has already been persisted.
     """
     ref = str(record.get("order_ref") or "").strip()
@@ -423,7 +423,7 @@ def _close_order(record: dict, by: str = "system") -> None:
 
         if not offers.mark_status(ref, offers.STATUS_PAID, by=(by or "system")[:80]):
             logger.warning(
-                "upi_payments could not close order %s for payment %s — "
+                "upi_payments could not close order %s for payment %s - "
                 "it stays payable; reconcile manually",
                 ref,
                 record.get("id"),
@@ -445,7 +445,7 @@ def submit_payment(
 
     Validates plan + upi_ref non-empty, appends a pending record, notifies admin,
     and (when ``UPI_AUTO_ACTIVATE=1`` + client_id) tries instant activation.
-    Never raises — returns ``{"ok": False, "error": ...}`` on validation failure.
+    Never raises - returns ``{"ok": False, "error": ...}`` on validation failure.
 
     ``order_ref`` (#240, optional) binds the payment to an immutable offer so an
     owner reconciling a bank credit sees the exact deal instead of matching on a
@@ -488,7 +488,7 @@ def submit_payment(
             existing = None
         if existing is not None:
             logger.info(
-                "upi_payments duplicate submit ignored — ref=%s plan=%s cid=%s existing_id=%s",
+                "upi_payments duplicate submit ignored - ref=%s plan=%s cid=%s existing_id=%s",
                 ref_s,
                 plan_s,
                 cid or "-",
@@ -500,7 +500,7 @@ def submit_payment(
 
         # Order gate runs AFTER the duplicate check, deliberately (post-merge review
         # of #241). Gating first meant a legitimate retry of an ALREADY-RECORDED
-        # payment — double-click, offline resubmit, network retry — started failing
+        # payment - double-click, offline resubmit, network retry - started failing
         # the moment its offer left `issued`: once the owner approves and the offer
         # flips to `paid`, or once it expires, resolve_payable refuses and the payer
         # who really did pay saw "Order reference not payable (already_paid)" instead
@@ -538,7 +538,7 @@ def submit_payment(
             "decided_by": None,
         }
         if order:
-            # Server-resolved (#240) — reconciliation anchor for /upi/pending.
+            # Server-resolved (#240) - reconciliation anchor for /upi/pending.
             # `expected_amount` comes from the ISSUED offer, never a live
             # catalogue lookup, so a later price change cannot retro-quote.
             record["order_ref"] = str(order.get("order_ref") or "")
@@ -568,14 +568,14 @@ def submit_payment(
                 record["decided_by"] = "auto"
                 # Persist the updated status (record is the same object in rows).
                 _write_store(rows)
-                # Order is settled — stop it being payable a second time (#240).
+                # Order is settled - stop it being payable a second time (#240).
                 _close_order(record, by="auto")
-                # Just activated → per-client day-1 onboard (not AUTO_ONBOARD sweep).
+                # Just activated -> per-client day-1 onboard (not AUTO_ONBOARD sweep).
                 _trigger_onboarding(cid)
                 _mark_deal_won(record.get("payer_contact", ""))
                 # GST invoice parity with Stripe path (best-effort, never-raise).
                 _fire_gst_invoice(cid, plan_s, amount)
-                # No real bank/UPI verification backs this instant activation —
+                # No real bank/UPI verification backs this instant activation -
                 # nudge the founder to spot-check (council decision 2026-07-03:
                 # ship UPI_AUTO_ACTIVATE's speed, pair it with a reconciliation
                 # signal instead of a blocking review).
@@ -589,7 +589,7 @@ def submit_payment(
                 except Exception as e:  # pragma: no cover - defensive
                     logger.debug("upi_payments auto-activate alert skipped: %s", e)
         elif os.environ.get("UPI_AUTO_ACTIVATE") == "1" and cid:
-            # Master flag on but tenant not allowlisted — stay pending (fail-closed).
+            # Master flag on but tenant not allowlisted - stay pending (fail-closed).
             logger.info(
                 "upi_payments auto-activate refused (client not on UPI_AUTO_ACTIVATE_CLIENTS)"
             )
@@ -597,7 +597,7 @@ def submit_payment(
         return {"ok": True, **record}
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("submit_payment failed: %s", e)
-        return {"ok": False, "error": "Submit fail — thodi der baad try karo"}
+        return {"ok": False, "error": "Submit fail - thodi der baad try karo"}
 
 
 def list_payments(status: str | None = None) -> list[dict]:
@@ -638,7 +638,7 @@ def list_actionable() -> list[dict]:
 def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
     """Admin approve/reject a pending submission.
 
-    On approve (and not already auto-activated) + client_id → activate the plan.
+    On approve (and not already auto-activated) + client_id -> activate the plan.
     Returns the updated record, or ``{"ok": False, "error": "not_found"}``.
     Never raises.
     """
@@ -664,7 +664,7 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
         if approve:
             _close_order(record, by=record["decided_by"])
 
-        # Fail-closed: empty client_id cannot activate — bind client first.
+        # Fail-closed: empty client_id cannot activate - bind client first.
         if approve and not (record.get("client_id") or "").strip():
             record["needs_client_bind"] = True
             record["activation_blocked"] = "empty_client_id"
@@ -672,14 +672,14 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
             return {
                 "ok": True,
                 **record,
-                "warning": "approved_but_unbound — client_id bind karo phir re-approve",
+                "warning": "approved_but_unbound - client_id bind karo phir re-approve",
             }
 
         # Idempotency: only activate if NOT already SUCCESSFULLY activated. _try_activate
-        # → reset_usage_period() re-zeros a metered client's usage; a second approve of an
+        # -> reset_usage_period() re-zeros a metered client's usage; a second approve of an
         # already-activated submission would hand out free minutes. We guard on a success
         # flag (not on status) so a FAILED activation stays retryable: first approve sets
-        # status=approved but leaves `activated` falsy → admin can re-approve to recover.
+        # status=approved but leaves `activated` falsy -> admin can re-approve to recover.
         if (
             approve
             and not record.get("activated")
@@ -697,7 +697,7 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
             ):
                 record["activated"] = True
                 record.pop("activation_blocked", None)
-                # Activation succeeded → per-client day-1 onboard (signup parity).
+                # Activation succeeded -> per-client day-1 onboard (signup parity).
                 _trigger_onboarding(str(record.get("client_id") or ""))
                 _mark_deal_won(record.get("payer_contact", ""))
                 # GST invoice parity with Stripe path (best-effort, never-raise).
@@ -706,17 +706,17 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                     record.get("plan", ""),
                     record.get("amount", 0),
                 )
-                # Referral commission loop — lead → paid (revenue sprint).
+                # Referral commission loop - lead -> paid (revenue sprint).
                 _credit_referral(record)
             else:
                 # Approved but activation did NOT succeed (unknown plan / activation
-                # error) → revenue-critical SILENT failure: alert ops (best-effort).
+                # error) -> revenue-critical SILENT failure: alert ops (best-effort).
                 record["activation_blocked"] = "activation_failed"
                 try:
                     from app.platform import ops_alerts
 
                     ops_alerts.maybe_alert_payment_failed(
-                        f"UPI approve activation FAILED — client={record.get('client_id')} "
+                        f"UPI approve activation FAILED - client={record.get('client_id')} "
                         f"plan={record.get('plan')} pid={pid}"
                     )
                 except Exception:
@@ -741,18 +741,18 @@ def bind_client(payment_id: str, client_id: str, decided_by: str = "admin") -> d
     Fail-closed + cross-tenant safe:
       - the payment record must exist;
       - ``client_id`` is required AND must resolve to a real marketing client
-        (``resolve_client`` — never creates, so a typo'd/unknown id is refused);
+        (``resolve_client`` - never creates, so a typo'd/unknown id is refused);
       - an already-activated submission is refused (binding cannot resurrect a
         settled payment);
       - an already-bound submission may only be re-bound to the SAME client
-        (idempotent no-op) — re-pointing at a different client is refused
+        (idempotent no-op) - re-pointing at a different client is refused
         (cross-tenant guard);
       - bind NEVER activates: the owner's Approve remains the single activation
         gate, so after binding the admin re-approves and ``decide`` activates
         (matches the approved_but_unbound warning's own "bind karo phir
         re-approve").
 
-    Never raises — returns the updated record or ``{"ok": False, "error": ...}``.
+    Never raises - returns the updated record or ``{"ok": False, "error": ...}``.
     """
     try:
         pid = (payment_id or "").strip()
@@ -779,7 +779,7 @@ def bind_client(payment_id: str, client_id: str, decided_by: str = "admin") -> d
             return {"ok": False, "error": "already_bound_to_other"}
 
         # Resolve to the canonical marketing id (id OR billing alias). Fail
-        # closed on unknown — activation itself would fail anyway (activate_plan
+        # closed on unknown - activation itself would fail anyway (activate_plan
         # needs the marketing record), so refusing here gives the operator a
         # clear error instead of a silent later failure.
         try:
@@ -793,7 +793,7 @@ def bind_client(payment_id: str, client_id: str, decided_by: str = "admin") -> d
         canonical = str(rec.get("id") or "").strip() or cid
 
         if current == canonical:
-            # Idempotent re-bind of the same client — clear the flag, done.
+            # Idempotent re-bind of the same client - clear the flag, done.
             record["needs_client_bind"] = False
             record.pop("activation_blocked", None)
             _write_store(rows)

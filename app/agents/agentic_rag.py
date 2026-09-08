@@ -1,14 +1,14 @@
-"""Agentic RAG — a self-correcting (CRAG-style) retrieval loop over the existing
+"""Agentic RAG - a self-correcting (CRAG-style) retrieval loop over the existing
 Qdrant knowledge base. Optional, opt-in, never-crash.
 
 Plain vector RAG retrieves once and hopes the chunks are relevant. This adds the
 *agentic* steps used in production RAG (retrieval grading + corrective RAG):
 
-    retrieve → grade relevance → (if weak) rewrite the query and retry → generate a
+    retrieve -> grade relevance -> (if weak) rewrite the query and retry -> generate a
     grounded answer (or an honest "not in KB" fallback).
 
-It reuses what we already have — ``knowledge_base.retrieve`` (Qdrant/Chroma/keyword)
-for retrieval and ``free_ai.chat`` (Cerebras→Groq→…) for grading/rewriting/answering —
+It reuses what we already have - ``knowledge_base.retrieve`` (Qdrant/Chroma/keyword)
+for retrieval and ``free_ai.chat`` (Cerebras->Groq->…) for grading/rewriting/answering -
 so there are **no new dependencies**. Everything is async and defensive: any LLM/KB
 hiccup degrades to the plain KB path
 it never raises.
@@ -33,7 +33,7 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 _MIN_SCORE = float(os.getenv("AGENTIC_RAG_MIN_SCORE", "0.30"))
-_SAFE = "Yeh info abhi knowledge base me nahi hai — team se confirm karwa deti hoon."
+_SAFE = "Yeh info abhi knowledge base me nahi hai - team se confirm karwa deti hoon."
 
 
 def _flag(name: str) -> bool:
@@ -121,7 +121,7 @@ class AgenticRAG:
     async def answer(
         self, query: str, namespace: str = "default", k: int = 4, max_rewrites: int = 1
     ) -> dict:
-        """Run retrieve→grade→(rewrite→retry)→generate. Never raises."""
+        """Run retrieve->grade->(rewrite->retry)->generate. Never raises."""
         out = {
             "ok": False,
             "answer": _SAFE,

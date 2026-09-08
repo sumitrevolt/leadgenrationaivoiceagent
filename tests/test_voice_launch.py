@@ -4,7 +4,7 @@ Covers: NUP/disposition canonicalization + counting policy, atomic daily cap
 (fail-CLOSED when counter unavailable), 30-call training boundaries, per-lead
 eligibility fail-CLOSED composition, and the campaign-state resolver.
 
-Async checks via asyncio.run() (no pytest-asyncio plugin needed) — matches
+Async checks via asyncio.run() (no pytest-asyncio plugin needed) - matches
 tests/test_compliance.py convention.
 """
 
@@ -61,7 +61,7 @@ def kill_disengaged(_clean_env, monkeypatch):
     VOICE_LAUNCH_KILL, so without the ordering dependency it could wipe this
     setting right after it is applied.
 
-    The kill reader is fail-CLOSED — a missing/unreadable/malformed authority
+    The kill reader is fail-CLOSED - a missing/unreadable/malformed authority
     file engages it. These tests predate that and relied on "no kill file"
     meaning "safe to dial", which is exactly the assumption this workstream
     removed. Rather than weaken the reader, each affected test now states its
@@ -181,7 +181,7 @@ def test_training_pause_boundaries():
 
 
 # --------------------------------------------------------------------------- #
-# Per-lead eligibility — fail-CLOSED composition
+# Per-lead eligibility - fail-CLOSED composition
 # --------------------------------------------------------------------------- #
 def test_admin_kill_switch_blocks_everything(monkeypatch):
     monkeypatch.setenv("VOICE_LAUNCH_KILL", "1")
@@ -348,7 +348,7 @@ def test_launch_status_shape(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Dialer integration — spine wired into _dial_vobiz_campaign
+# Dialer integration - spine wired into _dial_vobiz_campaign
 # --------------------------------------------------------------------------- #
 def _prospects(n):
     from types import SimpleNamespace

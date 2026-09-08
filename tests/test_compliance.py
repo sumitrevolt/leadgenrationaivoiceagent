@@ -18,7 +18,7 @@ def _run(coro):
 
 
 class _FakeDND:
-    """Stand-in for DNDChecker — returns a fixed is_dnd verdict."""
+    """Stand-in for DNDChecker - returns a fixed is_dnd verdict."""
 
     def __init__(self, is_dnd: bool = False):
         self._v = is_dnd
@@ -27,10 +27,10 @@ class _FakeDND:
         return SimpleNamespace(is_dnd=self._v)
 
 
-IN_HOURS = datetime(2026, 6, 7, 12, 0, tzinfo=IST)  # noon IST — inside both windows
-LATE = datetime(2026, 6, 7, 22, 0, tzinfo=IST)  # 22:00 IST — outside both windows
-EARLY_0930 = datetime(2026, 6, 7, 9, 30, tzinfo=IST)  # 09:30 IST — inside new promo window
-EVENING_1930 = datetime(2026, 6, 7, 19, 30, tzinfo=IST)  # 19:30 IST — past promo window end
+IN_HOURS = datetime(2026, 6, 7, 12, 0, tzinfo=IST)  # noon IST - inside both windows
+LATE = datetime(2026, 6, 7, 22, 0, tzinfo=IST)  # 22:00 IST - outside both windows
+EARLY_0930 = datetime(2026, 6, 7, 9, 30, tzinfo=IST)  # 09:30 IST - inside new promo window
+EVENING_1930 = datetime(2026, 6, 7, 19, 30, tzinfo=IST)  # 19:30 IST - past promo window end
 
 
 @pytest.fixture(autouse=True)
@@ -99,7 +99,7 @@ def test_outside_hours_blocked():
 
 def test_promo_window_default_is_9_to_19(monkeypatch):
     """D-0 (LEGAL-GATE): promo window default starts 09:00 (not 10:00) and ends
-    19:00 — a conservative subset of TRAI's 09:00–21:00. The 09:30 slot, which the
+    19:00 - a conservative subset of TRAI's 09:00–21:00. The 09:30 slot, which the
     old 10:00 default blocked, is now allowed (with DLT + caller-id set)."""
     monkeypatch.setenv("DLT_APPROVED", "1")
     monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
@@ -111,7 +111,7 @@ def test_promo_window_default_is_9_to_19(monkeypatch):
 
 
 def test_promo_after_1900_blocked(monkeypatch):
-    """19:30 is past the promo window end → blocked even with DLT + caller-id."""
+    """19:30 is past the promo window end -> blocked even with DLT + caller-id."""
     monkeypatch.setenv("DLT_APPROVED", "1")
     monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
     g = ComplianceGate(dnd_checker=_FakeDND(False))
@@ -157,7 +157,7 @@ def test_alert_compliance_disabled_gated(monkeypatch):
     from app.platform.ops_alerts import alert_compliance_disabled
 
     monkeypatch.delenv("OPS_ALERTS", raising=False)
-    assert alert_compliance_disabled("x")["alerted"] is False  # gated off → inert
+    assert alert_compliance_disabled("x")["alerted"] is False  # gated off -> inert
 
 
 def test_invalid_number_blocked():
@@ -178,7 +178,7 @@ def test_gate_never_raises_on_bad_dnd(monkeypatch):
 
     g = ComplianceGate(dnd_checker=_BoomDND())
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
-    # Gate raised nahi (decision return hua) — core intent.
+    # Gate raised nahi (decision return hua) - core intent.
     # TRAI fail-CLOSED: DND unverifiable => promotional call BLOCKED (₹10L-safe),
     # even with DLT + caller-id set. Reason surfaced, not an exception.
     assert not d.allowed
@@ -191,7 +191,7 @@ def test_gate_never_raises_on_bad_dnd(monkeypatch):
 # TRAI legal-ceiling clamp on promotional window override (2026-07 audit fix)  #
 # --------------------------------------------------------------------------- #
 class _UnverifiedDND:
-    """DND backend that answers but cannot verify — exercises the fail-open path."""
+    """DND backend that answers but cannot verify - exercises the fail-open path."""
 
     async def check_single(self, phone: str):
         return SimpleNamespace(is_dnd=False, verified=False)

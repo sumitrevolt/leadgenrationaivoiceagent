@@ -119,7 +119,7 @@ def scan_and_reconcile():
                 conn.commit()
                 continue
 
-            # ALL CHECKS PASSED → VERIFIED_PAID
+            # ALL CHECKS PASSED -> VERIFIED_PAID
             cursor.execute("""
                 UPDATE upi_submissions SET status = 'VERIFIED_PAID' WHERE id = %s
             """, (event_id,))

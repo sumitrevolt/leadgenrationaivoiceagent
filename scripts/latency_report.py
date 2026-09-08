@@ -2,10 +2,10 @@
 """Per-component voice latency report (P1 observability).
 
 Reads ``data/turn_metrics/*.jsonl`` (written by ``app.voice_agent.turn_metrics``)
-and prints P50/P95/avg/max/n for every ``*_ms`` component — stt / llm_first /
+and prints P50/P95/avg/max/n for every ``*_ms`` component - stt / llm_first /
 tts_first / turn / total. Read-only: never writes, never touches a live call.
 
-Why: research principle #2 — "you can't improve what you can't see." This rolls
+Why: research principle #2 - "you can't improve what you can't see." This rolls
 the per-turn metrics up into a quick scorecard against best-practice latency
 targets (TTFA ~1.2-1.5s) so you can spot which component is slow.
 

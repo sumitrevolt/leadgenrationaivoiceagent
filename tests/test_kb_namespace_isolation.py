@@ -1,6 +1,6 @@
 """Qdrant namespace-isolation enforcement (enterprise audit fix 2026-08-01).
 
-kb_main is a SINGLE payload-partitioned collection — multi-tenant isolation is
+kb_main is a SINGLE payload-partitioned collection - multi-tenant isolation is
 100% dependent on every _QdrantIndex operation carrying a namespace filter:
 
   * size()  -> count() with count_filter = {namespace: X}
@@ -8,7 +8,7 @@ kb_main is a SINGLE payload-partitioned collection — multi-tenant isolation is
   * delete_source() -> delete() filter scoped by BOTH namespace AND source
   * add()   -> point payload records {namespace: X, ...}
 
-These tests fake the QdrantClient and assert the filter/payload on every call —
+These tests fake the QdrantClient and assert the filter/payload on every call -
 a regression (e.g. someone drops the namespace filter "to speed up search")
 would leak tenant A's KB chunks into tenant B's agent answers. Cross-tenant
 leak is a DPDP-critical invariant (CLAUDE.md §5).
@@ -89,7 +89,7 @@ def test_search_scoped_by_namespace(monkeypatch):
     assert op == "query"
     assert coll == KB._QDRANT_COLLECTION
     assert ("namespace", "ns-a") in _filter_conds(flt), "search must be namespace-filtered"
-    # only the namespace condition — no other tenant's data can leak in
+    # only the namespace condition - no other tenant's data can leak in
     assert len(_filter_conds(flt)) == 1
 
 

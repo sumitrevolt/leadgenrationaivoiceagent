@@ -1,4 +1,4 @@
-"""M.1 — MCP qualifier.run endpoint contract tests.
+"""M.1 - MCP qualifier.run endpoint contract tests.
 
 The qualifier is a paid metered surface
 its contract must be stable:
@@ -77,7 +77,7 @@ def test_qualifier_rich_input_outperforms_sparse() -> None:
             "employees": 15,
             "annual_revenue_inr": 25_000_000,
             "intent": "abhi quote chahiye",
-            "notes": "urgent — wants installation next month",
+            "notes": "urgent - wants installation next month",
         },
     ).json()
     assert rich["total"] >= bare["total"]
@@ -105,7 +105,7 @@ def test_qualifier_capability_check() -> None:
 
 
 def test_discover_lists_qualifier_path() -> None:
-    """SDKs find the path via /discover — make sure it's there."""
+    """SDKs find the path via /discover - make sure it's there."""
     client = TestClient(app)
     r = client.get("/api/mcp-product/v1/discover")
     assert r.status_code == 200

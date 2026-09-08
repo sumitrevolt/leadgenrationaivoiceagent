@@ -1,7 +1,7 @@
-"""Celery task wrapper for the video-creative pipeline — routes to the
+"""Celery task wrapper for the video-creative pipeline - routes to the
 dedicated 'video' queue when CELERY_VIDEO_QUEUE=1 (app/worker.py
 _route_video_task), falls back to the default queue otherwise. HEAVY
-(ffmpeg) — never call render_creative_video directly from a web request."""
+(ffmpeg) - never call render_creative_video directly from a web request."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def build_creative_video_task(
 
 
 def _render_soft_limit() -> int:
-    """Celery deadline — must be the OUTERMOST of the three nested timeouts.
+    """Celery deadline - must be the OUTERMOST of the three nested timeouts.
 
     Inward ordering: hyperframes subprocess < creative_os worker_timeout_s <
     THIS. A full-HD HyperFrames render takes ~2 min, far beyond the 300s that
@@ -70,7 +70,7 @@ def daily_video_client_task(self, *, client_id: str) -> dict[str, Any]:
 
     Enqueued by ``app.marketing.daily_video.run_daily`` with
     ``task_id=daily_video:{client_id}:{YYYY-MM-DD}`` so a re-fired beat cannot
-    render the same client twice in a day. HEAVY — never called from the web
+    render the same client twice in a day. HEAVY - never called from the web
     process
     the producer only dispatches.
     """
@@ -103,7 +103,7 @@ def render_creative_os_task(
     creative_id: str,
     revision: int = 0,
 ) -> dict[str, Any]:
-    """Creative Automation OS worker — heavy render + QA for one creative revision.
+    """Creative Automation OS worker - heavy render + QA for one creative revision.
 
     Idempotent via Celery task_id ``creative_os:{id}:rev{N}`` set by the enqueue path.
     Never invoked from the FastAPI web process for production traffic.

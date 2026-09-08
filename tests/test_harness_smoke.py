@@ -1,5 +1,5 @@
 """
-Smoke tests for app.agents.harness — run WITHOUT the full app (all app.* imports
+Smoke tests for app.agents.harness - run WITHOUT the full app (all app.* imports
 are optional in the package). Proves the ordered controls actually fire.
 
     pytest tests/test_harness_smoke.py -q

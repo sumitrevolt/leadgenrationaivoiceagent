@@ -1,4 +1,4 @@
-"""Tests — billing pricing-truth fix + top-up + recovery links (batch-2, 2026-06-10).
+"""Tests - billing pricing-truth fix + top-up + recovery links (batch-2, 2026-06-10).
 
 CRITICAL BUG FIXED: /pricing page ₹999 dikhata tha par checkout billing_manager ke
 legacy Cloud-Run plans se ₹15,000+18% charge karta; 'advanced' checkout 404 deta;
@@ -32,7 +32,7 @@ def test_estimated_mrr_counts_only_clients_with_payment_evidence(monkeypatch):
     LIVE BUG (2026-07-15 admin audit): `/app/admin` showed `Est. MRR ₹8.0K` while the
     Revenue Analytics panel on the SAME page showed `₹2.0K / Active: 1`. Cause:
     `estimated_mrr` summed every client with `status == "active"` with no payment
-    gate, so it counted the synthetic `Test Biz` (plan=growth, ZERO invoices — the
+    gate, so it counted the synthetic `Test Biz` (plan=growth, ZERO invoices - the
     very tenant ADR-095 flagged as synthetic) and `leadgenai-self` (the company's own
     internal tenant). Real MRR was ₹1,999 (Jiya only).
 
@@ -96,7 +96,7 @@ def test_collect_live_stats_estimated_mrr_excludes_unpaid_tenants(monkeypatch):
 
     stats = b._collect_live_stats()
     assert stats["estimated_mrr"] == 1999, (
-        f"real dashboard path reported ₹{stats['estimated_mrr']} — must be ₹1,999 "
+        f"real dashboard path reported ₹{stats['estimated_mrr']} - must be ₹1,999 "
         "(only the invoice-backed client). ₹7,997 = the ADR-101 regression."
     )
     assert sum(stats["mrr_by_product"].values()) == stats["estimated_mrr"], (
@@ -152,7 +152,7 @@ def test_topup_pack_helpers():
     assert topup_pack("nope") == {}
     # effective rate included-rate (₹12/min) se upar (upsell math)
     assert p100["price_inr"] / p100["minutes"] >= 12.0
-    # LITERAL pins (audit 2026-07-04): pehle sirf ≥₹12/min tha — ek silent
+    # LITERAL pins (audit 2026-07-04): pehle sirf ≥₹12/min tha - ek silent
     # price edit CI pe pass ho jata. Change = packages.py + yahan SAATH.
     by_key = {p["key"]: p for p in packs}
     assert by_key["topup_100"]["price_inr"] == 1499
@@ -161,7 +161,7 @@ def test_topup_pack_helpers():
 
 
 def test_combo_tier_price_literals():
-    """Combo billing-sync ab bhi active hai (router gated hai, module nahi) —
+    """Combo billing-sync ab bhi active hai (router gated hai, module nahi) -
     tier prices pin karo taaki silent edit CI pe pakda jaye (audit 2026-07-04)."""
     from app.marketing.combo_packages import COMBO_TIERS, combo_plan_price
 
@@ -189,11 +189,11 @@ def test_dunning_link_helpers(tmp_path, monkeypatch):
     assert dunning._with_link("body", "") == "body"
     out = dunning._with_link("body", "https://rzp.io/x")
     assert "https://rzp.io/x" in out and out.startswith("body")
-    # Razorpay removed 2026-06-18 — UPI path; UPI not configured in test env
+    # Razorpay removed 2026-06-18 - UPI path; UPI not configured in test env
     # => falls back to PRICING_URL (never empty).  Cached link reuse still works.
     case = {"id": "x1", "client_id": "c1", "amount": 999}
     result = asyncio.run(dunning._ensure_pay_link(case))
-    assert result  # never empty — at minimum PRICING_URL
+    assert result  # never empty - at minimum PRICING_URL
     case["pay_link"] = "https://rzp.io/cached"
     assert asyncio.run(dunning._ensure_pay_link(case)) == "https://rzp.io/cached"
     # no amount + no VPA => PRICING_URL fallback
@@ -226,7 +226,7 @@ def test_annual_plan_never_undercharged_by_cycle_arg(monkeypatch):
     for band, info in BANDS.items():
         pm = float(info["price_month"])
         monthly = billing_manager.calculate_price(info["plan_monthly"], BillingCycle.MONTHLY)
-        # annual queried with the WRONG (monthly) cycle — the bug scenario
+        # annual queried with the WRONG (monthly) cycle - the bug scenario
         annual_buggy = billing_manager.calculate_price(info["plan_annual"], BillingCycle.MONTHLY)
         annual_yr = billing_manager.calculate_price(info["plan_annual"], BillingCycle.YEARLY)
         assert round(float(monthly["total"]), 2) == round(pm, 2)
@@ -257,7 +257,7 @@ def test_voice_band_literal_prices():
 # ----------------------- starter feature catalog (2026-06-29: +40 features) ----------------------- #
 def test_starter_feature_groups_invariant():
     """Main plan +40 features (33 core + 40 naye = 73). feature_groups grouped view,
-    flat `features` usi se DERIVE (single source — koi drift nahi)."""
+    flat `features` usi se DERIVE (single source - koi drift nahi)."""
     from app.marketing.packages import PACKAGES
 
     starter = next(p for p in PACKAGES if p["key"] == "starter")
@@ -267,7 +267,7 @@ def test_starter_feature_groups_invariant():
     assert len(groups) >= 6, "kam se kam 6 categories honi chahiye"
     for g in groups:
         assert g.get("title") and isinstance(g.get("items"), list) and g["items"], g
-    # flat == flatten(groups) — drift guard (yahi single-source invariant)
+    # flat == flatten(groups) - drift guard (yahi single-source invariant)
     flattened = [it for g in groups for it in g["items"]]
     assert flat == flattened, "features flat list groups se derive honi chahiye (drift)"
     assert len(flat) >= 70, f"33 core + 40 naye expected, mila {len(flat)}"

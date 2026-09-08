@@ -1,4 +1,4 @@
-"""UPI config — env + admin data-file fallback."""
+"""UPI config - env + admin data-file fallback."""
 
 from __future__ import annotations
 

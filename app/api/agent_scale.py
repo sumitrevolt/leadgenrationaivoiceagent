@@ -1,12 +1,12 @@
-"""Agent-scale endpoints — batch harness (parallel+checkpoint), guarded code exec,
+"""Agent-scale endpoints - batch harness (parallel+checkpoint), guarded code exec,
 headless browser enrichment. Power-features SUPER_ADMIN + flag gated (default INERT).
 
-NOT mounted here (no app.include_router) — main.py wiring owner ke haath:
+NOT mounted here (no app.include_router) - main.py wiring owner ke haath:
     app.include_router(agent_scale.router, prefix="/api/agents-ext")
-Paths is module me prefix-LESS likhe (mount-time prefix lagega → /api/agents-ext/...).
+Paths is module me prefix-LESS likhe (mount-time prefix lagega -> /api/agents-ext/...).
 
 Flags: BATCH_HARNESS · CODE_EXEC (super-admin) · BROWSER_TOOLS (super-admin).
-All modules lazy-imported (import-safe). Endpoints never-raise pe bharosa nahi —
+All modules lazy-imported (import-safe). Endpoints never-raise pe bharosa nahi -
 underlying agents khud never-raise
 yahan sirf gate + thin wrap.
 """
@@ -29,7 +29,7 @@ class BatchIn(BaseModel):
 
 
 async def _demo_echo(item) -> dict:
-    """SAFE built-in demo fn — sirf echo (no side-effects). HTTP pe arbitrary fn
+    """SAFE built-in demo fn - sirf echo (no side-effects). HTTP pe arbitrary fn
     nahi aa sakta, isliye endpoint yeh use karta
     programmatic callers run_batch ko
     apna real `async def fn(item)` pass karte (see app.agents.batch_harness)."""
@@ -37,7 +37,7 @@ async def _demo_echo(item) -> dict:
 
 
 async def _demo_normalize(item) -> dict:
-    """SAFE built-in demo fn — string normalize (trim + lower). No side-effects."""
+    """SAFE built-in demo fn - string normalize (trim + lower). No side-effects."""
     try:
         s = str(item).strip().lower()
     except Exception:
@@ -48,7 +48,7 @@ async def _demo_normalize(item) -> dict:
 @router.post("/batch")
 async def batch_run(body: BatchIn, _user=Depends(require_admin)):
     """Bounded-parallel batch over items using a SAFE built-in demo fn (echo/normalize)
-    — HTTP pe arbitrary callable nahi aa sakta. Programmatic callers
+    - HTTP pe arbitrary callable nahi aa sakta. Programmatic callers
     `app.agents.batch_harness.run_batch(real_fn, items, ...)` directly call karte.
     Checkpoint + resume built-in (ckpt_id return hota)."""
     from app.agents import batch_harness
@@ -79,8 +79,8 @@ class ExecIn(BaseModel):
 
 @router.post("/exec")
 async def code_exec_run(body: ExecIn, _user=Depends(require_super_admin)):
-    """Guarded Python script run — SUPER_ADMIN only. CODE_EXEC=1 OFF (default) ho to
-    {"ok":False,"error":"disabled"} return (kuch run NAHI hota). True sandbox nahi —
+    """Guarded Python script run - SUPER_ADMIN only. CODE_EXEC=1 OFF (default) ho to
+    {"ok":False,"error":"disabled"} return (kuch run NAHI hota). True sandbox nahi -
     guarded isolated subprocess only."""
     from app.agents import code_exec
 
@@ -95,9 +95,9 @@ class BrowserFetchIn(BaseModel):
 
 @router.post("/browser/fetch")
 async def browser_fetch(body: BrowserFetchIn, _user=Depends(require_super_admin)):
-    """Headless render fetch (title + text) for enrichment — SUPER_ADMIN only.
-    BROWSER_TOOLS=1 OFF (default) → disabled. playwright missing → graceful error.
-    ToS/robots respect — enrichment only (no bulk crawl)."""
+    """Headless render fetch (title + text) for enrichment - SUPER_ADMIN only.
+    BROWSER_TOOLS=1 OFF (default) -> disabled. playwright missing -> graceful error.
+    ToS/robots respect - enrichment only (no bulk crawl)."""
     from app.agents import browser_tools
 
     return await browser_tools.fetch_rendered(body.url, timeout_s=body.timeout_s)

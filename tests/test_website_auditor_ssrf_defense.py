@@ -38,7 +38,7 @@ def test_normalize_safe_audit_url_blocks_private_ips():
 def test_normalize_safe_audit_url_blocks_credentials():
     from app.marketing.website_auditor import _normalize_safe_audit_url
 
-    # Basic auth embedded = REJECT (fixture URLs — not real credentials)
+    # Basic auth embedded = REJECT (fixture URLs - not real credentials)
     cred_url = "http://user:pass@example.com"  # pragma: allowlist secret
     assert _normalize_safe_audit_url(cred_url) is None
     userinfo_url = "http://admin@example.com"  # pragma: allowlist secret
@@ -87,7 +87,7 @@ def test_normalize_safe_audit_url_accepts_valid_public(monkeypatch):
 
     monkeypatch.setattr(socket, "getaddrinfo", mock_getaddrinfo)
 
-    # Valid public URLs should pass (assert via urlparse — avoids CodeQL
+    # Valid public URLs should pass (assert via urlparse - avoids CodeQL
     # py/incomplete-url-substring-sanitization on startswith/full-URL checks)
     from urllib.parse import urlparse
 

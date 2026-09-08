@@ -1,5 +1,5 @@
 """
-Board Governance — Paperclip-inspired human override layer.
+Board Governance - Paperclip-inspired human override layer.
 ============================================================
 
 Provides:
@@ -135,7 +135,7 @@ def request_approval(
 
     # Log + notify
     _log_event(agent_id, "approval_requested", f"🔐 {action}: {description[:100]}")
-    _notify(f"🔐 Approval needed: {agent_id} wants to {action} — {description[:100]}")
+    _notify(f"🔐 Approval needed: {agent_id} wants to {action} - {description[:100]}")
 
     return {"ok": True, "id": req_id, "status": "pending"}
 
@@ -240,7 +240,7 @@ def resume_all(*, by: str = "admin") -> dict[str, Any]:
 
     D1 regression (guardian verdict 2026-08-25): emergency stops write pause
     records under keys that need not be STAFF ids (job aliases), so iterate the
-    pause store itself — and report `still_paused` honestly instead of assuming
+    pause store itself - and report `still_paused` honestly instead of assuming
     ok=True. A resume write that silently no-ops must NOT read as success.
     """
     try:

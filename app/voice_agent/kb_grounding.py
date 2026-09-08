@@ -2,7 +2,7 @@
 Typed KB grounding + refusal contract (A1)
 ==========================================
 
-`KnowledgeBase.grounded_answer()` aaj bhi hallucinate nahi karta — uske andar
+`KnowledgeBase.grounded_answer()` aaj bhi hallucinate nahi karta - uske andar
 relevance gate (`_MIN_GROUND_SCORE`) aur safe fallback line already hai. Problem
 uske *return type* me hai: wo ek bare `str` deta hai, to caller ke paas koi
 structural tareeka nahi ki
@@ -11,7 +11,7 @@ structural tareeka nahi ki
   2. answer kis chunk/source se aaya (audit trail zero),
   3. "answered but zero evidence" ko rok kon raha hai (aaj: sirf convention).
 
-Ye module wahi teen gaps band karta hai — grounding ko **type** bana kar. Ulta
+Ye module wahi teen gaps band karta hai - grounding ko **type** bana kar. Ulta
 kaha jaaye: `answered=True` ke saath khaali citations ek `ValidationError` hai,
 prose ki galti nahi.
 
@@ -20,11 +20,11 @@ Design constraints (jaan-boojh kar):
     edit nahi karta
     sirf uske PUBLIC `retrieve()` ke upar compose karta hai aur
     uske constants import karta hai (taaki wording/threshold kabhi drift na ho).
-  - **INERT — koi caller nahi.** Reply path wiring owner approval ka kaam hai
+  - **INERT - koi caller nahi.** Reply path wiring owner approval ka kaam hai
     (Swara/voice = FROZEN). Ye file aa jaane se prod behaviour badalta NAHI.
   - **Default threshold = aaj ka threshold** (`_MIN_GROUND_SCORE`, 0.04). Upstream
     reference 0.2 use karta hai, par hamare scores backend-dependent hain
-    (keyword cosine vs Chroma `1/(1+dist)` vs Qdrant) — isliye 0.2 hardcode karna
+    (keyword cosine vs Chroma `1/(1+dist)` vs Qdrant) - isliye 0.2 hardcode karna
     silent behaviour change hota. Env se tune karo, guess mat karo.
 
 Usage:
@@ -39,8 +39,8 @@ Usage:
         speak(ans.text)          # = existing safe fallback line, byte-identical
 
 Env:
-    VOICE_KB_MIN_GROUND_SCORE  float  — refusal threshold override (default = KB ka apna)
-    VOICE_KB_STRICT_GROUNDING  bool   — ON: jo citation apne chunk me verbatim
+    VOICE_KB_MIN_GROUND_SCORE  float  - refusal threshold override (default = KB ka apna)
+    VOICE_KB_STRICT_GROUNDING  bool   - ON: jo citation apne chunk me verbatim
                                         verify na ho wo DROP
                                         sab drop ho gaye to
                                         refusal. OFF (default): warn-only log.
@@ -63,7 +63,7 @@ except Exception:  # pragma: no cover
 
     logger = logging.getLogger(__name__)
 
-# Wording/threshold/trimming ko KB se hi import karo — duplicate karne se drift
+# Wording/threshold/trimming ko KB se hi import karo - duplicate karne se drift
 # hota hai (do jagah 0.04 likha ho to ek din ek badalti hai, doosri nahi).
 try:
     from app.voice_agent.knowledge_base import _MIN_GROUND_SCORE as _KB_MIN_GROUND_SCORE
@@ -74,7 +74,7 @@ except Exception as _e:  # pragma: no cover - import-safety only
     using local copies")
     _KB_MIN_GROUND_SCORE = 0.04
     _KB_SAFE_FALLBACK = (
-        "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
+        "Achha sawaal - main aapke liye exact detail team se confirm karwa deti hoon."
     )
 
     def _kb_trim_sentence(text: str, max_chars: int = 220) -> str:
@@ -82,14 +82,14 @@ except Exception as _e:  # pragma: no cover - import-safety only
         return text[:max_chars]
 
 
-# Refusal reasons — bounded set, metrics/log me safe (koi customer text nahi).
+# Refusal reasons - bounded set, metrics/log me safe (koi customer text nahi).
 REASON_EMPTY_QUERY = "empty_query"
 REASON_RETRIEVE_FAILED = "retrieve_failed"
 REASON_NO_HITS = "no_hits"
 REASON_BELOW_MIN_SCORE = "below_min_score"
 REASON_NO_VERIFIED_CITATION = "no_verified_citation"
 
-# `grounded_answer()` ka second-chunk rule — yahi ratio wahan hardcoded hai.
+# `grounded_answer()` ka second-chunk rule - yahi ratio wahan hardcoded hai.
 _SECOND_CHUNK_RATIO = 0.6
 
 
@@ -98,7 +98,7 @@ def _env_flag(name: str) -> bool:
 
 
 def _min_ground_score() -> float:
-    """Refusal threshold — env override, warna KB ka apna constant."""
+    """Refusal threshold - env override, warna KB ka apna constant."""
     raw = (os.getenv("VOICE_KB_MIN_GROUND_SCORE") or "").strip()
     if not raw:
         return float(_KB_MIN_GROUND_SCORE)
@@ -114,7 +114,7 @@ def _min_ground_score() -> float:
 
 
 def _point_id(namespace: str, text: str) -> str:
-    """Stable chunk id. KB ka `_kb_point_id` hi asli id hai — wahi use karo taaki
+    """Stable chunk id. KB ka `_kb_point_id` hi asli id hai - wahi use karo taaki
     citation ka id Qdrant ke point se match kare. Private symbol hai, isliye
     fallback formula bhi rakhi hai (bit-identical)."""
     try:
@@ -133,7 +133,7 @@ def _clamp01(value: Any) -> float:
 
 
 class Citation(BaseModel):
-    """Ek retrieved chunk ka verifiable pointer. Blank field allowed nahi —
+    """Ek retrieved chunk ka verifiable pointer. Blank field allowed nahi -
     khaali citation "audit trail hai" ka jhoota bharosa deti hai."""
 
     source: str = Field(description="KB source label, e.g. 'niche:solar_commercial'")
@@ -154,10 +154,10 @@ class GroundedAnswer(BaseModel):
     """KB answer + uska evidence, ek hi type me.
 
     Do-tarfa invariant (yahi is module ka poora point hai):
-      - `answered=True`  → kam se kam 1 citation ZAROORI
-      - `answered=False` → citations BILKUL khaali
+      - `answered=True`  -> kam se kam 1 citation ZAROORI
+      - `answered=False` -> citations BILKUL khaali
 
-    Isse "confident answer, zero evidence" ek ValidationError ban jaata hai —
+    Isse "confident answer, zero evidence" ek ValidationError ban jaata hai -
     prod me chupchaap nikal jaane wali galti nahi.
     """
 
@@ -200,7 +200,7 @@ class GroundedAnswer(BaseModel):
         namespace: str = "default",
         top_score: float = 0.0,
     ) -> GroundedAnswer:
-        """Safe fallback — customer ko wahi line sunai deti hai jo aaj sunai deti
+        """Safe fallback - customer ko wahi line sunai deti hai jo aaj sunai deti
         hai (`_SAFE_FALLBACK` import kiya hua hai, copy nahi)."""
         return cls(
             text=_KB_SAFE_FALLBACK,
@@ -213,7 +213,7 @@ class GroundedAnswer(BaseModel):
         )
 
     def audit_dict(self) -> dict[str, Any]:
-        """Log/metric-safe summary — koi customer text nahi, koi chunk text nahi."""
+        """Log/metric-safe summary - koi customer text nahi, koi chunk text nahi."""
         return {
             "answered": self.answered,
             "reason": self.reason,
@@ -226,7 +226,7 @@ class GroundedAnswer(BaseModel):
 
 
 def _verbatim_ok(span: str, chunk: str) -> bool:
-    """`_trim_sentence` sirf kaat-ta hai, likhta nahi — to trimmed span apne chunk
+    """`_trim_sentence` sirf kaat-ta hai, likhta nahi - to trimmed span apne chunk
     ka substring hona chahiye. Trailing ellipsis trimmer ne lagaya hai, chunk me
     nahi hai, isliye compare se pehle hata do."""
     span = (span or "").strip().rstrip("…").strip()
@@ -247,7 +247,7 @@ def grounded_answer_typed(
     """`kb.grounded_answer()` ka typed, cited equivalent.
 
     Answer text jaan-boojh kar wahi banaya gaya hai jo `grounded_answer()` banata
-    hai (top chunk + optional second chunk jab wo `0.6 * top` se strong ho) —
+    hai (top chunk + optional second chunk jab wo `0.6 * top` se strong ho) -
     taaki wiring ke waqt customer ko sunai dene wali line na badle. Naya sirf ye
     hai ki har chunk ab ek verifiable `Citation` ban kar wapas aata hai, aur
     refusal ek `bool` hai, string-compare nahi.
@@ -262,7 +262,7 @@ def grounded_answer_typed(
         strict: `None` = `VOICE_KB_STRICT_GROUNDING` env se.
 
     Returns:
-        `GroundedAnswer` — kabhi raise nahi karta retrieval failure pe
+        `GroundedAnswer` - kabhi raise nahi karta retrieval failure pe
         refusal
         deta hai (voice path pe exception = dead air).
     """
@@ -273,7 +273,7 @@ def grounded_answer_typed(
     threshold = _min_ground_score() if min_score is None else float(min_score)
     strict_mode = _env_flag("VOICE_KB_STRICT_GROUNDING") if strict is None else bool(strict)
 
-    # rerank=False — live/voice path pe latency budget nahi hai (KB docstring ka
+    # rerank=False - live/voice path pe latency budget nahi hai (KB docstring ka
     # apna guidance). Retrieval fail = refusal, crash nahi.
     try:
         hits = kb.retrieve(query, k=max(1, k), namespace=ns, rerank=False) or []
@@ -293,7 +293,7 @@ def grounded_answer_typed(
 
     top = hits[0] or {}
     top_score = _clamp01(top.get("score", 0.0))
-    # Relevance gate — kamzor match pe LLM/answer tak jaane ka koi matlab nahi.
+    # Relevance gate - kamzor match pe LLM/answer tak jaane ka koi matlab nahi.
     if top_score < threshold:
         return GroundedAnswer.refusal(REASON_BELOW_MIN_SCORE, namespace=ns, top_score=top_score)
 
@@ -314,7 +314,7 @@ def grounded_answer_typed(
                 used.append(second)
 
     if not answer.strip():
-        # top chunk khaali/whitespace tha — answered nahi keh sakte.
+        # top chunk khaali/whitespace tha - answered nahi keh sakte.
         return GroundedAnswer.refusal(REASON_NO_HITS, namespace=ns, top_score=top_score)
 
     citations: list[Citation] = []
@@ -326,7 +326,7 @@ def grounded_answer_typed(
         if not _verbatim_ok(span, chunk):
             # Aaj tak aisa hona nahi chahiye (trimmer sirf slice karta hai). Agar
             # ho gaya, to matlab answer-build ka koi rasta text *generate* kar
-            # raha hai — us case me citation jhooti hai.
+            # raha hai - us case me citation jhooti hai.
             logger.warning(
                 "kb_grounding: non-verbatim span for source=%s ns=%s (strict=%s)",
                 hit.get("source") or "kb",
@@ -345,7 +345,7 @@ def grounded_answer_typed(
         )
 
     if not citations:
-        # strict mode ne sab kuch drop kar diya → answer ke peeche evidence nahi.
+        # strict mode ne sab kuch drop kar diya -> answer ke peeche evidence nahi.
         return GroundedAnswer.refusal(
             REASON_NO_VERIFIED_CITATION, namespace=ns, top_score=top_score
         )

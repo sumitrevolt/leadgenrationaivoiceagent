@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-omniroute_combo_distributor.py — Autonomous combo-distribution runtime.
+omniroute_combo_distributor.py - Autonomous combo-distribution runtime.
 
 Council purpose (2026-09-05, autonomous):
   Single-source-of-truth distributor for the 14-combo × 5-desktop-app × 42-provider
@@ -203,7 +203,7 @@ class Manifest:
                     errs.append(
                         f"desktop_app {d.id!r} references unknown combo {cn!r}"
                     )
-        # Kill switch coverage — every kill_switch referenced by a combo must exist
+        # Kill switch coverage - every kill_switch referenced by a combo must exist
         ks_names = set(self.kill_switches.keys())
         for c in self.combos:
             if c.kill_switch and c.kill_switch not in ks_names:
@@ -388,7 +388,7 @@ def emit_desktop_configs(manifest: Manifest, apply: bool) -> dict:
 def render_matrix(manifest: Manifest) -> str:
     lines: list = []
     lines.append("=" * 100)
-    lines.append("LeadGen AI — 14 Combos × 5 Desktop Apps × 42 Provider Slots")
+    lines.append("LeadGen AI - 14 Combos × 5 Desktop Apps × 42 Provider Slots")
     lines.append("=" * 100)
     lines.append("")
     lines.append("DESKTOP APPS")
@@ -497,7 +497,7 @@ def cmd_emit_router_registry(args: argparse.Namespace) -> int:
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="omniroute_combo_distributor",
-        description="LeadGen AI combo distributor (14×5×42) — autonomous self-healing engine.",
+        description="LeadGen AI combo distributor (14×5×42) - autonomous self-healing engine.",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 

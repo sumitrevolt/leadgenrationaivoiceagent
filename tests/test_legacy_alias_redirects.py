@@ -3,7 +3,7 @@
 People type/bookmark `/admin`, `/voice`, `/dashboard`, `/app/dashboard` straight
 from a browser and got a hard 404 (the canonical pages are /app/admin,
 /voice-agent, /app/customer). Static GET-only 307s now point to the canonical
-pages — mirrors the /app/customer/{view} hash-view aliases (test
+pages - mirrors the /app/customer/{view} hash-view aliases (test
 test_customer_dashboard_product_routing.py). These paths are ALSO API router
 prefixes (/api/admin/*, /api/voice/*), so the exact top-level path ownership
 must stay exclusive to avoid first-route-wins shadowing.
@@ -45,7 +45,7 @@ def test_aliases_are_get_only_not_write_bypass():
 
 def test_aliases_do_not_shadow_the_real_api_routes():
     """First-route-wins safety: the alias targets live on /app/* and the API
-    prefixes sit under /api/* — neither must be swallowed by these aliases."""
+    prefixes sit under /api/* - neither must be swallowed by these aliases."""
     from app.main import app
 
     client = TestClient(app)

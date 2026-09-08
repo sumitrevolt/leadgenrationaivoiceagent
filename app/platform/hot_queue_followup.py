@@ -21,7 +21,7 @@ def check_followup():
     gates = check_gates()
     open_gates = [k for k, v in gates.items() if v != "pass"]
     if open_gates:
-        logger.info(f"Follow-up skipped — open gates: {open_gates}")
+        logger.info(f"Follow-up skipped - open gates: {open_gates}")
         return {"status": "skipped", "reason": "open_compliance_gates"}
 
     # Check today's pack
@@ -35,11 +35,11 @@ def check_followup():
     md_exists = __import__("os").path.exists(md_path)
 
     if not csv_exists:
-        # No pack generated today — could be first run or error
+        # No pack generated today - could be first run or error
         logger.info(f"No hot queue pack found for {today_str}")
         return {"status": "no_pack", "date": today_str}
 
-    # Pack exists — check if ntfy was already sent today
+    # Pack exists - check if ntfy was already sent today
     # In production: check ntfy topic for today's message ID
     # For now: if pack exists, assume system is working
     # Auto-followup logic: if pack exists but old (yesterday), send reminder
@@ -64,7 +64,7 @@ def check_followup():
             logger.error(f"Failed to send ntfy follow-up: {e}")
             return {"status": "followup_failed", "error": str(e)}
     else:
-        # Yesterday's pack doesn't exist — today's is current, no followup needed
+        # Yesterday's pack doesn't exist - today's is current, no followup needed
         return {"status": "current_pack_active", "date": today_str}
 
 def get_lead_count(csv_path):

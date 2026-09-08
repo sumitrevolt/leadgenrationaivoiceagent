@@ -11,7 +11,7 @@ from app.voice_agent import agent_memory as am
 
 
 class FakeBackend:
-    """In-memory duck-typed backend (embed/search/upsert) — no Qdrant, no LLM."""
+    """In-memory duck-typed backend (embed/search/upsert) - no Qdrant, no LLM."""
 
     def __init__(self, score: float = 1.0):
         self.store: dict[str, list[str]] = {}

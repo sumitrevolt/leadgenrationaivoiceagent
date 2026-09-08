@@ -1,4 +1,4 @@
-"""Customer WhatsApp video review — outbound preview + inbound ingest.
+"""Customer WhatsApp video review - outbound preview + inbound ingest.
 
 Uses existing WAHA/selfhost path only. Default OFF (VIDEO_WHATSAPP_REVIEW_ENABLED).
 Ban-safe: suppression, opt-in, rate limits, quiet hours, no admin tokens in body.
@@ -107,10 +107,10 @@ def build_review_message(rec: dict[str, Any], client: dict[str, Any]) -> str:
     when = str(rec.get("planned_at") or "aaj / kal")
     ver = int(rec.get("revision") or 0) + 1
     approve_url = str(rec.get("approve_url") or "")
-    # Never include admin tokens — only public approve links already designed for clients.
+    # Never include admin tokens - only public approve links already designed for clients.
     lines = [
         f"Namaste {biz}!",
-        f"Aapka video preview ready hai — v{ver}: {title}",
+        f"Aapka video preview ready hai - v{ver}: {title}",
         f"Purpose: {str(rec.get('purpose') or 'organic social')}",
         f"Caption: {caption}" if caption else "",
         f"CTA: {cta}",
@@ -118,9 +118,9 @@ def build_review_message(rec: dict[str, Any], client: dict[str, Any]) -> str:
         f"Planned: {when}",
         "",
         "Reply:",
-        "• APPROVE — post kar do",
-        "• CHANGES <detail> — kya badalna hai",
-        "• REJECT — mat post karo",
+        "• APPROVE - post kar do",
+        "• CHANGES <detail> - kya badalna hai",
+        "• REJECT - mat post karo",
         "",
         "Ya dashboard pe approve/reject links:",
     ]
@@ -172,7 +172,7 @@ def send_review_whatsapp(
 
             wa = SelfHostWhatsApp()
             if getattr(wa, "configured", lambda: False)() or getattr(wa, "enabled", False):
-                # send_text_message signatures vary — defensive
+                # send_text_message signatures vary - defensive
                 fn = getattr(wa, "send_text_message", None) or getattr(wa, "send_text", None)
                 if fn:
                     detail = fn(phone, msg) if callable(fn) else {}
@@ -251,7 +251,7 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
                 "handled": True,
                 "intent": "ambiguous",
                 "clarification": (
-                    "Number multiple accounts se linked hai — dashboard se approve/reject karo."
+                    "Number multiple accounts se linked hai - dashboard se approve/reject karo."
                 ),
                 "reason": "phone_ambiguous_multi_tenant",
             }
@@ -311,8 +311,8 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
             )
 
             # Controlled refusal, by design. The route that reaches here is the
-            # WAHA self-host webhook, authenticated by a shared static token —
-            # not per-message provider authenticity — and the sender phone is
+            # WAHA self-host webhook, authenticated by a shared static token -
+            # not per-message provider authenticity - and the sender phone is
             # routing data, not an approver identity. There is also no review
             # token bound to record/revision/hash. Previously this approved
             # anyway and the ledger recorded it as "admin".
@@ -354,7 +354,7 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
                     "intent": "reject",
                     "reason": "approval_already_decided",
                 }
-            video_ad_cycle._update(  # noqa: SLF001 — shared store helper
+            video_ad_cycle._update(  # noqa: SLF001 - shared store helper
                 str(rec.get("id")),
                 status="held_max_revisions",
                 workflow_state="CLIENT_REJECTED",

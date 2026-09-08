@@ -1,19 +1,19 @@
 """
-Gemini native TTS — free, natural Hindi voice using the EXISTING Gemini key.
+Gemini native TTS - free, natural Hindi voice using the EXISTING Gemini key.
 ===========================================================================
 
 WHY (council 2026-06-25 + user direction): the residual "agent noob lagti"
 signal is EdgeTTS hi-IN-SwaraNeural's flat timbre. User wants the OWN free stack
-upgraded (no third-party paid voice API) — and the stack already carries a
+upgraded (no third-party paid voice API) - and the stack already carries a
 Gemini key (LLM chain + STT). Gemini's native TTS (gemini-2.5-flash-preview-tts)
-gives a far more human Hindi/Hinglish voice at ZERO new cost/credentials — it
+gives a far more human Hindi/Hinglish voice at ZERO new cost/credentials - it
 reuses the same multi-key pool (app.voice_agent.gemini_keys).
 
 DISCIPLINE (integration-engineering signature pattern):
-  * INERT when no Gemini key OR GEMINI_TTS=0 → synth returns None instantly, so
+  * INERT when no Gemini key OR GEMINI_TTS=0 -> synth returns None instantly, so
     every caller transparently falls back to EdgeTTS (zero behaviour change).
-  * NEVER raises. Time-capped. Quota/429 → rotate key once, else EdgeTTS floor.
-  * Output is PCM (24kHz/16-bit/mono) → wrapped into a WAV container (pure-python,
+  * NEVER raises. Time-capped. Quota/429 -> rotate key once, else EdgeTTS floor.
+  * Output is PCM (24kHz/16-bit/mono) -> wrapped into a WAV container (pure-python,
     no ffmpeg) and returned base64. Frontend auto-detects WAV vs EdgeTTS mp3.
 
 API: POST .../v1beta/models/{model}:generateContent?key=KEY
@@ -52,7 +52,7 @@ def _voice() -> str:
 
 def _flag_on() -> bool:
     # Default OFF (2026-06-28 latency finding: gemini-tts ~5s/sentence vs EdgeTTS
-    # p50 3.3s) — the 2026-06-25 quality-motivated default-ON was superseded by
+    # p50 3.3s) - the 2026-06-25 quality-motivated default-ON was superseded by
     # this data but only ever flipped via VPS .env, never here. Set GEMINI_TTS=1
     # to opt back in.
     return (os.environ.get("GEMINI_TTS", "0") or "0").strip().lower() not in (
@@ -129,7 +129,7 @@ async def _post(api_key: str, txt: str) -> tuple[int, dict]:
 
 
 async def synth_wav_b64(text: str) -> str | None:
-    """Gemini-TTS WAV (base64) for `text`, or None on any miss (→ EdgeTTS).
+    """Gemini-TTS WAV (base64) for `text`, or None on any miss (-> EdgeTTS).
 
     None when: flag off / no key (inert), empty text, quota-exhausted, API
     error/timeout. Rotates the Gemini key once on 429. Never raises."""
@@ -151,14 +151,14 @@ async def synth_wav_b64(text: str) -> str | None:
         try:
             status, data = await asyncio.wait_for(_post(key, txt), timeout=_TIMEOUT_S)
         except Exception as e:
-            logger.warning("[gemini-tts] synth failed (%s) — EdgeTTS fallback", e)
+            logger.warning("[gemini-tts] synth failed (%s) - EdgeTTS fallback", e)
             return None
         if status == 200:
             return _extract_wav_b64(data)  # str, or None if no audio part
         if status == 429 and key_count() > 1 and attempt == 0:
             advance_key(key)
             continue
-        logger.warning("[gemini-tts] HTTP %s — EdgeTTS fallback", status)
+        logger.warning("[gemini-tts] HTTP %s - EdgeTTS fallback", status)
         return None
     return None
 

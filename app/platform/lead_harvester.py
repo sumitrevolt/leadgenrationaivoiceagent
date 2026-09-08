@@ -1,17 +1,17 @@
-"""Lead Harvester — multi-source lead collection, automated loop ke liye.
+"""Lead Harvester - multi-source lead collection, automated loop ke liye.
 
 Research: docs/LeadHarvester_Research_2026.md. LEGAL-FIRST design:
   - Sources sirf compliant: Places/OSM (existing prospector), Brave Search API
-    (keyed) → business ki APNI website se public contacts, data.gov.in OGD
+    (keyed) -> business ki APNI website se public contacts, data.gov.in OGD
     (open license) seed names, website-enrich (email_finder + find_contacts).
   - JustDial/IndiaMART/LinkedIn/Facebook AUTO-scrape KABHI nahi (ToS/ban/IT-Act)
-    — directory domains explicitly SKIP hote. Unka path = manual CSV import.
+    - directory domains explicitly SKIP hote. Unka path = manual CSV import.
   - Polite: per-run fetch caps, timeouts, UA, sleep
   anti-bot bypass NAHI.
 
-Pipeline: collect (enabled sources) → normalize → validate (phonenumbers E.164
-+ email MX) → dedupe (store phone/email) → persist (prospector._append = jsonl
-+ DB mirror + pitch) → rescore. GATED loop `LEAD_HARVESTER=1` (manual API run
+Pipeline: collect (enabled sources) -> normalize -> validate (phonenumbers E.164
++ email MX) -> dedupe (store phone/email) -> persist (prospector._append = jsonl
++ DB mirror + pitch) -> rescore. GATED loop `LEAD_HARVESTER=1` (manual API run
 flag-independent). Gated sources bina key = inert skip. Kabhi raise nahi.
 """
 
@@ -30,8 +30,8 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Per-niche asyncio locks — prevents concurrent harvests for the same niche
-# from racing on _existing_keys() → _append() dedupe check.
+# Per-niche asyncio locks - prevents concurrent harvests for the same niche
+# from racing on _existing_keys() -> _append() dedupe check.
 _niche_locks: dict[str, asyncio.Lock] = {}
 
 _RUNS = os.path.join("data", "harvest_runs.jsonl")
@@ -66,7 +66,7 @@ _PHONE_RE = re.compile(r"(?:\+91[\-\s]?|0)?([6-9]\d{9})")
 # ── Ingest validation (2026-07-05) ───────────────────────────────────────────
 # Backlog fix: websearch SERP page-titles ("Top 10 Home Loan ... 2026",
 # "XYZ | Justdial") business_name ban jaate the + page ke kisi bhi 10-digit
-# (bank helpline) ko phone maan lete the → junk "ready" pool → platform_dial
+# (bank helpline) ko phone maan lete the -> junk "ready" pool -> platform_dial
 # IVR-disaster ka root-enabler. Gate DEFAULT ON; HARVEST_INGEST_VALIDATION=0
 # = kill-switch (dial_gate test-mode jaisa default-ON precedent).
 _JUNK_NAME_RE = re.compile(
@@ -104,7 +104,7 @@ def ingest_reject_reason(name: str, phone10: str, email: str, source: str) -> st
     Rules (backlog 2026-07-05): junk-title regex sab par
     websearch (unstructured
     SERP) leads ko valid mobile YA verified email chahiye. Structured sources
-    (osm/opendata/GMB) ke naam real hote hain — sirf junk-regex + length check.
+    (osm/opendata/GMB) ke naam real hote hain - sirf junk-regex + length check.
     """
     n = (name or "").strip()
     if not n:
@@ -141,7 +141,7 @@ def _blocked(url: str) -> bool:
 
 
 def _existing_keys() -> tuple[set[str], set[str]]:
-    """Store me already-known phones (10-digit) + emails — dedupe ke liye."""
+    """Store me already-known phones (10-digit) + emails - dedupe ke liye."""
     phones: set[str] = set()
     emails: set[str] = set()
     try:
@@ -166,7 +166,7 @@ def _valid_phone(raw: str) -> str:
     """E.164 IN mobile ya empty. phonenumbers ho to use, warna regex fallback.
 
     ADR-027 (council 2026-07-06): docstring hamesha se "mobile" kehta tha par
-    is_mobile IGNORE hota tha — FIXED_LINE cloud-IVR DIDs (Livspace/HDFC type)
+    is_mobile IGNORE hota tha - FIXED_LINE cloud-IVR DIDs (Livspace/HDFC type)
     pass ho ke "ready" prospects bante the. Ab valid-but-NON-mobile => reject
     ('' return, regex fallback me NAHI girta). Lib-absent par regex [6-9] hi
     guard hai (purana behavior)."""
@@ -203,7 +203,7 @@ async def _valid_email(email: str) -> str:
 
 async def _src_prospector(niche: str, city: str, limit: int) -> dict[str, Any]:
     """Primary: existing Places+OSM rotation (khud persist karta)."""
-    # When nested under the daily prospect job, niche scrape already ran —
+    # When nested under the daily prospect job, niche scrape already ran -
     # calling niche_prospector again multiplies wall-clock into SoftTimeLimit.
     if os.environ.get("SKIP_HARVEST_PROSPECTOR_SRC", "").strip().lower() in (
         "1",
@@ -231,7 +231,7 @@ async def _src_prospector(niche: str, city: str, limit: int) -> dict[str, Any]:
 
 
 async def _web_results(q: str) -> tuple[str, list[dict[str, Any]]]:
-    """Search results waterfall: self-hosted SearXNG (FREE, gated SEARXNG_URL) →
+    """Search results waterfall: self-hosted SearXNG (FREE, gated SEARXNG_URL) ->
     Brave API (gated BRAVE_API_KEY). Returns (provider, [{title,url}]). '' = none."""
     try:
         from app.integrations import searxng
@@ -262,8 +262,8 @@ async def _web_results(q: str) -> tuple[str, list[dict[str, Any]]]:
 
 
 async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
-    """Web search (SearXNG self-hosted FREE → Brave fallback) → business websites
-    → public contacts. Directory/social domains SKIP (ToS). Bina dono = inert."""
+    """Web search (SearXNG self-hosted FREE -> Brave fallback) -> business websites
+    -> public contacts. Directory/social domains SKIP (ToS). Bina dono = inert."""
     if not (
         os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()
     ):
@@ -321,7 +321,7 @@ async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
 
 def _rec_ci(rec: dict[str, Any], *keys: str) -> str:
     """Case-insensitive multi-key get (data.gov.in uses CamelCase EnterpriseName/District,
-    other datasets use snake_case enterprise_name — be agnostic to both)."""
+    other datasets use snake_case enterprise_name - be agnostic to both)."""
     low = {str(k).lower(): v for k, v in (rec or {}).items()}
     for k in keys:
         v = low.get(k.lower())
@@ -331,7 +331,7 @@ def _rec_ci(rec: dict[str, Any], *keys: str) -> str:
 
 
 def _ogd_name(rec: dict[str, Any]) -> str:
-    """Extract a business/unit name from a data.gov.in record — FIELD-NAME-AGNOSTIC.
+    """Extract a business/unit name from a data.gov.in record - FIELD-NAME-AGNOSTIC.
     (Udyam = `EnterpriseName`
     other MSME datasets = name_of_unit/firm_name/... .)"""
     n = _rec_ci(
@@ -364,7 +364,7 @@ def _ogd_city(rec: dict[str, Any], default: str) -> str:
 
 
 def _ogd_activity(rec: dict[str, Any]) -> str:
-    """Udyam MajorActivity / NIC text — used to classify the lead's niche."""
+    """Udyam MajorActivity / NIC text - used to classify the lead's niche."""
     return _rec_ci(rec, "majoractivity", "major_activity", "activity", "nic_name", "nic5digitcode")
 
 
@@ -393,7 +393,7 @@ def _udyam_district(city: str) -> str:
 
 
 async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
-    """data.gov.in OGD (gated DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID) —
+    """data.gov.in OGD (gated DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID) -
     Udyam/MSME unit names = seed leads (no phone
     enrich baad me). Open license."""
     key = os.environ.get("DATA_GOV_IN_API_KEY", "").strip()
@@ -405,7 +405,7 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
         import urllib.parse
         import urllib.request
 
-        # IMPORTANT: build the query with LITERAL brackets — httpx percent-encodes
+        # IMPORTANT: build the query with LITERAL brackets - httpx percent-encodes
         # filters[District] to filters%5BDistrict%5D, which data.gov.in does NOT match
         # (returns 0). urllib sends the URL as-given, so the District filter actually
         # applies and pulls THAT city's units out of ~30 lakh (Udyam District = UPPERCASE).
@@ -452,7 +452,7 @@ def _enrich_max_attempts() -> int:
 
 def _enrich_row_delay_s() -> float:
     """Inter-row politeness delay. Har row ek ALAG third-party site hai (per-host
-    rate ka sawaal nahi) — yeh delay hamare apne egress/DNS burst ko chhota rakhta
+    rate ka sawaal nahi) - yeh delay hamare apne egress/DNS burst ko chhota rakhta
     hai. EMAIL_ENRICH_ROW_DELAY_S se tune (0 = off)."""
     try:
         return max(0.0, min(5.0, float(os.environ.get("EMAIL_ENRICH_ROW_DELAY_S", "0.3") or 0.3)))
@@ -461,28 +461,28 @@ def _enrich_row_delay_s() -> float:
 
 
 async def enrich_missing_emails(limit: int = 8, deadline_s: float | None = None) -> dict[str, Any]:
-    """Store ke website-wale prospects jinka email nahi — email_finder waterfall
-    (site-extract → pattern → MX). Kabhi raise nahi.
+    """Store ke website-wale prospects jinka email nahi - email_finder waterfall
+    (site-extract -> pattern -> MX). Kabhi raise nahi.
 
     STALL FIX (2026-07-25): pehle yeh har run ``_read_all()`` ke HEAD se wahi
-    pehli ``limit`` no-email rows dobara try karta tha — failure ka koi marker
+    pehli ``limit`` no-email rows dobara try karta tha - failure ka koi marker
     nahi tha, isliye scan kabhi aage badha hi nahi (prod audit: 4,137
     ready+website rows bina email, sendable backlog sirf 182). Ab har attempt
     ``email_enrich_attempts`` + ``email_enrich_last_at`` stamp karta hai (ek
     atomic bulk write), aur attempts >= EMAIL_ENRICH_MAX_ATTEMPTS (default 2)
-    wali rows SKIP hoti hain — scan har run naye prospects tak pahunchta hai.
+    wali rows SKIP hoti hain - scan har run naye prospects tak pahunchta hai.
 
     STATE-MACHINE FIX: email milte hi ``needs_enrich``/``new`` row "ready"
-    PROMOTE hoti hai (outreach sirf status='ready' padhta hai — pehle enriched
+    PROMOTE hoti hai (outreach sirf status='ready' padhta hai - pehle enriched
     rows black hole me rehti thi). ready/sent/replied/client/dead ka status
-    KABHI touch nahi hota — sirf email field milti hai.
+    KABHI touch nahi hota - sirf email field milti hai.
 
     ``deadline_s`` = wall-clock budget. Har row se PEHLE check hota hai, aur
-    expire hone pe loop TOOT-ta hai — par jo attempts ho chuke wo phir bhi
+    expire hone pe loop TOOT-ta hai - par jo attempts ho chuke wo phir bhi
     likhe jaate hain (progress kabhi discard nahi). Yeh Celery sweep ke liye
     zaroori hai: ek row worst-case ~20s+ le sakti hai (2 × 10s HTTP timeout),
     isliye bina deadline ke ek "chhota" batch bhi task ke soft_time_limit ko
-    paar kar sakta hai — aur SoftTimeLimitExceeded us poore batch ke attempt
+    paar kar sakta hai - aur SoftTimeLimitExceeded us poore batch ke attempt
     markers ko gira dega, yaani wahi stall wapas.
     """
     found = 0
@@ -530,7 +530,7 @@ async def enrich_missing_emails(limit: int = 8, deadline_s: float | None = None)
                         fields["status"] = "ready"
                     found += 1
             except Exception:
-                pass  # attempt marker phir bhi likho — warna scan wahi atkega
+                pass  # attempt marker phir bhi likho - warna scan wahi atkega
             pid = str(r.get("id") or "")
             if pid:
                 updates[pid] = fields
@@ -564,7 +564,7 @@ async def enrich_missing_emails(limit: int = 8, deadline_s: float | None = None)
 
 
 async def _src_osm(niche: str, city: str, limit: int) -> dict[str, Any]:
-    """FREE + keyless + ToS-clean: OpenStreetMap Overpass as a FIRST-CLASS source —
+    """FREE + keyless + ToS-clean: OpenStreetMap Overpass as a FIRST-CLASS source -
     independent of Google-Maps quota (Places fallback skips OSM when it succeeds, so
     this always-on source widens India-wide coverage). Off-loop (urllib is blocking),
     polite (25s timeout, capped). Phone-less names get email-enriched downstream."""
@@ -603,7 +603,7 @@ async def _src_osm(niche: str, city: str, limit: int) -> dict[str, Any]:
 
 SOURCES = {
     "prospector": _src_prospector,
-    "osm": _src_osm,  # free keyless OSM Overpass — independent of Google-Maps quota
+    "osm": _src_osm,  # free keyless OSM Overpass - independent of Google-Maps quota
     "websearch": _src_websearch,
     "opendata": _src_opendata,
 }
@@ -615,7 +615,7 @@ SOURCES = {
 async def run_harvest(
     niche: str = "", city: str = "", limit: int = 10, sources: list[str] | None = None
 ) -> dict[str, Any]:
-    """Multi-source harvest: collect → validate → dedupe → persist → rescore.
+    """Multi-source harvest: collect -> validate -> dedupe -> persist -> rescore.
     Gated sources bina key inert. Kabhi raise nahi."""
     try:
         if not niche or not city:
@@ -707,8 +707,8 @@ async def run_harvest(
         except Exception:
             pass
 
-        # Cadence auto-enroll — naye harvested leads ko omnichannel sequence me daalo.
-        # Gated CADENCE_ENGINE=1 (inert agar off — cadence khud guard karta hai).
+        # Cadence auto-enroll - naye harvested leads ko omnichannel sequence me daalo.
+        # Gated CADENCE_ENGINE=1 (inert agar off - cadence khud guard karta hai).
         cadence_enrolled = 0
         try:
             import os as _os
@@ -762,14 +762,14 @@ async def run_harvest(
 
 
 async def run_loop_sweep() -> dict[str, Any]:
-    """Loop hook (gated LEAD_HARVESTER) — daily prospect job / self_improve se.
+    """Loop hook (gated LEAD_HARVESTER) - daily prospect job / self_improve se.
 
     GTM_TARGETING=1: systematically work through the City x Niche coverage matrix
-    (least-recently-covered first), N pairs/run within the API budget — so over time
+    (least-recently-covered first), N pairs/run within the API budget - so over time
     every city x niche gets covered "one by one". Else: single rotation pick (legacy)."""
     if not enabled():
         return {"enabled": False}
-    # Udyam-PRIMARY pipeline (gated UDYAM_PIPELINE) — runs alongside the harvest in the
+    # Udyam-PRIMARY pipeline (gated UDYAM_PIPELINE) - runs alongside the harvest in the
     # daily sweep: data.gov.in Udyam seeds -> Maps + website enrich. Result merged in.
     _udyam: dict[str, Any] | None = None
     try:
@@ -840,7 +840,7 @@ def recent_runs(limit: int = 15) -> list[dict[str, Any]]:
 
 
 def source_status() -> dict[str, Any]:
-    """Kaunse sources armed hain (keys present) — ops visibility."""
+    """Kaunse sources armed hain (keys present) - ops visibility."""
     return {
         "enabled_loop": enabled(),
         "prospector": bool(os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()) or "osm-fallback",

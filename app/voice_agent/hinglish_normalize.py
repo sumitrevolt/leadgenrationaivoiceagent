@@ -1,4 +1,4 @@
-"""Hinglish STT normalization — Devanagari → roman for the romanized NLU gates.
+"""Hinglish STT normalization - Devanagari -> roman for the romanized NLU gates.
 
 THE FUNDAMENTAL FIX (council 2026-06-25): Groq Whisper(`language="hi"`) emits
 Devanagari ("क्या"/"कितना"/"हाँ"), but the voice agent's deterministic gates
@@ -7,13 +7,13 @@ Devanagari ("क्या"/"कितना"/"हाँ"), but the voice agent's
 Instead, normalize the STT text ONCE here so the existing roman gates fire.
 
 Design:
-- **Word-level map** of the high-frequency spoken-call vocabulary → the EXACT roman
-  form the gates expect ("कितना"→"kitna", not the literal-translit "kitanaa").
-  This is the single source of truth — add a word here, every gate benefits.
+- **Word-level map** of the high-frequency spoken-call vocabulary -> the EXACT roman
+  form the gates expect ("कितना"->"kitna", not the literal-translit "kitanaa").
+  This is the single source of truth - add a word here, every gate benefits.
 - Unmapped Devanagari words are left **as-is** (harmless: they matched nothing before
-  either, and the ORIGINAL text — not this — is what goes to the LLM, which reads
+  either, and the ORIGINAL text - not this - is what goes to the LLM, which reads
   Devanagari natively). No lossy char-transliteration that could misfire.
-- **Pure passthrough** for already-roman text (zero Devanagari → returns unchanged).
+- **Pure passthrough** for already-roman text (zero Devanagari -> returns unchanged).
 - Import-safe, never raises.
 
 Only gate-MATCHING uses `to_roman(...)`
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 
-# Devanagari → roman, mapped to the exact token the romanized gates look for.
+# Devanagari -> roman, mapped to the exact token the romanized gates look for.
 # Grouped by purpose for maintainability. ADD GATE VOCAB HERE (not per-gate).
 _WORD_MAP: dict[str, str] = {
     # question words
@@ -110,7 +110,7 @@ _WORD_MAP: dict[str, str] = {
     "कॉलबैक": "callback",
     # close / proceed intent (2026-07-03: missing from this map meant a caller
     # saying e.g. "प्री प्लान एक्टिवेट करो" never matched telecaller_brain's
-    # roman-only _CLOSE_HARD_RE — the close-signal/WhatsApp-handoff path never
+    # roman-only _CLOSE_HARD_RE - the close-signal/WhatsApp-handoff path never
     # fired even though the caller clearly said "activate")
     "एक्टिवेट": "activate",
     "स्टार्ट": "start",
@@ -156,11 +156,11 @@ _WORD_MAP: dict[str, str] = {
 
 _DEV_RE = re.compile(r"[ऀ-ॿ]")
 _STRIP = "।?!.,
-:—-\"')(॥"
+:--\"')(॥"
 
 
 def to_roman(text: str) -> str:
-    """Normalize Devanagari spoken-call words → roman gate-forms. Passthrough for
+    """Normalize Devanagari spoken-call words -> roman gate-forms. Passthrough for
     roman text. Unmapped Devanagari left as-is. Never raises."""
     try:
         if not text or not _DEV_RE.search(text):

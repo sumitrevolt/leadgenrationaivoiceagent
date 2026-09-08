@@ -1,21 +1,21 @@
 """
-Live-transcript evaluation (P4-3) — close the eval loop on REAL calls.
+Live-transcript evaluation (P4-3) - close the eval loop on REAL calls.
 =====================================================================
 
 `eval_metrics.transcript_quality` + `eval_suite` personas score SYNTHETIC convos.
 This module scores the **live** call transcripts (`data/call_transcripts/*.jsonl`,
 written by vobiz_stream / web_call) so quality drift on real calls feeds
-`eval_gate` — the missing "eval_gate → live transcripts" edge.
+`eval_gate` - the missing "eval_gate -> live transcripts" edge.
 
 Three layers:
-  * `score_transcript(messages)` — deterministic 0..1 quality = `voice_turn_score`
+  * `score_transcript(messages)` - deterministic 0..1 quality = `voice_turn_score`
     (empty/too-long/double-question/repeat) DENTED by the D-13 `qa_checks`
     findings (pushy-after-softno / talk-listen / missing-permission / literal).
-  * `eval_recent_calls(n)` — score the last N live calls, mean → `eval_gate`
+  * `eval_recent_calls(n)` - score the last N live calls, mean -> `eval_gate`
     (suite `live_calls`, metric `conversation_quality`)
     reports per-call findings
     + interruption stats. Used by the nightly Arjun guardrail.
-  * `llm_judge_transcript(messages)` — OPTIONAL free-LLM judge that returns a score
+  * `llm_judge_transcript(messages)` - OPTIONAL free-LLM judge that returns a score
     WITH a rationale (gated `LLM_JUDGE`, default OFF = cost-free).
 
 Interruption tracking: reports the barge count per call (`barge_count`, logged by
@@ -41,7 +41,7 @@ logger = setup_logger(__name__)
 
 
 def _TRANSCRIPTS_DIR() -> Path:
-    """Live call transcripts dir — resolved per call, never frozen at import."""
+    """Live call transcripts dir - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return call_transcripts_dir()

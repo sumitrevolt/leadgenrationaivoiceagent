@@ -1,4 +1,4 @@
-"""approvals_bridge — sidecar status, read-adapters, risk-tiered decide.
+"""approvals_bridge - sidecar status, read-adapters, risk-tiered decide.
 
 The bars (sub-project D V1):
 - Status sidecar collapses to latest
@@ -182,7 +182,7 @@ def test_fde_adapter_reads_persisted_report(monkeypatch, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# decide() — validation + idempotency
+# decide() - validation + idempotency
 # --------------------------------------------------------------------------- #
 def test_decide_rejects_bad_args(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
@@ -331,7 +331,7 @@ def test_ts_to_iso_never_raises():
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-03: recent_decisions() — audit-trail strip for the Approvals panel
+# 2026-07-03: recent_decisions() - audit-trail strip for the Approvals panel
 # --------------------------------------------------------------------------- #
 def test_recent_decisions_newest_first_with_titles(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
@@ -375,7 +375,7 @@ def test_recent_decisions_collapses_to_latest_and_respects_limit(monkeypatch, tm
     ab.decide("coordinator", "r1", "approve", by="a")
     ab.decide(
         "coordinator", "r1", "reject", by="b"
-    )  # noop (already decided) — status sidecar still append-only
+    )  # noop (already decided) - status sidecar still append-only
     out = ab.recent_decisions(limit=1)
     assert len(out) == 1
     assert out[0]["id"] == "r1"

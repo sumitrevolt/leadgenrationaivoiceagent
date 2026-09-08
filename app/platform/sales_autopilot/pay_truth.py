@@ -1,4 +1,4 @@
-"""Sales Autopilot pay-truth — converted ≠ paid without ledger proof.
+"""Sales Autopilot pay-truth - converted ≠ paid without ledger proof.
 
 Joins autopilot ``converted`` / ``awaiting_payment`` prospects to invoices + UPI
 rows by ``converted_client_id``. Never fabricates payment, never auto-activates.
@@ -36,7 +36,7 @@ def has_payment_proof(client_id: str) -> dict[str, Any]:
                 continue
             if str(inv.get("client_id") or "").strip() != cid:
                 continue
-            # Live invoice row = ledger proof (amount may be 0 for credit notes — still real)
+            # Live invoice row = ledger proof (amount may be 0 for credit notes - still real)
             out["paid"] = True
             out["via"] = "invoice"
             out["invoice"] = {
@@ -96,7 +96,7 @@ _CHASE_PARK_STEP = "hq_chase_admin"
 
 
 def reconcile_pay_truth(*, chase: bool = True) -> dict[str, Any]:
-    """Demote unpaid converted → awaiting_payment; restore proofed awaiting → converted.
+    """Demote unpaid converted -> awaiting_payment; restore proofed awaiting -> converted.
 
     Never marks paid without ledger. Optional chase records payment_reminder + ntfy.
     """
@@ -168,8 +168,8 @@ def _chase_unpaid(prospect_id: str, rec: dict[str, Any]) -> None:
         name = rec.get("name") or prospect_id
         cid = rec.get("converted_client_id") or "-"
         ntfy.push_bg(
-            "💰 Unpaid converted — chase",
-            f"{name} client={cid} — ledger me payment nahi. /start → Billing ₹1999. "
+            "💰 Unpaid converted - chase",
+            f"{name} client={cid} - ledger me payment nahi. /start -> Billing ₹1999. "
             f"Kabhi manual mark-paid mat karo.",
             priority="high",
             tags=["moneybag", "warning"],
@@ -235,7 +235,7 @@ def unpaid_chase_cards(limit: int = 50) -> list[dict[str, Any]]:
                 from urllib.parse import quote
 
                 msg = (
-                    f"Namaste {rec.get('name') or ''}! Aapka LeadGen AI account ready hai — "
+                    f"Namaste {rec.get('name') or ''}! Aapka LeadGen AI account ready hai - "
                     f"Billing se ₹1,999 UPI complete karein: https://leadsgenai.in/start"
                 )
                 wa = f"https://wa.me/91{digits[-10:]}?text={quote(msg.strip())}"
@@ -249,7 +249,7 @@ def unpaid_chase_cards(limit: int = 50) -> list[dict[str, Any]]:
                     "business_name": rec.get("name") or "",
                     "text": f"awaiting_payment client_id={rec.get('converted_client_id') or '-'}",
                     "draft": (
-                        "Payment pending — owner: password reset → Billing ₹1999 → reply PAID. "
+                        "Payment pending - owner: password reset -> Billing ₹1999 -> reply PAID. "
                         "Do not mark-paid without ledger."
                     ),
                     "wa_link": wa,

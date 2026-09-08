@@ -1,4 +1,4 @@
-"""Test-call se auto-learn — Meera lesson + Swara prompt fuel (free LLM, import-safe)."""
+"""Test-call se auto-learn - Meera lesson + Swara prompt fuel (free LLM, import-safe)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _turns_to_messages(turns: list[Any] | None) -> list[dict[str, str]]:
 
 
 async def analyze_web_session(session: dict[str, Any]) -> dict[str, Any]:
-    """Ek saved test-call session se lesson likho — galat jawab/stuck patterns fix."""
+    """Ek saved test-call session se lesson likho - galat jawab/stuck patterns fix."""
     turns = session.get("turns") or []
     if len(turns) < _MIN_TURNS:
         return {"ok": False, "reason": "too_short"}
@@ -62,7 +62,7 @@ async def analyze_web_session(session: dict[str, Any]) -> dict[str, Any]:
         analysis = ""
         try:
             raw, prov = await free_ai.chat(
-                "Voice QA coach — concise Hinglish bullets only.",
+                "Voice QA coach - concise Hinglish bullets only.",
                 [{"role": "user", "content": prompt}],
                 max_tokens=260,
                 temperature=0.2,
@@ -88,7 +88,7 @@ async def analyze_web_session(session: dict[str, Any]) -> dict[str, Any]:
             agent="swara",
         )
 
-        # P3c — per-call self-improve GATE: failing calls ke liye structured proposal
+        # P3c - per-call self-improve GATE: failing calls ke liye structured proposal
         # (better candidate reply + promotion-gate) store karo. NEVER auto-applies to
         # prod; admin review karta. Clean calls = no-op. Never blocks the return.
         proposal_id = None

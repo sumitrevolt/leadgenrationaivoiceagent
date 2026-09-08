@@ -1,6 +1,6 @@
-"""Tests — Apollo-inspired batch (prospect search/lists/import, email finder,
+"""Tests - Apollo-inspired batch (prospect search/lists/import, email finder,
 cadence step stats). Tmp stores, no network (MX/site calls test me nahi chalte
-— pure parts hi)."""
+- pure parts hi)."""
 
 from __future__ import annotations
 

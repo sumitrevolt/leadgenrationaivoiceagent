@@ -1,11 +1,11 @@
-"""SPAM CONTENT GUARD tests (2026-07-15) — betting/gambling reply spam.
+"""SPAM CONTENT GUARD tests (2026-07-15) - betting/gambling reply spam.
 
-Context: 07-14 production audit — reply agent classified "Reddy Anna" gambling
+Context: 07-14 production audit - reply agent classified "Reddy Anna" gambling
 spam as `interested` with a draft ready in Hot Queue. Guard drops such content
 BEFORE LLM classify (email + WhatsApp paths) and hides already-saved spam rows
 on the read path (`_is_noise_row`).
 
-Offline pure-function tests — no IMAP/LLM/network.
+Offline pure-function tests - no IMAP/LLM/network.
 """
 
 from __future__ import annotations

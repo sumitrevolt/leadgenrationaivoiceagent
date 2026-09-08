@@ -96,7 +96,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     allowed_root().mkdir(parents=True, exist_ok=True)
     completed = _run_git(["worktree", "add", "-b", branch, str(wt), base])
     if completed.returncode != 0:
-        # Branch may already exist — try attaching without -b
+        # Branch may already exist - try attaching without -b
         completed = _run_git(["worktree", "add", str(wt), branch])
         if completed.returncode != 0:
             err = (completed.stderr or completed.stdout or "").strip()[:300]
@@ -113,7 +113,7 @@ def cmd_list(_args: argparse.Namespace) -> int:
     root = allowed_root()
     print(f"allowed_root={root}")
     if not root.exists():
-        print("(empty — root does not exist yet)")
+        print("(empty - root does not exist yet)")
         return 0
     found = sorted(p for p in root.glob("agent-team-*") if p.is_dir())
     if not found:
@@ -145,7 +145,7 @@ def cmd_remove(args: argparse.Namespace) -> int:
         err = (completed.stderr or completed.stdout or "").strip()[:300]
         print(f"worktree_remove_failed: {err}", file=sys.stderr)
         return 1
-    # Safe branch delete only when asked — never force-drop unmerged work by default.
+    # Safe branch delete only when asked - never force-drop unmerged work by default.
     if branch and branch != "HEAD" and getattr(args, "delete_branch", False):
         flag = "-D" if args.force else "-d"
         deleted = _run_git(["branch", flag, branch])
@@ -173,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         choices=(1, 2),
         default=None,
-        help="Canary teammate id → branch agent/tm{N}/<name> (max 2)",
+        help="Canary teammate id -> branch agent/tm{N}/<name> (max 2)",
     )
     p_create.add_argument(
         "--canary",

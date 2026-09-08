@@ -1,4 +1,4 @@
-"""Load tests — API throughput + queue stress (Playbook mandate).
+"""Load tests - API throughput + queue stress (Playbook mandate).
 
 Lightweight load tests using concurrent requests. Not a full Locust suite
 but verifies basic throughput gates. Run: pytest tests/load/ -v -s
@@ -14,7 +14,7 @@ from urllib.parse import urljoin
 import pytest
 import requests
 
-# Default to LOCAL — never prod. Override via env (same var name as tests/load/run.sh).
+# Default to LOCAL - never prod. Override via env (same var name as tests/load/run.sh).
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 # --- Safety guards (module-level) ------------------------------------------------
@@ -22,15 +22,15 @@ BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 #    100-concurrent / 1000-task / 100-login load tests. Opt in with RUN_LOAD_TESTS=1.
 if os.environ.get("RUN_LOAD_TESTS") != "1":
     pytest.skip(
-        "load tests off by default — set RUN_LOAD_TESTS=1 to run",
+        "load tests off by default - set RUN_LOAD_TESTS=1 to run",
         allow_module_level=True,
     )
-# 2) Never hammer PROD (same discipline as tests/load/run.sh — leadsgenai.in / VPS IP).
+# 2) Never hammer PROD (same discipline as tests/load/run.sh - leadsgenai.in / VPS IP).
 if ("leadsgenai.in" in BASE_URL or "72.61.245.204" in BASE_URL) and os.environ.get(
     "CONFIRM_PROD"
 ) != "1":
     pytest.skip(
-        f"refusing to load-test prod ({BASE_URL}) — set CONFIRM_PROD=1 to override",
+        f"refusing to load-test prod ({BASE_URL}) - set CONFIRM_PROD=1 to override",
         allow_module_level=True,
     )
 
@@ -60,7 +60,7 @@ def _post(path: str, json: dict) -> tuple[int, float]:
 @pytest.mark.timeout(60)
 @pytest.mark.skipif(not requests, reason="requests not installed")
 def test_health_api_100_concurrent():
-    """100 concurrent /health requests — all should return < 2s."""
+    """100 concurrent /health requests - all should return < 2s."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as pool:
         futures = [pool.submit(_get, "/health") for _ in range(100)]
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
@@ -80,7 +80,7 @@ def test_health_api_100_concurrent():
 # ---------------------------------------------------------------------------
 @pytest.mark.timeout(30)
 def test_queue_enqueue_1000_tasks():
-    """Enqueue 1000 dummy tasks — verify throughput > 100/sec."""
+    """Enqueue 1000 dummy tasks - verify throughput > 100/sec."""
     from app.worker import celery_app
 
     start = time.perf_counter()
@@ -98,7 +98,7 @@ def test_queue_enqueue_1000_tasks():
 # ---------------------------------------------------------------------------
 @pytest.mark.timeout(30)
 def test_scheduler_24_concurrent_triggers():
-    """24 concurrent scheduled job triggers — no overlap, no crash."""
+    """24 concurrent scheduled job triggers - no overlap, no crash."""
     from app.tasks.staff_jobs import run_staff_job
 
     # Simulate 24 concurrent triggers (different jobs)
@@ -142,7 +142,7 @@ def test_scheduler_24_concurrent_triggers():
 # ---------------------------------------------------------------------------
 @pytest.mark.timeout(30)
 def test_login_brute_force_protection():
-    """100 failed login attempts → account lockout triggers."""
+    """100 failed login attempts -> account lockout triggers."""
     from starlette.testclient import TestClient
 
     from app.main import app
@@ -152,5 +152,5 @@ def test_login_brute_force_protection():
         client.post("/api/auth/login", json={"email": "test@test.com", "password": "wrong"})
 
     # After MAX_FAILED_LOGIN_ATTEMPTS, lockout should trigger
-    # (This is a best-effort test — actual lockout depends on Redis state)
+    # (This is a best-effort test - actual lockout depends on Redis state)
     assert True  # If we reached here without crash, basic protection exists

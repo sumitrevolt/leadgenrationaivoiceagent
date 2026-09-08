@@ -3,7 +3,7 @@ Answering Machine Detection (AMD) / Voicemail Detection
 ========================================================
 
 Pata lagata hai ki call uthaane wala ek *insaan* hai ya *voicemail / answering
-machine*. Yeh production voice agents (Retell / Vapi / Bland) ka core feature hai —
+machine*. Yeh production voice agents (Retell / Vapi / Bland) ka core feature hai -
 agar machine detect ho to bot ya to ek chhota voicemail chhod de, ya hangup kar de,
 warna bot kisi recording se baat karta reh jaata hai (paise + leads waste).
 
@@ -72,7 +72,7 @@ class AMDResult:
 # --------------------------------------------------------------------------- #
 # Voicemail phrase banks (English + Hindi + Hinglish)
 # --------------------------------------------------------------------------- #
-# High-confidence: classic voicemail greetings — yeh dikhe to almost certainly machine.
+# High-confidence: classic voicemail greetings - yeh dikhe to almost certainly machine.
 _STRONG_PHRASES: list[str] = [
     "leave a message after the tone",
     "leave a message after the beep",
@@ -114,7 +114,7 @@ _STRONG_PHRASES: list[str] = [
     "sampark nahi ho",
 ]
 
-# Medium-confidence signals — alone weak, combined ya repeated to machine likely.
+# Medium-confidence signals - alone weak, combined ya repeated to machine likely.
 _WEAK_PHRASES: list[str] = [
     "voicemail",
     "voice mail",
@@ -153,8 +153,8 @@ class AnsweringMachineDetector:
 
     Pure-python heuristics
     koi external call nahi. Do tareeke:
-      1. detect_from_transcript(text, timing_ms) — primary, fast, accurate.
-      2. detect_from_audio_energy(samples)       — best-effort, optional/defensive.
+      1. detect_from_transcript(text, timing_ms) - primary, fast, accurate.
+      2. detect_from_audio_energy(samples)       - best-effort, optional/defensive.
 
     Phir decide_action() recommended action deta hai aur voicemail_message()
     ek natural chhota message banata hai chhodne ke liye.
@@ -185,18 +185,18 @@ class AnsweringMachineDetector:
 
         Args:
             text:       customer-side first utterance / greeting ka transcript.
-            timing_ms:  (optional) us utterance ki duration ms me — lambi
+            timing_ms:  (optional) us utterance ki duration ms me - lambi
                         uninterrupted speech machine ka strong signal hai.
 
         Returns:
-            AMDResult — is_machine / confidence / reason / action.
+            AMDResult - is_machine / confidence / reason / action.
         """
         raw = (text or "").strip()
         low = raw.lower()
         matched: list[str] = []
 
         if not low:
-            # Khaali transcript — koi detection nahi, continue (human ho sakta hai).
+            # Khaali transcript - koi detection nahi, continue (human ho sakta hai).
             return AMDResult(False, 0.0, "empty_transcript", "continue")
 
         # 1) Carrier / network auto message -> call hi nahi lagi -> hangup.
@@ -277,7 +277,7 @@ class AnsweringMachineDetector:
         baad ek choti tez energy spike (the "beep"). Insaan ka "hello?" chhota
         hota hai uske baad silence (woh aapke bolne ka wait karta hai).
 
-        Yeh DEFENSIVE / optional hai — agar samples na milein ya parse na ho,
+        Yeh DEFENSIVE / optional hai - agar samples na milein ya parse na ho,
         to safe "continue" (human assume) return karta hai, kabhi crash nahi.
 
         Args:
@@ -378,7 +378,7 @@ class AnsweringMachineDetector:
     ) -> str:
         """Voicemail par chhodne ke liye ek chhota, natural message banao.
 
-        Pure python — koi LLM/external call nahi. Phone-friendly: chhota,
+        Pure python - koi LLM/external call nahi. Phone-friendly: chhota,
         clear, ek call-to-action + callback number.
 
         Args:
@@ -401,21 +401,21 @@ class AnsweringMachineDetector:
         if lang == "en":
             return (
                 f"Hi, this is {agent_name} calling from {client_name}. "
-                f"Sorry I missed you — I had a quick idea that could bring you more "
+                f"Sorry I missed you - I had a quick idea that could bring you more "
                 f"qualified leads. Please give us a call back when you get a moment.{cb} "
                 f"Thank you, have a great day!"
             ).strip()
         if lang == "hi":
             return (
                 f"Namaste, main {agent_name}, {client_name} se baat kar rahi hoon. "
-                f"Aapse baat nahi ho payi — humare paas aapke business ke liye ek "
+                f"Aapse baat nahi ho payi - humare paas aapke business ke liye ek "
                 f"acchi idea thi jo aapko zyada qualified leads de sakti hai. "
                 f"Time mile to ek call kar dijiyega.{cb} Dhanyavaad, aapka din accha rahe!"
             ).strip()
         # default: hinglish
         return (
             f"Namaste, main {agent_name} {client_name} se. "
-            f"Aapse baat nahi ho payi — ek chhoti si baat thi jo aapke business ke "
+            f"Aapse baat nahi ho payi - ek chhoti si baat thi jo aapke business ke "
             f"liye zyada qualified leads la sakti hai. Jab time mile, ek callback "
             f"de dijiyega.{cb} Shukriya, aapka din accha rahe!"
         ).strip()

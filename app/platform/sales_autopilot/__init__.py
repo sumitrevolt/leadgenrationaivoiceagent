@@ -1,4 +1,4 @@
-"""Autonomous Sales Engine (Sales Autopilot) — policy-driven, fail-closed, dry-run default.
+"""Autonomous Sales Engine (Sales Autopilot) - policy-driven, fail-closed, dry-run default.
 
 An **additive, flag-gated, INERT-by-default** sales operating system. Nothing in this
 package sends anything to a real provider unless ALL of the following are true:
@@ -12,7 +12,7 @@ package sends anything to a real provider unless ALL of the following are true:
 
 Any missing condition ⇒ we simulate (label ``SIMULATED``) and never touch a provider.
 
-Calling is HARD OFF here — this engine never dials. WhatsApp uses the existing ban-safe
+Calling is HARD OFF here - this engine never dials. WhatsApp uses the existing ban-safe
 ``whatsapp_campaign.send_one`` and never a new gateway. Follow the module docstrings.
 """
 

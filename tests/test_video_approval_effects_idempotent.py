@@ -1,4 +1,4 @@
-"""Final 3A gate — per-effect idempotency.
+"""Final 3A gate - per-effect idempotency.
 
 The previous cut tracked ONE effects marker for both operations, so a retry
 after a partial failure re-invoked the already-successful effect and relied on
@@ -6,7 +6,7 @@ a local marker that can itself fail after the downstream write.
 
 Each effect now carries its own deterministic key (SHA-256 over transaction id
 + effect name) and its own marker. Crucially the delivery-ledger key is passed
-DOWNSTREAM to `log_event(key=...)`, which skips duplicates itself — so the
+DOWNSTREAM to `log_event(key=...)`, which skips duplicates itself - so the
 guarantee survives a marker write that dies after the ledger write.
 
 These tests count DURABLE OUTPUT (ledger rows, queue items), not spy calls.
@@ -73,7 +73,7 @@ def _queue_rows(tenant="fixture-tenant-p"):
 
 
 def _ledger_rows(tenant="fixture-tenant-p", event="post_approved"):
-    """Real durable rows. No exception swallowing — a broken helper must fail
+    """Real durable rows. No exception swallowing - a broken helper must fail
     loudly rather than silently reporting zero."""
     from app.marketing import delivery_ledger
 
@@ -137,7 +137,7 @@ def test_enqueue_marker_lost_after_queue_write_yields_one_queue_item(preview_cli
     only to DESCRIBE what happened, never as an exactly-once guarantee: the
     local marker was lost, so nothing in this module suppressed the retry. What
     suppressed it was a read of the durable queue (an approval-id already
-    present). A read-then-act check is not an exclusion primitive — a concurrent
+    present). A read-then-act check is not an exclusion primitive - a concurrent
     racer can still get through, which is why the layer below it is proven
     separately in ``test_duplicate_enqueue_invocation_still_yields_one_row``.
     """
@@ -188,7 +188,7 @@ def test_enqueue_marker_lost_after_queue_write_yields_one_queue_item(preview_cli
     assert calls["provider"] == 0  # no provider call
     # Observed, not guaranteed: the durable-queue read short-circuited the
     # retry, so the effect body ran once. Recorded as an observation so a future
-    # change that makes it 2 shows up as a diff rather than passing silently —
+    # change that makes it 2 shows up as a diff rather than passing silently -
     # 2 would still be CORRECT as long as the row count stays 1.
     assert calls["enqueue"] == 1
 
@@ -197,7 +197,7 @@ def test_downstream_dedupe_holds_on_direct_repeat_invocation():
     """The layer below the saga, exercised directly rather than simulated.
 
     An earlier version of this test blinded ``list_queue`` to defeat the saga's
-    approval-id guard — but auto_content's own ``date|type`` dedupe reads
+    approval-id guard - but auto_content's own ``date|type`` dedupe reads
     through the SAME function, so the patch defeated both and produced two rows.
     The two checks are therefore NOT independent layers. This calls the real
     primitive twice instead of faking a seam.
@@ -270,7 +270,7 @@ def test_queue_dedupe_survives_date_rollover(preview_client, monkeypatch):
 
     broken["on"] = False
 
-    # Advance the date auto_content stamps rows with — the coarse date|type key
+    # Advance the date auto_content stamps rows with - the coarse date|type key
     # no longer matches, so only the approval-id guard can hold.
     import datetime as _dt
 
@@ -342,7 +342,7 @@ def test_already_emitted_effect_is_not_reinvoked_on_retry(preview_client, monkey
 
     broken["on"] = False
     SAGA.recover("vid-preview-1")
-    # The successful effect is NOT re-invoked — its own marker says emitted.
+    # The successful effect is NOT re-invoked - its own marker says emitted.
     assert calls["enqueue"] == 1
     assert len(_ledger_rows()) == 1
 

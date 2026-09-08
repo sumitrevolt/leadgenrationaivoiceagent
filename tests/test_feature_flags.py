@@ -1,7 +1,7 @@
 """Feature-flag system tests (Phase 1 SaaS infra upgrade).
 
-Free-stack, NO real Redis — InMemoryCache inject + pure-eval. asyncio_mode=auto
-(pyproject [tool.pytest.ini_options]) → async def test_* seedhe chalte (no decorator).
+Free-stack, NO real Redis - InMemoryCache inject + pure-eval. asyncio_mode=auto
+(pyproject [tool.pytest.ini_options]) -> async def test_* seedhe chalte (no decorator).
 """
 
 from app.infrastructure.feature_flags import (
@@ -13,7 +13,7 @@ from app.infrastructure.feature_flags import (
 
 
 # --------------------------------------------------------------------------- #
-# PURE eval (no storage, no env) — deterministic logic
+# PURE eval (no storage, no env) - deterministic logic
 # --------------------------------------------------------------------------- #
 def test_evaluate_disabled_and_unknown():
     assert evaluate_flag(None) is False

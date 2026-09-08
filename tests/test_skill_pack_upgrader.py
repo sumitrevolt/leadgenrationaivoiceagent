@@ -1,4 +1,4 @@
-"""Tests — skill_pack (skills→VPS agents) + code_upgrader (hybrid autonomy).
+"""Tests - skill_pack (skills->VPS agents) + code_upgrader (hybrid autonomy).
 Sync + asyncio.run pattern, tmp stores via monkeypatch. No network/DB needed.
 """
 
@@ -49,7 +49,7 @@ def test_skill_pack_list_find_snippet(tmp_path, monkeypatch):
 
     sn = sp.snippet_for("cold email")
     assert "cold-email-craft" in sn and "Subject lines" in sn
-    # no-match → empty, kabhi raise nahi
+    # no-match -> empty, kabhi raise nahi
     assert sp.snippet_for("zzz qqq xyzabc") == ""
 
 
@@ -94,17 +94,17 @@ def test_vps_verify_deploy_checks_runtime_skill_sources():
 
 def test_skill_pack_author_tier1_guards(tmp_path, monkeypatch):
     sp, _ = _fresh(monkeypatch, tmp_path)
-    # path-escape sanitized: "../evil" → slug "evil", file extra-dir ke ANDAR hi bane
+    # path-escape sanitized: "../evil" -> slug "evil", file extra-dir ke ANDAR hi bane
     r = sp.author("../evil", "safe text")
     assert r["ok"] and r["name"] == "evil"
     assert os.path.dirname(os.path.abspath(r["path"])) == os.path.abspath(sp._EXTRA_DIR)
-    # empty/invalid → block
+    # empty/invalid -> block
     assert sp.author("!!!", "x")["ok"] is False
     assert sp.author("name", "")["ok"] is False
     # script block + size cap
     assert sp.author("ok-name", "<script>alert(1)</script>")["ok"] is False
     assert sp.author("big", "x" * (17 * 1024))["ok"] is False
-    # happy path → runtime-live (list me dikhe)
+    # happy path -> runtime-live (list me dikhe)
     r = sp.author("My New_Playbook", "# Naya playbook\nLeads follow-up 5 min me.")
     assert r["ok"] and r["name"] == "mynew_playbook"
     names = {s["name"] for s in sp.list_skills()}
@@ -145,7 +145,7 @@ def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     monkeypatch.setattr(cu, "_PATCHES", str(tmp_path / "patches.jsonl"))
     monkeypatch.delenv("CODE_UPGRADER", raising=False)
     monkeypatch.delenv("NOTIFY_EMAIL", raising=False)
-    # signals stub — ek failing provider
+    # signals stub - ek failing provider
     monkeypatch.setattr(
         cu,
         "_collect_signals",
@@ -170,7 +170,7 @@ def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     res2 = asyncio.run(cu.scan_and_propose())
     assert res2["proposed"] == 0
 
-    # approve flow (apply NAHI hota — sirf marker; hybrid gate)
+    # approve flow (apply NAHI hota - sirf marker; hybrid gate)
     assert cu.set_status(pid, "approved", "looks good")["ok"]
     assert cu.list_patches()[0]["status"] == "approved"
     assert cu.set_status(pid, "weird")["ok"] is False
@@ -180,14 +180,14 @@ def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     # agle din bhi re-propose NAHI hona chahiye (sirf rejected/applied = closed).
     res3 = asyncio.run(cu.scan_and_propose())
     assert res3["proposed"] == 0
-    # reject (closed) ke baad — same-day guard ki wajah se aaj phir bhi nahi
+    # reject (closed) ke baad - same-day guard ki wajah se aaj phir bhi nahi
     assert cu.set_status(pid, "rejected", "dup")["ok"]
     res4 = asyncio.run(cu.scan_and_propose())
     assert res4["proposed"] == 0
 
 
 def test_upgrader_applied_calls_eval_gate(tmp_path, monkeypatch):
-    """applied status → eval_gate.score_and_gate (INERT unless EVAL_GATE=1)."""
+    """applied status -> eval_gate.score_and_gate (INERT unless EVAL_GATE=1)."""
     from app.agents import code_upgrader as cu
     from app.agents import eval_gate
 
@@ -239,11 +239,11 @@ def test_llm_cooldown_escalates_and_resets(monkeypatch):
     fa._trip_cooldown("groq", "429 Rate limit reached for model x tokens per day")
     assert fa._LLM_COOLDOWN_UNTIL["groq"] == now + fa._LLM_COOLDOWN_MAX_S
     # CATCH-ALL (2026-07-05, deployed): non-rate error bhi SHORT escalating cooldown
-    # trip karta — broken provider (connection-reset/blank) har chat() pe retry na ho
+    # trip karta - broken provider (connection-reset/blank) har chat() pe retry na ho
     # (live: ollama 26% ok, nvidia 0% ok, zero backoff).
     fa._trip_cooldown("xai", "boom connection reset")
     assert fa._LLM_COOLDOWN_UNTIL["xai"] == now + base
-    # success = streak reset → agla trip wapas base
+    # success = streak reset -> agla trip wapas base
     fa._reset_cooldown_streak("cerebras")
     fa._trip_cooldown("cerebras", "429")
     assert fa._LLM_COOLDOWN_UNTIL["cerebras"] == now + base
@@ -262,7 +262,7 @@ def test_self_improve_new_actions_registered():
     from app.agents import self_improve as si
 
     assert "study_skills" in si.ACTIONS and "code_scan" in si.ACTIONS
-    # code_scan light (LLM-heavy=False) — degraded-LLM mode me bhi chale
+    # code_scan light (LLM-heavy=False) - degraded-LLM mode me bhi chale
     assert si.ACTIONS["code_scan"][0] is False
 
 
@@ -278,5 +278,5 @@ def test_team_has_new_staff():
     from app.platform import team
 
     assert "vikram" in team.STAFF and "guru" in team.STAFF
-    # >= (== nahi) — naya staff add hone pe yeh test stale na ho (Hermes 13th lesson)
+    # >= (== nahi) - naya staff add hone pe yeh test stale na ho (Hermes 13th lesson)
     assert len(team.STAFF) >= 13 and "hermes" in team.STAFF

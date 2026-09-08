@@ -1,11 +1,11 @@
-"""Outbound webhooks (Zapier/HighLevel-pattern) — events ko client systems tak pohchao.
+"""Outbound webhooks (Zapier/HighLevel-pattern) - events ko client systems tak pohchao.
 
-Client (ya khud Sumit) apna webhook URL register kare → naya lead/inquiry/signup
+Client (ya khud Sumit) apna webhook URL register kare -> naya lead/inquiry/signup
 hote hi HMAC-signed JSON POST. Isse koi bhi external system (Google Sheets via
 Apps Script, n8n, Zapier, client ka CRM) bina humse pooche integrate ho jata.
 
-5s timeout, kabhi raise nahi. RELIABLE DELIVERY (outbox pattern — audit): transient
-fail pe event LOSE nahi hota — retry-queue me jaata, background `retry_pending()`
+5s timeout, kabhi raise nahi. RELIABLE DELIVERY (outbox pattern - audit): transient
+fail pe event LOSE nahi hota - retry-queue me jaata, background `retry_pending()`
 exponential-backoff + jitter ke saath redeliver karta (at-least-once)
 max attempts
 ke baad DLQ. Consumer-side idempotency (idempotency.py) ke saath = reliable + dedupe.
@@ -36,7 +36,7 @@ _RETRY = os.path.join("data", "webhook_retry_queue.jsonl")  # outbox: pending re
 _DLQ = os.path.join("data", "webhook_dlq.jsonl")  # dead after max attempts
 _MAX_ATTEMPTS = 6
 _FLUSH_LOCK = asyncio.Lock()  # ek hi flush per-process (concurrent flush avoid)
-# Strong refs to in-flight opportunistic flush tasks — asyncio only keeps a weak ref,
+# Strong refs to in-flight opportunistic flush tasks - asyncio only keeps a weak ref,
 # so without this a fire-and-forget create_task() can be GC'd mid-run (lost retry flush).
 _FLUSH_TASKS: set = set()
 EVENTS = [
@@ -134,7 +134,7 @@ def remove(webhook_id: str) -> bool:
 
 
 async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
-    """Event fire karo — matching active webhooks pe signed POST. Kabhi raise nahi.
+    """Event fire karo - matching active webhooks pe signed POST. Kabhi raise nahi.
     Returns delivered count. Bina registered hooks = 0 (inert)."""
     delivered = 0
     try:
@@ -154,7 +154,7 @@ async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
             ensure_ascii=False,
             default=str,
         )
-        # Opportunistic outbox flush — naya event aaya to due retries bhi process karo
+        # Opportunistic outbox flush - naya event aaya to due retries bhi process karo
         # (non-blocking, single-flight via _FLUSH_LOCK). Scheduler-free reliability.
         try:
             _ft = asyncio.create_task(retry_pending())
@@ -177,7 +177,7 @@ async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
                     ok = 200 <= resp.status_code < 300
                     delivered += 1 if ok else 0
                     _log_delivery(h, event, resp.status_code)
-                    if not ok:  # transient/non-2xx → outbox retry (event lose na ho)
+                    if not ok:  # transient/non-2xx -> outbox retry (event lose na ho)
                         _enqueue_retry(h.get("id", ""), event, body, f"status {resp.status_code}")
                 except Exception as e:
                     _log_delivery(h, event, 0, str(e)[:120])
@@ -211,7 +211,7 @@ def recent_deliveries(limit: int = 30) -> list[dict[str, Any]]:
 
 
 def _enqueue_retry(hook_id: str, event: str, body: str, err: str) -> None:
-    """Failed delivery → retry-queue (outbox). file_lock se safe. Never raises."""
+    """Failed delivery -> retry-queue (outbox). file_lock se safe. Never raises."""
     if not hook_id:
         return
     try:
@@ -237,9 +237,9 @@ def _enqueue_retry(hook_id: str, event: str, body: str, err: str) -> None:
 
 
 async def retry_pending(max_items: int = 50) -> dict[str, Any]:
-    """Outbox worker — due failed-deliveries ko backoff+jitter ke saath redeliver karo.
-    Delivered/hook-gone → queue se hata
-    max attempts ke baad → DLQ. Concurrency-safe
+    """Outbox worker - due failed-deliveries ko backoff+jitter ke saath redeliver karo.
+    Delivered/hook-gone -> queue se hata
+    max attempts ke baad -> DLQ. Concurrency-safe
     (single-flight _FLUSH_LOCK + reconcile-by-id taaki flush ke dauraan aaye naye items
     na khoyein). Never raises. Returns {retried, delivered, dlq, pending}."""
     res = {"retried": 0, "delivered": 0, "dlq": 0, "pending": 0}
@@ -254,9 +254,9 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
             return res
         now = time.time()
         hooks = {h.get("id"): h for h in _read(_STORE)}
-        done_ids: set[str] = set()  # delivered ya hook-gone → remove
-        updates: dict[str, dict] = {}  # id → updated item (requeue with new next_at)
-        dead: list[dict[str, Any]] = []  # → DLQ
+        done_ids: set[str] = set()  # delivered ya hook-gone -> remove
+        updates: dict[str, dict] = {}  # id -> updated item (requeue with new next_at)
+        dead: list[dict[str, Any]] = []  # -> DLQ
         processed = 0
         try:
             import httpx
@@ -265,12 +265,12 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
                 for item in snapshot:
                     iid = item.get("id", "")
                     if processed >= max_items or float(item.get("next_at", 0)) > now:
-                        continue  # not due / budget over — snapshot me rahega
+                        continue  # not due / budget over - snapshot me rahega
                     processed += 1
                     res["retried"] += 1
                     h = hooks.get(item.get("webhook_id"))
                     if not h or not h.get("active"):
-                        done_ids.add(iid)  # hook gaya/inactive — drop
+                        done_ids.add(iid)  # hook gaya/inactive - drop
                         continue
                     try:
                         body = item.get("body") or ""
@@ -308,7 +308,7 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
                             updates[iid] = item
         except Exception:
             pass
-        # Reconcile (flush ke dauraan emit ne naye items add kiye honge → re-read + merge).
+        # Reconcile (flush ke dauraan emit ne naye items add kiye honge -> re-read + merge).
         try:
             from app.utils.file_lock import file_lock
 
@@ -331,5 +331,5 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
 
 
 def dlq_recent(limit: int = 30) -> list[dict[str, Any]]:
-    """Dead-lettered (max-attempts ke baad fail) deliveries — inspection/manual replay."""
+    """Dead-lettered (max-attempts ke baad fail) deliveries - inspection/manual replay."""
     return _read(_DLQ)[-limit:][::-1]

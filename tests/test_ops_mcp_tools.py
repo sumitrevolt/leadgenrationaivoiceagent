@@ -1,4 +1,4 @@
-"""Ops MCP tools (/api/ops/*) — contract + auth tests.
+"""Ops MCP tools (/api/ops/*) - contract + auth tests.
 
 conftest.py globally require_admin ko mock-user se override karta hai
 auth

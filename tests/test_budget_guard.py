@@ -1,4 +1,4 @@
-"""Unit tests for app/llm/budget_guard.py — fake redis, no real infra/LLM."""
+"""Unit tests for app/llm/budget_guard.py - fake redis, no real infra/LLM."""
 
 import pytest
 
@@ -47,7 +47,7 @@ class FakeRedis:
 
 
 class InMemLike:
-    """Mimics app.cache InMemoryCache fallback — get/set/expire/incr but NO pipeline/incrby."""
+    """Mimics app.cache InMemoryCache fallback - get/set/expire/incr but NO pipeline/incrby."""
 
     def __init__(self):
         self.kv = {}

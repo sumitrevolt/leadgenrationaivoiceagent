@@ -14,11 +14,11 @@ new_nav = """    <nav class="nav" role="menubar" aria-label="Main menu">
       font-weight:700
       "><span class="ic" aria-hidden="true">🔥</span> Hot Queue</a>
       <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Pipeline & Leads</a>
-      <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">—</span></a>
+      <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">-</span></a>
       <a href="/app/outreach" role="menuitem" aria-label="WhatsApp / Email Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> WhatsApp / Email Outreach</a>
 
       <div class="sec nav-group" role="presentation">3. Customers</div>
-      <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">—</span></a>
+      <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">-</span></a>
       <a class="admin-auth-only" href="#onboardCard" onclick="openOnboard()
       return false
       " role="menuitem" aria-label="Add new customer" style="background:#10b981
@@ -39,7 +39,7 @@ new_nav = """    <nav class="nav" role="menubar" aria-label="Main menu">
       <a href="#sec-webcalls" role="menuitem" aria-label="Web test calls"><span class="ic" aria-hidden="true">💬</span> Voice Diagnostics / Sandbox</a>
 
       <div class="sec nav-group" role="presentation">6. Agents</div>
-      <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">👥</span> AI Workforce Roster <span class="badge" id="nav-ag">—</span></a>
+      <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">👥</span> AI Workforce Roster <span class="badge" id="nav-ag">-</span></a>
       <a href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard')
       return false
       " role="menuitem" aria-label="OpenClaw Owner Copilot"><span class="ic" aria-hidden="true">🧠</span> OpenClaw Copilot <span class="badge" id="nav-openclaw-flag" style="background:#64748b

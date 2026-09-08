@@ -1,14 +1,14 @@
 """
-content_pack.py — 1-click MONTHLY client deliverable bundle (free stack).
+content_pack.py - 1-click MONTHLY client deliverable bundle (free stack).
 ==========================================================================
 
-Client fulfillment automation: ek hi call me poora monthly marketing pack —
+Client fulfillment automation: ek hi call me poora monthly marketing pack -
   7-din content calendar + 3 ready posts (normal / offer / festival) +
   2 posters (SVG, brand colors agar brand_kit saved hai) + GBP description
   & services + WhatsApp pack + nearest-3 festival plan.
 
 Sab pieces existing generators se CONCURRENTLY bante hain (asyncio.gather);
-har piece ka apna try/except → fallback (generators khud bhi never-empty
+har piece ka apna try/except -> fallback (generators khud bhi never-empty
 hain). Output ek SELF-CONTAINED violet-brand HTML (iframe preview ya download
 karke WhatsApp/email se client ko bhejo). KABHI raise nahi karta.
 """
@@ -35,12 +35,12 @@ except Exception:  # pragma: no cover
 
 
 def _e(s: Any) -> str:
-    """HTML-escape (quotes included) — pack me sab text isi se jaata hai."""
+    """HTML-escape (quotes included) - pack me sab text isi se jaata hai."""
     return escape(str(s or ""), quote=True)
 
 
 async def _safe(coro, fallback: Any) -> Any:
-    """Ek pack-piece ko guard karo — fail ho to fallback (pack kabhi nahi girta)."""
+    """Ek pack-piece ko guard karo - fail ho to fallback (pack kabhi nahi girta)."""
     try:
         return await coro
     except Exception as e:
@@ -95,7 +95,7 @@ def _upcoming_festivals() -> list[dict[str, str]]:
 
 
 # --------------------------------------------------------------------------- #
-# HTML assembly (self-contained, violet brand — monthly_report jaisa look)
+# HTML assembly (self-contained, violet brand - monthly_report jaisa look)
 # --------------------------------------------------------------------------- #
 
 
@@ -139,7 +139,7 @@ def _build_html(
         posts_html += f"<h3>{_e(label)}</h3><pre>{_e(body)}</pre>" + (
             f"<p class='idea'>🖼️ Photo idea: {_e(idea)}</p>" if idea else ""
         )
-    posts_html = posts_html or "<p>Posts generate nahi hue — Posts tab se alag se banayein.</p>"
+    posts_html = posts_html or "<p>Posts generate nahi hue - Posts tab se alag se banayein.</p>"
 
     # --- Posters (inline SVG) ---
     poster_html = "".join(f"<div class='posterbox'>{svg}</div>" for svg in poster_svgs if svg)
@@ -149,14 +149,14 @@ def _build_html(
             "<p class='idea'>Tip: poster ko screenshot/PNG karke status + GBP par lagayein.</p>"
         )
         if poster_html
-        else "<p>Posters nahi bane — Poster tab se banayein.</p>"
+        else "<p>Posters nahi bane - Poster tab se banayein.</p>"
     )
 
     # --- GBP description + services ---
     desc = str(gbp.get("description") or "").strip()
     gbp_html = (
         (
-            f"<p><b>Description (Edit profile → From the business me paste karein):</b></p>"
+            f"<p><b>Description (Edit profile -> From the business me paste karein):</b></p>"
             f"<pre>{_e(desc)}</pre>"
         )
         if desc
@@ -166,7 +166,7 @@ def _build_html(
         nm = str((s or {}).get("name") or "").strip()
         sd = str((s or {}).get("desc") or "").strip()
         if nm and sd:
-            gbp_html += f"<p><b>Service — {_e(nm)}:</b></p><pre>{_e(sd)}</pre>"
+            gbp_html += f"<p><b>Service - {_e(nm)}:</b></p><pre>{_e(sd)}</pre>"
 
     # --- WhatsApp messages ---
     wa_html = ""
@@ -181,7 +181,7 @@ def _build_html(
         )
     for i, r in enumerate(wa.get("reply_templates") or [], 1):
         wa_html += f"<p><b>Inquiry reply {i}:</b></p><pre>{_e(r)}</pre>"
-    wa_html = wa_html or "<p>WhatsApp pack nahi bana — WhatsApp tab se banayein.</p>"
+    wa_html = wa_html or "<p>WhatsApp pack nahi bana - WhatsApp tab se banayein.</p>"
 
     # --- Festival plan ---
     fest_rows = (
@@ -191,7 +191,7 @@ def _build_html(
             f"<td>{_e(f.get('marketing_angle'))}</td></tr>"
             for f in fests
         )
-        or "<tr><td colspan='3'>Agle 45 din me koi bada festival nahi — evergreen offers chalayein.</td></tr>"
+        or "<tr><td colspan='3'>Agle 45 din me koi bada festival nahi - evergreen offers chalayein.</td></tr>"
     )
     fest_html = (
         f"<table><tr><th>Date</th><th>Festival</th><th>Marketing angle</th></tr>{fest_rows}</table>"
@@ -199,7 +199,7 @@ def _build_html(
 
     return (
         "<!DOCTYPE html><html lang='hi'><head><meta charset='utf-8'>"
-        f"<title>Monthly Marketing Pack — {_e(business_name)}</title><style>"
+        f"<title>Monthly Marketing Pack - {_e(business_name)}</title><style>"
         "body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f3ff;margin:0;"
         "padding:24px;color:#1f2937}"
         ".card{max-width:780px;margin:0 auto;background:#fff;border-radius:16px;"
@@ -224,15 +224,15 @@ def _build_html(
         "p{font-size:13.5px;margin:8px 0 2px}"
         ".foot{padding:16px 32px;font-size:12px;color:#8b8fa3;text-align:center}"
         "</style></head><body><div class='card'>"
-        f"<div class='head'><h1>📦 {_e(business_name)} — Monthly Marketing Pack ({_e(month)})</h1>"
-        f"<p>{_e(_niche_name(niche))} · taiyar content — copy, paste, publish</p></div>"
+        f"<div class='head'><h1>📦 {_e(business_name)} - Monthly Marketing Pack ({_e(month)})</h1>"
+        f"<p>{_e(_niche_name(niche))} · taiyar content - copy, paste, publish</p></div>"
         + _sec("📅 Content Calendar (7 din)", cal_html)
         + _sec("📝 Ready Posts", posts_html)
         + _sec("🖼️ Posters", poster_html)
         + _sec("📍 Google Business Profile", gbp_html)
         + _sec("💬 WhatsApp Messages", wa_html)
         + _sec("🎉 Festival Plan", fest_html)
-        + "<div class='foot'>Generated by LeadGen AI — leadsgenai.in</div>"
+        + "<div class='foot'>Generated by LeadGen AI - leadsgenai.in</div>"
         "</div></body></html>"
     )
 
@@ -262,7 +262,7 @@ async def build_client_pack(
     month = datetime.now(_IST).strftime("%B %Y")
 
     try:
-        # --- brand (optional — saved brand_kit se tagline/phone/colors) ---
+        # --- brand (optional - saved brand_kit se tagline/phone/colors) ---
         brand: dict[str, Any] | None = None
         if (client_id or "").strip():
             try:
@@ -283,9 +283,9 @@ async def build_client_pack(
         fest_name = str((fests[0] if fests else {}).get("name") or "").strip()
 
         # Offer-post ko template-mode me bhi distinct rakhne ke liye default offer.
-        offer_eff = offer or "Is mahine ka special offer — abhi poochhein!"
+        offer_eff = offer or "Is mahine ka special offer - abhi poochhein!"
 
-        # --- sab pieces CONCURRENTLY (har ek guarded → fallback) ---
+        # --- sab pieces CONCURRENTLY (har ek guarded -> fallback) ---
         (
             calendar,
             post_plain,
@@ -367,9 +367,9 @@ async def build_client_pack(
         name = _e(business_name)
         html = (
             "<!DOCTYPE html><html lang='hi'><head><meta charset='utf-8'>"
-            f"<title>Monthly Marketing Pack — {name}</title></head><body>"
-            f"<h1>📦 {name} — Monthly Marketing Pack ({_e(month)})</h1>"
-            "<p>Pack abhi generate nahi ho paya — thodi der me dobara try "
+            f"<title>Monthly Marketing Pack - {name}</title></head><body>"
+            f"<h1>📦 {name} - Monthly Marketing Pack ({_e(month)})</h1>"
+            "<p>Pack abhi generate nahi ho paya - thodi der me dobara try "
             "karein ya tabs se alag-alag content banayein.</p></body></html>"
         )
         return {

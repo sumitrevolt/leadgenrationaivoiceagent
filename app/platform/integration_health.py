@@ -1,17 +1,17 @@
 """Integration silent-failure counters + alert (SMTP/Places/Qdrant...).
 
-PROBLEM: zyada-tar integration hooks best-effort try/except hain (sahi design —
+PROBLEM: zyada-tar integration hooks best-effort try/except hain (sahi design -
 prod kabhi girna nahi chahiye), PAR fail hone pe sirf ek log line aati hai.
 SMTP creds expire ho jayein ya koi API girne lage to hafton pata nahi chalta
 ("emails ja rahe honge" maan ke baithe rehte).
 
-YEH MODULE: ultra-light counters — integrations apni failure/success
+YEH MODULE: ultra-light counters - integrations apni failure/success
 `record_failure("smtp", note)` / `record_success("smtp")` se report karte
 (Redis hourly buckets, 26h TTL
 Redis down = silent skip, hot-path pe ZERO
 load). Watchdog (hourly) `run_watch()`: pichle ~1h me kisi integration ke
 fails >= threshold (env `INTEGRATION_FAIL_ALERT_N`, default 5) to email
-alert — gated `INTEGRATION_ALERTS=1` (off = sirf counters,
+alert - gated `INTEGRATION_ALERTS=1` (off = sirf counters,
 `GET /api/growth/infra/integrations` se inspect). Per-integration alert
 dedupe 6h. Import-safe, KABHI raise nahi. (automation_health pattern.)
 """
@@ -32,17 +32,17 @@ _DEDUPE_TTL_S = 6 * 3600
 DEFAULT_ALERT_N = 5
 DEFAULT_PLACES_QUOTA_COOLDOWN_S = 24 * 3600
 
-# Known integration names (free-form bhi chalta — yeh sirf docs/UI ordering)
+# Known integration names (free-form bhi chalta - yeh sirf docs/UI ordering)
 KNOWN = (
     "smtp",
     "email_api",
     "imap",
-    "vobiz",  # active telephony provider — zero-media relay flakes (audit 2026-07-04)
+    "vobiz",  # active telephony provider - zero-media relay flakes (audit 2026-07-04)
     "places",
     "whatsapp",
     "pollinations",
     "qdrant",
-    "stripe",  # Removed 2026-07-10 — integration provider entrypoint retained for graceful skip
+    "stripe",  # Removed 2026-07-10 - integration provider entrypoint retained for graceful skip
 )
 
 
@@ -60,7 +60,7 @@ def _alert_n() -> int:
 def _redis_mode() -> str:
     """Explicit test-mode policy. Prod default = enabled. Hermetic tests set
     `INTEGRATION_HEALTH_REDIS_MODE=disabled` to make snapshot() perform zero
-    network I/O. Invalid values fail safe (treated as enabled — never silently
+    network I/O. Invalid values fail safe (treated as enabled - never silently
     disabled in production)."""
     v = os.environ.get("INTEGRATION_HEALTH_REDIS_MODE", "").strip().lower()
     if v == "disabled":
@@ -71,7 +71,7 @@ def _redis_mode() -> str:
 def _redis():
     """Bounded Redis client. `socket_connect_timeout=1.0` + `socket_timeout=1.0`
     caps both connect + read at 1s each (was: socket_timeout=2 but NO connect
-    timeout → blocked forever if Redis absent). No retry — a single fast-fail
+    timeout -> blocked forever if Redis absent). No retry - a single fast-fail
     is safer for the health-snapshot path than exponential backoff.
 
     Fail-fast rationale (2026-07-11 hardening): the previous configuration
@@ -105,7 +105,7 @@ def record_failure(integration: str, note: str = "") -> None:
         r.hincrby(k, name, 1)
         r.expire(k, _BUCKET_TTL_S)
         if note:
-            # last error note (debugging) — ek hi key, overwrite ok
+            # last error note (debugging) - ek hi key, overwrite ok
             r.setex(f"{_PREFIX}:lasterr:{name}", _BUCKET_TTL_S, str(note)[:200])
     except Exception:
         pass
@@ -148,10 +148,10 @@ def start_places_quota_cooldown(seconds: int | None = None) -> None:
 def snapshot(hours: int = 24) -> dict[str, Any]:
     """Pichle N ghante ke per-integration fail/ok counts + last errors.
 
-    Never raises. Redis absent OR test-mode disabled → returns a
+    Never raises. Redis absent OR test-mode disabled -> returns a
     `redis_status: "unavailable" | "disabled"` diagnostic instead of blocking
     or silently returning an empty-but-healthy-looking dict (2026-07-11
-    hardening — closes the full-suite hang from `r.hgetall` blocking on
+    hardening - closes the full-suite hang from `r.hgetall` blocking on
     `socket.connect` when Redis was not running).
     """
     import time as _time
@@ -164,7 +164,7 @@ def snapshot(hours: int = 24) -> dict[str, Any]:
         "redis_status": "healthy",
     }
 
-    # Explicit test-mode guard — production default is enabled.
+    # Explicit test-mode guard - production default is enabled.
     if _redis_mode() == "disabled":
         out["redis_status"] = "disabled"
         out["degraded"] = True
@@ -173,7 +173,7 @@ def snapshot(hours: int = 24) -> dict[str, Any]:
         return out
 
     # Bounded acquisition. If the constructor OR the very first Redis command
-    # fails/times out, degrade the snapshot immediately — do NOT loop.
+    # fails/times out, degrade the snapshot immediately - do NOT loop.
     try:
         r = _redis()
         # Force a bounded ping so we know the connection is usable before
@@ -221,7 +221,7 @@ def snapshot(hours: int = 24) -> dict[str, Any]:
             }
     except Exception as e:
         # Sanitize: expose only exception TYPE, never the message (may contain
-        # Redis URL with credentials — logger.redact_message covers formatted
+        # Redis URL with credentials - logger.redact_message covers formatted
         # log lines but not dict values placed into a JSON response).
         out["redis_status"] = "unavailable"
         out["degraded"] = True
@@ -232,7 +232,7 @@ def snapshot(hours: int = 24) -> dict[str, Any]:
 
 
 def _recent_fails(r) -> dict[str, int]:
-    """Current + previous hour ke fails (watchdog hourly chalta — gap-proof)."""
+    """Current + previous hour ke fails (watchdog hourly chalta - gap-proof)."""
     now = datetime.now(timezone.utc)
     agg: dict[str, int] = {}
     for dt in (now, now - timedelta(hours=1)):
@@ -250,7 +250,7 @@ def _recent_fails(r) -> dict[str, int]:
 
 
 async def run_watch() -> dict[str, Any]:
-    """Watchdog hook: failing integrations → (gated) alert. KABHI raise nahi."""
+    """Watchdog hook: failing integrations -> (gated) alert. KABHI raise nahi."""
     out: dict[str, Any] = {"enabled": _enabled(), "alerted": []}
     try:
         r = _redis()
@@ -285,7 +285,7 @@ async def run_watch() -> dict[str, Any]:
             )
             sent = False
             notify = os.environ.get("NOTIFY_EMAIL", "").strip()
-            # NOTE: smtp khud fail ho raha ho to yeh alert email bhi nahi jayega —
+            # NOTE: smtp khud fail ho raha ho to yeh alert email bhi nahi jayega -
             # last-resort try anyway (chahe smtp failing ho).
             if notify and name not in ("smtp", "email_api"):
                 try:

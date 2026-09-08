@@ -5,7 +5,7 @@ WHY THIS EXISTS
 ---------------
 `scripts/_runtime_data_guard.sh` refuses every deployment while production
 mutable state lives inside the Git checkout, because the release's one
-destructive command is `git pull --ff-only` in `/opt/leadgen` — the directory
+destructive command is `git pull --ff-only` in `/opt/leadgen` - the directory
 that also holds the paying customer's delivery ledger, the content queue, the
 customer registry, the consent ledger and the suppression lists. The guard has
 no bypass by design. The only way to a green deploy is to actually move the
@@ -23,7 +23,7 @@ WHAT IT WILL NOT DO
   not this tool being fussy: `validate_marker` rejects such a marker outright,
   because a store whose CODE cannot follow a cutover must not be recorded as
   migrated. Moving those bytes first would create a store the application still
-  reads from the old path — a split brain with extra steps. Migrate the code to
+  reads from the old path - a split brain with extra steps. Migrate the code to
   the resolver first (see the A1/A2 waves), then come back.
 * It does not flip manifest states and it does not enable the cutover gate.
   Both are deliberate code changes that belong in a reviewed commit, not in a
@@ -47,7 +47,7 @@ LOCK FILES ARE NOT COPIED
 alongside its ledger. A lock is a statement about a process that is running
 right now
 copying a stale one to a new root would hand the new location a lock
-nobody holds. The lock is recreated beside the ledger on first write — which is
+nobody holds. The lock is recreated beside the ledger on first write - which is
 exactly why the manifest says it must colocate. Locks are skipped and reported.
 """
 
@@ -171,7 +171,7 @@ def _plan_entries(rows: list[dict], root: Path) -> tuple[list[dict], list[dict]]
             )
     if missing:
         raise SystemExit(
-            "REFUSED: declared source path(s) absent — refusing to 'migrate' a store "
+            "REFUSED: declared source path(s) absent - refusing to 'migrate' a store "
             "whose bytes cannot be found:\n  " + "\n  ".join(missing)
         )
     return entries, skipped
@@ -256,7 +256,7 @@ def cmd_copy(args: argparse.Namespace) -> int:
                 }
             )
         else:
-            shutil.copy2(src, dst)  # copy2 keeps mtime — retention sweeps read it
+            shutil.copy2(src, dst)  # copy2 keeps mtime - retention sweeps read it
             records.append(
                 {
                     **entry,
@@ -287,7 +287,7 @@ def cmd_copy(args: argparse.Namespace) -> int:
     out = evidence_dir / COPY_MANIFEST_NAME
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"\ncopy manifest: {out}")
-    print("Sources untouched. Run `verify` next — copy alone proves nothing.")
+    print("Sources untouched. Run `verify` next - copy alone proves nothing.")
     return 0
 
 
@@ -297,7 +297,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise SystemExit(f"no copy manifest at {path} — run `copy` first") from None
+        raise SystemExit(f"no copy manifest at {path} - run `copy` first") from None
 
     problems: list[str] = []
     checked = 0
@@ -320,7 +320,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             problems.append(f"{entry['store_id']}: sha256 mismatch ({dst})")
         if s_sha != entry.get("source_sha256"):
             problems.append(
-                f"{entry['store_id']}: SOURCE changed since the copy — a live writer "
+                f"{entry['store_id']}: SOURCE changed since the copy - a live writer "
                 f"appended during the cutover ({src}). Re-copy this store."
             )
         s_lines, d_lines = _line_count(src), _line_count(dst)
@@ -338,7 +338,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     payload["verified"] = True
     payload["verified_at"] = _now()
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print(f"=== VERIFY PASSED — {checked} path(s) byte-identical ===")
+    print(f"=== VERIFY PASSED - {checked} path(s) byte-identical ===")
     print(f"evidence: {path}")
     print("Sources still present as fallback. `activate` may now write the marker.")
     return 0
@@ -356,7 +356,7 @@ def cmd_activate(args: argparse.Namespace) -> int:
     try:
         payload = json.loads(evidence.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise SystemExit(f"no copy manifest at {evidence} — nothing was verified") from None
+        raise SystemExit(f"no copy manifest at {evidence} - nothing was verified") from None
     if not payload.get("verified"):
         raise SystemExit(
             "REFUSED: the copy manifest is not marked verified. Run `verify` and let it "
@@ -371,7 +371,7 @@ def cmd_activate(args: argparse.Namespace) -> int:
     if not release_sha:
         raise SystemExit(
             "REFUSED: no release sha available.\n"
-            "  `git rev-parse HEAD` produced nothing — this is not a git checkout "
+            "  `git rev-parse HEAD` produced nothing - this is not a git checkout "
             "(a tarball deploy, or the repo moved).\n"
             "  Pass --release-sha <sha of the code these stores were verified against>."
         )
@@ -405,7 +405,7 @@ def cmd_activate(args: argparse.Namespace) -> int:
     for i in ids:
         print(f"  migrated: {i}")
     print(
-        "\nStill to do, in a REVIEWED commit — not here:\n"
+        "\nStill to do, in a REVIEWED commit - not here:\n"
         "  1. flip these manifest rows to CUTOVER_COMPLETE\n"
         "  2. set RUNTIME_DATA_CUTOVER_ENABLED=1\n"
         "The deploy guard keeps refusing until EVERY blocking store is CUTOVER_COMPLETE."

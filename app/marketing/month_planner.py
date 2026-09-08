@@ -1,15 +1,15 @@
-"""month_planner.py — one-click 30-din content calendar → content_schedule queue.
+"""month_planner.py - one-click 30-din content calendar -> content_schedule queue.
 
-Plan logic (deterministic, NO LLM — captions baad me content_schedule.run_due
+Plan logic (deterministic, NO LLM - captions baad me content_schedule.run_due
 generate karta hai EXISTING post_generator se):
-  - festivals.upcoming(days) → festival days pe festival post (occasion set)
+  - festivals.upcoming(days) -> festival days pe festival post (occasion set)
   - Friday = offer day (offer text param ya default)
   - baaki din weekly THEMES rotation: content_feedback.best_themes (proven
     themes pehle) + NICHES content_focus + default rotation
 
-DEFAULT dry_run=True → sirf preview list. commit=True → EXISTING
+DEFAULT dry_run=True -> sirf preview list. commit=True -> EXISTING
 content_schedule.schedule() me dup-safe enqueue (same business+date already
-scheduled → skip
+scheduled -> skip
 future dates only). NEVER raises, sab imports lazy.
 """
 
@@ -30,7 +30,7 @@ _DEFAULT_THEMES = [
     "Engagement Question",
     "Before / After Proof",
 ]
-_DEFAULT_OFFER = "Is hafte ki special deal — abhi inquiry karo!"
+_DEFAULT_OFFER = "Is hafte ki special deal - abhi inquiry karo!"
 
 
 def _themes_for(niche: str) -> list[str]:
@@ -63,7 +63,7 @@ def _themes_for(niche: str) -> list[str]:
 
 
 def _festival_map(days: int) -> dict[str, dict[str, str]]:
-    """date_iso → festival entry (window ke andar). Fail = {}."""
+    """date_iso -> festival entry (window ke andar). Fail = {}."""
     try:
         from app.marketing import festivals
 
@@ -102,7 +102,7 @@ def plan_month(
         niche = (niche or "general").strip().lower() or "general"
         business = (business_name or "").strip()
 
-        # client resolve (id/slug) — business+niche default
+        # client resolve (id/slug) - business+niche default
         if (client_id or slug) and True:
             try:
                 from app.marketing import clients_store
@@ -184,10 +184,10 @@ def plan_month(
             "dry_run": not commit,
         }
 
-        if not commit:  # dry_run default — sirf preview
+        if not commit:  # dry_run default - sirf preview
             return result
 
-        # COMMIT — dup-safe: same business+date already scheduled → skip
+        # COMMIT - dup-safe: same business+date already scheduled -> skip
         try:
             from app.marketing import content_schedule
 

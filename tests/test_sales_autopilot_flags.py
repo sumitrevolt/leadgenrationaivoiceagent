@@ -1,4 +1,4 @@
-"""Sales Autopilot — flags default OFF + calling stays HARD OFF."""
+"""Sales Autopilot - flags default OFF + calling stays HARD OFF."""
 
 from __future__ import annotations
 

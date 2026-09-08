@@ -200,7 +200,7 @@ def test_permitted_path_actually_invokes_the_parent(wrapper: str, tmp_path: path
 
     recorded = log.read_text(encoding="utf-8")
     assert _PARENT in recorded, (
-        f"{wrapper} never called the parent on the permitted path — the denial "
+        f"{wrapper} never called the parent on the permitted path - the denial "
         f"tests may be vacuous. recorded:\n{recorded}"
     )
 

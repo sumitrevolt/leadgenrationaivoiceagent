@@ -1,8 +1,8 @@
 """
-brand_kit.py — per-client brand profile (naam/tagline/phone/colors/tone).
+brand_kit.py - per-client brand profile (naam/tagline/phone/colors/tone).
 ==========================================================================
 
-Ek baar brand save karo → posters/posts har jagah wahi branding auto-apply.
+Ek baar brand save karo -> posters/posts har jagah wahi branding auto-apply.
 Persistence: data/brand_kits/{client_id}.json (gitignored data dir, pure
 stdlib). Colors strict #RRGGBB validate hote hain (SVG injection-safe).
 
@@ -10,7 +10,7 @@ stdlib). Colors strict #RRGGBB validate hote hain (SVG injection-safe).
   get_brand(client_id)                     -> dict | None
   apply_brand_to_poster_args(client_id, a) -> poster args + brand merge
     (missing business_name/tagline/phone fill + brand_primary/brand_accent
-     colors — posters.generate_poster inhe gradient stops me lagata hai).
+     colors - posters.generate_poster inhe gradient stops me lagata hai).
 """
 
 from __future__ import annotations

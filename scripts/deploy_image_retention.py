@@ -26,7 +26,7 @@ _FORBIDDEN_TAGS: frozenset[str] = frozenset({"", "MISSING", "latest", "<none>"})
 # Short or full hex SHA tags only (deploy APP_VERSION form).
 _TAG_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
-# Host-runtime path — never inside the git worktree (/opt/leadgen).
+# Host-runtime path - never inside the git worktree (/opt/leadgen).
 DEFAULT_LINEAGE_STATE_PATH = "/var/lib/leadgen/deploy_rollback_lineage.json"
 
 
@@ -190,7 +190,7 @@ def resolve_rollback_tag(
 
     # Same-SHA redeploy (or empty running): require durable stored rollback.
     if not stored or not is_valid_deploy_tag(stored) or stored == current:
-        raise ValueError("same-SHA redeploy missing durable rollback lineage — refusing retention")
+        raise ValueError("same-SHA redeploy missing durable rollback lineage - refusing retention")
     return stored
 
 
@@ -234,7 +234,7 @@ def plan_removals(
 ) -> list[str]:
     """Return tags safe to remove after a verified deploy.
 
-    Protected lineage tags are never removed — even when KEEP_IMAGES=1 and a
+    Protected lineage tags are never removed - even when KEEP_IMAGES=1 and a
     rebuilt older tag has the newest CreatedAt. Creation time is never used as
     a lineage substitute. Callers must assert_protected_artifacts_present first.
     """

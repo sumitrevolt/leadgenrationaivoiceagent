@@ -7,7 +7,7 @@ gates as data. These tests import only pure/light modules and do not require a
 DB or a running app.
 
 NOTE (2026-07-21): "INERT" previously appeared here and in the module docstring
-of agent_registry.py. That was wrong — the registry IS load-bearing at runtime
+of agent_registry.py. That was wrong - the registry IS load-bearing at runtime
 (agent_runtime.evaluate_policy L507/L516/L521 blocks RED-lane dispatch off it).
 The tests below are therefore SAFETY tests, not documentation tests: if
 test_cold_outbound_voice_is_red_and_hard_off or

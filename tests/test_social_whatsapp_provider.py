@@ -1,4 +1,4 @@
-"""social_engine WhatsApp provider — 1-to-1 owner delivery of approved posts.
+"""social_engine WhatsApp provider - 1-to-1 owner delivery of approved posts.
 
 Bars (delivering promised "1-click publish to WhatsApp" to per-client customers like jiya):
 - WhatsAppProvider.publish sends caption (+ media url) via the ACTIVE WA sender to the
@@ -7,11 +7,11 @@ Bars (delivering promised "1-click publish to WhatsApp" to per-client customers 
 - Engine registers "whatsapp" as a DEFAULT channel candidate for a client with a phone
   (empty-socials client like jiya still gets delivery-ready posts).
 - Zero channel + no phone -> "koi channel connected nahi" SURFACED (empty list, not silent).
-- Bulk impossible: recipient is always ONE number — a comma/semicolon list collapses to
+- Bulk impossible: recipient is always ONE number - a comma/semicolon list collapses to
   the first, and the sender is called with exactly one recipient string (never a list).
 
 Everything mocked
-provider/engine logic only — no network, no real WhatsApp.
+provider/engine logic only - no network, no real WhatsApp.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from app.social_engine.providers import WhatsAppProvider
 
 
 # --------------------------------------------------------------------------- #
-# Fake WhatsApp sender — records EXACTLY what it was asked to send.
+# Fake WhatsApp sender - records EXACTLY what it was asked to send.
 # --------------------------------------------------------------------------- #
 class _FakeSender:
     def __init__(self, err: str = ""):
@@ -34,7 +34,7 @@ class _FakeSender:
         self.calls: list[tuple] = []  # (to_number, message)
 
     async def send_text_message(self, to_number, message):
-        # A ban-safe 1-to-1 sender takes a single string recipient — NOT a list.
+        # A ban-safe 1-to-1 sender takes a single string recipient - NOT a list.
         assert isinstance(to_number, str), "recipient must be a single number, never a list"
         self.calls.append((to_number, message))
         if self.err:
@@ -126,7 +126,7 @@ def test_configured_needs_backend_and_recipient(monkeypatch):
 
 
 def test_bulk_recipient_collapses_to_single(wa_on):
-    """A comma/semicolon list must NEVER fan out — only the first number is used."""
+    """A comma/semicolon list must NEVER fan out - only the first number is used."""
     prov = WhatsAppProvider()
     req = PublishRequest(
         client_id="c1",
@@ -145,7 +145,7 @@ def test_bulk_recipient_collapses_to_single(wa_on):
 
 
 # --------------------------------------------------------------------------- #
-# Engine wiring — default channel candidate + no-channel surfacing
+# Engine wiring - default channel candidate + no-channel surfacing
 # --------------------------------------------------------------------------- #
 @pytest.fixture
 def iso(monkeypatch, tmp_path):

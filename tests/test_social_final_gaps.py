@@ -5,7 +5,7 @@ Covers:
   brand_tone, target_audience, products_or_services, preferred_language,
   posting_days, posting_times, content_categories, prohibited_topics,
   brand_safety_instructions) round-trips through client_config.
-- Loop-social-20: edit_caption, replace_media, change_scheduled_time — each
+- Loop-social-20: edit_caption, replace_media, change_scheduled_time - each
   appends an audit row, locks after dispatch, refuses bad inputs.
 - Loop-social-21: store.enqueue accepts media_assets + approval_status.
 """

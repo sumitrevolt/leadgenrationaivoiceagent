@@ -1,4 +1,4 @@
-# Squad Lead — Knowledge-OS (Squad 5)
+# Squad Lead - Knowledge-OS (Squad 5)
 # Responsibility: INDEX.md maintenance, runbooks/playbooks registry, knowledge queries
 # Autopilot: Auto-validation, daily indexing, owner query endpoint
 
@@ -55,7 +55,7 @@ def owner_query(query: str):
         if matches:
             return {"status": "answered", "answer": f"Knowledge base has info on: {', '.join(matches)}"}
 
-    return {"status": "partial", "answer": "Check memory/INDEX.md manually — under construction"}
+    return {"status": "partial", "answer": "Check memory/INDEX.md manually - under construction"}
 
 def runbook_status():
     """Return GREEN/AMBER/RED status for all 37 runbooks."""

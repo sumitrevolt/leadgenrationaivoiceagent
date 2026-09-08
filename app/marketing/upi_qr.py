@@ -1,5 +1,5 @@
 """
-upi_qr.py — UPI Payment QR Poster generator (100% free stack).
+upi_qr.py - UPI Payment QR Poster generator (100% free stack).
 =============================================================
 
 Generates standard BHIM UPI payment link and wraps it inside a beautiful,
@@ -105,11 +105,11 @@ def generate_upi_poster(
 
 
 # =========================================================================== #
-# Engage-batch additions (additive) — client-record-driven payment QR pack.
+# Engage-batch additions (additive) - client-record-driven payment QR pack.
 # upi_kit.payment_kit REUSE hota hai (slip/WA msg duplicate nahi banate).
 # =========================================================================== #
 def build_upi_uri(vpa: str, name: str, amount: Any | None = None, note: str | None = None) -> str:
-    """NPCI-spec `upi://pay` deep link — URL-encoded, VPA validated (x@y).
+    """NPCI-spec `upi://pay` deep link - URL-encoded, VPA validated (x@y).
 
     Invalid VPA = "" (caller error dikhaye). Kabhi raise nahi.
     """
@@ -132,7 +132,7 @@ def build_upi_uri(vpa: str, name: str, amount: Any | None = None, note: str | No
 
 
 def qr_image_url(data: str, size: int = 400) -> str:
-    """Free no-key QR image URL (api.qrserver.com — docs/Free_APIs_Curated.md).
+    """Free no-key QR image URL (api.qrserver.com - docs/Free_APIs_Curated.md).
 
     PNG chahiye (WhatsApp share/print) to yeh
     SVG embed ke liye review_kit.qr_svg.
@@ -150,7 +150,7 @@ def qr_image_url(data: str, size: int = 400) -> str:
 def payment_qr_pack(
     client_id: str, amount: Any | None = None, note: str | None = None
 ) -> dict[str, Any]:
-    """Client record se UPI payment QR pack — uri + QR-image URL + branded slip
+    """Client record se UPI payment QR pack - uri + QR-image URL + branded slip
     poster (upi_kit reuse) + WhatsApp share text. Never raises, error dicts.
 
     Client field `upi_vpa` chahiye (clients_store.update_client se set hota).
@@ -161,12 +161,12 @@ def payment_qr_pack(
         cid = (client_id or "").strip()
         client = clients_store.get_client(cid) or clients_store.get_by_slug(cid) or {}
         if not client:
-            return {"ok": False, "error": "client nahi mila — /app/clients me pehle add karo."}
+            return {"ok": False, "error": "client nahi mila - /app/clients me pehle add karo."}
         vpa = str(client.get("upi_vpa") or "").strip()
         if not vpa:
             return {
                 "ok": False,
-                "error": "client ka upi_vpa set nahi hai — client update me UPI ID (naam@bank) daalo.",
+                "error": "client ka upi_vpa set nahi hai - client update me UPI ID (naam@bank) daalo.",
             }
         name = str(client.get("business_name") or "Business").strip()
         kit = upi_kit.payment_kit(name, vpa, amount=amount, note=note or "")

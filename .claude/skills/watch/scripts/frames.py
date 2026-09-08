@@ -110,7 +110,7 @@ def auto_fps(duration_seconds: float, max_frames: int = 100) -> tuple[float, int
 
 
 def auto_fps_focus(duration_seconds: float, max_frames: int = 100) -> tuple[float, int]:
-    """Denser budget for user-specified ranges — they are zooming in for detail."""
+    """Denser budget for user-specified ranges - they are zooming in for detail."""
     if duration_seconds <= 0:
         return min(MAX_FPS, 2.0), 2
 

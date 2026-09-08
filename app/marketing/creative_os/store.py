@@ -1,4 +1,4 @@
-"""Lightweight JSONL/JSON creative store — tenant isolated, no runtime assets in git."""
+"""Lightweight JSONL/JSON creative store - tenant isolated, no runtime assets in git."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
-"""Owner Copilot API — /api/owner-copilot/*
+"""Owner Copilot API - /api/owner-copilot/*
 
 Inbound trust model:
-  OpenClaw Gateway (or super-admin browser) → this API → Owner OS → 31 agents
+  OpenClaw Gateway (or super-admin browser) -> this API -> Owner OS -> 31 agents
 
 Auth:
   - Human: canonical super-admin JWT only (module-RBAC insufficient)
@@ -40,7 +40,7 @@ def _require_enabled() -> None:
             status_code=503,
             detail={
                 "error": "openclaw_disabled",
-                "message": "OPENCLAW_ENABLED=0 — Owner Copilot edge layer off. Core platform unaffected.",
+                "message": "OPENCLAW_ENABLED=0 - Owner Copilot edge layer off. Core platform unaffected.",
             },
         )
 
@@ -132,7 +132,7 @@ async def copilot_nl(
     body: CopilotNlIn,
     actor: CopilotActor = Depends(require_copilot_actor),
 ) -> dict[str, Any]:
-    """Classify NL → typed proposal; optionally execute GREEN (or park AMBER)."""
+    """Classify NL -> typed proposal; optionally execute GREEN (or park AMBER)."""
     _require_enabled()
     proposal = classify_nl(body.text)
     if not body.execute:
@@ -142,7 +142,7 @@ async def copilot_nl(
             "ok": True,
             "proposal": proposal,
             "executed": None,
-            "note": "AMBER — confirm=true bhejo to Owner OS approval park hoga (mutate nahi)",
+            "note": "AMBER - confirm=true bhejo to Owner OS approval park hoga (mutate nahi)",
         }
     executed = execute_typed_command(
         proposal["command"],

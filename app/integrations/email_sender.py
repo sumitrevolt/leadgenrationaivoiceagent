@@ -35,7 +35,7 @@ def _safe_provider_label(info: Any) -> str:
 
 
 def _integ_fail(name: str, note: str = "") -> None:
-    """integration_health counter — best-effort, KABHI raise nahi."""
+    """integration_health counter - best-effort, KABHI raise nahi."""
     try:
         from app.platform import integration_health
 
@@ -101,7 +101,7 @@ class EmailSender:
                 Applied on the SMTP path
                 transactional callers pass nothing.
         """
-        # PREFER email API (Resend/Brevo) — SMTP se zyada reliable, koi mailbox
+        # PREFER email API (Resend/Brevo) - SMTP se zyada reliable, koi mailbox
         # password jhanjhat nahi. Agar key set hai to API se bhejo; warna SMTP.
         try:
             from app.integrations.email_api import api_available, send_email_api
@@ -165,7 +165,7 @@ class EmailSender:
             msg.attach(MIMEText(html_body, "html"))
 
         try:
-            # SMTP send ko timeout se bound karo — pehle koi timeout nahi tha, ek
+            # SMTP send ko timeout se bound karo - pehle koi timeout nahi tha, ek
             # stalled connection poora Celery task budget (600s) kha jaati thi =
             # email_outreach TimeLimitExceeded/OOM. Default 30s (EMAIL_SEND_TIMEOUT_S).
             import os as _os_smtp

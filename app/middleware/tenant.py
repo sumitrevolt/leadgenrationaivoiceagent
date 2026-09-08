@@ -1,4 +1,4 @@
-"""Multi-tenant white-label middleware — resolve reseller branding from the Host header.
+"""Multi-tenant white-label middleware - resolve reseller branding from the Host header.
 
 A reseller uses a subdomain like ``agencyname.leadsgenai.in`` (or a custom domain
 mapped to the same app). We parse the host, and if the left-most label matches a

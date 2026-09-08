@@ -89,7 +89,7 @@ def test_content_changed_reloads_and_requires_deliberate_reapproval():
 
 
 def test_viewed_hash_a_then_source_becomes_b(preview_client, monkeypatch):
-    """Customer views A → source becomes B at the same revision → approve(A)
+    """Customer views A -> source becomes B at the same revision -> approve(A)
     is refused, nothing is written, no provider is called, and B is available
     for a fresh review."""
     c, artifact = preview_client

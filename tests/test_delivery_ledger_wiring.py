@@ -1,11 +1,11 @@
 """Each of these tests monkeypatches app.marketing.delivery_ledger.log_event at
-the call site and asserts it fires with the right event/client_id — the
+the call site and asserts it fires with the right event/client_id - the
 same style already used in tests/test_call_event_client_id.py for
 app.platform.team.log_event.
 
 NOTE (2026-07-07 reconciliation): the ledger implementation these wiring points
 call into is app.marketing.delivery_ledger (jsonl-based, already reviewed on
-tmp-deploy-main) — NOT app.platform.delivery_ledger, which was a duplicate
+tmp-deploy-main) - NOT app.platform.delivery_ledger, which was a duplicate
 Postgres-table implementation built independently in this worktree and dropped
 in favor of the existing one. See memory/decisions.md ADR-023 addendum."""
 
@@ -37,7 +37,7 @@ def test_activate_plan_logs_plan_activated(monkeypatch):
     monkeypatch.setattr(
         "app.marketing.clients_store.update_client", lambda cid, **kw: None, raising=False
     )
-    # Subscription-row side of activate_plan touches the DB — irrelevant to this
+    # Subscription-row side of activate_plan touches the DB - irrelevant to this
     # test, so make it a no-op rather than requiring a live DB.
     monkeypatch.setattr(usage, "_latest_subscription", lambda db, cid: None, raising=False)
 
@@ -101,7 +101,7 @@ async def _async_zero():
 
 
 def test_record_stuck_logs_correct_event_type(monkeypatch, tmp_path):
-    """Gate reasons → delivery_gated; real failures → automation_failed."""
+    """Gate reasons -> delivery_gated; real failures -> automation_failed."""
     from app.marketing import customer_delivery as cd
 
     monkeypatch.setattr(cd, "_STUCK_LOG", str(tmp_path / "stuck.jsonl"))
@@ -111,10 +111,10 @@ def test_record_stuck_logs_correct_event_type(monkeypatch, tmp_path):
         lambda client_id, event, **kw: events.append((client_id, event)),
     )
     client = {"id": "c1", "business_name": "Test Biz", "phone": "9812345678"}
-    # Gate reason → delivery_gated (NOT automation_failed)
+    # Gate reason -> delivery_gated (NOT automation_failed)
     cd._record_stuck(client, "no_phone")
     assert ("c1", "delivery_gated") in events
-    # Real failure → automation_failed
+    # Real failure -> automation_failed
     events.clear()
     cd._record_stuck(client, "send_failed")
     assert ("c1", "automation_failed") in events

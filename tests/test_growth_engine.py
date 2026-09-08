@@ -1,13 +1,13 @@
 """
-Tests: growth engine (app/platform/growth_engine.py) — self-run pulse.
+Tests: growth engine (app/platform/growth_engine.py) - self-run pulse.
 ======================================================================
 
 No network / no DB / no LLM:
-  - growth_engine._PULSE_FILE / _HISTORY_FILE / _INQUIRIES_FILE  → tmp_path
-  - prospector._PROSPECTS_FILE → tmp_path (real data/ na chhue)
-  - team._db → None (DB calls silently skip
+  - growth_engine._PULSE_FILE / _HISTORY_FILE / _INQUIRIES_FILE  -> tmp_path
+  - prospector._PROSPECTS_FILE -> tmp_path (real data/ na chhue)
+  - team._db -> None (DB calls silently skip
   team_status zeros deta hai)
-  - seo_blog.run_daily_blog / prospector.run_prospecting → async no-op stubs
+  - seo_blog.run_daily_blog / prospector.run_prospecting -> async no-op stubs
     (self-heal kabhi asli network/LLM/scrape na kare)
 
 Goals:
@@ -28,7 +28,7 @@ from app.platform import growth_engine, prospector, team
 
 @pytest.fixture
 def tmp_env(monkeypatch, tmp_path):
-    """Saari growth + prospect files tmp_path pe; DB off (team._db→None)."""
+    """Saari growth + prospect files tmp_path pe; DB off (team._db->None)."""
     pulse = os.path.join(str(tmp_path), "growth_pulse.json")
     hist = os.path.join(str(tmp_path), "growth_history.jsonl")
     inq = os.path.join(str(tmp_path), "inquiries.jsonl")
@@ -37,9 +37,9 @@ def tmp_env(monkeypatch, tmp_path):
     monkeypatch.setattr(growth_engine, "_HISTORY_FILE", hist)
     monkeypatch.setattr(growth_engine, "_INQUIRIES_FILE", inq)
     monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: pros)
-    # DB off — team.log_event / team_status silently no-op (no DB needed).
+    # DB off - team.log_event / team_status silently no-op (no DB needed).
     monkeypatch.setattr(team, "_db", lambda: None)
-    # collect_metrics blog/clients/content ko REAL data/ se padhta hai — full-suite me
+    # collect_metrics blog/clients/content ko REAL data/ se padhta hai - full-suite me
     # pichle tests ka leftover state "empty -> zeros" assertion ko tod deta tha.
     # In sources ko empty stub karo (yeh tests prospects pe focus karte hain).
     from app.marketing import auto_content, clients_store, seo_blog
@@ -48,7 +48,7 @@ def tmp_env(monkeypatch, tmp_path):
     monkeypatch.setattr(clients_store, "list_clients", lambda *a, **k: [])
     monkeypatch.setattr(auto_content, "list_queue", lambda *a, **k: [])
     # collect_metrics ka prospects DB-FALLBACK (get_db_session) shared test-DB ke
-    # leftover leads count kar leta tha — docstring "no DB" intent ke against. DB off
+    # leftover leads count kar leta tha - docstring "no DB" intent ke against. DB off
     # karo taaki empty-jsonl pe prospects.total sach me 0 rahe (fallback skip ho).
     import app.models.base as _mb
 
@@ -61,9 +61,9 @@ def tmp_env(monkeypatch, tmp_path):
 
 @pytest.fixture
 def no_heal_side_effects(monkeypatch):
-    """Self-heal kabhi asli blog/scrape/content-gen na kare — async no-op stubs.
+    """Self-heal kabhi asli blog/scrape/content-gen na kare - async no-op stubs.
     auto_content.run_daily_content() bhi stub: full-suite me pichle tests ke leftover
-    active-clients self-heal branch (b) ko trigger karte the → real LLM network call →
+    active-clients self-heal branch (b) ko trigger karte the -> real LLM network call ->
     poora pytest hang (test isolation me clients=0 hone se chhupa rehta tha)."""
     from app.marketing import auto_content, seo_blog
 
@@ -106,7 +106,7 @@ class TestCollectMetrics:
             "top_staff",
         ):
             assert k in snap, f"missing key: {k}"
-        # Empty data → zeros.
+        # Empty data -> zeros.
         assert snap["prospects"]["total"] == 0
         assert snap["inquiries"]["total"] == 0
         assert snap["blog_articles"] == 0
@@ -160,8 +160,8 @@ class TestPulse:
 
     @pytest.mark.asyncio
     async def test_learns_best_niche(self, tmp_env, no_heal_side_effects):
-        # 'solar' niche: 4 prospects, 2 converted (replied+client) → ratio 0.5
-        # 'dental' niche: 3 prospects, 0 converted → ratio 0.0
+        # 'solar' niche: 4 prospects, 2 converted (replied+client) -> ratio 0.5
+        # 'dental' niche: 3 prospects, 0 converted -> ratio 0.0
         for i in range(2):
             _seed_prospect(
                 tmp_env["pros"],
@@ -207,7 +207,7 @@ class TestReadHelpers:
         assert isinstance(latest, dict) and "prospects" in latest
 
     def test_history_roundtrip_newest_first(self, tmp_env):
-        # Two collects → two history lines.
+        # Two collects -> two history lines.
         growth_engine.collect_metrics()
         growth_engine.collect_metrics()
         hist = growth_engine.history(limit=10)
@@ -218,5 +218,5 @@ class TestReadHelpers:
         assert "at" in hist[0]
 
     def test_history_empty_no_file(self, tmp_env):
-        # No collect yet → no history file → empty list, never raises.
+        # No collect yet -> no history file -> empty list, never raises.
         assert growth_engine.history() == []

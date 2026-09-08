@@ -1,4 +1,4 @@
-"""Lifecycle Nurture — signup -> paid conversion sequence (Dittofeed/Laudspeaker
+"""Lifecycle Nurture - signup -> paid conversion sequence (Dittofeed/Laudspeaker
 pattern, free-stack).
 
 2026 research (ChartMogul): median free->paid ~8%
@@ -70,7 +70,7 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
-    # Lock + atomic — web (signup enroll) + celery (run_due) dono likhte hain.
+    # Lock + atomic - web (signup enroll) + celery (run_due) dono likhte hain.
     try:
         from app.utils.file_lock import locked_rewrite
 
@@ -93,7 +93,7 @@ def _append(path: str, rec: dict[str, Any]) -> None:
 def _plan_lines() -> str:
     """Upgrade-email ke liye PUBLIC pricing plans ki bullet-lines.
 
-    Source-of-truth = packages.get_public_packages() (billing-truth) — sirf
+    Source-of-truth = packages.get_public_packages() (billing-truth) - sirf
     public plans (Starter ₹1,999 + Combo/Advanced ₹5,999)
     legacy hidden Growth
     ₹2,999 KABHI nahi (public:False). packages import fail ho to safe 2-line
@@ -109,7 +109,7 @@ def _plan_lines() -> str:
             tag = str(p.get("price_note") or p.get("tagline") or "").strip()
             if not name or not price:
                 continue
-            suffix = f" — {tag}" if tag else ""
+            suffix = f" - {tag}" if tag else ""
             lines.append(f"• {name} ₹{int(price):,}/mo{suffix}")
         if lines:
             return "\n".join(lines) + "\n"
@@ -117,51 +117,51 @@ def _plan_lines() -> str:
         logger.debug(f"[lifecycle] plan lines fallback: {e}")
     # Fallback = public prices only (koi hidden Growth ₹2,999 nahi).
     return (
-        "• AI Marketing Automation ₹1,999/mo — daily posts, GBP, reviews, posters\n"
-        "• Combo — Marketing + AI Voice ₹5,999/mo — + AI voice calling feature (2-min inquiry callback)\n"
+        "• AI Marketing Automation ₹1,999/mo - daily posts, GBP, reviews, posters\n"
+        "• Combo - Marketing + AI Voice ₹5,999/mo - + AI voice calling feature (2-min inquiry callback)\n"
     )
 
 
 def build_message(step_key: str, business_name: str, niche: str = "") -> dict[str, str]:
-    """Hinglish nurture email (pure function — testable)."""
+    """Hinglish nurture email (pure function - testable)."""
     biz = (business_name or "Aapka business").strip()
     if step_key == "welcome":
-        subject = f"Welcome {biz} 🎉 — 5 minute me pehla AI post + audit"
+        subject = f"Welcome {biz} 🎉 - 5 minute me pehla AI post + audit"
         body = (
             f"Namaste {biz} team!\n\nAccount ban gaya. Shuru karne ke 3 quick steps:\n"
             f"1) Login karo: {LOGIN_URL}\n"
             f"2) Apna FREE Google profile audit dekho: {AUDIT_URL}\n"
             f"3) AI se pehla branded post banao (2 click): {DEMO_URL}\n\n"
-            f"Koi sawal ho to is email ka reply karo — real insaan jawab dega.\n"
+            f"Koi sawal ho to is email ka reply karo - real insaan jawab dega.\n"
         )
     elif step_key == "activation":
-        subject = f"{biz} — abhi tak pehla post try kiya? (2 minute lagta hai)"
+        subject = f"{biz} - abhi tak pehla post try kiya? (2 minute lagta hai)"
         body = (
             f"Namaste,\n\nJo log pehle 2 din me apna pehla AI post bana lete hain, unhe "
             f"results sabse pehle dikhte hain. Try karo: {DEMO_URL}\n\n"
             f"Ya seedha login karke dashboard dekho: {LOGIN_URL}\n\nAtke ho? Reply karo, hum help karenge.\n"
         )
     elif step_key == "roi":
-        subject = f"{biz} — har missed call ≈ ek khoya customer (calculation andar)"
+        subject = f"{biz} - har missed call ≈ ek khoya customer (calculation andar)"
         body = (
-            f"Namaste,\n\nLocal business roz ke 3-5 inquiries miss karta hai — mahine ka "
+            f"Namaste,\n\nLocal business roz ke 3-5 inquiries miss karta hai - mahine ka "
             f"hazaaron ka nuksan. Hamara AI 2 minute me callback karta hai + leads "
             f"qualify karta hai.\n\nApna number calculate karo: {AUDIT_URL}\n"
             f"Plans (₹1,999 se shuru): {PRICING_URL}\n"
         )
     elif step_key == "upgrade":
-        subject = f"{biz} — plan choose karo, aaj se marketing autopilot pe"
+        subject = f"{biz} - plan choose karo, aaj se marketing autopilot pe"
         body = (
             f"Namaste,\n\nAapka trial setup ready hai. Ab plan activate karo:\n\n"
             f"{_plan_lines()}\n"
-            f"Activate: {PRICING_URL}\n\nUPI/card — 2 minute. Sawal ho to reply karo.\n"
+            f"Activate: {PRICING_URL}\n\nUPI/card - 2 minute. Sawal ho to reply karo.\n"
         )
     else:  # last_call
-        subject = f"{biz} — aakhri email: setup delete hone se pehle activate kar lo"
+        subject = f"{biz} - aakhri email: setup delete hone se pehle activate kar lo"
         body = (
             f"Namaste,\n\nYeh is sequence ka aakhri email hai. Aapka AI marketing setup "
-            f"ready pada hai — activate karo to aaj se hi posts + lead capture chalu:\n\n"
-            f"  {PRICING_URL}\n\nAbhi nahi karna? Koi baat nahi — jab ready ho, login "
+            f"ready pada hai - activate karo to aaj se hi posts + lead capture chalu:\n\n"
+            f"  {PRICING_URL}\n\nAbhi nahi karna? Koi baat nahi - jab ready ho, login "
             f"karke wahi se shuru kar sakte ho: {LOGIN_URL}\n"
         )
     return {"subject": subject, "body": body}
@@ -199,7 +199,7 @@ def enroll(
 
 
 async def _has_paid(client_id: str) -> bool:
-    """Client ki active subscription? Error pe False (nurture continue — safe)."""
+    """Client ki active subscription? Error pe False (nurture continue - safe)."""
     if not client_id:
         return False
     try:
@@ -231,7 +231,7 @@ async def _send(to_email: str, subject: str, body: str) -> bool:
 
 
 async def run_due() -> dict[str, Any]:
-    """Daily sweep. GATED LIFECYCLE_NURTURE=1 — off = no-op (zero change)."""
+    """Daily sweep. GATED LIFECYCLE_NURTURE=1 - off = no-op (zero change)."""
     if not _enabled():
         return {"enabled": False}
     sent = converted = 0

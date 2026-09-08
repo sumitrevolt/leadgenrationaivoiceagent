@@ -1,16 +1,16 @@
-"""agent_controls.py — real, narrowly-scoped pause/resume for AI staff agents.
+"""agent_controls.py - real, narrowly-scoped pause/resume for AI staff agents.
 
 Design mirrors approvals_bridge.py's proven sidecar pattern EXACTLY (append-only
 jsonl, collapse-to-latest by key, never raises) rather than inventing a new store.
 
 HONEST SCOPE (do not expand without re-reading this docstring):
   team_scheduler.py's `_run_job` wrapper is explicitly documented in its own
-  code as behaviour-neutral ("Wrapper KABHI behaviour change nahi karta") — a
+  code as behaviour-neutral ("Wrapper KABHI behaviour change nahi karta") - a
   deliberate project invariant. Pausing an agent here does NOT touch the
   scheduler/cron loop at all. It gates exactly one real choke point:
-  `app.agents.staff.run_member()` — i.e. the admin-facing "Run now" manual
+  `app.agents.staff.run_member()` - i.e. the admin-facing "Run now" manual
   trigger. Scheduled/automatic runs of that same job are UNAFFECTED. The UI
-  must say so explicitly — a pause control that silently claims to stop all
+  must say so explicitly - a pause control that silently claims to stop all
   automation would be the "lies to admin" failure mode this project forbids.
 """
 
@@ -28,7 +28,7 @@ logger = setup_logger(__name__)
 _STORE = os.path.join("data", "agent_pause_state.jsonl")
 
 # job-name aliases in app.agents.staff.run_member()'s dispatch table that
-# resolve to the SAME underlying STAFF member — pausing "arjun" must also
+# resolve to the SAME underlying STAFF member - pausing "arjun" must also
 # block a call made via the "qa" alias, and vice versa.
 ALIAS_TO_MEMBER = {
     "qa": "arjun",

@@ -204,7 +204,7 @@ def test_stale_recovery_and_old_owner_blocked(shared_env):
     # Old owner must not be able to submit a result after ownership changed.
     from app.dev_control.external_agents import orchestrator
 
-    orchestrator.preflight(mid)  # may fail if not PREFLIGHT — retry path
+    orchestrator.preflight(mid)  # may fail if not PREFLIGHT - retry path
     # Re-seed to PREFLIGHT via transition for the submit attempt.
     mission = store.get(mid)
     assert mission is not None
@@ -290,7 +290,7 @@ def test_concurrent_transition_one_commits(shared_env):
 
 
 def test_orchestrator_cancel_vs_advance_cas(shared_env):
-    """Production path: race two orchestrator.cancel calls — exactly one commits."""
+    """Production path: race two orchestrator.cancel calls - exactly one commits."""
     mid = _seed_mission(shared_env["root"], status="REVIEW_PASSED")
     from app.dev_control.external_agents import cas, store
 

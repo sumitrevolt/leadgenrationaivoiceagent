@@ -1,4 +1,4 @@
-"""Tier-1 Slice D — per-user admin 2FA (TOTP) with encrypted secrets + recovery codes.
+"""Tier-1 Slice D - per-user admin 2FA (TOTP) with encrypted secrets + recovery codes.
 
 Replaces the single shared ``ADMIN_TOTP_SECRET`` with per-user TOTP. MIGRATION-FREE:
 the ``users.two_fa_secret`` column is only String(32) (too small for a ciphertext), so
@@ -126,7 +126,7 @@ def generate_enrollment(user) -> dict:
 
 
 def activate(user, code: str) -> bool:
-    """Confirm a pending enrollment with a TOTP code → enable 2FA."""
+    """Confirm a pending enrollment with a TOTP code -> enable 2FA."""
     from app.utils.totp import verify_totp
 
     tf = _twofa(user)

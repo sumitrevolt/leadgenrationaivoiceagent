@@ -1,10 +1,10 @@
-"""2026-07-28 — self-improve watchdog must not churn after daily_cap.
+"""2026-07-28 - self-improve watchdog must not churn after daily_cap.
 
 Prod evidence: 14 memcg OOM on leadgen_worker while SELF_IMPROVE_LOOP=1;
 172 tick receives / 35 tick_slot / 17 daily_cap. After cap the owner chain
 sleeps ~3600s
 ensure_alive's 15-minute stale window treated that as death
-and seeded parallel chains → tick_slot noise + worker RSS pressure.
+and seeded parallel chains -> tick_slot noise + worker RSS pressure.
 """
 
 from __future__ import annotations

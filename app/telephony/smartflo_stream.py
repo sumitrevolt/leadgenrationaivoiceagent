@@ -1,14 +1,14 @@
 """
-Tata Smartflo Voice Streaming — conversational phone AI over WebSocket
+Tata Smartflo Voice Streaming - conversational phone AI over WebSocket
 ======================================================================
 
 Smartflo Voice Streaming sends/receives audio over WebSocket using the
 Twilio Media Streams protocol (mulaw 8kHz).  This module implements the
-conversation loop: listen → understand → reply → speak.
+conversation loop: listen -> understand -> reply -> speak.
 
 Protocol (from docs.smartflo.tatatelebusiness.com):
   recv from Smartflo:
-    {"event":"connected"}                                  — handshake
+    {"event":"connected"}                                  - handshake
     {"event":"start","start":{"streamSid":..,"callSid":..,"from":..,"to":..,
           "direction":..,"mediaFormat":{"encoding":"audio/x-mulaw",
           "sampleRate":8000,"bitRate":64,"bitDepth":8}}}
@@ -17,19 +17,19 @@ Protocol (from docs.smartflo.tatatelebusiness.com):
     {"event":"dtmf","dtmf":{"digit":"1"}}
   send to Smartflo:
     {"event":"media","media":{"payload":"<b64 mulaw>","chunk":"1"}}
-    {"event":"clear"}                    — flush playback (barge-in)
-    {"event":"mark","mark":{"name":"..."}} — sync end-of-playback
+    {"event":"clear"}                    - flush playback (barge-in)
+    {"event":"mark","mark":{"name":"..."}} - sync end-of-playback
 
 Audio format: G.711 µ-law (mulaw), 8000 Hz, 8-bit, 64 kbps.
-  - Inbound: decode mulaw → PCM16 8kHz → resample to 16kHz → STT
-  - Outbound: TTS → PCM16 16kHz → resample to 8kHz → encode to mulaw → send
+  - Inbound: decode mulaw -> PCM16 8kHz -> resample to 16kHz -> STT
+  - Outbound: TTS -> PCM16 16kHz -> resample to 8kHz -> encode to mulaw -> send
 
 Conversion uses audioop (stdlib ≤3.12) or audioop-lts (3.13+).
 
 Env vars:
-  SMARTFLO_VOICE_STREAM_ENABLED=1    — arm the endpoint (INERT default)
-  SMARTFLO_WS_SECRET=<random>        — optional HMAC auth on WS connect
-  SMARTFLO_WS_REQUIRE_SECRET=0       — enforce secret check (INERT default)
+  SMARTFLO_VOICE_STREAM_ENABLED=1    - arm the endpoint (INERT default)
+  SMARTFLO_WS_SECRET=<random>        - optional HMAC auth on WS connect
+  SMARTFLO_WS_REQUIRE_SECRET=0       - enforce secret check (INERT default)
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ _SEND_TIMEOUT_S = 3.0
 # Audio conversion helpers
 # ---------------------------------------------------------------------------
 def mulaw_to_pcm16(mulaw_bytes: bytes) -> bytes:
-    """Decode mulaw 8kHz → PCM16 8kHz."""
+    """Decode mulaw 8kHz -> PCM16 8kHz."""
     if _AUDIOOP_OK and audioop is not None:
         return audioop.ulaw2lin(mulaw_bytes, 2)
     # Pure-Python fallback (linear decode, good enough for STT)
@@ -141,7 +141,7 @@ def mulaw_to_pcm16(mulaw_bytes: bytes) -> bytes:
 
 
 def pcm16_8k_to_16k(pcm_8k: bytes) -> bytes:
-    """Upsample PCM16 8kHz → PCM16 16kHz (simple linear interpolation).
+    """Upsample PCM16 8kHz -> PCM16 16kHz (simple linear interpolation).
 
     For each pair of input samples, outputs the original + interpolated midpoint.
     Produces exactly 2× the input sample count (2N samples from N).
@@ -155,7 +155,7 @@ def pcm16_8k_to_16k(pcm_8k: bytes) -> bytes:
             missing_samples = (target_len - len(out)) // 2
             out += out[-2:] * missing_samples
         return out
-    # Pure-Python: linear interpolation (8k→16k = 2×)
+    # Pure-Python: linear interpolation (8k->16k = 2×)
     samples = struct.unpack(f"<{len(pcm_8k) // 2}h", pcm_8k)
     out = []
     for i in range(len(samples)):
@@ -168,18 +168,18 @@ def pcm16_8k_to_16k(pcm_8k: bytes) -> bytes:
 
 
 def pcm16_16k_to_8k(pcm_16k: bytes) -> bytes:
-    """Downsample PCM16 16kHz → PCM16 8kHz (simple decimation)."""
+    """Downsample PCM16 16kHz -> PCM16 8kHz (simple decimation)."""
     if _AUDIOOP_OK and audioop is not None:
         out, _ = audioop.ratecv(pcm_16k, 2, 1, 16000, 8000, None)
         return out
-    # Pure-Python: decimate (16k→8k = every other sample)
+    # Pure-Python: decimate (16k->8k = every other sample)
     samples = struct.unpack(f"<{len(pcm_16k) // 2}h", pcm_16k)
     out = samples[::2]
     return struct.pack(f"<{len(out)}h", *out)
 
 
 def pcm16_to_mulaw(pcm16_bytes: bytes) -> bytes:
-    """Encode PCM16 8kHz → mulaw 8kHz.
+    """Encode PCM16 8kHz -> mulaw 8kHz.
 
     Standard ITU-T G.711 µ-law: bias=0x84, clip=32635.
     Matches audioop.lin2ulaw() exactly (verified against reference).
@@ -213,7 +213,7 @@ def pcm16_to_mulaw(pcm16_bytes: bytes) -> bytes:
 def pcm16_to_wav(pcm16: bytes, rate: int = INTERNAL_SAMPLE_RATE) -> bytes:
     """Wrap raw PCM16 mono in a RIFF/WAV container (STT uploads need a header).
 
-    2026-09-07: Groq Whisper was being sent RAW PCM labelled ``audio.wav`` →
+    2026-09-07: Groq Whisper was being sent RAW PCM labelled ``audio.wav`` ->
     400 "invalid file" on every utterance, silently falling through to the
     slower fallbacks. Mirrors ``vobiz_stream._pcm_to_wav``.
     """
@@ -247,8 +247,8 @@ class SmartfloStreamSession:
     """Drives one Smartflo voice-streaming call.
 
     Audio flow:
-      inbound mulaw 8kHz → PCM16 8kHz → upsample 16kHz → VAD + STT buffer
-      → LLM reply → TTS → PCM16 16kHz → downsample 8kHz → mulaw 8kHz → send
+      inbound mulaw 8kHz -> PCM16 8kHz -> upsample 16kHz -> VAD + STT buffer
+      -> LLM reply -> TTS -> PCM16 16kHz -> downsample 8kHz -> mulaw 8kHz -> send
 
     Never raises out of handle(). Graceful degradation: missing STT/TTS =
     call connects but stays silent (logged).
@@ -292,7 +292,7 @@ class SmartfloStreamSession:
         self._barge_frames = 0
         # Background TTS+playback task (2026-09-07): playback used to run
         # inline in the receive loop, so inbound media was not read while the
-        # bot spoke → barge-in could never fire. Now _say() schedules a task
+        # bot spoke -> barge-in could never fire. Now _say() schedules a task
         # and the loop keeps consuming frames.
         self._play_task: asyncio.Task | None = None
 
@@ -323,7 +323,7 @@ class SmartfloStreamSession:
                 raw = await asyncio.wait_for(self.ws.receive_text(), timeout=60.0)
                 await self._on_event(raw)
         except asyncio.TimeoutError:
-            logger.info("[smartflo-stream] WS idle timeout (60s) — closing")
+            logger.info("[smartflo-stream] WS idle timeout (60s) - closing")
         except Exception as e:
             if not self._closed:
                 logger.warning(f"[smartflo-stream] WS error: {e}")
@@ -350,7 +350,7 @@ class SmartfloStreamSession:
 
         elif event == "start":
             start = data.get("start") or {}
-            # Tolerate both Twilio-style camelCase and snake_case keys — the
+            # Tolerate both Twilio-style camelCase and snake_case keys - the
             # exact casing Smartflo emits is confirmed only on the first live
             # demo call; log the key-set (no PII) so a mismatch is obvious.
             logger.info(
@@ -439,7 +439,7 @@ class SmartfloStreamSession:
             logger.debug(f"[smartflo-stream] mark: {data.get('mark', {}).get('name')}")
 
     # ------------------------------------------------------------------ #
-    # Inbound audio: mulaw 8kHz → PCM16 8kHz → upsample → VAD → STT
+    # Inbound audio: mulaw 8kHz -> PCM16 8kHz -> upsample -> VAD -> STT
     # ------------------------------------------------------------------ #
     async def _on_media(self, payload: str) -> None:
         try:
@@ -451,7 +451,7 @@ class SmartfloStreamSession:
         self._media_frames += 1
         self._media_bytes += len(mulaw)
 
-        # Convert: mulaw 8kHz → PCM16 8kHz → PCM16 16kHz
+        # Convert: mulaw 8kHz -> PCM16 8kHz -> PCM16 16kHz
         pcm_8k = mulaw_to_pcm16(mulaw)
         pcm_16k = pcm16_8k_to_16k(pcm_8k)
 
@@ -488,7 +488,7 @@ class SmartfloStreamSession:
                 await self._on_utterance()
 
     async def _on_utterance(self) -> None:
-        """Process a completed user utterance: STT → LLM → TTS → send."""
+        """Process a completed user utterance: STT -> LLM -> TTS -> send."""
         if not self._speech_buf:
             return
         pcm_16k = b"".join(self._speech_buf)
@@ -511,14 +511,14 @@ class SmartfloStreamSession:
         logger.info(f"[smartflo-stream] bot: {reply[:120]}")
         self.hist.append({"role": "assistant", "content": reply})
 
-        # TTS → send
+        # TTS -> send
         await self._say(reply)
 
     # ------------------------------------------------------------------ #
     # STT pipeline (reuse vobiz_stream's chain)
     # ------------------------------------------------------------------ #
     async def _stt(self, pcm_16k: bytes) -> str:
-        """Transcribe PCM16 16kHz audio → text. Returns empty string on failure."""
+        """Transcribe PCM16 16kHz audio -> text. Returns empty string on failure."""
         if not STT_AVAILABLE:
             logger.warning("[smartflo-stream] STT unavailable")
             return ""
@@ -547,7 +547,7 @@ class SmartfloStreamSession:
         import httpx
 
         key = _groq_key()
-        # Groq expects a real audio container — wrap PCM16 16kHz in a WAV header
+        # Groq expects a real audio container - wrap PCM16 16kHz in a WAV header
         wav = pcm16_to_wav(pcm_16k, INTERNAL_SAMPLE_RATE)
         files = {"file": ("audio.wav", io.BytesIO(wav), "audio/wav")}
         data = {
@@ -609,18 +609,18 @@ class SmartfloStreamSession:
             return ""
 
     # ------------------------------------------------------------------ #
-    # TTS + send (PCM16 16kHz → downsample → mulaw → WS media event)
+    # TTS + send (PCM16 16kHz -> downsample -> mulaw -> WS media event)
     # ------------------------------------------------------------------ #
     async def _say(self, text: str) -> None:
-        """Synthesize text → TTS → send to caller via mulaw media events.
+        """Synthesize text -> TTS -> send to caller via mulaw media events.
 
         Non-blocking: schedules ``_speak_task`` in the background so the WS
         receive loop keeps reading inbound frames (barge-in stays live). A
-        previous playback still in flight is cancelled first — the newer
+        previous playback still in flight is cancelled first - the newer
         reply always wins.
         """
         if not TTS_AVAILABLE:
-            logger.warning("[smartflo-stream] TTS unavailable — text-only reply")
+            logger.warning("[smartflo-stream] TTS unavailable - text-only reply")
             return
         if self._closed:
             return
@@ -632,7 +632,7 @@ class SmartfloStreamSession:
             pcm_16k = await self._tts(text)
             if not pcm_16k or self._closed:
                 return
-            # Downsample 16kHz → 8kHz, encode to mulaw
+            # Downsample 16kHz -> 8kHz, encode to mulaw
             pcm_8k = pcm16_16k_to_8k(pcm_16k)
             mulaw = pcm16_to_mulaw(pcm_8k)
             # Send in chunks (160 bytes = 20ms)
@@ -662,7 +662,7 @@ class SmartfloStreamSession:
             pass
 
     async def _tts(self, text: str) -> bytes:
-        """Text → PCM16 16kHz audio via EdgeTTS."""
+        """Text -> PCM16 16kHz audio via EdgeTTS."""
         import edge_tts
 
         rate = os.environ.get("SMARTFLO_TTS_RATE", "+26%")
@@ -676,7 +676,7 @@ class SmartfloStreamSession:
         mp3_data = mp3_buf.getvalue()
         if not mp3_data:
             return b""
-        # Decode MP3 → PCM16 via pydub
+        # Decode MP3 -> PCM16 via pydub
         from pydub import AudioSegment
 
         seg = AudioSegment.from_mp3(io.BytesIO(mp3_data))
@@ -709,7 +709,7 @@ class SmartfloStreamSession:
                     timeout=_SEND_TIMEOUT_S,
                 )
             except asyncio.TimeoutError:
-                logger.warning("[smartflo-stream] send timeout — aborting playback")
+                logger.warning("[smartflo-stream] send timeout - aborting playback")
                 break
             chunk_num += 1
             await asyncio.sleep(FRAME_MS / 1000.0)  # pace at real-time

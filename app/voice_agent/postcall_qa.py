@@ -137,7 +137,7 @@ def propose_training_correction(
     qa_summary: dict[str, Any],
     allowed_surfaces: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Versioned proposal — may update prompt/policy/examples/STT/route/timeout/QA.
+    """Versioned proposal - may update prompt/policy/examples/STT/route/timeout/QA.
     MUST NOT touch pricing/legal/consent/opt-out/tenant auth.
     """
     forbidden = {"pricing", "legal", "consent", "opt_out", "tenant_auth", "fine_tune"}

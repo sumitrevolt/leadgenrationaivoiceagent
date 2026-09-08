@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch / first-paid-customer path smoke — public revenue funnel (no admin creds).
+"""Launch / first-paid-customer path smoke - public revenue funnel (no admin creds).
 
 Checks: /pricing · /start · /app/login · pay-info · packages · signup route · UPI admin routes exist.
 Run: python scripts/launch_path_smoke.py
@@ -84,7 +84,7 @@ def main() -> int:
     code, raw_pay = _get("/api/public/pay-info")
     pay: dict | str = raw_pay
     if code == 200 and isinstance(raw_pay, str):
-        # pay-info JSON can exceed read cap when qr_svg is huge — parse enabled/vpa only
+        # pay-info JSON can exceed read cap when qr_svg is huge - parse enabled/vpa only
         try:
             pay = json.loads(raw_pay)
         except json.JSONDecodeError:
@@ -125,7 +125,7 @@ def main() -> int:
     else:
         print(f"[WARN] signup unexpected {code}: {str(body)[:120]}")
 
-    # Admin UPI queue — 401/403 = route mounted
+    # Admin UPI queue - 401/403 = route mounted
     code, _ = _get("/api/admin/upi/pending")
     if code in (401, 403, 422):
         print(f"[OK] admin upi/pending mounted (auth {code})")

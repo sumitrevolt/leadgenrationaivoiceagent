@@ -1,4 +1,4 @@
-"""Boss Autonomy service — canonical owner-free decision advancement.
+"""Boss Autonomy service - canonical owner-free decision advancement.
 
 Thin, flag-gated orchestration over "app.platform.boss_decision_governance"
 (imported as "bdg"). This module is the ONLY runtime owner of the "Boss runs
@@ -9,7 +9,7 @@ Hard rules (no monkey-patching, no private catalog access):
   * Canonical Boss identity is "manager" (workforce registry), never "hermes".
   * Advisory (Second Brain / LLM Council) is advisory-only
   its absence NEVER
-    defaults to execution — empty/low-confidence advice defers.
+    defaults to execution - empty/low-confidence advice defers.
   * Unknown decision types fail closed (never default GREEN).
   * OWNER_ONLY (UPI/payment) + RED lanes are non-delegable (authority class C).
   * Every decision is hash-bound
@@ -21,9 +21,9 @@ Flags (both must be ON for any governance write):
   BOSS_DECISION_GOVERNANCE=1  -> canonical governance ledger active (bdg)
 
 Authority classes (owner-mandate):
-  A — Boss autonomous (GREEN): advance to consume after advice + review.
-  B — owner-armed channel (AMBER): Boss reviews, parks at needs_owner.
-  C — non-delegable (OWNER_ONLY + RED + UNKNOWN): refuse / surface owner.
+  A - Boss autonomous (GREEN): advance to consume after advice + review.
+  B - owner-armed channel (AMBER): Boss reviews, parks at needs_owner.
+  C - non-delegable (OWNER_ONLY + RED + UNKNOWN): refuse / surface owner.
 """
 
 from __future__ import annotations
@@ -406,7 +406,7 @@ def advance_decision(
                 "outcome": "needs_owner",
                 "authority_class": aclass,
                 "steps": steps,
-                "note": "AMBER requires Owner OS decision id — Boss never self-approves these.",
+                "note": "AMBER requires Owner OS decision id - Boss never self-approves these.",
             }
         else:
             return {

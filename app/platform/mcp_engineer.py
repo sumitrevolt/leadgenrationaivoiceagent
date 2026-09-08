@@ -1,6 +1,6 @@
-"""mcp_engineer.py — Arya, MCP Engineer (platform staff agent).
+"""mcp_engineer.py - Arya, MCP Engineer (platform staff agent).
 
-Council 2026-06-26 verdict: project me 3 MCP layers exist — (1) /mcp expose via
+Council 2026-06-26 verdict: project me 3 MCP layers exist - (1) /mcp expose via
 fastapi-mcp, (2) /api/mcp-product/v1/* metered B2B surface, (3) A2A Agent Card.
 Pre-Arya: koi dedicated agent in surfaces ka health, key-rotation, abuse-watch,
 ya cross-server registry sync nahi karta. Hermes infra-handler poora app dekhta
@@ -17,7 +17,7 @@ uses sqlite/httpx/json only (no new deps)
 - ntfy alert on critical (auth_failure spike, key abuse)
 
 Production-ready scope (LLM council Chairman verdict):
-- Hourly health pulse — fast, no LLM call
+- Hourly health pulse - fast, no LLM call
 - Daily key-rotation reminder (90d-old keys)
 - A2A Agent Card schema validation (against discover endpoint)
 - /mcp endpoint auth-probe (verify gate is closed, NOT public)
@@ -47,7 +47,7 @@ logger = setup_logger(__name__)
 # Per-role enable flag (registered in app/api/automation_flags.py AUTOMATION_FLAGS)
 _MCP_ENGINEER_FLAG = "MCP_ENGINEER"
 
-# Tunables — env-overridable
+# Tunables - env-overridable
 _KEY_ROTATION_DAYS = int(os.environ.get("MCP_KEY_ROTATION_DAYS", "90"))
 _QUOTA_PRESSURE_PCT = int(os.environ.get("MCP_QUOTA_PRESSURE_PCT", "80"))
 _AUTH_FAIL_ALERT_THRESHOLD = int(os.environ.get("MCP_AUTH_FAIL_ALERT", "20"))
@@ -80,7 +80,7 @@ def _disabled_result(role: str, flag: str) -> dict[str, Any]:
 
 
 def _try_log(role: str, event: str, detail: str, status: str = "ok") -> None:
-    """Best-effort agent_events log — never raises, never blocks."""
+    """Best-effort agent_events log - never raises, never blocks."""
     try:
         from app.platform import team
 
@@ -102,7 +102,7 @@ def _maybe_alert(title: str, body: str, priority: str = "default") -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Sub-probes — each returns a 0-100 score + KPI dict
+# Sub-probes - each returns a 0-100 score + KPI dict
 # --------------------------------------------------------------------------- #
 def _probe_dependency() -> tuple[float, dict[str, Any]]:
     """Is fastapi-mcp importable? Without it, /mcp doesn't mount at all."""
@@ -236,7 +236,7 @@ def _probe_a2a_card() -> tuple[float, dict[str, Any]]:
 
 def _probe_expose_gate() -> tuple[float, dict[str, Any]]:
     """Is /mcp mounted with an admin gate (token or IP allowlist)?
-    Council #1 finding: pre-fix mount was UNGATED → admin tools leak.
+    Council #1 finding: pre-fix mount was UNGATED -> admin tools leak.
     Detect by env presence of FASTAPI_MCP_TOKEN or MCP_IP_ALLOWLIST.
     """
     token_set = bool(os.environ.get("FASTAPI_MCP_TOKEN", "").strip())
@@ -254,7 +254,7 @@ def _probe_expose_gate() -> tuple[float, dict[str, Any]]:
 # Public API
 # --------------------------------------------------------------------------- #
 def run_mcp() -> dict[str, Any]:
-    """Full MCP health pass — score + KPIs + actions + ntfy on critical."""
+    """Full MCP health pass - score + KPIs + actions + ntfy on critical."""
     if not _flag_on(_MCP_ENGINEER_FLAG):
         return _disabled_result("mcp", _MCP_ENGINEER_FLAG)
 
@@ -285,10 +285,10 @@ def run_mcp() -> dict[str, Any]:
         actions.append("Install fastapi-mcp: add to requirements.txt + rebuild image")
     if not kpis.get("expose_gate", {}).get("mcp_endpoint_gated"):
         actions.append(
-            "CRITICAL: /mcp is UNGATED — set FASTAPI_MCP_TOKEN or MCP_IP_ALLOWLIST in .env"
+            "CRITICAL: /mcp is UNGATED - set FASTAPI_MCP_TOKEN or MCP_IP_ALLOWLIST in .env"
         )
     if not kpis.get("product_armed", {}).get("mcp_product_enabled"):
-        actions.append("MCP-as-product paused — set MCP_PRODUCT=1 to enable B2B surface")
+        actions.append("MCP-as-product paused - set MCP_PRODUCT=1 to enable B2B surface")
     pressured = kpis.get("keys", {}).get("quota_pressure_keys") or []
     if pressured:
         actions.append(
@@ -309,9 +309,9 @@ def run_mcp() -> dict[str, Any]:
 
     summary = f"MCP health {score:.0f}/100" if isinstance(score, float) else "MCP health unknown"
     if score is not None and score < 60:
-        summary += " — attention needed"
+        summary += " - attention needed"
     elif score is not None and score >= 90:
-        summary += " — all green"
+        summary += " - all green"
 
     result = {
         "role": "mcp",
@@ -337,7 +337,7 @@ def run_mcp() -> dict[str, Any]:
 
 
 def health_score() -> dict[str, Any]:
-    """Fast snapshot (no logging, no alerts) — for /api/platform/mcp/health."""
+    """Fast snapshot (no logging, no alerts) - for /api/platform/mcp/health."""
     last_file = _DATA_DIR / "mcp_engineer_last.json"
     if last_file.exists():
         try:
@@ -351,13 +351,13 @@ def health_score() -> dict[str, Any]:
 
 
 def rotation_due_keys() -> list[dict[str, Any]]:
-    """Keys older than rotation threshold — for admin dashboard."""
+    """Keys older than rotation threshold - for admin dashboard."""
     _, kpis = _probe_rotation_due()
     return kpis.get("rotation_due") or []
 
 
 def audit_mcp_security() -> dict[str, Any]:
-    """One-shot security probe — quick checklist for /verify."""
+    """One-shot security probe - quick checklist for /verify."""
     items = {
         "fastapi_mcp_dep": _probe_dependency()[0] == 100.0,
         "mcp_endpoint_gated": _probe_expose_gate()[0] == 100.0,
@@ -371,7 +371,7 @@ def audit_mcp_security() -> dict[str, Any]:
 
 
 def log_auth_failure(reason: str, ip: str = "", path: str = "") -> None:
-    """Called by middleware on /mcp/* 401 — appends to _AUTH_FAIL_LOG.
+    """Called by middleware on /mcp/* 401 - appends to _AUTH_FAIL_LOG.
     Tail-read by _probe_auth_failures for the alert threshold.
     """
     try:

@@ -1,4 +1,4 @@
-"""Boss unclear → LLM Council decide (Hot Queue + content approvals)."""
+"""Boss unclear -> LLM Council decide (Hot Queue + content approvals)."""
 
 from __future__ import annotations
 

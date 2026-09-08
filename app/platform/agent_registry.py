@@ -3,7 +3,7 @@ Canonical Agent Runtime Contract registry (Agent-OS control-plane foundation).
 =============================================================================
 
 WHY (2026-07-19, Phase-A foundation): the 31-agent workforce metadata was
-SCATTERED and in places CONTRADICTORY across five sources —
+SCATTERED and in places CONTRADICTORY across five sources -
 ``team.STAFF`` (display), ``scheduler_config.JOB_META`` (triggers/cadence),
 ``agent_controls.ALIAS_TO_MEMBER`` (job aliases), ``owner_os`` (supervisor /
 service-identity sets) and the readiness scorecard doc. There was **no single
@@ -15,9 +15,9 @@ This module is that single canonical layer. It is DERIVE-not-DUPLICATE:
   - display fields (name/team/title/duties/schedule)  ← app.platform.team.STAFF
   - triggers + cadence                                ← scheduler_config.JOB_META
   - governance (autonomy/lane/flag/kill/budget/…)     ← _GOVERNANCE table below
-    (the only hand-authored data — none of it existed as data anywhere before)
+    (the only hand-authored data - none of it existed as data anywhere before)
 
-⚠️  **LOAD-BEARING — NOT INERT.** (Corrected 2026-07-21
+⚠️  **LOAD-BEARING - NOT INERT.** (Corrected 2026-07-21
 the previous docstring
 claimed "nothing in the running app imports this yet", which is FALSE and was
 dangerous to rely on.) This module is imported at runtime by:
@@ -30,7 +30,7 @@ dangerous to rely on.) This module is imported at runtime by:
 ``evaluate_policy`` reads ``get_contract()`` as the dispatch source of truth
 (L516) and blocks RED-lane / HARD_OFF agents off ``contract.lane`` (L521).
 
-CONSEQUENCE — read before editing ``_GOVERNANCE`` below: changing an agent's
+CONSEQUENCE - read before editing ``_GOVERNANCE`` below: changing an agent's
 ``lane`` from RED to GREEN/AMBER here does NOT merely change a report. It
 directly removes the L521 dispatch block for that agent. The RED lane is the
 mechanism that keeps the voice agents (swara/ananya) un-dispatchable. Treat
@@ -45,7 +45,7 @@ test-suite can all read ONE reconciled truth instead of five.
 
 CANONICAL COUNT = 31 (code truth, matches owner_os.py: "manager=Boss is one of
 the 31, not a 32nd agent"). Agent-OS itself (this registry + owner_os control
-plane) is modelled as the 32nd *control-plane worker* via ``CONTROL_PLANE`` —
+plane) is modelled as the 32nd *control-plane worker* via ``CONTROL_PLANE`` -
 NOT as a 32nd persona. The customer-delivery-assurance responsibility that a
 hypothetical "Aditi" would own is already owned by app.marketing.customer_delivery
 + delivery_ledger, so no new persona is invented (honest headcount).
@@ -55,12 +55,12 @@ Autonomy taxonomy (prompt spec):
   L1_RECOMMEND    reason / diagnose / draft / propose (no side-effect execution)
   L2_INTERNAL     reversible internal actions from an explicit allowlist
   L3_CUSTOMER     customer-facing action under caps + policy + approval
-  L4_RESTRICTED   calling / bulk / billing-mutation / destructive — mandate/HITL
+  L4_RESTRICTED   calling / bulk / billing-mutation / destructive - mandate/HITL
 
-Policy lanes (ceiling — the *max* the agent may ever do):
-  GREEN  internal / draft / reconcile — safe to run when flag+budget+kill healthy
-  AMBER  customer outreach — caps + shadow/draft/approval, starts non-live
-  RED    calling / bulk / irreversible — never a simple .env flip
+Policy lanes (ceiling - the *max* the agent may ever do):
+  GREEN  internal / draft / reconcile - safe to run when flag+budget+kill healthy
+  AMBER  customer outreach - caps + shadow/draft/approval, starts non-live
+  RED    calling / bulk / irreversible - never a simple .env flip
   mandate only
 
 Nothing here ever raises at import
@@ -108,7 +108,7 @@ class TriggerType(str, Enum):
     QUEUE = "queue"  # drains a durable queue (approval / cadence)
     INBOUND = "inbound"  # always-ready listener (inbound call / webhook)
     ON_DEMAND = "on_demand"  # operator / API triggered only
-    NONE = "none"  # no trigger wired (drift — must be flagged)
+    NONE = "none"  # no trigger wired (drift - must be flagged)
 
 
 # Start modes for the phased rollout (a lane ceiling of AMBER/RED must NOT start
@@ -133,7 +133,7 @@ class AgentContract:
     title: str
     responsibility: str
     schedule_human: str
-    # governance (hand-authored — the new canonical IP)
+    # governance (hand-authored - the new canonical IP)
     autonomy: str
     lane: str
     default_mode: str
@@ -171,7 +171,7 @@ class AgentContract:
 
 
 # --------------------------------------------------------------------------- #
-# Governance table — keyed by the 31 canonical team.STAFF ids.
+# Governance table - keyed by the 31 canonical team.STAFF ids.
 # This is the ONLY hand-authored data. Everything else is derived.
 # Tuple order: (autonomy, lane, default_mode, reasoning, trigger_types,
 #   primary_flag, prohibited, max_conc, timeout_s, retry, idempotency,
@@ -214,7 +214,7 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         reasoning=False,
         trigger_types=(_G.SCHEDULED,),
         # Runtime-only gate (Agent Runtime ops_health_check). Scheduler watchdog
-        # stays on OPS_WATCHDOG — never OR these together for eligibility.
+        # stays on OPS_WATCHDOG - never OR these together for eligibility.
         primary_flag="OPS_HEALTH_AGENT",
         scheduler_flag="OPS_WATCHDOG",  # purpose=scheduler
         agent_runtime_gate=false
@@ -255,7 +255,7 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
     ),
     "nikhil": dict(
         # Lane GREEN: capability is PURE READ (delivery_assurance.scan_missed_deliverables)
-        # — no remediation/send/publish. Was AMBER historically; reconciled 2026-07-22.
+        # - no remediation/send/publish. Was AMBER historically; reconciled 2026-07-22.
         autonomy=Autonomy.L0_OBSERVE,
         lane=Lane.GREEN,
         default_mode=LIVE,
@@ -371,7 +371,7 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         reasoning=False,
         trigger_types=(_G.SCHEDULED,),
         # Runtime-only gate (Agent Runtime run_security core). Daily scheduler
-        # stays on SECURITY_AGENT — never OR these together for eligibility.
+        # stays on SECURITY_AGENT - never OR these together for eligibility.
         primary_flag="SECURITY_POSTURE_AGENT",
         scheduler_flag="SECURITY_AGENT",  # purpose=scheduler
         agent_runtime_gate=false
@@ -861,7 +861,7 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
 
 
 # --------------------------------------------------------------------------- #
-# Control-plane worker (the honest "32nd") — NOT one of the 31 personas.
+# Control-plane worker (the honest "32nd") - NOT one of the 31 personas.
 # Models Agent-OS itself (this registry + owner_os control surface + scheduler
 # guard) as a coordinating control-plane worker, per the prompt's fallback
 # branch (delivery-assurance already owned by customer_delivery, so no new
@@ -875,7 +875,7 @@ CONTROL_PLANE: dict[str, Any] = {
     "responsibility": (
         "Canonical registry, work-lifecycle governance, kill-switch/dispatch "
         "gating, heartbeat + stale detection, Boss routing surface. Not a "
-        "counted persona — the coordinating layer over the 31 workforce agents."
+        "counted persona - the coordinating layer over the 31 workforce agents."
     ),
     "autonomy": Autonomy.L0_OBSERVE.value,
     "lane": Lane.GREEN.value,
@@ -903,7 +903,7 @@ KNOWN_DRIFTS: tuple[dict[str, str], ...] = (
     },
 )
 
-# STAFF agents with no durable beat trigger — by-design event/on-demand, MUST
+# STAFF agents with no durable beat trigger - by-design event/on-demand, MUST
 # report healthy-idle (not offline) once the useful-work heartbeat lands.
 EVENT_OR_ONDEMAND_ONLY: frozenset[str] = frozenset(
     {"ananya", "riya", "raksha", "nikhil", "priya", "anika", "ira", "dev", "kiran"}
@@ -1079,7 +1079,7 @@ def validate_registry() -> list[str]:
         if c.customer_contact_cap_day < 0:
             problems.append(f"{aid}: negative contact cap")
 
-    # 4. §5 compliance gates — lane/mode must encode the hard invariants.
+    # 4. §5 compliance gates - lane/mode must encode the hard invariants.
     for aid in ("swara", "ananya"):
         c = reg.get(aid)
         if c and (c.lane != Lane.RED.value or c.default_mode != HARD_OFF):
@@ -1087,7 +1087,7 @@ def validate_registry() -> list[str]:
                 f"{aid}: cold-outbound voice must be RED + hard_off (§5 platform_dial HARD-OFF)"
             )
     for aid, c in reg.items():
-        # No AMBER/RED agent may START live — it must begin non-committing.
+        # No AMBER/RED agent may START live - it must begin non-committing.
         if c.lane in (Lane.AMBER.value, Lane.RED.value) and c.default_mode == LIVE:
             problems.append(
                 f"{aid}: lane {c.lane} must not default to LIVE (start shadow/draft/off)"
@@ -1132,7 +1132,7 @@ def validate_registry() -> list[str]:
 
 
 def summary() -> dict[str, Any]:
-    """Owner-facing rollup — safe to serialise into an Owner OS panel."""
+    """Owner-facing rollup - safe to serialise into an Owner OS panel."""
     reg = build_registry()
     lanes: dict[str, int] = {}
     auton: dict[str, int] = {}

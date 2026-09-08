@@ -1,4 +1,4 @@
-"""Sole action path: OpenClaw → Owner OS typed services. No direct Celery/DB writes."""
+"""Sole action path: OpenClaw -> Owner OS typed services. No direct Celery/DB writes."""
 
 from __future__ import annotations
 
@@ -34,10 +34,10 @@ def prove_edge_receipt(
 ) -> dict[str, Any]:
     """Run one real GREEN Owner-Copilot command and return a durable receipt.
 
-    This proves the in-process OpenClaw → Owner OS edge is callable. It is NOT
+    This proves the in-process OpenClaw -> Owner OS edge is callable. It is NOT
     an external OpenClaw Gateway session mint (LeadGen is inbound-only). The
     returned ``session_id`` is the live ``correlation_id`` / ``command_id`` from
-    the executed handler — never a fabricated UUID.
+    the executed handler - never a fabricated UUID.
     """
     from app.integrations.openclaw.policies import openclaw_enabled
 
@@ -46,7 +46,7 @@ def prove_edge_receipt(
             "status": "flag_off",
             "session_id": None,
             "available": False,
-            "note": "OPENCLAW_ENABLED off — edge not armed",
+            "note": "OPENCLAW_ENABLED off - edge not armed",
         }
     # Prefer mission.executors when registered (read-only), else platform.status.
     preferred = command
@@ -177,7 +177,7 @@ def run_via_owner_os(
         return out
 
     if lane == "AMBER" and require_approval_for_amber():
-        # AMBER always parks — confirm means "submit approval request", never silent mutate.
+        # AMBER always parks - confirm means "submit approval request", never silent mutate.
         # (Legacy `confirm=false` early-return lived in /nl; adapter must not treat confirm as bypass.)
         return _amber_hold(
             command, params, actor=actor, corr=corr, text=text, idempotency_key=idempotency_key
@@ -249,7 +249,7 @@ def _amber_hold(
     text: str | None,
     idempotency_key: str | None,
 ) -> dict[str, Any]:
-    """Park AMBER mutation as Owner OS approval-required command — no direct mutate."""
+    """Park AMBER mutation as Owner OS approval-required command - no direct mutate."""
     from app.platform import owner_os
 
     nl = text or _command_to_nl(command, params)
@@ -261,11 +261,11 @@ def _amber_hold(
     )
     cmd = created.get("command") or {}
     cid = created.get("command_id") or cmd.get("command_id")
-    # Owner OS may mark some pauses as SAFE/READY — OpenClaw AMBER must still
+    # Owner OS may mark some pauses as SAFE/READY - OpenClaw AMBER must still
     # require explicit Owner OS approve/execute (never silent mutate).
     if cid and cmd.get("status") in ("READY", "VALIDATED", "QUEUED", "DRAFT"):
         try:
-            owner_os._update_command(  # noqa: SLF001 — intentional force-park
+            owner_os._update_command(  # noqa: SLF001 - intentional force-park
                 cid,
                 status="APPROVAL_REQUIRED",
                 approval_required=True,
@@ -287,7 +287,7 @@ def _amber_hold(
             "owner_os_command": cid or cmd.get("command_id"),
             "plan": created.get("plan"),
             "params": redact_secrets(params),
-            "note": "AMBER — Owner OS pe approve/execute karo; OpenClaw ne mutate nahi kiya",
+            "note": "AMBER - Owner OS pe approve/execute karo; OpenClaw ne mutate nahi kiya",
         },
         "evidence": {"parked": True},
         "verified": True,

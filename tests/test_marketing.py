@@ -4,7 +4,7 @@ Tests: marketing module (Dhanda-style posts + GBP tips + content calendar
 + competitor tips + growth v3: review kit/QR, monthly report, reactivation,
 drip, brand kit, CRM-lite + v4: UPI kit, catalog, ads copy, reels,
 lead scoring, GBP texts + v5: client content pack, data retention).
-No network — free_ai.chat is monkeypatched to return ("","") so every path
+No network - free_ai.chat is monkeypatched to return ("","") so every path
 exercises the TEMPLATE fallback (the never-empty guarantee).
 """
 
@@ -43,7 +43,7 @@ from app.marketing import (
 
 @pytest.fixture
 def no_llm(monkeypatch):
-    """free_ai.chat ko hamesha ("","") return karwao — template path force."""
+    """free_ai.chat ko hamesha ("","") return karwao - template path force."""
 
     async def _empty(*args, **kwargs):
         return "", ""
@@ -499,7 +499,7 @@ class TestUpiKit:
         assert "&am=499" in link
         assert "&tn=Order%2012" in link
         assert kit["vpa_valid"] is True
-        # QR (review_kit encoder reuse) — dark modules as rects
+        # QR (review_kit encoder reuse) - dark modules as rects
         assert kit["qr_svg"].startswith("<svg")
         assert kit["qr_svg"].count("<rect") > 100
         # slip: QR embedded (nested svg), slot replaced, vpa + amount dikhte

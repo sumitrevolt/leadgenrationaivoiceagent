@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Web-call tune loop — /app/test-call WS pe scripted personas, score, report.
+"""Web-call tune loop - /app/test-call WS pe scripted personas, score, report.
 
 FREE (no phone). Same TelecallerBrain + platform_pitch as live test-call page.
 
@@ -17,7 +17,7 @@ import os
 import sys
 import time
 
-# Windows console — ₹/Devanagari print crash avoid
+# Windows console - ₹/Devanagari print crash avoid
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -28,7 +28,7 @@ import aiohttp
 
 WS = os.environ.get("AGENT_TESTER_WS") or "wss://leadsgenai.in/api/web-call/ws"
 
-# Advanced personas — platform pitch + discovery + objections
+# Advanced personas - platform pitch + discovery + objections
 PERSONAS: dict[str, list[str]] = {
     "ai_marketing_interested": [
         "haan ji batao",
@@ -221,7 +221,7 @@ async def main() -> int:
         for i in all_issues:
             print(" -", i)
         return 1
-    print("OK — all personas clean")
+    print("OK - all personas clean")
     return 0
 
 

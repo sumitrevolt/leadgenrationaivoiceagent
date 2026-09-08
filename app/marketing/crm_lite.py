@@ -1,16 +1,16 @@
 """
-crm_lite.py — chhota customers store + birthday/anniversary wishes (free).
+crm_lite.py - chhota customers store + birthday/anniversary wishes (free).
 ===========================================================================
 
 Per-client customers list (naam/phone/birthday/anniversary/tags) jsonl me:
-data/crm/{client_id}.jsonl — append-only, phone(10-digit) par dedupe.
+data/crm/{client_id}.jsonl - append-only, phone(10-digit) par dedupe.
 
   add_customers(client_id, rows)   -> {"added","skipped","total"}
   list_customers(client_id, tag)   -> [customer dicts] (optional tag filter)
   todays_wishes(client_id, biz)    -> aaj (IST, MM-DD) jinke birthday/
         anniversary hain unke ready Hinglish wish messages + wa.me links.
 
-Template-based (LLM optional nahi chahiye — wishes personal/chhoti hoti hain).
+Template-based (LLM optional nahi chahiye - wishes personal/chhoti hoti hain).
 Pure stdlib
 read/list/wishes kabhi raise nahi karte.
 """
@@ -153,7 +153,7 @@ _WISH_TEMPLATES = {
     ),
     "anniversary": (
         "💐 Shaadi ki salgirah mubarak ho, {name} ji! {biz} ki "
-        "taraf se aap dono ko dher saari badhai — aapka saath yun "
+        "taraf se aap dono ko dher saari badhai - aapka saath yun "
         "hi bana rahe! 🎉🙏"
     ),
 }
@@ -163,7 +163,7 @@ async def todays_wishes(client_id: Any, business_name: str = "") -> dict[str, An
     """Aaj (IST) ke birthday/anniversary customers ke ready wish messages.
 
     Returns: {"date","count","wishes":[{name,phone,occasion,message,wa_link}]}.
-    Template-based — instant, deterministic, KABHI raise nahi.
+    Template-based - instant, deterministic, KABHI raise nahi.
     """
     biz = (business_name or "").strip() or "Hamari team"
     today = _today_mmdd()
@@ -193,7 +193,7 @@ async def todays_wishes(client_id: Any, business_name: str = "") -> dict[str, An
         "count": len(wishes),
         "wishes": wishes,
         "tip": (
-            "Wish subah 9-10 baje bhejo — personal touch ke liye apne naam "
+            "Wish subah 9-10 baje bhejo - personal touch ke liye apne naam "
             "se 1 line add kar lo. Ye chhoti cheez repeat business laati hai."
         ),
     }

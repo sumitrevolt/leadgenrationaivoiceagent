@@ -1,4 +1,4 @@
-"""Daily lead-pipeline automation — rescore, hot-lead surfacing, journey seed.
+"""Daily lead-pipeline automation - rescore, hot-lead surfacing, journey seed.
 
 Rohan/Neha ke liye scheduled work: DB leads ko rescore karo, top hot leads
 dashboard events me dikhao, journey rules empty hon to seed karo (disabled).
@@ -44,7 +44,7 @@ async def run_daily() -> dict[str, Any]:
             team.log_event(
                 "rohan",
                 "hot_leads",
-                f"🔥 {hot['hot_count']} hot — top: {', '.join(tops)}",
+                f"🔥 {hot['hot_count']} hot - top: {', '.join(tops)}",
                 status="ok",
             )
     except Exception as e:
@@ -74,7 +74,7 @@ async def run_daily() -> dict[str, Any]:
 
 
 async def run_afternoon_followups() -> dict[str, Any]:
-    """Day-3/Day-7 email followups (hourly 9am-7pm IST) — naya cold batch nahi."""
+    """Day-3/Day-7 email followups (hourly 9am-7pm IST) - naya cold batch nahi."""
     try:
         from app.platform import auto_outreach, team
 

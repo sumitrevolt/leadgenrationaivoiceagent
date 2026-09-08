@@ -1,5 +1,5 @@
 """
-Swara Hinglish Adaptation Pipeline — English → Natural Indian Hinglish.
+Swara Hinglish Adaptation Pipeline - English -> Natural Indian Hinglish.
 
 Rule 5: Pipeline for converting OpenClaw English explanations into high-quality
         conversational Hinglish for Swara.
@@ -15,8 +15,8 @@ Pipeline stages:
     8. Golden-example candidate
     9. Approved shared memory
 
-Rule 3: Language mirroring — if Swara discovers better Hinglish, OpenClaw may learn it.
-Rule 12: No uncontrolled self-training — candidate must pass evaluation before production.
+Rule 3: Language mirroring - if Swara discovers better Hinglish, OpenClaw may learn it.
+Rule 12: No uncontrolled self-training - candidate must pass evaluation before production.
 
 This module provides the adaptation logic. Evaluation is in swara_eval.py.
 """
@@ -98,8 +98,8 @@ class AdaptationCandidate:
 # HINGLISH ADAPTATION RULES & PATTERNS
 # -----------------------------------------------------------------------------
 
-# Common English → Hinglish transformations for business context
-# These are patterns, not literal translations — preserve meaning, optimize natural speech.
+# Common English -> Hinglish transformations for business context
+# These are patterns, not literal translations - preserve meaning, optimize natural speech.
 
 _ENGLISH_TO_HINGLISH_PATTERNS = [
     # Greetings & openings
@@ -243,7 +243,7 @@ class HinglishAdaptationEngine:
     """
     Converts OpenClaw English into natural Indian Hinglish for Swara.
 
-    This is NOT literal translation — it's meaning-preserving adaptation
+    This is NOT literal translation - it's meaning-preserving adaptation
     optimized for conversational quality (Rule 5).
     """
 
@@ -270,7 +270,7 @@ class HinglishAdaptationEngine:
 
     def extract_meaning(self, english_text: str) -> str:
         """Stage 2: Extract core semantic meaning from English."""
-        # For now, return cleaned English — in future could use LLM for semantic extraction
+        # For now, return cleaned English - in future could use LLM for semantic extraction
         return english_text.strip()
 
     def adapt_to_hinglish(self, meaning: str, style: HinglishStyle = "professional_business") -> str:
@@ -294,7 +294,7 @@ class HinglishAdaptationEngine:
         return result
 
     def rewrite_for_persona(self, hinglish_text: str, style: HinglishStyle) -> str:
-        """Stage 4: Rewrite in Swara persona — premium, professional, warm."""
+        """Stage 4: Rewrite in Swara persona - premium, professional, warm."""
         # Swara persona rules (Rule 1):
         # - premium feminine voice
         # - Indian conversational familiarity
@@ -376,12 +376,12 @@ class HinglishAdaptationEngine:
 
 class HinglishAdaptationPipeline:
     """
-    Complete pipeline: English → Candidate → Evaluation → Golden Example.
+    Complete pipeline: English -> Candidate -> Evaluation -> Golden Example.
 
     Coordinates:
     - HinglishAdaptationEngine (stages 1-5)
-    - QualityEvaluator (stage 6) — in swara_eval.py
-    - SafetyEvaluator (stage 7) — in swara_eval.py
+    - QualityEvaluator (stage 6) - in swara_eval.py
+    - SafetyEvaluator (stage 7) - in swara_eval.py
     - GoldenUtteranceLibrary (stages 8-9)
     """
 

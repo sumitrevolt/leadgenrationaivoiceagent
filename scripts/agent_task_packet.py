@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""agent_task_packet.py — generate a BOUNDED task packet for a worker agent." "Token-saving rule: never re-explain the whole project to a sub-agent. This emits a" "small packet (objective, exact files, relevant context nodes, constraints pulled" "from the project's invariants/landmines, and an acceptance-test hint) so a cheap" "worker model can execute without re-loading the repo." "python scripts/agent_task_packet.py --objective "add schema_version to office snapshot" \" "--files app/platform/office_hq.py --query "office snapshot schema" --test tests/test_office_contract.py" """"
+"""agent_task_packet.py - generate a BOUNDED task packet for a worker agent." "Token-saving rule: never re-explain the whole project to a sub-agent. This emits a" "small packet (objective, exact files, relevant context nodes, constraints pulled" "from the project's invariants/landmines, and an acceptance-test hint) so a cheap" "worker model can execute without re-loading the repo." "python scripts/agent_task_packet.py --objective "add schema_version to office snapshot" \" "--files app/platform/office_hq.py --query "office snapshot schema" --test tests/test_office_contract.py" """"
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def build_packet(objective: str, files: list[str], query: str, test: str | None)
     ]
     out += [f"- {f}" for f in files] or ["- (discover via query below)"]
     out += ["", "## Relevant project context"]
-    out += [f"- [{n['type']}] {n['label']} «{n['source']}» — {n['summary']}" for n in ctx] or [
+    out += [f"- [{n['type']}] {n['label']} «{n['source']}» - {n['summary']}" for n in ctx] or [
         "- (none matched)"
     ]
     out += ["", "## Hard constraints (never violate)"]

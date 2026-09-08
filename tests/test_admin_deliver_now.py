@@ -1,4 +1,4 @@
-"""POST /api/admin/clients/{client_id}/deliver-now — human-clicked single-customer
+"""POST /api/admin/clients/{client_id}/deliver-now - human-clicked single-customer
 delivery bypass. Never flips AUTO_DELIVER_VALUE
 always calls
 deliver_client_value(client, force=True), the existing operator bypass."""
@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 
 def _override_admin(app):
-    """Matches the established pattern in tests/test_upi_config.py — overriding
+    """Matches the established pattern in tests/test_upi_config.py - overriding
     require_admin replaces the whole dependency, so a plain dict is enough."""
     from app.api.auth_deps import require_admin
 

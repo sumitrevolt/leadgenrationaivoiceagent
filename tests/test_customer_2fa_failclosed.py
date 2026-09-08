@@ -1,11 +1,11 @@
 """2FA fail-open hole (onboarding-audit finding, enterprise hardening).
 
-customer_login ka poora TOTP block ek try/except-pass me tha — account 2FA-ENABLED
+customer_login ka poora TOTP block ek try/except-pass me tha - account 2FA-ENABLED
 hone par bhi `create_challenge` ka koi bhi error silently FULL JWT de deta tha
 (password-only bypass of 2FA = security hole). Fix:
-- account 2FA-enabled + challenge error → fail-CLOSED (503, no bypass)
-- is_enabled STATE-check error (2FA status unknown) → documented fail-open
-  (no-2FA majority ko infra-error pe lockout nahi) — par ab LOUD log, silent nahi.
+- account 2FA-enabled + challenge error -> fail-CLOSED (503, no bypass)
+- is_enabled STATE-check error (2FA status unknown) -> documented fail-open
+  (no-2FA majority ko infra-error pe lockout nahi) - par ab LOUD log, silent nahi.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def test_2fa_enabled_challenge_error_fails_closed(user, monkeypatch):
 
 
 def test_2fa_state_error_fails_open_no_lockout(user, monkeypatch):
-    """is_enabled hi error de (2FA state unknown) → login proceeds (documented)."""
+    """is_enabled hi error de (2FA state unknown) -> login proceeds (documented)."""
 
     def _boom(cid):
         raise RuntimeError("state unreadable")

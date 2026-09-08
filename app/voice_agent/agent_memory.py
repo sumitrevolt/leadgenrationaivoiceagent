@@ -1,20 +1,20 @@
 """
-agent_memory.py — per-lead / per-client AGENT MEMORY (cross-session recall).
+agent_memory.py - per-lead / per-client AGENT MEMORY (cross-session recall).
 
-KYUN (gap): KB (kb_main) tumhare BUSINESS facts ka RAG hai — par "is LEAD ne pichhli
+KYUN (gap): KB (kb_main) tumhare BUSINESS facts ka RAG hai - par "is LEAD ne pichhli
 baar kya kaha / iska budget / kab interested tha" kahin yaad nahi rehta. RAG ≠ memory.
 Yeh module wahi bharta: har lead/client ke durable facts extract -> store -> recall,
-taaki agent continuity de (follow-up, qualification lift). Mem0-PATTERN, par native —
+taaki agent continuity de (follow-up, qualification lift). Mem0-PATTERN, par native -
 tumhare maujooda Qdrant + free LLM reuse, koi naya heavy dep nahi (image protobuf-pin
-safe). Optional asli `mem0` backend bhi (MEM0_BACKEND=mem0) — install ho to use, warna
+safe). Optional asli `mem0` backend bhi (MEM0_BACKEND=mem0) - install ho to use, warna
 native par graceful fallback.
 
 DESIGN (semantic_cache.py jaisi proven rules):
-  - FLAG-GATED: env `AGENT_MEMORY` (OFF default) — unset = ZERO behaviour/IO.
+  - FLAG-GATED: env `AGENT_MEMORY` (OFF default) - unset = ZERO behaviour/IO.
   - FAIL-OPEN: koi error/timeout = recall [] / remember skip
   request kabhi block/raise nahi.
   - OFF-LOOP + DEADLINE: embed + Qdrant `asyncio.to_thread` + `wait_for` (voice hot-path
-    pe ML kabhi event-loop block na kare — 3 prod-downs ka sabak).
+    pe ML kabhi event-loop block na kare - 3 prod-downs ka sabak).
   - SHARED METRICS: recall_hit/recall_miss/stored/error Redis me (multi-worker-correct);
     /metrics (health.py) expose karta.
   - DUCK-TYPED BACKEND: core ek backend pe
@@ -25,7 +25,7 @@ USAGE:
     block = await agent_memory.recall_block(lead_id, user_text, scope="lead")   # prompt-inject
     await agent_memory.remember(lead_id, history, scope="lead")                  # fire-and-forget
 
-Top-level imports SIRF stdlib — app.* sab lazy (module bina poore app ke import/test ho).
+Top-level imports SIRF stdlib - app.* sab lazy (module bina poore app ke import/test ho).
 """
 
 from __future__ import annotations
@@ -319,7 +319,7 @@ def _backend() -> Any:
             logger.info("[agent_memory] using mem0 library backend")
             return _BACKEND
         except Exception as e:
-            logger.warning("[agent_memory] mem0 backend init failed (%s) — native fallback", e)
+            logger.warning("[agent_memory] mem0 backend init failed (%s) - native fallback", e)
     _BACKEND = _NativeBackend()
     return _BACKEND
 
@@ -344,7 +344,7 @@ class _Mem0Backend:
         }
         self._m = Memory.from_config(cfg)
 
-    # mem0 apna extraction/embedding khud karta — yahan high-level add/search.
+    # mem0 apna extraction/embedding khud karta - yahan high-level add/search.
     def mem0_add(self, messages: list[dict[str, str]], subject: str) -> None:
         self._m.add(messages, user_id=subject)
 
@@ -429,7 +429,7 @@ async def recall(
     limit: int | None = None,
     backend: Any = None,
 ) -> list[str]:
-    """Subject ke durable facts jo `query` se relevant — fact-strings list. Fail = []."""
+    """Subject ke durable facts jo `query` se relevant - fact-strings list. Fail = []."""
     if not is_enabled():
         return []
     subject = _subject(subject_id, scope)
@@ -466,7 +466,7 @@ async def recall(
 
 
 async def recall_block(subject_id: Any, query: str, *, scope: str = "lead", **kw) -> str:
-    """Prompt-inject ke liye ek SHORT line (phone hot-path — no paragraphs). "" agar khaali."""
+    """Prompt-inject ke liye ek SHORT line (phone hot-path - no paragraphs). "" agar khaali."""
     facts = await recall(subject_id, query, scope=scope, **kw)
     if not facts:
         return ""
@@ -486,7 +486,7 @@ async def remember(
 
     GOVERNANCE (fail-CLOSED, only while MEMORY_STACK_ENABLED is on): if the
     do-not-remember authority is unreadable/unknown we refuse to persist and
-    return a typed deferral instead — the caller can still answer, it just does
+    return a typed deferral instead - the caller can still answer, it just does
     not remember. Flag OFF = byte-identical legacy behaviour.
     """
     if not is_enabled():
@@ -510,7 +510,7 @@ async def remember(
         return {"stored": 0}
     be = backend or _backend()
     try:
-        # mem0 backend khud extract karta — seedha add.
+        # mem0 backend khud extract karta - seedha add.
         if isinstance(be, _Mem0Backend):
             await _safe_thread(
                 be.mem0_add, list(messages or []), subject, timeout=_op_timeout() * 2
@@ -549,7 +549,7 @@ async def list_facts(
 ) -> list[dict[str, Any]]:
     """Operator-facing scroll: every stored fact for a subject (no vector search).
 
-    Used by /api/agent-memory/inspect for /app/automation debugging — "what
+    Used by /api/agent-memory/inspect for /app/automation debugging - "what
     does the agent actually remember about this lead?". Disabled-or-error -> [].
     """
     if not is_enabled():
@@ -605,7 +605,7 @@ async def purge_subject(
 
 
 # --- session-scoped ephemeral memory (Redis TTL, no Qdrant) -----------------
-# Working memory for one call/session — auto-expires, never writes to Qdrant.
+# Working memory for one call/session - auto-expires, never writes to Qdrant.
 # Gated by SESSION_MEMORY=1 (separate from AGENT_MEMORY cross-session durable store).
 
 
@@ -626,7 +626,7 @@ def _redis_session_key(session_id: str) -> str:
 
 async def session_remember(session_id: str, fact: str) -> bool:
     """Store ephemeral fact for this session. Auto-expires in SESSION_MEMORY_TTL seconds (default 2h).
-    Best-effort — never raises."""
+    Best-effort - never raises."""
     if not is_session_memory_enabled() or not fact or not session_id:
         return False
     fact = (fact or "").strip()[:400]

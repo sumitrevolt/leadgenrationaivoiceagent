@@ -12,7 +12,7 @@ import time
 
 from app.telephony import stream_token
 
-_SECRET = "unit-test-secret"  # nosecret — obviously-fake test-only literal
+_SECRET = "unit-test-secret"  # nosecret - obviously-fake test-only literal
 
 
 class TestInert:
@@ -24,7 +24,7 @@ class TestInert:
 
     def test_verify_returns_true_for_anything_when_secret_unset(self, monkeypatch):
         monkeypatch.delenv("VOBIZ_STREAM_SECRET", raising=False)
-        # Bare uuid, garbage, and empty all pass — current lenient behavior.
+        # Bare uuid, garbage, and empty all pass - current lenient behavior.
         assert stream_token.verify("abc123") is True
         assert stream_token.verify("not-a-real-token") is True
         assert stream_token.verify("") is True

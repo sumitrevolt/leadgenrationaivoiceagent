@@ -1,4 +1,4 @@
-"""Sales Autopilot — idempotent send service (dry-run default, no provider call)."""
+"""Sales Autopilot - idempotent send service (dry-run default, no provider call)."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def test_idempotent_duplicate(monkeypatch):
     _seed()
     r1 = asyncio.run(send_mod.send("p-send-1", channel="whatsapp", step=elig.STEP_INITIAL))
     assert r1["outcome"] == send_mod.SIMULATED
-    # Re-seed to NEW so eligibility would pass again — but idempotency must block replay.
+    # Re-seed to NEW so eligibility would pass again - but idempotency must block replay.
     store.mark_status("p-send-1", store.STATUS_NEW, steps_done=[])
     r2 = asyncio.run(send_mod.send("p-send-1", channel="whatsapp", step=elig.STEP_INITIAL))
     assert r2["outcome"] == send_mod.DUPLICATE

@@ -1,12 +1,12 @@
-"""Auth for Owner Copilot — super-admin JWT and/or OpenClaw gateway token.
+"""Auth for Owner Copilot - super-admin JWT and/or OpenClaw gateway token.
 
 Inbound model (preferred):
-  OpenClaw Gateway → LeadGen /api/owner-copilot/*
+  OpenClaw Gateway -> LeadGen /api/owner-copilot/*
   LeadGen does NOT depend on OpenClaw outbound for core runtime.
 
 Auth modes:
-  1. Human browser — canonical super-admin only (same rule as require_super_admin)
-  2. OPENCLAW_API_TOKEN bearer (machine gateway) — token + allowlisted source IP
+  1. Human browser - canonical super-admin only (same rule as require_super_admin)
+  2. OPENCLAW_API_TOKEN bearer (machine gateway) - token + allowlisted source IP
 
 Module-RBAC / normal admin grants do NOT imply Owner Copilot authority.
 Bearer token alone is insufficient from untrusted network sources.
@@ -68,8 +68,8 @@ def extract_bearer(authorization: str | None) -> str:
 def gateway_allowed_ips() -> frozenset[str]:
     """Explicit source allowlist for token-only Gateway auth.
 
-    Unset → loopback only (safe default).
-    Empty string → empty set (fail closed for machine auth).
+    Unset -> loopback only (safe default).
+    Empty string -> empty set (fail closed for machine auth).
     """
     raw = os.getenv("OPENCLAW_GATEWAY_ALLOWED_IPS")
     if raw is None:
@@ -96,7 +96,7 @@ def gateway_source_allowed(request: Request) -> bool:
 
 
 def _is_super_admin(user: User) -> bool:
-    """Reuse canonical super-admin rule (UserRole.SUPER_ADMIN) — no RBAC bypass."""
+    """Reuse canonical super-admin rule (UserRole.SUPER_ADMIN) - no RBAC bypass."""
     return getattr(user, "role", None) == UserRole.SUPER_ADMIN
 
 

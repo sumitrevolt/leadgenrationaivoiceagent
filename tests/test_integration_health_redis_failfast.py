@@ -1,7 +1,7 @@
 """P0 Redis fail-fast regression tests (2026-07-11 hardening).
 
 Before this loop, `app/platform/integration_health.py::snapshot()` acquired
-a Redis client with `socket_timeout=2` but NO `socket_connect_timeout` — so
+a Redis client with `socket_timeout=2` but NO `socket_connect_timeout` - so
 `sock.connect(socket_address)` blocked indefinitely when Redis was absent,
 hanging the entire pytest suite. Stack trace evidence:
 
@@ -45,13 +45,13 @@ def test_redis_mode_disabled_via_env(monkeypatch):
 
 
 def test_redis_mode_invalid_value_treated_as_enabled(monkeypatch):
-    """Fail safe — production must NEVER be silently disabled by a typo."""
+    """Fail safe - production must NEVER be silently disabled by a typo."""
     monkeypatch.setenv("INTEGRATION_HEALTH_REDIS_MODE", "totally-bogus")
     assert ih._redis_mode() == "enabled"
 
 
 # --------------------------------------------------------------------------- #
-# Disabled mode — zero network
+# Disabled mode - zero network
 # --------------------------------------------------------------------------- #
 
 
@@ -129,13 +129,13 @@ def test_redis_socket_timeout_degrades_safely(monkeypatch):
     assert out["redis_status"] == "unavailable"
     assert out["degraded"] is True
     # In Python 3.10+ socket.timeout is an alias for TimeoutError; either
-    # name is acceptable — both mean the same failure mode.
+    # name is acceptable - both mean the same failure mode.
     assert out["error_type"] in ("timeout", "TimeoutError")
 
 
 def test_redis_constructor_raises_degrades_safely(monkeypatch):
     """If `_redis()` itself can't be constructed (bad URL, missing module,
-    settings error), snapshot must not propagate — it degrades."""
+    settings error), snapshot must not propagate - it degrades."""
     monkeypatch.delenv("INTEGRATION_HEALTH_REDIS_MODE", raising=False)
 
     def _boom():
@@ -143,7 +143,7 @@ def test_redis_constructor_raises_degrades_safely(monkeypatch):
 
     monkeypatch.setattr(ih, "_redis", _boom)
     out = ih.snapshot(hours=2)
-    # Constructor failure lands in the outer except — reason=acquisition_failed
+    # Constructor failure lands in the outer except - reason=acquisition_failed
     assert out["redis_status"] == "unavailable"
     assert out["reason"] == "acquisition_failed"
     assert out["error_type"] == "ValueError"
@@ -154,7 +154,7 @@ def test_redis_constructor_raises_degrades_safely(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Available Redis — happy path
+# Available Redis - happy path
 # --------------------------------------------------------------------------- #
 
 

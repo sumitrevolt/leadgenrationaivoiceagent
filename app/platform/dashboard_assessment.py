@@ -1,5 +1,5 @@
 """
-Dashboard Assessment Orchestrator — ties scanner, gap_analyzer, ux_evaluator,
+Dashboard Assessment Orchestrator - ties scanner, gap_analyzer, ux_evaluator,
 prioritizer, report_generator, report_parser, and regression_detector together
 into a single cohesive pipeline.
 
@@ -42,7 +42,7 @@ from .scanner import scan_all_dashboards
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# UX evaluator — optional module; graceful stub if not present
+# UX evaluator - optional module; graceful stub if not present
 # ---------------------------------------------------------------------------
 
 
@@ -57,7 +57,7 @@ def _load_ux_evaluator():
 
         return get_all_ux_issues, calculate_ux_score
     except ImportError:
-        log.debug("ux_evaluator not found — using stub (no UX issues will be detected)")
+        log.debug("ux_evaluator not found - using stub (no UX issues will be detected)")
 
         def _stub_get_all_ux_issues(
             customer_path: pathlib.Path,
@@ -343,7 +343,7 @@ def _assessment_to_dict(assessment: AssessmentData) -> dict:
 class DashboardAssessment:
     """
     Orchestrates the full dashboard assessment pipeline:
-      scan → gap analysis → UX evaluation → prioritization → scoring → reports
+      scan -> gap analysis -> UX evaluation -> prioritization -> scoring -> reports
     """
 
     def __init__(
@@ -375,12 +375,12 @@ class DashboardAssessment:
         Run the full assessment pipeline and return an AssessmentData object.
 
         Steps:
-          1. scan_all_dashboards() — build feature inventories
-          2. get_all_gaps()        — competitive gap analysis
-          3. get_all_ux_issues()   — UX heuristics
-          4. build_backlog()       — MoSCoW prioritization
+          1. scan_all_dashboards() - build feature inventories
+          2. get_all_gaps()        - competitive gap analysis
+          3. get_all_ux_issues()   - UX heuristics
+          4. build_backlog()       - MoSCoW prioritization
           5. Calculate scores
-          6. generate_roadmap()    — sprint roadmap
+          6. generate_roadmap()    - sprint roadmap
           7. Assemble AssessmentData
         """
         assessment_id = (
@@ -404,7 +404,7 @@ class DashboardAssessment:
         log.info("Assessment %s: evaluating UX ...", assessment_id)
         ux_result = self._get_all_ux_issues(self.customer_path, self.admin_path)
         # get_all_ux_issues returns either List[UXIssue] (stub) or
-        # Dict[str, List[UXIssue]] (real ux_evaluator) — normalise to flat list
+        # Dict[str, List[UXIssue]] (real ux_evaluator) - normalise to flat list
         if isinstance(ux_result, dict):
             all_issues: list[UXIssue] = ux_result.get("customer", []) + ux_result.get("admin", [])
         else:
@@ -426,7 +426,7 @@ class DashboardAssessment:
         # Step 6: Roadmap (embedded in report generation)
         roadmap = generate_roadmap(backlog)
         log.info(
-            "Assessment %s: roadmap — %d dev-days (%d weeks)",
+            "Assessment %s: roadmap - %d dev-days (%d weeks)",
             assessment_id,
             roadmap["total_days"],
             roadmap["estimated_weeks"],
@@ -455,7 +455,7 @@ class DashboardAssessment:
         """
         Write Markdown and JSON reports to docs_dir.
 
-        Returns dict mapping logical name → absolute Path (as strings).
+        Returns dict mapping logical name -> absolute Path (as strings).
         """
         log.info("Writing reports to %s ...", self.docs_dir)
         paths = save_reports(assessment, self.docs_dir)
@@ -495,7 +495,7 @@ class DashboardAssessment:
         # Load baseline
         baseline_data = load_baseline(self.data_dir, baseline_id)
         if baseline_data is None:
-            log.warning("No baseline found for id=%s — running full assessment only", baseline_id)
+            log.warning("No baseline found for id=%s - running full assessment only", baseline_id)
             assessment = self.run_assessment()
             return {
                 "regressions": [],
@@ -504,7 +504,7 @@ class DashboardAssessment:
                 "baseline_id": None,
                 "current_id": assessment.assessment_id,
                 "comparison_date": assessment.generated_at,
-                "warning": "No baseline available; first run — use run_full() to save a baseline",
+                "warning": "No baseline available; first run - use run_full() to save a baseline",
             }
 
         # Run current assessment
@@ -546,16 +546,16 @@ class DashboardAssessment:
         Run a diff and return the appropriate CI exit code.
 
         Exit codes (from AssessmentComparator.get_exit_code):
-          0 — no regressions
-          1 — feature_completeness dropped > 5%
-          2 — WCAG critical violations count increased
-          3 — must_have items increased
+          0 - no regressions
+          1 - feature_completeness dropped > 5%
+          2 - WCAG critical violations count increased
+          3 - must_have items increased
 
-        If no baseline exists, exits 0 (first run — not a failure).
+        If no baseline exists, exits 0 (first run - not a failure).
         """
         baseline_data = load_baseline(self.data_dir, baseline_id)
         if baseline_data is None:
-            log.info("CI: no baseline found — saving current assessment as baseline (exit 0)")
+            log.info("CI: no baseline found - saving current assessment as baseline (exit 0)")
             self.run_full()
             return 0
 
@@ -584,7 +584,7 @@ class DashboardAssessment:
             f.unlink(missing_ok=True)
 
         log.info(
-            "CI complete — exit_code=%d  regressions=%d  improvements=%d",
+            "CI complete - exit_code=%d  regressions=%d  improvements=%d",
             exit_code,
             len(regression_report.regressions),
             len(regression_report.improvements),
@@ -716,10 +716,10 @@ if __name__ == "__main__":
     elif args.mode == "ci":
         exit_code = assessor.run_ci(args.baseline)
         _messages = {
-            0: "CI PASS — no regressions",
-            1: "CI FAIL — feature completeness dropped > 5%",
-            2: "CI FAIL — WCAG critical violations increased",
-            3: "CI FAIL — must_have backlog items increased",
+            0: "CI PASS - no regressions",
+            1: "CI FAIL - feature completeness dropped > 5%",
+            2: "CI FAIL - WCAG critical violations increased",
+            3: "CI FAIL - must_have backlog items increased",
         }
         print(_messages.get(exit_code, f"CI exit {exit_code}"))
         sys.exit(exit_code)

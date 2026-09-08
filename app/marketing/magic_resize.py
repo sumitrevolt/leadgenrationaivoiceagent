@@ -1,18 +1,18 @@
 """
-magic_resize.py — ek creative → saare social sizes (Canva "Magic Resize" lite).
+magic_resize.py - ek creative -> saare social sizes (Canva "Magic Resize" lite).
 ================================================================================
 
-Ek poster/photo do → square (IG), story (IG/FB), banner (FB/link preview),
-wa_status — sab ek shot me. Raster input PIL se smart-letterbox hota hai
-(brand primary color background — brand_kit se)
+Ek poster/photo do -> square (IG), story (IG/FB), banner (FB/link preview),
+wa_status - sab ek shot me. Raster input PIL se smart-letterbox hota hai
+(brand primary color background - brand_kit se)
 SVG input ko letterboxed
 SVG wrapper milta hai (no rasterizer dep).
 
   resize_pack(image_path=None, svg=None, sizes=None, slug="")
-      -> {"ok", "files": {size: path}}   (raster → data/resized/*.png)
+      -> {"ok", "files": {size: path}}   (raster -> data/resized/*.png)
       -> {"ok", "svgs": {size: svg}}     (svg input)
 
-Lazy PIL import, kabhi raise nahi — error pe {"ok": False, "error": ...}.
+Lazy PIL import, kabhi raise nahi - error pe {"ok": False, "error": ...}.
 """
 
 from __future__ import annotations
@@ -69,8 +69,8 @@ def resize_pack(
 ) -> dict[str, Any]:
     """Ek creative ko saare maange gaye social sizes me convert karo.
 
-    image_path = raster file (png/jpg/webp) → PNG files data/resized/ me.
-    svg        = SVG string → per-size letterboxed SVG wrapper strings.
+    image_path = raster file (png/jpg/webp) -> PNG files data/resized/ me.
+    svg        = SVG string -> per-size letterboxed SVG wrapper strings.
     sizes      = list ya comma-string (default sab 4). Kabhi raise nahi.
     """
     try:
@@ -79,7 +79,7 @@ def resize_pack(
             return _resize_svg(str(svg), wanted, slug)
         path = str(image_path or "").strip()
         if not path:
-            return {"ok": False, "error": "image_path ya svg do — dono khali hain."}
+            return {"ok": False, "error": "image_path ya svg do - dono khali hain."}
         if not os.path.isfile(path):
             return {"ok": False, "error": f"file nahi mili: {os.path.basename(path)[:80]}"}
         return _resize_raster(path, wanted, slug)
@@ -89,7 +89,7 @@ def resize_pack(
 
 
 def _resize_raster(path: str, wanted: list[str], slug: str) -> dict[str, Any]:
-    from PIL import Image  # lazy — heavy dep
+    from PIL import Image  # lazy - heavy dep
 
     bg = _bg_color(slug)
     src = Image.open(path).convert("RGB")

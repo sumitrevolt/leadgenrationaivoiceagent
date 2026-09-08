@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Final integration gate — wiring + prod readiness + tests + live smoke."""
+"""Final integration gate - wiring + prod readiness + tests + live smoke."""
 
 from __future__ import annotations
 

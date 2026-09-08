@@ -1,7 +1,7 @@
-"""Zoho CRM integration — Indian SMB ka #1 CRM (native sync, FREE tier friendly).
+"""Zoho CRM integration - Indian SMB ka #1 CRM (native sync, FREE tier friendly).
 
 OAuth2 refresh-token flow, **India DC default** (accounts.zoho.in / zohoapis.in).
-hubspot.py ke ZohoCRMIntegration placeholder ka REAL implementation (alag module —
+hubspot.py ke ZohoCRMIntegration placeholder ka REAL implementation (alag module -
 placeholder untouched, ye use karo).
 
 GATED: creds bina = inert (enabled False, sab methods None/False). NEVER raises.
@@ -9,8 +9,8 @@ Creds: per-client override (client record `crm` dict) YA global settings/env
 (`ZOHO_CLIENT_ID`/`ZOHO_CLIENT_SECRET`/`ZOHO_REFRESH_TOKEN`, optional `ZOHO_DC=in|com|eu`).
 
 Setup (client ke liye, one-time ~5 min):
-  1. api-console.zoho.in → Self Client → client_id+secret
-  2. Generate Code (scope: ZohoCRM.modules.ALL) → exchange for refresh_token
+  1. api-console.zoho.in -> Self Client -> client_id+secret
+  2. Generate Code (scope: ZohoCRM.modules.ALL) -> exchange for refresh_token
   3. POST /api/growth/crm/config se save karo
 
 Use:
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 20.0
 
-# DC → (accounts host, api host). India-first.
+# DC -> (accounts host, api host). India-first.
 _DCS = {
     "in": ("https://accounts.zoho.in", "https://www.zohoapis.in"),
     "com": ("https://accounts.zoho.com", "https://www.zohoapis.com"),
@@ -37,7 +37,7 @@ _DCS = {
 
 
 class ZohoCRM:
-    """Zoho CRM v2 client — upsert Lead + note + call log. Defensive everywhere."""
+    """Zoho CRM v2 client - upsert Lead + note + call log. Defensive everywhere."""
 
     def __init__(
         self,
@@ -67,7 +67,7 @@ class ZohoCRM:
         return bool(self.client_id and self.client_secret and self.refresh_token)
 
     async def _token(self) -> str:
-        """Access token (cached ~50 min). '' on failure — caller graceful."""
+        """Access token (cached ~50 min). '' on failure - caller graceful."""
         if not self.enabled:
             return ""
         if self._access_token and time.time() < self._token_expiry:
@@ -124,7 +124,7 @@ class ZohoCRM:
         )
         contact = str(lead.get("contact_name") or lead.get("contact") or "").strip()
         record: dict[str, Any] = {
-            # Zoho Leads me Last_Name REQUIRED — contact nahi to business name.
+            # Zoho Leads me Last_Name REQUIRED - contact nahi to business name.
             "Last_Name": (contact.split()[-1] if contact else business)[:80] or "Lead",
             "Company": business[:100],
             "Phone": str(lead.get("phone") or "")[:30],

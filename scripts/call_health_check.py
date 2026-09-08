@@ -8,7 +8,7 @@ flags the failure mode that made the agent "go silent after 2-3 turns":
   * DEAD-AIR calls   : the caller spoke (user_turns >= 1) but the agent recorded
                        ZERO assistant replies after the greeting -> it went deaf.
   * think_timeout    : turns where the THINK watchdog had to fire (a stuck LLM
-                       stream / STT) — should be ~0 once the fix is healthy.
+                       stream / STT) - should be ~0 once the fix is healthy.
   * turn distribution: how many user turns calls actually reach.
 
 Run locally (Windows):   .venv\Scripts\python.exe scripts\call_health_check.py
@@ -16,7 +16,7 @@ Run on the VPS:          docker exec leadgen_app python scripts/call_health_chec
 Optional: pass a day     python scripts/call_health_check.py 2026-06-22
           or N days back  python scripts/call_health_check.py --days 3
 
-Exit code is 1 if any dead-air call is found today — handy for a cron/ntfy gate.
+Exit code is 1 if any dead-air call is found today - handy for a cron/ntfy gate.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def main(argv: list[str]) -> int:
             if d == days[0]:
                 found_dead_air_today = True
         else:
-            print("  OK — no dead-air calls")
+            print("  OK - no dead-air calls")
 
     return 1 if found_dead_air_today else 0
 

@@ -1,23 +1,23 @@
 """
-Consent + Opt-out Ledger (TCCCPR/TRAI + DPDP Act 2023) — single source of truth.
+Consent + Opt-out Ledger (TCCCPR/TRAI + DPDP Act 2023) - single source of truth.
 ================================================================================
 
 Kya karta hai (free-stack, jsonl, never-raise):
-  * CONSENT ledger    — timestamped consent records (source/scope/proof/client_id),
+  * CONSENT ledger    - timestamped consent records (source/scope/proof/client_id),
                         append-only `data/consent_ledger.jsonl` (DPDP audit trail +
                         "access right" ke liye `ledger_for(phone)`).
-  * OPT-OUT           — `record_opt_out()` → instant suppression (`data/voice_suppression.jsonl`)
-                        + cross-channel propagate (WA suppression list bhi) — TCCCPR ka
+  * OPT-OUT           - `record_opt_out()` -> instant suppression (`data/voice_suppression.jsonl`)
+                        + cross-channel propagate (WA suppression list bhi) - TCCCPR ka
                         4-ghante propagation requirement INSTANT me beat hota hai.
-  * SUPPRESSION check — `is_suppressed(phone)` (last-10-digit match). ComplianceGate
+  * SUPPRESSION check - `is_suppressed(phone)` (last-10-digit match). ComplianceGate
                         promotional calls ke liye ise enforce karta hai (wired).
-  * RETENTION sweep   — `retention_sweep()` — `data/recordings/` me
+  * RETENTION sweep   - `retention_sweep()` - `data/recordings/` me
                         RECORDING_RETENTION_DAYS (default 90) se purani files report;
                         DELETE sirf `RECORDING_RETENTION=1` flag pe (default = dry-run
                         report only, zero behaviour change).
 
 Design: import-safe, koi function kabhi raise nahi karta. Stores chhote jsonl
-(in-memory read per check — call volume low, fine). Empty store = zero change.
+(in-memory read per check - call volume low, fine). Empty store = zero change.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Postgres-backed path (CONSENT_DB=1) — concurrent-safe for multi-worker Celery
+# Postgres-backed path (CONSENT_DB=1) - concurrent-safe for multi-worker Celery
 # --------------------------------------------------------------------------- #
 _CONSENT_DB = os.environ.get("CONSENT_DB", "").strip() in ("1", "true", "yes")
 
@@ -74,7 +74,7 @@ def _ensure_db_tables() -> bool:
     if _DB_READY:
         return True
     try:
-        import psycopg2  # sync driver — init only
+        import psycopg2  # sync driver - init only
         import no async overhead
 
         from app.config import settings
@@ -177,7 +177,7 @@ def _db_remove_suppression(phone_key: str) -> bool:
 
 # Stores (tests monkeypatch these module attrs)
 def ledger_path() -> Path:
-    """Consent ledger — resolved per call, never captured at import.
+    """Consent ledger - resolved per call, never captured at import.
 
     DPDP audit trail. A module-level constant froze this path when the module
     was first imported, which is what makes a store impossible to move and
@@ -193,7 +193,7 @@ def ledger_path() -> Path:
 
 
 def suppression_path() -> Path:
-    """Voice suppression list — a SEPARATE store from the consent ledger.
+    """Voice suppression list - a SEPARATE store from the consent ledger.
 
     They share this module, not an identity: an opt-out must be able to move,
     be verified and be rolled back independently of the audit trail that
@@ -213,7 +213,7 @@ def _suppression_path_or_none() -> Path | None:
 
     Before the runtime-data migration this could not fail: the path was a module
     constant, so the only errors were I/O errors on a file that legitimately may
-    not exist yet. `resolve_store_path` introduces a genuinely new failure mode —
+    not exist yet. `resolve_store_path` introduces a genuinely new failure mode -
     a misconfigured runtime root, an unsafe segment, a path escaping the root, or
     (after cutover) an override pointing somewhere other than the canonical
     target all raise `RuntimeDataError`.
@@ -221,13 +221,13 @@ def _suppression_path_or_none() -> Path | None:
     Callers must therefore distinguish "this number is not on the list" from
     "there is no list I am allowed to trust", because the blanket
     `except Exception: return False` that was safe around a constant would turn
-    the second case into the first — answering "not suppressed" for a number
+    the second case into the first - answering "not suppressed" for a number
     that may well be. That is TCCCPR fail-OPEN, and this module's own comments
     call it illegal.
     """
     try:
         return suppression_path()
-    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
+    except Exception as exc:  # noqa: BLE001 - any resolution failure is the same verdict
         logger.error("compliance.voice_suppression authority UNRESOLVABLE: %s", exc)
         return None
 
@@ -244,7 +244,7 @@ def __getattr__(name: str) -> Path:
 
     It logs at ERROR as well as warning. `pyproject.toml` sets
     `filterwarnings = ["ignore::DeprecationWarning", ...]`, so under the test
-    suite the warning alone is swallowed — a tripwire nobody can hear is not a
+    suite the warning alone is swallowed - a tripwire nobody can hear is not a
     tripwire, and this store decides whether a person may be contacted.
     """
     import warnings
@@ -269,7 +269,7 @@ def __getattr__(name: str) -> Path:
 
 
 def recordings_dir() -> Path:
-    """Retention-governed telephony recordings — resolved per call, never frozen at import.
+    """Retention-governed telephony recordings - resolved per call, never frozen at import.
 
     Same store as ``voice_launch._recordings_dir`` (telephony.call_recordings /
     RECORDINGS_DIR). Import-time Path constants cannot follow a cutover.
@@ -282,7 +282,7 @@ def recordings_dir() -> Path:
 DEFAULT_RETENTION_DAYS = 90  # TRAI/QoS guidance: call recordings 90 din, fir delete
 
 # Re-consent cool-off (TRAI/TCCCPR): once a subscriber opts out, a fresh
-# consent / opt-back-in must NOT be honoured for a floor period — this guards
+# consent / opt-back-in must NOT be honoured for a floor period - this guards
 # against a number being scrubbed and immediately re-added (which would defeat
 # the opt-out). 90 days mirrors the recording-retention floor. Override window
 # via env RECONSENT_COOLOFF_DAYS; admin can still force a re-consent with proof.
@@ -417,7 +417,7 @@ def ledger_for(phone: str, limit: int = 100) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
-# Opt-out → suppression (instant, cross-channel)
+# Opt-out -> suppression (instant, cross-channel)
 # --------------------------------------------------------------------------- #
 def record_opt_out(
     phone: str, reason: str = "user_request", channel: str = "voice", call_id: str = ""
@@ -437,7 +437,7 @@ def record_opt_out(
     }
     try:
         _append(ledger_path(), rec)
-    except Exception as exc:  # noqa: BLE001 — the audit write must not abort the opt-out
+    except Exception as exc:  # noqa: BLE001 - the audit write must not abort the opt-out
         logger.error(f"opt-out LEDGER write failed for ***{k[-4:]}: {exc}")
 
     # Guard, then resolve at each call site. Binding the path to a local and
@@ -454,7 +454,7 @@ def record_opt_out(
     if _suppression_path_or_none() is None:
         # Cannot even name the store: do not claim a suppression that has no
         # home. Same fail-CLOSED contract as a failed write, below.
-        logger.error(f"opt-out suppression UNRESOLVABLE for ***{k[-4:]} — NOT suppressed")
+        logger.error(f"opt-out suppression UNRESOLVABLE for ***{k[-4:]} - NOT suppressed")
         suppressed = False
     elif not is_suppressed(k):
         # Dual-write: DB (concurrent-safe) + JSONL (audit trail)
@@ -466,8 +466,8 @@ def record_opt_out(
         ok = db_ok or jsonl_ok  # either path sufficient
         if not ok:
             # Fail-CLOSED: agar suppression persist NAHI hua to "suppressed"
-            # claim mat karo — TCCCPR fail-open = illegal.
-            logger.error(f"opt-out suppression WRITE FAILED for ***{k[-4:]} — NOT suppressed")
+            # claim mat karo - TCCCPR fail-open = illegal.
+            logger.error(f"opt-out suppression WRITE FAILED for ***{k[-4:]} - NOT suppressed")
             suppressed = False
     # Cross-channel propagate (TCCCPR: revocation sab commercial comms pe lagti hai).
     try:
@@ -476,11 +476,11 @@ def record_opt_out(
         wa_campaign_runner.suppress(k, reason=f"{channel}_opt_out")
     except Exception:
         pass
-    # F.4 bridge — DPDP "right to be forgotten": purge any stored agent memory
+    # F.4 bridge - DPDP "right to be forgotten": purge any stored agent memory
     # for this phone too. Fire-and-forget; never blocks the opt-out write. The
     # voice agent stores cross-session lead facts in Qdrant (agent_memory.py);
     # without this hook, opting out of CALLS would still leave personal
-    # utterances in memory — a DPDP s.12 violation.
+    # utterances in memory - a DPDP s.12 violation.
     try:
         import asyncio as _asyncio
 
@@ -490,7 +490,7 @@ def record_opt_out(
             _loop = _asyncio.get_running_loop()
             _loop.create_task(_agm.purge_subject(k, scope="lead"))
         except RuntimeError:
-            # No running loop (sync/CLI path) — schedule synchronously via run().
+            # No running loop (sync/CLI path) - schedule synchronously via run().
             # Wrapped so a missing dep / disabled flag still never breaks opt-out.
             try:
                 _asyncio.run(_agm.purge_subject(k, scope="lead"))
@@ -509,7 +509,7 @@ def is_suppressed(phone: str) -> bool:
 
     Returns True when the suppression authority cannot be RESOLVED. "I cannot
     reach the opt-out list" must never be answered as "this person did not opt
-    out" — the caller is about to decide whether to contact somebody, and the
+    out" - the caller is about to decide whether to contact somebody, and the
     only safe answer without the list is "do not". A missing or empty file is
     different and still reads as not-suppressed: that is an answer, not an
     outage.
@@ -604,7 +604,7 @@ def blocked_until(phone: str, cooloff_days: int | None = None) -> str | None:
 
 def reconsent_blocked(phone: str, cooloff_days: int | None = None) -> bool:
     """True agar number ne haal hi me (cool-off window ke andar) opt-out kiya hai
-    — re-consent abhi honour NAHI hona chahiye (TRAI 90-din floor). Never raises."""
+    - re-consent abhi honour NAHI hona chahiye (TRAI 90-din floor). Never raises."""
     try:
         days = _cooloff_days() if cooloff_days is None else max(0, int(cooloff_days))
         if days <= 0:
@@ -628,19 +628,19 @@ def opt_back_in(
 
     TRAI 90-din re-consent cool-off: agar number ne cool-off window ke andar
     opt-out kiya hai to re-consent REJECT hota hai (number callable nahi banta)
-    unless ``force=True`` (admin override, audit-logged). Additive — purane
+    unless ``force=True`` (admin override, audit-logged). Additive - purane
     callers (force default False) ke liye ab cool-off enforce hota hai, jo gate
     ko STRENGTHEN karta hai (number ko turant re-add karke opt-out defeat nahi
     kar sakte)."""
     k = _key(phone)
     if not k:
         return {"error": "bad_phone"}
-    # 90-din floor — recent opt-out ko turant reverse mat hone do.
+    # 90-din floor - recent opt-out ko turant reverse mat hone do.
     if not force and reconsent_blocked(k, cooloff_days=cooloff_days):
         until = blocked_until(k, cooloff_days=cooloff_days)
         elapsed = days_since_opt_out(k)
         logger.warning(
-            f"🚫 re-consent BLOCKED ***{k[-4:]} — within cool-off "
+            f"🚫 re-consent BLOCKED ***{k[-4:]} - within cool-off "
             f"({elapsed:.1f}d since opt-out, blocked_until={until}). "
             f"Use force=True to override."
         )
@@ -653,13 +653,13 @@ def opt_back_in(
             "cooloff_days": _cooloff_days() if cooloff_days is None else cooloff_days,
             "error": "reconsent_cooloff",
         }
-    # Guard first — see record_opt_out for why the resolver is still called at
+    # Guard first - see record_opt_out for why the resolver is still called at
     # each site rather than bound to a local.
     if _suppression_path_or_none() is None:
         # Refuse. Removing somebody from a suppression list is the one direction
         # that makes a number contactable again; doing it while unable to name
         # the list is how an opt-out silently stops being honoured.
-        logger.error(f"re-consent REFUSED ***{k[-4:]} — suppression authority unresolvable")
+        logger.error(f"re-consent REFUSED ***{k[-4:]} - suppression authority unresolvable")
         return {
             "phone": k,
             "suppressed": True,
@@ -673,7 +673,7 @@ def opt_back_in(
         _write_all(suppression_path(), keep)
     rec = record_consent(k, scope="all", source=source, proof=proof)
     if force and reconsent_blocked(k, cooloff_days=cooloff_days):
-        # Override is a compliance event — leave an audit breadcrumb in the ledger.
+        # Override is a compliance event - leave an audit breadcrumb in the ledger.
         try:
             _append(
                 ledger_path(),

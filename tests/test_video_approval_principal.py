@@ -1,4 +1,4 @@
-"""Stage 3B — trusted approval principals.
+"""Stage 3B - trusted approval principals.
 
 The saga used to take a caller-supplied ``actor_subject`` string. The identity
 map showed three of four surfaces passing the literal ``"admin"``, including a
@@ -116,7 +116,7 @@ def test_ordinary_admin_refuses_without_the_on_behalf_capability():
     """CORRECTED (audit). A stable User.id is necessary, not sufficient.
 
     The earlier cut assigned the target record's tenant to any platform admin,
-    which authorizes nothing — every admin could approve every tenant's video.
+    which authorizes nothing - every admin could approve every tenant's video.
     Approving another tenant's content is a distinct capability.
     """
     with pytest.raises(P.PrincipalRefused) as exc:
@@ -153,7 +153,7 @@ def test_explicit_grant_can_only_narrow_never_widen():
     granted = _User(role="admin")
     granted.preferences = {P.CAP_APPROVE_ON_BEHALF: True}
     with pytest.raises(P.PrincipalRefused):
-        # role gate first — a grant cannot promote an ordinary admin
+        # role gate first - a grant cannot promote an ordinary admin
         P.from_admin_user(granted, tenant_id="acme")
 
 
@@ -458,7 +458,7 @@ def test_admin_approve_route_is_actually_executable(preview_client, monkeypatch)
 
     This test exists because the first cut of that route raised HTTPException
     without importing it. Ruff, prod_check and the whole video suite stayed
-    green — nothing CALLED the route, and an import-time gate cannot see a name
+    green - nothing CALLED the route, and an import-time gate cannot see a name
     that is only resolved on request. Every refusal branch is exercised here.
     """
     from app.api.auth_deps import require_admin

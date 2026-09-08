@@ -1,4 +1,4 @@
-"""Tests for Kokoro TTS fallback — inert-safety + tts.py facade failover.
+"""Tests for Kokoro TTS fallback - inert-safety + tts.py facade failover.
 
 No network, no real kokoro dep: we exercise the inert path and monkeypatch the
 fallback into the TextToSpeech facade.
@@ -56,7 +56,7 @@ def test_tts_facade_reraises_when_kokoro_unavailable(monkeypatch):
     monkeypatch.setattr(tts._provider, "synthesize", _boom, raising=False)
     monkeypatch.setattr(kokoro_tts, "available", lambda: False, raising=False)
 
-    # No fallback available → original failure propagates (caller handles).
+    # No fallback available -> original failure propagates (caller handles).
     try:
         asyncio.run(tts.synthesize("namaste"))
         assert False, "expected RuntimeError"

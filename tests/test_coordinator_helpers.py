@@ -1,8 +1,8 @@
-"""W3.3 — coordinator (Boss planner, 1043 lines) core pure-logic coverage.
+"""W3.3 - coordinator (Boss planner, 1043 lines) core pure-logic coverage.
 
 The coordinator had zero tests. Its two deterministic building blocks feed the whole
 planning flow: `_guess_niche` (route a goal to a configured niche) and `_extract_list`
-(salvage a JSON list from noisy LLM output). Both are pure — cover them so a regression
+(salvage a JSON list from noisy LLM output). Both are pure - cover them so a regression
 in routing or plan-parsing is caught.
 """
 
@@ -18,7 +18,7 @@ def test_guess_niche_matches_key_name_and_falls_back(monkeypatch):
     )
     assert co._guess_niche("mujhe apne gym ke liye leads chahiye") == "gym"  # key hit
     assert co._guess_niche("Salon marketing help chahiye") == "salon"  # name hit
-    assert co._guess_niche("kuch bhi random baat") == "general"  # no match → fallback
+    assert co._guess_niche("kuch bhi random baat") == "general"  # no match -> fallback
 
 
 def test_extract_list_salvages_json_list():
@@ -37,7 +37,7 @@ def test_build_handoff_meta_bounded_and_redacted():
     )
     assert meta["from_agent"] == "dev"
     assert meta["seq"] == 2
-    # PII redacted in handoff preview (Item B — no raw phone across handoff)
+    # PII redacted in handoff preview (Item B - no raw phone across handoff)
     assert "9876543210" not in meta["context_preview"]
     assert "[REDACTED_PHONE]" in meta["context_preview"]
     assert len(meta["context_preview"]) <= 600
@@ -49,7 +49,7 @@ def test_build_handoff_meta_fails_open():
 
     import app.voice_agent.guardrails as grd
 
-    monkeypatch = None  # avoid import in signature — use direct call below
+    monkeypatch = None  # avoid import in signature - use direct call below
     # Simulate failure by patching the imported module fn.
     orig = grd.get_guardrails
 

@@ -1,4 +1,4 @@
-"""ADR-104 Qdrant scoped duplicate cleanup — 2026-07-15.
+"""ADR-104 Qdrant scoped duplicate cleanup - 2026-07-15.
 
 Executes ONLY the exact 8-point deletion approved against
 docs/QDRANT_DUPLICATE_CLEANUP_DRYRUN_2026-07-15.md. Revalidates the live

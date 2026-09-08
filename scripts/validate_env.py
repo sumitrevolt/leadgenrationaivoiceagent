@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Deploy-safety env validator — revenue-path readiness ek nazar me, BEFORE recreate.
+"""Deploy-safety env validator - revenue-path readiness ek nazar me, BEFORE recreate.
 
 Kyun: `config.validate_production_settings` sirf secret_key/jwt/debug check karta (fatal).
 Operational revenue config (UPI armed? SMTP set? DB set?) deploy pe silently degrade ho
-sakta — server boot ho jaata, par `/api/billing` ya signup pehli baar use pe break.
+sakta - server boot ho jaata, par `/api/billing` ya signup pehli baar use pe break.
 Yeh script woh gap dikhata: prod me HARD-missing secret = exit 1 (block deploy)
 revenue/
-ops config missing = WARN (visible, par block nahi). Request-path me kuch NAHI — pure CLI,
+ops config missing = WARN (visible, par block nahi). Request-path me kuch NAHI - pure CLI,
 zero runtime risk.
 
 Usage:
   python scripts/validate_env.py            # report (exit 1 only on fatal prod secret gap)
-  python scripts/validate_env.py --strict   # WARN bhi failure (exit 1) — strict deploy gate
+  python scripts/validate_env.py --strict   # WARN bhi failure (exit 1) - strict deploy gate
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ def main() -> int:
     strict = "--strict" in sys.argv
     try:
         from app.config import settings
-    except Exception as e:  # config itself raised (e.g. prod secret check) — fatal
+    except Exception as e:  # config itself raised (e.g. prod secret check) - fatal
         print(f"[validate_env] FATAL: config load failed: {e}")
         return 1
 
@@ -85,10 +85,10 @@ def main() -> int:
         print(f"  FATAL ({len(fatal)}): {', '.join(fatal)}")
 
     if fatal:
-        print("[validate_env] FAIL — fatal config gap (prod secret). Deploy BLOCK.")
+        print("[validate_env] FAIL - fatal config gap (prod secret). Deploy BLOCK.")
         return 1
     if warn and strict:
-        print("[validate_env] FAIL (--strict) — revenue/ops config WARN treated as gate.")
+        print("[validate_env] FAIL (--strict) - revenue/ops config WARN treated as gate.")
         return 1
     print("[validate_env] PASS" + (" (with warnings)" if warn else ""))
     return 0

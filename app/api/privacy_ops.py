@@ -1,26 +1,26 @@
-"""Privacy Ops API — DPDP Act 2023 rights endpoints (/privacy promise -> real).
+"""Privacy Ops API - DPDP Act 2023 rights endpoints (/privacy promise -> real).
 
-- POST /api/privacy/request            (PUBLIC, rate-limited 5/60s) — data-principal
+- POST /api/privacy/request            (PUBLIC, rate-limited 5/60s) - data-principal
                                         access/erasure/correction request intake.
-- GET  /api/privacy/requests           (admin) — pending/processed requests.
-- POST /api/privacy/requests/{id}/done (admin) — mark processed.
-- POST /api/privacy/find               (admin) — kaunse stores me subject ka data hai.
-- POST /api/privacy/export             (admin) — Right to Access full JSON export.
-- POST /api/privacy/erase              (admin) — Right to Erasure. dry_run=True
+- GET  /api/privacy/requests           (admin) - pending/processed requests.
+- POST /api/privacy/requests/{id}/done (admin) - mark processed.
+- POST /api/privacy/find               (admin) - kaunse stores me subject ka data hai.
+- POST /api/privacy/export             (admin) - Right to Access full JSON export.
+- POST /api/privacy/erase              (admin) - Right to Erasure. dry_run=True
                                         DEFAULT
                                         real erase ke liye dry_run=false
                                         + confirm=true DONO chahiye (destructive).
 
 DSAR bundle (data_privacy.py wrapper):
-- POST /api/privacy/dsar/export        (admin) — export_subject_data (flat records).
-- POST /api/privacy/dsar/delete        (admin) — delete_subject_data
+- POST /api/privacy/dsar/export        (admin) - export_subject_data (flat records).
+- POST /api/privacy/dsar/delete        (admin) - delete_subject_data
 gate DATA_ERASURE=1.
-- POST /api/privacy/retention/run      (admin) — enforce_retention sweep
+- POST /api/privacy/retention/run      (admin) - enforce_retention sweep
 gate DATA_RETENTION=1.
-- POST /api/privacy/anonymize          (admin) — anonymize_pii on arbitrary data.
+- POST /api/privacy/anonymize          (admin) - anonymize_pii on arbitrary data.
 
 Engine: app/platform/dpdp.py + app/platform/data_privacy.py.
-KABHI scheduler-wired nahi — erasure sirf explicit admin call.
+KABHI scheduler-wired nahi - erasure sirf explicit admin call.
 Mount (main.py): `app.include_router(privacy_ops_router, prefix="/api")`
 (creative.py pattern).
 """
@@ -59,7 +59,7 @@ class EraseIn(SubjectIn):
 # ------------------------- PUBLIC: request intake --------------------------- #
 @router.post("/request", dependencies=[Depends(rate_limit("dpdp_req", 5, 60))])
 async def submit_privacy_request(body: RequestIn):
-    """DPDP request intake (public) — /privacy page se linked. Never raises."""
+    """DPDP request intake (public) - /privacy page se linked. Never raises."""
     from app.platform import dpdp
 
     res = dpdp.record_request(body.phone, body.email, body.type, body.note or "")
@@ -68,7 +68,7 @@ async def submit_privacy_request(body: RequestIn):
     return {
         **res,
         "message": (
-            "Aapki request mil gayi hai — 30 din ke andar process hogi. "
+            "Aapki request mil gayi hai - 30 din ke andar process hogi. "
             "Koi dikkat ho to Grievance Officer ko escalate kar sakte ho "
             "(details /privacy page par)."
         ),
@@ -97,7 +97,7 @@ async def request_done(request_id: str, _user=Depends(require_admin)):
 # --------------------------- ADMIN: find / export --------------------------- #
 @router.post("/find")
 async def find(body: SubjectIn, _user=Depends(require_admin)):
-    """Discovery — {store: count} + masked preview + DB Lead count (best-effort)."""
+    """Discovery - {store: count} + masked preview + DB Lead count (best-effort)."""
     from app.platform import dpdp
 
     actor = getattr(_user, "email", None) or "admin"
@@ -106,7 +106,7 @@ async def find(body: SubjectIn, _user=Depends(require_admin)):
 
 @router.post("/export")
 async def export(body: SubjectIn, _user=Depends(require_admin)):
-    """Right to Access — subject ka FULL data ek JSON me (admin-only, audited)."""
+    """Right to Access - subject ka FULL data ek JSON me (admin-only, audited)."""
     from app.platform import dpdp
 
     actor = getattr(_user, "email", None) or "admin"
@@ -117,7 +117,7 @@ async def export(body: SubjectIn, _user=Depends(require_admin)):
 @router.post("/erase")
 async def erase(body: EraseIn, _user=Depends(require_admin)):
     """Right to Erasure. dry_run=true (default) = sirf report. REAL erase =
-    dry_run=false + confirm=true dono (double-gate — destructive operation).
+    dry_run=false + confirm=true dono (double-gate - destructive operation).
     Har touched file ki .bak_dpdp_<ts> copy + atomic rewrite
     DB Lead anonymize."""
     from app.platform import dpdp
@@ -127,7 +127,7 @@ async def erase(body: EraseIn, _user=Depends(require_admin)):
             "ok": False,
             "error": (
                 "Real erase ke liye confirm=true bhi bhejo (dry_run=false akela "
-                "kaafi nahi — destructive operation hai). Pehle dry_run se dekho."
+                "kaafi nahi - destructive operation hai). Pehle dry_run se dekho."
             ),
         }
     actor = getattr(_user, "email", None) or "admin"
@@ -135,7 +135,7 @@ async def erase(body: EraseIn, _user=Depends(require_admin)):
 
 
 # ---------------------------------------------------------------------------
-# DSAR bundle — data_privacy.py wrapper endpoints
+# DSAR bundle - data_privacy.py wrapper endpoints
 # ---------------------------------------------------------------------------
 
 
@@ -153,12 +153,12 @@ class RetentionRunIn(BaseModel):
 
 
 class AnonymizeIn(BaseModel):
-    data: Any  # str or dict — PII will be masked
+    data: Any  # str or dict - PII will be masked
 
 
 @router.post("/dsar/export")
 async def dsar_export(body: DsarExportIn, _user=Depends(require_admin)):
-    """DSAR Right-to-Access — flat record list across all stores + DB (best-effort).
+    """DSAR Right-to-Access - flat record list across all stores + DB (best-effort).
     Wrapper over data_privacy.export_subject_data."""
     from app.platform import data_privacy
 
@@ -190,7 +190,7 @@ async def retention_run(body: RetentionRunIn, _user=Depends(require_admin)):
 @router.post("/anonymize")
 async def anonymize(body: AnonymizeIn, _user=Depends(require_admin)):
     """Arbitrary str ya dict me se PII mask karo (phone/email/name keys + embedded
-    phone-runs). Preview / testing ke liye — poora data wapas karta hai, sirf masked."""
+    phone-runs). Preview / testing ke liye - poora data wapas karta hai, sirf masked."""
     from app.platform import data_privacy
 
     result = data_privacy.anonymize_pii(body.data)

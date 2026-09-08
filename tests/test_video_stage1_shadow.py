@@ -1,4 +1,4 @@
-"""Stage 1 video shadow harness — posture, matrix, isolation, rollback."""
+"""Stage 1 video shadow harness - posture, matrix, isolation, rollback."""
 
 from __future__ import annotations
 

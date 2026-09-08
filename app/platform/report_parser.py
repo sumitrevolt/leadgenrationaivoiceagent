@@ -1,6 +1,6 @@
 """
-Report Parser — parses DASHBOARD_ASSESSMENT_REPORT.md back into structured data.
-Supports round-trip: parse → format_summary → parse preserves scores dict.
+Report Parser - parses DASHBOARD_ASSESSMENT_REPORT.md back into structured data.
+Supports round-trip: parse -> format_summary -> parse preserves scores dict.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class AssessmentReportParser:
     def parse(self, report_path: str) -> dict:
         """
         Parse report into dict with keys:
-            scores    – Dict[str, float]   (metric → value)
+            scores    – Dict[str, float]   (metric -> value)
             features  – List[Dict]          (per-dashboard feature rows)
             gaps      – List[Dict]          (recommendation items)
             issues    – List[Dict]          (UX heuristic issues)
@@ -173,7 +173,7 @@ class AssessmentReportParser:
                     metric_key = (
                         f"{dashboard_key}_{col.lower().replace(' ', '_').replace('/', '_')}"
                     )
-                    # Extract numeric part (e.g. "6/8 (75%)" → 75.0, "58.5 KB" → 58.5, "4" → 4.0)
+                    # Extract numeric part (e.g. "6/8 (75%)" -> 75.0, "58.5 KB" -> 58.5, "4" -> 4.0)
                     pct_m = re.search(r"\((\d+(?:\.\d+)?)%\)", val)
                     if pct_m:
                         scores[metric_key] = float(pct_m.group(1))
@@ -280,9 +280,9 @@ class AssessmentReportParser:
             return []
 
         gaps: list[dict] = []
-        # Match numbered items: "1. **Title** — description"
+        # Match numbered items: "1. **Title** - description"
         for m in re.finditer(
-            r"(\d+)\.\s+\*\*([^\*]+)\*\*\s*(?:—|-|:)?\s*(.*?)(?=\n\d+\.|$)", rec_content, re.DOTALL
+            r"(\d+)\.\s+\*\*([^\*]+)\*\*\s*(?:-|-|:)?\s*(.*?)(?=\n\d+\.|$)", rec_content, re.DOTALL
         ):
             rank = int(m.group(1))
             title = m.group(2).strip()
@@ -313,8 +313,8 @@ class AssessmentReportPrinter:
         Format parsed data (as returned by AssessmentReportParser.parse) back
         into a Markdown report string.
 
-        Round-trip guarantee: parse → format_summary → parse preserves the
-        scores dict (numeric values survive the text serialisation → re-parse).
+        Round-trip guarantee: parse -> format_summary -> parse preserves the
+        scores dict (numeric values survive the text serialisation -> re-parse).
         """
         lines: list[str] = []
         lines.append("# Dashboard Assessment Report (Lean)")
@@ -385,7 +385,7 @@ class AssessmentReportPrinter:
                 title = gap.get("title", "")
                 detail = gap.get("detail", "")
                 if detail:
-                    lines.append(f"{rank}. **{title}** — {detail}")
+                    lines.append(f"{rank}. **{title}** - {detail}")
                 else:
                     lines.append(f"{rank}. **{title}**")
             lines.append("")

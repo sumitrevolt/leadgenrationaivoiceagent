@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""master_desktop_orchestrator.py — Enterprise Master Orchestrator for Antigravity Brain.
+"""master_desktop_orchestrator.py - Enterprise Master Orchestrator for Antigravity Brain.
 
 Unified orchestration, diagnostics, auto-fix, and GUI lifecycle management for:
 1. Claude Desktop App

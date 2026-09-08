@@ -1,7 +1,7 @@
-"""Per-niche COMPLETE marketing pack — content_focus driven (free-stack).
+"""Per-niche COMPLETE marketing pack - content_focus driven (free-stack).
 
 Har niche ke `content_focus` themes (e.g. "festival posters", "property posts",
-"reels") use karke posts banao — `post_generator.generate_post` reuse karke —
+"reels") use karke posts banao - `post_generator.generate_post` reuse karke -
 + niche hashtags (`hashtags.research` reuse) + ek offer/CTA line (niche ke
 `pricing_inr`/`pitch_hook`/`avg_ticket_inr` se derive). Ek call me poora
 ready-to-post pack. Platform self-marketing AUR client content templates ke liye.
@@ -33,12 +33,12 @@ def _derive_offer(cfg: dict[str, Any]) -> str:
     hook = str(cfg.get("pitch_hook") or "").strip()
     if hook:
         return hook[:160]
-    return "Aaj hi shuru karo — pehle hafte me naye leads."
+    return "Aaj hi shuru karo - pehle hafte me naye leads."
 
 
 def _cta(cfg: dict[str, Any]) -> str:
     tgt = str(cfg.get("end_customer") or cfg.get("target_type") or "customers")
-    return f"DM 'START' — {tgt} tak pahunchna shuru karein."
+    return f"DM 'START' - {tgt} tak pahunchna shuru karein."
 
 
 async def build_pack(
@@ -62,7 +62,7 @@ async def build_pack(
         themes = focuses[: max(1, min(int(count), 6))]
 
         async def _one(theme: str) -> dict[str, Any]:
-            # 2026-07-19: per-post 10s timeout — ek slow free-LLM call poora pack ko
+            # 2026-07-19: per-post 10s timeout - ek slow free-LLM call poora pack ko
             # 45s+ hang na kare (generate_post ka apna template-fallback bhi hai).
             p = await asyncio.wait_for(
                 generate_post(biz, niche_key, occasion=theme, offer=offer), timeout=10
@@ -75,7 +75,7 @@ async def build_pack(
                 "provider": p.get("provider") or "",
             }
 
-        # 2026-07-19: SEQUENTIAL (concurrency 1) — free-tier LLM concurrent calls
+        # 2026-07-19: SEQUENTIAL (concurrency 1) - free-tier LLM concurrent calls
         # 429-backoff dete (single call ~1.2s fast, 4-concurrent 40s+). count=2
         # default + sequential + per-post timeout = reliably <20s, kabhi hang nahi.
         for theme in themes:
@@ -117,7 +117,7 @@ async def build_pack(
 
 
 async def build_all(tier: str | None = None, limit: int = 6) -> dict[str, Any]:
-    """Multiple niches ke packs (LLM-heavy → default limit 6). Tier filter optional."""
+    """Multiple niches ke packs (LLM-heavy -> default limit 6). Tier filter optional."""
     try:
         from app.niches import NICHES
     except Exception:

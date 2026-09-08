@@ -1,18 +1,18 @@
 """
-sticker_pack.py — WhatsApp sticker pack (6 PNG, 512x512 transparent) per client.
+sticker_pack.py - WhatsApp sticker pack (6 PNG, 512x512 transparent) per client.
 =================================================================================
 
-Chhote business WhatsApp pe hi chalte hain — apne brand-color Hinglish stickers
+Chhote business WhatsApp pe hi chalte hain - apne brand-color Hinglish stickers
 ("Shukriya!", "Offer Hai!", ...) = roz free branding har chat me. PIL text-art
 (system fonts
-emoji glyph dependency NAHI — shapes se accent), transparent
+emoji glyph dependency NAHI - shapes se accent), transparent
 512x512 = WhatsApp sticker spec.
 
   generate_stickers(slug="", business_name="", niche="") ->
       {"ok", "dir", "files": [6 paths], "count": 6}
 
 Files: data/stickers/<slug>/sticker_<n>.png. Lazy PIL import. Kabhi raise
-nahi — error pe {"ok": False, "error": ...}.
+nahi - error pe {"ok": False, "error": ...}.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ logger = setup_logger(__name__)
 _STICKERS_DIR = os.path.join("data", "stickers")
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
-# (badi line, chhoti line) — pure latin text (PIL system fonts emoji nahi
+# (badi line, chhoti line) - pure latin text (PIL system fonts emoji nahi
 # khinch paate; accent shapes code se bante hain).
 _STICKER_TEXTS: list[tuple[str, str]] = [
     ("Shukriya!", "Aapka bharosa anmol hai"),
@@ -162,7 +162,7 @@ def generate_stickers(slug: str = "", business_name: str = "", niche: str = "") 
             "count": len(files),
             "business_name": name,
             "note": "WhatsApp pe 'Sticker Maker' jaisi app me yeh 6 PNG import karke "
-            "pack banao — har chat me free branding.",
+            "pack banao - har chat me free branding.",
         }
     except Exception as e:
         logger.warning(f"[sticker_pack] generate_stickers failed: {e}")
@@ -170,7 +170,7 @@ def generate_stickers(slug: str = "", business_name: str = "", niche: str = "") 
 
 
 def safe_sticker_path(slug: str, name: str) -> str | None:
-    """Regex-locked file path (serve endpoint ke liye) — traversal-safe."""
+    """Regex-locked file path (serve endpoint ke liye) - traversal-safe."""
     try:
         tag = re.sub(r"[^a-z0-9-]", "", str(slug or "").lower())[:48]
         if not tag or not re.match(r"^sticker_[1-9]\d?\.png$", str(name or "")):

@@ -126,7 +126,7 @@ class TestTryPublishFailOpen:
 
 
 class TestTeamChannelResolution:
-    """_agent_team_channel resolves agent → channel from manifest."""
+    """_agent_team_channel resolves agent -> channel from manifest."""
 
     def test_known_agent_returns_channel(self, monkeypatch):
         from app.platform.staff_bus import task_bridge

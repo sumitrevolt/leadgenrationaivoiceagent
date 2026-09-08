@@ -1,9 +1,9 @@
-"""ContentPlus API — content/outreach plus batch (agent E).
+"""ContentPlus API - content/outreach plus batch (agent E).
 
   POST /api/contentplus/service-cycle        (admin)  repeat-service cycle add
   GET  /api/contentplus/service-due          (admin)  due reminders (?days_ahead=3)
-  POST /api/contentplus/service-run          (admin)  due → WA reminder DRAFTS (1-click, no auto-send)
-  POST /api/contentplus/clips                (admin)  long video → short clips (BACKGROUND job
+  POST /api/contentplus/service-run          (admin)  due -> WA reminder DRAFTS (1-click, no auto-send)
+  POST /api/contentplus/clips                (admin)  long video -> short clips (BACKGROUND job
   multipart: file|path)
   GET  /api/contentplus/clips/{job_id}       (admin)  clip job status + files
   GET  /api/contentplus/clip-file/{job}/{name}   (public, rate-limited, regex-locked) mp4 serve
@@ -11,7 +11,7 @@
   GET  /api/contentplus/gif-file/{slug}/{name}   (public, rate-limited, regex-locked) gif serve
   POST /api/contentplus/avatar-video         (admin)  AI avatar video post (Pollinations video_url REUSE)
   GET  /api/contentplus/outreach-variants    (admin)  cold-email A/B stats (Laplace winner)
-  POST /api/contentplus/outreach-variants/reply  (admin)  variant pe reply mila — record
+  POST /api/contentplus/outreach-variants/reply  (admin)  variant pe reply mila - record
 
 Mount (main.py):
     from app.api.contentplus import router as contentplus_router
@@ -109,13 +109,13 @@ async def service_due(
 
 @router.post("/service-run")
 async def service_run(days_ahead: int = Query(3, ge=0, le=60), _user=Depends(require_admin)):
-    """Due cycles → Hinglish WA reminder DRAFTS (1-click wa.me; auto-send KABHI nahi)."""
+    """Due cycles -> Hinglish WA reminder DRAFTS (1-click wa.me; auto-send KABHI nahi)."""
     from app.platform import service_reminders
 
     return await asyncio.to_thread(service_reminders.run_due, days_ahead)
 
 
-# ----------------- F4: long video → short clips (HEAVY, bg job) -------------- #
+# ----------------- F4: long video -> short clips (HEAVY, bg job) -------------- #
 @router.post("/clips")
 async def start_clips(
     file: UploadFile | None = File(None),
@@ -125,8 +125,8 @@ async def start_clips(
     vertical: bool = Form(True),
     _user=Depends(require_admin),
 ):
-    """Lambi video → N short 9:16 clips. BACKGROUND daemon thread (kabhi inline
-    nahi) — turant job_id milta hai, status GET /clips/{job_id}."""
+    """Lambi video -> N short 9:16 clips. BACKGROUND daemon thread (kabhi inline
+    nahi) - turant job_id milta hai, status GET /clips/{job_id}."""
     from app.marketing import video_clips
 
     avail = video_clips.available()
@@ -185,7 +185,7 @@ async def clips_status(job_id: str, _user=Depends(require_admin)):
 
 @router.get("/clip-file/{job}/{name}", dependencies=[Depends(rate_limit("clipf", 60, 60))])
 async def clip_file(job: str, name: str):
-    """Bani clip serve (regex-locked — path traversal impossible)."""
+    """Bani clip serve (regex-locked - path traversal impossible)."""
     if not _SAFE_SEG_RE.match(job or "") or not _CLIP_NAME_RE.match(name or ""):
         raise HTTPException(status_code=404, detail="not found")
     path = os.path.join("data", "clips", job, name)
@@ -203,7 +203,7 @@ class GifIn(BaseModel):
 
 @router.post("/gif")
 async def make_gif(body: GifIn, _user=Depends(require_admin)):
-    """Brand-color animated text GIF (PIL) — to_thread + timeout (loop-safe)."""
+    """Brand-color animated text GIF (PIL) - to_thread + timeout (loop-safe)."""
     from app.marketing import gif_maker
 
     try:
@@ -243,7 +243,7 @@ class AvatarVideoIn(BaseModel):
 
 @router.post("/avatar-video")
 async def avatar_video(body: AvatarVideoIn, _user=Depends(require_admin)):
-    """AI avatar/spokesperson video post — script + video URL + caption+tags
+    """AI avatar/spokesperson video post - script + video URL + caption+tags
     (Pollinations video_url + post_generator REUSE). Key absent = graceful."""
     from app.marketing import avatar_video as av
 
@@ -270,7 +270,7 @@ class VariantReplyIn(BaseModel):
 
 @router.post("/outreach-variants/reply")
 async def outreach_variant_reply(body: VariantReplyIn, _user=Depends(require_admin)):
-    """Kisi variant pe reply aaya — record karo (winner stats sharpen)."""
+    """Kisi variant pe reply aaya - record karo (winner stats sharpen)."""
     from app.marketing import outreach_variants
 
     outreach_variants.record_reply(body.variant_id)

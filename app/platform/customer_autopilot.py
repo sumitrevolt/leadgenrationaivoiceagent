@@ -1,8 +1,8 @@
-"""Customer Autopilot — per-client hands-free automations (draft/store-only).
+"""Customer Autopilot - per-client hands-free automations (draft/store-only).
 
 4 background jobs jo har paid client ke business ke liye KHUD chalti hain. Sab:
   * env-flag gated, DEFAULT-OFF (deploy pe inert = zero regression)
-  * draft/store-only — koi bulk auto-send NAHI (ban-safe)
+  * draft/store-only - koi bulk auto-send NAHI (ban-safe)
   * per-client loop, idempotent (date-key dedupe), KABHI raise nahi karti
   * free-stack (existing engines reuse: evergreen / nps / speed_to_lead / clients_store)
 
@@ -37,7 +37,7 @@ def _now_iso() -> str:
 
 
 def _existing_keys(path: str, today: str) -> set[str]:
-    """Aaj ke already-written dedupe-keys (idempotency — ek din ek hi draft)."""
+    """Aaj ke already-written dedupe-keys (idempotency - ek din ek hi draft)."""
     keys: set[str] = set()
     try:
         if not os.path.exists(path):
@@ -106,7 +106,7 @@ async def evergreen_recycle_all(max_clients: int = 25) -> dict[str, Any]:
 # ── 2) NPS / CSAT auto survey-drafts ──────────────────────────────────────────
 def nps_survey_drafts(limit: int = 50) -> dict[str, Any]:
     """Har active client ke liye NPS-survey WhatsApp draft (ban-safe, no auto-send).
-    Drafts data/autopilot_nps.jsonl me store — date+slug dedupe (ek din ek baar)."""
+    Drafts data/autopilot_nps.jsonl me store - date+slug dedupe (ek din ek baar)."""
     if not _flag_on("NPS_AUTO"):
         return {"ok": True, "skipped": "flag_off"}
     path = os.path.join(_DATA_DIR, "autopilot_nps.jsonl")
@@ -155,7 +155,7 @@ def stale_inquiry_nudges(max_clients: int = 25, stale_hours: int = 24) -> dict[s
     try:
         from app.platform import speed_to_lead
 
-        # best-effort age parser (module helper) — fail pe age-filter skip kar do.
+        # best-effort age parser (module helper) - fail pe age-filter skip kar do.
         _to_epoch = getattr(speed_to_lead, "_to_epoch", None)
         now_ep = datetime.now(timezone.utc).timestamp()
         cutoff = stale_hours * 3600
@@ -173,7 +173,7 @@ def stale_inquiry_nudges(max_clients: int = 25, stale_hours: int = 24) -> dict[s
                 phone = str(r.get("phone") or "").strip()
                 if not phone:
                     continue
-                # age gate (best-effort) — naye inquiries ko nudge mat karo
+                # age gate (best-effort) - naye inquiries ko nudge mat karo
                 if _to_epoch is not None:
                     try:
                         ep = _to_epoch(r.get("inquiry_at"))
@@ -185,7 +185,7 @@ def stale_inquiry_nudges(max_clients: int = 25, stale_hours: int = 24) -> dict[s
                 if key in seen:
                     continue
                 msg = (
-                    f"Namaste! 🙏 {biz} se — aapne kuch din pehle inquiry ki thi, abhi tak "
+                    f"Namaste! 🙏 {biz} se - aapne kuch din pehle inquiry ki thi, abhi tak "
                     f"baat nahi ho paayi. Kya hum aaj aapki madad kar sakte hain? Reply kijiye, "
                     f"hum turant respond karenge."
                 )
@@ -217,7 +217,7 @@ def owner_brief_daily(max_clients: int = 50) -> dict[str, Any]:
     """Har client ke liye roz-subah ek chhota 'aaj ka brief' auto-prepare karo
     (untouched-inquiries count + ek next-step line). data/autopilot_brief.jsonl,
     date+client dedupe (ek din ek brief). Studio owner-brief tool ka auto/scheduled
-    version — customer ko bina click ke ready milta."""
+    version - customer ko bina click ke ready milta."""
     if not _flag_on("OWNER_BRIEF_DAILY"):
         return {"ok": True, "skipped": "flag_off"}
     path = os.path.join(_DATA_DIR, "autopilot_brief.jsonl")
@@ -241,10 +241,10 @@ def owner_brief_daily(max_clients: int = 50) -> dict[str, Any]:
                 rows = []
             untouched = sum(1 for r in (rows or []) if r.get("first_touch_seconds") is None)
             if untouched:
-                line = f"{untouched} naye inquiry abhi tak untouched — pehle inko reply karein."
+                line = f"{untouched} naye inquiry abhi tak untouched - pehle inko reply karein."
             else:
                 line = "Sab inquiries handled. Aaj ek naya offer-post share karke reach badhayein."
-            brief = f"☀️ {biz} — Aaj ka brief: {line}"
+            brief = f"☀️ {biz} - Aaj ka brief: {line}"
             if _append(
                 path,
                 {
@@ -289,7 +289,7 @@ async def run_all() -> dict[str, Any]:
 
 # ── Customer-facing read (GAP-1 fix 2026-07-06) ───────────────────────────────
 # The hands-free drafts above used to die in data/autopilot_*.jsonl with NO
-# require_customer route reading them — so the advertised "hands-free" layer was
+# require_customer route reading them - so the advertised "hands-free" layer was
 # invisible to the buyer. This is the read the customer dashboard surfaces.
 _KIND_LABELS = {
     "owner_brief": "☀️ Aaj ka owner brief",
@@ -308,7 +308,7 @@ def drafts_for_client(
     client_id: str, slug: str = "", days: int = 14, limit: int = 50
 ) -> list[dict[str, Any]]:
     """All hands-free autopilot drafts (owner-brief / feedback survey / stale-inquiry
-    nudge / evergreen) prepared for ONE client, newest first — the customer-facing
+    nudge / evergreen) prepared for ONE client, newest first - the customer-facing
     read of "what your AI team got ready". Matches on client_id OR slug (the nps
     store keys by slug, not client_id). Draft-only
     never auto-sends. Never raises."""
@@ -353,7 +353,7 @@ def drafts_for_client(
                                 "created_at": rec.get("created_at") or "",
                             }
                         )
-            except Exception:  # pragma: no cover — one bad file must not sink the rest
+            except Exception:  # pragma: no cover - one bad file must not sink the rest
                 continue
     except Exception:  # pragma: no cover
         return []

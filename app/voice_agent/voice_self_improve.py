@@ -1,19 +1,19 @@
 """
 Per-call self-improvement GATE (P3c, 2026-06-28)
 ================================================
-Close-the-loop "learn from every call's mistakes" — SAFELY.
+Close-the-loop "learn from every call's mistakes" - SAFELY.
 
 Flow (per saved test-call):
-  1. classify_failures()  — deterministic failure tags (dodge / dead-air / repeat /
+  1. classify_failures()  - deterministic failure tags (dodge / dead-air / repeat /
      too-long / unanswered-question) from the transcript + voice_turn_score flags.
-  2. propose_from_session() — for a FAILING call, generate a BETTER candidate reply
+  2. propose_from_session() - for a FAILING call, generate a BETTER candidate reply
      (free LLM, bounded) for the worst turn and store a structured PROPOSAL to
      data/voice_proposals.jsonl. **Proposals are NEVER auto-applied to production.**
-  3. promotion_gate() — the "only promote if quality improves" check: the candidate
+  3. promotion_gate() - the "only promote if quality improves" check: the candidate
      reply must out-score the actual (failed) reply on voice_turn_score AND obey the
      telecaller rules (≤2 sentences, non-empty, no [placeholder] leak). Deterministic.
   4. Admin reviews + promotes (web_call_admin endpoints). Promotion only flips status;
-     applying a fact to the niche KB is a separate, explicit admin action — prompts/
+     applying a fact to the niche KB is a separate, explicit admin action - prompts/
      scripts are never blind-written (matches code_upgrader's "never auto-apply core").
 
 Flag VOICE_SELF_IMPROVE (default ON = propose+store
@@ -158,7 +158,7 @@ async def _candidate_reply(niche: str, user_q: str, bad_reply: str) -> str:
         )
         raw, _prov = await asyncio.wait_for(
             free_ai.chat(
-                "Voice telecaller coach — output only the corrected spoken reply.",
+                "Voice telecaller coach - output only the corrected spoken reply.",
                 [{"role": "user", "content": prompt}],
                 max_tokens=120,
                 temperature=0.3,
@@ -248,7 +248,7 @@ def promotion_gate(proposal: dict[str, Any]) -> dict[str, Any]:
         )
     except Exception as e:
         return {"pass": False, "reason": f"score_error:{str(e)[:40]}"}
-    # candidate must answer the question (overlap with a non-question statement) — proxy:
+    # candidate must answer the question (overlap with a non-question statement) - proxy:
     # it should NOT itself be only-a-question, and should be >= actual.
     only_question = candidate.endswith("?") and len(candidate.split()) <= 8
     ok = (cand_score >= actual_score + _PROMOTE_MARGIN) and not only_question
@@ -285,7 +285,7 @@ def list_proposals(limit: int = 50, status: str | None = None) -> list[dict[str,
 
 
 def set_proposal_status(proposal_id: str, status: str) -> bool:
-    """Flip a proposal's status (proposed→promoted/rejected). Rewrites the jsonl.
+    """Flip a proposal's status (proposed->promoted/rejected). Rewrites the jsonl.
     Promotion is GATED by promotion_gate at the API layer. Never raises."""
     if not _ID_RE.match(proposal_id or "") or status not in ("promoted", "rejected", "proposed"):
         return False

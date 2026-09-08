@@ -1,4 +1,4 @@
-"""Tests — lead harvester: gating, blocked-domains policy, validate/dedupe/persist,
+"""Tests - lead harvester: gating, blocked-domains policy, validate/dedupe/persist,
 source inertness bina keys, never-raise. Hermetic (no network/DB).
 """
 

@@ -1,8 +1,8 @@
 """OpenClaw safety lanes, allowlist, and fail-closed gates.
 
-GREEN  — autonomous after super-admin / gateway auth (read-only / diagnostics)
-AMBER  — requires Owner OS approval before mutation (Stage B + durable idempotency)
-RED    — prohibited via OpenClaw
+GREEN  - autonomous after super-admin / gateway auth (read-only / diagnostics)
+AMBER  - requires Owner OS approval before mutation (Stage B + durable idempotency)
+RED    - prohibited via OpenClaw
 owner must use existing admin workflows
 """
 
@@ -39,7 +39,7 @@ AMBER_COMMANDS: frozenset[str] = frozenset(
     }
 )
 
-# Explicit RED catalogue — always refused even if allowlist misconfigured.
+# Explicit RED catalogue - always refused even if allowlist misconfigured.
 RED_COMMANDS: frozenset[str] = frozenset(
     {
         "calling.enable",
@@ -106,7 +106,7 @@ def _truthy(name: str, default: str = "0") -> bool:
 
 
 def openclaw_enabled() -> bool:
-    """Master kill-switch. Default OFF — fail closed."""
+    """Master kill-switch. Default OFF - fail closed."""
     return _truthy("OPENCLAW_ENABLED", "0")
 
 
@@ -130,7 +130,7 @@ def is_production_env() -> bool:
     """True if any authoritative env marker is production.
 
     CI often sets ENVIRONMENT=development with APP_ENV=test. Stage A tests may
-    set APP_ENV=production via monkeypatch — that must win even if ENVIRONMENT
+    set APP_ENV=production via monkeypatch - that must win even if ENVIRONMENT
     remains development. Never treat unknown/empty as production unless
     explicitly set.
     """
@@ -159,7 +159,7 @@ def _raw_allowlist_parts() -> set[str]:
 
 
 def allowed_commands() -> frozenset[str]:
-    """Env allowlist. Empty/unset → Stage A GREEN defaults.
+    """Env allowlist. Empty/unset -> Stage A GREEN defaults.
 
     Production Stage A: strict subset of GREEN_COMMANDS. AMBER entries are stripped
     when durable idempotency is unavailable (high-severity warning). RED never admitted.
@@ -205,7 +205,7 @@ def safety_lane_for(command: str) -> str:
 def command_permitted(command: str) -> tuple[bool, str]:
     """Return (ok, reason). Fail-closed when flag off or not allowlisted."""
     if not openclaw_enabled():
-        return False, "OPENCLAW_ENABLED=0 — OpenClaw edge layer disabled"
+        return False, "OPENCLAW_ENABLED=0 - OpenClaw edge layer disabled"
     c = (command or "").strip()
     if not c:
         return False, "empty command"
@@ -224,7 +224,7 @@ def command_permitted(command: str) -> tuple[bool, str]:
             )
         return False, f"command not in OPENCLAW_ALLOWED_COMMANDS: {c}"
     if lane == "AMBER" and not require_approval_for_amber():
-        # Still require Owner OS approval path in adapter — this flag only softens UX.
+        # Still require Owner OS approval path in adapter - this flag only softens UX.
         pass
     return True, "ok"
 
@@ -288,5 +288,5 @@ def policy_snapshot() -> dict[str, Any]:
             "In-process cache is GREEN-read optimization / local tests only. "
             "AMBER production requires durable Redis idempotency (Stage B)."
         ),
-        "note": "OpenClaw is an edge Copilot — Owner OS remains sole action authority",
+        "note": "OpenClaw is an edge Copilot - Owner OS remains sole action authority",
     }

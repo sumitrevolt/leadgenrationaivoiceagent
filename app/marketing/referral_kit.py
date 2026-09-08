@@ -1,8 +1,8 @@
 """
-referral_kit.py — "Refer & Earn" word-of-mouth kit (100% free stack).
+referral_kit.py - "Refer & Earn" word-of-mouth kit (100% free stack).
 ======================================================================
 
-Chhote local business ke liye referral loop ka poora kit — bina kisi paid
+Chhote local business ke liye referral loop ka poora kit - bina kisi paid
 referral-SaaS ke (ReferralCandy/Tremendous skip):
 
   make_referral(business_name, reward, referrer_name) -> dict
@@ -10,12 +10,12 @@ referral-SaaS ke (ReferralCandy/Tremendous skip):
     - shareable Hinglish WhatsApp message ("Maine X try kiya, aap bhi karo …")
     - referral LINK   (https://leadsgenai.in/b/<slug>?ref=<code>)
     - referral CARD SVG (1080x1080, "Refer & Earn", code BIG, reward, scan-QR
-      via review_kit.qr_svg of the link) — print/share-ready.
+      via review_kit.qr_svg of the link) - print/share-ready.
   record_referral(code, referred_contact)  -> dict   (append referrals.jsonl)
   referral_stats(code=None)                 -> dict   (counts
   per-code ya total)
 
-PURE LOGIC — koi LLM/network nahi. Generator functions KABHI raise nahi karte;
+PURE LOGIC - koi LLM/network nahi. Generator functions KABHI raise nahi karte;
 inputs XML-escaped (SVG injection-safe). QR review_kit se reuse hota hai.
 File-const `_REFERRALS_FILE` test-monkeypatch ke liye exposed.
 """
@@ -34,7 +34,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# QR encoder review_kit se reuse — import-safe (na mile to QR slot khali rahega).
+# QR encoder review_kit se reuse - import-safe (na mile to QR slot khali rahega).
 try:
     from app.marketing.review_kit import qr_svg  # type: ignore
 except Exception:  # pragma: no cover - review_kit khud pure-stdlib hai
@@ -127,7 +127,7 @@ _CARD_SVG = (
     "</svg>"
 )
 
-# Default brand-ish gradient (violet) — invalid/khali brand color = default.
+# Default brand-ish gradient (violet) - invalid/khali brand color = default.
 _DEFAULT_C1 = "#7c3aed"
 _DEFAULT_C2 = "#4f46e5"
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -155,7 +155,7 @@ def make_referral(
     `slug` = client record ka REAL mini-site slug (e.g. "jiya-makeover-d79d").
     Diya ho to referral link isi se banta hai (/b/<slug>)
     warna business naam
-    se derive hota hai (backward-compat — standalone/agency use). REAL slug pass
+    se derive hota hai (backward-compat - standalone/agency use). REAL slug pass
     karna zaroori hai warna link 404 deta (derived slug != stored slug).
 
     Returns: {"code","reward","referrer_name","business_name","link","slug",
@@ -173,10 +173,10 @@ def make_referral(
     who = f"Maine {name}" if referrer == "" else f"Main ({referrer}) ne {name}"
     wa_message = (
         f"Namaste! \U0001f44b {who} try kiya aur mujhe kaafi achha laga. "
-        f"Aap bhi try karein — mere referral code *{code}* se aapko *{reward_s}* milega! "
-        f"\U0001f381\n\nYahan dekho → {link}"
+        f"Aap bhi try karein - mere referral code *{code}* se aapko *{reward_s}* milega! "
+        f"\U0001f381\n\nYahan dekho -> {link}"
     )
-    sms_line = f"{name}: code {code} use karo, {reward_s} pao — {link}"
+    sms_line = f"{name}: code {code} use karo, {reward_s} pao - {link}"
 
     # QR card (review_kit qr_svg of the referral link), gradient brand colors.
     qr = ""

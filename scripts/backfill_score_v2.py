@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Prospect Score V2 — safe, bounded, idempotent backfill (2026-07-31).
+"""Prospect Score V2 - safe, bounded, idempotent backfill (2026-07-31).
 
 Writes Score V2 results to a SIDECAR audit store (`data/prospect_scores_v2.jsonl`,
-keyed by prospect id) — NEVER mutates prospects.jsonl (source preserved →
+keyed by prospect id) - NEVER mutates prospects.jsonl (source preserved ->
 rollback = restore sidecar backup / re-run with older version). Original scores
 and versions are preserved. No contact, no send, read-only on source.
 
@@ -155,7 +155,7 @@ def backfill(*, dry_run: bool, batch_size: int, limit: int | None, only_ready: b
         "note": (
             "source prospects.jsonl UNTOUCHED (sidecar audit store only)"
             if not dry_run
-            else "dry-run — kuch bhi write nahi hua"
+            else "dry-run - kuch bhi write nahi hua"
         ),
     }
 
@@ -169,7 +169,7 @@ def rollback(backup_ts: str) -> dict:
         "ok": True,
         "restored_from": str(src),
         "sidecar": str(_SIDECAR),
-        "note": "source prospects.jsonl abhi bhi untouched — rollback sidecar store only",
+        "note": "source prospects.jsonl abhi bhi untouched - rollback sidecar store only",
     }
 
 
@@ -203,7 +203,7 @@ def main() -> None:
         res["backup"] = f"prospect_scores_v2.bak-{backup_ts}.jsonl"
     print(json.dumps(res, indent=2, default=str))
     if not args.dry_run:
-        print(f"\nBACKFILL DONE {res['finished']} — source UNTOUCHED, sidecar updated.")
+        print(f"\nBACKFILL DONE {res['finished']} - source UNTOUCHED, sidecar updated.")
 
 
 if __name__ == "__main__":

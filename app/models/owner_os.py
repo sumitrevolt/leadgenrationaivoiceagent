@@ -1,4 +1,4 @@
-"""Owner OS durable tables — commands, kill switches, audit (ADR Owner OS v1)."""
+"""Owner OS durable tables - commands, kill switches, audit (ADR Owner OS v1)."""
 
 from datetime import datetime
 from uuid import uuid4

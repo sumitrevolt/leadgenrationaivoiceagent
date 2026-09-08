@@ -122,7 +122,7 @@ def main() -> int:
                             pass
                     db.add(row)
                 inserted += 1
-            except Exception as e:  # noqa: BLE001 — best-effort backfill
+            except Exception as e:  # noqa: BLE001 - best-effort backfill
                 print(f"  skip {call_id}: {e}")
                 skipped += 1
 

@@ -1,10 +1,10 @@
-"""Client-KB → personalized content glue.
+"""Client-KB -> personalized content glue.
 
-AUTO_ONBOARD client website ko KB me seed karta hai (namespace client:<id>) —
+AUTO_ONBOARD client website ko KB me seed karta hai (namespace client:<id>) -
 yeh module wahi facts retrieve karke caption me inject karta. Generic niche-post
 se quality jump, sirf glue (KB/post_generator REBUILD nahi).
 
-Defensive: KB empty / LLM fail → post_generator fallback. NEVER raises.
+Defensive: KB empty / LLM fail -> post_generator fallback. NEVER raises.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ async def personalized_post(
     occasion: str = "",
     offer: str = "",
 ) -> dict[str, Any]:
-    """Client ke REAL facts (KB) ke saath post — fallback = normal generate_post."""
+    """Client ke REAL facts (KB) ke saath post - fallback = normal generate_post."""
     from app.marketing import clients_store, post_generator
 
     client = clients_store.get_client(client_id) or {}

@@ -1,16 +1,16 @@
-"""Browser tools — headless render/extract for deeper lead enrichment (Hermes parity).
+"""Browser tools - headless render/extract for deeper lead enrichment (Hermes parity).
 
-Playwright OPTIONAL dependency. Flag `BROWSER_TOOLS=1` default OFF (INERT) — bina
+Playwright OPTIONAL dependency. Flag `BROWSER_TOOLS=1` default OFF (INERT) - bina
 flag ke fetch_rendered/extract seedha {"ok":False,"error":"disabled"} return karte.
-Flag ON par bhi agar playwright installed nahi → graceful
+Flag ON par bhi agar playwright installed nahi -> graceful
 {"ok":False,"error":"playwright_not_installed"} (kabhi raise nahi).
 
 USE-CASE: JS-rendered business pages se enrichment (title/visible text) jab plain
 HTTP fetch khaali aata. Reviews/phone/owner-name jaisa public-page data hi target.
 
-ToS / LEGAL NOTE: sirf enrichment ke liye — robots.txt + site ToS RESPECT karo.
+ToS / LEGAL NOTE: sirf enrichment ke liye - robots.txt + site ToS RESPECT karo.
 ToS-blocked directories (justdial/indiamart/linkedin/fb/insta) yahan se KABHI scrape
-mat karo (manual CSV import hi unka path — CLAUDE.md policy). No bulk crawling.
+mat karo (manual CSV import hi unka path - CLAUDE.md policy). No bulk crawling.
 
 Import-safe (playwright import lazy), kabhi raise nahi. Flag: BROWSER_TOOLS=1
 """
@@ -29,7 +29,7 @@ _MAX_TIMEOUT_S = 60
 
 
 def enabled() -> bool:
-    """Default OFF — bina iske browser tools inert (kuch launch nahi hota)."""
+    """Default OFF - bina iske browser tools inert (kuch launch nahi hota)."""
     return (os.getenv("BROWSER_TOOLS") or "").strip().lower() in ("1", "true", "yes")
 
 
@@ -41,7 +41,7 @@ def _timeout_ms(timeout_s: int) -> int:
 
 
 def _url_is_safe(url: str) -> bool:
-    """SSRF guard — block a headless nav to internal/private/metadata hosts before
+    """SSRF guard - block a headless nav to internal/private/metadata hosts before
     launching the browser (defense-in-depth
     these tools are super-admin +
     BROWSER_TOOLS-gated, but a compromised admin could otherwise pivot to
@@ -49,7 +49,7 @@ def _url_is_safe(url: str) -> bool:
     only
     hostname MUST resolve to a PUBLIC IP. Fail-CLOSED (unresolvable/unknown
     => unsafe). NOTE: a headless browser can still follow a REDIRECT to a private
-    IP — full coverage needs route interception
+    IP - full coverage needs route interception
     this closes the direct case."""
     try:
         import ipaddress
@@ -80,9 +80,9 @@ def _url_is_safe(url: str) -> bool:
 
 
 async def fetch_rendered(url: str, timeout_s: int = 20) -> dict[str, Any]:
-    """JS-rendered page fetch → {ok, url, title, text}.
+    """JS-rendered page fetch -> {ok, url, title, text}.
 
-    GATED: enabled() False → {"ok":False,"error":"disabled"}. playwright missing →
+    GATED: enabled() False -> {"ok":False,"error":"disabled"}. playwright missing ->
     {"ok":False,"error":"playwright_not_installed","hint":"pip install playwright"}.
     Browser hamesha finally me close. Never-raise.
     """
@@ -131,9 +131,9 @@ async def fetch_rendered(url: str, timeout_s: int = 20) -> dict[str, Any]:
 
 
 async def extract(url: str, selector: str, timeout_s: int = 20) -> dict[str, Any]:
-    """Ek CSS `selector` ka rendered text nikaalo → {ok, url, selector, text, count}.
+    """Ek CSS `selector` ka rendered text nikaalo -> {ok, url, selector, text, count}.
 
-    GATED + playwright-optional (same as fetch_rendered). Selector miss → ok with
+    GATED + playwright-optional (same as fetch_rendered). Selector miss -> ok with
     empty text (count 0), not an error. Never-raise.
     """
     url = (url or "").strip()

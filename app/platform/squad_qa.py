@@ -1,4 +1,4 @@
-# Squad Lead — QA & Testing (Squad 6)
+# Squad Lead - QA & Testing (Squad 6)
 # Responsibility: Targeted pytest suites, smoke tests, contract tests, landmine detection
 # Autopilot: Auto-run on every commit, daily full suite, landmine alert
 

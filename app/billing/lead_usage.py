@@ -1,17 +1,17 @@
 """
-Qualified-LEAD usage metering — AI Voice Calling Agent (Product 2) ka billing meter.
+Qualified-LEAD usage metering - AI Voice Calling Agent (Product 2) ka billing meter.
 =====================================================================================
 
 ADR-009: voice product ka billable unit = AI-qualified "interested" lead
 (call_qualifier verdict). Minutes NAHI (wo marketing-Advanced FEATURE ka meter
-hai, `usage.py`), PER-LEAD bhi nahi — 10-lead UNITS: tier quota + top-up packs.
+hai, `usage.py`), PER-LEAD bhi nahi - 10-lead UNITS: tier quota + top-up packs.
 
 Design (usage.py minute-meter ke pattern pe, par DB-migration-free):
-  - Ledger: data/lead_usage.jsonl (append-only) — {client_id, ts, kind, leads, ref}
+  - Ledger: data/lead_usage.jsonl (append-only) - {client_id, ts, kind, leads, ref}
     kind: "qualified" (1 lead consume) | "topup" (pack credit add)
-  - Period = calendar month (IST-agnostic UTC) — quota + top-ups period-end EXPIRE.
+  - Period = calendar month (IST-agnostic UTC) - quota + top-ups period-end EXPIRE.
   - FAIL-OPEN: client_id na ho / voice plan na ho / error => block NAHI
-    (usage.py has_minutes jaisa hi safety posture — billing bug se calls na rukein).
+    (usage.py has_minutes jaisa hi safety posture - billing bug se calls na rukein).
 
 Kabhi raise nahi karta. Import-safe (heavy deps nahi).
 """
@@ -31,14 +31,14 @@ _log = logging.getLogger("billing.lead_usage")
 
 
 def _record_meter_failure(rec: dict) -> None:
-    """Metering write fail-open hai (call kabhi block na ho) — par failure SILENT
+    """Metering write fail-open hai (call kabhi block na ho) - par failure SILENT
     na rahe (revenue-leak risk). ERROR log (Loki/alertable) + best-effort DURABLE
     record main redis (REDIS_URL = noeviction, audit P0-1) ki list
-    `billing:meter_failures` me → ops manual replay/reconcile kar sake. Kabhi raise
+    `billing:meter_failures` me -> ops manual replay/reconcile kar sake. Kabhi raise
     nahi karta. Replay: `redis-cli lrange billing:meter_failures 0 -1`."""
     try:
         _log.error(
-            "BILLING meter write FAILED (revenue-leak risk) — manual replay needed: %s",
+            "BILLING meter write FAILED (revenue-leak risk) - manual replay needed: %s",
             json.dumps(rec, ensure_ascii=False)[:300],
         )
     except Exception:
@@ -46,7 +46,7 @@ def _record_meter_failure(rec: dict) -> None:
     try:
         import redis as _redis
 
-        url = os.environ.get("REDIS_URL")  # main (noeviction) — NOT cache redis (evictable)
+        url = os.environ.get("REDIS_URL")  # main (noeviction) - NOT cache redis (evictable)
         if url:
             r = _redis.from_url(url, socket_timeout=2)
             r.lpush("billing:meter_failures", json.dumps(rec, ensure_ascii=False))
@@ -96,7 +96,7 @@ def _iter_period(client_id: str, period: str | None = None):
 
 
 def _ref_already_recorded(client_id: str, ref: str) -> bool:
-    """Same call/ref qualified twice → skip (idempotent meter + webhook)."""
+    """Same call/ref qualified twice -> skip (idempotent meter + webhook)."""
     rk = (ref or "").strip()
     if not rk:
         return False
@@ -113,7 +113,7 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     """Ek AI-qualified lead consume karo (call_qualifier 'interested' verdict pe).
 
     ref = call sid / qualification id (dispute-evidence link). Best-effort.
-    Idempotent on ref within the billing period (duplicate qualify → no-op).
+    Idempotent on ref within the billing period (duplicate qualify -> no-op).
 
     I.2: After the meter row is written, fire-and-forget a `lead.qualified`
     event to the customer's subscribed webhooks (H.1). INERT when
@@ -134,7 +134,7 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     }
     ok = _append(rec)
     if not ok:
-        _record_meter_failure(rec)  # silent revenue-leak na ho — log + durable replay-list
+        _record_meter_failure(rec)  # silent revenue-leak na ho - log + durable replay-list
 
     # Customer webhook fan-out (best-effort, never blocks billing path).
     try:
@@ -159,13 +159,13 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     except Exception:
         pass
 
-    # Obsidian second-brain — append qualified event to lead timeline (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian second-brain - append qualified event to lead timeline (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
 
         phone_slug = str(ref or cid).replace("+", "").replace(" ", "")[:20]
         _obs.append_note(
-            "Leads", phone_slug, f"qualified — plan={plan or '?'} ref={ref or '?'}", tags=["lead"]
+            "Leads", phone_slug, f"qualified - plan={plan or '?'} ref={ref or '?'}", tags=["lead"]
         )
     except Exception:
         pass
@@ -191,7 +191,7 @@ def add_topup_leads(client_id: str, leads: int, ref: str = "") -> bool:
     }
     ok = _append(rec)
     if not ok:
-        # topup failure = customer ne PAY kiya par credit nahi mila — aur bhi critical
+        # topup failure = customer ne PAY kiya par credit nahi mila - aur bhi critical
         _record_meter_failure(rec)
     return ok
 
@@ -247,7 +247,7 @@ def leads_remaining(client_id: str, plan: str | None = None) -> int:
 
 
 def has_lead_quota(client_id: str | None, plan: str | None = None) -> bool:
-    """Campaign-call gate — FAIL-OPEN (no client / non-voice plan / error => True).
+    """Campaign-call gate - FAIL-OPEN (no client / non-voice plan / error => True).
     Flat monthly plans (UNLIMITED_QUOTA=9999) => hamesha True.
     """
     try:
@@ -258,16 +258,16 @@ def has_lead_quota(client_id: str | None, plan: str | None = None) -> bool:
             return True
         q = plan_quota(plan)
         if q <= 0:
-            return True  # voice plan hi nahi — meter apply nahi hota
+            return True  # voice plan hi nahi - meter apply nahi hota
         if q >= UNLIMITED_QUOTA:
-            return True  # flat monthly plan — unlimited calls
+            return True  # flat monthly plan - unlimited calls
         return leads_remaining(cid, plan) > 0
     except Exception:
         return True
 
 
 def usage_summary(client_id: str, plan: str | None = None) -> dict:
-    """Dashboard/API payload — kabhi raise nahi."""
+    """Dashboard/API payload - kabhi raise nahi."""
     cid = (client_id or "").strip()
     used = leads_used_this_period(cid) if cid else 0
     topup = topup_leads_this_period(cid) if cid else 0

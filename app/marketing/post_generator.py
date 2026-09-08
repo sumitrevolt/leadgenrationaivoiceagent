@@ -1,12 +1,12 @@
 """
-post_generator.py — Dhanda.app-style FREE AI marketing module.
+post_generator.py - Dhanda.app-style FREE AI marketing module.
 ===============================================================
 
 Chhote businesses ke liye social-media posts + Google Business Profile (GBP)
-tips + 7-din content calendar — sab 100% FREE stack par:
+tips + 7-din content calendar - sab 100% FREE stack par:
 
   LLM:      app.voice_agent.free_ai.chat() (Cerebras/Groq/OpenRouter chain).
-            free_ai ("","") de sakta hai (zero keys / quota / timeout) —
+            free_ai ("","") de sakta hai (zero keys / quota / timeout) -
             ISLIYE har function ka TEMPLATE fallback hai. KABHI empty nahi.
   Niches:   app.niches.NICHES se display name + pitch_hook (sab .get safe).
 
@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover - free_ai khud import-safe hai
     free_ai = None  # type: ignore
 
 try:
-    # Marketing persona pack (agency-agents) — content/social/copywriting guidance.
+    # Marketing persona pack (agency-agents) - content/social/copywriting guidance.
     from app.platform import skill_pack  # type: ignore
 except Exception:  # pragma: no cover
     skill_pack = None  # type: ignore
@@ -61,7 +61,7 @@ except Exception:  # pragma: no cover
 
 
 # ============================================================================ #
-# Niche helpers (sab .get fallbacks — unknown/custom niche par bhi chalega)
+# Niche helpers (sab .get fallbacks - unknown/custom niche par bhi chalega)
 # ============================================================================ #
 
 
@@ -98,7 +98,7 @@ def _stable_idx(seed: str, n: int) -> int:
 
 
 # ============================================================================ #
-# Hashtag sets (per-niche + general base) — fallback aur LLM top-up dono ke liye
+# Hashtag sets (per-niche + general base) - fallback aur LLM top-up dono ke liye
 # ============================================================================ #
 
 _GENERAL_HASHTAGS: list[str] = [
@@ -218,7 +218,7 @@ _NICHE_HASHTAGS: dict[str, list[str]] = {
 
 
 def _hashtags_for(niche: str, seed_tags: list[str] | None = None) -> list[str]:
-    """8-12 hashtags — LLM ke tags (agar mile) + niche set + general, deduped."""
+    """8-12 hashtags - LLM ke tags (agar mile) + niche set + general, deduped."""
     out: list[str] = []
     seen = set()
 
@@ -251,7 +251,7 @@ def _hashtags_for(niche: str, seed_tags: list[str] | None = None) -> list[str]:
 
 
 # ============================================================================ #
-# Caption templates (LLM-fail fallback) — {business_name}/{offer} placeholders
+# Caption templates (LLM-fail fallback) - {business_name}/{offer} placeholders
 # ============================================================================ #
 
 _GENERIC_TEMPLATES: list[dict[str, str]] = [
@@ -259,7 +259,7 @@ _GENERIC_TEMPLATES: list[dict[str, str]] = [
         "caption": (
             "✨ {business_name} me aapka swagat hai!\n"
             "💼 {niche_line}\n"
-            "{offer_line}📞 Aaj hi contact karein — DM ya call!"
+            "{offer_line}📞 Aaj hi contact karein - DM ya call!"
         ),
         "image_idea": "Shopfront/office ki bright photo, smiling team ke saath",
     },
@@ -273,7 +273,7 @@ _GENERIC_TEMPLATES: list[dict[str, str]] = [
     },
     {
         "caption": (
-            "🌟 Sapne bade, service best — {business_name}!\n"
+            "🌟 Sapne bade, service best - {business_name}!\n"
             "💡 {niche_line}\n"
             "{offer_line}💬 Free consultation ke liye aaj hi baat karein!"
         ),
@@ -281,9 +281,9 @@ _GENERIC_TEMPLATES: list[dict[str, str]] = [
     },
     {
         "caption": (
-            "👇 Sahi jagah aaye hain — {business_name} hai na!\n"
+            "👇 Sahi jagah aaye hain - {business_name} hai na!\n"
             "✅ {niche_line}\n"
-            "{offer_line}⏰ Limited slots — abhi book karein!"
+            "{offer_line}⏰ Limited slots - abhi book karein!"
         ),
         "image_idea": "Before/after ya product close-up collage",
     },
@@ -301,7 +301,7 @@ _FESTIVAL_TEMPLATES: list[dict[str, str]] = [
     {
         "caption": (
             "🪔 {business_name} ki taraf se {occasion} ki hardik shubhkamnayein! ✨\n"
-            "{offer_line}🎊 Is shubh avsar par humse judiye — {niche_line}\n"
+            "{offer_line}🎊 Is shubh avsar par humse judiye - {niche_line}\n"
             "📞 Abhi contact karein!"
         ),
         "image_idea": "Festive decoration ke saath shop/team photo, diye/lights theme",
@@ -348,14 +348,14 @@ def _template_post(business_name: str, niche: str, occasion: str, offer: str) ->
 
 
 # ============================================================================ #
-# LLM output parsing (lenient — free models format bhatka dete hain)
+# LLM output parsing (lenient - free models format bhatka dete hain)
 # ============================================================================ #
 
-# Tag must have >=2 chars after '#' (total len>=3) — kills truncated "#H" leaks.
+# Tag must have >=2 chars after '#' (total len>=3) - kills truncated "#H" leaks.
 _TAG_RE = r"#[\wऀ-ॿ]{2,}"
 
 # Markdown decoration (`**`, `_`, `#`) LLMs keyword ke aas-paas daal dete hain
-# (e.g. "**HASHTAGS:**") — markers tolerant + caption/image edges se * _ " strip.
+# (e.g. "**HASHTAGS:**") - markers tolerant + caption/image edges se * _ " strip.
 _DECOR = r"[*_#\s]*"
 _EDGE_STRIP = re.compile(r'^[\s*_"]+|[\s*_"]+$')
 
@@ -363,7 +363,7 @@ _EDGE_STRIP = re.compile(r'^[\s*_"]+|[\s*_"]+$')
 def _parse_llm_post(text: str) -> tuple[str, list[str], str]:
     """CAPTION:/HASHTAGS:/IMAGE: markers parse karo; na milein to lenient mode.
 
-    Markdown-bold markers (`**HASHTAGS:**`) bhi handle hote hain — warna caption
+    Markdown-bold markers (`**HASHTAGS:**`) bhi handle hote hain - warna caption
     lookahead fail ho ke poora hashtag-block caption me leak karta (real bug)."""
     caption, hashtags, image_idea = "", [], ""
     try:
@@ -386,7 +386,7 @@ def _parse_llm_post(text: str) -> tuple[str, list[str], str]:
             image_idea = _EDGE_STRIP.sub("", m.group(1).strip().splitlines()[0].strip())
 
         if not caption:
-            # Markers nahi mile — hashtags hata ke bacha text hi caption hai.
+            # Markers nahi mile - hashtags hata ke bacha text hi caption hai.
             body = re.sub(_TAG_RE, "", text).strip()
             caption = body[:400].strip()
             if not hashtags:
@@ -397,7 +397,7 @@ def _parse_llm_post(text: str) -> tuple[str, list[str], str]:
 
 
 # ============================================================================ #
-# 1) generate_post — social post (LLM-first, template-guaranteed)
+# 1) generate_post - social post (LLM-first, template-guaranteed)
 # ============================================================================ #
 
 
@@ -459,17 +459,17 @@ async def generate_post(
 
     if not caption.strip() and free_ai is not None:
         try:
-            # Inject content_feedback best_themes — learn from past performance
+            # Inject content_feedback best_themes - learn from past performance
             _theme_hint = ""
             try:
                 from app.marketing.content_feedback import best_themes as _best_themes
 
-                _top = _best_themes(niche=niche, n=3)  # list[str] — past winners
+                _top = _best_themes(niche=niche, n=3)  # list[str] - past winners
                 if _top:
                     _theme_hint = (
                         "\nTop-performing themes for this niche (past feedback): "
                         + ", ".join(_top)
-                        + " — prefer these angles."
+                        + " - prefer these angles."
                     )
             except Exception:
                 pass
@@ -503,11 +503,11 @@ async def generate_post(
         except Exception as e:  # free_ai.chat khud nahi raise karta, par safety
             logger.warning(f"generate_post LLM step failed, using template: {e}")
 
-    # Truncated fragment ("CAP") = usable caption nahi — template pe fall back.
+    # Truncated fragment ("CAP") = usable caption nahi - template pe fall back.
     if len(caption.strip()) < 20:
         return _template_post(business_name, niche, occasion, offer)
 
-    # LLM chala — missing pieces template stock se top-up karo.
+    # LLM chala - missing pieces template stock se top-up karo.
     hashtags = _hashtags_for(niche, seed_tags=hashtags)
     if not image_idea.strip():
         image_idea = (
@@ -525,12 +525,12 @@ async def generate_post(
 
 
 # ============================================================================ #
-# 2) gbp_tips — STATIC Google Business Profile checklist (no LLM)
+# 2) gbp_tips - STATIC Google Business Profile checklist (no LLM)
 # ============================================================================ #
 
 _GBP_UNIVERSAL: list[dict[str, str]] = [
     {
-        "tip": "Profile 100% complete karo — har field (hours, website, phone, attributes) bhara ho",
+        "tip": "Profile 100% complete karo - har field (hours, website, phone, attributes) bhara ho",
         "why": "Complete profiles ko Google 2.7x zyada 'reputable' maanta hai aur ranking me upar rakhta hai",
         "impact": "high",
     },
@@ -541,7 +541,7 @@ _GBP_UNIVERSAL: list[dict[str, str]] = [
     },
     {
         "tip": "Har 7 din me ek GBP post daalo (offer/update/event)",
-        "why": "Active posting Google ko 'business zinda hai' signal deta hai — local pack me freshness boost",
+        "why": "Active posting Google ko 'business zinda hai' signal deta hai - local pack me freshness boost",
         "impact": "med",
     },
     {
@@ -550,17 +550,17 @@ _GBP_UNIVERSAL: list[dict[str, str]] = [
         "impact": "high",
     },
     {
-        "tip": "Q&A section khud seed karo — 5-6 common sawal khud poochho aur jawab do",
+        "tip": "Q&A section khud seed karo - 5-6 common sawal khud poochho aur jawab do",
         "why": "Warna random log galat jawab daal dete hain; seeded Q&A objection pehle hi kaat deta hai",
         "impact": "med",
     },
     {
         "tip": "Primary category bilkul sahi chuno + 2-3 secondary categories add karo",
-        "why": "Category sabse bada local-ranking factor hai — galat category = galat searches me dikhna",
+        "why": "Category sabse bada local-ranking factor hai - galat category = galat searches me dikhna",
         "impact": "high",
     },
     {
-        "tip": "NAP consistency rakho — Name/Address/Phone har jagah (website, directories) SAME ho",
+        "tip": "NAP consistency rakho - Name/Address/Phone har jagah (website, directories) SAME ho",
         "why": "Mismatched NAP se Google ka trust girta hai aur duplicate listings ban jaati hain",
         "impact": "high",
     },
@@ -570,7 +570,7 @@ _GBP_UNIVERSAL: list[dict[str, str]] = [
         "impact": "med",
     },
     {
-        "tip": "Products/Services section poora bharo — naam, price-range, photo, description",
+        "tip": "Products/Services section poora bharo - naam, price-range, photo, description",
         "why": "Ye items search results me directly dikhte hain aur profile ka conversion badhate hain",
         "impact": "med",
     },
@@ -581,7 +581,7 @@ _GBP_UNIVERSAL: list[dict[str, str]] = [
     },
     {
         "tip": "Geo-tagged photos use karo (location-on camera se khinchi hui)",
-        "why": "Photo metadata local relevance ka extra signal deta hai — free me milta hai, lo",
+        "why": "Photo metadata local relevance ka extra signal deta hai - free me milta hai, lo",
         "impact": "med",
     },
 ]
@@ -590,7 +590,7 @@ _GBP_NICHE: dict[str, list[dict[str, str]]] = {
     "real_estate": [
         {
             "tip": "Har naye project/listing ka GBP post banao photos + price-range ke saath",
-            "why": "'2BHK in <area>' jaise searches me listing-posts seedha dikhte hain — free portal exposure",
+            "why": "'2BHK in <area>' jaise searches me listing-posts seedha dikhte hain - free portal exposure",
             "impact": "high",
         },
     ],
@@ -618,20 +618,20 @@ _GBP_NICHE: dict[str, list[dict[str, str]]] = {
     "studying_abroad": [
         {
             "tip": "Visa-success student photos (consent ke saath) + university logos posts me daalo",
-            "why": "Parents bharosa reviews + success-proof se hi karte hain — enquiry se pehle yahi dekhte hain",
+            "why": "Parents bharosa reviews + success-proof se hi karte hain - enquiry se pehle yahi dekhte hain",
             "impact": "high",
         },
     ],
     "home_loans": [
         {
             "tip": "'Loan approved' success posts + EMI calculator link lagao profile par",
-            "why": "Borrower eligibility-doubt me hota hai — calculator click = warm lead",
+            "why": "Borrower eligibility-doubt me hota hai - calculator click = warm lead",
             "impact": "med",
         },
     ],
     "insurance": [
         {
-            "tip": "Claim-settled stories (bina naam ke) post karo — premium nahi, bharosa becho",
+            "tip": "Claim-settled stories (bina naam ke) post karo - premium nahi, bharosa becho",
             "why": "Insurance me sabse bada objection 'claim milega ya nahi' hota hai",
             "impact": "high",
         },
@@ -639,21 +639,21 @@ _GBP_NICHE: dict[str, list[dict[str, str]]] = {
     "coaching": [
         {
             "tip": "Toppers/results ke selection-list photos har result-season me post karo",
-            "why": "Parents 'results' search karte hain — proof wala profile hi shortlist hota hai",
+            "why": "Parents 'results' search karte hain - proof wala profile hi shortlist hota hai",
             "impact": "high",
         },
     ],
     "interior_designers": [
         {
             "tip": "Har completed project ka before/after album banao (room-wise photos)",
-            "why": "Interior clients portfolio dekh ke hi call karte hain — GBP hi free portfolio hai",
+            "why": "Interior clients portfolio dekh ke hi call karte hain - GBP hi free portfolio hai",
             "impact": "high",
         },
     ],
     "dental_implants": [
         {
             "tip": "Smile-makeover before/after (consent ke saath) + doctor intro video daalo",
-            "why": "Dental me dar sabse bada blocker hai — friendly doctor face trust banata hai",
+            "why": "Dental me dar sabse bada blocker hai - friendly doctor face trust banata hai",
             "impact": "high",
         },
     ],
@@ -662,7 +662,7 @@ _GBP_NICHE: dict[str, list[dict[str, str]]] = {
 _GBP_NICHE_DEFAULT: list[dict[str, str]] = [
     {
         "tip": "Apne kaam ki before/after ya result photos regular post karo",
-        "why": "Har niche me proof-of-work hi sabse bada trust-builder hai — text claims nahi",
+        "why": "Har niche me proof-of-work hi sabse bada trust-builder hai - text claims nahi",
         "impact": "med",
     },
 ]
@@ -681,7 +681,7 @@ def gbp_tips(niche: str = "general") -> list[dict[str, str]]:
 
 
 # ============================================================================ #
-# 3) content_calendar — 7-din (ya N-din) plan (1 LLM call, template fallback)
+# 3) content_calendar - 7-din (ya N-din) plan (1 LLM call, template fallback)
 # ============================================================================ #
 
 _CAL_FALLBACK: list[tuple[str, str, str]] = [
@@ -689,12 +689,12 @@ _CAL_FALLBACK: list[tuple[str, str, str]] = [
     (
         "Tuesday",
         "Offer / Deal",
-        "🎉 Sirf is hafte! {business_name} par special offer — DM ya call karein!",
+        "🎉 Sirf is hafte! {business_name} par special offer - DM ya call karein!",
     ),
     (
         "Wednesday",
         "Testimonial",
-        "⭐ Hamare khush customer ki kahani — '{business_name} ne kaam aasaan kar diya!'",
+        "⭐ Hamare khush customer ki kahani - '{business_name} ne kaam aasaan kar diya!'",
     ),
     (
         "Thursday",
@@ -704,17 +704,17 @@ _CAL_FALLBACK: list[tuple[str, str, str]] = [
     (
         "Friday",
         "Festival / Fun",
-        "😄 Weekend mood on! {business_name} ki taraf se fun fact — comment me batao apna take!",
+        "😄 Weekend mood on! {business_name} ki taraf se fun fact - comment me batao apna take!",
     ),
     (
         "Saturday",
         "Product / Service Spotlight",
-        "🔦 Spotlight: {business_name} ki sabse popular service — jaaniye log ise kyun pasand karte hain.",
+        "🔦 Spotlight: {business_name} ki sabse popular service - jaaniye log ise kyun pasand karte hain.",
     ),
     (
         "Sunday",
         "Engagement Question",
-        "🤔 Aapka kya khayal hai? Comment me bataiye — {business_name} ke saath Sunday baat-cheet!",
+        "🤔 Aapka kya khayal hai? Comment me bataiye - {business_name} ke saath Sunday baat-cheet!",
     ),
 ]
 

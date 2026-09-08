@@ -1,10 +1,10 @@
 """
-whatsapp_pack.py — WhatsApp marketing pack (broadcast + status + replies).
+whatsapp_pack.py - WhatsApp marketing pack (broadcast + status + replies).
 ==========================================================================
 
 Ek call me ready-to-send WhatsApp content: 2 broadcast messages (*bold* +
 emojis, <300 chars), 3 status lines, 2 lead-reply templates. LLM-first
-(free_ai), TEMPLATE fallback — KABHI empty nahi, KABHI raise nahi.
+(free_ai), TEMPLATE fallback - KABHI empty nahi, KABHI raise nahi.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ _MAX_BROADCAST_CHARS = 300
 def _template_pack(
     business_name: str, niche: str, occasion: str, offer: str
 ) -> dict[str, list[str]]:
-    """Deterministic never-empty pack — LLM bilkul na chale tab bhi."""
+    """Deterministic never-empty pack - LLM bilkul na chale tab bhi."""
     occ_line = f"{occasion} ke shubh avsar par " if occasion else ""
     offer_line = offer or "special offer"
     pitch = _niche_pitch(niche)
@@ -46,24 +46,24 @@ def _template_pack(
     broadcast = [
         (
             f"🎉 Namaste! *{business_name}* laya hai {occ_line}aapke liye *{offer_line}*! "
-            f"✨ {pitch} Details ke liye is message ka reply karein *YES* — "
+            f"✨ {pitch} Details ke liye is message ka reply karein *YES* - "
             "team turant call karegi. 📞"
         ),
         (
-            f"⏰ *Sirf is hafte!* {occ_line}*{business_name}* par {offer_line} — "
+            f"⏰ *Sirf is hafte!* {occ_line}*{business_name}* par {offer_line} - "
             "pehle aao, pehle pao! 🏃 Abhi reply karein ya call karein, "
             "slots tezi se bhar rahe hain. 🔥"
         ),
     ]
     status_lines = [
-        f"✨ {occasion or 'Aaj'} ka special — {business_name} par {offer_line}! DM karein 📲",
-        f"💯 {pitch} — {business_name}",
-        f"📞 Aaj hi baat karein — {business_name}, aapki seva me hamesha! 🙏",
+        f"✨ {occasion or 'Aaj'} ka special - {business_name} par {offer_line}! DM karein 📲",
+        f"💯 {pitch} - {business_name}",
+        f"📞 Aaj hi baat karein - {business_name}, aapki seva me hamesha! 🙏",
     ]
     reply_templates = [
         (
             f"Namaste! 🙏 *{business_name}* me aapka swagat hai. Haan ji, {offer_line} abhi "
-            "chal raha hai — aap apna naam aur convenient time bata dein, hamari team aapko "
+            "chal raha hai - aap apna naam aur convenient time bata dein, hamari team aapko "
             "call karke poori details de degi. 📞"
         ),
         (
@@ -111,7 +111,7 @@ async def broadcast_pack(
 ) -> dict[str, Any]:
     """WhatsApp pack: {"broadcast"[2], "status_lines"[3], "reply_templates"[2], "provider"}.
 
-    LLM-first, template fallback — counts hamesha poore, KABHI empty nahi.
+    LLM-first, template fallback - counts hamesha poore, KABHI empty nahi.
     """
     business_name = (business_name or "").strip() or "Aapka Business"
     niche = (niche or "general").strip().lower() or "general"

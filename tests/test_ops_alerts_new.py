@@ -14,7 +14,7 @@ from app.platform import ops_alerts
 
 
 # --------------------------------------------------------------------------- #
-# (a) No-op when ntfy / OPS_ALERTS unconfigured — must never raise, must not fire.
+# (a) No-op when ntfy / OPS_ALERTS unconfigured - must never raise, must not fire.
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "helper",
@@ -28,7 +28,7 @@ def test_helper_noop_when_unconfigured(helper, monkeypatch):
     # OPS_ALERTS unset -> enabled() is False -> inert.
     monkeypatch.delenv("OPS_ALERTS", raising=False)
 
-    # If anything tried to push, fail loudly — it must NOT in the disabled path.
+    # If anything tried to push, fail loudly - it must NOT in the disabled path.
     def _boom(*_a, **_kw):  # pragma: no cover - asserts non-call
         raise AssertionError("_ntfy must not be called when OPS_ALERTS is unset")
 
@@ -150,7 +150,7 @@ def test_upi_auto_activated_fires_ntfy_when_enabled(monkeypatch):
 
 
 def test_upi_auto_activated_keys_cooldown_per_payment(monkeypatch):
-    """Two DIFFERENT payments must both alert — this is per-event, not a
+    """Two DIFFERENT payments must both alert - this is per-event, not a
     shared-key alert like payment_failed/smtp_disabled (real cooldown ledger,
     not bypassed here, to prove the per-payment_id keying actually works)."""
     monkeypatch.setenv("OPS_ALERTS", "1")
@@ -172,7 +172,7 @@ def test_upi_auto_activated_keys_cooldown_per_payment(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# Paid-customer-stuck page (the jiya-makeover-class ghosting bug, closed) —
+# Paid-customer-stuck page (the jiya-makeover-class ghosting bug, closed) -
 # this is the alert that was MISSING when customer_delivery._record_stuck only
 # wrote a jsonl line + a log WARNING nobody was watching.
 # --------------------------------------------------------------------------- #
@@ -190,7 +190,7 @@ def test_paid_customer_stuck_fires_urgent_ntfy_when_enabled(monkeypatch):
 
 
 def test_paid_customer_stuck_keyed_per_client_not_shared(monkeypatch):
-    """Two different stuck customers must each get their own cooldown key —
+    """Two different stuck customers must each get their own cooldown key -
     one ghosted customer's alert must never suppress another's."""
     monkeypatch.setenv("OPS_ALERTS", "1")
     monkeypatch.setattr(ops_alerts, "_record_fire", lambda *a, **k: None)

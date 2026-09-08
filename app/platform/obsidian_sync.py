@@ -1,16 +1,16 @@
 """
-Obsidian Second Brain — Git-sync vault writer.
+Obsidian Second Brain - Git-sync vault writer.
 =================================================
 
 VPS agents write markdown notes to data/obsidian_staging/ (local, instant).
-Nightly Celery job compacts + git-pushes to remote → user pulls in Obsidian.
+Nightly Celery job compacts + git-pushes to remote -> user pulls in Obsidian.
 
 Design:
   - write_note(folder, slug, content, tags): atomic write, never raises
   - append_note(folder, slug, entry): append timestamped entry to existing note
   - push_to_git(): git add/commit/push with 60s timeout
   - compact_folder(folder): archive if >N files
-  - Flag gate: OBSIDIAN_SYNC=1 — all functions are no-ops when unset
+  - Flag gate: OBSIDIAN_SYNC=1 - all functions are no-ops when unset
   - Per-agent throttle in append_note: max 1 write per THROTTLE_S per agent
 
 Vault structure (data/obsidian_staging/):
@@ -42,7 +42,7 @@ _DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 _VAULT = _DATA_DIR / "obsidian_staging"
 _LOCK = threading.Lock()
 
-# Per-agent write throttle (member → last_write_ts)
+# Per-agent write throttle (member -> last_write_ts)
 _agent_last_write: dict[str, float] = {}
 _THROTTLE_S = 300  # 5 minutes between writes per agent
 
@@ -62,7 +62,7 @@ def _folder_path(folder: str) -> Path:
 
 
 def write_note(folder: str, slug: str, content: str, tags: list[str] | None = None) -> bool:
-    """Write (overwrite) a markdown note. Atomic via temp→rename. Never raises."""
+    """Write (overwrite) a markdown note. Atomic via temp->rename. Never raises."""
     if not _enabled():
         return False
     try:
@@ -108,7 +108,7 @@ def append_note(
         if not p.exists():
             tag_line = ("tags: [" + ", ".join(tags) + "]\n") if tags else ""
             header = f"---\n{tag_line}created: {_ts()}\n---\n\n# {slug}\n\n"
-        line = f"\n- **{_ts()}** — {entry.strip()}"
+        line = f"\n- **{_ts()}** - {entry.strip()}"
         with p.open("a", encoding="utf-8") as f:
             f.write(header + line + "\n")
         return True
@@ -121,19 +121,19 @@ def push_to_git() -> bool:
     """git add -A + commit + push. 60s timeout. Alerts ops on failure. Never raises.
 
     NOTE: in production the worker/scheduler container has NO git binary and NO
-    SSH deploy key — the actual nightly push is owned by the HOST cron
+    SSH deploy key - the actual nightly push is owned by the HOST cron
     (scripts/obsidian_host_push.sh @ 20:45 UTC). So if git is unavailable we skip
     SILENTLY (no ops alert) rather than failing every night. This stays useful for
     any environment where the runtime does have git+SSH."""
     if not _enabled():
         return False
     if not _VAULT.exists():
-        logger.debug("[obsidian] vault dir missing — skip push")
+        logger.debug("[obsidian] vault dir missing - skip push")
         return False
     import shutil
 
     if shutil.which("git") is None:
-        logger.debug("[obsidian] no git in runtime — host cron owns the push, skip")
+        logger.debug("[obsidian] no git in runtime - host cron owns the push, skip")
         return False
     try:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -153,7 +153,7 @@ def push_to_git() -> bool:
         for cmd in cmds:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode not in (0, 1):  # 1 = nothing to commit is ok
-                logger.warning("[obsidian] git cmd failed: %s → %s", cmd, result.stderr[:200])
+                logger.warning("[obsidian] git cmd failed: %s -> %s", cmd, result.stderr[:200])
         logger.info("[obsidian] nightly push complete")
         return True
     except subprocess.TimeoutExpired:
@@ -237,7 +237,7 @@ def recall(query: str, k: int = 3) -> list[dict]:
     try:
         if not _VAULT.exists():
             return []
-        # Tokenize query — skip short words
+        # Tokenize query - skip short words
         words = [w.lower() for w in query.split() if len(w) >= 3]
         if not words:
             return []
@@ -247,7 +247,7 @@ def recall(query: str, k: int = 3) -> list[dict]:
         for path in _VAULT.rglob("*.md"):
             if scanned >= 2000:
                 break
-            # Skip root-level files — only include files inside subfolders
+            # Skip root-level files - only include files inside subfolders
             if path.parent == _VAULT:
                 continue
             scanned += 1

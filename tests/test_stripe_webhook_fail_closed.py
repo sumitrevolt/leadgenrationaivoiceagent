@@ -6,13 +6,13 @@ was removed 2026-07-10 and Razorpay 2026-06-18, so `PROVIDER_VERIFIED` is
 unreachable BY DESIGN, not by accident.
 
 `POST /api/billing/webhooks/stripe` still exists as a compatibility stub. The
-danger is not that it is dead — it is that it *looks* alive: the handler carries
+danger is not that it is dead - it is that it *looks* alive: the handler carries
 a "signature-verified" docstring and is followed by a full subscription-
 activation body (`_activate_subscription_row`, minute-ledger provisioning) that
 is currently unreachable only because an unconditional `raise` sits above it.
 
 If that raise were ever removed while restoring the endpoint, the code below it
-would run against a completely unverified payload — anyone who can POST to the
+would run against a completely unverified payload - anyone who can POST to the
 URL could activate a paid subscription. This suite is the lock on that: the
 endpoint must refuse, and it must refuse BEFORE parsing or acting on any event.
 """
@@ -110,7 +110,7 @@ def test_handler_source_contains_no_activation_capability():
 
     The behavioural tests above prove the endpoint refuses today. This proves it
     *cannot* be made to activate by deleting one line, which is what the previous
-    shape allowed — 200 lines of activation sat below an unconditional `raise`.
+    shape allowed - 200 lines of activation sat below an unconditional `raise`.
 
     AST-based, so it inspects the real function body rather than grepping a file
     (docstring prose describing the removed hazard must not trip it).
@@ -154,7 +154,7 @@ def test_handler_source_contains_no_activation_capability():
 def test_manual_upi_routes_are_unaffected():
     """Removing the Stripe body must not disturb the canonical payment rail.
 
-    Asserts against the UPI router itself rather than `app.routes` — the router
+    Asserts against the UPI router itself rather than `app.routes` - the router
     is mounted under `/api` by main, so its paths are not flattened into the
     top-level route list.
     """

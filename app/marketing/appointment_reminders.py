@@ -1,4 +1,4 @@
-"""Appointment Reminder System — automated before/after appointment messages.
+"""Appointment Reminder System - automated before/after appointment messages.
 
 Inspired by Calendly, GoHighLevel Calendar, Acuity:
   - Pre-appointment reminders: 24h + 1h before (SMS + WhatsApp)

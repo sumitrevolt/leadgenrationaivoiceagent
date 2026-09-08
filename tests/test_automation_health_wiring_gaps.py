@@ -1,16 +1,16 @@
-"""wiring_gaps() — "flag ON but backend/creds missing" detection.
+"""wiring_gaps() - "flag ON but backend/creds missing" detection.
 
 A config gap (armed automation that silently no-ops) is a different failure
 mode from a runtime outage: the dead-man sees a green heartbeat while the job
 does nothing. These tests pin that:
 
-1. Unarmed (all flags off) → no gaps.
-2. GSC_ENABLED=1 without usable creds → a GSC gap.
+1. Unarmed (all flags off) -> no gaps.
+2. GSC_ENABLED=1 without usable creds -> a GSC gap.
 3. GSC_ENABLED=1 WITH creds (via the canonical `gsc.enabled()` gate, which
-   honours the `google_sheets_credentials` fallback + file-exists check) →
+   honours the `google_sheets_credentials` fallback + file-exists check) ->
    NO gap. Regression guard for the re-implemented-check false-alarm.
-4. CRM_SYNC=1 with no provider → a CRM gap.
-5. A provider module that raises must NOT crash wiring_gaps() — the signal is
+4. CRM_SYNC=1 with no provider -> a CRM gap.
+5. A provider module that raises must NOT crash wiring_gaps() - the signal is
    best-effort and must degrade to "no gap for that check", never to an
    exception in the health()/watchdog path.
 6. health() carries the `wiring_gaps` field.
@@ -45,7 +45,7 @@ def test_gsc_armed_but_no_creds(monkeypatch):
 
 def test_gsc_armed_with_creds_no_false_alarm(monkeypatch):
     # wiring_gaps must NOT re-implement a narrower cred check than the canonical
-    # gsc.enabled() — otherwise the google_sheets_credentials fallback alarms.
+    # gsc.enabled() - otherwise the google_sheets_credentials fallback alarms.
     _all_off(monkeypatch)
     monkeypatch.setenv("GSC_ENABLED", "1")
     monkeypatch.setattr("app.integrations.gsc.enabled", lambda: True)

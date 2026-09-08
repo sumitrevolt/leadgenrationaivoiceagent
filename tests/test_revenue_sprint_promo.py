@@ -1,13 +1,13 @@
-"""Revenue-sprint batch (2026-08-23) — promo engine + custom offers + referral flip.
+"""Revenue-sprint batch (2026-08-23) - promo engine + custom offers + referral flip.
 
 Contract coverage:
 * promo_codes.create_code fail-closed validation (kind/value/expiry/code)
 * validate_code: expiry, plan restriction, once-per-customer, max_redemptions,
-  discount floor (₹99) — Lago-style definitions vs applied ledger
+  discount floor (₹99) - Lago-style definitions vs applied ledger
 * apply_promo_to_order: original offer IMMUTABLE (supersede chain), stacking
   refused, derived offer carries discounted frozen amount
 * offers.issue_custom_offer bounds + guaranteed-new identity (reuse_live=False)
-* affiliate.mark_referral_paid_by_contact idempotent lead→paid flip
+* affiliate.mark_referral_paid_by_contact idempotent lead->paid flip
 * active_launch_offer returns only LIVE launch-tagged codes
 
 Pure python: stores monkeypatched to tmp_path, no network/LLM.
@@ -98,14 +98,14 @@ def test_validate_pct_math_and_cap(pc):
     assert r["ok"] is True and r["discount_inr"] == 200 and r["effective_inr"] == 1799
     pc.create_code("P90", "pct", 90)
     r2 = pc.validate_code("P90", "starter", 100)
-    # effective would be ₹10 < ₹99 floor → refuse, never sell at ~zero
+    # effective would be ₹10 < ₹99 floor -> refuse, never sell at ~zero
     assert r2["ok"] is False and r2["reason"] == "discount_exceeds_floor"
 
 
 def test_validate_fixed_capped_at_amount(pc):
     pc.create_code("BIG", "fixed_inr", 5000)
     r = pc.validate_code("BIG", "starter", 1999)
-    # ₹5000-off on a ₹1999 plan would be ₹0 effective — below the ₹99 sale
+    # ₹5000-off on a ₹1999 plan would be ₹0 effective - below the ₹99 sale
     # floor, so fail-closed refuse (kabhi zero/negative UPI order nahi).
     assert r["ok"] is False and r["reason"] == "discount_exceeds_floor"
 
@@ -128,7 +128,7 @@ def test_apply_creates_discounted_supersede_original_immutable(pc, off):
     assert res["order_ref"] != orig["order_ref"]
     assert res["quoted_amount"] == 1999 - 500
 
-    # ORIGINAL untouched — billing-truth invariant
+    # ORIGINAL untouched - billing-truth invariant
     old = off.get_offer(orig["order_ref"])
     assert old["status"] == "superseded"
     assert old["quoted_amount"] == 1999
@@ -217,7 +217,7 @@ def test_referral_flip_by_phone_idempotent(aff):
     )
     n = aff.mark_referral_paid_by_contact(contact="+91 98765 00001", amount=1999)
     assert n == 1
-    # idempotent — already paid rows skipped
+    # idempotent - already paid rows skipped
     assert aff.mark_referral_paid_by_contact(contact="9876500001", amount=1999) == 0
     s = aff.stats("jiya1234")
     assert s["paid_conversions"] == 1 and s["commission_earned"] == 400
@@ -250,7 +250,7 @@ def test_launch_offer_only_live_returned(pc):
     live = pc.active_launch_offer()
     assert live is not None and live["code"] == "LAUNCH7"
 
-    # expired launch code → nothing
+    # expired launch code -> nothing
     pc.create_code("DEAD", "pct", 10, tags=["launch"], expires_at="2020-01-01T00:00:00+00:00")
     assert pc.active_launch_offer()["code"] == "LAUNCH7"
 

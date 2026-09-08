@@ -1,4 +1,4 @@
-"""GET /api/customer/timeline — customer-facing 'AI ne aapke liye kya kiya'.
+"""GET /api/customer/timeline - customer-facing 'AI ne aapke liye kya kiya'.
 Must be scoped to the caller's OWN client_id only (require_customer, same
 IDOR-safe pattern as every other /api/customer/* route)."""
 
@@ -44,7 +44,7 @@ def test_customer_timeline_returns_own_events_only(monkeypatch):
 def test_customer_timeline_backfills_pre_ledger_customer(monkeypatch):
     """Existing (pre-ledger) customers like jiya makeover ka historical timeline
     tabhi bharega jab endpoint read se PEHLE ensure_backfilled() bulaaye. Ye wire
-    pehle missing tha (function exported par zero callers) — regression guard."""
+    pehle missing tha (function exported par zero callers) - regression guard."""
     from app.api.customer_auth import require_customer
     from app.main import app
 

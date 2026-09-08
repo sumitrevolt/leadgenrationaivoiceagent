@@ -1,4 +1,4 @@
-# Squad Lead — Deploy & Infra (Squad 4)
+# Squad Lead - Deploy & Infra (Squad 4)
 # Responsibility: GitOps canary deploy, kill-fence management, infrastructure health
 # Autopilot: 2-step deploy flow, automated rollback, health checks
 
@@ -12,7 +12,7 @@ status = "GREEN"
 capacity = 66
 
 def initiate_deploy(version_tag: str, kill_fence_on: bool = False):
-    """Start deploy flow — requires kill-fence management."""
+    """Start deploy flow - requires kill-fence management."""
     # Step 1: Validate version tag exists
     import os
     import subprocess
@@ -51,7 +51,7 @@ def initiate_deploy(version_tag: str, kill_fence_on: bool = False):
     return {"status": "deploy_initiated", "version": version_tag, "kill_fence": fence_status}
 
 def rollback_deploy():
-    """Rollback to previous version — respects kill-fence."""
+    """Rollback to previous version - respects kill-fence."""
     import subprocess
     result = subprocess.run(
         ["bash", "-c", "docker compose -f docker-compose.vps.yml up -d --lead"],

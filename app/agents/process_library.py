@@ -1,13 +1,13 @@
-"""Process Library — deterministic business workflows (babysitter process-as-code).
+"""Process Library - deterministic business workflows (babysitter process-as-code).
 
 Har process = ordered steps IN CODE. Step kinds:
-  - task: {id, action, args?, gate?, max_retries?} — EXECUTORS registry se chalti
-    (sab EXISTING engines reuse — rebuild nahi). Gate = pure code check.
-  - breakpoint: {id, kind: "breakpoint", question} — enforced human approval
+  - task: {id, action, args?, gate?, max_retries?} - EXECUTORS registry se chalti
+    (sab EXISTING engines reuse - rebuild nahi). Gate = pure code check.
+  - breakpoint: {id, kind: "breakpoint", question} - enforced human approval
     (ban-risky cheez se pehle: outreach/publish).
 
 Naya process add karne ka pattern: PROCESSES me entry + (zaroorat ho to)
-EXECUTORS me action. Side-effect actions (send/call/post) YAHAN BHI nahi —
+EXECUTORS me action. Side-effect actions (send/call/post) YAHAN BHI nahi -
 sirf gated/draft-only engines. Import-safe, kabhi raise nahi.
 """
 
@@ -188,7 +188,7 @@ async def _exec_crm_queue(inputs: dict) -> dict:
         return {
             "ok": True,
             "count": 0,
-            "detail": f"crm draft: {len(leads)} eligible (CRM_SYNC off — no push)",
+            "detail": f"crm draft: {len(leads)} eligible (CRM_SYNC off - no push)",
         }
     pushed = 0
     for ld in leads[:25]:
@@ -272,16 +272,16 @@ async def _exec_http_request(inputs: dict) -> dict:
 
 
 async def _exec_internal_calculation(inputs: dict) -> dict:
-    """Deterministic internal read-only calculation — no I/O, no network, no
+    """Deterministic internal read-only calculation - no I/O, no network, no
     mutation, no external effect. Isolated from business behaviour
     the canonical
     registry-backed DAG step (workflow.dag.internal_calculation@1.0.0). Legacy
-    executor stays authoritative — the harness observes this in shadow only."""
+    executor stays authoritative - the harness observes this in shadow only."""
     try:
         n = int(inputs.get("n", 0))
     except Exception:
         n = 0
-    value = (n * (n + 1)) // 2  # triangular number — pure, deterministic
+    value = (n * (n + 1)) // 2  # triangular number - pure, deterministic
     return {
         "ok": True,
         "count": 1,
@@ -340,9 +340,9 @@ def check_gate(step: dict[str, Any], result: dict[str, Any]) -> tuple[bool, str]
 
 
 PROCESSES: dict[str, dict[str, Any]] = {
-    # Lead campaign: scrape → score → deep-dive → HUMAN APPROVE → cadence
+    # Lead campaign: scrape -> score -> deep-dive -> HUMAN APPROVE -> cadence
     "lead_campaign": {
-        "name": "Lead campaign (scrape→score→analyze→approve→cadence)",
+        "name": "Lead campaign (scrape->score->analyze->approve->cadence)",
         "steps": [
             {"id": "scrape", "action": "scrape", "max_retries": 1},
             {"id": "rescore", "action": "rescore"},
@@ -355,9 +355,9 @@ PROCESSES: dict[str, dict[str, Any]] = {
             {"id": "cadence", "action": "cadence_run"},
         ],
     },
-    # Client content onboarding: pack → drafts → HUMAN REVIEW
+    # Client content onboarding: pack -> drafts -> HUMAN REVIEW
     "client_content": {
-        "name": "Client content pack (pack→social drafts→review)",
+        "name": "Client content pack (pack->social drafts->review)",
         "steps": [
             {"id": "pack", "action": "content_pack", "gate": {"min_count": 1}, "max_retries": 1},
             {"id": "social", "action": "social_drafts", "gate": {"min_count": 1}},
@@ -368,9 +368,9 @@ PROCESSES: dict[str, dict[str, Any]] = {
             },
         ],
     },
-    # Growth audit: optimizer pass + revenue sweep (no breakpoint — read/draft only)
+    # Growth audit: optimizer pass + revenue sweep (no breakpoint - read/draft only)
     "growth_audit": {
-        "name": "Growth audit (optimizer→revenue sweep)",
+        "name": "Growth audit (optimizer->revenue sweep)",
         "steps": [
             {"id": "optimize", "action": "optimizer"},
             {"id": "revenue", "action": "revenue_sweep"},

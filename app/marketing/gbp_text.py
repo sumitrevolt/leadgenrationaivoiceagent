@@ -1,14 +1,14 @@
 """
-gbp_text.py — Google Business Profile texts (description + services + posts).
+gbp_text.py - Google Business Profile texts (description + services + posts).
 ===============================================================================
 
 GBP ka sabse bada free-SEO lever ab description/services text hai (Q&A API
-band ho chuki) — entity-optimized Hinglish-friendly copy:
+band ho chuki) - entity-optimized Hinglish-friendly copy:
 
   - gbp_texts(business_name, niche, city="", services=None) -> dict:
-      description (HARD ≤750 chars — business+niche+city+services naturally),
+      description (HARD ≤750 chars - business+niche+city+services naturally),
       services: [{name, desc ≤300 chars}], posts: 3 "Google post" updates.
-      LLM-first SINGLE call (free_ai), template fallback — KABHI khali nahi.
+      LLM-first SINGLE call (free_ai), template fallback - KABHI khali nahi.
 
 Kabhi raise nahi karta.
 """
@@ -39,7 +39,7 @@ def _label(niche: str) -> str:
 
 
 def _clip(s: str, n: int) -> str:
-    """HARD char clip — sentence/word boundary pe, guarantee len <= n."""
+    """HARD char clip - sentence/word boundary pe, guarantee len <= n."""
     s = re.sub(r"\s+", " ", (s or "")).strip()
     if len(s) <= n:
         return s
@@ -71,7 +71,7 @@ def _fallback_description(name: str, label: str, city: str, svcs: list[str]) -> 
         svc_line = " Hamari services: " + ", ".join(svcs[:6]) + "."
     desc = (
         f"{name}{in_city} aapka bharosemand {label} hai. Quality kaam, "
-        f"transparent pricing aur time par delivery — yahi hamari pehchan "
+        f"transparent pricing aur time par delivery - yahi hamari pehchan "
         f"hai.{svc_line} Hamari experienced team har customer ko personal "
         "attention deti hai, isliye log hume apno ko refer karte hain. "
         + (
@@ -80,7 +80,7 @@ def _fallback_description(name: str, label: str, city: str, svcs: list[str]) -> 
             else ""
         )
         + "Free estimate aur jaldi response ke liye aaj hi call ya WhatsApp "
-        "karein — pehli baat bilkul free hai."
+        "karein - pehli baat bilkul free hai."
     )
     return _clip(desc, _DESC_MAX)
 
@@ -89,7 +89,7 @@ def _fallback_service_desc(name: str, svc: str, city: str) -> str:
     in_city = f" {city} me" if city else ""
     return _clip(
         f"{svc}: {name} ki expert team se professional {svc.lower()}{in_city} "
-        "— sahi daam, pakka kaam aur time par completion. Free estimate ke "
+        "- sahi daam, pakka kaam aur time par completion. Free estimate ke "
         "liye call ya WhatsApp karein; pehle samjhein, phir decide karein.",
         _SVC_MAX,
     )
@@ -100,19 +100,19 @@ def _fallback_posts(name: str, label: str, city: str, svcs: list[str]) -> list[s
     in_city = f" {city} me" if city else ""
     return [
         (
-            f"📍 {name}{in_city} — {label} ke liye trusted naam! Quality kaam, "
+            f"📍 {name}{in_city} - {label} ke liye trusted naam! Quality kaam, "
             "sahi daam aur friendly team. Aaj hi profile se 'Call' button "
             "dabayein aur free consultation paayein."
         ),
         (
             f"🎉 Is hafte ka special: {svc} par extra dhyan, wahi quality, "
             f"behtar daam! {name} ke saath kaam karwane ka sabse accha time "
-            "yahi hai — message karke slot book karein."
+            "yahi hai - message karke slot book karein."
         ),
         (
             f"⭐ Hamare customers hume 5-star kyu dete hain? Time par kaam, "
             f"transparent baat aur after-service support. {name} ko aaj hi try "
-            "karein — review section khud dekh lijiye!"
+            "karein - review section khud dekh lijiye!"
         ),
     ]
 
@@ -133,12 +133,12 @@ async def gbp_texts(
 
     if free_ai is not None:
         svc_fmt = "".join(
-            f"\nSVC{i}: (max 280 chars — '{s}' ki selling description)"
+            f"\nSVC{i}: (max 280 chars - '{s}' ki selling description)"
             for i, s in enumerate(svcs, 1)
         )
         system = (
             "Tu local SEO expert hai. Google Business Profile ke liye "
-            "Hinglish (Roman script) copy likh — business naam, category, "
+            "Hinglish (Roman script) copy likh - business naam, category, "
             "city aur services NATURALLY use kar (keyword stuffing nahi). "
             "Output format EXACT (sirf ye lines):\n"
             f"DESC: (max 700 chars, ek paragraph){svc_fmt}\n"
@@ -197,7 +197,7 @@ async def gbp_texts(
         "services": services_out,
         "posts": posts,
         "provider": provider,
-        "tip": "Description GBP ke 'Edit profile → From the business' me paste "
-        "karo; har hafte 1 Google post dalo — local ranking ka sabse "
+        "tip": "Description GBP ke 'Edit profile -> From the business' me paste "
+        "karo; har hafte 1 Google post dalo - local ranking ka sabse "
         "sasta lever yahi hai.",
     }

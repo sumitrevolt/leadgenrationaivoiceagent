@@ -196,7 +196,7 @@ class TestCustomNiches:
 
             assert build_flow_for_niche(key) is not None
 
-            # client onboarding on the custom niche → 2 agents on that niche
+            # client onboarding on the custom niche -> 2 agents on that niche
             cr = client.post(
                 "/api/platform/clients",
                 json={

@@ -1,9 +1,9 @@
-"""Video Production Cell feature flags — all default OFF (fail-closed).
+"""Video Production Cell feature flags - all default OFF (fail-closed).
 
 Legacy alias: VIDEO_AD_CYCLE remains authoritative for the scheduler cycle.
 New VIDEO_* flags add finer gates (WhatsApp review, social publish, harness).
 
-Stage 1 shadow posture (local/hermetic only — never flip WA/social/own-brand):
+Stage 1 shadow posture (local/hermetic only - never flip WA/social/own-brand):
   VIDEO_PRODUCTION_ENABLED=1
   VIDEO_HARNESS_SHADOW_ENABLED=1
   VIDEO_HARNESS_ENFORCE=0
@@ -34,7 +34,7 @@ def daily_scheduler_enabled() -> bool:
 
 
 def customer_review_enabled() -> bool:
-    """Customer dashboard review surfaces — explicit only.
+    """Customer dashboard review surfaces - explicit only.
 
     Stage 1 requires VIDEO_PRODUCTION_ENABLED=1 with review still OFF, so this
     must NOT auto-enable from the production master switch.
@@ -58,7 +58,7 @@ def customer_review_allowed(client_id: str) -> bool:
 
 
 def whatsapp_review_enabled() -> bool:
-    """Auto WhatsApp preview send — OFF default; ban-safety critical."""
+    """Auto WhatsApp preview send - OFF default; ban-safety critical."""
     return _on("VIDEO_WHATSAPP_REVIEW_ENABLED")
 
 
@@ -66,7 +66,7 @@ def social_publish_enabled() -> bool:
     """Approval-gated Postiz/social publish. OFF = publish_due refuse."""
     if _on("VIDEO_SOCIAL_PUBLISH_ENABLED"):
         return True
-    # Legacy: VIDEO_AD_CYCLE alone used to publish — keep that path when
+    # Legacy: VIDEO_AD_CYCLE alone used to publish - keep that path when
     # production cell master is OFF so existing behaviour is unchanged.
     if not production_enabled():
         return True
@@ -90,7 +90,7 @@ def own_brand_enabled() -> bool:
 def own_brand_auto_approve_enabled() -> bool:
     """Flag-gated own-brand canary: auto-approve own-brand pending videos.
 
-    CANARY-FIRST — default OFF. When ON, only own-brand allowlist tenants
+    CANARY-FIRST - default OFF. When ON, only own-brand allowlist tenants
     (leadgenai-self / leadgen-ai) are auto-approved
     customers are never touched.
     """

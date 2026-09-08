@@ -45,7 +45,7 @@ def test_tenant_isolation():
 def test_capability_isolation():
     arid.claim("nikhil", "scan_delivery_assurance", "same", runtime_run_id="art_n1")
     b = arid.claim("nikhil", "other_action", "same", runtime_run_id="art_n2")
-    # other_action may fail capability canon if invalid chars — use valid
+    # other_action may fail capability canon if invalid chars - use valid
     assert b.claimed or b.reason_code == "malformed_idempotency_key"
     c = arid.claim("nikhil", "run_owned_workflow", "same", runtime_run_id="art_n3")
     assert c.claimed

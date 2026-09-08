@@ -1,15 +1,15 @@
 """
-product_catalog.py — per-mini-site PRODUCT catalog store (WhatsApp-store style).
+product_catalog.py - per-mini-site PRODUCT catalog store (WhatsApp-store style).
 =================================================================================
 
 Dhanda/Interakt edge: client ke /b/{slug} mini-site pe products grid +
 "WhatsApp pe order karein" 1-click buttons. Yeh module sirf STORE + CRUD hai;
 rendering `mini_site.py` me hota hai (lazy import, empty = ZERO change).
 
-NOTE: `app/marketing/catalog.py` PEHLE se exist karta hai — woh ek SVG
+NOTE: `app/marketing/catalog.py` PEHLE se exist karta hai - woh ek SVG
 price-list CARD generator hai (/api/marketing/catalog). Isliye yeh alag naam.
 
-Store: data/catalogs/<slug>.jsonl — append-only events:
+Store: data/catalogs/<slug>.jsonl - append-only events:
   {"op":"add", "product":{id,name,price_inr,photo_url,desc,in_stock,added_at}}
   {"op":"delete", "id": "..."}
   {"op":"update", "id": "...", "fields": {...}}
@@ -45,7 +45,7 @@ def _path(slug: Any) -> str:
 
 
 def _price(raw: Any) -> float:
-    """price_inr normalize → float >= 0 (invalid = 0)."""
+    """price_inr normalize -> float >= 0 (invalid = 0)."""
     try:
         s = str(raw if raw is not None else "").replace("₹", "").replace(",", "").strip()
         v = float(s) if s else 0.0
@@ -55,7 +55,7 @@ def _price(raw: Any) -> float:
 
 
 def _safe_url(raw: Any) -> str:
-    """photo_url — sirf http(s) ya hamare relative paths allow (XSS/JS-url block)."""
+    """photo_url - sirf http(s) ya hamare relative paths allow (XSS/JS-url block)."""
     u = str(raw or "").strip()[:500]
     if not u:
         return ""
@@ -132,7 +132,7 @@ def add_product(
     desc: str = "",
     in_stock: bool = True,
 ) -> dict[str, Any]:
-    """Product add — {ok, product} ya {ok:False, error}. Never raises."""
+    """Product add - {ok, product} ya {ok:False, error}. Never raises."""
     try:
         s = _safe_slug(slug)
         if not s:
@@ -152,7 +152,7 @@ def add_product(
             "added_at": datetime.now(timezone.utc).isoformat(),
         }
         if not _append(s, {"op": "add", "product": product}):
-            return {"ok": False, "error": "Save nahi hua — dobara try karein."}
+            return {"ok": False, "error": "Save nahi hua - dobara try karein."}
         return {"ok": True, "product": product, "total": len(list_products(s))}
     except Exception as e:
         logger.warning(f"[product_catalog] add failed: {e}")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 8 — Gemini Notebook export generator.
+"""Phase 8 - Gemini Notebook export generator.
 
 Builds clean, versioned, timestamped, secret-free source bundles under
 notebook_exports/ so a retrieval layer (Gemini Notebook / NotebookLM /
@@ -165,7 +165,7 @@ def build_bundle(domain: str, cfg: dict) -> str:
     lines: list[str] = []
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     title = cfg["title"]
-    lines.append(f"# {domain} — {title}")
+    lines.append(f"# {domain} - {title}")
     lines.append("")
     lines.append(f"> Generated: {now} · Source: leadgenrationaivoiceagent (local repo)")
     lines.append(f"> Purpose: {cfg['note']}")

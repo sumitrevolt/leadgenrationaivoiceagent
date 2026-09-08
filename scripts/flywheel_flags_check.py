@@ -73,7 +73,7 @@ def main() -> int:
         return 1
 
     if missing:
-        print(f"\nNote: {len(missing)} recommended flag(s) OFF — set in .env to enable full loop.")
+        print(f"\nNote: {len(missing)} recommended flag(s) OFF - set in .env to enable full loop.")
         print("  " + " ".join(missing))
     else:
         print("\nAll recommended flywheel flags ON.")

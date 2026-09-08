@@ -2,7 +2,7 @@
 
 INERT by default (flag OFF => plan_node never invoked, legacy `_extract_list`
 path + hardcoded fallback byte-identical). Flag ON => plan_node is the canary;
-on any plan_node failure the legacy path still runs. No real network anywhere —
+on any plan_node failure the legacy path still runs. No real network anywhere -
 `_llm` is monkeypatched.
 """
 

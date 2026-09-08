@@ -1,4 +1,4 @@
-"""Hands-Free Automations — proof that every advertised auto is backed by a real,
+"""Hands-Free Automations - proof that every advertised auto is backed by a real,
 importable engine with its run-entry, and that customer_autopilot is inert-by-default.
 
 Guards the 'surface not fabricate' rule: each of the 20 'Hands-Free Automations'

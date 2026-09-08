@@ -1,11 +1,11 @@
-"""Distributed call state for CallManager — Redis when available, in-memory fallback.
+"""Distributed call state for CallManager - Redis when available, in-memory fallback.
 
 Why: with >1 uvicorn/dialer worker, a local `dict` + `asyncio.PriorityQueue` are
 per-process, so workers can't share the call queue or see each other's active calls.
 This store keeps the **priority call queue** and a **serializable active-call registry**
 in Redis so workers scale statelessly.
 
-IMPORTANT: live `VoiceAgent` CallContext objects are NOT stored here — they can't be
+IMPORTANT: live `VoiceAgent` CallContext objects are NOT stored here - they can't be
 serialized and must stay in the worker that's running the call. This store only holds
 the queued `CallRequest` payloads (plain dicts) and lightweight active-call snapshots.
 
@@ -26,7 +26,7 @@ logger = setup_logger(__name__)
 
 _QUEUE_KEY = "telephony:call_queue"
 _ACTIVE_KEY = "telephony:active_calls"
-_SID_KEY = "telephony:sid_to_call_id"  # reverse-lookup: Vobiz CallSid → our internal call_id
+_SID_KEY = "telephony:sid_to_call_id"  # reverse-lookup: Vobiz CallSid -> our internal call_id
 
 
 class RedisCallStore:
@@ -69,13 +69,13 @@ class RedisCallStore:
             )
             await client.ping()
             # A real redis client exposes zadd/zpopmin; the InMemoryCache fallback
-            # in app/cache.py does not — in that case we stay fully local.
+            # in app/cache.py does not - in that case we stay fully local.
             if client is not None and hasattr(client, "zadd") and hasattr(client, "zpopmin"):
                 self._client = client
                 self._is_redis = True
                 logger.info("📞 RedisCallStore: Redis-backed distributed call state active")
             else:
-                logger.info("📞 RedisCallStore: Redis unavailable — local in-memory call state")
+                logger.info("📞 RedisCallStore: Redis unavailable - local in-memory call state")
         except Exception as e:  # pragma: no cover - defensive
             logger.warning(f"RedisCallStore init failed ({e})
             using local state.")
@@ -158,7 +158,7 @@ class RedisCallStore:
     # -- sid ↔ call_id reverse mapping (2026-07-10: Vobiz status webhook fix) -- #
 
     async def _sid_map_set(self, sid: str, call_id: str) -> None:
-        """Map Vobiz CallSid → our internal call_id (so status webhooks resolve)."""
+        """Map Vobiz CallSid -> our internal call_id (so status webhooks resolve)."""
         if not sid or not call_id:
             return
         r = await self._redis()

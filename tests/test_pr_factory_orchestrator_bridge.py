@@ -1,4 +1,4 @@
-"""PR Factory → external_agents.create_mission bridge (dual-gate, tmp store)."""
+"""PR Factory -> external_agents.create_mission bridge (dual-gate, tmp store)."""
 
 from __future__ import annotations
 
@@ -118,7 +118,7 @@ def test_factory_module_does_not_touch_mission_store():
 
 
 def test_extras_survive_claim_and_stale_blind_save_is_the_anti_pattern(monkeypatch, _isolated):
-    """Factory must not post-create store.save — that can clobber apply_cas claims."""
+    """Factory must not post-create store.save - that can clobber apply_cas claims."""
     monkeypatch.setenv("PR_FACTORY_ENABLED", "1")
     monkeypatch.setenv("EXTERNAL_AGENT_ORCHESTRATOR", "1")
 
@@ -144,7 +144,7 @@ def test_extras_survive_claim_and_stale_blind_save_is_the_anti_pattern(monkeypat
     clobbered = ext_store.get(mid)
     assert clobbered is not None
     assert clobbered.status is MissionState.CREATED
-    # Claim was lost — proves why submit_task must never store.save after create.
+    # Claim was lost - proves why submit_task must never store.save after create.
     assert "zombie_factory_extras" in clobbered.evidence_kinds()
 
     # Fresh mission on a distinct path (avoid path-lock clash with mid).

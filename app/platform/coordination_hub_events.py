@@ -1,6 +1,6 @@
 """Append-only Coordination Hub events + tool presence projection.
 
-Not a mission ledger / STAFF registry — presence only for Hub dashboard.
+Not a mission ledger / STAFF registry - presence only for Hub dashboard.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Module-level path literals — runtime-data scanner + allowlist bind here.
+# Module-level path literals - runtime-data scanner + allowlist bind here.
 _ROOT = "data/coordination_hub"
 _EVENTS = "data/coordination_hub/events.jsonl"
 _PRESENCE = "data/coordination_hub/presence.json"

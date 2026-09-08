@@ -1,9 +1,9 @@
-"""F6 "Team Improvement Council" — office HQ snapshot-grounded AgentVerse discussion.
+"""F6 "Team Improvement Council" - office HQ snapshot-grounded AgentVerse discussion.
 
 Bars:
 - POST /api/platform/office/improve is admin-gated.
 - improvement_council() always calls coordinator.coordinate_agentverse with
-  execute=False (draft-safe — a discussion, not an action run).
+  execute=False (draft-safe - a discussion, not an action run).
 - Empty topic falls back to the default project-improvement question.
 - Contributions carry {staff, staff_name, dispatchable} so the admin can
   1-click dispatch through the EXISTING run_agent_task() path.

@@ -124,7 +124,7 @@ class LinkedInScraper:
         parses organic results into LinkedInLead records.
 
         No API key or login required. This will not return private profile data
-        (email/phone stay None) — only public company listing metadata.
+        (email/phone stay None) - only public company listing metadata.
         """
         if BeautifulSoup is None:
             logger.error("beautifulsoup4 not installed
@@ -163,7 +163,7 @@ class LinkedInScraper:
                     snip_el = r.select_one(".result__snippet")
                     snip_el.get_text(" ", strip=True) if snip_el else ""
 
-                    # LinkedIn titles look like "Acme Solar | LinkedIn" — strip suffix
+                    # LinkedIn titles look like "Acme Solar | LinkedIn" - strip suffix
                     company = re.split(r"\s*[|\-–]\s*LinkedIn", title, flags=re.I)[0].strip()
                     company = company or title
 

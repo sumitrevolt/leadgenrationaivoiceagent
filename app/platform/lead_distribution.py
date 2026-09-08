@@ -1,6 +1,6 @@
-"""Lead distribution — round-robin team routing + WA 1-click handoff.
+"""Lead distribution - round-robin team routing + WA 1-click handoff.
 
-Client ki sales team (2-5 log) me naye leads BAARI-BAARI baante jaate — koi
+Client ki sales team (2-5 log) me naye leads BAARI-BAARI baante jaate - koi
 lead kisi ek bande ke WhatsApp me sadta nahi. Har assignment ka wa.me handoff
 link banta (ban-safe: human 1-click send, auto-send NAHI).
 
@@ -110,7 +110,7 @@ def set_config(
 
 
 def get_config(client_id: str) -> dict[str, Any] | None:
-    """Latest config for client (append-on-update — last line wins). Never raises."""
+    """Latest config for client (append-on-update - last line wins). Never raises."""
     try:
         client_id = str(client_id or "").strip()
         latest: dict[str, Any] | None = None
@@ -130,7 +130,7 @@ def _handoff_text(member: dict[str, str], lead: dict[str, Any]) -> dict[str, str
         f"🔥 Naya lead aapke naam: {name}"
         + (f" ({phone})" if phone else "")
         + (f"\nNote: {note}" if note else "")
-        + "\n2 minute ke andar call karo — lead garam hai! 💪"
+        + "\n2 minute ke andar call karo - lead garam hai! 💪"
     )
     wa_link = f"https://wa.me/91{member['phone']}?text={quote(msg)}"
     return {"message": msg, "wa_link": wa_link}
@@ -148,13 +148,13 @@ def assign(client_id: str, lead: dict[str, Any]) -> dict[str, Any]:
         if not cfg or not cfg.get("members"):
             return {
                 "ok": False,
-                "error": "is client ka routing config nahi — pehle POST /api/clientops/routing se team set karo.",
+                "error": "is client ka routing config nahi - pehle POST /api/clientops/routing se team set karo.",
             }
         members = cfg["members"]
         cursor = int(cfg.get("cursor") or 0)
         member = members[cursor % len(members)]
 
-        # cursor advance (append-on-update; race acceptable — never blocks)
+        # cursor advance (append-on-update; race acceptable - never blocks)
         _append(
             _ROUTING_FILE,
             {**cfg, "cursor": (cursor + 1) % len(members), "updated_at": _now()},
@@ -182,7 +182,7 @@ def assign(client_id: str, lead: dict[str, Any]) -> dict[str, Any]:
 
 
 def maybe_assign(client_id: str, lead: dict[str, Any]) -> dict[str, Any] | None:
-    """Routing config ho to auto round-robin assign — warna None (silent skip)."""
+    """Routing config ho to auto round-robin assign - warna None (silent skip)."""
     try:
         client_id = str(client_id or "").strip()
         if not client_id or not isinstance(lead, dict):

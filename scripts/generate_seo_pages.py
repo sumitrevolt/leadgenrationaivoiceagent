@@ -1,4 +1,4 @@
-"""One-shot SEO pages batch generator — top niches × top cities.
+"""One-shot SEO pages batch generator - top niches × top cities.
 Run: docker exec leadgen_app python scripts/generate_seo_pages.py
 Generates ~30+ pages covering key lead-gen niches and cities for organic inbound.
 """
@@ -67,11 +67,11 @@ async def main():
                 r = await seo_pages.generate_page(niche, city)
                 if r.get("ok"):
                     generated += 1
-                    print(f"  ✓ {niche} × {city} → {r['page']['slug']}")
+                    print(f"  ✓ {niche} × {city} -> {r['page']['slug']}")
                 else:
-                    print(f"  ✗ {niche} × {city} — {r}")
+                    print(f"  ✗ {niche} × {city} - {r}")
             except Exception as e:
-                print(f"  ✗ {niche} × {city} — {e}")
+                print(f"  ✗ {niche} × {city} - {e}")
             await asyncio.sleep(0.3)  # token safety
 
     print(f"\nDone: {generated} new pages generated, {skipped} already existed.")

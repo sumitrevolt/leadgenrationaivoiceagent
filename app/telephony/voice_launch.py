@@ -1,10 +1,10 @@
-"""voice_launch — controlled outbound-calling launch spine (2026-07-17).
+"""voice_launch - controlled outbound-calling launch spine (2026-07-17).
 
 KYUN: cold AI calling (`platform_dial`) 05-Jul se 3-layer HARD OFF tha (real
 paisa + IVR ko "interested" mark). Controlled re-launch ke liye ek CENTRAL,
 fail-CLOSED safety spine chahiye jo:
   * per-lead eligibility ek jagah decide kare (compliance + dial_gate + consent
-    ko compose karke — koi naya compliance gate NAHI, existing chokepoints reuse),
+    ko compose karke - koi naya compliance gate NAHI, existing chokepoints reuse),
   * daily attempt cap (default 100 IST/day) ATOMIC + cross-worker rakhe,
   * concurrency limit expose kare,
   * 30-call training-pause boundaries bataye,
@@ -13,11 +13,11 @@ fail-CLOSED safety spine chahiye jo:
   * campaign state machine ke states de.
 
 DESIGN (repo-consistent): import-safe, koi function KABHI raise nahi karta.
-Master flag ``VOICE_LAUNCH_CAMPAIGN`` (default OFF = INERT) — is module ke hone
+Master flag ``VOICE_LAUNCH_CAMPAIGN`` (default OFF = INERT) - is module ke hone
 bhar se koi call NAHI lagti
 ye sirf gate/counter/state helpers deta hai jinhe
 dial loop explicit call kare. platform_dial ke teen kill-layers (env/data-file/
-scheduler) is module se untouched hain — ye unke UPAR ek extra safety spine hai.
+scheduler) is module se untouched hain - ye unke UPAR ek extra safety spine hai.
 
 FAIL-CLOSED: agar counter (Redis) unavailable ho to cap "reached" maana jata hai
 (spend/compliance cap ko count na kar paane par dial mat karo). Eligibility me
@@ -39,27 +39,27 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Launch hard ceiling — daily cap kabhi is se upar nahi ja sakta (env override bhi clamp).
+# Launch hard ceiling - daily cap kabhi is se upar nahi ja sakta (env override bhi clamp).
 _DAILY_CAP_CEILING = 100
 _DEFAULT_DAILY_CAP = 100
-_DEFAULT_TEST_CAP = 25  # internal test calls (allowlist) — campaign quota se ALAG
+_DEFAULT_TEST_CAP = 25  # internal test calls (allowlist) - campaign quota se ALAG
 # Per-tenant console test calls. Same order as the internal test quota (25, not
 # the campaign default 100): this path is a self-serve demo dial, so an
 # unconfigured tenant must not inherit campaign-scale volume by accident.
 _DEFAULT_TENANT_CAP = 25
 _DEFAULT_CONCURRENCY = 1
-_TRAIN_BATCH = 30  # 30-call batches: pause@30/60/90 → train → resume
-_COUNTER_TTL_S = 129600  # 36h — IST-date counter, midnight rollover buffer
+_TRAIN_BATCH = 30  # 30-call batches: pause@30/60/90 -> train -> resume
+_COUNTER_TTL_S = 129600  # 36h - IST-date counter, midnight rollover buffer
 # Charset allowed in a sanitized tenant id inside a Redis key (see
 # _tenant_counter_key). Anything else is dropped, not escaped.
 _TENANT_ID_SAFE = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_.:-")
 
-# Session-scoped ceiling — exactly VOICE_CALLS_PER_SESSION attempts per launch
-# session (default 30). Redis-backed → worker/scheduler restart counter RESET
+# Session-scoped ceiling - exactly VOICE_CALLS_PER_SESSION attempts per launch
+# session (default 30). Redis-backed -> worker/scheduler restart counter RESET
 # NAHI karta; reset sirf canonical create_voice_session() lifecycle se.
 _DEFAULT_SESSION_CAP = 30
 _SESSION_CAP_CEILING = 200
-_SESSION_TTL_S = 7 * 86400  # 7 days — session training-pauses (ghanto tak) span karti hai
+_SESSION_TTL_S = 7 * 86400  # 7 days - session training-pauses (ghanto tak) span karti hai
 
 
 # --------------------------------------------------------------------------- #
@@ -97,7 +97,7 @@ class VoiceDisposition(str, Enum):
     """Canonical outbound-attempt disposition.
 
     NUP resolution (2026-07-17): "NUP" (Number Un-obtainable / Not-UP) codebase
-    ke CallOutcome enum me NAHI tha — ye ek PROVIDER/SIP-layer non-connect
+    ke CallOutcome enum me NAHI tha - ye ek PROVIDER/SIP-layer non-connect
     disposition hai (unallocated/unobtainable/rejected number, SIP 3/4/6xx).
     Canonically ise NUP alag rakha hai (billing/analytics visibility ke liye),
     par FAILED family ke saath ek NON-CONNECT attempt hai. Launch policy: har
@@ -117,7 +117,7 @@ class VoiceDisposition(str, Enum):
     DND = "dnd"
     WRONG_NUMBER = "wrong_number"
     DROPPED = "dropped"
-    SKIPPED = "skipped"  # pre-dial gate skip — call NEVER placed, does NOT count
+    SKIPPED = "skipped"  # pre-dial gate skip - call NEVER placed, does NOT count
 
 
 # Raw provider/webhook/internal token -> canonical. Lowercased+stripped lookup.
@@ -147,7 +147,7 @@ _DISPOSITION_ALIASES: dict[str, VoiceDisposition] = {
     # busy
     "busy": VoiceDisposition.BUSY,
     "user_busy": VoiceDisposition.BUSY,
-    # NUP — number unobtainable / unallocated / not-up (SIP 404/410/604/3xx)
+    # NUP - number unobtainable / unallocated / not-up (SIP 404/410/604/3xx)
     "nup": VoiceDisposition.NUP,
     "unobtainable": VoiceDisposition.NUP,
     "unallocated": VoiceDisposition.NUP,
@@ -272,7 +272,7 @@ def _kill_file() -> Path:
     a path
     frozen at import could never follow it. VOICE_LAUNCH_KILL_FILE keeps its
     current precedence before the cutover, and after it the authority refuses an
-    override that points anywhere but the canonical target — a forgotten
+    override that points anywhere but the canonical target - a forgotten
     `VOICE_LAUNCH_KILL_FILE=data/...` must not route an emergency control back
     into a checkout a deploy can reset.
 
@@ -311,7 +311,7 @@ _KILL_FALSE = ("0", "false", "no", "off")
 def _kill_file_status() -> AdminKillStatus:
     """File fallback. EVERY failure engages the kill.
 
-    An emergency switch whose file went missing must not read as "disengaged" —
+    An emergency switch whose file went missing must not read as "disengaged" -
     that is how a deploy that resets the checkout silently re-arms dialling.
     """
     from app.platform import runtime_data as _rd
@@ -350,7 +350,7 @@ def _kill_file_status() -> AdminKillStatus:
         return AdminKillStatus(True, "FILE", "MALFORMED")
 
     # STRICT: a real bool only. `bool(data.get("kill"))` accepted {"kill": 1}
-    # and {"kill": "false"} — a safety switch cannot run on truthiness.
+    # and {"kill": "false"} - a safety switch cannot run on truthiness.
     # isinstance is exact here: isinstance(1, bool) is False, so the integer
     # payloads that truthiness used to accept still fail.
     if not isinstance(data, dict) or not isinstance(data.get("kill"), bool):
@@ -366,7 +366,7 @@ def admin_kill_status() -> AdminKillStatus:
 
     ENV ``VOICE_LAUNCH_KILL`` is FINAL when it carries a recognised token
     the
-    data-file is only the fallback (container-recreate ke bina flip — data/
+    data-file is only the fallback (container-recreate ke bina flip - data/
     bind-mount). A non-empty UNRECOGNISED token engages rather than falling
     through, because "VOICE_LAUNCH_KILL=maybe" is a misconfiguration, not a
     licence to dial.
@@ -382,7 +382,7 @@ def admin_kill_status() -> AdminKillStatus:
 
 
 def admin_kill_engaged() -> bool:
-    """Boolean wrapper — the three execution call sites keep a real bool."""
+    """Boolean wrapper - the three execution call sites keep a real bool."""
     return admin_kill_status().engaged
 
 
@@ -431,7 +431,7 @@ def tenant_cap(requested: int | None = None) -> int:
 
 
 def session_cap() -> int:
-    """Per-SESSION attempt ceiling — ``VOICE_CALLS_PER_SESSION`` (default 30,
+    """Per-SESSION attempt ceiling - ``VOICE_CALLS_PER_SESSION`` (default 30,
     hard-clamped ≤200). One session = one operator launch (create_voice_session);
     counter Redis-backed (worker/scheduler restart = NO reset). Sirf canonical
     session lifecycle counter ko reset karta hai."""
@@ -528,12 +528,12 @@ async def daily_cap_reached(kind: str = "campaign") -> bool:
 
 async def reserve_call_slot(kind: str = "campaign") -> SlotReservation:
     """Atomically claim ONE attempt slot for today (IST). Returns ok=False if the
-    cap is reached OR the counter is unavailable (fail-CLOSED — spend/compliance
+    cap is reached OR the counter is unavailable (fail-CLOSED - spend/compliance
     cap ko count na kar paane par dial mat karo). Idempotency is the CALLER's job
     (dedupe per lead)
     this only enforces the volume ceiling.
 
-    ATOMICITY: single Redis INCR — multi-worker safe. First incr sets the 36h TTL.
+    ATOMICITY: single Redis INCR - multi-worker safe. First incr sets the 36h TTL.
     """
     cap = daily_cap(kind)
     try:
@@ -581,7 +581,7 @@ async def reserve_tenant_slot(client_id: str, limit: int | None = None) -> SlotR
     must not consume (or be masked by) the shared campaign allowance. Both
     counters still sit under the same admin kill / circuit / compliance gates.
 
-    Same contract as reserve_call_slot — ok=False on over-cap OR unavailable
+    Same contract as reserve_call_slot - ok=False on over-cap OR unavailable
     counter (FAIL-CLOSED), single INCR for multi-worker atomicity, 36h TTL set
     on first increment, over-cap rolled back to `cap`.
     """
@@ -608,7 +608,7 @@ async def reserve_tenant_slot(client_id: str, limit: int | None = None) -> SlotR
 
 
 async def release_tenant_slot(client_id: str) -> int:
-    """Roll back ONE reserved tenant slot — the slot was claimed but the call
+    """Roll back ONE reserved tenant slot - the slot was claimed but the call
     never became a provider-accepted attempt (console dry-run, or the provider
     rejected it). Mirror of ``release_call_slot`` on the per-tenant counter.
 
@@ -630,7 +630,7 @@ async def release_tenant_slot(client_id: str) -> int:
 
 
 # --------------------------------------------------------------------------- #
-# Centralized per-lead eligibility (fail-CLOSED) — composes existing chokepoints
+# Centralized per-lead eligibility (fail-CLOSED) - composes existing chokepoints
 # --------------------------------------------------------------------------- #
 async def is_lead_eligible_for_voice_call(
     phone: str,
@@ -647,7 +647,7 @@ async def is_lead_eligible_for_voice_call(
       3. dial_gate.check (test-mode allowlist + phone-type + learned IVR blocklist)
       4. compliance gate (DND fail-closed + calling window + DLT/140 + consent opt-out)
 
-    Ye koi NAYA compliance gate NAHI banata — existing ``app.telephony.compliance``
+    Ye koi NAYA compliance gate NAHI banata - existing ``app.telephony.compliance``
     aur ``app.telephony.dial_gate`` ko reuse karta hai (single source of truth).
     Never raises. Any internal error => promotional ineligible, transactional eligible.
     """
@@ -666,7 +666,7 @@ async def is_lead_eligible_for_voice_call(
         if not (10 <= len(digits) <= 15):
             return EligibilityResult(False, SkipReason.INVALID_PHONE, detail)
 
-        # 3) dial_gate — promotional test-mode allowlist + phone-type + learned block
+        # 3) dial_gate - promotional test-mode allowlist + phone-type + learned block
         try:
             from app.telephony import dial_gate
 
@@ -684,7 +684,7 @@ async def is_lead_eligible_for_voice_call(
             if ct == "promotional":
                 return EligibilityResult(False, SkipReason.GATE_ERROR, detail)
 
-        # 4) compliance gate — THE TRAI chokepoint (DND/window/DLT/consent)
+        # 4) compliance gate - THE TRAI chokepoint (DND/window/DLT/consent)
         from app.telephony.compliance import CallType, get_compliance_gate
 
         ctype = CallType.PROMOTIONAL if ct == "promotional" else CallType.TRANSACTIONAL
@@ -694,7 +694,7 @@ async def is_lead_eligible_for_voice_call(
             reason = _map_compliance_reason(decision.reasons)
             return EligibilityResult(False, reason, detail)
 
-        # compliance_disabled bypass is itself a red flag — surface as unsafe.
+        # compliance_disabled bypass is itself a red flag - surface as unsafe.
         if "compliance_disabled" in (decision.reasons or []):
             return EligibilityResult(False, SkipReason.COMPLIANCE_DISABLED, detail)
 
@@ -727,7 +727,7 @@ def _map_compliance_reason(reasons: list[str]) -> str:
 
 async def release_call_slot(kind: str = "campaign") -> int:
     """Roll back ONE reserved slot (call reserved but NEVER became a provider-accepted
-    attempt — e.g. provider-side compliance_blocked). DECR, floored at 0. Never raises."""
+    attempt - e.g. provider-side compliance_blocked). DECR, floored at 0. Never raises."""
     try:
         r = await _redis()
         key = _counter_key(kind)
@@ -744,7 +744,7 @@ async def release_call_slot(kind: str = "campaign") -> int:
 # --------------------------------------------------------------------------- #
 # Session-scoped call limiter (exactly VOICE_CALLS_PER_SESSION per session)
 # --------------------------------------------------------------------------- #
-# Session = one operator launch (create_voice_session). Counter Redis-backed →
+# Session = one operator launch (create_voice_session). Counter Redis-backed ->
 # worker/scheduler restart RESET nahi karta; reset SIRF canonical lifecycle se.
 _SESSION_CURRENT_KEY = "voice_launch:session:current"
 
@@ -783,7 +783,7 @@ def new_session_id() -> str:
 
 
 async def create_voice_session(owner: str = "", niche: str = "", label: str = "") -> str:
-    """Canonical session LIFECYCLE — naya session banao (attempt counter 0 se).
+    """Canonical session LIFECYCLE - naya session banao (attempt counter 0 se).
     YAHI single place hai jahan session attempt-count reset hota hai
     worker or
     scheduler restart kabhi reset NAHI karta. Never raises (Redis down => "")."""
@@ -802,7 +802,7 @@ async def create_voice_session(owner: str = "", niche: str = "", label: str = ""
         )
         await r.set(_session_meta_key(sid), meta, ex=_SESSION_TTL_S)
         await r.set(_SESSION_CURRENT_KEY, sid, ex=_SESSION_TTL_S)
-        # Explicit SET (not INCR) — pichhle session ka stale 30 kabhi leak na ho.
+        # Explicit SET (not INCR) - pichhle session ka stale 30 kabhi leak na ho.
         await r.set(_session_counter_key(sid), "0", ex=_SESSION_TTL_S)
         await r.delete(_session_stopped_key(sid))
         return sid
@@ -856,7 +856,7 @@ async def session_is_stopped(sid: str | None = None) -> bool:
 
 
 async def session_stop(sid: str | None = None) -> bool:
-    """Session-level emergency stop — future reservations blocked (in-flight call
+    """Session-level emergency stop - future reservations blocked (in-flight call
     completes). Returns success. Never raises."""
     try:
         r = await _redis()
@@ -974,7 +974,7 @@ async def session_disposition_counts(sid: str | None = None) -> dict[str, int]:
 
 
 async def record_session_retry_blocked(sid: str | None) -> None:
-    """Duplicate-dispatch counter (idempotency claim already held) — 'retried'
+    """Duplicate-dispatch counter (idempotency claim already held) - 'retried'
     calls count ALAG se. Best-effort."""
     try:
         r = await _redis()
@@ -1004,7 +1004,7 @@ async def session_retried(sid: str) -> int:
 
 async def session_idem_claim(sid: str | None, key: str, ttl_s: int = 86400) -> bool:
     """Idempotency claim: True jab is session me is dispatch-key ka provider request
-    PEHLI baar ho raha hai. Redis SET NX EX — worker retry/restart survive karta
+    PEHLI baar ho raha hai. Redis SET NX EX - worker retry/restart survive karta
     hai (double provider request kabhi nahi). False = already dispatched (retry).
     Never raises (Redis down => False = fail-closed)."""
     try:
@@ -1099,7 +1099,7 @@ async def session_status(sid: str | None = None) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Disposition counters (admin NUP/outcome visibility) — per IST day
+# Disposition counters (admin NUP/outcome visibility) - per IST day
 # --------------------------------------------------------------------------- #
 def _disp_key(disp: VoiceDisposition, kind: str) -> str:
     return f"voice_launch:disp:{kind}:{disp.value}:{_ist_date()}"
@@ -1155,7 +1155,7 @@ def circuit_fail_threshold() -> int:
 
 async def circuit_open() -> bool:
     """True while the breaker is tripped. Never raises (unavailable => False so a
-    Redis outage doesn't itself wedge the loop — the daily-cap is the fail-closed
+    Redis outage doesn't itself wedge the loop - the daily-cap is the fail-closed
     guard
     the breaker is an availability/spike guard on top)."""
     try:
@@ -1223,7 +1223,7 @@ async def record_provider_result(placed: bool, error: str = "") -> bool:
 # Recording pipeline gate (block dials if MANDATORY recording path unhealthy)
 # --------------------------------------------------------------------------- #
 def _recordings_dir() -> Path:
-    """Retention-governed recordings dir — resolved per call, never frozen at import.
+    """Retention-governed recordings dir - resolved per call, never frozen at import.
 
     RECORDINGS_DIR keeps its current override precedence before cutover
     after
@@ -1382,7 +1382,7 @@ async def launch_status() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Effective campaign-state resolver (pure — no side effects)
+# Effective campaign-state resolver (pure - no side effects)
 # --------------------------------------------------------------------------- #
 def resolve_campaign_state(
     *,

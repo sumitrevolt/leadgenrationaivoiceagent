@@ -12,7 +12,7 @@ exit codes: 0 ok · 1 refusal/validation · 2 usage · 3 disabled):
 Repair/diagnose/verify require all three flags ON (PR_FACTORY_PILOT_ENABLED +
 PR_FACTORY_ENABLED + EXTERNAL_AGENT_ORCHESTRATOR). Validate and cleanup refuse
 nothing but still require the manifest to parse and the worktree to be
-task-owned — they never mutate a non-task path.
+task-owned - they never mutate a non-task path.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """
-AI Voice Calling Agent — STANDALONE product (Product 2) pricing source-of-truth.
+AI Voice Calling Agent - STANDALONE product (Product 2) pricing source-of-truth.
 ==================================================================================
 
 PRICING MODEL (updated 2026-06-12): **FLAT MONTHLY per niche-band**
@@ -11,21 +11,21 @@ PRICING MODEL (updated 2026-06-12): **FLAT MONTHLY per niche-band**
   - Annual                   : 10× monthly (2 mahine free)
   - Free pilot               : 7 din / 50 calls (zero payment)
 
-  Niche → band mapping: niches.py `lead_band` field.
-  Band → plan ID       : voice_a_monthly / voice_b_monthly / voice_c_monthly
+  Niche -> band mapping: niches.py `lead_band` field.
+  Band -> plan ID       : voice_a_monthly / voice_b_monthly / voice_c_monthly
                          voice_a_annual  / voice_b_annual  / voice_c_annual
                          voice_pilot     (free, 7 days)
 
 Backward-compat helpers retained:
   - voice_plan_price(), is_voice_plan(), plan_lead_quota() (returns UNLIMITED_QUOTA)
-  - get_voice_packages() — same shape as before (tiers list, band_info)
+  - get_voice_packages() - same shape as before (tiers list, band_info)
 
 Consumers:
-  - GET /api/voice/packages (PUBLIC — /voice-agent page)
+  - GET /api/voice/packages (PUBLIC - /voice-agent page)
   - app/billing/subscription.py _sync_voice_plans (plan key list)
-  - app/billing/lead_usage.py (quota check — unlimited for flat plans)
+  - app/billing/lead_usage.py (quota check - unlimited for flat plans)
 
-Pure-data module — koi heavy import nahi. Kabhi raise nahi karta.
+Pure-data module - koi heavy import nahi. Kabhi raise nahi karta.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ UNLIMITED_QUOTA: int = 9_999  # lead_usage.py me "unlimited" signal
 # Band metadata
 BANDS: dict[str, dict] = {
     "S": {
-        "name": "Starter Voice — 100 min",
+        "name": "Starter Voice - 100 min",
         "desc": "Perfect for freelancers and small setups testing AI voice.",
         "niches_sample": "Any Niche (100 min cap)",
         "price_month": 1999,
@@ -46,7 +46,7 @@ BANDS: dict[str, dict] = {
         "plan_annual": "voice_starter_annual",
     },
     "F": {
-        "name": "Freemium — 10 calls/mo",
+        "name": "Freemium - 10 calls/mo",
         "desc": "Viral free tier forever. 10 calls per month.",
         "niches_sample": "Any Niche (10 calls/mo cap)",
         "price_month": 0,
@@ -55,8 +55,8 @@ BANDS: dict[str, dict] = {
         "plan_annual": "voice_freemium_annual",
     },
     "A": {
-        "name": "Band A — Volume niches",
-        "desc": "Insurance, coaching, solar, hospital, upskilling, travel, events — mass market",
+        "name": "Band A - Volume niches",
+        "desc": "Insurance, coaching, solar, hospital, upskilling, travel, events - mass market",
         "niches_sample": "Insurance · Coaching · Solar · Hospital Appointments · Upskilling · Travel",
         "price_month": 4_999,
         "price_year": 49_990,
@@ -64,7 +64,7 @@ BANDS: dict[str, dict] = {
         "plan_annual": "voice_a_annual",
     },
     "B": {
-        "name": "Band B — Mid-premium niches",
+        "name": "Band B - Mid-premium niches",
         "desc": "Home loans, study abroad, dental, modular kitchen, finance advisory, CA",
         "niches_sample": "Home Loans · Study Abroad · Dental · Finance Advisory · CA & Legal",
         "price_month": 9_999,
@@ -73,7 +73,7 @@ BANDS: dict[str, dict] = {
         "plan_annual": "voice_b_annual",
     },
     "C": {
-        "name": "Band C — Premium niches",
+        "name": "Band C - Premium niches",
         "desc": "IVF, immigration, commercial solar, commercial HVAC, hair transplant",
         "niches_sample": "IVF Clinics · Immigration · Commercial Solar · HVAC · Hair Transplant",
         "price_month": 19_999,
@@ -92,9 +92,9 @@ VOICE_PLAN_IDS: list[str] = (
 
 # Features shared across all paid plans
 _BASE_FEATURES: list[str] = [
-    "8+ Indian languages (Hindi, Tamil, Telugu, Marathi, Gujarati, Bengali, etc) — human-like voice, TRAI AI-disclosure built-in",
+    "8+ Indian languages (Hindi, Tamil, Telugu, Marathi, Gujarati, Bengali, etc) - human-like voice, TRAI AI-disclosure built-in",
     "Unlimited AI calls aapke niche database pe",
-    "Live call dashboard — recordings + Hinglish transcripts",
+    "Live call dashboard - recordings + Hinglish transcripts",
     "Har call ka AI qualification report (intent, budget, timeline)",
     "Missed-call instant AI callback",
     "WhatsApp follow-up drafts har interested lead ke liye",
@@ -109,7 +109,7 @@ def _make_tiers(band: str) -> list[dict]:
         {
             "key": "voice_freemium",
             "name": "Freemium",
-            "tagline": "Duniya ko AI power dikhane ke liye — 10 free calls/mo hamesha.",
+            "tagline": "Duniya ko AI power dikhane ke liye - 10 free calls/mo hamesha.",
             "billing": "monthly",
             "price_inr_month": 0,
             "price_inr_year": None,
@@ -135,7 +135,7 @@ def _make_tiers(band: str) -> list[dict]:
         {
             "key": "voice_pilot",
             "name": "Free Pilot",
-            "tagline": f"7 din mein dekho AI agent kaisa kaam karta hai — {PILOT_CALL_CAP} calls free.",
+            "tagline": f"7 din mein dekho AI agent kaisa kaam karta hai - {PILOT_CALL_CAP} calls free.",
             "billing": "one-time",
             "price_inr_month": 0,
             "price_inr_year": None,
@@ -152,21 +152,21 @@ def _make_tiers(band: str) -> list[dict]:
         },
         {
             "key": b["plan_monthly"],
-            "name": f"Monthly — {band} band",
+            "name": f"Monthly - {band} band",
             "tagline": "Flat monthly. Koi lead-counting nahi, koi surprise invoice nahi.",
             "billing": "monthly",
             "price_inr_month": b["price_month"],
             "price_inr_year": None,
             "calls_included": "Unlimited calls",
-            "features": _BASE_FEATURES + ["Cancel anytime — koi lock-in nahi"],
+            "features": _BASE_FEATURES + ["Cancel anytime - koi lock-in nahi"],
             "highlight": True,
             "badge": "Most popular",
             "plan_id": b["plan_monthly"],
         },
         {
             "key": b["plan_annual"],
-            "name": f"Annual — {band} band",
-            "tagline": "2 mahine free — ek baar pay karo, saal bhar tension nahi.",
+            "name": f"Annual - {band} band",
+            "tagline": "2 mahine free - ek baar pay karo, saal bhar tension nahi.",
             "billing": "annual",
             "price_inr_month": b["price_month"],  # shown as "per month equivalent"
             "price_inr_year": b["price_year"],
@@ -201,10 +201,10 @@ def niche_band(niche_key: str | None) -> str:
 
 
 def get_voice_packages(band: str | None = None, niche: str | None = None) -> dict:
-    """Voice product ka public pricing payload — band ya niche se resolve.
+    """Voice product ka public pricing payload - band ya niche se resolve.
 
     Returns {band, band_info, tiers:[pilot, monthly, annual], compliance_note}.
-    Same outer shape as before — /voice-agent page compatible.
+    Same outer shape as before - /voice-agent page compatible.
     Kabhi raise nahi karta.
     """
     b = normalize_band(band) if band else niche_band(niche)
@@ -240,7 +240,7 @@ def voice_plan_parts(plan_id: str | None) -> tuple[str, str]:
             return info["plan_annual"], band
     if p == "voice_pilot":
         return "voice_pilot", "A"
-    # Legacy plan IDs (old per-10-lead system) — treat as Band A monthly
+    # Legacy plan IDs (old per-10-lead system) - treat as Band A monthly
     legacy_prefixes = ("voice_starter", "voice_growth", "voice_pro")
     for pfx in legacy_prefixes:
         if p.startswith(pfx):
@@ -262,7 +262,7 @@ def voice_plan_price(plan_id: str | None) -> int:
     key, band = voice_plan_parts(plan_id)
     if key == "voice_pilot":
         return 0
-    # voice_plan_parts() returns ('', 'A') for UNKNOWN ids — band alone is
+    # voice_plan_parts() returns ('', 'A') for UNKNOWN ids - band alone is
     # always truthy, so without the key-check every unknown string priced as
     # Band-A ₹4,999 (audit 2026-07-04: broke UPI floor lookups for combo ids).
     if not key or not band or band not in BANDS:
@@ -271,7 +271,7 @@ def voice_plan_price(plan_id: str | None) -> int:
 
 
 def plan_lead_quota(plan_id: str | None) -> int:
-    """Flat model me 'unlimited' quota — lead_usage.py ke liye UNLIMITED_QUOTA signal.
+    """Flat model me 'unlimited' quota - lead_usage.py ke liye UNLIMITED_QUOTA signal.
     Pilot me PILOT_CALL_CAP, baaki sab UNLIMITED_QUOTA.
     """
     key, _ = voice_plan_parts(plan_id)
@@ -282,7 +282,7 @@ def plan_lead_quota(plan_id: str | None) -> int:
     return 0
 
 
-# Legacy aliases — koi bhi old import toot na jaye
+# Legacy aliases - koi bhi old import toot na jaye
 PACK_SIZE = 1  # no longer meaningful
 # kept for import compat
 PLAN_LEADS: dict[str, int] = (

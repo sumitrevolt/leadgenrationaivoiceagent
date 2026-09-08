@@ -1,13 +1,13 @@
-"""campaign_offer_policy.py — immutable commercial policy for outbound campaigns.
+"""campaign_offer_policy.py - immutable commercial policy for outbound campaigns.
 
 Issue #240. Nothing connected a live outbound message to a sellable package, so
-any package the reply path picked would be a guess — which is why the
+any package the reply path picked would be a guess - which is why the
 interested-reply footer ships no ``am=``.
 
 WHY NOT ``app/api/campaigns.py``
 --------------------------------
 That module's campaign is LEAD-GENERATION (``niche``, ``target_cities``,
-``target_lead_count``, ``daily_call_limit``) — no package, price or currency —
+``target_lead_count``, ``daily_call_limit``) - no package, price or currency -
 and the live email path never touches it::
 
     grep -c "api.campaigns\\|campaign_id" app/platform/auto_outreach.py  ->  0
@@ -21,7 +21,7 @@ after version 1's message went out, and the old conversation silently acquires
 commercial terms that did not exist when it was sent.
 
 So the send path must pin ``(policy_id, policy_version)`` onto the outbound
-record, and reply processing must use :func:`resolve_exact` — which returns the
+record, and reply processing must use :func:`resolve_exact` - which returns the
 exact historical row regardless of later versions or retirement. Retirement
 blocks NEW sends
 it never rewrites what an old message meant.
@@ -163,7 +163,7 @@ def _read_strict() -> list[dict[str, Any]]:
         elif kind == KIND_RETIRED:
             _validate_retired_row(r)
         else:
-            # An unrecognised kind is not "future data" — it is authority we
+            # An unrecognised kind is not "future data" - it is authority we
             # cannot interpret, on the money path. Refuse rather than ignore.
             raise PolicyStoreCorrupt(f"unknown row kind: {kind!r}")
 
@@ -245,7 +245,7 @@ def _validate_retired_row(r: dict[str, Any]) -> None:
 
 
 def store_health() -> dict[str, Any]:
-    """``{"ok": bool, "reason": str}`` — cheap corruption probe for Owner OS."""
+    """``{"ok": bool, "reason": str}`` - cheap corruption probe for Owner OS."""
     try:
         _read_strict()
         return {"ok": True, "reason": ""}
@@ -295,7 +295,7 @@ def _price_of(package_code: str, family: str = "") -> int | None:
     * ``voice_plan_price()`` documents itself as returning the MONTHLY EQUIVALENT
       even for annual plans ("annual plan pe bhi monthly equivalent deta hai").
       Freezing that into an order would quote Rs 4,999 for a Rs 49,990 annual
-      commitment — a ~90% undercharge. Annual codes are refused here until a
+      commitment - a ~90% undercharge. Annual codes are refused here until a
       descriptor model carries `price_inr_year` as the payable amount.
     * a family/package mismatch (voice policy allowing `starter`, marketing
       policy allowing `voice_a_monthly`, topup policy allowing `advanced`) would
@@ -331,7 +331,7 @@ def _price_of(package_code: str, family: str = "") -> int | None:
             if str(pk.get("key") or "").strip().lower() == code:
                 if fam == "topup":
                     return None
-                # `advanced` is Marketing + AI Voice — a COMBO, not plain
+                # `advanced` is Marketing + AI Voice - a COMBO, not plain
                 # marketing. Family must say so or the offer misdescribes itself.
                 expected = "combo" if code == "advanced" else "marketing"
                 if fam and fam != expected:
@@ -352,7 +352,7 @@ def _price_of(package_code: str, family: str = "") -> int | None:
             if code.endswith("_annual"):
                 # voice_plan_price() would return the MONTHLY equivalent here.
                 logger.warning(
-                    "[policy] refusing annual voice code %r — needs annual payable", code
+                    "[policy] refusing annual voice code %r - needs annual payable", code
                 )
                 return None
             price = int(vp.voice_plan_price(code) or 0)
@@ -377,7 +377,7 @@ def put_policy(
 ) -> dict[str, Any] | None:
     """Append a NEW immutable version. Validates up-front; never mutates history.
 
-    Returns None on any validation failure — an invalid policy must not be
+    Returns None on any validation failure - an invalid policy must not be
     storable and then explode at reply time.
     """
     pid = (policy_id or "").strip()
@@ -397,7 +397,7 @@ def put_policy(
 
     if family != FAMILY_DISCOVERY:
         # A sellable policy must name the packages it may quote, and each must
-        # exist in the catalogue NOW — not be discovered missing at reply time.
+        # exist in the catalogue NOW - not be discovered missing at reply time.
         if not allowed:
             logger.warning("[policy] sellable policy needs a non-empty allowlist")
             return None
@@ -422,10 +422,10 @@ def put_policy(
 
             # Retirement is permanent for a policy identity. Appending a version
             # to a retired id would write an apparently valid row that
-            # resolve_for_send can never select — silently unreachable authority.
+            # resolve_for_send can never select - silently unreachable authority.
             # Replacement commercial activity uses a NEW policy_id.
             if pid in _retired_ids(rows):
-                logger.warning("[policy] %s is retired — refusing new version", pid)
+                logger.warning("[policy] %s is retired - refusing new version", pid)
                 return None
 
             versions = [
@@ -550,7 +550,7 @@ def resolve_for_send(
 ) -> tuple[dict[str, Any] | None, str]:
     """Pick the policy for a NEW send. ``(policy, reason)``; fail-closed.
 
-    Ambiguity is an error, never "newest wins" — two policies claiming one
+    Ambiguity is an error, never "newest wins" - two policies claiming one
     variant is a configuration bug that must stop the send.
     """
     try:
@@ -605,7 +605,7 @@ def qualify(policy: dict[str, Any] | None, facts: dict[str, Any] | None = None) 
 
     Facts may be LLM-extracted
     the decision is not. Anything unresolved is a
-    question or an exception — never a fallback price.
+    question or an exception - never a fallback price.
     """
     f = {k: v for k, v in (facts or {}).items() if v not in (None, "")}
 

@@ -1,6 +1,6 @@
-"""Per-niche call-data schema — the NICHE_CALL_SCHEMA dict (qualification fields per niche).
+"""Per-niche call-data schema - the NICHE_CALL_SCHEMA dict (qualification fields per niche).
 
-Extracted from app/platform/niche_database.py (2026-06-20 refactor) — pure data, re-exported.
+Extracted from app/platform/niche_database.py (2026-06-20 refactor) - pure data, re-exported.
 """
 
 NICHE_CALL_SCHEMA: dict[str, dict] = {
@@ -25,11 +25,11 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         ],
         "collect_during": [
             {"key": "target_country", "question": "Kaunse country me padhna chahte ho?"},
-            {"key": "budget_range", "question": "Budget kitna hai — 20 lakh se upar ya neeche?"},
-            {"key": "intake_year", "question": "Kab jaana plan hai — 2025 ya 2026?"},
+            {"key": "budget_range", "question": "Budget kitna hai - 20 lakh se upar ya neeche?"},
+            {"key": "intake_year", "question": "Kab jaana plan hai - 2025 ya 2026?"},
             {"key": "ielts_done", "question": "IELTS/TOEFL ho gaya hai ya abhi karna hai?"},
         ],
-        "script_context": "Study abroad consultant ke liye call — student ya parent identify karo, budget + country + intake confirm karo, counseling appointment book karo.",
+        "script_context": "Study abroad consultant ke liye call - student ya parent identify karo, budget + country + intake confirm karo, counseling appointment book karo.",
         "disqualifiers": ["nahi chahiye", "done ho gaya", "pehle se admission"],
     },
     "home_loans": {
@@ -61,10 +61,10 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
                 "key": "property_type",
                 "question": "Property ready-possession hai ya under-construction?",
             },
-            {"key": "monthly_income", "question": "Monthly income approximate — 50k se upar hai?"},
+            {"key": "monthly_income", "question": "Monthly income approximate - 50k se upar hai?"},
             {"key": "existing_emi", "question": "Koi existing EMI chal rahi hai kya?"},
         ],
-        "script_context": "DSA/loan agent ke liye call — loan requirement confirm karo, property detail lelo, eligibility check ke liye callback book karo.",
+        "script_context": "DSA/loan agent ke liye call - loan requirement confirm karo, property detail lelo, eligibility check ke liye callback book karo.",
         "disqualifiers": ["pehle se liya", "nahi chahiye abhi", "wrong number"],
     },
     "solar_commercial": {
@@ -96,13 +96,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
                 "question": "Monthly electricity bill kitna aata hai approximately?",
             },
             {"key": "roof_owned", "question": "Roof aapka khud ka hai ya leased?"},
-            {"key": "sanctioned_load", "question": "Sanctioned load kitna hai — 10 kW se upar?"},
+            {"key": "sanctioned_load", "question": "Sanctioned load kitna hai - 10 kW se upar?"},
             {
                 "key": "decision_maker",
                 "question": "Aap hi decision lenge ya koi aur partner bhi hain?",
             },
         ],
-        "script_context": "Commercial solar B2B call — factory/warehouse owner, bill savings angle, subsidy angle, site visit book karo.",
+        "script_context": "Commercial solar B2B call - factory/warehouse owner, bill savings angle, subsidy angle, site visit book karo.",
         "disqualifiers": ["rented jagah", "already installed", "nahi chahiye"],
     },
     "insurance": {
@@ -126,9 +126,9 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             {"key": "coverage_type", "question": "Life insurance chahiye ya health?"},
             {"key": "current_coverage", "question": "Abhi koi policy hai? Kitne ka coverage hai?"},
             {"key": "annual_premium", "question": "Annual premium budget kya hai?"},
-            {"key": "dependents", "question": "Family members kitne hain — spouse, children?"},
+            {"key": "dependents", "question": "Family members kitne hain - spouse, children?"},
         ],
-        "script_context": "Insurance lead call — existing coverage gap samjhao, tax benefit angle, free review offer karo, policy recommendation appointment book karo.",
+        "script_context": "Insurance lead call - existing coverage gap samjhao, tax benefit angle, free review offer karo, policy recommendation appointment book karo.",
         "disqualifiers": ["agent hun khud", "nahi chahiye", "already hai sab"],
     },
     "coaching": {
@@ -154,7 +154,7 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             {"key": "weak_subjects", "question": "Kaunse subject me help chahiye?"},
             {"key": "start_date", "question": "Coaching kab se join karna hai?"},
         ],
-        "script_context": "Coaching institute call — exam + class confirm karo, demo class / counseling book karo, scholarship angle.",
+        "script_context": "Coaching institute call - exam + class confirm karo, demo class / counseling book karo, scholarship angle.",
         "disqualifiers": ["already joined", "nahi deni exam", "done ho gaya"],
     },
     "hospital_appointments": {
@@ -176,12 +176,12 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             },
             {
                 "key": "symptom_brief",
-                "question": "Kya problem hai briefly — doctor ko batane ke liye?",
+                "question": "Kya problem hai briefly - doctor ko batane ke liye?",
             },
-            {"key": "preferred_time", "question": "Subah ya shaam — kab aana comfortable hai?"},
+            {"key": "preferred_time", "question": "Subah ya shaam - kab aana comfortable hai?"},
             {"key": "first_visit", "question": "Pehli baar aa rahe ho ya follow-up hai?"},
         ],
-        "script_context": "Hospital appointment booking call — speciality confirm karo, slot offer karo, confirmation SMS send karo.",
+        "script_context": "Hospital appointment booking call - speciality confirm karo, slot offer karo, confirmation SMS send karo.",
         "disqualifiers": ["already booked", "emergency nahi", "wrong number"],
     },
     # ---- A-TIER ----
@@ -204,13 +204,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "treatment_needed",
-                "question": "Kaunsa treatment chahiye — implant, braces, ya general checkup?",
+                "question": "Kaunsa treatment chahiye - implant, braces, ya general checkup?",
             },
             {"key": "pain_level", "question": "Abhi koi pain hai ya scheduled checkup hai?"},
             {"key": "last_visit", "question": "Last dental visit kab tha?"},
             {"key": "budget_ok", "question": "Treatment budget 15,000 se upar comfortable hai?"},
         ],
-        "script_context": "Dental clinic call — treatment type identify karo, pain urgency note karo, free consultation book karo.",
+        "script_context": "Dental clinic call - treatment type identify karo, pain urgency note karo, free consultation book karo.",
         "disqualifiers": ["already done", "wrong number"],
     },
     "hair_transplant": {
@@ -232,11 +232,11 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "hair_loss_area",
-                "question": "Konsa area zyada affected hai — crown, front, ya poora?",
+                "question": "Konsa area zyada affected hai - crown, front, ya poora?",
             },
             {
                 "key": "previous_treatment",
-                "question": "Pehle koi treatment try kiya — minoxidil ya PRP?",
+                "question": "Pehle koi treatment try kiya - minoxidil ya PRP?",
             },
             {
                 "key": "budget_range",
@@ -247,7 +247,7 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
                 "question": "Free consultation ke liye aa sakte ho next week?",
             },
         ],
-        "script_context": "Hair transplant clinic call — hair loss stage assess karo, budget qualify karo, free consultation appointment book karo.",
+        "script_context": "Hair transplant clinic call - hair loss stage assess karo, budget qualify karo, free consultation appointment book karo.",
         "disqualifiers": ["already done", "nahi chahiye", "wrong number"],
     },
     "ivf_clinics": {
@@ -269,14 +269,14 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         ],
         "collect_during": [
             {"key": "trying_since", "question": "Kitne samay se try kar rahe ho?"},
-            {"key": "prev_attempts", "question": "Pehle koi treatment hua hai — IUI ya IVF?"},
+            {"key": "prev_attempts", "question": "Pehle koi treatment hua hai - IUI ya IVF?"},
             {
                 "key": "doctor_referral",
                 "question": "Kisi doctor ne refer kiya hai ya khud research kar rahe ho?",
             },
             {"key": "city_preference", "question": "Kaunse city me treatment prefer karoge?"},
         ],
-        "script_context": "IVF clinic call — sensitive call, empathetic tone rakho, treatment stage identify karo, free doctor consultation book karo.",
+        "script_context": "IVF clinic call - sensitive call, empathetic tone rakho, treatment stage identify karo, free doctor consultation book karo.",
         "disqualifiers": ["pregnant hain already", "wrong number", "nahi chahiye"],
     },
     "immigration": {
@@ -304,13 +304,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "destination",
-                "question": "Kaunse country me jaana hai — Canada, Australia, ya koi aur?",
+                "question": "Kaunse country me jaana hai - Canada, Australia, ya koi aur?",
             },
             {"key": "purpose", "question": "PR ke liye ja rahe ho ya work permit?"},
             {"key": "language_score", "question": "IELTS ya PTE score hai? Kitna?"},
             {"key": "budget_ok", "question": "Consulting fee 50,000 se upar comfortable hai?"},
         ],
-        "script_context": "Immigration consultant call — destination + visa type confirm karo, eligibility assess karo, free assessment book karo.",
+        "script_context": "Immigration consultant call - destination + visa type confirm karo, eligibility assess karo, free assessment book karo.",
         "disqualifiers": ["already applied", "already migrated", "wrong number"],
     },
     "modular_kitchen": {
@@ -338,14 +338,14 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         ],
         "collect_during": [
             {"key": "project_scope", "question": "Sirf kitchen chahiye ya full home interior?"},
-            {"key": "budget_range", "question": "Budget kya hai — 1.5 lakh se 3 lakh, ya upar?"},
+            {"key": "budget_range", "question": "Budget kya hai - 1.5 lakh se 3 lakh, ya upar?"},
             {"key": "possession_date", "question": "Possession kab ho raha hai?"},
             {
                 "key": "site_visit_ok",
                 "question": "Site visit ke liye kab comfortable ho aage week?",
             },
         ],
-        "script_context": "Modular kitchen/interior design call — scope confirm karo, budget qualify karo, site visit schedule karo.",
+        "script_context": "Modular kitchen/interior design call - scope confirm karo, budget qualify karo, site visit schedule karo.",
         "disqualifiers": ["already done", "rented hai", "nahi chahiye"],
     },
     "finance_advisory": {
@@ -374,11 +374,11 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "current_investments",
-                "question": "Abhi kahan invest kiya hua hai — FD, MF, stocks?",
+                "question": "Abhi kahan invest kiya hua hai - FD, MF, stocks?",
             },
             {
                 "key": "investment_goal",
-                "question": "Goal kya hai — retirement, child education, ya house?",
+                "question": "Goal kya hai - retirement, child education, ya house?",
             },
             {
                 "key": "risk_appetite",
@@ -389,7 +389,7 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
                 "question": "Annual income approximately 10 lakh se upar hai?",
             },
         ],
-        "script_context": "Financial advisor call — investment goal + risk profile identify karo, free portfolio review offer karo.",
+        "script_context": "Financial advisor call - investment goal + risk profile identify karo, free portfolio review offer karo.",
         "disqualifiers": ["advisor hun khud", "nahi chahiye", "wrong number"],
     },
     "ca_legal": {
@@ -424,13 +424,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "service_type",
-                "question": "Kaunsi service chahiye — ITR, GST, ya company registration?",
+                "question": "Kaunsi service chahiye - ITR, GST, ya company registration?",
             },
             {"key": "current_ca", "question": "Abhi koi CA hai? Kyun change karna hai?"},
-            {"key": "filing_deadline", "question": "Koi urgent deadline hai — GST return ya ITR?"},
+            {"key": "filing_deadline", "question": "Koi urgent deadline hai - GST return ya ITR?"},
             {"key": "company_size", "question": "Kitne employees hain approximately?"},
         ],
-        "script_context": "CA firm call — service type confirm karo, current pain point identify karo, free consultation offer karo.",
+        "script_context": "CA firm call - service type confirm karo, current pain point identify karo, free consultation offer karo.",
         "disqualifiers": ["CA hun khud", "nahi chahiye", "wrong number"],
     },
     "edtech_creators": {
@@ -453,19 +453,19 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "course_topic",
-                "question": "Kaunsa subject padhate ho — technology, finance, ya kuch aur?",
+                "question": "Kaunsa subject padhate ho - technology, finance, ya kuch aur?",
             },
             {
                 "key": "revenue_target",
-                "question": "Monthly revenue target kya hai — 1 lakh se upar?",
+                "question": "Monthly revenue target kya hai - 1 lakh se upar?",
             },
             {
                 "key": "pain_point",
-                "question": "Sabse bada challenge kya hai — leads, sales, ya content?",
+                "question": "Sabse bada challenge kya hai - leads, sales, ya content?",
             },
             {"key": "platform_used", "question": "Abhi kaunsa platform use karte ho?"},
         ],
-        "script_context": "Edtech creator call — course + platform identify karo, lead generation pain point target karo, demo book karo.",
+        "script_context": "Edtech creator call - course + platform identify karo, lead generation pain point target karo, demo book karo.",
         "disqualifiers": ["nahi chahiye", "already sorted", "wrong number"],
     },
     # ---- B-TIER ----
@@ -494,13 +494,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "facility_size",
-                "question": "Facility kitne area ki hai — 5,000 sq ft se upar?",
+                "question": "Facility kitne area ki hai - 5,000 sq ft se upar?",
             },
             {"key": "project_timeline", "question": "Installation kab chahiye?"},
             {"key": "budget_range", "question": "Budget 5 lakh se upar hai?"},
             {"key": "decision_maker", "question": "Aap hi final decision lenge?"},
         ],
-        "script_context": "Commercial HVAC call — facility type + size identify karo, project timeline qualify karo, site visit book karo.",
+        "script_context": "Commercial HVAC call - facility type + size identify karo, project timeline qualify karo, site visit book karo.",
         "disqualifiers": ["residential hai", "nahi chahiye", "wrong number"],
     },
     "real_estate_commercial": {
@@ -526,7 +526,7 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             {"key": "budget_range", "question": "Budget 50 lakh se upar hai?"},
             {"key": "timeline", "question": "Kab tak finalize karna hai?"},
         ],
-        "script_context": "Commercial real estate call — purpose + budget qualify karo, location preference le, site tour schedule karo.",
+        "script_context": "Commercial real estate call - purpose + budget qualify karo, location preference le, site tour schedule karo.",
         "disqualifiers": ["residential chahiye", "nahi chahiye", "wrong number"],
     },
     "cloud_kitchen": {
@@ -550,12 +550,12 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             {"key": "platform", "question": "Zomato/Swiggy pe already listed ho?"},
             {
                 "key": "pain_point",
-                "question": "Sabse bada problem — orders, delivery, ya marketing?",
+                "question": "Sabse bada problem - orders, delivery, ya marketing?",
             },
             {"key": "expansion_plan", "question": "New location open karne ka plan hai?"},
             {"key": "revenue_target", "question": "Monthly revenue target kya hai?"},
         ],
-        "script_context": "Cloud kitchen call — platform + monthly orders identify karo, growth pain point target karo, demo call book karo.",
+        "script_context": "Cloud kitchen call - platform + monthly orders identify karo, growth pain point target karo, demo call book karo.",
         "disqualifiers": ["band ho gaya", "wrong number", "nahi chahiye"],
     },
     "event_management": {
@@ -586,9 +586,9 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             {"key": "event_size", "question": "Kitne guests expected hain?"},
             {"key": "venue_decided", "question": "Venue decide ho gaya hai ya wo bhi chahiye?"},
             {"key": "budget_range", "question": "Budget 2 lakh se upar hai?"},
-            {"key": "timeline", "question": "Event kab hai — next 3 months me?"},
+            {"key": "timeline", "question": "Event kab hai - next 3 months me?"},
         ],
-        "script_context": "Event management call — event type + date + budget identify karo, requirement details le, site visit/meeting book karo.",
+        "script_context": "Event management call - event type + date + budget identify karo, requirement details le, site visit/meeting book karo.",
         "disqualifiers": ["already booked", "nahi chahiye", "wrong number"],
     },
     "skin_dermatology": {
@@ -610,12 +610,12 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             },
         ],
         "collect_during": [
-            {"key": "main_concern", "question": "Kya concern hai — acne, dark spots, ya kuch aur?"},
+            {"key": "main_concern", "question": "Kya concern hai - acne, dark spots, ya kuch aur?"},
             {"key": "prev_treatment", "question": "Pehle koi treatment liya hai iske liye?"},
             {"key": "budget_ok", "question": "Treatment budget 5,000 se upar comfortable hai?"},
             {"key": "consultation_ok", "question": "Free consultation ke liye kab aa sakte ho?"},
         ],
-        "script_context": "Dermatology clinic call — skin concern identify karo, urgency note karo, free consultation book karo.",
+        "script_context": "Dermatology clinic call - skin concern identify karo, urgency note karo, free consultation book karo.",
         "disqualifiers": ["wrong number", "nahi chahiye"],
     },
     "ayurveda_wellness": {
@@ -644,7 +644,7 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             {"key": "preferred_mode", "question": "Center pe aana prefer karte ho ya home visits?"},
             {"key": "budget_range", "question": "Monthly wellness budget 3,000 se upar hai?"},
         ],
-        "script_context": "Ayurveda/wellness call — health concern identify karo, duration assess karo, free consultation ya trial session book karo.",
+        "script_context": "Ayurveda/wellness call - health concern identify karo, duration assess karo, free consultation ya trial session book karo.",
         "disqualifiers": ["wrong number", "nahi chahiye"],
     },
     "ecommerce_d2c": {
@@ -679,13 +679,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "pain_point",
-                "question": "Sabse bada challenge kya hai — traffic, conversion, ya returns?",
+                "question": "Sabse bada challenge kya hai - traffic, conversion, ya returns?",
             },
             {"key": "ad_spend", "question": "Monthly ad spend kitna hai?"},
             {"key": "growth_target", "question": "Next 6 months ka revenue target kya hai?"},
             {"key": "team_size", "question": "Team kitni badi hai?"},
         ],
-        "script_context": "E-commerce brand call — pain point identify karo, current metrics le, growth strategy call book karo.",
+        "script_context": "E-commerce brand call - pain point identify karo, current metrics le, growth strategy call book karo.",
         "disqualifiers": ["band ho gaya", "nahi chahiye", "wrong number"],
     },
     "solar_residential": {
@@ -707,11 +707,11 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         ],
         "collect_during": [
             {"key": "monthly_bill", "question": "Monthly bijli bill kitna aata hai?"},
-            {"key": "roof_owned", "question": "Apna makan hai — roof use kar sakte hain?"},
+            {"key": "roof_owned", "question": "Apna makan hai - roof use kar sakte hain?"},
             {"key": "kw_estimate", "question": "2 kW ya 5 kW system chahiye?"},
             {"key": "subsidy_aware", "question": "PM Surya Ghar subsidy ke baare me pata hai?"},
         ],
-        "script_context": "Residential solar call — bill savings angle, PM Surya Ghar subsidy angle, site survey book karo.",
+        "script_context": "Residential solar call - bill savings angle, PM Surya Ghar subsidy angle, site survey book karo.",
         "disqualifiers": ["already installed", "rented hai", "nahi chahiye"],
     },
     "travel_packages": {
@@ -739,12 +739,12 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
             },
         ],
         "collect_during": [
-            {"key": "destination", "question": "Kahan jaana plan hai — domestic ya international?"},
+            {"key": "destination", "question": "Kahan jaana plan hai - domestic ya international?"},
             {"key": "travel_dates", "question": "Kab jaana plan hai approximately?"},
             {"key": "group_size", "question": "Kitne log hain?"},
             {"key": "budget_range", "question": "Per person budget 20,000 se upar hai?"},
         ],
-        "script_context": "Travel agency call — destination + dates + group size qualify karo, personalized itinerary offer karo, booking call book karo.",
+        "script_context": "Travel agency call - destination + dates + group size qualify karo, personalized itinerary offer karo, booking call book karo.",
         "disqualifiers": ["already booked", "nahi chahiye", "wrong number"],
     },
     "upskilling": {
@@ -772,13 +772,13 @@ NICHE_CALL_SCHEMA: dict[str, dict] = {
         "collect_during": [
             {
                 "key": "goal",
-                "question": "Course kyun karna hai — job change, promotion, ya skill upgrade?",
+                "question": "Course kyun karna hai - job change, promotion, ya skill upgrade?",
             },
             {"key": "current_role", "question": "Abhi kya kaam karte ho?"},
             {"key": "start_timeline", "question": "Kab se start karna hai?"},
             {"key": "budget_ok", "question": "Course fee 30,000 se upar comfortable hai?"},
         ],
-        "script_context": "Upskilling institute call — career goal identify karo, current skill gap note karo, demo/counseling session book karo.",
+        "script_context": "Upskilling institute call - career goal identify karo, current skill gap note karo, demo/counseling session book karo.",
         "disqualifiers": ["already enrolled", "nahi chahiye", "wrong number"],
     },
 }

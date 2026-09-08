@@ -1,7 +1,7 @@
-"""W1.5 — self_improve tick-slot must FAIL-CLOSED when Redis is unavailable/errors.
+"""W1.5 - self_improve tick-slot must FAIL-CLOSED when Redis is unavailable/errors.
 
 Bug: `acquire_tick_slot()` returned a *live* token when Redis was unavailable
-(`_redis_client()` is None) or when the get/set raised — i.e. it fail-OPENED. Without
+(`_redis_client()` is None) or when the get/set raised - i.e. it fail-OPENED. Without
 the distributed guard, every duplicate self-requeue chain believed it owned the slot
 and ran, so a Redis outage multiplied the self-improve chains (free-tier LLM burn).
 

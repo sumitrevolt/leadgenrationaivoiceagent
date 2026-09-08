@@ -222,7 +222,7 @@ class LeadGenPipeline:
         # Stage 4: Compliance time-window gate
         if not self._within_calling_window():
             logger.warning(
-                "⏰ Outside compliant calling window (09:00-21:00) — "
+                "⏰ Outside compliant calling window (09:00-21:00) - "
                 "skipping warm-up + voice stages, leads retained for later."
             )
         else:
@@ -328,7 +328,7 @@ class LeadGenPipeline:
                 cleaned.append(lead)
 
             result.cleaned = len(cleaned)
-            logger.info(f"Stage 2 clean/dedupe: {len(leads)} → {len(cleaned)}")
+            logger.info(f"Stage 2 clean/dedupe: {len(leads)} -> {len(cleaned)}")
             return cleaned
         except Exception as e:
             logger.error(f"Stage 2 clean failed: {e}")
@@ -341,9 +341,9 @@ class LeadGenPipeline:
     async def _stage_dnd_scrub(
         self, leads: list[Any], result, channels: list[str] | None = None
     ) -> list[Any]:
-        # COMPLIANCE (CLAUDE.md §5): DND scrub FAIL-CLOSED — lookup fail ya checker
+        # COMPLIANCE (CLAUDE.md §5): DND scrub FAIL-CLOSED - lookup fail ya checker
         # unavailable = promotional contact BLOCK (pehle yahan fail-OPEN tha:
-        # checker missing par poori list pass, per-lead error par number allow —
+        # checker missing par poori list pass, per-lead error par number allow -
         # jo §5 TRAI invariant todta tha). Cold outbound bina proven-non-DND number
         # ILLEGAL hai; jab DND verify nahi ho sakta to woh number is promotional
         # pipeline se HATA do. (Yeh sirf is qualify+call harness pe; asli prod
@@ -351,7 +351,7 @@ class LeadGenPipeline:
         #
         # OPS-017: this stage feeds BOTH Stage 5 (WhatsApp warm-up) and Stage 6
         # (voice). A number that may legally be CALLED still may not receive a
-        # promotional MESSAGE — NCPR scrubbing is mandatory for messaging and
+        # promotional MESSAGE - NCPR scrubbing is mandatory for messaging and
         # consent does not override a DND registration there. So scrub on the
         # STRICTEST channel this run actually uses: if WhatsApp is enabled (or
         # channels is unknown), scrub as messaging and refuse the blanket
@@ -359,7 +359,7 @@ class LeadGenPipeline:
         channel = "messaging" if (not channels or "whatsapp" in channels) else "voice"
         if not self.dnd_checker:
             logger.warning(
-                "DND checker unavailable — FAIL-CLOSED: promotional contact BLOCKED "
+                "DND checker unavailable - FAIL-CLOSED: promotional contact BLOCKED "
                 "for this run (§5, cannot prove non-DND)."
             )
             result.skipped_dnd += len([1 for l in leads if getattr(l, "phone", None)])
@@ -391,7 +391,7 @@ class LeadGenPipeline:
         not inherit it.
 
         FAIL-CLOSED (2026-08-01, enterprise-audit fix): pehle yeh unverified result
-        (`is_dnd=False, verified=False`) ko non-DND maan leta tha — no-provider case me
+        (`is_dnd=False, verified=False`) ko non-DND maan leta tha - no-provider case me
         har number promotional pipeline me pass. Ab UNVERIFIED = DND (promotional BLOCK)
         taaki §5 fail-CLOSED invariant pura stack me ek jaisa ho.
         """
@@ -424,7 +424,7 @@ class LeadGenPipeline:
     @staticmethod
     def _within_calling_window(now: datetime | None = None) -> bool:
         # COMPLIANCE (§5 TRAI window): time-of-day IST me hona chahiye. Pehle naive
-        # datetime.now() tha — agar container TZ=UTC hoti to 09:00-21:00 UTC = 14:30-
+        # datetime.now() tha - agar container TZ=UTC hoti to 09:00-21:00 UTC = 14:30-
         # 02:30 IST, jo raat 2 baje IST call ALLOW karta (illegal) + subah 9 baje IST
         # BLOCK. Ab explicit Asia/Kolkata. Test/caller ne `now` diya ho to as-is.
         if now is None:
@@ -455,7 +455,7 @@ class LeadGenPipeline:
                     company = getattr(lead, "company_name", "there")
                     msg = (
                         f"Hi {company}! This is {client_name or 'our team'}. "
-                        "We'd love to share something relevant for your business — "
+                        "We'd love to share something relevant for your business - "
                         "is now a good time for a quick call?"
                     )
                     await self.whatsapp.send_text_message(phone, msg)
@@ -533,7 +533,7 @@ class LeadGenPipeline:
                 call_res = await self.telephony.place_call(to_number=phone)
                 status = getattr(call_res, "status", "connected")
                 if status not in ("connected", "completed", "answered"):
-                    # Phone did not connect — no qualification possible.
+                    # Phone did not connect - no qualification possible.
                     return {}, "no_answer"
             except Exception as e:
                 logger.debug(f"Telephony place_call failed for ***{str(phone)[-4:]}: {e}")
@@ -544,7 +544,7 @@ class LeadGenPipeline:
         try:
             # Drive the agent through a minimal scripted session. We do not have
             # live audio here, so we feed the qualification questions as text and
-            # collect agent responses — enough to exercise intent detection and
+            # collect agent responses - enough to exercise intent detection and
             # produce a transcript without a PSTN leg.
             context = await self.voice_agent.start_call(
                 lead_id=lead_id,
@@ -564,7 +564,7 @@ class LeadGenPipeline:
             if call_id and hasattr(self.voice_agent, "process_speech"):
                 for q in questions:
                     try:
-                        # Simulate the lead acknowledging — real audio would
+                        # Simulate the lead acknowledging - real audio would
                         # replace transcribed_text in production.
                         await self.voice_agent.process_speech(
                             call_id, transcribed_text="Yes, tell me more."
@@ -599,7 +599,7 @@ class LeadGenPipeline:
     @staticmethod
     def _score_lead(lead, qualification: dict[str, Any], intent: str):
         """
-        Heuristic 0-100 lead score → tier.
+        Heuristic 0-100 lead score -> tier.
 
         hot  >= 70, warm 40-69, cold < 40.
         """
@@ -711,7 +711,7 @@ class LeadGenPipeline:
                         logger.debug(f"WhatsApp alert failed: {e}")
 
             # 8d. Unified multi-channel delivery (WhatsApp + Sheets + HubSpot +
-            # Email) via LeadDelivery — env-gated, graceful no-op when a channel
+            # Email) via LeadDelivery - env-gated, graceful no-op when a channel
             # isn't configured. Complements the direct calls above.
             if self.lead_delivery and hasattr(self.lead_delivery, "deliver_lead"):
                 try:

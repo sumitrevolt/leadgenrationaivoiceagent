@@ -1,7 +1,7 @@
-"""W1.4 — follow-up outreach must batch its store writes (no per-send full rewrite).
+"""W1.4 - follow-up outreach must batch its store writes (no per-send full rewrite).
 
 Bug: `run_email_followups` marked each successful follow-up with
-`prospector.set_prospect_fields(pid, …)` — a full-file JSONL rewrite PER SEND. On a
+`prospector.set_prospect_fields(pid, …)` - a full-file JSONL rewrite PER SEND. On a
 7.6k-row store × up-to-25 sends that's the O(N²)/OOM pattern the initial
 `run_email_outreach` path already fixed with `set_prospect_fields_bulk` + a pending
 buffer (flush every 10 + once at the end).

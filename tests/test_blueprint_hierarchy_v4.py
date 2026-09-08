@@ -9,7 +9,7 @@ overview -> L1 domain/flow detail -> L2 implementation). These tests lock:
   rather than fabricated,
 * edges expose the full v4 contract shape,
 * none of it leaks into the sanitized public graph,
-* and the new gates actually FAIL on violation (negative tests — a gate that
+* and the new gates actually FAIL on violation (negative tests - a gate that
   cannot fail is not a gate).
 """
 
@@ -42,10 +42,10 @@ def test_parent_domain_id_is_a_real_domain():
 def test_deeper_nodes_are_reachable():
     """Reachability, per depth.
 
-    L1 is domain/flow internals — expanding its DOMAIN reaches it, so a
+    L1 is domain/flow internals - expanding its DOMAIN reaches it, so a
     domain-rooted L1 node must NOT be forced under an L0 aggregate (inventing
     that parent is how `admin_ui -> public_landing` happened).
-    L2 is concrete detail — it must resolve through a real L1/L2 group or flow.
+    L2 is concrete detail - it must resolve through a real L1/L2 group or flow.
     """
     domains = {d["key"] for d in bg.DOMAINS}
     for n in bg.NODES:
@@ -82,7 +82,7 @@ def test_every_node_exposes_the_harness_control_surface():
 
 
 def test_harness_controls_are_unknown_not_fabricated():
-    """A control we have not represented yet must be None — never a default
+    """A control we have not represented yet must be None - never a default
     'True'/'yes' that would read as "this control exists"."""
     for n in bg.NODES:
         for f in bg.HARNESS_CONTROL_FIELDS:
@@ -173,13 +173,13 @@ def _errors(monkeypatch, nodes):
 
 
 def test_gate_rejects_unparented_l2_detail(monkeypatch):
-    """L2 detail with no group/flow parent is unreachable — must fail."""
+    """L2 detail with no group/flow parent is unreachable - must fail."""
     errs = _errors(monkeypatch, [_base_node(depth_level=2)])
     assert any("L2 detail" in e and "unreachable" in e for e in errs), errs
 
 
 def test_gate_allows_domain_rooted_l1(monkeypatch):
-    """An L1 node rooted on its DOMAIN is legitimate — no fabricated L0 parent.
+    """An L1 node rooted on its DOMAIN is legitimate - no fabricated L0 parent.
 
     Regression for the false-mapping class (`admin_ui -> public_landing`) that
     a "must have parent_node_id" rule would have forced us to invent.

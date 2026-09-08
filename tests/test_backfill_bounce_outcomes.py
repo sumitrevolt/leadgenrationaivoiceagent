@@ -1,4 +1,4 @@
-"""backfill_bounce_outcomes — dry-run / apply / idempotent / no PII."""
+"""backfill_bounce_outcomes - dry-run / apply / idempotent / no PII."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def test_plan_classifies_hard_soft_complaint_and_leaves_subject_only():
         ),
         (
             "x1",
-            "",  # subject-only would live in meta; empty body + no structural → unchanged
+            "",  # subject-only would live in meta; empty body + no structural -> unchanged
             '{"subject":"Mail delivery failed: returning message to sender"}',
         ),
     ]
@@ -91,7 +91,7 @@ def test_apply_idempotent_and_no_pii_in_stats():
     r1 = run(engine, classify_delivery_report, apply=True)
     assert r1["applied"] is True
     assert r1["updated"] == 1
-    # Stats keys are counts only — never echo body/email.
+    # Stats keys are counts only - never echo body/email.
     blob = str(r1["stats"])
     assert "secret.person" not in blob
     assert "@example.com" not in blob

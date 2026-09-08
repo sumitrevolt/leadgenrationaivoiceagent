@@ -2,7 +2,7 @@
 
 Prod evidence (2026-08-09): 32 of 39 video records sat at `pending` customer
 review, only 4 were ever published, and the owner-facing "Aaj" tab reported no
-problem — because `_pending_decisions()` reads `approvals_bridge` (the agentic
+problem - because `_pending_decisions()` reads `approvals_bridge` (the agentic
 draft queue), which contains no reference to `content_approval` at all. So the
 one queue that decides whether a generated video ever reaches a customer was
 counted by nothing.

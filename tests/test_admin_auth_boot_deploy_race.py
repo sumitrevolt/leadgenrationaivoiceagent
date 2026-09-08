@@ -24,7 +24,7 @@ def test_admin_auth_boot_retries_before_token_wipe():
     assert "setTimeout" in body, "must delay before second /me probe"
     assert body.count('removeItem("accessToken")') == 1
     assert body.count("fetchMe()") >= 2 or body.count("/api/admin/me") >= 2
-    # First 401 must not be the only wipe path — retry sits between
+    # First 401 must not be the only wipe path - retry sits between
     first_401 = body.index("r.status === 401")
     wipe = body.index('removeItem("accessToken")')
     assert first_401 < wipe

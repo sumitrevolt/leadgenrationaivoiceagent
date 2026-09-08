@@ -1,4 +1,4 @@
-"""W2.3 — trainer (meera) suggestion thresholds are env-tunable (were hardcoded).
+"""W2.3 - trainer (meera) suggestion thresholds are env-tunable (were hardcoded).
 
 `run_trainer` emitted suggestions off hardcoded cutoffs (repeats>2, junk_ratio>0.3,
 avg_reply_len>28), so a deployment whose call profile differs (e.g. a noisier STT niche)

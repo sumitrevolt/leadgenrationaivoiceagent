@@ -1,4 +1,4 @@
-"""Tests — process engine (babysitter-pattern): journal replay, gates, breakpoints,
+"""Tests - process engine (babysitter-pattern): journal replay, gates, breakpoints,
 resume, never-raise. Hermetic: executors monkeypatched, tmp run-dir.
 """
 

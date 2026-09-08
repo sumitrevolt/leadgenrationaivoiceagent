@@ -1,4 +1,4 @@
-"""Knowledge OS upgrade — contract tests.
+"""Knowledge OS upgrade - contract tests.
 
 Validates the agentic-knowledge layer added in the 2026-08-28 upgrade:
 registries parse, classifier is conservative/fail-closed, no secrets in

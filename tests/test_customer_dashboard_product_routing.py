@@ -1,7 +1,7 @@
 """Regression guard for the /app/customer* product-routing bug (2026-07-07, commit 8359d1c).
 
 customer_dashboard.html is intentionally served (via plain FileResponse, no templating)
-at all 3 routes — /app/customer (combo), /app/customer/marketing, /app/customer/voice —
+at all 3 routes - /app/customer (combo), /app/customer/marketing, /app/customer/voice -
 gated purely by CSS on a `prod-marketing`/`prod-voice` body class (see the file's own
 comment above the per-product CSS block). commit 8359d1c pointed all 3 routes at this
 one file but never updated the inline script to actually SET that class, so every visit
@@ -10,7 +10,7 @@ non-combo customer triggered an infinite location.replace() reload loop (traced 
 `/api/customer/auth/me`'s `product` mismatching the always-"combo" page reading).
 
 This test hits the live routes (not just the static file) and asserts the shipped
-script derives product from the URL path — the actual fix — so a future edit can't
+script derives product from the URL path - the actual fix - so a future edit can't
 silently regress back to reading a DOM class that nothing ever sets.
 """
 
@@ -40,7 +40,7 @@ def test_all_three_product_routes_serve_200():
 
 
 def test_all_three_routes_serve_the_same_unified_file():
-    """Confirms the intentional single-file consolidation — not a stale duplicate mismatch."""
+    """Confirms the intentional single-file consolidation - not a stale duplicate mismatch."""
     from app.main import app
 
     client = TestClient(app)
@@ -52,7 +52,7 @@ def test_all_three_routes_serve_the_same_unified_file():
 
 
 def test_page_product_derived_from_url_path_not_dom_class():
-    """The regression: pageProduct must NOT be read off document.body.classList alone —
+    """The regression: pageProduct must NOT be read off document.body.classList alone -
     nothing ever sets that class server-side, so that read always resolved to "combo"."""
     from app.main import app
 
@@ -60,7 +60,7 @@ def test_page_product_derived_from_url_path_not_dom_class():
     js = _script_block(client.get("/app/customer/marketing").text)
 
     assert "location.pathname" in js, (
-        "pageProduct must be derived from the URL path — reading it purely from "
+        "pageProduct must be derived from the URL path - reading it purely from "
         "document.body.classList (the pre-fix bug) always resolves to 'combo' "
         "since nothing sets that class server-side."
     )
@@ -68,7 +68,7 @@ def test_page_product_derived_from_url_path_not_dom_class():
 
 
 def test_body_class_is_set_unconditionally_not_only_after_login():
-    """The class must be set before the token/login check — otherwise a logged-out
+    """The class must be set before the token/login check - otherwise a logged-out
     demo visitor on /marketing or /voice still gets the wrong (combo) CSS gating."""
     from app.main import app
 
@@ -85,11 +85,11 @@ def test_body_class_is_set_unconditionally_not_only_after_login():
 
 
 # --------------------------------------------------------------------------- #
-# 2026-07-19 regression guards — customer-reported dashboard bugs:
-#   (1) "Billing page — 404": views are hash-based (#view-billing), so the
+# 2026-07-19 regression guards - customer-reported dashboard bugs:
+#   (1) "Billing page - 404": views are hash-based (#view-billing), so the
 #       path-style URLs customers naturally type (/app/customer/billing) were
 #       a hard 404. Static aliases now 307-redirect to /app/customer#view-<x>.
-#   (2) "Leads tab — blank": prod-marketing CSS hides EVERY card of the leads
+#   (2) "Leads tab - blank": prod-marketing CSS hides EVERY card of the leads
 #       view but the mobile bottom-nav Leads button (and #view-leads deep links)
 #       still switched to it -> fully blank main content.
 # --------------------------------------------------------------------------- #
@@ -116,8 +116,8 @@ def test_view_aliases_do_not_shadow_product_and_feature_routes():
 
 
 def test_showview_guards_other_products_hidden_views():
-    """A marketing customer navigating to the (voice-only) leads view — or a voice
-    customer to the (marketing-only) calendar view — must fall back to home, not
+    """A marketing customer navigating to the (voice-only) leads view - or a voice
+    customer to the (marketing-only) calendar view - must fall back to home, not
     render a blank page with every card display:none."""
     from app.main import app
 

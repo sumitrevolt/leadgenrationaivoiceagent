@@ -94,7 +94,7 @@ sts = {
              "(link-only day5+); SIP 5 vars len=0 DID NOT landed (CLI revoked); dialer DEAD day5+ (leads0); "
              "hot-queue 09-04 NOT gen (date-lock broken 2nd day); rev Rs1,999 Jiya sole; GAP Rs4,98,001. "
              "GHANTI all 8 07:00 gates - 06:15 too 0 proof/0 ACK (fleet unresponsive ~52h).",
-    "engineering": "ENG-004 P0 (FRESH GHANTI): WA flip LIVE=1 par auto_send 0/2298 NO msg-id - link-only→sendText. #1 gate. 07:00.",
+    "engineering": "ENG-004 P0 (FRESH GHANTI): WA flip LIVE=1 par auto_send 0/2298 NO msg-id - link-only->sendText. #1 gate. 07:00.",
     "platform": "PLT-005 P0 (FRESH GHANTI): dialer day5+ - SIP 5 vars len=0 re-confirm, CLI revoked, leads 0. DID vendor proof+ETA. 07:00.",
     "operations": "OPS-007 P1 (FRESH GHANTI): 09-04 queue NOT gen 2nd day (date-lock broken); WA auto_send 0 digest. 07:00.",
     "sales": "SAL-005 P0 (FRESH GHANTI): dirty HARD STOP; GENUINE wa_conversations intent close msg-id. 07:00.",

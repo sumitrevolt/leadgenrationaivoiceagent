@@ -2,10 +2,10 @@
 
 Proven leak (Gate4c / 2026-07-24):
   inquiry_hooks._spawn(interaction_log.record)
-  → get_async_session() checkout
-  → Task destroyed before async-with __aexit__
-  → dispose cannot close checked-out conn
-  → orphan aiosqlite worker → CI exit-139 (SQLAlchemy #13039).
+  -> get_async_session() checkout
+  -> Task destroyed before async-with __aexit__
+  -> dispose cannot close checked-out conn
+  -> orphan aiosqlite worker -> CI exit-139 (SQLAlchemy #13039).
 
 Production fix: inquiry_hooks owns tasks (named, exception-logged, drainable)
 and FastAPI lifespan drains them BEFORE close_async_db().
@@ -182,7 +182,7 @@ async def test_shutdown_drain_waits_for_blocked_recording_then_cancels(monkeypat
         await asyncio.wait_for(entered.wait(), timeout=2.0)
         assert pending_inquiry_bg_count() >= 1
 
-        # Phase 1+2 with near-zero timeout → cancel path (3+4).
+        # Phase 1+2 with near-zero timeout -> cancel path (3+4).
         stop_accepting_inquiry_bg()
         result = await drain_inquiry_bg_tasks(timeout=0.05)
         assert result["cancelled"] >= 1 or result["remaining"] == 0
@@ -233,5 +233,5 @@ async def test_bg_task_exception_is_consumed(monkeypatch):
     t = _spawn(_boom(), name="boom")
     assert t is not None
     await await_inquiry_bg_tasks(timeout=2.0)
-    # No "Task exception was never retrieved" — done-callback consumed it.
+    # No "Task exception was never retrieved" - done-callback consumed it.
     assert t.done()

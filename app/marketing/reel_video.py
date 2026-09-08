@@ -1,9 +1,9 @@
-"""Faceless reel video gen — PIL frames + EdgeTTS Hinglish voiceover + ffmpeg = MP4.
+"""Faceless reel video gen - PIL frames + EdgeTTS Hinglish voiceover + ffmpeg = MP4.
 
 Predis ka core differentiator (video) free-stack me. Ban-safe: file banta hai,
 HUMAN upload karta hai (auto-publish nahi).
 
-⚠️ HEAVY CPU job — web request me lamba chal sakta (3-5 slides ~20-40s). Scheduler me
+⚠️ HEAVY CPU job - web request me lamba chal sakta (3-5 slides ~20-40s). Scheduler me
 kabhi UNGATED mat daalo
 Celery worker me hi chalana (prod-down qa-job lesson).
 Requires: ffmpeg binary + Pillow + edge-tts (sab pehle se stack me). `available()`
@@ -30,7 +30,7 @@ _VOICE = "hi-IN-SwaraNeural"
 
 
 def available() -> dict[str, Any]:
-    """Kya-kya मौजूद hai — ffmpeg/Pillow/edge-tts."""
+    """Kya-kya मौजूद hai - ffmpeg/Pillow/edge-tts."""
     out = {"ffmpeg": bool(shutil.which("ffmpeg"))}
     try:
         import PIL  # noqa: F401
@@ -50,9 +50,9 @@ def available() -> dict[str, Any]:
 
 def _default_slides(business_name: str, niche: str, offer: str) -> list[str]:
     return [
-        f"{business_name} — aapke area ka bharosemand {niche} expert",
-        offer or "Is hafte special offer — abhi inquiry karo!",
-        "Call ya WhatsApp karo — turant response milega",
+        f"{business_name} - aapke area ka bharosemand {niche} expert",
+        offer or "Is hafte special offer - abhi inquiry karo!",
+        "Call ya WhatsApp karo - turant response milega",
     ]
 
 
@@ -176,7 +176,7 @@ async def build_reel(
             "slides": slides,
             "size_kb": size // 1024,
             "took_s": round(time.time() - t0, 1),
-            "note": "Human upload karo (IG/FB/YT Shorts) — auto-publish nahi.",
+            "note": "Human upload karo (IG/FB/YT Shorts) - auto-publish nahi.",
         }
     except Exception as e:
         logger.warning(f"build_reel failed: {e}")

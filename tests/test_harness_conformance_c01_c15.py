@@ -1,4 +1,4 @@
-"""C-01..C-15 harness conformance — source-backed, no fabricated L5 claim.
+"""C-01..C-15 harness conformance - source-backed, no fabricated L5 claim.
 
 Each control is PASS / PARTIAL / FAIL against code that exists in this repo.
 Attestation without a file:line pointer is a fail (agent-harness-standard).

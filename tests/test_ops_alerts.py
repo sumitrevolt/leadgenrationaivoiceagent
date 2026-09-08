@@ -1,6 +1,6 @@
-"""ops_alerts — threshold/cooldown/disabled behaviour matrix.
+"""ops_alerts - threshold/cooldown/disabled behaviour matrix.
 
-ntfy.push_bg is monkey-patched to capture pushes — no network. Each test
+ntfy.push_bg is monkey-patched to capture pushes - no network. Each test
 gets its own tmp DATA_DIR so the cooldown ledger doesn't leak across tests.
 """
 

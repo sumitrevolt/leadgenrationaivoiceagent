@@ -1,8 +1,8 @@
-"""Combo Product API — AI Growth Suite (Product 3) ka pricing surface.
+"""Combo Product API - AI Growth Suite (Product 3) ka pricing surface.
 
-GET /api/combo/packages   PUBLIC — pricing page JS fetch
-GET /api/combo/niches     PUBLIC — combo-relevant niches (band info ke saath)
-GET /api/combo/plans      admin  — plan IDs list (subscription sync ke liye)
+GET /api/combo/packages   PUBLIC - pricing page JS fetch
+GET /api/combo/niches     PUBLIC - combo-relevant niches (band info ke saath)
+GET /api/combo/plans      admin  - plan IDs list (subscription sync ke liye)
 """
 
 from __future__ import annotations
@@ -24,12 +24,12 @@ async def combo_packages():
 
 @router.get("/niches", dependencies=[Depends(rate_limit("combo_niches", 30, 60))])
 async def combo_niches():
-    """Combo product ke relevant niches — band + pricing info ke saath."""
+    """Combo product ke relevant niches - band + pricing info ke saath."""
     try:
         from app.marketing.combo_packages import COMBO_TIERS
         from app.niches import NICHES
 
-        # Band → combo tier mapping
+        # Band -> combo tier mapping
         band_to_tier = {t["voice_band"]: t for t in COMBO_TIERS.values()}
         out = []
         for key, cfg in NICHES.items():
@@ -55,7 +55,7 @@ async def combo_niches():
 
 @router.get("/plans")
 async def combo_plans():
-    """Combo plan IDs list — subscription._sync_combo_plans ke liye."""
+    """Combo plan IDs list - subscription._sync_combo_plans ke liye."""
     from app.marketing.combo_packages import COMBO_PILOT, COMBO_PLAN_IDS, COMBO_TIERS
 
     plans = []

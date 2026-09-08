@@ -1,8 +1,8 @@
-"""W4.2 — Office HQ made trend-aware: day-over-day pipeline momentum.
+"""W4.2 - Office HQ made trend-aware: day-over-day pipeline momentum.
 
 The Office snapshot was rich but purely point-in-time (next_best_actions, boss_brief,
-priority_actions… all "right now"). `build_trends` adds momentum — hot/warm/stuck vs the
-most recent prior day — so the founder sees direction, not just a number. Fully
+priority_actions… all "right now"). `build_trends` adds momentum - hot/warm/stuck vs the
+most recent prior day - so the founder sees direction, not just a number. Fully
 try-wrapped/fail-open (never blanks the page)
 derived-metrics history persisted like the
 existing revenue_snapshots pattern.
@@ -38,7 +38,7 @@ def test_build_trends_no_history_prev_zero(monkeypatch, tmp_path):
     monkeypatch.setattr(office_hq, "_TRENDS_PATH", str(tmp_path / "t.json"))
     monkeypatch.setattr(office_hq, "_now", lambda: _dt.datetime(2026, 7, 6))
     res = office_hq.build_trends({"pipeline": [{"hot_count": 4, "stuckCount": 1}]})
-    assert res["day_over_day"]["hot"]["delta"] == 4  # no prior day → prev 0
+    assert res["day_over_day"]["hot"]["delta"] == 4  # no prior day -> prev 0
     assert res["day_over_day"]["stuck"]["now"] == 1
 
 

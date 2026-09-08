@@ -3,14 +3,14 @@
 Two manifest stores, three on-disk directories:
 
   * artifacts.call_recordings
-      - data/call_recordings/   → artifacts/call_recordings/
-      - data/call_transcripts/  → artifacts/call_transcripts/
+      - data/call_recordings/   -> artifacts/call_recordings/
+      - data/call_transcripts/  -> artifacts/call_transcripts/
   * telephony.call_recordings
-      - data/recordings/        → telephony/recordings/
-        (RECORDINGS_DIR override — already used by voice_launch)
+      - data/recordings/        -> telephony/recordings/
+        (RECORDINGS_DIR override - already used by voice_launch)
 
 Resolved per call via ``resolve_store_path``. Nothing here copies bytes or
-flips dial/voice flags — path authority only. Keep LEGACY when the runtime
+flips dial/voice flags - path authority only. Keep LEGACY when the runtime
 root is unset.
 """
 

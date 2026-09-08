@@ -1,6 +1,6 @@
-"""Proofs for 2026-07-28 worker-OOM containment (self-improve → heavy).
+"""Proofs for 2026-07-28 worker-OOM containment (self-improve -> heavy).
 
-QueuePool / "No response returned" are NOT claimed as effects of OOM here —
+QueuePool / "No response returned" are NOT claimed as effects of OOM here -
 those stay a separate unresolved blocker until connection-owner evidence exists.
 """
 
@@ -95,20 +95,20 @@ def test_sentry_keeps_original_and_only_drops_exact_mask():
     original = ImportError("lead_topup_price missing")
     payload = {"event_id": "keep-me"}
 
-    # Exact secondary mask with cause → drop (original already in chain / prior event).
+    # Exact secondary mask with cause -> drop (original already in chain / prior event).
     mask = AttributeError("'_IncludedRouter' object has no attribute 'path'")
     mask.__cause__ = original
     assert _sentry_before_send(payload, {"exc_info": (AttributeError, mask, None)}) is None
 
-    # Original exception alone → keep.
+    # Original exception alone -> keep.
     assert _sentry_before_send(payload, {"exc_info": (ImportError, original, None)}) is payload
 
-    # Similar but not exact message → keep (do not over-suppress).
+    # Similar but not exact message -> keep (do not over-suppress).
     other = AttributeError("'_IncludedRouter' object has no attribute 'routes'")
     other.__cause__ = original
     assert _sentry_before_send(payload, {"exc_info": (AttributeError, other, None)}) is payload
 
-    # Bare IncludedRouter with no chain → keep (might be the only signal).
+    # Bare IncludedRouter with no chain -> keep (might be the only signal).
     bare = AttributeError("'_IncludedRouter' object has no attribute 'path'")
     assert _sentry_before_send(payload, {"exc_info": (AttributeError, bare, None)}) is payload
 

@@ -1,4 +1,4 @@
-"""social_engine.engine — enqueue + dispatch core. GATED `SOCIAL_ENGINE`.
+"""social_engine.engine - enqueue + dispatch core. GATED `SOCIAL_ENGINE`.
 
   enqueue_publish(client_id, caption, media_path/url, platforms, account_refs) -> [job_ids]
   process_queue(limit) -> queued jobs claim -> provider dispatch -> published/retry/dead/skipped
@@ -34,7 +34,7 @@ def enabled() -> bool:
 
     Env explicit = final (0 = hard kill-switch)
     env UNSET par bind-mounted
-    data/social_engine.json {"enabled": true} bhi chalega — running containers
+    data/social_engine.json {"enabled": true} bhi chalega - running containers
     docker-cp drift carry karte (recreate = hotfix loss), isliye naya env var
     recreate ke bina inject nahi hota (same pattern: platform_dial/upi_config)."""
     v = os.getenv("SOCIAL_ENGINE", "").strip().lower()
@@ -88,11 +88,11 @@ def _resolve_account(client_id: str, platform: str, account_ref: str) -> dict[st
 def _default_platforms(client_id: str) -> list[str]:
     """Sirf configured providers (whatsapp agar client-phone + WA backend / postiz /
     vault me jo accounts hain). Empty-socials wale client (jaise jiya) ke liye whatsapp
-    default candidate ban jaata hai — approved post uske apne number pe 1-to-1 deliver hota."""
+    default candidate ban jaata hai - approved post uske apne number pe 1-to-1 deliver hota."""
     out: list[str] = []
     reg = registry()
     try:
-        # telegram REMOVED 2026-06-28 (ban-risk) — no longer a default platform
+        # telegram REMOVED 2026-06-28 (ban-risk) - no longer a default platform
         # WhatsApp = default candidate jab client ka apna phone ho + WA backend configured ho.
         wa = reg.get("whatsapp")
         if wa is not None and _client_phone(client_id):
@@ -137,7 +137,7 @@ def enqueue_publish(
         plats = platforms or _default_platforms(client_id)
         refs = account_refs or {}
         if not plats:
-            # Kuch bhi target nahi — na koi social account, na WA phone. Non-silent.
+            # Kuch bhi target nahi - na koi social account, na WA phone. Non-silent.
             reason = "koi channel connected nahi (na social account, na WhatsApp phone)"
             logger.warning(f"[engine] enqueue_publish client={client_id}: {reason}")
             try:
@@ -146,7 +146,7 @@ def enqueue_publish(
                 team.log_event(
                     "zara",
                     "social_no_channel",
-                    f"{client_id}: {reason} — approved post deliver nahi hoga",
+                    f"{client_id}: {reason} - approved post deliver nahi hoga",
                     status="warn",
                 )
             except Exception:
@@ -167,9 +167,9 @@ def enqueue_publish(
             )
             if jid:
                 ids.append(jid)
-        # best-effort immediate Celery drain — FIRE-AND-FORGET (scheduler drains anyway).
+        # best-effort immediate Celery drain - FIRE-AND-FORGET (scheduler drains anyway).
         # .delay() CONNECTS to the Redis broker to publish; a down/unreachable broker makes
-        # that socket.connect BLOCK (broker_connection_timeout x retries) — a hang the
+        # that socket.connect BLOCK (broker_connection_timeout x retries) - a hang the
         # try/except can't catch. So never let it block the caller: dispatch in a daemon
         # thread with retry=False. (A blocking .delay() here hung full pytest -> SIGABRT/
         # exit 134, and would stall a real request if Redis were down.)
@@ -199,14 +199,14 @@ def enqueue_publish(
 
 def _dry_run_enabled() -> bool:
     """Loop-social-3 (2026-07-11): safe E2E validation gate. When SOCIAL_DRY_RUN=1
-    the engine drains queued jobs but NEVER hits a real provider — it fabricates
+    the engine drains queued jobs but NEVER hits a real provider - it fabricates
     a `PublishResult(ok=True, post_id="dry-<uuid>", raw={"dry_run": True})` so
-    the full pipeline (queue → dispatch → ledger → customer timeline → admin
+    the full pipeline (queue -> dispatch -> ledger -> customer timeline -> admin
     cockpit) can be verified without a live FB/IG/GBP/LinkedIn publish.
 
     Semantics: identical to the master `enabled()` gate (env explicit wins,
     then `data/social_engine.json {"dry_run": true}` fallback). Independent of
-    `SOCIAL_ENGINE` — you can enable dry_run without turning on the engine, but
+    `SOCIAL_ENGINE` - you can enable dry_run without turning on the engine, but
     dry_run only fires ONCE the engine drains (which needs `SOCIAL_ENGINE=1`).
     Ban-safe: never sends a message, never calls a paid API, never violates a
     provider ToS. Meant for staging + first-customer canary."""
@@ -234,9 +234,9 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
     acct = _resolve_account(str(job.get("client_id") or ""), p, str(job.get("account_ref") or ""))
     if not prov.configured(acct):
         return PublishResult(ok=False, platform=p, error="__inert__")
-    # Loop-social-15 (2026-07-11): Phase-6 platform adaptation — transform
+    # Loop-social-15 (2026-07-11): Phase-6 platform adaptation - transform
     # caption/hashtags shape BEFORE validation so the validator sees the
-    # actually-published body. Adaptation is safe (URL strip → "link in bio",
+    # actually-published body. Adaptation is safe (URL strip -> "link in bio",
     # thread split for X, hashtag tail placement, ellipsis truncation) and
     # non-lossy where possible. Adapted job feeds provider.publish().
     try:
@@ -247,7 +247,7 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
         pass
     # Loop-social-10 (2026-07-11): Phase-6 platform-adaptation validators.
     # Blocking errors (caption > cap, unsupported media, missing disclaimer)
-    # fail-fast with a descriptive error — the drain will retry/dead per normal
+    # fail-fast with a descriptive error - the drain will retry/dead per normal
     # branching. Warns don't block publish. Lazy-import so tests without the
     # module still drain.
     try:
@@ -264,10 +264,10 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
                 raw={"validation_issues": issues},
             )
     except Exception:
-        # Fail-open on validator crash — a bad validator must not block real posts.
+        # Fail-open on validator crash - a bad validator must not block real posts.
         pass
     # Loop-social-3: DRY-RUN short-circuit. Fires AFTER configured() so we still
-    # honestly report inert providers as skipped — dry-run just replaces the
+    # honestly report inert providers as skipped - dry-run just replaces the
     # provider.publish() call itself. Post-id is deterministic-ish (job id +
     # platform) so ledger + timeline reads look stable across drains.
     if _dry_run_enabled():
@@ -313,7 +313,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
         return {"ran": False, "reason": "SOCIAL_ENGINE off"}
     published = retried = dead = skipped = 0
     # A dry-run drain marks jobs `published` on purpose (canary: verify
-    # queue→ledger→timeline→cockpit without a live post). The failure mode is
+    # queue->ledger->timeline->cockpit without a live post). The failure mode is
     # that it is INDISTINGUISHABLE from real publishing: the 2026-07-11 canary
     # gate sat on for 3 days, the cockpit showed 6 self-brand posts "published",
     # and NOTHING ever reached social. Nobody noticed because nothing said so.
@@ -322,7 +322,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
     dry = _dry_run_enabled()
     if dry:
         logger.warning(
-            "🧪 SOCIAL DRY-RUN ACTIVE — jobs will be marked `published` but NOTHING "
+            "🧪 SOCIAL DRY-RUN ACTIVE - jobs will be marked `published` but NOTHING "
             "is posted to any provider. Turn off with SOCIAL_DRY_RUN=0 or "
             'data/social_engine.json {"dry_run": false}.'
         )
@@ -335,7 +335,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
         except Exception as _rec_e:
             logger.debug(f"[engine] stale-processing recover skip: {_rec_e}")
         jobs = store.claim_pending(limit)
-        # Loop-social-8 (2026-07-11): Phase 8 pause + emergency-stop gates —
+        # Loop-social-8 (2026-07-11): Phase 8 pause + emergency-stop gates -
         # lazy-import so tests without the module don't crash the drain.
         try:
             from . import pause as _pause
@@ -349,7 +349,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
         for job in jobs:
             jid = str(job.get("id") or "")
             cid_pre = str(job.get("client_id") or "")
-            # Pause gate BEFORE publish-started emit — a paused job never
+            # Pause gate BEFORE publish-started emit - a paused job never
             # entered the "publishing" transition, so ledger stays honest.
             if _pause is not None:
                 paused, reason = _pause.should_pause_job(job)
@@ -360,7 +360,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                         cid_pre, "customer_action_required", job, detail=f"paused: {reason}"
                     )
                     continue
-            # Loop-social-14: exponential backoff — a retry-status row still
+            # Loop-social-14: exponential backoff - a retry-status row still
             # inside its backoff window is put back to 'retry' (no publish).
             if _sched is not None and not _sched.is_ready_for_retry(job):
                 store.mark(jid, "retry", last_error="backoff_wait")
@@ -383,7 +383,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                     continue
             # Loop-social-6 (2026-07-11): emit publish-lifecycle event so the
             # customer timeline + admin cockpit reflect the "publish is running"
-            # transition (previously invisible — customer only saw the terminal
+            # transition (previously invisible - customer only saw the terminal
             # published/failed state). Never-raise (helper is guarded).
             _log_delivery(cid_pre, "post_publish_started", job)
             try:
@@ -400,7 +400,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
             elif res.error == "__inert__":
                 store.mark(jid, "skipped", last_error="provider not configured")
                 skipped += 1
-                # Loop-social-6: an unconfigured provider is customer_action —
+                # Loop-social-6: an unconfigured provider is customer_action -
                 # they need to reconnect the account. Emit the canonical event so
                 # the admin cockpit + customer setup checklist highlight it.
                 _log_delivery(
@@ -418,17 +418,17 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 else:
                     store.mark(jid, "retry", attempts=attempts, last_error=res.error)
                     retried += 1
-                    # Loop-social-6: emit canonical retry event (ops-visible only —
+                    # Loop-social-6: emit canonical retry event (ops-visible only -
                     # customer_visible=False in ledger LABELS, avoids timeline noise).
                     _log_delivery(
                         cid,
                         "post_retry_scheduled",
                         job,
-                        detail=f"attempt {attempts}/{store.max_attempts()} — {str(res.error or '')[:120]}",
+                        detail=f"attempt {attempts}/{store.max_attempts()} - {str(res.error or '')[:120]}",
                     )
         if jobs:
             # Staff-visibility (2026-07-01): social posting ran completely invisibly on
-            # /app/team today — attribute to "zara" (Social Media Manager).
+            # /app/team today - attribute to "zara" (Social Media Manager).
             try:
                 from app.platform import team
 

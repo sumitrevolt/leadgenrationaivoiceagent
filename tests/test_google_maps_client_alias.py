@@ -1,4 +1,4 @@
-"""UDYAM pipeline imports GoogleMapsClient — must resolve to GoogleMapsScraper."""
+"""UDYAM pipeline imports GoogleMapsClient - must resolve to GoogleMapsScraper."""
 
 from __future__ import annotations
 

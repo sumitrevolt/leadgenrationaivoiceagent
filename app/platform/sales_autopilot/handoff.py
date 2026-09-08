@@ -1,6 +1,6 @@
 """Sales Autopilot payment / onboarding / first-value handoff adapters.
 
-These are thin ADAPTERS to the platform's EXISTING activation/onboarding paths — this
+These are thin ADAPTERS to the platform's EXISTING activation/onboarding paths - this
 engine never rebuilds billing or CRM, never fakes a payment, and never auto-activates.
 Each function records a durable handoff intent and (best-effort) points at the existing
 path so a human/owner completes it. Publishing stays approval-gated separately. Never

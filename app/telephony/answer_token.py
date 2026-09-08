@@ -2,7 +2,7 @@
 
 PROBLEM: the public Vobiz answer_url (`/api/webhooks/vobiz/answer`) honoured a
 press-9 opt-out using the request's `From` field, which is fully attacker-
-controllable — so anyone could POST `{digits:'9', From:<victim>}` and add an
+controllable - so anyone could POST `{digits:'9', From:<victim>}` and add an
 arbitrary number to the do-not-call suppression list (lead-pipeline DoS).
 
 FIX: call_manager signs the number it is dialling into the answer_url with
@@ -22,7 +22,7 @@ import time
 
 from app.config import settings
 
-_TTL_S = 3600  # answer-url valid 1h — calls connect within minutes
+_TTL_S = 3600  # answer-url valid 1h - calls connect within minutes
 
 
 def _secret() -> bytes:

@@ -1,6 +1,6 @@
-"""Tests: infra batch-3 — dlq_retry, integration_health, file_lock, heavy-queue routing.
+"""Tests: infra batch-3 - dlq_retry, integration_health, file_lock, heavy-queue routing.
 
-Hermetic (no real Redis/network) — fake redis object inject/monkeypatch.
+Hermetic (no real Redis/network) - fake redis object inject/monkeypatch.
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ def test_dlq_sweep_unknown_task_goes_dead(monkeypatch):
     r.lpush(dlq_retry.DLQ_KEY, json.dumps({"task_id": "x", "args": "('legacy_call_task',)"}))
     out = asyncio.run(dlq_retry.run_sweep(r=r))
     assert out["skipped"] == 1
-    assert r.llen(dlq_retry.DEAD_KEY) == 1  # blind retry NAHI — side-effect safe
+    assert r.llen(dlq_retry.DEAD_KEY) == 1  # blind retry NAHI - side-effect safe
 
 
 def test_dlq_retry_counts_are_per_job(monkeypatch):
@@ -237,7 +237,7 @@ def test_heavy_queue_routing_flag(monkeypatch):
     # flag OFF (default) = None (default queue)
     monkeypatch.delenv("CELERY_HEAVY_QUEUE", raising=False)
     assert worker._route_staff_task(name, ("qa",), {}, {}) is None
-    # flag ON: heavy job → heavy queue; light job → default
+    # flag ON: heavy job -> heavy queue; light job -> default
     monkeypatch.setenv("CELERY_HEAVY_QUEUE", "1")
     assert worker._route_staff_task(name, ("qa",), {}, {}) == {"queue": "heavy"}
     assert worker._route_staff_task(name, ("content",), {}, {}) == {"queue": "heavy"}
@@ -247,7 +247,7 @@ def test_heavy_queue_routing_flag(monkeypatch):
 
 
 def test_sales_pipeline_locked_write(tmp_path, monkeypatch):
-    """_write_all ab locked_rewrite use karta — file valid jsonl rehni chahiye."""
+    """_write_all ab locked_rewrite use karta - file valid jsonl rehni chahiye."""
     from app.marketing import sales_pipeline as sp
 
     p = str(tmp_path / "deals.jsonl")

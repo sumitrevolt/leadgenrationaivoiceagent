@@ -1,4 +1,4 @@
-"""Lifecycle API — newsletter + winback + email-signature + lead-magnet.
+"""Lifecycle API - newsletter + winback + email-signature + lead-magnet.
 
   POST /api/lifecycle/newsletter/subscribers      (admin)  per-client subs import
   GET  /api/lifecycle/newsletter/preview          (admin)  compose preview (?client_id=)
@@ -17,7 +17,7 @@ Mount (main session):
     app.include_router(lifecycle_router, prefix="/api")   # /api/lifecycle/*
 
 Patterns (localseo.py/engage.py jaisa): lazy imports, modules never-raise
-(error dicts), LLM endpoints `asyncio.wait_for` 25s (prod-down lesson — event
+(error dicts), LLM endpoints `asyncio.wait_for` 25s (prod-down lesson - event
 loop kabhi block nahi), file-scan endpoints `asyncio.to_thread`. Flags
 (default OFF, scheduler ke liye): NEWSLETTER_ENGINE, WINBACK_ENGINE.
 """
@@ -38,14 +38,14 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/lifecycle", tags=["Lifecycle"])
 
-_LLM_TIMEOUT = 25  # seconds — LLM/network endpoints kabhi loop block na karein
+_LLM_TIMEOUT = 25  # seconds - LLM/network endpoints kabhi loop block na karein
 
 
 def _timeout_dict(what: str) -> dict:
     return {
         "ok": False,
         "error": "timeout",
-        "message": f"{what} me time lag raha hai — thodi der baad try karo (scheduler bhi complete karega).",
+        "message": f"{what} me time lag raha hai - thodi der baad try karo (scheduler bhi complete karega).",
     }
 
 
@@ -75,7 +75,7 @@ async def newsletter_subscribers_import(body: SubscribersImportIn, _user=Depends
 async def newsletter_subscribers_list(
     client_id: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)
 ):
-    """Active subscribers list (tokens included — admin only)."""
+    """Active subscribers list (tokens included - admin only)."""
     from app.marketing import newsletter
 
     subs = await asyncio.to_thread(newsletter.subscribers, client_id)
@@ -93,7 +93,7 @@ async def newsletter_preview(
         return await asyncio.wait_for(newsletter.compose(client_id), timeout=_LLM_TIMEOUT)
     except asyncio.TimeoutError:
         return _timeout_dict("Newsletter compose")
-    except Exception as e:  # pragma: no cover — module never-raise hai
+    except Exception as e:  # pragma: no cover - module never-raise hai
         logger.warning(f"[lifecycle] newsletter preview failed: {e}")
         return {"ok": False, "error": str(e)[:200]}
 
@@ -105,7 +105,7 @@ class NewsletterRunIn(BaseModel):
 @router.post("/newsletter/run")
 async def newsletter_run(body: NewsletterRunIn | None = None, _user=Depends(require_admin)):
     """Manual monthly run. NEWSLETTER_ENGINE=1 = send; OFF = record-only.
-    25s hard timeout — partial run safe (per-client month-dedupe likh chuka hota)."""
+    25s hard timeout - partial run safe (per-client month-dedupe likh chuka hota)."""
     from app.marketing import newsletter
 
     try:
@@ -155,7 +155,7 @@ async def _outreach_unsub(token: str) -> HTMLResponse:
     dependencies=[Depends(rate_limit("outreachunsub", 20, 60))],
 )
 async def outreach_unsub_get(token: str):
-    """PUBLIC cold-outreach unsubscribe — human footer link (GET)."""
+    """PUBLIC cold-outreach unsubscribe - human footer link (GET)."""
     return await _outreach_unsub(token)
 
 
@@ -165,7 +165,7 @@ async def outreach_unsub_get(token: str):
     dependencies=[Depends(rate_limit("outreachunsubp", 30, 60))],
 )
 async def outreach_unsub_post(token: str):
-    """RFC 8058 one-click unsubscribe — mail-client POST (List-Unsubscribe-Post)."""
+    """RFC 8058 one-click unsubscribe - mail-client POST (List-Unsubscribe-Post)."""
     return await _outreach_unsub(token)
 
 
@@ -178,7 +178,7 @@ async def newsletter_rss_digest(limit: int = Query(5, ge=1, le=20), _user=Depend
 
 
 # --------------------------------------------------------------------------- #
-# Winback (inactive re-engagement — drafts only)
+# Winback (inactive re-engagement - drafts only)
 # --------------------------------------------------------------------------- #
 @router.get("/winback/inactive")
 async def winback_inactive(
@@ -186,7 +186,7 @@ async def winback_inactive(
     limit: int = Query(100, ge=1, le=500),
     _user=Depends(require_admin),
 ):
-    """Inactive prospects + end-customers (file-scan thread me — loop block nahi)."""
+    """Inactive prospects + end-customers (file-scan thread me - loop block nahi)."""
     from app.platform import winback
 
     rows = await asyncio.to_thread(winback.find_inactive, days, limit)
@@ -215,7 +215,7 @@ async def winback_drafts(limit: int = Query(100, ge=1, le=1000), _user=Depends(r
 
 
 # --------------------------------------------------------------------------- #
-# Email signature kit (pure logic — no flag)
+# Email signature kit (pure logic - no flag)
 # --------------------------------------------------------------------------- #
 @router.get("/email-signature")
 async def email_signature(
@@ -244,7 +244,7 @@ class LeadMagnetIn(BaseModel):
 
 @router.post("/lead-magnet")
 async def lead_magnet_generate(body: LeadMagnetIn, _user=Depends(require_admin)):
-    """Branded niche guide (LLM points + static fallback) — HTML (+PDF agar dep ho)."""
+    """Branded niche guide (LLM points + static fallback) - HTML (+PDF agar dep ho)."""
     from app.marketing import lead_magnet
 
     try:
@@ -261,7 +261,7 @@ async def lead_magnet_generate(body: LeadMagnetIn, _user=Depends(require_admin))
 
 @router.get("/lead-magnet-file/{name}", dependencies=[Depends(rate_limit("lmfile", 30, 60))])
 async def lead_magnet_file(name: str):
-    """PUBLIC guide serve (filename regex-locked, dir-locked — ai-img-file pattern)."""
+    """PUBLIC guide serve (filename regex-locked, dir-locked - ai-img-file pattern)."""
     from app.marketing import lead_magnet
 
     p = lead_magnet.safe_file_path(name)

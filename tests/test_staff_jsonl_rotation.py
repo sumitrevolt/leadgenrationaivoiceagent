@@ -1,8 +1,8 @@
-"""W1.8 — unbounded JSONL stores must rotate (line-cap) in the kavya hygiene job.
+"""W1.8 - unbounded JSONL stores must rotate (line-cap) in the kavya hygiene job.
 
 Bug: `self_improve_runs.jsonl`, `content_feedback.jsonl`, `reply_drafts.jsonl` and
 `content_queue/<id>.jsonl` were append-only with NO prune (kavya `run_ops` pruned only
-DB events + transcript files) → unbounded disk growth on the 16GB VPS.
+DB events + transcript files) -> unbounded disk growth on the 16GB VPS.
 
 Fix: `_trim_jsonl` keeps the newest `max_lines` (atomic rewrite, best-effort) and
 `_prune_jsonl_stores` trims all four stores

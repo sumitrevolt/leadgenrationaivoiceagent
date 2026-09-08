@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Owner Admin WhatsApp Bot — simple text interface.
-Owner messages WhatsApp bot → bot routes to admin actions.
+Owner Admin WhatsApp Bot - simple text interface.
+Owner messages WhatsApp bot -> bot routes to admin actions.
 """
 
 import sys
@@ -14,7 +14,7 @@ sys.path.insert(0, "/opt/leadgen")
 sys.path.insert(0, "C:\\Users\\Ratanshila\\.openclaw\\workspace")
 
 def handle_owner_message(text: str) -> str:
-    """Owner WhatsApp text → admin action + response."""
+    """Owner WhatsApp text -> admin action + response."""
     text = text.strip().lower()
 
     # Command routing
@@ -67,22 +67,22 @@ def handle_owner_message(text: str) -> str:
 
     elif text in ["help", "menu"]:
         return """
-🛠️ LEADGEN AI — OWNER ADMIN COMMANDS
+🛠️ LEADGEN AI - OWNER ADMIN COMMANDS
 
-1. hotqueue / leads / status → 42 flagged leads + pack status
-2. compliance / gates → TRAI/DND/kill-fence gate status
-3. deploy → 2-step kill-fence deploy initiation
-4. squads → All 15 squad health summaries
-5. knowledge → Ask question from knowledge base
-6. controls → Adjust system params (gated)
-7. campaign / outreach → Hourly outreach execution
-8. whatsapp / wa → WAHA status + connected channels
-9. squad N → Execute task for squad N (1-11)
-10. monitoring → Observability dashboard
-11. ci/cd → CI pipeline health check
-help / menu → This help text
+1. hotqueue / leads / status -> 42 flagged leads + pack status
+2. compliance / gates -> TRAI/DND/kill-fence gate status
+3. deploy -> 2-step kill-fence deploy initiation
+4. squads -> All 15 squad health summaries
+5. knowledge -> Ask question from knowledge base
+6. controls -> Adjust system params (gated)
+7. campaign / outreach -> Hourly outreach execution
+8. whatsapp / wa -> WAHA status + connected channels
+9. squad N -> Execute task for squad N (1-11)
+10. monitoring -> Observability dashboard
+11. ci/cd -> CI pipeline health check
+help / menu -> This help text
 
-🛡️ All commands gated — cannot weaken compliance (TRAI/DND/kill-fence)
+🛡️ All commands gated - cannot weaken compliance (TRAI/DND/kill-fence)
 ⚙️ Autopilot: 1000 engineers × 15 squads active
 """
 

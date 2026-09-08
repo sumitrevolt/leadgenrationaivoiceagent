@@ -1,22 +1,22 @@
-"""AI-agent discovery files — /llms.txt + /pricing.md (B2A best-practice, 2026).
+"""AI-agent discovery files - /llms.txt + /pricing.md (B2A best-practice, 2026).
 
 WHY: AI search systems (Claude, Perplexity, ChatGPT-search) aur autonomous buying
 agents ab `llms.txt` (llmstxt.org spec v1.7.0, Stable) + machine-readable pricing
 ko padhte hain to decide kis tool ko cite/recommend karein. Ek marketing-AI company
 ka in files ke bina hona = AI-mediated discovery me invisible. Ye GTM lever hai
-(AI citation → inbound), na ki internal infra.
+(AI citation -> inbound), na ki internal infra.
 
 DESIGN:
-  - PURE builders — koi route/IO yahan nahi. main.py thin routes inhe call karti.
+  - PURE builders - koi route/IO yahan nahi. main.py thin routes inhe call karti.
   - Single source of truth: pricing `packages.py` + `voice_packages.py` se LIVE
-    generate hoti (hardcode NAHI → pricing change pe auto-sync, drift impossible).
-  - Never-raise: koi bhi import/format fail → minimal safe fallback string.
+    generate hoti (hardcode NAHI -> pricing change pe auto-sync, drift impossible).
+  - Never-raise: koi bhi import/format fail -> minimal safe fallback string.
   - Plain English descriptions (AI systems globally best parse English for citation);
     brand Hinglish context noted.
 
 Consumers:
-  - GET /llms.txt    (public, text/plain)  — main.py
-  - GET /pricing.md  (public, text/markdown) — main.py
+  - GET /llms.txt    (public, text/plain)  - main.py
+  - GET /pricing.md  (public, text/markdown) - main.py
 """
 
 from __future__ import annotations
@@ -42,9 +42,9 @@ def _rupee(n: int | None) -> str:
 
 
 def build_llms_txt(base_url: str = DEFAULT_BASE) -> str:
-    """llms.txt content (llmstxt.org spec) — identity + key links for AI systems.
+    """llms.txt content (llmstxt.org spec) - identity + key links for AI systems.
 
-    Never raises — on any failure returns a minimal valid llms.txt.
+    Never raises - on any failure returns a minimal valid llms.txt.
     """
     b = (base_url or DEFAULT_BASE).rstrip("/")
     try:
@@ -54,9 +54,9 @@ def build_llms_txt(base_url: str = DEFAULT_BASE) -> str:
         lines.append(
             "> AI marketing automation and an AI voice-calling agent for small and "
             "local businesses in India. Two separate products: (1) AI Marketing "
-            "Automation — daily AI social posts, Google Business Profile audits, "
+            "Automation - daily AI social posts, Google Business Profile audits, "
             "review replies, website lead-capture, WhatsApp nurture and CRM sync; "
-            "(2) AI Voice Calling Agent — a Hinglish AI telecaller that calls, "
+            "(2) AI Voice Calling Agent - a Hinglish AI telecaller that calls, "
             "qualifies and books inbound inquiries. Hinglish-first, free-stack, and "
             "TRAI/DND-compliant with a mandatory AI-disclosure on every call."
         )
@@ -82,14 +82,14 @@ def build_llms_txt(base_url: str = DEFAULT_BASE) -> str:
         lines.append("")
         lines.append("## Key pages")
         lines.append(
-            f"- [Free Marketing/Website Audit]({b}/audit): Lead magnet — instant AI audit of a business's online presence."
+            f"- [Free Marketing/Website Audit]({b}/audit): Lead magnet - instant AI audit of a business's online presence."
         )
         lines.append(
             f"- [Local SEO / GEO check]({b}/geo-check): Free Google Business Profile and local-visibility check."
         )
         lines.append(f"- [Live AI Demo]({b}/demo): Try the AI agent interactively.")
         lines.append(
-            f"- [Compare Products]({b}/compare): Marketing vs Voice — which fits which business."
+            f"- [Compare Products]({b}/compare): Marketing vs Voice - which fits which business."
         )
         lines.append(f"- [Pricing]({b}/pricing): Human-readable pricing page.")
         lines.append(
@@ -107,7 +107,7 @@ def build_llms_txt(base_url: str = DEFAULT_BASE) -> str:
         lines.append("")
         lines.append("## Contact")
         lines.append(f"- [Email]({b}/): {CONTACT_EMAIL}")
-        lines.append(f"- [Get started]({b}/start): Sign up — free 7-day marketing trial (no card).")
+        lines.append(f"- [Get started]({b}/start): Sign up - free 7-day marketing trial (no card).")
         lines.append("")
         lines.append(f"<!-- last updated: {_today()} -->")
         lines.append("")
@@ -121,14 +121,14 @@ def build_llms_txt(base_url: str = DEFAULT_BASE) -> str:
 
 
 def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
-    """pricing.md — machine-readable pricing from the live source of truth.
+    """pricing.md - machine-readable pricing from the live source of truth.
 
     Reads packages.py (marketing) + voice_packages.py (voice) so it can never
     drift from the billing source of truth. Never raises.
     """
     b = (base_url or DEFAULT_BASE).rstrip("/")
     out: list[str] = []
-    out.append("# Pricing — LeadsGenAI")
+    out.append("# Pricing - LeadsGenAI")
     out.append("")
     out.append(
         f"> Last updated: {_today()}. All prices in Indian Rupees (INR). "
@@ -139,7 +139,7 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
     out.append("")
 
     # ---- Product 1: Marketing ----
-    out.append("## Product 1 — AI Marketing Automation")
+    out.append("## Product 1 - AI Marketing Automation")
     out.append("")
     out.append("Self-serve marketing automation for local businesses. No telecom licensing needed.")
     out.append("")
@@ -149,7 +149,7 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
         try:
             trial = get_trial_package()
             out.append(
-                f"### {trial.get('name', 'Free Trial')} — {_rupee(trial.get('price_inr_month', 0))}"
+                f"### {trial.get('name', 'Free Trial')} - {_rupee(trial.get('price_inr_month', 0))}"
             )
             out.append(
                 f"- Price: {_rupee(trial.get('price_inr_month', 0))} ({trial.get('trial_days', 7)} days, no card)"
@@ -165,7 +165,7 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
             name = p.get("name", "Plan")
             mo = p.get("price_inr_month")
             yr = p.get("price_inr_year")
-            out.append(f"### {name} — {_rupee(mo)}/month")
+            out.append(f"### {name} - {_rupee(mo)}/month")
             out.append(f"- Monthly: {_rupee(mo)}")
             if yr:
                 out.append(f"- Annual: {_rupee(yr)}/year (2 months free)")
@@ -181,7 +181,7 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
                 '.join(feats[:8])}")
             out.append("")
     except Exception:
-        out.append("_Marketing pricing temporarily unavailable — see /pricing._")
+        out.append("_Marketing pricing temporarily unavailable - see /pricing._")
         out.append("")
 
     # ---- Voice minute top-ups (Advanced/voice) ----
@@ -193,17 +193,17 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
             out.append("### Voice minute top-up packs (for plans with included minutes)")
             for tp in packs:
                 out.append(
-                    f"- {tp.get('label', tp.get('key'))}: {tp.get('minutes')} minutes — {_rupee(tp.get('price_inr'))}"
+                    f"- {tp.get('label', tp.get('key'))}: {tp.get('minutes')} minutes - {_rupee(tp.get('price_inr'))}"
                 )
             out.append("")
     except Exception:
         pass
 
     # ---- Product 2: Voice ----
-    out.append("## Product 2 — AI Voice Calling Agent")
+    out.append("## Product 2 - AI Voice Calling Agent")
     out.append("")
     out.append(
-        "Standalone AI telecaller. Flat monthly fee per niche band — unlimited AI calls, "
+        "Standalone AI telecaller. Flat monthly fee per niche band - unlimited AI calls, "
         "no per-lead counting. AI cold-calling is gated on Indian DLT approval; until then "
         "it runs inbound / consented / own-database calling. See "
         f"[{b}/voice-agent]({b}/voice-agent)."
@@ -212,12 +212,12 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
     try:
         from app.marketing.voice_packages import BANDS, PILOT_CALL_CAP, PILOT_DAYS
 
-        out.append(f"### Free Pilot — {_rupee(0)}")
+        out.append(f"### Free Pilot - {_rupee(0)}")
         out.append(f"- Price: {_rupee(0)} ({PILOT_DAYS} days / {PILOT_CALL_CAP} calls, no card)")
         out.append("")
         for letter, info in BANDS.items():
             out.append(
-                f"### {info.get('name', f'Band {letter}')} — {_rupee(info.get('price_month'))}/month"
+                f"### {info.get('name', f'Band {letter}')} - {_rupee(info.get('price_month'))}/month"
             )
             out.append(f"- Monthly: {_rupee(info.get('price_month'))}")
             out.append(f"- Annual: {_rupee(info.get('price_year'))}/year (2 months free)")
@@ -227,7 +227,7 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
             out.append("- Calls: Unlimited AI calls on your niche database")
             out.append("")
     except Exception:
-        out.append("_Voice pricing temporarily unavailable — see /voice-agent._")
+        out.append("_Voice pricing temporarily unavailable - see /voice-agent._")
         out.append("")
 
     out.append("## Contact")

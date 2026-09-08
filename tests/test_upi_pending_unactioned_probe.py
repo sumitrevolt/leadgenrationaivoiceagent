@@ -6,7 +6,7 @@ has no email fallback. This probe is the durable backstop: it feeds the already
 scheduled 08:30 IST `ops_alerts.daily_readiness_digest()`, which pushes only on
 `status == "BLOCKER"`.
 
-Each test sets up its own condition (R4) — nothing here asserts an absence that
+Each test sets up its own condition (R4) - nothing here asserts an absence that
 it did not itself create.
 
 Locked to the current probe contract on `app.api.activation` (store_ok /
@@ -30,7 +30,7 @@ def _iso(hours_ago: float) -> str:
 def fake_payments(monkeypatch):
     """Swap the payment store for an in-memory list the test controls.
 
-    Patch the *attribute on the real module*, not `sys.modules` — the probe does
+    Patch the *attribute on the real module*, not `sys.modules` - the probe does
     `from app.platform import upi_payments`, which binds the package attribute
     and ignores a `sys.modules` substitution.
     """
@@ -60,7 +60,7 @@ def fake_payments(monkeypatch):
 
 
 def test_probe_is_registered_in_probes():
-    """A probe not in _PROBES never reaches the digest — registration is the gate."""
+    """A probe not in _PROBES never reaches the digest - registration is the gate."""
     assert activation._upi_pending_unactioned in activation._PROBES
     assert (
         activation._PROBE_BY_KEY.get("upi_pending_unactioned") is activation._upi_pending_unactioned
@@ -76,7 +76,7 @@ def test_no_pending_is_ok(fake_payments):
 
 
 def test_fresh_pending_does_not_page(fake_payments):
-    """A submission from 10 minutes ago is normal — paging on it would train the
+    """A submission from 10 minutes ago is normal - paging on it would train the
     operator to ignore the digest."""
     fake_payments.append({"id": "p-fresh", "status": "pending", "created_at": _iso(0.17)})
     out = activation._upi_pending_unactioned()
@@ -117,7 +117,7 @@ def test_unparseable_timestamp_counts_as_stale(fake_payments):
 
 
 def test_store_failure_is_neutral_not_a_blocker(monkeypatch):
-    """An infra hiccup must not manufacture a revenue blocker — that would make
+    """An infra hiccup must not manufacture a revenue blocker - that would make
     the digest cry wolf and get muted."""
 
     def _boom(status=None):

@@ -153,7 +153,7 @@ def test_whatsapp_flows_inert_without_creds(monkeypatch):
 # missed_call (Vobiz-gated)
 # --------------------------------------------------------------------------- #
 def test_missed_call_gated(monkeypatch):
-    # avoid real side-effects (jsonl/db) — patch the lazily-imported savers
+    # avoid real side-effects (jsonl/db) - patch the lazily-imported savers
     import app.api.public_site as ps
     from app.telephony import missed_call
 
@@ -207,7 +207,7 @@ def test_niche_pack_helpers():
     assert cfg.get("name")
     assert isinstance(niche_pack._derive_offer(cfg), str) and niche_pack._derive_offer(cfg)
     assert niche_pack._cta(cfg)
-    assert niche_pack._derive_offer({}) == "Aaj hi shuru karo — pehle hafte me naye leads."
+    assert niche_pack._derive_offer({}) == "Aaj hi shuru karo - pehle hafte me naye leads."
 
 
 # --------------------------------------------------------------------------- #
@@ -350,7 +350,7 @@ def test_proposal():
     )
     assert r["ok"] and r["proposal"]
     assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 1999
-    # Legacy growth key must NOT leak hidden ₹2,999 — maps to public starter.
+    # Legacy growth key must NOT leak hidden ₹2,999 - maps to public starter.
     legacy = asyncio.run(
         proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth")
     )
@@ -376,7 +376,7 @@ def test_sales_pipeline(tmp_path, monkeypatch):
     assert sales_pipeline.set_stage(d["id"], "demo_sent") is True
     deal = sales_pipeline.list_deals()[0]
     act = asyncio.run(sales_pipeline.next_action(deal))
-    assert act["action"] == "send_proposal"  # demo_sent → proposal
+    assert act["action"] == "send_proposal"  # demo_sent -> proposal
     monkeypatch.delenv("SALES_ENGINE", raising=False)
     assert asyncio.run(sales_pipeline.run_pipeline())["ok"] is False  # gated off
     monkeypatch.setenv("SALES_ENGINE", "1")
@@ -441,7 +441,7 @@ def test_agent_coordinator(tmp_path, monkeypatch):
     monkeypatch.setattr(free_ai, "chat", _fake_chat)
     monkeypatch.setattr(coordinator, "_RUNS", str(tmp_path / "coord.jsonl"))
 
-    # roster — kavya has an executable capability (run_ops)
+    # roster - kavya has an executable capability (run_ops)
     rost = coordinator.roster()
     assert any(a["id"] == "kavya" and a["executable"] for a in rost)
 
@@ -474,7 +474,7 @@ def test_agent_coordinator(tmp_path, monkeypatch):
 
 
 def test_agent_coordinator_advanced(tmp_path, monkeypatch):
-    """Reflexion loop (plan→execute→verify→reflect→retry) + episodic memory + debate."""
+    """Reflexion loop (plan->execute->verify->reflect->retry) + episodic memory + debate."""
     from app.agents import coordinator
     from app.voice_agent import free_ai
 
@@ -514,7 +514,7 @@ def test_agent_coordinator_advanced(tmp_path, monkeypatch):
 
 
 def test_weather_angle_logic():
-    """Open-Meteo weather→marketing-angle mapping (pure, deterministic)."""
+    """Open-Meteo weather->marketing-angle mapping (pure, deterministic)."""
     from app.marketing import weather_angle as wa
 
     assert wa._condition(0) == "clear"
@@ -532,7 +532,7 @@ def test_weather_angle_logic():
 
 
 # --------------------------------------------------------------------------- #
-# festivals.py — Calendarific integration + defensive behavior
+# festivals.py - Calendarific integration + defensive behavior
 # --------------------------------------------------------------------------- #
 
 
@@ -721,6 +721,6 @@ def test_festivals_upcoming_enriched_gated(monkeypatch):
 
     monkeypatch.delenv("FESTIVALS_LIVE_HOLIDAYS", raising=False)
     result = asyncio.run(festivals.upcoming_enriched(730))
-    # Should match static upcoming() — no network call needed
+    # Should match static upcoming() - no network call needed
     static = festivals.upcoming(730)
     assert len(result) == len(static)

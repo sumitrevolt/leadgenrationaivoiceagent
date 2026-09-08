@@ -1,4 +1,4 @@
-"""Memory governance — two redaction policies, do-not-remember, staleness/conflict.
+"""Memory governance - two redaction policies, do-not-remember, staleness/conflict.
 
 Review P0/P1: latency must not buy itself with privacy. Policy A (prompt-bound)
 keeps authorized lead data but removes secrets
@@ -111,7 +111,7 @@ def test_damaged_rules_fail_closed_for_durable_writes(gov_env, tmp_path):
     assert "something" not in str(decision)  # reason only, never the content
     assert gov.remembering_allowed("tenantA") is False
 
-    # non-durable (hot cache) is still permitted — "answer without remembering"
+    # non-durable (hot cache) is still permitted - "answer without remembering"
     assert gov.check_write("tenantA", text="x", durable=False)["decision"] != gov.DECISION_DEFERRED
 
 
@@ -174,7 +174,7 @@ def test_newest_observed_fact_wins():
 
 
 def test_equal_time_is_broken_by_source_authority():
-    """Determinism alone is not correctness — authority decides, not lane order."""
+    """Determinism alone is not correctness - authority decides, not lane order."""
     items = [
         ("procedural", "- plan: combo (observed: 2026-08-01T00:00:00Z)"),  # first, low authority
         ("semantic", "- plan: main (observed: 2026-08-01T00:00:00Z)"),  # later, authoritative

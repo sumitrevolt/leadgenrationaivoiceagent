@@ -1,11 +1,11 @@
-"""Customer (client) login portal — self-contained, non-breaking.
+"""Customer (client) login portal - self-contained, non-breaking.
 
-Marketing clients ko apna account: email+password login → JWT → apni leads/calls/
+Marketing clients ko apna account: email+password login -> JWT -> apni leads/calls/
 content dekhein. Reuses the platform JWT helpers (admin.create_access_token /
-decode_token). Credentials ek ALAG store me (data/customer_auth.jsonl) — User model /
+decode_token). Credentials ek ALAG store me (data/customer_auth.jsonl) - User model /
 admin auth ko touch nahi karta (zero migration, zero break).
 
-pbkdf2-sha256 (stdlib) hashing — koi naya dep nahi. Import-safe, never raises on import.
+pbkdf2-sha256 (stdlib) hashing - koi naya dep nahi. Import-safe, never raises on import.
 """
 
 from __future__ import annotations
@@ -36,9 +36,9 @@ _STORE = os.path.join("data", "customer_auth.jsonl")
 _ITER = 120_000
 
 # Account-lockout (2026-08-01, enterprise-audit fix): per-account failed-attempt
-# counter + lockout — admin login pe pehle se hai (admin.py 5-fail -> 30min lock),
+# counter + lockout - admin login pe pehle se hai (admin.py 5-fail -> 30min lock),
 # customer login pe sirf per-IP 10/60 limit thi. Ab Redis-backed lockout bhi.
-# Fail-open on Redis error (InMemoryCache fallback = rate-limiter convention) —
+# Fail-open on Redis error (InMemoryCache fallback = rate-limiter convention) -
 # metering-class control, NOT a compliance gate; loud log on error.
 _LOCKOUT_MAX_ATTEMPTS = 5
 _LOCKOUT_WINDOW_S = 900  # 15 min lock
@@ -56,7 +56,7 @@ async def _account_locked(email: str) -> bool:
     """True agar account abhi locked hai (too many failed attempts).
 
     Fail-open on Redis error: lockout is anti-brute-force metering, not a
-    compliance gate — per-IP rate limit abhi bhi pehle fire karta hai.
+    compliance gate - per-IP rate limit abhi bhi pehle fire karta hai.
     """
     try:
         from app.cache import get_redis_client
@@ -71,7 +71,7 @@ async def _account_locked(email: str) -> bool:
 async def _record_login_failure(email: str) -> None:
     """Failed attempt increment; >= _LOCKOUT_MAX_ATTEMPTS pe account lock (15min).
 
-    Redis down = InMemoryCache fallback (in-process, request-scoped) — lockout
+    Redis down = InMemoryCache fallback (in-process, request-scoped) - lockout
     degrade karta, kabhi raise nahi.
     """
     try:
@@ -137,7 +137,7 @@ def _read() -> list[dict]:
 
 
 def _write_all(rows: list[dict]) -> None:
-    # Lock + atomic — auth store corrupt hua to saare customer logins tut jaate.
+    # Lock + atomic - auth store corrupt hua to saare customer logins tut jaate.
     from app.utils.file_lock import locked_rewrite
 
     content = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
@@ -200,7 +200,7 @@ def _marketing_cid(client_id: str) -> str:
     keyed on the marketing id (`jiya-makeover`, which carries the billing id in
     `billing_client_ids`). Marketing content/dashboard reads MUST canonicalize
     or the customer sees an orphaned partial view. Billing/invoice reads must
-    NOT use this — invoices are owned by the billing id. Never raises;
+    NOT use this - invoices are owned by the billing id. Never raises;
     `canonical_client_id` falls back to the raw id when no marketing record
     matches (so seed/demo clients keyed by their own id are unaffected)."""
     try:
@@ -221,23 +221,23 @@ def _biz_name(client_id: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Plain-Hinglish content summary (admin "Aaj" overview pattern → customer side).
+# Plain-Hinglish content summary (admin "Aaj" overview pattern -> customer side).
 # Mirrors app/platform/today_overview.py: emoji-first status + chhota Hinglish
 # sentence so a NON-technical customer ek nazar me apne content ki state samajh
 # jaaye (kitne publish ho chuke, kitne approval ka wait kar rahe). NO LLM
-# (instant + free), kabhi raise nahi, additive only — raw status field intact.
+# (instant + free), kabhi raise nahi, additive only - raw status field intact.
 # auto_content status values: draft / approved / posted / skipped.
 # --------------------------------------------------------------------------- #
 _CONTENT_STATUS_HI: dict[str, tuple[str, str]] = {
     "posted": ("✅", "Publish ho chuka"),
-    "approved": ("👍", "Approve ho gaya — publish ka wait"),
-    "draft": ("📝", "Draft — aapki approval ka wait"),
+    "approved": ("👍", "Approve ho gaya - publish ka wait"),
+    "draft": ("📝", "Draft - aapki approval ka wait"),
     "skipped": ("⏭️", "Skip kiya gaya"),
 }
 
 
 def _friendly_content_status(status: str | None) -> dict:
-    """Ek content item ka raw status → emoji + chhota Hinglish line (additive)."""
+    """Ek content item ka raw status -> emoji + chhota Hinglish line (additive)."""
     st = str(status or "").strip().lower()
     emoji, label = _CONTENT_STATUS_HI.get(st, ("⏳", "Taiyaar ho raha hai"))
     return {"status_emoji": emoji, "status_label": label, "status_line": f"{emoji} {label}"}
@@ -245,7 +245,7 @@ def _friendly_content_status(status: str | None) -> dict:
 
 def _content_summary(items: list) -> dict:
     """Customer content queue ka plain-Hinglish headline + counts. Kabhi raise nahi.
-    Example: '📣 Aapke aaj 3 posts ready hain — 1 publish ho chuka, 2 approval ka wait kar rahe'."""
+    Example: '📣 Aapke aaj 3 posts ready hain - 1 publish ho chuka, 2 approval ka wait kar rahe'."""
     counts = {"total": 0, "posted": 0, "approved": 0, "draft": 0, "skipped": 0}
     try:
         for it in items or []:
@@ -258,7 +258,7 @@ def _content_summary(items: list) -> dict:
     total = counts["total"]
     if total == 0:
         return {
-            "headline": "📣 Aaj ka content abhi ban raha hai — subah 7 baje tak aa jaata hai 🌅",
+            "headline": "📣 Aaj ka content abhi ban raha hai - subah 7 baje tak aa jaata hai 🌅",
             "counts": counts,
         }
     parts: list[str] = []
@@ -274,7 +274,7 @@ def _content_summary(items: list) -> dict:
         )
     if counts["skipped"]:
         parts.append(f"{counts['skipped']} skip kiy{'a' if counts['skipped'] == 1 else 'e'}")
-    tail = (" — " + ", ".join(parts)) if parts else ""
+    tail = (" - " + ", ".join(parts)) if parts else ""
     headline = f"📣 Aapke aaj {total} post{'' if total == 1 else 's'} ready hain{tail}"
     return {"headline": headline, "counts": counts}
 
@@ -301,9 +301,9 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
 
     # Check if token is blacklisted (logged out)
     # Fail-CLOSED (2026-08-01, enterprise-audit fix): pehle Redis error pe token pass
-    # ho jata tha — a REVOKED (logged-out) token Redis blip ke dauran chal sakta tha.
+    # ho jata tha - a REVOKED (logged-out) token Redis blip ke dauran chal sakta tha.
     # Admin-tier revocation is_revoked(fail_closed=True) 503 deta hai (auth_deps.py);
-    # customer portal bhi customer-data gate hai — same fail-closed. Redis blip alert
+    # customer portal bhi customer-data gate hai - same fail-closed. Redis blip alert
     # (RedisMainNearFull/outage) pehle se fire hota; transient 503 availability blip
     # security hole se behtar hai.
     try:
@@ -319,12 +319,12 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
         raise
     except Exception as e:
         logger.error(
-            f"[require_customer] blacklist check failed — FAIL-CLOSED 503 (revoked-token "
+            f"[require_customer] blacklist check failed - FAIL-CLOSED 503 (revoked-token "
             f"guard intact): {e}"
         )
         raise HTTPException(
             status_code=503,
-            detail="Session store unavailable — thodi der me retry karein",
+            detail="Session store unavailable - thodi der me retry karein",
         )
 
     return str(cid)
@@ -333,13 +333,13 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
 async def optional_customer(
     creds: HTTPAuthorizationCredentials | None = Depends(_security_optional),
 ) -> str:
-    """Optional customer auth — guest (no/invalid header) → "" (never raises).
+    """Optional customer auth - guest (no/invalid header) -> "" (never raises).
 
     Used ONLY for public self-serve paths where a guest submission is legitimate
     (e.g. homepage UPI ref submit: no JWT yet, record lands pending, admin
     reaches out via payer_contact). A VALID customer token still returns the
     real client_id (activation path intact). A PRESENT-but-invalid token is
-    still rejected (fail-closed) — only the absent-token case downgrades to
+    still rejected (fail-closed) - only the absent-token case downgrades to
     guest
     we never silently treat a tampered credential as anonymous.
     """
@@ -356,15 +356,15 @@ def register_login(
 ) -> dict:
     """Public-safe helper: ek email+password login banao/overwrite (client_id se link).
 
-    Admin set-password AUR public self-serve signup (public_site.py) dono isko use karte —
+    Admin set-password AUR public self-serve signup (public_site.py) dono isko use karte -
     credential-store wiring ek hi jagah. Existing email overwrite hoti (idempotent).
 
     Loop 23 (2026-07-10) race-safety: signup path checks `login_exists(email)` at
     line ~550 then registers ~70 lines later. Under load, two concurrent submits
     with the same email can BOTH pass the initial check, then BOTH call
-    register_login → last-writer-wins, leaving one orphan `client` row in
+    register_login -> last-writer-wins, leaving one orphan `client` row in
     clients_store. `allow_reassign=False` (public signup path) refuses to overwrite
-    a row whose existing client_id differs — the second submit gets
+    a row whose existing client_id differs - the second submit gets
     `{ok: False, error: "email_claimed"}` and can be handled as a normal 409. Admin
     set-password keeps the default `allow_reassign=True` (support scenarios need
     to re-target an email to a different client_id manually).
@@ -390,7 +390,7 @@ def register_login(
                         "email": e,
                         "client_id": existing_cid,
                     }
-                # Same client_id → idempotent overwrite is safe (real password rotation).
+                # Same client_id -> idempotent overwrite is safe (real password rotation).
                 break
     rows = [r for r in existing_rows if r.get("email") != e]
     rows.append(
@@ -414,7 +414,7 @@ def client_has_login(client_id: str) -> bool:
     """True agar is client_id pe pehle se koi login attached hai.
 
     Self-serve signup me ANTI-HIJACK guard: add_client phone/business_name pe dedupe
-    karta — koi existing client ka naam de ke uspe login attach na kar paaye.
+    karta - koi existing client ka naam de ke uspe login attach na kar paaye.
     """
     cid = str(client_id or "").strip()
     if not cid:
@@ -494,7 +494,7 @@ class LoginIn(BaseModel):
 
 @router.post("/login", dependencies=[Depends(rate_limit("cust_login", 10, 60))])
 async def customer_login(req: LoginIn):
-    """Client login → JWT (role=customer, sub=client_id).
+    """Client login -> JWT (role=customer, sub=client_id).
 
     H.2: If customer has 2FA enabled, returns {needs_2fa: true, challenge_token}
     instead of an access_token
@@ -502,7 +502,7 @@ async def customer_login(req: LoginIn):
     with the challenge + TOTP code to get the real JWT.
     """
     # Account lockout (2026-08-01): 5 failed attempts -> 15min lock. Per-IP
-    # limiter (10/60) alag cheez hai — yeh ACCOUNT-level hai (known-email
+    # limiter (10/60) alag cheez hai - yeh ACCOUNT-level hai (known-email
     # credential-stuffing). 429/403 detail enum reveal na kare.
     if await _account_locked(req.email):
         try:
@@ -518,11 +518,11 @@ async def customer_login(req: LoginIn):
         except Exception as _log_err:
             logger.debug(f"[customer-auth] login_locked log emit skip: {_log_err}")
         raise HTTPException(
-            status_code=429, detail="Too many failed attempts — thodi der me try karein"
+            status_code=429, detail="Too many failed attempts - thodi der me try karein"
         )
     rec = _find(req.email)
     if not rec or not _verify(req.password, rec.get("password_hash", "")):
-        # Account-level failed-attempt counter (Redis). Fire-and-forget — login
+        # Account-level failed-attempt counter (Redis). Fire-and-forget - login
         # response ke liye blocking nahi; best-effort.
         try:
             await _record_login_failure(req.email)
@@ -531,7 +531,7 @@ async def customer_login(req: LoginIn):
         # Loop 8 (2026-07-10): admin observability for credential-stuffing spikes.
         # A single failure is boring; the ADR-064 automation-logs panel filter
         # (job_type=login_failed) surfaces the RATE so ops sees brute-force early.
-        # Never leak WHICH factor failed (no user enumeration) — reason=invalid_creds
+        # Never leak WHICH factor failed (no user enumeration) - reason=invalid_creds
         # covers both unknown-email and bad-password. Best-effort, never blocks 401.
         try:
             from app.platform import automation_log_service as _als
@@ -552,20 +552,20 @@ async def customer_login(req: LoginIn):
             logger.debug(f"[customer-auth] login_failed log emit skip: {_log_err}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
     cid = str(rec["client_id"])
-    # Successful password verify — clear any accumulated failed-attempts.
+    # Successful password verify - clear any accumulated failed-attempts.
     try:
         await _clear_login_failures(req.email)
     except Exception as _cl_err:
         logger.debug(f"[customer-auth] lockout clear skip: {_cl_err}")
-    # 2FA gate — if armed, do NOT issue the JWT here; force the verify step.
+    # 2FA gate - if armed, do NOT issue the JWT here; force the verify step.
     _twofa = False
     try:
         from app.platform import customer_totp
 
         _twofa = bool(customer_totp.is_enabled(cid))
     except Exception as e:
-        # 2FA STATE unreadable (module/infra error) — documented fail-open so an
-        # infra problem doesn't lock the (no-2FA) majority out. LOUD log — pehle
+        # 2FA STATE unreadable (module/infra error) - documented fail-open so an
+        # infra problem doesn't lock the (no-2FA) majority out. LOUD log - pehle
         # yeh silent tha aur enabled-account bypass bhi isi except me chhup jata tha.
         logger.error("[customer-auth] 2FA state check failed for %s: %s", cid, e)
     if _twofa:
@@ -577,12 +577,12 @@ async def customer_login(req: LoginIn):
                 "business_name": _biz_name(cid),
             }
         except Exception as e:
-            # Account KNOWN 2FA-enabled — yahan fall-through = password-only
+            # Account KNOWN 2FA-enabled - yahan fall-through = password-only
             # bypass of 2FA (security hole). Fail-CLOSED: login temporarily block.
             logger.error("[customer-auth] 2FA challenge failed for %s: %s", cid, e)
             raise HTTPException(
                 status_code=503,
-                detail="2FA verification temporarily unavailable — thodi der me try karein",
+                detail="2FA verification temporarily unavailable - thodi der me try karein",
             )
 
     from app.api.admin import create_access_token
@@ -624,9 +624,9 @@ class SignupIn(BaseModel):
 async def customer_signup(req: SignupIn, request: Request):
     """MERGED (2026-06-27): self-serve signup ka SINGLE canonical implementation ab
     `app.api.public_site.public_signup` hai. Pehle yeh ek DUPLICATE signup code-path tha
-    (do alag implementations — yeh wala lighter, public_site wala honeypot + anti-hijack +
+    (do alag implementations - yeh wala lighter, public_site wala honeypot + anti-hijack +
     IP rate-limit + referral/lifecycle/journey hooks ke saath). Ab yeh route backward-compat
-    ke liye zinda hai par usi ek implementation ko delegate karta — koi duplicate logic nahi.
+    ke liye zinda hai par usi ek implementation ko delegate karta - koi duplicate logic nahi.
 
     Result: /api/public/signup aur /api/customer/auth/signup ab IDENTICAL behave karte hain.
     Call-time import = no module-level circular import (public_site bhi customer_auth ko
@@ -635,7 +635,7 @@ async def customer_signup(req: SignupIn, request: Request):
     NOTE (audit #7): canonical public_signup abhi `activate_plan`/`reset_usage_period`
     provision NAHI karta (yeh duplicate karta tha, par iska koi caller nahi tha). Woh
     provisioning fix public_signup me alag se aayega jab public_site.py ka parallel-edit
-    settle ho jaye — taaki dono path consistently provision karein.
+    settle ho jaye - taaki dono path consistently provision karein.
     """
     from app.api.public_site import SignupIn as _PublicSignupIn
     from app.api.public_site import public_signup
@@ -653,13 +653,13 @@ async def customer_signup(req: SignupIn, request: Request):
 
 
 def _first_hour_setup_state(client_rec: dict | None) -> dict:
-    """Loop 9 (2026-07-10) — new-customer first-hour anti-churn signal.
+    """Loop 9 (2026-07-10) - new-customer first-hour anti-churn signal.
 
     Brand-new customers (signed up in the last 60 min AND still zero content)
     see "koi activity nahi" everywhere on their dashboard because the
     auto_onboard Celery job takes 10-30 min to seed the KB + generate the
     first content pack. Returns a self-describing dict the FE renders as
-    "🚀 Aapki AI team abhi setup ho rahi hai — X min me pehla content taiyaar"
+    "🚀 Aapki AI team abhi setup ho rahi hai - X min me pehla content taiyaar"
     instead of empty state. Never raises
     missing timestamp = inactive.
     """
@@ -686,7 +686,7 @@ def _first_hour_setup_state(client_rec: dict | None) -> dict:
         elapsed_min = int((now - created).total_seconds() // 60)
         if elapsed_min < 0 or elapsed_min >= 60:
             return out
-        # Optional: skip if the client already has content queued — no need for
+        # Optional: skip if the client already has content queued - no need for
         # the empty-state banner once real activity exists.
         try:
             from app.marketing.auto_content import list_queue
@@ -703,7 +703,7 @@ def _first_hour_setup_state(client_rec: dict | None) -> dict:
                 "minutes_elapsed": elapsed_min,
                 "minutes_remaining": remaining,
                 "message": (
-                    f"🚀 Aapki AI team abhi setup ho rahi hai — "
+                    f"🚀 Aapki AI team abhi setup ho rahi hai - "
                     f"~{remaining} min me pehla content taiyaar hoga."
                 ),
             }
@@ -718,7 +718,7 @@ class ChangePwIn(BaseModel):
     new_password: str = Field(..., min_length=6, max_length=128)
 
 
-# Same block-list as Loop 13B (public_site.py) — keep centralized here so a
+# Same block-list as Loop 13B (public_site.py) - keep centralized here so a
 # password rotation cannot land on a known-breached string post-signup either.
 _BREACHED_PASSWORDS = {
     "password",
@@ -752,18 +752,18 @@ async def customer_change_password(
     req: ChangePwIn,
     client_id: str = Depends(require_customer),
 ):
-    """Loop 19 (2026-07-10) — customer self-serve password change.
+    """Loop 19 (2026-07-10) - customer self-serve password change.
 
     Verifies the old password against the JSONL store, applies the same
     Loop 13B breached-password block-list to the new value, then rewrites
     the credential row via `register_login` (idempotent overwrite). Emits a
     `password_changed` AutomationLog row for admin visibility (mirrors
-    Loops 2/3B/7/8 pattern). Never leaks whether the account exists — the
+    Loops 2/3B/7/8 pattern). Never leaks whether the account exists - the
     dependency injection layer already rejected an invalid JWT, so we're
     guaranteed to have a legitimate `client_id` at this point.
     """
     # 1) Find this client's email from the store (client_id is authoritative).
-    #    NOTE: never take email from a request body — sub in the JWT is truth.
+    #    NOTE: never take email from a request body - sub in the JWT is truth.
     row = None
     for r in _read():
         if str(r.get("client_id") or "").strip() == client_id:
@@ -772,10 +772,10 @@ async def customer_change_password(
     if row is None:
         # Legitimate client_id but no credential row (edge case: legacy accounts
         # created before customer_auth existed, or store corruption). Log for ops
-        # then return a 409 — customer can email support for a manual reset.
+        # then return a 409 - customer can email support for a manual reset.
         logger.warning("[customer-auth] change-password: no credential row for cid=%s", client_id)
         raise HTTPException(
-            status_code=409, detail="Account credentials nahi mile — support se contact karo."
+            status_code=409, detail="Account credentials nahi mile - support se contact karo."
         )
 
     # 2) Verify old password (constant-time via _verify).
@@ -801,9 +801,9 @@ async def customer_change_password(
     if (req.new_password or "").strip().lower() in _BREACHED_PASSWORDS:
         raise HTTPException(
             status_code=422,
-            detail="Yeh naya password bahut common hai — kuch alag choose karein.",
+            detail="Yeh naya password bahut common hai - kuch alag choose karein.",
         )
-    # 4) Reject no-op reset (old == new — hint at a mistake).
+    # 4) Reject no-op reset (old == new - hint at a mistake).
     if req.old_password == req.new_password:
         raise HTTPException(
             status_code=422,
@@ -814,7 +814,7 @@ async def customer_change_password(
     email = str(row.get("email") or "").strip()
     if not email:
         raise HTTPException(
-            status_code=500, detail="Account row corrupt — support se contact karo."
+            status_code=500, detail="Account row corrupt - support se contact karo."
         )
     register_login(email, req.new_password, client_id)
 
@@ -833,7 +833,7 @@ async def customer_change_password(
     except Exception as _e:
         logger.debug(f"[customer-auth] change-password success log emit skip: {_e}")
 
-    return {"ok": True, "message": "Password badal gaya — agli baar naye password se login karo."}
+    return {"ok": True, "message": "Password badal gaya - agli baar naye password se login karo."}
 
 
 @router.get("/me")
@@ -886,7 +886,7 @@ async def logout(
 
 @router.get("/portal/content")
 async def portal_content(client_id: str = Depends(require_customer)):
-    """Customer ka APNA marketing content (Isha ke daily posts — ready/posted) +
+    """Customer ka APNA marketing content (Isha ke daily posts - ready/posted) +
     mini-site/bio/widget links. Dashboard '📣 Aapka Content' section ka payload.
     Ownership token se enforced
     kabhi raise nahi (empty graceful).
@@ -918,8 +918,8 @@ async def portal_content(client_id: str = Depends(require_customer)):
         ]
     except Exception as e:
         logger.debug(f"portal content queue failed: {e}")
-    # Plain-Hinglish at-a-glance summary (admin "🏠 Aaj" pattern → customer side).
-    # Always present (empty queue → "ban raha hai" headline); never breaks items.
+    # Plain-Hinglish at-a-glance summary (admin "🏠 Aaj" pattern -> customer side).
+    # Always present (empty queue -> "ban raha hai" headline); never breaks items.
     out["summary"] = _content_summary(out["items"])
     try:
         from app.marketing.clients_store import get_client
@@ -941,12 +941,12 @@ async def portal_content(client_id: str = Depends(require_customer)):
 
 @router.get("/portal/invoices")
 async def portal_invoices(client_id: str = Depends(require_customer)):
-    """Customer ke APNE invoices (GST engine se) — ownership token se enforced."""
+    """Customer ke APNE invoices (GST engine se) - ownership token se enforced."""
     try:
         from app.billing import gst_invoice
 
         # Voided invoices (accountant correction markers) customer portal me
-        # nahi dikhte — sirf live bills. Admin list voided+flag dikhata hai.
+        # nahi dikhte - sirf live bills. Admin list voided+flag dikhata hai.
         rows = [
             r
             for r in gst_invoice.list_invoices(500)
@@ -970,7 +970,7 @@ async def portal_invoices(client_id: str = Depends(require_customer)):
 
 @router.get("/portal/invoice-html")
 async def portal_invoice_html(number: str, client_id: str = Depends(require_customer)):
-    """Apna invoice printable HTML (?number=INV/2026-27/0001) — ownership check ke saath."""
+    """Apna invoice printable HTML (?number=INV/2026-27/0001) - ownership check ke saath."""
     from fastapi.responses import HTMLResponse
 
     try:
@@ -986,7 +986,7 @@ async def portal_invoice_html(number: str, client_id: str = Depends(require_cust
 
 @router.get("/portal/dashboard")
 async def portal_dashboard(client_id: str = Depends(require_customer)):
-    """Authenticated customer dashboard — sirf apna data (token ke client_id se)."""
+    """Authenticated customer dashboard - sirf apna data (token ke client_id se)."""
     try:
         from app.api.customer_dashboard import _build_from_db, _build_from_files
 
@@ -1000,7 +1000,7 @@ async def portal_dashboard(client_id: str = Depends(require_customer)):
 
 
 # --------------------------------------------------------------------------- #
-# Magic-link (passwordless) login — GATED `MAGIC_LINK=1` (default OFF).
+# Magic-link (passwordless) login - GATED `MAGIC_LINK=1` (default OFF).
 # Reuses LIVE Hostinger SMTP. Single-use (redis NX) + 15-min expiry. Request kabhi
 # email-enumeration leak nahi karta (generic response). Flag OFF = endpoints 404.
 # --------------------------------------------------------------------------- #
@@ -1090,7 +1090,7 @@ async def _send_magic_email(email: str, link: str, biz: str) -> bool:
             f"Namaste{(' ' + biz) if biz else ''},\n\n"
             f"Apne LeadGen AI account me login karne ke liye is link pe click karein "
             f"(15 minute valid):\n\n{link}\n\n"
-            "Agar aapne ye request nahi ki, to is email ko ignore karein.\n\n— LeadGen AI"
+            "Agar aapne ye request nahi ki, to is email ko ignore karein.\n\n- LeadGen AI"
         )
         html = (
             f"<p>Namaste{(' ' + biz) if biz else ''},</p>"
@@ -1104,7 +1104,7 @@ async def _send_magic_email(email: str, link: str, biz: str) -> bool:
             display:inline-block">Login karein</a></p>'
             f'<p style="color:#666
             font-size:12px">Ya ye link: {link}</p>'
-            "<p>Agar aapne ye request nahi ki, to ignore karein.</p><p>— LeadGen AI</p>"
+            "<p>Agar aapne ye request nahi ki, to ignore karein.</p><p>- LeadGen AI</p>"
         )
         return await EmailSender().send_email([email], subject, body, html_body=html)
     except Exception as e:
@@ -1135,18 +1135,18 @@ async def magic_link_request(req: MagicRequestIn):
 
     email = (req.email or "").strip().lower()
     if "@" not in email or "." not in email.rsplit("@", 1)[-1]:
-        return generic  # invalid email bhi generic — koi signal leak na ho
+        return generic  # invalid email bhi generic - koi signal leak na ho
 
     rec = _find(email)
     if not rec:
-        return generic  # unknown email — same response, koi enumeration nahi
+        return generic  # unknown email - same response, koi enumeration nahi
     if not await _email_cooldown_ok(email):
-        return generic  # spam guard — chup-chaap generic
+        return generic  # spam guard - chup-chaap generic
 
     cid = str(rec.get("client_id") or "")
     token = _mint_magic(cid, email)
     link = f"{_base_url()}/app/login?magic={token}"
-    # Fire-and-forget: SMTP ko inline await MAT karo — warna known-email response slow
+    # Fire-and-forget: SMTP ko inline await MAT karo - warna known-email response slow
     # (SMTP round-trip) = timing oracle = email enumeration (review finding #3/#4).
     # _send_magic_email khud apni exceptions nigalta hai (safe to detach).
     try:
@@ -1162,7 +1162,7 @@ class MagicVerifyIn(BaseModel):
 
 @router.post("/magic-link/verify", dependencies=[Depends(rate_limit("magic_vrf", 10, 60))])
 async def magic_link_verify(req: MagicVerifyIn):
-    """Magic-link token verify → customer JWT (login.html ?magic= se POST hota). GATED."""
+    """Magic-link token verify -> customer JWT (login.html ?magic= se POST hota). GATED."""
     if not _magic_enabled():
         raise HTTPException(status_code=404, detail="Not found")
     payload = _decode_magic(req.token)

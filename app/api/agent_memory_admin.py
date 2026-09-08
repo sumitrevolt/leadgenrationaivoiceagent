@@ -1,9 +1,9 @@
-"""Agent-memory admin API — operator inspection + DPDP-compliant purge.
+"""Agent-memory admin API - operator inspection + DPDP-compliant purge.
 
 The voice agent stores cross-session lead facts in `app/voice_agent/agent_memory.py`
 (Qdrant `agent_memory` collection, namespaced `lead:<id>` / `client:<id>`).
 Until this module landed, those facts were write-only from an operator
-perspective — no way to inspect "what does the agent know about lead X?" and
+perspective - no way to inspect "what does the agent know about lead X?" and
 no way to honor a DPDP/TRAI right-to-be-forgotten request.
 
 This adds three admin endpoints:
@@ -13,7 +13,7 @@ This adds three admin endpoints:
 - GET  /api/agent-memory/stats                              -> counters
 
 All admin-only. INERT when AGENT_MEMORY flag is unset (backend itself returns
-empty / disabled). Per project ethos: never raises on backend error — always
+empty / disabled). Per project ethos: never raises on backend error - always
 returns a structured "what happened" body so an ops dashboard can react.
 """
 

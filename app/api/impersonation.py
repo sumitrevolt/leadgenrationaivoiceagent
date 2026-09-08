@@ -1,20 +1,20 @@
-"""Impersonation — "login as customer" (super-admin support superpower).
+"""Impersonation - "login as customer" (super-admin support superpower).
 
 KYUN: customer bole "mera dashboard tuta hai" to abhi screenshots maangne padte.
-Yeh super_admin ko EK customer ka short-lived portal-session mint karne deta —
+Yeh super_admin ko EK customer ka short-lived portal-session mint karne deta -
 uske data me jaake debug, bina uska password jaane/maange.
 
 SECURITY (non-negotiable):
-  - SIRF super_admin (`require_super_admin`) — sub-admin/member ko bhi nahi.
-  - GATED `IMPERSONATION=1` (default OFF) — flag off = saare endpoints 404 (feature inert).
-  - SHORT-LIVED token (default 30 min) — blast-radius bounded.
-  - HAR start/stop `log_audit` (AuditLog, severity=warning) me — kisne kis client ko,
+  - SIRF super_admin (`require_super_admin`) - sub-admin/member ko bhi nahi.
+  - GATED `IMPERSONATION=1` (default OFF) - flag off = saare endpoints 404 (feature inert).
+  - SHORT-LIVED token (default 30 min) - blast-radius bounded.
+  - HAR start/stop `log_audit` (AuditLog, severity=warning) me - kisne kis client ko,
     kab, kis IP se. Tamper-record.
-  - Token me `imp=true` + `imp_by` claim — portal banner dikha sake
+  - Token me `imp=true` + `imp_by` claim - portal banner dikha sake
   password kabhi
     read/return nahi hota.
 
-Customer portal `require_customer` sirf role=="customer" check karta — yeh token
+Customer portal `require_customer` sirf role=="customer" check karta - yeh token
 seamless chalta wahan, par audit + markers ke saath.
 """
 
@@ -97,7 +97,7 @@ def _client_product(client_id: str) -> str:
 
     Normalisation mirrors ``app/api/customer_auth.py::me`` so both surfaces always
     agree on what a client is entitled to. Unknown/missing collapses to
-    ``marketing`` — same safe default as the auth endpoint.
+    ``marketing`` - same safe default as the auth endpoint.
     """
     try:
         from app.marketing.clients_store import get_client
@@ -113,7 +113,7 @@ def _client_product(client_id: str) -> str:
 # Landing targets an impersonating operator may be sent to. Strict allowlist:
 # `portal_url` is echoed to the browser and followed by the frontend, so a free-
 # form value here would be an open redirect. Anything not listed falls back to
-# /app/customer rather than erroring — a bad hint must never break impersonation.
+# /app/customer rather than erroring - a bad hint must never break impersonation.
 PORTAL_ALLOWLIST: tuple[str, ...] = (
     "/app/customer",
     "/app/customer/marketing",
@@ -128,7 +128,7 @@ def _safe_portal_url(to: str) -> str:
 
     Exact-match against the allowlist is the whole check: anything carrying a
     scheme, host, query or trailing path simply is not a member and therefore
-    falls back. No string surgery is needed, which is the point — every rewrite
+    falls back. No string surgery is needed, which is the point - every rewrite
     is a place for an open-redirect bypass to hide.
     """
     return str(to or "").strip() if str(to or "").strip() in PORTAL_ALLOWLIST else "/app/customer"
@@ -220,7 +220,7 @@ async def impersonation_start(
 
     token = _mint_impersonation_token(cid, email, str(admin.id), str(getattr(admin, "email", "")))
 
-    # AUDIT — tamper-record (kisne, kise, kab, kahan se, kyun).
+    # AUDIT - tamper-record (kisne, kise, kab, kahan se, kyun).
     try:
         await log_audit(
             db,
@@ -268,7 +268,7 @@ async def impersonation_stop(
     admin=Depends(require_super_admin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Impersonation end ka audit record (token client-side discard hota — stateless JWT)."""
+    """Impersonation end ka audit record (token client-side discard hota - stateless JWT)."""
     _guard()
     cid = str(body.client_id).strip()
     try:

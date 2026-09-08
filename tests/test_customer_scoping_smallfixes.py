@@ -1,5 +1,5 @@
 """
-Tests — per-client scoping / billing-truth small-fixes batch (2026-07-05).
+Tests - per-client scoping / billing-truth small-fixes batch (2026-07-05).
 
 Real paying customer "jiya makeover" (slug "jija-makeover-..." stored in the
 client record) exposed 4 platform-delivery bugs. Yeh file un 4 owned-file fixes
@@ -16,7 +16,7 @@ ko lock karti hai:
      zikr NA ho (billing-truth)
      public Advanced/Combo ₹5,999 pitch ho.
 
-No network — free_ai.chat conftest-stubbed
+No network - free_ai.chat conftest-stubbed
 jahan template path chahiye wahan
 free_ai None kar dete hain. Pure-logic assertions.
 """
@@ -29,7 +29,7 @@ from app.marketing import carousel, lifecycle_nurture, monthly_report, referral_
 
 
 # --------------------------------------------------------------------------- #
-# 1) referral_kit — REAL slug used for the link (not name-derived)             #
+# 1) referral_kit - REAL slug used for the link (not name-derived)             #
 # --------------------------------------------------------------------------- #
 class TestReferralUsesRealSlug:
     def test_real_slug_used_in_link(self):
@@ -64,7 +64,7 @@ class TestReferralUsesRealSlug:
 
 
 # --------------------------------------------------------------------------- #
-# 2) monthly_report — scoped report omits global team numbers                  #
+# 2) monthly_report - scoped report omits global team numbers                  #
 # --------------------------------------------------------------------------- #
 class TestReportScopedOmitsGlobalNumbers:
     @pytest.fixture
@@ -117,7 +117,7 @@ class TestReportScopedOmitsGlobalNumbers:
 
 
 # --------------------------------------------------------------------------- #
-# 3) carousel — CTA is client mini-site/phone, not /audit                      #
+# 3) carousel - CTA is client mini-site/phone, not /audit                      #
 # --------------------------------------------------------------------------- #
 class TestCarouselClientCta:
     def test_client_slug_cta_replaces_audit(self, monkeypatch):
@@ -175,7 +175,7 @@ class TestCarouselClientCta:
 
 
 # --------------------------------------------------------------------------- #
-# 4) lifecycle_nurture — no legacy Growth ₹2,999 in upgrade email              #
+# 4) lifecycle_nurture - no legacy Growth ₹2,999 in upgrade email              #
 # --------------------------------------------------------------------------- #
 class TestNurtureBillingTruth:
     def test_upgrade_email_no_2999(self):

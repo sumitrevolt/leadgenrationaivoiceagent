@@ -1,7 +1,7 @@
-"""Outbound OpenClaw client — DEPRECATED / optional callback only.
+"""Outbound OpenClaw client - DEPRECATED / optional callback only.
 
 Preferred architecture (ADR-OPENCLAW-OWNER-COPILOT):
-  OpenClaw Gateway initiates requests → LeadGen /api/owner-copilot/*
+  OpenClaw Gateway initiates requests -> LeadGen /api/owner-copilot/*
   LeadGen core runtime does NOT depend on OpenClaw.
 
 OPENCLAW_BASE_URL is retained only for an optional best-effort callback
@@ -36,7 +36,7 @@ async def notify_gateway(event: str, payload: dict[str, Any]) -> dict[str, Any]:
             "ok": False,
             "skipped": True,
             "reason": "inbound_only_or_callback_unset",
-            "note": "OPENCLAW_BASE_URL unused for command path — OpenClaw calls LeadGen",
+            "note": "OPENCLAW_BASE_URL unused for command path - OpenClaw calls LeadGen",
         }
     url = f"{base_url()}/hooks/leadgen-owner-copilot"
     token = (os.getenv("OPENCLAW_API_TOKEN") or "").strip()

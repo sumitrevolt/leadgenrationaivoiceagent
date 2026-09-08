@@ -1,17 +1,17 @@
 """
-Clients API — marketing client store + per-client auto content engine.
+Clients API - marketing client store + per-client auto content engine.
 =======================================================================
 
-  POST   /api/clients                          — naya marketing client add
-  GET    /api/clients?status=                  — clients list (optional status)
-  GET    /api/clients/{cid}                     — ek client
-  PATCH  /api/clients/{cid}/status              — status badlo {status}
-  POST   /api/clients/{cid}/content/run         — aaj ka content generate + queue
-  GET    /api/clients/{cid}/content?status=     — content queue (newest first)
-  POST   /api/clients/{cid}/content/{item_id}/status — item status {status}
+  POST   /api/clients                          - naya marketing client add
+  GET    /api/clients?status=                  - clients list (optional status)
+  GET    /api/clients/{cid}                     - ek client
+  PATCH  /api/clients/{cid}/status              - status badlo {status}
+  POST   /api/clients/{cid}/content/run         - aaj ka content generate + queue
+  GET    /api/clients/{cid}/content?status=     - content queue (newest first)
+  POST   /api/clients/{cid}/content/{item_id}/status - item status {status}
 
 Sab admin-auth (marketing.py jaisa pattern). Generators kabhi raise nahi karte;
-phir bhi unexpected par 500 + detail. Har action team-log (isha) — best-effort.
+phir bhi unexpected par 500 + detail. Har action team-log (isha) - best-effort.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/clients", tags=["Clients"])
 
 
 def _log_isha(action: str, detail: str) -> None:
-    """Team activity log (best-effort — kabhi request fail nahi karata)."""
+    """Team activity log (best-effort - kabhi request fail nahi karata)."""
     try:
         from app.platform.team import log_event
 
@@ -168,9 +168,9 @@ async def set_client_status(
     if not ok:
         raise HTTPException(status_code=404, detail="Client not found")
     _log_isha("client_status", f"{cid} -> {req.status}")
-    # AUDIT — pausing a customer's automation is a sensitive admin action; the
+    # AUDIT - pausing a customer's automation is a sensitive admin action; the
     # team-log above is informal/ephemeral, this is the formal tamper-record
-    # /api/admin/audit-logs reads (best-effort — audit failure never blocks
+    # /api/admin/audit-logs reads (best-effort - audit failure never blocks
     # the actual status change, mirrors impersonation.py's pattern).
     try:
         await log_audit(

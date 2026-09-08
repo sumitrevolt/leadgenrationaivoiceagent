@@ -1,4 +1,4 @@
-"""Own-brand allowlist for Stage 2 canary — LeadGen tenants only."""
+"""Own-brand allowlist for Stage 2 canary - LeadGen tenants only."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Objection extractor — transcripts + replies → Qdrant objections:{niche} namespace.
+"""Objection extractor - transcripts + replies -> Qdrant objections:{niche} namespace.
 
 GATED OBJECTION_KB=1 (default ON). Never raises.
 """

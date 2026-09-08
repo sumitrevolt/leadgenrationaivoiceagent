@@ -1,4 +1,4 @@
-"""Agent governance endpoints — per-tool permissions, lifecycle hooks, custom
+"""Agent governance endpoints - per-tool permissions, lifecycle hooks, custom
 agents (data-defined personas).
 
 Teen naye agent-control capabilities ke admin surface (OpenCode/Hermes/Kilo
@@ -8,7 +8,7 @@ parity):
   - custom_agents: data-defined personas, no code-deploy (flag CUSTOM_AGENTS).
 
 Reads = require_admin
-mutations = require_super_admin (RBAC design — core-control
+mutations = require_super_admin (RBAC design - core-control
 changes super-admin gated, jaisa upgrader patch-status). Lazy-import per route.
 Mount (main session wires): app.include_router(agent_governance.router,
 prefix="/api/agents-ext").
@@ -42,7 +42,7 @@ class PermissionIn(BaseModel):
 @router.post("/permissions")
 async def set_permission(body: PermissionIn, _user=Depends(require_super_admin)):
     """Ek agent+tool ka allow/deny set karo (persist). HIGH_RISK tools unset =
-    deny (fail-safe). SUPER_ADMIN only — yeh side-effect gating control hai."""
+    deny (fail-safe). SUPER_ADMIN only - yeh side-effect gating control hai."""
     from app.agents import agent_permissions
 
     return agent_permissions.set_permission(body.agent, body.tool, body.action)
@@ -66,7 +66,7 @@ class HookIn(BaseModel):
 
 @router.post("/hooks")
 async def add_hook(body: HookIn, _user=Depends(require_super_admin)):
-    """Naya lifecycle hook register karo (log/ntfy/webhook). SUPER_ADMIN only —
+    """Naya lifecycle hook register karo (log/ntfy/webhook). SUPER_ADMIN only -
     hooks external POST fire kar sakte hain."""
     from app.agents import lifecycle_hooks
 
@@ -89,7 +89,7 @@ class CustomAgentIn(BaseModel):
 @router.post("/custom-agents")
 async def add_custom_agent(body: CustomAgentIn, _user=Depends(require_super_admin)):
     """Naya persona define karo (role + system_prompt + allowed_tools) bina
-    code-deploy. SUPER_ADMIN only — naya agent banana control-plane change hai."""
+    code-deploy. SUPER_ADMIN only - naya agent banana control-plane change hai."""
     from app.agents import custom_agents
 
     return custom_agents.register(body.spec)

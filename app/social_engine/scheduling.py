@@ -1,12 +1,12 @@
-"""social_engine.scheduling — Phase 8 completeness helpers.
+"""social_engine.scheduling - Phase 8 completeness helpers.
 
-  - `next_retry_delay(attempts)`  → exponential-backoff seconds
-  - `next_ready_at(job)`          → epoch second the job is eligible again
-  - `is_ready_for_retry(job)`     → True iff we're past the backoff wall
-  - `_PLATFORM_QPM` / `check_platform_qpm(platform)` → rate limit gate
-  - `recover_stale_processing(store, older_than_min=15)` → reset stuck rows
+  - `next_retry_delay(attempts)`  -> exponential-backoff seconds
+  - `next_ready_at(job)`          -> epoch second the job is eligible again
+  - `is_ready_for_retry(job)`     -> True iff we're past the backoff wall
+  - `_PLATFORM_QPM` / `check_platform_qpm(platform)` -> rate limit gate
+  - `recover_stale_processing(store, older_than_min=15)` -> reset stuck rows
 
-Backoff pattern: 30s → 60s → 120s → 300s → 900s → cap 3600s. Small enough
+Backoff pattern: 30s -> 60s -> 120s -> 300s -> 900s -> cap 3600s. Small enough
 that transient provider blips clear quickly
 big enough to let 429s cool.
 All timings are UTC epoch seconds. NEVER raises.
@@ -47,7 +47,7 @@ def next_ready_at(job: dict[str, Any]) -> float:
             return 0.0
         att = int((job or {}).get("attempts") or 0)
         last = str((job or {}).get("updated_at") or (job or {}).get("created_at") or "")
-        # Parse "YYYY-MM-DDTHH:MM:SS" (store format) → epoch. Best-effort.
+        # Parse "YYYY-MM-DDTHH:MM:SS" (store format) -> epoch. Best-effort.
         # Store writes UTC ISO strings; treat parsed naive datetime as UTC so
         # timestamp() doesn't apply local-timezone offset (IST = +5:30 = 19800s
         # of drift that would make backoff misfire on non-UTC machines).
@@ -73,7 +73,7 @@ def is_ready_for_retry(job: dict[str, Any], now: float | None = None) -> bool:
 # --------------------------------------------------------------------------- #
 # Per-platform QPM rate limiter (Phase 8: provider-aware rate limiting).      #
 # Meta, LI, and GBP publish limits are ~200/hour = ~3.3/min. Keep conservative.#
-# X free write is heavily rate-limited (~50 tweets/24h) — safe cap 5/hour.    #
+# X free write is heavily rate-limited (~50 tweets/24h) - safe cap 5/hour.    #
 # In-process only (per-worker); prod-scale distributed limiter would use Redis.#
 # --------------------------------------------------------------------------- #
 _PLATFORM_QPM: dict[str, int] = {
@@ -81,9 +81,9 @@ _PLATFORM_QPM: dict[str, int] = {
     "instagram": 20,
     "gbp": 10,
     "linkedin": 15,
-    "x": 5,  # tight — free tier can't sustain more
+    "x": 5,  # tight - free tier can't sustain more
     "youtube": 5,
-    "whatsapp": 30,  # self-host — owner phone 1-to-1
+    "whatsapp": 30,  # self-host - owner phone 1-to-1
     "postiz": 30,  # gateway internal-fanout
 }
 

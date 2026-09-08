@@ -1,4 +1,4 @@
-"""Live agent + automation FLOW diagnostic — ek jagah: kaun-sa agent kaam kar raha,
+"""Live agent + automation FLOW diagnostic - ek jagah: kaun-sa agent kaam kar raha,
 kaun-se loop/job chal rahe/atke, LLM/infra health, flags, funnel. Never-raise.
 
 Run (container me, live state):
@@ -34,7 +34,7 @@ def _safe(label, fn):
 
 print(f"AGENT FLOW CHECK @ {datetime.now(timezone.utc).isoformat(timespec='seconds')}")
 
-# 1. AI STAFF — kaun active/working/offline
+# 1. AI STAFF - kaun active/working/offline
 _sec("1. AI STAFF TEAM (kaun kaam kar raha)")
 
 
@@ -55,7 +55,7 @@ def _team():
 
 _safe("team_status", _team)
 
-# 2. AUTOMATION HEALTH — dead-man: kaun-se job overdue (= ATKA)
+# 2. AUTOMATION HEALTH - dead-man: kaun-se job overdue (= ATKA)
 _sec("2. AUTOMATION HEALTH (jobs chal rahe ya atke)")
 
 
@@ -68,7 +68,7 @@ def _health():
     if overdue:
         print(f"  ⚠️ OVERDUE (atke) jobs: {overdue}")
     else:
-        print("  ✅ koi job overdue nahi — sab schedule pe")
+        print("  ✅ koi job overdue nahi - sab schedule pe")
     # per-job last-run
     try:
         beats = automation_health.beats() if hasattr(automation_health, "beats") else None
@@ -79,7 +79,7 @@ def _health():
 
 _safe("automation_health", _health)
 
-# 3. HERMES INFRA SNAPSHOT — infra score + actions + skill suggestions
+# 3. HERMES INFRA SNAPSHOT - infra score + actions + skill suggestions
 _sec("3. HERMES INFRA (score + kya theek karna)")
 
 
@@ -103,7 +103,7 @@ def _hermes():
 
 _safe("infra_handler.snapshot", _hermes)
 
-# 4. LLM PROVIDERS — AI chain ok-rate (yahin AI 'atak'ta hai agar quota out)
+# 4. LLM PROVIDERS - AI chain ok-rate (yahin AI 'atak'ta hai agar quota out)
 _sec("4. LLM PROVIDERS (AI brain health)")
 
 
@@ -125,7 +125,7 @@ def _llm():
 
 _safe("llm_metrics", _llm)
 
-# 5. AUTOMATION FLAGS — kaun-se loop ON/OFF
+# 5. AUTOMATION FLAGS - kaun-se loop ON/OFF
 _sec("5. AUTOMATION FLAGS (loops ON/OFF)")
 
 
@@ -151,7 +151,7 @@ def _flags():
 
 _safe("flags", _flags)
 
-# 6. FUNNEL PULSE — lead pipeline kaha tak
+# 6. FUNNEL PULSE - lead pipeline kaha tak
 _sec("6. GROWTH FUNNEL (lead pipeline state)")
 
 
@@ -173,7 +173,7 @@ def _pulse():
 
 _safe("growth_pulse", _pulse)
 
-# 7. PROCESS ENGINE + SELF-IMPROVE — autonomous loops running?
+# 7. PROCESS ENGINE + SELF-IMPROVE - autonomous loops running?
 _sec("7. AUTONOMOUS LOOPS (process-engine + self-improve)")
 
 
@@ -199,8 +199,8 @@ def _loops():
 
 _safe("loops", _loops)
 
-# 8. RECENT AGENT EVENTS — actual activity (kya hua)
-_sec("8. RECENT AGENT EVENTS (last 15 — actual kaam)")
+# 8. RECENT AGENT EVENTS - actual activity (kya hua)
+_sec("8. RECENT AGENT EVENTS (last 15 - actual kaam)")
 
 
 def _events():

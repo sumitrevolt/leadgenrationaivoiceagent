@@ -3,7 +3,7 @@
 Scope is deliberately tiny: prove the diagnostic is (a) parseable YAML,
 (b) ordered correctly relative to the resolving install and the gates it must not
 disturb, (c) incapable of failing the build, and (d) capturing every artefact the
-owner asked for. It asserts nothing about #237's cause — that stays open until
+owner asked for. It asserts nothing about #237's cause - that stays open until
 fresh CI evidence lands.
 
 Also pins the two things this slice must NOT do: change a dependency pin, or
@@ -110,7 +110,7 @@ def test_slice_changes_no_dependency_pin():
     run = install_step["run"]
     assert "pip install --no-deps -r requirements.lock.txt" in run
     assert 'pip install --no-deps "pytest-timeout==2.4.0"' in run
-    # The suspect install is deliberately left UNPINNED and dependency-resolving —
+    # The suspect install is deliberately left UNPINNED and dependency-resolving -
     # pinning it would be the fix, and the fix is not part of this slice.
     assert RESOLVING_INSTALL in run
     assert f"{RESOLVING_INSTALL}==" not in run, "no pin change belongs in this slice"

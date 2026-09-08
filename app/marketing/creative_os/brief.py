@@ -1,14 +1,14 @@
-"""Customer Video Brief — verified-data-only brief resolution for Creative OS.
+"""Customer Video Brief - verified-data-only brief resolution for Creative OS.
 
 Closes three seams that `service.enqueue_generate` currently leaves open:
 
-1. **Entitlement gate** — a tenant with no active paid plan may not consume
+1. **Entitlement gate** - a tenant with no active paid plan may not consume
    render budget. Fail-CLOSED: unknown tenant / unknown plan / inactive
    subscription all refuse.
-2. **Brand resolution with provenance** — brand fields are read from the
+2. **Brand resolution with provenance** - brand fields are read from the
    canonical stores (`clients_store` + `brand_kit`) and every resolved field
    carries the store it came from. Nothing is invented here.
-3. **NEEDS_CUSTOMER_INPUT instead of fabrication** — when a field required to
+3. **NEEDS_CUSTOMER_INPUT instead of fabrication** - when a field required to
    render an on-brand video is absent, the brief refuses with an explicit
    `missing` list. It never substitutes a plausible default for a fact
    (price, offer, address, certification, testimonial).
@@ -117,7 +117,7 @@ def _client_record(tenant_id: str) -> dict[str, Any] | None:
 
 
 def _plan_catalog() -> dict[str, dict[str, Any]]:
-    """Reuse billing's merged plan catalog — packages.py stays the single source."""
+    """Reuse billing's merged plan catalog - packages.py stays the single source."""
     try:
         from app.billing.entitlement_assurance import _plan_catalog as _cat
 
@@ -132,7 +132,7 @@ def entitlement_gate(tenant_id: str) -> dict[str, Any]:
 
     Refuses when the tenant is unknown, not active, has no plan, or holds a plan
     that is absent from the billing catalog. A lookup failure is a refusal, not
-    a pass — an unresolvable tenant must never consume render budget.
+    a pass - an unresolvable tenant must never consume render budget.
     """
     tid = str(tenant_id or "").strip()
     if not tid:
@@ -180,7 +180,7 @@ def entitlement_gate(tenant_id: str) -> dict[str, Any]:
 def resolve_brand_profile(tenant_id: str) -> BrandProfile:
     """Read brand facts from the canonical stores, tagging each with its source.
 
-    Absent fields are recorded in ``missing`` — never filled with a default.
+    Absent fields are recorded in ``missing`` - never filled with a default.
     """
     tid = str(tenant_id or "").strip()
     prof = BrandProfile(tenant_id=tid)
@@ -205,7 +205,7 @@ def resolve_brand_profile(tenant_id: str) -> BrandProfile:
             if getattr(prof, key, ""):
                 prof.sources[key] = "clients_store.brand"
 
-    # brand_kit is the richer surface — it may fill gaps but never overwrite.
+    # brand_kit is the richer surface - it may fill gaps but never overwrite.
     try:
         from app.marketing import brand_kit
 
@@ -268,7 +268,7 @@ def resolve_brand_profile(tenant_id: str) -> BrandProfile:
                 extracted_trust: list[str] = []
                 for fact in prof.kb_facts:
                     clean_fact = re.sub(r"[\r\n\t]+", " ", fact).strip()
-                    first_part = clean_fact.split(".")[0].split("—")[0].split("|")[0].strip()
+                    first_part = clean_fact.split(".")[0].split("-")[0].split("|")[0].strip()
                     if 4 <= len(first_part) <= 40:
                         extracted_trust.append(first_part)
                 if extracted_trust:
@@ -346,7 +346,7 @@ def resolve_brief(
         }
 
     # Structural anti-fabrication gate over EVERY customer-visible copy field that
-    # may reach the renderer — caller overrides AND store-resolved brand facts.
+    # may reach the renderer - caller overrides AND store-resolved brand facts.
     bad: list[str] = []
     for label, text in (
         ("offer", offer),

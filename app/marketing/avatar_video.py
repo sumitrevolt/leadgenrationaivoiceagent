@@ -1,20 +1,20 @@
 """
-avatar_video.py — AI avatar/voiceover VIDEO post (thin wrapper, NO rebuild).
+avatar_video.py - AI avatar/voiceover VIDEO post (thin wrapper, NO rebuild).
 =============================================================================
 
 HeyGen/Synthesia-jaisa "spokesperson video" ka FREE-stack version:
 EXISTING capabilities compose karta hai (kuch naya heavy build NAHI):
   - script        : free_ai.chat (Hinglish 3-4 line voiceover, template fallback)
-  - video         : ai_image.video_url() (Pollinations wan-fast/veo — REUSE)
+  - video         : ai_image.video_url() (Pollinations wan-fast/veo - REUSE)
   - caption/tags  : post_generator.generate_post() (REUSE)
 
-POLLINATIONS_API_KEY absent → {"ok": False, "reason": "key_missing"} graceful
-(video URL bina key 402 deta — isliye pehle hi bata dete hain).
+POLLINATIONS_API_KEY absent -> {"ok": False, "reason": "key_missing"} graceful
+(video URL bina key 402 deta - isliye pehle hi bata dete hain).
 
-NOTE: faceless PIL+TTS reels ke liye EXISTING `reel_video.py` hai — yeh module
+NOTE: faceless PIL+TTS reels ke liye EXISTING `reel_video.py` hai - yeh module
 AI-generated (avatar/spokesperson style) video ke liye hai, replacement nahi.
 
-Public API: avatar_post(topic, niche="general", slug="") — async, never-raise.
+Public API: avatar_post(topic, niche="general", slug="") - async, never-raise.
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _FALLBACK_SCRIPT = (
-    "Namaste! {biz} me aapka swagat hai. {topic} — aaj hi humse jaaniye. "
-    "Quality kaam, sahi daam. Abhi WhatsApp karein ya call karein — "
+    "Namaste! {biz} me aapka swagat hai. {topic} - aaj hi humse jaaniye. "
+    "Quality kaam, sahi daam. Abhi WhatsApp karein ya call karein - "
     "aapki service ek message door hai!"
 )
 
@@ -43,15 +43,15 @@ def _brand_name(slug: str) -> str:
 
 
 async def _script(topic: str, biz: str, niche: str) -> str:
-    """Free-LLM 3-4 line Hinglish voiceover script — fail = template."""
+    """Free-LLM 3-4 line Hinglish voiceover script - fail = template."""
     try:
         from app.voice_agent import free_ai
 
         system = (
             "Tu ek Indian local business ka video scriptwriter hai. 15-20 second "
             "ke spokesperson video ke liye 3-4 chhoti Hinglish (Roman script) "
-            "lines likh — warm, energetic, ek clear CTA (WhatsApp/call). "
-            "Sirf script do — koi heading/scene-notes nahi."
+            "lines likh - warm, energetic, ek clear CTA (WhatsApp/call). "
+            "Sirf script do - koi heading/scene-notes nahi."
         )
         user = f"Business: {biz or 'local business'} ({niche.replace('_', ' ')})\nTopic: {topic}"
         text, _provider = await free_ai.chat(
@@ -66,10 +66,10 @@ async def _script(topic: str, biz: str, niche: str) -> str:
 
 
 async def avatar_post(topic: str, niche: str = "general", slug: str = "") -> dict[str, Any]:
-    """Ek topic → AI avatar-style video URL + voiceover script + caption +
+    """Ek topic -> AI avatar-style video URL + voiceover script + caption +
     hashtags (poora post pack). Never raises.
 
-    POLLINATIONS key absent → {"ok": False, "reason": "key_missing"}.
+    POLLINATIONS key absent -> {"ok": False, "reason": "key_missing"}.
     """
     try:
         topic = str(topic or "").strip()
@@ -83,14 +83,14 @@ async def avatar_post(topic: str, niche: str = "general", slug: str = "") -> dic
         try:
             from app.marketing import ai_image
 
-            key = ai_image._api_key()  # noqa: SLF001 — same-package helper (customer_crm pattern)
+            key = ai_image._api_key()  # noqa: SLF001 - same-package helper (customer_crm pattern)
         except Exception:
             key = ""
         if not key:
             return {
                 "ok": False,
                 "reason": "key_missing",
-                "hint": "POLLINATIONS_API_KEY set karo (enter.pollinations.ai, free) — "
+                "hint": "POLLINATIONS_API_KEY set karo (enter.pollinations.ai, free) - "
                 "phir AI avatar video live ho jayega.",
             }
 
@@ -99,7 +99,7 @@ async def avatar_post(topic: str, niche: str = "general", slug: str = "") -> dic
         # --- script (free-LLM, fallback template) --- #
         script = await _script(topic, biz, niche)
 
-        # --- video URL (REUSE ai_image.video_url — key-safety wahi handle karta) --- #
+        # --- video URL (REUSE ai_image.video_url - key-safety wahi handle karta) --- #
         prompt = (
             f"friendly indian business person talking to camera, {topic}, "
             f"{niche.replace('_', ' ')} business promo, warm lighting, "
@@ -133,7 +133,7 @@ async def avatar_post(topic: str, niche: str = "general", slug: str = "") -> dic
             "caption": caption,
             "hashtags": hashtags,
             "post_text": post_text,
-            "note": "Video URL open karke download karo — reel/status pe 1-click "
+            "note": "Video URL open karke download karo - reel/status pe 1-click "
             "human post (auto-publish nahi).",
         }
     except Exception as e:  # absolute guard

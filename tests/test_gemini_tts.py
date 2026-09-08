@@ -1,7 +1,7 @@
-"""Gemini-TTS premium-voice guards — INERT without key/flag, valid WAV, no network.
+"""Gemini-TTS premium-voice guards - INERT without key/flag, valid WAV, no network.
 
-Locks the safety contract: no Gemini key OR GEMINI_TTS=0 → None (EdgeTTS floor);
-PCM→WAV wrapper produces a valid RIFF header
+Locks the safety contract: no Gemini key OR GEMINI_TTS=0 -> None (EdgeTTS floor);
+PCM->WAV wrapper produces a valid RIFF header
 empty text short-circuits. Happy-path
 (real API) is verified by in-container smoke once a GEMINI_API_KEY is present.
 """

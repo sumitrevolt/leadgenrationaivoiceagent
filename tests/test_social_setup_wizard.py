@@ -1,9 +1,9 @@
-"""Social Networking Setup Wizard — hermetic tests.
+"""Social Networking Setup Wizard - hermetic tests.
 
 Covers (1) the new per-client social config store (`app/social_engine/client_config.py`)
-— defaults, validation, merge, isolation, latest-wins — and (2) the customer router
+- defaults, validation, merge, isolation, latest-wins - and (2) the customer router
 exposes the two new IDOR-safe endpoints. Store test uses a tmp file (no real data/
-writes). Sandbox note: yeh app-deps chahiye (setup_logger + fastapi) — authoritative
+writes). Sandbox note: yeh app-deps chahiye (setup_logger + fastapi) - authoritative
 run Windows venv pe hi hota hai.
 """
 
@@ -59,7 +59,7 @@ def test_save_normalizes_and_validates(cc):
 
 def test_partial_save_merges_over_current(cc):
     cc.save("clientA", handles={"youtube": "yt"}, channels=["facebook"], cadence="daily")
-    # second save only touches cadence — handles + channels must persist
+    # second save only touches cadence - handles + channels must persist
     s2 = cc.save("clientA", cadence="off")
     assert s2["cadence"] == "off"
     assert s2["handles"]["youtube"] == "yt"

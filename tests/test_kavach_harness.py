@@ -1,4 +1,4 @@
-"""Kavach (OpenClaw harness controller) — safety & wiring tests.
+"""Kavach (OpenClaw harness controller) - safety & wiring tests.
 
 Runs in the repo venv (imports app.integrations.openclaw + app.agents.harness).
 Proves: Kavach is non-dispatchable / non-STAFF, harness commands classify into

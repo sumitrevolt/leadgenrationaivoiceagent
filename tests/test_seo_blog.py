@@ -2,9 +2,9 @@
 Tests: programmatic SEO blog engine (app.marketing.seo_blog).
 =============================================================
 
-No network — seo_blog.free_ai.chat ko ("","") monkeypatch karke har article
+No network - seo_blog.free_ai.chat ko ("","") monkeypatch karke har article
 TEMPLATE fallback se banta hai (never-empty + CTA guarantee). Storage dir
-tmp_path pe redirect hota hai (_BLOG_DIR const) — real data/blog kabhi nahi
+tmp_path pe redirect hota hai (_BLOG_DIR const) - real data/blog kabhi nahi
 chhuti. Fast: koi LLM/network call nahi.
 """
 
@@ -17,7 +17,7 @@ from app.marketing import seo_blog
 
 @pytest.fixture
 def no_llm(monkeypatch):
-    """free_ai.chat ko ("","") force karo — har article template path se banega."""
+    """free_ai.chat ko ("","") force karo - har article template path se banega."""
 
     async def _empty(*args, **kwargs):
         return "", ""
@@ -28,14 +28,14 @@ def no_llm(monkeypatch):
 
 @pytest.fixture
 def tmp_blog(monkeypatch, tmp_path):
-    """_BLOG_DIR ko tmp_path pe redirect — real data/blog dir untouched."""
+    """_BLOG_DIR ko tmp_path pe redirect - real data/blog dir untouched."""
     d = os.path.join(str(tmp_path), "blog")
     monkeypatch.setattr(seo_blog, "_BLOG_DIR", d)
     return d
 
 
 # --------------------------------------------------------------------------- #
-# generate_article — template fallback (never-empty + CTA)
+# generate_article - template fallback (never-empty + CTA)
 # --------------------------------------------------------------------------- #
 
 
@@ -127,7 +127,7 @@ class TestStorageRoundtrip:
     async def test_slug_uniqueness_on_duplicate(self, no_llm, tmp_blog):
         art = await seo_blog.generate_article("restaurant_cafe", city="Pune")
         s1 = seo_blog.save_article(art)
-        # saving an identical-slug article again must NOT overwrite — unique slug
+        # saving an identical-slug article again must NOT overwrite - unique slug
         art2 = await seo_blog.generate_article("restaurant_cafe", city="Pune")
         s2 = seo_blog.save_article(art2)
         assert s1 != s2
@@ -138,7 +138,7 @@ class TestStorageRoundtrip:
 
 
 # --------------------------------------------------------------------------- #
-# run_daily_blog — publishes n, never raises, unique slugs
+# run_daily_blog - publishes n, never raises, unique slugs
 # --------------------------------------------------------------------------- #
 
 

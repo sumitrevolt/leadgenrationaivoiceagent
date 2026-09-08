@@ -77,7 +77,7 @@ PR={PR}
 If git HEAD is not exactly {head}, return verdict BLOCKED.
 
 Mandatory review areas (cite file:line or symbol for each real finding):
-0) SIXTH-CYCLE CLOSURE (must prove ALL five — Claude-5 residuals):
+0) SIXTH-CYCLE CLOSURE (must prove ALL five - Claude-5 residuals):
    1) Live Claude review uses ``review_parse.recover_independent_review`` (not ad-hoc
       extract_review_manifest) on run_mission_once / invoke_claude_review.
    2) No ``runner_auto_review`` synthetic citation backfill; empty evidence stays MISSING;
@@ -87,7 +87,7 @@ Mandatory review areas (cite file:line or symbol for each real finding):
       FileLock fallback when Redis is required
       backend identity on leases.
    4) Heartbeat interval <= lease_ttl/3 via lease_contract.derive_lease_and_interval.
-   5) AMBER advance requires Owner OS ``approval_decision_id`` binding — boolean alone refused.
+   5) AMBER advance requires Owner OS ``approval_decision_id`` binding - boolean alone refused.
 1) Authority/gating: Owner OS auth real vs bypassable
 GREEN-only unattended
 AMBER parks
@@ -255,7 +255,7 @@ def _sanitize_for_comment(rich: dict) -> str:
     if len(blob) > 55000:
         blob = blob[:55000] + "\n…[truncated]"
     return (
-        "## Independent Claude review — PR #147 runner implementation\n\n"
+        "## Independent Claude review - PR #147 runner implementation\n\n"
         f"- Mission: `{rich.get('mission_id')}`\n"
         f"- Reviewed head: `{rich.get('reviewed_head_sha')}`\n"
         f"- Base: `{rich.get('base_sha')}`\n"

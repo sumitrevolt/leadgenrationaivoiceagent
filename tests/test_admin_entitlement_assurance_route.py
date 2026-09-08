@@ -5,7 +5,7 @@ reachable at ``GET /api/admin/entitlement-assurance`` (mirrors the wired sibling
 ``/api/admin/delivery-assurance``): correct contract passthrough, ``limit``
 plumbing, and the never-500 degrade contract on internal failure.
 
-NOTE: tests/conftest.py globally mocks require_admin — anon-reject is asserted in
+NOTE: tests/conftest.py globally mocks require_admin - anon-reject is asserted in
 tests/security/. This suite asserts the route exists + shape only.
 """
 
@@ -66,7 +66,7 @@ def test_limit_query_is_plumbed(monkeypatch):
 
 
 def test_limit_bounds_validated():
-    # ge=1 / le=500 — out-of-range must be a 422 validation, not a 500
+    # ge=1 / le=500 - out-of-range must be a 422 validation, not a 500
     assert client.get(_ROUTE, params={"limit": 0}).status_code == 422
     assert client.get(_ROUTE, params={"limit": 9999}).status_code == 422
 
@@ -86,7 +86,7 @@ def test_never_500_on_internal_failure(monkeypatch):
 
 
 def test_real_scan_smoke_never_raises():
-    # Real invocation against whatever local stores exist — must degrade, not 500.
+    # Real invocation against whatever local stores exist - must degrade, not 500.
     r = client.get(_ROUTE)
     assert r.status_code == 200
     data = r.json()

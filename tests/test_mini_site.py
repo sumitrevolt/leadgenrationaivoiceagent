@@ -3,8 +3,8 @@ Tests: per-client MINI WEBSITE (mini_site.render_site) + clients_store slugs.
 ================================================================================
 
 Fast, no network. clients_store file paths tmp_path pe redirect hote hain
-(_CLIENTS_FILE + brand_kit._BRAND_DIR) — real data/ dir kabhi nahi chhute.
-render_site pure-sync hai (koi LLM/await nahi) — seedha call.
+(_CLIENTS_FILE + brand_kit._BRAND_DIR) - real data/ dir kabhi nahi chhute.
+render_site pure-sync hai (koi LLM/await nahi) - seedha call.
 """
 
 import os

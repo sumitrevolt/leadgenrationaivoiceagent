@@ -1,7 +1,7 @@
 """
 Flow QA / Linting
 Pure-python quality analysis for ConversationFlow graphs and individual
-prompts. No LLM or network calls — fast enough to run on every flow save.
+prompts. No LLM or network calls - fast enough to run on every flow save.
 
 `analyze_flow(flow)` returns a structured QA report: a list of issues (each
 tagged severity) plus an overall quality score 0-100. It checks for missing
@@ -157,7 +157,7 @@ def analyze_flow(flow: ConversationFlow) -> dict[str, Any]:
     Aggregates structural checks (reused from flow.validate(): orphans,
     dangling transitions, missing/unreachable end) with content checks:
       - missing greeting node
-      - no transfer/handoff path (warning — many flows want one)
+      - no transfer/handoff path (warning - many flows want one)
       - QUESTION nodes lacking a capture_field
       - per-node prompt quality (empty/long/vague) via analyze_prompt
 
@@ -252,7 +252,7 @@ def analyze_flow(flow: ConversationFlow) -> dict[str, Any]:
 
 def _analyze_node(node: FlowNode, issues: list[dict[str, Any]]) -> None:
     """Append content-quality issues for a single node."""
-    # CONDITION nodes legitimately have no spoken text — skip prompt checks.
+    # CONDITION nodes legitimately have no spoken text - skip prompt checks.
     if node.type == NodeType.CONDITION:
         if not node.transitions:
             issues.append(

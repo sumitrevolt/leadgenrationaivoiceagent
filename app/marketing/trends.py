@@ -1,4 +1,4 @@
-"""Trend ingestion — Google Trends RSS (free, no-key, India works) → content angles.
+"""Trend ingestion - Google Trends RSS (free, no-key, India works) -> content angles.
 
 weather_angle.py jaisa hi pattern: defensive, 1hr cache, never-raise, static fallback.
 """
@@ -18,9 +18,9 @@ _CACHE: dict[str, tuple[float, list[str]]] = {}
 _TTL = 3600
 
 _FALLBACK_ANGLES = [
-    "Seasonal offer — abhi ka mausam/tyohar pakdo",
-    "Customer success story — real result dikhao",
-    "Quick tip — niche ka ek kaam-ka gyaan",
+    "Seasonal offer - abhi ka mausam/tyohar pakdo",
+    "Customer success story - real result dikhao",
+    "Quick tip - niche ka ek kaam-ka gyaan",
 ]
 
 
@@ -46,7 +46,7 @@ def trending(geo: str = "IN", limit: int = 10) -> list[str]:
 
 
 def parse_rss_titles(xml: str) -> list[str]:
-    """RSS <item><title> nikaalo — koi xml dep nahi, regex enough."""
+    """RSS <item><title> nikaalo - koi xml dep nahi, regex enough."""
     items = re.findall(r"<item>(.*?)</item>", xml or "", re.S)
     out = []
     for it in items:
@@ -57,7 +57,7 @@ def parse_rss_titles(xml: str) -> list[str]:
 
 
 async def trend_angles(niche: str, business_name: str = "", n: int = 3) -> dict[str, Any]:
-    """Trending topics → niche-relevant Hinglish marketing angles (free-LLM, fallback static)."""
+    """Trending topics -> niche-relevant Hinglish marketing angles (free-LLM, fallback static)."""
     topics = trending("IN", 10)
     angles: list[str] = []
     provider = "fallback"

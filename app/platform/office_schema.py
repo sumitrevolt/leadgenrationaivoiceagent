@@ -6,7 +6,7 @@ SAME contract version to the Unity WebGL client and the 2D/HTML fallback shells.
 
 Per docs/UNITY_OFFICE_API_CONTRACT.md: additive changes keep MAJOR and bump MINOR;
 only a breaking change bumps MAJOR (and the shells must then be versioned too).
-Unity parses with tolerant JsonUtility, so adding this field is non-breaking —
+Unity parses with tolerant JsonUtility, so adding this field is non-breaking -
 unknown fields are ignored (see unity/.../OfficeLogicTests.cs malformed-input tests).
 """
 

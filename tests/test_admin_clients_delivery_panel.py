@@ -1,4 +1,4 @@
-"""frontend/clients.html — admin Customer 360-lite (delivery timeline + Deliver
+"""frontend/clients.html - admin Customer 360-lite (delivery timeline + Deliver
 Now button). Static-HTML guard, mirrors tests/test_customer_dashboard_timeline_section.py's
 style: confirms the new panel/functions exist and reference real endpoints,
 without needing a live authenticated browser session."""
@@ -51,7 +51,7 @@ def test_delivery_panel_handles_disabled_flag_gracefully():
 
 def test_no_undefined_css_classes_introduced():
     """The two real bugs caught during manual review: .btn.go and .citem don't
-    exist in this file's CSS — confirm they were not left in the shipped code."""
+    exist in this file's CSS - confirm they were not left in the shipped code."""
     html = _html()
     idx = html.index("function renderDeliveryPanel")
     snippet = html[idx : idx + 1600]

@@ -1,4 +1,4 @@
-"""Zero-dep text/semantic endpoint (turn-taking) — no model, no network.
+"""Zero-dep text/semantic endpoint (turn-taking) - no model, no network.
 
 Covers the tuned _INCOMPLETE_TAIL_WORDS (Hinglish + code-mixed English) so a
 caller who pauses mid-thought ("...because", "...kyunki", "...warna") is NOT

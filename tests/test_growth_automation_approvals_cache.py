@@ -1,4 +1,4 @@
-"""Regression test — Office HQ Approvals panel "click nahi hora" bug (2026-07-03).
+"""Regression test - Office HQ Approvals panel "click nahi hora" bug (2026-07-03).
 
 Root cause: build_approvals()/build_approval_queue() is embedded in office_hq's
 18s Redis-backed snapshot cache. Every OTHER office_hq mutation (pause/resume/
@@ -7,7 +7,7 @@ writing, so the admin's own action is reflected on their very next fetch. The
 three approve/reject decide endpoints reused from growth_automation.py (draft
 decide, patch status, self-improve approve/reject) were never wired to that
 same invalidation, so a decide would persist correctly but the Approvals panel
-kept re-serving the stale cached queue for up to 18s — indistinguishable from
+kept re-serving the stale cached queue for up to 18s - indistinguishable from
 the click doing nothing.
 """
 

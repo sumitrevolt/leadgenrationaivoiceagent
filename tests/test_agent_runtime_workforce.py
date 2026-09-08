@@ -1,4 +1,4 @@
-"""Workforce factory — 31 capabilities, Wave-B pilots, Swara frozen transfer."""
+"""Workforce factory - 31 capabilities, Wave-B pilots, Swara frozen transfer."""
 
 from __future__ import annotations
 

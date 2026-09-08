@@ -1,4 +1,4 @@
-"""Sales Autopilot — follow-up selection + inbound reply classification/handling."""
+"""Sales Autopilot - follow-up selection + inbound reply classification/handling."""
 
 from __future__ import annotations
 

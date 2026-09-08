@@ -5,7 +5,7 @@ with no dedup-by-phone check (app/platform/prospector.py and app/tasks/sync.py
 already had it). Fixed to match that established convention: a repeat inquiry
 from the same phone updates the existing lead instead of creating a duplicate.
 
-Self-contained (in-memory SQLite, monkeypatched onto app.models.base) — does
+Self-contained (in-memory SQLite, monkeypatched onto app.models.base) - does
 NOT touch the shared test DB or the real dev DB, since app/api/public_site.py
 talks to app.models.base's sync session directly rather than through the
 FastAPI get_db dependency that tests/conftest.py overrides.
@@ -77,12 +77,12 @@ def test_different_phones_create_separate_leads(monkeypatch):
 # The dedup checks above (prospector.py, sync.py, scraping.py) all did an
 # EXACT-STRING `Lead.phone == candidate` comparison. Every path normalizes its
 # OWN candidate before comparing, but none accounts for the DB already holding
-# the SAME number in a DIFFERENT raw format from another path — e.g.
+# the SAME number in a DIFFERENT raw format from another path - e.g.
 # prospector.py stores digits-only "919967993679" while the CRM/sheet import
 # path stores "+919967993679". Exact-match silently misses this, so a live
 # scan (2026-07-04) found REAL businesses duplicated across sources: same
 # company_name/phone, one row from "import" (with "+"), one from
-# "google_maps" (without) — polluting dialer lists with double-dials.
+# "google_maps" (without) - polluting dialer lists with double-dials.
 # --------------------------------------------------------------------------- #
 from app.models.lead import lead_exists_for_phone, phone_format_variants
 
@@ -109,7 +109,7 @@ def test_lead_exists_for_phone_matches_across_raw_formats(monkeypatch):
     try:
         s.add(Lead(id="l1", company_name="Test Co", phone="+919967993679"))
         s.commit()
-        # Candidate arrives digits-only (as prospector.py always stores) —
+        # Candidate arrives digits-only (as prospector.py always stores) -
         # must still be recognised as the SAME number.
         assert lead_exists_for_phone(s, "919967993679") is True
         assert lead_exists_for_phone(s, "9967993679") is True

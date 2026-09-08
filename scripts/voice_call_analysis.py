@@ -1,4 +1,4 @@
-"""Analyze historical call transcripts → quantified voice-quality findings.
+"""Analyze historical call transcripts -> quantified voice-quality findings.
 
 Reads data/call_transcripts/*.jsonl (the same store the phone loop writes),
 aggregates turn latency, repetition, opener-pitch behavior, STT garbage, and
@@ -159,7 +159,7 @@ def main() -> int:
         analyze_file(f)
 
     print("=" * 62)
-    print("VOICE CALL ANALYSIS — historical transcripts")
+    print("VOICE CALL ANALYSIS - historical transcripts")
     print(f"  source : {root}  ({len(files)} daily files)")
     print(f"  calls  : {_TOTAL_CALLS}   assistant turns: {_TOTAL_TURNS}")
     print("=" * 62)

@@ -3,12 +3,12 @@
 The L1 LLM cache (W1.10/W1.11) had ZERO visibility: a cache hit returned early
 recording nothing, so the "is L1 hit-rate sufficient or do we need a Redis L2?"
 decision (W1.12 deferral trigger) had no data. Also `stats()` exposed only
-last_error per provider — no explicit rate-limit (429/quota) count.
+last_error per provider - no explicit rate-limit (429/quota) count.
 
 - `llm_metrics.record_cache(hit)` writes kind="cache" rows, aggregated SEPARATELY
   from provider stats (must not skew fallback_or_fail_rate / capacity alerts).
 - `stats()["providers"][p]["rate_limited"]` counts fail rows with 429/quota-class
-  error strings (read-side only — errors were already recorded).
+  error strings (read-side only - errors were already recorded).
 - free_ai's single cache-get site records hit/miss (never-raise, ultra-light).
 """
 
@@ -24,7 +24,7 @@ _FREE_AI_PATH = Path(__file__).resolve().parents[1] / "app" / "voice_agent" / "f
 
 
 def _load_real_free_ai():
-    """conftest globally stubs free_ai.chat (offline safety) — load a FRESH module
+    """conftest globally stubs free_ai.chat (offline safety) - load a FRESH module
     instance so the wiring test exercises the REAL chat()
     its lazy `from
     app.platform import llm_metrics` still resolves to the shared module (spy works)."""

@@ -1,25 +1,25 @@
 """
-Shared Gemini API-key pool — multi-key rotation (free-AI resilience).
+Shared Gemini API-key pool - multi-key rotation (free-AI resilience).
 =====================================================================
 
 WHY
 ---
 Gemini free-tier quota is PER KEY *and* shared across uses: the same key powers
 both audio-in STT (vobiz_stream) and the LLM replies (telecaller_brain /
-llm_brain). One busy day of testing exhausts it → the phone agent goes deaf
+llm_brain). One busy day of testing exhausts it -> the phone agent goes deaf
 AND dumb at once. Putting 2-3 keys in ``GEMINI_API_KEYS`` lets us rotate to the
 next key the moment one returns a quota/429/ResourceExhausted error.
 
 DESIGN
 ------
 * Keys come from ``settings.gemini_api_keys`` (comma/space/newline separated)
-  first, then the single ``settings.gemini_api_key`` — both deduped, order
+  first, then the single ``settings.gemini_api_key`` - both deduped, order
   preserved. Env (``GEMINI_API_KEYS`` / ``GEMINI_API_KEY``) is a fallback when
   settings can't be imported.
 * ONE process-wide "active" key (round-robin index). STT and LLM share it, so
   when STT burns key A, the LLM immediately stops using A too.
 * ``advance_key(bad_key)`` only rotates when ``bad_key`` is still the active one
-  → a burst of concurrent failures on the same key advances exactly once
+  -> a burst of concurrent failures on the same key advances exactly once
   (doesn't skip the whole pool).
 * Pure-python, thread-safe, zero new deps. Importing this NEVER raises.
 """
@@ -35,7 +35,7 @@ _LOCK = threading.Lock()
 _KEYS: list[str] | None = None
 _IDX = 0
 
-# Runtime store (admin "Voice Keys" page writes here — no .env edit, no restart).
+# Runtime store (admin "Voice Keys" page writes here - no .env edit, no restart).
 # data/ is bind-mounted so it survives container recreate. Shape:
 #   {"keys": ["AIza...", ...], "voice_primary": true}
 _RUNTIME_FILE = os.path.join("data", "voice_gemini_keys.json")
@@ -70,7 +70,7 @@ def _load_runtime() -> dict:
 
 
 def _load_keys() -> list[str]:
-    """Collect keys from settings → env → admin runtime file, deduped + ordered."""
+    """Collect keys from settings -> env -> admin runtime file, deduped + ordered."""
     multi = single = ""
     try:
         from app.config import settings
@@ -100,7 +100,7 @@ def runtime_voice_primary() -> bool:
 def save_runtime_keys(keys: list[str], voice_primary: bool | None = None) -> dict:
     """Persist admin-supplied keys (+ optional voice_primary) to the runtime file
     and reload the pool (no container restart). Returns the new state. Never the
-    raw keys back to the caller's log — caller masks. Best-effort, never raises."""
+    raw keys back to the caller's log - caller masks. Best-effort, never raises."""
     cleaned: list[str] = []
     seen = set()
     for k in keys or []:
@@ -155,7 +155,7 @@ def active_key() -> str:
 
 def advance_key(bad_key: str = "") -> str:
     """Rotate to the next key and return it. If ``bad_key`` is given, only
-    advance when it is still the active key — so simultaneous failures on the
+    advance when it is still the active key - so simultaneous failures on the
     SAME key rotate just once instead of cycling past good keys."""
     global _IDX
     keys = gemini_keys()
@@ -172,7 +172,7 @@ def advance_key(bad_key: str = "") -> str:
 
 
 def is_quota_error(exc: BaseException) -> bool:
-    """True when an exception looks like a quota/rate-limit error (→ rotate)."""
+    """True when an exception looks like a quota/rate-limit error (-> rotate)."""
     try:
         s = f"{type(exc).__name__} {exc}".lower()
     except Exception:

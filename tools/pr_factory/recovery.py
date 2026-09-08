@@ -1,4 +1,4 @@
-"""Lease reclaim / stuck-mission playbook hooks (Wave 1 — documentation + thin API)."""
+"""Lease reclaim / stuck-mission playbook hooks (Wave 1 - documentation + thin API)."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from app.dev_control.external_agents import store
 from app.dev_control.external_agents.schema import MissionState
 
 STUCK_HINTS: tuple[str, ...] = (
-    "Lease expired without heartbeat — reclaim via Owner OS / orchestrator retry",
+    "Lease expired without heartbeat - reclaim via Owner OS / orchestrator retry",
     "Do not force-delete another agent's worktree",
-    "ownership_conflict → cancel loser; winner keeps paths",
-    "FAILED_RETRYABLE → orchestrator.retry(mission_id)",
+    "ownership_conflict -> cancel loser; winner keeps paths",
+    "FAILED_RETRYABLE -> orchestrator.retry(mission_id)",
     "Never reclaim into protected paths or RED intents",
 )
 
@@ -42,5 +42,5 @@ def playbook() -> dict[str, Any]:
         "steps": list(STUCK_HINTS),
         "canonical_retry": "app.dev_control.external_agents.orchestrator.retry",
         "canonical_cancel": "app.dev_control.external_agents.orchestrator.cancel",
-        "note": "PR Factory does not own leases — external_agents store remains source of truth",
+        "note": "PR Factory does not own leases - external_agents store remains source of truth",
     }

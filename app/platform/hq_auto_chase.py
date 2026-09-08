@@ -1,8 +1,8 @@
-"""Hot Queue auto-chase — unactioned inquiry cards pe automated EMAIL follow-up.
+"""Hot Queue auto-chase - unactioned inquiry cards pe automated EMAIL follow-up.
 
-Lead → inquiry form (consent basis = website inquiry form, DPDP purpose
-limitation) → Hot Queue card. Agar owner card ko N ghante me handle na kare,
-to automated EMAIL (NOT WhatsApp — ban-safety + cold-blast invariant) bhejkar
+Lead -> inquiry form (consent basis = website inquiry form, DPDP purpose
+limitation) -> Hot Queue card. Agar owner card ko N ghante me handle na kare,
+to automated EMAIL (NOT WhatsApp - ban-safety + cold-blast invariant) bhejkar
 lead ko aage badhao. WhatsApp/call path owner ke liye 1-click human remains.
 
 Design (additive, INERT default, fail-closed):
@@ -17,7 +17,7 @@ Design (additive, INERT default, fail-closed):
     (never raise).
   - Scheduler: hourly job ``hq_auto_chase`` in team_scheduler + Celery beat.
 
-Never raises — returns a summary dict. Copy-neighbor of the reply_agent draft
+Never raises - returns a summary dict. Copy-neighbor of the reply_agent draft
 store (``data/reply_drafts.jsonl``) via its public functions, no rewrite.
 """
 
@@ -88,11 +88,11 @@ def _chase_body(card: dict[str, Any]) -> str:
     biz = str(card.get("business_name") or card.get("from") or "ji").strip()
     name = str(card.get("name") or "").strip() or biz.split()[0] if biz.split() else "ji"
     return (
-        f"Namaste {name}! LeadGen AI se follow-up — aapki inquiry "
+        f"Namaste {name}! LeadGen AI se follow-up - aapki inquiry "
         f"({biz[:60]}) mil gayi thi. AI Marketing Automation se roz leads + "
-        f"content automate hota hai (₹1,999/mo). Koi sawaal ho to reply karein — "
+        f"content automate hota hai (₹1,999/mo). Koi sawaal ho to reply karein - "
         f"2-min demo: https://leadsgenai.in/pricing · Start: https://leadsgenai.in/start\n\n"
-        f"Agar abhi interested nahi, to is email ka reply 'unsubscribe' likhna — "
+        f"Agar abhi interested nahi, to is email ka reply 'unsubscribe' likhna - "
         f"aage koi email nahi bhejenge."
     )
 
@@ -101,7 +101,7 @@ async def _send_chase_email(to_email: str, body: str) -> bool:
     """One-to-one email via canonical EmailSender + List-Unsubscribe headers.
 
     SMTP/API missing = fail-closed False (no provider call). Reuses the same
-    integration as reply_agent._send_reply_email — no second engine.
+    integration as reply_agent._send_reply_email - no second engine.
     """
     import html
 
@@ -128,7 +128,7 @@ async def _send_chase_email(to_email: str, body: str) -> bool:
     return bool(
         await sender.send_email(
             [to_email],
-            "LeadGen AI — aapki inquiry pe follow-up",
+            "LeadGen AI - aapki inquiry pe follow-up",
             body,
             html_body=f"<p>{safe_html}</p>",
             extra_headers=headers,
@@ -139,7 +139,7 @@ async def _send_chase_email(to_email: str, body: str) -> bool:
 async def run_auto_chase(*, limit: int | None = None, send_fn=None) -> dict[str, Any]:
     """Scan unactioned inquiry cards -> automated EMAIL follow-up.
 
-    ``force``-style bypass exists but is intentionally NOT exposed — this path
+    ``force``-style bypass exists but is intentionally NOT exposed - this path
     is always gated by ``HQ_AUTO_CHASE=1`` (fail-closed default). ``send_fn``
     is injectable for tests. Never raises.
     """
@@ -191,7 +191,7 @@ async def run_auto_chase(*, limit: int | None = None, send_fn=None) -> dict[str,
             if age is None or age < hours:
                 out["skipped_not_due"] += 1
                 continue
-            # Opt-out check — suppression wins over everything.
+            # Opt-out check - suppression wins over everything.
             try:
                 from app.platform import email_unsub as _eu
 
@@ -200,7 +200,7 @@ async def run_auto_chase(*, limit: int | None = None, send_fn=None) -> dict[str,
                 suppressed = False
             if suppressed:
                 out["skipped_suppressed"] += 1
-                _ra._update_draft_fields(  # noqa: SLF001 — same store, adjacent module
+                _ra._update_draft_fields(  # noqa: SLF001 - same store, adjacent module
                     hq_id, {"chase_status": "blocked", "chase_reason": "suppressed"}
                 )
                 continue

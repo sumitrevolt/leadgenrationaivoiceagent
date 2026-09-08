@@ -1,20 +1,20 @@
 """Call-time authority for where approved video bytes may legitimately live.
 
-The publish gate has to answer one question — "is this path a real artifact this
-system produced?" — and it must answer it the same way in a container, on a dev
+The publish gate has to answer one question - "is this path a real artifact this
+system produced?" - and it must answer it the same way in a container, on a dev
 box, and under a test that redirects the renderer's output directory.
 
 Import-time, CWD-relative constants cannot do that: they freeze one answer at
 process start and silently mis-resolve if the working directory differs. Every
 root here is therefore resolved **per call**, from:
 
-  1. ``runtime_data_authority`` — the canonical store-path authority (same seam
+  1. ``runtime_data_authority`` - the canonical store-path authority (same seam
      ``runtime_recording_paths`` uses), when the store is declared there
      else
   2. the renderer's own public accessor (``video_pipeline.output_root()``), so a
      runtime or test override of the render directory is honoured
      else
-  3. a REPOSITORY-anchored default derived from this module's location — never
+  3. a REPOSITORY-anchored default derived from this module's location - never
      ``Path.cwd()``.
 """
 
@@ -78,7 +78,7 @@ def approved_media_dir() -> Path:
 
 
 def media_roots() -> tuple[Path, ...]:
-    """Every root an approvable artifact may live under — resolved NOW."""
+    """Every root an approvable artifact may live under - resolved NOW."""
     roots: list[Path] = []
     for fn in (video_ads_dir, reels_dir, approved_media_dir):
         try:
@@ -103,7 +103,7 @@ def resolve_video_media_file(path: str) -> Path | None:
         with no partial/ambiguous success value.
 
     Symlink policy: ANY symlink component between the configured root and the
-    file is refused, not merely ones that currently escape the root — an in-root
+    file is refused, not merely ones that currently escape the root - an in-root
     symlink can be retargeted after approval. NOTE this is *policy* validation,
     not race protection: the path can still change after this returns. Race
     safety belongs to the snapshot step (open once, copy and ``fstat`` through
@@ -124,7 +124,7 @@ def resolve_video_media_file(path: str) -> Path | None:
             # a stored relative path always carries its media-root prefix, e.g.
             # "data/video_ads/x.mp4". A BARE name like "fixture.mp4" is not a
             # shape the canonical writer emits, so it is refused rather than
-            # hunted for across roots — root discovery would be a new, wider
+            # hunted for across roots - root discovery would be a new, wider
             # contract and could bind approval to the wrong tenant's file.
             if len(candidate.parts) < 2:
                 return None
@@ -172,7 +172,7 @@ def observe_content_identity(path: str) -> dict[str, Any]:
     during the read is detected (``content_changed_during_read``) rather than
     producing a digest for bytes nobody ever served.
 
-    Size and mtime are NOT treated as identity — they are only used to detect
+    Size and mtime are NOT treated as identity - they are only used to detect
     that the underlying inode changed mid-read. The digest is the identity.
     """
     resolved = resolve_video_media_file(path)
@@ -222,7 +222,7 @@ def open_verified_media(path: str) -> dict[str, Any]:
 
     NOTE: this closes *path replacement*. In-place mutation of the already-open
     inode is only fully closed once publishing consumes the immutable snapshot
-    (Stage 2) — do not describe this as complete TOCTOU protection.
+    (Stage 2) - do not describe this as complete TOCTOU protection.
     """
     resolved = resolve_video_media_file(path)
     if resolved is None:

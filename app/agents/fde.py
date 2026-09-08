@@ -1,11 +1,11 @@
-"""Forward Deployed Engineer (FDE) agents — 2026 agentic-workflow pattern.
+"""Forward Deployed Engineer (FDE) agents - 2026 agentic-workflow pattern.
 
 FDE = ek agent jo CLIENT ke "environment" me ghus ke uske liye **automation +
-marketing + website deploy karta** — multi-step, autonomously. (OpenAI/ServiceNow/
+marketing + website deploy karta** - multi-step, autonomously. (OpenAI/ServiceNow/
 EY 2026 FDE model: client ke saath ja ke agentic workflow deploy karo.)
 
 Yahan har "skill" = EXISTING platform capability ka wrapper (niche_pack,
-post_generator, review_engine, embed_widget, journeys, content_schedule, …) —
+post_generator, review_engine, embed_widget, journeys, content_schedule, …) -
 **REBUILD NAHI**. Ek client-brief milne par FDE free-LLM se **deployment plan**
 banata (kaunse skills, kis order), fir skills chalata aur report deta.
 
@@ -50,7 +50,7 @@ def _ctx_norm(ctx: Ctx) -> Ctx:
 
 
 # --------------------------------------------------------------------------- #
-# SKILL HANDLERS — har ek existing capability wrap karta (lazy import, defensive)
+# SKILL HANDLERS - har ek existing capability wrap karta (lazy import, defensive)
 # --------------------------------------------------------------------------- #
 async def _sk_marketing_pack(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import niche_pack
@@ -130,7 +130,7 @@ async def _sk_minisite(ctx: Ctx) -> dict[str, Any]:
     if not slug:
         return {
             "ok": False,
-            "summary": "client slug missing — pehle client onboard karo (auto mini-site)",
+            "summary": "client slug missing - pehle client onboard karo (auto mini-site)",
         }
     return {
         "ok": True,
@@ -157,7 +157,7 @@ async def _sk_drip_journey(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import journeys
 
     rec = journeys.add_journey(
-        f"{ctx['business_name']} — inquiry follow-up",
+        f"{ctx['business_name']} - inquiry follow-up",
         "inquiry_received",
         [
             {"type": "draft_whatsapp", "params": {"topic": "naye inquiry ka turant follow-up"}},
@@ -168,7 +168,7 @@ async def _sk_drip_journey(ctx: Ctx) -> dict[str, Any]:
     )
     return {
         "ok": True,
-        "summary": "Inquiry→WhatsApp+email drip rule created (disabled, review karke ON)",
+        "summary": "Inquiry->WhatsApp+email drip rule created (disabled, review karke ON)",
         "data": {"journey_id": rec.get("id")},
     }
 
@@ -191,7 +191,7 @@ async def _sk_content_schedule(ctx: Ctx) -> dict[str, Any]:
 
 
 async def _sk_niche_snapshot(ctx: Ctx) -> dict[str, Any]:
-    """GHL-style niche template → client (mini-site, widget, journeys, festivals)."""
+    """GHL-style niche template -> client (mini-site, widget, journeys, festivals)."""
     from app.platform import client_snapshots
 
     cid = str(ctx.get("client_id") or "").strip()
@@ -273,7 +273,7 @@ SKILLS: dict[str, dict[str, Any]] = {
     },
 }
 
-# FDE personas — har ek apni category(s) ke skills deploy karta.
+# FDE personas - har ek apni category(s) ke skills deploy karta.
 FDE_AGENTS: dict[str, dict[str, Any]] = {
     "isha_fde": {"name": "Isha", "role": "Marketing FDE", "categories": ["marketing"]},
     "veer": {"name": "Veer", "role": "Website FDE", "categories": ["website"]},

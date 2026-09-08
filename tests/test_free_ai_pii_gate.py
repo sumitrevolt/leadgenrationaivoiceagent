@@ -1,5 +1,5 @@
 """Test the free_ai._blocked_for_provider defense-in-depth gate (Phase 6, OmniRoute
-audit 2026-07-12). Synthetic data only — no real customer PII.
+audit 2026-07-12). Synthetic data only - no real customer PII.
 
 This covers the actual call-site wiring added to app/voice_agent/free_ai.py
 (chat, chat_stream, chat_provider, gemini_vertex branch), on top of the existing

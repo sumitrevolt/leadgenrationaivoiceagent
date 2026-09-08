@@ -1,17 +1,17 @@
 """
-Niche Prospect Database — AI Voice Agent call infrastructure.
+Niche Prospect Database - AI Voice Agent call infrastructure.
 =============================================================
 
 Har niche ke AI voice call ke liye 3 cheezein chahiye:
-  1. PROSPECT DATABASE  — jinhe call karna hai (phone, name, niche-specific data)
-  2. CALL SCHEMA        — AI agent ko call se pehle kya context chahiye + kya collect karna hai
-  3. CALL QUEUE         — kaun-sa prospect next call karna hai (priority order)
+  1. PROSPECT DATABASE  - jinhe call karna hai (phone, name, niche-specific data)
+  2. CALL SCHEMA        - AI agent ko call se pehle kya context chahiye + kya collect karna hai
+  3. CALL QUEUE         - kaun-sa prospect next call karna hai (priority order)
 
 Architecture:
   - Core storage: existing `leads` Postgres table (Lead model, qualified_data JSON field)
-  - Per-niche schemas: NICHE_CALL_SCHEMA dict — AI agent reads this before dialing
+  - Per-niche schemas: NICHE_CALL_SCHEMA dict - AI agent reads this before dialing
   - Call queue: smart ordering (score DESC, call_attempts ASC, next_call_at first)
-  - Bulk import: CSV/JSON rows → Lead records (dedupe by phone)
+  - Bulk import: CSV/JSON rows -> Lead records (dedupe by phone)
   - Post-call update: outcome + niche_data + schedule next action
 
 Supported niches: all 25 voice-product niches from niches.py
@@ -55,13 +55,13 @@ _DEFAULT_SCHEMA: dict = {
         {"key": "budget", "question": "Budget approximately kya hai?"},
         {"key": "timeline", "question": "Kab tak chahiye?"},
     ],
-    "script_context": "Generic prospect call — requirement + timeline + budget identify karo, next step book karo.",
+    "script_context": "Generic prospect call - requirement + timeline + budget identify karo, next step book karo.",
     "disqualifiers": ["wrong number", "nahi chahiye"],
 }
 
 
 def get_niche_schema(niche_key: str) -> dict:
-    """Niche ka call schema — AI agent reads before dialing. Fallback to default."""
+    """Niche ka call schema - AI agent reads before dialing. Fallback to default."""
     base = NICHE_CALL_SCHEMA.get((niche_key or "").strip().lower(), _DEFAULT_SCHEMA)
     from app.niches import NICHES
 
@@ -156,7 +156,7 @@ async def call_queue_next(client_id: str, niche: str, limit: int = 10) -> list[d
 
             remaining = limit - len(results)
             if remaining > 0:
-                # Priority 4: contacted (retry) — max 3 attempts
+                # Priority 4: contacted (retry) - max 3 attempts
                 retry_q = (
                     select(Lead)
                     .where(
@@ -212,7 +212,7 @@ async def update_after_call(
     niche_data: dict | None = None,
     callback_hours: int = 24,
 ) -> dict:
-    """Post-call update — status + niche_data + schedule next action.
+    """Post-call update - status + niche_data + schedule next action.
 
     outcome:
       qualified       -> status=QUALIFIED, is_hot_lead=True, score+=20
@@ -284,15 +284,15 @@ async def bulk_import(
     client_id: str,
     source: str = "import",
 ) -> dict:
-    """Bulk import prospects for a niche → Lead records (dedupe by phone).
+    """Bulk import prospects for a niche -> Lead records (dedupe by phone).
 
     row keys (flexible, alias-mapped):
-      phone/Phone/mobile/Mobile  →  phone
-      name/Name/company/Company/business/Business  →  company_name
-      contact/contact_name/owner  →  contact_name
-      email/Email  →  email
-      city/City    →  city
-      state/State  →  state
+      phone/Phone/mobile/Mobile  ->  phone
+      name/Name/company/Company/business/Business  ->  company_name
+      contact/contact_name/owner  ->  contact_name
+      email/Email  ->  email
+      city/City    ->  city
+      state/State  ->  state
       + any extra key goes into qualification_data (niche-specific)
 
     Returns {inserted, skipped, errors}.
@@ -385,7 +385,7 @@ async def bulk_import(
                         city = str(row[k]).strip()
                         break
 
-                # remaining keys → qualification_data
+                # remaining keys -> qualification_data
                 used = (
                     _PHONE_KEYS
                     | _NAME_KEYS

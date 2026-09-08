@@ -1,17 +1,17 @@
 """Boss + Second Brain governed decision approvals (ADR-adjacent, INERT default).
 
-Extends Owner OS / approvals_bridge / runtime-data — NOT a second approval plane.
+Extends Owner OS / approvals_bridge / runtime-data - NOT a second approval plane.
 
-State machine (decision-bearing outputs ONLY — not heartbeats/logs/telemetry/drafts):
-  proposed → advice_requested → advice_recorded → boss_reviewed
-    → boss_approved | boss_rejected | needs_owner | refused
-    → executed | consumed
+State machine (decision-bearing outputs ONLY - not heartbeats/logs/telemetry/drafts):
+  proposed -> advice_requested -> advice_recorded -> boss_reviewed
+    -> boss_approved | boss_rejected | needs_owner | refused
+    -> executed | consumed
 
 Authority:
-  GREEN  — Boss may approve after valid Second Brain advice + gates
-  AMBER  — needs Owner OS decision id (human)
-  RED    — refuse
-  UPI / payment — always owner-only (human)
+  GREEN  - Boss may approve after valid Second Brain advice + gates
+  AMBER  - needs Owner OS decision id (human)
+  RED    - refuse
+  UPI / payment - always owner-only (human)
   Boss cannot self-approve a decision they proposed
   held/disabled agents stay unarmed (routing coverage ≠ live execute)
 
@@ -103,7 +103,7 @@ _AMBER_TYPES = frozenset(
     }
 )
 
-# Explicit GREEN catalog — unknown types NEVER default to GREEN
+# Explicit GREEN catalog - unknown types NEVER default to GREEN
 _GREEN_TYPES = frozenset(
     {
         "internal_plan",
@@ -121,7 +121,7 @@ DECISION_TYPE_REGISTRY: dict[str, dict[str, Any]] = {
     **{t: {"lane": "RED", "owner_only": False} for t in _RED_TYPES},
 }
 
-# Non-decision noise — refuse to govern as approval objects
+# Non-decision noise - refuse to govern as approval objects
 _NON_DECISION_KINDS = frozenset(
     {
         "heartbeat",
@@ -135,7 +135,7 @@ _NON_DECISION_KINDS = frozenset(
     }
 )
 
-_ADVICE_MAX_AGE_S = 6 * 3600  # 6h — stale advice fail-closed
+_ADVICE_MAX_AGE_S = 6 * 3600  # 6h - stale advice fail-closed
 _BOSS_ID = "manager"
 _PRODUCER_PATH = "app.platform.boss_decision_governance.adapter_propose_for_agent"
 _CONSUMER_PATH = "app.platform.boss_decision_governance.consume_or_execute"
@@ -143,7 +143,7 @@ _CONSUMER_PATH = "app.platform.boss_decision_governance.consume_or_execute"
 
 @dataclass(frozen=True)
 class DecisionAdapter:
-    """Explicit typed adapter — roster presence alone is NOT governance coverage."""
+    """Explicit typed adapter - roster presence alone is NOT governance coverage."""
 
     agent_id: str
     producer: str
@@ -153,7 +153,7 @@ class DecisionAdapter:
 
 
 def _redis_client():
-    """Only when REDIS_URL is explicitly set — never silently share localhost state."""
+    """Only when REDIS_URL is explicitly set - never silently share localhost state."""
     url = (os.environ.get("REDIS_URL") or "").strip()
     if not url:
         return None
@@ -369,7 +369,7 @@ def _audit(action: str, detail: dict[str, Any]) -> None:
             {"at": _now_iso(), "action": action, **detail},
         )
     except Exception as e:
-        # Critical audit path must be observable — never silent success.
+        # Critical audit path must be observable - never silent success.
         logger.error("[boss_gov] AUDIT_WRITE_FAILED action=%s err=%s", action, type(e).__name__)
         raise
 
@@ -396,7 +396,7 @@ def content_hash(
 
 
 def classify_lane_strict(decision_type: str) -> str:
-    """Typed registry only. Unknown types are UNKNOWN (fail-closed — never GREEN)."""
+    """Typed registry only. Unknown types are UNKNOWN (fail-closed - never GREEN)."""
     dt = (decision_type or "").strip().lower()
     meta = DECISION_TYPE_REGISTRY.get(dt)
     if not meta:
@@ -411,7 +411,7 @@ def _staff_ids() -> list[str]:
 
 
 def _agent_rollout(agent_id: str) -> str:
-    """canary | held | disabled — mirrors runtime allowlists; never invents live fire."""
+    """canary | held | disabled - mirrors runtime allowlists; never invents live fire."""
     aid = (agent_id or "").strip().lower()
     try:
         from app.platform.agent_runtime import PILOT_AGENTS
@@ -439,7 +439,7 @@ def routing_coverage(
     *,
     registry: dict[str, DecisionAdapter] | None = None,
 ) -> dict[str, Any]:
-    """Coverage from explicit typed adapter registry — not hardcoded governed=True.
+    """Coverage from explicit typed adapter registry - not hardcoded governed=True.
 
     Roster enumeration alone is NOT governance coverage (task-observer #30).
     """
@@ -480,7 +480,7 @@ def routing_coverage(
         "boss": _BOSS_ID,
         "claim_note": (
             "31/31 requires explicit typed adapters with resolvable producer+consumer "
-            "for every STAFF id — not live customer decisions for held agents, and "
+            "for every STAFF id - not live customer decisions for held agents, and "
             "not roster enumeration alone."
         ),
         "agents": rows,
@@ -551,7 +551,7 @@ def owner_os_visibility(*, limit: int = 40) -> dict[str, Any]:
 
 
 def buzz_ro_projection(*, limit: int = 20) -> dict[str, Any]:
-    """Buzz #admin read-only mirror — never mutates, never includes secrets/payloads."""
+    """Buzz #admin read-only mirror - never mutates, never includes secrets/payloads."""
     items = list_pending(limit=limit)
     return {
         "channel": "#admin",
@@ -569,7 +569,7 @@ def buzz_ro_projection(*, limit: int = 20) -> dict[str, Any]:
             for r in items
         ],
         "mutation": False,
-        "note": "Buzz visibility plane only — execute via Owner OS / runtime gates.",
+        "note": "Buzz visibility plane only - execute via Owner OS / runtime gates.",
     }
 
 
@@ -592,7 +592,7 @@ def propose_decision(
             "ok": True,
             "inert": True,
             "flag": _FLAG,
-            "note": "BOSS_DECISION_GOVERNANCE OFF — legacy path unchanged; zero governance writes.",
+            "note": "BOSS_DECISION_GOVERNANCE OFF - legacy path unchanged; zero governance writes.",
         }
     kind_l = (kind or "decision").strip().lower()
     if kind_l in _NON_DECISION_KINDS:
@@ -756,7 +756,7 @@ def _fetch_second_brain_advice(
     content_sha256: str,
     use_council: bool = False,
 ) -> dict[str, Any]:
-    """Advisory provider — tests monkeypatch this; no production inject hook."""
+    """Advisory provider - tests monkeypatch this; no production inject hook."""
     notes: list[dict[str, Any]] = []
     try:
         from app.platform import obsidian_sync
@@ -838,7 +838,7 @@ def verify_boss_authority(
         run_id = str(ev.get("run_id") or "").strip()
         if not run_id:
             return {"ok": False, "error": "boss_run_id_required", "fail_closed": True}
-        # Evidence must bind the exact decision hash — run_id alone is not enough.
+        # Evidence must bind the exact decision hash - run_id alone is not enough.
         ev_sha = str(ev.get("content_sha256") or "").strip()
         if not ev_sha or ev_sha != content_sha256:
             return {
@@ -972,14 +972,14 @@ def record_second_brain_advice(
     """Record advisory Second Brain output. Never authoritative.
 
     Fail-closed when unavailable/stale/malformed/cross-tenant.
-    Tests monkeypatch ``_fetch_second_brain_advice`` — no production inject hook.
+    Tests monkeypatch ``_fetch_second_brain_advice`` - no production inject hook.
     """
     if not enabled():
         return {"ok": True, "inert": True, "flag": _FLAG}
     cur = get_decision(decision_id)
     if not cur:
         return {"ok": False, "error": "not_found"}
-    # proposed → advice_requested first (checked return); other states refuse.
+    # proposed -> advice_requested first (checked return); other states refuse.
     if str(cur.get("state")) == "proposed":
         req = request_advice(decision_id)
         if not req.get("ok"):
@@ -1177,7 +1177,7 @@ def boss_approve(
             },
         )
 
-    # GREEN — needs_owner still requires verified one-time Owner OS binding
+    # GREEN - needs_owner still requires verified one-time Owner OS binding
     if state == "needs_owner":
         oid = (owner_decision_id or cur.get("owner_decision_id") or "").strip()
         if not oid:
@@ -1379,7 +1379,7 @@ def assert_aggregate_is_not_approval(aggregate: dict[str, Any] | None) -> dict[s
         "aggregate_status": verdict.get("status") or agg.get("status"),
         "reason": (
             "coordinate_hierarchical / office_hq.boss_review emit aggregate or "
-            "recommendation-only signals — not hash-bound per-decision approval."
+            "recommendation-only signals - not hash-bound per-decision approval."
         ),
         "required_for_execute": [
             "advice_recorded",
@@ -1420,9 +1420,9 @@ def owner_os_decide_governed(
 ) -> dict[str, Any]:
     """Real Owner OS consumer for hash-bound governed decisions.
 
-    Flag OFF → fail-closed refuse (existing non-governed paths untouched).
-    Approve on ``needs_owner``: create bound verification → stamp approve →
-    ``boss_approve`` → one-time ``consume`` (no customer/prod side effects).
+    Flag OFF -> fail-closed refuse (existing non-governed paths untouched).
+    Approve on ``needs_owner``: create bound verification -> stamp approve ->
+    ``boss_approve`` -> one-time ``consume`` (no customer/prod side effects).
     Reject: Owner refuse transition (not spoofed Boss authority).
     """
     if not enabled():
@@ -1500,7 +1500,7 @@ def owner_os_decide_governed(
     created = approvals_bridge.create_verification_approval(
         by=actor,
         title=f"Governed decision {did[:12]}",
-        note="Hash-bound Owner OS gate — no customer/outbound side effects",
+        note="Hash-bound Owner OS gate - no customer/outbound side effects",
         meta=meta,
     )
     if not isinstance(created, dict) or not created.get("ok"):

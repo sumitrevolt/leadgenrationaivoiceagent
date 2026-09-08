@@ -6,7 +6,7 @@ unsafe (fail-closed). Every rule below is covered by a regression test.
 
 Trust boundaries (see docs/PR_ORCHESTRATION_PILOT.md):
   * manifest = operator-authored, repo-reviewed artefact (no agent authorship)
-  * protected prefixes are NEVER overridable — they are auto-merged into the
+  * protected prefixes are NEVER overridable - they are auto-merged into the
     denied set and any allowed-path hit is a refusal
   * required_tests / required_lint / required_security may never contain shell
     metacharacters or arbitrary executables
@@ -70,7 +70,7 @@ DEFAULT_EXTERNAL_ACTION_PERMISSIONS: dict[str, str] = {
 
 
 class PilotManifestError(ValueError):
-    """Manifest is malformed, over-broad, or unsafe — refuse, do not run."""
+    """Manifest is malformed, over-broad, or unsafe - refuse, do not run."""
 
     def __init__(self, code: str, detail: str = "") -> None:
         super().__init__(f"{code}: {detail}".rstrip(": "))

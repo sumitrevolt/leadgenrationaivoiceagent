@@ -2,7 +2,7 @@
 Knowledge Base / RAG Grounding System
 =====================================
 
-Banata hai AI voice agent ko *factually accurate* — customer ke sawaal ka jawab
+Banata hai AI voice agent ko *factually accurate* - customer ke sawaal ka jawab
 SIRF stored knowledge (chunks) se deta hai, banata (hallucinate) nahi. Yeh
 Retell/Vapi ke "Knowledge Base" feature jaisa hai: aap docs/website/FAQ daalo,
 agent unhi se grounded answer de.
@@ -12,16 +12,16 @@ Design (Dograh / production voice-agent best practices):
      har client/niche ka apna KB ho).
   2. RETRIEVE: query ke liye top-k sabse relevant chunks laao (score ke saath).
   3. GROUND: jawab SIRF retrieved chunks se banao. Kuch relevant na mile to safe
-     fallback do ("main team se confirm karwa deta hoon") — kabhi mat banao.
+     fallback do ("main team se confirm karwa deta hoon") - kabhi mat banao.
 
 Backends (auto-detect, zero-config):
   - SABSE PEHLE Qdrant (sirf jab QDRANT_URL set ho + qdrant-client/fastembed
-    installed + server reachable) — single "kb_main" collection, payload-
+    installed + server reachable) - single "kb_main" collection, payload-
     partitioned per-namespace multi-tenancy, multilingual-e5-small embeddings.
   - PHIR app.ml.vector_store ki Chroma-based store reuse karne ki koshish
     (semantic embeddings). Agar woh / sentence-transformers / chromadb available
     nahi, ya mock par gir jaaye, to...
-  - PURE-PYTHON TF-IDF / keyword-overlap retriever fallback — koi external
+  - PURE-PYTHON TF-IDF / keyword-overlap retriever fallback - koi external
     service ya key nahi chahiye. Hamesha kaam karta hai.
 
 Usage (text mode, no external services needed):
@@ -30,7 +30,7 @@ Usage (text mode, no external services needed):
     kb = get_knowledge_base()
     kb.add_documents(
         ["Pricing per qualified lead hoti hai, ₹200-500/lead.",
-         "Demo bilkul free hai — 15 minute me dikha dete hain."],
+         "Demo bilkul free hai - 15 minute me dikha dete hain."],
         source="faq",
         namespace="solar_commercial",
     )
@@ -69,11 +69,11 @@ except Exception:  # pragma: no cover
 
 
 # --------------------------------------------------------------------------- #
-# Text helpers — chunking + tokenization (pure-python, no deps)
+# Text helpers - chunking + tokenization (pure-python, no deps)
 # --------------------------------------------------------------------------- #
 _WORD_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
-# Common Hindi(Roman)/English stopwords — TF-IDF ko noise se bachane ke liye.
+# Common Hindi(Roman)/English stopwords - TF-IDF ko noise se bachane ke liye.
 _STOPWORDS = {
     "the",
     "a",
@@ -214,7 +214,7 @@ class _KeywordIndex:
 
     - Har chunk ka term-frequency vector banata hai.
     - Query ke liye IDF-weighted cosine similarity se top-k laata hai.
-    - Hamesha available — yeh hi guarantee deta hai ki KB kabhi crash na ho.
+    - Hamesha available - yeh hi guarantee deta hai ki KB kabhi crash na ho.
     """
 
     def __init__(self) -> None:
@@ -278,7 +278,7 @@ class _KeywordIndex:
         return scored[:k]
 
     def delete_source(self, source: str) -> int:
-        """Drop this (namespace-scoped) index's docs with the given source —
+        """Drop this (namespace-scoped) index's docs with the given source -
         used by delete-before-reseed so a website re-ingest replaces its old
         chunks instead of appending. Rebuilds document-frequency from survivors."""
         if not source:
@@ -302,7 +302,7 @@ class _ChromaIndex:
     app.ml.vector_store.VectorStore ke embedder + Chroma collection ko reuse
     karta hai. Per-namespace ke liye alag collection use karta hai.
 
-    Agar embedder mock (hash-based) ho to similarity bekaar hoti hai — isliye
+    Agar embedder mock (hash-based) ho to similarity bekaar hoti hai - isliye
     KnowledgeBase isko sirf tab "real" maanta hai jab sentence-transformers
     embedder load ho. Warna keyword fallback prefer hota hai.
     """
@@ -394,18 +394,18 @@ def _safe_name(name: str) -> str:
 # Qdrant-backed retriever (single payload-partitioned collection + fastembed)
 # --------------------------------------------------------------------------- #
 # Research-decided design (docs/Architecture_Research_RAG_Agents_MCP.md):
-#   - EK hi collection "kb_main" me SAB namespaces — payload-partitioned
+#   - EK hi collection "kb_main" me SAB namespaces - payload-partitioned
 #     multi-tenancy (Qdrant official best practice; collection-per-tenant NAHI).
 #   - Point payload: {"namespace": ..., "text": ..., "source": ...} + keyword
 #     payload index on "namespace" for fast filtered search.
 #   - Embeddings: fastembed TextEmbedding("intfloat/multilingual-e5-small")
 #     (Hinglish-friendly, 384-dim, cosine). e5 models ko "query: " / "passage: "
-#     prefix CHAHIYE hota hai — yahan handle hota hai.
+#     prefix CHAHIYE hota hai - yahan handle hota hai.
 #   - settings.qdrant_url empty => backend disabled (default; zero behavior change).
 _QDRANT_COLLECTION = "kb_main"
 _QDRANT_VECTOR_SIZE = 384  # default
 auto-updated to the chosen model's REAL dim
-# fastembed versions drop/rename models — try several, first that initializes wins.
+# fastembed versions drop/rename models - try several, first that initializes wins.
 # Prefer 384-dim multilingual (matches existing collection); e5-large is last resort.
 _EMBED_CANDIDATES = [
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
@@ -438,7 +438,7 @@ def _get_qdrant_embedder():
     """Lazy global fastembed TextEmbedding singleton (model load is heavy).
 
     PROD-SAFETY (2026-06-12): model cache missing hone par fastembed runtime me
-    HuggingFace se download karta hai — slow/blocked network par yeh call
+    HuggingFace se download karta hai - slow/blocked network par yeh call
     MINUTES tak hang ho sakti hai. Aaj yahi hua: web-call websocket se yeh
     SYNC call dono uvicorn workers ke event loop pe atki -> poora prod down.
     Isliye ab load ek helper THREAD me hota hai with hard deadline
@@ -493,7 +493,7 @@ def _get_qdrant_embedder():
         # semantic backend.
         raise RuntimeError(
             f"fastembed model not ready within {timeout_s:.0f}s "
-            "(likely cold model initialisation) — qdrant is still warming"
+            "(likely cold model initialisation) - qdrant is still warming"
         )
     return _QDRANT_EMBEDDER
 
@@ -501,7 +501,7 @@ def _get_qdrant_embedder():
 def _get_qdrant_client():
     """
     Lazy global QdrantClient singleton. Connection ping + collection ensure +
-    namespace payload index — sab yahin, ek hi baar. Failure par raise karta
+    namespace payload index - sab yahin, ek hi baar. Failure par raise karta
     hai (caller/factory catch karke Chroma/keyword par fall back karta hai).
     """
     global _QDRANT_CLIENT
@@ -516,13 +516,13 @@ def _get_qdrant_client():
                 if not url:
                     raise RuntimeError("QDRANT_URL not configured")
                 client = QdrantClient(url=url, timeout=5)
-                # ping — server unreachable ho to yahin raise ho jata hai
+                # ping - server unreachable ho to yahin raise ho jata hai
                 client.get_collections()
                 _exists = client.collection_exists(_QDRANT_COLLECTION)
                 if _exists:
                     # dim mismatch (embedding model changed) -> PRESERVE, don't wipe.
                     # OLD behaviour silently delete_collection()'d kb_main here on ANY
-                    # dim drift — wiping EVERY client's KB / niche scripts with no log.
+                    # dim drift - wiping EVERY client's KB / niche scripts with no log.
                     # fastembed can fall through _EMBED_CANDIDATES to a different-dim
                     # model on a transient load, so a single bad restart could nuke all
                     # tenants' RAG. Default now = PRESERVE + loud alert; destructive
@@ -533,7 +533,7 @@ def _get_qdrant_client():
                             logger.error(
                                 "kb_main vector-dim mismatch: collection=%s model=%s (%s). "
                                 "Data PRESERVED; semantic writes fall back to keyword until "
-                                "fixed. Set KB_ALLOW_DIM_WIPE=1 to recreate (DESTRUCTIVE — "
+                                "fixed. Set KB_ALLOW_DIM_WIPE=1 to recreate (DESTRUCTIVE - "
                                 "drops ALL namespaces) or re-seed manually.",
                                 _cur,
                                 _QDRANT_VECTOR_SIZE,
@@ -545,7 +545,7 @@ def _get_qdrant_client():
                                 "yes",
                             ):
                                 logger.warning(
-                                    "KB_ALLOW_DIM_WIPE set — recreating kb_main (destructive wipe)."
+                                    "KB_ALLOW_DIM_WIPE set - recreating kb_main (destructive wipe)."
                                 )
                                 client.delete_collection(_QDRANT_COLLECTION)
                                 _exists = False
@@ -561,7 +561,7 @@ def _get_qdrant_client():
                             ),
                         )
                     except Exception:
-                        pass  # parallel-create race — collection ab exist karti hai
+                        pass  # parallel-create race - collection ab exist karti hai
                 try:
                     client.create_payload_index(
                         collection_name=_QDRANT_COLLECTION,
@@ -569,7 +569,7 @@ def _get_qdrant_client():
                         field_schema=qmodels.PayloadSchemaType.KEYWORD,
                     )
                 except Exception:
-                    pass  # index already exists — ignore (idempotent)
+                    pass  # index already exists - ignore (idempotent)
                 _QDRANT_CLIENT = client
     return _QDRANT_CLIENT
 
@@ -580,7 +580,7 @@ def _kb_point_id(namespace: str, text: str) -> str:
     Re-ingesting the SAME chunk (e.g. the weekly KB_WEEKLY_REFRESH re-seed)
     produces the SAME id, so the upsert OVERWRITES the point instead of appending
     a fresh random one. This bounds kb_main growth and stops stale duplicates
-    (old vs changed website content) both surviving in top-k — the agent would
+    (old vs changed website content) both surviving in top-k - the agent would
     otherwise quote either at random (e.g. old pricing). uuid5 hashes the full
     text (SHA-1) so distinct chunks never collide. Mirrors agent_memory.py.
     """
@@ -588,20 +588,20 @@ def _kb_point_id(namespace: str, text: str) -> str:
 
 
 def _kb_search_params(limit: int):
-    """SearchParams for kb_main queries — guarantees hnsw_ef >= requested results.
+    """SearchParams for kb_main queries - guarantees hnsw_ef >= requested results.
 
     Qdrant anti-pattern (search-quality skill): hnsw_ef < the number of results
     requested = guaranteed poor recall. kb_main is namespace-FILTERED, where
     filtered-HNSW recall is most fragile, and the reranker/hybrid stage enlarges
-    the candidate pool (RERANK_POOL_SIZE) — so we pin an explicit ef that always
+    the candidate pool (RERANK_POOL_SIZE) - so we pin an explicit ef that always
     covers the pool instead of relying on the server default.
 
-    Tunable (both INERT/no-op at defaults — behaviour unchanged for the voice
+    Tunable (both INERT/no-op at defaults - behaviour unchanged for the voice
     path where limit=3 -> ef stays 128):
-      KB_HNSW_EF        — floor for hnsw_ef (default 128). Raise for more recall.
-      KB_EXACT_SEARCH=1 — brute-force exact search (recall@k ground-truth
+      KB_HNSW_EF        - floor for hnsw_ef (default 128). Raise for more recall.
+      KB_EXACT_SEARCH=1 - brute-force exact search (recall@k ground-truth
                           baseline for scripts/rag_retrieval_ab.py
-                          EVAL ONLY —
+                          EVAL ONLY -
                           bypasses the HNSW index, never leave on in prod).
     """
     from qdrant_client import models as qmodels
@@ -618,7 +618,7 @@ def _kb_search_params(limit: int):
 
 class _QdrantIndex:
     """
-    Qdrant retriever — same internal interface as _ChromaIndex/_KeywordIndex
+    Qdrant retriever - same internal interface as _ChromaIndex/_KeywordIndex
     (add / search / size). Sab namespaces EK shared "kb_main" collection me
     jaate hain
     isolation payload filter (namespace ==) se hota hai.
@@ -750,10 +750,10 @@ class _QdrantIndex:
 
 
 # --------------------------------------------------------------------------- #
-# KnowledgeBase — public API
+# KnowledgeBase - public API
 # --------------------------------------------------------------------------- #
-# safe fallback line jab kuch relevant na mile — kabhi hallucinate mat karo.
-_SAFE_FALLBACK = "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
+# safe fallback line jab kuch relevant na mile - kabhi hallucinate mat karo.
+_SAFE_FALLBACK = "Achha sawaal - main aapke liye exact detail team se confirm karwa deti hoon."
 # agar query short na ho aur retrieved score is se neeche ho to "no answer" maano.
 _MIN_GROUND_SCORE = 0.04
 
@@ -790,7 +790,7 @@ def _contextual_prefix(chunk: str, namespace: str, source: str) -> str:
 
             try:
                 asyncio.get_running_loop()
-                return meta  # async caller — metadata-only (no nested loop)
+                return meta  # async caller - metadata-only (no nested loop)
             except RuntimeError:
                 line = asyncio.run(_go())
                 return line or meta
@@ -807,7 +807,7 @@ class KnowledgeBase:
 
     Har namespace (client/niche) ka apna independent index hota hai. Internally
     Qdrant (agar QDRANT_URL configured + reachable), warna Chroma (agar real
-    embeddings available), warna pure-python keyword index use hota hai —
+    embeddings available), warna pure-python keyword index use hota hai -
     caller ko farq nahi padta, API same rehti hai.
 
     Public API:
@@ -842,11 +842,11 @@ class KnowledgeBase:
     def _build_index(self, namespace: str):
         """
         Backend selection order:
-          1. Qdrant — sirf jab settings.qdrant_url set ho AND qdrant-client +
+          1. Qdrant - sirf jab settings.qdrant_url set ho AND qdrant-client +
              fastembed import ho jayein AND server ping ok ho.
-          2. Chroma — agar real (non-mock) embeddings available hon.
-          3. Pure-python keyword index — hamesha kaam karta hai (final fallback).
-        Kabhi raise nahi karta — app crash nahi hota.
+          2. Chroma - agar real (non-mock) embeddings available hon.
+          3. Pure-python keyword index - hamesha kaam karta hai (final fallback).
+        Kabhi raise nahi karta - app crash nahi hota.
         """
         qi = self._try_qdrant(namespace)
         if qi is not None:
@@ -857,7 +857,7 @@ class KnowledgeBase:
                 if ci.real_embeddings:
                     return ci, "chroma"
                 logger.info(
-                    "KB: Chroma available but embedder is mock — using keyword fallback "
+                    "KB: Chroma available but embedder is mock - using keyword fallback "
                     "for reliable grounding."
                 )
             except Exception as e:
@@ -987,11 +987,11 @@ class KnowledgeBase:
         """
         Query ke top-k most relevant chunks laao.
 
-        ``rerank=None`` (default) → rerank sirf jab ``USE_RERANKER=1`` ho.
+        ``rerank=None`` (default) -> rerank sirf jab ``USE_RERANKER=1`` ho.
         Voice/live paths ko ``rerank=False`` pass karo (latency).
 
         Returns:
-            list[dict] — each: {"text": str, "score": float, "source": str}.
+            list[dict] - each: {"text": str, "score": float, "source": str}.
         """
         if not (query or "").strip():
             return []
@@ -1034,7 +1034,7 @@ class KnowledgeBase:
     ) -> str:
         """
         Retrieved chunks se hi ek concise grounded answer banao. Kuch relevant
-        na mile to safe fallback — kabhi hallucinate nahi.
+        na mile to safe fallback - kabhi hallucinate nahi.
 
         Returns:
             A short answer string built ONLY from stored knowledge, or the safe
@@ -1045,7 +1045,7 @@ class KnowledgeBase:
             return _SAFE_FALLBACK
 
         top = hits[0]
-        # relevance gate — kamzor match par mat bharose karo.
+        # relevance gate - kamzor match par mat bharose karo.
         if top.get("score", 0.0) < _MIN_GROUND_SCORE:
             return _SAFE_FALLBACK
 
@@ -1064,7 +1064,7 @@ class KnowledgeBase:
         return answer or _SAFE_FALLBACK
 
     def stats(self, namespace: str | None = None) -> dict[str, Any]:
-        """KB stats — namespaces, backend, chunk counts."""
+        """KB stats - namespaces, backend, chunk counts."""
         with self._lock:
             if namespace is not None:
                 idx = self._indexes.get(namespace)
@@ -1167,7 +1167,7 @@ class KnowledgeBase:
 
 
 def _trim_sentence(text: str, max_chars: int = 220) -> str:
-    """Voice ke liye chhota rakho — pehla 1-2 sentence, length-capped."""
+    """Voice ke liye chhota rakho - pehla 1-2 sentence, length-capped."""
     text = (text or "").strip()
     if not text:
         return ""

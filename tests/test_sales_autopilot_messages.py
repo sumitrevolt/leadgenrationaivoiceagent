@@ -1,4 +1,4 @@
-"""Sales Autopilot — message generation + deterministic safety validation."""
+"""Sales Autopilot - message generation + deterministic safety validation."""
 
 from __future__ import annotations
 

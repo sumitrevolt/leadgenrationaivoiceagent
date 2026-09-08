@@ -1,4 +1,4 @@
-"""Thin ``gh`` wrapper for the pilot — every call fails closed.
+"""Thin ``gh`` wrapper for the pilot - every call fails closed.
 
 ``runner`` is injectable so tests drive the exact control paths with a fake.
 Only scopes/operations the pilot is allowed to use exist here. There is
@@ -43,7 +43,7 @@ def default_runner(gh_bin: str = "gh", timeout: int = 60) -> Runner:
 
 
 class GitHubOpsError(RuntimeError):
-    """gh call failed / unverifiable — fail closed, never assume success."""
+    """gh call failed / unverifiable - fail closed, never assume success."""
 
 
 class GitHubOps:

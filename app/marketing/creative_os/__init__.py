@@ -1,4 +1,4 @@
-"""Creative Automation OS — governed extension of Video Production Cell (ADR-143).
+"""Creative Automation OS - governed extension of Video Production Cell (ADR-143).
 
 Additive layer over video_pipeline / video_ad_cycle / video_production / Postiz.
 All CREATIVE_* flags default OFF. Never raises across public service entry points.

@@ -1,4 +1,4 @@
-"""Allowlisted subprocess runner — argument arrays only, no shell."""
+"""Allowlisted subprocess runner - argument arrays only, no shell."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ _ALLOWED_BASENAMES = frozenset(
         "python3",
         "py",
         "py.exe",
-        # Windows wrapper capture fixtures (tests only — path-gated below).
+        # Windows wrapper capture fixtures (tests only - path-gated below).
         "argv_capture.cmd",
         "argv_capture.ps1",
         "powershell",
@@ -44,7 +44,7 @@ _ALLOWED_BASENAMES = frozenset(
     }
 )
 
-# Linux CI often resolves to python3.12 / python3.11 — allow versioned python3.*
+# Linux CI often resolves to python3.12 / python3.11 - allow versioned python3.*
 _PYTHON_VERSIONED = ("python3.",)
 
 
@@ -68,7 +68,7 @@ def _is_python_executable_name(name: str) -> bool:
     )
 
 
-# Deny-by-default OS scaffolding — no credential prefixes, no wildcards.
+# Deny-by-default OS scaffolding - no credential prefixes, no wildcards.
 _OS_BASE_ENV = frozenset(
     {
         "PATH",
@@ -95,7 +95,7 @@ _OS_BASE_ENV = frozenset(
     }
 )
 
-# Profile dirs for local CLI auth stores (OAuth/keychain files) — not raw API keys.
+# Profile dirs for local CLI auth stores (OAuth/keychain files) - not raw API keys.
 _AUTH_PROFILE_ENV = frozenset(
     {
         "APPDATA",
@@ -222,7 +222,7 @@ def sanitize_env(
             continue
         if ku in allowed:
             base[k] = v
-    # Exact optional Cursor key — never wildcard, never logged.
+    # Exact optional Cursor key - never wildcard, never logged.
     if profile == "cursor" and (os.getenv("EXTERNAL_AGENT_PASS_CURSOR_API_KEY") or "").strip() in {
         "1",
         "true",
@@ -267,7 +267,7 @@ def resolve_executable(exe: str) -> str:
 
     Callers (Cursor/Claude resolvers, tests) must pass an absolute path. Relative
     basenames are resolved once via ``shutil.which`` then re-checked against the
-    allowlist — production paths always prefer absolute resolution up-front.
+    allowlist - production paths always prefer absolute resolution up-front.
     """
     if not exe or not isinstance(exe, str):
         raise ProcessSafetyError("executable_required")
@@ -309,25 +309,25 @@ def assert_safe_argv(argv: list[str], *, allowed_root: str | None = None) -> Non
     exe = Path(argv[0]).name.lower()
     if not _is_allowed_executable_name(exe):
         raise ProcessSafetyError(f"executable_not_allowlisted:{exe}")
-    # .cmd/.bat re-parse &|<>^ via cmd.exe — refuse those tokens for batch wrappers.
+    # .cmd/.bat re-parse &|<>^ via cmd.exe - refuse those tokens for batch wrappers.
     if exe.endswith((".cmd", ".bat")):
         for a in argv[1:]:
             if any(ch in a for ch in ("&", "|", "<", ">", "^")):
                 raise ProcessSafetyError("cmd_metachar_refused")
-    # Python is only for the owned test helper script — never arbitrary -c.
+    # Python is only for the owned test helper script - never arbitrary -c.
     if _is_python_executable_name(exe):
         if len(argv) < 2 or argv[1] in {"-c", "-m"}:
             raise ProcessSafetyError("python_helper_script_required")
         script = Path(argv[1]).resolve()
         if script.name != HELPER_SCRIPT_NAME:
             raise ProcessSafetyError("python_helper_name_refused")
-        # Owned fixture identity — helper lives under tests/fixtures, not inside
+        # Owned fixture identity - helper lives under tests/fixtures, not inside
         # the mission worktree (cwd). Do not require script ⊆ allowed_root.
         if not _is_fixture_path(script):
             raise ProcessSafetyError("python_helper_path_refused")
         if not script.is_file():
             raise ProcessSafetyError("python_helper_missing")
-    # Direct .cmd/.ps1 capture wrappers — fixtures only.
+    # Direct .cmd/.ps1 capture wrappers - fixtures only.
     if exe in _WRAPPER_FIXTURE_NAMES:
         wrapper = Path(argv[0]).resolve()
         if not _is_fixture_path(wrapper) or not wrapper.is_file():
@@ -555,7 +555,7 @@ def run_allowlisted(
 
 
 def _terminate(proc: subprocess.Popen[str]) -> None:
-    """Kill the child and, on Windows, the full process tree (agent.cmd → node)."""
+    """Kill the child and, on Windows, the full process tree (agent.cmd -> node)."""
     try:
         if proc.poll() is not None:
             return

@@ -1,7 +1,7 @@
 """
 Professional Hinglish telecaller script dataset for the AI voice sales agent.
 
-Yeh pure-data file hai — koi heavy import nahi (import-safe). Har niche ka
+Yeh pure-data file hai - koi heavy import nahi (import-safe). Har niche ka
 ek script-block hai jo END-CUSTOMER outbound call ke liye likha gaya hai
 (LEADS agent client ke potential customers ko call karta hai). Lines real
 Indian telecaller best-practices pe based hain (web-researched, June 2026):
@@ -22,7 +22,7 @@ study-abroad/coaching/interior/dental = FREE consultation hook
 + no-cost EMI.
 
 Consumers: TelecallerBrain (prompt grounding), knowledge_base (KB embedding via
-kb_documents()), web-call demo. get_script() builtin/custom dono ke liye safe —
+kb_documents()), web-call demo. get_script() builtin/custom dono ke liye safe -
 jo niche cover nahi, wo "general" fallback pe aata hai.
 """
 
@@ -32,7 +32,7 @@ from app.voice_agent.niche_scripts_data import (  # noqa: F401  (data extracted 
     NICHE_SCRIPTS,
 )
 
-# Objection dict keys (sab niches me same — brain/KB consistent rehte hain):
+# Objection dict keys (sab niches me same - brain/KB consistent rehte hain):
 #   mehenga      -> "price / too expensive / mehnga hai"
 #   abhi_nahi    -> "timing / abhi nahi / baad me"
 #   soch_ke      -> "soch ke batata hoon / need to think"
@@ -112,25 +112,25 @@ _OBJ_LABELS: dict[str, str] = {
 # ========================================================================== #
 
 
-# Common Indian cold-call objections that per-niche scripts don't cover — merged
+# Common Indian cold-call objections that per-niche scripts don't cover - merged
 # into EVERY script's grounding (a niche's own rebuttal always wins). Component 4
 # of the voice smart-fix bundle: deepens objection-handling across all 39 niches
 # (these used to fall through to the LLM ungrounded = "noob" fumbling).
 _COMMON_OBJECTIONS: dict[str, str] = {
     "fraud_suspicion": (
-        "Bilkul valid sawaal sir — hum registered company hain, sab kuch likhit aur "
+        "Bilkul valid sawaal sir - hum registered company hain, sab kuch likhit aur "
         "verify-able hai, koi advance payment nahi. Aap khud check karke hi aage badhiye."
     ),
     "decision_maker": (
-        "Koi baat nahi sir, jiska decision hai unse discuss zaroori hai — main poori "
+        "Koi baat nahi sir, jiska decision hai unse discuss zaroori hai - main poori "
         "detail WhatsApp pe bhej deti hoon, saath baith ke dekh lijiyega."
     ),
     "tried_before": (
-        "Samajhti hoon sir, pehle ka experience alag raha hoga — ek baar yeh dekh lijiye, "
+        "Samajhti hoon sir, pehle ka experience alag raha hoga - ek baar yeh dekh lijiye, "
         "koi commitment nahi, farak khud mehsoos ho jayega."
     ),
     "details_bhejo": (
-        "Bilkul sir, WhatsApp pe abhi bhej deti hoon — bas 10 second me itna samajh "
+        "Bilkul sir, WhatsApp pe abhi bhej deti hoon - bas 10 second me itna samajh "
         "lijiye, phir aaram se dekhiyega. Aapka yahi number sahi hai na?"
     ),
 }
@@ -150,7 +150,7 @@ def _with_common_objections(script: dict) -> dict:
 
 
 def get_script(niche_key: str) -> dict:
-    """Return the script-block for a niche, ya 'general' fallback — with the common
+    """Return the script-block for a niche, ya 'general' fallback - with the common
     objection-types merged in.
 
     Builtin priority niches ke liye custom script, baaki sab (incl. custom
@@ -197,7 +197,7 @@ def kb_documents(niche_key: str) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# TRAI up-front AI-disclosure (TCCCPR) — legal gate, ALWAYS-ON
+# TRAI up-front AI-disclosure (TCCCPR) - legal gate, ALWAYS-ON
 # --------------------------------------------------------------------------- #
 _AI_DISCLOSURE_TOKENS = (
     "ai assistant",
@@ -216,7 +216,7 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
     TRAI TCCCPR mandates AI promotional calls open with an AI disclosure (not on
     user-ask). If the line already discloses (contains an AI token), it is left
     as-is
-    otherwise an up-front disclosure is injected naturally. Never raises —
+    otherwise an up-front disclosure is injected naturally. Never raises -
     on any error the original text is returned (the static openers already name
     the company, so we fail toward speaking rather than silence).
     """
@@ -235,7 +235,7 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
             return t[: m.end()] + ", ek AI agent jo aapki baat sun-samajh sakti hai," + t[m.end() :]
         # Fallback: prepend a short, clear disclosure that also signals the call is
         # two-way (web testers didn't realise they could just talk).
-        return f"Main ek AI agent hoon — aapki baat sun aur samajh sakti hoon. {t}"
+        return f"Main ek AI agent hoon - aapki baat sun aur samajh sakti hoon. {t}"
     except Exception:
         return text or ""
 
@@ -270,7 +270,7 @@ def ensure_permission_ask(text: str, name: str = "Swara") -> str:
 
     Gong: a permission opener ("do minute baat kar sakti hoon ya busy?") converts
     several times better than diving straight into a pitch. Appends one only if the
-    opener doesn't already ask. Gated PERMISSION_OPENER (default ON). Never raises —
+    opener doesn't already ask. Gated PERMISSION_OPENER (default ON). Never raises -
     on any error the original text is returned (fail toward speaking)."""
     try:
         if not _permission_enabled():
@@ -287,7 +287,7 @@ def ensure_permission_ask(text: str, name: str = "Swara") -> str:
 
 
 def stt_keyterms(niche: str = "", client_name: str = "") -> str:
-    """Short biasing string for STT (Whisper `prompt=` / Gemini context) — pushes
+    """Short biasing string for STT (Whisper `prompt=` / Gemini context) - pushes
     the recogniser toward this call's Hinglish register + brand/niche entities so
     proper nouns (client + domain) transcribe right (D-11). Gated STT_BIAS
     (default ON)

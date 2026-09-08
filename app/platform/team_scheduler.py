@@ -25,14 +25,14 @@ def post_prospect_harvest_timeout(remain_s: float) -> float | None:
     WS3 (2026-08-07): after D1 raised Places query fan-out, the nested harvest
     still died under a hard ``min(remain-20, 120)`` outer wait_for while
     ``run_harvest_loop_safe`` independently defaulted ``HARVEST_LOOP_TIMEOUT_S``
-    to 120 — websearch/opendata (the bulk of 08-05 lead yield) never finished.
+    to 120 - websearch/opendata (the bulk of 08-05 lead yield) never finished.
     Midday/evening harvest jobs still run
     this only fixes the morning nest.
 
     Env:
-      PROSPECT_INLINE_HARVEST — default ON
+      PROSPECT_INLINE_HARVEST - default ON
       set 0 to skip (midday covers).
-      PROSPECT_POST_HARVEST_BUDGET_S — default 240, clamped 30..300.
+      PROSPECT_POST_HARVEST_BUDGET_S - default 240, clamped 30..300.
     """
     if os.environ.get("PROSPECT_INLINE_HARVEST", "1").strip().lower() in (
         "0",
@@ -55,10 +55,10 @@ def post_prospect_harvest_timeout(remain_s: float) -> float | None:
 _active_job_budget: ContextVar[Any] = ContextVar("active_job_budget", default=None)
 
 # --------------------------------------------------------------------------- #
-# Single-instance lock — uvicorn --workers 2 dono workers scheduler start karte
-# the → har job 2 baar chalta tha (double emails/content!). Lock file se sirf
+# Single-instance lock - uvicorn --workers 2 dono workers scheduler start karte
+# the -> har job 2 baar chalta tha (double emails/content!). Lock file se sirf
 # EK worker scheduler chalata hai. Heartbeat (mtime) + dead-PID reclaim:
-# - lock free/stale (>180s) ya PID dead → acquire karo
+# - lock free/stale (>180s) ya PID dead -> acquire karo
 # - warna skip (dusra worker owner hai)
 # Loop har tick lock ka mtime refresh karta hai (heartbeat).
 # --------------------------------------------------------------------------- #
@@ -68,8 +68,8 @@ _have_lock = False
 
 
 def _pid_alive(pid: int) -> bool:
-    """Cross-platform liveness check. ⚠️ Windows pe os.kill(pid, 0) KABHI nahi —
-    signal 0 == CTRL_C_EVENT → apne hi console group ko Ctrl+C chala jata hai
+    """Cross-platform liveness check. ⚠️ Windows pe os.kill(pid, 0) KABHI nahi -
+    signal 0 == CTRL_C_EVENT -> apne hi console group ko Ctrl+C chala jata hai
     (pytest/dev-runs randomly KeyboardInterrupt se marte the). POSIX pe hi os.kill."""
     if pid <= 0:
         return False
@@ -106,9 +106,9 @@ def _acquire_lock() -> bool:
             _have_lock = True
             return True
         except FileExistsError:
-            # exists — steal SIRF proven-stale (mtime purana = heartbeat nahi) ya
-            # proven-dead owner pe. Unreadable/empty lock proof NAHI hai — empty
-            # file dusre worker ke os.open→os.write ke beech ki race-window hai;
+            # exists - steal SIRF proven-stale (mtime purana = heartbeat nahi) ya
+            # proven-dead owner pe. Unreadable/empty lock proof NAHI hai - empty
+            # file dusre worker ke os.open->os.write ke beech ki race-window hai;
             # wahan steal = dono worker scheduler chalate (double emails/content).
             # Crashed-mid-write owner ka reclaim mtime-staleness se ho jata hai
             # (heartbeat _refresh_lock har tick mtime update karta hai).
@@ -116,9 +116,9 @@ def _acquire_lock() -> bool:
             try:
                 stale = (datetime.now().timestamp() - os.path.getmtime(_LOCK_PATH)) > _LOCK_STALE_S
             except Exception as le:
-                stale = False  # mtime unreadable → stale PROVE nahi hua
+                stale = False  # mtime unreadable -> stale PROVE nahi hua
                 logger.warning(
-                    "[team-scheduler] lock mtime unreadable — fail-closed skip "
+                    "[team-scheduler] lock mtime unreadable - fail-closed skip "
                     "(no steal without proof): %s",
                     le,
                 )
@@ -128,9 +128,9 @@ def _acquire_lock() -> bool:
                     pid = int(open(_LOCK_PATH).read().strip() or "0")
                     dead = pid > 0 and not _pid_alive(pid)
                 except Exception as le:
-                    dead = False  # pid unreadable → dead PROVE nahi hua
+                    dead = False  # pid unreadable -> dead PROVE nahi hua
                     logger.warning(
-                        "[team-scheduler] lock pid unreadable — fail-closed skip "
+                        "[team-scheduler] lock pid unreadable - fail-closed skip "
                         "(no steal without proof): %s",
                         le,
                     )
@@ -144,14 +144,14 @@ def _acquire_lock() -> bool:
                     return False
             return False
     except Exception as e:
-        # lock-fs issue — FAIL-CLOSED (W1.1): is worker ko lock NAHI dena. Purana
+        # lock-fs issue - FAIL-CLOSED (W1.1): is worker ko lock NAHI dena. Purana
         # fail-open dono uvicorn workers ko same FS-error pe scheduler start karwa
-        # deta tha → har job double-fire (double emails/content/spend + ban-risk).
-        # NOTE: _acquire_lock() boot-once hai (sirf start_scheduler) — yahan skip ka
+        # deta tha -> har job double-fire (double emails/content/spend + ban-risk).
+        # NOTE: _acquire_lock() boot-once hai (sirf start_scheduler) - yahan skip ka
         # matlab is worker pe scheduler process-restart tak DOWN (koi next-tick retry
         # nahi). Isiliye loud warn = ops ke liye recovery signal.
         logger.warning(
-            "[team-scheduler] lock acquire failed — FAIL-CLOSED, scheduler NOT "
+            "[team-scheduler] lock acquire failed - FAIL-CLOSED, scheduler NOT "
             "starting on this worker (avoids double-fire): %s",
             e,
         )
@@ -160,7 +160,7 @@ def _acquire_lock() -> bool:
 
 
 def _refresh_lock() -> None:
-    """Heartbeat — lock file ka mtime update (owner zinda hai)."""
+    """Heartbeat - lock file ka mtime update (owner zinda hai)."""
     if not _have_lock:
         return
     try:
@@ -184,8 +184,8 @@ _last_ran: dict[str, str | None] = {
     "onboard": None,
     "standup": None,
     "hot_queue_brief": None,  # daily 08:15: health-gated Office HQ revenue brief
-    "hot_queue_owner_pack": None,  # daily 09:00: CSV+MD+nfty — owner 1-click close (ADR-OWNER-1)
-    # F.5 engineer agents — gated by per-role flag inside run_X() (INERT default).
+    "hot_queue_owner_pack": None,  # daily 09:00: CSV+MD+nfty - owner 1-click close (ADR-OWNER-1)
+    # F.5 engineer agents - gated by per-role flag inside run_X() (INERT default).
     "engineer_sre": None,  # hourly: Pranav reliability score
     "engineer_finops": None,  # daily: Vidya margin score
     "engineer_security": None,  # daily: Arnav compliance posture
@@ -228,20 +228,20 @@ _last_ran: dict[str, str | None] = {
 }
 
 
-# W1.7: _last_ran ko disk pe persist karo — in-memory dict restart pe reset ho jata tha,
+# W1.7: _last_ran ko disk pe persist karo - in-memory dict restart pe reset ho jata tha,
 # jisse hourly/slot jobs (ops/growth/flow_cron) same window me RE-FIRE karte the. File
 # data/ me (already gitignored via `data/*`, .scheduler.lock jaisa runtime-state). Sirf
 # in-process/rollback scheduler ke liye (prod = Celery beat). Load boot pe, save har
 # badle-hue tick pe. (Behaviour-change: ek failed period-job ab restart pe us window me
-# retry NAHI hoga — durable marker; dead-man switch (W1.2) failure surface karta hai.)
+# retry NAHI hoga - durable marker; dead-man switch (W1.2) failure surface karta hai.)
 _LAST_RAN_PATH = os.path.join("data", "scheduler_last_ran.json")
 
-# In-process-only day key — intentionally outside _last_ran (parity / Aaj tab).
+# In-process-only day key - intentionally outside _last_ran (parity / Aaj tab).
 _renewal_reminders_day: str | None = None
 
 
 def _save_last_ran() -> None:
-    """_last_ran atomic-write (tmp + os.replace) — corrupt file se bacho. Fail-safe."""
+    """_last_ran atomic-write (tmp + os.replace) - corrupt file se bacho. Fail-safe."""
     try:
         os.makedirs(os.path.dirname(_LAST_RAN_PATH) or ".", exist_ok=True)
         tmp = _LAST_RAN_PATH + ".tmp"
@@ -253,7 +253,7 @@ def _save_last_ran() -> None:
 
 
 def _load_last_ran() -> None:
-    """Boot pe persisted markers load karo — sirf known keys + str values merge
+    """Boot pe persisted markers load karo - sirf known keys + str values merge
     (unknown/garbage ignore). File na ho ya corrupt ho to defaults (all-None) rahein."""
     try:
         with open(_LAST_RAN_PATH, encoding="utf-8") as f:
@@ -306,7 +306,7 @@ async def _run_job(
 
 
 async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
-    """Heartbeat wrapper — har run automation_health me record hota (dead-man
+    """Heartbeat wrapper - har run automation_health me record hota (dead-man
     switch: job chupchaap band ho jaye to overdue-alert). In-process + Celery
     dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta.
     `retry_count` = Celery `run_staff_job` se aata (in-process path = 0) taaki
@@ -321,10 +321,10 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
         allowed, reason = scheduler_dispatch_allowed(job=job)
         if not allowed:
             record_scheduler_skip(job, reason, source="team_scheduler._run_job")
-            logger.info(f"[team-scheduler] job '{job}' skipped — {reason}")
+            logger.info(f"[team-scheduler] job '{job}' skipped - {reason}")
             return True
     except Exception:
-        pass  # FAIL-OPEN — store blip pe job normal chalega
+        pass  # FAIL-OPEN - store blip pe job normal chalega
     try:
         from app.platform import owner_agent_execution as oae
         from app.platform.owner_os import record_scheduler_skip
@@ -332,13 +332,13 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
         claim_ok, claim_reason = oae.claim_allowed(job=job)
         if not claim_ok:
             record_scheduler_skip(job, claim_reason, source="team_scheduler._run_job_claim")
-            logger.info(f"[team-scheduler] job '{job}' claim blocked — {claim_reason}")
+            logger.info(f"[team-scheduler] job '{job}' claim blocked - {claim_reason}")
             return True
     except Exception:
         pass
 
     # Admin scheduler toggle (scheduler_config, FAIL-OPEN): admin ne job PAUSE
-    # kiya ho to skip — heartbeat "admin_paused" note ke saath record hota
+    # kiya ho to skip - heartbeat "admin_paused" note ke saath record hota
     # taaki dead-man overdue alert na bajaye. Dono paths (in-process + Celery)
     # isi choke-point se guzarte, isliye toggle universal hai.
     try:
@@ -361,10 +361,10 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
                 )
             except Exception:
                 pass
-            logger.info(f"[team-scheduler] job '{job}' skipped — admin paused")
+            logger.info(f"[team-scheduler] job '{job}' skipped - admin paused")
             return True
     except Exception:
-        pass  # FAIL-OPEN — config error pe job normal chalega
+        pass  # FAIL-OPEN - config error pe job normal chalega
 
     from datetime import datetime as _dt
     from datetime import timezone as _tz
@@ -388,8 +388,8 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
         )
     except Exception:
         pass
-    # --- Paperclip Routine Bridge: every cron run → auditable AgentTask ---
-    # Unconditional until 2026-08-06 — one row per job invocation, ~700/day,
+    # --- Paperclip Routine Bridge: every cron run -> auditable AgentTask ---
+    # Unconditional until 2026-08-06 - one row per job invocation, ~700/day,
     # with no retention/prune anywhere in the codebase. `begin()` below stops
     # those rows LEAKING as `pending`, but they are still written: the fix turns
     # an unbounded leak into unbounded correct growth (~255k rows/year), and the
@@ -412,7 +412,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
         _routine_task_id = _rt.get("id") if _rt.get("ok") else None
         if _routine_task_id:
             # begin() = pending -> running. This used to call start(), which
-            # requires `claimed` — a state a self-assigned routine never enters
+            # requires `claimed` - a state a self-assigned routine never enters
             # because nothing calls claim_next() for a job-name pseudo-agent.
             # So start() no-op'd, complete() (claimed|running) no-op'd too, and
             # every SUCCEEDING routine leaked a `pending` row forever while only
@@ -423,7 +423,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
         pass
 
     try:
-        # W1.2: _run_job_inner ab bool deta — False = job-level fail (dead-man
+        # W1.2: _run_job_inner ab bool deta - False = job-level fail (dead-man
         # switch ko real status jaana chahiye). Re-raise NAHI: scheduler_loop poore
         # tick ko ek hi try me chalata hai, to yahan raise = is tick ke baaki jobs skip.
         _res = await _run_job_inner(job)
@@ -439,14 +439,14 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
             except Exception:
                 pass
         if _res is False:
-            # inner ne apna exception khud pakad ke sirf False diya — yahan detail
+            # inner ne apna exception khud pakad ke sirf False diya - yahan detail
             # nahi milti (inner ke internals refactor nahi karte), isliye generic marker.
             _err_class = "job_reported_failure"
     except Exception as _e:
-        # inner apna Exception khud pakadta hai (return False) — yahan aana truly
+        # inner apna Exception khud pakadta hai (return False) - yahan aana truly
         # unexpected. Fail record karo, par tick crash mat karo (BaseException/
-        # Cancelled propagate hote — woh yahan catch nahi). 2026-07-07: capture
-        # error_class/message instead of discarding — job-log schema audit found
+        # Cancelled propagate hote - woh yahan catch nahi). 2026-07-07: capture
+        # error_class/message instead of discarding - job-log schema audit found
         # this was caught, logged, then thrown away right before record_run().
         _ok = False
         _err_class = type(_e).__name__
@@ -474,7 +474,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
                     started_at=_started_at,
                 )
             except TypeError:
-                # record_run ka narrow/legacy signature (sirf test-mocks) — enriched
+                # record_run ka narrow/legacy signature (sirf test-mocks) - enriched
                 # kwargs reject karega. record_run KHUD kabhi raise nahi karta (poora
                 # body try/except me), isliye TypeError = purani signature. Basic call
                 # se degrade karo (heartbeat na chhoote). Prod me yeh branch DEAD hai.
@@ -492,7 +492,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
                 started_at=_started_at,
                 duration_ms=int(_duration * 1000),
                 # output_summary column ADR-064 se hai par scheduler path isse kabhi
-                # bharta nahi tha → admin logs me har success row blank dikhta. inner
+                # bharta nahi tha -> admin logs me har success row blank dikhta. inner
                 # sirf bool deta (internals refactor nahi karte), isliye concise
                 # human-readable status. Fail pe error_class jaata hai.
                 output_summary=(
@@ -515,7 +515,7 @@ async def _run_job_direct(job: str, retry_count: int = 0) -> bool:
 
 async def _run_content_engine(name: str, coro, budget=None) -> bool:
     """W1.3: `content` mega-job ke har engine ko isolate karo. Pehle 12 engines ek
-    hi try me chain the — pehla throw (e.g. auto_content) baaki engines ko silently
+    hi try me chain the - pehla throw (e.g. auto_content) baaki engines ko silently
     skip kar deta tha. Ab har engine ka failure logged + contained
     cycle aage chalta.
     Optional ``budget`` / contextvar: SoftTimeLimit se pehle remaining engines skip."""
@@ -527,9 +527,9 @@ async def _run_content_engine(name: str, coro, budget=None) -> bool:
             except Exception:
                 pass
             # Until 2026-08-09 this returned False with NO exception and NO line
-            # naming the engine — so an engine could stop running for weeks and
+            # naming the engine - so an engine could stop running for weeks and
             # nothing anywhere said so. Prod proof: `content` blew its 420s budget
-            # on 15 consecutive daily runs (2026-07-18 → 2026-08-01, 452–530s),
+            # on 15 consecutive daily runs (2026-07-18 -> 2026-08-01, 452–530s),
             # silently dropping every engine queued behind the overrun.
             try:
                 from app.platform import automation_health
@@ -582,7 +582,7 @@ async def _run_job_inner(job: str) -> bool:
             from app.platform import growth_engine
 
             await growth_engine.pulse()
-            # Team heartbeat — har 15-min cycle pe under-active staff ke cheap
+            # Team heartbeat - har 15-min cycle pe under-active staff ke cheap
             # real monitors chalao (dashboard pe zinda dikhe, sirf daily-spike nahi).
             try:
                 from app.platform import team
@@ -590,7 +590,7 @@ async def _run_job_inner(job: str) -> bool:
                 team.team_pulse(max_members=4)
             except Exception:
                 pass
-            # Self-improve in-process fallback —
+            # Self-improve in-process fallback -
             # Celery mode me Celery tasks handle karte hain.
             # In-process mode (RUN_IN_PROCESS_SCHEDULER=1) me Celery tick kabhi fire nahi
             # hota, isliye yahan directly run_once() call karo (15-min cadence = theek hai).
@@ -609,7 +609,7 @@ async def _run_job_inner(job: str) -> bool:
                     )
             except Exception as _si_e:
                 logger.debug(f"[scheduler] self_improve in-process skip: {_si_e}")
-            # Process engine in-process tick —
+            # Process engine in-process tick -
             # Celery pe `process_tick` Celery task handle karta hai.
             # In-process mode me RUNNING processes (non-breakpoint steps) yahan advance hote hain.
             try:
@@ -622,14 +622,14 @@ async def _run_job_inner(job: str) -> bool:
                     from app.agents.process_engine import advance, list_runs
 
                     _running = [r for r in list_runs() if r.get("status") == "running"]
-                    for _pr in _running[:3]:  # max 3 per tick — no runaway
+                    for _pr in _running[:3]:  # max 3 per tick - no runaway
                         try:
                             await advance(_pr["run_id"], max_steps=3)
                         except Exception:
                             pass
             except Exception as _pe_e:
                 logger.debug(f"[scheduler] process_engine tick skip: {_pe_e}")
-            # Cadence advance on growth pulse (15-min) — CADENCE_ENGINE gated.
+            # Cadence advance on growth pulse (15-min) - CADENCE_ENGINE gated.
             # Content-job (daily 07:00) pe bhi chalega; yahan Anika starve na ho
             # jab pehle N file rows already ``done`` hon (run_due active-limit fix).
             try:
@@ -643,7 +643,7 @@ async def _run_job_inner(job: str) -> bool:
         elif job == "qa":
             await staff.run_qa()
             try:
-                # Arjun/Swara: voice agent persona eval suite — dormant engine wire,
+                # Arjun/Swara: voice agent persona eval suite - dormant engine wire,
                 # gated VOICE_EVAL_AUTO. brain=None = LLM-free rule-based smoke
                 # (regression catch: double/repeat/pushy/goodbye). Off-loop deadline.
                 if os.environ.get("VOICE_EVAL_AUTO", "0").strip().lower() in ("1", "true", "yes"):
@@ -689,7 +689,7 @@ async def _run_job_inner(job: str) -> bool:
         elif job == "trainer":
             await staff.run_trainer()
             try:
-                # Guru: project skills → KB ingest (semantic recall; gated SKILL_PACK)
+                # Guru: project skills -> KB ingest (semantic recall; gated SKILL_PACK)
                 from app.platform import skill_pack, team
 
                 # SKILL_PACK enables lightweight prompt lookup. KB ingestion builds
@@ -713,7 +713,7 @@ async def _run_job_inner(job: str) -> bool:
                             team.log_event(
                                 "guru",
                                 "skill_ingest",
-                                f"📚 {res.get('skills', 0)} skills → KB ({res.get('chunks', 0)} chunks, {res.get('backend')})",
+                                f"📚 {res.get('skills', 0)} skills -> KB ({res.get('chunks', 0)} chunks, {res.get('backend')})",
                             )
                         else:
                             team.log_event(
@@ -724,7 +724,7 @@ async def _run_job_inner(job: str) -> bool:
                             )
                     except asyncio.TimeoutError:
                         logger.warning(
-                            "skill KB ingest exceeded 200s budget — skipping; trainer job continues"
+                            "skill KB ingest exceeded 200s budget - skipping; trainer job continues"
                         )
                         team.log_event(
                             "guru",
@@ -738,7 +738,7 @@ async def _run_job_inner(job: str) -> bool:
                 pass
             try:
                 # Dev/Meera: nightly ML training (intent classifier + lead scorer +
-                # prompt-opt + A/B variants) — dormant engine wire, gated
+                # prompt-opt + A/B variants) - dormant engine wire, gated
                 # ML_NIGHTLY_TRAINING. Internally try/excepted; leave headroom for
                 # transcript analysis and telemetry before Celery's 540s soft limit.
                 if os.environ.get("ML_NIGHTLY_TRAINING", "0").strip().lower() in (
@@ -760,7 +760,7 @@ async def _run_job_inner(job: str) -> bool:
                 pass
         elif job == "digest":
             _digest_result = await staff.run_digest()
-            # Obsidian — write daily session note with actual digest content.
+            # Obsidian - write daily session note with actual digest content.
             try:
                 import datetime as _dt
 
@@ -782,7 +782,7 @@ async def _run_job_inner(job: str) -> bool:
             except Exception:
                 pass
             # HARDENING (audit 2026-07-07): ye 4 revenue-relevant engines pehle unguarded
-            # chain the — pehla throw (e.g. revenue_digest) baaki 3 (client_health churn-scan,
+            # chain the - pehla throw (e.g. revenue_digest) baaki 3 (client_health churn-scan,
             # usage_alerts billing upsell, growth_optimizer profit-loop) ko skip kar deta tha.
             # Ab har engine `_run_content_engine` se isolated (content-job W1.3 pattern jaisa).
             from app.platform import revenue_digest
@@ -819,14 +819,14 @@ async def _run_job_inner(job: str) -> bool:
                 await objection_extractor.scan_recent_transcripts(10)
             except Exception:
                 pass
-            # payment_recon removed 2026-06-18 — Razorpay gateway gone (manual UPI).
+            # payment_recon removed 2026-06-18 - Razorpay gateway gone (manual UPI).
             try:
-                # Speed-to-lead accountability line (READ-only metric) — Boss event me.
+                # Speed-to-lead accountability line (READ-only metric) - Boss event me.
                 from app.platform import speed_to_lead, team
 
                 _stl = speed_to_lead.summary(7)
                 if _stl.get("ok") and _stl.get("verdict"):
-                    # STAFF key is "manager" (display name "Boss") — "boss" is not a
+                    # STAFF key is "manager" (display name "Boss") - "boss" is not a
                     # registered key, so this event was previously invisible on /app/team
                     # (team_status() only looks up last_event by STAFF key). Fixed 2026-07-01.
                     team.log_event("manager", "speed_to_lead", f"⚡ {_stl['verdict']}")
@@ -857,11 +857,11 @@ async def _run_job_inner(job: str) -> bool:
             from app.marketing import auto_content
             from app.platform.job_time_budget import JobBudget
 
-            # SoftTimeLimit (540s) se pehle partial-ok — content SoftTimeLimit DLQ (2026-07-23).
+            # SoftTimeLimit (540s) se pehle partial-ok - content SoftTimeLimit DLQ (2026-07-23).
             _content_budget = JobBudget.from_env("CONTENT_TIME_BUDGET_S", label="content")
             _budget_tok = _active_job_budget.set(_content_budget)
             try:
-                # W1.3: har engine _run_content_engine se guzarta hai — ek engine ka throw
+                # W1.3: har engine _run_content_engine se guzarta hai - ek engine ka throw
                 # baaki engines ko skip nahi karta (pehle poora chain ek hi try me tha).
                 await _run_content_engine("auto_content", auto_content.run_daily_content())
                 from app.marketing import video_ad_cycle
@@ -879,7 +879,7 @@ async def _run_job_inner(job: str) -> bool:
                 from app.tasks.reporting import run_social_autopost
 
                 # Publish 'ready' posts to connected Meta accounts (MOCK unless
-                # SOCIAL_AUTOPOST=1 + a Page/IG token — inert/safe otherwise).
+                # SOCIAL_AUTOPOST=1 + a Page/IG token - inert/safe otherwise).
                 await _run_content_engine("social_autopost", run_social_autopost())
                 from app.marketing import wa_campaign_runner
 
@@ -981,7 +981,7 @@ async def _run_job_inner(job: str) -> bool:
 
                     # per-client hands-free drafts: evergreen recycle / NPS survey / stale-inquiry
                     # nudge / daily owner-brief. Har sub-job apne flag ke peeche (EVERGREEN_RECYCLE /
-                    # NPS_AUTO / STALE_INQUIRY_NUDGE / OWNER_BRIEF_DAILY) — all DEFAULT-OFF, draft-only.
+                    # NPS_AUTO / STALE_INQUIRY_NUDGE / OWNER_BRIEF_DAILY) - all DEFAULT-OFF, draft-only.
                     if _content_budget.ok():
                         await customer_autopilot.run_all()
                 except Exception:
@@ -1025,8 +1025,8 @@ async def _run_job_inner(job: str) -> bool:
                 except Exception:
                     pass
                 try:
-                    # White-label monthly client report — mahine ki 1 tarikh ko hi.
-                    # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) — run_monthly khud gate karta.
+                    # White-label monthly client report - mahine ki 1 tarikh ko hi.
+                    # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) - run_monthly khud gate karta.
                     from datetime import datetime as _dt
 
                     if _content_budget.ok() and _dt.now().day == 1:
@@ -1058,7 +1058,7 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from datetime import datetime as _dt_blog
 
-                # Monday: programmatic SEO landing batch (Ravi — organic inbound).
+                # Monday: programmatic SEO landing batch (Ravi - organic inbound).
                 if _dt_blog.now(_IST).weekday() == 0:
                     from app.marketing import seo_pages
                     from app.platform import team
@@ -1082,7 +1082,7 @@ async def _run_job_inner(job: str) -> bool:
             except Exception:
                 pass
         elif job == "prospect":
-            # NICHE_ROTATION=1 → all-42-niches round-robin (niche_prospector); warna
+            # NICHE_ROTATION=1 -> all-42-niches round-robin (niche_prospector); warna
             # default 4-niche prospector (aaj jaisa). Gated = zero behaviour change.
             import time as _time_prospect
 
@@ -1116,9 +1116,9 @@ async def _run_job_inner(job: str) -> bool:
                 )
             except Exception:
                 pass
-            # Multi-source harvest sweep (websearch/opendata/enrich) — gated
+            # Multi-source harvest sweep (websearch/opendata/enrich) - gated
             # LEAD_HARVESTER=1. MUST stay inside Celery soft-limit (~540s).
-            # 2026-07-20: unbounded GTM×niche_prospector after niche scrape → SoftTimeLimit.
+            # 2026-07-20: unbounded GTM×niche_prospector after niche scrape -> SoftTimeLimit.
             # 2026-08-07 D2: hard outer 120s + inner HARVEST_LOOP_TIMEOUT_S=120 starved
             # opendata/websearch after Places; align one budget (default 240) under remain.
             try:
@@ -1127,7 +1127,7 @@ async def _run_job_inner(job: str) -> bool:
                 _harvest_timeout = post_prospect_harvest_timeout(_remain)
                 if _harvest_timeout is None:
                     logger.warning(
-                        "[team-scheduler] skip harvest after prospect — "
+                        "[team-scheduler] skip harvest after prospect - "
                         f"remain={_remain:.0f}s inline="
                         f"{os.environ.get('PROSPECT_INLINE_HARVEST', '1')!r}"
                     )
@@ -1138,7 +1138,7 @@ async def _run_job_inner(job: str) -> bool:
                     _prev_skip = os.environ.get("SKIP_HARVEST_PROSPECTOR_SRC")
                     _prev_hlt = os.environ.get("HARVEST_LOOP_TIMEOUT_S")
                     os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = "1"
-                    # Drive the wrapper's own wait_for — do not double-cap below it.
+                    # Drive the wrapper's own wait_for - do not double-cap below it.
                     os.environ["HARVEST_LOOP_TIMEOUT_S"] = str(int(_harvest_timeout))
                     try:
                         _h = await harvest_safety_wrapper.run_harvest_loop_safe()
@@ -1210,13 +1210,13 @@ async def _run_job_inner(job: str) -> bool:
                 pass
         elif job == "watchdog":
             # HARDENING (audit 2026-07-07): pehle ye 9 critical safety-net checks EK
-            # unguarded chain me the — pehla throw (e.g. ops_watchdog network hiccup)
+            # unguarded chain me the - pehla throw (e.g. ops_watchdog network hiccup)
             # baaki SAB skip kar deta tha, INCLUDING dead-man alert (automation_health.
             # run_watch), self_improve revive aur dlq_retry. Matlab ek asambandhit
             # sub-check failure poore safety-net ko us ghante ke liye chup kar sakta tha.
-            # Ab har async check `_run_content_engine` se ISOLATED (W1.3 pattern) — ek
+            # Ab har async check `_run_content_engine` se ISOLATED (W1.3 pattern) - ek
             # fail hone par logged + contained, baaki checks (khaas kar dead-man + revive)
-            # phir bhi chalte. Order preserve — behaviour same, resilience upgrade.
+            # phir bhi chalte. Order preserve - behaviour same, resilience upgrade.
             from app.platform import ops_watchdog
 
             await _run_content_engine("ops_watchdog", ops_watchdog.run_watchdog())
@@ -1283,7 +1283,7 @@ async def _run_job_inner(job: str) -> bool:
                 self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP
                 sirf Celery enqueue, inline kabhi nahi)
             except Exception as _si_e:
-                # SYNC call — _run_content_engine (await) nahi chalega. Loud warn (pass NAHI):
+                # SYNC call - _run_content_engine (await) nahi chalega. Loud warn (pass NAHI):
                 # revive safety-net ka failure chhupana nahi chahiye.
                 logger.warning(
                     f"[team-scheduler] watchdog self_improve.ensure_alive failed: {_si_e}"
@@ -1291,13 +1291,13 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 from app.agents import process_engine
 
-                process_engine.ensure_alive()  # stale RUNNING workflows → process_tick revive
+                process_engine.ensure_alive()  # stale RUNNING workflows -> process_tick revive
             except Exception:
                 pass
             try:
                 from app.agents import dag_engine
 
-                dag_engine.ensure_alive()  # stale RUNNING dag flows → process_tick revive (separate index, no double-revive)
+                dag_engine.ensure_alive()  # stale RUNNING dag flows -> process_tick revive (separate index, no double-revive)
             except Exception:
                 pass
             try:
@@ -1385,9 +1385,9 @@ async def _run_job_inner(job: str) -> bool:
 
             await kb_refresh.run_weekly_if_enabled()
         elif job == "midday_prospect":
-            # 2nd daily lead-supply pass — FREE harvest (websearch/opendata/enrich),
+            # 2nd daily lead-supply pass - FREE harvest (websearch/opendata/enrich),
             # different niche/city rotation than 09:30 prospect. Gated MIDDAY_PROSPECT
-            # (default ON; no paid Places API — lead_harvester respects LEAD_HARVESTER).
+            # (default ON; no paid Places API - lead_harvester respects LEAD_HARVESTER).
             # Uses safety wrapper for P1 pool cleanup (2026-07-11).
             if os.environ.get("MIDDAY_PROSPECT", "1").strip().lower() in ("1", "true", "yes"):
                 from app.platform import team
@@ -1403,9 +1403,9 @@ async def _run_job_inner(job: str) -> bool:
                     )
         elif job == "platform_dial":
             # Own-product outbound (2026-07-02): Product-2 voice agent Product-1 bechta
-            # hai — daily batch of AI cold-calls with the ai_marketing platform pitch.
+            # hai - daily batch of AI cold-calls with the ai_marketing platform pitch.
             # Gated PLATFORM_DIAL_DAILY env OR data/platform_dial.json (default OFF;
-            # env "0" = hard kill-switch — see app/platform/platform_dial.py).
+            # env "0" = hard kill-switch - see app/platform/platform_dial.py).
             # Single-flight = the SAME campaign lock the admin launch uses (double-dial
             # impossible); TRAI window / DND / readiness gates enforce inside
             # run_campaign_task + VobizClient per call.
@@ -1425,7 +1425,7 @@ async def _run_job_inner(job: str) -> bool:
                     team.log_event(
                         "swara",
                         "platform_campaign",
-                        "⏸️ daily self-sale dial skipped — ek campaign pehle se chal rahi",
+                        "⏸️ daily self-sale dial skipped - ek campaign pehle se chal rahi",
                         status="warn",
                     )
                 elif acquire_campaign_lock(ttl_s=max(400, _limit * 8 + 120)):
@@ -1452,11 +1452,11 @@ async def _run_job_inner(job: str) -> bool:
                         team.log_event(
                             "swara",
                             "platform_campaign",
-                            f"📞 Swara ki daily self-sale campaign queue hui — {_limit} calls (niche={_dial_niche})",
+                            f"📞 Swara ki daily self-sale campaign queue hui - {_limit} calls (niche={_dial_niche})",
                             status="ok",
                         )
                     except Exception:
-                        # enqueue fail → lock turant chhodo, warna TTL tak manual launch bhi blocked
+                        # enqueue fail -> lock turant chhodo, warna TTL tak manual launch bhi blocked
                         release_campaign_lock()
                         raise
         elif job == "evening_wrap":
@@ -1480,7 +1480,7 @@ async def _run_job_inner(job: str) -> bool:
             from app.marketing import product_one_delivery
 
             # Product 1 Customer Deliverability layer (2026-07-08): Customer
-            # Health + Approval Reminder + SLA Recovery combined sweep — read
+            # Health + Approval Reminder + SLA Recovery combined sweep - read
             # from delivery_ledger/content/approval stores, idempotent
             # ledger writes only, never sends WhatsApp/email. Ungated
             # safety-net (same convention as watchdog/onboard).
@@ -1493,7 +1493,7 @@ async def _run_job_inner(job: str) -> bool:
             # WHY: initialize_deliverables_for_client is called ONLY from
             # billing/usage.py on plan activation, so nothing ever creates the
             # NEXT month's rows. Prod held 20 rows, all 2026-07, newest created
-            # 2026-07-18 — the paying customer was 30+ days into a paid month
+            # 2026-07-18 - the paying customer was 30+ days into a paid month
             # with no current-cycle ledger for sync_customer_deliverable_status
             # to attach to. DB rows only; no content generation, no sends.
             if product_one_delivery.cycle_seed_enabled():
@@ -1514,18 +1514,18 @@ async def _run_job_inner(job: str) -> bool:
 
             # Expired claim-lease close-out. `stale_tasks()` only SURFACES stuck work by
             # design, so a worker that dies mid-task strands its lease forever. INERT
-            # unless AGENT_TASK_LEASE_REAP=1 — "surface, don't auto-fix" stays default.
+            # unless AGENT_TASK_LEASE_REAP=1 - "surface, don't auto-fix" stays default.
             # TERMINAL only (marks failed, never requeues): complete()/fail() don't guard
             # on checkout_version, so a requeue could double-run this job's side effects.
             # No sends, no customer mutation.
             if _atq.lease_reap_enabled():
                 _reaped = await _atq.reap_stale_leases(dry_run=False)
                 logger.info(f"[team-scheduler] task_lease_reap: {_reaped}")
-            # Orphan-ledger sweep — DISJOINT population from the lease reap
+            # Orphan-ledger sweep - DISJOINT population from the lease reap
             # above (pending + claimed_at IS NULL, which that predicate cannot
             # match on either clause). Separate gate AGENT_TASK_ORPHAN_REAP=1;
             # bounded, backed up to JSONL first, closed as `cancelled` (they did
-            # not fail — automation_logs holds the real outcome), never requeued.
+            # not fail - automation_logs holds the real outcome), never requeued.
             if _atq.orphan_reap_enabled():
                 _orph = await _atq.reap_orphan_routines(dry_run=False)
                 logger.info(f"[team-scheduler] task_orphan_reap: {_orph}")
@@ -1540,27 +1540,27 @@ async def _run_job_inner(job: str) -> bool:
             # DAILY per-client video producer. Its own job on purpose: inside the
             # `content` chain it sat behind auto_content under CONTENT_TIME_BUDGET_S
             # and got silently budget-skipped (prod: 15-day generation gap on a
-            # 5-day interval). LIGHT — enqueues to the video queue, never renders.
+            # 5-day interval). LIGHT - enqueues to the video queue, never renders.
             # Gated DAILY_VIDEO_ENABLED + fail-closed DAILY_VIDEO_CLIENTS allowlist.
             from app.marketing import daily_video
 
             await daily_video.run_daily()
         elif job == "hq_auto_chase":
-            # Hot Queue auto-chase — unactioned inquiry cards pe automated EMAIL
+            # Hot Queue auto-chase - unactioned inquiry cards pe automated EMAIL
             # follow-up. INERT unless HQ_AUTO_CHASE=1 (run_auto_chase no-ops).
             # Email-only: WhatsApp/call remain owner 1-click human (ban-safety).
             from app.platform import hq_auto_chase as _hqc
 
             await _hqc.run_auto_chase()
         elif job == "reply_auto_send":
-            # Safe known-prospect auto-reply sweep — DECOUPLED from IMAP triage
+            # Safe known-prospect auto-reply sweep - DECOUPLED from IMAP triage
             # so replies still go out even if IMAP is down/gated. INERT unless
             # REPLY_AUTO_SEND=1 (+ HARD_OFF override checked inside).
             from app.platform import reply_agent as _reply_agent
 
             await _reply_agent.run_auto_reply_backlog()
         elif job == "content_approval_sweep":
-            # Orphaned-pending approval retirement — dry_run by default (reports
+            # Orphaned-pending approval retirement - dry_run by default (reports
             # counts, writes nothing). CONTENT_APPROVAL_SWEEP_LIVE=1 actuates the
             # write. Clears dead-client pendings (prod: 321 of 422).
             from app.marketing import content_approval as _ca
@@ -1598,12 +1598,12 @@ async def _run_job_inner(job: str) -> bool:
 
             flow_triggers.run_cron_due()  # sync, never-raise, self-gated (FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
         elif job == "standup":
-            # Boss daily standup — hierarchical team coordination (gated AGENT_STANDUP).
+            # Boss daily standup - hierarchical team coordination (gated AGENT_STANDUP).
             if os.environ.get("AGENT_STANDUP", "0").strip().lower() in ("1", "true", "yes"):
                 from app.agents import coordinator
 
                 await coordinator.coordinate_hierarchical(
-                    "Aaj ka team plan: growth (naye leads + outreach) aur ops (system health + QA) — "
+                    "Aaj ka team plan: growth (naye leads + outreach) aur ops (system health + QA) - "
                     "priorities aur next-actions nikalo"
                 )
         elif job == "hot_queue_brief":
@@ -1613,7 +1613,7 @@ async def _run_job_inner(job: str) -> bool:
             if result.get("ok") is False:
                 return False
         elif job == "hot_queue_owner_pack":
-            # ADR-OWNER-1: 09:00 IST daily — build CSV+MD from hot_queue + ntfy push
+            # ADR-OWNER-1: 09:00 IST daily - build CSV+MD from hot_queue + ntfy push
             from app.platform import hot_queue_owner_pack as _hqop
 
             r = await _hqop.build_owner_pack(limit=200, push_ntfy=True)
@@ -1635,12 +1635,12 @@ async def _run_job_inner(job: str) -> bool:
                 await revenue_snapshots.snapshot_today()
         elif job == "gsc_rank":
             # SEO rank observability: daily Search Console snapshot (free API).
-            # INERT — job body no-ops unless GSC_ENABLED=1 + service-account creds.
+            # INERT - job body no-ops unless GSC_ENABLED=1 + service-account creds.
             from app.integrations import gsc
 
             await gsc.run_daily_async()
         elif job == "trial_nudge":
-            # Trial-to-paid nudge — expiring/expired trials ko Starter UPI link
+            # Trial-to-paid nudge - expiring/expired trials ko Starter UPI link
             # email (BLK-02 2026-08-23). INERT unless TRIAL_NUDGE_ENABLED=1
             # (job body no-ops; TRIAL_NUDGE_HARD_OFF=1 always blocks).
             # Email-only: WhatsApp text sirf OWNER 1-click human ke liye.
@@ -1653,7 +1653,7 @@ async def _run_job_inner(job: str) -> bool:
 
             await asyncio.to_thread(run_whatsapp_automation)
         elif job == "afternoon_content":
-            # 2nd daily content-generation pass (afternoon) — Isha extra social
+            # 2nd daily content-generation pass (afternoon) - Isha extra social
             # batch (self + clients). Gated AFTERNOON_CONTENT (default OFF; LLM cost).
             # FOCUSED: sirf content-gen (full marketing bundle 07:00 'content' job me).
             if os.environ.get("AFTERNOON_CONTENT", "0").strip().lower() in ("1", "true", "yes"):
@@ -1668,7 +1668,7 @@ async def _run_job_inner(job: str) -> bool:
                     status="ok",
                 )
         elif job == "evening_prospect":
-            # 3rd daily FREE lead-supply pass (evening) — extra niche/city rotation
+            # 3rd daily FREE lead-supply pass (evening) - extra niche/city rotation
             # via lead_harvester (websearch/opendata/enrich, no paid Places API).
             # Gated EVENING_PROSPECT (default OFF; LEAD_HARVESTER bhi on hona chahiye).
             # Uses safety wrapper for P1 pool cleanup (2026-07-11).
@@ -1685,7 +1685,7 @@ async def _run_job_inner(job: str) -> bool:
                         status="ok",
                     )
     except Exception as e:
-        # W1.2: job-level failure ko SWALLOW mat karo — return False taaki caller
+        # W1.2: job-level failure ko SWALLOW mat karo - return False taaki caller
         # (_run_job) dead-man switch me real status (ok=False) record kare. Warna
         # har run "success" record hota raha aur overdue-alert kabhi fire nahi karta.
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
@@ -1695,7 +1695,7 @@ async def _run_job_inner(job: str) -> bool:
 
 async def scheduler_loop() -> None:
     logger.info("[team-scheduler] loop started (growth 15min + dailies)")
-    # W1.7: persisted last-run markers boot pe load — MUST boot-grace se PEHLE chale
+    # W1.7: persisted last-run markers boot pe load - MUST boot-grace se PEHLE chale
     # (warna load boot-grace ke in-window skip-marks ko stale values se overwrite karke
     # heavy job ko boot pe chala dega = prod-000 boot-storm). Reorder mat karo.
     _load_last_ran()
@@ -1703,7 +1703,7 @@ async def scheduler_loop() -> None:
     while True:
         _snap = dict(_last_ran)  # W1.7: tick ke baad koi marker badla to persist karenge
         try:
-            _refresh_lock()  # heartbeat — owner zinda hai
+            _refresh_lock()  # heartbeat - owner zinda hai
             now = datetime.now(_IST)
             hour_key = now.strftime("%Y-%m-%d %H")
             day_key = now.strftime("%Y-%m-%d")
@@ -1757,7 +1757,7 @@ async def scheduler_loop() -> None:
                 _last_ran["growth"] = slot_key
                 await _run_job("growth")
 
-            # Flow Runner cron scan — 5-min slot (in-process / rollback path; durable = beat)
+            # Flow Runner cron scan - 5-min slot (in-process / rollback path; durable = beat)
             fc_min = (now.minute // 5) * 5
             fc_slot = now.strftime("%Y-%m-%d %H:") + f"{fc_min:02d}"
             if _last_ran.get("flow_cron") != fc_slot:
@@ -1819,19 +1819,19 @@ async def scheduler_loop() -> None:
             ):
                 _last_ran["email_followup"] = _email_hour_key
                 await _run_job("email_followup")
-            # 11:30–12:30 IST — daily self-sale AI cold-call batch. Gated PLATFORM_DIAL_DAILY.
+            # 11:30–12:30 IST - daily self-sale AI cold-call batch. Gated PLATFORM_DIAL_DAILY.
             if (11, 30) <= hm < (12, 30) and _last_ran["platform_dial"] != day_key:
                 _last_ran["platform_dial"] = day_key
                 await _run_job("platform_dial")
-            # 14:30–15:30 IST — 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
+            # 14:30–15:30 IST - 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
             if (14, 30) <= hm < (15, 30) and _last_ran["midday_prospect"] != day_key:
                 _last_ran["midday_prospect"] = day_key
                 await _run_job("midday_prospect")
-            # 15:00–16:00 IST — 2nd content-gen pass (Isha). Gated AFTERNOON_CONTENT.
+            # 15:00–16:00 IST - 2nd content-gen pass (Isha). Gated AFTERNOON_CONTENT.
             if (15, 0) <= hm < (16, 0) and _last_ran["afternoon_content"] != day_key:
                 _last_ran["afternoon_content"] = day_key
                 await _run_job("afternoon_content")
-            # 17:00–18:00 IST — 3rd FREE lead-harvest pass (Rohan). Gated EVENING_PROSPECT.
+            # 17:00–18:00 IST - 3rd FREE lead-harvest pass (Rohan). Gated EVENING_PROSPECT.
             if (17, 0) <= hm < (18, 0) and _last_ran["evening_prospect"] != day_key:
                 _last_ran["evening_prospect"] = day_key
                 await _run_job("evening_prospect")
@@ -1855,7 +1855,7 @@ async def scheduler_loop() -> None:
             ):
                 _last_ran["saturday_hygiene"] = day_key
                 await _run_job("saturday_hygiene")
-            # Sunday 05:00–06:30 IST — weekly KB contextual re-ingest (gated).
+            # Sunday 05:00–06:30 IST - weekly KB contextual re-ingest (gated).
             week_key = now.strftime("%Y-W%W")
             if (
                 now.weekday() == 6
@@ -1864,31 +1864,31 @@ async def scheduler_loop() -> None:
             ):
                 _last_ran["kb_refresh"] = week_key
                 await _run_job("kb_refresh")
-            # AI reply triage — hourly (read inbox replies, classify, draft). Gated by REPLY_AGENT.
+            # AI reply triage - hourly (read inbox replies, classify, draft). Gated by REPLY_AGENT.
             if now.minute >= 20 and _last_ran["reply_triage"] != hour_key:
                 _last_ran["reply_triage"] = hour_key
                 await _run_job("reply_triage")
-            # AI ops watchdog — hourly (monitor + diagnose + alert). Gated by OPS_WATCHDOG.
+            # AI ops watchdog - hourly (monitor + diagnose + alert). Gated by OPS_WATCHDOG.
             if now.minute >= 35 and _last_ran["watchdog"] != hour_key:
                 _last_ran["watchdog"] = hour_key
                 await _run_job("watchdog")
-            # Auto client onboarding — hourly sweep (un-setup active clients). Gated AUTO_ONBOARD.
+            # Auto client onboarding - hourly sweep (un-setup active clients). Gated AUTO_ONBOARD.
             if now.minute >= 50 and _last_ran["onboard"] != hour_key:
                 _last_ran["onboard"] = hour_key
                 await _run_job("onboard")
-            # Obsidian nightly push — 02:15–03:00 IST (INERT unless OBSIDIAN_SYNC=1).
+            # Obsidian nightly push - 02:15–03:00 IST (INERT unless OBSIDIAN_SYNC=1).
             if (2, 15) <= hm < (3, 0) and _last_ran.get("obsidian_push") != day_key:
                 _last_ran["obsidian_push"] = day_key
                 await _run_job("obsidian_push")
-            # SP1 billing meter-failure watcher — hourly :55 (INERT unless METER_ALERTS=1).
+            # SP1 billing meter-failure watcher - hourly :55 (INERT unless METER_ALERTS=1).
             if now.minute >= 55 and _last_ran.get("meter_watch") != hour_key:
                 _last_ran["meter_watch"] = hour_key
                 await _run_job("meter_watch")
-            # Product 1 Customer Health + Approval Reminder + SLA Recovery sweep — hourly :20.
+            # Product 1 Customer Health + Approval Reminder + SLA Recovery sweep - hourly :20.
             if now.minute >= 20 and _last_ran.get("product_one_health") != hour_key:
                 _last_ran["product_one_health"] = hour_key
                 await _run_job("product_one_health")
-            # Renewal reminders — private day-key (NOT _last_ran / STAFF_JOBS).
+            # Renewal reminders - private day-key (NOT _last_ran / STAFF_JOBS).
             # Body no-ops when DUNNING_ENGINE covers renewals. Celery prod
             # (RUN_IN_PROCESS_SCHEDULER=0) never enters this loop.
             global _renewal_reminders_day
@@ -1900,73 +1900,73 @@ async def scheduler_loop() -> None:
                     await dunning.send_renewal_reminders()
                 except Exception:
                     pass
-            # Bounded pending-approval EMAIL sweep — hourly :40 (INERT unless APPROVAL_EMAIL_NOTIFY=1).
+            # Bounded pending-approval EMAIL sweep - hourly :40 (INERT unless APPROVAL_EMAIL_NOTIFY=1).
             if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
                 _last_ran["approval_email_sweep"] = hour_key
                 await _run_job("approval_email_sweep")
             if now.minute >= 25 and _last_ran.get("sales_autopilot") != hour_key:
                 _last_ran["sales_autopilot"] = hour_key
                 await _run_job("sales_autopilot")
-            # Hot Queue auto-chase — hourly :28 (INERT unless HQ_AUTO_CHASE=1).
+            # Hot Queue auto-chase - hourly :28 (INERT unless HQ_AUTO_CHASE=1).
             if now.minute >= 28 and _last_ran.get("hq_auto_chase") != hour_key:
                 _last_ran["hq_auto_chase"] = hour_key
                 await _run_job("hq_auto_chase")
-            # Safe known-prospect auto-reply — hourly :30 (INERT unless REPLY_AUTO_SEND=1).
+            # Safe known-prospect auto-reply - hourly :30 (INERT unless REPLY_AUTO_SEND=1).
             if now.minute >= 30 and _last_ran.get("reply_auto_send") != hour_key:
                 _last_ran["reply_auto_send"] = hour_key
                 await _run_job("reply_auto_send")
-            # Orphaned-pending approval retirement — daily 04:30 (dry_run default;
+            # Orphaned-pending approval retirement - daily 04:30 (dry_run default;
             # CONTENT_APPROVAL_SWEEP_LIVE=1 actuates writes).
             if (4, 30) <= hm < (5, 30) and _last_ran.get("content_approval_sweep") != day_key:
                 _last_ran["content_approval_sweep"] = day_key
                 await _run_job("content_approval_sweep")
-            # Daily owner brief + ntfy push — 08:10 IST (gated DAILY_OWNER_BRIEF_NTFY).
+            # Daily owner brief + ntfy push - 08:10 IST (gated DAILY_OWNER_BRIEF_NTFY).
             if (8, 10) <= hm < (9, 10) and _last_ran.get("daily_owner_brief") != day_key:
                 _last_ran["daily_owner_brief"] = day_key
                 await _run_job("daily_owner_brief")
-            # Expired agent-task lease reclaim — hourly :05 (INERT unless AGENT_TASK_LEASE_REAP=1).
+            # Expired agent-task lease reclaim - hourly :05 (INERT unless AGENT_TASK_LEASE_REAP=1).
             if now.minute >= 5 and _last_ran.get("task_lease_reap") != hour_key:
                 _last_ran["task_lease_reap"] = hour_key
                 await _run_job("task_lease_reap")
-            # Native social queue drain — hourly :10 (INERT unless SOCIAL_ENGINE=1).
+            # Native social queue drain - hourly :10 (INERT unless SOCIAL_ENGINE=1).
             if now.minute >= 10 and _last_ran.get("social_drain") != hour_key:
                 _last_ran["social_drain"] = hour_key
                 await _run_job("social_drain")
-            # D V1.1 process-engine auto-start — daily 11:30–13:00 IST (INERT unless PROCESS_AUTOSTART=1).
+            # D V1.1 process-engine auto-start - daily 11:30–13:00 IST (INERT unless PROCESS_AUTOSTART=1).
             if (11, 30) <= hm < (13, 0) and _last_ran.get("process_autostart") != day_key:
                 _last_ran["process_autostart"] = day_key
                 await _run_job("process_autostart")
-            # Boss daily standup — morning hierarchical coordination (gated AGENT_STANDUP).
+            # Boss daily standup - morning hierarchical coordination (gated AGENT_STANDUP).
             if (8, 0) <= hm < (9, 30) and _last_ran["standup"] != day_key:
                 _last_ran["standup"] = day_key
                 await _run_job("standup")
-            # F.5 Pranav SRE — reliability score, hourly (engine INERT unless SRE_AGENT=1).
+            # F.5 Pranav SRE - reliability score, hourly (engine INERT unless SRE_AGENT=1).
             if now.minute >= 45 and _last_ran["engineer_sre"] != hour_key:
                 _last_ran["engineer_sre"] = hour_key
                 await _run_job("engineer_sre")
-            # council 2026-06-26: Arya MCP Engineer — hourly :40 health pulse
+            # council 2026-06-26: Arya MCP Engineer - hourly :40 health pulse
             # (engine INERT unless MCP_ENGINEER=1). Offset from :45 (Pranav SRE)
             # so they don't slam the same minute on the in-process scheduler.
             if now.minute >= 40 and _last_ran.get("mcp_engineer") != hour_key:
                 _last_ran["mcp_engineer"] = hour_key
                 await _run_job("mcp_engineer")
-            # F.5 Vidya FinOps — daily morning margin score (engine INERT unless FINOPS_AGENT=1).
+            # F.5 Vidya FinOps - daily morning margin score (engine INERT unless FINOPS_AGENT=1).
             if (9, 0) <= hm < (10, 0) and _last_ran["engineer_finops"] != day_key:
                 _last_ran["engineer_finops"] = day_key
                 await _run_job("engineer_finops")
-            # F.5 Arnav Security — daily morning compliance posture (engine INERT unless SECURITY_AGENT=1).
+            # F.5 Arnav Security - daily morning compliance posture (engine INERT unless SECURITY_AGENT=1).
             if (9, 30) <= hm < (10, 30) and _last_ran["engineer_security"] != day_key:
                 _last_ran["engineer_security"] = day_key
                 await _run_job("engineer_security")
-            # council: Kabir DB reliability — daily 10:00 (engine INERT unless DBRE_AGENT=1).
+            # council: Kabir DB reliability - daily 10:00 (engine INERT unless DBRE_AGENT=1).
             if (10, 0) <= hm < (11, 0) and _last_ran.get("engineer_dbre") != day_key:
                 _last_ran["engineer_dbre"] = day_key
                 await _run_job("engineer_dbre")
-            # council: Diya lead/CRM data integrity — daily 10:30 (engine INERT unless DATA_INTEGRITY_AGENT=1).
+            # council: Diya lead/CRM data integrity - daily 10:30 (engine INERT unless DATA_INTEGRITY_AGENT=1).
             if (10, 30) <= hm < (11, 30) and _last_ran.get("engineer_dataquality") != day_key:
                 _last_ran["engineer_dataquality"] = day_key
                 await _run_job("engineer_dataquality")
-            # council: Aryan dependency CVE audit — weekly Sun 04:30 (engine INERT unless DEPS_AGENT=1).
+            # council: Aryan dependency CVE audit - weekly Sun 04:30 (engine INERT unless DEPS_AGENT=1).
             if (
                 now.weekday() == 6
                 and (4, 30) <= hm < (5, 0)
@@ -1974,7 +1974,7 @@ async def scheduler_loop() -> None:
             ):
                 _last_ran["engineer_deps"] = week_key
                 await _run_job("engineer_deps")
-            # G.3 daily activation-readiness digest — quiet ntfy unless BLOCKER present.
+            # G.3 daily activation-readiness digest - quiet ntfy unless BLOCKER present.
             if (8, 30) <= hm < (9, 30) and _last_ran["readiness_digest"] != day_key:
                 _last_ran["readiness_digest"] = day_key
                 await _run_job("readiness_digest")
@@ -1983,7 +1983,7 @@ async def scheduler_loop() -> None:
             raise
         except Exception as e:
             logger.warning(f"[team-scheduler] tick failed: {e}")
-        if _last_ran != _snap:  # W1.7: is tick me koi marker badla → disk pe persist
+        if _last_ran != _snap:  # W1.7: is tick me koi marker badla -> disk pe persist
             _save_last_ran()
         await asyncio.sleep(_TICK_S)
 
@@ -2000,12 +2000,12 @@ def start_scheduler() -> asyncio.Task[Any] | None:
         except Exception:
             flag = os.environ.get("TEAM_AUTOMATION", "1")
         if flag.strip() == "0":
-            logger.info("[team-scheduler] TEAM_AUTOMATION=0 — scheduler OFF")
+            logger.info("[team-scheduler] TEAM_AUTOMATION=0 - scheduler OFF")
             return None
         # Single-instance: sirf EK worker scheduler chalaye (warna double jobs).
         if not _acquire_lock():
             logger.info(
-                "[team-scheduler] another worker owns the scheduler — skip (single-instance)"
+                "[team-scheduler] another worker owns the scheduler - skip (single-instance)"
             )
             return None
         task = asyncio.create_task(scheduler_loop(), name="team-scheduler")

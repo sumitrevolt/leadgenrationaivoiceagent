@@ -12,7 +12,7 @@ Nothing ever performed that transition, so an order stayed payable forever:
                                       -> second GST invoice
 
 These tests pin the terminal transition and the fail-closed replay refusal that
-depends on it. Reject must NOT close the order — the money never arrived, so a
+depends on it. Reject must NOT close the order - the money never arrived, so a
 prospect who really does pay still needs a payable reference.
 """
 
@@ -61,7 +61,7 @@ def test_paid_order_cannot_be_submitted_again(env):
 
     assert replay["ok"] is False
     assert "already_paid" in replay["error"]
-    # Exactly one payment row for this order — no second activation candidate.
+    # Exactly one payment row for this order - no second activation candidate.
     bound = [r for r in upi.list_payments() if r.get("order_ref") == o["order_ref"]]
     assert len(bound) == 1
 

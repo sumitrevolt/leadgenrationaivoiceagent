@@ -1,4 +1,4 @@
-"""ADR-104 Phase A4.2 — niche-scoped KB seeding (leaf loader).
+"""ADR-104 Phase A4.2 - niche-scoped KB seeding (leaf loader).
 
 Ye tests wo exact production defect pakadte hain: 4-niche QA run ne SAARE 39
 niches seed kar diye the (`studying_abroad` samet, jo maanga hi nahi gaya tha),
@@ -8,7 +8,7 @@ Backward-compat sabse zaroori hai: `bootstrap_default_kb()` ke 4 non-voice
 caller (supervisor / api.data / agent_provisioner) bilkul waise hi chalein.
 
 NOTE (test-writing me mila, code-verified): har niche ke facts DO jagah jaate
-hain — uske apne namespace me AUR `_global` me (source=`niche:<key>`). Isliye
+hain - uske apne namespace me AUR `_global` me (source=`niche:<key>`). Isliye
 scoped-seed assertions me `_global` ko ignore karke dekha jaata hai ki koi
 DOOSRA niche-namespace to nahi chhua.
 """
@@ -18,7 +18,7 @@ import pytest
 from app.voice_agent import kb_loader
 
 # Real NICHES keys (verified: catalog me 39 hain). `real_estate` JAAN-BOOJH KE
-# nahi use kiya — wo QA ka default target hai par NICHES catalog me hai hi nahi.
+# nahi use kiya - wo QA ka default target hai par NICHES catalog me hai hi nahi.
 NICHE_A = "insurance"
 NICHE_B = "solar_residential"
 NICHE_C = "ai_marketing"
@@ -26,7 +26,7 @@ NICHE_D = "interior_designers"
 
 
 class FakeKB:
-    """add_documents ko record karta hai — koi real embed/upsert nahi."""
+    """add_documents ko record karta hai - koi real embed/upsert nahi."""
 
     def __init__(self):
         self.calls = []  # (source, namespace, n_docs)
@@ -43,7 +43,7 @@ class FakeKB:
         return {ns for _, ns, _ in self.calls}
 
     def niche_namespaces_touched(self):
-        """`_global` chhod ke — kaunse niche namespaces chhue gaye."""
+        """`_global` chhod ke - kaunse niche namespaces chhue gaye."""
         return {ns for _, ns, _ in self.calls if ns != "_global"}
 
     def sources_touched(self):
@@ -57,7 +57,7 @@ def _all_niche_keys():
 
 
 def test_niches_catalog_includes_studying_abroad():
-    """`studying_abroad` prod me bina maange seed hua tha — membership pin karo.
+    """`studying_abroad` prod me bina maange seed hua tha - membership pin karo.
 
     SIZE assert MAT karo: local repo me 39 keys the par production container me 42
     nikle (same code lineage) => NICHES runtime pe extend hota hai. Exact count pe
@@ -110,7 +110,7 @@ def test_scoped_seed_skips_global_business_faqs():
     """Scoped seed common business FAQs (niche-data nahi) skip kare.
 
     `_global` phir bhi chhuta hai kyunki niche ke apne facts wahan bhi jaate
-    hain (source=`niche:<key>`) — wo scoped kaam ka hissa hai, extra fan-out nahi.
+    hain (source=`niche:<key>`) - wo scoped kaam ka hissa hai, extra fan-out nahi.
     """
     kb = FakeKB()
     kb_loader.load_niche_faqs(kb, only=NICHE_A)
@@ -152,7 +152,7 @@ def test_seed_niche_returns_redacted_structured_result():
     assert r["chunks"] > 0
     assert r["error_class"] is None
     assert isinstance(r["duration_s"], float)
-    # sirf safe operational keys — koi doc text / prompt / customer data nahi
+    # sirf safe operational keys - koi doc text / prompt / customer data nahi
     assert set(r) == {"niche", "ok", "chunks", "duration_s", "error_class"}
     assert kb.niche_namespaces_touched() == {NICHE_A}
 

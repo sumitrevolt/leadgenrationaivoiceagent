@@ -1,4 +1,4 @@
-"""verify_mcp_engineer.py — smoke verify the MCP overhaul (council 2026-06-26).
+"""verify_mcp_engineer.py - smoke verify the MCP overhaul (council 2026-06-26).
 
 Run from project root:
     python scripts/verify_mcp_engineer.py

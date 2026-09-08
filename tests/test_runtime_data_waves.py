@@ -1,4 +1,4 @@
-"""Cross-wave registry ratchet — one exact-global assertion for all waves.
+"""Cross-wave registry ratchet - one exact-global assertion for all waves.
 
 Lives next to ``runtime_data_waves.py`` so a new wave does not have to move
 the exact-global test into a new file. Each wave's own ratchet keeps a subset
@@ -23,7 +23,7 @@ def test_moved_set_equals_union_of_every_declared_wave():
 
 
 def test_registry_is_non_vacuous_against_manifest():
-    """Registry must agree with the manifest — not merely restate it.
+    """Registry must agree with the manifest - not merely restate it.
 
     * every declared id must exist as a manifest row;
     * every manifest row whose state says it has moved must appear in
@@ -54,7 +54,7 @@ def test_registry_is_non_vacuous_against_manifest():
 
 
 def test_blocking_store_count_is_still_pinned():
-    """Host cutover complete — blockers cleared (EXPECTED_BLOCKERS=0)."""
+    """Host cutover complete - blockers cleared (EXPECTED_BLOCKERS=0)."""
     blocking = manifest.blocking_stores()
     assert len(blocking) == EXPECTED_BLOCKERS, sorted(s["store_id"] for s in blocking)
     assert not blocking

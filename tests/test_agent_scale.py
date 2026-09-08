@@ -1,4 +1,4 @@
-"""Tests — agent-scale power features (batch harness + code_exec + browser_tools).
+"""Tests - agent-scale power features (batch harness + code_exec + browser_tools).
 
 Hermetic, pure-python: koi real subprocess of arbitrary code, koi network, koi real
 browser NAHI. Power-features (code_exec/browser) ka GATED-OFF path test hota (disabled
@@ -63,7 +63,7 @@ def test_batch_resume_skips_done_indices(tmp_path, monkeypatch):
     assert res1["done"] == 3
     first_calls = calls["n"]
 
-    # second run, SAME ckpt_id → all skipped, fn not re-invoked
+    # second run, SAME ckpt_id -> all skipped, fn not re-invoked
     res2 = asyncio.run(bh.run_batch(fn, [1, 2, 3], concurrency=2, ckpt_id="resume1"))
     assert res2["skipped"] == 3
     assert res2["done"] == 0
@@ -107,7 +107,7 @@ def test_code_exec_disabled_by_default_runs_nothing(monkeypatch):
 
     monkeypatch.delenv("CODE_EXEC", raising=False)
     assert code_exec.enabled() is False
-    # Even a script that WOULD have side-effects must NOT run — disabled returns early.
+    # Even a script that WOULD have side-effects must NOT run - disabled returns early.
     res = asyncio.run(code_exec.execute("import os\n    os.system('echo hi')"))
     assert res["ok"] is False
     assert res["error"] == "disabled"
@@ -139,13 +139,13 @@ def test_browser_disabled_by_default(monkeypatch):
 
 
 def test_browser_enabled_but_no_playwright_is_graceful(monkeypatch):
-    """Flag ON par bhi playwright import fail → graceful, NO real browser launch."""
+    """Flag ON par bhi playwright import fail -> graceful, NO real browser launch."""
     import builtins
 
     from app.agents import browser_tools
 
     monkeypatch.setenv("BROWSER_TOOLS", "1")
-    # SSRF guard offline DNS-fail pe fail-closed block karta — is test ka target
+    # SSRF guard offline DNS-fail pe fail-closed block karta - is test ka target
     # playwright-missing path hai; guard ka apna suite hai (test_browser_tools_ssrf).
     monkeypatch.setattr(browser_tools, "_url_is_safe", lambda url: True)
     real_import = builtins.__import__

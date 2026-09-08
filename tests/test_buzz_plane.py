@@ -1,7 +1,7 @@
 """Buzz coding-agent plane: file locks + the cost/quota rollup.
 
 Both scripts are operator tools that run on a dirty tree while several harnesses
-edit it. The failures they guard against have already happened once each — a
+edit it. The failures they guard against have already happened once each - a
 crash on a fresh checkout, and a tool editing a file another tool held.
 """
 
@@ -42,7 +42,7 @@ def locks(tmp_path, monkeypatch):
 
 
 def test_every_declared_tool_can_claim(locks):
-    """Smoke only — this iterates TOOLS, so it passes for anything added.
+    """Smoke only - this iterates TOOLS, so it passes for anything added.
 
     Real coverage is test_multi_harness_tools_are_registered below, which names
     the tools and therefore fails if one is dropped.
@@ -56,7 +56,7 @@ def test_multi_harness_tools_are_registered():
     """Named, so dropping a harness fails here instead of silently un-gating it.
 
     A tool absent from TOOLS can't claim, so it edits the shared tree with no
-    lock at all — the exact failure the registry exists to prevent.
+    lock at all - the exact failure the registry exists to prevent.
     """
     for tool in ("CURSOR", "CLAUDE", "CODEX", "GOOSE", "OPENCODE", "FREEBUFF", "MONKEY"):
         assert tool in buzzlock.TOOLS
@@ -82,7 +82,7 @@ def test_corrupt_registry_fails_loudly(locks):
 
 
 def test_second_tool_is_refused_with_exit_2(locks):
-    """Exit 2 is the contract other tools branch on — not just a warning."""
+    """Exit 2 is the contract other tools branch on - not just a warning."""
     assert buzzlock.cmd_claim(_args(["app/api/billing.py"], "CLAUDE", "adr")) == 0
     rc = buzzlock.cmd_claim(_args(["app/api/billing.py"], "CODEX", "review"))
     assert rc == 2
@@ -102,7 +102,7 @@ def test_usage_errors_exit_1_not_2(locks, monkeypatch, argv):
     """Exit 2 must mean REFUSED and nothing else.
 
     argparse's own default is to exit 2 on usage errors, colliding with the
-    refusal code a caller branches on — a typo'd `--tool` would read as "another
+    refusal code a caller branches on - a typo'd `--tool` would read as "another
     tool holds this file". Found by independent review (canary
     GRID-CANARY-20260809-104317). Usage errors are 1, as the docstring claims.
     """
@@ -163,7 +163,7 @@ def _args(paths=None, tool=None, reason=None, evidence=None):
 # cost rollup
 # --------------------------------------------------------------------------- #
 def test_cost_uses_cache_multipliers_not_flat_input_rate():
-    """Cache writes cost 1.25x and reads 0.1x — a flat rate misprices agent work.
+    """Cache writes cost 1.25x and reads 0.1x - a flat rate misprices agent work.
 
     Agent transcripts are overwhelmingly cache reads, so treating them as full
     input price inflates the estimate by roughly an order of magnitude.
@@ -202,7 +202,7 @@ def test_claude_scan_dedupes_repeated_uuids(tmp_path, monkeypatch):
 
 
 def test_codex_scan_sums_deltas_and_tracks_peak_quota(tmp_path, monkeypatch):
-    """Codex emits a cumulative total AND a per-turn delta — summing totals triples it."""
+    """Codex emits a cumulative total AND a per-turn delta - summing totals triples it."""
     sess = tmp_path / "2026" / "08"
     sess.mkdir(parents=True)
     recs = [
@@ -248,7 +248,7 @@ def test_codex_scan_sums_deltas_and_tracks_peak_quota(tmp_path, monkeypatch):
     day = days["2026-08-08"]
     assert day["output"] == 300  # 100 + 200 deltas, not 100 + 300 totals
     assert day["cache_read"] == 400
-    assert day["input"] == 2600  # (1000-400) + 2000 — cached split out
+    assert day["input"] == 2600  # (1000-400) + 2000 - cached split out
     # A reset drops the latest reading to 3%; the peak is what shows the squeeze.
     assert quota["used_percent"] == 3.0
     assert quota["peak_percent"] == 92.0
@@ -329,7 +329,7 @@ def test_shipped_canvases_are_supersets_of_what_was_published():
 
     dev_had = [
         "# Dev",
-        "Checkout: REPOS/leadgenrationaiagent → Documents/leadgenrationaiagent",
+        "Checkout: REPOS/leadgenrationaiagent -> Documents/leadgenrationaiagent",
         "Context first: docs/context/{CURRENT_STATE,ACTIVE_WORK,SESSION_HANDOFF}.md",
         "No commit/push without owner ask. Swara/voice FROZEN.",
     ]

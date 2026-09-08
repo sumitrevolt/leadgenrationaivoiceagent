@@ -1,12 +1,12 @@
-"""Canonical multi-registry scheduler parity — single source for contract tests.
+"""Canonical multi-registry scheduler parity - single source for contract tests.
 
-Inventories (not identical by design — intentional exceptions below):
-  * STAFF_JOBS          — Celery/in-process executable job IDs
-  * JOB_META            — admin label/cadence/owner
-  * team_scheduler._last_ran — in-process slot markers
-  * EXPECTED_GAP_MIN    — dead-man / automation_health
-  * JOB_INFO            — /app Aaj tab Hinglish labels
-  * Celery beat_schedule staff-* entries → run_staff_job args
+Inventories (not identical by design - intentional exceptions below):
+  * STAFF_JOBS          - Celery/in-process executable job IDs
+  * JOB_META            - admin label/cadence/owner
+  * team_scheduler._last_ran - in-process slot markers
+  * EXPECTED_GAP_MIN    - dead-man / automation_health
+  * JOB_INFO            - /app Aaj tab Hinglish labels
+  * Celery beat_schedule staff-* entries -> run_staff_job args
 
 Do NOT invent a second scheduler. This module only audits wiring.
 """
@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 # ---------------------------------------------------------------------------
-# Intentional exceptions — every non-parity membership needs a reason.
+# Intentional exceptions - every non-parity membership needs a reason.
 # ---------------------------------------------------------------------------
 
 
@@ -90,7 +90,7 @@ CUSTOMER_CONTACT_JOBS: frozenset[str] = frozenset(
         "sales_autopilot",
         "approval_email_sweep",
         "social_drain",
-        "digest",  # internal owner email — still outbound SMTP
+        "digest",  # internal owner email - still outbound SMTP
         "readiness_digest",
         "call_kpi_digest",
         "hq_auto_chase",
@@ -153,7 +153,7 @@ def _staff_beat_map() -> dict[str, list[str]]:
         task = str((entry or {}).get("task") or "")
         args = (entry or {}).get("args") or ()
         if task.endswith("self_improve_tick") or "selfimprove" in str(key).replace("-", ""):
-            # revive beat — not a STAFF_JOB arg
+            # revive beat - not a STAFF_JOB arg
             continue
         if task == "app.tasks.staff_jobs.run_staff_job":
             if not args:
@@ -288,7 +288,7 @@ def beat_task_targets_ok() -> list[str]:
                 problems.append(f"beat '{key}' selfimprove key but unexpected task={task}")
             continue
         if task != "app.tasks.staff_jobs.run_staff_job":
-            # Staff jobs that dispatch via own task (not run_staff_job) — intentional.
+            # Staff jobs that dispatch via own task (not run_staff_job) - intentional.
             if task in _NON_STAFF_RUN_TASKS:
                 continue
             problems.append(f"beat '{key}' task={task} expected run_staff_job")

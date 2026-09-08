@@ -1,4 +1,4 @@
-"""Smoke — lead harvester live. Run: docker exec leadgen_worker python scripts/smoke_harvest.py"""
+"""Smoke - lead harvester live. Run: docker exec leadgen_worker python scripts/smoke_harvest.py"""
 
 from __future__ import annotations
 

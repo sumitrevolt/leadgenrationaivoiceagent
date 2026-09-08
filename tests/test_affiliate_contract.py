@@ -1,6 +1,6 @@
 """Affiliate/referral program contract tests (B1: referral launch).
 
-affiliate.py is the money path (commission on first month) — public register
+affiliate.py is the money path (commission on first month) - public register
 route + admin stats + referral-kit builder must keep their shapes. Pure-file
 stores (data/affiliates.jsonl + data/affiliate_referrals.jsonl), tmp_path
 monkeypatched, no network.
@@ -49,7 +49,7 @@ def test_register_dedupes_by_phone() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# referral_kit — owner ko ek-tap shareable kit
+# referral_kit - owner ko ek-tap shareable kit
 # --------------------------------------------------------------------------- #
 def test_referral_kit_shape() -> None:
     kit = af.referral_kit("Jiya Makeover", "jiya@example.com", "9876543210")

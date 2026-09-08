@@ -1,6 +1,6 @@
 """
 Docker Manager Service
-Wraps docker CLI via subprocess — no docker-py dependency required.
+Wraps docker CLI via subprocess - no docker-py dependency required.
 All methods return structured dicts
 callers handle HTTP concerns.
 """

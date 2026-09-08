@@ -1,11 +1,11 @@
-"""OPS-008 — read-only ops API key.
+"""OPS-008 - read-only ops API key.
 
 Why: four consecutive day-closes were BLIND because the ops truth endpoints
 (/api/ops/revenue-summary, /api/ops/hotqueue) only accepted a JWT admin session
 and no read-only token existed. This key unlocks MEASUREMENT only.
 
 These tests are the compliance spine for that key. If one fails, do NOT relax
-the assertion — a relaxed assertion here is a security regression:
+the assertion - a relaxed assertion here is a security regression:
 
   * unset token            -> key path disabled entirely (fail-closed)
   * GET + allowlisted path -> allowed
@@ -24,7 +24,7 @@ from starlette.requests import Request
 auth = importlib.import_module("app.api.auth_deps")
 from app.config import settings  # noqa: E402
 
-TOKEN = "test-ops-token-abc123"  # nosecret — test fixture, not a credential
+TOKEN = "test-ops-token-abc123"  # nosecret - test fixture, not a credential
 
 
 class _Creds:

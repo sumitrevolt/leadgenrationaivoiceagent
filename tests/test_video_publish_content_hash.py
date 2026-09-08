@@ -1,7 +1,7 @@
 """Gen-1 approval must bind to the exact VIDEO BYTES, not just a revision number.
 
 `publish_gate.assert_can_publish` verified flags, allowlist, workflow state,
-`approved_version == revision` and `final_approved` — every one of them a field
+`approved_version == revision` and `final_approved` - every one of them a field
 on a mutable JSONL record. Nothing re-read the artifact. So a video approved by
 the customer could be re-rendered in place at the same path and same revision,
 and the stale approval still authorised the publish.
@@ -276,7 +276,7 @@ def test_wrapper_is_retired_and_writes_nothing(video, writer):
 
 
 def test_wrapper_path_mismatch_refuses(video, writer, tmp_path, monkeypatch):
-    """Case 3 — different path → refused, zero update, zero provider calls."""
+    """Case 3 - different path -> refused, zero update, zero provider calls."""
     from app.marketing import postiz_publish as pp
 
     calls = {"postiz": 0}
@@ -323,7 +323,7 @@ def test_reapproval_replaces_hash_not_backfills(video, writer):
 
 
 def test_publish_gate_never_writes_a_hash(video, monkeypatch):
-    """The gate must be READ-ONLY — backfilling would approve changed bytes."""
+    """The gate must be READ-ONLY - backfilling would approve changed bytes."""
     calls = []
     monkeypatch.setattr(
         "app.marketing.video_ad_cycle._update",
@@ -340,14 +340,14 @@ def test_hash_is_streaming_not_whole_file_read(video, monkeypatch):
     monkeypatch.setattr(
         mod.Path,
         "read_bytes",
-        lambda self: pytest.fail("read_bytes() used — must stream in chunks"),
+        lambda self: pytest.fail("read_bytes() used - must stream in chunks"),
         raising=False,
     )
     digest, size = pg.hash_video_file(str(video))
     assert len(digest) == 64 and size == len(b"BYTES-A" * 4096)
 
 
-# --- TOCTOU: Stage 3C CLOSED — provider consumes snapshot only ------------
+# --- TOCTOU: Stage 3C CLOSED - provider consumes snapshot only ------------
 
 
 @pytest.mark.asyncio

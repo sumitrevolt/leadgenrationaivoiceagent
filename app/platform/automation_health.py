@@ -1,9 +1,9 @@
 """Automation health / dead-man switch (Cronitor/healthchecks.io-pattern, free).
 
 PROBLEM: koi scheduled job chupchaap chalna band ho jaye (jaise scheduler bug,
-worker crash, import error) to pata hi nahi chalta — automation "chal raha
+worker crash, import error) to pata hi nahi chalta - automation "chal raha
 hoga" maan ke baith jaate hain. Yeh module har job-run HEARTBEAT record karta
-(team_scheduler._run_job wrapper se — in-process YA Celery dono path cover) aur
+(team_scheduler._run_job wrapper se - in-process YA Celery dono path cover) aur
 expected cadence se compare karke OVERDUE jobs pakadta.
 
 `run_watch()` watchdog-job me wired: overdue mile to email alert (gated
@@ -28,7 +28,7 @@ from app.platform.today_overview import _WEEKLY_ON, _job_due_today, _job_due_yet
 
 
 def _RUNS() -> str:
-    """Scheduler job-run jsonl — resolved per call, never frozen at import."""
+    """Scheduler job-run jsonl - resolved per call, never frozen at import."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -41,7 +41,7 @@ def _RUNS() -> str:
 
 
 def _BEATS() -> str:
-    """Latest-per-job heartbeat snapshot — sibling under the same store family."""
+    """Latest-per-job heartbeat snapshot - sibling under the same store family."""
     from app.platform import runtime_data_authority as _auth
 
     return str(
@@ -62,7 +62,7 @@ EXPECTED_GAP_MIN = {
     "onboard": 180,
     "standup": 30 * 60,  # daily 08:00 IST
     "engineer_sre": 180,  # hourly :45
-    "mcp_engineer": 180,  # hourly :40 (gated MCP_ENGINEER) — dead-man parity with STAFF_JOBS
+    "mcp_engineer": 180,  # hourly :40 (gated MCP_ENGINEER) - dead-man parity with STAFF_JOBS
     "engineer_finops": 30 * 60,
     "engineer_security": 30 * 60,
     "engineer_dbre": 30 * 60,
@@ -79,9 +79,9 @@ EXPECTED_GAP_MIN = {
     "prospect": 30 * 60,
     "email_outreach": 24
     * 60,  # hourly 9am-7pm
-    overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
+    overnight ~14h gap -> 24h grace (90h was a dead-man blind spot)
     "pipeline": 30 * 60,
-    "email_followup": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace
+    "email_followup": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap -> 24h grace
     "kb_refresh": 8 * 24 * 60,  # weekly Sun
     "midday_prospect": 30 * 60,  # daily 14:30
     "evening_wrap": 30 * 60,
@@ -99,7 +99,7 @@ EXPECTED_GAP_MIN = {
     "afternoon_content": 30 * 60,  # daily 15:00 IST: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": 30
     * 60,  # daily 17:00 IST: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
-    "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
+    "self_improve": 30,  # ~20-min tick; 30-min grace - watchdog now flags stale loop (dead-man trio complete)
     "platform_dial": 30
     * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
     "daily_video": 30
@@ -142,7 +142,7 @@ EXPECTED_GAP_MIN = {
 # `content` job it rides heartbeat green throughout. What actually gave it away
 # was that `video_ads.jsonl` stopped growing.
 #
-# So this registry watches the OUTPUT, not the job — which needs no change to
+# So this registry watches the OUTPUT, not the job - which needs no change to
 # any of the 44 staff jobs. Adding a producer here is how you make its silent
 # death visible; that is deliberately a one-line change.
 #
@@ -165,14 +165,14 @@ OUTPUT_FRESHNESS: dict[str, dict[str, Any]] = {
     "video_ad_cycle": {
         "resolver": _video_ads_store,
         "max_stale_days": 8,  # 5-day cadence + grace; the real outage ran to 15
-        "why": "per-client AI video ads — the 2026-08-09 silent 15-day outage",
-        "owner_hint": "Video engine chup ho gaya — /app/automation ka video tab dekho",
+        "why": "per-client AI video ads - the 2026-08-09 silent 15-day outage",
+        "owner_hint": "Video engine chup ho gaya - /app/automation ka video tab dekho",
     },
     "content_approvals": {
         "resolver": _content_approvals_store,
         "max_stale_days": 3,  # daily content engine; 3 days = two missed passes
-        "why": "content engine output — nothing to approve means nothing was generated",
-        "owner_hint": "Content banna band ho gaya — Isha ka daily job check karo",
+        "why": "content engine output - nothing to approve means nothing was generated",
+        "owner_hint": "Content banna band ho gaya - Isha ka daily job check karo",
     },
 }
 
@@ -223,7 +223,7 @@ def stale_outputs() -> list[dict[str, Any]]:
 
 
 def _SKIPS() -> str:
-    """Budget-skip ledger — SAME store family as job_runs.
+    """Budget-skip ledger - SAME store family as job_runs.
 
     Deliberately resolved through ``runtime_data_authority`` like its siblings:
     a hardcoded ``data/...`` path would be written to the LEGACY location while
@@ -248,9 +248,9 @@ def record_engine_skip(
     """Record that a mega-job SKIPPED one of its engines. Never raises.
 
     Why this exists: `team_scheduler._run_content_engine` closes the coroutine and
-    returns False when the wall-clock budget is gone — with no exception and no
+    returns False when the wall-clock budget is gone - with no exception and no
     line naming the engine. Prod evidence 2026-08-09: the `content` job exceeded
-    its 420s budget on **15 consecutive daily runs** (2026-07-18 → 2026-08-01,
+    its 420s budget on **15 consecutive daily runs** (2026-07-18 -> 2026-08-01,
     452–530s each), silently dropping every engine queued behind the overrun, and
     nothing anywhere recorded which ones. That is an entire class of "automation
     quietly stopped" that no dashboard could show.
@@ -352,7 +352,7 @@ def record_run(
 ) -> None:
     """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast.
 
-    Enriched fields (additive, keyword-only) — sirf non-empty pe jsonl record me
+    Enriched fields (additive, keyword-only) - sirf non-empty pe jsonl record me
     likhe jaate hain taaki PURANE records (bina in fields ke) readable rahein aur
     old positional callers (`record_run(job, ok, sec, note)`) unchanged chalein:
       - error_class    : exception ka type-name (ya "job_reported_failure" jab inner
@@ -361,7 +361,7 @@ def record_run(
       - trigger        : run ka source ("scheduler" etc.)
       - started_at     : run start ISO-UTC (duration `s` ke saath timeline reconstruct)
     """
-    try:  # W1.13: per-job Prometheus counters (independent try — heartbeat pe asar na ho)
+    try:  # W1.13: per-job Prometheus counters (independent try - heartbeat pe asar na ho)
         from app.platform import job_metrics
 
         job_metrics.record(job, ok, seconds)
@@ -376,7 +376,7 @@ def record_run(
             "note": (note or "")[:120],
             "at": _now().isoformat(timespec="seconds"),
         }
-        # additive fields — sirf non-empty pe (purane records + snapshot readable rahein)
+        # additive fields - sirf non-empty pe (purane records + snapshot readable rahein)
         if error_class:
             rec["error_class"] = str(error_class)[:60]
         if error_message:
@@ -385,11 +385,11 @@ def record_run(
             rec["trigger"] = str(trigger)[:20]
         if started_at:
             rec["started_at"] = str(started_at)[:40]
-        # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+        # Resolver at each I/O site - binding to a local unbinds the allowlist (A3).
         os.makedirs(os.path.dirname(_RUNS()) or ".", exist_ok=True)
         with open(_RUNS(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        # latest-per-job snapshot (fast reads) — READ-MODIFY-WRITE, isliye
+        # latest-per-job snapshot (fast reads) - READ-MODIFY-WRITE, isliye
         # cross-process lock + atomic replace (web 2 workers + celery workers
         # ek saath record_run kar sakte = snapshot corrupt ho sakta tha).
         from app.utils.file_lock import file_lock
@@ -412,7 +412,7 @@ def record_run(
 
 
 def _tail_lines(path: str, max_lines: int) -> list[str]:
-    """File ke END se ~max_lines lines — bounded read (chunk-wise backward), file
+    """File ke END se ~max_lines lines - bounded read (chunk-wise backward), file
     kitni bhi badi ho poora load NAHI karta. Kabhi raise nahi, fail = []."""
     try:
         with open(path, "rb") as f:
@@ -425,7 +425,7 @@ def _tail_lines(path: str, max_lines: int) -> list[str]:
                 pos -= read_size
                 f.seek(pos)
                 data = f.read(read_size) + data
-                if len(data) > 4 * 1024 * 1024:  # 4MB hard cap — runaway se bacho
+                if len(data) > 4 * 1024 * 1024:  # 4MB hard cap - runaway se bacho
                     break
         return data.decode("utf-8", errors="replace").splitlines()[-max_lines:]
     except Exception:
@@ -438,13 +438,13 @@ def run_history(
     limit: int = 100,
     failures_first: bool = False,
 ) -> list[dict[str, Any]]:
-    """Per-run history (data/job_runs.jsonl) — NEWEST-FIRST, filtered. Read-side of
+    """Per-run history (data/job_runs.jsonl) - NEWEST-FIRST, filtered. Read-side of
     record_run (jsonl pehle write-only tha, koi padhta hi nahi tha).
 
     - job     : substring match (case-insensitive) on job name ("" = all)
     - status  : "ok" | "failed" (aur "fail") | "" = all
     - limit   : max records (1..500 cap)
-    - failures_first : failed runs ko top pe le aao (stable — group ke andar newest-first)
+    - failures_first : failed runs ko top pe le aao (stable - group ke andar newest-first)
     File na ho / corrupt line = gracefully skip. Kabhi raise nahi."""
     try:
         limit = max(1, min(int(limit or 100), 500))
@@ -482,7 +482,7 @@ def run_history(
         if failures_first and len(out) >= max(limit * 3, 300):
             break
     if failures_first:
-        # stable sort: failed (0) pehle, ok (1) baad — group ke andar newest-first bana rahe
+        # stable sort: failed (0) pehle, ok (1) baad - group ke andar newest-first bana rahe
         out.sort(key=lambda r: 0 if not r.get("ok") else 1)
     return out[:limit]
 
@@ -531,7 +531,7 @@ def _beat_registration_gaps() -> list[dict[str, Any]]:
 
         from app.worker import celery_app
 
-        # Import the canonical include list first — task registration happens
+        # Import the canonical include list first - task registration happens
         # at module import, and some beat task names (content_os.*) don't map
         # 1:1 to a module path, so the per-entry heuristic below can't find
         # them. The include list IS the worker's own registration surface.
@@ -558,7 +558,7 @@ def _beat_registration_gaps() -> list[dict[str, Any]]:
                             "key": f"BEAT_REG:{entry_name}",
                             "flag_on": True,
                             "missing": task_name,
-                            "note": f"Beat task module import failed — job silently never runs: {str(e)[:100]}",
+                            "note": f"Beat task module import failed - job silently never runs: {str(e)[:100]}",
                         }
                     )
                     continue
@@ -568,13 +568,13 @@ def _beat_registration_gaps() -> list[dict[str, Any]]:
                             "key": f"BEAT_REG:{entry_name}",
                             "flag_on": True,
                             "missing": task_name,
-                            "note": "Beat entry points to an UNREGISTERED Celery task (module imports, task name absent) — job silently never runs",
+                            "note": "Beat entry points to an UNREGISTERED Celery task (module imports, task name absent) - job silently never runs",
                         }
                     )
             except Exception:
                 continue
     except Exception:
-        # Celery app unavailable (import chain broke) — fail-open, retry next call
+        # Celery app unavailable (import chain broke) - fail-open, retry next call
         return list(_BEAT_REG_CACHE.get("gaps") or [])
 
     _BEAT_REG_CACHE["ts"] = now
@@ -583,7 +583,7 @@ def _beat_registration_gaps() -> list[dict[str, Any]]:
 
 
 def wiring_gaps() -> list[dict[str, Any]]:
-    """'Flag ON but backend missing' — armed automation jo silently no-op kar
+    """'Flag ON but backend missing' - armed automation jo silently no-op kar
     rahi hai (config gap, not a runtime outage). Surfaced so admin can see
     "ON" flags that are not actually connected. Kabhi raise nahi."""
     gaps: list[dict[str, Any]] = []
@@ -594,11 +594,11 @@ def wiring_gaps() -> list[dict[str, Any]]:
     # Beat-registration gaps (dormant-wiring class, 2026-09-06): every beat
     # entry's task name must resolve to a REGISTERED Celery task. The
     # daily-social incident (#468) shipped beat entries whose task function
-    # was never registered — worker rejected the name as unregistered and the
+    # was never registered - worker rejected the name as unregistered and the
     # job silently never ran. "Flag on" checks alone cannot see this class.
     # Per-entry module import (NOT all-or-nothing import_default_modules) so a
     # single broken module reports its own gap instead of killing the check.
-    # TTL-cached (600s > poll interval) — wiring_gaps() runs per Mission
+    # TTL-cached (600s > poll interval) - wiring_gaps() runs per Mission
     # Control load and daily brief; the import sweep is bounded to once.
     gaps.extend(_beat_registration_gaps())
 
@@ -614,14 +614,14 @@ def wiring_gaps() -> list[dict[str, Any]]:
                         "key": "CRM_SYNC",
                         "flag_on": True,
                         "missing": "zoho_refresh_token / hubspot_api_key",
-                        "note": "CRM sync armed but no provider wired — qualified leads CRM me push nahi ho rahe",
+                        "note": "CRM sync armed but no provider wired - qualified leads CRM me push nahi ho rahe",
                     }
                 )
         except Exception:
             pass
 
-    # GSC: armed but no usable service-account creds. Reuse gsc.enabled() — the
-    # canonical gate — so the `google_sheets_credentials` fallback and the
+    # GSC: armed but no usable service-account creds. Reuse gsc.enabled() - the
+    # canonical gate - so the `google_sheets_credentials` fallback and the
     # `os.path.exists(creds)` check are honoured instead of re-implemented here
     # (a manual GSC_SERVICE_ACCOUNT_JSON-only check would FALSE-ALARM when the
     # owner wires GSC through the fallback source).
@@ -696,7 +696,7 @@ def wiring_gaps() -> list[dict[str, Any]]:
                         "flag_on": True,
                         "status": "RED",
                         "missing": "Recent Buzz webhooks",
-                        "note": "Buzz connectivity failing (no reliable send->receive in last 2h) — marked RED",
+                        "note": "Buzz connectivity failing (no reliable send->receive in last 2h) - marked RED",
                     }
                 )
         except Exception:
@@ -717,7 +717,7 @@ def health() -> dict[str, Any]:
     # ONE authoritative instant for the whole evaluation.
     #
     # `marker_still_active(now=_now())` already used the injected seam, but
-    # `_job_due_today()` / `_job_due_yet()` read the wall clock independently —
+    # `_job_due_today()` / `_job_due_yet()` read the wall clock independently -
     # so a single classification could combine two different instants, and (since
     # they answer weekday/window questions) two different DAYS. That made the
     # result depend on when the process happened to run, which is why
@@ -741,7 +741,7 @@ def health() -> dict[str, Any]:
                             "job": job,
                             "last_run": (b or {}).get("at") if b else None,
                             "status": "mandate_paused",
-                            "note": "platform_dial disabled (env/state) — compliance gates unchanged",
+                            "note": "platform_dial disabled (env/state) - compliance gates unchanged",
                         }
                     )
                     continue
@@ -768,9 +768,9 @@ def health() -> dict[str, Any]:
             # intentionally skips and defers the job. Keep that event visible
             # as scheduled_off ONLY while the heavy window is still active.
             # After the window ends, a lone boot_grace marker usually means the
-            # deferred countdown was lost (recreate/broker) — force overdue even
+            # deferred countdown was lost (recreate/broker) - force overdue even
             # if the daily EXPECTED_GAP has not elapsed yet, so run_due recovers
-            # the same day (content gap is 30h — without this, miss stays silent).
+            # the same day (content gap is 30h - without this, miss stays silent).
             if str(b.get("note") or "") == "boot_grace":
                 try:
                     from app.platform.boot_grace import marker_still_active
@@ -821,24 +821,24 @@ def health() -> dict[str, Any]:
         except Exception:
             jobs.append({"job": job, "status": "unknown"})
     q = queue_depth()
-    # Redis unreachable → depths stay -1. Must NOT read as healthy/empty queues
-    # on the UI (false-green zeros). Do NOT use `v or -1` — 0 is a valid depth.
+    # Redis unreachable -> depths stay -1. Must NOT read as healthy/empty queues
+    # on the UI (false-green zeros). Do NOT use `v or -1` - 0 is a valid depth.
     queue_unknown = any(int(q.get(k, -1)) < 0 for k in ("celery", "heavy", "dlq", "dead"))
     backlogged = (
         q.get("celery", -1) > QUEUE_BACKLOG_ALERT or q.get("heavy", -1) > QUEUE_BACKLOG_ALERT
     )
     # ADR-104 Phase B (2026-07-15): queue_depth() already tracks dlq/dead
-    # counts but NOTHING read them here — this function's overall status/ok
+    # counts but NOTHING read them here - this function's overall status/ok
     # could claim "healthy"/True even with dead=4 sitting in dlq:dead
     # (retry-exhausted via dlq_retry.py, needs manual attention) or terminal
     # failures sitting in dlq:failed_tasks (dlq_retry sweeps these, but a
     # disabled flag / queue-flood-defer / missed sweep can leave them stuck).
     # These are a DIFFERENT signal from `backlogged` (live-queue depth = worker
-    # slow/dead) — a dead/dlq item is a standing incident regardless of how
+    # slow/dead) - a dead/dlq item is a standing incident regardless of how
     # fast the live queues are draining, and the admin's "green = dead=0,
     # retryable_failed=0" expectation was silently unmet. -1 means "Redis
     # unreachable, unknown" and must NOT read as "0 dead" (that would recreate
-    # the exact false-green bug this fixes) — only a positive count counts.
+    # the exact false-green bug this fixes) - only a positive count counts.
     dead_present = q.get("dead", -1) > 0
     retryable_failed_present = q.get("dlq", -1) > 0
     # Obsidian staging health
@@ -859,7 +859,7 @@ def health() -> dict[str, Any]:
         _obs_detail = str(e)[:100]
     # Engines silently dropped by a mega-job's wall-clock budget. This is a REAL
     # outage class (work simply did not run) that no previous field exposed, so it
-    # counts toward `unhealthy` — otherwise the dashboard keeps saying "healthy"
+    # counts toward `unhealthy` - otherwise the dashboard keeps saying "healthy"
     # while an engine has been skipped every day for two weeks.
     try:
         skips = engine_skip_summary(hours=48)
@@ -868,7 +868,7 @@ def health() -> dict[str, Any]:
     engines_skipped = bool(skips.get("total"))
     # A producer that is green but has stopped producing is an outage the
     # liveness dead-man cannot see (2026-08-09: 15 days of it). Only genuinely
-    # STALE entries degrade health — "unknown" (store absent yet) must not.
+    # STALE entries degrade health - "unknown" (store absent yet) must not.
     try:
         outputs = stale_outputs()
     except Exception:
@@ -888,13 +888,13 @@ def health() -> dict[str, Any]:
         "stale_outputs": outputs,
         "outputs_stale": outputs_stale,
         "status": ("degraded" if unhealthy else ("warming_up" if never_ran else "healthy")),
-        # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
+        # Explicit boolean truth for consumers - pehle sirf `status` string tha, jisse
         # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha
-        # "OK" bolta tha even jab jobs overdue/queue-backlogged the → false-healthy). Ab
+        # "OK" bolta tha even jab jobs overdue/queue-backlogged the -> false-healthy). Ab
         # additive `ok` = degraded ka inverse (warming_up abhi-boot = ok, alarm nahi).
-        # Phase B (2026-07-15): dead/retryable_failed ab isi inverse me shaamil —
+        # Phase B (2026-07-15): dead/retryable_failed ab isi inverse me shaamil -
         # dead tasks ya stuck DLQ failures ho to `ok` False hona CHAHIYE.
-        # ADR-114: Redis unknown (-1) does NOT force ok=False (ADR-104 contract) —
+        # ADR-114: Redis unknown (-1) does NOT force ok=False (ADR-104 contract) -
         # but queue_available=false so UI must not paint DLQ/celery as 0.
         "ok": not unhealthy,
         "overdue": overdue,
@@ -912,7 +912,7 @@ def health() -> dict[str, Any]:
 
 
 async def run_watch() -> dict[str, Any]:
-    """Watchdog hook: overdue jobs → (gated) email alert. Kabhi raise nahi."""
+    """Watchdog hook: overdue jobs -> (gated) email alert. Kabhi raise nahi."""
     try:
         h = health()
         if h.get("queue_backlogged") and _alerts_enabled():

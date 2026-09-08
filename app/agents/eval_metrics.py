@@ -1,18 +1,18 @@
 """Free-stack DETERMINISTIC eval metrics (no LLM judge, no network, no cost).
 
 eval_gate.py gives us the regression-gating mechanism, but its scores came from
-DeepEval (an LLM judge → network + cost → can't run in offline CI). These pure
+DeepEval (an LLM judge -> network + cost -> can't run in offline CI). These pure
 functions produce 0..1 scores from text alone so the guardrail
 (`scripts/eval_guardrail.py`) can run on every build for free and feed
 `eval_gate.score_and_gate`.
 
 Two metrics:
-  * voice_turn_score  — encodes the telecaller rule "≤2 sentences / ≤1 question,
+  * voice_turn_score  - encodes the telecaller rule "≤2 sentences / ≤1 question,
     no empty/echo, no consecutive repeats" (mirrors scripts/agent_tester.py flags).
-  * grounding_score   — lexical RAG-faithfulness proxy: how much of the answer's
+  * grounding_score   - lexical RAG-faithfulness proxy: how much of the answer's
     content vocabulary actually appears in the retrieved context.
 
-All pure + side-effect-free + never-raise → trivially unit-testable.
+All pure + side-effect-free + never-raise -> trivially unit-testable.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def voice_turn_score(messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Score a conversation's BOT turns against the telecaller quality rules.
 
     Returns {"score": 0..1, "bot_turns": n, "flags": {...counts...}}.
-    score = 1 - (total_issues / bot_turns), clamped to [0,1]. Empty convo → 1.0
+    score = 1 - (total_issues / bot_turns), clamped to [0,1]. Empty convo -> 1.0
     (nothing wrong) so an empty fixture never reports a false regression.
     """
     flags = {"empty": 0, "too_long": 0, "double_question": 0, "repeat": 0}
@@ -80,7 +80,7 @@ def voice_turn_score(messages: list[dict[str, Any]]) -> dict[str, Any]:
 def grounding_score(answer: str, context: str) -> float:
     """Lexical RAG-faithfulness proxy in [0,1]: fraction of the answer's content
     tokens that also appear in the retrieved context. Empty answer or empty
-    context → 0.0. Cheap, deterministic, language-agnostic (latin + devanagari)."""
+    context -> 0.0. Cheap, deterministic, language-agnostic (latin + devanagari)."""
     a = set(_WORD.findall((answer or "").lower()))
     c = set(_WORD.findall((context or "").lower()))
     if not a or not c:

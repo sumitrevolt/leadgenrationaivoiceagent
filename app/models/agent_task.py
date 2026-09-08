@@ -1,5 +1,5 @@
 """
-AgentTask Model — Paperclip-inspired per-agent work queue.
+AgentTask Model - Paperclip-inspired per-agent work queue.
 Har agent ka pending/active/done task yahan track hota hai.
 Atomic checkout ensures no double-work. Goal chain provides context.
 """
@@ -30,10 +30,10 @@ class AgentTask(Base):
     goal = Column(String(500), nullable=False, default="")  # what to do (Hinglish ok)
     result_summary = Column(Text, default="")  # what happened
 
-    # Goal hierarchy — Paperclip-style context chain
+    # Goal hierarchy - Paperclip-style context chain
     client_id = Column(String(36), nullable=True)  # which client (isolation)
     campaign_id = Column(String(36), nullable=True)  # which campaign
-    goal_text = Column(String(500), default="")  # WHY — business goal
+    goal_text = Column(String(500), default="")  # WHY - business goal
     parent_task_id = Column(String(36), nullable=True)  # delegation chain
 
     # Delegation
@@ -51,8 +51,8 @@ class AgentTask(Base):
     claimed_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
-    # Org chart — how deep in delegation hierarchy (0=Boss, 1=lead, 2+=IC)
+    # Org chart - how deep in delegation hierarchy (0=Boss, 1=lead, 2+=IC)
     request_depth = Column(Integer, default=0)
 
-    # Checkout lock — atomic claim (version field for optimistic locking)
+    # Checkout lock - atomic claim (version field for optimistic locking)
     checkout_version = Column(Integer, default=0)

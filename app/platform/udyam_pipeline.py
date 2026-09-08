@@ -9,7 +9,7 @@ Enterprise-grade, third-party-directory-FREE acquisition:
   -> dedup (phone/email) -> persist (prospector) -> scoring + voice/email/WA outreach.
 
 WHY this shape (user's call): Udyam = the authoritative, maintainable, legal base;
-Maps + the business's own website are public-data ENRICHMENT on top — so the pipeline
+Maps + the business's own website are public-data ENRICHMENT on top - so the pipeline
 never depends on scraping third-party directories (Justdial/IndiaMart are ToS-blocked).
 
 CONTRACT (enterprise gate):
@@ -198,14 +198,14 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
                 "reviews_count": None,
                 "source": "udyam_enriched",
                 # State-machine fix (2026-07-25): hamesha "new" likhna in rows ko
-                # PERMANENT black hole banata tha — koi job "new" ko kabhi promote
+                # PERMANENT black hole banata tha - koi job "new" ko kabhi promote
                 # nahi karta aur outreach sirf "ready" padhta hai (prod: 1,736 "new"
                 # rows stuck). Ab harvester ke ingest semantics mirror karo:
                 # contact mila = ready, warna needs_enrich (enrich sweep target).
                 "status": "ready" if (p10 or email) else "needs_enrich",
                 "lead_score": 0,
             }
-            if _oc_on:  # OpenCorporates registry enrich (CIN/status) — adds B2B signal
+            if _oc_on:  # OpenCorporates registry enrich (CIN/status) - adds B2B signal
                 try:
                     from app.integrations import opencorporates
 

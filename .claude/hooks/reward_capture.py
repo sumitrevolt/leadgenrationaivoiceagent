@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Stop hook (Phase 0, Loop B) — capture Claude dev-session outcome signals.
+"""Stop hook (Phase 0, Loop B) - capture Claude dev-session outcome signals.
 
 Writes ONE raw record to data/claude_feedback.jsonl. The reward SCORE is computed
-on READ by app.agents.rl.reward.dev_reward (single source of truth) — this hook
+on READ by app.agents.rl.reward.dev_reward (single source of truth) - this hook
 stores only raw signals so it stays dependency-free and fast.
 
 INERT unless RL_ENGINE=1. Fail-open: any error -> exit 0, never blocks the session.
-Self-contained (no app import) — runs on the Claude Code host with a 10s budget.
+Self-contained (no app import) - runs on the Claude Code host with a 10s budget.
 """
 import datetime
 import json

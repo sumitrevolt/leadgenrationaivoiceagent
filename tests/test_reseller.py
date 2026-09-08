@@ -1,4 +1,4 @@
-"""Reseller / Agency program — store + program_info (pure python, no network)."""
+"""Reseller / Agency program - store + program_info (pure python, no network)."""
 
 from __future__ import annotations
 

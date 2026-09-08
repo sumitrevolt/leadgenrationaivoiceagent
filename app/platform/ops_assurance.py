@@ -1,6 +1,6 @@
-"""Ops / Governance Assurance — read-only platform-ops issue detection (GREEN lane).
+"""Ops / Governance Assurance - read-only platform-ops issue detection (GREEN lane).
 
-WHY (2026-07-20, Agent-OS assurance slice — platform-ops sibling of
+WHY (2026-07-20, Agent-OS assurance slice - platform-ops sibling of
 ``app.marketing.delivery_assurance``): the platform-ops signals all existed but
 were never composed into a single, agent-attributed answer to the governance
 question an Owner OS panel needs: *"which platform-ops thing is unhealthy, and
@@ -12,7 +12,7 @@ WHICH agent owns fixing it?"*
   - ``infra_handler._check_backups()`` = read-only newest-backup age
 
 This module composes those existing READ primitives into the missing thing: a
-structured, agent-attributed list of platform-ops issues — every overdue job,
+structured, agent-attributed list of platform-ops issues - every overdue job,
 queue/DLQ backlog and stale-backup mapped to the responsible persona
 (Kavya / Hermes / Pranav / Arnav ...) via the registry job-owner truth.
 
@@ -21,14 +21,14 @@ SAFETY CONTRACT (enforced by tests):
     ``infra_handler._check_backups``, ``agent_registry.build_registry``). Never
     restarts a service, never writes/drains a queue, never sends, never mutates
     any state or file.
-  - NEVER RAISES. Every signal source is independently guarded — one failing
+  - NEVER RAISES. Every signal source is independently guarded - one failing
     source (Redis down, registry unavailable, backups dir missing) can never
     sink the scan or propagate an exception.
   - VOICE-FREE. Imports NO telephony / voice_agent / swara / STT / TTS / call /
     telephony_readiness module. Strictly the platform-ops domain.
 
 OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``kavya`` (Ops
-Watchdog owns platform automation health) — no new persona invented — so the run
+Watchdog owns platform automation health) - no new persona invented - so the run
 is visible on the existing team activity feed with a real owner.
 
 Lane: GREEN (read-only detection + attribution). Autonomy: L0 (observe + report).
@@ -46,7 +46,7 @@ logger = setup_logger(__name__)
 
 # Observability owner for ops-assurance runs. Ops Watchdog (Kavya) owns platform
 # automation-health surfacing. Module constant so attribution is explicit and
-# testable (NOT a new persona — one of the canonical 31).
+# testable (NOT a new persona - one of the canonical 31).
 _OWNER_MEMBER = "kavya"
 
 # Ownership for infra signals that are NOT a scheduled JOB_META row (so the
@@ -75,7 +75,7 @@ def _registry_map() -> tuple[dict[str, str], set[str]]:
     """Return (job -> owning-agent-id, valid-agent-ids) from the LIVE registry.
 
     The job map is the reverse of ``JOB_META.owner`` already computed inside
-    ``AgentContract.jobs`` by ``build_registry`` — the single canonical owner
+    ``AgentContract.jobs`` by ``build_registry`` - the single canonical owner
     truth. Read-only. Never raises (degrades to empty map + empty id-set)."""
     owner_map: dict[str, str] = {}
     ids: set[str] = set()
@@ -102,7 +102,7 @@ def _resolve(agent_id: str, valid_ids: set[str]) -> str:
 
 def _read_health() -> dict[str, Any]:
     """Read-only automation-health snapshot (overdue jobs + queue/DLQ). Never
-    raises — degrades to an empty dict so downstream collectors just find no
+    raises - degrades to an empty dict so downstream collectors just find no
     signal instead of exploding."""
     try:
         from app.platform import automation_health
@@ -212,7 +212,7 @@ def _queue_issues(
 def _backup_issues(valid_ids: set[str]) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """Backup staleness via the read-only ``infra_handler._check_backups`` file-age
     reader, mapped to Hermes (INFRA_HANDLER). ``ok is None`` (dir not visible /
-    unknown) is skipped gracefully — only ``ok is False`` (genuinely stale) is an
+    unknown) is skipped gracefully - only ``ok is False`` (genuinely stale) is an
     issue. Read-only, never raises."""
     issues: list[dict[str, Any]] = []
     counts = {"backup_stale": 0}
@@ -245,7 +245,7 @@ def scan_ops(limit: int = 200) -> dict[str, Any]:
     Detects (never mutates) overdue/dead-man scheduler jobs, Celery/DLQ backlog
     and stale backups, and MAPS each issue to the responsible agent via the
     canonical ``agent_registry`` job-owner truth. Emits one observability event
-    (kavya). Never raises — returns a shaped record with ``status='error'`` +
+    (kavya). Never raises - returns a shaped record with ``status='error'`` +
     ``error`` string on unexpected failure.
     """
     run_id = str(uuid.uuid4())
@@ -311,7 +311,7 @@ def scan_ops(limit: int = 200) -> dict[str, Any]:
     result["completed_at"] = _iso(completed)
     result["latency_ms"] = int((completed - started).total_seconds() * 1000)
 
-    # observability — one team event under the ops-watchdog owner (no new persona)
+    # observability - one team event under the ops-watchdog owner (no new persona)
     try:
         from app.platform import team
 

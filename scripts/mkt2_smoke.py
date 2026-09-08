@@ -1,4 +1,4 @@
-"""Marketing v2 VPS smoke — fallbacks + scoring + poster escaping (no LLM/network)."""
+"""Marketing v2 VPS smoke - fallbacks + scoring + poster escaping (no LLM/network)."""
 
 from app.marketing import festivals, gbp_audit, posters
 

@@ -1,4 +1,4 @@
-"""video_pipeline — staged renderer replacing reel_video's flat PIL-slide
+"""video_pipeline - staged renderer replacing reel_video's flat PIL-slide
 template for video_ad_cycle. Phase 1 = generic recipe only (see
 docs/superpowers/plans/2026-07-10-product-one-video-creative-pipeline-phase1.md).
 Heavy ffmpeg/EdgeTTS stubbed in unit tests (matches test_video_ad_cycle.py's
@@ -50,7 +50,7 @@ def test_render_creative_video_success(monkeypatch, tmp_path):
 
 
 def test_render_ships_when_tts_fails(monkeypatch, tmp_path):
-    """EdgeTTS is a network adapter — TTS failure must still yield a silent video."""
+    """EdgeTTS is a network adapter - TTS failure must still yield a silent video."""
     from app.marketing import reel_video
 
     monkeypatch.setattr(
@@ -124,7 +124,7 @@ def test_make_branded_frame_writes_png():
         "logo_data_uri": "",
     }
     with tempfile.TemporaryDirectory() as tmp:
-        path = video_pipeline._make_branded_frame("Aapka Business — Solar expert", 0, brand, tmp)
+        path = video_pipeline._make_branded_frame("Aapka Business - Solar expert", 0, brand, tmp)
         assert os.path.exists(path)
         from PIL import Image
 
@@ -144,7 +144,7 @@ def test_zoompan_filter_has_expected_shape():
 
 def test_zoompan_filter_d_scales_above_floor():
     # A genuinely long segment (40s) should push d above the 30s*24fps=720
-    # floor — proving d still scales UP for real long durations, not just
+    # floor - proving d still scales UP for real long durations, not just
     # pinned at the floor.
     f = video_pipeline._zoompan_filter(40.0, fps=24)
     assert "d=960" in f  # 40.0s * 24fps = 960 > 720 floor
@@ -211,7 +211,7 @@ def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, t
 
     def _fake_ffmpeg(args):
         calls["n"] += 1
-        if "-filter_complex" in args:  # the music-mix call — force it to fail
+        if "-filter_complex" in args:  # the music-mix call - force it to fail
             return False
         return _write_dummy_output(args)
 
@@ -283,7 +283,7 @@ def test_music_bed_path_rejects_traversal_niche(monkeypatch, tmp_path):
 
 def test_music_bed_path_normal_niche_unaffected_by_sanitizer(monkeypatch, tmp_path):
     """The safe-charset filter must be a no-op for ordinary niches like
-    "solar" — exact path match, not just precedence."""
+    "solar" - exact path match, not just precedence."""
     (tmp_path / "solar.mp3").write_bytes(b"x")
     monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(tmp_path))
     result = video_pipeline._music_bed_path("solar")
@@ -314,7 +314,7 @@ def test_qa_check_passes_on_valid_probe(monkeypatch, tmp_path):
 def test_qa_check_accepts_short_valid_render(monkeypatch, tmp_path):
     """Review fix: a genuinely correct render with short slide text (e.g.
     "20% off") can legitimately land well under the old `expected_slide_count
-    * 2.5` floor — EdgeTTS segments are built with -shortest and NO enforced
+    * 2.5` floor - EdgeTTS segments are built with -shortest and NO enforced
     minimum duration when audio succeeds (only the no-audio fallback path is
     a fixed 4.0s). duration=1.5 for 3 slides would have failed the OLD bound
     (needed >=7.5) but must pass the new flat floor (1.0)."""
@@ -334,7 +334,7 @@ def test_qa_check_accepts_short_valid_render(monkeypatch, tmp_path):
 
 def test_qa_check_fails_on_near_zero_duration(monkeypatch, tmp_path):
     """The flat floor must still catch catastrophically broken output (a
-    near-empty/corrupt file, a single frozen frame) — that's the actual
+    near-empty/corrupt file, a single frozen frame) - that's the actual
     purpose of the duration check, not enforcing a pacing assumption."""
     p = tmp_path / "out.mp4"
     p.write_bytes(b"x" * 5000)
@@ -395,7 +395,7 @@ def test_render_creative_video_qa_failure_returns_error(monkeypatch, tmp_path):
 
 
 def test_render_creative_video_survives_ledger_logging_failure(monkeypatch, tmp_path):
-    """Review fix (Task 7): delivery_ledger.log_event is best-effort only —
+    """Review fix (Task 7): delivery_ledger.log_event is best-effort only -
     a logging failure must NEVER change the return value. Forces log_event
     to raise on every call (video_render_started AND the now-reordered,
     post-dict-build video_ready call) and asserts the render still returns
@@ -439,14 +439,14 @@ def test_render_creative_video_survives_ledger_logging_failure(monkeypatch, tmp_
     assert result["path"].endswith(".mp4")
     assert os.path.exists(result["path"])
     # video_render_started + video_ready both attempted (and both raised,
-    # harmlessly) — proves the raising log_event was actually exercised.
+    # harmlessly) - proves the raising log_event was actually exercised.
     assert calls["n"] >= 2
 
 
 def test_render_creative_video_unexpected_exception_logs_exactly_once(monkeypatch, tmp_path):
     """Review fix (Task 7): an exception NOT covered by the 4 explicit
-    checks (deps missing / segment fail / concat fail / QA fail) — e.g. a
-    _make_branded_frame PIL error — must fall into the outer except and
+    checks (deps missing / segment fail / concat fail / QA fail) - e.g. a
+    _make_branded_frame PIL error - must fall into the outer except and
     fire exactly ONE video_render_failed event: not zero (the dangling-
     "started"-with-no-close bug this task fixes) and not two (the
     video_ready-then-video_render_failed double-log this task also fixes)."""
@@ -483,14 +483,14 @@ def test_render_creative_video_unexpected_exception_logs_exactly_once(monkeypatc
 
 
 def test_render_creative_video_getsize_failure_never_double_logs(monkeypatch, tmp_path):
-    """Review fix (Task 7) — locks in the EXACT subtlety the review flagged:
+    """Review fix (Task 7) - locks in the EXACT subtlety the review flagged:
     pre-fix, "video_ready" logged BEFORE the success dict (which calls
     os.path.getsize) was fully built, so a getsize failure AFTER that log
     would have produced a contradictory double-log (video_ready immediately
     followed by video_render_failed for the same render). QA is mocked out
     and _music_bed_path only uses os.path.exists (never getsize), so the
     dict-build line is the ONLY reachable os.path.getsize call on this path
-    — this isolates the exact regression: if video_ready is ever moved back
+    - this isolates the exact regression: if video_ready is ever moved back
     above the dict build, video_ready fires (failing the ready_events
     assertion) in addition to video_render_failed from the outer except."""
     from app.marketing import delivery_ledger, reel_video
@@ -547,15 +547,15 @@ def test_render_creative_video_mkdtemp_failure_never_raises(monkeypatch, tmp_pat
     """Review fix (Task 7, 2nd pass): tempfile.mkdtemp() sat OUTSIDE the
     try/finally, alongside reel_video.available() and brand_frames.
     resolve_brand() (both independently documented as never-raising, unlike
-    raw mkdtemp). If mkdtemp raises OSError (disk-full/permissions — same
+    raw mkdtemp). If mkdtemp raises OSError (disk-full/permissions - same
     Windows file-lock/AV-scan class as the Task 5 os.remove and Task 7
     os.path.getsize findings), it must be caught by the SAME outer except
-    that logs video_render_failed — not propagate uncaught out of the
+    that logs video_render_failed - not propagate uncaught out of the
     public entry point (docstring: "Never raises across the public entry
     point"), and must not leave video_render_started dangling."""
     from app.marketing import delivery_ledger, reel_video
 
-    # Must reach mkdtemp — if available() reports ok:False (e.g. ffmpeg
+    # Must reach mkdtemp - if available() reports ok:False (e.g. ffmpeg
     # missing on the test host), the deps-missing return fires BEFORE
     # mkdtemp is ever called and this test would guard nothing.
     monkeypatch.setattr(
@@ -591,7 +591,7 @@ def test_render_creative_video_mkdtemp_failure_never_raises(monkeypatch, tmp_pat
 
 
 def test_build_creative_video_task_registered():
-    import app.tasks.video_jobs  # noqa: F401 — trigger task registration
+    import app.tasks.video_jobs  # noqa: F401 - trigger task registration
     from app.worker import celery_app
 
     assert "app.tasks.video_jobs.build_creative_video_task" in celery_app.tasks
@@ -656,7 +656,7 @@ def test_build_creative_video_task_exception_handling(monkeypatch):
 
 
 def test_real_end_to_end_render_generic_recipe(tmp_path, monkeypatch):
-    """One REAL render (no mocks) — slow (network TTS + ffmpeg), keep the
+    """One REAL render (no mocks) - slow (network TTS + ffmpeg), keep the
     slide count small so it stays CI-safe. Confirms the whole chain (brand
     frame -> Ken-Burns segment -> concat -> QA -> optional music-skip)
     actually produces a valid file, not just that the mocked seams agree."""

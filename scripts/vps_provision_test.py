@@ -15,7 +15,7 @@ async def main() -> None:
         result = await db.execute(select(Client).limit(1))
         client = result.scalar_one_or_none()
         if not client:
-            print("NO CLIENTS IN DB — skipping")
+            print("NO CLIENTS IN DB - skipping")
             return
         out = await provision_agents_for_client(db, client)
         print("client:", client.business_name)

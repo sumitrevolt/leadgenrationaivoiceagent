@@ -1,16 +1,16 @@
-"""2026-09-06 — body implementation pin for run_whatsapp_automation.
+"""2026-09-06 - body implementation pin for run_whatsapp_automation.
 
 Context: the beat entry was registered in 94439e74 (wiring fix) but the task
 BODY was still a stub returning {"status":"ready"}, so auto_sent would have
-stayed 0 after deploy. These tests pin the real drain behaviour AND — more
-importantly — that every compliance gate fails CLOSED (§5):
+stayed 0 after deploy. These tests pin the real drain behaviour AND - more
+importantly - that every compliance gate fails CLOSED (§5):
 
     1. WHATSAPP_AUTO_SEND gate + HARD_OFF
     2. genuine DAILY cap (Redis), not a per-run clamp
     3. per-day idempotency (a phone is messaged at most once a day)
-    4. fail-closed DND/TRAI scrub — UNVERIFIED == blocked
+    4. fail-closed DND/TRAI scrub - UNVERIFIED == blocked
 
-If any of these tests fail, do NOT "fix" them by loosening an assertion — a
+If any of these tests fail, do NOT "fix" them by loosening an assertion - a
 loosened assertion here is a compliance regression, not a flake.
 """
 

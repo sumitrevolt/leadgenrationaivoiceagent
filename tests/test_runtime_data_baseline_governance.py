@@ -26,7 +26,7 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 @pytest.fixture(scope="module")
 def current():
     # Full-repo AST walk is GC-heavy; keep it out of the parent pytest process
-    # (CI exit-139 cyclic-GC class — 2026-07-28). Child failure still fails CI.
+    # (CI exit-139 cyclic-GC class - 2026-07-28). Child failure still fails CI.
     from tests._runtime_data_scan_subprocess import scan_repo_in_subprocess
 
     return scan_repo_in_subprocess(_REPO)
@@ -55,7 +55,7 @@ def test_the_local_helper_expansion_stays_recorded() -> None:
     """History is append-only: the 691 -> 881 expansion must never be rewritten.
 
     This was originally pinned to `changes.latest()`, which quietly meant "the
-    most recent record" — so the next legitimate capability change made it fail
+    most recent record" - so the next legitimate capability change made it fail
     for the wrong reason. Look the record up by id instead: that is the property
     that actually matters and it cannot drift onto a different record.
     """
@@ -75,7 +75,7 @@ def test_the_local_helper_expansion_stays_recorded() -> None:
 
 
 def test_latest_record_explains_its_own_detector_change() -> None:
-    """Whatever the newest record is, it must justify itself — not just exist."""
+    """Whatever the newest record is, it must justify itself - not just exist."""
     rec = changes.latest()
     assert rec is not None
     assert rec["old_scanner_version"] != rec["new_scanner_version"]

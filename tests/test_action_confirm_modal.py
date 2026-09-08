@@ -1,4 +1,4 @@
-"""ADR-104 (2026-07-15) — in-page confirmation modal for approval/publish/
+"""ADR-104 (2026-07-15) - in-page confirmation modal for approval/publish/
 scheduling/delivery actions, replacing native confirm()/prompt()-only gating.
 
 Background: a native confirm() dialog was proven THIS SESSION to auto-accept

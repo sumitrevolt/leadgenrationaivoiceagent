@@ -3,8 +3,8 @@ Typed action contracts for the agent harness.
 
 This is the spine the audit found missing: instead of scraping freeform
 Hinglish / JSON out of LLM text (coordinator._extract_list), the model is
-required to emit a validated ``ToolCall``. Everything downstream — permission
-checks, argument bounds, approval, checkpoint, sandbox, trace — keys off these
+required to emit a validated ``ToolCall``. Everything downstream - permission
+checks, argument bounds, approval, checkpoint, sandbox, trace - keys off these
 types.
 
 Pydantic v2. No app.* imports here on purpose: contracts must stay importable
@@ -27,9 +27,9 @@ class RiskClass(str, Enum):
     READ = "read"  # no side effects (search, read_file, lookup)
     WRITE_LOCAL = "write_local"  # mutates local/DB state (draft, checkpoint)
     EXTERNAL_SEND = "external_send"  # email / whatsapp / social publish
-    TELEPHONY = "telephony"  # place_call — DLT/DND gated
+    TELEPHONY = "telephony"  # place_call - DLT/DND gated
     MONEY = "money"  # spend / activate subscription / refund
-    CODE_EXEC = "code_exec"  # runs model-generated code — highest tier
+    CODE_EXEC = "code_exec"  # runs model-generated code - highest tier
 
 
 # Which risk classes MUST pass a human-in-the-loop approval gate (PM-03).
@@ -90,7 +90,7 @@ class ToolCall(BaseModel):
     timeout_s: float = Field(30.0, description="Per-call wall-clock timeout")
 
 
-# Spec alias — the loop/registry accept either name.
+# Spec alias - the loop/registry accept either name.
 ActionRequest = ToolCall
 
 

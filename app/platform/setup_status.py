@@ -1,10 +1,10 @@
-"""Setup & Readiness audit — the stack's "automated setup" status in one place.
+"""Setup & Readiness audit - the stack's "automated setup" status in one place.
 
 This session added a big automation suite, but everything is opt-in and there was no way
 to SEE what's actually live. This auto-scans the whole stack:
   - feature flags (on/off),
   - optional dependencies (installed?),
-  - keys/config (set? — presence only, never prints the value),
+  - keys/config (set? - presence only, never prints the value),
   - pending user-actions,
 and produces a readiness report. Read-only + never-crash. Used by
 `scripts/setup_status.py` (CLI) and can back an admin endpoint / dashboard.
@@ -55,7 +55,7 @@ DEPS: dict[str, str] = {
 # env/settings key -> purpose (presence only)
 KEYS: dict[str, str] = {
     "CEREBRAS_API_KEY": "LLM brain (free)",
-    "GROQ_API_KEY": "STT hearing (free) — voice samajhne ke liye",
+    "GROQ_API_KEY": "STT hearing (free) - voice samajhne ke liye",
     "GOOGLE_MAPS_API_KEY": "prospecting (real phones)",
     "SMTP_PASSWORD": "email send + reply IMAP",
     "NOTIFY_EMAIL": "ops alerts + inquiry alerts",
@@ -64,9 +64,9 @@ KEYS: dict[str, str] = {
     "HOSTINGER_API_TOKEN": "DNS API",
 }
 
-# pending user-actions (external — Claude can't do)
+# pending user-actions (external - Claude can't do)
 USER_ACTIONS = [
-    "GROQ_API_KEY (console.groq.com, free) — STT hearing fix",
+    "GROQ_API_KEY (console.groq.com, free) - STT hearing fix",
     "Udyam (MSME, free) cert -> DLT re-apply (cold-calling legal)",
     "Vobiz recharge + DID -> VOBIZ_CALLER_ID (voice calls)",
     "Dedicated cold-email domain + warmup (deliverability; primary mat jalao)",
@@ -103,14 +103,14 @@ def pending_actions() -> list[str]:
     """Only the user-actions that are ACTUALLY still pending (key-based, dynamic)."""
     out: list[str] = []
     if not _has_key("GROQ_API_KEY"):
-        out.append("GROQ_API_KEY (console.groq.com, free) — STT hearing fix")
+        out.append("GROQ_API_KEY (console.groq.com, free) - STT hearing fix")
     dlt_ok = os.getenv("DLT_APPROVED", "").strip().lower() in ("1", "true", "yes")
     if not dlt_ok:
         out.append("Udyam (MSME, free) cert -> DLT re-apply (cold-calling legal)")
     if not _has_key("VOBIZ_CALLER_ID"):
         out.append("Vobiz recharge + DID -> VOBIZ_CALLER_ID (voice cold-calls)")
     if not _has_key("UPI_VPA"):
-        out.append("UPI_VPA (apna UPI ID) — payment modal")
+        out.append("UPI_VPA (apna UPI ID) - payment modal")
     out.append("Dedicated cold-email domain + warmup (deliverability)")
     return out
 
@@ -140,7 +140,7 @@ def audit() -> dict[str, Any]:
 
 def format_report(a: dict | None = None) -> str:
     a = a or audit()
-    L = ["=== LeadGen AI — Setup & Readiness ===", ""]
+    L = ["=== LeadGen AI - Setup & Readiness ===", ""]
     s = a["summary"]
     L.append(f"Flags ON: {s['flags_on']} | Deps: {s['deps_installed']} | Keys: {s['keys_set']}")
     L.append("")
@@ -148,15 +148,15 @@ def format_report(a: dict | None = None) -> str:
     for k, v in a["flags"].items():
         mark = "ON " if v["on"] else "off"
         dft = " (default-on)" if v["default_on"] else ""
-        L.append(f"  [{mark}] {k}{dft} — {v['desc']}")
+        L.append(f"  [{mark}] {k}{dft} - {v['desc']}")
     L.append("")
     L.append("-- OPTIONAL DEPS --")
     for k, v in a["deps"].items():
-        L.append(f"  [{'OK ' if v['installed'] else 'no '}] {k} — {v['feature']}")
+        L.append(f"  [{'OK ' if v['installed'] else 'no '}] {k} - {v['feature']}")
     L.append("")
     L.append("-- KEYS / CONFIG (presence only) --")
     for k, v in a["keys"].items():
-        L.append(f"  [{'SET' if v['set'] else '---'}] {k} — {v['purpose']}")
+        L.append(f"  [{'SET' if v['set'] else '---'}] {k} - {v['purpose']}")
     L.append("")
     L.append("-- PENDING USER ACTIONS (external) --")
     for x in a["user_actions"]:

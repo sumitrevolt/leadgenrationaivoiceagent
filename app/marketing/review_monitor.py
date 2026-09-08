@@ -1,8 +1,8 @@
 """Google review monitor (Birdeye/Podium-pattern, free via Places API New).
 
-Har active client ke naye Google reviews roz check karta — naya review mila to
+Har active client ke naye Google reviews roz check karta - naya review mila to
 AI Hinglish reply DRAFT (EXISTING review_replies engine reuse) + negative pe
-alert. Auto-post NAHI (GBP API approval pending) — human 1-click.
+alert. Auto-post NAHI (GBP API approval pending) - human 1-click.
 
 GATED `REVIEW_MONITOR=1` + GOOGLE_MAPS_API_KEY (bina key = silent skip).
 Cost: 1 Places searchText per client per run (Places New free tier me theek).
@@ -174,7 +174,7 @@ async def run_check(max_clients: int = 15) -> dict[str, Any]:
                 from app.platform import team
 
                 team.log_event(
-                    "isha", "review_monitor", f"{new_drafts} naye reviews — reply drafts ready"
+                    "isha", "review_monitor", f"{new_drafts} naye reviews - reply drafts ready"
                 )
             except Exception:
                 pass

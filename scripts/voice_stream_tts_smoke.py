@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke USE_LLM_STREAM_TTS path — run locally or inside leadgen_app container.
+"""Smoke USE_LLM_STREAM_TTS path - run locally or inside leadgen_app container.
 
   python scripts/voice_stream_tts_smoke.py
   python scripts/voice_stream_tts_smoke.py --ws --base http://127.0.0.1:8000
@@ -59,7 +59,7 @@ async def _brain_stream_check() -> list[str]:
             issues.append(f"stream too slow: {elapsed:.1f}s for {len(parts)} sentence(s)")
         else:
             print(
-                f"OK brain stream: {len(parts)} sentence(s) in {elapsed:.1f}s — {parts[0][:60]!r}…"
+                f"OK brain stream: {len(parts)} sentence(s) in {elapsed:.1f}s - {parts[0][:60]!r}…"
             )
     except Exception as e:
         issues.append(f"brain stream: {e}")
@@ -125,7 +125,7 @@ async def _async_main(ws: bool, base: str, skip_brain: bool) -> int:
         for i in issues:
             print(f"  - {i}")
         return 1
-    print("RESULT: PASS — USE_LLM_STREAM_TTS safe to enable")
+    print("RESULT: PASS - USE_LLM_STREAM_TTS safe to enable")
     return 0
 
 

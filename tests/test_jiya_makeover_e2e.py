@@ -1,5 +1,5 @@
 """
-test_jiya_makeover_e2e.py — End-to-end customer delivery test for jiya-makeover.
+test_jiya_makeover_e2e.py - End-to-end customer delivery test for jiya-makeover.
 
 Stages (per production activation mandate):
   A. Shadow verification (dry-run, no real APIs)
@@ -247,7 +247,7 @@ def test_approval_workflow_ready():
     # In real workflow:
     # 1. Admin queries: /api/admin/dashboard/posts (shows jiya-makeover posts)
     # 2. Admin approves: /api/admin/posts/{id}/approve
-    # 3. Approval state changes: draft → approved
+    # 3. Approval state changes: draft -> approved
     # 4. Scheduler picks up: enqueue_publish() called
     # 5. Social engine drains: engine.process_queue()
 
@@ -263,7 +263,7 @@ def test_approval_workflow_ready():
 @pytest.mark.asyncio
 async def test_full_e2e_pipeline_dry_run():
     """
-    Full dry-run pipeline: generate → queue → approve → social-enqueue → dry-publish.
+    Full dry-run pipeline: generate -> queue -> approve -> social-enqueue -> dry-publish.
     This stage demonstrates production readiness without live API calls.
     """
     from app.marketing import clients_store

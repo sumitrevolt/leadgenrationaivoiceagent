@@ -33,7 +33,7 @@ def test_ssot_file_tracked():
 
 
 def test_loader_structure_no_pasted_path_twin():
-    """Assert SSOT shape + render round-trip — do NOT hardcode frozen path strings here."""
+    """Assert SSOT shape + render round-trip - do NOT hardcode frozen path strings here."""
     mod = _load()
     data = mod.load_canary_ssot()
     assert data["schema_version"] == 1
@@ -113,7 +113,7 @@ def test_path_match_and_check_enforcement(tmp_path):
 
 
 def test_cli_check_clean_on_self_docs():
-    """This PR's docs-only tip vs itself for a known-clean path set — check plumbing works."""
+    """This PR's docs-only tip vs itself for a known-clean path set - check plumbing works."""
     r = subprocess.run(
         [sys.executable, str(SCRIPT), "check", "--base", "HEAD", "--head", "HEAD"],
         cwd=str(REPO),

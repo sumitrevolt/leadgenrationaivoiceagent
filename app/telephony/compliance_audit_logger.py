@@ -66,7 +66,7 @@ async def log_compliance_decision(
         True if logged successfully, False if logging failed
     """
     if db is None:
-        # No database session — skip logging (graceful degradation)
+        # No database session - skip logging (graceful degradation)
         return False
 
     try:

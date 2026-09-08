@@ -10,7 +10,7 @@ empty means
 - Every attempt writes/updates an ``ApprovalNotification`` audit row keyed by a
   UNIQUE idempotency key = ``f"{channel}:{client_id}:{approval_id}:{version}"``.
   The unique key prevents duplicate sends across task retries, worker restarts
-  and repeated scheduler runs (DB-backed — survives a Redis flush).
+  and repeated scheduler runs (DB-backed - survives a Redis flush).
 - ``version`` is a hash of the approval's mutable state, so a CHANGED approval
   produces a new key and is allowed to notify again.
 - A row is only marked ``sent`` when the email provider returns success
@@ -64,7 +64,7 @@ def approval_client_allowlist() -> set[str]:
 
     Sources (union):
       1. ``APPROVAL_EMAIL_CLIENT_ALLOWLIST`` env CSV
-      2. ``data/approval_email_client_allowlist.txt`` (one id per line) — so ops
+      2. ``data/approval_email_client_allowlist.txt`` (one id per line) - so ops
          can arm a paying client without container recreate (ADR-097 pin-safe).
     """
     ids: set[str] = set()
@@ -176,7 +176,7 @@ def _backlog_phrase(backlog: dict) -> str:
         return "You have content awaiting your approval."
     if days >= 2:
         return (
-            f"You have {n} items awaiting your approval — the oldest has been waiting {days} days."
+            f"You have {n} items awaiting your approval - the oldest has been waiting {days} days."
         )
     return f"You have {n} items awaiting your approval."
 
@@ -389,7 +389,7 @@ async def notify_approval(
         # a customer who ignores that single mail is never told about it again
         # and the queue grows in silence. Prod 2026-08-09: 36 mails sent to the
         # one paying customer over four weeks, all delivered, 20 items still
-        # pending — the mails were arriving, they just each said "you have
+        # pending - the mails were arriving, they just each said "you have
         # content" and never "you have 20 waiting, oldest 17 days".
         # This does not add sends or change cadence; it makes the sends that
         # already happen carry the state of the queue.
@@ -467,7 +467,7 @@ async def notify_pending_approvals(
         "duplicate_client_suppressed": 0,
         # Idempotency pe short-circuit hue items. `sent` se ALAG rakhna zaroori
         # hai: `notify_approval` dedupe pe purani row ka audit lautata hai jiska
-        # `status` "sent" hota hai — use `sent` ginna matlab "customer ko email
+        # `status` "sent" hota hai - use `sent` ginna matlab "customer ko email
         # gaya" ka jhootha haan (2026-07-14 postmortem).
         "deduplicated": 0,
         "last_failure_category": None,
@@ -508,7 +508,7 @@ async def notify_pending_approvals(
         counts["seen"] += 1
         # Dedupe short-circuit: koi provider call NAHI hua. `notify_approval`
         # is case me purani row ka audit lautata hai (status="sent"), isliye
-        # status pe bharosa mat karo — `note` hi sach batata hai.
+        # status pe bharosa mat karo - `note` hi sach batata hai.
         if str(r.get("note") or "") in ("duplicate_suppressed", "dedupe_race"):
             counts["deduplicated"] += 1
             continue
@@ -536,7 +536,7 @@ _HEALTH: dict = {
 
 def get_health() -> dict:
     """Admin-visible sweep health. Contains only aggregate counts + a sanitized
-    failure category — never email addresses, secrets or message bodies."""
+    failure category - never email addresses, secrets or message bodies."""
     h = dict(_HEALTH)
     h["enabled"] = bool(h.get("enabled", notify_enabled()))
     return h

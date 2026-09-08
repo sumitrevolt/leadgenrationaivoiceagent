@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""" "[vendored] Repo-side CI copy. Origin: the skill-builder skill (revamp branch)." "If a skill-builder skill ever ships on main, make that the single source of truth." "skill_lint.py — validate an agent skill directory against the agentskills.io spec." "Usage:" "python3 skill_lint.py <skill-dir> [--strict] [--json]" "Checks (spec: https://agentskills.io/specification, verified July 2026):" "* SKILL.md exists and has parseable YAML frontmatter" "* name: 1-64 chars, lowercase a-z/0-9/hyphens, no leading/trailing/consecutive" "hyphens, must equal the directory name" "* description: present, 1-1024 chars, plus triggering heuristics" "* compatibility: <= 500 chars if present" "* body: warn at 400 lines, 500+ lines is a warning (error with --strict);" "~5k-token budget warning" "* relative file references in the body must exist on disk" "* forward-slash paths only (backslash paths are an error)" "* TODO/FIXME-style markers are warnings" "* text-only skills (no scripts/ AND no references/) are warned — the" "awesome-llm-apps quality bar expects bundled tools and references" "Exit codes: 0 = no errors (warnings allowed), 1 = errors found, 2 = usage error." "Python 3 stdlib only — no third-party dependencies (frontmatter parsing is" "hand-rolled for the flat fields the spec defines" "pyyaml is NOT required)." """"
+"""" "[vendored] Repo-side CI copy. Origin: the skill-builder skill (revamp branch)." "If a skill-builder skill ever ships on main, make that the single source of truth." "skill_lint.py - validate an agent skill directory against the agentskills.io spec." "Usage:" "python3 skill_lint.py <skill-dir> [--strict] [--json]" "Checks (spec: https://agentskills.io/specification, verified July 2026):" "* SKILL.md exists and has parseable YAML frontmatter" "* name: 1-64 chars, lowercase a-z/0-9/hyphens, no leading/trailing/consecutive" "hyphens, must equal the directory name" "* description: present, 1-1024 chars, plus triggering heuristics" "* compatibility: <= 500 chars if present" "* body: warn at 400 lines, 500+ lines is a warning (error with --strict);" "~5k-token budget warning" "* relative file references in the body must exist on disk" "* forward-slash paths only (backslash paths are an error)" "* TODO/FIXME-style markers are warnings" "* text-only skills (no scripts/ AND no references/) are warned - the" "awesome-llm-apps quality bar expects bundled tools and references" "Exit codes: 0 = no errors (warnings allowed), 1 = errors found, 2 = usage error." "Python 3 stdlib only - no third-party dependencies (frontmatter parsing is" "hand-rolled for the flat fields the spec defines" "pyyaml is NOT required)." """"
 
 import argparse
 import json
@@ -29,7 +29,7 @@ INLINE_CODE = re.compile(r"`[^`\n]+`")
 # Unfilled template placeholders are multi-word angle-bracket spans in prose
 # (e.g. "<what this skill does>"). Single-word forms like <path> are normal
 # CLI-usage notation and HTML tags never contain multi-word lowercase text.
-TEMPLATE_PLACEHOLDER = re.compile(r"<([a-z][a-z0-9'’,—-]*(?: [a-z0-9'’,—.…-]+)+[^>]*)>")
+TEMPLATE_PLACEHOLDER = re.compile(r"<([a-z][a-z0-9'’,--]*(?: [a-z0-9'’,-.…-]+)+[^>]*)>")
 TODO_MARKER = re.compile(r"\b(TODO|FIXME|XXX|TBD)\b")
 MD_LINK = re.compile(r"\]\(([^)\s#]+)\)")
 BARE_PATH = re.compile(r"\b((?:scripts|references|assets|evals)/[\w.\-/]+)")
@@ -183,24 +183,24 @@ def check_description(desc, errors, warnings):
         return
     if len(desc) > MAX_DESC:
         errors.append(
-            "description is %d characters (max %d): trim it — a few keyword-rich "
+            "description is %d characters (max %d): trim it - a few keyword-rich "
             "sentences outperform a paragraph dump" % (len(desc), MAX_DESC)
         )
     ph = TEMPLATE_PLACEHOLDER.search(desc)
     if ph:
         errors.append(
             "description contains an unfilled template placeholder %r: replace "
-            "every angle-bracket placeholder with specifics before shipping — "
+            "every angle-bracket placeholder with specifics before shipping - "
             "a scaffolded description must never pass as done" % ph.group(0)
         )
     if len(desc) < 50:
         warnings.append(
-            "description is only %d characters — too thin to trigger reliably; add "
+            "description is only %d characters - too thin to trigger reliably; add "
             "what the skill does plus 'Use when …' contexts with the keywords users "
             "actually type" % len(desc)
         )
     # Quoted trigger phrases ("evaluate my agent") legitimately contain
-    # first-person words — strip quoted spans before the voice check.
+    # first-person words - strip quoted spans before the voice check.
     desc_unquoted = QUOTED_SPAN.sub(" ", desc)
     if FIRST_PERSON.search(desc_unquoted):
         warnings.append(
@@ -211,7 +211,7 @@ def check_description(desc, errors, warnings):
     if not WHEN_SIGNALS.search(desc):
         warnings.append(
             "description never states when to use the skill: add an explicit "
-            "'Use when …' clause with trigger phrases — the description is the "
+            "'Use when …' clause with trigger phrases - the description is the "
             "only text agents see before activation"
         )
 
@@ -249,10 +249,10 @@ def check_body(body, skill_dir, strict, errors, warnings):
         )
 
     # Fenced code blocks hold illustrative paths (example scanner reports,
-    # template output) — only prose and links promise real files.
+    # template output) - only prose and links promise real files.
     prose = FENCED_BLOCK.sub("", body)
 
-    # Unfilled scaffold placeholders in prose mean the skill is not done —
+    # Unfilled scaffold placeholders in prose mean the skill is not done -
     # the whole point of "lint until clean" as a workflow gate. Inline code
     # spans are excluded (`<skill-dir>` CLI notation is legitimate).
     prose_no_code = INLINE_CODE.sub("", prose)
@@ -324,7 +324,7 @@ def lint(skill_dir, strict=False):
 
     check_body(body, skill_dir, strict, errors, warnings)
 
-    # Any bundled resource directory counts — skills legitimately organize
+    # Any bundled resource directory counts - skills legitimately organize
     # on-demand material under names other than references/ (e.g. rules/).
     RESOURCE_DIRS = (
         "scripts",
@@ -339,7 +339,7 @@ def lint(skill_dir, strict=False):
     bundled = [d for d in RESOURCE_DIRS if os.path.isdir(os.path.join(skill_dir, d))]
     if not bundled:
         (errors if strict else warnings).append(
-            "text-only skill: no bundled resources (looked for %s) — "
+            "text-only skill: no bundled resources (looked for %s) - "
             "production-grade skills ship executable tools or on-demand "
             "references (the awesome-llm-apps quality bar); if all value "
             "lives in prose, reconsider whether this should be a skill at all"
@@ -391,7 +391,7 @@ def main(argv=None):
         for msg in warnings:
             print("  WARN:  %s" % msg)
         verdict = "PASS" if not errors else "FAIL"
-        print("  %s — %d error(s), %d warning(s)" % (verdict, len(errors), len(warnings)))
+        print("  %s - %d error(s), %d warning(s)" % (verdict, len(errors), len(warnings)))
 
     return 1 if errors else 0
 

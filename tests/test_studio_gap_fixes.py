@@ -2,8 +2,8 @@
 
 Audit (2026-06-28) found advertised features whose engine existed but the customer
 had no portal access. These pin the two cleanest fixes wired into the customer studio:
-- #24 A/B post variations (was admin-only) → /api/customer/studio/variations
-- #25 review kit (was missing) → /api/customer/studio/review-kit
+- #24 A/B post variations (was admin-only) -> /api/customer/studio/variations
+- #25 review kit (was missing) -> /api/customer/studio/review-kit
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ async def test_studio_review_kit_branded_happy_and_unhappy(monkeypatch: pytest.M
     assert out["ok"] is True
     assert "Verma Tiffin" in r["happy_message"]
     assert "https://g.page/r/abc" in r["happy_message"]  # review link woven in
-    assert "PRIVATE" in r["unhappy_message"]  # unhappy → private, not public
+    assert "PRIVATE" in r["unhappy_message"]  # unhappy -> private, not public
 
 
 @pytest.mark.asyncio
@@ -71,6 +71,6 @@ async def test_studio_catalog_upi_paylinks(monkeypatch: pytest.MonkeyPatch) -> N
     assert len(items) == 2
     assert items[0]["pay_link"].startswith("upi://pay?")
     assert "am=200" in items[0]["pay_link"] and "pa=sharma%40oksbi" in items[0]["pay_link"]
-    # no VPA → no pay-link, but still lists items (graceful)
+    # no VPA -> no pay-link, but still lists items (graceful)
     out2 = await s.studio_catalog(s.CatalogReq(items="Haircut:200"), client_id="c1")
     assert out2["result"]["items"][0]["pay_link"] == ""

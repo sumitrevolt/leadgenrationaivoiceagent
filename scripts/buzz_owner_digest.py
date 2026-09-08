@@ -1,7 +1,7 @@
-"""Owner coordination digest — saare Buzz channels ka readable snapshot EK file me.
+"""Owner coordination digest - saare Buzz channels ka readable snapshot EK file me.
 
 Problem: Buzz Desktop me relay-posts collapsed cards ("show message") ki tarah
-dikhte hain aur channels duplicate/confusing hain — owner ko coordination padhne
+dikhte hain aur channels duplicate/confusing hain - owner ko coordination padhne
 me jhol ho jata hai. Ye script sab channels ka recent traffic nikaal ke EK
 markdown digest banati hai: ~/.buzz/OUTBOX/buzz_digest_<ts>.md
 
@@ -11,10 +11,10 @@ Usage:
   python scripts/buzz_owner_digest.py --post         # #admin me summary post bhi
 
 Read-only on the relay (sirf --post ek message bhejta hai). Owner key Windows
-Credential Manager (secrets.buzz-desktop) se aati hai — kabhi log/file me nahi.
+Credential Manager (secrets.buzz-desktop) se aati hai - kabhi log/file me nahi.
 
 Known quirk: kuch purane posts relay pe hi cp1252-double-encoded ("â€”") stored
-hain — _fix_mojibake() unhe display-time repair karta hai.
+hain - _fix_mojibake() unhe display-time repair karta hai.
 Exit codes: 0 ok, 1 config/CLI error.
 """
 import argparse
@@ -208,7 +208,7 @@ def main() -> int:
 
     if args.post:
         sections = [ln for ln in digest.splitlines() if ln.startswith("## ")]
-        summary = (f"**[DIGEST]** {len(sections)} active channels — full: {path}\n"
+        summary = (f"**[DIGEST]** {len(sections)} active channels - full: {path}\n"
                    + "\n".join(sections[:8]))
         post_to_admin(summary)
     return 0
@@ -225,10 +225,10 @@ def _build_from_cache(channels, per_ch, names, hours, since) -> str:
     now = datetime.now().strftime("%d-%b %Y %H:%M IST")
     lines = [
         "# BUZZ OWNER DIGEST",
-        f"_Generated {now} — window: last {hours}h — relay: {RELAY}_",
+        f"_Generated {now} - window: last {hours}h - relay: {RELAY}_",
         "",
-        "> Har channel ka section, messages oldest→newest. Truncated `…` = poora message Desktop/app me.",
-        "> Agent ko jagane ke liye @Name RESOLVED chip hona chahiye — plain-text @Name mention NAHI hai.",
+        "> Har channel ka section, messages oldest->newest. Truncated `…` = poora message Desktop/app me.",
+        "> Agent ko jagane ke liye @Name RESOLVED chip hona chahiye - plain-text @Name mention NAHI hai.",
         "",
     ]
     total = active = 0
@@ -246,7 +246,7 @@ def _build_from_cache(channels, per_ch, names, hours, since) -> str:
             continue
         merged.sort(key=lambda m: m.get("created_at") or 0)
         label = f"#{group[0]['name']}" + (" _(duplicate channels merged)_" if len(group) > 1 else "")
-        lines.append(f"## {label} — {len(merged)} messages" + (f"  _({desc})_" if desc else ""))
+        lines.append(f"## {label} - {len(merged)} messages" + (f"  _({desc})_" if desc else ""))
         for m in merged:
             pk = m.get("pubkey") or ""
             author = names.get(pk, pk[:12] if pk else "?")

@@ -1,10 +1,10 @@
-"""Customer Delivery OS — wires the mission's last 3 ledger event types:
+"""Customer Delivery OS - wires the mission's last 3 ledger event types:
 post_approved / post_published / post_failed. Three independent call sites:
 
-  1. auto_content.mark_item() — admin's manual Approve/Posted buttons (clients.html)
-  2. content_approval._decide() — customer's own portal-based approve (fresh
+  1. auto_content.mark_item() - admin's manual Approve/Posted buttons (clients.html)
+  2. content_approval._decide() - customer's own portal-based approve (fresh
      queue item via enqueue_approved, doesn't go through mark_item)
-  3. social_engine.engine.process_queue() — dormant automated publish path
+  3. social_engine.engine.process_queue() - dormant automated publish path
      (SOCIAL_ENGINE flag, currently gated off in prod)
      published->post_published,
      retries-exhausted ("dead")->post_failed.
@@ -85,7 +85,7 @@ class TestMarkItemLedgerWiring:
         assert (rec["id"], "post_published", "Diwali Offer Post") in logged_events
 
     def test_mark_draft_and_skipped_do_not_log(self, tmp_store, logged_events):
-        """draft/skipped are intentionally NOT delivery-ledger events — drafts
+        """draft/skipped are intentionally NOT delivery-ledger events - drafts
         already fire post_draft_created elsewhere
         skip is a deliberate no-op."""
         rec = clients_store.add_client("Mark Skip Biz", "general", phone="9000000033")
@@ -119,7 +119,7 @@ class TestContentApprovalLedgerWiring:
             "_FILE",
             lambda: os.path.join(str(tmp_path), "content_approvals.jsonl"),
         )
-        # enqueue_approved touches the real client queue file too — redirect it.
+        # enqueue_approved touches the real client queue file too - redirect it.
         monkeypatch.setattr(
             auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
         )
@@ -176,7 +176,7 @@ class TestContentApprovalLedgerWiring:
 
 
 class TestSocialEngineLedgerWiring:
-    """Dormant path (SOCIAL_ENGINE flag) — mirrors tests/test_social_engine.py's
+    """Dormant path (SOCIAL_ENGINE flag) - mirrors tests/test_social_engine.py's
     `iso` fixture so this stays consistent with the established test style there."""
 
     @pytest.fixture
@@ -229,7 +229,7 @@ class TestSocialEngineLedgerWiring:
 
     def test_inert_provider_skip_does_not_log(self, iso, logged_events):
         """Provider-not-configured is a system/config gap, not a per-post
-        failure — deliberately not logged as post_failed (scope discipline)."""
+        failure - deliberately not logged as post_failed (scope discipline)."""
         from app.social_engine import engine
 
         class _Inert:

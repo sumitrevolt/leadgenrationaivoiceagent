@@ -2,7 +2,7 @@
 
 RED BY DESIGN. The reader currently swallows every failure
 (`except Exception: return False`), so a missing, unreadable or malformed
-kill file DISENGAGES the kill — the opposite of what an emergency switch
+kill file DISENGAGES the kill - the opposite of what an emergency switch
 must do. These tests describe the required contract
 the implementation
 lands in a separate bounded batch.
@@ -93,7 +93,7 @@ def test_malformed_json_engages_kill(kill_file):
 
 @pytest.mark.parametrize("payload", INVALID_PAYLOADS)
 def test_invalid_schema_engages_kill(kill_file, payload):
-    """Includes {"kill": 1} / {"kill": 0} — integers are not safety booleans."""
+    """Includes {"kill": 1} / {"kill": 0} - integers are not safety booleans."""
     kill_file.write_text(payload, encoding="utf-8")
     st = _status()
     assert st.engaged is True, f"{payload} was accepted"
@@ -155,7 +155,7 @@ def test_env_true_overrides_file_false(kill_file, monkeypatch, tok):
 def test_env_false_overrides_file_true(kill_file, monkeypatch, tok):
     """Candidate A: ENV is final, the file is only a fallback.
 
-    This disengages THIS layer only — every other gate still applies, so the
+    This disengages THIS layer only - every other gate still applies, so the
     test deliberately does not assert that a call proceeds.
     """
     kill_file.write_text('{"kill": true}', encoding="utf-8")
@@ -196,7 +196,7 @@ def test_status_never_leaks_raw_values(kill_file, monkeypatch):
 
 
 def test_status_object_is_never_used_as_a_boolean(kill_file):
-    """`bool(AdminKillStatus(engaged=False, ...))` is truthy — a real trap.
+    """`bool(AdminKillStatus(engaged=False, ...))` is truthy - a real trap.
 
     owner_os.py wraps the call in bool(), so returning the object there would
     report "engaged" forever. Engagement must come from `.engaged`.
@@ -204,7 +204,7 @@ def test_status_object_is_never_used_as_a_boolean(kill_file):
     kill_file.write_text('{"kill": false}', encoding="utf-8")
     st = _status()
     assert st.engaged is False
-    assert bool(st) is True, "dataclass is truthy — callers must use .engaged"
+    assert bool(st) is True, "dataclass is truthy - callers must use .engaged"
 
 
 @pytest.mark.asyncio
@@ -261,7 +261,7 @@ def _harness(monkeypatch):
             events.append("vobiz_available")
             return True
 
-    # Spy that still runs the REAL reader — mocking it True would hide the
+    # Spy that still runs the REAL reader - mocking it True would hide the
     # fail-open behaviour this test exists to expose.
     original_kill = vl.admin_kill_engaged
 
@@ -325,7 +325,7 @@ async def _run_campaign(monkeypatch):
     # p10 = re.sub(r"\D", "", (p.phone or "").strip())[-10:]  -> "0000000000"
     prospect = SimpleNamespace(id="test-prospect", phone="0000000000")
     result = await _dial_vobiz_campaign(
-        object(),  # db — untouched while provider returns placed=False
+        object(),  # db - untouched while provider returns placed=False
         [prospect],
         False,  # dry_run MUST be False or the kill gate is skipped
         "promotional",
@@ -394,7 +394,7 @@ async def test_real_gate_refuses_on_invalid_env_token(kill_file, monkeypatch):
 #
 # set_kill() wrote straight into the destination with p.write_text(). An
 # interrupted write leaves truncated JSON, and truncated JSON is exactly the
-# state the strict reader now calls MALFORMED — safe, but it means a crash
+# state the strict reader now calls MALFORMED - safe, but it means a crash
 # mid-flip silently destroys an operator's kill state. The write must land
 # atomically: same-directory temp, fsync, os.replace.
 
@@ -441,7 +441,7 @@ def test_temp_file_is_created_in_the_target_directory(kill_file, monkeypatch):
 
     monkeypatch.setattr(vl.os, "replace", spy_replace, raising=False)
     assert vl.set_kill(True) is True
-    assert seen, "os.replace was never called — the write is not atomic"
+    assert seen, "os.replace was never called - the write is not atomic"
     src, dst = seen[-1]
     assert os.path.dirname(src) == os.path.dirname(dst)
     assert dst == str(kill_file)

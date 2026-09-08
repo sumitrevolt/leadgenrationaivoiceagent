@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""perf_regression.py — Stdlib-only HTTP latency regression checker.
+"""perf_regression.py - Stdlib-only HTTP latency regression checker.
 
 HOW TO RUN:
-    # First run — creates baseline at data/perf_baseline.json:
+    # First run - creates baseline at data/perf_baseline.json:
     python scripts/perf_regression.py
 
-    # Subsequent runs — compares against baseline, exit 1 if p95 regressed >50%:
+    # Subsequent runs - compares against baseline, exit 1 if p95 regressed >50%:
     python scripts/perf_regression.py
 
     # Against internal VPS endpoint (run on VPS or via SSH):
@@ -17,7 +17,7 @@ HOW TO RUN:
 ENV VARS:
     BASE_URL        Target base URL (default: https://leadsgenai.in)
     PERF_N          Requests per endpoint per run (default: 10)
-    PERF_THRESHOLD  Regression factor — 1.5 = 50% slower = FAIL (default: 1.5)
+    PERF_THRESHOLD  Regression factor - 1.5 = 50% slower = FAIL (default: 1.5)
     PERF_BASELINE   Path to baseline JSON (default: data/perf_baseline.json)
 
 SAFE: read-only GET requests only, never-crash on network error.
@@ -43,7 +43,7 @@ THRESHOLD: float = float(os.environ.get("PERF_THRESHOLD", "1.5"))  # 1.5 = 50% r
 BASELINE_PATH: Path = Path(os.environ.get("PERF_BASELINE", "data/perf_baseline.json"))
 REQUEST_TIMEOUT: int = 15  # seconds per request
 
-# Endpoints to benchmark — (label, path) tuples
+# Endpoints to benchmark - (label, path) tuples
 ENDPOINTS: list[tuple[str, str]] = [
     ("health", "/health"),
     ("niches", "/api/data/niches"),
@@ -99,7 +99,7 @@ def measure_endpoint(label: str, url: str, n: int) -> dict:
             errors += 1
         durations.append(elapsed_ms)
 
-        # Small pause to avoid hammering (not a load test — just regression check)
+        # Small pause to avoid hammering (not a load test - just regression check)
         time.sleep(0.1)
 
     p50 = _percentile(durations, 50)
@@ -138,7 +138,7 @@ def save_baseline(path: Path, data: dict) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        print(f"[INFO] Baseline saved → {path}")
+        print(f"[INFO] Baseline saved -> {path}")
     except Exception as e:
         print(f"[WARN] Could not save baseline: {e}")
 
@@ -160,7 +160,7 @@ def compare(current: dict, baseline: dict, threshold: float) -> tuple[bool, list
             None,
         )
         if base_ep is None:
-            print(f"  [SKIP] {label}: naya endpoint, baseline me nahi — skipping comparison")
+            print(f"  [SKIP] {label}: naya endpoint, baseline me nahi - skipping comparison")
             continue
 
         base_p95 = base_ep["p95_ms"]
@@ -188,7 +188,7 @@ def compare(current: dict, baseline: dict, threshold: float) -> tuple[bool, list
 # ---------------------------------------------------------------------------
 def main() -> int:
     print("=" * 60)
-    print("LeadGenAI — Performance Regression Check")
+    print("LeadGenAI - Performance Regression Check")
     print(f"BASE_URL  : {BASE_URL}")
     print(f"N per ep  : {N}")
     print(f"Threshold : {THRESHOLD}x (p95 regression limit)")
@@ -219,7 +219,7 @@ def main() -> int:
     baseline = load_baseline(BASELINE_PATH)
 
     if baseline is None:
-        print("\n[INFO] Baseline nahi mila — current run ko baseline bana rahe hain.")
+        print("\n[INFO] Baseline nahi mila - current run ko baseline bana rahe hain.")
         save_baseline(BASELINE_PATH, current_snapshot)
         print("\nFirst run complete. Agle run me regression check chalega.")
         print("RESULT: BASELINE_CREATED")
@@ -234,9 +234,9 @@ def main() -> int:
 
     print("\n" + "=" * 60)
     if passed:
-        print("RESULT: PASS — koi p95 regression nahi (within threshold)")
+        print("RESULT: PASS - koi p95 regression nahi (within threshold)")
     else:
-        print("RESULT: FAIL — p95 regression detected:")
+        print("RESULT: FAIL - p95 regression detected:")
         for r in regressions:
             print(f"  ✗ {r}")
         print(f"\nBaseline update karna ho to: rm {BASELINE_PATH} aur script dobara chalao.")

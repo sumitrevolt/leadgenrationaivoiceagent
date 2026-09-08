@@ -2,7 +2,7 @@
 
 `agent_budget.check()` was wired into `staff.run_member` only, so the coordinator's
 fan_out / agentverse / debate / council paths issued one LLM call per agent per round with
-no daily ceiling — `_llm_rate_ok()` caps burst-per-minute, not the day's total. On a
+no daily ceiling - `_llm_rate_ok()` caps burst-per-minute, not the day's total. On a
 free-tier provider chain that lets a swarm eat the quota the voice path shares.
 """
 
@@ -56,7 +56,7 @@ async def test_allowed_agent_runs_normally(monkeypatch, spy_llm):
 
 @pytest.mark.asyncio
 async def test_disabled_budget_is_a_behavioural_no_op(monkeypatch, spy_llm):
-    # AGENT_BUDGET_ENABLED off is the DEFAULT — check() short-circuits to allowed=True,
+    # AGENT_BUDGET_ENABLED off is the DEFAULT - check() short-circuits to allowed=True,
     # so arming nothing must leave the coordinator exactly as it was.
     monkeypatch.setenv("AGENT_BUDGET_ENABLED", "0")
 
@@ -81,7 +81,7 @@ async def test_budget_subsystem_failure_fails_open(monkeypatch, spy_llm):
 
 @pytest.mark.asyncio
 async def test_execute_branch_is_untouched_by_the_gate(monkeypatch):
-    """The tool branch already ran under staff's governance — don't double-gate it."""
+    """The tool branch already ran under staff's governance - don't double-gate it."""
     monkeypatch.setattr(
         "app.platform.agent_budget.check",
         lambda agent_id: {"allowed": False, "tier": 3},

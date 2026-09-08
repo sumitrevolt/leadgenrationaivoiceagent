@@ -1,4 +1,4 @@
-"""LLM stream → sentence TTS helpers + TelecallerBrain stream path."""
+"""LLM stream -> sentence TTS helpers + TelecallerBrain stream path."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ async def test_reply_stream_sentences_uses_chat_stream(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_reply_stream_sentences_fallback_on_empty_stream(monkeypatch):
-    """Empty stream (LLM failure) → DETERMINISTIC script fallback, NOT a second
+    """Empty stream (LLM failure) -> DETERMINISTIC script fallback, NOT a second
     LLM round-trip via reply() (e795629: 'stream fallback to fast path without
     double LLM'). reply() stays last-resort only."""
     from app.voice_agent.telecaller_brain import TelecallerBrain
@@ -94,7 +94,7 @@ async def test_reply_stream_sentences_fallback_on_empty_stream(monkeypatch):
 @pytest.mark.asyncio
 async def test_reply_stream_sentences_guard_reject_uses_reply(monkeypatch):
     """First-sentence guard rejection (repeat-ask on substantive input) must fall
-    to reply()'s guarded suite — script fallback would ignore the user's point."""
+    to reply()'s guarded suite - script fallback would ignore the user's point."""
     from app.voice_agent.telecaller_brain import TelecallerBrain
 
     async def _repeat_ask(**kwargs):

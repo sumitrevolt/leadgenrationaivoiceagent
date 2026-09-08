@@ -1,5 +1,5 @@
 """
-outreach_variants.py — cold-email SPINTAX + A/B variants (Smartlead parity).
+outreach_variants.py - cold-email SPINTAX + A/B variants (Smartlead parity).
 =============================================================================
 
 Ek hi template ko {Hi|Hello|Namaste} jaisi spintax se har recipient ke liye
@@ -14,7 +14,7 @@ Public API (sab never-raise, pure stdlib):
   - stats()                                 -> per-variant sends/replies/reply_rate + Laplace winner
   - apply_ab(prospect, subject, text, html) -> auto_outreach hook (GATED caller-side
         `OUTREACH_AB=1`): 2-variant subject pick + spintax render + record_send.
-        Staged rollout: `OUTREACH_AB_PCT` (0-100, default 100) — set to a small
+        Staged rollout: `OUTREACH_AB_PCT` (0-100, default 100) - set to a small
         slice (e.g. 5) to canary-test before widening (council rec 2026-07-04).
   - next_mailbox() / rotate_sender(sender)  -> MAILBOX ROTATION: env
         `OUTREACH_MAILBOXES` = JSON list [{email,password,host?,port?}] ho to
@@ -24,9 +24,9 @@ Public API (sab never-raise, pure stdlib):
 
 Wiring (auto_outreach.py, additive + gated, default OFF = zero change):
   - subject compose spot: OUTREACH_AB=1 par apply_ab()
-  - send loop: rotate_sender(sender) — env absent = no-op
+  - send loop: rotate_sender(sender) - env absent = no-op
 
-NOTE: EmailSender pehle email-API (Resend/Brevo) try karta hai — API path par
+NOTE: EmailSender pehle email-API (Resend/Brevo) try karta hai - API path par
 mailbox rotation moot hai (rotation sirf SMTP path ko affect karti hai).
 """
 
@@ -51,11 +51,11 @@ _CURSOR_PATH = os.path.join("data", "mailbox_cursor.json")
 # placeholders untouched rahein).
 _SPIN_RE = re.compile(r"\{([^{}]*\|[^{}]*)\}")
 
-# Default 2 subject variants (Hinglish, spintax) — apply_ab inhe use karta hai.
+# Default 2 subject variants (Hinglish, spintax) - apply_ab inhe use karta hai.
 # {name} = business name placeholder (render ke BAAD .format hota hai).
 DEFAULT_SUBJECT_VARIANTS: list[str] = [
-    "{name} — ek sawaal",
-    "quick question — {name}",
+    "{name} - ek sawaal",
+    "quick question - {name}",
     "{name} ke baare mein",
     "idea for {name}",
 ]
@@ -65,14 +65,14 @@ DEFAULT_SUBJECT_VARIANTS: list[str] = [
 # Spintax render (deterministic by seed)
 # --------------------------------------------------------------------------- #
 def render(template: str, seed: Any = 0) -> str:
-    """Spintax `{Hi|Hello|Namaste}` resolve karo — SAME seed = SAME output
+    """Spintax `{Hi|Hello|Namaste}` resolve karo - SAME seed = SAME output
     (deterministic
     recipient email seed banao to har baar wahi mile).
     Non-spintax braces ({name} jaise) untouched. Never raises."""
     try:
         out = str(template or "")
         rnd = random.Random(str(seed))
-        for _ in range(50):  # bounded — nested/multiple groups
+        for _ in range(50):  # bounded - nested/multiple groups
             m = _SPIN_RE.search(out)
             if not m:
                 break
@@ -85,7 +85,7 @@ def render(template: str, seed: Any = 0) -> str:
 
 
 def pick_variant(variants: list[Any], phone_or_email: str) -> dict[str, Any]:
-    """Recipient ke liye STABLE variant assign (md5 hash % n) — same recipient
+    """Recipient ke liye STABLE variant assign (md5 hash % n) - same recipient
     hamesha same variant (clean A/B split). Never raises."""
     try:
         vs = list(variants or [])
@@ -114,14 +114,14 @@ def _append(rec: dict[str, Any]) -> None:
 
 
 def record_send(variant_id: str, recipient: str = "") -> None:
-    """Variant send hua — track karo. Never raises."""
+    """Variant send hua - track karo. Never raises."""
     _append(
         {"type": "send", "variant": str(variant_id or "A"), "recipient": str(recipient or "")[:120]}
     )
 
 
 def record_reply(variant_id: str) -> None:
-    """Variant pe reply aaya — track karo (reply_agent yahan hook kar sakta). Never raises."""
+    """Variant pe reply aaya - track karo (reply_agent yahan hook kar sakta). Never raises."""
     _append({"type": "reply", "variant": str(variant_id or "A")})
 
 
@@ -173,7 +173,7 @@ def stats() -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Staged rollout gate (2026-07-04, LLM-council recommendation): OUTREACH_AB=1
 # pehle sabko A/B karta tha (0 -> 100% overnight). Council-verdict: naya content
-# variation ko turant 100% pe mat daalo — pehle chhoti slice (e.g. 5%) pe test
+# variation ko turant 100% pe mat daalo - pehle chhoti slice (e.g. 5%) pe test
 # karo, bounce_rate_7d/reply-rate dekho, phir widen karo. OUTREACH_AB_PCT env
 # (0-100, default 100 = purana behavior unchanged) yeh enforce karta hai.
 # --------------------------------------------------------------------------- #
@@ -203,7 +203,7 @@ def _in_rollout(key: str, pct: int) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# auto_outreach hook — A/B subject (caller gate: OUTREACH_AB=1)
+# auto_outreach hook - A/B subject (caller gate: OUTREACH_AB=1)
 # --------------------------------------------------------------------------- #
 def apply_ab(
     prospect: dict[str, Any], subject: str, text: str, html_body: str
@@ -212,7 +212,7 @@ def apply_ab(
     + record_send. Body untouched (safe). Fail = original tuple. Never raises.
 
     Staged rollout: OUTREACH_AB_PCT (default 100) se kam bucket wale recipients
-    original subject hi paate — A/B sirf rollout-% slice pe apply hota."""
+    original subject hi paate - A/B sirf rollout-% slice pe apply hota."""
     try:
         email = str((prospect or {}).get("email") or "").strip().lower()
         name = str((prospect or {}).get("business_name") or "").strip() or "aapke business"

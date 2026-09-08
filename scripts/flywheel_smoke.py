@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Flywheel health smoke — status, variants, objections, attribution."""
+"""Flywheel health smoke - status, variants, objections, attribution."""
 
 from __future__ import annotations
 

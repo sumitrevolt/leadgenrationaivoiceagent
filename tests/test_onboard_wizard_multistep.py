@@ -1,4 +1,4 @@
-"""Tests: multi-step wizard — services + offer + editable voice opening.
+"""Tests: multi-step wizard - services + offer + editable voice opening.
 
 Covers:
   - get_script_preview(): niche opening, suggested opening from services/offer,
@@ -23,7 +23,7 @@ def test_script_preview_salon_has_opening_and_suggested():
     p = wz.get_script_preview("salon")
     assert p["ok"] is True
     assert p["niche"] == "salon_spa"
-    assert p["has_script"] is True  # salon_spa apni script — general fallback nahi
+    assert p["has_script"] is True  # salon_spa apni script - general fallback nahi
     assert p["opening"] and "salon" in p["opening"].lower()
     assert len(p["discovery"]) >= 3
     assert p["closing"]
@@ -62,7 +62,7 @@ def test_script_preview_unknown_type_general():
 
 
 # --------------------------------------------------------------------------- #
-# Extended apply — services / offer / opening persist
+# Extended apply - services / offer / opening persist
 # --------------------------------------------------------------------------- #
 
 
@@ -92,20 +92,20 @@ def test_apply_persists_services_offer_opening(monkeypatch):
         "tiffin",
         business_name="Annapurna Tiffin",
         services="Veg thali, Jain thali, Office bulk",
-        offer="Monthly subscription — 10% off",
-        opening_line="Namaste! Main Swara bol rahi hoon Annapurna Tiffin se — office lunch ka naya plan hai, 2 minute?",
+        offer="Monthly subscription - 10% off",
+        opening_line="Namaste! Main Swara bol rahi hoon Annapurna Tiffin se - office lunch ka naya plan hai, 2 minute?",
     )
     assert res["niche"] == "tiffin_service"
     assert "services_offer_opening" in res["applied"]
     # _persist_setup_fields ko saare values mile
     assert stored.get("client_w1", {}).get("services") == "Veg thali, Jain thali, Office bulk"
-    assert stored.get("client_w1", {}).get("offer") == "Monthly subscription — 10% off"
+    assert stored.get("client_w1", {}).get("offer") == "Monthly subscription - 10% off"
     assert stored.get("client_w1", {}).get("opening_line", "").startswith("Namaste")
 
 
 def test_real_persist_setup_fields_writes_client_record(monkeypatch):
     """Regression (2026-08-17 E2E catch): asli _persist_setup_fields ab clients_store
-    ko **kwargs se call karta hai — positional dict se TypeError silent-swallow hota
+    ko **kwargs se call karta hai - positional dict se TypeError silent-swallow hota
     tha aur services/offer/opening kabhi persist nahi hoti thi."""
     monkeypatch.setenv("ONBOARD_WIZARD_APPLY", "1")
     stored: dict[str, dict] = {"client_w5": {"id": "client_w5"}}
@@ -157,7 +157,7 @@ def test_real_persist_client_knowledge_writes_record(monkeypatch):
 
 def test_clients_store_whitelist_accepts_wizard_fields(monkeypatch):
     """clients_store.update_client ab wizard_setup (dict) + offer (str) accept karta
-    hai — pehle whitelist se silently skip ho jaate the."""
+    hai - pehle whitelist se silently skip ho jaate the."""
     from app.marketing import clients_store as cs
 
     rec = {"id": "client_w7"}
@@ -188,7 +188,7 @@ def test_apply_without_fields_skips_fields_persist(monkeypatch):
     monkeypatch.setattr(wzm, "_persist_setup_fields", _fake_persist)
 
     res = wz.apply_auto_setup("client_w2", "tiffin")
-    assert called == []  # koi services/offer/opening nahi → persist call nahi
+    assert called == []  # koi services/offer/opening nahi -> persist call nahi
     assert "services_offer_opening" not in res["applied"]
 
 
@@ -213,7 +213,7 @@ def test_brain_uses_wizard_opening_override(monkeypatch):
             return {
                 "id": cid,
                 "wizard_setup": {
-                    "opening_line": "Namaste! Main Swara hoon Urban Cuts se — custom line.",
+                    "opening_line": "Namaste! Main Swara hoon Urban Cuts se - custom line.",
                 },
             }
 
@@ -241,6 +241,6 @@ def test_brain_no_wizard_override_falls_through(monkeypatch):
         niche="gents_salon", client_name="Urban Cuts", client_id="client_abc"
     )
     line = brain.opening_line()
-    # normal niche script chain — gents_salon script ka opening
+    # normal niche script chain - gents_salon script ka opening
     assert line and "[Company]" not in line
     assert "Urban Cuts" in line  # [Company] placeholder filled

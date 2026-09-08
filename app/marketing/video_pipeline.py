@@ -1,8 +1,8 @@
-"""Staged video-creative pipeline for Product One — replaces reel_video's flat
+"""Staged video-creative pipeline for Product One - replaces reel_video's flat
 PIL-slide template with brand overlay + Ken-Burns motion + captions + optional
 music, on an isolated `video` Celery queue. Phase 1 = generic recipe only.
 
-Never raises across the public entry point — same convention as reel_video,
+Never raises across the public entry point - same convention as reel_video,
 content_approval, delivery_ledger. See docs/superpowers/specs/
 2026-07-10-product-one-video-creative-pipeline-design.md for full design.
 """
@@ -24,13 +24,13 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_W, _H = 720, 1280  # matches reel_video._W, _H — 9:16 reel (default)
+_W, _H = 720, 1280  # matches reel_video._W, _H - 9:16 reel (default)
 
 _ASPECT = {
     "9:16": (720, 1280),
     "1:1": (1080, 1080),
     "16:9": (1280, 720),
-    "4:5": (1080, 1350),  # social feed (IG/FB) — Creative Automation OS ADR-143
+    "4:5": (1080, 1350),  # social feed (IG/FB) - Creative Automation OS ADR-143
 }
 
 
@@ -44,7 +44,7 @@ def _hex(c: str, default: tuple) -> tuple:
 
 def _logo_temp_file(logo_data_uri: str, tmp_dir: str) -> str | None:
     """brand_frames.resolve_brand()'s logo_data_uri (data:image/...;base64,...)
-    ko ek disk file me decode karo — ffmpeg ko file path chahiye, data URI nahi.
+    ko ek disk file me decode karo - ffmpeg ko file path chahiye, data URI nahi.
     Never raises
     malformed/empty input = None."""
     try:
@@ -301,7 +301,7 @@ def _make_branded_frame(
 
 def _zoompan_filter(duration_s: float, fps: int = 24, width: int = _W, height: int = _H) -> str:
     """Slow Ken-Burns zoom (1.0 -> ~1.08) that HOLDS at max zoom rather than
-    resetting. `d` is zoompan's hard cycle length — on a static-image input
+    resetting. `d` is zoompan's hard cycle length - on a static-image input
     (-loop 1), zoompan RESTARTS the zoom from 1.0 every `d` frames. The real
     segment duration on the audio-present render path is TTS-driven via
     -shortest (no -t cap), so it can exceed a duration_s-scaled `d`,
@@ -359,11 +359,11 @@ _SAFE_NICHE_RE = re.compile(r"[^a-z0-9_-]")
 
 def _music_bed_path(niche: str) -> str | None:
     """data/music_beds/{niche}.mp3 if present, else generic.mp3, else None.
-    Directory ships empty — this is a no-op until someone manually drops
+    Directory ships empty - this is a no-op until someone manually drops
     royalty-free tracks in (see spec §4 stage 8). Never raises.
 
     `niche` is customer-controlled (signup -> clients_store -> video_ad_cycle
-    -> here), so it's sanitized to a safe charset first — otherwise a niche
+    -> here), so it's sanitized to a safe charset first - otherwise a niche
     like "../../etc/passwd" could path-traverse outside _MUSIC_DIR."""
     try:
         safe_niche = _SAFE_NICHE_RE.sub("", str(niche or "").strip().lower())
@@ -381,7 +381,7 @@ def _music_bed_path(niche: str) -> str | None:
 def _mix_music_args(video_path: str, music_path: str, out_path: str) -> list[str]:
     """Mix a low, CONSTANT-volume music bed under the video's existing audio.
     Phase 1 simplification: constant-volume mix, not dynamic sidechain
-    ducking (real ducking is a Phase-2 polish item — see plan's Phase-2
+    ducking (real ducking is a Phase-2 polish item - see plan's Phase-2
     backlog section)."""
     return [
         "-i",
@@ -502,13 +502,13 @@ async def _render_generic(
         used_slides = slides or [
             business_name,
             offer or f"Aapke area ka bharosemand {niche} expert",
-            "Call ya WhatsApp karo — turant response milega",
+            "Call ya WhatsApp karo - turant response milega",
         ]
 
-        # tempfile.mkdtemp itself can raise OSError (disk-full/permissions —
+        # tempfile.mkdtemp itself can raise OSError (disk-full/permissions -
         # same Windows file-lock/AV-scan failure class as the Task 5
         # os.remove and Task 7 os.path.getsize findings), so it must be
-        # inside this try too — otherwise it's an uncaught exception out of
+        # inside this try too - otherwise it's an uncaught exception out of
         # the public entry point with "video_render_started" left dangling.
         tmp = tempfile.mkdtemp(prefix="vidpipe_")
 
@@ -563,7 +563,7 @@ async def _render_generic(
         if bed:
             mixed_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}_mix.mp4")
             if reel_video._ffmpeg(_mix_music_args(out_path, bed, mixed_path)):
-                # Mix succeeded — commit to it FIRST. Cleaning up the old
+                # Mix succeeded - commit to it FIRST. Cleaning up the old
                 # pre-mix file is best-effort only: a lock/AV-scan failure on
                 # os.remove must never turn a successful render into {"error"}.
                 old_path = out_path
@@ -575,7 +575,7 @@ async def _render_generic(
                         f"[video_pipeline] could not remove pre-mix file {old_path}: {e}"
                     )
             else:
-                # music mix failed — ship without it (fail-open, spec §9);
+                # music mix failed - ship without it (fail-open, spec §9);
                 # best-effort cleanup of any partial mixed_path ffmpeg left behind.
                 try:
                     if os.path.exists(mixed_path):
@@ -595,8 +595,8 @@ async def _render_generic(
             return {"error": f"qa_failed: {qa_reason}"}
 
         # Build the full success payload FIRST (os.path.getsize can still
-        # raise — Windows file-lock/AV-scan race, same class as Task 5's
-        # os.remove finding) — log "video_ready" only once it's guaranteed
+        # raise - Windows file-lock/AV-scan race, same class as Task 5's
+        # os.remove finding) - log "video_ready" only once it's guaranteed
         # to actually ship, so a late failure here falls through to the
         # outer except's "video_render_failed" instead of double-logging.
         result = {
@@ -606,7 +606,7 @@ async def _render_generic(
             "aspect_ratio": ratio,
             "width": width,
             "height": height,
-            "note": "Human upload karo (IG/FB/YT Shorts) — auto-publish nahi.",
+            "note": "Human upload karo (IG/FB/YT Shorts) - auto-publish nahi.",
         }
 
         if client_id:
@@ -621,7 +621,7 @@ async def _render_generic(
     except Exception as e:
         # Catch-all for anything not covered by the explicit checks above
         # (e.g. a _make_branded_frame PIL error, a concat-list file-write
-        # failure, os.makedirs failing) — without this, "video_render_started"
+        # failure, os.makedirs failing) - without this, "video_render_started"
         # (logged at function entry) is left dangling with no closing event.
         if client_id:
             try:
@@ -650,7 +650,7 @@ async def render_creative_video(
     Phase 1: only "generic" has a real implementation
     other recipe names
     currently fall back to generic (Phase 2 adds real per-recipe behavior).
-    ``ratio`` ∈ {9:16, 1:1, 16:9, 4:5} — default vertical reel."""
+    ``ratio`` ∈ {9:16, 1:1, 16:9, 4:5} - default vertical reel."""
     t0 = time.time()
     if ratio not in _ASPECT:
         ratio = "9:16"

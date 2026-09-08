@@ -3,7 +3,7 @@
 WHY THIS FILE EXISTS
 --------------------
 `security-scan.yml` was green while 29 Dependabot alerts (8 high) sat open, and
-`ci.yml` ran `pip-audit ... || true` against `requirements.txt` — not the
+`ci.yml` ran `pip-audit ... || true` against `requirements.txt` - not the
 `requirements.lock.txt` that actually ships. A green badge asserted "the scan
 ran", never "nothing vulnerable is pinned".
 
@@ -11,13 +11,13 @@ The root cause underneath the CVEs is narrower and worse: `Dockerfile.lock:25`
 and both CI workflows install the lock with **`--no-deps`**, so pip never checks
 that the pinned set is internally consistent. That is how the lock came to pair
 `fastapi==0.141.1` (which declares `starlette>=0.46.0`) with `starlette==0.35.1`
-— eleven minor series below its own floor, and squarely inside the multipart-DoS
+- eleven minor series below its own floor, and squarely inside the multipart-DoS
 advisory range. `--no-deps` will happily install any version written here, so an
 install that succeeds proves nothing. These tests are the check `--no-deps` skips.
 
 They live in the existing pytest job on purpose. That job is already a required
 check and it runs locally, so the gate cannot be bypassed by a workflow simply
-not being marked required — and it is a test, not a second dashboard.
+not being marked required - and it is a test, not a second dashboard.
 
 A local failure here means the environment is stale, not that the test is wrong:
 
@@ -42,7 +42,7 @@ from fastapi.testclient import TestClient
 # via `get_type_hints` against the *module* globals. With `Request` imported
 # inside a fixture instead, `Request` is unresolvable, FastAPI falls back to
 # treating it as a query parameter, and every form request returns 422 before the
-# handler ever runs — which silently satisfies a `>= 400` assertion and turns
+# handler ever runs - which silently satisfies a `>= 400` assertion and turns
 # these regression tests into a false green. Found the hard way, 2026-08-08.
 
 ROOT = Path(__file__).resolve().parent.parent

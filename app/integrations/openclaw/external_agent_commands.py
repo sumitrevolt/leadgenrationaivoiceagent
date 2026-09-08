@@ -1,7 +1,7 @@
 """OpenClaw GREEN surface for the External Agent Orchestrator (read-only).
 
 Owner Copilot can SEE Cursor/Claude missions. It cannot create, claim, advance,
-approve, merge or deploy them — those stay on the admin API behind Owner OS.
+approve, merge or deploy them - those stay on the admin API behind Owner OS.
 No new STAFF persona is invented
 these are observation commands only.
 """
@@ -24,7 +24,7 @@ def _summary_payload() -> dict[str, Any]:
     if not policy.orchestrator_enabled():
         return {
             "enabled": False,
-            "note": f"{policy.FLAG}=0 — external agent orchestrator inert",
+            "note": f"{policy.FLAG}=0 - external agent orchestrator inert",
             "missions": [],
             "summary": {},
         }
@@ -49,7 +49,7 @@ def _external_missions(
             "actor": actor,
             "read_only": True,
         },
-        "next_action": "Admin → Dev Control Plane → Missions se act karo (Owner OS authority)",
+        "next_action": "Admin -> Dev Control Plane -> Missions se act karo (Owner OS authority)",
     }
 
 
@@ -68,7 +68,7 @@ def _external_mission_status(
             "verified": True,
             "result": {"found": False, "mission_id": mission_id, "summary": orchestrator.summary()},
             "evidence": {"correlation_id": correlation_id, "actor": actor, "read_only": True},
-            "next_action": "mission_id check karo — `external.missions` se list milegi",
+            "next_action": "mission_id check karo - `external.missions` se list milegi",
         }
     row = next(
         (

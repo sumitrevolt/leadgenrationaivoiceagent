@@ -1,4 +1,4 @@
-"""Coordinator shadow adapter — record-only observation of one real coordinator
+"""Coordinator shadow adapter - record-only observation of one real coordinator
 action, taken from the coordinator's OWN normalized selection (never raw prose).
 
 Wraps the shared normalized-action boundary in app/agents/coordinator.py:_run_agent
@@ -8,7 +8,7 @@ normalized action into a typed ActionRequest and calls Harness.observe() only. I
 never calls the LLM, executes the action, alters arguments, chooses a different
 tool, delegates, or changes the coordinator's return.
 
-The raw LLM response is NEVER stored in full — only a bounded hash/summary and a
+The raw LLM response is NEVER stored in full - only a bounded hash/summary and a
 parser-confidence label (the coordinator's `_extract_list` normalization is
 heuristic JSON/regex extraction, so the honest default is HEURISTIC).
 """

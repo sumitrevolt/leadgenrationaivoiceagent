@@ -35,7 +35,7 @@ def test_overview_returns_full_contract():
     ):
         assert key in body, f"missing top-level key: {key}"
     assert body["ok"] is True
-    # Without LLM_BUDGET_GUARD + tokens, available stays False — never a money figure.
+    # Without LLM_BUDGET_GUARD + tokens, available stays False - never a money figure.
     cost = body["cost"]
     assert "available" in cost and "note" in cost
     assert "instrument pending" not in str(cost.get("note") or "").lower()
@@ -78,7 +78,7 @@ def test_never_raises_when_today_overview_breaks(monkeypatch):
 # --------------------------------------------------------------------------- #
 def test_agents_metrics_contract():
     """200 + per-agent shape the L4 Agent Explorer consumes; avg_ms always null
-    (no duration column → never fabricated)."""
+    (no duration column -> never fabricated)."""
     c = _client()
     r = c.get("/api/control-center/agents/metrics")
     assert r.status_code == 200
@@ -102,7 +102,7 @@ def test_agents_metrics_contract():
             "last_event_ts",
         ):
             assert key in a, f"missing agents[].{key}"
-        assert a["avg_ms"] is None  # no duration telemetry — never fabricated
+        assert a["avg_ms"] is None  # no duration telemetry - never fabricated
         assert a["state"] in ("working", "active", "offline")
 
 
@@ -122,7 +122,7 @@ def test_node_stats_and_cost_rollup_contracts():
     assert r2.status_code == 200
     cr = r2.json()
     assert cr["ok"] is True
-    # cost is ALWAYS unavailable — never fabricate a money figure.
+    # cost is ALWAYS unavailable - never fabricate a money figure.
     assert cr["available"] is False
     assert isinstance(cr["by_provider"], list)
     for row in cr["by_provider"]:
@@ -131,7 +131,7 @@ def test_node_stats_and_cost_rollup_contracts():
 
 def test_rca_contract_and_never_raises(monkeypatch):
     """rca returns findings[] (each plain-Hinglish) AND stays 200 even when a
-    source (automation_health.health) raises — partial degradation, never 500."""
+    source (automation_health.health) raises - partial degradation, never 500."""
     c = _client()
     r = c.get("/api/control-center/rca")
     assert r.status_code == 200
@@ -142,7 +142,7 @@ def test_rca_contract_and_never_raises(monkeypatch):
             assert key in f
         assert f["severity"] in ("high", "med", "low")
 
-    # never-raise: monkeypatch a source to explode → endpoint still 200/ok.
+    # never-raise: monkeypatch a source to explode -> endpoint still 200/ok.
     import app.platform.automation_health as automation_health
 
     def _boom():
@@ -165,7 +165,7 @@ def test_node_stats_folds_synthetic_timings(monkeypatch):
     )
 
     def _journal(run_id, limit=100):
-        # two nodes across runs; 'scrape' clearly slowest → must rank first.
+        # two nodes across runs; 'scrape' clearly slowest -> must rank first.
         return [
             {
                 "type": "node_completed",
@@ -219,7 +219,7 @@ def test_node_stats_falls_back_to_started_completed_delta(monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["slowest"], "delta-derived timing must populate slowest"
-    # 3-second delta → ~3000ms
+    # 3-second delta -> ~3000ms
     assert body["slowest"][0]["p50_ms"] >= 2900
 
 
@@ -246,7 +246,7 @@ def test_agents_metrics_never_raises_when_team_status_breaks(monkeypatch):
 # --------------------------------------------------------------------------- #
 def test_cost_rollup_new_contract_keys():
     """cost-rollup exposes the budget_guard-sourced keys. With LLM_BUDGET_GUARD
-    off (test default) `available` stays False and tokens/calls are null — but
+    off (test default) `available` stays False and tokens/calls are null - but
     the keys are always present, and by_provider rows are calls-only (no money)."""
     c = _client()
     r = c.get("/api/control-center/cost-rollup")
@@ -263,7 +263,7 @@ def test_cost_rollup_new_contract_keys():
         "by_provider",
     ):
         assert key in cr, f"missing cost-rollup key: {key}"
-    # guard off by default → not available, honest null counters, instrument note.
+    # guard off by default -> not available, honest null counters, instrument note.
     assert cr["available"] is False
     assert cr["tokens_today"] is None and cr["calls_today"] is None
     assert cr["budget_guard_enabled"] is False
@@ -275,7 +275,7 @@ def test_cost_rollup_new_contract_keys():
 
 def test_cost_rollup_never_raises_when_budget_guard_breaks(monkeypatch):
     """If budget_guard.redis_stats raises, cost-rollup still returns 200/ok with
-    the full key shape intact (defaults-before-try → never a 500)."""
+    the full key shape intact (defaults-before-try -> never a 500)."""
     import app.llm.budget_guard as budget_guard
 
     async def _boom():

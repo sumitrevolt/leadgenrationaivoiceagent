@@ -1,4 +1,4 @@
-"""Flow dispatch — route a run to the engine that owns it (Phase 2).
+"""Flow dispatch - route a run to the engine that owns it (Phase 2).
 
 engine_for(run_id) peeks run_started.engine in the shared journal. start()
 compiles the flow to learn its kind BEFORE routing. The API + process_tick call

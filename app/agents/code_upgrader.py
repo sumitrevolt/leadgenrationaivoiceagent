@@ -1,11 +1,11 @@
-"""Code upgrader (Vikram 🛠️) — system-agent jo zaroorat padne par code upgrade SUGGEST/karta hai.
+"""Code upgrader (Vikram 🛠️) - system-agent jo zaroorat padne par code upgrade SUGGEST/karta hai.
 
 Hybrid autonomy (user decision 2026-06-11, docs/AUTONOMOUS_INFRA_DESIGN.md):
-  Tier-1 AUTO  : sirf `data/skills_extra/*.md` (skill_pack.author ke through) — runtime-live,
+  Tier-1 AUTO  : sirf `data/skills_extra/*.md` (skill_pack.author ke through) - runtime-live,
                  non-executable markdown. Agent khud naye playbooks/skills likh sakta hai.
   Tier-2 GATED : core code ke liye sirf PATCH PROPOSAL (file + rationale + suggested-diff sketch)
-                 → `data/code_patches.jsonl` + NOTIFY_EMAIL alert → admin approve/reject API.
-                 Apply HAMESHA normal deploy loop (git push → rebuild) se — container me live
+                 -> `data/code_patches.jsonl` + NOTIFY_EMAIL alert -> admin approve/reject API.
+                 Apply HAMESHA normal deploy loop (git push -> rebuild) se - container me live
                  code-patch lagta hi nahi (image-baked) aur prod-down lessons bhi yahi kehte.
 
 Scan signals (sab existing, READ-only): llm_metrics provider errors · automation_health failing/
@@ -101,7 +101,7 @@ def set_status(patch_id: str, status: str, note: str = "") -> dict[str, Any]:
     except Exception:
         pass
     # D1: eval_gate on applied patches (INERT unless EVAL_GATE=1). Mirrors
-    # self_improve._execute — slow quality drift after Vikram acceptances.
+    # self_improve._execute - slow quality drift after Vikram acceptances.
     if status == "applied":
         try:
             from app.agents import eval_gate
@@ -177,7 +177,7 @@ async def _propose(issue: str, area: str, grounding: str = "") -> dict[str, str]
     """free-LLM se patch-proposal sketch. LLM fail = static template (kabhi empty nahi).
 
     `grounding` (optional) = codebase-search se retrieved REAL relevant code
-    (Kilo-Code parity) — diya ho to LLM ko ek guessed `area` ke bajaye actual
+    (Kilo-Code parity) - diya ho to LLM ko ek guessed `area` ke bajaye actual
     file/line context milta, sketch zyada concrete + sahi file pe banta.
     """
     title, rationale, sketch = (
@@ -198,7 +198,7 @@ async def _propose(issue: str, area: str, grounding: str = "") -> dict[str, str]
         text, _ = await asyncio.wait_for(
             free_ai.chat(
                 "Tu ek senior Python engineer hai. Ek production issue diya hai. JSON-only output: "
-                '{"title": "...", "rationale": "kya/kyun (2 lines)", "sketch": "suggested code change ka concrete sketch — file, function, kya badle (5-8 lines)"}',
+                '{"title": "...", "rationale": "kya/kyun (2 lines)", "sketch": "suggested code change ka concrete sketch - file, function, kya badle (5-8 lines)"}',
                 [{"role": "user", "content": user_content}],
                 max_tokens=400,
                 temperature=0.3,
@@ -219,7 +219,7 @@ async def _propose(issue: str, area: str, grounding: str = "") -> dict[str, str]
 
 
 async def scan_and_propose() -> dict[str, Any]:
-    """Hourly scan (watchdog-wired, gated) — naye issues pe Tier-2 proposals banao."""
+    """Hourly scan (watchdog-wired, gated) - naye issues pe Tier-2 proposals banao."""
     sigs = _collect_signals()
     if not sigs:
         return {"ok": True, "signals": 0, "proposed": 0}
@@ -228,7 +228,7 @@ async def scan_and_propose() -> dict[str, Any]:
     recent = list_patches(limit=300)
     # Dedupe fix (duplicate 8b05c720 lesson): jis signal ka patch already OPEN hai
     # (proposed = decision pending, approved = fix in-flight via deploy-loop), usi
-    # signal pe naya proposal mat banao — warna approve hote hi agle din wahi issue
+    # signal pe naya proposal mat banao - warna approve hote hi agle din wahi issue
     # dobara propose hota tha (merge me 'at' approval-time ban jata, day-check miss).
     # Sirf CLOSED (rejected/applied) signals re-propose ho sakte, woh bhi same-day nahi.
     open_keys = {r.get("signal_key") for r in recent if r.get("status") in ("proposed", "approved")}
@@ -241,7 +241,7 @@ async def scan_and_propose() -> dict[str, Any]:
     for s in new:
         # Kilo-Code parity: ground the proposal in ACTUAL relevant code (semantic
         # codebase search) instead of a single guessed `area` + blind LLM. Gated
-        # CODE_SEARCH (default OFF), never-raise; empty index → behaves as before.
+        # CODE_SEARCH (default OFF), never-raise; empty index -> behaves as before.
         grounding, grounded_files = "", []
         try:
             from app.agents import code_search

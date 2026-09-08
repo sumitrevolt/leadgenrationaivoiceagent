@@ -1,4 +1,4 @@
-"""Email Drip Sequence Engine — multi-step email sequences with branching + A/B testing.
+"""Email Drip Sequence Engine - multi-step email sequences with branching + A/B testing.
 
 Inspired by ActiveCampaign, HubSpot, GoHighLevel workflows:
   - Multi-step sequences with delays, conditions, and branching
@@ -59,7 +59,7 @@ DRIP_TEMPLATES = {
                 "body": (
                     "{customer_name} ji,\n\n"
                     "Ek hafta ho gaya. Aapka dashboard: {dashboard_link}\n\n"
-                    "Koi sawaal ho to reply karo — hum yahan hain!"
+                    "Koi sawaal ho to reply karo - hum yahan hain!"
                 ),
             },
             {
@@ -109,7 +109,7 @@ DRIP_TEMPLATES = {
             },
             {
                 "delay_hours": 336,
-                "subject": "Last chance — free consultation! 📞",
+                "subject": "Last chance - free consultation! 📞",
                 "body": (
                     "{customer_name} ji,\n\n"
                     "Humari taraf se free 15-min marketing consultation. "

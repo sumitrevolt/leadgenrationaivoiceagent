@@ -1,4 +1,4 @@
-"""Tests for the Lekha call-KPI daily digest (Task 3 — fixes missing log_event wiring)."""
+"""Tests for the Lekha call-KPI daily digest (Task 3 - fixes missing log_event wiring)."""
 
 from __future__ import annotations
 

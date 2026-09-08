@@ -1,7 +1,7 @@
-"""Typed metadata for AUTOMATION_FLAGS — honesty layer, not a second flag platform.
+"""Typed metadata for AUTOMATION_FLAGS - honesty layer, not a second flag platform.
 
 Every registry entry resolves to an explicit value kind + governance class.
-Unknown certainty stays ``unknown_requires_review`` — we never invent production
+Unknown certainty stays ``unknown_requires_review`` - we never invent production
 proof. Non-boolean kinds never contribute to switch enabled counts.
 """
 
@@ -23,7 +23,7 @@ class FlagValueKind(str, Enum):
     ENUM = "enum"
     CSV_ALLOWLIST = "csv_allowlist"
     URL = "url"
-    SECRET = "secret"  # nosecret — enum label, not a credential  # pragma: allowlist secret
+    SECRET = "secret"  # nosecret - enum label, not a credential  # pragma: allowlist secret
     CREDENTIAL_REFERENCE = "credential_reference"
     PATH = "path"
     DURATION = "duration"
@@ -41,7 +41,7 @@ class FlagGovernance(str, Enum):
     OWNER_APPROVAL_REQUIRED = "owner_approval_required"
     EXTERNAL_PREREQUISITE = "external_prerequisite"
     CONFIGURATION_NOT_SWITCH = "configuration_not_switch"
-    SECRET_NEVER_EXPOSE = "secret_never_expose"  # nosecret — enum label  # pragma: allowlist secret
+    SECRET_NEVER_EXPOSE = "secret_never_expose"  # nosecret - enum label  # pragma: allowlist secret
     DEPRECATED = "deprecated"
     UNKNOWN_REQUIRES_REVIEW = "unknown_requires_review"
 
@@ -120,7 +120,7 @@ def _m(
     )
 
 
-# Explicit overlays — risky / non-obvious / production-known only.
+# Explicit overlays - risky / non-obvious / production-known only.
 _OVERRIDES: dict[str, FlagMeta] = {
     "REPLY_AUTO_SEND": _m(
         "REPLY_AUTO_SEND",
@@ -168,7 +168,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         notes=(
             "Orphaned-pending approval retirement sweep (daily 04:30). dry_run by "
             "default; CONTENT_APPROVAL_SWEEP_LIVE=1 actuates writes. Retiring != "
-            "approving — terminal 'expired' marker, never publish consent."
+            "approving - terminal 'expired' marker, never publish consent."
         ),
         owner="platform",
         risk="ops",
@@ -217,7 +217,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "WHATSAPP_AUTO_SEND",
         FlagValueKind.BOOLEAN,
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
-        notes="Sender boundary gate — not cold blast alone",
+        notes="Sender boundary gate - not cold blast alone",
         risk="outbound",
         customer=True,
         provider=True,
@@ -246,7 +246,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         companions=("PLATFORM_DIAL_LIMIT", "VOICE_LAUNCH_KILL"),
         kill="VOICE_LAUNCH_KILL",
         evidence="PRODUCTION-PROVEN",
-        canary="DIAL_TEST_MODE/allowlist historically removed — re-probe prod",
+        canary="DIAL_TEST_MODE/allowlist historically removed - re-probe prod",
     ),
     "PLATFORM_DIAL_LIMIT": _m(
         "PLATFORM_DIAL_LIMIT",
@@ -311,7 +311,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "OKF_INGEST_ENABLED",
         FlagValueKind.BOOLEAN,
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
-        notes="ADR-119 Phase-1 OKF→Qdrant ingest
+        notes="ADR-119 Phase-1 OKF->Qdrant ingest
         OFF default
         dry-run always safe",
         owner="platform",
@@ -452,7 +452,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "OWNER_OS_LITMUS",
         FlagValueKind.BOOLEAN,
         FlagGovernance.PRODUCTION_PROVEN,
-        notes="ADR-155 agent-swarm pattern harvest — deterministic Owner OS litmus
+        notes="ADR-155 agent-swarm pattern harvest - deterministic Owner OS litmus
         default ON",
         risk="owner_os",
         default="1",
@@ -575,7 +575,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
         notes=(
             "Boss+Second-Brain hash-bound decision approvals "
-            "(propose→advice→boss→consume); OFF default; "
+            "(propose->advice->boss->consume); OFF default; "
             "execute fail-closed; Owner OS AMBER verify+one-time consume"
         ),
         owner="rohan",
@@ -669,7 +669,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "POST_CALL_WHATSAPP",
         FlagValueKind.BOOLEAN,
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
-        notes="Interested-lead path — separate from cold WA",
+        notes="Interested-lead path - separate from cold WA",
         risk="outbound",
         customer=True,
         companions=("WHATSAPP_AUTO_SEND",),
@@ -679,7 +679,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         FlagValueKind.BOOLEAN,
         FlagGovernance.SAFE_LOCAL_ONLY,
         notes=(
-            "Business-type wizard auto-setup (salon/clinic/restaurant template apply) — "
+            "Business-type wizard auto-setup (salon/clinic/restaurant template apply) - "
             "OFF default; preview/catalog endpoints hamesha available"
         ),
         risk="product",
@@ -689,7 +689,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         FlagValueKind.BOOLEAN,
         FlagGovernance.OWNER_APPROVAL_REQUIRED,
         notes=(
-            "AI post-call WhatsApp summary + action items to qualified leads — "
+            "AI post-call WhatsApp summary + action items to qualified leads - "
             "needs WHATSAPP_AUTO_SEND too; OFF default"
         ),
         risk="outbound",
@@ -714,7 +714,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
             "A1 typed KB grounding: ON = citation jo apne chunk me verbatim verify "
             "na ho wo drop, sab drop ho gaye to refusal. OFF (default) = warn-only. "
             "Reader = app/voice_agent/kb_grounding.py; voice reply path me WIRED "
-            "NAHI (Swara/voice FROZEN — wiring owner approval ka kaam)"
+            "NAHI (Swara/voice FROZEN - wiring owner approval ka kaam)"
         ),
         owner="platform",
         risk="product",
@@ -728,7 +728,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         FlagGovernance.CONFIGURATION_NOT_SWITCH,
         notes=(
             "KB refusal threshold override. Unset = knowledge_base._MIN_GROUND_SCORE "
-            "(0.04) — aaj ka behaviour. Scores backend-dependent hain (keyword cosine "
+            "(0.04) - aaj ka behaviour. Scores backend-dependent hain (keyword cosine "
             "vs Chroma 1/(1+dist) vs Qdrant), isliye number guess mat karo"
         ),
         owner="platform",
@@ -806,7 +806,7 @@ _OVERRIDES: dict[str, FlagMeta] = {
         "HERMES_HANDOFF",
         FlagValueKind.BOOLEAN,
         FlagGovernance.DEPRECATED,
-        notes="Reserved future — not a live switch",
+        notes="Reserved future - not a live switch",
         evidence="CODE-PRESENT",
     ),
     "CONSENT_CONFIRM": _m(
@@ -980,7 +980,7 @@ def build_manifest(names: list[str] | None = None) -> dict[str, Any]:
     for m in items:
         by_kind[m.kind.value] += 1
         by_gov[m.governance.value] += 1
-    # Optional expensive index — only when building full manifest once
+    # Optional expensive index - only when building full manifest once
     sites = _callsite_index()
     flags_out: dict[str, Any] = {}
     for m in items:

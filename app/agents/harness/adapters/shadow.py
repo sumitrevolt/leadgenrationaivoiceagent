@@ -1,4 +1,4 @@
-"""Shadow adapter — record-only observation of a real legacy agent execution.
+"""Shadow adapter - record-only observation of a real legacy agent execution.
 
 Contract (mission Stage A):
   legacy path stays authoritative and executes exactly once
@@ -134,7 +134,7 @@ class _JobArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-async def _noop(**_: Any) -> Any:  # never called by observe() — presence-only
+async def _noop(**_: Any) -> Any:  # never called by observe() - presence-only
     raise AssertionError("shadow tool executor must never be invoked")
 
 
@@ -160,7 +160,7 @@ def observe_legacy_run(
         aid = agent_id.strip().lower()
         risk = _classify(aid)
         rrid = real_run_id or ("run_" + uuid.uuid4().hex[:12])
-        # Shadow-safe derived reference — NOT the legacy idempotency key.
+        # Shadow-safe derived reference - NOT the legacy idempotency key.
         shadow_ref = f"shadow:{rrid}:{action_index}"
         legacy_tool = action or f"staff.run_{aid}"  # the REAL executor identity
         # Canonical identity resolution: a mapped STAFF member maps to a canonical

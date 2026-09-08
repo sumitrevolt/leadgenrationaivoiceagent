@@ -1,11 +1,11 @@
 """
-LLM Council — Karpathy-style 3-stage cross-model consensus (free-stack).
+LLM Council - Karpathy-style 3-stage cross-model consensus (free-stack).
 
 Stage 1: parallel opinions from distinct providers/models
 Stage 2: anonymized peer ranking (Response A/B/C…)
 Stage 3: Chairman synthesizes final answer
 
-Uses free_ai.chat_provider() — NOT the fallback chain (diversity ke liye).
+Uses free_ai.chat_provider() - NOT the fallback chain (diversity ke liye).
 Gated LLM_COUNCIL=0 to disable. Never raises.
 """
 
@@ -21,7 +21,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Free council members — sirf jinke keys set hon unhe use karenge
+# Free council members - sirf jinke keys set hon unhe use karenge
 _DEFAULT_MEMBERS: list[tuple[str, str, str]] = [
     ("mistral", "mistral-small-latest", "Mistral Small"),
     ("groq", "openai/gpt-oss-20b", "Groq GPT-OSS 20B"),
@@ -204,7 +204,7 @@ def calculate_aggregate_rankings(
     stage2_results: list[dict[str, Any]],
     label_to_model: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """Cross-ranker average position — lower avg_rank = better."""
+    """Cross-ranker average position - lower avg_rank = better."""
     model_positions: dict[str, list[int]] = defaultdict(list)
     for row in stage2_results:
         parsed = row.get("parsed_ranking") or parse_ranking_from_text(row.get("ranking") or "")
@@ -233,7 +233,7 @@ async def stage3_synthesize_final(
     chairman_provider: str,
     chairman_model: str,
 ) -> dict[str, Any]:
-    """Chairman (Boss) — sab opinions + rankings merge karke final answer."""
+    """Chairman (Boss) - sab opinions + rankings merge karke final answer."""
     stage1_text = "\n\n".join(
         f"Model: {r['label']} ({r['provider']})\nResponse: {r['response']}" for r in stage1_results
     )
@@ -244,15 +244,15 @@ async def stage3_synthesize_final(
 
 Original Question: {user_query}
 
-STAGE 1 — Individual Responses:
+STAGE 1 - Individual Responses:
 {stage1_text}
 
-STAGE 2 — Peer Rankings:
+STAGE 2 - Peer Rankings:
 {stage2_text}
 
 Your task: synthesize everything into ONE clear, accurate, actionable answer (Hinglish Roman script OK).
 Consider individual insights, peer rankings, and agreement/disagreement patterns.
-Be concise but complete (6-12 lines). Sirf final answer — meta commentary mat do."""
+Be concise but complete (6-12 lines). Sirf final answer - meta commentary mat do."""
 
     text, prov = await _ask(
         chairman_provider,
@@ -266,7 +266,7 @@ Be concise but complete (6-12 lines). Sirf final answer — meta commentary mat 
         return {
             "provider": chairman_provider,
             "model": chairman_model,
-            "response": "Council synthesis fail — chairman response nahi bana. Dobara try karo.",
+            "response": "Council synthesis fail - chairman response nahi bana. Dobara try karo.",
             "ok": False,
         }
     return {
@@ -286,7 +286,7 @@ async def run_full_council(user_query: str) -> dict[str, Any]:
     if len(members) < _MIN_MEMBERS:
         return {
             "ok": False,
-            "error": f"Kam se kam {_MIN_MEMBERS} LLM providers chahiye — ab sirf {len(members)} available. Keys check karo.",
+            "error": f"Kam se kam {_MIN_MEMBERS} LLM providers chahiye - ab sirf {len(members)} available. Keys check karo.",
             "available_members": members,
         }
 
@@ -315,7 +315,7 @@ async def run_full_council(user_query: str) -> dict[str, Any]:
         if len(stage1) < _MIN_MEMBERS:
             return {
                 "ok": False,
-                "error": f"Stage 1: sirf {len(stage1)}/{len(members)} models ne jawab diya — quota/keys check karo.",
+                "error": f"Stage 1: sirf {len(stage1)}/{len(members)} models ne jawab diya - quota/keys check karo.",
                 "stage1": stage1,
                 "available_members": members,
             }
@@ -326,7 +326,7 @@ async def run_full_council(user_query: str) -> dict[str, Any]:
             enriched_query, stage1, stage2, chairman[0], chairman[1]
         )
 
-        # Obsidian second-brain — write verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+        # Obsidian second-brain - write verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
         try:
             from app.platform import obsidian_sync as _obs
 

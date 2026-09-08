@@ -1,15 +1,15 @@
-"""Model Cookbook — free-tier LLM catalog + niche-aware recommendations.
+"""Model Cookbook - free-tier LLM catalog + niche-aware recommendations.
 
 Odysseus-inspired pattern (clean-room reimplement, AGPL-safe): "hardware-aware
-model recommendations." LeadGen SaaS pe koi hardware nahi — customer-hardware
+model recommendations." LeadGen SaaS pe koi hardware nahi - customer-hardware
 irrelevant. Isliye pattern ko naye axis pe map kiya:
 
-  Odysseus  → "aap ki GPU/RAM ke liye best local model kaunsa?"
-  LeadGen   → "aap ke niche / task / speed-vs-quality tradeoff ke liye
+  Odysseus  -> "aap ki GPU/RAM ke liye best local model kaunsa?"
+  LeadGen   -> "aap ke niche / task / speed-vs-quality tradeoff ke liye
               hamare 8+ free-tier providers me se best kaunsa?"
 
 Content-driven (data, koi external call nahi). Admin + customer dono ko
-selectable — customer ko show karke apnе marketing product ki technical
+selectable - customer ko show karke apnе marketing product ki technical
 depth demonstrate hoti (upsell surface).
 
 Flag: `MODEL_COOKBOOK_ENABLED=1` warna 503 (INERT default).
@@ -51,7 +51,7 @@ def _require_enabled() -> None:
 
 
 # --------------------------- catalog --------------------------- #
-# Static catalog — hand-curated from `free_ai.py` provider chain + public
+# Static catalog - hand-curated from `free_ai.py` provider chain + public
 # rate-limit docs (as of 2026-Q3). Update when models/limits change.
 #
 # Fields:
@@ -75,7 +75,7 @@ _CATALOG: list[dict[str, Any]] = [
         "rate_limit": "free tier: 1 RPS bursty",
         "cost": "free-tier",
         "best_for": ["voice_reply", "hinglish", "customer_chat"],
-        "notes": "Voice pipeline ka primary — Hinglish tonality best.",
+        "notes": "Voice pipeline ka primary - Hinglish tonality best.",
     },
     {
         "provider": "groq",
@@ -97,7 +97,7 @@ _CATALOG: list[dict[str, Any]] = [
         "rate_limit": "free tier: varies",
         "cost": "free-tier",
         "best_for": ["content_gen", "bulk_writing", "planning", "reasoning"],
-        "notes": "120B free — quality lead. 429-prone peak hours pe.",
+        "notes": "120B free - quality lead. 429-prone peak hours pe.",
     },
     {
         "provider": "gemini",
@@ -116,10 +116,10 @@ _CATALOG: list[dict[str, Any]] = [
         "speed": "fast",
         "quality": "excellent",
         "multilingual": "good",
-        "rate_limit": "free — no card required",
+        "rate_limit": "free - no card required",
         "cost": "free-unlimited (soft cap)",
         "best_for": ["content_gen", "bulk_writing", "reasoning"],
-        "notes": "70B free, custom SN10 chip — fast quality inference.",
+        "notes": "70B free, custom SN10 chip - fast quality inference.",
     },
     {
         "provider": "nvidia",
@@ -130,7 +130,7 @@ _CATALOG: list[dict[str, Any]] = [
         "rate_limit": "40 RPM + ~5k lifetime credits",
         "cost": "free+metered",
         "best_for": ["deep_tail_fallback", "high_stakes"],
-        "notes": "Deep-tail hi rakho — lifetime credits khatam ho jate.",
+        "notes": "Deep-tail hi rakho - lifetime credits khatam ho jate.",
     },
     {
         "provider": "openrouter",
@@ -146,7 +146,7 @@ _CATALOG: list[dict[str, Any]] = [
 ]
 
 
-# Task → recommended chain (curated, order = try_first, try_next, ...)
+# Task -> recommended chain (curated, order = try_first, try_next, ...)
 _TASK_RECIPES: dict[str, list[str]] = {
     "voice_reply": ["mistral", "groq", "gemini", "cerebras"],
     "content_gen": ["cerebras", "sambanova", "openrouter", "groq"],
@@ -163,7 +163,7 @@ _TASK_RECIPES: dict[str, list[str]] = {
 }
 
 
-# Niche → task-mix (LeadGen sells to Indian small businesses; niches shape
+# Niche -> task-mix (LeadGen sells to Indian small businesses; niches shape
 # the LLM answer patterns needed).
 _NICHE_TASK_HINTS: dict[str, list[str]] = {
     "salon": ["voice_reply", "hinglish", "customer_chat"],
@@ -271,7 +271,7 @@ def _by_provider(provider: str) -> dict[str, Any]:
 
 @router.get("/status")
 async def status() -> dict:
-    """Public status — flag + counts."""
+    """Public status - flag + counts."""
     live = _live_flags()
     return {
         "enabled": _enabled(),
@@ -282,7 +282,7 @@ async def status() -> dict:
 
 
 _PAGE_HTML = """<!doctype html>
-<html><head><meta charset="utf-8"><title>Model Cookbook — LeadGen</title>
+<html><head><meta charset="utf-8"><title>Model Cookbook - LeadGen</title>
 <style>
  body{font-family:system-ui,Segoe UI,sans-serif
  margin:0
@@ -369,7 +369,7 @@ _PAGE_HTML = """<!doctype html>
  color:#3b82f6}
 </style></head>
 <body><div class="wrap">
- <h1>Model Cookbook · Niche → LLM Recipe</h1>
+ <h1>Model Cookbook · Niche -> LLM Recipe</h1>
  <div class="sub">Free-tier providers ka catalog + kaunsa niche/task pe kaun best.</div>
 
  <div class="card">
@@ -438,7 +438,7 @@ document.getElementById('reco').onclick = async () => {
     prefer_speed: pref==='speed', prefer_quality: pref==='quality',
   })});
   document.getElementById('reco_out').innerHTML = `
-    <div><strong>Top pick:</strong> <span class="badge">${j.top_pick||'—'}</span></div>
+    <div><strong>Top pick:</strong> <span class="badge">${j.top_pick||'-'}</span></div>
     <div style="margin-top:8px
     font-size:12px
     color:#94a3b8">${j.reason}</div>

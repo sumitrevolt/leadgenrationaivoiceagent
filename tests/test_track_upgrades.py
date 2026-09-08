@@ -1,16 +1,16 @@
 """Tests for the 4 production-readiness tracks (2026-06-09):
 
-  Track 1 — self-serve signup + unified billing webhook + usage provisioning
-  Track 2 — WhatsApp inbound webhook -> reply_agent Hinglish drafts
-  Track 3 — social auto-poster (Meta Graph API + mock fallback)
-  Track 4 — Alembic: new-model registration, migration 005, graceful startup migrations
+  Track 1 - self-serve signup + unified billing webhook + usage provisioning
+  Track 2 - WhatsApp inbound webhook -> reply_agent Hinglish drafts
+  Track 3 - social auto-poster (Meta Graph API + mock fallback)
+  Track 4 - Alembic: new-model registration, migration 005, graceful startup migrations
 
 Every feature is fail-open/defensive
 these assert BOTH the happy path AND that the safe
 fallbacks (mock mode, bad-signature reject, never-raise) behave correctly.
 
 NOTE: we use a *lifespan-free* TestClient (``TestClient(app)`` WITHOUT the ``with`` block)
-so the app's startup events — team scheduler thread + per-test alembic — do NOT run for
+so the app's startup events - team scheduler thread + per-test alembic - do NOT run for
 every request (those background threads contend on the SQLite file and make the suite
 flaky). The conftest dependency overrides (auth + async DB) are module-level, so they're
 active regardless. Async helpers are driven via ``asyncio.run`` (no pytest-asyncio needed).
@@ -36,21 +36,21 @@ def c(monkeypatch):
     """A TestClient that does NOT run lifespan (no team-scheduler thread per test)."""
     from app.cache import RateLimiter
 
-    # ASYNC patch zaroori: callers `await limiter.is_allowed(ip)` karte hain — purana
-    # SYNC lambda await pe TypeError deta → RateLimitMiddleware apne IN-MEMORY
-    # fallback counter pe girta → CI full-suite burst me yahi 429s de raha tha.
-    # (Class-level dispatch patch kaam nahi karta — BaseHTTPMiddleware dispatch_func
+    # ASYNC patch zaroori: callers `await limiter.is_allowed(ip)` karte hain - purana
+    # SYNC lambda await pe TypeError deta -> RateLimitMiddleware apne IN-MEMORY
+    # fallback counter pe girta -> CI full-suite burst me yahi 429s de raha tha.
+    # (Class-level dispatch patch kaam nahi karta - BaseHTTPMiddleware dispatch_func
     # ko __init__ me bind karta hai.)
     async def _allow(self, ident):
         return True, 9999
 
     monkeypatch.setattr(RateLimiter, "is_allowed", _allow)
 
-    # CI me RateLimiter INIT hi fail hota (redis absent) → middleware ka INLINE
-    # in-memory fallback poore suite ka traffic count karta → yahan tak aate-aate
-    # minute-window full → 429. Fallback inline hai (koi helper method nahi) aur
-    # dispatch_func __init__-bound hai — isliye INSTANCE patch: stack force-build
-    # (skip-path /health = kabhi 429 nahi) → chain walk → ceiling raise + counter clear.
+    # CI me RateLimiter INIT hi fail hota (redis absent) -> middleware ka INLINE
+    # in-memory fallback poore suite ka traffic count karta -> yahan tak aate-aate
+    # minute-window full -> 429. Fallback inline hai (koi helper method nahi) aur
+    # dispatch_func __init__-bound hai - isliye INSTANCE patch: stack force-build
+    # (skip-path /health = kabhi 429 nahi) -> chain walk -> ceiling raise + counter clear.
     client = TestClient(app)
     client.get("/health")
     from app.middleware import RateLimitMiddleware
@@ -64,7 +64,7 @@ def c(monkeypatch):
 
     # TEESRI layer: public_signup INLINE per-IP throttle is `_rate_check`
     # (module-level `_RL` / `_RL_AUDIT`). Stale tests patched removed
-    # `_rate_limited` — that AttributeError left signup unprotected from
+    # `_rate_limited` - that AttributeError left signup unprotected from
     # cross-test 429 pollution. Canonical seam = async `_rate_check` no-op.
     from app.api import public_site as ps
 
@@ -80,7 +80,7 @@ def c(monkeypatch):
 
 
 # =============================================================================
-# Track 1 — self-serve signup
+# Track 1 - self-serve signup
 # =============================================================================
 
 
@@ -89,7 +89,7 @@ def test_signup_creates_client_and_returns_token(c, monkeypatch, tmp_path):
     body = {
         "business_name": "Sharma Solar",
         "email": "owner@sharmasolar.in",
-        "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+        "password": "secret123",  # pragma: allowlist secret - synthetic fixture
         "phone": "9876543210",
         "niche": "solar",
         "city": "Pune",
@@ -108,7 +108,7 @@ def test_signup_creates_client_and_returns_token(c, monkeypatch, tmp_path):
         "/api/customer/auth/login",
         json={
             "email": "owner@sharmasolar.in",
-            "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+            "password": "secret123",  # pragma: allowlist secret - synthetic fixture
         },
     )
     assert login.status_code == 200, login.text
@@ -120,7 +120,7 @@ def test_signup_duplicate_email_returns_409(c, monkeypatch, tmp_path):
     body = {
         "business_name": "Dup Biz",
         "email": "dup@example.com",
-        "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+        "password": "secret123",  # pragma: allowlist secret - synthetic fixture
     }
     assert c.post("/api/customer/auth/signup", json=body).status_code == 200
     again = c.post("/api/customer/auth/signup", json=body)
@@ -134,7 +134,7 @@ def test_signup_invalid_email_returns_422(c, monkeypatch, tmp_path):
         json={
             "business_name": "No Email",
             "email": "notanemail",
-            "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+            "password": "secret123",  # pragma: allowlist secret - synthetic fixture
         },
     )
     assert r.status_code == 422
@@ -147,7 +147,7 @@ def test_signup_unknown_plan_defaults_to_starter(c, monkeypatch, tmp_path):
         json={
             "business_name": "Plan Test",
             "email": "plan@example.com",
-            "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+            "password": "secret123",  # pragma: allowlist secret - synthetic fixture
             "plan": "enterprise-ultra",  # not a real plan
         },
     )
@@ -156,7 +156,7 @@ def test_signup_unknown_plan_defaults_to_starter(c, monkeypatch, tmp_path):
 
 
 # =============================================================================
-# Track 1 — usage provisioning is fail-open (guards the truncated/stale usage.py)
+# Track 1 - usage provisioning is fail-open (guards the truncated/stale usage.py)
 # =============================================================================
 
 
@@ -177,7 +177,7 @@ def test_usage_provisioning_safe_for_unknown_client():
 
 
 # =============================================================================
-# Track 1 — unified billing webhook (/api/billing/webhook)
+# Track 1 - unified billing webhook (/api/billing/webhook)
 # =============================================================================
 
 
@@ -189,7 +189,7 @@ def test_billing_webhook_unrecognized_provider_400(c):
 def test_billing_webhook_razorpay_header_rejected_after_removal(c):
     """Razorpay gateway removed 2026-06-18 (manual UPI only). An X-Razorpay-Signature
     webhook is no longer a recognized provider, so the unified route rejects it with
-    400 — guarding against razorpay being silently re-accepted/re-wired later."""
+    400 - guarding against razorpay being silently re-accepted/re-wired later."""
     r = c.post(
         "/api/billing/webhook",
         headers={"X-Razorpay-Signature": "deadbeef"},
@@ -200,7 +200,7 @@ def test_billing_webhook_razorpay_header_rejected_after_removal(c):
 
 def test_billing_webhook_stripe_signature_rejected_after_removal(c, monkeypatch):
     """Stripe gateway removed 2026-07-10 (manual UPI only). A Stripe-Signature
-    header must not be accepted as a live payment webhook — unified route is 400."""
+    header must not be accepted as a live payment webhook - unified route is 400."""
     monkeypatch.setattr(settings, "stripe_webhook_secret", "", raising=False)
     r = c.post(
         "/api/billing/webhook",
@@ -214,7 +214,7 @@ def test_billing_webhook_stripe_signature_rejected_after_removal(c, monkeypatch)
 
 
 # =============================================================================
-# Track 2 — WhatsApp webhook -> reply_agent drafts
+# Track 2 - WhatsApp webhook -> reply_agent drafts
 # =============================================================================
 
 
@@ -328,7 +328,7 @@ def test_whatsapp_reply_helper_writes_draft(monkeypatch, tmp_path):
 
 
 # =============================================================================
-# Track 3 — social auto-poster (Meta Graph + mock fallback)
+# Track 3 - social auto-poster (Meta Graph + mock fallback)
 # =============================================================================
 
 
@@ -420,7 +420,7 @@ def test_meta_instagram_requires_image():
 
 
 # =============================================================================
-# Track 4 — Alembic
+# Track 4 - Alembic
 # =============================================================================
 
 

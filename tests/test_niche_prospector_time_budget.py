@@ -56,14 +56,14 @@ async def test_niche_run_skips_rescore_when_scrape_already_long(monkeypatch, tmp
         lambda **kw: [{"niche": "salon", "query": "salon", "cities": ["Pune"]}],
     )
 
-    # t0=0; after scrape elapsed check sees 500s → skip rescore.
+    # t0=0; after scrape elapsed check sees 500s -> skip rescore.
     # monkeypatch patches the GLOBAL time.monotonic, so ANYTHING running during
     # this test (async teardown, an active log handler, etc.) also consumes it.
     # A bare finite iterator raised StopIteration on the 5th call, which PEP 479
     # turns into "RuntimeError: generator raised StopIteration" at teardown.
     # Serve the intended sequence to the code under test, then HOLD the last value
     # so surplus calls are harmless. Exhaustion is the intended terminal protocol
-    # here (clock stops advancing), handled semantically — not a blind suppression.
+    # here (clock stops advancing), handled semantically - not a blind suppression.
     _seq = iter([0.0, 500.0, 501.0, 502.0])
     _clock = {"t": 502.0}
 

@@ -1,4 +1,4 @@
-"""Owner OS admin API — /api/admin/owner-os/*
+"""Owner OS admin API - /api/admin/owner-os/*
 
 Auth: require_admin. No secrets in responses. Mutations audited.
 """
@@ -67,7 +67,7 @@ class TaskControlIn(BaseModel):
 
 
 class RouteHealthIn(BaseModel):
-    """Sanitized non-customer route probe — approved task keys only."""
+    """Sanitized non-customer route probe - approved task keys only."""
 
     task_type: str = Field("leadgen.agent_ops", min_length=8, max_length=64)
     prompt: str = Field("Reply with exactly: OWNER_OS_ROUTE_OK", min_length=8, max_length=120)
@@ -174,7 +174,7 @@ async def owner_pause_agent(
     if agent_id not in RUNNABLE_MEMBERS:
         raise HTTPException(
             status_code=400,
-            detail="Pause Manual Runs sirf RUNNABLE agents pe. Scheduled jobs alag — Automation → Schedule.",
+            detail="Pause Manual Runs sirf RUNNABLE agents pe. Scheduled jobs alag - Automation -> Schedule.",
         )
     note = (
         (body.note if body else "") or (body.reason if body else "") or "owner_os Pause Manual Runs"
@@ -392,7 +392,7 @@ async def owner_set_kill(body: KillIn, user: User = Depends(require_admin)) -> d
 
 @router.get("/runtime")
 async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str, Any]:
-    """Agent Runtime (Phase-B) operator board — mode/lane, heartbeats, useful work,
+    """Agent Runtime (Phase-B) operator board - mode/lane, heartbeats, useful work,
     active tasks, budgets, kill-switch state, runtime DLQ. Never raises."""
     from app.platform import agent_runtime
     from app.platform.agent_runtime_workforce import (
@@ -444,7 +444,7 @@ async def owner_mission_one(mission_id: str, user: User = Depends(require_admin)
 async def owner_mission_chat(
     body: MissionChatIn, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Short chat → durable mission packet. RED outbound cannot be armed here."""
+    """Short chat -> durable mission packet. RED outbound cannot be armed here."""
     from app.platform import mission_control as mc
 
     return mc.handle_chat(

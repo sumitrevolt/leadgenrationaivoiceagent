@@ -1,7 +1,7 @@
 """Force-pull a single frontend asset on the VPS, then rebuild the app container.
 
 GUARDED. The command chain below starts with `git stash`, which removes the
-live-mutated files under `data/` from the working tree — that is where the
+live-mutated files under `data/` from the working tree - that is where the
 invoice ledger, consent ledger, suppression ledgers and customer registry
 currently live. `git pull` then follows. So this is a production-destructive
 path even though its `git clean` is scoped to one frontend file.

@@ -1,6 +1,6 @@
-"""Leads / CRM Quality Assurance — read-only lead-hygiene detection (GREEN lane).
+"""Leads / CRM Quality Assurance - read-only lead-hygiene detection (GREEN lane).
 
-WHY (2026-07-20, Agent-OS upgrade — Rohan/Neha/Priya lead domain): the lead
+WHY (2026-07-20, Agent-OS upgrade - Rohan/Neha/Priya lead domain): the lead
 primitives all existed but were never composed into the one question that matters
 for the lead pipeline: *"which leads in the store are junk / dangerous to act on,
 and what's the proof?"*
@@ -27,8 +27,8 @@ SAFETY CONTRACT (enforced by tests):
   strictly
     marketing-domain (out of scope: the voice calling stack).
 
-OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``rohan`` (Leads Manager) —
-lead hygiene / qualification is rohan's lane — so the run is visible on the existing
+OBSERVABILITY: a scan emits ONE ``team.log_event`` under ``rohan`` (Leads Manager) -
+lead hygiene / qualification is rohan's lane - so the run is visible on the existing
 team activity feed with a real owner (no new persona invented). ``warn`` when any
 issue is found, ``ok`` otherwise.
 
@@ -48,7 +48,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Observability owner for lead-quality runs. Rohan = Leads Manager (one of the 31
-# canonical personas) — lead qualification / hygiene is his lane. NOT a new persona.
+# canonical personas) - lead qualification / hygiene is his lane. NOT a new persona.
 _OWNER_MEMBER = "rohan"
 
 # A hot lead with no follow-up touch in this many days = stale (actionable churn of
@@ -62,7 +62,7 @@ except Exception:
 _SAMPLE_CAP = 8
 
 # Timestamp fields that count as a "follow-up touch" on a lead (any recent one =
-# not stale). updated_at is intentionally EXCLUDED — a store rewrite bumps it
+# not stale). updated_at is intentionally EXCLUDED - a store rewrite bumps it
 # without any real outreach happening.
 _TOUCH_FIELDS = (
     "emailed_at",
@@ -255,7 +255,7 @@ def scan_lead_quality(limit: int = 200) -> dict[str, Any]:
     HOT_THRESHOLD or no score), and stale hot leads (hot but no recent follow-up).
 
     No sends, no state mutation. Emits one observability event (rohan). Never
-    raises — returns a shaped record with status='error' + error string on failure.
+    raises - returns a shaped record with status='error' + error string on failure.
     """
     run_id = str(uuid.uuid4())
     started = _now()
@@ -355,7 +355,7 @@ def scan_lead_quality(limit: int = 200) -> dict[str, Any]:
     result["completed_at"] = _iso(completed)
     result["latency_ms"] = int((completed - started).total_seconds() * 1000)
 
-    # observability — one team event under the leads-manager owner (no new persona)
+    # observability - one team event under the leads-manager owner (no new persona)
     try:
         from app.platform import team
 

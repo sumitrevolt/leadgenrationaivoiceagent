@@ -80,10 +80,10 @@ class CallManager:
         provider = (provider or settings.default_telephony or "vobiz").strip().lower()
 
         # Defensive: an unknown/stale provider (e.g. legacy "exotel"/"twilio" still
-        # sitting in .env) must NEVER crash the whole app — fall back to Vobiz (the
+        # sitting in .env) must NEVER crash the whole app - fall back to Vobiz (the
         # only supported provider) with a warning.
         if provider != "vobiz":
-            logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
+            logger.warning(f"Unknown telephony provider '{provider}' - falling back to vobiz.")
             provider = "vobiz"
 
         from app.telephony.vobiz_handler import VobizClient
@@ -94,7 +94,7 @@ class CallManager:
         self.voice_agent = VoiceAgent()
         self.dnd_checker = DNDChecker()
 
-        # Distributed call state — the priority queue + an active-call REGISTRY live
+        # Distributed call state - the priority queue + an active-call REGISTRY live
         # in Redis (when available) so multiple workers share them (stateless scaling).
         # Live VoiceAgent CallContext objects can't be serialized, so they stay
         # worker-local in self.active_calls.
@@ -105,7 +105,7 @@ class CallManager:
         # Concurrency control
         self.max_concurrent_calls = settings.max_concurrent_calls
         self.semaphore = asyncio.Semaphore(self.max_concurrent_calls)
-        # Strong refs to in-flight call tasks — CPython only weakly references a
+        # Strong refs to in-flight call tasks - CPython only weakly references a
         # running task, so a fire-and-forget create_task() can be GC'd mid-call.
         self._inflight: set[asyncio.Task] = set()
 
@@ -187,7 +187,7 @@ class CallManager:
         """
         call_id = str(uuid.uuid4())
 
-        # COMPLIANCE GATE — single chokepoint (DND + 10-19 IST window + DLT/140).
+        # COMPLIANCE GATE - single chokepoint (DND + 10-19 IST window + DLT/140).
         # Automated outbound = promotional, so a number that is not provably
         # compliant is NEVER queued (TCCCPR; penalty up to ₹10L). Fixes the old
         # dead `dnd_checker.check()` call (that method never existed).
@@ -209,11 +209,11 @@ class CallManager:
                 return f"compliance_blocked_{call_id}"
         except Exception as e:
             logger.error(
-                f"Compliance gate error for {request.phone_number} ({e}) — blocking promo call."
+                f"Compliance gate error for {request.phone_number} ({e}) - blocking promo call."
             )
             return f"compliance_error_{call_id}"
 
-        # Prepaid minute enforcement — block a promo call if the client has used up
+        # Prepaid minute enforcement - block a promo call if the client has used up
         # their included calling minutes (Advanced tier). Fail-open: no client_id, or
         # a non-metered plan, or any error -> do NOT block here.
         try:
@@ -222,14 +222,14 @@ class CallManager:
 
                 if not has_minutes(request.client_id):
                     logger.warning(
-                        f"Call to {request.phone_number} blocked — client "
+                        f"Call to {request.phone_number} blocked - client "
                         f"{request.client_id} out of prepaid minutes."
                     )
                     return f"out_of_minutes_{call_id}"
         except Exception as e:
             logger.debug(f"minute-enforcement skipped: {e}")
 
-        # Voice-product (ADR-009) qualified-lead quota enforcement — voice plan ke
+        # Voice-product (ADR-009) qualified-lead quota enforcement - voice plan ke
         # client ka quota khatam => naye campaign calls block (top-up pack message).
         # FAIL-OPEN: no client_id / non-voice plan / error -> block nahi.
         try:
@@ -243,7 +243,7 @@ class CallManager:
                     _plan = (clients_store.get_client(request.client_id) or {}).get("plan")
                 if not has_lead_quota(request.client_id, _plan):
                     logger.warning(
-                        f"Call to {request.phone_number} blocked — client "
+                        f"Call to {request.phone_number} blocked - client "
                         f"{request.client_id} out of qualified-lead quota (voice plan)."
                     )
                     return f"out_of_lead_quota_{call_id}"
@@ -264,7 +264,7 @@ class CallManager:
                 _score = score_lead(request.lead_data)
                 if _score < _min_score:
                     logger.info(
-                        f"Call to {request.phone_number} blocked — lead score "
+                        f"Call to {request.phone_number} blocked - lead score "
                         f"{_score} < CALL_MIN_SCORE {_min_score}."
                     )
                     return f"below_min_score_{call_id}"
@@ -286,7 +286,7 @@ class CallManager:
 
         while True:
             try:
-                # Pull next call from the (Redis-backed) queue — non-blocking poll.
+                # Pull next call from the (Redis-backed) queue - non-blocking poll.
                 item = await self.call_state.dequeue()
                 if item is None:
                     await asyncio.sleep(1)
@@ -347,7 +347,7 @@ class CallManager:
                     },
                 )
 
-                # Make the actual call — Vobiz: place_call(to, answer_url, ...).
+                # Make the actual call - Vobiz: place_call(to, answer_url, ...).
                 # VobizClient never raises; success = status_code in 200/201/202,
                 # sid = body["id"]. The compliance gate already ran in queue_call(),
                 # so skip the duplicate gate here (skip_compliance=True).
@@ -355,7 +355,7 @@ class CallManager:
                     self._answer_url(to=request.phone_number) or self._status_webhook_url() or ""
                 )
                 # ENTERPRISE FIX (2026-07-10): pehle call_id Vobiz ko bheja hi nahi
-                # jaata tha — status webhook me "CallbackData" field KHAALI aata tha,
+                # jaata tha - status webhook me "CallbackData" field KHAALI aata tha,
                 # handle_call_completed hamesha "No context found for call X" debug-log
                 # karta tha, aur voice-minute billing, lead-qualification, aur CRM sync
                 # sab SILENTLY skip ho rahe the. Ab CallbackData bhej rahe hain taaki
@@ -376,7 +376,7 @@ class CallManager:
 
                 if call_sid:
                     context.status = CallStatus.RINGING
-                    # Reverse-map: Vobiz CallSid → internal call_id so webhook can
+                    # Reverse-map: Vobiz CallSid -> internal call_id so webhook can
                     # resolve even if CallbackData field is empty/truncated.
                     await self.call_state._sid_map_set(call_sid, call_id)
                     self.calls_connected += 1
@@ -451,8 +451,8 @@ class CallManager:
         # Determine outcome
         outcome = self._determine_outcome(summary)
 
-        # Opt-out → suppression ledger (covers every voice path, agent handler ke
-        # alawa bhi). Idempotent + best-effort — kabhi completion block nahi karta.
+        # Opt-out -> suppression ledger (covers every voice path, agent handler ke
+        # alawa bhi). Idempotent + best-effort - kabhi completion block nahi karta.
         if outcome == "opt_out":
             try:
                 from app.telephony.consent_ledger import record_opt_out
@@ -500,7 +500,7 @@ class CallManager:
         except Exception:
             pass
 
-        # Post-call AI qualification (Expedify-style "qualify leads 24/7") — GATED
+        # Post-call AI qualification (Expedify-style "qualify leads 24/7") - GATED
         # AUTO_QUALIFY_CALLS=1 (default off = zero change). Best-effort: call
         # completion ko kabhi block/affect nahi karta. Result -> jsonl (dashboard/1-click).
         try:
@@ -536,7 +536,7 @@ class CallManager:
                             )
                             + "\n"
                         )
-                    # RL reward spine (Phase 0) — parity with post_call_hooks path
+                    # RL reward spine (Phase 0) - parity with post_call_hooks path
                     # (2026-09-05: legacy qual writer had no reward hook). ref=call_id
                     # dedupes against the post_call_hooks mirror.
                     try:
@@ -555,7 +555,7 @@ class CallManager:
                         f"[call_qualifier] {call_id}: score={_q.get('interest_score')} "
                         f"qualified={_q.get('qualified')}"
                     )
-                    # call.report.ready customer webhook — every report (qualified or
+                    # call.report.ready customer webhook - every report (qualified or
                     # not); customer opted in via subscription. Inert w/o CUSTOMER_WEBHOOKS.
                     try:
                         from app.telephony.post_call_hooks import emit_call_report
@@ -581,7 +581,7 @@ class CallManager:
                                 _lead_usage.record_qualified_lead(_cid, ref=str(call_id))
                         except Exception:
                             pass
-                        # Native CRM sync (Zoho/HubSpot) — qualified lead client ke
+                        # Native CRM sync (Zoho/HubSpot) - qualified lead client ke
                         # apne CRM me. GATED CRM_SYNC=1, best-effort, never blocks.
                         try:
                             from app.platform import crm_sync as _crm
@@ -622,7 +622,7 @@ class CallManager:
                         except Exception:
                             pass
                         # Cadence enroll: qualified voice lead = omnichannel follow-up
-                        # sequence me daalo (email→sms→wa→linkedin). Gated CADENCE_ENGINE=1.
+                        # sequence me daalo (email->sms->wa->linkedin). Gated CADENCE_ENGINE=1.
                         try:
                             import os as _os2
 
@@ -651,7 +651,7 @@ class CallManager:
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 
         # ── CallLog DB persist ────────────────────────────────────────────────
-        # Har completed call → call_logs table row (analytics _db_calls() isi se
+        # Har completed call -> call_logs table row (analytics _db_calls() isi se
         # padhta hai). Best-effort, kabhi result return block nahi karta.
         try:
             import uuid as _uuid
@@ -720,7 +720,7 @@ class CallManager:
             from app.platform import outbound_webhooks as _ow_cm
 
             # NOTE: the public API is outbound_webhooks.emit(event, payload, client_id)
-            # — there is no fire_event(); the old name silently AttributeError'd under
+            # - there is no fire_event(); the old name silently AttributeError'd under
             # the except below, so this event never actually fired. Use emit().
             _a.create_task(
                 _ow_cm.emit(
@@ -740,9 +740,9 @@ class CallManager:
             pass
 
         # ── niche_database post-call update ──────────────────────────────────
-        # Har call ke baad niche_database me lead status update karo — call attempts,
+        # Har call ke baad niche_database me lead status update karo - call attempts,
         # next_call_at, qualification_data, etc. Best-effort, kabhi block nahi karta.
-        # outcome mapping: call_manager outcomes → niche_database outcome codes
+        # outcome mapping: call_manager outcomes -> niche_database outcome codes
         try:
             _lead_id = getattr(context, "lead_id", "") or ""
             if _lead_id:

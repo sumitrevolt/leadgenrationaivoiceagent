@@ -1,25 +1,25 @@
 """
-Google Search Console (GSC) rank tracking — FREE SEO observability layer.
+Google Search Console (GSC) rank tracking - FREE SEO observability layer.
 
 Kyu: programmatic SEO pages (blog, /b/{slug} mini-sites) bante hain par koi
 rank/impression tracking nahi tha (SEO skill audit 2026-08-11: ~0 inbound
 visibility). Yeh module daily Search Console search-analytics data fetch karke
-local JSONL snapshot banata hai — data humara rehta hai, koi paid API nahi.
+local JSONL snapshot banata hai - data humara rehta hai, koi paid API nahi.
 
 INERT by design:
   - GSC_ENABLED=1 + credentials ke bina run_daily() no-op hai (safe).
   - Credentials = service-account JSON. Source priority:
-      GSC_SERVICE_ACCOUNT_JSON env (path) → google_sheets_credentials settings
-      (wahi service-account file, calendar_booking.py jaisa reuse) → off.
-  - GSC_SITE_URL (default "sc-domain:leadsgenai.in" — domain property,
+      GSC_SERVICE_ACCOUNT_JSON env (path) -> google_sheets_credentials settings
+      (wahi service-account file, calendar_booking.py jaisa reuse) -> off.
+  - GSC_SITE_URL (default "sc-domain:leadsgenai.in" - domain property,
     saare subdomains cover karta hai
     Search Console me property add karna
-    hoga + DNS TXT verify — runbook memory/playbooks.md me).
+    hoga + DNS TXT verify - runbook memory/playbooks.md me).
   - Google libs installed nahi hain to graceful no-op (ImportError caught).
 
 Output files (data/ = gitignored runtime state):
-  - data/gsc_daily.jsonl  — har run ka pura snapshot (append-only history)
-  - data/gsc_state.json   — latest summary (atomic replace) — admin route ise
+  - data/gsc_daily.jsonl  - har run ka pura snapshot (append-only history)
+  - data/gsc_state.json   - latest summary (atomic replace) - admin route ise
     padhta hai.
 """
 
@@ -41,7 +41,7 @@ STATE_JSON = os.path.join("data", "gsc_state.json")
 
 
 def _setting(name: str) -> str:
-    """Call-time env → settings fallback (calendar_booking.py pattern)."""
+    """Call-time env -> settings fallback (calendar_booking.py pattern)."""
     v = os.getenv(name)
     if v is not None and str(v).strip() != "":
         return str(v).strip()
@@ -62,13 +62,13 @@ def site_url() -> str:
 
 
 def _build_service():
-    """Search Console API v3 service. Local imports → libs missing = None."""
+    """Search Console API v3 service. Local imports -> libs missing = None."""
     try:
         from google.oauth2.service_account import Credentials
         from googleapiclient.discovery import build
     except ImportError:
         logger.warning(
-            "[gsc] google-api-python-client not installed — GSC inactive. "
+            "[gsc] google-api-python-client not installed - GSC inactive. "
             "Run: pip install google-api-python-client"
         )
         return None
@@ -78,13 +78,13 @@ def _build_service():
         service = build("webmasters", "v3", credentials=credentials, cache_discovery=False)
         logger.info("[gsc] Search Console service constructed")
         return service
-    except Exception as e:  # bad creds file / wrong scope — never crash the worker
+    except Exception as e:  # bad creds file / wrong scope - never crash the worker
         logger.error(f"[gsc] service build error: {e}")
         return None
 
 
 def _fetch(service, site: str, days: int) -> dict[str, Any]:
-    """Search Console searchanalytics query — 3 calls (date series, top queries,
+    """Search Console searchanalytics query - 3 calls (date series, top queries,
     top pages). Sync API
     caller ko to_thread me chalaana chahiye."""
     end = datetime.now(timezone.utc).date()
@@ -146,7 +146,7 @@ def _query_rows(service, site: str, start, end, dimension: str, limit: int) -> l
 
 
 def _write_state(snapshot: dict[str, Any]) -> None:
-    """Latest summary → data/gsc_state.json (atomic tmp+replace, fail-safe)."""
+    """Latest summary -> data/gsc_state.json (atomic tmp+replace, fail-safe)."""
     try:
         os.makedirs(os.path.dirname(STATE_JSON) or ".", exist_ok=True)
         state = {
@@ -175,7 +175,7 @@ def _append_daily(snapshot: dict[str, Any]) -> None:
 
 def run_daily(days: int = 30) -> dict[str, Any]:
     """Daily GSC fetch. INERT: flag/creds/libs ke bina no-op result deta hai.
-    Never raises — worker crash nahi hoga is module ki wajah se."""
+    Never raises - worker crash nahi hoga is module ki wajah se."""
     if not enabled():
         return {"enabled": False}
     service = _build_service()
@@ -194,7 +194,7 @@ def run_daily(days: int = 30) -> dict[str, Any]:
 
 
 async def run_daily_async(days: int = 30) -> dict[str, Any]:
-    """Async entry (Celery/beat) — sync API call ko thread pe shift karta hai
+    """Async entry (Celery/beat) - sync API call ko thread pe shift karta hai
     taaki worker event-loop block na ho (ML assets pattern)."""
     return await asyncio.to_thread(run_daily, days)
 

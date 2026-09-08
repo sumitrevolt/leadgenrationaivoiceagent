@@ -2,18 +2,18 @@
 
 INERT BY DEFAULT. Selected by ``HARNESS_AUDIT_BACKEND`` (default ``"jsonl"``):
 with the default, behaviour is byte-identical to the historical append-only JSONL
-sink — production is unchanged until an operator explicitly sets ``redis``.
+sink - production is unchanged until an operator explicitly sets ``redis``.
 
-Persistence model (redis) — ONE authoritative all-or-nothing write
+Persistence model (redis) - ONE authoritative all-or-nothing write
 ------------------------------------------------------------------
 Each observation is a single immutable **record key** created with
 ``SET harness:{audit}:record:<sha256> <value> NX GET PX <retention>``. That one
 command is simultaneously the durable audit record, the first-observer claim, the
 duplicate identity, and the replay envelope:
 
-* returns nil  → the record was created (first observer);
-* returns old  → a duplicate; the returned value IS the existing record;
-* raises        → nothing was created (fail closed).
+* returns nil  -> the record was created (first observer);
+* returns old  -> a duplicate; the returned value IS the existing record;
+* raises        -> nothing was created (fail closed).
 
 No second structure is required to establish evidence durability, so a partial
 commit is impossible. The Redis **Stream** and **metrics** hash are
@@ -30,7 +30,7 @@ Fail-closed: in ``redis`` mode an unreachable/errored Redis drops the observatio
 and emits an operational error
 it NEVER silently falls back to process-local
 dedup or the file. An invalid ``HARNESS_AUDIT_BACKEND`` value is unhealthy and
-writes nothing — never silently coerced to jsonl. This dedups the audit/shadow
+writes nothing - never silently coerced to jsonl. This dedups the audit/shadow
 EVIDENCE only
 it makes no claim of exactly-once BUSINESS execution.
 
@@ -603,7 +603,7 @@ def get_backend(*, client: Any = None) -> AuditBackend:
 
 
 def write(row: dict[str, Any], *, backend: AuditBackend | None = None) -> dict[str, Any]:
-    """Atomic dedup + durable append for one audit row. NEVER raises — a durable
+    """Atomic dedup + durable append for one audit row. NEVER raises - a durable
     failure is reported as a fail-closed dropped observation (written=False, error
     set) so the caller can emit an operational error without touching legacy."""
     dk = derive_dedup_key(row)  # derive BEFORE size-capping so identity is stable

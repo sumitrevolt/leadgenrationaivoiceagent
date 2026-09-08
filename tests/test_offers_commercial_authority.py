@@ -8,7 +8,7 @@ Confirmed against the deployed production image (SHA 9f2ab9f8) before writing:
 `offers.issue_offer` is the canonical order-creation path (merged in #241, live).
 It resolves annual voice through `voice_packages.voice_plan_price()`, whose own
 docstring says it returns the MONTHLY equivalent even for annual plans. So an
-annual order freezes ~Rs 4,999 against a ~Rs 49,990 commitment — a ~90%
+annual order freezes ~Rs 4,999 against a ~Rs 49,990 commitment - a ~90%
 undercharge, and `voice_a_annual` is indistinguishable from `voice_a_monthly`.
 
 No customer has been undercharged: zero offers have ever been issued and

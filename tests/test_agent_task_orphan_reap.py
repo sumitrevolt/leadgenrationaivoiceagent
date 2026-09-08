@@ -1,4 +1,4 @@
-"""Orphan agent_tasks ledger — the pending rows the lease reaper cannot see.
+"""Orphan agent_tasks ledger - the pending rows the lease reaper cannot see.
 
 Production 2026-08-06: 12,631 rows `status='pending'`, `claimed_at IS NULL`,
 `completed_at IS NULL`, goal `"Scheduled routine: <job>"`, growing ~700/day
@@ -8,12 +8,12 @@ Cause: self-assigned producers (`team_scheduler` routine bridge,
 `office_hq` admin dispatch) call `assign()` -> `start()`. `start()` requires
 `claimed`, a state those rows never enter because nothing calls `claim_next()`
 for a job-name pseudo-agent. So `start()` no-op'd, and the later `complete()`
-(which matches `claimed|running`) no-op'd too — both discard `{"ok": False}`.
+(which matches `claimed|running`) no-op'd too - both discard `{"ok": False}`.
 Only `fail()` accepts `pending`, which is exactly why FAILING routines closed
 and SUCCEEDING ones leaked.
 
 `reap_stale_leases()` cannot help: its predicate is
-`status IN ('claimed','running') AND claimed_at < cutoff` — disjoint on BOTH
+`status IN ('claimed','running') AND claimed_at < cutoff` - disjoint on BOTH
 clauses (and `NULL < cutoff` is NULL in SQL, not TRUE).
 
 These tests pin the fix from both ends: `begin()` stops new orphans, and
@@ -29,7 +29,7 @@ from app.platform import agent_task_queue as atq
 
 
 # --------------------------------------------------------------------------- #
-# begin() — the source fix
+# begin() - the source fix
 # --------------------------------------------------------------------------- #
 def test_begin_transitions_pending_to_running(monkeypatch):
     seen: dict[str, str] = {}
@@ -59,7 +59,7 @@ def test_start_still_requires_claimed(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# flag gating — the two reapers must be independently armable
+# flag gating - the two reapers must be independently armable
 # --------------------------------------------------------------------------- #
 def test_orphan_reap_flag_defaults_off(monkeypatch):
     monkeypatch.delenv("AGENT_TASK_ORPHAN_REAP", raising=False)
@@ -67,7 +67,7 @@ def test_orphan_reap_flag_defaults_off(monkeypatch):
 
 
 def test_orphan_reap_flag_is_independent_of_lease_reap(monkeypatch):
-    """Arming lease reap must NOT arm the orphan sweep — different risk."""
+    """Arming lease reap must NOT arm the orphan sweep - different risk."""
     monkeypatch.setenv("AGENT_TASK_LEASE_REAP", "1")
     monkeypatch.delenv("AGENT_TASK_ORPHAN_REAP", raising=False)
     assert atq.lease_reap_enabled() is True
@@ -80,7 +80,7 @@ def test_orphan_reap_flag_is_independent_of_lease_reap(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# routine ledger switch — growth control. begin() stops the LEAK; this stops the
+# routine ledger switch - growth control. begin() stops the LEAK; this stops the
 # GROWTH. ~700 rows/day with no prune anywhere = ~255k/year even once correct.
 # --------------------------------------------------------------------------- #
 def test_routine_ledger_defaults_on(monkeypatch):
@@ -102,7 +102,7 @@ def test_routine_ledger_explicit_on(monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# reap_orphan_routines — classifier + dry-run + bounded close
+# reap_orphan_routines - classifier + dry-run + bounded close
 # --------------------------------------------------------------------------- #
 class _Row:
     def __init__(self, rid, agent_id, goal, status="pending", claimed_at=None, age_h=48):
@@ -182,7 +182,7 @@ def test_dry_run_mutates_nothing(monkeypatch):
 
 
 def _patch_backup(monkeypatch, tmp_path):
-    """Redirect the REAL writer's store resolution into tmp — keeps the actual
+    """Redirect the REAL writer's store resolution into tmp - keeps the actual
     open()/write path under test instead of stubbing it out."""
     from app.platform import runtime_data_authority as auth
 
@@ -193,7 +193,7 @@ def _patch_backup(monkeypatch, tmp_path):
 
 
 def test_live_run_closes_as_cancelled_not_failed(monkeypatch, tmp_path):
-    """`failed` would fabricate an incident history — these routines mostly
+    """`failed` would fabricate an incident history - these routines mostly
     SUCCEEDED
     only the ledger row was abandoned."""
     rows = [_Row("t1", "growth", "Scheduled routine: growth")]
@@ -252,7 +252,7 @@ def test_limit_bounds_the_batch(monkeypatch):
     _patch_db(monkeypatch, sess)
 
     out = asyncio.run(atq.reap_orphan_routines(limit=10, dry_run=True))
-    assert out["scanned"] == 10, "batch must respect limit — no unbounded sweep"
+    assert out["scanned"] == 10, "batch must respect limit - no unbounded sweep"
 
 
 def test_empty_scan_is_a_clean_noop(monkeypatch):

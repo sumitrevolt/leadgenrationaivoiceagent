@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Continuous outbound cold-call loop (Vobiz stream).
 
-Har batch me N fresh leads dial karta hai, batch ke baad wait, phir repeat —
+Har batch me N fresh leads dial karta hai, batch ke baad wait, phir repeat -
 TRAI window band hone tak ya max-batches.
 
 Run (VPS container):
@@ -92,12 +92,12 @@ async def run_loop(
     while True:
         ok_win, win_msg = _in_trai_window(call_type)
         if not ok_win:
-            print(f"[loop] TRAI window CLOSED — {win_msg}. Sleeping 10min.")
+            print(f"[loop] TRAI window CLOSED - {win_msg}. Sleeping 10min.")
             await asyncio.sleep(600)
             continue
 
         if max_batches and batch_n >= max_batches:
-            print(f"[loop] max_batches={max_batches} reached — stop.")
+            print(f"[loop] max_batches={max_batches} reached - stop.")
             break
 
         batch_n += 1
@@ -112,7 +112,7 @@ async def run_loop(
         print(f"\n[loop] === BATCH {batch_n} | {win_msg} | leads={len(prospects)} ===")
 
         if not prospects:
-            print(f"[loop] no uncontacted leads — sleep {pause_empty_s}s")
+            print(f"[loop] no uncontacted leads - sleep {pause_empty_s}s")
             await asyncio.sleep(pause_empty_s)
             continue
 
@@ -124,7 +124,7 @@ async def run_loop(
                 score = int(tr.get("score") or 0)
                 print(f"[loop] telephony readiness {score}/100 provider={tr.get('provider')}")
                 if score < 70:
-                    print("[loop] readiness too low — abort")
+                    print("[loop] readiness too low - abort")
                     return
             except Exception as e:
                 print(f"[loop] readiness warn: {e}")
@@ -141,7 +141,7 @@ async def run_loop(
 
         await _maybe_learn(learn)
 
-        # Calls complete hone do — batch ke baad buffer
+        # Calls complete hone do - batch ke baad buffer
         wait = max(pause_batch_s, batch_size * 35)
         print(f"[loop] sleeping {wait}s before next batch…")
         await asyncio.sleep(wait)
@@ -160,7 +160,7 @@ def main() -> None:
     args = p.parse_args()
 
     if fc._provider() != "vobiz":
-        print(f"ERROR: provider={fc._provider()} — loop only supports vobiz stream path.")
+        print(f"ERROR: provider={fc._provider()} - loop only supports vobiz stream path.")
         sys.exit(1)
 
     asyncio.run(

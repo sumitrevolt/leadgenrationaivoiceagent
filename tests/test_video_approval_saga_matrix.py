@@ -1,4 +1,4 @@
-"""Gate 3A-close — the COMPLETE durable-boundary failure matrix.
+"""Gate 3A-close - the COMPLETE durable-boundary failure matrix.
 
 The first pass covered four boundaries. These are the remaining ones, each
 reporting the same evidence shape:

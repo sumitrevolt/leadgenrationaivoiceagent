@@ -8,10 +8,10 @@ Covers the #1 2026 Gmail/Yahoo deliverability gate (<0.3% spam-complaint rate):
 ADR-103: an unsubscribe is NOT a spam complaint. Unsub reasons route to their own bucket
 with a much higher ceiling (UNSUB_PAUSE_PCT), because Gmail MANDATES one-click opt-out and
 0.2-2% unsub on cold outreach is healthy. The spam gate itself stays at 0.25% (not weakened
-— §5)
+- §5)
 these tests pin BOTH halves so the buckets can't silently re-merge.
 
-No network/DB/LLM — state file redirected to a tmp path, alert email stubbed out.
+No network/DB/LLM - state file redirected to a tmp path, alert email stubbed out.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def test_complaint_rate_math(warmup):
     ew = warmup
     _seed_sent(ew, 1000)
     # 3 complaints over 1000 sends => 0.3%
-    # (reason must be a REAL spam report — "unsubscribe" now routes to the unsub bucket.)
+    # (reason must be a REAL spam report - "unsubscribe" now routes to the unsub bucket.)
     for _ in range(3):
         ew.record_complaint("x@example.com", "spam_report")
     rate, sent, complaints = ew.complaint_rate_7d()
@@ -88,7 +88,7 @@ def test_pause_at_threshold(warmup):
 def test_min_sample_guard_blocks_premature_pause(warmup):
     ew = warmup
     # Only 50 sends (< _MIN_SENDS_FOR_COMPLAINT_RATE=100). Even 5 complaints (10%)
-    # must NOT pause — small-sample noise guard.
+    # must NOT pause - small-sample noise guard.
     _seed_sent(ew, 50)
     out = {}
     for _ in range(5):
@@ -184,7 +184,7 @@ def test_unsub_min_sample_guard_blocks_premature_pause(warmup):
     ew = warmup
     _seed_sent(ew, 50)  # < _MIN_SENDS_FOR_UNSUB_RATE=100
     out = {}
-    for _ in range(5):  # 10% — but sample too small to act on
+    for _ in range(5):  # 10% - but sample too small to act on
         out = ew.record_complaint("e@f.com", "unsub_one_click")
     assert out["recorded"] is True
     assert out["paused"] is False

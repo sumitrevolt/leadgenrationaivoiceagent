@@ -27,7 +27,7 @@ _startup_time = datetime.utcnow()
 async def _require_metrics_auth(request: Request) -> None:
     """Optional bearer-token gate for /metrics + /health/deep.
 
-    ARMED only when METRICS_TOKEN is set — default unset means today's open
+    ARMED only when METRICS_TOKEN is set - default unset means today's open
     behavior is UNCHANGED (internal Prometheus scraping, monitoring/prometheus.yml,
     has no auth token configured, so locking this down unconditionally would break
     it). Both endpoints return real business/operational counts with no auth, and
@@ -39,7 +39,7 @@ async def _require_metrics_auth(request: Request) -> None:
     """
     token = (os.environ.get("METRICS_TOKEN") or "").strip()
     if not token:
-        return  # inert until armed — zero behavior change by default
+        return  # inert until armed - zero behavior change by default
     auth_header = request.headers.get("authorization", "")
     provided = (
         auth_header[7:]
@@ -63,25 +63,25 @@ def _get_uptime_seconds() -> float:
     return (datetime.utcnow() - _startup_time).total_seconds()
 
 
-# A health body answers "what code is running RIGHT NOW, and is it well?" — a
+# A health body answers "what code is running RIGHT NOW, and is it well?" - a
 # CACHED health body answers that about the past, which is worse than no answer:
 # it looks authoritative while being wrong.
 #
 # Live proof (2026-07-15 admin audit): the FIRST `GET /health` from a browser
 # returned a 12.7-hour-stale body advertising `version: 91e7d37`, `uptime: 13m`,
-# `timestamp: 2026-07-14T12:59` — while production was actually running
+# `timestamp: 2026-07-14T12:59` - while production was actually running
 # `b12d1e97` with 8h24m uptime. Nothing about the response looked stale. Only
 # adding a `?cb=` query string (a different cache key) revealed the truth.
 #
 # Root enabler: these endpoints returned a bare dict with NO cache directives,
 # and a response without Cache-Control/Expires is heuristically cacheable by
 # browsers and any intermediary (RFC 9111 §4.2.2). We do not need to know WHICH
-# layer cached it — `no-store` closes the whole class at the source.
+# layer cached it - `no-store` closes the whole class at the source.
 #
 # Why this matters beyond tidiness: CLAUDE.md designates `/health`'s `version`
 # field as THE deploy-drift detector ("/health ka version field hi tumhara drift
 # detector hai"). ADR-097 hardened the case where the running image's provenance
-# is unknown; this is the same failure one layer out — the provenance REPORT
+# is unknown; this is the same failure one layer out - the provenance REPORT
 # itself was stale. A drift detector that can be served from cache can tell you
 # the wrong SHA and let a skewed/unversioned deploy pass unnoticed.
 _NO_STORE = "no-store, no-cache, must-revalidate, max-age=0"
@@ -101,7 +101,7 @@ async def health_check(response: Response) -> dict[str, Any]:
     Used by Cloud Run for liveness probes
     Returns 200 if the service is running
 
-    Never cached — this response carries the deployed version and is the
+    Never cached - this response carries the deployed version and is the
     documented deploy-drift detector.
     """
     _mark_no_store(response)
@@ -146,12 +146,12 @@ async def liveness_check(response: Response):
 
 @router.get("/health/signup")
 async def signup_health(response: Response) -> dict[str, Any]:
-    """Loop 14 (2026-07-10) — signup-path targeted health probe.
+    """Loop 14 (2026-07-10) - signup-path targeted health probe.
 
     Validates the four dependencies signup actually needs (imports + JWT config
     + clients_store readable + auth JSONL writable) without creating a real
     account. Ops uptime monitors (Uptime/Gatus) can poll this instead of the
-    generic /health so a broken signup surface is caught the moment it breaks —
+    generic /health so a broken signup surface is caught the moment it breaks -
     not after "why is nobody signing up" observation on the CRM. Returns 200 +
     per-check status when all four probes pass
     503 with per-check failure
@@ -188,8 +188,8 @@ async def signup_health(response: Response) -> dict[str, Any]:
     try:
         from app.api import customer_auth as _ca
 
-        _ = _ca._read()  # returns [] on missing file — that's fine
-        # Directory must be writable — check without actually writing a real row.
+        _ = _ca._read()  # returns [] on missing file - that's fine
+        # Directory must be writable - check without actually writing a real row.
         _dir = os.path.dirname(_ca._STORE) or "."
         os.makedirs(_dir, exist_ok=True)
         checks["auth_store"] = {"status": "healthy" if os.access(_dir, os.W_OK) else "unhealthy"}
@@ -212,7 +212,7 @@ async def signup_health(response: Response) -> dict[str, Any]:
         }
         overall_healthy = False
 
-    # 5) Billing usage (activate_plan) reachable — the plan provisioning path
+    # 5) Billing usage (activate_plan) reachable - the plan provisioning path
     #    that silently fails at signup when DB/clients_store is broken.
     try:
         from app.billing import usage as _usage
@@ -359,11 +359,11 @@ async def _check_redis() -> dict[str, Any]:
 
 
 def _check_llm_config() -> dict[str, Any]:
-    """Check LLM configuration — report free-stack truth, not "first key found".
+    """Check LLM configuration - report free-stack truth, not "first key found".
 
     Historical bug: readiness returned ``provider=gemini`` whenever
     ``GEMINI_API_KEY`` was set, even when ``GEMINI_PRIMARY`` was false and the
-    live chat path used free_ai (Groq → Cerebras → Mistral…). That made
+    live chat path used free_ai (Groq -> Cerebras -> Mistral…). That made
     ``/health/ready`` contradict operational truth without any provider change.
 
     ``provider`` = first hop of the realtime free_ai chain that has a key.
@@ -402,7 +402,7 @@ def _check_llm_config() -> dict[str, Any]:
     except Exception as exc:
         logger.debug("llm readiness free_ai describe skipped: %s", exc)
 
-    # Legacy fallback (paid-named keys only) — used if free_ai import fails.
+    # Legacy fallback (paid-named keys only) - used if free_ai import fails.
     if settings.gemini_api_key or settings.google_cloud_project_id:
         return {"status": "configured", "provider": "gemini"}
     if settings.openai_api_key:
@@ -500,7 +500,7 @@ async def api_status() -> dict[str, Any]:
     """
     Detailed API status with metrics (admin-only).
 
-    Leaks stack/version + LLM/TTS/STT/telephony config + llm_usage — recon for an
+    Leaks stack/version + LLM/TTS/STT/telephony config + llm_usage - recon for an
     attacker. Was anonymously reachable
     gated 2026-07-06 (sec sweep). No repo
     consumer relied on it (the public probe is `/health`).
@@ -555,11 +555,11 @@ async def prometheus_metrics():
         f'leadgen_info{{version="{version}",env="{settings.app_env}",llm="{settings.default_llm}",tts="{settings.default_tts}"}} 1'
     )
 
-    # LLM provider health — REAL source app.platform.llm_metrics (data/llm_calls.jsonl,
+    # LLM provider health - REAL source app.platform.llm_metrics (data/llm_calls.jsonl,
     # shared across workers = multi-worker-correct). Pehle yahan legacy vertex_client
-    # tha jo prod me empty rehta (audit P1-3). File read off-loop (executor) — scrape
+    # tha jo prod me empty rehta (audit P1-3). File read off-loop (executor) - scrape
     # event-loop block na kare. ok_rate/fallback_rate alert-ready (free providers
-    # exhaust = voice/content ka #1 live bottleneck — ab visible).
+    # exhaust = voice/content ka #1 live bottleneck - ab visible).
     try:
         from app.platform import llm_metrics
 
@@ -607,7 +607,7 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # Semantic LLM cache (SHARED Redis counters — multi-worker-correct, tera in-process
+    # Semantic LLM cache (SHARED Redis counters - multi-worker-correct, tera in-process
     # "unreliable" decision ke according). hit_rate = (exact+semantic)/lookups. Cache OFF
     # (SEMANTIC_CACHE flag) => mostly "disabled" events, hit_rate 0. Fail-open scrape.
     try:
@@ -633,7 +633,7 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # Agent memory (gated AGENT_MEMORY) — cross-session lead/client recall usage.
+    # Agent memory (gated AGENT_MEMORY) - cross-session lead/client recall usage.
     # OFF (default) => events mostly 0. Fail-open scrape (semcache jaisa pattern).
     try:
         from app.voice_agent import agent_memory as _amem
@@ -659,7 +659,7 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # LLM budget guard (gated LLM_BUDGET_GUARD) — per-scope cost/usage governance.
+    # LLM budget guard (gated LLM_BUDGET_GUARD) - per-scope cost/usage governance.
     # OFF (default) => enabled=0, counters 0. Fail-open scrape.
     try:
         from app.llm import budget_guard as _bg
@@ -691,7 +691,7 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # Database metrics — counts are cached in Redis for 60s so Prometheus scrapes
+    # Database metrics - counts are cached in Redis for 60s so Prometheus scrapes
     # don't fire 4x COUNT() against the DB on every poll (cheap, scrape-safe).
     try:
         from app.cache import cache
@@ -771,9 +771,9 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # Celery queue depth — broker = main redis lists (shared = multi-worker-correct).
+    # Celery queue depth - broker = main redis lists (shared = multi-worker-correct).
     # Backlog visibility at scale: koi queue badhti rahe = worker starve/stuck (audit
-    # P1-3). InMemoryCache fallback me llen nahi → guard se skip.
+    # P1-3). InMemoryCache fallback me llen nahi -> guard se skip.
     try:
         from app.cache import get_redis_client
 
@@ -827,7 +827,7 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # HTTP request/latency metrics (OBS-001) — makes HighHttp5xxRate +
+    # HTTP request/latency metrics (OBS-001) - makes HighHttp5xxRate +
     # HighRequestLatencyP95 alerts live. Empty unless PROMETHEUS_HTTP_METRICS=1.
     try:
         from app.middleware.http_metrics import render_http_metrics
@@ -836,7 +836,7 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # Per-job metrics (W1.13) — job success/fail counts + duration.
+    # Per-job metrics (W1.13) - job success/fail counts + duration.
     # Empty unless PROMETHEUS_JOB_METRICS=1.
     try:
         from app.platform.job_metrics import render_job_metrics

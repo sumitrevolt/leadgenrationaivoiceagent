@@ -1,7 +1,7 @@
-"""Orchestration-ext endpoints — agent consensus (N-voter quorum) + trajectory
+"""Orchestration-ext endpoints - agent consensus (N-voter quorum) + trajectory
 learning (record / best / replay-hint / dataset export).
 
-Standalone admin router — coordinator se ALAG. Main session ise optionally
+Standalone admin router - coordinator se ALAG. Main session ise optionally
 /api/agents-ext prefix pe mount karega (yahan mount NAHI hota). Saare modules
 lazy-import hote handlers ke andar (import-safe, web process light). Routes
 require_admin (export = super_admin, kyunki yeh disk pe training-file likhta).
@@ -26,9 +26,9 @@ class ConsensusIn(BaseModel):
 
 @router.post("/consensus")
 async def consensus_vote(body: ConsensusIn, _user=Depends(require_admin)):
-    """N-voter quorum decision — har voter alag persona/temperature pe ek option
-    chunta, votes tally → winner + confidence + quorum. options<2 → error,
-    voter LLM fail → abstain. Never raises."""
+    """N-voter quorum decision - har voter alag persona/temperature pe ek option
+    chunta, votes tally -> winner + confidence + quorum. options<2 -> error,
+    voter LLM fail -> abstain. Never raises."""
     from app.agents import agent_consensus
 
     return await agent_consensus.vote(body.question, body.options, body.voters)
@@ -60,7 +60,7 @@ class TrajectoryRecordIn(BaseModel):
 
 @router.post("/trajectory/record")
 async def trajectory_record(body: TrajectoryRecordIn, _user=Depends(require_admin)):
-    """Ek pura agent-run trace record karo → data/agent_trajectories.jsonl."""
+    """Ek pura agent-run trace record karo -> data/agent_trajectories.jsonl."""
     from app.agents import trajectory
 
     tid = trajectory.record_trajectory(
@@ -76,7 +76,7 @@ class TrajectoryExportIn(BaseModel):
 @router.post("/trajectory/export")
 async def trajectory_export(body: TrajectoryExportIn, _user=Depends(require_super_admin)):
     """Winning traces ko JSONL training-dataset me export karo (local ML fine-tune).
-    Disk-write → SUPER_ADMIN only (RBAC design)."""
+    Disk-write -> SUPER_ADMIN only (RBAC design)."""
     from app.agents import trajectory
 
     return trajectory.export_dataset(min_reward=body.min_reward)

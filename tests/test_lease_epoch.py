@@ -5,13 +5,13 @@ This is the test that was missing. The bug it pins was live and invisible:
 datetime from `datetime.utcnow()` and called `.timestamp()` on it. Python
 interprets a naive datetime as LOCAL time, so on the IST hosts this project runs
 on every lease epoch landed 5h30m in the past. With a 45-minute TTL the stored
-`lease_expiry` sat 4h45m BEHIND `last_heartbeat` — observed live on mission
+`lease_expiry` sat 4h45m BEHIND `last_heartbeat` - observed live on mission
 msn_dcb0e15e8e8a4892 while it was still running.
 
 Nothing caught it because the CAS backend compares `cur.until > now` with both
 sides produced by the same shifted call, so the layer that would have detected
 the error shared it. What actually broke was `Mission.lease_active()`, which
-compares the rendered `lease_expiry` against a correct `utcnow()` — and so
+compares the rendered `lease_expiry` against a correct `utcnow()` - and so
 reported EVERY live lease as expired, which is an invitation for a second runner
 to claim a mission that is still executing.
 
@@ -33,7 +33,7 @@ import pytest
 from app.dev_control.external_agents import cas, store
 from app.dev_control.external_agents.schema import Mission, MissionState, RiskClass
 
-TTL = 2700  # 45 min — the value the live runner uses
+TTL = 2700  # 45 min - the value the live runner uses
 
 
 @pytest.fixture(autouse=True)
@@ -125,7 +125,7 @@ def test_the_epoch_is_wrong_by_the_utc_offset_under_the_old_implementation():
 
     `.timestamp()` on a naive datetime differs from the correct UTC epoch by
     exactly the host's UTC offset. On a UTC host the difference is zero and this
-    assertion is vacuous — which is precisely why the bug survived on machines
+    assertion is vacuous - which is precisely why the bug survived on machines
     where it mattered, so the test states that explicitly instead of pretending
     to prove something everywhere.
     """
@@ -135,5 +135,5 @@ def test_the_epoch_is_wrong_by_the_utc_offset_under_the_old_implementation():
     offset = dt.astimezone().utcoffset() or timedelta(0)
     assert correct - naive_wrong == pytest.approx(offset.total_seconds(), abs=1)
     if offset.total_seconds() == 0:
-        pytest.skip("host is UTC — this defect is invisible here by construction")
+        pytest.skip("host is UTC - this defect is invisible here by construction")
     assert correct != naive_wrong

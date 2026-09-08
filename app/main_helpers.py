@@ -1,5 +1,5 @@
 """
-main_helpers — presentation data/helpers extracted from app.main.
+main_helpers - presentation data/helpers extracted from app.main.
 
 Programmatic SEO blog (inbound lead magnet) shared CSS, fonts and chrome
 helpers. These are pure, order-independent module-level constants/functions
@@ -125,7 +125,7 @@ def _blog_header() -> str:
 
 def _blog_footer() -> str:
     return (
-        '<footer><div class="wrap">© LeadGen AI — AI Marketing for Indian businesses · '
+        '<footer><div class="wrap">© LeadGen AI - AI Marketing for Indian businesses · '
         '<a href="/">Home</a> · <a href="/blog">Blog</a> · '
         '<a href="/audit">Free Audit</a> · '
         '<a href="https://wa.me/918459012607">WhatsApp</a></div></footer>'
@@ -135,7 +135,7 @@ def _blog_footer() -> str:
 def _cta_box() -> str:
     return (
         '<div class="cta-box"><h3>Apni marketing badhani hai?</h3>'
-        "<p>2 minute me free Google audit lijiye — hum batayenge kahan kami hai aur "
+        "<p>2 minute me free Google audit lijiye - hum batayenge kahan kami hai aur "
         'kaise theek karein. Bilkul free.</p><div class="cta-row">'
         '<a href="/audit" class="btn btn-primary">🚀 FREE Audit nikalo</a>'
         '<a href="https://wa.me/918459012607" class="btn btn-ghost">💬 WhatsApp pe baat karo</a>'

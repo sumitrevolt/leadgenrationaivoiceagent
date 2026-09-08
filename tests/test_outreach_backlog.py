@@ -1,9 +1,9 @@
-"""Tests for the outreach backlog fix — prospector.pending_for_outreach().
+"""Tests for the outreach backlog fix - prospector.pending_for_outreach().
 
 Bug: run_email_outreach used list_prospects(limit=500) which hard-caps at the 500
 NEWEST prospects
 once those are all emailed, 470 reachable (email + unemailed) older
-prospects stayed invisible forever → outreach stalled → no new leads. Fix surfaces
+prospects stayed invisible forever -> outreach stalled -> no new leads. Fix surfaces
 ALL reachable+unemailed prospects, oldest-first.
 """
 

@@ -3,19 +3,19 @@ WhatsApp Business API Integration
 Send lead notifications and follow-ups via WhatsApp
 
 OFFICIAL Meta Cloud API only (graph.facebook.com). Never uses an unofficial
-gateway (baileys/web get the number banned). Send helpers degrade gracefully —
+gateway (baileys/web get the number banned). Send helpers degrade gracefully -
 on any error they return a dict with an ``error`` key instead of raising, so
 background campaign runners never crash. Webhook payload signatures are verified
 with the Meta App Secret (``WHATSAPP_APP_SECRET``) via :func:`verify_meta_signature`.
 
 🚨 §5 BAN-SAFETY BOUNDARY GATE (2026-07-31)
 -------------------------------------------
-``WHATSAPP_AUTO_SEND`` is enforced HERE, at the sender boundary — not only in the
+``WHATSAPP_AUTO_SEND`` is enforced HERE, at the sender boundary - not only in the
 campaign modules. Before this, only campaign-level callers
 (``whatsapp_campaign`` / ``review_engine`` / ``product_one_delivery``) consulted the
 flag, so any OTHER caller sent for real with nothing gating it. The hourly ``onboard``
-scheduler job was doing exactly that: ``onboarding._send_whatsapp`` →
-``get_whatsapp_sender().send_text_message`` → a live ``POST /api/sendText`` to every
+scheduler job was doing exactly that: ``onboarding._send_whatsapp`` ->
+``get_whatsapp_sender().send_text_message`` -> a live ``POST /api/sendText`` to every
 active client's ``contact_phone``, hourly, with no flag in the chain. Only a FAILED WAHA
 session was stopping real delivery.
 
@@ -30,7 +30,7 @@ deny first, so a gated-off platform touches neither the opt-out ledger nor the n
     WHATSAPP_AUTO_SEND (+ Owner-OS kill)  ->  canary allowlist  ->  opt-out ledger
 
 The allowlist exists because flipping the flag must not immediately reach every client,
-and the opt-out check moved here because only the CAMPAIGN path used to consult it —
+and the opt-out check moved here because only the CAMPAIGN path used to consult it -
 `onboarding` / `customer_delivery` / `lead_delivery` / `post_call_hooks` would otherwise
 message a number that had explicitly opted out (DPDP + §5).
 """
@@ -81,7 +81,7 @@ def _record_whatsapp_success() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# §5 ban-safety boundary gate — the single choke point every send passes through
+# §5 ban-safety boundary gate - the single choke point every send passes through
 # --------------------------------------------------------------------------- #
 def _wa_link(to_number: str, message: str = "") -> str:
     """Ban-safe 1-click ``wa.me`` link (a human taps Send). Always available, never raises."""
@@ -97,14 +97,14 @@ def auto_send_allowed() -> bool:
     """§5 gate for EVERY automatic WhatsApp send. **Fail-CLOSED.**
 
     Delegates to :func:`app.marketing.whatsapp_campaign.auto_send_enabled` so there is
-    exactly ONE definition of "auto-send is on" — that helper folds in both
+    exactly ONE definition of "auto-send is on" - that helper folds in both
     ``WHATSAPP_AUTO_SEND`` and the Owner-OS ``owner_whatsapp_outbound`` kill switch.
     Imported lazily (send-path idiom
     also keeps ``integrations`` free of a marketing
     import at module scope).
 
     Unreadable gate == DENY. This is a compliance gate (§5 ban-safety), not a billing
-    meter — the fail-OPEN convention does not apply here.
+    meter - the fail-OPEN convention does not apply here.
     """
     try:
         from app.marketing.whatsapp_campaign import auto_send_enabled
@@ -123,7 +123,7 @@ def auto_send_blocked(
     Carries an ``error`` key on purpose: every caller in this repo detects success with
     ``bool(res) and not res.get("error")`` (onboarding.py:215, reply_agent.py:1493,
     whatsapp_campaign.py:162), so a shape without it would be read as a successful send.
-    NOT recorded as an integration failure — nothing is broken, the operator just has
+    NOT recorded as an integration failure - nothing is broken, the operator just has
     auto-send off.
 
     The would-send is ALSO persisted to the pending-drafts inbox (see
@@ -133,7 +133,7 @@ def auto_send_blocked(
     even when storage is unavailable.
     """
     _record_block(reason)
-    logger.info("whatsapp auto-send BLOCKED (%s) — 1-click link only (§5 ban-safety)", reason)
+    logger.info("whatsapp auto-send BLOCKED (%s) - 1-click link only (§5 ban-safety)", reason)
     result = {
         "error": reason,
         "status": "blocked",
@@ -160,7 +160,7 @@ def auto_send_blocked(
 
 
 # --------------------------------------------------------------------------- #
-# Canary allowlist + opt-out — the two gates that matter the DAY the flag goes on
+# Canary allowlist + opt-out - the two gates that matter the DAY the flag goes on
 # --------------------------------------------------------------------------- #
 def _digits_only(number: str) -> str:
     """India-normalised digits (bare 10-digit and leading-0 forms get the 91 CC)."""
@@ -180,7 +180,7 @@ def send_allowlist() -> list[str]:
     graduates by setting the list to ``*``. The ``*``-means-explicit-all convention is
     copied from ``VIDEO_CUSTOMER_REVIEW_CLIENTS`` rather than invented here.
 
-    Never raises. Numbers live in ``.env`` only — never in a tracked file.
+    Never raises. Numbers live in ``.env`` only - never in a tracked file.
     """
     raw = os.getenv("WHATSAPP_SEND_ALLOWLIST", "") or ""
     out: list[str] = []
@@ -198,7 +198,7 @@ def send_allowlist() -> list[str]:
 
 
 def allowlist_permits(to_number: str) -> tuple[bool, str]:
-    """(allowed, reason). **Fail-CLOSED** — unreadable or empty list denies."""
+    """(allowed, reason). **Fail-CLOSED** - unreadable or empty list denies."""
     try:
         allow = send_allowlist()
     except Exception as exc:  # pragma: no cover - defensive
@@ -214,7 +214,7 @@ def allowlist_permits(to_number: str) -> tuple[bool, str]:
 def opt_out_permits(to_number: str) -> tuple[bool, str]:
     """(allowed, reason). **Fail-CLOSED** on the DPDP/TCCCPR opt-out ledger.
 
-    Until now only the CAMPAIGN path consulted suppression — `onboarding`,
+    Until now only the CAMPAIGN path consulted suppression - `onboarding`,
     `customer_delivery`, `lead_delivery` and `post_call_hooks` could message a number
     that had explicitly opted out. §5 requires opt-out to be an INSTANT cross-channel
     suppression, so the check belongs at the boundary every send crosses, not in the
@@ -247,7 +247,7 @@ def opt_out_permits(to_number: str) -> tuple[bool, str]:
 def send_permitted(to_number: str) -> tuple[bool, str]:
     """The ONE composite decision every automated WhatsApp send passes. Fail-CLOSED.
 
-    Order is deliberate — cheapest and most-likely-to-deny first, so a gated-off
+    Order is deliberate - cheapest and most-likely-to-deny first, so a gated-off
     platform never touches the opt-out ledger or the network::
 
         WHATSAPP_AUTO_SEND (+ Owner-OS kill)  ->  canary allowlist  ->  opt-out ledger
@@ -264,7 +264,7 @@ def send_permitted(to_number: str) -> tuple[bool, str]:
 
 # In-process block counters. Deliberately NOT `team.log_event`: the onboard job alone
 # would write ~216 DB rows/day of "still blocked", which is noise, not an audit trail.
-# NO phone number and NO message content is ever recorded here — reason codes only.
+# NO phone number and NO message content is ever recorded here - reason codes only.
 _BLOCK_COUNTS: dict[str, int] = {}
 
 
@@ -282,12 +282,12 @@ def block_stats() -> dict[str, int]:
 
 
 # --------------------------------------------------------------------------- #
-# Pending-drafts inbox — the queue a human actually works
+# Pending-drafts inbox - the queue a human actually works
 # --------------------------------------------------------------------------- #
 # `_record_block` above counts a blocked send but throws the would-send away: the
 # wa.me link and the message it just built were discarded, so 1800+ real customer
 # intents a day produced a counter and nothing to click. This store is that inbox.
-# It is an OPERATOR queue for HUMAN sending — it never POSTs anything anywhere.
+# It is an OPERATOR queue for HUMAN sending - it never POSTs anything anywhere.
 #
 # PII: rows contain phone numbers and message bodies. They live under `data/`
 # (runtime, untracked) like every other store in this repo, and must never be logged.
@@ -372,7 +372,7 @@ def _write_drafts_locked(path: str, rows: list[dict[str, Any]]) -> bool:
 def _trim_drafts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep the newest `cap` PENDING rows; bound the sent history to `cap` too.
 
-    Pending rows are trimmed first because they are the queue someone works —
+    Pending rows are trimmed first because they are the queue someone works -
     sent/dismissed history is only kept bounded so the file cannot grow forever.
     """
     cap = draft_cap()
@@ -425,7 +425,7 @@ def _persist_pending_draft(record: dict[str, Any]) -> bool:
 
 
 def pending_drafts_count() -> int:
-    """Not-sent rows — the operator's backlog size. Never raises."""
+    """Not-sent rows - the operator's backlog size. Never raises."""
     try:
         return sum(1 for r in _read_drafts() if not r.get("sent"))
     except Exception:
@@ -443,7 +443,7 @@ def list_pending_drafts(limit: int = 50) -> list[dict[str, Any]]:
 
 
 def mark_draft_sent(draft_id: str) -> dict[str, Any] | None:
-    """Mark a draft sent. Idempotent — a second call is a no-op. Never raises.
+    """Mark a draft sent. Idempotent - a second call is a no-op. Never raises.
 
     Returns the row (plus an `already` flag) or ``None`` for an unknown id. Nothing is
     transmitted here: the human tapped the wa.me link themselves.
@@ -470,7 +470,7 @@ def mark_draft_sent(draft_id: str) -> dict[str, Any] | None:
 
 
 def dismiss_draft(draft_id: str) -> bool:
-    """Drop a row from pending — a human judged it not worth sending.
+    """Drop a row from pending - a human judged it not worth sending.
 
     ``False`` when the id is unknown (so a repeat call 404s). Never raises.
     """
@@ -496,7 +496,7 @@ def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool
 
     Returns ``True`` only on a valid HMAC-SHA256 match. If no App Secret is
     configured (``WHATSAPP_APP_SECRET`` / settings.whatsapp_app_secret), returns
-    ``True`` so local/dev still works — production MUST set the secret. Never raises.
+    ``True`` so local/dev still works - production MUST set the secret. Never raises.
     """
     secret = (
         os.getenv("WHATSAPP_APP_SECRET", "") or getattr(settings, "whatsapp_app_secret", "") or ""
@@ -536,7 +536,7 @@ class WhatsAppMessage:
 class WhatsAppMessageMixin:
     """Pre-built business message helpers (lead alert / appointment / callback / report).
 
-    Each formats a message then calls ``self.send_text_message`` — so BOTH the Cloud-API
+    Each formats a message then calls ``self.send_text_message`` - so BOTH the Cloud-API
     client (:class:`WhatsAppIntegration`) and the self-hosted WAHA client
     (:class:`app.integrations.whatsapp_selfhost.SelfHostWhatsApp`) share one implementation.
     That is what makes the dual-engine provider switch work *everywhere*, not just on the
@@ -646,7 +646,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
             _record_whatsapp_failure("cloud_not_configured")
             return {"error": "whatsapp_not_configured"}
 
-        # §5 ban-safety gate — before ANY network call. Default OFF/INERT.
+        # §5 ban-safety gate - before ANY network call. Default OFF/INERT.
         ok, reason = send_permitted(to_number)
         if not ok:
             return auto_send_blocked(to_number, message, reason)
@@ -711,7 +711,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
         Returns the Graph API JSON on success, or ``{"error": ...}`` on failure
         (never raises) so background campaign runners stay crash-safe.
         """
-        # §5 EGRESS BACKSTOP — the public methods already gate, but this is the one
+        # §5 EGRESS BACKSTOP - the public methods already gate, but this is the one
         # function that actually talks to Graph. Re-checking here means a future method
         # that forgets the gate still cannot send (same 3-layer idea as platform_dial).
         _to = str(payload.get("to") or "")
@@ -815,15 +815,15 @@ class WhatsAppWebhookHandler:
 
 
 # --------------------------------------------------------------------------- #
-# Provider selector — the single source of truth for "which WhatsApp backend".
+# Provider selector - the single source of truth for "which WhatsApp backend".
 # --------------------------------------------------------------------------- #
 def get_whatsapp_sender():
     """Return the ACTIVE WhatsApp send client (dual-engine).
 
     Self-hosted WAHA stack when it is the selected+configured provider
     (``WHATSAPP_PROVIDER=waha`` + ``WAHA_BASE_URL``), else the official Meta Cloud API.
-    Both classes inherit :class:`WhatsAppMessageMixin`, so every caller — campaign sends
-    AND notification helpers (lead alerts, daily reports, appointment confirmations) — gets
+    Both classes inherit :class:`WhatsAppMessageMixin`, so every caller - campaign sends
+    AND notification helpers (lead alerts, daily reports, appointment confirmations) - gets
     the same method surface on either engine. Falls back to Cloud API if anything errors.
     """
     try:

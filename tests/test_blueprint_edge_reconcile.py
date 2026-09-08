@@ -3,7 +3,7 @@
 Locks the accounting rules for folding the legacy Explorer edges into the one
 canonical registry:
 
-* every raw edge literal is accounted for — none silently discarded,
+* every raw edge literal is accounted for - none silently discarded,
 * raw / unique / exact-duplicate counts reconcile arithmetically,
 * canonical-pair collisions are tracked as a DIFFERENT concept from exact
   duplicate literals,

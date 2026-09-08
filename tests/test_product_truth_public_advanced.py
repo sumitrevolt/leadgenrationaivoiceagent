@@ -1,4 +1,4 @@
-"""Product-truth lock — public Advanced is Marketing + callback FEATURE, not bundle USP."""
+"""Product-truth lock - public Advanced is Marketing + callback FEATURE, not bundle USP."""
 
 from __future__ import annotations
 

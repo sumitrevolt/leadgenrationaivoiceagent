@@ -1,6 +1,6 @@
 """Edge-condition evaluator for the DAG flow runner (Phase 2).
 
-Pure + deterministic — NO code/LLM/attribute-access/arithmetic. Evaluates an
+Pure + deterministic - NO code/LLM/attribute-access/arithmetic. Evaluates an
 edge's `when` against the SOURCE node's result dict ({ok,count,detail}).
 FAIL-CLOSED: any malformed/unevaluable condition returns False, so a branch you
 cannot evaluate is NEVER taken (a broken condition can't trigger a side effect).

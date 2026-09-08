@@ -1,9 +1,9 @@
-"""W2.4 — daily digest gets an optional cheap-LLM "why + next action" synthesis.
+"""W2.4 - daily digest gets an optional cheap-LLM "why + next action" synthesis.
 
-The digest was a rule-based line concat — accurate but flat (numbers, no interpretation).
+The digest was a rule-based line concat - accurate but flat (numbers, no interpretation).
 W2.4 adds an optional free-LLM (bulk profile, W1.10-cached) synthesis appended to the
-digest, gated by DIGEST_LLM (default OFF → pure rule-based), fail-open (LLM error/empty
-→ digest unchanged).
+digest, gated by DIGEST_LLM (default OFF -> pure rule-based), fail-open (LLM error/empty
+-> digest unchanged).
 """
 
 from __future__ import annotations

@@ -90,7 +90,7 @@ def test_quarantine_is_surfaced_for_admin(monkeypatch) -> None:
 
 
 def test_quarantine_does_not_block_unrelated_whatsapp(monkeypatch) -> None:
-    """We only know an email address — a phone must not be silenced by guess."""
+    """We only know an email address - a phone must not be silenced by guess."""
     _triage(monkeypatch, "ghost4@nowhere.com", "q-4")
     assert email_unsub.is_phone_suppressed(phone="9876500123") is False
 

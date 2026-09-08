@@ -1,4 +1,4 @@
-"""Curated template library — AdBanao-style ready prompts (niche × occasion).
+"""Curated template library - AdBanao-style ready prompts (niche × occasion).
 
 Studio gallery ke liye
 har template ek proven image-gen prompt + caption-seed.

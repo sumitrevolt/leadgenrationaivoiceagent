@@ -1,15 +1,15 @@
-"""P0-2026-07-12 incident regression suite — jiya-makeover mobile dashboard
+"""P0-2026-07-12 incident regression suite - jiya-makeover mobile dashboard
 stuck on "Demo Data" + Setup Wizard / Social Networking Setup permanently
 stuck on "Load ho raha hai...".
 
 Root cause (reproduced via jsdom execution replay of the live production
-bundle, not guesswork — see progress.md P0 loop entry for the full trace):
+bundle, not guesswork - see progress.md P0 loop entry for the full trace):
   1. The main dashboard fetch (tryLive/loadLiveDashboard) had no bounded
      timeout, unlike the Setup Wizard's fetchSetupJson (which already used
      SETUP_TIMEOUT_MS + AbortController). A hung request left a logged-in
      customer on demo data forever with no error and no way to retry.
   2. A response that passed `res.ok` but didn't match the frontend's shape
-     check fell through silently — no boot(), no error, no signal.
+     check fell through silently - no boot(), no error, no signal.
   3. boot(live) -> renderAll() -> renderCharts() threw on any single
      malformed chart series (reproduced concretely with a charts payload
      missing `leads_by_city`), which aborted every remaining renderAll
@@ -17,7 +17,7 @@ bundle, not guesswork — see progress.md P0 loop entry for the full trace):
      (team/autopilot/delivery-proof/onboarding-redirect).
   4. The bottom-of-script boot sequence (loadBilling/loadContent/.../
      loadGuidedSetup/loadRouting/sec2faLoad/whLoad) ran as bare top-level
-     calls — a synchronous throw in any one of them would have silently
+     calls - a synchronous throw in any one of them would have silently
      aborted every call after it, which is the only way Setup Wizard and
      Social Networking Setup could stay on "Load ho raha hai..." forever
      even though fetchSetupJson itself has an 8s AbortController timeout.
@@ -27,7 +27,7 @@ cascade, the main dashboard fetch is bounded, and a persistent (non-toast)
 error banner + retry control exists for a logged-in customer whose live
 data genuinely fails to load. This test suite is a static-HTML guard
 (matches the established pattern in test_customer_setup_wizard_frontend.py)
-— it doesn't require a live authenticated browser session, but a full
+- it doesn't require a live authenticated browser session, but a full
 jsdom execution replay (harness2.js referenced in progress.md) was used
 to originally reproduce and then verify the fix end-to-end.
 """
@@ -41,7 +41,7 @@ def _html():
 
 
 def test_dashboard_fetch_has_bounded_timeout():
-    """The main dashboard fetch must abort after a fixed timeout — a hung
+    """The main dashboard fetch must abort after a fixed timeout - a hung
     backend request must never leave the customer on Demo Data forever."""
     html = _html()
     assert "const DASHBOARD_TIMEOUT_MS" in html
@@ -57,7 +57,7 @@ def test_dashboard_fetch_has_bounded_timeout():
 
 def test_live_data_error_banner_exists_and_is_persistent():
     """A logged-in customer whose live data fails to load must see a
-    persistent, actionable error state — not just a toast that can be
+    persistent, actionable error state - not just a toast that can be
     missed, and never a silent demo fallback."""
     html = _html()
     assert 'id="liveDataErrorBanner"' in html
@@ -87,7 +87,7 @@ def test_unexpected_dashboard_shape_is_surfaced_not_silent():
 
 
 def test_expired_or_invalid_token_clears_state_and_redirects():
-    """401/403 must never fall back to demo silently — clear the stale
+    """401/403 must never fall back to demo silently - clear the stale
     token and send the customer back to login."""
     html = _html()
     idx = html.index("async function loadLiveDashboard")
@@ -99,7 +99,7 @@ def test_expired_or_invalid_token_clears_state_and_redirects():
 
 def test_render_all_steps_are_independently_fault_tolerant():
     """One rendering step throwing (most concretely: renderCharts() on a
-    malformed charts payload) must never abort the steps queued after it —
+    malformed charts payload) must never abort the steps queued after it -
     this is what let a single bad chart series silently skip
     renderOnboarding()'s Setup-Wizard-redirect and pushDataNotifications()."""
     html = _html()

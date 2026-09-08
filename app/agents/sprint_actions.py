@@ -1,18 +1,18 @@
 """Sprint actions for the self-improve loop (teach-agent-loop 2026-07-31).
 
 Teeno actions GTM mid-funnel / reliability pe kaam karte hain aur sab "auto-safe
-ya draft-only" risk tier me hain — koi side-effect send nahi:
+ya draft-only" risk tier me hain - koi side-effect send nahi:
 
   dialer_sprint_prep : untapped prospect phones (ready + phone + not-yet-dialed)
                        ke human-dialer prep briefs (read-only, LLM fallback static).
   hot_wa_draft       : Hot Queue warm leads (interested/question) ke liye WhatsApp
-                       reply drafts (draft-only — kabhi auto-send nahi, WHATSAPP_AUTO_SEND
+                       reply drafts (draft-only - kabhi auto-send nahi, WHATSAPP_AUTO_SEND
                        untouched). Ban-safe 1-click human send waala pattern.
   job_heal_sweep     : stale scheduled-job heartbeats ko detect karke bounded
-                       re-dispatch (scheduler_config.run_due — RUN_DUE_EXCLUDE honored).
+                       re-dispatch (scheduler_config.run_due - RUN_DUE_EXCLUDE honored).
 
 Saari functions import-safe (lazy imports), bounded, aur kabhi raise nahi karti
-— fail-open {"ok": False, "detail": ...} pattern. self_improve._execute inhe
+- fail-open {"ok": False, "detail": ...} pattern. self_improve._execute inhe
 dispatch karta hai
 coordinator/staff bhi reuse kar sakte hain.
 """
@@ -33,8 +33,8 @@ async def dialer_sprint_prep(limit: int = 3) -> dict[str, Any]:
     """Untapped prospect phones ke human-dialer prep briefs.
 
     Ready prospects (score >= 50) jinke paas valid phone hai aur jo abhi tak
-    dialer log me nahi hai → top-N ko call_prep.prep_brief (LLM 25s cap + static
-    fallback, kabhi empty nahi). Read-only — koi call/message nahi. Never raises.
+    dialer log me nahi hai -> top-N ko call_prep.prep_brief (LLM 25s cap + static
+    fallback, kabhi empty nahi). Read-only - koi call/message nahi. Never raises.
     """
     try:
         from app.platform import call_prep, prospect_lists
@@ -107,7 +107,7 @@ async def hot_wa_draft(limit: int = 5) -> dict[str, Any]:
     sirf un rows ke
     liye WA draft banao jinke paas abhi koi usable draft NAHI hai (LLM-down
     gap-fill). Draft row channel="whatsapp" + from=phone ke saath save hoti hai
-    → hot_queue agle pass me wa_link ke saath dikhti hai, human 1-click send
+    -> hot_queue agle pass me wa_link ke saath dikhti hai, human 1-click send
     karta hai. Idempotent: already-drafted rows skip. Kabhi raise nahi.
     """
     try:
@@ -179,7 +179,7 @@ def _has_wa_draft(reply_agent: Any, phone: str) -> bool:
 
 
 async def _wa_draft_text(biz: str, niche: str, intent: str, subject: str, body: str) -> str:
-    """WA-specific short Hinglish draft — free_ai with deterministic fallback.
+    """WA-specific short Hinglish draft - free_ai with deterministic fallback.
 
     Email replies ki tarah pricing append NAHI karta (WA pe pushy lagta hai);
     warm follow-up + free audit/demo CTA hi. LLM down = static fallback."""
@@ -191,7 +191,7 @@ async def _wa_draft_text(biz: str, niche: str, intent: str, subject: str, body: 
         sys_prompt = (
             "Tu LeadGen AI ka sales rep hai. Ye warm lead ne interested/question "
             "dikhaya hai. Iska chhota, friendly, professional Hinglish WhatsApp "
-            "message likh (max 3 lines, WA-appropriate — emoji optional). Free "
+            "message likh (max 3 lines, WA-appropriate - emoji optional). Free "
             "Google audit ya demo offer karo, pushy mat ban. Sirf message text de."
         )
         user_content = (
@@ -226,7 +226,7 @@ async def _wa_draft_text(biz: str, niche: str, intent: str, subject: str, body: 
 async def job_heal_sweep(max_jobs: int = 3) -> dict[str, Any]:
     """Stale scheduled-job heartbeats detect + bounded re-dispatch.
 
-    ``team_scheduler._recover_due_jobs`` → ``scheduler_config.run_due(max_jobs=3)``
+    ``team_scheduler._recover_due_jobs`` -> ``scheduler_config.run_due(max_jobs=3)``
     wrap karta hai: overdue/never_ran (enabled + RUN_DUE_EXCLUDE me nahi) jobs ko
     re-dispatch karta hai. Idempotent-ish (heartbeat update + Celery idempotent).
     Bounded, ban-safe exclusions honored. Never raises.

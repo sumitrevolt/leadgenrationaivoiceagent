@@ -1,7 +1,7 @@
-"""Onboarding capacity measurement — 50 fake tenants, realistic timing mocks.
+"""Onboarding capacity measurement - 50 fake tenants, realistic timing mocks.
 
 Measures:
-- enqueue→start and total completion times
+- enqueue->start and total completion times
 - p50 / p95 latency
 - failure rate
 - ONBOARD_TIME_BUDGET_S enforcement
@@ -117,7 +117,7 @@ class TestOnboardCapacityMeasurement:
             )
 
         # Wall clock: 50 sequential onboardings with ~0.02s base should be fast
-        # (this is in-process, not Celery — measures task function overhead)
+        # (this is in-process, not Celery - measures task function overhead)
         assert wall_total < 30.0, f"Burst too slow: {wall_total:.1f}s for {N} onboards"
 
         # Record results for visibility
@@ -185,7 +185,7 @@ class TestOnboardCapacityMeasurement:
         )
 
         result = staff_jobs.onboard_client.run("sim-onboard-budget-test", send_welcome=False)
-        # Must never raise — failure recorded
+        # Must never raise - failure recorded
         assert result.get("ok") is False
         assert result.get("client_id") == "sim-onboard-budget-test"
 

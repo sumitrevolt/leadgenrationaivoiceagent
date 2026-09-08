@@ -1,7 +1,7 @@
 """
-Phase 2 — CAPTURE: build the raw training manifest from our own call recordings.
+Phase 2 - CAPTURE: build the raw training manifest from our own call recordings.
 ============================================================================
-Standalone OFFLINE tool. Does NOT import or touch the live app — it only reads
+Standalone OFFLINE tool. Does NOT import or touch the live app - it only reads
 files the app already writes, and emits one JSONL manifest for the labeling step.
 
 Reads (real app paths):
@@ -21,15 +21,15 @@ Run:
 
 NOTE on tracks:
   - phone "caller" track = customer-only audio = BEST for STT training.
-  - phone "merged" + web "mixed" contain bot audio too → ideally diarize/segment per
+  - phone "merged" + web "mixed" contain bot audio too -> ideally diarize/segment per
     turn before training (that is a later refinement
     captured here so nothing is lost).
-  - "bot" tracks are skipped (synthetic TTS output, known text — not useful STT supervision).
+  - "bot" tracks are skipped (synthetic TTS output, known text - not useful STT supervision).
 
 CONSENT/COMPLIANCE: only consented recordings should ever be exported for training.
 The app's consent ledger + 90-day retention govern what exists on disk
 this tool does
-not bypass them — it just lists what is already there.
+not bypass them - it just lists what is already there.
 """
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ def main() -> None:
     print(f"  by track   : {by_track}")
     print(f"  with live baseline transcript (web): {with_hyp}")
     if not rows:
-        print("  (no recordings found — enable VOBIZ_CALL_RECORD=1 / web-call recording first)")
+        print("  (no recordings found - enable VOBIZ_CALL_RECORD=1 / web-call recording first)")
     print("  next: python voice_stack/finetune/label_dataset.py")
 
 

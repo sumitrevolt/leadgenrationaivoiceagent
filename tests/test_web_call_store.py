@@ -1,4 +1,4 @@
-"""Web-call session store — lead_key gate + chronological list."""
+"""Web-call session store - lead_key gate + chronological list."""
 
 from __future__ import annotations
 

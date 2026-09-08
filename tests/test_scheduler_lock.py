@@ -1,14 +1,14 @@
-"""W1.1 — scheduler single-instance lock must FAIL-CLOSED on a lock-fs error.
+"""W1.1 - scheduler single-instance lock must FAIL-CLOSED on a lock-fs error.
 
 Old behaviour (bug): `_acquire_lock()` outer `except` set `_have_lock=True
 return
 True`. `_acquire_lock()` runs boot-once (single call site, `start_scheduler`), so if
 BOTH uvicorn workers hit the same filesystem error (same disk) they BOTH started the
-scheduler loop → every job double-fired (double emails/content/spend + ban risk).
+scheduler loop -> every job double-fired (double emails/content/spend + ban risk).
 
 Fail-closed: on a lock-fs error, claim NO lock (return False) so a broken-FS boot
 skips the scheduler on this worker instead of double-firing. Loud warn log = the
-recovery signal (there is no next-tick retry — acquire is boot-once).
+recovery signal (there is no next-tick retry - acquire is boot-once).
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def test_acquire_lock_succeeds_on_clean_fs(tmp_path):
 # --------------------------------------------------------------------------- #
 # Reclaim-path fail-closed (W1.1 backlog item): steal ONLY on a PROVEN-stale
 # (old mtime = no heartbeat) or PROVEN-dead owner. An unreadable or empty lock
-# file is NOT proof — an empty file is exactly the startup-race window between
+# file is NOT proof - an empty file is exactly the startup-race window between
 # the other worker's os.open(O_EXCL) and os.write(pid). Stealing there put BOTH
 # workers in the scheduler loop (double emails/content) with no FS error at all.
 # --------------------------------------------------------------------------- #
@@ -78,12 +78,12 @@ def test_no_steal_on_unreadable_lock(tmp_path):
         mock.patch("builtins.open", side_effect=read_broken_open),
     ):
         got = ts._acquire_lock()
-    assert got is False, "unreadable lock = no proof of stale/dead → must NOT steal"
+    assert got is False, "unreadable lock = no proof of stale/dead -> must NOT steal"
     assert ts._have_lock is False
 
 
 def test_no_steal_on_empty_fresh_lock(tmp_path):
-    """Fresh empty lock = the other worker is mid-write (open→write race) → skip."""
+    """Fresh empty lock = the other worker is mid-write (open->write race) -> skip."""
     lock = tmp_path / ".scheduler.lock"
     lock.write_text("")
     got = ts._acquire_lock()
@@ -92,7 +92,7 @@ def test_no_steal_on_empty_fresh_lock(tmp_path):
 
 
 def test_steal_on_proven_stale_mtime(tmp_path):
-    """Reclaim still works: no heartbeat for > _LOCK_STALE_S → steal (even if empty)."""
+    """Reclaim still works: no heartbeat for > _LOCK_STALE_S -> steal (even if empty)."""
     lock = tmp_path / ".scheduler.lock"
     lock.write_text("")
     old = lock.stat().st_mtime - (ts._LOCK_STALE_S + 60)
@@ -103,7 +103,7 @@ def test_steal_on_proven_stale_mtime(tmp_path):
 
 
 def test_steal_on_proven_dead_pid(tmp_path, monkeypatch):
-    """Fresh mtime but the recorded owner pid is dead → steal immediately."""
+    """Fresh mtime but the recorded owner pid is dead -> steal immediately."""
     lock = tmp_path / ".scheduler.lock"
     lock.write_text("54321")
     monkeypatch.setattr(ts, "_pid_alive", lambda pid: False)

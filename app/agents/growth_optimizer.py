@@ -1,18 +1,18 @@
-"""Growth Optimizer — multi-agent SELF-HEALING PROFIT loop (marketing-first).
+"""Growth Optimizer - multi-agent SELF-HEALING PROFIT loop (marketing-first).
 
 growth_engine (15-min pulse) pipeline ki QUANTITY heal karta hai (blog/content/
-prospect top-up). YEH optimizer us se ek level UPAR — roz pura REVENUE funnel
+prospect top-up). YEH optimizer us se ek level UPAR - roz pura REVENUE funnel
 dekhta hai aur strategy-level self-heal karta:
 
-  funnel snapshot (leads → outreach → replies → inbound → signups → MRR → retention)
-   → weakest-stage detect (rule-based, deterministic)
-   → DIRECT corrective actions (existing engines: scrape/SEO/experiments/nurture/dunning)
-   → multi-agent STRATEGY pass (coordinator.coordinate_advanced: Reflexion+critic+memory)
-   → naye free/legal channel ideas (free-LLM brainstorm → data/growth_ideas.jsonl)
+  funnel snapshot (leads -> outreach -> replies -> inbound -> signups -> MRR -> retention)
+   -> weakest-stage detect (rule-based, deterministic)
+   -> DIRECT corrective actions (existing engines: scrape/SEO/experiments/nurture/dunning)
+   -> multi-agent STRATEGY pass (coordinator.coordinate_advanced: Reflexion+critic+memory)
+   -> naye free/legal channel ideas (free-LLM brainstorm -> data/growth_ideas.jsonl)
 
 Sab free-stack + ban-safe (drafts/own-site only
 auto-send apne channel-gates pe).
-GATED `GROWTH_OPTIMIZER=1` (default OFF = optimize() no-op). Voice secondary —
+GATED `GROWTH_OPTIMIZER=1` (default OFF = optimize() no-op). Voice secondary -
 saare actions marketing-first. Store: data/growth_optimizer_runs.jsonl.
 Import-safe, kabhi raise nahi.
 """
@@ -32,7 +32,7 @@ logger = setup_logger(__name__)
 _RUNS = os.path.join("data", "growth_optimizer_runs.jsonl")
 _IDEAS = os.path.join("data", "growth_ideas.jsonl")
 
-# Funnel-stage priority (pehla matching = weakest; supply se shuru — bina leads
+# Funnel-stage priority (pehla matching = weakest; supply se shuru - bina leads
 # ke baaki sab bekaar).
 STAGES = ["lead_supply", "outreach_quality", "inbound", "conversion", "retention", "scale"]
 
@@ -98,7 +98,7 @@ async def funnel_snapshot() -> dict[str, Any]:
 
 
 def weakest_stage(snap: dict[str, Any]) -> dict[str, Any]:
-    """Rule-based weakest funnel stage (pure function — testable, deterministic)."""
+    """Rule-based weakest funnel stage (pure function - testable, deterministic)."""
     p = snap.get("prospects") or {}
     e = snap.get("emails") or {}
     inq = snap.get("inquiries") or {}
@@ -110,7 +110,7 @@ def weakest_stage(snap: dict[str, Any]) -> dict[str, Any]:
     if ready < 20:
         return {
             "stage": "lead_supply",
-            "reason": f"sirf {ready} ready prospects — pipeline patli",
+            "reason": f"sirf {ready} ready prospects - pipeline patli",
             "action": "all-niche scrape batch + city rotation expand",
         }
     if emailed >= 30 and replied / max(emailed, 1) < 0.02:
@@ -122,7 +122,7 @@ def weakest_stage(snap: dict[str, Any]) -> dict[str, Any]:
     if inquiries_total < 5 or int(snap.get("seo_pages", 0) or 0) < 10:
         return {
             "stage": "inbound",
-            "reason": f"{inquiries_total} inquiries, {snap.get('seo_pages', 0)} SEO pages — organic inbound kamzor",
+            "reason": f"{inquiries_total} inquiries, {snap.get('seo_pages', 0)} SEO pages - organic inbound kamzor",
             "action": "SEO niche×city pages batch + community experiments",
         }
     if int(snap.get("clients_active", 0) or 0) == 0 or (
@@ -136,18 +136,18 @@ def weakest_stage(snap: dict[str, Any]) -> dict[str, Any]:
     if int(snap.get("dunning_open", 0) or 0) > 0:
         return {
             "stage": "retention",
-            "reason": f"{snap.get('dunning_open')} dunning cases open — MRR risk",
+            "reason": f"{snap.get('dunning_open')} dunning cases open - MRR risk",
             "action": "dunning sweep + client health save-actions",
         }
     return {
         "stage": "scale",
-        "reason": "koi bottleneck nahi — winners ko scale karo",
+        "reason": "koi bottleneck nahi - winners ko scale karo",
         "action": "best channel double-down + naye niches/cities",
     }
 
 
 async def _direct_actions(stage: str) -> list[str]:
-    """Stage-specific DIRECT corrective actions (LLM nahi — real engines). Har
+    """Stage-specific DIRECT corrective actions (LLM nahi - real engines). Har
     action apne try/except me
     jo chala uska naam list me."""
     done: list[str] = []
@@ -230,7 +230,7 @@ async def suggest_new_ways(niche: str = "general") -> list[str]:
             (
                 "Tu ek Indian local-business growth hacker hai. SIRF free aur legal "
                 "tarike de (koi paid ads, koi scraping-ToS-violation, koi WhatsApp bulk). "
-                'JSON list de: ["idea1", ...] — 5 ideas, har ek <15 words, Hinglish.'
+                'JSON list de: ["idea1", ...] - 5 ideas, har ek <15 words, Hinglish.'
             ),
             [
                 {
@@ -261,10 +261,10 @@ async def suggest_new_ways(niche: str = "general") -> list[str]:
 
 
 async def optimize() -> dict[str, Any]:
-    """Daily self-healing profit loop. GATED GROWTH_OPTIMIZER=1 — off = no-op.
+    """Daily self-healing profit loop. GATED GROWTH_OPTIMIZER=1 - off = no-op.
 
-    snapshot → weakest stage → direct actions → multi-agent strategy pass
-    (Reflexion+critic+memory) → new-channel ideas → persist + log."""
+    snapshot -> weakest stage -> direct actions -> multi-agent strategy pass
+    (Reflexion+critic+memory) -> new-channel ideas -> persist + log."""
     if not _enabled():
         return {"enabled": False}
     try:
@@ -289,7 +289,7 @@ async def optimize() -> dict[str, Any]:
 
         ideas = await suggest_new_ways(str(snap.get("best_niche") or "general"))
 
-        # Self-improve queue: top idea → skill_library me lesson record karo taaki
+        # Self-improve queue: top idea -> skill_library me lesson record karo taaki
         # self_improve loop isko utha ke execute kare (study/content/outreach actions).
         try:
             if ideas and os.environ.get("SELF_IMPROVE_LOOP", "").strip() in ("1", "true", "yes"):

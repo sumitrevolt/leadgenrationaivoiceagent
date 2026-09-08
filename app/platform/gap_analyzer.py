@@ -1,5 +1,5 @@
 """
-Gap Analyzer — compares scanner inventory against competitive benchmarks.
+Gap Analyzer - compares scanner inventory against competitive benchmarks.
 Identifies missing features, scores impact/effort, and returns Gap objects.
 
 Data source: data/competitive_features.json
@@ -21,7 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 COMPETITIVE_FEATURES_PATH = ROOT / "data" / "competitive_features.json"
 
 # ---------------------------------------------------------------------------
-# Keyword synonym maps — competitive feature name → scanner feature_name tokens
+# Keyword synonym maps - competitive feature name -> scanner feature_name tokens
 # ---------------------------------------------------------------------------
 _CUSTOMER_SYNONYMS: dict[str, list[str]] = {
     "real-time notifications center": ["notification", "notif", "bell", "inbox", "unread", "alert"],
@@ -173,9 +173,9 @@ def score_gap_impact(gap: Gap) -> Impact:
 def estimate_effort(gap: Gap, backend_dependency: bool) -> Effort:
     """
     Return Effort enum.
-    - backend_dependency=True  → HIGH  (API + DB work needed)
-    - CSS/frontend complex checks → MEDIUM
-    - Pure frontend / CSS only    → LOW
+    - backend_dependency=True  -> HIGH  (API + DB work needed)
+    - CSS/frontend complex checks -> MEDIUM
+    - Pure frontend / CSS only    -> LOW
     """
     if backend_dependency:
         return Effort.HIGH
@@ -307,7 +307,7 @@ def get_all_gaps(
     admin_gaps = identify_gaps(admin_inventory, "admin")
 
     log.info(
-        "Gap analysis complete — customer: %d gaps, admin: %d gaps",
+        "Gap analysis complete - customer: %d gaps, admin: %d gaps",
         len(customer_gaps),
         len(admin_gaps),
     )

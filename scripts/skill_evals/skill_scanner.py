@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""" "[vendored] Repo-side CI copy. Origin: the agent-security-auditor skill (revamp" "branch). If that skill ever ships on main, make it the single source of truth." "skill_scanner.py — static security scanner for agent skills." "Scans one skill directory (or a tree of them) for the attack patterns seen in" "real skill supply-chain campaigns (ClawHavoc, Jan 2026) and mapped to the" "OWASP Agentic Skills Top 10 (AST01-AST10)." "Usage:" "python3 skill_scanner.py <path-to-skill-or-skills-dir>" "python3 skill_scanner.py <path> --json" "Python 3.8+, stdlib only, makes no network calls, never executes scanned code." "Exit codes: 0 = no CRITICAL findings, 1 = at least one CRITICAL, 2 = usage error." "Lines containing the marker "skillscan" + ":allow" (written as one word with a" "colon) are skipped, so scanners and docs that *describe* attack patterns can" "suppress self-matches." """"
+"""" "[vendored] Repo-side CI copy. Origin: the agent-security-auditor skill (revamp" "branch). If that skill ever ships on main, make it the single source of truth." "skill_scanner.py - static security scanner for agent skills." "Scans one skill directory (or a tree of them) for the attack patterns seen in" "real skill supply-chain campaigns (ClawHavoc, Jan 2026) and mapped to the" "OWASP Agentic Skills Top 10 (AST01-AST10)." "Usage:" "python3 skill_scanner.py <path-to-skill-or-skills-dir>" "python3 skill_scanner.py <path> --json" "Python 3.8+, stdlib only, makes no network calls, never executes scanned code." "Exit codes: 0 = no CRITICAL findings, 1 = at least one CRITICAL, 2 = usage error." "Lines containing the marker "skillscan" + ":allow" (written as one word with a" "colon) are skipped, so scanners and docs that *describe* attack patterns can" "suppress self-matches." """"
 
 import argparse
 import json
@@ -90,7 +90,7 @@ OBFUSCATION_EXEC_PATTERNS = [
         ),  # skillscan:allow
         "OBF02",
         "CRITICAL",
-        "exec/eval of decoded (base64/hex/rot13) data — classic staged payload",
+        "exec/eval of decoded (base64/hex/rot13) data - classic staged payload",
     ),
     (
         re.compile(
@@ -98,7 +98,7 @@ OBFUSCATION_EXEC_PATTERNS = [
         ),  # skillscan:allow
         "OBF02",
         "CRITICAL",
-        "JavaScript eval/Function over decoded data — classic staged payload",
+        "JavaScript eval/Function over decoded data - classic staged payload",
     ),
     (
         re.compile(
@@ -218,13 +218,13 @@ PIN_PATTERNS = [
         ),  # skillscan:allow
         "PIN01",
         "WARN",
-        "Unpinned pip install — version can drift to a compromised release",
+        "Unpinned pip install - version can drift to a compromised release",
     ),  # skillscan:allow
     (
         re.compile(r"\bnpm\s+install\s+(?:-g\s+)?(?!.*@\d)[a-z@][\w@/.-]*\s*$"),
         "PIN01",
         "INFO",
-        "Unpinned npm install — prefer exact versions or a lockfile",
+        "Unpinned npm install - prefer exact versions or a lockfile",
     ),
 ]
 
@@ -363,7 +363,7 @@ def scan_skill(skill_dir, include_fixtures=False):
                 "WARN",
                 skill_md,
                 1,
-                "Frontmatter name '%s' != directory name '%s' — typosquat/impersonation signal, and many runtimes will refuse to load it."
+                "Frontmatter name '%s' != directory name '%s' - typosquat/impersonation signal, and many runtimes will refuse to load it."
                 % (name, skill_dir.name),
                 name,
             )
@@ -428,7 +428,7 @@ def scan_skill(skill_dir, include_fixtures=False):
                 "WARN",
                 skill_md,
                 i,
-                "Prose instructs running a command/script to 'initialize/activate/enable' — install-time execution lure pattern.",
+                "Prose instructs running a command/script to 'initialize/activate/enable' - install-time execution lure pattern.",
                 line,
             )
 
@@ -450,7 +450,7 @@ def scan_skill(skill_dir, include_fixtures=False):
                 continue
 
             # WARN-tier findings inside a markdown code example are usually
-            # illustrative snippets, not instructions — downgrade to INFO so
+            # illustrative snippets, not instructions - downgrade to INFO so
             # documentation-heavy skills stay reviewable. CRITICAL patterns are
             # NEVER downgraded here: ClawHavoc install lures lived precisely in
             # fenced "Prerequisites" blocks.
@@ -461,7 +461,7 @@ def scan_skill(skill_dir, include_fixtures=False):
                 if in_doc_fence and sev == "WARN":
                     return (
                         msg
-                        + " (inside a documentation code example — verify it is illustrative, not an instruction to the agent)"
+                        + " (inside a documentation code example - verify it is illustrative, not an instruction to the agent)"
                     )
                 return msg
 
@@ -477,7 +477,7 @@ def scan_skill(skill_dir, include_fixtures=False):
                         i,
                         doc_msg(
                             "WARN",
-                            "Long base64-like literal (%d chars) — encoded payloads hide from review. Decode it before trusting this file."
+                            "Long base64-like literal (%d chars) - encoded payloads hide from review. Decode it before trusting this file."
                             % len(token),
                         ),
                         token[:60] + "...",
@@ -519,7 +519,7 @@ def scan_skill(skill_dir, include_fixtures=False):
                 "CRITICAL",
                 path,
                 0,
-                "Same file both touches credentials/environment and makes network calls — the standard exfiltration shape. Review it line by line.",
+                "Same file both touches credentials/environment and makes network calls - the standard exfiltration shape. Review it line by line.",
                 "",
             )
 
@@ -529,7 +529,7 @@ def scan_skill(skill_dir, include_fixtures=False):
     for f in findings:
         if f.file.startswith("evals/") and f.severity != "INFO":
             f.severity = "INFO"
-            f.message += "(found in evals/ test data — expected to quote attack patterns" "verify it is not loaded at runtime)"
+            f.message += "(found in evals/ test data - expected to quote attack patterns" "verify it is not loaded at runtime)"
 
     # Deduplicate identical findings
     seen, unique = set(), []
@@ -610,7 +610,7 @@ def main(argv=None):
         )
     else:
         print(
-            "agent-skill security scan v%s — %d skill(s) under %s\n" % (VERSION, len(skills), root)
+            "agent-skill security scan v%s - %d skill(s) under %s\n" % (VERSION, len(skills), root)
         )
         by_skill = {}
         for f in all_findings:
@@ -619,7 +619,7 @@ def main(argv=None):
             fs = by_skill.get(sd.name, [])
             print("=== %s (%s) ===" % (sd.name, sd))
             if not fs:
-                print("  clean — no findings\n")
+                print("  clean - no findings\n")
                 continue
             for f in fs:
                 loc = "%s:%s" % (f.file, f.line) if f.line else f.file
@@ -633,17 +633,17 @@ def main(argv=None):
         )
         if counts["CRITICAL"]:
             print(
-                "Verdict guidance: CRITICAL findings present — do not install/run this skill "
+                "Verdict guidance: CRITICAL findings present - do not install/run this skill "
                 "until a human reviews every flagged line. See references/skill-supply-chain.md."
             )
         elif counts["WARN"]:
             print(
-                "Verdict guidance: warnings present — read each flagged file before approving. "
+                "Verdict guidance: warnings present - read each flagged file before approving. "
                 "A clean pattern scan is necessary but not sufficient (OWASP AST08)."
             )
         else:
             print(
-                "Verdict guidance: no pattern hits. Still read SKILL.md end-to-end — "
+                "Verdict guidance: no pattern hits. Still read SKILL.md end-to-end - "
                 "natural-language attacks evade pattern scanners (OWASP AST08)."
             )
     return 1 if counts["CRITICAL"] else 0

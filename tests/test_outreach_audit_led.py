@@ -18,7 +18,7 @@ from app.platform import auto_outreach
 
 
 # --------------------------------------------------------------------------- #
-# _audit_gap — priority logic
+# _audit_gap - priority logic
 # --------------------------------------------------------------------------- #
 class TestAuditGap:
     def test_no_website_flag_false(self):
@@ -87,9 +87,9 @@ class TestAuditGap:
         assert gap == ""
 
     def test_never_raises_on_garbage(self):
-        # Bad types must NOT raise — must return a string (never throw).
+        # Bad types must NOT raise - must return a string (never throw).
         # ({} and the garbage prospect both lack website info, so by priority
-        # rule #1 they fall to the website gap — the point is: no exception.)
+        # rule #1 they fall to the website gap - the point is: no exception.)
         assert isinstance(auto_outreach._audit_gap({}), str)
         assert isinstance(
             auto_outreach._audit_gap({"rating": "nonsense", "reviews_count": "x"}), str
@@ -102,7 +102,7 @@ class TestAuditGap:
 
 
 # --------------------------------------------------------------------------- #
-# _email_subject_body — flag ON weaves the gap
+# _email_subject_body - flag ON weaves the gap
 # --------------------------------------------------------------------------- #
 class TestAuditLedSubjectBody:
     @pytest.fixture
@@ -136,7 +136,7 @@ class TestAuditLedSubjectBody:
         monkeypatch.delenv("OUTREACH_AUDIT_LED", raising=False)
         subject, text, html = auto_outreach._email_subject_body(gappy)
         # existing generic subject pattern
-        assert subject == "Sharma Solar — aapka Google profile (free audit)"
+        assert subject == "Sharma Solar - aapka Google profile (free audit)"
         # gap fragment must NOT appear in the subject
         assert "3.2" not in subject
         # mandatory pieces still present (unchanged path)
@@ -157,7 +157,7 @@ class TestAuditLedSubjectBody:
         }
         subject, text, html = auto_outreach._email_subject_body(complete)
         # _audit_gap returns "" here -> generic subject, additive branch no-op
-        assert subject == "Sharma Solar — aapka Google profile (free audit)"
+        assert subject == "Sharma Solar - aapka Google profile (free audit)"
         assert "REMOVE" in text
 
 
@@ -182,4 +182,4 @@ class TestDefaultOff:
             "email": "info@sharmasolar.in",
         }
         subject, text, html = auto_outreach._email_subject_body(prospect)
-        assert subject == "Sharma Solar — aapka Google profile (free audit)"
+        assert subject == "Sharma Solar - aapka Google profile (free audit)"

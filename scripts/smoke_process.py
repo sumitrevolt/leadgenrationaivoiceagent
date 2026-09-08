@@ -1,5 +1,5 @@
-"""Smoke — process engine live (worker container me): client_content run start →
-advance → breakpoint pe ruke → approve → complete. Run:
+"""Smoke - process engine live (worker container me): client_content run start ->
+advance -> breakpoint pe ruke -> approve -> complete. Run:
 docker exec leadgen_worker python scripts/smoke_process.py
 """
 

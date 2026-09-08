@@ -24,7 +24,7 @@ class CopilotCommandIn(BaseModel):
 
 
 class CopilotNlIn(BaseModel):
-    """Natural language → typed proposal (preview or execute)."""
+    """Natural language -> typed proposal (preview or execute)."""
 
     text: str = Field(..., min_length=3, max_length=2000)
     execute: bool = False

@@ -1,13 +1,13 @@
-"""LinkedIn comment-first outreach — DRAFT generator (ban-safe).
+"""LinkedIn comment-first outreach - DRAFT generator (ban-safe).
 
 2026 reality: LinkedIn **automation = ToS violation** (23% accounts 90 din me
-restricted). Auto-send NAHI karte. Par **comment-first outreach** kaam karta hai —
+restricted). Auto-send NAHI karte. Par **comment-first outreach** kaam karta hai -
 cold DM ka accept-rate 20% vs comment-pehle 45-60% (2.5x). Isliye yeh module per
-B2B target ke liye DRAFTS deta hai (insaan khud post/send kare — safe + effective):
+B2B target ke liye DRAFTS deta hai (insaan khud post/send kare - safe + effective):
 
-  1. COMMENT — unke recent post pe ek thoughtful comment (relationship pehle)
-  2. CONNECT NOTE — connection request ka 1-line note (300 char limit)
-  3. DM — accept hone ke baad ka first message (value-first, pushy nahi)
+  1. COMMENT - unke recent post pe ek thoughtful comment (relationship pehle)
+  2. CONNECT NOTE - connection request ka 1-line note (300 char limit)
+  3. DM - accept hone ke baad ka first message (value-first, pushy nahi)
 
 Free-LLM (template fallback). Import-safe, kabhi raise nahi. Safe limits reminder:
 20-30 connection/din, 14-din warmup, quality > volume.
@@ -33,12 +33,12 @@ _NICHE_HOOK = {
 def _tpl(name: str, company: str, niche: str) -> dict[str, str]:
     hook = _NICHE_HOOK.get(niche, "naye customers tak tezi se pahunchna")
     return {
-        "comment": f"Bahut accha point, {name}. {company} jaise businesses ke liye {hook} aaj sabse bada lever hai — well said! 👏",
-        "connect_note": f"Hi {name}, {company} ka kaam follow kar raha hoon. Main AI se local businesses ki marketing+lead-gen automate karta hoon — connect karna chahunga 🙏",
+        "comment": f"Bahut accha point, {name}. {company} jaise businesses ke liye {hook} aaj sabse bada lever hai - well said! 👏",
+        "connect_note": f"Hi {name}, {company} ka kaam follow kar raha hoon. Main AI se local businesses ki marketing+lead-gen automate karta hoon - connect karna chahunga 🙏",
         "dm": (
-            f"Thanks for connecting, {name}! Main LeadGen AI chalata hoon — AI voice agent jo "
+            f"Thanks for connecting, {name}! Main LeadGen AI chalata hoon - AI voice agent jo "
             f"inquiries ko 2-min me call karke qualified leads laata hai. {company} ke liye ek "
-            f"free Google audit bhej dun? Koi pressure nahi — bas value. (leadsgenai.in/audit)"
+            f"free Google audit bhej dun? Koi pressure nahi - bas value. (leadsgenai.in/audit)"
         ),
     }
 

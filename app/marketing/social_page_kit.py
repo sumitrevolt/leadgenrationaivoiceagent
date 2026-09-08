@@ -1,5 +1,5 @@
 """
-Social PAGE KIT generator — naye social pages ka complete ready-to-paste setup.
+Social PAGE KIT generator - naye social pages ka complete ready-to-paste setup.
 ================================================================================
 
 Ek business (apna LeadsGenAI brand YA koi client) ke liye, har platform ka
@@ -14,10 +14,10 @@ page-setup content EK call me:
     (post_generator) aur 15 hashtags (hashtags.research).
 
 EXISTING engines compose karta hai (rebuild NAHI): post_generator, hashtags,
-ai_image, niches. free-LLM se bios — LLM down ho to TEMPLATE fallback se bhi
+ai_image, niches. free-LLM se bios - LLM down ho to TEMPLATE fallback se bhi
 COMPLETE kit milta hai (kabhi empty/raise nahi).
 
-NOTE: pages khud create nahi hote (Meta/Google account-action hai) — yeh
+NOTE: pages khud create nahi hote (Meta/Google account-action hai) - yeh
 paste-ready kit hai
 client ko 1-click copy deliverable (Growth-tier).
 """
@@ -50,7 +50,7 @@ def _niche_cfg(niche: str) -> dict:
 
 
 def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str, Any]:
-    """LLM-free fallback — hamesha complete, decent Hinglish."""
+    """LLM-free fallback - hamesha complete, decent Hinglish."""
     loc = f" · {city}" if city else ""
     call = f"\n📞 {phone}" if phone else ""
     return {
@@ -59,8 +59,8 @@ def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str
             "username": _slug_handle(biz),
             "bio": f"{niche_name} ke liye bharosemand naam{loc}. Quality kaam, sahi daam.{call}",
             "about": (
-                f"{biz} — {city or 'aapke sheher'} me {niche_name} ki trusted service. "
-                f"Inquiry ka jawab jaldi, kaam time pe. Message karo ya call karo — aaj hi shuru karein!"
+                f"{biz} - {city or 'aapke sheher'} me {niche_name} ki trusted service. "
+                f"Inquiry ka jawab jaldi, kaam time pe. Message karo ya call karo - aaj hi shuru karein!"
             ),
             "cta_button": "WhatsApp / Call Now",
         },
@@ -70,7 +70,7 @@ def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str
             "highlights": ["Work / Portfolio", "Offers", "Reviews", "Contact"],
         },
         "linkedin": {
-            "tagline": f"{niche_name} services{loc} — quality-first, customer-first.",
+            "tagline": f"{niche_name} services{loc} - quality-first, customer-first.",
             "about": (
                 f"{biz} {city or 'India'} me {niche_name} provide karta hai. "
                 f"Hum transparent pricing, timely delivery aur after-service pe focus karte hain."
@@ -82,7 +82,7 @@ def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str
         },
         "gbp": {
             "description": (
-                f"{biz} — {city or 'aapke area'} ki bharosemand {niche_name} service. "
+                f"{biz} - {city or 'aapke area'} ki bharosemand {niche_name} service. "
                 f"Hum quality, transparent pricing aur time pe kaam ke liye jaane jaate hain. "
                 f"Free consultation/quote ke liye call ya message karein. Har customer hamare liye khaas hai."
             ),
@@ -90,7 +90,7 @@ def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str
         "whatsapp_business": {
             "about": f"{biz} | {niche_name}{loc} | Msg karo, turant jawab",
             "greeting": (
-                f"Namaste! 🙏 {biz} me aapka swagat hai. Apni requirement bata dijiye — "
+                f"Namaste! 🙏 {biz} me aapka swagat hai. Apni requirement bata dijiye - "
                 f"hum 10 minute me jawab dete hain."
             ),
         },
@@ -100,7 +100,7 @@ def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str
 async def _llm_bios(
     biz: str, niche_name: str, city: str, phone: str, pitch: str
 ) -> dict[str, Any] | None:
-    """free-LLM se better bios (JSON) — fail => None (template use hoga)."""
+    """free-LLM se better bios (JSON) - fail => None (template use hoga)."""
     try:
         from app.voice_agent.free_ai import chat
 
@@ -147,7 +147,7 @@ async def build_page_kit(
 
     bios = await _llm_bios(biz, niche_name, city, phone, pitch) or {}
     base = _template_bios(biz, niche_name, city, phone)
-    # LLM jo de gaya use lo, missing platforms template se bharo (merge — kabhi adhura nahi)
+    # LLM jo de gaya use lo, missing platforms template se bharo (merge - kabhi adhura nahi)
     for k, v in base.items():
         if not isinstance(bios.get(k), dict):
             bios[k] = v
@@ -178,7 +178,7 @@ async def build_page_kit(
         except Exception:
             return {
                 "occasion": occ,
-                "caption": f"{biz} — {niche_name} me aapka apna bharosemand naam. {occ}!",
+                "caption": f"{biz} - {niche_name} me aapka apna bharosemand naam. {occ}!",
                 "hashtags": [],
                 "image_idea": "",
             }
@@ -191,7 +191,7 @@ async def build_page_kit(
         except Exception:
             return {}
 
-    # 2026-07-19: SEQUENTIAL + per-post 10s timeout — free-tier concurrent LLM calls
+    # 2026-07-19: SEQUENTIAL + per-post 10s timeout - free-tier concurrent LLM calls
     # 429-backoff dete the (bio-page 30s+ hang). posts_count=2 default + sequential
     # + per-call timeout = reliably fast, kabhi hang nahi.
     async def _post_to(occ: str) -> dict:
@@ -200,7 +200,7 @@ async def build_page_kit(
         except Exception:
             return {
                 "occasion": occ,
-                "caption": f"{biz} — {niche_name}. {occ}!",
+                "caption": f"{biz} - {niche_name}. {occ}!",
                 "hashtags": [],
                 "image_idea": "",
             }
@@ -235,5 +235,5 @@ async def build_page_kit(
         "first_posts": first_posts,
         "hashtags": tag_research.get("hashtags") or tag_research.get("trending") or [],
         "best_time": tag_research.get("best_time") or tag_research.get("best_times") or "",
-        "setup_note": "Pages create karna account-action hai (Meta/Google login) — yeh kit paste-ready content deta hai.",
+        "setup_note": "Pages create karna account-action hai (Meta/Google login) - yeh kit paste-ready content deta hai.",
     }

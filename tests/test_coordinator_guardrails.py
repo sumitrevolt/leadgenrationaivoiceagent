@@ -1,4 +1,4 @@
-"""COORD_GUARDRAILS — coordinator._llm() PRE/POST-LLM guardrail wiring (2026-08-06).
+"""COORD_GUARDRAILS - coordinator._llm() PRE/POST-LLM guardrail wiring (2026-08-06).
 
 Flag default OFF (INERT) -> byte-identical to legacy path. ON -> check_input
 redacts PII + blocks prompt-injection, check_output blocks system-leak / unsafe

@@ -1,9 +1,9 @@
 """Tests for:
-(1) auto_content.run_daily_content — PAYING clients pehle process hon,
+(1) auto_content.run_daily_content - PAYING clients pehle process hon,
     LeadGen AI self-brand last (subah content-ready promise customers ko jaldi).
-(2) lead_alerts client hot-lead alert — lead record me client_id ho to us CLIENT
+(2) lead_alerts client hot-lead alert - lead record me client_id ho to us CLIENT
     owner ko bhi WA alert (gated CLIENT_HOT_LEAD_ALERT default ON, 1 msg/lead);
-    no client_id / no phone → unchanged behaviour.
+    no client_id / no phone -> unchanged behaviour.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import pytest
 
 
 # --------------------------------------------------------------------------- #
-# (1) auto_content ordering — paying client before leadgenai-self
+# (1) auto_content ordering - paying client before leadgenai-self
 # --------------------------------------------------------------------------- #
 def test_run_daily_content_orders_paying_before_self(tmp_path, monkeypatch):
     from app.marketing import auto_content
@@ -53,7 +53,7 @@ def test_run_daily_content_orders_paying_before_self(tmp_path, monkeypatch):
     async def fake_generate(client, day=None):
         processed_order.append(str(client.get("id")))
         # one deterministic item so it counts as "added"
-        # W2.1 caption validator: <10 chars reject hota — valid-length caption do.
+        # W2.1 caption validator: <10 chars reject hota - valid-length caption do.
         return [
             {
                 "id": "x",
@@ -61,7 +61,7 @@ def test_run_daily_content_orders_paying_before_self(tmp_path, monkeypatch):
                 "date": "2026-07-05",
                 "type": "post",
                 "title": "t",
-                "caption": "aaj ka special offer — abhi call karke jaano",
+                "caption": "aaj ka special offer - abhi call karke jaano",
                 "status": "draft",
             }
         ]
@@ -91,7 +91,7 @@ def test_content_priority_rank():
 
 
 # --------------------------------------------------------------------------- #
-# (2) lead_alerts — client owner WA alert
+# (2) lead_alerts - client owner WA alert
 # --------------------------------------------------------------------------- #
 class _FakeSender:
     def __init__(self):
@@ -152,7 +152,7 @@ def test_client_alert_dedupe_same_lead(tmp_path, monkeypatch):
 
     rec = {"name": "A", "phone": "9222222222", "client_id": "cid1", "lead_id": "L9"}
     asyncio.run(lead_alerts.notify_new_lead(rec))
-    # second time same lead → admin phone-dedupe returns early, but even if we call
+    # second time same lead -> admin phone-dedupe returns early, but even if we call
     # _do_notify directly the client dedupe must hold.
     res2 = asyncio.run(lead_alerts._do_notify(rec))
     assert res2["client_notified"] is False
@@ -220,4 +220,4 @@ def test_client_alert_flag_off(tmp_path, monkeypatch):
         lead_alerts.notify_new_lead({"name": "Z", "phone": "9700000000", "client_id": "c3"})
     )
     assert res["client_notified"] is False
-    assert len(fake.sent) == 0  # flag OFF → no client WA
+    assert len(fake.sent) == 0  # flag OFF -> no client WA

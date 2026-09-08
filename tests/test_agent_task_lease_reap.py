@@ -65,7 +65,7 @@ def seed(monkeypatch):
         return tid
 
     def rows():
-        # Snapshot to plain dicts INSIDE the session — ORM instances detach on close.
+        # Snapshot to plain dicts INSIDE the session - ORM instances detach on close.
         with _session() as db:
             return {
                 r.id: {
@@ -99,7 +99,7 @@ async def test_dry_run_reports_but_mutates_nothing(seed):
 
 @pytest.mark.asyncio
 async def test_expired_lease_is_closed_terminally_not_requeued(seed):
-    """NOT a requeue — see the reap docstring. `pending` would allow a double-run."""
+    """NOT a requeue - see the reap docstring. `pending` would allow a double-run."""
     add, rows = seed
     tid = add(version=1, status="running")
 
@@ -117,7 +117,7 @@ async def test_expired_lease_is_closed_terminally_not_requeued(seed):
 async def test_a_reaped_task_cannot_be_reclaimed_or_overwritten(seed):
     """The safety property terminal-fail buys us.
 
-    `complete()`/`fail()` match on id+status only — NEITHER guards on `checkout_version`.
+    `complete()`/`fail()` match on id+status only - NEITHER guards on `checkout_version`.
     So if the reap had requeued to `pending`, a second agent could claim the same row while
     the original slow-but-alive worker was still running, and that worker's late
     `complete()` would silently overwrite the second run. These leases wrap real
@@ -127,7 +127,7 @@ async def test_a_reaped_task_cannot_be_reclaimed_or_overwritten(seed):
     tid = add(version=1, status="running")
     await atq.reap_stale_leases(dry_run=False)
 
-    # (a) no other agent can pick it up — the queue no longer offers it
+    # (a) no other agent can pick it up - the queue no longer offers it
     assert await atq.claim_next("rohan") is None
 
     # (b) the original worker's late completion cannot resurrect or overwrite it
@@ -186,7 +186,7 @@ def test_job_is_registered_in_every_registry():
     `sales_autopilot`/`social_drain` then caught it missing from `STAFF_JOBS` and the Celery
     beat schedule too. That second gap is the serious one: production runs
     `celery -A app.worker beat` with `RUN_IN_PROCESS_SCHEDULER=0`, so a job wired ONLY into
-    `team_scheduler.scheduler_loop` never fires in prod — exactly the fault `call_kpi_digest`
+    `team_scheduler.scheduler_loop` never fires in prod - exactly the fault `call_kpi_digest`
     hit (audit 2026-07-04). This test exists so the next person cannot repeat it.
 
     `JOB_INFO` is asserted here too. It is *also* covered transitively by
@@ -202,8 +202,8 @@ def test_job_is_registered_in_every_registry():
     assert "task_lease_reap" in team_scheduler._last_ran
     assert "task_lease_reap" in automation_health.EXPECTED_GAP_MIN
     assert "task_lease_reap" in today_overview.JOB_INFO
-    # Light, idempotent (optimistic-lock update → a re-reap of the same row is a no-op), and
-    # sends nothing → recovery SHOULD be allowed to catch it up.
+    # Light, idempotent (optimistic-lock update -> a re-reap of the same row is a no-op), and
+    # sends nothing -> recovery SHOULD be allowed to catch it up.
     assert "task_lease_reap" not in scheduler_config.RUN_DUE_EXCLUDE
 
     beat = celery_app.conf.beat_schedule

@@ -1,25 +1,25 @@
 """
-feature_flags.py — Redis-backed per-tenant / percentage feature flags.
+feature_flags.py - Redis-backed per-tenant / percentage feature flags.
 ================================================================================
 Phase 1 of the SaaS infra upgrade (docs/GAP_ANALYSIS_SaaS_Infra_Upgrade_2026.md).
 
 KYUN: existing `AUTOMATION_FLAGS` (growth.py) GLOBAL env on/off hain (infra/automation
-loops govern karte). Yeh module ALAG concern hai — PRODUCT/customer-facing features ka
+loops govern karte). Yeh module ALAG concern hai - PRODUCT/customer-facing features ka
 RUNTIME, PER-TENANT, PERCENTAGE rollout (A/B + progressive launch + kill-switch) bina
 redeploy ke.
 
 MASTER GATE: env `FEATURE_FLAGS` (default OFF). OFF hone pe `is_enabled()` seedha False
-return karta — ZERO Redis traffic, ZERO behaviour change. Admin flags pehle se configure
+return karta - ZERO Redis traffic, ZERO behaviour change. Admin flags pehle se configure
 kar sakta
 woh tabhi asar karte jab `FEATURE_FLAGS=1`. (Registry: AUTOMATION_FLAGS.)
 
 STORAGE: ek single Redis key `feature_flags:store` = JSON {key: flag_dict}. Isse
-InMemoryCache fallback (Redis down) ke saath bhi same code chalta — koi SCAN/KEYS nahi
+InMemoryCache fallback (Redis down) ke saath bhi same code chalta - koi SCAN/KEYS nahi
 chahiye (InMemoryCache woh support nahi karta). Reads 60s in-process cached (hot path);
-writes rare (admin toggle) → read-modify-write acceptable (multi-worker eventual ≤60s).
+writes rare (admin toggle) -> read-modify-write acceptable (multi-worker eventual ≤60s).
 
-FAIL-SAFE: koi bhi error / Redis-absent / unknown-flag → `is_enabled()` False (feature
-chhupa = safe default — adhoora feature galti se expose na ho). Service KABHI raise nahi
+FAIL-SAFE: koi bhi error / Redis-absent / unknown-flag -> `is_enabled()` False (feature
+chhupa = safe default - adhoora feature galti se expose na ho). Service KABHI raise nahi
 karta (import-safe, caller kabhi nahi tutta).
 """
 
@@ -114,7 +114,7 @@ class FeatureFlag:
 def _bucket(flag_key: str, ident: str) -> int:
     """Deterministic 0-99 bucket.
 
-    hashlib use karo — Python ka builtin hash() per-process SALTED hota
+    hashlib use karo - Python ka builtin hash() per-process SALTED hota
     (PYTHONHASHSEED), isliye workers/restarts ke beech NON-deterministic =
     percentage rollout flaky. sha256 stable + evenly distributed.
     """
@@ -127,9 +127,9 @@ def evaluate_flag(
     tenant_id: str | None = None,
     user_id: str | None = None,
 ) -> bool:
-    """PURE evaluation (storage-independent, testable). Kabhi raise nahi → False on doubt.  # nosecurity: eval-ref-in-comment
+    """PURE evaluation (storage-independent, testable). Kabhi raise nahi -> False on doubt.  # nosecurity: eval-ref-in-comment
 
-    Deterministic: same (flag, ident) → same result har process me.
+    Deterministic: same (flag, ident) -> same result har process me.
     """
     try:
         if not flag:
@@ -159,7 +159,7 @@ def evaluate_flag(
 
 
 def _system_active() -> bool:
-    """Master gate — FEATURE_FLAGS env ON hone pe hi system live (default OFF)."""
+    """Master gate - FEATURE_FLAGS env ON hone pe hi system live (default OFF)."""
     return os.environ.get("FEATURE_FLAGS", "0").strip().lower() in ("1", "true", "yes")
 
 
@@ -172,7 +172,7 @@ class FeatureFlagService:
         self._cache_at: float = 0.0
 
     async def _redis(self):
-        """Shared app Redis (InMemoryCache fallback). Never raises → None."""
+        """Shared app Redis (InMemoryCache fallback). Never raises -> None."""
         try:
             if self._redis_getter is not None:
                 return await self._redis_getter()
@@ -188,7 +188,7 @@ class FeatureFlagService:
         self._cache_at = 0.0
 
     async def _load_store(self, force: bool = False) -> dict[str, Any]:
-        """Whole {key: flag_dict} store. 60s in-process cache. Never raises → {} (ya last-good)."""
+        """Whole {key: flag_dict} store. 60s in-process cache. Never raises -> {} (ya last-good)."""
         if not force and self._cache is not None and (time.time() - self._cache_at) < _CACHE_TTL_S:
             return self._cache
         store: dict[str, Any] = {}
@@ -255,7 +255,7 @@ class FeatureFlagService:
     async def set_flag(self, flag: FeatureFlag) -> bool:
         """Upsert. created_at preserve, updated_at refresh. True = persisted.
 
-        NOTE: master gate (FEATURE_FLAGS) yahan CHECK nahi hota — admin system OFF
+        NOTE: master gate (FEATURE_FLAGS) yahan CHECK nahi hota - admin system OFF
         hone par bhi flags pre-configure kar sakta (woh ON hone par live honge).
         """
         try:
@@ -282,7 +282,7 @@ class FeatureFlagService:
             return False
 
 
-# Shared singleton — callers: `from app.infrastructure.feature_flags import feature_flags`
+# Shared singleton - callers: `from app.infrastructure.feature_flags import feature_flags`
 feature_flags = FeatureFlagService()
 
 

@@ -125,8 +125,8 @@ pinned["pipeline"] = "43 HOT interested leads (hot_queue 09-01.csv, 43/43 wa_lin
 0 dialer connects (loop dead 40h+)
 0 WA sends
 Jiya P0"
-pinned["action"] = ("SAL-003 WA >=10 + vendor DID 09:00 → PLT-004 egress verdict 09:00 → ENG-003 watchdog 09:30 → "
-                    "HNT-004 CSV 09:30 → OPS-006 10:30 digest → GRD-003 11:00 verdicts → SUC-002 Jiya 12:00 → BRD-002 page verify 12:00")
+pinned["action"] = ("SAL-003 WA >=10 + vendor DID 09:00 -> PLT-004 egress verdict 09:00 -> ENG-003 watchdog 09:30 -> "
+                    "HNT-004 CSV 09:30 -> OPS-006 10:30 digest -> GRD-003 11:00 verdicts -> SUC-002 Jiya 12:00 -> BRD-002 page verify 12:00")
 pinned["next_expected_payment"] = "Hot-queue WA close (UPI deep-link) ya Jiya retention ya pehla post-DID sale - vaada nahi, evidence ke saath"
 save(pinned_path, pinned)
 print(f"PINNED: refreshed @ {ts}")

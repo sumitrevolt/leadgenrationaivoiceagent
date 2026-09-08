@@ -65,7 +65,7 @@ def test_inquiry_notes_include_business_type(client, monkeypatch):
     """_save_lead_db ki notes me business type bhi aana chahiye (admin view)."""
     import app.api.public_site as ps
 
-    # fake Lead + db — capture the kwargs _save_lead_db passes to Lead()
+    # fake Lead + db - capture the kwargs _save_lead_db passes to Lead()
     created: dict = {}
 
     class _FakeLead:
@@ -147,9 +147,9 @@ def test_lead_magnet_pages_wire_business_type_dropdown():
 
 
 def test_inquiry_dry_run_query_param_threads_to_chain(client, monkeypatch):
-    """POST /api/public/inquiry?dry_run=1 — chain trigger hota hai par dial nahi.
-    (dry_run query param → run_after_inquiry(dry_run=True)
-    bina param → False.)"""
+    """POST /api/public/inquiry?dry_run=1 - chain trigger hota hai par dial nahi.
+    (dry_run query param -> run_after_inquiry(dry_run=True)
+    bina param -> False.)"""
     import app.api.public_site as ps
     import app.platform.inquiry_hooks as hooks
 
@@ -177,7 +177,7 @@ def test_inquiry_dry_run_query_param_threads_to_chain(client, monkeypatch):
     assert r.status_code == 200, r.text
     assert seen.get("dry_run") is True
 
-    # default (no param) → dry_run False — real path unchanged
+    # default (no param) -> dry_run False - real path unchanged
     seen.clear()
     r2 = client.post(
         "/api/public/inquiry",

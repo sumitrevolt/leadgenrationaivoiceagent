@@ -1,19 +1,19 @@
 """Owner-locked Revenue Automation Max SAFE pack keys (2026-08-05).
 
-Exact env names only — no aliases. Used by canary script + Mission Control
+Exact env names only - no aliases. Used by canary script + Mission Control
 highlight contract tests. Does NOT write .env (see safe_pack_flag_canary.sh).
 """
 
 from __future__ import annotations
 
-# Capability → keys (repo truth: AUTOMATION_FLAGS + team_scheduler gates)
+# Capability -> keys (repo truth: AUTOMATION_FLAGS + team_scheduler gates)
 SAFE_PACK_KEYS: tuple[str, ...] = (
     "FLOW_RUNNER",
     "FLOW_AUTO_TRIGGERS",
     "PROCESS_ENGINE",
     "PROCESS_AUTOSTART",
     "REVENUE_TRENDS",
-    "CONTENT_APPROVAL_AUTO",  # approval QUEUE submit only — not publish/approve
+    "CONTENT_APPROVAL_AUTO",  # approval QUEUE submit only - not publish/approve
 )
 
 # Explicitly not approved for this pack (must never be set by safe-pack tools)

@@ -9,7 +9,7 @@ import asyncio
 
 
 # --------------------------------------------------------------------------- #
-# customer_crm — import alias mapping + occasions
+# customer_crm - import alias mapping + occasions
 # --------------------------------------------------------------------------- #
 def test_customer_crm_import_alias_mapping(tmp_path, monkeypatch):
     from app.marketing import crm_lite, customer_crm
@@ -76,7 +76,7 @@ def test_todays_occasions(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# customer_crm — run_wishes drafts (ban-safe, NEVER auto-send)
+# customer_crm - run_wishes drafts (ban-safe, NEVER auto-send)
 # --------------------------------------------------------------------------- #
 def test_run_wishes_creates_drafts_and_dedupes(tmp_path, monkeypatch):
     from app.marketing import customer_crm
@@ -142,7 +142,7 @@ def test_wish_templates_hinglish():
 
 
 # --------------------------------------------------------------------------- #
-# product_catalog — CRUD + safety
+# product_catalog - CRUD + safety
 # --------------------------------------------------------------------------- #
 def test_product_catalog_crud(tmp_path, monkeypatch):
     from app.marketing import product_catalog as pc
@@ -187,7 +187,7 @@ def test_product_catalog_crud(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# mini_site — catalog section (empty = ZERO change)
+# mini_site - catalog section (empty = ZERO change)
 # --------------------------------------------------------------------------- #
 def test_minisite_catalog_section(tmp_path, monkeypatch):
     from app.marketing import mini_site
@@ -222,7 +222,7 @@ def test_minisite_catalog_section(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# payment_links — Razorpay removed 2026-06-18; stub deleted 2026-07-19
+# payment_links - Razorpay removed 2026-06-18; stub deleted 2026-07-19
 # --------------------------------------------------------------------------- #
 def test_payment_links_module_removed():
     import importlib

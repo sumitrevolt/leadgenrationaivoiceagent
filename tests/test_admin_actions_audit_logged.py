@@ -1,13 +1,13 @@
 """Regression guard for ADR-043's follow-up finding: `upi/activate` and
 `clients/{cid}/status` only logged to the informal team feed (`log_event`),
-never the formal `AuditLog` DB table `/api/admin/audit-logs` reads — so the
+never the formal `AuditLog` DB table `/api/admin/audit-logs` reads - so the
 planned admin "view audit log" tab would be blind to approve-payment and
 pause-automation, the two most sensitive of the six planned admin actions
 (security-auditor audit finding #2, 2026-07-07).
 
 Mirrors tests/test_impersonation.py's pattern: monkeypatch the module-level
 `log_audit` reference to a fake async recorder and call the route function
-directly (no real DB/app needed) — confirms the audit call fires with the
+directly (no real DB/app needed) - confirms the audit call fires with the
 right action/resource/severity, and that a failing audit write never blocks
 the actual operation (mirrors impersonation.py's own best-effort contract).
 """
@@ -59,7 +59,7 @@ async def test_set_client_status_audits(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_set_client_status_succeeds_even_if_audit_write_fails(monkeypatch):
-    """Audit is best-effort — a broken AuditLog insert must never block pausing
+    """Audit is best-effort - a broken AuditLog insert must never block pausing
     a customer's automation (matches impersonation.py's own contract)."""
     from app.api import clients
 
@@ -115,7 +115,7 @@ async def test_upi_activate_audits(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_upi_activate_succeeds_even_if_audit_write_fails(monkeypatch):
-    """Audit is best-effort — a broken AuditLog insert must never block a
+    """Audit is best-effort - a broken AuditLog insert must never block a
     manually-verified payment activation."""
     from app.api import admin_ops
     from app.billing import usage as usage_mod

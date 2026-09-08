@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PILOT Sep-04 05:35 IST sweep — FRESH LIVE re-verify (evidence-first).
+"""PILOT Sep-04 05:35 IST sweep - FRESH LIVE re-verify (evidence-first).
 
 LIVE VERIFIED 05:32 IST Sep 4 (VPS date Thu Sep 4 00:05 UTC = 05:35 IST):
   - /health 200, containers worker/app/scheduler Up ~10h healthy (WA flip LIVE=1 picked up).
@@ -43,21 +43,21 @@ SIP 5 vars ALL EMPTY DID NOT landed "
 
 msgs = [
     {"ts": TS, "from": "PILOT", "to": "ALL", "task_id": "REV-COMMAND", "type": "REVENUE_COMMAND", "priority": "P0",
-     "msg": "🎯 REVENUE COMMAND 05:35 IST (Sep4): TARGET Rs5,00,000 | VERIFIED Rs1,999 (Jiya SOLE INV-0001) | GAP Rs4,98,001 | PIPELINE: hot-queue 09-04 MISSING (date-lock broken), 09-03 44 dirty (0 genuine buyer); dialer DEAD day5+; WA auto_sent=0 (only 469 drafts captured, 0 auto-sends) | HOT: Jiya churn-risk P0, koi genuine close nahi | BOTTLENECK #1 DIALER DEAD (SIP EMPTY + CLI revoked + egress 000) = 0 connects; #2 NO QUALIFIED-BUYER close-rail (dirty list + WA 0-send); #3 leads/ ammo 0. Sep3 0-evidence. 06:30 IST gate — EK bhi evidence. 🐦 pelican"},
+     "msg": "🎯 REVENUE COMMAND 05:35 IST (Sep4): TARGET Rs5,00,000 | VERIFIED Rs1,999 (Jiya SOLE INV-0001) | GAP Rs4,98,001 | PIPELINE: hot-queue 09-04 MISSING (date-lock broken), 09-03 44 dirty (0 genuine buyer); dialer DEAD day5+; WA auto_sent=0 (only 469 drafts captured, 0 auto-sends) | HOT: Jiya churn-risk P0, koi genuine close nahi | BOTTLENECK #1 DIALER DEAD (SIP EMPTY + CLI revoked + egress 000) = 0 connects; #2 NO QUALIFIED-BUYER close-rail (dirty list + WA 0-send); #3 leads/ ammo 0. Sep3 0-evidence. 06:30 IST gate - EK bhi evidence. 🐦 pelican"},
     {"ts": TS, "from": "PILOT", "to": "engineering", "task_id": "ENG-004", "type": "TASK_REBUMP", "priority": "P0",
-     "msg": "ENG-004 (05:35): WA meta auto_sent=0 PRECISE (469 false; 4 was trueconnect@jio false-grep). Tumhara executable abhi = (a) hot-queue scheduler date-lock FIX (09-04 MISSING, 03:30 job broke 09-03) + (b) WAHA manual-send helper script (session default) taaki sales genuine-close blast kar sake. 06:30: date-lock fix commit + send-helper evidence. Meta token owner-gated — report honestly agar blocked."},
+     "msg": "ENG-004 (05:35): WA meta auto_sent=0 PRECISE (469 false; 4 was trueconnect@jio false-grep). Tumhara executable abhi = (a) hot-queue scheduler date-lock FIX (09-04 MISSING, 03:30 job broke 09-03) + (b) WAHA manual-send helper script (session default) taaki sales genuine-close blast kar sake. 06:30: date-lock fix commit + send-helper evidence. Meta token owner-gated - report honestly agar blocked."},
     {"ts": TS, "from": "PILOT", "to": "sales", "task_id": "SAL-005", "type": "TASK_REBUMP", "priority": "P0",
      "msg": "SAL-005 (05:35): dirty blast HARD STOP for good. WAHA manual sendText (session default, with-key 200 WORKING) sirf GENUINE-intent thread pe -> close msg-id -> UPI deep-link 8459012607@axl. 09-01/09-02/09-03 queues se warm follow-ups. 06:30: >=3 genuine DELIVERED msg-id + vendor DID status (WA Call Soft wa.me/917599967999 + RMS 080-47652298). Real buyer Milne par UPI close -> ledger INV."},
     {"ts": TS, "from": "PILOT", "to": "platform", "task_id": "PLT-005", "type": "TASK_REBUMP", "priority": "P0",
      "msg": "PLT-005 (05:35): SIP 5 vars ALL EMPTY re-confirm (DID NOT landed), CLI +9111 revoked, dialer DEAD day5+ (proc0 mtime Aug31 batch211), egress api.vobiz.com 000@8s. Vendor DID proof/ETA (Jio Call Soft + RMS backup) YA egress alternate. 06:30. 0-ACK since Sep3."},
     {"ts": TS, "from": "PILOT", "to": "success", "task_id": "SUC-004", "type": "TASK_REBUMP", "priority": "P0",
-     "msg": "SUC-004 (05:35): Jiya SOLE payer Rs1,999 — churn = revenue ZERO. Hostinger SMTP recovery email SENT artifact (msg-id) + WA follow-up + fallback retention offer. DID-independent, ABHI karo. 06:30: SMTP artifact. 0 proof day3+."},
+     "msg": "SUC-004 (05:35): Jiya SOLE payer Rs1,999 - churn = revenue ZERO. Hostinger SMTP recovery email SENT artifact (msg-id) + WA follow-up + fallback retention offer. DID-independent, ABHI karo. 06:30: SMTP artifact. 0 proof day3+."},
     {"ts": TS, "from": "PILOT", "to": "hunter", "task_id": "HNT-005", "type": "TASK_REBUMP", "priority": "P0",
      "msg": "HNT-005 (05:35): leads/ ABSENT ammo 0 day5+. 50 QUALIFIED e164-valid mobile DND-scrubbed business-owner high-intent CSV to /opt/leadgen/data/leads/ (CRITICAL jab dialer restart ho). Hot-queue dirty REJECT. 06:30: CSV path + 50 verified MOBILE + DND col. 0-ACK since Sep3."},
     {"ts": TS, "from": "PILOT", "to": "guardian", "task_id": "GRD-004", "type": "TASK_REBUMP", "priority": "P1",
-     "msg": "GRD-004 (05:35): PASS/FAIL verdicts file (command_center/data) — auto_sent=0 truth + placeholder-cred config-dead + revenue-truth (snap vs ledger) + dialer-dead + DID-0 + dirty-hot-queue + hot-queue-09-04-absent. 06:30. Independent verification critical — fleet 0-ACK."},
+     "msg": "GRD-004 (05:35): PASS/FAIL verdicts file (command_center/data) - auto_sent=0 truth + placeholder-cred config-dead + revenue-truth (snap vs ledger) + dialer-dead + DID-0 + dirty-hot-queue + hot-queue-09-04-absent. 06:30. Independent verification critical - fleet 0-ACK."},
     {"ts": TS, "from": "PILOT", "to": "operations", "task_id": "OPS-007", "type": "TASK_REBUMP", "priority": "P1",
-     "msg": "OPS-007 (05:35): digest — hot-queue 09-04 date-lock root (broke 09-03) + dialer restart cadence (post-DID, TRAI 10:00-19:00 window) + egress 000 impact. 06:30: digest file."},
+     "msg": "OPS-007 (05:35): digest - hot-queue 09-04 date-lock root (broke 09-03) + dialer restart cadence (post-DID, TRAI 10:00-19:00 window) + egress 000 impact. 06:30: digest file."},
     {"ts": TS, "from": "PILOT", "to": "board", "task_id": "BRD-003", "type": "TASK_REBUMP", "priority": "P2",
      "msg": "BRD-003 (05:35): VPS mirror sync + /app/bot-command-center page verify (PILOT fresh push abhi 05:35). 06:30: page/mtime proof. Visualization ONLY."},
 ]

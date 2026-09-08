@@ -1,4 +1,4 @@
-"""social_engine.base — provider-agnostic interfaces for the native social-posting engine.
+"""social_engine.base - provider-agnostic interfaces for the native social-posting engine.
 
 SocialProvider = ek platform adapter (telegram/meta(fb+ig)/gbp/linkedin/x/youtube/postiz).
 PublishRequest  = ek post ka intent (client + media + caption + target account).
@@ -30,7 +30,7 @@ class PublishRequest:
     client_id: str
     caption: str = ""
     media_path: str = ""  # local file (reel mp4 / image)
-    media_url: str = ""  # public URL (Meta/LinkedIn fetch karte — host first)
+    media_url: str = ""  # public URL (Meta/LinkedIn fetch karte - host first)
     media_type: str = "video"  # video | image | text
     platform: str = ""  # target platform key
     account_ref: str = ""  # page-id / ig-user-id / location / org-urn / channel-id
@@ -48,7 +48,7 @@ class PublishResult:
 
 
 class SocialProvider:
-    """Base adapter. Subclass har platform ke liye. NEVER raises — error PublishResult."""
+    """Base adapter. Subclass har platform ke liye. NEVER raises - error PublishResult."""
 
     name: str = "base"
     needs_public_url: bool = False  # media public URL chahiye? (Meta/LinkedIn = True)

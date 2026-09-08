@@ -1,13 +1,13 @@
 """Loop-social-8 (2026-07-11): pause + emergency-stop gates.
 
 Contract:
-- SOCIAL_EMERGENCY_STOP env=1 → every job paused with reason='emergency_stop'
-- SOCIAL_PAUSED_PLATFORMS=x,instagram → jobs on x/instagram paused with
+- SOCIAL_EMERGENCY_STOP env=1 -> every job paused with reason='emergency_stop'
+- SOCIAL_PAUSED_PLATFORMS=x,instagram -> jobs on x/instagram paused with
   reason='paused_platform'
-- SOCIAL_PAUSED_CLIENTS=c_A,c_B → jobs for those clients paused with
+- SOCIAL_PAUSED_CLIENTS=c_A,c_B -> jobs for those clients paused with
   reason='paused_client'
 - Config-file `data/social_engine.json` provides same shape as fallback.
-- Corrupt config → fail-CLOSED (emergency_stop=True, all platforms paused).
+- Corrupt config -> fail-CLOSED (emergency_stop=True, all platforms paused).
 - `should_pause_job()` never raises.
 """
 
@@ -85,14 +85,14 @@ def test_corrupt_config_fails_closed(paused):
 def test_set_config_toggles_pause_at_runtime(paused):
     paused["mod"].set_config(paused_platforms=["gbp"])
     assert "gbp" in paused["mod"].paused_platforms()
-    # additive — turn ON emergency stop later without wiping platforms
+    # additive - turn ON emergency stop later without wiping platforms
     paused["mod"].set_config(emergency_stop=True)
     assert paused["mod"].emergency_stop_active() is True
     assert "gbp" in paused["mod"].paused_platforms()
 
 
 def test_engine_process_queue_honors_pause(paused, monkeypatch, tmp_path):
-    """End-to-end: paused platform → skipped + customer_action_required emit."""
+    """End-to-end: paused platform -> skipped + customer_action_required emit."""
     from app.social_engine import engine, store, vault
     from app.social_engine.base import PublishResult, SocialProvider
 

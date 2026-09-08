@@ -151,7 +151,7 @@ logger = logging.getLogger('campaign_attribution')
 
 
 def main():
-    """Entry point — test classification."""
+    """Entry point - test classification."""
     import argparse
     parser = argparse.ArgumentParser(description='Campaign Attribution Classifier')
     parser.add_argument('--received-at', required=True, help='Payment received timestamp (ISO format)')

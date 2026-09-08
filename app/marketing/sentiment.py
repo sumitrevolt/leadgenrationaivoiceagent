@@ -1,7 +1,7 @@
-"""Sentiment analysis — reviews/feedback ka mood + themes + action (free_ai + rule baseline).
+"""Sentiment analysis - reviews/feedback ka mood + themes + action (free_ai + rule baseline).
 
 2026 marketing must-have: real-time sentiment on reviews/social mentions. Given a batch of
-review/feedback texts → per-text sentiment (rule baseline) + an LLM summary (themes + action).
+review/feedback texts -> per-text sentiment (rule baseline) + an LLM summary (themes + action).
 Never raises.
 
 analyze(texts) -> {count, breakdown{positive/negative/neutral}, score, summary}
@@ -66,7 +66,7 @@ async def analyze(texts: list[str]) -> dict:
 
         reply, _ = await free_ai.chat(
             system="Tu reviews analyse karta hai. Diye reviews ka overall sentiment, top 2-3 themes "
-            "(kya acha, kya improve), aur ek concrete action — sab 3-4 line Hinglish me.",
+            "(kya acha, kya improve), aur ek concrete action - sab 3-4 line Hinglish me.",
             messages=[{"role": "user", "content": "\n".join(f"- {t[:160]}" for t in items[:20])}],
             max_tokens=150,
             temperature=0.3,

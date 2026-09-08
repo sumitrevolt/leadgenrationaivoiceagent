@@ -1,4 +1,4 @@
-"""Second-brain surfacing — operator search API (Part A) + daily-agent read-back (Part B).
+"""Second-brain surfacing - operator search API (Part A) + daily-agent read-back (Part B).
 
 The Obsidian brain was write+sync alive but felt 'unused': no operator surface, and
 read-back was only in coordinator/council. These pin: (B) Isha's daily content now

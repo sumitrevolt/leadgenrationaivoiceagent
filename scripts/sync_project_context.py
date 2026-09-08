@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sync_project_context.py — refresh the persistent, secret-safe project-context
+"""sync_project_context.py - refresh the persistent, secret-safe project-context
 store (app/graphify-out/project_context.json) + human snapshot CONTEXT_SNAPSHOT.md.
 
 Idempotent: re-running with no source change writes nothing. Never ingests
@@ -52,7 +52,7 @@ def main(argv=None) -> int:
     if args.dry_run:
         existing = pc.load_store(store_path)
         same = existing and existing.get("meta", {}).get("content_hash") == m["content_hash"]
-        print(f"[context] DRY-RUN — would {'skip (unchanged)' if same else 'write'} {store_path}")
+        print(f"[context] DRY-RUN - would {'skip (unchanged)' if same else 'write'} {store_path}")
         return 0
 
     written = pc.write_store(store, store_path, snapshot_path)

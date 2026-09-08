@@ -2,7 +2,7 @@
 - `team_scheduler._run_job` accepts a `retry_count` (Celery `run_staff_job`
   threads `self.request.retries`), surfaced in the admin Automation Runs panel.
 - The Automation Runs panel renders a Proof column from existing fields
-  (`meta_json.path` report artifact / a URL in `output_summary`) — no DB column,
+  (`meta_json.path` report artifact / a URL in `output_summary`) - no DB column,
   so no migration on the live prod DB.
 """
 

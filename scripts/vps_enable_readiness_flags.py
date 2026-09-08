@@ -2,7 +2,7 @@
 """Enable Track B admin + safe production-readiness flags on VPS (.env).
 
 Run ON the VPS (or via ssh root@VPS 'python3 /opt/leadgen/scripts/...').
-Idempotent — skips keys already set to the target value.
+Idempotent - skips keys already set to the target value.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from pathlib import Path
 
 ENV_PATH = os.environ.get("LEADGEN_ENV", "/opt/leadgen/.env")
 
-# No creds required — admin UX + observability + safe automation
+# No creds required - admin UX + observability + safe automation
 WANT = {
     "REVENUE_TRENDS": "1",  # B1 MRR chart + daily snapshot job
     "CLIENT_TIMELINE": "1",  # B2 per-client activity drawer

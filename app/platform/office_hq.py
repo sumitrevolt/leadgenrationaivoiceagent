@@ -1,4 +1,4 @@
-"""LeadGenAI Operating HQ — business-command-center aggregator behind /app/office.
+"""LeadGenAI Operating HQ - business-command-center aggregator behind /app/office.
 
 Extends the existing 4-room virtual office (team.py STAFF + office_map.html) into
 an 8-room read-only command center that shows REAL business signals: lead
@@ -11,9 +11,9 @@ Hard rules followed here (per user spec + advisor review):
     _collect_live_stats, sales_pipeline.stats, client_health.health_report,
     approvals_bridge.list_drafts). We do not re-implement any of those.
   - Every pipeline stage carries a `source` tag: "real" (direct query/store),
-    "partial" (real data, approximate mapping to the 12-stage model — has a
+    "partial" (real data, approximate mapping to the 12-stage model - has a
     `note` explaining the approximation), or "mock" (no backing data at all,
-    always empty + clearly labeled — never fabricated numbers).
+    always empty + clearly labeled - never fabricated numbers).
   - Never raises. Every public function degrades to a safe empty shape on
     any failure so a broken sub-engine can never blank the whole page.
 """
@@ -34,10 +34,10 @@ logger = setup_logger(__name__)
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 # --------------------------------------------------------------------------- #
-# 8-room layout — a finer regrouping of the SAME 31 STAFF (team.py), by actual
+# 8-room layout - a finer regrouping of the SAME 31 STAFF (team.py), by actual
 # duties rather than the coarser 3-bucket `product` field. Pure re-labeling;
 # no new agents invented. Anyone not in this dict falls back to their
-# `product` bucket (defensive — a future STAFF addition never 404s a room).
+# `product` bucket (defensive - a future STAFF addition never 404s a room).
 # --------------------------------------------------------------------------- #
 ROOM_DEFS: list[dict[str, str]] = [
     {
@@ -93,10 +93,10 @@ ROOM_IDS = {r["id"] for r in ROOM_DEFS}
 
 MEMBER_ROOM: dict[str, str] = {
     "manager": "coordinator",
-    # Lead Lab — data integrity + pipeline freshness (dedupe/rescore/hot-surface)
+    # Lead Lab - data integrity + pipeline freshness (dedupe/rescore/hot-surface)
     "diya": "lead_lab",
     "neha": "lead_lab",
-    # Sales / CRM — follow-up, targeting, CRM push, sequencing
+    # Sales / CRM - follow-up, targeting, CRM push, sequencing
     "rohan": "sales_crm",
     "priya": "sales_crm",
     "anika": "sales_crm",
@@ -113,10 +113,10 @@ MEMBER_ROOM: dict[str, str] = {
     "ravi": "marketing_team",
     "zara": "marketing_team",
     "kiran": "marketing_team",
-    # QA / Audit — voice QA + trainer (existing quality-check duties)
+    # QA / Audit - voice QA + trainer (existing quality-check duties)
     "arjun": "qa_audit",
     "meera": "qa_audit",
-    # Platform / Engineering — infra, code, security, MCP, voice-provider readiness
+    # Platform / Engineering - infra, code, security, MCP, voice-provider readiness
     "kavya": "platform_engineering",
     "hermes": "platform_engineering",
     "vikram": "platform_engineering",
@@ -127,7 +127,7 @@ MEMBER_ROOM: dict[str, str] = {
     "aryan": "platform_engineering",
     "arya": "platform_engineering",
     "tara": "platform_engineering",
-    # Admin / Finance — revenue + margin
+    # Admin / Finance - revenue + margin
     "nikhil": "admin_finance",
     "vidya": "admin_finance",
 }
@@ -198,12 +198,12 @@ def coordination_topology() -> dict[str, Any]:
 
 # STAFF keys with a REAL, individually re-triggerable manual-run wired today
 # (app/agents/staff.py run_member() dispatch table). All 31 STAFF members now
-# have run_* wrappers — Paperclip Plan B expansion (2026-07-19).
+# have run_* wrappers - Paperclip Plan B expansion (2026-07-19).
 RUNNABLE_MEMBERS = set(STAFF.keys())
 
 # Member key -> the single env flag that gates their underlying automation
 # engine, for offline_reason classification. Expanded to cover ALL gated agents
-# (previously only 5 — many flag-gated agents showed "no_data_today" instead of
+# (previously only 5 - many flag-gated agents showed "no_data_today" instead of
 # the accurate "flag_off:X" reason).
 _MEMBER_GATING_FLAG: dict[str, str] = {
     # Marketing
@@ -229,7 +229,7 @@ _MEMBER_GATING_FLAG: dict[str, str] = {
 
 
 def classify_offline_reason(key: str) -> str:
-    """Why a member shows offline — 'flag_off:X' / 'no_data_today' / 'unknown'.
+    """Why a member shows offline - 'flag_off:X' / 'no_data_today' / 'unknown'.
 
     Never raises (env read wrapped). Pure function, no IO beyond os.environ."""
     try:
@@ -291,12 +291,12 @@ JOB_ROOM: dict[str, str] = {
 APPROVAL_ROOM = {"sales": "sales_crm", "coordinator": "coordinator", "fde": "sales_crm"}
 
 # --------------------------------------------------------------------------- #
-# Aaj-ka-Schedule — static mirror of team_scheduler.py's IST job windows so the
+# Aaj-ka-Schedule - static mirror of team_scheduler.py's IST job windows so the
 # office map can show a real day-plan timeline ("kya kab chalega / chala").
 # DISPLAY-ONLY: nothing here triggers a job. Drift-locked by
 # tests/test_office_hq.py::test_schedule_defs_windows_match_team_scheduler_source,
 # which asserts each window tuple string still exists verbatim in
-# team_scheduler.py — change a window there and this list (+ test) fails loudly
+# team_scheduler.py - change a window there and this list (+ test) fails loudly
 # until both are updated together.
 #   type "daily":  window = [start_h, start_m, end_h, end_m] (IST)
 #   type "weekly": window + weekday (0=Mon .. 6=Sun)
@@ -464,7 +464,7 @@ SCHEDULE_DEFS: list[dict[str, Any]] = [
 
 def build_schedule() -> list[dict[str, Any]]:
     """Static day-plan for the office map's "Aaj ka Schedule" panel. Pure data,
-    zero IO — run-status (done/overdue/off) is merged CLIENT-side from the
+    zero IO - run-status (done/overdue/off) is merged CLIENT-side from the
     system_health.jobs beats already present in the same snapshot. Never raises."""
     try:
         return [dict(d) for d in SCHEDULE_DEFS]
@@ -487,24 +487,24 @@ PIPELINE_STAGE_META: list[dict[str, Any]] = [
     {"id": "retention_growth", "name": "Retention / Growth", "order": 12},
 ]
 
-# Short Redis-backed cache for build_snapshot() — a browser refresh within
+# Short Redis-backed cache for build_snapshot() - a browser refresh within
 # this window returns instantly instead of recomputing (see build_snapshot
 # docstring "Perf note #2"). Shared across uvicorn workers (unlike a plain
 # in-process dict), invalidated early by any real mutation.
 #
 # BUG (2026-07-01, found same day): TTL was 15s while office_map.html's
-# auto-refresh polled every 25s (setInterval(refreshSnapshot, 25000)) — since
+# auto-refresh polled every 25s (setInterval(refreshSnapshot, 25000)) - since
 # 25 > 15, the cache had ALREADY expired before every single periodic poll,
 # so the auto-refresh never once hit the cache; only a rapid manual
 # double-refresh within 15s ever benefited. Fixed same day by raising TTL to
 # 35s (comfortably above the then-25s poll interval).
 #
 # RETUNE (2026-07-02, Task 8 "real-time tightening"): poll interval tightened
-# 25s -> 15s. TTL retuned 35s -> 18s to match — same invariant as the
+# 25s -> 15s. TTL retuned 35s -> 18s to match - same invariant as the
 # 2026-07-01 fix above (TTL must stay ABOVE the poll interval, with a
 # comfortable margin), just recalibrated to the new faster poll cadence.
 # Do NOT drop TTL below the poll interval and rely on build_snapshot()'s
-# compute time (~8-9s) as slack to compensate — that coincidence breaks the
+# compute time (~8-9s) as slack to compensate - that coincidence breaks the
 # moment compute time is optimized down, silently reintroducing the exact
 # 2026-07-01 cache-defeat bug where every poll misses because the cache
 # already expired.
@@ -524,13 +524,13 @@ def _today_start_utc() -> datetime:
 
 async def _safe_collect_live_stats(timeout: float = 8.0) -> dict[str, Any]:
     """`admin_dashboard_builders._collect_live_stats()` is SYNC and, against real
-    production data volume, can take 45s+ (confirmed 2026-07-01 prod incident —
+    production data volume, can take 45s+ (confirmed 2026-07-01 prod incident -
     it does a prospector scan + a per-client content-queue file-read loop).
     Calling it directly blocks the event loop AND can hang the whole snapshot
-    indefinitely. Run it in a thread with a hard deadline — on timeout/failure
+    indefinitely. Run it in a thread with a hard deadline - on timeout/failure
     the snapshot degrades to zeros for these fields rather than never loading.
     Called ONCE per snapshot (not once per build_metrics + once per
-    build_pipeline like before) — that alone halved the real cost."""
+    build_pipeline like before) - that alone halved the real cost."""
     try:
         from app.api.admin_dashboard_builders import _collect_live_stats
 
@@ -565,7 +565,7 @@ def room_for_member(key: str, product: str | None = None) -> str:
 def _enum_value(obj: Any, attr: str) -> str:
     """Read an ORM attribute that may be an Enum member or a plain string and
     return its lowercase VALUE (e.g. "appointment", not "LeadStatus.APPOINTMENT").
-    str(SomeEnum.MEMBER) is "ClassName.MEMBER" in Python — a real footgun when
+    str(SomeEnum.MEMBER) is "ClassName.MEMBER" in Python - a real footgun when
     comparing against plain-string constants. Never raises."""
     try:
         v = getattr(obj, attr, None)
@@ -588,7 +588,7 @@ def _is_resolved(overrides: dict[str, dict[str, Any]], item_id: Any) -> bool:
 def _needs_approval(name: str, approval_titles: list[str]) -> bool:
     """Best-effort real cross-reference: True if this item's name appears as a
     substring of a currently-pending approval draft's title. Not a fabricated
-    flag — it only ever fires against REAL pending approvals data."""
+    flag - it only ever fires against REAL pending approvals data."""
     try:
         n = (name or "").strip().lower()
         if not n or len(n) < 3:
@@ -612,7 +612,7 @@ def _iso(dt: Any) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
-# Rooms — merge STAFF+team_status into the 8-room grouping, with per-room
+# Rooms - merge STAFF+team_status into the 8-room grouping, with per-room
 # task/blocked/error/approval counts sourced from automation_health + approvals.
 # --------------------------------------------------------------------------- #
 def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -715,7 +715,7 @@ def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
 
 
 # --------------------------------------------------------------------------- #
-# Metrics summary — reuse the SAME single-source builders the rest of the
+# Metrics summary - reuse the SAME single-source builders the rest of the
 # admin surface uses (admin_dashboard._collect_live_stats, sales_pipeline,
 # approvals_bridge, automation_health) rather than re-deriving any of them.
 # --------------------------------------------------------------------------- #
@@ -802,7 +802,7 @@ async def build_metrics(live_stats: dict[str, Any] | None = None) -> dict[str, A
 
 
 # --------------------------------------------------------------------------- #
-# Pipeline board — 12 stages. Each stage: source real|partial|mock + note.
+# Pipeline board - 12 stages. Each stage: source real|partial|mock + note.
 # `items_limit`: the snapshot embeds top-3-per-stage for the board mini-cards;
 # the stage-detail drawer (pipeline_stage_detail) asks for a fuller list so its
 # filter/search controls have something real to operate on.
@@ -836,7 +836,7 @@ async def build_pipeline(
     except Exception:
         approval_titles = []
 
-    # 1) Lead Source / Import — real.
+    # 1) Lead Source / Import - real.
     try:
         from sqlalchemy import select
 
@@ -854,12 +854,12 @@ async def build_pipeline(
         s = stages["lead_source"]
         s["count"] = len(rows)
         s["source"] = "real"
-        s["note"] = "Leads table — last 500 rows scanned."
+        s["note"] = "Leads table - last 500 rows scanned."
         s["items"] = [
             _lead_item(r, "lead_source", overrides, approval_titles) for r in rows[:items_limit]
         ]
 
-        # 2) Cleaning & Enrichment — PARTIAL: real verification flags, but no
+        # 2) Cleaning & Enrichment - PARTIAL: real verification flags, but no
         # dedicated dedupe/enrichment table exists (Diya's dedupe pass is
         # report-only). Approximated via verified/phone_verified flags.
         unverified = [r for r in rows if not getattr(r, "phone_verified", False)]
@@ -867,10 +867,10 @@ async def build_pipeline(
         s2["count"] = len(unverified)
         s2["source"] = "partial"
         s2["note"] = (
-            "Approximated via phone_verified flag — no dedicated dedupe/enrichment table yet."
+            "Approximated via phone_verified flag - no dedicated dedupe/enrichment table yet."
         )
 
-        # 3) Scoring & Qualification — real (lead_score bands + rejection statuses).
+        # 3) Scoring & Qualification - real (lead_score bands + rejection statuses).
         hot = [r for r in rows if int(getattr(r, "lead_score", 0) or 0) >= 70]
         warm = [r for r in rows if 40 <= int(getattr(r, "lead_score", 0) or 0) < 70]
         rejected_st = {"not_interested", "wrong_number", "dnd", "lost"}
@@ -878,7 +878,7 @@ async def build_pipeline(
         s3 = stages["scoring_qualification"]
         s3["count"] = len(hot) + len(warm)
         s3["hot_count"] = len(hot)  # score>=70 (asli hot)
-        s3["warm_count"] = len(warm)  # 40-69 (warm — "hot" NAHI)
+        s3["warm_count"] = len(warm)  # 40-69 (warm - "hot" NAHI)
         s3["stuckCount"] = 0
         s3["source"] = "real"
         s3["note"] = (
@@ -889,7 +889,7 @@ async def build_pipeline(
             for r in hot[:items_limit]
         ]
 
-        # 5) Outreach Queue — PARTIAL: only the voice-call channel is directly
+        # 5) Outreach Queue - PARTIAL: only the voice-call channel is directly
         # queryable via Lead.next_call_at (email/WhatsApp cadence state lives
         # in data/cadence_leads.jsonl, not summarized here for this pass).
         now_dt = datetime.utcnow()
@@ -912,7 +912,7 @@ async def build_pipeline(
             _lead_item(r, "outreach_queue", overrides, approval_titles) for r in due[:items_limit]
         ]
 
-        # 6) Conversation / Follow-up — real (CALLBACK status).
+        # 6) Conversation / Follow-up - real (CALLBACK status).
         callback = [r for r in rows if _enum_value(r, "status") == "callback"]
         s6 = stages["conversation_followup"]
         s6["count"] = len(callback)
@@ -931,7 +931,7 @@ async def build_pipeline(
             for r in callback[:items_limit]
         ]
 
-        # 7) Appointment / Demo Booking — real.
+        # 7) Appointment / Demo Booking - real.
         appt = [r for r in rows if _enum_value(r, "status") == "appointment"]
         s7 = stages["appointment_booking"]
         s7["count"] = len(appt)
@@ -952,10 +952,10 @@ async def build_pipeline(
     except Exception as e:
         logger.warning(f"[office_hq] pipeline lead-stages failed: {e}")
 
-    # 4) Campaign Planning — PARTIAL: total content-queue depth is real
+    # 4) Campaign Planning - PARTIAL: total content-queue depth is real
     # (reused from admin_dashboard_builders), per-item drill-down is not
     # cheaply available across all clients in one pass. Reuses the SAME
-    # live_stats fetch as build_metrics (see _safe_collect_live_stats) — this
+    # live_stats fetch as build_metrics (see _safe_collect_live_stats) - this
     # used to call _collect_live_stats() a SECOND time here, doubling an
     # already-expensive sync scan (confirmed 2026-07-01 prod timeout).
     try:
@@ -969,7 +969,7 @@ async def build_pipeline(
     except Exception as e:
         logger.debug(f"[office_hq] campaign_planning skipped: {e}")
 
-    # 8) Deal / Conversion — real (sales_pipeline deals store).
+    # 8) Deal / Conversion - real (sales_pipeline deals store).
     try:
         from app.marketing import sales_pipeline
 
@@ -992,9 +992,9 @@ async def build_pipeline(
         s8["stuckCount"] = stuck
         s8["source"] = "real" if st.get("engine_on") else "partial"
         s8["note"] = (
-            "Deals store (data/deals.jsonl) — 8-stage sales funnel."
+            "Deals store (data/deals.jsonl) - 8-stage sales funnel."
             if st.get("engine_on")
-            else "SALES_ENGINE flag is off — deals store exists but is not being fed automatically."
+            else "SALES_ENGINE flag is off - deals store exists but is not being fed automatically."
         )
         s8["items"] = [
             _deal_item(d, overrides, approval_titles, stuck_cut)
@@ -1003,10 +1003,10 @@ async def build_pipeline(
     except Exception as e:
         logger.debug(f"[office_hq] deal_conversion skipped: {e}")
 
-    # 9) Customer Onboarding — PARTIAL: no bulk-queryable JourneyStage table
+    # 9) Customer Onboarding - PARTIAL: no bulk-queryable JourneyStage table
     # (ClientJourneyTracker is an in-memory/per-lead dataclass, not a DB
-    # table) — approximated via Subscription status=TRIAL as "onboarding".
-    # Fetched ONCE here and reused by stage 11 (billing_subscription) below —
+    # table) - approximated via Subscription status=TRIAL as "onboarding".
+    # Fetched ONCE here and reused by stage 11 (billing_subscription) below -
     # used to be two separate Subscription queries, doubling DB round-trips.
     subs: list[Any] = []
     try:
@@ -1026,12 +1026,12 @@ async def build_pipeline(
         s9["count"] = trial
         s9["source"] = "partial"
         s9["note"] = (
-            "Approximated via Subscription.status=trial — no bulk onboarding-checklist table exists yet."
+            "Approximated via Subscription.status=trial - no bulk onboarding-checklist table exists yet."
         )
     except Exception as e:
         logger.debug(f"[office_hq] customer_onboarding skipped: {e}")
 
-    # 10) Service Delivery / Automation Running — PARTIAL: job-health proxy.
+    # 10) Service Delivery / Automation Running - PARTIAL: job-health proxy.
     try:
         from app.platform import automation_health
 
@@ -1052,12 +1052,12 @@ async def build_pipeline(
         s10["errorCount"] = len(failed)
         s10["source"] = "partial"
         s10["note"] = (
-            "Content-job heartbeat proxy (automation_health) — not a per-customer delivery ledger."
+            "Content-job heartbeat proxy (automation_health) - not a per-customer delivery ledger."
         )
     except Exception as e:
         logger.debug(f"[office_hq] service_delivery skipped: {e}")
 
-    # 11) Billing / Subscription — real (Subscription + dunning). Reuses `subs`
+    # 11) Billing / Subscription - real (Subscription + dunning). Reuses `subs`
     # fetched once above (stage 9) instead of a second Subscription query.
     try:
         from app.billing import dunning
@@ -1079,7 +1079,7 @@ async def build_pipeline(
     except Exception as e:
         logger.debug(f"[office_hq] billing_subscription skipped: {e}")
 
-    # 12) Retention / Growth — real (client_health).
+    # 12) Retention / Growth - real (client_health).
     try:
         from app.platform import client_health
 
@@ -1102,11 +1102,11 @@ async def build_pipeline(
 
 
 async def warm_lead_sla_nudge() -> dict[str, Any]:
-    """W4.1: pipeline me stuck (>24h — build_pipeline ke existing per-stage stuckCount) +
-    warm (40-69) leads → FOUNDER ko ntfy nudge (founder-only, koi customer-send NAHI =
+    """W4.1: pipeline me stuck (>24h - build_pipeline ke existing per-stage stuckCount) +
+    warm (40-69) leads -> FOUNDER ko ntfy nudge (founder-only, koi customer-send NAHI =
     zero §5 ban/deliverability surface). Gated WARM_SLA_NUDGE (default OFF)
     threshold
-    WARM_SLA_MIN (default 3). build_pipeline modify nahi karta — sirf uske counts reuse."""
+    WARM_SLA_MIN (default 3). build_pipeline modify nahi karta - sirf uske counts reuse."""
     import os as _os
 
     if _os.getenv("WARM_SLA_NUDGE", "").strip().lower() not in ("1", "true", "yes", "on"):
@@ -1133,7 +1133,7 @@ async def warm_lead_sla_nudge() -> dict[str, Any]:
 def _apply_override(item: dict[str, Any], overrides: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Merge a persisted admin annotation (owner/next-action/resolved/status)
     onto a freshly-built item. Real, persisted (app.platform.admin_pipeline_overrides)
-    — never fabricated. Resolving a stuck item clears its slaRisk badge."""
+    - never fabricated. Resolving a stuck item clears its slaRisk badge."""
     try:
         ov = overrides.get(str(item.get("id")) or "") or {}
         if ov.get("owner_agent"):
@@ -1264,7 +1264,7 @@ async def build_approvals() -> dict[str, Any]:
     shape (drift-locked consumers: rooms approvalCount, metrics.approvals_needed,
     next_best_actions). ADDITIVE `queue` key = the UNIFIED actionable list the
     Approvals panel renders: bridge drafts + code-upgrader patch proposals +
-    self-improve approval gates — every entry decided via its EXISTING admin API
+    self-improve approval gates - every entry decided via its EXISTING admin API
     (documented per-kind in `decide` hints below)
     nothing new is stored here."""
     out: dict[str, Any] = {"drafts": [], "counts": {"by_source": {}, "pending": 0}}
@@ -1284,7 +1284,7 @@ async def build_approvals() -> dict[str, Any]:
         out["counts"]["total_pending"] = len(out["queue"])
     except Exception:
         pass
-    # Audit-trail strip — "who decided what, when" right under the panel that
+    # Audit-trail strip - "who decided what, when" right under the panel that
     # decides it, closing the loop visually (2026-07-03).
     try:
         from app.platform import approvals_bridge
@@ -1299,7 +1299,7 @@ async def build_approvals() -> dict[str, Any]:
 def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Unified pending-approvals list across the three EXISTING queues.
 
-    Kinds + their existing decide APIs (frontend/boss-review reuse these — no
+    Kinds + their existing decide APIs (frontend/boss-review reuse these - no
     parallel approve endpoints were created):
       - draft       -> POST  /api/growth/approvals/drafts/{source}/{id}/decide
       - patch       -> POST  /api/growth/upgrader/patches/{id}/status  (SUPER_ADMIN)
@@ -1327,7 +1327,7 @@ def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dic
             )
     except Exception as e:
         logger.debug(f"[office_hq] approval_queue drafts skipped: {e}")
-    # 2) code-upgrader patch proposals (Vikram) — approve is a MARKER only;
+    # 2) code-upgrader patch proposals (Vikram) - approve is a MARKER only;
     # patches are NEVER auto-applied (apply stays in the manual deploy loop).
     try:
         from app.agents import code_upgrader
@@ -1413,11 +1413,11 @@ def build_coordination(limit: int = 5) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Boss Finalizer — the office "manager agent". For each pending approval item
+# Boss Finalizer - the office "manager agent". For each pending approval item
 # it asks the FREE LLM chain (same app.voice_agent.free_ai chain the council
 # uses) for a short verdict + reason. RECOMMEND-ONLY by design:
 #   - stores nothing (verdicts returned in the response only),
-#   - never calls any approve/reject API itself — the HUMAN still clicks,
+#   - never calls any approve/reject API itself - the HUMAN still clicks,
 #   - code patches stay NEVER-auto-applied (CLAUDE.md hard rule intact).
 # Cap 10 items, one LLM call per item, per-call hard timeout, never raises.
 # --------------------------------------------------------------------------- #
@@ -1425,7 +1425,7 @@ _BOSS_SYSTEM = (
     "Tu LeadGenAI platform ka operations Boss hai. Ek pending approval item diya "
     "jayega (type + title + summary). Decide karo: approve ya reject. "
     "Sirf isi format me jawab do, ek line: VERDICT: approve|reject | REASON: <1 short Hinglish sentence>. "
-    "Conservative raho — risky/unclear/irreversible lage to reject bolo."
+    "Conservative raho - risky/unclear/irreversible lage to reject bolo."
 )
 
 
@@ -1505,7 +1505,7 @@ async def boss_review(max_items: int = 10, per_item_timeout: float = 20.0) -> di
         "ok": True,
         "verdicts": verdicts,
         "reviewed": len(verdicts),
-        "note": "Boss sirf RECOMMEND karta hai — final Approve/Reject HUMAN click se hi hota hai.",
+        "note": "Boss sirf RECOMMEND karta hai - final Approve/Reject HUMAN click se hi hota hai.",
         "generated_at": _now().isoformat(),
     }
 
@@ -1521,7 +1521,7 @@ def build_system_health() -> dict[str, Any]:
 
 
 def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
-    """Pure function over an assembled snapshot — no IO, easy to test."""
+    """Pure function over an assembled snapshot - no IO, easy to test."""
     actions: list[dict[str, Any]] = []
     try:
         metrics = snapshot.get("metrics") or {}
@@ -1533,7 +1533,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         if pending:
             actions.append(
                 {
-                    "label": f"🗂️ {pending} draft(s) approval ke liye pending — review karo",
+                    "label": f"🗂️ {pending} draft(s) approval ke liye pending - review karo",
                     "severity": "warning",
                     "cta_target": "approvals",
                 }
@@ -1542,7 +1542,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         if overdue:
             actions.append(
                 {
-                    "label": f"⚠️ {overdue} automation job(s) time par nahi chale — check karo",
+                    "label": f"⚠️ {overdue} automation job(s) time par nahi chale - check karo",
                     "severity": "warning",
                     "cta_target": "system_health",
                 }
@@ -1550,7 +1550,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         if int(metrics.get("payments_pending") or 0):
             actions.append(
                 {
-                    "label": f"💳 {metrics['payments_pending']} payment pending — reminder bhejo",
+                    "label": f"💳 {metrics['payments_pending']} payment pending - reminder bhejo",
                     "severity": "warning",
                     "cta_target": "billing_subscription",
                 }
@@ -1559,7 +1559,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         if int(retention.get("errorCount") or 0):
             actions.append(
                 {
-                    "label": f"❤️ {retention['errorCount']} client churn-risk (red) — proactively contact karo",
+                    "label": f"❤️ {retention['errorCount']} client churn-risk (red) - proactively contact karo",
                     "severity": "error",
                     "cta_target": "retention_growth",
                 }
@@ -1568,7 +1568,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         if int(deal.get("stuckCount") or 0):
             actions.append(
                 {
-                    "label": f"🤝 {deal['stuckCount']} deal(s) 14+ din se stuck — follow-up karo",
+                    "label": f"🤝 {deal['stuckCount']} deal(s) 14+ din se stuck - follow-up karo",
                     "severity": "warning",
                     "cta_target": "deal_conversion",
                 }
@@ -1578,7 +1578,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         if followup:
             actions.append(
                 {
-                    "label": f"🔥 {followup} follow-up overdue hai — hot leads ko call karo",
+                    "label": f"🔥 {followup} follow-up overdue hai - hot leads ko call karo",
                     "severity": "warning",
                     "cta_target": "conversation_followup",
                 }
@@ -1586,7 +1586,7 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         elif hot:
             actions.append(
                 {
-                    "label": f"🔥 {hot} hot lead(s) available — outreach shuru karo",
+                    "label": f"🔥 {hot} hot lead(s) available - outreach shuru karo",
                     "severity": "info",
                     "cta_target": "scoring_qualification",
                 }
@@ -1668,12 +1668,12 @@ def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
         else:
             recommendation = {"label": "Office feed monitor karo", "cta_target": "feedCard"}
 
-        # Opportunity honestly: hot (score>=70) aur warm (40-69) alag — pehle dono
+        # Opportunity honestly: hot (score>=70) aur warm (40-69) alag - pehle dono
         # ko "hot" bola jaa raha tha (0 hot hone par bhi "53 hot ready"). Fix 2026-07-05.
         if hot:
             opp_label = f"{hot} hot lead(s) ready"
         elif warm:
-            opp_label = f"{warm} warm lead(s) — nurture/outreach karo"
+            opp_label = f"{warm} warm lead(s) - nurture/outreach karo"
         else:
             opp_label = "Aaj ka pipeline calm hai"
 
@@ -1733,7 +1733,7 @@ def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
                 {
                     "id": "midfunnel_stall",
                     "title": f"Mid-funnel ruka: {new_today} leads, 0 qualified",
-                    "why": "Qualification/outreach ruka hai — money-funnel band, revenue rok raha.",
+                    "why": "Qualification/outreach ruka hai - money-funnel band, revenue rok raha.",
                     "severity": "critical",
                     "owner": "rohan",
                     "room": "sales_crm",
@@ -1844,7 +1844,7 @@ def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
             actions.append(
                 {
                     "id": "warm_leads",
-                    "title": f"{warm} warm lead(s) — nurture/outreach",
+                    "title": f"{warm} warm lead(s) - nurture/outreach",
                     "why": "Warm leads ko outreach/nurture chahiye warna thande ho jayenge.",
                     "severity": "medium",
                     "owner": "rohan",
@@ -2184,11 +2184,11 @@ _TRENDS_PATH = os.path.join("data", "office_trends.json")
 
 
 def build_trends(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """W4.2 (advanced Office): pipeline momentum — hot/warm/stuck ka day-over-day delta
+    """W4.2 (advanced Office): pipeline momentum - hot/warm/stuck ka day-over-day delta
     (sabse recent prior-din se aaj). Point-in-time snapshot ko trend-aware banata.
     Derived-metrics history `data/office_trends.json` me (~7 din
     revenue_snapshots jaisa
-    precedent — koi business-data mutation nahi). FULLY fail-open: kisi bhi error pe {} —
+    precedent - koi business-data mutation nahi). FULLY fail-open: kisi bhi error pe {} -
     page kabhi blank nahi (module ka never-raise contract)."""
     try:
         pipeline = (snapshot or {}).get("pipeline") or []
@@ -2233,7 +2233,7 @@ def build_trends(snapshot: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
-    """W4.3 (advanced Office): W4.2 trends ke day-over-day deltas se momentum alerts —
+    """W4.3 (advanced Office): W4.2 trends ke day-over-day deltas se momentum alerts -
     stuck badhna (mid-funnel jam) / hot girna (top-funnel slow) founder ko flag karo.
     Read-only, deterministic, thresholds env-tunable (OFFICE_STUCK_ALERT_DELTA /
     OFFICE_HOT_ALERT_DROP, default 3), never-raise."""
@@ -2254,7 +2254,7 @@ def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
                 {
                     "level": "warn",
                     "signal": "stuck_rising",
-                    "msg": f"⚠️ Stuck leads +{stuck.get('delta')} vs kal ({stuck.get('now')}) — mid-funnel jam, aaj clear karo.",
+                    "msg": f"⚠️ Stuck leads +{stuck.get('delta')} vs kal ({stuck.get('now')}) - mid-funnel jam, aaj clear karo.",
                 }
             )
         if int(hot.get("delta") or 0) <= -_thr("OFFICE_HOT_ALERT_DROP", 3):
@@ -2262,7 +2262,7 @@ def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
                 {
                     "level": "warn",
                     "signal": "hot_falling",
-                    "msg": f"📉 Hot leads {hot.get('delta')} vs kal ({hot.get('now')}) — top-funnel dheema, prospecting/outreach push.",
+                    "msg": f"📉 Hot leads {hot.get('delta')} vs kal ({hot.get('now')}) - top-funnel dheema, prospecting/outreach push.",
                 }
             )
         return alerts
@@ -2272,20 +2272,20 @@ def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 async def build_snapshot() -> dict[str, Any]:
-    """Top-level composer — the ONE call the frontend needs. Never raises.
+    """Top-level composer - the ONE call the frontend needs. Never raises.
 
     Perf note (2026-07-01 prod incident): this used to call build_metrics()
     then build_pipeline() then build_approvals() sequentially, and BOTH
     build_metrics and build_pipeline independently called the slow sync
     `_collect_live_stats()` (confirmed 45s+ against real prod data). Fixed by
     fetching live_stats ONCE and running the three independent sections
-    concurrently — wall time is now roughly the slowest single section
+    concurrently - wall time is now roughly the slowest single section
     instead of the sum of all of them, and every DB/sync call inside those
     sections is individually timeout-bounded (see _safe_db_call /
     _safe_collect_live_stats) so one slow query degrades that field to a
     default instead of hanging the whole page again.
 
-    Perf note #2 (same day): even at ~8s a browser refresh still felt slow —
+    Perf note #2 (same day): even at ~8s a browser refresh still felt slow -
     added a short Redis-backed cache (app.cache.cache, shared across all
     uvicorn workers, unlike an in-process dict) so a repeat load within the
     TTL window returns near-instantly instead of recomputing. Mutation
@@ -2348,7 +2348,7 @@ async def build_snapshot() -> dict[str, Any]:
     except Exception:
         snapshot["task_queue"] = {}
 
-    # Paperclip: stale tasks — surface stuck work (report, don't auto-fix)
+    # Paperclip: stale tasks - surface stuck work (report, don't auto-fix)
     try:
         from app.platform import agent_task_queue as atq2
 
@@ -2377,7 +2377,7 @@ async def build_snapshot() -> dict[str, Any]:
 async def invalidate_snapshot_cache() -> None:
     """Call after any real mutation so the admin's own action shows up on
     their very next fetch instead of waiting out _SNAPSHOT_CACHE_TTL. Never
-    raises — a failed invalidation just means the old TTL runs its course."""
+    raises - a failed invalidation just means the old TTL runs its course."""
     try:
         from app.cache import cache
 
@@ -2387,7 +2387,7 @@ async def invalidate_snapshot_cache() -> None:
 
 
 async def pipeline_stage_detail(stage_id: str) -> dict[str, Any]:
-    """Full item list for one stage (drill-down, up to 50) — enough for the
+    """Full item list for one stage (drill-down, up to 50) - enough for the
     frontend's filter/search controls to operate on real data."""
     stages = await build_pipeline(items_limit=50)
     for s in stages:
@@ -2404,10 +2404,10 @@ async def pipeline_stage_detail(stage_id: str) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Pipeline item mutations — REAL actions, never fabricated:
+# Pipeline item mutations - REAL actions, never fabricated:
 #   - "move" a DEAL delegates to the existing sales_pipeline.set_stage() (real).
 #   - "move" a LEAD writes a bounded, validated status override (real, persisted,
-#     surfaced back into _lead_item — see admin_pipeline_overrides docstring for
+#     surfaced back into _lead_item - see admin_pipeline_overrides docstring for
 #     why this is a sidecar override rather than a direct Lead-table write).
 #   - assign/next-action/resolve-stuck are sidecar-only (no other backing store
 #     exists for these three concepts on either a Lead or a Deal).
@@ -2451,25 +2451,25 @@ def move_item(item_id: str, item_type: str, next_stage: str, by: str = "admin") 
 
 
 # --------------------------------------------------------------------------- #
-# F3 "Kaam Do" — map se task dispatch. Admin drawer se ek Hinglish goal + scope
+# F3 "Kaam Do" - map se task dispatch. Admin drawer se ek Hinglish goal + scope
 # ("solo" = sirf yeh agent / "team" = coordinator) le kar ek BOUNDED, DRAFT-SAFE
-# multi-agent run trigger karta hai — bilkul waise jaise POST /api/agents/council
+# multi-agent run trigger karta hai - bilkul waise jaise POST /api/agents/council
 # live endpoint web process me bounded run karta (precedent). Hard rules:
-#   - DRAFT-SAFE ONLY: coordinator ko hamesha execute=False pe chalate — koi
+#   - DRAFT-SAFE ONLY: coordinator ko hamesha execute=False pe chalate - koi
 #     real side-effect nahi (no auto-send, no DB mutation). Sirf reasoning/draft.
-#   - BOUNDED: asyncio.wait_for(TASK_TIMEOUT) — web worker (WEB_CONCURRENCY=2)
+#   - BOUNDED: asyncio.wait_for(TASK_TIMEOUT) - web worker (WEB_CONCURRENCY=2)
 #     ko kabhi unbounded heavy job pe hang nahi hone dete. Timeout pe coroutine
-#     CANCEL hota (background me chalta NAHI) — isliye response wording HONEST:
+#     CANCEL hota (background me chalta NAHI) - isliye response wording HONEST:
 #     "time-limit tak complete nahi hua; jitne steps hue woh events me hain"
 #     (coordinate/fan_out dono per-step team.log_event karte, so cancel ke
 #     baad bhi jo steps complete hue woh agent_events feed/ticker me dikhte).
 #   - NEVER-RAISE: har failure -> {"ok": False, "error": ...} (200 OK), office_hq
 #     ke baaki functions jaisa.
 #   - Contract: helper HAMESHA {"ok", "summary", "run_id"?} shape lautaata hai
-#     chahe solo (fan_out) chale ya team (coordinate) — frontend ko guess nahi
+#     chahe solo (fan_out) chale ya team (coordinate) - frontend ko guess nahi
 #     karna padta kaunsa field padhe.
 # --------------------------------------------------------------------------- #
-_TASK_TIMEOUT = 90.0  # seconds — bounded, mirrors the council-endpoint budget
+_TASK_TIMEOUT = 90.0  # seconds - bounded, mirrors the council-endpoint budget
 _TASK_GOAL_MAX = 500
 
 
@@ -2481,7 +2481,7 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
     scope = (scope or "solo").strip().lower()
 
     if not goal:
-        return {"ok": False, "error": "goal khaali hai — kuch likho"}
+        return {"ok": False, "error": "goal khaali hai - kuch likho"}
     if len(goal) > _TASK_GOAL_MAX:
         goal = goal[:_TASK_GOAL_MAX]
     if scope not in ("solo", "team"):
@@ -2542,7 +2542,7 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
             "scope": scope,
             "summary": "",
             "note": (
-                f"Time-limit ({int(_TASK_TIMEOUT)}s) tak poora nahi hua — jitne step complete "
+                f"Time-limit ({int(_TASK_TIMEOUT)}s) tak poora nahi hua - jitne step complete "
                 "hue woh events/ticker me dikhenge. Halka goal ya solo scope try karo."
             ),
         }
@@ -2586,16 +2586,16 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
         "run_id": result.get("run_id") or "",
         "task_id": task_id or "",
         "summary": str(result.get("summary") or "(summary abhi nahi bana)")[:1200],
-        "note": "Pura result agent_events/ticker me bhi aa gaya (draft-safe — koi auto-send nahi).",
+        "note": "Pura result agent_events/ticker me bhi aa gaya (draft-safe - koi auto-send nahi).",
     }
 
 
 # --------------------------------------------------------------------------- #
-# HQ Ask — 🤖 copilot ka MAIN entry point (2026-07-03, user: "yaha se jo puchna
+# HQ Ask - 🤖 copilot ka MAIN entry point (2026-07-03, user: "yaha se jo puchna
 # sab coordinate kare"). Ek Hinglish message lo aur:
 #   question -> Boss-persona grounded answer (cached snapshot facts, free-LLM)
 #   task     -> auto-route: sahi staff member choose karke run_agent_task()
-#               (same draft-safe + bounded Kaam-Do path — koi naya side-effect
+#               (same draft-safe + bounded Kaam-Do path - koi naya side-effect
 #               surface NAHI, sirf routing sugar upar).
 # Rules (file-convention): NEVER-RAISE, har LLM call wait_for-bounded, numbers
 # sirf snapshot se (fabricate nahi). Router-LLM fail -> keyword heuristic.
@@ -2628,7 +2628,7 @@ _TASK_VERB_HINTS = (
     "start kar",
 )
 
-# "sabhi agents ko command" (user-ask 2026-07-03) — broadcast = parallel fan_out
+# "sabhi agents ko command" (user-ask 2026-07-03) - broadcast = parallel fan_out
 # to the doer-set (RUNNABLE_MEMBERS), capped, draft-safe.
 _BROADCAST_HINTS = (
     "sabhi agent",
@@ -2656,9 +2656,9 @@ def _ask_heuristic_route(q: str) -> dict[str, str]:
 
 
 async def _ask_route(q: str) -> dict[str, str]:
-    """Free-LLM intent+staff router (strict-JSON) — fail/timeout = heuristic."""
+    """Free-LLM intent+staff router (strict-JSON) - fail/timeout = heuristic."""
     roster = "\n".join(
-        f"- {k}: {v.get('title', '')} — {str(v.get('duties', ''))[:90]}" for k, v in STAFF.items()
+        f"- {k}: {v.get('title', '')} - {str(v.get('duties', ''))[:90]}" for k, v in STAFF.items()
     )
     system = (
         "Tum ek AI-office router ho. User (admin) ka message classify karo.\n"
@@ -2711,7 +2711,7 @@ def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
             ".join(f"{k}={v}" for k, v in list(m.items())[:12]))
         ap = dict((snap.get("approvals") or {}).get("counts") or {})
         if ap:
-            # total pehle — taaki Boss ka jawab Priority-stack ke total se match kare
+            # total pehle - taaki Boss ka jawab Priority-stack ke total se match kare
             tot = ap.pop("total_pending", ap.pop("pending", None))
             items = ([("TOTAL pending", tot)] if tot is not None else []) + list(ap.items())[:7]
             parts.append("Pending approvals: " + "
@@ -2742,7 +2742,7 @@ def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
 
 
 async def hq_ask(q: str) -> dict[str, Any]:
-    """🤖 HQ Copilot brain — question ka grounded jawab ya task ka auto-dispatch.
+    """🤖 HQ Copilot brain - question ka grounded jawab ya task ka auto-dispatch.
 
     Returns {ok, kind, text, member?, scope?, run_id?}. Never raises."""
     q = (q or "").strip()
@@ -2754,7 +2754,7 @@ async def hq_ask(q: str) -> dict[str, Any]:
     route = await _ask_route(q)
 
     if route["kind"] == "broadcast":
-        # 📢 sabhi (runnable) agents ko parallel — draft-safe fan_out, bounded.
+        # 📢 sabhi (runnable) agents ko parallel - draft-safe fan_out, bounded.
         agents = sorted(RUNNABLE_MEMBERS)
         try:
             from app.agents import coordinator
@@ -2769,7 +2769,7 @@ async def hq_ask(q: str) -> dict[str, Any]:
                 "kind": "broadcast",
                 "member": "",
                 "scope": "team",
-                "text": f"⏳ Broadcast time-limit ({int(_TASK_TIMEOUT)}s) me poora nahi hua — "
+                "text": f"⏳ Broadcast time-limit ({int(_TASK_TIMEOUT)}s) me poora nahi hua - "
                 "jitne agents ne kaam kiya woh events/ticker me hai.",
             }
         except Exception as e:
@@ -2811,7 +2811,7 @@ async def hq_ask(q: str) -> dict[str, Any]:
                 "error": res.get("error", ""),
             }
         if res.get("status") == "timeout":
-            text = f"⏳ {name} ko kaam de diya — time-limit me poora nahi hua, jitna hua woh events/ticker me hai."
+            text = f"⏳ {name} ko kaam de diya - time-limit me poora nahi hua, jitna hua woh events/ticker me hai."
         else:
             text = f"📨 {name} ({route['scope']}) ne kaam kiya:\n{res.get('summary', '')}".strip()
         return {
@@ -2826,13 +2826,13 @@ async def hq_ask(q: str) -> dict[str, Any]:
     # question -> grounded Boss answer
     try:
         snap = await build_snapshot()
-    except Exception:  # pragma: no cover — build_snapshot khud never-raise hai
+    except Exception:  # pragma: no cover - build_snapshot khud never-raise hai
         snap = {}
     ctx = _ask_context_from_snapshot(snap or {})
     system = (
-        "Tum 'Boss' ho — LeadsGenAI (leadsgenai.in) ke AI-staff office ke manager. "
+        "Tum 'Boss' ho - LeadsGenAI (leadsgenai.in) ke AI-staff office ke manager. "
         "Admin ke sawaal ka Hinglish (Roman) me seedha, chhota jawab do (max 6 sentences). "
-        "SIRF neeche diye REAL facts use karo — number kabhi mat banao; jo data me nahi "
+        "SIRF neeche diye REAL facts use karo - number kabhi mat banao; jo data me nahi "
         "hai uske liye bolo 'yeh data abhi mere paas nahi, <kaunsa page/agent> dekho'. "
         "Kaam karwana ho to bata do ki 'X karo' likhne se main sahi agent ko de dunga.\n\n"
         "AAJ KE FACTS:\n" + (ctx or "(snapshot unavailable)")
@@ -2863,21 +2863,21 @@ async def hq_ask(q: str) -> dict[str, Any]:
 
 # --------------------------------------------------------------------------- #
 # F6 "Team Improvement Council" (2026-07-05, user: "admin sabi agents se
-# discuss project relate for improvements") — a real multi-agent discussion,
+# discuss project relate for improvements") - a real multi-agent discussion,
 # grounded in TODAY'S snapshot facts (same context builder as HQ Ask), using
 # the EXISTING coordinator.coordinate_agentverse (dynamic expert recruit ->
-# each contributes -> solver synthesizes -> critic scores) — no new
+# each contributes -> solver synthesizes -> critic scores) - no new
 # coordination engine invented. ALWAYS execute=False here: this is a
 # discussion surface, not an action-runner (that stays run_agent_task/Kaam-Do).
 # Each contribution carries its recruited `staff` key so the admin can
 # 1-click dispatch it through the SAME draft-safe run_agent_task() path this
-# file already exposes — no new dispatch surface. Bounded + never-raise.
+# file already exposes - no new dispatch surface. Bounded + never-raise.
 # --------------------------------------------------------------------------- #
 _COUNCIL_TIMEOUT = 110.0
 _COUNCIL_TOPIC_MAX = 400
 _DEFAULT_COUNCIL_TOPIC = (
     "LeadsGenAI platform (marketing automation + AI voice agent product) me is "
-    "hafte sabse zyada ROI wala improvement kya hoga — revenue, lead-conversion, "
+    "hafte sabse zyada ROI wala improvement kya hoga - revenue, lead-conversion, "
     "reliability, ya customer-retention?"
 )
 
@@ -2887,7 +2887,7 @@ async def improvement_council(
 ) -> dict[str, Any]:
     """Snapshot-grounded AgentVerse discussion on what to improve next.
 
-    Always draft-only (execute=False — a discussion, not an action run).
+    Always draft-only (execute=False - a discussion, not an action run).
     Never raises
     degrades to {ok:False, error} / {ok:True, status:"timeout"}."""
     topic = (topic or "").strip()[:_COUNCIL_TOPIC_MAX] or _DEFAULT_COUNCIL_TOPIC
@@ -2902,7 +2902,7 @@ async def improvement_council(
 
     try:
         snap = await build_snapshot()
-    except Exception:  # pragma: no cover — build_snapshot khud never-raise hai
+    except Exception:  # pragma: no cover - build_snapshot khud never-raise hai
         snap = {}
     ctx = _ask_context_from_snapshot(snap or {})
     goal = topic + (
@@ -2934,7 +2934,7 @@ async def improvement_council(
             "status": "timeout",
             "topic": topic,
             "note": (
-                f"Time-limit ({int(_COUNCIL_TIMEOUT)}s) me discussion poori nahi hui — "
+                f"Time-limit ({int(_COUNCIL_TIMEOUT)}s) me discussion poori nahi hui - "
                 "chhota topic ya kam experts (team_size 2) try karo."
             ),
         }

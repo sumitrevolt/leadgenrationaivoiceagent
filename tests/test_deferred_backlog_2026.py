@@ -1,4 +1,4 @@
-"""Deferred backlog helpers — deliverability summary + LLM stream sentence split."""
+"""Deferred backlog helpers - deliverability summary + LLM stream sentence split."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from app.voice_agent.llm_stream_tts import pop_sentence, stream_tts_enabled
 
 @pytest.mark.asyncio
 async def test_record_positive_eval_flag_off(monkeypatch):
-    """EVAL_KB_BOOST=0 → always False, no KB write."""
+    """EVAL_KB_BOOST=0 -> always False, no KB write."""
     monkeypatch.setenv("EVAL_KB_BOOST", "0")
     result = await eval_hub.record_positive_eval("kya rate hai?", "₹2999/mo", "niche:real_estate")
     assert result is False
@@ -18,7 +18,7 @@ async def test_record_positive_eval_flag_off(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_record_positive_eval_empty_inputs(monkeypatch):
-    """Empty query/answer → False even if flag on."""
+    """Empty query/answer -> False even if flag on."""
     monkeypatch.setenv("EVAL_KB_BOOST", "1")
     assert await eval_hub.record_positive_eval("", "some answer") is False
     assert await eval_hub.record_positive_eval("query", "") is False

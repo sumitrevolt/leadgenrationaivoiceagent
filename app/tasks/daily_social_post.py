@@ -1,4 +1,4 @@
-"""Daily social + video posting automation — 3x daily within 9am–7pm TRAI window.
+"""Daily social + video posting automation - 3x daily within 9am–7pm TRAI window.
 
 Runs as Celery beat entries:
 - staff-daily-social-post-morning (9:30 IST)
@@ -37,7 +37,7 @@ capacity = 1  # Single run per beat
 
 # --- Stale-sweep markers (Redis; fail-open if Redis unavailable) ---
 # 2026-09-05: run_daily_social_post was previously NEVER registered as a Celery
-# task (plain function) — the 3x daily beat entries sent a name the worker
+# task (plain function) - the 3x daily beat entries sent a name the worker
 # rejected as unregistered, so the daily social job silently never ran. The
 # sweep (SOCIAL_STALE_SWEEP, INERT default) re-fires the job once/day when no
 # successful post marker exists yet.
@@ -93,17 +93,17 @@ def run_daily_social_post():
     gates = check_gates()
     open_gates = [k for k, v in gates.items() if v != "pass"]
     if open_gates:
-        logger.info(f"Daily social post skipped — open compliance gates: {open_gates}")
+        logger.info(f"Daily social post skipped - open compliance gates: {open_gates}")
         return {"status": "skipped", "reason": "open_compliance_gates", "gates": gates}
 
     # 2. Verify within TRAI window (9am–7pm IST)
     ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
     now_ist = datetime.datetime.now(ist)
     if now_ist.hour < 9 or now_ist.hour >= 19:  # 9am–7pm inclusive
-        logger.info(f"Outside TRAI window (hour={now_ist.hour}) — skipping social post")
+        logger.info(f"Outside TRAI window (hour={now_ist.hour}) - skipping social post")
         return {"status": "skipped", "reason": "outside_trai_window", "hour": now_ist.hour}
 
-    # 3. Generate videos first (heavy CPU — already in worker)
+    # 3. Generate videos first (heavy CPU - already in worker)
     logger.info("[daily_social] Generating videos...")
     video_results = sync_generate_daily_videos()
 
@@ -203,10 +203,10 @@ def _post_own_brand(video_path: str, now_ist: datetime.datetime):
 
         # Publish video
         caption = (
-            f"🤖 LeadGen AI Daily Update — {now_ist.strftime('%d %B %Y')}\n\n"
-            "AI voice agent + automated marketing for local businesses — "
+            f"🤖 LeadGen AI Daily Update - {now_ist.strftime('%d %B %Y')}\n\n"
+            "AI voice agent + automated marketing for local businesses - "
             "₹1,999/mo marketing + ₹4,999/₹9,999/₹19,999 voice calling.\n\n"
-            "Free demo + audit available → leadsgenai.in\n\n"
+            "Free demo + audit available -> leadsgenai.in\n\n"
             "#AI #Marketing #LocalBusiness #VoiceAI #SmallBusiness"
         )
 
@@ -268,11 +268,11 @@ def _post_client_videos(client_videos: list, now_ist: datetime.datetime):
         caption = f"💡 {cv['business_name']}: Daily update from your AI assistant\n\n"
 
         if "solar" in cv.get("business_name", "").lower():
-            caption += "☀️ Solar savings tips + AI voice updates — call for free survey\n\n#Solar #AI #SmallBusiness"
+            caption += "☀️ Solar savings tips + AI voice updates - call for free survey\n\n#Solar #AI #SmallBusiness"
         elif "renov" in cv.get("business_name", "").lower():
-            caption += "🏠 Renovation tips + AI updates — free estimate + 3D design\n\n#Renovation #AI #HomeImprovement"
+            caption += "🏠 Renovation tips + AI updates - free estimate + 3D design\n\n#Renovation #AI #HomeImprovement"
         else:
-            caption += "Call ya WhatsApp karo — turant response milega\n\n#LocalBusiness #AI"
+            caption += "Call ya WhatsApp karo - turant response milega\n\n#LocalBusiness #AI"
 
         filename = f"client_{cv['client_id']}_{now_ist.strftime('%Y%m%d_%H%M')}.mp4"
 
@@ -301,7 +301,7 @@ def _log_and_notify(result, now_ist: datetime.datetime):
     """Log the daily results and push summary to owner via ntfy."""
     own = result["own_brand"]
 
-    summary = f"""📱 DAILY SOCIAL POST — {now_ist.strftime('%d %B %Y, %H:%M IST')}
+    summary = f"""📱 DAILY SOCIAL POST - {now_ist.strftime('%d %B %Y, %H:%M IST')}
 
 🏢 Own Brand:
 - Posted: {'YES ✅' if own['posted'] else 'NO ❌'}
@@ -322,7 +322,7 @@ def _log_and_notify(result, now_ist: datetime.datetime):
 📊 Batch: {total_posted}/{total_attempted} posted
 🕐 Next run: {'13:00 IST' if now_ist.hour < 13 else '16:00 IST' if now_ist.hour < 16 else '9:30 IST (tomorrow)'}
 
-🛡️ All actions gated — TRAI 9am-7pm, DND fail-closed, Postiz own-brand/client-separated.
+🛡️ All actions gated - TRAI 9am-7pm, DND fail-closed, Postiz own-brand/client-separated.
 """
 
     # Push to ntfy (if topic configured)

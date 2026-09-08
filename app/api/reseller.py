@@ -3,7 +3,7 @@
 Public apply + program-info endpoints (rate-limited, no auth) and admin
 review endpoints (``require_admin``). Defensive: import + handlers never 500.
 
-Mounted by main.py at ``prefix="/api"`` → public routes live under
+Mounted by main.py at ``prefix="/api"`` -> public routes live under
 ``/api/reseller/*``.
 """
 
@@ -36,14 +36,14 @@ class ApplyIn(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Public — apply (rate-limited, no auth)
+# Public - apply (rate-limited, no auth)
 # --------------------------------------------------------------------------- #
 @router.post(
     "/reseller/apply",
     dependencies=[Depends(rate_limit("reseller_apply", 10, 60))],
 )
 async def reseller_apply(body: ApplyIn):
-    """Agency reseller application — NO AUTH, rate-limited. Never-raise."""
+    """Agency reseller application - NO AUTH, rate-limited. Never-raise."""
     try:
         res = reseller.submit_application(
             name=body.name,
@@ -56,7 +56,7 @@ async def reseller_apply(body: ApplyIn):
         )
     except Exception as e:  # pragma: no cover - defensive (module is never-raise)
         logger.warning("reseller_apply failed: %s", e)
-        return {"ok": False, "message": "Kuch galat ho gaya — thodi der baad try karo."}
+        return {"ok": False, "message": "Kuch galat ho gaya - thodi der baad try karo."}
 
     if not res.get("ok"):
         return {
@@ -66,12 +66,12 @@ async def reseller_apply(body: ApplyIn):
     return {
         "ok": True,
         "id": res.get("id"),
-        "message": "Application mil gayi — 24 ghante me contact karenge.",
+        "message": "Application mil gayi - 24 ghante me contact karenge.",
     }
 
 
 # --------------------------------------------------------------------------- #
-# Public — program info (no auth)
+# Public - program info (no auth)
 # --------------------------------------------------------------------------- #
 @router.get("/reseller/info")
 async def reseller_info():
@@ -84,7 +84,7 @@ async def reseller_info():
 
 
 # --------------------------------------------------------------------------- #
-# Admin — review applications
+# Admin - review applications
 # --------------------------------------------------------------------------- #
 @router.get("/reseller/applications")
 async def reseller_applications(_user=Depends(require_admin)):

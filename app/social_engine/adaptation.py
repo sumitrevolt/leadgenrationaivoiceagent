@@ -1,4 +1,4 @@
-"""social_engine.adaptation — Phase 6 platform-specific content transformer.
+"""social_engine.adaptation - Phase 6 platform-specific content transformer.
 
 Whereas `validators.py` REJECTS non-conforming posts, `adaptation.py` fixes
 them where fixing is safe + non-lossy:
@@ -11,7 +11,7 @@ them where fixing is safe + non-lossy:
   - YouTube: description = caption + hashtag tail (channel-safe)
   - WhatsApp / Postiz / FB: minimal transform (pass-through)
 
-Contract: `adapt_for_platform(post, platform) → adapted post dict`. Never
+Contract: `adapt_for_platform(post, platform) -> adapted post dict`. Never
 raises. Original `post` never mutated (returns a copy). Called from the drain
 BEFORE `validators.validate_post` so the validator sees the actual-published
 shape.
@@ -79,7 +79,7 @@ def _thread_split(text: str, per_part: int = 275) -> list[str]:
 
 def adapt_for_platform(post: dict[str, Any], platform: str) -> dict[str, Any]:
     """Return a NEW post dict transformed for the platform. Never mutates input.
-    Never raises — on error returns a shallow copy of the original."""
+    Never raises - on error returns a shallow copy of the original."""
     try:
         p = str(platform or "").strip().lower()
         out = _copy(post)
@@ -132,7 +132,7 @@ def adapt_for_platform(post: dict[str, Any], platform: str) -> dict[str, Any]:
             out["_adapted"] = "youtube"
 
         elif p == "facebook":
-            # Minimal — FB accepts long captions + linkifies URLs.
+            # Minimal - FB accepts long captions + linkifies URLs.
             tail = _hashtag_tail(hashtags, limit=10)
             new_cap = (caption + (("\n\n" + tail) if tail else "")).strip()
             out["caption"] = _truncate(new_cap, 63206)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LeadGen Knowledge Retrieval — Phase 5 of the Agentic Knowledge OS upgrade.
+"""LeadGen Knowledge Retrieval - Phase 5 of the Agentic Knowledge OS upgrade.
 
 Turns a symptom/task into a minimal context bundle:
     query -> Owner Truth -> playbook -> runbook -> incidents -> evidence
@@ -206,7 +206,7 @@ def main():
             print(f"      trigger: {rb.get('trigger')}")
             print(f"      source: {rb.get('source')}")
     else:
-        print("  (no runbook match — check registry)")
+        print("  (no runbook match - check registry)")
     print("\n-- PLAYBOOKS --")
     for pb in bundle["playbooks"]:
         print(f"  {pb['id']} [{pb.get('priority','')}] {pb['name']} -> {pb.get('source')}")
@@ -215,7 +215,7 @@ def main():
         for inc in bundle["incidents"]:
             print(f"  ({inc['date'] or '?'}) {inc['title']}")
     else:
-        print("  (no incident match — see memory/incidents.md)")
+        print("  (no incident match - see memory/incidents.md)")
     print("\n-- TRUTH (priorities/blockers) --")
     for p in bundle["truth"]["priorities"]:
         print(f"  PRIO: {p}")

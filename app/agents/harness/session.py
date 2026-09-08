@@ -1,6 +1,6 @@
 """Typed session events + per-run hash-chain (dsh pattern steal, ADR-180).
 
-Harvested from DeepSeek Harness ideas — NOT the TypeScript runtime:
+Harvested from DeepSeek Harness ideas - NOT the TypeScript runtime:
 * every control-visible action is a typed SessionEvent
 * turn vs step envelope (turn_start / turn_end around the loop)
 * append-only hash chain (prev_hash -> event_hash) so replay can detect splice

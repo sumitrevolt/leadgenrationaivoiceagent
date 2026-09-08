@@ -1,6 +1,6 @@
-"""Customer dashboard response models — Pydantic schemas for app/api/customer_dashboard.py.
+"""Customer dashboard response models - Pydantic schemas for app/api/customer_dashboard.py.
 
-Extracted from customer_dashboard.py (2026-06-20 refactor) — data/route separation.
+Extracted from customer_dashboard.py (2026-06-20 refactor) - data/route separation.
 Re-imported by customer_dashboard.py so external imports keep working.
 """
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 
 def _starter_price_inr_default() -> int:
-    """Canonical starter price (packages.py single source) — import-safe (lazy)."""
+    """Canonical starter price (packages.py single source) - import-safe (lazy)."""
     try:
         from app.marketing.packages import get_starter_price_inr
 
@@ -36,7 +36,7 @@ class CallRow(BaseModel):
     status: str  # connected | no-answer | busy
     outcome: str  # "Interested - qualified" etc.
     # Product-2 delivery fix (2026-07-06): the AI value the voice customer PAID for
-    # — Hinglish transcript + AI summary + per-call qualification report + sentiment.
+    # - Hinglish transcript + AI summary + per-call qualification report + sentiment.
     # These live on CallLog but were dropped from CallRow, so the promised "call
     # transcripts + AI summary aapke dashboard me" reached NO customer surface.
     # Optional (older rows / calls with no transcript => "").
@@ -94,7 +94,7 @@ class OnboardingChecklist(BaseModel):
 
 
 class TrialBanner(BaseModel):
-    """7-day trial → paid conversion nudge (customer portal)."""
+    """7-day trial -> paid conversion nudge (customer portal)."""
 
     trial: bool = False
     active: bool = False
@@ -161,7 +161,7 @@ class CrmSyncResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Customer "AI Marketing Team" — virtual agentic office (per-client activity)  #
+# Customer "AI Marketing Team" - virtual agentic office (per-client activity)  #
 # Roster names come from app.platform.team.STAFF (single source of truth); the #
 # per-agent activity lines are derived ONLY from THIS client's data, never the #
 # agency-wide event feed (so a customer can't see other clients' work).        #

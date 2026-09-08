@@ -41,7 +41,7 @@ def _nav_block(html: str) -> str:
 def test_master_blueprint_link_present_in_admin_nav():
     nav = _nav_block(_admin_html())
     assert f'href="{MASTER_HREF}"' in nav, (
-        "admin sidebar has no Master Blueprint entry — the canonical graph is unreachable"
+        "admin sidebar has no Master Blueprint entry - the canonical graph is unreachable"
     )
 
 

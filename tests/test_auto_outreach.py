@@ -8,7 +8,7 @@ No real SMTP / network:
   - settings.auto_email_outreach / smtp_user monkeypatch
   - throttle sleep ko no-op kar dete hain (test fast rahe)
   - email_verify.verify (MX/DNS lookup) ko deterministic stub se monkeypatch
-    (autouse) — test domains fake hain, real DNS kabhi nahi hota
+    (autouse) - test domains fake hain, real DNS kabhi nahi hota
 """
 
 import json
@@ -23,13 +23,13 @@ from app.platform import auto_outreach, prospector
 
 @pytest.fixture(autouse=True)
 def _hermetic_email_verify(monkeypatch):
-    """MX-deliverability gate ko hermetic banao — koi real DNS lookup nahi.
+    """MX-deliverability gate ko hermetic banao - koi real DNS lookup nahi.
 
     `auto_outreach._valid_email` ab `email_verify.verify` (email-validator + MX)
     call karta hai
     test emails ke domains fake hain to real DNS = 0 sends.
     Stub same return-shape deta hai ("absent" reason NAHI, taaki _valid_email
-    verifier ka verdict hi use kare) — syntax-level ok/not-ok deterministic.
+    verifier ka verdict hi use kare) - syntax-level ok/not-ok deterministic.
     """
     from app.lead_scraper import email_verify
 
@@ -125,18 +125,18 @@ class TestSubjectBody:
         # mandatory unsubscribe + sender footer
         assert "REMOVE" in text
         assert "LeadGen AI" in text
-        # W1.6: module const → lazy memoized accessor (import-time network hataya)
+        # W1.6: module const -> lazy memoized accessor (import-time network hataya)
         assert auto_outreach._audit_url_tracked() in text  # audit CTA (tracked link)
 
     def test_handles_missing_fields(self):
-        # No name/rating/reviews — must still build a sane email.
+        # No name/rating/reviews - must still build a sane email.
         subject, text, html = auto_outreach._email_subject_body({})
         assert subject.strip() and text.strip() and html.strip()
         assert "REMOVE" in text
 
 
 # --------------------------------------------------------------------------- #
-# run_email_outreach — guards
+# run_email_outreach - guards
 # --------------------------------------------------------------------------- #
 class TestGuards:
     @pytest.mark.asyncio
@@ -157,7 +157,7 @@ class TestGuards:
 
 
 # --------------------------------------------------------------------------- #
-# run_email_outreach — happy path
+# run_email_outreach - happy path
 # --------------------------------------------------------------------------- #
 class TestRun:
     @pytest.mark.asyncio
@@ -208,7 +208,7 @@ class TestRun:
         assert len(sent_to) == 1
         assert sent_to[0][0] == ["info@sharmasolar.in"]
 
-        # Prospect marked emailed_at — must not re-email on a second run.
+        # Prospect marked emailed_at - must not re-email on a second run.
         p1 = next(p for p in prospector.list_prospects(limit=10) if p["id"] == "p1")
         assert p1.get("emailed_at")
 
@@ -630,7 +630,7 @@ class TestFollowupSubjectBody:
 
 
 # --------------------------------------------------------------------------- #
-# run_email_followups — guards
+# run_email_followups - guards
 # --------------------------------------------------------------------------- #
 class TestFollowupGuards:
     @pytest.mark.asyncio
@@ -650,7 +650,7 @@ class TestFollowupGuards:
 
 
 # --------------------------------------------------------------------------- #
-# run_email_followups — happy path + timing
+# run_email_followups - happy path + timing
 # --------------------------------------------------------------------------- #
 class TestFollowupRun:
     @pytest.mark.asyncio
@@ -669,7 +669,7 @@ class TestFollowupRun:
 
         monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
 
-        # Emailed 4 days ago, no follow-up yet → eligible for follow-up #1.
+        # Emailed 4 days ago, no follow-up yet -> eligible for follow-up #1.
         _seed(
             tmp_prospects,
             {
@@ -693,7 +693,7 @@ class TestFollowupRun:
         f1 = next(p for p in prospector.list_prospects(limit=10) if p["id"] == "f1")
         assert int(f1.get("followup_count")) == 1
 
-        # Immediate re-run: emailed_at is now "today" → gap not met → no send.
+        # Immediate re-run: emailed_at is now "today" -> gap not met -> no send.
         sent.clear()
         out2 = await auto_outreach.run_email_followups()
         assert out2["sent"] == 0
@@ -712,7 +712,7 @@ class TestFollowupRun:
 
         monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
 
-        # Too recent (2 days, count 0) — gap (3d) not met → NOT eligible.
+        # Too recent (2 days, count 0) - gap (3d) not met -> NOT eligible.
         _seed(
             tmp_prospects,
             {
@@ -724,7 +724,7 @@ class TestFollowupRun:
                 "followup_count": 0,
             },
         )
-        # Replied — must be skipped even though old.
+        # Replied - must be skipped even though old.
         _seed(
             tmp_prospects,
             {
@@ -736,7 +736,7 @@ class TestFollowupRun:
                 "followup_count": 0,
             },
         )
-        # Maxed out (count 2) — no more follow-ups.
+        # Maxed out (count 2) - no more follow-ups.
         _seed(
             tmp_prospects,
             {
@@ -760,7 +760,7 @@ class TestFollowupRun:
                 "followup_count": 1,
             },
         )
-        # Never emailed (no emailed_at) — initial outreach handles it, not this.
+        # Never emailed (no emailed_at) - initial outreach handles it, not this.
         _seed(
             tmp_prospects,
             {

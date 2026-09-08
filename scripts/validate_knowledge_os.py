@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 9 — LeadGen Knowledge OS validator + acceptance tests.
+"""Phase 9 - LeadGen Knowledge OS validator + acceptance tests.
 
 Validates the whole agentic-knowledge layer:
 1. Registries parse (runbooks, playbooks, owner truth).
@@ -59,7 +59,7 @@ def validate_runbooks() -> list[str]:
         if cls == "GREEN":
             naughty = rb.get("id", "").startswith(("RB-VOICE-001", "RB-VOICE-004", "RB-INFRA-004", "RB-INFRA-006", "RB-INFRA-009", "RB-SALES-006"))
             if naughty:
-                errs.append(f"RB {rb.get('id')}: GREEN but compliance/irreversible — must be AMBER/RED")
+                errs.append(f"RB {rb.get('id')}: GREEN but compliance/irreversible - must be AMBER/RED")
     if not rbs:
         errs.append("runbook registry empty")
     return errs
@@ -167,7 +167,7 @@ def run(verbose: bool = True) -> int:
             print("  ✗", e)
         print("\nAcceptance tests:")
         for name, ok, detail in acceptance_tests():
-            print(f"  {'✓' if ok else '✗'} {name} — {detail}")
+            print(f"  {'✓' if ok else '✗'} {name} - {detail}")
 
     return 1 if errs else 0
 

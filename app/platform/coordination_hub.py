@@ -1,4 +1,4 @@
-"""Coordination Hub — thin Owner OS projection (NOT a second control plane).
+"""Coordination Hub - thin Owner OS projection (NOT a second control plane).
 
 Assembles read-only views from Owner OS registry, external-agent missions,
 office Active Coordination, tool presence, desktop-app registry, events,
@@ -35,7 +35,7 @@ _MUTATION_POINTERS = {
     },
     "deploy": {
         "error": "refused",
-        "note": "Hub never deploys — use deploy_vps.sh after owner authorize",
+        "note": "Hub never deploys - use deploy_vps.sh after owner authorize",
     },
 }
 
@@ -69,7 +69,7 @@ def _owner_agents_slice() -> dict[str, Any]:
                 if k in reg
             }
             or reg,
-            "note": "Projected from owner_os.agent_registry — Hub does not own STAFF",
+            "note": "Projected from owner_os.agent_registry - Hub does not own STAFF",
         }
     except Exception as e:
         logger.debug("[coord_hub] owner agents: %s", e)
@@ -84,7 +84,7 @@ def _missions_slice() -> dict[str, Any]:
             return {
                 "ok": True,
                 "enabled": False,
-                "note": "EXTERNAL_AGENT_ORCHESTRATOR off — ledger inert",
+                "note": "EXTERNAL_AGENT_ORCHESTRATOR off - ledger inert",
                 "summary": {},
                 "rows": [],
             }
@@ -95,7 +95,7 @@ def _missions_slice() -> dict[str, Any]:
             "enabled": True,
             "summary": summary,
             "rows": rows,
-            "note": "Projected from external_agents ledger — Hub does not claim leases",
+            "note": "Projected from external_agents ledger - Hub does not claim leases",
         }
     except Exception as e:
         logger.debug("[coord_hub] missions: %s", e)
@@ -144,7 +144,7 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
             "ok": True,
             "enabled": False,
             "role": "owner_os_thin_projection",
-            "note": "COORDINATION_HUB_ENABLED=0 — inert",
+            "note": "COORDINATION_HUB_ENABLED=0 - inert",
             "owner_agents": {},
             "missions": {"enabled": False, "rows": []},
             "office_coordination": {"rows": []},
@@ -155,7 +155,7 @@ def snapshot(*, include_git: bool = True, events_limit: int = 40) -> dict[str, A
                 "ok": True,
                 "enabled": False,
                 "apps": [],
-                "note": "COORDINATION_HUB_ENABLED=0 — inert",
+                "note": "COORDINATION_HUB_ENABLED=0 - inert",
             },
             "git": None,
             "events_tail": [],

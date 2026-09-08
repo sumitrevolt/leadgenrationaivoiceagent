@@ -1,5 +1,5 @@
 """
-email_signature.py — signature marketing kit (har bheji email = free ad).
+email_signature.py - signature marketing kit (har bheji email = free ad).
 ==========================================================================
 
 Client ke roz ke emails ke neeche ek branded HTML signature: naam, business,
@@ -7,7 +7,7 @@ phone, WhatsApp link, mini-site link (UTM'd), brand colors (brand_kit reuse)
 + optional rotating campaign banner line. Plain-text fallback + Hinglish
 copy-paste instructions (Gmail/Outlook).
 
-Pure logic — koi flag nahi, koi network nahi, koi send nahi. Never raises.
+Pure logic - koi flag nahi, koi network nahi, koi send nahi. Never raises.
 
 Public API:
   - generate(client_id=None, slug=None, campaign_banner_text=None)
@@ -171,16 +171,16 @@ def generate(
 
         instructions = (
             "📋 Signature lagane ka tareeka (1 baar, 2 minute):\n\n"
-            "GMAIL: Settings (⚙️) → 'See all settings' → General tab → 'Signature' → "
-            "'Create new' → neeche wala HTML signature COPY karke PASTE karo (formatting "
-            "ke saath) → Save Changes. Bas — ab har email ke neeche aapka branded "
+            "GMAIL: Settings (⚙️) -> 'See all settings' -> General tab -> 'Signature' -> "
+            "'Create new' -> neeche wala HTML signature COPY karke PASTE karo (formatting "
+            "ke saath) -> Save Changes. Bas - ab har email ke neeche aapka branded "
             "signature jayega.\n\n"
-            "OUTLOOK: Settings → Mail → Compose and reply → Email signature box me "
-            "paste karo → Save.\n\n"
-            "MOBILE (Gmail app): Settings → apna account → Mobile signature — wahan "
+            "OUTLOOK: Settings -> Mail -> Compose and reply -> Email signature box me "
+            "paste karo -> Save.\n\n"
+            "MOBILE (Gmail app): Settings -> apna account -> Mobile signature - wahan "
             "sirf plain-text wala version paste karo.\n\n"
             "Tip: banner line har campaign pe badalte raho (festival offer, naya "
-            "product) — har bheji email free advertisement ban jaati hai!"
+            "product) - har bheji email free advertisement ban jaati hai!"
         )
 
         return {

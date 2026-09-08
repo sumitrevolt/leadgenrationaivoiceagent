@@ -1,4 +1,4 @@
-"""video_ad_cycle — har ~5 din AI video ad: generate -> client approval -> social
+"""video_ad_cycle - har ~5 din AI video ad: generate -> client approval -> social
 publish
 "change chahiye" -> naya revision -> re-approval (free-stack, never-raise).
 

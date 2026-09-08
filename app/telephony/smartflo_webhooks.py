@@ -4,7 +4,7 @@ Tata Smartflo Webhook Receiver
 
 Handles Smartflo call lifecycle webhooks (status updates, CDR events).
 
-IMPORTANT — what Smartflo webhooks ARE and ARE NOT
+IMPORTANT - what Smartflo webhooks ARE and ARE NOT
 --------------------------------------------------
 Per the official Smartflo docs (docs.smartflo.tatatelebusiness.com/docs/webhook),
 Smartflo webhooks are **one-way, fire-and-forget HTTP notifications** used to
@@ -32,7 +32,7 @@ with variables such as:
 
 Because the docs use ``$`` as a variable sigil, real payloads may or may not
 include the literal ``$`` prefix. We therefore normalise by stripping any
-leading ``$`` and match on alias lists — this keeps us compatible with BOTH
+leading ``$`` and match on alias lists - this keeps us compatible with BOTH
 the raw Smartflo format and the simplified internal format used in tests.
 
 Webhook URL configured in the Smartflo portal:
@@ -66,13 +66,13 @@ from fastapi.responses import JSONResponse
 
 from app.utils.logger import setup_logger
 
-# Module-level imports — tests patch these attributes directly.
+# Module-level imports - tests patch these attributes directly.
 # Wrapped in try/except to avoid circular import at module load time.
 try:
     from app.marketing import niche_database
     from app.telephony.post_call_hooks import meter_call_completion
 except ImportError:
-    # Lazy fallback — functions are imported when first needed.
+    # Lazy fallback - functions are imported when first needed.
     meter_call_completion = None
     niche_database = None
 
@@ -104,7 +104,7 @@ def _webhook_secret() -> str:
 def _normalize_keys(body: dict[str, Any]) -> dict[str, Any]:
     """Strip Smartflo's ``$`` variable sigil so both formats resolve.
 
-    ``{"$call_id": "X"}`` becomes ``{"$call_id": "X", "call_id": "X"}`` —
+    ``{"$call_id": "X"}`` becomes ``{"$call_id": "X", "call_id": "X"}`` -
     the original key is preserved and the bare key added when absent.
     """
     out: dict[str, Any] = {}

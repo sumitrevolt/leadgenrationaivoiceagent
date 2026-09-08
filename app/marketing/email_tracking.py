@@ -11,14 +11,14 @@ DB-free tracking layer that mirrors the proven ``email_unsub`` design:
   - ``instrument(html, ...)`` rewrites links + injects a 1x1 open-pixel,
   - append-only event log ``data/email_events.jsonl``,
   - ``stats()`` aggregation,
-  - **flag-gated (EMAIL_TRACKING, default OFF)** → zero behaviour change unset,
-  - **never-raise everywhere** → a tracking failure must NEVER break email send
+  - **flag-gated (EMAIL_TRACKING, default OFF)** -> zero behaviour change unset,
+  - **never-raise everywhere** -> a tracking failure must NEVER break email send
     or the public pixel/redirect response.
 
 Env (all optional):
   EMAIL_TRACKING       "1"/"true"/"yes"/"on" to enable (default OFF).
   EMAIL_UNSUB_SECRET   HMAC secret (falls back to SECRET_KEY, then a constant)
-                       — reused from email_unsub so we add no new config.
+                       - reused from email_unsub so we add no new config.
   PUBLIC_BASE_URL      public base (default https://leadsgenai.in)
 """
 
@@ -88,7 +88,7 @@ def _sign(payload: str) -> str:
 def _make_token(ttype: str, recipient_id: str, campaign: str, url: str = "") -> str:
     rid = (recipient_id or "").strip()
     camp = (campaign or "").strip()
-    # url may contain "|" → base64 it inside the payload so the delimiter is safe.
+    # url may contain "|" -> base64 it inside the payload so the delimiter is safe.
     url_part = _b64e(url) if url else ""
     payload = "|".join([ttype, rid, camp, url_part])
     sig = _sign(payload)
@@ -132,15 +132,15 @@ def make_click_token(recipient_id: str, campaign: str, url: str) -> str:
 
 
 def verify_open_token(token: str) -> dict | None:
-    """Authentic open token → decoded dict (else None). Never raises."""
+    """Authentic open token -> decoded dict (else None). Never raises."""
     data = _verify_token(token)
     return data if (data and data.get("type") == _T_OPEN) else None
 
 
 def verify_click_token(token: str) -> dict | None:
-    """Authentic click token → decoded dict incl. http/https url (else None).
+    """Authentic click token -> decoded dict incl. http/https url (else None).
 
-    Validates the decoded scheme is http/https (open-redirect safety) — even
+    Validates the decoded scheme is http/https (open-redirect safety) - even
     though the token is HMAC-signed, we never redirect to a non-http(s) scheme.
     Never raises.
     """
@@ -163,7 +163,7 @@ def _is_safe_url(url: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# instrument()  — rewrite links + inject open pixel
+# instrument()  - rewrite links + inject open pixel
 # --------------------------------------------------------------------------- #
 def _should_skip_href(url: str) -> bool:
     """Skip links we must NOT wrap: mailto:, tel:, anchors, unsubscribe, already
@@ -186,7 +186,7 @@ def instrument(html: str, recipient_id: str, campaign: str = "") -> str:
     """Add open-pixel + click-tracking to an outbound HTML email.
 
     Returns ``html`` UNCHANGED when tracking is disabled or html is empty.
-    Never raises — on ANY error returns the original html (email must still send).
+    Never raises - on ANY error returns the original html (email must still send).
     """
     try:
         if not enabled() or not html:
@@ -218,7 +218,7 @@ def instrument(html: str, recipient_id: str, campaign: str = "") -> str:
             else:
                 out = out + pixel
         return out
-    except Exception as ex:  # never-raise — email send must not break
+    except Exception as ex:  # never-raise - email send must not break
         logger.debug("[email_tracking] instrument failed: %s", ex)
         return html
 
@@ -283,7 +283,7 @@ def stats(campaign: str | None = None) -> dict:
     """Aggregate open/click events. Optional campaign filter. Never raises.
 
     Returns: {opens, clicks, unique_opens, unique_clicks, by_campaign}.
-    (We only see opens/clicks here — "sent" lives in the outreach log.)
+    (We only see opens/clicks here - "sent" lives in the outreach log.)
     """
     result = {
         "opens": 0,

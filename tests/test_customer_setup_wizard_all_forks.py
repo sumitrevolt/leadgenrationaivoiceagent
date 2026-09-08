@@ -3,7 +3,7 @@
 needed their own parity check
 the two per-product forks were confirmed
 unreachable duplicates and deleted 2026-07-07 (see
-tests/test_customer_dashboard_product_routing.py — all 3 routes now serve
+tests/test_customer_dashboard_product_routing.py - all 3 routes now serve
 this single consolidated file, CSS-gated by a prod-marketing/prod-voice body
 class). This file now confirms the wizard card/hook/functions are present
 once, and that the voice-mode CSS gate for the social/brand-tone section
@@ -29,7 +29,7 @@ def test_setup_wizard_card_and_functions_present(fork):
     assert "async function sendKbInfo" in html
     # P0-2026-07-12: invoked via _safeBoot() now (see test_customer_setup_wizard_frontend.py
     # for the dedicated regression test on that wrapper) so one broken loader can't
-    # block the others — the literal call-site changed, the wiring didn't.
+    # block the others - the literal call-site changed, the wiring didn't.
     assert '_safeBoot("loadGuidedSetup", loadGuidedSetup)
     ' in html
 
@@ -44,7 +44,7 @@ def test_social_brand_fields_marketing_only_gated(fork):
 
 def test_voice_mode_css_hides_marketing_only_under_prod_voice():
     """Confirm the CSS rule that actually hides these fields under prod-voice
-    exists — the marketing-only class is inert without it."""
+    exists - the marketing-only class is inert without it."""
     html = _html("customer_dashboard.html")
     assert ".prod-voice .marketing-only" in html or (
         ".marketing-only" in html and "prod-voice" in html

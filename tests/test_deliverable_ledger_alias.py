@@ -8,7 +8,7 @@ Two independent exact-match failures in `sync_customer_deliverable_status`:
 1. **client_id.** The two stores use different ids on purpose
    (`clients_store.resolve_client` docstring names `d79d690f61b3` vs
    `jiya-makeover`). `customer_deliverables.client_id` is an FK to Postgres
-   `clients.id`, so rows are seeded under the BILLING id — while every writer
+   `clients.id`, so rows are seeded under the BILLING id - while every writer
    that advances them passes the MARKETING id. Every other marketing-domain
    consumer got the canonicalisation retrofit
    this writer was missed.
@@ -28,7 +28,7 @@ from __future__ import annotations
 from app.marketing import product_one_delivery as pod
 
 # The real production pair, kept verbatim so these tests stay tied to the actual
-# 2026-08-06 finding. This is a TENANT ID, not a credential — the same value is
+# 2026-08-06 finding. This is a TENANT ID, not a credential - the same value is
 # already in `clients_store.resolve_client`'s docstring. detect-secrets flags it
 # as a hex high-entropy string; allowlisted rather than obscured so the test
 # still documents the case it exists for.
@@ -77,7 +77,7 @@ def test_client_candidates_include_marketing_and_billing_ids(monkeypatch):
     )
     got = pod._deliverable_client_id_candidates(_MARKETING_ID)
     assert _MARKETING_ID in got
-    assert _BILLING_ID in got, "rows are seeded under the billing id — must match"
+    assert _BILLING_ID in got, "rows are seeded under the billing id - must match"
 
 
 def test_client_candidates_dedupe(monkeypatch):
@@ -93,7 +93,7 @@ def test_client_candidates_dedupe(monkeypatch):
 
 def test_client_candidates_degrade_to_exact_match_when_unlinked(monkeypatch):
     """Jiya's CURRENT prod state: billing_client_ids is empty. The code must not
-    invent a link — it degrades to today's exact-match behaviour."""
+    invent a link - it degrades to today's exact-match behaviour."""
     from app.marketing import clients_store
 
     monkeypatch.setattr(
@@ -208,7 +208,7 @@ def test_sync_advances_row_stored_under_billing_id_and_legacy_type(monkeypatch):
 
 
 def test_sync_still_returns_false_when_no_row_exists(monkeypatch):
-    """jsonl-only customers must keep degrading quietly — the writer's contract
+    """jsonl-only customers must keep degrading quietly - the writer's contract
     is update-only and must never create rows or raise."""
     from app.marketing import clients_store
 

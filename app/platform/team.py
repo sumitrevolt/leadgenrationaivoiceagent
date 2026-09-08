@@ -1,21 +1,21 @@
 """
-AI Staff Team — company-style agent roster + activity log + status.
+AI Staff Team - company-style agent roster + activity log + status.
 ====================================================================
 
-User vision: "1 company me jaise staff hota hai waise agents" — har AI agent
+User vision: "1 company me jaise staff hota hai waise agents" - har AI agent
 ek named EMPLOYEE hai jiska role, duties aur kaam ka record clear ho, aur sab
 admin dashboard pe live dikhe (kaun kya kar raha, kitna productive).
 
 Yeh module deta hai:
   - STAFF registry: fixed company roster (name, role, duties, schedule)
   - log_event(member, action, detail, status, meta): har kaam DB me record
-    (agent_events table — import-safe, DB na ho to silently skip)
+    (agent_events table - import-safe, DB na ho to silently skip)
   - team_status(): per-member live state (working/idle/offline), last activity,
-    aaj ke kaam ke counts — dashboard API isi se बनती hai
+    aaj ke kaam ke counts - dashboard API isi se बनती hai
   - recent_events(): live activity feed
 
 Ye sab telephony / web-call / supervisor / QA / trainer / ops flows se call
-hota hai. KABHI raise nahi karta — voice pipeline kabhi team-logging ki wajah
+hota hai. KABHI raise nahi karta - voice pipeline kabhi team-logging ki wajah
 se nahi girni chahiye.
 """
 
@@ -36,14 +36,14 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def _call_transcripts_dir() -> str:
-    """Call transcripts dir — resolved per call, never frozen at import."""
+    """Call transcripts dir - resolved per call, never frozen at import."""
     from app.platform.runtime_recording_paths import call_transcripts_dir
 
     return str(call_transcripts_dir())
 
 
 # --------------------------------------------------------------------------- #
-# Company roster — the AI staff. Fixed, code-defined (roles change via code).
+# Company roster - the AI staff. Fixed, code-defined (roles change via code).
 # --------------------------------------------------------------------------- #
 STAFF: dict[str, dict[str, Any]] = {
     "manager": {
@@ -51,7 +51,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Boss",
         "emoji": "🧑‍💼",
         "title": "Manager (Supervisor)",
-        "duties": "Kaam baantna — data/leads agents ko route karna (LangGraph), team coordination",
+        "duties": "Kaam baantna - data/leads agents ko route karna (LangGraph), team coordination",
         "schedule": "On-demand (har /api/agents/run pe)",
     },
     "swara": {
@@ -67,7 +67,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Ananya",
         "emoji": "📅",
         "title": "Appointment Booker",
-        "duties": "Har niche ke end-customers ke liye appointment, site-visit ya demo slot book karna — calendar + reminders",
+        "duties": "Har niche ke end-customers ke liye appointment, site-visit ya demo slot book karna - calendar + reminders",
         "schedule": "On-demand (booking campaigns / callbacks)",
     },
     "riya": {
@@ -75,7 +75,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Riya",
         "emoji": "🛎️",
         "title": "AI Receptionist",
-        "duties": "Inbound customer calls — greeting, department route, message lena, appointment book karna (sales pitch nahi)",
+        "duties": "Inbound customer calls - greeting, department route, message lena, appointment book karna (sales pitch nahi)",
         "schedule": "On-demand (inbound / mini-site widget)",
     },
     "dev": {
@@ -115,7 +115,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Lekha",
         "emoji": "📊",
         "title": "Call Analytics Lead",
-        "duties": "Call-center KPIs — web+phone calls se duration, qualified-rate, booking-rate, reply-latency p50/p95, dead-air/repeat ratio nikal ke trend + admin digest (app/voice_agent/call_analytics.py)",
+        "duties": "Call-center KPIs - web+phone calls se duration, qualified-rate, booking-rate, reply-latency p50/p95, dead-air/repeat ratio nikal ke trend + admin digest (app/voice_agent/call_analytics.py)",
         "schedule": "Roz subah + on-demand (/api/admin/web-calls/kpis)",
     },
     "raksha": {
@@ -123,7 +123,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Raksha",
         "emoji": "🆘",
         "title": "Human Escalation Manager",
-        "duties": "Jab AI unsure/confused ho ya customer gussa/insaan maange — call human ko route karna (app/telephony/call_transfer.py, gated CALL_TRANSFER) + context handover; escalation log + handback",
+        "duties": "Jab AI unsure/confused ho ya customer gussa/insaan maange - call human ko route karna (app/telephony/call_transfer.py, gated CALL_TRANSFER) + context handover; escalation log + handback",
         "schedule": "On-demand (live calls)",
     },
     "kavya": {
@@ -139,7 +139,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Hermes",
         "emoji": "🛰️",
         "title": "Infrastructure Handler",
-        "duties": "Poore infra ka scan — app readiness (db+redis), disk/memory, dead-man jobs, queue backlog, LLM chain, backup freshness → 0-100 score + Hinglish fix-actions; critical pe email alert (Kavya/Tara ke engines REUSE — aggregator/diagnoser)",
+        "duties": "Poore infra ka scan - app readiness (db+redis), disk/memory, dead-man jobs, queue backlog, LLM chain, backup freshness -> 0-100 score + Hinglish fix-actions; critical pe email alert (Kavya/Tara ke engines REUSE - aggregator/diagnoser)",
         "schedule": "Har ghante (watchdog, gated INFRA_HANDLER) + pulse rotation",
     },
     "isha": {
@@ -155,7 +155,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Tara",
         "emoji": "🎙️",
         "title": "Voice Infra Ops",
-        "duties": "Telephony readiness (Vobiz auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna — calling launch ke liye system hamesha taiyaar rahe",
+        "duties": "Telephony readiness (Vobiz auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna - calling launch ke liye system hamesha taiyaar rahe",
         "schedule": "Har ghante (watchdog ke saath)",
     },
     "nikhil": {
@@ -163,7 +163,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Nikhil",
         "emoji": "💰",
         "title": "Revenue Ops",
-        "duties": "Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar — paisa leak na ho",
+        "duties": "Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar - paisa leak na ho",
         "schedule": "Roz (digest/content jobs ke saath)",
     },
     "vikram": {
@@ -171,7 +171,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Vikram",
         "emoji": "🛠️",
         "title": "Code Upgrader",
-        "duties": "Observability signals (LLM errors, failing jobs, weak actions) se code-upgrade proposals banana — safe skills auto, core code Sumit ke approve pe (hybrid autonomy)",
+        "duties": "Observability signals (LLM errors, failing jobs, weak actions) se code-upgrade proposals banana - safe skills auto, core code Sumit ke approve pe (hybrid autonomy)",
         "schedule": "Har ghante (watchdog ke saath, gated CODE_UPGRADER)",
     },
     "guru": {
@@ -179,7 +179,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Guru",
         "emoji": "📚",
         "title": "Skill Trainer",
-        "duties": "35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna — LLM/team seekhte rahein. Knowledge/Memory steward role bhi (Mem0 hygiene + agent_memory drift detect)",
+        "duties": "35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna - LLM/team seekhte rahein. Knowledge/Memory steward role bhi (Mem0 hygiene + agent_memory drift detect)",
         "schedule": "Roz (trainer job ke saath, gated SKILL_PACK)",
     },
     # ----- F.5: 3 engineer agents (billionaire-audit Section H, KPI-bound) ----- #
@@ -207,7 +207,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Arnav",
         "emoji": "🛡️",
         "title": "Security / Compliance",
-        "duties": "DPDP + TRAI posture, secret-rotation reminders, CVE triage → patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.",
+        "duties": "DPDP + TRAI posture, secret-rotation reminders, CVE triage -> patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.",
         "schedule": "Daily (gated SECURITY_AGENT) + on-demand posture report",
     },
     # ----- council 2026-06-25: 3 new engineer agents (genuinely-uncovered loops) ----- #
@@ -216,7 +216,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Kabir",
         "emoji": "🗄️",
         "title": "DB Reliability Engineer",
-        "duties": "Postgres query-health — slow-query patterns (pg_stat_statements), unused/bloating indexes, connection-pool pressure, DB size trend. KPI: db_reliability_score. Fills Pranav's blind spot (he owns backup/heartbeat/capacity, NOT query health). Read-only pg-catalog checks.",
+        "duties": "Postgres query-health - slow-query patterns (pg_stat_statements), unused/bloating indexes, connection-pool pressure, DB size trend. KPI: db_reliability_score. Fills Pranav's blind spot (he owns backup/heartbeat/capacity, NOT query health). Read-only pg-catalog checks.",
         "schedule": "Daily 10:00 IST (gated DBRE_AGENT)",
     },
     "diya": {
@@ -224,7 +224,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Diya",
         "emoji": "🧹",
         "title": "Data-Integrity Engineer",
-        "duties": "Lead/CRM data quality — duplicate phone/email detection, missing-contact leads, prospect-store integrity. KPI: data_integrity_score. Revenue-adjacent: clean leads = better outreach + accurate CRM. REPORT-only (dedupe stays human-approved).",
+        "duties": "Lead/CRM data quality - duplicate phone/email detection, missing-contact leads, prospect-store integrity. KPI: data_integrity_score. Revenue-adjacent: clean leads = better outreach + accurate CRM. REPORT-only (dedupe stays human-approved).",
         "schedule": "Daily 10:30 IST (gated DATA_INTEGRITY_AGENT)",
     },
     "aryan": {
@@ -232,7 +232,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Aryan",
         "emoji": "📦",
         "title": "Dependency / Supply-chain Engineer",
-        "duties": "Package vulnerability audit via pip-audit (read-only), lock-file pinning hygiene, CVE → upgrade PROPOSALS. KPI: supply_chain_score. Distinct from Arnav (secrets/compliance posture); Aryan owns dependency CVEs. Never auto-upgrades.",
+        "duties": "Package vulnerability audit via pip-audit (read-only), lock-file pinning hygiene, CVE -> upgrade PROPOSALS. KPI: supply_chain_score. Distinct from Arnav (secrets/compliance posture); Aryan owns dependency CVEs. Never auto-upgrades.",
         "schedule": "Weekly Sun 04:30 IST (gated DEPS_AGENT)",
     },
     # ----- council 2026-06-26: MCP Engineer (3-layer MCP surface owner) ----- #
@@ -242,7 +242,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "emoji": "🔌",
         "title": "MCP Engineer",
         "duties": (
-            "Three-layer MCP surface — (1) /mcp expose via fastapi-mcp (admin tools, "
+            "Three-layer MCP surface - (1) /mcp expose via fastapi-mcp (admin tools, "
             "must be auth-gated), (2) /api/mcp-product/v1/* metered B2B routes, "
             "(3) A2A Agent Card (/.well-known/agent.json). Hourly health-pulse: "
             "dependency check, gate-presence audit, key quota pressure, 90d rotation "
@@ -256,7 +256,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Ravi",
         "emoji": "🌐",
         "title": "SEO Scout",
-        "duties": "Programmatic SEO pages (niche×city), IndexNow sitemap ping, rank-tracker sweep — organic inbound badhao",
+        "duties": "Programmatic SEO pages (niche×city), IndexNow sitemap ping, rank-tracker sweep - organic inbound badhao",
         "schedule": "Roz blog ke saath + Monday SEO batch",
     },
     "neha": {
@@ -264,7 +264,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Neha",
         "emoji": "♻️",
         "title": "Pipeline Ops",
-        "duties": "Lead rescore, hot-lead surfacing Rohan ke liye, journey rules seed — pipeline fresh rakho",
+        "duties": "Lead rescore, hot-lead surfacing Rohan ke liye, journey rules seed - pipeline fresh rakho",
         "schedule": "Roz 11:00 IST pipeline job",
     },
     "kiran": {
@@ -272,11 +272,11 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Kiran",
         "emoji": "📊",
         "title": "Campaign Optimizer",
-        "duties": "Har 100 interactions pe campaign analyze karo — winning openings, objections, A/B proposals; eval_gate ke baad hi promote",
+        "duties": "Har 100 interactions pe campaign analyze karo - winning openings, objections, A/B proposals; eval_gate ke baad hi promote",
         "schedule": "Weekly + threshold (gated CAMPAIGN_OPTIMIZER)",
     },
     # 2026-07-01: audit found these 2 engines already run real automation but had
-    # ZERO staff attribution — invisible on /app/team + agent_events. Named + wired
+    # ZERO staff attribution - invisible on /app/team + agent_events. Named + wired
     # (app/platform/crm_sync.py, app/social_engine/engine.py) so the office/team view
     # actually reflects what's running, not just what has a persona.
     "priya": {
@@ -284,7 +284,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Priya",
         "emoji": "🔗",
         "title": "CRM Sync Specialist",
-        "duties": "Qualified leads client ke apne Zoho/HubSpot CRM me auto-push (gated CRM_SYNC) — 'apna CRM chhodna nahi padega'",
+        "duties": "Qualified leads client ke apne Zoho/HubSpot CRM me auto-push (gated CRM_SYNC) - 'apna CRM chhodna nahi padega'",
         "schedule": "On-demand (har qualified lead pe, jab client ne CRM connect kiya ho)",
     },
     "zara": {
@@ -295,7 +295,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Approved content queue drain karke per-client social channels (Telegram/Postiz/Meta) pe publish karna (gated SOCIAL_ENGINE)",
         "schedule": "Queue-driven (jab bhi approved content publish ke liye ready ho)",
     },
-    # 2026-07-01: 2nd audit pass ("2 more workers") — same rule, real engines only.
+    # 2026-07-01: 2nd audit pass ("2 more workers") - same rule, real engines only.
     # cadence.py + journeys.py already run scheduled/hook-driven automation (wired
     # into inquiry/booking/reply-triage/pipeline-ops) with zero staff attribution.
     "anika": {
@@ -311,7 +311,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Ira",
         "emoji": "🧩",
         "title": "Journey Automation Manager",
-        "duties": "Event-trigger rules (inquiry/booking/reply/pipeline hooks) → matching journey ke actions/drafts chalana (gated JOURNEY_ENGINE)",
+        "duties": "Event-trigger rules (inquiry/booking/reply/pipeline hooks) -> matching journey ke actions/drafts chalana (gated JOURNEY_ENGINE)",
         "schedule": "Event-driven (jab bhi koi wired hook trigger fire kare)",
     },
 }
@@ -332,7 +332,7 @@ def staff_for_product(product: str) -> dict[str, dict[str, Any]]:
 
 # --------------------------------------------------------------------------- #
 # Enterprise Persona Registry (ADR-184, 2026-08-21)
-# Har staff member ka UNIQUE system prompt — sales-focused, distinct personality.
+# Har staff member ka UNIQUE system prompt - sales-focused, distinct personality.
 # team.py STAFF = metadata (name/emoji/duties/schedule)
 # agent_personas.py STAFF_PERSONAS = LLM personality (tone/expertise/system_prompt)
 # get_staff_persona_prompt() = merged dict with persona attached
@@ -408,7 +408,7 @@ def staff_personas_summary() -> list[dict[str, Any]]:
 
 
 # Status windows (realism): "working" = abhi-abhi active; "active" = aaj kaam kiya
-# (resting); "offline" = aaj kuch nahi. Pehle 2-min working/20-min offline tha →
+# (resting); "offline" = aaj kuch nahi. Pehle 2-min working/20-min offline tha ->
 # din me kaam karne wale bhi grey "idle" dikhte the. Ab schedule-cycles reflect hote.
 _WORKING_AFTER_MIN = 20  # is window me event = abhi kaam kar raha (green pulse)
 _ACTIVE_TODAY_MIN = 16 * 60  # aaj-bhar active mana (blue), warna offline (grey)
@@ -419,7 +419,7 @@ _IDLE_AFTER_MIN = _ACTIVE_TODAY_MIN  # backward-compat alias
 # Event logging (DB: agent_events; import-safe + never-raise)
 # --------------------------------------------------------------------------- #
 def _db():
-    """Sync Session banao (ya None) — base ke lazy engine/_SessionLocal se."""
+    """Sync Session banao (ya None) - base ke lazy engine/_SessionLocal se."""
     try:
         from app.models import base as _b
 
@@ -440,7 +440,7 @@ def log_event(
 ) -> None:
     """Staff member ka ek kaam record karo. Sync, fast, kabhi raise nahi karta.
 
-    member: STAFF key ("swara", "arjun", ...) — unknown bhi chalega (log hota).
+    member: STAFF key ("swara", "arjun", ...) - unknown bhi chalega (log hota).
     action: chhota verb ("call_placed", "qa_run", "kb_seeded", ...).
     detail: 1-line human summary (dashboard feed me dikhta hai).
     status: ok | warn | error.
@@ -469,7 +469,7 @@ def log_event(
     except Exception as e:  # NEVER break the caller (voice pipeline etc.)
         logger.debug(f"[team] log_event skipped: {e}")
 
-    # Real-time SSE broadcast — Redis publish (non-blocking, fail-open)
+    # Real-time SSE broadcast - Redis publish (non-blocking, fail-open)
     try:
         import asyncio
         import threading
@@ -506,13 +506,13 @@ def log_event(
     except Exception:
         pass
 
-    # Obsidian second-brain — throttled append to Agents/{member}.md (INERT if OBSIDIAN_SYNC unset).
+    # Obsidian second-brain - throttled append to Agents/{member}.md (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
 
         entry = (
             f"{action}"
-            + (f" — {detail[:120]}" if detail else "")
+            + (f" - {detail[:120]}" if detail else "")
             + (f" [{status}]" if status != "ok" else "")
         )
         _obs.append_note(
@@ -529,7 +529,7 @@ def log_event(
 def recent_events(
     limit: int = 60, member: str | None = None, hours: int | None = None
 ) -> list[dict[str, Any]]:
-    """Latest activity feed (newest first) — dashboard ke liye dicts.
+    """Latest activity feed (newest first) - dashboard ke liye dicts.
 
     `hours` set ho to sirf pichhle N ghante ke events (hourly timeline +
     "last hour dispatches" jaise callers ke liye). Bigger cap jab hours-window.
@@ -579,11 +579,11 @@ def _ev_dict(r: Any) -> dict[str, Any]:
 
 
 def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
-    """Per-agent KPI aggregate over last N days — success-rate + last-run, taaki
+    """Per-agent KPI aggregate over last N days - success-rate + last-run, taaki
     operator dekh sake kaunsa agent DEGRADE ho raha (recent_events = raw feed
     yeh
     = rollup). SQL GROUP BY (member,status)
-    window-cap 90d. KABHI raise nahi —
+    window-cap 90d. KABHI raise nahi -
     failure pe empty. Observability-only, koi side-effect nahi."""
     out: dict[str, Any] = {"window_days": int(days), "agents": [], "overall": {}}
     try:
@@ -665,14 +665,14 @@ def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
 # Team status (dashboard ka main payload)
 # --------------------------------------------------------------------------- #
 def _latest_events_per_member(db, AgentEvent, members: list[str]) -> list[Any]:
-    """Latest AgentEvent row for EACH member in ``members`` — in ONE query.
+    """Latest AgentEvent row for EACH member in ``members`` - in ONE query.
 
     Replaces a `for m in members: query(...).first()` loop that was a textbook
     N+1 (Sentry PYTHON-S). Uses `row_number() OVER (PARTITION BY member ORDER BY
     created_at DESC)`, supported by Postgres (prod) and SQLite >= 3.25 (tests).
 
     Bounded by construction: returns at most one row per requested member, so it
-    cannot blow up on a member with a long event history — which is why this is
+    cannot blow up on a member with a long event history - which is why this is
     a window function and not "fetch all rows for these members and group in
     Python".
 
@@ -750,10 +750,10 @@ def team_status() -> dict[str, Any]:
                     per_member_errors[m] = per_member_errors.get(m, 0) + 1
                 if m not in last_event:
                     last_event[m] = _ev_dict(r)
-            # members whose last event is OLDER than today — fetch latest one each.
+            # members whose last event is OLDER than today - fetch latest one each.
             # 2026-07-14 (ADR-100): this was a per-member `.first()` in a loop =
             # N+1. STAFF has 31 members, so an idle roster meant up to 31 round
-            # trips on every GET /api/admin/agents (Sentry PYTHON-S, 1428ms txn) —
+            # trips on every GET /api/admin/agents (Sentry PYTHON-S, 1428ms txn) -
             # and it got WORSE the quieter the system was, which is exactly when
             # nobody would suspect the dashboard. One window-function query
             # returns the latest row per member instead. Falls back to the old
@@ -874,8 +874,8 @@ def team_status() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# team_pulse — har staff ko regular REAL heartbeat dena (taaki dashboard pe
-# zinda dikhe, sirf daily-job pe spike nahi). Sab CHEAP/non-LLM monitors —
+# team_pulse - har staff ko regular REAL heartbeat dena (taaki dashboard pe
+# zinda dikhe, sirf daily-job pe spike nahi). Sab CHEAP/non-LLM monitors -
 # existing functions reuse. 15-min growth job + self_improve loop se chalta.
 # Kabhi raise nahi; har member best-effort, defensive.
 # --------------------------------------------------------------------------- #
@@ -898,8 +898,8 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             from app.platform import automation_health
 
             h = automation_health.health()
-            # BUGFIX: pehle `h.get('ok', True)` — health() me `ok` key hi nahi tha, to
-            # default True → pulse HAMESHA "system OK" dikhata (overdue/backlog masked).
+            # BUGFIX: pehle `h.get('ok', True)` - health() me `ok` key hi nahi tha, to
+            # default True -> pulse HAMESHA "system OK" dikhata (overdue/backlog masked).
             # Ab automation_health.health() additive `ok` deta hai; fallback me status se
             # derive (healthy/warming_up = ok, degraded = nahi) taaki robust rahe.
             _ok = h.get("ok")
@@ -915,7 +915,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
 
             r = telephony_readiness.run_checks() or {}
             sc = r.get("score") if isinstance(r, dict) else None
-            return f"calling readiness {sc if sc is not None else '—'}/100"
+            return f"calling readiness {sc if sc is not None else '-'}/100"
         except Exception:
             return "telephony readiness check"
 
@@ -972,7 +972,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
 
             scans = infra_handler.recent_scans(limit=1)
             if scans:
-                return f"infra {scans[0].get('score', '—')}/100 ({scans[0].get('status', '')})"
+                return f"infra {scans[0].get('score', '-')}/100 ({scans[0].get('status', '')})"
             return "infra watch standby (INFRA_HANDLER scan pending)"
         except Exception:
             return "infra watch"
@@ -1098,7 +1098,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             return "marketing exec standby"
 
     def _arya() -> str:
-        # council 2026-06-26: MCP Engineer — fast snapshot from last run-cache
+        # council 2026-06-26: MCP Engineer - fast snapshot from last run-cache
         if not os.environ.get("MCP_ENGINEER"):
             return "MCP engineer off (MCP_ENGINEER unset)"
         try:
@@ -1109,14 +1109,14 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             if score is None:
                 return "MCP watch · awaiting first health pass"
             # snap["summary"] (mcp_engineer.health_score) already reads
-            # "MCP health {score}/100 — all green/attention needed" — do NOT
+            # "MCP health {score}/100 - all green/attention needed" - do NOT
             # re-prepend the same prefix here (was producing "MCP health
-            # 90/100 · MCP health 90/100 — all green" in the live feed).
+            # 90/100 · MCP health 90/100 - all green" in the live feed).
             return str(snap.get("summary") or f"MCP health {score:.0f}/100")[:80]
         except Exception:
             return "MCP engineer standby"
 
-    # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
+    # least-recently-active pehle (rotation) - taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
         ("tara", "telephony_pulse", _tara),

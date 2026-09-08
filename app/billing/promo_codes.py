@@ -1,27 +1,27 @@
-"""promo_codes.py — platform-level launch/promo code engine (Lago-inspired).
+"""promo_codes.py - platform-level launch/promo code engine (Lago-inspired).
 
 7-day revenue sprint (2026-08-23). Research finding: platform par KOI coupon /
-promo redemption mechanism nahi tha — sirf billing-cycle discount (annual 1/6)
+promo redemption mechanism nahi tha - sirf billing-cycle discount (annual 1/6)
 exist karta tha. Launch-offer urgency (real deadline) + WhatsApp close links ke
 saath discount dena is engine ka kaam hai.
 
 DATA MODEL (Lago ka 2-object split, minimal)
 --------------------------------------------
-* ``definition`` row — code ka contract: kind (``fixed_inr`` | ``pct``),
+* ``definition`` row - code ka contract: kind (``fixed_inr`` | ``pct``),
   value, plan restriction (``plan_ids``), ``once_per_customer``,
   ``max_redemptions`` (0 = unlimited), ``expires_at`` (ISO), ``tags``
   (e.g. ``["launch"]`` pricing-page countdown ke liye).
-* ``applied`` ledger row — ek redemption: code, purana/naya order_ref,
+* ``applied`` ledger row - ek redemption: code, purana/naya order_ref,
   discount_inr, customer_key (normalized contact), timestamp.
 
 IMMUTABILITY (billing-truth invariant §5)
 -----------------------------------------
 Ek issued offer kabhi mutate nahi hota. Discount lagane par NAYA offer banta
-hai jo purane ko ``supersedes`` karta hai (offers.py ki existing chain) —
+hai jo purane ko ``supersedes`` karta hai (offers.py ki existing chain) -
 original quote auditable rehta hai. Stacking OFF: ek order par sirf EK promo
 (derived offer par dobara apply refuse).
 
-Store: ``data/promo_codes.jsonl`` — single family, locked read-modify-write,
+Store: ``data/promo_codes.jsonl`` - single family, locked read-modify-write,
 atomic rewrite (offers.py convention). Pure storage + logic: no network, no
 LLM, kabhi raise nahi.
 """
@@ -69,7 +69,7 @@ def _norm_code(code: str) -> str:
 
 
 def _norm_key(contact: str) -> str:
-    """Customer key — email lowercase, ya phone ke last 10 digits."""
+    """Customer key - email lowercase, ya phone ke last 10 digits."""
     raw = (contact or "").strip().lower()
     if "@" in raw:
         return raw[:120]
@@ -94,7 +94,7 @@ def _read() -> list[dict[str, Any]]:
 
 
 def _write_all(rows: list[dict[str, Any]]) -> bool:
-    """Atomic rewrite (tmp + os.replace) — caller holds file_lock."""
+    """Atomic rewrite (tmp + os.replace) - caller holds file_lock."""
     tmp = f"{_STORE}.tmp.{os.getpid()}"
     try:
         os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
@@ -150,7 +150,7 @@ def create_code(
     """Naya promo code define karo (ya existing update). Never raises.
 
     Fail-closed validation: unknown kind, non-positive/oversized value, ya
-    invalid expiry → ``{"ok": False, "reason": ...}``. Same code dobara create
+    invalid expiry -> ``{"ok": False, "reason": ...}``. Same code dobara create
     karne par definition UPDATE hoti hai (applied ledger untouched).
     """
     norm = _norm_code(code)
@@ -219,7 +219,7 @@ def validate_code(
 ) -> dict[str, Any]:
     """Promo code ko (plan, amount, customer) ke against check karo.
 
-    Returns ``{ok, reason?, discount_inr, effective_inr}`` — never raises.
+    Returns ``{ok, reason?, discount_inr, effective_inr}`` - never raises.
     Reasons: ``unknown`` · ``expired`` · ``plan_not_eligible`` ·
     ``already_used`` · ``exhausted`` · ``amount_too_small``.
     """
@@ -280,7 +280,7 @@ def validate_code(
     discount = round(amount * val / 100.0) if defn.get("kind") == KIND_PCT else round(val)
     discount = max(0, min(discount, int(amount)))
     effective = int(amount) - discount
-    if effective < 99:  # ₹0/近-zero UPI order = sale nahi — fail-closed
+    if effective < 99:  # ₹0/近-zero UPI order = sale nahi - fail-closed
         return {
             "ok": False,
             "reason": "discount_exceeds_floor",
@@ -296,7 +296,7 @@ def apply_promo_to_order(
     *,
     customer_contact: str = "",
 ) -> dict[str, Any]:
-    """Payable order par promo lagao → DISCOUNTED superseding offer.
+    """Payable order par promo lagao -> DISCOUNTED superseding offer.
 
     Original offer immutable rehta hai (supersede chain). Stacking refuse:
     jis offer par pehle se koi promo laga hai uspe dobara nahi. Ledger row
@@ -407,7 +407,7 @@ def active_launch_offer() -> dict[str, Any] | None:
     """Pricing-page countdown ke liye: sabse naya LIVE 'launch'-tagged code.
 
     Sirf wo offer return hota hai jo abhi bhi valid hai (expiry future me,
-    redemptions bachi hue). Server-side deadline hi source-of-truth hai —
+    redemptions bachi hue). Server-side deadline hi source-of-truth hai -
     frontend JS sirf DISPLAY karta hai (honest urgency, fake timer nahi).
     """
     defs = [

@@ -1,5 +1,5 @@
 """
-Conversion API — live AI chat widget + generic inbound lead webhook + trial status
+Conversion API - live AI chat widget + generic inbound lead webhook + trial status
 ==================================================================================
 
 CONVERSION funnel ke 4 gaps close karta hai (sab additive, free-stack, ban-safe):
@@ -9,13 +9,13 @@ PUBLIC (mount prefix="/api" ke saath final paths):
                                     Rate-limited 20/60s. Har turn data/widget_chats.jsonl
                                     me log. Message me 10-digit Indian phone mile to
                                     EXISTING inquiry path me lead bhi banta (in-chat
-                                    lead capture — utm_source=widget_chat).
+                                    lead capture - utm_source=widget_chat).
   POST /api/public/lead-in?key=  -> Zapier/Pabbly/FB-lead-ads/IndiaMART/JustDial catcher.
-                                    Auth = EXISTING client_api_keys (lga_ key → client).
+                                    Auth = EXISTING client_api_keys (lga_ key -> client).
                                     Flexible JSON aliases + FB field_data format.
                                     Dedupe by phone. Rate-limited 30/60s.
   GET  /api/public/trial-status  -> client ka free-trial state (active/expired/days_left)
-                                    — customer portal ke liye. Rate-limited.
+                                    - customer portal ke liye. Rate-limited.
 
 ADMIN:
   GET/POST /api/conversion/widget-form/{slug} -> form-builder-lite: embed form ke
@@ -25,7 +25,7 @@ ADMIN:
 Never-raise pattern: sab heavy imports lazy
 store-write best-effort
 module import
-kabhi fail nahi hota. Koi naya env flag nahi (kuch SEND nahi karta — drafts/records).
+kabhi fail nahi hota. Koi naya env flag nahi (kuch SEND nahi karta - drafts/records).
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Do routers — public (/api/public/*) + admin (/api/conversion/*). Dono ko
+# Do routers - public (/api/public/*) + admin (/api/conversion/*). Dono ko
 # main.py me prefix="/api" ke saath mount karna hai.
 public_router = APIRouter(prefix="/public", tags=["Conversion Public"])
 admin_router = APIRouter(prefix="/conversion", tags=["Conversion Admin"])
@@ -62,7 +62,7 @@ _PHONE_RE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?([6-9]\d{9})(?!\d)")
 # Pure helpers (unit-testable, no network)
 # --------------------------------------------------------------------------- #
 def extract_phone(text: str) -> str | None:
-    """Free-text me 10-digit Indian mobile dhundo → '+91XXXXXXXXXX' | None."""
+    """Free-text me 10-digit Indian mobile dhundo -> '+91XXXXXXXXXX' | None."""
     try:
         m = _PHONE_RE.search(text or "")
         if m:
@@ -90,7 +90,7 @@ def _log_chat(slug: str, session_id: str, role: str, text: str, **extra: Any) ->
         logger.debug(f"[conversion] chat log skip: {e}")
 
 
-# Field-alias map (lowercased key → canonical) — Zapier/Pabbly/IndiaMART/JustDial sab
+# Field-alias map (lowercased key -> canonical) - Zapier/Pabbly/IndiaMART/JustDial sab
 # alag naam bhejte hain.
 _ALIASES: dict[str, str] = {
     "name": "name",
@@ -134,7 +134,7 @@ _ALIASES: dict[str, str] = {
 
 
 def map_lead_fields(payload: Any) -> dict[str, str]:
-    """Flexible inbound JSON → canonical {name, phone, email, city, source, message,
+    """Flexible inbound JSON -> canonical {name, phone, email, city, source, message,
     business_name}. FB leadgen `field_data: [{name, values:[...]}]` bhi handle.
     Unknown extra fields message me append hote (kuch lost nahi). Never raises."""
     out: dict[str, str] = {}
@@ -174,7 +174,7 @@ def map_lead_fields(payload: Any) -> dict[str, str]:
                 canon = _ALIASES.get(key) or _ALIASES.get(key.replace("_", " "))
                 if canon:
                     if canon == "message" and out.get("message"):
-                        extras.append(sval)  # do message-jaise fields — jodo, overwrite nahi
+                        extras.append(sval)  # do message-jaise fields - jodo, overwrite nahi
                     else:
                         out[canon] = sval
                 elif key not in ("entry", "key", "api_key", "token", "website"):
@@ -230,7 +230,7 @@ async def _create_inquiry(rec: dict[str, Any]) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
-# F1: Live AI chat widget — POST /api/public/widget-chat
+# F1: Live AI chat widget - POST /api/public/widget-chat
 # --------------------------------------------------------------------------- #
 class WidgetChatIn(BaseModel):
     slug: str = ""
@@ -240,7 +240,7 @@ class WidgetChatIn(BaseModel):
 
 @public_router.post("/widget-chat", dependencies=[Depends(rate_limit("widget_chat", 20, 60))])
 async def widget_chat(body: WidgetChatIn):
-    """Embed widget ka AI chat — client-KB chatbot brain (app/marketing/chatbot.py)
+    """Embed widget ka AI chat - client-KB chatbot brain (app/marketing/chatbot.py)
     reuse karta. NO AUTH (end-customer use karta), rate-limited 20/60s.
     Message me phone number mile to in-chat lead capture (EXISTING inquiry path)."""
     slug = (body.slug or "").strip().lower()[:80]
@@ -266,7 +266,7 @@ async def widget_chat(body: WidgetChatIn):
     biz = str(client.get("business_name") or "")
     _log_chat(slug, sess, "user", msg)
 
-    # In-chat lead capture — message me 10-digit phone mile to inquiry banao
+    # In-chat lead capture - message me 10-digit phone mile to inquiry banao
     lead_captured = False
     phone = extract_phone(msg)
     if phone and not _inquiry_phone_exists(phone, limit=500):
@@ -286,9 +286,9 @@ async def widget_chat(body: WidgetChatIn):
         )
         lead_captured = bool(lead_id)
     elif phone:
-        lead_captured = True  # pehle se captured — user ko phir bhi confirm bolo
+        lead_captured = True  # pehle se captured - user ko phir bhi confirm bolo
 
-    # AI reply (chatbot brain — KB-grounded, never raises)
+    # AI reply (chatbot brain - KB-grounded, never raises)
     reply_text = ""
     try:
         from app.marketing import chatbot
@@ -299,27 +299,27 @@ async def widget_chat(body: WidgetChatIn):
         logger.debug(f"[widget-chat] brain err: {e}")
     if not reply_text:
         reply_text = (
-            "Iska jawab main team se confirm karke bata deta hoon — apna number chhod "
+            "Iska jawab main team se confirm karke bata deta hoon - apna number chhod "
             "dijiye, hum turant call karenge. 🙏"
         )
     if lead_captured:
-        reply_text += "\n\nDhanyawad! Aapka number mil gaya — team jald hi call karegi. 📞"
+        reply_text += "\n\nDhanyawad! Aapka number mil gaya - team jald hi call karegi. 📞"
 
     _log_chat(slug, sess, "bot", reply_text, lead_captured=lead_captured or None)
     return {"ok": True, "reply": reply_text, "lead_captured": lead_captured}
 
 
 # --------------------------------------------------------------------------- #
-# F2: Generic inbound lead webhook — POST /api/public/lead-in?key=lga_...
+# F2: Generic inbound lead webhook - POST /api/public/lead-in?key=lga_...
 # --------------------------------------------------------------------------- #
 @public_router.post("/lead-in", dependencies=[Depends(rate_limit("lead_in", 30, 60))])
 async def lead_in(request: Request, key: str = ""):
-    """Zapier/Pabbly/FB-lead-ads/IndiaMART/JustDial → leads dashboard catcher.
+    """Zapier/Pabbly/FB-lead-ads/IndiaMART/JustDial -> leads dashboard catcher.
 
     Auth = EXISTING client API key (lga_..., app/platform/client_api_keys.py).
-    Body = koi bhi flexible JSON — aliases + FB field_data handle hote hain.
+    Body = koi bhi flexible JSON - aliases + FB field_data handle hote hain.
     Dedupe by phone. Lead EXISTING inquiry path me hi jata (source=webhook:<src>)."""
-    # 1) Auth — key query param ya X-Api-Key header
+    # 1) Auth - key query param ya X-Api-Key header
     api_key = (key or request.headers.get("x-api-key") or "").strip()
     client_id: str | None = None
     try:
@@ -338,7 +338,7 @@ async def lead_in(request: Request, key: str = ""):
         raise HTTPException(status_code=422, detail="JSON body chahiye.")
     mapped = map_lead_fields(payload)
 
-    # 3) Validate phone (Indian) — phone ke bina lead dial nahi ho sakta
+    # 3) Validate phone (Indian) - phone ke bina lead dial nahi ho sakta
     phone = None
     try:
         from app.api.public_site import _clean_phone
@@ -385,16 +385,16 @@ async def lead_in(request: Request, key: str = ""):
         }
     )
     if not lead_id:
-        raise HTTPException(status_code=500, detail="Lead save nahi hua — dobara try karo.")
+        raise HTTPException(status_code=500, detail="Lead save nahi hua - dobara try karo.")
     return {"ok": True, "lead_id": lead_id, "deduped": False}
 
 
 # --------------------------------------------------------------------------- #
-# F3: Trial status — GET /api/public/trial-status (customer portal ke liye)
+# F3: Trial status - GET /api/public/trial-status (customer portal ke liye)
 # --------------------------------------------------------------------------- #
 @public_router.get("/trial-status", dependencies=[Depends(rate_limit("trial_status", 30, 60))])
 async def get_trial_status(client_id: str = "", slug: str = ""):
-    """Free-trial state (active/expired/days_left) — koi sensitive data expose nahi
+    """Free-trial state (active/expired/days_left) - koi sensitive data expose nahi
     hota (sirf trial flags). client_id YA slug se lookup."""
     client: dict[str, Any] | None = None
     try:
@@ -418,7 +418,7 @@ async def get_trial_status(client_id: str = "", slug: str = ""):
 
 
 # --------------------------------------------------------------------------- #
-# F4: Form-builder-lite admin — GET/POST /api/conversion/widget-form/{slug}
+# F4: Form-builder-lite admin - GET/POST /api/conversion/widget-form/{slug}
 # --------------------------------------------------------------------------- #
 class WidgetFormIn(BaseModel):
     fields: list[dict] = []
@@ -426,7 +426,7 @@ class WidgetFormIn(BaseModel):
 
 @admin_router.get("/widget-form/{slug}")
 async def widget_form_get(slug: str, _user=Depends(require_admin)):
-    """Slug ka current embed-form config (custom ya default) — admin."""
+    """Slug ka current embed-form config (custom ya default) - admin."""
     try:
         from app.marketing import embed_widget
 
@@ -444,7 +444,7 @@ async def widget_form_get(slug: str, _user=Depends(require_admin)):
 @admin_router.post("/widget-form/{slug}")
 async def widget_form_set(slug: str, body: WidgetFormIn, _user=Depends(require_admin)):
     """Custom fields save (max 10; type text|tel|email|select). name/phone embed
-    render me auto-ensure hote (inquiry API inhe maangta hai) — admin."""
+    render me auto-ensure hote (inquiry API inhe maangta hai) - admin."""
     try:
         from app.marketing import embed_widget
 

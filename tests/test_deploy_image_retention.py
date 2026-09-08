@@ -1,4 +1,4 @@
-"""Lineage-aware deploy image retention — regression contracts."""
+"""Lineage-aware deploy image retention - regression contracts."""
 
 from __future__ import annotations
 
@@ -359,7 +359,7 @@ def test_deploy_vps_wires_lineage_retention_planner():
 
 
 def test_deploy_vps_refusal_gates_all_destructive_cleanup():
-    """Planner refuse / malformed → no rmi, no image prune, no builder prune."""
+    """Planner refuse / malformed -> no rmi, no image prune, no builder prune."""
     t = SCRIPT.read_text(encoding="utf-8")
     retention = t[t.index("=== RETENTION (lineage-aware") : t.index("=== DEPLOYED $VER OK ===")]
     assert "_CLEANUP_OK=1" in retention

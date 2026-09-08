@@ -112,20 +112,20 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # 2026-07-30 +1 entry / +1 family: ops.owner_email_canary (one-shot canary ledger).
     # 2026-07-31 +4 entries / +1 family: governance.mission_control (Owner OS chat missions).
     # 2026-07-31 +5 entries / +1 family: sales.prospects (Prospect Score V2 backfill sidecar).
-    # 2026-08-02 +1 entry / +1 family: marketing.brand_kits — admin remove-customer
+    # 2026-08-02 +1 entry / +1 family: marketing.brand_kits - admin remove-customer
     # added a DELETE against the brand profile, and it was CLASSIFIED rather than
     # tolerated (nothing was added to the baseline debt file).
     # 2026-08-03 +10 entries / +1 family: platform.workforce_memory (ADR-154 hub for
-    # the 31 agents). Also CLASSIFIED, not tolerated — baseline unchanged.
+    # the 31 agents). Also CLASSIFIED, not tolerated - baseline unchanged.
     # 2026-08-04 +4 entries / +1 family: owner_os.coordination_hub (ADR-150 thin
-    # Owner OS projection — presence/events/nonces; not a second control plane).
+    # Owner OS projection - presence/events/nonces; not a second control plane).
     # 2026-08-04 +2 entries / +0 families: data/offers.jsonl and its atomic temp
     # (#240 immutable offer/order store). Filed under the EXISTING
-    # billing.upi_payments family — commercial quoting feeding payment
+    # billing.upi_payments family - commercial quoting feeding payment
     # reconciliation is the same authority, exactly as billing.upi_config.store
     # already does. CLASSIFIED, not tolerated: baseline debt unchanged.
     # 2026-08-05 +2 entries / +0 families: data/campaign_offer_policies.jsonl and
-    # its atomic temp (#240 Campaign Offer Policy — immutable versioned commercial
+    # its atomic temp (#240 Campaign Offer Policy - immutable versioned commercial
     # authority). Also filed under billing.upi_payments: it decides WHICH package an
     # offer may quote, so it is the same billing authority, not a new domain.
     # 2026-08-05 +3 entries / +1 family: platform.memory_governance (ADR-158/161
@@ -133,21 +133,21 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # 2026-08-06 +2 entries / +0 families: tenant-aware workforce-memory reads
     # (_entries_path and tenants_dir) stay in platform.workforce_memory.
     # 2026-08-11 +3 entries / +1 family: marketing.gsc_rankings (ADR-177 Search
-    # Console rank snapshot — daily jsonl + state json + atomic tmp). CLASSIFIED.
+    # Console rank snapshot - daily jsonl + state json + atomic tmp). CLASSIFIED.
     # 2026-08-12 +6 entries / +1 family: platform.staff_bus (31 STAFF Buzz bus
     # events/idempotency/audit/DLQ under STAFF_BUS_ENABLED OFF). CLASSIFIED.
     # 2026-08-14 +1 entry / +1 family: ops.office_briefing (Hot Queue daily
-    # owner-notified claim). CLASSIFIED, not tolerated — baseline unchanged.
+    # owner-notified claim). CLASSIFIED, not tolerated - baseline unchanged.
     # 2026-08-16 +8 entries / +6 families: marketing appointment/health/drips/
     # forms/proposals/review JSONL (INERT flags; classified, not tolerated).
-    # 2026-08-24 +12 entries / +2 families: revenue-sprint batch —
+    # 2026-08-24 +12 entries / +2 families: revenue-sprint batch -
     # billing.promo_codes (platform coupon engine) + marketing.affiliates
     # (referral kit) plus sales.prospects TASK_LI-001 enrichment tooling
     # entries re-bound to real code symbols; scratch temp_enrich_write.py
     # deleted instead of classified. CLASSIFIED, not tolerated.
     # 2026-09-04 +2 entries / +1 family: automation.console_events (M2 console
-    # dispatcher — per-tenant JSONL envelopes under CONSOLE_EVENT_STORE_ROOT;
-    # append + trim + drain-clear). CLASSIFIED, not tolerated — UNDECLARED
+    # dispatcher - per-tenant JSONL envelopes under CONSOLE_EVENT_STORE_ROOT;
+    # append + trim + drain-clear). CLASSIFIED, not tolerated - UNDECLARED
     # findings bound via path_pattern named for the walked literal
     # (data/console_events) and the helper name (_tenant_path), same
     # precedent as marketing.brand_kits.path -> "_BRAND_DIR".
@@ -461,12 +461,12 @@ def test_store_manifest_still_validates() -> None:
     # 2026-08-11: +1 marketing.gsc_rankings (ADR-177; tier3 rebuildable, INERT).
     # 2026-08-14: +1 ops.office_briefing (Hot Queue owner-notified claim; resumable).
     # 2026-08-16: +6 marketing feature JSONL families (INERT; rebuildable cache).
-    # 2026-08-24: +2 revenue-sprint families — billing.promo_codes (coupon
+    # 2026-08-24: +2 revenue-sprint families - billing.promo_codes (coupon
     # engine ledger) and marketing.affiliates (referral kit), both tier-3
     # rebuildable INERT-by-default stores via evidence-backed manifest edit.
     # 2026-09-04: +1 automation.console_events (M2 dispatcher; tier-3
     # rebuildable; per-tenant JSONL envelopes). Evidence-backed manifest
-    # edit — root CREATE on data/console_events + per-tenant APPEND/REWRITE
+    # edit - root CREATE on data/console_events + per-tenant APPEND/REWRITE
     # bound through allowlist.
     assert counts["unique_families"] == 51
     assert counts["deployment_blockers"] == 0

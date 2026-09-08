@@ -1,7 +1,7 @@
-"""W3.6 — .env.example must advertise the real FREE stack, not stale PAID providers.
+"""W3.6 - .env.example must advertise the real FREE stack, not stale PAID providers.
 
 The template shipped `DEFAULT_STT=deepgram`, `DEFAULT_LLM=gemini-1.5-flash`, and
-ElevenLabs/Azure TTS blocks — all paid and none part of the actual stack (Groq STT /
+ElevenLabs/Azure TTS blocks - all paid and none part of the actual stack (Groq STT /
 Mistral+Groq+Cerebras+Gemini LLM / EdgeTTS, free-only per user mandate). That misleads
 onboarding. This guards the corrected defaults against re-drift.
 """

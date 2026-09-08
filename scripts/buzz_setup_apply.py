@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""buzz_setup_apply — owner-run Buzz workspace mutations, one command.
+"""buzz_setup_apply - owner-run Buzz workspace mutations, one command.
 
 Everything here changes the shared Buzz workspace, so it is dry-run by default
 and every step is idempotent-ish (Buzz opens a review form
@@ -10,7 +10,7 @@ you still click Save).
     python scripts/buzz_setup_apply.py --apply         # needs BUZZ_AUTH_TAG (see below)
 
 **`--apply` does not work today, by product design.** It returns
-`auth error: agent draft requests require BUZZ_AUTH_TAG` — the NIP-OA owner
+`auth error: agent draft requests require BUZZ_AUTH_TAG` - the NIP-OA owner
 attestation. Verified 2026-08-09 that the tag is not in the Windows credential
 store, not obtainable from the relay (NIP-11 JSON only, no web UI), and not
 behind any local port (Buzz Desktop listens on none). Desktop mints it
@@ -26,7 +26,7 @@ WHAT THIS DOES NOT DO: it does not create a live agent. `draft-create` opens a
 prefilled form in the owner's Buzz Desktop
 the harness, model and permissions
 are chosen there and the agent exists only after the owner clicks Save. Until
-then the agent is CODE-READY, not LIVE — same distinction as
+then the agent is CODE-READY, not LIVE - same distinction as
 `enterprise_profile_ready` vs rollout-live in ADR-164.
 
 Runbook: ~/.buzz/GUIDES/BUZZ_END_TO_END_RUNBOOK.md
@@ -59,7 +59,7 @@ Fizz, say so briefly. If you disagree, say exactly where and why, with file:line
 Your job
 - Review diffs, patches and PRs raised in #dev. Find real defects.
 - Report every finding with a confidence level and a severity. Do NOT filter to
-  "only important issues" — a later pass does the filtering. Coverage is your job.
+  "only important issues" - a later pass does the filtering. Coverage is your job.
 - Cite file:line for every claim. A finding without a location is a rumour.
 
 Hard rules (these are refusals, not preferences)
@@ -106,10 +106,10 @@ STEPS = [
 def _buzz_exe() -> Path:
     local = os.environ.get("LOCALAPPDATA")
     if not local:
-        raise SystemExit("LOCALAPPDATA unset — cannot locate buzz.exe")
+        raise SystemExit("LOCALAPPDATA unset - cannot locate buzz.exe")
     exe = Path(local) / "Buzz" / "buzz.exe"
     if not exe.exists():
-        raise SystemExit(f"buzz.exe not found at {exe} — is Buzz Desktop installed?")
+        raise SystemExit(f"buzz.exe not found at {exe} - is Buzz Desktop installed?")
     return exe
 
 
@@ -138,7 +138,7 @@ def main() -> int:
     ap.add_argument(
         "--apply",
         action="store_true",
-        help="try to open the drafts in Buzz Desktop — needs BUZZ_AUTH_TAG (see below)",
+        help="try to open the drafts in Buzz Desktop - needs BUZZ_AUTH_TAG (see below)",
     )
     ap.add_argument(
         "--print-prompt",
@@ -215,7 +215,7 @@ def main() -> int:
         if r.returncode != 0:
             print(f"    FAILED rc={r.returncode}: {(r.stderr or '')[:300]}", file=sys.stderr)
             return 3
-        print("    draft opened in Buzz Desktop — switch to it and click Save.\n")
+        print("    draft opened in Buzz Desktop - switch to it and click Save.\n")
 
     if not args.apply:
         print("Nothing changed. Re-run with --apply to open the drafts.")

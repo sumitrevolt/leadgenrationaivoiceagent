@@ -1,16 +1,16 @@
-"""social_engine.pause — Phase 8 pause + emergency-stop gates.
+"""social_engine.pause - Phase 8 pause + emergency-stop gates.
 
 Three independent kill-switches for the social publish drain:
-  - SOCIAL_EMERGENCY_STOP           → global brake (blocks EVERY job)
-  - SOCIAL_PAUSED_PLATFORMS (csv)   → per-platform brake (e.g. "instagram,x")
-  - SOCIAL_PAUSED_CLIENTS   (csv)   → per-customer brake (client_id list)
+  - SOCIAL_EMERGENCY_STOP           -> global brake (blocks EVERY job)
+  - SOCIAL_PAUSED_PLATFORMS (csv)   -> per-platform brake (e.g. "instagram,x")
+  - SOCIAL_PAUSED_CLIENTS   (csv)   -> per-customer brake (client_id list)
 
-Each gate honours the same shape as `engine.enabled()` — env explicit wins,
+Each gate honours the same shape as `engine.enabled()` - env explicit wins,
 `data/social_engine.json` fallback (`{"emergency_stop": true}`, `{"paused_platforms": [...]}`,
 `{"paused_clients": [...]}`). Fail-CLOSED on config-file JSON error: **treat as
 paused**, not open. A corrupt pause config must never cause a publish burst.
 
-  should_pause_job(job)  → (paused: bool, reason: str)  # never raises
+  should_pause_job(job)  -> (paused: bool, reason: str)  # never raises
 
 Reason strings feed `_dispatch_one` short-circuit + delivery_ledger event
 `customer_action_required` so admin cockpit + customer wizard reflect state.
@@ -32,7 +32,7 @@ _DEFAULT_CONFIG = "data/social_engine.json"
 
 def _read_cfg() -> dict[str, Any]:
     """Load the pause config file. Returns `{"_corrupt": True}` if the file
-    exists but can't be parsed — caller must treat corruption as PAUSE
+    exists but can't be parsed - caller must treat corruption as PAUSE
     (fail-CLOSED). File-absent = clean empty dict (nothing paused explicitly)."""
     path = os.getenv(_CONFIG_KEY, _DEFAULT_CONFIG)
     try:
@@ -44,7 +44,7 @@ def _read_cfg() -> dict[str, Any]:
     except FileNotFoundError:
         return {}
     except Exception as e:
-        logger.warning(f"[pause] config parse failed → fail-closed PAUSE: {e}")
+        logger.warning(f"[pause] config parse failed -> fail-closed PAUSE: {e}")
         return {"_corrupt": True}
 
 
@@ -56,7 +56,7 @@ def _env_csv(name: str) -> set[str]:
 
 
 def emergency_stop_active() -> bool:
-    """Global brake. env explicit → config fallback → default OFF."""
+    """Global brake. env explicit -> config fallback -> default OFF."""
     v = (os.getenv("SOCIAL_EMERGENCY_STOP") or "").strip().lower()
     if v in ("1", "true", "yes"):
         return True
@@ -65,7 +65,7 @@ def emergency_stop_active() -> bool:
     cfg = _read_cfg()
     if cfg.get("_corrupt"):
         # Fail-closed: assume STOP if we can't read config.
-        logger.warning("[pause] emergency_stop_active — corrupt config → fail-closed")
+        logger.warning("[pause] emergency_stop_active - corrupt config -> fail-closed")
         return True
     return bool(cfg.get("emergency_stop"))
 
@@ -112,12 +112,12 @@ def paused_clients() -> set[str]:
 def should_pause_job(job: dict[str, Any]) -> tuple[bool, str]:
     """Decide if a claimed job must be skipped. Returns (paused, reason).
     reason ∈ {"emergency_stop", "paused_platform", "paused_client", ""}.
-    Never raises — logs + returns (True, "gate_error") on unexpected error
+    Never raises - logs + returns (True, "gate_error") on unexpected error
     (fail-CLOSED)."""
     try:
         if emergency_stop_active():
             return True, "emergency_stop"
-        # Owner OS publishing kill (Postgres/JSONL) — fail-closed if engaged.
+        # Owner OS publishing kill (Postgres/JSONL) - fail-closed if engaged.
         try:
             from app.platform.owner_os import kill_engaged
 
@@ -133,7 +133,7 @@ def should_pause_job(job: dict[str, Any]) -> tuple[bool, str]:
             return True, "paused_client"
         return False, ""
     except Exception as e:
-        logger.warning(f"[pause] should_pause_job error → fail-closed: {e}")
+        logger.warning(f"[pause] should_pause_job error -> fail-closed: {e}")
         return True, "gate_error"
 
 

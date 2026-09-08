@@ -1,7 +1,7 @@
-"""Page-Agent admin copilot (alibaba/page-agent) — in-page GUI agent for admin UI.
+"""Page-Agent admin copilot (alibaba/page-agent) - in-page GUI agent for admin UI.
 
 Kya hai: admin pages (Mission Control / dashboard / growth-tools / marketing / office)
-me natural-language UI control — "clients tab kholo", "campaign form bhar do" type.
+me natural-language UI control - "clients tab kholo", "campaign form bhar do" type.
 Script = alibaba/page-agent IIFE build (CDN pinned @1.10.0, MIT), jo apna UI khud
 render karta hai. Humara kaam = key-safe LLM proxy + flag-gated boot loader.
 
@@ -17,10 +17,10 @@ Env knobs: PAGE_AGENT_MODEL (default mistral-small-latest),
 PAGE_AGENT_SCRIPT_URL (default = pinned jsDelivr
 self-host karne pe override).
 
-Routes (mounted at /api in main.py — duplicate-route grep done, koi /page-agent nahi):
-  GET  /api/page-agent/boot.js              — public loader JS (self-gates: token+config)
-  GET  /api/page-agent/config               — admin: enabled + script_url + model
-  POST /api/page-agent/v1/chat/completions  — admin: OpenAI-compat LLM proxy
+Routes (mounted at /api in main.py - duplicate-route grep done, koi /page-agent nahi):
+  GET  /api/page-agent/boot.js              - public loader JS (self-gates: token+config)
+  GET  /api/page-agent/config               - admin: enabled + script_url + model
+  POST /api/page-agent/v1/chat/completions  - admin: OpenAI-compat LLM proxy
 """
 
 import os
@@ -51,7 +51,7 @@ _DEFAULT_SCRIPT_SRI = (
     "sha256-noeu3GDBmE6HTbB1d/RHK3hKHPqbeKaOawqWEROWy0I="  # pragma: allowlist secret
 )
 
-# SELF-HOSTED vendored copy (PREFERRED when present) — 2026-07-03 finding: user ke
+# SELF-HOSTED vendored copy (PREFERRED when present) - 2026-07-03 finding: user ke
 # ISP se cdn.jsdelivr.net BLOCKED tha (India me common). File = same pinned 1.10.0
 # build, sha256 == upar wala SRI (repo me commit se pehle verify kiya). Same-origin
 # serve = koi CDN/ISP dependency nahi, SRI zaroori nahi.
@@ -74,7 +74,7 @@ _PROVIDERS: list[tuple[str, str, str, str]] = [
     ),
 ]
 
-_MAX_BODY_BYTES = 1_000_000  # DOM serialization badi ho sakti — 1MB cap (abuse guard)
+_MAX_BODY_BYTES = 1_000_000  # DOM serialization badi ho sakti - 1MB cap (abuse guard)
 
 
 def _flag_on() -> bool:
@@ -105,7 +105,7 @@ def _key(attr: str) -> str:
 
 @router.get("/boot.js", include_in_schema=False)
 async def page_agent_boot_js():
-    """Public loader — no secrets; bina admin-token/flag ke silently no-op."""
+    """Public loader - no secrets; bina admin-token/flag ke silently no-op."""
     p = _FRONTEND_DIR / "page_agent_boot.js"
     if not p.exists():
         raise HTTPException(status_code=404, detail="not found")
@@ -116,7 +116,7 @@ async def page_agent_boot_js():
 
 @router.get("/vendor.js", include_in_schema=False)
 async def page_agent_vendor_js():
-    """Self-hosted page-agent bundle (pinned 1.10.0, sha256-verified) — public,
+    """Self-hosted page-agent bundle (pinned 1.10.0, sha256-verified) - public,
     version-pinned isliye long cache theek hai."""
     if not _VENDOR_FILE.exists():
         raise HTTPException(status_code=404, detail="not found")
@@ -147,7 +147,7 @@ async def page_agent_config(user=Depends(require_admin)):
     dependencies=[Depends(rate_limit("pageagent", 60, 60))],
 )
 async def page_agent_chat(request: Request, user=Depends(require_admin)):
-    """OpenAI-compatible proxy — page-agent isko baseURL banata hai.
+    """OpenAI-compatible proxy - page-agent isko baseURL banata hai.
 
     Server-side key inject (Mistral primary -> Groq fallback), model ENFORCED
     server pe (client jo bhi bheje). Stream + non-stream dono raw pass-through.

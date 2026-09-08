@@ -1,7 +1,7 @@
 """Shared agent-runtime Owner OS control admission (pause/drain/stop-claims).
 
 Proves the production gap: control records existed but submit ignored them.
-All checks use the shared runtime path — not Pranav-only hardcoding.
+All checks use the shared runtime path - not Pranav-only hardcoding.
 """
 
 from __future__ import annotations
@@ -177,7 +177,7 @@ async def test_cancel_before_engine():
 
 
 async def test_cancel_after_engine_classified_honestly(monkeypatch):
-    """Non-cooperative: cancel flips during engine wait → honest reason."""
+    """Non-cooperative: cancel flips during engine wait -> honest reason."""
 
     async def cap(ctx):
         rt.request_cancel_run("kavya", ctx.task.task_id)

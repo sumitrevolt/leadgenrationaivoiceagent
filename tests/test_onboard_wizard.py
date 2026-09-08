@@ -1,4 +1,4 @@
-"""Tests: onboarding wizard — business-type → niche template → auto-setup.
+"""Tests: onboarding wizard - business-type -> niche template -> auto-setup.
 
 Covers: catalog sanity, niche resolution, template preview flags, auto-setup
 apply (flag-gated), unknown business type fallback, marketing-only niches.
@@ -102,16 +102,16 @@ def test_apply_requires_client_id(monkeypatch):
 
 
 def test_apply_missing_client_graceful(monkeypatch):
-    """Client nahi mila to bhi crash nahi — snapshot warning + knowledge best-effort."""
+    """Client nahi mila to bhi crash nahi - snapshot warning + knowledge best-effort."""
     monkeypatch.setenv("ONBOARD_WIZARD_APPLY", "1")
     res = wz.apply_auto_setup("no_such_client_zzz", "restaurant")
-    # ok may be True (knowledge seed) or False — but never raises, never crash
+    # ok may be True (knowledge seed) or False - but never raises, never crash
     assert "error" not in res or isinstance(res["error"], str)
     assert res["niche"] == "restaurant_cafe"
 
 
 def test_apply_marketing_only_niche_resolves(monkeypatch):
-    """Restaurant marketing-only niche — knowledge pack exists, script fallback general."""
+    """Restaurant marketing-only niche - knowledge pack exists, script fallback general."""
     monkeypatch.setenv("ONBOARD_WIZARD_APPLY", "1")
     res = wz.apply_auto_setup("no_such_client_zzz", "restaurant")
     assert res["niche"] == "restaurant_cafe"
@@ -124,7 +124,7 @@ def test_apply_marketing_only_niche_resolves(monkeypatch):
 
 
 def test_salon_gym_boutique_now_have_scripts():
-    """Salon/gym/boutique — own voice scripts + knowledge (general fallback nahi)."""
+    """Salon/gym/boutique - own voice scripts + knowledge (general fallback nahi)."""
     for bt, niche in (
         ("salon", "salon_spa"),
         ("gym", "gym_fitness"),
@@ -137,7 +137,7 @@ def test_salon_gym_boutique_now_have_scripts():
 
 
 def test_new_types_have_own_scripts_and_knowledge():
-    """Tiffin/salon-men/tuition/play-school/laundry/electronics — own scripts + KB."""
+    """Tiffin/salon-men/tuition/play-school/laundry/electronics - own scripts + KB."""
     for bt, niche in (
         ("tiffin", "tiffin_service"),
         ("salon-men", "gents_salon"),
@@ -155,7 +155,7 @@ def test_new_types_have_own_scripts_and_knowledge():
 
 
 def test_new_niches_in_catalog_with_lead_band():
-    """Naye niches NICHES catalog me hain — lead_band + content_focus ke saath
+    """Naye niches NICHES catalog me hain - lead_band + content_focus ke saath
     (full palette + festival schedule wizard auto-setup ke liye)."""
     from app.niches import NICHES
 
@@ -227,7 +227,7 @@ def test_new_knowledge_packs_are_complete():
 
 
 def test_wizard_catalog_completeness_guard():
-    """GUARD: har wizard business type teeno layers me wired hona chahiye — voice
+    """GUARD: har wizard business type teeno layers me wired hona chahiye - voice
     script + knowledge pack + NICHES catalog entry. Naya business type half-wired
     ship nahi ho sakta (script hai par catalog nahi, ya catalog hai par script
     nahi). `general` = fallback niche, isliye exempt."""

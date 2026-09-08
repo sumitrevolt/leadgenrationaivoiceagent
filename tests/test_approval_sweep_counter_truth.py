@@ -2,14 +2,14 @@
 
 Kyun ye file hai (2026-07-14 postmortem):
 `notify_approval` jab idempotency pe short-circuit karta hai to wo
-`_audit(existing, note="duplicate_suppressed")` lautata hai — jisme `status` field
+`_audit(existing, note="duplicate_suppressed")` lautata hai - jisme `status` field
 us PURANI ROW ka persisted status hota hai, yaani `"sent"`. Sweep ka counter
 seedha `counts[r["status"]] += 1` karta tha, isliye ek dedupe-suppressed item
 `sent=1` + `attempted=1` report karta tha jabki **koi email nahi gaya**.
 
 Live impact: production me lagataar sweeps `sent: 1` dikhate rahe jabki DB row ka
 `attempted_at` hila tak nahi tha (= zero real sends). Isse "customer ko reminder
-gaya?" ka JHOOTHA HAAN milta hai — audit/health dono jhooth bolte hain, aur ek
+gaya?" ka JHOOTHA HAAN milta hai - audit/health dono jhooth bolte hain, aur ek
 operator galti se ye samajh sakta hai ki customer ko baar-baar spam ja raha hai.
 
 Contract: real send hi `sent` hai
@@ -59,7 +59,7 @@ async def test_second_sweep_dedupes_and_does_not_report_a_send(async_db_session,
     assert first["sent"] == 1, "pehla sweep asli send hai"
     assert len(s1.calls) == 1
 
-    # Doosra sweep — same approval, same version => idempotency short-circuit.
+    # Doosra sweep - same approval, same version => idempotency short-circuit.
     s2 = Sender()
     second = await an.notify_pending_approvals(
         session=async_db_session, send_fn=s2, resolve_recipient=_RESOLVE, email_allowed=_ALLOW
@@ -68,7 +68,7 @@ async def test_second_sweep_dedupes_and_does_not_report_a_send(async_db_session,
     # Sabse zaroori: provider ko dobara chhua hi nahi.
     assert len(s2.calls) == 0, "dedupe hone par koi email nahi jana chahiye"
 
-    # Counter sach bole — yehi wo bug tha jisne live triage ko bharma diya.
+    # Counter sach bole - yehi wo bug tha jisne live triage ko bharma diya.
     assert second["sent"] == 0, (
         f"dedupe-suppressed item `sent` me nahi ginna chahiye (mila: {second})"
     )

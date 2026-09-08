@@ -1,4 +1,4 @@
-"""Owner OS v1 — inventory, command bus, kills, approvals, auth."""
+"""Owner OS v1 - inventory, command bus, kills, approvals, auth."""
 
 from __future__ import annotations
 

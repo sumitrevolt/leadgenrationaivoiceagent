@@ -1,14 +1,14 @@
 """Fail-closed contracts for Wave A4 customer-delivery stores.
 
-These are NOT opt-out lists — the contract differs per store:
+These are NOT opt-out lists - the contract differs per store:
 
-  * delivery.ledger  — unresolvable authority must REPORT FAILURE (writes
+  * delivery.ledger  - unresolvable authority must REPORT FAILURE (writes
                        return False
                        reads raise). Empty-history silence is
                        corruption of the customer's SLA timeline.
-  * content.approvals — unresolvable authority must NEVER read as approved.
-  * content.queue     — degrading is fine
-  silent pass is not — log at ERROR.
+  * content.approvals - unresolvable authority must NEVER read as approved.
+  * content.queue     - degrading is fine
+  silent pass is not - log at ERROR.
 
 Anti-vacuity tests prove the ordinary paths still work, so the fail-closed
 branches are not the only ones exercised.

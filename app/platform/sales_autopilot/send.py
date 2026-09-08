@@ -1,10 +1,10 @@
-"""Sales Autopilot idempotent send service — the ONLY outbound entrypoint.
+"""Sales Autopilot idempotent send service - the ONLY outbound entrypoint.
 
 Accepts ``prospect_id + channel + step`` (NOT arbitrary phone+text from a browser). It
 resolves the prospect, builds a versioned message, runs eligibility + safety, computes a
 deterministic idempotency key, PERSISTS the attempt BEFORE any provider call, and only
-then — when the engine + channel flag are on AND policy dry_run is false AND everything
-passed — calls the existing ban-safe WhatsApp provider (``whatsapp_campaign.send_one``)
+then - when the engine + channel flag are on AND policy dry_run is false AND everything
+passed - calls the existing ban-safe WhatsApp provider (``whatsapp_campaign.send_one``)
 or the canonical email integration (``EmailSender`` + List-Unsubscribe headers).
 
 Dry-run is the default and is MANDATORY whenever any gate is unmet: we simulate, label the
@@ -69,7 +69,7 @@ async def _provider_send_email(
 ) -> dict[str, Any]:
     """Call canonical ``EmailSender`` under a hard timeout. One recipient. No auto-retry.
 
-    Reuses the existing Hostinger/API integration — does NOT introduce a second engine.
+    Reuses the existing Hostinger/API integration - does NOT introduce a second engine.
     Missing SMTP/API credentials fail CLOSED (no provider call). Ambiguous timeout is
     raised to the caller as ``asyncio.TimeoutError`` so the attempt stays
     ``UNKNOWN_REQUIRES_REVIEW`` with no blind retry.
@@ -202,7 +202,7 @@ async def send(
             }
         )
 
-        # 6. Dry-run path — simulate, never call provider.
+        # 6. Dry-run path - simulate, never call provider.
         if dry:
             _store.update_attempt_status(idem, SIMULATED, note="dry_run")
             _advance_prospect(prospect_id, channel, step, simulated=True)
@@ -213,7 +213,7 @@ async def send(
         # 6b. PRE-PROVIDER SUPPRESSION RECHECK (defense in depth).
         #
         # Eligibility ran at SCHEDULING time. A prospect can reply STOP, or a
-        # bounce can land, in the window between being queued and being sent —
+        # bounce can land, in the window between being queued and being sent -
         # a scheduler-time-only check would still deliver that message. This is
         # the last read before the provider, and it fails CLOSED.
         if _suppressed_now(rec, channel, contact):
@@ -222,10 +222,10 @@ async def send(
             result["reason"] = "suppressed_pre_provider"
             return result
 
-        # 7. LIVE path — WhatsApp (ban-safe) + Email (canonical EmailSender).
+        # 7. LIVE path - WhatsApp (ban-safe) + Email (canonical EmailSender).
         #
         # FAIL-CLOSED PROVIDER BOUNDARY. Step 4 already forces `dry` when a caller
-        # requested simulation, so this branch is unreachable under dry-run — that
+        # requested simulation, so this branch is unreachable under dry-run - that
         # is the point. It is the last statement before real money/reputation is
         # spent, so the guarantee is asserted here rather than inferred from a
         # boolean expression 30 lines up that a future edit could reorder or weaken.
@@ -234,7 +234,7 @@ async def send(
             _advance_prospect(prospect_id, channel, step, simulated=True)
             logger.error(
                 "[sales_autopilot.send] forced dry-run reached the provider boundary "
-                "(prospect=%s channel=%s) — refusing to send. This is a bug in the "
+                "(prospect=%s channel=%s) - refusing to send. This is a bug in the "
                 "dry-run decision, not a config problem.",
                 prospect_id,
                 channel,
@@ -264,7 +264,7 @@ async def send(
                 _advance_prospect(prospect_id, channel, step, simulated=False)
                 result["outcome"] = SENT
             else:
-                # send_one returned a link/suppressed/no-creds mode — NOT a live send.
+                # send_one returned a link/suppressed/no-creds mode - NOT a live send.
                 _store.update_attempt_status(idem, SKIPPED, provider_mode=res.get("mode"))
                 result["outcome"] = SKIPPED
                 result["reason"] = res.get("mode")
@@ -272,7 +272,7 @@ async def send(
             return result
 
         if channel == "email":
-            # One-to-one only — bulk-shaped contact never reaches EmailSender.
+            # One-to-one only - bulk-shaped contact never reaches EmailSender.
             if not _email_contact_is_one_to_one(contact):
                 _store.update_attempt_status(idem, SKIPPED, note="bulk_or_invalid_email_refused")
                 result["outcome"] = SKIPPED
@@ -291,7 +291,7 @@ async def send(
                     timeout_s=timeout_s,
                 )
             except asyncio.TimeoutError:
-                # Ambiguous: may have sent. Hold — never blind-retry.
+                # Ambiguous: may have sent. Hold - never blind-retry.
                 _store.update_attempt_status(idem, UNKNOWN_REQUIRES_REVIEW, note="provider_timeout")
                 result["outcome"] = UNKNOWN_REQUIRES_REVIEW
                 result["reason"] = "provider_timeout_no_retry"
@@ -304,7 +304,7 @@ async def send(
 
             mode = str(res.get("mode") or "")
             if mode == "smtp_not_configured":
-                # Fail CLOSED — no credentials ⇒ no send, attempt not advanced as SENT.
+                # Fail CLOSED - no credentials ⇒ no send, attempt not advanced as SENT.
                 _store.update_attempt_status(
                     idem, FAILED, note="smtp_not_configured", provider_mode=mode
                 )
@@ -360,8 +360,8 @@ def _suppressed_now(rec: dict[str, Any], channel: str, contact: Any) -> bool:
 def _coerce_forced_dry_run(value: Any) -> bool:
     """Normalise the forced-dry-run request, failing CLOSED on anything unknown.
 
-    Only an explicit ``False`` or ``None`` means "not forced". Every other value —
-    including a malformed ``"false"`` string, an int, or an arbitrary object — is
+    Only an explicit ``False`` or ``None`` means "not forced". Every other value -
+    including a malformed ``"false"`` string, an int, or an arbitrary object - is
     treated as a request to SIMULATE. Getting this backwards would send real
     messages, so ambiguity resolves toward the harmless outcome.
     """

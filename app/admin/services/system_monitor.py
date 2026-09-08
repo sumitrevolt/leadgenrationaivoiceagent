@@ -1,10 +1,10 @@
-"""System Health Monitor — per-process RAM/CPU, disk, and port monitoring.
+"""System Health Monitor - per-process RAM/CPU, disk, and port monitoring.
 
 Provides CPU%, RAM usage, per-process breakdown, disk C: usage, and
 port availability for the admin system health panel. Uses psutil when
 installed
 on Windows without psutil it falls back to PowerShell WMI
-and netstat commands. Never raises — degrades to -1/"unknown" on failure.
+and netstat commands. Never raises - degrades to -1/"unknown" on failure.
 """
 
 from __future__ import annotations
@@ -344,7 +344,7 @@ def get_health() -> dict[str, Any]:
     """Aggregate system health payload for the admin API.
 
     Returns a dict with cpu/ram/disk aggregates, top processes, and
-    port status. Never raises — partial data on failure.
+    port status. Never raises - partial data on failure.
     """
     out: dict[str, Any] = {
         "cpu_percent": -1.0,

@@ -1,9 +1,9 @@
 """
-Org Chart — Paperclip-inspired agent reporting hierarchy.
+Org Chart - Paperclip-inspired agent reporting hierarchy.
 ==========================================================
 
-Defines manager→report relationships. Used for:
-- Escalation: agent can't cancel peer's task — must escalate UP
+Defines manager->report relationships. Used for:
+- Escalation: agent can't cancel peer's task - must escalate UP
 - Request depth tracking: how deep is a delegation chain
 - Org tree visualization in admin UI
 
@@ -14,11 +14,11 @@ Individual contributors report to their team lead.
 Usage:
     from app.platform import org_chart
 
-    org_chart.manager_of("arjun")       # → "kavya" (voice QA → ops lead)
-    org_chart.reports("kavya")           # → ["arjun", "meera", "swara", ...]
-    org_chart.can_cancel("kavya", task)  # → True if kavya manages the task's agent
-    org_chart.escalation_path("arjun")   # → ["kavya", "manager"]
-    org_chart.full_tree()                # → nested dict for UI
+    org_chart.manager_of("arjun")       # -> "kavya" (voice QA -> ops lead)
+    org_chart.reports("kavya")           # -> ["arjun", "meera", "swara", ...]
+    org_chart.can_cancel("kavya", task)  # -> True if kavya manages the task's agent
+    org_chart.escalation_path("arjun")   # -> ["kavya", "manager"]
+    org_chart.full_tree()                # -> nested dict for UI
 """
 
 from __future__ import annotations
@@ -30,24 +30,24 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Hierarchy definition — team leads per product, ICs under them.
+# Hierarchy definition - team leads per product, ICs under them.
 # manager (Boss) is root. Each product has a lead.
 # --------------------------------------------------------------------------- #
 TEAM_LEADS: dict[str, str] = {
-    # product → team lead agent_id
-    "voice": "lekha",  # Call Analytics Lead — oversees voice team
-    "marketing": "rohan",  # Leads Manager — oversees marketing team
-    "platform": "kavya",  # Ops Monitor — oversees platform/engineering team
+    # product -> team lead agent_id
+    "voice": "lekha",  # Call Analytics Lead - oversees voice team
+    "marketing": "rohan",  # Leads Manager - oversees marketing team
+    "platform": "kavya",  # Ops Monitor - oversees platform/engineering team
 }
 
-# Explicit manager overrides (agent → manager). If not here, falls back to
+# Explicit manager overrides (agent -> manager). If not here, falls back to
 # team lead based on product. Team leads report to "manager" (Boss).
 MANAGER_OVERRIDES: dict[str, str] = {
     # Team leads report directly to Boss
     "lekha": "manager",
     "rohan": "manager",
     "kavya": "manager",
-    "hermes": "manager",  # Infra handler — direct to boss (cross-cutting)
+    "hermes": "manager",  # Infra handler - direct to boss (cross-cutting)
 }
 
 
@@ -75,7 +75,7 @@ def manager_of(agent_id: str) -> str | None:
     staff = _get_staff()
     agent = staff.get(key)
     if not agent:
-        return "manager"  # unknown → escalate to boss
+        return "manager"  # unknown -> escalate to boss
 
     product = agent.get("product", "platform")
     lead = TEAM_LEADS.get(product, "manager")

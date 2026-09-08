@@ -23,7 +23,7 @@ def _client():
 
 
 def test_full_graph_requires_auth_fail_closed():
-    """conftest overrides require_admin→mock-admin for tests; pop it to prove the
+    """conftest overrides require_admin->mock-admin for tests; pop it to prove the
     REAL gate is fail-closed (autouse restore_dependency_overrides puts it back)."""
     from app.api.auth_deps import get_current_user, require_admin
     from app.main import app
@@ -73,7 +73,7 @@ def test_meta_public_and_minimal():
     assert r.status_code == 200
     body = r.json()
     assert "schema_version" in body and "counts" in body
-    # counts only — no node/edge detail
+    # counts only - no node/edge detail
     assert "nodes" not in body
 
 

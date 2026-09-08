@@ -1,11 +1,11 @@
 """
-Objective voice-eval metrics — FREE, dependency-free (pure stdlib).
+Objective voice-eval metrics - FREE, dependency-free (pure stdlib).
 
 Upgrades agent_tester's heuristics (double/empty/slow) with measurable numbers
 grounded in standard speech evaluation (WER/CER, latency percentiles, round-trip WER).  # nosecurity: eval-ref-in-comment
 Skill: `.claude/skills/voice-eval-metrics/SKILL.md`.
 
-Import-safe — kabhi raise nahi (project rule). No torch/jiwer/numpy: WER = word-level
+Import-safe - kabhi raise nahi (project rule). No torch/jiwer/numpy: WER = word-level
 Levenshtein, percentiles = stdlib. Bigger ASR/TTS evals me jiwer/speechbrain plug
 kar sakte ho, par baseline scoring ke liye yeh kaafi + zero-dep.
 
@@ -22,15 +22,15 @@ import re
 import string
 from typing import Callable, Iterable, Sequence
 
-# ASR/streaming targets (ph06/17 2026 reference) — agar number inse bahar = regression flag
+# ASR/streaming targets (ph06/17 2026 reference) - agar number inse bahar = regression flag
 WER_HUMAN_PARITY = 0.05  # <5% read-speech = human parity
 ROUNDTRIP_WER_FLAG = 0.10  # TTS line >10% = intelligibility issue
-BARGE_IN_TARGET_MS = 150.0  # user-interrupt → assistant-mute target
+BARGE_IN_TARGET_MS = 150.0  # user-interrupt -> assistant-mute target
 
 
 def normalize_text(s: str) -> str:
     """Lowercase, punctuation-strip, whitespace-collapse. ALWAYS before scoring
-    (cardinal rule 1) — aur jo rule use kiya woh report karo."""
+    (cardinal rule 1) - aur jo rule use kiya woh report karo."""
     if not s:
         return ""
     s = s.lower().strip()
@@ -57,7 +57,7 @@ def _edit_distance(ref: Sequence, hyp: Sequence) -> int:
 
 
 def wer(reference: str, hypothesis: str, *, normalize: bool = True) -> float:
-    """Word Error Rate = (S+D+I)/N over words. 0.0 = perfect. Empty ref → 0.0 if
+    """Word Error Rate = (S+D+I)/N over words. 0.0 = perfect. Empty ref -> 0.0 if
     hyp also empty else 1.0."""
     ref = (normalize_text(reference) if normalize else reference).split()
     hyp = (normalize_text(hypothesis) if normalize else hypothesis).split()
@@ -67,7 +67,7 @@ def wer(reference: str, hypothesis: str, *, normalize: bool = True) -> float:
 
 
 def cer(reference: str, hypothesis: str, *, normalize: bool = True) -> float:
-    """Character Error Rate — tone/segmentation-ambiguous languages (Hindi/Mandarin)
+    """Character Error Rate - tone/segmentation-ambiguous languages (Hindi/Mandarin)
     ke liye WER se behtar."""
     ref = normalize_text(reference) if normalize else reference
     hyp = normalize_text(hypothesis) if normalize else hypothesis
@@ -77,7 +77,7 @@ def cer(reference: str, hypothesis: str, *, normalize: bool = True) -> float:
 
 
 def percentile(values: Sequence[float], p: float) -> float:
-    """Linear-interpolated percentile (p in 0..100). Empty → 0.0."""
+    """Linear-interpolated percentile (p in 0..100). Empty -> 0.0."""
     if not values:
         return 0.0
     xs = sorted(values)
@@ -113,7 +113,7 @@ def vaqi_summary(
     interruptions_total: int | None = None,
     premature_interruptions: int | None = None,
 ) -> dict:
-    """VAQI (Voice Agent Quality Index) — Deepgram's 3-leg conversational
+    """VAQI (Voice Agent Quality Index) - Deepgram's 3-leg conversational
     responsiveness score: Interruptions / Missed responses / Latency.
 
     ``missed_count`` = turns where the agent produced zero reply (NO_REPLY).
@@ -121,7 +121,7 @@ def vaqi_summary(
     barge-in telemetry (our text-mode self-test harness has no overlapping
     audio, so it can only ever report latency + missed-response
     live-call
-    telemetry — once wired via Tracer.record_interruption — fills these in)."""
+    telemetry - once wired via Tracer.record_interruption - fills these in)."""
     latency = latency_summary(latencies_ms)
     missed_rate = round(missed_count / turns_total, 3) if turns_total else None
     interruption_rate = None
@@ -145,7 +145,7 @@ def roundtrip_wer(
     *,
     flag_threshold: float = ROUNDTRIP_WER_FLAG,
 ) -> dict:
-    """TTS intelligibility — FREE (Whisper over EdgeTTS). text → synth → transcribe →
+    """TTS intelligibility - FREE (Whisper over EdgeTTS). text -> synth -> transcribe ->
     WER vs original. >threshold wale prompts = Swara woh line clearly nahi bol rahi.
     synth_fn/transcribe_fn caller deta (EdgeTTS + Groq-whisper already wired)."""
     rows = []
@@ -168,7 +168,7 @@ def roundtrip_wer(
 
 def score_asr(pairs: Iterable[tuple[str, str]]) -> dict:
     """Aggregate WER+CER over (reference, hypothesis) transcript pairs.
-    CARDINAL RULE 3: aggregate accented/Hindi failure chhupata — caller slice-wise
+    CARDINAL RULE 3: aggregate accented/Hindi failure chhupata - caller slice-wise
     (Hinglish vs English-heavy) bula ke compare kare."""
     pairs = list(pairs)
     if not pairs:

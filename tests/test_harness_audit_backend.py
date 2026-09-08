@@ -1,4 +1,4 @@
-"""Durable harness audit backend — authoritative single-write model, strict config,
+"""Durable harness audit backend - authoritative single-write model, strict config,
 status semantics, and guarded migration (unit level over a fake Redis).
 
 Real-Redis / real-multiprocess durability runs in

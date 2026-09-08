@@ -1,6 +1,6 @@
 """Weekly client KB contextual re-ingest (USE_CONTEXTUAL_INGEST companion).
 
-Har hafte thode clients ki website → KB dubara seed (cursor rotate).
+Har hafte thode clients ki website -> KB dubara seed (cursor rotate).
 GATED: KB_WEEKLY_REFRESH=1 ya USE_CONTEXTUAL_INGEST=1. Kabhi raise nahi.
 """
 

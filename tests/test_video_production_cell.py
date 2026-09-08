@@ -1,4 +1,4 @@
-"""Video Production Cell — state machine, feedback, publish gate, harness tools."""
+"""Video Production Cell - state machine, feedback, publish gate, harness tools."""
 
 from __future__ import annotations
 
@@ -283,7 +283,7 @@ def test_production_publish_flag_blocks(monkeypatch, iso_video):
 
     monkeypatch.setattr(postiz_publish, "publish_video", _pz)
     pd = asyncio.run(V.publish_due())
-    # Gate should block — no successful publish
+    # Gate should block - no successful publish
     assert pd.get("published", 0) == 0
 
 
@@ -479,8 +479,8 @@ def test_wa_inbound_never_reports_approve_for_rejected_ledger(monkeypatch, iso_v
     # COVERAGE SHIFT (Stage 3B), recorded rather than silently re-baselined:
     # WhatsApp now fails at the identity boundary, so it can no longer reach
     # the reject-terminality check and the reason changed. The invariant this
-    # test exists for — WA never reports approve for a terminal ledger, and
-    # writes nothing — still holds and is asserted below. Terminality itself is
+    # test exists for - WA never reports approve for a terminal ledger, and
+    # writes nothing - still holds and is asserted below. Terminality itself is
     # proven with a valid principal in
     # test_approve_version_never_flips_an_already_rejected_approval.
     assert out.get("reason") == "whatsapp_approval_identity_unavailable"

@@ -2,10 +2,10 @@
 
 `decide()` was already idempotent (guards on `activated` flag) but `submit_payment`
 appended duplicates on customer double-click / retry, and with UPI_AUTO_ACTIVATE=1
-that could double-activate a plan → free minutes / duplicate GST invoice.
+that could double-activate a plan -> free minutes / duplicate GST invoice.
 
 Fix: dedupe on (upi_ref, plan, client_id) at submit time. Same ref for same client
-returns the existing record with `duplicate: True` — never a new row, never a
+returns the existing record with `duplicate: True` - never a new row, never a
 second `_try_activate` call.
 
 RED-first: fails against the pre-fix code (two rows), passes after (one row).
@@ -21,7 +21,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
-    """Point the module store at a fresh file per test — no cross-test bleed."""
+    """Point the module store at a fresh file per test - no cross-test bleed."""
     import app.platform.upi_payments as upi_mod
 
     monkeypatch.setattr(upi_mod, "_STORE", lambda: str(tmp_path / "upi_payments.json"))
@@ -32,7 +32,7 @@ def _isolated_store(tmp_path, monkeypatch):
 
 
 def test_submit_payment_dedupes_on_upi_ref(monkeypatch):
-    """Two submits with the same (upi_ref, plan, client_id) → exactly ONE row."""
+    """Two submits with the same (upi_ref, plan, client_id) -> exactly ONE row."""
     from app.platform import upi_payments
 
     r1 = upi_payments.submit_payment(
@@ -53,7 +53,7 @@ def test_submit_payment_dedupes_on_upi_ref(monkeypatch):
 
 
 def test_submit_payment_different_ref_creates_new_row(monkeypatch):
-    """Different upi_ref for same client + plan → separate rows (two real payments)."""
+    """Different upi_ref for same client + plan -> separate rows (two real payments)."""
     from app.platform import upi_payments
 
     r1 = upi_payments.submit_payment(
@@ -68,7 +68,7 @@ def test_submit_payment_different_ref_creates_new_row(monkeypatch):
 
 
 def test_submit_payment_different_plan_creates_new_row(monkeypatch):
-    """Same ref but different plan → new row (rare but possible for admin scenarios).
+    """Same ref but different plan -> new row (rare but possible for admin scenarios).
     We dedupe on the (ref, plan, client_id) triple, not ref alone, so an upgrade
     payment is not silently swallowed by a prior starter submit."""
     from app.platform import upi_payments
@@ -85,7 +85,7 @@ def test_submit_payment_different_plan_creates_new_row(monkeypatch):
 
 def test_submit_payment_auto_activate_dedupe_prevents_double_activation(monkeypatch):
     """Critical: with UPI_AUTO_ACTIVATE=1, dedupe MUST prevent a second
-    `_try_activate` call from a replay — that would reset the usage period twice."""
+    `_try_activate` call from a replay - that would reset the usage period twice."""
     import app.platform.upi_payments as upi_mod
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
@@ -112,7 +112,7 @@ def test_submit_payment_auto_activate_dedupe_prevents_double_activation(monkeypa
     assert r1.get("auto_activated") is True
     assert r2.get("duplicate") is True
     assert len(activations) == 1, (
-        f"MUST call _try_activate exactly once — dedupe prevents double activation, "
+        f"MUST call _try_activate exactly once - dedupe prevents double activation, "
         f"got {len(activations)}: {activations}"
     )
     assert len(upi_mod.list_payments()) == 1

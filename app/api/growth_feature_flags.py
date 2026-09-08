@@ -16,7 +16,7 @@ router = APIRouter(tags=["Growth"])
 
 
 # ------------- Per-tenant Feature Flags (Phase 1 SaaS infra upgrade) ------------- #
-# Redis-backed runtime flags — per-tenant / percentage rollout (A/B + progressive
+# Redis-backed runtime flags - per-tenant / percentage rollout (A/B + progressive
 # launch + kill-switch) bina redeploy. Master gate = env FEATURE_FLAGS (default OFF).
 # Service: app/infrastructure/feature_flags.py. Reads=admin, writes=super_admin.
 class FeatureFlagIn(BaseModel):
@@ -93,7 +93,7 @@ async def upsert_feature_flag(body: FeatureFlagIn, _user=Depends(require_super_a
 async def check_feature_flag(
     key: str, tenant_id: str = "", user_id: str = "", _user=Depends(require_admin)
 ):
-    """Eval helper — is flag is tenant/user ke liye on hai? (master-gate respect karta)."""
+    """Eval helper - is flag is tenant/user ke liye on hai? (master-gate respect karta)."""
     from app.infrastructure.feature_flags import feature_flags
 
     enabled = await feature_flags.is_enabled(key, tenant_id or None, user_id or None)

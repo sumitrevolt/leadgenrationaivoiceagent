@@ -1,4 +1,4 @@
-"""DAG engine — Phase 2 branching flow runner (alongside process_engine).
+"""DAG engine - Phase 2 branching flow runner (alongside process_engine).
 
 Per-node, journal-derived executor. State = ready-set recomputed from the journal
 each tick (the per-node analogue of process_engine's integer cursor). Shares the
@@ -8,7 +8,7 @@ own runs. process_engine.py is byte-unchanged.
 
 Parallelism = ready-set concurrency ACROSS ticks
 one await at a time WITHIN a
-tick (no asyncio.gather) — crash-safe + rate-limit-safe. Conditions are
+tick (no asyncio.gather) - crash-safe + rate-limit-safe. Conditions are
 FAIL-CLOSED (edge_condition). run_completed/run_failed are EMITTED by advance
 (replay reflects journal truth, like process_engine). Import-safe, never raises.
 """
@@ -201,7 +201,7 @@ def replay(run_id: str) -> dict[str, Any]:
     waiting = next((nid for nid, n in nodes.items() if n["state"] == "waiting"), "")
     st["waiting"] = waiting
     # frontier + waiting rollup (only while not terminally journaled).
-    # NOTE: 'all nodes terminal' does NOT roll up to completed here — advance emits
+    # NOTE: 'all nodes terminal' does NOT roll up to completed here - advance emits
     # run_completed so the journal/watchdog stay consistent with process_engine.
     if st["status"] not in (ST_COMPLETED, ST_FAILED):
         ready, skip = _frontier(graph, nodes)
@@ -253,7 +253,7 @@ def start_run(process_key: str, inputs: dict[str, Any] | None = None) -> dict[st
 
 def _resolve_inputs(node: dict, run_inputs: dict, nodes: dict) -> dict:
     """Phase 4 data-passing: merge resolved upstream outputs + literals over run inputs.
-    FAIL-CLOSED — a missing/not-done source or absent key is OMITTED (never garbage).
+    FAIL-CLOSED - a missing/not-done source or absent key is OMITTED (never garbage).
     Source nodes are compiler-guaranteed ancestors, so they are `done` by the time
     this node runs. Never raises."""
     eff = dict(run_inputs or {})
@@ -272,7 +272,7 @@ def _resolve_inputs(node: dict, run_inputs: dict, nodes: dict) -> dict:
             key = spec.get("key")
             if src.get("state") == "done" and isinstance(res, dict) and key in res:
                 eff[tgt] = res[key]
-            # else: fail-closed — omit
+            # else: fail-closed - omit
         except Exception:
             pass
     return eff
@@ -364,7 +364,7 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
                 done += 1
                 continue
 
-            # task node — Phase 4: resolve per-node inputs (upstream outputs + literals)
+            # task node - Phase 4: resolve per-node inputs (upstream outputs + literals)
             eff_inputs = _resolve_inputs(node, inputs, nodes)
             _append_event(run_id, "node_started", {"node": nid})
             t0 = time.monotonic()
@@ -443,7 +443,7 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
         return {
             "run_id": run_id,
             "status": replay(run_id)["status"],
-            "note": "step budget — tick continue karega",
+            "note": "step budget - tick continue karega",
         }
     except Exception as e:
         logger.warning(f"[dag] advance failed {run_id}: {e}")
@@ -458,7 +458,7 @@ def approve(
         if st["status"] != ST_WAITING:
             return {
                 "ok": False,
-                "error": f"run status '{st['status']}' — koi breakpoint pending nahi",
+                "error": f"run status '{st['status']}' - koi breakpoint pending nahi",
             }
         nid = node_id or st.get("waiting") or ""
         if not nid or nid not in st["nodes"]:
@@ -554,7 +554,7 @@ def ensure_alive(stale_minutes: int = 15) -> dict[str, Any]:
             if age_min < stale_minutes:
                 active.append(run_id)
                 continue
-            # Guard: process_tick → flow_dispatch.engine_for(); malformed /
+            # Guard: process_tick -> flow_dispatch.engine_for(); malformed /
             # pre-Phase-2 journal (no engine=dag) silently falls back to
             # process_engine and mis-advances the run. Skip those revive.
             try:
@@ -564,7 +564,7 @@ def ensure_alive(stale_minutes: int = 15) -> dict[str, Any]:
                 if engine_for(run_id) is not _dag:
                     logger.warning(
                         f"[dag] revive skip {run_id}: engine_for mismatch "
-                        f"(not dag — refusing process_engine fallback)"
+                        f"(not dag - refusing process_engine fallback)"
                     )
                     continue
             except Exception as e:

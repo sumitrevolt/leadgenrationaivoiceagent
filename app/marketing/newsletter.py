@@ -1,8 +1,8 @@
 """
-newsletter.py — Mailchimp-lite auto-newsletter (per-client, UNKE customers ke liye).
+newsletter.py - Mailchimp-lite auto-newsletter (per-client, UNKE customers ke liye).
 ====================================================================================
 
-Client (local business) apne customers ki email list de — hum mahine me EK
+Client (local business) apne customers ki email list de - hum mahine me EK
 Hinglish newsletter ready karein: greeting + is mahine ka festival (festivals
 reuse) + offer slot + products (product_catalog reuse) + review CTA.
 
@@ -24,7 +24,7 @@ Public API (sab never-raise, pure stdlib + lazy imports):
                                           digest DRAFT (send nahi karta)
 
 Stores:
-  data/newsletter_subs.jsonl  (append-only events: sub / unsub — latest wins)
+  data/newsletter_subs.jsonl  (append-only events: sub / unsub - latest wins)
   data/newsletter_runs.jsonl  (run log + month-dedupe + rss-digest markers)
 
 Ban-safe: sirf OPTED-IN subscribers (client ne diye), har mail me unsubscribe
@@ -224,7 +224,7 @@ def unsub_html(result: dict[str, Any] | None) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Compose (Hinglish monthly newsletter — festivals + offer + products + reviews)
+# Compose (Hinglish monthly newsletter - festivals + offer + products + reviews)
 # --------------------------------------------------------------------------- #
 def _month_label(month: str | None) -> str:
     try:
@@ -260,7 +260,7 @@ def _client_products(slug: str, limit: int = 5) -> list[dict[str, Any]]:
 
 
 async def _llm_intro(biz: str, niche: str, fest_names: list[str]) -> str:
-    """Free-LLM 2-3 line warm Hinglish intro — fail/empty par '' (template fallback)."""
+    """Free-LLM 2-3 line warm Hinglish intro - fail/empty par '' (template fallback)."""
     try:
         from app.voice_agent import free_ai
 
@@ -268,7 +268,7 @@ async def _llm_intro(biz: str, niche: str, fest_names: list[str]) -> str:
         system = (
             "Tu ek Indian local business ka friendly newsletter writer hai. "
             "Customers ke liye EK chhota (max 45 shabd) warm Hinglish (Roman script) "
-            "monthly-newsletter intro paragraph likh — greeting + is mahine ki ek baat. "
+            "monthly-newsletter intro paragraph likh - greeting + is mahine ki ek baat. "
             "Sirf paragraph do, koi heading/quotes nahi."
         )
         user = f"Business: {biz} ({(niche or 'general').replace('_', ' ')})\nIs mahine ke festivals: {fests}"
@@ -305,13 +305,13 @@ def _render_html(
         '>"
         f"<h2 style='margin:0
         font-size:20px
-        '>{e(biz)} — {e(month_label)} Newsletter 📬</h2></div>",
+        '>{e(biz)} - {e(month_label)} Newsletter 📬</h2></div>",
         "<div style='padding:18px 22px;border:1px solid #eee;border-top:0;border-radius:0 0 10px 10px;'>",
         f"<p>{e(intro)}</p>",
     ]
     if fest_names:
         parts.append(
-            f"<p><b>🎉 Is mahine:</b> {e(', '.join(fest_names))} — celebration ki taiyari ho jaye!</p>"
+            f"<p><b>🎉 Is mahine:</b> {e(', '.join(fest_names))} - celebration ki taiyari ho jaye!</p>"
         )
     if offer:
         parts.append(
@@ -327,7 +327,7 @@ def _render_html(
         for p in products:
             nm = e(str(p.get("name") or "").strip()[:80] or "Product")
             pr = str(p.get("price") or "").strip()
-            parts.append(f"<li>{nm}{(' — ₹' + e(pr)) if pr else ''}</li>")
+            parts.append(f"<li>{nm}{(' - ₹' + e(pr)) if pr else ''}</li>")
         parts.append("</ul>")
     if minisite_url:
         parts.append(
@@ -338,7 +338,7 @@ def _render_html(
             "Visit / Book karein</a></p>"
         )
     parts.append(
-        "<p>⭐ Hamari service pasand aayi ho to ek chhota Google review zaroor dijiye — "
+        "<p>⭐ Hamari service pasand aayi ho to ek chhota Google review zaroor dijiye - "
         "bahut madad hoti hai! 🙏</p>"
     )
     parts.append(
@@ -368,7 +368,7 @@ async def compose(client_id: str, month: str | None = None, use_llm: bool = True
         fest_names = _this_month_festivals()
         products = _client_products(slug)
         offer = str(client.get("current_offer") or "").strip() or (
-            f"Is mahine {biz} pe special discount — WhatsApp karke pooch lijiye!"
+            f"Is mahine {biz} pe special discount - WhatsApp karke pooch lijiye!"
         )
         primary = ""
         try:
@@ -385,7 +385,7 @@ async def compose(client_id: str, month: str | None = None, use_llm: bool = True
         if not intro:
             intro = (
                 f"Namaste! {biz} ki taraf se {month_label} ki dher saari shubhkamnayein. "
-                "Is mahine kya naya hai, neeche dekhiye — aur koi sawal ho to seedha "
+                "Is mahine kya naya hai, neeche dekhiye - aur koi sawal ho to seedha "
                 "WhatsApp kar dijiye. 😊"
             )
 
@@ -401,7 +401,7 @@ async def compose(client_id: str, month: str | None = None, use_llm: bool = True
             text_lines.append("Visit/Book: " + minisite_url)
         text_lines.append("")
         text_lines.append("Pasand aaye to ek Google review zaroor dijiye!")
-        subject = f"{biz} — {month_label} ki khaas baatein 📬"
+        subject = f"{biz} - {month_label} ki khaas baatein 📬"
         return {
             "ok": True,
             "client_id": cid,
@@ -475,7 +475,7 @@ async def run_due_if_enabled(force: bool = False) -> dict[str, Any]:
                 continue
             out["clients"] += 1
             # Month-dedupe marker PEHLE likho (crash/timeout mid-send par dobara
-            # run hone se DUPLICATE emails na jayein — under-send > re-send).
+            # run hone se DUPLICATE emails na jayein - under-send > re-send).
             _append(
                 _RUNS_PATH,
                 {
@@ -588,7 +588,7 @@ def rss_to_email(limit: int = 5) -> dict[str, Any]:
         html_body = (
             "<html><body style='font-family:Arial,sans-serif;font-size:15px;line-height:1.5;"
             "color:#222;max-width:600px;margin:0 auto;'>"
-            "<h2>📰 LeadGen AI — naye blog posts</h2>"
+            "<h2>📰 LeadGen AI - naye blog posts</h2>"
             f"<ul>{items_html}</ul>"
             f"<p><a href='{e(_SITE_URL)}/blog'>Saare posts dekhein</a></p>"
             "</body></html>"
@@ -604,11 +604,11 @@ def rss_to_email(limit: int = 5) -> dict[str, Any]:
         )
         return {
             "ok": True,
-            "subject": f"LeadGen AI blog — {len(fresh)} naye posts",
+            "subject": f"LeadGen AI blog - {len(fresh)} naye posts",
             "html": html_body,
             "text": text,
             "posts": fresh,
-            "status": "draft",  # send NAHI hota — human/scheduler decide kare
+            "status": "draft",  # send NAHI hota - human/scheduler decide kare
         }
     except Exception as e:
         logger.warning(f"[newsletter] rss_to_email failed: {e}")

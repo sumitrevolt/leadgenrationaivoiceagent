@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PILOT 07:36 IST (Sep4 CRON) — lean evidence refresh, NO message spam.
+"""PILOT 07:36 IST (Sep4 CRON) - lean evidence refresh, NO message spam.
 
 Live re-verify 07:36 IST this run (not stale): state UNCHANGED vs 07:21 dispatch.
   - VPS UP, leadgen_app/worker/scheduler Up12h healthy.
@@ -30,7 +30,7 @@ rev Rs1,999 Jiya sole
 GAP Rs4,98,001. Fleet 0-ACK ~5d
 07:21 GHANTIs + 07:35 REV-COMMAND stand."
 
-# tasks.json — refresh evidence_tail + updated_at (no status churn, no dup messages)
+# tasks.json - refresh evidence_tail + updated_at (no status churn, no dup messages)
 with open(os.path.join(BASE, "tasks.json"), encoding="utf-8") as f:
     tasks = json.load(f)
 ids = {"ENG-004","HNT-005","PLT-005","SAL-005","SUC-004","GRD-004","OPS-007","BRD-003"}

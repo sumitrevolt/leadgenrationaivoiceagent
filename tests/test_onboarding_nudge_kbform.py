@@ -2,17 +2,17 @@
 
 Two AUDIT-VERIFIED gaps closed:
 
-(1) SPOF re-nudge — the WhatsApp business-info interview was sent EXACTLY ONCE at
+(1) SPOF re-nudge - the WhatsApp business-info interview was sent EXACTLY ONCE at
     onboarding. If WA infra was down that day (exactly what happened to the real
-    "jiya makeover" client — WAHA linked days later), the client stayed
+    "jiya makeover" client - WAHA linked days later), the client stayed
     `awaiting_kb_interview=True` forever, silently. `_renudge_awaiting_interviews`
     re-sends the interview to active-awaiting clients, capped:
       - max 3 re-nudges per client (`_RENUDGE_MAX`)
       - min 24h apart (`_RENUDGE_MIN_HOURS`)
-      - gated `KB_INTERVIEW_RENUDGE` (default ON — bug-fix of promised behaviour)
+      - gated `KB_INTERVIEW_RENUDGE` (default ON - bug-fix of promised behaviour)
     Time is injected by monkeypatching `onboarding._now_utc`.
 
-(2) Portal self-serve KB entry — `POST /api/customer/kb-info` lets a customer feed
+(2) Portal self-serve KB entry - `POST /api/customer/kb-info` lets a customer feed
     business info straight from the portal (not only via the one WhatsApp reply):
     writes to KB namespace `client:<id>` with source `portal:kb_info`, clears the
     awaiting flag. client_id comes from the JWT (`require_customer`) => a customer
@@ -28,7 +28,7 @@ from typing import Any
 import pytest
 
 # --------------------------------------------------------------------------- #
-# Gap 1 — re-nudge sweep (24h gap + max-3 cap + flag gate)                     #
+# Gap 1 - re-nudge sweep (24h gap + max-3 cap + flag gate)                     #
 # --------------------------------------------------------------------------- #
 
 
@@ -99,7 +99,7 @@ async def test_renudge_caps_at_three_total(monkeypatch: pytest.MonkeyPatch, tmp_
     clients_store.update_client(c["id"], awaiting_kb_interview=True)
 
     base = datetime(2026, 7, 5, 9, 0, tzinfo=timezone.utc)
-    # Advance 25h each round so the 24h gap never blocks — only the max-3 cap should.
+    # Advance 25h each round so the 24h gap never blocks - only the max-3 cap should.
     for i in range(6):
         monkeypatch.setattr(onboarding, "_now_utc", lambda i=i: base + timedelta(hours=25 * i))
         await onboarding._renudge_awaiting_interviews()
@@ -182,7 +182,7 @@ async def test_capture_clears_renudge_state(
 
 
 # --------------------------------------------------------------------------- #
-# Gap 2 — portal self-serve KB route (namespace + flag clear + IDOR)          #
+# Gap 2 - portal self-serve KB route (namespace + flag clear + IDOR)          #
 # --------------------------------------------------------------------------- #
 
 
@@ -257,7 +257,7 @@ async def test_kb_info_is_idor_safe_writes_only_own_namespace(
 
     assert kb_calls[0]["namespace"] == f"client:{me['id']}"
     assert kb_calls[0]["namespace"] != f"client:{victim['id']}"
-    # Victim's awaiting flag untouched — I could not clear someone else's flag.
+    # Victim's awaiting flag untouched - I could not clear someone else's flag.
     assert clients_store.get_client(victim["id"]).get("awaiting_kb_interview") is True
 
 

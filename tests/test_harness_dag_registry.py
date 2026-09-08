@@ -397,7 +397,7 @@ def test_observer_never_invokes_execute_step(monkeypatch, tmp_path):
 
     dag, run_id, calls, tp = _seed_real_dag(monkeypatch, tmp_path)
     asyncio.run(dag.advance(run_id))
-    assert calls["n"] == 1  # exactly the one legacy call — observer added none
+    assert calls["n"] == 1  # exactly the one legacy call - observer added none
 
 
 def test_journal_unchanged(monkeypatch, tmp_path):

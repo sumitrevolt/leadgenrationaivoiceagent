@@ -5,7 +5,7 @@ never bind outside loopback, and must never leak onto production resources. It
 also carries the memory-containment controls from
 `docs/capacity/OOM_CAPACITY_REPORT_2026-08-08.md`.
 
-Offline/pure — parses the compose files with PyYAML, no docker daemon required.
+Offline/pure - parses the compose files with PyYAML, no docker daemon required.
 The live daemon-level checks (profile gating, fail-closed APP_VERSION, loopback
 host_ip) were verified with `docker compose config` at authoring time
 these
@@ -49,7 +49,7 @@ def test_every_staging_service_is_profile_gated():
 
 
 def test_staging_host_ports_are_loopback_only():
-    """Host binding must be 127.0.0.1 — staging is never reachable off-box."""
+    """Host binding must be 127.0.0.1 - staging is never reachable off-box."""
     app = _staging()["services"]["app_staging"]
     ports = app.get("ports") or []
     assert ports, "app_staging must publish a port"
@@ -88,7 +88,7 @@ def test_staging_network_and_volumes_are_isolated():
 
 
 def test_staging_absent_from_prod_service_set():
-    """Staging is a separate compose file — no overlap with the prod service set."""
+    """Staging is a separate compose file - no overlap with the prod service set."""
     staging_names = set(_staging()["services"])
     prod_names = set(_vps()["services"])
     assert not (staging_names & prod_names), staging_names & prod_names
@@ -99,7 +99,7 @@ def test_staging_absent_from_prod_service_set():
 
 
 def test_staging_resource_containment_controls_present():
-    """Memory-containment keys from the capacity report — additive & reversible."""
+    """Memory-containment keys from the capacity report - additive & reversible."""
     services = _staging()["services"]
 
     app = services["app_staging"]

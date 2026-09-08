@@ -1,10 +1,10 @@
 """UPI/manual activation must create a real Subscription row (audit 2026-07-04).
 
-Pre-fix: usage.activate_plan only set clients_store.plan — after an admin UPI
+Pre-fix: usage.activate_plan only set clients_store.plan - after an admin UPI
 approval the portal's /api/billing/subscription 404'd (UPI pay-box showed
 forever) and reset_usage_period() had no row to write its watermark to.
 
-Real-DB tests (in-memory SQLite, no mocked ORM) — the billing enum bug taught
+Real-DB tests (in-memory SQLite, no mocked ORM) - the billing enum bug taught
 us mocks miss column/enum semantics.
 """
 
@@ -78,7 +78,7 @@ def test_ensure_subscription_creates_client_and_active_row(db_session, fake_stor
 
 def test_default_call_does_not_create_row(db_session, fake_store):
     """Signup pre-payment provisioning + Stripe/webhook callers keep the old
-    behavior — no Subscription row unless explicitly asked for."""
+    behavior - no Subscription row unless explicitly asked for."""
     from app.billing import usage
     from app.models.payment import Subscription
 
@@ -98,7 +98,7 @@ def test_annual_voice_plan_gets_yearly_cycle(db_session, fake_store):
 
 
 def test_email_conflict_skips_row_but_still_activates(db_session, fake_store, monkeypatch):
-    """Another DB client already owns the email → don't corrupt tenancy: skip
+    """Another DB client already owns the email -> don't corrupt tenancy: skip
     the Subscription row, but clients_store activation still succeeds."""
     from app.billing import usage
     from app.models.client import Client, ClientStatus

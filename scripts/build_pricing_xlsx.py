@@ -1,4 +1,4 @@
-"""Build Niche_Pricing_Research.xlsx — top 25 niches + competitor pricing + benchmarks."""
+"""Build Niche_Pricing_Research.xlsx - top 25 niches + competitor pricing + benchmarks."""
 
 import os
 import sys
@@ -21,7 +21,7 @@ wb = Workbook()
 # ---------------- Sheet 1: Top 25 Niches ----------------
 ws = wb.active
 ws.title = "Top 25 Niches"
-ws["A1"] = "LeadGen AI — Top 25 Niches (research-finalized, June 2026)"
+ws["A1"] = "LeadGen AI - Top 25 Niches (research-finalized, June 2026)"
 ws["A1"].font = Font(name=F, bold=True, size=14)
 ws["A2"] = (
     "Two-tier model: hum B2B clients lete hain; unka agent unke end-customers (B2C ya B2B) ko call karta hai. Prices in INR."
@@ -91,7 +91,7 @@ ws.freeze_panes = "A5"
 
 # ---------------- Sheet 2: Competitor Pricing ----------------
 ws2 = wb.create_sheet("Competitor Pricing")
-ws2["A1"] = "AI Voice Agent Platforms — Pricing Scan (June 2026)"
+ws2["A1"] = "AI Voice Agent Platforms - Pricing Scan (June 2026)"
 ws2["A1"].font = Font(name=F, bold=True, size=14)
 comp_headers = [
     "Platform",
@@ -161,7 +161,7 @@ comp = [
     [
         "Dograh",
         "Open-source",
-        "Self-hosted, BYOK — $0 platform",
+        "Self-hosted, BYOK - $0 platform",
         "<$2,000/mo @20k min (vs $6k Vapi)",
         "YES (Exotel/Plivo SIP)",
         "github.com/dograh-hq; blog.dograh.com",
@@ -178,7 +178,7 @@ comp = [
         "CallHippo AI",
         "India SMB",
         "Monthly bundles",
-        "$199/2,500min → $799/7,500min; $0.16/min over",
+        "$199/2,500min -> $799/7,500min; $0.16/min over",
         "YES",
         "emitrr.com; g2.com",
     ],
@@ -287,19 +287,19 @@ bench = [
         "Commission 35–40% first-yr premium",
         "owlclaw.com; ebharat.com",
     ],
-    ["Loans (DSA)", "Disbursal-based", "Payout 1–2.5% of disbursed (₹3L → ₹3–7.5K)", "ruloans.com"],
+    ["Loans (DSA)", "Disbursal-based", "Payout 1–2.5% of disbursed (₹3L -> ₹3–7.5K)", "ruloans.com"],
     [
         "Study abroad",
         "₹800–2,000",
         "₹2–3L commission/enrolled (CONFIRMED)",
         "orynet.com; studentsherald.com",
     ],
-    ["Interior/modular kitchen", "₹100–400 (Meta local)", "—", "blusteak.com"],
-    ["Car dealers", "₹435–560 per test-drive lead", "—", "blusteak.com case study"],
+    ["Interior/modular kitchen", "₹100–400 (Meta local)", "-", "blusteak.com"],
+    ["Car dealers", "₹435–560 per test-drive lead", "-", "blusteak.com case study"],
     ["Coaching NEET/JEE metro", "₹1,000–2,200/enquiry", "Fees ₹1.5–2.5L/yr", "mgiwebzone.com"],
     ["B2B IndiaMART BuyLead", "₹16–24 effective (shared)", "Export ~₹212", "refrens.com"],
-    ["Legal/CA", "₹700–4,000", "—", "orynet.com"],
-    ["B2B appointment (LinkedIn)", "—", "₹2,000–12,000/qualified appointment", "leadshuttle.com"],
+    ["Legal/CA", "₹700–4,000", "-", "orynet.com"],
+    ["B2B appointment (LinkedIn)", "-", "₹2,000–12,000/qualified appointment", "leadshuttle.com"],
     [
         "Human telecaller baseline",
         "₹55–70/contact (vendor est., plausible)",
@@ -330,13 +330,13 @@ ws3.freeze_panes = "A4"
 
 # ---------------- Sheet 4: Pricing Strategy ----------------
 ws4 = wb.create_sheet("Pricing Strategy")
-ws4["A1"] = "Pricing Strategy — kaise charge karein"
+ws4["A1"] = "Pricing Strategy - kaise charge karein"
 ws4["A1"].font = Font(name=F, bold=True, size=14)
 strat = [
     ["", ""],
     [
         "PRINCIPLE",
-        "Per-qualified-lead pricing (market gap: India me koi AI player 'leads delivered' package nahi bechta — sab per-minute bechte hain)",
+        "Per-qualified-lead pricing (market gap: India me koi AI player 'leads delivered' package nahi bechta - sab per-minute bechte hain)",
     ],
     ["", ""],
     ["Band by ticket size", "Low-ticket (B2B suppliers, movers, used-cars): ₹150–800/QL"],
@@ -346,7 +346,7 @@ strat = [
     ["", ""],
     [
         "COST FLOOR (hamara)",
-        "AI cost ~₹14–18/contact; ~8–15 contacts per qualified lead → cost ₹120–270/QL",
+        "AI cost ~₹14–18/contact; ~8–15 contacts per qualified lead -> cost ₹120–270/QL",
     ],
     [
         "Example margin @ ₹500 QL",
@@ -355,22 +355,22 @@ strat = [
     ["", ""],
     [
         "MONTHLY PLANS (suggested)",
-        "Starter ₹8K–25K/mo (niche-wise, capped QLs) — agency retainers ₹15–50K se neeche position karo",
+        "Starter ₹8K–25K/mo (niche-wise, capped QLs) - agency retainers ₹15–50K se neeche position karo",
     ],
     ["", "Growth: starter × 2 (2x lead cap + WhatsApp/CRM integrations)"],
     [
         "",
-        "Scale/white-label: custom — digital agencies ko reseller banao (Synthflow white-label $2,000/mo hai — hum sasta de sakte)",
+        "Scale/white-label: custom - digital agencies ko reseller banao (Synthflow white-label $2,000/mo hai - hum sasta de sakte)",
     ],
     ["", ""],
     [
         "COMPLIANCE (zaroori)",
-        "140-series number + DLT registration + DND scrubbing + 10am–7pm calling + AI-call disclosure (TCCCPR 2026) — penalty ₹10L tak (CONFIRMED)",
+        "140-series number + DLT registration + DND scrubbing + 10am–7pm calling + AI-call disclosure (TCCCPR 2026) - penalty ₹10L tak (CONFIRMED)",
     ],
     ["", ""],
     [
         "TIER ROLLOUT",
-        "S-tier (8 niches) pehle becho — RE, study-abroad, home-loans, solar, insurance, coaching. A-tier expand. B-tier volume/strategic.",
+        "S-tier (8 niches) pehle becho - RE, study-abroad, home-loans, solar, insurance, coaching. A-tier expand. B-tier volume/strategic.",
     ],
 ]
 r0 = 2

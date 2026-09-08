@@ -1,7 +1,7 @@
 """Bounded structured conversation context for Swara (tenant-isolated).
 
 Versioned schema. Masks phones. Never includes raw recordings.
-Server owns pricing/rules — model cannot overwrite approved facts.
+Server owns pricing/rules - model cannot overwrite approved facts.
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ class ConversationContext:
         self.facts[k] = mask_phones(str(value or ""))[:120]
 
     def load_server_pricing(self) -> None:
-        """Pull approved public packages — server authority."""
+        """Pull approved public packages - server authority."""
         try:
             from app.marketing.packages import get_public_packages
 
@@ -104,7 +104,7 @@ class ConversationContext:
             ]
 
     def prompt_block(self) -> str:
-        """Compact system inject — no raw recordings, phones masked."""
+        """Compact system inject - no raw recordings, phones masked."""
         lines = [
             f"[CTX {self.schema_version} tenant={self.tenant_id or 'n/a'}]",
             f"business={self.business_name or 'LeadsGen AI'} niche={self.niche} stage={self.stage}",
@@ -125,7 +125,7 @@ class ConversationContext:
         if self.tools_called:
             lines.append("tools_called: " + ",".join(self.tools_called[-6:]))
         if self.opt_out:
-            lines.append("OPT_OUT=true — do not sell
+            lines.append("OPT_OUT=true - do not sell
             confirm suppression and end.")
         if self.older_summary:
             lines.append("earlier: " + self.older_summary[:300])

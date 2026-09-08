@@ -7,14 +7,14 @@ from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
 
 def test_universal_intro_has_identity_and_cta():
     # LEAN opener (2026-06-27): intro = identity + ek hook only (chhota). Price/trial
-    # ab PITCH_SHORT segment me — yahan intro me unhe assert NAHI karte (warna bloat
+    # ab PITCH_SHORT segment me - yahan intro me unhe assert NAHI karte (warna bloat
     # wapas aa jaayega). Intro chhota rehna chahiye.
     t = UNIVERSAL_AGENT_INTRO.lower()
     assert "leadgen ai" in t
     assert any(w in t for w in ("instagram", "facebook", "google", "customers"))
     assert "customers dila dete" not in t
     assert "guarantee" not in t
-    # 2026-07-02: +permission-ask ("do minute baat kar sakti hoon?") — cap 26->34
+    # 2026-07-02: +permission-ask ("do minute baat kar sakti hoon?") - cap 26->34
     # (still ~one breath / ~13 sec). Bloat guard stays.
     assert len(UNIVERSAL_AGENT_INTRO.split()) <= 34
 
@@ -36,7 +36,7 @@ def test_pitch_short_carries_price_and_trial():
 
 
 def test_telecaller_platform_niche_opener_is_universal():
-    # ai_marketing IS the platform-selling call → universal platform pitch.
+    # ai_marketing IS the platform-selling call -> universal platform pitch.
     # Parity with vobiz_stream._opening_line_raw(): returns opening_segments()[0]
     # (the universal intro WITH the TRAI AI-disclosure prefix).
     from app.voice_agent.platform_pitch import opening_segments
@@ -64,7 +64,7 @@ def test_platform_opening_segments_wired():
     from app.voice_agent.universal_pitch import platform_opening_segments
 
     segs = platform_opening_segments()
-    # Single short opener — price waits for caller yes (2026-07-17).
+    # Single short opener - price waits for caller yes (2026-07-17).
     assert len(segs) == 1
     assert "LeadGen AI" in segs[0]
     assert "1,999" not in segs[0] and "1999" not in segs[0]

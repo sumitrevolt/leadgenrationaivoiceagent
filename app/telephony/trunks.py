@@ -6,7 +6,7 @@ Purpose:
 - Fail-OPEN: pick_trunk() never raises
 returns (provider, caller_id) or
   ("none", "") when nothing is configured.
-- INERT by default for new providers — flag must be explicitly set.
+- INERT by default for new providers - flag must be explicitly set.
 
 Plan doc: docs/coordination/JIO_SIP_SETUP_PLAN.md (2026-08-27).
 
@@ -103,8 +103,8 @@ def list_active_trunks() -> list[Trunk]:
                 cost_per_min_inr=0.0,
                 notes=(
                     "Jio Mobile SIP (Sai Service Centre); ₹9,990/mo flat 10ch unlimited. "
-                    "⚠️ mobile DID is NOT a 140-series CLI → transactional/service/"
-                    "reactivation/inbound lanes ONLY — never cold-promo (TRAI)."
+                    "⚠️ mobile DID is NOT a 140-series CLI -> transactional/service/"
+                    "reactivation/inbound lanes ONLY - never cold-promo (TRAI)."
                 ),
                 lanes=frozenset({"transactional"}),
             )
@@ -125,7 +125,7 @@ def list_active_trunks() -> list[Trunk]:
                 notes=(
                     "Tata Smartflo Pro; ₹1,250/license/mo unlimited India (5000 min FUP/pool). "
                     "₹10,000 one-time. 1 DID bundled. Click-to-Call REST API. "
-                    "⚠️ Standard DID — TRAI lanes depend on DLT registration."
+                    "⚠️ Standard DID - TRAI lanes depend on DLT registration."
                 ),
                 lanes=frozenset({"promotional", "transactional"}),
             )
@@ -139,7 +139,7 @@ def _lane_for(lead: Any) -> str:
     TRAI TCCCPR: promotional outbound needs a 140-series CLI
     transactional/
     service/reactivation calls don't. Unknown lead or no field => treat as
-    PROMOTIONAL (fail-CLOSED) — non-140 trunks (jio mobile DID) stay excluded.
+    PROMOTIONAL (fail-CLOSED) - non-140 trunks (jio mobile DID) stay excluded.
     """
     if lead is None:
         return "promotional"
@@ -153,7 +153,7 @@ def _lane_for(lead: Any) -> str:
 def pick_trunk(lead: Any = None) -> tuple[str, str]:
     """Pick a trunk for the next outbound call.
     Strategy: weight-based random (round-robin-ish), FILTERED by the call's
-    compliance lane — a trunk that the lane forbids (e.g. non-140 jio_mobile
+    compliance lane - a trunk that the lane forbids (e.g. non-140 jio_mobile
     on a promotional call) is never chosen, even weighted. Unknown lead =>
     promotional lane (fail-closed).
     Returns (provider_name, caller_id). ("none", "") when no eligible trunk.
@@ -256,7 +256,7 @@ def freeswitch_gateway_xml(trunk: Trunk) -> str:
 </include>
 """
     if trunk.name == "vobiz":
-        # Vobiz uses API-mode place_call, not gateway — but if a future
+        # Vobiz uses API-mode place_call, not gateway - but if a future
         # migration wants FreeSWITCH-based, here's a skeleton.
         host = _env("VOBIZ_TRUNK_DOMAIN")
         return f"""<!-- Vobiz trunk: prefer API place_call mode. This gateway stub

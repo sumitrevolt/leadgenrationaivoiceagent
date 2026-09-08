@@ -1,4 +1,4 @@
-"""L6 dispatch — exactly ONE logical internal task per prospective row.
+"""L6 dispatch - exactly ONE logical internal task per prospective row.
 
 Review P0: "exactly-once dispatch-decision" was not enough, because a worker
 that crashed AFTER `agent_task_queue.assign()` but BEFORE `mark_dispatched()`
@@ -98,7 +98,7 @@ async def test_crash_after_assign_before_ack_creates_no_duplicate(wired):
 
     task_id_2 = await ms._default_dispatch(retry)
     assert task_id_2 == task_id, "retry must resolve to the same logical task"
-    assert wired.count_tasks() == 1, "a second task was created — duplicate side effect"
+    assert wired.count_tasks() == 1, "a second task was created - duplicate side effect"
     assert ms.stats()["dispatch_duplicate_suppressed"] >= 1
 
 

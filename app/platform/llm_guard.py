@@ -1,8 +1,8 @@
 """
-LLM injection / IFC guard — observe-only, flag-gated, import-safe.
+LLM injection / IFC guard - observe-only, flag-gated, import-safe.
 
 Indirect Prompt Injection (IPI) detection for UNTRUSTED content the agent reads:
-inbound email, scraped web, retrieved KB, tool output. It does NOT block — it
+inbound email, scraped web, retrieved KB, tool output. It does NOT block - it
 SCORES + flags so a human or deterministic gate can ratify before any side-effect
 (Information Flow Control). The scan functions are PURE (always run)
 the WIRING
@@ -26,7 +26,7 @@ import re
 UNTRUSTED_SOURCES = {"inbox", "email", "web", "scrape", "rag", "kb", "tool", "third_party"}
 TRUSTED_SOURCES = {"user", "customer", "operator", "admin", "system"}
 
-# IPI signal patterns — imperative-to-agent instructions embedded in content.
+# IPI signal patterns - imperative-to-agent instructions embedded in content.
 # Conservative + observe-only, so benign false-positives are acceptable (we flag,
 # never block). Each = (name, compiled regex).
 _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -77,13 +77,13 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 
 
 def label_source(source: str) -> str:
-    """IFC trust label. Default = untrusted (fail-safe — unknown source is not trusted)."""
+    """IFC trust label. Default = untrusted (fail-safe - unknown source is not trusted)."""
     s = (source or "").strip().lower()
     return "trusted" if s in TRUSTED_SOURCES else "untrusted"
 
 
 def scan(text: str, source: str = "unknown") -> dict:
-    """Scan content for IPI signals. PURE — never blocks, never raises.
+    """Scan content for IPI signals. PURE - never blocks, never raises.
 
     Returns: {risk:int, signals:[names], trust:label, source, suspicious:bool}
     """
@@ -109,7 +109,7 @@ def is_suspicious(text: str, source: str = "unknown") -> bool:
 
 
 def enabled() -> bool:
-    """Wiring switch — observe-only side-effects (log lines / draft tags) only when
+    """Wiring switch - observe-only side-effects (log lines / draft tags) only when
     LLM_GUARD=1. Scans run regardless
     this just gates the noise so the feature is
     INERT by default (project ethos: gated, fail-open)."""

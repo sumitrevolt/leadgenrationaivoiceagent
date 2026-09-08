@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Owned real-process helper for EXTERNAL_AGENT_RUNNER integration tests.
 
-Deterministic behaviours only. Never prints secret *values* — env dump is
+Deterministic behaviours only. Never prints secret *values* - env dump is
 names-only. Invoked solely via argument arrays (no shell).
 """
 
@@ -22,7 +22,7 @@ def _cmd() -> str:
 def main() -> int:
     cmd = _cmd()
     if cmd == "env-names":
-        # Names only — never values.
+        # Names only - never values.
         print(json.dumps(sorted(os.environ.keys()), ensure_ascii=False))
         return 0
     if cmd == "env-watch":

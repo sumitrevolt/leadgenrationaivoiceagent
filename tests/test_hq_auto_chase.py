@@ -1,4 +1,4 @@
-"""Hot Queue auto-chase contracts — automated EMAIL follow-up on unactioned inquiry cards.
+"""Hot Queue auto-chase contracts - automated EMAIL follow-up on unactioned inquiry cards.
 
 Inert-by-default (HQ_AUTO_CHASE off => zero work), email-only (WhatsApp/call stay
 1-click human), idempotent per card, suppression-aware, fail-closed on SMTP missing.
@@ -133,7 +133,7 @@ def test_skips_already_chased_and_done(monkeypatch):
     fake = _FakeSend()
 
     out = _run(hqc.run_auto_chase(send_fn=fake))
-    # Both cards filtered before evaluation (already sent / done) — seen counts
+    # Both cards filtered before evaluation (already sent / done) - seen counts
     # only cards that pass the basic channel/status filters.
     assert out["sent"] == 0
     assert fake.calls == []

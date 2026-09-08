@@ -1,4 +1,4 @@
-"""External Agent Orchestrator — Cursor/Claude missions under Owner OS authority.
+"""External Agent Orchestrator - Cursor/Claude missions under Owner OS authority.
 
 This package EXTENDS the existing Claude-managed engineering control plane
 (`app/dev_control`). It is NOT a second control plane:

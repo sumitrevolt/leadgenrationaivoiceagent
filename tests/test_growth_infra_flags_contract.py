@@ -1,4 +1,4 @@
-"""Admin /infra/flags — typed manifest fields stay backward compatible."""
+"""Admin /infra/flags - typed manifest fields stay backward compatible."""
 
 from __future__ import annotations
 

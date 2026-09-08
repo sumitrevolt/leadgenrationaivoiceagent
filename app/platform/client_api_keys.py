@@ -1,8 +1,8 @@
-"""Client-facing API keys — Zapier-style integrations ka base (key se apna data pull).
+"""Client-facing API keys - Zapier-style integrations ka base (key se apna data pull).
 
 Key format `lga_<32hex>`
-sirf SHA-256 hash store hota (data/client_api_keys.jsonl) —
-plain key sirf issue-response me ek baar. verify() → client_id | None. NEVER raises.
+sirf SHA-256 hash store hota (data/client_api_keys.jsonl) -
+plain key sirf issue-response me ek baar. verify() -> client_id | None. NEVER raises.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def _hash(key: str) -> str:
 
 
 def issue(client_id: str, name: str = "default") -> dict[str, Any]:
-    """Naya key — plain value SIRF is response me (store = hash only)."""
+    """Naya key - plain value SIRF is response me (store = hash only)."""
     client_id = (client_id or "").strip()
     if not client_id:
         return {"ok": False, "error": "client_id required"}
@@ -59,7 +59,7 @@ def issue(client_id: str, name: str = "default") -> dict[str, Any]:
         "ok": True,
         "api_key": key,
         "client_id": client_id,
-        "note": "Key ko safe rakho — dobara nahi dikhegi.",
+        "note": "Key ko safe rakho - dobara nahi dikhegi.",
     }
 
 
@@ -99,7 +99,7 @@ def list_keys(client_id: str = "") -> list[dict[str, Any]]:
 
 
 def verify(key: str) -> str | None:
-    """key → client_id (active) | None."""
+    """key -> client_id (active) | None."""
     key = (key or "").strip()
     if not key.startswith("lga_"):
         return None

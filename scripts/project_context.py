@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""project_context.py — shared library for the persistent project-context store.
+"""project_context.py - shared library for the persistent project-context store.
 
-WHY: `graphify` (app/graphify-out/graph.json) is an AST *code* graph — great for
+WHY: `graphify` (app/graphify-out/graph.json) is an AST *code* graph - great for
 "who calls build_snapshot()". It does NOT hold PROJECT-level knowledge (products,
 agents, workflows, feature flags, tenants, decisions, incidents, landmines, Unity
 components, tests, deployment). This module ingests that knowledge from
@@ -12,7 +12,7 @@ re-reading the whole repo.
 Design invariants:
   * Secret-safe: never reads `.env*`
   masks anything secret-shaped before storing.
-  * Idempotent: output is a deterministic function of repo content — re-running
+  * Idempotent: output is a deterministic function of repo content - re-running
     with no source change rewrites nothing (content_hash unchanged).
   * Degrades: any missing/unreadable source is skipped, never crashes.
   * Provenance: every node records its `source` file + `verified_sha` (git HEAD
@@ -34,7 +34,7 @@ from typing import Any
 
 
 def force_utf8_stdout() -> None:
-    """Windows consoles default to cp1252 and crash on ₹/→/«»/emoji in summaries.
+    """Windows consoles default to cp1252 and crash on ₹/->/«»/emoji in summaries.
     Call from every CLI main() so printing project facts never raises."""
     import sys as _sys
 
@@ -51,7 +51,7 @@ DEFAULT_SNAPSHOT = REPO_ROOT / "app" / "graphify-out" / "CONTEXT_SNAPSHOT.md"
 SCHEMA = "leadgen-project-context/1.0"
 
 # --------------------------------------------------------------------------- #
-# Secret safety — mask secret-shaped substrings; NEVER read .env*.
+# Secret safety - mask secret-shaped substrings; NEVER read .env*.
 # (git SHAs are intentionally kept, so no bare 40-hex rule.)
 # --------------------------------------------------------------------------- #
 _SECRET_PATTERNS = [
@@ -102,7 +102,7 @@ def _clip(s: str, n: int = 240) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# git helpers (tolerant — never raise)
+# git helpers (tolerant - never raise)
 # --------------------------------------------------------------------------- #
 def _git(*args: str) -> str:
     try:
@@ -154,7 +154,7 @@ def _relpath(p: Path) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Ingestors — each returns (nodes-added, edges-added). All tolerant.
+# Ingestors - each returns (nodes-added, edges-added). All tolerant.
 # --------------------------------------------------------------------------- #
 def ingest_project(nodes, edges, sha):
     claude = read_text_safe(_rel("CLAUDE.md"))
@@ -427,7 +427,7 @@ def snapshot_md(store: dict) -> str:
     for n in store["nodes"]:
         by_type[n["type"]] = by_type.get(n["type"], 0) + 1
     lines = [
-        "# Project Context Snapshot (derived — regenerate with scripts/sync_project_context.py)",
+        "# Project Context Snapshot (derived - regenerate with scripts/sync_project_context.py)",
         "",
         f"- Schema: `{m['schema']}`  |  HEAD: `{m['head_sha'][:8]}`  |  branch: `{m['branch']}`",
         f"- Nodes: {m['node_count']}  |  Edges: {m['edge_count']}  |  content_hash: `{m['content_hash'][:12]}`",

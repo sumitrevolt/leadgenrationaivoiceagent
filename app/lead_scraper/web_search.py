@@ -7,7 +7,7 @@ name / website / phone / email extract karta hai. Koi API key nahi chahiye.
 
 Note: DuckDuckGo ka HTML endpoint (https://html.duckduckgo.com/html/) free hai
 aur rate-limit lenient hai. Agar zyada volume chahiye to Google Custom Search
-API (100 free/day) ya SerpAPI plug kar sakte ho — interface same rahega.
+API (100 free/day) ya SerpAPI plug kar sakte ho - interface same rahega.
 """
 
 import asyncio
@@ -68,7 +68,7 @@ class WebSearchScraper:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-IN,en;q=0.9",
         }
-        # domains jo business websites nahi hote — skip
+        # domains jo business websites nahi hote - skip
         self.skip_domains = {
             "facebook.com",
             "instagram.com",

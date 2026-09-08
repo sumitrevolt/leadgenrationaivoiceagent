@@ -1,7 +1,7 @@
 """
-app/api/events.py — Real-time Server-Sent Events (SSE) endpoint.
+app/api/events.py - Real-time Server-Sent Events (SSE) endpoint.
 
-GET /api/events/stream  → text/event-stream
+GET /api/events/stream  -> text/event-stream
   - Redis pub/sub channel "lgai:events" pe listen karta hai
   - Fallback: agar Redis unavailable ya in-memory cache hai, to DB se recent_events()
     poll karta hai (10s interval)
@@ -35,7 +35,7 @@ _POLL_FALLBACK_S = 10  # jab Redis pub/sub nahi, DB poll interval
 
 
 async def _redis_pubsub_stream(request: Request) -> AsyncGenerator[str, None]:
-    """Redis pub/sub se live events → SSE format."""
+    """Redis pub/sub se live events -> SSE format."""
     try:
         import redis.asyncio as aioredis
 
@@ -74,7 +74,7 @@ async def _redis_pubsub_stream(request: Request) -> AsyncGenerator[str, None]:
                 yield f"data: {data}\n\n"
                 last_heartbeat = time.monotonic()  # real event = reset heartbeat timer
 
-            # Heartbeat — proxy/nginx idle timeout prevent karo
+            # Heartbeat - proxy/nginx idle timeout prevent karo
             elif time.monotonic() - last_heartbeat > _HEARTBEAT_S:
                 yield "event: ping\ndata: {}\n\n"
                 last_heartbeat = time.monotonic()
@@ -131,7 +131,7 @@ async def _poll_fallback_stream(request: Request) -> AsyncGenerator[str, None]:
 
 
 async def _sse_generator(request: Request) -> AsyncGenerator[str, None]:
-    """Redis pub/sub try karo, fail → polling fallback."""
+    """Redis pub/sub try karo, fail -> polling fallback."""
     use_redis = False
     try:
         from app.cache import _use_fallback  # type: ignore[attr-defined]
@@ -142,7 +142,7 @@ async def _sse_generator(request: Request) -> AsyncGenerator[str, None]:
 
     if use_redis:
         try:
-            import redis.asyncio  # noqa: F401 — availability check
+            import redis.asyncio  # noqa: F401 - availability check
 
             async for chunk in _redis_pubsub_stream(request):
                 yield chunk
@@ -157,7 +157,7 @@ async def _sse_generator(request: Request) -> AsyncGenerator[str, None]:
 
 @router.get("/events/stream")
 async def events_stream(request: Request, _user=Depends(require_admin)):
-    """Server-Sent Events stream — live agent_events feed.
+    """Server-Sent Events stream - live agent_events feed.
 
     Frontend usage:
         const es = new EventSource('/api/events/stream', {headers: {Authorization: 'Bearer ...'}});
@@ -182,7 +182,7 @@ async def publish_event(body: dict, _user=Depends(require_admin)):
 
 
 async def publish_to_redis(event: dict) -> None:
-    """team.log_event se call hota hai — non-blocking, fail-open.
+    """team.log_event se call hota hai - non-blocking, fail-open.
     Redis channel 'lgai:events' pe JSON publish karta hai."""
     try:
         import redis.asyncio as aioredis
@@ -200,4 +200,4 @@ async def publish_to_redis(event: dict) -> None:
         await r.publish(_CHANNEL, payload)
         await r.aclose()
     except Exception:
-        pass  # fail-open — caller never breaks
+        pass  # fail-open - caller never breaks

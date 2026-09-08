@@ -1,4 +1,4 @@
-"""Place one allowlisted transactional test call — prod container only."""
+"""Place one allowlisted transactional test call - prod container only."""
 
 import asyncio
 import json
@@ -66,9 +66,9 @@ async def main() -> int:
     print("placed", res.get("placed"))
     print("error", res.get("error"))
 
-    with open("/tmp/last_call_uuid.txt", "w") as f:  # nosec B108 — VPS canary scratch
+    with open("/tmp/last_call_uuid.txt", "w") as f:  # nosec B108 - VPS canary scratch
         f.write(str(uuid or ""))
-    with open("/tmp/last_canary_call.json", "w") as f:  # nosec B108 — VPS canary scratch
+    with open("/tmp/last_canary_call.json", "w") as f:  # nosec B108 - VPS canary scratch
         json.dump(res, f, default=str)
     return 0 if res.get("placed") else 1
 

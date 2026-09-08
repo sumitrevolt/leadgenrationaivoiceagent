@@ -26,7 +26,7 @@ class DunningCaseIn(BaseModel):
 
 @router.post("/revenue/dunning/case")
 async def dunning_open_case(body: DunningCaseIn, _user=Depends(require_admin)):
-    """Manual dunning case (webhook ke bahar se) — recovery sequence shuru."""
+    """Manual dunning case (webhook ke bahar se) - recovery sequence shuru."""
     from app.billing import dunning
 
     return await dunning.on_payment_failed(
@@ -36,7 +36,7 @@ async def dunning_open_case(body: DunningCaseIn, _user=Depends(require_admin)):
 
 @router.post("/revenue/dunning/run")
 async def dunning_run(_user=Depends(require_admin)):
-    """Dunning sweep abhi chalao (gated DUNNING_ENGINE — off = no-op)."""
+    """Dunning sweep abhi chalao (gated DUNNING_ENGINE - off = no-op)."""
     from app.billing import dunning
 
     return await dunning.run_due()
@@ -85,7 +85,7 @@ async def lifecycle_enroll(body: LifecycleEnrollIn, _user=Depends(require_admin)
 
 @router.post("/revenue/lifecycle/run")
 async def lifecycle_run(_user=Depends(require_admin)):
-    """Nurture sweep abhi chalao (gated LIFECYCLE_NURTURE — off = no-op)."""
+    """Nurture sweep abhi chalao (gated LIFECYCLE_NURTURE - off = no-op)."""
     from app.marketing import lifecycle_nurture
 
     return await lifecycle_nurture.run_due()
@@ -101,13 +101,13 @@ async def lifecycle_overview(_user=Depends(require_admin)):
 
 @router.post("/revenue/digest/run")
 async def revenue_digest_run(_user=Depends(require_admin)):
-    """Revenue digest abhi banao+bhejo (force — gate/dedupe skip)."""
+    """Revenue digest abhi banao+bhejo (force - gate/dedupe skip)."""
     from app.platform import revenue_digest
 
     return await revenue_digest.run(force=True)
 
 
-# ------------- GST invoicing (gst_invoice.py — Rule 46, sequential FY numbering) ------------- #
+# ------------- GST invoicing (gst_invoice.py - Rule 46, sequential FY numbering) ------------- #
 @router.get("/revenue/invoices")
 async def revenue_invoices(limit: int = 50, _user=Depends(require_admin)):
     """Invoice list + FY stats (latest first)."""
@@ -128,12 +128,12 @@ async def revenue_invoice_create(payload: dict, _user=Depends(require_admin)):
         gateway=str(payload.get("gateway") or ""),
         amount_inr=payload.get("amount_inr"),
     )
-    return inv or {"error": "invoice nahi bana — client_id/plan/amount check karo"}
+    return inv or {"error": "invoice nahi bana - client_id/plan/amount check karo"}
 
 
 @router.post("/revenue/invoice-void")
 async def revenue_invoice_void(payload: dict, _user=Depends(require_admin)):
-    """Accountant-safe invoice VOID: {number, reason?}. Record delete NAHI hota —
+    """Accountant-safe invoice VOID: {number, reason?}. Record delete NAHI hota -
     append-only void marker (Rule-46 sequence intact, gross reporting se excluded).
     2026-07-18 billing containment: synthetic test invoices ka correction path."""
     from app.billing import gst_invoice
@@ -147,7 +147,7 @@ async def revenue_invoice_void(payload: dict, _user=Depends(require_admin)):
 
 @router.get("/revenue/invoices.csv")
 async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
-    """GSTR-friendly CSV export (?fy=2026-27 optional filter) — accounting/CA ke liye."""
+    """GSTR-friendly CSV export (?fy=2026-27 optional filter) - accounting/CA ke liye."""
     import csv
     import io
 
@@ -215,7 +215,7 @@ async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
 async def revenue_topup_link(payload: dict, _user=Depends(require_admin)):
     """Voice-minute top-up pack info: {client_id, pack: topup_100|topup_250|topup_500}.
 
-    Razorpay removed 2026-06-18 — automated payment links gone. Returns the pack
+    Razorpay removed 2026-06-18 - automated payment links gone. Returns the pack
     details so the operator can collect via manual UPI and credit minutes manually.
     """
     from app.marketing.packages import get_topup_packs, topup_pack
@@ -226,7 +226,7 @@ async def revenue_topup_link(payload: dict, _user=Depends(require_admin)):
         return {"ok": False, "error": "client_id + valid pack chahiye", "packs": get_topup_packs()}
     return {
         "ok": False,
-        "error": "Online payment links band — manual UPI se collect karo, phir minutes credit karo.",
+        "error": "Online payment links band - manual UPI se collect karo, phir minutes credit karo.",
         "pack": pack,
     }
 
@@ -240,7 +240,7 @@ async def revenue_topup_packs(_user=Depends(require_admin)):
 
 @router.get("/revenue/invoice-html")
 async def revenue_invoice_html(number: str, _user=Depends(require_admin)):
-    """Printable HTML invoice (?number=INV/2026-27/0001 — number me '/' isliye query param)."""
+    """Printable HTML invoice (?number=INV/2026-27/0001 - number me '/' isliye query param)."""
     from fastapi.responses import HTMLResponse
 
     from app.billing import gst_invoice
@@ -251,7 +251,7 @@ async def revenue_invoice_html(number: str, _user=Depends(require_admin)):
     return HTMLResponse(gst_invoice.invoice_html(inv))
 
 
-# ------------- Usage upsell alerts (usage_alerts.py — 80%/100% minute triggers) ------------- #
+# ------------- Usage upsell alerts (usage_alerts.py - 80%/100% minute triggers) ------------- #
 @router.post("/revenue/usage-alerts/run")
 async def usage_alerts_run(_user=Depends(require_admin)):
     """Usage-threshold sweep abhi chalao (send gated USAGE_ALERTS=1; record hamesha)."""

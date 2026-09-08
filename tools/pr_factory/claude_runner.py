@@ -1,4 +1,4 @@
-"""Wrap ``runner/claude_exec`` — no new shell surface."""
+"""Wrap ``runner/claude_exec`` - no new shell surface."""
 
 from __future__ import annotations
 

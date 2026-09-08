@@ -1,4 +1,4 @@
-"""Trial-to-paid nudge (BLK-02) contract tests — TRIAL_NUDGE_ENABLED INERT default.
+"""Trial-to-paid nudge (BLK-02) contract tests - TRIAL_NUDGE_ENABLED INERT default.
 
 Contract locks:
   - OFF default: bina flag zero sends, zero writes (fail-closed).
@@ -7,7 +7,7 @@ Contract locks:
   - Suppression wins (DPDP opt-out).
   - Idempotency/cooldown via client-record stamps (koi double-send nahi).
   - Price single-source = marketing/packages.py (billing truth).
-  - WhatsApp text sirf OWNER ke liye — koi auto-send path NAHI.
+  - WhatsApp text sirf OWNER ke liye - koi auto-send path NAHI.
 """
 
 from __future__ import annotations
@@ -241,12 +241,12 @@ def test_messages_embed_pay_link_when_provided():
         msg = tn.build_message(stage, "Biz", 1, price=1999, pay_link=pay)
         assert pay in msg["body"]
         assert pay in msg["wa_text"]
-        # UPI deep-link is primary CTA — appears before the generic pricing page
+        # UPI deep-link is primary CTA - appears before the generic pricing page
         assert msg["body"].index(pay) < msg["body"].index("leadsgenai.in/pricing")
 
 
 def test_messages_fallback_to_pricing_when_no_pay_link():
-    """pay_link default (empty) falls back to the pricing URL — backward-compatible."""
+    """pay_link default (empty) falls back to the pricing URL - backward-compatible."""
     for stage in ("expiring", "expired"):
         msg = tn.build_message(stage, "Biz", 2)
         assert "leadsgenai.in/pricing" in msg["body"]

@@ -71,7 +71,7 @@ class ImportIn(BaseModel):
 
 @router.post("/prospects/import")
 async def prospects_import(body: ImportIn, _user=Depends(require_admin)):
-    """Apollo CSV/rows import → dedupe → prospector store + DB + scoring pipeline."""
+    """Apollo CSV/rows import -> dedupe -> prospector store + DB + scoring pipeline."""
     from app.platform import prospect_lists
 
     if body.csv_text:
@@ -86,7 +86,7 @@ class EmailFindIn(BaseModel):
 
 @router.post("/prospects/find-email")
 async def prospects_find_email(body: EmailFindIn, _user=Depends(require_admin)):
-    """Email-finder waterfall: site-extract → pattern-guess → MX verify (Apollo-free)."""
+    """Email-finder waterfall: site-extract -> pattern-guess -> MX verify (Apollo-free)."""
     from app.platform import email_finder
 
     return await email_finder.find(body.website, body.owner_name or "")

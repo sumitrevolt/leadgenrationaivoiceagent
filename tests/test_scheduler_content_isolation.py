@@ -1,9 +1,9 @@
-"""W1.3 — `content` mega-job must isolate each engine.
+"""W1.3 - `content` mega-job must isolate each engine.
 
 Bug: the `content` job in `_run_job_inner` chained its first ~12 engines with NO
 per-engine try/except. So if engine #1 (`auto_content.run_daily_content`) threw, the
 exception unwound to the job's single outer except and engines #2..#12 were silently
-skipped that run — content, video, schedule, autopost, cadence, dunning, etc. all
+skipped that run - content, video, schedule, autopost, cadence, dunning, etc. all
 gone because one engine hiccuped.
 
 Fix: each of those engines now runs through `_run_content_engine(name, coro)`, which
@@ -35,7 +35,7 @@ _CONTENT_ENGINES = [
     ("app.marketing.channel_experiments", "run_daily"),  # 10
     ("app.platform.booking_reminders", "run_due"),  # 11
     ("app.marketing.review_monitor", "run_check"),  # 12  (spy target)
-    # already-try-wrapped tail — no-op'd so nothing heavy/networked runs:
+    # already-try-wrapped tail - no-op'd so nothing heavy/networked runs:
     ("app.marketing.customer_crm", "run_wishes_if_enabled"),
     ("app.platform.service_reminders", "run_due_if_enabled"),
     ("app.marketing.newsletter", "run_due_if_enabled"),

@@ -1,4 +1,4 @@
-"""W1.6 — audit/site tracked URLs are computed lazily (not at module import).
+"""W1.6 - audit/site tracked URLs are computed lazily (not at module import).
 
 Bug: `_AUDIT_URL_TRACKED = _track_url(_AUDIT_URL)` (+ the site one) ran at MODULE
 IMPORT time, firing a live is.gd/tracked-link network call just to import
@@ -7,7 +7,7 @@ runs in prod_check too).
 
 Fix: a lazy, memoized accessor computes the tracked URL on first use and caches it.
 This test proves the accessor is lazy + cached (one `_track_url` call across many uses).
-The "not at import" half is guaranteed structurally — the module no longer holds a
+The "not at import" half is guaranteed structurally - the module no longer holds a
 top-level `= _track_url(...)` assignment (grep-verified in the loop).
 """
 

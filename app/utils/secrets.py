@@ -1,7 +1,7 @@
 """
 app/utils/secrets.py
 --------------------
-SOPS + age encrypted secrets loader — never-raise, gated behind USE_SOPS=1.
+SOPS + age encrypted secrets loader - never-raise, gated behind USE_SOPS=1.
 
 Default behaviour (USE_SOPS unset or 0):
     - load_encrypted_env() is a no-op, returns False.
@@ -120,12 +120,12 @@ def load_encrypted_env(
 
     Returns
     -------
-    True  — vars loaded successfully.
-    False — disabled, files missing, or any error (always graceful).
+    True  - vars loaded successfully.
+    False - disabled, files missing, or any error (always graceful).
     """
     try:
         if not _is_enabled():
-            logger.debug("secrets: USE_SOPS not set — skipping encrypted load.")
+            logger.debug("secrets: USE_SOPS not set - skipping encrypted load.")
             return False
 
         # Verify sops binary exists
@@ -161,7 +161,7 @@ def load_encrypted_env(
             cmd += ["--config", str(_cfg)]
         cmd.append(str(_enc))
 
-        # Build subprocess env — forward SOPS_AGE_KEY_FILE if set
+        # Build subprocess env - forward SOPS_AGE_KEY_FILE if set
         proc_env = os.environ.copy()
 
         result = subprocess.run(
@@ -198,13 +198,13 @@ def load_encrypted_env(
         logger.warning("secrets: sops decrypt timed out after 15s.")
         return False
     except Exception as exc:  # noqa: BLE001
-        logger.warning("secrets: unexpected error during load — %s", exc)
+        logger.warning("secrets: unexpected error during load - %s", exc)
         return False
 
 
 def get_secret(name: str, default: str = "") -> str:
     """
-    Thin wrapper around os.getenv — use instead of os.getenv for secret keys
+    Thin wrapper around os.getenv - use instead of os.getenv for secret keys
     so callers are explicit about secrets vs config.
 
     Never raises.
@@ -216,7 +216,7 @@ def get_secret(name: str, default: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
-# Dev/debug helper — not imported by production paths
+# Dev/debug helper - not imported by production paths
 # ---------------------------------------------------------------------------
 
 

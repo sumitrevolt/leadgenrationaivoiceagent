@@ -1,13 +1,13 @@
 """
-Curated 'learned good replies' store — Component 3 of the voice smart-fix bundle.
+Curated 'learned good replies' store - Component 3 of the voice smart-fix bundle.
 ================================================================================
 
-CLOSES the learn-from-calls loop. Today `web_call_learn → voice_self_improve`
+CLOSES the learn-from-calls loop. Today `web_call_learn -> voice_self_improve`
 already turns a real failing-call turn into a better candidate reply behind a
 `promotion_gate`, but the admin "promote" action only flipped a JSONL status field
-— nothing reached the live agent (dead-end). Now a PROMOTED proposal is recorded
+- nothing reached the live agent (dead-end). Now a PROMOTED proposal is recorded
 here as a niche-tagged good example, and `telecaller_brain` injects the top-N for
-the current niche into its system prompt — so a human-approved correction from a
+the current niche into its system prompt - so a human-approved correction from a
 real call actually improves the live agent.
 
 GUARDRAILS: only the admin promote path writes here (gated by `promotion_gate` +

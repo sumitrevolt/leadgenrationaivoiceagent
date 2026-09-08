@@ -2,7 +2,7 @@
 """PreToolUse(Bash|PowerShell) deterministic safety guard.
 
 Why: CLAUDE.md + the `careful` / parallel-cursor / stale-mount lessons are SOFT
-(model must remember them). This hook makes the catastrophic ones HARD — the
+(model must remember them). This hook makes the catastrophic ones HARD - the
 model cannot rationalize past a deterministic gate. Directly reduces the
 high-cost, hallucination/drift-driven mistakes on this repo.
 
@@ -21,7 +21,7 @@ import sys
 
 # Command-boundary anchor: a dangerous command must START the line or follow a
 # shell separator (newline, ;, |, &, &&, ||). This stops false-positives on the
-# SAME strings appearing inside commit messages / echo / grep text — e.g. a
+# SAME strings appearing inside commit messages / echo / grep text - e.g. a
 # commit message that merely mentions "git add -A" as documentation.
 _B = r"(?:^|[\n
 |&])[ \t]*"
@@ -29,10 +29,10 @@ _B = r"(?:^|[\n
 # --- DENY: catastrophic / repo-known footguns (block outright) ---------------
 DENY = [
     (_B + r"git\s+add\s+(-A\b|--all\b|\.(\s|$))",
-     "`git add -A/./--all` is blocked (parallel-Cursor truncation hazard — "
+     "`git add -A/./--all` is blocked (parallel-Cursor truncation hazard - "
      "shared files get clobbered). Stage explicit paths: `git add <path1> <path2>`."),
     (_B + r"git\s+push\b[^\n]*?(--force(?!-with-lease)|\s-f\b|\s\+[\w/])",
-     "Force-push is blocked (history-rewrite risk on shared main) — incl the "
+     "Force-push is blocked (history-rewrite risk on shared main) - incl the "
      "`git push origin +main` plus-refspec form. Use `--force-with-lease` if you "
      "truly must, after confirming with the user (`careful` skill)."),
     (_B + r"(sudo\s+)?rm\s+-[a-z]*[rf][a-z]*\s+(/|~|\$HOME|/\*)(\s|$|/)",
@@ -40,7 +40,7 @@ DENY = [
      "Narrow the path to the exact target dir (`careful` skill)."),
     (r">>?\s*[\"']?\S*(CLAUDE\.md|AGENTS\.md|SESSION_LOG)",
      "Shell redirect into CLAUDE.md/AGENTS.md/SESSION_LOG is blocked "
-     "(stale-mount mid-file corruption — happened before). Use the Edit tool instead."),
+     "(stale-mount mid-file corruption - happened before). Use the Edit tool instead."),
 ]
 
 # --- ASK: risky-but-sometimes-needed (force an explicit human confirm) --------
@@ -57,7 +57,7 @@ ASK = [
      "`docker prune` can delete the ollama/observability/data volumes & images. "
      "Confirm scope; never `prune -a --volumes` on the live VPS (`careful` skill)."),
     (r"\b(DROP\s+(TABLE|DATABASE)|TRUNCATE\s+TABLE?)\b",
-     "Destructive DDL (DROP/TRUNCATE) — confirm against prod DB + have a rollback/backup (`careful` skill)."),
+     "Destructive DDL (DROP/TRUNCATE) - confirm against prod DB + have a rollback/backup (`careful` skill)."),
     (r"\bDELETE\s+FROM\s+\w+\s*(
     |$)(?![^
     ]*\bWHERE\b)",
@@ -88,7 +88,7 @@ def main():
 
     decision, reason = _decide(cmd)
     if not decision:
-        return 0  # normal flow — never auto-allow
+        return 0  # normal flow - never auto-allow
 
     out = {
         "hookSpecificOutput": {

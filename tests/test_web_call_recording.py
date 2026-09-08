@@ -1,5 +1,5 @@
 """Regression tests for web test-call recording + per-turn latency instrumentation
-(2026-06-28). Pure-function coverage — no live WS / no network.
+(2026-06-28). Pure-function coverage - no live WS / no network.
 
 Covers:
   - web_call._rec_ext        magic-byte container detection
@@ -7,7 +7,7 @@ Covers:
   - web_call._log_turn(meta) timing fields persisted on the turn
   - web_call._normalize_session_id_safe
   - call_recordings._SERVE_RE / _MEDIA_BY_EXT accept webcall_*.{webm,mp4,ogg}
-  - web_call_admin._recording_url  disk-check → admin serve URL
+  - web_call_admin._recording_url  disk-check -> admin serve URL
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ def test_rec_ext_magic_bytes():
     assert web_call._rec_ext(b"\x1aE\xdf\xa3rest") == "webm"  # EBML/webm
     assert web_call._rec_ext(b"....ftypisom") == "mp4"  # ISO-BMFF
     assert web_call._rec_ext(b"OggS....") == "ogg"
-    assert web_call._rec_ext(b"garbage") == "webm"  # unknown → webm
+    assert web_call._rec_ext(b"garbage") == "webm"  # unknown -> webm
 
 
 # ------------------------------------------------------ _normalize_session_id_safe
@@ -46,7 +46,7 @@ def test_turn_meta_uses_first_chunk_for_latency():
 
 
 def test_turn_meta_handles_missing_first_chunk():
-    # No audio sent (first_chunk_at absent) → latency falls back to elapsed-now,
+    # No audio sent (first_chunk_at absent) -> latency falls back to elapsed-now,
     # must still be a non-negative int and never raise.
     meta = web_call._turn_meta({"llm_ms": 500}, 0.0, "x")
     assert isinstance(meta["latency_ms"], int) and meta["latency_ms"] >= 0
@@ -72,7 +72,7 @@ def test_log_turn_persists_timing_meta():
     assert turn["role"] == "assistant"
     assert turn["heard"] == "haan boliye"
     assert turn["latency_ms"] == 4100 and turn["llm_ms"] == 2200
-    # user turns (no meta) stay lean — no timing keys leak in
+    # user turns (no meta) stay lean - no timing keys leak in
     web_call._log_turn(session, "user", "haan boliye")
     assert "latency_ms" not in session["turns"][-1]
 

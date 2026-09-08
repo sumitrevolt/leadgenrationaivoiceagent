@@ -1,4 +1,4 @@
-"""blueprint_reconcile.py — legacy Explorer graph -> canonical Blueprint manifest.
+"""blueprint_reconcile.py - legacy Explorer graph -> canonical Blueprint manifest.
 
 The Master Blueprint (``app/platform/blueprint_graph.py``) is the ONE canonical
 node/edge registry. The legacy ``/app/explorer`` graph inside
@@ -8,7 +8,7 @@ nodes + ~196 SUBNODES children, 344 edges) that predates it.
 This tool does the *reconciliation* step: it parses the legacy graph, matches it
 against the canonical registry using **file evidence** (not names), and emits a
 deterministic manifest classifying every legacy node. It NEVER mutates the
-canonical graph — a human/agent uses the manifest to decide what to migrate.
+canonical graph - a human/agent uses the manifest to decide what to migrate.
 
 Classifications (owner-agreed vocabulary):
   MERGE_WITH_CANONICAL_NODE  legacy node already represented canonically
@@ -64,7 +64,7 @@ def _read(p: pathlib.Path) -> str:
 def real_filenames(root: pathlib.Path) -> set[str]:
     """Every real source basename in the repo.
 
-    Prefers ``git ls-tree -r HEAD`` — authoritative for the checked-out commit
+    Prefers ``git ls-tree -r HEAD`` - authoritative for the checked-out commit
     and complete even in a *sparse* worktree. (``git ls-files`` is NOT usable
     here: it reads the sparse index and would report only the materialised
     handful of files, making every other node look stale.) Falls back to an
@@ -308,7 +308,7 @@ def main(argv: list[str]) -> int:
         print(f"  {c:<28} {m['counts'].get(c, 0)}")
     stale = [e for e in m["entries"] if e["classification"] == "INVALID_OR_STALE"]
     if stale:
-        print(f"\n--- INVALID_OR_STALE ({len(stale)}) — do NOT migrate as live ---")
+        print(f"\n--- INVALID_OR_STALE ({len(stale)}) - do NOT migrate as live ---")
         for e in stale[:40]:
             print(f"  {e['legacy_id']:<22} missing: {', '.join(e['files_unresolved'])}")
     if "--check" in argv and stale:

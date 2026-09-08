@@ -1,4 +1,4 @@
-"""Deep Research — multi-step web research with cited synthesis.
+"""Deep Research - multi-step web research with cited synthesis.
 
 Odysseus-inspired pattern (clean-room reimplement, AGPL-safe): "multi-step
 web research with source reading and report generation." LeadGen already
@@ -17,7 +17,7 @@ Dependencies:
     - `app.integrations.searxng` (already ships, SEARXNG_URL gated)
     - `app.voice_agent.free_ai.chat` (existing free-tier chain)
 
-Flag: `DEEP_RESEARCH_ENABLED=1` — INERT default (503 warna).
+Flag: `DEEP_RESEARCH_ENABLED=1` - INERT default (503 warna).
 
 Budget: each request = ~4 LLM calls (1 plan + 3 sub-search summaries + 1
 synthesis) + N SearXNG lookups. `budget_guard` scope="research" enforces.
@@ -230,7 +230,7 @@ async def status() -> dict:
 
 
 _PAGE_HTML = """<!doctype html>
-<html><head><meta charset="utf-8"><title>Deep Research — LeadGen</title>
+<html><head><meta charset="utf-8"><title>Deep Research - LeadGen</title>
 <style>
  body{font-family:system-ui,Segoe UI,sans-serif
  margin:0
@@ -297,7 +297,7 @@ _PAGE_HTML = """<!doctype html>
 </style></head>
 <body><div class="wrap">
  <h1>Deep Research · Multi-step + Cited</h1>
- <div class="sub">Topic → LLM plans sub-queries → SearXNG fanout → cited markdown report.</div>
+ <div class="sub">Topic -> LLM plans sub-queries -> SearXNG fanout -> cited markdown report.</div>
 
  <div class="card">
   <input id="topic" placeholder="e.g. 'Best CRM options for Indian solar installers 2026'">

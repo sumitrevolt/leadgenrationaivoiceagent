@@ -1,17 +1,17 @@
-"""Knowledge-graph RAG via **LightRAG** (HKUDS) — optional, opt-in, never-crash.
+"""Knowledge-graph RAG via **LightRAG** (HKUDS) - optional, opt-in, never-crash.
 
 Why LightRAG (not Microsoft GraphRAG): it builds a *lightweight* entity/relation
 graph during ingest and supports **incremental append** (no full rebuild), with far
-fewer LLM calls than GraphRAG — which matters because we run on free LLM quotas. It
-plugs into our existing free stack: LLM via ``free_ai`` (Cerebras→Groq→…), embeddings
+fewer LLM calls than GraphRAG - which matters because we run on free LLM quotas. It
+plugs into our existing free stack: LLM via ``free_ai`` (Cerebras->Groq->…), embeddings
 via the same fastembed model the Qdrant KB uses. Per-namespace graph store under
 ``data/lightrag/<namespace>`` so niche/client graphs stay separate.
 
-This sits ALONGSIDE the vector KB (``knowledge_base.py``) — it does not replace it.
+This sits ALONGSIDE the vector KB (``knowledge_base.py``) - it does not replace it.
 Use it when answers depend on relationships/causality across documents (e.g. a client's
 full business profile, multi-fact niche knowledge). OFF by default
 any missing dep /
-init error / query error disables it and returns a safe empty result — never raises.
+init error / query error disables it and returns a safe empty result - never raises.
 
 Enable:
   pip install "lightrag-hku"          # + fastembed (already used by the KB)

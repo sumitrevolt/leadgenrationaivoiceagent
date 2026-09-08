@@ -1,4 +1,4 @@
-"""Client-lead isolation — client-owned inquiry/lead LeadGen ki apni sales
+"""Client-lead isolation - client-owned inquiry/lead LeadGen ki apni sales
 cadence/pipeline me KABHI enroll na ho (warna client ka end-customer LeadGen ka
 "Rs 1999 plan lo" draft paata). Platform lead (no client_id) = purana behaviour
 BILKUL unchanged.

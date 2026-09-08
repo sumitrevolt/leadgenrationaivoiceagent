@@ -33,6 +33,6 @@ if gemini_key:
     print(".env: written")
 else:
     print(
-        "SKIP: GEMINI_API_KEY not set — cannot enable Gemini as primary (will fail on every call)"
+        "SKIP: GEMINI_API_KEY not set - cannot enable Gemini as primary (will fail on every call)"
     )
     print("ACTION: Set GEMINI_API_KEY in VPS .env first, then re-run this script")

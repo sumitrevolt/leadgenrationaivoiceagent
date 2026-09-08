@@ -1,5 +1,5 @@
 """
-Agent Cost Tracker — per-agent, per-provider LLM token+cost logging.
+Agent Cost Tracker - per-agent, per-provider LLM token+cost logging.
 ====================================================================
 
 Lightweight Redis counters (daily rollover) + optional DB write for dashboard.
@@ -35,7 +35,7 @@ def _day() -> str:
 
 
 def _redis_sync():
-    """Get sync Redis client — never raises (returns None)."""
+    """Get sync Redis client - never raises (returns None)."""
     try:
         import redis
 
@@ -117,7 +117,7 @@ def agent_today(agent_id: str) -> dict[str, Any]:
 
 
 def today_snapshot() -> dict[str, Any]:
-    """Per-agent cost snapshot for today — for dashboard."""
+    """Per-agent cost snapshot for today - for dashboard."""
     try:
         r = _redis_sync()
         if not r:

@@ -1,21 +1,21 @@
 """
-Prospector — HAMARE platform ke liye Tier-1 client hunting (Rohan ka kaam).
+Prospector - HAMARE platform ke liye Tier-1 client hunting (Rohan ka kaam).
 ===========================================================================
 
 Tier-1 = businesses jo HAMARE client banenge (solar installer, real estate
 agency, coaching institute, interior designer...). Google Maps scraper se
 unhe dhundo, dedupe karo, personalized Hinglish WhatsApp pitch banao aur
-data/prospects.jsonl me queue karo — phir /app/outreach page se user ek-ek
+data/prospects.jsonl me queue karo - phir /app/outreach page se user ek-ek
 ko "📲 WhatsApp bhejo" karta hai.
 
 Public API:
   - run_prospecting(limit_per_query=10) -> dict   (async
   NEVER raises)
   - list_prospects(status=None, limit=100) -> list (newest first)
-  - mark_prospect(pid, status) -> bool             (ready→sent/replied/client/dead)
+  - mark_prospect(pid, status) -> bool             (ready->sent/replied/client/dead)
 
 Scraper best-effort hai: Google Maps API key na ho to playwright fallback,
-wo bhi na ho to query skip ho jaati hai (count me dikhta hai) — kabhi crash
+wo bhi na ho to query skip ho jaati hai (count me dikhta hai) - kabhi crash
 nahi. Scheduler (team_scheduler) roz 09:30 IST pe chalata hai.
 """
 
@@ -38,11 +38,11 @@ logger = setup_logger(__name__)
 
 
 def _PROSPECTS_FILE() -> str:
-    """Prospect JSONL store — resolved per call, never frozen at import.
+    """Prospect JSONL store - resolved per call, never frozen at import.
 
     ~20MB / 18k records
     whole-file rewrite on update. Bytes stay in-checkout
-    until a separate host cutover — this resolver only makes the CODE follow
+    until a separate host cutover - this resolver only makes the CODE follow
     LEADGEN_RUNTIME_DATA_ROOT when cutover is later activated.
     """
     from app.platform import runtime_data_authority as _auth
@@ -139,7 +139,7 @@ def is_quality_approved(record: dict[str, Any] | None) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Targets — kaunse niches ke businesses dhundhne hain (env-overridable).
+# Targets - kaunse niches ke businesses dhundhne hain (env-overridable).
 # Env PROSPECT_TARGETS = JSON list: [{"niche": "...", "query": "...",
 # "cities": ["...", ...]}, ...]
 # --------------------------------------------------------------------------- #
@@ -218,7 +218,7 @@ def _phone_digits(raw: str | None) -> str:
 def _phone_type(phone10: str) -> str:
     """ADR-027 quality tag: 'mobile'/'flom'/'fixed'/'tollfree'/'invalid'/'unknown'/''.
 
-    dial_gate.phone_quality (libphonenumber IN plan) se — FIXED_LINE cloud-IVR
+    dial_gate.phone_quality (libphonenumber IN plan) se - FIXED_LINE cloud-IVR
     DIDs record me hi visible ho jate (dial_gate inhe promotional-dial pe waise
     bhi block karta
     yeh tag dashboards/backfill/email-routing ke liye)."""
@@ -233,7 +233,7 @@ def _phone_type(phone10: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Pitch builder (template — NO LLM, instant + deterministic)
+# Pitch builder (template - NO LLM, instant + deterministic)
 # --------------------------------------------------------------------------- #
 def _niche_display(niche: str) -> str:
     """NICHES se readable naam (lazy, fallback = key prettified)."""
@@ -243,7 +243,7 @@ def _niche_display(niche: str) -> str:
         cfg = NICHES.get(niche) or {}
         name = cfg.get("display_name") or cfg.get("name")
         if name:
-            # Pitch ke liye short rakho — "(...)" wala suffix kaat do.
+            # Pitch ke liye short rakho - "(...)" wala suffix kaat do.
             return str(name).split("(")[0].strip()[:40]
     except Exception:
         pass
@@ -256,7 +256,7 @@ def build_pitch(business_name: str, niche: str, city: str = "") -> str:
     nd = _niche_display(niche)
     return (
         f"Namaste {business_name} ji 🙏 Main Sumit, LeadGen AI se. "
-        f"{nd} business me {pain} — hamara AI voice agent aapke liye "
+        f"{nd} business me {pain} - hamara AI voice agent aapke liye "
         f"interested customers ko khud call karke QUALIFIED leads laata hai. "
         f"Shuruat me 10 leads bilkul FREE. 2-min live demo yahan suniye: "
         f"leadsgenai.in/app/test-call"
@@ -294,33 +294,33 @@ def build_personalized_pitch(
         if rv is not None and rv < 20:
             cnt = "ek bhi" if rv == 0 else f"sirf {rv}"
             diag = (
-                f"aapke Google pe {cnt} review{'s' if rv != 1 else ''} hain — "
+                f"aapke Google pe {cnt} review{'s' if rv != 1 else ''} hain - "
                 f"main reviews badhane ka system de dunga"
             )
         elif rt is not None and rt > 0:
             diag = (
                 f"aapki rating {rt}⭐ achhi hai par Google pe regular "
-                f"posts/photos nahi dikhe — top pe aane ke liye wahi chahiye"
+                f"posts/photos nahi dikhe - top pe aane ke liye wahi chahiye"
             )
         elif has_website is False:
-            diag = "aapki website bhi nahi dikhi — ek mini page + Google profile dono set kar dunga"
+            diag = "aapki website bhi nahi dikhi - ek mini page + Google profile dono set kar dunga"
         else:
             diag = (
-                "Google pe aapki online presence aur strong ki ja sakti hai — "
+                "Google pe aapki online presence aur strong ki ja sakti hai - "
                 "regular posts, reviews aur profile sab handle kar dunga"
             )
 
         # website-missing ko piggyback karo (agar review/rating line bani ho).
         if has_website is False and "website" not in diag:
-            diag += " (website bhi nahi dikhi — wo bhi set kar dunga)"
+            diag += " (website bhi nahi dikhi - wo bhi set kar dunga)"
 
         return (
             f"Namaste {business_name} ji 🙏 Main Sumit, LeadGen AI se. "
-            f"{nd} ke liye — {diag}. "
-            f"FREE audit + 3 sample posters bhej doon? — leadsgenai.in/audit"
+            f"{nd} ke liye - {diag}. "
+            f"FREE audit + 3 sample posters bhej doon? - leadsgenai.in/audit"
         )
     except Exception:
-        # Kabhi raise nahi — generic pitch pe fall back.
+        # Kabhi raise nahi - generic pitch pe fall back.
         return build_pitch(business_name, niche, city)
 
 
@@ -335,9 +335,9 @@ def _google_search_link(business_name: str, city: str = "") -> str:
 
 
 # --------------------------------------------------------------------------- #
-# FREE no-key source — OpenStreetMap Overpass API (https://overpass-api.de)
+# FREE no-key source - OpenStreetMap Overpass API (https://overpass-api.de)
 # Koi API key nahi, legal (ODbL), stdlib urllib only. Best-effort: kabhi raise
-# nahi karta. Query string → OSM tags map karke city ke area me businesses.
+# nahi karta. Query string -> OSM tags map karke city ke area me businesses.
 # --------------------------------------------------------------------------- #
 _OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 _OSM_UA = "LeadGenAI/1.0 (contact: sumitrevolt23@gmail.com)"
@@ -357,7 +357,7 @@ _OSM_TAG_MAP: list[tuple[tuple[str, ...], list[str]]] = [
     (("real estate", "property", "realtor"), ['office="estate_agent"']),
     (("hardware", "paint"), ['shop~"^(hardware|doityourself|paint)$"']),
     (("furniture", "decor"), ['shop="furniture"']),
-    # Interior designers / decorators — a DEFAULT target. No single canonical OSM
+    # Interior designers / decorators - a DEFAULT target. No single canonical OSM
     # tag, so cover the shop- and craft-level surfaces.
     (
         ("interior", "decorator", "interior_"),
@@ -379,12 +379,12 @@ _OSM_TAG_MAP: list[tuple[tuple[str, ...], list[str]]] = [
         ("doctor", "clinic", "hospital"),
         ['amenity~"^(clinic|hospital|doctors)$"', 'healthcare~"^(clinic|hospital|doctor)$"'],
     ),
-    # Solar / renewable installers — the DEFAULT first target (see _DEFAULT_TARGETS).
+    # Solar / renewable installers - the DEFAULT first target (see _DEFAULT_TARGETS).
     # Without a mapping, "solar installer" falls to the name~ fallback which returns
     # ~0 on Indian OSM, starving the free path. craft=solar_installer is a documented
     # OSM value; shop=solar covers retail-only concerns.
     (("solar", "renewable", "energy"), ['craft="solar_installer"', 'shop="solar"']),
-    # Coaching institutes / tuition centers — a DEFAULT target. OSM India doesn't
+    # Coaching institutes / tuition centers - a DEFAULT target. OSM India doesn't
     # have one canonical tag, so cover the plausible surfaces.
     (
         ("coaching", "tuition", "education"),
@@ -485,7 +485,7 @@ def _osm_search(query: str, city: str, limit: int) -> list[dict[str, Any]]:
             )
             if len(out) >= cap:
                 break
-    except Exception as e:  # network / HTTP / JSON / koi bhi — silently skip
+    except Exception as e:  # network / HTTP / JSON / koi bhi - silently skip
         logger.debug(f"[prospector] OSM search '{query}' in {city} failed: {e}")
         return []
     return out
@@ -498,7 +498,7 @@ def _read_all() -> list[dict[str, Any]]:
     """Saare prospects (parse-safe; corrupt lines skip)."""
     out: list[dict[str, Any]] = []
     try:
-        # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+        # Resolver at each I/O site - binding to a local unbinds the allowlist (A3).
         if not os.path.isfile(_PROSPECTS_FILE()):
             return out
         with open(_PROSPECTS_FILE(), encoding="utf-8") as f:
@@ -517,7 +517,7 @@ def _read_all() -> list[dict[str, Any]]:
 def _persist_prospect_to_db(rec: dict[str, Any]) -> bool:
     """Best-effort: prospect ko relational `leads` table me bhi likho (jsonl ke saath).
 
-    Transactional + dedupe-by-phone. KABHI raise nahi karta — DB down / model missing /
+    Transactional + dedupe-by-phone. KABHI raise nahi karta - DB down / model missing /
     FK issue ho to chup-chaap skip (jsonl hi source of truth rehta). Yeh DB ko bharta
     hai taaki dashboards ka `_build_from_db` real leads dikhaye.
     """
@@ -533,7 +533,7 @@ def _persist_prospect_to_db(rec: dict[str, Any]) -> bool:
         with get_db_session() as db:
             # Format-variant-aware dedupe (audit 2026-07-04): this path always
             # stored digits-only, but the CRM/sheet import path stores "+91..."
-            # — an exact-string check missed those, doubling every business
+            # - an exact-string check missed those, doubling every business
             # that both paths independently found.
             if lead_exists_for_phone(db, phone):
                 return False  # dedupe
@@ -562,7 +562,7 @@ def _persist_prospect_to_db(rec: dict[str, Any]) -> bool:
 
 def _append(rec: dict[str, Any]) -> bool:
     try:
-        # Store hygiene (2026-06-12): timestamps — bina inke staleness/review
+        # Store hygiene (2026-06-12): timestamps - bina inke staleness/review
         # measure hi nahi ho sakti thi (pipeline review finding).
         _now = datetime.utcnow().isoformat() + "Z"
         rec.setdefault("created_at", _now)
@@ -576,7 +576,7 @@ def _append(rec: dict[str, Any]) -> bool:
         except Exception:
             pass
         # ── analytics_store.record_lead (in-memory dashboard feed) ──────────
-        # Naye prospect → analytics store me push karo taaki /analytics/leads
+        # Naye prospect -> analytics store me push karo taaki /analytics/leads
         # real data dikha sake (DB fallback bhi hai, par in-memory = zero-lag).
         try:
             from app.api.analytics import analytics_store as _ast_p
@@ -596,7 +596,7 @@ def _append(rec: dict[str, Any]) -> bool:
             pass
         # ── niche_database mirror ─────────────────────────────────────────────
         # Scraped prospect ko niche_database (call-queue table) me bhi sync karo.
-        # Yeh async function hai — sync context me fire-and-forget via asyncio.
+        # Yeh async function hai - sync context me fire-and-forget via asyncio.
         # Best-effort: fail hone pe jsonl write already ho chuka, koi loss nahi.
         try:
             niche = rec.get("niche") or "general"
@@ -619,7 +619,7 @@ def _append(rec: dict[str, Any]) -> bool:
                     loop = _asyncio.get_running_loop()
                     loop.create_task(_ndb_bulk([_row], niche, client_id, "scrape"))
                 except RuntimeError:
-                    # No running event loop (sync context) — skip, DB mirror above is enough
+                    # No running event loop (sync context) - skip, DB mirror above is enough
                     pass
         except Exception:
             pass
@@ -645,10 +645,10 @@ def list_prospects(status: str | None = None, limit: int = 100) -> list[dict[str
 def pending_for_outreach(limit: int = 500) -> list[dict[str, Any]]:
     """Outreach-ready prospects = status 'ready' + VALID email + abhi tak NOT emailed,
     SAARE prospects me se (NOT `list_prospects`, jiska 500-newest hard-cap reachable
-    backlog ko chhupa deta tha → emailable prospects kabhi email hi nahi hote the).
-    Oldest-first (FIFO — purana backlog pehle drain). KABHI raise nahi karta.
+    backlog ko chhupa deta tha -> emailable prospects kabhi email hi nahi hote the).
+    Oldest-first (FIFO - purana backlog pehle drain). KABHI raise nahi karta.
 
-    `list_prospects` ko replace nahi karta (UI/stats wahi) — sirf cold-email send-path
+    `list_prospects` ko replace nahi karta (UI/stats wahi) - sirf cold-email send-path
     (`auto_outreach.run_email_outreach`) iska source banega.
     """
     try:
@@ -672,7 +672,7 @@ def pending_for_outreach(limit: int = 500) -> list[dict[str, Any]]:
 
 
 def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
-    """Ek prospect par arbitrary fields set karo (e.g. emailed_at) — poora file
+    """Ek prospect par arbitrary fields set karo (e.g. emailed_at) - poora file
     rewrite (chhota hai). status VALID_STATUSES wala constraint yahan NAHI lagta
     (auto-outreach `emailed_at` jaisa custom marker set kar sake). KABHI raise
     nahi karta. True = mila + likha
@@ -736,7 +736,7 @@ def set_prospect_fields_bulk(updates: dict[str, dict[str, Any]]) -> int:
 
 
 def mark_prospect(pid: str, status: str) -> bool:
-    """Ek prospect ka status update karo (poora file rewrite — chhota file hai).
+    """Ek prospect ka status update karo (poora file rewrite - chhota file hai).
 
     True = mila aur update hua. Invalid status / missing id = False.
     """
@@ -768,12 +768,12 @@ def mark_prospect(pid: str, status: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Main run — scraper best-effort, dedupe by phone digits, pitch + wa_link
+# Main run - scraper best-effort, dedupe by phone digits, pitch + wa_link
 # --------------------------------------------------------------------------- #
 async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
     """Targets × cities pe Google Maps scraper chalao, naye prospects queue karo.
 
-    Returns summary dict. NEVER raises — har query apne try/except me hai,
+    Returns summary dict. NEVER raises - har query apne try/except me hai,
     scraper unavailable ho to skip count badhta hai.
     """
     summary: dict[str, Any] = {
@@ -802,7 +802,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
             )
 
         # Source select: real Google Maps key ho to API path; warna FREE OSM
-        # Overpass (NO key, legal, stdlib). Playwright fallback use NAHI karte —
+        # Overpass (NO key, legal, stdlib). Playwright fallback use NAHI karte -
         # wo phones nahi deta. OSM = primary free source.
         scraper = None
         use_osm = True
@@ -824,7 +824,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
             summary["scraper"] = "osm_overpass"
 
         # Cost-safety: Google Maps Place Details lookups are billed. Cap total
-        # per run so the $200/mo free credit never blows up. OSM is free → no
+        # per run so the $200/mo free credit never blows up. OSM is free -> no
         # cap there. Env PROSPECT_MAX_LOOKUPS (default 60).
         try:
             max_lookups = int(os.environ.get("PROSPECT_MAX_LOOKUPS", "60"))
@@ -835,9 +835,9 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
         summary["lookups_capped"] = False
 
         # Email-extraction budget (auto-email outreach ke liye). Har prospect
-        # ki website se email scrape karna network-slow hai → per-run cap.
+        # ki website se email scrape karna network-slow hai -> per-run cap.
         # Env PROSPECT_MAX_EMAIL_FETCH (default 20). OSM path pe websites kam
-        # hoti hain → mostly skip. Scraper pe `_extract_email_from_website` ho
+        # hoti hain -> mostly skip. Scraper pe `_extract_email_from_website` ho
         # tabhi try hota hai. Kabhi run ko block/raise nahi karta.
         try:
             max_email_fetch = int(os.environ.get("PROSPECT_MAX_EMAIL_FETCH", "20"))
@@ -867,14 +867,14 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
             pairs = pairs[:max_queries]
             summary["queries_capped"] = True
 
-        # WALL-CLOCK BUDGET (2026-07-18: 7 'prospect' jobs dlq:dead — 6×SoftTimeLimit
+        # WALL-CLOCK BUDGET (2026-07-18: 7 'prospect' jobs dlq:dead - 6×SoftTimeLimit
         # +1×hard-600s on 2026-07-17). PROSPECT_MAX_QUERIES fanout capta hai par time
         # nahi: ek slow provider chain (Google walk + OSM 25s timeouts + email fetch)
-        # phir bhi Celery ke 540s soft limit ko cross kar sakti thi → retry burn →
-        # DLQ. Ab har query se PEHLE monotonic budget check — exhausted = partial
+        # phir bhi Celery ke 540s soft limit ko cross kar sakti thi -> retry burn ->
+        # DLQ. Ab har query se PEHLE monotonic budget check - exhausted = partial
         # summary ke saath GRACEFUL return, kabhi time-limit kill nahi.
         # Env PROSPECT_TIME_BUDGET_S (default 300 = worker soft-limit 540 se ~4 min margin;
-        # was 420 — still SoftTimeLimit under NICHE_ROTATION + post-scrape rescore, 2026-07-20).
+        # was 420 - still SoftTimeLimit under NICHE_ROTATION + post-scrape rescore, 2026-07-20).
         try:
             time_budget_s = float(os.environ.get("PROSPECT_TIME_BUDGET_S", "300"))
         except Exception:
@@ -889,7 +889,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
                 summary["time_budget_exhausted"] = True
                 logger.warning(
                     f"[prospector] time budget {time_budget_s:.0f}s exhausted after "
-                    f"{summary['queries_run']} queries — partial return (no soft-limit kill)"
+                    f"{summary['queries_run']} queries - partial return (no soft-limit kill)"
                 )
                 break
             niche = target.get("niche") or "general"
@@ -898,7 +898,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
                 summary["queries_failed"] += 1
                 continue
 
-            # Cost-safety: Maps Details budget khatam → aur API queries skip
+            # Cost-safety: Maps Details budget khatam -> aur API queries skip
             # (OSM free hai, uspe cap nahi).
             if not use_osm and max_lookups and summary["lookups_used"] >= max_lookups:
                 summary["lookups_capped"] = True
@@ -910,7 +910,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
             try:
                 if use_osm:
                     # Politeness: Overpass calls ke beech 1s sleep. await (NOT time.sleep)
-                    # warna pura event-loop block hota — run_prospecting async hai.
+                    # warna pura event-loop block hota - run_prospecting async hai.
                     if idx > 0:
                         await asyncio.sleep(1)
                     # `_osm_search` uses sync urllib; keep it off the async
@@ -1023,7 +1023,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
 
                     # Email: row me ho to wahi; warna website se best-effort
                     # scrape (budget ke andar, async scraper helper ho to).
-                    # Slow/missing par chup-chaap "" — kabhi crash nahi.
+                    # Slow/missing par chup-chaap "" - kabhi crash nahi.
                     email = str(biz.get("email") or "").strip()
                     if (
                         not email
@@ -1031,7 +1031,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
                         and _email_fn is not None
                         and max_email_fetch
                         and email_fetches < max_email_fetch
-                        # Budget khatam → naya slow network fetch mat kholo
+                        # Budget khatam -> naya slow network fetch mat kholo
                         # (already-fetched rows ka local processing chalta rahe).
                         and (time.monotonic() - t_start) <= time_budget_s
                     ):
@@ -1091,7 +1091,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
                 except Exception as e:
                     logger.debug(f"[prospector] record build failed: {e}")
 
-        # Team activity — Rohan (Leads Manager). Never raises.
+        # Team activity - Rohan (Leads Manager). Never raises.
         try:
             from app.platform.team import log_event
 
@@ -1122,7 +1122,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
         except Exception:
             pass
 
-        # Auto-rescore — naye leads hot-lead dashboard me aayein (niche_prospector jaisa).
+        # Auto-rescore - naye leads hot-lead dashboard me aayein (niche_prospector jaisa).
         if summary.get("new", 0) > 0:
             try:
                 from app.platform import lead_scoring
@@ -1131,7 +1131,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
             except Exception:
                 pass
 
-        # Cadence auto-enroll — default prospector path bhi niche_prospector jaisa (gated CADENCE_ENGINE).
+        # Cadence auto-enroll - default prospector path bhi niche_prospector jaisa (gated CADENCE_ENGINE).
         cadence_enrolled = 0
         try:
             import os as _os
@@ -1156,7 +1156,7 @@ async def run_prospecting(limit_per_query: int = 15) -> dict[str, Any]:
 
         logger.info(f"[prospector] run done: {summary}")
         return summary
-    except Exception as e:  # absolute guard — scheduler/API kabhi na gire
+    except Exception as e:  # absolute guard - scheduler/API kabhi na gire
         logger.warning(f"[prospector] run_prospecting failed: {e}")
         summary["ok"] = False
         summary["error"] = str(e)

@@ -318,7 +318,7 @@ async def test_repeated_run_is_idempotent(async_db_session, monkeypatch):
         email_allowed=_ALLOW,
     )
     assert o1["sent"] == 2
-    # 2nd run: rows already 'sent' are recognised and NOT re-sent — the provider is
+    # 2nd run: rows already 'sent' are recognised and NOT re-sent - the provider is
     # never called again for the same approval version (that is the idempotency proof).
     assert len(s.calls) == 2
     assert await _rowcount(async_db_session) == 2
@@ -339,5 +339,5 @@ async def test_health_signal_accuracy_and_no_pii(async_db_session, monkeypatch):
     assert h["enabled"] is True
     assert h["sent"] == 2 and h["seen"] == 2 and h["attempted"] == 2
     assert h["last_run"] is not None and h["runs"] >= 1
-    # health exposes aggregates + sanitized category only — never an email address
+    # health exposes aggregates + sanitized category only - never an email address
     assert "@x.com" not in str(h)

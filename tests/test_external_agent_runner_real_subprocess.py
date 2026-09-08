@@ -1,7 +1,7 @@
 """Real-process integration tests for EXTERNAL_AGENT_RUNNER (no FakeProc).
 
 Marked ``integration`` / ``real_subprocess`` / ``windows_process``. CI-safe:
-uses owned ``process_helper.py`` only — no Cursor/Claude network.
+uses owned ``process_helper.py`` only - no Cursor/Claude network.
 """
 
 from __future__ import annotations
@@ -328,7 +328,7 @@ def test_real_path_escape_detected(work, tmp_path):
     assert any("escaped" in b or ".." in b for b in breach)
     assert any("drive_escape" in b or ":" in b for b in breach)
 
-    # Junction/symlink escape — skip when host cannot create.
+    # Junction/symlink escape - skip when host cannot create.
     if os.name == "nt":
         try:
             link = cwd / "junction_out"

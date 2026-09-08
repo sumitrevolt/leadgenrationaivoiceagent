@@ -6,8 +6,8 @@ imports env.py in-process during the FastAPI lifespan, every already-created app
 logger (e.g. `app.integrations.email_sender`) had `logger.disabled` set to True and
 stayed silenced for the rest of the process.
 
-That silently killed application logging after any startup migration, and — because
-pytest shares one process — made every later test that asserts on emitted log output
+That silently killed application logging after any startup migration, and - because
+pytest shares one process - made every later test that asserts on emitted log output
 fail in an order-dependent way (empty capture, "record never emitted"). The minimal
 reproducer was `test_customer_timeline_endpoint.py` (runs a lifespan) followed by
 `test_email_log_redaction.py`.

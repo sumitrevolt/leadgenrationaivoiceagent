@@ -1,4 +1,4 @@
-"""Add agent_tasks table — Paperclip-inspired per-agent work queue.
+"""Add agent_tasks table - Paperclip-inspired per-agent work queue.
 
 Revision ID: 021_add_agent_tasks
 Revises: 020_add_owner_agent_controls

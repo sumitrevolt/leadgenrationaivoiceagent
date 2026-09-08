@@ -68,7 +68,7 @@ _ALLOWED: dict[str, set[str]] = {
     SUPERSEDED: set(),
 }
 
-# Map legacy status → default workflow_state
+# Map legacy status -> default workflow_state
 _LEGACY_TO_WF = {
     "pending": CLIENT_REVIEW_PENDING,
     "approved": APPROVED,
@@ -141,7 +141,7 @@ def publish_allowed(rec: dict[str, Any]) -> tuple[bool, str]:
     if wf in _NO_PUBLISH:
         return False, f"publish_blocked:{wf}"
     if wf not in (APPROVED, SCHEDULED, PUBLISHED):
-        # PUBLISHED already done — idempotent skip handled by caller
+        # PUBLISHED already done - idempotent skip handled by caller
         if str(rec.get("status") or "") == "approved":
             return True, "legacy_approved"
         return False, f"publish_blocked:{wf or 'unknown'}"

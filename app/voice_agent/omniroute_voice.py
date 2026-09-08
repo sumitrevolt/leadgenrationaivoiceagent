@@ -68,7 +68,7 @@ def new_generation_id() -> str:
 
 
 def cancel_generation(generation_id: str | None) -> None:
-    """Mark a generation stale — in-flight streams reject further tokens."""
+    """Mark a generation stale - in-flight streams reject further tokens."""
     if generation_id:
         _cancelled[generation_id] = time.monotonic()
         _prune_cancelled()
@@ -105,7 +105,7 @@ def stream_total_timeout_s() -> float:
 # --- gateway circuit breaker -------------------------------------------------
 # A dead gateway used to cost every single turn its full candidate ladder
 # (primary + fallback x first-token timeout) BEFORE fail-open to free_ai, and the
-# telecaller retries that per turn — measured 9-14s of dead air on a live call,
+# telecaller retries that per turn - measured 9-14s of dead air on a live call,
 # which the customer answers with "hello? hello?" and barges in, so the bot never
 # gets to speak. After N consecutive unusable attempts we skip the gateway for a
 # cooldown window and fail-open to free_ai immediately. One probe per window
@@ -125,7 +125,7 @@ def _breaker_cooldown_s() -> float:
 
 
 def breaker_open() -> bool:
-    """True while the gateway is quarantined — callers must use free_ai."""
+    """True while the gateway is quarantined - callers must use free_ai."""
     return time.monotonic() < _breaker["open_until"]
 
 
@@ -141,7 +141,7 @@ def _breaker_trip(reason: str) -> None:
         _breaker["open_until"] = time.monotonic() + cooldown
         logger.warning(
             "[omniroute_voice] gateway breaker OPEN for %.0fs after %d failures "
-            "(last=%s) — voice turns fail-open to free_ai",
+            "(last=%s) - voice turns fail-open to free_ai",
             cooldown,
             int(_breaker["fails"]),
             reason,

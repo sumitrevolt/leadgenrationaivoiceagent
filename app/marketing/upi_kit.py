@@ -1,15 +1,15 @@
 """
-upi_kit.py — UPI payment kit (scan-and-pay QR + slip + WA message). 100% free.
+upi_kit.py - UPI payment kit (scan-and-pay QR + slip + WA message). 100% free.
 ===============================================================================
 
 Chhote business ke liye payment maangne ka poora kit:
   - payment_kit(business_name, vpa, amount=None, note="") -> dict:
       upi:// deep-link (pa/pn[/am/tn]) + QR SVG (review_kit ka pure-python
-      encoder REUSE — koi lib nahi) + branded 800x1000 payment-slip SVG
+      encoder REUSE - koi lib nahi) + branded 800x1000 payment-slip SVG
       (QR embedded) + Hinglish WhatsApp payment-request message +
       2 instructions.
 
-PURE LOGIC — koi LLM/network nahi, kabhi raise nahi. Inputs XML-escaped.
+PURE LOGIC - koi LLM/network nahi, kabhi raise nahi. Inputs XML-escaped.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def _slip_svg(name: str, vpa: str, amount_str: str, note: str) -> str:
         f'<text x="400" y="155" font-family="{_FONT}" font-size="30" fill="#ddd6fe" '
         'text-anchor="middle">ko pay karein</text>'
         f'<text x="400" y="272" font-family="{_FONT}" font-size="28" fill="#374151" '
-        'text-anchor="middle">📱 Scan &amp; Pay — koi bhi UPI app</text>'
+        'text-anchor="middle">📱 Scan &amp; Pay - koi bhi UPI app</text>'
         '<rect x="220" y="310" width="360" height="360" rx="18" fill="#f5f3ff" '
         'stroke="#7c3aed" stroke-width="3"/>'
         "{qr}"
@@ -96,7 +96,7 @@ def _slip_svg(name: str, vpa: str, amount_str: str, note: str) -> str:
         f'fill="#1f2937" text-anchor="middle">UPI ID: {vpa}</text>'
         f"{amount_block}{note_block}"
         f'<text x="400" y="950" font-family="{_FONT}" font-size="24" fill="#6b7280" '
-        'text-anchor="middle">GPay • PhonePe • Paytm • BHIM — sab chalega ✅</text>'
+        'text-anchor="middle">GPay • PhonePe • Paytm • BHIM - sab chalega ✅</text>'
         "</svg>"
     )
 
@@ -106,7 +106,7 @@ def payment_kit(
 ) -> dict[str, Any]:
     """UPI payment kit: link + QR + slip (QR embedded) + WA message + steps.
 
-    Pure logic — instant, deterministic, KABHI raise nahi. Invalid VPA par bhi
+    Pure logic - instant, deterministic, KABHI raise nahi. Invalid VPA par bhi
     kit banta hai (vpa_valid=False + warning), taaki UI kabhi khali na ho.
     """
     name = (business_name or "").strip()[:120] or "Aapka Business"
@@ -137,19 +137,19 @@ def payment_kit(
         f"Namaste! 🙏 {name} ki payment ab UPI se seedha ho jayegi."
         f"\n💳 UPI ID: {vpa_clean}{amt_line}{note_line}"
         f"\n\nIs link par tap karke pay karein:\n{upi_link}"
-        "\n\n(Ya QR scan karein — GPay/PhonePe/Paytm sab chalega ✅) Dhanyawad!"
+        "\n\n(Ya QR scan karein - GPay/PhonePe/Paytm sab chalega ✅) Dhanyawad!"
     )
 
     instructions = [
         "Payment slip print karke counter pe rakho ya customer ko WhatsApp pe "
-        "bhejo — wo kisi bhi UPI app se QR scan karke turant pay kar dega.",
-        "Fixed amount chahiye to upar amount daal kar naya QR banao — customer "
+        "bhejo - wo kisi bhi UPI app se QR scan karke turant pay kar dega.",
+        "Fixed amount chahiye to upar amount daal kar naya QR banao - customer "
         "ko sirf UPI PIN dalna padega, galat amount ka jhanjhat khatam.",
     ]
     if not vpa_valid:
         instructions = [
             "⚠️ UPI ID format sahi nahi lag raha (sahi format: naam@bank, "
-            "jaise 9876543210@ybl) — pehle apni UPI app me 'My UPI ID' check karo.",
+            "jaise 9876543210@ybl) - pehle apni UPI app me 'My UPI ID' check karo.",
             instructions[0],
         ]
 

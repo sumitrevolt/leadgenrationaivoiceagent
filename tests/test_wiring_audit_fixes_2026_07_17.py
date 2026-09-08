@@ -172,7 +172,7 @@ def test_approval_mode_auto_accepted():
 
 
 def test_free_ai_chat_forwards_agent_key_in_source():
-    """conftest stubs free_ai.chat — pin the real source contract instead."""
+    """conftest stubs free_ai.chat - pin the real source contract instead."""
     src = Path("app/voice_agent/free_ai.py").read_text(encoding="utf-8")
     assert "agent_key: str | None = None" in src
     assert "product: str | None = None" in src

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""omniroute_self_healing_watchdog.py — Autonomous Self-Healing Watchdog for OmniRoute & 5 Desktop Apps.
+"""omniroute_self_healing_watchdog.py - Autonomous Self-Healing Watchdog for OmniRoute & 5 Desktop Apps.
 
 Monitors:
 1. OmniRoute Gateway (:20128) and Claude Proxy (:22000).

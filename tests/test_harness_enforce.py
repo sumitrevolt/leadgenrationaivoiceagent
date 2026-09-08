@@ -198,7 +198,7 @@ def test_mode_wildcard_rejected(monkeypatch):
     assert m is HarnessMode.OFF and any("wildcard" in n for n in notes)
 
 
-# ============ Decision pipeline (9-24) — evaluate() NEVER executes ====
+# ============ Decision pipeline (9-24) - evaluate() NEVER executes ====
 def test_decision_valid_green_allowed(monkeypatch):
     _enforce_env(monkeypatch, tools="demo.calc.run@1.0.0")
     g = _gate_with(_def("demo.calc.run"), _Counter())
@@ -345,7 +345,7 @@ def test_decision_tool_not_allowlisted_denied(monkeypatch):
     assert DenialReason.TOOL_NOT_ALLOWLISTED.value in d.denial_reasons
 
 
-# ============ Execution (25-33) — execute_registered() ================
+# ============ Execution (25-33) - execute_registered() ================
 async def _boom(**_):
     raise RuntimeError("boom")
 
@@ -370,7 +370,7 @@ def test_evaluate_does_not_execute(monkeypatch):
     c = _Counter()
     g = _gate_with(_def("demo.calc.run"), c)
     g.evaluate(_ctx(), _req("demo.calc.run"), mode=HarnessMode.ENFORCE)
-    assert c.n == 0  # pure decision — no execution
+    assert c.n == 0  # pure decision - no execution
 
 
 def test_denied_action_executes_zero(monkeypatch):

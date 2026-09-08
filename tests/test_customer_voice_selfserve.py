@@ -1,9 +1,9 @@
 """Contract for Product-2 self-serve voice calling (council decision 2026-07-06).
 
 The flat-fee "AI calls your leads" was admin-only. These routes let the customer
-trigger + see it — but SAFELY: gated default-OFF (inert), every call routed through
-`queue_call` (the sole compliance chokepoint — cannot be bypassed here), client_id
-forced from the JWT (IDOR — a customer can only queue its OWN leads), anti-joined
+trigger + see it - but SAFELY: gated default-OFF (inert), every call routed through
+`queue_call` (the sole compliance chokepoint - cannot be bypassed here), client_id
+forced from the JWT (IDOR - a customer can only queue its OWN leads), anti-joined
 against CallLog so no lead is re-dialled. No real call is placed in these tests
 (the call manager is faked).
 """
@@ -95,13 +95,13 @@ async def test_call_queue_503_when_flag_off(monkeypatch):
 
     with pytest.raises(HTTPException) as ei:
         await customer_voice_call_queue(limit=20, client_id="client_a")
-    assert ei.value.status_code == 503  # inert by default — no calls, no side effects
+    assert ei.value.status_code == 503  # inert by default - no calls, no side effects
 
 
 async def test_call_queue_403_for_marketing_only_plan(monkeypatch):
     """Regression guard (2026-07-07 audit finding): a Marketing-only ("starter")
     customer must NOT get free AI voice calls just because CUSTOMER_VOICE_SELFSERVE
-    happens to be on — AI Voice is a separate standalone product. queue_call()'s
+    happens to be on - AI Voice is a separate standalone product. queue_call()'s
     own minute/lead-quota checks fail-OPEN for non-metered plans, so this
     route-level product check is the only real gate for entitlement."""
     monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
@@ -183,7 +183,7 @@ def test_queue_status_counts_scoped(monkeypatch):
     from app.api.customer_dashboard import customer_voice_queue_status
 
     res = customer_voice_queue_status(client_id="client_a")
-    assert res["leads_with_phone"] == 2  # a1 + a2 (NOT b1 — other tenant)
+    assert res["leads_with_phone"] == 2  # a1 + a2 (NOT b1 - other tenant)
     assert res["already_called"] == 1  # lead_a1
     assert res["remaining_to_call"] == 1
     assert res["self_serve_enabled"] in (True, False)
@@ -215,7 +215,7 @@ class _FakeRedis:
 
 async def test_call_queue_skips_inflight_leads(monkeypatch):
     # TOCTOU fix (sec-audit): a lead queued-but-not-yet-CallLog'd (in-flight) must NOT
-    # be re-queued — else the same person gets re-dialled in the queue->log window.
+    # be re-queued - else the same person gets re-dialled in the queue->log window.
     monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
     Session = _iso_db(monkeypatch)
     _seed(Session)

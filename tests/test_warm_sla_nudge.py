@@ -1,9 +1,9 @@
-"""W4.1 (Wave-4, SAFE/gated) — warm-lead SLA aging → founder nudge.
+"""W4.1 (Wave-4, SAFE/gated) - warm-lead SLA aging -> founder nudge.
 
 Mid-funnel leads that go stale (>24h stuck) or sit warm (score 40-69) had no proactive
 signal to the founder. This adds a founder-only ntfy nudge, reusing build_pipeline's
 existing per-stage stuckCount / warm_count (no change to the pipeline logic). It is
-gated OFF by default (WARM_SLA_NUDGE) and sends ONLY to the founder — zero customer
+gated OFF by default (WARM_SLA_NUDGE) and sends ONLY to the founder - zero customer
 send, so no §5 ban/deliverability surface.
 """
 

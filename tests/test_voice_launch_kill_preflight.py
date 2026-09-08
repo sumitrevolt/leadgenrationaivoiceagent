@@ -7,7 +7,7 @@ Preflight and runtime are deliberately DIFFERENT layers:
                                            file-based emergency toggle inert,
                                            so it must not ship silently)
 
-The raw token must never reach a log, an error, a report or a test diagnostic —
+The raw token must never reach a log, an error, a report or a test diagnostic -
 only its class.
 """
 
@@ -97,7 +97,7 @@ def test_every_other_state_blocks(monkeypatch, value, classification, reason):
 
 
 def test_false_token_blocks_because_env_overrides_the_file(monkeypatch):
-    """Semantic assertion — the literal token is never echoed."""
+    """Semantic assertion - the literal token is never echoed."""
     result, problems = _run_check(monkeypatch, "off")
     assert result["status"] == "BLOCKER"
     assert result["reason"] == "ENV_EXPLICITLY_DISENGAGED"

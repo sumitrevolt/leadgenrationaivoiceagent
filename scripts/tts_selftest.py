@@ -1,4 +1,4 @@
-"""EdgeTTS selftest — synth a Hindi line, report audio bytes (run on VPS)."""
+"""EdgeTTS selftest - synth a Hindi line, report audio bytes (run on VPS)."""
 
 import asyncio
 

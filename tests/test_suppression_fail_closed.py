@@ -1,4 +1,4 @@
-"""The suppression authority may fail to RESOLVE — and that must not read as consent.
+"""The suppression authority may fail to RESOLVE - and that must not read as consent.
 
 Before the runtime-data migration these paths were module constants, so
 "resolve the path" could not fail; the only errors were I/O on a file that
@@ -8,7 +8,7 @@ that escapes the root, or (after cutover) an override pointing somewhere other
 than the canonical target.
 
 The pre-existing `except Exception: return False` around those reads was written
-when the only failures were "file missing" — a legitimate not-suppressed answer.
+when the only failures were "file missing" - a legitimate not-suppressed answer.
 Carried over unchanged it would answer "this person did not opt out" whenever the
 opt-out list is unreachable, which is the TCCCPR fail-OPEN this module's own
 comments call illegal.

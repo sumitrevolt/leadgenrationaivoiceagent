@@ -1,11 +1,11 @@
-"""Onboarding wizard API — business-type templates + auto-setup.
+"""Onboarding wizard API - business-type templates + auto-setup.
 
-GET  /api/onboard-wizard/business-types     → wizard UI ke liye business-type list
-GET  /api/onboard-wizard/preview/{type}     → niche + auto-setup preview (kya milega)
-POST /api/onboard-wizard/apply              → client pe niche auto-setup lagao (admin)
+GET  /api/onboard-wizard/business-types     -> wizard UI ke liye business-type list
+GET  /api/onboard-wizard/preview/{type}     -> niche + auto-setup preview (kya milega)
+POST /api/onboard-wizard/apply              -> client pe niche auto-setup lagao (admin)
 
 Auth: require_admin (Bearer JWT from /app/admin-login). Apply is flag-gated
-ONBOARD_WIZARD_APPLY (default OFF) — read-only previews always available.
+ONBOARD_WIZARD_APPLY (default OFF) - read-only previews always available.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ async def list_business_types(_admin: dict = Depends(require_admin)) -> dict[str
 async def preview_template(
     business_type: str, _admin: dict = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Ek business type ka template preview — niche + auto-setup fields + asset flags."""
+    """Ek business type ka template preview - niche + auto-setup fields + asset flags."""
     from app.marketing import onboard_wizard
 
     try:
@@ -69,7 +69,7 @@ async def preview_template(
 async def preview_script(
     body: WizardPreviewIn, _admin: dict = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Voice script preview — niche opening + services/offer se suggested opening."""
+    """Voice script preview - niche opening + services/offer se suggested opening."""
     from app.marketing import onboard_wizard
 
     try:
@@ -104,7 +104,7 @@ async def apply_wizard_setup(
         if not res.get("ok") and "disabled" in str(res.get("error") or ""):
             raise HTTPException(
                 status_code=423,
-                detail="ONBOARD_WIZARD_APPLY disabled — .env me ONBOARD_WIZARD_APPLY=1 set karo",
+                detail="ONBOARD_WIZARD_APPLY disabled - .env me ONBOARD_WIZARD_APPLY=1 set karo",
             )
         return res
     except HTTPException:

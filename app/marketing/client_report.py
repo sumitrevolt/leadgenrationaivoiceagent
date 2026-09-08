@@ -1,8 +1,8 @@
-"""White-label monthly client report — branded HTML "is mahine kya kiya" (retention #1).
+"""White-label monthly client report - branded HTML "is mahine kya kiya" (retention #1).
 
 Per-client stats best-effort collect (inquiries by source_slug, content packs, bookings,
-review requests, coupons) → brand-colored HTML data/client_reports/<id>_<YYYY-MM>.html
-→ email (gated `CLIENT_REPORTS=1`
+review requests, coupons) -> brand-colored HTML data/client_reports/<id>_<YYYY-MM>.html
+-> email (gated `CLIENT_REPORTS=1`
 OFF = sirf file banti). NEVER raises.
 """
 
@@ -183,7 +183,7 @@ def _render_html(
         ("📅 Bookings", s["bookings"]),
         ("⭐ Review requests bheje", s["review_requests"]),
         ("🎁 Coupon redemptions", s["coupon_redemptions"]),
-        ("📱 Content pack ready", "Haan" if s["content_pack"] else "—"),
+        ("📱 Content pack ready", "Haan" if s["content_pack"] else "-"),
     ]
     trs = "".join(
         f"<tr><td style='padding:10px 14px
@@ -207,7 +207,7 @@ def _render_html(
             (
                 f"{delivery.get('gbp_score')}/100"
                 if delivery.get("gbp_score") is not None
-                else "— (Reports → GBP Audit)"
+                else "- (Reports -> GBP Audit)"
             ),
         ),
         ("Pending approvals", delivery.get("approvals_pending", 0)),
@@ -260,7 +260,7 @@ box-shadow:0 2px 10px rgba(0,0,0,.07)">
 <div style="background:{primary}
 color:#fff
 padding:22px 24px">
-<h2 style="margin:0">{name}</h2><div style="opacity:.9">Monthly Marketing Report — {s["month"]}</div></div>
+<h2 style="margin:0">{name}</h2><div style="opacity:.9">Monthly Marketing Report - {s["month"]}</div></div>
 {summary_block}
 <table style="width:100%
 border-collapse:collapse
@@ -269,8 +269,8 @@ font-size:15px">{trs}</table>
 {next_block}
 <div style="padding:18px 24px
 color:#555
-font-size:13px">Aapki AI marketing team ne yeh sab automate kiya 🤖 —
-posts, follow-ups, reviews aur leads. Sawal ho to reply karo.<br><br>— Team LeadsGenAI · leadsgenai.in</div>
+font-size:13px">Aapki AI marketing team ne yeh sab automate kiya 🤖 -
+posts, follow-ups, reviews aur leads. Sawal ho to reply karo.<br><br>- Team LeadsGenAI · leadsgenai.in</div>
 </div></body></html>"""
 
 
@@ -279,7 +279,7 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
     try:
         from app.marketing import clients_store
 
-        # Billing alias (invoice id) → canonical marketing client id
+        # Billing alias (invoice id) -> canonical marketing client id
         client = clients_store.resolve_client(client_id) or clients_store.get_client(client_id)
         if not client:
             return {"ok": False, "error": "client not found"}
@@ -303,7 +303,7 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
 
                 emailed = bool(
                     await email_sender.send_email(
-                        [to], f"📊 {client.get('business_name')} — Marketing Report {month}", html
+                        [to], f"📊 {client.get('business_name')} - Marketing Report {month}", html
                     )
                 )
             except Exception as e:

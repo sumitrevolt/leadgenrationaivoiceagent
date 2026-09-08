@@ -1,10 +1,10 @@
-"""ADR-104 Phase B (2026-07-15) — automation_health.health()'s overall
+"""ADR-104 Phase B (2026-07-15) - automation_health.health()'s overall
 status/ok must factor in dead/retryable_failed (dlq:dead / dlq:failed_tasks),
 not just live-queue backlog.
 
 Bug fixed: queue_depth() already tracked `dlq`/`dead` counts correctly, but
 health()'s `backlogged`/`status`/`ok` computation only ever looked at
-`celery`/`heavy` — meaning a Reliability Console reading straight off this
+`celery`/`heavy` - meaning a Reliability Console reading straight off this
 function could show "healthy"/ok=True while dlq:dead held retry-exhausted
 tasks needing manual attention (the exact "at-a-glance said zero and
 healthy, Reliability Console showed exhausted dead tasks" discrepancy).
@@ -35,7 +35,7 @@ def _empty_beats(tmp_path, monkeypatch):
 
 def test_dead_tasks_present_marks_degraded_even_with_no_backlog(tmp_path, monkeypatch):
     """The exact regression case from the user's brief: retryable_failed=0,
-    dead=4 (retry-exhausted, sitting in dlq:dead) — celery/heavy queues are
+    dead=4 (retry-exhausted, sitting in dlq:dead) - celery/heavy queues are
     empty (no backlog), yet this MUST be degraded/ok=False, not healthy."""
     _empty_beats(tmp_path, monkeypatch)
     monkeypatch.setattr(ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 4})
@@ -67,7 +67,7 @@ def test_zero_dead_and_dlq_with_no_backlog_stays_healthy(tmp_path, monkeypatch):
     assert h["retryable_failed_present"] is False
     assert h["ok"] is True
     # empty beats fixture => every job is "never_ran" (no heartbeat ever
-    # recorded in this hermetic test) => "warming_up", not "healthy" — that's
+    # recorded in this hermetic test) => "warming_up", not "healthy" - that's
     # correct/expected per health()'s own precedence (degraded > warming_up >
     # healthy); `ok` staying True is the actual thing this test is pinning.
     assert h["status"] in ("healthy", "warming_up")
@@ -75,7 +75,7 @@ def test_zero_dead_and_dlq_with_no_backlog_stays_healthy(tmp_path, monkeypatch):
 
 def test_redis_unreachable_unknown_dlq_dead_does_not_falsely_degrade(tmp_path, monkeypatch):
     """-1 == "unknown" (Redis unreachable) must NOT be read as "dead present"
-    — that would be a different false signal, not a fix. Absence of proof is
+    - that would be a different false signal, not a fix. Absence of proof is
     not proof of absence, but it also must not fabricate an incident."""
     _empty_beats(tmp_path, monkeypatch)
     monkeypatch.setattr(

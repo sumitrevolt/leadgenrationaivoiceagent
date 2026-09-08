@@ -8,7 +8,7 @@ def test_combo_dashboard_has_timeline_section_in_account_view():
     assert 'id="deliveryTimelineCard"' in html
     # Must live inside an account-view section (verified real attribute:
     # data-view="account", e.g. line 795's #billingCard), placed after
-    # #billingCard (line 795) — not inside the home hero area (line 508+).
+    # #billingCard (line 795) - not inside the home hero area (line 508+).
     billing_pos = html.index('id="billingCard"')
     timeline_pos = html.index('id="deliveryTimelineCard"')
     home_hero_pos = html.index('data-view="home" class="owner-hero"')
@@ -20,4 +20,4 @@ def test_combo_dashboard_has_timeline_section_in_account_view():
 
 # customer_marketing.html/customer_voice.html (separate per-product fork checks
 # used to live here) were confirmed unreachable duplicates of this single file
-# and deleted 2026-07-07 — see tests/test_customer_dashboard_product_routing.py.
+# and deleted 2026-07-07 - see tests/test_customer_dashboard_product_routing.py.

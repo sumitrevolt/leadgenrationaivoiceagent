@@ -1,17 +1,17 @@
-"""Self-hosted ntfy push notifications (FREE — phone pe instant alert).
+"""Self-hosted ntfy push notifications (FREE - phone pe instant alert).
 
 Email alerts (NOTIFY_EMAIL) ka complement: critical events Sumit ke phone pe
-turant pahunchte (ntfy Android/iOS app → topic subscribe). Self-hosted container
+turant pahunchte (ntfy Android/iOS app -> topic subscribe). Self-hosted container
 `deploy/compose/docker-compose.tools.yml` me
 phone ke liye Caddy se `ntfy.leadsgenai.in` expose.
 
 GATED: `NTFY_URL` (publish URL, e.g. http://ntfy:80 in-network) + `NTFY_TOPIC`.
-Optional `NTFY_TOKEN` (auth). Unset = inert no-op. NEVER raises — alerts kabhi
+Optional `NTFY_TOKEN` (auth). Unset = inert no-op. NEVER raises - alerts kabhi
 main flow nahi todte.
 
 Use:
     from app.integrations import ntfy
-    await ntfy.push("Payment aaya 💰", "Sharma Solar — ₹2,999 Growth plan", priority="high")
+    await ntfy.push("Payment aaya 💰", "Sharma Solar - ₹2,999 Growth plan", priority="high")
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ async def push(
               {"action": "http", "label": "Done", "url": "https://.../quick-done/TOK",
                "method": "POST", "clear": True}]
         When set, publishes via ntfy's JSON API instead of the plain-text/header
-        form — avoids comma/emoji escaping issues in header-encoded actions.
+        form - avoids comma/emoji escaping issues in header-encoded actions.
     """
     url = os.environ.get("NTFY_URL", "").strip().rstrip("/")
     topic = os.environ.get("NTFY_TOPIC", "").strip()
@@ -73,7 +73,7 @@ async def push(
                 r = await client.post(url + "/", json=payload, headers=headers)
             else:
                 # Header-safe title: emoji ascii-strip ke baad bacha LEADING SPACE
-                # ya newline httpx "Illegal header value" deta tha → alert silently
+                # ya newline httpx "Illegal header value" deta tha -> alert silently
                 # DROP (live 2026-07-06: " Boot-grace skip:..."). Whitespace collapse.
                 _t = (title or "LeadGen AI").encode("ascii", "ignore").decode()
                 _t = " ".join(_t.split()) or "LeadGen AI"

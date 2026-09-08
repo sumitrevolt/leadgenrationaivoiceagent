@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runtime workflow-gap probe — writes NDJSON to debug-6e326c.log (debug session).
+"""Runtime workflow-gap probe - writes NDJSON to debug-6e326c.log (debug session).
 
 Checks incomplete loops: cadence enroll, journey rules, job heartbeats, cadence queue.
 Run: python scripts/workflow_gap_probe.py
@@ -38,7 +38,7 @@ def _log(hypothesis_id: str, location: str, message: str, data: dict | None = No
 
 
 def probe_cadence_enroll_kwarg() -> None:
-    """Hypothesis A: public_site passes invalid source= kwarg → enroll never runs."""
+    """Hypothesis A: public_site passes invalid source= kwarg -> enroll never runs."""
     from app.marketing import cadence
 
     r = cadence.enroll({"phone": "9999999998", "name": "probe-ok", "source": "inquiry"})
@@ -51,7 +51,7 @@ def probe_cadence_enroll_kwarg() -> None:
 
 
 def probe_journey_rules() -> None:
-    """Hypothesis B: JOURNEY_ENGINE on but all rules disabled → empty loops."""
+    """Hypothesis B: JOURNEY_ENGINE on but all rules disabled -> empty loops."""
     from app.marketing import journeys
 
     rules = journeys.list_journeys()

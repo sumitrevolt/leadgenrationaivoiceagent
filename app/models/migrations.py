@@ -11,7 +11,7 @@ keeps the Alembic version history CONSISTENT on boot WITHOUT ever breaking that:
     migration 005 is idempotent so it's safe either way).
   - Truly empty DB                                           -> UPGRADE from base.
 
-NEVER raises — a migration hiccup must not stop the app from booting. Disable entirely
+NEVER raises - a migration hiccup must not stop the app from booting. Disable entirely
 with ``SKIP_DB_MIGRATIONS=1``.
 """
 

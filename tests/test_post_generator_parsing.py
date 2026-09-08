@@ -1,13 +1,13 @@
-"""test_post_generator_parsing.py — daily-content parser bug regression suite.
+"""test_post_generator_parsing.py - daily-content parser bug regression suite.
 
-Real paying-customer incident: broken drafts shipped —
+Real paying-customer incident: broken drafts shipped -
   * caption literally "CAP" (truncated fragment passed the empty-only guard),
   * caption me literal "**HASHTAGS:** ..." markdown leak (bold marker ne
     CAPTION lookahead ko fail kara diya -> poora hashtag-block caption me),
   * broken 2-char hashtag "#H" (truncated tag).
 
 Yeh suite un teeno ko pin karta hai + max_tokens bump verify karta hai.
-Sab offline (koi live free_ai call nahi) — chat monkeypatched ya template path.
+Sab offline (koi live free_ai call nahi) - chat monkeypatched ya template path.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from app.marketing import post_generator
 
 MARKDOWN_BOLD_FIXTURE = (
     "**CAPTION:** ✨ Jiya Makeover me aapka swagat hai!\n"
-    "💄 Bridal se party glam tak — sab ek jagah.\n"
+    "💄 Bridal se party glam tak - sab ek jagah.\n"
     "**HASHTAGS:** #JiyaMakeover #BridalMakeup #NagpurMakeup #MakeupArtist "
     "#BeautyStudio #GlamLook #H\n"
     "**IMAGE:** Bride ke before/after split ka bright close-up shot"
@@ -36,7 +36,7 @@ PLAIN_MARKER_FIXTURE = (
 
 
 # ============================================================================ #
-# (a) markdown-bold markers — no leak into caption
+# (a) markdown-bold markers - no leak into caption
 # ============================================================================ #
 
 
@@ -63,7 +63,7 @@ def test_markdown_bold_markers_parsed_clean():
 
 
 def test_plain_markers_still_work():
-    """Regression guard — decoration-less output (aam case) pehle jaisa parse ho."""
+    """Regression guard - decoration-less output (aam case) pehle jaisa parse ho."""
     caption, hashtags, image_idea = post_generator._parse_llm_post(PLAIN_MARKER_FIXTURE)
     assert "Trending Tattoos" in caption
     assert "HASHTAGS" not in caption.upper()
@@ -73,7 +73,7 @@ def test_plain_markers_still_work():
 
 
 # ============================================================================ #
-# (c) hashtag min-length — truncated "#H" dropped, real tags kept
+# (c) hashtag min-length - truncated "#H" dropped, real tags kept
 # ============================================================================ #
 
 
@@ -102,7 +102,7 @@ def test_tag_regex_rejects_two_char_tag():
 
 
 # ============================================================================ #
-# (b) short-caption fallback — "CAP" fragment falls back to template
+# (b) short-caption fallback - "CAP" fragment falls back to template
 # ============================================================================ #
 
 
@@ -140,7 +140,7 @@ async def test_full_markdown_response_produces_clean_post(monkeypatch):
     r = await post_generator.generate_post("Jiya Makeover", niche="beauty")
     # LLM path chala (template nahi).
     assert r["provider"] != "template"
-    # Caption saaf — koi markdown/marker leak nahi.
+    # Caption saaf - koi markdown/marker leak nahi.
     assert "HASHTAGS" not in r["caption"].upper()
     assert "**" not in r["caption"]
     assert len(r["caption"].strip()) >= 20

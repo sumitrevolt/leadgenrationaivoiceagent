@@ -17,7 +17,7 @@ failed pair retried next run).
 we never emit more pairs than that.
 - Coverage-state = data/gtm_coverage.json (bind-mounted, file_lock atomic).
 
-This module is PURE DATA + SELECTION — it does NOT fetch anything itself
+This module is PURE DATA + SELECTION - it does NOT fetch anything itself
 the harvester
 calls `next_targets()` to get the next city×niche pairs to prospect, then `mark_covered()`.
 """
@@ -35,7 +35,7 @@ logger = setup_logger(__name__)
 _STATE = os.path.join("data", "gtm_coverage.json")
 
 # --------------------------------------------------------------------------- #
-# City dataset — tiered. T1 metros, T2 tier-2, T3 emerging. (state for context.)
+# City dataset - tiered. T1 metros, T2 tier-2, T3 emerging. (state for context.)
 # --------------------------------------------------------------------------- #
 CITY_TIERS: dict[str, list[tuple[str, str]]] = {
     "T1": [
@@ -222,7 +222,7 @@ def next_targets(n: int = 8, *, day_ordinal: int | None = None) -> list[dict[str
 
 def mark_covered(pair: dict[str, Any], *, yield_count: int = 0, ts: float | None = None) -> None:
     """Record that a city×niche pair was harvested (success-marked, idempotent). `ts` is
-    unix seconds (caller supplies — module never calls time.time at import). Never raises."""
+    unix seconds (caller supplies - module never calls time.time at import). Never raises."""
     try:
         if not pair:
             return

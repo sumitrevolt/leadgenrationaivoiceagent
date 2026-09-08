@@ -1,7 +1,7 @@
 """
-test_seo_blog_semcache.py — semantic_cache wiring in seo_blog.generate_article.
+test_seo_blog_semcache.py - semantic_cache wiring in seo_blog.generate_article.
 
-PURE-PYTHON: free_ai.chat + semantic_complete dono monkeypatch — koi network /
+PURE-PYTHON: free_ai.chat + semantic_complete dono monkeypatch - koi network /
 LLM / Redis / Qdrant nahi. Verify:
   1. SEMANTIC_CACHE OFF (default) => wrapper invoke hota hai par factory seedha
      chalta (cache="disabled"), provider asli LLM ka rehta. Byte-identical.

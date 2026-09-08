@@ -1,8 +1,8 @@
-"""Telephony Readiness Monitor (Tara) — calling launch ke liye system HAR WAQT
+"""Telephony Readiness Monitor (Tara) - calling launch ke liye system HAR WAQT
 taiyaar hai ya nahi, hourly verify.
 
-Telephony aa rahi hai (Vobiz) — calling start se pehle system taiyaar hai ya nahi, hourly verify.
-Checks (sab local/config — koi paid API call nahi):
+Telephony aa rahi hai (Vobiz) - calling start se pehle system taiyaar hai ya nahi, hourly verify.
+Checks (sab local/config - koi paid API call nahi):
   Vobiz creds (VOBIZ_AUTH_ID/TOKEN) · caller-ID (VOBIZ_CALLER_ID) ·
   TTS (edge-tts) · STT (GROQ key) · LLM chain · compliance flags.
 
@@ -46,7 +46,7 @@ def _sync_run(coro):
     except RuntimeError:
         loop = None
     if loop and loop.is_running():
-        # Already in an event loop — use a thread to avoid deadlock.
+        # Already in an event loop - use a thread to avoid deadlock.
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -55,7 +55,7 @@ def _sync_run(coro):
 
 
 def _active_provider() -> str:
-    """Live telephony provider — vobiz (outbound stream)."""
+    """Live telephony provider - vobiz (outbound stream)."""
     return (_env("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
 
 
@@ -85,7 +85,7 @@ def run_checks() -> dict[str, Any]:
     # this account". The outbound_probe (above) catches this when armed.
     add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID set (ownership verified by outbound_probe)", 15)
 
-    # Synthetic Verification check — caller-ID ownership probe.
+    # Synthetic Verification check - caller-ID ownership probe.
     # 2026-08-30 FIX: previous code hardcoded outbound_ok=True which gave a
     # false-green readiness score even when the caller-ID was NOT owned by the
     # account (prod failure: "The from number 911171366938 is not owned by this
@@ -108,17 +108,17 @@ def run_checks() -> dict[str, Any]:
         except Exception as exc:
             add("outbound_probe", False, f"probe error: {exc}", probe_w)
     else:
-        # Probe not armed — weight=0 so it does NOT affect the score, but we
+        # Probe not armed - weight=0 so it does NOT affect the score, but we
         # record the honest state so operators see it in the readiness report.
         add(
             "outbound_probe",
             True,
-            "skipped (VOBIZ_VERIFY_CALLER_ID_OUTBOUND=0 — weight=0, not scored)",
+            "skipped (VOBIZ_VERIFY_CALLER_ID_OUTBOUND=0 - weight=0, not scored)",
             0,
         )
 
     add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
-    # Jio Mobile SIP trunk (INERT-by-default — sirf tab active jab JIO_TRUNK_ENABLED=1)
+    # Jio Mobile SIP trunk (INERT-by-default - sirf tab active jab JIO_TRUNK_ENABLED=1)
     jio_host = _env("JIO_SIP_HOST")
     jio_user = _env("JIO_SIP_USER")
     jio_pass = _env("JIO_SIP_PASS")
@@ -130,7 +130,7 @@ def run_checks() -> dict[str, Any]:
     add("jio_sip_did", bool(_env("JIO_SIP_DID")), "JIO_SIP_DID (mobile DID)", jio_w)
     add("jio_sip_enabled",
         jio_enabled,
-        "JIO_TRUNK_ENABLED=1 (INERT default — live test ke baad arming)",
+        "JIO_TRUNK_ENABLED=1 (INERT default - live test ke baad arming)",
         jio_w,
     )
     # Tata Tele Smartflo Pro (₹1,250/license/month unlimited)
@@ -147,7 +147,7 @@ def run_checks() -> dict[str, Any]:
     add(
         "tata_smartflo_enabled",
         tata_enabled,
-        "TATA_SMARTFLO_ENABLED=1 (INERT default — live test ke baad arming)",
+        "TATA_SMARTFLO_ENABLED=1 (INERT default - live test ke baad arming)",
         tata_w,
     )
     telephony_ok = bool(vobiz_id and vobiz_tok)
@@ -210,14 +210,14 @@ def run_checks() -> dict[str, Any]:
     if "provider_creds" in missing:
         actions.append("VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo (.env)")
     if "stt_groq" in missing:
-        actions.append("GROQ_API_KEY set karo — STT weak link")
+        actions.append("GROQ_API_KEY set karo - STT weak link")
     if "tts_edge" in missing:
         actions.append("pip install edge-tts>=7.2.0 (image rebuild)")
     if "caller_id" in missing:
         actions.append("VOBIZ_CALLER_ID set karo (140 DID recharge ke baad)")
     if not actions:
         actions.append(
-            f"{provider.title()} calling ready — kal 10am–7pm IST window me test karo ✅"
+            f"{provider.title()} calling ready - kal 10am–7pm IST window me test karo ✅"
         )
     return {
         "provider": provider,
@@ -230,7 +230,7 @@ def run_checks() -> dict[str, Any]:
 
 
 async def run_watch() -> dict[str, Any]:
-    """Hourly (watchdog) — log under Tara; score girne pe gated alert. Kabhi raise nahi."""
+    """Hourly (watchdog) - log under Tara; score girne pe gated alert. Kabhi raise nahi."""
     try:
         res = run_checks()
         # Vobiz balance snapshot (best-effort)
@@ -271,7 +271,7 @@ async def run_watch() -> dict[str, Any]:
 
                     await email_sender.send_email(
                         [notify],
-                        f"⚠️ Telephony readiness gira: {prev_score} → {res['score']}",
+                        f"⚠️ Telephony readiness gira: {prev_score} -> {res['score']}",
                         "Missing: "
                         + ", ".join(res["missing"])
                         + "\nActions:\n- "

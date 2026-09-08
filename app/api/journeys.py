@@ -1,6 +1,6 @@
-"""Journeys API — omnichannel rule engine ka admin surface (CRUD + runs + test).
+"""Journeys API - omnichannel rule engine ka admin surface (CRUD + runs + test).
 
-Engine: app/marketing/journeys.py (event→action drafts, JOURNEY_ENGINE gated).
+Engine: app/marketing/journeys.py (event->action drafts, JOURNEY_ENGINE gated).
 Sab writes admin-only. Page: /app/journeys.
 """
 
@@ -64,7 +64,7 @@ async def create_journey(body: JourneyIn, _user=Depends(require_admin)):
 
 @router.post("/seed")
 async def seed_defaults(_user=Depends(require_admin)):
-    """3 useful rules seed karo (disabled) — quick start."""
+    """3 useful rules seed karo (disabled) - quick start."""
     n = journeys.seed_defaults()
     return {"ok": True, "seeded": n}
 

@@ -152,7 +152,7 @@ CHANGES: list[dict[str, Any]] = [
             "reachable return is a proven path now resolves at its CALL SITES, so "
             "`_ckpt_path()` and `_cursor_path()` carry the store they open instead "
             "of an unknown return contract. (2) `os.getenv('X', 'data/store')` is a "
-            "bounded path PATTERN — an env read with no default stays unbounded, so "
+            "bounded path PATTERN - an env read with no default stays unbounded, so "
             "only a static default can bound it. (3) `os.getenv('X') or DEFAULT` "
             "renders the env var WITH its real fallback. Findings therefore carry "
             "`<$VAR|static/default>` structure instead of raw source text; env "
@@ -201,7 +201,7 @@ CHANGES: list[dict[str, Any]] = [
             "files was modified by the commit that changed the engine, and running "
             "the PREVIOUS engine against this same tree (parent commit, post-merge) "
             "produced none of these fingerprints. "
-            "Deliberately absent: the writers this branch actually AUTHORED — the "
+            "Deliberately absent: the writers this branch actually AUTHORED - the "
             "voice kill-switch reader/writer/temp companion and the external-agent "
             "mission call sites. Booking those here would let a change record "
             "launder new debt as improved detection, so they are classified in the "
@@ -268,7 +268,7 @@ CHANGES: list[dict[str, Any]] = [
         "evidence": (
             "Baseline went 839 -> 793 (net -58). Of the new detections: content_engine, "
             "content_pipeline, and content_os are INERT-by-default offline tooling that writes "
-            "to its own data/content_gen and /opt/leadgen/media/content_os directories — "
+            "to its own data/content_gen and /opt/leadgen/media/content_os directories - "
             "rebuildable from topic prompts, no customer data. command_center pilot dispatch "
             "scripts are local admin tooling reading/writing tasks.json and messages.jsonl. "
             "scripts/perf_regression.py writes data/perf_baseline.json (rebuildable). "
@@ -318,13 +318,13 @@ def validate() -> list[str]:
         seen.add(cid)
         if c["old_scanner_version"] == c["new_scanner_version"]:
             problems.append(
-                f"{cid}: scanner version unchanged — an expansion with identical "
+                f"{cid}: scanner version unchanged - an expansion with identical "
                 "detector semantics is new debt, not improved detection"
             )
         arithmetic = c["old_baseline_count"] + c["added_fingerprints"] - c["removed_fingerprints"]
         if arithmetic != c["new_baseline_count"]:
             problems.append(
-                f"{cid}: arithmetic does not reconcile — "
+                f"{cid}: arithmetic does not reconcile - "
                 f"{c['old_baseline_count']} + {c['added_fingerprints']} "
                 f"- {c['removed_fingerprints']} != {c['new_baseline_count']}"
             )

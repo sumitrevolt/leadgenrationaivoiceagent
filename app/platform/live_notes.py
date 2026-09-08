@@ -1,12 +1,12 @@
-"""Live Notes — Rowboat-style auto-updating notes on topics (compounding research).
+"""Live Notes - Rowboat-style auto-updating notes on topics (compounding research).
 
-User/agent ek TOPIC register karta (e.g. "solar Pune", "gym offers") → roz ek
+User/agent ek TOPIC register karta (e.g. "solar Pune", "gym offers") -> roz ek
 dated "aaj ka update" section us topic ke markdown me APPEND hota:
 trends (Google Trends RSS reuse) + optional weather angle (city ho to) +
 free-LLM 1-para Hinglish digest. Content/sales agents in notes ko padh ke
 fresh angle uthate.
 
-Files: data/memory/topics/<slug>.md (memory_vault ka topics dir — format yahan
+Files: data/memory/topics/<slug>.md (memory_vault ka topics dir - format yahan
 dated `## YYYY-MM-DD` sections, latest TOP
 cap 40KB, purane trim).
 Registry: data/live_topics.jsonl. Gated `LIVE_NOTES=1` (default OFF).
@@ -164,7 +164,7 @@ def _append_section(slug: str, title_line: str, body: str) -> bool:
             rest = old[nl + 1 :] if nl != -1 else ""
         section = f"\n## {_today()}\n{body.strip()}\n"
         text = header + "\n" + section + rest.lstrip("\n")
-        # 40KB cap — purane (last) sections drop
+        # 40KB cap - purane (last) sections drop
         while len(text.encode("utf-8")) > _MAX_NOTE_BYTES:
             cut = text.rfind("\n## ")
             if cut <= 0:
@@ -192,7 +192,7 @@ async def refresh_topic(t: dict[str, Any]) -> dict[str, Any]:
         niche = str(t.get("niche") or "").strip()
         city = str(t.get("city") or "").strip()
 
-        # 1) trends (reuse trends.py — free, no-key)
+        # 1) trends (reuse trends.py - free, no-key)
         angles: list[str] = []
         trending: list[str] = []
         try:
@@ -206,7 +206,7 @@ async def refresh_topic(t: dict[str, Any]) -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"[notes] trends skip: {e}")
 
-        # 2) weather angle (city ho to — Open-Meteo free)
+        # 2) weather angle (city ho to - Open-Meteo free)
         weather_line = ""
         if city:
             try:
@@ -234,7 +234,7 @@ async def refresh_topic(t: dict[str, Any]) -> dict[str, Any]:
             para, provider = await asyncio.wait_for(
                 free_ai.chat(
                     "Tum ek marketing research assistant ho. Diye gaye signals se topic ka AAJ KA "
-                    "update ek SHORT Hinglish paragraph (3-4 line) me likho — kya chal raha, business "
+                    "update ek SHORT Hinglish paragraph (3-4 line) me likho - kya chal raha, business "
                     "isse kaise fayda le. Sirf paragraph.",
                     [{"role": "user", "content": ctx}],
                     max_tokens=200,
@@ -291,7 +291,7 @@ def enabled() -> bool:
 
 
 async def refresh_if_enabled() -> dict[str, Any]:
-    """Scheduler hook — gated LIVE_NOTES=1 (default OFF). Kabhi raise nahi."""
+    """Scheduler hook - gated LIVE_NOTES=1 (default OFF). Kabhi raise nahi."""
     if not enabled():
         return {"ok": False, "skipped": "LIVE_NOTES off"}
     return await refresh_due()

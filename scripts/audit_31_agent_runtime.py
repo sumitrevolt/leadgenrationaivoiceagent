@@ -57,7 +57,7 @@ def run_audit() -> dict[str, Any]:
             reason = f"RED lane / default_mode={contract.default_mode} (Safety Gated)"
         elif contract.default_mode in (DRAFT, SHADOW, PROPOSAL):
             status = "STAGED_SHADOW"
-            reason = f"Staged mode ({contract.default_mode}) — non-committing"
+            reason = f"Staged mode ({contract.default_mode}) - non-committing"
         elif contract.default_mode == INBOUND_READY or (contract.default_mode == LIVE and (not contract.primary_flag or is_primary_enabled)):
             status = "ACTIVE"
             reason = f"Live mode + armed trigger ({', '.join(contract.trigger_types)})"

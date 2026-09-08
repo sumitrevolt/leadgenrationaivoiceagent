@@ -1,11 +1,11 @@
-"""Flow Runner starter templates — ready-to-apply SMB automations.
+"""Flow Runner starter templates - ready-to-apply SMB automations.
 
 The Flow Runner engine (flow_store / flow_compiler / flow_dispatch) shipped with
 an EMPTY canvas: flipping FLOW_RUNNER on gave admins/customers a blank builder.
-These niche-friendly starter flows make the moat immediately useful — a 1-click
+These niche-friendly starter flows make the moat immediately useful - a 1-click
 apply creates a real, compile-valid flow the user can then tweak.
 
-ALL templates use ONLY CUSTOMER_SAFE_ACTIONS (draft-only — no send / scrape /
+ALL templates use ONLY CUSTOMER_SAFE_ACTIONS (draft-only - no send / scrape /
 SSRF) so they validate in BOTH the admin builder and the tenant-scoped customer
 portal. Each is a linear chain (single root) ending in an Approval breakpoint to
 teach the human-in-the-loop pattern. Edges use the compiler's {f, t} key shape.
@@ -37,7 +37,7 @@ _TEMPLATES: list[dict] = [
     {
         "tid": "weekly_reputation",
         "name": "Hafta Reputation Watch",
-        "description": "Har Somwar reviews scan + brand health + client report draft — salon/clinic/restaurant jaise review-heavy niches ke liye.",
+        "description": "Har Somwar reviews scan + brand health + client report draft - salon/clinic/restaurant jaise review-heavy niches ke liye.",
         "niche_hint": "salon, clinic, restaurant, gym",
         "trigger": {"type": "cron", "cron": "0 9 * * 1"},
         "nodes": [
@@ -51,7 +51,7 @@ _TEMPLATES: list[dict] = [
     {
         "tid": "festival_campaign",
         "name": "Festival / Offer Campaign Pack",
-        "description": "Manual trigger — tyohar ya sale ke liye content pack + social drafts + brand pulse, ek click me draft.",
+        "description": "Manual trigger - tyohar ya sale ke liye content pack + social drafts + brand pulse, ek click me draft.",
         "niche_hint": "retail, all",
         "trigger": {"type": "manual"},
         "nodes": [

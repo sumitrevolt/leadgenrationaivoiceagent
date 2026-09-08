@@ -756,7 +756,7 @@ Return a list of skill areas to enhance (max 3):
     async def _calculate_accuracy(self, brain_type: str, phase: str) -> float:
         """Heuristic accuracy = success-rate over recent buffered behaviors (NOT a
         held-out eval). HONEST (2026-06-25 audit): same computation for before/after
-        — no fabricated +5% 'after' improvement and no random padding. Returns 0.0
+        - no fabricated +5% 'after' improvement and no random padding. Returns 0.0
         when there is no signal yet, so the trainer never reports fake gains."""
         behaviors = self.behavior_buffer.get(brain_type, [])
         if not behaviors:

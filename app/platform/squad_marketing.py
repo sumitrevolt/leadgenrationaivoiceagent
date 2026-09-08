@@ -1,4 +1,4 @@
-# Squad Lead — Marketing Automation (Squad 2)
+# Squad Lead - Marketing Automation (Squad 2)
 # Responsibility: Email outreach, campaign management, lead nurture
 # Autopilot: Hourly cron within OUTREACH_DAILY_CAP=80, TRAI-compliant windows
 
@@ -31,7 +31,7 @@ def run_hourly_campaign():
     daily_cap = int(os.getenv("OUTREACH_DAILY_CAP", "80"))
     # In production: check Redis INCR for today's count
     # For now: simulate execution
-    logger.info(f"Squad 2 hourly campaign — daily cap: {daily_cap}")
+    logger.info(f"Squad 2 hourly campaign - daily cap: {daily_cap}")
     return {"status": "executed", "outreach_this_hour": min(5, daily_cap // 11)}
 
 def run_daily_stats():

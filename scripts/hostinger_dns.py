@@ -1,4 +1,4 @@
-"""Hostinger DNS API helper — manage leadsgenai.in DNS records safely.
+"""Hostinger DNS API helper - manage leadsgenai.in DNS records safely.
 
 Reads HOSTINGER_API_TOKEN from env or /opt/leadgen/.env (never prints it).
 Endpoints: GET/PUT /api/dns/v1/zones/{domain} + POST .../validate.
@@ -22,7 +22,7 @@ DOMAIN = "leadsgenai.in"
 BASE = f"https://developers.hostinger.com/api/dns/v1/zones/{DOMAIN}"
 
 # 2026-07-02 upgrade: p=none -> p=quarantine. SPF + DKIM (hostingermail-a) dono
-# live/aligned verified, outbound volume chhota (cap 25/day) — direct quarantine safe.
+# live/aligned verified, outbound volume chhota (cap 25/day) - direct quarantine safe.
 # Spoofed mail ab spam me jayegi; rua reports admin@ pe aate rahenge.
 NEW_DMARC = "v=DMARC1
 p=quarantine

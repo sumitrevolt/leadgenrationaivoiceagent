@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared runtime-data deployment preflight — the single deny authority.
+"""Shared runtime-data deployment preflight - the single deny authority.
 
 WHY: production mutable state currently lives at `/opt/leadgen/data`, INSIDE the
 Git checkout. A repo-wide scan found **15** production-capable destructive paths
@@ -20,7 +20,7 @@ non-zero unless a destructive deploy is provably safe
 ``check-cutover`` validates prerequisites for a FUTURE cutover
 performs nothing
 
-It never prints secret values — only paths, booleans and counts.
+It never prints secret values - only paths, booleans and counts.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def _owner_mode(path: Path) -> dict[str, Any]:
 
 
 def gather() -> dict[str, Any]:
-    """Collect facts. Never raises — an error IS a finding."""
+    """Collect facts. Never raises - an error IS a finding."""
     report: dict[str, Any] = {
         "repo_root": str(REPO_ROOT),
         "environment": os.environ.get("APP_ENV") or os.environ.get("ENVIRONMENT") or "",

@@ -5,8 +5,8 @@ from the query string with zero auth. Unauthenticated callers could cancel /
 upgrade / credit / read any tenant's account.
 
 These tests pin the FIXED behaviour so a future refactor that drops the auth
-dep cannot silently regress. They cover the contract — not the underlying
-plan logic — so they pass on a fresh checkout with no live DB.
+dep cannot silently regress. They cover the contract - not the underlying
+plan logic - so they pass on a fresh checkout with no live DB.
 
 Matrix asserted:
   no token             -> 401 (unauthenticated)
@@ -34,7 +34,7 @@ class _Creds:
 
 
 # --------------------------------------------------------------------------- #
-# _authed_client_id — customer + admin paths
+# _authed_client_id - customer + admin paths
 # --------------------------------------------------------------------------- #
 async def test_no_token_returns_401(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi import HTTPException
@@ -48,7 +48,7 @@ async def test_customer_token_resolves_to_token_sub(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Even when the caller passes ?client_id=victim, the dep MUST return the
-    customer's own sub — this is the IDOR fix."""
+    customer's own sub - this is the IDOR fix."""
     from app.api import billing
 
     monkeypatch.setattr(
@@ -127,13 +127,13 @@ async def test_unknown_role_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# _authed_admin_client_id — admin-only mutations (e.g. free plan swap)
+# _authed_admin_client_id - admin-only mutations (e.g. free plan swap)
 # --------------------------------------------------------------------------- #
 async def test_admin_dep_rejects_customer_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A customer must NOT self-upgrade for free via the admin direct-plan-swap
-    endpoint — they go through /checkout which actually charges."""
+    endpoint - they go through /checkout which actually charges."""
     from fastapi import HTTPException
 
     from app.api import billing
@@ -166,7 +166,7 @@ async def test_admin_dep_accepts_admin_token(
 # HTTP-level regression: routes must be auth-gated
 # --------------------------------------------------------------------------- #
 def test_billing_subscription_route_is_auth_gated() -> None:
-    """Live route-level proof — GET /api/billing/subscription without a token
+    """Live route-level proof - GET /api/billing/subscription without a token
     MUST NOT be 200. This is the audit's exact attack: anyone with a guessed
     client_id used to read anyone's subscription."""
     from app.main import app
@@ -176,12 +176,12 @@ def test_billing_subscription_route_is_auth_gated() -> None:
     assert r.status_code != 200
     assert r.status_code in {401, 403}, (
         f"REGRESSION: billing/subscription returned {r.status_code} without "
-        f"auth — C1 IDOR is back. Inspect _authed_client_id wiring."
+        f"auth - C1 IDOR is back. Inspect _authed_client_id wiring."
     )
 
 
 def test_billing_balance_route_is_auth_gated() -> None:
-    """Same property on a different mutation — proves the auth dep is wired
+    """Same property on a different mutation - proves the auth dep is wired
     consistently across the router, not just on one endpoint."""
     from app.main import app
 

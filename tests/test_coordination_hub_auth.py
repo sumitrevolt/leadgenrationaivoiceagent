@@ -1,4 +1,4 @@
-"""Security contract: per-tool HMAC, skew, replay — never admin bearer as auth."""
+"""Security contract: per-tool HMAC, skew, replay - never admin bearer as auth."""
 
 from __future__ import annotations
 
@@ -187,7 +187,7 @@ def test_header_builder_never_returns_secret(monkeypatch, tmp_path):
 
 def test_frontend_known_tools_verify_with_own_secret(monkeypatch, tmp_path):
     """Frontend TOOLMETA (monkeycode/opencode/bolt) backend me bhi verify hone
-    chahiye — warna un tools ke heartbeats tool_unknown se reject hote hain."""
+    chahiye - warna un tools ke heartbeats tool_unknown se reject hote hain."""
     for tool_id, secret in (
         ("opencode", "o" * 40),
         ("bolt", "t" * 40),

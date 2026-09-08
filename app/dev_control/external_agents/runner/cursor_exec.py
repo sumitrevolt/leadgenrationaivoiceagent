@@ -1,4 +1,4 @@
-"""Cursor Agent CLI executor — real non-interactive invocation.
+"""Cursor Agent CLI executor - real non-interactive invocation.
 
 ``--trust`` decision: **KEEP --trust**. Cursor Agent non-interactive print mode
 requires it for a pre-provisioned workspace. Containment is NOT provided by
@@ -11,7 +11,7 @@ worktree, and dual-flag inert defaults.
 
 **Windows argv safety:** never launch ``agent.cmd`` (cmd.exe re-parses ``&|<>^``).
 Resolve to ``versions/*/node.exe`` + ``index.js`` (CreateProcess argv array), with
-``powershell -File agent.ps1`` as fallback — never ``%*`` through ``.cmd``.
+``powershell -File agent.ps1`` as fallback - never ``%*`` through ``.cmd``.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from app.dev_control.external_agents.schema import Mission
 
 _VERSION_DIR_RE = re.compile(r"^\d{4}\.\d{1,2}\.\d{1,2}(-\d{2}-\d{2}-\d{2})?-[a-f0-9]+$", re.I)
 
-# Written by the executor inside the worktree — preferred over chat-envelope parse.
+# Written by the executor inside the worktree - preferred over chat-envelope parse.
 RESULT_MANIFEST_FILENAME = ".external_agent_result_manifest.json"
 RUNNER_CONTROL_FILES = frozenset(
     {
@@ -97,7 +97,7 @@ def resolve_cursor_invocation() -> list[str]:
         p = Path(forced).resolve()
         if not p.is_file():
             raise ProcessSafetyError("cursor_bin_missing")
-        # Refuse .cmd/.bat forced bins — they re-parse metacharacters.
+        # Refuse .cmd/.bat forced bins - they re-parse metacharacters.
         if p.suffix.lower() in {".cmd", ".bat"}:
             raise ProcessSafetyError("cursor_cmd_wrapper_refused")
         if p.suffix.lower() == ".ps1":
@@ -275,7 +275,7 @@ def invoke_cursor(
     except OSError:
         pass
     prompt_path.write_text(build_executor_prompt(mission, packet), encoding="utf-8")
-    # Short argv — agent reads the prompt file (avoids Windows command-line limits).
+    # Short argv - agent reads the prompt file (avoids Windows command-line limits).
     short = (
         f"Read the file .external_agent_runner_prompt.txt in this workspace and execute "
         f"that mission exactly. Stay inside allowed_paths. When finished you MUST write "

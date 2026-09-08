@@ -1,4 +1,4 @@
-"""blueprint_edge_reconcile.py — legacy Explorer edges -> canonical edge manifest.
+"""blueprint_edge_reconcile.py - legacy Explorer edges -> canonical edge manifest.
 
 The node side is handled by ``blueprint_reconcile`` / ``blueprint_derive``. This
 tool does the EDGE side: it takes every legacy ``/app/explorer`` edge literal,
@@ -97,7 +97,7 @@ def _ensure_repo_importable() -> None:
     Must never run at import time: pytest imports this module, and a second
     root entry lets ``app`` resolve under two module identities, which
     re-initialises native extensions (torch/av/ctranslate2) in one process and
-    segfaults the suite. Learned the hard way — see PR #131.
+    segfaults the suite. Learned the hard way - see PR #131.
     """
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
@@ -139,7 +139,7 @@ def reconcile_edges() -> dict[str, Any]:
     except Exception as e:
         return _fail([f"legacy parse/reconcile failed: {type(e).__name__}: {e}"])
 
-    # Independent recount straight from the source text — if the structured
+    # Independent recount straight from the source text - if the structured
     # parser ever drifts from the raw literals we want that to be loud.
     raw_literals = len(re.findall(r"\{f:'[\w]+',\s*t:'[\w]+'", html))
     if raw_literals != len(legacy_edges):

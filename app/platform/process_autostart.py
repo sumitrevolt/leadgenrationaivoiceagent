@@ -1,17 +1,17 @@
-"""Process autostart — process-engine runs ko AUTO-START karo (sub-project D V1.1).
+"""Process autostart - process-engine runs ko AUTO-START karo (sub-project D V1.1).
 
 PROBLEM: `app.agents.process_engine` me deterministic process-as-code workflows
 (lead_campaign / client_content / growth_audit) defined hain, par koi unhe
-KHUD se start nahi karta — `start_run` sirf admin API se manually chalta. Aur
+KHUD se start nahi karta - `start_run` sirf admin API se manually chalta. Aur
 `start_run` ka ZERO dedup hai (har call ek fresh run banata = flood risk).
 
 YEH MODULE: ek scheduled tick (`run_due`) jo flag `PROCESS_AUTOSTART` (default
 OFF) pe gated hai. Per tick:
   - process_library.list_keys() se auto-start workflows uthata,
   - lead_campaign / client_content ke liye app.niches se rotating {niche, city}
-    pull karta (per tick ek hi run — NO fan-out flood, cap),
+    pull karta (per tick ek hi run - NO fan-out flood, cap),
   - growth_audit (no inputs) slow/weekly cadence pe,
-  - IDEMPOTENCY GUARD: process_engine.list_runs() check — agar same
+  - IDEMPOTENCY GUARD: process_engine.list_runs() check - agar same
     process+inputs ka running ya AAJ ka run already hai to skip (start_run ka
     dedup gap yahin fill hota),
   - start_run ke baad process_tick.delay(run_id) enqueue (Celery worker advance);
@@ -33,13 +33,13 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Auto-start workflows + unki cadence. lead_campaign/client_content rozana
-# (rotating niche+city), growth_audit slow (weekly) — read/draft-only.
+# (rotating niche+city), growth_audit slow (weekly) - read/draft-only.
 _DAILY_KEYS = ("lead_campaign", "client_content")
 _WEEKLY_KEYS = ("growth_audit",)
-# growth_audit kis weekday pe (0=Mon) — slow cadence, ek baar/hafta.
+# growth_audit kis weekday pe (0=Mon) - slow cadence, ek baar/hafta.
 _WEEKLY_DAY = 0
 
-# Per tick cap: ek hi naya run (flood guard — fan-out NAHI).
+# Per tick cap: ek hi naya run (flood guard - fan-out NAHI).
 _MAX_STARTS_PER_TICK = 1
 
 
@@ -54,7 +54,7 @@ def _today_str() -> str:
 def _rotating_inputs(process_key: str) -> dict[str, Any]:
     """app.niches se deterministic-by-date rotating {niche, city} (testable).
 
-    Date ordinal se index — har din alag niche+city window cover hota, billing/
+    Date ordinal se index - har din alag niche+city window cover hota, billing/
     over-scrape surprise ke bina. Kabhi raise nahi (fail = generic fallback)."""
     try:
         from app.niches import NICHES
@@ -103,13 +103,13 @@ def _already_active(process_key: str, inputs: dict[str, Any], runs: list[dict[st
             if status in ("running", "waiting_approval"):
                 return True
             # aaj already start hua (kisi bhi status) = same niche ho to skip
-            # (rozana cadence — ek niche/din). started_at ISO se date.
+            # (rozana cadence - ek niche/din). started_at ISO se date.
             started = str(r.get("started_at") or "")
             if started[:10] == _today_str():
                 if not want_niche:
                     return True
                 # niche-aware: started run ke inputs hum list_runs se nahi
-                # dekhte, isliye conservative — same process + aaj = skip.
+                # dekhte, isliye conservative - same process + aaj = skip.
                 return True
         return False
     except Exception:
@@ -120,7 +120,7 @@ def _already_active(process_key: str, inputs: dict[str, Any], runs: list[dict[st
 async def _enqueue_or_inline(run_id: str) -> dict[str, Any]:
     """process_tick.delay enqueue; worker down ho to inline advance fallback
     (growth.py process_start pattern mirror). run_due async context me chalta
-    isliye inline advance `await` se (asyncio.run nahi — nested-loop crash).
+    isliye inline advance `await` se (asyncio.run nahi - nested-loop crash).
     Never-raise."""
     out: dict[str, Any] = {"run_id": run_id}
     try:
@@ -193,7 +193,7 @@ async def run_due() -> dict[str, Any]:
             run_id = str(r.get("run_id") or "")
             disp = await _enqueue_or_inline(run_id)
             started.append({"process": key, "run_id": run_id, "inputs": inputs, **disp})
-            # naya run recent list me add — same tick double-start guard.
+            # naya run recent list me add - same tick double-start guard.
             recent.append(
                 {
                     "process": key,

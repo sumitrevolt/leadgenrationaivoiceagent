@@ -1,4 +1,4 @@
-"""Shared inquiry funnel hooks — har entry path pe same downstream automation.
+"""Shared inquiry funnel hooks - har entry path pe same downstream automation.
 
 submit_inquiry, widget-chat, lead-in webhook, WhatsApp Flow sab yahi reuse karte
 hain taaki journeys/cadence/sales/callback/webhooks miss na hon.
@@ -17,8 +17,8 @@ logger = setup_logger(__name__)
 
 # Application-owned fire-and-forget tasks (strong refs until done).
 # Without this, asyncio only weak-refs create_task() results and a Task can be
-# GC/destroyed mid-session — DB checkout never closes (SQLAlchemy #13039 /
-# aiosqlite #369 → orphan worker / CI exit-139).
+# GC/destroyed mid-session - DB checkout never closes (SQLAlchemy #13039 /
+# aiosqlite #369 -> orphan worker / CI exit-139).
 _BG_TASKS: set[asyncio.Task] = set()
 _ACCEPTING_BG: bool = True
 _DEFAULT_DRAIN_TIMEOUT_S = float(os.environ.get("INQUIRY_BG_DRAIN_TIMEOUT_S", "10") or "10")
@@ -80,7 +80,7 @@ async def await_inquiry_bg_tasks(*, timeout: float | None = None) -> dict[str, i
     """Wait for currently owned inquiry BG tasks without closing the accept gate.
 
     Use from tests / request-scoped helpers. Shutdown must use
-    ``drain_inquiry_bg_tasks`` instead (stop accepting → await → cancel).
+    ``drain_inquiry_bg_tasks`` instead (stop accepting -> await -> cancel).
     """
     limit = _DEFAULT_DRAIN_TIMEOUT_S if timeout is None else float(timeout)
     pending = [t for t in list(_BG_TASKS) if not t.done()]
@@ -103,7 +103,7 @@ async def await_inquiry_bg_tasks(*, timeout: float | None = None) -> dict[str, i
 
 
 async def drain_inquiry_bg_tasks(*, timeout: float | None = None) -> dict[str, int]:
-    """Canonical shutdown drain — call BEFORE close_async_db()/engine.dispose().
+    """Canonical shutdown drain - call BEFORE close_async_db()/engine.dispose().
 
     Ordering (required):
       1. stop accepting new work
@@ -139,10 +139,10 @@ def resolve_wizard_opening(
     """Wizard business-type se personalized opening_line resolve karo.
 
     Lead-magnet pages (/audit /site-audit /demo) visitor ko business type select
-    karwate hain → business_type label + niche key aate hain. Har AI-call path
+    karwate hain -> business_type label + niche key aate hain. Har AI-call path
     (auto-callback, voice-followup, missed-call) isi opening se greet kare
     (generic niche script ki jagah wizard ka done-for-you opening). Resolve fail
-    ho to "" — call niche-script chain pe girta hai (unchanged). Best-effort,
+    ho to "" - call niche-script chain pe girta hai (unchanged). Best-effort,
     kabhi raise nahi. business_name zaroori hai (personalization)
     label ya niche
     me se koi ek wizard business type se match hona chahiye.
@@ -197,7 +197,7 @@ async def run_after_inquiry(
     cid = (mini_client_id or rec.get("client_id") or "").strip() or None
     lid = lead_id or rec.get("lead_id")
 
-    # BANT auto-qualify (sales_qualify) — pure-Python, never-raise. Har inbound lead ko
+    # BANT auto-qualify (sales_qualify) - pure-Python, never-raise. Har inbound lead ko
     # A-D grade + Hinglish next-action turant (rep ko speed-to-lead priority milti).
     try:
         from app.platform import sales_qualify as _bant
@@ -211,7 +211,7 @@ async def run_after_inquiry(
             _le(
                 "neha",
                 "lead_qualified",
-                f"{rec.get('business_name') or rec.get('name') or 'Lead'} → BANT "
+                f"{rec.get('business_name') or rec.get('name') or 'Lead'} -> BANT "
                 f"{_bq.get('grade')} ({_bq.get('total')}/100) · {_bq.get('action')}",
                 meta={
                     "lead_id": lid,
@@ -233,7 +233,7 @@ async def run_after_inquiry(
     except Exception:
         pass
 
-    # Owner Hot Queue bridge — platform inquiries only (speed-to-lead action).
+    # Owner Hot Queue bridge - platform inquiries only (speed-to-lead action).
     try:
         from app.platform.inquiry_hq_bridge import bridge_inquiry_to_hot_queue
 
@@ -259,11 +259,11 @@ async def run_after_inquiry(
             _spawn(_cw.emit(cid, "lead.created", payload), name="customer_webhook")
         except Exception:
             pass
-    # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
-    # 2026-08-18: `if cid` ke ANDAR tha — platform leads (/audit /demo) kabhi
+    # Funnel event (audit 2026-07-04) - silent no-op without POSTHOG_API_KEY.
+    # 2026-08-18: `if cid` ke ANDAR tha - platform leads (/audit /demo) kabhi
     # fire nahi hote the (cid sirf mini-site pe hota hai). Ab HAR inquiry pe
     # fire hota hai (cid ke bahar), distinct_id = phone (payment_activated bhi
-    # phone-keyed hai — isliye funnel dono steps same person pe match karta hai).
+    # phone-keyed hai - isliye funnel dono steps same person pe match karta hai).
     try:
         from app.analytics import posthog_client as _ph
 
@@ -278,10 +278,10 @@ async def run_after_inquiry(
         )
     except Exception:
         pass
-    # Customer Delivery OS ledger event — same "lead_captured" name as the
+    # Customer Delivery OS ledger event - same "lead_captured" name as the
     # PostHog analytics capture above but a distinct system (delivery_ledger
     # drives the customer timeline/Command Center, not product analytics).
-    # Mini-site (cid) leads ke liye — client timeline record.
+    # Mini-site (cid) leads ke liye - client timeline record.
     if cid:
         try:
             from app.marketing import delivery_ledger
@@ -449,7 +449,7 @@ async def run_after_inquiry(
 
         _ntfy.push_bg(
             "Naya inquiry aaya 🔔",
-            f"{rec.get('business_name') or rec.get('name') or 'Unknown'} — "
+            f"{rec.get('business_name') or rec.get('name') or 'Unknown'} - "
             f"{rec.get('phone') or rec.get('email') or ''} ({rec.get('niche') or ''}/{rec.get('city') or ''})",
             priority="default",
             tags=["bell"],
@@ -490,7 +490,7 @@ async def run_after_inquiry(
                 "city": rec.get("city") or "",
                 "source": rec.get("source") or "inquiry",
                 # Client-owned inquiry ka deal client_id se stamp karo taaki
-                # LeadGen ki sales-pipeline (run_pipeline) ise skip kare — yeh
+                # LeadGen ki sales-pipeline (run_pipeline) ise skip kare - yeh
                 # client ke apne funnel ka lead hai, LeadGen ke sales-funnel ka nahi.
                 "client_id": cid or "",
             },
@@ -502,7 +502,7 @@ async def run_after_inquiry(
     try:
         from app.platform import crm_sync as _crm
 
-        # Inbound web/widget/webhook lead → client (ya global) CRM me auto-push.
+        # Inbound web/widget/webhook lead -> client (ya global) CRM me auto-push.
         # Pehle sirf voice path (call_manager) push karta tha; yeh cross-path
         # parity gap close karta. Gated CRM_SYNC (default OFF), never-raise.
         if _crm.auto_enabled():
@@ -525,8 +525,8 @@ async def run_after_inquiry(
     except Exception as e:
         logger.debug(f"[inquiry_hooks] crm_sync spawn skip: {e}")
 
-    # LeadGen's OWN sales cadence — SIRF platform leads ke liye. Agar inquiry kisi
-    # CLIENT ka hai (cid set), toh woh lead client ke apne funnel ka hai — usko
+    # LeadGen's OWN sales cadence - SIRF platform leads ke liye. Agar inquiry kisi
+    # CLIENT ka hai (cid set), toh woh lead client ke apne funnel ka hai - usko
     # LeadGen ke "Rs 1999 plan lo" cadence me KABHI enroll nahi karna (isolation).
     if not cid:
         try:
@@ -545,7 +545,7 @@ async def run_after_inquiry(
         except Exception:
             pass
 
-        # Sales Autopilot feed — platform inquiries only (never client-owned leads).
+        # Sales Autopilot feed - platform inquiries only (never client-owned leads).
         # consent_basis = website form first-contact (DPDP purpose limitation).
         try:
             maybe_ingest_sales_autopilot(rec)

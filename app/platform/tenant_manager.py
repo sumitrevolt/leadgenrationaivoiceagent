@@ -269,7 +269,7 @@ class TenantManager:
         """Make calls for a tenant"""
         campaign_manager = self.campaign_managers[tenant.id]
 
-        # Process call queue. CallManager has no process_queue() — drain the
+        # Process call queue. CallManager has no process_queue() - drain the
         # queue for a bounded window then read stats (latent-AttributeError fix).
         import asyncio as _asyncio
 

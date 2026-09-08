@@ -50,7 +50,7 @@ def dual_read_store(monkeypatch, tool):
     """A manifest row in DUAL_READ_PRE_CUTOVER whose source file exists.
 
     The row is monkeypatched rather than invented so the test exercises the real
-    manifest shape — a fabricated row would let a field rename pass silently.
+    manifest shape - a fabricated row would let a field rename pass silently.
     """
     row = next(s for s in manifest.STORES if s["store_id"] == "compliance.voice_suppression")
     monkeypatch.setitem(row, "migration_state", manifest.DUAL_READ_PRE_CUTOVER)
@@ -123,7 +123,7 @@ def test_copy_refuses_to_overwrite_an_existing_destination(tool, tmp_path, dual_
 def test_verify_catches_a_writer_that_appended_during_the_cutover(tool, tmp_path, dual_read_store):
     """The realistic failure: a live process appends between copy and verify.
 
-    Byte-comparing source to destination alone would MISS this — they differ, but
+    Byte-comparing source to destination alone would MISS this - they differ, but
     so would a legitimately-stale copy. The source hash recorded at copy time is
     what makes the difference detectable and attributable.
     """
@@ -181,7 +181,7 @@ def test_source_survives_a_full_cutover(tool, tmp_path, dual_read_store):
 
 
 def test_the_written_marker_passes_the_real_validator(tool, tmp_path, dual_read_store):
-    """Not 'looks right' — the same validator the authority gates on."""
+    """Not 'looks right' - the same validator the authority gates on."""
     store_id, _ = dual_read_store
     root = tmp_path / "rt"
     tool.main(["copy", "--yes", "--root", str(root), "--stores", store_id])
@@ -228,7 +228,7 @@ def test_activate_refuses_when_no_release_sha_can_be_determined(tool, tmp_path, 
     """A marker without a release sha cannot be diffed against anything later.
 
     The fake checkout in these tests is not a git repo, which is exactly the
-    tarball-deploy case an operator can hit for real — so the refusal must name
+    tarball-deploy case an operator can hit for real - so the refusal must name
     the flag that fixes it rather than emitting 'malformed'.
     """
     store_id, _ = dual_read_store

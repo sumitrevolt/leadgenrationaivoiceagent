@@ -2,10 +2,10 @@
 Natural Thinking-Filler Injector
 ================================
 
-LLM jab soch raha hota hai (network + inference latency), tab silence aata hai —
+LLM jab soch raha hota hai (network + inference latency), tab silence aata hai -
 phone par yeh silence robotic / awkward lagta hai ("kya line cut gayi?"). Real
 insaan us gap me chhote natural fillers bolta hai: "ek second...", "hmm...",
-"dekhiye...", "let me check...". Yeh module wahi karta hai — bot ko *human* feel
+"dekhiye...", "let me check...". Yeh module wahi karta hai - bot ko *human* feel
 deta hai jab tak asli jawab generate ho raha ho. (Retell/Vapi me ise "filler /
 backchannel audio" kehte hain.)
 
@@ -18,7 +18,7 @@ Usage:
     # one-shot:
     print(pick_filler(lang="hinglish", context="thinking"))   # "ek second..."
 
-    # stateful (anti-repeat) — recommended per-call:
+    # stateful (anti-repeat) - recommended per-call:
     fp = FillerPlayer(lang="hinglish")
     while waiting_for_llm:
         say(fp.next("thinking"))      # har baar alag filler, repeat avoid
@@ -40,7 +40,7 @@ except Exception:  # pragma: no cover
 
 
 # --------------------------------------------------------------------------- #
-# Filler banks — language-aware (hinglish / hi / en), category-wise.
+# Filler banks - language-aware (hinglish / hi / en), category-wise.
 # Categories:
 #   thinking     -> LLM soch raha hai, latency mask karo ("ek second...")
 #   acknowledge  -> customer ne abhi kuch kaha, sun liya signal ("haan...", "achha")
@@ -205,7 +205,7 @@ def pick_filler(
     Args:
         lang:     "hinglish" | "hi" | "en" (aliases handled).
         context:  "thinking" | "acknowledge" | "transition" | "empathy".
-        avoid:    (optional) ek filler jo abhi-abhi bola gaya — usse repeat na karo.
+        avoid:    (optional) ek filler jo abhi-abhi bola gaya - usse repeat na karo.
 
     Returns:
         ek short filler string, e.g. "ek second...".
@@ -224,7 +224,7 @@ class FillerPlayer:
     """Stateful filler generator with anti-repeat memory.
 
     Per-call ek instance banao. `next(category)` har baar ek naya filler deta hai
-    aur recent ones ko avoid karta hai — taaki lagataar same word repeat na ho
+    aur recent ones ko avoid karta hai - taaki lagataar same word repeat na ho
     (jo turant robotic feel deta hai).
 
     Usage:

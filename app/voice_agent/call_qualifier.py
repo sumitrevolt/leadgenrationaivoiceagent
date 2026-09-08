@@ -1,10 +1,10 @@
-"""Post-call AI lead qualification + summary — Expedify-style "qualify leads 24/7".
+"""Post-call AI lead qualification + summary - Expedify-style "qualify leads 24/7".
 
 Call ke transcript ko free-LLM se analyze karke STRUCTURED qualification deta:
 interest score, qualified?, appointment chahiye?, budget signal, summary, next
 action, + ek ready Hinglish follow-up draft.
 
-DESIGN: real-time voice path ke BAHAR (post-call) — koi latency risk nahi.
+DESIGN: real-time voice path ke BAHAR (post-call) - koi latency risk nahi.
 Free-stack (app.voice_agent.free_ai). Import-safe, kabhi raise nahi karta.
 """
 
@@ -24,7 +24,7 @@ logger = setup_logger(__name__)
 # IVR/answering-bots ko "interested" mark kar raha tha (user ne recordings
 # suni). Ab qualified=true tabhi possible jab (a) minimum REAL user turns hon
 # aur (b) transcript IVR/bot jaisa na lage. Yeh gate qualify_transcript ke
-# ANDAR hai — vobiz_stream / phone_stream / call_manager SAB paths covered.
+# ANDAR hai - vobiz_stream / phone_stream / call_manager SAB paths covered.
 # --------------------------------------------------------------------------- #
 _IVR_PATTERNS = [
     # English IVR/receptionist-bot phrases
@@ -60,7 +60,7 @@ _IVR_PATTERNS = [
     r"आपले\s+(?:हार्दिक\s+)?स्वागत",
     r"कृपया.{0,20}दाबा",
     # 2026-07-06 (05-Jul transcript audit): phrases the live batch ACTUALLY said
-    # that the list above missed — HDFC Ergo / LiveSpace IVRs + voicemail scripts.
+    # that the list above missed - HDFC Ergo / LiveSpace IVRs + voicemail scripts.
     r"connect(?:ing)?\s+your\s+call",
     r"(?:is|are)\s*n[o']?t\s+available",
     r"trying\s+to\s+reach",
@@ -224,7 +224,7 @@ async def qualify_transcript(
                 why = f"user_turns={len(users)}<{_min_user_turns()}"
             if parsed.get("qualified") or parsed.get("appointment_requested"):
                 logger.info(
-                    f"[call_qualifier] qualification GATED ({why}) — "
+                    f"[call_qualifier] qualification GATED ({why}) - "
                     f"LLM ne qualified bola tha, override to false"
                 )
             parsed["bot_suspected"] = bool(suspect)
@@ -233,7 +233,7 @@ async def qualify_transcript(
             parsed["appointment_requested"] = False
             parsed["interest_score"] = min(int(parsed.get("interest_score") or 0), 2)
             if parsed.get("summary"):
-                parsed["summary"] = ("[UNVERIFIED — bot/IVR ya kam turns] " + parsed["summary"])[
+                parsed["summary"] = ("[UNVERIFIED - bot/IVR ya kam turns] " + parsed["summary"])[
                     :400
                 ]
     if not parsed["followup_draft"]:

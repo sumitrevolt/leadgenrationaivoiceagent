@@ -1,8 +1,8 @@
-"""Sales Autopilot message safety validator — deterministic first, LLM tone-only.
+"""Sales Autopilot message safety validator - deterministic first, LLM tone-only.
 
 Returns ``AUTO_APPROVED | AUTO_REJECTED | OWNER_EXCEPTION_REQUIRED`` for a generated
 message envelope. The DETERMINISTIC checks are authoritative and always run. The LLM is
-OPTIONAL and may ONLY comment on tone — it can never approve a rejected message and never
+OPTIONAL and may ONLY comment on tone - it can never approve a rejected message and never
 decides suppression, consent, rate limits, or payment (those live in eligibility/send).
 
 Fail-closed: any validator error ⇒ OWNER_EXCEPTION_REQUIRED (a human must look), never a
@@ -84,7 +84,7 @@ def _deterministic(envelope: dict[str, Any]) -> dict[str, Any]:
 
 def _llm_tone_ok(envelope: dict[str, Any]) -> bool | None:
     """Optional tone-only check. Returns True/False/None(unavailable). Never authoritative
-    for approval — a False here downgrades to OWNER_EXCEPTION_REQUIRED, never AUTO_APPROVED."""
+    for approval - a False here downgrades to OWNER_EXCEPTION_REQUIRED, never AUTO_APPROVED."""
     import os
 
     if os.getenv("SALES_AUTOPILOT_LLM_TONE", "0").strip().lower() not in ("1", "true", "yes", "on"):

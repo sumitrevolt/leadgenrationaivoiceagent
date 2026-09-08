@@ -46,7 +46,7 @@ def test_run_due_skips_leading_done_rows(tmp_path, monkeypatch):
         },
     )
 
-    # Bug regression: limit=5 used to only see the 5 done rows → advanced=0
+    # Bug regression: limit=5 used to only see the 5 done rows -> advanced=0
     out = asyncio.run(cadence.run_due(limit=5))
     assert out["ok"] is True
     assert out["advanced"] >= 1

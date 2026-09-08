@@ -1,4 +1,4 @@
-"""clients_store delete_client + dedupe_clients (admin cleanup) — pure-python."""
+"""clients_store delete_client + dedupe_clients (admin cleanup) - pure-python."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ def test_dedupe_distinct_phones_untouched():
     res = cs.dedupe_clients()
     assert (
         res["removed"] == 0 and res["kept"] == 3
-    )  # distinct phones → kept (use delete for test data)
+    )  # distinct phones -> kept (use delete for test data)
 
 
 def test_dedupe_empty_safe():

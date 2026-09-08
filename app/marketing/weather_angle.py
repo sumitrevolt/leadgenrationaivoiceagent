@@ -1,12 +1,12 @@
-"""Free weather-angle marketing helper (Open-Meteo — NO API key).
+"""Free weather-angle marketing helper (Open-Meteo - NO API key).
 
 public-apis se: Open-Meteo (geocoding + forecast) free + no-key + India-covered
-(Nager.Date ke ulat jo India support nahi karta). City → aaj ka temp + condition
-→ ek Hinglish MARKETING ANGLE (garmi→AC/thanda, baarish→indoor, sardi→heater,
-suhana→outdoor footfall). Content engine ise occasion ki tarah use kar sakta.
+(Nager.Date ke ulat jo India support nahi karta). City -> aaj ka temp + condition
+-> ek Hinglish MARKETING ANGLE (garmi->AC/thanda, baarish->indoor, sardi->heater,
+suhana->outdoor footfall). Content engine ise occasion ki tarah use kar sakta.
 
 Defensive (integration-engineering pattern): 6s timeout, 1hr cache, NEVER raises,
-network/parse fail → {"ok": False} (inert, koi behaviour change nahi).
+network/parse fail -> {"ok": False} (inert, koi behaviour change nahi).
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ _TTL = 3600  # 1 hr
 
 
 def _condition(code: int) -> str:
-    """WMO weather_code → coarse condition."""
+    """WMO weather_code -> coarse condition."""
     if code in (0, 1):
         return "clear"
     if code in (2, 3):
@@ -40,25 +40,25 @@ def _condition(code: int) -> str:
 
 
 def _angle(temp: float, cond: str) -> dict[str, str]:
-    """Temp + condition → season + Hinglish marketing angle."""
+    """Temp + condition -> season + Hinglish marketing angle."""
     if cond in ("rain", "storm"):
         return {
             "season": "barish",
-            "angle": "Baarish ka mausam — ghar-baithe order/booking, indoor service ya monsoon-special offer push karo. ☔",
+            "angle": "Baarish ka mausam - ghar-baithe order/booking, indoor service ya monsoon-special offer push karo. ☔",
         }
     if cond == "snow" or temp <= 12:
         return {
             "season": "sardi",
-            "angle": "Thand badh rahi — heater/garam-cheez/winter-care offer ya 'ghar pe service' angle chalao. 🧥",
+            "angle": "Thand badh rahi - heater/garam-cheez/winter-care offer ya 'ghar pe service' angle chalao. 🧥",
         }
     if temp >= 34:
         return {
             "season": "garmi",
-            "angle": f"Garmi tez ({int(temp)}°C) — AC/cooler/thanda/cold-drink/summer-care offer ka best time. 🌞",
+            "angle": f"Garmi tez ({int(temp)}°C) - AC/cooler/thanda/cold-drink/summer-care offer ka best time. 🌞",
         }
     return {
         "season": "suhana",
-        "angle": "Mausam suhana — outdoor/visit-driven offer, footfall badhao, fresh content daalo. 🌤️",
+        "angle": "Mausam suhana - outdoor/visit-driven offer, footfall badhao, fresh content daalo. 🌤️",
     }
 
 

@@ -1,4 +1,4 @@
-"""Beat entry: staff-whatsapp-automation-hourly — runs hourly within 9am-7pm TRAI window.
+"""Beat entry: staff-whatsapp-automation-hourly - runs hourly within 9am-7pm TRAI window.
 
 Added to app/worker.py beat schedule.
 """

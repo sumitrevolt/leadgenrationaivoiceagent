@@ -1,7 +1,7 @@
 """AST-backed proof that the Python release builders no longer own a chain.
 
 These three scripts EXECUTE (subprocess.run), they do not merely print. All
-three ran `git reset --hard origin/main` against /opt/leadgen — the single most
+three ran `git reset --hard origin/main` against /opt/leadgen - the single most
 destructive command available against a checkout that still holds the live
 invoice, consent and suppression ledgers and 182 MB of DPDP call recordings.
 
@@ -80,7 +80,7 @@ def test_no_shell_true_execution(name: str) -> None:
 
     vps_build_deploy.py ran every command through `shell=True` in a SEPARATE
     subprocess, which also meant its leading `cd /opt/leadgen` had no effect on
-    the commands after it — `git reset --hard` ran against whatever the working
+    the commands after it - `git reset --hard` ran against whatever the working
     directory happened to be.
     """
     tree = _tree(name)
@@ -123,7 +123,7 @@ def test_parent_unavailability_is_handled(name: str) -> None:
     """Missing parent must be an explicit refusal, not an implicit crash.
 
     The remote/SSH builder is exempt from the local readability check because
-    its parent lives on the far side of the connection — for that one the
+    its parent lives on the far side of the connection - for that one the
     remote `set -e` plus verbatim exit propagation is the mechanism.
     """
     text = (_SCRIPTS / name).read_text(encoding="utf-8")

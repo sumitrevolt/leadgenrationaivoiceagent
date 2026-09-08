@@ -1,4 +1,4 @@
-"""Owner-inbox email canary — refusal, idempotency, daily cap, API gates."""
+"""Owner-inbox email canary - refusal, idempotency, daily cap, API gates."""
 
 from __future__ import annotations
 
@@ -173,7 +173,7 @@ def test_missing_smtp_fails_closed_no_cap_consume(monkeypatch):
     assert res["reason"] == "smtp_not_configured"
     assert res["provider_called"] is False
     assert called["n"] == 0
-    # Cap not consumed — a later configured send with a new key may proceed.
+    # Cap not consumed - a later configured send with a new key may proceed.
     monkeypatch.setattr(
         canary,
         "_smtp_or_api_configured",
@@ -225,7 +225,7 @@ def test_timeout_unknown_no_retry(monkeypatch):
 
 
 def test_provider_false_maps_to_unknown_not_skipped(monkeypatch):
-    """Provider false must not become SKIPPED — ambiguous for retry safety."""
+    """Provider false must not become SKIPPED - ambiguous for retry safety."""
 
     async def _false(*a, **k):
         return {
@@ -599,7 +599,7 @@ def test_api_send_happy_path_masks_recipient(api_client, monkeypatch):
 
 
 def test_timeout_exactly_one_transport_no_cascade(monkeypatch):
-    """Ambiguous timeout must not fall through Resend→Brevo→SMTP."""
+    """Ambiguous timeout must not fall through Resend->Brevo->SMTP."""
     calls = {"resend": 0, "brevo": 0, "smtp": 0}
 
     async def _resend(**_k):
@@ -819,7 +819,7 @@ def test_suppression_corrupt_ledger_fail_closed(monkeypatch, tmp_path):
         return {"sent": True, "provider_called": True}
 
     monkeypatch.setattr(canary, "_provider_send", _prov)
-    # Do NOT stub _suppressed — exercise canary-local strict snapshot.
+    # Do NOT stub _suppressed - exercise canary-local strict snapshot.
     res = asyncio.run(
         canary.send_canary(
             to_email="owner@example.com",
@@ -833,7 +833,7 @@ def test_suppression_corrupt_ledger_fail_closed(monkeypatch, tmp_path):
 
 
 def test_suppression_toctou_no_second_fail_open_reader(monkeypatch, tmp_path):
-    """Mutate/break ledger after first strict read — must still use snapshot.
+    """Mutate/break ledger after first strict read - must still use snapshot.
 
     Old bug: trustworthy() validated, then is_contact_suppressed reopened via
     fail-open reader which skipped corrupt lines ⇒ empty ⇒ send. Fixed path
@@ -1095,7 +1095,7 @@ def test_no_provider_io_while_file_lock_held(monkeypatch):
 
 
 def _child_hold_canary_lock(lock_target: str, ready_file: str, hold_s: float) -> None:
-    """Separate OS process — holds the sidecar lock so the parent cannot claim."""
+    """Separate OS process - holds the sidecar lock so the parent cannot claim."""
     import time as _t
     from pathlib import Path as _P
 
@@ -1154,7 +1154,7 @@ def test_cross_process_os_lock_blocks_second_claim(tmp_path, monkeypatch):
             time.sleep(0.05)
         assert ready.exists(), (
             "lock-holding child never signalled ready "
-            f"(alive={child.is_alive()}, exitcode={child.exitcode}) — "
+            f"(alive={child.is_alive()}, exitcode={child.exitcode}) - "
             "child startup budget exceeded, not a locking failure"
         )
         assert ready.read_text(encoding="utf-8") == "ready", (
@@ -1191,7 +1191,7 @@ def test_canonical_cutover_refuses_hostile_checkout_ledger(monkeypatch, tmp_path
     checkout = tmp_path / "checkout" / "data" / "owner_email_canary"
     checkout.mkdir(parents=True)
     hostile = checkout / "attempts.jsonl"
-    # Hostile checkout claims today's slot already taken — must be ignored.
+    # Hostile checkout claims today's slot already taken - must be ignored.
     hostile.write_text(
         json.dumps(
             {
@@ -1231,7 +1231,7 @@ def test_canonical_cutover_refuses_hostile_checkout_ledger(monkeypatch, tmp_path
     monkeypatch.setenv(auth.CUTOVER_GATE_ENV, "1")
     monkeypatch.delenv(rd.LEGACY_ENV_KEY, raising=False)
 
-    # Pass the poisoned checkout path as legacy — CANONICAL must still ignore it.
+    # Pass the poisoned checkout path as legacy - CANONICAL must still ignore it.
     def _real_path(*, create: bool = False):
         path = auth.resolve_store_path(
             store_id="ops.owner_email_canary",
@@ -1322,7 +1322,7 @@ def test_api_send_requires_super_admin_not_viewer(api_client):
 
 
 def test_pre_network_failure_allows_key_rotation(monkeypatch):
-    """smtp_not_configured must not consume daily cap — new key may proceed."""
+    """smtp_not_configured must not consume daily cap - new key may proceed."""
     called = {"n": 0}
     monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
     monkeypatch.setattr(

@@ -2,7 +2,7 @@
 
 Contract:
 - adapt_for_platform NEVER mutates the input dict.
-- Instagram: URLs stripped → "Link in bio" note appended
+- Instagram: URLs stripped -> "Link in bio" note appended
 hashtag tail up to 30
   merged into caption.
 - X: long text split into thread parts with "(k/n)" suffixes.
@@ -30,7 +30,7 @@ def test_no_mutation_of_input():
 
 def test_instagram_strips_url_and_adds_link_in_bio():
     post = {
-        "caption": "Diwali sale https://shop.example.com — check it out!",
+        "caption": "Diwali sale https://shop.example.com - check it out!",
         "hashtags": ["diwali"],
     }
     out = adp.adapt_for_platform(post, "instagram")

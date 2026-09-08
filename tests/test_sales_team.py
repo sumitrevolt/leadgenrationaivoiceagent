@@ -1,4 +1,4 @@
-"""Tests — sales_team batch (BANT qualify + 5-agent deep-dive), ai-sales-team adapt.
+"""Tests - sales_team batch (BANT qualify + 5-agent deep-dive), ai-sales-team adapt.
 Convention: sync + asyncio.run, monkeypatch, no network/LLM (fallback paths)."""
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def test_bant_weak_prospect_low_grade():
 
 
 def test_bant_need_inverts_digital_gap():
-    """No website / few reviews = HIGHER need (humara pitch) — US-B2B se ulta."""
+    """No website / few reviews = HIGHER need (humara pitch) - US-B2B se ulta."""
     from app.platform import sales_qualify as sq
 
     no_site, _ = sq.score_need(_prospect(website="", reviews=3))
@@ -99,7 +99,7 @@ def test_objection_playbook_static():
 
 
 def test_analyze_offline_fallbacks(tmp_path, monkeypatch):
-    """LLM down + website nahi → phir bhi poora analysis + md report banta hai."""
+    """LLM down + website nahi -> phir bhi poora analysis + md report banta hai."""
     st = _no_llm(monkeypatch)
     monkeypatch.setattr(st, "_DIR", str(tmp_path))
     monkeypatch.setattr(st, "_INDEX", str(tmp_path / "index.jsonl"))

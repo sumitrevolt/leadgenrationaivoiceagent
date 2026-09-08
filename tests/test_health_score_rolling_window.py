@@ -5,7 +5,7 @@ Covers:
    logs `delivery_gated` NOT `automation_failed`.
 2. `_record_stuck` with real failures (send_failed, send_error:*) still logs
    `automation_failed`.
-3. `_customer_health` uses 24h rolling `failures_24h` — old failures don't
+3. `_customer_health` uses 24h rolling `failures_24h` - old failures don't
    permanently tank the score.
 4. With zero recent failures + gate-only events, health score has NO red
    `automation_failed` flag.
@@ -20,7 +20,7 @@ import pytest
 
 
 # --------------------------------------------------------------------------- #
-# 1. Gate reasons → delivery_gated, NOT automation_failed
+# 1. Gate reasons -> delivery_gated, NOT automation_failed
 # --------------------------------------------------------------------------- #
 class TestRecordStuckEventType:
     """_record_stuck should log delivery_gated for gate reasons, automation_failed for real failures."""
@@ -74,11 +74,11 @@ def test_delivery_gated_in_event_types():
 
 
 # --------------------------------------------------------------------------- #
-# 3. _customer_health: zero recent failures → no automation_failed RED flag
+# 3. _customer_health: zero recent failures -> no automation_failed RED flag
 # --------------------------------------------------------------------------- #
 def test_health_no_red_with_zero_recent_failures():
     """Even if all-time summary has automation_failures, health uses 24h
-    rolling window. With 0 recent failures → no RED automation_failed."""
+    rolling window. With 0 recent failures -> no RED automation_failed."""
     from app.marketing.product_one_delivery import _customer_health
 
     client = {
@@ -90,7 +90,7 @@ def test_health_no_red_with_zero_recent_failures():
     }
     setup = {"business": True, "offer": True, "brand": True, "social": True, "approval": True}
 
-    # No failures at all → should be green (no red, no yellow from these paths)
+    # No failures at all -> should be green (no red, no yellow from these paths)
     h = _customer_health(
         client=client,
         stage="content_ready",
@@ -173,7 +173,7 @@ def test_ledger_recent_failures_reads_24h(tmp_path, monkeypatch):
         with open(path, "a") as f:
             f.write(json.dumps(ev) + "\n")
 
-    # Write 5 old automation_failed events (outside 24h window — should NOT count)
+    # Write 5 old automation_failed events (outside 24h window - should NOT count)
     for i in range(5):
         ev = {
             "event": "automation_failed",

@@ -1,24 +1,24 @@
 """
-Public Site API — website inquiry form (lead capture) + admin inquiries view.
+Public Site API - website inquiry form (lead capture) + admin inquiries view.
 ==============================================================================
 
 Final paths (main.py prefix="/api" ke saath):
-  POST /api/public/inquiry    -> NO AUTH — landing page YA mini-site ka form.
+  POST /api/public/inquiry    -> NO AUTH - landing page YA mini-site ka form.
                                  Honeypot + per-IP rate limit + phone validation.
                                  source_slug (mini-site /b/{slug}) + preferred_time
-                                 optional — slug se client resolve hota (business/
+                                 optional - slug se client resolve hota (business/
                                  niche/city auto-fill), record me bhi store hote.
                                  DB Lead save best-effort
                                  data/inquiries.jsonl
                                  me HAMESHA append (koi inquiry kabhi lost nahi).
                                  NOTIFY_EMAIL + SMTP set ho to owner ko email.
-  GET  /api/public/inquiries  -> ADMIN — last 100 inquiries (jsonl + DB merged).
-  GET  /api/public/pay-info   -> NO AUTH — UPI payment info (QR + VPA + plans)
+  GET  /api/public/inquiries  -> ADMIN - last 100 inquiries (jsonl + DB merged).
+  GET  /api/public/pay-info   -> NO AUTH - UPI payment info (QR + VPA + plans)
                                  for the landing "Shuru karo" modal. UPI_VPA
                                  env empty ho to {"enabled": false}.
-  GET  /api/public/audit/questions -> NO AUTH — GBP self-audit ke 16 sawaal
-                                 (gbp_audit.AUDIT_QUESTIONS — safe static).
-  POST /api/public/audit/score -> NO AUTH — {answers} → TEASER result only:
+  GET  /api/public/audit/questions -> NO AUTH - GBP self-audit ke 16 sawaal
+                                 (gbp_audit.AUDIT_QUESTIONS - safe static).
+  POST /api/public/audit/score -> NO AUTH - {answers} -> TEASER result only:
                                  score/grade/top-3 fixes/impact. Full
                                  breakdown sirf paid/admin ke liye (lead-magnet).
 
@@ -51,22 +51,22 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/public", tags=["Public"])
 
-# Append-only file backup — DB down ho tab bhi inquiry kabhi nahi khoti.
+# Append-only file backup - DB down ho tab bhi inquiry kabhi nahi khoti.
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 _OK_MESSAGE = "Dhanyawad! 24 ghante me call aayega."
 
 # --------------------------------------------------------------------------- #
-# Rate limit — Redis-first (multi-worker safe), in-memory fallback (single-worker).
+# Rate limit - Redis-first (multi-worker safe), in-memory fallback (single-worker).
 # --------------------------------------------------------------------------- #
 _RL: dict[str, list[float]] = {}
-_RL_AUDIT: dict[str, list[float]] = {}  # /audit/score ka alag bucket — inquiry quota nahi khaata
+_RL_AUDIT: dict[str, list[float]] = {}  # /audit/score ka alag bucket - inquiry quota nahi khaata
 _RL_MAX = 5
 _RL_WINDOW_S = 60.0
 
 
 def _client_ip(request: Request | None) -> str:
-    """Real client IP nikalo — nginx ke peeche X-Forwarded-For pehle."""
+    """Real client IP nikalo - nginx ke peeche X-Forwarded-For pehle."""
     try:
         if request is not None:
             fwd = request.headers.get("x-forwarded-for")
@@ -82,7 +82,7 @@ def _client_ip(request: Request | None) -> str:
 
 
 async def _rate_check(ip: str, bucket: str = "inquiry") -> None:
-    """Redis-backed rate limit — raises HTTPException(429) if throttled.
+    """Redis-backed rate limit - raises HTTPException(429) if throttled.
 
     Fail-open: Redis unavailable me in-memory fallback. Multi-worker safe
     when Redis is available (shared counter across all uvicorn processes).
@@ -102,7 +102,7 @@ async def _rate_check(ip: str, bucket: str = "inquiry") -> None:
     except HTTPException:
         raise
     except Exception:
-        pass  # Redis fail → in-memory fallback
+        pass  # Redis fail -> in-memory fallback
 
     # In-memory fallback (per-worker, per-bucket)
     store = _RL_AUDIT if bucket == "audit" else _RL
@@ -142,10 +142,10 @@ def _clean_phone(raw: str) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
-# Persistence helpers (sync session pattern — app/platform/team.py jaisa)
+# Persistence helpers (sync session pattern - app/platform/team.py jaisa)
 # --------------------------------------------------------------------------- #
 def _db():
-    """Sync Session banao (ya None) — base ke lazy engine/_SessionLocal se."""
+    """Sync Session banao (ya None) - base ke lazy engine/_SessionLocal se."""
     try:
         from app.models import base as _b
 
@@ -158,7 +158,7 @@ def _db():
 
 
 def _append_jsonl(rec: dict[str, Any]) -> bool:
-    """data/inquiries.jsonl me ek line append — yahi guarantee hai ki koi
+    """data/inquiries.jsonl me ek line append - yahi guarantee hai ki koi
     inquiry kabhi lost na ho (DB fail ho tab bhi)."""
     try:
         os.makedirs(os.path.dirname(_INQUIRIES_FILE) or ".", exist_ok=True)
@@ -173,7 +173,7 @@ def _append_jsonl(rec: dict[str, Any]) -> bool:
 def _save_lead_db(rec: dict[str, Any]) -> str | None:
     """Lead model me best-effort save. Fail ho to None (jsonl me data hai hi).
 
-    Dedupe-by-phone (production audit 2026-07-01, F-DB2) — this was the one
+    Dedupe-by-phone (production audit 2026-07-01, F-DB2) - this was the one
     real-DB Lead() write path with no dedup check
     every other write path
     (app/platform/prospector.py, app/tasks/sync.py) already looks up an
@@ -260,9 +260,9 @@ def _read_jsonl(limit: int = 300) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
-# Auto-callback — inquiry aate hi AI (Swara) us number pe call kare.
+# Auto-callback - inquiry aate hi AI (Swara) us number pe call kare.
 # Env AUTO_CALLBACK_INQUIRY=0 se off. Telephony unfunded ho to bhi sirf
-# error log hota hai — inquiry flow kabhi affect nahi hota.
+# error log hota hai - inquiry flow kabhi affect nahi hota.
 # --------------------------------------------------------------------------- #
 # Fire-and-forget tasks ka strong reference (warna GC pending task gira sakta).
 _BG_TASKS: set = set()
@@ -279,12 +279,12 @@ async def _auto_callback(
     """Fire-and-forget: inquiry phone pe conversational AI call try karo.
 
     client_id (2026-07-02): a mini-site inquiry belongs to a specific paying
-    client — without it, the call greeted as generic "Demo Co"/"LeadGen AI"
+    client - without it, the call greeted as generic "Demo Co"/"LeadGen AI"
     instead of that business, skipped KB grounding (TelecallerBrain uses
     client_id for RAG), never showed up in that client's own CallLog/dashboard,
     and skipped the auto-qualify->CRM/sales downstream wiring (gated on
     `self.client_id` in vobiz_stream.py). Platform-level leads (no client yet,
-    e.g. leadsgenai.in's own /audit funnel) correctly pass "" — unchanged."""
+    e.g. leadsgenai.in's own /audit funnel) correctly pass "" - unchanged."""
     try:
         from app.api.telephony_vobiz import start_stream_call
 
@@ -303,8 +303,8 @@ async def _auto_callback(
             log_event(
                 "swara",
                 "auto_callback",
-                f"Inquiry callback → {phone} ({business})"
-                + ("" if placed else f" — fail: {result.get('error') or 'not placed'}"),
+                f"Inquiry callback -> {phone} ({business})"
+                + ("" if placed else f" - fail: {result.get('error') or 'not placed'}"),
                 status="ok" if placed else "error",
                 meta={
                     "niche": niche,
@@ -322,7 +322,7 @@ async def _auto_callback(
                 f"[public] auto-callback not placed for ***{str(phone)[-4:]}: {result.get('error')}"
             )
         elif not dry_run:
-            # Real call hi side-effects deta hai — dry-run smoke business
+            # Real call hi side-effects deta hai - dry-run smoke business
             # ledgers (speed_to_lead / delivery) ko pollute nahi karta.
             try:
                 from app.platform.speed_to_lead import log_callback_touch
@@ -335,24 +335,24 @@ async def _auto_callback(
                     from app.marketing import delivery_ledger
 
                     delivery_ledger.log_event(
-                        client_id, "followup_sent", detail=f"AI callback → {business}"
+                        client_id, "followup_sent", detail=f"AI callback -> {business}"
                     )
                 except Exception:
                     pass
-    except Exception as e:  # absolute guard — task me unhandled exception nahi
+    except Exception as e:  # absolute guard - task me unhandled exception nahi
         logger.warning(f"[public] auto-callback failed for ***{str(phone)[-4:]}: {e}")
         try:
             from app.platform.team import log_event
 
             log_event(
-                "swara", "auto_callback", f"Inquiry callback → {phone} — crash: {e}", status="error"
+                "swara", "auto_callback", f"Inquiry callback -> {phone} - crash: {e}", status="error"
             )
         except Exception:
             pass
 
 
 # --------------------------------------------------------------------------- #
-# Owner email notification — best-effort, fire-and-forget.
+# Owner email notification - best-effort, fire-and-forget.
 # NOTIFY_EMAIL + SMTP_USER/SMTP_PASSWORD .env me ho tabhi bhejta hai; kuch bhi
 # missing/fail ho to silent skip (inquiry flow kabhi affect nahi hota).
 # --------------------------------------------------------------------------- #
@@ -362,20 +362,20 @@ async def _notify_inquiry_email(rec: dict[str, Any]) -> None:
 
         to = (getattr(settings, "notify_email", "") or "").strip()
         if not to or not settings.smtp_user or not settings.smtp_password:
-            return  # not configured — silent skip
+            return  # not configured - silent skip
         from app.integrations.email_sender import EmailSender
 
         body = (
             f"Nayi inquiry: {rec.get('business_name') or 'Unknown'} "
             f"({rec.get('niche') or 'unknown'}) {rec.get('phone') or '-'}"
-            f" — {rec.get('message') or 'no message'}"
+            f" - {rec.get('message') or 'no message'}"
         )
         if rec.get("package"):
             body += f"\nPackage: {rec['package']}"
         if rec.get("city"):
             body += f"\nCity: {rec['city']}"
         await EmailSender().send_email([to], "🔔 LeadGen AI inquiry", body)
-    except Exception as e:  # absolute guard — notification kabhi flow nahi todti
+    except Exception as e:  # absolute guard - notification kabhi flow nahi todti
         logger.debug(f"[public] inquiry email notify skipped: {e}")
 
 
@@ -386,7 +386,7 @@ class InquiryIn(BaseModel):
     name: str = Field("", max_length=120)
     business_name: str = Field("", max_length=200)
     phone: str = Field("", max_length=20)
-    email: str | None = Field(None, max_length=254)  # optional — sales_autopilot email channel feed
+    email: str | None = Field(None, max_length=254)  # optional - sales_autopilot email channel feed
     niche: str | None = Field(None, max_length=60)
     business_type: str | None = Field(
         None, max_length=60
@@ -398,12 +398,12 @@ class InquiryIn(BaseModel):
     preferred_time: str | None = Field(None, max_length=80)  # booking form ka "pasand ka time"
     utm_source: str | None = Field(
         None, max_length=80
-    )  # channel attribution (quora/reddit/seo/...) — bandit seekhta
-    website: str | None = Field("", max_length=200)  # honeypot — insaan ise kabhi nahi bharta
+    )  # channel attribution (quora/reddit/seo/...) - bandit seekhta
+    website: str | None = Field("", max_length=200)  # honeypot - insaan ise kabhi nahi bharta
 
 
 class AuditIn(BaseModel):
-    """GBP self-audit answers — {question_id: option_index}. Missing = worst case."""
+    """GBP self-audit answers - {question_id: option_index}. Missing = worst case."""
 
     answers: dict[str, Any] = Field(default_factory=dict)
 
@@ -423,7 +423,7 @@ class AiDemoIn(BaseModel):
     dependencies=[Depends(rate_limit("ai_demo", 8, 60)), Depends(verify_turnstile)],
 )
 async def ai_demo(body: AiDemoIn):
-    """PUBLIC lead-magnet: business naam → REAL AI marketing pack preview (3 posts +
+    """PUBLIC lead-magnet: business naam -> REAL AI marketing pack preview (3 posts +
     hashtags + offer + CTA). Powered by niche_pack/post_generator (agent tools).
     No auth, rate-limited (LLM cost), free-stack, never-raise."""
     biz = (body.business_name or "").strip()
@@ -462,17 +462,17 @@ async def ai_demo(body: AiDemoIn):
     dependencies=[Depends(rate_limit("inquiry", 15, 60)), Depends(verify_turnstile)],
 )
 async def submit_inquiry(body: InquiryIn, request: Request, dry_run: bool = False):
-    """Landing page ka lead form — NO AUTH. Validate → file+DB save → team log.
+    """Landing page ka lead form - NO AUTH. Validate -> file+DB save -> team log.
 
-    dry_run=1 (verification smoke only): poora chain chalta hai (store →
-    wizard opening resolve → auto-callback → pending + answer-url) par ASLI
+    dry_run=1 (verification smoke only): poora chain chalta hai (store ->
+    wizard opening resolve -> auto-callback -> pending + answer-url) par ASLI
     Vobiz call nahi lagta. No real call = no cost/no compliance side-effects.
     """
-    # 1) Honeypot: bots hidden "website" field bhar dete hain — ok bolo, ignore karo.
+    # 1) Honeypot: bots hidden "website" field bhar dete hain - ok bolo, ignore karo.
     if (body.website or "").strip():
         return {"ok": True, "message": _OK_MESSAGE}
 
-    # 2) Rate limit (5/min/IP) — Redis-first, in-memory fallback
+    # 2) Rate limit (5/min/IP) - Redis-first, in-memory fallback
     ip = _client_ip(request)
     await _rate_check(ip, "inquiry")
 
@@ -499,7 +499,7 @@ async def submit_inquiry(body: InquiryIn, request: Request, dry_run: bool = Fals
                     body.city = str(mc.get("city"))
         except Exception as e:
             logger.debug(f"[public] source_slug resolve skipped: {e}")
-        # Mini-site form sirf naam+phone maangta hai — business na ho to slug-base hi rakho.
+        # Mini-site form sirf naam+phone maangta hai - business na ho to slug-base hi rakho.
         if not business:
             business = source_slug.replace("-", " ").title()
 
@@ -543,8 +543,8 @@ async def submit_inquiry(body: InquiryIn, request: Request, dry_run: bool = Fals
     if lead_id:
         rec["lead_id"] = lead_id
     if not stored_file and not lead_id:
-        # Dono fail — even then log line to bachao (last resort).
-        logger.error(f"[public] INQUIRY STORE FAILED — raw: {json.dumps(rec, ensure_ascii=False)}")
+        # Dono fail - even then log line to bachao (last resort).
+        logger.error(f"[public] INQUIRY STORE FAILED - raw: {json.dumps(rec, ensure_ascii=False)}")
     try:
         from app.platform.inquiry_hooks import run_after_inquiry
 
@@ -562,7 +562,7 @@ async def submit_inquiry(body: InquiryIn, request: Request, dry_run: bool = Fals
 
 
 class SignupIn(BaseModel):
-    """Self-serve signup payload — pricing.html se. Account (client + login) banata."""
+    """Self-serve signup payload - pricing.html se. Account (client + login) banata."""
 
     business_name: str = Field(..., min_length=2, max_length=200)
     email: str = Field(..., min_length=5, max_length=254)  # RFC 5321 max email length
@@ -574,7 +574,7 @@ class SignupIn(BaseModel):
     ref_code: str | None = Field(
         "", max_length=80
     )  # affiliate referral code (optional, from ?ref= URL param)
-    website: str | None = Field("", max_length=200)  # honeypot — insaan kabhi nahi bharta
+    website: str | None = Field("", max_length=200)  # honeypot - insaan kabhi nahi bharta
     # REAL website field (audit 2026-07-04): honeypot ne `website` naam le liya tha,
     # isliye self-serve signup se kabhi site capture nahi hoti thi -> AUTO_ONBOARD ka
     # website->KB seed is funnel ke liye dead tha. Optional; SSRF guard fetch-time pe.
@@ -596,7 +596,7 @@ async def public_signup(body: SignupIn, request: Request):
     if (body.website or "").strip():
         raise HTTPException(status_code=400, detail="Invalid request.")
 
-    # 1) Rate limit (5/min/IP — Redis-first, in-memory fallback)
+    # 1) Rate limit (5/min/IP - Redis-first, in-memory fallback)
     ip = _client_ip(request)
     try:
         await _rate_check(ip, "signup")
@@ -638,7 +638,7 @@ async def public_signup(body: SignupIn, request: Request):
     if len(pw) < 6:
         raise HTTPException(status_code=422, detail="Password kam se kam 6 characters.")
     # Loop 13B (2026-07-10): block the most obvious credential-stuffing targets.
-    # Small conservative list — real customers with these passwords are indistinguishable
+    # Small conservative list - real customers with these passwords are indistinguishable
     # from bot signups, and blocking here prevents an account whose first login attempt
     # would tripwire our Loop 8 `login_failed` monitoring. Never leak the list to the
     # attacker; return a generic "safer password" hint.
@@ -667,7 +667,7 @@ async def public_signup(body: SignupIn, request: Request):
     if pw.strip().lower() in _BREACHED:
         raise HTTPException(
             status_code=422,
-            detail="Yeh password bahut common hai — kuch alag choose karein (kam se kam 8 char).",
+            detail="Yeh password bahut common hai - kuch alag choose karein (kam se kam 8 char).",
         )
 
     # 3) Email already registered? -> login karo
@@ -676,7 +676,7 @@ async def public_signup(body: SignupIn, request: Request):
 
         if login_exists(email):
             raise HTTPException(
-                status_code=409, detail="Yeh email already registered hai — login karo."
+                status_code=409, detail="Yeh email already registered hai - login karo."
             )
     except HTTPException:
         raise
@@ -684,7 +684,7 @@ async def public_signup(body: SignupIn, request: Request):
         logger.warning(f"[signup] auth-store check failed: {e}")
         raise HTTPException(status_code=500, detail="Signup abhi possible nahi, baad me try karo.")
 
-    # 4) Client banao (add_client phone/naam pe dedupe karta — kabhi raise nahi)
+    # 4) Client banao (add_client phone/naam pe dedupe karta - kabhi raise nahi)
     try:
         from app.marketing.clients_store import add_client
 
@@ -705,16 +705,16 @@ async def public_signup(body: SignupIn, request: Request):
         logger.error(f"[signup] add_client failed: {e}")
         raise HTTPException(status_code=500, detail="Account banane me dikkat, baad me try karo.")
     if not cid:
-        raise HTTPException(status_code=500, detail="Account id missing — support se contact karo.")
+        raise HTTPException(status_code=500, detail="Account id missing - support se contact karo.")
 
     # 5) ANTI-HIJACK: agar yeh client pehle se kisi ka owned hai (login attached), reject
     if client_has_login(cid):
         raise HTTPException(
             status_code=409,
-            detail="Yeh business already registered lag raha — login karo ya alag naam/phone do.",
+            detail="Yeh business already registered lag raha - login karo ya alag naam/phone do.",
         )
 
-    # 4.5) Business website (optional) — AUTO_ONBOARD sweep isse KB seed karta hai.
+    # 4.5) Business website (optional) - AUTO_ONBOARD sweep isse KB seed karta hai.
     #      Best-effort: bina scheme wale input pe https:// laga do; junk (no dot) skip.
     try:
         site = (body.business_website or "").strip()[:200]
@@ -727,7 +727,7 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] website save skip (account still ok): {e}")
 
-    # 5.5) FREE TRIAL plan — payment ke BINA account (₹0, 7 din, marketing-lite).
+    # 5.5) FREE TRIAL plan - payment ke BINA account (₹0, 7 din, marketing-lite).
     #      Sirf plan="trial" pe client record me trial fields set hote; paid flow
     #      (starter/growth/advanced) bilkul untouched. Best-effort, kabhi raise nahi.
     is_trial = (body.plan or "").strip().lower() == "trial"
@@ -747,21 +747,21 @@ async def public_signup(body: SignupIn, request: Request):
     # the same email raced past the login_exists check above and already claimed
     # this email for a different client_id, register_login refuses to overwrite
     # and returns `email_claimed`. We then reject THIS submit with the same 409
-    # the initial dedupe check uses — no orphan credential row, no silent takeover.
+    # the initial dedupe check uses - no orphan credential row, no silent takeover.
     _reg = register_login(email, pw, cid, allow_reassign=False)
     if _reg and _reg.get("error") == "email_claimed":
         raise HTTPException(
             status_code=409,
-            detail="Yeh email already registered hai — login karo.",
+            detail="Yeh email already registered hai - login karo.",
         )
     token: str | None = None
     # ENTERPRISE FIX (2026-07-10 onboarding audit): pehle `token=None` silently
-    # respond kar diya jaata tha `access_token: null` ke saath — FE (pricing.html:377)
+    # respond kar diya jaata tha `access_token: null` ke saath - FE (pricing.html:377)
     # `token = d.access_token || ""` karke PAID checkout pe empty Bearer bhejta,
     # `/api/billing/checkout` 401 return karta, aur user ko fallback ka koi signal
     # nahi milta. Ab explicit `auto_login: bool` + `next.url=/app/login` guidance
     # response me daal ke FE explicitly branch kar sake. Account creation still
-    # succeeds (idempotent password login intact) — sirf auto-login ka signal honest.
+    # succeeds (idempotent password login intact) - sirf auto-login ka signal honest.
     auto_login = True
     try:
         # Import via module (not `from app.api.admin import ...`) so tests can
@@ -770,12 +770,12 @@ async def public_signup(body: SignupIn, request: Request):
 
         token = _admin_mod.create_access_token(cid, email, "customer")
     except Exception as e:
-        # Escalated DEBUG→WARNING so ops sees this the moment JWT config regresses
+        # Escalated DEBUG->WARNING so ops sees this the moment JWT config regresses
         # (missing JWT_SECRET / bad key / jwt import shim etc.). If this ever fires
-        # in prod, login for ALL customers will also be broken — it's not a debug event.
+        # in prod, login for ALL customers will also be broken - it's not a debug event.
         auto_login = False
         logger.warning(
-            "[signup] auto-login token mint FAILED for cid=%s email=%s — client will "
+            "[signup] auto-login token mint FAILED for cid=%s email=%s - client will "
             "need manual login (%s: %s)",
             cid,
             email,
@@ -784,7 +784,7 @@ async def public_signup(body: SignupIn, request: Request):
         )
         # Loop 2 (2026-07-10): surface this in the admin Delivery Command Center's
         # Automation Runs panel (already live via /api/admin/automation-logs). Ops
-        # sees the failure count without grepping app logs. Best-effort — signup
+        # sees the failure count without grepping app logs. Best-effort - signup
         # NEVER fails because of a downstream logging hiccup.
         try:
             from app.platform import automation_log_service as _als
@@ -794,7 +794,7 @@ async def public_signup(body: SignupIn, request: Request):
                 job_type="signup_auto_login_failed",
                 status="failed",
                 error_message=f"{type(e).__name__}: {e}"[:500],
-                output_summary="Account created, JWT mint failed → customer must login manually",
+                output_summary="Account created, JWT mint failed -> customer must login manually",
                 triggered_by="signup",
                 meta_json={"email": email, "plan": (body.plan or "starter")},
             )
@@ -803,16 +803,16 @@ async def public_signup(body: SignupIn, request: Request):
 
     # 6.5) PLAN PROVISIONING (audit #7): paid plan ka usage-period + minutes provision karo
     #      (activate_plan + reset_usage_period). Pehle yeh sirf orphan customer_signup me tha
-    #      (jiska koi caller nahi tha) — ab is CANONICAL path pe, taaki pricing-funnel se aaya
+    #      (jiska koi caller nahi tha) - ab is CANONICAL path pe, taaki pricing-funnel se aaya
     #      paid customer ka quota signup pe hi set ho jaye. Trial pe SKIP (₹0; trial-fields upar
-    #      already set hote). Best-effort — signup KABHI is wajah se fail nahi hota.
+    #      already set hote). Best-effort - signup KABHI is wajah se fail nahi hota.
     #
-    #      ENTERPRISE FIX (2026-07-10): pehle failure DEBUG pe silent hota tha — customer
+    #      ENTERPRISE FIX (2026-07-10): pehle failure DEBUG pe silent hota tha - customer
     #      pay karta, checkout 200, par plan quota ZERO (no minutes, no features).
     #      Ab return values capture karo, WARNING log karo, aur response me
     #      `plan_provisioned: bool` bhejo taaki FE + admin dashboard detect kar sake.
     #      Payment ke BAAD (webhook ya admin UPI approval) phir se `_provision_usage`
-    #      call hota hai — yeh pre-payment safety-net hai, post-payment guarantee nahi.
+    #      call hota hai - yeh pre-payment safety-net hai, post-payment guarantee nahi.
     plan_provisioned = False
     if not is_trial:
         plan_k = body.plan or "starter"
@@ -825,7 +825,7 @@ async def public_signup(body: SignupIn, request: Request):
             if not plan_provisioned:
                 logger.warning(
                     "[signup] plan provisioning PARTIAL for cid=%s plan=%s "
-                    "(activate=%s reset=%s) — customer MUST get post-payment provisioning",
+                    "(activate=%s reset=%s) - customer MUST get post-payment provisioning",
                     cid,
                     plan_k,
                     plan_ok,
@@ -835,7 +835,7 @@ async def public_signup(body: SignupIn, request: Request):
                     from app.platform import ops_alerts
 
                     ops_alerts._ntfy(
-                        f"Signup provisioning PARTIAL — {cid}",
+                        f"Signup provisioning PARTIAL - {cid}",
                         f"plan={plan_k} activate={plan_ok} reset={watermark_ok}. "
                         "Customer has zero quota until admin fixes.",
                         tags=["rotating_light", "billing"],
@@ -844,7 +844,7 @@ async def public_signup(body: SignupIn, request: Request):
                     pass
         except Exception as e:
             logger.warning(
-                "[signup] plan provisioning RAISED for cid=%s plan=%s — "
+                "[signup] plan provisioning RAISED for cid=%s plan=%s - "
                 "customer will have ZERO quota until post-payment fix (%s: %s)",
                 cid,
                 plan_k,
@@ -855,7 +855,7 @@ async def public_signup(body: SignupIn, request: Request):
                 from app.platform import ops_alerts
 
                 ops_alerts._ntfy(
-                    f"Signup provisioning CRASHED — {cid}",
+                    f"Signup provisioning CRASHED - {cid}",
                     f"plan={plan_k} error={type(e).__name__}: {e}. "
                     "Customer has ZERO quota until admin fixes.",
                     tags=["rotating_light", "billing"],
@@ -863,7 +863,7 @@ async def public_signup(body: SignupIn, request: Request):
             except Exception:
                 pass
 
-    # 6.8) Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+    # 6.8) Funnel event (audit 2026-07-04) - silent no-op without POSTHOG_API_KEY.
     try:
         from app.analytics import posthog_client as _ph
 
@@ -873,7 +873,7 @@ async def public_signup(body: SignupIn, request: Request):
 
     # 6.9) Welcome WhatsApp to the customer who just signed up (audit 2026-07-04
     #      user-ask). Consented/transactional (they gave their number + created an
-    #      account this instant) — NOT bulk marketing. Best-effort, never blocks
+    #      account this instant) - NOT bulk marketing. Best-effort, never blocks
     #      signup; no-ops gracefully until the WhatsApp engine is armed (WAHA QR
     #      scan / Cloud creds). Gated WHATSAPP_WELCOME (default ON).
     if (os.environ.get("WHATSAPP_WELCOME", "1") or "1").strip().lower() not in ("0", "false", "no"):
@@ -889,7 +889,7 @@ async def public_signup(body: SignupIn, request: Request):
                         f"Namaste {biz}! 🎉 Aapka LeadGen AI FREE trial shuru ho gaya.\n\n"
                         "Login: https://leadsgenai.in/app/login\n"
                         f"Email: {email}\n\n"
-                        "Roz ki AI marketing posts, Google par upar aana, aur leads — "
+                        "Roz ki AI marketing posts, Google par upar aana, aur leads - "
                         "sab automatic. Koi dikkat ho to isi number pe reply karein."
                     )
                 else:
@@ -912,12 +912,12 @@ async def public_signup(body: SignupIn, request: Request):
             except Exception as e:
                 logger.debug(f"[signup] welcome WhatsApp skip (account still ok): {e}")
 
-    # 6.95) DAY-1 VALUE — enqueue the done-for-you auto-onboard (website→KB seed +
+    # 6.95) DAY-1 VALUE - enqueue the done-for-you auto-onboard (website->KB seed +
     #       first content pack + customer-visible content QUEUE + niche snapshot) to
     #       the WORKER, so the new customer's portal isn't empty until the next-day
     #       content job. Runs regardless of the AUTO_ONBOARD hourly-sweep flag; the
-    #       sweep stays the backstop (auto_onboard marks setup_done → idempotent).
-    #       send_welcome=False — signup already sent its welcome above. Heavy work
+    #       sweep stays the backstop (auto_onboard marks setup_done -> idempotent).
+    #       send_welcome=False - signup already sent its welcome above. Heavy work
     #       stays in Celery (web process never scrapes/LLMs). Gated SIGNUP_AUTO_ONBOARD
     #       (default ON); never blocks signup.
     if (os.environ.get("SIGNUP_AUTO_ONBOARD", "1") or "1").strip().lower() not in (
@@ -932,20 +932,20 @@ async def public_signup(body: SignupIn, request: Request):
         except Exception as e:
             logger.debug(f"[signup] onboard enqueue skip (hourly sweep is backstop): {e}")
 
-    # 7) Team activity (best-effort) — Rohan ko self-signup dikhe
+    # 7) Team activity (best-effort) - Rohan ko self-signup dikhe
     try:
         from app.platform.team import log_event
 
         log_event(
             "rohan",
             "self_signup",
-            f"{biz} ({body.plan or 'starter'}) — {email}",
+            f"{biz} ({body.plan or 'starter'}) - {email}",
             meta={"client_id": cid, "plan": body.plan, "via": "pricing_page"},
         )
     except Exception:
         pass
 
-    # Lifecycle nurture — signup ko trial->paid sequence me enroll (record-only;
+    # Lifecycle nurture - signup ko trial->paid sequence me enroll (record-only;
     # emails sirf LIFECYCLE_NURTURE=1 pe scheduler se). Best-effort, kabhi raise nahi.
     try:
         from app.marketing import lifecycle_nurture
@@ -954,7 +954,7 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] lifecycle enroll skip: {e}")
 
-    # Voice follow-up — trial day 8/9 conversion calls (transactional, consented).
+    # Voice follow-up - trial day 8/9 conversion calls (transactional, consented).
     if is_trial and (body.phone or "").strip():
         try:
             from app.telephony import voice_followup
@@ -969,7 +969,7 @@ async def public_signup(body: SignupIn, request: Request):
         except Exception as e:
             logger.debug(f"[signup] voice trial schedule skip: {e}")
 
-    # Affiliate referral — ref_code se signup aaya to record karo (commission track)
+    # Affiliate referral - ref_code se signup aaya to record karo (commission track)
     try:
         ref = (body.ref_code or "").strip()
         if ref:
@@ -979,7 +979,7 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] referral record skip: {e}")
 
-    # Journey engine — fire 'signup' (gated JOURNEY_ENGINE=1; default off).
+    # Journey engine - fire 'signup' (gated JOURNEY_ENGINE=1; default off).
     try:
         from app.marketing import journeys
 
@@ -1014,7 +1014,7 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] outbound_webhook skip: {e}")
 
-    # Loop 3B (2026-07-10): admin GTM visibility — emit a `signup_completed` row
+    # Loop 3B (2026-07-10): admin GTM visibility - emit a `signup_completed` row
     # for EVERY successful signup (trial + paid). The admin Delivery Command
     # Center's Automation Runs panel filters by job_type so ops can count
     # new customers per day/week without a separate CRM query. Best-effort
@@ -1051,7 +1051,7 @@ async def public_signup(body: SignupIn, request: Request):
         "plan": (client or {}).get("plan"),
         "plan_provisioned": plan_provisioned,
     }
-    # If auto-login couldn't be issued (rare — JWT config regression), hand the FE
+    # If auto-login couldn't be issued (rare - JWT config regression), hand the FE
     # explicit fallback guidance so the paid checkout path doesn't 401 blind. Trial
     # path already redirects on empty token; this keeps paid honest too.
     if not auto_login:
@@ -1063,13 +1063,13 @@ async def public_signup(body: SignupIn, request: Request):
     if is_trial:
         out["trial"] = True
         out["trial_expires"] = trial_expires
-        out["message"] = "7-din FREE trial shuru — koi payment nahi chahiye. 🎉"
+        out["message"] = "7-din FREE trial shuru - koi payment nahi chahiye. 🎉"
     return out
 
 
 @router.get("/pay-info")
 async def pay_info():
-    """Landing page ka payment modal — NO AUTH. UPI VPA set ho tabhi
+    """Landing page ka payment modal - NO AUTH. UPI VPA set ho tabhi
     enabled
     QR upi_kit (pure-python encoder) se banta hai, packages
     app.marketing.packages se (key/name/price only). Kabhi raise nahi karta."""
@@ -1120,13 +1120,13 @@ async def pay_info():
 
 
 # --------------------------------------------------------------------------- #
-# FREE public GBP audit — lead-magnet funnel (/audit page isi par chalta hai)
+# FREE public GBP audit - lead-magnet funnel (/audit page isi par chalta hai)
 # --------------------------------------------------------------------------- #
 @router.get("/turnstile/config")
 async def turnstile_config():
     """Public Turnstile config for client-side widget render.
 
-    Returns `{enabled, site_key}`. INERT (enabled=False) when site-key unset —
+    Returns `{enabled, site_key}`. INERT (enabled=False) when site-key unset -
     HTML pages skip the widget injection entirely, zero change for today's flow.
     """
     sk = _turnstile_site_key()
@@ -1135,10 +1135,10 @@ async def turnstile_config():
 
 @router.get("/business-types")
 async def public_business_types():
-    """PUBLIC lead-magnet catalog — audit/site-audit forms isse dropdown bharate
+    """PUBLIC lead-magnet catalog - audit/site-audit forms isse dropdown bharate
     hain
     visitor apna business type select karta hai to inquiry `niche` ke saath
-    aati hai (lead + auto-callback niche-aware). Read-only, no auth — sirf
+    aati hai (lead + auto-callback niche-aware). Read-only, no auth - sirf
     wizard catalog ke labels/niches hain, koi PII nahi."""
     try:
         from app.marketing.onboard_wizard import BUSINESS_TYPES
@@ -1162,7 +1162,7 @@ async def public_business_types():
 
 @router.get("/audit/questions")
 async def audit_questions():
-    """GBP self-audit ke 16 sawaal — NO AUTH (safe static data, koi secret nahi)."""
+    """GBP self-audit ke 16 sawaal - NO AUTH (safe static data, koi secret nahi)."""
     from app.marketing.gbp_audit import AUDIT_QUESTIONS
 
     return {"questions": AUDIT_QUESTIONS}
@@ -1170,9 +1170,9 @@ async def audit_questions():
 
 @router.post("/audit/score", dependencies=[Depends(verify_turnstile)])
 async def audit_score(body: AuditIn, request: Request):
-    """Audit answers → TEASER result — NO AUTH.
+    """Audit answers -> TEASER result - NO AUTH.
 
-    Sirf {score, grade, top_fixes[:3], locked_fixes, impact} return hota hai —
+    Sirf {score, grade, top_fixes[:3], locked_fixes, impact} return hota hai -
     full breakdown + saare fixes paid/admin flow me milte hain (yahi hook hai).
     Rate-limit alag bucket me taaki audit ke baad inquiry block na ho.
     """
@@ -1182,13 +1182,13 @@ async def audit_score(body: AuditIn, request: Request):
     answers = body.answers if isinstance(body.answers, dict) else {}
     # Guard: max 32 answer keys (audit has 16 questions; 2x headroom for future)
     if len(answers) > 32:
-        raise HTTPException(status_code=422, detail="Bahut zyada answers — max 32 allowed.")
+        raise HTTPException(status_code=422, detail="Bahut zyada answers - max 32 allowed.")
 
     from app.marketing.gbp_audit import score_audit
 
     result = score_audit(answers)
 
-    # Team activity (Isha — Marketing) — kabhi raise nahi karta.
+    # Team activity (Isha - Marketing) - kabhi raise nahi karta.
     try:
         from app.platform.team import log_event
 
@@ -1201,14 +1201,14 @@ async def audit_score(body: AuditIn, request: Request):
         "score": result.get("score", 0),
         "grade": result.get("grade", "D"),
         "top_fixes": all_fixes[:3],
-        "locked_fixes": max(0, len(all_fixes) - 3),  # teaser count — content locked
+        "locked_fixes": max(0, len(all_fixes) - 3),  # teaser count - content locked
         "impact": result.get("impact", ""),
     }
 
 
 @router.get("/inquiries")
 async def list_inquiries(current_user: User = Depends(require_admin)):
-    """Admin view — last 100 inquiries, jsonl + DB (source=website) merged."""
+    """Admin view - last 100 inquiries, jsonl + DB (source=website) merged."""
     records: list[dict[str, Any]] = []
     seen: dict[str, dict[str, Any]] = {}  # phone|business -> record (dedupe DB vs file)
 

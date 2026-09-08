@@ -28,7 +28,7 @@ def _now_iso() -> str:
 def _install(monkeypatch, leads, *, forbid_writes=True, score_fn=None):
     """Wire hermetic stubs and return the captured team.log_event calls list."""
     monkeypatch.setattr(prospector, "list_prospects", lambda status=None, limit=100: list(leads))
-    # tenant resolver → identity (no file I/O); empty handled by module -> 'platform'
+    # tenant resolver -> identity (no file I/O); empty handled by module -> 'platform'
     monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
     if score_fn is not None:
         monkeypatch.setattr(lead_scoring, "score_lead", score_fn)
@@ -146,12 +146,12 @@ def test_detects_unqualified_and_unscored(monkeypatch):
     res = lq.scan_lead_quality()
     assert res["status"] == "success"
     assert res["counts"]["unqualified"] == 1  # u1 (stored score 20 < threshold)
-    assert res["counts"]["unscored"] == 1  # u2 (scorer raised → None)
+    assert res["counts"]["unscored"] == 1  # u2 (scorer raised -> None)
     assert _issue(res, "unqualified_leads")["count"] == 2
 
 
 def test_scan_is_read_only_no_writes(monkeypatch):
-    """If any write primitive is invoked the stub raises — scan must still succeed."""
+    """If any write primitive is invoked the stub raises - scan must still succeed."""
     leads = [
         {"id": "a", "business_name": "A", "phone": "9876543210", "lead_score": 70},
         {"id": "b", "business_name": "B", "phone": "9876543210", "lead_score": 70},
@@ -229,5 +229,5 @@ def test_empty_store_is_clean_ok_event(monkeypatch):
     assert res["status"] == "success"
     assert res["checked"] == 0
     assert all(i["count"] == 0 for i in res["issues"])
-    # no issues → status 'ok' on the emitted event
+    # no issues -> status 'ok' on the emitted event
     assert events and events[0][1].get("status") == "ok"

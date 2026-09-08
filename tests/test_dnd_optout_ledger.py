@@ -1,4 +1,4 @@
-"""DND opt-out authority — compliance regression tests.
+"""DND opt-out authority - compliance regression tests.
 
 OPS-012b. Opt-outs used to live ONLY in an in-process dict with a 7-day expiry
 and `add_to_local_dnd()` had ZERO callers, so a STOP was forgotten on restart
@@ -7,13 +7,13 @@ a lost opt-out
 is the one failure mode that turns a compliant sender into a repeat offender.
 
 DESIGN (cycle 6): this does NOT add a new store. There is exactly ONE canonical
-cross-channel suppression authority — `app/telephony/consent_ledger.py` — and
+cross-channel suppression authority - `app/telephony/consent_ledger.py` - and
 DNDChecker delegates to it. An earlier revision created a second JSONL ledger;
 that was a duplicate workflow and was removed. The last test here guards
 against it coming back.
 
 THESE TESTS ARE A COMPLIANCE GATE. If any fail, do NOT "fix" them by loosening
-an assertion — a loosened assertion here is a compliance regression, not a
+an assertion - a loosened assertion here is a compliance regression, not a
 flake.
 """
 
@@ -176,6 +176,6 @@ def test_no_duplicate_optout_store_is_created(authority, tmp_path, monkeypatch):
     DNDChecker().export_local_dnd()
     DNDChecker().import_local_dnd([{"phone": "+919111111111", "checked_at": "", "category": "x"}])
     assert not os.path.exists(target), (
-        "DNDChecker wrote its own opt-out file — that is a duplicate of "
+        "DNDChecker wrote its own opt-out file - that is a duplicate of "
         "app.telephony.consent_ledger and must not come back"
     )

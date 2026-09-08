@@ -1,8 +1,8 @@
-"""HyperFrames creative provider — professional animated 1080p renders.
+"""HyperFrames creative provider - professional animated 1080p renders.
 
 Additive provider for the existing Creative Automation OS. It does NOT replace
 the CreativeSpec contract, the brief/brand-fact gate, the asset registry, the QA
-lifecycle, exact-revision approval, or the publish gate — it plugs in where the
+lifecycle, exact-revision approval, or the publish gate - it plugs in where the
 deterministic FFmpeg provider already plugs in, and every one of those gates
 still runs afterwards.
 
@@ -12,7 +12,7 @@ file rather than free-form arguments. There is no shell, no string
 interpolation into a command line, and no network access during a render.
 
 Failure policy is deliberately loud. If a customer asked for a HyperFrames
-deliverable and HyperFrames fails, this returns an error — it never quietly
+deliverable and HyperFrames fails, this returns an error - it never quietly
 hands back the low-quality flat-text fallback dressed up as the real thing.
 """
 
@@ -55,7 +55,7 @@ MANIFEST_VERSION = "1.0"
 _ALLOWED_PHOTO_MIME = frozenset({"image/jpeg", "image/png", "image/webp"})
 
 # Colors are injected into CSS custom properties, so anything that is not a
-# plain hex literal is refused — this is the stylesheet-injection boundary.
+# plain hex literal is refused - this is the stylesheet-injection boundary.
 _HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 # Copy is bound with textContent (never innerHTML), so markup cannot execute.
@@ -106,7 +106,7 @@ def render_timeout_s() -> int:
     ``asyncio.wait_for(flags.worker_timeout_s())``, and Celery's
     ``soft_time_limit``. They must decrease inward. If the outer one fires first
     the provider never runs its cleanup, and the Chrome grandchildren are
-    orphaned rather than reaped — so the configured value is clamped below the
+    orphaned rather than reaped - so the configured value is clamped below the
     worker deadline instead of trusting two env vars to be set consistently.
     """
     try:
@@ -155,8 +155,8 @@ def _safe_color(value: str, fallback: str) -> str:
 def output_root() -> Path:
     """Canonical media root. MUST be a root the publish gate also trusts.
 
-    ``video_media_paths.media_roots()`` — which the approval snapshot and the
-    Postiz publish gate resolve against — does not include ``data/creative_os``,
+    ``video_media_paths.media_roots()`` - which the approval snapshot and the
+    Postiz publish gate resolve against - does not include ``data/creative_os``,
     so writing there would pass creative-OS QA and then be refused at publish.
     Renders therefore land under the video-ads root, which both authorities
     accept.
@@ -190,7 +190,7 @@ def _resolve_photo(tenant_id: str, asset_id: str) -> str | None:
 
         # Symlink policy, checked on the UNRESOLVED path. `Path.resolve()` follows
         # every link, so testing `resolved.is_symlink()` is always False and
-        # silently accepts a symlinked asset — the check has to happen before
+        # silently accepts a symlinked asset - the check has to happen before
         # resolution, and on every parent component, because an in-path link can
         # be retargeted after the consent check passed.
         for part in (candidate, *candidate.parents):
@@ -207,7 +207,7 @@ def _resolve_photo(tenant_id: str, asset_id: str) -> str | None:
 
 # ------------------------------------------------------- per-template binders
 # One binder per template. Each returns the EXACT variable set that template
-# declares — `build_manifest` then rejects any key outside the registry's
+# declares - `build_manifest` then rejects any key outside the registry's
 # declared list and any missing required key, so a template/binder mismatch is
 # an error rather than a video that renders with silently blank slots.
 #
@@ -255,7 +255,7 @@ def _bind_local_service(c: dict[str, Any]) -> dict[str, str]:
         "solution_sub": c["showcase"] if c["tagline"] else "",
         "steps_json": json.dumps(c["body_items"], ensure_ascii=False),
         # Trust chips carry claims, so they come ONLY from an explicitly
-        # verified list on the brand record — never derived from scene copy.
+        # verified list on the brand record - never derived from scene copy.
         "trust_json": json.dumps(
             [_clean(x, 40) for x in (c["brand"].get("verified_trust") or []) if _clean(x, 40)][:3],
             ensure_ascii=False,
@@ -323,7 +323,7 @@ def build_manifest(
     """Bind a validated CreativeSpec + verified brand facts into a render manifest.
 
     Raises ``RenderError`` rather than returning a half-bound manifest, because a
-    partially-bound composition renders as a video with blank slots — which is
+    partially-bound composition renders as a video with blank slots - which is
     exactly the "professional-looking but wrong" output this system must not ship.
     """
     tpl_id = str(template_id or default_template()).strip()
@@ -383,7 +383,7 @@ def build_manifest(
                 body_items.append({"title": name, "subtitle": sub})
     if not body_items and b.get("kb_facts"):
         for fact in b.get("kb_facts", [])[:3]:
-            short_fact = _clean(str(fact).split(".")[0].split("—")[0], 40)
+            short_fact = _clean(str(fact).split(".")[0].split("-")[0], 40)
             if short_fact:
                 body_items.append({"title": short_fact, "subtitle": ""})
     body_items = body_items[:4]
@@ -722,7 +722,7 @@ def _template_for(spec: CreativeSpec) -> str:
     """Caller-selected template, validated against the exact allowlist.
 
     An unrecognised value falls back to the configured default rather than
-    reaching the renderer — `spec.template_id` is customer-adjacent input and
+    reaching the renderer - `spec.template_id` is customer-adjacent input and
     must never behave like a path.
     """
     requested = str(getattr(spec, "template_id", "") or "")
@@ -732,7 +732,7 @@ def _template_for(spec: CreativeSpec) -> str:
 
 
 def _pinned_version() -> str:
-    """Version read from the committed lockfile — the real pinned truth."""
+    """Version read from the committed lockfile - the real pinned truth."""
     try:
         pkg = renderer_root() / "package.json"
         data = json.loads(pkg.read_text(encoding="utf-8"))
@@ -742,7 +742,7 @@ def _pinned_version() -> str:
 
 
 def _brand_facts(tenant_id: str) -> dict[str, Any]:
-    """Verified brand facts only — reuses the existing brief resolver.
+    """Verified brand facts only - reuses the existing brief resolver.
 
     Nothing is invented here: every field either comes from the tenant's own
     record via ``brief.resolve_brand_profile`` or stays empty.

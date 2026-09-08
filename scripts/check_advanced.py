@@ -48,7 +48,7 @@ async def main():
         "| ready:",
         len(ready),
         "| sample_caption:",
-        (ready[0]["content"]["caption"][:50] if ready and ready[0].get("content") else "—"),
+        (ready[0]["content"]["caption"][:50] if ready and ready[0].get("content") else "-"),
     )
 
 

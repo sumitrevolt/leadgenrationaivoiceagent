@@ -16,7 +16,7 @@ def test_permission_appended_when_missing(monkeypatch):
 
 def test_permission_not_doubled_when_present(monkeypatch):
     monkeypatch.setenv("PERMISSION_OPENER", "1")
-    base = "Namaste — do minute baat kar sakti hoon ya busy hain?"
+    base = "Namaste - do minute baat kar sakti hoon ya busy hain?"
     assert ensure_permission_ask(base) == base
 
 
@@ -83,7 +83,7 @@ def test_stt_keyterms_gated_off(monkeypatch):
 
 def test_web_call_opener_discloses_ai(monkeypatch):
     """D-14: the web-call opener (brain.opening_line wrapped, as web_call does) must
-    disclose AI + carry permission — parity with the phone opener."""
+    disclose AI + carry permission - parity with the phone opener."""
     monkeypatch.setenv("PERMISSION_OPENER", "1")
     from app.voice_agent.niche_scripts import ensure_ai_disclosure, ensure_permission_ask
     from app.voice_agent.telecaller_brain import TelecallerBrain

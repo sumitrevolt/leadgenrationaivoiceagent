@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live production smoke — pages 200 + workflow APIs registered (not 404).
+"""Live production smoke - pages 200 + workflow APIs registered (not 404).
 
 Runs against BASE_URL (default https://leadsgenai.in).
 Auth-required routes: 401/403/422/405 = OK (route exists). 404 = FAIL.
@@ -88,7 +88,7 @@ CRITICAL_GETS = [
 
 
 def _req(method: str, path: str, body: bytes | None = None, *, tries: int = 3) -> tuple[int, str]:
-    # Retry+backoff on throttle (429) and connection blips (-1) — the smoke fires
+    # Retry+backoff on throttle (429) and connection blips (-1) - the smoke fires
     # ~55 rapid requests and can trip the per-IP rate limiter, plus Docker-recreate
     # windows cause transient blips. Mirrors the uptime probe hardening (ee6a9b8):
     # absorb transient noise, only surface a persistent state.
@@ -105,7 +105,7 @@ def _req(method: str, path: str, body: bytes | None = None, *, tries: int = 3) -
                 return resp.status, resp.read(500).decode("utf-8", errors="replace")
         except urllib.error.HTTPError as e:
             last = (e.code, (e.read(300).decode("utf-8", errors="replace") if e.fp else ""))
-            if e.code != 429:  # 429 = our own burst tripped the limiter — back off and retry
+            if e.code != 429:  # 429 = our own burst tripped the limiter - back off and retry
                 return last
         except Exception as e:
             last = (-1, str(e)[:200])
@@ -117,7 +117,7 @@ def _req(method: str, path: str, body: bytes | None = None, *, tries: int = 3) -
 def _extract_admin_workflows() -> list[str]:
     html = (ROOT / "frontend/admin_dashboard.html").read_text(encoding="utf-8", errors="ignore")
     urls = re.findall(r'url:"(/api/[^"]+)"', html)
-    # only autoAction map block — filter growth/team/journeys
+    # only autoAction map block - filter growth/team/journeys
     return sorted({u.split("?")[0] for u in urls if "/api/" in u})
 
 
@@ -125,8 +125,8 @@ def main() -> int:
     print(f"=== LIVE INTEGRATION SMOKE @ {BASE} ===\n")
     fails: list[str] = []
 
-    # 1) Public pages — 200 = rendered; 429 = alive but probe-throttled (self-inflicted
-    #    burst, not a broken page) → WARN, non-fatal (consistent with the API checks below).
+    # 1) Public pages - 200 = rendered; 429 = alive but probe-throttled (self-inflicted
+    #    burst, not a broken page) -> WARN, non-fatal (consistent with the API checks below).
     print("## Public pages")
     for p in PUBLIC_PAGES:
         code, _ = _req("GET", p)
@@ -149,11 +149,11 @@ def main() -> int:
         except json.JSONDecodeError:
             fails.append("health invalid json")
     elif code == 429:
-        print("  WARN 429 health throttled (alive) — probe tripped rate limit, not down")
+        print("  WARN 429 health throttled (alive) - probe tripped rate limit, not down")
     else:
         fails.append(f"health -> {code}")
 
-    # 3) Workflow POSTs (no auth — must NOT 404)
+    # 3) Workflow POSTs (no auth - must NOT 404)
     print("\n## Automation workflow APIs (POST, no auth)")
     body = b"{}"
     for path in WORKFLOW_POSTS:

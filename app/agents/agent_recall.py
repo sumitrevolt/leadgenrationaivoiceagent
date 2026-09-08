@@ -1,4 +1,4 @@
-"""Agent self-recall — Hermes "search own past runs/decisions" parity.
+"""Agent self-recall - Hermes "search own past runs/decisions" parity.
 
 Hermes-class infra agents ka ek capability = apne PURANE runs/decisions ko search
 karke context-carry karna (har baar zero-context se shuru nahi). Is project me agents
@@ -6,17 +6,17 @@ events `agent_events` table + obsidian me likhte the par koi lightweight "apna p
 faisla dhoondo" recall-helper nahi tha.
 
 Yeh module woh deta (append-only jsonl + semantic-if-available, keyword-fallback):
-  - `record(kind, text, meta)` → data/agent_recall.jsonl me ek line append.
-  - `recall(query, k)` → pehle project VectorStore try (semantic)
+  - `record(kind, text, meta)` -> data/agent_recall.jsonl me ek line append.
+  - `recall(query, k)` -> pehle project VectorStore try (semantic)
   kisi bhi failure pe
     case-insensitive token-overlap scoring jsonl pe (deterministic fallback).
   - Admin POST/GET /api/agents-ext/recall.
 
 Design (project patterns):
   - never-raise: record/recall dono ANY exception pe safe-default ([] / {ok:False}).
-  - `enabled()` sirf AUTOMATIC background recall-write ko gate karta — default OFF =
+  - `enabled()` sirf AUTOMATIC background recall-write ko gate karta - default OFF =
     zero behaviour change. record()/recall() khud hamesha safe-callable (admin + direct).
-  - VectorStore LAZY import (heavy ChromaDB) — function ke andar.
+  - VectorStore LAZY import (heavy ChromaDB) - function ke andar.
   - jsonl = source-of-truth
   vector store best-effort overlay. Live business-KB se alag.
 
@@ -98,7 +98,7 @@ def _index_vector(row: dict[str, Any]) -> None:
 
     vs = VectorStore(persist_directory=_VS_DIR, collection_name=_VS_COLLECTION)
     coll = vs.collection  # property
-    raises if chroma truly dead → caller swallows
+    raises if chroma truly dead -> caller swallows
     emb = vs._generate_embedding(row["text"])
     rid = f"r-{int(row['at'] * 1000)}"
     coll.add(
@@ -173,7 +173,7 @@ def _keyword_recall(query: str, k: int) -> list[dict[str, Any]]:
 
 
 def _semantic_recall(query: str, k: int) -> list[dict[str, Any]] | None:
-    """Project VectorStore se semantic search. None = unavailable → keyword fallback."""
+    """Project VectorStore se semantic search. None = unavailable -> keyword fallback."""
     try:
         from app.ml.vector_store import VectorStore
 
@@ -222,7 +222,7 @@ async def recall(query: str, k: int = 6) -> list[dict[str, Any]]:
         sem = _semantic_recall(q, kk)
         if sem:
             return sem
-    except Exception as e:  # pragma: no cover - semantic raised → keyword fallback
+    except Exception as e:  # pragma: no cover - semantic raised -> keyword fallback
         logger.debug(f"agent_recall semantic raised, keyword fallback: {e}")
     try:
         return _keyword_recall(q, kk)

@@ -1,5 +1,5 @@
 """
-catalog.py — price-list catalog card + WhatsApp catalog text (free stack).
+catalog.py - price-list catalog card + WhatsApp catalog text (free stack).
 ===========================================================================
 
 Chhote business ka digital catalog:
@@ -7,7 +7,7 @@ Chhote business ka digital catalog:
       1080x1350 SVG price-list card (brand violet header, rows naam….₹price,
       max 12 items) + WhatsApp catalog-style text (numbered + order CTA) +
       per-item 1-line AI descriptions (SINGLE LLM call via free_ai;
-      fallback = item ka apna desc ya naam as-is — KABHI empty nahi).
+      fallback = item ka apna desc ya naam as-is - KABHI empty nahi).
 
 Sab inputs XML-escaped (injection-safe). Generator kabhi raise nahi karta.
 """
@@ -50,7 +50,7 @@ def _fmt_price(raw: Any) -> str:
 
 
 def _norm_items(items: Any) -> list[dict[str, str]]:
-    """Items normalize: [{'name','price','desc'}] — khali naam skip, cap 12."""
+    """Items normalize: [{'name','price','desc'}] - khali naam skip, cap 12."""
     out: list[dict[str, str]] = []
     for it in items or []:
         if not isinstance(it, dict):
@@ -81,7 +81,7 @@ def _catalog_svg(biz: str, items: list[dict[str, str]]) -> str:
     y = 330
     for it in items:
         name = escape(_clip(it["name"], 30), quote=True)
-        price = escape(_clip(it["price"] or "—", 14), quote=True)
+        price = escape(_clip(it["price"] or "-", 14), quote=True)
         desc = escape(_clip(it["desc"], 58), quote=True)
         rows.append(
             f'<text x="80" y="{y}" font-family="{_FONT}" font-size="33" '
@@ -114,24 +114,24 @@ def _catalog_svg(biz: str, items: list[dict[str, str]]) -> str:
         + "".join(rows)
         + '<rect x="140" y="1252" width="800" height="70" rx="35" fill="#6d28d9"/>'
         f'<text x="540" y="1298" font-family="{_FONT}" font-size="30" font-weight="bold" '
-        'fill="#ffffff" text-anchor="middle">📞 Order / Enquiry — WhatsApp karein</text>'
+        'fill="#ffffff" text-anchor="middle">📞 Order / Enquiry - WhatsApp karein</text>'
         "</svg>"
     )
 
 
 def _wa_catalog_text(biz: str, items: list[dict[str, str]]) -> str:
-    lines = [f"🛍️ *{biz} — Price List*", ""]
+    lines = [f"🛍️ *{biz} - Price List*", ""]
     for i, it in enumerate(items, 1):
-        price = f" — {it['price']}" if it["price"] else ""
+        price = f" - {it['price']}" if it["price"] else ""
         lines.append(f"{i}. {it['name']}{price}")
         if it["desc"]:
             lines.append(f"   _{_clip(it['desc'], 80)}_")
-    lines += ["", "📲 Order karne ke liye isi number par message karein — aaj hi!"]
+    lines += ["", "📲 Order karne ke liye isi number par message karein - aaj hi!"]
     return "\n".join(lines)
 
 
 async def _ai_descriptions(biz: str, items: list[dict[str, str]]) -> str:
-    """SINGLE LLM call — har item ki 1-line Hinglish selling line. '' = fail."""
+    """SINGLE LLM call - har item ki 1-line Hinglish selling line. '' = fail."""
     if free_ai is None or not items:
         return ""
     menu = "\n".join(

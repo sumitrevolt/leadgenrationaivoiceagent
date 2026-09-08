@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Functional wiring audit — onclick handlers + fetch URLs vs FastAPI routes."""
+"""Functional wiring audit - onclick handlers + fetch URLs vs FastAPI routes."""
 
 from __future__ import annotations
 
@@ -162,7 +162,7 @@ def main() -> int:
 
         print()
 
-    # Explicit high-value checks — all must be registered (via iter_effective_routes).
+    # Explicit high-value checks - all must be registered (via iter_effective_routes).
     checks = [
         "/api/admin/customers/onboard",
         "/api/admin/system/summary",

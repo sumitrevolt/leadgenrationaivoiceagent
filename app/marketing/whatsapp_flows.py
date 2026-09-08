@@ -1,12 +1,12 @@
-"""WhatsApp Flows — in-chat multi-step lead capture (India #1 2026 trend).
+"""WhatsApp Flows - in-chat multi-step lead capture (India #1 2026 trend).
 
 Customer ko website pe bhejne ke bajaye, WhatsApp ke ANDAR hi ek form (naam,
-service, city) bhar leta — fir UPI/booking. Yeh module:
-  * FLOW_LEAD_CAPTURE — ready Flow JSON (Meta Flow Builder me publish karo).
-  * send_flow() — interactive flow message bhejo (Cloud API, GATED).
-  * handle_flow_response() — flow submit -> EXISTING inquiry path (lead auto-create).
+service, city) bhar leta - fir UPI/booking. Yeh module:
+  * FLOW_LEAD_CAPTURE - ready Flow JSON (Meta Flow Builder me publish karo).
+  * send_flow() - interactive flow message bhejo (Cloud API, GATED).
+  * handle_flow_response() - flow submit -> EXISTING inquiry path (lead auto-create).
 
-STATUS: ready-to-flip. Meta WhatsApp Flows ke liye chahiye — approved WABA +
+STATUS: ready-to-flip. Meta WhatsApp Flows ke liye chahiye - approved WABA +
 published flow_id + `whatsapp_business_token`/`phone_number_id`. Creds/flow_id na
 ho to send inert (link/log). handle_flow_response abhi se kaam karta (webhook se).
 Free (official Meta API), ban-safe, import-safe.

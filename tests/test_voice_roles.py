@@ -1,4 +1,4 @@
-"""Voice agent roles — booking + receptionist personas."""
+"""Voice agent roles - booking + receptionist personas."""
 
 from __future__ import annotations
 

@@ -2,8 +2,8 @@
 
 Root causes fixed without global timeout bumps:
   - JobBudget wall-clock for content/onboard/prospect (margin under soft=540)
-  - SoftTimeLimit → graceful partial SUCCESS (no Celery retry / DLQ fill)
-  - Audited resolve_from_list → dlq:resolved (no blind purge)
+  - SoftTimeLimit -> graceful partial SUCCESS (no Celery retry / DLQ fill)
+  - Audited resolve_from_list -> dlq:resolved (no blind purge)
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def test_job_budget_ok_exhausts(monkeypatch):
     tick["t"] = 95.0
     assert b.ok(need=20.0) is False
     assert b.exhausted is True
-    # still 5s left — smaller need can pass; exhausted flag is log-once only
+    # still 5s left - smaller need can pass; exhausted flag is log-once only
     assert b.ok(need=1.0) is True
     tick["t"] = 100.0
     assert b.ok(need=1.0) is False
@@ -160,7 +160,7 @@ def test_resolve_rejects_invalid_resolution():
 
 
 def test_soft_time_limit_partial_no_customer_side_effects(monkeypatch):
-    """Soft limit path must not enqueue publish/call/billing — only return partial."""
+    """Soft limit path must not enqueue publish/call/billing - only return partial."""
     from celery.exceptions import SoftTimeLimitExceeded
 
     from app.platform import boot_grace

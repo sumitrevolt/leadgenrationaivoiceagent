@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""RAG retrieval A/B — baseline vs upgraded flags (offline-safe).
+"""RAG retrieval A/B - baseline vs upgraded flags (offline-safe).
 
 Compares top-k hits for fixed queries under:
-  baseline  — flags OFF
-  rerank    — USE_RERANKER=1
-  hybrid    — USE_HYBRID_SEARCH=1 (seed with hybrid ON so BM25 mirror exists)
-  full      — rerank + hybrid
+  baseline  - flags OFF
+  rerank    - USE_RERANKER=1
+  hybrid    - USE_HYBRID_SEARCH=1 (seed with hybrid ON so BM25 mirror exists)
+  full      - rerank + hybrid
 
 Usage (VPS after deploy + optional flag flip in .env):
   cd /opt/leadgen && docker exec leadgen_app python scripts/rag_retrieval_ab.py
@@ -42,7 +42,7 @@ DOCS = [
     "Solar panels lagane se bijli ka monthly bill 70 percent tak kam ho jata hai, 25 saal warranty.",
     "Hamari pricing transparent hai: commercial rooftop per kw installation ₹45,000 se shuru.",
     "Har panel par 25 saal product warranty aur 10 saal performance guarantee milti hai.",
-    "Marketing posts aur review replies AI se — yeh solar pricing doc nahi hai.",
+    "Marketing posts aur review replies AI se - yeh solar pricing doc nahi hai.",
 ]
 
 # KB_EXACT_SEARCH pinned "0" on every A/B config: the gate compares shippable
@@ -110,7 +110,7 @@ def main() -> int:
         kb_mod._get_qdrant_embedder()
         print(f"embedder={kb_mod._E5_MODEL_NAME} dim={kb_mod._QDRANT_VECTOR_SIZE}")
     except Exception as e:
-        print(f"WARN: embedder/qdrant unavailable ({e}) — keyword fallback only")
+        print(f"WARN: embedder/qdrant unavailable ({e}) - keyword fallback only")
 
     _seed()
     results: dict[str, dict[str, list]] = {}
@@ -120,11 +120,11 @@ def main() -> int:
     print(f"\nnamespace={NS}  queries={len(QUERIES)}\n")
     for q in QUERIES:
         print(f"Q: {q}")
-        base_top = results["baseline"][q][0].get("text", "")[:50] if results["baseline"][q] else "—"
+        base_top = results["baseline"][q][0].get("text", "")[:50] if results["baseline"][q] else "-"
         for mode in MODES:
             hits = results[mode][q]
             top = hits[0] if hits else {}
-            txt = (top.get("text") or "—")[:55]
+            txt = (top.get("text") or "-")[:55]
             sc = round(float(top.get("score", 0) or 0), 4)
             changed = " *" if mode != "baseline" and txt[:40] != base_top[:40] else ""
             print(f"  {mode:8} score={sc}  {txt}{changed}")
@@ -139,7 +139,7 @@ def main() -> int:
             wins += 1
     print(f"full_vs_baseline_top1_changed={wins}/{min(2, len(QUERIES))} (higher = upgrade helping)")
 
-    # Measured recall/precision DELTA gate (offline-safe — uses real KB retrieve fn).
+    # Measured recall/precision DELTA gate (offline-safe - uses real KB retrieve fn).
     try:
         gate_rc = run_gate(make_kb_retrieve_fn())
     except Exception as e:  # pragma: no cover - live KB optional
@@ -155,7 +155,7 @@ def main() -> int:
 
 
 # =========================================================================== #
-# A/B RETRIEVAL GATE — measured recall@k / precision@k DELTA per config.
+# A/B RETRIEVAL GATE - measured recall@k / precision@k DELTA per config.
 #
 # Goal: enable a new retrieval lever (rerank / hybrid / full) only when it
 # PROVABLY beats baseline by a margin on a fixed labeled query->expected-doc set.
@@ -206,7 +206,7 @@ def _hit_doc_id(hit: dict) -> str | None:
 
 
 def _overlap_ratio(a: str, b: str) -> float:
-    """Token-overlap ratio (Jaccard-ish) — robust to chunking/whitespace drift."""
+    """Token-overlap ratio (Jaccard-ish) - robust to chunking/whitespace drift."""
     ta = set(a.split())
     tb = set(b.split())
     if not ta or not tb:
@@ -223,7 +223,7 @@ def score_config(retrieve_fn, labeled_set=None, k: int = GATE_K) -> dict:
         k: cutoff for recall@k / precision@k.
 
     Returns dict: {recall, precision, f1, per_query: [...]}.
-    Pure function — no I/O, no globals beyond LABELED_DOCS mapping.
+    Pure function - no I/O, no globals beyond LABELED_DOCS mapping.
     """
     cases = labeled_set if labeled_set is not None else LABELED_SET
     recalls: list[float] = []
@@ -333,7 +333,7 @@ def format_delta_table(report: dict) -> str:
     lines.append("-" * len(hdr))
     lines.append(
         f"{'baseline':10} {base['recall']:>7.3f} {base['precision']:>7.3f} "
-        f"{base['f1']:>7.3f} {'—':>8} {'—':>7}  (ref)"
+        f"{base['f1']:>7.3f} {'-':>8} {'-':>7}  (ref)"
     )
     for name, sc in report["configs"].items():
         gate = "PASS" if sc["passed"] else "fail"
@@ -344,9 +344,9 @@ def format_delta_table(report: dict) -> str:
         )
     lines.append("-" * len(hdr))
     if report["passed"]:
-        lines.append(f"GATE PASS — enable config '{report['winner']}' (proven > baseline).")
+        lines.append(f"GATE PASS - enable config '{report['winner']}' (proven > baseline).")
     else:
-        lines.append("GATE FAIL — no config beats baseline by margin
+        lines.append("GATE FAIL - no config beats baseline by margin
         keep flags OFF.")
     return "\n".join(lines)
 
@@ -384,14 +384,14 @@ def run_gate(config_fns, labeled_set=None, k: int = GATE_K, margin: float = GATE
 
 
 def run_exact_recall_probe() -> None:
-    """ANN-vs-exact recall@k probe — the search-quality skill's core diagnostic.
+    """ANN-vs-exact recall@k probe - the search-quality skill's core diagnostic.
 
     Runs the SAME baseline retrieval twice (approximate HNSW vs brute-force
     exact via KB_EXACT_SEARCH) over the labeled set and compares recall:
       exact recall low       -> model/data problem (chunking/embedding), not HNSW.
       exact good, ANN lagging -> tune HNSW (raise KB_HNSW_EF).
       ANN tracking exact      -> filtered-HNSW recall is healthy.
-    Never leaves KB_EXACT_SEARCH on (it bypasses the index — eval only).
+    Never leaves KB_EXACT_SEARCH on (it bypasses the index - eval only).
     """
     from app.voice_agent import knowledge_base as kb_mod
 

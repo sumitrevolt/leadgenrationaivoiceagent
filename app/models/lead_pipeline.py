@@ -4,7 +4,7 @@ Instruments the already-scheduled prospector.py daily run with first-class
 batch/stage/quality-issue records so a broken scraper or a silent
 data-quality regression is visible in the admin dashboard instead of only
 surfacing weeks later as "0 replies". Deliberately NOT a new parallel
-pipeline system — reuses app.models.interaction.Interaction for
+pipeline system - reuses app.models.interaction.Interaction for
 per-lead/per-channel events and app.platform.dlq_retry for task-level
 retry. See docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md.
 """
@@ -72,7 +72,7 @@ class LeadPipelineStageRun(Base):
 
 
 class LeadPipelineQualityIssue(Base):
-    """A data-quality signal for a batch — distinct from dlq_retry.py's
+    """A data-quality signal for a batch - distinct from dlq_retry.py's
     task-level failure queue. e.g. "38% duplicate rate", "scraper returned
     zero leads", "provider disabled". Drives the admin 'Today's Pipeline
     Problems' view."""

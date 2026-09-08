@@ -1,6 +1,6 @@
-"""Tier-1 Slice D — regression tests for per-user admin 2FA (TOTP).
+"""Tier-1 Slice D - regression tests for per-user admin 2FA (TOTP).
 
-Covers secret encryption round-trip, enroll→activate, TOTP + single-use recovery-code
+Covers secret encryption round-trip, enroll->activate, TOTP + single-use recovery-code
 login verification, recovery regeneration, disable, preferences preservation, and the
 policy/enforcement helpers. Uses a fake User object (no DB) and a fixed TOTP_ENC_KEY so
 encryption is deterministic.
@@ -47,7 +47,7 @@ def test_encrypt_decrypt_round_trip():
     assert admin_2fa.decrypt_secret("garbage") is None
 
 
-# ---- enrollment → activation --------------------------------------------------
+# ---- enrollment -> activation --------------------------------------------------
 
 
 def test_enroll_returns_secret_and_codes_but_not_enabled():
@@ -145,12 +145,12 @@ def test_enrollment_preserves_other_preferences():
 def test_enforcement_and_must_setup(monkeypatch):
     u = _FakeUser(role="ADMIN")
     assert admin_2fa.role_mandatory(u) is True
-    # enforcement off → no forced setup
+    # enforcement off -> no forced setup
     assert admin_2fa.must_setup(u) is False
     monkeypatch.setenv("ADMIN_2FA_ENFORCE", "1")
     assert admin_2fa.must_setup(u) is True  # mandatory role, not enrolled
     _enable(u)
-    assert admin_2fa.must_setup(u) is False  # enrolled → satisfied
+    assert admin_2fa.must_setup(u) is False  # enrolled -> satisfied
 
 
 def test_viewer_not_mandatory():

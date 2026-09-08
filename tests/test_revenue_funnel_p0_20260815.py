@@ -1,4 +1,4 @@
-"""P0 revenue-funnel remediations 2026-08-15 — no fake paid, no outbound send."""
+"""P0 revenue-funnel remediations 2026-08-15 - no fake paid, no outbound send."""
 
 from __future__ import annotations
 

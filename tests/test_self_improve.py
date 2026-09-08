@@ -1,4 +1,4 @@
-"""Tests — self-improve continuous loop + skill_library auto-learn + naye social channels.
+"""Tests - self-improve continuous loop + skill_library auto-learn + naye social channels.
 Sync + asyncio.run pattern, tmp stores monkeypatch. No network/DB needed (hermetic).
 """
 
@@ -313,7 +313,7 @@ def test_skill_sweep_action_executes_round_robin(tmp_path, monkeypatch):
 
 def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypatch):
     """_reflect() ab (a) loop ke apne purane self_improve lessons aur (b) best trajectory
-    replay-hints ko reflection digest me feed karta — dono pehle dormant loops the
+    replay-hints ko reflection digest me feed karta - dono pehle dormant loops the
     (replay_hint 0-caller
     self_improve lessons write-only). free_ai.chat mock se digest
     capture karke verify + flag OFF pe replay inert."""
@@ -352,7 +352,7 @@ def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypat
     assert "MARKER_PRIOR_LESSON" in digest  # WIRE B: prior lessons consumed
     assert "MARKER_TRACE_STEP" in digest  # WIRE A: winning trace grounded
 
-    # flag OFF → replay grounding inert (zero behaviour change default)
+    # flag OFF -> replay grounding inert (zero behaviour change default)
     monkeypatch.delenv("TRAJECTORY_LEARN", raising=False)
     captured.clear()
     out2 = asyncio.run(si._reflect())
@@ -374,7 +374,7 @@ def _patch_voice_stores(monkeypatch, tmp_path):
 
 
 def test_voice_learn_records_brain_lesson_and_dedupes(tmp_path, monkeypatch):
-    """Weak REAL call → voice_{niche} lesson record karta (telecaller_brain ise
+    """Weak REAL call -> voice_{niche} lesson record karta (telecaller_brain ise
     lessons_snippet('voice_solar') se consume karta = compound). Dedupe: same
     weakest call dobara learn nahi hota. Reuse-only: live_eval mock se driven."""
     si = _patch_voice_stores(monkeypatch, tmp_path)
@@ -415,11 +415,11 @@ def test_voice_learn_records_brain_lesson_and_dedupes(tmp_path, monkeypatch):
 
     out = asyncio.run(si._voice_learn())
     assert out["ok"] is True
-    # lesson voice_solar topic me — yahi brain consume karta hai
+    # lesson voice_solar topic me - yahi brain consume karta hai
     assert "voice_solar" in [lsn["topic"] for lsn in sl.lessons("voice_solar")]
     assert "KB-grounded" in sl.lessons_snippet("voice_solar")
 
-    # dedupe: same weakest call dobara → naya lesson nahi
+    # dedupe: same weakest call dobara -> naya lesson nahi
     out2 = asyncio.run(si._voice_learn())
     assert "already learned" in out2["detail"]
 
@@ -505,7 +505,7 @@ def test_bandit_includes_new_channels():
 # ------------------------- ApprovalQueue (cross-process) ------------------------- #
 def test_approval_queue_visible_across_separate_instances(tmp_path):
     """Prod runs ticks in the Celery worker container and serves the approve/
-    reject API + Office HQ UI from the app container — two different
+    reject API + Office HQ UI from the app container - two different
     processes. An in-memory queue is invisible across that boundary
     state
     must flow through the shared approvals file instead. Simulate that split

@@ -175,7 +175,7 @@ def add_secret_version(
             "payload": {"data": secret_value.encode("UTF-8")},
         }
     )
-    print("    → Added new version")
+    print("    -> Added new version")
 
 
 def get_latest_secret_version(

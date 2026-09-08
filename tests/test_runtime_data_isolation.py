@@ -2,7 +2,7 @@
 
 WHAT HAPPENED: a PR #144 test passed locally and FAILED in CI because the
 repository's committed `data/wa_suppression.jsonl` answered a suppression
-lookup. The test never touched that file — it just happened to run in a
+lookup. The test never touched that file - it just happened to run in a
 checkout where the file said "suppressed".
 
 That is the whole argument for this module. Repository state must not be able
@@ -78,7 +78,7 @@ def _seed_repo_style_legacy_suppression(tmp_path: Path, email: str) -> Path:
 
 
 def test_case_A_repository_data_cannot_suppress(isolated_runtime: Path, tmp_path) -> None:
-    """Repo file says SUPPRESSED, isolated root says nothing → NOT suppressed.
+    """Repo file says SUPPRESSED, isolated root says nothing -> NOT suppressed.
 
     This is the exact shape of the CI failure: a committed data file deciding a
     test outcome.
@@ -90,12 +90,12 @@ def test_case_A_repository_data_cannot_suppress(isolated_runtime: Path, tmp_path
     email_unsub._store_path = lambda: isolated_runtime / "compliance" / "email_suppression.jsonl"
 
     assert email_unsub.is_suppressed("victim@example.com") is False, (
-        "repository data leaked into the test — this is the PR #144 CI incident"
+        "repository data leaked into the test - this is the PR #144 CI incident"
     )
 
 
 def test_case_B_isolated_root_suppression_is_respected(isolated_runtime: Path, tmp_path) -> None:
-    """Isolated root says SUPPRESSED, repo says nothing → blocked.
+    """Isolated root says SUPPRESSED, repo says nothing -> blocked.
 
     The inverse guard: isolation must not silently disable real suppression.
     """
@@ -167,7 +167,7 @@ def test_host_key_is_never_the_application_path() -> None:
 # ============================================================== manifest
 def test_manifest_store_ids_are_unique() -> None:
     ids = [s["store_id"] for s in manifest.STORES]
-    assert len(ids) == len(set(ids)), "duplicate store_id — manifest is not deduplicated"
+    assert len(ids) == len(set(ids)), "duplicate store_id - manifest is not deduplicated"
 
 
 def test_manifest_states_are_valid() -> None:
@@ -205,7 +205,7 @@ def test_unknown_authoritative_store_is_a_deployment_blocker() -> None:
 
 
 def test_database_authoritative_stores_are_not_blockers() -> None:
-    """Owner OS files are absent in production — migrating them is wasted work."""
+    """Owner OS files are absent in production - migrating them is wasted work."""
     for s in manifest.STORES:
         if s.get("migration_state") in (
             manifest.FALLBACK_ONLY,

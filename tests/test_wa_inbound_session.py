@@ -1,4 +1,4 @@
-"""OPS-014 PoC — inbound-session predicate (MEASUREMENT ONLY).
+"""OPS-014 PoC - inbound-session predicate (MEASUREMENT ONLY).
 
 Research for OPS-010 found that customer-triggered ("Service Implicit") messages
 are exempt from NCPR/DND scrubbing while promotional ones are not. If we ever
@@ -6,7 +6,7 @@ send into an inbound-initiated thread, the decision needs PROOF that the
 customer opened it.
 
 These tests pin the strictness of that predicate. Absence of proof must be
-False — a "probably" here would be a compliance regression.
+False - a "probably" here would be a compliance regression.
 
 NOTE: this module is deliberately NOT wired into any send gate. A test that
 makes it gate something is a spec change (OPS-014), not a test change.

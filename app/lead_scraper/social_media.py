@@ -1,6 +1,6 @@
 """
 Social Media Scraper
-Public business pages se leads — Instagram / Facebook (best-effort, key-less).
+Public business pages se leads - Instagram / Facebook (best-effort, key-less).
 
 REALITY CHECK (important):
 - Instagram aur Facebook login-wall ke peeche hain. Bina official API ya

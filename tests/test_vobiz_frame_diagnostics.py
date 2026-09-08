@@ -1,7 +1,7 @@
 """Regression tests for the 2026-07-03 raw WS frame-capture diagnostic.
 
 Context: the "inbound-deaf" bug (phone-agent-deaf-stt-zero memory) has one
-symptom — `inbound_frames=0` in the call summary — but THREE possible causes,
+symptom - `inbound_frames=0` in the call summary - but THREE possible causes,
 and the pre-existing code silently dropped every one of them with zero signal:
   1. Vobiz never sends a "media"-type event at all (carrier/route-level).
   2. Vobiz sends "media" events but the payload is empty/unrecognized shape.
@@ -64,7 +64,7 @@ async def test_media_event_with_flat_payload_still_counts(monkeypatch):
 
 async def test_media_event_with_empty_payload_is_a_distinct_anomaly():
     """This is the case that used to be a silent no-op: media_event_count
-    must go up even though media_frames (inbound_frames) stays 0 — that gap
+    must go up even though media_frames (inbound_frames) stays 0 - that gap
     is exactly what tells us Vobiz sent the event but not usable audio."""
     s = _session()
     raw = json.dumps({"event": "media", "media": {}})
@@ -96,7 +96,7 @@ async def test_event_type_counts_track_every_event_kind():
 
 
 async def test_anomaly_logging_is_throttled_to_three(monkeypatch):
-    """Long calls can have thousands of frames — don't spam the log if every
+    """Long calls can have thousands of frames - don't spam the log if every
     single one is an anomaly
     only the first 3 raw-shape dumps are useful."""
     s = _session()

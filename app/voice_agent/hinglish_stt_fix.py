@@ -1,11 +1,11 @@
 """
-Post-STT Hinglish correction — Component 1b of the voice smart-fix bundle.
+Post-STT Hinglish correction - Component 1b of the voice smart-fix bundle.
 =========================================================================
 
 Groq `whisper-large-v3` (called with ``language="hi"``) mangles English domain
 words in code-switched Hinglish business calls (observed: brand names like
 "Instagram"/"WhatsApp"/"Facebook" come back as "instagiram"/"vatsapp"/"fesbook").
-The downstream NLU is keyword/romanized — one garbled token and the deterministic
+The downstream NLU is keyword/romanized - one garbled token and the deterministic
 "answer the customer" path misses, so the turn falls to the LLM with garbled input
 = the "noob/loop" feel.
 
@@ -14,11 +14,11 @@ the gates and the LLM. The companion source-level fix is `niche_scripts.stt_keyt
 (Component 1a) which biases Whisper toward the right words in the first place.
 
 SAFETY: the map keys are mis-SPELLINGS Whisper emits (NOT real words), matched on
-word boundaries — so a correctly-heard word is never rewritten. Gated `STT_CORRECT`
+word boundaries - so a correctly-heard word is never rewritten. Gated `STT_CORRECT`
 (default ON)
 fail-open (returns the input unchanged on any error). Extend the map
 without code via `data/voice_stt_corrections.jsonl` (`{"wrong": "...", "right": "..."}`
-per line) — that's the hook the close-the-loop component (3) writes learned pairs to.
+per line) - that's the hook the close-the-loop component (3) writes learned pairs to.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Seed map — only OBVIOUS non-word mis-spellings (brand mangling), so replacement
+# Seed map - only OBVIOUS non-word mis-spellings (brand mangling), so replacement
 # is safe. "trial"/"plan"/number words are handled at the source by stt_keyterms
 # (less false-positive risk than rewriting an ambiguous token like retail<->trial).
 _MISHEAR: dict[str, str] = {
@@ -117,10 +117,10 @@ def _pattern(table: dict[str, str]) -> re.Pattern[str] | None:
     return pat
 
 
-# Spoken English digit-words — in BOTH roman and the Devanagari spellings Whisper
-# emits — used to recover phone numbers / long figures STT writes as words
+# Spoken English digit-words - in BOTH roman and the Devanagari spellings Whisper
+# emits - used to recover phone numbers / long figures STT writes as words
 # (POC 2026-06-30: Whisper-hi AND IndicConformer both give "फाइव नाइन जीरो…" for a
-# phone number → breaks the post-close number read-back, which needs digits).
+# phone number -> breaks the post-close number read-back, which needs digits).
 _DIGIT_WORD: dict[str, str] = {
     "zero": "0",
     "oh": "0",
@@ -149,7 +149,7 @@ _DIGIT_WORD: dict[str, str] = {
     "जीरोनस": "0",
 }
 _DIGIT_STRIP = ".,!?
-:—- "
+:-- "
 
 
 def _collapse_digit_runs(text: str) -> str:

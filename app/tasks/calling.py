@@ -85,7 +85,7 @@ def make_call_task(self, call_request_data: dict):
         # Enqueue the call onto the (compliance-gated, Redis-backed) priority queue.
         # NOTE: CallManager has no `initiate_call`; the public API is `queue_call()`
         # (enqueue) drained by `start_call_processor()` (long-running). The old name
-        # raised AttributeError if legacy beat fired this task — fixed to queue_call.
+        # raised AttributeError if legacy beat fired this task - fixed to queue_call.
         call_id = _run_async(call_manager.queue_call(request))
 
         # queue_call returns a sentinel id ("compliance_blocked_*", "out_of_*") when
@@ -112,7 +112,7 @@ def process_queue(max_seconds: int = 50):
     Drain the call queue for a bounded window (legacy beat path).
 
     CallManager exposes `start_call_processor()` (an infinite loop), NOT a
-    one-shot `process_queue()` — calling the old name AttributeError'd. We run
+    one-shot `process_queue()` - calling the old name AttributeError'd. We run
     the processor under a timeout so a periodic Celery task drains pending calls
     without blocking the worker forever. Each queued call is compliance-gated in
     queue_call(), so this only dispatches already-vetted requests.
@@ -144,7 +144,7 @@ def process_callbacks():
     """
     Process scheduled callbacks.
 
-    # idempotency: DB-level dedup via CallLog.initiated_at window — leads are only
+    # idempotency: DB-level dedup via CallLog.initiated_at window - leads are only
     # re-queued if next_call_at is within the current hour window; lead.last_called_at
     # is updated on queue to prevent duplicate scheduling across concurrent task runs.
     """
@@ -187,9 +187,9 @@ def process_callbacks():
                 callbacks_queued += 1
 
                 # Update lead to prevent re-queuing. `or 0` guards a NULL
-                # call_attempts (reachable — see the coalesce fix on the
+                # call_attempts (reachable - see the coalesce fix on the
                 # campaign dial path above): a plain `+= 1` TypeErrors on
-                # None, which aborts this whole loop's db.commit() below —
+                # None, which aborts this whole loop's db.commit() below -
                 # losing last_called_at for every lead already dispatched via
                 # make_call_task.delay() this run (already-fired side effect,
                 # never-committed dedup marker) and leaving them re-queuable
@@ -301,7 +301,7 @@ def cleanup_stale_calls():
     """
     Clean up calls that are stuck in 'initiated' or 'ringing' status.
 
-    # idempotency: DB-level dedup — only calls with status 'initiated'/'ringing'
+    # idempotency: DB-level dedup - only calls with status 'initiated'/'ringing'
     # are touched; status is set to 'failed' so re-runs skip already-cleaned rows.
     """
     logger.info("Cleaning up stale calls")
@@ -337,12 +337,12 @@ def cleanup_stale_calls():
 
 
 # --------------------------------------------------------------------------- #
-# Durable admin campaign launch (2026-07-02) — replaces the web-process
+# Durable admin campaign launch (2026-07-02) - replaces the web-process
 # asyncio-subprocess path in app/api/admin_ops.py::launch_campaign (which ran
 # scripts/fire_calls.py as a child process INSIDE the 2-worker web process,
 # holding a worker for up to 320s per launch). Same compliance gates (shared
-# via app/telephony/campaign_compliance.py — one source of truth with the CLI
-# script) and same Vobiz call path (start_stream_call, unchanged) — this only
+# via app/telephony/campaign_compliance.py - one source of truth with the CLI
+# script) and same Vobiz call path (start_stream_call, unchanged) - this only
 # changes HOW the campaign is triggered/run, never what it does or how it's
 # gated. Status written to the SAME Redis key the admin UI already polls
 # (/api/admin/campaign/status), so the frontend needs zero changes.
@@ -378,7 +378,7 @@ def _campaign_status_set(data: dict) -> None:
 
 def acquire_campaign_lock(ttl_s: int = 400) -> bool:
     """True if this caller now holds the single-flight campaign lock (SET NX EX).
-    Never raises — a Redis outage fails OPEN (returns True) so a broken lock
+    Never raises - a Redis outage fails OPEN (returns True) so a broken lock
     can't permanently block campaign launches
     the compliance gates below are
     the real safety net, not this dedup."""
@@ -411,14 +411,14 @@ def campaign_lock_held() -> bool:
 
 
 def _get_campaign_prospects(db, limit: int, niche: str) -> list:
-    """Uncontacted-with-phone leads — same WHERE/ORDER as scripts/fire_calls.py
+    """Uncontacted-with-phone leads - same WHERE/ORDER as scripts/fire_calls.py
     get_prospects() and admin_ops.py _leads_ready(), via the ORM (provider-
     agnostic, unlike the CLI script's raw psycopg2)."""
     from sqlalchemy import func, or_
 
     q = db.query(Lead).filter(Lead.phone.isnot(None), Lead.phone != "")
     q = q.filter(or_(Lead.call_attempts.is_(None), Lead.call_attempts == 0))
-    # "all"/"any"/"*" = no niche filter — platform (self-sale) campaigns can dial
+    # "all"/"any"/"*" = no niche filter - platform (self-sale) campaigns can dial
     # the whole harvested pool, not just leads already tagged 'ai_marketing'
     # (the pitch itself is chosen per-call in _dial_vobiz_campaign, not here).
     if niche and niche.strip().lower() not in ("all", "any", "*"):
@@ -441,11 +441,11 @@ async def _dial_vobiz_campaign(
         return {"ok": 0, "skip": 0, "fail": 0, "placed_ids": [], "error": "vobiz_not_configured"}
 
     # ── Controlled-launch safety spine (2026-07-17, app/telephony/voice_launch.py) ──
-    # spine_on = VOICE_LAUNCH_CAMPAIGN=1 → full enforcement (per-lead fail-closed
+    # spine_on = VOICE_LAUNCH_CAMPAIGN=1 -> full enforcement (per-lead fail-closed
     # eligibility + atomic daily cap + 30-call training pause + circuit breaker +
     # recording gate). Default OFF = INERT: existing behaviour UNCHANGED (only the
     # always-safe global admin kill switch, default off, is honoured). Composes ON
-    # TOP of the existing compliance/dial_gate layers — never replaces them.
+    # TOP of the existing compliance/dial_gate layers - never replaces them.
     spine_on = vl.campaign_enabled()
     kind = "campaign"
     session_id: str | None = None
@@ -540,18 +540,18 @@ async def _dial_vobiz_campaign(
                 continue
             slot = await vl.reserve_call_slot(kind)
             if not slot.ok:
-                # daily_limit_reached OR counter_unavailable (fail-CLOSED) → stop dialing
+                # daily_limit_reached OR counter_unavailable (fail-CLOSED) -> stop dialing
                 stop_state = (
                     vl.CampaignState.DAILY_LIMIT_REACHED
                     if slot.reason == "daily_limit_reached"
                     else vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
                 )
-                logger.warning(f"[voice_launch] stop dialing — {slot.reason}")
+                logger.warning(f"[voice_launch] stop dialing - {slot.reason}")
                 break
             sslot = await vl.reserve_session_slot(session_id)
             if not sslot.ok:
                 # session exhausted (attempt cap+1) / stopped / no_session / redis down
-                # → roll back the daily slot we just claimed (didn't dispatch), stop.
+                # -> roll back the daily slot we just claimed (didn't dispatch), stop.
                 await vl.release_call_slot(kind)
                 if sslot.reason == "session_limit_reached":
                     stop_state = vl.CampaignState.SESSION_LIMIT_REACHED
@@ -559,22 +559,22 @@ async def _dial_vobiz_campaign(
                     stop_state = vl.CampaignState.SESSION_STOPPED
                 else:
                     stop_state = vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
-                logger.warning(f"[voice_launch] stop dialing — {sslot.reason}")
+                logger.warning(f"[voice_launch] stop dialing - {sslot.reason}")
                 break
             # Idempotency BEFORE provider dispatch: worker crash/retry ya is run me
-            # duplicate lead → claim already held → at-most-once per session.
+            # duplicate lead -> claim already held -> at-most-once per session.
             if not await vl.session_idem_claim(session_id, f"lead:{p.id}"):
                 await vl.release_call_slot(kind)
                 await vl.release_session_slot(session_id)
                 await vl.record_session_retry_blocked(session_id)
                 skip += 1
-                logger.info(f"[voice_launch] lead {p.id} already dispatched this session — skip")
+                logger.info(f"[voice_launch] lead {p.id} already dispatched this session - skip")
                 continue
 
         # lead_id threads the CRM id to the WS teardown that writes the CallLog
         # (2026-08-06). Without it every campaign row was lead_id=NULL, so calls
-        # were unattributable AND niche_database.update_after_call() — the only
-        # DND / NOT_INTERESTED / QUALIFIED / CALLBACK transition — never ran.
+        # were unattributable AND niche_database.update_after_call() - the only
+        # DND / NOT_INTERESTED / QUALIFIED / CALLBACK transition - never ran.
         result = await start_stream_call(
             to="+91" + p10,
             niche=niche,
@@ -587,7 +587,7 @@ async def _dial_vobiz_campaign(
             placed_ids.append(p.id)
             if spine_on:
                 await vl.record_provider_result(True)
-            # mark_called INLINE, right after each placed call — same
+            # mark_called INLINE, right after each placed call - same
             # crash-safety as fire_calls.py's per-lead mark_called(). A
             # batched-after-the-loop update would lose every already-dialed
             # lead's call_attempts if the task is killed mid-run (e.g.
@@ -597,7 +597,7 @@ async def _dial_vobiz_campaign(
                 from sqlalchemy import func
 
                 # coalesce: the prospect query admits call_attempts IS NULL
-                # (fresh/never-called leads) — plain `Lead.call_attempts + 1`
+                # (fresh/never-called leads) - plain `Lead.call_attempts + 1`
                 # compiles to SQL `NULL + 1 = NULL`, silently no-op'ing the
                 # increment for exactly that common case and leaving the lead
                 # eligible to be re-selected (and re-dialed) next run.
@@ -615,7 +615,7 @@ async def _dial_vobiz_campaign(
         elif result.get("error") == "compliance_blocked":
             skip += 1
             if spine_on and slot is not None:
-                # provider-side compliance block = NOT a provider-accepted attempt →
+                # provider-side compliance block = NOT a provider-accepted attempt ->
                 # roll back the reserved slots so they don't consume the caps.
                 await vl.release_call_slot(kind)
                 await vl.record_disposition(vl.VoiceDisposition.SKIPPED, kind)
@@ -625,16 +625,16 @@ async def _dial_vobiz_campaign(
         else:
             fail += 1
             if spine_on:
-                # provider failure IS a provider-accepted attempt → keep slot (counts);
+                # provider failure IS a provider-accepted attempt -> keep slot (counts);
                 # feed the circuit breaker (trips on a consecutive-failure spike).
                 await vl.record_disposition(vl.VoiceDisposition.FAILED, kind)
                 await vl.record_session_disposition(session_id, vl.VoiceDisposition.FAILED)
                 if await vl.record_provider_result(False, str(result.get("error") or "")):
                     stop_state = vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
-                    logger.warning("[voice_launch] circuit breaker tripped — pausing campaign")
+                    logger.warning("[voice_launch] circuit breaker tripped - pausing campaign")
                     break
 
-        # 30-call training pause boundary — ATOMIC via the reservation counter
+        # 30-call training pause boundary - ATOMIC via the reservation counter
         # (slot.count is a single Redis INCR, so exactly one worker crosses 30/60/90).
         if (
             spine_on
@@ -686,7 +686,7 @@ def run_campaign_task(
     platform: bool = False,
     transactional: bool = False,
 ):
-    """Durable outbound-campaign launch — see module docstring above."""
+    """Durable outbound-campaign launch - see module docstring above."""
     from app.telephony.campaign_compliance import call_type_for, readiness_ok, trai_window_ok
 
     call_type = call_type_for(transactional)
@@ -735,7 +735,7 @@ def run_campaign_task(
                 return {"status": "blocked", "reason": reason}
 
         with get_db_session() as db:
-            # platform default stays 'ai_marketing' (tagged/warm leads) — but an
+            # platform default stays 'ai_marketing' (tagged/warm leads) - but an
             # explicit niche ("coaching", or "all" for the whole pool) now overrides
             # it, so the self-sale pitch can reach every harvested prospect.
             niche_filter = (niche or "ai_marketing") if platform else niche
@@ -758,7 +758,7 @@ def run_campaign_task(
                     team.log_event(
                         "swara",
                         "platform_campaign" if platform else "outbound_campaign",
-                        f"📞 campaign — 0 uncontacted leads (niche={niche_filter or 'all'})",
+                        f"📞 campaign - 0 uncontacted leads (niche={niche_filter or 'all'})",
                         status="warn",
                     )
                 except Exception:
@@ -769,7 +769,7 @@ def run_campaign_task(
                 _dial_vobiz_campaign(db, prospects, dry_run, call_type, client_id, platform)
             )
             # mark_called already committed inline per-lead inside
-            # _dial_vobiz_campaign (crash-safe) — nothing to batch here.
+            # _dial_vobiz_campaign (crash-safe) - nothing to batch here.
 
         output = (
             f"placed/queued={result.get('ok', 0)} blocked/skipped={result.get('skip', 0)} "
@@ -778,7 +778,7 @@ def run_campaign_task(
         if result.get("error"):
             output = result["error"]
         # Office/team visibility (2026-07-02): campaign runs were invisible on
-        # /app/office & /app/team — attribute to Swara (telecaller). Never raises.
+        # /app/office & /app/team - attribute to Swara (telecaller). Never raises.
         try:
             from app.platform import team
 
@@ -786,7 +786,7 @@ def run_campaign_task(
                 "swara",
                 "platform_campaign" if platform else "outbound_campaign",
                 ("🧪 dry-run: " if dry_run else "📞 ")
-                + f"campaign — {output} (niche={niche_filter or 'all'})",
+                + f"campaign - {output} (niche={niche_filter or 'all'})",
                 status="warn" if result.get("error") else "ok",
             )
         except Exception:

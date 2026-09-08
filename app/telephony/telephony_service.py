@@ -93,7 +93,7 @@ class TelephonyService:
         if self.provider in ("none", "simulation"):
             self.provider = "simulation"
             logger.info(
-                "📞 TelephonyService in SIMULATION mode — no provider keys needed. "
+                "📞 TelephonyService in SIMULATION mode - no provider keys needed. "
                 "Calls are simulated end-to-end."
             )
         else:
@@ -153,7 +153,7 @@ class TelephonyService:
         """
         Place an outbound call via the active provider.
 
-        Never raises — any failure degrades to a failed/simulated CallResult.
+        Never raises - any failure degrades to a failed/simulated CallResult.
 
         Args:
             to_number:       Destination phone number.
@@ -163,14 +163,14 @@ class TelephonyService:
                              for
                              Vobiz the conversation is webhook-driven).
             call_type:       'promotional' (strict TCCCPR gate) or 'transactional'
-                             (consented/known — lenient). REAL provider calls pass
+                             (consented/known - lenient). REAL provider calls pass
                              the ComplianceGate
                              simulation is exempt (dev).
         """
         if self.provider == "simulation":
             return await self._simulate_call(to_number, from_number)
 
-        # COMPLIANCE GATE (real providers only) — DND + calling hours + DLT/140.
+        # COMPLIANCE GATE (real providers only) - DND + calling hours + DLT/140.
         # A non-compliant promotional call is never dialled (TCCCPR; ₹10L risk).
         try:
             from app.telephony.compliance import CallType, get_compliance_gate
@@ -193,7 +193,7 @@ class TelephonyService:
                 )
         except Exception as e:
             if (call_type or "").lower() == "promotional":
-                logger.error(f"compliance gate error ({e}) — blocking promo call.")
+                logger.error(f"compliance gate error ({e}) - blocking promo call.")
                 return CallResult(
                     call_id=str(uuid.uuid4()),
                     status="blocked_compliance",
@@ -204,7 +204,7 @@ class TelephonyService:
 
         try:
             if self.provider == "sip":
-                # SIPHandler returns its own CallResult (same shape) — adapt it.
+                # SIPHandler returns its own CallResult (same shape) - adapt it.
                 sip_result = await self._handler.place_call(
                     to_number=to_number,
                     from_number=from_number,
@@ -258,10 +258,10 @@ class TelephonyService:
                 )
 
             if self.provider == "vobiz":
-                # VobizClient.place_call(to, answer_url, ...) — never raises;
+                # VobizClient.place_call(to, answer_url, ...) - never raises;
                 # success = status_code in 200/201/202. Compliance already ran
                 # above, so skip the duplicate gate. answer_url best-effort points
-                # at the public site (calls DLT/recharge-blocked → structural only).
+                # at the public site (calls DLT/recharge-blocked -> structural only).
                 call_id = str(uuid.uuid4())
                 base = (
                     os.getenv("PUBLIC_BASE_URL")
@@ -388,7 +388,7 @@ class TelephonyService:
             "missing": missing,
             "available_providers": available,
             "note": (
-                "Running in SIMULATION mode — set TELEPHONY_PROVIDER or provider "
+                "Running in SIMULATION mode - set TELEPHONY_PROVIDER or provider "
                 "keys to enable real calls. Cheapest: SIP trunk (~₹0.40/min)."
                 if self.provider == "simulation"
                 else f"Active provider '{self.provider}'."

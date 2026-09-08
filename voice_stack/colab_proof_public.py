@@ -1,10 +1,10 @@
 # ============================================================================
-# Voice-stack PROOF (PUBLIC models) — FREE Google Colab GPU, ZERO account needed
+# Voice-stack PROOF (PUBLIC models) - FREE Google Colab GPU, ZERO account needed
 # ============================================================================
 # Uses ONLY public ungated models (no HF token), and proves BOTH axes:
-#   ACCURACY : whisper-hindi (IndicWhisper) — slow autoregressive, this is the
+#   ACCURACY : whisper-hindi (IndicWhisper) - slow autoregressive, this is the
 #              OFFLINE label-model (Phase 3), NOT the live model.
-#   SPEED    : a public wav2vec2-CTC Hindi model — same single-pass CTC family as the
+#   SPEED    : a public wav2vec2-CTC Hindi model - same single-pass CTC family as the
 #              production live model (IndicConformer) -> shows real-time latency.
 #   TTS      : facebook/mms-tts-hin (public). (Production target = IndicF5 voice-clone.)
 #
@@ -40,7 +40,7 @@ warnings.filterwarnings("ignore")
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 print("GPU:", torch.cuda.get_device_name(0) if DEV == "cuda" else
-      "*** NO GPU — Runtime > Change runtime type > T4 GPU, then re-run ***")
+      "*** NO GPU - Runtime > Change runtime type > T4 GPU, then re-run ***")
 print("TIP: if you ran an earlier version this session and hit CUDA OOM, do "
       "Runtime > Restart session, then run this cell ONCE (frees leftover GPU mem).")
 
@@ -192,7 +192,7 @@ except Exception as e:
 
 # ---------------- SUMMARY / GO–NO-GO ----------------
 print("\n" + "=" * 64)
-print("SUMMARY   (FREE T4 GPU, PUBLIC models — no login)")
+print("SUMMARY   (FREE T4 GPU, PUBLIC models - no login)")
 print(f"  STT-A IndicWhisper (LABEL, offline) : {a_ms:.0f} ms | WER clean ~{a_wc:.0f}% phone ~{a_wp:.0f}%")
 print(f"  STT-B wav2vec2-CTC (SPEED, live-like): {b_ms:.0f} ms | WER clean ~{b_wc:.0f}% phone ~{b_wp:.0f}%")
 if tts_ms is not None:

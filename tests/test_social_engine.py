@@ -1,4 +1,4 @@
-"""social_engine — native social-posting engine (own queue + providers + vault).
+"""social_engine - native social-posting engine (own queue + providers + vault).
 
 Bars:
 - vault: token encrypt-at-rest roundtrip (Fernet if key, plaintext fallback).

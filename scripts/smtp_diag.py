@@ -1,4 +1,4 @@
-"""SMTP host/port diagnostic — creds .env (settings) se padhta hai, koi secret yahan nahi."""
+"""SMTP host/port diagnostic - creds .env (settings) se padhta hai, koi secret yahan nahi."""
 
 import smtplib
 

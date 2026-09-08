@@ -1,8 +1,8 @@
-"""Sales Autopilot prospect refill — prospector → autopilot store (flag-gated).
+"""Sales Autopilot prospect refill - prospector -> autopilot store (flag-gated).
 
 ``SALES_AUTOPILOT_REFILL=1`` pe scored/ready Maps prospects ko idempotent upsert
 karta hai (status=new). Dedupe by phone digits + email + existing id. Kabhi
-provider send nahi — sirf store fill. Cap per call via ``SALES_AUTOPILOT_REFILL_CAP``
+provider send nahi - sirf store fill. Cap per call via ``SALES_AUTOPILOT_REFILL_CAP``
 (default 10). Never raises.
 """
 
@@ -126,7 +126,7 @@ def refill_from_prospector(
         cap = _cap() if limit is None else max(1, min(int(limit), 50))
         min_score = _min_score()
         ids, phones, emails = _existing_keys()
-        # Pull a wider window then filter — newest-first list is OK for refill.
+        # Pull a wider window then filter - newest-first list is OK for refill.
         rows = _prospector.list_prospects(status="ready", limit=500)
         out["scanned"] = len(rows)
         for row in rows:

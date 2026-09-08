@@ -2,7 +2,7 @@
 
 Closes the dormant-wiring detection class: the daily-social incident (#468)
 shipped 3x/day beat entries whose task function was NEVER registered as a
-Celery task — the worker rejected the name and the job silently never ran.
+Celery task - the worker rejected the name and the job silently never ran.
 "Flag on" checks alone can't see this. automation_health.wiring_gaps() now
 reports BEAT_REG:* gaps for every beat entry whose task name does not resolve.
 """
@@ -78,7 +78,7 @@ def test_ttl_cache_returns_cached_result(monkeypatch):
     monkeypatch.setattr(celery_app.conf, "beat_schedule", fake, raising=False)
     first = ah._beat_registration_gaps()
     assert len(first) == 1
-    # Now make the registry look clean — cached result must still come back
+    # Now make the registry look clean - cached result must still come back
     monkeypatch.setattr(celery_app.conf, "beat_schedule", {}, raising=False)
     second = ah._beat_registration_gaps()
     assert second == first
@@ -95,7 +95,7 @@ def test_wiring_gaps_never_raises_with_beat_check():
 
 
 def test_whatsapp_automation_task_registered():
-    """2026-09-06 fix pin: run_whatsapp_automation was a PLAIN function — the
+    """2026-09-06 fix pin: run_whatsapp_automation was a PLAIN function - the
     hourly beat entry (staff-whatsapp-automation-hourly) was silently dead.
     Direct in-process callers (team_scheduler, staff_jobs) call the task
     object synchronously, so decoration must not change their semantics."""

@@ -7,16 +7,16 @@ Mounted with NO prefix (root-level), same as the /r/{code} redirect router:
     GET /api/admin/email-tracking/stats  -> admin-only aggregate stats
 
 Design rules (match project conventions):
-  - **PUBLIC** (no auth) for /t/o and /t/c — these are hit by email clients.
+  - **PUBLIC** (no auth) for /t/o and /t/c - these are hit by email clients.
   - **NEVER raise / never 500** on the pixel: a broken token must STILL return
     the 1x1 GIF (a broken image in an inbox looks like spam-bait).
   - **Open-redirect / SSRF safe**: /t/c only redirects to http/https URLs decoded
     from the HMAC-signed token (verify_click_token validates scheme)
     invalid
-    token → safe fallback to the public base URL.
+    token -> safe fallback to the public base URL.
   - **Rate-limited** via the project's per-IP ``rate_limit`` dependency.
   - Flag-gated upstream (EMAIL_TRACKING): when OFF nothing emits these tokens, so
-    these routes simply never get hit — they stay mounted but inert.
+    these routes simply never get hit - they stay mounted but inert.
   - Lazy app.* imports inside handlers (import-safe boot).
 """
 
@@ -59,16 +59,16 @@ async def track_open(token: str, request: Request) -> Response:
 
         tok = token[:-4] if token.lower().endswith(".gif") else token
         email_tracking.record_open(tok)
-    except Exception as ex:  # never-raise — broken pixel must still render
+    except Exception as ex:  # never-raise - broken pixel must still render
         logger.debug("[email_track] open record failed: %s", ex)
     return _pixel_response()
 
 
 @router.get("/t/c/{token}", dependencies=[Depends(rate_limit("email_track_click", 120, 60))])
 async def track_click(token: str, request: Request) -> RedirectResponse:
-    """Click tracker → 302 redirect to the decoded real URL.
+    """Click tracker -> 302 redirect to the decoded real URL.
 
-    Invalid/forged token → safe fallback to public base URL. Never raises.
+    Invalid/forged token -> safe fallback to public base URL. Never raises.
     """
     target = _FALLBACK_URL
     try:

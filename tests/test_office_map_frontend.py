@@ -17,7 +17,7 @@ import pytest
 HTML_PATH = Path(__file__).resolve().parents[1] / "frontend" / "office_map.html"
 SRC = HTML_PATH.read_text(encoding="utf-8")
 
-# Every interactive/panel ID that existed BEFORE the upgrade — none may vanish.
+# Every interactive/panel ID that existed BEFORE the upgrade - none may vanish.
 PRE_EXISTING_IDS = [
     "banner",
     "bannerRetry",

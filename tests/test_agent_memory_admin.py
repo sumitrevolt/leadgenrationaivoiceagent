@@ -1,8 +1,8 @@
-"""Agent-memory admin — list_facts / purge_subject + their API endpoints.
+"""Agent-memory admin - list_facts / purge_subject + their API endpoints.
 
 The DPDP "right to be forgotten" is the bar these tests raise: purge MUST
 actually call the backend purge function with the right subject, and the
-returned count MUST flow back to the operator. Backend itself is mocked —
+returned count MUST flow back to the operator. Backend itself is mocked -
 no real Qdrant required.
 """
 
@@ -16,7 +16,7 @@ from app.voice_agent import agent_memory
 
 
 # --------------------------------------------------------------------------- #
-# Mock backend (mimics _NativeBackend surface — scroll/purge/embed/search/upsert)
+# Mock backend (mimics _NativeBackend surface - scroll/purge/embed/search/upsert)
 # --------------------------------------------------------------------------- #
 class _MockNativeBackend:
     def __init__(self) -> None:
@@ -38,7 +38,7 @@ def _enabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# list_facts — operator inspection
+# list_facts - operator inspection
 # --------------------------------------------------------------------------- #
 async def test_list_facts_returns_stored_facts() -> None:
     be = _MockNativeBackend()
@@ -71,7 +71,7 @@ async def test_list_facts_requires_subject_id() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# purge_subject — DPDP right-to-be-forgotten
+# purge_subject - DPDP right-to-be-forgotten
 # --------------------------------------------------------------------------- #
 async def test_purge_subject_actually_calls_backend_and_returns_count() -> None:
     be = _MockNativeBackend()

@@ -1,7 +1,7 @@
 """Deterministic pre-LLM STT understanding gate (enterprise conversation upgrade).
 
 Classifies transcript quality BEFORE sales state / pricing / tools / opener advance.
-Junk must NOT reach the LLM as a meaningful sales turn — clarify or soft-drop.
+Junk must NOT reach the LLM as a meaningful sales turn - clarify or soft-drop.
 
 Gated ``STT_UNDERSTANDING_GATE`` (default ON). Fail-open on error (caller continues).
 Metrics counters are in-process (exported via ``snapshot_metrics`` / call session).
@@ -185,12 +185,12 @@ def classify(
         if last and t == last:
             return SttGateResult(SttClass.DUPLICATE, t, False, False, False, "exact_dup")
 
-        # Known Whisper junk loops ("Aam shabd" x N) — pure junk only.
+        # Known Whisper junk loops ("Aam shabd" x N) - pure junk only.
         for phrase in _JUNK_PHRASES:
             if phrase in low and len(set(re.findall(r"\w+", low))) <= 3:
                 return SttGateResult(SttClass.NOISE, t, False, False, True, f"junk:{phrase}")
 
-        # Mixed junk + content ("Aam shabd, 8459012607 mera mobile…") — strip or clarify.
+        # Mixed junk + content ("Aam shabd, 8459012607 mera mobile…") - strip or clarify.
         cleaned, junk_ratio, had_junk = strip_junk_phrases(t)
         if had_junk:
             if cleaned and cleaned != t and _has_meaningful_content(cleaned):
@@ -283,7 +283,7 @@ def should_failure_close(metrics: SttGateMetrics) -> bool:
 
 def failure_close_line() -> str:
     return (
-        "Theek hai, line clear nahi aa rahi. Main baad me callback karungi — "
+        "Theek hai, line clear nahi aa rahi. Main baad me callback karungi - "
         "dhanyavaad, aapka din shubh ho."
     )
 

@@ -1,21 +1,21 @@
-"""Per-number WhatsApp conversation memory — inbound reply ko CONTEXT ke saath samajhne
+"""Per-number WhatsApp conversation memory - inbound reply ko CONTEXT ke saath samajhne
 ke liye.
 
 THE GAP THIS CLOSES
 -------------------
 ``reply_agent.whatsapp_reply()`` har inbound message ko ISOLATED classify/draft karta
-tha (subject = "WhatsApp inbound", body = sirf current text — zero history). Isliye jab
+tha (subject = "WhatsApp inbound", body = sirf current text - zero history). Isliye jab
 customer kisi pichle sawaal ka JAWAAB deta tha, AI ko pata hi nahi hota tha ki kya poocha
-gaya — woh phir se generic reply/same sawaal repeat kar deta ("samajh nahi pa raha /
+gaya - woh phir se generic reply/same sawaal repeat kar deta ("samajh nahi pa raha /
 phir se poochh raha hai"). Yeh module har turn (inbound + outbound) ko per-number thread
 me persist karta hai, taaki classifier + draft ko pichli baat-cheet ka context mile.
 
 DESIGN
 ------
-- Append-only JSONL at ``data/wa_conversations.jsonl`` (``_CONV_FILE`` — tests override).
+- Append-only JSONL at ``data/wa_conversations.jsonl`` (``_CONV_FILE`` - tests override).
 - Har row: ``{"from": <digits>, "dir": "in"|"out", "text": ..., "at": iso, "mid": ...}``.
 - Per-number thread bounded (``_MAX_TURNS_PER_NUMBER``) taaki file na phoole.
-- NEVER raises — memory ek best-effort context layer hai, kabhi reply-path crash na kare.
+- NEVER raises - memory ek best-effort context layer hai, kabhi reply-path crash na kare.
 - Koi PII/secret nahi (numbers already inbound-webhook me aate hain
 check_secrets clean).
 """
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 _CONV_FILE = os.path.join("data", "wa_conversations.jsonl")
 
-# Per-number thread cap — recent turns hi context ke liye chahiye. File-wide compaction
+# Per-number thread cap - recent turns hi context ke liye chahiye. File-wide compaction
 # tab hoti jab ek number ke turns is cap se zyada ho jaayein (append-heavy, prune-light).
 _MAX_TURNS_PER_NUMBER = 40
 _DEFAULT_CONTEXT_TURNS = 10
@@ -84,13 +84,13 @@ def _all_rows() -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Inbound-session predicate — OPS-014 PROOF-OF-CONCEPT (2026-09-07, cycle 8)
+# Inbound-session predicate - OPS-014 PROOF-OF-CONCEPT (2026-09-07, cycle 8)
 #
 # WHY: research for OPS-010 found that "Service Implicit" / customer-triggered
 # messages are EXEMPT from NCPR/DND scrubbing, while promotional ones are not
 # (docs/DND_NCPR_COMPLIANCE_ADR_2026-09-07.md §3.3). If we ever want to send
 # into an inbound-initiated conversation, the decision needs PROOF that the
-# customer opened the thread — not a flag someone can flip.
+# customer opened the thread - not a flag someone can flip.
 #
 # SCOPE OF THIS PoC: MEASUREMENT ONLY. Nothing here is wired into any send gate,
 # and nothing here relaxes the section-5 DND/TRAI invariant. Wiring it into a
@@ -170,7 +170,7 @@ def inbound_session_proof(
         "window_hours": float(hours),
         "source": "wa_conversation",
         "note": (
-            "OPS-014 PoC — MEASUREMENT ONLY. Not wired into any send gate; "
+            "OPS-014 PoC - MEASUREMENT ONLY. Not wired into any send gate; "
             "requires owner + legal sign-off before it may gate anything."
         ),
     }

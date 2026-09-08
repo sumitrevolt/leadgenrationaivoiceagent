@@ -1,4 +1,4 @@
-"""Studio Media tools — security + functionality (upload/serve/IDOR + image tools)."""
+"""Studio Media tools - security + functionality (upload/serve/IDOR + image tools)."""
 
 import io
 
@@ -121,7 +121,7 @@ def test_resize_rejects_foreign_upload_id():
 
 
 def test_video_reel_submit_or_graceful():
-    """Reel submit returns a job_id (ffmpeg present) OR graceful ok:false — never 500."""
+    """Reel submit returns a job_id (ffmpeg present) OR graceful ok:false - never 500."""
     c = TestClient(app)
     r = c.post("/api/customer/studio/video-reel", headers=_H, json={"offer": "Sale"})
     assert r.status_code == 200
@@ -143,7 +143,7 @@ def test_bgremove_graceful_without_rembg():
     )
     uid = up.json()["upload_id"]
     r = c.post("/api/customer/studio/img-bgremove", headers=_H, json={"upload_id": uid})
-    # either ok (rembg present) or graceful ok:false with a note — never 500
+    # either ok (rembg present) or graceful ok:false with a note - never 500
     assert r.status_code == 200
     d = r.json()
     assert d.get("ok") is True or (d.get("ok") is False and d.get("note"))

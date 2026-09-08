@@ -447,7 +447,7 @@ def test_tenant_identity_preserved(monkeypatch):
 
 
 def test_delegation_no_unrestricted_permissions():
-    # agent.delegate.dev is scoped to dev only — another agent context is denied
+    # agent.delegate.dev is scoped to dev only - another agent context is denied
     e = REGISTRY.evaluate_action(
         tool_name=DELEG,
         tool_version="1.0.0",

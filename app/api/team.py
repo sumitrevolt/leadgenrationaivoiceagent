@@ -1,5 +1,5 @@
 """
-Team API — AI staff roster, live activity feed, manual job runs.
+Team API - AI staff roster, live activity feed, manual job runs.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ async def get_team_stats(
 ):
     """Per-agent success-rate + last-run rollup (degrade-detection KPI). Feed =
     /events
-    yeh = aggregate. Never raises — empty on failure."""
+    yeh = aggregate. Never raises - empty on failure."""
     try:
         from app.platform import team
 
@@ -178,7 +178,7 @@ async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
 @router.get("/email-outreach/runs")
 async def get_email_outreach_runs(limit: int = 5, current_user: User = Depends(require_admin)):
     """Last email-outreach / follow-up run outcomes (Schedule tab line ke liye).
-    Har run ka result AgentEvent meta me hota hai — yahan sirf filtered read."""
+    Har run ka result AgentEvent meta me hota hai - yahan sirf filtered read."""
     try:
         from app.platform import auto_outreach
 
@@ -319,9 +319,9 @@ async def run_growth_now(current_user: User = Depends(require_admin)):
 
 
 # ---------------------------------------------------------------------------
-# Agent Scheduler (scheduler_config) — admin toggle + per-job run-now + run-due.
+# Agent Scheduler (scheduler_config) - admin toggle + per-job run-now + run-due.
 # run-due = external recovery tick (Bearer LEADGEN_SCHEDULER_SECRET, admin JWT
-# NAHI chahiye — host cron/systemd timer hit kar sake). Secret unset => 503
+# NAHI chahiye - host cron/systemd timer hit kar sake). Secret unset => 503
 # fail-CLOSED (webhook-signature pattern).
 # ---------------------------------------------------------------------------
 
@@ -374,9 +374,9 @@ async def get_scheduler_runs(
     failures_first: bool = True,
     current_user: User = Depends(require_admin),
 ):
-    """Per-run history (data/job_runs.jsonl) — kaunsa job kab chala, pass/fail +
+    """Per-run history (data/job_runs.jsonl) - kaunsa job kab chala, pass/fail +
     fail hone ki wajah (error_class/message). Pehle yeh jsonl write-only tha (koi
-    padhta hi nahi) — ab admin run-history + failure-reason dekh sakta.
+    padhta hi nahi) - ab admin run-history + failure-reason dekh sakta.
     Default failures_first=true (jo toota wo pehle). Never raises."""
     try:
         from app.platform import automation_health
@@ -394,7 +394,7 @@ async def get_scheduler_runs(
 async def toggle_scheduler_job(
     job: str, body: SchedulerToggleIn, current_user: User = Depends(require_admin)
 ):
-    """Job ON/PAUSE karo — runtime, no-restart (data/scheduler_overrides.json)."""
+    """Job ON/PAUSE karo - runtime, no-restart (data/scheduler_overrides.json)."""
     try:
         from app.platform import scheduler_config
 
@@ -407,7 +407,7 @@ async def toggle_scheduler_job(
 
 @router.post("/scheduler/{job}/run")
 async def run_scheduler_job_now(job: str, current_user: User = Depends(require_admin)):
-    """Job ABHI chalao — background dispatch (Celery prefer; HTTP block nahi)."""
+    """Job ABHI chalao - background dispatch (Celery prefer; HTTP block nahi)."""
     try:
         from app.platform import scheduler_config
 

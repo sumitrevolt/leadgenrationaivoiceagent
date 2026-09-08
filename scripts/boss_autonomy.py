@@ -1,4 +1,4 @@
-"""Boss Full Autonomy CLI — thin adapter over app.platform.boss_autonomy.
+"""Boss Full Autonomy CLI - thin adapter over app.platform.boss_autonomy.
 
 Canonical runtime logic lives in app.platform.boss_autonomy (public API only,
 no monkey-patching, no private catalog access). This script is a thin CLI.

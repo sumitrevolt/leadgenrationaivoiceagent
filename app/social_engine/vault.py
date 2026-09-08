@@ -1,4 +1,4 @@
-"""social_engine.vault — per-client per-platform OAuth token store, ENCRYPTED-at-rest.
+"""social_engine.vault - per-client per-platform OAuth token store, ENCRYPTED-at-rest.
 
 Fernet (cryptography==48 stack me hai). Key: env `SOCIAL_TOKEN_KEY` (urlsafe-b64 32B
 Fernet key) warna `SECRET_KEY` se derive. Key unset = plaintext store + loud warning
@@ -51,7 +51,7 @@ def _fernet():
 def _encrypt(token: str) -> tuple[str, bool]:
     f = _fernet()
     if f is None:
-        logger.warning("[vault] SOCIAL_TOKEN_KEY/SECRET_KEY unset — token PLAINTEXT (dev only!)")
+        logger.warning("[vault] SOCIAL_TOKEN_KEY/SECRET_KEY unset - token PLAINTEXT (dev only!)")
         return token, False
     try:
         return f.encrypt(token.encode()).decode(), True
@@ -96,7 +96,7 @@ def put(
     expires_at: str = "",
 ) -> bool:
     """Loop-social-11 (2026-07-11): expires_at (ISO string) tracked for FB/LI
-    60-day token rotation. Optional — empty means unknown/never-expires (e.g.
+    60-day token rotation. Optional - empty means unknown/never-expires (e.g.
     LinkedIn app tokens, Postiz gateway keys, WhatsApp self-host). Meta gains
     `token_expiry_source` (`fb_60d_default` etc) so ops can distinguish computed
     vs owner-provided expiry."""

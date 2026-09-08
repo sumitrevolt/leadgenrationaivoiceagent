@@ -1,4 +1,4 @@
-"""Legacy reapproval scope — only empty txn_state may reopen."""
+"""Legacy reapproval scope - only empty txn_state may reopen."""
 
 from __future__ import annotations
 

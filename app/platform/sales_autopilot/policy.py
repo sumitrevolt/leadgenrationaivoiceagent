@@ -1,4 +1,4 @@
-"""Sales Autopilot policy — the ONE canonical config source.
+"""Sales Autopilot policy - the ONE canonical config source.
 
 Persisted JSON under ``data/sales_autopilot/policy.json`` + env overrides. Env always
 wins over the persisted file for the safety-critical gates (so an operator can hard-stop
@@ -39,7 +39,7 @@ def _env_present(name: str) -> bool:
     return os.getenv(name) is not None
 
 
-# Canonical defaults — safest posture.
+# Canonical defaults - safest posture.
 _DEFAULTS: dict[str, Any] = {
     "enabled": False,
     "dry_run": True,  # simulate always until explicitly turned off in policy AND flags on
@@ -173,7 +173,7 @@ def save_policy(patch: dict[str, Any]) -> Policy:
     """Persist a partial policy update (admin surface). Env still overrides gates on read.
 
     Refuses to persist ``dry_run=false`` unless explicitly acknowledged, so a stray admin
-    call cannot silently arm live sending — the caller must pass the exact patch.
+    call cannot silently arm live sending - the caller must pass the exact patch.
     """
     try:
         os.makedirs(_POLICY_DIR, exist_ok=True)

@@ -2,7 +2,7 @@
 
 Rule R4 discipline: har test apni PRECONDITION khud set karta hai. Jo test
 refusal assert karta hai wo khud weak-retrieval banata hai (fake KB), ambient
-Qdrant/env pe bharosa nahi karta — warna "green" ka matlab sirf "KB khaali tha"
+Qdrant/env pe bharosa nahi karta - warna "green" ka matlab sirf "KB khaali tha"
 ho sakta hai, jo false safety hai.
 
 In tests ka asli kaam: prove karna ki "confident answer with zero evidence"
@@ -47,11 +47,11 @@ def _hit(text, score, source="niche:test"):
 
 
 STRONG = 0.91
-WEAK = 0.001  # KB ka apna _MIN_GROUND_SCORE 0.04 hai — ye uske neeche hai
+WEAK = 0.001  # KB ka apna _MIN_GROUND_SCORE 0.04 hai - ye uske neeche hai
 
 
 # --------------------------------------------------------------------------- #
-# The invariant itself — ye do test poore module ka reason-for-existence hain.
+# The invariant itself - ye do test poore module ka reason-for-existence hain.
 # --------------------------------------------------------------------------- #
 
 
@@ -95,7 +95,7 @@ def test_blank_citation_fields_are_rejected():
 
 
 # --------------------------------------------------------------------------- #
-# Refusal paths — precondition har test khud banata hai.
+# Refusal paths - precondition har test khud banata hai.
 # --------------------------------------------------------------------------- #
 
 
@@ -206,7 +206,7 @@ def test_weak_second_chunk_is_not_cited():
 
 
 def test_retrieve_is_called_without_reranking():
-    """Live/voice budget — reranker latency add nahi karna."""
+    """Live/voice budget - reranker latency add nahi karna."""
     kb = FakeKB([_hit("Pricing ₹1,999.", STRONG)])
 
     grounded_answer_typed(kb, "pricing?", namespace="_global")
@@ -305,7 +305,7 @@ def test_audit_dict_leaks_no_chunk_or_customer_text():
 
 
 def test_out_of_range_scores_are_clamped_not_rejected():
-    """Qdrant/dot-product backends 1.0 se bada score de sakte hain — clamp karo,
+    """Qdrant/dot-product backends 1.0 se bada score de sakte hain - clamp karo,
     crash mat karo."""
     kb = FakeKB([_hit("Pricing ₹1,999 per mahina.", 3.7)])
 

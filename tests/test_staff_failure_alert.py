@@ -1,4 +1,4 @@
-"""W1.14 — staff-job failures must emit a metric + ntfy alert (were silent).
+"""W1.14 - staff-job failures must emit a metric + ntfy alert (were silent).
 
 Bug: run_qa/run_trainer/run_ops/run_digest signalled failure only by RETURNING
 `{"error": …}`. Because they return (not raise), the scheduler wrapper records them
@@ -51,7 +51,7 @@ def test_staff_job_failed_records_and_alerts(monkeypatch):
 def test_thin_wrapper_failure_alerts(monkeypatch, run_fn, engine_attr, job):
     """Parity: the manual 'Run Now' (run_member) thin wrappers for Isha/Ravi/Rohan
     (content/blog/email_outreach) + manager (growth) previously signalled failure
-    only via `{"error": …}` — no metric, no ntfy — unlike run_qa/trainer/ops/digest.
+    only via `{"error": …}` - no metric, no ntfy - unlike run_qa/trainer/ops/digest.
     An internal engine exception on manual-run must now bump the error counter AND
     fire the alert (RED before the staff.py parity fix, GREEN after)."""
     jm._errors_total.clear()

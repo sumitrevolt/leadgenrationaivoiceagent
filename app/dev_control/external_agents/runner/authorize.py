@@ -23,7 +23,7 @@ def authorize_mission(mission: Mission) -> dict[str, Any]:
         return {
             "authorized": False,
             "reason": "owner_decision_required",
-            "authority": "Owner OS — AMBER cannot auto-run",
+            "authority": "Owner OS - AMBER cannot auto-run",
         }
     if mission.risk_class is not RiskClass.GREEN:
         return {"authorized": False, "reason": "unknown_risk"}
@@ -32,7 +32,7 @@ def authorize_mission(mission: Mission) -> dict[str, Any]:
     return {
         "authorized": True,
         "reason": "green_local_canary_authorized",
-        "authority": "Owner OS sole authority preserved — runner grants no deploy/calling/billing rights",
+        "authority": "Owner OS sole authority preserved - runner grants no deploy/calling/billing rights",
         "authorized_at": datetime.utcnow().isoformat() + "Z",
         "mission_id": mission.mission_id,
         "risk_class": mission.risk_class.value,

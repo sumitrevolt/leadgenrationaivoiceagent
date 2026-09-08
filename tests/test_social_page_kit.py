@@ -1,4 +1,4 @@
-"""Tests — social page kit generator (LLM-down fallback me bhi complete)."""
+"""Tests - social page kit generator (LLM-down fallback me bhi complete)."""
 
 from __future__ import annotations
 

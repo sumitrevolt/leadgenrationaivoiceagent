@@ -1,9 +1,9 @@
-"""Activation-readiness probe — encode the wired-but-OFF registry.
+"""Activation-readiness probe - encode the wired-but-OFF registry.
 
 The 2026-06-16 billionaire-scale audit named **activation debt** as the #1 hidden
 liability: ~25 capabilities sit wired-but-OFF in the repo, waiting on env vars or
 credentials. There's no single pane that says "here is what is BLOCKING the first
-paid customer right now" — `/api/growth/infra/flags` lists 80 flags, but doesn't
+paid customer right now" - `/api/growth/infra/flags` lists 80 flags, but doesn't
 distinguish a launch-blocker (Turnstile arming) from an opt-in growth lever (`CHANNEL_EXPERIMENTS`).
 
 This module fills exactly that gap. It returns a curated list of activation-
@@ -12,9 +12,9 @@ NEUTRAL), the env vars involved, granular check booleans, and a one-line action.
 Plus a top-level `ready_for_first_paid_customer` boolean.
 
 Design rules:
-- READ-ONLY (admin). Never mutates env. Never makes outbound calls — purely
+- READ-ONLY (admin). Never mutates env. Never makes outbound calls - purely
   shape-checks os.environ. Cheap to call from a dashboard polling loop.
-- Format-aware shape checks. Razorpay is **deferred by default** (NEUTRAL) —
+- Format-aware shape checks. Razorpay is **deferred by default** (NEUTRAL) -
   paid checkout baad me
   marketing launch is not blocked on missing keys.
 - INERT for not-yet-activated items: unset = NEUTRAL (waiting), not BLOCKER.
@@ -38,12 +38,12 @@ router = APIRouter(prefix="/api/activation", tags=["Infrastructure"])
 # --------------------------------------------------------------------------- #
 # Status semantics
 # --------------------------------------------------------------------------- #
-# BLOCKER  — gates revenue or trust; first paid customer cannot transact until OK
-# WARN     — strongly recommended but funnel works without it (no error tracking,
+# BLOCKER  - gates revenue or trust; first paid customer cannot transact until OK
+# WARN     - strongly recommended but funnel works without it (no error tracking,
 #            no analytics, no bot-protection); not revenue-critical
-# OK       — armed and looks healthy at the shape-check level
-# NEUTRAL  — opt-in capability sitting unset by design (e.g. Cloudflare Tunnel
-#            for HA / origin-hide — valuable but not blocker)
+# OK       - armed and looks healthy at the shape-check level
+# NEUTRAL  - opt-in capability sitting unset by design (e.g. Cloudflare Tunnel
+#            for HA / origin-hide - valuable but not blocker)
 _BLOCKER, _WARN, _OK, _NEUTRAL = "BLOCKER", "WARN", "OK", "NEUTRAL"
 
 
@@ -76,10 +76,10 @@ def _is_placeholder(value: str) -> bool:
 # --------------------------------------------------------------------------- #
 # Per-item probes
 # --------------------------------------------------------------------------- #
-# _razorpay() probe removed 2026-06-18 — Razorpay gateway gone (manual UPI only).
-# Payments are no longer a BLOCKER gate; payments_ready reflects a REAL check —
+# _razorpay() probe removed 2026-06-18 - Razorpay gateway gone (manual UPI only).
+# Payments are no longer a BLOCKER gate; payments_ready reflects a REAL check -
 # _payments_ready() -> upi_config.is_armed() (a configured UPI VPA, env UPI_VPA
-# fallback) — NOT hard-coded (comment corrected 2026-06-25 audit).
+# fallback) - NOT hard-coded (comment corrected 2026-06-25 audit).
 
 
 def _sentry() -> dict[str, Any]:
@@ -112,7 +112,7 @@ def _sentry() -> dict[str, Any]:
             "Set SENTRY_DSN in .env (sentry.io project DSN)"
             if not armed
             else (
-                "Sentry init is gated on ENVIRONMENT=production — set it on prod box"
+                "Sentry init is gated on ENVIRONMENT=production - set it on prod box"
                 if not checks["env_is_production"]
                 else ""
             )
@@ -145,7 +145,7 @@ def _posthog() -> dict[str, Any]:
         "env_vars": ["POSTHOG_API_KEY", "POSTHOG_HOST"],
         "checks": {**checks, "source": source},
         "action": (
-            "Set POSTHOG_API_KEY in .env (PostHog Cloud free tier — never self-host)"
+            "Set POSTHOG_API_KEY in .env (PostHog Cloud free tier - never self-host)"
             if not armed
             else ""
         ),
@@ -245,7 +245,7 @@ def _eval_gate() -> dict[str, Any]:
 
 
 def _engineer_agents() -> dict[str, Any]:
-    """3 engineer agents (F.5) — Pranav SRE, Vidya FinOps, Arnav Security."""
+    """3 engineer agents (F.5) - Pranav SRE, Vidya FinOps, Arnav Security."""
     sre = _set("SRE_AGENT")
     fin = _set("FINOPS_AGENT")
     sec = _set("SECURITY_AGENT")
@@ -290,7 +290,7 @@ def _ops_alerts() -> dict[str, Any]:
             "Set OPS_ALERTS=1 + NTFY_URL + NTFY_TOPIC to wake low-score / regression alerts"
             if not fully_armed and not on
             else (
-                "OPS_ALERTS on but NTFY_URL/NTFY_TOPIC missing — pushes will no-op"
+                "OPS_ALERTS on but NTFY_URL/NTFY_TOPIC missing - pushes will no-op"
                 if on and not fully_armed
                 else ""
             )
@@ -351,7 +351,7 @@ def _litellm_costs() -> dict[str, Any]:
             "Set LITELLM_COSTS=1 + LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL (after docker compose -f deploy/compose/docker-compose.edge.yml --profile gateway up)"
             if not fully_armed and not on
             else (
-                "LITELLM_COSTS on but MASTER_KEY or GATEWAY_URL missing — Vidya will report unavailable"
+                "LITELLM_COSTS on but MASTER_KEY or GATEWAY_URL missing - Vidya will report unavailable"
                 if on and not fully_armed
                 else ""
             )
@@ -392,19 +392,19 @@ def _qdrant_url() -> str:
 
 
 def _qdrant_rag() -> dict[str, Any]:
-    """Semantic RAG backend — shape-only check (no outbound HTTP on hot path)."""
+    """Semantic RAG backend - shape-only check (no outbound HTTP on hot path)."""
     url = _qdrant_url()
     trap = bool(url and ("127.0.0.1" in url or "localhost" in url))
     checks = {"url_set": bool(url), "docker_localhost_trap": trap}
     if not checks["url_set"]:
         status, action = (
             _WARN,
-            "Set QDRANT_URL in .env — bina iske KB keyword fallback pe chalega (weaker chat/voice grounding)",
+            "Set QDRANT_URL in .env - bina iske KB keyword fallback pe chalega (weaker chat/voice grounding)",
         )
     elif trap:
         status, action = (
             _WARN,
-            "QDRANT_URL=127.0.0.1 container ke andar unreachable — Docker VPS pe "
+            "QDRANT_URL=127.0.0.1 container ke andar unreachable - Docker VPS pe "
             "http://host.docker.internal:6333 use karo (docker-compose.vps.yml wired)",
         )
     else:
@@ -422,7 +422,7 @@ def _qdrant_rag() -> dict[str, Any]:
 
 
 def _track_b_admin() -> dict[str, Any]:
-    """Track B admin UX flags — WARN on production when still OFF."""
+    """Track B admin UX flags - WARN on production when still OFF."""
     flags = ("REVENUE_TRENDS", "CLIENT_TIMELINE", "SYS_HEALTH_DETAIL")
     checks = {f.lower(): _set(f) for f in flags}
     on_count = sum(1 for v in checks.values() if v)
@@ -494,7 +494,7 @@ def _upi() -> dict[str, Any]:
         "env_vars": ["UPI_VPA"],
         "checks": checks,
         "action": (
-            "Admin dashboard → God Mode → UPI section me VPA save karo, "
+            "Admin dashboard -> God Mode -> UPI section me VPA save karo, "
             "ya .env me UPI_VPA=<yourvpa>@bank set karo (pricing modal + pay-info)"
             if not armed
             else ""
@@ -510,7 +510,7 @@ _UPI_PENDING_ALERT_HOURS_DEFAULT = 6
 
 
 def _upi_pending_alert_hours() -> float:
-    """Call-time threshold (env wins; bad/≤0 → default). Never raises."""
+    """Call-time threshold (env wins; bad/≤0 -> default). Never raises."""
     raw = _v("UPI_PENDING_ALERT_HOURS")
     if not raw:
         return float(_UPI_PENDING_ALERT_HOURS_DEFAULT)
@@ -548,13 +548,13 @@ def _upi_pending_unactioned() -> dict[str, Any]:
 
     Submit path notifies via best-effort ntfy only (nested try/except + async
     fire-and-forget). If that push misses, the already-scheduled 08:30 IST
-    ``daily_readiness_digest`` is the backup page — this probe is what makes
+    ``daily_readiness_digest`` is the backup page - this probe is what makes
     the digest notice stuck payments (``_upi`` only checks VPA configured).
 
-    - pending or approved-but-unactivated older than threshold → BLOCKER
-    - only fresh pendings / none → OK (avoid teaching operators to ignore digest)
-    - store/list failure → NEUTRAL, never BLOCKER (infra hiccup ≠ fake alarm)
-    - corrupt/missing ``created_at`` → count as stale (false page > silent drown)
+    - pending or approved-but-unactivated older than threshold -> BLOCKER
+    - only fresh pendings / none -> OK (avoid teaching operators to ignore digest)
+    - store/list failure -> NEUTRAL, never BLOCKER (infra hiccup ≠ fake alarm)
+    - corrupt/missing ``created_at`` -> count as stale (false page > silent drown)
     """
     alert_hours = _upi_pending_alert_hours()
     try:
@@ -587,7 +587,7 @@ def _upi_pending_unactioned() -> dict[str, Any]:
         if not isinstance(row, dict):
             continue
         age_h = _upi_pending_age_hours(row.get("created_at"))
-        # Unparseable timestamp → treat as stale (prefer page over silent drown).
+        # Unparseable timestamp -> treat as stale (prefer page over silent drown).
         if age_h is None or age_h >= alert_hours:
             stale_ids.append(str(row.get("id") or "?")[:40])
 
@@ -618,8 +618,8 @@ def _upi_pending_unactioned() -> dict[str, Any]:
             "env_vars": ["UPI_PENDING_ALERT_HOURS"],
             "checks": checks,
             "action": (
-                f"{stale_n} UPI payment(s) actionable ≥{alert_hours:g}h — "
-                "Admin → /app/admin → UPI queue → Bind if needed, then re-Approve/Reject"
+                f"{stale_n} UPI payment(s) actionable ≥{alert_hours:g}h - "
+                "Admin -> /app/admin -> UPI queue -> Bind if needed, then re-Approve/Reject"
             ),
             "doc": "app/platform/upi_payments.py",
         }
@@ -636,14 +636,14 @@ def _upi_pending_unactioned() -> dict[str, Any]:
 
 
 def _compliance_env() -> dict[str, Any]:
-    """TRAI/DPDP compliance-env readiness — an ADVISORY section only.
+    """TRAI/DPDP compliance-env readiness - an ADVISORY section only.
 
     Deliberately NOT part of _PROBES: these do NOT feed blockers/warns and MUST
     NOT flip ``ready_for_first_paid_customer`` (existing consumers unchanged).
     Surfaces three signals for the operator:
-      (a) recording_retention_armed — RECORDING_RETENTION=1 => the 90-day DPDP
+      (a) recording_retention_armed - RECORDING_RETENTION=1 => the 90-day DPDP
           recording purge actually deletes (not dry-run/observe-only).
-      (b) dnd_fail_closed — WARNs loudly when DND_FAIL_OPEN=1 (a TRAI risk: it
+      (b) dnd_fail_closed - WARNs loudly when DND_FAIL_OPEN=1 (a TRAI risk: it
           would turn the promotional DND gate fail-OPEN
           prod ignores it at
           runtime but it should be unset).
@@ -684,7 +684,7 @@ def _compliance_env() -> dict[str, Any]:
             "checks": {"dnd_fail_open": dnd_fail_open},
             "action": (
                 "TRAI RISK: DND_FAIL_OPEN=1 turns the promotional DND gate "
-                "fail-OPEN — unset it. (Production ignores the flag at runtime, "
+                "fail-OPEN - unset it. (Production ignores the flag at runtime, "
                 "but leave it UNSET so the intent is explicit.)"
                 if dnd_fail_open
                 else ""
@@ -704,9 +704,9 @@ def _compliance_env() -> dict[str, Any]:
 # Delivery-outcome probe (2026-07-11 refined semantics).
 #
 # BEFORE this refinement (commit c0b108f), the probe treated any
-# `deliverable_completion_pct > 0` as "with_progress" → _OK. That included
+# `deliverable_completion_pct > 0` as "with_progress" -> _OK. That included
 # customers whose only completed items were `business_profile` + `brand_kit`
-# (both auto-derived from setup fields the customer filled at signup —
+# (both auto-derived from setup fields the customer filled at signup -
 # ZERO real AI-generated marketing value delivered). A paying customer 4 days
 # old with 0 posts_created, 0 posts_approved, 0 posts_published would silently
 # report _OK. That was the exact "audit passed but not delivering" gap in
@@ -715,20 +715,20 @@ def _compliance_env() -> dict[str, Any]:
 # The refined probe distinguishes FOUR outcome classes and applies AGE-BASED
 # SLA gates:
 #
-#   1. setup progress   — business_profile / brand_kit / onboarding fields
+#   1. setup progress   - business_profile / brand_kit / onboarding fields
 #      (proves onboarding, not marketing value)
-#   2. generated        — a real artifact was produced by the pipeline
-#      (content_queue draft, poster, etc.) — proves the pipeline works
-#   3. customer-visible — the artifact is exposed to the correct tenant
-#      (approved / scheduled — the customer can see it in their dashboard)
-#   4. evidence-backed  — a completed delivery has real proof
+#   2. generated        - a real artifact was produced by the pipeline
+#      (content_queue draft, poster, etc.) - proves the pipeline works
+#   3. customer-visible - the artifact is exposed to the correct tenant
+#      (approved / scheduled - the customer can see it in their dashboard)
+#   4. evidence-backed  - a completed delivery has real proof
 #      (posts_published / evidence_url in delivery_ledger)
 #
 # Age-based SLA:
-#   <24h  grace           → any state OK (setup or generation in progress)
-#   24-72h                → require ≥1 GENERATED artifact
-#   72h-7d                → require ≥1 CUSTOMER-VISIBLE artifact
-#   7d+                   → require ≥1 EVIDENCE-BACKED completion
+#   <24h  grace           -> any state OK (setup or generation in progress)
+#   24-72h                -> require ≥1 GENERATED artifact
+#   72h-7d                -> require ≥1 CUSTOMER-VISIBLE artifact
+#   7d+                   -> require ≥1 EVIDENCE-BACKED completion
 #
 # Result surfaces AGGREGATE counts + bucketed oldest-violation age only.
 # NEVER surfaces client_id / business name / email / phone / raw timestamp /
@@ -736,9 +736,9 @@ def _compliance_env() -> dict[str, Any]:
 # expose this probe verbatim; the buckets let admins triage severity without
 # knowing identity.
 #
-# Wholesale eval failure → _WARN with sanitized `eval_error_type` (exception
-# TYPE only, never MESSAGE — prevents DB connect string / IP / SQL leaks).
-# Per-customer eval failure → row skipped, does NOT flip probe state.
+# Wholesale eval failure -> _WARN with sanitized `eval_error_type` (exception
+# TYPE only, never MESSAGE - prevents DB connect string / IP / SQL leaks).
+# Per-customer eval failure -> row skipped, does NOT flip probe state.
 #
 # Cached _FIRST_PAID_TTL_S so public /summary stays cheap.
 # --------------------------------------------------------------------------- #
@@ -758,7 +758,7 @@ _EMPTY_CHECKS: dict[str, Any] = {
     "with_generated_artifacts": 0,
     "with_customer_visible_artifacts": 0,
     # NOTE: `with_evidence_backed_delivery` counts customers with ≥1 published
-    # item — this is ITEM-LEVEL only. It does NOT indicate the plan's contract
+    # item - this is ITEM-LEVEL only. It does NOT indicate the plan's contract
     # entitlements are complete. See `plan_completion_by_customer` +
     # `entitlement_progress_by_type` for plan/deliverable-level truth.
     "with_evidence_backed_delivery": 0,  # item-level: ≥1 published item
@@ -785,7 +785,7 @@ _EMPTY_CHECKS: dict[str, Any] = {
 
 
 def _age_bucket(hours: float) -> str:
-    """Bounded age bucket — NEVER surfaces exact timestamps."""
+    """Bounded age bucket - NEVER surfaces exact timestamps."""
     if hours < 24:
         return "<24h"
     if hours < 48:
@@ -850,7 +850,7 @@ def _customer_outcome_class(cid: str, client: dict[str, Any]) -> dict[str, bool]
     if int(state.get("content_generated") or 0) > 0:
         out["generated"] = True
     else:
-        # ledger may lag content_queue on some pipeline paths — check both
+        # ledger may lag content_queue on some pipeline paths - check both
         try:
             from app.marketing import delivery_ledger
 
@@ -884,7 +884,7 @@ def _customer_outcome_class(cid: str, client: dict[str, Any]) -> dict[str, bool]
                 d.get("evidence_url") or d.get("proof_url") or d.get("published_at")
             ):
                 # Setup-derived items (business_profile, brand_kit) do NOT
-                # count — they're onboarding, not delivery evidence.
+                # count - they're onboarding, not delivery evidence.
                 if str(d.get("id") or "") in ("business_profile", "brand_kit"):
                     continue
                 out["completed"] = True
@@ -953,7 +953,7 @@ def _first_paid_delivery() -> dict[str, Any]:
                     checks["with_customer_visible_artifacts"] += 1
                 if outcome["completed"]:
                     # ITEM-level: at least one published item exists.
-                    # Deliberately NOT interpreted as "plan complete" —
+                    # Deliberately NOT interpreted as "plan complete" -
                     # see checks["with_completed_plan"] below.
                     checks["with_evidence_backed_delivery"] += 1
 
@@ -980,7 +980,7 @@ def _first_paid_delivery() -> dict[str, Any]:
                 except Exception:
                     pass
 
-                # Age-based SLA gates. Unparseable created_at → skip SLA
+                # Age-based SLA gates. Unparseable created_at -> skip SLA
                 # (don't false-alarm on a legacy row with missing timestamp).
                 if age_h is None:
                     continue
@@ -1006,7 +1006,7 @@ def _first_paid_delivery() -> dict[str, Any]:
                 # per-customer eval failure must not abort the probe.
                 continue
     except Exception as exc:
-        # Wholesale eval failure — WARN with sanitized type-only diagnostic.
+        # Wholesale eval failure - WARN with sanitized type-only diagnostic.
         import copy as _copy
 
         result = {
@@ -1022,8 +1022,8 @@ def _first_paid_delivery() -> dict[str, Any]:
             },
             "action": (
                 "Delivery evidence could not be evaluated (clients_store / "
-                "product_one_delivery raised). Admin → /app/admin → Delivery "
-                "Cockpit — verify store connectivity + retry."
+                "product_one_delivery raised). Admin -> /app/admin -> Delivery "
+                "Cockpit - verify store connectivity + retry."
             ),
             "doc": "app/marketing/product_one_delivery.py",
         }
@@ -1058,7 +1058,7 @@ def _first_paid_delivery() -> dict[str, Any]:
             status_val = _WARN
             action = (
                 "; ".join(violations)
-                + ". Admin → /app/admin → Delivery Cockpit → Generate Content / "
+                + ". Admin -> /app/admin -> Delivery Cockpit -> Generate Content / "
                 "Approve on Behalf / Manual Proof. Setup-derived items (business_profile, "
                 "brand_kit) do NOT count as marketing-value delivery."
             )
@@ -1110,7 +1110,7 @@ _PROBES = (
 # Route
 # --------------------------------------------------------------------------- #
 # --------------------------------------------------------------------------- #
-# Wizard — pick the single highest-leverage NEXT step from current state.
+# Wizard - pick the single highest-leverage NEXT step from current state.
 # --------------------------------------------------------------------------- #
 # Operator was getting a 13-item readiness checklist with no ordering hint.
 # The runbook (`docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md`) groups items by
@@ -1118,11 +1118,11 @@ _PROBES = (
 # always sees ONE concrete next step instead of a wall of items.
 #
 # Phase order matches the runbook:
-#   1 Survival  — sentry, posthog, turnstile, cloudflare_tunnel, upi, qdrant_rag
-#   2 Visibility — agent_memory, eval_gate
-#   3 AI staff   — engineer_agents, ops_alerts
-#   4 Sellable   — customer_webhooks, mcp_product
-#   5 Margin     — litellm_costs, warm_dr
+#   1 Survival  - sentry, posthog, turnstile, cloudflare_tunnel, upi, qdrant_rag
+#   2 Visibility - agent_memory, eval_gate
+#   3 AI staff   - engineer_agents, ops_alerts
+#   4 Sellable   - customer_webhooks, mcp_product
+#   5 Margin     - litellm_costs, warm_dr
 _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
     # `first_paid_delivery` sits in Survival: no point chasing Visibility/Sellable
     # levers if the very first paid customer's deliverables never shipped.
@@ -1170,7 +1170,7 @@ _PROBE_BY_KEY = {
 
 
 def _item_is_actionable(probe_result: dict[str, Any]) -> bool:
-    """An item is the next-step candidate iff its status is BLOCKER or WARN —
+    """An item is the next-step candidate iff its status is BLOCKER or WARN -
     NEUTRAL (opt-in unset) and OK both mean 'no action needed right now'."""
     return probe_result.get("status") in {_BLOCKER, _WARN}
 
@@ -1179,8 +1179,8 @@ def _item_is_actionable(probe_result: dict[str, Any]) -> bool:
 async def activation_wizard(_user=Depends(require_admin)) -> dict[str, Any]:
     """Return the single highest-priority next step.
 
-    Walks the phase order (Survival → Visibility → AI staff → Sellable →
-    Margin) and returns the FIRST probe with status BLOCKER or WARN —
+    Walks the phase order (Survival -> Visibility -> AI staff -> Sellable ->
+    Margin) and returns the FIRST probe with status BLOCKER or WARN -
     plus the exact env keys and a verify-curl the operator can copy-paste.
 
     Output shape:
@@ -1217,7 +1217,7 @@ async def activation_wizard(_user=Depends(require_admin)) -> dict[str, Any]:
                 continue
             phase_has_action = True
             if next_step is None:
-                # First actionable item across all phases — this is THE step.
+                # First actionable item across all phases - this is THE step.
                 next_step = {
                     **result,
                     "phase": {"n": phase_n, "name": phase_name},
@@ -1247,7 +1247,7 @@ async def activation_summary_public() -> dict[str, Any]:
     """Public launch snapshot for explorer + status widgets (no secrets, no auth).
 
     Counts + booleans ONLY. The NAMED `blockers`/`warns` (which specific controls
-    are unarmed, e.g. turnstile/sentry) are ADMIN-only via `/readiness` — exposing
+    are unarmed, e.g. turnstile/sentry) are ADMIN-only via `/readiness` - exposing
     them publicly hands an attacker a recon list of weak defenses (2026-07-06 sec
     sweep). Frontend consumers guard with `|| []` so count-only degrades cleanly."""
     items = [p() for p in _PROBES]

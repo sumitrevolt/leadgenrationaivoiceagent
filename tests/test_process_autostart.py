@@ -90,7 +90,7 @@ def test_idempotency_skips_active_run(monkeypatch):
 
     from app.agents import process_engine
 
-    # lead_campaign already RUNNING → guard must skip it.
+    # lead_campaign already RUNNING -> guard must skip it.
     existing = [
         {"process": "lead_campaign", "status": "running", "started_at": "2020-01-01T00:00:00+00:00"}
     ]
@@ -106,7 +106,7 @@ def test_idempotency_skips_active_run(monkeypatch):
 def test_idempotency_skips_today_run(monkeypatch):
     monkeypatch.setenv("PROCESS_AUTOSTART", "1")
     monkeypatch.setattr(pa, "_WEEKLY_DAY", (date.today().weekday() + 1) % 7)
-    # process_autostart._today_str() uses date.today() (LOCAL tz) — match it here,
+    # process_autostart._today_str() uses date.today() (LOCAL tz) - match it here,
     # else this assert flakes in the UTC-evening / IST-next-day divergence window.
     today = date.today().isoformat()
     existing = [
@@ -131,7 +131,7 @@ def test_idempotency_skips_today_run(monkeypatch):
     monkeypatch.setattr(process_engine, "list_runs", lambda limit=50: list(existing))
 
     res = _run(pa.run_due())
-    # dono daily already started AAJ → koi naya start nahi.
+    # dono daily already started AAJ -> koi naya start nahi.
     assert res["started"] == []
 
 
@@ -154,7 +154,7 @@ def test_enqueue_called(monkeypatch, _no_celery):
 def test_inline_fallback_when_worker_down(monkeypatch):
     monkeypatch.setenv("PROCESS_AUTOSTART", "1")
 
-    # process_tick import fail karega → inline advance fallback.
+    # process_tick import fail karega -> inline advance fallback.
     import app.tasks.staff_jobs as sj
 
     class _BadTick:
@@ -193,7 +193,7 @@ def test_never_raises_on_start_error(monkeypatch):
     monkeypatch.setattr(process_engine, "list_runs", lambda limit=50: [])
 
     res = _run(pa.run_due())
-    # exception start_run me — run_due never-raise, graceful skip.
+    # exception start_run me - run_due never-raise, graceful skip.
     assert res["ok"] is True
     assert any("start_err" in s for s in res["skipped"])
 
@@ -208,7 +208,7 @@ def test_never_raises_on_list_runs_error(monkeypatch):
     )
     monkeypatch.setattr(process_engine, "start_run", lambda k, i: {"ok": True, "run_id": f"{k}-x"})
 
-    # list_runs throw → recent=[] fallback, still starts (no crash).
+    # list_runs throw -> recent=[] fallback, still starts (no crash).
     res = _run(pa.run_due())
     assert res["ok"] is True
 

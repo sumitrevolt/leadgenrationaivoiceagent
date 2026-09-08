@@ -6,12 +6,12 @@ Call khatam hone ke baad poori conversation ko analyze karta hai aur ek structur
 `CallAnalysis` deta hai: summary, sentiment, outcome, interest score, extracted
 qualification fields, talk-ratio (agent vs customer), objections, recommended next
 action, aur key quotes. Yeh production voice agents (Retell/Vapi/Bland) ka
-"post-call analysis / call summary" feature hai — CRM, dashboards aur lead-scoring
+"post-call analysis / call summary" feature hai - CRM, dashboards aur lead-scoring
 ke liye gold.
 
 Design:
   - LLMBrain available ho to uska istemal (lazy import) summary + extraction ke liye.
-  - HAMESHA ek pure-python heuristic fallback (keyword + word-count based) — bina
+  - HAMESHA ek pure-python heuristic fallback (keyword + word-count based) - bina
     kisi LLM/API key ke bhi chalega, kabhi crash nahi.
   - quick_metrics() pure-python talk-ratio / turn counts deta hai.
 
@@ -19,7 +19,7 @@ Conversation history format (same as project-wide):
     [{"role": "assistant"/"agent", "content": "..."},
      {"role": "user"/"customer",  "content": "..."}, ...]
 
-Usage (no LLM / no keys needed — heuristic path):
+Usage (no LLM / no keys needed - heuristic path):
     import asyncio
     from app.voice_agent.call_analyzer import CallAnalyzer
 
@@ -184,7 +184,7 @@ class CallAnalyzer:
     """Post-call analyzer with optional LLM + always-on heuristic fallback.
 
     LLMBrain inject kar sakte ho (ya khud lazy-build hoga). Agar LLM na ho /
-    fail ho, to pure-python heuristic analysis use hoti hai — output shape same.
+    fail ho, to pure-python heuristic analysis use hoti hai - output shape same.
     """
 
     def __init__(self, brain: Any = None):
@@ -487,14 +487,14 @@ class CallAnalyzer:
             return "Scheduled time par callback karo
             lead warm hai."
         if outcome == "voicemail":
-            return "Voicemail mila — alag time par dobara try karo, ya WhatsApp follow-up bhejo."
+            return "Voicemail mila - alag time par dobara try karo, ya WhatsApp follow-up bhejo."
         if outcome == "no_answer":
-            return "No answer — 2-3 alag time slots par retry karo."
+            return "No answer - 2-3 alag time slots par retry karo."
         if outcome == "not_interested":
             return "Do-not-call respect karo
             nurture list me daal ke 1-2 mahine baad WhatsApp."
         if "price" in objections:
-            return "Pricing concern tha — per-lead model wala ROI case email/WhatsApp karo."
+            return "Pricing concern tha - per-lead model wala ROI case email/WhatsApp karo."
         return "Warm follow-up bhejo aur ek callback time fix karne ki koshish karo."
 
     def _heuristic_summary(
@@ -507,8 +507,8 @@ class CallAnalyzer:
                 who = f"{nm} ke saath "
         obj = f" Objections: {', '.join(objections)}." if objections else ""
         outcome_hi = {
-            "qualified": "lead qualified hua — interest dikha aur next step pe raazi",
-            "callback": "callback chahiye — abhi commit nahi par baat khatam nahi",
+            "qualified": "lead qualified hua - interest dikha aur next step pe raazi",
+            "callback": "callback chahiye - abhi commit nahi par baat khatam nahi",
             "not_interested": "lead interested nahi tha",
             "voicemail": "voicemail / answering machine mila",
             "no_answer": "koi proper baat nahi hui (no answer)",

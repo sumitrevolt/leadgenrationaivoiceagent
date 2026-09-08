@@ -3,12 +3,12 @@
 The free OSM Overpass path is the no-key fallback for `prospector.run_prospecting`.
 `_DEFAULT_TARGETS` exercises "solar installer" and "coaching institute" FIRST, but
 those keywords were missing from `_OSM_TAG_MAP`, so `_osm_filters` fell to the
-`name~` fallback and returned ~0 on Indian OSM — starving the free path.
+`name~` fallback and returned ~0 on Indian OSM - starving the free path.
 
 These tests are deterministic (no Overpass network) and assert that every default
 target keyword resolves to a tag filter (not the name~ fallback), so the map cannot
 silently drift back to a gap. They do NOT assert that Overpass returns rows for the
-tags — that is a runtime/coverage fact, not a unit contract.
+tags - that is a runtime/coverage fact, not a unit contract.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def test_default_targets_are_all_mapped_not_name_fallback():
         # The name~ fallback is a tell-tale of an UNMAPPED keyword; default targets
         # should never rely on it (it returns ~0 on Indian OSM).
         assert not any(f.startswith("name~") for f in filters), (
-            f"default target {query!r} fell back to name~ search — add it to _OSM_TAG_MAP"
+            f"default target {query!r} fell back to name~ search - add it to _OSM_TAG_MAP"
         )
         assert any(("=" in f) or ("~" in f) for f in filters), (
             f"default target {query!r} filters malformed: {filters}"

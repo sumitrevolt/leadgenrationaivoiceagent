@@ -1,7 +1,7 @@
-"""Tests — clientops batch (speed_to_lead, content_approval, client_snapshots,
+"""Tests - clientops batch (speed_to_lead, content_approval, client_snapshots,
 lead_distribution, proposal_tracking).
 
-Pure-python: saare store paths tmp_path pe monkeypatch — NO network, NO DB.
+Pure-python: saare store paths tmp_path pe monkeypatch - NO network, NO DB.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def test_speed_to_lead_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(stl, "_INQUIRIES_FILE", inq)
     monkeypatch.setattr(stl, "_ALERTS_FILE", alerts)
     monkeypatch.setattr(stl, "_DIALER_FILE", dialer)
-    # Hermetic: callback-file bhi isolate karo — real data/ai_callbacks.jsonl me
+    # Hermetic: callback-file bhi isolate karo - real data/ai_callbacks.jsonl me
     # test-phone (9876543210) ka record avg ko pollute karta tha (CI: avg 0.0).
     monkeypatch.setattr(stl, "_CALLBACK_FILE", str(tmp_path / "callbacks.jsonl"))
 
@@ -46,7 +46,7 @@ def test_speed_to_lead_summary(tmp_path, monkeypatch):
             {"phone": "9000000001", "at": iso, "source": "website"},  # untouched
         ],
     )
-    # alert 60s baad — under-2-min touch
+    # alert 60s baad - under-2-min touch
     _write_jsonl(alerts, [{"phone": "919876543210", "epoch": now_ep + 60}])
 
     s = stl.summary(days=30)
@@ -91,7 +91,7 @@ def test_content_approval_flow(tmp_path, monkeypatch):
     assert ok["ok"] is True and ok["approval"]["status"] == "approved"
     assert ca.pending("client-1") == []
 
-    # idempotent — dubara approve = already_decided
+    # idempotent - dubara approve = already_decided
     again = ca.approve(token)
     assert again["ok"] is True and again.get("already_decided") is True
 
@@ -196,7 +196,7 @@ def test_snapshot_capture_and_apply(tmp_path, monkeypatch):
     assert "applied" in str(res["results"].get("journeys", ""))
     assert "applied" in str(res["results"].get("content_schedule", ""))
 
-    # naye records APPEND hue — source mutate nahi
+    # naye records APPEND hue - source mutate nahi
     rules = journeys.list_journeys()
     assert len(rules) == before_rules + 1
     new_rule = rules[-1]
@@ -421,7 +421,7 @@ def test_proposal_tracking_url(tmp_path, monkeypatch):
     pt.record_view(token, ua="Mozilla/5.0", ip="49.36.12.99")
     v = pt.views(token)
     assert v["opened"] is True and v["view_count"] == 1
-    assert v["views"][0]["ip"] == "49.36.12.x"  # coarse IP — privacy
+    assert v["views"][0]["ip"] == "49.36.12.x"  # coarse IP - privacy
 
     assert pt.resolve(token) == {"url": "https://example.com/proposal.pdf"}
     listed = pt.list_tracked()

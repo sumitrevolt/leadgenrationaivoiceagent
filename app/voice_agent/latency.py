@@ -1,5 +1,5 @@
 """
-LatencyOptimizer — sub-second perceived-latency layer (LiveKit/Retell-style).
+LatencyOptimizer - sub-second perceived-latency layer (LiveKit/Retell-style).
 
 This module is a PURE-PYTHON, zero-external-service add-on that the voice
 pipeline can lean on to *feel* instant. It bundles the four 2026 best-practice
@@ -9,17 +9,17 @@ call to work:
   1. RESPONSE / PROMPT CACHING (`ResponseCache`)
      An LRU+TTL cache keyed on a *normalized* utterance, so FAQ-like questions
      ("kitna hai?", "Kitna hai", "  kitna   hai ??") all collapse to one key and
-     return an INSTANT answer — skipping the LLM entirely (also cuts cost).
+     return an INSTANT answer - skipping the LLM entirely (also cuts cost).
 
   2. FIRST-SENTENCE TTS CHUNKING (`FirstSentenceChunker`)
      Splits the LLM reply so the FIRST sentence is handed to TTS immediately
      while the rest is still being generated. Speaking begins on chunk #1, which
-     drops *perceived* latency 3-5x — the caller hears audio long before the full
+     drops *perceived* latency 3-5x - the caller hears audio long before the full
      reply exists. Hindi danda "।" + "."/"?"/"!" aware.
 
   3. PARTIAL-TRANSCRIPT STREAMING (`PartialTranscriptBuffer`)
-     Accumulates partial STT pieces and decides — via a stable-text + silence
-     endpoint heuristic — when the user's turn is *done*, so partials can be fed
+     Accumulates partial STT pieces and decides - via a stable-text + silence
+     endpoint heuristic - when the user's turn is *done*, so partials can be fed
      to the LLM early instead of waiting for a final transcript.
 
   4. PARALLEL WARMUP + METRICS (`LatencyOptimizer` / `TurnTimer`)
@@ -161,7 +161,7 @@ class ResponseCache:
         lowercase -> strip punctuation -> drop filler words -> collapse
         whitespace. Empty / None safe (returns "").
 
-        So "Kitna hai?" and "kitna hai" both normalize to "kitna hai" — wait,
+        So "Kitna hai?" and "kitna hai" both normalize to "kitna hai" - wait,
         "kitna" is a filler here, so both become "hai". The point is *consistent*
         collapsing, not linguistic perfection: identical utterances always share
         a key. If after filler-stripping nothing remains, we fall back to the
@@ -349,7 +349,7 @@ class FirstSentenceChunker:
     def stream_chunks(self, text: str) -> Iterator[str]:
         """
         Yield sentence-sized chunks in order, with the first chunk honoring
-        `min_first_chars` (so TTS can start on chunk #1). Generator — feed each
+        `min_first_chars` (so TTS can start on chunk #1). Generator - feed each
         chunk to TTS as it arrives. Empty input yields nothing.
         """
         first, remainder = self.split_for_tts(text)
@@ -426,7 +426,7 @@ class PartialTranscriptBuffer:
     def should_commit(self, partial: str, silence_ms: float) -> bool:
         """
         Endpoint heuristic: update with `partial`, then return True if the user's
-        turn looks DONE — i.e. the transcript is non-trivial, has been stable for
+        turn looks DONE - i.e. the transcript is non-trivial, has been stable for
         `stable_repeats`, and silence has lasted >= `silence_ms_threshold`.
 
         Call this on every partial/silence tick
@@ -643,14 +643,14 @@ class LatencyOptimizer:
         Produce a reply for `utterance` on the lowest-latency path and return
         (text, TurnTimer). Order:
 
-            1. CACHE  — normalized lookup
+            1. CACHE  - normalized lookup
             on hit, return INSTANTLY (no LLM).
-            2. KB     — optional knowledge-base instant answer (see below).
-            3. LLM    — call `generate_fn` (sync or async), then cache the result.
+            2. KB     - optional knowledge-base instant answer (see below).
+            3. LLM    - call `generate_fn` (sync or async), then cache the result.
 
         TTFT is marked the moment an answer first exists (cache/KB = immediate;
         LLM = when `generate_fn` returns). The result is recorded into rolling
-        metrics. Never raises — on failure returns ("", timer).
+        metrics. Never raises - on failure returns ("", timer).
 
         `kb` may be:
           * a callable `kb(utterance) -> Optional[str]` (sync or async), or
@@ -660,7 +660,7 @@ class LatencyOptimizer:
         """
         timer = self.start_turn()
 
-        # 1) CACHE — the fastest path.
+        # 1) CACHE - the fastest path.
         cached = self.cache.get(utterance)
         if cached is not None:
             timer.cache_hit = True
@@ -669,7 +669,7 @@ class LatencyOptimizer:
             self.record(timer)
             return cached, timer
 
-        # 2) KB — optional instant answer before paying for the LLM.
+        # 2) KB - optional instant answer before paying for the LLM.
         kb_answer = await self._try_kb(kb, utterance)
         if kb_answer:
             timer.mark_first()
@@ -678,7 +678,7 @@ class LatencyOptimizer:
             self.record(timer)
             return kb_answer, timer
 
-        # 3) LLM — generate, then cache for next time.
+        # 3) LLM - generate, then cache for next time.
         text, _was_hit = await self.cache.cached_or(generate_fn, utterance)
         timer.mark_first()
         timer.finish()
@@ -714,9 +714,9 @@ class LatencyOptimizer:
 def build_niche_greetings(agent_name: str = "Riya") -> dict[str, str]:
     """Hinglish code-switched opening greetings per configured niche (for pre-synth).
 
-    Indian niches ke liye natural, chhota Hinglish greeting — phone-friendly, ek
+    Indian niches ke liye natural, chhota Hinglish greeting - phone-friendly, ek
     sawaal. NICHES na mile to sirf {"general": ...}. Never raises. Koi paid service
-    nahi — yeh sirf FREE TTS (EdgeTTS) ke liye text deta hai.
+    nahi - yeh sirf FREE TTS (EdgeTTS) ke liye text deta hai.
     """
     out: dict[str, str] = {}
     try:
@@ -726,7 +726,7 @@ def build_niche_greetings(agent_name: str = "Riya") -> dict[str, str]:
             name = (cfg or {}).get("name", key)
             out[str(key)] = (
                 f"Namaste! Main {agent_name} bol rahi hoon, ek AI assistant. "
-                f"Aapne {name} ke baare mein enquiry ki thi — kya main do minute baat kar sakti hoon?"
+                f"Aapne {name} ke baare mein enquiry ki thi - kya main do minute baat kar sakti hoon?"
             )
     except Exception:
         pass

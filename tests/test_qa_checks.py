@@ -1,5 +1,5 @@
 """
-Tests for app.voice_agent.qa_checks — the D-13 conversation QA judge half.
+Tests for app.voice_agent.qa_checks - the D-13 conversation QA judge half.
 Pure functions
 fixtures prove each check fires on a bad transcript and stays
 silent on a good one.
@@ -43,7 +43,7 @@ def test_pushy_after_softno_clean_on_graceful_exit():
         {"role": "user", "content": "abhi nahi"},
         {"role": "assistant", "content": "koi baat nahi ji"},
         {"role": "user", "content": "dekhte hain baad me"},
-        {"role": "assistant", "content": "bilkul ji, samajh gayi — aapka din accha rahe!"},
+        {"role": "assistant", "content": "bilkul ji, samajh gayi - aapka din accha rahe!"},
     ]
     assert qc.check_pushy_after_softno(transcript) == []
 
@@ -103,7 +103,7 @@ def test_missing_permission():
     f = qc.check_missing_permission(no_perm)
     assert f and "MISSING_PERMISSION" in f
     with_perm = [
-        {"role": "assistant", "content": "Namaste — do minute baat kar sakti hoon ya busy hain?"},
+        {"role": "assistant", "content": "Namaste - do minute baat kar sakti hoon ya busy hain?"},
         {"role": "user", "content": "haan boliye"},
     ]
     assert qc.check_missing_permission(with_perm) is None
@@ -130,7 +130,7 @@ def test_run_all_aggregates_and_clean():
     assert "MISSING_PERMISSION" in kinds
     # a clean, permission-first, listening conversation -> no findings
     good = [
-        {"role": "assistant", "content": "Namaste — do minute baat kar sakti hoon ya busy?"},
+        {"role": "assistant", "content": "Namaste - do minute baat kar sakti hoon ya busy?"},
         {"role": "user", "content": " ".join(["batao"] * 15)},
         {"role": "assistant", "content": "achha, samjha"},
         {"role": "user", "content": " ".join(["aur"] * 15)},
@@ -145,7 +145,7 @@ def test_never_raises_on_garbage():
 
 def test_extended_personas_run_with_stub():
     """D-13 personas drive the eval suite end-to-end without crashing (criteria
-    callable, runner integrates). Uses a trivial stub manager — no network/LLM."""
+    callable, runner integrates). Uses a trivial stub manager - no network/LLM."""
     import asyncio
 
     from app.voice_agent.eval_suite import EXTENDED_PERSONAS, run_suite

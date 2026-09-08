@@ -1,12 +1,12 @@
-"""Popup conversion pack (OptinMonster-style, free-stack) — ek script se client
+"""Popup conversion pack (OptinMonster-style, free-stack) - ek script se client
 website pe 3 cheezein: exit-intent/scroll/delay POPUP + ANNOUNCEMENT BAR
 (countdown ke saath) + SPIN-TO-WIN wheel (loyalty.py ke REAL coupon codes).
 
 CORS-free lead capture (prod lesson): popup/wheel ka CTA hamare PROVEN
-`/b/{slug}/embed` iframe modal ko kholta hai (embed_widget.py wala contract —
+`/b/{slug}/embed` iframe modal ko kholta hai (embed_widget.py wala contract -
 form HAMARI origin se `POST /api/public/inquiry` + source_slug karta, lead auto
 client se link). Cross-origin JSON fetch jaan-bujhke NAHI (prod CORS allowlist
-tight hai — direct fetch fail hota).
+tight hai - direct fetch fail hota).
 
   get_config(slug)              -> effective config (defaults merged, latest-wins)
   save_config(slug, cfg)        -> validate + append (data/popup_config.jsonl)
@@ -36,7 +36,7 @@ _MIN_SEGMENTS = 2  # 4-6 recommended
 
 
 def _slug_key(slug: str) -> str:
-    """Slug normalize — sirf [a-z0-9-] (regex-lock, JS/URL inject safe)."""
+    """Slug normalize - sirf [a-z0-9-] (regex-lock, JS/URL inject safe)."""
     return "".join(c for c in (slug or "").strip().lower() if c.isalnum() or c == "-")[:64]
 
 
@@ -100,7 +100,7 @@ def _defaults() -> dict[str, Any]:
             "trigger": "delay",  # exit_intent | scroll50 | delay
             "delay_s": 8,
             "title": "Ek minute! \U0001f381",
-            "body": "Apna number chhodiye — turant callback milega.",
+            "body": "Apna number chhodiye - turant callback milega.",
             "cta_text": "Callback chahiye",
             "coupon_code": "",
         },
@@ -127,7 +127,7 @@ def _clean_segment(s: Any) -> dict[str, str] | None:
 
 
 def _clean_config(cfg: dict[str, Any] | None) -> dict[str, Any]:
-    """Incoming config validate/normalize — unknown keys drop, galat values default."""
+    """Incoming config validate/normalize - unknown keys drop, galat values default."""
     cfg = cfg if isinstance(cfg, dict) else {}
     out = _defaults()
 
@@ -153,7 +153,7 @@ def _clean_config(cfg: dict[str, Any] | None) -> dict[str, Any]:
     b["enabled"] = bool(b_in.get("enabled"))
     b["text"] = str(b_in.get("text") or "").strip()[:120]
     cd = str(b_in.get("countdown_until") or "").strip()[:25]
-    # rough ISO sanity: "2026-06-15..." (warna JS Date.parse NaN — defensive yahin)
+    # rough ISO sanity: "2026-06-15..." (warna JS Date.parse NaN - defensive yahin)
     b["countdown_until"] = cd if (len(cd) >= 10 and cd[:4].isdigit() and cd[4] == "-") else ""
     b["link"] = _safe_url(b_in.get("link"))
 
@@ -245,7 +245,7 @@ def create_wheel_coupons(client_id: str, slug: str, offers: list[dict] | None) -
 
 
 # --------------------------------------------------------------------------- #
-# JS render (vanilla IIFE, no deps) — strings json.dumps se embed (inject-safe),
+# JS render (vanilla IIFE, no deps) - strings json.dumps se embed (inject-safe),
 # DOM text hamesha textContent se (innerHTML user-text kabhi nahi).
 # --------------------------------------------------------------------------- #
 _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
@@ -306,7 +306,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    }
   }
  })();
- /* ---- popup (exit-intent / scroll50 / delay) — 1/day localStorage cap ---- */
+ /* ---- popup (exit-intent / scroll50 / delay) - 1/day localStorage cap ---- */
  (function(){
   var P=CFG.popup||{};if(!P.enabled)return;
   var KEY="lgpw_"+SLUG,shown=false;
@@ -345,7 +345,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
    setTimeout(show,Math.max(1,P.delay_s||8)*1000);
   }
  })();
- /* ---- spin-to-win wheel (CSS conic, coupon reveal) — 1/day cap ---- */
+ /* ---- spin-to-win wheel (CSS conic, coupon reveal) - 1/day cap ---- */
  (function(){
   var W=CFG.wheel||{},SEG=W.segments||[];
   if(!W.enabled||SEG.length<2)return;
@@ -396,7 +396,7 @@ _JS_TEMPLATE = r"""/* LeadsGenAI popup pack */
     wh.style.transform="rotate("+(5*360+(360-(idx*arc+arc/2)))+"deg)";
     setTimeout(function(){
      var s=SEG[idx]||{};
-     res.textContent="🎉 "+(s.label||"Offer")+(s.coupon_code?" — code: "+s.coupon_code:"");
+     res.textContent="🎉 "+(s.label||"Offer")+(s.coupon_code?" - code: "+s.coupon_code:"");
      b.disabled=false;b.textContent="📞 Offer claim karein";
      b.addEventListener("click",function(){close();openForm();});
      try{fab.style.display="none"
@@ -416,7 +416,7 @@ def render_js(slug: str) -> str:
         key = _slug_key(slug)
         cfg = get_config(key)
         embed = f"{_site_base()}/b/{key}/embed"
-        # "</" → "<\/" — json.dumps "/" escape nahi karta; </script> breakout lock
+        # "</" -> "<\/" - json.dumps "/" escape nahi karta; </script> breakout lock
         cfg_json = json.dumps(cfg, ensure_ascii=True).replace("</", "<\\/")
         return (
             _JS_TEMPLATE.replace("__CFG__", cfg_json)

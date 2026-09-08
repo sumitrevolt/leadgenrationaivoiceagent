@@ -1,4 +1,4 @@
-"""capacity_baseline.py parser — wrong container names used to empty stats."""
+"""capacity_baseline.py parser - wrong container names used to empty stats."""
 
 from __future__ import annotations
 

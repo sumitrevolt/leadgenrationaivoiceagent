@@ -1,10 +1,10 @@
-"""L2 Stack graph contract — expose blank/broken embed regressions.
+"""L2 Stack graph contract - expose blank/broken embed regressions.
 
 Root causes covered:
-1. X-Frame-Options DENY on /app/control-center/graph (ADR-104) — covered in
+1. X-Frame-Options DENY on /app/control-center/graph (ADR-104) - covered in
    test_l2_stack_graph_frame_headers.py
    re-asserted here for HEAD+GET parity.
-2. Silent parent blank when iframe fails — parent must keep Old Explorer link
+2. Silent parent blank when iframe fails - parent must keep Old Explorer link
    and listen for cc-graph-ready / cc-graph-error postMessage.
 3. Dataset must be real curated architecture (not empty placeholder).
 """
@@ -32,7 +32,7 @@ def client():
 
 
 def test_graph_head_and_get_both_frameable(client):
-    """HEAD used to 404 while GET worked — breaks probes and confuses triage."""
+    """HEAD used to 404 while GET worked - breaks probes and confuses triage."""
     g = client.get("/app/control-center/graph")
     h = client.head("/app/control-center/graph")
     assert g.status_code == 200
@@ -75,7 +75,7 @@ def test_control_center_preserves_old_explorer_and_truthful_embed_issue():
 
 
 def test_duplicate_control_center_graph_routes_absent():
-    """FastAPI first-route-wins — single path registration (GET+HEAD ok)."""
+    """FastAPI first-route-wins - single path registration (GET+HEAD ok)."""
     from app.main import app
 
     graph_routes = [

@@ -29,7 +29,7 @@ def _flag(name: str) -> bool:
 
 
 def auto_deploy_enabled() -> bool:
-    """Reported for transparency only — code never auto-deploys regardless."""
+    """Reported for transparency only - code never auto-deploys regardless."""
     return _flag("AUTO_DEPLOY")
 
 
@@ -145,7 +145,7 @@ async def approve_production(
             "approved_at": datetime.utcnow().isoformat(),
             "commit_hash": commit_hash,
             "auto_deploy_executed_by_code": False,
-            "note": "human-approved; operator runs the Hostinger runbook — code did not deploy",
+            "note": "human-approved; operator runs the Hostinger runbook - code did not deploy",
         }
     )[:8000]
     task.updated_at = datetime.utcnow()

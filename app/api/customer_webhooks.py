@@ -1,4 +1,4 @@
-"""Customer-facing webhooks API — register, list, delete, test, deliveries.
+"""Customer-facing webhooks API - register, list, delete, test, deliveries.
 
 Mounted under /api/customer/webhooks. Each route requires a customer JWT
 (role=customer)
@@ -40,7 +40,7 @@ async def meta() -> dict[str, Any]:
     }
 
 
-_VERIFIER_PY = '''# Python — verify a LeadsGenAI webhook (Flask/FastAPI/Django)
+_VERIFIER_PY = '''# Python - verify a LeadsGenAI webhook (Flask/FastAPI/Django)
 import hmac
 import hashlib
 
@@ -63,7 +63,7 @@ def verify(body: bytes, signature_header: str) -> bool:
 #     ...
 '''
 
-_VERIFIER_NODE = """// Node.js (Express) — verify a LeadsGenAI webhook
+_VERIFIER_NODE = """// Node.js (Express) - verify a LeadsGenAI webhook
 const crypto = require("crypto");
 const WEBHOOK_SECRET = "whsec_xxxxxxxx"
 // value shown ONCE at registration
@@ -92,20 +92,20 @@ function verify(rawBody, signatureHeader) {
 
 @router.get("/_verifier-examples")
 async def verifier_examples() -> dict[str, Any]:
-    """Public — drop-in HMAC verifier code for Python + Node. Customer SDK
+    """Public - drop-in HMAC verifier code for Python + Node. Customer SDK
     builders read this to integrate without reverse-engineering our headers."""
     return {
         "scheme": "HMAC-SHA256",
         "headers": {
             "signature": "X-LeadGen-Signature  (format: sha256=<hex>)",
             "event": "X-LeadGen-Event  (e.g. lead.qualified, call.completed, call.report.ready)",
-            "delivery": "X-LeadGen-Delivery  (unique per attempt — use for idempotency)",
+            "delivery": "X-LeadGen-Delivery  (unique per attempt - use for idempotency)",
         },
         "important": [
-            "Sign the RAW body bytes — not the json.loads'd payload.",
+            "Sign the RAW body bytes - not the json.loads'd payload.",
             "Use constant-time compare (hmac.compare_digest / crypto.timingSafeEqual).",
-            "Be idempotent — respond 200 even if you already processed the X-LeadGen-Delivery ID.",
-            "Respond within 10s — we treat anything else as a failure and retry.",
+            "Be idempotent - respond 200 even if you already processed the X-LeadGen-Delivery ID.",
+            "Respond within 10s - we treat anything else as a failure and retry.",
             "Reject signatures older than your tolerance window (LeadGenAI does not currently send a timestamp; use delivery ID dedup).",
         ],
         "python_example": _VERIFIER_PY,
@@ -115,7 +115,7 @@ async def verifier_examples() -> dict[str, Any]:
 
 @router.post("")
 async def create(body: WebhookCreateIn, client_id: str = Depends(require_customer)) -> dict:
-    """Create a webhook. Returns the FULL row including secret — this is the
+    """Create a webhook. Returns the FULL row including secret - this is the
     ONLY time the secret is visible. Save it customer-side immediately."""
     out = cw.register(
         client_id=client_id,

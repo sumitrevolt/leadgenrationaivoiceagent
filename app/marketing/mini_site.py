@@ -1,11 +1,11 @@
 """
-mini_site.py — free per-client MINI WEBSITE + booking page (NowFloats/Durable-lite).
+mini_site.py - free per-client MINI WEBSITE + booking page (NowFloats/Durable-lite).
 =====================================================================================
 
 Har marketing client ko ek simple, mobile-first web-presence milti hai jo
 /b/{slug} par live hoti hai. Yahi ₹2,999 plan ka tangible deliverable hai:
 chhote local business ke paas turant ek share-karne-layak page + "enquiry/book"
-button — aur har enquiry hamare lead-funnel me capture hoti hai.
+button - aur har enquiry hamare lead-funnel me capture hoti hai.
 
   render_site(client) -> str   (complete self-contained HTML page)
 
@@ -15,16 +15,16 @@ shamil hain (calendar -> /api/booking/*, reviews -> /api/minisite/reviews/*).
 
 Page sections (brand colors client.brand se):
   - Hero        : business name + tagline + niche badge + Call/WhatsApp buttons
-  - About       : template blurb (niche-aware) — pure SYNC, no LLM/await
-  - Services    : niche content_focus / client-provided list → chips
-  - Booking form: name/phone/message/preferred-time → POST /api/public/inquiry
-                  (hidden source_slug) — submit ke baad thank-you
+  - About       : template blurb (niche-aware) - pure SYNC, no LLM/await
+  - Services    : niche content_focus / client-provided list -> chips
+  - Booking form: name/phone/message/preferred-time -> POST /api/public/inquiry
+                  (hidden source_slug) - submit ke baad thank-you
   - Calendar    : interactive date/slot picker -> /api/booking/slots + /book
   - Reviews     : customer-feedback feed + submit + Google-review QR (optional)
   - Socials     : Instagram / Facebook / Google links (jo diye hon)
-  - Footer      : "Powered by LeadGen AI — leadsgenai.in"
+  - Footer      : "Powered by LeadGen AI - leadsgenai.in"
 
-Pure stdlib string template — XML/HTML escaped (injection-safe), KABHI raise
+Pure stdlib string template - XML/HTML escaped (injection-safe), KABHI raise
 nahi karta (har lookup try/except + fallback). Koi network/DB/await nahi.
 """
 
@@ -48,12 +48,12 @@ _HEX_OK = set("0123456789abcdefABCDEF")
 
 
 def _e(value: Any) -> str:
-    """HTML-attribute-safe escape (quotes bhi). None → ''."""
+    """HTML-attribute-safe escape (quotes bhi). None -> ''."""
     return escape(str(value if value is not None else ""), quote=True)
 
 
 def _color(value: Any, fallback: str) -> str:
-    """Strict #RGB / #RRGGBB validate — warna fallback (CSS injection block)."""
+    """Strict #RGB / #RRGGBB validate - warna fallback (CSS injection block)."""
     c = str(value or "").strip()
     if (len(c) in (4, 7)) and c.startswith("#") and all(ch in _HEX_OK for ch in c[1:]):
         return c
@@ -61,11 +61,11 @@ def _color(value: Any, fallback: str) -> str:
 
 
 def _digits_intl(phone: Any) -> str:
-    """Phone → sirf digits, wa.me ke liye country-code ke saath (default 91)."""
+    """Phone -> sirf digits, wa.me ke liye country-code ke saath (default 91)."""
     d = "".join(ch for ch in str(phone or "") if ch.isdigit())
     if not d:
         return ""
-    if len(d) == 10:  # bare Indian mobile → prefix 91
+    if len(d) == 10:  # bare Indian mobile -> prefix 91
         d = "91" + d
     elif d.startswith("0") and len(d) == 11:
         d = "91" + d[1:]
@@ -89,7 +89,7 @@ def _load_config(slug: str) -> dict[str, Any]:
 
 
 def _niche_label(niche: Any) -> str:
-    """Niche key → display name (NICHES se, warna title-cased key)."""
+    """Niche key -> display name (NICHES se, warna title-cased key)."""
     key = str(niche or "").strip().lower()
     if not key or key == "general":
         return ""
@@ -105,7 +105,7 @@ def _niche_label(niche: Any) -> str:
 
 
 def _niche_services(niche: Any) -> list[str]:
-    """content_focus list (display-friendly) — fallback generic offerings."""
+    """content_focus list (display-friendly) - fallback generic offerings."""
     key = str(niche or "").strip().lower()
     try:
         from app.niches import NICHES
@@ -124,7 +124,7 @@ def _about_blurb(name: str, niche_label: str, city: str, tagline: str) -> str:
     """Template About paragraph (SYNC, no LLM). Hinglish, never-empty."""
     bits = [f"{name} aapki seva ke liye hai"]
     if niche_label:
-        bits[0] = f"{name} — {niche_label}"
+        bits[0] = f"{name} - {niche_label}"
     if city:
         bits.append(f"{city} me trusted naam")
     body = ". ".join(bits) + "."
@@ -132,7 +132,7 @@ def _about_blurb(name: str, niche_label: str, city: str, tagline: str) -> str:
         body += f" {tagline}."
     body += (
         " Quality, bharosa aur customer-first approach hamari pehchaan hai. "
-        "Niche diye form se abhi enquiry karein ya seedha call/WhatsApp karein — "
+        "Niche diye form se abhi enquiry karein ya seedha call/WhatsApp karein - "
         "hum jaldi se aapse connect karenge."
     )
     return body
@@ -164,7 +164,7 @@ def _services_section(services: list[str]) -> str:
 
 
 def _catalog_section(slug: str, name: str, wa: str) -> str:
-    """Product catalog grid (WhatsApp-store style) — product_catalog store se.
+    """Product catalog grid (WhatsApp-store style) - product_catalog store se.
 
     Catalog empty/missing/error => '' (page me ZERO change). Har product pe
     'WhatsApp pe order karein' = wa.me 1-click prefilled link (auto-send nahi).
@@ -201,7 +201,7 @@ def _catalog_section(slug: str, name: str, wa: str) -> str:
                 msg = (
                     f"Mujhe {pname}"
                     + (f" ({price})" if price else "")
-                    + f" order karna hai — {name}"
+                    + f" order karna hai - {name}"
                 )
                 order_btn = (
                     f'<a class="porder" href="https://wa.me/{_e(wa)}?text={_e(_q(msg))}" '
@@ -227,13 +227,13 @@ def _catalog_section(slug: str, name: str, wa: str) -> str:
 
 
 def _booking_section(slug: str, name: str) -> str:
-    """Enquiry/booking form → POST /api/public/inquiry (hidden source_slug)."""
+    """Enquiry/booking form -> POST /api/public/inquiry (hidden source_slug)."""
     return (
         '<section class="sec book" id="book"><h2>Enquiry / Booking</h2>'
-        f'<p class="bsub">{_e(name)} se baat karni hai? Neeche detail bhar do — '
+        f'<p class="bsub">{_e(name)} se baat karni hai? Neeche detail bhar do - '
         "hum aapko call karenge.</p>"
         '<form id="bform" class="bform" novalidate>'
-        # honeypot — insaan ise kabhi nahi bharta (bot trap; public_site ignore karta)
+        # honeypot - insaan ise kabhi nahi bharta (bot trap; public_site ignore karta)
         '<input type="text" name="website" class="hp" tabindex="-1" '
         'autocomplete="off" aria-hidden="true" />'
         '<label>Aapka naam *<input name="name" type="text" '
@@ -255,7 +255,7 @@ def _calendar_section() -> str:
     GET /api/booking/slots and submits POST /api/booking/book."""
     return (
         '<section class="sec calsec" id="calendar"><h2>Appointment Book Karein</h2>'
-        '<p class="csub">Apna pasand ka din aur time chuniye — turant slot lock ho jayega.</p>'
+        '<p class="csub">Apna pasand ka din aur time chuniye - turant slot lock ho jayega.</p>'
         '<div class="cal">'
         '<div class="days" id="calDays"></div>'
         '<div class="slots" id="calSlots"></div>'
@@ -312,7 +312,7 @@ def _reviews_section(name: str, gbp: str, place_query: str, slug: str = "") -> s
                 '<div class="qrbox">' + svg + "</div>"
                 '<p class="qrcap">📱 Scan karke Google par review dein</p>'
             )
-    except Exception as e:  # QR optional — fail ho to bas skip
+    except Exception as e:  # QR optional - fail ho to bas skip
         logger.debug(f"[mini_site] review QR skip: {e}")
 
     if gbp.startswith("http"):
@@ -508,7 +508,7 @@ def _css(primary: str, accent: str, layout: str = "classic") -> str:
     return base + _CATALOG_CSS + _layout_css(layout)
 
 
-# Product-catalog grid (plain string — no %-format, safe append after base CSS).
+# Product-catalog grid (plain string - no %-format, safe append after base CSS).
 _CATALOG_CSS = (
     ".pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}"
     "@media(max-width:380px){.pgrid{grid-template-columns:1fr}}"
@@ -535,7 +535,7 @@ def _booking_js(slug: str) -> str:
     slug_js = json.dumps(str(slug or ""))
     biz_js = json.dumps(
         ""
-    )  # business_name page se nahi — server slug se resolve karta
+    )  # business_name page se nahi - server slug se resolve karta
     safe default
     return (
         "<script>(function(){"
@@ -543,7 +543,7 @@ def _booking_js(slug: str) -> str:
         "var msg=document.getElementById('bmsg');"
         "var SLUG=%s;var BIZ=%s;"
         "f.addEventListener('submit',function(ev){ev.preventDefault();"
-        "if(f.website&&f.website.value){return;}"  # honeypot filled → bot, no-op
+        "if(f.website&&f.website.value){return;}"  # honeypot filled -> bot, no-op
         "var name=(f.name.value||'').trim();var phone=(f.phone.value||'').trim();"
         "if(!name||!phone){msg.className='bmsg err';msg.textContent='Naam aur phone zaroori hain.';return;}"
         "var btn=f.querySelector('button[type=submit]');btn.disabled=true;"
@@ -558,20 +558,20 @@ def _booking_js(slug: str) -> str:
         "if(d&&d.ok){msg.className='bmsg ok';"
         "msg.textContent=d.message||'Dhanyawad! Hum jaldi call karenge.';f.reset();}"
         "else{msg.className='bmsg err';"
-        "msg.textContent=(d&&d.detail)?d.detail:'Kuch galat hua — dobara try karein.';"
+        "msg.textContent=(d&&d.detail)?d.detail:'Kuch galat hua - dobara try karein.';"
         "btn.disabled=false;}})"
         ".catch(function(){msg.className='bmsg err';"
-        "msg.textContent='Network issue — dobara try karein.';btn.disabled=false;});"
+        "msg.textContent='Network issue - dobara try karein.';btn.disabled=false;});"
         "});})();</script>" % (slug_js, biz_js)
     )
 
 
 def _calendar_js(slug: str = "") -> str:
-    """Booking-calendar widget: next-7-day strip → GET /api/booking/slots per day
-    → pick slot → POST /api/booking/book. Pure vanilla JS, reuses existing API.
+    """Booking-calendar widget: next-7-day strip -> GET /api/booking/slots per day
+    -> pick slot -> POST /api/booking/book. Pure vanilla JS, reuses existing API.
 
     `slug` is threaded into both API calls so availability + booking are scoped to
-    THIS business (per-client slot pool — no cross-client slot blocking)."""
+    THIS business (per-client slot pool - no cross-client slot blocking)."""
     import json
 
     slug_js = json.dumps(str(slug or ""))
@@ -606,7 +606,7 @@ def _calendar_js(slug: str = "") -> str:
         "fetch('/api/booking/slots?date='+encodeURIComponent(day)+'&duration_min=30'+SLUGQ)"
         ".then(function(r){return r.json();}).then(function(d){"
         "var arr=(d&&d.slots)?d.slots:[];"
-        "if(!arr.length){msg.textContent='Is din koi slot free nahi — doosra din chuniye.';return;}"
+        "if(!arr.length){msg.textContent='Is din koi slot free nahi - doosra din chuniye.';return;}"
         "msg.textContent='';var html='';"
         "for(var i=0;i<arr.length;i++){var s=arr[i];var iso=(typeof s==='string')?s:(s&&(s.when||s.start||s.iso||s.slot));"
         'if(!iso)continue;html+=\'<button type="button" class="slot" data-iso="\''
@@ -617,7 +617,7 @@ def _calendar_js(slug: str = "") -> str:
         "for(var k=0;k<sn.length;k++)sn[k].classList.remove('sel');this.classList.add('sel');"
         "selSlot=decodeURIComponent(this.getAttribute('data-iso'));bookEl.style.display='flex';"
         "msg.className='calmsg';msg.textContent='Naam aur phone bhar ke confirm karein.';});}"
-        "}).catch(function(){msg.className='calmsg err';msg.textContent='Slots load nahi hue — dobara try karein.';});}"
+        "}).catch(function(){msg.className='calmsg err';msg.textContent='Slots load nahi hue - dobara try karein.';});}"
         "var cb=document.getElementById('calConfirm');"
         "if(cb)cb.addEventListener('click',function(){"
         "var nm=(document.getElementById('calName').value||'').trim();"
@@ -632,9 +632,9 @@ def _calendar_js(slug: str = "") -> str:
         "if(d&&d.ok){msg.className='calmsg ok';"
         "msg.textContent=d.confirmation_text||'Aapki appointment book ho gayi!';"
         "bookEl.style.display='none';slotsEl.innerHTML='';}"
-        "else{msg.className='calmsg err';msg.textContent=(d&&(d.error||d.detail))||'Book nahi ho payi — doosra slot try karein.';"
+        "else{msg.className='calmsg err';msg.textContent=(d&&(d.error||d.detail))||'Book nahi ho payi - doosra slot try karein.';"
         "cb.disabled=false;cb.textContent='✅ Slot confirm karein';}})"
-        ".catch(function(){msg.className='calmsg err';msg.textContent='Network issue — dobara try karein.';"
+        ".catch(function(){msg.className='calmsg err';msg.textContent='Network issue - dobara try karein.';"
         "cb.disabled=false;cb.textContent='✅ Slot confirm karein';});});"
         "buildDays();"
         "})();</script>"
@@ -678,9 +678,9 @@ def _reviews_js(slug: str) -> str:
         "body:JSON.stringify({slug:SLUG,name:nm,rating:rt,text:tx,website:''})})"
         ".then(function(r){return r.json().catch(function(){return{};});}).then(function(d){"
         "if(d&&d.ok){msg.className='bmsg ok';msg.textContent=d.message||'Shukriya!';form.reset();}"
-        "else{msg.className='bmsg err';msg.textContent=(d&&d.detail)||'Submit nahi hua — dobara try karein.';}"
+        "else{msg.className='bmsg err';msg.textContent=(d&&d.detail)||'Submit nahi hua - dobara try karein.';}"
         "btn.disabled=false;}).catch(function(){msg.className='bmsg err';"
-        "msg.textContent='Network issue — dobara try karein.';btn.disabled=false;});});}"
+        "msg.textContent='Network issue - dobara try karein.';btn.disabled=false;});});}"
         "load();"
         "})();</script>" % (slug_js,)
     )
@@ -690,7 +690,7 @@ def _reviews_js(slug: str) -> str:
 # Main entry
 # --------------------------------------------------------------------------- #
 def render_site(client: dict[str, Any] | None) -> str:
-    """client dict → complete mobile-first mini-site HTML. KABHI raise nahi.
+    """client dict -> complete mobile-first mini-site HTML. KABHI raise nahi.
 
     client: clients_store record (id, business_name, slug, niche, city, phone,
     brand{primary,accent,tagline,logo_text}, socials{instagram,facebook,gbp}).
@@ -723,8 +723,8 @@ def render_site(client: dict[str, Any] | None) -> str:
         place_query = f"{name} {city}".strip()
 
         # ----- HEAD ----- #
-        title = f"{name}" + (f" — {niche_label}" if niche_label else "")
-        desc = tagline or f"{name}" + (f" in {city}" if city else "") + " — abhi enquiry karein."
+        title = f"{name}" + (f" - {niche_label}" if niche_label else "")
+        desc = tagline or f"{name}" + (f" in {city}" if city else "") + " - abhi enquiry karein."
         fonts = (
             '<link rel="preconnect" href="https://fonts.googleapis.com">'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
@@ -762,7 +762,7 @@ def render_site(client: dict[str, Any] | None) -> str:
 
         footer = (
             '<footer>Powered by <a href="https://leadsgenai.in" target="_blank" '
-            'rel="noopener">LeadGen AI</a> — leadsgenai.in</footer>'
+            'rel="noopener">LeadGen AI</a> - leadsgenai.in</footer>'
         )
 
         body = (
@@ -802,7 +802,7 @@ def render_site(client: dict[str, Any] | None) -> str:
             "</head><body>"
             f"{body}{_booking_js(slug)}{_calendar_js(slug)}{_reviews_js(slug)}</body></html>"
         )
-    except Exception as e:  # absolute guard — page kabhi 500 na de
+    except Exception as e:  # absolute guard - page kabhi 500 na de
         logger.warning(f"[mini_site] render failed, minimal fallback: {e}")
         safe = _e((client or {}).get("business_name") if isinstance(client, dict) else "Business")
         return (

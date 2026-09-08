@@ -1,12 +1,12 @@
 """
-monthly_report.py — client ke liye "Is Mahine Ka Kaam" HTML report (free stack).
+monthly_report.py - client ke liye "Is Mahine Ka Kaam" HTML report (free stack).
 =================================================================================
 
 team.recent_events() se member/action counts nikaal kar ek self-contained,
 brand-violet styled HTML report banata hai (WhatsApp/email me bhejne layak):
   Sections: Is Mahine Ka Kaam / Numbers / AI Suggestions / Next Month Plan.
 
-LLM (free_ai) se 3-line Hinglish summary — fail par template. DB/events na hon
+LLM (free_ai) se 3-line Hinglish summary - fail par template. DB/events na hon
 to bhi report banti hai (zeros + starter suggestions). KABHI empty, KABHI raise
 nahi.
 """
@@ -49,8 +49,8 @@ _BUCKET_LABELS = {
 
 
 def _zero_stats() -> dict[str, Any]:
-    """Empty stats block — client-scoped report jahan global team numbers galat
-    honge (agent_events me client_id column nahi → platform-wide counts kisi ek
+    """Empty stats block - client-scoped report jahan global team numbers galat
+    honge (agent_events me client_id column nahi -> platform-wide counts kisi ek
     client ke naam dikhana MISLEADING). Zeros = "Numbers" section honestly
     'abhi per-client tracking nahi' path pe chala jaata hai."""
     return {
@@ -65,10 +65,10 @@ def _zero_stats() -> dict[str, Any]:
 
 
 def _collect_stats() -> dict[str, Any]:
-    """team.recent_events(300) → counts. DB na ho to zeros (kabhi raise nahi).
+    """team.recent_events(300) -> counts. DB na ho to zeros (kabhi raise nahi).
 
     NOTE: yeh PLATFORM-WIDE team events hain (sab staff/clients ka mila-jula).
-    Ek specific client ki report ke liye yeh numbers GALAT hain — isliye
+    Ek specific client ki report ke liye yeh numbers GALAT hain - isliye
     build_report(client_id=...) diya ho to _zero_stats() use hoti hai."""
     events: list[dict[str, Any]] = []
     staff: dict[str, Any] = {}
@@ -111,27 +111,27 @@ def _template_summary(stats: dict[str, Any]) -> list[str]:
     total = stats["total_actions"]
     if total == 0:
         return [
-            "Is mahine system setup phase me raha — agle mahine se numbers dikhne lagenge.",
+            "Is mahine system setup phase me raha - agle mahine se numbers dikhne lagenge.",
             "Pehla kadam: GBP audit + har hafte 2 posts se shuruaat karein.",
-            "Khush customers ko review QR/link bhejna shuru karein — 5 naye reviews ka target.",
+            "Khush customers ko review QR/link bhejna shuru karein - 5 naye reviews ka target.",
         ]
     return [
-        f"Is mahine total {total} marketing actions hue — system active hai.",
+        f"Is mahine total {total} marketing actions hue - system active hai.",
         (
             f"Content: {h['posts']} posts + {h['posters']} posters bane
             "
             f"calls/demos: {h['calls']}, review kaam: {h['reviews']}."
         ),
-        "Agle mahine review collection + drip follow-ups par focus karein — conversion wahin se badhti hai.",
+        "Agle mahine review collection + drip follow-ups par focus karein - conversion wahin se badhti hai.",
     ]
 
 
 def _default_plan() -> list[str]:
     plan = [
         "Har hafte 2 posts + 1 poster publish karein (festival templates ready hain).",
-        "Har khush customer ko review QR/link bhejein — mahine me 8-10 naye reviews ka target.",
+        "Har khush customer ko review QR/link bhejein - mahine me 8-10 naye reviews ka target.",
         "Purane customers par ek reactivation campaign chalayein (50 tak ek baar me).",
-        "Har nayi inquiry par 4-step drip follow-up ON rakhein — koi lead thandi na ho.",
+        "Har nayi inquiry par 4-step drip follow-up ON rakhein - koi lead thandi na ho.",
     ]
     try:  # nearest festival hook (best-effort)
         from app.marketing import festivals
@@ -141,7 +141,7 @@ def _default_plan() -> list[str]:
             f0 = up[0]
             plan.insert(
                 0,
-                f"{f0['name']} ({f0['date']}) aa raha hai — poster + offer post abhi schedule karein.",
+                f"{f0['name']} ({f0['date']}) aa raha hai - poster + offer post abhi schedule karein.",
             )
     except Exception:
         pass
@@ -171,7 +171,7 @@ def _build_html(
     plan_html = "".join(f"<li>{e(p)}</li>" for p in plan)
     return (
         '<!DOCTYPE html><html lang="hi"><head><meta charset="utf-8">'
-        f"<title>Marketing Report — {e(client)}</title><style>"
+        f"<title>Marketing Report - {e(client)}</title><style>"
         "body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f3ff;margin:0;"
         "padding:24px;color:#1f2937}"
         ".card{max-width:760px;margin:0 auto;background:#fff;border-radius:16px;"
@@ -191,13 +191,13 @@ def _build_html(
         "ul,ol{margin:0;padding-left:20px}li{margin:6px 0;font-size:14px}"
         ".foot{padding:16px 32px;font-size:12px;color:#8b8fa3;text-align:center}"
         "</style></head><body><div class='card'>"
-        f"<div class='head'><h1>📊 Monthly Marketing Report — {e(month)}</h1>"
+        f"<div class='head'><h1>📊 Monthly Marketing Report - {e(month)}</h1>"
         f"<p>{e(client)}</p></div>"
         f"<div class='sec'><h2>Is Mahine Ka Kaam</h2><div class='chips'>{chips}</div></div>"
         f"<div class='sec'><h2>Numbers</h2><table>{rows}</table></div>"
         f"<div class='sec'><h2>AI Suggestions</h2><ul>{sugg}</ul></div>"
         f"<div class='sec'><h2>Next Month Plan</h2><ol>{plan_html}</ol></div>"
-        "<div class='foot'>Generated by LeadGen AI — leadsgenai.in</div>"
+        "<div class='foot'>Generated by LeadGen AI - leadsgenai.in</div>"
         "</div></body></html>"
     )
 
@@ -208,7 +208,7 @@ async def build_report(
     """Monthly marketing report (HTML + stats). KABHI empty nahi, KABHI raise nahi.
 
     client_id diya ho (ek SPECIFIC paying client ki report) to global team-event
-    numbers OMIT hote hain — agent_events store me client_id column nahi, isliye
+    numbers OMIT hote hain - agent_events store me client_id column nahi, isliye
     platform-wide counts kisi ek client ke naam dikhana galat/misleading hai
     (billing-truth jaisa hi honesty issue). Un cases me "Numbers" section zeros
     dikhata + honest starter-guidance summary. client_id KHALI (agency/platform
@@ -222,7 +222,7 @@ async def build_report(
     scoped = bool(str(client_id or "").strip())
 
     try:
-        # Scoped (per-client) report: global team numbers galat honge → omit.
+        # Scoped (per-client) report: global team numbers galat honge -> omit.
         stats = _zero_stats() if scoped else _collect_stats()
     except Exception as e:  # pragma: no cover - _collect_stats khud guarded hai
         logger.warning(f"build_report stats failed: {e}")
@@ -235,7 +235,7 @@ async def build_report(
             system = (
                 "Tu ek Indian digital-marketing agency ka account manager hai. Client "
                 "ki monthly report ke liye EXACTLY 3 alag lines Hinglish (Roman "
-                "script) me likh — har line ek nayi line par, positive par honest, "
+                "script) me likh - har line ek nayi line par, positive par honest, "
                 "numbers ka use kar, koi extra commentary/heading nahi."
             )
             h = stats["highlights"]

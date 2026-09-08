@@ -1,4 +1,4 @@
-"""IndiaMART official Lead Manager (CRM Pull) API — the SELLER's OWN buyer-leads.
+"""IndiaMART official Lead Manager (CRM Pull) API - the SELLER's OWN buyer-leads.
 
 This is the LEGAL way to get IndiaMART data: IndiaMART's own official API hands a
 registered seller their inbound buyer inquiries (name/mobile/email/query/product). It is

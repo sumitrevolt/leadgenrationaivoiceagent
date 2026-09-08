@@ -1,4 +1,4 @@
-"""OpenClaw Owner Copilot — auth, lanes, allowlist, Owner OS authority, trust boundary."""
+"""OpenClaw Owner Copilot - auth, lanes, allowlist, Owner OS authority, trust boundary."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from tests.conftest import create_mock_user
 
 client = TestClient(app)
 
-# Auth deps this module may temporarily remove — never wipe unrelated overrides.
+# Auth deps this module may temporarily remove - never wipe unrelated overrides.
 _AUTH_DEPS = (
     get_current_user,
     get_current_user_optional,
@@ -192,7 +192,7 @@ def test_gateway_token_auth(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENCLAW_API_TOKEN", "local-dev-gateway-token-xyz")
     monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1")
     monkeypatch.delenv("OPENCLAW_ALLOWED_COMMANDS", raising=False)
-    # TestClient peer host varies by httpx/starlette — unit-test IP separately.
+    # TestClient peer host varies by httpx/starlette - unit-test IP separately.
     monkeypatch.setattr(
         "app.integrations.openclaw.auth.gateway_source_allowed",
         lambda _req: True,
@@ -208,13 +208,13 @@ def test_gateway_token_auth(monkeypatch, tmp_path):
     bad = client.post(
         "/api/owner-copilot/command",
         json={"command": "platform.status"},
-        headers={"Authorization": "Bearer wrong"},  # nosecret — fake auth negative path
+        headers={"Authorization": "Bearer wrong"},  # nosecret - fake auth negative path
     )
     assert bad.status_code == 401
     good = client.post(
         "/api/owner-copilot/command",
         json={"command": "platform.status", "idempotency_key": "gw-tok-1"},
-        headers={"Authorization": f"Bearer {_tok}"},  # nosecret — local test double only
+        headers={"Authorization": f"Bearer {_tok}"},  # nosecret - local test double only
     )
     assert good.status_code == 200
     body = good.json()
@@ -363,7 +363,7 @@ def test_amber_pause_requires_approval(monkeypatch, tmp_path):
 
 
 def test_amber_confirm_true_still_parks(monkeypatch, tmp_path):
-    """Admin UI sends confirm=true on Run — must park AMBER, never silent mutate."""
+    """Admin UI sends confirm=true on Run - must park AMBER, never silent mutate."""
     _enable(
         monkeypatch,
         allowlist="platform.status,agent.pause,agents.list",
@@ -446,11 +446,11 @@ def test_admin_dashboard_openclaw_panel_present():
     assert "/api/admin/owner-os/approvals" in r.text
     assert "/api/admin/owner-os/audit" in r.text
     assert "Owner OS = sole authority" in r.text
-    # Enter (no Shift) → ocRun; Shift+Enter keeps newline in #ocText
+    # Enter (no Shift) -> ocRun; Shift+Enter keeps newline in #ocText
     assert 'id="ocText"' in r.text
     assert 'e.key!=="Enter"' in r.text
     assert "window.ocRun()" in r.text
-    # Office chat card remains separate — OpenClaw must not replace it with office/ask.
+    # Office chat card remains separate - OpenClaw must not replace it with office/ask.
     assert 'id="agentCopilotCard"' in r.text
     assert r.text.index("openclawAdminCard") != r.text.index("agentCopilotCard")
 
@@ -471,7 +471,7 @@ def test_daily_brief(monkeypatch, tmp_path):
 
 
 def test_human_customer_jwt_denied(monkeypatch):
-    """Customer-like (viewer) JWT → 403 (not super-admin)."""
+    """Customer-like (viewer) JWT -> 403 (not super-admin)."""
     monkeypatch.setenv("OPENCLAW_ENABLED", "1")
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
     _clear_auth_overrides()
@@ -490,7 +490,7 @@ def test_human_customer_jwt_denied(monkeypatch):
 
 
 def test_human_normal_admin_denied(monkeypatch):
-    """Normal admin without SUPER_ADMIN → 403."""
+    """Normal admin without SUPER_ADMIN -> 403."""
     monkeypatch.setenv("OPENCLAW_ENABLED", "1")
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
     _clear_auth_overrides()
@@ -513,7 +513,7 @@ def test_human_module_rbac_denied(monkeypatch):
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
     _clear_auth_overrides()
     agent = create_mock_user(user_id="ag-1", email="agent@x.com", role=UserRole.AGENT)
-    # Pretend can_access_admin false but rbac would pass — role gate must still deny.
+    # Pretend can_access_admin false but rbac would pass - role gate must still deny.
     agent.can_access_admin = MagicMock(return_value=False)  # type: ignore[method-assign]
 
     async def _ag():
@@ -727,7 +727,7 @@ def test_delivery_billing_alias_resolves(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "app.marketing.clients_store.resolve_client",
-        # nosecret — synthetic billing alias fixture, not a live credential
+        # nosecret - synthetic billing alias fixture, not a live credential
         lambda cid: (
             {"id": "jiya-makeover"} if cid in ("billing-alias-demo", "jiya-makeover") else None
         ),
@@ -773,7 +773,7 @@ def test_no_default_jiya_in_handler():
     ],
 )
 def test_is_production_env_matrix(monkeypatch, environment, app_env, expected):
-    """Any authoritative marker == production → production (CI ENVIRONMENT must not mask)."""
+    """Any authoritative marker == production -> production (CI ENVIRONMENT must not mask)."""
     if environment:
         monkeypatch.setenv("ENVIRONMENT", environment)
     else:

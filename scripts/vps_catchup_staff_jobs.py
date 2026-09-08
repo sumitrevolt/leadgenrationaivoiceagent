@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Queue catch-up staff jobs (qa, trainer, pipeline) on VPS.
 
-Windows: SSH → docker exec leadgen_app
+Windows: SSH -> docker exec leadgen_app
 Linux/VPS: docker exec leadgen_app directly (no Windows ssh path).
 """
 

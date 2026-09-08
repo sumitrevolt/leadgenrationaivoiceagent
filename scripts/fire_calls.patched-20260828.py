@@ -1,6 +1,6 @@
 """
 LeadGen AI - Outbound call campaign
-leads DB se numbers → AI call via active telephony provider (Exotel or Vobiz).
+leads DB se numbers -> AI call via active telephony provider (Exotel or Vobiz).
 
 Run:
   docker exec leadgen_app python3 scripts/fire_calls.py --limit 10 --dry-run
@@ -39,12 +39,12 @@ parser.add_argument(
 parser.add_argument(
     "--transactional",
     action="store_true",
-    help="Consented/inbound style — looser compliance window (no DLT promo gate)",
+    help="Consented/inbound style - looser compliance window (no DLT promo gate)",
 )
 parser.add_argument(
     "--platform",
     action="store_true",
-    help="LeadGen AI platform pitch — force niche=ai_marketing (Swara structured opener)",
+    help="LeadGen AI platform pitch - force niche=ai_marketing (Swara structured opener)",
 )
 
 
@@ -145,11 +145,11 @@ async def fire_vobiz(
 
     client = VobizClient()
     if not dry_run and not client.available():
-        print("ERROR: Vobiz not configured — VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo.")
+        print("ERROR: Vobiz not configured - VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo.")
         return 0, 0, len(prospects)
 
     # Controlled-launch spine parity (2026-08-02): Celery path ke same session
-    # limiter — exactly VOICE_CALLS_PER_SESSION per session, fail-CLOSED. Subprocess
+    # limiter - exactly VOICE_CALLS_PER_SESSION per session, fail-CLOSED. Subprocess
     # fallback me bhi 31st attempt provider boundary se PEHLE block.
     spine_on = vl.campaign_enabled()
     session_id = None
@@ -158,7 +158,7 @@ async def fire_vobiz(
         if not session_id:
             session_id = await vl.create_voice_session(owner="cli", niche="", label="fire_calls")
         if not session_id:
-            print("BLOCKED(no_session) — voice launch session unavailable (Redis?)")
+            print("BLOCKED(no_session) - voice launch session unavailable (Redis?)")
             return 0, len(prospects), 0
         if await vl.session_is_stopped(session_id):
             print("BLOCKED(session_stopped)")
@@ -184,7 +184,7 @@ async def fire_vobiz(
             continue
 
         if spine_on:
-            # eligibility (compose ke samay ke chokepoints) — fail-closed
+            # eligibility (compose ke samay ke chokepoints) - fail-closed
             elig = await vl.is_lead_eligible_for_voice_call("+91" + p10, call_type)
             if not elig.eligible:
                 print(f"SKIP({elig.reason})")
@@ -334,9 +334,9 @@ async def main() -> None:
     if not args.dry_run:
         ready, score, actions = readiness_ok()
         if not ready:
-            print(f"ERROR: Telephony readiness {score}/100 — fix before live calls:")
+            print(f"ERROR: Telephony readiness {score}/100 - fix before live calls:")
             for act in actions:
-                print(f"  → {act}")
+                print(f"  -> {act}")
             return
         print(f"Telephony readiness OK ({score}/100)")
 

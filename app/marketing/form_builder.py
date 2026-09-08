@@ -1,8 +1,8 @@
-"""Form/Survey Builder — multi-step forms with conditional logic + lead capture.
+"""Form/Survey Builder - multi-step forms with conditional logic + lead capture.
 
 Inspired by Typeform, GoHighLevel Forms, HubSpot Forms:
   - Multi-step forms with progress bar
-  - Conditional branching (if answer X → show step Y)
+  - Conditional branching (if answer X -> show step Y)
   - Field types: text, email, phone, textarea, select, radio, checkbox, rating, date
   - Auto-create lead on submission
   - Track: data/forms.jsonl + data/form_responses.jsonl

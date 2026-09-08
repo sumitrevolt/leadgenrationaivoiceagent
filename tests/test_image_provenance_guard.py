@@ -1,4 +1,4 @@
-"""ADR-097 — the production image must carry commit provenance, LOUDLY.
+"""ADR-097 - the production image must carry commit provenance, LOUDLY.
 
 WHY this test exists (2026-07-14): `docker-compose.vps.yml` tags
 `${APP_VERSION:-latest}`. A deploy that forgot APP_VERSION silently left prod on
@@ -12,9 +12,9 @@ were merged to main and never shipped:
   - qdrant `fastembed model not ready within 90s` (fail_rate 1.0),
 
 and ALL of them went to zero the moment the image was rebuilt with a real SHA.
-Silent drift is the most expensive failure mode in this repo — hence fail-LOUD.
+Silent drift is the most expensive failure mode in this repo - hence fail-LOUD.
 
-Offline/pure — no app startup, no network.
+Offline/pure - no app startup, no network.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from app.main import is_unversioned_production_image as unversioned
 
 
 def test_compose_default_latest_is_flagged_in_production():
-    # `${APP_VERSION:-latest}` — the exact value that caused the 6-day outage.
+    # `${APP_VERSION:-latest}` - the exact value that caused the 6-day outage.
     assert unversioned("latest", "production") is True
     assert unversioned("LATEST", "production") is True  # case-insensitive
 
@@ -39,7 +39,7 @@ def test_real_git_sha_is_accepted():
 
 
 def test_non_production_is_never_flagged():
-    """Dev/staging legitimately run unversioned images — never page for those."""
+    """Dev/staging legitimately run unversioned images - never page for those."""
     for env in ("development", "staging", "test", "", None):
         assert unversioned("latest", env) is False, env
 

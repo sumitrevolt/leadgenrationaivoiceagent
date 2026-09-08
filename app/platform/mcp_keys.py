@@ -1,4 +1,4 @@
-"""mcp_keys.py — API-key issuance + metered-usage tracking for MCP-as-product.
+"""mcp_keys.py - API-key issuance + metered-usage tracking for MCP-as-product.
 
 The 2026-06-16 billionaire-scale audit named this the single "biggest-leverage
 billionaire-scale automation" available to the platform: expose the existing
@@ -22,7 +22,7 @@ Design:
   key is allowed to invoke. Default = all read-only capabilities.
 - **Admin-only management**: issue / list / revoke via /api/admin/mcp-keys.
 
-Flag MCP_PRODUCT=1 — OFF default. The PRODUCT routes (app/api/mcp_product.py)
+Flag MCP_PRODUCT=1 - OFF default. The PRODUCT routes (app/api/mcp_product.py)
 require this AND a valid key
 with the flag off, every metered route returns
 503 so customers know the surface is paused.
@@ -113,7 +113,7 @@ def _atomic_rewrite_keys(rows: list[dict]) -> bool:
 def _append_usage(key_hash: str, capability: str) -> None:
     _ensure_dir()
     rec = {
-        "kh": key_hash[:16],  # only the prefix — file can be shared if needed
+        "kh": key_hash[:16],  # only the prefix - file can be shared if needed
         "ymd": time.strftime("%Y-%m-%d"),
         "cap": capability,
         "ts": int(time.time()),
@@ -142,7 +142,7 @@ def _today_count(key_hash: str) -> int:
         line = line.strip()
         if not line:
             continue
-        # Cheap substring prefilter — both compact and human-readable JSON
+        # Cheap substring prefilter - both compact and human-readable JSON
         # dumps contain "ymd" + the date. Avoids json-parsing every line on
         # a busy day. False negatives would silently undercount usage, which
         # is exactly the bug to avoid here, so keep this loose.
@@ -172,7 +172,7 @@ def issue(
     daily_limit: int = _DEFAULT_DAILY,
     capabilities: list[str] | None = None,
 ) -> dict:
-    """Create a new API key. Returns plaintext key ONCE — store it client-side
+    """Create a new API key. Returns plaintext key ONCE - store it client-side
     immediately."""
     caps = list(capabilities or SUPPORTED_CAPABILITIES)
     bad = [c for c in caps if c not in SUPPORTED_CAPABILITIES]

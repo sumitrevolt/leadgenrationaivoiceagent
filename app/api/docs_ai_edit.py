@@ -1,8 +1,8 @@
-"""Docs AI-Edit — writing-first editor with AI actions.
+"""Docs AI-Edit - writing-first editor with AI actions.
 
 Odysseus-inspired pattern (clean-room reimplement, AGPL-safe): "writing-first
 editor with AI edits, suggestions, Markdown, HTML, CSV." Yahan minimal but
-useful subset — plain-text editor (browser textarea) + toolbar of AI actions.
+useful subset - plain-text editor (browser textarea) + toolbar of AI actions.
 
 Actions (each = LLM call via free_ai.chat, bulk profile):
     improve       : rewrite for clarity + flow
@@ -13,10 +13,10 @@ Actions (each = LLM call via free_ai.chat, bulk profile):
     summarize     : 3-4 bullet summary
     translate     : Hinglish ↔ English convenience
 
-Endpoint: POST /api/docs/edit  → {edited_text, action, tokens_used_estimate}
-UI:       GET  /api/docs/edit/ui  → single-page editor
+Endpoint: POST /api/docs/edit  -> {edited_text, action, tokens_used_estimate}
+UI:       GET  /api/docs/edit/ui  -> single-page editor
 
-Flag: `DOCS_AI_EDIT_ENABLED=1` — INERT default (503).
+Flag: `DOCS_AI_EDIT_ENABLED=1` - INERT default (503).
 
 Where it fits: /app/office HQ, /app/inbox reply drafts, campaign copy,
 customer marketing_studio content editor. Reusable by any admin/customer
@@ -155,7 +155,7 @@ async def run_edit(payload: EditIn, _user=Depends(require_admin)) -> dict:
 
     edited = (text or "").strip()
     if not edited:
-        raise HTTPException(status_code=502, detail="LLM returned empty — retry with fewer tokens.")
+        raise HTTPException(status_code=502, detail="LLM returned empty - retry with fewer tokens.")
 
     return {
         "action": action,
@@ -173,7 +173,7 @@ async def status() -> dict:
 
 
 _PAGE_HTML = """<!doctype html>
-<html><head><meta charset="utf-8"><title>Docs AI Edit — LeadGen</title>
+<html><head><meta charset="utf-8"><title>Docs AI Edit - LeadGen</title>
 <style>
  body{font-family:system-ui,Segoe UI,sans-serif
  margin:0
@@ -256,8 +256,8 @@ _PAGE_HTML = """<!doctype html>
   <button class="tool" data-a="expand">Expand</button>
   <button class="tool" data-a="fix_grammar">Fix grammar</button>
   <button class="tool" data-a="summarize">Summarize</button>
-  <button class="tool" data-a="translate_hi">→ Hinglish</button>
-  <button class="tool" data-a="translate_en">→ English</button>
+  <button class="tool" data-a="translate_hi">-> Hinglish</button>
+  <button class="tool" data-a="translate_en">-> English</button>
   <select id="tone">
    <option value="casual">casual</option>
    <option value="formal">formal</option>
@@ -279,7 +279,7 @@ _PAGE_HTML = """<!doctype html>
   </div>
   <div class="col"><h3>AI Output</h3>
    <textarea id="out" placeholder="(AI edit yahan aayega)"></textarea>
-   <div class="meta" id="out_meta">—</div>
+   <div class="meta" id="out_meta">-</div>
    <div><button class="copy" id="copy">Copy · Replace input</button></div>
   </div>
  </div>

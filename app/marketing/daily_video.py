@@ -1,22 +1,22 @@
-"""daily_video.py — DAILY per-client AI video producer (Product-1 marketing).
+"""daily_video.py - DAILY per-client AI video producer (Product-1 marketing).
 
 WHY a dedicated producer instead of another engine on the `content` chain
 --------------------------------------------------------------------------
 `content` fans ~15 engines through ``team_scheduler._run_content_engine`` under
 a single ``CONTENT_TIME_BUDGET_S`` (default 420s) wall-clock budget, and
 ``auto_content.run_daily_content()`` runs FIRST. When that eats the budget every
-later engine — ``video_ad_cycle`` included — is skipped *silently*
+later engine - ``video_ad_cycle`` included - is skipped *silently*
 (``_run_content_engine`` closes the coro and returns False
 no exception, no
 log line that names the video engine).
 
 Prod evidence that this starvation really happens (2026-08-09, live `job_runs`):
 the `content` job exceeded its 420s budget on **15 consecutive daily runs**,
-2026-07-18 → 2026-08-01 (452–530s each), dropping every engine behind the
+2026-07-18 -> 2026-08-01 (452–530s each), dropping every engine behind the
 overrun with nothing recording which ones.
 
-NOT the same thing as the 15-day video gap (2026-07-22 → 2026-08-06): that gap
-was a DEAD GATE — commit `1664811e` (2026-08-05) taught `video_ad_cycle.enabled()`
+NOT the same thing as the 15-day video gap (2026-07-22 -> 2026-08-06): that gap
+was a DEAD GATE - commit `1664811e` (2026-08-05) taught `video_ad_cycle.enabled()`
 to honour the `VIDEO_DAILY_SCHEDULER_ENABLED` alias, prod having had the cell flag
 ON while `VIDEO_AD_CYCLE` was OFF, so `run_cycle` was fully inert. The prod
 `delivery_ledger` holds exactly 6 `video_*` events, all dated 2026-08-06, i.e. no
@@ -25,33 +25,33 @@ see ADR-166.
 
 So this module:
   * gets its OWN beat entry (`staff-daily-video-daily`), never rides the content chain
-  * stays LIGHT — it only ENQUEUES
+  * stays LIGHT - it only ENQUEUES
   ffmpeg/HyperFrames never run in this process
   * generates at most once per client per DAY (state file + Celery idempotency)
-  * applies REVIEW BACKPRESSURE — the same prod snapshot showed 32/39 records
+  * applies REVIEW BACKPRESSURE - the same prod snapshot showed 32/39 records
     stuck at `pending` customer review. Daily generation without a pending cap
     just grows that pile faster.
 
 Fail-closed posture
 -------------------
-  * ``DAILY_VIDEO_ENABLED`` default OFF → whole module inert.
+  * ``DAILY_VIDEO_ENABLED`` default OFF -> whole module inert.
   * ``DAILY_VIDEO_CLIENTS`` empty = NO tenant. An unset allowlist meaning
     "everyone" is exactly how a canary becomes a fleet-wide daily render storm
     (same rule as ``hyperframes_provider.tenant_allowed``). ``*`` = all eligible.
-  * Never raises — every public entry returns a dict.
+  * Never raises - every public entry returns a dict.
 
 Engine selection
 ----------------
 ``DAILY_VIDEO_ENGINE`` ∈ {auto, advanced, classic} (default ``auto``):
-  * ``advanced`` — Creative Automation OS + HyperFrames (``enqueue_generate``).
+  * ``advanced`` - Creative Automation OS + HyperFrames (``enqueue_generate``).
     Needs CREATIVE_OS_ENABLED=1, CREATIVE_PROVIDER_HYPERFRAMES_ENABLED=1 and the
     tenant in CREATIVE_HYPERFRAMES_CANARY_TENANTS. NOTE: ``hyperframes`` is in
-    ``providers.NO_SILENT_FALLBACK`` — a render failure does NOT silently drop to
+    ``providers.NO_SILENT_FALLBACK`` - a render failure does NOT silently drop to
     the deterministic provider, it fails the creative. That is deliberate
     (quality gate), but it means a missing render toolchain = zero videos.
-  * ``classic`` — the proven deterministic ffmpeg path via
+  * ``classic`` - the proven deterministic ffmpeg path via
     ``video_ad_cycle.generate_for_client`` (approval + publish gate already wired).
-  * ``auto`` — advanced when the gate allows AND the tenant's recent advanced
+  * ``auto`` - advanced when the gate allows AND the tenant's recent advanced
     attempts are not all failing
     otherwise classic. This is the safety net for
     the real prod gap: the HyperFrames toolchain lives in the opt-in
@@ -134,7 +134,7 @@ ENGINE_CLASSIC = "classic"
 # BEFORE dispatch, so a permanently-refused tenant burns
 # CREATIVE_TENANT_DAILY_BUDGET on records that never render, and the operator
 # just sees "engine: advanced" with no video and no explanation.
-# ``tenant_budget_exceeded`` and ``enqueue_failed`` are deliberately absent —
+# ``tenant_budget_exceeded`` and ``enqueue_failed`` are deliberately absent -
 # those DO clear on their own.
 _PERMANENT_ADVANCED_OUTCOMES = frozenset({"needs_customer_input", "blocked"})
 _PERMANENT_ADVANCED_ERRORS = ("brief_blocked", "spec_invalid", "needs_customer_input")
@@ -219,12 +219,12 @@ def _load_state() -> dict[str, str]:
 
 
 def _save_state(state: dict[str, str]) -> None:
-    """Atomic replace — a torn state file would re-generate for every client."""
+    """Atomic replace - a torn state file would re-generate for every client."""
     try:
-        # Re-resolve at each I/O site — binding to a local would defeat the
+        # Re-resolve at each I/O site - binding to a local would defeat the
         # authority resolver, and os.replace is only atomic within one filesystem
         # so the temp file must share the destination's root.
-        # Re-resolve at each I/O site — binding to a local would defeat the
+        # Re-resolve at each I/O site - binding to a local would defeat the
         # authority resolver.
         os.makedirs(os.path.dirname(_STATE()) or ".", exist_ok=True)
         with open(_STATE_TMP(), "w", encoding="utf-8") as f:
@@ -315,7 +315,7 @@ def open_review_count(client_id: str) -> int:
     """Open customer reviews across BOTH pipelines for one client.
 
     Counted together on purpose: the customer sees one review inbox, not two.
-    Never raises — an unreadable store must not block the whole run, so it
+    Never raises - an unreadable store must not block the whole run, so it
     contributes 0 rather than an exception.
     """
     total = 0
@@ -373,7 +373,7 @@ def advanced_gate(client_id: str) -> tuple[bool, str]:
 
     Only flags + tenant allowlist are checked here. The Node/Chrome toolchain
     deliberately is NOT probed: this code runs in the beat/worker container
-    (``Dockerfile.lock``), while the render happens in ``worker-video`` — which
+    (``Dockerfile.lock``), while the render happens in ``worker-video`` - which
     only has the toolchain when the ``docker-compose.video.yml`` overlay is
     applied. Probing the wrong container would produce a confident false answer.
     """
@@ -394,7 +394,7 @@ def advanced_gate(client_id: str) -> tuple[bool, str]:
         # without this the operator sees engine="advanced" and simply no video.
         return (
             False,
-            f"advanced blocked ({blocked.get('reason')}) — fix brief, then daily-clear-block",
+            f"advanced blocked ({blocked.get('reason')}) - fix brief, then daily-clear-block",
         )
     return True, "ok"
 
@@ -407,14 +407,14 @@ def choose_engine(client_id: str) -> tuple[str, str]:
     ok, why = advanced_gate(client_id)
     if pref == ENGINE_ADVANCED:
         # Explicit advanced: honour the operator's choice, but do not pretend the
-        # gate passed — the caller records the refusal instead of enqueuing.
+        # gate passed - the caller records the refusal instead of enqueuing.
         return (ENGINE_ADVANCED, "DAILY_VIDEO_ENGINE=advanced") if ok else ("", why)
     # auto
     if not ok:
         return ENGINE_CLASSIC, f"advanced unavailable ({why})"
     streak = _recent_advanced_failures(client_id)
     if streak >= advanced_fail_window():
-        return ENGINE_CLASSIC, f"advanced failing ({streak} consecutive) — auto downgrade"
+        return ENGINE_CLASSIC, f"advanced failing ({streak} consecutive) - auto downgrade"
     return ENGINE_ADVANCED, "advanced ready"
 
 
@@ -479,7 +479,7 @@ def _enqueue_advanced(client: dict[str, Any]) -> dict[str, Any]:
 
 # ---------------------------------- run ------------------------------------- #
 async def run_daily() -> dict[str, Any]:
-    """Scheduler entrypoint. LIGHT — enqueues only, never renders. Never raises."""
+    """Scheduler entrypoint. LIGHT - enqueues only, never renders. Never raises."""
     if not enabled():
         return {"ran": False, "reason": "DAILY_VIDEO_ENABLED off"}
     day = _today()
@@ -547,7 +547,7 @@ async def run_daily() -> dict[str, Any]:
             if permanent:
                 # Park the tenant so tomorrow's tick does not burn another
                 # CREATIVE_TENANT_DAILY_BUDGET attempt on the same broken brief,
-                # then still ship TODAY's video via the classic path (auto only —
+                # then still ship TODAY's video via the classic path (auto only -
                 # explicit `advanced` means the operator wants advanced or nothing).
                 _record_advanced_block(cid, permanent)
                 res["advanced_blocked"] = permanent
@@ -561,7 +561,7 @@ async def run_daily() -> dict[str, Any]:
         out["results"].append(res)
         if res.get("ok"):
             out["enqueued"] += 1
-            # Mark the day ONLY on a confirmed enqueue — a failed dispatch must
+            # Mark the day ONLY on a confirmed enqueue - a failed dispatch must
             # stay retryable on the next tick instead of burning the client's day.
             state[cid] = day
             dirty = True

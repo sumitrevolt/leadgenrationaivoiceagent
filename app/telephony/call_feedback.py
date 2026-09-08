@@ -1,17 +1,17 @@
-"""call_feedback — call-outcome -> data-quality self-improve loop (ADR-027).
+"""call_feedback - call-outcome -> data-quality self-improve loop (ADR-027).
 
 KYUN (council 2026-07-06): scraper FIXED_LINE cloud-IVR DIDs (Livspace/HDFC
-blocks) ko "ready" prospects bana raha tha aur system kabhi SEEKHTA nahi tha —
+blocks) ko "ready" prospects bana raha tha aur system kabhi SEEKHTA nahi tha -
 wahi numbers dobara dial ho sakte the. Ab jab bhi call me IVR/bot CONFIRM hota
 hai (in-call IVR-strike hangup ya post-call qualifier bot-gate), yeh module:
 
 1. `data/dial_blocklist.json` me exact number likhta hai (dial_gate ise
-   consult karta hai — woh number dobara promotional-dial NAHI hoga);
-2. usi 6-digit prefix ke DISTINCT confirmed numbers count karta hai — count
+   consult karta hai - woh number dobara promotional-dial NAHI hoga);
+2. usi 6-digit prefix ke DISTINCT confirmed numbers count karta hai - count
    >= LEARNED_BLOCK_THRESHOLD (default 3) hone par dial_gate poora prefix
    block karta hai (Livspace jaisa sequential DID-block auto-catch);
 3. prospect store me us phone wale record par `dial_block` tag karta hai
-   (status NAHI badalta — email-only route, lead delete nahi hota);
+   (status NAHI badalta - email-only route, lead delete nahi hota);
 4. `data/dial_blocklist_audit.jsonl` me append-only audit entry (risk-guard:
    over-block reversible + explainable rahe).
 
@@ -41,7 +41,7 @@ def enabled() -> bool:
 
 
 def _blocklist_path() -> Path:
-    # dial_gate ke saath SAME env/naam AUR same store id — single source.
+    # dial_gate ke saath SAME env/naam AUR same store id - single source.
     # Writer half: `_save()` creates the parent directory, this resolver does
     # not, so a read can never conjure an empty suppression list into existence.
     from app.platform import runtime_data_authority as _auth
@@ -85,7 +85,7 @@ def _save(data: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(p.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, p)  # atomic — half-written file kabhi read na ho
+    os.replace(tmp, p)  # atomic - half-written file kabhi read na ho
 
 
 def _audit(entry: dict) -> None:
@@ -99,7 +99,7 @@ def _audit(entry: dict) -> None:
 
 
 def _tag_prospect(phone10: str, reason: str) -> bool:
-    """Prospect store me matching phone par dial_block tag (status untouched —
+    """Prospect store me matching phone par dial_block tag (status untouched -
     email path zinda rehta). Best-effort
     store absent => False."""
     try:
@@ -119,7 +119,7 @@ def _tag_prospect(phone10: str, reason: str) -> bool:
 def record_ivr_confirmed(
     phone: str, *, source: str = "in_call_ivr", call_sid: str = "", detail: str = ""
 ) -> dict:
-    """IVR/bot CONFIRMED on this number — learn it. Returns summary dict.
+    """IVR/bot CONFIRMED on this number - learn it. Returns summary dict.
 
     source: "in_call_ivr" (IVR-strike hangup, ADR-025) | "post_call_bot"
     (call_qualifier bot-gate). Never raises

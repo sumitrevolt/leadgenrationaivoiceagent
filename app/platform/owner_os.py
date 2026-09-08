@@ -1,10 +1,10 @@
-"""owner_os.py — Admin/Owner Operating System (production-safe vertical slice).
+"""owner_os.py - Admin/Owner Operating System (production-safe vertical slice).
 
 Canonical workforce = app.platform.team.STAFF (31). `manager` key = display name Boss
-(system supervisor + runnable worker — NOT a missing 32nd agent).
+(system supervisor + runnable worker - NOT a missing 32nd agent).
 
 HONEST SCOPE:
-- Agent pause gates ONLY manual Run-now (agent_controls) — labeled Pause Manual Runs.
+- Agent pause gates ONLY manual Run-now (agent_controls) - labeled Pause Manual Runs.
 - Outbound calling cannot be *enabled from this UI* (use PLATFORM_DIAL_DAILY / data file);
   badge reflects live `platform_dial.enabled()` truth (LIVE vs OFF).
 - Safe command intents may execute
@@ -65,7 +65,7 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
 
 # System supervisors = STAFF keys that also act as control-plane supervisors.
 SYSTEM_SUPERVISOR_IDS = frozenset({"manager"})  # display: Boss
-# Non-STAFF service identities (queues/workers) — not counted as workforce agents.
+# Non-STAFF service identities (queues/workers) - not counted as workforce agents.
 SERVICE_IDENTITY_IDS = frozenset({"celery", "scheduler", "voice_stream", "social_drain"})
 
 DEPARTMENT_FOR_PRODUCT = {
@@ -93,12 +93,12 @@ HIGH_RISK_INTENTS = {
     "customer_delete",
 }
 
-# Kill switch → real enforcement points (documented for UI + tests).
+# Kill switch -> real enforcement points (documented for UI + tests).
 KILL_ENFORCEMENT_MATRIX: dict[str, dict[str, Any]] = {
     "platform_dial": {
         "enforcement": ["app.platform.platform_dial.enabled", "PLATFORM_DIAL_DAILY=0"],
         "can_enable_here": False,
-        "note": "Owner OS cannot ENABLE dial — arm via PLATFORM_DIAL_DAILY / data file",
+        "note": "Owner OS cannot ENABLE dial - arm via PLATFORM_DIAL_DAILY / data file",
     },
     "voice_launch_kill": {
         "enforcement": ["app.telephony.voice_launch.admin_kill_engaged"],
@@ -145,7 +145,7 @@ KILL_ENFORCEMENT_MATRIX: dict[str, dict[str, Any]] = {
 TRAINING_PAGES = {
     "home": {
         "title": "Owner Home",
-        "hinglish": "Yahan se business ka aaj ka pulse dekho — approvals, failed jobs, Hot Queue, agents.",
+        "hinglish": "Yahan se business ka aaj ka pulse dekho - approvals, failed jobs, Hot Queue, agents.",
         "safe_commands": [
             "Sab agents ki current duty batao",
             "Pending approvals dikhao",
@@ -155,7 +155,7 @@ TRAINING_PAGES = {
     },
     "commands": {
         "title": "Owner Command Console",
-        "hinglish": "Hinglish me order likho → plan preview dekho → Confirm. High-risk pe automatic block.",
+        "hinglish": "Hinglish me order likho -> plan preview dekho -> Confirm. High-risk pe automatic block.",
         "safe_commands": [
             "Aaj ke pending approvals dikhao",
             "Isha ko pause karo (sirf manual Run now)",
@@ -174,11 +174,11 @@ TRAINING_PAGES = {
             "Isha ko drain karo",
             "Isha resume karo",
         ],
-        "next": "Queued vs running: drain running ko force-kill nahi karta — finish hone do.",
+        "next": "Queued vs running: drain running ko force-kill nahi karta - finish hone do.",
     },
     "workflows": {
         "title": "Workflow Control (read-only aggregator)",
-        "hinglish": "Naya scheduler nahi — JOB_META + process_library + health merge. Isha = content + client_content.",
+        "hinglish": "Naya scheduler nahi - JOB_META + process_library + health merge. Isha = content + client_content.",
         "safe_commands": ["Isha workflows dikhao"],
         "next": "Enable/disable scheduled job pehle Pause Scheduled / Drain se prove karo.",
     },
@@ -186,7 +186,7 @@ TRAINING_PAGES = {
         "title": "OmniRoute Agent Route Matrix",
         "hinglish": "Sirf approved task keys. Credentials kabhi UI me nahi. Route change customer work auto-start nahi karta.",
         "safe_commands": ["Isha route health test (sanitized)"],
-        "next": "Arbitrary model string reject — registry se hi primary/fallback.",
+        "next": "Arbitrary model string reject - registry se hi primary/fallback.",
     },
     "tasks": {
         "title": "Task Control",
@@ -198,17 +198,17 @@ TRAINING_PAGES = {
         "title": "Approval Center",
         "hinglish": "sales/coordinator/fde decide yahan; content = Open in Mission Control.",
         "safe_commands": ["Pending approvals dikhao"],
-        "next": "Same canonical approvals_bridge — Mission Control sync.",
+        "next": "Same canonical approvals_bridge - Mission Control sync.",
     },
     "kill": {
         "title": "Kill Switches",
         "hinglish": "Calling badge = live platform_dial truth. Social pause / voice kill / owner kills yahan se. Dial ENABLE Owner OS se refuse.",
         "safe_commands": ["Kill switch status dikhao"],
-        "next": "Calling ENABLE yahan se intentionally refuse hota hai — env/data-file se arm karo.",
+        "next": "Calling ENABLE yahan se intentionally refuse hota hai - env/data-file se arm karo.",
     },
     "training": {
         "title": "Admin Training Mode",
-        "hinglish": "Har panel pe 'Teach me' — safe practice commands, risky actions pe warning.",
+        "hinglish": "Har panel pe 'Teach me' - safe practice commands, risky actions pe warning.",
         "safe_commands": ["Training help dikhao"],
         "next": "Pehle dry-run status report chalao.",
     },
@@ -226,7 +226,7 @@ def _now_iso() -> str:
 def calling_posture(*, voice_killed: bool | None = None) -> dict[str, Any]:
     """Honest outbound-calling status for Owner OS UI. Never fabricates.
 
-    Owner OS still refuses ENABLE from this surface — arming stays env/data-file.
+    Owner OS still refuses ENABLE from this surface - arming stays env/data-file.
     Pass ``voice_killed`` when the caller already evaluated ``admin_kill_status``
     so kill_switch_board snapshots stay single-read.
     """
@@ -246,7 +246,7 @@ def calling_posture(*, voice_killed: bool | None = None) -> dict[str, Any]:
         try:
             from app.telephony.voice_launch import admin_kill_status
 
-            # Read .engaged explicitly — never bool(status) (AdminKillStatus trap).
+            # Read .engaged explicitly - never bool(status) (AdminKillStatus trap).
             voice_killed = admin_kill_status().engaged is True
         except Exception:
             voice_killed = False
@@ -397,9 +397,9 @@ def kill_switch_board() -> dict[str, Any]:
                 "source": "platform_dial",
                 "can_enable_here": False,
                 "note": (
-                    "LIVE — arm/disarm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
+                    "LIVE - arm/disarm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
                     if enabled
-                    else "OFF — arm via PLATFORM_DIAL_DAILY / data file
+                    else "OFF - arm via PLATFORM_DIAL_DAILY / data file
                     Owner OS ENABLE refuse"
                 ),
                 "live": bool(posture.get("live")),
@@ -438,7 +438,7 @@ def set_kill_switch(key: str, engaged: bool, by: str = "admin", reason: str = ""
         return {
             "ok": False,
             "error": (
-                "platform_dial Owner OS se ENABLE/DISABLE nahi hota — "
+                "platform_dial Owner OS se ENABLE/DISABLE nahi hota - "
                 "PLATFORM_DIAL_DAILY / data/platform_dial.json use karo"
             ),
         }
@@ -507,7 +507,7 @@ def owner_kill_blocks(intent: str) -> str | None:
     if intent in ("payment_mutate",) and km.get("owner_payment_mutation", {}).get("engaged"):
         return "payment mutation kill engaged"
     if intent in ("enable_calling",):
-        return "outbound calling Owner OS se ENABLE refuse — use PLATFORM_DIAL_DAILY"
+        return "outbound calling Owner OS se ENABLE refuse - use PLATFORM_DIAL_DAILY"
     return None
 
 
@@ -627,7 +627,7 @@ def record_scheduler_skip(
 
 
 def agent_registry() -> dict[str, Any]:
-    """Canonical inventory — separate workforce / supervisors / services / runnable."""
+    """Canonical inventory - separate workforce / supervisors / services / runnable."""
     from app.platform.team import STAFF
 
     agents: list[dict[str, Any]] = []
@@ -653,7 +653,7 @@ def agent_registry() -> dict[str, Any]:
     try:
         from app.platform.agent_os_routing import agent_route_table
 
-        # agent_route_table() returns dict[agent_key → policy fields], not a list.
+        # agent_route_table() returns dict[agent_key -> policy fields], not a list.
         table = agent_route_table() or {}
         if isinstance(table, dict):
             for key, row in table.items():
@@ -758,7 +758,7 @@ def agent_registry() -> dict[str, Any]:
         "manager_explanation": (
             "manager is the canonical STAFF key for the agent displayed as Boss. "
             "It is a system supervisor AND a runnable manual-run worker. "
-            "It is not a missing 32nd agent — workforce stays 31."
+            "It is not a missing 32nd agent - workforce stays 31."
         ),
         "marketing_note": "Docs sometimes say ~32; code truth is 31 STAFF keys (manager=Boss)",
         "agents": agents,
@@ -823,7 +823,7 @@ def approvals_inbox() -> dict[str, Any]:
                     "open_reason": (
                         None
                         if decidable
-                        else "Content/unsupported source — decide in Mission Control (canonical UI)"
+                        else "Content/unsupported source - decide in Mission Control (canonical UI)"
                     ),
                 }
             )
@@ -850,7 +850,7 @@ def approvals_inbox() -> dict[str, Any]:
                     "decidable_here": False,
                     "ui_state": "view_only",
                     "open_in": "/app/automation#approvals",
-                    "open_reason": "Customer content publish — Open in Mission Control (no auto-exec from Owner OS)",
+                    "open_reason": "Customer content publish - Open in Mission Control (no auto-exec from Owner OS)",
                 }
             )
     except Exception:
@@ -915,7 +915,7 @@ def decide_approval(
     actor: str = "admin",
     reason: str = "",
 ) -> dict[str, Any]:
-    """Canonical approval bridge — no second approval system."""
+    """Canonical approval bridge - no second approval system."""
     source = (source or "").strip().lower()
     item_id = (item_id or "").strip()
     decision = (decision or "").strip().lower()
@@ -924,10 +924,10 @@ def decide_approval(
             "ok": False,
             "error": "content approvals are view-only in Owner OS",
             "open_in": "/app/automation#approvals",
-            "reason": "Customer publish path — decide in Mission Control",
+            "reason": "Customer publish path - decide in Mission Control",
         }
     if source in ("boss_decision_governance", "governed_decision"):
-        # Hash-bound Boss+Second-Brain consumer — flag-gated inside adapter.
+        # Hash-bound Boss+Second-Brain consumer - flag-gated inside adapter.
         try:
             from app.platform import boss_decision_governance as _bdg
 
@@ -955,7 +955,7 @@ def decide_approval(
     if decision not in ("approve", "reject", "request_changes"):
         return {"ok": False, "error": "decision must be approve|reject|request_changes"}
     if decision == "request_changes":
-        # Bridge only supports approve|reject — map to reject with reason stamp via reject.
+        # Bridge only supports approve|reject - map to reject with reason stamp via reject.
         decision = "reject"
         reason = (reason or "request_changes").strip() or "request_changes"
     try:
@@ -986,7 +986,7 @@ def create_verification_approval(actor: str = "admin") -> dict[str, Any]:
     out = approvals_bridge.create_verification_approval(
         by=actor,
         title="Owner OS production verification (disposable)",
-        note="Internal disposable approval — no publish/email/WA/call/billing/customer mutation",
+        note="Internal disposable approval - no publish/email/WA/call/billing/customer mutation",
         ttl_hours=24,
     )
     if out.get("ok"):
@@ -1173,7 +1173,7 @@ def parse_intent(text: str) -> dict[str, Any]:
         intent = "enable_calling"
         risk = "critical"
         approval = True
-        actions = ["REFUSED — dial ENABLE Owner OS se nahi
+        actions = ["REFUSED - dial ENABLE Owner OS se nahi
         PLATFORM_DIAL_DAILY use karo"]
         forbidden.append("enable_calling")
     elif any(x in low for x in ("publish", "post karo", "zara publish", "social pe daalo")):
@@ -1191,7 +1191,7 @@ def parse_intent(text: str) -> dict[str, Any]:
         intent = "unknown"
         risk = "medium"
         approval = True
-        actions = ["Needs clarification — unrecognized intent fails closed"]
+        actions = ["Needs clarification - unrecognized intent fails closed"]
 
     block = owner_kill_blocks(intent)
     if block:
@@ -1259,8 +1259,8 @@ def _preview_summary(
 ) -> str:
     lines = [
         f"Intent: {intent}",
-        f"Tenant: {tenant or '—'}",
-        f"Agent: {agent or '—'}",
+        f"Tenant: {tenant or '-'}",
+        f"Agent: {agent or '-'}",
         f"Risk: {risk}",
         f"Publish allowed: {publish_allowed}",
         f"Customer notify allowed: {customer_notify_allowed}",
@@ -1372,7 +1372,7 @@ def _normalize_command_result(out: dict[str, Any]) -> dict[str, Any]:
     """Stable top-level command_id (+ status) while keeping nested ``command`` for legacy.
 
     Production canary saw adapters reading top-level command_id as null when only
-    the nested dictionary shape was present. Do not invent runtime_run_id here —
+    the nested dictionary shape was present. Do not invent runtime_run_id here -
     a command is not yet a runtime run.
     """
     cmd = out.get("command") if isinstance(out.get("command"), dict) else {}
@@ -1398,7 +1398,7 @@ def _update_command(command_id: str, **fields: Any) -> dict[str, Any]:
         if not can_transition(str(cur.get("status")), str(new_status)):
             return {
                 "ok": False,
-                "error": f"illegal transition {cur.get('status')} → {new_status}",
+                "error": f"illegal transition {cur.get('status')} -> {new_status}",
                 "command": cur,
             }
     return store.update_command(command_id, **fields)
@@ -1524,7 +1524,7 @@ def _build_status_report(tenant_id: str) -> dict[str, Any]:
     except Exception:
         evidence["delivery_ledger_events"] = 0
     evidence["notes"].append(
-        "Read-only report — no publish, no customer message, no payment mutation"
+        "Read-only report - no publish, no customer message, no payment mutation"
     )
     return evidence
 
@@ -1539,7 +1539,7 @@ def execute_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
             "ok": True,
             "deduped": True,
             "command": cur,
-            "note": "already succeeded — no re-exec",
+            "note": "already succeeded - no re-exec",
         }
     if cur.get("status") not in ("READY", "QUEUED"):
         return {"ok": False, "error": f"cannot execute from status {cur.get('status')}"}
@@ -1555,7 +1555,7 @@ def execute_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
     if intent not in SAFE_INTENTS:
         return {"ok": False, "error": "intent not safe for Owner OS v1 execution"}
 
-    # ADR-155 litmus — deterministic HITL preflight (flag OWNER_OS_LITMUS, default ON).
+    # ADR-155 litmus - deterministic HITL preflight (flag OWNER_OS_LITMUS, default ON).
     try:
         from app.platform.owner_os_litmus import gate_execute
 
@@ -1725,7 +1725,7 @@ def owner_home() -> dict[str, Any]:
             attention.append(
                 {
                     "kind": "safety",
-                    "title": "Calling LIVE — DND/TRAI/AI-disclosure gates on call path",
+                    "title": "Calling LIVE - DND/TRAI/AI-disclosure gates on call path",
                     "href": "/app/dialer",
                     "priority": "info",
                 }
@@ -1739,7 +1739,7 @@ def owner_home() -> dict[str, Any]:
                 "priority": "high",
             }
         )
-    # Speed-to-lead SLA (world-class <5 min median) — red when breached.
+    # Speed-to-lead SLA (world-class <5 min median) - red when breached.
     stl_badge = "Speed-to-lead: Unknown"
     try:
         from app.platform import speed_to_lead as _stl
@@ -1753,7 +1753,7 @@ def owner_home() -> dict[str, Any]:
                 attention.append(
                     {
                         "kind": "speed_to_lead",
-                        "title": f"SLA red — median {med / 60:.1f} min (>5 min). Hot Queue check karo.",
+                        "title": f"SLA red - median {med / 60:.1f} min (>5 min). Hot Queue check karo.",
                         "href": "/app/inbox",
                         "priority": "high",
                     }
@@ -1762,7 +1762,7 @@ def owner_home() -> dict[str, Any]:
                 attention.append(
                     {
                         "kind": "speed_to_lead",
-                        "title": f"SLA green — {u5}% under 5 min",
+                        "title": f"SLA green - {u5}% under 5 min",
                         "href": "/app/automation#clientops",
                         "priority": "info",
                     }
@@ -1850,7 +1850,7 @@ def owner_home() -> dict[str, Any]:
 
 
 def workflow_registry() -> dict[str, Any]:
-    """Read-only join of scheduler jobs + process library — no second scheduler."""
+    """Read-only join of scheduler jobs + process library - no second scheduler."""
     items: list[dict[str, Any]] = []
     try:
         from app.platform import scheduler_config
@@ -1910,7 +1910,7 @@ def workflow_registry() -> dict[str, Any]:
         "ok": True,
         "count": len(items),
         "workflows": items,
-        "note": "Aggregator only — state remains in scheduler_config / process_engine / automation_health.",
+        "note": "Aggregator only - state remains in scheduler_config / process_engine / automation_health.",
     }
 
 
@@ -1955,7 +1955,7 @@ def workflow_detail(workflow_id: str) -> dict[str, Any]:
 
 
 def route_matrix() -> dict[str, Any]:
-    """Agent × work-type × approved OmniRoute mapping — secret-free."""
+    """Agent × work-type × approved OmniRoute mapping - secret-free."""
     rows: list[dict[str, Any]] = []
     try:
         from app.platform.agent_os_routing import agent_route_table
@@ -2041,7 +2041,7 @@ async def route_health_test(
             "task_type": tt,
             "primary_route": route.primary_model,
             "fallback_route": route.fallback_model,
-            "note": "Gateway/key absent — fail-open; no customer impact.",
+            "note": "Gateway/key absent - fail-open; no customer impact.",
             "secrets_returned": False,
         }
     try:

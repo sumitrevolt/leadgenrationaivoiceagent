@@ -1,4 +1,4 @@
-"""Creative QA gate — truthful evidence; optional checks never fake-pass."""
+"""Creative QA gate - truthful evidence; optional checks never fake-pass."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ _PLACEHOLDER_RE = re.compile(
 )
 
 # Every dimension pair that is a CORRECTLY-SHAPED render for an aspect ratio.
-# This gate only answers "is the frame the right shape?" — the deterministic
+# This gate only answers "is the frame the right shape?" - the deterministic
 # provider's 720x1280 and a HyperFrames 1080x1920 are both legitimately 9:16.
 # It deliberately does NOT decide "is this good enough to sell": the 1080 floor
 # for a customer deliverable lives in `enterprise_qa`, which is what keeps a
@@ -34,7 +34,7 @@ _BLOCK_ON = frozenset({"block"})
 
 
 def detect_optional_capabilities() -> dict[str, bool]:
-    """Presence-only probe — never import heavy native stacks (torch/paddle/clip).
+    """Presence-only probe - never import heavy native stacks (torch/paddle/clip).
 
     Phase-1 evaluators are not wired
     callers must treat optional ML caps as
@@ -238,7 +238,7 @@ def run_qa(
                 )
             )
 
-        # Optional OCR / scene / whisper / clip / vmaf — never fake pass
+        # Optional OCR / scene / whisper / clip / vmaf - never fake pass
         for name, key in (
             ("text_safe_zone", "paddleocr"),
             ("brand_presence_ocr", "paddleocr"),
@@ -258,7 +258,7 @@ def run_qa(
                     )
                 )
             else:
-                # Installed but Phase-1 evaluation not implemented → not_evaluated
+                # Installed but Phase-1 evaluation not implemented -> not_evaluated
                 checks.append(
                     _check(
                         name,
@@ -443,9 +443,9 @@ def _blackframe_probe(path: str, duration_s: float) -> dict[str, Any]:
         # Fallback: count starts if duration form missing
         if not segs:
             starts = err.lower().count("black_start")
-            # Without parseable durations, do NOT treat as pass — not_evaluated-ish fail-soft warn
+            # Without parseable durations, do NOT treat as pass - not_evaluated-ish fail-soft warn
             if starts == 0 and "blackdetect" in err.lower():
-                # filter ran, no black — pass
+                # filter ran, no black - pass
                 total_black = 0.0
             elif starts == 0:
                 return {

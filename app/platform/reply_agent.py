@@ -1,13 +1,13 @@
-"""AI reply handling — closes the outreach loop (send → RECEIVE → classify → act).
+"""AI reply handling - closes the outreach loop (send -> RECEIVE -> classify -> act).
 
 THE missing automation: cold emails go out daily, but replies sat unread. Every AI
 SDR platform's headline feature (Smartlead SmartAgents, 11x, Instantly unibox) is
-exactly this — read replies, classify intent, surface hot leads in minutes. Fully
+exactly this - read replies, classify intent, surface hot leads in minutes. Fully
 self-hosted on our stack: Hostinger IMAP + free_ai (classify/draft) + prospector store.
 
 Per reply it: classifies intent (interested/question/objection/not_interested/
-unsubscribe/ooo/other), updates the matching prospect's status (interested→hot,
-unsubscribe→dead), drafts a contextual Hinglish reply, saves it for 1-click human send,
+unsubscribe/ooo/other), updates the matching prospect's status (interested->hot,
+unsubscribe->dead), drafts a contextual Hinglish reply, saves it for 1-click human send,
 and logs a team event so Rohan/Swara surface it.
 
 OFF by default + never-crash. Enable: `REPLY_AGENT=1` + SMTP/IMAP creds present
@@ -34,12 +34,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Human-reply intents (LLM vocabulary). Delivery failures (hard_bounce /
-# soft_bounce / complaint) are NEVER LLM labels — they are assigned by
+# soft_bounce / complaint) are NEVER LLM labels - they are assigned by
 # classify_delivery_report() before _classify() runs.
 _CATS = ["interested", "question", "objection", "not_interested", "unsubscribe", "ooo", "other"]
 _DELIVERY_OUTCOMES = ("hard_bounce", "soft_bounce", "complaint")
 
-# Bulk/marketing senders — unknown sender + inme se koi signal = junk skip.
+# Bulk/marketing senders - unknown sender + inme se koi signal = junk skip.
 _BULK_LOCALPARTS = {
     "noreply",
     "no-reply",
@@ -90,7 +90,7 @@ _DSN_STATUS_RE = re.compile(
     r"\b([45]\.\d{1,3}\.\d{1,3})\b",
     re.IGNORECASE,
 )
-# Body-level structural NDR markers (RFC 3464 fields) — NOT subject guessing.
+# Body-level structural NDR markers (RFC 3464 fields) - NOT subject guessing.
 _NDR_BODY_STRUCT_RE = re.compile(
     r"final-recipient\s*:|original-recipient\s*:|reporting-mta\s*:|"
     r"diagnostic-code\s*:|action\s*:\s*(failed|delayed)|"
@@ -210,7 +210,7 @@ def classify_delivery_report(
         has_ndr_body = bool(_NDR_BODY_STRUCT_RE.search(scan))
         auto_with_dsn = bool(auto_sub and auto_sub != "no" and (_dsn_class(scan) or has_ndr_body))
 
-        # Structural gate — subject alone is NEVER enough.
+        # Structural gate - subject alone is NEVER enough.
         structural = (
             is_bounce_sender
             or is_complaint_sender
@@ -231,7 +231,7 @@ def classify_delivery_report(
             dsn = _dsn_class(scan)
             if dsn == "4":
                 return "soft_bounce"
-            # 5.x.x OR bounce sender / delivery-status without a 4.x.x → hard.
+            # 5.x.x OR bounce sender / delivery-status without a 4.x.x -> hard.
             return "hard_bounce"
 
         return None
@@ -249,7 +249,7 @@ def _is_bounce_message(frm: str, msg: Any, subj: str, body: str = "") -> bool:
 
 
 def _extract_bounced_email(body: str, subj: str, pmap: dict) -> str:
-    """Bounce body/subject se ORIGINAL recipient (jo bounce hua) nikalo — jo bhi
+    """Bounce body/subject se ORIGINAL recipient (jo bounce hua) nikalo - jo bhi
     embedded email hamare known-prospect pool (pmap) se match kare wahi lo (bounce
     reports me apna hi mailbox bhi mention hota hai, isliye blind first-match nahi,
     pmap-membership match). Never raises."""
@@ -264,7 +264,7 @@ def _extract_bounced_email(body: str, subj: str, pmap: dict) -> str:
 
 
 def _is_bulk_sender(frm: str, msg: Any) -> bool:
-    """Bulk/marketing mail detect — header signals + localpart. Never raises.
+    """Bulk/marketing mail detect - header signals + localpart. Never raises.
 
     NOTE: yeh SIRF unknown senders pe lagta hai (known prospect kabhi skip nahi
     hota, chahe support@ se hi reply kare).
@@ -291,10 +291,10 @@ def _is_bulk_sender(frm: str, msg: Any) -> bool:
 # AUTO-ACK GUARD (2026-07-07): "Thank you for your interest in X" / "We have
 # received your enquiry" type auto-acknowledgements were LLM-classifying as
 # "interested" and flooding reply_drafts + Hot Queue with fake-hot rows (312
-# rows from ONE adityabirla.com auto-responder alone — deliverability audit).
+# rows from ONE adityabirla.com auto-responder alone - deliverability audit).
 # _is_bulk_sender can't catch these: it only runs for UNKNOWN senders (known
 # prospects bypass it) and many auto-acks carry no bulk headers. This guard
-# runs for EVERYONE — an auto-ack is not a human reply regardless of sender.
+# runs for EVERYONE - an auto-ack is not a human reply regardless of sender.
 _AUTO_ACK_RE = re.compile(
     r"thank(s| you) for (your (interest|enquiry|inquiry|email|message)|contacting|reaching out|writing)|"
     r"we (have )?received your|your (enquiry|inquiry|request|message) (has been|was) received|"
@@ -305,7 +305,7 @@ _AUTO_ACK_RE = re.compile(
 
 def _is_auto_ack(msg: Any, subj: str) -> bool:
     """Auto-acknowledgement detect (subject pattern ya Auto-Submitted header).
-    Known-prospect pe BHI lagta — auto-ack kisi se bhi aaye, human reply nahi.
+    Known-prospect pe BHI lagta - auto-ack kisi se bhi aaye, human reply nahi.
     Never raises."""
     try:
         if _AUTO_ACK_RE.search(subj or ""):
@@ -319,7 +319,7 @@ def _is_auto_ack(msg: Any, subj: str) -> bool:
 
 
 # CASE-CLOSURE GUARD (2026-07-25): ticketing/CRM auto-responders that CLOSE a
-# case were LLM-classifying as "interested" — the exact OPPOSITE of the message.
+# case were LLM-classifying as "interested" - the exact OPPOSITE of the message.
 # Production audit found 292 of 304 all-time "interested" outcomes came from ONE
 # adityabirla.com ticketing address, with bodies like "Not related to Birla Opus.
 # Hence, closed.", "Not required as of now. Hence, case is closed." and "We
@@ -328,12 +328,12 @@ def _is_auto_ack(msg: Any, subj: str) -> bool:
 #
 # _is_auto_ack (07-07) already targets this sender but only matches ACK wording
 # ("thank you for your enquiry", "we have received your") and only scans the
-# SUBJECT — a closure notice matches neither. This guard reads subject AND body.
+# SUBJECT - a closure notice matches neither. This guard reads subject AND body.
 #
 # Patterns are deliberately narrow: each is an unambiguous refusal/closure that
 # cannot appear in a genuine "yes, tell me more" reply. REPLY_CLOSURE_GUARD=0
 # disables; REPLY_CLOSURE_EXTRA_TERMS (CSV, literal substrings) lets an operator
-# add patterns without a deploy — same ergonomics as the spam guard.
+# add patterns without a deploy - same ergonomics as the spam guard.
 _CLOSURE_RE = re.compile(
     r"hence\s*,?\s*(the\s+)?(case\s+is\s+)?closed|"
     r"case\s+(is\s+)?(now\s+)?closed|closing\s+(this|the)\s+(case|ticket|request)|"
@@ -377,7 +377,7 @@ def _is_case_closure(subj: str, body: str) -> bool:
 
 # SPAM CONTENT GUARD (2026-07-15): betting/gambling spam ("Reddy Anna" cricket-ID
 # type mail) LLM se "interested" classify ho ke Hot Queue me draft-ready aa raha
-# tha (07-14 audit). _is_bulk_sender headers dekhta hai — yeh CONTENT dekhta hai,
+# tha (07-14 audit). _is_bulk_sender headers dekhta hai - yeh CONTENT dekhta hai,
 # isliye header-clean spam bhi pakda jaata hai. Patterns deliberately narrow
 # (betting/casino vocab only) taaki genuine business reply kabhi false-positive
 # na ho. REPLY_SPAM_CONTENT_GUARD=0 disables; REPLY_SPAM_EXTRA_TERMS (CSV,
@@ -392,7 +392,7 @@ _SPAM_CONTENT_RE = re.compile(
 
 def _is_spam_content(subj: str, body: str) -> bool:
     """Betting/gambling spam detect (subject+body content). Known-prospect pe BHI
-    lagta — yeh vocab kisi genuine niche-business reply me nahi aata.
+    lagta - yeh vocab kisi genuine niche-business reply me nahi aata.
     REPLY_SPAM_CONTENT_GUARD=0 = guard off. Never raises."""
     try:
         if (os.getenv("REPLY_SPAM_CONTENT_GUARD", "1") or "1").strip().lower() in {
@@ -415,7 +415,7 @@ def _is_spam_content(subj: str, body: str) -> bool:
     return False
 
 
-# SENDER FLOOD CAP (2026-07-07): ek hi sender se repeat-mail cap — auto-responder
+# SENDER FLOOD CAP (2026-07-07): ek hi sender se repeat-mail cap - auto-responder
 # ping-pong (312x adityabirla loop) har mail pe LLM classify+draft tokens jalata
 # tha aur drafts/Hot-Queue ko noise se bhar deta tha. Cap ke baad wale skip
 # (pehli `cap` rows hot queue me surface ho hi chuki hoti hain; genuine engaged
@@ -441,7 +441,7 @@ def _sender_counts(rows: list[dict]) -> dict[str, int]:
 
 
 def _is_blocklisted(frm: str) -> bool:
-    """Operator blocklist: REPLY_SENDER_BLOCKLIST env (CSV — full address ya
+    """Operator blocklist: REPLY_SENDER_BLOCKLIST env (CSV - full address ya
     domain). Unset = koi block nahi. Never raises."""
     try:
         raw = os.getenv("REPLY_SENDER_BLOCKLIST", "") or ""
@@ -456,7 +456,7 @@ def _is_blocklisted(frm: str) -> bool:
 
 
 # intent -> prospect status. NOTE: must use only prospector.VALID_STATUSES
-# ("ready","sent","replied","client","dead") — a value outside that set (was
+# ("ready","sent","replied","client","dead") - a value outside that set (was
 # "replied_hot") makes mark_prospect() silently no-op, so the lead stays "ready"
 # and keeps getting auto follow-up emails. The hot/interested distinction is
 # preserved separately via the reply_intent field (set_prospect_fields).
@@ -469,7 +469,7 @@ _STATUS = {
     "ooo": "ready",
     "other": "replied",
     "hard_bounce": "dead",
-    "soft_bounce": "ready",  # transient — do not kill the prospect
+    "soft_bounce": "ready",  # transient - do not kill the prospect
     "complaint": "dead",
 }
 _DRAFTS_FILE = os.path.join("data", "reply_drafts.jsonl")
@@ -551,11 +551,11 @@ def _safe_thread_headers(msg: Any) -> tuple[str, str]:
         return "", ""
 
 
-#: Standalone opt-out commands. Deliberately NARROW and deterministic — this
+#: Standalone opt-out commands. Deliberately NARROW and deterministic - this
 #: runs before the junk guard, so a loose pattern would suppress real prospects
 #: over a passing mention ("stop by the shop"). Each must appear as a whole word
 #: in the recipient's OWN text, not inside quoted history.
-#: Unambiguous multi-word phrases — safe to match anywhere in the sender's text.
+#: Unambiguous multi-word phrases - safe to match anywhere in the sender's text.
 _OPTOUT_PHRASE_RE = re.compile(
     r"(?:^|[\s\W])(unsubscribe|remove\s+me|opt[\s-]?out|do\s+not\s+contact"
     r"|don'?t\s+contact\s+me|take\s+me\s+off)(?:$|[\s\W])",
@@ -563,7 +563,7 @@ _OPTOUT_PHRASE_RE = re.compile(
 )
 
 #: Bare single-word commands, matched ONLY as a whole line/subject.
-#: "STOP" alone is an opt-out; "please stop by the shop tomorrow" is not — a
+#: "STOP" alone is an opt-out; "please stop by the shop tomorrow" is not - a
 #: substring match here would suppress a live, interested prospect, which is a
 #: worse failure than missing one opt-out (the phrase list above still catches
 #: every conventional wording).
@@ -590,7 +590,7 @@ def _unquoted_head(body: str, limit: int = 1200) -> str:
 def _is_explicit_optout(subject: str, body: str) -> bool:
     """True for an unambiguous opt-out request. Deterministic, no LLM.
 
-    Only the subject and the UNQUOTED head of the body are considered — every
+    Only the subject and the UNQUOTED head of the body are considered - every
     outreach mail we send carries "reply REMOVE" in its footer, so scanning the
     quoted history would make every reply look like an opt-out.
     """
@@ -616,7 +616,7 @@ def _record_unresolved_optout(destination: str, subject: str) -> None:
         from app.platform import email_unsub
 
         # Sits beside the canonical suppression ledger so it moves with it when
-        # the runtime-data root is externalized. Call the resolver — the retired
+        # the runtime-data root is externalized. Call the resolver - the retired
         # ``_STORE`` shim freezes a Path that fixtures can no longer redirect.
         path = email_unsub._store_path().parent / "unresolved_optouts.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -691,7 +691,7 @@ def _load_feedback_examples(max_n: int = 8) -> str:
 
 async def _classify(subject: str, body: str, history: str = "") -> str:
     """Classify email/chat reply intent. Uses few-shot feedback examples to reduce 'other'
-    rate. ``history`` (optional): pichli baat-cheet transcript — jab diya jaaye to classifier
+    rate. ``history`` (optional): pichli baat-cheet transcript - jab diya jaaye to classifier
     samajhta hai ki message ek pichle sawaal ka JAWAAB ho sakta (chat continuity)."""
     try:
         from app.voice_agent import free_ai
@@ -708,7 +708,7 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
             "  other       = baaki sab (generic ack, spam, irrelevant)\n"
             + examples
             + (
-                "\nNOTE: message pichle sawaal ka JAWAAB bhi ho sakta — context dekh ke "
+                "\nNOTE: message pichle sawaal ka JAWAAB bhi ho sakta - context dekh ke "
                 "intent decide karo (jaise naam/area/service ka jawab = 'question'/'interested', "
                 "'other' nahi)."
                 if history
@@ -738,7 +738,7 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
 
 
 def _interested_offer_block(biz: str = "") -> str:
-    """Offer + payment footer appended to an ``interested`` reply — the money step.
+    """Offer + payment footer appended to an ``interested`` reply - the money step.
 
     1. It resolves the VPA through ``upi_config.get_vpa()`` (env -> settings ->
        ``data/platform_upi.json``), NOT ``os.environ["UPI_VPA"]``. Admins arm UPI
@@ -749,23 +749,23 @@ def _interested_offer_block(biz: str = "") -> str:
        ``upi_config.source() == "env"`` with ``UPI_VPA`` set, so the old env read
        returned the right VPA and **the bug never fired in production**. It WOULD
        fire the moment the documented no-restart admin path is used while env is
-       unset — ``/api/public/pay-info`` and ``activation.payments_ready`` would
+       unset - ``/api/public/pay-info`` and ``activation.payments_ready`` would
        both keep reporting healthy off the resolver while this footer went blank.
     2. It ships an NPCI ``upi://pay`` deep-link instead of a bare VPA string, so
        the prospect taps once instead of typing a handle. Same shape as
        ``billing/dunning._ensure_pay_link`` / ``marketing/upi_kit._build_upi_link``.
 
     **No ``am=`` amount is prefilled, deliberately.** This function has no plan or
-    deal binding — ``_draft`` receives only business name, subject, body, intent
+    deal binding - ``_draft`` receives only business name, subject, body, intent
     and niche. The catalogue is not single-price (Marketing Main ₹1,999, Combo
     ₹5,999, and Voice bands ₹4,999/₹9,999/₹19,999), so prefilling the Starter
     price would hand a Combo- or Voice-interested prospect a one-tap link that
-    underpays their actual plan — a billing-truth break (CLAUDE.md §5), not a UX
+    underpays their actual plan - a billing-truth break (CLAUDE.md §5), not a UX
     nit. Amount-optional matches ``upi_kit`` (skips ``am`` when empty) and its
     slip's "Amount aap khud enter karein" branch. The prospect picks the plan on
     ``/pricing``. Re-adding ``am=`` requires a real plan binding first.
 
-    ``tn`` carries the business name as **human-readable context only** — it is
+    ``tn`` carries the business name as **human-readable context only** - it is
     not unique and does NOT by itself guarantee bank reconciliation. No immutable
     prospect/deal/order reference exists at this point in the state machine
     that
@@ -773,7 +773,7 @@ def _interested_offer_block(biz: str = "") -> str:
 
     Gating is unchanged from the original: UPI unarmed -> **empty string**, no
     footer at all. Only the footer's content changes here, never whether it
-    appears — the shared ``whatsapp_reply`` path drafts through ``_draft`` too,
+    appears - the shared ``whatsapp_reply`` path drafts through ``_draft`` too,
     and an unconditional footer would put a pricing line into WhatsApp replies
     that never carried one (caught by ``test_wa_conversation`` in CI). Never raises.
     """
@@ -788,7 +788,7 @@ def _interested_offer_block(biz: str = "") -> str:
 
         pricing = "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
 
-        # No `am=` — see docstring. Plan is unknown here and the catalogue is
+        # No `am=` - see docstring. Plan is unknown here and the catalogue is
         # multi-price, so an amount prefill would quote the wrong plan.
         note = f"LeadsGenAI {biz}".strip()[:80]
         parts = [f"pa={quote(vpa, safe='@')}", "pn=LeadsGenAI"]
@@ -800,7 +800,7 @@ def _interested_offer_block(biz: str = "") -> str:
         return pricing + f"\n1-tap UPI: {link}\nYa UPI ID: {vpa}"
     except Exception:  # pragma: no cover - defensive, never block the reply
         # Broken/unreadable UPI config behaves exactly like unarmed: no footer.
-        # (Must not reference `pricing` here — it is bound after the VPA check,
+        # (Must not reference `pricing` here - it is bound after the VPA check,
         # so a raising get_vpa() would UnboundLocalError and lose the whole draft.)
         return ""
 
@@ -834,7 +834,7 @@ async def _draft(
                 pass
 
         # Daily read-back: second-brain context (past replies/decisions for this niche)
-        # — reply-drafts ab brain-aware. to_thread (sync vault scan) + 3s deadline +
+        # - reply-drafts ab brain-aware. to_thread (sync vault scan) + 3s deadline +
         # fail-open; "" jab OBSIDIAN_SYNC off. (local asyncio import = NameError-safe.)
         brain_ctx = ""
         try:
@@ -852,7 +852,7 @@ async def _draft(
             brain_ctx = ""
 
         # Chat continuity: pichli baat-cheet (WhatsApp thread) ko conversation ke
-        # roop me feed karo taaki jawab context-aware ho — same sawaal repeat na ho.
+        # roop me feed karo taaki jawab context-aware ho - same sawaal repeat na ho.
         draft_msgs: list[dict[str, str]] = []
         for _m in history_msgs or []:
             _role = _m.get("role")
@@ -872,7 +872,7 @@ async def _draft(
             system="Tu LeadGen AI ka helpful sales rep hai. Is reply ka chhota, warm, "
             "professional Hinglish jawab likh (max 4 lines). Free Google audit + demo offer "
             "kar; pushy mat ban. Objection ho to empathetic + specific jawab do. Agar upar "
-            "pichli baat-cheet hai to usko dhyaan me rakh — wahi sawaal dobara mat poochh, "
+            "pichli baat-cheet hai to usko dhyaan me rakh - wahi sawaal dobara mat poochh, "
             "aage badha. Sirf reply text de.",
             messages=draft_msgs,
             max_tokens=160,
@@ -972,7 +972,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         ids = (data[0].split() if data and data[0] else [])[: max(1, limit)]
         pmap = _prospect_map()
         # SENDER FLOOD CAP (2026-07-07): recent drafts se per-sender counts ek
-        # baar build (per-mail file-read nahi) — loop-sender cap ke liye.
+        # baar build (per-mail file-read nahi) - loop-sender cap ke liye.
         flood_cap = _flood_cap()
         seen_counts = _sender_counts(list_drafts(limit=4000)) if flood_cap else {}
         for i in ids:
@@ -986,7 +986,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 # BOUNCE / COMPLAINT GUARD (2026-07-04, hardened 2026-07-25):
                 # mailer-daemon NDRs + FBL complaints must NEVER reach the LLM and
                 # must NEVER count as engagement. Classify structurally (DSN /
-                # multipart/report / bounce sender / Feedback-Type) — subject
+                # multipart/report / bounce sender / Feedback-Type) - subject
                 # text alone is insufficient. Wire outcome into interactions so
                 # hard/soft/complaint rates are measurable.
                 delivery_kind = classify_delivery_report(frm, msg, subj, body)
@@ -1007,7 +1007,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                 bounced_email, f"{delivery_kind}:{subj[:100]}"
                             )
                         bp = pmap.get(bounced_email) if bounced_email else None
-                        # Hard bounce + complaint → dead. Soft bounce stays ready.
+                        # Hard bounce + complaint -> dead. Soft bounce stays ready.
                         if (
                             delivery_kind in ("hard_bounce", "complaint")
                             and bp
@@ -1058,7 +1058,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             _notify(
                                 "rohan",
                                 "bounce_autopause",
-                                f"Deliverability pause {wr.get('rate_pct')}% — outreach auto-paused 24h",
+                                f"Deliverability pause {wr.get('rate_pct')}% - outreach auto-paused 24h",
                             )
                     except Exception:
                         pass
@@ -1085,7 +1085,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         pass
                     _mark_imap_seen(M, i)
                     continue
-                # AUTO-ACK GUARD (2026-07-07): auto-acknowledgement ≠ human reply —
+                # AUTO-ACK GUARD (2026-07-07): auto-acknowledgement ≠ human reply -
                 # LLM classify se PEHLE drop (fake-"interested" + token-burn fix;
                 # known-prospect pe bhi lagta, junk-guard ke ulat).
                 if _is_auto_ack(msg, subj):
@@ -1095,7 +1095,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     continue
                 # CASE-CLOSURE GUARD (2026-07-25): ticketing auto-responder that
                 # CLOSES a case ("Not required as of now. Hence, case is closed.")
-                # was classifying as "interested" — the opposite of the message.
+                # was classifying as "interested" - the opposite of the message.
                 # 292 of 304 all-time "interested" rows came from one such sender.
                 # LLM classify se PEHLE drop.
                 if _is_case_closure(subj, body):
@@ -1105,13 +1105,13 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     continue
                 # SPAM CONTENT GUARD (2026-07-15): betting/gambling vocab in
                 # subject/body = spam, LLM classify se PEHLE drop (Reddy Anna
-                # "interested" fake-hot fix — 07-14 audit).
+                # "interested" fake-hot fix - 07-14 audit).
                 if _is_spam_content(subj, body):
                     res["skipped"] += 1
                     res["spam_content"] = res.get("spam_content", 0) + 1
                     _mark_imap_seen(M, i)
                     continue
-                # Operator blocklist (REPLY_SENDER_BLOCKLIST env CSV) — hard skip.
+                # Operator blocklist (REPLY_SENDER_BLOCKLIST env CSV) - hard skip.
                 if _is_blocklisted(frm):
                     res["skipped"] += 1
                     res["blocklisted"] = res.get("blocklisted", 0) + 1
@@ -1119,13 +1119,13 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     continue
                 # ── COMPLIANCE-FIRST OPT-OUT (2026-07-25) ───────────────────────
                 # MUST run before the junk/bulk guard. That guard drops on
-                # `p is None and _is_bulk_sender(...)` — so an explicit STOP /
+                # `p is None and _is_bulk_sender(...)` - so an explicit STOP /
                 # REMOVE / UNSUBSCRIBE from anyone we do not already hold as a
                 # prospect was discarded before classification ever ran, and no
                 # suppression was written. An opt-out request is legally binding
                 # whether or not the sender is in our database.
                 #
-                # Deterministic recognizer only — no LLM. Junk mail is still junk;
+                # Deterministic recognizer only - no LLM. Junk mail is still junk;
                 # we merely refuse to throw away the compliance signal inside it.
                 if _is_explicit_optout(subj, body):
                     _optout_email = (frm or "").strip().lower()
@@ -1137,7 +1137,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             # Scope discipline: with a known prospect we have the
                             # identity needed for a cross-channel opt-out. Without
                             # one we know ONLY the address, so we suppress that
-                            # exact destination and record an exception — we do NOT
+                            # exact destination and record an exception - we do NOT
                             # invent a broader permanent record the evidence does
                             # not support.
                             # Known prospect -> settled cross-channel opt-out.
@@ -1184,7 +1184,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 seen_counts[frm] = seen_counts.get(frm, 0) + 1
                 intent = await _classify(subj, body)
                 # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
-                # Never blocks — flags the draft so the human reviewer does NOT act on
+                # Never blocks - flags the draft so the human reviewer does NOT act on
                 # instructions embedded by a malicious sender. ph18/15-16 (llm-security skill).
                 _inj = None
                 _scan_status = "error"
@@ -1198,7 +1198,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         if llm_guard.enabled():
                             logger.warning(
                                 "[reply_agent] LLM_GUARD: possible prompt-injection from %s "
-                                "signals=%s — review draft, do NOT act on embedded instructions",
+                                "signals=%s - review draft, do NOT act on embedded instructions",
                                 frm,
                                 _inj,
                             )
@@ -1227,7 +1227,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 if intent == "unsubscribe":
                     res["unsubscribed"] += 1
                     # DURABLE CROSS-CHANNEL SUPPRESSION. Every outreach mail tells
-                    # the recipient to "reply REMOVE" — but until now that reply
+                    # the recipient to "reply REMOVE" - but until now that reply
                     # only marked the prospect row dead. The address stayed
                     # mailable from any other prospect row and WhatsApp was
                     # untouched, so the opt-out mechanism we advertise did not
@@ -1247,7 +1247,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             source="reply_agent",
                         )
                     except Exception as _sup_err:  # never break triage
-                        # No address in the log line — this path handles PII.
+                        # No address in the log line - this path handles PII.
                         logger.warning("[reply_agent] suppression write failed: %s", _sup_err)
                     # Deliverability gate: unsubscribe-reply = recipient negative signal.
                     # Feed spam-complaint-rate tracker (auto-pauses at 0.25% over 7d).
@@ -1271,7 +1271,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         )
                     except Exception:
                         pass
-                    # Sales automation: interested reply -> deal — SIRF known prospect pe
+                    # Sales automation: interested reply -> deal - SIRF known prospect pe
                     # (unknown sender se junk deals bante the: PayU/Instamojo case).
                     if p:
                         try:
@@ -1367,11 +1367,11 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     raise RuntimeError("reply_draft_persist_failed")
 
                 if intent in ("interested", "question"):
-                    # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).
+                    # Phone push: HOT reply - sales moment, turant pata chale (gated ntfy).
                     # Tap-to-act buttons IN the notification (GTM council 2026-07-03: 344
                     # hot replies accumulated, 0 ever cleared, despite this push already
-                    # firing every time — root cause was cost-of-action, not visibility).
-                    # Reply = opens mailto prefilled (human's own client sends — same
+                    # firing every time - root cause was cost-of-action, not visibility).
+                    # Reply = opens mailto prefilled (human's own client sends - same
                     # ban-safe 1-click pattern as the dashboard, no server-side send).
                     # Done = signed-token HTTP action (ntfy can't do interactive login).
                     try:
@@ -1437,7 +1437,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             reply=True,
                             meeting=intent in ("interested", "question"),
                         )
-                        # A/B learning loop: record_reply closes send→reply cycle
+                        # A/B learning loop: record_reply closes send->reply cycle
                         try:
                             from app.marketing.outreach_variants import record_reply
 
@@ -1476,11 +1476,11 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# AUTO-FORWARD POSITIVE REPLIES → CALLING QUEUE
+# AUTO-FORWARD POSITIVE REPLIES -> CALLING QUEUE
 # ---------------------------------------------------------------------------
 # Enterprise-grade: interested/question replies ko calling queue me flag
 # karta hai + WhatsApp follow-up link generate karta hai.
-# NEVER raises — har step ka apna try/except.
+# NEVER raises - har step ka apna try/except.
 # ---------------------------------------------------------------------------
 
 import urllib.parse as _urlparse_reply
@@ -1505,7 +1505,7 @@ def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
         from app.platform import prospector
 
         rows = prospector._read_all()
-        # Interested/question replies with phone — calling candidates
+        # Interested/question replies with phone - calling candidates
         candidates = [
             r
             for r in rows
@@ -1540,7 +1540,7 @@ def auto_forward_positive_replies(limit: int = 10) -> dict[str, Any]:
 
                 # Generate WhatsApp follow-up link (1-click, ban-safe)
                 wa_msg = (
-                    f"Namaste {biz} ji 🙏 Aapne email pe interest dikhaya — "
+                    f"Namaste {biz} ji 🙏 Aapne email pe interest dikhaya - "
                     f"shukriya! Agar baat karni ho to yahan se shuru karein: "
                     f"leadsgenai.in/audit"
                 )
@@ -1592,7 +1592,7 @@ def autoreply_policy_warning(enabled: bool) -> str:
     support/bookings/orders remain allowed. This agent is task-scoped by
     construction (fixed 7-label classifier + a sales-reply drafter capped at 160
     tokens), but with ``WHATSAPP_AI_AUTOREPLY=1`` the drafted intent set widens to
-    include ``other`` — i.e. open-ended inbound gets an open-ended LLM answer.
+    include ``other`` - i.e. open-ended inbound gets an open-ended LLM answer.
     That is the single drift vector, so it must never be silent.
 
     Returns the warning text (empty string when the flag is off) so it is testable
@@ -1601,7 +1601,7 @@ def autoreply_policy_warning(enabled: bool) -> str:
     if not enabled:
         return ""
     msg = (
-        "WHATSAPP_AI_AUTOREPLY=1 — the AI is answering inbound 1:1 chats, INCLUDING "
+        "WHATSAPP_AI_AUTOREPLY=1 - the AI is answering inbound 1:1 chats, INCLUDING "
         "open-ended 'other' intents. Meta's WhatsApp Business API policy bars "
         "GENERAL-PURPOSE AI chatbots (OPS-013, docs/OPS_013_WHATSAPP_AI_SCOPE_2026-09-07.md). "
         "Keep replies scoped to LeadGen sales inquiries (audit/demo/pricing) or the "
@@ -1621,7 +1621,7 @@ async def whatsapp_reply(
 
     Same brain as the email triage (free_ai classify + draft) but adapted for chat:
     no subject, body = the message text. Uses ``wa_conversation`` per-number thread so
-    classify + draft are CONTEXT-aware (samajhta hai reply kis sawaal ka jawab hai —
+    classify + draft are CONTEXT-aware (samajhta hai reply kis sawaal ka jawab hai -
     wahi baat repeat nahi karta). Writes a draft to ``reply_drafts.jsonl`` with
     ``channel="whatsapp"`` and notifies the team. NEVER raises
     returns the saved record
@@ -1635,18 +1635,18 @@ async def whatsapp_reply(
         return {}
     # STATUS/BROADCAST GUARD (2026-07-07): WhatsApp status updates + broadcast
     # channels webhook se aa ke "interested" tak classify ho rahe the (fake-hot
-    # noise in reply_drafts/Hot-Queue — deliverability audit). Ye human 1-1
-    # reply nahi hai — drop before classify. Operator blocklist bhi yahin.
+    # noise in reply_drafts/Hot-Queue - deliverability audit). Ye human 1-1
+    # reply nahi hai - drop before classify. Operator blocklist bhi yahin.
     if frm.lower() == "status" or "@broadcast" in frm.lower() or _is_blocklisted(frm):
         return {}
     # SPAM CONTENT GUARD (2026-07-15): betting/gambling spam WhatsApp se bhi aata
-    # hai — email path jaisa hi content-level drop before classify.
+    # hai - email path jaisa hi content-level drop before classify.
     if _is_spam_content("", txt):
         return {}
 
     # Conversation memory (2026-07-07): pichli baat-cheet nikaalo (current message record
     # hone se PEHLE, taaki yeh sirf PRIOR turns ho), phir current inbound turn record karo.
-    # Isse classify + draft context-aware ban jaate hain — AI reply ka matlab samajhta hai
+    # Isse classify + draft context-aware ban jaate hain - AI reply ka matlab samajhta hai
     # aur wahi sawaal repeat nahi karta ("samajh nahi pa raha / phir se poochh raha hai" fix).
     prior_msgs: list[dict[str, str]] = []
     ctx = ""
@@ -1665,7 +1665,7 @@ async def whatsapp_reply(
         logger.debug("wa classify err: %s", exc)
         intent = "other"
 
-    # Auto-reply (INERT default — OFF). Ban-safe: yeh sirf INBOUND (customer-initiated)
+    # Auto-reply (INERT default - OFF). Ban-safe: yeh sirf INBOUND (customer-initiated)
     # 1-to-1 conversation ka reactive jawab hai, NOT bulk cold auto-send (§5 ka
     # WHATSAPP_AUTO_SEND gate alag hai + untouched). WAHA doc bhi "inbound auto-reply +
     # warm 1-to-1" ko safe use bataata hai. Enable: WHATSAPP_AI_AUTOREPLY=1.
@@ -1721,9 +1721,9 @@ async def whatsapp_reply(
     member = "swara" if intent in ("interested", "question") else "rohan"
     _notify(member, f"wa_reply_{intent}", f"{frm}: {txt[:60]}")
     if intent in ("interested", "question"):
-        # Phone push parity with the email path (2026-07-03 GTM fix) — WA hot
+        # Phone push parity with the email path (2026-07-03 GTM fix) - WA hot
         # replies previously never pushed at all. Reply = opens wa.me prefilled
-        # (human's own WhatsApp sends — ban-safe, no server-side send).
+        # (human's own WhatsApp sends - ban-safe, no server-side send).
         try:
             from urllib.parse import quote
 
@@ -1800,11 +1800,11 @@ def list_drafts(limit: int = 50) -> list[dict]:
 _HOT_INTENTS = ("interested", "question")
 
 # --- Quick-action tokens (GTM council 2026-07-03): 344 hot replies accumulated,
-# 0 ever cleared, despite the ntfy push already firing every time — root cause
+# 0 ever cleared, despite the ntfy push already firing every time - root cause
 # was cost-of-action (open dashboard, read, decide, click), not visibility. Fix:
 # put Reply/Done buttons IN the push notification itself. ntfy action buttons
 # can't do interactive login, so "Done" needs a stateless signed token scoped to
-# exactly one hq_id — same trust model as email_unsub's one-click tokens.
+# exactly one hq_id - same trust model as email_unsub's one-click tokens.
 _HQ_TOKEN_SECRET = (
     os.environ.get("HQ_ACTION_SECRET") or os.environ.get("SECRET_KEY") or "leadsgenai-hq-v1"
 ).encode()
@@ -1877,7 +1877,7 @@ def _india_wa_number(raw: Any) -> str:
 
 def _full_prospect_map() -> dict[str, dict]:
     """email -> prospect over the FULL store (list_prospects newest-cap hides
-    old rows — same lesson as auto_outreach pending backlog)."""
+    old rows - same lesson as auto_outreach pending backlog)."""
     out: dict[str, dict] = {}
     try:
         from app.platform import prospector
@@ -1917,10 +1917,10 @@ async def _reply_auto_send_enabled() -> bool:
 
 
 def _reply_agent_interaction_log_enabled() -> bool:
-    """Auto-reply OUT interaction row — default ON (observability).
+    """Auto-reply OUT interaction row - default ON (observability).
 
     Opt-out only: ``REPLY_AGENT_INTERACTION_LOG=0``. Same shape as
-    ``ROUTINE_TASK_LEDGER`` — a default-OFF gate here would leave the
+    ``ROUTINE_TASK_LEDGER`` - a default-OFF gate here would leave the
     operator-view blind again on the common path.
     """
     return os.environ.get("REPLY_AGENT_INTERACTION_LOG", "1").strip().lower() not in (
@@ -1943,10 +1943,10 @@ async def _record_auto_reply_interaction(
     """Write outbound auto-reply to interaction_log after a successful send.
 
     Never raises. Never affects send / ``out["sent"]``. Failures log with
-    ``exc_info`` — silent ``pass`` is what made interactions blind before.
+    ``exc_info`` - silent ``pass`` is what made interactions blind before.
 
     Also warns when ``interaction_log.record`` returns ``skipped`` (e.g.
-    ``INTERACTION_LOG=0``) — that path does not raise, so without this check
+    ``INTERACTION_LOG=0``) - that path does not raise, so without this check
     the operator-view stays blind with a green send counter.
     """
     if not _reply_agent_interaction_log_enabled():
@@ -1957,7 +1957,7 @@ async def _record_auto_reply_interaction(
         from app.platform import interaction_log
 
         p = prospect or {}
-        # Only pass an explicit lead_id — never fall back to prospect ``id``.
+        # Only pass an explicit lead_id - never fall back to prospect ``id``.
         # Prospect ids are not always rows in ``leads`` (no-phone / dedupe miss);
         # stuffing them here recreates the dual-identity trap. Email resolution
         # inside interaction_log.record can still attach a real lead.
@@ -2114,7 +2114,7 @@ def _reply_age_days(row: dict[str, Any]) -> int | None:
 
 def _stale_reengagement_body() -> str:
     return (
-        "Namaste, aapka reply time par pick nahi ho paya — delay ke liye sorry.\n\n"
+        "Namaste, aapka reply time par pick nahi ho paya - delay ke liye sorry.\n\n"
         "Agar AI marketing audit ya demo abhi bhi relevant hai, main details yahin share "
         "kar sakta hoon. Agar ab relevant nahi hai, bas ‘no’ reply karein; hum aage "
         "follow-up nahi karenge."
@@ -2321,7 +2321,7 @@ async def run_auto_reply_backlog(
                 out["stale_reengagement"] += int(stale)
                 logger.info("[reply_agent] safe auto-reply sent (intent=%s)", row.get("intent"))
                 # Observability (WI-CP2-AUTO-REPLY): inbound already records via
-                # interaction_log; outbound auto-send must too — same chokepoint
+                # interaction_log; outbound auto-send must too - same chokepoint
                 # as auto_sent_at so draft truth and operator-view cannot drift.
                 await _record_auto_reply_interaction(
                     frm=frm,
@@ -2350,7 +2350,7 @@ async def run_auto_reply_backlog(
 
 # STRUCTURAL SENDER NOISE (read-path): WhatsApp status/broadcast + DMARC
 # report senders kabhi human reply nahi hote. Draft rows in-sa se saal mein
-# nahi aate (drop classify se pehle hota hai) — yeh legacy rows ke liye hai.
+# nahi aate (drop classify se pehle hota hai) - yeh legacy rows ke liye hai.
 _SENDER_NOISE = {"status", "@broadcast", "noreply-dmarc-support@google.com"}
 
 
@@ -2365,7 +2365,7 @@ def _is_noise_row(r: dict) -> bool:
         if _is_blocklisted(frm):
             return True
         # Legacy drafts body ko `draft` key me rakhte hain (text/body_snippet
-        # nahi) — woh bhi scan karo warna closure/spam patterns miss hote hain.
+        # nahi) - woh bhi scan karo warna closure/spam patterns miss hote hain.
         subj_body = (
             f"{(r or {}).get('subject') or ''}\n"
             f"{(r or {}).get('text') or (r or {}).get('body_snippet') or (r or {}).get('draft') or ''}"
@@ -2416,7 +2416,7 @@ def _calling_flagged_cards(
                 continue
             biz = str(cand.get("business_name") or "ji").strip() or "ji"
             # BLK-01 (2026-08-22): high-intent card me PAYMENT PATH embed karo.
-            # Sirf audit pitch dena adhoora tha — warm lead ko UPI link bhi chahiye.
+            # Sirf audit pitch dena adhoora tha - warm lead ko UPI link bhi chahiye.
             # _interested_offer_block fail-open hai (UPI unarmed -> ""); jab empty
             # ho to link BILKUL pehle jaisa rehta hai (zero behaviour change).
             offer = ""
@@ -2428,7 +2428,7 @@ def _calling_flagged_cards(
             if not wa and phone10:
                 from urllib.parse import quote
 
-                msg = f"Namaste {biz} ji — LeadGen AI se baat karni ho to yahan reply karein."
+                msg = f"Namaste {biz} ji - LeadGen AI se baat karni ho to yahan reply karein."
                 if offer:
                     msg = f"{msg}{offer}"
                 wa = f"https://wa.me/91{phone10}?text=" + quote(msg)
@@ -2450,7 +2450,7 @@ def _calling_flagged_cards(
                                 kept.append(part)
                         if txt is None:
                             # NOTE: urlencode() yahan TypeError deta hai (single
-                            # string valid input nahi) — quote_plus hi sahi hai.
+                            # string valid input nahi) - quote_plus hi sahi hai.
                             kept.append("text=" + quote_plus(offer.strip()))
                         elif offer not in txt:
                             kept.append("text=" + quote_plus(txt + offer))
@@ -2470,7 +2470,7 @@ def _calling_flagged_cards(
                     "city": cand.get("city") or "",
                     "text": f"calling_flagged reason={cand.get('reason') or '-'}",
                     "draft": (
-                        "High-intent prospect (reply/calling-flag) — owner: Call ya 1-click WA. "
+                        "High-intent prospect (reply/calling-flag) - owner: Call ya 1-click WA. "
                         "Cold auto-WA OFF. Done dabao after action."
                     ),
                     "wa_link": wa,
@@ -2499,12 +2499,12 @@ def hot_queue(
 ) -> list[dict]:
     """Prioritized outreach-reply queue: filter hot intents, drop handled/noise,
     require email senders to match an actually-emailed prospect, dedupe by sender
-    (latest wins), then join prospect context. NEVER raises — [] on failure.
+    (latest wins), then join prospect context. NEVER raises - [] on failure.
 
     scope:
-      boss  — default: hide done + admin_pending (boss actionable queue)
-      admin — only admin_pending (parked for human admin)
-      all   — everything except done (council lookup / full review)
+      boss  - default: hide done + admin_pending (boss actionable queue)
+      admin - only admin_pending (parked for human admin)
+      all   - everything except done (council lookup / full review)
     """
     try:
         scope_n = str(scope or "boss").strip().lower()
@@ -2585,7 +2585,7 @@ def hot_queue(
             final.append(r)
             if len(final) >= max(1, limit):
                 break
-        # Pay-truth chase cards (converted without ledger) — owner action, ban-safe wa.me.
+        # Pay-truth chase cards (converted without ledger) - owner action, ban-safe wa.me.
         if scope_n in ("boss", "all") and len(final) < max(1, limit):
             try:
                 from app.platform.sales_autopilot import pay_truth as _pt
@@ -2596,7 +2596,7 @@ def hot_queue(
                     final.append(card)
             except Exception:
                 pass
-        # Calling-flagged / high-intent prospects that never got a draft row —
+        # Calling-flagged / high-intent prospects that never got a draft row -
         # otherwise auto_forward_positive_replies writes a flag nobody sees.
         if scope_n in ("boss", "all") and len(final) < max(1, limit):
             try:
@@ -2621,7 +2621,7 @@ def hot_queue(
 
 
 def hot_queue_summary(items: list[dict] | None, scope: str = "boss") -> dict:
-    """Operator-facing envelope for /app/inbox — idle reason + SLA counts. Never raises."""
+    """Operator-facing envelope for /app/inbox - idle reason + SLA counts. Never raises."""
     rows = list(items or [])
     scope_n = str(scope or "boss").strip().lower()
     inquiry_n = sum(1 for r in rows if str(r.get("channel") or "") == "inquiry")
@@ -2640,30 +2640,30 @@ def hot_queue_summary(items: list[dict] | None, scope: str = "boss") -> dict:
     }
     if rows:
         if breach_n:
-            out["next_owner_hint"] = f"{breach_n} inquiry SLA >5min — pehle unhe Call/WA karo"
+            out["next_owner_hint"] = f"{breach_n} inquiry SLA >5min - pehle unhe Call/WA karo"
         elif chase_n:
-            out["next_owner_hint"] = "Payment-truth chase cards — UPI proof ke bina PAID mat bolo"
+            out["next_owner_hint"] = "Payment-truth chase cards - UPI proof ke bina PAID mat bolo"
         else:
-            out["next_owner_hint"] = "Top card se Call/WA draft → Done"
+            out["next_owner_hint"] = "Top card se Call/WA draft -> Done"
         return out
     if scope_n == "admin":
         out["idle_reason"] = "admin_pending_empty"
-        out["next_owner_hint"] = "Koi parked card nahi — Boss queue check karo"
+        out["next_owner_hint"] = "Koi parked card nahi - Boss queue check karo"
     else:
         out["idle_reason"] = "queue_empty_no_hot_drafts"
         out["next_owner_hint"] = (
-            "Koi unhandled interested/inquiry/chase nahi — "
+            "Koi unhandled interested/inquiry/chase nahi - "
             "reply_triage + website inquiry bridge + autopilot refill observe karo"
         )
     return out
 
 
 def mark_handled(hq_id: str) -> bool:
-    """1-click 'Done' — set hq_status=done on the matching draft row (in-place
+    """1-click 'Done' - set hq_status=done on the matching draft row (in-place
     rewrite, temp-file + atomic replace). False if id not found / any error.
 
     Synthetic pay-chase cards (``paychase:<prospect_id>``) clear via sales_autopilot
-    store steps — they are not draft rows.
+    store steps - they are not draft rows.
     """
     hq_id = (hq_id or "").strip()
     if not hq_id:
@@ -2710,7 +2710,7 @@ def mark_handled(hq_id: str) -> bool:
 
 
 def park_for_admin(hq_id: str, note: str = "") -> bool:
-    """Boss unclear / council PARK_ADMIN — queue se boss view hatao, admin scope me rakho."""
+    """Boss unclear / council PARK_ADMIN - queue se boss view hatao, admin scope me rakho."""
     hq_id = (hq_id or "").strip()
     if not hq_id:
         return False
