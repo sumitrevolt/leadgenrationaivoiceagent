@@ -363,10 +363,22 @@ class SmartfloStreamSession:
                 or data.get("stream_sid")
                 or start.get("streamSid")
                 or start.get("stream_sid")
+                or self.stream_sid
             )
-            self.call_sid = start.get("callSid") or start.get("call_sid")
-            self.from_number = start.get("from")
-            self.to_number = start.get("to")
+            # 2026-09-08 revenue-leak guard: the /stream route already seeded
+            # these from the query params (call_id / from / to). A start payload
+            # that omits them (or spells them differently) must NOT overwrite
+            # them with None -- _cleanup() meters with call_id, so a null
+            # call_id silently loses the billing record.
+            self.call_sid = (
+                start.get("callSid") or start.get("call_sid") or self.call_sid
+            )
+            self.from_number = (
+                start.get("from") or start.get("fromNumber") or self.from_number
+            )
+            self.to_number = (
+                start.get("to") or start.get("toNumber") or self.to_number
+            )
             # Pull niche/client from customParameters (if set in Smartflo portal)
             params = start.get("customParameters") or start.get("custom_parameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"

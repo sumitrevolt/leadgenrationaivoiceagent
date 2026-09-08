@@ -624,3 +624,53 @@ async def test_place_call_sends_caller_id_in_full_e164(
     assert payload["customer_number"] == "9876543210", (
         f"customer_number must stay 10-digit, got {payload['customer_number']!r}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Regression guard: the `start` event must never null out metadata that the
+# /stream route already seeded from the query params.
+# Fixed 2026-09-08 - the assignments were unconditional, so a start payload
+# without callSid/from/to wiped them -> _cleanup() called meter_call_completion()
+# with call_id=None -> the billing record was silently lost (revenue leak).
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_start_event_does_not_wipe_preseeded_call_metadata(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """A start payload missing callSid/from/to keeps the pre-seeded values."""
+    ws = _FakeWS()
+    sess = _build_session(ws, monkeypatch, tmp_path)
+
+    # Exactly what app/api/telephony_smartflo.py seeds from ?call_id=&from=&to=
+    sess.stream_sid = "SM_PRESEEDED"
+    sess.call_sid = "CA_PRESEEDED"
+    sess.from_number = "+918459012607"
+    sess.to_number = "+918069879757"
+
+    task = asyncio.create_task(sess.handle())
+    await ws.feed(_connected_event())
+    # Smartflo start event carrying ONLY the media format - no identifiers at all.
+    await ws.feed(
+        {
+            "event": "start",
+            "start": {
+                "mediaFormat": {
+                    "encoding": "audio/x-mulaw",
+                    "sampleRate": 8000,
+                    "bitRate": 64,
+                    "bitDepth": 8,
+                }
+            },
+        }
+    )
+    await ws.feed(_stop_event())
+    await asyncio.wait_for(task, timeout=15)
+
+    assert sess.stream_sid == "SM_PRESEEDED", "stream_sid wiped by an empty start event"
+    assert sess.call_sid == "CA_PRESEEDED", (
+        "call_sid wiped -> meter_call_completion() gets call_id=None -> billing LOST"
+    )
+    assert sess.from_number == "+918459012607", "from_number wiped by an empty start event"
+    assert sess.to_number == "+918069879757", "to_number wiped by an empty start event"
