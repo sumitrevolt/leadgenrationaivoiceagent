@@ -394,6 +394,36 @@ fi
 rm -rf "$QA_TMP" 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
+# [8] Global outbound kill switch (VOICE_LAUNCH_KILL)
+# -----------------------------------------------------------------------------
+# Semantics source-verified against app/telephony/voice_launch.py
+# (admin_kill_status(), 2026-09-08):
+#   0 / false / no / off -> DISENGAGED = outbound calls ARE allowed.
+#                           This is the NORMAL production state.
+#   1 / true / yes / on  -> ENGAGED = ALL outbound calls are blocked.
+#                           Expected only while a deploy has flipped it on.
+#   unset / unrecognised -> the runtime is FAIL-CLOSED (it engages the kill
+#                           switch), so no outbound call can be placed.
+#
+# NOTE: this is NOT the same as the ARMING_KEYS trunk flags in section [2]
+# (TATA_SMARTFLO_ENABLED / JIO_TRUNK_ENABLED) -- those only decide whether a
+# trunk is visible to pick_trunk(). "Kill switch engaged" and "trunk not armed"
+# are two different things; do not read one as the other.
+head_ "[8] Global outbound kill switch (VOICE_LAUNCH_KILL)"
+KILL_RAW="$(docker exec "$APP_CT" printenv VOICE_LAUNCH_KILL 2>/dev/null)"
+KILL_V="$(printf '%s' "${KILL_RAW:-}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+case "$KILL_V" in
+  0|false|no|off)
+    ok "VOICE_LAUNCH_KILL='${KILL_V}' -> kill switch DISENGAGED, outbound calls allowed (normal production state)" ;;
+  1|true|yes|on)
+    warn "VOICE_LAUNCH_KILL='${KILL_V}' -> kill switch ENGAGED, ALL outbound calls blocked (expected only while a deploy flips it on)" ;;
+  "")
+    bad "VOICE_LAUNCH_KILL is UNSET in ${APP_CT} -> fail-closed: runtime engages the kill switch, no outbound calls" ;;
+  *)
+    bad "VOICE_LAUNCH_KILL='${KILL_V}' is not a recognised token -> fail-closed: runtime engages the kill switch" ;;
+esac
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 echo

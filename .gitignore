@@ -357,3 +357,4 @@ nul.*
 backups/
 .env.bak*
 /swara_smartflo_fix.patch
+*.env.bak
