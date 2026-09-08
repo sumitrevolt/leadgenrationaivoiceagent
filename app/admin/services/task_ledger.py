@@ -167,8 +167,10 @@ def update_task(task_id: int, task_upd: TaskUpdate) -> Task | None:
     params: list = [now]
 
     data = task_upd.model_dump(exclude_unset=True)
+    # Whitelist allowed columns to prevent SQL injection via field names
+    _ALLOWED_COLUMNS = {"title", "description", "owner", "priority", "status", "deadline", "evidence"}
     for key, val in data.items():
-        if val is not None:
+        if val is not None and key in _ALLOWED_COLUMNS:
             if hasattr(val, "value"):
                 val = val.value
             fields.append(f"{key} = ?")
@@ -312,7 +314,7 @@ def detect_duplicates(new_title: str, threshold: float = 0.75) -> list[dict]:
     init_db()
     conn = _get_conn()
     try:
-        rows = conn.execute("SELECT id, title FROM tasks").fetchall()
+        rows = conn.execute("SELECT id, title FROM tasks WHERE status != ?", ("done",)).fetchall()
     finally:
         conn.close()
 
