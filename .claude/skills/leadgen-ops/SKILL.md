@@ -7,6 +7,24 @@ description: LeadGen AI ka proven ops loop — verify, test, push, deploy + prod
 
 Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar hai; bar fail = **ABORT** (aage mat badho, partial deploy = prod-down). Live stack = Hostinger VPS Docker (`leadgen_app` container :8000, `docker-compose.vps.yml`), NOT systemd. **Windows = source of truth** (sandbox mount file-edits ke baad STALE — verify Windows venv pe).
 
+## VPS SSH access (authoritative — updated 2026-09-08)
+
+- **Host:** `72.61.245.204` (= `leadsgenai.in`) · **port 22** · **user `root`** — koi jump host / proxy nahi.
+  Sirf `root` exist karta hai (`PermitRootLogin yes`). `deploy` / `ubuntu` / `leadgen` / `app` / `devops` jaise
+  users hain hi nahi → unse try karna bekaar hai ("Invalid user ..." log me dikhega).
+- **Authorized key — SIRF yehi ek:** `C:\Users\Ratanshila\.ssh\id_rsa`
+  fingerprint: `SHA256:ehNfwGwq+AIJaVRbQnQcP0EJkWUDks/rKU0VE0vUDDQ ratanshila@WIN-GT6L1K7NN5H` (RSA 4096)
+  Iske alawa koi bhi key `Permission denied (publickey)` degi.
+- **Exact command:**
+  ```
+  ssh -o IdentitiesOnly=yes -i C:\Users\Ratanshila\.ssh\id_rsa -o StrictHostKeyChecking=no root@72.61.245.204
+  ```
+- **`-o IdentitiesOnly=yes` HAMESHA lagao.** Bina iske ssh `~/.ssh` ki saari default keys ek-ek karke try karta
+  hai, aur har failed attempt ek SSH auth-failure count hota hai.
+- ⚠️ **Warning:** galat key ya galat user baar-baar try karne se **fail2ban ka `sshd` jail tumhara IP ban kar
+  deta hai** (~5 attempts; `fail2ban-client status sshd` se banned list dekho). Ban lag gaya to wait-out karna
+  padega — isliye pehli attempt me hi sahi key + sahi user use karo, aur `IdentitiesOnly=yes` zaroor lagao.
+
 ## Step 0 — Pre-flight gate (deploy karna chahiye ya nahi)
 - **Code change hai?** Sirf `./data`/`./logs` (bind-mount) badla → rebuild NAHI, sidha recreate/koi action nahi. Code/`app/`/`frontend/`/`.claude/skills/` badla → full rebuild zaroori (image me BAKED).
 - **Branch**: `main` pe ho? VPS `origin/main` se reset karta hai — feature-branch ka kaam live nahi jaata.
@@ -23,7 +41,7 @@ Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar
    → **GATE**: push success (remote SHA match) confirm karo. **+ (2026-07-05) Foreign-commit check**: push se pehle `git log origin/main..HEAD --format="%h %s"` — background automation checked-out branch pe apne commits banati hai; unhe pehchano (inspect, intentionally include/exclude) — anjaane me automation ka unreviewed kaam push mat karo.
 4. **VPS pull + rebuild + recreate** — Git ka ssh.exe (Windows OpenSSH is PC pe broken). Image me code BAKED → **rebuild lazmi** (git-pull-restart kaafi NAHI). Build pipe `| tail` exit-code maskta → `set -o pipefail`. Compose service naam galat (`worker-heavy` hyphen) = poora `up` ABORT → pehle `docker compose ... config --services`.
    ```
-   C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 \
+   C:\PROGRA~1\Git\usr\bin\ssh.exe -o IdentitiesOnly=yes -i C:\Users\Ratanshila\.ssh\id_rsa -o StrictHostKeyChecking=no root@72.61.245.204 \
      "set -o pipefail; cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q && \
       docker compose -f docker-compose.vps.yml build app && \
       docker compose -f docker-compose.vps.yml up -d --no-deps app"
