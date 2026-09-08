@@ -127,7 +127,7 @@ exclude = [
     "__pycache__",
     "alembic",
     "*.pyc",
-    ".claude",
+    ".claude/",
 ]
 
 [tool.ruff.lint]

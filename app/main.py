@@ -567,8 +567,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
-    description="LeadGen AI - AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp
-    Advanced tier me AI voice agent jo inquiries ko call kare)",
+    description="LeadGen AI - AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp, Advanced tier me AI voice agent jo inquiries ko call kare)",
     version=os.environ.get("APP_VERSION", "1.0.0"),
     lifespan=lifespan,
     docs_url="/docs" if settings.app_env != "production" else None,  # Disable in production

@@ -446,8 +446,8 @@ def _async_engine_teardown_guard(event_loop):
     assert not leaked, (
         "aiosqlite connection worker thread(s) leaked at session end: "
         + ", ".join(leaked)
-        + " (app drain_inquiry_bg_tasks + dispose
-        see SQLAlchemy #13039)"
+        + " (app drain_inquiry_bg_tasks + dispose)"
+        + " see SQLAlchemy #13039"
     )
 
 
