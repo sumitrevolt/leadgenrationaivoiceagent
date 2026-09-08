@@ -7,7 +7,8 @@ plan auto-activates instantly on submit.
 
 NO prefix here — the main app mounts this at ``/api`` (so routes become
 ``/api/upi/...``). Auth is enforced PER-ROUTE. Defensive:
-import never fails, handlers never 500.
+import never fails
+import handlers never 500.
 """
 
 from __future__ import annotations

@@ -1,4 +1,5 @@
-import json, sys
+import json
+import sys
 
 for f in ["tasks.json", "bots.json", "pinned.json"]:
     p = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data/" + f

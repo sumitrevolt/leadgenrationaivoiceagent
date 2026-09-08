@@ -2,7 +2,9 @@
 """Owner Command Center builder: data/*.json(l) -> state.js (loaded by index.html).
 Validates: no active task without owner, ASSIGNED tasks must have assigned_at (ACK watchdog),
 every message has ts+from. Exit!=0 on violation."""
-import json, os, sys
+import json
+import os
+import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(BASE, "data")

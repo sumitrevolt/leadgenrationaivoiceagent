@@ -74,7 +74,8 @@ def _ensure_db_tables() -> bool:
     if _DB_READY:
         return True
     try:
-        import psycopg2  # sync driver — init only, no async overhead
+        import psycopg2  # sync driver — init only
+        import no async overhead
 
         from app.config import settings
 

@@ -3,7 +3,8 @@
 1 REV-COMMAND (ALL) + bottleneck-owner escalation (sales SAL-003 WA-send).
 Updates tasks.json evidence_tail (8 active), bots.json statuses, pinned.json.
 Appends to messages.jsonl. JSON-safe."""
-import json, os
+import json
+import os
 
 BASE = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"
 TS = "2026-09-02T06:37:00+05:30"

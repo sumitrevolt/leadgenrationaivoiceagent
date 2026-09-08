@@ -322,7 +322,8 @@ def tool_hot_queue_triage(args: dict) -> dict:
         PYTHON_EXE,
         "-c",
         f"""
-import sys, json
+import sys
+import json
 sys.path.insert(0, r'{str(REPO_ROOT)}')
 from app.platform import reply_agent
 

@@ -40,7 +40,8 @@ async def meta() -> dict[str, Any]:
 
 
 _VERIFIER_PY = '''# Python — verify a LeadsGenAI webhook (Flask/FastAPI/Django)
-import hmac, hashlib
+import hmac
+import hashlib
 
 WEBHOOK_SECRET = b"whsec_xxxxxxxx"   # value shown ONCE at registration
 

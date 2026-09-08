@@ -22,7 +22,8 @@ import json
 import os
 import re
 import shutil
-import subprocess  # noqa: S404 - fixed argv, never shell=True (see _run_renderer)
+import subprocess  # noqa: S404 - fixed argv
+import never shell=True (see _run_renderer)
 import sys
 import tempfile
 import time

@@ -28,7 +28,8 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
 
     requester = textwrap.dedent(
         f"""
-        import os, sys
+        import os
+        import sys
         sys.path.insert(0, {str(ROOT)!r})
         os.environ["AGENT_RUNTIME_CANCEL_BACKEND"] = "file"
         os.environ["AGENT_RUNTIME_CANCEL_FILE"] = {str(store)!r}
@@ -41,7 +42,9 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
 
     executor = textwrap.dedent(
         f"""
-        import asyncio, os, sys
+        import asyncio
+        import os
+        import sys
         sys.path.insert(0, {str(ROOT)!r})
         os.environ["AGENT_RUNTIME_CANCEL_BACKEND"] = "file"
         os.environ["AGENT_RUNTIME_CANCEL_FILE"] = {str(store)!r}

@@ -19,13 +19,21 @@
 #   (d) shows CTC and RNNT decoding (RNNT usually more accurate) + a GO/NO-GO summary
 # ============================================================================
 
-import subprocess, sys
+import subprocess
+import sys
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                 "transformers", "torchaudio", "soundfile", "librosa", "edge-tts",
                 "nest_asyncio", "indic-transliteration", "jiwer"], check=True)
 
-import asyncio, os, time, re, warnings
-import librosa, numpy as np, soundfile as sf, torch
+import asyncio
+import os
+import time
+import re
+import warnings
+import librosa
+import numpy as np
+import soundfile as sf
+import torch
 import nest_asyncio
 from transformers import AutoModel
 

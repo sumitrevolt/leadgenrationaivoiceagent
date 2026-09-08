@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate tasks.json + messages.jsonl after PILOT dispatch."""
-import json, os
+import json
+import os
 
 BASE = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"
 t = json.load(open(os.path.join(BASE, "tasks.json"), encoding="utf-8"))

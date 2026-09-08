@@ -7,7 +7,9 @@ releases session slot / idem claim => same 3 leads re-fetched forever, 0 attempt
 Fix: on FAIL, release slot + idem so next batch actually attempts again (when DID lands,
 retry hits PLACED OK). Compliance gates untouched.
 """
-import re, sys, shutil
+import re
+import sys
+import shutil
 
 path = "/opt/leadgen/scripts/fire_calls.py"
 src = open(path, encoding="utf-8").read()

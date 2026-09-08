@@ -26,7 +26,8 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess  # noqa: S404 - fixed argv ffprobe, never shell=True
+import subprocess  # noqa: S404 - fixed argv ffprobe
+import never shell=True
 from typing import Any
 
 CUSTOMER_APPROVABLE = "CUSTOMER_APPROVABLE"

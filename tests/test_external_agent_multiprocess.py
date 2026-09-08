@@ -89,7 +89,10 @@ def test_concurrent_claim_exactly_one_winner(shared_env):
     mid = _seed_mission(shared_env["root"])
     script = textwrap.dedent(
         f"""
-        import json, os, time, random
+        import json
+        import os
+        import time
+        import random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -121,7 +124,10 @@ def test_concurrent_claim_exactly_one_winner(shared_env):
 def test_concurrent_idempotent_create_same_mission_id(shared_env):
     script = textwrap.dedent(
         f"""
-        import json, os, time, random
+        import json
+        import os
+        import time
+        import random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -156,7 +162,8 @@ def test_concurrent_heartbeat_owner_only(shared_env):
     assert store.claim(mid, "owner-a", ttl_s=120)["claimed"]
     script = textwrap.dedent(
         f"""
-        import json, os
+        import json
+        import os
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -221,7 +228,10 @@ def test_concurrent_transition_one_commits(shared_env):
     mid = _seed_mission(shared_env["root"], status="PREFLIGHT")
     script = textwrap.dedent(
         f"""
-        import json, os, time, random
+        import json
+        import os
+        import time
+        import random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
@@ -285,7 +295,10 @@ def test_orchestrator_cancel_vs_advance_cas(shared_env):
 
     script = textwrap.dedent(
         f"""
-        import json, os, time, random
+        import json
+        import os
+        import time
+        import random
         os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env["root"])!r}
         os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
         os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'

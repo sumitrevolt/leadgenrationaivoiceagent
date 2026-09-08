@@ -1,4 +1,5 @@
-import json, sys
+import json
+import sys
 
 # Compare local command_center data vs VPS mirror copies (downloaded as .vps)
 BASE = r"C:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/command_center/data"

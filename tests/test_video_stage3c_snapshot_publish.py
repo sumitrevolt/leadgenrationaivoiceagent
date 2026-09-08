@@ -526,7 +526,10 @@ def test_12e_subprocess_kill_seam_recovers_stale_inflight(tmp_path, monkeypatch)
     store.write_text(json.dumps(seed) + "\n", encoding="utf-8")
 
     child = r"""
-import json, os, sys, time
+import json
+import os
+import sys
+import time
 from filelock import FileLock
 path = sys.argv[1]
 rid = sys.argv[2]
